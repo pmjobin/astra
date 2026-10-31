@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+error_parser = executable('astra-error-parser', 'parse-tests.vala', dependencies: frontend_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('error-1-parser', error_parser, args: ['--tap'], protocol: 'tap')
+error_heap = executable('astra-error-heap', 'heap-tests.vala', dependencies: ssa_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('error-1-heap', error_heap, args: ['--tap'], protocol: 'tap')
+error_snapshot = executable('astra-error-snapshot', 'snapshot-tests.vala', dependencies: cabi_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('error-1-snapshot', error_snapshot, args: ['--tap'], protocol: 'tap')
+error_exceptions = executable('astra-error-exceptions', ['exception-tests.vala', '../../bootstrap/backend/llvm/capi/llvm-test.vapi'], dependencies: llvm_backend_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('error-1-exceptions', error_exceptions, args: ['--tap'], protocol: 'tap')
+test('error-1-native-execution', ints_python, args: [files('execute.py'), astrac, meson.current_build_dir() / 'execution'], depends: astrac, timeout: 300, workdir: meson.project_source_root())
+test('error-1-installed-execution', ints_python, args: [files('install.py'), meson.project_build_root(), meson.current_build_dir() / 'installed'], depends: astrac, timeout: 300, workdir: meson.project_source_root())

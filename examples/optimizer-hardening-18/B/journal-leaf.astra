@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace JournalLeaf18;
+class Gate {
+	int transaction;
+	int kind;
+	int bound;
+	init(int transaction, int kind, int bound) {
+		this.transaction = transaction;
+		this.kind = kind;
+		this.bound = bound;
+	}
+	property int limit { get { return this.bound; } }
+	deinit() { journal18_retire(this.transaction, this.kind); }
+}
+int gate_limit(Gate gate) { return gate.limit; }
+int add_two(int value) { return value + 2; }

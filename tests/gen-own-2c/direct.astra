@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	var original = new Counter(80, 1);
+	var received = echo<Counter>(move original, 80);
+	if (received.id != 80) { return 81; }
+	consume<Counter>(move received, 80);
+	return own_finish();
+}

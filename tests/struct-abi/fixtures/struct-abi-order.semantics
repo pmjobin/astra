@@ -1,0 +1,97 @@
+(program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(function "mutate" -> int
+		(parameters
+			(parameter #0 "value" : Pair*)
+		)
+		(block
+			(assign-indirect-field (parameter-ref #0 "value" : Pair*) (field #0 "x" : int) (binary + : int (indirect-field-ref (parameter-ref #0 "value" : Pair*) (field #0 "x" : int)) (integer 10 : int)))
+			(assign-indirect-field (parameter-ref #0 "value" : Pair*) (field #1 "y" : f64) (binary + : f64 (indirect-field-ref (parameter-ref #0 "value" : Pair*) (field #1 "y" : f64)) (f64 0x4024000000000000 : f64)))
+			(return (indirect-field-ref (parameter-ref #0 "value" : Pair*) (field #0 "x" : int)))
+		)
+	)
+	(function "mutate_result" -> Pair
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(parameter #0 "value" : Pair*)
+		)
+		(block
+			(assign-indirect-field (parameter-ref #0 "value" : Pair*) (field #0 "x" : int) (binary + : int (indirect-field-ref (parameter-ref #0 "value" : Pair*) (field #0 "x" : int)) (integer 10 : int)))
+			(assign-indirect-field (parameter-ref #0 "value" : Pair*) (field #1 "y" : f64) (binary + : f64 (indirect-field-ref (parameter-ref #0 "value" : Pair*) (field #1 "y" : f64)) (f64 0x4024000000000000 : f64)))
+			(struct-return (struct-snapshot : Pair (dereference-place : Pair null-traps (parameter-ref #0 "value" : Pair*))) snapshot-before-cleanup)
+		)
+	)
+	(function "observe" -> int
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "first" : Pair)
+			(parameter #1 "middle" : int)
+			(struct-parameter #2 COPY_VALUE read-only independent-local)
+			(parameter #2 "last" : Pair)
+			(parameter #3 "tail" : f64)
+		)
+		(locals
+			(local #0 "first" : Pair)
+			(local #1 "last" : Pair)
+		)
+		(block
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (field-ref (local #0 "first" : Pair) (field #0 "x" : int)) (integer 7 : int)) (binary != : bool (field-ref (local #0 "first" : Pair) (field #1 "y" : f64)) (f64 0x400c000000000000 : f64))) (binary != : bool (parameter-ref #1 "middle" : int) (integer 17 : int))) (binary != : bool (field-ref (local #1 "last" : Pair) (field #0 "x" : int)) (integer 27 : int))) (binary != : bool (field-ref (local #1 "last" : Pair) (field #1 "y" : f64)) (f64 0x4037800000000000 : f64))) (binary != : bool (parameter-ref #3 "tail" : f64) (f64 0x4037800000000000 : f64))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+	(function "scalar_first" -> int
+		(parameters
+			(parameter #0 "first" : int)
+			(struct-parameter #1 COPY_VALUE read-only independent-local)
+			(parameter #1 "second" : Pair)
+		)
+		(locals
+			(local #0 "second" : Pair)
+		)
+		(block
+			(if
+				(condition (short-circuit || : bool (binary != : bool (parameter-ref #0 "first" : int) (integer 7 : int)) (binary != : bool (field-ref (local #0 "second" : Pair) (field #0 "x" : int)) (integer 17 : int))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "pair" : Pair address-taken)
+			(local #1 "result" : int)
+		)
+		(block
+			(struct-local #0 "pair" : Pair
+				(initialize-field #0 "x" (integer 7 : int))
+				(initialize-field #1 "y" (f64 0x400c000000000000 : f64))
+			)
+			(local-init #1 "result" : int (call "observe" -> int (arguments (struct-argument #0 snapshot-at-argument (struct-snapshot : Pair (local-place #0 : Pair))) (call "mutate" -> int (arguments (address-of (local #0 "pair" : Pair) : Pair*))) (struct-argument #2 snapshot-at-argument (struct-call-result mutate_result : Pair (address-of (local #0 "pair" : Pair) : Pair*))) (field-ref (local #0 "pair" : Pair) (field #1 "y" : f64)))))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (binary != : bool (local-ref #1 "result" : int) (integer 0 : int)) (binary != : bool (field-ref (local #0 "pair" : Pair) (field #0 "x" : int)) (integer 27 : int))) (binary != : bool (field-ref (local #0 "pair" : Pair) (field #1 "y" : f64)) (f64 0x4037800000000000 : f64))))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(assign (field-ref (local #0 "pair" : Pair) (field #0 "x" : int)) (integer 7 : int))
+			(return (call "scalar_first" -> int (arguments (field-ref (local #0 "pair" : Pair) (field #0 "x" : int)) (struct-argument #1 snapshot-at-argument (struct-call-result mutate_result : Pair (address-of (local #0 "pair" : Pair) : Pair*))))))
+		)
+	)
+)

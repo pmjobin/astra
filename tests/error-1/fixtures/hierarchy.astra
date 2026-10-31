@@ -1,0 +1,31 @@
+class Label {
+	readonly string description;
+	init(string input) { this.description = input; }
+	virtual property string text { get { return this.description; } }
+	virtual int kind() { return 1; }
+}
+class FancyLabel : Label {
+	readonly string decoration;
+	init(string input, string extra) : base(input) { this.decoration = extra; }
+	override property string text { get { return this.decoration; } }
+	override int kind() { return 2; }
+	bool inherited() { return this.description == "base ignored"; }
+}
+class FinalLabel : FancyLabel {
+	init(string input, string extra) : base(input, extra) {}
+	override int kind() { return 3; }
+	property string inherited_snapshot { get { return this.description; } }
+}
+bool read(Label label, string expected, int kind) {
+	return label.text == expected && label.kind() == kind;
+}
+int main() {
+	var base_label = new Label("base");
+	var fancy = new FinalLabel("base ignored", "override\0é");
+	if (!read(base_label, "base", 1)) { return 81; }
+	if (!read(fancy, "override\0é", 3)) { return 82; }
+	if (fancy.description != "base ignored") { return 83; }
+	if (!fancy.inherited()) { return 84; }
+	if (fancy.inherited_snapshot != "base ignored") { return 85; }
+	return 42;
+}

@@ -1,0 +1,15 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	int get() { return this.value; }
+}
+void increment(borrowed Counter counter) {
+	counter.value = counter.value + 1;
+}
+int main() {
+	Counter c = Counter.init(41);
+	increment(c);
+	return c.get();
+}

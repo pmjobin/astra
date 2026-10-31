@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Lab { int value; f64 sample; }
+int scalar(int x, f64 y, bool z) { if (z && y == 2.0) { return x; } return 0; }
+int vector(int<4> x, bool<4> mask) { if (all(mask)) { return x[2]; } return 0; }
+int copy(Lab x) { Lab independent = x; independent.value = 99; return x.value; }
+void pointer(int* x) { *x = 4; }
+void* raw(void* p) { return p; }
+int main() {
+	Lab lab = { value = 3, sample = 2.0 }; var lanes = splat(7, 4); var mask = lanes == lanes; int x = 1; pointer(&x);
+	if (scalar(2, 2.0, true) != 2 || vector(lanes, mask) != 7 || copy(lab) != 3 || lab.value != 3 || x != 4 || raw(null) != null) { return 1; }
+	return 0;
+}

@@ -1,0 +1,273 @@
+(ssa-program
+	(function #0 "narrow" -> u8
+		(parameters
+			(%0 "x" : u8)
+		)
+		(entry #0)
+		(block #0
+			(return %0)
+		)
+	)
+	(function #1 "large" -> u32
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (integer 4000000000 : u32))
+		)
+	)
+	(function #2 "minimum" -> i8
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (integer -128 : i8))
+		)
+	)
+	(function #3 "minimum16" -> i16
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (integer -32768 : i16))
+		)
+	)
+	(function #4 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%11 : u8 = binary + (integer 1 : u8) (integer 2 : u8))
+			(%12 : i16 = binary + (integer 1 : i16) (integer 2 : i16))
+			(%13 : u16 = binary + (integer 1 : u16) (integer 2 : u16))
+			(%14 : u32 = binary + (integer 1 : u32) (integer 2 : u32))
+			(%15 : u8 = binary + (integer 254 : u8) (integer 1 : u8))
+			(%16 : u8 = call #0 "narrow" -> u8 (arguments %15))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #14 ())
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(branch #5 ())
+		)
+		(block #5
+			(%17 : bool = binary != (integer 42 : u8) (integer 42 : u8))
+			(conditional-branch %17
+				(true #7 ((bool true : bool)))
+				(false #6 ())
+			)
+		)
+		(block #6
+			(%18 : bool = binary != (integer 65535 : u16) (integer 65535 : u16))
+			(branch #7 (%18))
+		)
+		(block #7
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #9 ((bool true : bool)))
+				(false #8 ())
+			)
+		)
+		(block #8
+			(%19 : u32 = call #1 "large" -> u32 (arguments))
+			(%20 : bool = binary != (integer 4000000000 : u32) %19)
+			(branch #9 (%20))
+		)
+		(block #9
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #11 ((bool true : bool)))
+				(false #10 ())
+			)
+		)
+		(block #10
+			(%21 : i16 = call #3 "minimum16" -> i16 (arguments))
+			(%22 : bool = binary != (integer -32768 : i16) %21)
+			(branch #11 (%22))
+		)
+		(block #11
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #12
+			(return (integer 2 : int))
+		)
+		(block #13
+			(branch #25 ())
+		)
+		(block #14
+			(branch #15 ())
+		)
+		(block #15
+			(branch #16 ())
+		)
+		(block #16
+			(%23 : bool = binary != %16 (integer 255 : u8))
+			(conditional-branch %23
+				(true #18 ((bool true : bool)))
+				(false #17 ())
+			)
+		)
+		(block #17
+			(%24 : bool = binary != %12 (integer 3 : i16))
+			(branch #18 (%24))
+		)
+		(block #18
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #20 ((bool true : bool)))
+				(false #19 ())
+			)
+		)
+		(block #19
+			(%25 : bool = binary != %13 (integer 3 : u16))
+			(branch #20 (%25))
+		)
+		(block #20
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #22 ((bool true : bool)))
+				(false #21 ())
+			)
+		)
+		(block #21
+			(%26 : bool = binary != %14 (integer 3 : u32))
+			(branch #22 (%26))
+		)
+		(block #22
+			(arguments
+				(%5 (temporary #5) : bool)
+			)
+			(conditional-branch %5
+				(true #12 ())
+				(false #13 ())
+			)
+		)
+		(block #23
+			(return (integer 3 : int))
+		)
+		(block #24
+			(branch #36 ())
+		)
+		(block #25
+			(branch #26 ())
+		)
+		(block #26
+			(branch #27 ())
+		)
+		(block #27
+			(%27 : u8 = binary + (integer 1 : u8) %16)
+			(%28 : bool = binary != %27 (integer 0 : u8))
+			(conditional-branch %28
+				(true #29 ((bool true : bool)))
+				(false #28 ())
+			)
+		)
+		(block #28
+			(%29 : u8 = binary + %16 (integer 1 : u8))
+			(%30 : bool = binary != %29 (integer 0 : u8))
+			(branch #29 (%30))
+		)
+		(block #29
+			(arguments
+				(%6 (temporary #6) : bool)
+			)
+			(conditional-branch %6
+				(true #31 ((bool true : bool)))
+				(false #30 ())
+			)
+		)
+		(block #30
+			(%31 : u8 = binary + (integer 1 : u8) %16)
+			(%32 : bool = binary != (integer 0 : u8) %31)
+			(branch #31 (%32))
+		)
+		(block #31
+			(arguments
+				(%7 (temporary #7) : bool)
+			)
+			(conditional-branch %7
+				(true #33 ((bool true : bool)))
+				(false #32 ())
+			)
+		)
+		(block #32
+			(%33 : i8 = call #2 "minimum" -> i8 (arguments))
+			(%34 : bool = binary != %33 (integer -128 : i8))
+			(branch #33 (%34))
+		)
+		(block #33
+			(arguments
+				(%8 (temporary #8) : bool)
+			)
+			(conditional-branch %8
+				(true #23 ())
+				(false #24 ())
+			)
+		)
+		(block #34
+			(return (integer 4 : int))
+		)
+		(block #35
+			(return (integer 0 : int))
+		)
+		(block #36
+			(branch #37 ())
+		)
+		(block #37
+			(%35 : u8 = binary + (integer 2 : u8) %16)
+			(%36 : u8 = binary + (integer 1 : u8) %35)
+			(%37 : bool = binary != %36 (integer 2 : u8))
+			(conditional-branch %37
+				(true #39 ((bool true : bool)))
+				(false #38 ())
+			)
+		)
+		(block #38
+			(%38 : u8 = call #0 "narrow" -> u8 (arguments (integer 255 : u8)))
+			(%39 : u8 = binary + (integer 2 : u8) %38)
+			(%40 : u8 = binary + (integer 1 : u8) %39)
+			(%41 : bool = binary != %40 (integer 2 : u8))
+			(branch #39 (%41))
+		)
+		(block #39
+			(arguments
+				(%9 (temporary #9) : bool)
+			)
+			(conditional-branch %9
+				(true #41 ((bool true : bool)))
+				(false #40 ())
+			)
+		)
+		(block #40
+			(%42 : u16 = binary + (integer 1 : u16) (integer 65535 : u16))
+			(%43 : bool = binary != %42 (integer 0 : u16))
+			(branch #41 (%43))
+		)
+		(block #41
+			(arguments
+				(%10 (temporary #10) : bool)
+			)
+			(conditional-branch %10
+				(true #34 ())
+				(false #35 ())
+			)
+		)
+	)
+)

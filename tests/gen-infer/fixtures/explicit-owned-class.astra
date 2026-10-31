@@ -1,0 +1,10 @@
+class Context {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { mark(this.value); }
+}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+void dispose<T>(owned T value) where T : Ownable {}
+owned Context make(int value){return Context.init(value);}
+owned Context forward(owned Context value){return relay<Context>(move value);}
+int main(){var source=make(7);var result=forward(move source);if(result.value!=7){return 1;}dispose<Context>(move result);return 0;}

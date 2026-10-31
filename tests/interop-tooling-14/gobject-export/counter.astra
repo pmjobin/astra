@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="astra14_created")] int created(int value);
+[CImport(name="astra14_destroyed")] int destroyed(int value);
+
+[GObjectExport(type="Astra14Counter", namespace="Astra14", version="1.0")]
+[Shared]
+[CExport(name="astra14_counter", property="value")]
+class Counter {
+	private int data;
+	init(int value) { this.data = value; created(value); }
+	property int value {
+		get { return this.data; }
+		set(int value) { this.data = value; }
+	}
+	deinit() { destroyed(this.data); }
+}

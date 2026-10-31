@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class TransportCell<T> {
+	owned T payload;
+	int serial;
+	init(owned T payload, int serial) { this.payload = move payload; this.serial = serial; }
+	deinit() { mark(this.serial); }
+}
+struct TransportStats { int code; i64 wide; }
+struct TransportResources { owned R first; owned Other second; }
+
+int observe_transport<T>(borrowed T value, int code) where T : Ownable { return mark(code); }
+int forward_observation<T>(borrowed T value, int code) where T : Ownable { return observe_transport(value, code); }
+void retire_transport<T>(owned T value) where T : Ownable {}
+void forward_transport<T>(owned T value) where T : Ownable { retire_transport(move value); }
+
+int exercise() {
+	var heap = new TransportCell<int>(42, 701);
+	if (forward_observation(heap, 771) != 771 || heap.payload != 42) { return 1; }
+	forward_transport(move heap);
+	owned TransportCell<int> lexical = TransportCell<int>.init(7, 702);
+	if (observe_transport<TransportCell<int>>(lexical, 772) != 772 || lexical.payload != 7) { return 2; }
+	retire_transport<TransportCell<int>>(move lexical);
+	var first = make(151);
+	var second = make_other(152);
+	TransportResources payload = {first = move first, second = move second};
+	var inner = new TransportCell<TransportResources>(move payload, 703);
+	var outer = new TransportCell<TransportCell<TransportResources>>(move inner, 704);
+	if (observe_transport(outer, 773) != 773 || outer.serial != 704 || live() != 2) { return 3; }
+	forward_transport(move outer);
+	if (live() != 0) { return 4; }
+	TransportStats stats = {code = 47, wide = 9000000001};
+	var copied = new TransportCell<TransportStats>(stats, 705);
+	if (observe_transport(copied, 774) != 774 || copied.payload.wide != 9000000001) { return 5; }
+	retire_transport(move copied);
+	if (observe_transport<TransportCell<int>>(null, 775) != 775) { return 6; }
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

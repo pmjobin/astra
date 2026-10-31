@@ -1,0 +1,197 @@
+(core-program
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "a" : int)
+			(local-place #1 "b" : int)
+			(local-place #2 "c" : i8)
+			(local-place #3 "d" : u8)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(call "astra.gen.1.0" -> int
+					(arguments
+						(integer 40 : int)
+						(integer 2 : int)
+						(bool true : bool)
+					)
+				)
+			)
+			(initialize
+				(local-place #1 : int)
+				(call "astra.gen.1.0" -> int
+					(arguments
+						(integer 40 : int)
+						(integer 2 : int)
+						(bool false : bool)
+					)
+				)
+			)
+			(initialize
+				(local-place #2 : i8)
+				(call "astra.gen.0.1" -> i8
+					(arguments
+						(integer 1 : i8)
+						(integer 2 : i8)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : u8)
+				(call "astra.gen.0.2" -> u8
+					(arguments
+						(integer 1 : u8)
+						(integer 2 : u8)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(short-circuit && : bool
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(load : int
+										(local-place #1 : int)
+									)
+								)
+								(binary == : bool
+									(load : i8
+										(local-place #2 : i8)
+									)
+									(integer 3 : i8)
+								)
+							)
+							(binary == : bool
+								(load : u8
+									(local-place #3 : u8)
+								)
+								(integer 3 : u8)
+							)
+						)
+						(binary == : bool
+							(call "astra.gen.2.3" -> int
+								(arguments)
+							)
+							(call "astra.gen.2.4" -> int
+								(arguments)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(load : int
+								(local-place #0 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-instance #0 (origin #1 "outer") (type-arguments int bool) (requests 2) (callers "root#0:main"))
+	(function "astra.gen.1.0" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+			(parameter #2 "token" : bool)
+		)
+		(block
+			(if
+				(condition
+					(binary == : bool
+						(parameter #2 : bool)
+						(parameter #2 : bool)
+					)
+				)
+				(then
+					(block
+						(return
+							(call "astra.gen.0.5" -> int
+								(arguments
+									(parameter #0 : int)
+									(parameter #1 : int)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(parameter #0 : int)
+			)
+		)
+	)
+	(generic-instance #1 (origin #0 "inner") (type-arguments i8) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.1" -> i8
+		(parameters
+			(parameter #0 "a" : i8)
+			(parameter #1 "b" : i8)
+		)
+		(block
+			(return
+				(binary + : i8
+					(parameter #0 : i8)
+					(parameter #1 : i8)
+				)
+			)
+		)
+	)
+	(generic-instance #2 (origin #0 "inner") (type-arguments u8) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.2" -> u8
+		(parameters
+			(parameter #0 "a" : u8)
+			(parameter #1 "b" : u8)
+		)
+		(block
+			(return
+				(binary + : u8
+					(parameter #0 : u8)
+					(parameter #1 : u8)
+				)
+			)
+		)
+	)
+	(generic-instance #3 (origin #2 "tag") (type-arguments int) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.2.3" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-instance #4 (origin #2 "tag") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.2.4" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-instance #5 (origin #0 "inner") (type-arguments int) (requests 1) (callers "astra.gen.1.0"))
+	(function "astra.gen.0.5" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(binary + : int
+					(parameter #0 : int)
+					(parameter #1 : int)
+				)
+			)
+		)
+	)
+)

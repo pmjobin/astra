@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Aggregate code|message records; preserve owned diagnostic rows until output.
+class DiagnosticInputError : Error { init() : base("code|message expected") {} }
+class DiagnosticScope {
+	init() {}
+	deinit() { println("diagnostics released"); }
+}
+int diagnostic_summary(string input, string destination) throws Error {
+	var scope = new DiagnosticScope();
+	var bytes = read_file(input); var source = bytes.decode();
+	var rows = new Bag<Utf8Message>();
+	int start = 0; int positives = 0; int negatives = 0; int zeros = 0;
+	while (start < source.text.byte_length) {
+		int end = text_find(source.text, "\n", start);
+		if (end < 0) { end = source.text.byte_length; }
+		if (end > start) {
+			var line = text_segment(source.text, start, end - start);
+			int separator = text_find(line.text, "|", 0);
+			if (separator < 1) { throw new DiagnosticInputError(); }
+			var number = text_segment(line.text, 0, separator);
+			int code = parse_int(number.text);
+			if (code > 0) { positives = positives + 1; }
+			else { if (code < 0) { negatives = negatives + 1; } else { zeros = zeros + 1; } }
+			var payload = text_segment(line.text, separator + 1, line.text.byte_length - separator - 1);
+			var builder = new Utf8ByteBuilder();
+			require_text(append_int(builder, code)); require_text(append_text(builder, ":"));
+			require_text(append_int(builder, payload.text.byte_length)); require_text(append_text(builder, ":"));
+			require_text(append_text(builder, payload.text));
+			var message = builder.snapshot();
+			if (rows.count() == rows.capacity() && !rows.reserve(rows.count() + 1)) { return 70; }
+			rows.append(move message);
+		}
+		if (end == source.text.byte_length) { break; }
+		start = end + 1;
+	}
+	var output = new Utf8ByteBuilder();
+	require_text(append_text(output, "positive=")); require_text(append_int(output, positives));
+	require_text(append_text(output, " negative=")); require_text(append_int(output, negatives));
+	require_text(append_text(output, " zero=")); require_text(append_int(output, zeros));
+	require_text(append_text(output, "\n"));
+	int i = 0;
+	while (i < rows.count()) { require_text(render_message(rows.entries[i], output)); i = i + 1; }
+	var report = output.snapshot(); write_text_file(destination, report.text); return 0;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try { return diagnostic_summary(args[1], args[2]); }
+	catch (FileError error) { println_stderr("file I/O"); return 2; }
+	catch (Error error) { println_stderr("invalid diagnostics"); return 3; }
+}

@@ -1,0 +1,16 @@
+class Context {
+	owned R resource;
+	int count;
+	init(owned R resource) { this.resource = move resource; this.count = 0; }
+	void replace(owned R incoming) { this.resource = move incoming; }
+	int get() { return id(this.resource); }
+}
+int main() {
+	{ owned R a = make(1); Context c = Context.init(move a);
+		owned R b = make(2); c.resource = move b;
+		if (c.get() != 2 || live() != 1) { return 1; }
+		c.resource = make(3);
+		if (c.get() != 3 || live() != 1) { return 2; }
+	}
+	if (live() != 0) { return 3; } return 42;
+}

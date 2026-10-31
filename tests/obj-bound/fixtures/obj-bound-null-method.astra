@@ -1,0 +1,5 @@
+extern(C) int life_record(int code, int value);
+class Counter { int value; int set(int n) { this.value = n; return n; } }
+int effect() { return life_record(88, 42); }
+int invoke(borrowed Counter c) { life_record(69, 0); return c.set(effect()); }
+int main() { return invoke(null); }

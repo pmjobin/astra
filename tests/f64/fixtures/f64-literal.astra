@@ -1,0 +1,14 @@
+f64 tie() { return 9007199254740993.0; }
+f64 precise() { return 1.0000000000000002; }
+f64 negative_zero() { return -0.0; }
+f64 tiny() { return 4.9406564584124654e-324; }
+f64 max_subnormal() { return 2.2250738585072009e-308; }
+f64 min_normal() { return 2.2250738585072014e-308; }
+f64 maximum() { return 1.7976931348623157e308; }
+f64 overflow() { return 1e309; }
+f64 underflow() { return -1e-1000; }
+int main() {
+	if (tie() != 9007199254740992.0 || precise() == 1.0 || tiny() == 0.0 || min_normal() <= max_subnormal() || maximum() >= overflow()) { return 1; }
+	if (1.0 / negative_zero() != -overflow() || 1.0 / underflow() != -overflow()) { return 2; }
+	return 0;
+}

@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CCode(text_abi="utf8-i32")]
+extern(C) int sequence_prepare(borrowed string path);
+[CCode(text_abi="utf8-i32")]
+extern(C) void sequence_error(borrowed string message);
+extern(C) int sequence_finish(int result);
+
+[Allocator(kind="context",context="scoped-affine")]
+class LocalInterval {
+	private int offset;
+	private int count;
+	init(int offset, int count) { this.offset = offset; this.count = count; }
+	bool valid(int extent) { return this.offset >= 0 && this.count > 0 && this.count <= 3071 && this.count <= extent && this.offset <= extent - this.count; }
+}
+bool sequence_valid_triple(SequenceModel.Triple pair, int extent) {
+	owned u8[] backing = new u8[8191];
+	var context = scoped_allocator<ScopedAllocator>(backing, 1, 7);
+	if (context == null) { return false; }
+	var first = new(context) LocalInterval(pair.first.offset, pair.first.count);
+	var second = new(context) LocalInterval(pair.second.offset, pair.second.count);
+	var third = new(context) LocalInterval(pair.third.offset, pair.third.count);
+	return first.valid(extent) && second.valid(extent) && third.valid(extent);
+}
+int sequence_integer(u8[] bytes, int offset) throws SequenceModel.Fault {
+	if (bytes[offset + 3] != 0) { throw new Error("query integer exceeds protocol bound"); }
+	return (bytes[offset] as int) + (bytes[offset + 1] as int) * 256 + (bytes[offset + 2] as int) * 65536;
+}
+void sequence_put_integer(u8[] bytes, int offset, int value) {
+	int remaining = value;
+	for (int i = 0; i < 4; i = i + 1) { bytes[offset + i] = (remaining % 256) as u8; remaining = remaining / 256; }
+}
+void sequence_encode(u8[] bytes, SequenceModel.Reply<SequenceModel.Alignment> reply, int left_sample, int right_sample) {
+	sequence_put_integer(bytes, 0, 83); sequence_put_integer(bytes, 4, reply.identity); sequence_put_integer(bytes, 8, 0);
+	sequence_put_integer(bytes, 12, reply.cached); sequence_put_integer(bytes, 16, reply.payload.generation); sequence_put_integer(bytes, 20, reply.payload.inner.ordinal);
+	sequence_put_integer(bytes, 24, reply.payload.inner.value.ranges.first.offset); sequence_put_integer(bytes, 28, reply.payload.inner.value.ranges.first.count);
+	sequence_put_integer(bytes, 32, reply.payload.inner.value.ranges.second.offset); sequence_put_integer(bytes, 36, reply.payload.inner.value.ranges.second.count);
+	sequence_put_integer(bytes, 40, reply.payload.inner.value.ranges.third.offset); sequence_put_integer(bytes, 44, reply.payload.inner.value.ranges.third.count);
+	sequence_put_integer(bytes, 48, reply.payload.inner.value.totals.count); sequence_put_integer(bytes, 52, reply.payload.inner.value.totals.sum); sequence_put_integer(bytes, 56, reply.payload.inner.value.totals.energy);
+	sequence_put_integer(bytes, 60, reply.payload.inner.value.scores.left); sequence_put_integer(bytes, 64, reply.payload.inner.value.scores.right);
+	sequence_put_integer(bytes, 68, left_sample); sequence_put_integer(bytes, 72, right_sample); sequence_put_integer(bytes, 76, reply.payload.inner.value.ranges.first.count + 1);
+}
+
+void sequence_failure(u8[] bytes, int identity, int status) {
+	for (int i = 0; i < 80; i = i + 1) { bytes[i] = 0; }
+	sequence_put_integer(bytes, 0, 83); sequence_put_integer(bytes, 4, identity); sequence_put_integer(bytes, 8, status);
+}
+owned SequenceModel.Entry sequence_lookup(borrowed SequenceModel.Cache cache, SequenceModel.Triple ranges, int mode) {
+	if (mode == 1) { cache.miss(); return null; }
+	var result = SequenceModel.lookup(cache, ranges); return move result;
+}
+void sequence_success(u8[] bytes, borrowed SequenceModel.Entry entry, int identity, int cached) {
+	SequenceModel.Reply<SequenceModel.Alignment> reply = SequenceModel.reply(entry, identity, cached); sequence_encode(bytes, reply, entry.left_at(entry.first_count() / 3), entry.right_at((entry.first_count() * 2) / 3));
+}
+
+async void sequence_client(owned TcpSocket socket, owned SequenceModel.Queue reads, owned SequenceModel.Cache cache, int client, int quota, int extent) throws SequenceModel.Fault {
+	try {
+		var context = sequence_allocator(quota as i64, 128, 10 + client);
+		if (context == null) { throw new Error("query client allocator"); }
+		var header = new(context)u8[32]; var response = new(context)u8[80];
+		bool done = false; int queries = 0;
+		while (!done) {
+			int received = 0; int started = astra_net_milliseconds();
+			while (received < 32) {
+				if (cache.stopped()) { throw new Error("query client stopped"); }
+				int count = socket.try_read(header, received, 32 - received);
+				if (count > 0) { received = received + count; sequence_event(12, client, count); }
+				else { if (count == 0) { throw new Error("query client EOF"); } network_deadline(started, 15000); await delay_ms(1); }
+			}
+			int identity = sequence_integer(header, 0);
+			if (identity == 0) { done = true; }
+			else {
+				if (queries >= 64) { throw new Error("query request budget"); } queries = queries + 1;
+				SequenceModel.Triple ranges = {first = {offset = sequence_integer(header, 4), count = sequence_integer(header, 8)}, second = {offset = sequence_integer(header, 12), count = sequence_integer(header, 16)}, third = {offset = sequence_integer(header, 20), count = sequence_integer(header, 24)}};
+				int mode = sequence_integer(header, 28); int cached = 0;
+				if (mode > 1 || !sequence_valid_triple(ranges, extent)) { cache.rejection(); sequence_failure(response, identity, 1); }
+				else {
+					var entry = sequence_lookup(cache, ranges, mode);
+					if (entry != null) { cached = 1; sequence_success(response, entry, identity, cached); }
+					else {
+						var ticket = SequenceSetup.ticket(context, identity, mode, ranges);
+						while (!reads.available()) { if (cache.stopped()) { throw new Error("query read queue stopped"); } network_deadline(started, 15000); await delay_ms(1); }
+						var enqueued = SequenceModel.clone_ticket(ticket); if (!reads.offer(move enqueued)) { throw new Error("query read queue admission"); }
+						while (ticket.state() == 0) { if (cache.stopped()) { throw new Error("query analysis stopped"); } network_deadline(started, 15000); await delay_ms(1); }
+						if (ticket.state() == 1) { var computed = ticket.outcome(); sequence_success(response, computed, identity, 0); }
+						else { sequence_failure(response, identity, 2); }
+					}
+				}
+				int sent = 0;
+				while (sent < 80) {
+					int count = socket.try_write(response, sent, 80 - sent);
+					if (count > 0) { sent = sent + count; } else { network_deadline(started, 15000); await delay_ms(1); }
+				}
+				sequence_event(13, identity, cached);
+			}
+		}
+		socket.half_close(); cache.client_done();
+	} catch (SequenceModel.Fault error) { cache.fail(); throw; }
+}
+
+async void sequence_read(owned LinuxPayload file, owned SequenceModel.Queue reads, owned SequenceModel.Queue ready, owned SequenceModel.Cache cache) throws SequenceModel.Fault {
+	try {
+		bool done = false;
+		while (!done) {
+			if (cache.stopped()) { throw new Error("query file stage stopped"); }
+			var ticket = reads.pop();
+			if (ticket == null) { if (cache.completed_clients() == 3) { done = true; } else { await delay_ms(1); } }
+			else {
+				var block = ticket.payload(); int destination = 0;
+				for (int half = 0; half < 3; half = half + 1) {
+					int offset = ticket.first_offset(); int length = ticket.first_count();
+					if (half == 1) { offset = ticket.second_offset(); length = ticket.second_count(); }
+					if (half == 2) { offset = ticket.third_offset(); length = ticket.third_count(); }
+					int received = 0;
+					while (received < length) {
+						payload_configure(file, 0, length - received, (offset + received) as i64); await payload_io(file);
+						int count = astra_linux_payload_count(file); if (count <= 0 || count > length - received) { throw new Error("query file range progress"); }
+						for (int i = 0; i < count; i = i + 1) { block.set_byte(destination + received + i, payload_byte(file, i)); }
+						received = received + count;
+					}
+					destination = destination + length;
+				}
+				sequence_event(4, ticket.id(), destination);
+				while (!ready.available()) { if (cache.stopped()) { throw new Error("query CPU queue stopped"); } await delay_ms(1); }
+				if (!ready.offer(move ticket)) { throw new Error("query CPU queue admission"); }
+			}
+		}
+		payload_finish(file);
+	} catch (SequenceModel.Fault error) { cache.fail(); throw; }
+}
+async void sequence_compute(owned WorkerPool pool, owned SequenceModel.Queue ready, owned SequenceModel.Cache cache, int quota) throws SequenceModel.Fault {
+	try {
+		int completed = 0;
+		{
+			var frames = sequence_allocator((quota * 2) as i64, 32, 40); var children = sequence_allocator((quota * 2) as i64, 32, 41);
+			if (frames == null || children == null) { throw new Error("query frame allocator"); }
+			completed = await pool.submit(task_in(frames, SequenceCPU.pipeline(move children, SequenceModel.clone_queue(ready), SequenceModel.clone_cache(cache), quota)));
+		}
+		sequence_event(10, completed, 0); sequence_event(11, sequence_provider_disposed(61), sequence_provider_disposed(62));
+	} catch (SequenceModel.Fault error) { cache.fail(); throw; }
+}
+async void sequence_status(owned UdpSocket socket, owned SequenceModel.Cache cache) throws SequenceModel.Fault {
+	var bytes = new u8[24];
+	while (true) {
+		try {
+			NetworkDatagram packet = socket.receive_from(bytes, 0, 1);
+			if (packet.count == 1 && packet.message_length == 1 && bytes[0] == 81) {
+				sequence_put_integer(bytes, 0, 83); sequence_put_integer(bytes, 4, cache.hit_count()); sequence_put_integer(bytes, 8, cache.miss_count());
+				sequence_put_integer(bytes, 12, cache.count()); sequence_put_integer(bytes, 16, cache.rejections()); sequence_put_integer(bytes, 20, cache.completed_clients());
+				int count = socket.send_to(packet.peer, bytes, 0, 24); if (count != 24 && count != NetAgain && count != NetInterrupted) { throw new Error("query status send"); }
+			}
+		} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) { throw; } }
+		await delay_ms(1);
+	}
+}
+
+async void sequence_pipeline(owned TcpSocket first_socket, owned TcpSocket second_socket, owned TcpSocket third_socket, owned UdpSocket datagrams, owned LinuxPayload file, owned WorkerPool pool, owned SequenceModel.Queue reads, owned SequenceModel.Queue ready, owned SequenceModel.Cache cache, int quota, int extent) throws SequenceModel.Fault {
+	var first = sequence_client(move first_socket, SequenceModel.clone_queue(reads), SequenceModel.clone_cache(cache), 1, quota, extent);
+	var second = sequence_client(move second_socket, SequenceModel.clone_queue(reads), SequenceModel.clone_cache(cache), 2, quota, extent);
+	var third = sequence_client(move third_socket, SequenceModel.clone_queue(reads), SequenceModel.clone_cache(cache), 3, quota, extent);
+	var reader = sequence_read(move file, SequenceModel.clone_queue(reads), SequenceModel.clone_queue(ready), SequenceModel.clone_cache(cache));
+	var workers = sequence_compute(move pool, SequenceModel.clone_queue(ready), SequenceModel.clone_cache(cache), quota);
+	var status = sequence_status(move datagrams, SequenceModel.clone_cache(cache));
+	try {
+		start(first); start(second); start(third); start(reader); start(workers); start(status);
+		while (cache.completed_clients() != 3 && !cache.stopped() && sequence_stop_requested() == 0) { await delay_ms(1); }
+	} catch (SequenceModel.Fault error) {
+		cancel(first); cancel(second); cancel(third); cancel(reader); cancel(workers); cancel(status);
+		await cancel_and_join(move first); await cancel_and_join(move second); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); await cancel_and_join(move status); throw;
+	}
+	if (cache.stopped() || sequence_stop_requested() != 0) {
+		cancel(first); cancel(second); cancel(third); cancel(reader); cancel(workers); cancel(status);
+		await cancel_and_join(move first); await cancel_and_join(move second); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); await cancel_and_join(move status);
+		if (sequence_stop_requested() == 0) { throw new Error("query pipeline failed"); }
+	} else {
+		await cancel_and_join(move status);
+		try { await move first; } catch (SequenceModel.Fault error) { cancel(second); cancel(third); cancel(reader); cancel(workers); await cancel_and_join(move second); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); throw; }
+		try { await move second; } catch (SequenceModel.Fault error) { cancel(third); cancel(reader); cancel(workers); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); throw; }
+		try { await move third; } catch (SequenceModel.Fault error) { cancel(reader); cancel(workers); await cancel_and_join(move reader); await cancel_and_join(move workers); throw; }
+		try { await move reader; } catch (SequenceModel.Fault error) { await cancel_and_join(move workers); throw; }
+		await move workers;
+	}
+}
+int sequence_service(string address, int family, string input) throws SequenceModel.Fault {
+	NetworkEndpoint endpoint = network_endpoint(address, family, 0, 0);
+	var listener = new TcpSocket(); listener.open_family(family); listener.listen_at(endpoint, 8);
+	var datagrams = new UdpSocket(); datagrams.open_at(endpoint);
+	NetworkEndpoint tcp = listener.local_address(); NetworkEndpoint udp = datagrams.local_address(); sequence_ready(tcp.port, udp.port);
+	var first = new TcpSocket(); var second = new TcpSocket(); var third = new TcpSocket(); NetworkEndpoint peer = endpoint;
+	int started = astra_net_milliseconds();
+	while (!listener.accept_from(first, &peer)) { if (sequence_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
+	while (!listener.accept_from(second, &peer)) { if (sequence_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
+	while (!listener.accept_from(third, &peer)) { if (sequence_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
+	var context = concurrent_allocator(1, 262147, 31, 128);
+	if (context == null) { throw new Error("query control context"); }
+	var reads = SequenceSetup.queue(context, sequence_queue_capacity()); var ready = SequenceSetup.queue(context, sequence_queue_capacity()); var cache = SequenceSetup.cache(context, sequence_cache_capacity());
+	if (!reads.ready() || !ready.ready() || !cache.ready()) { throw new Error("query queue/cache admission"); }
+	var file = payload_open(input, 3071, 0); var pool = worker_pool(sequence_worker_count()); if (pool == null) { throw new Error("query worker pool"); }
+	var executor = SequenceIo.open(16); var result = executor.run(sequence_pipeline(move first, move second, move third, move datagrams, move file, move pool, move reads, move ready, move cache, sequence_quota(), sequence_file_extent()));
+	match (result) { case SequencePhase.Completed(): {} else: { return 2; } }
+	if (sequence_stop_requested() != 0) { return 130; } return 0;
+}
+int main(string[] args) {
+	if (len(args) != 4 || args[2] != "4" && args[2] != "6") { return 64; }
+	if (sequence_prepare(args[3]) != 0) { return 64; }
+	int family = 4; if (args[2] == "6") { family = 6; }
+	int result = 0;
+	try { result = sequence_service(args[1], family, args[3]); }
+	catch (SequenceModel.Fault error) { sequence_error(error.message); result = 1; }
+	return sequence_finish(result);
+}

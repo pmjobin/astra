@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SymbolicChild {
+	int code;
+	init(int code) { this.code = code; }
+	int read() { return this.code; }
+	deinit() { mark(this.code); }
+}
+class SymbolicLoanBox<A, B> {
+	private owned A first;
+	private owned B second;
+	private int tag;
+	init(owned A first, owned B second, int tag) {
+		this.first = move first;
+		this.second = move second;
+		this.tag = tag;
+	}
+	int read() { return this.tag; }
+}
+int read_symbolic_child(borrowed SymbolicChild value) { return value.read(); }
+int read_symbolic_resource(borrowed R value) { return id(value); }
+int read_symbolic_box(borrowed SymbolicLoanBox<SymbolicChild, R> value) { return value.read(); }
+int inspect_symbolic<T>(Fn<int, borrowed T> code, borrowed T value) where T:Ownable { return code(value); }
+int relay_symbolic<T>(borrowed T value, Fn<int, borrowed T> code) where T:Ownable { return inspect_symbolic<T>(code, value); }
+int exercise_symbolic_loans() {
+	var child = new SymbolicChild(961);
+	var resource = make(241);
+	if (inspect_symbolic<SymbolicChild>(read_symbolic_child, child) != 961) { return 1; }
+	if (relay_symbolic<R>(resource, read_symbolic_resource) != 241) { return 2; }
+	Fn<int, borrowed SymbolicChild> typed = read_symbolic_child;
+	if (inspect_symbolic(typed, child) != 961 || inspect_symbolic(read_symbolic_resource, resource) != 241) { return 3; }
+	var nested_child = new SymbolicChild(962);
+	var nested_resource = make(242);
+	var box = new SymbolicLoanBox<SymbolicChild, R>(move nested_child, move nested_resource, 42);
+	if (inspect_symbolic<SymbolicLoanBox<SymbolicChild, R>>(read_symbolic_box, box) != 42) { return 4; }
+	if (child.read() != 961 || id(resource) != 241 || box.read() != 42) { return 5; }
+	return 0;
+}
+int main() {
+	int result = exercise_symbolic_loans();
+	if (result != 0) { return result; }
+	return live();
+}

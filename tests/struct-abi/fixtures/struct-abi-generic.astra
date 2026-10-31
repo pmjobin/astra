@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+struct Bundle<T> { Box<T> left; Box<T> right; int tag; }
+Box<int> integers(Box<i32> value) { return value; }
+Box<f64> doubles(Box<f64> value) { return value; }
+Box<i16<8>> vectors(Box<i16<8>> value) { return value; }
+Box<bool<4>> masks(Box<bool<4>> value) { return value; }
+Bundle<f64> bundle(Bundle<f64> value) { return value; }
+T ordinary_helper<T>(T value) { Box<int> a = { value = 7 }; Box<i32> b = integers(a); if (b.value == 7) { return value; } return value; }
+int main() {
+	Box<int> a = { value = 7 }; Box<i32> b = integers(a);
+	Box<f64> c = { value = 3.5 }; Box<f64> d = doubles(c);
+	Box<i16<8>> e = { value = splat(9,8) }; Box<i16<8>> f = vectors(e);
+	Box<bool<4>> g = { value = splat(true,4) }; Box<bool<4>> h = masks(g);
+	Bundle<f64> i = { left = { value = 1.5 }, right = { value = 3.5 }, tag = 7 }; Bundle<f64> j = bundle(i);
+	if (b.value != 7 || d.value != 3.5 || f.value[7] != 9 || !h.value[3] || j.left.value != 1.5 || j.right.value != 3.5 || j.tag != 7 || ordinary_helper<int>(7) != 7) { return 1; }
+	return 0;
+}

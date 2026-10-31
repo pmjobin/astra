@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item {
+	owned R resource;
+	int code;
+	init(int code) {
+		this.resource = make(code);
+		this.code = code;
+	}
+	deinit() { mark(200 + this.code); }
+}
+struct OnlyClass {
+	owned Item child;
+}
+struct Mixed {
+	owned Item child;
+	owned Other resource;
+	int tag;
+}
+struct NestedMixed {
+	Mixed first;
+	Mixed second;
+}
+owned Item create(int code) {
+	var item = new Item(code);
+	return move item;
+}
+int stage(bool fail) throws Error {
+	if (fail) { throw new Error("prefix"); }
+	return 7;
+}
+void exercise(bool fail) {
+	try {
+		NestedMixed document = {
+			second = {resource = make_other(2), child = create(1), tag = stage(fail)},
+			first = {child = create(3), resource = make_other(4), tag = 11}
+		};
+		var moved = move document;
+		mark(moved.first.tag + moved.second.tag);
+	} catch (Error error) {
+		mark(900);
+	}
+}
+int main() {
+	{
+		var item = new Item(5);
+		OnlyClass only = {child = move item};
+		var moved = move only;
+	}
+	exercise(false);
+	exercise(true);
+	return live();
+}

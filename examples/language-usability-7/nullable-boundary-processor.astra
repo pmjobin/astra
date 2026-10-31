@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A51: an optional owned boundary, a refined view and a promised receiver borrow.
+class BoundaryValue {
+	readonly string label;
+	int score;
+	init(string label) { this.label = label; this.score = 7; }
+	deinit() { print("closed "); println(this.label); }
+}
+class BoundaryOwner {
+	owned nonnull BoundaryValue child;
+	init(owned nonnull BoundaryValue child) { this.child = move child; }
+	property borrowed nonnull BoundaryValue value { get { return this.child; } }
+	deinit() { println("closed boundary"); }
+}
+owned nonnull BoundaryValue create_value(string label) {
+	var value = new BoundaryValue(label);
+	return move value;
+}
+owned BoundaryValue optional_value(string label) throws Error {
+	if (label == "none") { return null; }
+	if (label == "fail") { throw new Error("boundary input refused"); }
+	return create_value(label);
+}
+int inspect_boundary(nonnull BoundaryValue value) {
+	print("accepted "); println(value.label);
+	return value.score;
+}
+int main(string[] args) {
+	if (len(args) != 2) { return 64; }
+	try {
+		owned BoundaryValue optional = optional_value(args[1]);
+		if (optional == null) { println("skipped null"); return 0; }
+		if (inspect_boundary(optional) != 7) { return 70; }
+		var owner = new BoundaryOwner(move optional);
+		if (inspect_boundary(owner.value) != 7) { return 71; }
+		return 0;
+	} catch (Error failure) { println("boundary failed"); return 65; }
+}

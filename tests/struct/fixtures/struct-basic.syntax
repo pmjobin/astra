@@ -1,0 +1,50 @@
+(unit
+	(struct "Pair"
+		(field (type "int") (name "x"))
+		(field (type "int") (name "y"))
+	)
+	(function
+		(type "int")
+		(name "Pair")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (name "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Pair") (name "a")
+				(initialize-field "y" (integer "22"))
+				(initialize-field "x" (call "Pair" (arguments (integer "20"))))
+			)
+			(struct-local (type "Pair") (name "b")
+				(initialize-field "x" (integer "1"))
+				(initialize-field "y" (integer "2"))
+			)
+			(if
+				(condition (binary "!=" (binary "+" (field-access "a" "x") (field-access "a" "y")) (integer "42")))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(assign (field-access "a" "x") (binary "+" (field-access "a" "x") (field-access "b" "y")))
+			(assign (field-access "b" "x") (integer "9"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "a" "x") (integer "22")) (binary "!=" (field-access "a" "y") (integer "22"))) (binary "!=" (field-access "b" "x") (integer "9"))) (binary "!=" (field-access "b" "y") (integer "2"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

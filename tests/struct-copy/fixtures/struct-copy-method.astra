@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct I { int x; }
+struct O {
+	I left;
+	I right;
+	void copy() { this.left = this.right; I a = this.left; this.right = a; }
+	property int value { get { I a = this.left; return a.x; } set(int value) { I a = { x = value }; this.right = a; this.left = this.right; } }
+}
+int main() {
+	O a = { left = { x = 1 }, right = { x = 42 } };
+	a.copy();
+	if (a.value != 42) { return 1; }
+	a.value = 7;
+	if (a.left.x != 7 || a.right.x != 7) { return 2; }
+	return 0;
+}

@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Entry {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { usability_event(0 - this.value); }
+}
+int inspect(Entry entry) { return entry.value; }
+int first(Sequence sequence) throws Error {
+	foreach (var value in sequence) {
+		var entry = new Entry(value);
+		return value;
+	}
+	return 0;
+}
+
+int main() {
+	try {
+		var sequence = new Sequence(5, -1);
+		var bag = new Bag<Entry>();
+		foreach (var value in sequence) {
+			if (value == 3) { continue; }
+			if (!bag.reserve(bag.count() + 1)) { return 3; }
+			var entry = new Entry(value);
+			bag.append(move entry);
+			if (value == 7) { break; }
+		}
+		int[2] weights = {2, 4};
+		var view = slice(weights);
+		int sum = 0;
+		foreach (var entry in bag) {
+			foreach (var weight in view) { sum = sum + inspect(entry) * weight; }
+		}
+		usability_event(sum);
+		usability_event(first(sequence));
+		var empty = new Sequence(0, -1);
+		foreach (var value in empty) { return 1; }
+	}
+	catch (Error error) { return 2; }
+	try {
+		var failing = new Sequence(4, 2);
+		foreach (var value in failing) { usability_event(value); }
+	}
+	catch (Error error) { usability_event(900); }
+	return 0;
+}

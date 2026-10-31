@@ -1,0 +1,31 @@
+(unit
+	(function
+		(type "int")
+		(name "identity")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (name "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "pair")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "+" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "int")
+		(name "ordered")
+		(parameters)
+		(block
+			(return (call "pair" (arguments (call "identity" (arguments (integer "1"))) (call "identity" (arguments (integer "2"))))))
+		)
+	)
+)

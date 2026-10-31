@@ -1,0 +1,18 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void set(int value) { this.value = value; }
+}
+int main() {
+	Counter a = Counter.init(65);
+	Counter original = a;
+	Counter b = Counter.init(66);
+	Counter c = Counter.init(67);
+	a = b;
+	b = null;
+	original.set(68);
+	if (a == original || a == c) { return 1; }
+	return 42;
+}

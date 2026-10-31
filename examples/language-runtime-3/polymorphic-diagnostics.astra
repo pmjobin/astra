@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Diagnostic {
+	private int raw;
+	init(int raw) { this.raw = raw; surge_event(1, raw); }
+	virtual int severity(int line) { return this.raw + line; }
+	deinit() { surge_event(2, this.raw); }
+}
+class FatalDiagnostic : Diagnostic {
+	int weight;
+	init(int raw) : base(raw) { this.weight = raw; }
+	override int severity(int line) { return this.weight * 10 + line; }
+}
+void render(borrowed Diagnostic item, string message, int count) throws Error {
+	var builder = new Utf8ByteBuilder(); int line = 1;
+	while (line <= count) {
+		require_text(append_int(builder, item.severity(line)));
+		require_text(append_text(builder, ":")); require_text(append_text(builder, message));
+		require_text(append_text(builder, "\n")); line = line + 1;
+	}
+	var text = builder.snapshot(); if (!print(text.text)) { throw new Error("output"); }
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		int count = parse_int(args[1]); if (count < 0 || count > 20) { return 64; }
+		{
+			var ordinary = new Diagnostic(2); var fatal = new FatalDiagnostic(9);
+			render(ordinary, args[2], count); render(fatal, args[2], count);
+		}
+		if (surge_live() != 0 || surge_destroyed() != 2) { return 3; }
+		return 0;
+	} catch (Error error) { return 2; }
+}

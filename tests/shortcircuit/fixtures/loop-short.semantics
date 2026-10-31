@@ -1,0 +1,80 @@
+(program
+	(function "count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local #0 "i" : int)
+		)
+		(block
+			(local-init #0 "i" : int (integer 0 : int))
+			(while #0
+				(condition (short-circuit && : bool (binary < : bool (local-ref #0 "i" : int) (parameter-ref #0 "n" : int)) (binary < : bool (local-ref #0 "i" : int) (integer 5 : int))))
+				(body
+					(block
+						(assign (local-ref #0 "i" : int) (binary + : int (local-ref #0 "i" : int) (integer 1 : int)))
+					)
+				)
+			)
+			(return (local-ref #0 "i" : int))
+		)
+	)
+	(function "keep_going" -> bool
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return (binary < : bool (parameter-ref #0 "x" : int) (integer 5 : int)))
+		)
+	)
+	(function "continue_count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local #0 "i" : int)
+		)
+		(block
+			(local-init #0 "i" : int (integer 0 : int))
+			(while #0
+				(condition (short-circuit && : bool (binary < : bool (local-ref #0 "i" : int) (parameter-ref #0 "n" : int)) (call "keep_going" -> bool (arguments (local-ref #0 "i" : int)))))
+				(body
+					(block
+						(assign (local-ref #0 "i" : int) (binary + : int (local-ref #0 "i" : int) (integer 1 : int)))
+						(continue #0)
+					)
+				)
+			)
+			(return (local-ref #0 "i" : int))
+		)
+	)
+	(function "break_count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local #0 "i" : int)
+		)
+		(block
+			(local-init #0 "i" : int (integer 0 : int))
+			(while #0
+				(condition (short-circuit && : bool (binary < : bool (local-ref #0 "i" : int) (parameter-ref #0 "n" : int)) (call "keep_going" -> bool (arguments (local-ref #0 "i" : int)))))
+				(body
+					(block
+						(assign (local-ref #0 "i" : int) (binary + : int (local-ref #0 "i" : int) (integer 1 : int)))
+						(if
+							(condition (binary == : bool (local-ref #0 "i" : int) (integer 3 : int)))
+							(then
+								(block
+									(assign (local-ref #0 "i" : int) (integer 8 : int))
+									(break #0)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return (local-ref #0 "i" : int))
+		)
+	)
+)

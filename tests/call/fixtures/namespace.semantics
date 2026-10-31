@@ -1,0 +1,29 @@
+(program
+	(function "name" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return (parameter-ref #0 "x" : int))
+		)
+	)
+	(function "parameter" -> int
+		(parameters
+			(parameter #0 "name" : int)
+		)
+		(block
+			(return (call "name" -> int (arguments (parameter-ref #0 "name" : int))))
+		)
+	)
+	(function "local" -> int
+		(parameters)
+		(locals
+			(local #0 "name" : int)
+		)
+		(block
+			(local-init #0 "name" : int (call "name" -> int (arguments (integer 1 : int))))
+			(assign (local-ref #0 "name" : int) (call "name" -> int (arguments (local-ref #0 "name" : int))))
+			(return (local-ref #0 "name" : int))
+		)
+	)
+)

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Shape { f64 gain; f64 bias; }
+struct Kernel {
+	int left;
+	int right;
+	f64 weight;
+	Shape shape;
+	void scale(f64 factor) { this.weight = this.weight * factor; }
+	void demand(bool condition, [CallerFilePath] string file, [CallerLineNumber] int line, [CallerArgumentExpression("condition")] string expression) {
+		assert_that(condition, file, line, expression);
+	}
+}

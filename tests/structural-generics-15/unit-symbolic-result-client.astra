@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned R consumer_factory(int number) { var result = make(number); return move result; }
+int exercise() {
+	var first = GenericFactoryTransport.resource(GenericFactoryTransport.resource_factory(), 221);
+	var second = GenericFactoryTransport.resource(consumer_factory, 222);
+	var other = GenericFactoryTransport.other(223);
+	var ticket = GenericFactoryTransport.ticket(224);
+	var direct = GenericFactoryTransport.direct_ticket(225);
+	var inferred = GenericFactoryTransport.inferred_ticket(226);
+	if (id(first) != 221 || id(second) != 222 || other_id(other) != 223 || ticket.value != 42 || !ticket.ready) { return 1; }
+	if (direct.value != 42 || !direct.ready || inferred.value != 42 || !inferred.ready) { return 2; }
+	return 0;
+}
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

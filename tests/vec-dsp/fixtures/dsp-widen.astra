@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+int main(){
+	i8<16> v={-128,-127,-1,0,1,2,126,127,9,8,7,6,5,4,3,-2};
+	i16<8> low=widen_low(v,i16);
+	i16<8> high=widen_high(v,i16);
+	i16<8> el={-128,-127,-1,0,1,2,126,127};
+	i16<8> eh={9,8,7,6,5,4,3,-2};
+	if(!all(low==el) || !all(high==eh)){return 1;}
+	u16<8> cross=widen_low(v,u16);
+	if(cross[0]!=65408 || cross[2]!=65535){return 2;}
+	u8<16> bytes=splat(255,16);
+	i16<8> positive=widen_high(bytes,i16);
+	if(positive[7]!=255){return 3;}
+	i8<16> round=pack_wrap(widen_low(v,u16),widen_high(v,u16),i8);
+	if(!all(round==v)){return 4;}
+	i16<8> shuffled=shuffle(widen_low(v,i16),7,6,5,4,3,2,1,0);
+	if(shuffled[0]!=127 || shuffled[7]!=-128){return 5;}
+	return 0;
+}

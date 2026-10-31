@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A123: a reconciliation algorithm consuming independently implemented COM data.
+[COMImport(name="reconcile_value",iid="849ad154-8d1e-4c63-9ea2-14329b022001",view="value",threading="constructing")]
+interface ReconcileValue;
+[COMImport(name="reconcile_scale",iid="849ad154-8d1e-4c63-9ea2-14329b022002",view="scale",threading="constructing")]
+interface ReconcileScale;
+
+[CExport(name="a123_reconcile")]
+int reconcile(void* unknown) {
+	int status = 99;
+	owned ReconcileValue account = reconcile_value_acquire(unknown, &status);
+	if (account == null) { return status; }
+	owned ReconcileScale projection = reconcile_scale_acquire(unknown, &status);
+	if (projection == null) { return status; }
+	owned ReconcileValue copy = reconcile_value_clone(account, &status);
+	if (copy == null) { return status; }
+	owned ReconcileValue current = move copy;
+	release account;
+	int checksum = 0;
+	for (int step = 0; step < 6; step = step + 1) {
+		int before = -1;
+		status = reconcile_value_get(current, &before);
+		if (status != 0) { return status; }
+		int next = (before + (step + 1) * 3) % 97;
+		status = reconcile_value_set(current, next);
+		if (status != 0) { return status; }
+		int after = -1;
+		status = reconcile_value_get(current, &after);
+		if (status != 0) { return status; }
+		if (after != next) { return -1; }
+		int factor = step % 3 + 1;
+		int scaled = -1;
+		status = reconcile_scale_scale(projection, factor, &scaled);
+		if (status != 0) { return status; }
+		if (scaled != after * factor) { return -2; }
+		checksum = (checksum * 31 + scaled) % 1000003;
+	}
+	int out = 99;
+	if (reconcile_scale_scale(projection, 0, &out) != 1 || out != 0) { return -3; }
+	if (reconcile_scale_scale(projection, -1, &out) != -2147024809 || out != 0) { return -4; }
+	if (reconcile_value_get(current, null) != -2147467261) { return -5; }
+	return checksum;
+}

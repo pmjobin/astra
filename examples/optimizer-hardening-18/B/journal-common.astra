@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using JournalLeaf18;
+using JournalMiddle18;
+[CCode(text_abi="utf8-i32")]
+extern(C) int journal18_prepare(borrowed string input, borrowed string output);
+extern(C) int journal18_size();
+extern(C) int journal18_input_byte(int index);
+extern(C) int journal18_finish(int transactions);
+extern(C) void journal18_abort();
+extern(C) int journal18_workers();
+extern(C) void journal18_scope_enter(int lane);
+extern(C) void journal18_scope_leave(int lane);
+extern(C) void journal18_policy_call(int transaction, int value);
+extern(C) void journal18_weak_checked(int lane);
+extern(C) void journal18_result(int transaction, int code, int failed, int count, i64 checksum);
+extern(C) void journal18_state(int lane, int key, int version, int value, int present);
+extern(C) int journal18_context_done(borrowed ConcurrentAllocator context, int identity);
+
+struct JournalState18 { int version; int value; bool present; }
+struct JournalUndo18 { int key; JournalState18 before; bool existed; }
+struct JournalResult18 { int transaction; int code; int failed; int count; i64 checksum; }
+
+class JournalFault18 : Error {
+	private int code;
+	private int index;
+	init(int code, int index) : base("journal conflict") { this.code = code; this.index = index; }
+	property int reason { get { return this.code; } }
+	property int position { get { return this.index; } }
+}
+class JournalAccount18 {
+	private JournalState18 current;
+	init(JournalState18 current) { this.current = current; }
+	JournalState18 read() { return this.current; }
+}
+class JournalHistory18 {
+	private JournalResult18 row;
+	init(JournalResult18 row) { this.row = row; }
+	JournalResult18 read() { return this.row; }
+	deinit() { journal18_retire(this.row.transaction, 4); }
+}
+class JournalStamp18 {
+	int transaction;
+	init(int transaction) { this.transaction = transaction; }
+	deinit() { journal18_retire(this.transaction, 3); }
+}
+interface JournalParity18 { int parity(int transaction); }
+class JournalBitParity18 : JournalParity18 {
+	init() : base() {}
+	override int parity(int transaction) { return transaction & 1; }
+}
+class JournalRemainderParity18 : JournalParity18 {
+	init() : base() {}
+	override int parity(int transaction) { return transaction % 2 + 2; }
+}
+int journal18_parity(borrowed JournalParity18 policy, int transaction) { return policy.parity(transaction); }
+bool journal18_equal(int first, int second) { return first == second; }
+JournalState18 journal18_read(borrowed JournalAccount18 account) { return account.read(); }
+JournalState18 journal18_empty() { JournalState18 result = {version = 0, value = 0, present = false}; return result; }
+int journal18_u16(borrowed ContextBytes<ConcurrentAllocator> bytes, int offset) { return (bytes[offset] as int) + (bytes[offset + 1] as int) * 256; }
+int journal18_i32(borrowed ContextBytes<ConcurrentAllocator> bytes, int offset) {
+	return journal18_u16(bytes, offset) + journal18_u16(bytes, offset + 2) * 65536;
+}
+bool journal18_weak_control(int lane) {
+	var unique = new JournalStamp18(-lane - 1);
+	var strong = shared_acquire(move unique);
+	var observer = shared_downgrade(strong);
+	var retained = shared_clone(strong);
+	release strong;
+	var live = weak_upgrade(observer);
+	if (live == null) { return false; }
+	release live;
+	release retained;
+	var expired = weak_upgrade(observer);
+	if (expired != null) { return false; }
+	release observer;
+	journal18_weak_checked(lane);
+	return true;
+}

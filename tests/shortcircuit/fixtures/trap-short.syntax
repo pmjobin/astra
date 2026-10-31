@@ -1,0 +1,26 @@
+(unit
+	(function
+		(type "bool")
+		(name "and_trap")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "int") (name "x"))
+			(parameter (type "int") (name "y"))
+		)
+		(block
+			(return (short-circuit "&&" (name "a") (parenthesized (binary ">" (parenthesized (binary "/" (name "x") (name "y"))) (integer "0")))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "or_trap")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "int") (name "x"))
+			(parameter (type "int") (name "y"))
+		)
+		(block
+			(return (short-circuit "||" (name "a") (parenthesized (binary "==" (parenthesized (binary "%" (name "x") (name "y"))) (integer "0")))))
+		)
+	)
+)

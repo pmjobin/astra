@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeRecordLoans;
+class Child {
+	int ticket;
+	init(int ticket) { this.ticket = ticket; }
+	deinit() { mark(this.ticket); }
+}
+struct Contents { owned Child child; owned R retained; owned Other extra; owned int[] samples; }
+struct Packet { Contents contents; int ticket; }
+Packet packet(int ticket) {
+	var child = new Child(ticket);
+	var retained = make(ticket);
+	var extra = make_other(ticket + 1);
+	var samples = new int[2];
+	samples[0] = ticket;
+	Contents contents = {child = move child, retained = move retained, extra = move extra, samples = move samples};
+	Packet result = {contents = move contents, ticket = ticket};
+	return move result;
+}
+internal int inspect(borrowed Packet value, borrowed R token, int extra) {
+	if (value.contents.child.ticket != value.ticket || id(value.contents.retained) != value.ticket || other_id(value.contents.extra) != value.ticket + 1 || len(value.contents.samples) != 2 || value.contents.samples[0] != value.ticket) { return 0; }
+	return value.ticket + id(token) + extra;
+}
+Fn<int,borrowed Packet,borrowed R,int> callback() { return inspect; }
+int invoke(Fn<int,borrowed Packet,borrowed R,int> code, borrowed Packet value, borrowed R token, int extra) { return code(value, token, extra); }

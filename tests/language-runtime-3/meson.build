@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+cabi_record_proof = executable('astra-cabi-record-proof', ['cabi-proof.vala', '../../bootstrap/backend/llvm/capi/llvm-test.vapi'], dependencies: llvm_backend_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('cabi-record-proof', cabi_record_proof, args: ['--tap'], protocol: 'tap')
+property_borrow_proof = executable('astra-property-borrow-proof', ['property-proof.vala', '../../bootstrap/backend/llvm/capi/llvm-test.vapi'], dependencies: llvm_backend_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('property-borrow-proof', property_borrow_proof, args: ['--tap'], protocol: 'tap')
+dispatch_proof = executable('astra-dispatch-proof', ['dispatch-tests.vala', '../../bootstrap/backend/llvm/capi/llvm-test.vapi'], dependencies: llvm_backend_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('language-runtime-3-dispatch-proof', dispatch_proof, args: ['--tap'], protocol: 'tap')
+test('language-runtime-3-dispatch', ints_python, args: [files('dispatch-verify.py'), astrac, meson.current_build_dir() / 'dispatch'], depends: astrac, timeout: 600, workdir: meson.project_source_root())
+test('language-runtime-3-callable', ints_python, args: [files('callable-check.py'), astrac, meson.current_build_dir() / 'callable'], depends: astrac, timeout: 600, workdir: meson.project_source_root())
+test('language-runtime-3-properties', ints_python, args: [files('property-check.py'), astrac, meson.current_build_dir() / 'properties'], depends: astrac, timeout: 600, workdir: meson.project_source_root())
+test('language-runtime-3-cabi', ints_python, args: [files('cabi-qualify.py'), astrac, meson.current_build_dir() / 'cabi'], depends: astrac, timeout: 600, workdir: meson.project_source_root())
+test('language-runtime-3-applications', ints_python, args: [files('corpus.py'), astrac, meson.current_build_dir() / 'applications'], depends: astrac, timeout: 900, workdir: meson.project_source_root())

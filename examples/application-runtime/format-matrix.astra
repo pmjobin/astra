@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	try {
+		var builder = new Utf8ByteBuilder();
+		require_text(builder.reserve(2));
+		require_text(append_text(builder, "café:"));
+		require_text(append_int(builder, -2147483648));
+		require_text(append_text(builder, ","));
+		require_text(append_int(builder, -1));
+		require_text(append_text(builder, ","));
+		require_text(append_int(builder, 0));
+		require_text(append_text(builder, ","));
+		require_text(append_int(builder, 1));
+		require_text(append_text(builder, ","));
+		require_text(append_int(builder, 2147483647));
+		require_text(append_text(builder, ";"));
+		require_text(append_u32(builder, 0));
+		require_text(append_text(builder, ","));
+		require_text(append_u32(builder, 4294967295));
+		require_text(append_text(builder, ";"));
+		require_text(append_bool(builder, false));
+		require_text(append_text(builder, ","));
+		require_text(append_bool(builder, true));
+		require_text(append_text(builder, ";a\0🖤é"));
+		var message = builder.snapshot();
+		release builder;
+		if (!println(message.text)) { return 2; }
+		return 0;
+	} catch (Error error) { return 3; }
+}

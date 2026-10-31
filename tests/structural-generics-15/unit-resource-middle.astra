@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace ResourceTransport;
+
+owned R create(int code) {
+	var value = NativeResources.create(code);
+	return move value;
+}
+owned R relay(owned R value) {
+	var next = NativeResources.relay(move value);
+	return move next;
+}
+int inspect(borrowed R value) { return NativeResources.inspect(value); }
+int consume(owned R value) { return NativeResources.consume(move value); }
+owned R empty() {
+	var value = NativeResources.empty();
+	return move value;
+}
+owned Other create_other(int code) {
+	var value = NativeResources.create_other(code);
+	return move value;
+}
+owned Other relay_other(owned Other value) {
+	var next = NativeResources.relay_other(move value);
+	return move next;
+}
+int inspect_other(borrowed Other value) { return NativeResources.inspect_other(value); }
+int consume_other(owned Other value) { return NativeResources.consume_other(move value); }

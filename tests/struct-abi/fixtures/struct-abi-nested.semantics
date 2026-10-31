@@ -1,0 +1,64 @@
+(program
+	(struct "Inner"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(struct "Outer"
+		(field #0 "inner" : Inner)
+		(field #1 "samples" : i16<8>)
+	)
+	(function "identity" -> Outer
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Outer)
+		)
+		(locals
+			(local #0 "value" : Outer)
+		)
+		(block
+			(struct-return (struct-snapshot : Outer (local-place #0 : Outer)) snapshot-before-cleanup)
+		)
+	)
+	(function "subobject" -> Inner
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Outer)
+		)
+		(locals
+			(local #0 "value" : Outer)
+		)
+		(block
+			(struct-return (struct-snapshot : Inner (field-place (base (local-place #0 : Outer)) (field Outer::inner #0) : Inner)) snapshot-before-cleanup)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : Outer)
+			(local #1 "b" : Outer)
+			(local #2 "c" : Inner)
+		)
+		(block
+			(struct-local #0 "a" : Outer
+				(initialize-field #0 "inner" (storage-initializer
+					(initialize-field #0 "x" (integer 7 : int))
+					(initialize-field #1 "y" (f64 0x400c000000000000 : f64))
+				))
+				(initialize-field #1 "samples" (vector-splat : i16<8> (lanes 8) (value (integer 9 : i16))))
+			)
+			(struct-result-store initialize (destination (local-place #1 : Outer)) (struct-call-result identity : Outer (struct-argument #0 snapshot-at-argument (struct-snapshot : Outer (local-place #0 : Outer)))))
+			(struct-result-store initialize (destination (local-place #2 : Inner)) (struct-call-result subobject : Inner (struct-argument #0 snapshot-at-argument (struct-snapshot : Outer (local-place #1 : Outer)))))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (binary != : bool (field-ref (local #2 "c" : Inner) (field #0 "x" : int)) (integer 7 : int)) (binary != : bool (field-ref (local #2 "c" : Inner) (field #1 "y" : f64)) (f64 0x400c000000000000 : f64))) (binary != : bool (vector-extract : i16 (lane 7) (vector (field-ref (local #1 "b" : Outer) (field #1 "samples" : i16<8>)))) (integer 9 : i16))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item {
+	int value;
+	init(int value) { this.value = value; }
+}
+bool item_is(Item item, int value) { return item.value == value; }
+bool inspect(Bag<Item> bag, int index, int value) {
+	return item_is(bag.entries[index], value);
+}
+int main() {
+	var bag = new Bag<Item>();
+	if (bag.count() != 0 || bag.capacity() != 0 || !bag.reserve(2)) { return 81; }
+	var first = new Item(10); var second = new Item(20);
+	bag.append(move first); bag.append(move second);
+	if (!inspect(bag, 0, 10) || !bag.reserve(3) || bag.count() != 2) { return 82; }
+	var third = new Item(30); bag.append(move third);
+	if (!inspect(bag, 1, 20) || !inspect(bag, 2, 30) || bag.capacity() != 3) { return 83; }
+	return 0;
+}

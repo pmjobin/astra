@@ -1,0 +1,22 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int a;
+	int b;
+	int c;
+	f32 gain;
+	bool ready;
+	void* pointer;
+	init(int a, int b, int c) {
+		this.a = life_record(68, a);
+		this.b = life_record(69, b);
+		this.c = life_record(70, c);
+		this.gain = 1.25 * 2.0;
+		this.ready = this.a + this.b + this.c == 42;
+		this.pointer = null;
+	}
+}
+int main() {
+	Counter c = Counter.init(life_record(65, 10), life_record(66, 20), life_record(67, 12));
+	if (!c.ready || c.gain != 2.5 || c.pointer != null) { return 1; }
+	return c.a + c.b + c.c;
+}

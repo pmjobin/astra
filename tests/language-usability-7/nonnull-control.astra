@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Value {
+	int number;
+	init(int number) { this.number = number; }
+}
+class Holder {
+	owned nonnull Value child;
+	init(owned nonnull Value child) { this.child = move child; }
+	property borrowed nonnull Value item { get { return this.child; } }
+}
+owned nonnull Value create() {
+	var result = new Value(7);
+	return move result;
+}
+int inspect(nonnull Value input) { return input.number; }
+int optional(Value input) {
+	if (input != null && true) {
+		nonnull Value ready = input;
+		return inspect(ready);
+	}
+	return 0;
+}
+int main() {
+	owned nonnull Value owner = create();
+	if (optional(owner) != 7 || optional(null) != 0) { return 1; }
+	var holder = new Holder(move owner);
+	if (inspect(holder.item) != 7) { return 2; }
+	return 0;
+}

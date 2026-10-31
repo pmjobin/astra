@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Bag { int tag; owned R r; }
+int work(bool direct) throws Error {
+	int tag=24; if (direct) { tag=25; }
+	Bag bag = {tag=42, r=make(tag)};
+	if (direct) { throw new Error("checked\0é", 250); }
+	checked(true, 240);
+	return bag.tag;
+}
+int main() {
+	try { work(false); } catch (Error error) {
+		if (live() != 0 || record_errors() != 1 || error.message != "checked\0é") { return 81; }
+		mark(241);
+	}
+	if (record_errors() != 0) { return 82; }
+	try { work(true); } catch (Error error) {
+		if (live() != 0 || record_errors() != 1 || error.message != "checked\0é") { return 83; }
+		mark(251);
+	}
+	if (record_errors() != 0) { return 84; }
+	return 42;
+}

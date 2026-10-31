@@ -1,0 +1,18 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void set(int value) { this.value = value; }
+}
+int main() {
+	Counter c = Counter.init(1);
+	Counter a = c;
+	Counter b = c;
+	Counter nil = null;
+	{ Counter inner = c; inner.set(40); }
+	c = null;
+	a.value = 42;
+	if (a != b || nil != c) { return 1; }
+	return b.value;
+}

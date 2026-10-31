@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// No new hosted provider, text-byte observation, file shim or argument capture.
+int main() {
+	try {
+		var b = new Utf8ByteBuilder(); u8[1] separator = {44};
+		if (!append_int(b, -2147483648) || !b.append_bytes(slice(separator)) || !append_int(b, 2147483647) || !b.append_bytes(slice(separator)) || !append_u32(b, 4294967295) || !b.append_bytes(slice(separator)) || !append_bool(b, false) || !b.append_bytes(slice(separator)) || !append_bool(b, true)) { return 1; }
+		var m = b.snapshot(); release b;
+		if (m.text != "-2147483648,2147483647,4294967295,false,true") { return 2; }
+		return 0;
+	} catch (InvalidUtf8 e) { return 3; }
+}

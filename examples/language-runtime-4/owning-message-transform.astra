@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A29: a returned linear closure owns a unique message prefix, a retained
+// pricing snapshot and a weak observer. Its native code travels in the carrier.
+extern(C) int closure_app_event(int stage, int value);
+class MessagePrefix {
+	readonly string text;
+	int tag;
+	init(string text, int tag) { this.text = text; this.tag = tag; closure_app_event(1, tag); }
+	deinit() { closure_app_event(2, this.tag); }
+}
+bool append_message_prefix(borrowed Utf8ByteBuilder builder, borrowed MessagePrefix prefix) { return append_text(builder, prefix.text); }
+class MessageRate {
+	int units;
+	init(int units) { this.units = units; closure_app_event(3, units); }
+	deinit() { closure_app_event(4, this.units); }
+}
+int message_amount(borrowed MessageRate rate, int input) { return rate.units * input; }
+class MessageTransform {
+	private owned MessagePrefix prefix;
+	private owned Shared<MessageRate> rate;
+	private owned Weak<MessageRate> observer;
+	init(owned MessagePrefix prefix, owned Shared<MessageRate> rate, owned Weak<MessageRate> observer) {
+		this.prefix = move prefix; this.rate = move rate; this.observer = move observer;
+		closure_app_event(5, 10);
+	}
+	int transform(int input) {
+		var active = weak_upgrade(this.observer);
+		if (active == null) { return -1; }
+		var retained = shared_clone(this.rate);
+		int amount = message_amount(shared_borrow(retained), input);
+		try {
+			var builder = new Utf8ByteBuilder();
+			require_text(append_message_prefix(builder, this.prefix));
+			require_text(append_int(builder, input));
+			require_text(append_text(builder, " amount="));
+			require_text(append_int(builder, amount));
+			var message = builder.snapshot();
+			if (!println(message.text)) { return -2; }
+			return amount;
+		} catch (Error error) { return -3; }
+	}
+	deinit() { closure_app_event(6, 10); }
+}
+int message_transform_code(borrowed MessageTransform environment, int input) { return environment.transform(input); }
+owned Closure<MessageTransform,int,int> make_message_transform(borrowed Shared<MessageRate> rate, borrowed Weak<MessageRate> observer) {
+	var prefix = new MessagePrefix("item=", 10);
+	var retained = shared_clone(rate);
+	var observed = weak_clone(observer);
+	var environment = new MessageTransform(move prefix, move retained, move observed);
+	var function = closure_bind(move environment, message_transform_code);
+	return move function;
+}
+owned Closure<MessageTransform,int,int> forward_message_transform(owned Closure<MessageTransform,int,int> function) { return move function; }
+int emit_messages(owned Closure<MessageTransform,int,int> function, int count, int early) {
+	int item = 1; int total = 0;
+	while (item <= count) {
+		int amount = closure_invoke(function, item);
+		if (amount < 0) { return amount; }
+		total = total + amount;
+		if (early == 1 && item == 2) { return total; }
+		item = item + 1;
+	}
+	return total;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		int count = parse_int(args[1]); int early = parse_int(args[2]);
+		if (count < 0 || count > 100 || early < 0 || early > 1) { return 64; }
+		var payload = new MessageRate(3);
+		var rate = shared_acquire(move payload);
+		var observer = shared_downgrade(rate);
+		var initial = make_message_transform(rate, observer);
+		var moved = forward_message_transform(move initial);
+		release rate;
+		int total = emit_messages(move moved, count, early);
+		if (total < 0) { return 81; }
+		var expired = weak_upgrade(observer);
+		if (expired != null) { return 82; }
+		closure_app_event(7, total);
+		return 0;
+	} catch (Error error) { return 2; }
+}

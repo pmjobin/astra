@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int observe_begin(int handles, int destructors);
+extern(C) int observe_event(int code, int value);
+extern(C) int observe_end();
+int leaf<T>(borrowed T value, int code) where T: Ownable {
+	return observe_event(code, 0);
+}
+int forward<T>(borrowed T value, int code) where T: Ownable {
+	return leaf<T>(value, code);
+}
+void dispose<T>(owned T value) where T: Ownable {}
+void wrapper<T>(owned T value) where T: Ownable {
+	forward<T>(value, 87);
+	dispose<T>(move value);
+}

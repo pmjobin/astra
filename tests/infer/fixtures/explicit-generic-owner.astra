@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Image { int id; init(int n) { this.id = n; } deinit() { mark(this.id); } }
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+int main() {
+	owned R resource_owner = resource(1);
+	owned R forwarded_resource = relay<R>(move resource_owner);
+	owned Image image = Image.init(2);
+	owned Image forwarded_image = relay<Image>(move image);
+	if (id(forwarded_resource) != 1 || forwarded_image.id != 2) { return 1; }
+	return 0;
+}

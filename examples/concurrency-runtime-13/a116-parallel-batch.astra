@@ -1,0 +1,321 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A116: executable Surge 13 application.
+extern(C) int task_stress_prepare(int workers, int rounds);
+
+extern(C) int task_stress_acquire(int id);
+
+extern(C) int task_stress_destroy(int id);
+
+extern(C) int task_stress_step(int id, int phase);
+
+extern(C) int task_stress_caught(int id);
+
+extern(C) int task_stress_pending(int id);
+
+extern(C) int task_stress_ready(int id);
+
+extern(C) int task_stress_shutdown_released();
+
+extern(C) int task_stress_finish(int count);
+
+class Work {
+
+	private int id;
+
+	init(int id) {
+		this.id = id;
+		task_stress_acquire(id);
+
+	}
+
+	int read() {
+		return this.id;
+
+	}
+
+	deinit() {
+		task_stress_destroy(this.id);
+
+	}
+
+}
+
+async int calculate(owned Work work, int seed) throws Error {
+
+	int id = work.read();
+
+	task_stress_step(id, 0);
+
+	await delay_ticks(1 + (id + seed) % 3);
+
+	task_stress_step(id, 1);
+
+	if (id % 3 == 0) {
+		throw new Error("checked batch failure");
+
+	}
+
+	return id * 17 + seed;
+
+}
+
+async void pending(owned Work work) throws Error {
+
+	task_stress_pending(work.read());
+
+	await delay_ticks(60000);
+
+}
+
+async void batch_round(int round_id,int seed) throws Error{
+
+	{
+
+		int id0=round_id*4+1;
+		var w0=new Work(id0);
+		var t0=calculate(move w0,seed);
+
+		int id1=round_id*4+2;
+		var w1=new Work(id1);
+		var t1=calculate(move w1,seed);
+
+		int id2=round_id*4+3;
+		var w2=new Work(id2);
+		var t2=calculate(move w2,seed);
+
+		int id3=round_id*4+4;
+		var w3=new Work(id3);
+		var t3=calculate(move w3,seed);
+
+		start(t0);
+
+		try{
+
+			start(t1);
+
+			try{
+
+				start(t2);
+
+				try{
+
+					start(t3);
+
+					{
+						bool failed=false;
+						int result=0;
+
+						try{
+							result=await move t3;
+
+						}
+						catch(Error error){
+							failed=true;
+							task_stress_caught(id3);
+
+						}
+
+						if(failed!=(id3%3==0)){
+							throw new Error("missing checked failure");
+
+						}
+
+						if(!failed && result!=id3*17+seed){
+							throw new Error("wrong result");
+
+						}
+
+					}
+
+				}
+				catch(Error error){
+					await cancel_and_join(move t2);
+					throw;
+
+				}
+
+				{
+					bool failed=false;
+					int result=0;
+
+					try{
+						result=await move t2;
+
+					}
+					catch(Error error){
+						failed=true;
+						task_stress_caught(id2);
+
+					}
+
+					if(failed!=(id2%3==0)){
+						throw new Error("missing checked failure");
+
+					}
+
+					if(!failed && result!=id2*17+seed){
+						throw new Error("wrong result");
+
+					}
+
+				}
+
+			}
+			catch(Error error){
+				await cancel_and_join(move t1);
+				throw;
+
+			}
+
+			{
+				bool failed=false;
+				int result=0;
+
+				try{
+					result=await move t1;
+
+				}
+				catch(Error error){
+					failed=true;
+					task_stress_caught(id1);
+
+				}
+
+				if(failed!=(id1%3==0)){
+					throw new Error("missing checked failure");
+
+				}
+
+				if(!failed && result!=id1*17+seed){
+					throw new Error("wrong result");
+
+				}
+
+			}
+
+		}
+		catch(Error error){
+			await cancel_and_join(move t0);
+			throw;
+
+		}
+
+		{
+			bool failed=false;
+			int result=0;
+
+			try{
+				result=await move t0;
+
+			}
+			catch(Error error){
+				failed=true;
+				task_stress_caught(id0);
+
+			}
+
+			if(failed!=(id0%3==0)){
+				throw new Error("missing checked failure");
+
+			}
+
+			if(!failed && result!=id0*17+seed){
+				throw new Error("wrong result");
+
+			}
+
+		}
+
+	}
+
+}
+
+async void batch() throws Error{
+
+	for(int round_id=0;round_id<4;round_id=round_id+1){
+		await batch_round(round_id,17);
+
+	}
+
+	var a=new Work(17);
+	var active=pending(move a);
+	start(active);
+
+	try{
+		while(task_stress_ready(17)==0){
+			await delay_ticks(1);
+
+		}
+
+	}
+	catch(Error error){
+		await cancel_and_join(move active);
+		throw;
+
+	}
+
+	await cancel_and_join(move active);
+
+	var b=new Work(18);
+	var cold=pending(move b);
+	await cancel_and_join(move cold);
+
+}
+
+int main(){
+	task_stress_prepare(4,4);
+	try{
+
+		{
+			var executor=ThreadedExecutor.open(4);
+			var status=executor.run(batch());
+
+			match(status){
+				case ThreadedStatus.Completed():{
+
+				}
+				else:{
+					return 81;
+
+				}
+
+			}
+
+		}
+
+		{
+			var executor=ThreadedExecutor.open(4);
+			var w=new Work(19);
+			var root=pending(move w);
+			executor.start(root);
+
+			for(int spins=0;spins<10000 && task_stress_ready(19)==0;spins=spins+1){
+				executor.pump(1);
+
+			}
+
+			executor.begin_shutdown();
+			task_stress_shutdown_released();
+			var status=executor.run(move root);
+
+			match(status){
+				case ThreadedStatus.Cancelled():{
+
+				}
+				else:{
+					return 83;
+
+				}
+
+			}
+
+		}
+
+	}
+	catch(Error error){
+		return 84;
+
+	}
+	return task_stress_finish(19);
+
+}

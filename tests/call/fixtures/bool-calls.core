@@ -1,0 +1,61 @@
+(core-program
+	(function "predicate" -> bool
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return
+				(binary == : bool
+					(parameter #0 : int)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+	(function "negate_result" -> bool
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return
+				(prefix ! : bool
+					(call "predicate" -> bool
+						(arguments
+							(parameter #0 : int)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "f" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(if
+				(condition
+					(call "predicate" -> bool
+						(arguments
+							(parameter #0 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+				(else
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+		)
+	)
+)

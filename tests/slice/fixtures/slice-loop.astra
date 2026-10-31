@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+int traverse(int count) {
+	int[4] a = {1, 2, 3, 4};
+	int[8] b = {5, 6, 7, 8, 9, 10, 11, 12};
+	int[] s = slice(a);
+	int i = 0;
+	while (i < len(s)) { s[i] = s[i] * 2; i = i + 1; }
+	int sum = 0;
+	i = 0;
+	while (i < count) {
+		sum = sum + len(s) + s[0];
+		if (i % 2 == 0) { s = slice(b, i, 8 - i); } else { s = slice(a); }
+		i = i + 1;
+	}
+	return sum + len(s) + s[0] + a[3];
+}
+int main() { if (traverse(4) != 52) { return 1; } return 0; }

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int header_status(HeaderResult result) {
+	match (result) {
+		case HeaderResult.Ready(header): { return header.version * 10 + header.size; }
+		case HeaderResult.Failed(error): {
+			match (error) {
+				case LoadError.Missing(): { return 1; }
+				case LoadError.Decode(decode): {
+					match (decode) {
+						case DecodeError.BadMagic(): { return 2; }
+						case DecodeError.UnsupportedVersion(actual): { return actual + 3; }
+						case DecodeError.TooShort(actual): { return actual + 4; }
+					}
+				}
+			}
+		}
+	}
+}

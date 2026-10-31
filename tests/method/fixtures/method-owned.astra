@@ -1,0 +1,38 @@
+struct Consumer {
+	int total;
+
+	void consume(owned Resource resource, int later, borrowed int[] values) {
+		this.total = this.total + resource_id(resource) + later + values[0];
+	}
+	owned Resource pass(borrowed int[] values, owned Resource resource) {
+		values[0] = values[0] + this.total;
+		return move resource;
+	}
+	owned Resource forward(owned Resource resource, borrowed int[] values) {
+		owned Resource result = this.pass(values, move resource);
+		return move result;
+	}
+}
+int later() {
+	if (resource_destroy_count() != 0 || resource_live_count() != 1) { return 100; }
+	return 2;
+}
+bool scenario() {
+	Consumer object = { total = 30 };
+	int[1] values = { 6 };
+	owned Resource resource = create_resource(4);
+	object.consume(move resource, later(), slice(values));
+	if (object.total != 42 || resource_destroy_count() != 1 || resource_live_count() != 0) { return false; }
+	resource = create_resource(5);
+	owned Resource result = object.forward(move resource, slice(values));
+	if (resource_id(result) != 5 || values[0] != 48 || resource_destroy_count() != 1) { return false; }
+	release result;
+	result = object.pass(slice(values), null);
+	return result == null && values[0] == 90;
+}
+int main() {
+	resource_reset();
+	if (!scenario()) { return 1; }
+	if (resource_create_count() != 2 || resource_destroy_count() != 2 || resource_destroy_order() != 45 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	return 42;
+}

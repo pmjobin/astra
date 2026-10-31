@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int property_event(int stage, int tag);
+class ResourceHolder {
+	private owned PropertyResource resource;
+	init(owned PropertyResource resource) { this.resource = move resource; }
+	property borrowed PropertyResource view {
+		get { return this.resource; }
+		set(owned PropertyResource incoming) { this.resource = move incoming; }
+	}
+	deinit() { property_event(3, 0); }
+}
+owned PropertyResource acquire(int value, int failure) throws Error {
+	if (failure == 1) { throw new Error("before capture"); }
+	var resource = make_resource(value);
+	if (failure == 2) { throw new Error("after capture"); }
+	return move resource;
+}
+int main() {
+	var first = make_resource(10);
+	var holder = new ResourceHolder(move first);
+	if (resource_value(holder.view) != 10 || holder.view == null) { return 81; }
+	try { var incoming = acquire(20, 1); holder.view = move incoming; return 82; }
+	catch (Error error) { if (resource_value(holder.view) != 10) { return 83; } property_event(4, 1); }
+	try { var incoming = acquire(30, 2); holder.view = move incoming; return 84; }
+	catch (Error error) { if (resource_value(holder.view) != 10) { return 85; } property_event(4, 2); }
+	try { var incoming = acquire(40, 0); holder.view = move incoming; }
+	catch (Error error) { return 86; }
+	if (resource_value(holder.view) != 40) { return 87; }
+	holder.view = null;
+	if (holder.view != null) { return 88; }
+	var last = make_resource(50); holder.view = move last;
+	release holder;
+	return 0;
+}

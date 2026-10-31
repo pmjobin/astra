@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// FNV-1a-64, over arbitrary octets, with modulo-2^64 multiplication.
+int digest_file(string input, string destination) throws Error {
+	var bytes = read_file(input);
+	u64 hash = 14695981039346656037;
+	int i = 0;
+	while (i < bytes.byte_count()) {
+		hash = (hash ^ (bytes.byte_at(i) as u64)) * 1099511628211;
+		i = i + 1;
+	}
+	var builder = new Utf8ByteBuilder();
+	require_text(append_u64(builder, hash)); require_text(append_text(builder, "\n"));
+	var report = builder.snapshot(); write_text_file(destination, report.text); return 0;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try { return digest_file(args[1], args[2]); }
+	catch (FileError error) { println_stderr("file I/O"); return 2; }
+	catch (Error error) { return 3; }
+}

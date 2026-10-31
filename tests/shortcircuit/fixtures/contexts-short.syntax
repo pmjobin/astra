@@ -1,0 +1,36 @@
+(unit
+	(function
+		(type "bool")
+		(name "consume")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (binary "==" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "contexts")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(local (type "bool") (name "x") (short-circuit "&&" (name "a") (name "b")))
+			(assign (name "x") (short-circuit "||" (name "x") (name "c")))
+			(if
+				(condition (short-circuit "&&" (name "a") (name "c")))
+				(then
+					(block
+						(assign (name "x") (short-circuit "||" (name "b") (name "c")))
+					)
+				)
+			)
+			(call-statement (call "consume" (arguments (short-circuit "&&" (name "x") (name "b")) (short-circuit "||" (name "a") (name "c")))))
+			(return (binary "==" (prefix "!" (parenthesized (short-circuit "&&" (name "x") (parenthesized (short-circuit "||" (name "a") (name "b")))))) (parenthesized (short-circuit "||" (name "b") (name "c")))))
+		)
+	)
+)

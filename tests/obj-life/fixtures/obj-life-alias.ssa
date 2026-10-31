@@ -1,0 +1,91 @@
+(ssa-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(function #0 "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(object-cleanup (storage #0) (destructor class #0) (rank #0) after-success)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 = storage-receiver #0 initializing)
+			(construct (storage #0) (class #0) (receiver %1) (arguments (integer 1 : int)))
+			(%2 : Counter = object-ref (storage #0))
+			(%3 : Receiver<Counter> = object-validate %2 null-traps)
+			(method-call (target Counter::set #0) (receiver %3) -> void (arguments (integer 40 : int)))
+			(%4 : Counter = object-validate %2 null-traps)
+			(store (indirect-field %4 (class "Counter" field #0 "value") : int) (integer 42 : int))
+			(branch #3 ())
+		)
+		(block #1
+			(%7 = storage-receiver #0 live)
+			(object-deinit (storage #0) (class #0) (receiver %7) (arguments))
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%8 : Counter = object-validate %2 null-traps)
+			(%9 : int = load (indirect-field %8 (class "Counter" field #0 "value") : int))
+			(%10 = storage-receiver #0 live)
+			(object-deinit (storage #0) (class #0) (receiver %10) (arguments))
+			(return %9)
+		)
+		(block #3
+			(%5 : bool = binary != %2 %2)
+			(conditional-branch %5
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%6 : bool = binary != (null : Counter) (null : Counter))
+			(branch #5 (%6))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+	(method #0 "set" (declaring-class #0 "Counter") (member #3) -> void
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(%1 "value" : int)
+		)
+		(entry #0)
+		(block #0
+			(store (indirect-field %0 (class "Counter" field #0 "value") : int) %1)
+			(function-end)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(%1 "value" : int)
+		)
+		(entry #0)
+		(block #0
+			(initialize (indirect-field %0 (class "Counter" field #0 "value") : int) %1)
+			(function-end)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (class "Counter" field #0 "value") : int))
+			(%2 : int = c-call #0 "life_record" -> int (arguments %1 (integer 0 : int)))
+			(function-end)
+		)
+	)
+)

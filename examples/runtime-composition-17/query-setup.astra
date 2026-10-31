@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace QuerySetup;
+owned QueryModel.Queue queue(borrowed ConcurrentAllocator context, int capacity) {
+	var result = new(context) QueryModel.Queue(capacity); return move result;
+}
+owned QueryModel.Cache cache(borrowed ConcurrentAllocator context, int capacity) {
+	var result = new(context) QueryModel.Cache(capacity); return move result;
+}
+owned QueryModel.Ticket ticket(borrowed ConcurrentAllocator context, int identity, int mode, QueryModel.Pair ranges) {
+	var bytes = new(context)u8[ranges.first.count + ranges.second.count];
+	var block = new(context) QueryModel.Block(ranges, move bytes);
+	var ticket = new(context) QueryModel.Ticket(identity, mode, ranges, move block); return move ticket;
+}

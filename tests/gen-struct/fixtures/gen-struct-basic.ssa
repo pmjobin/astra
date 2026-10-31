@@ -1,0 +1,73 @@
+(ssa-program
+	(function #0 "scalarized" -> int
+		(parameters
+			(%0 "x" : int)
+			(%1 "y" : f64)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary + %0 (integer 1 : int))
+			(%3 : bool = binary != %1 %1)
+			(conditional-branch %3
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 0 : int))
+		)
+		(block #2
+			(return %2)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(%2 : bool = binary != (integer 42 : int) (integer 42 : int))
+			(conditional-branch %2
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(%3 : bool = binary != (f64 0x401d000000000000 : f64) (f64 0x401d000000000000 : f64))
+			(branch #6 (%3))
+		)
+		(block #6
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #8 ((bool true : bool)))
+				(false #7 ())
+			)
+		)
+		(block #7
+			(%4 : int = call #0 "scalarized" -> int (arguments (integer 42 : int) (f64 0x401d000000000000 : f64)))
+			(%5 : bool = binary != %4 (integer 43 : int))
+			(branch #8 (%5))
+		)
+		(block #8
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+)

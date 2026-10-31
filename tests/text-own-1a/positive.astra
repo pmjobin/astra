@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// All factory inputs below are mutable byte storage written during execution.
+T exact_count<T>(T value) { return value; }
+class MessageSlot {
+	owned Utf8Message message;
+	init(owned Utf8Message message) { this.message = move message; }
+	deinit() { println("drop slot"); }
+}
+bool inspect(Utf8Message message, string expected) {
+	var view = message.text;
+	return view == expected && view.byte_length == expected.byte_length;
+}
+owned Utf8Message from_short_lived_bytes() throws InvalidUtf8 {
+	owned u8[] raw = new u8[5];
+	raw[0] = 99; raw[1] = 97; raw[2] = 102; raw[3] = 195; raw[4] = 169;
+	var message = utf8_message(raw);
+	return move message; // raw is retired before the caller inspects the message.
+}
+void checked_exit() throws InvalidUtf8 {
+	owned u8[] raw = new u8[3];
+	raw[0] = 97; raw[1] = 0; raw[2] = 98;
+	var message = utf8_message(raw);
+	var slot = new MessageSlot(move message);
+	if (!inspect(slot.message, "a\0b")) { return; }
+	raw[0] = 255;
+	var invalid = utf8_message(raw); // checked exit retires slot and its child.
+}
+int main(string[] args) {
+	try {
+		owned u8[] empty = new u8[0];
+		var zero = utf8_message(empty);
+		var other_zero = utf8_message(empty);
+		if (zero == other_zero || !inspect(zero, "") || !inspect(other_zero, "")) { return 81; }
+		release zero;
+		if (!inspect(other_zero, "")) { return 82; }
+		owned u8[] raw = new u8[5];
+		raw[0] = 99; raw[1] = 97; raw[2] = 102; raw[3] = 195; raw[4] = 169;
+		var first = utf8_message(raw);
+		var second = utf8_message(raw);
+		if (first == second) { return 83; }
+		raw[0] = 0; raw[3] = 0; raw[4] = 0;
+		release raw;
+		if (!inspect(first, "café") || !inspect(second, "café")) { return 84; }
+		release first;
+		if (!inspect(second, "café")) { return 85; }
+		{ var view = second.text; if (!println(view)) { return 86; } }
+		release second;
+		var returned = from_short_lived_bytes();
+		if (!inspect(returned, "café")) { return 87; }
+		u8[6] combining = {0, 0, 0, 0, 0, 0};
+		combining[0] = 99; combining[1] = 97; combining[2] = 102; combining[3] = 101; combining[4] = 204; combining[5] = 129;
+		var decomposed = utf8_message(slice(combining));
+		if (!inspect(decomposed, "cafe\u0301") || decomposed.text == returned.text) { return 88; }
+		u8[4] symbol = {0, 0, 0, 0};
+		symbol[0] = 240; symbol[1] = 159; symbol[2] = 150; symbol[3] = 164;
+		var heart = utf8_message(slice(symbol));
+		if (!inspect(heart, "🖤")) { return 89; }
+		u8[3] zeros = {0, 0, 0}; zeros[0] = 97; zeros[2] = 98;
+		var counted = utf8_message(slice(zeros));
+		if (!inspect(counted, "a\0b") || counted.text == "a\0c" || counted.text.byte_length != exact_count<int>(3)) { return 90; }
+		u8[3] ascii = {0, 0, 0}; ascii[0] = 97; ascii[1] = 98; ascii[2] = 99;
+		var plain = utf8_message(slice(ascii));
+		if (!inspect(plain, "abc")) { return 91; }
+		var slot = new MessageSlot(move heart);
+		if (!inspect(slot.message, "🖤")) { return 92; }
+		if (len(args) > 1) { return 0; } // early cleanup, including concrete child
+		try { checked_exit(); } catch (InvalidUtf8 error) {
+			if (error.message != "invalid UTF-8" || !inspect(slot.message, "🖤")) { return 93; }
+			return 0;
+		}
+	} catch (Error error) { return 94; }
+	return 95;
+}

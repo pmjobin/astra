@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// CRC-32/ISO-HDLC of ASCII 123456789, without a host provider.
+export(C) int astra_entry() {
+	u32 crc = 4294967295;
+	u32 digit = 49;
+	while (digit <= 57) {
+		crc = crc ^ digit;
+		int bit = 0;
+		while (bit < 8) {
+			u32 feedback = crc & 1;
+			crc = crc >> 1;
+			if (feedback != 0) { crc = crc ^ 3988292384; }
+			bit = bit + 1;
+		}
+		digit = digit + 1;
+	}
+	crc = crc ^ 4294967295;
+	if (crc != 3421780262) { return 65; }
+	return 0;
+}

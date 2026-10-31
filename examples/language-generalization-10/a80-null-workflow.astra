@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct WorkflowRow { int key; int weight; }
+interface RowAction { int invoke(int value); }
+class BiasAction : RowAction {
+	int bias;
+	init(int bias) : base() { this.bias = bias; }
+	override int invoke(int value) { return value + this.bias; }
+}
+int workflow_increment(int value) { return value + 1; }
+int workflow_double(int value) { return value * 2; }
+nonnull Fn<int,int> workflow_code(bool double_value) {
+	if (double_value) { return workflow_double; }
+	return workflow_increment;
+}
+owned Vector<WorkflowRow> optional_rows(int seed, int count, bool present) {
+	if (!present) { return null; }
+	var rows = new Vector<WorkflowRow>(0);
+	int index = 0;
+	while (index < count) {
+		WorkflowRow row = {key = seed + index, weight = index + 1};
+		bool stored = rows.append(row);
+		index = index + 1;
+	}
+	return move rows;
+}
+int workflow_count(nonnull Vector<WorkflowRow> rows) { return rows.count(); }
+int workflow_apply(borrowed nonnull RowAction action, int value) { return action(value); }
+int workflow_call(nonnull Fn<int,int> code, int value) { return code(value); }
+int row_total(Vector<WorkflowRow> rows, borrowed RowAction action, Fn<int,int> code) {
+	int total = 0;
+	foreach (var row in rows) { total = total + action(code(row.key)) * row.weight; }
+	return total;
+}
+int inspect_rows(Vector<WorkflowRow> rows, borrowed RowAction action, nonnull Fn<int,int> code) {
+	if (rows == null || action == null) { return -1; }
+	return workflow_count(rows) + workflow_apply(action, workflow_call(code, 0)) + row_total(rows, action, code);
+}
+class WorkflowStore {
+	owned Vector<WorkflowRow> rows;
+	init(int seed, int count, bool present) { this.rows = optional_rows(seed, count, present); }
+	property borrowed Vector<WorkflowRow> view { get { return this.rows; } }
+	void clear() { this.rows = optional_rows(0, 0, false); }
+}
+class WorkflowTicket {
+	owned Lease lease;
+	int seed;
+	init(int seed) { this.lease = open_lease(seed); this.seed = seed; }
+	deinit() { event(6000 + this.seed); }
+}
+int ticket_value(borrowed WorkflowTicket ticket) { return ticket.seed * 7; }
+void workflow_weak_ticket(int seed) throws Error {
+	var ticket = new WorkflowTicket(seed);
+	var strong = shared_acquire(move ticket);
+	var copy = shared_clone(strong);
+	var weak = shared_downgrade(strong);
+	release strong;
+	var upgraded = weak_upgrade(weak);
+	if (upgraded == null) { throw new Error("live upgrade failed"); }
+	number(ticket_value(shared_borrow(upgraded)));
+	release copy;
+	number(ticket_value(shared_borrow(upgraded)));
+	release upgraded;
+	var expired = weak_upgrade(weak);
+	if (expired == null) { number(1); }
+	else { throw new Error("expired upgrade succeeded"); }
+}
+void run_workflow(int seed, int count, bool present, bool double_value) throws Error {
+	if (seed < 1 || seed > 40 || count < 0 || count > 6) { throw new Error("workflow range"); }
+	var store = new WorkflowStore(seed, count, present);
+	var action = new BiasAction(seed);
+	nonnull Fn<int,int> code = workflow_code(double_value);
+	number(inspect_rows(store.view, action, code));
+	number(inspect_rows(store.view, null, code));
+	if (store.view != null) { number(workflow_count(store.view)); }
+	else { number(-1); }
+	if (store.view != null) {
+		store.clear();
+		if (store.view != null) { number(workflow_count(store.view)); }
+		else { number(-2); }
+	}
+	workflow_weak_ticket(seed);
+}
+int main(string[] args) {
+	if (len(args) != 5) { return 81; }
+	int result = 0;
+	try { run_workflow(parse_int(args[1]), parse_int(args[2]), parse_int(args[3]) != 0, parse_int(args[4]) != 0); }
+	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	number(live_leases());
+	if (live_leases() != 0) { return 83; }
+	return result;
+}

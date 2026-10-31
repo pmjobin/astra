@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool same_int(int left, int right) { return left == right; }
+
+int main() {
+	var values = new Map<int, int>(same_int);
+	for (int key = 0; key < 17; key = key + 1) {
+		if (!values.put(key, key * 10)) { return 1; }
+	}
+	if (values.count != 17 || values.capacity != 32 || !values.contains(0) || !values.contains(16) || values.contains(17)) { return 2; }
+	if (!values.put(4, 999) || values.count != 17) { return 3; }
+	var replaced = values.remove(4);
+	if (replaced == null || replaced.key != 4 || replaced.view != 999 || values.contains(4) || values.count != 16) { return 4; }
+	for (int key = 0; key < 17; key = key + 1) {
+		if (key == 4) { continue; }
+		var entry = values.remove(key);
+		if (entry == null || entry.key != key || entry.view != key * 10) { return 5; }
+	}
+	if (values.count != 0 || values.revision != 35) { return 6; }
+	return 0;
+}

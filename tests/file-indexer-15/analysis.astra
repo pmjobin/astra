@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace IndexAnalysis;
+
+class AsciiPolicy : IndexFoundation.IdentifierPolicy {
+	init() : base() {}
+	override int classify(int byte) {
+		if (byte >= 65 && byte <= 90 || byte >= 97 && byte <= 122 || byte == 95) { return 1; }
+		if (byte >= 48 && byte <= 57) { return 2; }
+		return 0;
+	}
+}
+bool equal_word(borrowed IndexFoundation.Document document, int first, int second, int count) throws IndexFoundation.FileError {
+	for (int index = 0; index < count; index = index + 1) {
+		if (document.byte_at(first + index) != document.byte_at(second + index)) { return false; }
+	}
+	return true;
+}
+void record_word(borrowed IndexFoundation.Document document, IndexFoundation.Word word, int hash) throws IndexFoundation.Error {
+	int candidate = document.head(hash);
+	while (candidate >= 0) {
+		var previous = document.word(candidate);
+		if (previous.length == word.length && equal_word(document, previous.offset, word.offset, word.length)) {
+			document.increment(candidate);
+			return;
+		}
+		candidate = document.following(candidate);
+	}
+	document.add_word(hash, word);
+}
+owned IndexFoundation.Document analyze(string path, borrowed IndexFoundation.IdentifierPolicy policy, int generation) throws IndexFoundation.Error {
+	var bytes = IndexFoundation.read_file(path);
+	var decoded = bytes.decode();
+	var storage = new IndexFoundation.Box<IndexFoundation.FileBytes>(move bytes);
+	IndexFoundation.SourceText text = {bytes = move storage, decoded = move decoded};
+	IndexFoundation.SourceEnvelope envelope = {content = move text, generation = generation};
+	var source = new IndexFoundation.Box<IndexFoundation.SourceEnvelope>(move envelope);
+	var document = new IndexFoundation.Document(move source);
+	int count = document.byte_count();
+	int offset = 0;
+	int line = 1;
+	int column = 1;
+	int scalars = 0;
+	int occurrences = 0;
+	while (offset < count) {
+		int byte = document.byte_at(offset);
+		if (byte == 0) { throw new IndexFoundation.IndexError("embedded-nul"); }
+		if (policy.classify(byte) == 1) {
+			int start = offset;
+			int first_column = column;
+			int hash = 0;
+			while (offset < count) {
+				byte = document.byte_at(offset);
+				if (policy.classify(byte) == 0) { break; }
+				hash = (hash * 31 + byte) % 65521;
+				offset = offset + 1;
+				column = column + 1;
+				scalars = scalars + 1;
+			}
+			IndexFoundation.Word word = {offset = start, length = offset - start,
+				frequency = 1, line = line, column = first_column};
+			record_word(document, word, hash);
+			occurrences = occurrences + 1;
+			continue;
+		}
+		if (byte < 128 || byte >= 192) {
+			scalars = scalars + 1;
+			if (byte == 10) { line = line + 1; column = 1; }
+			else { column = column + 1; }
+		}
+		offset = offset + 1;
+	}
+	int lines = 0;
+	if (count > 0) {
+		lines = line;
+		if (document.byte_at(count - 1) == 10) { lines = lines - 1; }
+	}
+	IndexFoundation.Summary summary = {bytes = count, scalars = scalars, lines = lines,
+		occurrences = occurrences, distinct = document.word_count()};
+	document.finish(summary);
+	return move document;
+}
+
+void append_byte(borrowed IndexFoundation.Utf8ByteBuilder output, int byte) throws IndexFoundation.Error {
+	u8[1] value = {0};
+	value[0] = byte as u8;
+	IndexFoundation.require_text(output.append_bytes(slice(value)));
+}
+void append_path(borrowed IndexFoundation.Utf8ByteBuilder output, string path) throws IndexFoundation.Error {
+	for (int offset = 0; offset < path.byte_length; offset = offset + 1) {
+		int byte = IndexFoundation.text_byte(path, offset);
+		if (byte >= 33 && byte <= 126 && byte != 37) { append_byte(output, byte); }
+		else {
+			append_byte(output, 37);
+			int high = byte / 16;
+			int low = byte % 16;
+			if (high < 10) { append_byte(output, 48 + high); }
+			else { append_byte(output, 65 + high - 10); }
+			if (low < 10) { append_byte(output, 48 + low); }
+			else { append_byte(output, 65 + low - 10); }
+		}
+	}
+}
+void append_number(borrowed IndexFoundation.Utf8ByteBuilder output, int number) throws IndexFoundation.Error {
+	append_byte(output, 9);
+	IndexFoundation.require_text(IndexFoundation.append_int(output, number));
+}
+int compare_words(borrowed IndexFoundation.Document document, int first, int second) throws IndexFoundation.Error {
+	var left = document.word(first);
+	var right = document.word(second);
+	int length = left.length;
+	if (right.length < length) { length = right.length; }
+	for (int index = 0; index < length; index = index + 1) {
+		int a = document.byte_at(left.offset + index);
+		int b = document.byte_at(right.offset + index);
+		if (a < b) { return -1; }
+		if (a > b) { return 1; }
+	}
+	return left.length - right.length;
+}
+void prepare_report(borrowed IndexFoundation.Document document, string path) throws IndexFoundation.Error {
+	var output = new IndexFoundation.Utf8ByteBuilder();
+	IndexFoundation.require_text(IndexFoundation.append_text(output, "file\t"));
+	append_path(output, path);
+	var summary = document.summary;
+	append_number(output, summary.bytes);
+	append_number(output, summary.scalars);
+	append_number(output, summary.lines);
+	append_number(output, summary.occurrences);
+	append_number(output, summary.distinct);
+	append_byte(output, 10);
+	var order = new int[summary.distinct];
+	for (int index = 0; index < summary.distinct; index = index + 1) {
+		int at = index;
+		while (at > 0 && compare_words(document, order[at - 1], index) > 0) {
+			order[at] = order[at - 1];
+			at = at - 1;
+		}
+		order[at] = index;
+	}
+	for (int index = 0; index < summary.distinct; index = index + 1) {
+		var word = document.word(order[index]);
+		IndexFoundation.require_text(IndexFoundation.append_text(output, "word\t"));
+		append_path(output, path);
+		append_byte(output, 9);
+		for (int offset = 0; offset < word.length; offset = offset + 1) {
+			append_byte(output, document.byte_at(word.offset + offset));
+		}
+		append_number(output, word.frequency);
+		append_number(output, word.offset);
+		append_number(output, word.line);
+		append_number(output, word.column);
+		append_byte(output, 10);
+	}
+	var message = output.snapshot();
+	var report = new u8[message.text.byte_length];
+	for (int offset = 0; offset < len(report); offset = offset + 1) {
+		report[offset] = IndexFoundation.text_byte(message.text, offset) as u8;
+	}
+	document.set_report(move report);
+}
+
+IndexFoundation.Summary process(borrowed IndexFoundation.Store store, int key, string path,
+	borrowed IndexFoundation.IdentifierPolicy policy, int generation, bool replace,
+	borrowed CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
+	IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink, bool reject) throws IndexFoundation.Error {
+	if (replace || !store.contains(key)) {
+		var document = analyze(path, policy, generation);
+		prepare_report(document, path);
+		var summary = document.summary;
+		var receipt = closure_invoke(sink, summary, reject);
+		if (receipt.sequence < 1 || receipt.attempts < receipt.sequence || receipt.bytes != summary.bytes || receipt.marker < 0) {
+			throw new IndexFoundation.IndexError("invalid sink receipt");
+		}
+		store.note_receipt(receipt);
+		if (!store.remember(key, move document)) { throw new IndexFoundation.IndexError("document cache allocation"); }
+	}
+	return store.summary(key);
+}

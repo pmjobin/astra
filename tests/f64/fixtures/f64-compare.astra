@@ -1,0 +1,13 @@
+bool eq(f64 a, f64 b) { return a == b; }
+bool ne(f64 a, f64 b) { return a != b; }
+bool lt(f64 a, f64 b) { return a < b; }
+bool le(f64 a, f64 b) { return a <= b; }
+bool gt(f64 a, f64 b) { return a > b; }
+bool ge(f64 a, f64 b) { return a >= b; }
+f64 nan(f64 zero) { return zero / zero; }
+int main() {
+	f64 n = nan(0.0);
+	if (eq(n, n) || !ne(n, n) || lt(n, n) || le(n, n) || gt(n, n) || ge(n, n)) { return 1; }
+	if (!eq(0.0, -0.0) || ne(0.0, -0.0) || !lt(-1.0, 1.0) || !le(1.0, 1.0) || !gt(1.0, 0.0) || !ge(1.0, 1.0)) { return 2; }
+	return 0;
+}

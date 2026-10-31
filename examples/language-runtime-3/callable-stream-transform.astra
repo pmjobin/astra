@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ByteBias {
+	int amount;
+	init(int amount) { this.amount = amount; surge_event(1, amount); }
+	int add(int value) { return (value + this.amount) & 255; }
+	deinit() { surge_event(2, this.amount); }
+}
+int bias_byte(borrowed ByteBias bias, int value) { return bias.add(value); }
+class ByteTransform {
+	private owned ByteBias bias;
+	init(owned ByteBias bias) { this.bias = move bias; }
+	property borrowed ByteBias capture { get { return this.bias; } }
+	int invoke(int value) { return bias_byte(this.capture, value); }
+}
+owned ByteTransform make_transform(int shift) {
+	var bias = new ByteBias(shift); var function = new ByteTransform(move bias); return move function;
+}
+int transform(string source, string destination, int shift) throws Error {
+	var bytes = read_file(source); var output = new u8[bytes.byte_count()];
+	var function = make_transform(shift); int at = 0; i64 sum = 0;
+	while (at < len(output)) {
+		int value = function(bytes.byte_at(at)); output[at] = value as u8;
+		sum = sum + (value as i64); at = at + 1;
+	}
+	write_file(destination, output); report_number("sum=", sum); return 0;
+}
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int shift = parse_int(args[3]); if (shift < 0 || shift > 255) { return 64; }
+		int result = transform(args[1], args[2], shift);
+		if (surge_live() != 0 || surge_destroyed() != 1) { return 3; }
+		return result;
+	} catch (Error error) { if (surge_live() != 0) { return 3; } return 2; }
+}

@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	int result = exercise_result_functions();
+	if (result != 0 || live() != 0) { return 1; }
+	result = exercise_result_closures();
+	if (result != 0) { return result; }
+	return live();
+}
+struct OriginResultRecord { int number; i64 wide; }
+class OriginResultItem<A, B> {
+	private owned R witness;
+	private A code;
+	private B label;
+	init(owned R witness, A code, B label) {
+		this.witness = move witness;
+		this.code = code;
+		this.label = label;
+	}
+	property A value { get { return this.code; } }
+	property B tag { get { return this.label; } }
+	deinit() { mark(1400); }
+}
+owned OriginResultItem<int, bool> create_result_item(int ticket) {
+	var witness = make(ticket);
+	var result = new OriginResultItem<int, bool>(move witness, ticket, true);
+	return move result;
+}
+owned OriginResultItem<i64, int> create_wide_result(int ticket) {
+	var witness = make(ticket);
+	i64 wide = 9000000001;
+	var result = new OriginResultItem<i64, int>(move witness, wide, 73);
+	return move result;
+}
+owned OriginResultItem<OriginResultRecord, bool> create_record_result(int ticket) {
+	var witness = make(ticket);
+	OriginResultRecord record = {number = ticket, wide = 9000000001};
+	var result = new OriginResultItem<OriginResultRecord, bool>(move witness, record, true);
+	return move result;
+}
+owned Value originate_result<Value>(Fn<owned Value, int> factory, int ticket) where Value:Ownable {
+	return factory(ticket);
+}
+owned Value relay_result<Value>(int ticket, Fn<owned Value, int> factory) where Value:Ownable {
+	return originate_result<Value>(factory, ticket);
+}
+owned Value preserve_result<Value>(owned Value original) where Value:Ownable {
+	return move original;
+}
+owned Value independent_result<Input, Value>(owned Input retired, Fn<owned Value, int> factory, int ticket) where Input:Ownable where Value:Ownable {
+	return factory(ticket);
+}
+owned OriginResultItem<int, bool> explicit_result_wrapper(int ticket) {
+	var result = relay_result<OriginResultItem<int, bool>>(ticket, create_result_item);
+	return move result;
+}
+owned OriginResultItem<int, bool> inferred_result_wrapper(int ticket) {
+	var result = originate_result(create_result_item, ticket);
+	return move result;
+}
+owned OriginResultItem<int, bool> fixed_result_wrapper<Marker>(Marker marker, int ticket) {
+	var result = create_result_item(ticket);
+	return move result;
+}
+int exercise_result_functions() {
+	var original = originate_result<OriginResultItem<int, bool>>(create_result_item, 101);
+	var first = preserve_result<OriginResultItem<int, bool>>(move original);
+	var second = relay_result<OriginResultItem<i64, int>>(102, create_wide_result);
+	var third = explicit_result_wrapper(103);
+	var fourth = inferred_result_wrapper(104);
+	var recorded = originate_result<OriginResultItem<OriginResultRecord, bool>>(create_record_result, 105);
+	var retired = make_other(106);
+	var independent = independent_result<Other, OriginResultItem<int, bool>>(move retired, create_result_item, 107);
+	var local_witness = make(108);
+	var local = OriginResultItem<int, bool>.init(move local_witness, 108, true);
+	var from_local = preserve_result<OriginResultItem<int, bool>>(move local);
+	var fixed = fixed_result_wrapper<bool>(false, 109);
+	OriginResultRecord copy = recorded.value;
+	i64 wide = 9000000001;
+	if (first.value != 101 || !first.tag || second.value != wide || second.tag != 73) { return 2; }
+	if (third.value != 103 || fourth.value != 104 || copy.number != 105 || copy.wide != wide || !recorded.tag) { return 3; }
+	if (independent.value != 107 || !independent.tag || from_local.value != 108 || fixed.value != 109) { return 4; }
+	return 0;
+}
+class OriginResultEnvironment<A, B> {
+	private owned R witness;
+	private A offset;
+	private B label;
+	init(owned R witness, A offset, B label) {
+		this.witness = move witness;
+		this.offset = offset;
+		this.label = label;
+	}
+	property A adjustment { get { return this.offset; } }
+	deinit() { mark(1401); }
+}
+owned OriginResultItem<int, bool> plain_result_code(borrowed OriginResultEnvironment<int, bool> environment, int ticket) {
+	var witness = make(ticket);
+	var result = new OriginResultItem<int, bool>(move witness, ticket + environment.adjustment, true);
+	return move result;
+}
+owned OriginResultItem<int, bool> checked_result_code(borrowed OriginResultEnvironment<int, bool> environment, bool fail, int ticket) throws Error {
+	if (fail) {
+		var rejected = create_result_item(ticket);
+		mark(1402);
+		throw new Error("result failure");
+	}
+	var result = create_result_item(ticket);
+	return move result;
+}
+owned Value invoke_plain_result<Value>(borrowed Closure<OriginResultEnvironment<int, bool>, owned Value, int> factory, int ticket) where Value:Ownable {
+	return closure_invoke(factory, ticket);
+}
+owned Value invoke_checked_result<Value>(borrowed CheckedClosure<OriginResultEnvironment<int, bool>, Error, owned Value, bool, int> factory, bool fail, int ticket) throws Error where Value:Ownable {
+	return closure_invoke(factory, fail, ticket);
+}
+class OriginResultHolder<Value> {
+	private owned Value current;
+	init(owned Value current) { this.current = move current; }
+	property borrowed Value view { get { return this.current; } }
+	void replace(owned Value replacement) { this.current = move replacement; }
+	deinit() { mark(1405); }
+}
+int exercise_result_closures() {
+	var first_witness = make(111);
+	var first_environment = new OriginResultEnvironment<int, bool>(move first_witness, 0, true);
+	owned Closure<OriginResultEnvironment<int, bool>, owned OriginResultItem<int, bool>, int> plain = closure_bind(move first_environment, plain_result_code);
+	var first = invoke_plain_result<OriginResultItem<int, bool>>(plain, 112);
+	if (first.value != 112) { return 5; }
+	var checked_witness = make(113);
+	var checked_environment = new OriginResultEnvironment<int, bool>(move checked_witness, 0, false);
+	owned CheckedClosure<OriginResultEnvironment<int, bool>, Error, owned OriginResultItem<int, bool>, bool, int> checked = checked_closure_bind(move checked_environment, checked_result_code);
+	try { var rejected = invoke_checked_result<OriginResultItem<int, bool>>(checked, true, 114); return 6; }
+	catch (Error error) { mark(1403); }
+	try {
+		var current = invoke_checked_result(checked, false, 115);
+		var holder = new OriginResultHolder<OriginResultItem<int, bool>>(move current);
+		try {
+			var rejected = invoke_checked_result(checked, true, 116);
+			holder.replace(move rejected);
+			return 7;
+		}
+		catch (Error error) { mark(1404); }
+		if (holder.view.value != 115) { return 8; }
+		var replacement = invoke_checked_result(checked, false, 117);
+		holder.replace(move replacement);
+		if (holder.view.value != 117) { return 9; }
+	} catch (Error error) { return 10; }
+	return 0;
+}

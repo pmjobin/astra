@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct WorkChunk { owned Lease lease; owned int[] samples; int ordinal; }
+int work_count(Vector<WorkChunk> chunks) { return chunks.count(); }
+class WorkPlan {
+	int seed;
+	int count;
+	int attempts;
+	int checksum;
+	init(int seed, int count) { this.seed = seed; this.count = count; this.attempts = 0; this.checksum = 0; }
+	lazy property owned Vector<WorkChunk> chunks throws Error {
+		get {
+			this.attempts = this.attempts + 1;
+			var chunks = new Vector<WorkChunk>(0);
+			int index = 0;
+			int checksum = 0;
+			while (index < this.count) {
+				var lease = open_lease(this.seed + index);
+				var samples = new int[2];
+				samples[0] = (this.seed + index) * 3;
+				samples[1] = this.seed - index;
+				checksum = checksum + (index + 1) * (samples[0] + samples[1]);
+				WorkChunk chunk = {lease = move lease, samples = move samples, ordinal = index};
+				bool stored = chunks.append(move chunk);
+				index = index + 1;
+			}
+			if (this.attempts == 1) { throw new Error("prepare retry"); }
+			this.checksum = checksum;
+			return move chunks;
+		}
+	}
+	deinit() { event(5200 + this.seed); }
+}
+async int execute_job(int seed, int count, int delay, bool failing) throws Error {
+	var plan = new WorkPlan(seed, count);
+	try { int unexpected = work_count(plan.chunks); throw new Error("missing prepare failure"); }
+	catch(Error error) { if (plan.attempts != 1 || error.message != "prepare retry") { throw; } }
+	if (work_count(plan.chunks) != count) { throw new Error("prepare count"); }
+	event(5000 + seed);
+	await delay_ticks(delay);
+	if (work_count(plan.chunks) != count || plan.attempts != 2) { throw new Error("suspended plan"); }
+	event(5100 + seed);
+	if (failing) { throw new Error("job failure"); }
+	return plan.checksum;
+}
+async void run_jobs(int seed, int count, int delay) throws Error {
+	number(await execute_job(seed, count, delay, false));
+	try { int unexpected = await execute_job(seed + 30, count + 1, delay, true); throw new Error("missing job error"); }
+	catch(Error error) { if (!println(error.message)) { throw new Error("job output"); } event(5990); }
+	var child = execute_job(seed + 60, count, 20, false);
+	start(child);
+	try { await delay_ticks(1); }
+	catch(Error error) { await cancel_and_join(move child); throw; }
+	cancel(child);
+	cancel(child);
+	await cancel_and_join(move child);
+	event(5991);
+}
+int main(string[] args) {
+	if (len(args) != 4) { return 81; }
+	int result = 0;
+	try {
+		int seed = parse_int(args[1]);
+		int count = parse_int(args[2]);
+		int delay = parse_int(args[3]);
+		if (seed < 1 || seed > 20 || count < 1 || count > 4 || delay < 2 || delay > 4) { throw new Error("job range"); }
+		var executor = VirtualExecutor.open(4);
+		var status = executor.run(run_jobs(seed, count, delay));
+		match(status) { case RunStatus.Completed(): {} else: { throw new Error("job controller cancelled"); } }
+	}
+	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	number(live_leases());
+	if (live_leases() != 0) { return 83; }
+	return result;
+}

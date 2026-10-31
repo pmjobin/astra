@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A50: filtered readonly report; the owning Bag alone retires each diagnostic.
+class Diagnostic {
+	int severity;
+	readonly string label;
+	init(int severity, string label) {
+		this.severity = severity;
+		this.label = label;
+		println("created");
+	}
+	deinit() { print("retired "); println(this.label); }
+}
+int severity(Diagnostic item) { return item.severity; }
+void render(Diagnostic item) { println(item.label); }
+int main(string[] args) {
+	if (len(args) != 2) { return 64; }
+	var diagnostics = new Bag<Diagnostic>();
+	if (args[1] != "empty") {
+		if (!diagnostics.reserve(3)) { return 70; }
+		var info = new Diagnostic(1, "info: ready");
+		var warning = new Diagnostic(2, "warning: sample");
+		var error = new Diagnostic(3, "error: terminal");
+		diagnostics.append(move info);
+		diagnostics.append(move warning);
+		diagnostics.append(move error);
+	}
+	println("diagnostic report");
+	foreach (var item in diagnostics) {
+		if (severity(item) < 2) { continue; }
+		render(item);
+		if (args[1] == "first") { break; }
+	}
+	if (args[1] == "outside") { int count = diagnostics.count(); render(diagnostics.entries[count]); }
+	return 0;
+}

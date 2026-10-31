@@ -1,0 +1,29 @@
+// ALLOC-FAIL-1 boundary supplement; the retained default probe is separate.
+// Kernel and cad_fail signatures are exact excerpts from CAD f415381.
+struct Kernel { f64 mx; f64 my; f64 xx; f64 xy; f64 yy; f64 l; f64 a; f64 b; f64 sigma; }
+extern(C) void cad_fail(int code, f64 value);
+
+// Under CAD's validated <= 2048*2048 count, this product fits int exactly.
+// The protocol uses historical f64 slots, not bytes or Kernel records.
+void report_kernel_oom(int count) { cad_fail(3, (count * 9) as f64); }
+void report_allocation(int diagnostic_code, int count) { cad_fail(diagnostic_code, (count * 9) as f64); }
+owned T[] make_array<T>(int count, int diagnostic_code) { return new T[count] else report_allocation(diagnostic_code, count); }
+
+int main(string[] args) {
+	int count = 2048 * 2048;
+	if (len(args) == 2 && (args[1] == "small" || args[1] == "bounds")) { count = 12; }
+	if (len(args) == 2 && args[1] == "generic") { var generic = make_array<Kernel>(count, 3); return len(generic); }
+	if (len(args) == 2 && args[1] == "distinct") { var other = make_array<Kernel>(count - 1, 17); return len(other); }
+	if (len(args) == 2 && args[1] == "negative") { count = 0 - len(args); }
+	owned Kernel[] state = new Kernel[count] else report_kernel_oom(count);
+	if (len(args) == 2 && args[1] == "bounds") { return (state[count].sigma as int); }
+	var first = state[0];
+	var last = state[count - 1];
+	if (first.mx != 0.0d || first.my != 0.0d || first.xx != 0.0d || first.xy != 0.0d || first.yy != 0.0d || first.l != 0.0d || first.a != 0.0d || first.b != 0.0d || first.sigma != 0.0d) { return 1; }
+	last.mx = 7.0d;
+	last.sigma = 1.0d;
+	state[count - 1] = last;
+	state[0].l = 3.0d;
+	if (first.l != 0.0d || first.sigma != 0.0d || state[0].sigma != 0.0d || state[count - 1].mx != 7.0d || state[count - 1].sigma != 1.0d) { return 1; }
+	return 0;
+}

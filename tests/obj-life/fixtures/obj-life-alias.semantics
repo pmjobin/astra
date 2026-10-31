@@ -1,0 +1,74 @@
+(program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+		(method #0 "set" (member #3) -> void
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters
+				(parameter #0 "value" : int)
+			)
+			(block
+				(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int)) (parameter-ref #0 "value" : int))
+			)
+		)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "value" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "value" (parameter-ref #0 "value" : int))
+			)
+		)
+		(destructor #0 (member #2)
+			(receiver live Counter nonnull mutable)
+			(parameters)
+			(block
+				(c-call-statement "life_record" -> int (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (integer 0 : int)))
+			)
+		)
+	)
+	(extern-function "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 "code" : int)
+			(parameter #1 "value" : int)
+		)
+		(result int))
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "c" : Counter)
+			(local #1 "a" : Counter)
+			(local #2 "b" : Counter)
+			(local #3 "nil" : Counter)
+			(local #4 "inner" : Counter)
+		)
+		(block
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "c")
+				(cleanup destructor #0 storage #0 rank #0 after-success)
+				(construct constructor #0
+					(integer 1 : int)
+				)
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(local-init #1 "a" : Counter (local-ref #0 "c" : Counter))
+			(local-init #2 "b" : Counter (local-ref #0 "c" : Counter))
+			(local-init #3 "nil" : Counter (null : Counter))
+			(block
+				(local-init #4 "inner" : Counter (local-ref #0 "c" : Counter))
+				(method-call-statement "set" -> void (target Counter::set #0) (receiver (object-receiver (local-ref #4 "inner" : Counter) : Receiver<Counter> null-traps-before-arguments)) (arguments (integer 40 : int)))
+			)
+			(assign (local-ref #0 "c" : Counter) (null : Counter))
+			(store (object-field-place (base (local-ref #1 "a" : Counter)) (field #0 "value") : int null-traps) (integer 42 : int))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (local-ref #1 "a" : Counter) (local-ref #2 "b" : Counter)) (binary != : bool (local-ref #3 "nil" : Counter) (local-ref #0 "c" : Counter))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (load (object-field-place (base (local-ref #2 "b" : Counter)) (field #0 "value") : int null-traps)))
+		)
+	)
+)

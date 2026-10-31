@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Pc;
+
+export(C) int astra_trap_handler(int vector, int value) {
+	if (vector != 3) { return 0; }
+	return value * 2 + vector;
+}
+
+export(C) int astra_entry(int index, int initialized, int zeroed) {
+	if (index != 0) { return 0; }
+	if (initialized != 324508639 || zeroed != 0) { return 33; }
+	int answer = breakpoint(19);
+	if (answer != 41) { return 52; }
+	write_byte(84);
+	write_byte(82);
+	write_byte(65);
+	write_byte(80);
+	write_byte(58);
+	write_byte(48 + answer / 10);
+	write_byte(48 + answer % 10);
+	write_byte(10);
+	return 0;
+}

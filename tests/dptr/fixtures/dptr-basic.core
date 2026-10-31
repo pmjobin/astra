@@ -1,0 +1,215 @@
+(core-program
+	(function "inspect" -> int
+		(parameters
+			(parameter #0 "p" : int*)
+		)
+		(block
+			(return
+				(load : int
+					(dereference-place : int null-traps
+						(parameter #0 : int*)
+					)
+				)
+			)
+		)
+	)
+	(function "replace" -> void
+		(parameters
+			(parameter #0 "p" : int*)
+			(parameter #1 "value" : int)
+		)
+		(block
+			(store
+				(dereference-place : int null-traps
+					(parameter #0 : int*)
+				)
+				(parameter #1 : int)
+			)
+		)
+	)
+	(function "ordinary" -> int
+		(parameters
+			(parameter #0 "condition" : bool)
+		)
+		(locals
+			(local-place #0 "x" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 1 : int)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(store
+							(local-place #0 : int)
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "x" : int address-taken)
+			(local-place #1 "p" : int*)
+			(local-place #2 "q" : int*)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 1 : int)
+			)
+			(initialize
+				(local-place #1 : int*)
+				(address-of : int*
+					(local-place #0 : int)
+				)
+			)
+			(initialize
+				(local-place #2 : int*)
+				(load : int*
+					(local-place #1 : int*)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(binary == : bool
+								(load : int*
+									(local-place #1 : int*)
+								)
+								(null : int*)
+							)
+							(binary == : bool
+								(null : int*)
+								(load : int*
+									(local-place #2 : int*)
+								)
+							)
+						)
+						(binary != : bool
+							(load : int*
+								(local-place #1 : int*)
+							)
+							(load : int*
+								(local-place #2 : int*)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(store
+				(dereference-place : int null-traps
+					(load : int*
+						(local-place #2 : int*)
+					)
+				)
+				(integer 2 : int)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(local-place #0 : int)
+						)
+						(integer 2 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(store
+				(local-place #0 : int)
+				(integer 3 : int)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(dereference-place : int null-traps
+								(load : int*
+									(local-place #1 : int*)
+								)
+							)
+						)
+						(integer 3 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 3 : int)
+						)
+					)
+				)
+			)
+			(call-statement "replace" -> void
+				(arguments
+					(address-of : int*
+						(local-place #0 : int)
+					)
+					(integer 42 : int)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(call "inspect" -> int
+								(arguments
+									(load : int*
+										(local-place #2 : int*)
+									)
+								)
+							)
+							(integer 42 : int)
+						)
+						(binary != : bool
+							(call "ordinary" -> int
+								(arguments
+									(bool true : bool)
+								)
+							)
+							(integer 2 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 4 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

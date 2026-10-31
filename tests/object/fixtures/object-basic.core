@@ -1,0 +1,72 @@
+(core-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(parameters)
+		(locals
+			(local-place #0 "c" : Counter)
+			(local-place #1 "alias" : Counter)
+		)
+		(block
+			(object-construct (storage #0) (ref-local #0) : Counter
+				(field-init #0
+					(integer 40 : int)
+				)
+			)
+			(initialize
+				(local-place #1 : Counter)
+				(load : Counter
+					(local-place #0 : Counter)
+				)
+			)
+			(method-call-statement "add" -> void
+				(target Counter::add #0)
+				(receiver
+					(object-receiver : Receiver<Counter> null-traps-before-arguments
+						(load : Counter
+							(local-place #1 : Counter)
+						)
+					)
+				)
+				(arguments
+					(integer 2 : int)
+				)
+			)
+			(return
+				(load : int
+					(object-field-place null-traps : int
+						(load : Counter
+							(local-place #0 : Counter)
+						)
+						(field #0 "value")
+					)
+				)
+			)
+		)
+	)
+	(method #0 "add" (declaring-class #0 "Counter") (member #1) -> void
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "amount" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(binary + : int
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+					(parameter #0 : int)
+				)
+			)
+		)
+	)
+)

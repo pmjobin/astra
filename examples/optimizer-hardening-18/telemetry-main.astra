@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	telemetry18_prepare();
+	int samples = telemetry18_samples();
+	int window = telemetry18_window_size();
+	owned Vector<WindowSummary18> reports = new Vector<WindowSummary18>(samples / window + 2);
+	int sequence = 0;
+	for (int start = 0; start < samples; start = start + window) {
+		int count = window;
+		if (count > samples - start) { count = samples - start; }
+		if (!telemetry18_frame(reports, start, count, sequence)) { return 1; }
+		sequence = sequence + 1;
+	}
+	if (!telemetry18_frame(reports, samples, 0, sequence)) { return 2; }
+	if (reports.count() != sequence + 1 || telemetry18_drain(reports) != 0) { return 3; }
+	return telemetry18_finish();
+}

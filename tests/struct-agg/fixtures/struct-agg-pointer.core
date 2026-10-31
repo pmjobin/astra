@@ -1,0 +1,216 @@
+(core-program
+	(struct "Inner"
+		(field #0 "x" : int)
+		(field #1 "y" : int)
+	)
+	(struct "Outer"
+		(field #0 "a" : Inner)
+		(field #1 "b" : Inner)
+	)
+	(function "aliases" -> int
+		(parameters
+			(parameter #0 "p" : Outer*)
+			(parameter #1 "q" : Outer*)
+		)
+		(block
+			(store
+				(field-place : int (field Inner::x #0)
+					(field-place : Inner (field Outer::a #0)
+						(dereference-place : Outer null-traps
+							(parameter #0 : Outer*)
+						)
+					)
+				)
+				(integer 40 : int)
+			)
+			(store
+				(field-place : int (field Inner::x #0)
+					(field-place : Inner (field Outer::a #0)
+						(dereference-place : Outer null-traps
+							(parameter #1 : Outer*)
+						)
+					)
+				)
+				(binary + : int
+					(load : int
+						(field-place : int (field Inner::x #0)
+							(field-place : Inner (field Outer::a #0)
+								(dereference-place : Outer null-traps
+									(parameter #1 : Outer*)
+								)
+							)
+						)
+					)
+					(integer 2 : int)
+				)
+			)
+			(store
+				(field-place : int (field Inner::x #0)
+					(field-place : Inner (field Outer::b #1)
+						(dereference-place : Outer null-traps
+							(parameter #0 : Outer*)
+						)
+					)
+				)
+				(integer 7 : int)
+			)
+			(return
+				(binary + : int
+					(load : int
+						(field-place : int (field Inner::x #0)
+							(field-place : Inner (field Outer::a #0)
+								(dereference-place : Outer null-traps
+									(parameter #1 : Outer*)
+								)
+							)
+						)
+					)
+					(load : int
+						(field-place : int (field Inner::x #0)
+							(field-place : Inner (field Outer::b #1)
+								(dereference-place : Outer null-traps
+									(parameter #1 : Outer*)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "o" : Outer address-taken)
+			(local-place #1 "p" : Outer*)
+			(local-place #2 "q" : Outer*)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+			)
+			(field-place : int (field Inner::y #1)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+			)
+			(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+			)
+			(field-place : int (field Inner::y #1)
+				(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+			)
+		)
+		(block
+			(struct-initialize-storage
+				(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+				(initialize
+					(field-place : int (field Inner::x #0)
+						(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+					)
+					(integer 1 : int)
+				)
+				(initialize
+					(field-place : int (field Inner::y #1)
+						(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+					)
+					(integer 2 : int)
+				)
+			)
+			(struct-initialize-storage
+				(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+				(initialize
+					(field-place : int (field Inner::x #0)
+						(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+					)
+					(integer 3 : int)
+				)
+				(initialize
+					(field-place : int (field Inner::y #1)
+						(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+					)
+					(integer 4 : int)
+				)
+			)
+			(initialize
+				(local-place #1 : Outer*)
+				(address-of : Outer*
+					(local-place #0 : Outer)
+				)
+			)
+			(initialize
+				(local-place #2 : Outer*)
+				(load : Outer*
+					(local-place #1 : Outer*)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(short-circuit || : bool
+									(binary != : bool
+										(call "aliases" -> int
+											(arguments
+												(load : Outer*
+													(local-place #1 : Outer*)
+												)
+												(load : Outer*
+													(local-place #2 : Outer*)
+												)
+											)
+										)
+										(integer 49 : int)
+									)
+									(binary != : bool
+										(load : int
+											(field-place : int (field Inner::x #0)
+												(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+											)
+										)
+										(integer 42 : int)
+									)
+								)
+								(binary != : bool
+									(load : int
+										(field-place : int (field Inner::x #0)
+											(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+										)
+									)
+									(integer 7 : int)
+								)
+							)
+							(binary != : bool
+								(load : int
+									(field-place : int (field Inner::y #1)
+										(field-place (base struct-local-place #0 : Outer) (field #0 "a") : Inner)
+									)
+								)
+								(integer 2 : int)
+							)
+						)
+						(binary != : bool
+							(load : int
+								(field-place : int (field Inner::y #1)
+									(field-place (base struct-local-place #0 : Outer) (field #1 "b") : Inner)
+								)
+							)
+							(integer 4 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

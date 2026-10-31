@@ -1,0 +1,88 @@
+(unit
+	(function
+		(type "int")
+		(name "inspect")
+		(parameters
+			(parameter (type "int*") (name "p"))
+		)
+		(block
+			(return (dereference (name "p")))
+		)
+	)
+	(function
+		(type "void")
+		(name "replace")
+		(parameters
+			(parameter (type "int*") (name "p"))
+			(parameter (type "int") (name "value"))
+		)
+		(block
+			(assign (dereference (name "p")) (name "value"))
+		)
+	)
+	(function
+		(type "int")
+		(name "ordinary")
+		(parameters
+			(parameter (type "bool") (name "condition"))
+		)
+		(block
+			(local (type "int") (name "x") (integer "1"))
+			(if
+				(condition (name "condition"))
+				(then
+					(block
+						(assign (name "x") (integer "2"))
+					)
+				)
+			)
+			(return (name "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "int") (name "x") (integer "1"))
+			(local (type "i32*") (name "p") (address-of "x"))
+			(local (type "int*") (name "q") (name "p"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "==" (name "p") (null)) (binary "==" (null) (name "q"))) (binary "!=" (name "p") (name "q"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(assign (dereference (name "q")) (integer "2"))
+			(if
+				(condition (binary "!=" (name "x") (integer "2")))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(assign (name "x") (integer "3"))
+			(if
+				(condition (binary "!=" (dereference (name "p")) (integer "3")))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(call-statement (call "replace" (arguments (address-of "x") (integer "42"))))
+			(if
+				(condition (short-circuit "||" (binary "!=" (call "inspect" (arguments (name "q"))) (integer "42")) (binary "!=" (call "ordinary" (arguments (bool true))) (integer "2"))))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

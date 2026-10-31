@@ -1,0 +1,15 @@
+struct S {
+	int raw;
+	property int value { get { return this.raw; } set(int next) { this.raw = next; } }
+	int bump() { this.value = this.value + 1; return this.raw; }
+}
+int main() {
+	S a = { raw = 1 };
+	S b = { raw = 2 };
+	int first = a.raw;
+	b.value = 40;
+	if (first != 1 || b.bump() != 41) { return 1; }
+	S* p = &b;
+	p->raw = 42;
+	return b.value;
+}

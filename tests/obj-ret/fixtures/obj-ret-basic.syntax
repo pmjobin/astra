@@ -1,0 +1,78 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "value"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "value"))
+			)
+			(block
+				(assign (field-access "this" "value") (name "value"))
+				(call-statement (call "life_record" (arguments (integer "67") (integer "0"))))
+			)
+		)
+		(destructor
+			(name "deinit")
+			(parameters)
+			(block
+				(if
+					(condition (binary "!=" (field-access "this" "value") (integer "42")))
+					(then
+						(block
+							(call-statement (call "life_record" (arguments (integer "88") (integer "0"))))
+						)
+					)
+				)
+				(call-statement (call "life_record" (arguments (integer "68") (integer "0"))))
+			)
+		)
+		(method
+			(type "void")
+			(name "add")
+			(parameters
+				(parameter (type "int") (name "n"))
+			)
+			(block
+				(assign (field-access "this" "value") (binary "+" (field-access "this" "value") (name "n")))
+			)
+		)
+		(method
+			(owned-result)
+			(type "Counter")
+			(name "copy")
+			(parameters)
+			(block
+				(return (method-call (receiver "Counter") (target "init") (arguments (field-access "this" "value"))))
+			)
+		)
+	)
+	(extern-function
+		(abi C)
+		(type "int")
+		(name "life_record")
+		(parameters
+			(parameter (type "int") (name "code"))
+			(parameter (type "int") (name "value"))
+		)
+	)
+	(function
+		(owned-result)
+		(type "Counter")
+		(name "make")
+		(parameters
+			(parameter (type "int") (name "value"))
+		)
+		(block
+			(return (method-call (receiver "Counter") (target "init") (arguments (name "value"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Counter") (name "c") (call "make" (arguments (integer "42"))))
+			(return (field-access "c" "value"))
+		)
+	)
+)

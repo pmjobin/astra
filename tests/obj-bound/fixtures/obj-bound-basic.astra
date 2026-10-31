@@ -1,0 +1,12 @@
+class Counter {
+	int value;
+}
+int inspect(borrowed Counter counter) {
+	return counter.value;
+}
+int main() {
+	Counter c = { value = 42 };
+	Counter alias = c;
+	if (inspect(alias) != 42 || c != alias) { return 1; }
+	return c.value;
+}

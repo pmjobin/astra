@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ChainChild {
+	private owned R guard;
+	private int number;
+	init(owned R guard, int number) {
+		this.guard = move guard;
+		this.number = number;
+	}
+	int read() { return id(this.guard) + this.number; }
+	deinit() { mark(2100 + this.number); }
+}
+owned T chain<T>(owned T input) where T:Ownable {
+	owned T first = move input;
+	owned T second = move first;
+	return move second;
+}
+owned A keep<A, B>(owned A first, owned B second) where A:Ownable where B:Ownable {
+	owned A result = move first;
+	owned B retired = move second;
+	return move result;
+}
+void choose<T>(owned T input, bool left) where T:Ownable {
+	if (left) {
+		owned T first = move input;
+		owned T second = move first;
+	} else {
+		owned T other = move input;
+		owned T last = move other;
+	}
+}
+int exercise() {
+	{
+		var input = make(241);
+		var result = chain<R>(move input);
+		if (id(result) != 241) { return 1; }
+	}
+	{
+		var first = make(242);
+		var second = make_other(243);
+		var result = keep<R, Other>(move first, move second);
+		if (id(result) != 242 || live() != 1) { return 2; }
+	}
+	{
+		var guard = make(244);
+		var input = new ChainChild(move guard, 1);
+		var result = chain<ChainChild>(move input);
+		if (result.read() != 245) { return 3; }
+	}
+	{
+		var guard = make(245);
+		owned ChainChild input = ChainChild.init(move guard, 2);
+		var result = chain<ChainChild>(move input);
+		if (result.read() != 247) { return 4; }
+	}
+	{
+		var input = make(246);
+		choose<R>(move input, true);
+	}
+	{
+		var input = make(247);
+		choose<R>(move input, false);
+	}
+	return live();
+}
+int main() { return exercise(); }

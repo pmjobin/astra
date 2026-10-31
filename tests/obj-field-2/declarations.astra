@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Owner slots constrain uncalled and forwarded signatures to heap authority.
+class Child { int value; init() { this.value = 42; } }
+owned Child relay(owned Child child) { return move child; }
+owned Child empty() { return null; }
+class Parent {
+	owned Child child;
+	init(owned Child incoming) { this.child = relay(move incoming); }
+	void replace(owned Child incoming) { this.child = move incoming; }
+}
+class Derived : Parent { init(owned Child incoming) : base(move incoming) {} }
+class Empty { owned Child child; init() { this.child = empty(); } }
+int main() { var parent = new Empty(); if (parent.child != null) { return 81; } release parent; return 42; }

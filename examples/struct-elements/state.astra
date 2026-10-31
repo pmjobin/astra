@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class State {
+	owned Kernel[] kernels;
+	owned f64[] samples;
+	init(int count) {
+		this.kernels = new Kernel[count];
+		this.samples = new f64[count + 2];
+		int index = 0;
+		while (index < count) { this.kernels[index] = kernel_for(index); index = index + 1; }
+		index = 0;
+		while (index < count + 2) { this.samples[index] = index as f64; index = index + 1; }
+	}
+	f64 evaluate() { return process(this.kernels, this.samples); }
+	Kernel pick(int index) { return select_kernel(this.kernels, index); }
+	void scale_first() { this.kernels[0].scale(2.0d); }
+	void verify_first() { this.kernels[0].demand(this.kernels[0].weight == 1.0d); }
+}

@@ -1,0 +1,95 @@
+(unit
+	(struct "Packet"
+		(field (type "u8") (name "tag"))
+		(field (type "u16") (name "length"))
+		(field (type "u32") (name "checksum"))
+		(field (type "i16") (name "delta"))
+	)
+	(function
+		(type "u8")
+		(name "narrow")
+		(parameters
+			(parameter (type "u8") (name "x"))
+		)
+		(block
+			(return (name "x"))
+		)
+	)
+	(function
+		(type "u32")
+		(name "large")
+		(parameters)
+		(block
+			(return (integer "4000000000"))
+		)
+	)
+	(function
+		(type "i8")
+		(name "minimum")
+		(parameters)
+		(block
+			(return (prefix "-" (parenthesized (integer "128"))))
+		)
+	)
+	(function
+		(type "i16")
+		(name "minimum16")
+		(parameters)
+		(block
+			(return (prefix "-" (parenthesized (parenthesized (integer "32768")))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "u8") (name "a") (binary "+" (integer "1") (integer "2")))
+			(local (type "i16") (name "b") (binary "+" (integer "1") (integer "2")))
+			(local (type "u16") (name "c") (binary "+" (integer "1") (integer "2")))
+			(local (type "u32") (name "d") (binary "+" (integer "1") (integer "2")))
+			(assign (name "a") (integer "254"))
+			(assign (name "a") (call "narrow" (arguments (binary "+" (name "a") (integer "1")))))
+			(struct-local (type "Packet") (name "p")
+				(initialize-field "tag" (integer "255"))
+				(initialize-field "length" (integer "65535"))
+				(initialize-field "checksum" (integer "4000000000"))
+				(initialize-field "delta" (prefix "-" (integer "32768")))
+			)
+			(assign (field-access "p" "tag") (integer "42"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "p" "tag") (integer "42")) (binary "!=" (field-access "p" "length") (integer "65535"))) (binary "!=" (field-access "p" "checksum") (call "large" (arguments)))) (binary "!=" (field-access "p" "delta") (call "minimum16" (arguments)))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (name "a") (integer "255")) (binary "!=" (name "b") (integer "3"))) (binary "!=" (name "c") (integer "3"))) (binary "!=" (name "d") (integer "3"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (binary "+" (integer "1") (name "a")) (integer "0")) (binary "!=" (binary "+" (name "a") (integer "1")) (integer "0"))) (binary "!=" (integer "0") (binary "+" (integer "1") (name "a")))) (binary "!=" (call "minimum" (arguments)) (prefix "-" (integer "128")))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (binary "+" (integer "1") (parenthesized (binary "+" (integer "2") (name "a")))) (integer "2")) (binary "!=" (binary "+" (integer "1") (parenthesized (binary "+" (integer "2") (call "narrow" (arguments (integer "255")))))) (integer "2"))) (binary "!=" (binary "+" (integer "1") (field-access "p" "length")) (integer "0"))))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

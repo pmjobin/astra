@@ -1,0 +1,178 @@
+(unit
+	(function
+		(type "i16")
+		(name "signed_bytes")
+		(parameters
+			(parameter (type "i8<16>") (name "a"))
+			(parameter (type "i8<16>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "i16")))
+		)
+	)
+	(function
+		(type "i32")
+		(name "signed_wide")
+		(parameters
+			(parameter (type "i8<16>") (name "a"))
+			(parameter (type "i8<16>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "i32")))
+		)
+	)
+	(function
+		(type "u16")
+		(name "unsigned_bytes")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+			(parameter (type "u8<16>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "u16")))
+		)
+	)
+	(function
+		(type "u32")
+		(name "unsigned_wide")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+			(parameter (type "u8<16>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "u32")))
+		)
+	)
+	(function
+		(type "i32")
+		(name "signed_words")
+		(parameters
+			(parameter (type "i16<8>") (name "a"))
+			(parameter (type "i16<8>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "i32")))
+		)
+	)
+	(function
+		(type "u32")
+		(name "unsigned_words")
+		(parameters
+			(parameter (type "u16<8>") (name "a"))
+			(parameter (type "u16<8>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "u32")))
+		)
+	)
+	(function
+		(type "i32")
+		(name "same_width")
+		(parameters
+			(parameter (type "i32<4>") (name "a"))
+			(parameter (type "i32<4>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "i32")))
+		)
+	)
+	(function
+		(type "u32")
+		(name "unsigned_same")
+		(parameters
+			(parameter (type "u32<4>") (name "a"))
+			(parameter (type "u32<4>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "u32")))
+		)
+	)
+	(function
+		(type "u16")
+		(name "cross_sign")
+		(parameters
+			(parameter (type "i8<16>") (name "a"))
+			(parameter (type "i8<16>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "u16")))
+		)
+	)
+	(function
+		(type "i16")
+		(name "cross_unsigned")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+			(parameter (type "u8<16>") (name "b"))
+		)
+		(block
+			(return (dot_wrap (name "a") (name "b") (type "i16")))
+		)
+	)
+	(function
+		(type "i32")
+		(name "accumulate")
+		(parameters
+			(parameter (type "i32") (name "c"))
+			(parameter (type "i8<16>") (name "a"))
+			(parameter (type "i8<16>") (name "b"))
+		)
+		(block
+			(return (mac_wrap (name "c") (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "ordered4")
+		(parameters
+			(parameter (type "f32<4>") (name "a"))
+			(parameter (type "f32<4>") (name "b"))
+		)
+		(block
+			(return (dot (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "ordered2")
+		(parameters
+			(parameter (type "f32<2>") (name "a"))
+			(parameter (type "f32<2>") (name "b"))
+		)
+		(block
+			(return (dot (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "unfused4")
+		(parameters
+			(parameter (type "f32") (name "c"))
+			(parameter (type "f32<4>") (name "a"))
+			(parameter (type "f32<4>") (name "b"))
+		)
+		(block
+			(return (mac (name "c") (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "unfused2")
+		(parameters
+			(parameter (type "f32") (name "c"))
+			(parameter (type "f32<2>") (name "a"))
+			(parameter (type "f32<2>") (name "b"))
+		)
+		(block
+			(return (mac (name "c") (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(return (integer "0"))
+		)
+	)
+)

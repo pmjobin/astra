@@ -1,0 +1,39 @@
+(ssa-program
+	(function #0 "flip_count" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (bool false : bool)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+				(%2 "flip" : bool)
+			)
+			(%3 : bool = binary < %1 %0)
+			(conditional-branch %3
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%4 : bool = prefix ! %2)
+			(%5 : int = binary + %1 (integer 1 : int))
+			(branch #1 (%5 %4))
+		)
+		(block #3
+			(conditional-branch %2
+				(true #4 ())
+				(false #5 ())
+			)
+		)
+		(block #4
+			(return (integer 1 : int))
+		)
+		(block #5
+			(return (integer 0 : int))
+		)
+	)
+)

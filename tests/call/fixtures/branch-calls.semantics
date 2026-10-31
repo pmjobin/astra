@@ -1,0 +1,36 @@
+(program
+	(function "transform" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return (binary + : int (parameter-ref #0 "x" : int) (integer 1 : int)))
+		)
+	)
+	(function "choose" -> int
+		(parameters
+			(parameter #0 "c" : bool)
+			(parameter #1 "a" : int)
+		)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (parameter-ref #1 "a" : int))
+			(if
+				(condition (parameter-ref #0 "c" : bool))
+				(then
+					(block
+						(assign (local-ref #0 "x" : int) (call "transform" -> int (arguments (local-ref #0 "x" : int))))
+					)
+				)
+				(else
+					(block
+						(assign (local-ref #0 "x" : int) (call "transform" -> int (arguments (call "transform" -> int (arguments (local-ref #0 "x" : int))))))
+					)
+				)
+			)
+			(return (local-ref #0 "x" : int))
+		)
+	)
+)

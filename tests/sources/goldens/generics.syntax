@@ -1,0 +1,103 @@
+(program
+	(source "tests/sources/fixtures/generics/generic.astra"
+		(unit
+			(struct "Box"
+				(type-parameters T)
+				(field (type "T") (name "value"))
+			)
+			(function
+				(type-parameters T)
+				(type "T")
+				(name "identity")
+				(parameters
+					(parameter (type "T") (name "value"))
+				)
+				(block
+					(return (name "value"))
+				)
+			)
+			(function
+				(type-parameters T)
+				(type "T")
+				(name "recurse")
+				(parameters
+					(parameter (type "int") (name "n"))
+					(parameter (type "T") (name "value"))
+				)
+				(block
+					(if
+						(condition (binary "==" (name "n") (integer "0")))
+						(then
+							(block
+								(return (name "value"))
+							)
+						)
+					)
+					(return (generic-call "bounce" (type-arguments T) (arguments (binary "-" (name "n") (integer "1")) (name "value"))))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/generics/main.astra"
+		(unit
+			(function
+				(type "int")
+				(name "main")
+				(parameters)
+				(block
+					(if
+						(condition (short-circuit "||" (binary "!=" (call "user_a" (arguments)) (integer "42")) (binary "!=" (call "user_b" (arguments)) (integer "42"))))
+						(then
+							(block
+								(return (integer "1"))
+							)
+						)
+					)
+					(return (integer "0"))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/generics/user-a.astra"
+		(unit
+			(function
+				(type "int")
+				(name "user_a")
+				(parameters)
+				(block
+					(struct-local (type "Box<f64>") (name "box")
+						(initialize-field "value" (float "2.0d"))
+					)
+					(return (binary "+" (generic-call "identity" (type-arguments int) (arguments (integer "40"))) (parenthesized (as (field-access "box" "value") (type "int")))))
+				)
+			)
+			(function
+				(type-parameters T)
+				(type "T")
+				(name "bounce")
+				(parameters
+					(parameter (type "int") (name "n"))
+					(parameter (type "T") (name "value"))
+				)
+				(block
+					(return (generic-call "recurse" (type-arguments T) (arguments (name "n") (name "value"))))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/generics/user-b.astra"
+		(unit
+			(function
+				(type "int")
+				(name "user_b")
+				(parameters)
+				(block
+					(struct-local (type "Box<f64>") (name "box")
+						(initialize-field "value" (float "3.0d"))
+					)
+					(return (binary "+" (generic-call "identity" (type-arguments int) (arguments (integer "39"))) (generic-call "recurse" (type-arguments int) (arguments (integer "4") (as (field-access "box" "value") (type "int"))))))
+				)
+			)
+		)
+	)
+)

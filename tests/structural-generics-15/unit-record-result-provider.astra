@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeRecordResults;
+struct Leaf { int value; i64 wide; bool ready; Fn<int,int> adjust; }
+struct Copy<A,B> { A data; B extra; }
+class Child {
+	private int ticket;
+	init(int ticket) { this.ticket = ticket; }
+	deinit() { mark(this.ticket); }
+}
+struct Contents { owned Child child; owned R retained; owned int[] samples; }
+struct Packet { Contents contents; int ticket; }
+internal int adjust(int value) { return value + 1; }
+internal Copy<Leaf,int> create_copy(int ticket) {
+	i64 wide = 9000000001;
+	Leaf data = {value = ticket, wide = wide, ready = true, adjust = adjust};
+	Copy<Leaf,int> result = {data = data, extra = ticket + 10};
+	return result;
+}
+Packet create_packet(int ticket) {
+	var child = new Child(ticket);
+	var retained = make(ticket);
+	var samples = new int[2];
+	samples[0] = ticket;
+	samples[1] = ticket + 10;
+	Contents contents = {child = move child, retained = move retained, samples = move samples};
+	Packet result = {contents = move contents, ticket = ticket};
+	return move result;
+}
+Fn<Copy<Leaf,int>,int> copy_callback() { return create_copy; }
+Copy<Leaf,int> invoke_copy(Fn<Copy<Leaf,int>,int> code, int ticket) { return code(ticket); }
+Fn<Packet,int> packet_callback() { return create_packet; }
+Packet invoke_packet(Fn<Packet,int> code, int ticket) { return code(ticket); }

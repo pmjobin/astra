@@ -1,0 +1,89 @@
+(ssa-program
+	(handle-type #0 "Resource" (cleanup #0)
+	)
+	(handle-type #1 "Token" (cleanup #0)
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+	)
+	(cleanup #0 (symbol "life_destroy") (signature void (void*)))
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(extern-function #1 "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Token))
+	(extern-function #3 "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(function #0 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : Resource = c-call #1 "create_resource" -> Resource (arguments (integer 65 : int)))
+			(%1 : Token = c-call #2 "create_token" -> Token (arguments (integer 66 : int)))
+			(owned-call-commit (parameter %0) (captured %0) (owner #0 = null))
+			(call #3 "astra.gen.0.0" -> void (arguments %0))
+			(owned-call-commit (parameter %0) (captured %1) (owner #1 = null))
+			(call #4 "astra.gen.0.1" -> void (arguments %1))
+			(cleanup (null : Token) via #0)
+			(cleanup (null : Resource) via #0)
+			(return (integer 42 : int))
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(%1 "code" : int)
+		)
+		(entry #0)
+		(block #0
+			(initialize (indirect-field %0 (class "Counter" field #0 "code") : int) %1)
+			(function-end)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (class "Counter" field #0 "code") : int))
+			(%2 : int = c-call #0 "life_record" -> int (arguments %1 (integer 0 : int)))
+			(function-end)
+		)
+	)
+	(function #3 "astra.gen.0.0" -> void
+		(parameters
+			(%0 "value" : Resource (contract owned-transfer))
+		)
+		(entry #0)
+		(block #0
+			(cleanup %0 via #0)
+			(function-end)
+		)
+	)
+	(function #4 "astra.gen.0.1" -> void
+		(parameters
+			(%0 "value" : Token (contract owned-transfer))
+		)
+		(entry #0)
+		(block #0
+			(cleanup %0 via #0)
+			(function-end)
+		)
+	)
+)

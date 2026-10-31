@@ -1,0 +1,12 @@
+class CadState {
+	owned f64[] weights;
+	owned f64[] scratch;
+	int width;
+	init(int count) {
+		this.weights = make_buffer(count); this.scratch = make_buffer(count); this.width = count;
+	}
+	property int count { get { return this.width; } }
+	int run() { initialize(this.weights); return 0; }
+}
+owned f64[] make_buffer(int count) { return new f64[count]; }
+owned CadState make_state(int count) { return CadState.init(count); }

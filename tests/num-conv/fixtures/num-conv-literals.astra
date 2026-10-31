@@ -1,0 +1,14 @@
+extern(C) int bits32(f32 x);
+extern(C) int high64(f64 x);
+extern(C) int low64(f64 x);
+f64 direct() { return 1.0000000000000002d; }
+f64 widened() { return 1.0000000000000002f as f64; }
+int main() {
+	f64 precise = direct();
+	f64 wide = widened();
+	if (precise == wide || high64(precise) != 1072693248 || low64(precise) != 1) { return 1; }
+	if (high64(wide) != 1072693248 || low64(wide) != 0 || bits32(1.0000000000000002f) != 1065353216) { return 2; }
+	if (bits32(-0.0f) != -2147483648 || high64(-0.0d) != -2147483648 || low64(-0.0d) != 0) { return 3; }
+	if (-1.25F != -1.25f || -1.25D != -1.25d || 1.0e10f != 1.0e10F || 1e-10d != 1e-10D) { return 4; }
+	return 0;
+}

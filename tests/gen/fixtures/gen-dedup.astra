@@ -1,0 +1,24 @@
+T identity<T>(T value) {
+	return value;
+}
+int tag<T>() { return 1; }
+T unused<T>(T value) { return value; }
+int helper() { return identity<int>(42); }
+struct S { int raw; int run() { return identity<i32>(this.raw); } }
+class C {
+	int raw;
+	init(int value) { this.raw = identity<int>(value); }
+	int run() { return identity<int>(this.raw); }
+	property int value { get { return identity<int>(this.raw); } }
+}
+int main() {
+	i8 a = identity<i8>(1); u8 b = identity<u8>(1);
+	i16 c = identity<i16>(1); u16 d = identity<u16>(1);
+	int e = identity<int>(1); u32 f = identity<u32>(1);
+	i16<8> sv = {1,2,3,4,5,6,7,8}; u16<8> uv = {1,2,3,4,5,6,7,8};
+	i16<8> s = identity<i16<8>>(sv); u16<8> u = identity<u16<8>>(uv);
+	int p = tag<i8>(); int q = tag<u8>();
+	S local = {raw=42}; C object = C.init(42);
+	if (local.run() == object.run() && object.value == helper() && identity<i32>(42) == 42) { return 42; }
+	return 1;
+}

@@ -1,0 +1,17 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void add(int n) { this.value = this.value + n; }
+}
+int consume(borrowed Counter view, owned Counter owner) {
+	if (view != owner) { return 1; }
+	view.value = 1;
+	owner.value = 42;
+	return view.value;
+}
+int main() {
+	owned Counter c = Counter.init(0);
+	return consume(c, move c);
+}

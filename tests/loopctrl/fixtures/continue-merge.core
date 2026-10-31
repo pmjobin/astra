@@ -1,0 +1,72 @@
+(core-program
+	(function "continue_merge" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local-place #0 "i" : int)
+			(local-place #1 "x" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(initialize
+				(local-place #1 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(binary < : bool
+						(load : int
+							(local-place #0 : int)
+						)
+						(parameter #0 : int)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+						(if
+							(condition
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(integer 2 : int)
+								)
+							)
+							(then
+								(block
+									(store
+										(local-place #1 : int)
+										(integer 10 : int)
+									)
+									(continue #0)
+								)
+							)
+						)
+						(store
+							(local-place #1 : int)
+							(integer 20 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #1 : int)
+				)
+			)
+		)
+	)
+)

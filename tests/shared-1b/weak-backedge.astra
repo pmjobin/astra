@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int shared_app_event(int stage,int value);
+class Node {
+	private owned Weak<Node> back;
+	int value;
+	init(owned Weak<Node> back,int value){this.back=move back;this.value=value;shared_app_event(1,value);}
+	int parent_value(){
+		var observer=weak_clone(this.back);
+		var parent=weak_upgrade(observer);
+		if(parent==null){return -1;}
+		return read(shared_borrow(parent));
+	}
+	deinit(){shared_app_event(2,this.value);}
+}
+int read(borrowed Node node){return node.value;}
+int parent_value(borrowed Node node){return node.parent_value();}
+int main(){
+	var first=new Node(null,1);
+	var first_shared=shared_acquire(move first);
+	var observer=shared_downgrade(first_shared);
+	var second=new Node(move observer,2);
+	var second_shared=shared_acquire(move second);
+	shared_app_event(3,parent_value(shared_borrow(second_shared)));
+	release first_shared;
+	shared_app_event(4,parent_value(shared_borrow(second_shared)));
+	release second_shared;
+	return 0;
+}

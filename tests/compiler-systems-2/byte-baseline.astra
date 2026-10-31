@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Measurement control: the preserved scalar API, with the same streaming loop.
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		var input = new FileHandle(); input.open(args[1], 0);
+		var output = new FileHandle(); output.open(args[2], 1);
+		while (true) {
+			int byte = input.next_byte(); if (byte == -1) { break; }
+			output.put_byte(byte);
+		}
+		input.close(); output.flush(); output.close(); return 0;
+	} catch (FileError error) { return 2; }
+}

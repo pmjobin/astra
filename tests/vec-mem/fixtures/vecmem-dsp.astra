@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+void bits(u8<16>* p) { *p = (((*p & splat(240,16)) | splat(3,16)) ^ splat(1,16)) >> 1; *p = *p << 1; }
+int main() {
+	i8<16> a = splat(-128,16);
+	u8<16> b = splat(128,16);
+	i8<16>* p = &a;
+	u8<16>* q = &b;
+	i8<16> saved = *p;
+	u8<16> unsigned_saved = *q;
+	if (!all(saved < splat(0,16)) || !all(unsigned_saved > splat(0,16))) { return 1; }
+	*p = *p >> 1;
+	*q = *q >> 1;
+	if (!all(a == splat(-64,16)) || !all(b == splat(64,16))) { return 2; }
+	*p = sat_add(*p,splat(127,16));
+	*p = sat_sub(*p,splat(127,16));
+	if (!all(a == splat(-64,16))) { return 3; }
+	b = splat(255,16);
+	bits(q);
+	if (!all(b == splat(242,16))) { return 4; }
+	i16<8> lo = widen_low(*p,i16);
+	i16<8> hi = widen_high(*q,i16);
+	i16<8>* lp = &lo;
+	i16<8>* hp = &hi;
+	*p = pack_sat(*lp,*hp,i8);
+	i8<16> packed = {-64,-64,-64,-64,-64,-64,-64,-64,127,127,127,127,127,127,127,127};
+	if (!all(a == packed)) { return 5; }
+	*q = pack_wrap(*lp,*hp,u8);
+	u8<16> wrapped = {192,192,192,192,192,192,192,192,242,242,242,242,242,242,242,242};
+	if (!all(b == wrapped)) { return 6; }
+	*q = interleave_low(*q,splat(1,16));
+	u8<16> interleaved = {192,1,192,1,192,1,192,1,192,1,192,1,192,1,192,1};
+	if (!all(b == interleaved)) { return 7; }
+	*q = interleave_high(*q,*q);
+	if ((*q)[0] != 192 || (*q)[2] != 1) { return 8; }
+	return 0;
+}

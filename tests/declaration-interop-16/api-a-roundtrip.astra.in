@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]class ImportedFault{readonly string text;init(){this.text="byte SDK failure";}virtual property string message{get{return this.text;}}}
+owned ImportedFault imported_fault(int domain,int status){var result=new ImportedFault();return move result;}
+@BINDINGS@
+[CImport(name="byte16_roundtrip_note")]int note(int value);
+class Observer{private int calls;init(){this.calls=0;}void receive(int revision,bool committed,f64 weight){if(revision!=1 || !committed || weight!=2.5){note(-1);return;}this.calls=this.calls+1;note(revision);}deinit(){note(100+this.calls);}}
+void receive(borrowed Observer observer,int revision,bool committed,f64 weight){observer.receive(revision,committed,weight);}
+export(C)int byte16_roundtrip_run(){try{
+	@CONFIGURATION@ configuration={mask=85,rotate=true,weight=2.5};var session=ImportedSession.init(configuration);if(session.revision!=0 || !session.enabled || session.weight!=2.5){return 1;}
+	var current=session.current;if(current!=null){return 2;}
+	var source=ImportedSession_signal_processed_source(session);var observer=new Observer();var handler=closure_bind(move observer,receive);if(source==null || retained_signal_register(handler,gir_signal16_mode(source))!=0){return 3;}
+	u8[3] input={3,0,254};u8[4] output={77,77,77,77};if(session.process(slice(input),slice(output))!=3 || output[0]!=172 || output[1]!=170 || output[2]!=87 || output[3]!=77){return 4;}
+	var statistics=session.statistics();if(statistics.score!=1072.5 || statistics.revision!=1 || statistics.processed!=3){return 5;}
+	var token=session.current;if(token==null || token.revision!=1){return 6;}
+	var label=session.label;if(len(label)!=17){return 7;}
+	var snapshot=session.snapshot();if(len(snapshot)!=3 || snapshot[0]!=172){return 8;}
+	if(retained_signal_revoke(handler)!=1 || retained_signal_observe(handler)!=1){return 9;}release handler;
+	session.enabled=false;try{var ignored=session.process(slice(input),slice(output));return 10;}catch(ImportedFault fault){}
+}catch(ImportedFault fault){return 90;}return 0;}

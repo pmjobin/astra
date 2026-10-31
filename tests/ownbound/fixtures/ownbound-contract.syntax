@@ -1,0 +1,38 @@
+(unit
+	(function
+		(owned-result)
+		(type "Resource")
+		(name "pass")
+		(parameters
+			(parameter (owned) (type "Resource") (name "r"))
+		)
+		(block
+			(return (move (name "r")))
+		)
+	)
+	(function
+		(type "void")
+		(name "consume")
+		(parameters
+			(parameter (type "int") (name "first"))
+			(parameter (owned) (type "Resource") (name "a"))
+			(parameter (type "int") (name "last"))
+			(parameter (owned) (type "Resource") (name "b"))
+		)
+		(block
+			(owned-local (type "Resource") (name "local") (call "create_resource" (arguments (integer "3"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Resource") (name "a") (call "create_resource" (arguments (integer "1"))))
+			(owned-local (type "Resource") (name "b") (call "pass" (arguments (move (name "a")))))
+			(assign (name "a") (call "pass" (arguments (null))))
+			(call-statement (call "consume" (arguments (call "record" (arguments (integer "1"))) (move (name "b")) (call "record" (arguments (integer "2"))) (move (name "a")))))
+			(return (integer "0"))
+		)
+	)
+)

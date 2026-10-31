@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace ResourceResultTransport;
+
+Fn<owned R,int> callback() { return NativeResourceResults.callback(); }
+owned R apply(Fn<owned R,int> code, int tag) {
+	var value = NativeResourceResults.invoke(code, tag);
+	return move value;
+}
+owned R direct(int tag) {
+	Fn<owned R,int> code = NativeResourceResults.callback();
+	var value = code(tag);
+	return move value;
+}

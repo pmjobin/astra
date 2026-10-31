@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+SymbolicNative.Packet consumer_callback(SymbolicNative.Packet value) {
+	SymbolicNative.Packet result = {wide = value.wide, value = value.value + 3, ready = !value.ready};
+	return result;
+}
+int consumer_loan(borrowed SymbolicNative.Child value) { return value.value; }
+int exercise_symbolic_native() {
+	i64 wide = 9000000001;
+	SymbolicNative.Packet first = {wide = wide, value = 39, ready = false};
+	Fn<SymbolicNative.Packet, SymbolicNative.Packet> code = SymbolicTransport.callback();
+	SymbolicNative.Packet second = SymbolicTransport.invoke(code, first);
+	SymbolicNative.Packet third = SymbolicTransport.invoke(consumer_callback, first);
+	if (second.value != 42 || third.value != 48 || !second.ready || !third.ready || second.wide != wide || first.value != 39) { return 1; }
+	var child = SymbolicTransport.create_child(42);
+	Fn<int, borrowed SymbolicNative.Child> observe = SymbolicTransport.loan_callback();
+	if (SymbolicTransport.invoke_loan(observe, child) != 42 || SymbolicTransport.invoke_loan(consumer_loan, child) != 42 || child.value != 42) { return 2; }
+	return 0;
+}
+int main() {
+	int result = exercise_symbolic_native();
+	if (result != 0) { return result; }
+	return live();
+}

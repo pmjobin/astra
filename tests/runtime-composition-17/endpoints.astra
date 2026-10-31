@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CCode(record_abi="natural-lp64")]
+extern(C) int endpoint_oracle(borrowed NetworkEndpoint* ipv4, borrowed NetworkEndpoint* ipv6);
+int main() {
+	try {
+		NetworkEndpoint v4 = network_endpoint("192.0.2.2", 4, 17431, 0);
+		NetworkEndpoint v6 = network_endpoint("fd17:6173:7472::2", 6, 41743, 0);
+		NetworkEndpoint copy = v6;
+		if (!network_endpoint_equal(v6, copy) || network_endpoint_equal(v4, copy)) { return 1; }
+		var output = new u8[96];
+		int length = network_format(v4, output);
+		if (length != 15 || output[0] != 49 || output[14] != 49) { return 2; }
+		length = network_format(v6, output);
+		if (length != 25 || output[0] != 91 || output[24] != 51) { return 3; }
+		bool rejected = false;
+		try { NetworkEndpoint invalid = network_endpoint("1.2.3.256", 4, 0, 0); }
+		catch (SocketError error) { rejected = error.code == -22; }
+		if (!rejected) { return 4; }
+		return endpoint_oracle(&v4, &v6);
+	} catch (SocketError error) { return 10; }
+}

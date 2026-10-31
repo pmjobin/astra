@@ -1,0 +1,214 @@
+(core-program
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "storage" : int[4])
+			(local-place #1 "a" : int[])
+			(local-place #2 "b" : int[])
+			(local-place #3 "i" : int)
+		)
+		(block
+			(array-initialize #0 int[4]
+				(integer 1 : int)
+				(integer 2 : int)
+				(integer 3 : int)
+				(integer 4 : int)
+			)
+			(initialize
+				(local-place #1 : int[])
+				(slice-from-array (storage #0 : int[4]) : int[] (region #0) full
+				)
+			)
+			(initialize
+				(local-place #2 : int[])
+				(load : int[]
+					(local-place #1 : int[])
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(slice-length : int
+								(load : int[]
+									(local-place #1 : int[])
+								)
+							)
+							(integer 4 : int)
+						)
+						(binary != : bool
+							(integer 4 : int)
+							(integer 4 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(store
+				(slice-element-place : int runtime-bounds-trap
+					(load : int[]
+						(local-place #1 : int[])
+					)
+					(integer 1 : int)
+				)
+				(integer 42 : int)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(load : int
+								(slice-element-place : int runtime-bounds-trap
+									(load : int[]
+										(local-place #2 : int[])
+									)
+									(integer 1 : int)
+								)
+							)
+							(integer 42 : int)
+						)
+						(binary != : bool
+							(load : int
+								(array-element-place #0 int[4] (bounds 0 4 trap)
+									(integer 1 : int)
+								)
+							)
+							(integer 42 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(store
+				(array-element-place #0 int[4] (bounds 0 4 trap)
+					(integer 2 : int)
+				)
+				(integer 12 : int)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(slice-element-place : int runtime-bounds-trap
+								(slice-from-array (storage #0 : int[4]) : int[] (region #0) full
+								)
+								(integer 2 : int)
+							)
+						)
+						(integer 12 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 3 : int)
+						)
+					)
+				)
+			)
+			(store
+				(slice-element-place : int runtime-bounds-trap
+					(slice-from-array (storage #0 : int[4]) : int[] (region #0) full
+					)
+					(integer 2 : int)
+				)
+				(integer 14 : int)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(array-element-place #0 int[4] (bounds 0 4 trap)
+								(integer 2 : int)
+							)
+						)
+						(integer 14 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 4 : int)
+						)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(binary < : bool
+						(load : int
+							(local-place #3 : int)
+						)
+						(slice-length : int
+							(load : int[]
+								(local-place #2 : int[])
+							)
+						)
+					)
+				)
+				(body
+					(block
+						(if
+							(condition
+								(binary != : bool
+									(load : int
+										(slice-element-place : int runtime-bounds-trap
+											(load : int[]
+												(local-place #2 : int[])
+											)
+											(load : int
+												(local-place #3 : int)
+											)
+										)
+									)
+									(load : int
+										(array-element-place #0 int[4] (bounds 0 4 trap)
+											(load : int
+												(local-place #3 : int)
+											)
+										)
+									)
+								)
+							)
+							(then
+								(block
+									(return
+										(integer 5 : int)
+									)
+								)
+							)
+						)
+						(store
+							(local-place #3 : int)
+							(binary + : int
+								(load : int
+									(local-place #3 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

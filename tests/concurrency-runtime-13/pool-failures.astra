@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int pool_fault_arm(int allocation, int worker);
+extern(C) int pool_fault_observe(int injected);
+extern(C) int pool_fault_finish();
+
+async void ready() throws Error { await delay_ticks(1); }
+
+void invalid_capacity(int workers) throws Error {
+	bool refused = false;
+	try { var executor = ThreadedExecutor.open(workers); }
+	catch (Error error) { refused = true; }
+	if (!refused) { throw new Error("invalid worker count was admitted"); }
+	pool_fault_observe(0);
+}
+
+void startup_failure(int allocation, int worker) throws Error {
+	pool_fault_arm(allocation, worker);
+	bool refused = false;
+	try { var executor = ThreadedExecutor.open(2); }
+	catch (Error error) { refused = true; }
+	if (!refused) { throw new Error("missing startup failure"); }
+	pool_fault_observe(1);
+	{
+		var executor = ThreadedExecutor.open(2);
+		var status = executor.run(ready());
+		match (status) { case ThreadedStatus.Completed(): {} else: { throw new Error("recovery run"); } }
+	}
+	pool_fault_observe(0);
+}
+
+export(C) int run_pool_failures() {
+	try {
+		invalid_capacity(0); invalid_capacity(9);
+		startup_failure(1, 0); startup_failure(2, 0); startup_failure(3, 0);
+		startup_failure(0, 1); startup_failure(0, 2);
+	} catch (Error error) { return 81; }
+	return pool_fault_finish();
+}
+int main() { return run_pool_failures(); }

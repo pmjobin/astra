@@ -1,0 +1,77 @@
+(program
+	(function "left" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+		)
+		(block
+			(return (parameter-ref #0 "a" : bool))
+		)
+	)
+	(function "right" -> bool
+		(parameters
+			(parameter #0 "b" : bool)
+		)
+		(block
+			(return (parameter-ref #0 "b" : bool))
+		)
+	)
+	(function "consume" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return (binary == : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)))
+		)
+	)
+	(function "and_calls" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return (short-circuit && : bool (call "left" -> bool (arguments (parameter-ref #0 "a" : bool))) (call "right" -> bool (arguments (parameter-ref #1 "b" : bool)))))
+		)
+	)
+	(function "or_calls" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return (short-circuit || : bool (call "left" -> bool (arguments (parameter-ref #0 "a" : bool))) (call "right" -> bool (arguments (parameter-ref #1 "b" : bool)))))
+		)
+	)
+	(function "arguments" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+			(parameter #3 "d" : bool)
+		)
+		(block
+			(return (call "consume" -> bool (arguments (short-circuit && : bool (call "left" -> bool (arguments (parameter-ref #0 "a" : bool))) (call "right" -> bool (arguments (parameter-ref #1 "b" : bool)))) (short-circuit || : bool (call "left" -> bool (arguments (parameter-ref #2 "c" : bool))) (call "right" -> bool (arguments (parameter-ref #3 "d" : bool)))))))
+		)
+	)
+	(function "earlier_call" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(block
+			(return (call "consume" -> bool (arguments (call "left" -> bool (arguments (parameter-ref #0 "a" : bool))) (short-circuit && : bool (parameter-ref #1 "b" : bool) (call "right" -> bool (arguments (parameter-ref #2 "c" : bool)))))))
+		)
+	)
+	(function "earlier_trap" -> bool
+		(parameters
+			(parameter #0 "x" : int)
+			(parameter #1 "y" : int)
+			(parameter #2 "a" : bool)
+			(parameter #3 "b" : bool)
+		)
+		(block
+			(return (call "consume" -> bool (arguments (binary > : bool (binary / : int (parameter-ref #0 "x" : int) (parameter-ref #1 "y" : int)) (integer 0 : int)) (short-circuit || : bool (parameter-ref #2 "a" : bool) (parameter-ref #3 "b" : bool)))))
+		)
+	)
+)

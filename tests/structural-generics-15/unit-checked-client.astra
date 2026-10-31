@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ConsumerFailure : CheckedLibrary.Error {
+	init() : base("consumer failure") {}
+	override property string message { get { return "consumer override"; } }
+}
+int main() {
+	try {
+		var first = CheckedMiddle.analyze(40, false);
+		if (first.value != 42 || !first.ready) { return 1; }
+		var failing = CheckedMiddle.analyze(41, true);
+		return 2;
+	} catch (CheckedLibrary.Failure error) {
+		if (error.message.byte_length != 16 || CheckedMiddle.message_length(error) != 16) { return 3; }
+	} catch (CheckedLibrary.Error error) { return 4; }
+	try {
+		var retry = CheckedMiddle.analyze(42, false);
+		if (retry.value != 44 || !retry.ready) { return 5; }
+	} catch (CheckedLibrary.Error error) { return 6; }
+	var consumer = new ConsumerFailure();
+	if (CheckedMiddle.message_length(consumer) != 17) { return 7; }
+	return 0;
+}

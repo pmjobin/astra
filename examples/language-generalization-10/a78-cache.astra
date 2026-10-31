@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct CacheEntry { owned Lease lease; owned Utf8Message label; owned int[] weights; int key; }
+int cache_size(Vector<CacheEntry> entries) { return entries.count(); }
+bool cache_identity(Vector<CacheEntry> left, Vector<CacheEntry> right) { return left == right; }
+class SummarySource {
+	init() {}
+	virtual property int summary { get { return -99; } }
+}
+class MemoSummary : SummarySource {
+	int seed;
+	int count;
+	int attempts;
+	int checksum;
+	bool retry;
+	init(int seed, int count, bool retry) : base() {
+		this.seed = seed;
+		this.count = count;
+		this.retry = retry;
+		this.attempts = 0;
+		this.checksum = 0;
+	}
+	lazy property owned Vector<CacheEntry> entries throws Error {
+		get {
+			this.attempts = this.attempts + 1;
+			var entries = new Vector<CacheEntry>(0);
+			int checksum = 0;
+			int index = 0;
+			while (index < this.count) {
+				int key = this.seed + index;
+				var lease = open_lease(key);
+				var label = new Utf8Message("cached λ");
+				var weights = new int[2];
+				weights[0] = key * key;
+				weights[1] = key + this.count;
+				checksum = checksum + (index + 1) * (weights[0] + weights[1]);
+				CacheEntry entry = {lease = move lease, label = move label, weights = move weights, key = key};
+				bool stored = entries.append(move entry);
+				index = index + 1;
+			}
+			if (this.retry && this.attempts == 1) { throw new Error("cache retry"); }
+			this.checksum = checksum;
+			return move entries;
+		}
+	}
+	int measure() {
+		try { return cache_size(this.entries) + this.checksum; }
+		catch(Error error) { if (!println(error.message)) { return -2; } return -1; }
+	}
+	override property int summary { get { return this.measure(); } }
+	deinit() { event(4000 + this.seed); }
+}
+int dynamic_summary(SummarySource source) { return source.summary; }
+void run_cache(int seed, int count, bool retry) throws Error {
+	if (seed < 1 || seed > 30 || count < 0 || count > 6) { throw new Error("cache range"); }
+	var first = new MemoSummary(seed, count, retry);
+	var second = new MemoSummary(seed + 60, count + 1, false);
+	number(dynamic_summary(first));
+	number(dynamic_summary(second));
+	number(dynamic_summary(first));
+	number(dynamic_summary(second));
+	number(first.attempts);
+	number(second.attempts);
+	if (cache_identity(first.entries, first.entries)) { number(1); } else { number(0); }
+	if (cache_identity(first.entries, second.entries)) { number(1); } else { number(0); }
+	var moved = move first;
+	number(dynamic_summary(moved));
+}
+int main(string[] args) {
+	if (len(args) != 4) { return 81; }
+	int result = 0;
+	try { run_cache(parse_int(args[1]), parse_int(args[2]), parse_int(args[3]) != 0); }
+	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	number(live_leases());
+	if (live_leases() != 0) { return 83; }
+	return result;
+}

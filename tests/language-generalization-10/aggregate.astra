@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ResourcePair {
+	owned R first;
+	owned Other second;
+	int tag;
+}
+struct Branch {
+	ResourcePair payload;
+}
+struct Document {
+	Branch left;
+	Branch right;
+	int kind;
+}
+
+int stage(int failure, int step) throws Error {
+	mark(100 + step);
+	if (failure == step) { throw new Error("prefix"); }
+	return step;
+}
+
+int exercise(int failure) {
+	try {
+		Document document = {
+			right = {payload = {
+					second = make_other(stage(failure, 1)),
+					tag = stage(failure, 2),
+					first = make(stage(failure, 3))
+				}},
+			left = {payload = {
+					first = make(stage(failure, 4)),
+					second = make_other(stage(failure, 5)),
+					tag = 17
+				}},
+			kind = stage(failure, 6)
+		};
+		var moved = move document;
+		mark(moved.left.payload.tag + moved.right.payload.tag + moved.kind);
+	} catch (Error error) {
+		mark(900 + failure);
+	}
+	return live();
+}
+
+int early(bool stop) {
+	Document document = {
+		left = {payload = {first = make(11), second = make_other(12), tag = 1}},
+		right = {payload = {first = make(13), second = make_other(0), tag = 2}},
+		kind = 3
+	};
+	if (stop) {
+		var moved = move document;
+		return moved.left.payload.tag + moved.right.payload.tag - moved.kind;
+	}
+	return document.kind - 3;
+}
+
+int main() {
+	int total = exercise(0);
+	for (int failure = 1; failure <= 6; failure = failure + 1) {
+		total = total + exercise(failure);
+	}
+	total = total + early(true) + early(false);
+	for (int i = 0; i < 3; i = i + 1) {
+		Branch branch = {payload = {first = make(20 + i), second = make_other(30 + i), tag = i}};
+		var moved = move branch;
+		if (moved.payload.tag == 0) { continue; }
+		if (moved.payload.tag == 1) { break; }
+	}
+	return total + live();
+}

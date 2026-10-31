@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Inner { int x; int y; }
+struct Outer { Inner inner; int tag; }
+int f(bool choose) {
+	Outer o = { inner = { x = 10, y = 20 }, tag = 3 };
+	if (choose) { o.inner.x = 11; o.tag = 4; }
+	return o.inner.x + o.inner.y + o.tag;
+}
+int main() { if (f(false) != 33 || f(true) != 35) { return 1; } return 0; }

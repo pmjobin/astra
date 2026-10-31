@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="captured16_retired")]int retired();
+[CImport(name="captured16_seen")]void seen(int value);
+class Environment{private int bias;init(int bias){this.bias=bias;}int offset(){return this.bias;}deinit(){retired();}}
+i64 compute(borrowed Environment environment,i64 signed64,u64 unsigned64,f32 single,f64 precise){if(signed64!=-5000000000 || unsigned64!=9223372036854775809 || single!=1.25 || precise!=2.5){return -1;}return signed64+environment.offset() as i64;}
+void notify(borrowed Environment environment,int value){seen(value+environment.offset());}
+bool flip(borrowed Environment environment,bool input){return environment.offset()==1 && !input;}
+i64 apply(borrowed Callback<i64,i64,u64,f32,f64> callback){return callback(-5000000000,9223372036854775809,1.25,2.5);}
+void fire(borrowed Callback<void,int> callback){callback(19);}
+bool choose(borrowed Callback<bool,bool> callback){return callback(false);}
+i64 forward(borrowed Closure<Environment,i64,i64,u64,f32,f64> closure){return apply(closure);}
+bool optional(borrowed Callback<bool,bool> callback){if(callback==null){return true;}return callback(false);}
+bool optional_forward(borrowed Closure<Environment,bool,bool> callback){return optional(callback);}
+export(C) int captured16_run(){
+	if(!optional_forward(null)){return 3;}
+	var environment=new Environment(11);var closure=closure_bind(move environment,compute);i64 expected=-4999999989;if(apply(closure)!=expected || forward(closure)!=expected){return 1;}
+	var sink_environment=new Environment(2);var sink=closure_bind(move sink_environment,notify);fire(sink);
+	var flag_environment=new Environment(1);var flag=closure_bind(move flag_environment,flip);if(!choose(flag)){return 2;}return 0;
+}

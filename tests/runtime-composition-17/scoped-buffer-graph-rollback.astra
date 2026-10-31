@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void scoped_buffer_graph_rollback_event(int event, int identity);
+[Allocator(kind="context",context="scoped-affine")]
+class BufferGraphLeaf {
+	private int identity;
+	init(int identity){this.identity=identity;scoped_buffer_graph_rollback_event(6,identity);}
+	int read(){return this.identity;}
+	deinit(){scoped_buffer_graph_rollback_event(7,this.identity);}
+}
+[ExceptionRoot]
+class BufferConstructionFault {
+	private int identity;
+	init(int identity) { this.identity=identity; scoped_buffer_graph_rollback_event(2,identity); }
+	virtual property string message { get { return "buffer construction failed"; } }
+	deinit() { scoped_buffer_graph_rollback_event(3,this.identity); }
+}
+[Allocator(kind="context",context="scoped-affine")]
+class CheckedBufferHost {
+	private int identity;
+	private owned BufferGraphLeaf child;
+	private owned u8[] left;
+	private owned i32[] right;
+	init(int identity,owned BufferGraphLeaf child,owned u8[] left,owned i32[] right,int mode) throws BufferConstructionFault {
+		this.identity=identity;
+		scoped_buffer_graph_rollback_event(1,identity);
+		if(mode==1){throw new BufferConstructionFault(identity);}
+		this.child=move child;
+		if(mode==2){throw new BufferConstructionFault(identity);}
+		this.left=move left;
+		if(mode==3){throw new BufferConstructionFault(identity);}
+		this.right=move right;
+		if(mode==4){throw new BufferConstructionFault(identity);}
+	}
+	int read() { return this.child.read()+len(this.left)+len(this.right); }
+	deinit() { scoped_buffer_graph_rollback_event(4,this.identity); }
+}
+owned CheckedBufferHost relay_buffer_graph(owned CheckedBufferHost input){return move input;}
+export(C) int scoped_buffer_graph_rollback_run() {
+	owned u8[] backing=new u8[8197];
+	owned u8[] leaf_backing=new u8[12289];
+	{
+		var context=scoped_allocator<ScopedAllocator>(backing,2,1);
+		var leaf_context=scoped_allocator<ScopedAllocator>(leaf_backing,2,2);
+		if(context==null||leaf_context==null){return 1;}
+		int identity=1;
+		while(identity<7){
+			var child=new(leaf_context)BufferGraphLeaf(identity);
+			owned u8[] left=new u8[identity*10+1];
+			owned i32[] right=new i32[identity*10+3];
+			int mode=0;
+			if(identity==1){mode=1;}
+			if(identity==3){mode=2;}
+			if(identity==5){mode=3;}
+			if(identity==6){mode=4;}
+			try{
+				if(identity==3||identity==4){
+					var host=try_new(context)CheckedBufferHost(identity,move child,move left,move right,mode);
+					if(host==null||host.read()!=identity*21+4){return 2;}
+				}else{
+					var initial=new(context)CheckedBufferHost(identity,move child,move left,move right,mode);
+					var host=relay_buffer_graph(move initial);
+					if(host.read()!=identity*21+4){return 3;}
+					var retained_child=new(leaf_context)BufferGraphLeaf(99);
+					owned u8[] retained_left=new u8[991];
+					owned i32[] retained_right=new i32[993];
+					var refused=try_new(context)CheckedBufferHost(99,move retained_child,move retained_left,move retained_right,3);
+					if(refused!=null||retained_child.read()!=99||len(retained_left)!=991||len(retained_right)!=993){return 4;}
+				}
+				if(mode!=0){return 5;}
+			}catch(BufferConstructionFault error){
+				if(mode==0||scoped_allocator_query(context,1)!=0){return 6;}
+				scoped_buffer_graph_rollback_event(5,identity);
+			}
+			if(scoped_allocator_query(context,1)!=0){return 7;}
+			identity=identity+1;
+		}
+		if(scoped_allocator_query(context,4)!=6||scoped_allocator_query(context,5)!=6||scoped_allocator_query(leaf_context,4)!=7||scoped_allocator_query(leaf_context,5)!=7){return 8;}
+	}
+	return len(backing)-8197;
+}

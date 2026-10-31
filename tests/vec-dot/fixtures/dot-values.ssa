@@ -1,0 +1,177 @@
+(ssa-program
+	(function #0 "signed_bytes" -> i16
+		(parameters
+			(%0 "a" : i8<16>)
+			(%1 "b" : i8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : i16 = dot-wrap (source i8<16>) (accumulator i16) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #1 "signed_wide" -> int
+		(parameters
+			(%0 "a" : i8<16>)
+			(%1 "b" : i8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = dot-wrap (source i8<16>) (accumulator int) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #2 "unsigned_bytes" -> u16
+		(parameters
+			(%0 "a" : u8<16>)
+			(%1 "b" : u8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : u16 = dot-wrap (source u8<16>) (accumulator u16) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #3 "unsigned_wide" -> u32
+		(parameters
+			(%0 "a" : u8<16>)
+			(%1 "b" : u8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : u32 = dot-wrap (source u8<16>) (accumulator u32) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #4 "signed_words" -> int
+		(parameters
+			(%0 "a" : i16<8>)
+			(%1 "b" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = dot-wrap (source i16<8>) (accumulator int) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #5 "unsigned_words" -> u32
+		(parameters
+			(%0 "a" : u16<8>)
+			(%1 "b" : u16<8>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : u32 = dot-wrap (source u16<8>) (accumulator u32) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #6 "same_width" -> int
+		(parameters
+			(%0 "a" : int<4>)
+			(%1 "b" : int<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = dot-wrap (source int<4>) (accumulator int) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #7 "unsigned_same" -> u32
+		(parameters
+			(%0 "a" : u32<4>)
+			(%1 "b" : u32<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : u32 = dot-wrap (source u32<4>) (accumulator u32) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #8 "cross_sign" -> u16
+		(parameters
+			(%0 "a" : i8<16>)
+			(%1 "b" : i8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : u16 = dot-wrap (source i8<16>) (accumulator u16) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #9 "cross_unsigned" -> i16
+		(parameters
+			(%0 "a" : u8<16>)
+			(%1 "b" : u8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : i16 = dot-wrap (source u8<16>) (accumulator i16) (order modular) %0 %1)
+			(return %2)
+		)
+	)
+	(function #10 "accumulate" -> int
+		(parameters
+			(%0 "c" : int)
+			(%1 "a" : i8<16>)
+			(%2 "b" : i8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%3 : int = mac-wrap (source i8<16>) (accumulator int) (order modular) (acc %0) %1 %2)
+			(return %3)
+		)
+	)
+	(function #11 "ordered4" -> f32
+		(parameters
+			(%0 "a" : f32<4>)
+			(%1 "b" : f32<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : f32 = dot-f32 (source f32<4>) (accumulator f32) (order ascending-lane) %0 %1)
+			(return %2)
+		)
+	)
+	(function #12 "ordered2" -> f32
+		(parameters
+			(%0 "a" : f32<2>)
+			(%1 "b" : f32<2>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : f32 = dot-f32 (source f32<2>) (accumulator f32) (order ascending-lane) %0 %1)
+			(return %2)
+		)
+	)
+	(function #13 "unfused4" -> f32
+		(parameters
+			(%0 "c" : f32)
+			(%1 "a" : f32<4>)
+			(%2 "b" : f32<4>)
+		)
+		(entry #0)
+		(block #0
+			(%3 : f32 = mac-f32 (source f32<4>) (accumulator f32) (order ascending-lane) (acc %0) %1 %2)
+			(return %3)
+		)
+	)
+	(function #14 "unfused2" -> f32
+		(parameters
+			(%0 "c" : f32)
+			(%1 "a" : f32<2>)
+			(%2 "b" : f32<2>)
+		)
+		(entry #0)
+		(block #0
+			(%3 : f32 = mac-f32 (source f32<2>) (accumulator f32) (order ascending-lane) (acc %0) %1 %2)
+			(return %3)
+		)
+	)
+	(function #15 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (integer 0 : int))
+		)
+	)
+)

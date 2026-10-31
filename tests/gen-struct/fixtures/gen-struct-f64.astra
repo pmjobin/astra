@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+f64 scalarized(f64 x) { Box<f64> b = { value = x }; return b.value; }
+f64 addressed(Box<f64>* b, f64 x) { b->value = x; return b->value; }
+int main() {
+	Box<f64> z = { value = -0.0 };
+	Box<f64> p = { value = 0.0 };
+	Box<f64> t = { value = 4.9406564584124654e-324 };
+	Box<f32> f = { value = 1.40129846e-45 };
+	if (1.0 / z.value >= 0.0 || 1.0 / p.value <= 0.0 || scalarized(t.value) != t.value || f.value != 1.40129846e-45) { return 1; }
+	if (addressed(&z, -0.0) != 0.0 || 1.0 / z.value >= 0.0) { return 2; }
+	return 0;
+}

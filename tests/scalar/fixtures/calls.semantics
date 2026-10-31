@@ -1,0 +1,42 @@
+(program
+	(function "identity" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return (parameter-ref #0 "x" : int))
+		)
+	)
+	(function "maximum" -> int
+		(parameters)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (integer 2147483647 : int))
+			(return (call "identity" -> int (arguments (local-ref #0 "x" : int))))
+		)
+	)
+	(function "minimum" -> int
+		(parameters)
+		(locals
+			(local #0 "y" : int)
+		)
+		(block
+			(local-init #0 "y" : int (integer -2147483648 : int))
+			(return (call "identity" -> int (arguments (local-ref #0 "y" : int))))
+		)
+	)
+	(function "direct_maximum" -> int
+		(parameters)
+		(block
+			(return (call "identity" -> int (arguments (integer 2147483647 : int))))
+		)
+	)
+	(function "direct_minimum" -> int
+		(parameters)
+		(block
+			(return (call "identity" -> int (arguments (integer -2147483648 : int))))
+		)
+	)
+)

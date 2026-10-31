@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+f64 scalar_local<T>(f32 x, owned T input, f64 y, u16 id, bool send) where T: Ownable {
+	owned T current = move input;
+	loan<T>(current, id as int);
+	if (send) { consume<T>(move current, id as int); }
+	return y + (x as f64);
+}
+int main() {
+	var value = new Counter(64, 1);
+	if (scalar_local(1.5, move value, 2.0, 64 as u16, true) != 3.5) { return 81; }
+	return own_finish();
+}

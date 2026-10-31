@@ -1,0 +1,57 @@
+(unit
+	(struct "Pair"
+		(type-parameters T U)
+		(field (type "T") (name "first"))
+		(field (type "U") (name "second"))
+	)
+	(function
+		(type-parameters T U)
+		(type "T")
+		(name "first")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "U") (name "b"))
+		)
+		(block
+			(struct-local (type "Pair<T,U>") (name "p")
+				(initialize-field "first" (name "a"))
+				(initialize-field "second" (name "b"))
+			)
+			(return (field-access "p" "first"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "i16<8>") (name "samples") (vector-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "bool<4>") (name "mask") (vector-init (bool true) (bool false) (bool true) (bool false)))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (generic-call "first" (type-arguments int f64) (arguments (integer "42") (float "3.5"))) (integer "42")) (binary "!=" (generic-call "first" (type-arguments i32 f64) (arguments (integer "43") (float "4.5"))) (integer "43"))) (binary "!=" (generic-call "first" (type-arguments f64 int) (arguments (float "3.5") (integer "42"))) (float "3.5"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (prefix "!" (vector-all (binary "==" (generic-call "first" (type-arguments i16<8> bool) (arguments (name "samples") (bool true))) (name "samples")))) (prefix "!" (vector-all (binary "==" (generic-call "first" (type-arguments bool<4> u32) (arguments (name "mask") (integer "7"))) (name "mask"))))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (binary "!=" (generic-call "first" (type-arguments i8 f64) (arguments (integer "7") (float "1.0"))) (integer "7")) (binary "!=" (generic-call "first" (type-arguments u8 f64) (arguments (integer "8") (float "1.0"))) (integer "8"))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

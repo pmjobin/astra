@@ -1,0 +1,33 @@
+struct Pair {
+	int x;
+	int y;
+}
+
+int recurse(Pair* p, int n) {
+	if (n == 0) {
+		return p->x;
+	}
+	p->x = p->x + 1;
+	return recurse(p, n - 1);
+}
+
+void inner(Pair* p) {
+	p->y = 10;
+}
+
+void outer(Pair* p) {
+	Pair* q = p;
+	inner(q);
+}
+
+int main() {
+	Pair p = { x = 5, y = 0 };
+	if (recurse(&p, 0) != 5 || recurse(&p, 1) != 6 || recurse(&p, 10) != 16) {
+		return 1;
+	}
+	outer(&p);
+	if (p.x != 16 || p.y != 10) {
+		return 2;
+	}
+	return 0;
+}

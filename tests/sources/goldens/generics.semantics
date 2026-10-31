@@ -1,0 +1,84 @@
+(program
+	(generic-struct #0 "Box"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "value" : T)
+	)
+	(generic-definition "identity" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "identity" -> T
+		(parameters
+			(parameter #0 "value" : T)
+		)
+		(block
+			(return (parameter-ref #0 "value" : T))
+		)
+	)
+	(generic-definition "recurse" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "recurse" -> T
+		(parameters
+			(parameter #0 "n" : int)
+			(parameter #1 "value" : T)
+		)
+		(block
+			(if
+				(condition (binary == : bool (parameter-ref #0 "n" : int) (integer 0 : int)))
+				(then
+					(block
+						(return (parameter-ref #1 "value" : T))
+					)
+				)
+			)
+			(return (generic-call "bounce" -> T (type-arguments T) (arguments (binary - : int (parameter-ref #0 "n" : int) (integer 1 : int)) (parameter-ref #1 "value" : T))))
+		)
+	)
+	(generic-definition "bounce" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "bounce" -> T
+		(parameters
+			(parameter #0 "n" : int)
+			(parameter #1 "value" : T)
+		)
+		(block
+			(return (generic-call "recurse" -> T (type-arguments T) (arguments (parameter-ref #0 "n" : int) (parameter-ref #1 "value" : T))))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit || : bool (binary != : bool (call "user_a" -> int (arguments)) (integer 42 : int)) (binary != : bool (call "user_b" -> int (arguments)) (integer 42 : int))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+	(function "user_a" -> int
+		(parameters)
+		(locals
+			(local #0 "box" : Box<f64>)
+		)
+		(block
+			(struct-local #0 "box" : Box<f64>
+				(initialize-field #0 "value" (f64 0x4000000000000000 : f64))
+			)
+			(return (binary + : int (generic-call "identity" -> int (type-arguments int) (arguments (integer 40 : int))) (numeric-convert (from f64) (to int) (kind f64-to-signed-int) (policy truncate-toward-zero-trap) (value (load (generic-field-place (owner Box<f64>) (base (local-place #0 : Box<f64>)) (field Box::value #0) : f64))))))
+		)
+	)
+	(function "user_b" -> int
+		(parameters)
+		(locals
+			(local #0 "box" : Box<f64>)
+		)
+		(block
+			(struct-local #0 "box" : Box<f64>
+				(initialize-field #0 "value" (f64 0x4008000000000000 : f64))
+			)
+			(return (binary + : int (generic-call "identity" -> int (type-arguments int) (arguments (integer 39 : int))) (generic-call "recurse" -> int (type-arguments int) (arguments (integer 4 : int) (numeric-convert (from f64) (to int) (kind f64-to-signed-int) (policy truncate-toward-zero-trap) (value (load (generic-field-place (owner Box<f64>) (base (local-place #0 : Box<f64>)) (field Box::value #0) : f64))))))))
+		)
+	)
+)

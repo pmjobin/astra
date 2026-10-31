@@ -1,0 +1,88 @@
+(core-program
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(call "astra.gen.0.0" -> bool
+								(arguments
+									(bool true : bool)
+									(bool true : bool)
+								)
+							)
+							(call "astra.gen.0.1" -> bool
+								(arguments
+									(null : void*)
+									(null : void*)
+								)
+							)
+						)
+						(call "astra.gen.1.2" -> bool
+							(arguments
+								(f64 0x3ff0000000000000 : f64)
+								(f64 0x4000000000000000 : f64)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 42 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-instance #0 (origin #0 "same") (type-arguments bool) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.0" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return
+				(binary == : bool
+					(parameter #0 : bool)
+					(parameter #1 : bool)
+				)
+			)
+		)
+	)
+	(generic-instance #1 (origin #0 "same") (type-arguments void*) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.1" -> bool
+		(parameters
+			(parameter #0 "a" : void*)
+			(parameter #1 "b" : void*)
+		)
+		(block
+			(return
+				(binary == : bool
+					(parameter #0 : void*)
+					(parameter #1 : void*)
+				)
+			)
+		)
+	)
+	(generic-instance #2 (origin #1 "different") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.1.2" -> bool
+		(parameters
+			(parameter #0 "a" : f64)
+			(parameter #1 "b" : f64)
+		)
+		(block
+			(return
+				(binary != : bool
+					(parameter #0 : f64)
+					(parameter #1 : f64)
+				)
+			)
+		)
+	)
+)

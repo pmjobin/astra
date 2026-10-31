@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+i16<4> choose(bool c, i16<4> a, i16<4> b) {
+	i16<4> v = a;
+	if (c) { v = a; } else { v = b; }
+	return v;
+}
+bool<4> choose_mask(bool c, bool<4> a, bool<4> b) {
+	bool<4> m = a;
+	if (c) { m = !b; } else { m = b; }
+	return m;
+}
+int main() {
+	i16<4> a = {1, 2, 3, 4};
+	i16<4> b = {5, 6, 7, 8};
+	if (!all(choose(true, a, b) == a) || !all(choose(false, a, b) == b)) { return 1; }
+	bool<4> x = {false, true, false, true};
+	bool<4> y = {true, false, true, false};
+	if (!all(choose_mask(true, x, y) == x) || !all(choose_mask(false, x, y) == y)) { return 2; }
+	return 0;
+}

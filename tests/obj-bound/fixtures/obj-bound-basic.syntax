@@ -1,0 +1,35 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "value"))
+	)
+	(function
+		(type "int")
+		(name "inspect")
+		(parameters
+			(parameter (borrowed) (type "Counter") (name "counter"))
+		)
+		(block
+			(return (field-access "counter" "value"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Counter") (name "c")
+				(initialize-field "value" (integer "42"))
+			)
+			(local (type "Counter") (name "alias") (name "c"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (call "inspect" (arguments (name "alias"))) (integer "42")) (binary "!=" (name "c") (name "alias"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (field-access "c" "value"))
+		)
+	)
+)

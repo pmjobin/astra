@@ -1,0 +1,88 @@
+(core-program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : int)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "pair" : Pair address-taken)
+			(local-place #1 "p" : Pair*)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+				(integer 1 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+				(integer 2 : int)
+			)
+			(initialize
+				(local-place #1 : Pair*)
+				(address-of : Pair*
+					(local-place #0 : Pair)
+				)
+			)
+			(store
+				(indirect-field-place : int
+					(load : Pair*
+						(local-place #1 : Pair*)
+					)
+					(field #0 "x")
+				)
+				(integer 42 : int)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary != : bool
+									(load : int
+										(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+									)
+									(integer 42 : int)
+								)
+								(binary != : bool
+									(load : int
+										(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+									)
+									(integer 2 : int)
+								)
+							)
+							(binary != : bool
+								(address-of : Pair*
+									(local-place #0 : Pair)
+								)
+								(load : Pair*
+									(local-place #1 : Pair*)
+								)
+							)
+						)
+						(binary == : bool
+							(address-of : Pair*
+								(local-place #0 : Pair)
+							)
+							(null : Pair*)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

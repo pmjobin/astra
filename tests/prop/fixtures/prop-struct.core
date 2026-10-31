@@ -1,0 +1,164 @@
+(core-program
+	(struct "S"
+		(property #0 "value" : int (member #1) (getter #0) (setter #0))
+		(field #0 "raw" : int)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "a" : S)
+			(struct-local-place #1 "b" : S address-taken)
+			(local-place #2 "first" : int)
+			(local-place #3 "p" : S*)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : S) (field #0 "raw") : int)
+			(field-place (base struct-local-place #1 : S) (field #0 "raw") : int)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : S) (field #0 "raw") : int)
+				(integer 1 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #1 : S) (field #0 "raw") : int)
+				(integer 2 : int)
+			)
+			(initialize
+				(local-place #2 : int)
+				(load : int
+					(field-place (base struct-local-place #0 : S) (field #0 "raw") : int)
+				)
+			)
+			(property-set "set" -> void
+				(property #0 S::value) (setter #0) effectful
+				(receiver
+					(address-of : Receiver<S>
+						(local-place #1 : S)
+					)
+				)
+				(arguments
+					(integer 40 : int)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(load : int
+								(local-place #2 : int)
+							)
+							(integer 1 : int)
+						)
+						(binary != : bool
+							(method-call "bump" -> int
+								(target S::bump #0)
+								(receiver
+									(address-of : Receiver<S>
+										(local-place #1 : S)
+									)
+								)
+								(arguments)
+							)
+							(integer 41 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : S*)
+				(address-of : S*
+					(local-place #1 : S)
+				)
+			)
+			(store
+				(indirect-field-place : int
+					(load : S*
+						(local-place #3 : S*)
+					)
+					(field #0 "raw")
+				)
+				(integer 42 : int)
+			)
+			(return
+				(property-get "get" -> int
+					(property #0 S::value) (getter #0) effectful
+					(receiver
+						(address-of : Receiver<S>
+							(local-place #1 : S)
+						)
+					)
+					(arguments)
+				)
+			)
+		)
+	)
+	(method #0 "bump" (declaring-struct #0 "S") (member #2) -> int
+		(receiver : Receiver<S> mutable nonnull non-owning)
+		(parameters)
+		(block
+			(property-set "set" -> void
+				(property #0 S::value) (setter #0) effectful
+				(receiver
+					(this : Receiver<S>)
+				)
+				(arguments
+					(binary + : int
+						(property-get "get" -> int
+							(property #0 S::value) (getter #0) effectful
+							(receiver
+								(this : Receiver<S>)
+							)
+							(arguments)
+						)
+						(integer 1 : int)
+					)
+				)
+			)
+			(return
+				(load : int
+					(indirect-field-place : int
+						(this : Receiver<S>)
+						(field #0 "raw")
+					)
+				)
+			)
+		)
+	)
+	(property-getter #0 (property S::value #0) (declaring-struct #0) -> int
+		(receiver : Receiver<S> live mutable nonnull non-owning)
+		(parameters)
+		(block
+			(return
+				(load : int
+					(indirect-field-place : int
+						(this : Receiver<S>)
+						(field #0 "raw")
+					)
+				)
+			)
+		)
+	)
+	(property-setter #0 (property S::value #0) (declaring-struct #0) -> void
+		(receiver : Receiver<S> live mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "next" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<S>)
+					(field #0 "raw")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+)

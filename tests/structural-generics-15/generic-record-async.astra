@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct AsyncTag { int generation; bool accepted; }
+struct AsyncPair<A, B> { A value; B detail; }
+
+async AsyncPair<int, AsyncTag> produce_record(int value, bool fail) throws Error {
+	await delay_ticks(3);
+	if (fail) { throw new Error("record result failure"); }
+	AsyncTag tag = {generation = 7, accepted = true};
+	AsyncPair<int, AsyncTag> result = {value = value + 2, detail = tag};
+	return result;
+}
+async void inspect_records() throws Error {
+	var first = await produce_record(40, false);
+	if (first.value != 42 || first.detail.generation != 7 || !first.detail.accepted) {
+		throw new Error("first record result");
+	}
+	try {
+		var unused = await produce_record(100, true);
+		throw new Error("missing checked failure");
+	} catch (Error error) {
+		if (error.message != "record result failure") { throw; }
+	}
+	var again = await produce_record(first.value, false);
+	if (again.value != 44 || first.value != 42 || again.detail.generation != 7) {
+		throw new Error("record result retry");
+	}
+}
+int main() {
+	try {
+		var executor = VirtualExecutor.open(4);
+		var task = inspect_records();
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Completed(): {} else: { return 1; } }
+	} catch (Error error) { return 2; }
+	return 0;
+}

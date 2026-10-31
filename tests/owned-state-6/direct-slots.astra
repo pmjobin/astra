@@ -1,0 +1,12 @@
+class SlotItem { int tag; init(int tag) { this.tag = tag; } }
+class SlotStore { owned SlotItem[slots] items; init() { this.items = new SlotItem[slots]; } }
+bool is_tag(SlotItem item, int tag) { return item.tag == tag; }
+int main() {
+	var store = new SlotStore(); if (!store.items.reserve(2)) { return 81; }
+	var first = new SlotItem(1); var second = new SlotItem(2);
+	store.items.append(move first); store.items.append(move second);
+	owned SlotItem taken = store.items.take(0);
+	var next = new SlotItem(3); store.items.replace(0, move next);
+	if (len(store.items) != 1 || store.items.capacity != 2 || !is_tag(taken, 1) || !is_tag(store.items[0], 3)) { return 82; }
+	return 0;
+}

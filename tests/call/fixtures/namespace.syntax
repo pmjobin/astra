@@ -1,0 +1,32 @@
+(unit
+	(function
+		(type "int")
+		(name "name")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (name "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "parameter")
+		(parameters
+			(parameter (type "int") (name "name"))
+		)
+		(block
+			(return (call "name" (arguments (name "name"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "local")
+		(parameters)
+		(block
+			(local (type "int") (name "name") (call "name" (arguments (integer "1"))))
+			(assign (name "name") (call "name" (arguments (name "name"))))
+			(return (name "name"))
+		)
+	)
+)

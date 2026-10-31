@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+i16<8> add_vectors(i16<8> a, i16<8> b) { return a + b; }
+f32<4> gain(f32<4> a, f32<4> b) { return a * b; }
+bool<4> passthrough(bool<4> mask) { return mask; }
+u8 mix(void* p, f32<4> a, u8 n, bool<4> mask) { if (p == null && all(mask) && all(a == a)) { return n; } return 0; }
+int main() {
+	i16<8> a = {32767, 1, 2, 3, 4, 5, 6, 7};
+	i16<8> b = {1, 1, 1, 1, 1, 1, 1, 1};
+	i16<8> expected = {-32768, 2, 3, 4, 5, 6, 7, 8};
+	if (!all(add_vectors(a, b) == expected)) { return 1; }
+	f32<4> x = {0.5, 1.0, 1.5, 2.0};
+	f32<4> two = {2.0, 2.0, 2.0, 2.0};
+	f32<4> y = {1.0, 2.0, 3.0, 4.0};
+	if (!all(gain(x, two) == y)) { return 2; }
+	bool<4> mask = y == y;
+	if (!all(passthrough(mask)) || mix(null, y, 250, mask) != 250) { return 3; }
+	return 0;
+}

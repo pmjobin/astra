@@ -1,0 +1,110 @@
+(ssa-program
+	(function #0 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : f64 = call #1 "astra.gen.0.0" -> f64 (arguments (bool true : bool) (f64 0x0000000000000000 : f64) (f64 0x3ff4000000000000 : f64)))
+			(%2 : i16<8> = vector-init (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16))
+			(%3 : i16<8> = vector-init (integer 42 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16))
+			(%4 : i16<8> = call #2 "astra.gen.0.1" -> i16<8> (arguments (bool true : bool) %2 %3))
+			(branch #3 ())
+		)
+		(block #1
+			(%8 : int = call #3 "astra.gen.0.2" -> int (arguments (bool true : bool) (integer 0 : int) (integer 42 : int)))
+			(return %8)
+		)
+		(block #2
+			(return (integer 1 : int))
+		)
+		(block #3
+			(%5 : bool = binary == %1 (f64 0x3ff4000000000000 : f64))
+			(conditional-branch %5
+				(true #4 ())
+				(false #5 ((bool false : bool)))
+			)
+		)
+		(block #4
+			(%6 : i16 = vector-extract (lane 0) (vector %4))
+			(%7 : bool = binary == %6 (integer 42 : i16))
+			(branch #5 (%7))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+	(function #1 "astra.gen.0.0" -> f64
+		(parameters
+			(%0 "condition" : bool)
+			(%1 "a" : f64)
+			(%2 "b" : f64)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 (%1))
+			)
+		)
+		(block #1
+			(branch #2 (%2))
+		)
+		(block #2
+			(arguments
+				(%3 "result" : f64)
+			)
+			(return %3)
+		)
+	)
+	(function #2 "astra.gen.0.1" -> i16<8>
+		(parameters
+			(%0 "condition" : bool)
+			(%1 "a" : i16<8>)
+			(%2 "b" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 (%1))
+			)
+		)
+		(block #1
+			(branch #2 (%2))
+		)
+		(block #2
+			(arguments
+				(%3 "result" : i16<8>)
+			)
+			(return %3)
+		)
+	)
+	(function #3 "astra.gen.0.2" -> int
+		(parameters
+			(%0 "condition" : bool)
+			(%1 "a" : int)
+			(%2 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 (%1))
+			)
+		)
+		(block #1
+			(branch #2 (%2))
+		)
+		(block #2
+			(arguments
+				(%3 "result" : int)
+			)
+			(return %3)
+		)
+	)
+)

@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int consumer_record_inspect(borrowed NativeRecordCallbacks.Packet packet) {
+	if (len(packet.contents.samples) != 3) { return 0; }
+	return packet.contents.samples[1];
+}
+int consumer_record_retire(NativeRecordCallbacks.Packet packet, owned R token, borrowed Other side, int extra) {
+	if (consumer_record_inspect(packet) != 42) { return 0; }
+	return packet.value + id(token) + other_id(side) + extra + 10;
+}
+int exercise_record_callbacks() {
+	Fn<int,NativeRecordCallbacks.Packet,owned R,borrowed Other,int> code = RecordCallbackTransport.callback();
+	var side = make_other(227);
+	NativeRecordCallbacks.Packet first = RecordCallbackTransport.packet(221);
+	var first_token = make(228);
+	if (RecordCallbackTransport.apply(code, move first, move first_token, side, 2) != 497) { return 1; }
+	NativeRecordCallbacks.Packet second = RecordCallbackTransport.packet(223);
+	var second_token = make(229);
+	Fn<int,NativeRecordCallbacks.Packet,owned R,borrowed Other,int> consumer = consumer_record_retire;
+	if (RecordCallbackTransport.apply(consumer, move second, move second_token, side, 2) != 508) { return 2; }
+	NativeRecordCallbacks.Packet third = RecordCallbackTransport.packet(225);
+	var third_token = make(230);
+	if (RecordCallbackTransport.direct(code, move third, move third_token, side, 2) != 499) { return 3; }
+	return 0;
+}
+int main() {
+	int result = exercise_record_callbacks();
+	if (result != 0) { return result; }
+	return live();
+}

@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Document {
+	int revision;
+	init(int revision) { this.revision = revision; surge_event(1, revision); }
+	deinit() { surge_event(2, this.revision); }
+}
+int revision_of(borrowed Document document) { return document.revision; }
+class Editor {
+	private owned Document current;
+	int reads;
+	init(owned Document document) { this.current = move document; this.reads = 0; }
+	property borrowed Document document {
+		get { return this.current; }
+		set(owned Document replacement) { this.current = move replacement; }
+	}
+	property int revision { get { this.reads = this.reads + 1; return revision_of(this.document); } }
+}
+owned Document load_document(int revision) throws Error {
+	if (revision < 0) { throw new Error("invalid revision"); }
+	var document = new Document(revision); return move document;
+}
+int update(int first, int second, int mode) throws Error {
+	var initial = load_document(first); var editor = new Editor(move initial);
+	int before = editor.revision;
+	try {
+		var incoming = load_document(second);
+		if (mode == 1) { throw new Error("validation failed"); }
+		editor.document = move incoming;
+	} catch (Error error) {
+		if (editor.revision != before) { return -1; }
+		report_number("retained=", before as i64); return 2;
+	}
+	int after = editor.revision; int again = editor.revision;
+	if (again != after || editor.reads != 3) { return -2; }
+	report_number("revision=", after as i64); return 0;
+}
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int result = update(parse_int(args[1]), parse_int(args[2]), parse_int(args[3]));
+		if (surge_live() != 0) { return 3; }
+		return result;
+	} catch (Error error) { if (surge_live() != 0) { return 3; } return 2; }
+}

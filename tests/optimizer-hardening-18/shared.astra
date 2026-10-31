@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void shared18_retire(int value);
+extern(C) void shared18_observe(int value);
+class Payload18 {
+	int value;
+	init(int value) { this.value=value; }
+	deinit() { shared18_retire(this.value); }
+}
+f64 pure18(f64 input) { return input*2.0+1.0; }
+int read_shared18(borrowed Payload18 input) { return input.value; }
+int spaced18(int input) {
+	var payload=new Payload18(input);
+	var strong=shared_acquire(move payload);
+	f64 value=input as f64;
+	if (input==0) { value=pure18(value); } else { value=value+3.0; }
+	{
+		var copy=shared_clone(strong);
+		if (input<2) { value=pure18(value); } else { value=value+5.0; }
+	}
+	release strong;
+	return value as int;
+}
+int weak_observed18(int input) {
+	var payload=new Payload18(input);
+	var strong=shared_acquire(move payload);
+	var observer=shared_downgrade(strong);
+	{ var copy=shared_clone(strong); }
+	release observer;
+	release strong;
+	return input;
+}
+int callback_observed18(int input) {
+	var payload=new Payload18(input);
+	var strong=shared_acquire(move payload);
+	{ var copy=shared_clone(strong); shared18_observe(input); }
+	release strong;
+	return input;
+}
+int used18(int input) {
+	var payload=new Payload18(input);
+	var strong=shared_acquire(move payload);
+	int result=0;
+	{ var copy=shared_clone(strong); result=read_shared18(shared_borrow(copy)); }
+	release strong;
+	return result;
+}
+int main() {
+	if (spaced18(0)!=3 || spaced18(3)!=11) { return 1; }
+	if (weak_observed18(4)!=4 || callback_observed18(5)!=5 || used18(6)!=6) { return 2; }
+	return 0;
+}

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeResources;
+
+owned R create(int code) {
+	var value = make(code);
+	return move value;
+}
+owned R relay(owned R value) { return move value; }
+int inspect(borrowed R value) { return id(value); }
+int consume(owned R value) { return id(value); }
+owned R empty() { return null; }
+owned Other create_other(int code) {
+	var value = make_other(code);
+	return move value;
+}
+owned Other relay_other(owned Other value) { return move value; }
+int inspect_other(borrowed Other value) { return other_id(value); }
+int consume_other(owned Other value) { return other_id(value); }

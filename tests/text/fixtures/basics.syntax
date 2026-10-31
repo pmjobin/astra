@@ -1,0 +1,147 @@
+(unit
+	(const (name "APP_NAME") (initializer (text (bytes 5) (hex 4173747261))))
+	(const (name "OTHER") (type "string") (initializer (text (bytes 5) (hex 4173747261))))
+	(const (name "BYTES") (initializer (field-access "APP_NAME" "byte_length")))
+	(const (name "SAME") (initializer (binary "==" (name "OTHER") (name "APP_NAME"))))
+	(function
+		(type "bool")
+		(name "matches")
+		(parameters
+			(parameter (type "string") (name "text"))
+			(parameter (borrowed) (type "string") (name "expected"))
+		)
+		(block
+			(inferred-local (name "copy") (name "text"))
+			(return (binary "==" (name "copy") (name "expected")))
+		)
+	)
+	(function
+		(type "string")
+		(name "default_name")
+		(parameters)
+		(block
+			(inferred-local (name "result") (name "APP_NAME"))
+			(block
+				(inferred-local (name "inner") (name "OTHER"))
+				(assign (name "result") (name "inner"))
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "string")
+		(name "choose")
+		(parameters
+			(parameter (type "bool") (name "choice"))
+			(parameter (type "int") (name "count"))
+		)
+		(block
+			(inferred-local (name "result") (text (bytes 5) (hex 6669727374)))
+			(inferred-local (name "remaining") (name "count"))
+			(while
+				(condition (binary ">" (name "remaining") (integer "0")))
+				(body
+					(block
+						(if
+							(condition (name "choice"))
+							(then
+								(block
+									(assign (name "result") (text (bytes 6) (hex 7365636f6e64)))
+								)
+							)
+						)
+						(assign (name "remaining") (binary "-" (name "remaining") (integer "1")))
+					)
+				)
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(inferred-local (name "name") (call "default_name" (arguments)))
+			(assign (name "name") (text (bytes 5) (hex 4173747261)))
+			(local (type "int[BYTES]") (name "dimensions") (array-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5")))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (prefix "!" (name "SAME")) (prefix "!" (call "matches" (arguments (name "name") (name "OTHER"))))) (binary "!=" (field-access "name" "byte_length") (integer "5"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (binary "==" (text (bytes 3) (hex 610062)) (text (bytes 3) (hex 610063))) (binary "!=" (text-member byte_length (text (bytes 3) (hex 610062))) (integer "3"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (text-member byte_length (text (bytes 2) (hex c3a9))) (integer "2")) (binary "!=" (text-member byte_length (text (bytes 3) (hex 65cc81))) (integer "3"))) (binary "==" (text (bytes 2) (hex c3a9)) (text (bytes 3) (hex 65cc81)))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (prefix "!" (call "matches" (arguments (text (bytes 0) (hex )) (text (bytes 0) (hex ))))) (binary "!=" (call "choose" (arguments (bool true) (vector-extract (lane 1) (name "dimensions")))) (text (bytes 6) (hex 7365636f6e64)))))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (call "snapshot" (arguments (name "name"))) (text (bytes 6) (hex 737461746963))) (binary "!=" (call "overwrite" (arguments (name "name"))) (text (bytes 6) (hex 737461746963)))) (binary "!=" (call "concrete" (arguments (integer "2"))) (name "APP_NAME"))))
+				(then
+					(block
+						(return (integer "5"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+	(function
+		(type "string")
+		(name "snapshot")
+		(parameters
+			(parameter (type "string") (name "input"))
+		)
+		(block
+			(inferred-local (name "original") (text (bytes 6) (hex 737461746963)))
+			(inferred-local (name "saved") (name "original"))
+			(assign (name "original") (name "input"))
+			(return (name "saved"))
+		)
+	)
+	(function
+		(type "string")
+		(name "overwrite")
+		(parameters
+			(parameter (type "string") (name "input"))
+		)
+		(block
+			(inferred-local (name "result") (name "input"))
+			(assign (name "result") (text (bytes 6) (hex 737461746963)))
+			(return (name "result"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "string")
+		(name "concrete")
+		(parameters
+			(parameter (type "T") (name "ignored"))
+		)
+		(block
+			(return (name "APP_NAME"))
+		)
+	)
+)

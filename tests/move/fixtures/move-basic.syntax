@@ -1,0 +1,45 @@
+(unit
+	(function
+		(type "int")
+		(name "scoped")
+		(parameters)
+		(block
+			(owned-local (type "void*") (name "a") (call "create_resource" (arguments (integer "1"))))
+			(owned-local (type "void*") (name "b") (move (name "a")))
+			(if
+				(condition (short-circuit "&&" (binary "!=" (name "b") (null)) (binary "!=" (null) (name "b"))))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(call-statement (call "resource_reset" (arguments)))
+			(if
+				(condition (binary "!=" (call "scoped" (arguments)) (integer "0")))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (call "resource_create_count" (arguments)) (integer "1")) (binary "!=" (call "resource_destroy_count" (arguments)) (integer "1"))) (binary "!=" (call "resource_destroy_order" (arguments)) (integer "1"))) (binary "!=" (call "resource_live_count" (arguments)) (integer "0"))) (binary "!=" (call "resource_error_count" (arguments)) (integer "0"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

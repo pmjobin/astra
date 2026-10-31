@@ -1,0 +1,44 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "raw"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "initial"))
+			)
+			(block
+				(assign (field-access "this" "raw") (name "initial"))
+			)
+		)
+		(property (type "int") (name "value")
+			(getter
+				(block
+					(return (field-access "this" "raw"))
+				)
+			)
+			(setter (parameter (type "int") (name "next"))
+				(block
+					(assign (field-access "this" "raw") (name "next"))
+				)
+			)
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "Counter") (name "c") (constructor-initializer (class "Counter") (arguments (integer "1"))))
+			(assign (field-access "c" "value") (integer "42"))
+			(if
+				(condition (binary "!=" (field-access "c" "raw") (integer "42")))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (field-access "c" "value"))
+		)
+	)
+)

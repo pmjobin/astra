@@ -1,0 +1,52 @@
+(unit
+	(struct "Inner"
+		(field (type "int") (name "x"))
+		(field (type "int") (name "y"))
+	)
+	(struct "Outer"
+		(field (type "Inner") (name "a"))
+		(field (type "Inner") (name "b"))
+	)
+	(function
+		(type "int")
+		(name "aliases")
+		(parameters
+			(parameter (type "Outer*") (name "p"))
+			(parameter (type "Outer*") (name "q"))
+		)
+		(block
+			(assign (field-access (base (indirect-field-access "p" "a")) "x") (integer "40"))
+			(assign (field-access (base (indirect-field-access "q" "a")) "x") (binary "+" (field-access (base (indirect-field-access "q" "a")) "x") (integer "2")))
+			(assign (field-access (base (indirect-field-access "p" "b")) "x") (integer "7"))
+			(return (binary "+" (field-access (base (indirect-field-access "q" "a")) "x") (field-access (base (indirect-field-access "q" "b")) "x")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Outer") (name "o")
+				(initialize-field "a" (storage-initializer
+					(initialize-field "x" (integer "1"))
+					(initialize-field "y" (integer "2"))
+				))
+				(initialize-field "b" (storage-initializer
+					(initialize-field "x" (integer "3"))
+					(initialize-field "y" (integer "4"))
+				))
+			)
+			(local (type "Outer*") (name "p") (address-of "o"))
+			(local (type "Outer*") (name "q") (name "p"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (call "aliases" (arguments (name "p") (name "q"))) (integer "49")) (binary "!=" (field-access (base (field-access "o" "a")) "x") (integer "42"))) (binary "!=" (field-access (base (field-access "o" "b")) "x") (integer "7"))) (binary "!=" (field-access (base (field-access "o" "a")) "y") (integer "2"))) (binary "!=" (field-access (base (field-access "o" "b")) "y") (integer "4"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

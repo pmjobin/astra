@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Select with payload.vapi and linux.astra; await payload_io(owner) in an
+// async body retains the unique fd/buffer owner through observed release.
+owned LinuxPayload payload_open(string path, int capacity, int writing) throws Error {
+	var payload = astra_linux_payload_open(path, capacity, writing);
+	if (payload == null) { throw new Error("async file open failed"); }
+	return move payload;
+}
+void payload_configure(borrowed LinuxPayload payload, int offset, int count, i64 file_offset) throws Error {
+	if (astra_linux_payload_configure(payload, offset, count, file_offset) < 0) { throw new Error("async file range failed"); }
+}
+void payload_finish(borrowed LinuxPayload payload) throws Error {
+	if (astra_linux_payload_finish(payload) < 0) { throw new Error("async file close failed"); }
+}
+void payload_set(borrowed LinuxPayload payload, int index, int byte) throws Error {
+	if (astra_linux_payload_set(payload, index, byte) < 0) { throw new Error("async file byte mutation failed"); }
+}
+int payload_byte(borrowed LinuxPayload payload, int index) throws Error {
+	int byte = astra_linux_payload_byte(payload, index);
+	if (byte < 0) { throw new Error("async file byte read failed"); }
+	return byte;
+}

@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace TaskMiddle;
+enum RunStatus { Completed, Cancelled }
+async runtime VirtualExecutor throws NativeTasks.AsyncError returns RunStatus;
+async void work(owned NativeTasks.Job<int> input, bool fail) throws NativeTasks.Error {
+	mark(2010);
+	var result = await NativeTasks.compute(move input, fail);
+	if (result.value != 42 || result.generation != 7) { throw new NativeTasks.Error("middle result"); }
+	mark(2011);
+}

@@ -1,0 +1,23 @@
+int main() {
+	owned i8<2>[] small = new i8<2>[3];
+	owned u8<16>[] large = new u8<16>[3];
+	owned f32<4>[] floats = new f32<4>[3];
+	owned bool<16>[] masks = new bool<16>[3];
+	int i = 0;
+	while (i < 3) {
+		if (any(small[i] != splat(0 as i8, 2))) { return 1; }
+		if (any(large[i] != splat(0 as u8, 16))) { return 2; }
+		if (any(floats[i] != splat(0.0, 4))) { return 3; }
+		f32<4> lanes = floats[i];
+		if (f32_zero(lanes[0]) != 1 || f32_zero(lanes[1]) != 1 || f32_zero(lanes[2]) != 1 || f32_zero(lanes[3]) != 1) { return 7; }
+		if (any(masks[i])) { return 4; }
+		i = i + 1;
+	}
+	small[2] = splat(7 as i8, 2);
+	large[2] = splat(9 as u8, 16);
+	floats[2] = splat(1.5, 4);
+	masks[2] = splat(true, 16);
+	if (!all(small[2] == splat(7 as i8, 2)) || !all(large[2] == splat(9 as u8, 16))) { return 5; }
+	if (!all(floats[2] == splat(1.5, 4)) || !all(masks[2])) { return 6; }
+	return 0;
+}

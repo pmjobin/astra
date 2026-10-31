@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair<T,U> { T first; U second; }
+struct Bundle<T> { Pair<T,T> pair; int tag; }
+int alias(Pair<int,f64>* a, Pair<i32,f64>* b) { a->first = 7; b->first = 42; return a->first; }
+void mutate(Bundle<f64>* b) { b->pair.second = 7.25; b->tag = 9; }
+int pay_for_use(int x) {
+	Pair<int,f64> a = { first = x, second = 1.5 };
+	Pair<int,f64> b = { first = 2, second = 2.5 };
+	Pair<int,f64>* bp = &b;
+	return a.first + alias(bp, bp);
+}
+int main() {
+	Bundle<f64> b = { pair = { first = 1.0, second = 2.0 }, tag = 7 };
+	mutate(&b);
+	if (b.pair.first != 1.0 || b.pair.second != 7.25 || b.tag != 9 || pay_for_use(7) != 49) { return 1; }
+	return 0;
+}

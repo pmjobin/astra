@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SensorReading {
+	private int calibration;
+	int raw;
+	init(int raw, int calibration) { this.raw = raw; this.calibration = calibration; }
+	property int adjusted { get { return this.raw * 2 - this.calibration; } }
+	int shifted(int amount) { return this.raw + amount + this.calibration; }
+}
+struct SensorPoint { int x; int y; }
+interface SensorScale { int invoke(int value); }
+class SensorOffset : SensorScale {
+	int bias;
+	init(int bias) : base() { this.bias = bias; }
+	override int invoke(int value) { return value * 3 + this.bias; }
+}
+struct InspectionSession { owned SensorReading sensor; owned Utf8Message label; SensorPoint point; }
+InspectionSession inspection_session(int raw, int calibration, string label) {
+	var sensor = new SensorReading(raw, calibration);
+	var name = new Utf8Message(label);
+	InspectionSession session = {sensor = move sensor, label = move name, point = {x = raw + 1, y = raw + calibration}};
+	return move session;
+}

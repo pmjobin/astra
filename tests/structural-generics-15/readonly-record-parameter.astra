@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ReaderBuffers { owned R handle; owned int[] first; owned int[] second; }
+struct ReaderPayload { ReaderBuffers contents; int stamp; }
+int inspect_borrowed_payload(borrowed ReaderPayload value) {
+	return len(value.contents.first) + value.contents.second[0];
+}
+class SlotReader {
+	private owned Box<ReaderPayload>[slots] values;
+	init() { this.values = new Box<ReaderPayload>[slots]; }
+	bool add(owned Box<ReaderPayload> value) {
+		if (!this.values.reserve(1)) { return false; }
+		this.values.append(move value);
+		return true;
+	}
+	int inspect(borrowed Box<ReaderPayload> value) {
+		return inspect_borrowed_payload(value.view);
+	}
+	int read(int index) { return this.inspect(this.values[index]); }
+}
+int exercise_readonly_view() {
+	var handle = make(181);
+	var first = new int[3];
+	var second = new int[5];
+	second[0] = 23;
+	ReaderPayload payload = {contents = {handle = move handle, first = move first, second = move second}, stamp = 42};
+	var value = new Box<ReaderPayload>(move payload);
+	var reader = new SlotReader();
+	if (!reader.add(move value)) { return 1; }
+	return reader.read(0) - 26;
+}
+int main() {
+	int result = exercise_readonly_view();
+	if (result != 0) { return result; }
+	return live();
+}

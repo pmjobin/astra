@@ -1,0 +1,111 @@
+(core-program
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(call "astra.gen.0.0" -> bool
+								(arguments
+									(f64 0x3ff0000000000000 : f64)
+									(f64 0x4000000000000000 : f64)
+								)
+							)
+							(binary == : bool
+								(call "astra.gen.1.1" -> int
+									(arguments
+										(integer 40 : int)
+										(integer 1 : int)
+										(bool true : bool)
+									)
+								)
+								(integer 40 : int)
+							)
+						)
+						(binary == : bool
+							(call "astra.gen.2.2" -> int
+								(arguments)
+							)
+							(integer 1 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 42 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-instance #0 (origin #0 "less_or_same") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.0" -> bool
+		(parameters
+			(parameter #0 "a" : f64)
+			(parameter #1 "b" : f64)
+		)
+		(block
+			(return
+				(short-circuit || : bool
+					(binary == : bool
+						(parameter #0 : f64)
+						(parameter #1 : f64)
+					)
+					(binary < : bool
+						(parameter #0 : f64)
+						(parameter #1 : f64)
+					)
+				)
+			)
+		)
+	)
+	(generic-instance #1 (origin #1 "multi") (type-arguments int bool) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.1.1" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+			(parameter #2 "token" : bool)
+		)
+		(block
+			(if
+				(condition
+					(binary == : bool
+						(parameter #2 : bool)
+						(parameter #2 : bool)
+					)
+				)
+				(then
+					(block
+						(return
+							(binary ^ : int
+								(binary + : int
+									(parameter #0 : int)
+									(parameter #1 : int)
+								)
+								(parameter #1 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(parameter #0 : int)
+			)
+		)
+	)
+	(generic-instance #2 (origin #2 "tag") (type-arguments u32) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.2.2" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+)

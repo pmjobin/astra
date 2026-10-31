@@ -1,0 +1,58 @@
+(ssa-program
+	(function #0 "and_trap" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "x" : int)
+			(%2 "y" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(conditional-branch %0
+				(true #2 ())
+				(false #3 ((bool false : bool)))
+			)
+		)
+		(block #2
+			(%4 : int = binary / %1 %2)
+			(%5 : bool = binary > %4 (integer 0 : int))
+			(branch #3 (%5))
+		)
+		(block #3
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(return %3)
+		)
+	)
+	(function #1 "or_trap" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "x" : int)
+			(%2 "y" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(conditional-branch %0
+				(true #3 ((bool true : bool)))
+				(false #2 ())
+			)
+		)
+		(block #2
+			(%4 : int = binary % %1 %2)
+			(%5 : bool = binary == %4 (integer 0 : int))
+			(branch #3 (%5))
+		)
+		(block #3
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(return %3)
+		)
+	)
+)

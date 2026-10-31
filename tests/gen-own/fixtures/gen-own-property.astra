@@ -1,0 +1,28 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { life_record(this.code, 0); }
+}
+void dispose<T>(owned T value) where T : Ownable {}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+class Probe {
+	int raw;
+	init(int raw) { this.raw = raw; }
+	property int value { get { owned Counter local = Counter.init(65); dispose<Counter>(move local); return this.raw; } set(int next) { this.raw = next; } }
+	int peek() { return this.raw; }
+	int consume(owned Counter value) { dispose<Counter>(move value); return this.raw; }
+}
+U observe<T,U>(owned T owner, borrowed Probe probe, U value) where T : Ownable {
+	int property_value = probe.value;
+	int method_value = probe.peek();
+	if (property_value == method_value) { probe.value = method_value; }
+	return value;
+}
+int main() {
+	Probe p = Probe.init(42);
+	owned Counter a = Counter.init(66); int i = observe<Counter,int>(move a, p, 42);
+	owned Counter b = Counter.init(67); int j = p.consume(move b);
+	if (i == 42 && j == 42) { return 42; } return 1;
+}

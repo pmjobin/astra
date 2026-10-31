@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using CallableValues;
+
+export(C) int astra_fn_evaluate(int mode, int value) {
+	Fn<int,int> selected = select_rule(mode);
+	Fn<int,int> copied = selected;
+	var inferred = copied;
+	Fn<int,int> forwarded = forward(inferred);
+	return apply_twice(forwarded, value);
+}
+export(C) i64 astra_fn_wide(i64 value) {
+	Fn<i64,i64> function = widen;
+	return function(value);
+}
+export(C) int astra_fn_positive(int value) {
+	Fn<bool,int> function = positive;
+	if (function(value)) { return 1; }
+	return 0;
+}
+export(C) int astra_fn_answer() {
+	Fn<int> function = answer;
+	return function();
+}
+export(C) i64 astra_fn_combine(i64 high, int low) {
+	Fn<i64,i64,int> function = combine;
+	return function(high, low);
+}
+export(C) f64 astra_fn_half(f64 value) {
+	Fn<f64,f64> function = half;
+	return function(value);
+}
+export(C) int astra_fn_exported(int value) {
+	Fn<int,int> function = exported_native;
+	return function(value);
+}
+export(C) int astra_fn_assigned(int mode, int value) {
+	Fn<int,int> function = select_assigned(mode);
+	return function(value);
+}
+export(C) int astra_fn_four() {
+	Fn<int,int,int,int,int> function = four;
+	return function(2, 3, 5, 7);
+}
+export(C) int astra_fn_shadow(int value) {
+	Fn<int,int> add_seven = triple;
+	return add_seven(value);
+}
+export(C) int astra_fn_direct_argument(int value) { return apply_twice(add_seven, value); }
+int generic_fixed<T>(T input, int value) {
+	Fn<int,int> function = add_seven;
+	return function(value);
+}
+export(C) int astra_fn_generic(int value) { return generic_fixed<int>(value, value); }
+export(C) int astra_fn_qualified(int value) {
+	Fn<int,int> function = CallableValues.add_seven;
+	Fn<int,int> other = OtherCallableValues.add_seven;
+	return function(value) + other(value);
+}

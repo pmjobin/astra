@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct SampleBuffers { owned R resource; owned int[] first; owned int[] second; }
+struct BufferEnvelope { SampleBuffers buffers; int stamp; }
+class BufferViewBox<T> {
+	private owned T payload;
+	int revision;
+	init(owned T payload) { this.payload = move payload; this.revision = 1; }
+	property borrowed T view { get { return this.payload; } }
+	void replace(owned T payload) { this.payload = move payload; this.revision = this.revision + 1; }
+	deinit() { mark(900 + this.revision); }
+}
+int inspect_buffers(borrowed int[] first, borrowed int[] second) {
+	return len(first) + first[0] + len(second) + second[0];
+}
+int finish_buffer_view(int copied, owned BufferViewBox<BufferEnvelope> box) { return copied; }
+int exercise_buffer_views() {
+	var resource = make(171);
+	var first = new int[3];
+	var second = new int[5];
+	first[0] = 11;
+	second[0] = 23;
+	BufferEnvelope payload = {buffers = {resource = move resource, first = move first, second = move second}, stamp = 42};
+	var box = new BufferViewBox<BufferEnvelope>(move payload);
+	if (len(box.view.buffers.first) != 3 || box.view.buffers.second[0] != 23) { return 1; }
+	if (inspect_buffers(box.view.buffers.first, box.view.buffers.second) != 42) { return 2; }
+	if (id(box.view.buffers.resource) != 171 || box.view.stamp != 42) { return 3; }
+	int copied = len(box.view.buffers.second);
+	var replacement_resource = make(172);
+	var replacement_first = new int[7];
+	var replacement_second = new int[9];
+	replacement_first[0] = 37;
+	replacement_second[0] = 47;
+	BufferEnvelope next = {buffers = {resource = move replacement_resource, first = move replacement_first, second = move replacement_second}, stamp = 84};
+	box.replace(move next);
+	if (copied != 5 || live() != 1 || box.view.stamp != 84) { return 4; }
+	if (inspect_buffers(box.view.buffers.first, box.view.buffers.second) != 100) { return 5; }
+	if (id(box.view.buffers.resource) != 172) { return 6; }
+	return finish_buffer_view(len(box.view.buffers.first), move box) - 7;
+}
+int main() {
+	int result = exercise_buffer_views();
+	if (result != 0) { return result; }
+	return live();
+}

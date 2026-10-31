@@ -1,0 +1,60 @@
+(core-program
+	(function "nested" -> int
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(locals
+			(local-place #0 "x" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(if
+							(condition
+								(parameter #1 : bool)
+							)
+							(then
+								(block
+									(store
+										(local-place #0 : int)
+										(integer 1 : int)
+									)
+								)
+							)
+							(else
+								(block
+									(store
+										(local-place #0 : int)
+										(integer 2 : int)
+									)
+								)
+							)
+						)
+					)
+				)
+				(else
+					(block
+						(store
+							(local-place #0 : int)
+							(integer 3 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+)

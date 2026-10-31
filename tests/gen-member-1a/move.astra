@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item { init() {} }
+bool same(Item first, Item second) { return first == second; }
+int main() {
+	var original = new Bag<Item>();
+	if (!original.reserve(2)) { return 81; }
+	var first = new Item(); var second = new Item();
+	original.append(move first); original.append(move second);
+	owned Bag<Item> moved = move original;
+	if (moved.count() != 2 || !moved.reserve(3) || moved.capacity() != 3) { return 82; }
+	if (same(moved.entries[0], moved.entries[1])) { return 83; }
+	return 0;
+}

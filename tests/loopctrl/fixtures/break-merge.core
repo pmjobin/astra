@@ -1,0 +1,53 @@
+(core-program
+	(function "break_merge" -> int
+		(parameters
+			(parameter #0 "c" : bool)
+		)
+		(locals
+			(local-place #0 "x" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(parameter #0 : bool)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(integer 1 : int)
+						)
+						(if
+							(condition
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(integer 1 : int)
+								)
+							)
+							(then
+								(block
+									(break #0)
+								)
+							)
+						)
+						(store
+							(local-place #0 : int)
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+)

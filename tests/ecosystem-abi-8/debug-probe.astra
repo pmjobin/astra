@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int analyze(int input) {
+	int local = input + 5;
+	int* address = &local;
+	local = *address + 2;
+	return local;
+}
+f64 measure(f64 reading) {
+	f64 local_float = reading + 2.5;
+	f64* address = &local_float;
+	return *address;
+}
+int main() {
+	if (measure(1.25) != 3.75) { return 1; }
+	return analyze(35) - 42;
+}

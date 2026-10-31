@@ -1,0 +1,46 @@
+(ssa-program
+	(function #0 "keep_going" -> bool
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary < %0 (integer 4 : int))
+			(return %1)
+		)
+	)
+	(function #1 "step" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : int = binary + %0 (integer 1 : int))
+			(return %1)
+		)
+	)
+	(function #2 "call_loop" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%0 "x" : int)
+			)
+			(%1 : bool = call #0 "keep_going" -> bool (arguments %0))
+			(conditional-branch %1
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%2 : int = call #1 "step" -> int (arguments %0))
+			(branch #1 (%2))
+		)
+		(block #3
+			(return %0)
+		)
+	)
+)

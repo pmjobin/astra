@@ -1,0 +1,79 @@
+(unit
+	(function
+		(type "int")
+		(name "count")
+		(parameters
+			(parameter (type "int") (name "n"))
+		)
+		(block
+			(local (type "int") (name "i") (integer "0"))
+			(while
+				(condition (short-circuit "&&" (binary "<" (name "i") (name "n")) (binary "<" (name "i") (integer "5"))))
+				(body
+					(block
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+					)
+				)
+			)
+			(return (name "i"))
+		)
+	)
+	(function
+		(type "bool")
+		(name "keep_going")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (binary "<" (name "x") (integer "5")))
+		)
+	)
+	(function
+		(type "int")
+		(name "continue_count")
+		(parameters
+			(parameter (type "int") (name "n"))
+		)
+		(block
+			(local (type "int") (name "i") (integer "0"))
+			(while
+				(condition (short-circuit "&&" (binary "<" (name "i") (name "n")) (call "keep_going" (arguments (name "i")))))
+				(body
+					(block
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+						(continue)
+					)
+				)
+			)
+			(return (name "i"))
+		)
+	)
+	(function
+		(type "int")
+		(name "break_count")
+		(parameters
+			(parameter (type "int") (name "n"))
+		)
+		(block
+			(local (type "int") (name "i") (integer "0"))
+			(while
+				(condition (short-circuit "&&" (binary "<" (name "i") (name "n")) (call "keep_going" (arguments (name "i")))))
+				(body
+					(block
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+						(if
+							(condition (binary "==" (name "i") (integer "3")))
+							(then
+								(block
+									(assign (name "i") (integer "8"))
+									(break)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return (name "i"))
+		)
+	)
+)

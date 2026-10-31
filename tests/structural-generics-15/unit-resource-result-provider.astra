@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeResourceResults;
+
+internal owned R create(int tag) {
+	var value = make(tag);
+	return move value;
+}
+Fn<owned R,int> callback() { return create; }
+owned R invoke(Fn<owned R,int> code, int tag) {
+	var value = code(tag);
+	return move value;
+}

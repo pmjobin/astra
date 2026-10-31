@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ConsumingChild {
+	private int code;
+	private int tag;
+	init(int code, int tag) { this.code = code; this.tag = tag; }
+	int read() { return this.code; }
+	deinit() { mark(this.tag); }
+}
+class ConsumingCargo<A, B> {
+	private owned A first;
+	private owned B second;
+	private int code;
+	init(owned A first, owned B second, int code) {
+		this.first = move first;
+		this.second = move second;
+		this.code = code;
+	}
+	int read() { return this.code; }
+	deinit() { mark(1002); }
+}
+int consume_symbolic_resource(owned R value, int extra) { return id(value) + extra; }
+int consume_symbolic_child(owned ConsumingChild value, int extra) { return value.read() + extra; }
+int consume_symbolic_cargo(owned ConsumingCargo<ConsumingChild, R> value, int extra) { return value.read() + extra; }
+int apply_consuming<T>(Fn<int, owned T, int> code, owned T value, int extra) where T:Ownable { return code(move value, extra); }
+int relay_consuming<T>(owned T value, int extra, Fn<int, owned T, int> code) where T:Ownable { return apply_consuming<T>(code, move value, extra); }
+int unused_consuming<T>(Fn<int, owned T, int> code, owned T value) where T:Ownable { return 0; }
+int fail_consuming_argument() throws Error { mark(990); throw new Error("later argument"); }
+int retry_consuming<T>(Fn<int, owned T, int> code, owned T value) where T:Ownable {
+	int result = 0;
+	try { result = code(move value, fail_consuming_argument()); }
+	catch (Error error) { mark(991); return code(move value, 2); }
+	return result;
+}
+int exercise_symbolic_consumers() {
+	var first = make(171);
+	if (apply_consuming<R>(consume_symbolic_resource, move first, 5) != 176) { return 1; }
+	var second = make(172);
+	if (relay_consuming(move second, 2, consume_symbolic_resource) != 174) { return 2; }
+	var child = new ConsumingChild(40, 1001);
+	if (apply_consuming<ConsumingChild>(consume_symbolic_child, move child, 2) != 42) { return 3; }
+	var nested = new ConsumingChild(40, 1003);
+	var resource = make(173);
+	var cargo = new ConsumingCargo<ConsumingChild, R>(move nested, move resource, 40);
+	if (relay_consuming<ConsumingCargo<ConsumingChild, R>>(move cargo, 2, consume_symbolic_cargo) != 42) { return 4; }
+	var retry = make(174);
+	if (retry_consuming<R>(consume_symbolic_resource, move retry) != 176) { return 5; }
+	var unused = make(175);
+	if (unused_consuming<R>(consume_symbolic_resource, move unused) != 0) { return 6; }
+	var lexical = ConsumingChild.init(0, 1004);
+	if (unused_consuming<ConsumingChild>(consume_symbolic_child, move lexical) != 0) { return 7; }
+	var heap = new ConsumingChild(0, 1005);
+	if (unused_consuming<ConsumingChild>(consume_symbolic_child, move heap) != 0) { return 8; }
+	return 0;
+}
+int main() {
+	int result = exercise_symbolic_consumers();
+	if (result != 0) { return result; }
+	return live();
+}

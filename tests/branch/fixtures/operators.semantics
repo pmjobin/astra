@@ -1,0 +1,79 @@
+(program
+	(function "yes" -> bool
+		(parameters)
+		(block
+			(return (bool true : bool))
+		)
+	)
+	(function "invert" -> bool
+		(parameters
+			(parameter #0 "x" : bool)
+		)
+		(block
+			(return (prefix ! : bool (parameter-ref #0 "x" : bool)))
+		)
+	)
+	(function "different" -> bool
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (prefix ! : bool (binary == : bool (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int))))
+		)
+	)
+	(function "compare" -> bool
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary == : bool (binary < : bool (binary + : int (parameter-ref #0 "a" : int) (integer 1 : int)) (binary * : int (parameter-ref #1 "b" : int) (integer 2 : int))) (bool true : bool)))
+		)
+	)
+	(function "less_equal" -> bool
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary <= : bool (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)))
+		)
+	)
+	(function "greater" -> bool
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary > : bool (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)))
+		)
+	)
+	(function "greater_equal" -> bool
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary >= : bool (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)))
+		)
+	)
+	(function "unequal" -> bool
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary != : bool (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)))
+		)
+	)
+	(function "same_bool" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return (binary != : bool (binary == : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)) (bool false : bool)))
+		)
+	)
+)

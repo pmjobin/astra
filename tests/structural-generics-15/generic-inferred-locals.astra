@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair {
+	int first;
+	int second;
+}
+T copied<T>(T input) {
+	var first = input;
+	var second = first;
+	return second;
+}
+owned T identity<T>(owned T input) where T:Ownable {
+	return move input;
+}
+owned T inferred<T>(owned T input) where T:Ownable {
+	var first = move input;
+	var received = identity<T>(move first);
+	var last = move received;
+	return move last;
+}
+int exercise() {
+	Pair pair = {first = 17, second = 25};
+	var copied_pair = copied<Pair>(pair);
+	if (copied_pair.first + copied_pair.second != 42 || copied<int>(42) != 42) { return 1; }
+	{
+		var input = make(231);
+		var result = inferred<R>(move input);
+		if (id(result) != 231) { return 2; }
+	}
+	{
+		var input = make_other(232);
+		var result = inferred<Other>(move input);
+		if (other_id(result) != 232) { return 3; }
+	}
+	return live();
+}
+int main() { return exercise(); }

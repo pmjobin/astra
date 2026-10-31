@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Vec2 { f64 x; f64 y; }
+struct Lab { f64 l; f64 a; f64 b; }
+struct SymMat2 { f64 xx; f64 xy; f64 yy; }
+Vec2 add(Vec2 a, Vec2 b) { Vec2 result = { x = a.x + b.x, y = a.y + b.y }; return result; }
+Lab transform(Lab input, f64 scale) { Lab result = { l = input.l * scale, a = input.a * scale, b = input.b * scale }; return result; }
+Vec2 apply(SymMat2 matrix, Vec2 value) { Vec2 result = { x = matrix.xx * value.x + matrix.xy * value.y, y = matrix.xy * value.x + matrix.yy * value.y }; return result; }
+SymMat2 diagonal(f64 x, f64 y) { SymMat2 result = { xx = x, xy = 0.0, yy = y }; return result; }
+int main() {
+	Vec2 a = { x = 1.5, y = 2.5 }; Vec2 b = { x = 2.5, y = 1.5 }; Vec2 sum = add(a,b);
+	Lab lab = { l = 50.0, a = 2.5, b = -1.5 }; Lab scaled = transform(lab,2.0);
+	Vec2 projected = apply(diagonal(2.0,3.0),sum);
+	if (sum.x != 4.0 || sum.y != 4.0 || scaled.l != 100.0 || scaled.a != 5.0 || scaled.b != -3.0 || projected.x != 8.0 || projected.y != 12.0) { return 1; }
+	return 0;
+}

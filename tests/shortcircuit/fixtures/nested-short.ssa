@@ -1,0 +1,211 @@
+(ssa-program
+	(function #0 "and_chain" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "b" : bool)
+			(%2 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(branch #2 ())
+		)
+		(block #2
+			(conditional-branch %0
+				(true #3 ())
+				(false #4 ((bool false : bool)))
+			)
+		)
+		(block #3
+			(branch #4 (%1))
+		)
+		(block #4
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(conditional-branch %3
+				(true #5 ())
+				(false #6 ((bool false : bool)))
+			)
+		)
+		(block #5
+			(branch #6 (%2))
+		)
+		(block #6
+			(arguments
+				(%4 (temporary #1) : bool)
+			)
+			(return %4)
+		)
+	)
+	(function #1 "or_chain" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "b" : bool)
+			(%2 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(branch #2 ())
+		)
+		(block #2
+			(conditional-branch %0
+				(true #4 ((bool true : bool)))
+				(false #3 ())
+			)
+		)
+		(block #3
+			(branch #4 (%1))
+		)
+		(block #4
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(conditional-branch %3
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(branch #6 (%2))
+		)
+		(block #6
+			(arguments
+				(%4 (temporary #1) : bool)
+			)
+			(return %4)
+		)
+	)
+	(function #2 "and_or" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "b" : bool)
+			(%2 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(conditional-branch %0
+				(true #2 ())
+				(false #3 ((bool false : bool)))
+			)
+		)
+		(block #2
+			(branch #4 ())
+		)
+		(block #3
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(return %3)
+		)
+		(block #4
+			(conditional-branch %1
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(branch #6 (%2))
+		)
+		(block #6
+			(arguments
+				(%4 (temporary #1) : bool)
+			)
+			(branch #3 (%4))
+		)
+	)
+	(function #3 "or_and" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "b" : bool)
+			(%2 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(conditional-branch %0
+				(true #3 ((bool true : bool)))
+				(false #2 ())
+			)
+		)
+		(block #2
+			(branch #4 ())
+		)
+		(block #3
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(return %3)
+		)
+		(block #4
+			(conditional-branch %1
+				(true #5 ())
+				(false #6 ((bool false : bool)))
+			)
+		)
+		(block #5
+			(branch #6 (%2))
+		)
+		(block #6
+			(arguments
+				(%4 (temporary #1) : bool)
+			)
+			(branch #3 (%4))
+		)
+	)
+	(function #4 "precedence" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "b" : bool)
+			(%2 "c" : bool)
+			(%3 "d" : bool)
+			(%4 "e" : bool)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(branch #2 ())
+		)
+		(block #2
+			(%7 : bool = binary == %0 %1)
+			(conditional-branch %7
+				(true #3 ())
+				(false #4 ((bool false : bool)))
+			)
+		)
+		(block #3
+			(%8 : bool = binary != %2 %3)
+			(branch #4 (%8))
+		)
+		(block #4
+			(arguments
+				(%5 (temporary #0) : bool)
+			)
+			(conditional-branch %5
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(branch #6 (%4))
+		)
+		(block #6
+			(arguments
+				(%6 (temporary #1) : bool)
+			)
+			(return %6)
+		)
+	)
+)

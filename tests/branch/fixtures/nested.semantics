@@ -1,0 +1,40 @@
+(program
+	(function "nested" -> int
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (integer 0 : int))
+			(if
+				(condition (parameter-ref #0 "a" : bool))
+				(then
+					(block
+						(if
+							(condition (parameter-ref #1 "b" : bool))
+							(then
+								(block
+									(assign (local-ref #0 "x" : int) (integer 1 : int))
+								)
+							)
+							(else
+								(block
+									(assign (local-ref #0 "x" : int) (integer 2 : int))
+								)
+							)
+						)
+					)
+				)
+				(else
+					(block
+						(assign (local-ref #0 "x" : int) (integer 3 : int))
+					)
+				)
+			)
+			(return (local-ref #0 "x" : int))
+		)
+	)
+)

@@ -1,0 +1,52 @@
+(unit
+	(struct "Pair"
+		(type-parameters T U)
+		(field (type "T") (name "first"))
+		(field (type "U") (name "second"))
+	)
+	(function
+		(type "int")
+		(name "scalarized")
+		(parameters
+			(parameter (type "int") (name "x"))
+			(parameter (type "f64") (name "y"))
+		)
+		(block
+			(struct-local (type "Pair<int,f64>") (name "p")
+				(initialize-field "first" (name "x"))
+				(initialize-field "second" (name "y"))
+			)
+			(assign (field-access "p" "first") (binary "+" (field-access "p" "first") (integer "1")))
+			(if
+				(condition (binary "!=" (field-access "p" "second") (name "y")))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+			)
+			(return (field-access "p" "first"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Pair<int,f64>") (name "p")
+				(initialize-field "first" (integer "42"))
+				(initialize-field "second" (float "3.5"))
+			)
+			(assign (field-access "p" "second") (float "7.25"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "p" "first") (integer "42")) (binary "!=" (field-access "p" "second") (float "7.25"))) (binary "!=" (call "scalarized" (arguments (field-access "p" "first") (field-access "p" "second"))) (integer "43"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

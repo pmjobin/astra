@@ -1,0 +1,27 @@
+extern(C) void astra_test_reset();
+extern(C) int astra_test_record(int value);
+extern(C) int astra_test_state();
+
+bool identity(bool value) {
+	return value;
+}
+
+int main() {
+	astra_test_reset();
+	bool a = identity(false) && (astra_test_record(9) != 0);
+	bool b = identity(true) || (astra_test_record(9) != 0);
+	if (a || !b || astra_test_state() != 0) {
+		return 1;
+	}
+	bool c = identity(true) && (astra_test_record(1) != 0);
+	bool d = identity(false) || (astra_test_record(2) != 0);
+	if (!c || !d || astra_test_state() != 12) {
+		return 2;
+	}
+	bool e = false && (astra_test_record(9) != 0);
+	bool f = true || (astra_test_record(9) != 0);
+	if (e || !f || astra_test_state() != 12) {
+		return 3;
+	}
+	return 0;
+}

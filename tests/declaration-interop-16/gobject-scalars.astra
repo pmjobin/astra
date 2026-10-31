@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="go16_retired")]int retired();
+[CImport(name="go16_item_retired")]int item_retired();
+[ExceptionRoot]class Fault{readonly string text;init(){this.text="native failure";}virtual property string message{get{return this.text;}}}
+struct Sample{int count;f64 scale;bool enabled;u32 mask;u64 stamp;f32 weight;}
+struct Pair<T>{T first;int second;}
+[Shared]
+[CExport(name="go16_native",profile="declarations-v1",bool_abi="c99")]
+[GObjectExport(type="Astra16Session",namespace="Astra16",version="2.3",profile="declarations-v1")]
+class Session {
+	private int raw;private bool active;private f64 ratio;private owned Item child;
+	[Foreign]init(int seed,bool active,f64 ratio){this.raw=seed;this.active=active;this.ratio=ratio;var child=new Item(41);this.child=move child;}
+	[Foreign]property int count{get{return this.raw;}set(int input){this.raw=input;}}
+	[Foreign]property bool enabled{get{return this.active;}set(bool input){this.active=input;}}
+	[Foreign]property f64 scale{get{return this.ratio;}set(f64 input){this.ratio=input;}}
+	[Foreign]i64 fold(i64 input,u32 mask,f32 weight,u64 stamp){return input+mask as i64+weight as i64+stamp as i64;}
+	[Foreign]bool choose(bool input){return input && this.active;}
+	[Foreign(error_domain="16",errors="Fault=-1600")]f64 evaluate(f64 input) throws Fault{if(input<0.0){var error=new Fault();throw move error;}return input*this.ratio;}
+	[Foreign(personalities="c")]int native_only(int input){return input+3;}
+	[Foreign(personalities="gobject")]int glib_only(int input){return input+4;}
+
+	[Foreign]bool visit(bool input,borrowed Callback<bool,bool> code){return code(input);}
+	[Foreign][ForeignChannel(parameter="code",nullable="true")]
+	bool maybe_visit(bool input,borrowed Callback<bool,bool> code){if(code==null){return input;}return code(input);}
+	[Foreign]void deliver(f64 input,borrowed Callback<void,f64> sink){sink(input);}
+	[Foreign(error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="scale",direction="inout")]
+	[ForeignChannel(parameter="count",direction="out")]
+	i64 eval_refs(borrowed i64* input,borrowed f64* scale,borrowed u32* count,bool fail) throws Fault {i64 result=*input+5;*input=99;*scale=*scale+1.5;*count=4000000000;if(fail){var error=new Fault();throw move error;}return result;}
+	[Foreign][ForeignChannel(parameter="input",nullable="true")]int digest(borrowed u8[] input){int i=0;int sum=0;while(i<len(input)){sum=sum+input[i] as int;i=i+1;}return sum;}
+	[Foreign][ForeignChannel(parameter="result",transfer="full",encoding="bytes")]
+	owned u8[] snapshot(borrowed u8[] input){var result=new u8[len(input)];int i=0;while(i<len(input)){result[i]=(input[i] as int ^ 85) as u8;i=i+1;}return move result;}
+	[Foreign][ForeignChannel(parameter="output",direction="out",nullable="true",produced="result")]
+	int transform(borrowed u8[] input,borrowed u8[] output){if(len(input)>len(output)){return len(output)+1;}int i=0;while(i<len(input)){output[i]=(input[i] as int+1) as u8;i=i+1;}return len(input);}
+	[Foreign][ForeignChannel(parameter="data",direction="inout",capacity="bound",produced="result")]
+	int mutate(borrowed u8[] data,int bound){int i=0;while(i<len(data)){data[i]=(data[i] as int+2) as u8;i=i+1;}return bound;}
+	[Foreign]int measure(string input){return input.byte_length;}
+	[Foreign]string counted_text(){return "hé\0llo";}
+	[Foreign][ForeignChannel(parameter="input",encoding="utf8-nul",nullable="true")]
+	int terminated_length(string input){return input.byte_length;}
+	[Foreign][ForeignChannel(parameter="result",encoding="utf8-nul")]
+	string terminated(){return "café";}
+	[Foreign][ForeignChannel(parameter="result",encoding="utf8-nul")]
+	string forbidden_nul(){return "a\0b";}
+	[Foreign]Sample adjust(Sample input){Sample result={count=input.count+this.raw,scale=input.scale*this.ratio,enabled=!input.enabled,mask=input.mask,stamp=input.stamp+1,weight=input.weight+0.5};return result;}
+	[Foreign]Pair<f64> pair(Pair<f64> input){Pair<f64> result={first=input.first+this.ratio,second=input.second+this.raw};return result;}
+	[Foreign]property string title{get{return "hé\0llo";}}
+	[Foreign]property owned Item current{get{var result=clone_item(this.child);return move result;}}
+	[Foreign]int read_current(){var current=this.current;return current.code();}
+	[Foreign]owned Item spawn(int code){var item=new Item(code+this.raw);return move item;}
+	[Foreign]int inspect(borrowed Item input){return input.code();}
+	[Foreign]owned Item duplicate(borrowed Item input){var result=input.clone();return move result;}
+	[Foreign]owned Item relay(owned Item input){return move input;}
+	[Foreign][ForeignChannel(parameter="result",nullable="true")]
+	owned Item lookup(bool present,borrowed Item input){if(!present){return null;}var result=input.clone();return move result;}
+	[Foreign][ForeignChannel(parameter="input",nullable="true")]
+	int optional(borrowed Item input){if(input==null){return -7;}return input.code();}
+	[Foreign]int watched(borrowed Item input,borrowed Callback<void> callback){callback();return input.code();}
+	deinit(){retired();}
+}
+
+[Shared][CExport(name="go16_item",profile="declarations-v1")]
+[GObjectExport(type="Astra16Item",namespace="Astra16",version="2.3",profile="declarations-v1")]
+class Item{private int value;[Foreign]init(int value){this.value=value;}[Foreign]int code(){return this.value;}deinit(){item_retired();}}
+
+owned Item clone_item(borrowed Item input){var result=input.clone();return move result;}

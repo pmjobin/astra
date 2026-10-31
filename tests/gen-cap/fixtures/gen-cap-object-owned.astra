@@ -1,0 +1,8 @@
+T identity<T>(T value) where T : Ordered {
+	if(value<value){return value;}return value;
+}
+extern(C) int life_record(int code, int value);
+class Item { int raw; init(int x) { this.raw=x; } deinit() { life_record(this.raw,0); } }
+T consume<T>(owned Item item, T value, T other) where T : Ordered { if(value<other){return identity<T>(other);}return identity<T>(value); }
+T local<T>(T value,T other) where T : Ordered { owned Item item=Item.init(66); return consume<T>(move item,value,other); }
+int main() { owned Item item=Item.init(65); int first=consume<int>(move item,1,0); return local<int>(40,42); }

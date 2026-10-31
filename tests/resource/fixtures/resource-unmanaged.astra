@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool same(Resource a, Resource b) { return a == b; }
+Resource empty() { return null; }
+int inspect_native(Resource r) { return resource_id(r); }
+int main() {
+	resource_reset();
+	Resource a = lookup_resource();
+	Resource b = a;
+	if (!same(a, b) || inspect_native(b) != 4 || resource_destroy_count() != 0) { return 1; }
+	b = null;
+	if (b != empty() || null != b || a == b || inspect_native(null) != 0) { return 2; }
+	b = a;
+	if (resource_id(b) != 4 || resource_live_count() != 1 || resource_destroy_count() != 0) { return 3; }
+	dispose_raw(a);
+	if (resource_destroy_count() != 1 || resource_error_count() != 0) { return 4; }
+	return 0;
+}

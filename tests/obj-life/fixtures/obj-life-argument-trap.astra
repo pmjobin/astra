@@ -1,0 +1,11 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int a, int b) { life_record(73, 0); this.value = a + b; }
+	deinit() { life_record(68, 0); }
+}
+int zero() { return 0; }
+int main() {
+	Counter c = Counter.init(life_record(65, 1), life_record(66, 2) / zero());
+	return 42;
+}

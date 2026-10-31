@@ -1,0 +1,12 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; life_record(67, 0); }
+	deinit() { if (this.value != 42) { life_record(88, 0); } life_record(68, 0); }
+	void add(int n) { this.value = this.value + n; }
+	owned Counter copy() { return Counter.init(this.value); }
+}
+class Seed { init() {} deinit() { life_record(83, 0); } }
+owned Counter inner(owned Seed seed) { return Counter.init(42); }
+owned Counter outer() { owned Seed seed = Seed.init(); return inner(move seed); }
+int main() { owned Counter c = outer(); return c.value; }

@@ -1,0 +1,16 @@
+extern(C) int life_record(int code, int value);
+T identity<T>(T value) where T : Ordered { if(value<value){return value;}return value; }
+T observe<T>(T value) where T : Ordered { life_record(86,0); return identity<T>(value); }
+T recurse<T>(int count, owned Resource resource, T value) where T : Ordered {
+	if (count == 0) { return observe<T>(value); }
+	return recurse<T>(count - 1,move resource,value);
+}
+T select_and_consume<T>(owned Resource resource, T a, T b) where T : Ordered { if(a<b){return recurse<T>(3,move resource,b);}return recurse<T>(3,move resource,a); }
+int main() {
+	owned Resource resource = create_resource(82);
+	int result = select_and_consume<int>(move resource,42,1);
+	owned Resource second = create_resource(83);
+	f64 value = select_and_consume<f64>(move second,0.5,1.25);
+	if (value == 1.25) { return result; }
+	return 1;
+}

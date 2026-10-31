@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Composite10;
+class EarlierUnitType { init() {} }
+struct EarlierRecordType { int unused; }
+extern(C) int unit_event(int stage, int value);
+int main() {
+	var earlier = new EarlierUnitType();
+	{
+		var value = create(3);
+		var next = relay(move value);
+		if (consume(move next, 7) != 122) { return 81; }
+	}
+	{
+		var value = create(10);
+		var child = move value.body.token;
+		if (child.read() != 10) { return 82; }
+		release child;
+		var samples = move value.body.samples;
+		unit_event(3, samples[0] + samples[1] + value.body.tag + value.code);
+	}
+	{
+		var first = new Token(20);
+		var samples = new int[2];
+		samples[0] = 2;
+		var second = new Token(21);
+		Envelope local = {body = {token = move first, samples = move samples, tag = 3}, tail = move second, code = 4};
+		if (consume(move local, 5) != 34) { return 83; }
+	}
+	return 0;
+}

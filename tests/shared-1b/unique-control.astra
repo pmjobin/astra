@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int unique_event(int stage,int tag);
+extern(C) int unique_finish();
+class UniqueChild {
+	int value;
+	init(int value){this.value=value;unique_event(1,1);}
+	deinit(){unique_event(2,1);}
+}
+class UniqueParent {
+	private owned UniqueChild child;
+	init(owned UniqueChild child){this.child=move child;unique_event(1,2);}
+	deinit(){unique_event(2,2);}
+}
+int main(){
+	var child=new UniqueChild(7);
+	var parent=new UniqueParent(move child);
+	release parent;
+	return unique_finish();
+}

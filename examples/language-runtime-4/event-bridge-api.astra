@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct EventState { i64 checksum; int received; int mode; int count; }
+int event_double(int value) { return value * 2; }
+int event_shift(int value) { return value + 3; }
+int accept_event(borrowed EventState* state, int value) {
+	Fn<int,int> transform = event_double;
+	if (state->mode == 1) { transform = event_shift; }
+	state->checksum = state->checksum + (transform(value) as i64);
+	state->received = state->received + 1;
+	return state->received;
+}
+[CCode(record_abi="natural-lp64", callback="accept_event", callback_abi="i32-context-i32-sync")]
+extern(C) int surge4_events(borrowed EventState* state, int first);
+export(C) i64 surge4_event_checksum(int first, int count, int mode) {
+	if (first < -1000 || first > 1000 || count < 0 || count > 1000 || mode < 0 || mode > 1) { return -99999999; }
+	EventState state = {checksum=0, received=0, mode=mode, count=count};
+	if (surge4_events(&state, first) != count || state.received != count) { return -99999998; }
+	return state.checksum;
+}

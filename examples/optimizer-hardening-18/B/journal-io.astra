@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+enum JournalIoPhase18 { Completed, Cancelled }
+async runtime JournalIo18 throws Error returns JournalIoPhase18 provider "linux-io-uring-composed";
+async void journal18_stream(owned LinuxPayload reader, owned WorkerPool pool,
+	owned ConcurrentAllocator context, owned ConcurrentAllocator frames) throws Error {
+	int count = journal18_size();
+	int received = 0;
+	while (received < count) {
+		payload_configure(reader, received, count - received, received as i64);
+		await payload_io(reader);
+		int amount = astra_linux_payload_count(reader);
+		if (amount <= 0 || amount > count - received) { throw new Error("journal input progress"); }
+		received = received + amount;
+	}
+	int total = 0;
+	for (int lane = 0; lane < 4; lane = lane + 1) {
+		var bytes = new(context)u8[count];
+		for (int index = 0; index < count; index = index + 1) { bytes[index] = payload_byte(reader, index) as u8; }
+		var job = new(context)JournalJob18(move bytes, lane);
+		total = total + await pool.submit(checked_task_in(frames, JournalCPU18.calculate(move job)));
+	}
+	payload_finish(reader);
+	if (journal18_context_done(context, 1) != 0 || journal18_context_done(frames, 2) != 0 || journal18_finish(total) != 0) { throw new Error("journal stream retirement/output"); }
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	if (journal18_prepare(args[1], args[2]) != 0) { return 65; }
+	var context = concurrent_allocator(1, 2097152, 64, 64);
+	var frames = concurrent_allocator(2, 262144, 32, 64);
+	if (context == null || frames == null) { journal18_abort(); return 2; }
+	try {
+		int capacity = journal18_size(); if (capacity == 0) { capacity = 1; }
+		var reader = payload_open(args[1], capacity, 0);
+		var pool = worker_pool(journal18_workers());
+		if (pool == null) { journal18_abort(); return 2; }
+		var executor = JournalIo18.open(8);
+		var status = executor.run(journal18_stream(move reader, move pool, move context, move frames));
+		match (status) { case JournalIoPhase18.Completed(): {} else: { journal18_abort(); return 4; } }
+	} catch (Error error) { journal18_abort(); return 3; }
+	return 0;
+}

@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+struct Log {int value;}
+u8<16> produce(Log* log,int id){log->value=log->value*10+id;return splat(85 as u8,16);}
+int main(){
+	Log log={value=0};
+	u8<16> a=produce(&log,1)&produce(&log,2);
+	if(!all(a==splat(85 as u8,16)) || log.value!=12){return 1;}
+	a=produce(&log,3)|produce(&log,4);
+	if(!all(~a==splat(170 as u8,16)) || log.value!=1234){return 2;}
+	a=produce(&log,5)^produce(&log,6);
+	if(any(a!=splat(0 as u8,16)) || log.value!=123456){return 3;}
+	return 0;
+}

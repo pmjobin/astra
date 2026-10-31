@@ -1,0 +1,147 @@
+(core-program
+	(function "nested_control" -> int
+		(parameters
+			(parameter #0 "outer_n" : int)
+			(parameter #1 "inner_n" : int)
+		)
+		(locals
+			(local-place #0 "outer" : int)
+			(local-place #1 "total" : int)
+			(local-place #2 "inner" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(initialize
+				(local-place #1 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(binary < : bool
+						(load : int
+							(local-place #0 : int)
+						)
+						(parameter #0 : int)
+					)
+				)
+				(body
+					(block
+						(initialize
+							(local-place #2 : int)
+							(integer 0 : int)
+						)
+						(while #1
+							(condition
+								(binary < : bool
+									(load : int
+										(local-place #2 : int)
+									)
+									(parameter #1 : int)
+								)
+							)
+							(body
+								(block
+									(store
+										(local-place #2 : int)
+										(binary + : int
+											(load : int
+												(local-place #2 : int)
+											)
+											(integer 1 : int)
+										)
+									)
+									(if
+										(condition
+											(binary == : bool
+												(load : int
+													(local-place #2 : int)
+												)
+												(integer 2 : int)
+											)
+										)
+										(then
+											(block
+												(continue #1)
+											)
+										)
+									)
+									(if
+										(condition
+											(binary == : bool
+												(load : int
+													(local-place #2 : int)
+												)
+												(integer 4 : int)
+											)
+										)
+										(then
+											(block
+												(break #1)
+											)
+										)
+									)
+									(store
+										(local-place #1 : int)
+										(binary + : int
+											(load : int
+												(local-place #1 : int)
+											)
+											(integer 1 : int)
+										)
+									)
+								)
+							)
+						)
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+						(if
+							(condition
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(integer 2 : int)
+								)
+							)
+							(then
+								(block
+									(continue #0)
+								)
+							)
+						)
+						(if
+							(condition
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(integer 4 : int)
+								)
+							)
+							(then
+								(block
+									(break #0)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #1 : int)
+				)
+			)
+		)
+	)
+)

@@ -1,0 +1,188 @@
+(core-program
+	(handle-type #0 "Resource" (cleanup #0)
+		(header "missing/resource.h")
+	)
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(extern-function #0 "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #1 "create_again" (abi C) (symbol "astra_test_resource_create_same")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "resource_id" (abi C) (symbol "astra_test_resource_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #3 "resource_touch" (abi C) (symbol "astra_test_resource_touch")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #4 "lookup_resource" (abi C) (symbol "astra_test_resource_raw")
+		(parameters
+		)
+		(result Resource))
+	(extern-function #5 "dispose_raw" (abi C) (symbol "astra_test_resource_raw_destroy")
+		(parameters
+			(parameter #0 : Resource)
+		)
+		(result void))
+	(extern-function #6 "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function #7 "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #8 "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #9 "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #10 "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #11 "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #12 "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #13 "resource_is_live" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #14 "resource_touch_count" (abi C) (symbol "astra_test_resource_touch_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #15 "resource_null_count" (abi C) (symbol "astra_test_resource_null_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #16 "observe3" (abi C) (symbol "astra_test_resource_observe3")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : Resource (contract borrowed-noescape))
+			(parameter #2 : int)
+		)
+		(result int))
+	(extern-function #17 "record" (abi C) (symbol "astra_test_resource_record_effect")
+		(parameters
+			(parameter #0 : int)
+		)
+		(result int))
+	(function "pass" -> Resource
+		(result Resource (contract owned-transfer) (cleanup #0))
+		(parameters
+			(parameter #0 "r" : Resource (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "r" : Resource)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #0))
+			(ownership-return (move owner #0) : Resource (cleanup #0))
+		)
+	)
+	(function "consume" -> void
+		(parameters
+			(parameter #0 "first" : int)
+			(parameter #1 "a" : Resource (contract owned-transfer))
+			(parameter #2 "last" : int)
+			(parameter #3 "b" : Resource (contract owned-transfer))
+		)
+		(owned-parameter #1 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(owned-parameter #3 (owner #1) function-root)
+		(owned-local (local-place #1) (cleanup #0) lexical-block)
+		(owned-local (local-place #2) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "a" : Resource)
+			(local-place #1 "b" : Resource)
+			(local-place #2 "local" : Resource)
+		)
+		(block
+			(acquire-parameter #1 (owner #0) (cleanup #0))
+			(acquire-parameter #3 (owner #1) (cleanup #0))
+			(owned-initialize (cleanup #0)
+				(local-place #2 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 3 : int)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(owned-local (local-place #1) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "a" : Resource)
+			(local-place #1 "b" : Resource)
+		)
+		(block
+			(owned-initialize (cleanup #0)
+				(local-place #0 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 1 : int)
+					)
+				)
+			)
+			(owned-initialize (cleanup #0)
+				(local-place #1 : Resource)
+				(call "pass" -> Resource
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #0) : Resource (cleanup #0))
+					)
+				)
+			)
+			(ownership-rearm (owner #0 "a") (cleanup #0)
+				(call "pass" -> Resource
+					(arguments
+						(owned-transfer-argument (parameter #0) owned-null : Resource (cleanup #0))
+					)
+				)
+			)
+			(call-statement "consume" -> void
+				(arguments
+					(c-call "record" -> int
+						(arguments
+							(integer 1 : int)
+						)
+					)
+					(owned-transfer-argument (parameter #1) (move owner #1) : Resource (cleanup #0))
+					(c-call "record" -> int
+						(arguments
+							(integer 2 : int)
+						)
+					)
+					(owned-transfer-argument (parameter #3) (move owner #0) : Resource (cleanup #0))
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

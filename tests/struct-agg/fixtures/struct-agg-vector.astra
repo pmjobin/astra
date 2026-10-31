@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Sample { f32<4> color; i16<8> samples; bool<4> mask; }
+struct Outer { Sample inner; }
+void mutate(Outer* p, i16<8> v) { p->inner.samples = v; p->inner.color = insert(p->inner.color, 2, 4.5); }
+int main() {
+	f32<4> color = { 0.5, 1.5, 2.5, 3.5 };
+	i16<8> samples = { 1, 2, 3, 4, 5, 6, 7, 8 };
+	bool<4> mask = { true, false, true, false };
+	Outer o = { inner = { color = color, samples = samples, mask = mask } };
+	f32<4> read = o.inner.color;
+	if (!all(read == color) || o.inner.color[2] != 2.5) { return 1; }
+	o.inner.samples = insert(o.inner.samples, 7, 42);
+	if (o.inner.samples[7] != 42 || o.inner.samples[0] != 1) { return 2; }
+	mutate(&o, samples);
+	if (!all(o.inner.samples == samples) || o.inner.color[2] != 4.5 || !any(o.inner.mask)) { return 3; }
+	return 0;
+}

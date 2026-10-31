@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+linux_frame_tests = executable('astra-linux-async-frames', ['frame-tests.vala', '../../bootstrap/backend/llvm/capi/llvm-test.vapi'], dependencies: [llvm_backend_dependency, vapi_dependency], vala_args: frontend_vala_args, c_args: frontend_c_args)
+test('async-io-1-source-native-LLVM', linux_frame_tests, args: ['--tap'], protocol: 'tap')
+if get_option('linux_async')
+	linux_async_includes = include_directories('../../lib/astra/async')
+	linux_profile_probe = executable('astra-linux-async-profile', 'profile-probe.c', dependencies: uring_dependency)
+	test('async-io-1-real-profile', linux_profile_probe)
+	linux_runtime_tests = executable('astra-linux-async-runtime', ['runtime-tests.c', '../../lib/runtime/async/virtual.c', '../../lib/runtime/async/linux.c'], include_directories: linux_async_includes, dependencies: uring_dependency)
+	test('async-io-1-real-runtime', linux_runtime_tests)
+	linux_injected_tests = executable('astra-linux-async-injected', ['injected-tests.c', '../../lib/runtime/async/virtual.c', '../../lib/runtime/async/linux.c'], include_directories: linux_async_includes, dependencies: uring_dependency, c_args: ['-DASTRA_ASYNC_LINUX_TEST_PROTOCOL'])
+	test('async-io-1-injected-decoder', linux_injected_tests)
+	linux_cleanup_tests = executable('astra-linux-async-cleanup', ['cleanup-tests.c', '../../lib/runtime/async/virtual.c', '../../lib/runtime/async/linux.c'], include_directories: linux_async_includes, dependencies: uring_dependency, c_args: ['-DASTRA_ASYNC_LINUX_TEST_PROTOCOL'], link_args: ['-Wl,--wrap=io_uring_queue_init_params,--wrap=io_uring_register_probe'])
+	test('async-io-1-real-cleanup-and-queued-cancel', linux_cleanup_tests)
+	uring_prefix = uring_dependency.get_variable(pkgconfig: 'prefix')
+	linux_python = find_program('python3')
+	test('async-io-1-generated-frame-execution', linux_python, args: ['-B', files('execute.py'), astrac, uring_prefix, meson.current_build_dir() / 'execution'], timeout: 180, depends: [astrac, async_provider, async_linux_provider], is_parallel: false)
+	test('async-io-1-installed-source-orders', linux_python, args: ['-B', files('install.py'), meson.project_build_root(), uring_prefix, meson.current_build_dir() / 'installed'], timeout: 300, depends: [astrac, async_provider, async_linux_provider], is_parallel: false)
+endif

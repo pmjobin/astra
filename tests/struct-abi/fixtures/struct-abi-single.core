@@ -1,0 +1,106 @@
+(core-program
+	(struct "One"
+		(field #0 "value" : f64)
+	)
+	(function "identity" -> One
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : One)
+		)
+		(locals
+			(struct-local-place #0 "value" : One)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : One) (field #0 "value") : f64)
+		)
+		(block
+			(acquire-struct-parameter #0 COPY_VALUE (local #0) all-leaves)
+			(struct-return snapshot-before-cleanup
+				(struct-snapshot : One
+					(local-place #0 : One)
+				)
+			)
+		)
+	)
+	(function "forward" -> One
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : One)
+		)
+		(locals
+			(struct-local-place #0 "value" : One)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : One) (field #0 "value") : f64)
+		)
+		(block
+			(acquire-struct-parameter #0 COPY_VALUE (local #0) all-leaves)
+			(struct-return snapshot-before-cleanup
+				(struct-call-result : One
+					(call "identity" -> One
+						(arguments
+							(struct-argument #0 snapshot-at-argument
+								(struct-snapshot : One
+									(local-place #0 : One)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "a" : One)
+			(struct-local-place #1 "b" : One)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : One) (field #0 "value") : f64)
+			(field-place (base struct-local-place #1 : One) (field #0 "value") : f64)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : One) (field #0 "value") : f64)
+				(f64 0x400c000000000000 : f64)
+			)
+			(struct-result-store initialize
+				(local-place #1 : One)
+				(struct-call-result : One
+					(call "forward" -> One
+						(arguments
+							(struct-argument #0 snapshot-at-argument
+								(struct-snapshot : One
+									(local-place #0 : One)
+								)
+							)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : f64
+							(field-place (base struct-local-place #1 : One) (field #0 "value") : f64)
+						)
+						(f64 0x400c000000000000 : f64)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

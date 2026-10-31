@@ -1,0 +1,28 @@
+(program
+	(function "wrapping" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(locals
+			(local #0 "a" : int)
+		)
+		(block
+			(local-init #0 "a" : int (integer 2147483647 : int))
+			(assign (local-ref #0 "a" : int) (binary + : int (local-ref #0 "a" : int) (integer 1 : int)))
+			(assign (local-ref #0 "a" : int) (binary * : int (local-ref #0 "a" : int) (parameter-ref #0 "x" : int)))
+			(return (prefix - : int (local-ref #0 "a" : int)))
+		)
+	)
+	(function "overflow" -> int
+		(parameters)
+		(block
+			(return (binary + : int (integer 2147483647 : int) (integer 1 : int)))
+		)
+	)
+	(function "minimum_negation" -> int
+		(parameters)
+		(block
+			(return (prefix - : int (integer -2147483648 : int)))
+		)
+	)
+)

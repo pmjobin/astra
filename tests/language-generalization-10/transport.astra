@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item {
+	owned R resource;
+	int code;
+	init(int code) {
+		this.resource = make(code);
+		this.code = code;
+	}
+	deinit() { mark(200 + this.code); }
+}
+struct Pair {
+	owned R first;
+	owned Other second;
+	owned Item child;
+	int tag;
+}
+struct Branch { Pair payload; }
+struct Document { Branch branch; int kind; }
+owned Item item(int code) {
+	var value = new Item(code);
+	return move value;
+}
+Document create(int code, bool failure) throws Error {
+	Document document = {
+		kind = 9,
+		branch = {payload = {second = make_other(code + 1), child = item(code + 2), first = make(code), tag = 7}}
+	};
+	if (failure) { throw new Error("factory"); }
+	return move document;
+}
+Document relay(Document value, bool failure) throws Error {
+	if (failure) { throw new Error("relay"); }
+	var forwarded = move value;
+	return move forwarded;
+}
+int consume(Document value, int code) {
+	mark(value.branch.payload.tag + value.kind + code);
+	return 0;
+}
+void ordered(Document value) { consume(move value, mark(value.kind + 31)); }
+void adjacent(Document value, owned Item extra) { mark(extra.code); }
+int argument(bool failure) throws Error {
+	if (failure) { throw new Error("argument"); }
+	return 1;
+}
+class Service {
+	init() {}
+	Document forward(Document value) { return move value; }
+}
+void exercise(int failure) {
+	try {
+		Document original = create(1, failure == 1);
+		var result = relay(move original, failure == 2);
+		var service = new Service();
+		var final = service.forward(move result);
+		try {
+			consume(move final, argument(failure == 3));
+		} catch (Error error) {
+			var retained = move final;
+			var child = move retained.branch.payload.child;
+			mark(child.code);
+			release child;
+			retained.branch.payload.child = item(4);
+			mark(retained.branch.payload.tag + retained.kind);
+		}
+	} catch (Error error) {
+		mark(900 + failure);
+	}
+}
+Document forward_factory() throws Error { return create(5, false); }
+owned Item extract(Document value) {
+	var child = move value.branch.payload.child;
+	return move child;
+}
+int main() {
+	exercise(0);
+	exercise(1);
+	exercise(2);
+	exercise(3);
+	try {
+		var result = forward_factory();
+		mark(result.kind);
+		var child = extract(move result);
+		mark(child.code);
+		var next = create(12, false);
+		ordered(move next);
+		var group = create(20, false);
+		var extra = item(23);
+		adjacent(move group, move extra);
+	} catch (Error error) {
+		mark(999);
+	}
+	return live();
+}

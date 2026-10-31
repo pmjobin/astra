@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void scoped_child_rollback_event(int event, int identity);
+class HeapLeaf {
+	private int identity;
+	init(int identity) { this.identity=identity; scoped_child_rollback_event(10,identity); }
+	int read() { return this.identity; }
+	deinit() { scoped_child_rollback_event(11,this.identity); }
+}
+class HeapNode {
+	private int identity;
+	private owned HeapLeaf child;
+	init(int identity,owned HeapLeaf child) { this.identity=identity; this.child=move child; scoped_child_rollback_event(8,identity); }
+	int read() { return this.child.read(); }
+	deinit() { scoped_child_rollback_event(9,this.identity); }
+}
+[Allocator(kind="context",context="scoped-affine")]
+class ScopedChild {
+	private int identity;
+	private owned HeapNode child;
+	init(int identity,owned HeapNode child) { this.identity=identity; this.child=move child; scoped_child_rollback_event(6,identity); }
+	int read() { return this.child.read(); }
+	deinit() { scoped_child_rollback_event(7,this.identity); }
+}
+[ExceptionRoot]
+class ChildConstructionFault {
+	private int identity;
+	init(int identity) { this.identity=identity; scoped_child_rollback_event(2,identity); }
+	virtual property string message { get { return "owned construction failed"; } }
+	deinit() { scoped_child_rollback_event(3,this.identity); }
+}
+[Allocator(kind="context",context="scoped-affine")]
+class CheckedScopedParent {
+	private int identity;
+	private owned ScopedChild left;
+	private owned ScopedChild right;
+	init(int identity,owned ScopedChild left,owned ScopedChild right,int mode) throws ChildConstructionFault {
+		this.identity=identity;
+		scoped_child_rollback_event(1,identity);
+		if(mode==1){throw new ChildConstructionFault(identity);}
+		this.left=move left;
+		if(mode==2){throw new ChildConstructionFault(identity);}
+		this.right=move right;
+		if(mode==3){throw new ChildConstructionFault(identity);}
+	}
+	int read() { return this.left.read()+this.right.read(); }
+	deinit() { scoped_child_rollback_event(4,this.identity); }
+}
+export(C) int scoped_child_rollback_run() {
+	owned u8[] backing=new u8[8197];
+	owned u8[] child_backing=new u8[12289];
+	{
+		var context=scoped_allocator<ScopedAllocator>(backing,2,1);
+		var child_context=scoped_allocator<ScopedAllocator>(child_backing,1,7);
+		if(context==null||child_context==null){return 1;}
+		int identity=1;
+		while(identity<7){
+			var left_leaf=new HeapLeaf(identity*10+1);
+			var left_node=new HeapNode(identity*10+1,move left_leaf);
+			var left=new(child_context)ScopedChild(identity*10+1,move left_node);
+			var right_leaf=new HeapLeaf(identity*10+2);
+			var right_node=new HeapNode(identity*10+2,move right_leaf);
+			var right=new(child_context)ScopedChild(identity*10+2,move right_node);
+			int mode=0;
+			if(identity==1){mode=1;}
+			if(identity==3){mode=2;}
+			if(identity>4){mode=3;}
+			try{
+				if(identity==3||identity==4){
+					var host=try_new(context)CheckedScopedParent(identity,move left,move right,mode);
+					if(host==null||host.read()!=identity*20+3){return 2;}
+				}else{
+					var host=new(context)CheckedScopedParent(identity,move left,move right,mode);
+					if(host.read()!=identity*20+3){return 3;}
+					var retained_left_leaf=new HeapLeaf(991);
+					var retained_left_node=new HeapNode(991,move retained_left_leaf);
+					var retained_left=new(child_context)ScopedChild(991,move retained_left_node);
+					var retained_right_leaf=new HeapLeaf(992);
+					var retained_right_node=new HeapNode(992,move retained_right_leaf);
+					var retained_right=new(child_context)ScopedChild(992,move retained_right_node);
+					var refused=try_new(context)CheckedScopedParent(99,move retained_left,move retained_right,3);
+					if(refused!=null||retained_left.read()!=991||retained_right.read()!=992){return 4;}
+				}
+				if(mode!=0){return 5;}
+			}catch(ChildConstructionFault error){
+				if(mode==0||scoped_allocator_query(context,1)!=0||scoped_allocator_query(child_context,1)!=0){return 6;}
+				scoped_child_rollback_event(5,identity);
+			}
+			if(scoped_allocator_query(context,1)!=0||scoped_allocator_query(child_context,1)!=0){return 7;}
+			identity=identity+1;
+		}
+		if(scoped_allocator_query(context,4)!=6||scoped_allocator_query(context,5)!=6){return 8;}
+	}
+	return len(backing)+len(child_backing)-20486;
+}

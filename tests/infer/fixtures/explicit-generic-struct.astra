@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+struct Bundle<T> { Box<T> inner; }
+Box<f64> make_box() { Box<f64> box = { value = 1.0000000000000002d }; return box; }
+int main() {
+	Box<f64> box = make_box();
+	Box<f64> copy = box;
+	Bundle<f64> bundle = { inner = { value = 4.5d } };
+	Box<f64> inner = bundle.inner;
+	if (box.value == copy.value && box.value != 1.0d && inner.value == 4.5d) { return 0; }
+	return 1;
+}

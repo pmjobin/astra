@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int stage<T>(int id, owned T incoming, bool send, bool early) where T: Ownable {
+	owned T current = move incoming;
+	own_mark(76, id);
+	loan<T>(current, id);
+	if (early) { return id; }
+	if (send) { consume<T>(move current, id); return id; }
+	return id;
+}
+int nested<T>(owned T incoming, int id, bool enter) where T: Ownable {
+	if (enter) {
+		owned T current = move incoming;
+		loan<T>(current, id);
+		consume<T>(move current, id);
+		return id;
+	}
+	return id;
+}
+int before<T>(owned T incoming, int id, bool early) where T: Ownable {
+	if (early) { return id; }
+	{ owned T current = move incoming; loan<T>(current, id); }
+	return id;
+}
+void local_drop<T>(owned T incoming) where T: Ownable { owned T current = move incoming; }

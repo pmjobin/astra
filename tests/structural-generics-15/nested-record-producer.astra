@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Child {
+	int code;
+	init(int code) { this.code = code; }
+}
+
+struct Owners {
+	owned Child left;
+	owned Child right;
+}
+
+struct Envelope {
+	Owners owners;
+	int stamp;
+}
+
+int main() {
+	var left = new Child(19);
+	var right = new Child(23);
+	Owners owners = {left = move left, right = move right};
+	Envelope envelope = {owners = move owners, stamp = 42};
+	return envelope.stamp - 42;
+}

@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace RecordCallbackTransport;
+NativeRecordCallbacks.Packet packet(int ticket) { return NativeRecordCallbacks.packet(ticket); }
+Fn<int,NativeRecordCallbacks.Packet,owned R,borrowed Other,int> callback() { return NativeRecordCallbacks.callback(); }
+int apply(Fn<int,NativeRecordCallbacks.Packet,owned R,borrowed Other,int> code, NativeRecordCallbacks.Packet packet, owned R token, borrowed Other side, int extra) {
+	return NativeRecordCallbacks.invoke(code, move packet, move token, side, extra);
+}
+int direct(Fn<int,NativeRecordCallbacks.Packet,owned R,borrowed Other,int> code, NativeRecordCallbacks.Packet packet, owned R token, borrowed Other side, int extra) {
+	return code(move packet, move token, side, extra);
+}

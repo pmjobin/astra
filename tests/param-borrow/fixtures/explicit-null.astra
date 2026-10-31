@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class C { int value; }
+bool resource_null(borrowed R value) { return value == null; }
+bool object_null(borrowed C value) { return value == null; }
+bool empty(borrowed f64[] value) { return len(value) == 0; }
+int main() { var values = new f64[0]; if (!resource_null(null) || !object_null(null) || !empty(values)) { return 1; } return 0; }

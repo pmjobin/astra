@@ -1,0 +1,17 @@
+class Label {
+	readonly string description;
+	init(string input) { this.description = input; }
+	property string text { get { return this.description; } }
+}
+int main(string[] args) {
+	var first = new Label(args[0]);
+	var second = new Label(first.text);
+	release first;
+	if (second.text != args[0]) { return 81; }
+	var empty = new Label("");
+	var unicode = new Label("a\0é");
+	if (empty.text.byte_length != 0 || unicode.text.byte_length != 4) { return 82; }
+	if (unicode.text != "a\0é") { return 83; }
+	if (second.text != args[0]) { return 84; }
+	return 42;
+}

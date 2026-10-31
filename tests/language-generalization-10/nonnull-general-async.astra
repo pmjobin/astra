@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+interface Transform { int invoke(int input); }
+class Add : Transform {
+	int amount;
+	init(int amount) : base() { this.amount = amount; }
+	override int invoke(int input) { return input + this.amount; }
+}
+struct Point { int x; int y; }
+int count(nonnull Vector<Point> values) { return values.count(); }
+int apply(borrowed nonnull Transform transform, int value) { return transform(value); }
+int increment(int value) { return value + 1; }
+nonnull Fn<int,int> select_code() { return increment; }
+int apply_function(nonnull Fn<int,int> function, int value) { return function(value); }
+owned nonnull Vector<Point> create() { var values = new Vector<Point>(0); return move values; }
+class Repository {
+	owned nonnull Vector<Point> values;
+	init(owned nonnull Vector<Point> values) { this.values = move values; }
+	property borrowed nonnull Vector<Point> view { get { return this.values; } }
+}
+int guarded(Vector<Point> values, borrowed Transform transform, nonnull Fn<int,int> function) {
+	if (values == null || transform == null) { return 0; }
+	return count(values) + apply(transform, 10) + apply_function(function, 7);
+}
+async void nonnull_worker() throws Error {
+	owned nonnull Vector<Point> values = create();
+	owned nonnull Repository repository = new Repository(move values);
+	if (count(repository.view) != 0) { throw new Error("initial generic field"); }
+	await delay_ticks(1);
+	if (count(repository.view) != 0) { throw new Error("retained field"); }
+	var moved = move repository;
+	await delay_ticks(2);
+	if (count(moved.view) != 0) { throw new Error("moved owner"); }
+}
+int main() {
+	try {
+		var executor = VirtualExecutor.open(2);
+		var status = executor.run(nonnull_worker());
+		match(status) { case RunStatus.Completed(): { return 0; } else: { return 81; } }
+	}
+	catch(Error error) { return 82; }
+}

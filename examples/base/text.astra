@@ -1,0 +1,32 @@
+// Tested by tests/text/qualify.py with explicitly selected BASELIB sources
+// and the installed trap failure provider. No text I/O or C text boundary.
+const APP_NAME = "Astra";
+const LABEL = "échantillon";
+const CAPACITY = APP_NAME.byte_length;
+
+class Samples {
+	owned f64[] values;
+	init(string label, int count) {
+		assert(label.byte_length > 0);
+		this.values = new f64[count];
+	}
+	int size() { return len(this.values); }
+	f64 first() { return this.values[0]; }
+}
+
+string default_name() { return APP_NAME; }
+bool is_application(string name) { return name == APP_NAME; }
+
+int main() {
+	var name = default_name();
+	assert(is_application(name));
+	assert(name.byte_length == 5);
+	var samples = Samples.init(LABEL, CAPACITY);
+	assert_code(samples.size() == CAPACITY, 731);
+	assert(samples.first() == 0.0d);
+	assert(clamp(LABEL.byte_length as f64, 0.0d, 8.0d) == 8.0d);
+	assert(is_finite_f64(samples.first()));
+	assert("Astra" == "\u0041stra");
+	assert("a\0b" != "a\0c");
+	return 0;
+}

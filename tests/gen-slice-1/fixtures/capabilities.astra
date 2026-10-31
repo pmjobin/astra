@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int se_count(int index);
+struct Kernel { int index; f64 gain; int number() { return this.index; } }
+struct Box<T> { T value; }
+T fold<T>(T[] values, T seed) where T : Numeric {
+	T total = seed;
+	var i = 0;
+	while (i < len(values)) { total = total + values[i]; i = i + 1; }
+	return total;
+}
+int find<T>(T[] values, T key) where T : Eq {
+	var i = 0;
+	while (i < len(values)) { if (values[i] == key) { return i; } i = i + 1; }
+	return -1;
+}
+T element_at<T>(borrowed T[] values, int index) { return values[index]; }
+T recursive<T>(T[] values, int depth) { if (depth == 0) { return values[0]; } return recursive(values, depth - 1); }
+T odd<T>(T[] values, int depth) { if (depth == 0) { return values[0]; } return even<T>(values, depth - 1); }
+T even<T>(T[] values, int depth) { if (depth == 0) { return values[0]; } return odd(values, depth - 1); }
+T identity<T>(T value) { return value; }
+T outer<T>(T[] values, T seed, int index) {
+	int[2] work = {1,2};
+	int[] local_view = slice(work);
+	Kernel concrete = {index=0,gain=1.0d};
+	var concrete_method = concrete.number();
+	T[] view = values;
+	Box<T> box = {value=element_at(view, index)};
+	fill(local_view, concrete_method);
+	if (local_view[0] == 0) { return identity(box.value); }
+	return seed;
+}
+T captured<T>(T[] values, T value, [CallerFilePath] string file, [CallerLineNumber] int line, [CallerArgumentExpression("values")] string view, [CallerArgumentExpression("value")] string expression) {
+	if (line > 0 && file.byte_length > 0 && view.byte_length > 0 && expression.byte_length > 0) { return value; }
+	return values[0];
+}
+int main() {
+	int[3] integers = {3,4,5};
+	f64[2] reals = {2.0d,3.5d};
+	var flags = new bool[2];
+	fill(flags, false);
+	flags[1] = true;
+	if (fold(slice(integers), 1) != 13 || fold(slice(reals), 0.5d) != 6.0d) { return 1; }
+	if (find(flags, true) != 1 || find(slice(integers), 7) != -1) { return 2; }
+	var n = se_count(2);
+	if (recursive(slice(integers), n) != 3 || odd(slice(integers), n) != 3) { return 3; }
+	Kernel[2] kernels = {{index=7,gain=1.5d},{index=11,gain=2.5d}};
+	var saved = outer(slice(kernels), kernels[0], n - 1);
+	if (saved.index != 11 || saved.gain != 2.5d) { return 4; }
+	fill<f64>(slice(reals), 1.0);
+	fill(slice(reals), 2.0 as f64);
+	var cap = captured(slice(integers), integers[0], "explicit-file");
+	if (cap != 3) { return 5; }
+	fill<int>(slice(integers), 4);
+	fill<i32>(slice(integers), 4);
+	return 0;
+}

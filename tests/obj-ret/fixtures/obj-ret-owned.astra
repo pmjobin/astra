@@ -1,0 +1,11 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(owned Resource input, int value) { this.value = value; if (resource_id(input) != 80) { life_record(88, 0); } life_record(67, 0); }
+	deinit() { life_record(68, 0); }
+}
+owned Counter make(owned Resource input) {
+	owned Resource local = create_resource(81);
+	return Counter.init(move input, life_record(65, 42));
+}
+int main() { owned Resource r = create_resource(80); owned Counter c = make(move r); return c.value; }

@@ -1,0 +1,80 @@
+{
+	"format": "astra-m16-api-b-challenge/1",
+	"created_utc": "2026-10-24T02:23:02.203569+00:00",
+	"frozen_implementation": "f6f00cdec24a2bbe641725e0b706aefb87a09c17",
+	"freeze_inventory": "b981f5f815b55f4db5de980d2d68b7aeab5e576a60b9af742c242c1c292ad10c",
+	"seed": "88dbe636c6a30c7643de464b575219ab",
+	"iids": {
+		"query": "ffc20287-220b-476b-b6a9-80c41c4f723b",
+		"metadata": "299c5db0-36fd-4187-a58d-47b5e24d38a0",
+		"match": "64cc8a55-9f0b-4f16-bce1-1b12523564e1"
+	},
+	"namespace": "Query16",
+	"gobject_namespace": "RecordQuery16",
+	"version": "3.4",
+	"rows": [
+		{
+			"code": 17,
+			"weight": 2.25,
+			"bit": 1
+		},
+		{
+			"code": 31,
+			"weight": 5.5,
+			"bit": 2
+		},
+		{
+			"code": 59,
+			"weight": 1.75,
+			"bit": 4
+		}
+	],
+	"algorithm": "Select enabled mask rows with code >= minimum and weight+bias <= ceiling. lowest chooses minimum score, otherwise maximum; ties choose lower code. Reject negative minimum, nonfinite/negative ceiling or bias outside +/-1e6. Successful queries update request count and selected metadata. Find returns an independent Shared match or nullable absence.",
+	"oracle": [
+		{
+			"query": {
+				"minimum": 0,
+				"ceiling": 10.0,
+				"mask": 7,
+				"lowest": true
+			},
+			"bias": 0.0,
+			"result": {
+				"code": 59,
+				"score": 1.75,
+				"matches": 3,
+				"found": true
+			}
+		},
+		{
+			"query": {
+				"minimum": 20,
+				"ceiling": 10.0,
+				"mask": 7,
+				"lowest": false
+			},
+			"bias": 0.0,
+			"result": {
+				"code": 31,
+				"score": 5.5,
+				"matches": 2,
+				"found": true
+			}
+		},
+		{
+			"query": {
+				"minimum": 0,
+				"ceiling": 3.0,
+				"mask": 3,
+				"lowest": false
+			},
+			"bias": 1.0,
+			"result": {
+				"code": 0,
+				"score": 0.0,
+				"matches": 0,
+				"found": false
+			}
+		}
+	]
+}

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Work8;
+int main() {
+	try {
+		Sample sample = combine(17, 25);
+		var report = new Utf8ByteBuilder();
+		report_value(report, "samples=", sample.count);
+		report_value(report, "total=", sample.total);
+		report_value(report, "mean-hundredths=", scaled_mean(sample));
+		show_report(report);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 70; }
+}

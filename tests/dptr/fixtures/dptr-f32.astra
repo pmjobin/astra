@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+void write(f32* p, f32 value) { *p = value; }
+f32 read(f32* p) { return *p; }
+f32 runtime_nan(f32 value) { return value / value; }
+int main() {
+	f32 x = 1.25;
+	f32* p = &x;
+	write(p, 3.5);
+	if (x != 3.5 || read(p) != 3.5) { return 1; }
+	*p = -0.0;
+	if (!(1.0 / x < 0.0)) { return 2; }
+	x = -0.0;
+	if (!(1.0 / *p < 0.0)) { return 3; }
+	x = 0.000000000000000000000000000000000000000000001401298464324817;
+	if (*p == 0.0) { return 4; }
+	write(p, read(p));
+	if (x == 0.0) { return 5; }
+	write(p, runtime_nan(0.0));
+	f32 y = *p;
+	if (!(y != y) || !(x != x)) { return 6; }
+	write(p, 1.0 / 0.0);
+	if (!(*p > 3.4028234663852886e38)) { return 7; }
+	return 0;
+}

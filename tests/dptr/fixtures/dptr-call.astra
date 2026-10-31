@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+void increment(int* p) { *p = *p + 1; }
+void modify(int* a, int* b) { *a = 12; *b = *b + 30; }
+int inspect(int* p) { return *p; }
+void forward(int* p) { increment(p); }
+int main() {
+	int x = 41;
+	increment(&x);
+	if (x != 42) { return 1; }
+	modify(&x, &x);
+	if (x != 42 || inspect(&x) != 42) { return 2; }
+	forward(&x);
+	if (x != 43) { return 3; }
+	return 0;
+}

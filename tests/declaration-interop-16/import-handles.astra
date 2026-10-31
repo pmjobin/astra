@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="handles16_error_seen")] int error_seen();
+[ExceptionRoot] class Fault {
+	readonly string text; private int status;
+	init(int status) { error_seen(); this.status=status; this.text="foreign handle failure"; }
+	virtual property string message { get { return this.text; } }
+	int code() { return this.status; }
+}
+owned Fault foreign_fault(int domain,int status) { var fault=new Fault(status); return move fault; }
+[CImport(name="handle_provider16",profile="declarations-v1",lifetime="unique",threading="constructing")]
+class Provider {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	init(int value) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	int combine(borrowed Child input,int extra) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="input",nullable="true")]
+	int optional(borrowed Child input) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="output",direction="out",produced="count")]
+	[ForeignChannel(parameter="count",direction="out")]
+	owned Child make(int mode,borrowed u8[] output,borrowed int* count) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600",null_status="1")]
+	[ForeignChannel(parameter="result",nullable="true")]
+	owned Child lookup(int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	owned Provider duplicate() throws Fault;
+}
+[CImport(name="child_provider16",profile="declarations-v1",lifetime="unique",threading="constructing")]
+class Child {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	init(int value) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	int code() throws Fault;
+}
+export(C) int import_handles16_run() {
+	try {
+		var provider=Provider.init(7);var direct=Child.init(11);
+		if(provider.combine(direct,3)!=21){return 1;}
+		var duplicate=provider.duplicate();if(duplicate.combine(direct,0)!=18){return 2;}
+		u8[3] output={77,77,77};int count=-1;
+		var child=provider.make(0,slice(output),&count);
+		if(child.code()!=17 || count!=2 || output[0]!=41 || output[1]!=42 || output[2]!=77){return 3;}
+		int mode=1;while(mode<4){
+			output[0]=77;output[1]=77;count=-1;
+			try{var ignored=provider.make(mode,slice(output),&count);return 4;}
+			catch(Fault fault){int expected=-2147418113;if(mode==1){expected=-1600;}if(fault.code()!=expected || output[0]!=77 || output[1]!=77 || count!=0){return 5;}}
+			mode=mode+1;
+		}
+		var missing=provider.lookup(0);if(missing!=null || provider.optional(missing)!=7){return 6;}
+		try{int ignored=provider.combine(missing,0);return ignored;}catch(Fault fault){if(fault.code()!=-2147467261){return 7;}}
+		try{int ignored=missing.code();return ignored;}catch(Fault fault){if(fault.code()!=-2147467261){return 8;}}
+		try{var ignored=provider.lookup(1);return 9;}catch(Fault fault){if(fault.code()!=-2147418113){return 10;}}
+		var found=provider.lookup(2);if(found==null || found.code()!=27 || provider.optional(found)!=34){return 11;}
+		var zero=provider.lookup(3);if(zero!=null){return 12;}
+	} catch(Fault fault){return 90;}
+	return 0;
+}

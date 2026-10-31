@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Record14;
+
+public class Run {
+	private int level;
+	private int repetitions;
+	private owned Utf8Message payload;
+	init(int level, owned Utf8Message payload) { this.level = level; this.repetitions = 1; this.payload = move payload; }
+	bool matches(int level, borrowed Utf8Message candidate) { return level == this.level && equal_messages(this.payload, candidate); }
+	void bump() { this.repetitions = this.repetitions + 1; }
+	bool render(Utf8ByteBuilder output) {
+		return append_int(output, this.repetitions) && append_text(output, " ") &&
+		append_text(output, label(this.level)) && append_text(output, ": ") &&
+		append_message(output, this.payload) && append_text(output, "\n");
+	}
+}
+bool equal_messages(borrowed Utf8Message first, borrowed Utf8Message second) {
+	var a = first.text; var b = second.text; return a == b;
+}
+bool append_message(Utf8ByteBuilder output, borrowed Utf8Message message) {
+	var text = message.text; return append_text(output, text);
+}
+string label(int level) {
+	if (level == 0) { return "info"; }
+	if (level == 1) { return "warning"; }
+	return "error";
+}
+public bool join(borrowed Run run, int level, borrowed Utf8Message payload) {
+	if (!run.matches(level, payload)) { return false; }
+	run.bump(); return true;
+}
+public bool render_run(Utf8ByteBuilder output, borrowed Run run) { return run.render(output); }

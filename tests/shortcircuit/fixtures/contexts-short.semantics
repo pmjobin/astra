@@ -1,0 +1,35 @@
+(program
+	(function "consume" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return (binary == : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)))
+		)
+	)
+	(function "contexts" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(locals
+			(local #0 "x" : bool)
+		)
+		(block
+			(local-init #0 "x" : bool (short-circuit && : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)))
+			(assign (local-ref #0 "x" : bool) (short-circuit || : bool (local-ref #0 "x" : bool) (parameter-ref #2 "c" : bool)))
+			(if
+				(condition (short-circuit && : bool (parameter-ref #0 "a" : bool) (parameter-ref #2 "c" : bool)))
+				(then
+					(block
+						(assign (local-ref #0 "x" : bool) (short-circuit || : bool (parameter-ref #1 "b" : bool) (parameter-ref #2 "c" : bool)))
+					)
+				)
+			)
+			(call-statement "consume" -> bool (arguments (short-circuit && : bool (local-ref #0 "x" : bool) (parameter-ref #1 "b" : bool)) (short-circuit || : bool (parameter-ref #0 "a" : bool) (parameter-ref #2 "c" : bool))))
+			(return (binary == : bool (prefix ! : bool (short-circuit && : bool (local-ref #0 "x" : bool) (short-circuit || : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)))) (short-circuit || : bool (parameter-ref #1 "b" : bool) (parameter-ref #2 "c" : bool))))
+		)
+	)
+)

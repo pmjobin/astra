@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// These bodies are checked normally after semantic specialization. They are
+// deliberately different from the legacy Bag operation recipes.
+class Depot<T> {
+	owned T[slots] entries;
+	init(int initial) {
+		this.entries = new T[slots];
+		if (initial > 0) { bool reserved = this.entries.reserve(initial); }
+	}
+	int count() { return len(this.entries); }
+	bool ensure(int requested) {
+		if (requested <= this.entries.capacity) { return true; }
+		int grown = this.entries.capacity + 1;
+		while (grown < requested) { grown = grown + 2; }
+		return this.entries.reserve(grown);
+	}
+	bool append(owned T value) {
+		if (!this.ensure(this.count() + 1)) { return false; }
+		this.entries.append(move value);
+		return true;
+	}
+	int score(int bias) {
+		int total = bias;
+		for (int i = 0; i < this.count(); i = i + 1) {
+			if (i == 1) { continue; }
+			total = total + i + 1;
+		}
+		return total;
+	}
+	owned T remove(int index) {
+		var result = this.entries.take(index);
+		return move result;
+	}
+	void replace(int index, owned T value) {
+		if (index >= 0 && index < this.count()) {
+			this.entries.replace(index, move value);
+		}
+	}
+}
+class Entry {
+	int value;
+	init(int value) { this.value = value; }
+}
+class Other {
+	int value;
+	init(int value) { this.value = value; }
+}
+int read(Entry item) { return item.value; }
+int main() {
+	var values = new Depot<Entry>(1);
+	var one = new Entry(10);
+	var two = new Entry(20);
+	var three = new Entry(30);
+	if (!values.append(move one) || !values.append(move two) || !values.append(move three)) { return 81; }
+	if (values.count() != 3 || values.score(7) != 11) { return 82; }
+	var first = values.remove(0);
+	if (read(first) != 10 || values.count() != 2) { return 83; }
+	var replacement = new Entry(40);
+	values.replace(1, move replacement);
+	var second = values.remove(1);
+	if (read(second) != 40 || values.count() != 1) { return 84; }
+	var ignored = new Entry(50);
+	values.replace(90, move ignored);
+	var others = new Depot<Other>(0);
+	var distinct = new Other(70);
+	if (!others.append(move distinct) || others.score(0) != 1) { return 85; }
+	return 0;
+}

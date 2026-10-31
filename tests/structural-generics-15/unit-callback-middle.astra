@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace CallbackMiddle;
+NativeQueries.QueryResult<int> lookup(
+	borrowed NativeQueries.Map<int, NativeQueries.Payload<int>> values,
+	int key,
+	Fn<NativeQueries.QueryResult<int>, borrowed NativeQueries.Payload<int>> callback) {
+	NativeQueries.QueryResult<int> missing = {value = -1, generation = -1};
+	return values.lookup<NativeQueries.QueryResult<int>>(key, callback, missing);
+}

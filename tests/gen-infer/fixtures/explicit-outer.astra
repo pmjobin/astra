@@ -1,0 +1,13 @@
+T identity<T>(T value) { return value; }
+T same<T>(T a,T b){return b;}
+B second<A,B>(A a,B b){return b;}
+T outer<T>(T x){return identity<T>(x);}
+B pair<A,B>(A a,B b){return second<A,B>(a,b);}
+T repeated<T>(T a,T b){return same<T>(a,b);}
+T explicit_path<T>(T x){return identity<T>(x);}
+int main(){
+	int<4> v={1,2,3,4}; bool<4> m={true,false,true,false};
+	var a=outer<int>(21); var b=outer<f64>(2.5d); var c=outer<int<4>>(v); var d=outer<bool<4>>(m);
+	if(a==21 && b==2.5d && all(c==v) && all(d==m) && pair<int,f64>(a,b)==b && repeated<int>(a,a)==a && explicit_path<int>(a)==a){return 0;}
+	return 1;
+}

@@ -1,0 +1,65 @@
+(unit
+	(function
+		(type "int")
+		(name "effect")
+		(parameters)
+		(block
+			(return (integer "1"))
+		)
+	)
+	(function
+		(type "int")
+		(name "pair")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "+" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "int")
+		(name "before")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "+" (binary "/" (name "a") (name "b")) (call "effect" (arguments))))
+		)
+	)
+	(function
+		(type "int")
+		(name "argument")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (call "pair" (arguments (binary "%" (name "a") (name "b")) (call "effect" (arguments)))))
+		)
+	)
+	(function
+		(type "int")
+		(name "nested")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (call "pair" (arguments (binary "/" (name "a") (name "b")) (binary "+" (binary "%" (name "a") (name "b")) (call "effect" (arguments))))))
+		)
+	)
+	(function
+		(type "int")
+		(name "after")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "+" (call "effect" (arguments)) (binary "/" (name "a") (name "b"))))
+		)
+	)
+)

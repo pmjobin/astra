@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The argument provider owns its UTF-8 snapshot until main returns.
+// This adapter owns terminated copies until the numerical entry returns.
+extern(C) void* cad_arguments_new(int count);
+[CCode (text_abi = "utf8-i32")]
+extern(C) int cad_arguments_copy(void* arguments, int index, borrowed string text);
+extern(C) void* cad_arguments_values(void* arguments);
+extern(C) void cad_arguments_free(void* arguments);
+
+int main(string[] args) {
+	void* arguments = cad_arguments_new(len(args));
+	if (arguments == null) { return 1; }
+	int index = 0;
+	while (index < len(args)) {
+		if (cad_arguments_copy(arguments, index, args[index]) != 0) {
+			cad_arguments_free(arguments);
+			return 1;
+		}
+		index = index + 1;
+	}
+	int status = cad_entry(len(args), cad_arguments_values(arguments));
+	cad_arguments_free(arguments);
+	return status;
+}

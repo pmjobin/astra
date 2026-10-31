@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ClosureLoanInput {
+	int code;
+	init(int code) { this.code = code; }
+	int read() { return this.code; }
+	deinit() { mark(this.code); }
+}
+class ClosureLoanEnvironment<A,B> {
+	private A seed;
+	private B ready;
+	owned Other retained;
+	init(A seed, B ready, owned Other retained) {
+		this.seed = seed;
+		this.ready = ready;
+		this.retained = move retained;
+	}
+	property A amount { get { return this.seed; } }
+	property B enabled { get { return this.ready; } }
+	deinit() { mark(500); }
+}
+struct ClosureLoanPair { owned ClosureLoanInput child; owned R resource; }
+int repeated_resource_loans(borrowed R first, borrowed R second) { return id(first) + id(second); }
+int plain_function_loans(borrowed ClosureLoanInput input, borrowed R resource, int tag) {
+	mark(tag);
+	return input.read() + id(resource);
+}
+int plain_closure_loan(borrowed ClosureLoanEnvironment<int,bool> environment, borrowed ClosureLoanInput input, borrowed R resource, int tag) {
+	if (!environment.enabled) { return 0; }
+	return environment.amount + input.read() + id(resource) + tag;
+}
+int checked_closure_loan(borrowed ClosureLoanEnvironment<int,bool> environment, borrowed ClosureLoanInput input, borrowed R resource, bool fail, int tag) throws Error {
+	if (fail) { mark(521); throw new Error("borrowed closure retry"); }
+	return environment.amount + input.read() + id(resource) + tag;
+}
+int forward_closure_loan(borrowed Closure<ClosureLoanEnvironment<int,bool>,int,borrowed ClosureLoanInput,borrowed R,int> code, borrowed ClosureLoanInput input, borrowed R resource) {
+	return closure_invoke(code, input, resource, 3);
+}
+int forward_closure_pair(borrowed Closure<ClosureLoanEnvironment<int,bool>,int,borrowed ClosureLoanInput,borrowed R,int> code, borrowed ClosureLoanPair pair) {
+	return closure_invoke(code, pair.child, pair.resource, 0);
+}
+int forward_checked_closure_loan(borrowed CheckedClosure<ClosureLoanEnvironment<int,bool>,Error,int,borrowed ClosureLoanInput,borrowed R,bool,int> code, borrowed ClosureLoanInput input, borrowed R resource) throws Error {
+	return closure_invoke(code, input, resource, false, 2);
+}
+int exercise_closure_loans() {
+	var input = new ClosureLoanInput(19);
+	owned ClosureLoanInput lexical = ClosureLoanInput.init(29);
+	var resource = make(221);
+	Fn<int,borrowed ClosureLoanInput,borrowed R,int> function = plain_function_loans;
+	if (function(input, resource, 530) != 240) { return 9; }
+	function(lexical, resource, 531);
+	Fn<int,borrowed R,borrowed R> repeated = repeated_resource_loans;
+	if (repeated(resource, resource) != 442) { return 10; }
+	var retained = make_other(222);
+	var environment = new ClosureLoanEnvironment<int,bool>(11, true, move retained);
+	owned Closure<ClosureLoanEnvironment<int,bool>,int,borrowed ClosureLoanInput,borrowed R,int> code = closure_bind(move environment, plain_closure_loan);
+	if (closure_invoke(code, input, resource, 1) != 252 || forward_closure_loan(code, input, resource) != 254) { return 1; }
+	if (closure_invoke(code, lexical, resource, 2) != 263) { return 2; }
+	var pair_child = new ClosureLoanInput(31);
+	var pair_resource = make(223);
+	ClosureLoanPair pair = {child = move pair_child, resource = move pair_resource};
+	if (forward_closure_pair(code, pair) != 265) { return 3; }
+	var pair_box = new Box<ClosureLoanPair>(move pair);
+	if (closure_invoke(code, pair_box.view.child, pair_box.view.resource, 4) != 269 || forward_closure_pair(code, pair_box.view) != 265) { return 4; }
+	var checked_retained = make_other(224);
+	var checked_environment = new ClosureLoanEnvironment<int,bool>(13, true, move checked_retained);
+	owned CheckedClosure<ClosureLoanEnvironment<int,bool>,Error,int,borrowed ClosureLoanInput,borrowed R,bool,int> checked_code = checked_closure_bind(move checked_environment, checked_closure_loan);
+	try {
+		closure_invoke(checked_code, input, resource, true, 0);
+		return 5;
+	} catch (Error error) { mark(522); }
+	if (live() != 4) { return 6; }
+	try {
+		if (closure_invoke(checked_code, input, resource, false, 1) != 254 || forward_checked_closure_loan(checked_code, lexical, resource) != 265) { return 7; }
+	} catch (Error error) { return 8; }
+	return 0;
+}
+int main() {
+	int result = exercise_closure_loans();
+	if (result != 0) { return result; }
+	return live();
+}

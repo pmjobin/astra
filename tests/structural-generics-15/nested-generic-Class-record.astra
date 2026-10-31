@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Leaf { int value; init(int value) { this.value = value; } }
+class Parcel<T> {
+	private owned T value;
+	init(owned T value) { this.value = move value; }
+	property borrowed T view { get { return this.value; } }
+}
+struct Inner { owned Parcel<Leaf> data; int marker; }
+struct Outer { Inner inner; int generation; }
+struct Single { owned Parcel<Leaf> value; }
+struct Last { int marker; owned Parcel<Leaf> value; }
+owned Parcel<Outer> create(int value) {
+	var leaf = new Leaf(value);
+	var data = new Parcel<Leaf>(move leaf);
+	Inner inner = {data = move data, marker = 7};
+	Outer outer = {inner = move inner, generation = 3};
+	var result = new Parcel<Outer>(move outer);
+	return move result;
+}
+owned Parcel<Single> singleton(int input) {
+	var leaf = new Leaf(input);
+	var value = new Parcel<Leaf>(move leaf);
+	Single record = {value = move value};
+	var result = new Parcel<Single>(move record);
+	return move result;
+}
+owned Parcel<Last> last_leaf(int input) {
+	var leaf = new Leaf(input);
+	var value = new Parcel<Leaf>(move leaf);
+	Last record = {marker = 9, value = move value};
+	var result = new Parcel<Last>(move record);
+	return move result;
+}
+int main() {
+	var result = create(42);
+	if (result.view.inner.data.view.value != 42 || result.view.inner.marker != 7) { return 1; }
+	var single = singleton(43);
+	var last = last_leaf(44);
+	if (single.view.value.view.value != 43 || last.view.value.view.value != 44 || last.view.marker != 9) { return 2; }
+	return result.view.generation - 3;
+}

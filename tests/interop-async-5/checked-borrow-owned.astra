@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// An owned neighboring argument must not detach a guarded Shared payload loan
+// from its exact native borrowed parameter, including checked unwind.
+[ExceptionRoot]
+class Error { init() {} virtual property string message { get { return "borrow-owner"; } } }
+class Env { int value; init(int value) { this.value = value; } }
+int checked_value(borrowed Env env, bool fail) throws Error { if (fail) { throw new Error(); } return env.value; }
+int consume(borrowed Env env, owned CheckedClosure<Env,Error,int,bool> f, bool fail) throws Error { return env.value + closure_invoke(f, fail); }
+int main() {
+	var payload = new Env(20); var state = shared_acquire(move payload); var observer = shared_downgrade(state);
+	var first = new Env(22); var f = checked_closure_bind(move first, checked_value);
+	try { if (consume(shared_borrow(state), move f, false) != 42) { return 81; } } catch (Error error) { return 82; }
+	var second = new Env(7); var g = checked_closure_bind(move second, checked_value);
+	try { consume(shared_borrow(state), move g, true); return 83; } catch (Error error) { if (error.message != "borrow-owner") { return 84; } }
+	var live = weak_upgrade(observer); if (live == null) { return 85; }
+	release live; release state;
+	var expired = weak_upgrade(observer); if (expired != null) { return 86; }
+	return 0;
+}

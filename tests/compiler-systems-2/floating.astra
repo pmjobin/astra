@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) f32 input32(int index);
+extern(C) f64 input64(int index);
+extern(C) int observe32(int tag, f32 value);
+extern(C) int observe64(int tag, f64 value);
+export(C) f32 astra_noncontract32(f32 a, f32 b, f32 c) { f32 product = a * b; return product + c; }
+export(C) f64 astra_noncontract64(f64 a, f64 b, f64 c) { f64 product = a * b; return product + c; }
+int main() {
+	f32 a = input32(0); f32 b = input32(1); f32 c = input32(2);
+	f64 x = input64(0); f64 y = input64(1); f64 z = input64(2);
+	if (observe32(0, astra_noncontract32(a, b, c)) != 0) { return 1; }
+	if (observe64(0, astra_noncontract64(x, y, z)) != 0) { return 2; }
+	f32 negative_zero = input32(3); f64 double_zero = input64(3);
+	if (observe32(1, negative_zero * a) != 0 || observe64(1, double_zero * x) != 0) { return 3; }
+	if (observe32(2, 1.0f / negative_zero) != 0 || observe64(2, 1.0d / double_zero) != 0) { return 4; }
+	f32 nan = input32(5); f64 double_nan = input64(5);
+	if (nan == nan || double_nan == double_nan || nan < a || double_nan > x) { return 5; }
+	if (negative_zero != 0.0f || double_zero != 0.0d) { return 6; }
+	f32 tiny = input32(6); f64 double_tiny = input64(6);
+	if (observe32(3, tiny + tiny) != 0 || observe64(3, double_tiny + double_tiny) != 0) { return 7; }
+	return 0;
+}

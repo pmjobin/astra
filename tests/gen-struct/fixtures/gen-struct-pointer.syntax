@@ -1,0 +1,79 @@
+(unit
+	(struct "Pair"
+		(type-parameters T U)
+		(field (type "T") (name "first"))
+		(field (type "U") (name "second"))
+	)
+	(struct "Bundle"
+		(type-parameters T)
+		(field (type "Pair<T,T>") (name "pair"))
+		(field (type "int") (name "tag"))
+	)
+	(function
+		(type "int")
+		(name "alias")
+		(parameters
+			(parameter (type "Pair<int,f64>*") (name "a"))
+			(parameter (type "Pair<i32,f64>*") (name "b"))
+		)
+		(block
+			(assign (indirect-field-access "a" "first") (integer "7"))
+			(assign (indirect-field-access "b" "first") (integer "42"))
+			(return (indirect-field-access "a" "first"))
+		)
+	)
+	(function
+		(type "void")
+		(name "mutate")
+		(parameters
+			(parameter (type "Bundle<f64>*") (name "b"))
+		)
+		(block
+			(assign (field-access (base (indirect-field-access "b" "pair")) "second") (float "7.25"))
+			(assign (indirect-field-access "b" "tag") (integer "9"))
+		)
+	)
+	(function
+		(type "int")
+		(name "pay_for_use")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(struct-local (type "Pair<int,f64>") (name "a")
+				(initialize-field "first" (name "x"))
+				(initialize-field "second" (float "1.5"))
+			)
+			(struct-local (type "Pair<int,f64>") (name "b")
+				(initialize-field "first" (integer "2"))
+				(initialize-field "second" (float "2.5"))
+			)
+			(local (type "Pair<int,f64>*") (name "bp") (address-of "b"))
+			(return (binary "+" (field-access "a" "first") (call "alias" (arguments (name "bp") (name "bp")))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Bundle<f64>") (name "b")
+				(initialize-field "pair" (storage-initializer
+					(initialize-field "first" (float "1.0"))
+					(initialize-field "second" (float "2.0"))
+				))
+				(initialize-field "tag" (integer "7"))
+			)
+			(call-statement (call "mutate" (arguments (address-of "b"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access (base (field-access "b" "pair")) "first") (float "1.0")) (binary "!=" (field-access (base (field-access "b" "pair")) "second") (float "7.25"))) (binary "!=" (field-access "b" "tag") (integer "9"))) (binary "!=" (call "pay_for_use" (arguments (integer "7"))) (integer "49"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

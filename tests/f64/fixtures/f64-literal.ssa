@@ -1,0 +1,187 @@
+(ssa-program
+	(function #0 "tie" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x4340000000000000 : f64))
+		)
+	)
+	(function #1 "precise" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x3ff0000000000001 : f64))
+		)
+	)
+	(function #2 "negative_zero" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x8000000000000000 : f64))
+		)
+	)
+	(function #3 "tiny" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x0000000000000001 : f64))
+		)
+	)
+	(function #4 "max_subnormal" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x000fffffffffffff : f64))
+		)
+	)
+	(function #5 "min_normal" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x0010000000000000 : f64))
+		)
+	)
+	(function #6 "maximum" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x7fefffffffffffff : f64))
+		)
+	)
+	(function #7 "overflow" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x7ff0000000000000 : f64))
+		)
+	)
+	(function #8 "underflow" -> f64
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (f64 0x8000000000000000 : f64))
+		)
+	)
+	(function #9 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #17 ())
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(branch #5 ())
+		)
+		(block #5
+			(branch #6 ())
+		)
+		(block #6
+			(%5 : f64 = call #0 "tie" -> f64 (arguments))
+			(%6 : bool = binary != %5 (f64 0x4340000000000000 : f64))
+			(conditional-branch %6
+				(true #8 ((bool true : bool)))
+				(false #7 ())
+			)
+		)
+		(block #7
+			(%7 : f64 = call #1 "precise" -> f64 (arguments))
+			(%8 : bool = binary == %7 (f64 0x3ff0000000000000 : f64))
+			(branch #8 (%8))
+		)
+		(block #8
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #10 ((bool true : bool)))
+				(false #9 ())
+			)
+		)
+		(block #9
+			(%9 : f64 = call #3 "tiny" -> f64 (arguments))
+			(%10 : bool = binary == %9 (f64 0x0000000000000000 : f64))
+			(branch #10 (%10))
+		)
+		(block #10
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #12 ((bool true : bool)))
+				(false #11 ())
+			)
+		)
+		(block #11
+			(%11 : f64 = call #5 "min_normal" -> f64 (arguments))
+			(%12 : f64 = call #4 "max_subnormal" -> f64 (arguments))
+			(%13 : bool = binary <= %11 %12)
+			(branch #12 (%13))
+		)
+		(block #12
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #14 ((bool true : bool)))
+				(false #13 ())
+			)
+		)
+		(block #13
+			(%14 : f64 = call #6 "maximum" -> f64 (arguments))
+			(%15 : f64 = call #7 "overflow" -> f64 (arguments))
+			(%16 : bool = binary >= %14 %15)
+			(branch #14 (%16))
+		)
+		(block #14
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #15
+			(return (integer 2 : int))
+		)
+		(block #16
+			(return (integer 0 : int))
+		)
+		(block #17
+			(%17 : f64 = call #2 "negative_zero" -> f64 (arguments))
+			(%18 : f64 = binary / (f64 0x3ff0000000000000 : f64) %17)
+			(%19 : f64 = call #7 "overflow" -> f64 (arguments))
+			(%20 : f64 = prefix - %19)
+			(%21 : bool = binary != %18 %20)
+			(conditional-branch %21
+				(true #19 ((bool true : bool)))
+				(false #18 ())
+			)
+		)
+		(block #18
+			(%22 : f64 = call #8 "underflow" -> f64 (arguments))
+			(%23 : f64 = binary / (f64 0x3ff0000000000000 : f64) %22)
+			(%24 : f64 = call #7 "overflow" -> f64 (arguments))
+			(%25 : f64 = prefix - %24)
+			(%26 : bool = binary != %23 %25)
+			(branch #19 (%26))
+		)
+		(block #19
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #15 ())
+				(false #16 ())
+			)
+		)
+	)
+)

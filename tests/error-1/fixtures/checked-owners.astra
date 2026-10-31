@@ -1,0 +1,36 @@
+[ExceptionRoot]
+class Error {
+	readonly string text;
+	init(string text) { this.text = text; }
+	virtual property string message { get { return this.text; } }
+}
+owned int[] make(int count, bool failing) throws Error {
+	owned int[] data = new int[count];
+	if(failing) { throw new Error("checked"); }
+	return move data;
+}
+owned int[] forward(owned int[] data, bool failing) throws Error {
+	if(failing) { throw new Error("checked"); }
+	return move data;
+}
+owned int[] relay(owned int[] data, bool failing) throws Error { return forward(move data, failing); }
+enum Owner { Empty, Data(owned int[] data) }
+Owner sum_make(bool failing) throws Error {
+	var value = Owner.Data(new int[3]);
+	if(failing) { throw new Error("checked"); }
+	return move value;
+}
+Owner sum_forward(bool failing) throws Error { return sum_make(failing); }
+int main() {
+	owned int[] data = new int[2];
+	try { data = make(3, true); } catch(Error error) { if(len(data) != 2) { return 81; } }
+	try { data = relay(move data, false); } catch(Error error) { return 82; }
+	try { data = relay(move data, true); } catch(Error error) { if(error.message != "checked") { return 83; } }
+	try { data = make(2, false); } catch(Error error) { return 87; }
+	try {
+		var value = sum_forward(false);
+		match(move value) { case Owner.Data(items): { if(len(items) != 3) { return 84; } } else: { return 85; } }
+		sum_forward(true);
+	} catch(Error error) { return len(data) + 40; }
+	return 86;
+}

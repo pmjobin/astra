@@ -1,0 +1,112 @@
+(unit
+	(struct "S"
+		(field (type "int") (name "raw"))
+		(method
+			(type "int")
+			(name "get_raw")
+			(parameters)
+			(block
+				(return (generic-call "identity" (type-arguments int) (arguments (field-access "this" "raw"))))
+			)
+		)
+	)
+	(class "Counter"
+		(field (type "int") (name "raw"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "x"))
+			)
+			(block
+				(assign (field-access "this" "raw") (generic-call "identity" (type-arguments int) (arguments (name "x"))))
+			)
+		)
+		(method
+			(type "int")
+			(name "read")
+			(parameters)
+			(block
+				(return (generic-call "identity" (type-arguments int) (arguments (field-access "this" "raw"))))
+			)
+		)
+		(property (type "int") (name "value")
+			(getter
+				(block
+					(return (generic-call "identity" (type-arguments int) (arguments (field-access "this" "raw"))))
+				)
+			)
+			(setter (parameter (type "int") (name "next"))
+				(block
+					(assign (field-access "this" "raw") (generic-call "identity" (type-arguments int) (arguments (name "next"))))
+				)
+			)
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "identity")
+		(parameters
+			(parameter (type "T") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "int")
+		(name "ordinary")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (name "x"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "observe")
+		(parameters
+			(parameter (borrowed) (type "Counter") (name "counter"))
+			(parameter (type "T") (name "value"))
+		)
+		(block
+			(local (type "int") (name "property_value") (field-access "counter" "value"))
+			(local (type "int") (name "method_value") (method-call (receiver "counter") (target "read") (arguments)))
+			(local (type "int") (name "field_value") (field-access "counter" "raw"))
+			(local (type "int") (name "free_value") (call "ordinary" (arguments (name "field_value"))))
+			(struct-local (type "S") (name "s")
+				(initialize-field "raw" (name "free_value"))
+			)
+			(local (type "int") (name "struct_value") (method-call (receiver "s") (target "get_raw") (arguments)))
+			(if
+				(condition (short-circuit "&&" (binary "==" (name "property_value") (name "method_value")) (binary "==" (name "struct_value") (name "field_value"))))
+				(then
+					(block
+						(assign (field-access "counter" "value") (name "free_value"))
+					)
+				)
+			)
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "Counter") (name "c") (constructor-initializer (class "Counter") (arguments (integer "42"))))
+			(local (type "f64") (name "f") (generic-call "observe" (type-arguments f64) (arguments (name "c") (float "1.25"))))
+			(if
+				(condition (short-circuit "&&" (binary "==" (name "f") (float "1.25")) (binary "==" (field-access "c" "value") (integer "42"))))
+				(then
+					(block
+						(return (generic-call "observe" (type-arguments int) (arguments (name "c") (integer "42"))))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

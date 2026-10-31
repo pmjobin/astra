@@ -1,0 +1,36 @@
+(unit
+	(struct "Pair"
+		(field (type "int") (name "first"))
+		(field (type "f64") (name "second"))
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Pair") (name "a")
+				(initialize-field "first" (integer "42"))
+				(initialize-field "second" (float "3.5"))
+			)
+			(local (type "Pair") (name "b") (name "a"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "b" "first") (integer "42")) (binary "!=" (field-access "b" "second") (float "3.5"))) (binary "!=" (field-access "a" "first") (integer "42"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(assign (field-access "b" "first") (integer "7"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (field-access "a" "first") (integer "42")) (binary "!=" (field-access "b" "first") (integer "7"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

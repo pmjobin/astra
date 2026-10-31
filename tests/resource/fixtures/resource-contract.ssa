@@ -1,0 +1,155 @@
+(ssa-program
+	(handle-type #0 "Resource" (cleanup #0)
+		(header "missing/resource.h")
+	)
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(extern-function #0 "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #1 "create_again" (abi C) (symbol "astra_test_resource_create_same")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "resource_id" (abi C) (symbol "astra_test_resource_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #3 "resource_touch" (abi C) (symbol "astra_test_resource_touch")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #4 "lookup_resource" (abi C) (symbol "astra_test_resource_raw")
+		(parameters
+		)
+		(result Resource))
+	(extern-function #5 "dispose_raw" (abi C) (symbol "astra_test_resource_raw_destroy")
+		(parameters
+			(parameter #0 : Resource)
+		)
+		(result void))
+	(extern-function #6 "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function #7 "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #8 "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #9 "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #10 "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #11 "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #12 "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #13 "resource_is_live" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #14 "resource_touch_count" (abi C) (symbol "astra_test_resource_touch_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #15 "resource_null_count" (abi C) (symbol "astra_test_resource_null_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #16 "observe3" (abi C) (symbol "astra_test_resource_observe3")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : Resource (contract borrowed-noescape))
+			(parameter #2 : int)
+		)
+		(result int))
+	(function #0 "is_null" -> bool
+		(parameters
+			(%0 "r" : Resource (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary == %0 (null : Resource))
+			(return %1)
+		)
+	)
+	(function #1 "inspect_native" -> bool
+		(parameters
+			(%0 "r" : Resource (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary != %0 (null : Resource))
+			(return %1)
+		)
+	)
+	(function #2 "choose" -> Resource
+		(parameters
+			(%0 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ((null : Resource)))
+			)
+		)
+		(block #1
+			(%2 : Resource = c-call #4 "lookup_resource" -> Resource (arguments))
+			(branch #2 (%2))
+		)
+		(block #2
+			(arguments
+				(%1 "result" : Resource)
+			)
+			(return %1)
+		)
+	)
+	(function #3 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : Resource = c-call #0 "create_resource" -> Resource (arguments (integer 1 : int)))
+			(%1 : int = c-call #2 "resource_id" -> int (arguments %0))
+			(%2 : Resource = c-call #1 "create_again" -> Resource (arguments (integer 0 : int)))
+			(%3 : bool = call #1 "inspect_native" -> bool (arguments %2))
+			(conditional-branch %3
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(cleanup %0 via #0)
+			(cleanup %2 via #0)
+			(return (integer 1 : int))
+		)
+		(block #2
+			(cleanup %2 via #0)
+			(%4 : Resource = c-call #0 "create_resource" -> Resource (arguments (integer 2 : int)))
+			(%5 : int = c-call #2 "resource_id" -> int (arguments %4))
+			(%6 : int = c-call #2 "resource_id" -> int (arguments %0))
+			(cleanup %0 via #0)
+			(cleanup %4 via #0)
+			(return %6)
+		)
+	)
+)

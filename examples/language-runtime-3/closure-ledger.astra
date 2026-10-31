@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class LedgerRate {
+	int rate;
+	init(int rate) { this.rate = rate; surge_event(1, rate); }
+	int amount(int value) { return this.rate * value; }
+	deinit() { surge_event(2, this.rate); }
+}
+int charge(borrowed LedgerRate rate, int value) { return rate.amount(value); }
+class Ledger {
+	private owned LedgerRate rate;
+	int total;
+	init(owned LedgerRate rate) { this.rate = move rate; this.total = 0; }
+	property borrowed LedgerRate capture { get { return this.rate; } }
+	int invoke(int quantity) { this.total = this.total + charge(this.capture, quantity); return this.total; }
+}
+owned Ledger forward_ledger(owned Ledger ledger) { return move ledger; }
+int run_ledger(int count, int mode) throws Error {
+	var rate = new LedgerRate(3); var initial = new Ledger(move rate);
+	var moved = move initial; var ledger = forward_ledger(move moved);
+	int step = 1; int total = 0;
+	while (step <= count) {
+		total = ledger(step);
+		if (mode == 1 && step == 2) { return total; }
+		if (mode == 2 && step == 2) { throw new Error("ledger failure"); }
+		step = step + 1;
+	}
+	return total;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		int count = parse_int(args[1]); int mode = parse_int(args[2]);
+		if (count < 0 || count > 100 || mode < 0 || mode > 2) { return 64; }
+		int total = run_ledger(count, mode);
+		if (surge_live() != 0 || surge_destroyed() != 1) { return 3; }
+		report_number("total=", total as i64); return 0;
+	} catch (Error error) {
+		if (surge_live() != 0) { return 3; }
+		if (!println_stderr(error.message)) { return 3; } return 2;
+	}
+}

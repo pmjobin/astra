@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit composition: utf8-message, utf8-byte-builder, hosted/text-ops,
+// collections/bag and collections/vector. The byte observer is read-only.
+class ScalarRangeError : Error { init() : base("text scalar range") {} }
+class TextDelimiterError : Error { init() : base("empty text delimiter") {} }
+
+int text_scalar_count(string text) {
+	int count = 0;
+	int at = 0;
+	while (at < text.byte_length) {
+		int byte = astra_host_text_byte(text, at);
+		if (byte < 128 || byte >= 192) { count = count + 1; }
+		at = at + 1;
+	}
+	return count;
+}
+
+// The end offset is valid. A scalar index never names a continuation byte.
+int text_scalar_offset(string text, int index) throws ScalarRangeError {
+	if (index < 0) { throw new ScalarRangeError(); }
+	int scalar = 0;
+	int at = 0;
+	while (at < text.byte_length) {
+		if (scalar == index) { return at; }
+		int byte = astra_host_text_byte(text, at);
+		int width = 1;
+		if (byte >= 240) { width = 4; }
+		else {
+			if (byte >= 224) { width = 3; }
+			else { if (byte >= 192) { width = 2; } }
+		}
+		at = at + width;
+		scalar = scalar + 1;
+	}
+	if (scalar == index) { return at; }
+	throw new ScalarRangeError();
+}
+
+int text_scalar_at(string text, int index) throws ScalarRangeError {
+	int at = text_scalar_offset(text, index);
+	if (at == text.byte_length) { throw new ScalarRangeError(); }
+	int head = astra_host_text_byte(text, at);
+	if (head < 128) { return head; }
+	int value = 0;
+	int width = 0;
+	if (head < 224) { value = head - 192; width = 2; }
+	else {
+		if (head < 240) { value = head - 224; width = 3; }
+		else { value = head - 240; width = 4; }
+	}
+	int byte = 1;
+	while (byte < width) {
+		value = value * 64 + astra_host_text_byte(text, at + byte) - 128;
+		byte = byte + 1;
+	}
+	return value;
+}
+
+owned Utf8Message text_scalar_segment(string text, int start, int count) throws Error {
+	if (count < 0 || start < 0 || count > 2147483647 - start) { throw new ScalarRangeError(); }
+	int first = text_scalar_offset(text, start);
+	int end = text_scalar_offset(text, start + count);
+	var result = text_segment(text, first, end - first);
+	return move result;
+}
+
+// The result owns fresh validated snapshots; input and delimiter remain borrowed.
+owned Vector<Utf8Message> text_split_owned(string text, string delimiter) throws Error {
+	if (delimiter.byte_length == 0) { throw new TextDelimiterError(); }
+	var fields = new Vector<Utf8Message>(0);
+	int start = 0;
+	while (true) {
+		int end = text_find(text, delimiter, start);
+		if (end < 0) { end = text.byte_length; }
+		var field = text_segment(text, start, end - start);
+		if (!fields.append(move field)) { throw new TextCapacityError(); }
+		if (end == text.byte_length) { break; }
+		start = end + delimiter.byte_length;
+	}
+	return move fields;
+}

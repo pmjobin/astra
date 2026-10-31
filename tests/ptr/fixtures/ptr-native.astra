@@ -1,0 +1,20 @@
+void* identity_ptr(void* p) {
+	void* copy = p;
+	return copy;
+}
+
+void* recursive_identity(int n, void* p) {
+	if (n == 0) {
+		return p;
+	}
+	return recursive_identity(n - 1, p);
+}
+
+int main() {
+	void* a = handle_a();
+	if (identity_ptr(a) != a) { return 1; }
+	if (identity_ptr(null) != null) { return 2; }
+	if (recursive_identity(8, a) != a) { return 3; }
+	if (recursive_identity(8, null) != null) { return 4; }
+	return 0;
+}

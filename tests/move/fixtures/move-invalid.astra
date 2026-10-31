@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void scoped(bool condition) {
+	owned void* a = create_resource(1);
+	if (condition) {
+		owned void* b = move a;
+	}
+	if (a == null) { return; }
+}

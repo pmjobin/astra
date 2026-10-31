@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+i8 signed_add(i8 a,i8 b){return sat_add(a,b);}
+u8 unsigned_sub(u8 a,u8 b){return sat_sub(a,b);}
+i8<16> signed_vector(i8<16> a,i8<16> b){return sat_add(a,b);}
+u8<16> unsigned_vector(u8<16> a,u8<16> b){return sat_add(a,b);}
+i16<8> signed_words(i16<8> a,i16<8> b){return sat_sub(sat_add(a,b),b);}
+u16<8> unsigned_words(u16<8> a,u16<8> b){return sat_sub(sat_add(a,b),b);}
+u16<8> widen_signed(i8<16> a){return widen_low(a,u16);}
+i16<8> widen_unsigned(u8<16> a){return widen_high(a,i16);}
+u8<16> wrapping(i16<8> a,i16<8> b){return pack_wrap(a,b,u8);}
+u8<16> saturating(i16<8> a,i16<8> b){return pack_sat(a,b,u8);}
+i8<16> signed_pack(i16<8> a,i16<8> b){return pack_sat(a,b,i8);}
+i8<16> cross_pack(u16<8> a,u16<8> b){return pack_sat(a,b,i8);}
+u8<16> low(u8<16> a,u8<16> b){return interleave_low(a,b);}
+u8<16> high(u8<16> a,u8<16> b){return interleave_high(a,b);}
+f32<4> floats(f32<4> a,f32<4> b){return interleave_high(a,b);}
+bool<8> masks(bool<8> a,bool<8> b){return interleave_low(a,b);}
+int main(){return 0;}

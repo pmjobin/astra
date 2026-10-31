@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using ImageSpan18;
+using ImageRules18;
+int image2_row(u8[] rgb, int width, int height, int row, int threshold,
+	borrowed ImagePolicy18 policy, borrowed Vector<ImageAuditOwner18> history) {
+	int begin_a = 0; int end_a = 0;
+	if (row >= height / 6 && row < height - height / 7) { begin_a = width / 7; end_a = width - width / 5; }
+	int begin_b = 0; int end_b = 0;
+	if (row >= height / 3 && row < height - height / 5) { begin_b = width / 3; end_b = width - width / 9; }
+	var first = new RowSpan18(begin_a, end_a, row, 1);
+	var second = new RowSpan18(begin_b, end_b, row, 2);
+	int mode = policy.mode(row);
+	image2_policy(row, mode);
+	int selected = 0; i64 sum = 0;
+	for (int x = 0; x < width; x = x + 1) {
+		bool in_a = x >= span_edge(first, false) && x < span_edge(first, true);
+		bool in_b = x >= span_edge(second, false) && x < span_edge(second, true);
+		int index = row * width + x;
+		f64 score = image2_color(rgb[x * 3] as int, rgb[x * 3 + 1] as int, rgb[x * 3 + 2] as int, index, mode);
+		int score4 = (score * 4.0) as int;
+		int mask = 0;
+		if (in_a != in_b && score >= threshold as f64) { mask = 1; selected = selected + 1; sum = sum + (score4 as i64); }
+		image2_pixel(index, mask, score4);
+	}
+	var audit = new ImageAuditOwner18(row, selected, sum);
+	if (!history.append(move audit)) { return -1; }
+	return selected;
+}
+int image2_rows(borrowed ContextBytes<ConcurrentAllocator> bytes, int lane, borrowed ImagePolicy18 policy) throws Error {
+	ImageHeader18 header = image2_header(bytes);
+	if (lane == 0) { image2_dimensions(header.width, header.height, header.threshold); }
+	var history = new Vector<ImageAuditOwner18>(0);
+	var working = new u8[header.width * 3];
+	int total = 0;
+	for (int row = lane; row < header.height; row = row + 4) {
+		for (int index = 0; index < len(working); index = index + 1) { working[index] = bytes[16 + row * header.width * 3 + index]; }
+		int count = image2_row(working, header.width, header.height, row, header.threshold, policy, history);
+		if (count < 0) { throw new Error("image history reserve"); }
+		total = total + count;
+	}
+	while (history.count() > 0) {
+		var audit = history.take(0); ImageAudit18 value = audit.read(); image2_audit(value.row, value.count, value.sum);
+	}
+	return total;
+}

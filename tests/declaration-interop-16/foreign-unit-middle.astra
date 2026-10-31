@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Adapter16;
+[CImport(name="opaque16_facade_retired")]int retired();
+[CExport(name="opaque16_facade",profile="declarations-v1",bool_abi="c99")]
+class Facade{
+	[Foreign]init(int seed){var nested=new Hidden16.Session(seed);this.nested=move nested;}
+	private owned Hidden16.Session nested;
+	[Foreign]Hidden16.Sample amend(Hidden16.Sample input,int offset){var result=this.nested.amend(input);result.count=result.count+offset;return result;}
+	[Foreign]Hidden16.Pair<f64> exchange(Hidden16.Pair<f64> input){return this.nested.exchange(input);}
+	deinit(){retired();}
+}

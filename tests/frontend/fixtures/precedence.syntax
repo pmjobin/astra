@@ -1,0 +1,16 @@
+(unit
+	(function
+		(type "number")
+		(name "precedence")
+		(parameters
+			(parameter (type "number") (name "x"))
+		)
+		(block
+			(return (binary "+" (integer "1") (binary "*" (integer "2") (integer "3"))))
+			(return (binary "*" (parenthesized (binary "+" (integer "1") (integer "2"))) (integer "3")))
+			(return (binary "*" (prefix "-" (parenthesized (binary "+" (name "x") (integer "0002")))) (integer "3")))
+			(return (binary "%" (binary "*" (binary "/" (integer "8") (integer "2")) (integer "3")) (integer "5")))
+			(return (binary "-" (binary "-" (integer "8") (integer "3")) (integer "1")))
+		)
+	)
+)

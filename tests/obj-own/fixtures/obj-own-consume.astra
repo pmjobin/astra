@@ -1,0 +1,13 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void add(int n) { this.value = this.value + n; }
+}
+void consume(owned Counter value) { value.value = value.value + 1; }
+int main() {
+	owned Counter c = Counter.init(41);
+	consume(move c);
+	return 42;
+}

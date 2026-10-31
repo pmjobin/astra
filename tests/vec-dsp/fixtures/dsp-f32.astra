@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+f32 nan(f32 x){return x/x;}
+f32<4> low(f32<4> a,f32<4> b){return interleave_low(a,b);}
+f32<4> high(f32<4> a,f32<4> b){return interleave_high(a,b);}
+int main(){
+	f32<4> a={0.0,-0.0,1.401298464324817070923729583289916131280e-45,1e100};
+	f32<4> b={-0.0,0.0,nan(0.0),-1e100};
+	f32<4> l=low(a,b);
+	f32<4> h=high(a,b);
+	if(1.0/l[0]!=1e100 || 1.0/l[1]!=-1e100 || 1.0/l[2]!=-1e100 || 1.0/l[3]!=1e100){return 1;}
+	if(h[0]!=1.401298464324817070923729583289916131280e-45 || h[1]==h[1] || h[2]!=1e100 || h[3]!=-1e100){return 2;}
+	return 0;
+}

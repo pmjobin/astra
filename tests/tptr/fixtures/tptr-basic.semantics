@@ -1,0 +1,90 @@
+(program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : int)
+	)
+	(function "set_x" -> void
+		(parameters
+			(parameter #0 "p" : Pair*)
+			(parameter #1 "value" : int)
+		)
+		(block
+			(assign-indirect-field (parameter-ref #0 "p" : Pair*) (field #0 "x" : int) (parameter-ref #1 "value" : int))
+			(return)
+		)
+	)
+	(function "read_via_local" -> int
+		(parameters
+			(parameter #0 "p" : Pair*)
+		)
+		(locals
+			(local #0 "q" : Pair*)
+			(local #1 "empty" : Pair*)
+		)
+		(block
+			(local-init #0 "q" : Pair* (parameter-ref #0 "p" : Pair*))
+			(local-init #1 "empty" : Pair* (null : Pair*))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (local-ref #1 "empty" : Pair*) (null : Pair*)) (binary != : bool (null : Pair*) (local-ref #1 "empty" : Pair*))))
+				(then
+					(block
+						(return (integer -1 : int))
+					)
+				)
+			)
+			(assign (local-ref #1 "empty" : Pair*) (local-ref #0 "q" : Pair*))
+			(assign (local-ref #0 "q" : Pair*) (null : Pair*))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (local-ref #0 "q" : Pair*) (null : Pair*)) (binary != : bool (local-ref #1 "empty" : Pair*) (parameter-ref #0 "p" : Pair*))))
+				(then
+					(block
+						(return (integer -2 : int))
+					)
+				)
+			)
+			(return (indirect-field-ref (local-ref #1 "empty" : Pair*) (field #0 "x" : int)))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "p" : Pair address-taken)
+			(local #1 "before" : int)
+			(local #2 "after" : int)
+		)
+		(block
+			(struct-local #0 "p" : Pair
+				(initialize-field #0 "x" (integer 1 : int))
+				(initialize-field #1 "y" (integer 2 : int))
+			)
+			(local-init #1 "before" : int (field-ref (local #0 "p" : Pair) (field #0 "x" : int)))
+			(call-statement "set_x" -> void (arguments (address-of (local #0 "p" : Pair) : Pair*) (integer 42 : int)))
+			(local-init #2 "after" : int (field-ref (local #0 "p" : Pair) (field #0 "x" : int)))
+			(if
+				(condition (binary != : bool (local-ref #1 "before" : int) (integer 1 : int)))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit || : bool (binary != : bool (local-ref #2 "after" : int) (integer 42 : int)) (binary != : bool (field-ref (local #0 "p" : Pair) (field #1 "y" : int)) (integer 2 : int))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(if
+				(condition (binary != : bool (call "read_via_local" -> int (arguments (address-of (local #0 "p" : Pair) : Pair*))) (integer 42 : int)))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

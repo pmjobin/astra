@@ -1,0 +1,68 @@
+(program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+		(method #0 "add" (member #3) -> void
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters
+				(parameter #0 "n" : int)
+			)
+			(block
+				(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int)) (binary + : int (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (parameter-ref #0 "n" : int)))
+			)
+		)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "value" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "value" (parameter-ref #0 "value" : int))
+			)
+		)
+		(destructor #0 (member #2)
+			(receiver live Counter nonnull mutable)
+			(parameters)
+			(block
+				(c-call-statement "life_record" -> int (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (integer 0 : int)))
+			)
+		)
+	)
+	(extern-function "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 "code" : int)
+			(parameter #1 "value" : int)
+		)
+		(result int))
+	(function "consume" -> void
+		(parameters
+			(parameter #0 "value" : Counter (contract owned-transfer))
+		)
+		(locals
+			(ownership (owner #0) transferable-object (class #0) incoming-parameter)
+			(local #0 "value" : Counter)
+		)
+		(block
+			(store (object-field-place (base (local-ref #0 "value" : Counter)) (field #0 "value") : int null-traps) (binary + : int (load (object-field-place (base (local-ref #0 "value" : Counter)) (field #0 "value") : int null-traps)) (integer 1 : int)))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(ownership (owner #0) transferable-object (class #0) (storage #0))
+			(local #0 "c" : Counter)
+		)
+		(block
+			(local #0 "c" : Counter (ownership transferable-owned) (storage #0))
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "c")
+				(cleanup transferable-owner #0 null-disarm exact-class #0 after-success)
+				(construct constructor #0
+					(integer 41 : int)
+				)
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(call-statement "consume" -> void (arguments (owned-transfer-argument (parameter #0) (move (owner #0) (domain object) (class #0) (storage #0)) : Counter (domain object) (class #0))))
+			(return (integer 42 : int))
+		)
+	)
+)

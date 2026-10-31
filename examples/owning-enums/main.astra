@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	Header header = {version=1,count=4};
+	var checked = check_header(header);
+	match (checked) { case Result<Header,DecodeError>.Success(value): { if (value.version != 1) { return 1; } } else: { return 2; } }
+	header.count = -2;
+	var invalid = check_header(header);
+	match (invalid) {
+		case Result<Header,DecodeError>.Error(cause): { match (cause) { case DecodeError.Count(actual): { if (actual != -2) { return 6; } } else: { return 7; } } }
+		else: { return 8; }
+	}
+	var scalar = Result<int,DecodeError>.Success(17);
+	match (scalar) { case Result<int,DecodeError>.Success(value): { if (value != 17) { return 9; } } else: { return 10; } }
+	var valid = validate_count(4);
+	match (valid) { case VoidResult<DecodeError>.Success(): {} else: { return 3; } }
+	var first = produce<int>(4);
+	match (first) { case ArrayResult<int,DecodeError>.Success(view): { if (len(view) != 4 || view[0] != 0) { return 4; } } else: { return 5; } }
+	var second = relay<int,DecodeError>(move first);
+	owned int[] values = take<int>(move second);
+	var bytes = relay<u8,DecodeError>(produce<u8>(3));
+	owned u8[] returned_bytes = take<u8>(move bytes);
+	if (len(returned_bytes) != 3) { return 11; }
+	var records = produce<Header>(2);
+	match (records) { case ArrayResult<Header,DecodeError>.Success(view): { var copied = view[0]; if (copied.version != 0 || copied.count != 0) { return 12; } } else: { return 13; } }
+	owned Header[] returned_records = take<Header>(move records);
+	returned_records[0].version = 23;
+	if (len(returned_records) != 2 || returned_records[0].version != 23) { return 14; }
+	return len(values)-4;
+}

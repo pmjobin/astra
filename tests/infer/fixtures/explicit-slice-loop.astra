@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	int[3] storage = { 1, 2, 3 };
+	int[] view = slice(storage, 0, 3);
+	int[] copy = view;
+	int i = 0;
+	int total = 0;
+	while (i < len(view)) {
+		int value = copy[i];
+		{ int next = value + 1; total = total + next; }
+		i = i + 1;
+	}
+	if (total == 9) { return 0; }
+	return 1;
+}

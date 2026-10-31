@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	if (journal18_prepare(args[1], args[2]) != 0) { return 65; }
+	var context = concurrent_allocator(1, 2097152, 64, 64);
+	if (context == null) { journal18_abort(); return 2; }
+	int transactions = 0;
+	try {
+		for (int lane = 0; lane < 4; lane = lane + 1) {
+			var job = journal18_job(context, lane);
+			transactions = transactions + job.run();
+		}
+	} catch (Error error) { journal18_abort(); return 3; }
+	if (journal18_context_done(context, 1) != 0) { journal18_abort(); return 4; }
+	return journal18_finish(transactions);
+}

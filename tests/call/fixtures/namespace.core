@@ -1,0 +1,57 @@
+(core-program
+	(function "name" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return
+				(parameter #0 : int)
+			)
+		)
+	)
+	(function "parameter" -> int
+		(parameters
+			(parameter #0 "name" : int)
+		)
+		(block
+			(return
+				(call "name" -> int
+					(arguments
+						(parameter #0 : int)
+					)
+				)
+			)
+		)
+	)
+	(function "local" -> int
+		(parameters)
+		(locals
+			(local-place #0 "name" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(call "name" -> int
+					(arguments
+						(integer 1 : int)
+					)
+				)
+			)
+			(store
+				(local-place #0 : int)
+				(call "name" -> int
+					(arguments
+						(load : int
+							(local-place #0 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+)

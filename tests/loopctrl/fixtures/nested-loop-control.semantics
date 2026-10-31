@@ -1,0 +1,68 @@
+(program
+	(function "nested_control" -> int
+		(parameters
+			(parameter #0 "outer_n" : int)
+			(parameter #1 "inner_n" : int)
+		)
+		(locals
+			(local #0 "outer" : int)
+			(local #1 "total" : int)
+			(local #2 "inner" : int)
+		)
+		(block
+			(local-init #0 "outer" : int (integer 0 : int))
+			(local-init #1 "total" : int (integer 0 : int))
+			(while #0
+				(condition (binary < : bool (local-ref #0 "outer" : int) (parameter-ref #0 "outer_n" : int)))
+				(body
+					(block
+						(local-init #2 "inner" : int (integer 0 : int))
+						(while #1
+							(condition (binary < : bool (local-ref #2 "inner" : int) (parameter-ref #1 "inner_n" : int)))
+							(body
+								(block
+									(assign (local-ref #2 "inner" : int) (binary + : int (local-ref #2 "inner" : int) (integer 1 : int)))
+									(if
+										(condition (binary == : bool (local-ref #2 "inner" : int) (integer 2 : int)))
+										(then
+											(block
+												(continue #1)
+											)
+										)
+									)
+									(if
+										(condition (binary == : bool (local-ref #2 "inner" : int) (integer 4 : int)))
+										(then
+											(block
+												(break #1)
+											)
+										)
+									)
+									(assign (local-ref #1 "total" : int) (binary + : int (local-ref #1 "total" : int) (integer 1 : int)))
+								)
+							)
+						)
+						(assign (local-ref #0 "outer" : int) (binary + : int (local-ref #0 "outer" : int) (integer 1 : int)))
+						(if
+							(condition (binary == : bool (local-ref #0 "outer" : int) (integer 2 : int)))
+							(then
+								(block
+									(continue #0)
+								)
+							)
+						)
+						(if
+							(condition (binary == : bool (local-ref #0 "outer" : int) (integer 4 : int)))
+							(then
+								(block
+									(break #0)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return (local-ref #1 "total" : int))
+		)
+	)
+)

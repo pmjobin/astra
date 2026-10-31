@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+struct Other<T> { T value; }
+struct S {
+	int tag;
+	f64 weight;
+	S saved() { S result = {tag=this.tag, weight=this.weight}; return result; }
+}
+class C { int value; init() { this.value=5; } }
+S finish(owned S[] owner) { return owner[0]; }
+S combine(int scalar, S value, S[] view, owned S[] owner, f32<4> vector, C object, R resource, string text) {
+	view[1] = value;
+	owner[0] = view[0];
+	if (scalar != 3 || vector[2] != 2.0f || object.value != 5 || resource == null || text.byte_length != 4) { S bad={tag=-1,weight=0.0d}; return bad; }
+	var result = owner[0];
+	result.tag = result.tag + scalar + object.value + text.byte_length;
+	owner[0] = result;
+	return finish(move owner);
+}
+int main() {
+	S[2] fixed = {{tag=7,weight=0.5d},{tag=2,weight=1.0d}};
+	C object = C.init(); owned R handle = resource(1);
+	var owner = new S[2];
+	f32<4> vector = {0.0f,1.0f,2.0f,3.0f};
+	var result = combine(3, fixed[0].saved(), slice(fixed), move owner, vector, object, handle, "text");
+	Box<int>[1] canonical = {{value=11}}; Box<i32> copied = canonical[0];
+	Other<int>[1] distinct = {{value=13}};
+	if (result.tag != 19 || result.weight != 0.5d || fixed[1].tag != 7 || copied.value != 11 || distinct[0].value != 13) { return 1; }
+	return 0;
+}

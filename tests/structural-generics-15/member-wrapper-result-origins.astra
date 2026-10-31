@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class WrappedChild {
+	private owned R guard;
+	private int value;
+	init(owned R guard, int value) {
+		this.guard = move guard;
+		this.value = value;
+	}
+	int read() { return id(this.guard) + this.value; }
+	deinit() { mark(1800 + this.value); }
+}
+class WrappedFactory<Label> {
+	private Label label;
+	private int calls;
+	init(Label label) { this.label = label; this.calls = 0; }
+	property int count { get { return this.calls; } }
+	owned Result identity<Result>(owned Result value) { return move value; }
+	owned Result caller_result<Result>(owned Result old, owned R guard) {
+		this.calls = this.calls + 1;
+		if (false) {
+			var unreachable = new WrappedChild(move guard, 9);
+			return move unreachable;
+		}
+		return WrappedChild.init(move guard, 1);
+	}
+	owned Result heap_result<Result>(owned Result old, owned R guard) {
+		this.calls = this.calls + 1;
+		if (false) { return WrappedChild.init(move guard, 9); }
+		var result = new WrappedChild(move guard, 2);
+		return move result;
+	}
+}
+owned Result relay_identity<Label, Result>(borrowed WrappedFactory<Label> host, owned Result value) where Result:Ownable {
+	return host.identity<Result>(move value);
+}
+owned Result relay_again<Label, Result>(borrowed WrappedFactory<Label> host, owned Result value) where Result:Ownable {
+	return relay_identity(host, move value);
+}
+owned Result recursive_identity<Label, Result>(borrowed WrappedFactory<Label> host, owned Result value, int steps) where Result:Ownable {
+	if (steps > 0) { return recursive_identity<Label, Result>(host, move value, steps - 1); }
+	return relay_again(host, move value);
+}
+owned Result relay_caller<Label, Result>(borrowed WrappedFactory<Label> host, owned Result old, owned R guard) where Result:Ownable {
+	if (false) { return host.heap_result<Result>(move old, move guard); }
+	while (false) { return host.heap_result<Result>(move old, move guard); }
+	return host.caller_result<Result>(move old, move guard);
+}
+owned Result relay_heap<Label, Result>(borrowed WrappedFactory<Label> host, owned Result old, owned R guard) where Result:Ownable {
+	return host.heap_result<Result>(move old, move guard);
+}
+int exercise() {
+	var host = new WrappedFactory<bool>(true);
+	{
+		var guard = make(211);
+		var child = new WrappedChild(move guard, 3);
+		var result = recursive_identity(host, move child, 3);
+		if (result.read() != 214) { return 1; }
+	}
+	{
+		var old_guard = make(212);
+		var old = new WrappedChild(move old_guard, 4);
+		var guard = make(213);
+		var result = relay_caller<bool, WrappedChild>(host, move old, move guard);
+		if (result.read() != 214) { return 2; }
+	}
+	{
+		var old_guard = make(214);
+		var old = new WrappedChild(move old_guard, 5);
+		var guard = make(215);
+		var result = relay_heap(host, move old, move guard);
+		if (result.read() != 217) { return 3; }
+	}
+	if (host.count != 2) { return 4; }
+	return live();
+}
+int main() { return exercise(); }

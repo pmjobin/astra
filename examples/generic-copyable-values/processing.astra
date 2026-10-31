@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void process(Kernel[] kernels, Box<Kernel>[] snapshots, bool use_saved, int index, int other_index, int destination) {
+	var saved = identity(kernels[index]);
+	var chosen = choose_value(use_saved, saved, kernels[other_index]);
+	kernels[destination] = identity(chosen);
+	Box<Kernel> boxed = { value = through_box(saved) };
+	var copied_box = identity(boxed);
+	snapshots[destination] = identity(copied_box);
+	kernels[index].index = 99;
+	kernels[index].gain = 9.0d;
+}

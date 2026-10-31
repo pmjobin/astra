@@ -1,0 +1,30 @@
+(ssa-program
+	(function #0 "wrapping" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : int = binary + (integer 2147483647 : int) (integer 1 : int))
+			(%2 : int = binary * %1 %0)
+			(%3 : int = prefix - %2)
+			(return %3)
+		)
+	)
+	(function #1 "overflow" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : int = binary + (integer 2147483647 : int) (integer 1 : int))
+			(return %0)
+		)
+	)
+	(function #2 "minimum_negation" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : int = prefix - (integer -2147483648 : int))
+			(return %0)
+		)
+	)
+)

@@ -1,0 +1,10 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int raw;
+	init(int initial) { this.raw = initial; }
+	property int value { get { return this.raw; } set(int next) { this.raw = next; } }
+	deinit() { life_record(this.value, 0); }
+}
+void consume(owned Counter c) { c.value = c.value + 1; }
+void borrow(borrowed Counter c) { c.value = 41; }
+int main() { owned Counter c = Counter.init(1); borrow(c); c.value = c.value; consume(move c); return 42; }

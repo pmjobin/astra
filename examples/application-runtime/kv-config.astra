@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ConfigParseError : Error { init() : base("config record") {} }
+// Trim ASCII SP/TAB only. Values are signed decimal; duplicate records retained.
+owned Utf8Message config_trim(string text) throws Error {
+	int start = 0; int end = text.byte_length;
+	while (start < end) { int b = text_byte(text, start); if (b != 32 && b != 9) { break; } start = start + 1; }
+	while (end > start) { int b = text_byte(text, end - 1); if (b != 32 && b != 9) { break; } end = end - 1; }
+	var result = text_segment(text, start, end - start); return move result;
+}
+int normalize(string input_path, string output_path) throws Error {
+	var bytes = read_file(input_path); var source = bytes.decode();
+	var text = source.text; var output = new Utf8ByteBuilder(); int start = 0;
+	while (start < text.byte_length) {
+		int end = text_find(text, "\n", start); if (end < 0) { end = text.byte_length; }
+		int count = end - start;
+		if (count > 0 && text_byte(text, end - 1) == 13) { count = count - 1; }
+		var raw = text_segment(text, start, count); var line = config_trim(raw.text);
+		if (line.text.byte_length > 0 && !text_starts_with(line.text, "#")) {
+			int separator = text_find(line.text, "=", 0); if (separator < 0) { throw new ConfigParseError(); }
+			var key_raw = text_segment(line.text, 0, separator); var key = config_trim(key_raw.text);
+			if (key.text.byte_length == 0) { throw new ConfigParseError(); }
+			int k = 0;
+			while (k < key.text.byte_length) {
+				int b = text_byte(key.text, k);
+				if (!((b >= 65 && b <= 90) || (b >= 97 && b <= 122) || (b >= 48 && b <= 57) || b == 95)) { throw new ConfigParseError(); }
+				k = k + 1;
+			}
+			var value_raw = text_segment(line.text, separator + 1, line.text.byte_length - separator - 1);
+			var value_text = config_trim(value_raw.text); int value = parse_int(value_text.text);
+			require_text(append_text(output, key.text)); require_text(append_text(output, "="));
+			require_text(append_int(output, value)); require_text(append_text(output, "\n"));
+		}
+		if (end == text.byte_length) { break; } start = end + 1;
+	}
+	var message = output.snapshot(); write_text_file(output_path, message.text); return 0;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try { return normalize(args[1], args[2]); }
+	catch (FileError error) { println_stderr("file I/O"); return 2; }
+	catch (Error error) { println_stderr("invalid config input"); return 3; }
+}

@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class BoundStore<T> where T : Ownable {
+	private owned T[slots] values;
+	init() { this.values = new T[slots]; }
+	bool reserve(int requested) { return this.values.reserve(requested); }
+	void put(owned T value) { this.values.append(move value); }
+	owned T remove() { var value = this.values.take(0); return move value; }
+	int count(bool fail) throws RuntimeError {
+		if (fail) { throw new RuntimeError("retry collection"); }
+		return len(this.values);
+	}
+}
+
+class BoundChild {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { mark(this.code); }
+}
+
+int exercise() {
+	var resources = new BoundStore<R>();
+	if (!resources.reserve(1)) { return 1; }
+	var handle = make(97);
+	resources.put(move handle);
+	try {
+		int invalid = resources.count(true);
+		return 2;
+	} catch (RuntimeError error) {
+		if (error.message != "retry collection" || live() != 1) { return 3; }
+		mark(42);
+	}
+	try {
+		if (resources.count(false) != 1) { return 4; }
+	} catch (RuntimeError error) { return 5; }
+	var extracted = resources.remove();
+	if (id(extracted) != 97) { return 6; }
+	release extracted;
+	var children = new BoundStore<BoundChild>();
+	if (!children.reserve(1)) { return 7; }
+	var child = new BoundChild(53);
+	children.put(move child);
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned Counter absent() { return null; }
+owned Counter absent_heap(bool create) {
+	if (create) { var value = new Counter(65, 1); return move value; }
+	return null;
+}
+int main() {
+	owned Counter value = absent();
+	local_drop(move value);
+	var heap_value = absent_heap(false);
+	local_drop(move heap_value);
+	return own_finish();
+}

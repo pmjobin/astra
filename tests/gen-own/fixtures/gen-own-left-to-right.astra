@@ -1,0 +1,16 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { life_record(this.code, 0); }
+}
+void dispose<T>(owned T value) where T : Ownable {}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+int consume<T>(owned T value) where T : Ownable { return 2; }
+int pair<T>(owned T value, int other) where T : Ownable { return other; }
+int main() {
+	owned Counter a = Counter.init(65); owned Resource b = create_resource(66);
+	int result = pair<Counter>(move a, consume<Resource>(move b));
+	if (result == 2) { return 42; } return 1;
+}

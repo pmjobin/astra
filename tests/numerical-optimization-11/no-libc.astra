@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Numerics;
+export(C) int numerical_kernel(){
+	f32[8] input={0.0f,1.0f,2.0f,3.0f,4.0f,5.0f,6.0f,7.0f};
+	f32[8] output={0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
+	f32<4> value=load_f32x4(slice(input),1);
+	store_f32x4(slice(output),2,shuffle(value,3,2,1,0));
+	if(output[2]!=4.0f||output[3]!=3.0f||output[4]!=2.0f||output[5]!=1.0f){return 1;}
+	Complex64 a={real=1.0,imag=2.0};Complex64 b={real=3.0,imag=-1.0};Complex64 product=a.multiply(b);
+	if(product.real!=5.0||product.imag!=5.0){return 2;}
+	i16<8> pcm=pcm_mix8(splat(32760 as i16,8),splat(16 as i16,8));
+	if(!all(pcm==splat(32767 as i16,8))){return 3;}
+	f64<2> first={1.25,2.5};f64<2> second={2.0,4.0};
+	if(dot(first,second)!=12.5){return 4;}
+	return 0;
+}

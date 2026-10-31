@@ -1,0 +1,93 @@
+(unit
+	(function
+		(type "bool")
+		(name "left")
+		(parameters
+			(parameter (type "bool") (name "a"))
+		)
+		(block
+			(return (name "a"))
+		)
+	)
+	(function
+		(type "bool")
+		(name "right")
+		(parameters
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (name "b"))
+		)
+	)
+	(function
+		(type "bool")
+		(name "consume")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (binary "==" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "and_calls")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (short-circuit "&&" (call "left" (arguments (name "a"))) (call "right" (arguments (name "b")))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "or_calls")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (short-circuit "||" (call "left" (arguments (name "a"))) (call "right" (arguments (name "b")))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "arguments")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+			(parameter (type "bool") (name "d"))
+		)
+		(block
+			(return (call "consume" (arguments (short-circuit "&&" (call "left" (arguments (name "a"))) (call "right" (arguments (name "b")))) (short-circuit "||" (call "left" (arguments (name "c"))) (call "right" (arguments (name "d")))))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "earlier_call")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(return (call "consume" (arguments (call "left" (arguments (name "a"))) (short-circuit "&&" (name "b") (call "right" (arguments (name "c")))))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "earlier_trap")
+		(parameters
+			(parameter (type "int") (name "x"))
+			(parameter (type "int") (name "y"))
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (call "consume" (arguments (binary ">" (binary "/" (name "x") (name "y")) (integer "0")) (short-circuit "||" (name "a") (name "b")))))
+		)
+	)
+)

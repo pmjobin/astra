@@ -1,0 +1,10 @@
+class Plain { int value; init(int value) { this.value = value; } }
+class Empty { init() {} }
+void dispose<T>(owned T value) where T : Ownable {}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+int main() {
+	owned Plain a = Plain.init(42); owned Plain b = relay<Plain>(move a);
+	owned Empty c = Empty.init(); owned Empty d = relay<Empty>(move c); dispose<Empty>(move d);
+	int result = b.value; dispose<Plain>(move b);
+	return result;
+}

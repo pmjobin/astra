@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A55: UTF-8 byte/line hygiene inspection, not an Astra grammar validator.
+void inspection_number(string label, i64 value) throws Error {
+	var builder = new Utf8ByteBuilder();
+	require_text(append_i64(builder, value));
+	var text = builder.snapshot();
+	print(label); println(text.text);
+}
+void inspection_diagnostic(string message, i64 line, i64 column) throws Error {
+	var builder = new Utf8ByteBuilder();
+	require_text(append_text(builder, message));
+	require_text(append_text(builder, " at "));
+	require_text(append_i64(builder, line));
+	require_text(append_text(builder, ":"));
+	require_text(append_i64(builder, column));
+	var text = builder.snapshot();
+	println(text.text);
+}
+int inspect_source(string text) throws Error {
+	i64 line = 1;
+	i64 column = 1;
+	i64 lines = 0;
+	i64 findings = 0;
+	i64 trailing_column = 1;
+	bool at_start = true;
+	bool trailing = false;
+	for (int offset = 0; offset < text.byte_length; offset = offset + 1) {
+		int byte = text_byte(text, offset);
+		if (byte == 13 && offset + 1 < text.byte_length && text_byte(text, offset + 1) == 10) { continue; }
+		if (byte == 10) {
+			if (trailing) { inspection_diagnostic("trailing whitespace", line, trailing_column); findings = findings + 1; }
+			lines = lines + 1; line = line + 1; column = 1;
+			at_start = true; trailing = false;
+			continue;
+		}
+		if (byte == 0) { inspection_diagnostic("NUL byte", line, column); findings = findings + 1; }
+		if (at_start && byte == 32) {
+			inspection_diagnostic("space indentation", line, column); findings = findings + 1;
+			at_start = false;
+		}
+		if (byte == 32 || byte == 9) {
+			if (!trailing) { trailing_column = column; }
+			trailing = true;
+		} else { at_start = false; trailing = false; }
+		column = column + 1;
+	}
+	if (column > 1) {
+		lines = lines + 1;
+		if (trailing) { inspection_diagnostic("trailing whitespace", line, trailing_column); findings = findings + 1; }
+	}
+	inspection_number("lines ", lines);
+	inspection_number("findings ", findings);
+	if (findings == 0) { return 0; }
+	return 1;
+}
+int main(string[] args) {
+	if (len(args) < 2) { return 64; }
+	int result = 0;
+	try {
+		for (int index = 1; index < len(args); index = index + 1) {
+			var bytes = read_file(args[index]);
+			var text = bytes.decode();
+			inspection_number("file ", index as i64);
+			if (inspect_source(text.text) != 0) { result = 1; }
+		}
+		return result;
+	} catch (Error failure) { println("inspection failed"); return 65; }
+}

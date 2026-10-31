@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Sample {
+	int value;
+	int flag;
+}
+struct RecordOwner {
+	owned Sample[] samples;
+	owned u8[] bytes;
+}
+owned Sample[] produce() {
+	var samples = new Sample[2];
+	samples[0].value = 19;
+	samples[1].flag = 23;
+	mark(samples[0].value + samples[1].flag);
+	return move samples;
+}
+int main() {
+	{
+		RecordOwner owner = {samples = produce(), bytes = new u8[0]};
+		var moved = move owner;
+	}
+	return live();
+}

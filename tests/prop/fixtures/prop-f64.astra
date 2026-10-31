@@ -1,0 +1,22 @@
+class Signal {
+	f64 raw;
+	property f64 gain { get { return this.raw; } set(f64 next) { this.raw = next; } }
+	f64 separate(f64 a, f64 b) { return a * b + this.gain; }
+}
+f64 borrowed_gain(borrowed Signal s) { if (1.0000000000000002 == s.gain) { return s.gain; } return 0.0; }
+int main() {
+	Signal s = { raw = 0.0 };
+	s.gain = 1.0000000000000002;
+	if (s.gain != 1.0000000000000002 || borrowed_gain(s) != s.raw) { return 1; }
+	s.gain = -0.0;
+	if (1.0 / s.gain >= 0.0) { return 2; }
+	s.gain = 4.9406564584124654e-324;
+	if (s.gain != 4.9406564584124654e-324) { return 3; }
+	s.gain = 1e309;
+	if (s.gain != 1e309) { return 4; }
+	s.gain = 0.0 / 0.0;
+	if (s.gain == s.gain || !(s.gain != s.gain)) { return 5; }
+	s.gain = -1.0;
+	if (s.separate(1.000000007450580596923828125, 0.999999992549419403076171875) != 0.0) { return 6; }
+	return 42;
+}

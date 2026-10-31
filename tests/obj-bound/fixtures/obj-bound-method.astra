@@ -1,0 +1,15 @@
+class Counter {
+	int value;
+	int mutate(borrowed Counter other) {
+		if (other == null) { return this.value; }
+		this.value = 1;
+		other.value = 42;
+		return this.value;
+	}
+}
+int invoke(borrowed Counter c) { return c.mutate(c); }
+int main() {
+	Counter c = { value = 0 };
+	if (invoke(c) != 42) { return 1; }
+	return c.mutate(null);
+}

@@ -1,0 +1,16 @@
+extern(C) int life_record(int code, int value);
+class Temporary {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { life_record(this.code, 0); }
+}
+class Counter {
+	int raw;
+	init(int initial) { this.raw = initial; }
+	property int value {
+		get { Temporary t = Temporary.init(103); owned Resource r = create_resource(71); return this.raw; }
+		set(int next) { Temporary t = Temporary.init(115); owned Resource r = create_resource(83); this.raw = next; }
+	}
+	deinit() { life_record(68, this.value); if (this.raw != 42) { life_record(88, 0); } }
+}
+int main() { Counter c = Counter.init(1); c.value = 42; return c.raw; }

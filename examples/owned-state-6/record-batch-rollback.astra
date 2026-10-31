@@ -1,0 +1,26 @@
+// A44: factory temporary cleanup, prefix rollback and complete-record unwind.
+struct BatchEntry { int row; owned R payload; owned Other log; }
+owned Other checked_resource(bool failing) throws Error {
+	owned Other resource = make_other(2);
+	if (failing) { throw new Error("record initializer failed"); }
+	return move resource;
+}
+int main() {
+	try {
+		BatchEntry entry = {row=7, payload=make(1), log=checked_resource(true)};
+		return 81;
+	} catch(Error error) { if (live() != 0) { return 82; } mark(1); }
+	try {
+		BatchEntry entry = {payload=make(3), log=checked_resource(false), row=8};
+		var moved = move entry;
+		if (moved.row != 8 || live() != 2) { return 83; }
+	} catch(Error error) { return 84; }
+	if (live() != 0) { return 85; }
+	try {
+		BatchEntry entry = {row=9, payload=make(4), log=checked_resource(false)};
+		if (entry.row != 9) { return 86; }
+		throw new Error("after complete record");
+	} catch(Error error) { if (live() != 0) { return 87; } mark(2); }
+	mark(44);
+	return 0;
+}

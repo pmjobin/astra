@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Opt-in virtual executor contract. Link async-virtual.o explicitly.
+class AsyncError : Error {
+	init(string message) : base(message) {}
+}
+enum RunStatus {
+	Completed,
+	Cancelled
+}
+async runtime VirtualExecutor throws AsyncError returns RunStatus;

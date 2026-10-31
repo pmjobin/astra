@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int shared_app_event(int stage,int value);
+class Payload {
+	int value;
+	init(int value){this.value=value;shared_app_event(1,value);}
+	deinit(){shared_app_event(2,this.value);}
+}
+int read(borrowed Payload payload){return payload.value;}
+class View {
+	private owned Shared<Payload> payload;
+	private owned Weak<Payload> observer;
+	init(owned Shared<Payload> payload,owned Weak<Payload> observer){this.payload=move payload;this.observer=move observer;}
+	int read(){
+		var strong=shared_clone(this.payload);
+		var weak_copy=weak_clone(this.observer);
+		var acquired=weak_upgrade(weak_copy);
+		if(acquired==null){return -1;}
+		return read(shared_borrow(strong))+read(shared_borrow(acquired));
+	}
+	deinit(){shared_app_event(3,0);}
+}
+int main(){
+	var payload=new Payload(12);
+	var strong=shared_acquire(move payload);
+	var weak=shared_downgrade(strong);
+	var view=new View(move strong,move weak);
+	if(view.read()!=24){return 81;}
+	var moved=move view;
+	release moved;
+	return 0;
+}

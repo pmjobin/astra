@@ -1,0 +1,155 @@
+(program
+	(generic-struct #0 "Box"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "value" : T)
+	)
+	(generic-struct #1 "Bundle"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "left" : Box<T>)
+		(generic-field #1 "right" : Box<T>)
+		(generic-field #2 "tag" : int)
+	)
+	(generic-definition "ordinary_helper" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "ordinary_helper" -> T
+		(parameters
+			(parameter #0 "value" : T)
+		)
+		(locals
+			(local #0 "a" : Box<int>)
+			(local #1 "b" : Box<int>)
+		)
+		(block
+			(struct-local #0 "a" : Box<int>
+				(initialize-field #0 "value" (integer 7 : int))
+			)
+			(struct-result-store initialize (destination (local-place #1 : Box<int>)) (struct-call-result integers : Box<int> (struct-argument #0 snapshot-at-argument (struct-snapshot : Box<int> (local-place #0 : Box<int>)))))
+			(if
+				(condition (binary == : bool (load (generic-field-place (owner Box<int>) (base (local-place #1 : Box<int>)) (field Box::value #0) : int)) (integer 7 : int)))
+				(then
+					(block
+						(return (parameter-ref #0 "value" : T))
+					)
+				)
+			)
+			(return (parameter-ref #0 "value" : T))
+		)
+	)
+	(function "integers" -> Box<int>
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Box<int>)
+		)
+		(locals
+			(local #0 "value" : Box<int>)
+		)
+		(block
+			(struct-return (struct-snapshot : Box<int> (local-place #0 : Box<int>)) snapshot-before-cleanup)
+		)
+	)
+	(function "doubles" -> Box<f64>
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Box<f64>)
+		)
+		(locals
+			(local #0 "value" : Box<f64>)
+		)
+		(block
+			(struct-return (struct-snapshot : Box<f64> (local-place #0 : Box<f64>)) snapshot-before-cleanup)
+		)
+	)
+	(function "vectors" -> Box<i16<8>>
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Box<i16<8>>)
+		)
+		(locals
+			(local #0 "value" : Box<i16<8>>)
+		)
+		(block
+			(struct-return (struct-snapshot : Box<i16<8>> (local-place #0 : Box<i16<8>>)) snapshot-before-cleanup)
+		)
+	)
+	(function "masks" -> Box<bool<4>>
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Box<bool<4>>)
+		)
+		(locals
+			(local #0 "value" : Box<bool<4>>)
+		)
+		(block
+			(struct-return (struct-snapshot : Box<bool<4>> (local-place #0 : Box<bool<4>>)) snapshot-before-cleanup)
+		)
+	)
+	(function "bundle" -> Bundle<f64>
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Bundle<f64>)
+		)
+		(locals
+			(local #0 "value" : Bundle<f64>)
+		)
+		(block
+			(struct-return (struct-snapshot : Bundle<f64> (local-place #0 : Bundle<f64>)) snapshot-before-cleanup)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : Box<int>)
+			(local #1 "b" : Box<int>)
+			(local #2 "c" : Box<f64>)
+			(local #3 "d" : Box<f64>)
+			(local #4 "e" : Box<i16<8>>)
+			(local #5 "f" : Box<i16<8>>)
+			(local #6 "g" : Box<bool<4>>)
+			(local #7 "h" : Box<bool<4>>)
+			(local #8 "i" : Bundle<f64>)
+			(local #9 "j" : Bundle<f64>)
+		)
+		(block
+			(struct-local #0 "a" : Box<int>
+				(initialize-field #0 "value" (integer 7 : int))
+			)
+			(struct-result-store initialize (destination (local-place #1 : Box<int>)) (struct-call-result integers : Box<int> (struct-argument #0 snapshot-at-argument (struct-snapshot : Box<int> (local-place #0 : Box<int>)))))
+			(struct-local #2 "c" : Box<f64>
+				(initialize-field #0 "value" (f64 0x400c000000000000 : f64))
+			)
+			(struct-result-store initialize (destination (local-place #3 : Box<f64>)) (struct-call-result doubles : Box<f64> (struct-argument #0 snapshot-at-argument (struct-snapshot : Box<f64> (local-place #2 : Box<f64>)))))
+			(struct-local #4 "e" : Box<i16<8>>
+				(initialize-field #0 "value" (vector-splat : i16<8> (lanes 8) (value (integer 9 : i16))))
+			)
+			(struct-result-store initialize (destination (local-place #5 : Box<i16<8>>)) (struct-call-result vectors : Box<i16<8>> (struct-argument #0 snapshot-at-argument (struct-snapshot : Box<i16<8>> (local-place #4 : Box<i16<8>>)))))
+			(struct-local #6 "g" : Box<bool<4>>
+				(initialize-field #0 "value" (vector-splat : bool<4> (lanes 4) (value (bool true : bool))))
+			)
+			(struct-result-store initialize (destination (local-place #7 : Box<bool<4>>)) (struct-call-result masks : Box<bool<4>> (struct-argument #0 snapshot-at-argument (struct-snapshot : Box<bool<4>> (local-place #6 : Box<bool<4>>)))))
+			(struct-local #8 "i" : Bundle<f64>
+				(initialize-field #0 "left" (storage-initializer
+					(initialize-field #0 "value" (f64 0x3ff8000000000000 : f64))
+				))
+				(initialize-field #1 "right" (storage-initializer
+					(initialize-field #0 "value" (f64 0x400c000000000000 : f64))
+				))
+				(initialize-field #2 "tag" (integer 7 : int))
+			)
+			(struct-result-store initialize (destination (local-place #9 : Bundle<f64>)) (struct-call-result bundle : Bundle<f64> (struct-argument #0 snapshot-at-argument (struct-snapshot : Bundle<f64> (local-place #8 : Bundle<f64>)))))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (load (generic-field-place (owner Box<int>) (base (local-place #1 : Box<int>)) (field Box::value #0) : int)) (integer 7 : int)) (binary != : bool (load (generic-field-place (owner Box<f64>) (base (local-place #3 : Box<f64>)) (field Box::value #0) : f64)) (f64 0x400c000000000000 : f64))) (binary != : bool (vector-extract : i16 (lane 7) (vector (load (generic-field-place (owner Box<i16<8>>) (base (local-place #5 : Box<i16<8>>)) (field Box::value #0) : i16<8>)))) (integer 9 : i16))) (prefix ! : bool (vector-extract : bool (lane 3) (vector (load (generic-field-place (owner Box<bool<4>>) (base (local-place #7 : Box<bool<4>>)) (field Box::value #0) : bool<4>)))))) (binary != : bool (load (generic-field-place (owner Box<f64>) (base (generic-field-place (owner Bundle<f64>) (base (local-place #9 : Bundle<f64>)) (field Bundle::left #0) : Box<f64>)) (field Box::value #0) : f64)) (f64 0x3ff8000000000000 : f64))) (binary != : bool (load (generic-field-place (owner Box<f64>) (base (generic-field-place (owner Bundle<f64>) (base (local-place #9 : Bundle<f64>)) (field Bundle::right #1) : Box<f64>)) (field Box::value #0) : f64)) (f64 0x400c000000000000 : f64))) (binary != : bool (load (generic-field-place (owner Bundle<f64>) (base (local-place #9 : Bundle<f64>)) (field Bundle::tag #2) : int)) (integer 7 : int))) (binary != : bool (generic-call "ordinary_helper" -> int (type-arguments int) (arguments (integer 7 : int))) (integer 7 : int))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

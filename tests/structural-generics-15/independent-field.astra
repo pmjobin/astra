@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Log<T> {
+	int generation;
+	owned T[slots] entries;
+	init() {
+		this.generation = 42;
+		this.entries = new T[slots];
+	}
+	int score() { return this.generation + len(this.entries); }
+}
+
+class Item {
+	init() {}
+}
+
+int main() {
+	var log = new Log<Item>();
+	return log.score() - 42;
+}

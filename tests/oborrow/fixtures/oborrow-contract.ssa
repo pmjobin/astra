@@ -1,0 +1,36 @@
+(ssa-program
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(extern-function #0 "create" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result void*))
+	(extern-function #1 "inspect" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 : void* (contract borrowed-noescape))
+		)
+		(result int))
+	(function #0 "native" -> int
+		(parameters
+			(%0 "p" : void* (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(%1 : int = c-call #1 "inspect" -> int (arguments %0))
+			(return %1)
+		)
+	)
+	(function #1 "f" -> void
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : void* = c-call #0 "create" -> void* (arguments (integer 1 : int)))
+			(%1 : int = call #0 "native" -> int (arguments %0))
+			(%2 : int = c-call #1 "inspect" -> int (arguments %0))
+			(cleanup %0 via #0)
+			(cleanup (null : void*) via #0)
+			(function-end)
+		)
+	)
+)

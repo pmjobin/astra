@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace ImageSpan18;
+class RowSpan18 {
+	int first;
+	int last;
+	int row;
+	int kind;
+	init(int first, int last, int row, int kind) {
+		this.first = first; this.last = last; this.row = row; this.kind = kind;
+	}
+	property int start { get { return this.first; } }
+	property int stop { get { return this.last; } }
+	deinit() { image2_retire(this.row, this.kind); }
+}
+int span_start(RowSpan18 span) { return span.start; }

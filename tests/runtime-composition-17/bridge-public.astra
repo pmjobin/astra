@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void bridge_public_prepare();
+extern(C) int bridge_workers_started();
+extern(C) int bridge_public_finish();
+async int side_read(owned LinuxPayload side) throws Error {
+	while (bridge_workers_started() != 3) { await delay_ms(1); }
+	await payload_io(side);
+	if (astra_linux_payload_count(side) != 67) { throw new Error("side read length"); }
+	int checksum = 0;
+	for (int i = 0; i < 67; i = i + 1) { checksum = checksum + payload_byte(side, i); }
+	return checksum;
+}
+async void execute(owned WorkerPool pool, owned LinuxPayload reader, owned LinuxPayload side, owned LinuxPayload writer) throws Error {
+	await payload_io(reader);
+	if (astra_linux_payload_count(reader) != 67) { throw new Error("read length"); }
+	owned int[] first_data = new int[67];
+	owned int[] second_data = new int[67];
+	for (int i = 0; i < 67; i = i + 1) { first_data[i] = payload_byte(reader, i); second_data[66 - i] = first_data[i]; }
+	var first = concurrent_allocator(1, 32771, 17, 64);
+	var second = concurrent_allocator(1, 32779, 19, 64);
+	var frames = concurrent_allocator(1, 65543, 23, 64);
+	var inner = concurrent_allocator(2, 65551, 29, 64);
+	if (first == null || second == null || frames == null || inner == null) { throw new Error("context construction"); }
+	var one = new (first) CPU.Job(move first_data, 17);
+	var two = new (second) CPU.Job(move second_data, 29);
+	var background = side_read(move side);
+	start(background);
+	owned int[] result = new int[0];
+	try { result = await pool.submit(task_in(frames, CPU.batch(move inner, move one, move two))); }
+	catch (Error error) { await cancel_and_join(move background); throw; }
+	int checksum = await move background;
+	if (checksum <= 0 || len(result) != 2) { throw new Error("bridge result"); }
+	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0 || concurrent_allocator_query(frames, 1) != 0) { throw new Error("bridge allocation retirement"); }
+	bool caught = false;
+	try { int unused = await pool.submit(task_in(frames, CPU.checked_failure())); }
+	catch (Error error) { if (error.message != "worker bridge checked failure") { throw; } caught = true; }
+	if (!caught || concurrent_allocator_query(frames, 1) != 0) { throw new Error("bridge checked error retirement"); }
+	for (int i = 0; i < 2; i = i + 1) {
+		int value = result[i];
+		for (int byte = 0; byte < 4; byte = byte + 1) { payload_set(writer, i * 4 + byte, value % 256); value = value / 256; }
+	}
+	await payload_io(writer);
+	if (astra_linux_payload_count(writer) != 8) { throw new Error("write length"); }
+	payload_finish(writer);
+}
+export(C) int run_public_bridge() {
+	bridge_public_prepare();
+	try {
+		var pool = worker_pool(2);
+		if (pool == null) { return 1; }
+		var reader = payload_open(INPUT_PATH, 67, 0);
+		var side = payload_open(INPUT_PATH, 67, 0);
+		var writer = payload_open(OUTPUT_PATH, 8, 1);
+		payload_configure(reader, 0, 67, 0);
+		payload_configure(side, 0, 67, 0);
+		payload_configure(writer, 0, 8, 0);
+		var executor = IoExecutor.open(8);
+		var status = executor.run(execute(move pool, move reader, move side, move writer));
+		match (status) { case BridgeStatus.Completed(): {} else: { return 2; } }
+	} catch (Error error) { return 3; }
+	return bridge_public_finish();
+}
+int main() { return run_public_bridge(); }

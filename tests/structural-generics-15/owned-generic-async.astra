@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct AsyncResources {
+	owned R first;
+	owned R second;
+}
+
+class TaskInput<T> {
+	private owned T payload;
+	private int code;
+	init(owned T payload, int code) {
+		this.payload = move payload;
+		this.code = code;
+	}
+	int value() { return this.code; }
+	deinit() { mark(100 + this.code); }
+}
+
+owned TaskInput<AsyncResources> create_input(int first_code) {
+	var first = make(first_code);
+	var second = make(first_code + 1);
+	AsyncResources resources = {first = move first, second = move second};
+	var input = new TaskInput<AsyncResources>(move resources, 42);
+	return move input;
+}
+
+async void analyze_input(owned TaskInput<AsyncResources> input, bool fail) throws Error {
+	if (input.value() != 42) { throw new Error("before suspension"); }
+	mark(10);
+	await delay_ticks(5);
+	if (input.value() != 42) { throw new Error("after suspension"); }
+	if (fail) { throw new Error("captured task failure"); }
+	mark(20);
+}
+
+int cold_cancel() throws Error {
+	var executor = VirtualExecutor.open(2);
+	var input = create_input(101);
+	var task = analyze_input(move input, false);
+	if (live() != 2) { return 1; }
+	executor.cancel(task);
+	var status = executor.run(move task);
+	match(status) { case RunStatus.Cancelled(): {} else: { return 2; } }
+	return live();
+}
+
+int suspended_cancel() throws Error {
+	var executor = VirtualExecutor.open(2);
+	var input = create_input(103);
+	var task = analyze_input(move input, false);
+	executor.start(task);
+	try {
+		executor.pump(1);
+		if (live() != 2) { throw new Error("cancel capture before deadline"); }
+		executor.advance(4);
+		executor.pump(1);
+		if (live() != 2) { throw new Error("cancel capture retained until deadline"); }
+	} catch (Error error) {
+		executor.cancel(task);
+		var status = executor.run(move task);
+		throw;
+	}
+	executor.cancel(task);
+	var status = executor.run(move task);
+	match(status) { case RunStatus.Cancelled(): {} else: { return 5; } }
+	return live();
+}
+
+int completed() throws Error {
+	var executor = VirtualExecutor.open(2);
+	var input = create_input(105);
+	var task = analyze_input(move input, false);
+	executor.start(task);
+	try {
+		executor.pump(1);
+		if (live() != 2) { throw new Error("completion capture before deadline"); }
+		executor.advance(5);
+		executor.pump(1);
+	} catch (Error error) {
+		executor.cancel(task);
+		var status = executor.run(move task);
+		throw;
+	}
+	var status = executor.run(move task);
+	match(status) { case RunStatus.Completed(): {} else: { return 7; } }
+	return live();
+}
+
+int failed() throws Error {
+	var executor = VirtualExecutor.open(2);
+	var input = create_input(107);
+	var task = analyze_input(move input, true);
+	executor.start(task);
+	try {
+		executor.pump(1);
+		if (live() != 2) { throw new Error("exception capture before deadline"); }
+		executor.advance(5);
+		executor.pump(1);
+	} catch (Error error) {
+		executor.cancel(task);
+		var status = executor.run(move task);
+		throw;
+	}
+	try {
+		var status = executor.run(move task);
+		return 9;
+	} catch (Error error) {
+		if (error.message != "captured task failure") { return 10; }
+	}
+	return live();
+}
+
+int main() {
+	try {
+		if (cold_cancel() != 0 || suspended_cancel() != 0 || completed() != 0 || failed() != 0) { return 11; }
+	} catch (Error error) { return 12; }
+	return live();
+}

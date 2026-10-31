@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Opt-in raw counted bytes; snapshot validation uses the Q19A factory.
+class Utf8ByteBuilder {
+	private owned u8[] backing;
+	private int used;
+	init() { this.backing = new u8[0]; this.used = 0; }
+	int byte_count() { return this.used; }
+	int capacity() { return len(this.backing); }
+	bool reserve(int requested) {
+		if (requested < 0) { return false; }
+		if (requested <= len(this.backing)) { return true; }
+		var replacement = new u8[requested];
+		int i = 0;
+		while (i < this.used) { replacement[i] = this.backing[i]; i = i + 1; }
+		swap(this.backing, replacement);
+		return true;
+	}
+	bool append_bytes(u8[] fragment) {
+		int incoming = len(fragment);
+		if (incoming > 2147483647 - this.used) { return false; }
+		if (incoming == 0) { return true; }
+		int required = this.used + incoming;
+		if (required > len(this.backing)) {
+			int target = len(this.backing);
+			if (target == 0) { target = 1; }
+			while (target < required) {
+				if (target > 1073741823) { target = required; }
+				else { target = target * 2; }
+			}
+			if (!this.reserve(target)) { return false; }
+		}
+		int i = 0;
+		while (i < incoming) { this.backing[this.used + i] = fragment[i]; i = i + 1; }
+		this.used = required;
+		return true;
+	}
+	owned Utf8Message snapshot() throws InvalidUtf8 {
+		var exact = new u8[this.used];
+		int i = 0;
+		while (i < this.used) { exact[i] = this.backing[i]; i = i + 1; }
+		var message = utf8_message(exact);
+		return move message;
+	}
+}

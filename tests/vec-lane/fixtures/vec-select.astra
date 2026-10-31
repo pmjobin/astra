@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Log { int order; }
+bool<4> make_mask(Log* log, bool value) { log->order = log->order * 10 + 1; return splat(value, 4); }
+int<4> make_a(Log* log) { log->order = log->order * 10 + 2; int<4> v = {1, 2, 3, 4}; return v; }
+int<4> make_b(Log* log) { log->order = log->order * 10 + 3; int<4> v = {10, 20, 30, 40}; return v; }
+f32<4> choose(bool<4> mask, f32<4> a, f32<4> b) { return select(mask, a, b); }
+int main() {
+	Log log = {order = 0};
+	int<4> a = select(make_mask(&log, true), make_a(&log), make_b(&log));
+	if (log.order != 123 || a[0] != 1 || a[3] != 4) { return 1; }
+	log.order = 0;
+	int<4> b = select(make_mask(&log, false), make_a(&log), make_b(&log));
+	if (log.order != 123 || b[0] != 10 || b[3] != 40) { return 2; }
+	bool<4> mask = {true, false, true, false};
+	int<4> expected = {1, 20, 3, 40};
+	if (!all(select(mask, a, b) == expected) || !all(select(mask, a, a) == a)) { return 3; }
+	if (!all(select(mask, mask, !mask)) || any(select(mask, !mask, mask))) { return 4; }
+	return 0;
+}

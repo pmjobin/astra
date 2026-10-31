@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int record_frame_published();
+async FrameEnvelope<FrameRecordItem> produce_frame_record(int identity) throws Error {
+	await delay_ticks(1);
+	FrameEnvelope<FrameRecordItem> record = frame_record(identity);
+	record_frame_event(1, identity);
+	record_frame_event(4, identity);
+	return move record;
+}
+async void frame_record_results() throws Error {
+	var frames = concurrent_allocator(1, 65536, 17, 64);
+	{
+		FrameEnvelope<FrameRecordItem> record = await task_in(frames, produce_frame_record(23));
+		if (record.child.sequence != 23 || record.stamp != 7) { throw new Error("observed record result"); }
+	}
+	var child = task_in(frames, produce_frame_record(24));
+	start(child);
+	try { while (record_frame_published() == 0) { await delay_ticks(1); } }
+	catch (Error error) { await cancel_and_join(move child); throw; }
+	await cancel_and_join(move child);
+}

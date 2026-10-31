@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace InvoicePipeline;
+
+int retail(int units) { return units * 3 + 1; }
+int wholesale(int units) { return units * 2 + 7; }
+bool include_all(int record) { return true; }
+bool exclude_fifth(int record) { return record % 5 != 0; }
+i64 audit(i64 subtotal) { return subtotal * 1009 + 17; }
+
+Fn<int,int> select_price(int mode) {
+	if (mode == 0) { return retail; }
+	return wholesale;
+}
+Fn<bool,int> select_filter(int mode) {
+	if (mode == 0) { return include_all; }
+	return exclude_fifth;
+}
+Fn<int,int> forward_price(Fn<int,int> function) { return function; }
+int price_record(Fn<int,int> function, int units) { return function(units); }

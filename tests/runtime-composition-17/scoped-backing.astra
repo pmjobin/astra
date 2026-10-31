@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CCode(buffer_abi="u8-i32")]
+extern(C) void scoped_backing_remember(borrowed u8[] bytes, int id);
+extern(C) int scoped_backing_finish();
+int inspect_scoped(borrowed ScopedAllocator context, int id) {
+	if (scoped_allocator_query(context, 7) != 1 || scoped_allocator_query(context, 8) != 0) { return 1; }
+	if (scoped_backing_probe(context, id) != 0) { return 2; }
+	if (scoped_allocator_query(context, 1) != 0 || scoped_allocator_query(context, 4) != 1 || scoped_allocator_query(context, 5) != 1) { return 3; }
+	return 0;
+}
+int changed_bytes(borrowed u8[] bytes) {
+	int count = 0;
+	int index = 0;
+	while (index < len(bytes)) {
+		if (bytes[index] == 77) { count = count + 1; }
+		index = index + 1;
+	}
+	return count;
+}
+export(C) int scoped_backing_run() {
+	{
+		owned u8[] first = new u8[8197];
+		var parent = concurrent_allocator(0, 0, 7, 64);
+		var second = new(parent) u8[12341];
+		scoped_backing_remember(first, 1);
+		scoped_backing_remember(second, 2);
+		{
+			var region = scoped_allocator<ScopedAllocator>(first, 1, 7);
+			owned ScopedAllocator pool = scoped_allocator<ScopedAllocator>(second, 2, 5);
+			if (region == null || pool == null) { return 1; }
+			if (scoped_allocator_query(region, 0) == scoped_allocator_query(pool, 0)) { return 2; }
+			if (inspect_scoped(region, 1) != 0 || inspect_scoped(pool, 2) != 0) { return 3; }
+		}
+		if (len(first) != 8197 || len(second) != 12341 || changed_bytes(first) < 3 || changed_bytes(second) < 3) { return 4; }
+	}
+	{
+		owned u8[] empty = new u8[0];
+		scoped_backing_remember(empty, 3);
+		var refused = scoped_allocator<ScopedAllocator>(empty, 1, 3);
+		if (refused != null) { return 5; }
+	}
+	return scoped_backing_finish();
+}

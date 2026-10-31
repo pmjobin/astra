@@ -1,0 +1,71 @@
+(unit
+	(function
+		(type "void")
+		(name "clear")
+		(parameters
+			(parameter (type "i16<8>*") (name "p"))
+		)
+		(block
+			(assign (dereference (name "p")) (vector-splat (integer "0") (ordinals 8)))
+		)
+	)
+	(function
+		(type "void")
+		(name "forward")
+		(parameters
+			(parameter (type "i16<8>*") (name "p"))
+		)
+		(block
+			(call-statement (call "clear" (arguments (name "p"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "i16<8>") (name "v") (vector-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "i16<8>*") (name "p") (address-of "v"))
+			(assign (dereference (name "p")) (vector-splat (integer "42") (ordinals 8)))
+			(if
+				(condition (prefix "!" (vector-all (binary "==" (name "v") (vector-splat (integer "42") (ordinals 8))))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(local (type "i16<8>") (name "loaded") (dereference (name "p")))
+			(if
+				(condition (prefix "!" (vector-all (binary "==" (name "loaded") (name "v")))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(call-statement (call "forward" (arguments (name "p"))))
+			(if
+				(condition (prefix "!" (vector-all (binary "==" (name "v") (vector-splat (integer "0") (ordinals 8))))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(local (type "int<4>") (name "a") (vector-init (integer "1") (integer "2") (integer "3") (integer "4")))
+			(local (type "i32<4>*") (name "q") (address-of "a"))
+			(local (type "int<4>*") (name "r") (name "q"))
+			(assign (dereference (name "r")) (vector-splat (integer "7") (ordinals 4)))
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "r") (name "q")) (prefix "!" (vector-all (binary "==" (name "a") (vector-splat (integer "7") (ordinals 4)))))))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

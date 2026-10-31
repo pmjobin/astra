@@ -1,0 +1,184 @@
+(unit
+	(function
+		(type "i8")
+		(name "signed_add")
+		(parameters
+			(parameter (type "i8") (name "a"))
+			(parameter (type "i8") (name "b"))
+		)
+		(block
+			(return (sat_add (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "u8")
+		(name "unsigned_sub")
+		(parameters
+			(parameter (type "u8") (name "a"))
+			(parameter (type "u8") (name "b"))
+		)
+		(block
+			(return (sat_sub (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "i8<16>")
+		(name "signed_vector")
+		(parameters
+			(parameter (type "i8<16>") (name "a"))
+			(parameter (type "i8<16>") (name "b"))
+		)
+		(block
+			(return (sat_add (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "u8<16>")
+		(name "unsigned_vector")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+			(parameter (type "u8<16>") (name "b"))
+		)
+		(block
+			(return (sat_add (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "i16<8>")
+		(name "signed_words")
+		(parameters
+			(parameter (type "i16<8>") (name "a"))
+			(parameter (type "i16<8>") (name "b"))
+		)
+		(block
+			(return (sat_sub (sat_add (name "a") (name "b")) (name "b")))
+		)
+	)
+	(function
+		(type "u16<8>")
+		(name "unsigned_words")
+		(parameters
+			(parameter (type "u16<8>") (name "a"))
+			(parameter (type "u16<8>") (name "b"))
+		)
+		(block
+			(return (sat_sub (sat_add (name "a") (name "b")) (name "b")))
+		)
+	)
+	(function
+		(type "u16<8>")
+		(name "widen_signed")
+		(parameters
+			(parameter (type "i8<16>") (name "a"))
+		)
+		(block
+			(return (widen_low (name "a") (type "u16")))
+		)
+	)
+	(function
+		(type "i16<8>")
+		(name "widen_unsigned")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+		)
+		(block
+			(return (widen_high (name "a") (type "i16")))
+		)
+	)
+	(function
+		(type "u8<16>")
+		(name "wrapping")
+		(parameters
+			(parameter (type "i16<8>") (name "a"))
+			(parameter (type "i16<8>") (name "b"))
+		)
+		(block
+			(return (pack_wrap (name "a") (name "b") (type "u8")))
+		)
+	)
+	(function
+		(type "u8<16>")
+		(name "saturating")
+		(parameters
+			(parameter (type "i16<8>") (name "a"))
+			(parameter (type "i16<8>") (name "b"))
+		)
+		(block
+			(return (pack_sat (name "a") (name "b") (type "u8")))
+		)
+	)
+	(function
+		(type "i8<16>")
+		(name "signed_pack")
+		(parameters
+			(parameter (type "i16<8>") (name "a"))
+			(parameter (type "i16<8>") (name "b"))
+		)
+		(block
+			(return (pack_sat (name "a") (name "b") (type "i8")))
+		)
+	)
+	(function
+		(type "i8<16>")
+		(name "cross_pack")
+		(parameters
+			(parameter (type "u16<8>") (name "a"))
+			(parameter (type "u16<8>") (name "b"))
+		)
+		(block
+			(return (pack_sat (name "a") (name "b") (type "i8")))
+		)
+	)
+	(function
+		(type "u8<16>")
+		(name "low")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+			(parameter (type "u8<16>") (name "b"))
+		)
+		(block
+			(return (interleave_low (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "u8<16>")
+		(name "high")
+		(parameters
+			(parameter (type "u8<16>") (name "a"))
+			(parameter (type "u8<16>") (name "b"))
+		)
+		(block
+			(return (interleave_high (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "f32<4>")
+		(name "floats")
+		(parameters
+			(parameter (type "f32<4>") (name "a"))
+			(parameter (type "f32<4>") (name "b"))
+		)
+		(block
+			(return (interleave_high (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool<8>")
+		(name "masks")
+		(parameters
+			(parameter (type "bool<8>") (name "a"))
+			(parameter (type "bool<8>") (name "b"))
+		)
+		(block
+			(return (interleave_low (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(return (integer "0"))
+		)
+	)
+)

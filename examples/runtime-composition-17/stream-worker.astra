@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace StreamCPU;
+enum WorkerStatus { Completed, Cancelled }
+async runtime Executor throws StreamError returns WorkerStatus provider "posix-threaded-composed";
+async int lane(owned Stream.Queue input, owned Stream.Queue output, owned Stream.Progress progress) throws Error {
+	try {
+		int computed = 0; bool finished = false;
+		while (!finished) {
+			if (progress.stopped()) { throw new Error("stream worker stopped"); }
+			var chunk = input.pop();
+			if (chunk == null) { if (input.finished()) { finished = true; } else { await delay_ticks(1); } }
+			else {
+				chunk.transform(); progress.computed_frame();
+				while (!output.reserve_offer()) { if (progress.stopped()) { throw new Error("stream worker stopped"); } await delay_ticks(1); }
+				if (!output.offer_reserved(move chunk)) { throw new Error("stream reserved output admission"); }
+				computed = computed + 1;
+				await delay_ticks(1);
+			}
+		}
+		return computed;
+	} catch (Error error) { progress.fail(); throw; }
+}
+async int pipeline(owned ConcurrentAllocator frames, owned Stream.Queue input, owned Stream.Queue output, owned Stream.Progress progress) throws Error {
+	var first = task_in(frames, lane(Stream.clone_queue(input), Stream.clone_queue(output), Stream.clone_progress(progress)));
+	var second = task_in(frames, lane(Stream.clone_queue(input), Stream.clone_queue(output), Stream.clone_progress(progress)));
+	try { start(first); start(second); }
+	catch (Error error) { cancel(first); cancel(second); await cancel_and_join(move first); await cancel_and_join(move second); throw; }
+	int count = 0;
+	try { count = await move first; }
+	catch (Error error) { await cancel_and_join(move second); throw; }
+	count = count + await move second;
+	return count;
+}

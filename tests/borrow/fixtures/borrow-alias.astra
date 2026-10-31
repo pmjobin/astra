@@ -1,0 +1,20 @@
+struct Pair { int x; int y; }
+
+void alias(Pair* left, Pair* right) {
+	Pair* a = left;
+	Pair* b = right;
+	a->x = 1;
+	b->x = a->x + 1;
+}
+
+int main() {
+	Pair pair = { x = 0, y = 0 };
+	Pair* a = &pair;
+	Pair* b = &pair;
+	a->x = 5;
+	b->y = b->x + 1;
+	if (pair.x != 5 || a->y != 6 || a != b) { return 1; }
+	alias(a, b);
+	if (pair.x != 2 || a->x != 2 || b->x != 2) { return 2; }
+	return 0;
+}

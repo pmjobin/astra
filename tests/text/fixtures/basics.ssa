@@ -1,0 +1,286 @@
+(ssa-program
+	(function #0 "matches" -> bool
+		(parameters
+			(%0 "text" : string (contract borrowed-noescape))
+			(%1 "expected" : string (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary == %0 %1)
+			(return %2)
+		)
+	)
+	(function #1 "default_name" -> string
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (text (bytes 5) (hex 4173747261) : string))
+		)
+	)
+	(function #2 "choose" -> string
+		(parameters
+			(%0 "choice" : bool)
+			(%1 "count" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((text (bytes 5) (hex 6669727374) : string) %1))
+		)
+		(block #1
+			(arguments
+				(%2 "result" : string)
+				(%3 "remaining" : int)
+			)
+			(%5 : bool = binary > %3 (integer 0 : int))
+			(conditional-branch %5
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(conditional-branch %0
+				(true #4 ())
+				(false #5 (%2))
+			)
+		)
+		(block #3
+			(return %2)
+		)
+		(block #4
+			(branch #5 ((text (bytes 6) (hex 7365636f6e64) : string)))
+		)
+		(block #5
+			(arguments
+				(%4 "result" : string)
+			)
+			(%6 : int = binary - %3 (integer 1 : int))
+			(branch #1 (%4 %6))
+		)
+	)
+	(function #3 "main" -> int
+		(parameters)
+		(storage #0 "dimensions" (local #1) : int[5] address-taken)
+		(entry #0)
+		(block #0
+			(%8 : string = call #1 "default_name" -> string (arguments))
+			(array-initialize (storage #0) (integer 1 : int) (integer 2 : int) (integer 3 : int) (integer 4 : int) (integer 5 : int))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #11 ())
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(%9 : bool = prefix ! (bool true : bool))
+			(conditional-branch %9
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(%10 : bool = call #0 "matches" -> bool (arguments (text (bytes 5) (hex 4173747261) : string) (text (bytes 5) (hex 4173747261) : string)))
+			(%11 : bool = prefix ! %10)
+			(branch #6 (%11))
+		)
+		(block #6
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #8 ((bool true : bool)))
+				(false #7 ())
+			)
+		)
+		(block #7
+			(%12 : int = text-byte-length (text (bytes 5) (hex 4173747261) : string))
+			(%13 : bool = binary != %12 (integer 5 : int))
+			(branch #8 (%13))
+		)
+		(block #8
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #9
+			(return (integer 2 : int))
+		)
+		(block #10
+			(branch #16 ())
+		)
+		(block #11
+			(%14 : bool = binary == (text (bytes 3) (hex 610062) : string) (text (bytes 3) (hex 610063) : string))
+			(conditional-branch %14
+				(true #13 ((bool true : bool)))
+				(false #12 ())
+			)
+		)
+		(block #12
+			(%15 : int = text-byte-length (text (bytes 3) (hex 610062) : string))
+			(%16 : bool = binary != %15 (integer 3 : int))
+			(branch #13 (%16))
+		)
+		(block #13
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #9 ())
+				(false #10 ())
+			)
+		)
+		(block #14
+			(return (integer 3 : int))
+		)
+		(block #15
+			(branch #24 ())
+		)
+		(block #16
+			(branch #17 ())
+		)
+		(block #17
+			(%17 : int = text-byte-length (text (bytes 2) (hex c3a9) : string))
+			(%18 : bool = binary != %17 (integer 2 : int))
+			(conditional-branch %18
+				(true #19 ((bool true : bool)))
+				(false #18 ())
+			)
+		)
+		(block #18
+			(%19 : int = text-byte-length (text (bytes 3) (hex 65cc81) : string))
+			(%20 : bool = binary != %19 (integer 3 : int))
+			(branch #19 (%20))
+		)
+		(block #19
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #21 ((bool true : bool)))
+				(false #20 ())
+			)
+		)
+		(block #20
+			(%21 : bool = binary == (text (bytes 2) (hex c3a9) : string) (text (bytes 3) (hex 65cc81) : string))
+			(branch #21 (%21))
+		)
+		(block #21
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #14 ())
+				(false #15 ())
+			)
+		)
+		(block #22
+			(return (integer 4 : int))
+		)
+		(block #23
+			(branch #29 ())
+		)
+		(block #24
+			(%22 : bool = call #0 "matches" -> bool (arguments (text (bytes 0) (hex ) : string) (text (bytes 0) (hex ) : string)))
+			(%23 : bool = prefix ! %22)
+			(conditional-branch %23
+				(true #26 ((bool true : bool)))
+				(false #25 ())
+			)
+		)
+		(block #25
+			(%24 : int = load (array-element-place (storage #0) (integer 1 : int) : int[5] bounds-trap))
+			(%25 : string = call #2 "choose" -> string (arguments (bool true : bool) %24))
+			(%26 : bool = binary != %25 (text (bytes 6) (hex 7365636f6e64) : string))
+			(branch #26 (%26))
+		)
+		(block #26
+			(arguments
+				(%5 (temporary #5) : bool)
+			)
+			(conditional-branch %5
+				(true #22 ())
+				(false #23 ())
+			)
+		)
+		(block #27
+			(return (integer 5 : int))
+		)
+		(block #28
+			(return (integer 0 : int))
+		)
+		(block #29
+			(branch #30 ())
+		)
+		(block #30
+			(%27 : string = call #4 "snapshot" -> string (arguments (text (bytes 5) (hex 4173747261) : string)))
+			(%28 : bool = binary != %27 (text (bytes 6) (hex 737461746963) : string))
+			(conditional-branch %28
+				(true #32 ((bool true : bool)))
+				(false #31 ())
+			)
+		)
+		(block #31
+			(%29 : string = call #5 "overwrite" -> string (arguments (text (bytes 5) (hex 4173747261) : string)))
+			(%30 : bool = binary != %29 (text (bytes 6) (hex 737461746963) : string))
+			(branch #32 (%30))
+		)
+		(block #32
+			(arguments
+				(%6 (temporary #6) : bool)
+			)
+			(conditional-branch %6
+				(true #34 ((bool true : bool)))
+				(false #33 ())
+			)
+		)
+		(block #33
+			(%31 : string = call #6 "astra.gen.0.0" -> string (arguments (integer 2 : int)))
+			(%32 : bool = binary != %31 (text (bytes 5) (hex 4173747261) : string))
+			(branch #34 (%32))
+		)
+		(block #34
+			(arguments
+				(%7 (temporary #7) : bool)
+			)
+			(conditional-branch %7
+				(true #27 ())
+				(false #28 ())
+			)
+		)
+	)
+	(function #4 "snapshot" -> string
+		(parameters
+			(%0 "input" : string (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(return (text (bytes 6) (hex 737461746963) : string))
+		)
+	)
+	(function #5 "overwrite" -> string
+		(parameters
+			(%0 "input" : string (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(return (text (bytes 6) (hex 737461746963) : string))
+		)
+	)
+	(function #6 "astra.gen.0.0" -> string
+		(parameters
+			(%0 "ignored" : int)
+		)
+		(entry #0)
+		(block #0
+			(return (text (bytes 5) (hex 4173747261) : string))
+		)
+	)
+)

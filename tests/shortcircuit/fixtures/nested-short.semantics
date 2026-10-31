@@ -1,0 +1,54 @@
+(program
+	(function "and_chain" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(block
+			(return (short-circuit && : bool (short-circuit && : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)) (parameter-ref #2 "c" : bool)))
+		)
+	)
+	(function "or_chain" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(block
+			(return (short-circuit || : bool (short-circuit || : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)) (parameter-ref #2 "c" : bool)))
+		)
+	)
+	(function "and_or" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(block
+			(return (short-circuit && : bool (parameter-ref #0 "a" : bool) (short-circuit || : bool (parameter-ref #1 "b" : bool) (parameter-ref #2 "c" : bool))))
+		)
+	)
+	(function "or_and" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(block
+			(return (short-circuit || : bool (parameter-ref #0 "a" : bool) (short-circuit && : bool (parameter-ref #1 "b" : bool) (parameter-ref #2 "c" : bool))))
+		)
+	)
+	(function "precedence" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+			(parameter #3 "d" : bool)
+			(parameter #4 "e" : bool)
+		)
+		(block
+			(return (short-circuit || : bool (short-circuit && : bool (binary == : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)) (binary != : bool (parameter-ref #2 "c" : bool) (parameter-ref #3 "d" : bool))) (parameter-ref #4 "e" : bool)))
+		)
+	)
+)

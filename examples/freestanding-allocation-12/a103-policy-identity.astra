@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void policy_event(int stage, int value);
+extern(C) int policy_probe(int phase);
+
+export(C) int a103_place(int bytes, int alignment, int next, int capacity) {
+	if (alignment != 256 || bytes != 4 || next + bytes > capacity) { return -1; }
+	policy_event(1, next);
+	return next;
+}
+export(C) void a103_released(int offset, int bytes) {
+	if (bytes != 4) { policy_event(99, bytes); }
+	policy_event(2, offset);
+}
+
+[Allocator(kind="custom", domain="a103.custom", capacity="1024", blocks="8", allocate="a103_place", release="a103_released")]
+[Align(bytes="256")]
+class Placed {
+	int value;
+	init(int value) { this.value = value; policy_event(10, value); }
+	deinit() { policy_event(11, this.value); }
+}
+
+[Allocator(kind="heap", domain="a103.heap")]
+[Align(bytes="128")]
+class HeapValue {
+	int value;
+	init(int value) { this.value = value; policy_event(20, value); }
+	deinit() { policy_event(21, this.value); }
+}
+
+[Allocator(kind="static", domain="a103.static", capacity="64")]
+class Singleton {
+	int value;
+	init(int value) { this.value = value; policy_event(30, value); }
+	deinit() { policy_event(31, this.value); }
+}
+
+int main() {
+	{
+		var first = new Placed(7);
+		var second = new Placed(8);
+		var heap = new HeapValue(9);
+		HeapValue caller = HeapValue.init(10);
+		var singleton = try_new Singleton(11);
+		var exhausted = try_new Singleton(12);
+		if (exhausted != null || singleton == null || policy_probe(1) != 1) { return 81; }
+		release singleton;
+		var reused = try_new Singleton(13);
+		if (reused == null || first.value + second.value + heap.value + caller.value + reused.value != 47) { return 82; }
+	}
+	if (policy_probe(2) != 1) { return 83; }
+	return 42;
+}

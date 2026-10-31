@@ -1,0 +1,25 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { life_record(this.code, 0); }
+}
+void dispose<T>(owned T value) where T : Ownable {}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+U evaluate<U>(U value) { life_record(86, 0); return value; }
+U keep<T,U>(owned T owner, U value) where T : Ownable { return evaluate<U>(value); }
+U calculate<T,U>(owned T owner, U a, U b, U c) where T : Ownable where U : Numeric { return evaluate<U>(a * b + c); }
+int main() {
+	owned Counter a = Counter.init(65);
+	int i = keep<Counter,int>(move a, 42); life_record(83, 0);
+	owned Resource b = create_resource(66);
+	f64 f = keep<Resource,f64>(move b, -0.0); life_record(83, 0);
+	owned Counter c = Counter.init(67);
+	i16<8> lanes = {1, 2, 3, 4, 5, 6, 7, 8};
+	i16<8> v = keep<Counter,i16<8>>(move c, lanes); life_record(83, 0);
+	owned Resource d = create_resource(68);
+	f64 exact = calculate<Resource,f64>(move d, 1.000000007450580596923828125, 0.999999992549419403076171875, -1.0); life_record(83, 0);
+	if (i != 42 || f != 0.0 || exact != 0.0 || !all(v == lanes)) { return 1; }
+	return 42;
+}

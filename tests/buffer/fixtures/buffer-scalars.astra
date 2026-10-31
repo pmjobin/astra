@@ -1,0 +1,14 @@
+int main() {
+	owned f32[] small = new f32[3];
+	owned f64[] large = new f64[3];
+	owned bool[] flags = new bool[3];
+	owned void*[] pointers = new void*[3];
+	int i = 0;
+	while (i < 3) {
+		if (f32_zero(small[i]) != 1 || f64_zero(large[i]) != 1 || flags[i] || pointers[i] != null) { return 1; }
+		i = i + 1;
+	}
+	small[2] = 1.5; large[2] = 2.5; flags[2] = true; pointers[2] = pointer();
+	if (small[2] != 1.5 || large[2] != 2.5 || !flags[2] || pointers[2] != pointer()) { return 2; }
+	return 0;
+}

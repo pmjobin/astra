@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void manual_observed(int stage);
+async void pending() throws Error { await delay_ms(5); manual_observed(1); }
+export(C) int run_program() {
+	try {
+		var executor = LinuxExecutor.open(1);
+		var root = pending();
+		executor.start(root);
+		try {
+			executor.wait();
+			manual_observed(2);
+			executor.pump(1);
+			executor.wait();
+			manual_observed(3);
+			executor.pump(1);
+		} catch (Error error) {
+			executor.cancel(root);
+			var cancelled = executor.run(move root);
+			throw;
+		}
+		var status = executor.run(move root);
+		match (status) { case RunStatus.Completed(): { return 42; } else: { return 80; } }
+	} catch (Error error) { return 81; }
+}
+int main() { return run_program(); }

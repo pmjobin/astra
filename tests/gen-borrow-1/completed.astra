@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int combine(int first, int second) { return first + second; }
+int take<T>(owned T value) where T: Ownable { return 0; }
+int main() {
+	observe_begin(1, 0);
+	owned R value = create_r(1);
+	// The first nested call returns a copied scalar and finishes its loan
+	// before the second argument transfers the owner.
+	combine(leaf<R>(value, 66), take<R>(move value));
+	return observe_end();
+}

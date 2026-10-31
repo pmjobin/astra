@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct InspectedData {
+	owned R guard;
+	owned int[] samples;
+	int stamp;
+}
+struct MapObservation { int length; int first; int stamp; }
+bool same_inspected_key(int first, int second) { return first == second; }
+MapObservation observe_map_value(borrowed Box<InspectedData> value) {
+	MapObservation result = {
+		length = len(value.view.samples),
+		first = value.view.samples[0],
+		stamp = value.view.stamp
+	};
+	return result;
+}
+int exercise_map_inspection() {
+	var values = new Map<int, Box<InspectedData>>(same_inspected_key);
+	var guard = make(31);
+	var samples = new int[3];
+	samples[0] = 71;
+	InspectedData data = {guard = move guard, samples = move samples, stamp = 42};
+	var value = new Box<InspectedData>(move data);
+	if (!values.put(1, move value)) { return 1; }
+	MapObservation missing = {length = -1, first = -1, stamp = -1};
+	var absent = values.lookup<MapObservation>(2, observe_map_value, missing);
+	if (absent.length != -1 || values.count != 1 || values.revision != 1) { return 2; }
+	var result = values.lookup<MapObservation>(1, observe_map_value, missing);
+	if (result.length != 3 || result.first != 71 || result.stamp != 42) { return 3; }
+	var repeated = values.lookup<MapObservation>(1, observe_map_value, missing);
+	if (repeated.stamp != 42 || values.count != 1 || values.revision != 1) { return 4; }
+	var cache = new Cache<int, Box<InspectedData>>(same_inspected_key);
+	var cached_guard = make(32);
+	var cached_samples = new int[2];
+	cached_samples[0] = 81;
+	InspectedData cached_data = {guard = move cached_guard, samples = move cached_samples, stamp = 52};
+	var cached = new Box<InspectedData>(move cached_data);
+	if (!cache.put(3, move cached)) { return 5; }
+	var cached_result = cache.lookup<MapObservation>(3, observe_map_value, missing);
+	var cached_missing = cache.lookup<MapObservation>(4, observe_map_value, missing);
+	if (cached_result.length != 2 || cached_result.first != 81 || cached_result.stamp != 52 || cached_missing.stamp != -1) { return 6; }
+	if (cache.hit_count != 1 || cache.miss_count != 1 || cache.revision != 1 || cache.count != 1) { return 7; }
+	var extracted = cache.remove(3);
+	if (extracted == null || cache.count != 0 || cache.revision != 2) { return 8; }
+	var retained = observe_map_value(extracted.view);
+	if (retained.stamp != 52 || values.lookup<MapObservation>(1, observe_map_value, missing).stamp != 42) { return 9; }
+	return 0;
+}
+int main() {
+	int result = exercise_map_inspection();
+	if (result != 0) { return result; }
+	return live();
+}

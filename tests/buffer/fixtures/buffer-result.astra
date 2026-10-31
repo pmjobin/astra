@@ -1,0 +1,4 @@
+owned f64[] make(int count) { return new f64[count]; }
+owned f64[] forward(int count) { return make(count); }
+owned f64[] relay(owned f64[] values) { return move values; }
+int main() { owned f64[] a = forward(5); owned f64[] b = relay(move a); if (len(b) != 5 || b[4] != 0.0) { return 1; } return 0; }

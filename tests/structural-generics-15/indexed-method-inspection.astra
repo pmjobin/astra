@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class InspectedItem {
+	int code;
+	init(int code) { this.code = code; }
+}
+
+class InspectionStore {
+	owned InspectedItem[slots] values;
+	int marker;
+	init() {
+		this.values = new InspectedItem[slots];
+		this.marker = 7;
+	}
+	bool inspect(borrowed InspectedItem item, int expected) {
+		if (this.marker == 7) { return item.code == expected; }
+		return false;
+	}
+	bool query(int index, int expected) {
+		return this.inspect(this.values[index], expected);
+	}
+}
+
+int main() {
+	var store = new InspectionStore();
+	if (!store.values.reserve(2)) { return 1; }
+	var first = new InspectedItem(41);
+	var second = new InspectedItem(42);
+	store.values.append(move first);
+	store.values.append(move second);
+	if (!store.query(0, 41) || !store.query(1, 42) || store.query(1, 41)) { return 2; }
+	return 0;
+}

@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit hosted profile: open(1..8 workers), 256 live task registrations.
+class ThreadedError : Error {
+	init(string message) : base(message) {}
+}
+enum ThreadedStatus {
+	Completed,
+	Cancelled
+}
+async runtime ThreadedExecutor throws ThreadedError returns ThreadedStatus provider "posix-threaded";

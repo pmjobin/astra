@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	try {
+		var builder = new Utf8ByteBuilder();
+		u8[1] first = {195}; u8[1] second = {169};
+		if (!builder.reserve(2) || !builder.append_bytes(slice(first))) { return 81; }
+		try { var invalid = builder.snapshot(); return 82; }
+		catch (InvalidUtf8 error) { if (error.message != "invalid UTF-8" || builder.byte_count() != 1) { return 83; } }
+		if (!builder.append_bytes(slice(second))) { return 84; }
+		var one = builder.snapshot(); var two = builder.snapshot();
+		if (one == two || one.text != "é" || two.text != "é") { return 85; }
+		if (!builder.reserve(3) || builder.capacity() != 3) { return 86; }
+		release builder;
+		if (one.text != "é" || one.text.byte_length != 2 || two.text != "é") { return 87; }
+	} catch (InvalidUtf8 error) { return 88; }
+	return 0;
+}

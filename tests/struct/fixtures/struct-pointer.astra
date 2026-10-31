@@ -1,0 +1,35 @@
+extern(C) void* astra_test_handle_a();
+extern(C) void* astra_test_handle_b();
+extern(C) int astra_test_is_handle_a(void* p);
+extern(C) int astra_test_is_handle_b(void* p);
+extern(C) int astra_test_guarded_handle_a(void* p);
+extern(C) int astra_test_predicate_calls();
+struct HandleState { void* handle; bool valid; }
+
+bool choose_handle(bool c) {
+	HandleState state = { handle = null, valid = false };
+	if (c) { state.handle = astra_test_handle_a(); state.valid = true; }
+	else { state.handle = astra_test_handle_b(); state.valid = false; }
+	if (state.valid) { return astra_test_is_handle_a(state.handle) != 0; }
+	return astra_test_is_handle_b(state.handle) != 0;
+}
+
+int main() {
+	if (!choose_handle(true) || !choose_handle(false)) { return 1; }
+	HandleState empty = { handle = null, valid = false };
+	HandleState state = { valid = empty.handle != null && astra_test_guarded_handle_a(empty.handle) != 0, handle = astra_test_handle_a() };
+	if (state.valid || astra_test_predicate_calls() != 0) { return 2; }
+	state.valid = state.handle != null && astra_test_guarded_handle_a(state.handle) != 0;
+	if (!state.valid || astra_test_predicate_calls() != 1) { return 3; }
+	void* original = state.handle;
+	int i = 0;
+	while (i < 4) {
+		i = i + 1;
+		if (i == 2) { state.handle = null; state.valid = false; continue; }
+		state.handle = original;
+		state.valid = state.handle != null && astra_test_guarded_handle_a(state.handle) != 0;
+		if (i == 3) { break; }
+	}
+	if (state.handle != original || !state.valid || astra_test_predicate_calls() != 3) { return 4; }
+	return 0;
+}

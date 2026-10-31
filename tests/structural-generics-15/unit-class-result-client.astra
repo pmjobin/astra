@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int> consumer_result(int ticket) {
+	NativeClassResults.Seed<int,bool> seed = {value = ticket, ready = true};
+	var value = new NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int>(seed, ticket + 1, ticket);
+	return move value;
+}
+int observe(borrowed NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int> value) {
+	NativeClassResults.Seed<int,bool> seed = value.state;
+	if (!seed.ready) { return 0; }
+	return seed.value + value.additional + value.sample();
+}
+int exercise() {
+	Fn<owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int>,int> code = ClassResultTransport.callback();
+	var first = code(211);
+	var second = ClassResultTransport.apply(code, 212);
+	var third = ClassResultTransport.apply(consumer_result, 213);
+	var fourth = ClassResultTransport.direct(214);
+	if (observe(first) != 644 || observe(second) != 647 || observe(third) != 650 || observe(fourth) != 653) { return 1; }
+	return 0;
+}
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

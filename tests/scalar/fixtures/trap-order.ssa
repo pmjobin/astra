@@ -1,0 +1,74 @@
+(ssa-program
+	(function #0 "effect" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (integer 1 : int))
+		)
+	)
+	(function #1 "pair" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary + %0 %1)
+			(return %2)
+		)
+	)
+	(function #2 "before" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary / %0 %1)
+			(%3 : int = call #0 "effect" -> int (arguments))
+			(%4 : int = binary + %2 %3)
+			(return %4)
+		)
+	)
+	(function #3 "argument" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary % %0 %1)
+			(%3 : int = call #0 "effect" -> int (arguments))
+			(%4 : int = call #1 "pair" -> int (arguments %2 %3))
+			(return %4)
+		)
+	)
+	(function #4 "nested" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary / %0 %1)
+			(%3 : int = binary % %0 %1)
+			(%4 : int = call #0 "effect" -> int (arguments))
+			(%5 : int = binary + %3 %4)
+			(%6 : int = call #1 "pair" -> int (arguments %2 %5))
+			(return %6)
+		)
+	)
+	(function #5 "after" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = call #0 "effect" -> int (arguments))
+			(%3 : int = binary / %0 %1)
+			(%4 : int = binary + %2 %3)
+			(return %4)
+		)
+	)
+)

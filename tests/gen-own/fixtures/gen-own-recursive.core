@@ -1,0 +1,370 @@
+(core-program
+	(handle-type #0 "Resource" (cleanup #0)
+	)
+	(handle-type #1 "Token" (cleanup #0)
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+	)
+	(cleanup #0 (symbol "life_destroy") (signature void (void*)))
+	(cleanup #1 (domain object) (class #0) exact-destructor)
+	(ownership-contract #2 : T (requires Ownable))
+	(ownership-contract #3 : T (requires Ownable))
+	(ownership-contract #4 : T (requires Ownable))
+	(ownership-contract #5 : T (requires Ownable))
+	(ownership-contract #6 : T (requires Ownable))
+	(ownership-contract #7 : T (requires Ownable))
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(extern-function #1 "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Token))
+	(extern-function #3 "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(generic-definition #0 "dispose")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "dispose" -> void
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #2) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #2))
+		)
+	)
+	(generic-definition #1 "relay")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "relay" -> T
+		(result T (contract owned-transfer) (cleanup #3))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #3) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #3))
+			(ownership-return (move owner #0) : T (cleanup #3))
+		)
+	)
+	(generic-definition #2 "forward")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "forward" -> T
+		(result T (contract owned-transfer) (cleanup #4))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #4) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #4))
+			(ownership-return
+				(generic-call "relay" -> T
+					(type-arguments T)
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #0) : T (cleanup #4))
+					)
+				)
+			)
+		)
+	)
+	(generic-definition #3 "recurse")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "recurse" -> T
+		(result T (contract owned-transfer) (cleanup #5))
+		(parameters
+			(parameter #0 "count" : int)
+			(parameter #1 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #1 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #5) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #1 (owner #0) (cleanup #5))
+			(if
+				(condition
+					(binary == : bool
+						(parameter #0 : int)
+						(integer 0 : int)
+					)
+				)
+				(then
+					(block
+						(ownership-return (move owner #0) : T (cleanup #5))
+					)
+				)
+			)
+			(ownership-return
+				(generic-call "recurse" -> T
+					(type-arguments T)
+					(arguments
+						(binary - : int
+							(parameter #0 : int)
+							(integer 1 : int)
+						)
+						(owned-transfer-argument (parameter #1) (move owner #0) : T (cleanup #5))
+					)
+				)
+			)
+		)
+	)
+	(generic-definition #4 "left")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "left" -> T
+		(result T (contract owned-transfer) (cleanup #6))
+		(parameters
+			(parameter #0 "count" : int)
+			(parameter #1 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #1 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #6) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #1 (owner #0) (cleanup #6))
+			(if
+				(condition
+					(binary == : bool
+						(parameter #0 : int)
+						(integer 0 : int)
+					)
+				)
+				(then
+					(block
+						(ownership-return (move owner #0) : T (cleanup #6))
+					)
+				)
+			)
+			(ownership-return
+				(generic-call "right" -> T
+					(type-arguments T)
+					(arguments
+						(binary - : int
+							(parameter #0 : int)
+							(integer 1 : int)
+						)
+						(owned-transfer-argument (parameter #1) (move owner #0) : T (cleanup #6))
+					)
+				)
+			)
+		)
+	)
+	(generic-definition #5 "right")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "right" -> T
+		(result T (contract owned-transfer) (cleanup #7))
+		(parameters
+			(parameter #0 "count" : int)
+			(parameter #1 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #1 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #7) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #1 (owner #0) (cleanup #7))
+			(ownership-return
+				(generic-call "left" -> T
+					(type-arguments T)
+					(arguments
+						(parameter #0 : int)
+						(owned-transfer-argument (parameter #1) (move owner #0) : T (cleanup #7))
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(candidate-storage #1 (class #0) unused-until-owned-result)
+		(candidate-storage #2 (class #0) unused-until-owned-result)
+		(object-cleanup (storage #0) transferable-owner null-disarm)
+		(parameters)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(owned-local (local-place #1) (cleanup #0) lexical-block)
+		(owned-local (local-place #2) (cleanup #0) lexical-block)
+		(ownership (owner #3) transferable-object (storage #0))
+		(owned-local (local-place #3) (cleanup #1) lexical-block)
+		(ownership (owner #4) transferable-object nullable-result)
+		(owned-local (local-place #4) (cleanup #1) lexical-block)
+		(ownership (owner #5) transferable-object nullable-result)
+		(owned-local (local-place #5) (cleanup #1) lexical-block)
+		(locals
+			(local-place #0 "a" : Resource)
+			(local-place #1 "b" : Resource)
+			(local-place #2 "c" : Resource)
+			(local-place #3 "d" : Counter)
+			(local-place #4 "e" : Counter)
+			(local-place #5 "f" : Counter)
+		)
+		(block
+			(owned-initialize (cleanup #0)
+				(local-place #0 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 65 : int)
+					)
+				)
+			)
+			(owned-initialize (cleanup #0)
+				(local-place #1 : Resource)
+				(generic-call "recurse" -> Resource
+					(type-arguments Resource)
+					(arguments
+						(integer 5 : int)
+						(owned-transfer-argument (parameter #1) (move owner #0) : Resource (cleanup #0))
+					)
+				)
+			)
+			(owned-initialize (cleanup #0)
+				(local-place #2 : Resource)
+				(generic-call "left" -> Resource
+					(type-arguments Resource)
+					(arguments
+						(integer 4 : int)
+						(owned-transfer-argument (parameter #1) (move owner #1) : Resource (cleanup #0))
+					)
+				)
+			)
+			(construct (storage #0) (constructor class #0) (ref-local #3)
+				(integer 66 : int)
+			)
+			(owned-initialize (cleanup #1)
+				(local-place #4 : Counter)
+				(candidate-storage #1)
+				(generic-call "recurse" -> Counter
+					(type-arguments Counter)
+					(arguments
+						(integer 5 : int)
+						(owned-transfer-argument (parameter #1) (move owner #3) : Counter (cleanup #1))
+					)
+				)
+			)
+			(owned-initialize (cleanup #1)
+				(local-place #5 : Counter)
+				(candidate-storage #2)
+				(generic-call "left" -> Counter
+					(type-arguments Counter)
+					(arguments
+						(integer 4 : int)
+						(owned-transfer-argument (parameter #1) (move owner #4) : Counter (cleanup #1))
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(c-call "resource_id" -> int
+								(arguments
+									(borrow-owner #2 "c" : Resource)
+								)
+							)
+							(integer 65 : int)
+						)
+						(binary != : bool
+							(load : int
+								(object-field-place null-traps : int
+									(load : Counter
+										(local-place #5 : Counter)
+									)
+									(field #0 "code")
+								)
+							)
+							(integer 66 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(generic-call-statement "dispose" -> void
+				(type-arguments Resource)
+				(arguments
+					(owned-transfer-argument (parameter #0) (move owner #2) : Resource (cleanup #0))
+				)
+			)
+			(generic-call-statement "dispose" -> void
+				(type-arguments Counter)
+				(arguments
+					(owned-transfer-argument (parameter #0) (move owner #5) : Counter (cleanup #1))
+				)
+			)
+			(return
+				(integer 42 : int)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "code" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "code")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "code")
+						)
+					)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+)

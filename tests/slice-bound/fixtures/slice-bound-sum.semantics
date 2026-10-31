@@ -1,0 +1,55 @@
+(program
+	(function "sum" -> int
+		(parameters
+			(parameter #0 "values" : int[] (contract borrowed-noescape))
+		)
+		(locals
+			(local #0 "result" : int)
+			(local #1 "i" : int)
+		)
+		(block
+			(local-init #0 "result" : int (integer 0 : int))
+			(local-init #1 "i" : int (integer 0 : int))
+			(while #0
+				(condition (binary < : bool (local-ref #1 "i" : int) (slice-length (parameter-ref #0 "values" : int[]) : int)))
+				(body
+					(block
+						(assign (local-ref #0 "result" : int) (binary + : int (local-ref #0 "result" : int) (load (slice-element-place : int (slice (parameter-ref #0 "values" : int[])) (index (local-ref #1 "i" : int)) runtime-bounds-trap))))
+						(assign (local-ref #1 "i" : int) (binary + : int (local-ref #1 "i" : int) (integer 1 : int)))
+					)
+				)
+			)
+			(return (local-ref #0 "result" : int))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : int[4])
+			(local #1 "b" : int[8])
+			(local #2 "sa" : int)
+			(local #3 "sb" : int)
+		)
+		(block
+			(array-initialize #0 int[4]
+				(integer 1 : int)
+				(integer 2 : int)
+				(integer 3 : int)
+				(integer 4 : int)
+			)
+			(array-initialize #1 int[8]
+				(integer 1 : int)
+				(integer 2 : int)
+				(integer 3 : int)
+				(integer 4 : int)
+				(integer 5 : int)
+				(integer 6 : int)
+				(integer 7 : int)
+				(integer 8 : int)
+			)
+			(local-init #2 "sa" : int (call "sum" -> int (arguments (slice-from-array (array #0 "a" : int[4]) full (region #0) : int[]))))
+			(local-init #3 "sb" : int (call "sum" -> int (arguments (slice-from-array (array #1 "b" : int[8]) full (region #0) : int[]))))
+			(return (binary + : int (local-ref #2 "sa" : int) (local-ref #3 "sb" : int)))
+		)
+	)
+)

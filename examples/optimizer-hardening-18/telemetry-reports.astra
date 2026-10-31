@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct WindowSummary18 {
+	int sequence;
+	int count;
+	f64 energy;
+	bool failed;
+}
+extern(C) int telemetry18_summary(int sequence, int count, f64 energy, int failed);
+
+bool telemetry18_save(Vector<WindowSummary18> reports, int sequence, int count, f64 energy, bool failed) {
+	WindowSummary18 summary = {sequence = sequence, count = count, energy = energy, failed = failed};
+	return reports.append(summary);
+}
+int telemetry18_drain(Vector<WindowSummary18> reports) {
+	while (reports.count() != 0) {
+		var summary = reports.take(reports.count() - 1);
+		int failed = 0;
+		if (summary.failed) { failed = 1; }
+		if (telemetry18_summary(summary.sequence, summary.count, summary.energy, failed) != 0) { return 1; }
+	}
+	return 0;
+}

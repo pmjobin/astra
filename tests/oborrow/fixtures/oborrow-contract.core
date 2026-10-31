@@ -1,0 +1,58 @@
+(core-program
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(extern-function #0 "create" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result void*))
+	(extern-function #1 "inspect" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 : void* (contract borrowed-noescape))
+		)
+		(result int))
+	(function "native" -> int
+		(parameters
+			(parameter #0 "p" : void* (contract borrowed-noescape))
+		)
+		(block
+			(return
+				(c-call "inspect" -> int
+					(arguments
+						(parameter #0 : void*)
+					)
+				)
+			)
+		)
+	)
+	(function "f" -> void
+		(parameters)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(owned-local (local-place #1) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "h" : void*)
+			(local-place #1 "next" : void*)
+		)
+		(block
+			(owned-initialize (cleanup #0)
+				(local-place #0 : void*)
+				(c-call "create" -> void*
+					(arguments
+						(integer 1 : int)
+					)
+				)
+			)
+			(call-statement "native" -> int
+				(arguments
+					(borrow-owner #0 "h" : void*)
+				)
+			)
+			(ownership-transfer (source owner #0 "h") (destination owner #1 "next") (cleanup #0))
+			(c-call-statement "inspect" -> int
+				(arguments
+					(borrow-owner #1 "next" : void*)
+				)
+			)
+		)
+	)
+)

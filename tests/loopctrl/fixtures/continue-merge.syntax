@@ -1,0 +1,32 @@
+(unit
+	(function
+		(type "int")
+		(name "continue_merge")
+		(parameters
+			(parameter (type "int") (name "n"))
+		)
+		(block
+			(local (type "int") (name "i") (integer "0"))
+			(local (type "int") (name "x") (integer "0"))
+			(while
+				(condition (binary "<" (name "i") (name "n")))
+				(body
+					(block
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+						(if
+							(condition (binary "==" (name "i") (integer "2")))
+							(then
+								(block
+									(assign (name "x") (integer "10"))
+									(continue)
+								)
+							)
+						)
+						(assign (name "x") (integer "20"))
+					)
+				)
+			)
+			(return (name "x"))
+		)
+	)
+)

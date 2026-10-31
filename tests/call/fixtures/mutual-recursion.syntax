@@ -1,0 +1,46 @@
+(unit
+	(function
+		(type "int")
+		(name "first")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(if
+				(condition (binary "==" (name "x") (integer "0")))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+				(else
+					(block
+						(return (call "second" (arguments (binary "-" (name "x") (integer "1")))))
+					)
+				)
+			)
+		)
+	)
+	(function
+		(type "int")
+		(name "second")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(if
+				(condition (binary "==" (name "x") (integer "0")))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+				(else
+					(block
+						(return (call "first" (arguments (binary "-" (name "x") (integer "1")))))
+					)
+				)
+			)
+		)
+	)
+)

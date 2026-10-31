@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Kernel {
+	int left;
+	int right;
+	f64 weight;
+}
+int main() {
+	var kernels = new Kernel[4];
+	kernels[0].left = 1;
+	kernels[0].right = 3;
+	kernels[0].weight = 0.5d;
+	var saved = kernels[0];
+	kernels[1] = saved;
+	kernels[0].weight = 1.0d;
+	assert_that(saved.weight == 0.5d);
+	assert_that(kernels[1].weight == 0.5d);
+	return 0;
+}

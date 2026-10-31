@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+HeaderResult validate_header(int magic, int version, int size) {
+	if (magic != 42) { return HeaderResult.Failed(LoadError.Decode(DecodeError.BadMagic())); }
+	if (version != 7) { return HeaderResult.Failed(LoadError.Decode(DecodeError.UnsupportedVersion(version))); }
+	if (size < 4) { return HeaderResult.Failed(LoadError.Decode(DecodeError.TooShort(size))); }
+	Header header = { version = version, size = size };
+	return HeaderResult.Ready(header);
+}

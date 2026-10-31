@@ -1,0 +1,533 @@
+extern(C) int cad_begin(int argc, void* argv);
+extern(C) int cad_option(int which);
+extern(C) f64 cad_epsilon();
+extern(C) f64 cad_input(int index);
+extern(C) void cad_pairs_begin(int iteration);
+extern(C) void cad_pair(int kernel, int pixel, f64 weight, f64 gamma);
+extern(C) void cad_log_pair(int kernel, int pixel, f64 log_weight);
+extern(C) void cad_pairs_end();
+extern(C) void cad_stats(int iteration, f64 mu, f64 cov, f64 color, f64 sigma, int locality, int orientation, f64 error, int underflow, int inactive);
+extern(C) void cad_corrections_begin();
+extern(C) void cad_corrections_end();
+extern(C) void cad_inactive(int locality, int orientation);
+extern(C) void cad_extrema(f64 sigma, f64 qmin, f64 qmax);
+extern(C) void cad_correction(int k, int n, int dx, int dy, int type, f64 value, f64 threshold, int detected, int updated, f64 sk, f64 sn, f64 ak, f64 an, f64 strength, f64 edge_threshold, f64 gx, f64 gy, f64 dw, f64 dg, f64 dm, int wc, int gc, int mc, f64 dlw, int lc);
+
+
+struct Kernel { f64 mx; f64 my; f64 xx; f64 xy; f64 yy; f64 l; f64 a; f64 b; f64 sigma; }
+struct Support { int x0; int y0; int x1; int y1; int start; }
+struct Range { f64 low; f64 high; }
+class Context {
+	int wi; int hi; int wo; int ho; int count; int pairs;
+	f64 rx; f64 ry;
+	// Reverse declaration order retains the original normal state cleanup order.
+	owned f64[] check; owned f64[] psum; owned f64[] pmax;
+	owned f64[] gamma; owned f64[] weights; owned f64[] logw;
+	owned Range[] ranges; owned Lab[] colors; owned Support[] supports;
+	owned Vec2[] means; owned Kernel[] next; owned Kernel[] state;
+	int underflow; int locality; int orientation; int inactive;
+	f64 normalization;
+	init(int wi, int hi, int wo, int ho) {
+		this.wi = wi; this.hi = hi; this.wo = wo; this.ho = ho;
+		int count = wo * ho; int pixels = wi * hi;
+		this.count = count; this.pairs = 0;
+		this.rx = cad_number(wi) / cad_number(wo); this.ry = cad_number(hi) / cad_number(ho);
+		this.state = new Kernel[count] else cad_fail(3, cad_number(count * 9));
+		this.next = new Kernel[count] else cad_fail(3, cad_number(count * 9));
+		this.supports = new Support[count] else cad_fail(3, cad_number(count * 5));
+		this.means = new Vec2[count] else cad_fail(3, cad_number(count * 2));
+		this.colors = new Lab[pixels] else cad_fail(3, cad_number(pixels * 3));
+		this.pmax = new f64[pixels] else cad_fail(3, cad_number(pixels));
+		this.psum = new f64[pixels] else cad_fail(3, cad_number(pixels));
+		this.check = new f64[pixels] else cad_fail(3, cad_number(pixels));
+		this.ranges = new Range[3] else cad_fail(3, 6.0);
+		// Canonical empty owner slots perform no allocator request.
+		this.logw = new f64[0]; this.weights = new f64[0]; this.gamma = new f64[0];
+		this.underflow = 0; this.locality = 0; this.orientation = 0; this.inactive = 0; this.normalization = 0.0;
+	}
+}
+Kernel load_kernel(Kernel[] data, int index) { return data[index]; }
+Support load_support(Context c, int index) { return c.supports[index]; }
+f64 kernel_component(Kernel value, int component) {
+	if (component == 0) { return value.mx; }
+	if (component == 1) { return value.my; }
+	if (component == 2) { return value.xx; }
+	if (component == 3) { return value.xy; }
+	if (component == 4) { return value.yy; }
+	if (component == 5) { return value.l; }
+	if (component == 6) { return value.a; }
+	if (component == 7) { return value.b; }
+	if (component == 8) { return value.sigma; }
+
+	cad_fail(4, cad_number(component)); return 0.0;
+}
+f64 lab_component(Lab value, int component) {
+	if (component == 0) { return value.l; }
+	if (component == 1) { return value.a; }
+	return value.b;
+}
+int support_index(Support s, int x, int y) { return s.start + (y - s.y0) * (s.x1 - s.x0) + x - s.x0; }
+int neighbor(Context c, int k, int dx, int dy) {
+	int x = k % c.wo + dx; int y = k / c.wo + dy;
+	if (x < 0 || y < 0 || x >= c.wo || y >= c.ho) { return -1; }
+	return y * c.wo + x;
+}
+void initialize(Context c) {
+	int pixels = c.wi * c.hi;
+	Lab lab = {l = 0.0, a = 0.0, b = 0.0};
+	int i = 0;
+	while (i < pixels) {
+		lab = rgb_to_lab(cad_input(3 * i), cad_input(3 * i + 1), cad_input(3 * i + 2));
+		c.colors[i].l = lab.l; c.colors[i].a = lab.a; c.colors[i].b = lab.b;
+		int component = 0;
+		while (component < 3) {
+			f64 value = lab_component(c.colors[i], component);
+			if (i == 0) { c.ranges[component].low = value; c.ranges[component].high = value; }
+			else { c.ranges[component].low = minimum(c.ranges[component].low, value); c.ranges[component].high = maximum(c.ranges[component].high, value); }
+			component = component + 1;
+		}
+		i = i + 1;
+	}
+	int k = 0; int pairs = 0;
+	while (k < c.count) {
+		f64 gx = cad_number(k % c.wo) + 0.5; f64 gy = cad_number(k / c.wo) + 0.5;
+		Kernel kernel = {mx = gx, my = gy, xx = 1.0 / (3.0 * c.rx), xy = 0.0, yy = 1.0 / (3.0 * c.ry), l = 0.5, a = 0.5, b = 0.5, sigma = 1e-4};
+		c.state[k] = kernel;
+		// Exact integer inequalities avoid changing strict support membership
+		// when a fractional scale places a sample exactly on the boundary.
+		int x0 = int_max(0, floor_ratio((2 * (k % c.wo) - 3) * c.wi - c.wo, 2 * c.wo) + 1);
+		int y0 = int_max(0, floor_ratio((2 * (k / c.wo) - 3) * c.hi - c.ho, 2 * c.ho) + 1);
+		int x1 = int_min(c.wi, ceil_ratio((2 * (k % c.wo) + 5) * c.wi - c.wo, 2 * c.wo));
+		int y1 = int_min(c.hi, ceil_ratio((2 * (k / c.wo) + 5) * c.hi - c.ho, 2 * c.ho));
+		Support support = {x0=x0,y0=y0,x1=x1,y1=y1,start=pairs}; c.supports[k] = support;
+		int size = (x1 - x0) * (y1 - y0);
+		require(size > 0 && pairs <= 67108864 - size, 20, cad_number(pairs));
+		pairs = pairs + size; k = k + 1;
+	}
+	c.pairs = pairs;
+	c.logw = new f64[pairs] else cad_fail(3, cad_number(pairs)); c.weights = new f64[pairs] else cad_fail(3, cad_number(pairs)); c.gamma = new f64[pairs] else cad_fail(3, cad_number(pairs));
+	cad_colors(c.colors, pixels);
+}
+
+bool color_active_ranges(Range[] ranges, f64 l, f64 a, f64 b, f64 sigma) {
+	// Monotone binary64 operations bound every computed color distance by
+	// the farthest corner of this source Lab box. For x <= 2^-54, exp(-x)
+	// rounds to one. E represents that factor by an EXACT zero log term.
+	f64 dl = maximum(absolute(ranges[0].low - l), absolute(ranges[0].high - l));
+	f64 da = maximum(absolute(ranges[1].low - a), absolute(ranges[1].high - a));
+	f64 db = maximum(absolute(ranges[2].low - b), absolute(ranges[2].high - b));
+	return (dl * dl + da * da + db * db) / (2.0 * sigma * sigma) > 5.5511151231257827e-17;
+}
+
+bool color_active(Context c, f64 l, f64 a, f64 b, f64 sigma) { return color_active_ranges(c.ranges, l, a, b, sigma); }
+
+struct ExpectationSummary { f64 normalization; int underflow; }
+ExpectationSummary kernel_expectation(int wi, f64 rx, f64 ry, Kernel[] state, Support[] supports, Lab[] colors, Range[] ranges, f64[] logs, f64[] weights, f64[] pmax, int index, ExpectationSummary entering) {
+	var summary = entering;
+	Kernel k = {mx=0.0,my=0.0,xx=0.0,xy=0.0,yy=0.0,l=0.0,a=0.0,b=0.0,sigma=0.0};
+	Support s = {x0=0,y0=0,x1=0,y1=0,start=0};
+	k = load_kernel(state, index); s = supports[index];
+	SymMat2 cov = {xx=k.xx,xy=k.xy,yy=k.yy};
+	SymMat2 inv = {xx=0.0,xy=0.0,yy=0.0};
+	inv = inverse(cov);
+	require(k.sigma > 0.0 && finite(k.sigma), 21, k.sigma);
+	bool active = color_active_ranges(ranges, k.l, k.a, k.b, k.sigma);
+	f64 maximum_log = -1.7976931348623157e308;
+	int y = s.y0;
+	while (y < s.y1) {
+		int x = s.x0;
+		while (x < s.x1) {
+			int pixel = y * wi + x; int pair = support_index(s, x, y);
+			f64 px = (cad_number(x) + 0.5) / rx - k.mx; f64 py = (cad_number(y) + 0.5) / ry - k.my;
+			f64 dl = colors[pixel].l - k.l; f64 da = colors[pixel].a - k.a; f64 db = colors[pixel].b - k.b;
+			f64 color = 0.0;
+			if (active) { color = (dl * dl + da * da + db * db) / (2.0 * k.sigma * k.sigma); }
+			f64 log = -0.5 * quadratic(inv, px, py) - color;
+			require(finite(log), 22, log); logs[pair] = log;
+			maximum_log = maximum(maximum_log, log);
+			if (log < -708.0) { summary.underflow = summary.underflow + 1; }
+			x = x + 1;
+		}
+		y = y + 1;
+	}
+	int end = s.start + (s.x1 - s.x0) * (s.y1 - s.y0);
+	f64 sum = 0.0; int p = s.start;
+	while (p < end) { sum = sum + cad_exp(logs[p] - maximum_log); p = p + 1; }
+	require(sum > 0.0 && finite(sum), 23, sum);
+	f64 logsum = cad_log(sum); f64 check = 0.0;
+	y = s.y0;
+	while (y < s.y1) {
+		int x = s.x0;
+		while (x < s.x1) {
+			int pair = support_index(s, x, y); int pixel = y * wi + x;
+			f64 logw = (logs[pair] - maximum_log) - logsum;
+			f64 weight = cad_exp(logw);
+			logs[pair] = logw; weights[pair] = weight; check = check + weight;
+			pmax[pixel] = maximum(pmax[pixel], logw);
+			x = x + 1;
+		}
+		y = y + 1;
+	}
+	summary.normalization = maximum(summary.normalization, absolute(check - 1.0));
+	return summary;
+}
+
+ExpectationSummary expectation_arrays(int wi, int hi, int count, f64 rx, f64 ry, Kernel[] state, Support[] supports, Lab[] colors, Range[] ranges, f64[] logs, f64[] weights, f64[] gamma, f64[] pmax, f64[] psum, f64[] check) {
+	int pixels = wi * hi; int i = 0;
+	ExpectationSummary summary = {normalization=0.0,underflow=0};
+	while (i < pixels) { pmax[i] = -1.7976931348623157e308; psum[i] = 0.0; check[i] = 0.0; i = i + 1; }
+	int k = 0;
+	while (k < count) { summary = kernel_expectation(wi, rx, ry, state, supports, colors, ranges, logs, weights, pmax, k, summary); k = k + 1; }
+	int pass = 0;
+	while (pass < 2) {
+		k = 0;
+		while (k < count) {
+			Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; s = supports[k];
+			int y = s.y0;
+			while (y < s.y1) {
+				int x = s.x0;
+				while (x < s.x1) {
+					int pair = support_index(s, x, y); int pixel = y * wi + x;
+					if (pass == 0) {
+						f64 value = cad_exp(logs[pair] - pmax[pixel]);
+						gamma[pair] = value; psum[pixel] = psum[pixel] + value;
+					} else {
+						f64 denominator = psum[pixel]; require(denominator > 0.0 && finite(denominator), 24, denominator);
+						f64 value = gamma[pair] / denominator;
+						gamma[pair] = value; check[pixel] = check[pixel] + value;
+					}
+					x = x + 1;
+				}
+				y = y + 1;
+			}
+			k = k + 1;
+		}
+		pass = pass + 1;
+	}
+	i = 0;
+	while (i < pixels) { summary.normalization = maximum(summary.normalization, absolute(check[i] - 1.0)); i = i + 1; }
+	require(summary.normalization < 1e-10, 25, summary.normalization);
+	return summary;
+}
+
+void maximization_arrays(int wi, int count, f64 rx, f64 ry, Kernel[] state, Kernel[] next, Support[] supports, Lab[] colors, f64[] gamma) {
+	int index = 0;
+	while (index < count) {
+		Kernel k = {mx=0.0,my=0.0,xx=0.0,xy=0.0,yy=0.0,l=0.0,a=0.0,b=0.0,sigma=0.0}; k = load_kernel(state, index);
+		Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; s = supports[index];
+		f64 total = 0.0; f64 mx = 0.0; f64 my = 0.0; f64 xx = 0.0; f64 xy = 0.0; f64 yy = 0.0; f64 l = 0.0; f64 a = 0.0; f64 b = 0.0;
+		int y = s.y0;
+		while (y < s.y1) {
+			int x = s.x0;
+			while (x < s.x1) {
+				int pixel = y * wi + x;
+				f64 g = gamma[support_index(s, x, y)];
+				f64 px = (cad_number(x) + 0.5) / rx; f64 py = (cad_number(y) + 0.5) / ry;
+				f64 dx = px - k.mx; f64 dy = py - k.my;
+				total = total + g; mx = mx + g * px; my = my + g * py;
+				xx = xx + g * dx * dx; xy = xy + g * dx * dy; yy = yy + g * dy * dy;
+				l = l + g * colors[pixel].l; a = a + g * colors[pixel].a; b = b + g * colors[pixel].b;
+				x = x + 1;
+			}
+			y = y + 1;
+		}
+		require(total > 0.0 && finite(total), 26, total);
+		// Eq. 8 precedes Eq. 9 in the main paper. Recenter the bounded
+		// second moment by the parallel-axis identity, before spatial correction.
+		f64 dx = mx / total - k.mx; f64 dy = my / total - k.my;
+		k.mx = mx / total; k.my = my / total; k.xx = xx / total - dx * dx; k.xy = xy / total - dx * dy; k.yy = yy / total - dy * dy;
+		k.l = l / total; k.a = a / total; k.b = b / total;
+		next[index] = k; index = index + 1;
+	}
+}
+
+void expectation(Context c) {
+	var summary = expectation_arrays(c.wi, c.hi, c.count, c.rx, c.ry, c.state, c.supports, c.colors, c.ranges, c.logw, c.weights, c.gamma, c.pmax, c.psum, c.check);
+	c.normalization = summary.normalization; c.underflow = summary.underflow;
+}
+void maximization(Context c) { maximization_arrays(c.wi, c.count, c.rx, c.ry, c.state, c.next, c.supports, c.colors, c.gamma); }
+
+// Diagnostic counterfactuals share read-only source data, never live E/M buffers.
+struct CorrectionEffect { f64 weight; f64 gamma; f64 state; f64 log_weight; int weight_changed; int gamma_changed; int state_changed; int log_weight_changed; }
+extern(C) int cad_same_bits(f64 a, f64 b);
+CorrectionEffect correction_effect(Context c, int k, int n) {
+	CorrectionEffect effect = {weight=0.0,gamma=0.0,state=0.0,log_weight=0.0,weight_changed=0,gamma_changed=0,state_changed=0,log_weight_changed=0};
+	int pixels = c.wi * c.hi;
+	var before_state = new Kernel[c.count] else cad_fail(3, cad_number(c.count * 9));
+	var before_logw = new f64[c.pairs] else cad_fail(3, cad_number(c.pairs));
+	var before_weights = new f64[c.pairs] else cad_fail(3, cad_number(c.pairs));
+	var before_gamma = new f64[c.pairs] else cad_fail(3, cad_number(c.pairs));
+	var pmax = new f64[pixels] else cad_fail(3, cad_number(pixels));
+	var psum = new f64[pixels] else cad_fail(3, cad_number(pixels));
+	var check = new f64[pixels] else cad_fail(3, cad_number(pixels));
+	var discarded_summary = expectation_arrays(c.wi, c.hi, c.count, c.rx, c.ry, c.next, c.supports, c.colors, c.ranges, before_logw, before_weights, before_gamma, pmax, psum, check);
+	maximization_arrays(c.wi, c.count, c.rx, c.ry, c.next, before_state, c.supports, c.colors, before_gamma);
+	var after_weights = new f64[c.pairs] else cad_fail(3, cad_number(c.pairs));
+	var after_gamma = new f64[c.pairs] else cad_fail(3, cad_number(c.pairs));
+	var after_state = new Kernel[c.count] else cad_fail(3, cad_number(c.count * 9));
+	var after_logw = new f64[c.pairs] else cad_fail(3, cad_number(c.pairs));
+	f64 sk = c.next[k].sigma; f64 sn = c.next[n].sigma;
+	c.next[k].sigma = sk * 1.1; c.next[n].sigma = sn * 1.1;
+	discarded_summary = expectation_arrays(c.wi, c.hi, c.count, c.rx, c.ry, c.next, c.supports, c.colors, c.ranges, after_logw, after_weights, after_gamma, pmax, psum, check);
+	maximization_arrays(c.wi, c.count, c.rx, c.ry, c.next, after_state, c.supports, c.colors, after_gamma);
+	c.next[k].sigma = sk; c.next[n].sigma = sn;
+	effect.weight = 0.0; effect.gamma = 0.0; effect.state = 0.0; effect.log_weight = 0.0;
+	effect.weight_changed = 0; effect.gamma_changed = 0; effect.state_changed = 0; effect.log_weight_changed = 0;
+	int i = 0;
+	while (i < c.pairs) {
+		f64 w = before_weights[i]; f64 g = before_gamma[i];
+		effect.log_weight = maximum(effect.log_weight, absolute(before_logw[i] - after_logw[i]));
+		if (cad_same_bits(before_logw[i], after_logw[i]) == 0) { effect.log_weight_changed = 1; }
+		effect.weight = maximum(effect.weight, absolute(w - after_weights[i]));
+		effect.gamma = maximum(effect.gamma, absolute(g - after_gamma[i]));
+		if (cad_same_bits(w, after_weights[i]) == 0) { effect.weight_changed = 1; }
+		if (cad_same_bits(g, after_gamma[i]) == 0) { effect.gamma_changed = 1; }
+		i = i + 1;
+	}
+	i = 0;
+	while (i < c.count * 9) {
+		// Sigma is carried by M, never estimated. Its mutation is logged separately.
+		if (i % 9 != 8) {
+			f64 value = kernel_component(before_state[i / 9], i % 9); f64 after = kernel_component(after_state[i / 9], i % 9);
+			effect.state = maximum(effect.state, absolute(value - after));
+			if (cad_same_bits(value, after) == 0) { effect.state_changed = 1; }
+		}
+		i = i + 1;
+	}
+	release before_weights; release before_gamma; release before_state; release before_logw;
+	release after_state; release after_logw; release after_weights; release after_gamma;
+	release pmax; release psum; release check;
+	return effect;
+}
+
+void constrain_spatial(Context c) {
+	int k = 0;
+	while (k < c.count) {
+		f64 sx = 0.0; f64 sy = 0.0; int count = 0; int d = 0;
+		while (d < 4) {
+			int dx = 0; int dy = 0;
+			if (d == 0) { dx = -1; } else { if (d == 1) { dx = 1; } else { if (d == 2) { dy = -1; } else { dy = 1; } } }
+			int n = neighbor(c, k, dx, dy);
+			if (n >= 0) { sx = sx + c.next[n].mx; sy = sy + c.next[n].my; count = count + 1; }
+			d = d + 1;
+		}
+		f64 mx = c.next[k].mx; f64 my = c.next[k].my;
+		if (count > 0) { mx = 0.5 * (mx + sx / cad_number(count)); my = 0.5 * (my + sy / cad_number(count)); }
+		f64 gx = cad_number(k % c.wo) + 0.5; f64 gy = cad_number(k / c.wo) + 0.5;
+		c.means[k].x = clamp(mx, gx - 0.25, gx + 0.25); c.means[k].y = clamp(my, gy - 0.25, gy + 0.25);
+		k = k + 1;
+	}
+	k = 0;
+	while (k < c.count) {
+		c.next[k].mx = c.means[k].x; c.next[k].my = c.means[k].y;
+		SymMat2 matrix = {xx=c.next[k].xx,xy=c.next[k].xy,yy=c.next[k].yy};
+		matrix = constrain_covariance(matrix);
+		c.next[k].xx = matrix.xx; c.next[k].xy = matrix.xy; c.next[k].yy = matrix.yy;
+		k = k + 1;
+	}
+}
+
+f64 assignment_ratio(Context c, Support k, Support n, int x, int y) {
+	f64 a = c.gamma[support_index(k, x, y)]; f64 b = c.gamma[support_index(n, x, y)];
+	if (a + b <= 1e-300) { return 0.5; }
+	return a / (a + b);
+}
+struct OrientationObservation { bool detected; f64 strength; f64 gx; f64 gy; f64 cosine; }
+int correction_flag(bool value) { if (value) { return 1; } return 0; }
+OrientationObservation wrong_orientation(Context c, Support k, Support n, int dx, int dy) {
+	OrientationObservation observation = {detected=false,strength=0.0,gx=0.0,gy=0.0,cosine=-1.0};
+	int x0 = int_max(k.x0, n.x0); int y0 = int_max(k.y0, n.y0); int x1 = int_min(k.x1, n.x1); int y1 = int_min(k.y1, n.y1);
+	if (x0 >= x1 || y0 >= y1) { return observation; }
+	f64 strength = 0.0; int y = y0;
+	while (y < y1) {
+		int x = x0;
+		while (x < x1) { strength = strength + c.gamma[support_index(k, x, y)] * c.gamma[support_index(n, x, y)]; x = x + 1; }
+		y = y + 1;
+	}
+	observation.strength = strength;
+	if (strength >= 0.08 * c.rx * c.ry && cad_option(8) == 0) { return observation; }
+	// The sum of forward differences telescopes to the two boundaries.
+	// Sum boundary flux directly to avoid cancelling interior differences.
+	f64 gx = 0.0; f64 gy = 0.0; y = y0;
+	while (y < y1) { gx = gx + (assignment_ratio(c, k, n, x1 - 1, y) - assignment_ratio(c, k, n, x0, y)); y = y + 1; }
+	int x = x0;
+	while (x < x1) { gy = gy + (assignment_ratio(c, k, n, x, y1 - 1) - assignment_ratio(c, k, n, x, y0)); x = x + 1; }
+	gx = gx * c.rx; gy = gy * c.ry;
+	observation.gx = gx; observation.gy = gy;
+	f64 norm = cad_sqrt(gx * gx + gy * gy);
+	if (norm <= 1e-12) { return observation; }
+	observation.cosine = absolute(gx * cad_number(dx) + gy * cad_number(dy)) / norm;
+	observation.detected = strength < 0.08 * c.rx * c.ry && observation.cosine < 0.9063077870366499;
+	return observation;
+}
+
+bool correct_color_pair(Context c, int k, int n) {
+	// M carries sigma unchanged. Classify the entire sweep from that snapshot
+	// and the new color means, so saturation cannot make pair order matter.
+	bool active_k = color_active(c, c.next[k].l, c.next[k].a, c.next[k].b, c.state[k].sigma);
+	bool active_n = color_active(c, c.next[n].l, c.next[n].a, c.next[n].b, c.state[n].sigma);
+	if (!active_k && !active_n) { return false; }
+	c.next[k].sigma = c.next[k].sigma * 1.1; c.next[n].sigma = c.next[n].sigma * 1.1;
+	return true;
+}
+
+void constrain_shape(Context c, bool pixel_art) {
+	cad_corrections_begin();
+	cad_correction_state(c.next, c.count);
+	c.locality = 0; c.orientation = 0; c.inactive = 0; int k = 0;
+	while (k < c.count) {
+		Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; s = load_support(c, k);
+		f64 mx = c.next[k].mx; f64 my = c.next[k].my;
+		// Conditional one-sided second moment about the post-lattice center,
+		// in output-pixel squared units. Directions retain diagonal magnitudes.
+		// Opposite directions partition each squared projection by its sign.
+		// Accumulate all eight in one source scan, in the original pixel order.
+		f64[8] variances = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
+		f64 mass = 0.0; int y = s.y0;
+		while (y < s.y1) {
+			int x = s.x0;
+			while (x < s.x1) {
+				f64 px = (cad_number(x) + 0.5) / c.rx - mx; f64 py = (cad_number(y) + 0.5) / c.ry - my;
+				f64 g = c.gamma[support_index(s, x, y)]; mass = mass + g;
+				f64 q = px + py;
+				if (q > 0.0) { variances[7] = variances[7] + g * q * q; } else { variances[0] = variances[0] + g * q * q; }
+				q = py;
+				if (q > 0.0) { variances[6] = variances[6] + g * q * q; } else { variances[1] = variances[1] + g * q * q; }
+				q = py - px;
+				if (q > 0.0) { variances[5] = variances[5] + g * q * q; } else { variances[2] = variances[2] + g * q * q; }
+				q = px;
+				if (q > 0.0) { variances[4] = variances[4] + g * q * q; } else { variances[3] = variances[3] + g * q * q; }
+				x = x + 1;
+			}
+			y = y + 1;
+		}
+		require(mass > 0.0, 27, mass);
+		int dy = -1;
+		while (dy <= 1) {
+			int dx = -1;
+			while (dx <= 1) {
+				int n = neighbor(c, k, dx, dy);
+				if (n >= 0 && (dx != 0 || dy != 0)) {
+					int direction = (dy + 1) * 3 + dx + 1; if (direction > 4) { direction = direction - 1; }
+					f64 locality_value = variances[direction] / mass; f64 locality_threshold = 0.2;
+					bool locality = locality_value > locality_threshold;
+					OrientationObservation observation = {detected=false,strength=0.0,gx=0.0,gy=0.0,cosine=-1.0};
+					bool orientation = false;
+					if (!pixel_art && (dx == 0 || dy == 0)) {
+						Support other = {x0=0,y0=0,x1=0,y1=0,start=0}; other = load_support(c, n);
+						observation = wrong_orientation(c, s, other, dx, dy); orientation = observation.detected;
+					}
+					f64 sk = c.next[k].sigma; f64 sn = c.next[n].sigma;
+					bool updated = false;
+					CorrectionEffect effect = {weight=0.0,gamma=0.0,state=0.0,log_weight=0.0,weight_changed=0,gamma_changed=0,state_changed=0,log_weight_changed=0};
+					if (locality || orientation) {
+						if (cad_option(8) != 0) { effect = correction_effect(c, k, n); }
+						updated = correct_color_pair(c, k, n);
+						if (updated) {
+							if (locality) { c.locality = c.locality + 1; }
+							if (orientation) { c.orientation = c.orientation + 1; }
+						} else { c.inactive = c.inactive + 1; cad_inactive(correction_flag(locality), correction_flag(orientation)); }
+					}
+					if (cad_option(8) != 0) {
+						f64 ak = c.next[k].sigma; f64 an = c.next[n].sigma;
+						cad_correction(k, n, dx, dy, 0, locality_value, locality_threshold, correction_flag(locality), correction_flag(updated), sk, sn, ak, an, observation.strength, 0.08 * c.rx * c.ry, observation.gx, observation.gy, effect.weight, effect.gamma, effect.state, effect.weight_changed, effect.gamma_changed, effect.state_changed, effect.log_weight, effect.log_weight_changed);
+						if (!pixel_art && (dx == 0 || dy == 0)) { cad_correction(k, n, dx, dy, 1, observation.cosine, 0.9063077870366499, correction_flag(orientation), correction_flag(updated), sk, sn, ak, an, observation.strength, 0.08 * c.rx * c.ry, observation.gx, observation.gy, effect.weight, effect.gamma, effect.state, effect.weight_changed, effect.gamma_changed, effect.state_changed, effect.log_weight, effect.log_weight_changed); }
+					}
+				}
+				dx = dx + 1;
+			}
+			dy = dy + 1;
+		}
+		k = k + 1;
+	}
+	cad_corrections_end();
+}
+
+bool finish_iteration(Context c, int iteration, f64 epsilon) {
+	f64 mu = 0.0; f64 cov = 0.0; f64 color = 0.0; f64 sigma = 0.0; int k = 0;
+	f64 max_sigma = 0.0; f64 min_precision = 1.7976931348623157e308; f64 max_precision = 0.0;
+	while (k < c.count) {
+		int p = 0;
+		while (p < 9) {
+			f64 value = kernel_component(c.next[k], p); require(finite(value), 28, value);
+			f64 delta = absolute(value - kernel_component(c.state[k], p));
+			if (p < 2) { mu = maximum(mu, delta); } else { if (p < 5) { cov = maximum(cov, delta); } else { if (p < 8) { color = maximum(color, delta); } else { sigma = maximum(sigma, delta); } } }
+			p = p + 1;
+		}
+		k = k + 1;
+	}
+	k = 0;
+	while (k < c.count) {
+		f64 value = c.next[k].sigma; f64 precision = 1.0 / (2.0 * value * value);
+		max_sigma = maximum(max_sigma, value); min_precision = minimum(min_precision, precision); max_precision = maximum(max_precision, precision);
+		k = k + 1;
+	}
+	cad_extrema(max_sigma, min_precision, max_precision);
+	k = 0;
+	while (k < c.count) { var previous = c.state[k]; c.state[k] = c.next[k]; c.next[k] = previous; k = k + 1; }
+	cad_stats(iteration, mu, cov, color, sigma, c.locality, c.orientation, c.normalization, c.underflow, c.inactive);
+	cad_dump(c.state, c.count, 9, iteration);
+	if (cad_option(7) != 0) {
+		cad_pairs_begin(iteration); k = 0;
+		while (k < c.count) {
+			Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; s = load_support(c, k); int y = s.y0;
+			while (y < s.y1) { int x = s.x0; while (x < s.x1) { int p = support_index(s, x, y); cad_pair(k, y * c.wi + x, c.weights[p], c.gamma[p]); cad_log_pair(k, y * c.wi + x, c.logw[p]); x = x + 1; } y = y + 1; }
+			k = k + 1;
+		}
+		cad_pairs_end();
+	}
+	return mu <= epsilon && cov <= epsilon && color <= epsilon && sigma <= epsilon && c.locality == 0 && c.orientation == 0;
+}
+
+int downscale(int argc, void* argv) {
+	if (cad_begin(argc, argv) != 0) { return 1; }
+	int wi = cad_option(0); int hi = cad_option(1); int wo = cad_option(2); int ho = cad_option(3);
+	owned Context c = Context.init(wi, hi, wo, ho);
+	initialize(c); cad_dump(c.state, c.count, 9, 0);
+	int iteration = 0; bool converged = false;
+	while (iteration < cad_option(6) && !converged) {
+		expectation(c); maximization(c); cad_mstep_state(c.next, c.count, iteration + 1); constrain_spatial(c); constrain_shape(c, cad_option(5) != 0);
+		iteration = iteration + 1; converged = finish_iteration(c, iteration, cad_epsilon());
+	}
+	var output = new Rgb[c.count] else cad_fail(3, cad_number(c.count * 3));
+	int k = 0;
+	while (k < c.count) {
+		Lab color = {l=c.state[k].l,a=c.state[k].a,b=c.state[k].b};
+		Rgb rgb = {r=0.0,g=0.0,b=0.0}; rgb = lab_to_rgb(color);
+		output[k].r = cad_number(floor_int(rgb.r + 0.5)); output[k].g = cad_number(floor_int(rgb.g + 0.5)); output[k].b = cad_number(floor_int(rgb.b + 0.5));
+		k = k + 1;
+	}
+	int flag = 0; if (converged) { flag = 1; }
+	cad_dump_final(c.state, c.count, 9, iteration);
+	int result = cad_finish(output, iteration, flag);
+	return result;
+}
+
+extern(C) int cad_trace_begin(int kind, int iteration);
+extern(C) void cad_trace_sample(int column, f64 value);
+extern(C) void cad_trace_end(int iteration);
+extern(C) void* cad_output_begin(int count);
+extern(C) void cad_output_sample(void* image, int index, f64 value);
+extern(C) int cad_output_finish(void* image, int iteration, int converged);
+void trace_kernels(Kernel[] data, int rows, int iteration, int kind) {
+	if (cad_trace_begin(kind, iteration) == 0) { return; }
+	int r = 0;
+	while (r < rows) { var k = data[r]; int p = 0; while (p < 9) { cad_trace_sample(p, kernel_component(k, p)); p = p + 1; } r = r + 1; }
+	cad_trace_end(iteration);
+}
+void cad_dump(Kernel[] data, int rows, int columns, int iteration) { trace_kernels(data, rows, iteration, 0); }
+void cad_dump_final(Kernel[] data, int rows, int columns, int iteration) { trace_kernels(data, rows, iteration, 1); }
+void cad_mstep_state(Kernel[] data, int rows, int iteration) { trace_kernels(data, rows, iteration, 2); }
+void cad_correction_state(Kernel[] data, int rows) { trace_kernels(data, rows, 0, 3); }
+void cad_colors(Lab[] data, int pixels) {
+	if (cad_trace_begin(4, 0) == 0) { return; }
+	int p = 0;
+	while (p < pixels) { var color = data[p]; cad_trace_sample(0, color.l); cad_trace_sample(1, color.a); cad_trace_sample(2, color.b); p = p + 1; }
+	cad_trace_end(0);
+}
+int cad_finish(Rgb[] output, int iteration, int flag) {
+	void* image = cad_output_begin(len(output) * 3);
+	int k = 0;
+	while (k < len(output)) { cad_output_sample(image, 3 * k, output[k].r); cad_output_sample(image, 3 * k + 1, output[k].g); cad_output_sample(image, 3 * k + 2, output[k].b); k = k + 1; }
+	return cad_output_finish(image, iteration, flag);
+}

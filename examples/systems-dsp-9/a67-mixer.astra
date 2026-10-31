@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+export(C) i64 mix_wide(i64 a, i64 b, int subtract, int lane) {
+	i64<2> first = {a, b};
+	i64<2> second = {b, a};
+	i64<2> result = sat_add(first, second);
+	if (subtract != 0) { result = sat_sub(first, second); }
+	if (lane == 0) { return result[0]; }
+	return result[1];
+}
+export(C) u64 mix_unsigned(u64 a, u64 b, int subtract, int lane) {
+	u64<2> first = {a, b};
+	u64<2> second = {b, a};
+	u64<2> result = sat_add(first, second);
+	if (subtract != 0) { result = sat_sub(first, second); }
+	if (lane == 0) { return result[0]; }
+	return result[1];
+}
+export(C) int pcm_mix(int a, int b) {
+	i16<8> first = splat(a as i16, 8);
+	i16<8> second = splat(b as i16, 8);
+	i16<8> result = sat_add(first, second);
+	return result[0] as int;
+}
+extern(C) int integer_oracle();
+int main() { return integer_oracle(); }

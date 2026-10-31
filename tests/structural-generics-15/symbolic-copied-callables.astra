@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct CallPair {
+	int value;
+	bool ready;
+}
+struct CallBox<T> {
+	T value;
+	int tag;
+}
+int increment_callback(int value) { return value + 1; }
+i64 wide_callback(i64 value) { return value + (1 as i64); }
+bool invert_callback(bool value) { return !value; }
+CallPair pair_callback(CallPair value) {
+	CallPair result = {value = value.value + 1, ready = !value.ready};
+	return result;
+}
+CallBox<CallPair> box_callback(CallBox<CallPair> value) { return value; }
+Output transform<Input, Output>(Fn<Output, Input> code, Input value) { return code(value); }
+Output relay<Input, Output>(Input value, Fn<Output, Input> code) { return transform<Input, Output>(code, value); }
+class CallbackField<Input, Output> {
+	private Fn<Output, Input> code;
+	init(Fn<Output, Input> code) { this.code = code; }
+	Output run(Input value) { Fn<Output, Input> apply = this.code; return apply(value); }
+}
+int main() {
+	if (transform<int, int>(increment_callback, 41) != 42) { return 1; }
+	i64 wide = 9000000001;
+	if (relay<i64, i64>(wide, wide_callback) != wide + (1 as i64)) { return 2; }
+	if (!transform<bool, bool>(invert_callback, false)) { return 3; }
+	CallPair first = {value = 41, ready = false};
+	CallPair result = transform<CallPair, CallPair>(pair_callback, first);
+	if (result.value != 42 || !result.ready || first.value != 41 || first.ready) { return 4; }
+	CallBox<CallPair> boxed = {value = result, tag = 73};
+	CallBox<CallPair> copied = relay<CallBox<CallPair>, CallBox<CallPair>>(boxed, box_callback);
+	if (copied.value.value != 42 || !copied.value.ready || copied.tag != 73) { return 5; }
+	var field = new CallbackField<CallPair, CallPair>(pair_callback);
+	CallPair from_field = field.run(first);
+	if (from_field.value != 42 || !from_field.ready) { return 6; }
+	Fn<CallPair, CallPair> typed = pair_callback;
+	CallPair inferred = transform(typed, first);
+	CallPair inferred_address = transform(pair_callback, first);
+	if (inferred.value != 42 || inferred_address.value != 42) { return 7; }
+	return 0;
+}

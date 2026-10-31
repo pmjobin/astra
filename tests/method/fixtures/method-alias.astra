@@ -1,0 +1,28 @@
+struct Counter {
+	int value;
+
+	int mix(Counter* alias, Counter* second) {
+		this.value = 10;
+		alias->value = 40;
+		this.value = this.value + 1;
+		second->value = second->value + 1;
+		return this.value;
+	}
+
+	void add(int amount) {
+		this.value = this.value + amount;
+	}
+}
+
+int main() {
+	Counter c = { value = 1 };
+	Counter* p = &c;
+	Counter* q = &c;
+	c.add(1);
+	if (p->value != 2) { return 1; }
+	q->value = 40;
+	c.add(2);
+	if (p->value != 42) { return 2; }
+	if (c.mix(p, q) != 42) { return 3; }
+	return c.value;
+}

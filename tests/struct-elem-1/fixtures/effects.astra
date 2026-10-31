@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int se_mark(int n);
+struct S {
+	int first;
+	int second;
+	void scale(int n) { se_mark(50); this.first = this.first * n; }
+	property int doubled { get { se_mark(60); return this.first * 2; } set(int n) { se_mark(70); this.first = n / 2; } }
+}
+S make(int n) { S value = {second=se_mark(n + 1), first=se_mark(n)}; return value; }
+S mutate(S[] a) { var saved = a[0]; a[0].first = 81; a[0].second = 82; se_mark(80); return saved; }
+S touch(S* s) { s->first = se_mark(31); s->second = se_mark(32); return *s; }
+int copied(S value, int ignored) { se_mark(90); return value.first; }
+int main() {
+	S original = {first=1, second=2}; S* p = &original;
+	S[4] a = {make(10), {second=se_mark(21), first=se_mark(20)}, original, touch(p)};
+	if (a[0].first != 10 || a[0].second != 11 || a[1].first != 20 || a[1].second != 21 || a[2].first != 1 || a[2].second != 2 || a[3].first != 31 || a[3].second != 32) { return 1; }
+	a[se_mark(0)] = make(se_mark(40));
+	a[se_mark(0)].scale(se_mark(2));
+	if (a[se_mark(0)].doubled != 160) { return 2; }
+	a[se_mark(0)].doubled = se_mark(6);
+	a[se_mark(1)] = mutate(slice(a));
+	if (a[1].first != 3 || a[1].second != 41 || a[0].first != 81 || a[0].second != 82) { return 3; }
+	if (copied(a[se_mark(1)], se_mark(91)) != 3) { return 4; }
+	return 0;
+}

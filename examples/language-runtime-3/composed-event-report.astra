@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace EventReport;
+interface EventMetric { int invoke(int byte); }
+class ByteMetric : EventMetric {
+	int shift;
+	init(int shift) : base() { this.shift = shift; }
+	override int invoke(int byte) { return byte + this.shift; }
+}
+class WeightedMetric : EventMetric {
+	int scale;
+	init(int scale) : base() { this.scale = scale; }
+	override int invoke(int byte) { return byte * this.scale; }
+}
+class Source {
+	private owned FileBytes bytes;
+	init(owned FileBytes bytes) { this.bytes = move bytes; }
+	property borrowed FileBytes content { get { return this.bytes; } }
+}
+int measure(borrowed FileBytes bytes, borrowed EventMetric metric) throws Error {
+	int at = 0; int total = 0;
+	while (at < bytes.byte_count()) { total = total + metric(bytes.byte_at(at)); at = at + 1; }
+	return total;
+}
+struct ReportFold { i64 total; int invocations; int bias; int limit; }
+int event_item(borrowed ReportFold* state, int input) {
+	state->total = state->total + ((input + state->bias) as i64);
+	state->invocations = state->invocations + 1; return state->invocations;
+}
+[CCode(cname="surge_fold", record_abi="natural-lp64", callback="EventReport.event_item", callback_abi="i32-context-i32-sync")]
+extern(C) int fold_report(borrowed ReportFold* state, int input);
+int process(string input, string output, int mode) throws Error {
+	var bytes = read_file(input);
+	if (bytes.byte_count() > 4096) { return 64; }
+	var source = new Source(move bytes);
+	var shifted = new ByteMetric(5); var weighted = new WeightedMetric(3);
+	int sum = 0;
+	if (mode == 0) { sum = measure(source.content, shifted); }
+	else { sum = measure(source.content, weighted); }
+	ReportFold state = {total=0, invocations=0, bias=mode, limit=4};
+	if (fold_report(&state, sum) != 4) { return 3; }
+	var builder = new Utf8ByteBuilder();
+	require_text(append_text(builder, "metric=")); require_text(append_int(builder, sum));
+	require_text(append_text(builder, "\nfold=")); require_text(append_i64(builder, state.total));
+	require_text(append_text(builder, "\ncalls=")); require_text(append_int(builder, state.invocations));
+	require_text(append_text(builder, "\n"));
+	var report = builder.snapshot(); write_text_file(output, report.text); return 0;
+}
+int run(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int mode = parse_int(args[3]); if (mode < 0 || mode > 1) { return 64; }
+		return process(args[1], args[2], mode);
+	} catch (Error error) { return 2; }
+}

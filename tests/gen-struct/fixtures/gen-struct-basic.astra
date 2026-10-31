@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair<T,U> { T first; U second; }
+int scalarized(int x, f64 y) {
+	Pair<int,f64> p = { first = x, second = y };
+	p.first = p.first + 1;
+	if (p.second != y) { return 0; }
+	return p.first;
+}
+int main() {
+	Pair<int,f64> p = { first = 42, second = 3.5 };
+	p.second = 7.25;
+	if (p.first != 42 || p.second != 7.25 || scalarized(p.first, p.second) != 43) { return 1; }
+	return 0;
+}

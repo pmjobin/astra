@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	owned u8[] bytes = new u8[3];
+	bytes[0] = 97; bytes[1] = 0; bytes[2] = 98;
+	try {
+		var message = utf8_message(bytes);
+		bytes[0] = 120;
+		release bytes;
+		{
+			var view = message.text;
+			if (view != "a\0b" || view.byte_length != 3) { return 81; }
+		}
+		release message;
+	} catch (InvalidUtf8 error) { return 82; }
+	return 0;
+}

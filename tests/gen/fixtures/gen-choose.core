@@ -1,0 +1,141 @@
+(core-program
+	(generic-definition #0 "choose" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "choose" -> T
+		(parameters
+			(parameter #0 "condition" : bool)
+			(parameter #1 "a" : T)
+			(parameter #2 "b" : T)
+		)
+		(locals
+			(local-place #0 "result" : T)
+		)
+		(block
+			(initialize
+				(local-place #0 : T)
+				(parameter #1 : T)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(store
+							(local-place #0 : T)
+							(parameter #2 : T)
+						)
+					)
+				)
+			)
+			(return
+				(load : T
+					(local-place #0 : T)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "f" : f64)
+			(local-place #1 "a" : i16<8>)
+			(local-place #2 "b" : i16<8>)
+			(local-place #3 "v" : i16<8>)
+		)
+		(block
+			(initialize
+				(local-place #0 : f64)
+				(generic-call "choose" -> f64
+					(type-arguments f64)
+					(arguments
+						(bool true : bool)
+						(f64 0x0000000000000000 : f64)
+						(f64 0x3ff4000000000000 : f64)
+					)
+				)
+			)
+			(initialize
+				(local-place #1 : i16<8>)
+				(vector-init : i16<8>
+					(integer 1 : i16)
+					(integer 2 : i16)
+					(integer 3 : i16)
+					(integer 4 : i16)
+					(integer 5 : i16)
+					(integer 6 : i16)
+					(integer 7 : i16)
+					(integer 8 : i16)
+				)
+			)
+			(initialize
+				(local-place #2 : i16<8>)
+				(vector-init : i16<8>
+					(integer 42 : i16)
+					(integer 2 : i16)
+					(integer 3 : i16)
+					(integer 4 : i16)
+					(integer 5 : i16)
+					(integer 6 : i16)
+					(integer 7 : i16)
+					(integer 8 : i16)
+				)
+			)
+			(initialize
+				(local-place #3 : i16<8>)
+				(generic-call "choose" -> i16<8>
+					(type-arguments i16<8>)
+					(arguments
+						(bool true : bool)
+						(load : i16<8>
+							(local-place #1 : i16<8>)
+						)
+						(load : i16<8>
+							(local-place #2 : i16<8>)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit && : bool
+						(binary == : bool
+							(load : f64
+								(local-place #0 : f64)
+							)
+							(f64 0x3ff4000000000000 : f64)
+						)
+						(binary == : bool
+							(vector-extract : i16
+								(lane 0)
+								(vector
+									(load : i16<8>
+										(local-place #3 : i16<8>)
+									)
+								)
+							)
+							(integer 42 : i16)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(generic-call "choose" -> int
+								(type-arguments int)
+								(arguments
+									(bool true : bool)
+									(integer 0 : int)
+									(integer 42 : int)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+)

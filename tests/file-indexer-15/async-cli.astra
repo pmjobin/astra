@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+enum RunStatus { Completed, Cancelled }
+async runtime VirtualExecutor throws IndexFoundation.AsyncError returns RunStatus;
+
+class AsyncLaterPolicy : IndexFoundation.IdentifierPolicy {
+	private int first;
+	private int last;
+	init() : base() { this.first = 65; this.last = 90; }
+	override int classify(int byte) {
+		if (byte >= this.first && byte <= this.last) { return 1; }
+		if (byte >= 97 && byte <= 122 || byte == 95) { return 1; }
+		if (byte >= 48 && byte <= 57) { return 2; }
+		return 0;
+	}
+}
+void sample_policy(borrowed IndexFoundation.IdentifierPolicy policy, int[] categories) {
+	for (int byte = 0; byte < 256; byte = byte + 1) { categories[byte] = policy.classify(byte); }
+}
+IndexFoundation.Receipt async_sink(borrowed IndexFoundation.SinkState<int> environment,
+	IndexFoundation.Summary input, bool reject) throws IndexFoundation.Error {
+	environment.attempt();
+	if (reject) { throw new IndexFoundation.SinkFailure(); }
+	environment.accept();
+	IndexFoundation.Receipt result = {sequence = environment.count, attempts = environment.attempts,
+		bytes = input.bytes, marker = environment.label};
+	return result;
+}
+async void run_one(owned IndexFoundation.Utf8Message path,
+	owned CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
+	IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink,
+	bool alternate, bool retry) throws IndexFoundation.Error {
+	var categories = new int[256];
+	var first = new IndexAnalysis.AsciiPolicy();
+	var later = new AsyncLaterPolicy();
+	if (alternate) { sample_policy(later, categories); }
+	else { sample_policy(first, categories); }
+	var policy = new IndexFoundation.ClassificationTable(move categories);
+	var store = new IndexFoundation.Store();
+	if (!IndexFoundation.print("astra-index\t1\n")) { throw new IndexFoundation.IndexError("output"); }
+	var summary = await IndexAnalysis.process_async(move store, move path, move policy, move sink, retry, 1);
+	var output = new IndexFoundation.Utf8ByteBuilder();
+	IndexFoundation.require_text(IndexFoundation.append_text(output, "summary"));
+	IndexAnalysis.append_number(output, 1);
+	IndexAnalysis.append_number(output, 0);
+	IndexAnalysis.append_number(output, summary.bytes);
+	IndexAnalysis.append_number(output, summary.occurrences);
+	IndexAnalysis.append_byte(output, 10);
+	var message = output.snapshot();
+	if (!IndexFoundation.print(message.text)) { throw new IndexFoundation.IndexError("output"); }
+}
+int main(string[] args) {
+	if (len(args) < 2) { return 2; }
+	bool alternate = false;
+	bool retry = false;
+	int cancellation = 0;
+	for (int index = 2; index < len(args); index = index + 1) {
+		if (args[index] == "--policy=alternate") { alternate = true; }
+		else { if (args[index] == "--retry-sink") { retry = true; }
+			else { if (args[index] == "--cancel-cold") { cancellation = 1; }
+				else { if (args[index] == "--cancel-suspended") { cancellation = 2; }
+					else { return 2; } }
+			}
+		}
+	}
+	IndexFoundation.async_watch(0);
+	try {
+		var executor = VirtualExecutor.open(4);
+		var path = new IndexFoundation.Utf8Message(args[1]);
+		var environment = new IndexFoundation.SinkState<int>(7);
+		owned CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
+		IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink =
+		checked_closure_bind(move environment, async_sink);
+		var task = run_one(move path, move sink, alternate, retry);
+		if (cancellation == 1) {
+			executor.cancel(task);
+			var status = executor.run(move task);
+			match (status) { case RunStatus.Cancelled(): {} else: { return 5; } }
+			if (IndexFoundation.async_watch(3) != 0 || IndexFoundation.async_watch(4) != 0) { return 6; }
+			return 0;
+		}
+		executor.start(task);
+		try {
+			executor.pump(2);
+			executor.advance(2);
+			executor.pump(1);
+			if (IndexFoundation.async_watch(3) != 1 || IndexFoundation.async_watch(4) != 0) {
+				throw new IndexFoundation.IndexError("producer resumed before deadline");
+			}
+		} catch (IndexFoundation.Error error) {
+			executor.cancel(task);
+			var status = executor.run(move task);
+			throw;
+		}
+		if (cancellation == 2) {
+			executor.cancel(task);
+			var status = executor.run(move task);
+			match (status) { case RunStatus.Cancelled(): {} else: { return 7; } }
+			if (IndexFoundation.async_watch(4) != 0) { return 8; }
+			return 0;
+		}
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Completed(): {} else: { return 3; } }
+		if (IndexFoundation.async_watch(4) != 1) { return 9; }
+	} catch (IndexFoundation.Error error) {
+		IndexFoundation.println_stderr(error.message);
+		return 4;
+	}
+	return 0;
+}

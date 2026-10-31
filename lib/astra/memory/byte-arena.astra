@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit, receiver-owned byte storage. Select with base/errors.astra.
+// Allocation IDs are scalar capabilities, never addresses or escaping loans.
+class ArenaError : Error {
+	init(string message) : base(message) {}
+}
+
+class ByteArena {
+	private owned u8[] bytes;
+	private owned int[] ids;
+	private owned int[] starts;
+	private owned int[] sizes;
+	private owned int[] marks;
+	private int used;
+	private int blocks;
+	private int serial;
+	init(int capacity, int max_blocks) {
+		this.bytes = new u8[capacity];
+		this.ids = new int[max_blocks];
+		this.starts = new int[max_blocks];
+		this.sizes = new int[max_blocks];
+		this.marks = new int[max_blocks];
+		this.used = 0; this.blocks = 0; this.serial = 0;
+	}
+	int capacity() { return len(this.bytes); }
+	int occupied() { return this.used; }
+	int count() { return this.blocks; }
+	// The backing buffer has byte alignment. Alignment here constrains offsets;
+	// it does not authorize casting storage to another type or exporting pointers.
+	int allocate(int count, int alignment) throws ArenaError {
+		if (count < 0 || !(alignment == 1 || alignment == 2 || alignment == 4 || alignment == 8 || alignment == 16)) {
+			throw new ArenaError("invalid arena extent or alignment");
+		}
+		if (this.blocks == len(this.ids) || this.serial == 2147483647) {
+			throw new ArenaError("arena allocation limit");
+		}
+		int padding = (alignment - this.used % alignment) % alignment;
+		int remaining = len(this.bytes) - this.used;
+		// Subtraction before addition keeps even INT_MAX requests recoverable.
+		if (padding > remaining || count > remaining - padding) {
+			throw new ArenaError("arena capacity exhausted");
+		}
+		int start = this.used + padding;
+		int slot = this.blocks;
+		int i = 0;
+		while (i < count) { this.bytes[start + i] = 0; i = i + 1; }
+		this.marks[slot] = this.used;
+		this.starts[slot] = start;
+		this.sizes[slot] = count;
+		this.serial = this.serial + 1;
+		this.ids[slot] = this.serial;
+		this.used = start + count;
+		this.blocks = slot + 1;
+		return this.serial;
+	}
+	int find(int id) throws ArenaError {
+		int slot = 0;
+		while (slot < this.blocks) {
+			if (this.ids[slot] == id) { return slot; }
+			slot = slot + 1;
+		}
+		throw new ArenaError("expired or unknown arena allocation");
+	}
+	int offset(int id) throws ArenaError { int slot = this.find(id); return this.starts[slot]; }
+	int length(int id) throws ArenaError { int slot = this.find(id); return this.sizes[slot]; }
+	u8 read(int id, int index) throws ArenaError {
+		int slot = this.find(id);
+		if (index < 0 || index >= this.sizes[slot]) { throw new ArenaError("arena index out of bounds"); }
+		return this.bytes[this.starts[slot] + index];
+	}
+	void write(int id, int index, u8 value) throws ArenaError {
+		int slot = this.find(id);
+		if (index < 0 || index >= this.sizes[slot]) { throw new ArenaError("arena index out of bounds"); }
+		this.bytes[this.starts[slot] + index] = value;
+	}
+	// Typed encoded storage, independent of host byte order or pointer casts.
+	// Validate the complete naturally aligned field before the first access.
+	int typed_slot(int id, int index, int width) throws ArenaError {
+		if (width != 4 && width != 8) { throw new ArenaError("unsupported typed arena field width"); }
+		int slot = this.find(id);
+		if (index < 0 || index % width != 0 || this.starts[slot] % width != 0 || this.sizes[slot] < width || index > this.sizes[slot] - width) { throw new ArenaError("unaligned or out-of-range typed arena field"); }
+		return slot;
+	}
+	u32 read_u32_le(int id, int index) throws ArenaError {
+		int slot = this.typed_slot(id, index, 4);
+		u32 result = 0;
+		int lane = 0;
+		while (lane < 4) {
+			result = result | ((this.bytes[this.starts[slot] + index + lane] as u32) << (lane * 8));
+			lane = lane + 1;
+		}
+		return result;
+	}
+	void write_u32_le(int id, int index, u32 value) throws ArenaError {
+		int slot = this.typed_slot(id, index, 4);
+		int lane = 0;
+		while (lane < 4) {
+			this.bytes[this.starts[slot] + index + lane] = ((value >> (lane * 8)) & 255) as u8;
+			lane = lane + 1;
+		}
+	}
+	u64 read_u64_le(int id, int index) throws ArenaError {
+		int slot = this.typed_slot(id, index, 8);
+		u64 result = 0;
+		int lane = 0;
+		while (lane < 8) {
+			result = result | ((this.bytes[this.starts[slot] + index + lane] as u64) << (lane * 8));
+			lane = lane + 1;
+		}
+		return result;
+	}
+	void write_u64_le(int id, int index, u64 value) throws ArenaError {
+		int slot = this.typed_slot(id, index, 8);
+		int lane = 0;
+		while (lane < 8) {
+			this.bytes[this.starts[slot] + index + lane] = ((value >> (lane * 8)) & 255) as u8;
+			lane = lane + 1;
+		}
+	}
+	// Strict LIFO release; IDs are never reused by this receiver.
+	void release_last(int id) throws ArenaError {
+		int slot = this.find(id);
+		if (slot != this.blocks - 1) { throw new ArenaError("arena release requires last allocation"); }
+		this.used = this.marks[slot]; this.ids[slot] = 0;
+		this.blocks = slot;
+	}
+}
+
+owned ByteArena byte_arena(int capacity, int max_blocks) throws ArenaError {
+	if (capacity < 0 || max_blocks < 0) { throw new ArenaError("negative arena capacity"); }
+	var arena = new ByteArena(capacity, max_blocks);
+	return move arena;
+}

@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned T echo<T>(owned T value, int id) where T: Ownable {
+	own_mark(69, id);
+	loan<T>(value, id);
+	return move value;
+}
+owned T pure<T>(owned T value) where T: Ownable { return move value; }

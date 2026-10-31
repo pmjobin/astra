@@ -1,0 +1,20 @@
+owned R make_resource(int number) { owned R value = resource(number); return move value; }
+void replace(owned R value) {
+	value = make_resource(4);
+	owned R other = resource(5);
+	value = move other;
+	value = make_resource(6);
+	release value;
+	value = resource(7);
+	owned R final = move value;
+	value = resource(8);
+}
+int main() {
+	owned R value = resource(1);
+	value = make_resource(2);
+	owned R other = resource(3);
+	value = move other;
+	replace(move value);
+	value = resource(9);
+	return 0;
+}

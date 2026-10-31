@@ -1,0 +1,122 @@
+(core-program
+	(function "sum" -> int
+		(parameters
+			(parameter #0 "values" : int[] (contract borrowed-noescape))
+		)
+		(locals
+			(local-place #0 "result" : int)
+			(local-place #1 "i" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(initialize
+				(local-place #1 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(binary < : bool
+						(load : int
+							(local-place #1 : int)
+						)
+						(slice-length : int
+							(parameter #0 : int[])
+						)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(load : int
+									(slice-element-place : int runtime-bounds-trap
+										(parameter #0 : int[])
+										(load : int
+											(local-place #1 : int)
+										)
+									)
+								)
+							)
+						)
+						(store
+							(local-place #1 : int)
+							(binary + : int
+								(load : int
+									(local-place #1 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "a" : int[4])
+			(local-place #1 "b" : int[8])
+			(local-place #2 "sa" : int)
+			(local-place #3 "sb" : int)
+		)
+		(block
+			(array-initialize #0 int[4]
+				(integer 1 : int)
+				(integer 2 : int)
+				(integer 3 : int)
+				(integer 4 : int)
+			)
+			(array-initialize #1 int[8]
+				(integer 1 : int)
+				(integer 2 : int)
+				(integer 3 : int)
+				(integer 4 : int)
+				(integer 5 : int)
+				(integer 6 : int)
+				(integer 7 : int)
+				(integer 8 : int)
+			)
+			(initialize
+				(local-place #2 : int)
+				(call "sum" -> int
+					(arguments
+						(slice-from-array (storage #0 : int[4]) : int[] (region #0) full
+						)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : int)
+				(call "sum" -> int
+					(arguments
+						(slice-from-array (storage #1 : int[8]) : int[] (region #0) full
+						)
+					)
+				)
+			)
+			(return
+				(binary + : int
+					(load : int
+						(local-place #2 : int)
+					)
+					(load : int
+						(local-place #3 : int)
+					)
+				)
+			)
+		)
+	)
+)

@@ -1,0 +1,16 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void add(int n) { this.value = this.value + n; }
+}
+void sink(owned Counter c) { c.add(1); }
+void forward(owned Counter c, bool transfer) { if (transfer) { sink(move c); } }
+int main() {
+	owned Counter a = Counter.init(65);
+	owned Counter b = Counter.init(67);
+	forward(move a, true);
+	forward(move b, false);
+	return 42;
+}

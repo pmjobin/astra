@@ -1,0 +1,31 @@
+(unit
+	(function
+		(type "int")
+		(name "sum_odds")
+		(parameters
+			(parameter (type "int") (name "n"))
+		)
+		(block
+			(local (type "int") (name "i") (integer "0"))
+			(local (type "int") (name "sum") (integer "0"))
+			(while
+				(condition (binary "<" (name "i") (name "n")))
+				(body
+					(block
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+						(if
+							(condition (binary "==" (binary "%" (name "i") (integer "2")) (integer "0")))
+							(then
+								(block
+									(continue)
+								)
+							)
+						)
+						(assign (name "sum") (binary "+" (name "sum") (name "i")))
+					)
+				)
+			)
+			(return (name "sum"))
+		)
+	)
+)

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned Counter make() {
+	var value = new Counter(40, 1);
+	return move value;
+}
+void concrete(owned Counter value) { consume<Counter>(move value, 40); }
+int main() {
+	var value = make();
+	concrete(move value);
+	return own_finish();
+}

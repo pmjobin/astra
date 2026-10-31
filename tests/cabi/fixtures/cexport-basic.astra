@@ -1,0 +1,15 @@
+export(C) int astra_export_add(int a, int b) {
+	return a + b;
+}
+
+extern(C) int c_call_astra_add(int a, int b);
+
+int main() {
+	if (c_call_astra_add(20, 22) != 42) {
+		return 1;
+	}
+	if (c_call_astra_add(-2147483648, 0) != -2147483648) {
+		return 2;
+	}
+	return 0;
+}

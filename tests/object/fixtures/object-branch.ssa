@@ -1,0 +1,145 @@
+(ssa-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(function #0 "choose" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(object-storage #1 (class #0) : Counter (region #0) lexical-memory)
+		(parameters
+			(%0 "condition" : bool)
+		)
+		(entry #0)
+		(block #0
+			(initialize (object-field-initialize-place (storage #0) (field #0) : int) (integer 30 : int))
+			(%4 : Counter = object-ref (storage #0))
+			(initialize (object-field-initialize-place (storage #1) (field #0) : int) (integer 40 : int))
+			(%5 : Counter = object-ref (storage #1))
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 (%4))
+			)
+		)
+		(block #1
+			(branch #2 (%5))
+		)
+		(block #2
+			(arguments
+				(%1 "reference" : Counter)
+			)
+			(%6 : Receiver<Counter> = object-validate %1 null-traps)
+			(method-call (target Counter::add #0) (receiver %6) -> void (arguments (integer 2 : int)))
+			(conditional-branch %0
+				(true #3 ())
+				(false #4 ())
+			)
+		)
+		(block #3
+			(branch #8 ())
+		)
+		(block #4
+			(branch #13 ())
+		)
+		(block #5
+			(%15 : Counter = object-validate %1 null-traps)
+			(%16 : int = load (indirect-field %15 (class "Counter" field #0 "value") : int))
+			(return %16)
+		)
+		(block #6
+			(return (integer 1 : int))
+		)
+		(block #7
+			(branch #5 ())
+		)
+		(block #8
+			(%7 : Counter = object-validate %4 null-traps)
+			(%8 : int = load (indirect-field %7 (class "Counter" field #0 "value") : int))
+			(%9 : bool = binary != %8 (integer 30 : int))
+			(conditional-branch %9
+				(true #10 ((bool true : bool)))
+				(false #9 ())
+			)
+		)
+		(block #9
+			(%10 : bool = binary != %1 %5)
+			(branch #10 (%10))
+		)
+		(block #10
+			(arguments
+				(%2 (temporary #0) : bool)
+			)
+			(conditional-branch %2
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #11
+			(return (integer 2 : int))
+		)
+		(block #12
+			(branch #5 ())
+		)
+		(block #13
+			(%11 : Counter = object-validate %5 null-traps)
+			(%12 : int = load (indirect-field %11 (class "Counter" field #0 "value") : int))
+			(%13 : bool = binary != %12 (integer 40 : int))
+			(conditional-branch %13
+				(true #15 ((bool true : bool)))
+				(false #14 ())
+			)
+		)
+		(block #14
+			(%14 : bool = binary != %1 %4)
+			(branch #15 (%14))
+		)
+		(block #15
+			(arguments
+				(%3 (temporary #1) : bool)
+			)
+			(conditional-branch %3
+				(true #11 ())
+				(false #12 ())
+			)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : int = call #0 "choose" -> int (arguments (bool false : bool)))
+			(%1 : bool = binary != %0 (integer 32 : int))
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%2 : int = call #0 "choose" -> int (arguments (bool true : bool)))
+			(return %2)
+		)
+	)
+	(method #0 "add" (declaring-class #0 "Counter") (member #1) -> void
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(%1 "amount" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = load (indirect-field %0 (class "Counter" field #0 "value") : int))
+			(%3 : int = binary + %2 %1)
+			(store (indirect-field %0 (class "Counter" field #0 "value") : int) %3)
+			(function-end)
+		)
+	)
+	(method #1 "get" (declaring-class #0 "Counter") (member #2) -> int
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (class "Counter" field #0 "value") : int))
+			(return %1)
+		)
+	)
+)

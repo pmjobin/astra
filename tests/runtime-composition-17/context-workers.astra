@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void context_workers_prepare();
+extern(C) int context_worker_enter(int identity);
+extern(C) void context_worker_destroy(int identity);
+extern(C) int context_workers_finish();
+[Allocator(kind="context",context="owned-concurrent")]
+class ContextWork {
+	private int identity;
+	private owned ConcurrentAllocator context;
+	init(owned ConcurrentAllocator context, int identity) { this.context = move context; this.identity = identity; }
+	int run() {
+		if (context_worker_enter(this.identity) != 0) { return -1; }
+		int value = this.identity;
+		for (int i = 0; i < 50003; i = i + 1) { value = (value * 17 + i % 251) % 65521; }
+		return value;
+	}
+	deinit() { context_worker_destroy(this.identity); }
+}
+async int calculate(owned ContextWork work) { return work.run(); }
+async void execute(owned ConcurrentAllocator first, owned ConcurrentAllocator second) throws Error {
+	var inner_one = concurrent_allocator(1, 8197, 7, 64);
+	var inner_two = concurrent_allocator(2, 12299, 11, 64);
+	if (inner_one == null || inner_two == null) { throw new Error("inner context construction"); }
+	var a = new (first) ContextWork(move inner_one, 1);
+	var b = new (second) ContextWork(move inner_two, 2);
+	var one = calculate(move a);
+	var two = calculate(move b);
+	start(one);
+	try {
+		if (await move two != 4750) { throw new Error("worker two result"); }
+	} catch (Error error) { await cancel_and_join(move one); throw; }
+	if (await move one != 13136) { throw new Error("worker one result"); }
+	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) { throw new Error("worker allocation retirement"); }
+}
+int main() {
+	context_workers_prepare();
+	var first = custom_allocator(16387, 17);
+	var second = concurrent_allocator(2, 32771, 19, 64);
+	if (first == null || second == null) { return 1; }
+	try {
+		var executor = ThreadedExecutor.open(2);
+		var status = executor.run(execute(move first, move second));
+		match (status) { case ThreadedStatus.Completed(): {} else: { return 2; } }
+	} catch (Error error) { return 3; }
+	return context_workers_finish();
+}

@@ -1,0 +1,201 @@
+(ssa-program
+	(class #0 "Signal"
+		(property #0 "gain" : f64 (member #1) (getter #0) (setter #0))
+		(field #0 "raw" : f64)
+	)
+	(function #0 "borrowed_gain" -> f64
+		(parameters
+			(%0 "s" : Signal (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(%1 : Receiver<Signal> = object-validate %0 null-traps)
+			(%2 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %1) -> f64 effectful (arguments))
+			(%3 : bool = binary == (f64 0x3ff0000000000001 : f64) %2)
+			(conditional-branch %3
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(%4 : Receiver<Signal> = object-validate %0 null-traps)
+			(%5 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %4) -> f64 effectful (arguments))
+			(return %5)
+		)
+		(block #2
+			(return (f64 0x0000000000000000 : f64))
+		)
+	)
+	(function #1 "main" -> int
+		(object-storage #0 (class #0) : Signal (region #0) lexical-memory)
+		(parameters)
+		(entry #0)
+		(block #0
+			(initialize (object-field-initialize-place (storage #0) (field #0) : f64) (f64 0x0000000000000000 : f64))
+			(%2 : Signal = object-ref (storage #0))
+			(%3 : Receiver<Signal> = object-validate %2 null-traps)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver %3) -> void effectful (arguments (f64 0x3ff0000000000001 : f64)))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%11 : Receiver<Signal> = object-validate %2 null-traps)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver %11) -> void effectful (arguments (f64 0x8000000000000000 : f64)))
+			(%12 : Receiver<Signal> = object-validate %2 null-traps)
+			(%13 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %12) -> f64 effectful (arguments))
+			(%14 : f64 = binary / (f64 0x3ff0000000000000 : f64) %13)
+			(%15 : bool = binary >= %14 (f64 0x0000000000000000 : f64))
+			(conditional-branch %15
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #3
+			(%4 : Receiver<Signal> = object-validate %2 null-traps)
+			(%5 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %4) -> f64 effectful (arguments))
+			(%6 : bool = binary != %5 (f64 0x3ff0000000000001 : f64))
+			(conditional-branch %6
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%7 : f64 = call #0 "borrowed_gain" -> f64 (arguments %2))
+			(%8 : Signal = object-validate %2 null-traps)
+			(%9 : f64 = load (indirect-field %8 (class "Signal" field #0 "raw") : f64))
+			(%10 : bool = binary != %7 %9)
+			(branch #5 (%10))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return (integer 2 : int))
+		)
+		(block #7
+			(%16 : Receiver<Signal> = object-validate %2 null-traps)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver %16) -> void effectful (arguments (f64 0x0000000000000001 : f64)))
+			(%17 : Receiver<Signal> = object-validate %2 null-traps)
+			(%18 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %17) -> f64 effectful (arguments))
+			(%19 : bool = binary != %18 (f64 0x0000000000000001 : f64))
+			(conditional-branch %19
+				(true #8 ())
+				(false #9 ())
+			)
+		)
+		(block #8
+			(return (integer 3 : int))
+		)
+		(block #9
+			(%20 : Receiver<Signal> = object-validate %2 null-traps)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver %20) -> void effectful (arguments (f64 0x7ff0000000000000 : f64)))
+			(%21 : Receiver<Signal> = object-validate %2 null-traps)
+			(%22 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %21) -> f64 effectful (arguments))
+			(%23 : bool = binary != %22 (f64 0x7ff0000000000000 : f64))
+			(conditional-branch %23
+				(true #10 ())
+				(false #11 ())
+			)
+		)
+		(block #10
+			(return (integer 4 : int))
+		)
+		(block #11
+			(%24 : Receiver<Signal> = object-validate %2 null-traps)
+			(%25 : f64 = binary / (f64 0x0000000000000000 : f64) (f64 0x0000000000000000 : f64))
+			(property-set (property #0 Signal::gain) (setter #0) (receiver %24) -> void effectful (arguments %25))
+			(branch #14 ())
+		)
+		(block #12
+			(return (integer 5 : int))
+		)
+		(block #13
+			(%37 : Receiver<Signal> = object-validate %2 null-traps)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver %37) -> void effectful (arguments (f64 0xbff0000000000000 : f64)))
+			(%38 : Receiver<Signal> = object-validate %2 null-traps)
+			(%39 : f64 = method-call (target Signal::separate #0) (receiver %38) -> f64 (arguments (f64 0x3ff0000002000000 : f64) (f64 0x3feffffffc000000 : f64)))
+			(%40 : bool = binary != %39 (f64 0x0000000000000000 : f64))
+			(conditional-branch %40
+				(true #17 ())
+				(false #18 ())
+			)
+		)
+		(block #14
+			(%26 : Receiver<Signal> = object-validate %2 null-traps)
+			(%27 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %26) -> f64 effectful (arguments))
+			(%28 : Receiver<Signal> = object-validate %2 null-traps)
+			(%29 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %28) -> f64 effectful (arguments))
+			(%30 : bool = binary == %27 %29)
+			(conditional-branch %30
+				(true #16 ((bool true : bool)))
+				(false #15 ())
+			)
+		)
+		(block #15
+			(%31 : Receiver<Signal> = object-validate %2 null-traps)
+			(%32 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %31) -> f64 effectful (arguments))
+			(%33 : Receiver<Signal> = object-validate %2 null-traps)
+			(%34 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %33) -> f64 effectful (arguments))
+			(%35 : bool = binary != %32 %34)
+			(%36 : bool = prefix ! %35)
+			(branch #16 (%36))
+		)
+		(block #16
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #12 ())
+				(false #13 ())
+			)
+		)
+		(block #17
+			(return (integer 6 : int))
+		)
+		(block #18
+			(return (integer 42 : int))
+		)
+	)
+	(method #0 "separate" (declaring-class #0 "Signal") (member #2) -> f64
+		(receiver %0 : Receiver<Signal> mutable nonnull non-owning)
+		(parameters
+			(%1 "a" : f64)
+			(%2 "b" : f64)
+		)
+		(entry #0)
+		(block #0
+			(%3 : f64 = property-get (property #0 Signal::gain) (getter #0) (receiver %0) -> f64 effectful (arguments))
+			(%4 : f64 = binary * %1 %2)
+			(%5 : f64 = binary + %4 %3)
+			(return %5)
+		)
+	)
+	(property-getter #0 (property Signal::gain #0) (declaring-class #0) -> f64
+		(receiver %0 : Receiver<Signal> live mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : f64 = load (indirect-field %0 (class "Signal" field #0 "raw") : f64))
+			(return %1)
+		)
+	)
+	(property-setter #0 (property Signal::gain #0) (declaring-class #0) -> void
+		(receiver %0 : Receiver<Signal> live mutable nonnull non-owning)
+		(parameters
+			(%1 "next" : f64)
+		)
+		(entry #0)
+		(block #0
+			(store (indirect-field %0 (class "Signal" field #0 "raw") : f64) %1)
+			(function-end)
+		)
+	)
+)

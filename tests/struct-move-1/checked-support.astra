@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void record_error(int stage, int tag);
+extern(C) int record_errors();
+[ExceptionRoot]
+class Error {
+	readonly string text;
+	int tag;
+	init(string text, int tag) { this.text = text; this.tag = tag; record_error(1, tag); }
+	virtual property string message { get { return this.text; } }
+	deinit() { record_error(2, this.tag); }
+}
+void checked(bool failing, int tag) throws Error {
+	if (failing) { throw new Error("checked\0é", tag); }
+	mark(tag);
+}

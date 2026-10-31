@@ -1,0 +1,131 @@
+(program
+	(handle-type #0 "Resource" (cleanup "astra_test_resource_destroy")
+		(header "missing/resource.h")
+	)
+	(extern-function "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup "astra_test_resource_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Resource))
+	(extern-function "create_again" (abi C) (symbol "astra_test_resource_create_same")
+		(owned-result (cleanup "astra_test_resource_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Resource))
+	(extern-function "resource_id" (abi C) (symbol "astra_test_resource_id")
+		(parameters
+			(parameter #0 "r" : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function "resource_touch" (abi C) (symbol "astra_test_resource_touch")
+		(parameters
+			(parameter #0 "r" : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function "lookup_resource" (abi C) (symbol "astra_test_resource_raw")
+		(parameters
+		)
+		(result Resource))
+	(extern-function "dispose_raw" (abi C) (symbol "astra_test_resource_raw_destroy")
+		(parameters
+			(parameter #0 "r" : Resource)
+		)
+		(result void))
+	(extern-function "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_is_live" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 "p" : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function "resource_touch_count" (abi C) (symbol "astra_test_resource_touch_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_null_count" (abi C) (symbol "astra_test_resource_null_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "observe3" (abi C) (symbol "astra_test_resource_observe3")
+		(parameters
+			(parameter #0 "first" : int)
+			(parameter #1 "p" : Resource (contract borrowed-noescape))
+			(parameter #2 "last" : int)
+		)
+		(result int))
+	(extern-function "record" (abi C) (symbol "astra_test_resource_record_effect")
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result int))
+	(function "pass" -> Resource
+		(result Resource (contract owned-transfer) (cleanup "astra_test_resource_destroy"))
+		(parameters
+			(parameter #0 "r" : Resource (contract owned-transfer))
+		)
+		(locals
+			(local #0 "r" : Resource)
+		)
+		(block
+			(ownership-return (move (local-ref #0 "r") : Resource (cleanup "astra_test_resource_destroy")) : Resource)
+		)
+	)
+	(function "consume" -> void
+		(parameters
+			(parameter #0 "first" : int)
+			(parameter #1 "a" : Resource (contract owned-transfer))
+			(parameter #2 "last" : int)
+			(parameter #3 "b" : Resource (contract owned-transfer))
+		)
+		(locals
+			(local #0 "a" : Resource)
+			(local #1 "b" : Resource)
+			(local #2 "local" : Resource)
+		)
+		(block
+			(owned-local #2 "local" : Resource (region #0) (cleanup "astra_test_resource_destroy") (c-call "create_resource" -> owned Resource (arguments (integer 3 : int))))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : Resource)
+			(local #1 "b" : Resource)
+		)
+		(block
+			(owned-local #0 "a" : Resource (region #0) (cleanup "astra_test_resource_destroy") (c-call "create_resource" -> owned Resource (arguments (integer 1 : int))))
+			(owned-local #1 "b" : Resource (region #0) (cleanup "astra_test_resource_destroy") (call "pass" -> owned Resource (arguments (owned-transfer-argument (parameter #0) (move (local-ref #0 "a") : Resource (cleanup "astra_test_resource_destroy")) : Resource (cleanup "astra_test_resource_destroy")))))
+			(ownership-rearm (owner #0 "a") (producer (call "pass" -> owned Resource (arguments (owned-transfer-argument (parameter #0) owned-null : Resource (cleanup "astra_test_resource_destroy"))))) (cleanup "astra_test_resource_destroy"))
+			(call-statement "consume" -> void (arguments (c-call "record" -> int (arguments (integer 1 : int))) (owned-transfer-argument (parameter #1) (move (local-ref #1 "b") : Resource (cleanup "astra_test_resource_destroy")) : Resource (cleanup "astra_test_resource_destroy")) (c-call "record" -> int (arguments (integer 2 : int))) (owned-transfer-argument (parameter #3) (move (local-ref #0 "a") : Resource (cleanup "astra_test_resource_destroy")) : Resource (cleanup "astra_test_resource_destroy"))))
+			(return (integer 0 : int))
+		)
+	)
+)

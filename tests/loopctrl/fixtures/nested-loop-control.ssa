@@ -1,0 +1,96 @@
+(ssa-program
+	(function #0 "nested_control" -> int
+		(parameters
+			(%0 "outer_n" : int)
+			(%1 "inner_n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%2 "outer" : int)
+				(%3 "total" : int)
+			)
+			(%9 : bool = binary < %2 %0)
+			(conditional-branch %9
+				(true #2 ())
+				(false #3 (%2 %3))
+			)
+		)
+		(block #2
+			(branch #4 (%3 (integer 0 : int)))
+		)
+		(block #3
+			(arguments
+				(%4 "outer" : int)
+				(%5 "total" : int)
+			)
+			(return %5)
+		)
+		(block #4
+			(arguments
+				(%6 "total" : int)
+				(%7 "inner" : int)
+			)
+			(%10 : bool = binary < %7 %1)
+			(conditional-branch %10
+				(true #5 ())
+				(false #6 (%7))
+			)
+		)
+		(block #5
+			(%11 : int = binary + %7 (integer 1 : int))
+			(%12 : bool = binary == %11 (integer 2 : int))
+			(conditional-branch %12
+				(true #7 ())
+				(false #8 ())
+			)
+		)
+		(block #6
+			(arguments
+				(%8 "inner" : int)
+			)
+			(%15 : int = binary + %2 (integer 1 : int))
+			(%16 : bool = binary == %15 (integer 2 : int))
+			(conditional-branch %16
+				(true #11 ())
+				(false #12 ())
+			)
+		)
+		(block #7
+			(branch #4 (%6 %11))
+		)
+		(block #8
+			(%13 : bool = binary == %11 (integer 4 : int))
+			(conditional-branch %13
+				(true #9 ())
+				(false #10 ())
+			)
+		)
+		(block #9
+			(branch #6 (%11))
+		)
+		(block #10
+			(%14 : int = binary + %6 (integer 1 : int))
+			(branch #4 (%14 %11))
+		)
+		(block #11
+			(branch #1 (%15 %6))
+		)
+		(block #12
+			(%17 : bool = binary == %15 (integer 4 : int))
+			(conditional-branch %17
+				(true #13 ())
+				(false #14 ())
+			)
+		)
+		(block #13
+			(branch #3 (%15 %6))
+		)
+		(block #14
+			(branch #1 (%15 %6))
+		)
+	)
+)

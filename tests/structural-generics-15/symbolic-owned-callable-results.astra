@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct FactorySeed<A, B> { A number; B ready; }
+class ResultChild<A, B> {
+	private owned R guard;
+	private A number;
+	private B label;
+	init(owned R guard, A number, B label) { this.guard = move guard; this.number = number; this.label = label; }
+	A read() { return this.number; }
+}
+class FactoryField<Value, Label> where Value:Ownable {
+	private Fn<owned Value, int> factory;
+	private Label label;
+	private int calls;
+	init(Fn<owned Value, int> factory, Label label) {
+		this.factory = factory;
+		this.label = label;
+		this.calls = 0;
+	}
+	owned Value create(int number) {
+		Fn<owned Value, int> code = this.factory;
+		var result = code(number);
+		this.calls = this.calls + 1;
+		return move result;
+	}
+	property Label name { get { return this.label; } }
+	property int count { get { return this.calls; } }
+}
+owned R make_result_resource(int number) { var value = make(number); return move value; }
+owned Other make_result_other(int number) { var value = make_other(number); return move value; }
+owned ResultChild<int, bool> make_result_child(int number) {
+	var guard = make(number);
+	var child = new ResultChild<int, bool>(move guard, number, true);
+	return move child;
+}
+owned R make_seed_result(FactorySeed<int, bool> seed) {
+	if (!seed.ready) { return null; }
+	var value = make(seed.number);
+	return move value;
+}
+owned Value invoke_factory<Value>(Fn<owned Value, int> factory, int number) where Value:Ownable {
+	return factory(number);
+}
+owned Value relay_factory<Value>(int number, Fn<owned Value, int> factory) where Value:Ownable {
+	return invoke_factory<Value>(factory, number);
+}
+owned Value choose_factory<Value>(Fn<owned Value, int> factory, bool first) where Value:Ownable {
+	if (first) { return factory(203); }
+	return factory(204);
+}
+owned Output convert_factory<Input, Output>(Input seed, Fn<owned Output, Input> factory) where Output:Ownable {
+	return factory(seed);
+}
+int failing_factory_argument() throws Error { mark(1101); throw new Error("factory argument"); }
+owned Value retry_factory<Value>(Fn<owned Value, int> factory) where Value:Ownable {
+	try { return factory(failing_factory_argument()); }
+	catch (Error error) { mark(1102); }
+	return factory(209);
+}
+int exercise_factory_results() {
+	Fn<owned R, int> resource = make_result_resource;
+	var first = invoke_factory<R>(resource, 201);
+	var second = relay_factory<Other>(202, make_result_other);
+	var third = choose_factory<R>(resource, true);
+	var fourth = choose_factory<R>(resource, false);
+	FactorySeed<int, bool> seed = {number = 205, ready = true};
+	var converted = convert_factory<FactorySeed<int, bool>, R>(seed, make_seed_result);
+	if (id(first) != 201 || other_id(second) != 202 || id(third) != 203 || id(fourth) != 204 || id(converted) != 205) { return 2; }
+	var resource_factory = new FactoryField<R, bool>(resource, true);
+	var from_field = resource_factory.create(206);
+	i64 label = 9000000017;
+	var class_factory = new FactoryField<ResultChild<int, bool>, i64>(make_result_child, label);
+	var child = class_factory.create(207);
+	var another_child = class_factory.create(208);
+	if (!resource_factory.name || resource_factory.count != 1 || id(from_field) != 206) { return 3; }
+	if (class_factory.name != label || class_factory.count != 2 || child.read() != 207 || another_child.read() != 208) { return 4; }
+	var retried = retry_factory<R>(resource);
+	if (id(retried) != 209) { return 5; }
+	return 0;
+}
+class FactoryEnvironment {
+	private owned R guard;
+	init(int number) { var guard = make(number); this.guard = move guard; }
+}
+owned R plain_factory_result(borrowed FactoryEnvironment environment, int number) {
+	var value = make(number);
+	return move value;
+}
+owned R checked_factory_result(borrowed FactoryEnvironment environment, bool fail) throws Error {
+	if (fail) { var rejected = make(212); mark(1103); throw new Error("factory result"); }
+	var value = make(213);
+	return move value;
+}
+owned Value invoke_closure_factory<Value>(borrowed Closure<FactoryEnvironment, owned Value, int> factory, int number) where Value:Ownable {
+	return closure_invoke(factory, number);
+}
+owned Value invoke_checked_factory<Value>(borrowed CheckedClosure<FactoryEnvironment, Error, owned Value, bool> factory, bool fail) throws Error where Value:Ownable {
+	return closure_invoke(factory, fail);
+}
+int exercise_closure_results() {
+	var environment = new FactoryEnvironment(210);
+	owned Closure<FactoryEnvironment, owned R, int> factory = closure_bind(move environment, plain_factory_result);
+	var first = invoke_closure_factory<R>(factory, 211);
+	if (id(first) != 211) { return 6; }
+	var checked_environment = new FactoryEnvironment(214);
+	owned CheckedClosure<FactoryEnvironment, Error, owned R, bool> checked = checked_closure_bind(move checked_environment, checked_factory_result);
+	try { var rejected = invoke_checked_factory<R>(checked, true); return 7; }
+	catch (Error error) { mark(1104); }
+	try {
+		var accepted = invoke_checked_factory(checked, false);
+		if (id(accepted) != 213) { return 8; }
+	} catch (Error error) { return 9; }
+	return 0;
+}
+int main() {
+	int result = exercise_factory_results();
+	if (result != 0 || live() != 0) { return 10; }
+	result = exercise_closure_results();
+	if (result != 0) { return result; }
+	return live();
+}

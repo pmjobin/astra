@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+void dot_to(f32* out, f32<4> a, f32<4> b) { *out = dot(a, b); }
+void dsp_to(int* out, i16<8> a, i16<8> b) { *out = dot_wrap(a, b, int); }
+int main() {
+	f32 result = 0.0;
+	f32<4> a = {1.0, 2.0, 3.0, 4.0};
+	f32<4> b = {5.0, 6.0, 7.0, 8.0};
+	dot_to(&result, a, b);
+	if (result != 70.0) { return 1; }
+	int integer = 0;
+	i16<8> c = {1, 2, 3, 4, 5, 6, 7, 8};
+	i16<8> d = splat(2, 8);
+	dsp_to(&integer, c, d << 1);
+	if (integer != 144) { return 2; }
+	return 0;
+}

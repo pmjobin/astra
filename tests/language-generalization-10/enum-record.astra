@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item {
+	owned Other resource;
+	int code;
+	init(int code) { this.resource = make_other(code); this.code = code; }
+	deinit() { mark(200 + this.code); }
+}
+struct Pair { owned R resource; owned Item child; owned int[] bytes; int tag; }
+struct Document { Pair payload; int serial; }
+enum Route { Held(Document value, int tag), Buffer(owned int[] bytes), Empty }
+enum Envelope { Wrapped(Route value), Empty }
+enum PairRoutes { Both(Document first, Document second, owned R tail), Empty }
+Document fresh(int code) {
+	var child = new Item(code + 1);
+	Document value = {payload={child=move child,bytes=new int[2],resource=make(code),tag=7},serial=9};
+	return move value;
+}
+int argument(bool failure) throws Error {
+	mark(100);
+	if (failure) { throw new Error("record enum payload"); }
+	return 4;
+}
+Route relay(Route value) { return move value; }
+void consume(Document value) {
+	var bytes = move value.payload.bytes;
+	mark(value.serial + value.payload.tag + len(bytes));
+}
+Document unwrap(Route value) {
+	match (move value) {
+		case Route.Held(record, _): { return move record; }
+		else: { return fresh(30); }
+	}
+}
+owned Item extract(Document value) {
+	var child = move value.payload.child;
+	return move child;
+}
+void exercise(bool failure) {
+	var document = fresh(1);
+	try {
+		var state = Route.Held(move document, argument(failure) + document.serial);
+		var forwarded = relay(move state);
+		match (move forwarded) {
+			case Route.Held(value, tag): {
+				mark(value.payload.tag + tag);
+				var child = move value.payload.child;
+				mark(child.code);
+				release child;
+				var replacement = new Item(4);
+				value.payload.child = move replacement;
+				var moved = move value;
+				consume(move moved);
+			}
+			case Route.Buffer(_): { mark(998); }
+			case Route.Empty(): { mark(999); }
+		}
+	} catch (Error error) { mark(900 + document.serial); }
+}
+int main() {
+	exercise(false);
+	exercise(true);
+	var ignored = fresh(10);
+	var state = Route.Held(move ignored, 0);
+	state = Route.Empty();
+	match (move state) { case Route.Empty(): { mark(600); } else: { return 1; } }
+	var nested_record = fresh(20);
+	var inner = Route.Held(move nested_record, 0);
+	var nested = Envelope.Wrapped(move inner);
+	match (move nested) {
+		case Envelope.Wrapped(value): {
+			var result = unwrap(move value);
+			var child = extract(move result);
+			mark(child.code);
+			release child;
+		}
+		case Envelope.Empty(): { return 2; }
+	}
+	var first = fresh(40);
+	var second = fresh(50);
+	owned R tail = make(60);
+	var multiple = PairRoutes.Both(move first, move second, move tail);
+	match (move multiple) { case PairRoutes.Both(_, _, _): { mark(700); } else: { return 3; } }
+	return live();
+}

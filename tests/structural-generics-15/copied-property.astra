@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair {
+	i64 stamp;
+	int count;
+}
+
+class Snapshot<T> {
+	private T payload;
+	init(T value) { this.payload = value; }
+	property T value {
+		get { return this.payload; }
+		set(T next) { this.payload = next; }
+	}
+}
+
+int main() {
+	Pair first = {stamp = 7000000001, count = 41};
+	Pair second = {stamp = 7000000002, count = 42};
+	var snapshot = new Snapshot<Pair>(first);
+	var prior = snapshot.value;
+	snapshot.value = second;
+	var current = snapshot.value;
+	if (prior.count != 41 || current.stamp != 7000000002) { return 1; }
+	return current.count - 42;
+}

@@ -1,0 +1,159 @@
+{
+	"format": "astra-m15-historical-observations/1",
+	"cases": [
+		{
+			"name": "struct-parenthesized",
+			"path": "tests/struct/diagnostics.vala",
+			"source": "int f() { return (p).x; }",
+			"source_sha256": "fa6966c724a9c8e87f7f83bbb2d60515cfa15c77799b09966f27bb64cac6eca5",
+			"phase": "syntax",
+			"diagnostic": "unknown name 'p'",
+			"exercise": "struct P{int x;}P make(){P p={x=42};return p;}int main(){P p={x=42};return (p).x-42;}",
+			"libraries": []
+		},
+		{
+			"name": "struct-temporary",
+			"path": "tests/struct/diagnostics.vala",
+			"source": "int f() { return f().x; }",
+			"source_sha256": "fc89adb39b0c2acc5c51db80adf3d2f98bccd7347388406ae0230a0326434eb9",
+			"phase": "syntax",
+			"diagnostic": "field",
+			"exercise": "struct P{int x;}P make(){P p={x=42};return p;}int main(){P p={x=42};return make().x-42;}",
+			"libraries": []
+		},
+		{
+			"name": "property-get",
+			"path": "tests/prop/parse-tests.vala",
+			"source": "class C{property int p{get{return 1;}}}void f(){C c={};c.p.get();}",
+			"source_sha256": "1b9fa8b3189ce2d21f480104facf08ac427ad60f875fa4972d1841f09c7ddea3",
+			"phase": "syntax",
+			"diagnostic": "method",
+			"exercise": "class Value{int n;init(int n){this.n=n;}int get(){return this.n;}void set(int n){this.n=n;}}class Holder{owned Value p;init(){var value=new Value(41);this.p=move value;}}int main(){var c=new Holder();c.p.set(42);return c.p.get()-42;}",
+			"libraries": []
+		},
+		{
+			"name": "property-set",
+			"path": "tests/prop/parse-tests.vala",
+			"source": "class C{property int p{get{return 1;}}}void f(){C c={};c.p.set(1);}",
+			"source_sha256": "dc53ba847377582aa09d53be0186f50dfba32caa6a81f393c0f3e71700152ffd",
+			"phase": "syntax",
+			"diagnostic": "method",
+			"exercise": "class Value{int n;init(int n){this.n=n;}int get(){return this.n;}void set(int n){this.n=n;}}class Holder{owned Value p;init(){var value=new Value(41);this.p=move value;}}int main(){var c=new Holder();c.p.set(42);return c.p.get()-42;}",
+			"libraries": []
+		},
+		{
+			"name": "borrowed-record",
+			"path": "tests/oborrow/diagnostics.vala",
+			"source": "struct Pair { int x; } void f(borrowed Pair p) {}",
+			"source_sha256": "a64b36de954789a991be9425bd9db7c8c261276299e1568b653dbbbce4c9ce3e",
+			"phase": "semantics",
+			"diagnostic": null,
+			"exercise": "struct Pair{int x;}int read(borrowed Pair p){return p.x;}int main(){Pair p={x=42};return read(p)-42;}",
+			"libraries": []
+		},
+		{
+			"name": "record-property",
+			"path": "tests/prop/semantic.vala",
+			"source": "struct S{int x;}class C{property S p{get{return this.p;}}}",
+			"source_sha256": "62bdee07e9899eb5c6ea1d091f478625ce154bdcde3eae9dcdc94e9253309b47",
+			"phase": "semantics",
+			"diagnostic": null,
+			"exercise": "struct S{int x;}class C{S raw;init(){S value={x=42};this.raw=value;}property S p{get{return this.raw;}}}int main(){var c=new C();var p=c.p;return p.x-42;}",
+			"libraries": []
+		},
+		{
+			"name": "record-Class-field",
+			"path": "tests/struct-agg/semantic.vala",
+			"source": "struct I{int x;}class C{I inner;}",
+			"source_sha256": "d108cfe96706bc36c623714233d3ea8a8363fa71566d778d36d69489d3cc7116",
+			"phase": "semantics",
+			"diagnostic": null,
+			"exercise": "struct I{int x;}class C{I inner;init(){I value={x=42};this.inner=value;}}int main(){var c=new C();return c.inner.x-42;}",
+			"libraries": []
+		},
+		{
+			"name": "record-property-mismatch",
+			"path": "tests/struct-copy/semantic.vala",
+			"source": "struct A{int x;}struct B{int x;}struct O{int dummy;property A value{get{return 1;}}}",
+			"source_sha256": "f6f94bcf400620bf55ce53b9eee68cf8c5172e6eab96d076ab71014eab312040",
+			"phase": "semantics",
+			"diagnostic": "struct boundary requires",
+			"exercise": "struct A{int x;}struct O{int dummy;property A value{get{A a={x=this.dummy};return a;}}}int main(){O o={dummy=42};var a=o.value;return a.x-42;}",
+			"libraries": []
+		},
+		{
+			"name": "infer-unresolved",
+			"path": "tests/infer/negative.py",
+			"source": "T f<T>(T x){var y=x;return y;}\n",
+			"source_sha256": "260c08d1b261fca7ece19dbf94a6a0112a23ee59159215d3a335225229d44b35",
+			"phase": "semantics",
+			"diagnostic": null,
+			"exercise": "T f<T>(T x){var y=x;return y;}int main(){return f<int>(42)-42;}",
+			"libraries": [],
+			"vapi": "tests/infer/fixtures/runtime.vapi"
+		},
+		{
+			"name": "infer-unresolved-call",
+			"path": "tests/infer/negative.py",
+			"source": "T identity<T>(T x){return x;}T f<T>(T x){var y=identity<T>(x);return y;}\n",
+			"source_sha256": "f62cc2529b387847a838d29f75c6e238bf267baa4b01762d6cf67a0cd627e477",
+			"phase": "semantics",
+			"diagnostic": null,
+			"exercise": "T identity<T>(T x){return x;}T f<T>(T x){var y=identity<T>(x);return y;}int main(){return f<int>(42)-42;}",
+			"libraries": [],
+			"vapi": "tests/infer/fixtures/runtime.vapi"
+		},
+		{
+			"name": "slice-infer-local-value",
+			"path": "tests/gen-slice-1/negative.py",
+			"source": "struct Kernel{int index;f64 gain;}struct Other{int index;f64 gain;}struct Box<T>{T value;}struct Phantom<T>{int tag;}struct OtherBox<T>{T value;}T at<T>(T[] a,int i){return a[i];}void bad<T>(T[] a){var saved=a[0];}\n",
+			"source_sha256": "aeb1235fa2941cb9bd8b0557d23326b64fc8a9c9d6d464fefbc7b0ad6649593f",
+			"phase": "semantics",
+			"diagnostic": null,
+			"exercise": "struct Kernel{int index;f64 gain;}struct Other{int index;f64 gain;}struct Box<T>{T value;}struct Phantom<T>{int tag;}struct OtherBox<T>{T value;}T at<T>(T[] a,int i){return a[i];}void bad<T>(T[] a){var saved=a[0];}\nint main(){int[2] a={41,42};bad(slice(a));return 0;}",
+			"libraries": [
+				"lib/astra/base/slices.astra"
+			]
+		},
+		{
+			"name": "private-template",
+			"path": "tests/text-own-1b/negative.py",
+			"source": "class B<T> where T:ExactHeapClass{private owned T[slots] values;}int main(){return 0;}",
+			"source_sha256": "f332c76ab1ff92e592775db73717527ee688d5e09ed6bdb67e85c355643b16a8",
+			"phase": "syntax",
+			"diagnostic": null,
+			"exercise": "class Entry{int value;init(int value){this.value=value;}}class B<T> where T:ExactHeapClass{private owned T[slots] values;init(){this.values=new T[slots];}bool put(owned T value){if(!this.values.reserve(1)){return false;}this.values.append(move value);return true;}owned T take(){var result=this.values.take(0);return move result;}}int main(){var b=new B<Entry>();var entry=new Entry(42);if(!b.put(move entry)){return 1;}var extracted=b.take();return extracted.value-42;}",
+			"libraries": []
+		},
+		{
+			"name": "generic-Class-declaration",
+			"path": "tests/app-diag-collection-0/probes/generic-class.astra",
+			"source": "// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception\n// Generic grammar is accepted; this missing slot/constructor shape must refuse.\nclass Bag<T> { T value; }\nint main() { return 0; }\n",
+			"source_sha256": "d22a0471c8760c338df57834449369f2315b7c13c0814fe182e48a026ac142df",
+			"phase": "check",
+			"diagnostic": null,
+			"exercise": "class Bag<T>{T value;init(T value){this.value=value;}}int main(){var b=new Bag<int>(42);return b.value-42;}",
+			"libraries": []
+		},
+		{
+			"name": "slice-expanding-core-stage",
+			"path": "tests/gen-slice-1/pipeline.vala",
+			"source": "struct Box<T>{T value;}T grow<T>(T[] a){T saved=a[0];Box<T> box={value=saved};Box<T> grown=expand(box);return grown.value;}T expand<T>(T input){Box<T> box={value=input};Box<T> copy=expand(box);return input;}int root(int[] a){return grow(a);}",
+			"source_sha256": "04382e1879328fc7fc9aaff1c47ff253c37741a384c4d4f8709463edfffd334b",
+			"phase": "semantics",
+			"diagnostic": "generic materialization limit exceeded: type-expression depth 128",
+			"exercise": "struct Box<T>{T value;}T grow<T>(T[] a){T saved=a[0];Box<T> box={value=saved};Box<T> grown=expand(box);return grown.value;}T expand<T>(T input){return input;}int root(int[] a){return grow(a);}int main(){int[1] a={42};return root(slice(a))-42;}",
+			"libraries": []
+		},
+		{
+			"name": "buffer-expanding-core-stage",
+			"path": "tests/gen-buffer-1/pipeline.vala",
+			"source": "struct Box<T>{T value;}T grow<T>(T[] a){T saved=a[0];Box<T> box={value=saved};Box<T> grown=expand(box);return grown.value;}T expand<T>(T input){Box<T> box={value=input};Box<T> copy=expand(box);return input;}int root(int[] a){return grow(a);}",
+			"source_sha256": "04382e1879328fc7fc9aaff1c47ff253c37741a384c4d4f8709463edfffd334b",
+			"phase": "semantics",
+			"diagnostic": "generic materialization limit exceeded: type-expression depth 128",
+			"exercise": "struct Box<T>{T value;}T grow<T>(T[] a){T saved=a[0];Box<T> box={value=saved};Box<T> grown=expand(box);return grown.value;}T expand<T>(T input){return input;}int root(int[] a){return grow(a);}int main(){int[1] a={42};return root(slice(a))-42;}",
+			"libraries": []
+		}
+	]
+}

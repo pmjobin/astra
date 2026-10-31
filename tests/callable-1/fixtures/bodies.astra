@@ -1,0 +1,33 @@
+// Internal compiler witnesses. This is synchronous body input, not async syntax.
+struct Bits { f32 single; f64 wide; }
+struct State { int count; Bits bits; }
+T snapshot<T>(T value) { return value; }
+extern(C) void observe_state(int count, f32 single, f64 wide, int buffer);
+extern(C) void observe_int(int value);
+State step(State state, int delta, int[] buffer) {
+	observe_state(state.count, state.bits.single, state.bits.wide, buffer[0]);
+	buffer[0] = buffer[0] + delta;
+	State copy = snapshot(state);
+	copy.count = state.count + delta;
+	return copy;
+}
+State alternate(State state, int delta, int[] buffer) {
+	observe_state(state.count, state.bits.single, state.bits.wide, buffer[0]);
+	buffer[0] = buffer[0] + delta;
+	State copy = state;
+	copy.count = state.count + delta + 1;
+	return copy;
+}
+State drain(State state, int delta, int[] buffer) {
+	observe_state(state.count, state.bits.single, state.bits.wide, buffer[0]);
+	State copy = state;
+	copy.count = state.count - delta;
+	return copy;
+}
+int scalar_step(int state, int delta) { observe_int(state); return state + delta; }
+int scalar_drain(int state, int delta) { observe_int(state); return state - delta; }
+int control(int delta) { observe_int(delta); return delta + 5; }
+int other_control(int delta) { observe_int(delta); return delta + 6; }
+bool selection(int flag) { return flag != 0; }
+void buffer_authority() { owned int[] data = new int[1]; }
+export(C) int generated_run(int flag, int seed, f32 single, f64 wide, int size) { return seed; }

@@ -1,0 +1,29 @@
+(program
+	(function "choose" -> int
+		(parameters
+			(parameter #0 "condition" : bool)
+			(parameter #1 "a" : int)
+			(parameter #2 "b" : int)
+		)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (integer 0 : int))
+			(if
+				(condition (parameter-ref #0 "condition" : bool))
+				(then
+					(block
+						(assign (local-ref #0 "x" : int) (parameter-ref #1 "a" : int))
+					)
+				)
+				(else
+					(block
+						(assign (local-ref #0 "x" : int) (parameter-ref #2 "b" : int))
+					)
+				)
+			)
+			(return (local-ref #0 "x" : int))
+		)
+	)
+)

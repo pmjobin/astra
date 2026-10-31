@@ -1,0 +1,65 @@
+(unit
+	(function
+		(type "int")
+		(name "nested_control")
+		(parameters
+			(parameter (type "int") (name "outer_n"))
+			(parameter (type "int") (name "inner_n"))
+		)
+		(block
+			(local (type "int") (name "outer") (integer "0"))
+			(local (type "int") (name "total") (integer "0"))
+			(while
+				(condition (binary "<" (name "outer") (name "outer_n")))
+				(body
+					(block
+						(local (type "int") (name "inner") (integer "0"))
+						(while
+							(condition (binary "<" (name "inner") (name "inner_n")))
+							(body
+								(block
+									(assign (name "inner") (binary "+" (name "inner") (integer "1")))
+									(if
+										(condition (binary "==" (name "inner") (integer "2")))
+										(then
+											(block
+												(continue)
+											)
+										)
+									)
+									(if
+										(condition (binary "==" (name "inner") (integer "4")))
+										(then
+											(block
+												(break)
+											)
+										)
+									)
+									(assign (name "total") (binary "+" (name "total") (integer "1")))
+								)
+							)
+						)
+						(assign (name "outer") (binary "+" (name "outer") (integer "1")))
+						(if
+							(condition (binary "==" (name "outer") (integer "2")))
+							(then
+								(block
+									(continue)
+								)
+							)
+						)
+						(if
+							(condition (binary "==" (name "outer") (integer "4")))
+							(then
+								(block
+									(break)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return (name "total"))
+		)
+	)
+)

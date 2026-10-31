@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int shared_app_event(int stage, int value);
+class Document {
+	int revision;
+	int checksum;
+	init(int revision, int checksum) { this.revision=revision; this.checksum=checksum; shared_app_event(1,revision); }
+	deinit() { shared_app_event(2,this.revision); }
+}
+int digest(borrowed Document document) { return document.revision * 1000 + document.checksum; }
+bool identical(borrowed Document left, borrowed Document right) { return left == right; }
+int main() {
+	var document=new Document(4,173);
+	var editor=shared_acquire(move document);
+	var cache=shared_clone(editor);
+	var reader=shared_clone(editor);
+	if (!identical(shared_borrow(editor),shared_borrow(cache))) { return 81; }
+	shared_app_event(3,digest(shared_borrow(cache)));
+	release editor;
+	shared_app_event(4,digest(shared_borrow(reader)));
+	release reader;
+	shared_app_event(5,digest(shared_borrow(cache)));
+	release cache;
+	return 0;
+}

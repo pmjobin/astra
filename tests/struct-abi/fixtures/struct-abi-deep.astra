@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Leaf{int x;f64 y;}
+struct S0{Leaf child;}
+struct S1{S0 child;}
+struct S2{S1 child;}
+struct S3{S2 child;}
+struct S4{S3 child;}
+struct S5{S4 child;}
+struct S6{S5 child;}
+struct S7{S6 child;}
+S7 identity(S7 value){return value;}
+int main(){S7 a={child={child={child={child={child={child={child={child={x=7,y=3.5}}}}}}}}};S7 b=identity(a);if(b.child.child.child.child.child.child.child.child.x!=7 || b.child.child.child.child.child.child.child.child.y!=3.5){return 1;}return 0;}

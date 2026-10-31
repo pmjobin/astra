@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void host_error_begin(int mode);
+extern(C) void host_error_retired(int identity);
+extern(C) void host_error_outcome(int mode, int value);
+extern(C) void host_error_delay_arm();
+extern(C) int host_error_finish();
+[Allocator(kind="context",context="scoped-affine")]
+class HostErrorLeaf {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	int read() { return this.identity; }
+	deinit() { host_error_retired(this.identity); }
+}
+[ExceptionRoot]
+class HostErrorFault {
+	private owned HostErrorLeaf child;
+	init(owned HostErrorLeaf child) { this.child = move child; }
+	int read() { if (this.child == null) { return -1; } return this.child.read(); }
+	virtual property string message { get { return "host error"; } }
+}
+class HostRuntimeFault : HostErrorFault { init(string message) : base(null) {} }
+enum HostErrorPhase { Completed, Cancelled }
+async runtime HostErrorTasks throws HostRuntimeFault returns HostErrorPhase;
+async void host_error_fail(owned HostErrorLeaf input, int mode) throws HostErrorFault {
+	if (mode == 5) { return; }
+	if (mode == 3) { host_error_delay_arm(); }
+	if (mode == 1 || mode == 3) { await delay_ticks(1); }
+	throw new HostErrorFault(move input);
+}
+int host_error_forward(owned HostErrorLeaf input, int mode) throws HostErrorFault {
+	var executor = HostErrorTasks.open(8);
+	var task = host_error_fail(move input, mode);
+	if (mode == 2) { executor.cancel(task); }
+	if (mode == 4) { executor.begin_shutdown(); }
+	var status = executor.run(move task);
+	if (mode == 2) { match (status) { case HostErrorPhase.Cancelled(): {} else: { return 2; } } }
+	else { if (mode != 5) { return 3; } match (status) { case HostErrorPhase.Completed(): {} else: { return 4; } } }
+	host_error_outcome(mode, 0);
+	return 0;
+}
+int host_error_case(int mode) {
+	owned u8[] backing = new u8[16381];
+	var objects = scoped_allocator<ScopedAllocator>(backing, 1, 8);
+	host_error_begin(mode);
+	try {
+		var input = new(objects) HostErrorLeaf(mode + 1);
+		var executor = HostErrorTasks.open(8);
+		var task = host_error_fail(move input, mode);
+		if (mode == 2) { executor.cancel(task); }
+		if (mode == 4) { executor.begin_shutdown(); }
+		try {
+			var status = executor.run(move task);
+			if (mode == 2) { match (status) { case HostErrorPhase.Cancelled(): {} else: { return 2; } } }
+			else { if (mode != 5) { return 3; } match (status) { case HostErrorPhase.Completed(): {} else: { return 4; } } }
+			host_error_outcome(mode, 0);
+		} catch(HostErrorFault error) { host_error_outcome(mode, error.read()); }
+	} catch(HostErrorFault unexpected) { return 91; }
+	if (scoped_allocator_query(objects, 1) != 0) { return 1; }
+	return 0;
+}
+export(C) int host_error_probe() {
+	for (int mode = 0; mode < 6; mode = mode + 1) {
+		int result = host_error_case(mode);
+		if (result != 0) { return result; }
+	}
+	return host_error_finish();
+}

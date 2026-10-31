@@ -1,0 +1,47 @@
+(program
+	(source "tests/sources/fixtures/simple/helper.astra"
+		(unit
+			(function
+				(type "int")
+				(name "answer")
+				(parameters
+					(parameter (type "int") (name "x"))
+				)
+				(block
+					(return (binary "+" (name "x") (integer "1")))
+				)
+			)
+			(function
+				(type "f64")
+				(name "square")
+				(parameters
+					(parameter (type "f64") (name "x"))
+				)
+				(block
+					(return (binary "*" (name "x") (name "x")))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/simple/main.astra"
+		(unit
+			(function
+				(type "int")
+				(name "main")
+				(parameters)
+				(block
+					(inferred-local (name "value") (call "answer" (arguments (integer "41"))))
+					(if
+						(condition (short-circuit "||" (binary "!=" (name "value") (integer "42")) (binary "!=" (call "square" (arguments (float "3.0d"))) (float "9.0d"))))
+						(then
+							(block
+								(return (integer "1"))
+							)
+						)
+					)
+					(return (integer "0"))
+				)
+			)
+		)
+	)
+)

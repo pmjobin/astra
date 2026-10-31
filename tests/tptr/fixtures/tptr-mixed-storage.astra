@@ -1,0 +1,51 @@
+struct Pair {
+	int x;
+	int y;
+}
+
+void mutate(Pair* p) {
+	p->x = p->x + 10;
+}
+
+int mixed(bool choose) {
+	Pair a = { x = 1, y = 2 };
+	Pair b = { x = 3, y = 4 };
+	if (choose) {
+		a.x = 5;
+		mutate(&b);
+	} else {
+		a.x = 6;
+		b.x = 7;
+	}
+	return a.x * 100 + a.y * 10 + b.x + b.y;
+}
+
+int conservative() {
+	Pair p = { x = 1, y = 2 };
+	p.x = 8;
+	return p.x;
+	// Source-preserved unreachable borrow still bars promotion.
+	mutate(&p);
+}
+
+int scoped() {
+	int i = 0;
+	int sum = 0;
+	while (i < 3) {
+		Pair local = { y = 2, x = i };
+		mutate(&local);
+		sum = sum + local.x;
+		i = i + 1;
+	}
+	return sum;
+}
+
+int main() {
+	if (mixed(true) != 537 || mixed(false) != 631) {
+		return 1;
+	}
+	if (conservative() != 8 || scoped() != 33) {
+		return 2;
+	}
+	return 0;
+}

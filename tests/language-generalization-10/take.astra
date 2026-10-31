@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item {
+	owned R resource;
+	int code;
+	init(int code) {
+		this.resource = make(code);
+		this.code = code;
+	}
+	deinit() { mark(200 + this.code); }
+}
+struct Inner {
+	owned R first;
+	owned Other second;
+	owned Item child;
+	owned int[] values;
+	int tag;
+}
+struct Document {
+	Inner payload;
+	int kind;
+}
+owned Item create(int code) {
+	var result = new Item(code);
+	return move result;
+}
+int checked(int failure) throws Error {
+	if (failure == 1) { throw new Error("take"); }
+	return 7;
+}
+owned Other replacement(int code, bool failure) throws Error {
+	owned Other result = make_other(code);
+	if (failure) { throw new Error("replacement"); }
+	return move result;
+}
+void exercise(int failure) {
+	try {
+		Document document = {
+			payload = {first = make(1), second = make_other(2), child = create(3), values = new int[3], tag = 7},
+			kind = 9
+		};
+		var first = move document.payload.first;
+		mark(id(first));
+		release first;
+		int stage = checked(failure);
+		owned Item child = move document.payload.child;
+		mark(child.code);
+		release child;
+		owned int[] values = move document.payload.values;
+		mark(len(values));
+		release values;
+		document.payload.first = make(4);
+		document.payload.child = create(5);
+		document.payload.values = new int[2];
+		try {
+			document.payload.second = replacement(6, failure == 2);
+		} catch (Error error) {
+			var original = move document.payload.second;
+			mark(other_id(original));
+			release original;
+			document.payload.second = make_other(9);
+		}
+		document.payload.first = make(7);
+		var restored = move document;
+		mark(restored.payload.tag + stage + restored.kind);
+	} catch (Error error) {
+		mark(900);
+	}
+}
+int main() {
+	exercise(0);
+	exercise(1);
+	exercise(2);
+	return live();
+}

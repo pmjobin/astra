@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+u8<4> cycle(int n, u8<4> initial) {
+	u8<4> v = initial;
+	u8<4> one = {1, 1, 1, 1};
+	int i = 0;
+	while (i < n) { v = v + one; i = i + 1; }
+	return v;
+}
+f32<4> advance(int n) {
+	f32<4> v = {0.0, 1.0, 2.0, 3.0};
+	f32<4> step = {0.5, 0.5, 0.5, 0.5};
+	int i = 0;
+	while (i < n) { v = v + step; i = i + 1; }
+	return v;
+}
+bool<4> flip_loop(int n, bool<4> m) {
+	bool<4> v = m;
+	int i = 0;
+	while (i < n) { v = !v; i = i + 1; }
+	return v;
+}
+int main() {
+	u8<4> initial = {254, 255, 0, 127};
+	u8<4> expected = {1, 2, 3, 130};
+	if (!all(cycle(259, initial) == expected) || !all(cycle(0, initial) == initial)) { return 1; }
+	f32<4> floats = {5.0, 6.0, 7.0, 8.0};
+	if (!all(advance(10) == floats)) { return 2; }
+	bool<4> m = {true, false, false, true};
+	if (!all(flip_loop(3, m) == !m)) { return 3; }
+	return 0;
+}

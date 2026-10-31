@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int fail<T>(owned T value, int divisor) where T: Ownable {
+	own_mark(75, 90);
+	return 1 / divisor;
+}
+int main() {
+	var value = new Counter(90, 1);
+	return fail<Counter>(move value, 0);
+}

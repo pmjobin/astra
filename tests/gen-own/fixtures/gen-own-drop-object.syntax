@@ -1,0 +1,78 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "code"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "code"))
+			)
+			(block
+				(assign (field-access "this" "code") (name "code"))
+			)
+		)
+		(destructor
+			(name "deinit")
+			(parameters)
+			(block
+				(call-statement (call "life_record" (arguments (field-access "this" "code") (integer "0"))))
+			)
+		)
+	)
+	(extern-function
+		(abi C)
+		(type "int")
+		(name "life_record")
+		(parameters
+			(parameter (type "int") (name "code"))
+			(parameter (type "int") (name "value"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "void")
+		(name "dispose")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "relay")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (move (name "value")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "forward")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (generic-call "relay" (type-arguments T) (arguments (move (name "value")))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Counter") (name "a") (constructor-initializer (class "Counter") (arguments (integer "65"))))
+			(owned-local (type "Counter") (name "b") (constructor-initializer (class "Counter") (arguments (integer "66"))))
+			(call-statement (generic-call "dispose" (type-arguments Counter) (arguments (move (name "a")))))
+			(call-statement (generic-call "dispose" (type-arguments Counter) (arguments (move (name "b")))))
+			(return (integer "42"))
+		)
+	)
+)

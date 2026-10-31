@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class C {
+	int id;
+	init(int id) { this.id = id; observe_event(67, id); }
+	deinit() { observe_event(68, this.id); }
+}
+int main() {
+	observe_begin(0, 2);
+	owned C lexical = C.init(10);
+	var heap = new C(20);
+	forward<C>(lexical, 66);
+	forward(heap, 70);
+	if (lexical.id != 10 || heap.id != 20 || lexical == heap) { return 81; }
+	wrapper<C>(move lexical);
+	observe_event(82, heap.id);
+	release heap;
+	return observe_end();
+}

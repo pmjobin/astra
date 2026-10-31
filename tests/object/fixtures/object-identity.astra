@@ -1,0 +1,17 @@
+class Counter {
+	int value;
+	void add(int amount) { this.value = this.value + amount; }
+	int get() { return this.value; }
+}
+int main() {
+	Counter a = { value = 1 };
+	Counter b = { value = 1 };
+	Counter alias = a;
+	Counter nil = null;
+	Counter nil2 = null;
+	if (a == b || a != alias || nil != nil2 || a == null || null == a || null != nil) { return 1; }
+	if (!(a != b) || !(null != a) || !(nil == null)) { return 2; }
+	a = b;
+	if (a != b || alias == a) { return 3; }
+	return 42;
+}

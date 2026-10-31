@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Log { int calls; }
+int record(Log* log, int value) { log->calls = log->calls + 1; return value; }
+f32<4> broadcast(f32 value) { return splat(value, 4); }
+int main() {
+	Log log = {calls = 0};
+	int<4> v = splat(record(&log, 7), 4);
+	int<4> expected = {7, 7, 7, 7};
+	if (log.calls != 1 || !all(v == expected)) { return 1; }
+	int x = record(&log, 9);
+	int<4> initialized = {x, x, x, x};
+	int<4> repeated = splat(x, 4);
+	if (log.calls != 2 || !all(initialized == repeated)) { return 5; }
+	u8<16> ones = splat(1, 16);
+	u8<16> high = splat(255, 16);
+	u8<16> zero = splat(0, 16);
+	if (!all(high + ones == zero)) { return 2; }
+	if (!all(splat(true, 16)) || any(splat(false, 16))) { return 3; }
+	f32<4> negative = broadcast(-0.0);
+	if (1.0 / negative[0] >= 0.0 || 1.0 / negative[3] >= 0.0) { return 4; }
+	return 0;
+}

@@ -1,0 +1,43 @@
+struct Pair {
+	int x;
+	int y;
+}
+
+int loop(Pair* p, int limit) {
+	int sum = 0;
+	int iterations = 0;
+	while (p->x < limit) {
+		p->x = p->x + 1;
+		iterations = iterations + 1;
+		if (p->x == 2) {
+			continue;
+		}
+		sum = sum + p->x;
+		if (p->x == 5) {
+			break;
+		}
+		p->y = sum;
+	}
+	return sum * 100 + iterations;
+}
+
+int branch(Pair* p, bool choose) {
+	int result = 0;
+	if (choose) {
+		result = p->x;
+	} else {
+		result = p->y;
+	}
+	return result;
+}
+
+int main() {
+	Pair p = { x = 0, y = 0 };
+	if (loop(&p, 0) != 0 || loop(&p, 10) != 1305) {
+		return 1;
+	}
+	if (p.x != 5 || p.y != 8 || branch(&p, true) != 5 || branch(&p, false) != 8) {
+		return 2;
+	}
+	return 0;
+}

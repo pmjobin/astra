@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Error : BraidModel.Fault { init(string message) : base(message) {} }
+class RuntimeError : Error { init(string message) : base(message) {} }
+class BraidRuntimeError : Error { init(string message) : base(message) {} }
+enum BraidPhase { Completed, Cancelled }
+async runtime BraidIo throws BraidRuntimeError returns BraidPhase provider "linux-io-uring-composed";
+extern(C) int braid_stop_requested();
+extern(C) int braid_queue_capacity();
+extern(C) int braid_cache_capacity();
+extern(C) int braid_worker_count();
+extern(C) int braid_quota();
+extern(C) int braid_file_extent();
+extern(C) void braid_ready(int tcp, int udp);
+extern(C) int braid_provider_disposed(int identity);

@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int field_event(int stage, int tag);
+extern(C) int field_done();
+class Child {
+	int value;
+	int calls;
+	init(int tag) { this.value = 21; this.calls = 0; field_event(1, tag); }
+	lazy property int cached { get { this.calls = this.calls + 1; return this.value * 2; } }
+	int probe(int tag) { field_event(3, tag); return this.cached; }
+	deinit() { field_event(2, 0); }
+}
+int inspect_child(Child child, int tag) {
+	if (child.probe(tag) != 42 || child.calls != 1) { return 1; }
+	return 42;
+}
+bool distinct(Child a, Child b) { return a != b; }
+bool equal_values(Child a, Child b) { return a.value == b.value && a.calls == b.calls; }
+class Parent {
+	owned Child left;
+	int scalar;
+	owned Child right;
+	init(owned Child left, owned Child right) { this.left = move left; this.scalar = 7; this.right = move right; }
+	deinit() { field_event(4, 90); }
+}
+class Grand {
+	owned Parent parent;
+	init(owned Parent parent) { this.parent = move parent; }
+	deinit() { field_event(4, 100); }
+}
+int inspect_parent(Parent parent, int a, int b) {
+	if (!distinct(parent.left, parent.right) || inspect_child(parent.left, a) != 42 || inspect_child(parent.right, b) != 42) { return 1; }
+	return 42;
+}
+owned Parent relay(owned Parent parent) { return move parent; }
+owned Parent caller(owned Child a, owned Child b) { return Parent.init(move a, move b); }
+int main() {
+	var a = new Child(1); var b = new Child(2);
+	if (!distinct(a, b) || !equal_values(a, b) || inspect_child(a, 1) != 42) { return 81; }
+	var parent = new Parent(move a, move b);
+	if (inspect_parent(parent, 1, 2) != 42) { return 82; }
+	var moved = move parent;
+	var forwarded = relay(move moved);
+	if (inspect_parent(forwarded, 1, 2) != 42) { return 83; }
+	var c = new Child(3); var d = new Child(4);
+	var independent = new Parent(move c, move d);
+	if (inspect_parent(independent, 3, 4) != 42) { return 84; }
+	release forwarded;
+	if (inspect_parent(independent, 3, 4) != 42) { return 85; }
+	var grand = new Grand(move independent);
+	if (inspect_parent(grand.parent, 3, 4) != 42) { return 86; }
+	release grand;
+	{
+		var e = new Child(5); var f = new Child(6);
+		Parent lexical = Parent.init(move e, move f);
+		if (inspect_parent(lexical, 5, 6) != 42) { return 87; }
+	}
+	{
+		var g = new Child(7); var h = new Child(8);
+		owned Parent result = caller(move g, move h);
+		if (inspect_parent(result, 7, 8) != 42) { return 88; }
+	}
+	return field_done();
+}

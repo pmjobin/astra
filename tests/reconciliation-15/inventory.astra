@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Reconcile;
+
+extern(C) int astra_reconciliation_observe(int operation);
+int reconciliation_observe(int operation) { return astra_reconciliation_observe(operation); }
+class InputError : Error { init() : base("input") {} }
+class UnknownKey : Error { init() : base("unknown") {} }
+class StaleRevision : Error { init() : base("stale") {} }
+class Overdraw : Error { init() : base("overdraw") {} }
+class Overflow : Error { init() : base("overflow") {} }
+class AuditFailure : Error {
+	private int successes;
+	private int calls;
+	init(int accepted, int attempts) : base("audit-error") { this.successes = accepted; this.calls = attempts; }
+	property int accepted { get { return this.successes; } }
+	property int attempts { get { return this.calls; } }
+}
+class InvalidReceipt : Error { init() : base("invalid audit receipt") {} }
+
+struct StockKey { int warehouse; int sku; }
+struct StockValue { int quantity; int cost; }
+struct StockSnapshot { StockKey key; StockValue value; int revision; }
+struct Change { StockKey key; int delta; int revision; bool reject; }
+struct Proposal { StockKey key; int previous; int proposed; int revision; int value; }
+struct Receipt { int sequence; int attempts; int value; int marker; }
+
+// Three independent parameters determine distinct fields. This state has no
+// owning slots, word buckets, hash chains or indexer cache layout.
+class Inventory<K, V, Context> {
+	private K identifier;
+	private V stock;
+	private owned Context context;
+	private int generation;
+	init(K identifier, V stock, owned Context context) {
+		this.identifier = identifier;
+		this.stock = stock;
+		this.context = move context;
+		this.generation = 0;
+	}
+	R project<R>(Fn<R, K, V, int> operation) {
+		return operation(this.identifier, this.stock, this.generation);
+	}
+	property borrowed Context bookkeeping { get { return this.context; } }
+	void commit(V stock, int revision) { this.stock = stock; this.generation = revision; }
+}
+class InventoryContext<Tag> {
+	private Tag label;
+	private int commits;
+	init(Tag label) { this.label = label; this.commits = 0; reconciliation_observe(1); }
+	void record() { this.commits = this.commits + 1; }
+	property Tag tag { get { return this.label; } }
+	property int count { get { return this.commits; } }
+	deinit() { reconciliation_observe(2); }
+}
+class AuditContext<Tag> {
+	private Tag label;
+	private int successes;
+	private int calls;
+	init(Tag label) { this.label = label; this.successes = 0; this.calls = 0; reconciliation_observe(1); }
+	void attempt() { this.calls = this.calls + 1; }
+	void accept() { this.successes = this.successes + 1; }
+	property Tag tag { get { return this.label; } }
+	property int accepted { get { return this.successes; } }
+	property int attempts { get { return this.calls; } }
+	deinit() { reconciliation_observe(2); }
+}
+StockSnapshot snapshot(StockKey key, StockValue value, int revision) {
+	StockSnapshot result = {key = key, value = value, revision = revision};
+	return result;
+}
+StockSnapshot inspect(borrowed Inventory<StockKey, StockValue, InventoryContext<int>> inventory) {
+	return inventory.project<StockSnapshot>(snapshot);
+}
+bool equal_key(StockKey first, StockKey second) {
+	return first.warehouse == second.warehouse && first.sku == second.sku;
+}
+class StockList {
+	private owned Inventory<StockKey, StockValue, InventoryContext<int>>[slots] inventories;
+	init() { this.inventories = new Inventory<StockKey, StockValue, InventoryContext<int>>[slots]; }
+	property int count { get { return len(this.inventories); } }
+	StockSnapshot at(int index) { return inspect(this.inventories[index]); }
+	int find(StockKey key) {
+		for (int index = 0; index < len(this.inventories); index = index + 1) {
+			var value = inspect(this.inventories[index]);
+			if (equal_key(value.key, key)) { return index; }
+		}
+		return -1;
+	}
+	bool append(owned Inventory<StockKey, StockValue, InventoryContext<int>> inventory) {
+		if (!this.inventories.reserve(len(this.inventories) + 1)) { return false; }
+		this.inventories.append(move inventory);
+		return true;
+	}
+	owned Inventory<StockKey, StockValue, InventoryContext<int>> take(StockKey key) throws Error {
+		int index = this.find(key);
+		if (index < 0) { throw new UnknownKey(); }
+		var value = this.inventories.take(index);
+		return move value;
+	}
+}
+Receipt apply(borrowed Inventory<StockKey, StockValue, InventoryContext<int>> inventory,
+	Change change, Receipt previous,
+	borrowed CheckedClosure<AuditContext<int>, Error, Receipt, Proposal, bool> audit) throws Error {
+	var before = inspect(inventory);
+	if (inventory.bookkeeping.count != before.revision) { throw new InvalidReceipt(); }
+	if (!equal_key(before.key, change.key)) { throw new UnknownKey(); }
+	if (before.revision != change.revision) { throw new StaleRevision(); }
+	i64 quantity = (before.value.quantity as i64) + (change.delta as i64);
+	if (quantity < 0) { throw new Overdraw(); }
+	i64 value = quantity * (before.value.cost as i64);
+	if (quantity > 2147483647 || before.revision == 2147483647 || value > 2147483647) { throw new Overflow(); }
+	Proposal proposal = {key = before.key, previous = before.value.quantity,
+		proposed = quantity as int, revision = before.revision + 1, value = value as int};
+	if (previous.sequence == 2147483647 || previous.attempts == 2147483647) { throw new Overflow(); }
+	var receipt = closure_invoke(audit, proposal, change.reject);
+	if (receipt.sequence != previous.sequence + 1 || receipt.attempts != previous.attempts + 1 ||
+		receipt.value != proposal.value || receipt.marker != previous.marker) {
+		throw new InvalidReceipt();
+	}
+	StockValue next = {quantity = proposal.proposed, cost = before.value.cost};
+	inventory.commit(next, proposal.revision);
+	inventory.bookkeeping.record();
+	return receipt;
+}

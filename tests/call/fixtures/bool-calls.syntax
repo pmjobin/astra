@@ -1,0 +1,44 @@
+(unit
+	(function
+		(type "bool")
+		(name "predicate")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (binary "==" (name "x") (integer "0")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "negate_result")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (prefix "!" (call "predicate" (arguments (name "x")))))
+		)
+	)
+	(function
+		(type "int")
+		(name "f")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(if
+				(condition (call "predicate" (arguments (name "x"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+				(else
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+		)
+	)
+)

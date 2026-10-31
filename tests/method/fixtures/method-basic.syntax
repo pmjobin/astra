@@ -1,0 +1,35 @@
+(unit
+	(struct "Counter"
+		(field (type "int") (name "value"))
+		(method
+			(type "void")
+			(name "add")
+			(parameters
+				(parameter (type "int") (name "delta"))
+			)
+			(block
+				(assign (field-access "this" "value") (binary "+" (field-access "this" "value") (name "delta")))
+			)
+		)
+		(method
+			(type "int")
+			(name "get")
+			(parameters)
+			(block
+				(return (field-access "this" "value"))
+			)
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Counter") (name "counter")
+				(initialize-field "value" (integer "40"))
+			)
+			(call-statement (method-call (receiver "counter") (target "add") (arguments (integer "2"))))
+			(return (method-call (receiver "counter") (target "get") (arguments)))
+		)
+	)
+)

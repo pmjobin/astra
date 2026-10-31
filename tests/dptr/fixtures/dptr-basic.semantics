@@ -1,0 +1,88 @@
+(program
+	(function "inspect" -> int
+		(parameters
+			(parameter #0 "p" : int*)
+		)
+		(block
+			(return (load (dereference-place : int null-traps (parameter-ref #0 "p" : int*))))
+		)
+	)
+	(function "replace" -> void
+		(parameters
+			(parameter #0 "p" : int*)
+			(parameter #1 "value" : int)
+		)
+		(block
+			(store (dereference-place : int null-traps (parameter-ref #0 "p" : int*)) (parameter-ref #1 "value" : int))
+		)
+	)
+	(function "ordinary" -> int
+		(parameters
+			(parameter #0 "condition" : bool)
+		)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (integer 1 : int))
+			(if
+				(condition (parameter-ref #0 "condition" : bool))
+				(then
+					(block
+						(assign (local-ref #0 "x" : int) (integer 2 : int))
+					)
+				)
+			)
+			(return (local-ref #0 "x" : int))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "x" : int address-taken)
+			(local #1 "p" : int*)
+			(local #2 "q" : int*)
+		)
+		(block
+			(local-init #0 "x" : int (integer 1 : int))
+			(local-init #1 "p" : int* (address-of (local #0 "x" : int) : int*))
+			(local-init #2 "q" : int* (local-ref #1 "p" : int*))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (binary == : bool (local-ref #1 "p" : int*) (null : int*)) (binary == : bool (null : int*) (local-ref #2 "q" : int*))) (binary != : bool (local-ref #1 "p" : int*) (local-ref #2 "q" : int*))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(store (dereference-place : int null-traps (local-ref #2 "q" : int*)) (integer 2 : int))
+			(if
+				(condition (binary != : bool (local-ref #0 "x" : int) (integer 2 : int)))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(assign (local-ref #0 "x" : int) (integer 3 : int))
+			(if
+				(condition (binary != : bool (load (dereference-place : int null-traps (local-ref #1 "p" : int*))) (integer 3 : int)))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(call-statement "replace" -> void (arguments (address-of (local #0 "x" : int) : int*) (integer 42 : int)))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (call "inspect" -> int (arguments (local-ref #2 "q" : int*))) (integer 42 : int)) (binary != : bool (call "ordinary" -> int (arguments (bool true : bool))) (integer 2 : int))))
+				(then
+					(block
+						(return (integer 4 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

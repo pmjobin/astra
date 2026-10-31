@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Entry {
+	int value;
+	owned R resource;
+	owned int[] bytes;
+	init(int value, owned R resource) {
+		this.value = value;
+		this.resource = move resource;
+		this.bytes = new int[2];
+	}
+	deinit() { mark(100 + this.value); }
+}
+struct Inner { owned R head; owned Entry item; owned int[] data; int code; }
+struct Packet { Inner body; owned Other tail; int tag; }
+struct Only { owned R resource; }
+int code(Entry value) { return value.value; }
+Packet produce(int tag) {
+	var head = make(tag);
+	var resource = make(tag + 10);
+	var child = new Entry(tag, move resource);
+	var data = new int[2];
+	data[0] = tag + 30;
+	var tail = make_other(tag + 20);
+	Packet packet = {body = {head = move head, item = move child, data = move data, code = tag + 40}, tail = move tail, tag = tag};
+	return move packet;
+}
+int exercise() {
+	var values = new Vector<Packet>(0);
+	var first = produce(1);
+	var second = produce(2);
+	var third = produce(3);
+	bool a = values.append(move first);
+	bool b = values.append(move second);
+	bool c = values.append(move third);
+	bool grown = values.reserve(9);
+	var result = values.take(1);
+	var numbers = move result.body.data;
+	var child = move result.body.item;
+	if (result.tag != 2 || numbers[0] != 32 || code(child) != 2) { return 81; }
+	mark(result.body.code);
+	var replacement = produce(4);
+	values.replace(0, move replacement);
+	if (values.count() != 2 || values.capacity() != 9) { return 82; }
+	var extracted = values.take(0);
+	mark(extracted.tag);
+	var empty = new Vector<Packet>(0);
+	try {
+		var doomed = new Vector<Packet>(0);
+		var packet = produce(5);
+		bool added = doomed.append(move packet);
+		throw new Error("owning container cleanup");
+	}
+	catch (Error error) { mark(900); }
+	var zeroes = new Vector<Only>(0);
+	var nothing = make(0);
+	Only zero = {resource = move nothing};
+	bool present = zeroes.append(move zero);
+	var taken_zero = zeroes.take(0);
+	return 0;
+}
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

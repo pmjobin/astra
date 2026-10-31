@@ -1,0 +1,40 @@
+(core-program
+	(function "make" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(function "f" -> int
+		(parameters)
+		(locals
+			(local-place #0 "x" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(call "make" -> int
+					(arguments)
+				)
+			)
+			(store
+				(local-place #0 : int)
+				(call "make" -> int
+					(arguments)
+				)
+			)
+			(return
+				(binary + : int
+					(call "make" -> int
+						(arguments)
+					)
+					(load : int
+						(local-place #0 : int)
+					)
+				)
+			)
+		)
+	)
+)

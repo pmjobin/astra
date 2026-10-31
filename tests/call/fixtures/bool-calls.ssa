@@ -1,0 +1,42 @@
+(ssa-program
+	(function #0 "predicate" -> bool
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary == %0 (integer 0 : int))
+			(return %1)
+		)
+	)
+	(function #1 "negate_result" -> bool
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = call #0 "predicate" -> bool (arguments %0))
+			(%2 : bool = prefix ! %1)
+			(return %2)
+		)
+	)
+	(function #2 "f" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = call #0 "predicate" -> bool (arguments %0))
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 2 : int))
+		)
+	)
+)

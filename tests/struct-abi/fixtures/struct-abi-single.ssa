@@ -1,0 +1,52 @@
+(ssa-program
+	(struct "One"
+		(field #0 "value" : f64)
+	)
+	(function #0 "identity" -> One
+		(struct-parameter #0 : One COPY_VALUE (leaves 0 1))
+		(struct-result : One (leaves 1))
+		(parameters
+			(%0 "value.0" : f64)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : One %0)
+		)
+	)
+	(function #1 "forward" -> One
+		(struct-parameter #0 : One COPY_VALUE (leaves 0 1))
+		(struct-result : One (leaves 1))
+		(parameters
+			(%0 "value.0" : f64)
+		)
+		(entry #0)
+		(block #0
+			(struct-argument #0 : One (leaves 0 1))
+			(struct-call-results : One (%1 : f64))
+			(call #0 "identity" -> One (arguments %0))
+			(consume-struct-result 3 : One %1)
+			(struct-return : One %1)
+		)
+	)
+	(function #2 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(struct-argument #0 : One (leaves 0 1))
+			(struct-call-results : One (%0 : f64))
+			(call #1 "forward" -> One (arguments (f64 0x400c000000000000 : f64)))
+			(consume-struct-result 0 : One %0)
+			(%1 : bool = binary != %0 (f64 0x400c000000000000 : f64))
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+	)
+)

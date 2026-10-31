@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CCode(cname = "abs")]
+extern(C) int observed_abs(int value);
+extern(C) void clear_foreign_effects();
+extern(C) int foreign_effect_count();
+export(C) int astra_foreign_effect(int value) {
+	clear_foreign_effects(); observed_abs(value); return foreign_effect_count();
+}

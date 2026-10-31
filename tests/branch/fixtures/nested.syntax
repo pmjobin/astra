@@ -1,0 +1,39 @@
+(unit
+	(function
+		(type "int")
+		(name "nested")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(local (type "int") (name "x") (integer "0"))
+			(if
+				(condition (name "a"))
+				(then
+					(block
+						(if
+							(condition (name "b"))
+							(then
+								(block
+									(assign (name "x") (integer "1"))
+								)
+							)
+							(else
+								(block
+									(assign (name "x") (integer "2"))
+								)
+							)
+						)
+					)
+				)
+				(else
+					(block
+						(assign (name "x") (integer "3"))
+					)
+				)
+			)
+			(return (name "x"))
+		)
+	)
+)

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair { int x; f64 y; }
+Pair identity(Pair value) { return value; }
+Pair local_copy(Pair value) { Pair local = value; local.x = 91; local.y = 9.5; return local; }
+int main() {
+	Pair a = { x = 7, y = 3.5 };
+	Pair b = identity(a);
+	Pair c = local_copy(a);
+	if (a.x != 7 || a.y != 3.5 || b.x != 7 || b.y != 3.5 || c.x != 91 || c.y != 9.5) { return 1; }
+	return 0;
+}

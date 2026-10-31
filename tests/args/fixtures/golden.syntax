@@ -1,0 +1,32 @@
+(unit
+	(function
+		(type "int")
+		(name "run")
+		(parameters
+			(parameter (type "string[]") (name "values"))
+			(parameter (type "int") (name "index"))
+		)
+		(block
+			(inferred-local (name "text") (index (name "values") (name "index")))
+			(return (binary "+" (len-form (arguments (name "values"))) (field-access "text" "byte_length")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters
+			(parameter (type "string[]") (name "args"))
+		)
+		(block
+			(if
+				(condition (binary "==" (len-form (arguments (name "args"))) (integer "0")))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+			)
+			(return (call "run" (arguments (name "args") (integer "0"))))
+		)
+	)
+)

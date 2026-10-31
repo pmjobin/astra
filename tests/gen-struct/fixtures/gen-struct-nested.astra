@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair<T,U> { T first; U second; }
+struct Bundle<T> { Pair<T,T> pair; int tag; }
+struct Meta { int tag; f64 scale; }
+struct Item<T> { Meta meta; T value; }
+T nested<T>(T a, T b) { Bundle<T> value = { pair = { first = a, second = b }, tag = 7 }; return value.pair.second; }
+f64 scalarized(f64 x) { Bundle<f64> b = { pair = { first = x, second = 2.0 }, tag = 7 }; return b.pair.first; }
+int main() {
+	Bundle<f64> bundle = { pair = { first = 1.0, second = 2.0 }, tag = 7 };
+	Item<int> item = { meta = { tag = 3, scale = bundle.pair.second }, value = 42 };
+	item.meta.scale = 3.5;
+	if (bundle.pair.second != 2.0 || bundle.tag != 7 || item.meta.scale != 3.5 || item.value != 42) { return 1; }
+	if (nested<f64>(1.0, 2.0) != 2.0 || scalarized(3.5) != 3.5) { return 2; }
+	return 0;
+}

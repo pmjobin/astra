@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace IndexAnalysis;
+
+void batch_error(string path, string category) throws IndexFoundation.Error {
+	var output = new IndexFoundation.Utf8ByteBuilder();
+	IndexFoundation.require_text(IndexFoundation.append_text(output, "error\t"));
+	append_path(output, path);
+	IndexFoundation.require_text(IndexFoundation.append_text(output, "\t"));
+	IndexFoundation.require_text(IndexFoundation.append_text(output, category));
+	append_byte(output, 10);
+	var message = output.snapshot();
+	if (!IndexFoundation.print(message.text)) { throw new IndexFoundation.IndexError("output"); }
+}
+IndexFoundation.Summary batch_file(borrowed IndexFoundation.Store store, int key,
+	string path, borrowed IndexFoundation.ClassificationTable policy, int generation,
+	bool replace, borrowed CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
+	IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink, bool retry) throws IndexFoundation.Error {
+	if (retry && !store.contains(key)) {
+		try {
+			var rejected = process(store, key, path, policy, generation, replace, sink, true);
+			throw new IndexFoundation.IndexError("sink did not reject");
+		} catch (IndexFoundation.SinkFailure error) {
+			if (store.contains(key)) { throw new IndexFoundation.IndexError("failed sink published a result"); }
+		}
+	}
+	var result = process(store, key, path, policy, generation, replace, sink, false);
+	int offset = 0;
+	while (true) {
+		int byte = store.report_byte(key, offset);
+		if (byte < 0) { break; }
+		if (!IndexFoundation.write_byte(byte)) { throw new IndexFoundation.IndexError("output"); }
+		offset = offset + 1;
+	}
+	return result;
+}
+async IndexFoundation.BatchSummary process_batch(owned IndexFoundation.Store store,
+	owned IndexFoundation.BatchInput arguments, owned IndexFoundation.ClassificationTable policy,
+	owned CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
+	IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink) throws IndexFoundation.Error {
+	bool replace = false;
+	bool retry = false;
+	bool evict = false;
+	bool cache_stats = false;
+	int last_key = -1;
+	int successful = 0;
+	int errors = 0;
+	int bytes = 0;
+	int occurrences = 0;
+	int count = arguments.count;
+	for (int index = 0; index < count; index = index + 1) {
+		var argument = arguments.take();
+		// Options never retain a borrowed argument across the following await.
+		if (argument.text == "--policy=alternate") { continue; }
+		if (argument.text == "--refresh") { replace = true; continue; }
+		if (argument.text == "--retry-sink") { retry = true; continue; }
+		if (argument.text == "--evict-last") { evict = true; continue; }
+		if (argument.text == "--cache-stats") { cache_stats = true; continue; }
+		IndexFoundation.async_watch(1);
+		await delay_ticks(3);
+		IndexFoundation.async_watch(2);
+		var path = argument.text;
+		int key = argument.key;
+		try {
+			var summary = batch_file(store, key, path, policy, index + 1, replace, sink, retry);
+			last_key = key;
+			successful = successful + 1;
+			bytes = bytes + summary.bytes;
+			occurrences = occurrences + summary.occurrences;
+		} catch (IndexFoundation.InvalidUtf8 error) {
+			errors = errors + 1;
+			batch_error(path, "invalid-utf8");
+		} catch (IndexFoundation.FileError error) {
+			errors = errors + 1;
+			batch_error(path, "read");
+		} catch (IndexFoundation.IndexError error) {
+			if (error.message != "embedded-nul") { throw; }
+			errors = errors + 1;
+			batch_error(path, "embedded-nul");
+		}
+	}
+	if (evict && last_key >= 0) {
+		int before = store.count;
+		var removed = store.remove(last_key);
+		if (removed == null || removed.view.summary.bytes < 0 || store.count != before - 1) {
+			throw new IndexFoundation.IndexError("cache extraction");
+		}
+	}
+	if (cache_stats) {
+		var diagnostics = new IndexFoundation.Utf8ByteBuilder();
+		IndexFoundation.require_text(IndexFoundation.append_text(diagnostics, "cache"));
+		append_number(diagnostics, store.count);
+		append_number(diagnostics, store.hits);
+		append_number(diagnostics, store.revision);
+		append_number(diagnostics, store.receipts);
+		append_number(diagnostics, store.sink_attempts);
+		var message = diagnostics.snapshot();
+		IndexFoundation.println_stderr(message.text);
+	}
+	IndexFoundation.BatchSummary result = {successful = successful, errors = errors,
+		bytes = bytes, occurrences = occurrences};
+	return result;
+}

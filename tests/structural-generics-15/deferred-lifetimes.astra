@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class DeferredBox<T> {
+	private owned T payload;
+	private int code;
+	init(owned T payload, int code) {
+		this.payload = move payload;
+		this.code = code;
+	}
+	deinit() { mark(this.code); }
+}
+
+class DeferredOwner {
+	owned R handle;
+	init(owned R handle) { this.handle = move handle; }
+	deinit() { mark(100 + id(this.handle)); }
+}
+
+struct DeferredPacket { owned R handle; owned int[] samples; }
+
+class DeferredFactory<Tag> {
+	Tag tag;
+	init(Tag tag) { this.tag = tag; }
+	owned DeferredBox<U> wrap<U>(owned U value, int code) {
+		var result = new DeferredBox<U>(move value, code);
+		return move result;
+	}
+	owned DeferredBox<DeferredBox<U>> nest<U>(owned U value, int code) {
+		var first = this.wrap<U>(move value, code);
+		var result = new DeferredBox<DeferredBox<U>>(move first, code + 1);
+		return move result;
+	}
+	int local_only<U>(owned U value, int code) {
+		var local = new DeferredBox<U>(move value, code);
+		return 7;
+	}
+	int discard<U>(owned U value) { return 7; }
+	owned U pass<U>(owned U value) { return move value; }
+}
+
+int exercise() {
+	var factory = new DeferredFactory<bool>(true);
+	var first = make(11);
+	var resource = factory.wrap<R>(move first, 21);
+	var second = make(12);
+	var samples = new int[3];
+	samples[0] = 42;
+	DeferredPacket packet = {handle = move second, samples = move samples};
+	var record = factory.nest<DeferredPacket>(move packet, 31);
+	var third = make(13);
+	var child = new DeferredOwner(move third);
+	var object = factory.nest<DeferredOwner>(move child, 41);
+	var fourth = make(14);
+	if (factory.local_only<R>(move fourth, 51) != 7) { return 1; }
+	var fifth = make(15);
+	owned DeferredOwner lexical = DeferredOwner.init(move fifth);
+	owned DeferredOwner returned = factory.pass<DeferredOwner>(move lexical);
+	if (factory.discard<DeferredOwner>(move returned) != 7) { return 2; }
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

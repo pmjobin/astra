@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ClosureRecordPair {
+	int value;
+	i64 wide;
+	bool ready;
+}
+struct ClosureRecordInput {
+	ClosureRecordPair pair;
+	int extra;
+}
+class ClosureRecordEnvironment<A,B> {
+	private A seed;
+	private B enabled;
+	owned R retained;
+	init(A seed, B enabled, owned R retained) {
+		this.seed = seed;
+		this.enabled = enabled;
+		this.retained = move retained;
+	}
+	property A amount { get { return this.seed; } }
+	property B ready { get { return this.enabled; } }
+	deinit() { mark(600); }
+}
+ClosureRecordInput make_closure_record() {
+	i64 wide = 9000000001;
+	ClosureRecordPair pair = {value = 7, wide = wide, ready = true};
+	ClosureRecordInput result = {pair = pair, extra = 5};
+	return result;
+}
+int inspect_closure_record(borrowed ClosureRecordEnvironment<int,bool> environment, ClosureRecordInput input, borrowed R resource, ClosureRecordPair other, int tag) {
+	i64 wide = 9000000001;
+	if (!environment.ready || !input.pair.ready || !other.ready || input.pair.wide != wide || other.wide != wide) { return 0; }
+	return environment.amount + input.pair.value + input.extra + id(resource) + other.value + tag;
+}
+int inspect_checked_closure_record(borrowed ClosureRecordEnvironment<int,bool> environment, ClosureRecordInput input, borrowed R resource, ClosureRecordPair other, bool fail) throws Error {
+	if (fail) { mark(610); throw new Error("copied record retry"); }
+	return inspect_closure_record(environment, input, resource, other, 0);
+}
+int forward_closure_record(borrowed Closure<ClosureRecordEnvironment<int,bool>,int,ClosureRecordInput,borrowed R,ClosureRecordPair,int> code, ClosureRecordInput input, borrowed R resource) {
+	return closure_invoke(code, input, resource, input.pair, 3);
+}
+int exercise_closure_records() {
+	var resource = make(232);
+	var retained = make(231);
+	var environment = new ClosureRecordEnvironment<int,bool>(11, true, move retained);
+	owned Closure<ClosureRecordEnvironment<int,bool>,int,ClosureRecordInput,borrowed R,ClosureRecordPair,int> code = closure_bind(move environment, inspect_closure_record);
+	ClosureRecordInput input = make_closure_record();
+	if (closure_invoke(code, input, resource, input.pair, 1) != 263) { return 1; }
+	if (forward_closure_record(code, make_closure_record(), resource) != 265) { return 2; }
+	closure_invoke(code, make_closure_record(), resource, input.pair, 0);
+	var checked_retained = make(233);
+	var checked_environment = new ClosureRecordEnvironment<int,bool>(13, true, move checked_retained);
+	owned CheckedClosure<ClosureRecordEnvironment<int,bool>,Error,int,ClosureRecordInput,borrowed R,ClosureRecordPair,bool> checked_code = checked_closure_bind(move checked_environment, inspect_checked_closure_record);
+	try {
+		closure_invoke(checked_code, make_closure_record(), resource, input.pair, true);
+		return 3;
+	} catch (Error error) { mark(611); }
+	if (live() != 3) { return 4; }
+	try {
+		if (closure_invoke(checked_code, input, resource, input.pair, false) != 264) { return 5; }
+	} catch (Error error) { return 6; }
+	return 0;
+}
+int main() {
+	int result = exercise_closure_records();
+	if (result != 0) { return result; }
+	return live();
+}

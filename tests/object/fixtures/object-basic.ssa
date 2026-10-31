@@ -1,0 +1,32 @@
+(ssa-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(function #0 "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(parameters)
+		(entry #0)
+		(block #0
+			(initialize (object-field-initialize-place (storage #0) (field #0) : int) (integer 40 : int))
+			(%0 : Counter = object-ref (storage #0))
+			(%1 : Receiver<Counter> = object-validate %0 null-traps)
+			(method-call (target Counter::add #0) (receiver %1) -> void (arguments (integer 2 : int)))
+			(%2 : Counter = object-validate %0 null-traps)
+			(%3 : int = load (indirect-field %2 (class "Counter" field #0 "value") : int))
+			(return %3)
+		)
+	)
+	(method #0 "add" (declaring-class #0 "Counter") (member #1) -> void
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(%1 "amount" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = load (indirect-field %0 (class "Counter" field #0 "value") : int))
+			(%3 : int = binary + %2 %1)
+			(store (indirect-field %0 (class "Counter" field #0 "value") : int) %3)
+			(function-end)
+		)
+	)
+)

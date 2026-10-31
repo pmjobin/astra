@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A40: retained event delivery surrounds real async file ingestion. The spool
+// contains only bytes actually read/written by the selected Linux provider.
+extern(C) int retained_app_event(int stage, int value);
+class ImportFailure : Error { init(string text) : base(text) {} }
+async void importer_fetch(owned LinuxPayload input, owned LinuxPayload spool) throws Error {
+	int position = 0;
+	while (true) {
+		payload_configure(input, 0, 512, position as i64);
+		await payload_io(input);
+		int count = astra_linux_payload_count(input);
+		if (count == 0) { break; }
+		if (position > 65536 - count) { throw new ImportFailure("import exceeds finite capacity"); }
+		int index = 0;
+		while (index < count) { payload_set(spool, index, payload_byte(input, index)); index = index + 1; }
+		int written = 0;
+		while (written < count) {
+			payload_configure(spool, written, count - written, (position + written) as i64);
+			await payload_io(spool);
+			int progress = astra_linux_payload_count(spool);
+			if (progress <= 0) { throw new ImportFailure("import write made no progress"); }
+			written = written + progress;
+		}
+		position = position + count;
+	}
+	payload_finish(input); payload_finish(spool);
+}
+int import_source_find(borrowed Utf8Message source, string needle, int start) throws Error { return text_find(source.text, needle, start); }
+owned Utf8Message import_source_segment(borrowed Utf8Message source, int start, int count) throws Error { return text_segment(source.text, start, count); }
+owned Utf8Message import_source_snapshot(borrowed Utf8Message source) { var copy = new Utf8Message(source.text); return move copy; }
+void import_source_raise(borrowed Utf8Message source) throws Error { throw new ImportFailure(source.text); }
+int import_source_length(borrowed Utf8Message source) { return source.text.byte_length; }
+bool render_import_row(borrowed Utf8Message row, borrowed Utf8ByteBuilder output) { return append_text(output, row.text); }
+class ImportState {
+	private owned Utf8Message source;
+	private owned Utf8Message diagnostic;
+	private owned Utf8Message row;
+	int accepted;
+	int cursor;
+	int status;
+	int rejected;
+	init() {
+		var source = new Utf8Message(""); var diagnostic = new Utf8Message(""); var row = new Utf8Message("");
+		this.source = move source; this.diagnostic = move diagnostic; this.row = move row; this.accepted = 0; this.cursor = 0; this.status = 0; this.rejected = 0;
+	}
+	void load(owned Utf8Message source) { this.source = move source; }
+	int transform(int event) throws Error {
+		if (event != 0) { throw new ImportFailure("unsupported import event"); }
+		if (this.cursor >= import_source_length(this.source)) { this.status = 0; return 0; }
+		int end = import_source_find(this.source, "\n", this.cursor);
+		if (end < 0) { end = import_source_length(this.source); }
+		var line = import_source_segment(this.source, this.cursor, end - this.cursor);
+		// Consume the current input record before checked parsing, enabling retry
+		// on the next record without duplicating a previously accepted row.
+		this.cursor = end + 1;
+		int separator = text_find(line.text, "|", 0);
+		if (separator < 1) { throw new ImportFailure("record requires code|message"); }
+		var number = text_segment(line.text, 0, separator);
+		int code = parse_int(number.text);
+		var payload = text_segment(line.text, separator + 1, line.text.byte_length - separator - 1);
+		var builder = new Utf8ByteBuilder();
+		require_text(append_text(builder, "code=")); require_text(append_int(builder, code));
+		require_text(append_text(builder, " message=")); require_text(append_text(builder, payload.text));
+		require_text(append_text(builder, "\n"));
+		var row = builder.snapshot();
+		this.row = move row; this.status = 0; this.accepted = this.accepted + 1;
+		retained_app_event(43, this.accepted);
+		return 1;
+	}
+	void fail(owned Utf8Message diagnostic) { this.diagnostic = move diagnostic; this.status = -1; this.rejected = this.rejected + 1; }
+	void observe() throws Error { if (this.status != 0) { import_source_raise(this.diagnostic); } }
+	owned Utf8Message snapshot_row() { return import_source_snapshot(this.row); }
+	deinit() { retained_app_event(49, this.accepted); }
+}
+void import_load(borrowed ImportState state, owned Utf8Message source) { state.load(move source); }
+int import_transform(borrowed ImportState state, int event) throws Error { return state.transform(event); }
+void import_fail(borrowed ImportState state, owned Utf8Message diagnostic) { state.fail(move diagnostic); }
+void import_observe(borrowed ImportState state) throws Error { state.observe(); }
+owned Utf8Message import_row(borrowed ImportState state) { return state.snapshot_row(); }
+int import_rejected(borrowed ImportState state) { return state.rejected; }
+class ImportRule {
+	private owned Shared<ImportState> state;
+	init(owned Shared<ImportState> state) { this.state = move state; }
+	int transform(int event) throws Error { var active = shared_clone(this.state); return import_transform(shared_borrow(active), event); }
+	deinit() { retained_app_event(48, 1); }
+}
+int import_checked_code(borrowed ImportRule rule, int event) throws Error { return rule.transform(event); }
+int import_invoke(borrowed CheckedClosure<ImportRule,Error,int,int> inner, int event) throws Error { return closure_invoke(inner, event); }
+class ImportAdapter {
+	private owned CheckedClosure<ImportRule,Error,int,int> inner;
+	private owned Weak<ImportState> observer;
+	init(owned CheckedClosure<ImportRule,Error,int,int> inner, owned Weak<ImportState> observer) { this.inner = move inner; this.observer = move observer; }
+	int receive(int event) {
+		var active = weak_upgrade(this.observer);
+		if (active == null) { return -2; }
+		try { return import_invoke(this.inner, event); }
+		catch (Error error) {
+			var diagnostic = new Utf8Message(error.message);
+			import_fail(shared_borrow(active), move diagnostic);
+			retained_app_event(44, event);
+			return -1;
+		}
+	}
+	deinit() { retained_app_event(47, 1); }
+}
+int import_adapter_code(borrowed ImportAdapter adapter, int event) { return adapter.receive(event); }
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		var rows = new Bag<Utf8Message>();
+		var payload = new ImportState(); var state = shared_acquire(move payload); var observer = shared_downgrade(state);
+		var retained = shared_clone(state); var rule = new ImportRule(move retained);
+		var checked = checked_closure_bind(move rule, import_checked_code); var watched = weak_clone(observer);
+		var adapter = new ImportAdapter(move checked, move watched); var handler = closure_bind(move adapter, import_adapter_code);
+		if (retained_register(handler, 0) != 0) { return 81; }
+		retained_app_event(41, 1);
+		var input = payload_open(args[1], 512, 0); var spool = payload_open(args[2], 512, 1);
+		var executor = LinuxExecutor.open(1); var task = importer_fetch(move input, move spool);
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Completed(): {} else: { return 70; } }
+		var bytes = read_file(args[2]); retained_app_event(42, bytes.byte_count());
+		var source = bytes.decode(); import_load(shared_borrow(state), move source);
+		int rounds = 0;
+		while (true) {
+			if (rounds >= 65537) { throw new ImportFailure("event progress bound"); } rounds = rounds + 1;
+			int outcome = retained_dispatch(handler, 0);
+			if (outcome == 0) { break; }
+			if (outcome == -2) { throw new ImportFailure("observer expired during delivery"); }
+			// Observation runs after the C provider dispatch frame has returned.
+			try { import_observe(shared_borrow(state)); }
+			catch (Error error) { if (!println(error.message)) { return 82; } }
+			if (outcome == 1) {
+				var row = import_row(shared_borrow(state));
+				if (!rows.reserve(rows.count() + 1)) { throw new ImportFailure("diagnostic capacity"); }
+				rows.append(move row);
+			}
+		}
+		var output = new Utf8ByteBuilder();
+		require_text(append_text(output, "rows=")); require_text(append_int(output, rows.count()));
+		require_text(append_text(output, " rejected=")); require_text(append_int(output, import_rejected(shared_borrow(state))));
+		require_text(append_text(output, "\n"));
+		int index = 0;
+		while (index < rows.count()) { require_text(render_import_row(rows.entries[index], output)); index = index + 1; }
+		var report = output.snapshot(); write_text_file(args[3], report.text);
+		retained_app_event(45, 1);
+		if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 83; }
+		retained_app_event(46, 1); release handler; release state;
+		var expired = weak_upgrade(observer); if (expired != null) { return 84; }
+		retained_app_event(50, 1); return 0;
+	} catch (Error error) { println_stderr(error.message); return 3; }
+}

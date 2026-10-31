@@ -1,0 +1,251 @@
+(ssa-program
+	(struct "S"
+		(field #0 "raw" : int)
+	)
+	(class #0 "Counter"
+		(property #0 "value" : int (member #3) (getter #0) (setter #0))
+		(field #0 "raw" : int)
+	)
+	(function #0 "ordinary" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(return %0)
+		)
+	)
+	(function #1 "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 = storage-receiver #0 initializing)
+			(construct (storage #0) (class #0) (receiver %1) (arguments (integer 42 : int)))
+			(%2 : Counter = object-ref (storage #0))
+			(%3 : f64 = call #7 "astra.gen.1.0" -> f64 (arguments %2 (f64 0x3ff4000000000000 : f64)))
+			(branch #3 ())
+		)
+		(block #1
+			(%8 : int = call #8 "astra.gen.1.1" -> int (arguments %2 (integer 42 : int)))
+			(return %8)
+		)
+		(block #2
+			(return (integer 1 : int))
+		)
+		(block #3
+			(%4 : bool = binary == %3 (f64 0x3ff4000000000000 : f64))
+			(conditional-branch %4
+				(true #4 ())
+				(false #5 ((bool false : bool)))
+			)
+		)
+		(block #4
+			(%5 : Receiver<Counter> = object-validate %2 null-traps)
+			(%6 : int = property-get (property #0 Counter::value) (getter #0) (receiver %5) -> int effectful (arguments))
+			(%7 : bool = binary == %6 (integer 42 : int))
+			(branch #5 (%7))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+	(method #0 "get_raw" (declaring-struct #0 "S") (member #1) -> int
+		(receiver %0 : Receiver<S> mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (struct "S" field #0 "raw") : int))
+			(%2 : int = call #9 "astra.gen.0.2" -> int (arguments %1 (integer 0 : int)))
+			(return %2)
+		)
+	)
+	(method #0 "read" (declaring-class #0 "Counter") (member #2) -> int
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (class "Counter" field #0 "raw") : int))
+			(%2 : int = call #9 "astra.gen.0.2" -> int (arguments %1 (integer 0 : int)))
+			(return %2)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(%1 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = call #9 "astra.gen.0.2" -> int (arguments %1 (integer 0 : int)))
+			(initialize (indirect-field %0 (class "Counter" field #0 "raw") : int) %2)
+			(function-end)
+		)
+	)
+	(property-getter #0 (property Counter::value #0) (declaring-class #0) -> int
+		(receiver %0 : Receiver<Counter> live mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (class "Counter" field #0 "raw") : int))
+			(%2 : int = call #9 "astra.gen.0.2" -> int (arguments %1 (integer 0 : int)))
+			(return %2)
+		)
+	)
+	(property-setter #0 (property Counter::value #0) (declaring-class #0) -> void
+		(receiver %0 : Receiver<Counter> live mutable nonnull non-owning)
+		(parameters
+			(%1 "next" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = call #9 "astra.gen.0.2" -> int (arguments %1 (integer 0 : int)))
+			(store (indirect-field %0 (class "Counter" field #0 "raw") : int) %2)
+			(function-end)
+		)
+	)
+	(function #7 "astra.gen.1.0" -> f64
+		(parameters
+			(%0 "counter" : Counter (contract borrowed-noescape))
+			(%1 "value" : f64)
+		)
+		(storage #0 "s" (local #4) : S address-taken)
+		(entry #0)
+		(block #0
+			(%3 : Receiver<Counter> = object-validate %0 null-traps)
+			(%4 : int = property-get (property #0 Counter::value) (getter #0) (receiver %3) -> int effectful (arguments))
+			(%5 : Receiver<Counter> = object-validate %0 null-traps)
+			(%6 : int = method-call (target Counter::read #0) (receiver %5) -> int (arguments))
+			(%7 : Counter = object-validate %0 null-traps)
+			(%8 : int = load (indirect-field %7 (class "Counter" field #0 "raw") : int))
+			(%9 : int = call #0 "ordinary" -> int (arguments %8))
+			(initialize (direct-field (storage #0) (struct "S" field #0 "raw") : int) %9)
+			(%10 : Receiver<S> = address-of (storage #0))
+			(%11 : int = method-call (target S::get_raw #0) (receiver %10) -> int (arguments))
+			(branch #3 ())
+		)
+		(block #1
+			(%14 : Receiver<Counter> = object-validate %0 null-traps)
+			(property-set (property #0 Counter::value) (setter #0) (receiver %14) -> void effectful (arguments %9))
+			(branch #2 ())
+		)
+		(block #2
+			(%15 : bool = binary < %1 %1)
+			(conditional-branch %15
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #3
+			(%12 : bool = binary == %4 %6)
+			(conditional-branch %12
+				(true #4 ())
+				(false #5 ((bool false : bool)))
+			)
+		)
+		(block #4
+			(%13 : bool = binary == %11 %8)
+			(branch #5 (%13))
+		)
+		(block #5
+			(arguments
+				(%2 (temporary #0) : bool)
+			)
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return %1)
+		)
+		(block #7
+			(return %1)
+		)
+	)
+	(function #8 "astra.gen.1.1" -> int
+		(parameters
+			(%0 "counter" : Counter (contract borrowed-noescape))
+			(%1 "value" : int)
+		)
+		(storage #0 "s" (local #4) : S address-taken)
+		(entry #0)
+		(block #0
+			(%3 : Receiver<Counter> = object-validate %0 null-traps)
+			(%4 : int = property-get (property #0 Counter::value) (getter #0) (receiver %3) -> int effectful (arguments))
+			(%5 : Receiver<Counter> = object-validate %0 null-traps)
+			(%6 : int = method-call (target Counter::read #0) (receiver %5) -> int (arguments))
+			(%7 : Counter = object-validate %0 null-traps)
+			(%8 : int = load (indirect-field %7 (class "Counter" field #0 "raw") : int))
+			(%9 : int = call #0 "ordinary" -> int (arguments %8))
+			(initialize (direct-field (storage #0) (struct "S" field #0 "raw") : int) %9)
+			(%10 : Receiver<S> = address-of (storage #0))
+			(%11 : int = method-call (target S::get_raw #0) (receiver %10) -> int (arguments))
+			(branch #3 ())
+		)
+		(block #1
+			(%14 : Receiver<Counter> = object-validate %0 null-traps)
+			(property-set (property #0 Counter::value) (setter #0) (receiver %14) -> void effectful (arguments %9))
+			(branch #2 ())
+		)
+		(block #2
+			(%15 : bool = binary < %1 %1)
+			(conditional-branch %15
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #3
+			(%12 : bool = binary == %4 %6)
+			(conditional-branch %12
+				(true #4 ())
+				(false #5 ((bool false : bool)))
+			)
+		)
+		(block #4
+			(%13 : bool = binary == %11 %8)
+			(branch #5 (%13))
+		)
+		(block #5
+			(arguments
+				(%2 (temporary #0) : bool)
+			)
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return %1)
+		)
+		(block #7
+			(return %1)
+		)
+	)
+	(function #9 "astra.gen.0.2" -> int
+		(parameters
+			(%0 "value" : int)
+			(%1 "other" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary < %0 %1)
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return %1)
+		)
+		(block #2
+			(return %0)
+		)
+	)
+)

@@ -1,0 +1,11 @@
+class Counter { int value; }
+int apply(borrowed Counter c, i16<8> values, int extra) {
+	i16<8> factors = splat(2, 8);
+	c.value = dot_wrap(values, factors, i32) + extra;
+	return c.value;
+}
+int main() {
+	Counter c = { value = 0 };
+	if (apply(c, splat(2, 8), 10) != 42) { return 1; }
+	return c.value;
+}

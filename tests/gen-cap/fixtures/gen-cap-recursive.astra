@@ -1,0 +1,4 @@
+T max_recursive<T>(int count,T a,T b) where T : Ordered {if(count==0){if(a<b){return b;}return a;}return max_recursive<T>(count-1,b,a);}
+T mutual_a<T>(int count,T a,T b) where T : Ordered, Eq {if(count==0 || a==b){return a;}return mutual_b<T>(count-1,a,b);}
+T mutual_b<T>(int count,T a,T b) where T : Eq, Ordered {if(a<b){return mutual_a<T>(count,b,a);}return mutual_a<T>(count,a,b);}
+int main(){if(max_recursive<f64>(5,1.0,42.0)==42.0 && mutual_a<int>(5,1,42)==42){return 42;}return 1;}

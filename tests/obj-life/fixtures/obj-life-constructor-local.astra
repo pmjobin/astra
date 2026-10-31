@@ -1,0 +1,27 @@
+extern(C) int life_record(int code, int value);
+class Token {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { life_record(this.code, 0); }
+}
+class Counter {
+	int value;
+	init() {
+		owned Resource r = create_resource(82);
+		Token t = Token.init(84);
+		int sum = 0;
+		while (sum < 2) {
+			Token iteration = Token.init(65 + sum);
+			sum = sum + 1;
+			if (sum == 1) { continue; }
+		}
+		this.value = sum + 40;
+		life_record(73, 0);
+	}
+	deinit() { life_record(this.value, 0); }
+}
+int main() {
+	Counter c = Counter.init();
+	life_record(85, 0);
+	return c.value;
+}

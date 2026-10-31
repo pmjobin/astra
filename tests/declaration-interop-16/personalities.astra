@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="personality16_retired")]int retired();
+[ExceptionRoot]class Fault{readonly string text;init(){this.text="selected target failure";}virtual property string message{get{return this.text;}}}
+owned Fault foreign_fault(int domain,int status){var result=new Fault();return move result;}
+[COMImport(name="personality16_protocol",iid="e4211800-12cb-4d3a-bcda-801626016611",threading="constructing",profile="declarations-v1")]
+interface IFacet{
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]init(borrowed void* unknown)throws Fault;
+	[Foreign(native="count",error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]property int count throws Fault{get;set(int input);}
+	[Foreign(native="evaluate",error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]f64 evaluate(f64 input)throws Fault;
+	[Foreign(native="visit",error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]bool visit(bool input,borrowed Callback<bool,bool> callback)throws Fault;
+}
+[Shared][CExport(name="personality16_native",profile="declarations-v1",bool_abi="c99")]
+[COMExport(interfaces="IFacet",threading="constructing",profile="declarations-v1")]
+[GObjectExport(type="Personality16Facet",namespace="Personality16",version="1.0",profile="declarations-v1")]
+class Facet{
+	private int raw;private bool enabled;private f64 gain;
+	[Foreign]init(int seed,bool enabled,f64 gain){this.raw=seed;this.enabled=enabled;this.gain=gain;}
+	[Foreign]property int count{get{return this.raw;}set(int input){this.raw=input;}}
+	[Foreign(error_domain="16",errors="Fault=-1600")]f64 evaluate(f64 input)throws Fault{if(input<0.0){var fault=new Fault();throw move fault;}return input*this.gain+this.raw as f64;}
+	[Foreign]bool visit(bool input,borrowed Callback<bool,bool> callback){return this.enabled && callback(input);}
+	deinit(){retired();}
+}
+class Environment{bool invert;init(bool invert){this.invert=invert;}}
+bool captured(borrowed Environment environment,bool input){return environment.invert && !input;}
+export(C) int personality16_native_run(){try{var facet=new Facet(7,true,1.5);if(facet.count!=7 || facet.evaluate(2.0)!=10.0){return 1;}facet.count=19;var environment=new Environment(true);var callback=closure_bind(move environment,captured);if(facet.count!=19 || facet.visit(true,callback) || !facet.visit(false,callback)){return 2;}}catch(Fault fault){return 90;}return 0;}

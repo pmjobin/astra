@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	var a = 1.0f;
+	var b = 1.0d;
+	var c = 1.0;
+	var exact = 1.0000000000000002d;
+	var rounded = 1.0000000000000002;
+	var upper_f = -0.0F;
+	var upper_d = -0.0D;
+	if (a != 1.0f || b != 1.0d || c != 1.0f || exact == 1.0d || rounded != 1.0f) { return 1; }
+	if (bits64(exact, 1072693248, 1) != 1 || bits32(upper_f, -2147483648) != 1 || bits64(upper_d, -2147483648, 0) != 1) { return 2; }
+	return 0;
+}

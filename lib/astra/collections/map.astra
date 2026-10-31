@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Entries are whole owners: removal never exposes a hole in a live value.
+class MapEntry<K, V> {
+	private K stored_key;
+	private owned V payload;
+	init(K key, owned V value) {
+		this.stored_key = key;
+		this.payload = move value;
+	}
+	property K key { get { return this.stored_key; } }
+	property borrowed V view { get { return this.payload; } }
+}
+
+// Growing associative storage with an explicit exact typed comparator.
+class Map<K, V> {
+	private owned MapEntry<K, V>[slots] entries;
+	private Fn<bool, K, K> equal;
+	private int generation;
+	init(Fn<bool, K, K> equal) {
+		this.entries = new MapEntry<K, V>[slots];
+		this.equal = equal;
+		this.generation = 0;
+	}
+	property int count { get { return len(this.entries); } }
+	property int capacity { get { return this.entries.capacity; } }
+	property int revision { get { return this.generation; } }
+	bool matches(borrowed MapEntry<K, V> entry, K key) {
+		Fn<bool, K, K> compare = this.equal;
+		return compare(entry.key, key);
+	}
+	int find(K key) {
+		for (int index = 0; index < len(this.entries); index = index + 1) {
+			if (this.matches(this.entries[index], key)) { return index; }
+		}
+		return -1;
+	}
+	bool contains(K key) { return this.find(key) >= 0; }
+	bool put(K key, owned V value) {
+		var entry = new MapEntry<K, V>(key, move value);
+		int index = this.find(key);
+		if (index >= 0) {
+			this.entries.replace(index, move entry);
+			this.generation = this.generation + 1;
+			return true;
+		}
+		if (len(this.entries) == this.entries.capacity) {
+			if (this.entries.capacity > 1073741823) { return false; }
+			int requested = this.entries.capacity + this.entries.capacity;
+			if (requested == 0) { requested = 2; }
+			if (!this.entries.reserve(requested)) { return false; }
+		}
+		this.entries.append(move entry);
+		this.generation = this.generation + 1;
+		return true;
+	}
+	Result inspect<Result>(borrowed MapEntry<K, V> entry, Fn<Result, borrowed V> query) {
+		return query(entry.view);
+	}
+	Result lookup<Result>(K key, Fn<Result, borrowed V> query, Result missing) {
+		int index = this.find(key);
+		if (index < 0) { return missing; }
+		return this.inspect<Result>(this.entries[index], query);
+	}
+	Result inspect_with<Context, Result>(borrowed MapEntry<K, V> entry,
+		Context context, Fn<Result, borrowed V, Context> query) {
+		return query(entry.view, context);
+	}
+	Result lookup_with<Context, Result>(K key, Context context,
+		Fn<Result, borrowed V, Context> query, Result missing) {
+		int index = this.find(key);
+		if (index < 0) { return missing; }
+		return this.inspect_with<Context, Result>(this.entries[index], context, query);
+	}
+	owned MapEntry<K, V> remove(K key) {
+		int index = this.find(key);
+		if (index < 0) { return null; }
+		var entry = this.entries.take(index);
+		this.generation = this.generation + 1;
+		return move entry;
+	}
+}

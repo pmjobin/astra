@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace OptimizerLeaf18;
+extern(C) void native18_event();
+class Cell {
+	f64 value;
+	init(f64 value) { this.value=value; }
+	f64 read() { return this.value; }
+}
+f64 inspect(borrowed Cell input) { return input.value; }
+f64 combine(f64 first,f64 second) { return first+second; }
+void write(borrowed Cell input,f64 value) { input.value=value; }
+f64 external(f64 input) { native18_event(); return input; }

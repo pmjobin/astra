@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int admission_event(int kind, int id);
+extern(C) int admission_finish();
+[ExceptionRoot] class AdmissionFault {
+	readonly string text;
+	init(string text) { this.text = text; }
+	virtual property string message { get { return this.text; } }
+}
+class AdmissionChild {
+	private int id;
+	init(int id) { this.id = id; }
+	int identity() { return this.id; }
+	deinit() { admission_event(2, this.id); }
+}
+[Allocator(kind="context",context="owned-concurrent")]
+class AdmissionOwner {
+	private owned AdmissionChild child;
+	private owned AdmissionToken token;
+	private owned u8[] plain;
+	private owned ContextBytes<ConcurrentAllocator> bytes;
+	init(owned AdmissionChild child, owned AdmissionToken token, owned u8[] plain, owned ContextBytes<ConcurrentAllocator> bytes, int id, int failure) throws AdmissionFault {
+		admission_event(1, id);
+		if (len(plain) != 17 || plain[0] != (37 as u8) || len(bytes) != 23 || bytes[0] != (41 as u8)) { throw new AdmissionFault("input buffers"); }
+		if (failure == 1) { throw new AdmissionFault("before fields"); }
+		this.child = move child;
+		if (failure == 2) { throw new AdmissionFault("one field"); }
+		this.token = move token;
+		this.plain = move plain;
+		this.bytes = move bytes;
+		if (failure == 3) { throw new AdmissionFault("both fields"); }
+	}
+	int identity() { return this.child.identity(); }
+	deinit() { admission_event(3, this.child.identity()); }
+}
+[Allocator(kind="context",context="owned-concurrent")]
+class AdmissionOnly<T> {
+	private owned T item;
+	init(owned T item) { this.item = move item; }
+}
+owned AdmissionChild retained_input(borrowed ConcurrentAllocator context, owned AdmissionChild input) {
+	var owner = try_new(context) AdmissionOnly<AdmissionChild>(move input);
+	if (owner == null) { return move input; }
+	return null;
+}
+int main() {
+	var buffers = concurrent_allocator(1, 16387, 13, 128);
+	var context = concurrent_allocator(2, 512, 1, 64);
+	if (context == null) { return 1; }
+	var child = new AdmissionChild(1); var token = admission_token(1);
+	var plain = new u8[17]; plain[0] = 37; var bytes = new(buffers)u8[23]; bytes[0] = 41;
+	try {
+		var first = try_new(context) AdmissionOwner(move child, move token, move plain, move bytes, 1, 0);
+		if (first == null || child != null || token != null || len(plain) != 0 || len(bytes) != 0 || first.identity() != 1) { return 2; }
+		var extra = new AdmissionChild(6); var retained = retained_input(context, move extra);
+		if (retained == null || retained.identity() != 6) { return 9; }
+		release retained;
+		var pending = new AdmissionChild(2); var pending_token = admission_token(2);
+		var pending_plain = new u8[17]; pending_plain[0] = 37; var pending_bytes = new(buffers)u8[23]; pending_bytes[0] = 41;
+		var refused = try_new(context) AdmissionOwner(move pending, move pending_token, move pending_plain, move pending_bytes, 2, 3);
+		if (refused != null || pending == null || pending.identity() != 2 || admission_token_identity(pending_token) != 2 || len(pending_plain) != 17 || pending_plain[0] != (37 as u8) || len(pending_bytes) != 23 || pending_bytes[0] != (41 as u8)) { return 3; }
+		release first;
+		var recovered = try_new(context) AdmissionOwner(move pending, move pending_token, move pending_plain, move pending_bytes, 2, 0);
+		if (recovered == null || pending != null || pending_token != null || len(pending_plain) != 0 || len(pending_bytes) != 0 || recovered.identity() != 2) { return 4; }
+		release recovered;
+	} catch(AdmissionFault error) { return 5; }
+	for (int mode = 1; mode < 4; mode = mode + 1) {
+		var input = new AdmissionChild(mode + 2); var resource = admission_token(mode + 2);
+		var input_plain = new u8[17]; input_plain[0] = 37; var input_bytes = new(buffers)u8[23]; input_bytes[0] = 41;
+		bool caught = false;
+		try { var failed = try_new(context) AdmissionOwner(move input, move resource, move input_plain, move input_bytes, mode + 2, mode); return 6; }
+		catch(AdmissionFault error) { caught = true; }
+		if (!caught || input != null || resource != null || len(input_plain) != 0 || len(input_bytes) != 0 || concurrent_allocator_query(context, 1) != 0) { return 7; }
+	}
+	if (concurrent_allocator_query(context, 1) != 0) { return 8; }
+	if(concurrent_allocator_query(buffers,1)!=0){return 12;}
+	return admission_finish();
+}

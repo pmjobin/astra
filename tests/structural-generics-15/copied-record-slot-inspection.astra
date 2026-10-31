@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Observation<Label> {
+	Label marker;
+	int value;
+}
+class InspectedValue {
+	int value;
+	init(int value) { this.value = value; }
+}
+class InspectionStore<Label> {
+	owned InspectedValue[slots] values;
+	private Label marker;
+	init(Label marker) {
+		this.values = new InspectedValue[slots];
+		this.marker = marker;
+	}
+	Observation<Label> inspect(borrowed InspectedValue value) {
+		Observation<Label> result = {marker = this.marker, value = value.value};
+		return result;
+	}
+	Observation<Label> query(int index) {
+		return this.inspect(this.values[index]);
+	}
+}
+int main() {
+	var integers = new InspectionStore<int>(7);
+	if (!integers.values.reserve(2)) { return 1; }
+	var first = new InspectedValue(41);
+	var second = new InspectedValue(42);
+	integers.values.append(move first);
+	integers.values.append(move second);
+	var first_result = integers.query(0);
+	var second_result = integers.query(1);
+	if (first_result.marker != 7 || first_result.value != 41 || second_result.value != 42) { return 2; }
+	var doubles = new InspectionStore<f64>(2.5d);
+	if (!doubles.values.reserve(1)) { return 3; }
+	var third = new InspectedValue(43);
+	doubles.values.append(move third);
+	var third_result = doubles.query(0);
+	if (third_result.marker != 2.5d || third_result.value != 43) { return 4; }
+	return 0;
+}

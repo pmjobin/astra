@@ -1,0 +1,23 @@
+extern(C) int life_record(int code, int value);
+class Consumer {
+	int value;
+	init(owned Resource first, int later, borrowed int[] values, borrowed Resource view) {
+		if (resource_live() != 2 || resource_id(view) != 86) { life_record(88, 0); }
+		this.value = resource_id(first) - 65 + later + values[0];
+		owned Resource local = create_resource(76);
+		life_record(73, 0);
+	}
+	deinit() { life_record(this.value, 0); }
+}
+int later() {
+	if (resource_live() != 2) { return 100; }
+	return life_record(65, 2);
+}
+int main() {
+	owned Resource view = create_resource(86);
+	owned Resource r = create_resource(82);
+	int[1] values = { 23 };
+	Consumer c = Consumer.init(move r, later(), slice(values, life_record(83, 0), 1), view);
+	if (c.value != 42 || resource_live() != 1) { return 1; }
+	return c.value;
+}

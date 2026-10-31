@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit L1 nomination; link async-virtual.o, libastra-async-linux.a and liburing >=2.15.
+class AsyncError : Error {
+	init(string message) : base(message) {}
+}
+enum RunStatus {
+	Completed,
+	Cancelled
+}
+async runtime LinuxExecutor throws AsyncError returns RunStatus provider "linux-io-uring";

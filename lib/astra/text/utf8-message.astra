@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Select explicitly, together with base/errors.astra or a compatible Error root.
+class Utf8Message {
+	readonly string snapshot;
+	init(string input) { this.snapshot = input; }
+	property string text { get { return this.snapshot; } }
+}
+class InvalidUtf8 : Error {
+	init() : base("invalid UTF-8") {}
+}
+[Utf8MessageFactory]
+owned Utf8Message utf8_message(u8[] bytes) throws InvalidUtf8;

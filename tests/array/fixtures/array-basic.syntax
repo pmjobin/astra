@@ -1,0 +1,28 @@
+(unit
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "int[4]") (name "a") (array-init (integer "10") (integer "20") (integer "30") (integer "40")))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (vector-extract (lane 0) (name "a")) (integer "10")) (binary "!=" (vector-extract (lane 1) (name "a")) (integer "20"))) (binary "!=" (vector-extract (lane 2) (name "a")) (integer "30"))) (binary "!=" (vector-extract (lane 3) (name "a")) (integer "40"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(indexed-assignment (vector-extract (lane 2) (name "a")) (integer "99"))
+			(if
+				(condition (binary "!=" (vector-extract (lane 2) (name "a")) (integer "99")))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

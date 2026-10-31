@@ -1,0 +1,194 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A113: two unique resources share one monitor authority; reverse transfers
+// cannot acquire the resources' locks in opposite order.
+extern(C) int thread_oracle_arrive(int expected);
+
+extern(C) int thread_oracle_destroy();
+
+extern(C) int thread_oracle_finish(int expected);
+
+extern(C) int app_sample(int app, int tag, int value);
+
+extern(C) int app_drop(int app, int tag);
+
+extern(C) int app_finish(int app);
+
+class Account {
+
+	private int balance;
+
+	private int id;
+
+	init(int id) {
+		this.balance = 1000;
+		this.id = id;
+
+	}
+
+	void adjust(int value) {
+		this.balance = this.balance + value;
+
+	}
+
+	int read() {
+		return this.balance;
+
+	}
+
+	deinit() {
+		app_drop(113, this.id);
+
+	}
+
+}
+
+void adjust(borrowed Account account, int value) {
+	account.adjust(value);
+
+}
+
+int balance(borrowed Account account) {
+	return account.read();
+
+}
+
+[Monitor]
+class Transfer {
+
+	private owned Account left;
+
+	private owned Account right;
+
+	init() {
+		var left = new Account(1);
+		this.left = move left;
+		var right = new Account(2);
+		this.right = move right;
+
+	}
+
+	void transfer(bool reverse) {
+
+		if (reverse) {
+			adjust(this.right, -1);
+			adjust(this.left, 1);
+
+		}
+
+		else {
+			adjust(this.left, -1);
+			adjust(this.right, 1);
+
+		}
+
+	}
+
+	int read(int side) {
+		if (side == 0) {
+			return balance(this.left);
+
+		}
+		return balance(this.right);
+
+	}
+
+	deinit() {
+		app_drop(113, 0);
+
+	}
+
+}
+
+void transfer(borrowed Transfer ledger, bool reverse) {
+	ledger.transfer(reverse);
+
+}
+
+int inspect(borrowed Transfer ledger, int side) {
+	return ledger.read(side);
+
+}
+
+class Request {
+
+	owned Shared<Transfer> ledger;
+
+	bool reverse;
+
+	init(owned Shared<Transfer> ledger, bool reverse) {
+		this.ledger = move ledger;
+		this.reverse = reverse;
+
+	}
+
+	deinit() {
+		thread_oracle_destroy();
+
+	}
+
+}
+
+int run(borrowed Request request, int count) {
+
+	var ledger = shared_clone(request.ledger);
+
+	thread_oracle_arrive(4);
+
+	for (int i = 0; i < count; i = i + 1) {
+		transfer(shared_borrow(ledger), request.reverse);
+
+	}
+
+	return count;
+
+}
+
+int main() {
+
+	var unique = new Transfer();
+	var root = shared_acquire(move unique);
+
+	var a = root.clone();
+	var e0 = new Request(move a, false);
+	var t0 = thread_bind(move e0, run);
+
+	var b = root.clone();
+	var e1 = new Request(move b, true);
+	var t1 = thread_bind(move e1, run);
+
+	var c = root.clone();
+	var e2 = new Request(move c, false);
+	var t2 = thread_bind(move e2, run);
+
+	var d = root.clone();
+	var e3 = new Request(move d, true);
+	var t3 = thread_bind(move e3, run);
+
+	if (thread_start(t0, 500) != 0 || thread_start(t1, 500) != 0 || thread_start(t2, 500) != 0 || thread_start(t3, 500) != 0) {
+		return 81;
+
+	}
+
+	if (thread_join(t0) != 500 || thread_join(t1) != 500 || thread_join(t2) != 500 || thread_join(t3) != 500) {
+		return 82;
+
+	}
+
+	release t0;
+	release t1;
+	release t2;
+	release t3;
+
+	app_sample(113, 0, inspect(shared_borrow(root), 0));
+
+	app_sample(113, 1, inspect(shared_borrow(root), 1));
+	release root;
+
+	if (thread_oracle_finish(4) != 0) {
+		return 83;
+
+	}
+
+	return app_finish(113);
+
+}

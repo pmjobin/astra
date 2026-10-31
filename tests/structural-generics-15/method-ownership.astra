@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Child {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { mark(this.code); }
+}
+
+struct Pack {
+	owned Child child;
+	owned R handle;
+}
+
+struct Note {
+	int code;
+	i64 total;
+}
+
+class Box<T> {
+	owned T payload;
+	init(owned T value) { this.payload = move value; }
+	owned U relay<U, V>(owned U value, V note) { return move value; }
+	V observe<U, V>(borrowed U value, V note) { return note; }
+}
+
+int exercise() {
+	var worker = new Box<int>(7);
+	var first = new Child(31);
+	var forwarded = worker.relay<Child, bool>(move first, true);
+	if (worker.observe<Child, int>(forwarded, 42) != 42) { return 1; }
+	var handle = make(71);
+	var moved = worker.relay<R, int>(move handle, 8);
+	var second = new Child(47);
+	Pack payload = {child = move second, handle = move moved};
+	Pack result = worker.relay<Pack, bool>(move payload, false);
+	var owned_box = new Box<Pack>(move result);
+	var forwarded_box = worker.relay<Box<Pack>, int>(move owned_box, 4);
+	Note note = {code = 42, total = 9000000000};
+	Note observed = worker.observe<Box<Pack>, Note>(forwarded_box, note);
+	int copied = worker.relay<int, bool>(42, true);
+	if (observed.code != copied || observed.total != 9000000000) { return 2; }
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

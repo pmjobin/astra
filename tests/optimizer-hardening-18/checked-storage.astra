@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void storage18_begin();
+extern(C) void storage18_retire(int value);
+extern(C) void storage18_caught();
+[ExceptionRoot]
+class Failure18 {
+	init() {}
+	virtual property string message { get { return "checked failure"; } }
+}
+class Cleanup18 {
+	int value;
+	init(int value) { this.value=value; }
+	deinit() { storage18_retire(this.value); }
+}
+int fallible18(int value) throws Failure18 {
+	if (value<0) { var failure=new Failure18(); throw move failure; }
+	return value+1;
+}
+int unwind18(int value) throws Failure18 {
+	owned Cleanup18 first=new Cleanup18(value);
+	owned Cleanup18 second=new Cleanup18(value+10);
+	return fallible18(value);
+}
+int main() {
+	storage18_begin();
+	try {
+		if (unwind18(1)!=2) { return 1; }
+		unwind18(-1);
+		return 2;
+	} catch (Failure18 failure) { storage18_caught(); }
+	return 0;
+}

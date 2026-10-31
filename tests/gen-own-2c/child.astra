@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	var child = new Leaf(82, 1);
+	var original = new Holder(83, 1, move child);
+	var received = echo<Holder>(move original, 83);
+	consume(move received, 83);
+	return own_finish();
+}

@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+interface Score {
+	int apply(int input);
+}
+
+struct ScoreNote { int code; i64 stamp; }
+
+class Scorer<T, Tag> : Score {
+	private T payload;
+	private Tag tag;
+	private int bias;
+	init(T payload, Tag tag, int bias) : base() {
+		this.payload = payload;
+		this.tag = tag;
+		this.bias = bias;
+	}
+	override int apply(int input) { return this.bias + input; }
+	deinit() { mark(this.bias); }
+}
+
+int dispatch_score(borrowed Score scorer, int input) { return scorer.apply(input); }
+
+int select_score(bool second) {
+	var first = new Scorer<int, bool>(42, true, 40);
+	ScoreNote note = {code = 71, stamp = 7000000001};
+	var other = new Scorer<ScoreNote, int>(note, 5, 70);
+	if (second) { return dispatch_score(other, 2); }
+	return dispatch_score(first, 2);
+}
+
+int main() {
+	if (select_score(false) != 42 || select_score(true) != 72) { return 1; }
+	return 0;
+}

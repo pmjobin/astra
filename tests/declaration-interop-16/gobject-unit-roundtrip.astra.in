@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]class ImportedFault{readonly string text;private int status;init(int status){this.text="imported error";this.status=status;}virtual property string message{get{return this.text;}}int code(){return this.status;}}
+owned ImportedFault imported_fault(int domain,int status){var fault=new ImportedFault(status);return move fault;}
+@BINDINGS@
+class Context{bool flip;init(bool flip){this.flip=flip;}}
+bool invert(borrowed Context context,bool input){return context.flip && !input;}
+export(C) int opaque_gir_run(){try{
+ var session=ImportedSession.init(7,1.5);if(session.count!=7){return 1;}session.count=19;if(session.evaluate(4.0)!=25.0){return 2;}
+ try{var ignored=session.evaluate(-1.0);return 3;}catch(ImportedFault fault){if(fault.code()!=-1600){return 4;}}
+ var input=new u8[3];input[0]=3;input[1]=0;input[2]=254;var copy=session.snapshot(input);if(len(copy)!=3 || copy[0]!=86 || copy[1]!=85 || copy[2]!=171){return 5;}
+ var context=new Context(true);var callback=closure_bind(move context,invert);if(!session.visit(false,callback) || session.visit(true,callback)){return 6;}
+}catch(ImportedFault fault){return 90;}return 0;}

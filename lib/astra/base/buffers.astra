@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Select base/slices.astra explicitly, including for clone_array-only clients.
+
+owned T[] clone_array<T>(T[] source) {
+	owned T[] result = new T[len(source)];
+	var index = 0;
+	while (index < len(source)) {
+		result[index] = source[index];
+		index = index + 1;
+	}
+	return move result;
+}
+
+owned T[] filled_array<T>(int count, T value) {
+	owned T[] result = new T[count];
+	fill(result, value);
+	return move result;
+}

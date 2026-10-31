@@ -1,0 +1,5 @@
+T add<T>(T a,T b) where T : Numeric {return a+b;}
+T divide<T>(T a,T b) where T : Numeric {return a/b;}
+T compose<T>(T a,T b,T c) where T : Numeric {return a*b+c;}
+T loop<T>(int count,T value,T step) where T : Numeric {T result=value;int remaining=count;while(remaining>0){result=result+step;remaining=remaining-1;}return result;}
+int main(){if(add<int>(2147483647,1)==-2147483648 && divide<int>(84,2)==42 && divide<f64>(84.0,2.0)==42.0 && loop<f64>(3,1.0,2.0)==7.0 && compose<f64>(1.0000000000000002,0.9999999999999998,-1.0)==0.0){return 42;}return 1;}

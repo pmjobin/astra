@@ -1,0 +1,11 @@
+Astra base support objects
+Target: @TARGET@
+C compiler: @COMPILER@
+CABI: I32 and hosted scalar-fp-v2 (binary32/binary64)
+C text: text-view-v3 utf8-i32; text-posix.o is a separate hosted write/errno provider.
+Native text slices: text-slice-v10 natural {PTR,I32} descriptors, offsets 0/8, stride 16, alignment 8.
+Hosted arguments: args-posix-v0, args-posix.o; explicit strict-UTF-8 snapshot provider.
+Source diagnostics: astra_diag_assert_fail_v0, utf8-i32; select exactly one of diagnostics-trap.o and diagnostics-hosted.o when required.
+Diagnostic and legacy failure providers use distinct interfaces and may coexist.
+Select exactly one provider per required failure interface. Never reuse these objects for another target.
+See docs/library/failure-providers.md, docs/library/source-diagnostics.md, docs/library/text-output.md and their qualification reports.

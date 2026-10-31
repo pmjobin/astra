@@ -1,0 +1,55 @@
+(unit
+	(struct "Inner"
+		(field (type "int") (name "x"))
+		(field (type "f64") (name "y"))
+	)
+	(struct "Outer"
+		(field (type "Inner") (name "inner"))
+		(field (type "i16<8>") (name "samples"))
+	)
+	(function
+		(type "Outer")
+		(name "identity")
+		(parameters
+			(parameter (type "Outer") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "Inner")
+		(name "subobject")
+		(parameters
+			(parameter (type "Outer") (name "value"))
+		)
+		(block
+			(return (field-access "value" "inner"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Outer") (name "a")
+				(initialize-field "inner" (storage-initializer
+					(initialize-field "x" (integer "7"))
+					(initialize-field "y" (float "3.5"))
+				))
+				(initialize-field "samples" (vector-splat (integer "9") (ordinals 8)))
+			)
+			(local (type "Outer") (name "b") (call "identity" (arguments (name "a"))))
+			(local (type "Inner") (name "c") (call "subobject" (arguments (name "b"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "c" "x") (integer "7")) (binary "!=" (field-access "c" "y") (float "3.5"))) (binary "!=" (vector-extract (lane 7) (field-access "b" "samples")) (integer "9"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

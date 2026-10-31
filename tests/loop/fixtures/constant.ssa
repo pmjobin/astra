@@ -1,0 +1,44 @@
+(ssa-program
+	(function #0 "constant_true" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #1 ())
+		)
+		(block #1
+			(conditional-branch (bool true : bool)
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(return (integer 1 : int))
+		)
+		(block #3
+			(return (integer 2 : int))
+		)
+	)
+	(function #1 "constant_false" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%0 "x" : int)
+			)
+			(conditional-branch (bool false : bool)
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%1 : int = binary + %0 (integer 1 : int))
+			(branch #1 (%1))
+		)
+		(block #3
+			(return %0)
+		)
+	)
+)

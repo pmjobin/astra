@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int astra_worker_cancelled();
+
+class Work {
+	int bias;
+	init(int bias) { this.bias = bias; }
+}
+
+int calculate(borrowed Work work, int count) {
+	int sum = work.bias;
+	for (int i = 0; i < count; i = i + 1) { sum = sum + i; }
+	return sum;
+}
+
+int cancellable(borrowed Work work, int count) {
+	int sum = work.bias;
+	while (astra_worker_cancelled() == 0) { sum = sum + count; }
+	return 73;
+}
+
+int main() {
+	var env0 = new Work(1);
+	var env1 = new Work(2);
+	var env2 = new Work(3);
+	var env3 = new Work(4);
+	var t0 = thread_bind(move env0, calculate);
+	var t1 = thread_bind(move env1, calculate);
+	var t2 = thread_bind(move env2, calculate);
+	var t3 = thread_bind(move env3, cancellable);
+	if (thread_start(t0, 100) != 0) { return 81; }
+	if (thread_start(t1, 101) != 0) { return 82; }
+	if (thread_start(t2, 102) != 0) { return 83; }
+	if (thread_start(t3, 0) != 0) { return 84; }
+	if (thread_start(t0, 100) != -2) { return 85; }
+	if (thread_join(t0) != 4951) { return 86; }
+	if (thread_join(t1) != 5052) { return 87; }
+	if (thread_join(t2) != 5154) { return 88; }
+	if (thread_cancel(t3) != 1) { return 89; }
+	if (thread_join(t3) != 73) { return 90; }
+	return 0;
+}

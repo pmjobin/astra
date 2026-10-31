@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class OriginChild {
+	private owned R guard;
+	private int number;
+	init(owned R guard, int number) {
+		this.guard = move guard;
+		this.number = number;
+	}
+	int read() { return id(this.guard) + this.number; }
+	deinit() { mark(1700 + this.number); }
+}
+class OriginCrate<Value> {
+	private owned Value payload;
+	private int serial;
+	init(owned Value payload, int serial) {
+		this.payload = move payload;
+		this.serial = serial;
+	}
+	property borrowed Value view { get { return this.payload; } }
+	deinit() { mark(this.serial); }
+}
+class OriginBase {
+	private owned R guard;
+	init(owned R guard) { this.guard = move guard; }
+	virtual int read() { return 42; }
+	deinit() { mark(1720); }
+}
+class OriginDerived : OriginBase {
+	init(owned R guard) : base(move guard) {}
+	override int read() { return 43; }
+	deinit() { mark(1721); }
+}
+owned OriginChild return_fixed<Label>(owned OriginChild value, Label marker) {
+	return move value;
+}
+owned OriginChild build_caller<Label>(owned R guard, int number, Label marker) {
+	return OriginChild.init(move guard, number);
+}
+owned OriginChild build_heap<Label>(owned R guard, int number, Label marker) {
+	var value = new OriginChild(move guard, number);
+	return move value;
+}
+owned OriginCrate<Value> return_crate<Value>(owned OriginCrate<Value> value) {
+	return move value;
+}
+owned OriginCrate<Value> relay_crate<Value>(owned OriginCrate<Value> value) {
+	return return_crate<Value>(move value);
+}
+owned OriginCrate<Value> return_owner_crate<Value>(owned OriginCrate<Value> value) where Value:Ownable {
+	return move value;
+}
+int consume_declared<Label>(owned OriginBase value, Label marker) {
+	return value.read();
+}
+int fixed_origins() {
+	{
+		var left_guard = make(201);
+		var right_guard = make(202);
+		owned OriginChild left = OriginChild.init(move left_guard, 1);
+		var right = new OriginChild(move right_guard, 2);
+		var first = return_fixed<bool>(move left, true);
+		var second = return_fixed(move right, 42);
+		if (first.read() != 202 || second.read() != 204) { return 1; }
+	}
+	{
+		var caller_guard = make(203);
+		var caller = build_caller<int>(move caller_guard, 3, 0);
+		if (caller.read() != 206) { return 2; }
+	}
+	{
+		var heap_guard = make(204);
+		var heap = build_heap<bool>(move heap_guard, 4, true);
+		if (heap.read() != 208) { return 3; }
+	}
+	return live();
+}
+int application_origins() {
+	{
+		owned OriginCrate<int> left = OriginCrate<int>.init(41, 1710);
+		var right = new OriginCrate<int>(42, 1711);
+		var first = relay_crate<int>(move left);
+		var second = relay_crate(move right);
+		if (first.view != 41 || second.view != 42) { return 4; }
+	}
+	{
+		var left_guard = make(205);
+		var right_guard = make(206);
+		owned OriginCrate<R> owner_left = OriginCrate<R>.init(move left_guard, 1712);
+		var owner_right = new OriginCrate<R>(move right_guard, 1713);
+		var owner_first = return_owner_crate<R>(move owner_left);
+		var owner_second = return_owner_crate(move owner_right);
+		if (id(owner_first.view) != 205 || id(owner_second.view) != 206) { return 5; }
+	}
+	return live();
+}
+int main() {
+	int result = fixed_origins();
+	if (result != 0) { return result; }
+	result = application_origins();
+	if (result != 0) { return result; }
+	var guard = make(207);
+	var derived = new OriginDerived(move guard);
+	if (consume_declared<bool>(move derived, true) != 43) { return 6; }
+	return live();
+}

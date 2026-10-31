@@ -1,0 +1,52 @@
+(unit
+	(struct "S"
+		(field (type "int") (name "raw"))
+		(property (type "int") (name "value")
+			(getter
+				(block
+					(return (field-access "this" "raw"))
+				)
+			)
+			(setter (parameter (type "int") (name "next"))
+				(block
+					(assign (field-access "this" "raw") (name "next"))
+				)
+			)
+		)
+		(method
+			(type "int")
+			(name "bump")
+			(parameters)
+			(block
+				(assign (field-access "this" "value") (binary "+" (field-access "this" "value") (integer "1")))
+				(return (field-access "this" "raw"))
+			)
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "S") (name "a")
+				(initialize-field "raw" (integer "1"))
+			)
+			(struct-local (type "S") (name "b")
+				(initialize-field "raw" (integer "2"))
+			)
+			(local (type "int") (name "first") (field-access "a" "raw"))
+			(assign (field-access "b" "value") (integer "40"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "first") (integer "1")) (binary "!=" (method-call (receiver "b") (target "bump") (arguments)) (integer "41"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(local (type "S*") (name "p") (address-of "b"))
+			(assign (indirect-field-access "p" "raw") (integer "42"))
+			(return (field-access "b" "value"))
+		)
+	)
+)

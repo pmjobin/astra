@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[Allocator(kind="context",context="scoped-affine")]
+class FallibleScopedLeaf { init() {} }
+class FalliblePlainLeaf {
+	private int value;
+	init(int value) { this.value=value; }
+	int read() { return this.value; }
+}
+[Allocator(kind="context",context="owned-concurrent")]
+class FallibleLifetimeHost {
+	private owned FallibleScopedLeaf scoped;
+	private owned FalliblePlainLeaf plain;
+	init(owned FallibleScopedLeaf scoped, owned FalliblePlainLeaf plain) {
+		this.scoped=move scoped;
+		this.plain=move plain;
+	}
+	int read() { return this.plain.read(); }
+}
+int main() {
+	var ample=concurrent_allocator(1,16387,11,128);
+	var small=concurrent_allocator(1,1,5,128);
+	if(ample==null || small==null) { return 1; }
+	owned u8[] backing=new u8[8197];
+	{
+		var scope=scoped_allocator<ScopedAllocator>(backing,1,7);
+		if(scope==null) { return 2; }
+		var input=new FalliblePlainLeaf(17);
+		var refused=try_new(small)FallibleLifetimeHost(null,move input);
+		if(refused!=null || input==null) { return 3; }
+		if(input.read()!=17 || concurrent_allocator_query(small,1)!=0) { return 4; }
+		var admitted=try_new(ample)FallibleLifetimeHost(null,move input);
+		if(admitted==null || input!=null) { return 5; }
+		if(admitted.read()!=17 || concurrent_allocator_query(ample,1)!=1) { return 6; }
+		if(scoped_allocator_query(scope,7)!=1) { return 7; }
+	}
+	if(concurrent_allocator_query(ample,1)!=0) { return 8; }
+	return len(backing)-8197;
+}

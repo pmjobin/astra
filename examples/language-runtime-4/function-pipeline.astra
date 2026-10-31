@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A28: select pricing and eligibility rules at runtime, then transport their
+// exact typed native values through locals, parameters and results.
+using InvoicePipeline;
+
+void pipeline_number(string label, i64 value) throws Error {
+	var builder = new Utf8ByteBuilder();
+	require_text(append_text(builder, label));
+	require_text(append_i64(builder, value));
+	var text = builder.snapshot();
+	if (!println(text.text)) { throw new Error("pipeline output"); }
+}
+
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		int mode = parse_int(args[1]);
+		int count = parse_int(args[2]);
+		if (mode < 0 || mode > 1 || count < 0 || count > 10000) { return 64; }
+		Fn<int,int> selected = select_price(mode);
+		Fn<int,int> copied = selected;
+		Fn<int,int> price = forward_price(copied);
+		Fn<bool,int> accept = select_filter(mode);
+		Fn<i64,i64> checksum = audit;
+		int record = 1;
+		int accepted = 0;
+		i64 subtotal = 0;
+		while (record <= count) {
+			if (accept(record)) {
+				int units = (record * 7) % 13 + 1;
+				subtotal = subtotal + (price_record(price, units) as i64);
+				accepted = accepted + 1;
+			}
+			record = record + 1;
+		}
+		pipeline_number("records=", accepted as i64);
+		pipeline_number("subtotal=", subtotal);
+		pipeline_number("checksum=", checksum(subtotal));
+		return 0;
+	} catch (Error error) { return 2; }
+}

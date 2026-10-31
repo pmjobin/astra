@@ -1,0 +1,93 @@
+(core-program
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "a" : int[4])
+		)
+		(block
+			(array-initialize #0 int[4]
+				(integer 10 : int)
+				(integer 20 : int)
+				(integer 30 : int)
+				(integer 40 : int)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary != : bool
+									(load : int
+										(array-element-place #0 int[4] (bounds 0 4 trap)
+											(integer 0 : int)
+										)
+									)
+									(integer 10 : int)
+								)
+								(binary != : bool
+									(load : int
+										(array-element-place #0 int[4] (bounds 0 4 trap)
+											(integer 1 : int)
+										)
+									)
+									(integer 20 : int)
+								)
+							)
+							(binary != : bool
+								(load : int
+									(array-element-place #0 int[4] (bounds 0 4 trap)
+										(integer 2 : int)
+									)
+								)
+								(integer 30 : int)
+							)
+						)
+						(binary != : bool
+							(load : int
+								(array-element-place #0 int[4] (bounds 0 4 trap)
+									(integer 3 : int)
+								)
+							)
+							(integer 40 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(store
+				(array-element-place #0 int[4] (bounds 0 4 trap)
+					(integer 2 : int)
+				)
+				(integer 99 : int)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(array-element-place #0 int[4] (bounds 0 4 trap)
+								(integer 2 : int)
+							)
+						)
+						(integer 99 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

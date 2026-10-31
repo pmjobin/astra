@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Log { int digits; }
+struct Inner { int x; int y; }
+struct Outer { Inner a; int tag; Inner b; }
+int record(Log* log, int value) { log->digits = log->digits * 10 + value; return value; }
+int main() {
+	Log log = { digits = 0 };
+	Outer o = { b = { y = record(&log, 1), x = record(&log, 2) }, tag = record(&log, 3), a = { y = record(&log, 4), x = record(&log, 5) } };
+	if (log.digits != 12345 || o.b.y != 1 || o.a.x != 5) { return 1; }
+	return 0;
+}

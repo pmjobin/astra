@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned Box<Kernel>[] process(Kernel[] kernels, Kernel prototype) {
+	var independent = clone_array(kernels);
+	Box<Kernel> boxed = {value=element_at(independent, 0)};
+	var snapshots = filled_array(len(kernels), boxed);
+	fill(kernels, prototype);
+	kernels[1].index = 11;
+	swap_elements(kernels, 0, 1);
+	independent[0].index = 123;
+	release independent;
+	return relay_array(move snapshots);
+}

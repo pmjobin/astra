@@ -1,0 +1,253 @@
+(ssa-program
+	(struct "astra.gen.struct.0.0"
+		(field #0 "value" : int)
+	)
+	(struct "astra.gen.struct.0.1"
+		(field #0 "value" : f64)
+	)
+	(struct "astra.gen.struct.0.2"
+		(field #0 "value" : i16<8>)
+	)
+	(struct "astra.gen.struct.0.3"
+		(field #0 "value" : bool<4>)
+	)
+	(struct "astra.gen.struct.1.4"
+		(field #0 "left" : astra.gen.struct.0.1)
+		(field #1 "right" : astra.gen.struct.0.1)
+		(field #2 "tag" : int)
+	)
+	(function #0 "integers" -> astra.gen.struct.0.0
+		(struct-parameter #0 : astra.gen.struct.0.0 COPY_VALUE (leaves 0 1))
+		(struct-result : astra.gen.struct.0.0 (leaves 1))
+		(parameters
+			(%0 "value.0" : int)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : astra.gen.struct.0.0 %0)
+		)
+	)
+	(function #1 "doubles" -> astra.gen.struct.0.1
+		(struct-parameter #0 : astra.gen.struct.0.1 COPY_VALUE (leaves 0 1))
+		(struct-result : astra.gen.struct.0.1 (leaves 1))
+		(parameters
+			(%0 "value.0" : f64)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : astra.gen.struct.0.1 %0)
+		)
+	)
+	(function #2 "vectors" -> astra.gen.struct.0.2
+		(struct-parameter #0 : astra.gen.struct.0.2 COPY_VALUE (leaves 0 1))
+		(struct-result : astra.gen.struct.0.2 (leaves 1))
+		(parameters
+			(%0 "value.0" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : astra.gen.struct.0.2 %0)
+		)
+	)
+	(function #3 "masks" -> astra.gen.struct.0.3
+		(struct-parameter #0 : astra.gen.struct.0.3 COPY_VALUE (leaves 0 1))
+		(struct-result : astra.gen.struct.0.3 (leaves 1))
+		(parameters
+			(%0 "value.0" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : astra.gen.struct.0.3 %0)
+		)
+	)
+	(function #4 "bundle" -> astra.gen.struct.1.4
+		(struct-parameter #0 : astra.gen.struct.1.4 COPY_VALUE (leaves 0 3))
+		(struct-result : astra.gen.struct.1.4 (leaves 3))
+		(parameters
+			(%0 "value.0.0" : f64)
+			(%1 "value.1.0" : f64)
+			(%2 "value.2" : int)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : astra.gen.struct.1.4 %0 %1 %2)
+		)
+	)
+	(function #5 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(struct-argument #0 : astra.gen.struct.0.0 (leaves 0 1))
+			(struct-call-results : astra.gen.struct.0.0 (%7 : int))
+			(call #0 "integers" -> astra.gen.struct.0.0 (arguments (integer 7 : int)))
+			(consume-struct-result 0 : astra.gen.struct.0.0 %7)
+			(struct-argument #0 : astra.gen.struct.0.1 (leaves 0 1))
+			(struct-call-results : astra.gen.struct.0.1 (%8 : f64))
+			(call #1 "doubles" -> astra.gen.struct.0.1 (arguments (f64 0x400c000000000000 : f64)))
+			(consume-struct-result 0 : astra.gen.struct.0.1 %8)
+			(%9 : i16<8> = vector-splat (lanes 8) (value (integer 9 : i16)))
+			(struct-argument #0 : astra.gen.struct.0.2 (leaves 0 1))
+			(struct-call-results : astra.gen.struct.0.2 (%10 : i16<8>))
+			(call #2 "vectors" -> astra.gen.struct.0.2 (arguments %9))
+			(consume-struct-result 0 : astra.gen.struct.0.2 %10)
+			(%11 : bool<4> = vector-splat (lanes 4) (value (bool true : bool)))
+			(struct-argument #0 : astra.gen.struct.0.3 (leaves 0 1))
+			(struct-call-results : astra.gen.struct.0.3 (%12 : bool<4>))
+			(call #3 "masks" -> astra.gen.struct.0.3 (arguments %11))
+			(consume-struct-result 0 : astra.gen.struct.0.3 %12)
+			(struct-argument #0 : astra.gen.struct.1.4 (leaves 0 3))
+			(struct-call-results : astra.gen.struct.1.4 (%13 : f64) (%14 : f64) (%15 : int))
+			(call #4 "bundle" -> astra.gen.struct.1.4 (arguments (f64 0x3ff8000000000000 : f64) (f64 0x400c000000000000 : f64) (integer 7 : int)))
+			(consume-struct-result 0 : astra.gen.struct.1.4 %13 %14 %15)
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(branch #5 ())
+		)
+		(block #5
+			(branch #6 ())
+		)
+		(block #6
+			(branch #7 ())
+		)
+		(block #7
+			(branch #8 ())
+		)
+		(block #8
+			(branch #9 ())
+		)
+		(block #9
+			(%16 : bool = binary != %7 (integer 7 : int))
+			(conditional-branch %16
+				(true #11 ((bool true : bool)))
+				(false #10 ())
+			)
+		)
+		(block #10
+			(%17 : bool = binary != %8 (f64 0x400c000000000000 : f64))
+			(branch #11 (%17))
+		)
+		(block #11
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #13 ((bool true : bool)))
+				(false #12 ())
+			)
+		)
+		(block #12
+			(%18 : i16 = vector-extract (lane 7) (vector %10))
+			(%19 : bool = binary != %18 (integer 9 : i16))
+			(branch #13 (%19))
+		)
+		(block #13
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #15 ((bool true : bool)))
+				(false #14 ())
+			)
+		)
+		(block #14
+			(%20 : bool = vector-extract (lane 3) (vector %12))
+			(%21 : bool = prefix ! %20)
+			(branch #15 (%21))
+		)
+		(block #15
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #17 ((bool true : bool)))
+				(false #16 ())
+			)
+		)
+		(block #16
+			(%22 : bool = binary != %13 (f64 0x3ff8000000000000 : f64))
+			(branch #17 (%22))
+		)
+		(block #17
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #19 ((bool true : bool)))
+				(false #18 ())
+			)
+		)
+		(block #18
+			(%23 : bool = binary != %14 (f64 0x400c000000000000 : f64))
+			(branch #19 (%23))
+		)
+		(block #19
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #21 ((bool true : bool)))
+				(false #20 ())
+			)
+		)
+		(block #20
+			(%24 : bool = binary != %15 (integer 7 : int))
+			(branch #21 (%24))
+		)
+		(block #21
+			(arguments
+				(%5 (temporary #5) : bool)
+			)
+			(conditional-branch %5
+				(true #23 ((bool true : bool)))
+				(false #22 ())
+			)
+		)
+		(block #22
+			(%25 : int = call #6 "astra.gen.0.0" -> int (arguments (integer 7 : int)))
+			(%26 : bool = binary != %25 (integer 7 : int))
+			(branch #23 (%26))
+		)
+		(block #23
+			(arguments
+				(%6 (temporary #6) : bool)
+			)
+			(conditional-branch %6
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+	(function #6 "astra.gen.0.0" -> int
+		(parameters
+			(%0 "value" : int)
+		)
+		(entry #0)
+		(block #0
+			(struct-argument #0 : astra.gen.struct.0.0 (leaves 0 1))
+			(struct-call-results : astra.gen.struct.0.0 (%1 : int))
+			(call #0 "integers" -> astra.gen.struct.0.0 (arguments (integer 7 : int)))
+			(consume-struct-result 0 : astra.gen.struct.0.0 %1)
+			(%2 : bool = binary == %1 (integer 7 : int))
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return %0)
+		)
+		(block #2
+			(return %0)
+		)
+	)
+)

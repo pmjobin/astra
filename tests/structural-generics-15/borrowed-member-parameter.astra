@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class MemberParameterChild {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { mark(this.code); }
+}
+struct MemberParameterStats { int count; i64 total; }
+struct MemberParameterOwners { owned MemberParameterChild child; owned R resource; }
+class ParameterReader<T> {
+	private int bias;
+	init(int bias) { this.bias = bias; }
+	int score(borrowed T value, int extra) { return this.bias + extra; }
+	int forward(borrowed T value) { return this.score(value, 2); }
+}
+int exercise_member_parameters() {
+	var integers = new ParameterReader<int>(40);
+	if (integers.forward(7) != 42) { return 1; }
+	var copies = new ParameterReader<MemberParameterStats>(40);
+	MemberParameterStats stats = {count = 7, total = 9000000001};
+	if (copies.forward(stats) != 42) { return 2; }
+	var child = new MemberParameterChild(193);
+	var resource = make(192);
+	MemberParameterOwners payload = {child = move child, resource = move resource};
+	var records = new ParameterReader<MemberParameterOwners>(40);
+	if (records.forward(payload) != 42 || records.score(payload, 2) != 42) { return 3; }
+	var objects = new ParameterReader<MemberParameterChild>(40);
+	var object = new MemberParameterChild(194);
+	if (objects.forward(object) != 42) { return 4; }
+	var resources = new ParameterReader<R>(40);
+	var other = make(193);
+	if (resources.forward(other) != 42) { return 5; }
+	return 0;
+}
+int main() {
+	int result = exercise_member_parameters();
+	if (result != 0) { return result; }
+	return live();
+}

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace LifetimeLeaf;
+
+class Leaf {
+	int code;
+	init(int code) { this.code = code; }
+}
+
+class Box {
+	private owned Leaf child;
+	init(owned Leaf child) { this.child = move child; }
+	int read() { return this.child.code; }
+	void put(owned Leaf child) { this.child = move child; }
+}
+
+owned Leaf create(int code) {
+	var result = new Leaf(code);
+	return move result;
+}
+
+owned Box wrap(owned Leaf child) {
+	var result = new Box(move child);
+	return move result;
+}

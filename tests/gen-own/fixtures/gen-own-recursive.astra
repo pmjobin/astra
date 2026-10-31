@@ -1,0 +1,29 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { life_record(this.code, 0); }
+}
+void dispose<T>(owned T value) where T : Ownable {}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+owned T recurse<T>(int count, owned T value) where T : Ownable {
+	if (count == 0) { return move value; }
+	return recurse<T>(count - 1, move value);
+}
+owned T left<T>(int count, owned T value) where T : Ownable {
+	if (count == 0) { return move value; }
+	return right<T>(count - 1, move value);
+}
+owned T right<T>(int count, owned T value) where T : Ownable { return left<T>(count, move value); }
+int main() {
+	owned Resource a = create_resource(65);
+	owned Resource b = recurse<Resource>(5, move a);
+	owned Resource c = left<Resource>(4, move b);
+	owned Counter d = Counter.init(66);
+	owned Counter e = recurse<Counter>(5, move d);
+	owned Counter f = left<Counter>(4, move e);
+	if (resource_id(c) != 65 || f.code != 66) { return 1; }
+	dispose<Resource>(move c); dispose<Counter>(move f);
+	return 42;
+}

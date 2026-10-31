@@ -1,0 +1,187 @@
+(core-program
+	(function "count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local-place #0 "i" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(short-circuit && : bool
+						(binary < : bool
+							(load : int
+								(local-place #0 : int)
+							)
+							(parameter #0 : int)
+						)
+						(binary < : bool
+							(load : int
+								(local-place #0 : int)
+							)
+							(integer 5 : int)
+						)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+	(function "keep_going" -> bool
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return
+				(binary < : bool
+					(parameter #0 : int)
+					(integer 5 : int)
+				)
+			)
+		)
+	)
+	(function "continue_count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local-place #0 "i" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(short-circuit && : bool
+						(binary < : bool
+							(load : int
+								(local-place #0 : int)
+							)
+							(parameter #0 : int)
+						)
+						(call "keep_going" -> bool
+							(arguments
+								(load : int
+									(local-place #0 : int)
+								)
+							)
+						)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+						(continue #0)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+	(function "break_count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local-place #0 "i" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(short-circuit && : bool
+						(binary < : bool
+							(load : int
+								(local-place #0 : int)
+							)
+							(parameter #0 : int)
+						)
+						(call "keep_going" -> bool
+							(arguments
+								(load : int
+									(local-place #0 : int)
+								)
+							)
+						)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+						(if
+							(condition
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(integer 3 : int)
+								)
+							)
+							(then
+								(block
+									(store
+										(local-place #0 : int)
+										(integer 8 : int)
+									)
+									(break #0)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+)

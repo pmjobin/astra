@@ -1,0 +1,16 @@
+{
+	"format": "astra-surge14-auxiliary/1",
+	"scope": "Additional required portable safety/cost qualification after the entire fresh Meson registry; external Windows/editor/install gates remain separate.",
+	"recipes": [
+		{"id": "numeric-emitted-sanitizers", "script": "tests/numerical-optimization-11/sanitizers.py", "arguments": ["{compiler}", "{output}/numeric-sanitizers"], "receipt": "{output}/numeric-sanitizers/sanitizers.json"},
+		{"id": "numeric-checked-heap-counterexample", "script": "tests/numerical-optimization-11/packet-checked.py", "arguments": ["{compiler}", "{output}/packet-checked"], "receipt": "{output}/packet-checked/packet-checked.json"},
+		{"id": "numeric-twelve-product-memory", "script": "tests/numerical-optimization-11/memory-audit.py", "arguments": ["{compiler}", "{output}/numeric-memory", "{build}/tests/numerical-optimization-11"], "receipt": "{output}/numeric-memory/memory-audit.json"},
+		{"id": "numeric-same-O2-ablation", "script": "tests/numerical-optimization-11/ablation.py", "arguments": ["{compiler}", "{output}/ablation"], "receipt": "{output}/ablation/ablation.json", "measurement": "serial after build/registry; repeated same-O2 off/on pairs, independent outputs and exact heap counts; optional perf refusals retained"},
+		{"id": "numeric-vector-scalar-cost", "script": "tests/numerical-optimization-11/simd-cost.py", "arguments": ["{compiler}", "{output}/simd-cost"], "receipt": "{output}/simd-cost/simd-cost.json", "measurement": "serial same-O2 vector/independent scalar source, repeated observations and machine code"},
+		{"id": "allocation-guest-host-cost", "script": "tests/freestanding-allocation-12/metrics.py", "arguments": ["{build}", "{output}/allocation-cost"], "receipt": "{output}/allocation-cost/allocation-costs.json", "measurement": "fresh already-executed guest/host artifacts, exact section/ROM/stack-reservation inventory and whole-process Callgrind counts"},
+		{"id": "thread-worker-stress", "script": "tests/concurrency-runtime-13/thread-stress.py", "arguments": ["{compiler}", "{output}/thread-stress"], "receipt": "{output}/thread-stress/concurrency-thread-stress.json"},
+		{"id": "image-tile-worker-stress", "script": "tests/concurrency-runtime-13/image-tiles.py", "arguments": ["{compiler}", "{output}/image-tiles"], "receipt": "{output}/image-tiles/concurrency-image-tiles.json"},
+		{"id": "concurrency-runtime-cost", "script": "tests/concurrency-runtime-13/metrics.py", "arguments": ["{build}", "{output}/concurrency-cost"], "receipt": "{output}/concurrency-cost/concurrency-costs.json", "measurement": "fresh qualified artifacts, three timings, Massif, syscall/lock/thread counts, unique/no-OS optionality"},
+		{"id": "independent-installed-liburing-timer", "script": "tests/interop-async-5/timer-check.py", "arguments": ["{installed_compiler}", "{output}/timer", "{liburing_prefix}"], "receipt": "{output}/timer/results.json", "scope": "Installed compiler has no adjacent Meson configuration; explicit existing liburing prefix, real timer/expiry/cancel/pressure plus separately labeled injected controls"}
+	]
+}

@@ -1,0 +1,225 @@
+(ssa-program
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(cleanup #1 (symbol "astra_test_resource_destroy_other") (signature void (void*)))
+	(extern-function #0 "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(headers
+			"opaque/resource.h"
+		)
+		(parameters
+			(parameter #0 : int)
+		)
+		(result void*))
+	(extern-function #1 "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function #2 "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #3 "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #4 "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #5 "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #6 "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #7 "record_effect" (abi C) (symbol "astra_test_resource_record_effect")
+		(parameters
+			(parameter #0 : int)
+		)
+		(result int))
+	(extern-function #8 "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #9 "resource_forbid_cleanup" (abi C) (symbol "astra_test_resource_forbid_cleanup")
+		(parameters
+		)
+		(result void))
+	(extern-function #10 "second" (abi C) (symbol "astra_test_resource_create_other")
+		(owned-result (cleanup #1))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result void*))
+	(extern-function #11 "resource_is_live" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 : void* (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #12 "resource_id" (abi C) (symbol "astra_test_resource_id")
+		(parameters
+			(parameter #0 : void* (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #13 "resource_touch" (abi C) (symbol "astra_test_resource_touch")
+		(headers
+			"missing/borrowed.h"
+		)
+		(parameters
+			(parameter #0 : void* (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #14 "resource_touch_count" (abi C) (symbol "astra_test_resource_touch_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #15 "resource_null_count" (abi C) (symbol "astra_test_resource_null_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #16 "resource_raw" (abi C) (symbol "astra_test_resource_raw")
+		(parameters
+		)
+		(result void*))
+	(extern-function #17 "resource_raw_destroy" (abi C) (symbol "astra_test_resource_raw_destroy")
+		(parameters
+			(parameter #0 : void*)
+		)
+		(result void))
+	(extern-function #18 "observe3" (abi C) (symbol "astra_test_resource_observe3")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : void* (contract borrowed-noescape))
+			(parameter #2 : int)
+		)
+		(result int))
+	(function #0 "scoped" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : void* = c-call #0 "create_resource" -> void* (arguments (integer 1 : int)))
+			(cleanup %0 via #0)
+			(%1 : int = c-call #4 "resource_destroy_count" -> int (arguments))
+			(%2 : bool = binary != %1 (integer 1 : int))
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(cleanup (null : void*) via #0)
+			(cleanup (null : void*) via #0)
+			(return (integer 1 : int))
+		)
+		(block #2
+			(cleanup (null : void*) via #0)
+			(cleanup (null : void*) via #0)
+			(return (integer 0 : int))
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(c-call #1 "resource_reset" -> void (arguments))
+			(%3 : int = call #0 "scoped" -> int (arguments))
+			(%4 : bool = binary != %3 (integer 0 : int))
+			(conditional-branch %4
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #5 ())
+		)
+		(block #3
+			(return (integer 2 : int))
+		)
+		(block #4
+			(branch #10 ())
+		)
+		(block #5
+			(%5 : int = c-call #3 "resource_create_count" -> int (arguments))
+			(%6 : bool = binary != %5 (integer 1 : int))
+			(conditional-branch %6
+				(true #7 ((bool true : bool)))
+				(false #6 ())
+			)
+		)
+		(block #6
+			(%7 : int = c-call #4 "resource_destroy_count" -> int (arguments))
+			(%8 : bool = binary != %7 (integer 1 : int))
+			(branch #7 (%8))
+		)
+		(block #7
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #3 ())
+				(false #4 ())
+			)
+		)
+		(block #8
+			(return (integer 3 : int))
+		)
+		(block #9
+			(branch #15 ())
+		)
+		(block #10
+			(%9 : int = c-call #5 "resource_destroy_order" -> int (arguments))
+			(%10 : bool = binary != %9 (integer 1 : int))
+			(conditional-branch %10
+				(true #12 ((bool true : bool)))
+				(false #11 ())
+			)
+		)
+		(block #11
+			(%11 : int = c-call #8 "resource_effect_order" -> int (arguments))
+			(%12 : bool = binary != %11 (integer 1 : int))
+			(branch #12 (%12))
+		)
+		(block #12
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #8 ())
+				(false #9 ())
+			)
+		)
+		(block #13
+			(return (integer 4 : int))
+		)
+		(block #14
+			(return (integer 0 : int))
+		)
+		(block #15
+			(%13 : int = c-call #2 "resource_live_count" -> int (arguments))
+			(%14 : bool = binary != %13 (integer 0 : int))
+			(conditional-branch %14
+				(true #17 ((bool true : bool)))
+				(false #16 ())
+			)
+		)
+		(block #16
+			(%15 : int = c-call #6 "resource_error_count" -> int (arguments))
+			(%16 : bool = binary != %15 (integer 0 : int))
+			(branch #17 (%16))
+		)
+		(block #17
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #13 ())
+				(false #14 ())
+			)
+		)
+	)
+)

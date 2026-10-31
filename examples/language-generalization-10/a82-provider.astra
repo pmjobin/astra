@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Depot10;
+extern(C) int surge_event(int value);
+class StockTicket {
+	private int key;
+	init(int key) { this.key = key; surge_event(7000 + key); }
+	int identity() { return this.key; }
+	deinit() { surge_event(7100 + this.key); }
+}
+struct StockBatch { owned StockTicket ticket; owned int[] units; int checksum; }
+struct StockOrder { StockBatch batch; int serial; }
+class Repository<T> {
+	owned T[slots] rows;
+	init(int capacity) {
+		this.rows = new T[slots];
+		if (capacity > 0) { bool reserved = this.rows.reserve(capacity); }
+	}
+	int count() { return len(this.rows); }
+	bool reserve(int capacity) { return this.rows.reserve(capacity); }
+	bool append(owned T value) {
+		if (len(this.rows) == this.rows.capacity) {
+			if (!this.rows.reserve(len(this.rows) + 3)) { return false; }
+		}
+		this.rows.append(move value);
+		return true;
+	}
+	owned T take(int index) { var result = this.rows.take(index); return move result; }
+	void replace(int index, owned T value) { this.rows.replace(index, move value); }
+}
+StockOrder build_order(int key, int quantity) {
+	var ticket = new StockTicket(key);
+	var units = new int[quantity];
+	int index = 0;
+	int checksum = 0;
+	while (index < quantity) {
+		units[index] = (key * 13 + index * 7) % 101;
+		checksum = checksum + units[index] * (index + 1);
+		index = index + 1;
+	}
+	StockOrder result = {batch = {ticket = move ticket, units = move units, checksum = checksum}, serial = key * 10 + quantity};
+	return move result;
+}
+owned Repository<StockOrder> open_depot(int seed, int count, int quantity) {
+	var depot = new Repository<StockOrder>(0);
+	int index = 0;
+	while (index < count) {
+		var order = build_order(seed + index, quantity + index % 2);
+		bool stored = depot.append(move order);
+		index = index + 1;
+	}
+	return move depot;
+}
+owned Repository<StockOrder> transfer_depot(owned Repository<StockOrder> source) { return move source; }
+int order_receipt(StockOrder order) {
+	var ticket = move order.batch.ticket;
+	var units = move order.batch.units;
+	int total = order.serial + order.batch.checksum + ticket.identity();
+	foreach (var unit in units) { total = total + unit; }
+	return total;
+}
+internal int private_fee() { return 1234; }

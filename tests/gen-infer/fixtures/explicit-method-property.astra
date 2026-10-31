@@ -1,0 +1,8 @@
+T identity<T>(T value) { return value; }
+class Counter {
+	int raw;
+	init(int x){this.raw=identity<int>(x);}
+	int read(){return identity<int>(this.raw);}
+	property int value {get{return identity<int>(this.raw);}set(int next){this.raw=identity<int>(next);}}
+}
+int main(){var c=Counter.init(41);c.value=42;if(c.read()==42 && c.value==42){return 0;}return 1;}

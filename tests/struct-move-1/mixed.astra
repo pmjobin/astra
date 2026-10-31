@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Bag { int tag; owned R resource; }
+class Box { owned R resource; init(owned R incoming) { this.resource=move incoming; } }
+void consume(owned R incoming) {}
+int incoming_record(owned R incoming) {
+	Bag bag={tag=110, resource=move incoming};
+	mark(bag.tag);
+	return 42;
+}
+int main() {
+	{
+		owned R incoming=make(3);
+		Bag bag={tag=42, resource=move incoming};
+		var moved=move bag;
+		{
+			owned R child=make(4);
+			Box box=Box.init(move child);
+			if (moved.tag != 42 || live() != 2) { return 81; }
+			mark(30);
+		}
+		owned R spare=make(5);
+		consume(move spare);
+		if (live() != 1) { return 82; }
+		owned R gift=make(11);
+		if (incoming_record(move gift) != 42) { return 84; }
+		owned R buffered=make(9);
+		int round=0;
+		while (round < 2) { if (round == 0) { buffered=make(10); } round=round+1; }
+		Bag loopbag={tag=42, resource=move buffered};
+		var loopmoved=move loopbag;
+		mark(loopmoved.tag+58);
+	}
+	if (live() != 0) { return 83; }
+	return 42;
+}

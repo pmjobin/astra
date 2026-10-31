@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]class ImportedFault{readonly string text;init(){this.text="empty argument failure";}virtual property string message{get{return this.text;}}}
+owned ImportedFault imported_fault(int domain,int status){var result=new ImportedFault();return move result;}
+@BINDINGS@
+[CImport(name="empty16_note")]int note(int value);
+class Observer{private int calls;init(){this.calls=0;}void receive(){this.calls=this.calls+1;note(this.calls);}deinit(){note(100+this.calls);}}
+void receive(borrowed Observer observer){observer.receive();}
+export(C)int empty16_run(){try{var session=ImportedSession.init();var source=ImportedSession_signal_tick_source(session);var observer=new Observer();var handler=closure_bind(move observer,receive);if(source==null || retained_signal_register(handler,gir_signal16_mode(source))!=0){return 1;}session.fire();if(retained_signal_revoke(handler)!=1 || retained_signal_observe(handler)!=1){return 2;}release handler;session.fire();}catch(ImportedFault fault){return 90;}return 0;}

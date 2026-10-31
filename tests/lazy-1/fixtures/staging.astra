@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int lazy_event(int code, int value);
+enum Packet { Empty, Data(owned int[] data, int marker) }
+class Stage {
+	int input;
+	int calls;
+	init() { this.input = -1; this.calls = 0; }
+	lazy property int value throws Error { get { this.calls = this.calls + 1; var local = create_resource(68); if (this.input < 0) { lazy_event(70, 0); throw new Error("staged"); } return lazy_event(86, this.input); } }
+}
+int main() {
+	var object = new Stage();
+	try { var packet = Packet.Data(new int[3], object.value); return 81; } catch (Error error) {
+		if (object.calls != 1 || resource_live() != 0) { return 82; }
+		object.input = 39;
+		try {
+			var packet = Packet.Data(new int[3], object.value);
+			if (object.calls != 2 || object.value != 39 || resource_live() != 0) { return 83; }
+			match (move packet) { case Packet.Data(data, marker): { return len(data) + marker; } else: { return 84; } }
+		} catch (Error nested) { return 85; }
+	}
+}

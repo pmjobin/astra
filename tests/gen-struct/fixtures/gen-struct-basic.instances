@@ -1,0 +1,131 @@
+(core-program
+	(struct "astra.gen.struct.0.0"
+		(generic-struct-instance #0 (origin #0 "Pair") (application Pair<int,f64>) (concrete-struct #0) (state COMPLETE) (requests 2)
+			(requester "root#0:scalarized")
+			(requester "root#1:main")
+		)
+		(field #0 "first" : int)
+		(field #1 "second" : f64)
+	)
+	(function "scalarized" -> int
+		(parameters
+			(parameter #0 "x" : int)
+			(parameter #1 "y" : f64)
+		)
+		(locals
+			(struct-local-place #0 "p" : astra.gen.struct.0.0)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+				(parameter #0 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+				(parameter #1 : f64)
+			)
+			(store
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+				(binary + : int
+					(load : int
+						(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+					)
+					(integer 1 : int)
+				)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : f64
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+						)
+						(parameter #1 : f64)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 0 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "p" : astra.gen.struct.0.0)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+				(integer 42 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+				(f64 0x400c000000000000 : f64)
+			)
+			(store
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+				(f64 0x401d000000000000 : f64)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(binary != : bool
+								(load : int
+									(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+								)
+								(integer 42 : int)
+							)
+							(binary != : bool
+								(load : f64
+									(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+								)
+								(f64 0x401d000000000000 : f64)
+							)
+						)
+						(binary != : bool
+							(call "scalarized" -> int
+								(arguments
+									(load : int
+										(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+									)
+									(load : f64
+										(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : f64)
+									)
+								)
+							)
+							(integer 43 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

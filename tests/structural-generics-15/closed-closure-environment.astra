@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct CapturedResources {
+	owned R first;
+	owned R second;
+}
+
+class CallEnvironment<T, Tag> {
+	private owned T payload;
+	private Tag tag;
+	private int bias;
+	init(owned T payload, Tag tag, int bias) {
+		this.payload = move payload;
+		this.tag = tag;
+		this.bias = bias;
+	}
+	int apply(int input) { return this.bias + input; }
+	deinit() { mark(200 + this.bias); }
+}
+
+int adjusted<Tag>(int input, Tag ignored) { return input; }
+
+int checked_apply(borrowed CallEnvironment<CapturedResources, bool> environment, int input) throws RuntimeError {
+	if (input < 0) { throw new RuntimeError("retry captured environment"); }
+	return environment.apply(adjusted<bool>(input, true));
+}
+
+int plain_apply(borrowed CallEnvironment<int, bool> environment, int input) {
+	return environment.apply(input);
+}
+
+int invoke_checked(borrowed CheckedClosure<CallEnvironment<CapturedResources, bool>, RuntimeError, int, int> function, int input) throws RuntimeError {
+	return closure_invoke(function, input);
+}
+
+int exercise() {
+	var first = make(98);
+	var second = make(99);
+	CapturedResources payload = {first = move first, second = move second};
+	var environment = new CallEnvironment<CapturedResources, bool>(move payload, true, 40);
+	var function = checked_closure_bind(move environment, checked_apply);
+	try {
+		int invalid = invoke_checked(function, -1);
+		return 1;
+	} catch (RuntimeError error) {
+		if (error.message != "retry captured environment" || live() != 2) { return 2; }
+		mark(42);
+	}
+	try {
+		if (invoke_checked(function, 2) != 42 || live() != 2) { return 3; }
+	} catch (RuntimeError error) { return 4; }
+	release function;
+	if (live() != 0) { return 5; }
+	var plain_environment = new CallEnvironment<int, bool>(7, false, 20);
+	var plain = closure_bind(move plain_environment, plain_apply);
+	if (closure_invoke(plain, 22) != 42) { return 6; }
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

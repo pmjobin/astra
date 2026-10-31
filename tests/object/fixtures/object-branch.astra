@@ -1,0 +1,16 @@
+class Counter {
+	int value;
+	void add(int amount) { this.value = this.value + amount; }
+	int get() { return this.value; }
+}
+int choose(bool condition) {
+	Counter a = { value = 30 };
+	Counter b = { value = 40 };
+	Counter reference = a;
+	if (condition) { reference = b; }
+	reference.add(2);
+	if (condition) { if (a.value != 30 || reference != b) { return 1; } }
+	else { if (b.value != 40 || reference != a) { return 2; } }
+	return reference.value;
+}
+int main() { if (choose(false) != 32) { return 1; } return choose(true); }

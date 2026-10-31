@@ -1,0 +1,10 @@
+class Context {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { mark(this.value); }
+}
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+void dispose<T>(owned T value) where T : Ownable {}
+owned T outer<T>(owned T value) where T : Ownable {return relay<T>(move value);}
+void drop<T>(owned T value) where T : Ownable {dispose<T>(move value);}
+int main(){var r=resource(1);var s=outer<Resource>(move r);var c=Context.init(8);var d=outer<Context>(move c);if(id(s)!=1 || d.value!=8){return 1;}drop<Resource>(move s);drop<Context>(move d);return 0;}

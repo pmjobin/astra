@@ -1,0 +1,13 @@
+T choose<T>(bool condition, T a, T b) {
+	T result = a;
+	if (condition) { result = b; }
+	return result;
+}
+int main() {
+	f64 f = choose<f64>(true, 0.0, 1.25);
+	i16<8> a = {1,2,3,4,5,6,7,8};
+	i16<8> b = {42,2,3,4,5,6,7,8};
+	i16<8> v = choose<i16<8>>(true, a, b);
+	if (f == 1.25 && v[0] == 42) { return choose<int>(true,0,42); }
+	return 1;
+}

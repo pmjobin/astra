@@ -1,0 +1,48 @@
+(unit
+	(struct "Pair"
+		(type-parameters T U)
+		(field (type "T") (name "first"))
+		(field (type "U") (name "second"))
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "min_pair")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Ordered)
+		(block
+			(struct-local (type "Pair<T,T>") (name "p")
+				(initialize-field "first" (name "a"))
+				(initialize-field "second" (name "b"))
+			)
+			(if
+				(condition (binary "<" (field-access "p" "first") (field-access "p" "second")))
+				(then
+					(block
+						(return (field-access "p" "first"))
+					)
+				)
+			)
+			(return (field-access "p" "second"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (generic-call "min_pair" (type-arguments int) (arguments (prefix "-" (integer "7")) (integer "42"))) (prefix "-" (integer "7"))) (binary "!=" (generic-call "min_pair" (type-arguments u32) (arguments (integer "4294967295") (integer "7"))) (integer "7"))) (binary "!=" (generic-call "min_pair" (type-arguments f64) (arguments (float "3.5") (prefix "-" (float "1.25")))) (prefix "-" (float "1.25")))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

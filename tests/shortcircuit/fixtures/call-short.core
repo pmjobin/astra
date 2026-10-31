@@ -1,0 +1,175 @@
+(core-program
+	(function "left" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+		)
+		(block
+			(return
+				(parameter #0 : bool)
+			)
+		)
+	)
+	(function "right" -> bool
+		(parameters
+			(parameter #0 "b" : bool)
+		)
+		(block
+			(return
+				(parameter #0 : bool)
+			)
+		)
+	)
+	(function "consume" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return
+				(binary == : bool
+					(parameter #0 : bool)
+					(parameter #1 : bool)
+				)
+			)
+		)
+	)
+	(function "and_calls" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return
+				(short-circuit && : bool
+					(call "left" -> bool
+						(arguments
+							(parameter #0 : bool)
+						)
+					)
+					(call "right" -> bool
+						(arguments
+							(parameter #1 : bool)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "or_calls" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return
+				(short-circuit || : bool
+					(call "left" -> bool
+						(arguments
+							(parameter #0 : bool)
+						)
+					)
+					(call "right" -> bool
+						(arguments
+							(parameter #1 : bool)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "arguments" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+			(parameter #3 "d" : bool)
+		)
+		(block
+			(return
+				(call "consume" -> bool
+					(arguments
+						(short-circuit && : bool
+							(call "left" -> bool
+								(arguments
+									(parameter #0 : bool)
+								)
+							)
+							(call "right" -> bool
+								(arguments
+									(parameter #1 : bool)
+								)
+							)
+						)
+						(short-circuit || : bool
+							(call "left" -> bool
+								(arguments
+									(parameter #2 : bool)
+								)
+							)
+							(call "right" -> bool
+								(arguments
+									(parameter #3 : bool)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "earlier_call" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(block
+			(return
+				(call "consume" -> bool
+					(arguments
+						(call "left" -> bool
+							(arguments
+								(parameter #0 : bool)
+							)
+						)
+						(short-circuit && : bool
+							(parameter #1 : bool)
+							(call "right" -> bool
+								(arguments
+									(parameter #2 : bool)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "earlier_trap" -> bool
+		(parameters
+			(parameter #0 "x" : int)
+			(parameter #1 "y" : int)
+			(parameter #2 "a" : bool)
+			(parameter #3 "b" : bool)
+		)
+		(block
+			(return
+				(call "consume" -> bool
+					(arguments
+						(binary > : bool
+							(binary / : int
+								(parameter #0 : int)
+								(parameter #1 : int)
+							)
+							(integer 0 : int)
+						)
+						(short-circuit || : bool
+							(parameter #2 : bool)
+							(parameter #3 : bool)
+						)
+					)
+				)
+			)
+		)
+	)
+)

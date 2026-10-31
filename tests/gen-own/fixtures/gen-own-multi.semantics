@@ -1,0 +1,192 @@
+(program
+	(handle-type #0 "Resource" (cleanup "life_destroy")
+	)
+	(handle-type #1 "Token" (cleanup "life_destroy")
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "code" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "code" (parameter-ref #0 "code" : int))
+			)
+		)
+		(destructor #0 (member #2)
+			(receiver live Counter nonnull mutable)
+			(parameters)
+			(block
+				(c-call-statement "life_record" -> int (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "code" : int))) (integer 0 : int)))
+			)
+		)
+	)
+	(extern-function "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 "code" : int)
+			(parameter #1 "value" : int)
+		)
+		(result int))
+	(extern-function "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup "life_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Resource))
+	(extern-function "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup "life_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Token))
+	(extern-function "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 "value" : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(generic-definition "dispose" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "dispose" -> void
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block)
+	)
+	(generic-definition "relay" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "relay" -> T
+		(result T (contract owned-transfer) (requires Ownable))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block
+			(ownership-return (move (owner #0) : T (requires Ownable) (provenance incoming-owner)) : T)
+		)
+	)
+	(generic-definition "forward" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "forward" -> T
+		(result T (contract owned-transfer) (requires Ownable))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block
+			(ownership-return (generic-call "relay" -> owned T (type-arguments T) (arguments (owned-transfer-argument (parameter #0) (move (owner #0) : T (requires Ownable) (provenance incoming-owner)) : T (requires Ownable)))) : T)
+		)
+	)
+	(generic-definition "evaluate" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 U)
+	(function "evaluate" -> U
+		(parameters
+			(parameter #0 "value" : U)
+		)
+		(block
+			(c-call-statement "life_record" -> int (arguments (integer 86 : int) (integer 0 : int)))
+			(return (parameter-ref #0 "value" : U))
+		)
+	)
+	(generic-definition "keep" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(type-parameter #1 U)
+	(requires #0 T Ownable)
+	(function "keep" -> U
+		(parameters
+			(parameter #0 "owner" : T (contract owned-transfer))
+			(parameter #1 "value" : U)
+		)
+		(locals
+			(local #0 "owner" : T)
+		)
+		(block
+			(return (generic-call "evaluate" -> U (type-arguments U) (arguments (parameter-ref #1 "value" : U))))
+		)
+	)
+	(generic-definition "calculate" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(type-parameter #1 U)
+	(requires #0 T Ownable)
+	(requires #1 U Numeric)
+	(function "calculate" -> U
+		(parameters
+			(parameter #0 "owner" : T (contract owned-transfer))
+			(parameter #1 "a" : U)
+			(parameter #2 "b" : U)
+			(parameter #3 "c" : U)
+		)
+		(locals
+			(local #0 "owner" : T)
+		)
+		(block
+			(return (generic-call "evaluate" -> U (type-arguments U) (arguments (generic-op add (capability Numeric) (type-parameter U) : U (generic-op mul (capability Numeric) (type-parameter U) : U (parameter-ref #1 "a" : U) (parameter-ref #2 "b" : U)) (parameter-ref #3 "c" : U)))))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(ownership (owner #0) transferable-object (class #0) (storage #0))
+			(local #0 "a" : Counter)
+			(local #1 "i" : int)
+			(local #2 "b" : Resource)
+			(local #3 "f" : f64)
+			(ownership (owner #4) transferable-object (class #0) (storage #1))
+			(local #4 "c" : Counter)
+			(local #5 "lanes" : i16<8>)
+			(local #6 "v" : i16<8>)
+			(local #7 "d" : Resource)
+			(local #8 "exact" : f64)
+		)
+		(block
+			(local #0 "a" : Counter (ownership transferable-owned) (storage #0))
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "a")
+				(cleanup transferable-owner #0 null-disarm exact-class #0 after-success)
+				(construct constructor #0
+					(integer 65 : int)
+				)
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(local-init #1 "i" : int (generic-call "keep" -> int (type-arguments Counter int) (arguments (owned-transfer-argument (parameter #0) (move (owner #0) (domain object) (class #0) (storage #0)) : Counter (domain object) (class #0)) (integer 42 : int))))
+			(c-call-statement "life_record" -> int (arguments (integer 83 : int) (integer 0 : int)))
+			(owned-local #2 "b" : Resource (region #0) (cleanup "life_destroy") (c-call "create_resource" -> owned Resource (arguments (integer 66 : int))))
+			(local-init #3 "f" : f64 (generic-call "keep" -> f64 (type-arguments Resource f64) (arguments (owned-transfer-argument (parameter #0) (move (local-ref #2 "b") : Resource (cleanup "life_destroy")) : Resource (cleanup "life_destroy")) (f64 0x8000000000000000 : f64))))
+			(c-call-statement "life_record" -> int (arguments (integer 83 : int) (integer 0 : int)))
+			(local #4 "c" : Counter (ownership transferable-owned) (storage #1))
+			(object-storage #1 (class #0 "Counter") (region #0))
+			(object-construct (storage #1) (ref-local #4 "c")
+				(cleanup transferable-owner #4 null-disarm exact-class #0 after-success)
+				(construct constructor #0
+					(integer 67 : int)
+				)
+				(object-ref : Counter (storage #1) (region #0))
+			)
+			(local-init #5 "lanes" : i16<8> (vector-init : i16<8> (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16)))
+			(local-init #6 "v" : i16<8> (generic-call "keep" -> i16<8> (type-arguments Counter i16<8>) (arguments (owned-transfer-argument (parameter #0) (move (owner #4) (domain object) (class #0) (storage #1)) : Counter (domain object) (class #0)) (local-ref #5 "lanes" : i16<8>))))
+			(c-call-statement "life_record" -> int (arguments (integer 83 : int) (integer 0 : int)))
+			(owned-local #7 "d" : Resource (region #0) (cleanup "life_destroy") (c-call "create_resource" -> owned Resource (arguments (integer 68 : int))))
+			(local-init #8 "exact" : f64 (generic-call "calculate" -> f64 (type-arguments Resource f64) (arguments (owned-transfer-argument (parameter #0) (move (local-ref #7 "d") : Resource (cleanup "life_destroy")) : Resource (cleanup "life_destroy")) (f64 0x3ff0000002000000 : f64) (f64 0x3feffffffc000000 : f64) (f64 0xbff0000000000000 : f64))))
+			(c-call-statement "life_record" -> int (arguments (integer 83 : int) (integer 0 : int)))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (local-ref #1 "i" : int) (integer 42 : int)) (binary != : bool (local-ref #3 "f" : f64) (f64 0x0000000000000000 : f64))) (binary != : bool (local-ref #8 "exact" : f64) (f64 0x0000000000000000 : f64))) (prefix ! : bool (vector-all : bool (binary == : bool<8> (local-ref #6 "v" : i16<8>) (local-ref #5 "lanes" : i16<8>))))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (integer 42 : int))
+		)
+	)
+)

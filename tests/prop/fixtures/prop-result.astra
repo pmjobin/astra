@@ -1,0 +1,9 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int raw;
+	init(int initial) { this.raw = initial; }
+	property int value { get { return this.raw; } set(int next) { this.raw = next; } }
+	deinit() { life_record(this.value, 0); }
+}
+owned Counter make_counter() { return Counter.init(1); }
+int main() { owned Counter c = make_counter(); c.value = 42; return c.value; }

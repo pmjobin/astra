@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+struct Pair<T,U> { T first; U second; }
+struct Bundle<T> { Pair<T,T> pair; int tag; }
+int integer(bool choose, int input) { Box<int> b = { value = input }; if (choose) { b.value = b.value + 1; } return b.value; }
+f64 floating(f64 input) { Box<f64> b = { value = input }; return b.value; }
+i16<8> vector(i16<8> input) { Box<i16<8>> b = { value = input }; return b.value; }
+f64 nested(bool choose, f64 input) {
+	Bundle<f64> b = { pair = { first = input, second = 2.0 }, tag = 7 };
+	if (choose) { b.pair.first = b.pair.second; } else { b.pair.second = b.pair.first; }
+	return b.pair.first + b.pair.second;
+}
+int main() {
+	i16<8> v = { 1, 2, 3, 4, 5, 6, 7, 8 };
+	if (integer(true, 41) != 42 || integer(false, 7) != 7 || floating(3.5) != 3.5 || !all(vector(v) == v) || nested(true, 1.0) != 4.0 || nested(false, 3.5) != 7.0) { return 1; }
+	return 0;
+}

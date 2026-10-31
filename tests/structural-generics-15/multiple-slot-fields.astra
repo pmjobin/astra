@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SlotChild {
+	owned R handle;
+	init(owned R handle) { this.handle = move handle; }
+	deinit() { mark(100 + id(this.handle)); }
+}
+
+class Buckets<T, Tag> where T : ExactHeapClass {
+	private owned T[slots] first;
+	private owned T[slots] second;
+	private Tag tag;
+	private int operations;
+	init(Tag tag) {
+		this.first = new T[slots];
+		this.second = new T[slots];
+		this.tag = tag;
+		this.operations = 0;
+	}
+	property int size { get { return len(this.first) + len(this.second); } }
+	lazy property int initial_size { get { return this.size; } }
+	int count_tag<U>(U ignored) { return this.size; }
+	bool put(owned T value, bool second) {
+		this.operations = this.operations + 1;
+		if (second) {
+			if (!this.second.reserve(len(this.second) + 1)) { return false; }
+			this.second.append(move value);
+		} else {
+			if (!this.first.reserve(len(this.first) + 1)) { return false; }
+			this.first.append(move value);
+		}
+		return true;
+	}
+	owned T remove(bool second) {
+		this.operations = this.operations + 1;
+		if (second) { var value = this.second.take(0); return move value; }
+		var value = this.first.take(0);
+		return move value;
+	}
+	deinit() { mark(10 + this.operations); }
+}
+
+class SlotHolder {
+	owned Buckets<SlotChild, bool> values;
+	init(owned Buckets<SlotChild, bool> values) { this.values = move values; }
+	deinit() { mark(40); }
+}
+
+int count_with_tag<Tag>(Buckets<SlotChild, bool> values, Tag ignored) {
+	return values.size;
+}
+
+int exercise() {
+	var values = new Buckets<SlotChild, bool>(true);
+	var first_handle = make(95);
+	var first = new SlotChild(move first_handle);
+	if (!values.put(move first, false) || values.initial_size != 1) { return 1; }
+	var second_handle = make(96);
+	var second = new SlotChild(move second_handle);
+	if (!values.put(move second, true) || count_with_tag<bool>(values, false) != 2 || values.count_tag<int>(42) != 2 || values.initial_size != 1) { return 2; }
+	var taken = values.remove(false);
+	if (id(taken.handle) != 95 || values.size != 1) { return 3; }
+	var holder = new SlotHolder(move values);
+	var nested = new Buckets<SlotHolder, bool>(false);
+	if (!nested.put(move holder, false)) { return 4; }
+	var extracted = nested.remove(false);
+	if (extracted.values.size != 1 || nested.size != 0) { return 5; }
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

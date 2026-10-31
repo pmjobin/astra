@@ -1,0 +1,64 @@
+(unit
+	(function
+		(type "bool")
+		(name "is_null")
+		(parameters
+			(parameter (type "Resource") (name "r"))
+		)
+		(block
+			(return (binary "==" (name "r") (null)))
+		)
+	)
+	(function
+		(type "bool")
+		(name "inspect_native")
+		(parameters
+			(parameter (borrowed) (type "Resource") (name "r"))
+		)
+		(block
+			(return (binary "!=" (name "r") (null)))
+		)
+	)
+	(function
+		(type "Resource")
+		(name "choose")
+		(parameters
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(local (type "Resource") (name "result") (null))
+			(if
+				(condition (name "c"))
+				(then
+					(block
+						(assign (name "result") (call "lookup_resource" (arguments)))
+					)
+				)
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Resource") (name "r") (call "create_resource" (arguments (integer "1"))))
+			(call-statement (call "resource_id" (arguments (name "r"))))
+			(owned-local (type "Resource") (name "next") (move (name "r")))
+			(assign (name "r") (call "create_again" (arguments (integer "0"))))
+			(if
+				(condition (call "inspect_native" (arguments (name "r"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(release (name "r"))
+			(assign (name "r") (call "create_resource" (arguments (integer "2"))))
+			(call-statement (call "resource_id" (arguments (name "r"))))
+			(return (call "resource_id" (arguments (name "next"))))
+		)
+	)
+)

@@ -1,0 +1,75 @@
+(program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+		(method #0 "add" (member #3) -> void
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters
+				(parameter #0 "n" : int)
+			)
+			(block
+				(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int)) (binary + : int (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (parameter-ref #0 "n" : int)))
+			)
+		)
+		(method #1 "copy" (member #4) -> Counter
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(result Counter (contract owned-transfer) (storage-mode caller-provided))
+			(parameters)
+			(block
+				(result-provenance result-storage)
+				(ownership-return (return-object-construct (result-storage) (constructor Counter::init) (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))))) : Counter)
+			)
+		)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "value" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "value" (parameter-ref #0 "value" : int))
+				(c-call-statement "life_record" -> int (arguments (integer 67 : int) (integer 0 : int)))
+			)
+		)
+		(destructor #0 (member #2)
+			(receiver live Counter nonnull mutable)
+			(parameters)
+			(block
+				(if
+					(condition (binary != : bool (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (integer 42 : int)))
+					(then
+						(block
+							(c-call-statement "life_record" -> int (arguments (integer 88 : int) (integer 0 : int)))
+						)
+					)
+				)
+				(c-call-statement "life_record" -> int (arguments (integer 68 : int) (integer 0 : int)))
+			)
+		)
+	)
+	(extern-function "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 "code" : int)
+			(parameter #1 "value" : int)
+		)
+		(result int))
+	(function "make" -> Counter
+		(result Counter (contract owned-transfer) (storage-mode caller-provided))
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(result-provenance result-storage)
+			(ownership-return (return-object-construct (result-storage) (constructor Counter::init) (arguments (parameter-ref #0 "value" : int))) : Counter)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(ownership (owner #0) transferable-object (class #0) nullable-result)
+			(local #0 "c" : Counter)
+		)
+		(block
+			(local-init #0 "c" : Counter (call "make" -> owned Counter (arguments (integer 42 : int))) (candidate-storage #0 caller-lifetime))
+			(return (load (object-field-place (base (local-ref #0 "c" : Counter)) (field #0 "value") : int null-traps)))
+		)
+	)
+)

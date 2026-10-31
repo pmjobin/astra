@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void deferred_observed(int stage);
+async void deferred() throws Error {
+	try {
+		await delay_ms(10);
+		deferred_observed(80);
+	} catch (AsyncError error) {
+		if (error.message != "Linux io_uring timer operation failed") { deferred_observed(81); }
+		deferred_observed(1);
+	}
+}
+export(C) int run_program() {
+	try {
+		var executor = LinuxExecutor.open(1);
+		var status = executor.run(deferred());
+		match (status) {
+			case RunStatus.Completed(): { return 42; }
+			else: { return 82; }
+		}
+	} catch (Error error) { return 83; }
+}
+int main() { return run_program(); }

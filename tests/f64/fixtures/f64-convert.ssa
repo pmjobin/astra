@@ -1,0 +1,179 @@
+(ssa-program
+	(function #0 "widen" -> f64
+		(parameters
+			(%0 "a" : f32)
+		)
+		(entry #0)
+		(block #0
+			(%1 : f64 = float-convert (from f32) (to f64) (mode widen-exact) (value %0))
+			(return %1)
+		)
+	)
+	(function #1 "narrow" -> f32
+		(parameters
+			(%0 "a" : f64)
+		)
+		(entry #0)
+		(block #0
+			(%1 : f32 = float-convert (from f64) (to f32) (mode nearest-ties-even) (value %0))
+			(return %1)
+		)
+	)
+	(function #2 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #8 ())
+		)
+		(block #3
+			(%6 : f32 = call #1 "narrow" -> f32 (arguments (f64 0x3ff0000010000000 : f64)))
+			(%7 : bool = binary != %6 (f32 0x3f800000 : f32))
+			(conditional-branch %7
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%8 : f32 = call #1 "narrow" -> f32 (arguments (f64 0x3ff0000030000000 : f64)))
+			(%9 : bool = binary != %8 (f32 0x3f800002 : f32))
+			(branch #5 (%9))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return (integer 2 : int))
+		)
+		(block #7
+			(branch #19 ())
+		)
+		(block #8
+			(branch #9 ())
+		)
+		(block #9
+			(branch #10 ())
+		)
+		(block #10
+			(%10 : f32 = call #1 "narrow" -> f32 (arguments (f64 0x7e37e43c8800759c : f64)))
+			(%11 : bool = binary != %10 (f32 0x7f800000 : f32))
+			(conditional-branch %11
+				(true #12 ((bool true : bool)))
+				(false #11 ())
+			)
+		)
+		(block #11
+			(%12 : f32 = call #1 "narrow" -> f32 (arguments (f64 0xfe37e43c8800759c : f64)))
+			(%13 : bool = binary != %12 (f32 0xff800000 : f32))
+			(branch #12 (%13))
+		)
+		(block #12
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #14 ((bool true : bool)))
+				(false #13 ())
+			)
+		)
+		(block #13
+			(%14 : f32 = call #1 "narrow" -> f32 (arguments (f64 0x01a56e1fc2f8f359 : f64)))
+			(%15 : bool = binary != %14 (f32 0x00000000 : f32))
+			(branch #14 (%15))
+		)
+		(block #14
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #16 ((bool true : bool)))
+				(false #15 ())
+			)
+		)
+		(block #15
+			(%16 : f32 = call #1 "narrow" -> f32 (arguments (f64 0x81a56e1fc2f8f359 : f64)))
+			(%17 : f32 = binary / (f32 0x3f800000 : f32) %16)
+			(%18 : bool = binary != %17 (f32 0xff800000 : f32))
+			(branch #16 (%18))
+		)
+		(block #16
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #17
+			(return (integer 3 : int))
+		)
+		(block #18
+			(branch #24 ())
+		)
+		(block #19
+			(%19 : f32 = call #1 "narrow" -> f32 (arguments (f64 0x36a0000000000000 : f64)))
+			(%20 : f64 = call #0 "widen" -> f64 (arguments %19))
+			(%21 : bool = binary == %20 (f64 0x0000000000000000 : f64))
+			(conditional-branch %21
+				(true #21 ((bool true : bool)))
+				(false #20 ())
+			)
+		)
+		(block #20
+			(%22 : f64 = call #0 "widen" -> f64 (arguments (f32 0x80000000 : f32)))
+			(%23 : f64 = binary / (f64 0x3ff0000000000000 : f64) %22)
+			(%24 : bool = binary != %23 (f64 0xfff0000000000000 : f64))
+			(branch #21 (%24))
+		)
+		(block #21
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #17 ())
+				(false #18 ())
+			)
+		)
+		(block #22
+			(return (integer 4 : int))
+		)
+		(block #23
+			(return (integer 0 : int))
+		)
+		(block #24
+			(%25 : f64 = call #0 "widen" -> f64 (arguments (f32 0x3f800001 : f32)))
+			(%26 : f32 = call #1 "narrow" -> f32 (arguments %25))
+			(%27 : bool = binary != %26 (f32 0x3f800001 : f32))
+			(conditional-branch %27
+				(true #26 ((bool true : bool)))
+				(false #25 ())
+			)
+		)
+		(block #25
+			(%28 : f64 = call #0 "widen" -> f64 (arguments (f32 0x3f800001 : f32)))
+			(%29 : bool = binary != %28 (f64 0x3ff0000020000000 : f64))
+			(branch #26 (%29))
+		)
+		(block #26
+			(arguments
+				(%5 (temporary #5) : bool)
+			)
+			(conditional-branch %5
+				(true #22 ())
+				(false #23 ())
+			)
+		)
+	)
+)

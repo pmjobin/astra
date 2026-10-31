@@ -1,0 +1,189 @@
+(core-program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : int)
+	)
+	(function "choose" -> int
+		(parameters
+			(parameter #0 "c" : bool)
+		)
+		(locals
+			(struct-local-place #0 "p" : Pair)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+				(integer 0 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+				(integer 10 : int)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(store
+							(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+							(integer 1 : int)
+						)
+					)
+				)
+				(else
+					(block
+						(store
+							(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(binary + : int
+					(load : int
+						(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+					)
+					(load : int
+						(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+					)
+				)
+			)
+		)
+	)
+	(function "multiple" -> int
+		(parameters
+			(parameter #0 "c" : bool)
+		)
+		(locals
+			(struct-local-place #0 "p" : Pair)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+				(integer 0 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+				(integer 0 : int)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(store
+							(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+							(integer 2 : int)
+						)
+						(store
+							(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+							(integer 3 : int)
+						)
+					)
+				)
+				(else
+					(block
+						(store
+							(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+							(integer 4 : int)
+						)
+						(store
+							(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+							(integer 5 : int)
+						)
+					)
+				)
+			)
+			(return
+				(binary + : int
+					(binary * : int
+						(load : int
+							(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+						)
+						(integer 10 : int)
+					)
+					(load : int
+						(field-place (base struct-local-place #0 : Pair) (field #1 "y") : int)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(call "choose" -> int
+								(arguments
+									(bool true : bool)
+								)
+							)
+							(integer 11 : int)
+						)
+						(binary != : bool
+							(call "choose" -> int
+								(arguments
+									(bool false : bool)
+								)
+							)
+							(integer 12 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(call "multiple" -> int
+								(arguments
+									(bool true : bool)
+								)
+							)
+							(integer 23 : int)
+						)
+						(binary != : bool
+							(call "multiple" -> int
+								(arguments
+									(bool false : bool)
+								)
+							)
+							(integer 45 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

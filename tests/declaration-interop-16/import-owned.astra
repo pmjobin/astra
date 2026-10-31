@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="owned16_exception_retired")] int retired();
+[CImport(name="owned16_error_seen")] int error_seen();
+[ExceptionRoot] class Fault {
+	readonly string text; private int status;
+	init(int status) { error_seen(); this.status=status; this.text="foreign owned result failure"; }
+	virtual property string message { get { return this.text; } }
+	int code() { return this.status; }
+	deinit() { retired(); }
+}
+owned Fault foreign_fault(int domain,int status) { var fault=new Fault(status); return move fault; }
+[CImport(name="owned_provider16",profile="declarations-v1",lifetime="unique",threading="constructing")]
+class Provider {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	init() throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="output",direction="out",produced="count")]
+	[ForeignChannel(parameter="count",direction="out")]
+	owned u8[] bytes(int mode,borrowed u8[] input,borrowed u8[] output,borrowed int* count) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="result",encoding="utf8-counted",transfer="full")]
+	owned u8[] counted(int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="result",encoding="utf8-nul")]
+	owned u8[] nul(int mode) throws Fault;
+}
+export(C) int import_owned16_run(int mode) {
+	try {
+		var provider=Provider.init();
+		u8[3] input={1,2,3};u8[4] output={77,77,77,77};int count=-1;
+		try {
+			var data=provider.bytes(mode,slice(input),slice(output),&count);
+			if(mode!=0 && mode!=4 && mode!=7){return 1;}
+			if(count!=2 || output[0]!=11 || output[1]!=12 || output[2]!=77 || input[0]!=1){return 2;}
+			if(mode==0 && (len(data)!=4 || data[0]!=21 || data[1]!=0 || data[2]!=195 || data[3]!=169)){return 3;}
+			if(mode!=0 && len(data)!=0){return 4;}
+		} catch(Fault fault) {
+			int expected=-2147418113;if(mode==1){expected=-1600;}if(mode==5 || mode==9 || mode==10){expected=-2147024882;}
+			if(mode==0 || mode==4 || mode==7 || fault.code()!=expected){return 5;}
+			if(output[0]!=77 || output[1]!=77 || count!=0 || input[0]!=1){return 6;}
+		}
+		if(mode!=0){return 0;}
+		var text=provider.counted(0);
+		if(len(text)!=4 || text[0]!=97 || text[1]!=0 || text[2]!=195 || text[3]!=169){return 7;}
+		var empty=provider.counted(5);if(len(empty)!=0){return 8;}
+		int invalid=1;
+		while(invalid<5){
+			try{var bad=provider.counted(invalid);return 9;}
+			catch(Fault fault){int expected=-2147024809;if(invalid==4){expected=-1600;}if(fault.code()!=expected){return 10;}}
+			invalid=invalid+1;
+		}
+		var nul=provider.nul(0);
+		if(len(nul)!=5 || nul[0]!=99 || nul[3]!=195 || nul[4]!=169){return 11;}
+		invalid=1;
+		while(invalid<4){try{var bad=provider.nul(invalid);return 12;}catch(Fault fault){if(fault.code()!=-2147024809){return 13;}}invalid=invalid+1;}
+	} catch(Fault fault){return 90;}
+	return 0;
+}

@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int native(borrowed void* p) {
+	return inspect(p);
+}
+void f() {
+	owned void* h = create(1);
+	native(h);
+	owned void* next = move h;
+	inspect(next);
+}

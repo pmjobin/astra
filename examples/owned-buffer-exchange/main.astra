@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	var actual = ExchangeOwner.init();
+	var control = CopyControl.init();
+	var saved = actual.state[0];
+	actual.rotate(); control.rotate();
+	assert_that(len(actual.state) == 3 && len(actual.next) == 2);
+	assert_that(same_records(actual.state, control.state));
+	assert_that(same_records(actual.next, control.next));
+	actual.state[0].index = 29; control.state[0].index = 29;
+	assert_that(saved.index == 7 && saved.gain == 0.5d);
+	actual.rotate(); control.rotate();
+	assert_that(len(actual.state) == 2 && len(actual.next) == 3);
+	assert_that(same_records(actual.state, control.state));
+	assert_that(same_records(actual.next, control.next));
+	if (len(args) > 1) { assert_that(actual.next[0].index == -1); }
+	// Both objects release their final field contents on normal return.
+	return 0;
+}

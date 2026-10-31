@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Numerics;
+extern(C) int numerical_pcm32(int track,int i);
+extern(C) int numerical_observe(int i,f64 value);
+extern(C) int numerical_finish(int wanted);
+int main(){
+	owned i16[] a=new i16[48000];owned i16[] b=new i16[48000];owned i16[] output=new i16[48000];
+	for(int i=0;i<48000;i=i+1){a[i]=numerical_pcm32(0,i) as i16;b[i]=numerical_pcm32(1,i) as i16;}
+	for(int i=0;i<48000;i=i+8){store_i16x8(output,i,pcm_mix8(load_i16x8(a,i),load_i16x8(b,i)));}
+	for(int i=0;i<48000;i=i+1){if(numerical_observe(i,output[i] as f64)!=0){return 1;}}
+	if(pcm_mix(32767,1)!=32767 || pcm_mix(-32768,-1)!=-32768){return 2;}
+	return numerical_finish(48000);
+}

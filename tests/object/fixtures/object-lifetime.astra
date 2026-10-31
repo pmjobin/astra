@@ -1,0 +1,23 @@
+class Counter {
+	int value;
+	void add(int amount) { this.value = this.value + amount; }
+	int get() { return this.value; }
+}
+int main() {
+	Counter a = { value = 1 };
+	{
+		Counter alias = a;
+		Counter inner = { value = 2 };
+		inner = alias;
+		inner.value = 42;
+	}
+	int i = 0;
+	while (i < 4) {
+		Counter fresh = { value = i };
+		Counter second = { value = i };
+		if (fresh == second) { return 1; }
+		fresh.add(1);
+		i = fresh.value;
+	}
+	return a.value;
+}

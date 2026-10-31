@@ -1,0 +1,151 @@
+(ssa-program
+	(function #0 "count" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+			)
+			(branch #4 ())
+		)
+		(block #2
+			(%5 : int = binary + %1 (integer 1 : int))
+			(branch #1 (%5))
+		)
+		(block #3
+			(return %1)
+		)
+		(block #4
+			(%3 : bool = binary < %1 %0)
+			(conditional-branch %3
+				(true #5 ())
+				(false #6 ((bool false : bool)))
+			)
+		)
+		(block #5
+			(%4 : bool = binary < %1 (integer 5 : int))
+			(branch #6 (%4))
+		)
+		(block #6
+			(arguments
+				(%2 (temporary #0) : bool)
+			)
+			(conditional-branch %2
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+	)
+	(function #1 "keep_going" -> bool
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary < %0 (integer 5 : int))
+			(return %1)
+		)
+	)
+	(function #2 "continue_count" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+			)
+			(branch #4 ())
+		)
+		(block #2
+			(%5 : int = binary + %1 (integer 1 : int))
+			(branch #1 (%5))
+		)
+		(block #3
+			(return %1)
+		)
+		(block #4
+			(%3 : bool = binary < %1 %0)
+			(conditional-branch %3
+				(true #5 ())
+				(false #6 ((bool false : bool)))
+			)
+		)
+		(block #5
+			(%4 : bool = call #1 "keep_going" -> bool (arguments %1))
+			(branch #6 (%4))
+		)
+		(block #6
+			(arguments
+				(%2 (temporary #0) : bool)
+			)
+			(conditional-branch %2
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+	)
+	(function #3 "break_count" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+			)
+			(branch #4 ())
+		)
+		(block #2
+			(%6 : int = binary + %1 (integer 1 : int))
+			(%7 : bool = binary == %6 (integer 3 : int))
+			(conditional-branch %7
+				(true #7 ())
+				(false #8 ())
+			)
+		)
+		(block #3
+			(arguments
+				(%2 "i" : int)
+			)
+			(return %2)
+		)
+		(block #4
+			(%4 : bool = binary < %1 %0)
+			(conditional-branch %4
+				(true #5 ())
+				(false #6 ((bool false : bool)))
+			)
+		)
+		(block #5
+			(%5 : bool = call #1 "keep_going" -> bool (arguments %1))
+			(branch #6 (%5))
+		)
+		(block #6
+			(arguments
+				(%3 (temporary #0) : bool)
+			)
+			(conditional-branch %3
+				(true #2 ())
+				(false #3 (%1))
+			)
+		)
+		(block #7
+			(branch #3 ((integer 8 : int)))
+		)
+		(block #8
+			(branch #1 (%6))
+		)
+	)
+)

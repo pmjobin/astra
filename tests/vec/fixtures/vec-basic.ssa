@@ -1,0 +1,49 @@
+(ssa-program
+	(function #0 "add" -> int<4>
+		(parameters
+			(%0 "a" : int<4>)
+			(%1 "b" : int<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int<4> = prefix + %0)
+			(%3 : int<4> = binary + %2 %1)
+			(return %3)
+		)
+	)
+	(function #1 "dynamic" -> int<4>
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+			(%2 "c" : int)
+			(%3 "d" : int)
+		)
+		(entry #0)
+		(block #0
+			(%4 : int<4> = vector-init %0 %1 %2 %3)
+			(return %4)
+		)
+	)
+	(function #2 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : int<4> = vector-init (integer 1 : int) (integer 2 : int) (integer 3 : int) (integer 4 : int))
+			(%1 : int<4> = call #1 "dynamic" -> int<4> (arguments (integer 5 : int) (integer 6 : int) (integer 7 : int) (integer 8 : int)))
+			(%2 : int<4> = vector-init (integer 6 : int) (integer 8 : int) (integer 10 : int) (integer 12 : int))
+			(%3 : int<4> = call #0 "add" -> int<4> (arguments %0 %1))
+			(%4 : bool<4> = binary == %3 %2)
+			(%5 : bool = vector-all %4)
+			(conditional-branch %5
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 0 : int))
+		)
+		(block #2
+			(return (integer 1 : int))
+		)
+	)
+)

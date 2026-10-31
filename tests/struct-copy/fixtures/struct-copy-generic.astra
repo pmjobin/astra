@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+struct Bundle<T> { Box<T> left; Box<T> right; ConcretePair meta; }
+struct ConcretePair { int x; f64 y; }
+T pass<T>(T value) {
+	ConcretePair a = { x = 2, y = 1.0 };
+	ConcretePair b = a;
+	Box<int> c = { value = b.x };
+	Box<i32> d = c;
+	c = d;
+	return value;
+}
+int main() {
+	Box<int> a = { value = 42 };
+	Box<i32> b = a;
+	b = a;
+	Box<f64> c = { value = 3.5 };
+	Box<f64> d = c;
+	Box<i16<8>> e = { value = splat(7,8) };
+	Box<i16<8>> f = e;
+	Bundle<f64> g = { left = { value = 1.5 }, right = { value = 2.5 }, meta = { x = 7, y = 1.5 } };
+	Bundle<f64> h = g;
+	h.left = h.right;
+	ConcretePair metadata = h.meta;
+	h.meta = metadata;
+	Box<f64> i = h.left;
+	Box<int>* p = &b;
+	*p = a;
+	Box<i32> j = *p;
+	if (h.meta.x != 7 || metadata.y != 1.5 || j.value != 42 || d.value != 3.5 || f.value[7] != 7 || h.left.value != 2.5 || g.left.value != 1.5 || i.value != 2.5 || pass<int>(42) != 42) { return 1; }
+	return 0;
+}

@@ -1,0 +1,96 @@
+(core-program
+	(function "consume" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return
+				(binary == : bool
+					(parameter #0 : bool)
+					(parameter #1 : bool)
+				)
+			)
+		)
+	)
+	(function "contexts" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+			(parameter #2 "c" : bool)
+		)
+		(locals
+			(local-place #0 "x" : bool)
+		)
+		(block
+			(initialize
+				(local-place #0 : bool)
+				(short-circuit && : bool
+					(parameter #0 : bool)
+					(parameter #1 : bool)
+				)
+			)
+			(store
+				(local-place #0 : bool)
+				(short-circuit || : bool
+					(load : bool
+						(local-place #0 : bool)
+					)
+					(parameter #2 : bool)
+				)
+			)
+			(if
+				(condition
+					(short-circuit && : bool
+						(parameter #0 : bool)
+						(parameter #2 : bool)
+					)
+				)
+				(then
+					(block
+						(store
+							(local-place #0 : bool)
+							(short-circuit || : bool
+								(parameter #1 : bool)
+								(parameter #2 : bool)
+							)
+						)
+					)
+				)
+			)
+			(call-statement "consume" -> bool
+				(arguments
+					(short-circuit && : bool
+						(load : bool
+							(local-place #0 : bool)
+						)
+						(parameter #1 : bool)
+					)
+					(short-circuit || : bool
+						(parameter #0 : bool)
+						(parameter #2 : bool)
+					)
+				)
+			)
+			(return
+				(binary == : bool
+					(prefix ! : bool
+						(short-circuit && : bool
+							(load : bool
+								(local-place #0 : bool)
+							)
+							(short-circuit || : bool
+								(parameter #0 : bool)
+								(parameter #1 : bool)
+							)
+						)
+					)
+					(short-circuit || : bool
+						(parameter #1 : bool)
+						(parameter #2 : bool)
+					)
+				)
+			)
+		)
+	)
+)

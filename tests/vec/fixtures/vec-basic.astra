@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+i32<4> add(int<4> a, i32<4> b) { return +a + b; }
+int<4> dynamic(int a, int b, int c, int d) { int<4> v = {a, b, c, d}; return v; }
+int main() {
+	int<4> a = {1, 2, 3, 4};
+	i32<4> b = dynamic(5, 6, 7, 8);
+	int<4> expected = {6, 8, 10, 12};
+	a = add(a, b);
+	if (all(a == expected)) { return 0; }
+	return 1;
+}

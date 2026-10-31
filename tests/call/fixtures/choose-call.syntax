@@ -1,0 +1,38 @@
+(unit
+	(function
+		(type "int")
+		(name "transform")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (binary "+" (name "x") (integer "1")))
+		)
+	)
+	(function
+		(type "int")
+		(name "choose_call")
+		(parameters
+			(parameter (type "bool") (name "c"))
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(local (type "int") (name "x") (integer "0"))
+			(if
+				(condition (name "c"))
+				(then
+					(block
+						(assign (name "x") (call "transform" (arguments (name "a"))))
+					)
+				)
+				(else
+					(block
+						(assign (name "x") (call "transform" (arguments (name "b"))))
+					)
+				)
+			)
+			(return (name "x"))
+		)
+	)
+)

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Triple<A,B,C> {
+	private int generation;
+	A first;
+	B second;
+	C third;
+	init(A first, B second, C third) {
+		this.generation = 7;
+		this.first = first;
+		this.second = second;
+		this.third = third;
+	}
+	A left() { return this.first; }
+	B middle() { return this.second; }
+	C right() { return this.third; }
+	int revision() {
+		if (this.generation > 0) { return this.generation; }
+		return 0;
+	}
+}
+
+int main() {
+	var value = new Triple<int,bool,i64>(35, true, 42 as i64);
+	if (!value.middle() || value.right() != (42 as i64)) { return 1; }
+	return value.left() + value.revision() - 42;
+}

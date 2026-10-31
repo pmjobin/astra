@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void cancelled_observed(int stage);
+class LateError : Error {
+	init(string message) : base(message) {}
+	deinit() { cancelled_observed(4); }
+}
+async void failing() throws Error { await delay_ms(1); throw new LateError("published exception"); }
+async int leaf(int milliseconds, int stage) throws Error {
+	await delay_ms(milliseconds);
+	cancelled_observed(stage);
+	return 42;
+}
+async void parent_work() throws Error {
+	int value = await leaf(100, 80);
+	cancelled_observed(value);
+}
+async void cancellation() throws Error {
+	var parent = parent_work();
+	var other = leaf(20, 1);
+	start(parent);
+	try { start(other); } catch (Error error) { await cancel_and_join(move parent); throw; }
+	try { await delay_ms(5); } catch (Error error) { await cancel_and_join(move parent); await cancel_and_join(move other); throw; }
+	cancel(parent);
+	cancel(parent);
+	await cancel_and_join(move parent);
+	if (await move other != 42) { cancelled_observed(81); }
+	var cold = leaf(100, 82);
+	cancel(cold);
+	await cancel_and_join(move cold);
+	var completed = leaf(1, 2);
+	start(completed);
+	try { await delay_ms(10); } catch (Error error) { await cancel_and_join(move completed); throw; }
+	cancel(completed);
+	await cancel_and_join(move completed);
+	var exceptional = failing();
+	start(exceptional);
+	try { await delay_ms(10); } catch (Error error) { await cancel_and_join(move exceptional); throw; }
+	cancel(exceptional);
+	cancel(exceptional);
+	await cancel_and_join(move exceptional);
+	cancelled_observed(3);
+}
+export(C) int run_program() {
+	try {
+		var executor = LinuxExecutor.open(4);
+		var status = executor.run(cancellation());
+		match (status) {
+			case RunStatus.Completed(): { return 42; }
+			else: { return 83; }
+		}
+	} catch (Error error) { return 84; }
+}
+int main() { return run_program(); }

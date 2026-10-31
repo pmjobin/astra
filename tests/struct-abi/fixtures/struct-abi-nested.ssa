@@ -1,0 +1,95 @@
+(ssa-program
+	(struct "Inner"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(struct "Outer"
+		(field #0 "inner" : Inner)
+		(field #1 "samples" : i16<8>)
+	)
+	(function #0 "identity" -> Outer
+		(struct-parameter #0 : Outer COPY_VALUE (leaves 0 3))
+		(struct-result : Outer (leaves 3))
+		(parameters
+			(%0 "value.0.0" : int)
+			(%1 "value.0.1" : f64)
+			(%2 "value.1" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : Outer %0 %1 %2)
+		)
+	)
+	(function #1 "subobject" -> Inner
+		(struct-parameter #0 : Outer COPY_VALUE (leaves 0 3))
+		(struct-result : Inner (leaves 2))
+		(parameters
+			(%0 "value.0.0" : int)
+			(%1 "value.0.1" : f64)
+			(%2 "value.1" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : Inner %0 %1)
+		)
+	)
+	(function #2 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%2 : i16<8> = vector-splat (lanes 8) (value (integer 9 : i16)))
+			(struct-argument #0 : Outer (leaves 0 3))
+			(struct-call-results : Outer (%3 : int) (%4 : f64) (%5 : i16<8>))
+			(call #0 "identity" -> Outer (arguments (integer 7 : int) (f64 0x400c000000000000 : f64) %2))
+			(consume-struct-result 0 : Outer %3 %4 %5)
+			(struct-argument #0 : Outer (leaves 0 3))
+			(struct-call-results : Inner (%6 : int) (%7 : f64))
+			(call #1 "subobject" -> Inner (arguments %3 %4 %5))
+			(consume-struct-result 0 : Inner %6 %7)
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(%8 : bool = binary != %6 (integer 7 : int))
+			(conditional-branch %8
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(%9 : bool = binary != %7 (f64 0x400c000000000000 : f64))
+			(branch #6 (%9))
+		)
+		(block #6
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #8 ((bool true : bool)))
+				(false #7 ())
+			)
+		)
+		(block #7
+			(%10 : i16 = vector-extract (lane 7) (vector %5))
+			(%11 : bool = binary != %10 (integer 9 : i16))
+			(branch #8 (%11))
+		)
+		(block #8
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+)

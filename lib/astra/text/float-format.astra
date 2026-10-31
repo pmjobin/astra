@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit hosted provider: float-text-posix.o and --link-library m.
+// Select with base/errors.astra and text/utf8-message.astra.
+struct NumericF32Cell { f32 value; }
+struct NumericF64Cell { f64 value; }
+
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_numeric_format_f32(f32 value, borrowed u8[] output);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_numeric_format_f64(f64 value, borrowed u8[] output);
+[CCode (text_abi = "utf8-i32", record_abi = "natural-lp64")]
+extern(C) int astra_numeric_parse_f32(borrowed string input, borrowed NumericF32Cell* output);
+[CCode (text_abi = "utf8-i32", record_abi = "natural-lp64")]
+extern(C) int astra_numeric_parse_f64(borrowed string input, borrowed NumericF64Cell* output);
+
+class NumericTextError : Error {
+	private int reason_value;
+	init(int reason) : base("numeric text conversion") { this.reason_value = reason; }
+	property int reason { get { return this.reason_value; } }
+}
+
+owned Utf8Message format_f32(f32 value) throws Error {
+	u8[32] bytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int count = astra_numeric_format_f32(value, slice(bytes));
+	if (count < 0) { throw new NumericTextError(0 - count); }
+	var message = utf8_message(slice(bytes, 0, count));
+	return move message;
+}
+
+owned Utf8Message format_f64(f64 value) throws Error {
+	u8[32] bytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int count = astra_numeric_format_f64(value, slice(bytes));
+	if (count < 0) { throw new NumericTextError(0 - count); }
+	var message = utf8_message(slice(bytes, 0, count));
+	return move message;
+}
+
+f32 parse_f32(string text) throws NumericTextError {
+	NumericF32Cell result = {value = 0.0f};
+	int status = astra_numeric_parse_f32(text, &result);
+	if (status != 0) { throw new NumericTextError(status); }
+	return result.value;
+}
+
+f64 parse_f64(string text) throws NumericTextError {
+	NumericF64Cell result = {value = 0.0};
+	int status = astra_numeric_parse_f64(text, &result);
+	if (status != 0) { throw new NumericTextError(status); }
+	return result.value;
+}

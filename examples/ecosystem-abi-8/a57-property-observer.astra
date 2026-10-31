@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	try {
+		{
+			owned Counter object = counter_new(7);
+			if (object == null || counter_set(object, 42) != 1 || counter_label(object, "café") != 1) { return 1; }
+			owned ForeignUtf8 snapshot = counter_snapshot(object);
+			if (snapshot == null) { return 2; }
+			var native = copy_foreign(snapshot);
+			if (counter_label(object, "updated") != 1) { return 3; }
+			var report = new Utf8ByteBuilder();
+			report_value(report, "value=", counter_get(object));
+			if (!report_text(report, "snapshot=") || !report_text(report, native.text) || !report_text(report, "\n")) { return 4; }
+			show_report(report);
+		}
+		if (counter_finalized() != 1 || foreign_live() != 0) { return 5; }
+		println("released=1");
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 70; }
+}

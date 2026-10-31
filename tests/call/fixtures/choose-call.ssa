@@ -1,0 +1,40 @@
+(ssa-program
+	(function #0 "transform" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : int = binary + %0 (integer 1 : int))
+			(return %1)
+		)
+	)
+	(function #1 "choose_call" -> int
+		(parameters
+			(%0 "c" : bool)
+			(%1 "a" : int)
+			(%2 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(%4 : int = call #0 "transform" -> int (arguments %1))
+			(branch #3 (%4))
+		)
+		(block #2
+			(%5 : int = call #0 "transform" -> int (arguments %2))
+			(branch #3 (%5))
+		)
+		(block #3
+			(arguments
+				(%3 "x" : int)
+			)
+			(return %3)
+		)
+	)
+)

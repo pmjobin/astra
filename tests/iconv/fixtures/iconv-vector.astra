@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+u16<8> consume(u16<8> v) { return v; }
+bool signed_order(i8<16> v) {
+	u8<16> bits = v as u8<16>;
+	return all(v < splat(1 as i8,16)) && !any(bits < splat(1 as u8,16));
+}
+int main() {
+	i8<8> a = {-128,-1,0,1,2,63,64,127};
+	u8<8> b = {0,1,127,128,129,253,254,255};
+	i16<8> aw = a as i16<8>;
+	u16<8> bw = b as u16<8>;
+	i16<8> ae = {-128,-1,0,1,2,63,64,127};
+	u16<8> be = {0,1,127,128,129,253,254,255};
+	if (!all(aw == ae) || !all(bw == be)) { return 1; }
+	u16<8> cross = consume(a as u16<8>);
+	if (cross[0] != 65408 || cross[1] != 65535 || (b as i16<8>)[7] != 255) { return 2; }
+	if (!all((aw as i8<8>) == a) || !all((bw as u8<8>) == b)) { return 3; }
+	i16<8> wide = {-32768,-129,-128,-1,0,127,128,32767};
+	i8<8> signed_expected = {0,127,-128,-1,0,127,-128,-1};
+	u8<8> unsigned_expected = {0,127,128,255,0,127,128,255};
+	if (!all((wide as i8<8>) == signed_expected) || !all((wide as u8<8>) == unsigned_expected)) { return 4; }
+	i16<4> small = {-32768,-1,0,32767};
+	u16<4> usmall = {0,32767,32768,65535};
+	int<4> words = small as i32<4>;
+	u32<4> uwords = usmall as u32<4>;
+	if (words[0] != -32768 || uwords[3] != 65535 || !all((words as i16<4>) == small) || !all((uwords as u16<4>) == usmall)) { return 5; }
+	i8<16> full = {-128,-1,0,127,-64,-32,-16,-8,-4,-2,1,2,4,8,16,32};
+	u8<16> bits = full as u8<16>;
+	if (!all((bits as i8<16>) == full) || bits[0] != 128 || bits[1] != 255 || !(full[0] < 0) || !(bits[0] > 0)) { return 6; }
+	if (!all((full < splat(0 as i8,16)) == (bits > splat(127 as u8,16)))) { return 7; }
+	u16<8> allbits = wide as u16<8>;
+	if (!all((allbits as i16<8>) == wide) || allbits[0] != 32768 || !(wide[0] < 0) || !(allbits[0] > 0)) { return 8; }
+	int<4> signed32 = {-2147483648,-1,0,2147483647};
+	u32<4> bits32 = signed32 as u32<4>;
+	if (!all((bits32 as int<4>) == signed32) || bits32[0] != 2147483648 || bits32[1] != 4294967295) { return 9; }
+	aw = insert(a as i16<8>,3,1000);
+	if (aw[3] != 1000 || aw[0] != -128 || a[3] != 1) { return 10; }
+	u8<8> bytes = splat(255,8);
+	i16<8> samples = bytes as i16<8>;
+	if (!all(samples == splat(255 as i16,8))) { return 11; }
+	bool<8> mask = {true,false,true,false,true,false,true,false};
+	if (!all((shuffle(a,7,6,5,4,3,2,1,0) as i16<8>) == shuffle(a as i16<8>,7,6,5,4,3,2,1,0))) { return 12; }
+	if (!all((select(mask,a,a) as i16<8>) == select(mask,a as i16<8>,a as i16<8>))) { return 13; }
+	if (!signed_order(splat(-1 as i8,16))) { return 14; }
+	return 0;
+}

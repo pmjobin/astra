@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Containers;
+public class Item {
+	private int value;
+	init(int value) { this.value = value; }
+	int read() { return this.value; }
+}
+public class Bag<T> where T : ExactHeapClass {
+	owned T[slots] entries;
+	init() { this.entries = new T[slots]; }
+	bool reserve(int requested) { return this.entries.reserve(requested); }
+	void append(owned T value) { this.entries.append(move value); }
+	int count() { return len(this.entries); }
+	int capacity() { return this.entries.capacity; }
+}
+public int count(Bag<Item> value) { return value.count(); }

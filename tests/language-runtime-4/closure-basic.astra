@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ClosurePayload {
+	int bias;
+	init(int bias) { this.bias = bias; }
+	int apply(int input) { return this.bias + input; }
+}
+int closure_payload_apply(borrowed ClosurePayload payload, int input) { return payload.apply(input); }
+class ClosureEnvironment {
+	private owned ClosurePayload payload;
+	init(owned ClosurePayload payload) { this.payload = move payload; }
+	int apply(int input) { return closure_payload_apply(this.payload, input); }
+}
+int closure_code(borrowed ClosureEnvironment environment, int input) { return environment.apply(input); }
+int closure_alternate_code(borrowed ClosureEnvironment environment, int input) { return environment.apply(input) + 100; }
+owned Closure<ClosureEnvironment,int,int> make_closure(int bias) {
+	var payload = new ClosurePayload(bias);
+	var environment = new ClosureEnvironment(move payload);
+	if (bias == 20) { var alternate = closure_bind(move environment, closure_alternate_code); return move alternate; }
+	var function = closure_bind(move environment, closure_code);
+	return move function;
+}
+owned Closure<ClosureEnvironment,int,int> forward_closure(owned Closure<ClosureEnvironment,int,int> function) { return move function; }
+int borrowed_closure(borrowed Closure<ClosureEnvironment,int,int> function, int input) { return closure_invoke(function, input); }
+int early_closure(owned Closure<ClosureEnvironment,int,int> function, int input) { if (input > 0) { return closure_invoke(function, input); } return closure_invoke(function, 0); }
+int main() {
+	var function = make_closure(10);
+	if (borrowed_closure(function, 5) != 15) { return 81; }
+	var forwarded = forward_closure(move function);
+	if (closure_invoke(forwarded, 7) != 17) { return 82; }
+	release forwarded;
+	var second = make_closure(20);
+	if (early_closure(move second, 2) != 122) { return 83; }
+	return 0;
+}

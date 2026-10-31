@@ -1,0 +1,136 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "code"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "code"))
+			)
+			(block
+				(assign (field-access "this" "code") (name "code"))
+			)
+		)
+		(destructor
+			(name "deinit")
+			(parameters)
+			(block
+				(call-statement (call "life_record" (arguments (field-access "this" "code") (integer "0"))))
+			)
+		)
+	)
+	(extern-function
+		(abi C)
+		(type "int")
+		(name "life_record")
+		(parameters
+			(parameter (type "int") (name "code"))
+			(parameter (type "int") (name "value"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "void")
+		(name "dispose")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "relay")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (move (name "value")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "forward")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (generic-call "relay" (type-arguments T) (arguments (move (name "value")))))
+		)
+	)
+	(function
+		(type-parameters U)
+		(type "U")
+		(name "evaluate")
+		(parameters
+			(parameter (type "U") (name "value"))
+		)
+		(block
+			(call-statement (call "life_record" (arguments (integer "86") (integer "0"))))
+			(return (name "value"))
+		)
+	)
+	(function
+		(type-parameters T U)
+		(type "U")
+		(name "keep")
+		(parameters
+			(parameter (owned) (type "T") (name "owner"))
+			(parameter (type "U") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (generic-call "evaluate" (type-arguments U) (arguments (name "value"))))
+		)
+	)
+	(function
+		(type-parameters T U)
+		(type "U")
+		(name "calculate")
+		(parameters
+			(parameter (owned) (type "T") (name "owner"))
+			(parameter (type "U") (name "a"))
+			(parameter (type "U") (name "b"))
+			(parameter (type "U") (name "c"))
+		)
+		(where T Ownable)
+		(where U Numeric)
+		(block
+			(return (generic-call "evaluate" (type-arguments U) (arguments (binary "+" (binary "*" (name "a") (name "b")) (name "c")))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Counter") (name "a") (constructor-initializer (class "Counter") (arguments (integer "65"))))
+			(local (type "int") (name "i") (generic-call "keep" (type-arguments Counter int) (arguments (move (name "a")) (integer "42"))))
+			(call-statement (call "life_record" (arguments (integer "83") (integer "0"))))
+			(owned-local (type "Resource") (name "b") (call "create_resource" (arguments (integer "66"))))
+			(local (type "f64") (name "f") (generic-call "keep" (type-arguments Resource f64) (arguments (move (name "b")) (prefix "-" (float "0.0")))))
+			(call-statement (call "life_record" (arguments (integer "83") (integer "0"))))
+			(owned-local (type "Counter") (name "c") (constructor-initializer (class "Counter") (arguments (integer "67"))))
+			(local (type "i16<8>") (name "lanes") (vector-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "i16<8>") (name "v") (generic-call "keep" (type-arguments Counter i16<8>) (arguments (move (name "c")) (name "lanes"))))
+			(call-statement (call "life_record" (arguments (integer "83") (integer "0"))))
+			(owned-local (type "Resource") (name "d") (call "create_resource" (arguments (integer "68"))))
+			(local (type "f64") (name "exact") (generic-call "calculate" (type-arguments Resource f64) (arguments (move (name "d")) (float "1.000000007450580596923828125") (float "0.999999992549419403076171875") (prefix "-" (float "1.0")))))
+			(call-statement (call "life_record" (arguments (integer "83") (integer "0"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (name "i") (integer "42")) (binary "!=" (name "f") (float "0.0"))) (binary "!=" (name "exact") (float "0.0"))) (prefix "!" (vector-all (binary "==" (name "v") (name "lanes"))))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "42"))
+		)
+	)
+)

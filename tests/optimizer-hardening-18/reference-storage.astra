@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void composition18_retire(int value);
+extern(C) void composition18_begin();
+extern(C) void composition18_end();
+class CompositionValue18 {
+	int value;
+	init(int value) { this.value = value; }
+	int read() { return this.value; }
+	deinit() { composition18_retire(this.value); }
+}
+owned CompositionValue18 composition18_empty() { return null; }
+class CompositionSink18 {
+	owned CompositionValue18 saved;
+	init() { this.saved = composition18_empty(); }
+	void accept(owned CompositionValue18 incoming) { this.saved = move incoming; }
+	int read() { return this.saved.read(); }
+}
+int composition18_storage(borrowed CompositionSink18 sink, int input) {
+	var first = new CompositionValue18(input);
+	var second = new CompositionValue18(input + 10);
+	var escaping = new CompositionValue18(input + 20);
+	sink.accept(move escaping);
+	return first.read() + second.read();
+}
+int main() {
+	var sink = new CompositionSink18();
+	composition18_begin();
+	int result = composition18_storage(sink, 5);
+	composition18_end();
+	if (result != 20 || sink.read() != 25) { return 1; }
+	return 0;
+}

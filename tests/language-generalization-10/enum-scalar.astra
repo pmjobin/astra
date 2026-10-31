@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Item {
+	owned Other resource;
+	int code;
+	init(int code) { this.resource = make_other(code); this.code = code; }
+	deinit() { mark(200 + this.code); }
+}
+enum Payload {
+	Resource(owned R value, int tag),
+	Other(owned Other value),
+	Object(owned Item value),
+	Empty
+}
+enum Envelope { Nested(Payload value), Empty }
+enum Pending { Ready(owned R resource, owned Item child, int tag), Empty }
+int tail(bool failure) throws Error {
+	if (failure) { throw new Error("enum payload"); }
+	return 1;
+}
+void staged(bool failure) {
+	owned R resource = make(10);
+	var child = new Item(11);
+	try {
+		var state = Pending.Ready(move resource, move child, tail(failure));
+		match (state) {
+			case Pending.Ready(_, _, tag): { mark(tag); }
+			case Pending.Empty(): { mark(998); }
+		}
+	} catch (Error error) {
+		mark(900 + id(resource) + child.code);
+	}
+}
+int consume(Payload value) {
+	match (move value) {
+		case Payload.Resource(resource, tag): { mark(id(resource) + tag); }
+		case Payload.Other(resource): { mark(other_id(resource)); }
+		case Payload.Object(child): { mark(child.code); }
+		case Payload.Empty(): { mark(500); }
+	}
+	return 0;
+}
+Payload relay(Payload value) { return move value; }
+owned Item extract(Payload value) {
+	match (move value) {
+		case Payload.Object(child): { return move child; }
+		else: { var fallback = new Item(23); return move fallback; }
+	}
+}
+int main() {
+	owned R first = make(1);
+	var state = Payload.Resource(move first, 7);
+	var child = new Item(2);
+	state = Payload.Object(move child);
+	var result = relay(move state);
+	consume(move result);
+	owned Other other = make_other(3);
+	var alternative = Payload.Other(move other);
+	var envelope = Envelope.Nested(move alternative);
+	match (move envelope) {
+		case Envelope.Nested(value): { consume(move value); }
+		case Envelope.Empty(): { mark(999); }
+	}
+	consume(Payload.Empty());
+	staged(false);
+	staged(true);
+	owned R ignored = make(20);
+	var final = Payload.Resource(move ignored, 0);
+	match (move final) {
+		case Payload.Resource(_, _): { mark(700); }
+		else: { mark(997); }
+	}
+	var extracted = new Item(24);
+	var wrapped = Payload.Object(move extracted);
+	var returned = extract(move wrapped);
+	mark(returned.code);
+	release returned;
+	return live();
+}

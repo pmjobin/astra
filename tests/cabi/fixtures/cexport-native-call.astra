@@ -1,0 +1,16 @@
+int native_user() {
+	return astra_export_add(1, 2);
+}
+
+export(C) int astra_export_add(int a, int b) {
+	return a + b;
+}
+
+extern(C) int c_call_astra_add(int a, int b);
+
+int main() {
+	if (native_user() != 3 || c_call_astra_add(20, 22) != 42) {
+		return 1;
+	}
+	return 0;
+}

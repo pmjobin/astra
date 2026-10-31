@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Child {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { mark(this.code); }
+}
+
+struct Owners {
+	owned Child left;
+	owned Child right;
+}
+
+struct Envelope {
+	Owners owners;
+	int stamp;
+}
+
+class Box<T> {
+	owned T payload;
+	int revision;
+	init(owned T value) {
+		this.payload = move value;
+		this.revision = 1;
+	}
+	void replace(owned T value) {
+		this.payload = move value;
+		this.revision = this.revision + 1;
+	}
+	deinit() { mark(100 + this.revision); }
+}
+
+int main() {
+	var left = new Child(19);
+	var right = new Child(23);
+	Envelope envelope = {owners = {left = move left, right = move right}, stamp = 42};
+	var box = new Box<Envelope>(move envelope);
+	if (box.payload.stamp != 42) { return 1; }
+	var next_left = new Child(37);
+	var next_right = new Child(47);
+	Envelope next = {owners = {left = move next_left, right = move next_right}, stamp = 84};
+	box.replace(move next);
+	if (box.payload.stamp != 84) { return 2; }
+	return box.revision - 2;
+}

@@ -1,0 +1,129 @@
+(core-program
+	(function "compose" -> i16<4>
+		(parameters
+			(parameter #0 "x" : i16)
+			(parameter #1 "mask" : bool<4>)
+		)
+		(locals
+			(local-place #0 "v" : i16<4>)
+			(local-place #1 "lane" : i16)
+		)
+		(block
+			(initialize
+				(local-place #0 : i16<4>)
+				(vector-splat : i16<4>
+					(lanes 4)
+					(value
+						(parameter #0 : i16)
+					)
+				)
+			)
+			(initialize
+				(local-place #1 : i16)
+				(vector-extract : i16
+					(lane 2)
+					(vector
+						(load : i16<4>
+							(local-place #0 : i16<4>)
+						)
+					)
+				)
+			)
+			(store
+				(local-place #0 : i16<4>)
+				(vector-insert : i16<4>
+					(lane 1)
+					(vector
+						(load : i16<4>
+							(local-place #0 : i16<4>)
+						)
+					)
+					(value
+						(load : i16
+							(local-place #1 : i16)
+						)
+					)
+				)
+			)
+			(store
+				(local-place #0 : i16<4>)
+				(vector-shuffle : i16<4>
+					(lanes 3 2 1 0)
+					(vector
+						(load : i16<4>
+							(local-place #0 : i16<4>)
+						)
+					)
+				)
+			)
+			(return
+				(vector-select : i16<4>
+					(mask
+						(parameter #1 : bool<4>)
+					)
+					(true
+						(load : i16<4>
+							(local-place #0 : i16<4>)
+						)
+					)
+					(false
+						(load : i16<4>
+							(local-place #0 : i16<4>)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "expected" : i16<4>)
+		)
+		(block
+			(initialize
+				(local-place #0 : i16<4>)
+				(vector-init : i16<4>
+					(integer 7 : i16)
+					(integer 7 : i16)
+					(integer 7 : i16)
+					(integer 7 : i16)
+				)
+			)
+			(if
+				(condition
+					(prefix ! : bool
+						(vector-all : bool
+							(binary == : bool<4>
+								(call "compose" -> i16<4>
+									(arguments
+										(integer 7 : i16)
+										(vector-splat : bool<4>
+											(lanes 4)
+											(value
+												(bool true : bool)
+											)
+										)
+									)
+								)
+								(load : i16<4>
+									(local-place #0 : i16<4>)
+								)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

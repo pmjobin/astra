@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Composite10;
+extern(C) int unit_event(int stage, int value);
+class Token {
+	private int code;
+	init(int code) { this.code = code; unit_event(1, code); }
+	deinit() { unit_event(9, this.code); }
+	int read() { return this.code; }
+}
+struct Payload { owned Token token; owned int[] samples; int tag; }
+struct Envelope { Payload body; owned Token tail; int code; }
+Envelope create(int code) {
+	var token = new Token(code);
+	var samples = new int[2];
+	samples[0] = code + 10;
+	samples[1] = code + 20;
+	var tail = new Token(code + 1);
+	Envelope value = {body = {token = move token, samples = move samples, tag = code + 30}, tail = move tail, code = code + 40};
+	return move value;
+}
+Envelope relay(Envelope value) { return move value; }
+int consume(Envelope value, int extra) {
+	var child = move value.body.token;
+	var samples = move value.body.samples;
+	int total = child.read() + samples[0] + samples[1] + value.body.tag + value.code + extra;
+	unit_event(2, total);
+	return total;
+}
+internal int secret() { return 1000; }

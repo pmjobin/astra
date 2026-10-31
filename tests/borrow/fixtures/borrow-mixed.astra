@@ -1,0 +1,17 @@
+struct Pair { int x; int y; }
+
+int mixed(bool condition) {
+	Pair referent = { x = 1, y = 2 };
+	Pair untouched = { x = 3, y = 4 };
+	Pair* p = &referent;
+	if (condition) {
+		p->x = 42;
+		untouched.x = 5;
+	}
+	return referent.x + untouched.x;
+}
+
+int main() {
+	if (mixed(true) != 47 || mixed(false) != 4) { return 1; }
+	return 0;
+}

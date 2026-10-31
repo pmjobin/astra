@@ -1,0 +1,70 @@
+(program
+	(struct "Sample"
+		(field #0 "color" : f32<4>)
+		(field #1 "samples" : i16<8>)
+		(field #2 "mask" : bool<4>)
+	)
+	(struct "Outer"
+		(field #0 "inner" : Sample)
+	)
+	(function "mutate" -> void
+		(parameters
+			(parameter #0 "p" : Outer*)
+			(parameter #1 "v" : i16<8>)
+		)
+		(block
+			(store (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #0 "p" : Outer*))) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>) (parameter-ref #1 "v" : i16<8>))
+			(store (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #0 "p" : Outer*))) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>) (vector-insert : f32<4> (lane 2) (vector (load (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #0 "p" : Outer*))) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>))) (value (f32 0x40900000 : f32))))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "color" : f32<4>)
+			(local #1 "samples" : i16<8>)
+			(local #2 "mask" : bool<4>)
+			(local #3 "o" : Outer address-taken)
+			(local #4 "read" : f32<4>)
+		)
+		(block
+			(local-init #0 "color" : f32<4> (vector-init : f32<4> (f32 0x3f000000 : f32) (f32 0x3fc00000 : f32) (f32 0x40200000 : f32) (f32 0x40600000 : f32)))
+			(local-init #1 "samples" : i16<8> (vector-init : i16<8> (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16)))
+			(local-init #2 "mask" : bool<4> (vector-init : bool<4> (bool true : bool) (bool false : bool) (bool true : bool) (bool false : bool)))
+			(struct-local #3 "o" : Outer
+				(initialize-field #0 "inner" (storage-initializer
+					(initialize-field #0 "color" (local-ref #0 "color" : f32<4>))
+					(initialize-field #1 "samples" (local-ref #1 "samples" : i16<8>))
+					(initialize-field #2 "mask" (local-ref #2 "mask" : bool<4>))
+				))
+			)
+			(local-init #4 "read" : f32<4> (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>)))
+			(if
+				(condition (short-circuit || : bool (prefix ! : bool (vector-all : bool (binary == : bool<4> (local-ref #4 "read" : f32<4>) (local-ref #0 "color" : f32<4>)))) (binary != : bool (vector-extract : f32 (lane 2) (vector (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>)))) (f32 0x40200000 : f32))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(store (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>) (vector-insert : i16<8> (lane 7) (vector (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>))) (value (integer 42 : i16))))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (vector-extract : i16 (lane 7) (vector (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>)))) (integer 42 : i16)) (binary != : bool (vector-extract : i16 (lane 0) (vector (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>)))) (integer 1 : i16))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(call-statement "mutate" -> void (arguments (address-of (local #3 "o" : Outer) : Outer*) (local-ref #1 "samples" : i16<8>)))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (prefix ! : bool (vector-all : bool (binary == : bool<8> (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>)) (local-ref #1 "samples" : i16<8>)))) (binary != : bool (vector-extract : f32 (lane 2) (vector (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>)))) (f32 0x40900000 : f32))) (prefix ! : bool (vector-any : bool (load (field-place (base (field-place (base (local-place #3 : Outer)) (field Outer::inner #0) : Sample)) (field Sample::mask #2) : bool<4>))))))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

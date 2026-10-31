@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Pc;
+export(C) int guest_place(int bytes, int alignment, int next, int capacity) {
+	if (bytes != 4 || alignment != 128 || next + bytes > capacity) { write_byte(88); return -1; }
+	write_byte(80);
+	return next;
+}
+export(C) void guest_retire(int offset, int bytes) {
+	if (offset % 128 != 0 || bytes != 4) { write_byte(33); }
+	write_byte(82);
+}
+[Allocator(kind="pool", domain="guest12.pool", capacity="128", blocks="2")]
+[Align(bytes="64")]
+class PoolValue {
+	int value;
+	init(int value) { this.value = value; add_relaxed(1); write_byte(48 + value); }
+	deinit() { write_byte(97); write_byte(48 + this.value); add_relaxed(-1); }
+}
+[Allocator(kind="custom", domain="guest12.custom", capacity="256", blocks="2", allocate="guest_place", release="guest_retire")]
+[Align(bytes="128")]
+class CustomValue {
+	int value;
+	init(int value) { this.value = value; add_relaxed(1); write_byte(48 + value); }
+	deinit() { write_byte(98); write_byte(48 + this.value); add_relaxed(-1); }
+}
+int exercise() {
+	{
+		var first = try_new PoolValue(1); var second = try_new PoolValue(2);
+		var exhausted = try_new PoolValue(9);
+		if (first == null || second == null || exhausted != null) { return 1; }
+		release first;
+		var reused = try_new PoolValue(3);
+		if (reused == null || reused.value != 3 || load_relaxed() != 2) { return 2; }
+	}
+	{
+		var first = try_new CustomValue(4); var second = try_new CustomValue(5);
+		var exhausted = try_new CustomValue(9);
+		if (first == null || second == null || exhausted != null || load_relaxed() != 2) { return 3; }
+	}
+	return load_relaxed();
+}
+export(C) int astra_entry(int index, int initialized, int zeroed) {
+	if (index != 0) { return 0; }
+	if (initialized != 324508639 || zeroed != 0) { return 33; }
+	store_relaxed(0);
+	if (exercise() != 0) { return 63; }
+	write_byte(79); write_byte(75); write_byte(10);
+	return 0;
+}

@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Entry {
+	int value;
+	owned R resource;
+	init(int value, owned R resource) { this.value = value; this.resource = move resource; }
+	deinit() { mark(100 + this.value); }
+}
+struct Metadata { int count; int capacity; }
+owned Vector<Entry> create(int value) {
+	var values = new Vector<Entry>(0);
+	var resource = make(value);
+	var entry = new Entry(value, move resource);
+	bool appended = values.append(move entry);
+	return move values;
+}
+owned Vector<Entry> relay(owned Vector<Entry> values) { return move values; }
+int inspect(Vector<Entry> values) { return values.count(); }
+int other_count(Vector<Other> values) { return values.count(); }
+int later(bool failure) throws Error {
+	if (failure) { throw new Error("later argument"); }
+	return 7;
+}
+int consume(owned Vector<Entry> values, int last) {
+	mark(values.count() + last);
+	return 0;
+}
+void reject(owned Vector<Entry> values) throws Error {
+	mark(values.count());
+	throw new Error("callee failure");
+}
+Metadata snapshot(Vector<Entry> values) throws Error {
+	if (values.count() == 0) { throw new Error("empty snapshot"); }
+	Metadata result = {count = values.count(), capacity = values.capacity()};
+	return result;
+}
+owned Entry pick(Vector<Entry> values, int index) {
+	var entry = values.take(index);
+	return move entry;
+}
+void exercise() throws Error {
+	var original = create(1);
+	var forwarded = relay(move original);
+	if (inspect(forwarded) != 1) { return; }
+	try { consume(move forwarded, later(true)); return; }
+	catch (Error error) { mark(900); }
+	mark(inspect(forwarded));
+	try { reject(move forwarded); }
+	catch (Error error) { mark(901); }
+	var final = create(2);
+	var metadata = snapshot(final);
+	if (metadata.count != 1 || metadata.capacity != 1) { return; }
+	var extracted = pick(final, 0);
+	mark(extracted.value);
+	consume(move final, 7);
+	try {
+		var empty = new Vector<Entry>(0);
+		var absent = snapshot(empty);
+	}
+	catch (Error error) { mark(902); }
+}
+int main() {
+	try { exercise(); }
+	catch (Error error) { return 81; }
+	return live();
+}

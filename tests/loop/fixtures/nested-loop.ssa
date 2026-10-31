@@ -1,0 +1,49 @@
+(ssa-program
+	(function #0 "nested_count" -> int
+		(parameters
+			(%0 "outer_n" : int)
+			(%1 "inner_n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%2 "outer" : int)
+				(%3 "total" : int)
+			)
+			(%6 : bool = binary < %2 %0)
+			(conditional-branch %6
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(branch #4 (%3 (integer 0 : int)))
+		)
+		(block #3
+			(return %3)
+		)
+		(block #4
+			(arguments
+				(%4 "total" : int)
+				(%5 "inner" : int)
+			)
+			(%7 : bool = binary < %5 %1)
+			(conditional-branch %7
+				(true #5 ())
+				(false #6 ())
+			)
+		)
+		(block #5
+			(%8 : int = binary + %4 (integer 1 : int))
+			(%9 : int = binary + %5 (integer 1 : int))
+			(branch #4 (%8 %9))
+		)
+		(block #6
+			(%10 : int = binary + %2 (integer 1 : int))
+			(branch #1 (%10 %4))
+		)
+	)
+)

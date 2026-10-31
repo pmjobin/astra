@@ -1,0 +1,48 @@
+int main() {
+	Vec2 a = {x = 3.0, y = 4.0};
+	Vec2 b = {x = -2.0, y = 5.0};
+	Vec2 out = {x = 0.0, y = 0.0};
+	out = vec_add(a, b); require(out.x == 1.0 && out.y == 9.0, 100, out.x);
+	out = vec_sub(a, b); require(out.x == 5.0 && out.y == -1.0, 101, out.y);
+	out = vec_scale(a, 2.0); require(vec_length_squared(out) == 100.0 && vec_dot(a, b) == 14.0, 102, out.x);
+	out = box_clamp(out, b, a); require(out.x == 1.0 && out.y == 8.0, 103, out.x);
+	SymMat2 m = {xx = 3.0, xy = 1.0, yy = 2.0};
+	SymMat2 inv = {xx = 0.0, xy = 0.0, yy = 0.0};
+	inv = inverse(m); require(determinant(m) == 5.0 && close(inv.xx, 0.4, 1e-15), 104, inv.xx);
+	require(close(quadratic(inv, 1.0, 2.0), 2.0, 1e-15), 105, quadratic(inv, 1.0, 2.0));
+	f64[21] matrices = {0.07, 0.0, 0.09, 0.08, 0.0, 0.08, 0.06, 0.03, 0.06, 0.08, 1e-16, 0.08, 1e-300, 0.0, 1e-300, 1e100, 2e99, 5e100, 0.0, 0.0, 0.0};
+	int i = 0;
+	while (i < 7) {
+		m.xx = matrices[i * 3]; m.xy = matrices[i * 3 + 1]; m.yy = matrices[i * 3 + 2];
+		m = constrain_covariance(m);
+		f64 center = 0.5 * (m.xx + m.yy);
+		f64 radius = cad_sqrt(0.25 * (m.xx - m.yy) * (m.xx - m.yy) + m.xy * m.xy);
+		require(finite(center) && center - radius >= 0.05 - 1e-14 && center + radius <= 0.1 + 1e-14, 110 + i, center);
+		i = i + 1;
+	}
+	m.xx = 0.06; m.xy = 0.03; m.yy = 0.06;
+	m = constrain_covariance(m);
+	require(close(m.xx, 0.07, 1e-15) && close(m.xy, 0.02, 1e-15) && close(m.yy, 0.07, 1e-15), 120, m.xy);
+	m.xx = 0.07; m.xy = 0.0; m.yy = 0.09;
+	m = constrain_covariance(m);
+	require(close(m.xx, 0.07, 1e-15) && m.xy == 0.0 && close(m.yy, 0.09, 1e-15), 121, m.xx);
+	f64[39] rgb = {0.0,0.0,0.0, 255.0,255.0,255.0, 128.0,128.0,128.0, 255.0,0.0,0.0, 0.0,255.0,0.0, 0.0,0.0,255.0, 0.0,255.0,255.0, 255.0,0.0,255.0, 255.0,255.0,0.0, 13.0,87.0,201.0, 254.0,2.0,150.0, 7.0,11.0,3.0, 63.0,111.0,179.0};
+	Lab lab = {l = 0.0, a = 0.0, b = 0.0};
+	Rgb converted = {r = 0.0, g = 0.0, b = 0.0};
+	Lab first = {l = 0.1, a = 0.2, b = 0.3};
+	Lab second = {l = 0.4, a = 0.6, b = 0.3};
+	lab = lab_sub(second, first);
+	require(close(lab.l, 0.3, 1e-15) && close(lab.a, 0.4, 1e-15) && close(lab_distance_squared(first, second), 0.25, 1e-15), 122, lab.l);
+	i = 0;
+	while (i < 13) {
+		lab = rgb_to_lab(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
+		converted = lab_to_rgb(lab);
+		require(close(converted.r, rgb[i * 3], 0.001) && close(converted.g, rgb[i * 3 + 1], 0.001) && close(converted.b, rgb[i * 3 + 2], 0.001), 130 + i, converted.r);
+		i = i + 1;
+	}
+	lab = rgb_to_lab(255.0, 0.0, 0.0);
+	require(close(lab.l * 100.0, 53.24079, 0.0001) && close((lab.a - 0.5) * 100.0, 80.09246, 0.0001) && close((lab.b - 0.5) * 100.0, 67.20319, 0.0001), 150, lab.l);
+	require(!finite(1e309) && !finite(0.0 / 0.0) && floor_int(-1.2) == -2 && ceil_int(-1.2) == -1, 151, 0.0);
+	require(floor_ratio(-7, 3) == -3 && ceil_ratio(-7, 3) == -2 && floor_ratio(7, 3) == 2 && ceil_ratio(7, 3) == 3 && floor_ratio(-6, 3) == -2 && ceil_ratio(6, 3) == 2, 152, 0.0);
+	return 0;
+}

@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Pc;
+[Allocator(kind="region", domain="a101.guest", capacity="2048", blocks="32")]
+[Align(bytes="64")]
+class Signal {
+	int value;
+	init(int value) { this.value = value; add_relaxed(1); write_byte(65); }
+	deinit() { write_byte(97); add_relaxed(-1); }
+}
+[Allocator(kind="region", domain="a101.guest", capacity="2048", blocks="32")]
+class Frame {
+	i64 wide;
+	int first;
+	int second;
+	init(int value) { this.wide = 4294967300; this.first = value; this.second = value + 1; add_relaxed(1); write_byte(66); }
+	deinit() { write_byte(98); add_relaxed(-1); }
+}
+int exercise() {
+	int sum = 0;
+	for (int i = 1; i <= 16; i = i + 1) {
+		var signal = try_new Signal(i);
+		var frame = try_new Frame(i);
+		if (signal == null || frame == null || load_relaxed() != 2 || frame.wide != 4294967300) { return -1; }
+		sum = sum + signal.value + frame.second;
+	}
+	if (load_relaxed() != 0) { return -2; }
+	return sum;
+}
+export(C) int astra_entry(int index, int initialized, int zeroed) {
+	if (index != 0) { return 0; }
+	if (initialized != 324508639 || zeroed != 0) { return 33; }
+	store_relaxed(0);
+	int sum = exercise();
+	write_byte(58);
+	write_byte(48 + sum / 100);
+	write_byte(48 + sum / 10 % 10);
+	write_byte(48 + sum % 10);
+	write_byte(10);
+	return 0;
+}

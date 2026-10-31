@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Child {
+	int code;
+	init(int code) { this.code = code; }
+}
+
+class Box<T> {
+	owned T payload;
+	init(owned T value) { this.payload = move value; }
+	property borrowed T view { get { return this.payload; } }
+}
+
+class Factory<Tag> {
+	Tag label;
+	init(Tag label) { this.label = label; }
+	owned Box<U> wrap<U>(owned U value) {
+		var result = new Box<U>(move value);
+		return move result;
+	}
+	owned Box<Box<U>> twice<U>(owned U value) {
+		var first = this.wrap<U>(move value);
+		var nested = new Box<Box<U>>(move first);
+		return move nested;
+	}
+	int local_only<U>(owned U value) {
+		var result = new Box<U>(move value);
+		return 7;
+	}
+}
+
+int code(borrowed Child value) { return value.code; }
+
+int main() {
+	var factory = new Factory<bool>(true);
+	var first = factory.twice<int>(42);
+	if (first.view.view != 42) { return 1; }
+	var child = new Child(47);
+	var second = factory.twice<Child>(move child);
+	if (code(second.view.view) != 47) { return 2; }
+	return factory.local_only<bool>(true) - 7;
+}

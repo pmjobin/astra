@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+export(C) int run_program() {
+	try { var executor = LinuxExecutor.open(1); return 80; }
+	catch (AsyncError error) { if (error.message == "Linux io_uring executor operation failed") { return 42; } return 81; }
+}
+int main() { return run_program(); }

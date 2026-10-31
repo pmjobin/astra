@@ -1,0 +1,24 @@
+struct Kernel { int number; f64 gain; }
+struct Box<T> { T value; }
+T element_at<T>(T[] values, int index) { return values[index]; }
+void forward<T>(T[] first, T[] second, T seed) {
+	T[] alias = first;
+	T[] saved = alias;
+	alias = second;
+	fill(saved, seed);
+	fill<T>(alias, element_at(saved, 0));
+}
+int main() {
+	Kernel[2] kernels = {{number=1,gain=2.0d},{number=3,gain=4.0d}};
+	fill(slice(kernels), kernels[0]);
+	swap_elements(slice(kernels), 0, 1);
+	var result = element_at(slice(kernels), 1);
+	int[2] values = {3,4};
+	forward(slice(values),slice(values),7);
+	Box<Kernel> boxed = {value=result};
+	Box<Kernel>[1] boxes = {boxed};
+	fill(slice(boxes), boxed);
+	var saved = element_at(slice(boxes), 0);
+	if (saved.value.number != 1 || result.gain != 2.0d || values[0] != 7) { return 1; }
+	return 0;
+}

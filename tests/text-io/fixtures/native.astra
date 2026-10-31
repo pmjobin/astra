@@ -1,0 +1,43 @@
+[CCode (cname = "unfamiliar_reader", text_abi = "utf8-i32")]
+extern(C) int inspect(int tag, borrowed string a, f32 scale, borrowed string b, f64 wide, void* token);
+[CCode (text_abi = "utf8-i32")]
+extern(C) int static_reader(borrowed string a, borrowed string b);
+[CCode (text_abi = "utf8-i32")]
+extern(C) f32 float_reader(borrowed string a, f32 x, borrowed string b);
+[CCode (text_abi = "utf8-i32")]
+extern(C) f64 double_reader(borrowed string a, f64 x);
+[CCode (text_abi = "utf8-i32")]
+extern(C) void* pointer_reader(borrowed string a, void* token);
+[CCode (text_abi = "utf8-i32")]
+extern(C) void void_reader(borrowed string a);
+const LABEL = "S\0é";
+string producer() { return LABEL; }
+int forward(string a, string b, void* token) {
+	var copy = a;
+	int answer = inspect(17, copy, 1.5, b, -0.0d, token);
+	if (copy != a || copy.byte_length != a.byte_length) { return 1; }
+	return answer;
+}
+int concrete<T>(T item) {
+	var text = producer();
+	return static_reader(text, LABEL);
+}
+class ViewCheck {
+	int result;
+	init(string a, string b, void* token) { this.result = forward(a, b, token); }
+	int check(string a, string b, void* token) { return forward(a, b, token); }
+}
+int entry(string a, string b, void* token) {
+	var copy = a;
+	var static_view = LABEL;
+	var snapshot = static_view;
+	static_view = a;
+	if (static_reader(snapshot, producer()) != 0 || concrete(9) != 0) { return 1; }
+	if (forward(copy, b, token) != 23 || forward(a, b, token) != 23) { return 2; }
+	owned ViewCheck checked = ViewCheck.init(a, b, token);
+	if (checked.result != 23 || checked.check(copy, b, token) != 23) { return 3; }
+	if (float_reader(a, 1.5, b) != 1.5 || double_reader(a, 2.5d) != 2.5d || pointer_reader(a, token) != token) { return 4; }
+	void_reader(a);
+	if (copy != a || static_view != a || snapshot != LABEL) { return 5; }
+	return 0;
+}

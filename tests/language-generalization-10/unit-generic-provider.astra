@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Composite10;
+struct Sample { int x; int y; }
+class Store<T> {
+	owned T[slots] entries;
+	init(int initial) {
+		this.entries = new T[slots];
+		if (initial > 0) { bool reserved = this.entries.reserve(initial); }
+	}
+	int count() { return len(this.entries); }
+	bool reserve(int requested) { return this.entries.reserve(requested); }
+	bool append(owned T value) {
+		if (len(this.entries) == this.entries.capacity) {
+			if (!this.entries.reserve(len(this.entries) + 2)) { return false; }
+		}
+		this.entries.append(move value);
+		return true;
+	}
+	owned T take(int index) { var value = this.entries.take(index); return move value; }
+	void replace(int index, owned T value) { this.entries.replace(index, move value); }
+}
+owned Store<Envelope> archive(int first) {
+	var result = new Store<Envelope>(0);
+	int index = 0;
+	while (index < 3) {
+		var value = create(first + index * 2);
+		bool stored = result.append(move value);
+		index = index + 1;
+	}
+	return move result;
+}
+owned Store<Envelope> forward_archive(owned Store<Envelope> input) { return move input; }
+int archive_count(Store<Envelope> input) { return input.count(); }

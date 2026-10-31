@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned Resource pass(owned Resource r) {
+	return move r;
+}
+void consume(int first, owned Resource a, int last, owned Resource b) {
+	owned Resource local = create_resource(3);
+}
+int main() {
+	owned Resource a = create_resource(1);
+	owned Resource b = pass(move a);
+	a = pass(null);
+	consume(record(1), move b, record(2), move a);
+	return 0;
+}

@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+export(C)int record_query16_native_run(){try{
+		var index=new Query16.Index();var missing=index.last;if(missing!=null || index.requests!=0 || !index.enabled || index.description.byte_length!=15){return 1;}
+		QueryCore16.Query query={minimum=0,ceiling=10.0,mask=7,lowest=true};var answer=index.search(query);if(!answer.found || answer.code!=59 || answer.score!=1.75 || answer.matches!=3){return 2;}var held=index.last;if(held==null || held.code!=59){return 3;}
+		index.bias=1.0;query.ceiling=3.0;query.mask=3;query.lowest=false;var absent=index.find(query);if(absent!=null || index.requests!=2){return 4;}
+		index.bias=0.0;query.minimum=20;query.ceiling=10.0;query.mask=7;var found=index.find(query);if(found==null || found.code!=31 || found.score!=5.5 || index.requests!=3 || index.compare(held,found)!=1){return 5;}
+		query.minimum=-1;try{var ignored=index.search(query);return 6;}catch(QueryCore16.Fault fault){}
+		query.minimum=0;index.enabled=false;try{var ignored=index.search(query);return 7;}catch(QueryCore16.Fault fault){}
+		release index;if(held.code!=59 || found.code!=31){return 8;}
+	}catch(QueryCore16.Fault fault){return 90;}return 0;}

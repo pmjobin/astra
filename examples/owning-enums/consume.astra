@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+Result<Header,DecodeError> check_header(Header header) {
+	if (header.count < 0) { return Result<Header,DecodeError>.Error(DecodeError.Count(header.count)); }
+	return Result<Header,DecodeError>.Success(header);
+}
+
+owned T[] take<T>(ArrayResult<T,DecodeError> input) {
+	match (move input) {
+		case ArrayResult<T,DecodeError>.Success(values): { return move values; }
+		else: { return new T[0]; }
+	}
+}
+
+VoidResult<DecodeError> validate_count(int count) {
+	if (count < 0) { return VoidResult<DecodeError>.Error(DecodeError.Count(count)); }
+	return VoidResult<DecodeError>.Success();
+}

@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+struct Log {int value;}
+bool<4> produce(Log* log,int id,bool x){log->value=log->value*10+id;return splat(x,4);}
+int main(){
+	bool<4> a={false,false,true,true};
+	bool<4> b={false,true,false,true};
+	bool<4> and_expected={false,false,false,true};
+	bool<4> or_expected={false,true,true,true};
+	bool<4> xor_expected={false,true,true,false};
+	if(!all((a&b)==and_expected) || !all((a|b)==or_expected) || !all((a^b)==xor_expected)){return 1;}
+	if(!all(!(a&b)==(!a|!b))){return 2;}
+	Log log={value=0};
+	bool<4> r=produce(&log,1,false)&produce(&log,2,true);
+	if(any(r) || log.value!=12){return 3;}
+	r=produce(&log,3,true)|produce(&log,4,false);
+	if(!all(r) || log.value!=1234){return 4;}
+	r=produce(&log,5,true)^produce(&log,6,false);
+	if(!all(r) || log.value!=123456){return 5;}
+	i16<8> x={0,1,2,3,4,5,6,7};
+	i16<8> low=splat(2,8);
+	i16<8> high=splat(5,8);
+	bool<8> range=x>low & x<high;
+	i16<8> selected=select(range,x,splat(0,8));
+	i16<8> expected={0,0,0,3,4,0,0,0};
+	if(!all(selected==expected)){return 6;}
+	return 0;
+}

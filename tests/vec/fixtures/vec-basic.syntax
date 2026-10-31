@@ -1,0 +1,47 @@
+(unit
+	(function
+		(type "i32<4>")
+		(name "add")
+		(parameters
+			(parameter (type "int<4>") (name "a"))
+			(parameter (type "i32<4>") (name "b"))
+		)
+		(block
+			(return (binary "+" (prefix "+" (name "a")) (name "b")))
+		)
+	)
+	(function
+		(type "int<4>")
+		(name "dynamic")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+			(parameter (type "int") (name "c"))
+			(parameter (type "int") (name "d"))
+		)
+		(block
+			(local (type "int<4>") (name "v") (vector-init (name "a") (name "b") (name "c") (name "d")))
+			(return (name "v"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "int<4>") (name "a") (vector-init (integer "1") (integer "2") (integer "3") (integer "4")))
+			(local (type "i32<4>") (name "b") (call "dynamic" (arguments (integer "5") (integer "6") (integer "7") (integer "8"))))
+			(local (type "int<4>") (name "expected") (vector-init (integer "6") (integer "8") (integer "10") (integer "12")))
+			(assign (name "a") (call "add" (arguments (name "a") (name "b"))))
+			(if
+				(condition (vector-all (binary "==" (name "a") (name "expected"))))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int c_mix(int tag, f32 small, f64 precise, void* token, f64 second, int tail);
+extern(C) f64 c_many(f64 a, f64 b, f64 c, f64 d, f64 e, f64 f, f64 g, f64 h, f64 i, f64 j);
+extern(C) void* c_token();
+extern(C) f64 c_pattern(int index);
+extern(C) int c_check(int index, f64 value);
+f32 native_small(f32 value) { return value; }
+int main() {
+	f32 small = native_small(1.25);
+	if (small != 1.25) { return 1; }
+	void* token = c_token();
+	if (c_mix(7, small, c_pattern(5), token, c_pattern(3), 9) != 0) { return 2; }
+	return c_check(9, c_many(c_pattern(0), c_pattern(1), c_pattern(2), c_pattern(3), c_pattern(4), c_pattern(5), c_pattern(6), c_pattern(7), c_pattern(8), c_pattern(9)));
+}

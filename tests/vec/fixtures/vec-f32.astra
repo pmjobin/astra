@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+f32<4> add(f32<4> a, f32<4> b) { return a + b; }
+f32<4> sub(f32<4> a, f32<4> b) { return a - b; }
+f32<4> mul(f32<4> a, f32<4> b) { return a * b; }
+f32<4> div(f32<4> a, f32<4> b) { return a / b; }
+f32<4> neg(f32<4> a) { return -a; }
+f32<4> positive(f32<4> a) { return +a; }
+f32<4> mul_add(f32<4> a, f32<4> b, f32<4> c) { return (a * b) + c; }
+bool<4> eq(f32<4> a, f32<4> b) { return a == b; }
+bool<4> ne(f32<4> a, f32<4> b) { return a != b; }
+bool<4> lt(f32<4> a, f32<4> b) { return a < b; }
+bool<4> le(f32<4> a, f32<4> b) { return a <= b; }
+bool<4> gt(f32<4> a, f32<4> b) { return a > b; }
+bool<4> ge(f32<4> a, f32<4> b) { return a >= b; }
+int main() {
+	f32<4> x = {16777216.0, 16777216.0, 16777216.0, 16777216.0};
+	f32<4> one = {1.0, 1.0, 1.0, 1.0};
+	f32<4> two = {2.0, 2.0, 2.0, 2.0};
+	f32<4> next = {16777218.0, 16777218.0, 16777218.0, 16777218.0};
+	f32<4> zero = {0.0, 0.0, 0.0, 0.0};
+	if (!all(add(x, one) == x) || !all(add(x, two) == next) || !all(sub(next, two) == x)) { return 1; }
+	f32<4> nan = div(zero, zero);
+	if (any(eq(nan, nan)) || !all(ne(nan, nan))) { return 2; }
+	if (any(lt(nan, one)) || any(le(one, nan)) || any(gt(nan, nan)) || any(ge(nan, zero))) { return 3; }
+	f32<4> signed_zero = {0.0, -0.0, 0.0, -0.0};
+	f32<4> infinity = {1e100, -1e100, 1e100, -1e100};
+	if (!all(div(one, signed_zero) == infinity) || !all(div(one, neg(signed_zero)) == neg(infinity))) { return 4; }
+	f32<4> subnormal = {1.401298464324817e-45, 1.401298464324817e-45, 1.401298464324817e-45, 1.401298464324817e-45};
+	if (!all(ne(subnormal, zero)) || !all(mul(subnormal, one) == subnormal) || !all(div(subnormal, two) == zero)) { return 5; }
+	f32<4> normal = {1.1754943508222875e-38, 1.1754943508222875e-38, 1.1754943508222875e-38, 1.1754943508222875e-38};
+	f32<4> half_normal = {5.877471754111438e-39, 5.877471754111438e-39, 5.877471754111438e-39, 5.877471754111438e-39};
+	if (!all(div(normal, two) == half_normal) || !all(positive(signed_zero) == signed_zero)) { return 6; }
+	f32<4> a = {1.00000011920928955078125, 1.00000011920928955078125, 1.00000011920928955078125, 1.00000011920928955078125};
+	f32<4> b = {0.99999988079071044921875, 0.99999988079071044921875, 0.99999988079071044921875, 0.99999988079071044921875};
+	f32<4> minus_one = {-1.0, -1.0, -1.0, -1.0};
+	if (!all(mul_add(a, b, minus_one) == zero)) { return 7; }
+	return 0;
+}

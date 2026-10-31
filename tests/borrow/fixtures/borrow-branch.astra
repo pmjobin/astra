@@ -1,0 +1,23 @@
+struct Pair { int x; int y; }
+
+int choose(bool condition) {
+	Pair a = { x = 1, y = 2 };
+	Pair b = { x = 3, y = 4 };
+	Pair* p = null;
+	if (condition) {
+		p = &a;
+	} else {
+		p = &b;
+	}
+	p->x = 42;
+	if (condition) {
+		if (a.x != 42 || b.x != 3) { return 1; }
+	} else {
+		if (a.x != 1 || b.x != 42) { return 2; }
+	}
+	return 0;
+}
+
+int main() {
+	return choose(true) + choose(false);
+}

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace CPU;
+enum WorkStatus { Completed, Cancelled }
+async runtime WorkExecutor throws HomeError returns WorkStatus provider "posix-threaded-composed";
+extern(C) void affine_home_worker(int identity);
+async int compute(int identity, bool fail) throws Error {
+	affine_home_worker(identity);
+	await delay_ticks(1);
+	int result = identity;
+	for (int i = 0; i < 4099; i = i + 1) { result = (result * 17 + i) % 65521; }
+	if (fail) { throw new Error("affine worker failure"); }
+	return result;
+}

@@ -1,0 +1,81 @@
+(ssa-program
+	(struct "S"
+		(property #0 "value" : int (member #1) (getter #0) (setter #0))
+		(field #0 "raw" : int)
+	)
+	(function #0 "main" -> int
+		(parameters)
+		(storage #0 "b" (local #1) : S address-taken)
+		(entry #0)
+		(block #0
+			(initialize (direct-field (storage #0) (struct "S" field #0 "raw") : int) (integer 2 : int))
+			(%1 : Receiver<S> = address-of (storage #0))
+			(property-set (property #0 S::value) (setter #0) (receiver %1) -> void effectful (arguments (integer 40 : int)))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%6 : S* = address-of (storage #0))
+			(store (indirect-field %6 (struct "S" field #0 "raw") : int) (integer 42 : int))
+			(%7 : Receiver<S> = address-of (storage #0))
+			(%8 : int = property-get (property #0 S::value) (getter #0) (receiver %7) -> int effectful (arguments))
+			(return %8)
+		)
+		(block #3
+			(%2 : bool = binary != (integer 1 : int) (integer 1 : int))
+			(conditional-branch %2
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%3 : Receiver<S> = address-of (storage #0))
+			(%4 : int = method-call (target S::bump #0) (receiver %3) -> int (arguments))
+			(%5 : bool = binary != %4 (integer 41 : int))
+			(branch #5 (%5))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+	(method #0 "bump" (declaring-struct #0 "S") (member #2) -> int
+		(receiver %0 : Receiver<S> mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = property-get (property #0 S::value) (getter #0) (receiver %0) -> int effectful (arguments))
+			(%2 : int = binary + %1 (integer 1 : int))
+			(property-set (property #0 S::value) (setter #0) (receiver %0) -> void effectful (arguments %2))
+			(%3 : int = load (indirect-field %0 (struct "S" field #0 "raw") : int))
+			(return %3)
+		)
+	)
+	(property-getter #0 (property S::value #0) (declaring-struct #0) -> int
+		(receiver %0 : Receiver<S> live mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (struct "S" field #0 "raw") : int))
+			(return %1)
+		)
+	)
+	(property-setter #0 (property S::value #0) (declaring-struct #0) -> void
+		(receiver %0 : Receiver<S> live mutable nonnull non-owning)
+		(parameters
+			(%1 "next" : int)
+		)
+		(entry #0)
+		(block #0
+			(store (indirect-field %0 (struct "S" field #0 "raw") : int) %1)
+			(function-end)
+		)
+	)
+)

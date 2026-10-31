@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Debug131;
+struct Report131 { int category; i64 count; f64 total; }
+[CImport(name="a131_record",record_abi="natural-lp64")]
+int record_probe(borrowed Report131* record, int stage);
+[CImport(name="a131_marker")] int marker(int stage, int value);
+[CImport(name="a131_event")] int event(int stage, int identity, int value);
+[CImport(name="a131_mode")] int mode();
+[CImport(name="a131_finish")] int finish();
+class Capture131 {
+	int gain;
+	int calls;
+	init(int gain) { this.gain = gain; this.calls = 0; event(1, gain, 0); }
+	deinit() { event(0, this.gain, this.calls); }
+}
+int transform(borrowed Capture131 capture, int input) {
+	capture.calls = capture.calls + 1;
+	int transformed = capture.gain * input;
+	marker(1, transformed);
+	return transformed + capture.calls;
+}
+class Guard131 {
+	int identity;
+	init(int identity) { this.identity = identity; event(1, identity, 0); }
+	deinit() { event(0, this.identity, 1); }
+}
+int checked_work(bool fail) throws Error {
+	var guard = new Guard131(9);
+	marker(3, guard.identity + 10);
+	if (fail) { throw new Error("checked"); }
+	return guard.identity + 10;
+}
+async void resumed_work(int seed) throws Error {
+	var guard = new Guard131(11);
+	int before = seed + 5;
+	await delay_ticks(2);
+	int result = before + seed;
+	marker(2, result);
+	if (result != 27) { throw new Error("async result"); }
+}
+int main() {
+	Report131 sample = { category = 7, count = 11 as i64, total = 3.5 };
+	if (record_probe(&sample, 0) != 42 || module_adjust(38) != 42) { return 1; }
+	var capture = new Capture131(7);
+	var handler = closure_bind(move capture, transform);
+	if (retained_register(handler, 0) != 0 || retained_dispatch(handler, 5) != 36) { return 2; }
+	release handler;
+	try {
+		var executor = VirtualExecutor.open(3);
+		var status = executor.run(resumed_work(11));
+		match (status) {
+			case RunStatus.Completed(): {}
+			else: { return 3; }
+		}
+		try {
+			if (checked_work(mode() != 0) != 19) { return 4; }
+		} catch (Error error) {
+			var text = error.message;
+			if (text != "checked") { return 5; }
+			marker(5, text.byte_length);
+		}
+	} catch (Error error) { return 6; }
+	return finish();
+}

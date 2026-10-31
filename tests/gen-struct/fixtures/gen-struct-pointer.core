@@ -1,0 +1,230 @@
+(core-program
+	(generic-struct #0 "Pair"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(type-parameter #1 "U" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "first" : T)
+		(generic-field #1 "second" : U)
+	)
+	(generic-struct #1 "Bundle"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "pair" : Pair<T,T>)
+		(generic-field #1 "tag" : int)
+	)
+	(function "alias" -> int
+		(parameters
+			(parameter #0 "a" : Pair<int,f64>*)
+			(parameter #1 "b" : Pair<int,f64>*)
+		)
+		(block
+			(store
+				(generic-field-place (owner Pair<int,f64>) (field Pair::first #0) : int
+					(dereference-place : Pair<int,f64> null-traps
+						(parameter #0 : Pair<int,f64>*)
+					)
+				)
+				(integer 7 : int)
+			)
+			(store
+				(generic-field-place (owner Pair<int,f64>) (field Pair::first #0) : int
+					(dereference-place : Pair<int,f64> null-traps
+						(parameter #1 : Pair<int,f64>*)
+					)
+				)
+				(integer 42 : int)
+			)
+			(return
+				(load : int
+					(generic-field-place (owner Pair<int,f64>) (field Pair::first #0) : int
+						(dereference-place : Pair<int,f64> null-traps
+							(parameter #0 : Pair<int,f64>*)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "mutate" -> void
+		(parameters
+			(parameter #0 "b" : Bundle<f64>*)
+		)
+		(block
+			(store
+				(generic-field-place (owner Pair<f64,f64>) (field Pair::second #1) : f64
+					(generic-field-place (owner Bundle<f64>) (field Bundle::pair #0) : Pair<f64,f64>
+						(dereference-place : Bundle<f64> null-traps
+							(parameter #0 : Bundle<f64>*)
+						)
+					)
+				)
+				(f64 0x401d000000000000 : f64)
+			)
+			(store
+				(generic-field-place (owner Bundle<f64>) (field Bundle::tag #1) : int
+					(dereference-place : Bundle<f64> null-traps
+						(parameter #0 : Bundle<f64>*)
+					)
+				)
+				(integer 9 : int)
+			)
+		)
+	)
+	(function "pay_for_use" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(locals
+			(local-place #0 "a" : Pair<int,f64>)
+			(local-place #1 "b" : Pair<int,f64> address-taken)
+			(local-place #2 "bp" : Pair<int,f64>*)
+		)
+		(block
+			(initialize
+				(generic-field-place (owner Pair<int,f64>) (field Pair::first #0) : int
+					(local-place #0 : Pair<int,f64>)
+				)
+				(parameter #0 : int)
+			)
+			(initialize
+				(generic-field-place (owner Pair<int,f64>) (field Pair::second #1) : f64
+					(local-place #0 : Pair<int,f64>)
+				)
+				(f64 0x3ff8000000000000 : f64)
+			)
+			(initialize
+				(generic-field-place (owner Pair<int,f64>) (field Pair::first #0) : int
+					(local-place #1 : Pair<int,f64>)
+				)
+				(integer 2 : int)
+			)
+			(initialize
+				(generic-field-place (owner Pair<int,f64>) (field Pair::second #1) : f64
+					(local-place #1 : Pair<int,f64>)
+				)
+				(f64 0x4004000000000000 : f64)
+			)
+			(initialize
+				(local-place #2 : Pair<int,f64>*)
+				(address-of : Pair<int,f64>*
+					(local-place #1 : Pair<int,f64>)
+				)
+			)
+			(return
+				(binary + : int
+					(load : int
+						(generic-field-place (owner Pair<int,f64>) (field Pair::first #0) : int
+							(local-place #0 : Pair<int,f64>)
+						)
+					)
+					(call "alias" -> int
+						(arguments
+							(load : Pair<int,f64>*
+								(local-place #2 : Pair<int,f64>*)
+							)
+							(load : Pair<int,f64>*
+								(local-place #2 : Pair<int,f64>*)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "b" : Bundle<f64> address-taken)
+		)
+		(block
+			(struct-initialize-storage
+				(generic-field-place (owner Bundle<f64>) (field Bundle::pair #0) : Pair<f64,f64>
+					(local-place #0 : Bundle<f64>)
+				)
+				(initialize
+					(generic-field-place (owner Pair<f64,f64>) (field Pair::first #0) : f64
+						(generic-field-place (owner Bundle<f64>) (field Bundle::pair #0) : Pair<f64,f64>
+							(local-place #0 : Bundle<f64>)
+						)
+					)
+					(f64 0x3ff0000000000000 : f64)
+				)
+				(initialize
+					(generic-field-place (owner Pair<f64,f64>) (field Pair::second #1) : f64
+						(generic-field-place (owner Bundle<f64>) (field Bundle::pair #0) : Pair<f64,f64>
+							(local-place #0 : Bundle<f64>)
+						)
+					)
+					(f64 0x4000000000000000 : f64)
+				)
+			)
+			(initialize
+				(generic-field-place (owner Bundle<f64>) (field Bundle::tag #1) : int
+					(local-place #0 : Bundle<f64>)
+				)
+				(integer 7 : int)
+			)
+			(call-statement "mutate" -> void
+				(arguments
+					(address-of : Bundle<f64>*
+						(local-place #0 : Bundle<f64>)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary != : bool
+									(load : f64
+										(generic-field-place (owner Pair<f64,f64>) (field Pair::first #0) : f64
+											(generic-field-place (owner Bundle<f64>) (field Bundle::pair #0) : Pair<f64,f64>
+												(local-place #0 : Bundle<f64>)
+											)
+										)
+									)
+									(f64 0x3ff0000000000000 : f64)
+								)
+								(binary != : bool
+									(load : f64
+										(generic-field-place (owner Pair<f64,f64>) (field Pair::second #1) : f64
+											(generic-field-place (owner Bundle<f64>) (field Bundle::pair #0) : Pair<f64,f64>
+												(local-place #0 : Bundle<f64>)
+											)
+										)
+									)
+									(f64 0x401d000000000000 : f64)
+								)
+							)
+							(binary != : bool
+								(load : int
+									(generic-field-place (owner Bundle<f64>) (field Bundle::tag #1) : int
+										(local-place #0 : Bundle<f64>)
+									)
+								)
+								(integer 9 : int)
+							)
+						)
+						(binary != : bool
+							(call "pay_for_use" -> int
+								(arguments
+									(integer 7 : int)
+								)
+							)
+							(integer 49 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

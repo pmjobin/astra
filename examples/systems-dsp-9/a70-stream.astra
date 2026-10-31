@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	try {
+		{
+			var arena = packet_arena(16);
+			ArenaPacket input = {tag=70, payload=21};
+			owned PacketResource resource = packet_open(10);
+			int id = arena.append(input, move resource);
+			ArenaPacket packet = arena.read(id);
+			f64 sample = packet.payload as f64;
+			f64<2> samples = {sample, -sample};
+			f64<2> gain = {2.0, 0.5};
+			f64<2> accumulated = samples * gain;
+			i64<2> total = {40, 9223372036854775807};
+			i64<2> increment = {2, 1};
+			i64<2> clipped = sat_add(total, increment);
+			var status = new u32[1];
+			volatile_store(status[0], clipped[0] as u32);
+			if (volatile_load(status[0]) != 42 || accumulated[0] != 42.0 || accumulated[1] != -10.5) { return 70; }
+			if (clipped[1] != total[1]) { return 71; }
+			arena.drop_last(id);
+			if (packet_live() != 0 || arena.count() != 0) { return 72; }
+		}
+	} catch(ArenaError error) { return 73; }
+	return packet_finish(1);
+}

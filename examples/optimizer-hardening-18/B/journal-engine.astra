@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using JournalLeaf18;
+using JournalMiddle18;
+
+void journal18_publish(borrowed Map<int, JournalAccount18> accounts, int key, JournalState18 state) throws Error {
+	var account = new JournalAccount18(state);
+	if (!accounts.put(key, move account)) { throw new Error("journal map reserve"); }
+}
+void journal18_restore(borrowed Map<int, JournalAccount18> accounts, borrowed Vector<JournalUndo18> undo) throws Error {
+	while (undo.count() > 0) {
+		JournalUndo18 previous = undo.take(undo.count() - 1);
+		if (previous.existed) { journal18_publish(accounts, previous.key, previous.before); }
+		else { var removed = accounts.remove(previous.key); }
+	}
+}
+JournalState18 journal18_apply(borrowed Map<int, JournalAccount18> accounts,
+	borrowed Vector<JournalUndo18> undo, int key, int expected, int operation,
+	int value, int index, Gate keys, Gate amounts) throws Error {
+	if (key < 0 || key >= bound(keys)) { throw new JournalFault18(2, index); }
+	JournalState18 state = accounts.lookup<JournalState18>(key, journal18_read, journal18_empty());
+	if (expected != state.version) { throw new JournalFault18(3, index); }
+	JournalState18 next = state;
+	if (operation == 0 || operation == 1) {
+		int result = value;
+		if (operation == 0) { result = state.value + value; }
+		int maximum = bound(amounts);
+		if (result < -maximum || result > maximum) { throw new JournalFault18(4, index); }
+		next.value = result; next.version = state.version + 1; next.present = true;
+	} else {
+		if (operation == 2) { next.value = 0; next.version = state.version + 1; next.present = false; }
+		else { if (operation != 3) { throw new JournalFault18(5, index); } }
+	}
+	if (operation != 3) {
+		JournalUndo18 entry = {key = key, before = state, existed = accounts.contains(key)};
+		if (!undo.append(entry)) { throw new Error("journal undo reserve"); }
+		journal18_publish(accounts, key, next);
+	}
+	return next;
+}
+void journal18_transaction(borrowed ContextBytes<ConcurrentAllocator> bytes, int first, int end, int transaction,
+	borrowed JournalParity18 policy, borrowed Map<int, JournalAccount18> accounts,
+	borrowed Vector<JournalHistory18> history) throws Error {
+	int observed = journal18_parity(policy, transaction);
+	journal18_policy_call(transaction, observed);
+	int parity = observed & 1;
+	var payload = new JournalStamp18(transaction);
+	var strong = shared_acquire(move payload);
+	int salt = 17;
+	{
+		var unused = shared_clone(strong);
+		if (parity != 0) { salt = odd_salt(salt); }
+		else { salt = salt + (transaction & 0); }
+	}
+	var keys = new Gate(transaction, 1, 32);
+	var amounts = new Gate(transaction, 2, 1000000);
+	var undo = new Vector<JournalUndo18>(0);
+	JournalResult18 row = {transaction = transaction, code = 0, failed = -1, count = end - first, checksum = 0};
+	try {
+		for (int record = first; record < end; record = record + 1) {
+			int offset = record * 16;
+			JournalState18 state = journal18_apply(accounts, undo, journal18_u16(bytes, offset + 6),
+				journal18_i32(bytes, offset + 8), bytes[offset + 5] as int,
+				journal18_i32(bytes, offset + 12), record - first, keys, amounts);
+			row.checksum = row.checksum + (state.value as i64) * (salt as i64) + (state.version as i64) * 3;
+			if (state.present) { row.checksum = row.checksum + 1; }
+		}
+	} catch (JournalFault18 fault) {
+		journal18_restore(accounts, undo);
+		row.code = fault.reason; row.failed = fault.position; row.checksum = 0;
+	}
+	var saved = new JournalHistory18(row);
+	if (!history.append(move saved)) { throw new Error("journal history reserve"); }
+}
+int journal18_process(borrowed ContextBytes<ConcurrentAllocator> bytes, int lane, borrowed JournalParity18 policy) throws Error {
+	if (len(bytes) % 16 != 0 || len(bytes) / 16 > 8193) { throw new Error("journal byte extent"); }
+	var accounts = new Map<int, JournalAccount18>(journal18_equal);
+	var history = new Vector<JournalHistory18>(0);
+	int first = 0;
+	int expected = 0;
+	while (first < len(bytes) / 16) {
+		int transaction = journal18_i32(bytes, first * 16);
+		int shard = bytes[first * 16 + 4] as int;
+		if (transaction != expected || shard >= 4) { throw new Error("journal transaction/shard order"); }
+		int end = first + 1;
+		while (end < len(bytes) / 16 && journal18_i32(bytes, end * 16) == transaction) {
+			if ((bytes[end * 16 + 4] as int) != shard) { throw new Error("mixed journal shards"); }
+			end = end + 1;
+		}
+		if (shard == lane) { journal18_transaction(bytes, first, end, transaction, policy, accounts, history); }
+		expected = expected + 1;
+		first = end;
+	}
+	int completed = history.count();
+	while (history.count() > 0) {
+		var saved = history.take(0);
+		JournalResult18 row = saved.read();
+		journal18_result(row.transaction, row.code, row.failed, row.count, row.checksum);
+	}
+	for (int key = 0; key < 32; key = key + 1) {
+		JournalState18 state = accounts.lookup<JournalState18>(key, journal18_read, journal18_empty());
+		int present = 0; if (state.present) { present = 1; }
+		journal18_state(lane, key, state.version, state.value, present);
+	}
+	return completed;
+}

@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ObservedChild {
+	owned R guard;
+	int value;
+	init(owned R guard, int value) { this.guard = move guard; this.value = value; }
+}
+class OpenVault<Value, Label> {
+	private owned Value payload;
+	Label label;
+	init(owned Value payload, Label label) { this.payload = move payload; this.label = label; }
+	int observe(Fn<int, borrowed Value> read) { return read(this.payload); }
+	void replace(owned Value payload) { this.payload = move payload; }
+	int consume(Fn<int, owned R> code, owned R value) { return code(move value); }
+	owned R produce(Fn<owned R> code) {
+		var value = code();
+		return move value;
+	}
+}
+int child_value(borrowed ObservedChild value) { return value.value + id(value.guard); }
+int resource_value(borrowed R value) { return id(value); }
+int consume_resource(owned R value) { return id(value); }
+owned R produce_resource() {
+	var value = make(226);
+	return move value;
+}
+int inspect_vault<Item, Label>(borrowed OpenVault<Item, Label> vault, Fn<int, borrowed Item> read)
+where Item : Ownable { return vault.observe(read); }
+int relay_vault<Item, Label>(borrowed OpenVault<Item, Label> vault, Fn<int, borrowed Item> read)
+where Item : Ownable { return inspect_vault(vault, read); }
+Label vault_label<Item, Label>(borrowed OpenVault<Item, Label> vault)
+where Item : Ownable { return vault.label; }
+void replace_vault<Item, Label>(borrowed OpenVault<Item, Label> vault, owned Item payload)
+where Item : Ownable { vault.replace(move payload); }
+int exercise_vaults() {
+	var first_guard = make(221);
+	var first = new ObservedChild(move first_guard, 42);
+	var objects = new OpenVault<ObservedChild, bool>(move first, true);
+	if (!vault_label(objects) || relay_vault(objects, child_value) != 263 || live() != 1) { return 1; }
+	var second_guard = make(222);
+	var second = new ObservedChild(move second_guard, 73);
+	replace_vault(objects, move second);
+	if (relay_vault(objects, child_value) != 295 || live() != 1) { return 2; }
+	var resource = make(223);
+	i64 label = 9000000001;
+	var resources = new OpenVault<R, i64>(move resource, label);
+	if (vault_label(resources) != label || relay_vault(resources, resource_value) != 223 || live() != 2) { return 3; }
+	var replacement = make(224);
+	replace_vault(resources, move replacement);
+	if (relay_vault(resources, resource_value) != 224 || live() != 2) { return 4; }
+	var extra = make(225);
+	if (resources.consume(consume_resource, move extra) != 225 || live() != 2) { return 5; }
+	var produced = resources.produce(produce_resource);
+	if (id(produced) != 226 || live() != 3) { return 6; }
+	return 0;
+}
+int main() {
+	int result = exercise_vaults();
+	if (result != 0) { return result; }
+	return live();
+}

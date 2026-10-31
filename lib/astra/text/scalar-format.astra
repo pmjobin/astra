@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Decimal ASCII; no locale, platform adapter, heap scratch or floating conversion.
+bool append_u32(Utf8ByteBuilder builder, u32 value) {
+	u8[10] digits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int start = 10;
+	u32 remaining = value;
+	while (true) {
+		start = start - 1;
+		digits[start] = (48 + remaining % 10) as u8;
+		remaining = remaining / 10;
+		if (remaining == 0) { break; }
+	}
+	return builder.append_bytes(slice(digits, start, 10 - start));
+}
+bool append_int(Utf8ByteBuilder builder, int value) {
+	u8[11] digits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int start = 11;
+	u32 remaining = value as u32;
+	if (value < 0) { remaining = 0 - remaining; }
+	while (true) {
+		start = start - 1;
+		digits[start] = (48 + remaining % 10) as u8;
+		remaining = remaining / 10;
+		if (remaining == 0) { break; }
+	}
+	if (value < 0) { start = start - 1; digits[start] = 45; }
+	return builder.append_bytes(slice(digits, start, 11 - start));
+}
+bool append_bool(Utf8ByteBuilder builder, bool value) {
+	u8[5] bytes = {102, 97, 108, 115, 101};
+	if (value) { bytes[0] = 116; bytes[1] = 114; bytes[2] = 117; bytes[3] = 101; return builder.append_bytes(slice(bytes, 0, 4)); }
+	return builder.append_bytes(slice(bytes));
+}
+bool append_u64(Utf8ByteBuilder builder, u64 value) {
+	u8[20] digits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int start = 20;
+	u64 remaining = value;
+	while (true) {
+		start = start - 1;
+		digits[start] = (48 + remaining % 10) as u8;
+		remaining = remaining / 10;
+		if (remaining == 0) { break; }
+	}
+	return builder.append_bytes(slice(digits, start, 20 - start));
+}
+bool append_i64(Utf8ByteBuilder builder, i64 value) {
+	u8[20] digits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	int start = 20;
+	u64 remaining = value as u64;
+	if (value < 0) { remaining = 0 - remaining; }
+	while (true) {
+		start = start - 1;
+		digits[start] = (48 + remaining % 10) as u8;
+		remaining = remaining / 10;
+		if (remaining == 0) { break; }
+	}
+	if (value < 0) { start = start - 1; digits[start] = 45; }
+	return builder.append_bytes(slice(digits, start, 20 - start));
+}

@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A112: executable Surge 13 application.
+extern(C) int thread_oracle_arrive(int expected);
+
+extern(C) int thread_oracle_destroy();
+extern(C) int thread_oracle_finish(int expected);
+
+[Monitor]class Ledger{
+	private int value;
+	init(){
+		this.value=0;
+
+	}
+
+	void add(int n)throws Error{
+		if(n%17==0){
+			throw new Error("rejected credit");
+
+		}
+		this.value=this.value+1;
+
+	}
+
+	void credit(int n)throws Error{
+		this.add(n);
+
+	}
+	int read(){
+		return this.value;
+
+	}
+
+}
+
+class Work{
+	owned Shared<Ledger> ledger;
+	int workers;
+	int seed;
+
+	init(owned Shared<Ledger> ledger,int workers,int seed){
+		this.ledger=move ledger;
+		this.workers=workers;
+		this.seed=seed;
+
+	}
+
+	deinit(){
+		thread_oracle_destroy();
+
+	}
+
+}
+
+void credit(borrowed Ledger ledger,int n)throws Error{
+	ledger.credit(n);
+
+}
+
+int read(borrowed Ledger ledger){
+	return ledger.read();
+
+}
+
+int run(borrowed Work work,int iterations){
+	var ledger=shared_clone(work.ledger);
+
+	thread_oracle_arrive(work.workers);
+	int accepted=0;
+
+	for(int i=0;i<iterations;i=i+1){
+		try{
+			credit(shared_borrow(ledger),i+work.seed);
+			accepted=accepted+1;
+
+		}
+		catch(Error error){
+
+		}
+
+	}
+
+	return accepted;
+
+}
+
+int main(){
+	var unique=new Ledger();
+	var root=shared_acquire(move unique);
+
+	var c0=shared_clone(root);
+	var e0=new Work(move c0,4,17);
+	var t0=thread_bind(move e0,run);
+
+	var c1=shared_clone(root);
+	var e1=new Work(move c1,4,17);
+	var t1=thread_bind(move e1,run);
+
+	var c2=shared_clone(root);
+	var e2=new Work(move c2,4,17);
+	var t2=thread_bind(move e2,run);
+
+	var c3=shared_clone(root);
+	var e3=new Work(move c3,4,17);
+	var t3=thread_bind(move e3,run);
+
+	if(thread_start(t0,2000)!=0){
+		return 81;
+
+	}
+
+	if(thread_start(t1,2000)!=0){
+		return 81;
+
+	}
+
+	if(thread_start(t2,2000)!=0){
+		return 81;
+
+	}
+
+	if(thread_start(t3,2000)!=0){
+		return 81;
+
+	}
+
+	if(thread_join(t0)!=1882){
+		return 82;
+
+	}
+	release t0;
+
+	if(thread_join(t1)!=1882){
+		return 82;
+
+	}
+	release t1;
+
+	if(thread_join(t2)!=1882){
+		return 82;
+
+	}
+	release t2;
+
+	if(thread_join(t3)!=1882){
+		return 82;
+
+	}
+	release t3;
+
+	if(read(shared_borrow(root))!=7528){
+		return 83;
+
+	}
+	release root;
+	return thread_oracle_finish(4);
+
+}

@@ -1,0 +1,39 @@
+(ssa-program
+	(function #0 "compose" -> i16<4>
+		(parameters
+			(%0 "x" : i16)
+			(%1 "mask" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : i16<4> = vector-splat (lanes 4) (value %0))
+			(%3 : i16 = vector-extract (lane 2) (vector %2))
+			(%4 : i16<4> = vector-insert (lane 1) (vector %2) (value %3))
+			(%5 : i16<4> = vector-shuffle (lanes 3 2 1 0) (vector %4))
+			(%6 : i16<4> = vector-select (mask %1) (true %5) (false %5))
+			(return %6)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : i16<4> = vector-init (integer 7 : i16) (integer 7 : i16) (integer 7 : i16) (integer 7 : i16))
+			(%1 : bool<4> = vector-splat (lanes 4) (value (bool true : bool)))
+			(%2 : i16<4> = call #0 "compose" -> i16<4> (arguments (integer 7 : i16) %1))
+			(%3 : bool<4> = binary == %2 %0)
+			(%4 : bool = vector-all %3)
+			(%5 : bool = prefix ! %4)
+			(conditional-branch %5
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+	)
+)

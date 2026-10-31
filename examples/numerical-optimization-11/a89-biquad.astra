@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Numerics;
+extern(C) f64 numerical_sample(int i);
+extern(C) int numerical_observe(int i,f64 value);
+extern(C) int numerical_finish(int wanted);
+int main(){
+	Biquad64 first={b0=0.125,b1=0.25,b2=0.125,a1=-0.5,a2=0.25,z1=0.0,z2=0.0};
+	Biquad64 second={b0=0.25,b1=0.125,b2=0.125,a1=-0.5,a2=0.25,z1=0.0,z2=0.0};
+	int at=0;int block=0;
+	while(at<48000){
+		int end=at+(block*13%193+1);if(end>48000){end=48000;}
+		while(at<end){
+			if(at==24000){first.reset();second.reset();}
+			f64 result=second.process(first.process(numerical_sample(at)));
+			if(numerical_observe(at,result)!=0){return 1;}at=at+1;
+		}
+		block=block+1;
+	}
+	return numerical_finish(48000);
+}

@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int network_pending(int id);
+extern(C) int network_pending_ready(int id);
+extern(C) int network_finishing(int id);
+extern(C) int network_lifetimes_finish();
+
+async void pending_datagram(owned UdpSocket socket, int id, int timeout) throws Error {
+	var bytes = new u8[32];
+	int started = astra_net_milliseconds();
+	bool observed = false;
+	while (true) {
+		int count = socket.try_receive(bytes, 0, len(bytes));
+		if (count >= 0) { throw new Error("unexpected datagram"); }
+		if (!observed) { network_pending(id); observed = true; }
+		network_deadline(started, timeout);
+		await delay_ticks(1);
+	}
+}
+async void completed_datagram(owned UdpSocket socket) throws Error {
+	await delay_ticks(1);
+	network_finishing(4);
+}
+async void lifetime_cases() throws Error {
+	var timed = new UdpSocket(); timed.open(0);
+	bool timeout = false;
+	try { await pending_datagram(move timed, 1, 5); }
+	catch (SocketError error) { if (error.code != -110) { throw; } timeout = true; }
+	if (!timeout) { throw new Error("missing deadline"); }
+	var unopened = new UdpSocket(); unopened.open(0);
+	var cold = pending_datagram(move unopened, 2, 60000);
+	cancel(cold); await cancel_and_join(move cold);
+	if (network_pending_ready(2) != 0) { throw new Error("cold task executed"); }
+	var waiting = new UdpSocket(); waiting.open(0);
+	var active = pending_datagram(move waiting, 3, 60000); start(active);
+	try { while (network_pending_ready(3) == 0) { await delay_ticks(1); } }
+	catch (Error error) { await cancel_and_join(move active); throw; }
+	await cancel_and_join(move active);
+	var finished = new UdpSocket(); finished.open(0);
+	var done = completed_datagram(move finished); start(done);
+	try { while (network_pending_ready(4) == 0) { await delay_ticks(1); } }
+	catch (Error error) { await cancel_and_join(move done); throw; }
+	cancel(done); await cancel_and_join(move done);
+}
+export(C) int run_network_lifetimes() {
+	try {
+		{
+			var executor = ThreadedExecutor.open(4);
+			var status = executor.run(lifetime_cases());
+			match (status) { case ThreadedStatus.Completed(): {} else: { return 81; } }
+		}
+		{
+			var executor = ThreadedExecutor.open(4);
+			var waiting = new UdpSocket(); waiting.open(0);
+			var root = pending_datagram(move waiting, 5, 60000);
+			executor.start(root);
+			for (int spins = 0; spins < 10000 && network_pending_ready(5) == 0; spins = spins + 1) { executor.pump(1); }
+			executor.begin_shutdown();
+			var status = executor.run(move root);
+			match (status) { case ThreadedStatus.Cancelled(): {} else: { return 82; } }
+		}
+	} catch (Error error) { return 83; }
+	return network_lifetimes_finish();
+}
+int main() { return run_network_lifetimes(); }

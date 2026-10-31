@@ -1,0 +1,17 @@
+class Context {
+	owned R resource;
+	int count;
+	init(owned R resource) { this.resource = move resource; this.count = 0; }
+	void replace(owned R incoming) { this.resource = move incoming; }
+	int get() { return id(this.resource); }
+}
+int use(borrowed R resource) { return id(resource); }
+int pair(borrowed R first, borrowed R second, int count) { return id(first) + id(second) + count; }
+int inspect(borrowed Context context) { return use(context.resource) + context.get(); }
+int main() {
+	{ owned R r = make(1); owned Context c = Context.init(move r);
+		if (inspect(c) != 2 || c.resource == null || live() != 1) { return 1; }
+		if (pair(c.resource, c.resource, c.count) != 2) { return 2; }
+	}
+	return 42;
+}

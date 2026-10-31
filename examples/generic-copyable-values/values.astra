@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+T identity<T>(T value) { return value; }
+T choose_value<T>(bool take_first, T first, T second) {
+	T selected = second;
+	if (take_first) { selected = first; }
+	return selected;
+}
+T through_box<T>(T input) {
+	Box<T> first = { value = input };
+	Box<T> second = first;
+	T saved = second.value;
+	second.value = input;
+	return identity(saved);
+}
+T save<T>(T input, string label, string[] arguments, [CallerFilePath] string file, [CallerLineNumber] int line, [CallerArgumentExpression("input")] string expression) {
+	assert_that(label.byte_length > 0, file, line, expression);
+	assert_that(len(arguments) >= 1, file, line, expression);
+	return through_box(input);
+}

@@ -1,0 +1,22 @@
+struct Grid {
+	int width;
+	int height;
+	f64 scale() { return 1.0d / (this.width as f64); }
+	int pixel(f64 coordinate) { return coordinate as int; }
+	property int area { get { return ((this.width as f64) * (this.height as f64)) as int; } }
+	property f64 epsilon { get { return 1.0000000000000002d; } }
+}
+int main() {
+	Grid grid = {width=17, height=9};
+	owned f64[] coordinates = new f64[grid.width];
+	owned int[] pixels = new int[grid.width];
+	int i = 0;
+	while (i < grid.width) {
+		coordinates[i] = (i as f64) * grid.scale();
+		pixels[i] = grid.pixel(coordinates[i] * (grid.width as f64) + 0.25d);
+		if (pixels[i] != i) { return 1; }
+		i = i + 1;
+	}
+	if (grid.height != 9 || grid.area != 153 || grid.epsilon == 1.0000000000000002f as f64) { return 2; }
+	return 0;
+}

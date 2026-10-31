@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool signed_order(i8 x, i8 y) { return x < y && x <= y && !(x > y) && !(x >= y) && x != y && !(x == y); }
+bool unsigned_order(u8 x, u8 y) { return x > y && x >= y && !(x < y) && !(x <= y) && x != y && !(x == y); }
+int main() {
+	i8 a = -1;
+	u8 b = 255;
+	if (!signed_order(a, 1) || !unsigned_order(b, 1)) { return 1; }
+	if (a / 2 != 0 || b / 2 != 127 || a % 2 != -1 || b % 2 != 1) { return 2; }
+	u16 c = 65535;
+	u32 d = 4294967295;
+	if (c <= 1 || c < 32768 || d <= 1 || d < 2147483648) { return 3; }
+	if (!(c >= 65535) || !(d >= 4294967295) || !(c == c) || d != d) { return 4; }
+	return 0;
+}

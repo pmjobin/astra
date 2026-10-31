@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void scoped_owned_rollback_event(int event, int identity);
+class HeapLeaf {
+	private int identity;
+	init(int identity) { this.identity=identity; scoped_owned_rollback_event(6,identity); }
+	int read() { return this.identity; }
+	deinit() { scoped_owned_rollback_event(7,this.identity); }
+}
+class HeapNode {
+	private int identity;
+	private owned HeapLeaf child;
+	init(int identity,owned HeapLeaf child) { this.identity=identity; this.child=move child; scoped_owned_rollback_event(8,identity); }
+	int read() { return this.child.read(); }
+	deinit() { scoped_owned_rollback_event(9,this.identity); }
+}
+[ExceptionRoot]
+class OwnedConstructionFault {
+	private int identity;
+	init(int identity) { this.identity=identity; scoped_owned_rollback_event(2,identity); }
+	virtual property string message { get { return "owned construction failed"; } }
+	deinit() { scoped_owned_rollback_event(3,this.identity); }
+}
+[Allocator(kind="context",context="scoped-affine")]
+class CheckedScopedHost {
+	private int identity;
+	private owned HeapLeaf left;
+	private owned HeapNode right;
+	init(int identity,owned HeapLeaf left,owned HeapNode right,int mode) throws OwnedConstructionFault {
+		this.identity=identity;
+		scoped_owned_rollback_event(1,identity);
+		if(mode==1){throw new OwnedConstructionFault(identity);}
+		this.left=move left;
+		if(mode==2){throw new OwnedConstructionFault(identity);}
+		this.right=move right;
+		if(mode==3){throw new OwnedConstructionFault(identity);}
+	}
+	int read() { return this.left.read()+this.right.read(); }
+	deinit() { scoped_owned_rollback_event(4,this.identity); }
+}
+export(C) int scoped_owned_rollback_run() {
+	owned u8[] backing=new u8[8197];
+	{
+		var context=scoped_allocator<ScopedAllocator>(backing,2,1);
+		if(context==null){return 1;}
+		int identity=1;
+		while(identity<7){
+			var left=new HeapLeaf(identity*10+1);
+			var leaf=new HeapLeaf(identity*10+2);
+			var right=new HeapNode(identity*10+3,move leaf);
+			int mode=0;
+			if(identity==1){mode=1;}
+			if(identity==3){mode=2;}
+			if(identity>4){mode=3;}
+			try{
+				if(identity==3||identity==4){
+					var host=try_new(context)CheckedScopedHost(identity,move left,move right,mode);
+					if(host==null||host.read()!=identity*20+3){return 2;}
+				}else{
+					var host=new(context)CheckedScopedHost(identity,move left,move right,mode);
+					if(host.read()!=identity*20+3){return 3;}
+					var retained_left=new HeapLeaf(991);
+					var retained_leaf=new HeapLeaf(992);
+					var retained_right=new HeapNode(993,move retained_leaf);
+					var refused=try_new(context)CheckedScopedHost(99,move retained_left,move retained_right,3);
+					if(refused!=null||retained_left.read()!=991||retained_right.read()!=992){return 4;}
+				}
+				if(mode!=0){return 5;}
+			}catch(OwnedConstructionFault error){
+				if(mode==0||scoped_allocator_query(context,1)!=0){return 6;}
+				scoped_owned_rollback_event(5,identity);
+			}
+			if(scoped_allocator_query(context,1)!=0){return 7;}
+			identity=identity+1;
+		}
+		if(scoped_allocator_query(context,4)!=6||scoped_allocator_query(context,5)!=6){return 8;}
+	}
+	return len(backing)-8197;
+}

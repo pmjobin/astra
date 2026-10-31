@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair { int x; f64 y; void scale(int factor) { this.x = this.x * factor; } }
+struct S { Pair pair; bool enabled; }
+owned S[] make(int n) { return new S[n]; }
+owned S[] relay(owned S[] records) { return move records; }
+S pick(S[] records, int i) { return records[i]; }
+int inspect_and_take(S value, owned S[] records) { S copy = value; copy.pair.x = 99; records[0].pair.x = 44; return value.pair.x; }
+void alias(S[] a, borrowed S[] b, int i, int j) { a[j] = b[i]; a[i] = b[i]; a[j].pair.scale(2); }
+int main() {
+	S first = { pair = { x = 7, y = 0.5d }, enabled = true };
+	S[3] fixed = {first, {enabled = false, pair = {y = 1.0d, x = 2}}, first};
+	alias(slice(fixed), slice(fixed, 0, 3), 0, 2);
+	if (fixed[2].pair.x != 14 || fixed[0].pair.x != 7) { return 1; }
+	var owner = make_owner();
+	var records = relay(move owner);
+	records[0] = fixed[2];
+	var saved = pick(records, 0);
+	if (inspect_and_take(records[0], move records) != 14 || saved.pair.y != 0.5d) { return 2; }
+	return 0;
+}
+owned S[] make_owner() { return make(2); }

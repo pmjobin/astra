@@ -1,0 +1,92 @@
+(unit
+	(struct "Pair"
+		(field (type "int") (name "x"))
+		(field (type "f64") (name "y"))
+	)
+	(function
+		(type "int")
+		(name "mutate")
+		(parameters
+			(parameter (type "Pair*") (name "value"))
+		)
+		(block
+			(assign (indirect-field-access "value" "x") (binary "+" (indirect-field-access "value" "x") (integer "10")))
+			(assign (indirect-field-access "value" "y") (binary "+" (indirect-field-access "value" "y") (float "10.0")))
+			(return (indirect-field-access "value" "x"))
+		)
+	)
+	(function
+		(type "Pair")
+		(name "mutate_result")
+		(parameters
+			(parameter (type "Pair*") (name "value"))
+		)
+		(block
+			(assign (indirect-field-access "value" "x") (binary "+" (indirect-field-access "value" "x") (integer "10")))
+			(assign (indirect-field-access "value" "y") (binary "+" (indirect-field-access "value" "y") (float "10.0")))
+			(return (dereference (name "value")))
+		)
+	)
+	(function
+		(type "int")
+		(name "observe")
+		(parameters
+			(parameter (type "Pair") (name "first"))
+			(parameter (type "int") (name "middle"))
+			(parameter (type "Pair") (name "last"))
+			(parameter (type "f64") (name "tail"))
+		)
+		(block
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "first" "x") (integer "7")) (binary "!=" (field-access "first" "y") (float "3.5"))) (binary "!=" (name "middle") (integer "17"))) (binary "!=" (field-access "last" "x") (integer "27"))) (binary "!=" (field-access "last" "y") (float "23.5"))) (binary "!=" (name "tail") (float "23.5"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+	(function
+		(type "int")
+		(name "scalar_first")
+		(parameters
+			(parameter (type "int") (name "first"))
+			(parameter (type "Pair") (name "second"))
+		)
+		(block
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "first") (integer "7")) (binary "!=" (field-access "second" "x") (integer "17"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Pair") (name "pair")
+				(initialize-field "x" (integer "7"))
+				(initialize-field "y" (float "3.5"))
+			)
+			(local (type "int") (name "result") (call "observe" (arguments (name "pair") (call "mutate" (arguments (address-of "pair"))) (call "mutate_result" (arguments (address-of "pair"))) (field-access "pair" "y"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (name "result") (integer "0")) (binary "!=" (field-access "pair" "x") (integer "27"))) (binary "!=" (field-access "pair" "y") (float "23.5"))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(assign (field-access "pair" "x") (integer "7"))
+			(return (call "scalar_first" (arguments (field-access "pair" "x") (call "mutate_result" (arguments (address-of "pair"))))))
+		)
+	)
+)

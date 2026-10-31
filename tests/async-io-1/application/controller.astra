@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+async void controller() throws Error {
+	owned int[] values = new int[17];
+	values[0] = 39;
+	var slow = captured(move values);
+	var other = peer();
+	start(slow);
+	try { start(other); } catch (Error error) { await cancel_and_join(move slow); throw; }
+	try {
+		owned int[] returned = await move slow;
+		observed(4, returned[0] + returned[1]);
+		returned[0] = 42;
+		observed(5, returned[0]);
+	} catch (Error error) { await cancel_and_join(move other); throw; }
+	if (await move other != 42) { throw new AsyncError("peer result"); }
+	Pair pair = { left = 40, right = 2 };
+	var copy = await copied(pair);
+	if (copy.left + copy.right != 42) { throw new AsyncError("record result"); }
+	var sum = await owning(OwnedValues.Some(new int[2]));
+	match (move sum) {
+		case OwnedValues.Some(data): { data[0] = 42; observed(6, data[0]); }
+		else: { throw new AsyncError("owning enum"); }
+	}
+	int[2] backing = { 20, 20 };
+	try {
+		try { await faulty(); }
+		catch (Error error) {
+			var message = error.message;
+			var copy_message = message;
+			await delay_ms(1);
+			int loan = await local_view(slice(backing));
+			if (copy_message != "original\0é" || loan != 42) { throw new AsyncError("message or loan"); }
+			throw;
+		}
+	} catch (DecodeError error) {
+		if (error.message != "original\0é" || backing[0] != 22) { throw new AsyncError("original exception"); }
+		observed(7, 42);
+	}
+}

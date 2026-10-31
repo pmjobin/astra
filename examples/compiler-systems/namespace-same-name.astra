@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Left;
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		int a = parse_int(args[1]); int b = parse_int(args[2]);
+		var left = new Record(a); var right = new Right.Record(b);
+		var output = new Utf8ByteBuilder();
+		require_text(render(left, output)); require_text(Right.render(right, output));
+		var text = output.snapshot();
+		consume(move left); Right.consume(move right);
+		if (!print(text.text)) { return 74; }
+		return 0;
+	} catch (Error error) { return 65; }
+}

@@ -1,0 +1,20 @@
+extern(C) void astra_test_reset();
+extern(C) int astra_test_record(int value);
+extern(C) int astra_test_state();
+struct Pair { int first; int second; }
+struct Flags { bool ready; int count; }
+
+int record(int value) { return astra_test_record(value); }
+
+int main() {
+	astra_test_reset();
+	Pair p = { second = record(2), first = record(1) };
+	if (astra_test_state() != 21 || p.first != 1 || p.second != 2) { return 1; }
+	astra_test_reset();
+	Flags state = { ready = record(1) == 1 && (record(2) == 2 || record(9) == 9), count = record(3) };
+	if (!state.ready || state.count != 3 || astra_test_state() != 123) { return 2; }
+	astra_test_reset();
+	Flags skipped = { count = record(4), ready = false && record(9) == 9 };
+	if (skipped.ready || skipped.count != 4 || astra_test_state() != 4) { return 3; }
+	return 0;
+}

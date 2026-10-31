@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Child {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { mark(this.code); }
+}
+
+class Owner<T> where T : Ownable {
+	owned T payload;
+	init(owned T value) { this.payload = move value; }
+	property borrowed T view { get { return this.payload; } }
+}
+
+int read(borrowed Child value) { return value.code; }
+
+int exercise() {
+	var resource = make(81);
+	var resource_owner = new Owner<R>(move resource);
+	var child = new Child(37);
+	var child_owner = new Owner<Child>(move child);
+	if (id(resource_owner.view) != 81 || read(child_owner.view) != 37) { return 1; }
+	return 0;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

@@ -1,0 +1,96 @@
+(unit
+	(struct "Pair"
+		(type-parameters T U)
+		(field (type "T") (name "first"))
+		(field (type "U") (name "second"))
+	)
+	(struct "Bundle"
+		(type-parameters T)
+		(field (type "Pair<T,T>") (name "pair"))
+		(field (type "int") (name "tag"))
+	)
+	(struct "Meta"
+		(field (type "int") (name "tag"))
+		(field (type "f64") (name "scale"))
+	)
+	(struct "Item"
+		(type-parameters T)
+		(field (type "Meta") (name "meta"))
+		(field (type "T") (name "value"))
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "nested")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(block
+			(struct-local (type "Bundle<T>") (name "value")
+				(initialize-field "pair" (storage-initializer
+					(initialize-field "first" (name "a"))
+					(initialize-field "second" (name "b"))
+				))
+				(initialize-field "tag" (integer "7"))
+			)
+			(return (field-access (base (field-access "value" "pair")) "second"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "scalarized")
+		(parameters
+			(parameter (type "f64") (name "x"))
+		)
+		(block
+			(struct-local (type "Bundle<f64>") (name "b")
+				(initialize-field "pair" (storage-initializer
+					(initialize-field "first" (name "x"))
+					(initialize-field "second" (float "2.0"))
+				))
+				(initialize-field "tag" (integer "7"))
+			)
+			(return (field-access (base (field-access "b" "pair")) "first"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Bundle<f64>") (name "bundle")
+				(initialize-field "pair" (storage-initializer
+					(initialize-field "first" (float "1.0"))
+					(initialize-field "second" (float "2.0"))
+				))
+				(initialize-field "tag" (integer "7"))
+			)
+			(struct-local (type "Item<int>") (name "item")
+				(initialize-field "meta" (storage-initializer
+					(initialize-field "tag" (integer "3"))
+					(initialize-field "scale" (field-access (base (field-access "bundle" "pair")) "second"))
+				))
+				(initialize-field "value" (integer "42"))
+			)
+			(assign (field-access (base (field-access "item" "meta")) "scale") (float "3.5"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access (base (field-access "bundle" "pair")) "second") (float "2.0")) (binary "!=" (field-access "bundle" "tag") (integer "7"))) (binary "!=" (field-access (base (field-access "item" "meta")) "scale") (float "3.5"))) (binary "!=" (field-access "item" "value") (integer "42"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (binary "!=" (generic-call "nested" (type-arguments f64) (arguments (float "1.0") (float "2.0"))) (float "2.0")) (binary "!=" (call "scalarized" (arguments (float "3.5"))) (float "3.5"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

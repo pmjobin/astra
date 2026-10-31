@@ -1,0 +1,28 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "value"))
+		(method
+			(type "void")
+			(name "add")
+			(parameters
+				(parameter (type "int") (name "amount"))
+			)
+			(block
+				(assign (field-access "this" "value") (binary "+" (field-access "this" "value") (name "amount")))
+			)
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Counter") (name "c")
+				(initialize-field "value" (integer "40"))
+			)
+			(local (type "Counter") (name "alias") (name "c"))
+			(call-statement (method-call (receiver "alias") (target "add") (arguments (integer "2"))))
+			(return (field-access "c" "value"))
+		)
+	)
+)

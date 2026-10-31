@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Inner { int x; int y; }
+struct Outer { Inner a; Inner b; }
+int aliases(Outer* p, Outer* q) { p->a.x = 40; q->a.x = q->a.x + 2; p->b.x = 7; return q->a.x + q->b.x; }
+int main() {
+	Outer o = { a = { x = 1, y = 2 }, b = { x = 3, y = 4 } };
+	Outer* p = &o;
+	Outer* q = p;
+	if (aliases(p, q) != 49 || o.a.x != 42 || o.b.x != 7 || o.a.y != 2 || o.b.y != 4) { return 1; }
+	return 0;
+}

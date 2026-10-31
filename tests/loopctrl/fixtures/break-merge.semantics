@@ -1,0 +1,31 @@
+(program
+	(function "break_merge" -> int
+		(parameters
+			(parameter #0 "c" : bool)
+		)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (integer 0 : int))
+			(while #0
+				(condition (parameter-ref #0 "c" : bool))
+				(body
+					(block
+						(assign (local-ref #0 "x" : int) (integer 1 : int))
+						(if
+							(condition (binary == : bool (local-ref #0 "x" : int) (integer 1 : int)))
+							(then
+								(block
+									(break #0)
+								)
+							)
+						)
+						(assign (local-ref #0 "x" : int) (integer 2 : int))
+					)
+				)
+			)
+			(return (local-ref #0 "x" : int))
+		)
+	)
+)

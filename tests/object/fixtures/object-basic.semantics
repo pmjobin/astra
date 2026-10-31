@@ -1,0 +1,31 @@
+(program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+		(method #0 "add" (member #1) -> void
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters
+				(parameter #0 "amount" : int)
+			)
+			(block
+				(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int)) (binary + : int (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (parameter-ref #0 "amount" : int)))
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "c" : Counter)
+			(local #1 "alias" : Counter)
+		)
+		(block
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "c")
+				(field-init #0 (integer 40 : int))
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(local-init #1 "alias" : Counter (local-ref #0 "c" : Counter))
+			(method-call-statement "add" -> void (target Counter::add #0) (receiver (object-receiver (local-ref #1 "alias" : Counter) : Receiver<Counter> null-traps-before-arguments)) (arguments (integer 2 : int)))
+			(return (load (object-field-place (base (local-ref #0 "c" : Counter)) (field #0 "value") : int null-traps)))
+		)
+	)
+)

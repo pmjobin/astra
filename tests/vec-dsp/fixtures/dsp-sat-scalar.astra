@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+i8 add(i8 a,i8 b){return sat_add(a,b);}
+i8 sub(i8 a,i8 b){return sat_sub(a,b);}
+u8 uadd(u8 a,u8 b){return sat_add(a,b);}
+u8 usub(u8 a,u8 b){return sat_sub(a,b);}
+int main(){
+	if(add(127,1)!=127 || add(-128,-1)!=-128){return 1;}
+	if(sub(-128,1)!=-128 || sub(127,-1)!=127){return 2;}
+	if(uadd(255,1)!=255 || usub(0,1)!=0){return 3;}
+	u8 contextual=sat_add(250,10);
+	u8 x=250;
+	if(contextual!=255 || sat_add(x,10)!=255 || sat_add(10,x)!=255){return 4;}
+	if(sat_add(1,2)!=3){return 5;}
+	x=255;
+	x=x+1;
+	if(x!=0){return 6;}
+	return 0;
+}

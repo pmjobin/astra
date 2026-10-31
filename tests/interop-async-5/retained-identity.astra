@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int retained_app_event(int stage, int value);
+class IdentityCapture {
+	int identity;
+	init(int identity) { this.identity=identity; retained_app_event(51,identity); }
+	deinit() { retained_app_event(53,this.identity); }
+}
+int identity_first(borrowed IdentityCapture capture,int value) { return capture.identity+value; }
+int identity_second(borrowed IdentityCapture capture,int value) { return capture.identity+value+100; }
+owned Closure<IdentityCapture,int,int> identity_handler(int identity) {
+	var capture=new IdentityCapture(identity);
+	if(identity==20) { var second=closure_bind(move capture,identity_second); return move second; }
+	var first=closure_bind(move capture,identity_first); return move first;
+}
+int main() {
+	var first=identity_handler(10);
+	var second=identity_handler(20);
+	if(retained_register(first,0)!=0 || retained_register(second,0)!=0) { return 1; }
+	int a=retained_dispatch(first,5);
+	int b=retained_dispatch(second,5);
+	if(a!=15 || b!=125) { return 2; }
+	retained_app_event(52,a); retained_app_event(52,b);
+	release first; release second;
+	return 0;
+}

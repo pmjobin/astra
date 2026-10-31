@@ -1,0 +1,41 @@
+// Forward native struct pointer use; exact declaration identity.
+void set_x(Pair* p, int value) {
+	p->x = value;
+	return;
+}
+
+int read_via_local(Pair* p) {
+	Pair* q = p;
+	Pair* empty = null;
+	if (empty != null || null != empty) {
+		return -1;
+	}
+	empty = q;
+	q = null;
+	if (q != null || empty != p) {
+		return -2;
+	}
+	return empty->x;
+}
+
+struct Pair {
+	int x;
+	int y;
+}
+
+int main() {
+	Pair p = { x = 1, y = 2 };
+	int before = p.x;
+	set_x(&p, 42);
+	int after = p.x;
+	if (before != 1) {
+		return 1;
+	}
+	if (after != 42 || p.y != 2) {
+		return 2;
+	}
+	if (read_via_local(&p) != 42) {
+		return 3;
+	}
+	return 0;
+}

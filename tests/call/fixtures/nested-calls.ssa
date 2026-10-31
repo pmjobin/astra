@@ -1,0 +1,32 @@
+(ssa-program
+	(function #0 "identity" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(return %0)
+		)
+	)
+	(function #1 "pair" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary + %0 %1)
+			(return %2)
+		)
+	)
+	(function #2 "ordered" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : int = call #0 "identity" -> int (arguments (integer 1 : int)))
+			(%1 : int = call #0 "identity" -> int (arguments (integer 2 : int)))
+			(%2 : int = call #1 "pair" -> int (arguments %0 %1))
+			(return %2)
+		)
+	)
+)

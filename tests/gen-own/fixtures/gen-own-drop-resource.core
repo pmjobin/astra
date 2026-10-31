@@ -1,0 +1,169 @@
+(core-program
+	(handle-type #0 "Resource" (cleanup #0)
+	)
+	(handle-type #1 "Token" (cleanup #0)
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+	)
+	(cleanup #0 (symbol "life_destroy") (signature void (void*)))
+	(ownership-contract #1 : T (requires Ownable))
+	(ownership-contract #2 : T (requires Ownable))
+	(ownership-contract #3 : T (requires Ownable))
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(extern-function #1 "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Token))
+	(extern-function #3 "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(generic-definition #0 "dispose")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "dispose" -> void
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #1) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #1))
+		)
+	)
+	(generic-definition #1 "relay")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "relay" -> T
+		(result T (contract owned-transfer) (cleanup #2))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #2) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #2))
+			(ownership-return (move owner #0) : T (cleanup #2))
+		)
+	)
+	(generic-definition #2 "forward")
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "forward" -> T
+		(result T (contract owned-transfer) (cleanup #3))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #3) lexical-block)
+		(locals
+			(local-place #0 "value" : T)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #3))
+			(ownership-return
+				(generic-call "relay" -> T
+					(type-arguments T)
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #0) : T (cleanup #3))
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(owned-local (local-place #1) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "a" : Resource)
+			(local-place #1 "b" : Token)
+		)
+		(block
+			(owned-initialize (cleanup #0)
+				(local-place #0 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 65 : int)
+					)
+				)
+			)
+			(owned-initialize (cleanup #0)
+				(local-place #1 : Token)
+				(c-call "create_token" -> Token
+					(arguments
+						(integer 66 : int)
+					)
+				)
+			)
+			(generic-call-statement "dispose" -> void
+				(type-arguments Resource)
+				(arguments
+					(owned-transfer-argument (parameter #0) (move owner #0) : Resource (cleanup #0))
+				)
+			)
+			(generic-call-statement "dispose" -> void
+				(type-arguments Token)
+				(arguments
+					(owned-transfer-argument (parameter #0) (move owner #1) : Token (cleanup #0))
+				)
+			)
+			(return
+				(integer 42 : int)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "code" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "code")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "code")
+						)
+					)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+)

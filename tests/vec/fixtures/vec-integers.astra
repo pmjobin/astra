@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+i8<4> signed_add(i8<4> a, i8<4> b) { return a + b; }
+u8<4> unsigned_add(u8<4> a, u8<4> b) { return a + b; }
+i16<8> add_half(i16<8> a, i16<8> b) { return a + b; }
+u8<16> add_byte(u8<16> a, u8<16> b) { return a + b; }
+i16<4> negative(i16<4> a) { return -a; }
+bool<4> signed_compare(i8<4> a, i8<4> b) { return a > b; }
+bool<4> unsigned_compare(u8<4> a, u8<4> b) { return a > b; }
+int main() {
+	i8<4> s = {-1, -1, -1, -1};
+	u8<4> u = {255, 255, 255, 255};
+	i8<4> so = {1, 1, 1, 1};
+	u8<4> uo = {1, 1, 1, 1};
+	if (all(signed_compare(s, so))) { return 1; }
+	if (!all(unsigned_compare(u, uo))) { return 2; }
+	i8<4> sm = {127, 126, -128, -1};
+	i8<4> se = {-128, 127, -127, 0};
+	u8<4> ue = {0, 0, 0, 0};
+	if (!all(signed_add(sm, so) == se) || !all(unsigned_add(u, uo) == ue)) { return 3; }
+	i16<4> half = {-32768, 32767, -1, 0};
+	i16<4> neg = {-32768, -32767, 1, 0};
+	if (!all(negative(half) == neg)) { return 4; }
+	return 0;
+}

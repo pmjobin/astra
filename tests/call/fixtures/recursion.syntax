@@ -1,0 +1,24 @@
+(unit
+	(function
+		(type "int")
+		(name "recurse")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(if
+				(condition (binary "==" (name "x") (integer "0")))
+				(then
+					(block
+						(return (integer "0"))
+					)
+				)
+				(else
+					(block
+						(return (call "recurse" (arguments (binary "-" (name "x") (integer "1")))))
+					)
+				)
+			)
+		)
+	)
+)

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int first = parse_int(args[1]); int count = parse_int(args[2]); int mode = parse_int(args[3]);
+		i64 result = surge4_event_checksum(first, count, mode);
+		if (result == -99999999) { return 64; }
+		if (result == -99999998) { return 3; }
+		var builder = new Utf8ByteBuilder();
+		require_text(append_text(builder, "events=")); require_text(append_int(builder, count));
+		require_text(append_text(builder, " checksum=")); require_text(append_i64(builder, result));
+		var text = builder.snapshot();
+		if (!println(text.text)) { return 4; }
+		return 0;
+	} catch (Error error) { return 2; }
+}

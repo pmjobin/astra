@@ -1,0 +1,79 @@
+(core-program
+	(struct "Counter"
+		(field #0 "value" : int)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "counter" : Counter address-taken)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Counter) (field #0 "value") : int)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : Counter) (field #0 "value") : int)
+				(integer 40 : int)
+			)
+			(method-call-statement "add" -> void
+				(target Counter::add #0)
+				(receiver
+					(address-of : Receiver<Counter>
+						(local-place #0 : Counter)
+					)
+				)
+				(arguments
+					(integer 2 : int)
+				)
+			)
+			(return
+				(method-call "get" -> int
+					(target Counter::get #1)
+					(receiver
+						(address-of : Receiver<Counter>
+							(local-place #0 : Counter)
+						)
+					)
+					(arguments)
+				)
+			)
+		)
+	)
+	(method #0 "add" (declaring-struct #0 "Counter") (member #1) -> void
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "delta" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(binary + : int
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+					(parameter #0 : int)
+				)
+			)
+		)
+	)
+	(method #1 "get" (declaring-struct #0 "Counter") (member #2) -> int
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(parameters)
+		(block
+			(return
+				(load : int
+					(indirect-field-place : int
+						(this : Receiver<Counter>)
+						(field #0 "value")
+					)
+				)
+			)
+		)
+	)
+)

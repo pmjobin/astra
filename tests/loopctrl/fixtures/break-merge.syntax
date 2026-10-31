@@ -1,0 +1,30 @@
+(unit
+	(function
+		(type "int")
+		(name "break_merge")
+		(parameters
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(local (type "int") (name "x") (integer "0"))
+			(while
+				(condition (name "c"))
+				(body
+					(block
+						(assign (name "x") (integer "1"))
+						(if
+							(condition (binary "==" (name "x") (integer "1")))
+							(then
+								(block
+									(break)
+								)
+							)
+						)
+						(assign (name "x") (integer "2"))
+					)
+				)
+			)
+			(return (name "x"))
+		)
+	)
+)

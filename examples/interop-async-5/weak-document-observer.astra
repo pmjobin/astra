@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int retained_app_event(int stage, int value);
+class ObservedDocument {
+	int sequence;
+	init(int sequence) { this.sequence=sequence; retained_app_event(11,sequence); }
+	deinit() { retained_app_event(15,this.sequence); }
+}
+int observed_sequence(borrowed ObservedDocument document) { return document.sequence; }
+class DocumentObserver {
+	private owned Weak<ObservedDocument> document;
+	init(owned Weak<ObservedDocument> document) { this.document=move document; retained_app_event(12,0); }
+	deinit() { retained_app_event(18,0); }
+	int receive(int input) {
+		var live=weak_upgrade(this.document);
+		if (live == null) { retained_app_event(16,input); return -1; }
+		int value=observed_sequence(shared_borrow(live))+input;
+		retained_app_event(14,value); return value;
+	}
+}
+int observed_receive(borrowed DocumentObserver observer, int input) { return observer.receive(input); }
+int main() {
+	var document=new ObservedDocument(42);
+	var owner=shared_acquire(move document);
+	var weak=shared_downgrade(owner);
+	var observer=new DocumentObserver(move weak);
+	var handler=closure_bind(move observer,observed_receive);
+	if (retained_register(handler,0) != 0) { return 91; }
+	retained_app_event(13,0);
+	if (retained_dispatch(handler,1) != 43) { return 92; }
+	release owner;
+	if (retained_dispatch(handler,2) != -1) { return 93; }
+	if (retained_revoke(handler) != 1) { return 94; }
+	if (retained_observe(handler) != 1) { return 95; }
+	retained_app_event(17,0);
+	release handler;
+	return 0;
+}

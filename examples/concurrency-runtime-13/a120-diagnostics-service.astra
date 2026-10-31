@@ -1,0 +1,930 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A120: retained callbacks feed a shared singleton, migrated TCP/UDP service and an owning result.
+// A115: executable Surge 13 application.
+extern(C) int callback_capture_drop(int id);
+
+extern(C) int callback_local_drop();
+
+extern(C) int callback_ledger_drop();
+
+extern(C) int callback_affinity_finish();
+
+[ThreadBound]
+class Local {
+
+	private int value;
+
+	init() {
+		this.value = 7;
+
+	}
+
+	int add(int n) {
+		return this.value + n;
+
+	}
+
+	deinit() {
+		callback_local_drop();
+
+	}
+
+}
+
+int local_event(borrowed Local local, int n) {
+	return local.add(n);
+
+}
+
+[Monitor]
+class Ledger {
+
+	private int total;
+
+	init() {
+		this.total = 0;
+
+	}
+
+	void credit(int value) throws Error {
+
+		if (value == 2) {
+			throw new Error("rejected callback event");
+
+		}
+
+		this.total = this.total + value;
+
+	}
+
+	int read() {
+		return this.total;
+
+	}
+
+	deinit() {
+		callback_ledger_drop();
+
+	}
+
+}
+
+void credit(borrowed Ledger ledger, int n) throws Error {
+	ledger.credit(n);
+
+}
+
+int read(borrowed Ledger ledger) {
+	return ledger.read();
+
+}
+
+class Capture {
+
+	owned Shared<Ledger> ledger;
+
+	int id;
+
+	init(owned Shared<Ledger> ledger, int id) {
+		this.ledger = move ledger;
+		this.id = id;
+
+	}
+
+	deinit() {
+		callback_capture_drop(this.id);
+
+	}
+
+}
+
+// The private C-convention thunk enters this exact native function. The
+// checked failure is caught before control returns to the foreign C stack.
+int event(borrowed Capture capture, int n) {
+
+	var ledger = shared_clone(capture.ledger);
+
+	try {
+		credit(shared_borrow(ledger), n);
+
+	}
+
+	catch (Error error) {
+		return -7;
+
+	}
+
+	return n;
+
+}
+
+int run_callbacks() {
+
+	{
+
+		var local = new Local();
+
+		var callback = closure_bind(move local, local_event);
+
+		if (closure_invoke(callback, 2) != 9) {
+			return 81;
+
+		}
+
+	}
+
+	var unique = new Ledger();
+	var root = shared_acquire(move unique);
+
+	var c0 = shared_clone(root);
+	var e0 = new Capture(move c0, 0);
+	var t0 = thread_bind(move e0, event);
+
+	var c1 = shared_clone(root);
+	var e1 = new Capture(move c1, 1);
+	var t1 = thread_bind(move e1, event);
+
+	var c2 = shared_clone(root);
+	var e2 = new Capture(move c2, 2);
+	var t2 = thread_bind(move e2, event);
+
+	var c3 = shared_clone(root);
+	var e3 = new Capture(move c3, 3);
+	var t3 = thread_bind(move e3, event);
+
+	if (thread_start(t0, 1) != 0 || thread_start(t1, 2) != 0 || thread_start(t2, 3) != 0 || thread_start(t3, 4) != 0) {
+		return 82;
+
+	}
+
+	if (thread_join(t0) != 1 || thread_join(t1) != -7 || thread_join(t2) != 3 || thread_join(t3) != 4) {
+		return 83;
+
+	}
+
+	release t0;
+	release t1;
+	release t2;
+	release t3;
+
+	if (read(shared_borrow(root)) != 8) {
+		return 84;
+
+	}
+
+	release root;
+
+	return callback_affinity_finish();
+
+}
+
+// A117: executable Surge 13 application.
+extern(C) int listener_oracle_start(int port, int clients, int seed);
+
+extern(C) int listener_oracle_guard();
+
+extern(C) int listener_oracle_guard_close();
+
+extern(C) int listener_oracle_finish(int clients);
+
+async int serve_connection(owned TcpSocket socket, int seed) throws Error {
+
+	var bytes = new u8[4096];
+
+	int started = astra_net_milliseconds();
+
+	int used = 0;
+
+	while (used < len(bytes)) {
+
+		int count = len(bytes) - used;
+
+		if (count > 29) {
+			count = 29;
+
+		}
+
+		int progress = socket.try_read(bytes, used, count);
+
+		if (progress > 0) {
+			used = used + progress;
+
+		}
+
+		else {
+
+			if (progress == 0) {
+				throw new Error("early client EOF");
+
+			}
+
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+
+		}
+
+	}
+
+	int id = bytes[4] as int;
+
+	if (id < 1 || id > 8) {
+		throw new Error("invalid client identity");
+
+	}
+
+	for (int frame = 0; frame < 4; frame = frame + 1) {
+
+		int base = frame * 1024;
+
+		if (bytes[base] != 0 || bytes[base + 1] != 0 || bytes[base + 2] != 3 || bytes[base + 3] != 252) {
+			throw new Error("invalid frame extent");
+
+		}
+
+		for (int i = 0; i < 1020; i = i + 1) {
+
+			int expected = (id * 17 + seed + frame * 31 + i) % 251;
+
+			if (i == 0) {
+				expected = id;
+
+			}
+
+			if (i == 1) {
+				expected = 0;
+
+			}
+
+			if (i == 2) {
+				expected = 195;
+
+			}
+
+			if (i == 3) {
+				expected = 169;
+
+			}
+
+			if (bytes[base + 4 + i] != expected as u8) {
+				throw new Error("request byte corruption");
+
+			}
+
+		}
+
+	}
+
+	bool bounds = false;
+
+	try {
+		int ignored = socket.try_read(bytes, -1, 1);
+
+	}
+
+	catch (SocketError error) {
+		if (error.code != -22) {
+			throw;
+
+		}
+		bounds = true;
+
+	}
+
+	if (!bounds) {
+		throw new Error("missing buffer bound check");
+
+	}
+
+	// Preserve an immutable UTF-8 snapshot from the actual received frame.
+	var label = new u8[3];
+	label[0] = bytes[5]; label[1] = bytes[6]; label[2] = bytes[7];
+	var message = utf8_message(label);
+	label[1] = 120;
+	release label;
+	if (message.text != "\0é" || message.text.byte_length != 3) { throw new Error("UTF-8 snapshot changed"); }
+	int sent = 0;
+
+	while (sent < len(bytes)) {
+
+		int count = len(bytes) - sent;
+
+		if (count > 31) {
+			count = 31;
+
+		}
+
+		int progress = socket.try_write(bytes, sent, count);
+
+		if (progress > 0) {
+			sent = sent + progress;
+
+		}
+
+		else {
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+
+		}
+
+	}
+
+	socket.half_close();
+
+	while (true) {
+
+		int progress = socket.try_read(bytes, 0, 1);
+
+		if (progress == 0) {
+			break;
+
+		}
+
+		if (progress > 0) {
+			throw new Error("trailing client bytes");
+
+		}
+
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	return id;
+
+}
+
+async void refused_connection() throws Error {
+
+	int port = listener_oracle_guard();
+
+	{
+
+		var probe = new TcpSocket();
+		probe.open();
+
+		bool refused = false;
+
+		try {
+
+			int result = probe.connect(port);
+
+			int started = astra_net_milliseconds();
+
+			while (result == NetAgain || result == NetInterrupted) {
+
+				if (probe.ready(true) == 1) {
+					probe.connected();
+					break;
+
+				}
+
+				network_deadline(started, 10000);
+				await delay_ticks(1);
+
+			}
+
+		}
+		catch (SocketError error) {
+			if (error.code != -111) {
+				throw;
+
+			}
+			refused = true;
+
+		}
+
+		if (!refused) {
+			throw new Error("missing refused connection");
+
+		}
+
+	}
+
+	listener_oracle_guard_close();
+
+}
+
+async void serve(owned TcpSocket listener) throws Error{
+
+	int port=listener.local_port();
+	bool busy=false;
+
+	{
+		var duplicate=new TcpSocket();
+		duplicate.open();
+		try{
+			duplicate.listen(port,2);
+
+		}
+		catch(SocketError error){
+			if(error.code!=-98){
+				throw;
+
+			}
+			busy=true;
+
+		}
+
+	}
+
+	if(!busy){
+		throw new Error("missing busy endpoint");
+
+	}
+
+	listener_oracle_start(port,4,17);
+	int started=astra_net_milliseconds();
+
+	var s0=new TcpSocket();
+	while(!listener.accept_into(s0)){
+		network_deadline(started,10000);
+		await delay_ticks(1);
+
+	}
+
+	var t0=serve_connection(move s0,17);
+	start(t0);
+
+	try{
+
+		var s1=new TcpSocket();
+		while(!listener.accept_into(s1)){
+			network_deadline(started,10000);
+			await delay_ticks(1);
+
+		}
+
+		var t1=serve_connection(move s1,17);
+		start(t1);
+
+		try{
+
+			var s2=new TcpSocket();
+			while(!listener.accept_into(s2)){
+				network_deadline(started,10000);
+				await delay_ticks(1);
+
+			}
+
+			var t2=serve_connection(move s2,17);
+			start(t2);
+
+			try{
+
+				var s3=new TcpSocket();
+				while(!listener.accept_into(s3)){
+					network_deadline(started,10000);
+					await delay_ticks(1);
+
+				}
+
+				var t3=serve_connection(move s3,17);
+				start(t3);
+
+				int r3=await move t3;
+				if(r3<1 || r3>4){
+					throw new Error("client result");
+
+				}
+
+			}
+			catch(Error error){
+				await cancel_and_join(move t2);
+				throw;
+
+			}
+
+			int r2=await move t2;
+			if(r2<1 || r2>4){
+				throw new Error("client result");
+
+			}
+
+		}
+		catch(Error error){
+			await cancel_and_join(move t1);
+			throw;
+
+		}
+
+		int r1=await move t1;
+		if(r1<1 || r1>4){
+			throw new Error("client result");
+
+		}
+
+	}
+	catch(Error error){
+		await cancel_and_join(move t0);
+		throw;
+
+	}
+
+	int r0=await move t0;
+	if(r0<1 || r0>4){
+		throw new Error("client result");
+
+	}
+
+	await refused_connection();
+
+}
+
+// A118: executable Surge 13 application.
+extern(C) int udp_oracle_start();
+
+extern(C) int udp_oracle_finish();
+
+async int datagrams(owned UdpSocket socket, int port, int id) throws Error {
+
+	int started = astra_net_milliseconds();
+
+	var bytes = new u8[65507];
+
+	while (socket.try_send(port, bytes, 0, 0) < 0) {
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	while (true) {
+
+		int count = socket.try_receive(bytes, 0, 0);
+
+		if (count == 0) {
+			break;
+
+		}
+
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	if (socket.peer_port != port || socket.peer_ipv4 != 2130706433) {
+		throw new Error("UDP endpoint");
+
+	}
+
+	for (int i = 0; i < len(bytes); i = i + 1) {
+		bytes[i] = (i % 251) as u8;
+
+	}
+
+	bytes[0] = id as u8;
+	bytes[1] = 0;
+	bytes[2] = 195;
+	bytes[3] = 169;
+
+	while (socket.try_send(port, bytes, 0, len(bytes)) < 0) {
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	var reply = new u8[65507];
+
+	while (true) {
+
+		int count = socket.try_receive(reply, 0, len(reply));
+
+		if (count >= 0) {
+			if (count != len(bytes)) {
+				throw new Error("UDP boundary");
+
+			}
+			break;
+
+		}
+
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	for (int i = 0; i < len(bytes); i = i + 1) {
+		if (bytes[i] != reply[i]) {
+			throw new Error("UDP bytes");
+
+		}
+
+	}
+
+	bytes[0] = 7;
+
+	while (socket.try_send(port, bytes, 0, 1) < 0) {
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	bool truncated = false;
+
+	while (!truncated) {
+
+		try {
+			int count = socket.try_receive(reply, 0, 10);
+			if (count >= 0) {
+				throw new Error("UDP truncation was accepted");
+
+			}
+
+		}
+
+		catch (SocketError error) {
+			if (error.code != -90) {
+				throw;
+
+			}
+			truncated = true;
+
+		}
+
+		if (!truncated) {
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+
+		}
+
+	}
+
+	if (socket.try_receive(reply, 0, len(reply)) != NetAgain) {
+		throw new Error("UDP truncated packet retained");
+
+	}
+
+	bool bad_port = false;
+
+	try {
+		socket.try_send(65536, bytes, 0, 1);
+
+	}
+	catch (SocketError error) {
+		if (error.code != -22) {
+			throw;
+
+		}
+		bad_port = true;
+
+	}
+
+	if (!bad_port) {
+		throw new Error("UDP port validation");
+
+	}
+
+	bool oversized = false;
+
+	var large = new u8[65508];
+
+	try {
+		socket.try_send(port, large, 0, len(large));
+
+	}
+	catch (SocketError error) {
+		if (error.code != -90) {
+			throw;
+
+		}
+		oversized = true;
+
+	}
+
+	if (!oversized) {
+		throw new Error("UDP datagram limit");
+
+	}
+
+	bytes[0] = 8;
+
+	while (socket.try_send(port, bytes, 0, 1) < 0) {
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	while (true) {
+
+		int count = socket.try_receive(reply, 0, len(reply));
+
+		if (count >= 0) {
+			if (count != 5 || reply[0] != 65 || reply[1] != 0 || reply[2] != 195 || reply[3] != 169 || reply[4] != 33) {
+				throw new Error("UDP delayed bytes");
+
+			}
+			break;
+
+		}
+
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	return id;
+
+}
+
+async void udp_clients(int port) throws Error {
+
+	var sa = new UdpSocket();
+	sa.open(0);
+	var a = datagrams(move sa, port, 1);
+
+	var sb = new UdpSocket();
+	sb.open(0);
+	var b = datagrams(move sb, port, 2);
+
+	start(a);
+
+	try {
+		if (await move b != 2) {
+			throw new Error("UDP client b");
+
+		}
+
+	}
+
+	catch (Error error) {
+		await cancel_and_join(move a);
+		throw;
+
+	}
+
+	if (await move a != 1) {
+		throw new Error("UDP client a");
+
+	}
+
+}
+
+extern(C) int app_network_udp_phase();
+
+extern(C) int app_sample(int app,int tag,int value);
+
+extern(C) int app_drop(int app,int tag);
+
+extern(C) int app_finish(int app);
+
+[Shared,Monitor,Singleton]
+class Configuration {
+
+	private int seed;
+
+	private int events;
+
+	init(int seed,int events){
+		this.seed=seed;
+		this.events=events;
+
+	}
+
+	int read(){
+		return this.events;
+
+	}
+
+	int schedule(){
+		return this.seed;
+
+	}
+
+	void credit(int count){
+		this.events=this.events+count;
+
+	}
+
+	deinit(){
+		app_drop(120,1);
+
+	}
+
+}
+
+class ServiceResult {
+
+	private int events;
+
+	init(int events){
+		this.events=events;
+
+	}
+
+	int read(){
+		return this.events;
+
+	}
+
+	deinit(){
+		app_drop(120,0);
+
+	}
+
+}
+
+owned ServiceResult report(int events){
+	var result=new ServiceResult(events);
+	return move result;
+
+}
+
+async void service(owned TcpSocket listener,owned Configuration configuration) throws Error {
+
+	if(configuration.schedule()!=17){
+		throw new Error("configuration identity");
+
+	}
+
+	await serve(move listener);
+
+	listener_oracle_finish(4);
+
+	configuration.credit(4);
+
+	app_network_udp_phase();
+
+	int port=udp_oracle_start();
+
+	await udp_clients(port);
+
+	udp_oracle_finish();
+
+	configuration.credit(2);
+
+	var result=report(configuration.read());
+
+	app_sample(120,0,result.read());
+
+}
+
+export(C) int run_diagnostics(){
+
+	if(run_callbacks()!=0){
+		return 81;
+
+	}
+
+	try {
+
+		var root=new Configuration(17,8);
+		var weak=root.downgrade();
+
+		{
+
+			var executor=ThreadedExecutor.open(4);
+
+			var listener=new TcpSocket();
+			listener.open();
+			listener.listen(0,16);
+
+			var captured=root.clone();
+			var status=executor.run(service(move listener,move captured));
+
+			match(status){
+				case ThreadedStatus.Completed():{
+
+				}
+				else:{
+					return 82;
+
+				}
+
+			}
+
+		}
+
+		if(root.read()!=14){
+			return 83;
+
+		}
+
+		var retired=singleton_shutdown(root);
+		if(retired==null){
+			return 84;
+
+		}
+
+		release root;
+		release retired;
+
+		var expired=weak.upgrade();
+		if(expired!=null){
+			return 85;
+
+		}
+		release weak;
+
+	}
+	catch(Error error){
+		return 86;
+
+	}
+
+	return app_finish(120);
+
+}
+
+int main(){
+	return run_diagnostics();
+
+}

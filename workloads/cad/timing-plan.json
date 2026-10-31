@@ -1,0 +1,30 @@
+{
+	"status": "FROZEN_BEFORE_COMPARATIVE_SAMPLES",
+	"compiler": "4c59bf432a48bea7bf2bf262c296aa0c868ffec3",
+	"cad": "f415381f92daecfa683838206dffa5ea78d78477",
+	"cases": [
+		{
+			"name": "constant-37-119-213",
+			"source": "tests/test_cad.py:Synthetic.test_01_constants",
+			"input": [16, 12],
+			"output": [4, 3],
+			"rgb": [37, 119, 213],
+			"reason": "Small accepted image exposes startup, I/O and crossing overhead."
+		},
+		{
+			"name": "narrow-line",
+			"source": "tests/test_cad.py:Synthetic.test_08_narrow_line",
+			"input": [40, 40],
+			"output": [8, 8],
+			"generation": "RGB gray: zero at x == 18, otherwise 255",
+			"options": ["--pixel-art"],
+			"reason": "Nontrivial accepted numerical/convergence case with locality correction."
+		}
+	],
+	"repetitions": 7,
+	"balanced_orders": [["L", "P", "I"], ["P", "I", "L"], ["I", "L", "P"], ["I", "P", "L"], ["P", "L", "I"], ["L", "I", "P"], ["L", "P", "I"]],
+	"phases": ["compiler self-build (descriptive)", "actual application Astra compile and link", "application C adapter compilation", "full CLI", "numerical processing with bounded timing hooks"],
+	"policy": "No timing while compiler suites/builds, application qualification, evidence hashing or heavy archiving run. Retain raw times, output identities, iterations, median, min/max and interquartile spread. No performance pass threshold; L versus I is not a pure compiler comparison.",
+	"samples": [],
+	"ratios_examined": false
+}

@@ -1,0 +1,61 @@
+(program
+	(struct "S"
+		(field #0 "raw" : int)
+		(property #0 "value" : int (member #1)
+			(getter #0 -> int
+				(receiver Receiver<S> live mutable nonnull non-owning)
+				(parameters)
+				(block
+					(return (load (field-place (receiver (this : Receiver<S>)) (field #0 "raw" : int))))
+				)
+			)
+			(setter #0 -> void
+				(receiver Receiver<S> live mutable nonnull non-owning)
+				(parameters
+					(parameter #0 "next" : int)
+				)
+				(block
+					(store (field-place (receiver (this : Receiver<S>)) (field #0 "raw" : int)) (parameter-ref #0 "next" : int))
+				)
+			)
+		)
+		(method #0 "bump" (member #2) -> int
+			(receiver Receiver<S> mutable nonnull non-owning)
+			(parameters)
+			(block
+				(property-set (property #0 S::value) (setter #0) (receiver (this : Receiver<S>)) (value (binary + : int (property-get (property #0 S::value) (getter #0) (receiver (this : Receiver<S>)) : int effectful) (integer 1 : int))) : void effectful)
+				(return (load (field-place (receiver (this : Receiver<S>)) (field #0 "raw" : int))))
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : S)
+			(local #1 "b" : S address-taken)
+			(local #2 "first" : int)
+			(local #3 "p" : S*)
+		)
+		(block
+			(struct-local #0 "a" : S
+				(initialize-field #0 "raw" (integer 1 : int))
+			)
+			(struct-local #1 "b" : S
+				(initialize-field #0 "raw" (integer 2 : int))
+			)
+			(local-init #2 "first" : int (field-ref (local #0 "a" : S) (field #0 "raw" : int)))
+			(property-set (property #0 S::value) (setter #0) (receiver (receiver-address (local #1 "b") : Receiver<S>)) (value (integer 40 : int)) : void effectful)
+			(if
+				(condition (short-circuit || : bool (binary != : bool (local-ref #2 "first" : int) (integer 1 : int)) (binary != : bool (method-call "bump" -> int (target S::bump #0) (receiver (receiver-address (local #1 "b") : Receiver<S>)) (arguments)) (integer 41 : int))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(local-init #3 "p" : S* (address-of (local #1 "b" : S) : S*))
+			(assign-indirect-field (local-ref #3 "p" : S*) (field #0 "raw" : int) (integer 42 : int))
+			(return (property-get (property #0 S::value) (getter #0) (receiver (receiver-address (local #1 "b") : Receiver<S>)) : int effectful))
+		)
+	)
+)

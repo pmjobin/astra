@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[COMImport(name="catalog_entry16_protocol",iid="ef5eb6da-4c07-4edb-a4d9-1d62ede31d9e",threading="constructing",profile="declarations-v1")]
+interface ILensEntry16{
+	[Foreign(error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]init(borrowed void* unknown)throws LensCore16.Fault;
+	[Foreign(native="code",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]property i64 code throws LensCore16.Fault{get;}
+	[Foreign(native="score",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]property f64 score throws LensCore16.Fault{get;}
+}
+[COMImport(name="catalog16_protocol",iid="bbc8184e-eca4-4986-977b-f2710bf1395c",threading="constructing",profile="declarations-v1")]
+interface ILensQuery16{
+	[Foreign(error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]init(borrowed void* unknown)throws LensCore16.Fault;
+	[Foreign(native="resolve",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620",null_status="1")][ForeignChannel(parameter="result",nullable="true")]owned ILensEntry16 resolve(LensCore16.Query query)throws LensCore16.Fault;
+	[Foreign(native="lookup",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]LensCore16.Answer<f64> lookup(LensCore16.Query query)throws LensCore16.Fault;
+}
+[COMImport(name="catalog_metadata16_protocol",iid="4605c677-b6cb-4ecf-ada6-57d79502760f",threading="constructing",profile="declarations-v1")]
+interface ILensMetadata16{
+	[Foreign(error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]init(borrowed void* unknown)throws LensCore16.Fault;
+	[Foreign(native="requests",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]property int requests throws LensCore16.Fault{get;}
+	[Foreign(native="enabled",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]property bool enabled throws LensCore16.Fault{get;set(bool value);}
+	[Foreign(native="bias",error_factory="Lens16.foreign_fault",error_domain="16",errors="LensCore16.Fault=-1620")]property f64 bias throws LensCore16.Fault{get;set(f64 value);}
+}

@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+"""Observe actual returned base/count pairs through an independent LLVM entry."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import re
+import sys
+sys.dont_write_bytecode = True
+ROOT = Path(__file__).resolve().parents[2]
+spec = importlib.util.spec_from_file_location('observer', ROOT / 'tests/struct-elem-1/execute.py')
+observer = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(observer)
+run = observer.run
+
+def qualify(compiler, out):
+	out.mkdir(parents=True, exist_ok=False)
+	source = 'struct S{int x;f64 y;}owned T[] make<T>(int n){return new T[n];}owned T[] relay<T>(owned T[] a){return move a;}void consume<T>(owned T[] a){}'
+	for label, element in [('numeric', 'int'), ('record', 'S')]:
+		source += f'owned {element}[] {label}_make(int n){{return make<{element}>(n);}}owned {element}[] {label}_relay(owned {element}[] a){{return relay(move a);}}owned {element}[] {label}_clone({element}[] a){{return clone_array(a);}}void {label}_consume(owned {element}[] a){{consume(move a);}}'
+	(out / 'input.astra').write_text(source + '\n')
+	dumps = {}
+	for stage in ['core', 'instances', 'cfg', 'ssa', 'nabi', 'llvm']:
+		dumps[stage] = run([compiler, '--dump-' + stage, ROOT / 'lib/astra/base/slices.astra', ROOT / 'lib/astra/base/buffers.astra', 'input.astra'], out)
+		(out / ('input.' + stage)).write_text(dumps[stage])
+	functions = {name: ordinal for ordinal, name in re.findall(r'\(function #(\d+) "([^"]+)"', dumps['ssa'])}
+	entry = ['declare void @gb_pair(ptr, i32, i32, i32)', 'declare void @gb_live(i32)', 'define i32 @main() {']
+	identity = 0
+	ledger = []
+	for label, stride in [('numeric', 4), ('record', 16)]:
+		for count in [0, 3]:
+			stem = label + str(count)
+			for operation, argument in [('make', f'i32 {count}'), ('clone', f'ptr %{stem}make_base, i32 %{stem}make_count'), ('relay', f'ptr %{stem}make_base, i32 %{stem}make_count')]:
+				name = stem + operation
+				if operation != 'relay' and count:
+					identity += 1
+				owner = (identity - 1 if operation == 'relay' else identity) if count else 0
+				entry += [f'\t%{name} = call fastcc {{ ptr, i32 }} @astra.fn.{functions[label + "_" + operation]}({argument})', f'\t%{name}_base = extractvalue {{ ptr, i32 }} %{name}, 0', f'\t%{name}_count = extractvalue {{ ptr, i32 }} %{name}, 1', f'\tcall void @gb_pair(ptr %{name}_base, i32 %{name}_count, i32 {owner}, i32 {stride})']
+				ledger.append(dict(label=label, operation=operation, count=count, owner=owner, stride=stride, function=functions[label + '_' + operation]))
+			for operation in ['relay', 'clone']:
+				entry.append(f'\tcall fastcc void @astra.fn.{functions[label + "_consume"]}(ptr %{stem}{operation}_base, i32 %{stem}{operation}_count)')
+			entry.append('\tcall void @gb_live(i32 0)')
+	entry += ['\tret i32 0', '}']
+	ir = dumps['llvm'] + '\n' + '\n'.join(entry) + '\n'
+	assert 'sret' not in ir and 'byval' not in ir
+	companions = {}
+	for cc in ['gcc', 'clang']:
+		companions[cc] = out / (cc + '-observer.o')
+		run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', ROOT / 'tests/gen-buffer-1/companion.c', '-o', companions[cc]])
+	rows = []
+	for mode in ['O0', 'O2', 'O2-fma', 'preserved-O2']:
+		inp, optimized, obj = out / (mode + '-input.ll'), out / (mode + '.ll'), out / (mode + '.o')
+		inp.write_text(re.sub(r'^define internal fastcc ([^\n]+) \{$', r'define fastcc \1 noinline {', ir, flags=re.M) if mode == 'preserved-O2' else ir)
+		run(['opt', '-passes=verify' if mode == 'O0' else '-passes=default<O2>', '-S', inp.name, '-o', optimized.name], out)
+		run(['opt', '-passes=verify', '-disable-output', optimized.name], out)
+		run(['llc', '-O0' if mode == 'O0' else '-O2', '-filetype=obj', '-relocation-model=pic', *(['-mattr=+fma'] if mode == 'O2-fma' else []), optimized.name, '-o', obj.name], out)
+		for cc, companion in companions.items():
+			binary = out / (mode + '-' + cc)
+			run([cc, obj, companion, '-Wl,--wrap=calloc,--wrap=free', '-o', binary])
+			observed = run([binary])
+			(out / (binary.name + '.stdout')).write_text(observed)
+			assert observed == 'A1:3:4\nA2:3:4\nF1\nF2\nA3:3:16\nA4:3:16\nF3\nF4\n', (mode, cc, observed)
+			rows.append(dict(mode=mode, compiler=cc, sha256=hashlib.sha256(binary.read_bytes()).hexdigest()))
+		for suffix, command in [('machine', ['objdump', '-dr']), ('symbols', ['readelf', '-h', '-Ws', '-r']), ('size', ['size', '-A']), ('undefined', ['nm', '-u'])]:
+			(out / (mode + '.' + suffix)).write_text(run([*command, obj]))
+	(out / 'results.json').write_text(json.dumps(dict(ledger=ledger, runs=rows), indent='\t') + '\n')
+	print('8 independent native pair observations; exact allocation/relay identity, count and empty groups')
+
+if __name__ == '__main__':
+	sys.dont_write_bytecode = True
+	sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/qualification'))
+	from output_paths import fresh_output
+	sys.argv[-1] = str(fresh_output(sys.argv[-1]))
+	qualify(Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve())

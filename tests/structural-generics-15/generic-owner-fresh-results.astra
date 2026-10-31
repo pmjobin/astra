@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class FreshChild {
+	private owned R guard;
+	private int number;
+	init(owned R guard, int number) {
+		this.guard = move guard;
+		this.number = number;
+	}
+	int read() { return id(this.guard) + this.number; }
+	deinit() { mark(2200 + this.number); }
+}
+owned T echo<T>(owned T input) where T:Ownable { return move input; }
+owned T acquire<T>(owned T input) where T:Ownable {
+	owned T received = echo<T>(move input);
+	owned T result = move received;
+	return move result;
+}
+class CallerFactory<T> {
+	init() {}
+	owned T create(owned R guard, int number) {
+		return FreshChild.init(move guard, number);
+	}
+}
+owned T forward<T>(borrowed CallerFactory<T> factory, owned R guard, int number) where T:Ownable {
+	return factory.create(move guard, number);
+}
+void retire<T>(borrowed CallerFactory<T> factory, owned R guard, int number) where T:Ownable {
+	owned T first = factory.create(move guard, number);
+	owned T second = move first;
+	{
+		owned T last = move second;
+	}
+}
+int exercise() {
+	{
+		var input = make(251);
+		var result = acquire<R>(move input);
+		if (id(result) != 251) { return 1; }
+	}
+	{
+		var input = make_other(252);
+		var result = acquire<Other>(move input);
+		if (other_id(result) != 252) { return 2; }
+	}
+	{
+		var guard = make(253);
+		var input = new FreshChild(move guard, 1);
+		var result = acquire<FreshChild>(move input);
+		if (result.read() != 254) { return 3; }
+	}
+	{
+		var guard = make(254);
+		owned FreshChild input = FreshChild.init(move guard, 2);
+		var result = acquire<FreshChild>(move input);
+		if (result.read() != 256) { return 4; }
+	}
+	{
+		var factory = new CallerFactory<FreshChild>();
+		var guard = make(255);
+		var result = forward<FreshChild>(factory, move guard, 3);
+		if (result.read() != 258) { return 5; }
+	}
+	{
+		var factory = new CallerFactory<FreshChild>();
+		var guard = make(240);
+		retire<FreshChild>(factory, move guard, 4);
+	}
+	return live();
+}
+int main() { return exercise(); }

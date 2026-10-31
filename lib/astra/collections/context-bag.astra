@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Instance-selected backing; each element preserves its own allocation origin.
+[Allocator(kind="context",context="owned-concurrent")]
+class ContextBag<T> where T : ExactHeapClass {
+	owned T[slots] entries;
+	init() { this.entries = new T[slots]; }
+	bool reserve(int requested) { return this.entries.reserve(requested); }
+	void append(owned T value) { this.entries.append(move value); }
+	int count() { return len(this.entries); }
+	int capacity() { return this.entries.capacity; }
+	owned T take(int index) { var value = this.entries.take(index); return move value; }
+	void replace(int index, owned T value) { this.entries.replace(index, move value); }
+}

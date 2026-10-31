@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	int result = exercise_copied_formals();
+	if (result != 0) { return result; }
+	result = exercise_owner_formals();
+	if (result != 0) { return result; }
+	return live();
+}
+struct FormalStamp { int number; bool enabled; }
+class FormalChild {
+	private int serial;
+	init(int serial) { this.serial = serial; }
+	int read() { return this.serial; }
+	deinit() { mark(this.serial); }
+}
+class FormalEnvelope<T> {
+	private owned T value;
+	private int serial;
+	init(owned T value, int serial) {
+		this.value = move value;
+		this.serial = serial;
+	}
+	int code() { return this.serial; }
+	property borrowed T view { get { return this.value; } }
+	deinit() { mark(this.serial); }
+}
+int retire_copied_formal<T>(owned FormalEnvelope<T> value) {
+	return value.code();
+}
+int retire_owner_formal<T>(owned FormalEnvelope<T> value) where T:Ownable {
+	return value.code();
+}
+int exercise_copied_formals() {
+	owned FormalEnvelope<int> number = FormalEnvelope<int>.init(41, 1501);
+	if (number.view != 41) { return 10; }
+	if (retire_copied_formal<int>(move number) != 1501) { return 1; }
+	owned FormalEnvelope<bool> flag = FormalEnvelope<bool>.init(true, 1502);
+	if (!flag.view) { return 11; }
+	if (retire_copied_formal(move flag) != 1502) { return 2; }
+	FormalStamp stamp = { number=42, enabled=true };
+	owned FormalEnvelope<FormalStamp> record = FormalEnvelope<FormalStamp>.init(stamp, 1503);
+	if (record.view.number != 42 || !record.view.enabled) { return 12; }
+	if (retire_copied_formal<FormalStamp>(move record) != 1503) { return 3; }
+	return 0;
+}
+int exercise_owner_formals() {
+	var witness = make(201);
+	owned FormalEnvelope<R> resource = FormalEnvelope<R>.init(move witness, 1504);
+	if (id(resource.view) != 201) { return 13; }
+	if (retire_owner_formal<R>(move resource) != 1504) { return 4; }
+	var child = new FormalChild(1505);
+	owned FormalEnvelope<FormalChild> object = FormalEnvelope<FormalChild>.init(move child, 1506);
+	if (object.view.read() != 1505) { return 14; }
+	if (retire_owner_formal(move object) != 1506) { return 5; }
+	return live();
+}

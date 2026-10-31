@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]class ImportedFault{readonly string text;init(){this.text="query SDK failure";}virtual property string message{get{return this.text;}}}
+owned ImportedFault imported_fault(int domain,int status){var result=new ImportedFault();return move result;}
+@BINDINGS@
+[CImport(name="orbit16_roundtrip_note")]int note(int value);
+class Observer{private int calls;init(){this.calls=0;}void receive(int requests,bool matched,f32 score){if((requests==1 && matched && score==0.5)||(requests==2 && !matched && score==0.0)){this.calls=this.calls+1;note(requests);}else{note(-1);}}deinit(){note(100+this.calls);}}
+void receive(borrowed Observer observer,int requests,bool matched,f32 score){observer.receive(requests,matched,score);}
+export(C)int orbit16_roundtrip_run(){try{
+	var index=ImportedDirectory.init();if(index.requests!=0 || !index.enabled || index.bias!=0.0){return 1;}var initial=index.last;if(initial!=null){return 2;}
+	var source=ImportedDirectory_signal_completed_source(index);var observer=new Observer();var handler=closure_bind(move observer,receive);if(source==null || retained_signal_register(handler,gir_signal16_mode(source))!=0){return 3;}
+	@QUERY@ query={boost=0.0,ceiling=10.0,minimum=0,cap=0,mask=7,lowest=true};var answer=index.scan(query);if(answer.code!=83 || answer.score!=0.5 || answer.matches!=3 || !answer.found){return 4;}var held=index.last;if(held==null || held.code!=83 || held.score!=0.5){return 5;}
+	index.bias=1.0;query.ceiling=3.0;query.mask=3;var missing=index.entry_for(query);if(missing!=null || index.requests!=2){return 6;}var description=index.description;if(len(description)!=15){return 7;}
+	if(retained_signal_revoke(handler)!=1 || retained_signal_observe(handler)!=1){return 8;}release handler;
+	index.enabled=false;try{var ignored=index.scan(query);return 9;}catch(ImportedFault fault){}
+	release index;if(held.code!=83){return 10;}
+}catch(ImportedFault fault){return 90;}return 0;}

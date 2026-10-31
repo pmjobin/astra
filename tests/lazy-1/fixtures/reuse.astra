@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int lazy_event(int code, int value);
+extern(C) int lazy_reused();
+class Reused {
+	int input;
+	int calls;
+	init(int input) { this.input = input; this.calls = 0; }
+	lazy property int value { get { this.calls = this.calls + 1; return lazy_event(82, this.input); } }
+}
+int main() {
+	{ var first = new Reused(42); if (first.value != 42 || first.value != 42 || first.calls != 1) { return 81; } first.input = 17; }
+	{ var second = new Reused(17); if (second.value != 17 || second.value != 17 || second.calls != 1) { return 82; } }
+	if (lazy_reused() != 1) { return 83; }
+	return 42;
+}

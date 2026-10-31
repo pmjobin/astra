@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class AllocationWitness {
+	private int serial;
+	init(int serial) { this.serial = serial; }
+	deinit() { mark(this.serial); }
+}
+class AllocatedCell<Value> {
+	private Value payload;
+	private int serial;
+	init(Value payload, int serial) {
+		this.payload = payload;
+		this.serial = serial;
+	}
+	property Value value { get { return this.payload; } }
+	deinit() { mark(this.serial); }
+}
+void retire<Value>(owned Value value) where Value:Ownable {}
+void retire_pair<Value>(owned Value first, owned Value second, bool choose) where Value:Ownable {
+	if (choose) { retire<Value>(move first); }
+	else { retire(move first); }
+	while (true) {
+		retire<Value>(move second);
+		break;
+	}
+}
+void retire_recursive<Value>(owned Value value, int depth) where Value:Ownable {
+	if (depth > 0) { retire_recursive<Value>(move value, depth - 1); }
+}
+void retire_dead<Value>(owned Value value) where Value:Ownable {
+	while (false) { retire<Value>(move value); }
+}
+owned Value relay_loop<Value>(owned Value value) where Value:Ownable {
+	while (true) { return move value; }
+}
+owned Value relay_owner<Value>(owned Value value, bool direct) where Value:Ownable {
+	if (direct) { return move value; }
+	return relay_owner<Value>(move value, true);
+}
+Value retire_cell<Value>(owned AllocatedCell<Value> cell) { return cell.value; }
+int retire_checked<Value>(owned Value value, bool fail) throws Error where Value:Ownable {
+	if (fail) { throw new Error("checked consumer"); }
+	return 42;
+}
+int retire_on_flag<Value>(owned Value value, bool flag) where Value:Ownable {
+	if (flag) { return 42; }
+	return 43;
+}
+bool fail_later_argument() throws Error {
+	mark(1618);
+	throw new Error("later argument");
+}
+int main() {
+	owned AllocationWitness first = AllocationWitness.init(1601);
+	owned AllocationWitness second = AllocationWitness.init(1602);
+	retire_pair<AllocationWitness>(move first, move second, true);
+	owned AllocationWitness third = AllocationWitness.init(1603);
+	var fourth = new AllocationWitness(1604);
+	retire_pair(move third, move fourth, false);
+	var fifth = new AllocationWitness(1605);
+	owned AllocationWitness sixth = AllocationWitness.init(1606);
+	retire_pair<AllocationWitness>(move fifth, move sixth, false);
+	var seventh = new AllocationWitness(1607);
+	var eighth = new AllocationWitness(1608);
+	retire_pair(move seventh, move eighth, true);
+	var ninth = new AllocationWitness(1609);
+	retire_recursive<AllocationWitness>(move ninth, 3);
+	owned AllocatedCell<int> lexical = AllocatedCell<int>.init(41, 1610);
+	var heap = new AllocatedCell<int>(42, 1611);
+	if (retire_cell<int>(move lexical) != 41 || retire_cell(move heap) != 42) { return 1; }
+	var original = new AllocationWitness(1612);
+	var returned = relay_owner<AllocationWitness>(move original, false);
+	release returned;
+	var untouched = new AllocationWitness(1613);
+	retire_dead<AllocationWitness>(move untouched);
+	var loop_original = new AllocationWitness(1614);
+	var loop_returned = relay_loop<AllocationWitness>(move loop_original);
+	release loop_returned;
+	owned AllocationWitness checked_owner = AllocationWitness.init(1615);
+	try { retire_checked<AllocationWitness>(move checked_owner, true); return 2; }
+	catch (Error error) { mark(1616); }
+	var pending = new AllocationWitness(1617);
+	try { retire_on_flag(move pending, fail_later_argument()); return 3; }
+	catch (Error error) { mark(1619); }
+	if (retire_on_flag(move pending, true) != 42) { return 4; }
+	return live();
+}

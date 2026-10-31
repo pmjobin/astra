@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+u8 choose8(bool c, u8 a, u8 b) { u8 x = 1; if (c) { x = a / b; } else { x = a % b; } return x; }
+i16 choose16(bool c, i16 a, i16 b) { i16 x = 1; if (c) { x = a / b; } else { x = a % b; } return x; }
+u32 choose32(bool c, u32 a, u32 b) { u32 x = 1; if (c) { x = a / b; } else { x = a % b; } return x; }
+bool short8(bool c, i8 a, i8 b) { return c && a / b == -128 || !c && a % b == 0; }
+bool short16(bool c, i16 a, i16 b) { return c && a / b == -32768 || !c && a % b == 0; }
+int main() {
+	if (choose8(true, 255, 2) != 127 || choose8(false, 255, 2) != 1) { return 1; }
+	if (choose16(true, -32768, -1) != -32768 || choose16(false, -32768, -1) != 0) { return 2; }
+	if (choose16(true, -7, 3) != -2 || choose16(false, -7, 3) != -1) { return 3; }
+	if (choose32(true, 4294967295, 2) != 2147483647 || choose32(false, 4294967295, 2) != 1) { return 4; }
+	if (!short8(true, -128, -1) || !short8(false, -128, -1) || !short16(true, -32768, -1) || !short16(false, -32768, -1)) { return 5; }
+	return 0;
+}

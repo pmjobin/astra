@@ -1,0 +1,52 @@
+; ModuleID = 'astra.scalar'
+source_filename = "astra.scalar"
+
+define internal fastcc i32 @astra.fn.0(ptr %p0.base, i32 %p0.length, i32 %p1) {
+b0:
+  %p0.with.base = insertvalue { ptr, i32 } zeroinitializer, ptr %p0.base, 0
+  %p0 = insertvalue { ptr, i32 } %p0.with.base, i32 %p0.length, 1
+  %slice.bounds0.length = extractvalue { ptr, i32 } %p0, 1
+  %slice.bounds0.index.math = sext i32 %p1 to i64
+  %slice.bounds0.length.math = zext i32 %slice.bounds0.length to i64
+  %slice.bounds0.negative = icmp slt i64 %slice.bounds0.index.math, 0
+  %slice.bounds0.oversized = icmp sge i64 %slice.bounds0.index.math, %slice.bounds0.length.math
+  %slice.bounds0.invalid = or i1 %slice.bounds0.negative, %slice.bounds0.oversized
+  br i1 %slice.bounds0.invalid, label %slice.bounds0.trap, label %slice.bounds0.valid
+
+slice.bounds0.trap:                               ; preds = %b0
+  call void @llvm.trap()
+  unreachable
+
+slice.bounds0.valid:                              ; preds = %b0
+  %memory1.base = extractvalue { ptr, i32 } %p0, 0
+  %memory1.ordinal = zext i32 %p1 to i64
+  %memory1.element = getelementptr { ptr, i32 }, ptr %memory1.base, i64 %memory1.ordinal
+  %v3 = load { ptr, i32 }, ptr %memory1.element, align 8
+  %v4 = extractvalue { ptr, i32 } %p0, 1
+  %v5 = extractvalue { ptr, i32 } %v3, 1
+  %v6 = add i32 %v4, %v5
+  ret i32 %v6
+}
+
+define internal fastcc i32 @astra.fn.1(ptr %p0.base, i32 %p0.length) {
+b0:
+  %p0.with.base = insertvalue { ptr, i32 } zeroinitializer, ptr %p0.base, 0
+  %p0 = insertvalue { ptr, i32 } %p0.with.base, i32 %p0.length, 1
+  %v1 = extractvalue { ptr, i32 } %p0, 1
+  %v2 = icmp eq i32 %v1, 0
+  br i1 %v2, label %b1, label %b2
+
+b1:                                               ; preds = %b0
+  ret i32 0
+
+b2:                                               ; preds = %b0
+  %arg0.base = extractvalue { ptr, i32 } %p0, 0
+  %arg0.length = extractvalue { ptr, i32 } %p0, 1
+  %v3 = call fastcc i32 @astra.fn.0(ptr %arg0.base, i32 %arg0.length, i32 0)
+  ret i32 %v3
+}
+
+; Function Attrs: cold noreturn nounwind memory(inaccessiblemem: write)
+declare void @llvm.trap() #0
+
+attributes #0 = { cold noreturn nounwind memory(inaccessiblemem: write) }

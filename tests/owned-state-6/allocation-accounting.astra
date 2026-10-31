@@ -1,0 +1,18 @@
+// Public -c witness; C observes allocations and invokes this exported function.
+extern(C) int arena_checkpoint(int phase, int live, int calls, int bytes);
+export(C) int arena_accounting() {
+	try {
+		{
+			var arena = byte_arena(64, 8);
+			if (arena_checkpoint(1, 6, 6, 288) != 0) { return 81; }
+			int first = arena.allocate(3, 1); int second = arena.allocate(7, 8);
+			arena.write(first, 0, 42); arena.write(second, 6, 255);
+			if (arena_checkpoint(2, 6, 6, 288) != 0 || arena.read(first, 0) != 42 || arena.read(second, 6) != 255) { return 82; }
+			try { arena.allocate(2147483647, 16); return 83; } catch(ArenaError error) {}
+			if (arena_checkpoint(3, 6, -1, 288) != 0) { return 84; }
+			arena.release_last(second); arena.release_last(first);
+		}
+		if (arena_checkpoint(4, 0, -1, 0) != 0) { return 85; }
+	} catch(ArenaError error) { return 86; }
+	return 0;
+}

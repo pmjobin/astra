@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Scale {
+	f64 value;
+	property f64 doubled { get { return this.value * 2.0d; } }
+	f64 apply(f64 n) { return this.value * n; }
+	int init() { return 7; }
+}
+int main() {
+	Scale scale = { value = 2.5d };
+	f64 read = scale.doubled;
+	f64 result = scale.apply(4.0d);
+	int ordinary_init = scale.init() + 1;
+	if (read == 5.0d && result == 10.0d && ordinary_init == 8) { return 0; }
+	return 1;
+}

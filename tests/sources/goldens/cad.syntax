@@ -1,0 +1,194 @@
+(program
+	(source "tests/sources/fixtures/cad/cad-math.astra"
+		(unit
+			(function
+				(type "f64")
+				(name "quadratic")
+				(parameters
+					(parameter (type "Vec2") (name "point"))
+					(parameter (type "SymMat2") (name "matrix"))
+				)
+				(block
+					(return (binary "+" (binary "+" (binary "*" (binary "*" (field-access "point" "x") (field-access "point" "x")) (field-access "matrix" "xx")) (binary "*" (binary "*" (binary "*" (float "2.0d") (field-access "point" "x")) (field-access "point" "y")) (field-access "matrix" "xy"))) (binary "*" (binary "*" (field-access "point" "y") (field-access "point" "y")) (field-access "matrix" "yy"))))
+				)
+			)
+			(function
+				(type "Lab")
+				(name "transform")
+				(parameters
+					(parameter (type "Lab") (name "input"))
+				)
+				(block
+					(inferred-local (name "result") (name "input"))
+					(assign (field-access "result" "l") (binary "*" (field-access "result" "l") (float "2.0d")))
+					(return (name "result"))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/cad/cad-process.astra"
+		(unit
+			(function
+				(type "void")
+				(name "initialize")
+				(parameters
+					(parameter (type "f64[]") (name "values"))
+				)
+				(block
+					(local (type "int") (name "i") (integer "0"))
+					(while
+						(condition (binary "<" (name "i") (len-form (arguments (name "values")))))
+						(body
+							(block
+								(indexed-assignment (index (name "values") (name "i")) (binary "+" (parenthesized (as (name "i") (type "f64"))) (float "1.0d")))
+								(assign (name "i") (binary "+" (name "i") (integer "1")))
+							)
+						)
+					)
+				)
+			)
+			(function
+				(type "int")
+				(name "process")
+				(parameters
+					(parameter (type "CadState") (name "state"))
+				)
+				(block
+					(call-statement (call "initialize" (arguments (field-access "state" "weights"))))
+					(struct-local (type "Vec2") (name "point")
+						(initialize-field "x" (float "1.0d"))
+						(initialize-field "y" (float "2.0d"))
+					)
+					(struct-local (type "SymMat2") (name "matrix")
+						(initialize-field "xx" (float "1.0d"))
+						(initialize-field "xy" (float "0.0d"))
+						(initialize-field "yy" (float "1.0d"))
+					)
+					(struct-local (type "Lab") (name "color")
+						(initialize-field "l" (float "3.0d"))
+						(initialize-field "a" (float "0.0d"))
+						(initialize-field "b" (float "0.0d"))
+					)
+					(inferred-local (name "transformed") (call "transform" (arguments (name "color"))))
+					(local (type "int") (name "i") (integer "0"))
+					(inferred-local (name "count") (field-access "state" "count"))
+					(while
+						(condition (binary "<" (name "i") (name "count")))
+						(body
+							(block
+								(indexed-assignment (index (field-access "state" "scratch") (name "i")) (binary "*" (index (field-access "state" "weights") (name "i")) (call "quadratic" (arguments (name "point") (name "matrix")))))
+								(assign (name "i") (binary "+" (name "i") (integer "1")))
+							)
+						)
+					)
+					(if
+						(condition (short-circuit "||" (short-circuit "||" (binary "!=" (index (field-access "state" "scratch") (binary "-" (name "count") (integer "1"))) (float "20.0d")) (binary "!=" (field-access "color" "l") (float "3.0d"))) (binary "!=" (field-access "transformed" "l") (float "6.0d"))))
+						(then
+							(block
+								(return (integer "1"))
+							)
+						)
+					)
+					(return (integer "0"))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/cad/cad-state.astra"
+		(unit
+			(class "CadState"
+				(owned-field (type "f64[]") (name "weights"))
+				(owned-field (type "f64[]") (name "scratch"))
+				(field (type "int") (name "width"))
+				(constructor
+					(name "init")
+					(parameters
+						(parameter (type "int") (name "count"))
+					)
+					(block
+						(assign (field-access "this" "weights") (call "make_buffer" (arguments (name "count"))))
+						(assign (field-access "this" "scratch") (call "make_buffer" (arguments (name "count"))))
+						(assign (field-access "this" "width") (name "count"))
+					)
+				)
+				(property (type "int") (name "count")
+					(getter
+						(block
+							(return (field-access "this" "width"))
+						)
+					)
+				)
+				(method
+					(type "int")
+					(name "run")
+					(parameters)
+					(block
+						(call-statement (call "initialize" (arguments (field-access "this" "weights"))))
+						(return (integer "0"))
+					)
+				)
+			)
+			(function
+				(owned-result)
+				(type "f64[]")
+				(name "make_buffer")
+				(parameters
+					(parameter (type "int") (name "count"))
+				)
+				(block
+					(return (owned-buffer-allocate (element f64) (count (name "count"))))
+				)
+			)
+			(function
+				(owned-result)
+				(type "CadState")
+				(name "make_state")
+				(parameters
+					(parameter (type "int") (name "count"))
+				)
+				(block
+					(return (method-call (receiver "CadState") (target "init") (arguments (name "count"))))
+				)
+			)
+		)
+	)
+	(source "tests/sources/fixtures/cad/cad-types.astra"
+		(unit
+			(struct "Vec2"
+				(field (type "f64") (name "x"))
+				(field (type "f64") (name "y"))
+			)
+			(struct "Lab"
+				(field (type "f64") (name "l"))
+				(field (type "f64") (name "a"))
+				(field (type "f64") (name "b"))
+			)
+			(struct "SymMat2"
+				(field (type "f64") (name "xx"))
+				(field (type "f64") (name "xy"))
+				(field (type "f64") (name "yy"))
+			)
+		)
+	)
+	(source "tests/sources/fixtures/cad/main.astra"
+		(unit
+			(function
+				(type "int")
+				(name "main")
+				(parameters)
+				(block
+					(inferred-local (name "state") (call "make_state" (arguments (integer "4"))))
+					(if
+						(condition (binary "!=" (method-call (receiver "state") (target "run") (arguments)) (integer "0")))
+						(then
+							(block
+								(return (integer "1"))
+							)
+						)
+					)
+					(return (call "process" (arguments (name "state"))))
+				)
+			)
+		)
+	)
+)

@@ -1,0 +1,23 @@
+(ssa-program
+	(function #0 "recurse" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary == %0 (integer 0 : int))
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 0 : int))
+		)
+		(block #2
+			(%2 : int = binary - %0 (integer 1 : int))
+			(%3 : int = call #0 "recurse" -> int (arguments %2))
+			(return %3)
+		)
+	)
+)

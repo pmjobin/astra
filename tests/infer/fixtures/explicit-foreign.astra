@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) f64 inf_double();
+int main() {
+	f64 c_value = inf_double();
+	f64 vapi_value = foreign_double();
+	f32 single = foreign_float();
+	if (c_value == 1.0000000000000002d && vapi_value == c_value && single == 1.5f) { return 0; }
+	return 1;
+}

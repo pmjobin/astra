@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned R consumer_result(int tag) {
+	var value = make(tag);
+	return move value;
+}
+int exercise() {
+	Fn<owned R,int> code = ResourceResultTransport.callback();
+	var first = code(201);
+	var second = ResourceResultTransport.apply(code, 202);
+	var third = ResourceResultTransport.apply(consumer_result, 203);
+	var fourth = ResourceResultTransport.direct(204);
+	if (id(first) != 201 || id(second) != 202 || id(third) != 203 || id(fourth) != 204) { return 1; }
+	return 0;
+}
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

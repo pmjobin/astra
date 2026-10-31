@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int shared_app_event(int stage,int value);
+class Payload {
+	int value;
+	init(int value){this.value=value;shared_app_event(1,value);}
+	deinit(){shared_app_event(2,this.value);}
+}
+void fail(owned Shared<Payload> strong) throws Error {
+	var extra=shared_clone(strong);
+	throw new Error("shared failure");
+}
+int main(){
+	var payload=new Payload(10);
+	var strong=shared_acquire(move payload);
+	var weak=shared_downgrade(strong);
+	try{fail(move strong);return 81;}
+	catch(Error error){if(error.message!="shared failure"){return 82;}shared_app_event(3,1);}
+	var expired=weak_upgrade(weak);
+	if(expired!=null){return 83;}
+	shared_app_event(4,-1);
+	return 0;
+}

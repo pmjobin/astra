@@ -1,0 +1,72 @@
+--- a/meson.build
++++ b/meson.build
+@@ -5,26 +5,24 @@
+ math = cc.find_library('m')
+ # An explicit shared linker input lets the existing Astra --link-object flow
+ # carry dependencies. Tests set the build directory as the runtime library path.
+-adapter = shared_library('cad-io', 'native/adapter.c', dependencies: [png, math], install: false)
+-join = files('tools/join-source.sh')
+-shell = find_program('sh')
+-numeric_source = custom_target('numeric-source', input: ['src/numeric.astra', 'tests/numeric.astra'], output: 'numeric-tests.astra', command: [shell, join, '@OUTPUT@', '@INPUT@'])
++adapter = shared_library('cad-io', ['native/adapter.c', 'native/arguments.c'], dependencies: [png, math], install: false)
++numeric_source = files(['src/numeric.astra', 'tests/numeric.astra'])
+ numeric_tests = custom_target('numeric-tests', input: numeric_source, output: 'numeric-tests', command: [astrac, '@INPUT@', '--link-object', adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+ test('numeric-foundation', numeric_tests, env: environment({'LD_LIBRARY_PATH': meson.current_build_dir(), 'CCACHE_DIR': '/tmp/astra-cad-ccache'}))
+-cad_source = custom_target('cad-source', input: ['src/numeric.astra', 'src/algorithm.astra', 'src/main.astra'], output: 'cad.astra', command: [shell, join, '@OUTPUT@', '@INPUT@'])
+-cad = custom_target('astra-cad', input: cad_source, output: 'astra-cad', command: [astrac, '@INPUT@', '--link-object', adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+-algorithm_source = custom_target('algorithm-test-source', input: ['src/numeric.astra', 'src/algorithm.astra', 'tests/algorithm.astra'], output: 'algorithm-tests.astra', command: [shell, join, '@OUTPUT@', '@INPUT@'])
++cad_source = files(['src/numeric.astra', 'src/algorithm.astra', 'src/main.astra', 'src/entry.astra'])
++cad = custom_target('astra-cad', input: cad_source, output: 'astra-cad', command: [astrac, '@INPUT@', '--link-object', adapter, '--link-object', get_option('args_provider'), '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
++algorithm_source = files(['src/numeric.astra', 'src/algorithm.astra', 'tests/algorithm.astra'])
+ algorithm_tests = custom_target('algorithm-tests', input: algorithm_source, output: 'algorithm-tests', command: [astrac, '@INPUT@', '--link-object', adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+ test('algorithm-foundation', algorithm_tests, env: environment({'LD_LIBRARY_PATH': meson.current_build_dir(), 'CCACHE_DIR': '/tmp/astra-cad-ccache'}))
+ python = find_program('python3')
+ foreach suite : ['Analytical', 'Errors', 'Differential', 'Synthetic']
+ 	test(suite.to_lower(), python, args: [files('tests/test_cad.py'), suite, '-v'], env: environment({'ASTRA_CAD': cad.full_path(), 'CAD_TEST_OUTPUT': meson.current_build_dir() / 'test-results' / suite}), depends: [cad, numeric_tests], timeout: 7200)
+ endforeach
+-orientation_source = custom_target('orientation-test-source', input: ['src/numeric.astra', 'src/algorithm.astra', 'tests/orientation.astra'], output: 'orientation-tests.astra', command: [shell, join, '@OUTPUT@', '@INPUT@'])
+-orientation_tests = custom_target('orientation-tests', input: orientation_source, output: 'orientation-tests', command: [astrac, '@INPUT@', '--link-object', adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+-test_adapter = shared_library('cad-test-io', ['native/adapter.c', 'tests/state_io.c'], dependencies: [png, math], install: false)
+-step_source = custom_target('step-test-source', input: ['src/numeric.astra', 'src/algorithm.astra', 'tests/step.astra'], output: 'step-tests.astra', command: [shell, join, '@OUTPUT@', '@INPUT@'])
+-step_tests = custom_target('step-tests', input: step_source, output: 'step-tests', command: [astrac, '@INPUT@', '--link-object', test_adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: test_adapter)
++orientation_source = files(['src/numeric.astra', 'src/algorithm.astra', 'tests/orientation.astra', 'src/entry.astra'])
++orientation_tests = custom_target('orientation-tests', input: orientation_source, output: 'orientation-tests', command: [astrac, '@INPUT@', '--link-object', adapter, '--link-object', get_option('args_provider'), '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
++test_adapter = shared_library('cad-test-io', ['native/adapter.c', 'native/arguments.c', 'tests/state_io.c'], dependencies: [png, math], install: false)
++step_source = files(['src/numeric.astra', 'src/algorithm.astra', 'tests/step.astra', 'src/entry.astra'])
++step_tests = custom_target('step-tests', input: step_source, output: 'step-tests', command: [astrac, '@INPUT@', '--link-object', test_adapter, '--link-object', get_option('args_provider'), '-o', '@OUTPUT@'], build_by_default: true, depends: test_adapter)
+ test('corrections', python, args: [files('tests/test_corrections.py'), '-v'], env: environment({'ASTRA_CAD': cad.full_path(), 'CAD_TEST_OUTPUT': meson.current_build_dir() / 'test-results' / 'Corrections'}), depends: [cad, orientation_tests, step_tests], timeout: 7200)
+ test('correction-images', python, args: [files('tests/test_correction_images.py'), '-v'], env: environment({'ASTRA_CAD': cad.full_path(), 'CAD_TEST_OUTPUT': meson.current_build_dir() / 'test-results' / 'CorrectionImages'}), depends: cad, timeout: 7200)
+ test('symmetry', python, args: [files('tests/test_symmetry.py'), '-v'], env: environment({'ASTRA_CAD': cad.full_path(), 'CAD_TEST_OUTPUT': meson.current_build_dir() / 'test-results' / 'Symmetry'}), depends: [cad, step_tests], timeout: 7200)
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -1,2 +1,3 @@
+ option('astra_compiler', type: 'string', value: 'build/astrac', description: 'Astra compiler from its Meson executable target')
+ option('reference_data', type: 'string', value: 'test-data/reference', description: 'Locally downloaded official validation assets')
++option('args_provider', type: 'string', description: 'Explicit accepted ARGS provider object')
+--- a/src/main.astra
++++ b/src/main.astra
+@@ -1 +1 @@
+-int main(int argc, void* argv) { return downscale(argc, argv); }
++int cad_entry(int argc, void* argv) { return downscale(argc, argv); }
+--- a/tests/orientation.astra
++++ b/tests/orientation.astra
+@@ -49,7 +49,7 @@
+ 	cad_corrections_end();
+ }
+ 
+-int main(int argc, void* argv) {
++int cad_entry(int argc, void* argv) {
+ 	if (cad_begin(argc, argv) != 0) { return 1; }
+ 	int wi = cad_option(0); int hi = cad_option(1); int wo = cad_option(2); int ho = cad_option(3);
+ 	Context c = {wi=wi,hi=hi,wo=wo,ho=ho,count=wo * ho,pairs=0,rx=cad_number(wi) / cad_number(wo),ry=cad_number(hi) / cad_number(ho),state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};
+--- a/tests/step.astra
++++ b/tests/step.astra
+@@ -2,7 +2,7 @@
+ // All E/M/correction functions are the exact production functions.
+ extern(C) int cad_test_begin(int argc, void* argv);
+ extern(C) void cad_test_load(void* buffer, int count);
+-int main(int argc, void* argv) {
++int cad_entry(int argc, void* argv) {
+ 	if (cad_test_begin(argc, argv) != 0) { return 1; }
+ 	int wi = cad_option(0); int hi = cad_option(1); int wo = cad_option(2); int ho = cad_option(3);
+ 	Context c = {wi=wi,hi=hi,wo=wo,ho=ho,count=wo * ho,pairs=0,rx=cad_number(wi) / cad_number(wo),ry=cad_number(hi) / cad_number(ho),state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};

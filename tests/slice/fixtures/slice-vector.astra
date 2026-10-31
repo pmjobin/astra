@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+bool vectors(int i) {
+	i16<4> a = {1, 2, 3, 4};
+	i16<4> b = {5, 6, 7, 8};
+	i16<4> c = {9, 10, 11, 12};
+	i16<4> d = {13, 14, 15, 16};
+	i16<4>[4] blocks_storage = {a, b, c, d};
+	i16<4>[] blocks = slice(blocks_storage);
+	i16 lane = blocks[i][2];
+	if (lane != (i * 4 + 3) as i16) { return false; }
+	if (!all(blocks[0] == a) || !all(blocks[1] == b) || !all(blocks[2] == c) || !all(blocks[3] == d)) { return false; }
+	blocks[i] = splat(7, 4);
+	if (!all(blocks[i] == splat(7, 4))) { return false; }
+	blocks[i] = shuffle(a, 3, 0, 2, 1);
+	i16<4> shuffled = {4, 1, 3, 2};
+	if (!all(blocks[i] == shuffled)) { return false; }
+	blocks[i] = sat_add(blocks[i], splat(32767, 4));
+	if (!all(blocks[i] == splat(32767, 4))) { return false; }
+	blocks[i] = insert(blocks[i], 2, -42);
+	if (blocks[i][2] != -42 || blocks[i][1] != 32767) { return false; }
+	// VEC-MEM is independent: only the vector local is borrowed.
+	i16<4> result = blocks[i];
+	i16<4>* p = &result;
+	*p = insert(*p, 0, 99);
+	blocks[i] = *p;
+	return blocks[i][0] == 99 && blocks[i][2] == -42;
+}
+bool branch_vectors(bool condition, int i) {
+	i16<4> first = splat(1, 4);
+	i16<4> second = splat(2, 4);
+	i16<4>[2] blocks_storage = {first, second};
+	i16<4>[] blocks = slice(blocks_storage);
+	i16<4> result = first;
+	if (condition) { result = blocks[i]; } else { result = sat_add(blocks[i], first); }
+	return all(result == splat(2, 4));
+}
+int main() {
+	if (!branch_vectors(true, 1) || !branch_vectors(false, 0)) { return 2; }
+	int i = 0;
+	while (i < 4) { if (!vectors(i)) { return 1; } i = i + 1; }
+	return 0;
+}

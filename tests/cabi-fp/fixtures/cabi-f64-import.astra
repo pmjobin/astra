@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) f64 c_echo(f64 value);
+extern(C) f64 c_pattern(int index);
+extern(C) int c_count();
+extern(C) int c_check(int index, f64 value);
+extern(C) void c_consume(f64 value);
+extern(C) int c_consumed(int index);
+extern(C) f64 c_produce();
+f64 native_echo(f64 value) { return c_echo(value); }
+int main() {
+	int i = 0;
+	while (i < c_count()) {
+		f64 local = c_echo(c_pattern(i));
+		if (c_check(i, local) != 0 || c_check(i, native_echo(local)) != 0) { return 1; }
+		c_consume(local);
+		if (c_consumed(i) != 0) { return 2; }
+		i = i + 1;
+	}
+	return c_check(5, c_produce());
+}

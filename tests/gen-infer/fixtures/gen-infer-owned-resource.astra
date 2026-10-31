@@ -1,0 +1,4 @@
+owned T relay<T>(owned T value) where T : Ownable { return move value; }
+void dispose<T>(owned T value) where T : Ownable {}
+owned Resource make(int value){var r=resource(value);return move r;}
+int main(){var source=make(1);var result=relay(move source);if(id(result)!=1){return 1;}dispose(move result);return 0;}

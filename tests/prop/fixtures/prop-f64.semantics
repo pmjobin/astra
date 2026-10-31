@@ -1,0 +1,117 @@
+(program
+	(class #0 "Signal"
+		(field #0 "raw" : f64)
+		(property #0 "gain" : f64 (member #1)
+			(getter #0 -> f64
+				(receiver Receiver<Signal> live mutable nonnull non-owning)
+				(parameters)
+				(block
+					(return (load (field-place (receiver (this : Receiver<Signal>)) (field #0 "raw" : f64))))
+				)
+			)
+			(setter #0 -> void
+				(receiver Receiver<Signal> live mutable nonnull non-owning)
+				(parameters
+					(parameter #0 "next" : f64)
+				)
+				(block
+					(store (field-place (receiver (this : Receiver<Signal>)) (field #0 "raw" : f64)) (parameter-ref #0 "next" : f64))
+				)
+			)
+		)
+		(method #0 "separate" (member #2) -> f64
+			(receiver Receiver<Signal> mutable nonnull non-owning)
+			(parameters
+				(parameter #0 "a" : f64)
+				(parameter #1 "b" : f64)
+			)
+			(block
+				(return (binary + : f64 (binary * : f64 (parameter-ref #0 "a" : f64) (parameter-ref #1 "b" : f64)) (property-get (property #0 Signal::gain) (getter #0) (receiver (this : Receiver<Signal>)) : f64 effectful)))
+			)
+		)
+	)
+	(function "borrowed_gain" -> f64
+		(parameters
+			(parameter #0 "s" : Signal (contract borrowed-noescape))
+		)
+		(block
+			(if
+				(condition (binary == : bool (f64 0x3ff0000000000001 : f64) (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (parameter-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful)))
+				(then
+					(block
+						(return (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (parameter-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful))
+					)
+				)
+			)
+			(return (f64 0x0000000000000000 : f64))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "s" : Signal)
+		)
+		(block
+			(object-storage #0 (class #0 "Signal") (region #0))
+			(object-construct (storage #0) (ref-local #0 "s")
+				(field-init #0 (f64 0x0000000000000000 : f64))
+				(object-ref : Signal (storage #0) (region #0))
+			)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (value (f64 0x3ff0000000000001 : f64)) : void effectful)
+			(if
+				(condition (short-circuit || : bool (binary != : bool (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful) (f64 0x3ff0000000000001 : f64)) (binary != : bool (call "borrowed_gain" -> f64 (arguments (local-ref #0 "s" : Signal))) (load (object-field-place (base (local-ref #0 "s" : Signal)) (field #0 "raw") : f64 null-traps)))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (value (f64 0x8000000000000000 : f64)) : void effectful)
+			(if
+				(condition (binary >= : bool (binary / : f64 (f64 0x3ff0000000000000 : f64) (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful)) (f64 0x0000000000000000 : f64)))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (value (f64 0x0000000000000001 : f64)) : void effectful)
+			(if
+				(condition (binary != : bool (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful) (f64 0x0000000000000001 : f64)))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (value (f64 0x7ff0000000000000 : f64)) : void effectful)
+			(if
+				(condition (binary != : bool (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful) (f64 0x7ff0000000000000 : f64)))
+				(then
+					(block
+						(return (integer 4 : int))
+					)
+				)
+			)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (value (binary / : f64 (f64 0x0000000000000000 : f64) (f64 0x0000000000000000 : f64))) : void effectful)
+			(if
+				(condition (short-circuit || : bool (binary == : bool (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful) (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful)) (prefix ! : bool (binary != : bool (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful) (property-get (property #0 Signal::gain) (getter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) : f64 effectful)))))
+				(then
+					(block
+						(return (integer 5 : int))
+					)
+				)
+			)
+			(property-set (property #0 Signal::gain) (setter #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (value (f64 0xbff0000000000000 : f64)) : void effectful)
+			(if
+				(condition (binary != : bool (method-call "separate" -> f64 (target Signal::separate #0) (receiver (object-receiver (local-ref #0 "s" : Signal) : Receiver<Signal> null-traps-before-arguments)) (arguments (f64 0x3ff0000002000000 : f64) (f64 0x3feffffffc000000 : f64))) (f64 0x0000000000000000 : f64)))
+				(then
+					(block
+						(return (integer 6 : int))
+					)
+				)
+			)
+			(return (integer 42 : int))
+		)
+	)
+)

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeClassCallbacks;
+class Cargo<A,B> {
+	private A code;
+	private B ready;
+	owned R retained;
+	init(A code, B ready, int ticket) {
+		var retained = make(ticket);
+		this.code = code;
+		this.ready = ready;
+		this.retained = move retained;
+	}
+	property A value { get { return this.code; } }
+	property B enabled { get { return this.ready; } }
+	deinit() { mark(730); }
+}
+internal int retire(owned Cargo<int,bool> value, int extra) {
+	if (!value.enabled) { return 0; }
+	return value.value + extra;
+}
+Fn<int,owned Cargo<int,bool>,int> callback() { return retire; }
+int invoke(Fn<int,owned Cargo<int,bool>,int> code, owned Cargo<int,bool> value, int extra) {
+	return code(move value, extra);
+}

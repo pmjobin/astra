@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit hosted observation boundary. All algorithms and output owners are Astra.
+[CCode (text_abi = "utf8-i32")]
+extern(C) int astra_host_text_byte(borrowed string text, int index);
+
+class TextRangeError : Error { init() : base("text byte range") {} }
+class IntegerParseError : Error { init() : base("invalid signed decimal") {} }
+class TextCapacityError : Error { init() : base("text capacity exceeded") {} }
+
+int text_byte(string text, int index) throws TextRangeError {
+	if (index < 0 || index >= text.byte_length) { throw new TextRangeError(); }
+	return astra_host_text_byte(text, index);
+}
+bool append_text(Utf8ByteBuilder builder, string text) {
+	if (text.byte_length > 2147483647 - builder.byte_count()) { return false; }
+	u8[1] chunk = {0};
+	int offset = 0;
+	while (offset < text.byte_length) {
+		int count = text.byte_length - offset;
+		if (count > 1) { count = 1; }
+		int i = 0;
+		while (i < count) { chunk[i] = astra_host_text_byte(text, offset + i) as u8; i = i + 1; }
+		if (!builder.append_bytes(slice(chunk, 0, count))) { return false; }
+		offset = offset + count;
+	}
+	return true;
+}
+void require_text(bool accepted) throws TextCapacityError {
+	if (!accepted) { throw new TextCapacityError(); }
+}
+int text_find(string text, string needle, int start) throws TextRangeError {
+	if (start < 0 || start > text.byte_length) { throw new TextRangeError(); }
+	if (needle.byte_length > text.byte_length - start) { return -1; }
+	int at = start;
+	while (at <= text.byte_length - needle.byte_length) {
+		int i = 0;
+		while (i < needle.byte_length && astra_host_text_byte(text, at + i) == astra_host_text_byte(needle, i)) { i = i + 1; }
+		if (i == needle.byte_length) { return at; }
+		at = at + 1;
+	}
+	return -1;
+}
+bool text_contains(string text, string needle) throws TextRangeError { return text_find(text, needle, 0) >= 0; }
+bool text_starts_with(string text, string prefix) {
+	if (prefix.byte_length > text.byte_length) { return false; }
+	int i = 0;
+	while (i < prefix.byte_length) {
+		if (astra_host_text_byte(text, i) != astra_host_text_byte(prefix, i)) { return false; }
+		i = i + 1;
+	}
+	return true;
+}
+bool text_ends_with(string text, string suffix) throws TextRangeError {
+	if (suffix.byte_length > text.byte_length) { return false; }
+	int start = text.byte_length - suffix.byte_length;
+	return text_find(text, suffix, start) == start;
+}
+owned Utf8Message text_segment(string text, int start, int count) throws Error {
+	if (start < 0 || count < 0 || start > text.byte_length || count > text.byte_length - start) { throw new TextRangeError(); }
+	int end = start + count;
+	if (start < text.byte_length) { int byte = astra_host_text_byte(text, start); if (byte >= 128 && byte < 192) { throw new TextRangeError(); } }
+	if (end < text.byte_length) { int byte = astra_host_text_byte(text, end); if (byte >= 128 && byte < 192) { throw new TextRangeError(); } }
+	var bytes = new u8[count];
+	int i = 0;
+	while (i < count) { bytes[i] = astra_host_text_byte(text, start + i) as u8; i = i + 1; }
+	var result = utf8_message(bytes);
+	return move result;
+}
+bool text_split(string text, string delimiter, Bag<Utf8Message> fields) {
+	if (delimiter.byte_length == 0) { return false; }
+	try {
+		int start = 0;
+		while (true) {
+			int end = text_find(text, delimiter, start);
+			if (end < 0) { end = text.byte_length; }
+			var field = text_segment(text, start, end - start);
+			if (fields.count() == fields.capacity()) {
+				int capacity = fields.capacity();
+				if (capacity == 2147483647) { return false; }
+				if (capacity == 0) { capacity = 2; }
+				else { if (capacity > 1073741823) { capacity = 2147483647; } else { capacity = capacity * 2; } }
+				if (!fields.reserve(capacity)) { return false; }
+			}
+			fields.append(move field);
+			if (end == text.byte_length) { break; }
+			start = end + delimiter.byte_length;
+		}
+		return true;
+	} catch (Error error) { return false; }
+}
+int parse_int(string text) throws IntegerParseError {
+	int length = text.byte_length;
+	if (length == 0) { throw new IntegerParseError(); }
+	int at = 0;
+	bool negative = astra_host_text_byte(text, 0) == 45;
+	if (negative) { at = 1; }
+	if (at == length) { throw new IntegerParseError(); }
+	u32 limit = 2147483647;
+	if (negative) { limit = 2147483648; }
+	u32 value = 0;
+	while (at < length) {
+		int byte = astra_host_text_byte(text, at);
+		if (byte < 48 || byte > 57) { throw new IntegerParseError(); }
+		u32 digit = (byte - 48) as u32;
+		if (value > (limit - digit) / 10) { throw new IntegerParseError(); }
+		value = value * 10 + digit;
+		at = at + 1;
+	}
+	if (negative) { return (0 - value) as int; }
+	return value as int;
+}

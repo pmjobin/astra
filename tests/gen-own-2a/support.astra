@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int own_init(int id, int heap, int drops);
+extern(C) int own_drop(int code, int id);
+extern(C) int own_mark(int code, int id);
+extern(C) int own_finish();
+extern(C) int own_derived(int id);
+class Counter {
+	int id;
+	init(int id, int heap) { this.id = id; own_init(id, heap, 1); }
+	deinit() { own_drop(68, this.id); }
+}
+class Child: Counter {
+	init(int id, int heap): base(id, heap) { own_derived(id); }
+	deinit() { own_drop(100, this.id); }
+}
+class Quiet {
+	int id;
+	init(int id, int heap) { this.id = id; own_init(id, heap, 0); }
+}
+class Empty {
+	init(int id, int heap) { own_init(id, heap, 0); }
+}
+class Leaf {
+	int id;
+	init(int id, int heap) { this.id = id; own_init(id, heap, 1); }
+	deinit() { own_drop(68, this.id); }
+}
+class Holder {
+	owned Leaf child;
+	init(int id, int heap, owned Leaf child) {
+		this.child = move child;
+		own_init(id, heap, 0);
+	}
+}
+int loan<T>(borrowed T value, int id) where T: Ownable {
+	return own_mark(66, id);
+}
+void consume<T>(owned T value, int id) where T: Ownable {
+	own_mark(75, id);
+	loan<T>(value, id);
+}
+int take<T>(int id, owned T value, bool early) where T: Ownable {
+	own_mark(75, id);
+	if (early) { return id; }
+	loan<T>(value, id);
+	return id;
+}
+f64 scalar<T>(bool early, owned T value, u16 id, f32 x, f64 y) where T: Ownable {
+	own_mark(75, id as int);
+	if (early) { return y; }
+	loan<T>(value, id as int);
+	return y + (x as f64);
+}

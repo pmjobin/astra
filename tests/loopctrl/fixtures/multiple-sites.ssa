@@ -1,0 +1,106 @@
+(ssa-program
+	(function #0 "multiple_continue" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+				(%2 "x" : int)
+			)
+			(%3 : bool = binary < %1 %0)
+			(conditional-branch %3
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%4 : int = binary + %1 (integer 1 : int))
+			(%5 : int = binary % %4 (integer 3 : int))
+			(%6 : bool = binary == %5 (integer 0 : int))
+			(conditional-branch %6
+				(true #4 ())
+				(false #5 ())
+			)
+		)
+		(block #3
+			(return %2)
+		)
+		(block #4
+			(%7 : int = binary + %2 (integer 10 : int))
+			(branch #1 (%4 %7))
+		)
+		(block #5
+			(%8 : int = binary % %4 (integer 3 : int))
+			(%9 : bool = binary == %8 (integer 1 : int))
+			(conditional-branch %9
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #6
+			(%10 : int = binary + %2 (integer 100 : int))
+			(branch #1 (%4 %10))
+		)
+		(block #7
+			(%11 : int = binary + %2 (integer 1 : int))
+			(branch #1 (%4 %11))
+		)
+	)
+	(function #1 "multiple_break" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 5 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+				(%2 "x" : int)
+			)
+			(%5 : bool = binary < %1 %0)
+			(conditional-branch %5
+				(true #2 ())
+				(false #3 (%1 %2))
+			)
+		)
+		(block #2
+			(%6 : int = binary + %1 (integer 1 : int))
+			(%7 : bool = binary == %0 (integer 2 : int))
+			(conditional-branch %7
+				(true #4 ())
+				(false #5 ())
+			)
+		)
+		(block #3
+			(arguments
+				(%3 "i" : int)
+				(%4 "x" : int)
+			)
+			(return %4)
+		)
+		(block #4
+			(branch #3 (%6 (integer 10 : int)))
+		)
+		(block #5
+			(%8 : int = binary + %2 (integer 1 : int))
+			(%9 : bool = binary == %6 (integer 3 : int))
+			(conditional-branch %9
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #6
+			(branch #3 (%6 (integer 20 : int)))
+		)
+		(block #7
+			(branch #1 (%6 %8))
+		)
+	)
+)

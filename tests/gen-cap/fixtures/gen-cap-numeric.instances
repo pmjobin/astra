@@ -1,0 +1,199 @@
+(core-program
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(short-circuit && : bool
+								(short-circuit && : bool
+									(binary == : bool
+										(call "astra.gen.0.0" -> int
+											(arguments
+												(integer 2147483647 : int)
+												(integer 1 : int)
+											)
+										)
+										(integer -2147483648 : int)
+									)
+									(binary == : bool
+										(call "astra.gen.1.1" -> int
+											(arguments
+												(integer 84 : int)
+												(integer 2 : int)
+											)
+										)
+										(integer 42 : int)
+									)
+								)
+								(binary == : bool
+									(call "astra.gen.1.2" -> f64
+										(arguments
+											(f64 0x4055000000000000 : f64)
+											(f64 0x4000000000000000 : f64)
+										)
+									)
+									(f64 0x4045000000000000 : f64)
+								)
+							)
+							(binary == : bool
+								(call "astra.gen.3.3" -> f64
+									(arguments
+										(integer 3 : int)
+										(f64 0x3ff0000000000000 : f64)
+										(f64 0x4000000000000000 : f64)
+									)
+								)
+								(f64 0x401c000000000000 : f64)
+							)
+						)
+						(binary == : bool
+							(call "astra.gen.2.4" -> f64
+								(arguments
+									(f64 0x3ff0000000000001 : f64)
+									(f64 0x3feffffffffffffe : f64)
+									(f64 0xbff0000000000000 : f64)
+								)
+							)
+							(f64 0x0000000000000000 : f64)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 42 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-instance #0 (origin #0 "add") (type-arguments int) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.0" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(binary + : int
+					(parameter #0 : int)
+					(parameter #1 : int)
+				)
+			)
+		)
+	)
+	(generic-instance #1 (origin #1 "divide") (type-arguments int) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.1.1" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(binary / : int
+					(parameter #0 : int)
+					(parameter #1 : int)
+				)
+			)
+		)
+	)
+	(generic-instance #2 (origin #1 "divide") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.1.2" -> f64
+		(parameters
+			(parameter #0 "a" : f64)
+			(parameter #1 "b" : f64)
+		)
+		(block
+			(return
+				(binary / : f64
+					(parameter #0 : f64)
+					(parameter #1 : f64)
+				)
+			)
+		)
+	)
+	(generic-instance #3 (origin #3 "loop") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.3.3" -> f64
+		(parameters
+			(parameter #0 "count" : int)
+			(parameter #1 "value" : f64)
+			(parameter #2 "step" : f64)
+		)
+		(locals
+			(local-place #0 "result" : f64)
+			(local-place #1 "remaining" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : f64)
+				(parameter #1 : f64)
+			)
+			(initialize
+				(local-place #1 : int)
+				(parameter #0 : int)
+			)
+			(while #0
+				(condition
+					(binary > : bool
+						(load : int
+							(local-place #1 : int)
+						)
+						(integer 0 : int)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : f64)
+							(binary + : f64
+								(load : f64
+									(local-place #0 : f64)
+								)
+								(parameter #2 : f64)
+							)
+						)
+						(store
+							(local-place #1 : int)
+							(binary - : int
+								(load : int
+									(local-place #1 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : f64
+					(local-place #0 : f64)
+				)
+			)
+		)
+	)
+	(generic-instance #4 (origin #2 "compose") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.2.4" -> f64
+		(parameters
+			(parameter #0 "a" : f64)
+			(parameter #1 "b" : f64)
+			(parameter #2 "c" : f64)
+		)
+		(block
+			(return
+				(binary + : f64
+					(binary * : f64
+						(parameter #0 : f64)
+						(parameter #1 : f64)
+					)
+					(parameter #2 : f64)
+				)
+			)
+		)
+	)
+)

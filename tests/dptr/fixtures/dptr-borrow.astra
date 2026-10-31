@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+void update(int* parameter) {
+	int* copy = parameter;
+	if (copy != null) {
+		int* inner = copy;
+		*inner = 42;
+	}
+}
+int main() {
+	int x = 1;
+	int y = 2;
+	int* p = null;
+	p = &x;
+	if (p != null) {
+		int* q = p;
+		*q = 3;
+		p = &y;
+		update(q);
+	}
+	if (x != 42 || *p != 2) { return 1; }
+	p = null;
+	if (p != null) { return 2; }
+	return 0;
+}

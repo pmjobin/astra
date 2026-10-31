@@ -1,0 +1,83 @@
+(unit
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "add")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Numeric)
+		(block
+			(return (binary "+" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "divide")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Numeric)
+		(block
+			(return (binary "/" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "compose")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+			(parameter (type "T") (name "c"))
+		)
+		(where T Numeric)
+		(block
+			(return (binary "+" (binary "*" (name "a") (name "b")) (name "c")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "loop")
+		(parameters
+			(parameter (type "int") (name "count"))
+			(parameter (type "T") (name "value"))
+			(parameter (type "T") (name "step"))
+		)
+		(where T Numeric)
+		(block
+			(local (type "T") (name "result") (name "value"))
+			(local (type "int") (name "remaining") (name "count"))
+			(while
+				(condition (binary ">" (name "remaining") (integer "0")))
+				(body
+					(block
+						(assign (name "result") (binary "+" (name "result") (name "step")))
+						(assign (name "remaining") (binary "-" (name "remaining") (integer "1")))
+					)
+				)
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit "&&" (short-circuit "&&" (short-circuit "&&" (short-circuit "&&" (binary "==" (generic-call "add" (type-arguments int) (arguments (integer "2147483647") (integer "1"))) (prefix "-" (integer "2147483648"))) (binary "==" (generic-call "divide" (type-arguments int) (arguments (integer "84") (integer "2"))) (integer "42"))) (binary "==" (generic-call "divide" (type-arguments f64) (arguments (float "84.0") (float "2.0"))) (float "42.0"))) (binary "==" (generic-call "loop" (type-arguments f64) (arguments (integer "3") (float "1.0") (float "2.0"))) (float "7.0"))) (binary "==" (generic-call "compose" (type-arguments f64) (arguments (float "1.0000000000000002") (float "0.9999999999999998") (prefix "-" (float "1.0")))) (float "0.0"))))
+				(then
+					(block
+						(return (integer "42"))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

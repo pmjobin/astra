@@ -1,0 +1,57 @@
+(core-program
+	(function "run" -> int
+		(parameters)
+		(locals
+			(local-place #0 "i" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(while #0
+				(condition
+					(binary < : bool
+						(load : int
+							(local-place #0 : int)
+						)
+						(integer 100 : int)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : int)
+							(binary + : int
+								(load : int
+									(local-place #0 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+						(if
+							(condition
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(integer 7 : int)
+								)
+							)
+							(then
+								(block
+									(break #0)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+)

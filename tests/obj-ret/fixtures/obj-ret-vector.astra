@@ -1,0 +1,14 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; life_record(67, 0); }
+	deinit() { if (this.value != 42) { life_record(88, 0); } life_record(68, 0); }
+	void add(int n) { this.value = this.value + n; }
+	owned Counter copy() { return Counter.init(this.value); }
+}
+owned Counter make(f32<4> values, i16<8> integers) {
+	if (values[0] != 42.0) { return null; }
+	i16<8> factors = splat(2, 8);
+	return Counter.init(dot_wrap(integers, factors, i32) + 10);
+}
+int main() { owned Counter c = make(splat(42.0, 4), splat(2, 8)); return c.value; }

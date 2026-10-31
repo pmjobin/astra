@@ -1,0 +1,122 @@
+(program
+	(handle-type #0 "Resource" (cleanup "life_destroy")
+	)
+	(handle-type #1 "Token" (cleanup "life_destroy")
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "code" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "code" (parameter-ref #0 "code" : int))
+			)
+		)
+		(destructor #0 (member #2)
+			(receiver live Counter nonnull mutable)
+			(parameters)
+			(block
+				(c-call-statement "life_record" -> int (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "code" : int))) (integer 0 : int)))
+			)
+		)
+	)
+	(extern-function "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 "code" : int)
+			(parameter #1 "value" : int)
+		)
+		(result int))
+	(extern-function "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup "life_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Resource))
+	(extern-function "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup "life_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Token))
+	(extern-function "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 "value" : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(generic-definition "dispose" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "dispose" -> void
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block)
+	)
+	(generic-definition "relay" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "relay" -> T
+		(result T (contract owned-transfer) (requires Ownable))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block
+			(ownership-return (move (owner #0) : T (requires Ownable) (provenance incoming-owner)) : T)
+		)
+	)
+	(generic-definition "forward" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "forward" -> T
+		(result T (contract owned-transfer) (requires Ownable))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block
+			(ownership-return (generic-call "relay" -> owned T (type-arguments T) (arguments (owned-transfer-argument (parameter #0) (move (owner #0) : T (requires Ownable) (provenance incoming-owner)) : T (requires Ownable)))) : T)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(ownership (owner #0) transferable-object (class #0) (storage #0))
+			(local #0 "a" : Counter)
+			(ownership (owner #1) transferable-object (class #0) (storage #1))
+			(local #1 "b" : Counter)
+		)
+		(block
+			(local #0 "a" : Counter (ownership transferable-owned) (storage #0))
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "a")
+				(cleanup transferable-owner #0 null-disarm exact-class #0 after-success)
+				(construct constructor #0
+					(integer 65 : int)
+				)
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(local #1 "b" : Counter (ownership transferable-owned) (storage #1))
+			(object-storage #1 (class #0 "Counter") (region #0))
+			(object-construct (storage #1) (ref-local #1 "b")
+				(cleanup transferable-owner #1 null-disarm exact-class #0 after-success)
+				(construct constructor #0
+					(integer 66 : int)
+				)
+				(object-ref : Counter (storage #1) (region #0))
+			)
+			(generic-call-statement "dispose" -> void (type-arguments Counter) (arguments (owned-transfer-argument (parameter #0) (move (owner #0) (domain object) (class #0) (storage #0)) : Counter (domain object) (class #0))))
+			(generic-call-statement "dispose" -> void (type-arguments Counter) (arguments (owned-transfer-argument (parameter #0) (move (owner #1) (domain object) (class #0) (storage #1)) : Counter (domain object) (class #0))))
+			(return (integer 42 : int))
+		)
+	)
+)

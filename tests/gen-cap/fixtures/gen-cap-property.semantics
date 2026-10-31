@@ -1,0 +1,147 @@
+(program
+	(struct "S"
+		(field #0 "raw" : int)
+		(method #0 "get_raw" (member #1) -> int
+			(receiver Receiver<S> mutable nonnull non-owning)
+			(parameters)
+			(block
+				(return (generic-call "max_value" -> int (type-arguments int) (arguments (load (field-place (receiver (this : Receiver<S>)) (field #0 "raw" : int))) (integer 0 : int))))
+			)
+		)
+	)
+	(class #0 "Counter"
+		(field #0 "raw" : int)
+		(property #0 "value" : int (member #3)
+			(getter #0 -> int
+				(receiver Receiver<Counter> live mutable nonnull non-owning)
+				(parameters)
+				(block
+					(return (generic-call "max_value" -> int (type-arguments int) (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "raw" : int))) (integer 0 : int))))
+				)
+			)
+			(setter #0 -> void
+				(receiver Receiver<Counter> live mutable nonnull non-owning)
+				(parameters
+					(parameter #0 "next" : int)
+				)
+				(block
+					(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "raw" : int)) (generic-call "max_value" -> int (type-arguments int) (arguments (parameter-ref #0 "next" : int) (integer 0 : int))))
+				)
+			)
+		)
+		(method #0 "read" (member #2) -> int
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters)
+			(block
+				(return (generic-call "max_value" -> int (type-arguments int) (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "raw" : int))) (integer 0 : int))))
+			)
+		)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "x" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "raw" (generic-call "max_value" -> int (type-arguments int) (arguments (parameter-ref #0 "x" : int) (integer 0 : int))))
+			)
+		)
+	)
+	(generic-definition "max_value" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Ordered)
+	(function "max_value" -> T
+		(parameters
+			(parameter #0 "value" : T)
+			(parameter #1 "other" : T)
+		)
+		(block
+			(if
+				(condition (generic-op lt (capability Ordered) (type-parameter T) : bool (parameter-ref #0 "value" : T) (parameter-ref #1 "other" : T)))
+				(then
+					(block
+						(return (parameter-ref #1 "other" : T))
+					)
+				)
+			)
+			(return (parameter-ref #0 "value" : T))
+		)
+	)
+	(generic-definition "observe" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Ordered)
+	(function "observe" -> T
+		(parameters
+			(parameter #0 "counter" : Counter (contract borrowed-noescape))
+			(parameter #1 "value" : T)
+		)
+		(locals
+			(local #0 "property_value" : int)
+			(local #1 "method_value" : int)
+			(local #2 "field_value" : int)
+			(local #3 "free_value" : int)
+			(local #4 "s" : S address-taken)
+			(local #5 "struct_value" : int)
+		)
+		(block
+			(local-init #0 "property_value" : int (property-get (property #0 Counter::value) (getter #0) (receiver (object-receiver (parameter-ref #0 "counter" : Counter) : Receiver<Counter> null-traps-before-arguments)) : int effectful))
+			(local-init #1 "method_value" : int (method-call "read" -> int (target Counter::read #0) (receiver (object-receiver (parameter-ref #0 "counter" : Counter) : Receiver<Counter> null-traps-before-arguments)) (arguments)))
+			(local-init #2 "field_value" : int (load (object-field-place (base (parameter-ref #0 "counter" : Counter)) (field #0 "raw") : int null-traps)))
+			(local-init #3 "free_value" : int (call "ordinary" -> int (arguments (local-ref #2 "field_value" : int))))
+			(struct-local #4 "s" : S
+				(initialize-field #0 "raw" (local-ref #3 "free_value" : int))
+			)
+			(local-init #5 "struct_value" : int (method-call "get_raw" -> int (target S::get_raw #0) (receiver (receiver-address (local #4 "s") : Receiver<S>)) (arguments)))
+			(if
+				(condition (short-circuit && : bool (binary == : bool (local-ref #0 "property_value" : int) (local-ref #1 "method_value" : int)) (binary == : bool (local-ref #5 "struct_value" : int) (local-ref #2 "field_value" : int))))
+				(then
+					(block
+						(property-set (property #0 Counter::value) (setter #0) (receiver (object-receiver (parameter-ref #0 "counter" : Counter) : Receiver<Counter> null-traps-before-arguments)) (value (local-ref #3 "free_value" : int)) : void effectful)
+					)
+				)
+			)
+			(if
+				(condition (generic-op lt (capability Ordered) (type-parameter T) : bool (parameter-ref #1 "value" : T) (parameter-ref #1 "value" : T)))
+				(then
+					(block
+						(return (parameter-ref #1 "value" : T))
+					)
+				)
+			)
+			(return (parameter-ref #1 "value" : T))
+		)
+	)
+	(function "ordinary" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return (parameter-ref #0 "x" : int))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "c" : Counter)
+			(local #1 "f" : f64)
+		)
+		(block
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "c")
+				(construct constructor #0
+					(integer 42 : int)
+				)
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(local-init #1 "f" : f64 (generic-call "observe" -> f64 (type-arguments f64) (arguments (local-ref #0 "c" : Counter) (f64 0x3ff4000000000000 : f64))))
+			(if
+				(condition (short-circuit && : bool (binary == : bool (local-ref #1 "f" : f64) (f64 0x3ff4000000000000 : f64)) (binary == : bool (property-get (property #0 Counter::value) (getter #0) (receiver (object-receiver (local-ref #0 "c" : Counter) : Receiver<Counter> null-traps-before-arguments)) : int effectful) (integer 42 : int))))
+				(then
+					(block
+						(return (generic-call "observe" -> int (type-arguments int) (arguments (local-ref #0 "c" : Counter) (integer 42 : int))))
+					)
+				)
+			)
+			(return (integer 1 : int))
+		)
+	)
+)

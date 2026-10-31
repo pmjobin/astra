@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ArrayResult<T,DecodeError> produce<T>(int count) {
+	owned T[] values = new T[count];
+	return ArrayResult<T,DecodeError>.Success(move values);
+}
+
+ArrayResult<T,E> relay<T,E>(ArrayResult<T,E> input) {
+	return move input;
+}

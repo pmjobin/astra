@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace ChannelMiddle16;
+class Inspector {
+	private owned Channel16.Session session;
+	init(){var session=new Channel16.Session(7,true,2.5);this.session=move session;}
+	int verify(){
+		var item=this.session.current;
+		if(item.code()!=41 || this.session.title.byte_length!=7){return 1;}
+		i64 input=-5000000000;f64 scale=2.5;u32 count=99;
+		try {
+			i64 expected=-4999999995;
+			if(this.session.eval_refs(&input,&scale,&count,false)!=expected || input!=99 || scale!=4.0 || count!=4000000000){return 2;}
+			Channel16.Pair<f64> pair={first=1.5,second=2};var result=this.session.pair(pair);
+			if(result.first!=4.0 || result.second!=9){return 3;}
+			var checked=this.session.checked_value;
+			if(checked!=83.5){return 4;}
+		}catch(Channel16.Fault fault){return 90;}
+		return 0;
+	}
+}

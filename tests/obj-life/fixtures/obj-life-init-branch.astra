@@ -1,0 +1,18 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int first;
+	int value;
+	init(bool choose) {
+		if (choose) { this.first = 10; } else { this.first = 20; }
+		int i = 0;
+		int sum = 0;
+		while (i < 2) { sum = sum + this.first; i = i + 1; }
+		this.value = sum;
+	}
+}
+int main() {
+	Counter a = Counter.init(true);
+	Counter b = Counter.init(false);
+	if (a.value != 20 || b.value != 40) { return 1; }
+	return 42;
+}

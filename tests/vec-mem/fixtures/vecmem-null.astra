@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+bool positive(i16<4>* p) { return p != null && all(*p == splat(42,4)); }
+bool missing_or_positive(i16<4>* p) { return p == null || all(*p == splat(42,4)); }
+i16<4> inspect(i16<4>* p) {
+	i16<4> value = splat(0,4);
+	if (p != null) { value = *p; }
+	return value;
+}
+int main() {
+	i16<4>* p = null;
+	if (p != null || null != p || positive(p) || !missing_or_positive(p)) { return 1; }
+	if (!all(inspect(null) == splat(0,4))) { return 2; }
+	i16<4> v = splat(42,4);
+	p = &v;
+	if (!positive(p) || !missing_or_positive(p) || !all(inspect(p) == v)) { return 3; }
+	return 0;
+}

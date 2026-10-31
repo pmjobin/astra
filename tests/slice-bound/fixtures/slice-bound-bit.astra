@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void bits(borrowed u8[] bytes, borrowed i16[] signed_values, borrowed u8<16>[] blocks) {
+	bytes[0] = bytes[0] >> 1;
+	bytes[1] = ((bytes[1] & 240) ^ 3) << 1;
+	signed_values[0] = signed_values[0] >> 2;
+	blocks[0] = (blocks[0] | splat(16,16)) ^ splat(3,16);
+	blocks[1] = ~blocks[1] & splat(15,16);
+	blocks[0] = insert(blocks[0],7,blocks[1][0]);
+}
+int main() {
+	u8[2] bytes = {128,255};
+	i16[1] signed_values = {-32768};
+	u8<16> first = splat(128,16);
+	u8<16> second = splat(85,16);
+	u8<16>[2] blocks = {first,second};
+	bits(slice(bytes),slice(signed_values),slice(blocks));
+	if (bytes[0] != 64 || bytes[1] != 230 || signed_values[0] != -8192) { return 1; }
+	if (!all(blocks[0] == insert(splat(147,16),7,10)) || !all(blocks[1] == splat(10,16))) { return 2; }
+	return 0;
+}

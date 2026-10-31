@@ -1,0 +1,24 @@
+bool left(bool a) {
+	return a;
+}
+bool right(bool b) {
+	return b;
+}
+bool consume(bool a, bool b) {
+	return a == b;
+}
+bool and_calls(bool a, bool b) {
+	return left(a) && right(b);
+}
+bool or_calls(bool a, bool b) {
+	return left(a) || right(b);
+}
+bool arguments(bool a, bool b, bool c, bool d) {
+	return consume(left(a) && right(b), left(c) || right(d));
+}
+bool earlier_call(bool a, bool b, bool c) {
+	return consume(left(a), b && right(c));
+}
+bool earlier_trap(int x, int y, bool a, bool b) {
+	return consume(x / y > 0, a || b);
+}

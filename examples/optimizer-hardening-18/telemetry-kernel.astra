@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Numerics;
+using TelemetryLeaf18;
+using TelemetryMiddle18;
+
+extern(C) void telemetry18_retire(int sequence, int kind);
+extern(C) void telemetry18_begin_window(int sequence);
+extern(C) void telemetry18_end_window(int sequence);
+
+class WindowFailure18 : Error {
+	int sequence;
+	init(int sequence) : base("window validation") { this.sequence = sequence; }
+}
+class WindowAudit18 {
+	int sequence;
+	int kind;
+	init(int sequence, int kind) { this.sequence = sequence; this.kind = kind; }
+	deinit() { telemetry18_retire(this.sequence, this.kind); }
+	int tag() { return this.sequence; }
+}
+interface WindowStage18 { int choose(int input); }
+class WindowGain18 : WindowStage18 {
+	int parity;
+	init(int parity) : base() { this.parity = parity; }
+	override int choose(int input) { return input + this.parity; }
+}
+owned WindowAudit18 telemetry18_escape(owned WindowAudit18 input) { return move input; }
+void telemetry18_validate(int sequence, int count) throws WindowFailure18 {
+	if (count == 0 || sequence % 97 == 96) { var failure = new WindowFailure18(sequence); throw move failure; }
+}
+f64 telemetry18_affine(f64 sample, f64 factor, f64 bias) { return sample * factor + bias; }
+f64<2> telemetry18_affine_pair(f64<2> samples, f64 factor, f64 bias) { return samples * splat(factor, 2) + splat(bias, 2); }
+f64 telemetry18_window(f64[] input, f64[] output, int count, int sequence) throws WindowFailure18 {
+	owned WindowMetadata first = new WindowMetadata(0.5 + ((sequence % 7) as f64) * 0.03125, 0.125, sequence);
+	owned WindowMetadata second = new WindowMetadata(0.25, -0.0625, sequence);
+	owned WindowAudit18 audit_first = new WindowAudit18(sequence, 1);
+	owned WindowAudit18 audit_second = new WindowAudit18(sequence, 2);
+	owned WindowAudit18 escaping = new WindowAudit18(sequence, 3);
+	owned WindowAudit18 returned = telemetry18_escape(move escaping);
+	telemetry18_validate(sequence, count);
+	f64 factor = combine(selected_gain(first, true), selected_gain(second, false));
+	f64 bias = metadata_bias(first) + metadata_bias(second);
+	owned WindowGain18 stage = new WindowGain18(0);
+	f64 stage_gain = 0.5;
+	if (stage.choose(sequence % 2) != 0) { stage_gain = 0.25; }
+	f64[5] taps = {0.125, 0.25, 0.25, 0.25, 0.125};
+	owned Fir64 filter = new Fir64(slice(taps));
+	Biquad64 biquad = {b0 = 0.5, b1 = 0.25, b2 = 0.125, a1 = -0.25, a2 = 0.125, z1 = 0.0, z2 = 0.0};
+	owned f64[] scratch = new f64[count];
+	int index = 0;
+	while (index + 2 <= count) {
+		f64<2> samples = load_f64x2(input, index);
+		store_f64x2(scratch, index, telemetry18_affine_pair(samples, factor, bias));
+		index = index + 2;
+	}
+	while (index < count) { scratch[index] = telemetry18_affine(input[index], factor, bias); index = index + 1; }
+	f64 energy = 0.0;
+	for (int cursor = 0; cursor < count; cursor = cursor + 1) {
+		f64 value = biquad.process(filter.process(scratch[cursor])) * stage_gain;
+		output[cursor] = value;
+		energy = energy + value * value;
+	}
+	if (returned.tag() != sequence || audit_first.tag() != audit_second.tag()) { return -1.0; }
+	return energy;
+}

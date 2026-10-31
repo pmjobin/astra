@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+f32 add(f32 a, f32 b) { return a + b; }
+f32 sub(f32 a, f32 b) { return a - b; }
+f32 mul(f32 a, f32 b) { return a * b; }
+f32 div(f32 a, f32 b) { return a / b; }
+f32 pos(f32 a) { return +a; }
+f32 neg(f32 a) { return -a; }
+int main() {
+	f32 x = add(1.25, 2.5);
+	x = sub(x, 0.75);
+	if (x != 3.0 || mul(x, 0.5) != 1.5 || div(x, 2.0) != 1.5) { return 1; }
+	if (pos(-1.0) != -1.0 || neg(1.0) != -1.0 || neg(-1.0) != 1.0) { return 2; }
+	return 0;
+}

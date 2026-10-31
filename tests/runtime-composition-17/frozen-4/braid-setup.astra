@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace BraidSetup;
+owned BraidModel.Queue queue(borrowed ConcurrentAllocator context, int capacity) {
+	var result = new(context) BraidModel.Queue(capacity); return move result;
+}
+owned BraidModel.Cache cache(borrowed ConcurrentAllocator context, int capacity) {
+	var result = new(context) BraidModel.Cache(capacity); return move result;
+}
+owned BraidModel.Ticket ticket(borrowed ConcurrentAllocator context, int identity, int mode, BraidModel.Triple ranges, BraidModel.Costs costs) {
+	var bytes = new(context)u8[ranges.first.count + ranges.second.count + ranges.third.count];
+	var block = new(context) BraidModel.Block(ranges, costs, move bytes);
+	var ticket = new(context) BraidModel.Ticket(identity, mode, ranges, move block); return move ticket;
+}

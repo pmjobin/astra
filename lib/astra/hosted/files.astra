@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit GNU Linux LP64 synchronous provider; not an async/liburing API.
+[CCode (text_abi = "utf8-i32")]
+extern(C) int astra_file_open(borrowed string path, int mode);
+extern(C) int astra_file_read_byte(int descriptor);
+extern(C) int astra_file_write_byte(int descriptor, int byte);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_file_read_buffer(int descriptor, borrowed u8[] bytes, int offset, int count);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_file_write_buffer(int descriptor, borrowed u8[] bytes, int offset, int count);
+[CCode (text_abi = "utf8-i32")]
+extern(C) int astra_file_write_text(int descriptor, borrowed string text, int offset, int count);
+extern(C) int astra_file_flush(int descriptor);
+extern(C) int astra_file_close(int descriptor);
+
+class FileError : Error {
+	private int status_value;
+	private int operation_value;
+	init(int operation, int status) : base("file I/O") { this.operation_value = operation; this.status_value = status; }
+	property int status { get { return this.status_value; } }
+	property int operation { get { return this.operation_value; } }
+}
+class FileHandle {
+	private int descriptor;
+	init() { this.descriptor = -1; }
+	void open(string path, int mode) throws FileError {
+		if (this.descriptor >= 0) { throw new FileError(1, -16); }
+		int descriptor = astra_file_open(path, mode);
+		if (descriptor < 0) { throw new FileError(1, descriptor); }
+		this.descriptor = descriptor;
+	}
+	int next_byte() throws FileError {
+		int result = astra_file_read_byte(this.descriptor);
+		if (result < -1) { throw new FileError(2, result + 1); }
+		return result;
+	}
+	void put_byte(int byte) throws FileError {
+		int status = astra_file_write_byte(this.descriptor, byte);
+		if (status < 0) { throw new FileError(3, status); }
+	}
+	int read_bytes(u8[] bytes, int offset, int count) throws FileError {
+		int progress = astra_file_read_buffer(this.descriptor, bytes, offset, count);
+		if (progress < 0) { throw new FileError(2, progress); }
+		return progress;
+	}
+	int write_bytes(u8[] bytes, int offset, int count) throws FileError {
+		int progress = astra_file_write_buffer(this.descriptor, bytes, offset, count);
+		if (progress < 0) { throw new FileError(3, progress); }
+		return progress;
+	}
+	int write_text_bytes(string text, int offset, int count) throws FileError {
+		int progress = astra_file_write_text(this.descriptor, text, offset, count);
+		if (progress < 0) { throw new FileError(3, progress); }
+		return progress;
+	}
+	void flush() throws FileError {
+		int status = astra_file_flush(this.descriptor);
+		if (status < 0) { throw new FileError(4, status); }
+	}
+	void close() throws FileError {
+		int descriptor = this.descriptor;
+		this.descriptor = -1;
+		if (descriptor >= 0) {
+			int status = astra_file_close(descriptor);
+			if (status < 0) { throw new FileError(5, status); }
+		}
+	}
+	deinit() { if (this.descriptor >= 0) { astra_file_close(this.descriptor); this.descriptor = -1; } }
+}
+class FileBytes {
+	private owned u8[] storage;
+	init(owned u8[] storage) { this.storage = move storage; }
+	int byte_count() { return len(this.storage); }
+	int byte_at(int index) throws FileError {
+		if (index < 0 || index >= len(this.storage)) { throw new FileError(6, -1); }
+		return this.storage[index] as int;
+	}
+	owned Utf8Message decode() throws InvalidUtf8 { var message = utf8_message(this.storage); return move message; }
+	void write(string path) throws FileError {
+		write_file(path, this.storage);
+	}
+}
+owned FileBytes read_file(string path) throws FileError {
+	var file = new FileHandle(); file.open(path, 0);
+	var storage = new u8[0];
+	int used = 0;
+	while (true) {
+		if (used == 2147483647) {
+			if (file.next_byte() == -1) { break; }
+			throw new FileError(6, -1);
+		}
+		if (used == len(storage)) {
+			int capacity = len(storage);
+			if (capacity == 0) { capacity = 65536; }
+			else { if (capacity > 1073741823) { capacity = 2147483647; } else { capacity = capacity * 2; } }
+			var grown = new u8[capacity];
+			int i = 0;
+			while (i < used) { grown[i] = storage[i]; i = i + 1; }
+			swap(storage, grown);
+		}
+		int progress = file.read_bytes(storage, used, len(storage) - used);
+		if (progress == 0) { break; }
+		used = used + progress;
+	}
+	file.close();
+	var exact = new u8[used];
+	int i = 0;
+	while (i < used) { exact[i] = storage[i]; i = i + 1; }
+	var result = new FileBytes(move exact);
+	return move result;
+}
+void write_file(string path, u8[] bytes) throws FileError {
+	var file = new FileHandle(); file.open(path, 1);
+	int i = 0;
+	while (i < len(bytes)) { i = i + file.write_bytes(bytes, i, len(bytes) - i); }
+	file.flush(); file.close();
+}
+void write_text_file(string path, string text) throws FileError {
+	var file = new FileHandle(); file.open(path, 1);
+	int i = 0;
+	while (i < text.byte_length) { i = i + file.write_text_bytes(text, i, text.byte_length - i); }
+	file.flush(); file.close();
+}

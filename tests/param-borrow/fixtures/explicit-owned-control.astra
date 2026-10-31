@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class C { int value; init(int n) { this.value = n; } deinit() { mark(this.value); } }
+class Context { owned R handle; owned f64[] samples; init(owned R handle, owned f64[] samples) { this.handle = move handle; this.samples = move samples; } }
+void inspect(borrowed R handle, borrowed C object, borrowed f64[] samples) { mark(id(handle) + object.value + len(samples)); }
+void consume(owned R handle, owned C object, owned f64[] samples) { inspect(handle, object, samples); }
+int main() {
+	var handle = resource(1); var object = C.init(2); var samples = new f64[3];
+	inspect(handle, object, samples); consume(move handle, move object, move samples);
+	var next = resource(2); var values = new f64[1]; var context = Context.init(move next, move values);
+	return 0;
+}

@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot] class Fault {
+	readonly string text;init(){this.text="callback refused";}
+	virtual property string message{get{return this.text;}}
+}
+struct Reading{i64 total;f64 scale;i32 count;}
+[CExport(name="callbacks16",profile="declarations-v1",bool_abi="c99")]
+class Processor {
+	private int seed;
+	[Foreign]init(int seed){this.seed=seed;}
+	[Foreign]i64 transform(int offset,borrowed Callback<i64,i32,u32,i64,u64,f32,f64,bool> code,bool enabled){
+		return code(this.seed+offset,4000000000,-5000000000,9223372036854775809,1.25,2.5,enabled)+11;
+	}
+	[Foreign]void notify(borrowed Callback<void,i32> code,int delta){code(this.seed+delta);}
+	[Foreign]bool choose(bool input,borrowed Callback<bool,bool> code){return code(input);}
+	[Foreign(error_domain="16",errors="Fault=-1600")]
+	int checked(borrowed Callback<i32,i32> code,int input) throws Fault {int value=code(input);if(value<0){var error=new Fault();throw move error;}return value+this.seed;}
+	[Foreign]i64 aggregate(Reading input,borrowed Callback<i64,i64> code){if(input.scale!=2.5 || input.count!=3){return 0;}return code(input.total)+3;}
+	[Foreign][ForeignChannel(parameter="code",nullable="true")]void optional(borrowed Callback<void,i32> code,int delta){if(code!=null){code(this.seed+delta);}}
+	[Foreign]int read(){return this.seed;}
+}

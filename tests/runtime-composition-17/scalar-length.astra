@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[Allocator(kind="context",context="scoped-affine")]
+class LengthLeaf { init() {} }
+[Allocator(kind="context",context="owned-concurrent")]
+class LengthHost {
+	int marker;
+	private owned LengthLeaf left;
+	private owned LengthLeaf right;
+	init(int marker, owned LengthLeaf left, owned LengthLeaf right) {
+		this.marker=marker; this.left=move left; this.right=move right;
+	}
+	int read() { return this.marker; }
+}
+int main() {
+	var allocator=concurrent_allocator(1,16387,11,128);
+	if(allocator==null) { return 4; }
+	owned u8[] backing=new u8[8197];
+	if(len(backing)!=8197) { return 1; }
+	{
+		var context=scoped_allocator<ScopedAllocator>(backing,1,7);
+		if(context==null) { return 2; }
+		var host=new(allocator)LengthHost(9,null,null);
+		if(host.read()!=9 || scoped_allocator_query(context,7)!=1) { return 3; }
+		if(concurrent_allocator_query(allocator,1)!=1) { return 5; }
+	}
+	if(concurrent_allocator_query(allocator,1)!=0) { return 6; }
+	return len(backing)-8197;
+}

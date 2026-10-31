@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ExchangeOwner {
+	owned Kernel[] state;
+	owned Kernel[] next;
+	init() { this.state = initial_state(); this.next = initial_next(); }
+	void rotate() { swap(this.state, this.next); }
+}
+class CopyControl {
+	owned Kernel[] state;
+	owned Kernel[] next;
+	init() { this.state = initial_state(); this.next = initial_next(); }
+	void rotate() {
+		// Different lengths need independent element copies in this control.
+		var previous = clone_array(this.state);
+		this.state = clone_array(this.next);
+		this.next = move previous;
+	}
+}

@@ -1,0 +1,46 @@
+(unit
+	(function
+		(type "int")
+		(name "identity")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(return (name "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "maximum")
+		(parameters)
+		(block
+			(local (type "int") (name "x") (integer "2147483647"))
+			(return (call "identity" (arguments (name "x"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "minimum")
+		(parameters)
+		(block
+			(local (type "int") (name "y") (prefix "-" (integer "2147483648")))
+			(return (call "identity" (arguments (name "y"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "direct_maximum")
+		(parameters)
+		(block
+			(return (call "identity" (arguments (integer "2147483647"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "direct_minimum")
+		(parameters)
+		(block
+			(return (call "identity" (arguments (prefix "-" (integer "2147483648")))))
+		)
+	)
+)

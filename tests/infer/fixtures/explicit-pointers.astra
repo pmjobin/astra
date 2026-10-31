@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Point { int x; }
+int main() {
+	void* raw = pointer();
+	void* copied = raw;
+	void* zero = null;
+	int value = 7;
+	f64 wide = 2.5d;
+	Point point = { x = 3 };
+	int* p = &value;
+	f64* q = &wide;
+	Point* r = &point;
+	int read = *p;
+	if (raw == copied && zero == null && read == 7 && *q == 2.5d && r->x == 3) { return 0; }
+	return 1;
+}

@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) f32 lazy_f32(int rank);
+extern(C) f64 lazy_f64(int rank);
+extern(C) int lazy_f32_bits(f32 value, int rank);
+extern(C) int lazy_f64_bits(f64 value, int rank);
+class Narrow {
+	int rank;
+	int calls;
+	init(int rank) { this.rank = rank; this.calls = 0; }
+	lazy property f32 value { get { this.calls = this.calls + 1; return lazy_f32(this.rank); } }
+}
+class Wide {
+	int rank;
+	int calls;
+	init(int rank) { this.rank = rank; this.calls = 0; }
+	lazy property f64 value { get { this.calls = this.calls + 1; return lazy_f64(this.rank); } }
+}
+class Pointer {
+	int calls;
+	init() { this.calls = 0; }
+	lazy property void* value { get { this.calls = this.calls + 1; return null; } }
+}
+int main() {
+	int rank = 0;
+	while (rank < 4) {
+		var narrow = new Narrow(rank);
+		var wide = new Wide(rank);
+		if (lazy_f32_bits(narrow.value, rank) != 1 || lazy_f32_bits(narrow.value, rank) != 1 || lazy_f64_bits(wide.value, rank) != 1 || lazy_f64_bits(wide.value, rank) != 1 || narrow.calls != 1 || wide.calls != 1) { return 81; }
+		narrow.rank = 0;
+		wide.rank = 0;
+		if (lazy_f32_bits(narrow.value, rank) != 1 || lazy_f64_bits(wide.value, rank) != 1) { return 82; }
+		rank = rank + 1;
+	}
+	var pointer = new Pointer();
+	if (pointer.value != null || pointer.value != null || pointer.calls != 1) { return 83; }
+	return 42;
+}

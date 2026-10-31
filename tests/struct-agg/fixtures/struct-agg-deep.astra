@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Leaf { int value; }
+struct Third { Leaf d; }
+struct Second { Third c; }
+struct First { Second b; }
+int main() {
+	First a = { b = { c = { d = { value = 10 } } } };
+	a.b.c.d.value = a.b.c.d.value + 32;
+	if (a.b.c.d.value != 42) { return 1; }
+	return 0;
+}

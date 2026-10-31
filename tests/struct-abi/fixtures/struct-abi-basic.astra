@@ -1,0 +1,33 @@
+struct Pair {
+	int x;
+	f64 y;
+}
+
+Pair identity(Pair value) {
+	return value;
+}
+
+Pair make_pair() {
+	Pair result = { x = 7, y = 3.5 };
+	return result;
+}
+
+Pair forward() {
+	return identity(make_pair());
+}
+
+int consume(Pair value, int scale) {
+	Pair local = value;
+	local.x = local.x * scale;
+	return local.x;
+}
+
+int main() {
+	Pair value = make_pair();
+	Pair copy = identity(value);
+	copy = forward();
+	if (consume(copy, 2) != 14 || value.x != 7 || copy.y != 3.5) {
+		return 1;
+	}
+	return 0;
+}

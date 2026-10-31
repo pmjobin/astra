@@ -1,0 +1,38 @@
+(ssa-program
+	(function #0 "run" -> int
+		(parameters
+			(%0 "values" : string[] (contract borrowed-noescape))
+			(%1 "index" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = slice-bounds-check (slice %0) (index %1) runtime-length trap)
+			(%3 : string = load (slice-element-place (slice %0) (index %2) : string runtime-bounds-trap))
+			(%4 : int = slice-length %0)
+			(%5 : int = text-byte-length %3)
+			(%6 : int = binary + %4 %5)
+			(return %6)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters
+			(%0 "args" : string[] (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(%1 : int = slice-length %0)
+			(%2 : bool = binary == %1 (integer 0 : int))
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 0 : int))
+		)
+		(block #2
+			(%3 : int = call #0 "run" -> int (arguments %0 (integer 0 : int)))
+			(return %3)
+		)
+	)
+)

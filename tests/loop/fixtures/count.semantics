@@ -1,0 +1,22 @@
+(program
+	(function "count" -> int
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(locals
+			(local #0 "i" : int)
+		)
+		(block
+			(local-init #0 "i" : int (integer 0 : int))
+			(while #0
+				(condition (binary < : bool (local-ref #0 "i" : int) (parameter-ref #0 "n" : int)))
+				(body
+					(block
+						(assign (local-ref #0 "i" : int) (binary + : int (local-ref #0 "i" : int) (integer 1 : int)))
+					)
+				)
+			)
+			(return (local-ref #0 "i" : int))
+		)
+	)
+)

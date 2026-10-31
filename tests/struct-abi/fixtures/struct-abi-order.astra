@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair { int x; f64 y; }
+int mutate(Pair* value) { value->x = value->x + 10; value->y = value->y + 10.0; return value->x; }
+Pair mutate_result(Pair* value) { value->x = value->x + 10; value->y = value->y + 10.0; return *value; }
+int observe(Pair first, int middle, Pair last, f64 tail) {
+	if (first.x != 7 || first.y != 3.5 || middle != 17 || last.x != 27 || last.y != 23.5 || tail != 23.5) { return 1; }
+	return 0;
+}
+int scalar_first(int first, Pair second) { if (first != 7 || second.x != 17) { return 2; } return 0; }
+int main() {
+	Pair pair = { x = 7, y = 3.5 };
+	int result = observe(pair, mutate(&pair), mutate_result(&pair), pair.y);
+	if (result != 0 || pair.x != 27 || pair.y != 23.5) { return 3; }
+	pair.x = 7;
+	return scalar_first(pair.x, mutate_result(&pair));
+}

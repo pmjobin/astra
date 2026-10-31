@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+export(C) int byte_service16_native_run(){
+	try{
+		Byte16.Configuration configuration={mask=85,rotate=true,weight=2.5};var session=new ByteService16.Session(configuration);
+		var missing=session.current;if(missing!=null || session.revision!=0 || session.weight!=2.5 || session.label.byte_length!=17){return 1;}
+		u8[3] input={3,0,254};u8[4] output={77,77,77,77};
+		if(session.process(slice(input),slice(output))!=3 || output[0]!=172 || output[1]!=170 || output[2]!=87 || output[3]!=77){return 2;}
+		var statistics=session.statistics();if(statistics.revision!=1 || statistics.processed!=3 || statistics.score!=1072.5){return 3;}
+		var current=session.current;if(current==null || current.revision!=1){return 4;}
+		session.enabled=false;try{var ignored=session.process(slice(input),slice(output));return 5;}catch(Byte16.Fault fault){if(fault.message.byte_length!=16){return 6;}}
+		session.enabled=true;u8[2] small={77,77};try{var ignored=session.process(slice(input),slice(small));return 7;}catch(Byte16.Fault fault){if(small[0]!=77 || session.revision!=1){return 8;}}
+		var snapshot=session.snapshot();if(len(snapshot)!=3 || snapshot[0]!=172 || snapshot[1]!=170 || snapshot[2]!=87){return 9;}
+	}catch(Byte16.Fault fault){return 90;}
+	return 0;
+}

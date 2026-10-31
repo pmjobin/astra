@@ -1,0 +1,64 @@
+(ssa-program
+	(class #0 "Counter"
+		(property #0 "value" : int (member #2) (getter #0) (setter #0))
+		(field #0 "raw" : int)
+	)
+	(function #0 "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 = storage-receiver #0 initializing)
+			(construct (storage #0) (class #0) (receiver %0) (arguments (integer 1 : int)))
+			(%1 : Counter = object-ref (storage #0))
+			(%2 : Receiver<Counter> = object-validate %1 null-traps)
+			(property-set (property #0 Counter::value) (setter #0) (receiver %2) -> void effectful (arguments (integer 42 : int)))
+			(%3 : Counter = object-validate %1 null-traps)
+			(%4 : int = load (indirect-field %3 (class "Counter" field #0 "raw") : int))
+			(%5 : bool = binary != %4 (integer 42 : int))
+			(conditional-branch %5
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%6 : Receiver<Counter> = object-validate %1 null-traps)
+			(%7 : int = property-get (property #0 Counter::value) (getter #0) (receiver %6) -> int effectful (arguments))
+			(return %7)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(%1 "initial" : int)
+		)
+		(entry #0)
+		(block #0
+			(initialize (indirect-field %0 (class "Counter" field #0 "raw") : int) %1)
+			(function-end)
+		)
+	)
+	(property-getter #0 (property Counter::value #0) (declaring-class #0) -> int
+		(receiver %0 : Receiver<Counter> live mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (class "Counter" field #0 "raw") : int))
+			(return %1)
+		)
+	)
+	(property-setter #0 (property Counter::value #0) (declaring-class #0) -> void
+		(receiver %0 : Receiver<Counter> live mutable nonnull non-owning)
+		(parameters
+			(%1 "next" : int)
+		)
+		(entry #0)
+		(block #0
+			(store (indirect-field %0 (class "Counter" field #0 "raw") : int) %1)
+			(function-end)
+		)
+	)
+)

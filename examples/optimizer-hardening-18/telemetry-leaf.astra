@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace TelemetryLeaf18;
+
+class WindowMetadata {
+	f64 gain;
+	f64 bias;
+	int sequence;
+	init(f64 gain, f64 bias, int sequence) { this.gain = gain; this.bias = bias; this.sequence = sequence; }
+	property f64 scale { get { return this.gain; } }
+}
+f64 metadata_gain(WindowMetadata metadata) { return metadata.gain; }
+f64 metadata_bias(WindowMetadata metadata) { return metadata.bias; }
+f64 combine(f64 first, f64 second) { return first + second; }

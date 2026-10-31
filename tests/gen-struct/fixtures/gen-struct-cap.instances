@@ -1,0 +1,223 @@
+(core-program
+	(struct "astra.gen.struct.0.0"
+		(generic-struct-instance #0 (origin #0 "Pair") (application Pair<int,int>) (concrete-struct #0) (state COMPLETE) (requests 1)
+			(requester "function#0:astra.gen.0.0")
+		)
+		(field #0 "first" : int)
+		(field #1 "second" : int)
+	)
+	(struct "astra.gen.struct.0.1"
+		(generic-struct-instance #1 (origin #0 "Pair") (application Pair<u32,u32>) (concrete-struct #1) (state COMPLETE) (requests 1)
+			(requester "function#1:astra.gen.0.1")
+		)
+		(field #0 "first" : u32)
+		(field #1 "second" : u32)
+	)
+	(struct "astra.gen.struct.0.2"
+		(generic-struct-instance #2 (origin #0 "Pair") (application Pair<f64,f64>) (concrete-struct #2) (state COMPLETE) (requests 1)
+			(requester "function#2:astra.gen.0.2")
+		)
+		(field #0 "first" : f64)
+		(field #1 "second" : f64)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(binary != : bool
+								(call "astra.gen.0.0" -> int
+									(arguments
+										(integer -7 : int)
+										(integer 42 : int)
+									)
+								)
+								(integer -7 : int)
+							)
+							(binary != : bool
+								(call "astra.gen.0.1" -> u32
+									(arguments
+										(integer 4294967295 : u32)
+										(integer 7 : u32)
+									)
+								)
+								(integer 7 : u32)
+							)
+						)
+						(binary != : bool
+							(call "astra.gen.0.2" -> f64
+								(arguments
+									(f64 0x400c000000000000 : f64)
+									(f64 0xbff4000000000000 : f64)
+								)
+							)
+							(f64 0xbff4000000000000 : f64)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+	(generic-instance #0 (origin #0 "min_pair") (type-arguments int) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.0" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(locals
+			(struct-local-place #0 "p" : astra.gen.struct.0.0)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : int)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+				(parameter #0 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : int)
+				(parameter #1 : int)
+			)
+			(if
+				(condition
+					(binary < : bool
+						(load : int
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+						)
+						(load : int
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(load : int
+								(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #0 "first") : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(field-place (base struct-local-place #0 : astra.gen.struct.0.0) (field #1 "second") : int)
+				)
+			)
+		)
+	)
+	(generic-instance #1 (origin #0 "min_pair") (type-arguments u32) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.1" -> u32
+		(parameters
+			(parameter #0 "a" : u32)
+			(parameter #1 "b" : u32)
+		)
+		(locals
+			(struct-local-place #0 "p" : astra.gen.struct.0.1)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #0 "first") : u32)
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #1 "second") : u32)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #0 "first") : u32)
+				(parameter #0 : u32)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #1 "second") : u32)
+				(parameter #1 : u32)
+			)
+			(if
+				(condition
+					(binary < : bool
+						(load : u32
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #0 "first") : u32)
+						)
+						(load : u32
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #1 "second") : u32)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(load : u32
+								(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #0 "first") : u32)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : u32
+					(field-place (base struct-local-place #0 : astra.gen.struct.0.1) (field #1 "second") : u32)
+				)
+			)
+		)
+	)
+	(generic-instance #2 (origin #0 "min_pair") (type-arguments f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.0.2" -> f64
+		(parameters
+			(parameter #0 "a" : f64)
+			(parameter #1 "b" : f64)
+		)
+		(locals
+			(struct-local-place #0 "p" : astra.gen.struct.0.2)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #0 "first") : f64)
+			(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #1 "second") : f64)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #0 "first") : f64)
+				(parameter #0 : f64)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #1 "second") : f64)
+				(parameter #1 : f64)
+			)
+			(if
+				(condition
+					(binary < : bool
+						(load : f64
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #0 "first") : f64)
+						)
+						(load : f64
+							(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #1 "second") : f64)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(load : f64
+								(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #0 "first") : f64)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : f64
+					(field-place (base struct-local-place #0 : astra.gen.struct.0.2) (field #1 "second") : f64)
+				)
+			)
+		)
+	)
+)

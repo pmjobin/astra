@@ -1,0 +1,16 @@
+int main() {
+	try {
+		var arena = byte_arena(16, 4);
+		var first = arena.allocate(3, 1);
+		var second = arena.allocate(8, 8);
+		arena.write(first, 0, 42);
+		if (arena.read(first, 0) != 42 || arena.offset(second) != 8 || arena.occupied() != 16) { return 81; }
+		try { arena.allocate(1, 1); return 82; } catch(ArenaError error) {}
+		arena.release_last(second);
+		var third = arena.allocate(8, 8);
+		try { arena.read(second, 0); return 83; } catch(ArenaError error) {}
+		arena.release_last(third); arena.release_last(first);
+		if (arena.count() != 0 || arena.occupied() != 0) { return 84; }
+	} catch(ArenaError error) { return 85; }
+	return 0;
+}

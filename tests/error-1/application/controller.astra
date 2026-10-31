@@ -1,0 +1,20 @@
+class DecodeError : RuntimeError { init(string text) : base(text) {} }
+class Label {
+	readonly string text;
+	init(string text) { this.text = text; }
+	property string description { get { return this.text; } }
+}
+owned Label label_factory() { var label = new Label("installed\0é"); return move label; }
+int consume(owned Label label) { var view = label.description; if(view == "installed\0é") { return 42; } return 81; }
+owned DecodeError exception_factory() {
+	var label = label_factory();
+	var view = label.description;
+	var error = new DecodeError(view);
+	return move error;
+}
+void decode() throws DecodeError {
+	var error = exception_factory();
+	var label = label_factory();
+	if(consume(move label) == 42) { throw move error; }
+}
+void relay() throws DecodeError { try { decode(); } catch(Error error) { var view = error.message; if(view == "installed\0é") { throw; } } }

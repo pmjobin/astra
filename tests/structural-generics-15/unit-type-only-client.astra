@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class LocalRecordBox<T> {
+	T item;
+	init(T item) { this.item = item; }
+	T read() { return this.item; }
+}
+int through_record<T>(T first) {
+	NativeRecordOnly.Pair<T, bool> value = {first = first, second = true};
+	if (value.second) { return 0; }
+	return 4;
+}
+int main() {
+	NativeRecordOnly.Pair<int, bool> value = {first = 42, second = true};
+	if (!value.second) { return 1; }
+	i64 expected = 9000000001;
+	NativeRecordOnly.Pair<i64, bool> wide = {first = expected, second = true};
+	NativeRecordOnly.Pair<f64, int> decimal = {first = 42.5, second = 7};
+	NativeRecordOnly.Pair<NativeRecordOnly.Pair<i64, bool>, bool> nested = {first = wide, second = true};
+	if (wide.first != expected || !wide.second || decimal.first != 42.5 || decimal.second != 7) { return 2; }
+	if (nested.first.first != expected || !nested.first.second || !nested.second) { return 3; }
+	var box = new LocalRecordBox<NativeRecordOnly.Pair<int, bool>>(value);
+	NativeRecordOnly.Pair<int, bool> extracted = box.read();
+	if (extracted.first != 42 || !extracted.second) { return 5; }
+	if (through_record<int>(42) != 0) { return 6; }
+	return value.first - 42;
+}

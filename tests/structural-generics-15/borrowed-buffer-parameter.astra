@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ParameterBuffers { owned R resource; owned int[] first; owned i64[] second; }
+struct BufferedParameter { ParameterBuffers buffers; int stamp; }
+int observe_buffered_parameter(borrowed BufferedParameter value) { return value.stamp; }
+int forward_buffered_parameter(borrowed BufferedParameter value) { return observe_buffered_parameter(value); }
+int exercise_buffered_parameter() {
+	var resource = make(191);
+	var first = new int[3];
+	var second = new i64[5];
+	i64 expected = 9000000001;
+	first[0] = 19;
+	second[0] = expected;
+	BufferedParameter payload = {buffers = {resource = move resource, first = move first, second = move second}, stamp = 42};
+	if (observe_buffered_parameter(payload) != 42 || forward_buffered_parameter(payload) != 42) { return 1; }
+	var box = new Box<BufferedParameter>(move payload);
+	if (len(box.view.buffers.first) != 3 || box.view.buffers.first[0] != 19) { return 2; }
+	if (len(box.view.buffers.second) != 5 || box.view.buffers.second[0] != expected) { return 3; }
+	if (id(box.view.buffers.resource) != 191 || live() != 1) { return 4; }
+	return 0;
+}
+int main() {
+	int result = exercise_buffered_parameter();
+	if (result != 0) { return result; }
+	return live();
+}

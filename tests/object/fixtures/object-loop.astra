@@ -1,0 +1,18 @@
+class Counter {
+	int value;
+	void add(int amount) { this.value = this.value + amount; }
+	int get() { return this.value; }
+}
+int main() {
+	Counter a = { value = 0 };
+	Counter b = { value = 0 };
+	Counter reference = a;
+	int i = 0;
+	while (i < 6) {
+		reference.add(7);
+		if (reference == a) { reference = b; } else { reference = a; }
+		i = i + 1;
+	}
+	if (reference != a || a.value != 21 || b.value != 21) { return 1; }
+	return a.value + b.value;
+}

@@ -1,0 +1,60 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "value"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "value"))
+			)
+			(block
+				(assign (field-access "this" "value") (name "value"))
+			)
+		)
+		(destructor
+			(name "deinit")
+			(parameters)
+			(block
+				(call-statement (call "life_record" (arguments (field-access "this" "value") (integer "0"))))
+			)
+		)
+		(method
+			(type "void")
+			(name "add")
+			(parameters
+				(parameter (type "int") (name "n"))
+			)
+			(block
+				(assign (field-access "this" "value") (binary "+" (field-access "this" "value") (name "n")))
+			)
+		)
+	)
+	(extern-function
+		(abi C)
+		(type "int")
+		(name "life_record")
+		(parameters
+			(parameter (type "int") (name "code"))
+			(parameter (type "int") (name "value"))
+		)
+	)
+	(function
+		(type "void")
+		(name "consume")
+		(parameters
+			(parameter (owned) (type "Counter") (name "value"))
+		)
+		(block
+			(assign (field-access "value" "value") (binary "+" (field-access "value" "value") (integer "1")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Counter") (name "c") (constructor-initializer (class "Counter") (arguments (integer "41"))))
+			(call-statement (call "consume" (arguments (move (name "c")))))
+			(return (integer "42"))
+		)
+	)
+)

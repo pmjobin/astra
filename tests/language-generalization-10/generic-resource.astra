@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Entry {
+	int value;
+	owned R resource;
+	owned int[] bytes;
+	init(int value, owned R resource) {
+		this.value = value;
+		this.resource = move resource;
+		this.bytes = new int[3];
+	}
+	deinit() { mark(200 + this.value); }
+}
+int entry_id(Entry value) { return value.value; }
+int resource_id(R value) { return id(value); }
+int another_id(Other value) { return other_id(value); }
+int first(Vector<R> values) { return resource_id(values.entries[0]); }
+int other_first(Vector<Other> values) { return another_id(values.entries[0]); }
+int class_first(Vector<Entry> values) { return entry_id(values.entries[0]); }
+void exercise() {
+	var values = new Vector<R>(1);
+	var one = make(1);
+	var two = make(2);
+	var three = make(3);
+	bool a = values.append(move one);
+	bool b = values.append(move two);
+	bool c = values.append(move three);
+	mark(first(values));
+	var taken = values.take(1);
+	mark(id(taken));
+	var four = make(4);
+	values.replace(0, move four);
+	mark(first(values));
+	bool invalid = values.reserve(-1);
+	mark(values.count() * 10 + values.capacity());
+	var empty = make(0);
+	bool inserted_empty = values.append(move empty);
+	var empty_taken = values.take(2);
+	var others = new Vector<Other>(0);
+	var other = make_other(5);
+	bool d = others.append(move other);
+	mark(other_first(others));
+	var classes = new Vector<Entry>(0);
+	var child = make(6);
+	var entry = new Entry(6, move child);
+	bool e = classes.append(move entry);
+	mark(class_first(classes));
+	var next_child = make(7);
+	var next_entry = new Entry(7, move next_child);
+	bool f = classes.append(move next_entry);
+	mark(class_first(classes));
+	var extracted = classes.take(0);
+	mark(entry_id(extracted));
+}
+int main() {
+	exercise();
+	return live();
+}

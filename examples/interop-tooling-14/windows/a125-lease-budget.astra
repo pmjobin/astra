@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="a125_constructed")] int constructed(int capacity);
+[CImport(name="a125_closed")] int closed(int capacity, int spent);
+[CExport(name="a125_budget",property="value")]
+[COMExport(value_iid="849ad154-8d1e-4c63-9ea2-14329b022001",scale_iid="849ad154-8d1e-4c63-9ea2-14329b022002",threading="constructing")]
+[Shared]
+class LeaseBudget {
+	private int capacity;
+	private int spent;
+	init(int capacity) {
+		this.capacity = capacity;
+		this.spent = 0;
+		constructed(capacity);
+	}
+	property int value {
+		get { return this.capacity - this.spent; }
+		set(int expense) {
+			if (expense > 0 && expense <= this.capacity - this.spent) { this.spent = this.spent + expense; }
+		}
+	}
+	deinit() { closed(this.capacity, this.spent); }
+}

@@ -1,0 +1,57 @@
+(program
+	(class #0 "Counter"
+		(field #0 "raw" : int)
+		(property #0 "value" : int (member #2)
+			(getter #0 -> int
+				(receiver Receiver<Counter> live mutable nonnull non-owning)
+				(parameters)
+				(block
+					(return (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "raw" : int))))
+				)
+			)
+			(setter #0 -> void
+				(receiver Receiver<Counter> live mutable nonnull non-owning)
+				(parameters
+					(parameter #0 "next" : int)
+				)
+				(block
+					(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "raw" : int)) (parameter-ref #0 "next" : int))
+				)
+			)
+		)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "initial" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "raw" (parameter-ref #0 "initial" : int))
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "c" : Counter)
+		)
+		(block
+			(object-storage #0 (class #0 "Counter") (region #0))
+			(object-construct (storage #0) (ref-local #0 "c")
+				(construct constructor #0
+					(integer 1 : int)
+				)
+				(object-ref : Counter (storage #0) (region #0))
+			)
+			(property-set (property #0 Counter::value) (setter #0) (receiver (object-receiver (local-ref #0 "c" : Counter) : Receiver<Counter> null-traps-before-arguments)) (value (integer 42 : int)) : void effectful)
+			(if
+				(condition (binary != : bool (load (object-field-place (base (local-ref #0 "c" : Counter)) (field #0 "raw") : int null-traps)) (integer 42 : int)))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (property-get (property #0 Counter::value) (getter #0) (receiver (object-receiver (local-ref #0 "c" : Counter) : Receiver<Counter> null-traps-before-arguments)) : int effectful))
+		)
+	)
+)

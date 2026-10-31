@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+struct Log { int value; }
+i8<16> bytes(Log* log,int id){log->value=log->value*10+id;return splat(-1,16);}
+i16<8> words(Log* log,int id){log->value=log->value*10+id;return splat(257,8);}
+i8 scalar(Log* log,int id){log->value=log->value*10+id;return 127;}
+int main(){
+	Log log={value=0};
+	u16<8> low=widen_low(bytes(&log,1),u16);
+	if(log.value!=1 || low[0]!=65535){return 1;}
+	u16<8> high=widen_high(bytes(&log,2),u16);
+	if(log.value!=12 || high[7]!=65535){return 2;}
+	log.value=0;
+	u8<16> wrap=pack_wrap(words(&log,1),words(&log,2),u8);
+	if(log.value!=12 || wrap[0]!=1 || wrap[15]!=1){return 3;}
+	log.value=0;
+	u8<16> sat=pack_sat(words(&log,2),words(&log,3),u8);
+	if(log.value!=23 || sat[0]!=255){return 4;}
+	log.value=0;
+	i8<16> il=interleave_low(bytes(&log,3),bytes(&log,4));
+	if(log.value!=34 || il[1]!=-1){return 5;}
+	log.value=0;
+	i8<16> ih=interleave_high(bytes(&log,4),bytes(&log,5));
+	if(log.value!=45 || ih[15]!=-1){return 6;}
+	log.value=0;
+	i8 s=sat_add(scalar(&log,5),scalar(&log,6));
+	if(log.value!=56 || s!=127){return 7;}
+	log.value=0;
+	i8 d=sat_sub(scalar(&log,6),scalar(&log,7));
+	if(log.value!=67 || d!=0){return 8;}
+	return 0;
+}

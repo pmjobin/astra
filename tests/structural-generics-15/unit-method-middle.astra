@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace MethodMiddle;
+
+owned NativeMethods.Counter<int> create(int value) {
+	var result = new NativeMethods.Counter<int>(value);
+	return move result;
+}
+NativeMethods.Answer<int, bool> inspect(borrowed NativeMethods.Counter<int> value,
+	Fn<NativeMethods.Answer<int, bool>, int> query) {
+	return value.project<NativeMethods.Answer<int, bool>>(query);
+}
+NativeMethods.Answer<int, i64> combine(borrowed NativeMethods.Counter<int> value,
+	i64 input, Fn<NativeMethods.Answer<int, i64>, int, i64> query) {
+	return value.merge<i64, NativeMethods.Answer<int, i64>>(input, query);
+}
+int marker(borrowed NativeMethods.Counter<int> value) {
+	return value.constant<NativeMethods.Marker>();
+}

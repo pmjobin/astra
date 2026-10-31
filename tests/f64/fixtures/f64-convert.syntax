@@ -1,0 +1,64 @@
+(unit
+	(function
+		(type "f64")
+		(name "widen")
+		(parameters
+			(parameter (type "f32") (name "a"))
+		)
+		(block
+			(return (as (name "a") (type "f64")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "narrow")
+		(parameters
+			(parameter (type "f64") (name "a"))
+		)
+		(block
+			(return (as (name "a") (type "f32")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "f64") (name "tie") (float "1.000000059604644775390625"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (call "narrow" (arguments (name "tie"))) (float "1.0")) (binary "!=" (call "narrow" (arguments (float "1.000000178813934326171875"))) (float "1.0000002384185791015625"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (call "narrow" (arguments (float "1e300"))) (float "1e100")) (binary "!=" (call "narrow" (arguments (prefix "-" (float "1e300")))) (prefix "-" (float "1e100")))) (binary "!=" (call "narrow" (arguments (float "1e-300"))) (float "0.0"))) (binary "!=" (binary "/" (float "1.0") (call "narrow" (arguments (prefix "-" (float "1e-300"))))) (prefix "-" (float "1e100")))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (binary "==" (call "widen" (arguments (call "narrow" (arguments (float "1.401298464324817070923729583289916131280e-45"))))) (float "0.0")) (binary "!=" (binary "/" (float "1.0") (call "widen" (arguments (prefix "-" (float "0.0"))))) (prefix "-" (float "1e309")))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(local (type "f32") (name "x") (float "1.00000011920928955078125"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (call "narrow" (arguments (call "widen" (arguments (name "x"))))) (name "x")) (binary "!=" (call "widen" (arguments (name "x"))) (float "1.00000011920928955078125"))))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

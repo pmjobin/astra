@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class DeferredValue<T> {
+	T source;
+	int reads;
+	owned R guard;
+	init(T source, owned R guard) {
+		this.source = source;
+		this.reads = 0;
+		this.guard = move guard;
+	}
+	lazy property T value {
+		get {
+			mark(id(this.guard));
+			this.reads = this.reads + 1;
+			return this.source;
+		}
+	}
+}
+
+T read_deferred<T>(borrowed DeferredValue<T> value) { return value.value; }
+T relay_deferred<T>(borrowed DeferredValue<T> value) { return read_deferred(value); }
+
+int exercise_deferred() {
+	var first_guard = make(241);
+	var first = new DeferredValue<int>(41, move first_guard);
+	var second_guard = make(242);
+	var second = new DeferredValue<int>(42, move second_guard);
+	if (first.reads != 0 || second.reads != 0) { return 1; }
+	if (read_deferred(first) != 41 || first.reads != 1 || second.reads != 0) { return 2; }
+	first.source = 73;
+	if (relay_deferred(first) != 41 || first.reads != 1 || second.reads != 0) { return 3; }
+	if (relay_deferred(second) != 42 || second.reads != 1) { return 4; }
+	second.source = 99;
+	if (read_deferred(second) != 42 || read_deferred(first) != 41 || first.reads != 1 || second.reads != 1) { return 5; }
+	var flag_guard = make(243);
+	var flag = new DeferredValue<bool>(false, move flag_guard);
+	if (flag.reads != 0 || read_deferred(flag) || flag.reads != 1) { return 6; }
+	flag.source = true;
+	if (relay_deferred(flag) || flag.reads != 1) { return 7; }
+	i64 large = 9000000001;
+	var wide_guard = make(244);
+	var wide = new DeferredValue<i64>(large, move wide_guard);
+	if (wide.reads != 0 || relay_deferred(wide) != large || wide.reads != 1) { return 8; }
+	wide.source = 42;
+	if (read_deferred(wide) != large || wide.reads != 1) { return 9; }
+	if (live() != 4) { return 10; }
+	return 0;
+}
+int main() {
+	int result = exercise_deferred();
+	if (result != 0) { return result; }
+	return live();
+}

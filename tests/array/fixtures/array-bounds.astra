@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+bool guarded(int i) {
+	int[4] a = {1, 2, 3, 4};
+	return i >= 0 && i < 4 && a[i] > 0;
+}
+int main() {
+	if (guarded(-1) || guarded(4) || !guarded(0) || !guarded(3)) { return 1; }
+	return 0;
+}

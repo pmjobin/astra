@@ -1,0 +1,82 @@
+(core-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(function "inspect" -> int
+		(parameters
+			(parameter #0 "counter" : Counter (contract borrowed-noescape))
+		)
+		(block
+			(return
+				(load : int
+					(object-field-place null-traps : int
+						(parameter #0 : Counter)
+						(field #0 "value")
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(parameters)
+		(locals
+			(local-place #0 "c" : Counter)
+			(local-place #1 "alias" : Counter)
+		)
+		(block
+			(object-construct (storage #0) (ref-local #0) : Counter
+				(field-init #0
+					(integer 42 : int)
+				)
+			)
+			(initialize
+				(local-place #1 : Counter)
+				(load : Counter
+					(local-place #0 : Counter)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(call "inspect" -> int
+								(arguments
+									(load : Counter
+										(local-place #1 : Counter)
+									)
+								)
+							)
+							(integer 42 : int)
+						)
+						(binary != : bool
+							(load : Counter
+								(local-place #0 : Counter)
+							)
+							(load : Counter
+								(local-place #1 : Counter)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(object-field-place null-traps : int
+						(load : Counter
+							(local-place #0 : Counter)
+						)
+						(field #0 "value")
+					)
+				)
+			)
+		)
+	)
+)

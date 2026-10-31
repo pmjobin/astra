@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void record_frame_event(int kind, int identity);
+extern(C) int record_frame_pending();
+extern(C) int record_frame_finish();
+[Allocator(kind="context",context="owned-concurrent")]
+class FrameRecordItem {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	deinit() { record_frame_event(2, this.identity); }
+}
+struct FrameRecord<T> where T : Ownable {
+	owned T item;
+	owned ContextBytes<ConcurrentAllocator> bytes;
+	owned ConcurrentAllocator state;
+	int sequence;
+}
+struct FrameEnvelope<T> where T : Ownable {
+	FrameRecord<T> child;
+	int stamp;
+}
+FrameEnvelope<FrameRecordItem> frame_record(int identity) {
+	var context = concurrent_allocator(1, 8192, 7, 64);
+	var item = new(context) FrameRecordItem(identity);
+	var bytes = new(context)u8[13]; bytes[0] = identity as u8;
+	var state = concurrent_allocator(1, 1024, 3, 64);
+	record_frame_bind(context, identity, 1); record_frame_bind(state, identity, 2);
+	FrameEnvelope<FrameRecordItem> result = {stamp = 7, child = {state = move state, bytes = move bytes, item = move item, sequence = identity}};
+	return move result;
+}
+async void consume_frame_record(FrameEnvelope<FrameRecordItem> record, int mode) throws Error {
+	if (record.stamp != 7) { throw new Error("record capture scalar"); }
+	record_frame_event(1, record.child.sequence);
+	await delay_ticks(1);
+	if (mode == 1) { throw new Error("original record body failure"); }
+	if (mode == 2) { record_frame_event(3, record.child.sequence); await delay_ticks(60000); }
+}
+async void local_frame_record() throws Error {
+	FrameEnvelope<FrameRecordItem> record = frame_record(22);
+	await delay_ticks(1);
+	if (record.child.sequence != 22 || record.stamp != 7) { throw new Error("suspended local record"); }
+	record_frame_event(1, 22);
+}
+export(C) int run_record_frames() {
+	var frames = concurrent_allocator(1, 65536, 17, 64);
+	{
+		FrameEnvelope<FrameRecordItem> record = frame_record(17);
+		var cold = task_in(frames, consume_frame_record(move record, 0));
+	}
+	try {
+		var executor = ThreadedExecutor.open(2);
+		FrameEnvelope<FrameRecordItem> record = frame_record(18);
+		var status = executor.run(task_in(frames, consume_frame_record(move record, 0)));
+		match (status) { case ThreadedStatus.Completed(): {} else: { return 1; } }
+	} catch (Error error) { return 2; }
+	{
+		bool caught = false;
+		try {
+			var executor = ThreadedExecutor.open(2);
+			FrameEnvelope<FrameRecordItem> record = frame_record(19);
+			var status = executor.run(task_in(frames, consume_frame_record(move record, 1)));
+		} catch (Error error) { caught = true; }
+		if (!caught) { return 3; }
+	}
+	try {
+		var executor = ThreadedExecutor.open(2);
+		FrameEnvelope<FrameRecordItem> record = frame_record(20);
+		var task = task_in(frames, consume_frame_record(move record, 0));
+		executor.cancel(task);
+		var status = executor.run(move task);
+		match (status) { case ThreadedStatus.Cancelled(): {} else: { return 4; } }
+	} catch (Error error) { return 5; }
+	try {
+		var executor = ThreadedExecutor.open(2);
+		FrameEnvelope<FrameRecordItem> record = frame_record(21);
+		var task = task_in(frames, consume_frame_record(move record, 2));
+		executor.start(task);
+		try { while (record_frame_pending() == 0) { executor.pump(1); executor.advance(1); } }
+		catch (Error error) { executor.cancel(task); var cancelled = executor.run(move task); throw; }
+		executor.cancel(task);
+		var status = executor.run(move task);
+		match (status) { case ThreadedStatus.Cancelled(): {} else: { return 6; } }
+	} catch (Error error) { return 7; }
+	try {
+		var executor = ThreadedExecutor.open(2);
+		var status = executor.run(task_in(frames, local_frame_record()));
+		match (status) { case ThreadedStatus.Completed(): {} else: { return 8; } }
+	} catch (Error error) { return 9; }
+	if (concurrent_allocator_query(frames, 1) != 0) { return 10; }
+	return record_frame_finish();
+}

@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void process(borrowed f64[] values) { int i = 0; while (i < len(values)) { values[i] = values[i] + 1.0; i = i + 1; } }
+int main() {
+	var values = new f64[3];
+	process(values); process(values);
+	if (values[2] != 2.0) { return 1; }
+	var empty = new f64[0]; process(empty);
+	return 0;
+}

@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct OpenPayload<T> { T item; int revision; }
+struct OpenPart { i64 wide; int code; }
+struct OpenPair<U, V> { U first; V second; }
+class OpenCounter {
+	private int code;
+	init() { this.code = 0; }
+	int next() { this.code = this.code + 1; return this.code; }
+	int current() { return this.code; }
+}
+
+T extract_payload<T>(OpenPayload<T> source) { return source.item; }
+OpenPayload<T> relay_payload<T>(OpenPayload<T> source) { return source; }
+OpenPayload<T> make_payload<T>(T item) {
+	OpenPayload<T> value = {item = item, revision = 3};
+	return value;
+}
+U extract_first<U, V>(OpenPair<U, V> source) { return source.first; }
+OpenPair<V, U> reverse_pair<U, V>(OpenPair<U, V> source) {
+	OpenPair<V, U> value = {first = source.second, second = source.first};
+	return value;
+}
+T through_payload<T>(OpenPayload<T> source) { return extract_payload(source); }
+OpenPayload<T> forward_payload<T>(OpenPayload<T> source) { return relay_payload(source); }
+int consume_counter(owned OpenCounter source) { return source.current(); }
+int combine_open(int left, int right) { return left * 100 + right; }
+
+int main() {
+	OpenPart part = {wide = 7000000001, code = 42};
+	OpenPayload<OpenPart> payload = make_payload<OpenPart>(part);
+	var returned = relay_payload<OpenPart>(payload);
+	var extracted = extract_payload<OpenPart>(returned);
+	if (extracted.wide != 7000000001 || extracted.code != 42 || returned.revision != 3) { return 1; }
+	OpenPayload<int> number = make_payload<int>(47);
+	if (extract_payload<int>(number) != 47) { return 2; }
+	OpenPair<OpenPart, bool> pair = {first = part, second = true};
+	var first = extract_first<OpenPart, bool>(pair);
+	var reversed = reverse_pair<OpenPart, bool>(pair);
+	if (first.code != 42 || !reversed.first || reversed.second.wide != 7000000001) { return 3; }
+	var inferred = forward_payload(payload);
+	var inferred_part = through_payload(inferred);
+	var inferred_reverse = reverse_pair(pair);
+	if (inferred_part.code != 42 || !inferred_reverse.first || inferred_reverse.second.wide != 7000000001) { return 4; }
+	OpenPayload<OpenPayload<OpenPart>> nested = make_payload<OpenPayload<OpenPart>>(payload);
+	var nested_value = extract_payload(nested);
+	if (extract_payload(nested_value).wide != 7000000001 || extract_payload(make_payload(part)).code != 42) { return 5; }
+	if (make_payload(part).item.wide != 7000000001) { return 6; }
+	var counter = new OpenCounter();
+	if (make_payload(counter.next()).item != 1 || counter.current() != 1) { return 7; }
+	if (combine_open(make_payload(counter.next()).item, consume_counter(move counter)) != 202) { return 8; }
+	return 0;
+}

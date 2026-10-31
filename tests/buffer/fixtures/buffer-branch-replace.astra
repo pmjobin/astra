@@ -1,0 +1,19 @@
+void replace_buffer(bool early, owned int[] values) {
+	if (early) { release values; }
+	values = new int[3];
+}
+void replace_resource(bool early, owned R value, int number) {
+	if (early) { release value; }
+	value = resource(number);
+}
+int main() {
+	owned int[] first = new int[2];
+	replace_buffer(false, move first);
+	owned int[] second = new int[2];
+	replace_buffer(true, move second);
+	owned R first_resource = resource(1);
+	replace_resource(false, move first_resource, 2);
+	owned R second_resource = resource(3);
+	replace_resource(true, move second_resource, 4);
+	return 0;
+}

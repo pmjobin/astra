@@ -1,0 +1,168 @@
+(core-program
+	(function "sw" -> i16
+		(parameters
+			(parameter #0 "x" : i8)
+		)
+		(block
+			(return
+				(integer-convert (from i8) (to i16)
+					(value
+						(parameter #0 : i8)
+					)
+				)
+			)
+		)
+	)
+	(function "uw" -> u16
+		(parameters
+			(parameter #0 "x" : u8)
+		)
+		(block
+			(return
+				(integer-convert (from u8) (to u16)
+					(value
+						(parameter #0 : u8)
+					)
+				)
+			)
+		)
+	)
+	(function "sn" -> i8
+		(parameters
+			(parameter #0 "x" : i16)
+		)
+		(block
+			(return
+				(integer-convert (from i16) (to i8)
+					(value
+						(parameter #0 : i16)
+					)
+				)
+			)
+		)
+	)
+	(function "same" -> u8
+		(parameters
+			(parameter #0 "x" : i8)
+		)
+		(block
+			(return
+				(integer-convert (from i8) (to u8)
+					(value
+						(parameter #0 : i8)
+					)
+				)
+			)
+		)
+	)
+	(function "vsw" -> i16<8>
+		(parameters
+			(parameter #0 "v" : i8<8>)
+		)
+		(block
+			(return
+				(integer-vector-convert (from i8<8>) (to i16<8>)
+					(value
+						(parameter #0 : i8<8>)
+					)
+				)
+			)
+		)
+	)
+	(function "vuw" -> u16<8>
+		(parameters
+			(parameter #0 "v" : u8<8>)
+		)
+		(block
+			(return
+				(integer-vector-convert (from u8<8>) (to u16<8>)
+					(value
+						(parameter #0 : u8<8>)
+					)
+				)
+			)
+		)
+	)
+	(function "vsn" -> i8<8>
+		(parameters
+			(parameter #0 "v" : i16<8>)
+		)
+		(block
+			(return
+				(integer-vector-convert (from i16<8>) (to i8<8>)
+					(value
+						(parameter #0 : i16<8>)
+					)
+				)
+			)
+		)
+	)
+	(function "vsame" -> u8<16>
+		(parameters
+			(parameter #0 "v" : i8<16>)
+		)
+		(block
+			(return
+				(integer-vector-convert (from i8<16>) (to u8<16>)
+					(value
+						(parameter #0 : i8<16>)
+					)
+				)
+			)
+		)
+	)
+	(function "mixed" -> u16
+		(parameters
+			(parameter #0 "x" : i8)
+		)
+		(block
+			(return
+				(integer-convert (from i8) (to u16)
+					(value
+						(parameter #0 : i8)
+					)
+				)
+			)
+		)
+	)
+	(function "umixed" -> i16
+		(parameters
+			(parameter #0 "x" : u8)
+		)
+		(block
+			(return
+				(integer-convert (from u8) (to i16)
+					(value
+						(parameter #0 : u8)
+					)
+				)
+			)
+		)
+	)
+	(function "chain" -> u32
+		(parameters
+			(parameter #0 "x" : i8)
+		)
+		(block
+			(return
+				(integer-convert (from i16) (to u32)
+					(value
+						(integer-convert (from i8) (to i16)
+							(value
+								(parameter #0 : i8)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

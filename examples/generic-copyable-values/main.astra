@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+const int count = 2 + 2;
+int main(string[] args) {
+	var kernels = new Kernel[count];
+	var snapshots = new Box<Kernel>[count];
+	kernels[0].index = 7; kernels[0].gain = 0.5d;
+	kernels[1].index = 11; kernels[1].gain = 1.5d;
+	process(kernels, snapshots, true, 0, 1, 2);
+	var saved = save(identity(kernels[2]), "kernel", args);
+	Box<Kernel> boxed = { value = saved };
+	Box<Box<Kernel>> nested = { value = identity(boxed) };
+	Box<Box<Kernel>>[1] records = { identity(nested) };
+	var copied = identity(records[0]);
+	Saved ordinary = { kernel = identity(boxed), source = 2 };
+	Pair<Kernel,Box<Kernel>> pair = { first = saved, second = boxed };
+	var selected = identity(pair);
+	kernels[2].index = 123; snapshots[2].value.gain = 3.5d;
+	records[0].value.value.index = 5;
+	release kernels; release snapshots;
+	assert_that(saved.index == 7 && saved.gain == 0.5d);
+	assert_that(copied.value.value.index == 7 && copied.value.value.gain == 0.5d);
+	assert_that(ordinary.kernel.value.index == 7 && selected.second.value.index == 7);
+	if (len(args) > 1) { var failure = save(identity(records[0]), "", args); }
+	if (!println("generic records: 7; snapshots independent")) { return 2; }
+	return 0;
+}

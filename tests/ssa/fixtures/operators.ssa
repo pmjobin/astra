@@ -1,0 +1,101 @@
+(ssa-program
+	(function #0 "yes" -> bool
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (bool true : bool))
+		)
+	)
+	(function #1 "invert" -> bool
+		(parameters
+			(%0 "x" : bool)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = prefix ! %0)
+			(return %1)
+		)
+	)
+	(function #2 "different" -> bool
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary == %0 %1)
+			(%3 : bool = prefix ! %2)
+			(return %3)
+		)
+	)
+	(function #3 "compare" -> bool
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = binary + %0 (integer 1 : int))
+			(%3 : int = binary * %1 (integer 2 : int))
+			(%4 : bool = binary < %2 %3)
+			(%5 : bool = binary == %4 (bool true : bool))
+			(return %5)
+		)
+	)
+	(function #4 "less_equal" -> bool
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary <= %0 %1)
+			(return %2)
+		)
+	)
+	(function #5 "greater" -> bool
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary > %0 %1)
+			(return %2)
+		)
+	)
+	(function #6 "greater_equal" -> bool
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary >= %0 %1)
+			(return %2)
+		)
+	)
+	(function #7 "unequal" -> bool
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary != %0 %1)
+			(return %2)
+		)
+	)
+	(function #8 "same_bool" -> bool
+		(parameters
+			(%0 "a" : bool)
+			(%1 "b" : bool)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool = binary == %0 %1)
+			(%3 : bool = binary != %2 (bool false : bool))
+			(return %3)
+		)
+	)
+)

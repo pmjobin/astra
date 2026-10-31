@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+async void inspect_composition() throws Error {
+	var result = await TaskProducer.compute(40, false);
+	if (result.value != 42 || result.generation != 7) { throw new Error("result"); }
+	try {
+		var unused = await TaskProducer.compute(0, true);
+		throw new Error("missing failure");
+	} catch (Error error) {
+		if (error.message != "producer failure") { throw; }
+	}
+	var retry = await TaskProducer.compute(42, false);
+	if (retry.value != 44) { throw new Error("retry"); }
+}
+int main() {
+	try {
+		var executor = VirtualExecutor.open(4);
+		var task = inspect_composition();
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Completed(): {} else: { return 1; } }
+		var next_executor = VirtualExecutor.open(4);
+		var cancelled = inspect_composition();
+		next_executor.cancel(cancelled);
+		var cancelled_status = next_executor.run(move cancelled);
+		match (cancelled_status) { case RunStatus.Cancelled(): {} else: { return 2; } }
+	} catch (Error error) { return 3; }
+	return 0;
+}

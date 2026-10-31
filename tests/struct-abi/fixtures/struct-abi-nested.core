@@ -1,0 +1,189 @@
+(core-program
+	(struct "Inner"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(struct "Outer"
+		(field #0 "inner" : Inner)
+		(field #1 "samples" : i16<8>)
+	)
+	(function "identity" -> Outer
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Outer)
+		)
+		(locals
+			(struct-local-place #0 "value" : Outer)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place : f64 (field Inner::y #1)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place (base struct-local-place #0 : Outer) (field #1 "samples") : i16<8>)
+		)
+		(block
+			(acquire-struct-parameter #0 COPY_VALUE (local #0) all-leaves)
+			(struct-return snapshot-before-cleanup
+				(struct-snapshot : Outer
+					(local-place #0 : Outer)
+				)
+			)
+		)
+	)
+	(function "subobject" -> Inner
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(struct-parameter #0 COPY_VALUE read-only independent-local)
+			(parameter #0 "value" : Outer)
+		)
+		(locals
+			(struct-local-place #0 "value" : Outer)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place : f64 (field Inner::y #1)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place (base struct-local-place #0 : Outer) (field #1 "samples") : i16<8>)
+		)
+		(block
+			(acquire-struct-parameter #0 COPY_VALUE (local #0) all-leaves)
+			(struct-return snapshot-before-cleanup
+				(struct-snapshot : Inner
+					(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "a" : Outer)
+			(struct-local-place #1 "b" : Outer)
+			(struct-local-place #2 "c" : Inner)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place : f64 (field Inner::y #1)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place (base struct-local-place #0 : Outer) (field #1 "samples") : i16<8>)
+			(field-place (base struct-local-place #1 : Outer) (field #0 "inner") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #1 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place : f64 (field Inner::y #1)
+				(field-place (base struct-local-place #1 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place (base struct-local-place #1 : Outer) (field #1 "samples") : i16<8>)
+			(field-place (base struct-local-place #2 : Inner) (field #0 "x") : int)
+			(field-place (base struct-local-place #2 : Inner) (field #1 "y") : f64)
+		)
+		(block
+			(struct-initialize-storage
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+				(initialize
+					(field-place : int (field Inner::x #0)
+						(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+					)
+					(integer 7 : int)
+				)
+				(initialize
+					(field-place : f64 (field Inner::y #1)
+						(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+					)
+					(f64 0x400c000000000000 : f64)
+				)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : Outer) (field #1 "samples") : i16<8>)
+				(vector-splat : i16<8>
+					(lanes 8)
+					(value
+						(integer 9 : i16)
+					)
+				)
+			)
+			(struct-result-store initialize
+				(local-place #1 : Outer)
+				(struct-call-result : Outer
+					(call "identity" -> Outer
+						(arguments
+							(struct-argument #0 snapshot-at-argument
+								(struct-snapshot : Outer
+									(local-place #0 : Outer)
+								)
+							)
+						)
+					)
+				)
+			)
+			(struct-result-store initialize
+				(local-place #2 : Inner)
+				(struct-call-result : Inner
+					(call "subobject" -> Inner
+						(arguments
+							(struct-argument #0 snapshot-at-argument
+								(struct-snapshot : Outer
+									(local-place #1 : Outer)
+								)
+							)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(binary != : bool
+								(load : int
+									(field-place (base struct-local-place #2 : Inner) (field #0 "x") : int)
+								)
+								(integer 7 : int)
+							)
+							(binary != : bool
+								(load : f64
+									(field-place (base struct-local-place #2 : Inner) (field #1 "y") : f64)
+								)
+								(f64 0x400c000000000000 : f64)
+							)
+						)
+						(binary != : bool
+							(vector-extract : i16
+								(lane 7)
+								(vector
+									(load : i16<8>
+										(field-place (base struct-local-place #1 : Outer) (field #1 "samples") : i16<8>)
+									)
+								)
+							)
+							(integer 9 : i16)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

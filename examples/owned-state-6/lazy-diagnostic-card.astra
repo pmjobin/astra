@@ -1,0 +1,13 @@
+// A41: genuine compiler-owned lazy result and receiver-borrowed observation.
+int main() {
+	try {
+		var card = new DiagnosticCard(65); var other = new DiagnosticCard(65);
+		if (card.content == null || card.content == null || card.attempts != 1 || !message_equals(card.content, "A\0é")) { return 81; }
+		if (!card.shares_cache(card) || other.content == null) { return 82; }
+		if (card.shares_cache(other)) { return 82; }
+		var moved = move card;
+		if (moved.content == null || moved.attempts != 1 || !message_equals(moved.content, "A\0é")) { return 83; }
+		println("A41 cached embedded NUL and Unicode; moved; independent receiver");
+	} catch(InvalidUtf8 error) { return 84; }
+	return 0;
+}

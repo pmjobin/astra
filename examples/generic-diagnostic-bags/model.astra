@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Diagnostic {
+	int tag;
+	owned Utf8Message message;
+	init(int tag, owned Utf8Message message) {
+		this.tag = tag;
+		this.message = move message;
+	}
+	deinit() {
+		if (this.tag == 1) { println("drop 1"); }
+		else { if (this.tag == 2) { println("drop 2"); } else { println("drop 3"); } }
+	}
+}
+owned Diagnostic make_diagnostic(int tag, u8[] bytes) throws InvalidUtf8 {
+	var message = utf8_message(bytes);
+	var diagnostic = new Diagnostic(tag, move message);
+	return move diagnostic;
+}
+bool message_is(Utf8Message message, string expected) {
+	var view = message.text;
+	return view == expected && view.byte_length == expected.byte_length;
+}
+bool diagnostic_is(Diagnostic diagnostic, int tag, string expected) {
+	return diagnostic.tag == tag && message_is(diagnostic.message, expected);
+}
+bool distinct_diagnostics(Diagnostic first, Diagnostic second) { return first != second; }
+bool distinct_messages(Utf8Message first, Utf8Message second) { return first != second; }

@@ -1,0 +1,42 @@
+(program
+	(function "first" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(if
+				(condition (binary == : bool (parameter-ref #0 "x" : int) (integer 0 : int)))
+				(then
+					(block
+						(return (integer 0 : int))
+					)
+				)
+				(else
+					(block
+						(return (call "second" -> int (arguments (binary - : int (parameter-ref #0 "x" : int) (integer 1 : int)))))
+					)
+				)
+			)
+		)
+	)
+	(function "second" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(if
+				(condition (binary == : bool (parameter-ref #0 "x" : int) (integer 0 : int)))
+				(then
+					(block
+						(return (integer 0 : int))
+					)
+				)
+				(else
+					(block
+						(return (call "first" -> int (arguments (binary - : int (parameter-ref #0 "x" : int) (integer 1 : int)))))
+					)
+				)
+			)
+		)
+	)
+)

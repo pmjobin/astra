@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Numerics;
+extern(C) f32 numerical_mask_sample(int i);
+extern(C) int numerical_observe(int i, f64 value);
+extern(C) int numerical_finish(int wanted);
+int main() {
+	owned f32[] input=new f32[4096];owned f32[] output=new f32[4096];
+	for(int i=0;i<4096;i=i+1){input[i]=numerical_mask_sample(i);}
+	for(int i=0;i<4096;i=i+4){
+		f32<4> a=load_f32x4(input,i);f32<4> zero=splat(0.0f,4);
+		bool<4> unordered=unordered_f32x4(a,a);
+		f32<4> mixed=select(unordered,zero,select(a>zero,a,-a));
+		store_f32x4(output,i,mixed);
+	}
+	for(int i=0;i<4096;i=i+1){if(numerical_observe(i,output[i] as f64)!=0){return 1;}}
+	return numerical_finish(4096);
+}

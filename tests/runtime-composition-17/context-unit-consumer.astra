@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int context_unit_finish();
+extern(C) int m17_custom_provider_retired();
+int main() {
+	{
+		var first = concurrent_allocator(1, 32771, 17, 64);
+		var second = custom_allocator(32779, 19);
+		if (first == null || second == null) { return 1; }
+		if (concurrent_allocator_query(first, 0) == concurrent_allocator_query(second, 0)) { return 2; }
+		{
+			var a = ContextLeaf.create(first, 17);
+			var b = ContextMiddle.relay(second, 21);
+			var c = ContextMiddle.escaping(31);
+			var kept = concurrent_allocator(1, 12289, 11, 64);
+			if (kept == null) { return 7; }
+			var keeper = new ContextLeaf.Keeper(move kept);
+			var d = keeper.make(47);
+			release keeper;
+			if (d == null || d.read() != 47) { return 8; }
+			if (a == null || b == null || c == null || a.read() != 17 || b.read() != 23 || c.read() != 31) { return 3; }
+			if (concurrent_allocator_query(first, 1) != 1 || concurrent_allocator_query(second, 1) != 1) { return 4; }
+		}
+		if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) { return 5; }
+	}
+	if (m17_custom_provider_retired() != 1) { return 6; }
+	return context_unit_finish();
+}

@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class C { int value; init(int n) { this.value = n; } void draw() { this.value = this.value + 1; } }
+int inner(R handle, C object, f64[] values) { object.draw(); values[0] = values[0] + 1.0; return id(handle); }
+int outer(R handle, C object, f64[] values) { int n = inner(handle, object, values); object.draw(); return n + inner(handle, object, values); }
+int main() {
+	var handle = resource(1); var object = C.init(0); var values = new f64[1];
+	if (outer(handle, object, values) != 2 || object.value != 3 || values[0] != 2.0 || id(handle) != 1) { return 1; }
+	return 0;
+}

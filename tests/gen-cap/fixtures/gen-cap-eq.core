@@ -1,0 +1,80 @@
+(core-program
+	(generic-definition #0 "same" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Eq)
+	(function "same" -> bool
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+		)
+		(block
+			(return
+				(generic-op eq (capability Eq) (type-parameter #0 T) : bool
+					(parameter #0 : T)
+					(parameter #1 : T)
+				)
+			)
+		)
+	)
+	(generic-definition #1 "different" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Eq)
+	(function "different" -> bool
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+		)
+		(block
+			(return
+				(generic-op ne (capability Eq) (type-parameter #0 T) : bool
+					(parameter #0 : T)
+					(parameter #1 : T)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(generic-call "same" -> bool
+								(type-arguments bool)
+								(arguments
+									(bool true : bool)
+									(bool true : bool)
+								)
+							)
+							(generic-call "same" -> bool
+								(type-arguments void*)
+								(arguments
+									(null : void*)
+									(null : void*)
+								)
+							)
+						)
+						(generic-call "different" -> bool
+							(type-arguments f64)
+							(arguments
+								(f64 0x3ff0000000000000 : f64)
+								(f64 0x4000000000000000 : f64)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 42 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+)

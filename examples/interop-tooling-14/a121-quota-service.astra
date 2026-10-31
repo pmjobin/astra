@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A121: a native admission service with explicit C owners.
+[CImport(name="a121_quota_closed")]
+int quota_closed(int capacity, int used);
+
+[CExport(name="a121_quota",property="value")]
+[Shared]
+class QuotaService {
+	private int capacity;
+	private int used;
+	init(int capacity) {
+		int admitted = capacity;
+		if (admitted < 0) { admitted = 0; }
+		this.capacity = admitted;
+		this.used = 0;
+	}
+	property int value {
+		get { return this.capacity - this.used; }
+		set(int requested) {
+			if (requested >= 0 && requested <= this.capacity) { this.used = requested; }
+		}
+	}
+	deinit() { quota_closed(this.capacity, this.used); }
+}
+
+[CExport(name="a121_native_work")]
+int native_work() {
+	var service = new QuotaService(23);
+	var alias = service.clone();
+	service.value = 4;
+	if (alias.value != 19) { return 1; }
+	release service;
+	alias.value = 24;
+	if (alias.value != 19) { return 2; }
+	return 0;
+}

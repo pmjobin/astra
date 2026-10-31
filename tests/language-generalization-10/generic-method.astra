@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Store<T> {
+	owned T[slots] entries;
+	init() { this.entries = new T[slots]; }
+	U echo<U>(U value) { return value; }
+	int constant<U>() { return 6; }
+	owned T forward<U>(owned T value, U tag) {
+		U snapshot = this.echo<U>(tag);
+		return move value;
+	}
+	bool push<U>(owned T value, U tag) {
+		U snapshot = this.echo<U>(tag);
+		bool ready = this.entries.reserve(len(this.entries) + 1);
+		if (!ready) { return false; }
+		this.entries.append(move value);
+		return true;
+	}
+	owned T take() {
+		var value = this.entries.take(0);
+		return move value;
+	}
+}
+struct Payload { int value; i64 stamp; bool ready; void* opaque; }
+enum Tag { Ready(int code), Empty }
+class Item {
+	int value;
+	owned R resource;
+	init(int value, owned R resource) { this.value = value; this.resource = move resource; }
+}
+int exercise() {
+	var objects = new Store<Item>();
+	var first = make(1);
+	var item = new Item(41, move first);
+	var forwarded = objects.forward<int>(move item, 7);
+	if (forwarded.value != 41 || objects.echo<int>(7) != 7 || !objects.echo<bool>(true)) { return 81; }
+	var second = make(2);
+	var next = new Item(42, move second);
+	if (!objects.push<bool>(move next, true)) { return 82; }
+	var taken = objects.take();
+	if (taken.value != 42) { return 83; }
+	var records = new Store<Payload>();
+	Payload value = {value = 43, stamp = 7000000001, ready = true, opaque = null};
+	var copied = records.forward<Payload>(value, value);
+	var echoed = records.echo<Payload>(value);
+	if (copied.value != 43 || echoed.value != 43 || value.value != 43 || echoed.stamp != 7000000001 || !echoed.ready) { return 84; }
+	if (!records.push<int>(value, 9)) { return 85; }
+	var record = records.take();
+	if (record.value != 43 || objects.constant<Payload>() != 6) { return 86; }
+	Tag tag = Tag.Ready(71);
+	var tagged = records.echo<Tag>(tag);
+	match (tagged) {
+		case Tag.Ready(code): { if (code != 71) { return 87; } }
+		case Tag.Empty(): { return 88; }
+	}
+	var resources = new Store<R>();
+	var third = make(3);
+	var passed = resources.forward<bool>(move third, false);
+	if (!resources.push<Payload>(move passed, value)) { return 89; }
+	var returned = resources.take();
+	if (id(returned) != 3) { return 90; }
+	return 0;
+}
+
+int main() { int result = exercise(); if (result != 0) { return result; } return live(); }

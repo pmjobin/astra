@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+const int ARRAY_COUNT = 2 + 2;
+int main(string[] args) {
+	Kernel prototype = {index=7,gain=0.5d};
+	var kernels = filled_array(ARRAY_COUNT, prototype);
+	var owner = ArrayOwner.init(kernels);
+	owner.replace();
+	var snapshots = process(kernels, prototype);
+	var copied = clone_array(kernels);
+	var forwarded = relay_array(move copied);
+	forwarded = clone_array(forwarded);
+	var saved = save(forwarded, forwarded[1], "kernel", args);
+	var boxed = element_at<Box<Kernel>>(snapshots, 0);
+	Kernel[1] fixed = {prototype};
+	fill<Kernel>(slice(fixed), prototype);
+	var array_copy = element_at(slice(fixed), 0);
+	kernels[1].index = 123;
+	snapshots[0].value.gain = 3.5d;
+	release kernels; release snapshots; release forwarded;
+	assert_that(saved.index == 7 && saved.gain == 0.5d);
+	assert_that(boxed.value.index == 7 && boxed.value.gain == 0.5d && array_copy.index == 7);
+	assert_that(owner.kernels[0].index == 7 && owner.kernels[1].index == 7);
+	if (len(args) > 2) { var view_failure = save(slice(fixed), fixed[0], "view", args); }
+	if (len(args) > 1) { var failure = save(slice(fixed), fixed[0], "", args); }
+	if (!println("generic arrays: 7; owners and snapshots independent")) { return 2; }
+	return 0;
+}

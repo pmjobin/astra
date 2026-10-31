@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="importcallbacks16_exception_retired")] int retired();
+[ExceptionRoot] class Fault {
+	readonly string text;
+	private int domain;
+	private int status;
+	init(int domain, int status) { this.domain = domain; this.status = status; this.text = "foreign provider failure"; }
+	virtual property string message { get { return this.text; } }
+	int code() { return this.status; }
+	int space() { return this.domain; }
+	deinit() { retired(); }
+}
+owned Fault foreign_fault(int domain, int status) { var fault = new Fault(domain,status); return move fault; }
+struct Reading{i64 total;f64 scale;i32 count;}
+[CImport(name="callback_provider16",profile="declarations-v1",lifetime="unique",threading="constructing",bool_abi="c99")]
+class Provider {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")] init(int seed) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")] i64 invoke(int offset,borrowed Callback<i64,i32,u32,i64,u64,f32,f64,bool> code,bool enabled) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")] void notify(borrowed Callback<void,i32> code,int delta) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")] bool choose(bool input,borrowed Callback<bool,bool> code) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")] int checked(borrowed Callback<i32,i32> code,int input) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")] i64 aggregate(Reading input,borrowed Callback<i64,i64> code) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")][ForeignChannel(parameter="code",nullable="true")]void optional(borrowed Callback<void,i32> code,int delta) throws Fault;
+}
+[CImport(name="importcallbacks16_seen")] void seen(int value);
+i64 transform(i32 a,u32 b,i64 c,u64 d,f32 e,f64 f,bool g){u32 large32=4000000000;i64 negative=-5000000000;u64 large64=9223372036854775809;f32 single=1.25;if(a!=10 || b!=large32 || c!=negative || d!=large64 || e!=single || f!=2.5 || !g){return 0;}return c+21;}
+void notify(int value){seen(value);}
+bool choose(bool input){return !input;}
+int checked(int input){return input+21;}
+i64 aggregate(i64 input){return input+21;}
+int relay(borrowed Provider provider,borrowed Callback<i32,i32> code,int input) throws Fault{return provider.checked(code,input);}
+export(C) int importcallbacks16_run(){try{var provider=Provider.init(7);i64 expected=-4999999968;if(provider.invoke(3,transform,true)!=expected){return 1;}provider.notify(notify,4);Reading record={total=42,scale=2.5,count=3};i64 combined=66;if(provider.aggregate(record,aggregate)!=combined){return 5;}provider.optional(null,4);provider.optional(notify,4);if(!provider.choose(false,choose) || provider.choose(true,choose)){return 2;}if(relay(provider,checked,3)!=31){return 3;}try{var failed=relay(provider,checked,-1);return failed;}catch(Fault fault){if(fault.space()!=16 || fault.code()!=-1600){return 4;}}}catch(Fault fault){return 80;}return 0;}
+[CExport(name="callback_relay16",profile="declarations-v1",bool_abi="c99")]
+class Relay {
+	[Foreign]init(){}
+	[Foreign(error_domain="16",errors="Fault=-1600")] i64 invoke(int offset,borrowed Callback<i64,i32,u32,i64,u64,f32,f64,bool> code,bool enabled) throws Fault{var provider=Provider.init(7);return provider.invoke(offset,code,enabled);}
+}

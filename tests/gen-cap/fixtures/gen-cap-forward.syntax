@@ -1,0 +1,81 @@
+(unit
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "inner")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Numeric)
+		(block
+			(return (binary "+" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type-parameters T U)
+		(type "T")
+		(name "outer")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+			(parameter (type "U") (name "token"))
+		)
+		(where U Eq)
+		(where T Numeric)
+		(block
+			(if
+				(condition (binary "==" (name "token") (name "token")))
+				(then
+					(block
+						(return (generic-call "inner" (type-arguments T) (arguments (name "a") (name "b"))))
+					)
+				)
+			)
+			(return (name "a"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "int")
+		(name "tag")
+		(parameters)
+		(where T Eq)
+		(block
+			(return (integer "1"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "unused")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Numeric)
+		(block
+			(return (binary "/" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "int") (name "a") (generic-call "outer" (type-arguments int bool) (arguments (integer "40") (integer "2") (bool true))))
+			(local (type "int") (name "b") (generic-call "outer" (type-arguments i32 bool) (arguments (integer "40") (integer "2") (bool false))))
+			(local (type "i8") (name "c") (generic-call "inner" (type-arguments i8) (arguments (integer "1") (integer "2"))))
+			(local (type "u8") (name "d") (generic-call "inner" (type-arguments u8) (arguments (integer "1") (integer "2"))))
+			(if
+				(condition (short-circuit "&&" (short-circuit "&&" (short-circuit "&&" (binary "==" (name "a") (name "b")) (binary "==" (name "c") (integer "3"))) (binary "==" (name "d") (integer "3"))) (binary "==" (generic-call "tag" (type-arguments int) (arguments)) (generic-call "tag" (type-arguments f64) (arguments)))))
+				(then
+					(block
+						(return (name "a"))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="reference16_exception_retired")] int retired();
+[ExceptionRoot] class Fault {
+	readonly string text;
+	private int status;
+	init(int status) { this.status = status; this.text = "foreign reference failure"; }
+	virtual property string message { get { return this.text; } }
+	int code() { return this.status; }
+	deinit() { retired(); }
+}
+owned Fault foreign_fault(int domain, int status) { var fault = new Fault(status); return move fault; }
+[CImport(name="reference_provider16",profile="declarations-v1",lifetime="unique",threading="constructing",bool_abi="c99")]
+class Provider {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	init() throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="signed32",direction="inout")]
+	[ForeignChannel(parameter="unsigned32",direction="inout")]
+	[ForeignChannel(parameter="signed64",direction="inout")]
+	[ForeignChannel(parameter="unsigned64",direction="inout")]
+	[ForeignChannel(parameter="single",direction="inout")]
+	[ForeignChannel(parameter="real",direction="inout")]
+	[ForeignChannel(parameter="produced",direction="out")]
+	bool change(borrowed i32* signed32, borrowed u32* unsigned32, borrowed i64* signed64,
+		borrowed u64* unsigned64, borrowed f32* single, borrowed f64* real,
+		borrowed int* produced, int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="left",direction="inout")]
+	[ForeignChannel(parameter="right",direction="out")]
+	int combine(borrowed int* input, borrowed int* left, borrowed int* right, int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	int observe(borrowed int* input) throws Fault;
+}
+export(C) int import_references16_run() {
+	try {
+		var provider = Provider.init();
+		i32 a = 4; u32 b = 4000000000; i64 c = -5000000000; u64 d = 9223372036854775809;
+		f32 e = 1.25; f64 f = 2.5; int produced = -1;
+		if (!provider.change(&a,&b,&c,&d,&e,&f,&produced,0) || produced != 13) { return 1; }
+		u32 expected_b = 4000000010; i64 expected_c = -4999999990; u64 expected_d = 9223372036854775819; f32 expected_e = 2.5;
+		if (a != 14 || b != expected_b || c != expected_c || d != expected_d || e != expected_e || f != 5.0) { return 2; }
+		int mode = 1;
+		while (mode < 3) {
+			produced = -1;
+			try { bool ignored = provider.change(&a,&b,&c,&d,&e,&f,&produced,mode); if (ignored) { return 3; } return 4; }
+			catch (Fault fault) { if (mode == 1 && fault.code() != -1600) { return 5; } if (mode == 2 && fault.code() != -2147418113) { return 6; } }
+			if (a != 14 || b != expected_b || c != expected_c || d != expected_d || e != expected_e || f != 5.0 || produced != 0) { return 7; }
+			mode = mode + 1;
+		}
+		try { bool ignored = provider.change(&a,&b,&c,&d,&e,&f,null,0); if (ignored) { return 8; } return 9; }
+		catch (Fault fault) { if (fault.code() != -2147467261) { return 10; } }
+		int alias = 5; if (provider.combine(&alias,&alias,&alias,0) != 17 || alias != 17) { return 11; }
+		alias = 5; try { int ignored = provider.combine(&alias,&alias,&alias,1); return ignored; }
+		catch (Fault fault) { if (fault.code() != -1600 || alias != 0) { return 12; } }
+		int input = 9; if (provider.observe(&input) != 9 || input != 9) { return 13; }
+	} catch (Fault fault) { return 90; }
+	return 0;
+}

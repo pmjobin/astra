@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Box<T> {
+	private int generation;
+	private owned T payload;
+	init(owned T value) {
+		this.generation = 1;
+		this.payload = move value;
+	}
+	property borrowed T view {
+		get { return this.payload; }
+	}
+	int revision() { return this.generation; }
+}
+
+int exercise() {
+	var first = make(41);
+	var second = make_other(42);
+	var resource = new Box<R>(move first);
+	var other = new Box<Other>(move second);
+	if (id(resource.view) != 41 || other_id(other.view) != 42) { return 1; }
+	return resource.revision() + other.revision() - 2;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

@@ -1,0 +1,75 @@
+(unit
+	(struct "Pair"
+		(field (type "int") (name "x"))
+		(field (type "f64") (name "y"))
+	)
+	(function
+		(type "Pair")
+		(name "choose")
+		(parameters
+			(parameter (type "bool") (name "condition"))
+			(parameter (type "Pair") (name "a"))
+			(parameter (type "Pair") (name "b"))
+		)
+		(block
+			(if
+				(condition (name "condition"))
+				(then
+					(block
+						(return (name "a"))
+					)
+				)
+			)
+			(return (name "b"))
+		)
+	)
+	(function
+		(type "Pair")
+		(name "merge")
+		(parameters
+			(parameter (type "bool") (name "condition"))
+			(parameter (type "Pair") (name "a"))
+			(parameter (type "Pair") (name "b"))
+		)
+		(block
+			(local (type "Pair") (name "result") (name "a"))
+			(if
+				(condition (name "condition"))
+				(then
+					(block
+						(assign (name "result") (name "b"))
+					)
+				)
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Pair") (name "a")
+				(initialize-field "x" (integer "7"))
+				(initialize-field "y" (float "3.5"))
+			)
+			(struct-local (type "Pair") (name "b")
+				(initialize-field "x" (integer "9"))
+				(initialize-field "y" (float "9.5"))
+			)
+			(local (type "Pair") (name "c") (call "choose" (arguments (bool true) (name "a") (name "b"))))
+			(local (type "Pair") (name "d") (call "choose" (arguments (bool false) (name "a") (name "b"))))
+			(local (type "Pair") (name "e") (call "merge" (arguments (bool true) (name "a") (name "b"))))
+			(local (type "Pair") (name "f") (call "merge" (arguments (bool false) (name "a") (name "b"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "c" "x") (integer "7")) (binary "!=" (field-access "c" "y") (float "3.5"))) (binary "!=" (field-access "d" "x") (integer "9"))) (binary "!=" (field-access "d" "y") (float "9.5"))) (binary "!=" (field-access "e" "x") (integer "9"))) (binary "!=" (field-access "f" "x") (integer "7"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

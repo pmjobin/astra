@@ -1,0 +1,34 @@
+(program
+	(struct "Counter"
+		(field #0 "value" : int)
+		(method #0 "add" (member #1) -> void
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters
+				(parameter #0 "delta" : int)
+			)
+			(block
+				(store (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int)) (binary + : int (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))) (parameter-ref #0 "delta" : int)))
+			)
+		)
+		(method #1 "get" (member #2) -> int
+			(receiver Receiver<Counter> mutable nonnull non-owning)
+			(parameters)
+			(block
+				(return (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "value" : int))))
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "counter" : Counter address-taken)
+		)
+		(block
+			(struct-local #0 "counter" : Counter
+				(initialize-field #0 "value" (integer 40 : int))
+			)
+			(method-call-statement "add" -> void (target Counter::add #0) (receiver (receiver-address (local #0 "counter") : Receiver<Counter>)) (arguments (integer 2 : int)))
+			(return (method-call "get" -> int (target Counter::get #1) (receiver (receiver-address (local #0 "counter") : Receiver<Counter>)) (arguments)))
+		)
+	)
+)

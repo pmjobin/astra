@@ -1,0 +1,11 @@
+T identity<T>(T value) {
+	return value;
+}
+f64 exact(f64 x) { return identity<f64>(x); }
+f64 rounded<T>(f64 a,f64 b,f64 c) { return a*b+c; }
+int main() {
+	f64 y=exact(1.25);
+	f64 result=rounded<bool>(1.0000000000000002,1.0000000000000002,-1.0000000000000004);
+	if (y==1.25 && result==0.0) { return 42; }
+	return 1;
+}

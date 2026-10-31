@@ -1,0 +1,40 @@
+(ssa-program
+	(struct "Counter"
+		(field #0 "value" : int)
+	)
+	(function #0 "main" -> int
+		(parameters)
+		(storage #0 "counter" (local #0) : Counter address-taken)
+		(entry #0)
+		(block #0
+			(initialize (direct-field (storage #0) (struct "Counter" field #0 "value") : int) (integer 40 : int))
+			(%0 : Receiver<Counter> = address-of (storage #0))
+			(method-call (target Counter::add #0) (receiver %0) -> void (arguments (integer 2 : int)))
+			(%1 : Receiver<Counter> = address-of (storage #0))
+			(%2 : int = method-call (target Counter::get #1) (receiver %1) -> int (arguments))
+			(return %2)
+		)
+	)
+	(method #0 "add" (declaring-struct #0 "Counter") (member #1) -> void
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(%1 "delta" : int)
+		)
+		(entry #0)
+		(block #0
+			(%2 : int = load (indirect-field %0 (struct "Counter" field #0 "value") : int))
+			(%3 : int = binary + %2 %1)
+			(store (indirect-field %0 (struct "Counter" field #0 "value") : int) %3)
+			(function-end)
+		)
+	)
+	(method #1 "get" (declaring-struct #0 "Counter") (member #2) -> int
+		(receiver %0 : Receiver<Counter> mutable nonnull non-owning)
+		(parameters)
+		(entry #0)
+		(block #0
+			(%1 : int = load (indirect-field %0 (struct "Counter" field #0 "value") : int))
+			(return %1)
+		)
+	)
+)

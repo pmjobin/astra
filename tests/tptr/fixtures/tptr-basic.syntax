@@ -1,0 +1,87 @@
+(unit
+	(struct "Pair"
+		(field (type "int") (name "x"))
+		(field (type "int") (name "y"))
+	)
+	(function
+		(type "void")
+		(name "set_x")
+		(parameters
+			(parameter (type "Pair*") (name "p"))
+			(parameter (type "int") (name "value"))
+		)
+		(block
+			(assign (indirect-field-access "p" "x") (name "value"))
+			(return)
+		)
+	)
+	(function
+		(type "int")
+		(name "read_via_local")
+		(parameters
+			(parameter (type "Pair*") (name "p"))
+		)
+		(block
+			(local (type "Pair*") (name "q") (name "p"))
+			(local (type "Pair*") (name "empty") (null))
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "empty") (null)) (binary "!=" (null) (name "empty"))))
+				(then
+					(block
+						(return (prefix "-" (integer "1")))
+					)
+				)
+			)
+			(assign (name "empty") (name "q"))
+			(assign (name "q") (null))
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "q") (null)) (binary "!=" (name "empty") (name "p"))))
+				(then
+					(block
+						(return (prefix "-" (integer "2")))
+					)
+				)
+			)
+			(return (indirect-field-access "empty" "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Pair") (name "p")
+				(initialize-field "x" (integer "1"))
+				(initialize-field "y" (integer "2"))
+			)
+			(local (type "int") (name "before") (field-access "p" "x"))
+			(call-statement (call "set_x" (arguments (address-of "p") (integer "42"))))
+			(local (type "int") (name "after") (field-access "p" "x"))
+			(if
+				(condition (binary "!=" (name "before") (integer "1")))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "after") (integer "42")) (binary "!=" (field-access "p" "y") (integer "2"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(if
+				(condition (binary "!=" (call "read_via_local" (arguments (address-of "p"))) (integer "42")))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

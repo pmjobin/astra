@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int inspect(R handle) { return mark(id(handle)); }
+int consume(int first, owned R handle, int last) { return first + id(handle) + last; }
+int main() { var handle = resource(1); if (consume(inspect(handle), move handle, mark(2)) != 4) { return 1; } return 0; }

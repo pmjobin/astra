@@ -1,0 +1,64 @@
+(unit
+	(function
+		(type-parameters T)
+		(type "bool")
+		(name "less_or_same")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Eq Ordered)
+		(block
+			(return (short-circuit "||" (binary "==" (name "a") (name "b")) (binary "<" (name "a") (name "b"))))
+		)
+	)
+	(function
+		(type-parameters T U)
+		(type "T")
+		(name "multi")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+			(parameter (type "U") (name "token"))
+		)
+		(where U Eq)
+		(where T Numeric Bitwise)
+		(block
+			(if
+				(condition (binary "==" (name "token") (name "token")))
+				(then
+					(block
+						(return (binary "^" (parenthesized (binary "+" (name "a") (name "b"))) (name "b")))
+					)
+				)
+			)
+			(return (name "a"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "int")
+		(name "tag")
+		(parameters)
+		(where T Numeric Shift)
+		(block
+			(return (integer "1"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit "&&" (short-circuit "&&" (generic-call "less_or_same" (type-arguments f64) (arguments (float "1.0") (float "2.0"))) (binary "==" (generic-call "multi" (type-arguments int bool) (arguments (integer "40") (integer "1") (bool true))) (integer "40"))) (binary "==" (generic-call "tag" (type-arguments u32) (arguments)) (integer "1"))))
+				(then
+					(block
+						(return (integer "42"))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

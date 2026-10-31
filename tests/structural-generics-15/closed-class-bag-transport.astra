@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class TransportBagItem {
+	int code;
+	init(int code) { this.code = code; }
+	deinit() { mark(this.code); }
+}
+void observe_bag<T>(borrowed T value) where T : Ownable { mark(776); }
+void retire_bag<T>(owned T value) where T : Ownable {}
+int read_bag_item(borrowed TransportBagItem value) { return value.code; }
+int main() {
+	var bag = new Bag<TransportBagItem>();
+	if (!bag.reserve(2)) { return 1; }
+	var first = new TransportBagItem(711);
+	var second = new TransportBagItem(712);
+	bag.append(move first);
+	bag.append(move second);
+	observe_bag(bag);
+	if (bag.count() != 2 || read_bag_item(bag.entries[0]) != 711 || read_bag_item(bag.entries[1]) != 712) { return 2; }
+	retire_bag(move bag);
+	return 0;
+}

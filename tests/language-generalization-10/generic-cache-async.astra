@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct AsyncPacket { owned R resource; owned int[] values; int tag; }
+int async_packet_count(Vector<AsyncPacket> values) { return values.count(); }
+class AsyncCache {
+	int tag;
+	int attempts;
+	init(int tag) { this.tag = tag; this.attempts = 0; }
+	lazy property owned Vector<AsyncPacket> packets throws Error {
+		get {
+			this.attempts = this.attempts + 1;
+			var packets = new Vector<AsyncPacket>(0);
+			var resource = make(this.tag);
+			var values = new int[2];
+			values[0] = this.tag;
+			AsyncPacket packet = {resource = move resource, values = move values, tag = this.tag};
+			bool stored = packets.append(move packet);
+			if (this.attempts == 1) { throw new Error("first attempt"); }
+			return move packets;
+		}
+	}
+	deinit() { mark(300 + this.tag); }
+}
+async int cached_worker(int tag, bool failing, int delay) throws Error {
+	var cache = new AsyncCache(tag);
+	try { int unexpected = async_packet_count(cache.packets); throw new Error("missing retry"); }
+	catch(Error error) { if (cache.attempts != 1 || error.message != "first attempt") { throw; } }
+	if (async_packet_count(cache.packets) != 1 || cache.attempts != 2) { throw new Error("cache preparation"); }
+	mark(100 + tag);
+	await delay_ticks(delay);
+	if (async_packet_count(cache.packets) != 1 || cache.attempts != 2) { throw new Error("cache across suspension"); }
+	mark(200 + tag);
+	if (failing) { throw new Error("after suspension"); }
+	return tag;
+}
+async void cache_controller() throws Error {
+	if (await cached_worker(1, false, 2) != 1) { throw new Error("completion"); }
+	try { int unexpected = await cached_worker(2, true, 2); throw new Error("missing failure"); }
+	catch(Error error) { mark(900); }
+	var child = cached_worker(3, false, 20);
+	start(child);
+	try { await delay_ticks(1); }
+	catch(Error error) { await cancel_and_join(move child); throw; }
+	cancel(child);
+	cancel(child);
+	await cancel_and_join(move child);
+	mark(903);
+}
+int main() {
+	try {
+		var executor = VirtualExecutor.open(3);
+		var status = executor.run(cache_controller());
+		match(status) { case RunStatus.Completed(): { return live(); } else: { return 81; } }
+	}
+	catch(Error error) { return 82; }
+}

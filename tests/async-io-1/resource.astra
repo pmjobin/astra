@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void resource_observed(int stage, int value);
+async void hold(owned Resource resource, int milliseconds) throws Error {
+	await delay_ms(milliseconds);
+	resource_observed(1, read_resource(resource));
+	await delay_ms(milliseconds);
+	resource_observed(2, read_resource(resource));
+}
+async void resources() throws Error {
+	await hold(open_resource(42), 1);
+	var child = hold(open_resource(43), 100);
+	start(child);
+	try { await delay_ms(1); } catch (Error error) { await cancel_and_join(move child); throw; }
+	await cancel_and_join(move child);
+	resource_observed(3, 42);
+}
+export(C) int run_program() {
+	try { var executor = LinuxExecutor.open(2); var status = executor.run(resources()); return 42; }
+	catch (Error error) { return 80; }
+}
+int main() { return run_program(); }

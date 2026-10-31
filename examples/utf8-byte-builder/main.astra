@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool message_is(Utf8Message message, string expected) {
+	var text = message.text;
+	return text == expected && text.byte_length == expected.byte_length;
+}
+bool inspect(Bag<Utf8Message> messages, int index, string expected) {
+	return message_is(messages.entries[index], expected);
+}
+int exercise(bool early, bool fail) throws InvalidUtf8 {
+	var messages = new Bag<Utf8Message>(); var builder = new Utf8ByteBuilder();
+	if (!messages.reserve(2) || !builder.reserve(2)) { return 81; }
+	// Both fragments are produced by runtime writes and remain caller-owned.
+	var prefix = new u8[2]; prefix[0] = 97; prefix[1] = 0;
+	var suffix = new u8[1]; suffix[0] = 98;
+	if (!builder.append_bytes(prefix)) { return 82; }
+	var first = builder.snapshot(); messages.append(move first);
+	prefix[0] = 255; release prefix;
+	if (!builder.reserve(3) || builder.capacity() != 3 || !builder.append_bytes(suffix)) { return 83; }
+	suffix[0] = 255; release suffix;
+	var second = builder.snapshot(); messages.append(move second);
+	if (!messages.reserve(3) || !inspect(messages, 0, "a\0") || !inspect(messages, 1, "a\0b")) { return 84; }
+	if (fail) {
+		u8[1] invalid = {255};
+		if (!builder.append_bytes(slice(invalid))) { return 85; }
+		var unpublished = builder.snapshot(); return 86;
+	}
+	var third = builder.snapshot(); messages.append(move third);
+	release builder;
+	if (!inspect(messages, 0, "a\0") || !inspect(messages, 1, "a\0b") || !inspect(messages, 2, "a\0b") || messages.count() != 3 || messages.capacity() != 3) { return 87; }
+	if (early) { if (!println("early")) { return 88; } return 0; }
+	if (!println("assembled")) { return 89; }
+	return 0;
+}
+int main(string[] args) {
+	var early = false; var fail = false;
+	if (len(args) > 1) { early = args[1] == "early"; fail = args[1] == "error"; }
+	try { return exercise(early, fail); }
+	catch (InvalidUtf8 error) { if (fail && error.message == "invalid UTF-8" && println("caught")) { return 0; } }
+	return 90;
+}

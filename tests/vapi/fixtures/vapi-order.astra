@@ -1,0 +1,26 @@
+int pair(int a, int b) {
+	return a * 10 + b;
+}
+
+int main() {
+	astra_test_reset();
+	if (pair(astra_test_record(1), astra_test_record(2)) != 12) {
+		return 1;
+	}
+	if (astra_test_state() != 12) {
+		return 2;
+	}
+	astra_test_reset();
+	if (astra_test_record(astra_test_add(astra_test_record(1), astra_test_record(2))) != 3) {
+		return 3;
+	}
+	if (astra_test_state() != 123) {
+		return 4;
+	}
+	astra_test_reset();
+	int sum = astra_test_record(1) + astra_test_record(2);
+	if (sum != 3 || astra_test_state() != 12) {
+		return 5;
+	}
+	return 0;
+}

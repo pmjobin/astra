@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+struct Bundle<T> { Box<T> box; int tag; }
+owned Bundle<f64>[] make(int n) { return new Bundle<f64>[n]; }
+owned Bundle<f64>[] relay(owned Bundle<f64>[] values) { return move values; }
+Bundle<f64> pick(Bundle<f64>[] values) { return values[0]; }
+class C { owned Bundle<f64>[] values; init() { this.values = make(2); } void put() { this.values[0].box.value = 0.5d; } Bundle<f64> read() { return this.values[0]; } }
+T use<T>(T x) { Bundle<f64>[1] a = {{tag = 7, box = {value = 0.5d}}}; var b = new Box<i16<8>>[2]; b[1].value = splat(3 as i16,8); return x; }
+int main() { var a = make(2); a[0].box.value = 0.5d; var b = relay(move a); var saved = pick(b); C c = C.init(); c.put(); var prior = c.read(); if (saved.box.value != prior.box.value || use(7) != 7) { return 1; } return 0; }

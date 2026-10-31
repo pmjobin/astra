@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	observe_begin(2, 0);
+	owned R first = create_r(1);
+	owned S second = create_s(2);
+	leaf<R>(first, 66);
+	forward(first, 70);
+	if (resource_id(first) != 1) { return 81; }
+	wrapper<R>(move first);
+	wrapper<S>(move second);
+	return observe_end();
+}

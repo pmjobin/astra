@@ -1,0 +1,35 @@
+(unit
+	(function
+		(type "int")
+		(name "sum")
+		(parameters
+			(parameter (borrowed) (type "int[]") (name "values"))
+		)
+		(block
+			(local (type "int") (name "result") (integer "0"))
+			(local (type "int") (name "i") (integer "0"))
+			(while
+				(condition (binary "<" (name "i") (len-form (arguments (name "values")))))
+				(body
+					(block
+						(assign (name "result") (binary "+" (name "result") (index (name "values") (name "i"))))
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+					)
+				)
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "int[4]") (name "a") (array-init (integer "1") (integer "2") (integer "3") (integer "4")))
+			(local (type "int[8]") (name "b") (array-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "int") (name "sa") (call "sum" (arguments (slice-form (arguments (name "a"))))))
+			(local (type "int") (name "sb") (call "sum" (arguments (slice-form (arguments (name "b"))))))
+			(return (binary "+" (name "sa") (name "sb")))
+		)
+	)
+)

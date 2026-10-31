@@ -1,0 +1,47 @@
+const APP_NAME = "Astra";
+const string OTHER = "\u0041stra";
+const BYTES = APP_NAME.byte_length;
+const SAME = OTHER == APP_NAME;
+
+bool matches(string text, borrowed string expected) {
+	var copy = text;
+	return copy == expected;
+}
+
+string default_name() {
+	var result = APP_NAME;
+	{
+		var inner = OTHER;
+		result = inner;
+	}
+	return result;
+}
+
+string choose(bool choice, int count) {
+	var result = "first";
+	var remaining = count;
+	while (remaining > 0) {
+		if (choice) {
+			result = "second";
+		}
+		remaining = remaining - 1;
+	}
+	return result;
+}
+
+int main() {
+	var name = default_name();
+	name = "Astra";
+	int[BYTES] dimensions = {1, 2, 3, 4, 5};
+	if (!SAME || !matches(name, OTHER) || name.byte_length != 5) { return 1; }
+	if ("a\0b" == "a\0c" || "a\0b".byte_length != 3) { return 2; }
+	if ("é".byte_length != 2 || "e\u0301".byte_length != 3 || "é" == "e\u0301") { return 3; }
+	if (!matches("", "") || choose(true, dimensions[1]) != "second") { return 4; }
+	if (snapshot(name) != "static" || overwrite(name) != "static" || concrete(2) != APP_NAME) { return 5; }
+	return 0;
+}
+
+string snapshot(string input){var original="static";var saved=original;original=input;return saved;}
+string overwrite(string input){var result=input;result="static";return result;}
+
+string concrete<T>(T ignored) { return APP_NAME; }

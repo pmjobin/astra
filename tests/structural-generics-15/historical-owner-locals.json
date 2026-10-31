@@ -1,0 +1,184 @@
+{
+	"format": "astra-m15-historical-owner-locals/1",
+	"cases": [
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "inferred-local",
+			"source": "void bad<T>(owned T v) where T:Ownable{var current=move v;}\nint main(){return 42;}\n",
+			"source_sha256": "abeac8fd5f2d123369b586f21237a6482da17946aee2032ac6a04f9e6baee822",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "two-inputs",
+			"source": "void bad<T>(owned T v,owned T w) where T:Ownable{owned T current=move v;}\nint main(){return 42;}\n",
+			"source_sha256": "d63620a6faa78c0beaf7bbae889ec7ac1925fe9b83d78267873926734d33659e",
+			"exercise_main": "int main(){var first=acquire_resource(1);var second=acquire_resource(2);bad<R>(move first,move second);return 42;}",
+			"exercise_stdout": "+1\n+2\n-1\n-2\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "second-local",
+			"source": "void bad<T>(owned T v) where T:Ownable{owned T current=move v;owned T second=move current;}\nint main(){return 42;}\n",
+			"source_sha256": "0ff686be81db7478404e6ec725a188b8691352ad9499f14166107a58746d0c0a",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "branch-locals",
+			"source": "void bad<T>(owned T v,bool b) where T:Ownable{if(b){owned T current=move v;}else{owned T other=move v;}}\nint main(){return 42;}\n",
+			"source_sha256": "347703ad4fc44be250d2a5d7c7cff03fe89f47e1a6d57bc9aa058d1d6d1de996",
+			"exercise_main": "int main(){{var input=acquire_resource(1);bad<R>(move input,true);}{var input=acquire_resource(2);bad<R>(move input,false);}return 42;}",
+			"exercise_stdout": "+1\n-1\n+2\n-2\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "return-local",
+			"source": "owned T bad<T>(owned T v) where T:Ownable{owned T current=move v;return move current;}\nint main(){return 42;}\n",
+			"source_sha256": "ac8163dfb2290c047e0200bdfa7988b156b802e3ca4fc07bc2ba5607b081b10e",
+			"exercise_main": "int main(){var input=acquire_resource(1);var result=bad<R>(move input);if(id(result)!=1){return 1;}return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "loop-declaration",
+			"source": "void bad<T>(owned T v) where T:Ownable{while(false){owned T current=move v;}}\nint main(){return 42;}\n",
+			"source_sha256": "b21e059abc0d6d87d64fa2c23405d1e6f51afcf01f8751325d4fe482f562c247",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "loop-transfer",
+			"source": "int sink<T>(owned T v,int n) where T:Ownable{return n;}void bad<T>(owned T v) where T:Ownable{owned T current=move v;while(true){sink<T>(move current,0);break;}}\nint main(){return 42;}\n",
+			"source_sha256": "6dee87c0c7457000d3d33f8fe5ef0154e24a060411b461a2fbfd98210eb8ca4f",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "dead-loop-transfer",
+			"source": "int sink<T>(owned T v,int n) where T:Ownable{return n;}void bad<T>(owned T v) where T:Ownable{owned T current=move v;while(false){sink<T>(move current,0);}}\nint main(){return 42;}\n",
+			"source_sha256": "fd0383758c76bd2a8e449ef959aac815816f1174b53e7116d25c356c73b212dc",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "dead-second-site",
+			"source": "int sink<T>(owned T v,int n) where T:Ownable{return n;}void bad<T>(owned T v) where T:Ownable{owned T current=move v;sink<T>(move current,0);return;sink<T>(move current,0);}\nint main(){return 42;}\n",
+			"source_sha256": "11523d9276908d13b50652c4680b719bf44fbdc38ce89d2b7a1166e976eb9033",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "local-recursion",
+			"source": "void bad<T>(owned T v) where T:Ownable{owned T current=move v;bad<T>(move current);}\nint main(){return 42;}\n",
+			"source_sha256": "d95b94eda4d7dc4d75605429780a31e367cef03a9b16bbcf72ff2079789d6a2a",
+			"exercise_main": "void bounded<T>(owned T input,int depth) where T:Ownable{owned T current=move input;if(depth>0){bounded<T>(move current,depth-1);}}int main(){var input=acquire_resource(1);bounded<R>(move input,4);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The original unbounded declaration is not invoked; the separate finite counterpart exercises four recursive local transfers."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "forwarding-callee",
+			"source": "int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T v) where T:Ownable{sink<T>(move v,0);}void bad<T>(owned T v) where T:Ownable{owned T current=move v;relay<T>(move current);}\nint main(){return 42;}\n",
+			"source_sha256": "c1a99dd6d446ac729feccbc91beb58885208270f51349708e34d7e98254bad99",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "pointer-neighbor",
+			"source": "void bad<T>(owned T v,void* p) where T:Ownable{owned T current=move v;}\nint main(){return 42;}\n",
+			"source_sha256": "bc066741bb0d664279a76b18f9ebafbe2801bf999b2d023ab07428ac518ee2ee",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input,null);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-own-2d/negative.py",
+			"case": "throwing",
+			"source": "void bad<T>(owned T v) throws Error where T:Ownable{owned T current=move v;}\nint main(){return 42;}\n",
+			"source_sha256": "1bfdd32fcd1a2d6c1da8fedec22d47ff55728ae01cfc543b83635129b9b48edb",
+			"exercise_main": "int main(){var input=acquire_resource(1);try{bad<R>(move input);}catch(Error error){return 1;}return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The entry wrapper invokes the unchanged historical body."
+		},
+		{
+			"path": "tests/gen-borrow-1/negative.py",
+			"case": "owned-local-T",
+			"source": "void bad<T>(owned T a) where T:Ownable{owned T copy=move a;owned T second=move copy;}\nint main(){return 42;}\n",
+			"source_sha256": "feeba3661339da919ae02872f993cbdda99473b2d41877d59086cff201d0d156",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The separate entry invokes the unchanged historical body.",
+			"libraries": []
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "generic-owner-local",
+			"source": "class C{init(){}}class D{init(){}}void bad<T>(owned T v) where T:Ownable{owned T local=move v;owned T second=move local;}\nint main(){return 42;}\n",
+			"source_sha256": "af60ae6824932f5cae72fd99f5c0e15ea1c8c322e75c6c9f0e243fac83824ca7",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The separate entry invokes the unchanged historical body.",
+			"libraries": []
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "generic-local",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{owned T local=move v;return move local;}\nint main(){return 42;}\n",
+			"source_sha256": "b68a4249b32a2967de5ddf47ac9827d09c3f4956443f5664c5d327fb854e7256",
+			"exercise_main": "int main(){var input=acquire_resource(1);var result=echo<R>(move input);if(id(result)!=1){return 1;}return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The separate entry invokes the unchanged historical body.",
+			"libraries": []
+		},
+		{
+			"path": "tests/gen-buffer-1/negative.py",
+			"case": "ownable-local",
+			"source": "struct Box<T>{T value;}struct A{int x;}struct B{int x;}owned T[] make<T>(int n){return new T[n];}owned T[] relay<T>(owned T[] a){return move a;}void consume<T>(owned T[] a){}T snapshot<T>(T[] a){return a[0];}int drop<T>(owned T[] a){return 0;}void bad<T>(owned T a) where T : Ownable{owned T b=move a;owned T second=move b;}\n",
+			"source_sha256": "28c2a4962b874a97bd0571dccf110eeaf52f5ef05ad11a1d85e3a2d4dd566ab3",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "The separate entry invokes the unchanged historical body.",
+			"libraries": [
+				"lib/astra/base/slices.astra",
+				"lib/astra/base/buffers.astra"
+			]
+		},
+		{
+			"path": "tests/gen-own/semantic.vala",
+			"case": "positions-owned-local-chain",
+			"source": "void bad<T>(owned T v) where T : Ownable {owned T local = move v;owned T second = move local;}",
+			"source_sha256": "6714e48752af1d4695502f3ef84ad72b68df7f5cddc3c04445e7f7a3aa19b8b7",
+			"exercise_main": "int main(){var input=acquire_resource(1);bad<R>(move input);return 42;}",
+			"exercise_stdout": "+1\n-1\n",
+			"note": "Preserve the exact SourceFile text; append separate unused and exercised entry controls."
+		},
+		{
+			"path": "tests/gen-copy-1/negative.py",
+			"case": "var-symbol",
+			"source": "struct Kernel{int index;f64 gain;}struct Other{int index;f64 gain;}struct Box<T>{T value;}struct Phantom<T>{int tag;}T id<T>(T value){return value;}T same<T>(T a,T b){return a;}\nT bad<T>(T x){var y=x;return y;}\n",
+			"source_sha256": "f66be87cfe6960a3939405ae06dbe9c27afbd2468b06f0800cee92f61981d5ad",
+			"exercise_main": "int main(){Kernel input={index=17,gain=2.0d};var result=bad<Kernel>(input);if(result.index!=17||result.gain!=2.0d){return 1;}if(bad<int>(42)!=42){return 2;}return 42;}",
+			"exercise_stdout": "",
+			"observer": false,
+			"note": "Preserve the unchanged declaration and exercise both a copied record and int through inferred symbolic locals."
+		}
+	]
+}

@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ApplicationPair<A,B> {
+	A value;
+	B wide;
+	bool ready;
+}
+struct ApplicationInput<T> {
+	T pair;
+	int extra;
+}
+class ApplicationEnvironment<A,B> {
+	private A seed;
+	private B enabled;
+	owned R retained;
+	init(A seed, B enabled, owned R retained) {
+		this.seed = seed;
+		this.enabled = enabled;
+		this.retained = move retained;
+	}
+	property A amount { get { return this.seed; } }
+	property B ready { get { return this.enabled; } }
+	deinit() { mark(600); }
+}
+ApplicationInput<ApplicationPair<int,i64>> make_application() {
+	i64 wide = 9000000001;
+	ApplicationPair<int,i64> pair = {value = 7, wide = wide, ready = true};
+	ApplicationInput<ApplicationPair<int,i64>> result = {pair = pair, extra = 5};
+	return result;
+}
+int inspect_application(borrowed ApplicationEnvironment<int,bool> environment, ApplicationInput<ApplicationPair<int,i64>> input, borrowed R resource, ApplicationPair<int,i64> other, int tag) {
+	i64 wide = 9000000001;
+	if (!environment.ready || !input.pair.ready || !other.ready || input.pair.wide != wide || other.wide != wide) { return 0; }
+	return environment.amount + input.pair.value + input.extra + id(resource) + other.value + tag;
+}
+int inspect_checked_application(borrowed ApplicationEnvironment<int,bool> environment, ApplicationInput<ApplicationPair<int,i64>> input, borrowed R resource, ApplicationPair<int,i64> other, bool fail) throws Error {
+	if (fail) { mark(610); throw new Error("copied record retry"); }
+	return inspect_application(environment, input, resource, other, 0);
+}
+int forward_application(borrowed Closure<ApplicationEnvironment<int,bool>,int,ApplicationInput<ApplicationPair<int,i64>>,borrowed R,ApplicationPair<int,i64>,int> code, ApplicationInput<ApplicationPair<int,i64>> input, borrowed R resource) {
+	return closure_invoke(code, input, resource, input.pair, 3);
+}
+int read_application_value(ApplicationInput<ApplicationPair<int,i64>> input, borrowed R resource, ApplicationPair<int,i64> other, int tag) {
+	i64 wide = 9000000001;
+	if (!input.pair.ready || !other.ready || input.pair.wide != wide || other.wide != wide) { return 0; }
+	return input.pair.value + input.extra + id(resource) + other.value + tag;
+}
+Fn<int,ApplicationInput<ApplicationPair<int,i64>>,borrowed R,ApplicationPair<int,i64>,int> application_code() {
+	return read_application_value;
+}
+class ApplicationCallback<A,B> {
+	private Fn<int,A,borrowed R,B,int> code;
+	init(Fn<int,A,borrowed R,B,int> code) { this.code = code; }
+	int apply(A input, borrowed R resource, B other, int tag) {
+		Fn<int,A,borrowed R,B,int> invoke = this.code;
+		return invoke(input, resource, other, tag);
+	}
+}
+int exercise_applications() {
+	var resource = make(232);
+	var callbacks = new ApplicationCallback<ApplicationInput<ApplicationPair<int,i64>>,ApplicationPair<int,i64>>(application_code());
+	var retained = make(231);
+	var environment = new ApplicationEnvironment<int,bool>(11, true, move retained);
+	owned Closure<ApplicationEnvironment<int,bool>,int,ApplicationInput<ApplicationPair<int,i64>>,borrowed R,ApplicationPair<int,i64>,int> code = closure_bind(move environment, inspect_application);
+	ApplicationInput<ApplicationPair<int,i64>> input = make_application();
+	Fn<int,ApplicationInput<ApplicationPair<int,i64>>,borrowed R,ApplicationPair<int,i64>,int> copied = application_code();
+	if (copied(make_application(), resource, input.pair, 0) != 251 || callbacks.apply(input, resource, input.pair, 2) != 253) { return 7; }
+	if (closure_invoke(code, input, resource, input.pair, 1) != 263) { return 1; }
+	if (forward_application(code, make_application(), resource) != 265) { return 2; }
+	closure_invoke(code, make_application(), resource, input.pair, 0);
+	var checked_retained = make(233);
+	var checked_environment = new ApplicationEnvironment<int,bool>(13, true, move checked_retained);
+	owned CheckedClosure<ApplicationEnvironment<int,bool>,Error,int,ApplicationInput<ApplicationPair<int,i64>>,borrowed R,ApplicationPair<int,i64>,bool> checked_code = checked_closure_bind(move checked_environment, inspect_checked_application);
+	try {
+		closure_invoke(checked_code, make_application(), resource, input.pair, true);
+		return 3;
+	} catch (Error error) { mark(611); }
+	if (live() != 3) { return 4; }
+	try {
+		if (closure_invoke(checked_code, input, resource, input.pair, false) != 264) { return 5; }
+	} catch (Error error) { return 6; }
+	return 0;
+}
+int main() {
+	int result = exercise_applications();
+	if (result != 0) { return result; }
+	return live();
+}

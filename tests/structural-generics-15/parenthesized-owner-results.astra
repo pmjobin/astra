@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ParentChild {
+	private owned R guard;
+	private int number;
+	init(owned R guard, int number) {
+		this.guard = move guard;
+		this.number = number;
+	}
+	int read() { return id(this.guard) + this.number; }
+	deinit() { mark(2300 + this.number); }
+}
+owned T identity<T>(owned T input) where T:Ownable { return move input; }
+owned T wrapped<T>(owned T input) where T:Ownable {
+	owned T received = ((identity<T>(move input)));
+	return move received;
+}
+int exercise() {
+	{
+		var input = make(235);
+		var result = wrapped<R>(move input);
+		if (id(result) != 235) { return 1; }
+	}
+	{
+		var guard = make(236);
+		var input = new ParentChild(move guard, 1);
+		var result = wrapped<ParentChild>(move input);
+		if (result.read() != 237) { return 2; }
+	}
+	{
+		var guard = make(237);
+		owned ParentChild input = ParentChild.init(move guard, 2);
+		var result = wrapped<ParentChild>(move input);
+		if (result.read() != 239) { return 3; }
+	}
+	return live();
+}
+int main() { return exercise(); }

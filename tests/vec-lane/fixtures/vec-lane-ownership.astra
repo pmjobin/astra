@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+f32<4> gain(borrowed Resource r) { resource_touch(r); return splat(2.0, 4); }
+f32<4> process(owned Resource r, f32<4> input) {
+	resource_touch(r);
+	f32<4> changed = insert(input, 0, 3.0);
+	return select(splat(true, 4), shuffle(changed, 3, 2, 1, 0), splat(0.0, 4));
+}
+f32<4> scenario() {
+	owned Resource a = create_resource(1);
+	owned Resource b = create_resource(2);
+	return select(splat(true, 4), shuffle(gain(b), 3, 2, 1, 0), process(move a, gain(b)));
+}
+int main() {
+	resource_reset();
+	if (!all(scenario() == splat(2.0, 4))) { return 1; }
+	if (resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 3) { return 2; }
+	return 0;
+}

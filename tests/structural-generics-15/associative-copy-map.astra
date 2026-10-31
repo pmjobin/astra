@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct CopyMapKey {
+	i64 namespace_id;
+	int code;
+}
+
+struct CopyMapValue {
+	int observations;
+	i64 checksum;
+}
+
+bool same_copy_key(CopyMapKey left, CopyMapKey right) {
+	return left.namespace_id == right.namespace_id && left.code == right.code;
+}
+
+int main() {
+	var cache = new Cache<CopyMapKey, CopyMapValue>(same_copy_key);
+	for (int code = 0; code < 9; code = code + 1) {
+		CopyMapKey key = {namespace_id = 7000000001, code = code};
+		CopyMapValue value = {observations = code + 1, checksum = 8000000000 + (code as i64)};
+		if (!cache.put(key, value)) { return 1; }
+	}
+	CopyMapKey key = {namespace_id = 7000000001, code = 4};
+	CopyMapValue changed = {observations = 42, checksum = 8000000042};
+	if (!cache.contains(key) || !cache.put(key, changed) || cache.count != 9) { return 2; }
+	var entry = cache.remove(key);
+	if (entry == null) { return 3; }
+	var value = entry.view;
+	if (value.observations != 42 || value.checksum != 8000000042 || cache.contains(key) || cache.count != 8 || cache.revision != 11) { return 4; }
+	var boxed = new Box<CopyMapValue>(value);
+	var nested = new Box<Box<CopyMapValue>>(move boxed);
+	var snapshot = nested.view.view;
+	var scalar = new Box<int>(42);
+	if (snapshot.observations != scalar.view || snapshot.checksum != changed.checksum) { return 5; }
+	return 0;
+}

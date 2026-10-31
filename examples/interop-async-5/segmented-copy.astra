@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A38: bounded chunks, explicit offsets and partial-write progress.
+async void segmented_copy(owned LinuxPayload input, owned LinuxPayload output, int segment) throws Error {
+	int position = 0;
+	while (true) {
+		payload_configure(input, 0, segment, position as i64);
+		await payload_io(input);
+		int count = astra_linux_payload_count(input);
+		if (count == 0) { break; }
+		int index = 0;
+		while (index < count) { payload_set(output, index, payload_byte(input, index)); index = index + 1; }
+		int written = 0;
+		while (written < count) {
+			payload_configure(output, written, count - written, (position + written) as i64);
+			await payload_io(output);
+			int progress = astra_linux_payload_count(output);
+			if (progress <= 0) { throw new Error("async write made no progress"); }
+			written = written + progress;
+		}
+		if (position > 1048576 - count) { throw new Error("copy exceeds finite application bound"); }
+		position = position + count;
+	}
+	payload_finish(input); payload_finish(output);
+}
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int segment = parse_int(args[3]); if (segment < 1 || segment > 512) { return 64; }
+		var input = payload_open(args[1], 512, 0); var output = payload_open(args[2], 512, 1);
+		var executor = LinuxExecutor.open(1); var task = segmented_copy(move input, move output, segment);
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Completed(): { return 0; } else: { return 70; } }
+	} catch (Error error) { return 2; }
+}

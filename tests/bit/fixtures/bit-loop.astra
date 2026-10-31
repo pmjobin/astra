@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+u8 branch(bool choose,u8 x,int c){u8 r=0;if(choose){r=x<<c;}else{r=x>>c;}return r;}
+bool lazy(bool choose,u8 x,int c){return choose && (x<<c)==4 || !choose && (x>>c)==1;}
+u8 loop(int n,int count){u8 x=1;int i=0;while(i<n){x=((x<<count)|1)^2;x=x&255;i=i+1;}return x;}
+i16<8> vector_loop(int n,int count){i16<8> x=splat(1 as i16,8);int i=0;while(i<n){x=((x<<count)|splat(1 as i16,8))^splat(2 as i16,8);x=x&splat(255 as i16,8);i=i+1;}return x;}
+int main(){
+	if(branch(true,2,1)!=4 || branch(false,2,1)!=1 || !lazy(true,2,1) || !lazy(false,2,1)){return 1;}
+	if(loop(3,1)!=1 || !all(vector_loop(3,1)==splat(1 as i16,8))){return 2;}
+	return 0;
+}

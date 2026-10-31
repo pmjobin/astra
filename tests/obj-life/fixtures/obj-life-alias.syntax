@@ -1,0 +1,66 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "value"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "value"))
+			)
+			(block
+				(assign (field-access "this" "value") (name "value"))
+			)
+		)
+		(destructor
+			(name "deinit")
+			(parameters)
+			(block
+				(call-statement (call "life_record" (arguments (field-access "this" "value") (integer "0"))))
+			)
+		)
+		(method
+			(type "void")
+			(name "set")
+			(parameters
+				(parameter (type "int") (name "value"))
+			)
+			(block
+				(assign (field-access "this" "value") (name "value"))
+			)
+		)
+	)
+	(extern-function
+		(abi C)
+		(type "int")
+		(name "life_record")
+		(parameters
+			(parameter (type "int") (name "code"))
+			(parameter (type "int") (name "value"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "Counter") (name "c") (constructor-initializer (class "Counter") (arguments (integer "1"))))
+			(local (type "Counter") (name "a") (name "c"))
+			(local (type "Counter") (name "b") (name "c"))
+			(local (type "Counter") (name "nil") (null))
+			(block
+				(local (type "Counter") (name "inner") (name "c"))
+				(call-statement (method-call (receiver "inner") (target "set") (arguments (integer "40"))))
+			)
+			(assign (name "c") (null))
+			(assign (field-access "a" "value") (integer "42"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (name "a") (name "b")) (binary "!=" (name "nil") (name "c"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (field-access "b" "value"))
+		)
+	)
+)

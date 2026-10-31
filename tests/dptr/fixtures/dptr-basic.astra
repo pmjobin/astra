@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+int inspect(int* p) { return *p; }
+void replace(int* p, int value) { *p = value; }
+int ordinary(bool condition) {
+	int x = 1;
+	if (condition) { x = 2; }
+	return x;
+}
+int main() {
+	int x = 1;
+	i32* p = &x;
+	int* q = p;
+	if (p == null || null == q || p != q) { return 1; }
+	*q = 2;
+	if (x != 2) { return 2; }
+	x = 3;
+	if (*p != 3) { return 3; }
+	replace(&x, 42);
+	if (inspect(q) != 42 || ordinary(true) != 2) { return 4; }
+	return 0;
+}

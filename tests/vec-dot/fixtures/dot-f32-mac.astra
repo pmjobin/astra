@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+f32 unfused(f32 c,f32<4> a,f32<4> b){return mac(c,a,b);}
+f32 ordered(f32<4> a,f32<4> b){return dot(a,b);}
+int main(){
+	f32<4> a={1.00000011920928955078125,0.0,0.0,0.0};
+	f32<4> b={0.99999988079071044921875,0.0,0.0,0.0};
+	// Separately rounded product is 1; exact fused value would be -2^-46.
+	if(unfused(-1.0,a,b)!=0.0){return 1;}
+	f32<4> d={-1.0,1.00000011920928955078125,0.0,0.0};
+	f32<4> e={1.0,0.99999988079071044921875,0.0,0.0};
+	if(ordered(d,e)!=0.0){return 2;}
+	if(unfused(7.0,splat(2.0,4),splat(3.0,4))!=31.0){return 3;}
+	return 0;
+}

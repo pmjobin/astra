@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[COMImport(name="orbit_row16_protocol",iid="0b585052-5ee5-4475-a7a0-058e4c6e5571",threading="constructing",profile="declarations-v1")]
+interface IOrbitRow16{
+	[Foreign(error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]init(borrowed void* unknown)throws OrbitCore16.Fault;
+	[Foreign(native="code",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]property i64 code throws OrbitCore16.Fault{get;}
+	[Foreign(native="score",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]property f64 score throws OrbitCore16.Fault{get;}
+}
+[COMImport(name="orbit16_protocol",iid="af04e98b-6219-401d-9cc8-975064c64a92",threading="constructing",profile="declarations-v1")]
+interface IOrbitQuery16{
+	[Foreign(error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]init(borrowed void* unknown)throws OrbitCore16.Fault;
+	[Foreign(native="scan",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]OrbitCore16.Selection<f32> scan(OrbitCore16.Probe query)throws OrbitCore16.Fault;
+	[Foreign(native="entry_for",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620",null_status="1")][ForeignChannel(parameter="result",nullable="true")]owned IOrbitRow16 entry_for(OrbitCore16.Probe query)throws OrbitCore16.Fault;
+}
+[COMImport(name="orbit_metadata16_protocol",iid="5330f1a0-663d-40b2-bfde-012b721af869",threading="constructing",profile="declarations-v1")]
+interface IOrbitMetadata16{
+	[Foreign(error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]init(borrowed void* unknown)throws OrbitCore16.Fault;
+	[Foreign(native="bias",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]property f64 bias throws OrbitCore16.Fault{get;set(f64 value);}
+	[Foreign(native="enabled",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]property bool enabled throws OrbitCore16.Fault{get;set(bool value);}
+	[Foreign(native="requests",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]property int requests throws OrbitCore16.Fault{get;}
+	[Foreign(native="population",error_factory="Orbit16.foreign_fault",error_domain="16",errors="OrbitCore16.Fault=-1620")]u64 population(u32 mask)throws OrbitCore16.Fault;
+}

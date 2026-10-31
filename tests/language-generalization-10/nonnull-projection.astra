@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ProjectionPoint { int x; int y; }
+int inspect_projection(nonnull Vector<ProjectionPoint> values) { return values.count(); }
+owned Vector<ProjectionPoint> optional_projection(bool present) {
+	if (present) { var values = new Vector<ProjectionPoint>(0); return move values; }
+	return null;
+}
+class OptionalRepository {
+	owned Vector<ProjectionPoint> values;
+	init(bool present) { this.values = optional_projection(present); }
+	property borrowed Vector<ProjectionPoint> item { get { return this.values; } }
+	void clear() { this.values = optional_projection(false); }
+}
+void projection_effect() {}
+int inspect_repository(OptionalRepository repository) {
+	projection_effect();
+	if (repository.item != null) { return inspect_projection(repository.item); }
+	return -1;
+}
+int recheck_repository(OptionalRepository repository) {
+	if (repository.item != null) {
+		repository.clear();
+		if (repository.item != null) { return inspect_projection(repository.item); }
+	}
+	return -1;
+}
+async void projection_worker() throws Error {
+	var repository = new OptionalRepository(true);
+	if (repository.item != null) {
+		await delay_ticks(1);
+		if (repository.item != null) {
+			if (inspect_projection(repository.item) != 0) { throw new Error("rechecked projection"); }
+		}
+	}
+}
+int main() {
+	var present = new OptionalRepository(true);
+	var absent = new OptionalRepository(false);
+	if (inspect_repository(present) != 0 || inspect_repository(absent) != -1 || recheck_repository(present) != -1 || inspect_repository(present) != -1) { return 81; }
+	try {
+		var executor = VirtualExecutor.open(2);
+		var status = executor.run(projection_worker());
+		match(status) { case RunStatus.Completed(): { return 0; } else: { return 82; } }
+	}
+	catch(Error error) { return 83; }
+}

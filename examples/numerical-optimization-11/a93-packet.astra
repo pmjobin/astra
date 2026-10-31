@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) f64 packet_sample(int sequence);
+extern(C) void packet_retire(int sequence);
+extern(C) int packet_observe(int sequence,f64 value);
+extern(C) int packet_finish(int count);
+class Packet11 {
+	f64 sample;
+	int sequence;
+	init(int sequence,f64 sample){this.sequence=sequence;this.sample=sample;}
+	deinit(){packet_retire(this.sequence);}
+	f64 transform(f64 gain){return this.sample*gain+((this.sequence%7) as f64)/16.0;}
+}
+f64 transform_packet(int sequence,f64 sample){
+	owned Packet11 packet=new Packet11(sequence,sample);
+	if(sequence%97==0){return packet.transform(0.5);}
+	return packet.transform(0.75);
+}
+int main(){
+	for(int i=0;i<48000;i=i+1){f64 value=transform_packet(i,packet_sample(i));if(packet_observe(i,value)!=0){return 1;}}
+	return packet_finish(48000);
+}

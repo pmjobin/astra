@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int scoped() {
+	owned Resource h = create_resource(1);
+	release h;
+	h = create_resource(2);
+	if (resource_touch(h) != 2) { return 1; }
+	release h;
+	h = create_again(3);
+	if (resource_id(h) != 3) { return 2; }
+	return 0;
+}
+int main() {
+	resource_reset();
+	if (scoped() != 0 || resource_create_count() != 3 || resource_destroy_count() != 3 || resource_destroy_order() != 123 || resource_effect_order() != 1723 || resource_live_count() != 0 || resource_error_count() != 0) { return 1; }
+	return 0;
+}

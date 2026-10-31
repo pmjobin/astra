@@ -1,0 +1,58 @@
+(unit
+	(struct "I"
+		(field (type "int") (name "x"))
+		(field (type "f64") (name "y"))
+		(field (type "i16<8>") (name "v"))
+	)
+	(struct "S"
+		(field (type "I") (name "a"))
+		(field (type "I") (name "b"))
+	)
+	(function
+		(type "void")
+		(name "copy")
+		(parameters
+			(parameter (type "S*") (name "destination"))
+			(parameter (type "S*") (name "source"))
+		)
+		(block
+			(assign (dereference (name "destination")) (dereference (name "source")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "S") (name "a")
+				(initialize-field "a" (storage-initializer
+					(initialize-field "x" (integer "42"))
+					(initialize-field "y" (float "3.5"))
+					(initialize-field "v" (vector-splat (integer "7") (ordinals 8)))
+				))
+				(initialize-field "b" (storage-initializer
+					(initialize-field "x" (integer "9"))
+					(initialize-field "y" (float "1.5"))
+					(initialize-field "v" (vector-splat (integer "2") (ordinals 8)))
+				))
+			)
+			(local (type "S") (name "b") (name "a"))
+			(local (type "S*") (name "p") (address-of "a"))
+			(local (type "S*") (name "q") (address-of "b"))
+			(call-statement (call "copy" (arguments (name "q") (name "p"))))
+			(local (type "S") (name "c") (dereference (name "q")))
+			(assign (dereference (name "p")) (name "c"))
+			(local (type "I") (name "d") (indirect-field-access "p" "b"))
+			(assign (indirect-field-access "q" "a") (name "d"))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access (base (field-access "a" "a")) "x") (integer "42")) (binary "!=" (field-access (base (field-access "b" "a")) "x") (integer "9"))) (binary "!=" (field-access (base (field-access "c" "a")) "x") (integer "42"))) (binary "!=" (vector-extract (lane 7) (field-access (base (field-access "b" "a")) "v")) (integer "2"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

@@ -1,0 +1,21 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void add(int n) { this.value = this.value + n; }
+}
+int consume(owned Counter a, owned Resource b, owned Counter c) {
+	Counter fixed = Counter.init(76);
+	owned Counter local = Counter.init(79);
+	owned Resource resource = create_resource(82);
+	{ owned Counter nested = Counter.init(90); }
+	return life_record(69, 42);
+}
+int main() {
+	owned Counter a = Counter.init(65);
+	owned Resource b = create_resource(66);
+	owned Counter c = Counter.init(67);
+	if (consume(move a, move b, move c) != 42 || resource_live() != 0) { return 1; }
+	return 42;
+}

@@ -1,0 +1,115 @@
+(ssa-program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(function #0 "identity" -> Pair
+		(struct-parameter #0 : Pair COPY_VALUE (leaves 0 2))
+		(struct-result : Pair (leaves 2))
+		(parameters
+			(%0 "value.0" : int)
+			(%1 "value.1" : f64)
+		)
+		(entry #0)
+		(block #0
+			(struct-return : Pair %0 %1)
+		)
+	)
+	(function #1 "make_pair" -> Pair
+		(struct-result : Pair (leaves 2))
+		(parameters)
+		(entry #0)
+		(block #0
+			(struct-return : Pair (integer 7 : int) (f64 0x400c000000000000 : f64))
+		)
+	)
+	(function #2 "forward" -> Pair
+		(struct-result : Pair (leaves 2))
+		(parameters)
+		(entry #0)
+		(block #0
+			(struct-call-results : Pair (%0 : int) (%1 : f64))
+			(call #1 "make_pair" -> Pair (arguments))
+			(consume-struct-result 2 : Pair %0 %1)
+			(struct-argument #0 : Pair (leaves 0 2))
+			(struct-call-results : Pair (%2 : int) (%3 : f64))
+			(call #0 "identity" -> Pair (arguments %0 %1))
+			(consume-struct-result 3 : Pair %2 %3)
+			(struct-return : Pair %2 %3)
+		)
+	)
+	(function #3 "consume" -> int
+		(struct-parameter #0 : Pair COPY_VALUE (leaves 0 2))
+		(parameters
+			(%0 "value.0" : int)
+			(%1 "value.1" : f64)
+			(%2 "scale" : int)
+		)
+		(entry #0)
+		(block #0
+			(%3 : int = binary * %0 %2)
+			(return %3)
+		)
+	)
+	(function #4 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(struct-call-results : Pair (%2 : int) (%3 : f64))
+			(call #1 "make_pair" -> Pair (arguments))
+			(consume-struct-result 0 : Pair %2 %3)
+			(struct-argument #0 : Pair (leaves 0 2))
+			(struct-call-results : Pair (%4 : int) (%5 : f64))
+			(call #0 "identity" -> Pair (arguments %2 %3))
+			(consume-struct-result 0 : Pair %4 %5)
+			(struct-call-results : Pair (%6 : int) (%7 : f64))
+			(call #2 "forward" -> Pair (arguments))
+			(consume-struct-result 1 : Pair %6 %7)
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(struct-argument #0 : Pair (leaves 0 2))
+			(%8 : int = call #3 "consume" -> int (arguments %6 %7 (integer 2 : int)))
+			(%9 : bool = binary != %8 (integer 14 : int))
+			(conditional-branch %9
+				(true #6 ((bool true : bool)))
+				(false #5 ())
+			)
+		)
+		(block #5
+			(%10 : bool = binary != %2 (integer 7 : int))
+			(branch #6 (%10))
+		)
+		(block #6
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #8 ((bool true : bool)))
+				(false #7 ())
+			)
+		)
+		(block #7
+			(%11 : bool = binary != %7 (f64 0x400c000000000000 : f64))
+			(branch #8 (%11))
+		)
+		(block #8
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+)

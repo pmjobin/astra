@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ViewResources { owned R first; owned Other second; int stamp; }
+int inspect_resources(borrowed R first, borrowed Other second, int stamp) {
+	return id(first) + other_id(second) + stamp;
+}
+int exercise_views() {
+	var first = make(161);
+	var second = make_other(162);
+	ViewResources payload = {first = move first, second = move second, stamp = 42};
+	var box = new Box<ViewResources>(move payload);
+	if (box.view.stamp != 42 || id(box.view.first) != 161 || other_id(box.view.second) != 162) { return 1; }
+	if (inspect_resources(box.view.first, box.view.second, box.view.stamp) != 365) { return 2; }
+	if (live() != 2) { return 3; }
+	return 0;
+}
+int main() {
+	int result = exercise_views();
+	if (result != 0) { return result; }
+	return live();
+}

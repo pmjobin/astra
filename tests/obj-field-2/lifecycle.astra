@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int field_event(int stage, int tag);
+extern(C) int field_done();
+class Child {
+	int value;
+	init(int tag) { this.value = 42; field_event(1, tag); }
+	int probe(int tag) { field_event(3, tag); return this.value; }
+	deinit() { field_event(2, 0); }
+}
+int inspect(Child child, int tag) { return child.probe(tag); }
+class Base {
+	readonly string name;
+	owned Child child;
+	init(owned Child child) { this.name = "base"; this.child = move child; }
+	deinit() { field_event(4, 90); }
+}
+class Derived : Base {
+	owned Child left;
+	int scalar;
+	owned Child right;
+	init(owned Child first, owned Child left, owned Child right) : base(move first) {
+		this.left = move left; this.scalar = 7; this.right = move right;
+	}
+	deinit() { field_event(4, 100); }
+}
+int main() {
+	var first = new Child(1); var left = new Child(2); var right = new Child(3);
+	var parent = new Derived(move first, move left, move right);
+	if (parent.name != "base" || inspect(parent.child, 1) != 42 || inspect(parent.left, 2) != 42 || inspect(parent.right, 3) != 42) { return 81; }
+	release parent;
+	return field_done();
+}

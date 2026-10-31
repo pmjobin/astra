@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Packet { u8 tag; i16 delta; u32 checksum; }
+struct Log { int value; }
+i8 record(Log* log, int digit) { log->value = log->value * 10 + digit; return -1; }
+i16 combine(i16 first, i16 second) { return first + second; }
+void mutate(Packet* p, int source) {
+	p->tag = source as u8;
+	p->delta = p->tag as i16;
+	p->checksum = -1 as u32;
+}
+int main() {
+	int source = 300;
+	Packet p = {tag = source as u8, delta = source as i16, checksum = source as u32};
+	if (p.tag != 44 || p.delta != 300 || p.checksum != 300) { return 1; }
+	p.tag = 257 as u8;
+	if (p.tag != 1) { return 2; }
+	mutate(&p,511);
+	if (p.tag != 255 || p.delta != 255 || p.checksum != 4294967295) { return 3; }
+	Log log = {value = 0};
+	i16 once = record(&log,1) as i16;
+	if (once != -1 || log.value != 1) { return 4; }
+	i16 ordered = combine(log.value as i16,record(&log,2) as i16);
+	if (ordered != 0 || log.value != 12) { return 5; }
+	return 0;
+}

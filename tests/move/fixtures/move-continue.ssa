@@ -1,0 +1,203 @@
+(ssa-program
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(extern-function #0 "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(headers
+			"opaque/resource.h"
+		)
+		(parameters
+			(parameter #0 : int)
+		)
+		(result void*))
+	(extern-function #1 "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function #2 "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #3 "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #4 "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #5 "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #6 "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #7 "record_effect" (abi C) (symbol "astra_test_resource_record_effect")
+		(parameters
+			(parameter #0 : int)
+		)
+		(result int))
+	(extern-function #8 "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #9 "resource_forbid_cleanup" (abi C) (symbol "astra_test_resource_forbid_cleanup")
+		(parameters
+		)
+		(result void))
+	(function #0 "scoped" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%0 "n" : int)
+			)
+			(%2 : bool = binary < %0 (integer 3 : int))
+			(conditional-branch %2
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%3 : int = binary + %0 (integer 1 : int))
+			(%4 : void* = c-call #0 "create_resource" -> void* (arguments %3))
+			(branch #6 ())
+		)
+		(block #3
+			(return (integer 0 : int))
+		)
+		(block #4
+			(cleanup %4 via #0)
+			(cleanup (null : void*) via #0)
+			(return (integer 1 : int))
+		)
+		(block #5
+			(cleanup %4 via #0)
+			(cleanup (null : void*) via #0)
+			(branch #1 (%3))
+		)
+		(block #6
+			(%5 : bool = binary == %4 (null : void*))
+			(conditional-branch %5
+				(true #8 ((bool true : bool)))
+				(false #7 ())
+			)
+		)
+		(block #7
+			(%6 : int = c-call #2 "resource_live_count" -> int (arguments))
+			(%7 : bool = binary != %6 (integer 1 : int))
+			(branch #8 (%7))
+		)
+		(block #8
+			(arguments
+				(%1 (temporary #0) : bool)
+			)
+			(conditional-branch %1
+				(true #4 ())
+				(false #5 ())
+			)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(c-call #1 "resource_reset" -> void (arguments))
+			(%4 : int = call #0 "scoped" -> int (arguments))
+			(%5 : bool = binary != %4 (integer 0 : int))
+			(conditional-branch %5
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #5 ())
+		)
+		(block #3
+			(return (integer 2 : int))
+		)
+		(block #4
+			(return (integer 0 : int))
+		)
+		(block #5
+			(branch #6 ())
+		)
+		(block #6
+			(branch #7 ())
+		)
+		(block #7
+			(branch #8 ())
+		)
+		(block #8
+			(%6 : int = c-call #3 "resource_create_count" -> int (arguments))
+			(%7 : bool = binary != %6 (integer 3 : int))
+			(conditional-branch %7
+				(true #10 ((bool true : bool)))
+				(false #9 ())
+			)
+		)
+		(block #9
+			(%8 : int = c-call #4 "resource_destroy_count" -> int (arguments))
+			(%9 : bool = binary != %8 (integer 3 : int))
+			(branch #10 (%9))
+		)
+		(block #10
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #12 ((bool true : bool)))
+				(false #11 ())
+			)
+		)
+		(block #11
+			(%10 : int = c-call #5 "resource_destroy_order" -> int (arguments))
+			(%11 : bool = binary != %10 (integer 123 : int))
+			(branch #12 (%11))
+		)
+		(block #12
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #14 ((bool true : bool)))
+				(false #13 ())
+			)
+		)
+		(block #13
+			(%12 : int = c-call #2 "resource_live_count" -> int (arguments))
+			(%13 : bool = binary != %12 (integer 0 : int))
+			(branch #14 (%13))
+		)
+		(block #14
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #16 ((bool true : bool)))
+				(false #15 ())
+			)
+		)
+		(block #15
+			(%14 : int = c-call #6 "resource_error_count" -> int (arguments))
+			(%15 : bool = binary != %14 (integer 0 : int))
+			(branch #16 (%15))
+		)
+		(block #16
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #3 ())
+				(false #4 ())
+			)
+		)
+	)
+)

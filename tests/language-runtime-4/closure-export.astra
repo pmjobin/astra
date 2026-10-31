@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int closure_client_event(int tag);
+class ExportCapture {
+	int bias;
+	init(int bias) { this.bias = bias; closure_client_event(1); }
+	deinit() { closure_client_event(2); }
+}
+int exported_closure_code(borrowed ExportCapture environment, int input) { return environment.bias + input; }
+export(C) int closure_client_apply(int bias, int input) {
+	var environment = new ExportCapture(bias);
+	var function = closure_bind(move environment, exported_closure_code);
+	return closure_invoke(function, input);
+}

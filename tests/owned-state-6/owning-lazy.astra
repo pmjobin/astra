@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class CacheItem { int tag; init(int tag) { this.tag = tag; } }
+int cached_tag(CacheItem item) { return item.tag; }
+class OwnedCard {
+	int attempts;
+	init() { this.attempts = 0; }
+	lazy property owned CacheItem content {
+		get { this.attempts = this.attempts + 1; var value = new CacheItem(7); return move value; }
+	}
+}
+// Declaration-only and caller-backed receivers need no explicit constructor.
+class UnusedCard {
+	lazy property owned CacheItem content {
+		get { var value = new CacheItem(8); return move value; }
+	}
+}
+class LexicalCard {
+	int tag;
+	lazy property owned CacheItem content {
+		get { var value = new CacheItem(this.tag); return move value; }
+	}
+}
+int main() {
+	LexicalCard lexical = {tag = 8};
+	if (cached_tag(lexical.content) != 8 || cached_tag(lexical.content) != 8) { return 70; }
+	var card = new OwnedCard();
+	if (cached_tag(card.content) != 7 || cached_tag(card.content) != 7 || card.attempts != 1) { return 71; }
+	var moved = move card;
+	if (cached_tag(moved.content) != 7 || moved.attempts != 1) { return 72; }
+	return 0;
+}

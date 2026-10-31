@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeCallbacks;
+
+internal struct PrivateLayout<T> { T value; }
+struct Input<A,B> { A first; B second; void* token; i16<4> lanes; Fn<int,int> code; Fn<int,owned R> retire; }
+internal int retire(owned R value, Input<int,bool> pair, borrowed Other side) {
+	if (!pair.second || pair.token != null || pair.lanes[3] != 7) { return 0; }
+	Fn<int,int> code = pair.code;
+	Fn<int,owned R> retire = pair.retire;
+	return retire(move value) + code(pair.first) + other_id(side);
+}
+Fn<int,owned R,Input<int,bool>,borrowed Other> callback() { return retire; }
+int invoke(Fn<int,owned R,Input<int,bool>,borrowed Other> code, owned R value, Input<int,bool> pair, borrowed Other side) {
+	return code(move value, pair, side);
+}
+
+internal int inspect(Input<int,bool> pair) {
+	if (!pair.second || pair.token != null) { return 0; }
+	Fn<int,int> code = pair.code;
+	return code(pair.first) + (pair.lanes[2] as int);
+}
+Fn<int,Input<int,bool>> field_callback() { return inspect; }

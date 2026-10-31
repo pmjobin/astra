@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+struct Log {int value;}
+i16<8> make(borrowed Resource r,Log* log){resource_touch(r);log->value=log->value*10+1;return splat(3 as i16,8);}
+i16<8> consume(owned Resource r,i16<8> v,Log* log){resource_touch(r);log->value=log->value*10+2;return v>>1;}
+int nested(owned Resource r,Log* log){log->value=9;return 1;}
+i16<8> nested_vector(owned Resource r,Log* log){log->value=5;return splat(1 as i16,8);}
+int scenario(Log* log){
+	owned Resource a=create_resource(1);
+	owned Resource b=create_resource(2);
+	i16<8> result=consume(move a,(make(b,log)<<1)&splat(7 as i16,8),log);
+	if(!all(result==splat(3 as i16,8)) || log->value!=12){return 1;}
+	// The value is captured before a count performs a nested transfer.
+	int scalar=log->value<<nested(move b,log);
+	if(scalar!=24 || log->value!=9){return 2;}
+	owned Resource c=create_resource(3);
+	result=splat(log->value as i16,8)|nested_vector(move c,log);
+	if(!all(result==splat(9 as i16,8)) || log->value!=5){return 3;}
+	return 0;
+}
+int main(){
+	resource_reset();
+	Log log={value=0};
+	if(scenario(&log)!=0){return 1;}
+	if(resource_destroy_count()!=3 || resource_destroy_order()!=123 || resource_live_count()!=0 || resource_error_count()!=0 || resource_touch_count()!=2){return 2;}
+	return 0;
+}

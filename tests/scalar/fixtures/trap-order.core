@@ -1,0 +1,110 @@
+(core-program
+	(function "effect" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(function "pair" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(binary + : int
+					(parameter #0 : int)
+					(parameter #1 : int)
+				)
+			)
+		)
+	)
+	(function "before" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(binary + : int
+					(binary / : int
+						(parameter #0 : int)
+						(parameter #1 : int)
+					)
+					(call "effect" -> int
+						(arguments)
+					)
+				)
+			)
+		)
+	)
+	(function "argument" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(call "pair" -> int
+					(arguments
+						(binary % : int
+							(parameter #0 : int)
+							(parameter #1 : int)
+						)
+						(call "effect" -> int
+							(arguments)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "nested" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(call "pair" -> int
+					(arguments
+						(binary / : int
+							(parameter #0 : int)
+							(parameter #1 : int)
+						)
+						(binary + : int
+							(binary % : int
+								(parameter #0 : int)
+								(parameter #1 : int)
+							)
+							(call "effect" -> int
+								(arguments)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "after" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return
+				(binary + : int
+					(call "effect" -> int
+						(arguments)
+					)
+					(binary / : int
+						(parameter #0 : int)
+						(parameter #1 : int)
+					)
+				)
+			)
+		)
+	)
+)

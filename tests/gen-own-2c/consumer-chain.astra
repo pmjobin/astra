@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void relay<T>(owned T value, int id) where T: Ownable {
+	own_mark(82, id); consume<T>(move value, id);
+}
+int main() {
+	var original = new Counter(86, 1);
+	var received = echo(move original, 86);
+	relay(move received, 86);
+	return own_finish();
+}

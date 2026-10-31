@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	if (len(args) != 3) { return 81; }
+	int result = 0;
+	try {
+		int raw = parse_int(args[1]);
+		int bias = parse_int(args[2]);
+		var session = inspection_session(raw, bias, "minimal");
+		var sensor = move session.sensor;
+		number(sensor.adjusted);
+	}
+	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	return result;
+}

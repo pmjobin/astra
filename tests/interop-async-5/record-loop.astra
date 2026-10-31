@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct LoopRecord { i64 count; f64 total; i64 tag; }
+[CCode(cname="c_record_stack",record_abi="value-lp64")]
+extern(C) LoopRecord c_loop_record(LoopRecord value);
+int main() {
+	LoopRecord value = {count=0,total=0.0,tag=0};
+	int iteration = 0;
+	while (iteration < 500000) {
+		// Both field-group forwarding and memory staging repeat at O0.
+		value = c_loop_record(c_loop_record(value));
+		iteration = iteration + 1;
+	}
+	if (value.count != 1000000 || value.total != 2000000.0 || value.tag != 3000000) { return 92; }
+	return 0;
+}

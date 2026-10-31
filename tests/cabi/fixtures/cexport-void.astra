@@ -1,0 +1,18 @@
+extern(C) void astra_test_reset();
+extern(C) int astra_test_state();
+extern(C) int astra_test_record(int value);
+extern(C) void c_call_astra_record(int value);
+
+export(C) void astra_export_record(int value) {
+	astra_test_record(value);
+	return;
+}
+
+int main() {
+	astra_test_reset();
+	c_call_astra_record(7);
+	if (astra_test_state() != 7) {
+		return 1;
+	}
+	return 0;
+}

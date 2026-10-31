@@ -1,0 +1,30 @@
+(ssa-program
+	(function #0 "accumulate" -> int
+		(parameters
+			(%0 "n" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "i" : int)
+				(%2 "sum" : int)
+			)
+			(%3 : bool = binary < %1 %0)
+			(conditional-branch %3
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%4 : int = binary + %2 %1)
+			(%5 : int = binary + %1 (integer 1 : int))
+			(branch #1 (%5 %4))
+		)
+		(block #3
+			(return %2)
+		)
+	)
+)

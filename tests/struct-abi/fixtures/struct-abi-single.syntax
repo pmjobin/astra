@@ -1,0 +1,45 @@
+(unit
+	(struct "One"
+		(field (type "f64") (name "value"))
+	)
+	(function
+		(type "One")
+		(name "identity")
+		(parameters
+			(parameter (type "One") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "One")
+		(name "forward")
+		(parameters
+			(parameter (type "One") (name "value"))
+		)
+		(block
+			(return (call "identity" (arguments (name "value"))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "One") (name "a")
+				(initialize-field "value" (float "3.5"))
+			)
+			(local (type "One") (name "b") (call "forward" (arguments (name "a"))))
+			(if
+				(condition (binary "!=" (field-access "b" "value") (float "3.5")))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

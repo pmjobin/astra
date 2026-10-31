@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace DeclaredMiddle;
+
+int inspect_boxed(DeclaredUnits.PairBox<DeclaredUnits.Coupled<DeclaredUnits.Stats, int>, bool> value) {
+	var record = value.value;
+	i64 expected = 9000000001;
+	if (!value.alternative || record.first.wide != expected || !record.ready) { return 0; }
+	return record.first.count + record.second + 1;
+}
+
+DeclaredUnits.Coupled<DeclaredUnits.Stats, int> relay_coupled(
+	DeclaredUnits.Coupled<DeclaredUnits.Stats, int> value) {
+	return value;
+}
+
+DeclaredUnits.Coupled<DeclaredUnits.Coupled<DeclaredUnits.Stats, int>, bool> relay_nested(
+	DeclaredUnits.Coupled<DeclaredUnits.Coupled<DeclaredUnits.Stats, int>, bool> value) {
+	return value;
+}
+
+owned DeclaredUnits.PairBox<DeclaredUnits.Stats, int> advance(
+	owned DeclaredUnits.PairBox<DeclaredUnits.Stats, int> value, int amount) {
+	int generation = value.version;
+	value.version = generation + amount;
+	return move value;
+}
+
+owned DeclaredUnits.OwnerBox<DeclaredUnits.Leaf> native_owner(int value) {
+	var result = DeclaredUnits.native_owner(value);
+	return move result;
+}
+
+owned DeclaredUnits.OwnerBox<DeclaredUnits.PairBox<DeclaredUnits.Stats, int>> nested_owner(int value) {
+	var result = DeclaredUnits.nested_owner(value);
+	return move result;
+}
+
+owned DeclaredUnits.OwnerBox<DeclaredUnits.Carrier> record_owner(int value) {
+	var result = DeclaredUnits.record_owner(value);
+	return move result;
+}
+
+owned DeclaredUnits.Leaf relay_leaf(owned DeclaredUnits.Leaf value) {
+	return DeclaredUnits.relay_leaf(move value);
+}

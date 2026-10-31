@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ImportedCapture {
+	int offset;
+	init(int offset) { this.offset = offset; }
+	deinit() {}
+}
+int imported_receive(borrowed ImportedCapture capture, int value) { return capture.offset + value; }
+int main() {
+	if (gir_contract_valid() != 1) { return 12; }
+	owned AstraFixtureCounter object = AstraFixtureCounter_new(7);
+	if (object == null || AstraFixtureCounter_read(object) != 7) { return 1; }
+	if (AstraFixtureCounter_write(object, 9) != 1 || AstraFixtureCounter_property_value_get(object) != 9) { return 2; }
+	if (AstraFixtureCounter_property_value_set(object, 42) != 1 || AstraFixtureCounter_read(object) != 42) { return 3; }
+	if (AstraFixtureCounter_property_label_set(object, "héllo GIR") != 1) { return 4; }
+	owned GirUtf8 label = AstraFixtureCounter_label_copy(object);
+	if (label == null || gir_text_length(label) != 10 || gir_text_byte(label, 1) != 195) { return 5; }
+	owned GObjectObject base = AstraFixtureCounter_as_object(object);
+	if (base == null) { return 6; }
+	owned GObjectObject retained = GObjectObject_ref(base);
+	if (retained == null) { return 7; }
+	GObjectObject_unref(move retained);
+	owned GirSignal source = AstraFixtureCounter_changed_source(object);
+	if (source == null) { return 8; }
+	var environment = new ImportedCapture(7);
+	var handler = closure_bind(move environment, imported_receive);
+	if (retained_register(handler, gir_signal_mode(source)) != 0) { return 9; }
+	if (AstraFixtureCounter_emit(object, 5) != 12) { return 10; }
+	if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 11; }
+	return 0;
+}

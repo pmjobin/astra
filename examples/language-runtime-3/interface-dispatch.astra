@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Runtime-selected pricing policies, invoked through the borrowed contract.
+interface Price { int invoke(int quantity); }
+class FlatPrice : Price {
+	int base_price;
+	init(int price) : base() { this.base_price = price; }
+	override int invoke(int quantity) { return this.base_price + quantity; }
+}
+class VolumePrice : Price {
+	int rate;
+	init(int rate) : base() { this.rate = rate; }
+	override int invoke(int quantity) { return this.rate * quantity; }
+}
+int quote(borrowed Price policy, int limit) {
+	int total = 0; int quantity = 1;
+	while (quantity <= limit) { total = total + policy(quantity); quantity = quantity + 1; }
+	return total;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		int mode = parse_int(args[1]); int count = parse_int(args[2]);
+		if (mode < 0 || mode > 1 || count < 0 || count > 1000) { return 64; }
+		var flat = new FlatPrice(7); var volume = new VolumePrice(3);
+		int result = 0;
+		if (mode == 0) { result = quote(flat, count); } else { result = quote(volume, count); }
+		report_number("quote=", result as i64); return 0;
+	} catch (Error error) { return 2; }
+}

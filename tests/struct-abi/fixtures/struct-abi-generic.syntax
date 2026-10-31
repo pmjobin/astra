@@ -1,0 +1,127 @@
+(unit
+	(struct "Box"
+		(type-parameters T)
+		(field (type "T") (name "value"))
+	)
+	(struct "Bundle"
+		(type-parameters T)
+		(field (type "Box<T>") (name "left"))
+		(field (type "Box<T>") (name "right"))
+		(field (type "int") (name "tag"))
+	)
+	(function
+		(type "Box<int>")
+		(name "integers")
+		(parameters
+			(parameter (type "Box<i32>") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "Box<f64>")
+		(name "doubles")
+		(parameters
+			(parameter (type "Box<f64>") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "Box<i16<8>>")
+		(name "vectors")
+		(parameters
+			(parameter (type "Box<i16<8>>") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "Box<bool<4>>")
+		(name "masks")
+		(parameters
+			(parameter (type "Box<bool<4>>") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "Bundle<f64>")
+		(name "bundle")
+		(parameters
+			(parameter (type "Bundle<f64>") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "ordinary_helper")
+		(parameters
+			(parameter (type "T") (name "value"))
+		)
+		(block
+			(struct-local (type "Box<int>") (name "a")
+				(initialize-field "value" (integer "7"))
+			)
+			(local (type "Box<i32>") (name "b") (call "integers" (arguments (name "a"))))
+			(if
+				(condition (binary "==" (field-access "b" "value") (integer "7")))
+				(then
+					(block
+						(return (name "value"))
+					)
+				)
+			)
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Box<int>") (name "a")
+				(initialize-field "value" (integer "7"))
+			)
+			(local (type "Box<i32>") (name "b") (call "integers" (arguments (name "a"))))
+			(struct-local (type "Box<f64>") (name "c")
+				(initialize-field "value" (float "3.5"))
+			)
+			(local (type "Box<f64>") (name "d") (call "doubles" (arguments (name "c"))))
+			(struct-local (type "Box<i16<8>>") (name "e")
+				(initialize-field "value" (vector-splat (integer "9") (ordinals 8)))
+			)
+			(local (type "Box<i16<8>>") (name "f") (call "vectors" (arguments (name "e"))))
+			(struct-local (type "Box<bool<4>>") (name "g")
+				(initialize-field "value" (vector-splat (bool true) (ordinals 4)))
+			)
+			(local (type "Box<bool<4>>") (name "h") (call "masks" (arguments (name "g"))))
+			(struct-local (type "Bundle<f64>") (name "i")
+				(initialize-field "left" (storage-initializer
+					(initialize-field "value" (float "1.5"))
+				))
+				(initialize-field "right" (storage-initializer
+					(initialize-field "value" (float "3.5"))
+				))
+				(initialize-field "tag" (integer "7"))
+			)
+			(local (type "Bundle<f64>") (name "j") (call "bundle" (arguments (name "i"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (field-access "b" "value") (integer "7")) (binary "!=" (field-access "d" "value") (float "3.5"))) (binary "!=" (vector-extract (lane 7) (field-access "f" "value")) (integer "9"))) (prefix "!" (vector-extract (lane 3) (field-access "h" "value")))) (binary "!=" (field-access (base (field-access "j" "left")) "value") (float "1.5"))) (binary "!=" (field-access (base (field-access "j" "right")) "value") (float "3.5"))) (binary "!=" (field-access "j" "tag") (integer "7"))) (binary "!=" (generic-call "ordinary_helper" (type-arguments int) (arguments (integer "7"))) (integer "7"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

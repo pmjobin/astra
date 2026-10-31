@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct S { void* identity; }
+extern(C) void* token();
+int main() {
+	void* p = token();
+	S a = { identity = p };
+	S b = a;
+	S* bp = &b;
+	*bp = a;
+	S c = *bp;
+	if (a.identity != p || b.identity != p || c.identity != p) { return 1; }
+	b.identity = null;
+	if (a.identity != p || c.identity != p) { return 2; }
+	return 0;
+}

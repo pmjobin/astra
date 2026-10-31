@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void endpoint_errors_prepare();
+extern(C) int endpoint_refusal_port(int family);
+extern(C) void endpoint_refusal_close();
+extern(C) void endpoint_exhaust_descriptors();
+extern(C) void endpoint_restore_descriptors();
+extern(C) int endpoint_errors_finish(int result);
+bool invalid_endpoint(string address, int family, int port, int scope) {
+	try { NetworkEndpoint invalid = network_endpoint(address, family, port, scope); return false; }
+	catch (SocketError error) { return error.code == -22 || error.code == -97; }
+}
+int check_endpoint_errors() throws SocketError {
+	if (!invalid_endpoint("", 4, 1, 0) || !invalid_endpoint("127.0.0.256", 4, 1, 0) || !invalid_endpoint("[::1]", 6, 1, 0) || !invalid_endpoint("::1%lo", 6, 1, 0)) { return 1; }
+	if (!invalid_endpoint("127.0.0.1", 5, 1, 0) || !invalid_endpoint("127.0.0.1", 4, -1, 0) || !invalid_endpoint("::1", 6, 65536, 0) || !invalid_endpoint("127.0.0.1", 4, 1, 1) || !invalid_endpoint("::1", 6, 1, -1)) { return 2; }
+	var context = concurrent_allocator(1, 131101, 7, 128);
+	if (context == null) { return 3; }
+	var bytes = new(context)u8[65528];
+	bytes[0] = 19;
+	NetworkEndpoint endpoint = network_endpoint("127.0.0.1", 4, 9, 0);
+	endpoint.address1 = 1;
+	try { int invalid = network_format(endpoint, bytes); return 4; }
+	catch (SocketError error) { if (error.code != -22 || bytes[0] != 19) { return 5; } }
+	endpoint.address1 = 0;
+	var small = new(context)u8[1];
+	small[0] = 23;
+	try { int invalid = network_format(endpoint, small); return 6; }
+	catch (SocketError error) { if (error.code != -28 || small[0] != 23) { return 7; } }
+	if (astra_net_read(-1, bytes, -1, 1) != -22 || astra_net_write(-1, bytes, 65528, 1) != -22 || astra_net_read(-1, bytes, 0, 2147483647) != -22 || astra_net_write(-1, bytes, 0, 1) != -9) { return 8; }
+	for (int index = 0; index < 2; index = index + 1) {
+		int family = 4; string address = "127.0.0.1";
+		if (index == 1) { family = 6; address = "::1"; }
+		NetworkEndpoint remote = network_endpoint(address, family, endpoint_refusal_port(family), 0);
+		bool refused = false;
+		try {
+			var socket = new TcpSocket(); socket.open_family(family);
+			int status = socket.connect_to(remote);
+			int started = astra_net_milliseconds();
+			while (status == NetAgain || status == NetInterrupted) {
+				if (socket.ready(true) == 1) { socket.connected(); break; }
+				network_deadline(started, 2000);
+			}
+		} catch (SocketError error) { refused = error.code == -111; }
+		endpoint_refusal_close();
+		if (!refused) { return 9; }
+		NetworkEndpoint local = network_endpoint(address, family, 0, 0);
+		var udp = new UdpSocket(); udp.open_at(local);
+		remote.port = 9;
+		try { int invalid = udp.send_to(remote, bytes, 0, 65528); return 10; }
+		catch (SocketError error) { if (error.code != -90) { return 11; } }
+	}
+	endpoint_exhaust_descriptors();
+	bool exhausted = false;
+	try { var socket = new TcpSocket(); socket.open_family(4); }
+	catch (SocketError error) { exhausted = error.code == -24; }
+	endpoint_restore_descriptors();
+	if (!exhausted) { return 12; }
+	{ var recovered = new TcpSocket(); recovered.open_family(4); }
+	release small; release bytes;
+	if (concurrent_allocator_query(context, 1) != 0) { return 13; }
+	return 0;
+}
+int main() {
+	endpoint_errors_prepare();
+	int result = 0;
+	try { result = check_endpoint_errors(); }
+	catch (SocketError error) { result = 1000 - error.code; }
+	return endpoint_errors_finish(result);
+}

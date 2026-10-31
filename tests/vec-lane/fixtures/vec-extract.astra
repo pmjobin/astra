@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Log { int calls; }
+i16<4> make_vector(Log* log) { log->calls = log->calls + 1; i16<4> v = {10, 20, 30, 40}; return v; }
+i32 lane(i32<4> v) { return v[2]; }
+int main() {
+	Log log = {calls = 0};
+	i16 x = make_vector(&log)[2];
+	if (x != 30 || log.calls != 1) { return 1; }
+	i16<4> v = {10, 20, 30, 40};
+	if (v[0] != 10 || 20 != v[1] || (v)[2] != 30 || v[0003] != 40) { return 2; }
+	v = insert(v, 1, x);
+	i16<4> expected = {10, 30, 30, 40};
+	if (!all(v == expected)) { return 3; }
+	bool<4> mask = {true, false, true, false};
+	if (mask[3] || !mask[2]) { return 4; }
+	return 0;
+}

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	if (telemetry(12) != 42) { return 72; }
+	try {
+		var arena = packet_arena(8);
+		ArenaPacket packet = {tag=72, payload=42};
+		owned PacketResource resource = packet_open(12);
+		int id = arena.append(packet, move resource);
+		ArenaPacket observed = arena.read(id);
+		if (observed.payload != 42) { return 73; }
+	} catch(ArenaError error) { return 74; }
+	return packet_finish(1);
+}

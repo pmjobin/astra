@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="com16_exception_retired")]int retired();
+[ExceptionRoot]class Fault{
+	readonly string text;private int status;private int domain;
+	init(int domain,int status){this.domain=domain;this.status=status;this.text="COM failure";}
+	virtual property string message{get{return this.text;}}
+	int code(){return this.status;}int space(){return this.domain;}
+	deinit(){retired();}
+}
+owned Fault foreign_fault(int domain,int status){var error=new Fault(domain,status);return move error;}
+[COMImport(name="query16",iid="2c2d4a08-a483-4ace-9e01-f6793e47f101",threading="constructing",profile="declarations-v1")]
+interface IQuery {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]init(borrowed void* unknown) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]i64 transform(i64 input,f64 bias,bool enabled) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]property f64 gain throws Fault {get;set(f64 input);}
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]bool choose(bool input,borrowed Callback<bool,bool> code) throws Fault;
+}
+[COMImport(name="detail16",iid="2c2d4a08-a483-4ace-9e01-f6793e47f102",threading="constructing",profile="declarations-v1")]
+interface IDetail : IQuery {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]init(borrowed void* unknown) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]u64 stamp(u64 input) throws Fault;
+}
+bool invert(bool value){return !value;}
+struct ComSample { bool enabled; bool marked; int count; f64 scale; u64 stamp; f32 weight; u32 flags; i64 offset; }
+[COMImport(name="records16",iid="2c2d4a08-a483-4ace-9e01-f6793e47f103",threading="constructing",profile="declarations-v1")]
+interface IRecords {
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]init(borrowed void* unknown) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]ComSample amend(ComSample input,f64 delta,int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="output",direction="out",produced="count")]
+	[ForeignChannel(parameter="count",direction="out")]
+	owned u8[] snapshot(borrowed u8[] input,borrowed u8[] output,borrowed int* count,int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="result",encoding="utf8-counted",transfer="full")]
+	owned u8[] text(int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
+	[ForeignChannel(parameter="input",encoding="utf8-nul")]
+	int inspect(string input,string counted) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]int compare(borrowed IQuery input) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]owned IQuery make(int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600",null_status="1")]
+	[ForeignChannel(parameter="result",nullable="true")]owned IQuery lookup(int mode) throws Fault;
+	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]int take(owned IQuery input,int mode) throws Fault;
+}
+export(C) int com16_records(void* unknown){try{var records=IRecords.init(unknown);ComSample sample={enabled=true,marked=false,count=4,scale=2.5,stamp=9223372036854775809,weight=1.25,flags=4000000000,offset=-5000000000};var value=records.amend(sample,0.5,0);if(value.enabled || !value.marked || value.count!=11 || value.scale!=3.0 || value.stamp!=sample.stamp || value.weight!=3.25 || value.flags!=sample.flags || value.offset!=sample.offset){return 1;}try{var ignored=records.amend(sample,0.5,1);return 2;}catch(Fault fault){if(fault.code()!=-1600){return 3;}}}catch(Fault fault){return 90;}return 0;}
+export(C) int com16_run(void* unknown){try{var query=IQuery.init(unknown);i64 expected=-4999999993;if(query.transform(-5000000000,2.5,true)!=expected){return 1;}query.gain=3.5;if(query.gain!=3.5){return 2;}if(!query.choose(false,invert) || query.choose(true,invert)){return 3;}var detail=IDetail.init(unknown);u64 result=9223372036854775816;if(detail.stamp(9223372036854775809)!=result){return 4;}if(detail.gain!=3.5){return 5;}}catch(Fault error){return error.code();}return 0;}
+export(C) int com16_space(void* unknown){try{var query=IQuery.init(unknown);var value=query.transform(3,2.5,true);return 99;}catch(Fault error){return error.space();}}
+
+export(C) int com16_payloads(void* unknown){try{var records=IRecords.init(unknown);u8[3] input={3,4,5};u8[4] output={77,77,77,77};int count=-1;var data=records.snapshot(slice(input),slice(output),&count,0);if(len(data)!=3 || data[0]!=13 || data[2]!=15 || count!=2 || output[0]!=23 || output[1]!=24 || output[2]!=77 || input[0]!=3){return 1;}int mode=1;while(mode<4){output[0]=77;output[1]=77;count=-1;try{var ignored=records.snapshot(slice(input),slice(output),&count,mode);return 2;}catch(Fault fault){int expected=-2147418113;if(mode==1){expected=-1600;}if(fault.code()!=expected || count!=0 || output[0]!=77 || output[1]!=77){return 3;}}mode=mode+1;}var text=records.text(0);if(len(text)!=4 || text[0]!=97 || text[1]!=0 || text[2]!=195 || text[3]!=169){return 4;}try{var ignored=records.text(1);return 5;}catch(Fault fault){if(fault.code()!=-2147024809){return 6;}}if(records.inspect("café","a\0é")!=9){return 7;}try{int ignored=records.inspect("a\0b","x");return 8;}catch(Fault fault){if(fault.code()!=-2147024809){return 9;}}}catch(Fault fault){return 90;}return 0;}
+
+export(C) int com16_objects(void* unknown){try{var records=IRecords.init(unknown);var query=IQuery.init(unknown);if(records.compare(query)!=77){return 1;}var made=records.make(0);if(made.gain!=3.5){return 2;}try{var ignored=records.make(1);return 3;}catch(Fault fault){if(fault.code()!=-1600){return 4;}}try{var ignored=records.make(2);return 5;}catch(Fault fault){if(fault.code()!=-2147418113){return 6;}}var absent=records.lookup(0);if(absent!=null){return 7;}var found=records.lookup(1);if(found==null || found.gain!=3.5){return 8;}int mode=0;while(mode<3){var input=IQuery.init(unknown);try{if(records.take(move input,mode)!=88 || mode==1){return 9;}}catch(Fault fault){if(mode!=1 || fault.code()!=-1600){return 10;}}mode=mode+1;}}catch(Fault fault){return 90;}return 0;}

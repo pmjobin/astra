@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int udp_oracle_start();
+extern(C) int udp_oracle_finish();
+
+async int datagrams(owned UdpSocket socket, int port, int id) throws Error {
+	int started = astra_net_milliseconds();
+	var bytes = new u8[65507];
+	while (socket.try_send(port, bytes, 0, 0) < 0) { network_deadline(started, 10000); await delay_ticks(1); }
+	while (true) {
+		int count = socket.try_receive(bytes, 0, 0);
+		if (count == 0) { break; }
+		network_deadline(started, 10000); await delay_ticks(1);
+	}
+	if (socket.peer_port != port || socket.peer_ipv4 != 2130706433) { throw new Error("UDP endpoint"); }
+	for (int i = 0; i < len(bytes); i = i + 1) { bytes[i] = (i % 251) as u8; }
+	bytes[0] = id as u8; bytes[1] = 0; bytes[2] = 195; bytes[3] = 169;
+	while (socket.try_send(port, bytes, 0, len(bytes)) < 0) { network_deadline(started, 10000); await delay_ticks(1); }
+	var reply = new u8[65507];
+	while (true) {
+		int count = socket.try_receive(reply, 0, len(reply));
+		if (count >= 0) { if (count != len(bytes)) { throw new Error("UDP boundary"); } break; }
+		network_deadline(started, 10000); await delay_ticks(1);
+	}
+	for (int i = 0; i < len(bytes); i = i + 1) { if (bytes[i] != reply[i]) { throw new Error("UDP bytes"); } }
+	bytes[0] = 7;
+	while (socket.try_send(port, bytes, 0, 1) < 0) { network_deadline(started, 10000); await delay_ticks(1); }
+	bool truncated = false;
+	while (!truncated) {
+		try { int count = socket.try_receive(reply, 0, 10); if (count >= 0) { throw new Error("UDP truncation was accepted"); } }
+		catch (SocketError error) { if (error.code != -90) { throw; } truncated = true; }
+		if (!truncated) { network_deadline(started, 10000); await delay_ticks(1); }
+	}
+	if (socket.try_receive(reply, 0, len(reply)) != NetAgain) { throw new Error("UDP truncated packet retained"); }
+	bool bad_port = false;
+	try { socket.try_send(65536, bytes, 0, 1); } catch (SocketError error) { if (error.code != -22) { throw; } bad_port = true; }
+	if (!bad_port) { throw new Error("UDP port validation"); }
+	bool oversized = false;
+	var large = new u8[65508];
+	try { socket.try_send(port, large, 0, len(large)); } catch (SocketError error) { if (error.code != -90) { throw; } oversized = true; }
+	if (!oversized) { throw new Error("UDP datagram limit"); }
+	bytes[0] = 8;
+	while (socket.try_send(port, bytes, 0, 1) < 0) { network_deadline(started, 10000); await delay_ticks(1); }
+	while (true) {
+		int count = socket.try_receive(reply, 0, len(reply));
+		if (count >= 0) { if (count != 5 || reply[0] != 65 || reply[1] != 0 || reply[2] != 195 || reply[3] != 169 || reply[4] != 33) { throw new Error("UDP delayed bytes"); } break; }
+		network_deadline(started, 10000); await delay_ticks(1);
+	}
+	return id;
+}
+
+async void udp_clients(int port) throws Error {
+	var sa = new UdpSocket(); sa.open(0); var a = datagrams(move sa, port, 1);
+	var sb = new UdpSocket(); sb.open(0); var b = datagrams(move sb, port, 2);
+	start(a);
+	try { if (await move b != 2) { throw new Error("UDP client b"); } }
+	catch (Error error) { await cancel_and_join(move a); throw; }
+	if (await move a != 1) { throw new Error("UDP client a"); }
+}
+
+export(C) int run_udp() {
+	int port = udp_oracle_start();
+	try {
+		var executor = ThreadedExecutor.open(4);
+		var status = executor.run(udp_clients(port));
+		match (status) { case ThreadedStatus.Completed(): {} else: { return 81; } }
+	} catch (Error error) { return 82; }
+	return udp_oracle_finish();
+}
+int main() { return run_udp(); }

@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int se_mark(int value);
+struct Kernel { int index; f64 gain; }
+struct Holder { Kernel payload; int tag; }
+struct Box<T> { T value; }
+class Owner {
+	owned Kernel[] records;
+	init() { this.records = new Kernel[2]; this.records[0].index = 7; this.records[0].gain = 3.5d; }
+	int replace() { se_mark(80); this.records = new Kernel[3]; return 0; }
+}
+T identity<T>(T value) { return value; }
+T first<T>(T value, int effect) { T local = value; return local; }
+T with_buffer<T>(T value, owned Kernel[] owner) { return value; }
+T with_owner<T,U>(T value, owned U owner) where U : Ownable { return value; }
+Kernel native_first(Kernel value, int effect) { Kernel local = value; return local; }
+Kernel native_buffer(Kernel value, owned Kernel[] owner) { return value; }
+Kernel native_owner(Kernel value, owned Owner owner) { return value; }
+int mutate(Kernel[] values) { se_mark(20); values[0].index = 99; values[0].gain = 9.0d; return 20; }
+Kernel produce(int index) { Kernel result = { gain = 3.5d, index = se_mark(index) }; return result; }
+Kernel native_identity(Kernel value) { return value; }
+int main() {
+	var a = new Kernel[2]; a[0].index = 7; a[0].gain = 3.5d;
+	var saved = first(a[se_mark(0)], mutate(a));
+	if (saved.index != 7 || saved.gain != 3.5d) { return 1; }
+	a[0] = saved;
+	var control = native_first(a[se_mark(0)], mutate(a));
+	if (control.index != 7 || control.gain != 3.5d) { return 2; }
+	a[0] = saved;
+	Holder h = { payload = identity(a[se_mark(0)]), tag = mutate(a) };
+	a[0] = saved;
+	Holder hc = { payload = native_identity(a[se_mark(0)]), tag = mutate(a) };
+	Holder later = { tag = se_mark(30), payload = identity(produce(31)) };
+	Box<Kernel> box = { value = identity(produce(40)) };
+	Holder[2] fixed = { { payload = identity(produce(41)), tag = se_mark(42) }, { tag = se_mark(43), payload = produce(44) } };
+	var named = produce(50);
+	var direct = identity(produce(51));
+	var named_copy = identity(named);
+	if (h.payload.index != 7 || hc.payload.index != 7 || later.payload.index != 31 || box.value.index != 40 || fixed[0].payload.index != 41 || fixed[1].payload.index != 44 || named_copy.index != 50 || direct.index != 51) { return 3; }
+	a[0] = saved;
+	var transferred = with_buffer(a[se_mark(0)], move a);
+	var b = new Kernel[2]; b[0] = saved;
+	var concrete_transfer = native_buffer(b[se_mark(0)], move b);
+	if (transferred.index != 7 || concrete_transfer.gain != 3.5d) { return 4; }
+	owned Owner one = Owner.init();
+	var replaced = first(one.records[se_mark(0)], one.replace());
+	owned Owner two = Owner.init();
+	var concrete_replaced = native_first(two.records[se_mark(0)], two.replace());
+	owned Owner three = Owner.init();
+	var owner_copy = with_owner(three.records[se_mark(0)], move three);
+	owned Owner four = Owner.init();
+	var concrete_owner_copy = native_owner(four.records[se_mark(0)], move four);
+	owned R resource_owner = resource(1);
+	var resource_copy = with_owner(saved, move resource_owner);
+	if (replaced.index != 7 || concrete_replaced.index != 7 || owner_copy.index != 7 || concrete_owner_copy.index != 7 || resource_copy.index != 7) { return 5; }
+	Kernel* pointer = &saved;
+	*pointer = identity(*pointer);
+	var pointer_copy = identity(*pointer);
+	if (pointer_copy.index != 7) { return 6; }
+	return 0;
+}

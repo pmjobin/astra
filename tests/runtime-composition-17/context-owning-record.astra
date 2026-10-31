@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void owning_record_item_retired(int identity);
+extern(C) int owning_record_finish();
+[Allocator(kind="context",context="owned-concurrent")]
+class RecordItem {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	int read() { return this.identity; }
+	deinit() { owning_record_item_retired(this.identity); }
+}
+struct OwnerRecord<T> where T : Ownable {
+	owned T item;
+	int marker;
+}
+struct NestedOwnerRecord<T> where T : Ownable {
+	OwnerRecord<T> child;
+	int stamp;
+}
+[Allocator(kind="context",context="owned-concurrent")]
+class RecordHost {
+	private owned NestedOwnerRecord<RecordItem> record;
+	init(NestedOwnerRecord<RecordItem> record) { this.record = move record; }
+	int read() { return this.record.child.marker + this.record.stamp; }
+}
+NestedOwnerRecord<RecordItem> create_owned_record(int identity) {
+	var context = custom_allocator(16387, 11);
+	var item = new (context) RecordItem(identity);
+	NestedOwnerRecord<RecordItem> record = {child = {item = move item, marker = 3}, stamp = 7};
+	return move record;
+}
+int main() {
+	{
+		var context = concurrent_allocator(2, 65543, 7, 128);
+		NestedOwnerRecord<RecordItem> first = create_owned_record(17);
+		NestedOwnerRecord<RecordItem> second = move first;
+		var host = new (context) RecordHost(move second);
+		if (host.read() != 10) { return 1; }
+		OwnerRecord<ConcurrentAllocator> allocator = {item = custom_allocator(8197, 3), marker = 23};
+		if (allocator.marker != 23) { return 2; }
+	}
+	return owning_record_finish();
+}

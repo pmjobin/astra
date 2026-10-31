@@ -1,0 +1,64 @@
+(unit
+	(function
+		(type "bool")
+		(name "and_chain")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(return (short-circuit "&&" (short-circuit "&&" (name "a") (name "b")) (name "c")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "or_chain")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(return (short-circuit "||" (short-circuit "||" (name "a") (name "b")) (name "c")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "and_or")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(return (short-circuit "&&" (name "a") (parenthesized (short-circuit "||" (name "b") (name "c")))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "or_and")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+		)
+		(block
+			(return (short-circuit "||" (name "a") (short-circuit "&&" (name "b") (name "c"))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "precedence")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+			(parameter (type "bool") (name "c"))
+			(parameter (type "bool") (name "d"))
+			(parameter (type "bool") (name "e"))
+		)
+		(block
+			(return (short-circuit "||" (short-circuit "&&" (binary "==" (name "a") (name "b")) (binary "!=" (name "c") (name "d"))) (name "e")))
+		)
+	)
+)

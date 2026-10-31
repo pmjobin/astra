@@ -1,0 +1,174 @@
+(core-program
+	(function "tie" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x4340000000000000 : f64)
+			)
+		)
+	)
+	(function "precise" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x3ff0000000000001 : f64)
+			)
+		)
+	)
+	(function "negative_zero" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x8000000000000000 : f64)
+			)
+		)
+	)
+	(function "tiny" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x0000000000000001 : f64)
+			)
+		)
+	)
+	(function "max_subnormal" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x000fffffffffffff : f64)
+			)
+		)
+	)
+	(function "min_normal" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x0010000000000000 : f64)
+			)
+		)
+	)
+	(function "maximum" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x7fefffffffffffff : f64)
+			)
+		)
+	)
+	(function "overflow" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x7ff0000000000000 : f64)
+			)
+		)
+	)
+	(function "underflow" -> f64
+		(parameters)
+		(block
+			(return
+				(f64 0x8000000000000000 : f64)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(short-circuit || : bool
+									(binary != : bool
+										(call "tie" -> f64
+											(arguments)
+										)
+										(f64 0x4340000000000000 : f64)
+									)
+									(binary == : bool
+										(call "precise" -> f64
+											(arguments)
+										)
+										(f64 0x3ff0000000000000 : f64)
+									)
+								)
+								(binary == : bool
+									(call "tiny" -> f64
+										(arguments)
+									)
+									(f64 0x0000000000000000 : f64)
+								)
+							)
+							(binary <= : bool
+								(call "min_normal" -> f64
+									(arguments)
+								)
+								(call "max_subnormal" -> f64
+									(arguments)
+								)
+							)
+						)
+						(binary >= : bool
+							(call "maximum" -> f64
+								(arguments)
+							)
+							(call "overflow" -> f64
+								(arguments)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(binary / : f64
+								(f64 0x3ff0000000000000 : f64)
+								(call "negative_zero" -> f64
+									(arguments)
+								)
+							)
+							(prefix - : f64
+								(call "overflow" -> f64
+									(arguments)
+								)
+							)
+						)
+						(binary != : bool
+							(binary / : f64
+								(f64 0x3ff0000000000000 : f64)
+								(call "underflow" -> f64
+									(arguments)
+								)
+							)
+							(prefix - : f64
+								(call "overflow" -> f64
+									(arguments)
+								)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

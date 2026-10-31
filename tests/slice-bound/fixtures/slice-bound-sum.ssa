@@ -1,0 +1,49 @@
+(ssa-program
+	(function #0 "sum" -> int
+		(parameters
+			(%0 "values" : int[] (contract borrowed-noescape))
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 0 : int)))
+		)
+		(block #1
+			(arguments
+				(%1 "result" : int)
+				(%2 "i" : int)
+			)
+			(%3 : int = slice-length %0)
+			(%4 : bool = binary < %2 %3)
+			(conditional-branch %4
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%5 : int = slice-bounds-check (slice %0) (index %2) runtime-length trap)
+			(%6 : int = load (slice-element-place (slice %0) (index %5) : int runtime-bounds-trap))
+			(%7 : int = binary + %1 %6)
+			(%8 : int = binary + %2 (integer 1 : int))
+			(branch #1 (%7 %8))
+		)
+		(block #3
+			(return %1)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(storage #0 "a" (local #0) : int[4] address-taken)
+		(storage #1 "b" (local #1) : int[8] address-taken)
+		(entry #0)
+		(block #0
+			(array-initialize (storage #0) (integer 1 : int) (integer 2 : int) (integer 3 : int) (integer 4 : int))
+			(array-initialize (storage #1) (integer 1 : int) (integer 2 : int) (integer 3 : int) (integer 4 : int) (integer 5 : int) (integer 6 : int) (integer 7 : int) (integer 8 : int))
+			(%0 : int[] = slice-from-array (storage #0 : int[4]) full (region #0))
+			(%1 : int = call #0 "sum" -> int (arguments %0))
+			(%2 : int[] = slice-from-array (storage #1 : int[8]) full (region #0))
+			(%3 : int = call #0 "sum" -> int (arguments %2))
+			(%4 : int = binary + %1 %3)
+			(return %4)
+		)
+	)
+)

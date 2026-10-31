@@ -1,0 +1,29 @@
+extern(C) int mark(int value);
+struct Pair { int x; f64 y; }
+class Context {
+	owned f64[] values;
+	init(string label) { this.values = new f64[label.byte_length]; }
+	deinit() { mark(8); }
+}
+string mixed(int before, string first, Pair pair, int<2> vector, f64[] view, owned int[] buffer, owned Resource resource, owned Context context, string last, int after) {
+	assert(before == 1 && after == 2);
+	assert(first == last && first.byte_length == 3);
+	assert(pair.x == 7 && pair.y == 2.0d && vector[1] == 4);
+	assert(len(view) == 2 && len(buffer) == 1 && len(context.values) == 3);
+	view[0] = 9.0d;
+	mark(3);
+	return "a\0b";
+}
+Pair record(string text) { Pair p = {x = text.byte_length, y = 2.0d}; return p; }
+owned int[] allocate(string text) { return new int[text.byte_length]; }
+owned Context make(string text) { return Context.init(text); }
+int main() {
+	var resource = acquire(7);
+	var context = make("a\0b");
+	var values = new f64[2];
+	var owned_values = allocate("x");
+	int<2> vector = {3, 4};
+	var result = mixed(mark(1), "a\0b", record("1234567"), vector, values, move owned_values, move resource, move context, "a\u0000b", mark(2));
+	assert(result == "a\0b" && values[0] == 9.0d);
+	return 0;
+}

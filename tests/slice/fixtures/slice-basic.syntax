@@ -1,0 +1,65 @@
+(unit
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "int[4]") (name "storage") (array-init (integer "1") (integer "2") (integer "3") (integer "4")))
+			(local (type "int[]") (name "a") (slice-form (arguments (name "storage"))))
+			(local (type "i32[]") (name "b") (name "a"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (len-form (arguments (name "a"))) (integer "4")) (binary "!=" (len-form (arguments (name "storage"))) (integer "4"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(indexed-assignment (vector-extract (lane 1) (name "a")) (integer "42"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (vector-extract (lane 1) (name "b")) (integer "42")) (binary "!=" (vector-extract (lane 1) (name "storage")) (integer "42"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(indexed-assignment (vector-extract (lane 2) (name "storage")) (integer "12"))
+			(if
+				(condition (binary "!=" (vector-extract (lane 2) (slice-form (arguments (name "storage")))) (integer "12")))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(indexed-assignment (vector-extract (lane 2) (slice-form (arguments (name "storage")))) (integer "14"))
+			(if
+				(condition (binary "!=" (vector-extract (lane 2) (name "storage")) (integer "14")))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(local (type "int") (name "i") (integer "0"))
+			(while
+				(condition (binary "<" (name "i") (len-form (arguments (name "b")))))
+				(body
+					(block
+						(if
+							(condition (binary "!=" (index (name "b") (name "i")) (index (name "storage") (name "i"))))
+							(then
+								(block
+									(return (integer "5"))
+								)
+							)
+						)
+						(assign (name "i") (binary "+" (name "i") (integer "1")))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int surge_event(int stage, int tag);
+extern(C) int surge_live();
+extern(C) int surge_destroyed();
+
+void report_number(string label, i64 value) throws Error {
+	var builder = new Utf8ByteBuilder();
+	require_text(append_text(builder, label));
+	require_text(append_i64(builder, value));
+	var text = builder.snapshot();
+	if (!println(text.text)) { throw new Error("output"); }
+}

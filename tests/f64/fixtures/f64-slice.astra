@@ -1,0 +1,11 @@
+void update(borrowed f64[] values) { int i = 0; while (i < len(values)) { values[i] = values[i] + 0.25; i = i + 1; } }
+int main() {
+	f64[4] values = { 1.0, 2.0, 3.0, 4.0 };
+	f64[] full = slice(values);
+	f64[] sub = slice(values, 1, 2);
+	update(sub);
+	if (full[0] != 1.0 || full[1] != 2.25 || full[2] != 3.25 || full[3] != 4.0) { return 1; }
+	full[0] = -0.0;
+	if (1.0 / values[0] != -1e309) { return 2; }
+	return 0;
+}

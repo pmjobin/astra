@@ -1,0 +1,35 @@
+(program
+	(function "arithmetic" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary + : int (binary / : int (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)) (binary % : int (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int))))
+		)
+	)
+	(function "minimum_division" -> int
+		(parameters)
+		(block
+			(return (binary / : int (integer -2147483648 : int) (integer -1 : int)))
+		)
+	)
+	(function "minimum_remainder" -> int
+		(parameters)
+		(block
+			(return (binary % : int (integer -2147483648 : int) (integer -1 : int)))
+		)
+	)
+	(function "zero_division" -> int
+		(parameters)
+		(block
+			(return (binary / : int (integer 1 : int) (integer 0 : int)))
+		)
+	)
+	(function "zero_remainder" -> int
+		(parameters)
+		(block
+			(return (binary % : int (integer 1 : int) (integer 0 : int)))
+		)
+	)
+)

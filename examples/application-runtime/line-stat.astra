@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int summarize(string input_path, string output_path) throws Error {
+	var bytes = read_file(input_path); int length = bytes.byte_count();
+	int lines = 0; int i = 0; bool trailing = false;
+	while (i < length) { trailing = bytes.byte_at(i) == 10; if (trailing) { lines = lines + 1; } i = i + 1; }
+	var builder = new Utf8ByteBuilder();
+	require_text(append_text(builder, "byte_count=")); require_text(append_int(builder, length));
+	require_text(append_text(builder, "\nLF_count=")); require_text(append_int(builder, lines));
+	require_text(append_text(builder, "\nends_in_LF=")); require_text(append_bool(builder, trailing));
+	require_text(append_text(builder, "\n"));
+	var message = builder.snapshot(); write_text_file(output_path, message.text); return 0;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try { return summarize(args[1], args[2]); }
+	catch (Error error) { println_stderr("file I/O"); return 2; }
+}

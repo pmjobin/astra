@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace SignalUnit;
+[CImport(name="signals16_retired")]int retired();
+[CImport(name="signals16_item_retired")]int item_retired();
+struct Sample{bool valid;f64 weight;i64 revision;}
+[Shared][CExport(name="signals16",profile="declarations-v1",bool_abi="c99")]
+[GObjectExport(type="Events16Session",namespace="Events16",version="1.0",profile="declarations-v1")]
+class Session{
+	[Foreign]init(int count){this.raw=count;}
+	private int raw;
+	[Foreign]property int count{get{return this.raw;}}
+	[Foreign]signal void updated(int count,bool committed,f64 weight);
+	[Foreign]signal void described(string text,borrowed u8[] payload,Sample record);
+	[Foreign]signal void selected(borrowed Item item);
+	[Foreign]void choose_item(int value){var item=new Item(value);emit selected(item);}
+	[Foreign]void describe(string text,borrowed u8[] payload){Sample record={valid=true,weight=3.5,revision=29};emit described(text,payload,record);}
+	[Foreign]void update(int value){this.raw=value;emit updated(this.raw,true,2.5);}
+	deinit(){retired();}
+}
+[Shared][CExport(name="signalitem16",profile="declarations-v1")]
+[GObjectExport(type="Events16Item",namespace="Events16",version="1.0",profile="declarations-v1")]
+class Item{
+	[Foreign]init(int value){this.raw=value;}
+	private int raw;
+	[Foreign]property int code{get{return this.raw;}}
+	deinit(){item_retired();}
+}

@@ -1,0 +1,8 @@
+class Context {
+	owned R resource;
+	init(bool choice, owned R a, owned R b) {
+		if (choice) { this.resource = move a; } else { this.resource = move b; }
+	}
+	deinit() { if (id(this.resource) == 1) { return; } mark(2); }
+}
+int main() { owned R a = make(1); owned R b = make(2); Context c = Context.init(true, move a, move b); return 42; }

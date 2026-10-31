@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int stream_requested_port();
+extern(C) int stream_queue_capacity();
+extern(C) int stream_worker_count();
+extern(C) int stream_context_bytes();
+extern(C) int stream_frame_bytes();
+extern(C) int stream_chunk_limit();
+extern(C) int stream_alignment();
+extern(C) void stream_prepare();
+extern(C) void stream_ready(int tcp, int udp);
+extern(C) int stream_stop_requested();
+extern(C) int stream_finish(int result);
+[CCode(text_abi="utf8-i32")]
+extern(C) void stream_error(borrowed string message);
+
+int stream_service(string address, int family, string destination) throws Error {
+	NetworkEndpoint endpoint = network_endpoint(address, family, stream_requested_port(), 0);
+	var listener = new TcpSocket(); listener.open_family(family); listener.listen_at(endpoint, 4);
+	endpoint.port = 0;
+	var datagrams = new UdpSocket(); datagrams.open_at(endpoint);
+	NetworkEndpoint tcp = listener.local_address(); NetworkEndpoint udp = datagrams.local_address();
+	stream_ready(tcp.port, udp.port);
+	var socket = new TcpSocket(); NetworkEndpoint peer = endpoint;
+	int started = astra_net_milliseconds();
+	while (!listener.accept_from(socket, &peer)) { if (stream_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
+	var context = concurrent_allocator(1, stream_context_bytes() as i64, 31, stream_alignment());
+	if (context == null) { throw new Error("stream control context"); }
+	var input = StreamSetup.create_queue(context, stream_queue_capacity()); var output = StreamSetup.create_queue(context, stream_queue_capacity());
+	var progress = StreamSetup.create_progress(context);
+	if (!input.ready() || !output.ready()) { throw new Error("stream queue admission"); }
+	var writer = payload_open(destination, stream_chunk_limit(), 1);
+	var pool = worker_pool(stream_worker_count()); if (pool == null) { throw new Error("stream worker admission"); }
+	var executor = StreamIo.open(16);
+	var status = executor.run(stream_pipeline(move socket, move datagrams, move writer, move pool, move input, move output, move progress));
+	match (status) { case StreamRunStatus.Completed(): {} else: { return 2; } }
+	if (stream_stop_requested() != 0) { return 130; }
+	return 0;
+}
+int main(string[] args) {
+	if (len(args) != 4 || args[2] != "4" && args[2] != "6") { return 64; }
+	int family = 4; if (args[2] == "6") { family = 6; }
+	stream_prepare();
+	if (stream_queue_capacity() < 0 || stream_worker_count() < 0 || stream_context_bytes() < 0 || stream_frame_bytes() < 0 || stream_chunk_limit() < 0 || stream_alignment() < 0) { return stream_finish(64); }
+	int result = 0;
+	try { result = stream_service(args[1], family, args[3]); }
+	catch (Error error) { stream_error(error.message); result = 1; }
+	return stream_finish(result);
+}

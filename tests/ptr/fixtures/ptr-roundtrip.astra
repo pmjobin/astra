@@ -1,0 +1,16 @@
+export(C) void* astra_export_echo_ptr(void* p) {
+	void* copy = p;
+	return copy;
+}
+
+int main() {
+	void* a = handle_a();
+	void* b = handle_b();
+	if (roundtrip(a) != a) { return 1; }
+	if (roundtrip(b) != b) { return 2; }
+	if (roundtrip(null) != null) { return 3; }
+	if (check_roundtrip(a) == 0) { return 4; }
+	if (check_roundtrip(b) == 0) { return 5; }
+	if (check_roundtrip(null) == 0) { return 6; }
+	return 0;
+}

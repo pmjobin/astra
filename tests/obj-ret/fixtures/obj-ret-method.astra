@@ -1,0 +1,22 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; life_record(67, 0); }
+	deinit() { if (this.value != 42) { life_record(88, 0); } life_record(68, 0); }
+	void add(int n) { this.value = this.value + n; }
+	owned Counter copy() { return Counter.init(this.value); }
+}
+struct Maker {
+	int value;
+	owned Counter make() { return Counter.init(this.value); }
+}
+class Helper { owned Counter identity(owned Counter c) { return move c; } }
+int main() {
+	Maker m = { value = 42 };
+	Helper h = {};
+	owned Counter a = m.make();
+	owned Counter b = a.copy();
+	owned Counter c = h.identity(move b);
+	if (a == c) { return 1; }
+	return c.value;
+}

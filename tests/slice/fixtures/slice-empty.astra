@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+bool empty(int start, u32 count) {
+	int[4] a = {1, 2, 3, 4};
+	int[] s = slice(a, start, count);
+	int[] copy = s;
+	return len(s) == 0 && len(copy) == 0 && len(slice(a, 0, 0)) == 0 && len(slice(a, 4, 0)) == 0;
+}
+int main() { if (!empty(0, 0) || !empty(4, 0)) { return 1; } return 0; }

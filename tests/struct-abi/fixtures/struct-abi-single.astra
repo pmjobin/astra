@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct One { f64 value; }
+One identity(One value) { return value; }
+One forward(One value) { return identity(value); }
+int main() { One a = { value = 3.5 }; One b = forward(a); if (b.value != 3.5) { return 1; } return 0; }

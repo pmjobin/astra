@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A fixed-size view crosses only synchronous calls; Astra owns all progress.
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		var input = new FileHandle(); input.open(args[1], 0);
+		var output = new FileHandle(); output.open(args[2], 1);
+		var chunk = new u8[65536];
+		while (true) {
+			int count = input.read_bytes(chunk, 0, 65536);
+			if (count == 0) { break; }
+			int written = 0;
+			while (written < count) { written = written + output.write_bytes(chunk, written, count - written); }
+		}
+		input.close(); output.flush(); output.close();
+		return 0;
+	} catch (FileError error) { return 2; }
+}

@@ -1,0 +1,26 @@
+T identity<T>(T value) {
+	return value;
+}
+int ordinary(int x) { return x; }
+struct S { int raw; int get_raw() { return identity<int>(this.raw); } }
+class Counter {
+	int raw;
+	init(int x) { this.raw = identity<int>(x); }
+	int read() { return identity<int>(this.raw); }
+	property int value { get { return identity<int>(this.raw); } set(int next) { this.raw = identity<int>(next); } }
+}
+T observe<T>(borrowed Counter counter, T value) {
+	int property_value = counter.value;
+	int method_value = counter.read();
+	int field_value = counter.raw;
+	int free_value = ordinary(field_value);
+	S s = {raw=free_value}; int struct_value = s.get_raw();
+	if (property_value == method_value && struct_value == field_value) { counter.value = free_value; }
+	return value;
+}
+int main() {
+	Counter c = Counter.init(42);
+	f64 f = observe<f64>(c,1.25);
+	if (f == 1.25 && c.value == 42) { return observe<int>(c,42); }
+	return 1;
+}

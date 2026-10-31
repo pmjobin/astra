@@ -1,0 +1,23 @@
+export(C) int astra_export_roundtrip() {
+	return astra_test_add(astra_test_record(1), astra_test_record(2));
+}
+
+export(C) int astra_export_order() {
+	return astra_test_record(1) + astra_test_record(2);
+}
+
+int main() {
+	astra_test_reset();
+	if (c_call_astra_roundtrip() != 42) {
+		return 1;
+	}
+	// C records 3 and 4 around Astra's left-to-right 1, 2 argument effects.
+	if (astra_test_state() != 3124) {
+		return 2;
+	}
+	astra_test_reset();
+	if (c_call_astra_order() != 3 || astra_test_state() != 12) {
+		return 3;
+	}
+	return 0;
+}

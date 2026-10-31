@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct MetadataRecord<T> {
+	T value;
+}
+class MetadataTag<T> {
+	private int code;
+	init(int code) { this.code = code; }
+	int read() { return this.code; }
+}
+int main() {
+	var record_tag = new MetadataTag<MetadataRecord<bool>>(19);
+	var resource_tag = new MetadataTag<R>(23);
+	return record_tag.read() + resource_tag.read() - 42;
+}

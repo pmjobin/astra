@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace ConfigRendering;
+using ConfigData;
+public owned Utf8Message render(Config config) throws Error {
+	var output = new Utf8ByteBuilder();
+	require_text(append_text(output, "records=")); require_text(append_int(output, config.entries()));
+	require_text(append_text(output, "\ntotal=")); require_text(append_i64(output, config.total()));
+	require_text(append_text(output, "\nsource-bytes=")); require_text(append_int(output, config.source_bytes()));
+	require_text(append_text(output, "\nUTF-8=valid\n"));
+	var result = output.snapshot(); return move result;
+}

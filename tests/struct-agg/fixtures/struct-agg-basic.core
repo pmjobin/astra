@@ -1,0 +1,112 @@
+(core-program
+	(struct "Inner"
+		(field #0 "x" : int)
+		(field #1 "gain" : f64)
+	)
+	(struct "Outer"
+		(field #0 "inner" : Inner)
+		(field #1 "tag" : int)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "o" : Outer)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			(field-place : int (field Inner::x #0)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place : f64 (field Inner::gain #1)
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+			)
+			(field-place (base struct-local-place #0 : Outer) (field #1 "tag") : int)
+		)
+		(block
+			(struct-initialize-storage
+				(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+				(initialize
+					(field-place : int (field Inner::x #0)
+						(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+					)
+					(integer 10 : int)
+				)
+				(initialize
+					(field-place : f64 (field Inner::gain #1)
+						(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+					)
+					(f64 0x3fe0000000000000 : f64)
+				)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : Outer) (field #1 "tag") : int)
+				(integer 7 : int)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(binary != : bool
+								(load : int
+									(field-place : int (field Inner::x #0)
+										(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+									)
+								)
+								(integer 10 : int)
+							)
+							(binary != : bool
+								(load : f64
+									(field-place : f64 (field Inner::gain #1)
+										(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+									)
+								)
+								(f64 0x3fe0000000000000 : f64)
+							)
+						)
+						(binary != : bool
+							(load : int
+								(field-place (base struct-local-place #0 : Outer) (field #1 "tag") : int)
+							)
+							(integer 7 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(store
+				(field-place : int (field Inner::x #0)
+					(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+				)
+				(integer 42 : int)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(field-place : int (field Inner::x #0)
+								(field-place (base struct-local-place #0 : Outer) (field #0 "inner") : Inner)
+							)
+						)
+						(integer 42 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

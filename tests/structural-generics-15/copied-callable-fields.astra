@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct FieldInput<A,B> {
+	A first;
+	B second;
+	void* token;
+	i16<4> lanes;
+	Fn<int,int> code;
+	Fn<int,owned R> retire;
+}
+class FieldEnvironment<T> {
+	private T offset;
+	init(T offset) { this.offset = offset; }
+	property T amount { get { return this.offset; } }
+}
+int double_field(int value) { return value + value; }
+int retire_field(owned R value) { return id(value); }
+int inspect_fields(FieldInput<int,bool> input) {
+	if (!input.second || input.token != null || input.lanes[0] != 7 || input.lanes[3] != 7) { return 0; }
+	Fn<int,int> code = input.code;
+	return code(input.first) + (input.lanes[2] as int);
+}
+int bound_fields(borrowed FieldEnvironment<int> environment, FieldInput<int,bool> input) {
+	return environment.amount + inspect_fields(input);
+}
+int checked_fields(borrowed FieldEnvironment<int> environment, FieldInput<int,bool> input, bool fail) throws Error {
+	if (fail) { throw new Error("copied field retry"); }
+	return bound_fields(environment, input);
+}
+int main() {
+	FieldInput<int,bool> input = {first = 17, second = true, token = null, lanes = splat(7, 4), code = double_field, retire = retire_field};
+	Fn<int,FieldInput<int,bool>> code = inspect_fields;
+	if (code(input) != 41) { return 1; }
+	var environment = new FieldEnvironment<int>(1);
+	owned Closure<FieldEnvironment<int>,int,FieldInput<int,bool>> closure = closure_bind(move environment, bound_fields);
+	if (closure_invoke(closure, input) != 42) { return 2; }
+	var checked_environment = new FieldEnvironment<int>(2);
+	owned CheckedClosure<FieldEnvironment<int>,Error,int,FieldInput<int,bool>,bool> checked = checked_closure_bind(move checked_environment, checked_fields);
+	try { closure_invoke(checked, input, true); return 3; } catch (Error error) {}
+	try { if (closure_invoke(checked, input, false) != 43) { return 4; } } catch (Error error) { return 5; }
+	var resource = make(240);
+	Fn<int,owned R> retire = input.retire;
+	if (retire(move resource) != 240) { return 6; }
+	return live();
+}

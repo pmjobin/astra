@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void context_frames_prepare();
+extern(C) void context_frame_guard_retired(int identity);
+extern(C) void context_frame_pending();
+extern(C) int context_frame_is_pending();
+extern(C) int context_frames_finish();
+class FrameGuard {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	deinit() { context_frame_guard_retired(this.identity); }
+}
+async void pending_frame(owned FrameGuard guard) throws Error {
+	context_frame_pending();
+	await delay_ticks(60000);
+}
+async void failing_frame(owned FrameGuard guard) throws Error {
+	await delay_ticks(1);
+	throw new Error("checked selected-frame failure");
+}
+void release_frame_anchor(owned ConcurrentAllocator context) {}
+export(C) int run_context_frames() {
+	context_frames_prepare();
+	context_workers_prepare();
+	var first = custom_allocator(32779, 23);
+	var second = concurrent_allocator(2, 65539, 29, 64);
+	var frames = concurrent_allocator(1, 65543, 31, 64);
+	if (first == null || second == null || frames == null) { return 1; }
+	try {
+		var executor = ThreadedExecutor.open(2);
+		var root = task_in(frames, execute(move first, move second));
+		if (concurrent_allocator_query(frames, 1) != 1) { return 2; }
+		// The real root frame's lease retains backing after anchor retirement.
+		release_frame_anchor(move frames);
+		var status = executor.run(move root);
+		match (status) { case ThreadedStatus.Completed(): {} else: { return 3; } }
+	} catch (Error error) { return 4; }
+	if (context_workers_finish() != 0) { return 5; }
+	return context_frames_finish();
+}
+int main() { return run_context_frames(); }

@@ -1,0 +1,53 @@
+bool same(string left, borrowed string right) {
+	return left == right;
+}
+
+bool nested(borrowed string text, string[] list, int index) {
+	return same(text, list[index]);
+}
+
+int consume(string[] values, borrowed string[] other, int index) {
+	var local = values;
+	var saved = local;
+	local = other;
+	var text = saved[index];
+	if (!nested(text, values, index)) {
+		return -1;
+	}
+	var count = 0;
+	while (count < 2) {
+		if (count == 0) {
+			local = saved;
+		} else {
+			local = other;
+		}
+		count = count + 1;
+	}
+	if (len(local) != len(other) || len(saved) != len(values)) {
+		return -2;
+	}
+	if (!same(saved[index], other[index])) {
+		return -3;
+	}
+	return text.byte_length;
+}
+
+int count(string[] values) {
+	return len(values);
+}
+
+int element(string[] values, int index) {
+	var text = values[index];
+	return text.byte_length;
+}
+
+bool short_read(string[] values, int index, bool skip) {
+	return skip || values[index] == values[0];
+}
+
+string static_copy(string[] values) {
+	var text = "saved";
+	var saved = text;
+	text = values[0];
+	return saved;
+}

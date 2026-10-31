@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct KeyPart {
+	i64 namespace_id;
+	int value;
+}
+
+struct Key {
+	KeyPart part;
+	bool active;
+}
+
+struct SameLayout {
+	KeyPart part;
+	bool active;
+}
+
+bool same_key(Key left, Key right) {
+	return left.part.namespace_id == right.part.namespace_id && left.part.value == right.part.value && left.active == right.active;
+}
+
+bool use_comparator(Fn<bool, Key, Key> compare, Key left, Key right) {
+	return compare(left, right);
+}
+
+int identity<T>(T ignored) { return 0; }
+
+int main() {
+	Key first = {part = {namespace_id = 7000000001, value = 41}, active = true};
+	Key same = {part = {namespace_id = 7000000001, value = 41}, active = true};
+	Key other = {part = {namespace_id = 7000000002, value = 41}, active = true};
+	Fn<bool, Key, Key> compare = same_key;
+	if (!compare(first, same) || compare(first, other) || !use_comparator(compare, same, first)) { return 1; }
+	return identity<int>(42);
+}

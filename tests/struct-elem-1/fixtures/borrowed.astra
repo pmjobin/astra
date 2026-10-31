@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Shape { int xx; f64 weight; }
+struct Record { Shape shape; int tag; }
+Record pick(Record[] values, int i) { return values[i]; }
+void modify(Record[] destination, borrowed Record[] source, int i, int j) {
+	destination[j] = source[i];
+	destination[j].shape.xx = destination[j].shape.xx + 1;
+}
+int main() {
+	Record[3] records = {{shape = {xx = 1, weight = 0.5d}, tag = 10}, {tag = 20, shape = {weight = 1.0d, xx = 2}}, {shape = {xx = 3, weight = 1.5d}, tag = 30}};
+	var view = slice(records);
+	var alias = view;
+	modify(view, alias, 0, 2);
+	modify(slice(records, 1, 2), slice(records, 0, 2), 1, 0);
+	var saved = pick(view, 2);
+	records[2].shape.weight = 7.0d;
+	if (records[0].shape.xx != 1 || records[1].shape.xx != 3 || records[2].shape.xx != 2 || saved.shape.weight != 0.5d || len(view) != 3) { return 1; }
+	return 0;
+}

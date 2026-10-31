@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+NativeMethods.Answer<int, bool> describe(int value) {
+	NativeMethods.Answer<int, bool> result = {first = value + 1, second = true};
+	return result;
+}
+NativeMethods.Answer<int, i64> combine(int value, i64 input) {
+	NativeMethods.Answer<int, i64> result = {first = value + 2, second = input + 3};
+	return result;
+}
+int main() {
+	var value = MethodMiddle.create(40);
+	var direct = value.project<NativeMethods.Answer<int, bool>>(describe);
+	var forwarded = MethodMiddle.inspect(value, describe);
+	if (direct.first != 41 || !direct.second || forwarded.first != 41 || !forwarded.second) { return 1; }
+	i64 large = 9000000001;
+	var joined = MethodMiddle.combine(value, large, combine);
+	i64 expected = 9000000004;
+	if (joined.first != 42 || joined.second != expected) { return 2; }
+	if (value.value != 40 || value.calls != 3 || MethodMiddle.marker(value) != 7) { return 3; }
+	return 0;
+}

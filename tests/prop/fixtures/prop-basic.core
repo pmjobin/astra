@@ -1,0 +1,110 @@
+(core-program
+	(class #0 "Counter"
+		(property #0 "value" : int (member #2) (getter #0) (setter #0))
+		(field #0 "raw" : int)
+	)
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(parameters)
+		(locals
+			(local-place #0 "c" : Counter)
+		)
+		(block
+			(construct (storage #0) (constructor class #0) (ref-local #0)
+				(integer 1 : int)
+			)
+			(property-set "set" -> void
+				(property #0 Counter::value) (setter #0) effectful
+				(receiver
+					(object-receiver : Receiver<Counter> null-traps-before-arguments
+						(load : Counter
+							(local-place #0 : Counter)
+						)
+					)
+				)
+				(arguments
+					(integer 42 : int)
+				)
+			)
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(object-field-place null-traps : int
+								(load : Counter
+									(local-place #0 : Counter)
+								)
+								(field #0 "raw")
+							)
+						)
+						(integer 42 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(property-get "get" -> int
+					(property #0 Counter::value) (getter #0) effectful
+					(receiver
+						(object-receiver : Receiver<Counter> null-traps-before-arguments
+							(load : Counter
+								(local-place #0 : Counter)
+							)
+						)
+					)
+					(arguments)
+				)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "initial" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "raw")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(property-getter #0 (property Counter::value #0) (declaring-class #0) -> int
+		(receiver : Receiver<Counter> live mutable nonnull non-owning)
+		(parameters)
+		(block
+			(return
+				(load : int
+					(indirect-field-place : int
+						(this : Receiver<Counter>)
+						(field #0 "raw")
+					)
+				)
+			)
+		)
+	)
+	(property-setter #0 (property Counter::value #0) (declaring-class #0) -> void
+		(receiver : Receiver<Counter> live mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "next" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "raw")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+)

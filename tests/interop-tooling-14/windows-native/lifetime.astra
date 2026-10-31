@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="native_destroy14")]
+int observe_destroy(int value);
+[CImport(name="native_increment14")]
+int increment(int value);
+[CImport(name="native_identity14")]
+void* identity(void* value);
+
+[Shared]
+class Native14 {
+	private int value;
+	init(int value) { this.value = value; }
+	int read() { return this.value; }
+	void write(int value) { this.value = value; }
+	deinit() { observe_destroy(this.value); }
+}
+
+int one_lifetime() {
+	var first = new Native14(40);
+	var second = first.clone();
+	var weak = first.downgrade();
+	var transferred = first;
+	release transferred;
+	var third = weak.upgrade();
+	if (third == null) { return 1; }
+	second.write(increment(second.read()));
+	release second;
+	if (third.read() != 42) { return 2; }
+	release third;
+	var expired = weak.upgrade();
+	if (expired != null) { return 3; }
+	release weak;
+	return 0;
+}
+
+[CExport(name="astra_native_lifetime14")]
+int run_lifetimes(int count) {
+	int i = 0;
+	while (i < count) {
+		int status = one_lifetime();
+		if (status != 0) { return status; }
+		i = i + 1;
+	}
+	return 0;
+}
+
+[CExport(name="astra_native_identity14")]
+void* roundtrip(void* token) { return identity(token); }

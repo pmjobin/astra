@@ -1,0 +1,236 @@
+(core-program
+	(function "signed_add" -> i8
+		(parameters
+			(parameter #0 "a" : i8)
+			(parameter #1 "b" : i8)
+		)
+		(block
+			(return
+				(sat-add (from i8) (to i8)
+					(parameter #0 : i8)
+					(parameter #1 : i8)
+				)
+			)
+		)
+	)
+	(function "unsigned_sub" -> u8
+		(parameters
+			(parameter #0 "a" : u8)
+			(parameter #1 "b" : u8)
+		)
+		(block
+			(return
+				(sat-sub (from u8) (to u8)
+					(parameter #0 : u8)
+					(parameter #1 : u8)
+				)
+			)
+		)
+	)
+	(function "signed_vector" -> i8<16>
+		(parameters
+			(parameter #0 "a" : i8<16>)
+			(parameter #1 "b" : i8<16>)
+		)
+		(block
+			(return
+				(sat-add (from i8<16>) (to i8<16>)
+					(parameter #0 : i8<16>)
+					(parameter #1 : i8<16>)
+				)
+			)
+		)
+	)
+	(function "unsigned_vector" -> u8<16>
+		(parameters
+			(parameter #0 "a" : u8<16>)
+			(parameter #1 "b" : u8<16>)
+		)
+		(block
+			(return
+				(sat-add (from u8<16>) (to u8<16>)
+					(parameter #0 : u8<16>)
+					(parameter #1 : u8<16>)
+				)
+			)
+		)
+	)
+	(function "signed_words" -> i16<8>
+		(parameters
+			(parameter #0 "a" : i16<8>)
+			(parameter #1 "b" : i16<8>)
+		)
+		(block
+			(return
+				(sat-sub (from i16<8>) (to i16<8>)
+					(sat-add (from i16<8>) (to i16<8>)
+						(parameter #0 : i16<8>)
+						(parameter #1 : i16<8>)
+					)
+					(parameter #1 : i16<8>)
+				)
+			)
+		)
+	)
+	(function "unsigned_words" -> u16<8>
+		(parameters
+			(parameter #0 "a" : u16<8>)
+			(parameter #1 "b" : u16<8>)
+		)
+		(block
+			(return
+				(sat-sub (from u16<8>) (to u16<8>)
+					(sat-add (from u16<8>) (to u16<8>)
+						(parameter #0 : u16<8>)
+						(parameter #1 : u16<8>)
+					)
+					(parameter #1 : u16<8>)
+				)
+			)
+		)
+	)
+	(function "widen_signed" -> u16<8>
+		(parameters
+			(parameter #0 "a" : i8<16>)
+		)
+		(block
+			(return
+				(vector-widen-low (from i8<16>) (to u16<8>)
+					(parameter #0 : i8<16>)
+				)
+			)
+		)
+	)
+	(function "widen_unsigned" -> i16<8>
+		(parameters
+			(parameter #0 "a" : u8<16>)
+		)
+		(block
+			(return
+				(vector-widen-high (from u8<16>) (to i16<8>)
+					(parameter #0 : u8<16>)
+				)
+			)
+		)
+	)
+	(function "wrapping" -> u8<16>
+		(parameters
+			(parameter #0 "a" : i16<8>)
+			(parameter #1 "b" : i16<8>)
+		)
+		(block
+			(return
+				(vector-pack-wrap (from i16<8>) (to u8<16>)
+					(parameter #0 : i16<8>)
+					(parameter #1 : i16<8>)
+				)
+			)
+		)
+	)
+	(function "saturating" -> u8<16>
+		(parameters
+			(parameter #0 "a" : i16<8>)
+			(parameter #1 "b" : i16<8>)
+		)
+		(block
+			(return
+				(vector-pack-sat (from i16<8>) (to u8<16>)
+					(parameter #0 : i16<8>)
+					(parameter #1 : i16<8>)
+				)
+			)
+		)
+	)
+	(function "signed_pack" -> i8<16>
+		(parameters
+			(parameter #0 "a" : i16<8>)
+			(parameter #1 "b" : i16<8>)
+		)
+		(block
+			(return
+				(vector-pack-sat (from i16<8>) (to i8<16>)
+					(parameter #0 : i16<8>)
+					(parameter #1 : i16<8>)
+				)
+			)
+		)
+	)
+	(function "cross_pack" -> i8<16>
+		(parameters
+			(parameter #0 "a" : u16<8>)
+			(parameter #1 "b" : u16<8>)
+		)
+		(block
+			(return
+				(vector-pack-sat (from u16<8>) (to i8<16>)
+					(parameter #0 : u16<8>)
+					(parameter #1 : u16<8>)
+				)
+			)
+		)
+	)
+	(function "low" -> u8<16>
+		(parameters
+			(parameter #0 "a" : u8<16>)
+			(parameter #1 "b" : u8<16>)
+		)
+		(block
+			(return
+				(vector-interleave-low (from u8<16>) (to u8<16>)
+					(parameter #0 : u8<16>)
+					(parameter #1 : u8<16>)
+				)
+			)
+		)
+	)
+	(function "high" -> u8<16>
+		(parameters
+			(parameter #0 "a" : u8<16>)
+			(parameter #1 "b" : u8<16>)
+		)
+		(block
+			(return
+				(vector-interleave-high (from u8<16>) (to u8<16>)
+					(parameter #0 : u8<16>)
+					(parameter #1 : u8<16>)
+				)
+			)
+		)
+	)
+	(function "floats" -> f32<4>
+		(parameters
+			(parameter #0 "a" : f32<4>)
+			(parameter #1 "b" : f32<4>)
+		)
+		(block
+			(return
+				(vector-interleave-high (from f32<4>) (to f32<4>)
+					(parameter #0 : f32<4>)
+					(parameter #1 : f32<4>)
+				)
+			)
+		)
+	)
+	(function "masks" -> bool<8>
+		(parameters
+			(parameter #0 "a" : bool<8>)
+			(parameter #1 "b" : bool<8>)
+		)
+		(block
+			(return
+				(vector-interleave-low (from bool<8>) (to bool<8>)
+					(parameter #0 : bool<8>)
+					(parameter #1 : bool<8>)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

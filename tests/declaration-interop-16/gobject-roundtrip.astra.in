@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]class RoundtripFault{readonly string text;private int status;init(int code){this.status=code;this.text="roundtrip error";}virtual property string message{get{return this.text;}}int code(){return this.status;}}
+owned RoundtripFault roundtrip_fault(int domain,int status){var result=new RoundtripFault(status);return move result;}
+bool invert(bool input){return !input;}
+[CImport(name="roundtrip_sink")]void sink(f64 input);
+void deliver_sink(f64 input){sink(input);}
+export(C) int roundtrip_main(){try{
+ var session=ImportedSession.init(7,true,1.5);if(session.count!=7){return 1;}session.count=19;if(session.count!=19){return 2;}
+ i64 folded=-999999990;if(session.fold(-5000000000,4000000000,1.25,9)!=folded || !session.choose(true) || session.evaluate(4.0)!=6.0){return 3;}
+ try{var ignored=session.evaluate(-1.0);return 4;}catch(RoundtripFault fault){if(fault.code()!=-1600){return 5;}}
+ if(session.visit(true,invert) || !session.maybe_visit(true,null)){return 6;}session.deliver(1.25,deliver_sink);
+ f64 scale=2.5;u32 count=99;i64 expected=-4999999995;if(session.eval_refs(-5000000000,&scale,&count,false)!=expected || scale!=4.0 || count!=4000000000){return 7;}
+ scale=2.5;count=99;try{var ignored=session.eval_refs(-5000000000,&scale,&count,true);return 8;}catch(RoundtripFault fault){if(scale!=2.5 || count!=0){return 9;}}
+ u8[3] bytes={1,0,254};if(session.digest(slice(bytes))!=255){return 10;}var bytes_owned=session.snapshot(slice(bytes));if(len(bytes_owned)!=3 || bytes_owned[0]!=84 || bytes_owned[2]!=171){return 11;}
+ u8[4] output={77,77,77,77};if(session.transform(slice(bytes),slice(output))!=3 || output[0]!=2 || output[2]!=255 || output[3]!=77){return 12;}if(session.mutate(slice(bytes))!=3 || bytes[0]!=3 || bytes[1]!=2 || bytes[2]!=0){return 13;}
+ if(session.measure("hé\0llo")!=7 || session.terminated_length("café")!=5){return 14;}var text=session.counted_text();var title=session.title;var terminated=session.terminated();if(len(text)!=7 || text[3]!=0 || len(title)!=7 || title[3]!=0 || len(terminated)!=5){return 15;}
+ @SAMPLE@ sample={count=2,scale=3.5,enabled=true,mask=4000000000,stamp=9,weight=1.25};var adjusted=session.adjust(sample);if(adjusted.count!=21 || adjusted.scale!=5.25 || adjusted.enabled || adjusted.mask!=4000000000 || adjusted.stamp!=10 || adjusted.weight!=1.75){return 16;}
+ @PAIR@ pair={first=1.25,second=-2};var paired=session.pair(pair);if(paired.first!=2.75 || paired.second!=17){return 17;}
+ var item=session.spawn(5);if(item.code()!=24 || session.inspect(item)!=24 || session.optional(null)!=-7){return 18;}var duplicate=session.duplicate(item);var missing=session.lookup(false,item);var found=session.lookup(true,item);if(missing!=null || found==null || found.code()!=24 || duplicate.code()!=24){return 19;}var relayed=session.relay(move duplicate);if(relayed.code()!=24){return 20;}var child=session.current;if(child.code()!=41){return 21;}
+}catch(RoundtripFault fault){return 90;}return 0;}

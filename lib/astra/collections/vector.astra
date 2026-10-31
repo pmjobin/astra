@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Owned growable values. The exact specialization supplies storage and cleanup.
+class Vector<T> {
+	owned T[slots] entries;
+	init(int initial) {
+		this.entries = new T[slots];
+		if (initial > 0) { bool reserved = this.entries.reserve(initial); }
+	}
+	int count() { return len(this.entries); }
+	int capacity() { return this.entries.capacity; }
+	bool reserve(int requested) { return this.entries.reserve(requested); }
+	bool ensure(int requested) {
+		if (requested <= this.entries.capacity) { return true; }
+		int grown = this.entries.capacity + 1;
+		while (grown < requested) { grown = grown + 2; }
+		return this.entries.reserve(grown);
+	}
+	bool append(owned T value) {
+		if (!this.ensure(this.count() + 1)) { return false; }
+		this.entries.append(move value);
+		return true;
+	}
+	owned T take(int index) {
+		var result = this.entries.take(index);
+		return move result;
+	}
+	void replace(int index, owned T value) {
+		this.entries.replace(index, move value);
+	}
+}

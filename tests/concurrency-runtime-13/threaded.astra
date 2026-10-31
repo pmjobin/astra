@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int task_oracle_step(int id);
+extern(C) int task_oracle_finish();
+
+async int calculate(int id) throws Error {
+	int sum = id;
+	task_oracle_step(id);
+	await delay_ticks(1);
+	for (int i = 0; i < 100; i = i + 1) { sum = sum + i; }
+	task_oracle_step(id);
+	return sum;
+}
+
+async void batch() throws Error {
+	var a = calculate(1);
+	var b = calculate(2);
+	var c = calculate(3);
+	var d = calculate(4);
+	start(a);
+	try {
+		start(b);
+		try {
+			start(c);
+			try {
+				start(d);
+				if (await move d != 4954) { throw new Error("worker d"); }
+			} catch (Error error) { await cancel_and_join(move c); throw; }
+			if (await move c != 4953) { throw new Error("worker c"); }
+		} catch (Error error) { await cancel_and_join(move b); throw; }
+		if (await move b != 4952) { throw new Error("worker b"); }
+	} catch (Error error) { await cancel_and_join(move a); throw; }
+	if (await move a != 4951) { throw new Error("worker a"); }
+}
+
+int main() {
+	try {
+		var executor = ThreadedExecutor.open(4);
+		var root = batch();
+		var status = executor.run(move root);
+		match (status) {
+			case ThreadedStatus.Completed(): {}
+			else: { return 81; }
+		}
+	} catch (Error error) { return 82; }
+	return task_oracle_finish();
+}

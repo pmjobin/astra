@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool is_null(Resource r) { return r == null; }
+bool inspect_native(borrowed Resource r) { return r != null; }
+Resource choose(bool c) {
+	Resource result = null;
+	if (c) { result = lookup_resource(); }
+	return result;
+}
+int main() {
+	owned Resource r = create_resource(1);
+	resource_id(r);
+	owned Resource next = move r;
+	r = create_again(0);
+	if (inspect_native(r)) { return 1; }
+	release r;
+	r = create_resource(2);
+	resource_id(r);
+	return resource_id(next);
+}

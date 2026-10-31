@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct I { int x; f64 y; i16<8> v; }
+struct S { I a; I b; }
+void copy(S* destination, S* source) { *destination = *source; }
+int main() {
+	S a = { a = { x = 42, y = 3.5, v = splat(7,8) }, b = { x = 9, y = 1.5, v = splat(2,8) } };
+	S b = a;
+	S* p = &a;
+	S* q = &b;
+	copy(q,p);
+	S c = *q;
+	*p = c;
+	I d = p->b;
+	q->a = d;
+	if (a.a.x != 42 || b.a.x != 9 || c.a.x != 42 || b.a.v[7] != 2) { return 1; }
+	return 0;
+}

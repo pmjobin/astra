@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct I { int x; f64 y; }
+struct O { I left; I right; }
+int main() {
+	O a = { left = { x = 1, y = 1.5 }, right = { x = 42, y = 3.5 } };
+	O b = a;
+	a.left = a.right;
+	I c = b.right;
+	b.left = c;
+	b.right = a.left;
+	if (a.left.x != 42 || b.left.y != 3.5 || b.right.x != 42) { return 1; }
+	c.x = 7;
+	if (b.left.x != 42 || a.right.x != 42) { return 2; }
+	return 0;
+}

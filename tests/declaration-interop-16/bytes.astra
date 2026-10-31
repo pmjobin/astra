@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="bytes16_retired")] int retired(int value);
+[CImport(name="bytes16_reenter")] int reenter(int value);
+
+[CExport(name="bytes16", profile="declarations-v1")]
+class ByteService {
+	private int mask;
+	private int calls;
+	[Foreign]
+	init(int mask) { this.mask = mask; this.calls = 0; }
+	[Foreign]
+	[ForeignChannel(parameter="input", nullable="true")]
+	[ForeignChannel(parameter="output", direction="out", nullable="true", produced="result")]
+	int transform(borrowed u8[] input, borrowed u8[] output) {
+		if (len(input) > len(output)) { return len(output) + 1; }
+		this.calls = this.calls + 1;
+		int index = 0;
+		while (index < len(input)) { output[index] = (input[index] as int ^ this.mask) as u8; index = index + 1; }
+		return len(input);
+	}
+	[Foreign]
+	[ForeignChannel(parameter="input", length="count", nullable="true")]
+	int digest(borrowed u8[] input, int count) {
+		int index = 0; int sum = 0;
+		while (index < len(input)) { sum = sum + input[index] as int; index = index + 1; }
+		return sum + count;
+	}
+	[Foreign]
+	int scrub(borrowed u8[] input) { input[0] = 17; return input[0] as int; }
+	[Foreign]
+	[ForeignChannel(parameter="data", direction="inout", produced="result")]
+	int mutate(borrowed u8[] data) {
+		int index = 0;
+		while (index < len(data)) { data[index] = (data[index] as int + 1) as u8; index = index + 1; }
+		return len(data);
+	}
+	[Foreign]
+	[ForeignChannel(parameter="output", direction="out", produced="result")]
+	int partial(borrowed u8[] output) { if (len(output) > 0) { output[0] = 55; } return -1; }
+	[Foreign]
+	int nested() { return reenter(this.mask); }
+	[Foreign]
+	[ForeignChannel(parameter="result", transfer="full", encoding="bytes")]
+	owned u8[] snapshot(borrowed u8[] input) {
+		var result = new u8[len(input)]; int index = 0;
+		while (index < len(input)) { result[index] = (input[index] as int ^ this.mask) as u8; index = index + 1; }
+		return move result;
+	}
+	[Foreign]
+	property int processed { get { return this.calls; } }
+	deinit() { retired(this.mask); }
+}

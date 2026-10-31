@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+f32 forward(f32 a, f32 b, u8 mode) { return blend(a, b, mode); }
+f32 blend(f32 a, f32 b, u8 mode) { if (mode == 0) { return a; } return (a + b) / 2.0; }
+f32 recurse(int n, f32 x) { if (n == 0) { return x; } return recurse(n - 1, x + 0.5); }
+f32 channels(f32 x, i8 a, u16 b, void* p, bool flag) { if (a == -1 && b == 65535 && p == null && flag) { return x; } return 0.0; }
+int main() {
+	if (forward(1.0, 2.0, 1) != 1.5 || forward(1.0, 2.0, 0) != 1.0) { return 1; }
+	if (recurse(8, 0.5) != 4.5 || channels(2.0, -1, 65535, null, true) != 2.0) { return 2; }
+	return 0;
+}

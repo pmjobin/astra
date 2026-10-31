@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int task_owner_acquire(int id);
+extern(C) int task_owner_destroy(int id);
+extern(C) int task_owner_finish(int count);
+
+class Work {
+	private int id;
+	init(int id) { this.id = id; task_owner_acquire(id); }
+	int read() { return this.id; }
+	deinit() { task_owner_destroy(this.id); }
+}
+
+async int calculate(owned Work work, int delay) throws Error {
+	await delay_ticks(delay);
+	int result = work.read();
+	if (result == 2) { throw new Error("checked worker failure"); }
+	return result;
+}
+
+async int forward(owned Work work, int delay) throws Error {
+	return await calculate(move work, delay);
+}
+
+async void batch() throws Error {
+	var wa = new Work(1); var a = forward(move wa, 1);
+	if (await move a != 1) { throw new Error("worker result"); }
+	var wb = new Work(2); var b = calculate(move wb, 2);
+	bool failed = false;
+	try { int ignored = await move b; }
+	catch (Error error) { failed = true; }
+	if (!failed) { throw new Error("missing checked worker failure"); }
+	var wc = new Work(3); var c = calculate(move wc, 100);
+	start(c);
+	try { await delay_ticks(1); } catch (Error error) { await cancel_and_join(move c); throw; }
+	await cancel_and_join(move c);
+	var wd = new Work(4); var cold = calculate(move wd, 100);
+	await cancel_and_join(move cold);
+}
+
+int main() {
+	try {
+		var executor = ThreadedExecutor.open(4);
+		var status = executor.run(batch());
+		match (status) { case ThreadedStatus.Completed(): {} else: { return 81; } }
+	} catch (Error error) { return 82; }
+	return task_owner_finish(4);
+}

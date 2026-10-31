@@ -1,0 +1,117 @@
+(ssa-program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : int)
+	)
+	(function #0 "choose" -> int
+		(parameters
+			(%0 "condition" : bool)
+		)
+		(storage #0 "a" (local #0) : Pair address-taken)
+		(storage #1 "b" (local #1) : Pair address-taken)
+		(entry #0)
+		(block #0
+			(initialize (direct-field (storage #0) (struct "Pair" field #0 "x") : int) (integer 1 : int))
+			(initialize (direct-field (storage #0) (struct "Pair" field #1 "y") : int) (integer 2 : int))
+			(initialize (direct-field (storage #1) (struct "Pair" field #0 "x") : int) (integer 3 : int))
+			(initialize (direct-field (storage #1) (struct "Pair" field #1 "y") : int) (integer 4 : int))
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(%4 : Pair* = address-of (storage #0))
+			(branch #3 (%4))
+		)
+		(block #2
+			(%5 : Pair* = address-of (storage #1))
+			(branch #3 (%5))
+		)
+		(block #3
+			(arguments
+				(%1 "p" : Pair*)
+			)
+			(store (indirect-field %1 (struct "Pair" field #0 "x") : int) (integer 42 : int))
+			(conditional-branch %0
+				(true #4 ())
+				(false #5 ())
+			)
+		)
+		(block #4
+			(branch #9 ())
+		)
+		(block #5
+			(branch #14 ())
+		)
+		(block #6
+			(return (integer 0 : int))
+		)
+		(block #7
+			(return (integer 1 : int))
+		)
+		(block #8
+			(branch #6 ())
+		)
+		(block #9
+			(%6 : int = load (direct-field (storage #0) (struct "Pair" field #0 "x") : int))
+			(%7 : bool = binary != %6 (integer 42 : int))
+			(conditional-branch %7
+				(true #11 ((bool true : bool)))
+				(false #10 ())
+			)
+		)
+		(block #10
+			(%8 : int = load (direct-field (storage #1) (struct "Pair" field #0 "x") : int))
+			(%9 : bool = binary != %8 (integer 3 : int))
+			(branch #11 (%9))
+		)
+		(block #11
+			(arguments
+				(%2 (temporary #0) : bool)
+			)
+			(conditional-branch %2
+				(true #7 ())
+				(false #8 ())
+			)
+		)
+		(block #12
+			(return (integer 2 : int))
+		)
+		(block #13
+			(branch #6 ())
+		)
+		(block #14
+			(%10 : int = load (direct-field (storage #0) (struct "Pair" field #0 "x") : int))
+			(%11 : bool = binary != %10 (integer 1 : int))
+			(conditional-branch %11
+				(true #16 ((bool true : bool)))
+				(false #15 ())
+			)
+		)
+		(block #15
+			(%12 : int = load (direct-field (storage #1) (struct "Pair" field #0 "x") : int))
+			(%13 : bool = binary != %12 (integer 42 : int))
+			(branch #16 (%13))
+		)
+		(block #16
+			(arguments
+				(%3 (temporary #1) : bool)
+			)
+			(conditional-branch %3
+				(true #12 ())
+				(false #13 ())
+			)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%0 : int = call #0 "choose" -> int (arguments (bool true : bool)))
+			(%1 : int = call #0 "choose" -> int (arguments (bool false : bool)))
+			(%2 : int = binary + %0 %1)
+			(return %2)
+		)
+	)
+)

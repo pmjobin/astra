@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Opt-in: captured paths and expression source bytes can disclose private data.
+// Select exactly one diagnostic provider. This borrowed reader must not return.
+[CCode(text_abi = "utf8-i32")]
+extern(C) void astra_diag_assert_fail_v0(borrowed string file, int line, borrowed string expression, borrowed string message);
+
+void assert_that(bool condition, [CallerFilePath] string file, [CallerLineNumber] int line, [CallerArgumentExpression("condition")] string expression) {
+	if (!condition) { astra_diag_assert_fail_v0(file, line, expression, ""); }
+}
+
+void assert_message(bool condition, string message, [CallerFilePath] string file, [CallerLineNumber] int line, [CallerArgumentExpression("condition")] string expression) {
+	if (!condition) { astra_diag_assert_fail_v0(file, line, expression, message); }
+}

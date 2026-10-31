@@ -1,0 +1,22 @@
+class Signal {
+	int bias;
+	f32 gain;
+
+	u8 byte(u8 value) { return value; }
+	f32 scale(f32 value) { return this.gain * value; }
+	f32<4> vector(f32<4> value) { return value * splat(this.gain, 4); }
+	i16<8> words(i16<8> value) { return sat_add(value, splat(1, 8)); }
+	int process(i16<8> a, i16<8> b) {
+		i16<8> mask = splat(7, 8);
+		i16<8> v = this.words(a & mask);
+		return this.bias + dot_wrap(v, b, i32);
+	}
+}
+int main() {
+	Signal s = { bias = 10, gain = 2.0 };
+	u8 expected = 255;
+	if (s.byte(expected) != expected) { return 1; }
+	if (s.scale(1.25) != 2.5) { return 2; }
+	if (!all(s.vector(splat(1.5, 4)) == splat(3.0, 4))) { return 3; }
+	return s.process(splat(1, 8), splat(2, 8));
+}

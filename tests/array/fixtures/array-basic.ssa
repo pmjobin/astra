@@ -1,0 +1,85 @@
+(ssa-program
+	(function #0 "main" -> int
+		(parameters)
+		(storage #0 "a" (local #0) : int[4] address-taken)
+		(entry #0)
+		(block #0
+			(array-initialize (storage #0) (integer 10 : int) (integer 20 : int) (integer 30 : int) (integer 40 : int))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(store (array-element-place (storage #0) (integer 2 : int) : int[4] bounds-trap) (integer 99 : int))
+			(%11 : int = load (array-element-place (storage #0) (integer 2 : int) : int[4] bounds-trap))
+			(%12 : bool = binary != %11 (integer 99 : int))
+			(conditional-branch %12
+				(true #12 ())
+				(false #13 ())
+			)
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(branch #5 ())
+		)
+		(block #5
+			(%3 : int = load (array-element-place (storage #0) (integer 0 : int) : int[4] bounds-trap))
+			(%4 : bool = binary != %3 (integer 10 : int))
+			(conditional-branch %4
+				(true #7 ((bool true : bool)))
+				(false #6 ())
+			)
+		)
+		(block #6
+			(%5 : int = load (array-element-place (storage #0) (integer 1 : int) : int[4] bounds-trap))
+			(%6 : bool = binary != %5 (integer 20 : int))
+			(branch #7 (%6))
+		)
+		(block #7
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #9 ((bool true : bool)))
+				(false #8 ())
+			)
+		)
+		(block #8
+			(%7 : int = load (array-element-place (storage #0) (integer 2 : int) : int[4] bounds-trap))
+			(%8 : bool = binary != %7 (integer 30 : int))
+			(branch #9 (%8))
+		)
+		(block #9
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #11 ((bool true : bool)))
+				(false #10 ())
+			)
+		)
+		(block #10
+			(%9 : int = load (array-element-place (storage #0) (integer 3 : int) : int[4] bounds-trap))
+			(%10 : bool = binary != %9 (integer 40 : int))
+			(branch #11 (%10))
+		)
+		(block #11
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #12
+			(return (integer 2 : int))
+		)
+		(block #13
+			(return (integer 0 : int))
+		)
+	)
+)

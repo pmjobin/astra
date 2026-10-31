@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A reusable public checked-error witness; execute.py supplies each exact byte set.
+bool rejects(u8[] bytes, Utf8Message survivor) {
+	try { var invalid = utf8_message(bytes); }
+	catch (InvalidUtf8 error) {
+		return error.message == "invalid UTF-8" && survivor.text == "survivor";
+	}
+	return false;
+}

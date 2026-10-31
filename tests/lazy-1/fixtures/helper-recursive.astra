@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int lazy_event(int code, int value);
+class Recursive {
+	init() {}
+	int read() { return this.value; }
+	lazy property int value { get { lazy_event(72, 0); return this.read(); } }
+}
+int main() { var object = new Recursive(); return object.value; }

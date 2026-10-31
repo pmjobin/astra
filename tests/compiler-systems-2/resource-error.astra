@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ResourceFailure : Error { init() : base("resource failure") {} }
+int resource_work(bool fail) throws Error {
+	owned Resource first = create_resource(1);
+	owned Resource second = create_resource(2);
+	resource_touch(first); resource_touch(second);
+	if (fail) { throw new ResourceFailure(); }
+	return resource_id(first) + resource_id(second);
+}
+bool resources_released() {
+	return resource_live_count() == 0 && resource_error_count() == 0 &&
+	resource_create_count() == 2 && resource_destroy_count() == 2 &&
+	resource_destroy_order() == 21 && resource_touch_count() == 2;
+}
+int main() {
+	resource_reset();
+	try { if (resource_work(false) != 3) { return 1; } } catch (Error error) { return 2; }
+	if (!resources_released()) { return 3; }
+	resource_reset();
+	try { resource_work(true); } catch (ResourceFailure error) { if (!resources_released()) { return 4; } return 0; }
+	catch (Error error) { return 5; }
+	return 6;
+}

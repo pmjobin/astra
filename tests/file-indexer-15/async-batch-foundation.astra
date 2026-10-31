@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace IndexFoundation;
+
+// Snapshot each command argument before any task suspends. The task owns this
+// collection, including every path and option; no hosted argv loan escapes.
+class BatchArgument {
+	readonly string snapshot;
+	private int ordinal;
+	init(string text, int key) { this.snapshot = text; this.ordinal = key; async_watch(5); }
+	deinit() { async_watch(6); }
+	property int key { get { return this.ordinal; } }
+	property string text { get { return this.snapshot; } }
+}
+class BatchInput {
+	owned BatchArgument[slots] arguments;
+	init() { this.arguments = new BatchArgument[slots]; }
+	bool append(string text, int key) {
+		if (!this.arguments.reserve(len(this.arguments) + 1)) { return false; }
+		var argument = new BatchArgument(text, key);
+		this.arguments.append(move argument);
+		return true;
+	}
+	property int count { get { return len(this.arguments); } }
+	owned BatchArgument take() { var argument = this.arguments.take(0); return move argument; }
+}
+struct BatchSummary {
+	int successful;
+	int errors;
+	int bytes;
+	int occurrences;
+}

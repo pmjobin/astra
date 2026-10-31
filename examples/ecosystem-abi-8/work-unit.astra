@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Work8;
+extern(C) int app_lifetime(int stage, int value);
+struct Sample { int total; int count; }
+Sample combine(int first, int second) {
+	Sample result = { total = first + second, count = 2 };
+	return result;
+}
+int scaled_mean(Sample sample) { return sample.total * 100 / sample.count; }
+int double_value(int value) { return value * 2; }
+class Ticket {
+	private int code;
+	init(int code) { this.code = code; app_lifetime(1, code); }
+	deinit() { app_lifetime(9, this.code); }
+	int read() { return this.code; }
+}
+owned Ticket create_ticket(int code) { var ticket = new Ticket(code); return move ticket; }
+int ticket_code(borrowed Ticket ticket) { return ticket.read(); }

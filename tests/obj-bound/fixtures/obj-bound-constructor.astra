@@ -1,0 +1,22 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int n) { this.value = n; }
+	int get() { return this.value; }
+	deinit() { life_record(this.value, 0); }
+}
+class Copy {
+	int value;
+	init(borrowed Counter source) {
+		if (source == null) { this.value = 42; }
+		else { this.value = source.get(); }
+	}
+	deinit() { life_record(this.value, 0); }
+}
+int main() {
+	Counter source = Counter.init(42);
+	Copy copy = Copy.init(source);
+	Copy nil = Copy.init(null);
+	if (copy.value != 42 || nil.value != 42) { return 1; }
+	return source.get();
+}

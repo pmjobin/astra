@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+const TITLE = "Astra é\0😀";
+const SAME_TITLE = "Astra \u00e9\u0000\U0001f600";
+const TAIL = "%s%n\0after";
+string title(string temporary) {
+	var text = TITLE;
+	var snapshot = text;
+	text = temporary;
+	return snapshot;
+}
+bool announce(string text) {
+	var copy = text;
+	if (!println(copy)) { return false; }
+	return copy == text;
+}
+bool emit_tag<T>(T unused) {
+	const LABEL = "%s%n\0after";
+	return print(LABEL);
+}

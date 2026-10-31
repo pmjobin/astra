@@ -1,0 +1,31 @@
+[ExceptionRoot]
+class Error {
+	readonly string text;
+	init(string text) { this.text = text; }
+	virtual property string message { get { return this.text; } }
+}
+class DecodeError : Error {
+	init(string text) : base(text) {}
+}
+class Service {
+	init() {}
+	virtual int read(bool fail) throws Error { if(fail) { throw new Error("base"); } return 40; }
+}
+class NarrowService : Service {
+	init() : base() {}
+	override int read(bool fail) throws DecodeError { if(fail) { throw new DecodeError("narrow"); } return 41; }
+}
+class StableService : Service {
+	init() : base() {}
+	override int read(bool fail) { return 42; }
+}
+int through_base(Service service, bool fail) throws Error { return service.read(fail); }
+int main() {
+	var base_service = new Service(); var narrow = new NarrowService(); var stable = new StableService();
+	if(stable.read(true) != 42) { return 81; }
+	try {
+		if(through_base(base_service, false) != 40 || through_base(narrow, false) != 41 || through_base(stable, true) != 42) { return 82; }
+		through_base(narrow, true);
+	} catch(DecodeError error) { if(error.message == "narrow") { return 42; } return 83; } catch(Error error) { return 84; }
+	return 85;
+}

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int consume_byte_record(owned ContextBytes<ConcurrentAllocator> bytes) {
+	ByteRecord<ConcurrentAllocator> record = {item = concurrent_allocator(2, 4099, 5, 64), bytes = move bytes, marker = 7};
+	ByteRecord<ConcurrentAllocator> moved = move record;
+	return moved.marker;
+}
+async void transfer_context_bytes(owned WorkerPool pool) throws Error {
+	owned ContextBytes<ConcurrentAllocator> first = make_context_bytes(19);
+	owned ContextBytes<ConcurrentAllocator> returned = await pool.submit(ByteCPU.transform(move first));
+	if (inspect_bytes(returned) != 36) { throw new Error("first context byte result"); }
+	var envelope = new ByteEnvelope(move returned);
+	if (envelope.read() != 36) { throw new Error("context byte Class field"); }
+	owned ContextBytes<ConcurrentAllocator> second = make_context_bytes(23);
+	owned ContextBytes<ConcurrentAllocator> returned_second = await pool.submit(ByteCPU.transform(move second));
+	if (consume_byte_record(move returned_second) != 7) { throw new Error("context byte record move"); }
+}
+export(C) int context_bytes_worker_run() {
+	try {
+		var pool = worker_pool(2);
+		if (pool == null) { return 1; }
+		var executor = ByteService.open(4);
+		var status = executor.run(transfer_context_bytes(move pool));
+		match (status) { case ByteServiceStatus.Completed(): {} else: { return 2; } }
+	} catch (Error error) { return 3; }
+	return context_bytes_finish();
+}

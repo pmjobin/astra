@@ -1,0 +1,346 @@
+(core-program
+	(struct "S"
+		(field #0 "raw" : int)
+	)
+	(class #0 "C"
+		(property #0 "value" : int (member #3) (getter #0))
+		(field #0 "raw" : int)
+	)
+	(generic-definition #0 "identity" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "identity" -> T
+		(parameters
+			(parameter #0 "value" : T)
+		)
+		(block
+			(return
+				(parameter #0 : T)
+			)
+		)
+	)
+	(generic-definition #1 "tag" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "tag" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-definition #2 "unused" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "unused" -> T
+		(parameters
+			(parameter #0 "value" : T)
+		)
+		(block
+			(return
+				(parameter #0 : T)
+			)
+		)
+	)
+	(function "helper" -> int
+		(parameters)
+		(block
+			(return
+				(generic-call "identity" -> int
+					(type-arguments int)
+					(arguments
+						(integer 42 : int)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(object-storage #0 (class #0) : C (region #0) lexical-memory)
+		(parameters)
+		(locals
+			(local-place #0 "a" : i8)
+			(local-place #1 "b" : u8)
+			(local-place #2 "c" : i16)
+			(local-place #3 "d" : u16)
+			(local-place #4 "e" : int)
+			(local-place #5 "f" : u32)
+			(local-place #6 "sv" : i16<8>)
+			(local-place #7 "uv" : u16<8>)
+			(local-place #8 "s" : i16<8>)
+			(local-place #9 "u" : u16<8>)
+			(local-place #10 "p" : int)
+			(local-place #11 "q" : int)
+			(struct-local-place #12 "local" : S address-taken)
+			(local-place #13 "object" : C)
+		)
+		(field-places
+			(field-place (base struct-local-place #12 : S) (field #0 "raw") : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : i8)
+				(generic-call "identity" -> i8
+					(type-arguments i8)
+					(arguments
+						(integer 1 : i8)
+					)
+				)
+			)
+			(initialize
+				(local-place #1 : u8)
+				(generic-call "identity" -> u8
+					(type-arguments u8)
+					(arguments
+						(integer 1 : u8)
+					)
+				)
+			)
+			(initialize
+				(local-place #2 : i16)
+				(generic-call "identity" -> i16
+					(type-arguments i16)
+					(arguments
+						(integer 1 : i16)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : u16)
+				(generic-call "identity" -> u16
+					(type-arguments u16)
+					(arguments
+						(integer 1 : u16)
+					)
+				)
+			)
+			(initialize
+				(local-place #4 : int)
+				(generic-call "identity" -> int
+					(type-arguments int)
+					(arguments
+						(integer 1 : int)
+					)
+				)
+			)
+			(initialize
+				(local-place #5 : u32)
+				(generic-call "identity" -> u32
+					(type-arguments u32)
+					(arguments
+						(integer 1 : u32)
+					)
+				)
+			)
+			(initialize
+				(local-place #6 : i16<8>)
+				(vector-init : i16<8>
+					(integer 1 : i16)
+					(integer 2 : i16)
+					(integer 3 : i16)
+					(integer 4 : i16)
+					(integer 5 : i16)
+					(integer 6 : i16)
+					(integer 7 : i16)
+					(integer 8 : i16)
+				)
+			)
+			(initialize
+				(local-place #7 : u16<8>)
+				(vector-init : u16<8>
+					(integer 1 : u16)
+					(integer 2 : u16)
+					(integer 3 : u16)
+					(integer 4 : u16)
+					(integer 5 : u16)
+					(integer 6 : u16)
+					(integer 7 : u16)
+					(integer 8 : u16)
+				)
+			)
+			(initialize
+				(local-place #8 : i16<8>)
+				(generic-call "identity" -> i16<8>
+					(type-arguments i16<8>)
+					(arguments
+						(load : i16<8>
+							(local-place #6 : i16<8>)
+						)
+					)
+				)
+			)
+			(initialize
+				(local-place #9 : u16<8>)
+				(generic-call "identity" -> u16<8>
+					(type-arguments u16<8>)
+					(arguments
+						(load : u16<8>
+							(local-place #7 : u16<8>)
+						)
+					)
+				)
+			)
+			(initialize
+				(local-place #10 : int)
+				(generic-call "tag" -> int
+					(type-arguments i8)
+					(arguments)
+				)
+			)
+			(initialize
+				(local-place #11 : int)
+				(generic-call "tag" -> int
+					(type-arguments u8)
+					(arguments)
+				)
+			)
+			(initialize
+				(field-place (base struct-local-place #12 : S) (field #0 "raw") : int)
+				(integer 42 : int)
+			)
+			(construct (storage #0) (constructor class #0) (ref-local #13)
+				(integer 42 : int)
+			)
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(binary == : bool
+								(method-call "run" -> int
+									(target S::run #0)
+									(receiver
+										(address-of : Receiver<S>
+											(local-place #12 : S)
+										)
+									)
+									(arguments)
+								)
+								(method-call "run" -> int
+									(target C::run #0)
+									(receiver
+										(object-receiver : Receiver<C> null-traps-before-arguments
+											(load : C
+												(local-place #13 : C)
+											)
+										)
+									)
+									(arguments)
+								)
+							)
+							(binary == : bool
+								(property-get "get" -> int
+									(property #0 C::value) (getter #0) effectful
+									(receiver
+										(object-receiver : Receiver<C> null-traps-before-arguments
+											(load : C
+												(local-place #13 : C)
+											)
+										)
+									)
+									(arguments)
+								)
+								(call "helper" -> int
+									(arguments)
+								)
+							)
+						)
+						(binary == : bool
+							(generic-call "identity" -> int
+								(type-arguments int)
+								(arguments
+									(integer 42 : int)
+								)
+							)
+							(integer 42 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 42 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(method #0 "run" (declaring-struct #0 "S") (member #1) -> int
+		(receiver : Receiver<S> mutable nonnull non-owning)
+		(parameters)
+		(block
+			(return
+				(generic-call "identity" -> int
+					(type-arguments int)
+					(arguments
+						(load : int
+							(indirect-field-place : int
+								(this : Receiver<S>)
+								(field #0 "raw")
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(method #0 "run" (declaring-class #0 "C") (member #2) -> int
+		(receiver : Receiver<C> mutable nonnull non-owning)
+		(parameters)
+		(block
+			(return
+				(generic-call "identity" -> int
+					(type-arguments int)
+					(arguments
+						(load : int
+							(indirect-field-place : int
+								(this : Receiver<C>)
+								(field #0 "raw")
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing C nonnull mutable)
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<C>)
+					(field #0 "raw")
+				)
+				(generic-call "identity" -> int
+					(type-arguments int)
+					(arguments
+						(parameter #0 : int)
+					)
+				)
+			)
+		)
+	)
+	(property-getter #0 (property C::value #0) (declaring-class #0) -> int
+		(receiver : Receiver<C> live mutable nonnull non-owning)
+		(parameters)
+		(block
+			(return
+				(generic-call "identity" -> int
+					(type-arguments int)
+					(arguments
+						(load : int
+							(indirect-field-place : int
+								(this : Receiver<C>)
+								(field #0 "raw")
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+)

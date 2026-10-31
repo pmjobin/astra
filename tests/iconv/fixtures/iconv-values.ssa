@@ -1,0 +1,120 @@
+(ssa-program
+	(function #0 "sw" -> i16
+		(parameters
+			(%0 "x" : i8)
+		)
+		(entry #0)
+		(block #0
+			(%1 : i16 = integer-convert (from i8) (to i16) (value %0))
+			(return %1)
+		)
+	)
+	(function #1 "uw" -> u16
+		(parameters
+			(%0 "x" : u8)
+		)
+		(entry #0)
+		(block #0
+			(%1 : u16 = integer-convert (from u8) (to u16) (value %0))
+			(return %1)
+		)
+	)
+	(function #2 "sn" -> i8
+		(parameters
+			(%0 "x" : i16)
+		)
+		(entry #0)
+		(block #0
+			(%1 : i8 = integer-convert (from i16) (to i8) (value %0))
+			(return %1)
+		)
+	)
+	(function #3 "same" -> u8
+		(parameters
+			(%0 "x" : i8)
+		)
+		(entry #0)
+		(block #0
+			(%1 : u8 = integer-convert (from i8) (to u8) (value %0))
+			(return %1)
+		)
+	)
+	(function #4 "vsw" -> i16<8>
+		(parameters
+			(%0 "v" : i8<8>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : i16<8> = integer-vector-convert (from i8<8>) (to i16<8>) (value %0))
+			(return %1)
+		)
+	)
+	(function #5 "vuw" -> u16<8>
+		(parameters
+			(%0 "v" : u8<8>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : u16<8> = integer-vector-convert (from u8<8>) (to u16<8>) (value %0))
+			(return %1)
+		)
+	)
+	(function #6 "vsn" -> i8<8>
+		(parameters
+			(%0 "v" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : i8<8> = integer-vector-convert (from i16<8>) (to i8<8>) (value %0))
+			(return %1)
+		)
+	)
+	(function #7 "vsame" -> u8<16>
+		(parameters
+			(%0 "v" : i8<16>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : u8<16> = integer-vector-convert (from i8<16>) (to u8<16>) (value %0))
+			(return %1)
+		)
+	)
+	(function #8 "mixed" -> u16
+		(parameters
+			(%0 "x" : i8)
+		)
+		(entry #0)
+		(block #0
+			(%1 : u16 = integer-convert (from i8) (to u16) (value %0))
+			(return %1)
+		)
+	)
+	(function #9 "umixed" -> i16
+		(parameters
+			(%0 "x" : u8)
+		)
+		(entry #0)
+		(block #0
+			(%1 : i16 = integer-convert (from u8) (to i16) (value %0))
+			(return %1)
+		)
+	)
+	(function #10 "chain" -> u32
+		(parameters
+			(%0 "x" : i8)
+		)
+		(entry #0)
+		(block #0
+			(%1 : i16 = integer-convert (from i8) (to i16) (value %0))
+			(%2 : u32 = integer-convert (from i16) (to u32) (value %1))
+			(return %2)
+		)
+	)
+	(function #11 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(return (integer 0 : int))
+		)
+	)
+)

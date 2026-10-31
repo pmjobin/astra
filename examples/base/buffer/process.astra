@@ -1,0 +1,17 @@
+// Plain native class and buffer parameters borrow; the caller retains ownership.
+void fill(f64[] values) {
+	int index = 0;
+	while (index < len(values)) {
+		values[index] = (index as f64) / 4.0d;
+		index = index + 1;
+	}
+}
+
+Lab measure(Samples samples, Vec2 point) {
+	fill(samples.values);
+	var bounded = clamp(samples.values[3], 0.0d, 1.0d);
+	assert(is_finite_f64(bounded));
+	var root = sqrt_f64(max(0.0d, point.x * point.x + point.y * point.y));
+	Lab result = { l = floor_f64(root), a = min(bounded, 1.0d), b = bounded };
+	return result;
+}

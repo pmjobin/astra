@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Lab { int tag; f64 value; f32 small; }
+extern(C) f32 c_echo32(f32 value);
+extern(C) f32 c_pattern32(int index);
+extern(C) int c_check32(int index, f32 value);
+extern(C) f64 c_echo(f64 value);
+extern(C) f64 c_pattern(int index);
+extern(C) int c_count();
+extern(C) int c_check(int index, f64 value);
+Lab transform(Lab value) { Lab result = { tag = value.tag, value = c_echo(value.value), small = c_echo32(value.small) }; return result; }
+Lab produce(int index) { Lab result = { tag = index, value = c_pattern(index), small = c_pattern32(index) }; return transform(result); }
+int main() {
+	int i = 0;
+	while (i < c_count()) {
+		Lab local = produce(i);
+		if (local.tag != i || c_check(i, local.value) != 0 || c_check32(i, local.small) != 0) { return 1; }
+		i = i + 1;
+	}
+	return 0;
+}

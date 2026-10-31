@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned R open(int n) { var value = resource(n); return move value; }
+bool same(borrowed R a, borrowed R b) { return a == b; }
+int inspect(borrowed R value) { if (value == null) { return 0; } return id(value); }
+int main() {
+	var handle = open(1);
+	if (!same(handle, handle) || inspect(handle) != 1 || inspect(handle) != 1 || inspect(null) != 0) { return 1; }
+	mark(id(handle));
+	return 0;
+}

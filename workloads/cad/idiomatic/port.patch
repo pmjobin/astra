@@ -1,0 +1,455 @@
+--- a/meson.build
++++ b/meson.build
+@@ -8,12 +8,12 @@
+ adapter = shared_library('cad-io', ['native/adapter.c', 'native/arguments.c'], dependencies: [png, math], install: false)
+ numeric_source = files(['src/numeric.astra', 'tests/numeric.astra'])
+ numeric_tests = custom_target('numeric-tests', input: numeric_source, output: 'numeric-tests', command: [astrac, '@INPUT@', '--link-object', adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+-test('numeric-foundation', numeric_tests, env: environment({'LD_LIBRARY_PATH': meson.current_build_dir(), 'CCACHE_DIR': '/tmp/astra-cad-ccache'}))
++test('numeric-foundation', numeric_tests, env: environment({'LD_LIBRARY_PATH': meson.current_build_dir(), 'CCACHE_DIR': meson.current_build_dir() / 'tmp/ccache'}))
+ cad_source = files(['src/numeric.astra', 'src/algorithm.astra', 'src/main.astra', 'src/entry.astra'])
+ cad = custom_target('astra-cad', input: cad_source, output: 'astra-cad', command: [astrac, '@INPUT@', '--link-object', adapter, '--link-object', get_option('args_provider'), '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+ algorithm_source = files(['src/numeric.astra', 'src/algorithm.astra', 'tests/algorithm.astra'])
+ algorithm_tests = custom_target('algorithm-tests', input: algorithm_source, output: 'algorithm-tests', command: [astrac, '@INPUT@', '--link-object', adapter, '-o', '@OUTPUT@'], build_by_default: true, depends: adapter)
+-test('algorithm-foundation', algorithm_tests, env: environment({'LD_LIBRARY_PATH': meson.current_build_dir(), 'CCACHE_DIR': '/tmp/astra-cad-ccache'}))
++test('algorithm-foundation', algorithm_tests, env: environment({'LD_LIBRARY_PATH': meson.current_build_dir(), 'CCACHE_DIR': meson.current_build_dir() / 'tmp/ccache'}))
+ python = find_program('python3')
+ foreach suite : ['Analytical', 'Errors', 'Differential', 'Synthetic']
+ 	test(suite.to_lower(), python, args: [files('tests/test_cad.py'), suite, '-v'], env: environment({'ASTRA_CAD': cad.full_path(), 'CAD_TEST_OUTPUT': meson.current_build_dir() / 'test-results' / suite}), depends: [cad, numeric_tests], timeout: 7200)
+--- a/native/adapter.c
++++ b/native/adapter.c
+@@ -11,7 +11,6 @@
+ #include <sys/stat.h>
+ 
+ _Static_assert(sizeof(double) == 8 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024, "C binary64 required");
+-typedef struct { int32_t count; double data[]; } Buffer;
+ static png_image input;
+ static unsigned char* input_bytes;
+ static const char* output_path;
+@@ -38,24 +37,6 @@
+ int32_t cad_integer(double x) {
+ 	if (!isfinite(x) || x < INT32_MIN || x > INT32_MAX) { cad_fail(1, x); }
+ 	return (int32_t)x;
+-}
+-void* cad_buffer(int32_t count) {
+-	if (count <= 0 || count > 67108864) { cad_fail(2, count); }
+-	Buffer* b = calloc(1, sizeof(*b) + (size_t)count * sizeof(double));
+-	if (b == NULL) { cad_fail(3, count); }
+-	b->count = count;
+-	return b;
+-}
+-void cad_free(void* buffer) { free(buffer); }
+-double cad_get(void* buffer, int32_t i) {
+-	Buffer* b = buffer;
+-	if (b == NULL || i < 0 || i >= b->count) { cad_fail(4, i); }
+-	return b->data[i];
+-}
+-void cad_set(void* buffer, int32_t i, double value) {
+-	Buffer* b = buffer;
+-	if (b == NULL || i < 0 || i >= b->count) { cad_fail(5, i); }
+-	b->data[i] = value;
+ }
+ static int32_t integer_option(const char* text, int32_t limit) {
+ 	char* end;
+@@ -136,21 +117,27 @@
+ 	free(name);
+ 	return file;
+ }
+-static void dump_matrix(const char* kind, void* buffer, int32_t rows, int32_t columns, int32_t iteration) {
+-	FILE* file = dump_file(kind, iteration, "csv");
+-	if (!file) { return; }
+-	for (int32_t r = 0; r < rows; ++r) {
+-		for (int32_t c = 0; c < columns; ++c) { fprintf(file, c ? ",%.17g" : "%.17g", cad_get(buffer, r * columns + c)); }
+-		fputc('\n', file);
+-	}
+-	if (ferror(file) || fclose(file) != 0) { cad_fail(8, iteration); }
+-}
+-void cad_dump_final(void* buffer, int32_t rows, int32_t columns, int32_t iteration) { dump_matrix("state", buffer, rows, columns, iteration); }
+-void cad_colors(void* buffer, int32_t pixels) { if (observe_corrections) { dump_matrix("colors", buffer, pixels, 3, 0); } }
+-void cad_mstep_state(void* buffer, int32_t kernels, int32_t iteration) { if (observe_corrections) { dump_matrix("mstep", buffer, kernels, 9, iteration); } }
+-void cad_correction_state(void* buffer, int32_t kernels) { if (observe_corrections) { dump_matrix("correction-state", buffer, kernels, 9, correction_iteration); } }
+-void cad_dump(void* buffer, int32_t rows, int32_t columns, int32_t iteration) {
+-	if (iteration % dump_every == 0) { cad_dump_final(buffer, rows, columns, iteration); }
++static FILE* native_trace;
++static int native_columns;
++static int32_t native_iteration;
++int32_t cad_trace_begin(int32_t kind, int32_t iteration) {
++	if (kind == 0 && iteration % dump_every != 0) { return 0; }
++	if (kind >= 2 && !observe_corrections) { return 0; }
++	const char* name = kind == 2 ? "mstep" : kind == 3 ? "correction-state" : kind == 4 ? "colors" : "state";
++	if (kind == 3) { iteration = correction_iteration; }
++	native_columns = kind == 4 ? 3 : 9;
++	native_iteration = iteration;
++	native_trace = dump_file(name, iteration, "csv");
++	return native_trace != NULL;
++}
++void cad_trace_sample(int32_t column, double value) {
++	fprintf(native_trace, column ? ",%.17g" : "%.17g", value);
++	if (column == native_columns - 1) { fputc('\n', native_trace); }
++}
++void cad_trace_end(int32_t iteration) {
++	(void)iteration;
++	if (ferror(native_trace) || fclose(native_trace) != 0) { cad_fail(8, native_iteration); }
++	native_trace = NULL;
+ }
+ void cad_pairs_begin(int32_t iteration) { pair_file = dump_file("weights", iteration, "csv"); log_pair_file = dump_file("logweights", iteration, "csv"); }
+ void cad_pair(int32_t kernel, int32_t pixel, double weight, double gamma) { if (pair_file) { fprintf(pair_file, "%d,%d,%.17g,%.17g\n", kernel, pixel, weight, gamma); } }
+@@ -193,16 +180,19 @@
+ 	}
+ 	if (file && (ferror(file) || fclose(file) != 0)) { cad_fail(8, iteration); }
+ }
+-int32_t cad_finish(void* buffer, int32_t iteration, int32_t converged) {
+-	Buffer* b = buffer;
+-	size_t count = (size_t)output_width * output_height * 3;
+-	if (!b || count != (size_t)b->count) { cad_fail(9, count); }
+-	unsigned char* bytes = malloc(count);
+-	if (!bytes) { cad_fail(3, count); }
+-	for (size_t i = 0; i < count; ++i) {
+-		if (!isfinite(b->data[i]) || b->data[i] < 0.0 || b->data[i] > 255.0) { cad_fail(9, b->data[i]); }
+-		bytes[i] = (unsigned char)b->data[i];
+-	}
++void* cad_output_begin(int32_t count) {
++	size_t expected = (size_t)output_width * output_height * 3;
++	if (count < 0 || (size_t)count != expected) { cad_fail(9, expected); }
++	unsigned char* bytes = malloc(expected);
++	if (!bytes) { cad_fail(3, expected); }
++	return bytes;
++}
++void cad_output_sample(void* image, int32_t index, double value) {
++	if (!isfinite(value) || value < 0.0 || value > 255.0) { cad_fail(9, value); }
++	((unsigned char*)image)[index] = (unsigned char)value;
++}
++int32_t cad_output_finish(void* image, int32_t iteration, int32_t converged) {
++	unsigned char* bytes = image;
+ 	png_image output = {0};
+ 	output.version = PNG_IMAGE_VERSION; output.width = output_width; output.height = output_height; output.format = PNG_FORMAT_RGB;
+ 	int ok = png_image_write_to_file(&output, output_path, 0, bytes, 0, NULL);
+--- a/tests/algorithm.astra
++++ b/tests/algorithm.astra
+@@ -1,8 +1,9 @@
++void dispose_test_context(owned Context value) {}
+ extern(C) f64 cad_nextafter(f64 x, f64 toward);
+-void inactivity_transition(Context* c) {
+-	cad_set(c->ranges, 0, 0.0); cad_set(c->ranges, 1, 1.0);
+-	cad_set(c->ranges, 2, 0.0); cad_set(c->ranges, 3, 1.0);
+-	cad_set(c->ranges, 4, 0.5); cad_set(c->ranges, 5, 0.5);
++void inactivity_transition(Context c) {
++	c.ranges[0].low = 0.0; c.ranges[0].high = 1.0;
++	c.ranges[1].low = 0.0; c.ranges[1].high = 1.0;
++	c.ranges[2].low = 0.5; c.ranges[2].high = 0.5;
+ 	f64 boundary = 67108864.0;
+ 	f64 below = cad_nextafter(boundary, 0.0); f64 above = cad_nextafter(boundary, 1e100);
+ 	require(color_active(c, 0.5, 0.5, 0.5, below), 230, below);
+@@ -13,72 +14,72 @@
+ }
+ 
+ int main() {
+-	Context c = {wi=2,hi=1,wo=1,ho=1,count=1,pairs=2,rx=2.0,ry=1.0,state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};
+-	c.state = cad_buffer(9); c.next = cad_buffer(9); c.means = cad_buffer(2); c.supports = cad_buffer(5); c.colors = cad_buffer(6); c.ranges = cad_buffer(6);
+-	c.logw = cad_buffer(2); c.weights = cad_buffer(2); c.gamma = cad_buffer(2); c.pmax = cad_buffer(2); c.psum = cad_buffer(2); c.check = cad_buffer(2);
+-	cad_set(c.supports, 2, 2.0); cad_set(c.supports, 3, 1.0);
+-	cad_set(c.colors, 1, 0.5); cad_set(c.colors, 2, 0.5); cad_set(c.colors, 3, 1.0); cad_set(c.colors, 4, 0.5); cad_set(c.colors, 5, 0.5);
+-	cad_set(c.ranges, 1, 1.0); cad_set(c.ranges, 2, 0.5); cad_set(c.ranges, 3, 0.5); cad_set(c.ranges, 4, 0.5); cad_set(c.ranges, 5, 0.5);
++	owned Context c = Context.init(2, 1, 1, 1);
++	
++	c.pairs = 2; c.logw = new f64[2] else cad_fail(3, 2.0); c.weights = new f64[2] else cad_fail(3, 2.0); c.gamma = new f64[2] else cad_fail(3, 2.0); 
++	c.supports[0].x1 = cad_integer(2.0); c.supports[0].y1 = cad_integer(1.0);
++	c.colors[0].a = 0.5; c.colors[0].b = 0.5; c.colors[1].l = 1.0; c.colors[1].a = 0.5; c.colors[1].b = 0.5;
++	c.ranges[0].high = 1.0; c.ranges[1].low = 0.5; c.ranges[1].high = 0.5; c.ranges[2].low = 0.5; c.ranges[2].high = 0.5;
+ 	Kernel k = {mx=0.4,my=0.6,xx=0.08,xy=0.01,yy=0.1,l=0.2,a=0.5,b=0.5,sigma=1e10};
+-	require(!color_active(&c, k.l, k.a, k.b, k.sigma) && color_active(&c, k.l, k.a, k.b, 1e-4), 200, k.sigma);
+-	store_kernel(c.state, 0, &k); expectation(&c);
+-	f64 first = cad_get(c.weights, 0); f64 second = cad_get(c.weights, 1);
+-	require(first != second && cad_get(c.gamma, 0) == 1.0 && cad_get(c.gamma, 1) == 1.0, 201, first);
+-	k.sigma = k.sigma * 1.1; store_kernel(c.state, 0, &k); expectation(&c);
++	require(!color_active(c, k.l, k.a, k.b, k.sigma) && color_active(c, k.l, k.a, k.b, 1e-4), 200, k.sigma);
++	c.state[0] = k; expectation(c);
++	f64 first = c.weights[0]; f64 second = c.weights[1];
++	require(first != second && c.gamma[0] == 1.0 && c.gamma[1] == 1.0, 201, first);
++	k.sigma = k.sigma * 1.1; c.state[0] = k; expectation(c);
+ 	// An already constant color Gaussian produces identical normalized weights.
+-	require(cad_get(c.weights, 0) == first && cad_get(c.weights, 1) == second, 202, first);
+-	maximization(&c); load_kernel(c.next, 0, &k);
++	require(c.weights[0] == first && c.weights[1] == second, 202, first);
++	maximization(c); k = load_kernel(c.next, 0);
+ 	require(close(k.mx, 0.5, 1e-15) && close(k.my, 0.5, 1e-15) && close(k.xx, 0.0625, 1e-14) && close(k.yy, 0.0, 1e-14) && close(k.xy, 0.0, 1e-14), 203, k.yy);
+ 	require(k.sigma == 1.1e10 && k.l == 0.5, 204, k.sigma);
+-	constrain_spatial(&c); load_kernel(c.next, 0, &k);
++	constrain_spatial(c); k = load_kernel(c.next, 0);
+ 	require(k.mx == 0.5 && k.my == 0.5 && close(k.xx, 0.0625, 1e-14) && close(k.yy, 0.05, 1e-14), 205, k.yy);
+-	inactivity_transition(&c);
+-	dispose(&c);
++	inactivity_transition(c);
++	dispose_test_context(move c);
+ 
+-	Context pair = {wi=2,hi=2,wo=2,ho=1,count=2,pairs=8,rx=1.0,ry=2.0,state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};
+-	pair.state = cad_buffer(18); pair.next = cad_buffer(18); pair.supports = cad_buffer(10); pair.ranges = cad_buffer(6); pair.gamma = cad_buffer(8); pair.colors = cad_buffer(12);
++	owned Context pair = Context.init(2, 2, 2, 1);
++	pair.pairs = 8; pair.gamma = new f64[8] else cad_fail(3, 8.0); 
+ 	int pixel = 0;
+-	while (pixel < 4) { cad_set(pair.colors, pixel * 3, cad_number(pixel % 2)); cad_set(pair.colors, pixel * 3 + 1, 0.5); cad_set(pair.colors, pixel * 3 + 2, 0.5); pixel = pixel + 1; }
+-	cad_set(pair.ranges, 1, 1.0); cad_set(pair.ranges, 2, 0.5); cad_set(pair.ranges, 3, 0.5); cad_set(pair.ranges, 4, 0.5); cad_set(pair.ranges, 5, 0.5);
+-	cad_set(pair.supports, 2, 2.0); cad_set(pair.supports, 3, 2.0); cad_set(pair.supports, 7, 2.0); cad_set(pair.supports, 8, 2.0); cad_set(pair.supports, 9, 4.0);
++	while (pixel < 4) { pair.colors[pixel].l = cad_number(pixel % 2); pair.colors[pixel].a = 0.5; pair.colors[pixel].b = 0.5; pixel = pixel + 1; }
++	pair.ranges[0].high = 1.0; pair.ranges[1].low = 0.5; pair.ranges[1].high = 0.5; pair.ranges[2].low = 0.5; pair.ranges[2].high = 0.5;
++	pair.supports[0].x1 = cad_integer(2.0); pair.supports[0].y1 = cad_integer(2.0); pair.supports[1].x1 = cad_integer(2.0); pair.supports[1].y1 = cad_integer(2.0); pair.supports[1].start = cad_integer(4.0);
+ 	// Valid per-pixel assignments with deliberately overextended support.
+-	cad_set(pair.gamma, 1, 0.5); cad_set(pair.gamma, 4, 1.0); cad_set(pair.gamma, 5, 0.5); cad_set(pair.gamma, 6, 1.0); cad_set(pair.gamma, 7, 1.0);
+-	k.mx = 0.5; k.my = 0.5; k.l = 0.2; k.sigma = 1e10; store_kernel(pair.next, 0, &k);
+-	k.mx = 1.5; store_kernel(pair.next, 1, &k);
+-	cad_set(pair.state, 8, 1e10); cad_set(pair.state, 17, 1e10);
+-	constrain_shape(&pair, true);
+-	require(pair.inactive == 2 && pair.locality == 0 && pair.orientation == 0 && cad_get(pair.next, 8) == 1e10 && cad_get(pair.next, 17) == 1e10, 206, cad_number(pair.inactive));
++	pair.gamma[1] = 0.5; pair.gamma[4] = 1.0; pair.gamma[5] = 0.5; pair.gamma[6] = 1.0; pair.gamma[7] = 1.0;
++	k.mx = 0.5; k.my = 0.5; k.l = 0.2; k.sigma = 1e10; pair.next[0] = k;
++	k.mx = 1.5; pair.next[1] = k;
++	pair.state[0].sigma = 1e10; pair.state[1].sigma = 1e10;
++	constrain_shape(pair, true);
++	require(pair.inactive == 2 && pair.locality == 0 && pair.orientation == 0 && pair.next[0].sigma == 1e10 && pair.next[1].sigma == 1e10, 206, cad_number(pair.inactive));
+ 	CorrectionEffect effect = {weight=0.0,gamma=0.0,state=0.0,log_weight=0.0,weight_changed=0,gamma_changed=0,state_changed=0,log_weight_changed=0};
+-	correction_effect(&pair, 0, 1, &effect);
++	effect = correction_effect(pair, 0, 1);
+ 	require(effect.weight_changed == 0 && effect.log_weight_changed == 0 && effect.gamma_changed == 0 && effect.state_changed == 0, 235, effect.gamma);
+-	cad_set(pair.next, 17, 1e-4);
+-	cad_set(pair.state, 17, 1e-4);
+-	constrain_shape(&pair, true);
+-	require(pair.inactive == 0 && pair.locality == 2 && close(cad_get(pair.next, 8), 1.21e10, 1e-5), 236, cad_get(pair.next, 8));
+-	cad_set(pair.next, 8, 1e-4); cad_set(pair.next, 17, 1e-4);
+-	cad_set(pair.state, 8, 1e-4); cad_set(pair.state, 17, 1e-4);
+-	constrain_shape(&pair, true);
+-	require(pair.inactive == 0 && pair.locality == 2 && close(cad_get(pair.next, 8), 1.21e-4, 1e-18) && close(cad_get(pair.next, 17), 1.21e-4, 1e-18), 207, cad_get(pair.next, 8));
+-	dispose(&pair);
++	pair.next[1].sigma = 1e-4;
++	pair.state[1].sigma = 1e-4;
++	constrain_shape(pair, true);
++	require(pair.inactive == 0 && pair.locality == 2 && close(pair.next[0].sigma, 1.21e10, 1e-5), 236, pair.next[0].sigma);
++	pair.next[0].sigma = 1e-4; pair.next[1].sigma = 1e-4;
++	pair.state[0].sigma = 1e-4; pair.state[1].sigma = 1e-4;
++	constrain_shape(pair, true);
++	require(pair.inactive == 0 && pair.locality == 2 && close(pair.next[0].sigma, 1.21e-4, 1e-18) && close(pair.next[1].sigma, 1.21e-4, 1e-18), 207, pair.next[0].sigma);
++	dispose_test_context(move pair);
+ 
+-	Context lattice = {wi=3,hi=3,wo=3,ho=3,count=9,pairs=0,rx=1.0,ry=1.0,state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};
+-	lattice.next = cad_buffer(81); lattice.means = cad_buffer(18);
++	owned Context lattice = Context.init(3, 3, 3, 3);
++	
+ 	int index = 0;
+ 	while (index < 9) {
+ 		k.mx = cad_number(index % 3) + 0.5; k.my = cad_number(index / 3) + 0.5;
+ 		k.xx = 0.08; k.xy = 0.0; k.yy = 0.08;
+-		store_kernel(lattice.next, index, &k); index = index + 1;
++		lattice.next[index] = k; index = index + 1;
+ 	}
+-	constrain_spatial(&lattice);
++	constrain_spatial(lattice);
+ 	// Two neighbors at corners, three at edges, four in the interior.
+ 	// All means must come from the same snapshot, before box clamping.
+ 	f64[18] expected = {0.75,0.75, 1.5,2.0/3.0, 2.25,0.75, 2.0/3.0,1.5, 1.5,1.5, 7.0/3.0,1.5, 0.75,2.25, 1.5,7.0/3.0, 2.25,2.25};
+ 	index = 0;
+ 	while (index < 9) {
+-		load_kernel(lattice.next, index, &k);
++		k = load_kernel(lattice.next, index);
+ 		require(close(k.mx, expected[index * 2], 1e-15) && close(k.my, expected[index * 2 + 1], 1e-15), 208 + index, k.mx);
+ 		index = index + 1;
+ 	}
+-	dispose(&lattice);
++	dispose_test_context(move lattice);
+ 	return 0;
+ }
+--- a/tests/orientation.astra
++++ b/tests/orientation.astra
+@@ -1,12 +1,13 @@
++void dispose_test_context(owned Context value) {}
+ // Controlled, globally normalized assignment fields isolate the orientation
+ // operator and its paired sigma update from the locality predicate.
+-void orientation_fixture(Context* c, int k, int n, f64 cx, f64 cy, f64 strength_fraction) {
++void orientation_fixture(Context c, int k, int n, f64 cx, f64 cy, f64 strength_fraction) {
+ 	expectation(c); maximization(c); constrain_spatial(c);
+ 	Support a = {x0=0,y0=0,x1=0,y1=0,start=0}; Support b = {x0=0,y0=0,x1=0,y1=0,start=0};
+-	load_support(c, k, &a); load_support(c, n, &b);
++	a = load_support(c, k); b = load_support(c, n);
+ 	int x0 = int_max(a.x0, b.x0); int x1 = int_min(a.x1, b.x1); int y0 = int_max(a.y0, b.y0); int y1 = int_min(a.y1, b.y1);
+ 	f64 width = cad_number(x1 - x0); f64 height = cad_number(y1 - y0);
+-	f64 ax = cx / (c->rx * height * (width - 1.0)); f64 ay = cy / (c->ry * width * (height - 1.0));
++	f64 ax = cx / (c.rx * height * (width - 1.0)); f64 ay = cy / (c.ry * width * (height - 1.0));
+ 	f64 midx = 0.5 * cad_number(x0 + x1 - 1); f64 midy = 0.5 * cad_number(y0 + y1 - 1);
+ 	f64 total = 0.0; int y = y0;
+ 	while (y < y1) {
+@@ -14,7 +15,7 @@
+ 		while (x < x1) { f64 ratio = 0.5 + ax * (cad_number(x) - midx) + ay * (cad_number(y) - midy); total = total + ratio * (1.0 - ratio); x = x + 1; }
+ 		y = y + 1;
+ 	}
+-	f64 mass = cad_sqrt((0.08 * c->rx * c->ry * strength_fraction) / total);
++	f64 mass = cad_sqrt((0.08 * c.rx * c.ry * strength_fraction) / total);
+ 	require(mass > 0.0 && mass < 1.0, 250, mass);
+ 	y = y0;
+ 	while (y < y1) {
+@@ -22,52 +23,52 @@
+ 		while (x < x1) {
+ 			f64 ratio = 0.5 + ax * (cad_number(x) - midx) + ay * (cad_number(y) - midy);
+ 			f64 other_mass = 0.0; int other = 0;
+-			while (other < c->count) {
+-				Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; load_support(c, other, &s);
+-				if (other != k && other != n && x >= s.x0 && x < s.x1 && y >= s.y0 && y < s.y1) { other_mass = other_mass + cad_get(c->gamma, support_index(&s, x, y)); }
++			while (other < c.count) {
++				Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; s = load_support(c, other);
++				if (other != k && other != n && x >= s.x0 && x < s.x1 && y >= s.y0 && y < s.y1) { other_mass = other_mass + c.gamma[support_index(s, x, y)]; }
+ 				other = other + 1;
+ 			}
+ 			require(other_mass > 0.0, 251, other_mass); other = 0;
+-			while (other < c->count) {
+-				Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; load_support(c, other, &s);
+-				if (other != k && other != n && x >= s.x0 && x < s.x1 && y >= s.y0 && y < s.y1) { int p = support_index(&s, x, y); cad_set(c->gamma, p, cad_get(c->gamma, p) * (1.0 - mass) / other_mass); }
++			while (other < c.count) {
++				Support s = {x0=0,y0=0,x1=0,y1=0,start=0}; s = load_support(c, other);
++				if (other != k && other != n && x >= s.x0 && x < s.x1 && y >= s.y0 && y < s.y1) { int p = support_index(s, x, y); c.gamma[p] = c.gamma[p] * (1.0 - mass) / other_mass; }
+ 				other = other + 1;
+ 			}
+-			cad_set(c->gamma, support_index(&a, x, y), mass * ratio); cad_set(c->gamma, support_index(&b, x, y), mass * (1.0 - ratio));
++			c.gamma[support_index(a, x, y)] = mass * ratio; c.gamma[support_index(b, x, y)] = mass * (1.0 - ratio);
+ 			x = x + 1;
+ 		}
+ 		y = y + 1;
+ 	}
+-	OrientationObservation observation = {strength=0.0,gx=0.0,gy=0.0,cosine=-1.0};
+-	bool detected = wrong_orientation(c, &a, &b, 1, 0, &observation);
+-	f64 sk = cad_get(c->next, k * 9 + 8); f64 sn = cad_get(c->next, n * 9 + 8);
++	OrientationObservation observation = {detected=false,strength=0.0,gx=0.0,gy=0.0,cosine=-1.0};
++	observation = wrong_orientation(c, a, b, 1, 0); bool detected = observation.detected;
++	f64 sk = c.next[k].sigma; f64 sn = c.next[n].sigma;
+ 	CorrectionEffect effect = {weight=0.0,gamma=0.0,state=0.0,log_weight=0.0,weight_changed=0,gamma_changed=0,state_changed=0,log_weight_changed=0};
+ 	bool updated = false;
+-	if (detected) { correction_effect(c, k, n, &effect); updated = correct_color_pair(c, k, n); }
++	if (detected) { effect = correction_effect(c, k, n); updated = correct_color_pair(c, k, n); }
+ 	cad_corrections_begin();
+-	cad_correction(k, n, 1, 0, 1, observation.cosine, 0.9063077870366499, correction_flag(detected), correction_flag(updated), sk, sn, cad_get(c->next, k * 9 + 8), cad_get(c->next, n * 9 + 8), observation.strength, 0.08 * c->rx * c->ry, observation.gx, observation.gy, effect.weight, effect.gamma, effect.state, effect.weight_changed, effect.gamma_changed, effect.state_changed, effect.log_weight, effect.log_weight_changed);
++	cad_correction(k, n, 1, 0, 1, observation.cosine, 0.9063077870366499, correction_flag(detected), correction_flag(updated), sk, sn, c.next[k].sigma, c.next[n].sigma, observation.strength, 0.08 * c.rx * c.ry, observation.gx, observation.gy, effect.weight, effect.gamma, effect.state, effect.weight_changed, effect.gamma_changed, effect.state_changed, effect.log_weight, effect.log_weight_changed);
+ 	cad_corrections_end();
+ }
+ 
+ int cad_entry(int argc, void* argv) {
+ 	if (cad_begin(argc, argv) != 0) { return 1; }
+ 	int wi = cad_option(0); int hi = cad_option(1); int wo = cad_option(2); int ho = cad_option(3);
+-	Context c = {wi=wi,hi=hi,wo=wo,ho=ho,count=wo * ho,pairs=0,rx=cad_number(wi) / cad_number(wo),ry=cad_number(hi) / cad_number(ho),state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};
+-	initialize(&c);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.99939082701909576, 0.034899496702500969, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.99619469809174555, 0.087155742747658166, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.98480775301220802, 0.17364817766693033, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.96592582628906831, 0.25881904510252074, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.93969262078590843, 0.34202014332566871, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.91354545764260087, 0.40673664307580021, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.90630779441273002, 0.42261824592264441, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.90630778703664994, 0.42261826174069944, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.90630777966056963, 0.42261827755875431, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.89879404629916704, 0.4383711467890774, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.86602540378443871, 0.49999999999999994, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.70710678118654757, 0.70710678118654746, 0.5);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.86602540378443871, 0.49999999999999994, 0.999999);
+-	orientation_fixture(&c, 3 * wo + 3, 3 * wo + 4, 0.86602540378443871, 0.49999999999999994, 1.000001);
+-	dispose(&c);
++	owned Context c = Context.init(wi, hi, wo, ho);
++	initialize(c);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.99939082701909576, 0.034899496702500969, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.99619469809174555, 0.087155742747658166, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.98480775301220802, 0.17364817766693033, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.96592582628906831, 0.25881904510252074, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.93969262078590843, 0.34202014332566871, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.91354545764260087, 0.40673664307580021, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.90630779441273002, 0.42261824592264441, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.90630778703664994, 0.42261826174069944, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.90630777966056963, 0.42261827755875431, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.89879404629916704, 0.4383711467890774, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.86602540378443871, 0.49999999999999994, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.70710678118654757, 0.70710678118654746, 0.5);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.86602540378443871, 0.49999999999999994, 0.999999);
++	orientation_fixture(c, 3 * wo + 3, 3 * wo + 4, 0.86602540378443871, 0.49999999999999994, 1.000001);
++	dispose_test_context(move c);
+ 	return 0;
+ }
+--- a/tests/state_io.c
++++ b/tests/state_io.c
+@@ -6,7 +6,6 @@
+ #include <string.h>
+ 
+ extern int32_t cad_begin(int32_t argc, void* argv);
+-extern void cad_set(void* buffer, int32_t index, double value);
+ extern void cad_fail(int32_t code, double value);
+ static const char* state_path;
+ 
+@@ -16,17 +15,21 @@
+ 	state_path = argv[argc - 1];
+ 	return cad_begin(argc - 2, raw);
+ }
+-void cad_test_load(void* buffer, int32_t count) {
+-	FILE* file = fopen(state_path, "r");
+-	if (!file) { perror(state_path); cad_fail(260, 0); }
+-	for (int32_t i = 0; i < count; ++i) {
+-		double value;
+-		if (fscanf(file, "%lf", &value) != 1 || !isfinite(value)) { cad_fail(261, i); }
+-		cad_set(buffer, i, value);
+-		int separator = fgetc(file);
+-		if (i % 9 != 8 ? separator != ',' : separator != '\n' && separator != EOF) { cad_fail(262, i); }
+-	}
++static FILE* state_file;
++void cad_test_open(void) {
++	state_file = fopen(state_path, "r");
++	if (!state_file) { perror(state_path); cad_fail(260, 0); }
++}
++double cad_test_sample(int32_t i) {
++	double value;
++	if (fscanf(state_file, "%lf", &value) != 1 || !isfinite(value)) { cad_fail(261, i); }
++	int separator = fgetc(state_file);
++	if (i % 9 != 8 ? separator != ',' : separator != '\n' && separator != EOF) { cad_fail(262, i); }
++	return value;
++}
++void cad_test_close(void) {
+ 	int c;
+-	while ((c = fgetc(file)) != EOF) { if (!isspace(c)) { cad_fail(263, c); } }
+-	if (ferror(file) || fclose(file) != 0) { cad_fail(264, 0); }
++	while ((c = fgetc(state_file)) != EOF) { if (!isspace(c)) { cad_fail(263, c); } }
++	if (ferror(state_file) || fclose(state_file) != 0) { cad_fail(264, 0); }
++	state_file = NULL;
+ }
+--- a/tests/step.astra
++++ b/tests/step.astra
+@@ -1,16 +1,35 @@
++void dispose_test_context(owned Context value) {}
+ // A diagnostic executable, not an alternative production algorithm.
+ // All E/M/correction functions are the exact production functions.
+ extern(C) int cad_test_begin(int argc, void* argv);
+-extern(C) void cad_test_load(void* buffer, int count);
++extern(C) void cad_test_open();
++extern(C) f64 cad_test_sample(int index);
++extern(C) void cad_test_close();
++void cad_test_load(Kernel[] state, int count) {
++	cad_test_open(); int k = 0;
++	while (k < len(state)) {
++		state[k].mx = cad_test_sample(k * 9 + 0);
++		state[k].my = cad_test_sample(k * 9 + 1);
++		state[k].xx = cad_test_sample(k * 9 + 2);
++		state[k].xy = cad_test_sample(k * 9 + 3);
++		state[k].yy = cad_test_sample(k * 9 + 4);
++		state[k].l = cad_test_sample(k * 9 + 5);
++		state[k].a = cad_test_sample(k * 9 + 6);
++		state[k].b = cad_test_sample(k * 9 + 7);
++		state[k].sigma = cad_test_sample(k * 9 + 8);
++		k = k + 1;
++	}
++	cad_test_close();
++}
+ int cad_entry(int argc, void* argv) {
+ 	if (cad_test_begin(argc, argv) != 0) { return 1; }
+ 	int wi = cad_option(0); int hi = cad_option(1); int wo = cad_option(2); int ho = cad_option(3);
+-	Context c = {wi=wi,hi=hi,wo=wo,ho=ho,count=wo * ho,pairs=0,rx=cad_number(wi) / cad_number(wo),ry=cad_number(hi) / cad_number(ho),state=null,next=null,means=null,supports=null,colors=null,ranges=null,logw=null,weights=null,gamma=null,pmax=null,psum=null,check=null,underflow=0,locality=0,orientation=0,inactive=0,normalization=0.0};
+-	initialize(&c); cad_test_load(c.state, c.count * 9); cad_dump(c.state, c.count, 9, 0);
++	owned Context c = Context.init(wi, hi, wo, ho);
++	initialize(c); cad_test_load(c.state, c.count * 9); cad_dump(c.state, c.count, 9, 0);
+ 	int iteration = 0;
+ 	while (iteration < cad_option(6)) {
+-		expectation(&c); maximization(&c); cad_mstep_state(c.next, c.count, iteration + 1); constrain_spatial(&c); constrain_shape(&c, cad_option(5) != 0);
+-		iteration = iteration + 1; finish_iteration(&c, iteration, cad_epsilon());
++		expectation(c); maximization(c); cad_mstep_state(c.next, c.count, iteration + 1); constrain_spatial(c); constrain_shape(c, cad_option(5) != 0);
++		iteration = iteration + 1; finish_iteration(c, iteration, cad_epsilon());
+ 	}
+-	cad_dump_final(c.state, c.count, 9, iteration); dispose(&c); return 0;
++	cad_dump_final(c.state, c.count, 9, iteration); dispose_test_context(move c); return 0;
+ }

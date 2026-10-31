@@ -1,0 +1,23 @@
+(unit
+	(function
+		(type "int")
+		(name "native")
+		(parameters
+			(parameter (borrowed) (type "void*") (name "p"))
+		)
+		(block
+			(return (call "inspect" (arguments (name "p"))))
+		)
+	)
+	(function
+		(type "void")
+		(name "f")
+		(parameters)
+		(block
+			(owned-local (type "void*") (name "h") (call "create" (arguments (integer "1"))))
+			(call-statement (call "native" (arguments (name "h"))))
+			(owned-local (type "void*") (name "next") (move (name "h")))
+			(call-statement (call "inspect" (arguments (name "next"))))
+		)
+	)
+)

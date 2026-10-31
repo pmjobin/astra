@@ -1,0 +1,66 @@
+(core-program
+	(function "run" -> int
+		(parameters
+			(parameter #0 "values" : string[] (contract borrowed-noescape))
+			(parameter #1 "index" : int)
+		)
+		(locals
+			(local-place #0 "text" : string)
+		)
+		(block
+			(initialize
+				(local-place #0 : string)
+				(load : string
+					(slice-element-place : string runtime-bounds-trap
+						(parameter #0 : string[])
+						(parameter #1 : int)
+					)
+				)
+			)
+			(return
+				(binary + : int
+					(slice-length : int
+						(parameter #0 : string[])
+					)
+					(text-byte-length : int
+						(load : string
+							(local-place #0 : string)
+						)
+					)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters
+			(parameter #0 "args" : string[] (contract borrowed-noescape))
+		)
+		(block
+			(if
+				(condition
+					(binary == : bool
+						(slice-length : int
+							(parameter #0 : string[])
+						)
+						(integer 0 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 0 : int)
+						)
+					)
+				)
+			)
+			(return
+				(call "run" -> int
+					(arguments
+						(parameter #0 : string[])
+						(integer 0 : int)
+					)
+				)
+			)
+		)
+	)
+)

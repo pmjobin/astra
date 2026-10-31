@@ -1,0 +1,62 @@
+(core-program
+	(function "wrapping" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(locals
+			(local-place #0 "a" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 2147483647 : int)
+			)
+			(store
+				(local-place #0 : int)
+				(binary + : int
+					(load : int
+						(local-place #0 : int)
+					)
+					(integer 1 : int)
+				)
+			)
+			(store
+				(local-place #0 : int)
+				(binary * : int
+					(load : int
+						(local-place #0 : int)
+					)
+					(parameter #0 : int)
+				)
+			)
+			(return
+				(prefix - : int
+					(load : int
+						(local-place #0 : int)
+					)
+				)
+			)
+		)
+	)
+	(function "overflow" -> int
+		(parameters)
+		(block
+			(return
+				(binary + : int
+					(integer 2147483647 : int)
+					(integer 1 : int)
+				)
+			)
+		)
+	)
+	(function "minimum_negation" -> int
+		(parameters)
+		(block
+			(return
+				(prefix - : int
+					(integer -2147483648 : int)
+				)
+			)
+		)
+	)
+)

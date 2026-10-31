@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct LookupKey {
+	i64 domain;
+	int code;
+}
+
+bool same_lookup_key(LookupKey left, LookupKey right) {
+	return left.domain == right.domain && left.code == right.code;
+}
+
+bool same_number(int left, int right) { return left == right; }
+
+class Comparator<K> {
+	private Fn<bool, K, K> compare;
+	private int calls;
+	init(Fn<bool, K, K> compare) {
+		this.compare = compare;
+		this.calls = 0;
+	}
+	bool matches(K left, K right) {
+		Fn<bool, K, K> apply = this.compare;
+		this.calls = this.calls + 1;
+		return apply(left, right);
+	}
+	property int observations { get { return this.calls; } }
+}
+
+int main() {
+	var numbers = new Comparator<int>(same_number);
+	LookupKey first = {domain = 7000000001, code = 41};
+	LookupKey same = {domain = 7000000001, code = 41};
+	LookupKey other = {domain = 7000000002, code = 41};
+	var keys = new Comparator<LookupKey>(same_lookup_key);
+	if (!numbers.matches(42, 42) || numbers.matches(41, 42) || numbers.observations != 2) { return 1; }
+	if (!keys.matches(first, same) || keys.matches(first, other) || keys.observations != 2) { return 2; }
+	return 0;
+}

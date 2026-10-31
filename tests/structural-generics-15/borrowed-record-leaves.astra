@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ParameterLeafChild {
+	int code;
+	init(int code) { this.code = code; }
+	int read() { return this.code; }
+	deinit() { mark(this.code); }
+}
+struct ParameterLeafStats { int count; i64 total; }
+struct ParameterLeaves {
+	owned ParameterLeafChild child;
+	owned R first;
+	owned Other second;
+	owned int[] samples;
+	owned i64[] wide;
+}
+struct ParameterLeafEnvelope { ParameterLeaves leaves; ParameterLeafStats stats; }
+int inspect_parameter_leaves(borrowed ParameterLeafEnvelope value) {
+	i64 expected = 9000000001;
+	ParameterLeafStats copied = value.stats;
+	if (copied.total != expected || value.leaves.wide[0] != expected) { return 0; }
+	if (value.leaves.child.code != 19) { return 0; }
+	return copied.count + value.leaves.child.read() + id(value.leaves.first) + other_id(value.leaves.second) + len(value.leaves.samples) + value.leaves.samples[0] + len(value.leaves.wide);
+}
+int forward_parameter_leaves(borrowed ParameterLeafEnvelope value) { return inspect_parameter_leaves(value); }
+int inspect_two_parameter_leaves(borrowed ParameterLeafEnvelope left, borrowed ParameterLeafEnvelope right) {
+	return inspect_parameter_leaves(left) + inspect_parameter_leaves(right);
+}
+int exercise_parameter_leaves() {
+	var child = new ParameterLeafChild(19);
+	var first = make(201);
+	var second = make_other(202);
+	var samples = new int[3];
+	var wide = new i64[5];
+	i64 expected = 9000000001;
+	samples[0] = 11;
+	wide[0] = expected;
+	ParameterLeafEnvelope value = {leaves = {child = move child, first = move first, second = move second, samples = move samples, wide = move wide}, stats = {count = 42, total = expected}};
+	if (inspect_parameter_leaves(value) != 483 || forward_parameter_leaves(value) != 483) { return 1; }
+	if (inspect_two_parameter_leaves(value, value) != 966 || live() != 2) { return 2; }
+	var moved = move value;
+	if (inspect_parameter_leaves(moved) != 483) { return 3; }
+	return 0;
+}
+int main() {
+	int result = exercise_parameter_leaves();
+	if (result != 0) { return result; }
+	return live();
+}

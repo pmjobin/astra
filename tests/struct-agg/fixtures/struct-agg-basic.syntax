@@ -1,0 +1,42 @@
+(unit
+	(struct "Inner"
+		(field (type "int") (name "x"))
+		(field (type "f64") (name "gain"))
+	)
+	(struct "Outer"
+		(field (type "Inner") (name "inner"))
+		(field (type "int") (name "tag"))
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Outer") (name "o")
+				(initialize-field "inner" (storage-initializer
+					(initialize-field "x" (integer "10"))
+					(initialize-field "gain" (float "0.5"))
+				))
+				(initialize-field "tag" (integer "7"))
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (field-access (base (field-access "o" "inner")) "x") (integer "10")) (binary "!=" (field-access (base (field-access "o" "inner")) "gain") (float "0.5"))) (binary "!=" (field-access "o" "tag") (integer "7"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(assign (field-access (base (field-access "o" "inner")) "x") (integer "42"))
+			(if
+				(condition (binary "!=" (field-access (base (field-access "o" "inner")) "x") (integer "42")))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

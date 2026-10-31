@@ -1,0 +1,39 @@
+void* choose_ptr(bool c, void* a, void* b) {
+	void* p = null;
+	if (c) {
+		p = a;
+	} else {
+		p = b;
+	}
+	return p;
+}
+
+void* maybe_ptr(bool c, void* p) {
+	void* result = null;
+	if (c) {
+		result = p;
+	}
+	return result;
+}
+
+void* select_ptr(int n, void* a, void* b) {
+	int i = 0;
+	void* p = a;
+	while (i < n) {
+		p = b;
+		i = i + 1;
+	}
+	return p;
+}
+
+int main() {
+	void* a = handle_a();
+	void* b = handle_b();
+	if (choose_ptr(true, a, b) != a) { return 1; }
+	if (choose_ptr(false, a, b) != b) { return 2; }
+	if (maybe_ptr(false, a) != null) { return 3; }
+	if (maybe_ptr(true, a) != a) { return 4; }
+	if (select_ptr(0, a, b) != a) { return 5; }
+	if (select_ptr(3, a, b) != b) { return 6; }
+	return 0;
+}

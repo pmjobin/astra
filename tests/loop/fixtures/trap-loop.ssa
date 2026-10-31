@@ -1,0 +1,88 @@
+(ssa-program
+	(function #0 "divide_loop" -> int
+		(parameters
+			(%0 "n" : int)
+			(%1 "divisor" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 64 : int)))
+		)
+		(block #1
+			(arguments
+				(%2 "i" : int)
+				(%3 "x" : int)
+			)
+			(%4 : bool = binary < %2 %0)
+			(conditional-branch %4
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%5 : int = binary / %3 %1)
+			(%6 : int = binary + %2 (integer 1 : int))
+			(branch #1 (%6 %5))
+		)
+		(block #3
+			(return %3)
+		)
+	)
+	(function #1 "remainder_loop" -> int
+		(parameters
+			(%0 "n" : int)
+			(%1 "divisor" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 ((integer 0 : int) (integer 64 : int)))
+		)
+		(block #1
+			(arguments
+				(%2 "i" : int)
+				(%3 "x" : int)
+			)
+			(%4 : bool = binary < %2 %0)
+			(conditional-branch %4
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%5 : int = binary % %3 %1)
+			(%6 : int = binary + %2 (integer 1 : int))
+			(branch #1 (%6 %5))
+		)
+		(block #3
+			(return %3)
+		)
+	)
+	(function #2 "condition_divide" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 (%0))
+		)
+		(block #1
+			(arguments
+				(%2 "x" : int)
+			)
+			(%3 : int = binary / %2 %1)
+			(%4 : bool = binary > %3 (integer 0 : int))
+			(conditional-branch %4
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%5 : int = binary - %2 (integer 1 : int))
+			(branch #1 (%5))
+		)
+		(block #3
+			(return %2)
+		)
+	)
+)

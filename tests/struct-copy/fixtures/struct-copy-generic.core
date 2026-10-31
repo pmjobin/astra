@@ -1,0 +1,397 @@
+(core-program
+	(generic-struct #0 "Box"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "value" : T)
+	)
+	(generic-struct #1 "Bundle"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "left" : Box<T>)
+		(generic-field #1 "right" : Box<T>)
+		(generic-field #2 "meta" : ConcretePair)
+	)
+	(struct "ConcretePair"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(generic-definition #0 "pass" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(function "pass" -> T
+		(parameters
+			(parameter #0 "value" : T)
+		)
+		(locals
+			(struct-local-place #0 "a" : ConcretePair)
+			(struct-local-place #1 "b" : ConcretePair)
+			(local-place #2 "c" : Box<int>)
+			(local-place #3 "d" : Box<int>)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : ConcretePair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : ConcretePair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #1 : ConcretePair) (field #0 "x") : int)
+			(field-place (base struct-local-place #1 : ConcretePair) (field #1 "y") : f64)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : ConcretePair) (field #0 "x") : int)
+				(integer 2 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : ConcretePair) (field #1 "y") : f64)
+				(f64 0x3ff0000000000000 : f64)
+			)
+			(struct-copy (type ConcretePair) initialize snapshot-before-write
+				(destination
+					(local-place #1 : ConcretePair)
+				)
+				(source
+					(local-place #0 : ConcretePair)
+				)
+			)
+			(initialize
+				(generic-field-place (owner Box<int>) (field Box::value #0) : int
+					(local-place #2 : Box<int>)
+				)
+				(load : int
+					(field-place (base struct-local-place #1 : ConcretePair) (field #0 "x") : int)
+				)
+			)
+			(struct-copy (type Box<int>) initialize snapshot-before-write
+				(destination
+					(local-place #3 : Box<int>)
+				)
+				(source
+					(local-place #2 : Box<int>)
+				)
+			)
+			(struct-copy (type Box<int>) assign snapshot-before-write
+				(destination
+					(local-place #2 : Box<int>)
+				)
+				(source
+					(local-place #3 : Box<int>)
+				)
+			)
+			(return
+				(parameter #0 : T)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "a" : Box<int>)
+			(local-place #1 "b" : Box<int> address-taken)
+			(local-place #2 "c" : Box<f64>)
+			(local-place #3 "d" : Box<f64>)
+			(local-place #4 "e" : Box<i16<8>>)
+			(local-place #5 "f" : Box<i16<8>>)
+			(local-place #6 "g" : Bundle<f64>)
+			(local-place #7 "h" : Bundle<f64>)
+			(struct-local-place #8 "metadata" : ConcretePair)
+			(local-place #9 "i" : Box<f64>)
+			(local-place #10 "p" : Box<int>*)
+			(local-place #11 "j" : Box<int>)
+		)
+		(field-places
+			(field-place (base struct-local-place #8 : ConcretePair) (field #0 "x") : int)
+			(field-place (base struct-local-place #8 : ConcretePair) (field #1 "y") : f64)
+		)
+		(block
+			(initialize
+				(generic-field-place (owner Box<int>) (field Box::value #0) : int
+					(local-place #0 : Box<int>)
+				)
+				(integer 42 : int)
+			)
+			(struct-copy (type Box<int>) initialize snapshot-before-write
+				(destination
+					(local-place #1 : Box<int>)
+				)
+				(source
+					(local-place #0 : Box<int>)
+				)
+			)
+			(struct-copy (type Box<int>) assign snapshot-before-write
+				(destination
+					(local-place #1 : Box<int>)
+				)
+				(source
+					(local-place #0 : Box<int>)
+				)
+			)
+			(initialize
+				(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+					(local-place #2 : Box<f64>)
+				)
+				(f64 0x400c000000000000 : f64)
+			)
+			(struct-copy (type Box<f64>) initialize snapshot-before-write
+				(destination
+					(local-place #3 : Box<f64>)
+				)
+				(source
+					(local-place #2 : Box<f64>)
+				)
+			)
+			(initialize
+				(generic-field-place (owner Box<i16<8>>) (field Box::value #0) : i16<8>
+					(local-place #4 : Box<i16<8>>)
+				)
+				(vector-splat : i16<8>
+					(lanes 8)
+					(value
+						(integer 7 : i16)
+					)
+				)
+			)
+			(struct-copy (type Box<i16<8>>) initialize snapshot-before-write
+				(destination
+					(local-place #5 : Box<i16<8>>)
+				)
+				(source
+					(local-place #4 : Box<i16<8>>)
+				)
+			)
+			(struct-initialize-storage
+				(generic-field-place (owner Bundle<f64>) (field Bundle::left #0) : Box<f64>
+					(local-place #6 : Bundle<f64>)
+				)
+				(initialize
+					(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+						(generic-field-place (owner Bundle<f64>) (field Bundle::left #0) : Box<f64>
+							(local-place #6 : Bundle<f64>)
+						)
+					)
+					(f64 0x3ff8000000000000 : f64)
+				)
+			)
+			(struct-initialize-storage
+				(generic-field-place (owner Bundle<f64>) (field Bundle::right #1) : Box<f64>
+					(local-place #6 : Bundle<f64>)
+				)
+				(initialize
+					(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+						(generic-field-place (owner Bundle<f64>) (field Bundle::right #1) : Box<f64>
+							(local-place #6 : Bundle<f64>)
+						)
+					)
+					(f64 0x4004000000000000 : f64)
+				)
+			)
+			(struct-initialize-storage
+				(generic-field-place (owner Bundle<f64>) (field Bundle::meta #2) : ConcretePair
+					(local-place #6 : Bundle<f64>)
+				)
+				(initialize
+					(field-place : int (field ConcretePair::x #0)
+						(generic-field-place (owner Bundle<f64>) (field Bundle::meta #2) : ConcretePair
+							(local-place #6 : Bundle<f64>)
+						)
+					)
+					(integer 7 : int)
+				)
+				(initialize
+					(field-place : f64 (field ConcretePair::y #1)
+						(generic-field-place (owner Bundle<f64>) (field Bundle::meta #2) : ConcretePair
+							(local-place #6 : Bundle<f64>)
+						)
+					)
+					(f64 0x3ff8000000000000 : f64)
+				)
+			)
+			(struct-copy (type Bundle<f64>) initialize snapshot-before-write
+				(destination
+					(local-place #7 : Bundle<f64>)
+				)
+				(source
+					(local-place #6 : Bundle<f64>)
+				)
+			)
+			(struct-copy (type Box<f64>) assign snapshot-before-write
+				(destination
+					(generic-field-place (owner Bundle<f64>) (field Bundle::left #0) : Box<f64>
+						(local-place #7 : Bundle<f64>)
+					)
+				)
+				(source
+					(generic-field-place (owner Bundle<f64>) (field Bundle::right #1) : Box<f64>
+						(local-place #7 : Bundle<f64>)
+					)
+				)
+			)
+			(struct-copy (type ConcretePair) initialize snapshot-before-write
+				(destination
+					(local-place #8 : ConcretePair)
+				)
+				(source
+					(generic-field-place (owner Bundle<f64>) (field Bundle::meta #2) : ConcretePair
+						(local-place #7 : Bundle<f64>)
+					)
+				)
+			)
+			(struct-copy (type ConcretePair) assign snapshot-before-write
+				(destination
+					(generic-field-place (owner Bundle<f64>) (field Bundle::meta #2) : ConcretePair
+						(local-place #7 : Bundle<f64>)
+					)
+				)
+				(source
+					(local-place #8 : ConcretePair)
+				)
+			)
+			(struct-copy (type Box<f64>) initialize snapshot-before-write
+				(destination
+					(local-place #9 : Box<f64>)
+				)
+				(source
+					(generic-field-place (owner Bundle<f64>) (field Bundle::left #0) : Box<f64>
+						(local-place #7 : Bundle<f64>)
+					)
+				)
+			)
+			(initialize
+				(local-place #10 : Box<int>*)
+				(address-of : Box<int>*
+					(local-place #1 : Box<int>)
+				)
+			)
+			(struct-copy (type Box<int>) assign snapshot-before-write
+				(destination
+					(dereference-place : Box<int> null-traps
+						(load : Box<int>*
+							(local-place #10 : Box<int>*)
+						)
+					)
+				)
+				(source
+					(local-place #0 : Box<int>)
+				)
+			)
+			(struct-copy (type Box<int>) initialize snapshot-before-write
+				(destination
+					(local-place #11 : Box<int>)
+				)
+				(source
+					(dereference-place : Box<int> null-traps
+						(load : Box<int>*
+							(local-place #10 : Box<int>*)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(short-circuit || : bool
+									(short-circuit || : bool
+										(short-circuit || : bool
+											(short-circuit || : bool
+												(short-circuit || : bool
+													(binary != : bool
+														(load : int
+															(field-place : int (field ConcretePair::x #0)
+																(generic-field-place (owner Bundle<f64>) (field Bundle::meta #2) : ConcretePair
+																	(local-place #7 : Bundle<f64>)
+																)
+															)
+														)
+														(integer 7 : int)
+													)
+													(binary != : bool
+														(load : f64
+															(field-place (base struct-local-place #8 : ConcretePair) (field #1 "y") : f64)
+														)
+														(f64 0x3ff8000000000000 : f64)
+													)
+												)
+												(binary != : bool
+													(load : int
+														(generic-field-place (owner Box<int>) (field Box::value #0) : int
+															(local-place #11 : Box<int>)
+														)
+													)
+													(integer 42 : int)
+												)
+											)
+											(binary != : bool
+												(load : f64
+													(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+														(local-place #3 : Box<f64>)
+													)
+												)
+												(f64 0x400c000000000000 : f64)
+											)
+										)
+										(binary != : bool
+											(vector-extract : i16
+												(lane 7)
+												(vector
+													(load : i16<8>
+														(generic-field-place (owner Box<i16<8>>) (field Box::value #0) : i16<8>
+															(local-place #5 : Box<i16<8>>)
+														)
+													)
+												)
+											)
+											(integer 7 : i16)
+										)
+									)
+									(binary != : bool
+										(load : f64
+											(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+												(generic-field-place (owner Bundle<f64>) (field Bundle::left #0) : Box<f64>
+													(local-place #7 : Bundle<f64>)
+												)
+											)
+										)
+										(f64 0x4004000000000000 : f64)
+									)
+								)
+								(binary != : bool
+									(load : f64
+										(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+											(generic-field-place (owner Bundle<f64>) (field Bundle::left #0) : Box<f64>
+												(local-place #6 : Bundle<f64>)
+											)
+										)
+									)
+									(f64 0x3ff8000000000000 : f64)
+								)
+							)
+							(binary != : bool
+								(load : f64
+									(generic-field-place (owner Box<f64>) (field Box::value #0) : f64
+										(local-place #9 : Box<f64>)
+									)
+								)
+								(f64 0x4004000000000000 : f64)
+							)
+						)
+						(binary != : bool
+							(generic-call "pass" -> int
+								(type-arguments int)
+								(arguments
+									(integer 42 : int)
+								)
+							)
+							(integer 42 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

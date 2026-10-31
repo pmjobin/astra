@@ -1,0 +1,19 @@
+class Counter {
+	int value;
+	void add(int amount) { this.value = this.value + amount; }
+	int get() { return this.value; }
+}
+int main() {
+	Counter a = { value = 1 };
+	Counter alias = a;
+	alias.value = 40;
+	a.add(1);
+	alias.add(1);
+	if (a != alias || alias.get() != 42) { return 1; }
+	a = null;
+	if (a != null || alias.value != 42) { return 2; }
+	Counter b = { value = 2 };
+	a = b;
+	a = alias;
+	return a.get();
+}

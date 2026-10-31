@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	try {
+		var result = Result.Success(42);
+		var executor = VirtualExecutor.open(3);
+		var status = executor.run(controller(17));
+		match (status) {
+			case RunStatus.Completed(): {
+				match (result) {
+					case Result.Success(value): { return value; }
+					case Result.Error(code): { return code; }
+				}
+			}
+			else: { return 1; }
+		}
+	} catch (Error error) { return 2; }
+}

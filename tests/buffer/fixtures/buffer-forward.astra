@@ -1,0 +1,11 @@
+owned f64[] factory(int count) { return new f64[count]; }
+owned f64[] relay(owned f64[] values) { return move values; }
+owned f64[] forward(int count) { return factory(count); }
+owned f64[] again(int count) { return forward(count); }
+int main() {
+	owned f64[] values = again(5);
+	values[4] = 9.0;
+	owned f64[] final = relay(move values);
+	if (len(final) != 5 || final[4] != 9.0) { return 1; }
+	return 0;
+}

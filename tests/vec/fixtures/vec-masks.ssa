@@ -1,0 +1,214 @@
+(ssa-program
+	(function #0 "compare" -> bool<8>
+		(parameters
+			(%0 "a" : i16<8>)
+			(%1 "b" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool<8> = binary < %0 %1)
+			(return %2)
+		)
+	)
+	(function #1 "flip" -> bool<4>
+		(parameters
+			(%0 "m" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool<4> = prefix ! %0)
+			(return %1)
+		)
+	)
+	(function #2 "equal" -> bool<4>
+		(parameters
+			(%0 "a" : bool<4>)
+			(%1 "b" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool<4> = binary == %0 %1)
+			(return %2)
+		)
+	)
+	(function #3 "unequal" -> bool<4>
+		(parameters
+			(%0 "a" : bool<4>)
+			(%1 "b" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(%2 : bool<4> = binary != %0 %1)
+			(return %2)
+		)
+	)
+	(function #4 "every" -> bool
+		(parameters
+			(%0 "m" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = vector-all %0)
+			(return %1)
+		)
+	)
+	(function #5 "some" -> bool
+		(parameters
+			(%0 "m" : bool<4>)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = vector-any %0)
+			(return %1)
+		)
+	)
+	(function #6 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(%6 : bool<4> = vector-init (bool true : bool) (bool false : bool) (bool true : bool) (bool false : bool))
+			(%7 : bool<4> = vector-init (bool false : bool) (bool true : bool) (bool false : bool) (bool true : bool))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%18 : bool<4> = vector-init (bool true : bool) (bool true : bool) (bool true : bool) (bool true : bool))
+			(%19 : bool<4> = vector-init (bool false : bool) (bool false : bool) (bool false : bool) (bool false : bool))
+			(branch #14 ())
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(branch #5 ())
+		)
+		(block #5
+			(%8 : bool = call #4 "every" -> bool (arguments %6))
+			(conditional-branch %8
+				(true #7 ((bool true : bool)))
+				(false #6 ())
+			)
+		)
+		(block #6
+			(%9 : bool = call #5 "some" -> bool (arguments %6))
+			(%10 : bool = prefix ! %9)
+			(branch #7 (%10))
+		)
+		(block #7
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #9 ((bool true : bool)))
+				(false #8 ())
+			)
+		)
+		(block #8
+			(%11 : bool<4> = call #1 "flip" -> bool<4> (arguments %6))
+			(%12 : bool<4> = call #2 "equal" -> bool<4> (arguments %11 %7))
+			(%13 : bool = call #4 "every" -> bool (arguments %12))
+			(%14 : bool = prefix ! %13)
+			(branch #9 (%14))
+		)
+		(block #9
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #11 ((bool true : bool)))
+				(false #10 ())
+			)
+		)
+		(block #10
+			(%15 : bool<4> = call #3 "unequal" -> bool<4> (arguments %6 %7))
+			(%16 : bool = call #4 "every" -> bool (arguments %15))
+			(%17 : bool = prefix ! %16)
+			(branch #11 (%17))
+		)
+		(block #11
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #12
+			(return (integer 2 : int))
+		)
+		(block #13
+			(%26 : i16<8> = vector-init (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16))
+			(%27 : i16<8> = vector-init (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16) (integer 9 : i16))
+			(%28 : bool<8> = call #0 "compare" -> bool<8> (arguments %26 %27))
+			(%29 : bool = vector-all %28)
+			(%30 : bool = prefix ! %29)
+			(conditional-branch %30
+				(true #23 ())
+				(false #24 ())
+			)
+		)
+		(block #14
+			(branch #15 ())
+		)
+		(block #15
+			(branch #16 ())
+		)
+		(block #16
+			(%20 : bool = call #4 "every" -> bool (arguments %18))
+			(%21 : bool = prefix ! %20)
+			(conditional-branch %21
+				(true #18 ((bool true : bool)))
+				(false #17 ())
+			)
+		)
+		(block #17
+			(%22 : bool = call #5 "some" -> bool (arguments %19))
+			(branch #18 (%22))
+		)
+		(block #18
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #20 ((bool true : bool)))
+				(false #19 ())
+			)
+		)
+		(block #19
+			(%23 : bool = call #4 "every" -> bool (arguments %19))
+			(branch #20 (%23))
+		)
+		(block #20
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #22 ((bool true : bool)))
+				(false #21 ())
+			)
+		)
+		(block #21
+			(%24 : bool = call #5 "some" -> bool (arguments %18))
+			(%25 : bool = prefix ! %24)
+			(branch #22 (%25))
+		)
+		(block #22
+			(arguments
+				(%5 (temporary #5) : bool)
+			)
+			(conditional-branch %5
+				(true #12 ())
+				(false #13 ())
+			)
+		)
+		(block #23
+			(return (integer 3 : int))
+		)
+		(block #24
+			(return (integer 0 : int))
+		)
+	)
+)

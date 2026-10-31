@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+void clear(i16<8>* p) { *p = splat(0,8); }
+void forward(i16<8>* p) { clear(p); }
+int main() {
+	i16<8> v = {1,2,3,4,5,6,7,8};
+	i16<8>* p = &v;
+	*p = splat(42,8);
+	if (!all(v == splat(42,8))) { return 1; }
+	i16<8> loaded = *p;
+	if (!all(loaded == v)) { return 2; }
+	forward(p);
+	if (!all(v == splat(0,8))) { return 3; }
+	int<4> a = {1,2,3,4};
+	i32<4>* q = &a;
+	int<4>* r = q;
+	*r = splat(7,4);
+	if (r != q || !all(a == splat(7,4))) { return 4; }
+	return 0;
+}

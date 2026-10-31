@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[COMImport(name="iv14", iid="849ad154-8d1e-4c63-9ea2-14329b022001", view="value", threading="constructing")]
+interface ImportedValue;
+[COMImport(name="is14", iid="849ad154-8d1e-4c63-9ea2-14329b022002", view="scale", threading="constructing")]
+interface ImportedScale;
+
+[CExport(name="astra_import_exercise")]
+int exercise(void* unknown) {
+	int status = 99;
+	owned ImportedValue value = iv14_acquire(unknown, &status);
+	if (value == null) { return status; }
+	if (status != 0) { return 1; }
+	owned ImportedScale scale = is14_acquire(unknown, &status);
+	if (scale == null) { return status; }
+	owned ImportedValue copy = iv14_clone(value, &status);
+	if (copy == null) { return status; }
+	owned ImportedValue moved = move copy;
+	release value;
+	int out = 99;
+	if (iv14_get(moved, &out) != 0 || out != 40) { return 2; }
+	if (iv14_set(moved, 17) != 0 || iv14_get(moved, &out) != 0 || out != 17) { return 3; }
+	if (is14_scale(scale, 2, &out) != 0 || out != 34) { return 4; }
+	if (is14_scale(scale, 0, &out) != 1 || out != 0) { return 5; }
+	if (is14_scale(scale, -1, &out) != -2147024809 || out != 0) { return 6; }
+	if (iv14_get(moved, null) != -2147467261) { return 7; }
+	release moved;
+	release scale;
+	return 0;
+}
+
+[CExport(name="astra_import_early")]
+int early(void* unknown) {
+	int status = 99;
+	owned ImportedValue value = iv14_acquire(unknown, &status);
+	if (value == null) { return status; }
+	owned ImportedValue copy = iv14_clone(value, &status);
+	if (copy == null) { return status; }
+	return 73;
+}
+
+[CExport(name="astra_import_status")]
+int status(void* unknown) {
+	int status = 99;
+	owned ImportedValue value = iv14_acquire(unknown, &status);
+	return status;
+}

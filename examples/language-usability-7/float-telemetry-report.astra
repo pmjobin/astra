@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A54: validate both widths by format/parse/format, then publish one owned report.
+void telemetry_row(Utf8ByteBuilder report, string input) throws Error {
+	f32 first = parse_f32(input);
+	f64 second = parse_f64(input);
+	var first_text = format_f32(first);
+	var second_text = format_f64(second);
+	var first_again = format_f32(parse_f32(first_text.text));
+	var second_again = format_f64(parse_f64(second_text.text));
+	if (first_text.text != first_again.text || second_text.text != second_again.text) {
+		throw new Error("telemetry round trip changed");
+	}
+	if (!append_text(report, first_text.text) || !append_text(report, "\t") ||
+		!append_text(report, second_text.text) || !append_text(report, "\n")) {
+		throw new Error("telemetry report capacity");
+	}
+}
+void telemetry_wide(Utf8ByteBuilder report, string input) throws Error {
+	var text = format_f64(parse_f64(input));
+	var again = format_f64(parse_f64(text.text));
+	if (text.text != again.text) { throw new Error("wide telemetry round trip changed"); }
+	if (!append_text(report, "-\t") || !append_text(report, text.text) || !append_text(report, "\n")) {
+		throw new Error("telemetry report capacity");
+	}
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		var report = new Utf8ByteBuilder();
+		if (!append_text(report, "f32\tf64\n")) { return 70; }
+		telemetry_row(report, "-0");
+		telemetry_row(report, "1.401298464324817e-45");
+		telemetry_row(report, "3.4028234663852886e38");
+		telemetry_row(report, "nan");
+		telemetry_row(report, "inf");
+		telemetry_row(report, "-inf");
+		telemetry_wide(report, "4.9406564584124654e-324");
+		telemetry_wide(report, "1.7976931348623157e308");
+		telemetry_row(report, args[2]);
+		var output = report.snapshot();
+		write_text_file(args[1], output.text);
+		println("telemetry written");
+		return 0;
+	} catch (Error failure) { println("telemetry failed"); return 65; }
+}

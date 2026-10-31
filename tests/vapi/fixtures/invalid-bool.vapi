@@ -1,0 +1,1 @@
+bool invalid(int x);

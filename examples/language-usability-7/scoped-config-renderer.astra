@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A53: load one owned configuration and render through its bounded receiver.
+class Configuration {
+	readonly string name;
+	int port;
+	init(string name, int port) { this.name = name; this.port = port; }
+	property int display_port { get { return this.port + 1000; } }
+	deinit() { print("closed "); println(this.name); }
+}
+owned Configuration load_configuration(string path) throws Error {
+	var bytes = read_file(path);
+	if (bytes.byte_count() == 0) { throw new Error("empty configuration"); }
+	var name = bytes.decode();
+	println("loaded configuration");
+	var config = new Configuration(name.text, 8080);
+	return move config;
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		with (var config = load_configuration(args[1])) {
+			print("name "); println(config.name);
+			var builder = new Utf8ByteBuilder();
+			if (!append_int(builder, config.display_port)) { return 70; }
+			var port = builder.snapshot();
+			print("port "); println(port.text);
+			with (var nested = new Configuration("nested", 9000)) {
+				print("nested "); println(nested.name);
+				print("outer "); println(config.name);
+			}
+			if (args[2] == "early") { return 0; }
+			if (args[2] == "fail") { throw new Error("renderer interrupted"); }
+			println("rendered");
+		}
+		return 0;
+	} catch (Error error) { println("render failed"); return 65; }
+}

@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace QueryCPU;
+enum WorkerPhase { Completed, Cancelled }
+async runtime Pool throws QueryRuntimeError returns WorkerPhase provider "posix-threaded-composed";
+
+async int lane(owned QueryModel.Queue ready, owned QueryModel.Cache cache, int identity, int quota) throws QueryModel.Fault {
+	var results = query_allocator(quota as i64, 128, identity);
+	if (results == null) { cache.fail(); throw new Error("query result context"); }
+	try {
+		int completed = 0; bool done = false;
+		while (!done) {
+			if (cache.stopped()) { throw new Error("query worker stopped"); }
+			var ticket = ready.pop();
+			if (ticket == null) { if (cache.completed_clients() == 3) { done = true; } else { await delay_ticks(1); } }
+			else {
+				var block = ticket.payload();
+				try {
+					var entry = block.analyze(results, ticket.id(), ticket.operation());
+					if (cache.stopped()) { ticket.refuse(); }
+					else { var cached = QueryModel.clone_entry(entry); cache.store(move cached); ticket.finish(move entry); }
+				} catch (QueryModel.Fault refusal) { cache.rejection(); ticket.refuse(); }
+				completed = completed + 1;
+				await delay_ticks(1);
+			}
+		}
+		return completed;
+	} catch (QueryModel.Fault error) { cache.fail(); throw; }
+}
+async int pipeline(owned ConcurrentAllocator frames, owned QueryModel.Queue ready, owned QueryModel.Cache cache, int quota) throws QueryModel.Fault {
+	var first = task_in(frames, lane(QueryModel.clone_queue(ready), QueryModel.clone_cache(cache), 61, quota));
+	var second = task_in(frames, lane(QueryModel.clone_queue(ready), QueryModel.clone_cache(cache), 62, quota));
+	try { start(first); start(second); }
+	catch (QueryModel.Fault error) { cancel(first); cancel(second); await cancel_and_join(move first); await cancel_and_join(move second); cache.fail(); throw; }
+	int completed = 0;
+	try { completed = await move first; }
+	catch (QueryModel.Fault error) { await cancel_and_join(move second); cache.fail(); throw; }
+	completed = completed + await move second; return completed;
+}

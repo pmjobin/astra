@@ -1,0 +1,190 @@
+(core-program
+	(generic-definition #0 "inner" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Numeric)
+	(function "inner" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+		)
+		(block
+			(return
+				(generic-op add (capability Numeric) (type-parameter #0 T) : T
+					(parameter #0 : T)
+					(parameter #1 : T)
+				)
+			)
+		)
+	)
+	(generic-definition #1 "outer" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(type-parameter #1 U)
+	(requires #1 U Eq)
+	(requires #0 T Numeric)
+	(function "outer" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+			(parameter #2 "token" : U)
+		)
+		(block
+			(if
+				(condition
+					(generic-op eq (capability Eq) (type-parameter #1 U) : bool
+						(parameter #2 : U)
+						(parameter #2 : U)
+					)
+				)
+				(then
+					(block
+						(return
+							(generic-call "inner" -> T
+								(type-arguments T)
+								(arguments
+									(parameter #0 : T)
+									(parameter #1 : T)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(parameter #0 : T)
+			)
+		)
+	)
+	(generic-definition #2 "tag" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Eq)
+	(function "tag" -> int
+		(parameters)
+		(block
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+	(generic-definition #3 "unused" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Numeric)
+	(function "unused" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+		)
+		(block
+			(return
+				(generic-op div (capability Numeric) (type-parameter #0 T) : T
+					(parameter #0 : T)
+					(parameter #1 : T)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local-place #0 "a" : int)
+			(local-place #1 "b" : int)
+			(local-place #2 "c" : i8)
+			(local-place #3 "d" : u8)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(generic-call "outer" -> int
+					(type-arguments int bool)
+					(arguments
+						(integer 40 : int)
+						(integer 2 : int)
+						(bool true : bool)
+					)
+				)
+			)
+			(initialize
+				(local-place #1 : int)
+				(generic-call "outer" -> int
+					(type-arguments int bool)
+					(arguments
+						(integer 40 : int)
+						(integer 2 : int)
+						(bool false : bool)
+					)
+				)
+			)
+			(initialize
+				(local-place #2 : i8)
+				(generic-call "inner" -> i8
+					(type-arguments i8)
+					(arguments
+						(integer 1 : i8)
+						(integer 2 : i8)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : u8)
+				(generic-call "inner" -> u8
+					(type-arguments u8)
+					(arguments
+						(integer 1 : u8)
+						(integer 2 : u8)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(short-circuit && : bool
+								(binary == : bool
+									(load : int
+										(local-place #0 : int)
+									)
+									(load : int
+										(local-place #1 : int)
+									)
+								)
+								(binary == : bool
+									(load : i8
+										(local-place #2 : i8)
+									)
+									(integer 3 : i8)
+								)
+							)
+							(binary == : bool
+								(load : u8
+									(local-place #3 : u8)
+								)
+								(integer 3 : u8)
+							)
+						)
+						(binary == : bool
+							(generic-call "tag" -> int
+								(type-arguments int)
+								(arguments)
+							)
+							(generic-call "tag" -> int
+								(type-arguments f64)
+								(arguments)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(load : int
+								(local-place #0 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+)

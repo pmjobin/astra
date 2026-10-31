@@ -1,0 +1,25 @@
+extern(C) void observed(int tag);
+class Item {
+	int tag;
+	init(int tag) { this.tag = tag; }
+	deinit() { observed(this.tag); }
+}
+bool is_tag(Item item, int expected) { return item.tag == expected; }
+class Items {
+	owned Item[slots] entries;
+	init() { this.entries = new Item[slots]; }
+	bool reserve(int n) { return this.entries.reserve(n); }
+	void append(owned Item item) { this.entries.append(move item); }
+	owned Item take(int index) { var value = this.entries.take(index); return move value; }
+	int count() { return len(this.entries); }
+	bool check(int index, int tag) { return is_tag(this.entries[index], tag); }
+}
+int main() {
+	var bag = new Items();
+	if (!bag.reserve(3)) { return 80; }
+	var a = new Item(1); var b = new Item(2); var c = new Item(3);
+	bag.append(move a); bag.append(move b); bag.append(move c);
+	var taken = bag.take(1);
+	if (!is_tag(taken, 2) || bag.count() != 2 || !bag.check(0, 1) || !bag.check(1, 3)) { return 81; }
+	return 0;
+}

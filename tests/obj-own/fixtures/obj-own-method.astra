@@ -1,0 +1,23 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { life_record(this.value, 0); }
+	void add(int n) { this.value = this.value + n; }
+}
+class Helper {
+	void consume(owned Counter c) { c.add(1); }
+}
+struct Worker {
+	int extra;
+	void consume(owned Counter c) { c.add(this.extra); }
+}
+int main() {
+	Helper h = {};
+	Worker w = { extra = 1 };
+	owned Counter a = Counter.init(41);
+	owned Counter b = Counter.init(41);
+	h.consume(move a);
+	w.consume(move b);
+	return 42;
+}

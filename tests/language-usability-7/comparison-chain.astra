@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void usability_event(int value);
+extern(C) f64 usability_nan();
+extern(C) f64 usability_infinity();
+const bool READY = 1 < 2 <= 3;
+const bool SKIP = 3 < 2 < (1 / 0);
+class Probe {
+	int calls;
+	init() { this.calls = 0; }
+	int value(int value) { this.calls = this.calls + 1; usability_event(value); return value; }
+}
+int throwing_operand(int value) throws Error {
+	usability_event(value);
+	throw new Error("operand");
+}
+bool ordered(Probe probe) {
+	return probe.value(1) < probe.value(2) <= probe.value(3) < probe.value(4);
+}
+int main() {
+	if (!READY || SKIP) { return 12; }
+	var probe = Probe.init();
+	if (!ordered(probe) || probe.calls != 4) { return 1; }
+	if (probe.value(8) < probe.value(7) < probe.value(99)) { return 2; }
+	if (probe.calls != 6) { return 3; }
+	if (!(probe.value(3) > probe.value(2) >= probe.value(1))) { return 4; }
+	if (probe.calls != 9) { return 5; }
+	for (int i = 0; 0 <= i < 3; i = i + 1) { usability_event(10 + i); }
+	f64 nan = usability_nan();
+	f64 inf = usability_infinity();
+	if (0.0 < nan < inf || -inf < nan < 0.0) { return 6; }
+	if (!(-inf < 0.0 < inf)) { return 7; }
+	try {
+		if (3 < 2 < throwing_operand(88)) { return 8; }
+		if (1 < 2 < throwing_operand(42)) { return 9; }
+		return 10;
+	} catch (Error error) { usability_event(50); }
+	if (probe.calls != 9) { return 11; }
+	return 0;
+}

@@ -1,0 +1,5 @@
+extern(C) int life_record(int code, int value);
+class Plain { int value; }
+int inspect(borrowed Plain view, borrowed Plain other) { other.value = 42; return view.value; }
+void consume(owned Plain owner) {}
+int main() { owned Plain p = { value = 1 }; int value = inspect(p, p); consume(move p); return value; }

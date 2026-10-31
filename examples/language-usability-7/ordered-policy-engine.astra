@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A52: the middle probe is shared once; a failed comparison skips the upper probe.
+class PolicyProbe {
+	int lower_count;
+	int measure_count;
+	int upper_count;
+	init() { this.lower_count = 0; this.measure_count = 0; this.upper_count = 0; }
+	f64 lower() { this.lower_count = this.lower_count + 1; return 0.0; }
+	f64 measure(f64 value, bool fail) throws Error {
+		this.measure_count = this.measure_count + 1;
+		if (fail) { throw new Error("measurement unavailable"); }
+		return value;
+	}
+	f64 upper() { this.upper_count = this.upper_count + 1; return 100.0; }
+}
+void policy_count(string label, int value) throws InvalidUtf8 {
+	var builder = new Utf8ByteBuilder();
+	if (!append_int(builder, value)) { throw new InvalidUtf8(); }
+	var text = builder.snapshot();
+	print(label); println(text.text);
+}
+void show_policy_counts(PolicyProbe probe) throws InvalidUtf8 {
+	policy_count("lower ", probe.lower_count);
+	policy_count("measure ", probe.measure_count);
+	policy_count("upper ", probe.upper_count);
+}
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	if (args[2] != "normal" && args[2] != "fail") { return 64; }
+	var probe = new PolicyProbe();
+	try {
+		f64 value = parse_f64(args[1]);
+		try {
+			if (probe.lower() <= probe.measure(value, args[2] == "fail") < probe.upper()) {
+				println("policy allow");
+			} else { println("policy deny"); }
+			show_policy_counts(probe);
+			return 0;
+		} catch (Error failure) {
+			println("policy failed");
+			show_policy_counts(probe);
+			return 65;
+		}
+	} catch (Error failure) { println("policy invalid"); return 65; }
+}

@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Kernel { int index; f64 gain; }
+struct OtherRecord { int tag; }
+struct Box<T> { T value; }
+struct Pair<T,U> { T first; U second; }
+struct Holder { Box<Kernel> payload; int tag; }
+T identity<T>(T value) { return value; }
+T choose_value<T>(bool take_first, T first, T second) {
+	T selected = second;
+	if (take_first) { selected = first; }
+	int i = 0;
+	while (i < 2) { T saved = selected; selected = saved; i = i + 1; }
+	return selected;
+}
+T through_box<T>(T input) {
+	Box<T> first = { value = input };
+	Box<T> second = first;
+	T saved = second.value;
+	second.value = input;
+	return identity(saved);
+}
+T constructed<T>(T input) {
+	Box<T> box = { value = input };
+	Box<T> copy = identity(box);
+	Box<T> explicit_copy = identity<Box<T>>(copy);
+	Box<Box<T>> nested = { value = explicit_copy };
+	Box<Box<T>> saved = identity(nested);
+	return through_box(saved.value.value);
+}
+T recursive<T>(T value, int n) { if (n == 0) { return value; } return recursive(value, n - 1); }
+T odd<T>(T value, int n) { if (n == 0) { return value; } return even(value, n - 1); }
+T even<T>(T value, int n) { if (n == 0) { return value; } return odd(value, n - 1); }
+U second<T,U>(T a, U b) { U saved = b; return identity(saved); }
+T concrete_storage<T>(T value, Kernel input) {
+	Kernel local = input; Kernel* pointer = &local; pointer->index = 42;
+	Kernel[1] records = { *pointer };
+	Kernel[] view = slice(records);
+	var copied = identity(view[0]);
+	if (copied.index != 42) { return concrete_storage(value, input); }
+	return identity(value);
+}
+T finite_cross<T>(T value, int depth) {
+	if (depth > 0) { Kernel kernel = { index = 42, gain = 3.5d }; var copied = finite_cross(kernel, depth - 1); if (copied.index != 42) { return finite_cross(value, depth - 1); } }
+	return value;
+}
+Kernel native_identity(Kernel value) { return value; }
+Kernel native_choose(bool take_first, Kernel first, Kernel second) { Kernel selected = second; if (take_first) { selected = first; } int i = 0; while (i < 2) { Kernel saved = selected; selected = saved; i = i + 1; } return selected; }
+Kernel make(int i) { Kernel value = { index = i, gain = 3.5d }; return value; }
+int main() {
+	Kernel kernel = { index = 42, gain = 3.5d };
+	Kernel other = { index = 17, gain = -0.0d };
+	var saved = identity(kernel);
+	var explicit_saved = identity<Kernel>(kernel);
+	var chosen = choose_value(true, saved, other);
+	var native = native_choose(true, native_identity(kernel), other);
+	var rejected_first = choose_value(false, saved, other);
+	var native_second = native_choose(false, native_identity(kernel), other);
+	if (rejected_first.index != 17 || rejected_first.index != native_second.index || rejected_first.gain != native_second.gain) { return 8; }
+	var nested = constructed(chosen);
+	var forwarded = identity(native_identity(identity(make(42))));
+	var recursive_value = even(recursive(forwarded, 3), 4);
+	var accompanied = concrete_storage(saved, kernel);
+	if (accompanied.index != 42) { return 5; }
+	if (saved.index != 42 || explicit_saved.index != 42 || chosen.index != native.index || nested.index != 42 || recursive_value.index != 42) { return 1; }
+	Box<Kernel> boxed = { value = kernel };
+	var copied_box = identity(boxed);
+	Box<Box<Kernel>> deep = { value = copied_box };
+	var deep_copy = identity(deep);
+	Holder holder = { payload = identity(boxed), tag = 7 };
+	OtherRecord marker = { tag = 9 };
+	var cross = finite_cross(marker, 2);
+	if (cross.tag != 9) { return 7; }
+	Pair<Kernel,OtherRecord> pair = { first = kernel, second = marker };
+	var copied_pair = identity(pair);
+	var last = second(kernel, marker);
+	Kernel* pointer = &kernel;
+	var pointed = identity(*pointer);
+	*pointer = identity(holder.payload.value);
+	Kernel[2] kernels = { kernel, other };
+	var element = identity(kernels[0]);
+	var selected = choose_value(true, element, kernels[1]);
+	kernels[1] = identity(selected);
+	Box<Kernel>[2] boxes = { { value = identity(kernels[1]) }, identity(boxed) };
+	var array_copy = identity(boxes[0]);
+	boxed.value.index = 0; deep.value.value.index = 0; kernel.index = 0; kernels[0].index = 0;
+	if (copied_box.value.index != 42 || deep_copy.value.value.index != 42 || holder.payload.value.index != 42 || copied_pair.first.index != 42 || last.tag != 9 || pointed.index != 42 || array_copy.value.index != 42 || kernels[1].index != 42) { return 2; }
+	if (through_box(42) != 42 || constructed(42) != 42) { return 3; }
+	int<4> vector = splat(42,4);
+	var vector_copy = through_box(constructed(vector));
+	if (vector_copy[0] != 42 || vector_copy[3] != 42) { return 4; }
+	identity(kernel);
+	return 0;
+}

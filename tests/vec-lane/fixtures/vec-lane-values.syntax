@@ -1,0 +1,34 @@
+(unit
+	(function
+		(type "i16<4>")
+		(name "compose")
+		(parameters
+			(parameter (type "i16") (name "x"))
+			(parameter (type "bool<4>") (name "mask"))
+		)
+		(block
+			(local (type "i16<4>") (name "v") (vector-splat (name "x") (ordinals 4)))
+			(local (type "i16") (name "lane") (vector-extract (lane 2) (name "v")))
+			(assign (name "v") (vector-insert (name "v") (name "lane") (ordinals 1)))
+			(assign (name "v") (vector-shuffle (name "v") (ordinals 3 2 1 0)))
+			(return (vector-select (name "mask") (name "v") (name "v")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "i16<4>") (name "expected") (vector-init (integer "7") (integer "7") (integer "7") (integer "7")))
+			(if
+				(condition (prefix "!" (vector-all (binary "==" (call "compose" (arguments (integer "7") (vector-splat (bool true) (ordinals 4)))) (name "expected")))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

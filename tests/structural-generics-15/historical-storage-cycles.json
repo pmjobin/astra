@@ -1,0 +1,59 @@
+{
+	"original_commit": "4f1d50e",
+	"groups": [
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"cases": [
+				"cycle-module-order-0",
+				"cycle-module-order-1",
+				"cycle-module-order-2",
+				"cycle-module-order-3",
+				"cycle-module-order-4",
+				"cycle-module-order-5"
+			],
+			"sources": [
+				"class C{init(){}}class D{init(){}}void bad(){var v=new C();left<C>(move v);}int main(){return 42;}\n",
+				"void left<T>(owned T v) where T:Ownable{right<T>(move v);}\n",
+				"void right<T>(owned T v) where T:Ownable{left<T>(move v);}\n"
+			],
+			"source_sha256": [
+				"45929be50a493461d72f4e0db572e8466d41f0ab0552f0c44bd6b45f290b87f8",
+				"c7aa4aeec20ed9f412579eb2373cf2c8ec6e61feedf9271e9be2a49aad35386c",
+				"9a5abd82e642003f0d70070537026afcb39af5d3d372d88c56b12d155a73d751"
+			]
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"cases": [
+				"cycle-module-order-0",
+				"cycle-module-order-1",
+				"cycle-module-order-2",
+				"cycle-module-order-3",
+				"cycle-module-order-4",
+				"cycle-module-order-5"
+			],
+			"sources": [
+				"class C{init(){}}class D{init(){}}void bad(){var v=new C();var r=left<C>(move v);}int main(){return 42;}\n",
+				"owned T left<T>(owned T v) where T:Ownable{return right<T>(move v);}\n",
+				"owned T right<T>(owned T v) where T:Ownable{return left<T>(move v);}\n"
+			],
+			"source_sha256": [
+				"44de8cde060264d35c5f5c726615cc350ef8aa51c483f416a2886935e38f31d8",
+				"3bcd3a31b617c01b128de935731b8cd89c6a5d6053647f529001e2fe94e9259a",
+				"6ecd4007428c5849628f4e01ecb205e0dd69d09cca7f88d6dc5a7e7ef4e7788e"
+			]
+		},
+		{
+			"path": "tests/gen-borrow-1/negative.py",
+			"cases": [
+				"heap-consuming-wrapper"
+			],
+			"sources": [
+				"class C{init(){}}int consume<T>(owned T value) where T:Ownable{return 0;}void wrapper<T>(owned T value) where T:Ownable{wrapper<T>(move value);}void bad(){var c=new C();wrapper<C>(move c);}\nint main(){return 42;}\n"
+			],
+			"source_sha256": [
+				"e63b916326f5f052887f1cdaedb0b458c9955212fc40384f80cd72c25f0028d5"
+			]
+		}
+	]
+}

@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int lazy_event(int code, int value);
+class Cleanup {
+	init() {}
+	lazy property int value { get { var local = create_resource(68); return lazy_event(67, 42); } }
+}
+int main() { var object = new Cleanup(); return object.value; }

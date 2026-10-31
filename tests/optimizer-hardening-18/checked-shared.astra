@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void composition18_retire(int value);
+extern(C) void composition18_observe(int value);
+[ExceptionRoot]
+class CompositionFailure18 {
+	init() {}
+	virtual property string message { get { return "composition failure"; } }
+}
+class CompositionPayload18 {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { composition18_retire(this.value); }
+}
+f64 composition18_scalar(f64 value) { return value * 2.0 + 1.0; }
+int composition18_checked(int value) throws CompositionFailure18 {
+	if (value < 0) { throw new CompositionFailure18(); }
+	return value;
+}
+int composition18_balance(int value) throws CompositionFailure18 {
+	composition18_checked(value);
+	var payload = new CompositionPayload18(value);
+	var strong = shared_acquire(move payload);
+	f64 result = value as f64;
+	{
+		var unused = shared_clone(strong);
+		if (value == 0) { result = composition18_scalar(result); }
+		else { result = result + 2.0; }
+	}
+	composition18_checked(value - 1);
+	return result as int;
+}
+int composition18_inside(int value) throws CompositionFailure18 {
+	var payload = new CompositionPayload18(value);
+	var strong = shared_acquire(move payload);
+	{
+		var retained = shared_clone(strong);
+		composition18_checked(value);
+	}
+	return value;
+}
+int composition18_callback(int value) throws CompositionFailure18 {
+	var payload = new CompositionPayload18(value);
+	var strong = shared_acquire(move payload);
+	{ var retained = shared_clone(strong); composition18_observe(value); }
+	return composition18_checked(value);
+}
+int main() {
+	try { composition18_balance(-1); return 1; } catch (CompositionFailure18 error) {}
+	try { composition18_balance(0); return 2; } catch (CompositionFailure18 error) {}
+	try {
+		if (composition18_balance(3) != 5) { return 3; }
+		if (composition18_inside(4) != 4) { return 4; }
+		if (composition18_callback(5) != 5) { return 5; }
+	} catch (CompositionFailure18 error) { return 6; }
+	try { composition18_inside(-2); return 7; } catch (CompositionFailure18 error) {}
+	return 0;
+}

@@ -1,0 +1,104 @@
+(program
+	(handle-type #0 "Resource" (cleanup "life_destroy")
+	)
+	(handle-type #1 "Token" (cleanup "life_destroy")
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+		(constructor #0 (member #1)
+			(receiver initializing Counter nonnull mutable)
+			(parameters
+				(parameter #0 "code" : int)
+			)
+			(block
+				(initialize-receiver-field #0 "code" (parameter-ref #0 "code" : int))
+			)
+		)
+		(destructor #0 (member #2)
+			(receiver live Counter nonnull mutable)
+			(parameters)
+			(block
+				(c-call-statement "life_record" -> int (arguments (load (field-place (receiver (this : Receiver<Counter>)) (field #0 "code" : int))) (integer 0 : int)))
+			)
+		)
+	)
+	(extern-function "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 "code" : int)
+			(parameter #1 "value" : int)
+		)
+		(result int))
+	(extern-function "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup "life_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Resource))
+	(extern-function "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup "life_destroy"))
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result Token))
+	(extern-function "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 "value" : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(generic-definition "dispose" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "dispose" -> void
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block)
+	)
+	(generic-definition "relay" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "relay" -> T
+		(result T (contract owned-transfer) (requires Ownable))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block
+			(ownership-return (move (owner #0) : T (requires Ownable) (provenance incoming-owner)) : T)
+		)
+	)
+	(generic-definition "forward" checked-once)
+	(type-parameter #0 T (transport OWNABLE))
+	(requires #0 T Ownable)
+	(function "forward" -> T
+		(result T (contract owned-transfer) (requires Ownable))
+		(parameters
+			(parameter #0 "value" : T (contract owned-transfer))
+		)
+		(locals
+			(local #0 "value" : T)
+		)
+		(block
+			(ownership-return (generic-call "relay" -> owned T (type-arguments T) (arguments (owned-transfer-argument (parameter #0) (move (owner #0) : T (requires Ownable) (provenance incoming-owner)) : T (requires Ownable)))) : T)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : Resource)
+			(local #1 "b" : Token)
+		)
+		(block
+			(owned-local #0 "a" : Resource (region #0) (cleanup "life_destroy") (c-call "create_resource" -> owned Resource (arguments (integer 65 : int))))
+			(owned-local #1 "b" : Token (region #0) (cleanup "life_destroy") (c-call "create_token" -> owned Token (arguments (integer 66 : int))))
+			(generic-call-statement "dispose" -> void (type-arguments Resource) (arguments (owned-transfer-argument (parameter #0) (move (local-ref #0 "a") : Resource (cleanup "life_destroy")) : Resource (cleanup "life_destroy"))))
+			(generic-call-statement "dispose" -> void (type-arguments Token) (arguments (owned-transfer-argument (parameter #0) (move (local-ref #1 "b") : Token (cleanup "life_destroy")) : Token (cleanup "life_destroy"))))
+			(return (integer 42 : int))
+		)
+	)
+)

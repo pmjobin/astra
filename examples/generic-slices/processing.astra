@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void process(Kernel[] kernels, Box<Kernel>[] snapshots, Kernel prototype) {
+	fill(kernels, prototype);
+	Box<Kernel> boxed = {value=element_at(kernels, 0)};
+	fill(snapshots, boxed);
+	kernels[1].index = 11;
+	swap_elements(kernels, 0, 1);
+	swap_elements(snapshots, 0, 1);
+}

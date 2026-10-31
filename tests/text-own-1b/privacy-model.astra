@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Vault {
+	private int secret;
+	private owned u8[] bytes;
+	private readonly string label;
+	int open;
+	init(int value) {
+		this.secret = value; this.bytes = new u8[1]; this.bytes[0] = 97;
+		this.label = "sealed"; this.open = 1;
+	}
+	int read_other(Vault other) { return other.secret; }
+	int byte_value() { return this.bytes[0] as int; }
+	bool label_is_valid() { return this.label == "sealed"; }
+	property int value { get { return this.secret; } set(int value) { this.secret = value; } }
+	deinit() { this.secret = 0; }
+}

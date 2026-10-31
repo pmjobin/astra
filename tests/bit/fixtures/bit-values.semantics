@@ -1,0 +1,200 @@
+(program
+	(function "scalar_i8" -> i8
+		(parameters
+			(parameter #0 "a" : i8)
+			(parameter #1 "b" : i8)
+			(parameter #2 "c" : int)
+		)
+		(block
+			(return (shift-right-arithmetic : i8 (value (binary | : i8 (binary & : i8 (prefix ~ : i8 (parameter-ref #0 "a" : i8)) (parameter-ref #1 "b" : i8)) (binary ^ : i8 (parameter-ref #0 "a" : i8) (parameter-ref #1 "b" : i8)))) (count (parameter-ref #2 "c" : int)) (valid-range 0 7) (invalid-count trap)))
+		)
+	)
+	(function "vector_i8" -> i8<16>
+		(parameters
+			(parameter #0 "a" : i8<16>)
+			(parameter #1 "b" : i8<16>)
+			(parameter #2 "c" : u32)
+		)
+		(block
+			(return (shift-right-arithmetic : i8<16> (value (binary | : i8<16> (binary & : i8<16> (prefix ~ : i8<16> (parameter-ref #0 "a" : i8<16>)) (parameter-ref #1 "b" : i8<16>)) (binary ^ : i8<16> (parameter-ref #0 "a" : i8<16>) (parameter-ref #1 "b" : i8<16>)))) (count (parameter-ref #2 "c" : u32)) (valid-range 0 7) (invalid-count trap)))
+		)
+	)
+	(function "left_i8" -> i8<16>
+		(parameters
+			(parameter #0 "a" : i8<16>)
+			(parameter #1 "c" : i8)
+		)
+		(block
+			(return (shift-left : i8<16> (value (parameter-ref #0 "a" : i8<16>)) (count (parameter-ref #1 "c" : i8)) (valid-range 0 7) (invalid-count trap)))
+		)
+	)
+	(function "scalar_u8" -> u8
+		(parameters
+			(parameter #0 "a" : u8)
+			(parameter #1 "b" : u8)
+			(parameter #2 "c" : int)
+		)
+		(block
+			(return (shift-right-logical : u8 (value (binary | : u8 (binary & : u8 (prefix ~ : u8 (parameter-ref #0 "a" : u8)) (parameter-ref #1 "b" : u8)) (binary ^ : u8 (parameter-ref #0 "a" : u8) (parameter-ref #1 "b" : u8)))) (count (parameter-ref #2 "c" : int)) (valid-range 0 7) (invalid-count trap)))
+		)
+	)
+	(function "vector_u8" -> u8<16>
+		(parameters
+			(parameter #0 "a" : u8<16>)
+			(parameter #1 "b" : u8<16>)
+			(parameter #2 "c" : u32)
+		)
+		(block
+			(return (shift-right-logical : u8<16> (value (binary | : u8<16> (binary & : u8<16> (prefix ~ : u8<16> (parameter-ref #0 "a" : u8<16>)) (parameter-ref #1 "b" : u8<16>)) (binary ^ : u8<16> (parameter-ref #0 "a" : u8<16>) (parameter-ref #1 "b" : u8<16>)))) (count (parameter-ref #2 "c" : u32)) (valid-range 0 7) (invalid-count trap)))
+		)
+	)
+	(function "left_u8" -> u8<16>
+		(parameters
+			(parameter #0 "a" : u8<16>)
+			(parameter #1 "c" : i8)
+		)
+		(block
+			(return (shift-left : u8<16> (value (parameter-ref #0 "a" : u8<16>)) (count (parameter-ref #1 "c" : i8)) (valid-range 0 7) (invalid-count trap)))
+		)
+	)
+	(function "scalar_i16" -> i16
+		(parameters
+			(parameter #0 "a" : i16)
+			(parameter #1 "b" : i16)
+			(parameter #2 "c" : int)
+		)
+		(block
+			(return (shift-right-arithmetic : i16 (value (binary | : i16 (binary & : i16 (prefix ~ : i16 (parameter-ref #0 "a" : i16)) (parameter-ref #1 "b" : i16)) (binary ^ : i16 (parameter-ref #0 "a" : i16) (parameter-ref #1 "b" : i16)))) (count (parameter-ref #2 "c" : int)) (valid-range 0 15) (invalid-count trap)))
+		)
+	)
+	(function "vector_i16" -> i16<8>
+		(parameters
+			(parameter #0 "a" : i16<8>)
+			(parameter #1 "b" : i16<8>)
+			(parameter #2 "c" : u32)
+		)
+		(block
+			(return (shift-right-arithmetic : i16<8> (value (binary | : i16<8> (binary & : i16<8> (prefix ~ : i16<8> (parameter-ref #0 "a" : i16<8>)) (parameter-ref #1 "b" : i16<8>)) (binary ^ : i16<8> (parameter-ref #0 "a" : i16<8>) (parameter-ref #1 "b" : i16<8>)))) (count (parameter-ref #2 "c" : u32)) (valid-range 0 15) (invalid-count trap)))
+		)
+	)
+	(function "left_i16" -> i16<8>
+		(parameters
+			(parameter #0 "a" : i16<8>)
+			(parameter #1 "c" : i8)
+		)
+		(block
+			(return (shift-left : i16<8> (value (parameter-ref #0 "a" : i16<8>)) (count (parameter-ref #1 "c" : i8)) (valid-range 0 15) (invalid-count trap)))
+		)
+	)
+	(function "scalar_u16" -> u16
+		(parameters
+			(parameter #0 "a" : u16)
+			(parameter #1 "b" : u16)
+			(parameter #2 "c" : int)
+		)
+		(block
+			(return (shift-right-logical : u16 (value (binary | : u16 (binary & : u16 (prefix ~ : u16 (parameter-ref #0 "a" : u16)) (parameter-ref #1 "b" : u16)) (binary ^ : u16 (parameter-ref #0 "a" : u16) (parameter-ref #1 "b" : u16)))) (count (parameter-ref #2 "c" : int)) (valid-range 0 15) (invalid-count trap)))
+		)
+	)
+	(function "vector_u16" -> u16<8>
+		(parameters
+			(parameter #0 "a" : u16<8>)
+			(parameter #1 "b" : u16<8>)
+			(parameter #2 "c" : u32)
+		)
+		(block
+			(return (shift-right-logical : u16<8> (value (binary | : u16<8> (binary & : u16<8> (prefix ~ : u16<8> (parameter-ref #0 "a" : u16<8>)) (parameter-ref #1 "b" : u16<8>)) (binary ^ : u16<8> (parameter-ref #0 "a" : u16<8>) (parameter-ref #1 "b" : u16<8>)))) (count (parameter-ref #2 "c" : u32)) (valid-range 0 15) (invalid-count trap)))
+		)
+	)
+	(function "left_u16" -> u16<8>
+		(parameters
+			(parameter #0 "a" : u16<8>)
+			(parameter #1 "c" : i8)
+		)
+		(block
+			(return (shift-left : u16<8> (value (parameter-ref #0 "a" : u16<8>)) (count (parameter-ref #1 "c" : i8)) (valid-range 0 15) (invalid-count trap)))
+		)
+	)
+	(function "scalar_i32" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+			(parameter #2 "c" : int)
+		)
+		(block
+			(return (shift-right-arithmetic : int (value (binary | : int (binary & : int (prefix ~ : int (parameter-ref #0 "a" : int)) (parameter-ref #1 "b" : int)) (binary ^ : int (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)))) (count (parameter-ref #2 "c" : int)) (valid-range 0 31) (invalid-count trap)))
+		)
+	)
+	(function "vector_i32" -> int<4>
+		(parameters
+			(parameter #0 "a" : int<4>)
+			(parameter #1 "b" : int<4>)
+			(parameter #2 "c" : u32)
+		)
+		(block
+			(return (shift-right-arithmetic : int<4> (value (binary | : int<4> (binary & : int<4> (prefix ~ : int<4> (parameter-ref #0 "a" : int<4>)) (parameter-ref #1 "b" : int<4>)) (binary ^ : int<4> (parameter-ref #0 "a" : int<4>) (parameter-ref #1 "b" : int<4>)))) (count (parameter-ref #2 "c" : u32)) (valid-range 0 31) (invalid-count trap)))
+		)
+	)
+	(function "left_i32" -> int<4>
+		(parameters
+			(parameter #0 "a" : int<4>)
+			(parameter #1 "c" : i8)
+		)
+		(block
+			(return (shift-left : int<4> (value (parameter-ref #0 "a" : int<4>)) (count (parameter-ref #1 "c" : i8)) (valid-range 0 31) (invalid-count trap)))
+		)
+	)
+	(function "scalar_u32" -> u32
+		(parameters
+			(parameter #0 "a" : u32)
+			(parameter #1 "b" : u32)
+			(parameter #2 "c" : int)
+		)
+		(block
+			(return (shift-right-logical : u32 (value (binary | : u32 (binary & : u32 (prefix ~ : u32 (parameter-ref #0 "a" : u32)) (parameter-ref #1 "b" : u32)) (binary ^ : u32 (parameter-ref #0 "a" : u32) (parameter-ref #1 "b" : u32)))) (count (parameter-ref #2 "c" : int)) (valid-range 0 31) (invalid-count trap)))
+		)
+	)
+	(function "vector_u32" -> u32<4>
+		(parameters
+			(parameter #0 "a" : u32<4>)
+			(parameter #1 "b" : u32<4>)
+			(parameter #2 "c" : u32)
+		)
+		(block
+			(return (shift-right-logical : u32<4> (value (binary | : u32<4> (binary & : u32<4> (prefix ~ : u32<4> (parameter-ref #0 "a" : u32<4>)) (parameter-ref #1 "b" : u32<4>)) (binary ^ : u32<4> (parameter-ref #0 "a" : u32<4>) (parameter-ref #1 "b" : u32<4>)))) (count (parameter-ref #2 "c" : u32)) (valid-range 0 31) (invalid-count trap)))
+		)
+	)
+	(function "left_u32" -> u32<4>
+		(parameters
+			(parameter #0 "a" : u32<4>)
+			(parameter #1 "c" : i8)
+		)
+		(block
+			(return (shift-left : u32<4> (value (parameter-ref #0 "a" : u32<4>)) (count (parameter-ref #1 "c" : i8)) (valid-range 0 31) (invalid-count trap)))
+		)
+	)
+	(function "eager" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "b" : bool)
+		)
+		(block
+			(return (binary | : bool (binary & : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool)) (binary ^ : bool (parameter-ref #0 "a" : bool) (parameter-ref #1 "b" : bool))))
+		)
+	)
+	(function "mask" -> bool<8>
+		(parameters
+			(parameter #0 "a" : bool<8>)
+			(parameter #1 "b" : bool<8>)
+		)
+		(block
+			(return (binary | : bool<8> (binary & : bool<8> (parameter-ref #0 "a" : bool<8>) (parameter-ref #1 "b" : bool<8>)) (binary ^ : bool<8> (parameter-ref #0 "a" : bool<8>) (parameter-ref #1 "b" : bool<8>))))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(return (integer 0 : int))
+		)
+	)
+)

@@ -1,0 +1,60 @@
+(program
+	(extern-function "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup "astra_test_resource_destroy"))
+		(headers
+			"opaque/resource.h"
+		)
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result void*))
+	(extern-function "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function "record_effect" (abi C) (symbol "astra_test_resource_record_effect")
+		(parameters
+			(parameter #0 "id" : int)
+		)
+		(result int))
+	(extern-function "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function "resource_forbid_cleanup" (abi C) (symbol "astra_test_resource_forbid_cleanup")
+		(parameters
+		)
+		(result void))
+	(function "scoped" -> int
+		(parameters)
+		(locals
+			(local #0 "h" : void*)
+		)
+		(block
+			(owned-local #0 "h" : void* (region #0) (cleanup "astra_test_resource_destroy") (c-call "create_resource" -> owned void* (arguments (integer 1 : int))))
+			(release (owner #0 "h") (cleanup "astra_test_resource_destroy"))
+			(ownership-rearm (owner #0 "h") (producer (c-call "create_resource" -> owned void* (arguments (integer 2 : int)))) (cleanup "astra_test_resource_destroy"))
+			(return (integer 0 : int))
+		)
+	)
+)

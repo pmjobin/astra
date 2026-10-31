@@ -1,0 +1,117 @@
+(ssa-program
+	(function #0 "choose" -> int
+		(parameters
+			(%0 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(branch #3 ((integer 1 : int)))
+		)
+		(block #2
+			(branch #3 ((integer 2 : int)))
+		)
+		(block #3
+			(arguments
+				(%1 "p.x" (local #0 field #0) : int)
+			)
+			(%2 : int = binary + %1 (integer 10 : int))
+			(return %2)
+		)
+	)
+	(function #1 "multiple" -> int
+		(parameters
+			(%0 "c" : bool)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(branch #3 ((integer 2 : int) (integer 3 : int)))
+		)
+		(block #2
+			(branch #3 ((integer 4 : int) (integer 5 : int)))
+		)
+		(block #3
+			(arguments
+				(%1 "p.x" (local #0 field #0) : int)
+				(%2 "p.y" (local #0 field #1) : int)
+			)
+			(%3 : int = binary * %1 (integer 10 : int))
+			(%4 : int = binary + %3 %2)
+			(return %4)
+		)
+	)
+	(function #2 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(branch #8 ())
+		)
+		(block #3
+			(%2 : int = call #0 "choose" -> int (arguments (bool true : bool)))
+			(%3 : bool = binary != %2 (integer 11 : int))
+			(conditional-branch %3
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%4 : int = call #0 "choose" -> int (arguments (bool false : bool)))
+			(%5 : bool = binary != %4 (integer 12 : int))
+			(branch #5 (%5))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return (integer 2 : int))
+		)
+		(block #7
+			(return (integer 0 : int))
+		)
+		(block #8
+			(%6 : int = call #1 "multiple" -> int (arguments (bool true : bool)))
+			(%7 : bool = binary != %6 (integer 23 : int))
+			(conditional-branch %7
+				(true #10 ((bool true : bool)))
+				(false #9 ())
+			)
+		)
+		(block #9
+			(%8 : int = call #1 "multiple" -> int (arguments (bool false : bool)))
+			(%9 : bool = binary != %8 (integer 45 : int))
+			(branch #10 (%9))
+		)
+		(block #10
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+	)
+)

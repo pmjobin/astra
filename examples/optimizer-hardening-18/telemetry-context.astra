@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int telemetry18_context_observe(borrowed ConcurrentAllocator context, int identity, i64 capacity, int slots);
+extern(C) int telemetry18_idle_ticks();
+bool telemetry18_context_retired(borrowed ConcurrentAllocator context, int identity) {
+	return concurrent_allocator_query(context, 1) == 0 && telemetry18_context_observe(context, identity, 262144, 32) == 0;
+}

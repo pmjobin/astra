@@ -1,0 +1,19 @@
+extern(C) int life_record(int code, int value);
+class Token {
+	deinit() { life_record(84, 0); }
+}
+class Counter {
+	int value;
+	init(int value) { this.value = value; }
+	void log_state() { life_record(this.value, 0); this.value = this.value + 1; }
+	deinit() {
+		owned Resource r = create_resource(82);
+		this.log_state();
+		{ Token t = {}; }
+		life_record(this.value, 0);
+	}
+}
+int main() {
+	Counter c = Counter.init(65);
+	return 42;
+}

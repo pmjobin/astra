@@ -1,0 +1,43 @@
+struct State {
+	int value;
+	bool ready;
+	void* handle;
+}
+
+bool guarded_and(State* p) {
+	return p != null && p->ready;
+}
+
+bool guarded_or(State* p) {
+	return p == null || p->ready;
+}
+
+void update(State* p, void* handle) {
+	p->value = 42;
+	p->ready = true;
+	p->handle = handle;
+}
+
+bool read(State* p) {
+	State* q = null;
+	q = p;
+	return q->value == 42 && q->ready && q->handle == null;
+}
+
+int main() {
+	State s = { handle = null, ready = false, value = 1 };
+	if (guarded_and(null) || !guarded_or(null)) {
+		return 1;
+	}
+	if (guarded_and(&s) || guarded_or(&s)) {
+		return 2;
+	}
+	update(&s, null);
+	if (!guarded_and(&s) || !guarded_or(&s) || !read(&s)) {
+		return 3;
+	}
+	if (s.value != 42 || !s.ready || s.handle != null) {
+		return 4;
+	}
+	return 0;
+}

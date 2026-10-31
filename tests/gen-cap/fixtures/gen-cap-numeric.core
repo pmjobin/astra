@@ -1,0 +1,197 @@
+(core-program
+	(generic-definition #0 "add" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Numeric)
+	(function "add" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+		)
+		(block
+			(return
+				(generic-op add (capability Numeric) (type-parameter #0 T) : T
+					(parameter #0 : T)
+					(parameter #1 : T)
+				)
+			)
+		)
+	)
+	(generic-definition #1 "divide" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Numeric)
+	(function "divide" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+		)
+		(block
+			(return
+				(generic-op div (capability Numeric) (type-parameter #0 T) : T
+					(parameter #0 : T)
+					(parameter #1 : T)
+				)
+			)
+		)
+	)
+	(generic-definition #2 "compose" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Numeric)
+	(function "compose" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : T)
+			(parameter #2 "c" : T)
+		)
+		(block
+			(return
+				(generic-op add (capability Numeric) (type-parameter #0 T) : T
+					(generic-op mul (capability Numeric) (type-parameter #0 T) : T
+						(parameter #0 : T)
+						(parameter #1 : T)
+					)
+					(parameter #2 : T)
+				)
+			)
+		)
+	)
+	(generic-definition #3 "loop" GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(requires #0 T Numeric)
+	(function "loop" -> T
+		(parameters
+			(parameter #0 "count" : int)
+			(parameter #1 "value" : T)
+			(parameter #2 "step" : T)
+		)
+		(locals
+			(local-place #0 "result" : T)
+			(local-place #1 "remaining" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : T)
+				(parameter #1 : T)
+			)
+			(initialize
+				(local-place #1 : int)
+				(parameter #0 : int)
+			)
+			(while #0
+				(condition
+					(binary > : bool
+						(load : int
+							(local-place #1 : int)
+						)
+						(integer 0 : int)
+					)
+				)
+				(body
+					(block
+						(store
+							(local-place #0 : T)
+							(generic-op add (capability Numeric) (type-parameter #0 T) : T
+								(load : T
+									(local-place #0 : T)
+								)
+								(parameter #2 : T)
+							)
+						)
+						(store
+							(local-place #1 : int)
+							(binary - : int
+								(load : int
+									(local-place #1 : int)
+								)
+								(integer 1 : int)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : T
+					(local-place #0 : T)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit && : bool
+						(short-circuit && : bool
+							(short-circuit && : bool
+								(short-circuit && : bool
+									(binary == : bool
+										(generic-call "add" -> int
+											(type-arguments int)
+											(arguments
+												(integer 2147483647 : int)
+												(integer 1 : int)
+											)
+										)
+										(integer -2147483648 : int)
+									)
+									(binary == : bool
+										(generic-call "divide" -> int
+											(type-arguments int)
+											(arguments
+												(integer 84 : int)
+												(integer 2 : int)
+											)
+										)
+										(integer 42 : int)
+									)
+								)
+								(binary == : bool
+									(generic-call "divide" -> f64
+										(type-arguments f64)
+										(arguments
+											(f64 0x4055000000000000 : f64)
+											(f64 0x4000000000000000 : f64)
+										)
+									)
+									(f64 0x4045000000000000 : f64)
+								)
+							)
+							(binary == : bool
+								(generic-call "loop" -> f64
+									(type-arguments f64)
+									(arguments
+										(integer 3 : int)
+										(f64 0x3ff0000000000000 : f64)
+										(f64 0x4000000000000000 : f64)
+									)
+								)
+								(f64 0x401c000000000000 : f64)
+							)
+						)
+						(binary == : bool
+							(generic-call "compose" -> f64
+								(type-arguments f64)
+								(arguments
+									(f64 0x3ff0000000000001 : f64)
+									(f64 0x3feffffffffffffe : f64)
+									(f64 0xbff0000000000000 : f64)
+								)
+							)
+							(f64 0x0000000000000000 : f64)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 42 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 1 : int)
+			)
+		)
+	)
+)

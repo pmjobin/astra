@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[COMImport(name="byte_service16_protocol",iid="e576d00a-1616-4b93-8c71-690df1a01616",threading="constructing",profile="declarations-v1")]
+interface IByteService16 {
+	[Foreign(error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]init(borrowed void* unknown)throws Byte16.Fault;
+	[Foreign(native="revision",error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]property int revision throws Byte16.Fault{get;}
+	[Foreign(native="enabled",error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]property bool enabled throws Byte16.Fault{get;set(bool value);}
+	[Foreign(native="weight",error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]property f64 weight throws Byte16.Fault{get;}
+	[Foreign(native="process",error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]
+	[ForeignChannel(parameter="input",nullable="true")][ForeignChannel(parameter="output",direction="out",nullable="true",produced="result")]
+	int process(borrowed u8[] input,borrowed u8[] output)throws Byte16.Fault;
+	[Foreign(native="statistics",error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]Byte16.Statistics<f64> statistics()throws Byte16.Fault;
+	[Foreign(native="snapshot",error_factory="ByteService16.foreign_fault",error_domain="16",errors="Byte16.Fault=-1610")]owned u8[] snapshot()throws Byte16.Fault;
+}

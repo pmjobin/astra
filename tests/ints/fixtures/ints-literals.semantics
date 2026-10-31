@@ -1,0 +1,92 @@
+(program
+	(struct "Packet"
+		(field #0 "tag" : u8)
+		(field #1 "length" : u16)
+		(field #2 "checksum" : u32)
+		(field #3 "delta" : i16)
+	)
+	(function "narrow" -> u8
+		(parameters
+			(parameter #0 "x" : u8)
+		)
+		(block
+			(return (parameter-ref #0 "x" : u8))
+		)
+	)
+	(function "large" -> u32
+		(parameters)
+		(block
+			(return (integer 4000000000 : u32))
+		)
+	)
+	(function "minimum" -> i8
+		(parameters)
+		(block
+			(return (integer -128 : i8))
+		)
+	)
+	(function "minimum16" -> i16
+		(parameters)
+		(block
+			(return (integer -32768 : i16))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "a" : u8)
+			(local #1 "b" : i16)
+			(local #2 "c" : u16)
+			(local #3 "d" : u32)
+			(local #4 "p" : Packet)
+		)
+		(block
+			(local-init #0 "a" : u8 (binary + : u8 (integer 1 : u8) (integer 2 : u8)))
+			(local-init #1 "b" : i16 (binary + : i16 (integer 1 : i16) (integer 2 : i16)))
+			(local-init #2 "c" : u16 (binary + : u16 (integer 1 : u16) (integer 2 : u16)))
+			(local-init #3 "d" : u32 (binary + : u32 (integer 1 : u32) (integer 2 : u32)))
+			(assign (local-ref #0 "a" : u8) (integer 254 : u8))
+			(assign (local-ref #0 "a" : u8) (call "narrow" -> u8 (arguments (binary + : u8 (local-ref #0 "a" : u8) (integer 1 : u8)))))
+			(struct-local #4 "p" : Packet
+				(initialize-field #0 "tag" (integer 255 : u8))
+				(initialize-field #1 "length" (integer 65535 : u16))
+				(initialize-field #2 "checksum" (integer 4000000000 : u32))
+				(initialize-field #3 "delta" (integer -32768 : i16))
+			)
+			(assign (field-ref (local #4 "p" : Packet) (field #0 "tag" : u8)) (integer 42 : u8))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (field-ref (local #4 "p" : Packet) (field #0 "tag" : u8)) (integer 42 : u8)) (binary != : bool (field-ref (local #4 "p" : Packet) (field #1 "length" : u16)) (integer 65535 : u16))) (binary != : bool (field-ref (local #4 "p" : Packet) (field #2 "checksum" : u32)) (call "large" -> u32 (arguments)))) (binary != : bool (field-ref (local #4 "p" : Packet) (field #3 "delta" : i16)) (call "minimum16" -> i16 (arguments)))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (local-ref #0 "a" : u8) (integer 255 : u8)) (binary != : bool (local-ref #1 "b" : i16) (integer 3 : i16))) (binary != : bool (local-ref #2 "c" : u16) (integer 3 : u16))) (binary != : bool (local-ref #3 "d" : u32) (integer 3 : u32))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (binary + : u8 (integer 1 : u8) (local-ref #0 "a" : u8)) (integer 0 : u8)) (binary != : bool (binary + : u8 (local-ref #0 "a" : u8) (integer 1 : u8)) (integer 0 : u8))) (binary != : bool (integer 0 : u8) (binary + : u8 (integer 1 : u8) (local-ref #0 "a" : u8)))) (binary != : bool (call "minimum" -> i8 (arguments)) (integer -128 : i8))))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (binary != : bool (binary + : u8 (integer 1 : u8) (binary + : u8 (integer 2 : u8) (local-ref #0 "a" : u8))) (integer 2 : u8)) (binary != : bool (binary + : u8 (integer 1 : u8) (binary + : u8 (integer 2 : u8) (call "narrow" -> u8 (arguments (integer 255 : u8))))) (integer 2 : u8))) (binary != : bool (binary + : u16 (integer 1 : u16) (field-ref (local #4 "p" : Packet) (field #1 "length" : u16))) (integer 0 : u16))))
+				(then
+					(block
+						(return (integer 4 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

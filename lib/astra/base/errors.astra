@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Select this source explicitly. The attribute nominates the exception root.
+[ExceptionRoot]
+class Error {
+	readonly string text;
+	init(string message) { this.text = message; }
+	virtual property string message { get { return this.text; } }
+}
+class RuntimeError : Error {
+	init(string message) : base(message) {}
+}

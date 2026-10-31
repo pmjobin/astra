@@ -1,0 +1,14 @@
+extern(C) int astra_test_second(int value);
+
+export(C) int mixed(int value) {
+	return astra_test_second(astra_test_add(value, astra_test_state()));
+}
+
+int main() {
+	astra_test_reset();
+	astra_test_record(1);
+	if (mixed(40) != 42) {
+		return 1;
+	}
+	return 0;
+}

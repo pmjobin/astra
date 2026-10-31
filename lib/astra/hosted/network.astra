@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Opt-in Linux numeric IPv4/IPv6 sockets, with legacy loopback helpers.
+// A try operation returns NetAgain or
+// NetInterrupted without retaining its borrowed buffer. All other errors use
+// SocketError; source async loops retain their native owners across a timer
+// suspension and poll zero-time readiness before the next nonblocking syscall.
+const int NetAgain = -11;
+const int NetInterrupted = -4;
+extern(C) int astra_net_socket(int datagram);
+extern(C) int astra_net_bind(int descriptor, int port);
+extern(C) int astra_net_port(int descriptor);
+extern(C) int astra_net_listen(int descriptor, int backlog);
+extern(C) int astra_net_connect(int descriptor, int port);
+extern(C) int astra_net_ready(int descriptor, int writing);
+extern(C) int astra_net_connected(int descriptor);
+extern(C) int astra_net_accept(int descriptor);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_net_read(int descriptor, borrowed u8[] bytes, int offset, int count);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_net_write(int descriptor, borrowed u8[] bytes, int offset, int count);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astra_net_udp_send(int descriptor, int port, borrowed u8[] bytes, int offset, int count);
+[CCode (buffer_abi = "u8-i32")]
+extern(C) i64 astra_net_udp_receive(int descriptor, borrowed u8[] bytes, int offset, int count);
+extern(C) int astra_net_send_buffer(int descriptor, int capacity);
+extern(C) int astra_net_shutdown_write(int descriptor);
+extern(C) int astra_net_close(int descriptor);
+extern(C) int astra_net_milliseconds();
+
+// endpoint/1: address words contain opaque network-order bytes. Construct with
+// network_endpoint rather than performing host-order arithmetic on these words.
+[Repr(layout="C")]
+struct NetworkEndpoint {
+	int family;
+	u32 address0;
+	u32 address1;
+	u32 address2;
+	u32 address3;
+	int port;
+	u32 scope;
+}
+[CCode(text_abi="utf8-i32",record_abi="natural-lp64")]
+extern(C) int astra_net_endpoint_parse(borrowed string address, int family, int port, int scope, borrowed NetworkEndpoint* result);
+[CCode(buffer_abi="u8-i32",record_abi="natural-lp64")]
+extern(C) int astra_net_endpoint_format(borrowed NetworkEndpoint* endpoint, borrowed u8[] output);
+extern(C) int astra_net_socket_family(int family, int datagram);
+[CCode(record_abi="natural-lp64")]
+extern(C) int astra_net_bind_at(int descriptor, borrowed NetworkEndpoint* endpoint);
+[CCode(record_abi="natural-lp64")]
+extern(C) int astra_net_connect_to(int descriptor, borrowed NetworkEndpoint* endpoint);
+[CCode(record_abi="natural-lp64")]
+extern(C) int astra_net_address(int descriptor, int peer, borrowed NetworkEndpoint* result);
+[CCode(record_abi="natural-lp64")]
+extern(C) int astra_net_accept_from(int descriptor, borrowed NetworkEndpoint* result);
+[CCode(buffer_abi="u8-i32",record_abi="natural-lp64")]
+extern(C) int astra_net_send_to(int descriptor, borrowed NetworkEndpoint* endpoint, borrowed u8[] bytes, int offset, int count);
+[Repr(layout="C")]
+struct NetworkPacket {
+	int family;
+	u32 address0;
+	u32 address1;
+	u32 address2;
+	u32 address3;
+	int port;
+	u32 scope;
+	int message_length;
+}
+[CCode(buffer_abi="u8-i32",record_abi="natural-lp64")]
+extern(C) int astra_net_receive_from(int descriptor, borrowed u8[] bytes, int offset, int count, borrowed NetworkPacket* packet);
+
+NetworkEndpoint network_endpoint(string address, int family, int port, int scope) throws SocketError {
+	NetworkEndpoint result = {family=0,address0=0,address1=0,address2=0,address3=0,port=0,scope=0};
+	int status = astra_net_endpoint_parse(address, family, port, scope, &result);
+	if (status < 0) { throw new SocketError(status); }
+	return result;
+}
+int network_format(NetworkEndpoint endpoint, u8[] output) throws SocketError {
+	NetworkEndpoint value = endpoint;
+	int result = astra_net_endpoint_format(&value, output);
+	if (result < 0) { throw new SocketError(result); }
+	return result;
+}
+bool network_endpoint_equal(NetworkEndpoint left, NetworkEndpoint right) {
+	return left.family == right.family && left.port == right.port && left.scope == right.scope &&
+	left.address0 == right.address0 && left.address1 == right.address1 &&
+	left.address2 == right.address2 && left.address3 == right.address3;
+}
+struct NetworkDatagram {
+	NetworkEndpoint peer;
+	int count;
+	int message_length;
+	bool truncated;
+}
+
+class SocketError : Error {
+	private int error_code;
+	init(int code) : base("socket I/O") { this.error_code = code; }
+	property int code { get { return this.error_code; } }
+}
+int network_result(int result) throws SocketError {
+	if (result < 0 && result != NetAgain && result != NetInterrupted) { throw new SocketError(result); }
+	return result;
+}
+int network_elapsed(int start) throws SocketError {
+	int now = astra_net_milliseconds();
+	if (now < 0) { throw new SocketError(now); }
+	if (now < start) { return 1000000000 - start + now; }
+	return now - start;
+}
+void network_deadline(int start, int timeout) throws SocketError {
+	if (timeout < 0 || timeout > 60000) { throw new SocketError(-22); }
+	if (network_elapsed(start) >= timeout) { throw new SocketError(-110); }
+}
+
+class TcpSocket {
+	private int descriptor;
+	init() { this.descriptor = -1; }
+	void open() throws SocketError {
+		if (this.descriptor >= 0) { throw new SocketError(-16); }
+		int fd = astra_net_socket(0);
+		if (fd < 0) { throw new SocketError(fd); }
+		this.descriptor = fd;
+	}
+	void open_family(int family) throws SocketError {
+		if (this.descriptor >= 0) { throw new SocketError(-16); }
+		int fd = astra_net_socket_family(family, 0);
+		if (fd < 0) { throw new SocketError(fd); }
+		this.descriptor = fd;
+	}
+	void listen_at(NetworkEndpoint endpoint, int backlog) throws SocketError {
+		NetworkEndpoint value = endpoint;
+		int status = astra_net_bind_at(this.descriptor, &value);
+		if (status < 0) { throw new SocketError(status); }
+		status = astra_net_listen(this.descriptor, backlog);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	int connect_to(NetworkEndpoint endpoint) throws SocketError {
+		NetworkEndpoint value = endpoint;
+		return network_result(astra_net_connect_to(this.descriptor, &value));
+	}
+	NetworkEndpoint local_address() throws SocketError {
+		NetworkEndpoint result = {family=0,address0=0,address1=0,address2=0,address3=0,port=0,scope=0};
+		int status = astra_net_address(this.descriptor, 0, &result);
+		if (status < 0) { throw new SocketError(status); }
+		return result;
+	}
+	NetworkEndpoint peer_address() throws SocketError {
+		NetworkEndpoint result = {family=0,address0=0,address1=0,address2=0,address3=0,port=0,scope=0};
+		int status = astra_net_address(this.descriptor, 1, &result);
+		if (status < 0) { throw new SocketError(status); }
+		return result;
+	}
+	bool accept_from(TcpSocket target, NetworkEndpoint* peer) throws SocketError {
+		if (target.descriptor >= 0) { throw new SocketError(-16); }
+		int fd = network_result(astra_net_accept_from(this.descriptor, peer));
+		if (fd == NetAgain || fd == NetInterrupted) { return false; }
+		target.descriptor = fd;
+		return true;
+	}
+	void listen(int port, int backlog) throws SocketError {
+		int status = astra_net_bind(this.descriptor, port);
+		if (status < 0) { throw new SocketError(status); }
+		status = astra_net_listen(this.descriptor, backlog);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	int local_port() throws SocketError {
+		int port = astra_net_port(this.descriptor);
+		if (port < 0) { throw new SocketError(port); }
+		return port;
+	}
+	int connect(int port) throws SocketError { return network_result(astra_net_connect(this.descriptor, port)); }
+	int ready(bool writing) throws SocketError {
+		int mode = 0;
+		if (writing) { mode = 1; }
+		int result = astra_net_ready(this.descriptor, mode);
+		return network_result(result);
+	}
+	void connected() throws SocketError {
+		int status = astra_net_connected(this.descriptor);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	bool accept_into(TcpSocket target) throws SocketError {
+		if (target.descriptor >= 0) { throw new SocketError(-16); }
+		int fd = network_result(astra_net_accept(this.descriptor));
+		if (fd == NetAgain || fd == NetInterrupted) { return false; }
+		target.descriptor = fd;
+		return true;
+	}
+	int try_read(u8[] bytes, int offset, int count) throws SocketError { return network_result(astra_net_read(this.descriptor, bytes, offset, count)); }
+	int try_write(u8[] bytes, int offset, int count) throws SocketError { return network_result(astra_net_write(this.descriptor, bytes, offset, count)); }
+	void send_capacity(int capacity) throws SocketError {
+		int status = astra_net_send_buffer(this.descriptor, capacity);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	void half_close() throws SocketError {
+		int status = astra_net_shutdown_write(this.descriptor);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	void close() throws SocketError {
+		int fd = this.descriptor; this.descriptor = -1;
+		if (fd >= 0) { int status = astra_net_close(fd); if (status < 0) { throw new SocketError(status); } }
+	}
+	deinit() { int fd = this.descriptor; this.descriptor = -1; if (fd >= 0) { astra_net_close(fd); } }
+}
+
+class UdpSocket {
+	private int descriptor;
+	private int source_port;
+	init() { this.descriptor = -1; this.source_port = 0; }
+	void open(int port) throws SocketError {
+		if (this.descriptor >= 0) { throw new SocketError(-16); }
+		int fd = astra_net_socket(1);
+		if (fd < 0) { throw new SocketError(fd); }
+		this.descriptor = fd;
+		int status = astra_net_bind(fd, port);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	void open_at(NetworkEndpoint endpoint) throws SocketError {
+		NetworkEndpoint value = endpoint;
+		if (this.descriptor >= 0) { throw new SocketError(-16); }
+		int fd = astra_net_socket_family(endpoint.family, 1);
+		if (fd < 0) { throw new SocketError(fd); }
+		this.descriptor = fd;
+		int status = astra_net_bind_at(fd, &value);
+		if (status < 0) { throw new SocketError(status); }
+	}
+	NetworkEndpoint local_address() throws SocketError {
+		NetworkEndpoint result = {family=0,address0=0,address1=0,address2=0,address3=0,port=0,scope=0};
+		int status = astra_net_address(this.descriptor, 0, &result);
+		if (status < 0) { throw new SocketError(status); }
+		return result;
+	}
+	int send_to(NetworkEndpoint endpoint, u8[] bytes, int offset, int count) throws SocketError {
+		NetworkEndpoint value = endpoint;
+		return network_result(astra_net_send_to(this.descriptor, &value, bytes, offset, count));
+	}
+	NetworkDatagram receive_from(u8[] bytes, int offset, int count) throws SocketError {
+		NetworkPacket packet = {family=0,address0=0,address1=0,address2=0,address3=0,port=0,scope=0,message_length=0};
+		int received = astra_net_receive_from(this.descriptor, bytes, offset, count, &packet);
+		if (received < 0) { throw new SocketError(received); }
+		NetworkEndpoint peer = {family=packet.family,address0=packet.address0,address1=packet.address1,address2=packet.address2,address3=packet.address3,port=packet.port,scope=packet.scope};
+		NetworkDatagram result = {peer=peer,count=received,message_length=packet.message_length,truncated=packet.message_length>received};
+		return result;
+	}
+	int local_port() throws SocketError {
+		int port = astra_net_port(this.descriptor);
+		if (port < 0) { throw new SocketError(port); }
+		return port;
+	}
+	property int peer_port { get { return this.source_port; } }
+	property int peer_ipv4 { get { return 2130706433; } }
+	int try_send(int port, u8[] bytes, int offset, int count) throws SocketError { return network_result(astra_net_udp_send(this.descriptor, port, bytes, offset, count)); }
+	int try_receive(u8[] bytes, int offset, int count) throws SocketError {
+		i64 packet = astra_net_udp_receive(this.descriptor, bytes, offset, count);
+		if (packet < 0) { return network_result(packet as int); }
+		this.source_port = (packet % (65536 as i64)) as int;
+		return (packet / (65536 as i64)) as int;
+	}
+	void close() throws SocketError {
+		int fd = this.descriptor; this.descriptor = -1;
+		if (fd >= 0) { int status = astra_net_close(fd); if (status < 0) { throw new SocketError(status); } }
+	}
+	deinit() { int fd = this.descriptor; this.descriptor = -1; if (fd >= 0) { astra_net_close(fd); } }
+}

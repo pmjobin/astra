@@ -1,0 +1,11 @@
+class Empty {}
+bool same(borrowed Empty a, borrowed Empty b) { return a == b; }
+bool live(borrowed Empty a) { return a != null; }
+int main() {
+	Empty a = {};
+	Empty alias = a;
+	Empty b = {};
+	if (!live(a) || !live(b) || live(null) || same(a, b)) { return 1; }
+	if (!same(a, alias) || !same(null, null)) { return 2; }
+	return 42;
+}

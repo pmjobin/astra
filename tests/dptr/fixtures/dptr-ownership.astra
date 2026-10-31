@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+int consume(owned Resource r, int first, int* out) {
+	resource_touch(r);
+	*out = *out + first;
+	return *out;
+}
+int change(owned Resource r, int* out) { *out = 9; return 1; }
+int scenario(int* out) {
+	owned Resource a = create_resource(1);
+	owned Resource b = create_resource(2);
+	*out = 3;
+	i16<8> v = splat(2, 8);
+	int result = dot_wrap(v, v << 1, int);
+	if (consume(move a, result, out) != 67) { return 1; }
+	// The memory read precedes the nested ownership transfer and mutation.
+	int before = *out + change(move b, out);
+	if (before != 68 || *out != 9) { return 2; }
+	owned Resource c = create_resource(3);
+	resource_touch(c);
+	release c;
+	c = create_resource(4);
+	*out = *out + 33;
+	return 0;
+}
+int main() {
+	resource_reset();
+	int out = 0;
+	if (scenario(&out) != 0 || out != 42) { return 1; }
+	if (resource_destroy_count() != 4 || resource_destroy_order() != 1234 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 2) { return 2; }
+	return 0;
+}

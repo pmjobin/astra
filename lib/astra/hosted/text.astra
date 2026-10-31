@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+[CCode (text_abi = "utf8-i32")]
+extern(C) int astra_host_text_write(int stream, borrowed string text, int newline);
+
+bool print(string text) {
+	return astra_host_text_write(1, text, 0) == 0;
+}
+
+bool println(string text) {
+	return astra_host_text_write(1, text, 1) == 0;
+}
+
+bool print_stderr(string text) {
+	return astra_host_text_write(2, text, 0) == 0;
+}
+
+bool println_stderr(string text) {
+	return astra_host_text_write(2, text, 1) == 0;
+}

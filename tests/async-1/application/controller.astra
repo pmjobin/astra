@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class DecodeError : Error {
+	init(string message) : base(message) {}
+}
+T identity<T>(T value) { return value; }
+struct Numbers {
+	f64 wide;
+	f32 narrow;
+}
+Numbers numbers(f64 wide, f32 narrow) {
+	Numbers value = { wide = wide, narrow = narrow };
+	return value;
+}
+enum Result {
+	Success(int value),
+	Error(int code)
+}
+async f64 floating(Numbers value) throws Error {
+	await delay_ticks(1);
+	f64 wide = identity<f64>(value.wide);
+	await delay_ticks(2);
+	return wide + (value.narrow as f64);
+}
+async f32<4> vector_value(f32<4> value) throws Error {
+	bool<4> mask = value == value;
+	await delay_ticks(1);
+	f32<4> copy = identity<f32<4>>(value);
+	await delay_ticks(2);
+	if (all(identity<bool<4>>(mask))) { return copy; }
+	return -copy;
+}
+async int calculate(int seed) throws Error {
+	int value = seed;
+	await delay_ticks(1);
+	value = value + 5;
+	await delay_ticks(2);
+	return value;
+}
+async owned int[] captured_values(owned int[] first, owned int[] second) throws Error {
+	await delay_ticks(1);
+	first[0] = first[0] + second[0];
+	await delay_ticks(2);
+	return move first;
+}
+async Numbers copied_result(Numbers value) throws Error {
+	await delay_ticks(1);
+	await delay_ticks(2);
+	return value;
+}
+async int local_view(int[] values) throws Error {
+	await delay_ticks(1);
+	values[0] = values[0] + 2;
+	await delay_ticks(2);
+	return values[0] + values[1];
+}
+async void owned_failure(owned int[] values) throws Error {
+	await delay_ticks(1);
+	values[0] = 42;
+	await delay_ticks(2);
+	throw new DecodeError("retained owned failure");
+}
+async void controller(int seed) throws Error {
+	int answer = await calculate(seed);
+	if (answer != 22) { throw new DecodeError("incorrect suspended value"); }
+	Numbers value = numbers(40.0, 2.0);
+	f64 wide = await floating(value);
+	value = numbers(wide, 2.0);
+	if (value.wide != 42.0 || value.narrow != 2.0) { throw new DecodeError("incorrect record or floating transport"); }
+	f32<4> lanes = { 0.5, 1.0, 1.5, 2.0 };
+	f32<4> returned = await vector_value(lanes);
+	if (!all(returned == lanes)) { throw new DecodeError("incorrect vector or mask transport"); }
+	owned int[] values = new int[2];
+	values[0] = answer;
+	await delay_ticks(0);
+	values[1] = 20;
+	if (values[0] + values[1] != 42) { throw new DecodeError("incorrect persistent buffer"); }
+	owned int[] companion = new int[2];
+	companion[0] = 20;
+	var peer = calculate(37);
+	start(peer);
+	try {
+		owned int[] returned_values = await captured_values(move values, move companion);
+		if (returned_values[0] != 42 || returned_values[1] != 20) { throw new DecodeError("incorrect owned result after retirement"); }
+	} catch (Error error) { await cancel_and_join(move peer); throw; }
+	if (await move peer != 42) { throw new DecodeError("unrelated scoped task did not progress"); }
+	var record = await copied_result(numbers(40.0, 2.0));
+	if (record.wide + (record.narrow as f64) != 42.0) { throw new DecodeError("incorrect record result"); }
+	int[2] backing = { 20, 20 };
+	try {
+		try { await owned_failure(new int[2]); }
+		catch (Error error) {
+			var message = error.message;
+			var copy = message;
+			int loan_result = await local_view(slice(backing));
+			if (copy != "retained owned failure" || loan_result != 42) { throw new DecodeError("incorrect loan or message retention"); }
+			throw;
+		}
+	} catch (DecodeError error) {
+		if (error.message != "retained owned failure" || backing[0] != 22) { throw new DecodeError("incorrect original exception or parent backing"); }
+	}
+}

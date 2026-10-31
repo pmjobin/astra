@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) f32 c_echo32(f32 value);
+extern(C) void c_consume32(f32 value);
+extern(C) f32 c_produce32();
+extern(C) f32 c_pattern32(int index);
+extern(C) int c_count32();
+extern(C) int c_check32(int index, f32 value);
+extern(C) f32 c_chain32(f32 value);
+extern(C) int c_reverse_matrix32();
+export(C) f32 astra_echo32(f32 value) { return value; }
+export(C) f32 astra_bridge32(f32 value) { return c_echo32(value); }
+export(C) void astra_consume32(f32 value) { c_consume32(value); }
+export(C) f32 astra_produce32() { return c_produce32(); }
+int main() {
+	if (c_reverse_matrix32() != 0) { return 1; }
+	int i = 0;
+	while (i < c_count32()) {
+		if (c_check32(i, c_chain32(c_pattern32(i))) != 0) { return 2; }
+		i = i + 1;
+	}
+	return 0;
+}

@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	int[3] storage = { 1, 2, 3 };
+	var view = slice(storage, 0, 3);
+	var copy = view;
+	var i = 0;
+	var total = 0;
+	while (i < len(view)) {
+		var value = copy[i];
+		{ var next = value + 1; total = total + next; }
+		i = i + 1;
+	}
+	if (total == 9) { return 0; }
+	return 1;
+}

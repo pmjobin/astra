@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct S {
+	int value;
+	void scale(int factor) { this.value = this.value * factor; }
+	property int doubled { get { return this.value * 2; } set(int next) { this.value = next / 2; } }
+}
+int main() {
+	var records = new S[2];
+	records[1].value = 3;
+	records[1].scale(7);
+	if (records[1].doubled != 42) { return 1; }
+	records[1].doubled = 6;
+	return records[1].value - 3;
+}

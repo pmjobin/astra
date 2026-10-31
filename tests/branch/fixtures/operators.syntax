@@ -1,0 +1,97 @@
+(unit
+	(function
+		(type "bool")
+		(name "yes")
+		(parameters)
+		(block
+			(return (bool true))
+		)
+	)
+	(function
+		(type "bool")
+		(name "invert")
+		(parameters
+			(parameter (type "bool") (name "x"))
+		)
+		(block
+			(return (prefix "!" (name "x")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "different")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (prefix "!" (parenthesized (binary "==" (name "a") (name "b")))))
+		)
+	)
+	(function
+		(type "bool")
+		(name "compare")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "==" (binary "<" (binary "+" (name "a") (integer "1")) (binary "*" (name "b") (integer "2"))) (bool true)))
+		)
+	)
+	(function
+		(type "bool")
+		(name "less_equal")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "<=" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "greater")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary ">" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "greater_equal")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary ">=" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "unequal")
+		(parameters
+			(parameter (type "int") (name "a"))
+			(parameter (type "int") (name "b"))
+		)
+		(block
+			(return (binary "!=" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "bool")
+		(name "same_bool")
+		(parameters
+			(parameter (type "bool") (name "a"))
+			(parameter (type "bool") (name "b"))
+		)
+		(block
+			(return (binary "!=" (binary "==" (name "a") (name "b")) (bool false)))
+		)
+	)
+)

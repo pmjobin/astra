@@ -1,0 +1,153 @@
+(ssa-program
+	(struct "Sample"
+		(field #0 "color" : f32<4>)
+		(field #1 "samples" : i16<8>)
+		(field #2 "mask" : bool<4>)
+	)
+	(struct "Outer"
+		(field #0 "inner" : Sample)
+	)
+	(function #0 "mutate" -> void
+		(parameters
+			(%0 "p" : Outer*)
+			(%1 "v" : i16<8>)
+		)
+		(entry #0)
+		(block #0
+			(store (field-place (base (field-place (base (dereference-place %0 : Outer null-traps)) (field Outer::inner #0) : Sample)) (field Sample::samples #1) : i16<8>) %1)
+			(%2 : f32<4> = load (field-place (base (field-place (base (dereference-place %0 : Outer null-traps)) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>))
+			(%3 : f32<4> = vector-insert (lane 2) (vector %2) (value (f32 0x40900000 : f32)))
+			(store (field-place (base (field-place (base (dereference-place %0 : Outer null-traps)) (field Outer::inner #0) : Sample)) (field Sample::color #0) : f32<4>) %3)
+			(function-end)
+		)
+	)
+	(function #1 "main" -> int
+		(parameters)
+		(storage #0 "o" (local #3) : Outer address-taken)
+		(entry #0)
+		(block #0
+			(%4 : f32<4> = vector-init (f32 0x3f000000 : f32) (f32 0x3fc00000 : f32) (f32 0x40200000 : f32) (f32 0x40600000 : f32))
+			(%5 : i16<8> = vector-init (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16))
+			(%6 : bool<4> = vector-init (bool true : bool) (bool false : bool) (bool true : bool) (bool false : bool))
+			(initialize (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::color #0) : f32<4>) %4)
+			(initialize (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::samples #1) : i16<8>) %5)
+			(initialize (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::mask #2) : bool<4>) %6)
+			(%7 : f32<4> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::color #0) : f32<4>))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%14 : i16<8> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::samples #1) : i16<8>))
+			(%15 : i16<8> = vector-insert (lane 7) (vector %14) (value (integer 42 : i16)))
+			(store (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::samples #1) : i16<8>) %15)
+			(branch #8 ())
+		)
+		(block #3
+			(%8 : bool<4> = binary == %7 %4)
+			(%9 : bool = vector-all %8)
+			(%10 : bool = prefix ! %9)
+			(conditional-branch %10
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%11 : f32<4> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::color #0) : f32<4>))
+			(%12 : f32 = vector-extract (lane 2) (vector %11))
+			(%13 : bool = binary != %12 (f32 0x40200000 : f32))
+			(branch #5 (%13))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return (integer 2 : int))
+		)
+		(block #7
+			(%22 : Outer* = address-of (storage #0))
+			(call #0 "mutate" -> void (arguments %22 %5))
+			(branch #13 ())
+		)
+		(block #8
+			(%16 : i16<8> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::samples #1) : i16<8>))
+			(%17 : i16 = vector-extract (lane 7) (vector %16))
+			(%18 : bool = binary != %17 (integer 42 : i16))
+			(conditional-branch %18
+				(true #10 ((bool true : bool)))
+				(false #9 ())
+			)
+		)
+		(block #9
+			(%19 : i16<8> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::samples #1) : i16<8>))
+			(%20 : i16 = vector-extract (lane 0) (vector %19))
+			(%21 : bool = binary != %20 (integer 1 : i16))
+			(branch #10 (%21))
+		)
+		(block #10
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #11
+			(return (integer 3 : int))
+		)
+		(block #12
+			(return (integer 0 : int))
+		)
+		(block #13
+			(branch #14 ())
+		)
+		(block #14
+			(%23 : i16<8> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::samples #1) : i16<8>))
+			(%24 : bool<8> = binary == %23 %5)
+			(%25 : bool = vector-all %24)
+			(%26 : bool = prefix ! %25)
+			(conditional-branch %26
+				(true #16 ((bool true : bool)))
+				(false #15 ())
+			)
+		)
+		(block #15
+			(%27 : f32<4> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::color #0) : f32<4>))
+			(%28 : f32 = vector-extract (lane 2) (vector %27))
+			(%29 : bool = binary != %28 (f32 0x40900000 : f32))
+			(branch #16 (%29))
+		)
+		(block #16
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #18 ((bool true : bool)))
+				(false #17 ())
+			)
+		)
+		(block #17
+			(%30 : bool<4> = load (field-place (base (direct-field (storage #0) (struct "Outer" field #0 "inner") : Sample)) (field Sample::mask #2) : bool<4>))
+			(%31 : bool = vector-any %30)
+			(%32 : bool = prefix ! %31)
+			(branch #18 (%32))
+		)
+		(block #18
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #11 ())
+				(false #12 ())
+			)
+		)
+	)
+)

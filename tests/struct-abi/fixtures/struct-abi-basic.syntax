@@ -1,0 +1,68 @@
+(unit
+	(struct "Pair"
+		(field (type "int") (name "x"))
+		(field (type "f64") (name "y"))
+	)
+	(function
+		(type "Pair")
+		(name "identity")
+		(parameters
+			(parameter (type "Pair") (name "value"))
+		)
+		(block
+			(return (name "value"))
+		)
+	)
+	(function
+		(type "Pair")
+		(name "make_pair")
+		(parameters)
+		(block
+			(struct-local (type "Pair") (name "result")
+				(initialize-field "x" (integer "7"))
+				(initialize-field "y" (float "3.5"))
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "Pair")
+		(name "forward")
+		(parameters)
+		(block
+			(return (call "identity" (arguments (call "make_pair" (arguments)))))
+		)
+	)
+	(function
+		(type "int")
+		(name "consume")
+		(parameters
+			(parameter (type "Pair") (name "value"))
+			(parameter (type "int") (name "scale"))
+		)
+		(block
+			(local (type "Pair") (name "local") (name "value"))
+			(assign (field-access "local" "x") (binary "*" (field-access "local" "x") (name "scale")))
+			(return (field-access "local" "x"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "Pair") (name "value") (call "make_pair" (arguments)))
+			(local (type "Pair") (name "copy") (call "identity" (arguments (name "value"))))
+			(assign (name "copy") (call "forward" (arguments)))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (call "consume" (arguments (name "copy") (integer "2"))) (integer "14")) (binary "!=" (field-access "value" "x") (integer "7"))) (binary "!=" (field-access "copy" "y") (float "3.5"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

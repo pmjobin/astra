@@ -1,0 +1,111 @@
+(unit
+	(class "Signal"
+		(field (type "f64") (name "raw"))
+		(property (type "f64") (name "gain")
+			(getter
+				(block
+					(return (field-access "this" "raw"))
+				)
+			)
+			(setter (parameter (type "f64") (name "next"))
+				(block
+					(assign (field-access "this" "raw") (name "next"))
+				)
+			)
+		)
+		(method
+			(type "f64")
+			(name "separate")
+			(parameters
+				(parameter (type "f64") (name "a"))
+				(parameter (type "f64") (name "b"))
+			)
+			(block
+				(return (binary "+" (binary "*" (name "a") (name "b")) (field-access "this" "gain")))
+			)
+		)
+	)
+	(function
+		(type "f64")
+		(name "borrowed_gain")
+		(parameters
+			(parameter (borrowed) (type "Signal") (name "s"))
+		)
+		(block
+			(if
+				(condition (binary "==" (float "1.0000000000000002") (field-access "s" "gain")))
+				(then
+					(block
+						(return (field-access "s" "gain"))
+					)
+				)
+			)
+			(return (float "0.0"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(struct-local (type "Signal") (name "s")
+				(initialize-field "raw" (float "0.0"))
+			)
+			(assign (field-access "s" "gain") (float "1.0000000000000002"))
+			(if
+				(condition (short-circuit "||" (binary "!=" (field-access "s" "gain") (float "1.0000000000000002")) (binary "!=" (call "borrowed_gain" (arguments (name "s"))) (field-access "s" "raw"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(assign (field-access "s" "gain") (prefix "-" (float "0.0")))
+			(if
+				(condition (binary ">=" (binary "/" (float "1.0") (field-access "s" "gain")) (float "0.0")))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(assign (field-access "s" "gain") (float "4.9406564584124654e-324"))
+			(if
+				(condition (binary "!=" (field-access "s" "gain") (float "4.9406564584124654e-324")))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(assign (field-access "s" "gain") (float "1e309"))
+			(if
+				(condition (binary "!=" (field-access "s" "gain") (float "1e309")))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(assign (field-access "s" "gain") (binary "/" (float "0.0") (float "0.0")))
+			(if
+				(condition (short-circuit "||" (binary "==" (field-access "s" "gain") (field-access "s" "gain")) (prefix "!" (parenthesized (binary "!=" (field-access "s" "gain") (field-access "s" "gain"))))))
+				(then
+					(block
+						(return (integer "5"))
+					)
+				)
+			)
+			(assign (field-access "s" "gain") (prefix "-" (float "1.0")))
+			(if
+				(condition (binary "!=" (method-call (receiver "s") (target "separate") (arguments (float "1.000000007450580596923828125") (float "0.999999992549419403076171875"))) (float "0.0")))
+				(then
+					(block
+						(return (integer "6"))
+					)
+				)
+			)
+			(return (integer "42"))
+		)
+	)
+)

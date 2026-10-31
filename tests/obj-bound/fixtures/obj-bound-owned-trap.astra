@@ -1,0 +1,9 @@
+extern(C) int life_record(int code, int value);
+class Counter { int value; deinit() { life_record(68, 0); } }
+int consume(borrowed Counter c, owned Resource r, int n) { return c.value + resource_id(r) + n; }
+int effect() { life_record(69, 0); Counter nil = null; return nil.value; }
+int main() {
+	Counter c = { value = 1 };
+	owned Resource r = create_resource(82);
+	return consume(c, move r, effect());
+}

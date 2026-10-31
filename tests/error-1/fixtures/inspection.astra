@@ -1,0 +1,15 @@
+[ExceptionRoot]
+class Error { readonly string text; init(string text) { this.text = text; } virtual property string message { get { return this.text; } } }
+enum Owner { Empty, Data(owned int[] data) }
+enum Result { Value(int value), Error(int code) }
+void fail() throws Error { throw new Error("inspection"); }
+Result result() { return Result.Error(42); }
+void explicit_adapter() throws Error { var value = result(); match(value) { case Result.Error(code): { throw new Error("explicit"); } else: {} } }
+int main() {
+	var owner = Owner.Data(new int[2]);
+	match(owner) { case Owner.Data(data): { try { fail(); } catch(Error error) { if(len(data) != 2) { return 81; } } if(len(data) != 2) { return 82; } } else: { return 83; } }
+	try { var inner = Owner.Data(new int[3]); match(inner) { case Owner.Data(data): { fail(); } else: {} } } catch(Error error) { if(error.message != "inspection") { return 84; } }
+	try { var value = result(); match(value) { case Result.Error(code): { if(code != 42) { return 85; } } else: { return 86; } } } catch(Error error) { return 87; }
+	try { explicit_adapter(); } catch(Error error) { if(error.message == "explicit") { return 42; } return 88; }
+	return 89;
+}

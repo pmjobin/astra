@@ -1,0 +1,34 @@
+// Select base/order, classify, contracts and clamp, a failure provider,
+// hosted/math.vapi and --link-library=m, as for other BASELIB consumers.
+const CHANNELS = 2;
+const FRAMES = 4;
+const SAMPLES = CHANNELS * FRAMES;
+const f64 THRESHOLD = 1.0000000000000002;
+const NORMALIZE = 1.0d / 255.0d;
+
+f64 peak(f64[] samples) {
+	var highest = 0.0d;
+	var i = 0;
+	while (i < len(samples)) {
+		highest = max(highest, samples[i]);
+		i = i + 1;
+	}
+	return highest;
+}
+
+int main() {
+	const FIRST = 0;
+	int[CHANNELS] channels = {FIRST, FIRST + 1};
+	var samples = new f64[SAMPLES];
+	var i = 0;
+	while (i < SAMPLES) {
+		samples[i] = clamp((i as f64) * NORMALIZE, 0.0d, THRESHOLD);
+		i = i + 1;
+	}
+	assert(len(samples) == SAMPLES);
+	assert(channels[1] == 1);
+	assert(min(THRESHOLD, 2.0d) == THRESHOLD);
+	assert(is_finite_f64(peak(samples)));
+	assert(sqrt_f64(peak(samples)) > 0.0d);
+	return 0;
+}

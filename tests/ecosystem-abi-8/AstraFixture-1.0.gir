@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<repository version="1.2"
+	xmlns="http://www.gtk.org/introspection/core/1.0"
+	xmlns:c="http://www.gtk.org/introspection/c/1.0"
+	xmlns:glib="http://www.gtk.org/introspection/glib/1.0">
+	<include name="GObject" version="2.0"/>
+	<package name="gobject-2.0"/>
+	<c:include name="counter.h"/>
+	<namespace name="AstraFixture" version="1.0" c:identifier-prefixes="Ast" c:symbol-prefixes="ast">
+		<class name="Counter" c:type="AstCounter" parent="GObject.Object"
+			glib:type-name="AstCounter" glib:get-type="ast_counter_get_type">
+			<constructor name="new" c:identifier="ast_counter_new">
+				<return-value transfer-ownership="full" nullable="1"><type name="Counter" c:type="AstCounter*"/></return-value>
+				<parameters><parameter name="value" transfer-ownership="none"><type name="gint" c:type="gint"/></parameter></parameters>
+			</constructor>
+			<method name="read" c:identifier="ast_counter_read">
+				<return-value transfer-ownership="none"><type name="gint" c:type="gint"/></return-value>
+				<parameters><instance-parameter name="self" transfer-ownership="none"><type name="Counter" c:type="AstCounter*"/></instance-parameter></parameters>
+			</method>
+			<method name="write" c:identifier="ast_counter_write">
+				<return-value transfer-ownership="none"><type name="gint" c:type="gint"/></return-value>
+				<parameters>
+					<instance-parameter name="self" transfer-ownership="none"><type name="Counter" c:type="AstCounter*"/></instance-parameter>
+					<parameter name="value" transfer-ownership="none"><type name="gint" c:type="gint"/></parameter>
+				</parameters>
+			</method>
+			<method name="label" c:identifier="ast_counter_label">
+				<return-value transfer-ownership="none" nullable="1"><type name="utf8" c:type="const gchar*"/></return-value>
+				<parameters><instance-parameter name="self" transfer-ownership="none"><type name="Counter" c:type="AstCounter*"/></instance-parameter></parameters>
+			</method>
+			<method name="emit" c:identifier="ast_counter_emit">
+				<return-value transfer-ownership="none"><type name="gint" c:type="gint"/></return-value>
+				<parameters>
+					<instance-parameter name="self" transfer-ownership="none"><type name="Counter" c:type="AstCounter*"/></instance-parameter>
+					<parameter name="value" transfer-ownership="none"><type name="gint" c:type="gint"/></parameter>
+				</parameters>
+			</method>
+			<method name="as_object" c:identifier="ast_counter_as_object">
+				<return-value transfer-ownership="full" nullable="1"><type name="GObject.Object" c:type="GObject*"/></return-value>
+				<parameters><instance-parameter name="self" transfer-ownership="none"><type name="Counter" c:type="AstCounter*"/></instance-parameter></parameters>
+			</method>
+			<property name="value" readable="1" writable="1" transfer-ownership="none"><type name="gint"/></property>
+			<property name="label" readable="1" writable="1" transfer-ownership="none"><type name="utf8"/></property>
+			<glib:signal name="changed" when="last">
+				<return-value transfer-ownership="none"><type name="gint" c:type="gint"/></return-value>
+				<parameters><parameter name="value" transfer-ownership="none"><type name="gint" c:type="gint"/></parameter></parameters>
+			</glib:signal>
+		</class>
+	</namespace>
+</repository>

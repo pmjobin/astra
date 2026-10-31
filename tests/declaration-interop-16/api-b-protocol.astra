@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[COMImport(name="record_match16_protocol",iid="64cc8a55-9f0b-4f16-bce1-1b12523564e1",threading="constructing",profile="declarations-v1")]
+interface IRecordMatch16{
+	[Foreign(error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]init(borrowed void* unknown)throws QueryCore16.Fault;
+	[Foreign(native="code",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]property i64 code throws QueryCore16.Fault{get;}
+	[Foreign(native="score",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]property f64 score throws QueryCore16.Fault{get;}
+}
+[COMImport(name="record_query16_protocol",iid="ffc20287-220b-476b-b6a9-80c41c4f723b",threading="constructing",profile="declarations-v1")]
+interface IRecordQuery16{
+	[Foreign(error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]init(borrowed void* unknown)throws QueryCore16.Fault;
+	[Foreign(native="search",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]QueryCore16.Answer<f64> search(QueryCore16.Query query)throws QueryCore16.Fault;
+	[Foreign(native="find",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620",null_status="1")][ForeignChannel(parameter="result",nullable="true")]owned IRecordMatch16 find(QueryCore16.Query query)throws QueryCore16.Fault;
+}
+[COMImport(name="record_metadata16_protocol",iid="299c5db0-36fd-4187-a58d-47b5e24d38a0",threading="constructing",profile="declarations-v1")]
+interface IRecordMetadata16{
+	[Foreign(error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]init(borrowed void* unknown)throws QueryCore16.Fault;
+	[Foreign(native="requests",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]property int requests throws QueryCore16.Fault{get;}
+	[Foreign(native="enabled",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]property bool enabled throws QueryCore16.Fault{get;set(bool value);}
+	[Foreign(native="bias",error_factory="Query16.foreign_fault",error_domain="16",errors="QueryCore16.Fault=-1620")]property f64 bias throws QueryCore16.Fault{get;set(f64 value);}
+}

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace Native8;
+extern(C) int module_event(int stage, int value);
+internal int secret(int value) { return value + 1000; }
+struct Pair { int value; f64 weight; }
+class Cell {
+	private int value;
+	init(int value) { this.value = value; module_event(1, value); }
+	deinit() { module_event(9, this.value); }
+	int read() { return this.value; }
+}
+int twice(int value) { return value * 2; }
+Pair pack(int value, f64 weight) {
+	Pair result = { value = value, weight = weight };
+	return result;
+}
+Pair adjust(Pair input, int delta) {
+	Pair result = input;
+	result.value = result.value + delta;
+	result.weight = result.weight + 1.0;
+	return result;
+}
+owned Cell make(int value) { var result = new Cell(value); return move result; }
+int inspect(borrowed Cell value) { return value.read(); }

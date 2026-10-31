@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Label {
+	readonly string text;
+	init(string text) { this.text = text; }
+}
+struct Number { int value; }
+class Container { int value; init() { this.value = 0; } }
+int numeric_consume(owned Label label) { return label.text.byte_length; }
+int integer_consume(owned Label label) { return label.text.byte_length; }
+f64 float_consume(owned Label label) { return label.text.byte_length as f64; }
+int field_consume(owned Label label) { return label.text.byte_length; }
+int main() {
+	var first = new Label("x");
+	var numeric = numeric_consume(move first) as f64;
+	var second = new Label("x");
+	var integer = integer_consume(move second) as i8;
+	var third = new Label("x");
+	var floating = float_consume(move third) as f32;
+	Number record = { value = 0 };
+	var fourth = new Label("x");
+	record.value = field_consume(move fourth);
+	var container = new Container();
+	var fifth = new Label("x");
+	container.value = field_consume(move fifth);
+	if (numeric != 1.0d || integer != 1 || floating != 1.0f || record.value != 1 || container.value != 1) { return 81; }
+	return 42;
+}

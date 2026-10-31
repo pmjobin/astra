@@ -1,0 +1,17 @@
+class Context {
+	owned R resource;
+	init() { this.resource = make(1); }
+}
+owned R produce(borrowed Context context) {
+	context.resource = make(2);
+	owned R incoming = make(3);
+	return move incoming;
+}
+int main() {
+	{
+		Context context = Context.init();
+		context.resource = produce(context);
+		if (id(context.resource) != 3 || live() != 1) { return 1; }
+	}
+	return 42;
+}

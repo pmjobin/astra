@@ -1,0 +1,319 @@
+{
+	"format": "astra-m15-historical-storage-requirements/1",
+	"original_commit": "4f1d50e",
+	"negative_changes": "Pending separate exact batch consent; this corpus does not alter the historical negative recipes.",
+	"cases": [
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "owned-result",
+			"source": "class C{init(){}}class D{init(){}}owned T relay<T>(owned T v,bool b) where T:Ownable{if(b){return move v;}return move v;}void bad(){var v=new C();var result=relay<C>(move v,true);}\nint main(){return 42;}\n",
+			"source_sha256": "c3e8bcdf556c8bc1c6d8824a8ada7d7f64e1621eb68a732e2bbf2613f963c03f",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "forward",
+			"source": "class C{init(){}}class D{init(){}}owned T result<T>(owned T v) where T:Ownable{return move v;}owned T wrapper<T>(owned T v) where T:Ownable{return result<T>(move v);}void bad(){var v=new C();var r=wrapper<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "cfcf884ed8b52384c48d79f4417a9fcd9371b53625901c1bee0cfcf1dfae774f",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "inferred-forward",
+			"source": "class C{init(){}}class D{init(){}}owned T result<T>(owned T v) where T:Ownable{return move v;}owned T wrapper<T>(owned T v) where T:Ownable{return result(move v);}void bad(){var v=new C();var r=wrapper(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "b542e7f48233ef45f3adc82a331951cb7f0de391223fd43abc0b0f7b60a64018",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "first-invalid-site",
+			"source": "class C{init(){}}class D{init(){}}void wrapper<T>(owned T v) where T:Ownable{wrapper<T>(move v);}void bad(){var one=new C();var two=new C();wrapper<C>(move one);wrapper<C>(move two);}\nint main(){return 42;}\n",
+			"source_sha256": "5b0250dc5f440074d5aac4b869d8443e9e6e90eb15d9f472e9b77e23c7b94197",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "forward-after-loan",
+			"source": "class C{init(){}}class D{init(){}}int borrow<T>(borrowed T v,int n) where T:Ownable{return n;}owned T result<T>(owned T v) where T:Ownable{return move v;}owned T wrapper<T>(owned T v) where T:Ownable{borrow<T>(v,0);return result<T>(move v);}void bad(){var v=new C();var r=wrapper<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "e8dc5b29086c13975a7c98483d3169b38b6c0379f22da24437324a47c840c62a",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "recursive",
+			"source": "class C{init(){}}class D{init(){}}void recur<T>(owned T v,int n) where T:Ownable{if(n>0){recur<T>(move v,n-1);}}void bad(){var v=new C();recur<C>(move v,2);}\nint main(){return 42;}\n",
+			"source_sha256": "34c268ef6302d93051cc46054c5a199e8e6ae61f9e99dfcefd14e3731fdcd426",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "mutual-recursive",
+			"source": "class C{init(){}}class D{init(){}}void left<T>(owned T v) where T:Ownable{right<T>(move v);}void right<T>(owned T v) where T:Ownable{left<T>(move v);}void bad(){var v=new C();left<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "7c803cc4c14f0d52ba0fe577ba8ccef236e3bb2c0d11aa38155df650ecb62c65",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "unreachable-forward",
+			"source": "class C{init(){}}class D{init(){}}owned T result<T>(owned T v) where T:Ownable{return move v;}owned T wrapper<T>(owned T v) where T:Ownable{if(false){return result<T>(move v);}return move v;}void bad(){var v=new C();var r=wrapper<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "9928d4abdc49e94c40a0def3e23654dd683a2fb46bf79051d99edbc8a1fc0876",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "caller-before-consumer",
+			"source": "class C{init(){}}class D{init(){}}void bad(){var v=new C();var r=wrapper<C>(move v);}owned T wrapper<T>(owned T v) where T:Ownable{return result<T>(move v);}owned T result<T>(owned T v) where T:Ownable{return move v;}\nint main(){return 42;}\n",
+			"source_sha256": "88da9ed3f4f0aa5de9abfaf4ddaaf9cca8b4b33d7c53c5c742b688951fa49752",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "multiple-owners",
+			"source": "class C{init(){}}class D{init(){}}void two<T>(owned T a,owned T b) where T:Ownable{}void bad(){var a=new C();var b=new C();two<C>(move a,move b);}\nint main(){return 42;}\n",
+			"source_sha256": "99e5a305d6e3a504c8d09bff3ae2f8d3f6bbfa36c09367378ca3281132cba256",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "pointer-neighbor",
+			"source": "class C{init(){}}class D{init(){}}void badshape<T>(owned T v,void* p) where T:Ownable{}void bad(){var v=new C();badshape<C>(move v,null);}\nint main(){return 42;}\n",
+			"source_sha256": "40f1a58674511e8490a73fb218aee35eeaecbb7fe9dd0d401f30824cd17d63f1",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "text-neighbor",
+			"source": "class C{init(){}}class D{init(){}}void badshape<T>(owned T v,string s) where T:Ownable{}void bad(){var v=new C();badshape<C>(move v,\"x\");}\nint main(){return 42;}\n",
+			"source_sha256": "8c23e46f98fff860bc6a82702a642c7889033baf4bfb44ff2db6c43717973540",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2a/negative.py",
+			"case": "throwing-helper",
+			"source": "class C{init(){}}class D{init(){}}void consume<T>(owned T v) throws Error where T:Ownable{}void bad() throws Error{var v=new C();consume<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "0ffea72ccd3746130ebb73cb0c543b14981ea7a948dc932edd981faf5757e2cf",
+			"exercise_main": "int main(){try{bad();}catch(Error error){return 43;}return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "recursive-scalar-return",
+			"source": "class C{init(){}}class D{init(){}}int relay<T>(owned T v,int n) where T:Ownable{return relay<T>(move v,n);}void bad(){var v=new C();relay<C>(move v,0);}\nint main(){return 42;}\n",
+			"source_sha256": "b30911b1da640cc8af5bfdd29af29ea7104a8893784c008c28039594f37fd00c",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "mutual-scalar-return",
+			"source": "class C{init(){}}class D{init(){}}int left<T>(owned T v) where T:Ownable{return right<T>(move v);}int right<T>(owned T v) where T:Ownable{return left<T>(move v);}void bad(){var v=new C();left<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "0d95e5bf857a8fba64f243dfe4f425f8c28567d916a7e12d37d8d6a6fecd5929",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "unreachable-cycle",
+			"source": "class C{init(){}}class D{init(){}}void relay<T>(owned T v) where T:Ownable{if(false){relay<T>(move v);}}void bad(){var v=new C();relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "5129412b58f408a2dbe42f216b871844981386b6d41977995567f31f488eb0c3",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "cycle-behind-outer",
+			"source": "class C{init(){}}class D{init(){}}void left<T>(owned T v) where T:Ownable{right<T>(move v);}void right<T>(owned T v) where T:Ownable{left<T>(move v);}void outer<T>(owned T v) where T:Ownable{left<T>(move v);}void bad(){var v=new C();outer<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "faf847b866e437faccfbeeb383d7456270046a2fdb0b741e0b1c01819c3a84ba",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "two-branch-sites",
+			"source": "class C{init(){}}class D{init(){}}int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T v,bool b) where T:Ownable{if(b){sink<T>(move v,1);}else{sink<T>(move v,2);}}void bad(){var v=new C();relay<C>(move v,true);}\nint main(){return 42;}\n",
+			"source_sha256": "ee1280311d2b33e4eb07edc9445d4b32fb9eb171f87541c8802942a6c1a0af5b",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "dead-second-site",
+			"source": "class C{init(){}}class D{init(){}}int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T v) where T:Ownable{sink<T>(move v,1);return;sink<T>(move v,2);}void bad(){var v=new C();relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "2e0cfc6cc435047180a18a041d7c35c054f6033d0bfad2bd306a3f5ee5b34d01",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "loop-once-with-break",
+			"source": "class C{init(){}}class D{init(){}}int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T v) where T:Ownable{while(true){sink<T>(move v,1);break;}}void bad(){var v=new C();relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "573a91a1d271ade73917b5dc0f20ee1b16671f48aaff0e50ebd66729452f37b0",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "dead-loop-site",
+			"source": "class C{init(){}}class D{init(){}}int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T v) where T:Ownable{while(false){sink<T>(move v,1);}}void bad(){var v=new C();relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "48af039960d041a28696efda762eab9cce0c4786bba3885c70112bdfe5b4f134",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "transitive-pointer-neighbor",
+			"source": "class C{init(){}}class D{init(){}}void sink<T>(owned T v,void* p) where T:Ownable{}void relay<T>(owned T v) where T:Ownable{sink<T>(move v,null);}void bad(){var v=new C();relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "679f0f2338d5f4ea917884eea2a03d95efa1cff203f582ccbf686d774ea57940",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "heap-result-direct",
+			"source": "class C{init(){}}class D{init(){}}owned T relay<T>(owned T v) where T:Ownable{while(true){return move v;}}void bad(){var v=new C();var r=relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "c50affc6a1d89c4194d9e9d9e2a5b4f4df37435d145afa9171b89c892281f007",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "heap-result-forwarded",
+			"source": "class C{init(){}}class D{init(){}}owned T sink<T>(owned T v) where T:Ownable{return move v;}owned T relay<T>(owned T v) where T:Ownable{return sink<T>(move v);}void bad(){var v=new C();var r=relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "1bbb6d6889e18973d4eaaf069da24d7514287acd63f34b45ef2a495e098ae529",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "two-owned-formals",
+			"source": "class C{init(){}}class D{init(){}}int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T a,owned T b) where T:Ownable{sink<T>(move a,0);sink<T>(move b,0);}void bad(){var a=new C();var b=new C();relay<C>(move a,move b);}\nint main(){return 42;}\n",
+			"source_sha256": "448220c22ed5fd86d7699a247196e2274f9c8653701f22fc5171c91b5485933c",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "throwing-forwarder",
+			"source": "class C{init(){}}class D{init(){}}int sink<T>(owned T v,int n) where T:Ownable{return n;}void relay<T>(owned T v) throws Error where T:Ownable{sink<T>(move v,0);}void bad() throws Error{var v=new C();relay<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "eb9a8402f5628943aa4542a1faccac537e8988b197bff66374021b1ccc657087",
+			"exercise_main": "int main(){try{bad();}catch(Error error){return 43;}return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2b/negative.py",
+			"case": "first-invalid-site",
+			"source": "class C{init(){}}class D{init(){}}void cycle<T>(owned T v) where T:Ownable{cycle<T>(move v);}void bad(){var one=new C();var two=new C();cycle<C>(move one);cycle<C>(move two);}\nint main(){return 42;}\n",
+			"source_sha256": "4dbb0c83cb8d5d612dceba7a7781452d089c7c0421337d2c4cd76425ade34d9f",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "concrete-heap-local-in-result-helper",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{var fresh=new C();return move v;}void bad(){var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "09e7f5c926ccc145be125d56a03761a88a142f4327abd4ae09926db6ed7927c2",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "concrete-lexical-local-in-result-helper",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{C fresh=C.init();return move v;}void bad(){var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "cf83439ad202e6e844894e3f78ae464f81981b4032511d29d60cc558ec28c943",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "symbolic-result-chain",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v,int n) where T:Ownable{return move v;}owned T outer<T>(owned T v) where T:Ownable{return echo<T>(move v,0);}void bad(){var v=new C();var r=outer<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "b2f3c5bc1d95a5e3efd70a34d951485f09abf8d9235c45a8a2be3f63228b6993",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "two-result-sites",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v,bool b) where T:Ownable{if(b){return move v;}return move v;}void bad(){var v=new C();var r=echo<C>(move v,true);}\nint main(){return 42;}\n",
+			"source_sha256": "5e08b972d1f98c748f56fe25ffe024b6187fdf2ba624831f079d7d7015d30839",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "dead-second-result",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{return move v;return move v;}void bad(){var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "4b8cac5b106ae32571c4de19a1a06dddef71ee9fe509042d358b08a181985c91",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "loop-result",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{while(true){return move v;}}void bad(){var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "e75b9990a3999e2cc8d683c854cd05a7a1c8b87be083d3fd1e84ecda3f25f5e1",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "dead-loop-result",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{while(false){return move v;}return move v;}void bad(){var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "1b39967d935bc8a21036e40581bd2ee7de2bf8c539c00e7413bb28c917982ce5",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "recursive-result",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) where T:Ownable{return echo<T>(move v);}void bad(){var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "862a8bd9dacdce1d143aafbbb3e3f24a54693f60f52da5beb1aab03619bd001a",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "mutual-result",
+			"source": "class C{init(){}}class D{init(){}}owned T left<T>(owned T v) where T:Ownable{return right<T>(move v);}owned T right<T>(owned T v) where T:Ownable{return left<T>(move v);}void bad(){var v=new C();var r=left<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "ada285c111ceeb896be6ac4cb8ea1bf046ed4c504802b9e4725fd2baae598566",
+			"exercise_main": null,
+			"exercise_note": "The exact original is a declaration/control main; invoking its unbounded recursion would not terminate. The ordinary generic-storage-requirements program separately exercises bounded recursive forwarding and results."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "two-formals",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T a,owned T b) where T:Ownable{return move a;}void bad(){var a=new C();var b=new C();var r=echo<C>(move a,move b);}\nint main(){return 42;}\n",
+			"source_sha256": "32809973d705f11479145539c5bced3ed411b21a63021de6899eaf573aeb2769",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "pointer-neighbor",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v,void* p) where T:Ownable{return move v;}void bad(){var v=new C();var r=echo<C>(move v,null);}\nint main(){return 42;}\n",
+			"source_sha256": "99fd63f3077fa076dfa57a4bc00bf212d247f961e0649d1e28045b95ea2ff9eb",
+			"exercise_main": "int main(){bad();return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		},
+		{
+			"path": "tests/gen-own-2c/negative.py",
+			"case": "throwing-helper",
+			"source": "class C{init(){}}class D{init(){}}owned T echo<T>(owned T v) throws Error where T:Ownable{return move v;}void bad() throws Error{var v=new C();var r=echo<C>(move v);}\nint main(){return 42;}\n",
+			"source_sha256": "329a008d9d4a1e4a650e2589f35f75ca96658eddee616407e1b534aa0e7d48a8",
+			"exercise_main": "int main(){try{bad();}catch(Error error){return 43;}return 42;}",
+			"exercise_note": "The exact original main returns42 without invoking bad. The separate entry invokes the unchanged finite body."
+		}
+	]
+}

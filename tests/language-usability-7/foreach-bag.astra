@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void usability_event(int value);
+class Diagnostic {
+	int code;
+	init(int code) { this.code = code; usability_event(code); }
+	deinit() { usability_event(0 - this.code); }
+}
+class Token {
+	int code;
+	init(int code) { this.code = code; usability_event(1000 + code); }
+	deinit() { usability_event(2000 + this.code); }
+}
+int code(Diagnostic value) { return value.code; }
+bool visible(Diagnostic value) { return value.code % 2 == 0; }
+void emit(Diagnostic value) { usability_event(100 + code(value)); }
+int first_three(Bag<Diagnostic> bag) {
+	foreach (var item in bag) { if (code(item) == 3) { return 3; } }
+	return 0;
+}
+void fail_scan() throws Error { throw new Error("stop"); }
+int main() {
+	var bag = new Bag<Diagnostic>();
+	if (!bag.reserve(4)) { return 1; }
+	for (int i = 1; i <= 4; i = i + 1) { var item = new Diagnostic(i); bag.append(move item); }
+	foreach (var item in bag) {
+		if (!visible(item)) { continue; }
+		var token = Token.init(code(item));
+		emit(item);
+		if (code(item) == 4) { break; }
+	}
+	var empty = new Bag<Diagnostic>();
+	foreach (var item in empty) { return 2; }
+	if (first_three(bag) != 3 || bag.count() != 4) { return 3; }
+	foreach (var item in bag) {
+		foreach (var inner in bag) {
+			if (code(inner) == 1) { usability_event(200 + code(item)); break; }
+		}
+	}
+	try { foreach (var item in bag) { emit(item); fail_scan(); } return 4; }
+	catch (Error error) { usability_event(900); }
+	usability_event(901);
+	return 0;
+}

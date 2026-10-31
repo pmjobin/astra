@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// CURRENT LANGUAGE: copied generic record members and a bounded numeric view.
+struct Header<T> { int code; T offset; }
+T offset_of<T>(T value) { Header<T> header = { code = 100, offset = value }; return header.offset; }
+int inspect(int[] values) { return len(values) + values[0]; }
+int main() {
+	int[2] values = {10, 20};
+	{
+		var view = slice(values, 0, 2);
+		if (inspect(view) != 12 || view[1] != 20) { return 81; }
+	}
+	// Replacement allocates new zeroed storage; it does not implement growth.
+	var buffer = new int[2];
+	buffer[0] = offset_of<int>(10);
+	if (inspect(buffer) != 12) { return 82; }
+	buffer = new int[3];
+	if (len(buffer) != 3 || buffer[0] != 0) { return 83; }
+	return 0;
+}

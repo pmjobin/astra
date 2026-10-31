@@ -1,0 +1,12 @@
+bool consume(bool a, bool b) {
+	return a == b;
+}
+bool contexts(bool a, bool b, bool c) {
+	bool x = a && b;
+	x = x || c;
+	if (a && c) {
+		x = b || c;
+	}
+	consume(x && b, a || c);
+	return !(x && (a || b)) == (b || c);
+}

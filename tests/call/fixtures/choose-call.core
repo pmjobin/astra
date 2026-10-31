@@ -1,0 +1,65 @@
+(core-program
+	(function "transform" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return
+				(binary + : int
+					(parameter #0 : int)
+					(integer 1 : int)
+				)
+			)
+		)
+	)
+	(function "choose_call" -> int
+		(parameters
+			(parameter #0 "c" : bool)
+			(parameter #1 "a" : int)
+			(parameter #2 "b" : int)
+		)
+		(locals
+			(local-place #0 "x" : int)
+		)
+		(block
+			(initialize
+				(local-place #0 : int)
+				(integer 0 : int)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(store
+							(local-place #0 : int)
+							(call "transform" -> int
+								(arguments
+									(parameter #1 : int)
+								)
+							)
+						)
+					)
+				)
+				(else
+					(block
+						(store
+							(local-place #0 : int)
+							(call "transform" -> int
+								(arguments
+									(parameter #2 : int)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(local-place #0 : int)
+				)
+			)
+		)
+	)
+)

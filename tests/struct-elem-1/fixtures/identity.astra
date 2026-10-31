@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct S { int tag; f64 weight; }
+class C { owned S[] records; init(int count) { this.records = new S[count]; this.records[0].tag = 7; this.records[0].weight = 0.5d; } }
+owned C make(int count) { return C.init(count); }
+owned C relay(owned C value) { return move value; }
+owned T generic_relay<T>(owned T value) where T : Ownable { return move value; }
+int main() { owned C a = make(2); owned C b = relay(move a); owned C c = generic_relay(move b); return 0; }

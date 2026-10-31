@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int singleton_attempt();
+extern(C) int singleton_destroy();
+extern(C) int singleton_finish();
+extern(C) int thread_oracle_arrive(int expected);
+extern(C) int thread_oracle_destroy();
+extern(C) int thread_oracle_finish(int expected);
+
+[Shared, Monitor, Singleton]
+class Configuration {
+	private int value;
+	init(int value, bool fail) throws Error {
+		singleton_attempt();
+		if (fail) { throw new Error("initialization failed"); }
+		this.value = value;
+	}
+	int read() { return this.value; }
+	deinit() { singleton_destroy(); }
+}
+
+class Request { init() {} deinit() { thread_oracle_destroy(); } }
+int first_access(borrowed Request request, int value) {
+	thread_oracle_arrive(4);
+	try {
+		var config = new Configuration(17, false);
+		if (config.read() != 17) { return 81; }
+	} catch (Error error) { return 82; }
+	return value;
+}
+
+int main() {
+	try { var failed = new Configuration(9, true); return 83; }
+	catch (Error error) {}
+	var e0 = new Request(); var t0 = thread_bind(move e0, first_access);
+	var e1 = new Request(); var t1 = thread_bind(move e1, first_access);
+	var e2 = new Request(); var t2 = thread_bind(move e2, first_access);
+	var e3 = new Request(); var t3 = thread_bind(move e3, first_access);
+	if (thread_start(t0, 1) != 0 || thread_start(t1, 2) != 0 || thread_start(t2, 3) != 0 || thread_start(t3, 4) != 0) { return 84; }
+	if (thread_join(t0) != 1 || thread_join(t1) != 2 || thread_join(t2) != 3 || thread_join(t3) != 4) { return 85; }
+	release t0; release t1; release t2; release t3;
+	try {
+		var root = new Configuration(99, false);
+		if (root.read() != 17) { return 86; }
+		var weak = root.downgrade();
+		var extra = root.clone();
+		var busy = singleton_shutdown(root);
+		if (busy != null) { return 87; }
+		release extra;
+		var retired = singleton_shutdown(root);
+		if (retired == null || retired.read() != 17) { return 88; }
+		release root; release retired;
+		var expired = weak.upgrade();
+		if (expired != null) { return 89; }
+		release weak;
+	} catch (Error error) { return 90; }
+	if (singleton_finish() != 0) { return 91; }
+	return thread_oracle_finish(4);
+}

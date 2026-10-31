@@ -1,0 +1,9 @@
+extern(C) int putchar(int c);
+extern(C) int fflush(void* p);
+int record(int c, int value) { putchar(c); fflush(null); return value; }
+class Ordered { int first; bool gate; int last; }
+int main() {
+	Ordered object = { last = record(76,2), gate = (record(71,0) == 0 && record(83,1) == 1), first = record(70,40) };
+	if (!object.gate) { return 1; }
+	return object.first + object.last;
+}

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int exercise(bool early, bool fail) throws Error {
+	var messages = new Bag<Utf8Message>(); var builder = new Utf8ByteBuilder();
+	if (!messages.reserve(2)) { return 70; }
+	int i = 1;
+	while (i <= 3) {
+		require_text(append_int(builder, i));
+		var snapshot = builder.snapshot();
+		if (i == 3 && !messages.reserve(3)) { return 70; }
+		messages.append(move snapshot);
+		i = i + 1;
+	}
+	release builder;
+	if (messages.count() != 3 || messages.capacity() < 3) { return 71; }
+	if (fail) { int invalid = parse_int("overflow"); return invalid; }
+	if (early) { if (!emit_message(messages.entries[0])) { return 72; } return 0; }
+	i = 0;
+	while (i < messages.count()) { if (!emit_message(messages.entries[i])) { return 72; } i = i + 1; }
+	return 0;
+}
+int main(string[] args) {
+	bool early = false; bool fail = false;
+	if (len(args) > 1) { early = args[1] == "early"; fail = args[1] == "error"; }
+	try { return exercise(early, fail); }
+	catch (IntegerParseError error) { if (!println("caught")) { return 73; } return 0; }
+	catch (Error error) { return 74; }
+}

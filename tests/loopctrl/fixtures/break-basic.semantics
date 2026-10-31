@@ -1,0 +1,28 @@
+(program
+	(function "run" -> int
+		(parameters)
+		(locals
+			(local #0 "i" : int)
+		)
+		(block
+			(local-init #0 "i" : int (integer 0 : int))
+			(while #0
+				(condition (binary < : bool (local-ref #0 "i" : int) (integer 100 : int)))
+				(body
+					(block
+						(assign (local-ref #0 "i" : int) (binary + : int (local-ref #0 "i" : int) (integer 1 : int)))
+						(if
+							(condition (binary == : bool (local-ref #0 "i" : int) (integer 7 : int)))
+							(then
+								(block
+									(break #0)
+								)
+							)
+						)
+					)
+				)
+			)
+			(return (local-ref #0 "i" : int))
+		)
+	)
+)

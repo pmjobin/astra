@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]
+class Fault {
+	readonly string text;
+	init(string text) { this.text=text; }
+	virtual property string message { get { return this.text; } }
+}
+class ArgumentItem {
+	private owned u8[] bytes;
+	init(int size) {
+		owned u8[] data=new u8[size];
+		this.bytes=move data;
+	}
+	int size() { return len(this.bytes); }
+}
+int later(int mode) throws Fault {
+	if(mode!=0) { throw new Fault("argument"); }
+	return 7;
+}
+int consume(owned ArgumentItem input,int marker) {
+	if(input==null || marker!=7) { return 1; }
+	return input.size()-19;
+}
+int exercise(int mode) {
+	var input=new ArgumentItem(19);
+	try {
+		int code=consume(move input,later(mode));
+		if(code!=0) { return code; }
+	} catch(Fault error) {
+		if(input==null) { return 3; }
+		if(input.size()!=19) { return 4; }
+	}
+	return 0;
+}
+int main() {
+	int restored=exercise(1);
+	if(restored!=0) { return restored; }
+	return exercise(0);
+}

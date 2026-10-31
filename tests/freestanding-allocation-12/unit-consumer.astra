@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Alloc12;
+extern(C) int unit_probe();
+int main() {
+	{
+		var first = create(7);
+		var second = new Entry(8);
+		var third = try_new Entry(9);
+		Snapshot snapshot = {first = 42, second = 1.25};
+		if (third == null || first.read() + second.read() + third.read() != 24 || snapshot.first != 42 || snapshot.second != 1.25) { return 81; }
+	}
+	if (unit_probe() != 1) { return 82; }
+	return 42;
+}

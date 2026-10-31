@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+Box<int> box(int number) { Box<int> result = {value = number}; return result; }
+int main() {
+	var context = concurrent_allocator(1, 65539, 17, 128);
+	if (context == null) { return 1; }
+	var selected = new(context)u8[17];
+	var ordinary = new u8[19];
+	selected[0] = 3; ordinary[0] = 4;
+	var result = box(7);
+	if (result.value + (selected[0] as int) + (ordinary[0] as int) != 14) { return 2; }
+	return 0;
+}

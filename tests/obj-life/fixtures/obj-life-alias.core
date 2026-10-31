@@ -1,0 +1,164 @@
+(core-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(object-cleanup (storage #0) (destructor class #0) (rank #0) after-success)
+		(parameters)
+		(locals
+			(local-place #0 "c" : Counter)
+			(local-place #1 "a" : Counter)
+			(local-place #2 "b" : Counter)
+			(local-place #3 "nil" : Counter)
+			(local-place #4 "inner" : Counter)
+		)
+		(block
+			(construct (storage #0) (constructor class #0) (ref-local #0)
+				(integer 1 : int)
+			)
+			(initialize
+				(local-place #1 : Counter)
+				(load : Counter
+					(local-place #0 : Counter)
+				)
+			)
+			(initialize
+				(local-place #2 : Counter)
+				(load : Counter
+					(local-place #0 : Counter)
+				)
+			)
+			(initialize
+				(local-place #3 : Counter)
+				(null : Counter)
+			)
+			(block
+				(initialize
+					(local-place #4 : Counter)
+					(load : Counter
+						(local-place #0 : Counter)
+					)
+				)
+				(method-call-statement "set" -> void
+					(target Counter::set #0)
+					(receiver
+						(object-receiver : Receiver<Counter> null-traps-before-arguments
+							(load : Counter
+								(local-place #4 : Counter)
+							)
+						)
+					)
+					(arguments
+						(integer 40 : int)
+					)
+				)
+			)
+			(store
+				(local-place #0 : Counter)
+				(null : Counter)
+			)
+			(store
+				(object-field-place null-traps : int
+					(load : Counter
+						(local-place #1 : Counter)
+					)
+					(field #0 "value")
+				)
+				(integer 42 : int)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(binary != : bool
+							(load : Counter
+								(local-place #1 : Counter)
+							)
+							(load : Counter
+								(local-place #2 : Counter)
+							)
+						)
+						(binary != : bool
+							(load : Counter
+								(local-place #3 : Counter)
+							)
+							(load : Counter
+								(local-place #0 : Counter)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(load : int
+					(object-field-place null-traps : int
+						(load : Counter
+							(local-place #2 : Counter)
+						)
+						(field #0 "value")
+					)
+				)
+			)
+		)
+	)
+	(method #0 "set" (declaring-class #0 "Counter") (member #3) -> void
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+)

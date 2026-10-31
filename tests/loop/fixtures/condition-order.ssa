@@ -1,0 +1,51 @@
+(ssa-program
+	(function #0 "identity" -> int
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(return %0)
+		)
+	)
+	(function #1 "positive" -> bool
+		(parameters
+			(%0 "x" : int)
+		)
+		(entry #0)
+		(block #0
+			(%1 : bool = binary > %0 (integer 0 : int))
+			(return %1)
+		)
+	)
+	(function #2 "condition_order" -> int
+		(parameters
+			(%0 "a" : int)
+			(%1 "b" : int)
+		)
+		(entry #0)
+		(block #0
+			(branch #1 (%0))
+		)
+		(block #1
+			(arguments
+				(%2 "x" : int)
+			)
+			(%3 : int = binary / %2 %1)
+			(%4 : int = call #0 "identity" -> int (arguments %2))
+			(%5 : int = binary + %3 %4)
+			(%6 : bool = call #1 "positive" -> bool (arguments %5))
+			(conditional-branch %6
+				(true #2 ())
+				(false #3 ())
+			)
+		)
+		(block #2
+			(%7 : int = binary - %2 (integer 1 : int))
+			(branch #1 (%7))
+		)
+		(block #3
+			(return %2)
+		)
+	)
+)

@@ -1,0 +1,98 @@
+(unit
+	(function
+		(type "f64")
+		(name "tie")
+		(parameters)
+		(block
+			(return (float "9007199254740993.0"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "precise")
+		(parameters)
+		(block
+			(return (float "1.0000000000000002"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "negative_zero")
+		(parameters)
+		(block
+			(return (prefix "-" (float "0.0")))
+		)
+	)
+	(function
+		(type "f64")
+		(name "tiny")
+		(parameters)
+		(block
+			(return (float "4.9406564584124654e-324"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "max_subnormal")
+		(parameters)
+		(block
+			(return (float "2.2250738585072009e-308"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "min_normal")
+		(parameters)
+		(block
+			(return (float "2.2250738585072014e-308"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "maximum")
+		(parameters)
+		(block
+			(return (float "1.7976931348623157e308"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "overflow")
+		(parameters)
+		(block
+			(return (float "1e309"))
+		)
+	)
+	(function
+		(type "f64")
+		(name "underflow")
+		(parameters)
+		(block
+			(return (prefix "-" (float "1e-1000")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (call "tie" (arguments)) (float "9007199254740992.0")) (binary "==" (call "precise" (arguments)) (float "1.0"))) (binary "==" (call "tiny" (arguments)) (float "0.0"))) (binary "<=" (call "min_normal" (arguments)) (call "max_subnormal" (arguments)))) (binary ">=" (call "maximum" (arguments)) (call "overflow" (arguments)))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (binary "!=" (binary "/" (float "1.0") (call "negative_zero" (arguments))) (prefix "-" (call "overflow" (arguments)))) (binary "!=" (binary "/" (float "1.0") (call "underflow" (arguments))) (prefix "-" (call "overflow" (arguments))))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

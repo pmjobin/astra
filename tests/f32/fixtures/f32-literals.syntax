@@ -1,0 +1,146 @@
+(unit
+	(function
+		(type "f32")
+		(name "zero")
+		(parameters)
+		(block
+			(return (float "0.0"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "negative_zero")
+		(parameters)
+		(block
+			(return (prefix "-" (float "0.0")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "one")
+		(parameters)
+		(block
+			(return (float "1.0"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "negative_one")
+		(parameters)
+		(block
+			(return (prefix "-" (float "1.0")))
+		)
+	)
+	(function
+		(type "f32")
+		(name "half")
+		(parameters)
+		(block
+			(return (float "0.5"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "two")
+		(parameters)
+		(block
+			(return (float "2.0"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "subnormal")
+		(parameters)
+		(block
+			(return (float "1.401298464324817e-45"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "normal")
+		(parameters)
+		(block
+			(return (float "1.1754943508222875e-38"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "maximum")
+		(parameters)
+		(block
+			(return (float "3.4028234663852886e38"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "infinity")
+		(parameters)
+		(block
+			(return (float "1e100"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "underflow")
+		(parameters)
+		(block
+			(return (float "1e-100"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "tie_down")
+		(parameters)
+		(block
+			(return (float "1.000000059604644775390625"))
+		)
+	)
+	(function
+		(type "f32")
+		(name "tie_up")
+		(parameters)
+		(block
+			(return (float "1.000000178813934326171875"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (call "zero" (arguments)) (prefix "-" (float "0.0"))) (binary "!=" (call "negative_zero" (arguments)) (float "0.0"))) (binary "!=" (call "one" (arguments)) (float "1.00"))) (binary "!=" (call "negative_one" (arguments)) (prefix "-" (float "10e-1")))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary "!=" (call "half" (arguments)) (float "0.5")) (binary "!=" (call "two" (arguments)) (float "2.0"))) (binary "==" (call "subnormal" (arguments)) (float "0.0"))) (binary "<=" (call "normal" (arguments)) (call "subnormal" (arguments)))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (short-circuit "||" (binary ">=" (call "maximum" (arguments)) (call "infinity" (arguments))) (binary "!=" (call "underflow" (arguments)) (float "0.0"))) (binary "!=" (call "tie_down" (arguments)) (float "1.0"))) (binary "!=" (call "tie_up" (arguments)) (float "1.0000002384185791015625"))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (binary "!=" (float "1e3") (float "1E3")) (binary "!=" (float "1.25e-4") (float "0.000125"))) (binary "!=" (float "123.456E+7") (float "1234560000.0"))))
+				(then
+					(block
+						(return (integer "4"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

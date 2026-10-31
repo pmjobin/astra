@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool<8> compare(i16<8> a, i16<8> b) { return a < b; }
+bool<4> flip(bool<4> m) { return !m; }
+bool<4> equal(bool<4> a, bool<4> b) { return a == b; }
+bool<4> unequal(bool<4> a, bool<4> b) { return a != b; }
+bool every(bool<4> m) { return all(m); }
+bool some(bool<4> m) { return any(m); }
+int main() {
+	bool<4> a = {true, false, true, false};
+	bool<4> b = {false, true, false, true};
+	if (every(a) || !some(a) || !every(equal(flip(a), b)) || !every(unequal(a, b))) { return 1; }
+	bool<4> yes = {true, true, true, true};
+	bool<4> no = {false, false, false, false};
+	if (!every(yes) || some(no) || every(no) || !some(yes)) { return 2; }
+	i16<8> x = {1, 2, 3, 4, 5, 6, 7, 8};
+	i16<8> y = {2, 3, 4, 5, 6, 7, 8, 9};
+	bool<8> mask = compare(x, y);
+	if (!all(mask)) { return 3; }
+	return 0;
+}

@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int outer(borrowed int[] s, int n) {
+	int[] local = s;
+	if (n > 0) { return helper(local,n-1); }
+	return len(local);
+}
+int helper(borrowed i32[] s, int n) {
+	if (n > 0) { return outer(s,n-1); }
+	return len(s);
+}
+int recurse(borrowed int[] s, int i) {
+	if (i == len(s)) { return 0; }
+	return s[i] + recurse(s,i+1);
+}
+int main() {
+	int[4] a = {1,2,3,4};
+	if (outer(slice(a),8) != 4 || recurse(slice(a),0) != 10) { return 1; }
+	if (outer(slice(a,4,0),7) != 0 || recurse(slice(a,0,0),0) != 0) { return 2; }
+	return 0;
+}

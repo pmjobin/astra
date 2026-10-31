@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="owners16_retired")] int retired(int value);
+[CImport(name="owners16_observe")] int observe(int value);
+[CExport(name="consumer16",profile="declarations-v1")]
+class Consumer {
+	[Foreign] init() {}
+	[Foreign] int take(owned Item input) { return input.code(); }
+	[Foreign] owned Item relay(owned Item input) { return move input; }
+	[Foreign] int pair(owned Item first, owned Item second) { return first.code() + second.code(); }
+	[Foreign] int with_borrow(owned Item input, borrowed Item view) { return input.code() + view.code(); }
+	[Foreign] int watched(owned Item input) { observe(input.code()); return input.code(); }
+	[Foreign] int preflight(owned Item input, borrowed u8[] bytes) { return input.code() + len(bytes); }
+	[Foreign][ForeignChannel(parameter="input",nullable="true")]
+	int optional(owned Item input) { if (input == null) { return -7; } return input.code(); }
+}
+[CExport(name="holder16",profile="declarations-v1")]
+class Holder {
+	private owned Item child;
+	[Foreign] init(owned Item input) { this.child = move input; }
+	[Foreign] int code() { return this.child.code(); }
+}
+[CExport(name="owned_item16",profile="declarations-v1")]
+class Item {
+	private int value;
+	[Foreign] init(int value) { this.value = value; }
+	[Foreign] int code() { return this.value; }
+	deinit() { retired(this.value); }
+}

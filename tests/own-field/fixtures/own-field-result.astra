@@ -1,0 +1,14 @@
+class Context {
+	owned R resource;
+	int count;
+	init(owned R resource) { this.resource = move resource; this.count = 0; }
+	void replace(owned R incoming) { this.resource = move incoming; }
+	int get() { return id(this.resource); }
+}
+owned Context factory() { owned R r = make(1); return Context.init(move r); }
+owned Context forward() { return factory(); }
+owned Context relay(owned Context value) { return move value; }
+int main() {
+	{ owned Context a = forward(); owned Context b = relay(move a); if (b.get() != 1 || live() != 1) { return 1; } }
+	return 42;
+}

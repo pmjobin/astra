@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+f32 ordered(f32<4> a,f32<4> b){return dot(a,b);}
+f32 accum(f32 c,f32<4> a,f32<4> b){return mac(c,a,b);}
+int main(){
+	f32 inf=1e100;
+	f32 nan=0.0/0.0;
+	f32<4> ones=splat(1.0,4);
+	f32<4> a={1.0,nan,2.0,3.0};
+	f32 r=ordered(a,ones);
+	if(r==r){return 1;}
+	f32<4> b={1.0,inf,2.0,3.0};
+	if(ordered(b,ones)!=inf){return 2;}
+	f32<4> c={inf,-inf,0.0,0.0};
+	r=ordered(c,ones);
+	if(r==r){return 3;}
+	f32<4> d={inf,1.0,1.0,1.0};
+	r=ordered(d,splat(0.0,4));
+	if(r==r){return 4;}
+	a=splat(-0.0,4);
+	if(1.0/ordered(a,ones)!=inf){return 5;}
+	if(1.0/accum(-0.0,a,ones)!=-inf){return 6;}
+	f32<4> tiny={1.40129846432481707092372958328991613128026194187651577175706828388979108268586060148663818836212158203125e-45,0.0,0.0,0.0};
+	if(ordered(tiny,ones)!=tiny[0]){return 7;}
+	if(ordered(tiny,splat(0.5,4))!=0.0){return 8;}
+	if(accum(tiny[0],tiny,ones)!=tiny[0]+tiny[0]){return 9;}
+	return 0;
+}

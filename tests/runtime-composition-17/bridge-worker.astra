@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace CPU;
+enum WorkerStatus { Completed, Cancelled }
+async runtime WorkerExecutor throws BridgeError returns WorkerStatus provider "posix-threaded-composed";
+extern(C) void bridge_worker_begin(int identity);
+extern(C) void bridge_worker_end(int identity);
+extern(C) void bridge_job_retired(int identity);
+[Allocator(kind="context",context="owned-concurrent")]
+class Job {
+	private owned int[] data;
+	private int seed;
+	private int value;
+	init(owned int[] data, int seed) { this.data = move data; this.seed = seed; this.value = seed; }
+	void begin() { bridge_worker_begin(this.seed); }
+	void finish() { bridge_worker_end(this.seed); }
+	int step(int first, int last) {
+		for (int i = first; i < last; i = i + 1) { this.value = (this.value * 17 + this.data[i % len(this.data)] + i % 251) % 65521; }
+		return this.value;
+	}
+	deinit() { bridge_job_retired(this.seed); }
+}
+async int calculate(owned Job job) throws Error {
+	job.begin();
+	int value = 0;
+	for (int first = 0; first < 1000003; first = first + 10003) {
+		int last = first + 10003;
+		if (last > 1000003) { last = 1000003; }
+		value = job.step(first, last);
+		await delay_ticks(1);
+	}
+	job.finish();
+	return value;
+}
+async owned int[] batch(owned ConcurrentAllocator storage, owned Job first, owned Job second) throws Error {
+	var a = task_in(storage, calculate(move first));
+	var b = task_in(storage, calculate(move second));
+	start(a);
+	int second_value = 0;
+	try { second_value = await move b; }
+	catch (Error error) { await cancel_and_join(move a); throw; }
+	int first_value = await move a;
+	owned int[] result = new int[2];
+	result[0] = first_value; result[1] = second_value;
+	return move result;
+}
+async int checked_failure() throws Error {
+	await delay_ticks(1);
+	throw new Error("worker bridge checked failure");
+}

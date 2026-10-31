@@ -1,0 +1,289 @@
+(core-program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(function "choose" -> Pair
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(parameter #0 "condition" : bool)
+			(struct-parameter #1 COPY_VALUE read-only independent-local)
+			(parameter #1 "a" : Pair)
+			(struct-parameter #2 COPY_VALUE read-only independent-local)
+			(parameter #2 "b" : Pair)
+		)
+		(locals
+			(struct-local-place #0 "a" : Pair)
+			(struct-local-place #1 "b" : Pair)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #1 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #1 : Pair) (field #1 "y") : f64)
+		)
+		(block
+			(acquire-struct-parameter #1 COPY_VALUE (local #0) all-leaves)
+			(acquire-struct-parameter #2 COPY_VALUE (local #1) all-leaves)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(struct-return snapshot-before-cleanup
+							(struct-snapshot : Pair
+								(local-place #0 : Pair)
+							)
+						)
+					)
+				)
+			)
+			(struct-return snapshot-before-cleanup
+				(struct-snapshot : Pair
+					(local-place #1 : Pair)
+				)
+			)
+		)
+	)
+	(function "merge" -> Pair
+		(struct-result COPY_VALUE exact-nominal snapshot)
+		(parameters
+			(parameter #0 "condition" : bool)
+			(struct-parameter #1 COPY_VALUE read-only independent-local)
+			(parameter #1 "a" : Pair)
+			(struct-parameter #2 COPY_VALUE read-only independent-local)
+			(parameter #2 "b" : Pair)
+		)
+		(locals
+			(struct-local-place #0 "a" : Pair)
+			(struct-local-place #1 "b" : Pair)
+			(struct-local-place #2 "result" : Pair)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #1 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #1 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #2 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #2 : Pair) (field #1 "y") : f64)
+		)
+		(block
+			(acquire-struct-parameter #1 COPY_VALUE (local #0) all-leaves)
+			(acquire-struct-parameter #2 COPY_VALUE (local #1) all-leaves)
+			(struct-copy (type Pair) initialize snapshot-before-write
+				(destination
+					(local-place #2 : Pair)
+				)
+				(source
+					(local-place #0 : Pair)
+				)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(struct-copy (type Pair) assign snapshot-before-write
+							(destination
+								(local-place #2 : Pair)
+							)
+							(source
+								(local-place #1 : Pair)
+							)
+						)
+					)
+				)
+			)
+			(struct-return snapshot-before-cleanup
+				(struct-snapshot : Pair
+					(local-place #2 : Pair)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(struct-local-place #0 "a" : Pair)
+			(struct-local-place #1 "b" : Pair)
+			(struct-local-place #2 "c" : Pair)
+			(struct-local-place #3 "d" : Pair)
+			(struct-local-place #4 "e" : Pair)
+			(struct-local-place #5 "f" : Pair)
+		)
+		(field-places
+			(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #0 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #1 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #1 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #2 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #2 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #3 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #3 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #4 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #4 : Pair) (field #1 "y") : f64)
+			(field-place (base struct-local-place #5 : Pair) (field #0 "x") : int)
+			(field-place (base struct-local-place #5 : Pair) (field #1 "y") : f64)
+		)
+		(block
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #0 "x") : int)
+				(integer 7 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #0 : Pair) (field #1 "y") : f64)
+				(f64 0x400c000000000000 : f64)
+			)
+			(initialize
+				(field-place (base struct-local-place #1 : Pair) (field #0 "x") : int)
+				(integer 9 : int)
+			)
+			(initialize
+				(field-place (base struct-local-place #1 : Pair) (field #1 "y") : f64)
+				(f64 0x4023000000000000 : f64)
+			)
+			(struct-result-store initialize
+				(local-place #2 : Pair)
+				(struct-call-result : Pair
+					(call "choose" -> Pair
+						(arguments
+							(bool true : bool)
+							(struct-argument #1 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #0 : Pair)
+								)
+							)
+							(struct-argument #2 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #1 : Pair)
+								)
+							)
+						)
+					)
+				)
+			)
+			(struct-result-store initialize
+				(local-place #3 : Pair)
+				(struct-call-result : Pair
+					(call "choose" -> Pair
+						(arguments
+							(bool false : bool)
+							(struct-argument #1 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #0 : Pair)
+								)
+							)
+							(struct-argument #2 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #1 : Pair)
+								)
+							)
+						)
+					)
+				)
+			)
+			(struct-result-store initialize
+				(local-place #4 : Pair)
+				(struct-call-result : Pair
+					(call "merge" -> Pair
+						(arguments
+							(bool true : bool)
+							(struct-argument #1 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #0 : Pair)
+								)
+							)
+							(struct-argument #2 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #1 : Pair)
+								)
+							)
+						)
+					)
+				)
+			)
+			(struct-result-store initialize
+				(local-place #5 : Pair)
+				(struct-call-result : Pair
+					(call "merge" -> Pair
+						(arguments
+							(bool false : bool)
+							(struct-argument #1 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #0 : Pair)
+								)
+							)
+							(struct-argument #2 snapshot-at-argument
+								(struct-snapshot : Pair
+									(local-place #1 : Pair)
+								)
+							)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(short-circuit || : bool
+									(short-circuit || : bool
+										(binary != : bool
+											(load : int
+												(field-place (base struct-local-place #2 : Pair) (field #0 "x") : int)
+											)
+											(integer 7 : int)
+										)
+										(binary != : bool
+											(load : f64
+												(field-place (base struct-local-place #2 : Pair) (field #1 "y") : f64)
+											)
+											(f64 0x400c000000000000 : f64)
+										)
+									)
+									(binary != : bool
+										(load : int
+											(field-place (base struct-local-place #3 : Pair) (field #0 "x") : int)
+										)
+										(integer 9 : int)
+									)
+								)
+								(binary != : bool
+									(load : f64
+										(field-place (base struct-local-place #3 : Pair) (field #1 "y") : f64)
+									)
+									(f64 0x4023000000000000 : f64)
+								)
+							)
+							(binary != : bool
+								(load : int
+									(field-place (base struct-local-place #4 : Pair) (field #0 "x") : int)
+								)
+								(integer 9 : int)
+							)
+						)
+						(binary != : bool
+							(load : int
+								(field-place (base struct-local-place #5 : Pair) (field #0 "x") : int)
+							)
+							(integer 7 : int)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

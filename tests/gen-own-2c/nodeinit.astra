@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	var quiet = new Quiet(50, 1);
+	var empty = new Empty(51, 1);
+	var first = pure(move quiet);
+	owned Empty second = pure<Empty>(move empty);
+	consume(move first, 50); consume(move second, 51);
+	return own_finish();
+}

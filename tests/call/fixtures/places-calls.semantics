@@ -1,0 +1,19 @@
+(program
+	(function "make" -> int
+		(parameters)
+		(block
+			(return (integer 1 : int))
+		)
+	)
+	(function "f" -> int
+		(parameters)
+		(locals
+			(local #0 "x" : int)
+		)
+		(block
+			(local-init #0 "x" : int (call "make" -> int (arguments)))
+			(assign (local-ref #0 "x" : int) (call "make" -> int (arguments)))
+			(return (binary + : int (call "make" -> int (arguments)) (local-ref #0 "x" : int)))
+		)
+	)
+)

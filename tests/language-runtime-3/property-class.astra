@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int property_event(int stage, int tag);
+class PropertyPayload {
+	int value;
+	init(int value) { this.value = value; property_event(1, value); }
+	deinit() { property_event(2, this.value); }
+}
+int inspect(borrowed PropertyPayload payload) { return payload.value; }
+owned PropertyPayload acquire(int value, int failure) throws Error {
+	if (failure == 1) { throw new Error("before capture"); }
+	var payload = new PropertyPayload(value);
+	if (failure == 2) { throw new Error("after capture"); }
+	return move payload;
+}
+class PropertyHolder {
+	private owned PropertyPayload payload;
+	int reads;
+	init(owned PropertyPayload payload) { this.payload = move payload; this.reads = 0; }
+	property borrowed PropertyPayload view {
+		get { return this.payload; }
+		set(owned PropertyPayload incoming) { this.payload = move incoming; }
+	}
+	property int computed {
+		get { this.reads = this.reads + 1; return inspect(this.payload); }
+	}
+	deinit() { property_event(3, this.reads); }
+}
+int main() {
+	var payload = new PropertyPayload(10);
+	var holder = new PropertyHolder(move payload);
+	if (inspect(holder.view) != 10 || holder.view == null) { return 81; }
+	if (holder.computed + holder.computed != 20 || holder.reads != 2) { return 82; }
+	try { var incoming = acquire(20, 1); holder.view = move incoming; return 83; }
+	catch (Error error) { if (error.message != "before capture" || inspect(holder.view) != 10) { return 84; } property_event(4, 1); }
+	try { var incoming = acquire(30, 2); holder.view = move incoming; return 85; }
+	catch (Error error) { if (error.message != "after capture" || inspect(holder.view) != 10) { return 86; } property_event(4, 2); }
+	try { var incoming = acquire(40, 0); holder.view = move incoming; }
+	catch (Error error) { return 87; }
+	if (inspect(holder.view) != 40) { return 88; }
+	holder.view = null;
+	if (holder.view != null) { return 89; }
+	var last = new PropertyPayload(50);
+	holder.view = move last;
+	release holder;
+	return 0;
+}

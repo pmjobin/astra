@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int report_event(int stage, int value);
+extern(C) int report_live();
+extern(C) int report_metric_drops();
+interface ReportRule { int apply(int value); }
+class ReportMetric : ReportRule {
+	int bias;
+	init(int bias) : base() { this.bias = bias; report_event(1, bias); }
+	override int apply(int value) { return value + this.bias; }
+	deinit() { report_event(2, this.bias); }
+}
+int dispatch_report(borrowed ReportRule rule, int value) { return rule.apply(value); }
+int inspect_metric(borrowed ReportMetric metric, int value) { return dispatch_report(metric, value); }
+class ReportSource {
+	private owned FileBytes bytes;
+	init(owned FileBytes bytes) { this.bytes = move bytes; }
+	property borrowed FileBytes content { get { return this.bytes; } }
+}
+class ReportRow {
+	int value;
+	init(int value) { this.value = value; report_event(3, value); }
+	deinit() { report_event(4, this.value); }
+}
+class ReportEnvironment {
+	private owned Shared<ReportMetric> metric;
+	private owned Weak<ReportMetric> observer;
+	init(owned Shared<ReportMetric> metric, owned Weak<ReportMetric> observer) {
+		this.metric = move metric; this.observer = move observer;
+	}
+	int apply(int input) {
+		var retained = shared_clone(this.metric);
+		var weak = weak_clone(this.observer);
+		var upgraded = weak_upgrade(weak);
+		if (upgraded == null) { return -1; }
+		return inspect_metric(shared_borrow(retained), input);
+	}
+}
+int normalize_record(int value) { return value * 2; }
+int report_code(borrowed ReportEnvironment environment, int value) {
+	Fn<int,int> normalize = normalize_record;
+	return normalize(environment.apply(value));
+}
+int report_byte_count(borrowed FileBytes input) { return input.byte_count(); }
+int read_report_byte(borrowed FileBytes input, int index) throws Error { return input.byte_at(index); }
+int create_report(string input, string output, int bias) throws Error {
+	var bytes = read_file(input);
+	if (bytes.byte_count() > 64) { return 64; }
+	var source = new ReportSource(move bytes);
+	var metric = new ReportMetric(bias); var strong = shared_acquire(move metric);
+	var observer = shared_downgrade(strong);
+	var capture = shared_clone(strong); var weak_capture = weak_clone(observer);
+	var environment = new ReportEnvironment(move capture, move weak_capture);
+	var transform = closure_bind(move environment, report_code);
+	release strong;
+	var rows = new Bag<ReportRow>(); var builder = new Utf8ByteBuilder();
+	if (!rows.reserve(64)) { throw new Error("row allocation"); }
+	int index = 0; int total = 0;
+	while (index < report_byte_count(source.content)) {
+		int value = closure_invoke(transform, read_report_byte(source.content, index));
+		var row = new ReportRow(value); rows.append(move row);
+		require_text(append_int(builder, index)); require_text(append_text(builder, ":"));
+		require_text(append_int(builder, value)); require_text(append_text(builder, "\n"));
+		total = total + value; index = index + 1;
+	}
+	release transform;
+	var expired = weak_upgrade(observer);
+	if (expired != null || report_metric_drops() != 1) { return 3; }
+	require_text(append_text(builder, "records=")); require_text(append_int(builder, rows.count()));
+	require_text(append_text(builder, " total=")); require_text(append_int(builder, total));
+	require_text(append_text(builder, " expired=1\n"));
+	var report = builder.snapshot(); write_text_file(output, report.text);
+	return 0;
+}
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int bias = parse_int(args[3]); if (bias < 0 || bias > 1000) { return 64; }
+		int result = create_report(args[1], args[2], bias);
+		if (report_live() != 0) { return 4; }
+		return result;
+	} catch (Error error) { if (report_live() != 0) { return 4; } return 2; }
+}

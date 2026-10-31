@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace NativeTasks;
+[ExceptionRoot]
+class Error {
+	readonly string text;
+	init(string message) { this.text = message; }
+	virtual property string message { get { return this.text; } }
+}
+class AsyncError : Error { init(string message) : base(message) {} }
+enum RunStatus { Completed, Cancelled }
+async runtime VirtualExecutor throws AsyncError returns RunStatus;
+struct Reply<T> { T value; int generation; }
+class Job<T> {
+	private owned R retained;
+	private T seed;
+	init(owned R retained, T seed) { this.retained = move retained; this.seed = seed; }
+	property T value { get { return this.seed; } }
+	deinit() { mark(2000); }
+}
+owned Job<int> create(int resource, int seed) {
+	var retained = make(resource);
+	var result = new Job<int>(move retained, seed);
+	return move result;
+}
+async Reply<int> compute(owned Job<int> input, bool fail) throws Error {
+	mark(2001);
+	await delay_ticks(5);
+	if (fail) { throw new Error("native task failure"); }
+	Reply<int> result = {value = input.value + 2, generation = 7};
+	mark(2002);
+	return result;
+}

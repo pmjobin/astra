@@ -1,0 +1,22 @@
+(program
+	(function "and_trap" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "x" : int)
+			(parameter #2 "y" : int)
+		)
+		(block
+			(return (short-circuit && : bool (parameter-ref #0 "a" : bool) (binary > : bool (binary / : int (parameter-ref #1 "x" : int) (parameter-ref #2 "y" : int)) (integer 0 : int))))
+		)
+	)
+	(function "or_trap" -> bool
+		(parameters
+			(parameter #0 "a" : bool)
+			(parameter #1 "x" : int)
+			(parameter #2 "y" : int)
+		)
+		(block
+			(return (short-circuit || : bool (parameter-ref #0 "a" : bool) (binary == : bool (binary % : int (parameter-ref #1 "x" : int) (parameter-ref #2 "y" : int)) (integer 0 : int))))
+		)
+	)
+)

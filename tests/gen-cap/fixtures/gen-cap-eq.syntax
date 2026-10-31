@@ -1,0 +1,44 @@
+(unit
+	(function
+		(type-parameters T)
+		(type "bool")
+		(name "same")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Eq)
+		(block
+			(return (binary "==" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "bool")
+		(name "different")
+		(parameters
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(where T Eq)
+		(block
+			(return (binary "!=" (name "a") (name "b")))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(if
+				(condition (short-circuit "&&" (short-circuit "&&" (generic-call "same" (type-arguments bool) (arguments (bool true) (bool true))) (generic-call "same" (type-arguments void*) (arguments (null) (null)))) (generic-call "different" (type-arguments f64) (arguments (float "1.0") (float "2.0")))))
+				(then
+					(block
+						(return (integer "42"))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

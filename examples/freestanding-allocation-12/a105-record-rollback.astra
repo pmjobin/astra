@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void record_event(int value);
+extern(C) int record_probe();
+[Allocator(kind="pool", domain="a105.parts", capacity="512", blocks="8")]
+class Part {
+	int code;
+	init(int code) { this.code = code; record_event(code); }
+	deinit() { record_event(0 - this.code); }
+}
+[Allocator(kind="region", domain="a105.children", capacity="512", blocks="8")]
+class Parent {
+	owned Part child;
+	init(owned Part child) { this.child = move child; }
+	deinit() { record_event(90); }
+}
+struct Inner { owned Part head; owned Parent parent; int tag; }
+struct Envelope { Inner body; owned Part tail; int tag; }
+owned Part part(int code) { var value = new Part(code); return move value; }
+owned Parent parent(int code) { var child = part(code); var result = new Parent(move child); return move result; }
+int stage(bool failure) throws Error {
+	if (failure) { throw new Error("record prefix"); }
+	return 7;
+}
+int exercise(bool failure) {
+	try {
+		Envelope value = {body = {head = part(1), parent = parent(2), tag = stage(failure)}, tail = part(3), tag = 42};
+		var moved = move value;
+		var extracted = move moved.body.head;
+		if (extracted.code != 1 || moved.tag != 42) { return 81; }
+		record_event(moved.body.tag);
+		return moved.tag;
+	} catch (Error error) {
+		if (error.message != "record prefix") { return 82; }
+		record_event(99);
+		return 42;
+	}
+}
+int main() {
+	if (exercise(false) != 42 || exercise(true) != 42 || record_probe() != 1) { return 83; }
+	return 42;
+}

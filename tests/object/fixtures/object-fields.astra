@@ -1,0 +1,31 @@
+class Fields {
+	i8 a;
+	u8 b;
+	i16 c;
+	u16 d;
+	int e;
+	u32 f;
+	f32 g;
+	bool h;
+	void* p;
+
+	void update() {
+		this.a = this.a + 1;
+		this.b = this.b + 1;
+		this.c = this.c + 1;
+		this.d = this.d + 1;
+		this.e = this.e + 1;
+		this.f = this.f + 1;
+		this.g = this.g * 2.0;
+		this.h = !this.h;
+		this.p = null;
+	}
+}
+int main() {
+	Fields original = { p = null, h = false, g = 1.25, f = 4294967295, e = 2147483647, d = 65535, c = 32767, b = 255, a = 127 };
+	Fields alias = original;
+	alias.update();
+	if (original.a != -128 || original.b != 0 || original.c != -32768 || original.d != 0) { return 1; }
+	if (original.e != -2147483648 || original.f != 0 || original.g != 2.5 || !original.h || original.p != null) { return 2; }
+	return 42;
+}

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="retained16_note")]int note(int value);
+[CImport(name="retained16_fire")]int fire();
+[CImport(name="retained16_recursive")]int recursive();
+[CImport(name="retained16_stop")]int stop();
+class Environment{
+	private int calls;
+	init(){this.calls=0;}
+	void receive(int value,bool committed,f64 weight){
+		if(value!=37 || !committed || weight!=2.5){note(-1);return;}
+		this.calls=this.calls+1;note(this.calls);recursive();stop();
+	}
+	deinit(){note(100+this.calls);}
+}
+void received(borrowed Environment environment,int value,bool committed,f64 weight){environment.receive(value,committed,weight);}
+export(C)int retained16_run(int mode){
+	var environment=new Environment();var handler=closure_bind(move environment,received);
+	if(retained_signal_register(handler,mode)!=0){return 1;}
+	if(retained_signal_register(handler,mode)!=-2){return 2;}
+	if(fire()!=0){return 3;}
+	if(retained_signal_observe(handler)!=1 || retained_signal_revoke(handler)!=1){return 4;}
+	release handler;return 0;
+}

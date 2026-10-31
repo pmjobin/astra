@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A109: shared image data survives a real last-release/weak-upgrade race.
+extern(C) int race_worker_ready();
+
+extern(C) int race_parent_ready();
+
+extern(C) int race_parent_release();
+
+extern(C) int race_destroy(int value);
+
+extern(C) int race_finish();
+
+extern(C) int app_sample(int app, int tag, int value);
+
+extern(C) int app_finish(int app);
+
+[Shared, Monitor]
+class Tile {
+
+	private owned u8[] pixels;
+
+	init() {
+
+		this.pixels = new u8[512];
+
+		for (int i = 0; i < 512; i = i + 1) {
+			this.pixels[i] = ((i * 17 + 5) % 251) as u8;
+
+		}
+
+	}
+
+	int checksum() {
+
+		int sum = 0;
+
+		for (int i = 0; i < len(this.pixels); i = i + 1) {
+			sum = sum + (this.pixels[i] as int);
+
+		}
+
+		return sum;
+
+	}
+
+	deinit() {
+		race_destroy(17);
+
+	}
+
+}
+
+class Observer {
+
+	owned Weak<Tile> weak;
+
+	int id;
+
+	init(owned Weak<Tile> weak, int id) {
+		this.weak = move weak;
+		this.id = id;
+
+	}
+
+}
+
+int process(borrowed Observer observer, int iterations) {
+
+	var weak = weak_clone(observer.weak);
+
+	var initial = weak_upgrade(weak);
+
+	if (initial == null) {
+		return -81;
+
+	}
+
+	app_sample(109, observer.id, initial.checksum());
+
+	race_worker_ready();
+	release initial;
+
+	int upgrades = 0;
+
+	for (int i = 0; i < iterations; i = i + 1) {
+
+		var strong = weak_upgrade(weak);
+
+		if (strong != null) {
+			upgrades = upgrades + 1;
+
+		}
+
+	}
+
+	return upgrades;
+
+}
+
+int main() {
+
+	var tile = new Tile();
+	var weak = tile.downgrade();
+
+	var w0 = weak_clone(weak);
+	var e0 = new Observer(move w0, 0);
+	var t0 = thread_bind(move e0, process);
+
+	var w1 = weak_clone(weak);
+	var e1 = new Observer(move w1, 1);
+	var t1 = thread_bind(move e1, process);
+
+	var w2 = weak_clone(weak);
+	var e2 = new Observer(move w2, 2);
+	var t2 = thread_bind(move e2, process);
+
+	var w3 = weak_clone(weak);
+	var e3 = new Observer(move w3, 3);
+	var t3 = thread_bind(move e3, process);
+
+	if (thread_start(t0, 4000) != 0 || thread_start(t1, 4000) != 0 || thread_start(t2, 4000) != 0 || thread_start(t3, 4000) != 0) {
+		return 81;
+
+	}
+
+	race_parent_ready();
+	release tile;
+	race_parent_release();
+
+	if (thread_join(t0) < 0 || thread_join(t1) < 0 || thread_join(t2) < 0 || thread_join(t3) < 0) {
+		return 82;
+
+	}
+
+	release t0;
+	release t1;
+	release t2;
+	release t3;
+
+	var expired = weak_upgrade(weak);
+
+	if (expired != null) {
+		return 83;
+
+	}
+
+	release weak;
+
+	if (race_finish() != 0) {
+		return 84;
+
+	}
+
+	return app_finish(109);
+
+}

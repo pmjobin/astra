@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void mutable_retired(int identity);
+extern(C) int mutable_check(int phase);
+[Allocator(kind="context",context="scoped-affine")]
+class MutableLeaf {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	int read() { return this.identity; }
+	deinit() { mutable_retired(this.identity); }
+}
+class MutableEnvelope {
+	private owned MutableLeaf child;
+	init(owned MutableLeaf input) { this.child = move input; }
+	void replace(owned MutableLeaf input) { this.child = move input; }
+	int read() { if (this.child == null) { return -1; } return this.child.read(); }
+}
+int mutable_case(bool alternate) {
+	owned u8[] first_backing = new u8[8197];
+	owned u8[] second_backing = new u8[8209];
+	var first = scoped_allocator<ScopedAllocator>(first_backing, 2, 1);
+	var second = scoped_allocator<ScopedAllocator>(second_backing, 1, 7);
+	var initial = new(first) MutableLeaf(1);
+	var replacement = new(second) MutableLeaf(2);
+	{
+		var envelope = new MutableEnvelope(move initial);
+		if (alternate) { envelope.replace(move replacement); }
+		else { envelope.replace(move replacement); }
+		if (envelope.read() != 2 || mutable_check(1) != 0) { return 1; }
+		if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 1) { return 2; }
+		var last = new(first) MutableLeaf(3);
+		envelope.replace(move last);
+		if (envelope.read() != 3 || mutable_check(2) != 0) { return 3; }
+		if (scoped_allocator_query(first, 1) != 1 || scoped_allocator_query(second, 1) != 0) { return 4; }
+	}
+	if (mutable_check(3) != 0) { return 5; }
+	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) { return 6; }
+	return 0;
+}
+export(C) int mutable_probe() { return mutable_case(true); }

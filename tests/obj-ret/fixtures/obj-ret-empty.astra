@@ -1,0 +1,5 @@
+extern(C) int life_record(int code, int value);
+class Empty { init() {} deinit() { life_record(69, 0); } }
+owned Empty make() { return Empty.init(); }
+owned Empty outer() { return make(); }
+int main() { owned Empty a = outer(); owned Empty b = outer(); if (a == b || a == null || b == null) { return 1; } return 42; }

@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Contents {
+	owned R handle;
+	owned int[] samples;
+}
+
+struct Envelope {
+	Contents contents;
+	int stamp;
+}
+
+class Box<T> {
+	owned T payload;
+	init(owned T value) { this.payload = move value; }
+	deinit() { mark(100); }
+}
+
+Contents produce(int code) {
+	var handle = make(code);
+	var samples = new int[19];
+	samples[0] = 42;
+	Contents contents = {handle = move handle, samples = move samples};
+	return move contents;
+}
+
+int failing() throws Error { throw new Error("after owning subobject"); }
+
+int exercise() {
+	try {
+		Envelope broken = {contents = produce(61), stamp = failing()};
+		return 1;
+	} catch (Error error) {
+		if (live() != 0) { return 2; }
+		mark(61);
+	}
+	Contents contents = produce(62);
+	Envelope complete = {contents = move contents, stamp = 42};
+	var box = new Box<Envelope>(move complete);
+	return box.payload.stamp - 42;
+}
+
+int main() {
+	int result = exercise();
+	if (result != 0) { return result; }
+	return live();
+}

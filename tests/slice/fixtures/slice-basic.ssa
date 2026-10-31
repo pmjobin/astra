@@ -1,0 +1,130 @@
+(ssa-program
+	(function #0 "main" -> int
+		(parameters)
+		(storage #0 "storage" (local #0) : int[4] address-taken)
+		(entry #0)
+		(block #0
+			(array-initialize (storage #0) (integer 1 : int) (integer 2 : int) (integer 3 : int) (integer 4 : int))
+			(%3 : int[] = slice-from-array (storage #0 : int[4]) full (region #0))
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(%7 : int = slice-bounds-check (slice %3) (index (integer 1 : int)) runtime-length trap)
+			(store (slice-element-place (slice %3) (index %7) : int runtime-bounds-trap) (integer 42 : int))
+			(branch #8 ())
+		)
+		(block #3
+			(%4 : int = slice-length %3)
+			(%5 : bool = binary != %4 (integer 4 : int))
+			(conditional-branch %5
+				(true #5 ((bool true : bool)))
+				(false #4 ())
+			)
+		)
+		(block #4
+			(%6 : bool = binary != (integer 4 : int) (integer 4 : int))
+			(branch #5 (%6))
+		)
+		(block #5
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #6
+			(return (integer 2 : int))
+		)
+		(block #7
+			(store (array-element-place (storage #0) (integer 2 : int) : int[4] bounds-trap) (integer 12 : int))
+			(%13 : int[] = slice-from-array (storage #0 : int[4]) full (region #0))
+			(%14 : int = slice-bounds-check (slice %13) (index (integer 2 : int)) runtime-length trap)
+			(%15 : int = load (slice-element-place (slice %13) (index %14) : int runtime-bounds-trap))
+			(%16 : bool = binary != %15 (integer 12 : int))
+			(conditional-branch %16
+				(true #11 ())
+				(false #12 ())
+			)
+		)
+		(block #8
+			(%8 : int = slice-bounds-check (slice %3) (index (integer 1 : int)) runtime-length trap)
+			(%9 : int = load (slice-element-place (slice %3) (index %8) : int runtime-bounds-trap))
+			(%10 : bool = binary != %9 (integer 42 : int))
+			(conditional-branch %10
+				(true #10 ((bool true : bool)))
+				(false #9 ())
+			)
+		)
+		(block #9
+			(%11 : int = load (array-element-place (storage #0) (integer 1 : int) : int[4] bounds-trap))
+			(%12 : bool = binary != %11 (integer 42 : int))
+			(branch #10 (%12))
+		)
+		(block #10
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #6 ())
+				(false #7 ())
+			)
+		)
+		(block #11
+			(return (integer 3 : int))
+		)
+		(block #12
+			(%17 : int[] = slice-from-array (storage #0 : int[4]) full (region #0))
+			(%18 : int = slice-bounds-check (slice %17) (index (integer 2 : int)) runtime-length trap)
+			(store (slice-element-place (slice %17) (index %18) : int runtime-bounds-trap) (integer 14 : int))
+			(%19 : int = load (array-element-place (storage #0) (integer 2 : int) : int[4] bounds-trap))
+			(%20 : bool = binary != %19 (integer 14 : int))
+			(conditional-branch %20
+				(true #13 ())
+				(false #14 ())
+			)
+		)
+		(block #13
+			(return (integer 4 : int))
+		)
+		(block #14
+			(branch #15 ((integer 0 : int)))
+		)
+		(block #15
+			(arguments
+				(%2 "i" : int)
+			)
+			(%21 : int = slice-length %3)
+			(%22 : bool = binary < %2 %21)
+			(conditional-branch %22
+				(true #16 ())
+				(false #17 ())
+			)
+		)
+		(block #16
+			(%23 : int = slice-bounds-check (slice %3) (index %2) runtime-length trap)
+			(%24 : int = load (slice-element-place (slice %3) (index %23) : int runtime-bounds-trap))
+			(%25 : int = array-bounds-check (storage #0 length 4) %2 trap)
+			(%26 : int = load (array-element-place (storage #0) %25 : int[4] bounds-trap))
+			(%27 : bool = binary != %24 %26)
+			(conditional-branch %27
+				(true #18 ())
+				(false #19 ())
+			)
+		)
+		(block #17
+			(return (integer 0 : int))
+		)
+		(block #18
+			(return (integer 5 : int))
+		)
+		(block #19
+			(%28 : int = binary + %2 (integer 1 : int))
+			(branch #15 (%28))
+		)
+	)
+)

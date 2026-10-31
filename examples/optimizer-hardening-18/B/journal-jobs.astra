@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[Allocator(kind="context",context="owned-concurrent")]
+class JournalJob18 {
+	private owned ContextBytes<ConcurrentAllocator> bytes;
+	private int lane;
+	init(owned ContextBytes<ConcurrentAllocator> bytes, int lane) { this.bytes = move bytes; this.lane = lane; }
+	int run() throws Error {
+		journal18_scope_enter(this.lane);
+		int result = 0;
+		try {
+			if (!journal18_weak_control(this.lane)) { throw new Error("journal weak control"); }
+			if ((this.lane & 1) == 0) {
+				var policy = new JournalBitParity18();
+				result = journal18_process(this.bytes, this.lane, policy);
+			} else {
+				var policy = new JournalRemainderParity18();
+				result = journal18_process(this.bytes, this.lane, policy);
+			}
+		} catch (Error error) { journal18_scope_leave(this.lane); throw; }
+		journal18_scope_leave(this.lane);
+		return result;
+	}
+}
+owned JournalJob18 journal18_job(borrowed ConcurrentAllocator context, int lane) {
+	var bytes = new(context)u8[journal18_size()];
+	for (int index = 0; index < len(bytes); index = index + 1) { bytes[index] = journal18_input_byte(index) as u8; }
+	var job = new(context)JournalJob18(move bytes, lane);
+	return move job;
+}

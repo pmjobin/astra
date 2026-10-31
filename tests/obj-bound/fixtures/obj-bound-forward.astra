@@ -1,0 +1,14 @@
+class Counter { int value; }
+void helper(borrowed Counter c, borrowed Counter alias) {
+	if (c == alias && c != null) { alias.value = 42; }
+}
+void outer(borrowed Counter c) {
+	Counter local = c;
+	helper(c, local);
+}
+int main() {
+	Counter c = { value = 1 };
+	outer(null);
+	outer(c);
+	return c.value;
+}

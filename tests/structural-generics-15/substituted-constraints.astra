@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class Empty<T> {}
+
+void inspect_empty(borrowed Empty<int> value) {}
+
+class Gate<T> where T : Numeric {
+	init() {}
+}
+
+class Calculator<T> where T : Numeric {
+	T seed;
+	init(T seed) { this.seed = seed; }
+	U add<U, V>(U first, U second, V note) where U : Numeric {
+		return first + second;
+	}
+	U greater<U, V>(U first, U second, V note) where U : Ordered, Eq {
+		if (first < second || first == second) { return second; }
+		return first;
+	}
+	T increase<U>(T value, U note) where T : Numeric {
+		return this.seed + value;
+	}
+}
+
+int main() {
+	var gate = new Gate<int>();
+	var calculator = new Calculator<int>(1);
+	int sum = calculator.add<int, bool>(20, 22, true);
+	f64 wide = calculator.add<f64, int>(20.5, 21.5, 3);
+	int largest = calculator.greater<int, bool>(17, 42, false);
+	if (sum != largest || wide != 42.0) { return 1; }
+	return calculator.increase<bool>(41, true) - 42;
+}

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class DecodeError : Error { init() : base("decode") {} }
+class Installed {
+	int input;
+	int calls;
+	int ordinary_calls;
+	init(int input) { this.input = input; this.calls = 0; this.ordinary_calls = 0; }
+	lazy property int value throws DecodeError { get { this.calls = this.calls + 1; if (this.input < 0) { lazy_event(70, 0); throw new DecodeError(); } return lazy_event(76, this.input); } }
+	lazy property int twice { get { return lazy_event(69, this.input * 2); } }
+	property int ordinary throws DecodeError { get { this.ordinary_calls = this.ordinary_calls + 1; return lazy_event(79, this.input); } }
+}

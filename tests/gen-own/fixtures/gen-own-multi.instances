@@ -1,0 +1,390 @@
+(core-program
+	(handle-type #0 "Resource" (cleanup #0)
+	)
+	(handle-type #1 "Token" (cleanup #0)
+	)
+	(class #0 "Counter"
+		(field #0 "code" : int)
+	)
+	(cleanup #0 (symbol "life_destroy") (signature void (void*)))
+	(cleanup #1 (domain object) (class #0) exact-destructor)
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(extern-function #1 "create_resource" (abi C) (symbol "life_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "create_token" (abi C) (symbol "own_token_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Token))
+	(extern-function #3 "resource_id" (abi C) (symbol "life_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(object-storage #1 (class #0) : Counter (region #0) lexical-memory)
+		(object-cleanup (storage #0) transferable-owner null-disarm)
+		(object-cleanup (storage #1) transferable-owner null-disarm)
+		(parameters)
+		(ownership (owner #0) transferable-object (storage #0))
+		(owned-local (local-place #0) (cleanup #1) lexical-block)
+		(owned-local (local-place #2) (cleanup #0) lexical-block)
+		(ownership (owner #4) transferable-object (storage #1))
+		(owned-local (local-place #4) (cleanup #1) lexical-block)
+		(owned-local (local-place #7) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "a" : Counter)
+			(local-place #1 "i" : int)
+			(local-place #2 "b" : Resource)
+			(local-place #3 "f" : f64)
+			(local-place #4 "c" : Counter)
+			(local-place #5 "lanes" : i16<8>)
+			(local-place #6 "v" : i16<8>)
+			(local-place #7 "d" : Resource)
+			(local-place #8 "exact" : f64)
+		)
+		(block
+			(construct (storage #0) (constructor class #0) (ref-local #0)
+				(integer 65 : int)
+			)
+			(initialize
+				(local-place #1 : int)
+				(call "astra.gen.4.0" -> int
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #0) : Counter (cleanup #1))
+						(integer 42 : int)
+					)
+				)
+			)
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 83 : int)
+					(integer 0 : int)
+				)
+			)
+			(owned-initialize (cleanup #0)
+				(local-place #2 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 66 : int)
+					)
+				)
+			)
+			(initialize
+				(local-place #3 : f64)
+				(call "astra.gen.4.1" -> f64
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #2) : Resource (cleanup #0))
+						(f64 0x8000000000000000 : f64)
+					)
+				)
+			)
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 83 : int)
+					(integer 0 : int)
+				)
+			)
+			(construct (storage #1) (constructor class #0) (ref-local #4)
+				(integer 67 : int)
+			)
+			(initialize
+				(local-place #5 : i16<8>)
+				(vector-init : i16<8>
+					(integer 1 : i16)
+					(integer 2 : i16)
+					(integer 3 : i16)
+					(integer 4 : i16)
+					(integer 5 : i16)
+					(integer 6 : i16)
+					(integer 7 : i16)
+					(integer 8 : i16)
+				)
+			)
+			(initialize
+				(local-place #6 : i16<8>)
+				(call "astra.gen.4.2" -> i16<8>
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #4) : Counter (cleanup #1))
+						(load : i16<8>
+							(local-place #5 : i16<8>)
+						)
+					)
+				)
+			)
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 83 : int)
+					(integer 0 : int)
+				)
+			)
+			(owned-initialize (cleanup #0)
+				(local-place #7 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 68 : int)
+					)
+				)
+			)
+			(initialize
+				(local-place #8 : f64)
+				(call "astra.gen.5.3" -> f64
+					(arguments
+						(owned-transfer-argument (parameter #0) (move owner #7) : Resource (cleanup #0))
+						(f64 0x3ff0000002000000 : f64)
+						(f64 0x3feffffffc000000 : f64)
+						(f64 0xbff0000000000000 : f64)
+					)
+				)
+			)
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 83 : int)
+					(integer 0 : int)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary != : bool
+									(load : int
+										(local-place #1 : int)
+									)
+									(integer 42 : int)
+								)
+								(binary != : bool
+									(load : f64
+										(local-place #3 : f64)
+									)
+									(f64 0x0000000000000000 : f64)
+								)
+							)
+							(binary != : bool
+								(load : f64
+									(local-place #8 : f64)
+								)
+								(f64 0x0000000000000000 : f64)
+							)
+						)
+						(prefix ! : bool
+							(vector-all : bool
+								(binary == : bool<8>
+									(load : i16<8>
+										(local-place #6 : i16<8>)
+									)
+									(load : i16<8>
+										(local-place #5 : i16<8>)
+									)
+								)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 42 : int)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "code" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "code")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "code")
+						)
+					)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+	(generic-instance #0 (origin #4 "keep") (type-arguments Counter int) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.4.0" -> int
+		(parameters
+			(parameter #0 "owner" : Counter (contract owned-transfer))
+			(parameter #1 "value" : int)
+		)
+		(ownership (owner #0) transferable-object incoming-parameter)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #1) lexical-block)
+		(locals
+			(local-place #0 "owner" : Counter)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #1))
+			(return
+				(call "astra.gen.3.4" -> int
+					(arguments
+						(parameter #1 : int)
+					)
+				)
+			)
+		)
+	)
+	(generic-instance #1 (origin #4 "keep") (type-arguments Resource f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.4.1" -> f64
+		(parameters
+			(parameter #0 "owner" : Resource (contract owned-transfer))
+			(parameter #1 "value" : f64)
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "owner" : Resource)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #0))
+			(return
+				(call "astra.gen.3.5" -> f64
+					(arguments
+						(parameter #1 : f64)
+					)
+				)
+			)
+		)
+	)
+	(generic-instance #2 (origin #4 "keep") (type-arguments Counter i16<8>) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.4.2" -> i16<8>
+		(parameters
+			(parameter #0 "owner" : Counter (contract owned-transfer))
+			(parameter #1 "value" : i16<8>)
+		)
+		(ownership (owner #0) transferable-object incoming-parameter)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #1) lexical-block)
+		(locals
+			(local-place #0 "owner" : Counter)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #1))
+			(return
+				(call "astra.gen.3.6" -> i16<8>
+					(arguments
+						(parameter #1 : i16<8>)
+					)
+				)
+			)
+		)
+	)
+	(generic-instance #3 (origin #5 "calculate") (type-arguments Resource f64) (requests 1) (callers "root#0:main"))
+	(function "astra.gen.5.3" -> f64
+		(parameters
+			(parameter #0 "owner" : Resource (contract owned-transfer))
+			(parameter #1 "a" : f64)
+			(parameter #2 "b" : f64)
+			(parameter #3 "c" : f64)
+		)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "owner" : Resource)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #0))
+			(return
+				(call "astra.gen.3.5" -> f64
+					(arguments
+						(binary + : f64
+							(binary * : f64
+								(parameter #1 : f64)
+								(parameter #2 : f64)
+							)
+							(parameter #3 : f64)
+						)
+					)
+				)
+			)
+		)
+	)
+	(generic-instance #4 (origin #3 "evaluate") (type-arguments int) (requests 1) (callers "astra.gen.4.0"))
+	(function "astra.gen.3.4" -> int
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 86 : int)
+					(integer 0 : int)
+				)
+			)
+			(return
+				(parameter #0 : int)
+			)
+		)
+	)
+	(generic-instance #5 (origin #3 "evaluate") (type-arguments f64) (requests 2) (callers "astra.gen.4.1" "astra.gen.5.3"))
+	(function "astra.gen.3.5" -> f64
+		(parameters
+			(parameter #0 "value" : f64)
+		)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 86 : int)
+					(integer 0 : int)
+				)
+			)
+			(return
+				(parameter #0 : f64)
+			)
+		)
+	)
+	(generic-instance #6 (origin #3 "evaluate") (type-arguments i16<8>) (requests 1) (callers "astra.gen.4.2"))
+	(function "astra.gen.3.6" -> i16<8>
+		(parameters
+			(parameter #0 "value" : i16<8>)
+		)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 86 : int)
+					(integer 0 : int)
+				)
+			)
+			(return
+				(parameter #0 : i16<8>)
+			)
+		)
+	)
+)

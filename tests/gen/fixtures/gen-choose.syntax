@@ -1,0 +1,44 @@
+(unit
+	(function
+		(type-parameters T)
+		(type "T")
+		(name "choose")
+		(parameters
+			(parameter (type "bool") (name "condition"))
+			(parameter (type "T") (name "a"))
+			(parameter (type "T") (name "b"))
+		)
+		(block
+			(local (type "T") (name "result") (name "a"))
+			(if
+				(condition (name "condition"))
+				(then
+					(block
+						(assign (name "result") (name "b"))
+					)
+				)
+			)
+			(return (name "result"))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "f64") (name "f") (generic-call "choose" (type-arguments f64) (arguments (bool true) (float "0.0") (float "1.25"))))
+			(local (type "i16<8>") (name "a") (vector-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "i16<8>") (name "b") (vector-init (integer "42") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "i16<8>") (name "v") (generic-call "choose" (type-arguments i16<8>) (arguments (bool true) (name "a") (name "b"))))
+			(if
+				(condition (short-circuit "&&" (binary "==" (name "f") (float "1.25")) (binary "==" (vector-extract (lane 0) (name "v")) (integer "42"))))
+				(then
+					(block
+						(return (generic-call "choose" (type-arguments int) (arguments (bool true) (integer "0") (integer "42"))))
+					)
+				)
+			)
+			(return (integer "1"))
+		)
+	)
+)

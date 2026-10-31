@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using ImageRules18;
+f64 image2_color(int red, int green, int blue, int tag, int mode) {
+	var owner = new ImageColorOwner18(tag);
+	var strong = shared_acquire(move owner);
+	f64 score = 0.0;
+	{
+		var unused = shared_clone(strong);
+		if (mode == 0) { score = blend((red as f64) * 0.25, (green as f64) * 0.5) + (blue as f64) * 0.25; }
+		else { score = blend((red as f64) * 0.5, (green as f64) * 0.25) + (blue as f64) * 0.25; }
+	}
+	release strong;
+	return score;
+}

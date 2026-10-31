@@ -1,0 +1,148 @@
+(unit
+	(class "Counter"
+		(field (type "int") (name "code"))
+		(constructor
+			(name "init")
+			(parameters
+				(parameter (type "int") (name "code"))
+			)
+			(block
+				(assign (field-access "this" "code") (name "code"))
+			)
+		)
+		(destructor
+			(name "deinit")
+			(parameters)
+			(block
+				(call-statement (call "life_record" (arguments (field-access "this" "code") (integer "0"))))
+			)
+		)
+	)
+	(extern-function
+		(abi C)
+		(type "int")
+		(name "life_record")
+		(parameters
+			(parameter (type "int") (name "code"))
+			(parameter (type "int") (name "value"))
+		)
+	)
+	(function
+		(type-parameters T)
+		(type "void")
+		(name "dispose")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "relay")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (move (name "value")))
+		)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "forward")
+		(parameters
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (generic-call "relay" (type-arguments T) (arguments (move (name "value")))))
+		)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "recurse")
+		(parameters
+			(parameter (type "int") (name "count"))
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(if
+				(condition (binary "==" (name "count") (integer "0")))
+				(then
+					(block
+						(return (move (name "value")))
+					)
+				)
+			)
+			(return (generic-call "recurse" (type-arguments T) (arguments (binary "-" (name "count") (integer "1")) (move (name "value")))))
+		)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "left")
+		(parameters
+			(parameter (type "int") (name "count"))
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(if
+				(condition (binary "==" (name "count") (integer "0")))
+				(then
+					(block
+						(return (move (name "value")))
+					)
+				)
+			)
+			(return (generic-call "right" (type-arguments T) (arguments (binary "-" (name "count") (integer "1")) (move (name "value")))))
+		)
+	)
+	(function
+		(type-parameters T)
+		(owned-result)
+		(type "T")
+		(name "right")
+		(parameters
+			(parameter (type "int") (name "count"))
+			(parameter (owned) (type "T") (name "value"))
+		)
+		(where T Ownable)
+		(block
+			(return (generic-call "left" (type-arguments T) (arguments (name "count") (move (name "value")))))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(owned-local (type "Resource") (name "a") (call "create_resource" (arguments (integer "65"))))
+			(owned-local (type "Resource") (name "b") (generic-call "recurse" (type-arguments Resource) (arguments (integer "5") (move (name "a")))))
+			(owned-local (type "Resource") (name "c") (generic-call "left" (type-arguments Resource) (arguments (integer "4") (move (name "b")))))
+			(owned-local (type "Counter") (name "d") (constructor-initializer (class "Counter") (arguments (integer "66"))))
+			(owned-local (type "Counter") (name "e") (generic-call "recurse" (type-arguments Counter) (arguments (integer "5") (move (name "d")))))
+			(owned-local (type "Counter") (name "f") (generic-call "left" (type-arguments Counter) (arguments (integer "4") (move (name "e")))))
+			(if
+				(condition (short-circuit "||" (binary "!=" (call "resource_id" (arguments (name "c"))) (integer "65")) (binary "!=" (field-access "f" "code") (integer "66"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(call-statement (generic-call "dispose" (type-arguments Resource) (arguments (move (name "c")))))
+			(call-statement (generic-call "dispose" (type-arguments Counter) (arguments (move (name "f")))))
+			(return (integer "42"))
+		)
+	)
+)

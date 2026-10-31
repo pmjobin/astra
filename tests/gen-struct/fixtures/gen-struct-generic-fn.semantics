@@ -1,0 +1,63 @@
+(program
+	(generic-struct #0 "Pair"
+		(type-parameter #0 "T" (baseline GEN1_PLAIN_COPY))
+		(type-parameter #1 "U" (baseline GEN1_PLAIN_COPY))
+		(generic-field #0 "first" : T)
+		(generic-field #1 "second" : U)
+	)
+	(generic-definition "first" checked-once GEN1_PLAIN_COPY)
+	(type-parameter #0 T)
+	(type-parameter #1 U)
+	(function "first" -> T
+		(parameters
+			(parameter #0 "a" : T)
+			(parameter #1 "b" : U)
+		)
+		(locals
+			(local #0 "p" : Pair<T,U>)
+		)
+		(block
+			(struct-local #0 "p" : Pair<T,U>
+				(initialize-field #0 "first" (parameter-ref #0 "a" : T))
+				(initialize-field #1 "second" (parameter-ref #1 "b" : U))
+			)
+			(return (load (generic-field-place (owner Pair<T,U>) (base (local-place #0 : Pair<T,U>)) (field Pair::first #0) : T)))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "samples" : i16<8>)
+			(local #1 "mask" : bool<4>)
+		)
+		(block
+			(local-init #0 "samples" : i16<8> (vector-init : i16<8> (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16)))
+			(local-init #1 "mask" : bool<4> (vector-init : bool<4> (bool true : bool) (bool false : bool) (bool true : bool) (bool false : bool)))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (binary != : bool (generic-call "first" -> int (type-arguments int f64) (arguments (integer 42 : int) (f64 0x400c000000000000 : f64))) (integer 42 : int)) (binary != : bool (generic-call "first" -> int (type-arguments int f64) (arguments (integer 43 : int) (f64 0x4012000000000000 : f64))) (integer 43 : int))) (binary != : bool (generic-call "first" -> f64 (type-arguments f64 int) (arguments (f64 0x400c000000000000 : f64) (integer 42 : int))) (f64 0x400c000000000000 : f64))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit || : bool (prefix ! : bool (vector-all : bool (binary == : bool<8> (generic-call "first" -> i16<8> (type-arguments i16<8> bool) (arguments (local-ref #0 "samples" : i16<8>) (bool true : bool))) (local-ref #0 "samples" : i16<8>)))) (prefix ! : bool (vector-all : bool (binary == : bool<4> (generic-call "first" -> bool<4> (type-arguments bool<4> u32) (arguments (local-ref #1 "mask" : bool<4>) (integer 7 : u32))) (local-ref #1 "mask" : bool<4>))))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(if
+				(condition (short-circuit || : bool (binary != : bool (generic-call "first" -> i8 (type-arguments i8 f64) (arguments (integer 7 : i8) (f64 0x3ff0000000000000 : f64))) (integer 7 : i8)) (binary != : bool (generic-call "first" -> u8 (type-arguments u8 f64) (arguments (integer 8 : u8) (f64 0x3ff0000000000000 : f64))) (integer 8 : u8))))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

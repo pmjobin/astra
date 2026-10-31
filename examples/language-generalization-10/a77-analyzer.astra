@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct TextMetrics { int bytes; int scalars; int delimiter; }
+struct TextAnalysis { owned Utf8Message input; owned Vector<Utf8Message> tokens; TextMetrics metrics; }
+enum NumberToken { Parsed(int value), Invalid(owned Utf8Message text) }
+NumberToken classify_number(owned Utf8Message text) {
+	try { return NumberToken.Parsed(parse_int(text.text)); }
+	catch(IntegerParseError error) { return NumberToken.Invalid(move text); }
+}
+TextAnalysis analyze_text(string text, string mode) throws Error {
+	var builder = new Utf8ByteBuilder();
+	require_text(append_text(builder, text));
+	var original = builder.snapshot();
+	if (mode == "nul") {
+		u8[1] nul = {0};
+		require_text(builder.append_bytes(slice(nul)));
+	}
+	if (mode == "bad") {
+		u8[2] truncated = {240, 159};
+		require_text(builder.append_bytes(slice(truncated)));
+		try { var invalid = builder.snapshot(); throw new Error("missing encoding error"); }
+		catch(InvalidUtf8 error) {
+			if (!println(original.text)) { throw new Error("analyzer output"); }
+			number(original.text.byte_length);
+			number(builder.byte_count());
+			throw;
+		}
+	}
+	if (mode != "plain" && mode != "nul") { throw new Error("analyzer mode"); }
+	var input = builder.snapshot();
+	var tokens = text_split_owned(input.text, "|");
+	TextAnalysis result = {input = move input, tokens = move tokens, metrics = {bytes = builder.byte_count(), scalars = text_scalar_count(text), delimiter = text_find(text, "|", 0)}};
+	return move result;
+}
+void run_analyzer(string text, int start, int count, string mode) throws Error {
+	var guard = open_lease(77);
+	var report = analyze_text(text, mode);
+	var input = move report.input;
+	var tokens = move report.tokens;
+	number(report.metrics.bytes);
+	number(text_scalar_count(input.text));
+	number(report.metrics.delimiter);
+	var segment = text_scalar_segment(input.text, start, count);
+	if (!println(segment.text)) { throw new Error("analyzer output"); }
+	int sum = 0;
+	int invalid_count = 0;
+	while (tokens.count() != 0) {
+		var token = tokens.take(0);
+		var classified = classify_number(move token);
+		match (move classified) {
+			case NumberToken.Parsed(value): { number(value); sum = sum + value; }
+			case NumberToken.Invalid(value): {
+				if (!println(value.text)) { throw new Error("analyzer output"); }
+				invalid_count = invalid_count + 1;
+			}
+		}
+	}
+	number(sum);
+	number(invalid_count);
+	int scalar = 0;
+	int fingerprint = 0;
+	while (scalar < text_scalar_count(input.text)) {
+		fingerprint = fingerprint + text_scalar_at(input.text, scalar) * (scalar + 1);
+		scalar = scalar + 1;
+	}
+	number(fingerprint);
+}
+int main(string[] args) {
+	if (len(args) != 5) { return 81; }
+	int result = 0;
+	try { run_analyzer(args[1], parse_int(args[2]), parse_int(args[3]), args[4]); }
+	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	number(live_leases());
+	if (live_leases() != 0) { return 83; }
+	return result;
+}

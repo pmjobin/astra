@@ -1,0 +1,25 @@
+extern(C) int c_call_astra_body();
+
+export(C) int astra_export_wrap(int x) {
+	return x + 2147483647;
+}
+
+export(C) int astra_export_loop(int limit) {
+	int i = 0;
+	int sum = 0;
+	while (i < limit) {
+		i = i + 1;
+		if (i == 3) {
+			continue;
+		}
+		if (i == 7) {
+			break;
+		}
+		sum = sum + i;
+	}
+	return sum;
+}
+
+int main() {
+	return c_call_astra_body();
+}

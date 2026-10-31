@@ -1,0 +1,38 @@
+(core-program
+	(function "recurse" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(if
+				(condition
+					(binary == : bool
+						(parameter #0 : int)
+						(integer 0 : int)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 0 : int)
+						)
+					)
+				)
+				(else
+					(block
+						(return
+							(call "recurse" -> int
+								(arguments
+									(binary - : int
+										(parameter #0 : int)
+										(integer 1 : int)
+									)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+)

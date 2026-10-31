@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class C { init() {} }
+owned C absent() { return null; }
+int main() {
+	observe_begin(0, 0);
+	owned R resource = create_r(0);
+	owned C object = absent();
+	forward<R>(resource, 78);
+	leaf<R>(null, 78);
+	forward<C>(object, 78);
+	leaf<C>(null, 78);
+	dispose<R>(move resource);
+	dispose<C>(move object);
+	return observe_end();
+}

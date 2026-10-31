@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	var heap = new Counter(20, 1);
+	owned Counter lexical = Counter.init(10, 0);
+	consume<Counter>(move heap, 20);
+	if (loan<Counter>(lexical, 10) != 10 || lexical.id != 10) { return 81; }
+	consume(move lexical, 10);
+	return own_finish();
+}

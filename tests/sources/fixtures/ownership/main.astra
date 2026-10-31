@@ -1,0 +1,9 @@
+int main() {
+	var r = make_resource(); var samples = make_samples();
+	if (inspect(r, samples) != 4 || inspect(r, samples) != 4 || samples[0] != 4.0d) { return 1; }
+	consume(move r);
+	var field = resource(2); var context = Context.init(move field, move samples);
+	var forwarded = forward<Context>(move context); drop<Context>(move forwarded);
+	var next = resource(3); var result = forward<R>(move next); drop<R>(move result);
+	return 0;
+}

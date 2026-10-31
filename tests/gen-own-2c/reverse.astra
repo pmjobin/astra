@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main() {
+	{
+		var original = new Counter(20, 1);
+		owned Counter received = late_echo(move original, 20);
+		consume(move received, 20);
+	}
+	{
+		owned Counter original = Counter.init(10, 0);
+		var received = late_echo(move original, 10);
+		consume(move received, 10);
+	}
+	return own_finish();
+}
+owned T late_echo<T>(owned T value, int id) where T: Ownable {
+	own_mark(69, id); loan<T>(value, id); return move value;
+}

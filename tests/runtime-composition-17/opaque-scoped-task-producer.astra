@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace OpaqueScope;
+extern(C) void native_scope_leaf_retired(int identity);
+[Allocator(kind="context",context="scoped-affine")]
+class Leaf {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	int read() { return this.identity; }
+	deinit() { native_scope_leaf_retired(this.identity); }
+}
+[ExceptionRoot]
+class Fault {
+	init(string message) {}
+	virtual property string message { get { return "opaque task"; } }
+}
+enum Phase { Completed, Cancelled }
+async runtime Tasks throws Fault returns Phase;
+struct Packet { owned Leaf child; int marker; }
+owned Leaf make(borrowed ScopedAllocator context, int identity) {
+	var result = new(context) Leaf(identity);
+	return move result;
+}
+async int read(owned Leaf input, int mode) throws Fault {
+	await delay_ticks(1);
+	if (mode == 3) { throw new Fault("child"); }
+	return input.read();
+}
+async Packet relay(Packet input, int mode) throws Fault {
+	await delay_ticks(1);
+	if (mode == 3) { throw new Fault("record"); }
+	return move input;
+}

@@ -1,0 +1,25 @@
+(program
+	(function "identity" -> int
+		(parameters
+			(parameter #0 "x" : int)
+		)
+		(block
+			(return (parameter-ref #0 "x" : int))
+		)
+	)
+	(function "pair" -> int
+		(parameters
+			(parameter #0 "a" : int)
+			(parameter #1 "b" : int)
+		)
+		(block
+			(return (binary + : int (parameter-ref #0 "a" : int) (parameter-ref #1 "b" : int)))
+		)
+	)
+	(function "ordered" -> int
+		(parameters)
+		(block
+			(return (call "pair" -> int (arguments (call "identity" -> int (arguments (integer 1 : int))) (call "identity" -> int (arguments (integer 2 : int))))))
+		)
+	)
+)

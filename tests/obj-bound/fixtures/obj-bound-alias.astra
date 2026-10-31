@@ -1,0 +1,18 @@
+extern(C) int life_record(int code, int value);
+class Counter {
+	int value;
+	deinit() { life_record(this.value, 0); }
+}
+int mutate_pair(borrowed Counter a, borrowed Counter b) {
+	a.value = 1;
+	b.value = 42;
+	return a.value;
+}
+bool same(borrowed Counter a, borrowed Counter b) { return a == b; }
+int main() {
+	Counter c = { value = 0 };
+	Counter alias = c;
+	if (!same(c, alias) || !same(null, null) || same(c, null)) { return 1; }
+	if (mutate_pair(c, c) != 42) { return 2; }
+	return alias.value;
+}

@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A56: file -> owned lines -> promised diagnostic owners -> readonly traversal -> file.
+class MeasurementPolicy {
+	f64 lower;
+	f64 upper;
+	init() { this.lower = 0.0; this.upper = 100.0; }
+}
+class Measurement {
+	f64 number;
+	int status;
+	init(f64 number, int status) { this.number = number; this.status = status; }
+}
+bool empty_measurement_line(Utf8Message line) { return line.text.byte_length == 0; }
+owned nonnull Measurement transform_measurement(Utf8Message line, f64 lower, f64 upper) throws Error {
+	f64 value = parse_f64(line.text);
+	int status = 1;
+	if (lower <= value < upper) { status = 0; }
+	else { if (value != value) { status = 2; } }
+	owned nonnull Measurement result = new Measurement(value, status);
+	return move result;
+}
+f64 measurement_number(Measurement value) { return value.number; }
+int measurement_status(Measurement value) { return value.status; }
+int main(string[] args) {
+	if (len(args) != 3) { return 64; }
+	try {
+		var bytes = read_file(args[1]);
+		var text = bytes.decode();
+		var diagnostics = new Bag<Measurement>();
+		with (var policy = new MeasurementPolicy()) {
+			for (int start = 0; start < text.text.byte_length;) {
+				int end = text_find(text.text, "\n", start);
+				if (end < 0) { end = text.text.byte_length; }
+				var line = text_segment(text.text, start, end - start);
+				start = end;
+				if (start < text.text.byte_length) { start = start + 1; }
+				if (empty_measurement_line(line)) { continue; }
+				var diagnostic = transform_measurement(line, policy.lower, policy.upper);
+				if (diagnostics.count() == diagnostics.capacity()) {
+					int capacity = diagnostics.capacity();
+					if (capacity == 2147483647) { throw new Error("diagnostic capacity"); }
+					if (capacity == 0) { capacity = 2; }
+					else { if (capacity > 1073741823) { capacity = 2147483647; } else { capacity = capacity * 2; } }
+					if (!diagnostics.reserve(capacity)) { throw new Error("diagnostic capacity"); }
+				}
+				diagnostics.append(move diagnostic);
+			}
+		}
+		var report = new Utf8ByteBuilder();
+		require_text(append_text(report, "measurements\n"));
+		int accepted = 0;
+		int outside = 0;
+		int unordered = 0;
+		foreach (var diagnostic in diagnostics) {
+			int status = measurement_status(diagnostic);
+			if (status == 0) { accepted = accepted + 1; }
+			else { if (status == 1) { outside = outside + 1; } else { unordered = unordered + 1; } }
+			var number = format_f64(measurement_number(diagnostic));
+			require_text(append_int(report, status));
+			require_text(append_text(report, "\t"));
+			require_text(append_text(report, number.text));
+			require_text(append_text(report, "\n"));
+		}
+		require_text(append_text(report, "accepted ")); require_text(append_int(report, accepted));
+		require_text(append_text(report, "\noutside ")); require_text(append_int(report, outside));
+		require_text(append_text(report, "\nunordered ")); require_text(append_int(report, unordered));
+		require_text(append_text(report, "\n"));
+		var output = report.snapshot();
+		write_text_file(args[2], output.text);
+		println("pipeline written");
+		return 0;
+	} catch (Error failure) { println("pipeline failed"); return 65; }
+}

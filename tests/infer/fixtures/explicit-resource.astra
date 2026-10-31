@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned R open_resource(int n) { owned R result = resource(n); return move result; }
+void consume(owned R value) { mark(id(value)); }
+int main() {
+	owned R handle = open_resource(1);
+	handle = open_resource(2);
+	owned R moved = move handle;
+	consume(move moved);
+	handle = open_resource(3);
+	release handle;
+	return 0;
+}

@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Pair { int x; f64 y; }
+struct Calculator {
+	int bias;
+	Pair add(Pair value) { Pair local = value; local.x = local.x + this.bias; return local; }
+}
+class Holder {
+	int value;
+	init(Pair input) { this.value = input.x; }
+	Pair combine(Pair input) { Pair result = input; result.x = result.x + this.value; return result; }
+	property int doubled { get { Pair a = { x = this.value, y = 3.5 }; Pair b = this.combine(a); return b.x; } }
+}
+int main() {
+	Pair input = { x = 7, y = 3.5 };
+	Calculator calculator = { bias = 2 };
+	Pair a = calculator.add(input);
+	Holder holder = Holder.init(input);
+	Pair b = holder.combine(a);
+	if (input.x != 7 || a.x != 9 || b.x != 16 || b.y != 3.5 || holder.doubled != 14) { return 1; }
+	return 0;
+}

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+i16 signed_bytes(i8<16> a,i8<16> b){return dot_wrap(a,b,i16);}
+i32 signed_wide(i8<16> a,i8<16> b){return dot_wrap(a,b,i32);}
+u16 unsigned_bytes(u8<16> a,u8<16> b){return dot_wrap(a,b,u16);}
+u32 unsigned_wide(u8<16> a,u8<16> b){return dot_wrap(a,b,u32);}
+i32 signed_words(i16<8> a,i16<8> b){return dot_wrap(a,b,i32);}
+u32 unsigned_words(u16<8> a,u16<8> b){return dot_wrap(a,b,u32);}
+i32 same_width(i32<4> a,i32<4> b){return dot_wrap(a,b,i32);}
+u32 unsigned_same(u32<4> a,u32<4> b){return dot_wrap(a,b,u32);}
+u16 cross_sign(i8<16> a,i8<16> b){return dot_wrap(a,b,u16);}
+i16 cross_unsigned(u8<16> a,u8<16> b){return dot_wrap(a,b,i16);}
+i32 accumulate(i32 c,i8<16> a,i8<16> b){return mac_wrap(c,a,b);}
+f32 ordered4(f32<4> a,f32<4> b){return dot(a,b);}
+f32 ordered2(f32<2> a,f32<2> b){return dot(a,b);}
+f32 unfused4(f32 c,f32<4> a,f32<4> b){return mac(c,a,b);}
+f32 unfused2(f32 c,f32<2> a,f32<2> b){return mac(c,a,b);}
+int main(){return 0;}

@@ -1,0 +1,103 @@
+// Numerical primitives and color transforms. No algorithm computation lives in C.
+extern(C) f64 cad_exp(f64 x);
+extern(C) f64 cad_log(f64 x);
+extern(C) f64 cad_sqrt(f64 x);
+extern(C) f64 cad_pow(f64 x, f64 y);
+extern(C) f64 cad_number(int x);
+extern(C) int cad_integer(f64 x);
+extern(C) void cad_fail(int code, f64 value);
+extern(C) void* cad_buffer(int count);
+extern(C) void cad_free(void* buffer);
+extern(C) f64 cad_get(void* buffer, int index);
+extern(C) void cad_set(void* buffer, int index, f64 value);
+
+struct Vec2 { f64 x; f64 y; }
+struct Lab { f64 l; f64 a; f64 b; }
+struct SymMat2 { f64 xx; f64 xy; f64 yy; }
+
+f64 absolute(f64 x) { if (x < 0.0) { return -x; } return x; }
+f64 maximum(f64 a, f64 b) { if (a > b) { return a; } return b; }
+f64 minimum(f64 a, f64 b) { if (a < b) { return a; } return b; }
+f64 clamp(f64 x, f64 lo, f64 hi) { return minimum(maximum(x, lo), hi); }
+bool finite(f64 x) { return x == x && absolute(x) <= 1.7976931348623157e308; }
+bool close(f64 a, f64 b, f64 tolerance) { return finite(a) && finite(b) && absolute(a - b) <= tolerance; }
+void require(bool condition, int code, f64 value) { if (!condition) { cad_fail(code, value); } }
+int int_min(int a, int b) { if (a < b) { return a; } return b; }
+int int_max(int a, int b) { if (a > b) { return a; } return b; }
+int floor_int(f64 x) { int n = cad_integer(x); if (cad_number(n) > x) { return n - 1; } return n; }
+int ceil_int(f64 x) { int n = cad_integer(x); if (cad_number(n) < x) { return n + 1; } return n; }
+int floor_ratio(int a, int b) { int n = a / b; if (a < 0 && a % b != 0) { return n - 1; } return n; }
+int ceil_ratio(int a, int b) { int n = a / b; if (a > 0 && a % b != 0) { return n + 1; } return n; }
+
+void vec_add(Vec2* out, Vec2* a, Vec2* b) { out->x = a->x + b->x; out->y = a->y + b->y; }
+void vec_sub(Vec2* out, Vec2* a, Vec2* b) { out->x = a->x - b->x; out->y = a->y - b->y; }
+void vec_scale(Vec2* out, Vec2* a, f64 scale) { out->x = a->x * scale; out->y = a->y * scale; }
+f64 vec_dot(Vec2* a, Vec2* b) { return a->x * b->x + a->y * b->y; }
+f64 vec_length_squared(Vec2* a) { return vec_dot(a, a); }
+void box_clamp(Vec2* value, Vec2* center, Vec2* radius) { value->x = clamp(value->x, center->x - radius->x, center->x + radius->x); value->y = clamp(value->y, center->y - radius->y, center->y + radius->y); }
+void lab_sub(Lab* out, Lab* a, Lab* b) { out->l = a->l - b->l; out->a = a->a - b->a; out->b = a->b - b->b; }
+f64 lab_distance_squared(Lab* a, Lab* b) { f64 l = a->l - b->l; f64 c = a->a - b->a; f64 d = a->b - b->b; return l * l + c * c + d * d; }
+f64 determinant(SymMat2* a) { return a->xx * a->yy - a->xy * a->xy; }
+void inverse(SymMat2* out, SymMat2* a) {
+	f64 det = determinant(a);
+	require(finite(det) && det > 0.0, 10, det);
+	f64 xx = a->yy / det;
+	f64 xy = -a->xy / det;
+	f64 yy = a->xx / det;
+	out->xx = xx; out->xy = xy; out->yy = yy;
+}
+f64 quadratic(SymMat2* a, f64 x, f64 y) { return a->xx * x * x + 2.0 * a->xy * x * y + a->yy * y * y; }
+
+void constrain_covariance(SymMat2* a) {
+	// Scaling avoids overflow in the discriminant. Eigenvectors are represented
+	// by cos(2 theta), sin(2 theta), so neither angle nor fragile division by b
+	// is needed. Degenerate isotropic input reconstructs isotropically.
+	require(finite(a->xx) && finite(a->xy) && finite(a->yy), 11, a->xx);
+	f64 scale = maximum(maximum(absolute(a->xx), absolute(a->yy)), absolute(a->xy));
+	if (scale == 0.0) { a->xx = 0.05; a->xy = 0.0; a->yy = 0.05; return; }
+	f64 aa = a->xx / scale;
+	f64 dd = a->yy / scale;
+	f64 bb = a->xy / scale;
+	f64 half = 0.5 * (aa + dd);
+	f64 difference = 0.5 * (aa - dd);
+	f64 radius = cad_sqrt(difference * difference + bb * bb);
+	f64 high = clamp((half + radius) * scale, 0.05, 0.1);
+	f64 low = clamp((half - radius) * scale, 0.05, 0.1);
+	f64 midpoint = 0.5 * (high + low);
+	f64 spread = 0.5 * (high - low);
+	if (radius == 0.0) { a->xx = midpoint; a->xy = 0.0; a->yy = midpoint; return; }
+	a->xx = midpoint + spread * (difference / radius);
+	a->xy = spread * (bb / radius);
+	a->yy = midpoint - spread * (difference / radius);
+	require(determinant(a) > 0.0, 12, determinant(a));
+}
+
+f64 srgb_linear(f64 x) { if (x <= 0.04045) { return x / 12.92; } return cad_pow((x + 0.055) / 1.055, 2.4); }
+f64 linear_srgb(f64 x) { if (x <= 0.0031308) { return 12.92 * x; } return 1.055 * cad_pow(x, 1.0 / 2.4) - 0.055; }
+f64 lab_f(f64 t) { if (t > 216.0 / 24389.0) { return cad_pow(t, 1.0 / 3.0); } return t * (24389.0 / 27.0) / 116.0 + 16.0 / 116.0; }
+f64 lab_inverse(f64 t) { if (t > 6.0 / 29.0) { return t * t * t; } return (t - 16.0 / 116.0) * 116.0 * (27.0 / 24389.0); }
+void rgb_to_lab(Lab* out, f64 r, f64 g, f64 b) {
+	f64 rr = srgb_linear(r / 255.0);
+	f64 gg = srgb_linear(g / 255.0);
+	f64 bb = srgb_linear(b / 255.0);
+	f64 x = lab_f((0.4124564 * rr + 0.3575761 * gg + 0.1804375 * bb) / 0.95047);
+	f64 y = lab_f(0.2126729 * rr + 0.7151522 * gg + 0.0721750 * bb);
+	f64 z = lab_f((0.0193339 * rr + 0.1191920 * gg + 0.9503041 * bb) / 1.08883);
+	// Uniform Lab scale preserves its perceptual metric; neutral chroma is 0.5.
+	out->l = (116.0 * y - 16.0) / 100.0;
+	out->a = 5.0 * (x - y) + 0.5;
+	out->b = 2.0 * (y - z) + 0.5;
+}
+void lab_to_rgb(Lab* color, Lab* out) {
+	f64 fy = (100.0 * color->l + 16.0) / 116.0;
+	f64 x = 0.95047 * lab_inverse(fy + (color->a - 0.5) / 5.0);
+	f64 y = lab_inverse(fy);
+	f64 z = 1.08883 * lab_inverse(fy - (color->b - 0.5) / 2.0);
+	// Inverse of the forward RGB->XYZ matrix, computed independently in oracle.
+	f64 r = 3.2404548360214087 * x - 1.5371388501025751 * y - 0.4985315468684809 * z;
+	f64 g = -0.9692663898756537 * x + 1.8760109288424910 * y + 0.0415560823466735 * z;
+	f64 b = 0.0556434196042137 * x - 0.2040258542676982 * y + 1.0572251624579290 * z;
+	out->l = clamp(linear_srgb(r), 0.0, 1.0) * 255.0;
+	out->a = clamp(linear_srgb(g), 0.0, 1.0) * 255.0;
+	out->b = clamp(linear_srgb(b), 0.0, 1.0) * 255.0;
+}

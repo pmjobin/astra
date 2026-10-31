@@ -1,0 +1,86 @@
+{
+	"status": "FROZEN_BEFORE_COMPARATIVE_SAMPLES",
+	"compiler": "0e847be42a00be7f8d85c4c50f813a8d0c540cb3",
+	"cad": "f415381f92daecfa683838206dffa5ea78d78477",
+	"cases": [
+		{
+			"name": "constant-37-119-213",
+			"source": "tests/test_cad.py:Synthetic.test_01_constants",
+			"input": [
+				16,
+				12
+			],
+			"output": [
+				4,
+				3
+			],
+			"rgb": [
+				37,
+				119,
+				213
+			],
+			"reason": "Small accepted image exposes startup, I/O and crossing overhead."
+		},
+		{
+			"name": "narrow-line",
+			"source": "tests/test_cad.py:Synthetic.test_08_narrow_line",
+			"input": [
+				40,
+				40
+			],
+			"output": [
+				8,
+				8
+			],
+			"generation": "RGB gray: zero at x == 18, otherwise 255",
+			"options": [
+				"--pixel-art"
+			],
+			"reason": "Nontrivial accepted numerical/convergence case with locality correction."
+		}
+	],
+	"repetitions": 7,
+	"balanced_orders": [
+		[
+			"P",
+			"I"
+		],
+		[
+			"P",
+			"I"
+		],
+		[
+			"I",
+			"P"
+		],
+		[
+			"I",
+			"P"
+		],
+		[
+			"P",
+			"I"
+		],
+		[
+			"I",
+			"P"
+		],
+		[
+			"P",
+			"I"
+		]
+	],
+	"phases": [
+		"compiler self-build (descriptive)",
+		"actual application Astra compile and link",
+		"application C adapter compilation",
+		"full CLI",
+		"numerical processing with bounded timing hooks"
+	],
+	"policy": "No timing while compiler suites/builds, application qualification, evidence hashing or heavy archiving run. Retain raw times, output identities, iterations, median, min/max and interquartile spread. No performance pass threshold; L versus I is not a pure compiler comparison.",
+	"samples": [],
+	"ratios_examined": false,
+	"primary_comparison": "P versus I with identical frozen compiler, flags, providers and environment",
+	"warmups": 0,
+	"numerical_scope": "P: immediately before initialize; I: immediately before Context.init (allocations moved there); both end after final numeric output sample conversion and final state observation, before PNG byte conversion/write."
+}

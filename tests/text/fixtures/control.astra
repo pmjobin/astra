@@ -1,0 +1,40 @@
+extern(C) int trace(int step);
+extern(C) int input();
+extern(C) int verdict();
+
+string first() { trace(1); return "a"; }
+string second() { trace(2); return "different"; }
+string same() { trace(3); return "a"; }
+bool arguments(int before, string text, int after) { return before == 4 && text == "a" && after == 5; }
+string recursive(int n) {
+	if (n == 0) { return "a"; }
+	return recursive(n - 1);
+}
+struct Inspector {
+	int count;
+	bool matches(string name) { return name == "a"; }
+	string label() { return "a"; }
+}
+class Box {
+	int count;
+	init(string name) { this.count = name.byte_length; }
+	bool matches(borrowed string name) { return name.byte_length == this.count; }
+	string label() { return "a"; }
+}
+int main() {
+	var n = input();
+	if (first() == second()) { return 1; }
+	if (false && first() == second()) { return 2; }
+	if (true || first() == second()) { trace(6); }
+	if (!arguments(trace(4), same(), trace(5))) { return 3; }
+	var label = "unused";
+	while (n > 0) {
+		if ((input() / n > 0) && recursive(n) == "a") { label = "a"; }
+		n = n - 1;
+	}
+	Inspector inspector = {count = 1};
+	var box = Box.init(label);
+	if (!inspector.matches(box.label()) || !box.matches(inspector.label())) { return 4; }
+	if (same().byte_length != 1) { return 5; }
+	return verdict();
+}

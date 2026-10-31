@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Hosted, non-returning reporters. Numeric equality, not bit equality.
+extern(C) void astra_base_equal_i32(int code, int actual, int expected);
+extern(C) void astra_base_equal_f32(int code, f32 actual, f32 expected);
+extern(C) void astra_base_equal_f64(int code, f64 actual, f64 expected);
+
+void assert_equal_i32(int actual, int expected, int code) {
+	if (actual != expected) { astra_base_equal_i32(code, actual, expected); }
+}
+
+void assert_equal_f32(f32 actual, f32 expected, int code) {
+	if (actual != expected) { astra_base_equal_f32(code, actual, expected); }
+}
+
+void assert_equal_f64(f64 actual, f64 expected, int code) {
+	if (actual != expected) { astra_base_equal_f64(code, actual, expected); }
+}

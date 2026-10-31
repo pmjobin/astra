@@ -1,0 +1,73 @@
+(program
+	(function "clear" -> void
+		(parameters
+			(parameter #0 "p" : i16<8>*)
+		)
+		(block
+			(store (dereference-place : i16<8> null-traps (parameter-ref #0 "p" : i16<8>*)) (vector-splat : i16<8> (lanes 8) (value (integer 0 : i16))))
+		)
+	)
+	(function "forward" -> void
+		(parameters
+			(parameter #0 "p" : i16<8>*)
+		)
+		(block
+			(call-statement "clear" -> void (arguments (parameter-ref #0 "p" : i16<8>*)))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "v" : i16<8> address-taken)
+			(local #1 "p" : i16<8>*)
+			(local #2 "loaded" : i16<8>)
+			(local #3 "a" : int<4> address-taken)
+			(local #4 "q" : int<4>*)
+			(local #5 "r" : int<4>*)
+		)
+		(block
+			(local-init #0 "v" : i16<8> (vector-init : i16<8> (integer 1 : i16) (integer 2 : i16) (integer 3 : i16) (integer 4 : i16) (integer 5 : i16) (integer 6 : i16) (integer 7 : i16) (integer 8 : i16)))
+			(local-init #1 "p" : i16<8>* (address-of (local #0 "v" : i16<8>) : i16<8>*))
+			(store (dereference-place : i16<8> null-traps (local-ref #1 "p" : i16<8>*)) (vector-splat : i16<8> (lanes 8) (value (integer 42 : i16))))
+			(if
+				(condition (prefix ! : bool (vector-all : bool (binary == : bool<8> (local-ref #0 "v" : i16<8>) (vector-splat : i16<8> (lanes 8) (value (integer 42 : i16)))))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(local-init #2 "loaded" : i16<8> (load (dereference-place : i16<8> null-traps (local-ref #1 "p" : i16<8>*))))
+			(if
+				(condition (prefix ! : bool (vector-all : bool (binary == : bool<8> (local-ref #2 "loaded" : i16<8>) (local-ref #0 "v" : i16<8>)))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(call-statement "forward" -> void (arguments (local-ref #1 "p" : i16<8>*)))
+			(if
+				(condition (prefix ! : bool (vector-all : bool (binary == : bool<8> (local-ref #0 "v" : i16<8>) (vector-splat : i16<8> (lanes 8) (value (integer 0 : i16)))))))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(local-init #3 "a" : int<4> (vector-init : int<4> (integer 1 : int) (integer 2 : int) (integer 3 : int) (integer 4 : int)))
+			(local-init #4 "q" : int<4>* (address-of (local #3 "a" : int<4>) : int<4>*))
+			(local-init #5 "r" : int<4>* (local-ref #4 "q" : int<4>*))
+			(store (dereference-place : int<4> null-traps (local-ref #5 "r" : int<4>*)) (vector-splat : int<4> (lanes 4) (value (integer 7 : int))))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (local-ref #5 "r" : int<4>*) (local-ref #4 "q" : int<4>*)) (prefix ! : bool (vector-all : bool (binary == : bool<4> (local-ref #3 "a" : int<4>) (vector-splat : int<4> (lanes 4) (value (integer 7 : int))))))))
+				(then
+					(block
+						(return (integer 4 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

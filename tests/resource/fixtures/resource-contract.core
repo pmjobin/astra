@@ -1,0 +1,213 @@
+(core-program
+	(handle-type #0 "Resource" (cleanup #0)
+		(header "missing/resource.h")
+	)
+	(cleanup #0 (symbol "astra_test_resource_destroy") (signature void (void*)))
+	(extern-function #0 "create_resource" (abi C) (symbol "astra_test_resource_create")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #1 "create_again" (abi C) (symbol "astra_test_resource_create_same")
+		(owned-result (cleanup #0))
+		(parameters
+			(parameter #0 : int)
+		)
+		(result Resource))
+	(extern-function #2 "resource_id" (abi C) (symbol "astra_test_resource_id")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #3 "resource_touch" (abi C) (symbol "astra_test_resource_touch")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #4 "lookup_resource" (abi C) (symbol "astra_test_resource_raw")
+		(parameters
+		)
+		(result Resource))
+	(extern-function #5 "dispose_raw" (abi C) (symbol "astra_test_resource_raw_destroy")
+		(parameters
+			(parameter #0 : Resource)
+		)
+		(result void))
+	(extern-function #6 "resource_reset" (abi C) (symbol "astra_test_resource_reset")
+		(parameters
+		)
+		(result void))
+	(extern-function #7 "resource_live_count" (abi C) (symbol "astra_test_resource_live_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #8 "resource_create_count" (abi C) (symbol "astra_test_resource_create_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #9 "resource_destroy_count" (abi C) (symbol "astra_test_resource_destroy_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #10 "resource_destroy_order" (abi C) (symbol "astra_test_resource_destroy_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #11 "resource_error_count" (abi C) (symbol "astra_test_resource_error_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #12 "resource_effect_order" (abi C) (symbol "astra_test_resource_effect_order")
+		(parameters
+		)
+		(result int))
+	(extern-function #13 "resource_is_live" (abi C) (symbol "astra_test_resource_is_live")
+		(parameters
+			(parameter #0 : Resource (contract borrowed-noescape))
+		)
+		(result int))
+	(extern-function #14 "resource_touch_count" (abi C) (symbol "astra_test_resource_touch_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #15 "resource_null_count" (abi C) (symbol "astra_test_resource_null_count")
+		(parameters
+		)
+		(result int))
+	(extern-function #16 "observe3" (abi C) (symbol "astra_test_resource_observe3")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : Resource (contract borrowed-noescape))
+			(parameter #2 : int)
+		)
+		(result int))
+	(function "is_null" -> bool
+		(parameters
+			(parameter #0 "r" : Resource (contract borrowed-noescape))
+		)
+		(block
+			(return
+				(binary == : bool
+					(parameter #0 : Resource)
+					(null : Resource)
+				)
+			)
+		)
+	)
+	(function "inspect_native" -> bool
+		(parameters
+			(parameter #0 "r" : Resource (contract borrowed-noescape))
+		)
+		(block
+			(return
+				(binary != : bool
+					(parameter #0 : Resource)
+					(null : Resource)
+				)
+			)
+		)
+	)
+	(function "choose" -> Resource
+		(parameters
+			(parameter #0 "c" : bool)
+		)
+		(locals
+			(local-place #0 "result" : Resource)
+		)
+		(block
+			(initialize
+				(local-place #0 : Resource)
+				(null : Resource)
+			)
+			(if
+				(condition
+					(parameter #0 : bool)
+				)
+				(then
+					(block
+						(store
+							(local-place #0 : Resource)
+							(c-call "lookup_resource" -> Resource
+								(arguments)
+							)
+						)
+					)
+				)
+			)
+			(return
+				(load : Resource
+					(local-place #0 : Resource)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(owned-local (local-place #1) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "r" : Resource)
+			(local-place #1 "next" : Resource)
+		)
+		(block
+			(owned-initialize (cleanup #0)
+				(local-place #0 : Resource)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 1 : int)
+					)
+				)
+			)
+			(c-call-statement "resource_id" -> int
+				(arguments
+					(borrow-owner #0 "r" : Resource)
+				)
+			)
+			(ownership-transfer (source owner #0 "r") (destination owner #1 "next") (cleanup #0))
+			(ownership-rearm (owner #0 "r") (cleanup #0)
+				(c-call "create_again" -> Resource
+					(arguments
+						(integer 0 : int)
+					)
+				)
+			)
+			(if
+				(condition
+					(call "inspect_native" -> bool
+						(arguments
+							(borrow-owner #0 "r" : Resource)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(ownership-release (owner #0 "r") (cleanup #0))
+			(ownership-rearm (owner #0 "r") (cleanup #0)
+				(c-call "create_resource" -> Resource
+					(arguments
+						(integer 2 : int)
+					)
+				)
+			)
+			(c-call-statement "resource_id" -> int
+				(arguments
+					(borrow-owner #0 "r" : Resource)
+				)
+			)
+			(return
+				(c-call "resource_id" -> int
+					(arguments
+						(borrow-owner #1 "next" : Resource)
+					)
+				)
+			)
+		)
+	)
+)

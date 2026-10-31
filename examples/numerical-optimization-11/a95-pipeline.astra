@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void pipeline_lifetime(int event);
+extern(C) int pipeline_observe(int sequence,int value);
+extern(C) int pipeline_finish(int count);
+interface Stage11 { int invoke(int value); }
+class Add11 : Stage11 {
+	int bias;
+	init(int bias) : base(){this.bias=bias;}
+	override int invoke(int value){return value+this.bias;}
+}
+class Multiply11 : Stage11 {
+	int factor;
+	init(int factor) : base(){this.factor=factor;}
+	override int invoke(int value){return value*this.factor;}
+}
+struct PipelineTag11 { int value; }
+class NumericBox11<T> {
+	owned T[slots] entries;
+	init(){this.entries=new T[slots];}
+	U read<U>(U value){return value;}
+}
+int specialized11(borrowed NumericBox11<PipelineTag11> box,int value){return box.read<int>(value);}
+int exact11(int value){var stage=new Add11(3);return stage(value);}
+int dispatch11(bool add,borrowed Stage11 first,borrowed Stage11 second,int value){if(add){return first(value);}return second(value);}
+class Payload11 {
+	int bias;
+	init(int bias){this.bias=bias;pipeline_lifetime(1);}
+	deinit(){pipeline_lifetime(2);}
+}
+int payload11(borrowed Payload11 payload,int value){return payload.bias+value;}
+class Environment11 {
+	private owned Shared<Payload11> payload;
+	init(owned Shared<Payload11> payload){this.payload=move payload;}
+	int apply(int value){var retained=shared_clone(this.payload);return payload11(shared_borrow(retained),value);}
+}
+int closure11(borrowed Environment11 environment,int value){return environment.apply(value);}
+int main(){
+	var payload=new Payload11(5);
+	var strong=shared_acquire(move payload);
+	{var transient=shared_clone(strong);}
+	var observer=shared_downgrade(strong);
+	var retained=shared_clone(strong);
+	var environment=new Environment11(move retained);
+	var function=closure_bind(move environment,closure11);
+	var first=new Add11(3);var second=new Multiply11(2);
+	var numeric=new NumericBox11<PipelineTag11>();
+	for(int i=0;i<12000;i=i+1){
+		int input=i%1000;
+		int value=dispatch11(i%2==0,first,second,input)+closure_invoke(function,input)+specialized11(numeric,i%23)+exact11(input);
+		if(pipeline_observe(i,value)!=0){return 1;}
+	}
+	release strong;
+	var live=weak_upgrade(observer);if(live==null){return 2;}release live;
+	release function;
+	var expired=weak_upgrade(observer);if(expired!=null){return 3;}release observer;
+	return pipeline_finish(12000);
+}

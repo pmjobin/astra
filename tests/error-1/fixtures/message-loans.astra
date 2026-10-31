@@ -1,0 +1,52 @@
+[ExceptionRoot]
+class Error {
+	readonly string text;
+	init(string text) { this.text = text; }
+	virtual property string message { get { return this.text; } }
+}
+class Detail : Error { init(string text) : base(text) {} }
+int fail() throws Error { throw new Detail("loan\0é"); }
+bool choose(Error first, Error second, bool selected) {
+	var view = first.message;
+	if(selected) { view = second.message; }
+	var copy = view;
+	int count = 0;
+	while(count < 2) { copy = view; count = count + 1; }
+	if(selected) { return copy == "second"; }
+	return copy == "first";
+}
+void rethrow() throws Error {
+	try { fail(); } catch(Error error) {
+		var view = error.message;
+		var copy = view;
+		if(copy != "loan\0é") { return; }
+		throw;
+	}
+}
+int main() {
+	var first = new Error("first");
+	var second = new Error("second");
+	{
+		var previous = new Error("previous");
+		var view = previous.message;
+		try { view = second.message; fail(); } catch(Error error) { release previous; if(view != "second") { return 86; } }
+	}
+	if(!choose(first, second, false) || !choose(first, second, true)) { return 81; }
+	{
+		var view = first.message;
+		try { fail(); } catch(Error error) {
+			var inner = error.message;
+			var copy = inner;
+			if(copy != "loan\0é" || view != "first") { return 82; }
+		}
+		if(view != "first") { return 83; }
+	}
+	release first;
+	try { rethrow(); } catch(Error error) {
+		var view = error.message;
+		var copy = view;
+		if(copy == "loan\0é" && copy.byte_length == 7) { return 42; }
+		return 84;
+	}
+	return 85;
+}

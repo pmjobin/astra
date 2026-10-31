@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class OriginChild {
+	owned R guard;
+	int value;
+	init(owned R guard, int value) { this.guard = move guard; this.value = value; }
+}
+class OriginMethods<Label> {
+	Label label;
+	init(Label label) { this.label = label; }
+	owned Result caller_result<Result>(owned Result old) {
+		var guard = make(231);
+		return OriginChild.init(move guard, 42);
+	}
+	owned Result heap_result<Result>(owned Result old) {
+		var guard = make(233);
+		var result = new OriginChild(move guard, 73);
+		return move result;
+	}
+}
+int exercise_origins() {
+	var host = new OriginMethods<bool>(true);
+	var first_guard = make(230);
+	var first = new OriginChild(move first_guard, 0);
+	var caller = host.caller_result<OriginChild>(move first);
+	if (caller.value != 42 || id(caller.guard) != 231 || live() != 1) { return 1; }
+	var second_guard = make(232);
+	var second = new OriginChild(move second_guard, 0);
+	var heap = host.heap_result<OriginChild>(move second);
+	if (heap.value != 73 || id(heap.guard) != 233 || caller.value != 42 || live() != 2) { return 2; }
+	return 0;
+}
+int main() {
+	int result = exercise_origins();
+	if (result != 0) { return result; }
+	return live();
+}

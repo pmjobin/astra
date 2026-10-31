@@ -1,0 +1,14 @@
+struct Signal {
+	f32 raw;
+	property f32 gain { get { return this.raw; } set(f32 next) { this.raw = next; } }
+}
+int main() {
+	Signal s = { raw = 0.0 };
+	s.gain = 1.25;
+	if (s.gain != 1.25) { return 1; }
+	s.gain = -0.0;
+	if (1.0 / s.gain >= 0.0) { return 2; }
+	s.gain = 1.401298464324817e-45;
+	if (s.gain != 1.401298464324817e-45) { return 3; }
+	return 42;
+}

@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using TelemetryLeaf18;
+using TelemetryMiddle18;
+extern(C) void telemetry18_shared_retire(int sequence, int kind);
+extern(C) int telemetry18_shared_result(int sequence, f64 value);
+
+class WindowPayload18 {
+	int sequence;
+	int kind;
+	init(int sequence, int kind) { this.sequence = sequence; this.kind = kind; }
+	deinit() { telemetry18_shared_retire(this.sequence, this.kind); }
+}
+f64 telemetry18_balanced(int sequence) {
+	f64 value = balanced_scalar((sequence % 17) as f64);
+	var payload = new WindowPayload18(sequence, 0);
+	var strong = shared_acquire(move payload);
+	{
+		var copy = shared_clone(strong);
+		if (sequence % 2 == 0) { value = combine(value, 0.5); }
+		else { value = combine(value, 1.0); }
+	}
+	release strong;
+	return value;
+}
+f64 telemetry18_weak_control(int sequence) {
+	f64 value = balanced_scalar((sequence % 17) as f64);
+	var payload = new WindowPayload18(sequence, 1);
+	var strong = shared_acquire(move payload);
+	var observer = shared_downgrade(strong);
+	{ var copy = shared_clone(strong); value = combine(value, 2.0); }
+	release strong;
+	var expired = weak_upgrade(observer);
+	if (expired != null) { return -1.0; }
+	release observer;
+	return value;
+}
+bool telemetry18_lifetimes(int sequence) {
+	f64 value = telemetry18_balanced(sequence) + telemetry18_weak_control(sequence);
+	return telemetry18_shared_result(sequence, value) == 0;
+}

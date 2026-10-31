@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[ExceptionRoot]class ImportedFault{readonly string text;init(){this.text="imported signal error";}virtual property string message{get{return this.text;}}}
+owned ImportedFault imported_fault(int domain,int status){var fault=new ImportedFault();return move fault;}
+@BINDINGS@
+[CImport(name="signal_roundtrip_note")]int note(int value);
+class Observer{
+	private int calls;
+	init(){this.calls=0;}
+	void receive(int count,bool committed,f64 weight){if(count!=19 || !committed || weight!=2.5){note(-1);return;}this.calls=this.calls+1;note(count);}
+	deinit(){note(100+this.calls);}
+}
+void receive(borrowed Observer observer,int count,bool committed,f64 weight){observer.receive(count,committed,weight);}
+export(C)int signal_roundtrip_run(){try{
+	var session=ImportedSession.init(7);if(session.count!=7){return 1;}
+	var source=ImportedSession_signal_updated_source(session);if(source==null){return 2;}
+	var observer=new Observer();var handler=closure_bind(move observer,receive);
+	if(retained_signal_register(handler,gir_signal16_mode(source))!=0){return 3;}
+	session.update(19);if(session.count!=19){return 4;}
+	if(retained_signal_revoke(handler)!=1 || retained_signal_observe(handler)!=1){return 5;}
+	release handler;session.update(23);if(session.count!=23){return 6;}
+}catch(ImportedFault fault){return 90;}return 0;}

@@ -1,0 +1,15 @@
+class Context {
+	owned R resource;
+	int count;
+	init(owned R resource) { this.resource = move resource; this.count = 0; }
+	void replace(owned R incoming) { this.resource = move incoming; }
+	int get() { return id(this.resource); }
+}
+void change(borrowed Context a, borrowed Context b, owned R r) {
+	a.resource = move r;
+	if (b.get() != 2 || a != b) { int trap = 1 / mark(0); }
+}
+int main() {
+	{ owned R a = make(1); owned Context c = Context.init(move a); owned R b = make(2); change(c, c, move b); }
+	return 42;
+}

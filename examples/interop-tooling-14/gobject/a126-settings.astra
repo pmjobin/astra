@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CImport(name="a126_created")] int created(int flags);
+[CImport(name="a126_closed")] int closed(int flags, int revisions);
+[GObjectExport(type="Astra126Settings",namespace="Astra126",version="1.0")]
+[CExport(name="astra126_settings",property="value")]
+[Shared]
+class Settings {
+	private int flags;
+	private int revisions;
+	init(int initial) { this.flags = initial & 7; this.revisions = 0; created(this.flags); }
+	property int value {
+		get { return this.flags; }
+		set(int request) {
+			if (request >= 0 && request <= 7) {
+				int changed = this.flags ^ request;
+				for (int bit = 0; bit < 3; bit = bit + 1) {
+					if ((changed & (1 << bit)) != 0) { this.revisions = this.revisions + 1; }
+				}
+				this.flags = request;
+			}
+		}
+	}
+	deinit() { closed(this.flags, this.revisions); }
+}

@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+enum RunStatus { Completed, Cancelled }
+async runtime VirtualExecutor throws NativeTasks.AsyncError returns RunStatus;
+int exercise_task(int mode) throws NativeTasks.Error {
+	var executor = VirtualExecutor.open(4);
+	var input = NativeTasks.create(221 + mode, 40);
+	var task = TaskMiddle.work(move input, mode == 3);
+	if (mode == 0) {
+		executor.cancel(task);
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Cancelled(): {} else: { return 1; } }
+		return live();
+	}
+	executor.start(task);
+	try {
+		executor.pump(2);
+		if (live() != 1) { throw new NativeTasks.Error("capture before deadline"); }
+		executor.advance(4);
+		executor.pump(1);
+		if (live() != 1) { throw new NativeTasks.Error("capture retained until deadline"); }
+	} catch (NativeTasks.Error error) {
+		executor.cancel(task);
+		var status = executor.run(move task);
+		throw;
+	}
+	if (mode == 1) {
+		executor.cancel(task);
+		var status = executor.run(move task);
+		match (status) { case RunStatus.Cancelled(): {} else: { return 2; } }
+		return live();
+	}
+	try {
+		var status = executor.run(move task);
+		if (mode == 3) { return 3; }
+		match (status) { case RunStatus.Completed(): {} else: { return 4; } }
+	} catch (NativeTasks.Error error) {
+		if (mode != 3 || error.message != "native task failure" || live() != 0) { return 5; }
+		var retry_executor = VirtualExecutor.open(4);
+		var retry_input = NativeTasks.create(225, 40);
+		var retry = TaskMiddle.work(move retry_input, false);
+		var status = retry_executor.run(move retry);
+		match (status) { case RunStatus.Completed(): {} else: { return 6; } }
+	}
+	return live();
+}
+int main() {
+	try {
+		for (int mode = 0; mode < 4; mode = mode + 1) {
+			if (exercise_task(mode) != 0) { return 10 + mode; }
+		}
+	} catch (NativeTasks.Error error) { return 20; }
+	return live();
+}

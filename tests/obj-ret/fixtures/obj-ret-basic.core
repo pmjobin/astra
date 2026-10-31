@@ -1,0 +1,155 @@
+(core-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(cleanup #0 (domain object) (class #0) exact-destructor)
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(function "make" -> Counter
+		(result-storage : Counter caller-provided hidden-input)
+		(result Counter (contract owned-transfer) (cleanup #0))
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(result-provenance result-storage)
+			(ownership-return
+				(return-object-construct (result-storage) (constructor Counter::init)
+					(parameter #0 : int)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(candidate-storage #0 (class #0) unused-until-owned-result)
+		(parameters)
+		(ownership (owner #0) transferable-object nullable-result)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "c" : Counter)
+		)
+		(block
+			(owned-initialize (cleanup #0)
+				(local-place #0 : Counter)
+				(candidate-storage #0)
+				(call "make" -> Counter
+					(arguments
+						(integer 42 : int)
+					)
+				)
+			)
+			(return
+				(load : int
+					(object-field-place null-traps : int
+						(load : Counter
+							(local-place #0 : Counter)
+						)
+						(field #0 "value")
+					)
+				)
+			)
+		)
+	)
+	(method #0 "add" (declaring-class #0 "Counter") (member #3) -> void
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(binary + : int
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+					(parameter #0 : int)
+				)
+			)
+		)
+	)
+	(method #1 "copy" (declaring-class #0 "Counter") (member #4) -> Counter
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(result-storage : Counter caller-provided hidden-input)
+		(result Counter (contract owned-transfer) (cleanup #0))
+		(parameters)
+		(block
+			(result-provenance result-storage)
+			(ownership-return
+				(return-object-construct (result-storage) (constructor Counter::init)
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+				)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(parameter #0 : int)
+			)
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 67 : int)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(block
+			(if
+				(condition
+					(binary != : bool
+						(load : int
+							(indirect-field-place : int
+								(this : Receiver<Counter>)
+								(field #0 "value")
+							)
+						)
+						(integer 42 : int)
+					)
+				)
+				(then
+					(block
+						(c-call-statement "life_record" -> int
+							(arguments
+								(integer 88 : int)
+								(integer 0 : int)
+							)
+						)
+					)
+				)
+			)
+			(c-call-statement "life_record" -> int
+				(arguments
+					(integer 68 : int)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+)

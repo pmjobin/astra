@@ -1,0 +1,177 @@
+(ssa-program
+	(struct "Pair"
+		(field #0 "x" : int)
+		(field #1 "y" : f64)
+	)
+	(function #0 "choose" -> Pair
+		(struct-parameter #1 : Pair COPY_VALUE (leaves 1 2))
+		(struct-parameter #2 : Pair COPY_VALUE (leaves 3 2))
+		(struct-result : Pair (leaves 2))
+		(parameters
+			(%0 "condition" : bool)
+			(%1 "a.0" : int)
+			(%2 "a.1" : f64)
+			(%3 "b.0" : int)
+			(%4 "b.1" : f64)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+		(block #1
+			(struct-return : Pair %1 %2)
+		)
+		(block #2
+			(struct-return : Pair %3 %4)
+		)
+	)
+	(function #1 "merge" -> Pair
+		(struct-parameter #1 : Pair COPY_VALUE (leaves 1 2))
+		(struct-parameter #2 : Pair COPY_VALUE (leaves 3 2))
+		(struct-result : Pair (leaves 2))
+		(parameters
+			(%0 "condition" : bool)
+			(%1 "a.0" : int)
+			(%2 "a.1" : f64)
+			(%3 "b.0" : int)
+			(%4 "b.1" : f64)
+		)
+		(entry #0)
+		(block #0
+			(conditional-branch %0
+				(true #1 ())
+				(false #2 (%1 %2))
+			)
+		)
+		(block #1
+			(branch #2 (%3 %4))
+		)
+		(block #2
+			(arguments
+				(%5 "result.x" (local #2 field #0) : int)
+				(%6 "result.y" (local #2 field #1) : f64)
+			)
+			(struct-return : Pair %5 %6)
+		)
+	)
+	(function #2 "main" -> int
+		(parameters)
+		(entry #0)
+		(block #0
+			(struct-argument #1 : Pair (leaves 1 2))
+			(struct-argument #2 : Pair (leaves 3 2))
+			(struct-call-results : Pair (%5 : int) (%6 : f64))
+			(call #0 "choose" -> Pair (arguments (bool true : bool) (integer 7 : int) (f64 0x400c000000000000 : f64) (integer 9 : int) (f64 0x4023000000000000 : f64)))
+			(consume-struct-result 0 : Pair %5 %6)
+			(struct-argument #1 : Pair (leaves 1 2))
+			(struct-argument #2 : Pair (leaves 3 2))
+			(struct-call-results : Pair (%7 : int) (%8 : f64))
+			(call #0 "choose" -> Pair (arguments (bool false : bool) (integer 7 : int) (f64 0x400c000000000000 : f64) (integer 9 : int) (f64 0x4023000000000000 : f64)))
+			(consume-struct-result 0 : Pair %7 %8)
+			(struct-argument #1 : Pair (leaves 1 2))
+			(struct-argument #2 : Pair (leaves 3 2))
+			(struct-call-results : Pair (%9 : int) (%10 : f64))
+			(call #1 "merge" -> Pair (arguments (bool true : bool) (integer 7 : int) (f64 0x400c000000000000 : f64) (integer 9 : int) (f64 0x4023000000000000 : f64)))
+			(consume-struct-result 0 : Pair %9 %10)
+			(struct-argument #1 : Pair (leaves 1 2))
+			(struct-argument #2 : Pair (leaves 3 2))
+			(struct-call-results : Pair (%11 : int) (%12 : f64))
+			(call #1 "merge" -> Pair (arguments (bool false : bool) (integer 7 : int) (f64 0x400c000000000000 : f64) (integer 9 : int) (f64 0x4023000000000000 : f64)))
+			(consume-struct-result 0 : Pair %11 %12)
+			(branch #3 ())
+		)
+		(block #1
+			(return (integer 1 : int))
+		)
+		(block #2
+			(return (integer 0 : int))
+		)
+		(block #3
+			(branch #4 ())
+		)
+		(block #4
+			(branch #5 ())
+		)
+		(block #5
+			(branch #6 ())
+		)
+		(block #6
+			(branch #7 ())
+		)
+		(block #7
+			(%13 : bool = binary != %5 (integer 7 : int))
+			(conditional-branch %13
+				(true #9 ((bool true : bool)))
+				(false #8 ())
+			)
+		)
+		(block #8
+			(%14 : bool = binary != %6 (f64 0x400c000000000000 : f64))
+			(branch #9 (%14))
+		)
+		(block #9
+			(arguments
+				(%0 (temporary #0) : bool)
+			)
+			(conditional-branch %0
+				(true #11 ((bool true : bool)))
+				(false #10 ())
+			)
+		)
+		(block #10
+			(%15 : bool = binary != %7 (integer 9 : int))
+			(branch #11 (%15))
+		)
+		(block #11
+			(arguments
+				(%1 (temporary #1) : bool)
+			)
+			(conditional-branch %1
+				(true #13 ((bool true : bool)))
+				(false #12 ())
+			)
+		)
+		(block #12
+			(%16 : bool = binary != %8 (f64 0x4023000000000000 : f64))
+			(branch #13 (%16))
+		)
+		(block #13
+			(arguments
+				(%2 (temporary #2) : bool)
+			)
+			(conditional-branch %2
+				(true #15 ((bool true : bool)))
+				(false #14 ())
+			)
+		)
+		(block #14
+			(%17 : bool = binary != %9 (integer 9 : int))
+			(branch #15 (%17))
+		)
+		(block #15
+			(arguments
+				(%3 (temporary #3) : bool)
+			)
+			(conditional-branch %3
+				(true #17 ((bool true : bool)))
+				(false #16 ())
+			)
+		)
+		(block #16
+			(%18 : bool = binary != %11 (integer 7 : int))
+			(branch #17 (%18))
+		)
+		(block #17
+			(arguments
+				(%4 (temporary #4) : bool)
+			)
+			(conditional-branch %4
+				(true #1 ())
+				(false #2 ())
+			)
+		)
+	)
+)

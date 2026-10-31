@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	if (len(args) != 2) { return 64; }
+	try {
+		try { var missing = read_file(args[1]); return 10; }
+		catch (FileError error) {
+			if (error.operation != 1 || error.status != -2) { return 11; }
+			if (!println("missing-file")) { return 12; }
+		}
+		try { var invalid = read_file("invalid\0path"); return 13; }
+		catch (FileError error) {
+			if (error.operation != 1 || error.status != -22) { return 14; }
+			if (!println("invalid-path")) { return 15; }
+		}
+		return 0;
+	} catch (Error error) { return 16; }
+}

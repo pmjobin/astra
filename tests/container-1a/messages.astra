@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A second exact element Class: no Diagnostic-name compiler contract.
+bool message_is(Utf8Message message, string expected) {
+	var view = message.text;
+	return view == expected && view.byte_length == expected.byte_length;
+}
+bool different_messages(Utf8Message first, Utf8Message second) { return first != second; }
+class Messages {
+	owned Utf8Message[slots] entries;
+	init() { this.entries = new Utf8Message[slots]; }
+	bool reserve(int count) { return this.entries.reserve(count); }
+	void append(owned Utf8Message message) { this.entries.append(move message); }
+	bool check(int index, string expected) { return message_is(this.entries[index], expected); }
+	bool distinct() { return different_messages(this.entries[0], this.entries[1]); }
+	int count() { return len(this.entries); }
+	int capacity() { return this.entries.capacity; }
+}
+int main() {
+	try {
+		var empty = new u8[0];
+		var first = utf8_message(empty); var second = utf8_message(empty);
+		if (first == second) { return 81; }
+		release empty;
+		var bag = new Messages();
+		if (!bag.reserve(2)) { return 82; }
+		bag.append(move first); bag.append(move second);
+		if (!bag.distinct() || !bag.reserve(3) || bag.count() != 2 || bag.capacity() != 3) { return 83; }
+		var bytes = new u8[3]; bytes[0] = 97; bytes[1] = 0; bytes[2] = 98;
+		var third = utf8_message(bytes);
+		bytes[0] = 255; release bytes;
+		bag.append(move third);
+		if (bag.count() != 3 || !bag.check(0, "") || !bag.check(1, "") || !bag.check(2, "a\0b")) { return 84; }
+		if (bag.reserve(-2147483648) || bag.capacity() != 3 || !bag.reserve(3) || !bag.distinct()) { return 85; }
+	} catch (InvalidUtf8 error) { return 86; }
+	return 0;
+}

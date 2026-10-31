@@ -1,0 +1,53 @@
+(program
+	(struct "Inner"
+		(field #0 "x" : int)
+		(field #1 "y" : int)
+	)
+	(struct "Outer"
+		(field #0 "a" : Inner)
+		(field #1 "b" : Inner)
+	)
+	(function "aliases" -> int
+		(parameters
+			(parameter #0 "p" : Outer*)
+			(parameter #1 "q" : Outer*)
+		)
+		(block
+			(store (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #0 "p" : Outer*))) (field Outer::a #0) : Inner)) (field Inner::x #0) : int) (integer 40 : int))
+			(store (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #1 "q" : Outer*))) (field Outer::a #0) : Inner)) (field Inner::x #0) : int) (binary + : int (load (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #1 "q" : Outer*))) (field Outer::a #0) : Inner)) (field Inner::x #0) : int)) (integer 2 : int)))
+			(store (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #0 "p" : Outer*))) (field Outer::b #1) : Inner)) (field Inner::x #0) : int) (integer 7 : int))
+			(return (binary + : int (load (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #1 "q" : Outer*))) (field Outer::a #0) : Inner)) (field Inner::x #0) : int)) (load (field-place (base (field-place (base (dereference-place : Outer null-traps (parameter-ref #1 "q" : Outer*))) (field Outer::b #1) : Inner)) (field Inner::x #0) : int))))
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "o" : Outer address-taken)
+			(local #1 "p" : Outer*)
+			(local #2 "q" : Outer*)
+		)
+		(block
+			(struct-local #0 "o" : Outer
+				(initialize-field #0 "a" (storage-initializer
+					(initialize-field #0 "x" (integer 1 : int))
+					(initialize-field #1 "y" (integer 2 : int))
+				))
+				(initialize-field #1 "b" (storage-initializer
+					(initialize-field #0 "x" (integer 3 : int))
+					(initialize-field #1 "y" (integer 4 : int))
+				))
+			)
+			(local-init #1 "p" : Outer* (address-of (local #0 "o" : Outer) : Outer*))
+			(local-init #2 "q" : Outer* (local-ref #1 "p" : Outer*))
+			(if
+				(condition (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (short-circuit || : bool (binary != : bool (call "aliases" -> int (arguments (local-ref #1 "p" : Outer*) (local-ref #2 "q" : Outer*))) (integer 49 : int)) (binary != : bool (load (field-place (base (field-place (base (local-place #0 : Outer)) (field Outer::a #0) : Inner)) (field Inner::x #0) : int)) (integer 42 : int))) (binary != : bool (load (field-place (base (field-place (base (local-place #0 : Outer)) (field Outer::b #1) : Inner)) (field Inner::x #0) : int)) (integer 7 : int))) (binary != : bool (load (field-place (base (field-place (base (local-place #0 : Outer)) (field Outer::a #0) : Inner)) (field Inner::y #1) : int)) (integer 2 : int))) (binary != : bool (load (field-place (base (field-place (base (local-place #0 : Outer)) (field Outer::b #1) : Inner)) (field Inner::y #1) : int)) (integer 4 : int))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

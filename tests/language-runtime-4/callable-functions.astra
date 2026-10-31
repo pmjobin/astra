@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+namespace CallableValues;
+
+int add_seven(int value) { return value + 7; }
+int triple(int value) { return value * 3; }
+i64 widen(i64 value) { return value + 4294967297; }
+bool positive(int value) { return value > 0; }
+int answer() { return 42; }
+i64 combine(i64 high, int low) { return high * 17 + (low as i64); }
+int four(int first, int second, int third, int fourth) { return first + second * 3 + third * 5 + fourth * 7; }
+f64 half(f64 value) { return value / 2.0; }
+export(C) int exported_native(int value) { return value + 99; }
+
+Fn<int,int> select_rule(int mode) {
+	if (mode == 0) { return add_seven; }
+	return triple;
+}
+Fn<int,int> forward(Fn<int,int> function) { return function; }
+int apply_twice(Fn<int,int> function, int value) { return function(function(value)); }
+Fn<int,int> select_assigned(int mode) {
+	Fn<int,int> selected = add_seven;
+	if (mode != 0) { selected = triple; }
+	return selected;
+}

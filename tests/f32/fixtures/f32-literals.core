@@ -1,0 +1,268 @@
+(core-program
+	(function "zero" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x00000000 : f32)
+			)
+		)
+	)
+	(function "negative_zero" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x80000000 : f32)
+			)
+		)
+	)
+	(function "one" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x3f800000 : f32)
+			)
+		)
+	)
+	(function "negative_one" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0xbf800000 : f32)
+			)
+		)
+	)
+	(function "half" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x3f000000 : f32)
+			)
+		)
+	)
+	(function "two" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x40000000 : f32)
+			)
+		)
+	)
+	(function "subnormal" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x00000001 : f32)
+			)
+		)
+	)
+	(function "normal" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x00800000 : f32)
+			)
+		)
+	)
+	(function "maximum" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x7f7fffff : f32)
+			)
+		)
+	)
+	(function "infinity" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x7f800000 : f32)
+			)
+		)
+	)
+	(function "underflow" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x00000000 : f32)
+			)
+		)
+	)
+	(function "tie_down" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x3f800000 : f32)
+			)
+		)
+	)
+	(function "tie_up" -> f32
+		(parameters)
+		(block
+			(return
+				(f32 0x3f800002 : f32)
+			)
+		)
+	)
+	(function "main" -> int
+		(parameters)
+		(block
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary != : bool
+									(call "zero" -> f32
+										(arguments)
+									)
+									(f32 0x80000000 : f32)
+								)
+								(binary != : bool
+									(call "negative_zero" -> f32
+										(arguments)
+									)
+									(f32 0x00000000 : f32)
+								)
+							)
+							(binary != : bool
+								(call "one" -> f32
+									(arguments)
+								)
+								(f32 0x3f800000 : f32)
+							)
+						)
+						(binary != : bool
+							(call "negative_one" -> f32
+								(arguments)
+							)
+							(f32 0xbf800000 : f32)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 1 : int)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary != : bool
+									(call "half" -> f32
+										(arguments)
+									)
+									(f32 0x3f000000 : f32)
+								)
+								(binary != : bool
+									(call "two" -> f32
+										(arguments)
+									)
+									(f32 0x40000000 : f32)
+								)
+							)
+							(binary == : bool
+								(call "subnormal" -> f32
+									(arguments)
+								)
+								(f32 0x00000000 : f32)
+							)
+						)
+						(binary <= : bool
+							(call "normal" -> f32
+								(arguments)
+							)
+							(call "subnormal" -> f32
+								(arguments)
+							)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 2 : int)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(short-circuit || : bool
+								(binary >= : bool
+									(call "maximum" -> f32
+										(arguments)
+									)
+									(call "infinity" -> f32
+										(arguments)
+									)
+								)
+								(binary != : bool
+									(call "underflow" -> f32
+										(arguments)
+									)
+									(f32 0x00000000 : f32)
+								)
+							)
+							(binary != : bool
+								(call "tie_down" -> f32
+									(arguments)
+								)
+								(f32 0x3f800000 : f32)
+							)
+						)
+						(binary != : bool
+							(call "tie_up" -> f32
+								(arguments)
+							)
+							(f32 0x3f800002 : f32)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 3 : int)
+						)
+					)
+				)
+			)
+			(if
+				(condition
+					(short-circuit || : bool
+						(short-circuit || : bool
+							(binary != : bool
+								(f32 0x447a0000 : f32)
+								(f32 0x447a0000 : f32)
+							)
+							(binary != : bool
+								(f32 0x3903126f : f32)
+								(f32 0x3903126f : f32)
+							)
+						)
+						(binary != : bool
+							(f32 0x4e932bc8 : f32)
+							(f32 0x4e932bc8 : f32)
+						)
+					)
+				)
+				(then
+					(block
+						(return
+							(integer 4 : int)
+						)
+					)
+				)
+			)
+			(return
+				(integer 0 : int)
+			)
+		)
+	)
+)

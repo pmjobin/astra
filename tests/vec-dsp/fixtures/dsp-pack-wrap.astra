@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+int main(){
+	i16<8> a={-257,-256,-1,0,1,255,256,257};
+	i16<8> b={300,301,302,303,304,305,306,307};
+	u8<16> p=pack_wrap(a,b,u8);
+	u8<16> expected={255,0,255,0,1,255,0,1,44,45,46,47,48,49,50,51};
+	if(!all(p==expected)){return 1;}
+	p=shuffle(p,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
+	if(p[0]!=51 || p[15]!=255){return 2;}
+	return 0;
+}

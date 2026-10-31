@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct FloatLeaf { f64 zero; f64 tiny; f32 single; }
+struct FloatOuter { FloatLeaf inner; }
+f64 scalarized(f64 input) { FloatOuter o = { inner = { zero = -0.0, tiny = input, single = 0.5 } }; return o.inner.tiny; }
+f64 roundtrip(FloatOuter* p, f64 value) { p->inner.tiny = value; return p->inner.tiny; }
+f64 separate(f64 a, f64 b, f64 c) { FloatOuter o = { inner = { zero = a, tiny = b, single = 0.5 } }; return o.inner.zero * o.inner.tiny + c; }
+int main() {
+	FloatOuter o = { inner = { zero = -0.0, tiny = 4.9406564584124654e-324, single = 0.5 } };
+	if (1.0 / o.inner.zero >= 0.0 || o.inner.tiny != 4.9406564584124654e-324 || o.inner.single != 0.5) { return 1; }
+	if (roundtrip(&o, o.inner.tiny) != 4.9406564584124654e-324 || scalarized(o.inner.tiny) != o.inner.tiny) { return 2; }
+	if (1.0 / o.inner.zero >= 0.0) { return 3; }
+	return 0;
+}

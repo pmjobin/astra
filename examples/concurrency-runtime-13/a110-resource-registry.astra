@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A110: one intrusive root through interface views, bounded registry slots and an owned child.
+extern(C) int app_drop(int app, int tag);
+
+extern(C) int app_sample(int app, int tag, int value);
+
+extern(C) int app_finish(int app);
+
+class Child {
+
+	private int value;
+
+	init(int value) {
+		this.value = value;
+
+	}
+
+	int read() {
+		return this.value;
+
+	}
+
+	deinit() {
+		app_drop(110, 1);
+
+	}
+
+}
+
+int child_value(borrowed Child child) {
+	return child.read();
+
+}
+
+[Shared, Monitor]
+interface Measure {
+	int read(int offset);
+
+}
+
+[Shared, Monitor]
+class Resource : Measure {
+
+	private owned Child child;
+
+	private int value;
+
+	init(owned Child child) : base() {
+		this.value = child_value(child);
+		this.child = move child;
+
+	}
+
+	override int read(int offset) {
+		return this.value + offset;
+
+	}
+
+	deinit() {
+		app_drop(110, 0);
+
+	}
+
+}
+
+int inspect(borrowed Measure view) {
+
+	var strong = view.clone();
+	var weak = strong.downgrade();
+	var again = weak.upgrade();
+
+	if (again == null) {
+		return -1;
+
+	}
+
+	return again.read(2);
+
+}
+
+int main() {
+
+	var child = new Child(17);
+	var root = new Resource(move child);
+	var weak = root.downgrade();
+
+	var first = root.clone();
+	var second = root.clone();
+
+	app_sample(110, 0, inspect(first));
+
+	if (inspect(second) != 19) {
+		return 81;
+
+	}
+
+	release root;
+	release first;
+	release second;
+
+	var expired = weak.upgrade();
+
+	if (expired != null) {
+		return 82;
+
+	}
+
+	release weak;
+
+	return app_finish(110);
+
+}

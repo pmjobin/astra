@@ -1,0 +1,33 @@
+extern(C) void astra_test_reset();
+extern(C) int astra_test_record(int value);
+extern(C) int astra_test_identity(int value);
+extern(C) int astra_test_state();
+
+int main() {
+	astra_test_reset();
+	int i = 0;
+	while (astra_test_identity(i) < 4) {
+		i = i + 1;
+		astra_test_record(i);
+		if (i == 2) {
+			continue;
+			astra_test_record(9);
+		}
+		if (i == 3) {
+			break;
+			astra_test_record(9);
+		}
+	}
+	if (astra_test_state() != 123 || i != 3) {
+		return 1;
+	}
+	astra_test_reset();
+	i = 0;
+	while (astra_test_record(1) == 1 && i < 2) {
+		i = i + 1;
+	}
+	if (astra_test_state() != 111 || i != 2) {
+		return 2;
+	}
+	return 0;
+}

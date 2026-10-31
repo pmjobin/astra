@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct FoldState { i64 total; int invocations; int bias; int limit; }
+int fold_item(borrowed FoldState* state, int input) {
+	state->total = state->total + ((input + state->bias) as i64);
+	state->invocations = state->invocations + 1;
+	return state->invocations;
+}
+[CCode(record_abi="natural-lp64", callback="fold_item", callback_abi="i32-context-i32-sync")]
+extern(C) int surge_fold(borrowed FoldState* state, int input);
+int main(string[] args) {
+	if (len(args) != 4) { return 64; }
+	try {
+		int input = parse_int(args[1]); int count = parse_int(args[2]); int bias = parse_int(args[3]);
+		if (input < -1000 || input > 1000 || count < 0 || count > 1000 || bias < -1000 || bias > 1000) { return 64; }
+		FoldState state = {total=0, invocations=0, bias=bias, limit=count};
+		if (surge_fold(&state, input) != count || state.invocations != count) { return 3; }
+		report_number("fold=", state.total); report_number("calls=", state.invocations as i64); return 0;
+	} catch (Error error) { return 2; }
+}

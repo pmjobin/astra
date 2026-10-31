@@ -1,0 +1,24 @@
+struct Pair { int x; int y; }
+
+void inner(Pair* parameter) {
+	if (parameter != null) {
+		Pair* p = parameter;
+		p->x = 42;
+	}
+}
+
+void outer(Pair* parameter) {
+	Pair* p = parameter;
+	inner(p);
+}
+
+int main() {
+	Pair pair = { x = 1, y = 2 };
+	Pair* p = &pair;
+	outer(p);
+	if (pair.x != 42) { return 1; }
+	pair.x = 0;
+	outer((&pair));
+	if (pair.x != 42) { return 2; }
+	return 0;
+}

@@ -1,0 +1,31 @@
+(unit
+	(function
+		(type "int")
+		(name "wrapping")
+		(parameters
+			(parameter (type "int") (name "x"))
+		)
+		(block
+			(local (type "int") (name "a") (integer "2147483647"))
+			(assign (name "a") (binary "+" (name "a") (integer "1")))
+			(assign (name "a") (binary "*" (name "a") (name "x")))
+			(return (prefix "-" (name "a")))
+		)
+	)
+	(function
+		(type "int")
+		(name "overflow")
+		(parameters)
+		(block
+			(return (binary "+" (integer "2147483647") (integer "1")))
+		)
+	)
+	(function
+		(type "int")
+		(name "minimum_negation")
+		(parameters)
+		(block
+			(return (prefix "-" (parenthesized (prefix "-" (integer "2147483648")))))
+		)
+	)
+)

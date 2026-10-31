@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void usability_event(int value);
+extern(C) int numeric_oracle_count();
+extern(C) f32 numeric_oracle_f32(int index);
+extern(C) f64 numeric_oracle_f64(int index);
+extern(C) int numeric_oracle_check_f32(f32 value, int index);
+extern(C) int numeric_oracle_check_f64(f64 value, int index);
+extern(C) int numeric_oracle_locale(int mode);
+extern(C) int numeric_oracle_separator();
+extern(C) int numeric_oracle_rounding(int nearest);
+[CCode (text_abi = "utf8-i32")]
+extern(C) int numeric_oracle_text(int width, int index, borrowed string text);
+
+void invalid_f64(string text, int reason) throws Error {
+	try { f64 value = parse_f64(text); throw new Error("accepted invalid f64"); }
+	catch (NumericTextError error) { if (error.reason != reason) { throw new Error("wrong f64 error"); } }
+}
+void invalid_f32(string text, int reason) throws Error {
+	try { f32 value = parse_f32(text); throw new Error("accepted invalid f32"); }
+	catch (NumericTextError error) { if (error.reason != reason) { throw new Error("wrong f32 error"); } }
+}
+int main() {
+	try {
+		for (int mode = 0; mode < 2; mode = mode + 1) {
+			if (numeric_oracle_locale(mode) != 0) { return 1; }
+			for (int index = 0; index < numeric_oracle_count(); index = index + 1) {
+				f32 first = numeric_oracle_f32(index);
+				f64 second = numeric_oracle_f64(index);
+				var first_text = format_f32(first);
+				var second_text = format_f64(second);
+				if (numeric_oracle_text(32, index, first_text.text) != 0) { return 2; }
+				if (numeric_oracle_text(64, index, second_text.text) != 0) { return 3; }
+				if (numeric_oracle_check_f32(parse_f32(first_text.text), index) != 0) { return 4; }
+				if (numeric_oracle_check_f64(parse_f64(second_text.text), index) != 0) { return 5; }
+				if (numeric_oracle_separator() != mode) { return 6; }
+			}
+			if (parse_f32("1.000000059604644775390625") != 1.0f) { return 7; }
+			if (parse_f32("1.000000178813934326171875") != 1.0000002384185791015625f) { return 8; }
+			if (parse_f64("1.00000000000000011102230246251565404236316680908203125") != 1.0) { return 9; }
+			if (parse_f64("1.00000000000000033306690738754696212708950042724609375") != 1.000000000000000444089209850062616169452667236328125) { return 10; }
+			if (parse_f64(".5") != 0.5 || parse_f32("+5.e-1") != 0.5f) { return 11; }
+			if (parse_f64("-0e99999") != 0.0 || parse_f32("0e-99999") != 0.0f) { return 12; }
+			invalid_f64("1e99999", 2); invalid_f32("1e99999", 2);
+			invalid_f64("1e-99999", 3); invalid_f32("1e-99999", 3);
+			invalid_f64("1,5", 1); invalid_f32("1,5", 1);
+			invalid_f64(" 1.5", 1); invalid_f32("1.5 ", 1);
+			invalid_f64("1\0.5", 1); invalid_f32("1é", 1);
+			invalid_f64("0x1p0", 1); invalid_f32("nan(payload)", 1);
+			invalid_f64("", 1); invalid_f32("1e+", 1);
+			usability_event(700 + mode);
+		}
+		if (numeric_oracle_rounding(0) != 0) { return 13; }
+		invalid_f64("1", 5); invalid_f32("1", 5);
+		try { var value = format_f64(1.0); return 14; }
+		catch (NumericTextError error) { if (error.reason != 5) { return 15; } }
+		try { var value = format_f32(1.0f); return 16; }
+		catch (NumericTextError error) { if (error.reason != 5) { return 17; } }
+		if (numeric_oracle_rounding(2) != 0 || numeric_oracle_rounding(1) != 0 || numeric_oracle_locale(0) != 0) { return 18; }
+		usability_event(702);
+	} catch (Error error) { return 19; }
+	return 0;
+}

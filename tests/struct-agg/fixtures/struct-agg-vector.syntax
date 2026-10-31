@@ -1,0 +1,67 @@
+(unit
+	(struct "Sample"
+		(field (type "f32<4>") (name "color"))
+		(field (type "i16<8>") (name "samples"))
+		(field (type "bool<4>") (name "mask"))
+	)
+	(struct "Outer"
+		(field (type "Sample") (name "inner"))
+	)
+	(function
+		(type "void")
+		(name "mutate")
+		(parameters
+			(parameter (type "Outer*") (name "p"))
+			(parameter (type "i16<8>") (name "v"))
+		)
+		(block
+			(assign (field-access (base (indirect-field-access "p" "inner")) "samples") (name "v"))
+			(assign (field-access (base (indirect-field-access "p" "inner")) "color") (vector-insert (field-access (base (indirect-field-access "p" "inner")) "color") (float "4.5") (ordinals 2)))
+		)
+	)
+	(function
+		(type "int")
+		(name "main")
+		(parameters)
+		(block
+			(local (type "f32<4>") (name "color") (vector-init (float "0.5") (float "1.5") (float "2.5") (float "3.5")))
+			(local (type "i16<8>") (name "samples") (vector-init (integer "1") (integer "2") (integer "3") (integer "4") (integer "5") (integer "6") (integer "7") (integer "8")))
+			(local (type "bool<4>") (name "mask") (vector-init (bool true) (bool false) (bool true) (bool false)))
+			(struct-local (type "Outer") (name "o")
+				(initialize-field "inner" (storage-initializer
+					(initialize-field "color" (name "color"))
+					(initialize-field "samples" (name "samples"))
+					(initialize-field "mask" (name "mask"))
+				))
+			)
+			(local (type "f32<4>") (name "read") (field-access (base (field-access "o" "inner")) "color"))
+			(if
+				(condition (short-circuit "||" (prefix "!" (vector-all (binary "==" (name "read") (name "color")))) (binary "!=" (vector-extract (lane 2) (field-access (base (field-access "o" "inner")) "color")) (float "2.5"))))
+				(then
+					(block
+						(return (integer "1"))
+					)
+				)
+			)
+			(assign (field-access (base (field-access "o" "inner")) "samples") (vector-insert (field-access (base (field-access "o" "inner")) "samples") (integer "42") (ordinals 7)))
+			(if
+				(condition (short-circuit "||" (binary "!=" (vector-extract (lane 7) (field-access (base (field-access "o" "inner")) "samples")) (integer "42")) (binary "!=" (vector-extract (lane 0) (field-access (base (field-access "o" "inner")) "samples")) (integer "1"))))
+				(then
+					(block
+						(return (integer "2"))
+					)
+				)
+			)
+			(call-statement (call "mutate" (arguments (address-of "o") (name "samples"))))
+			(if
+				(condition (short-circuit "||" (short-circuit "||" (prefix "!" (vector-all (binary "==" (field-access (base (field-access "o" "inner")) "samples") (name "samples")))) (binary "!=" (vector-extract (lane 2) (field-access (base (field-access "o" "inner")) "color")) (float "4.5"))) (prefix "!" (vector-any (field-access (base (field-access "o" "inner")) "mask")))))
+				(then
+					(block
+						(return (integer "3"))
+					)
+				)
+			)
+			(return (integer "0"))
+		)
+	)
+)

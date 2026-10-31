@@ -1,0 +1,26 @@
+struct Pair { int x; int y; }
+
+int main() {
+	Pair outer = { x = 0, y = 0 };
+	int i = 0;
+	while (i < 4) {
+		Pair inner = { x = i, y = 2 };
+		Pair* same = &inner;
+		Pair* enclosing = &outer;
+		i = i + 1;
+		same->x = same->x + 1;
+		if (i < 3) {
+			Pair* deeper = same;
+			enclosing->x = enclosing->x + deeper->x;
+			continue;
+		}
+		while (true) {
+			Pair* nested = &outer;
+			nested->y = same->x;
+			break;
+		}
+		break;
+	}
+	if (outer.x != 3 || outer.y != 3 || i != 3) { return 1; }
+	return 0;
+}

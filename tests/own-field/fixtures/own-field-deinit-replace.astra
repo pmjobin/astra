@@ -1,0 +1,14 @@
+class Context {
+	owned R resource;
+	init() { this.resource = make(1); }
+	void replace(owned R incoming) { this.resource = move incoming; }
+	property int value { get { return id(this.resource); } set(int next) { this.resource = make(next); } }
+	deinit() {
+		mark(id(this.resource));
+		owned R b = make(2); this.resource = move b;
+		owned R c = make(3); this.replace(move c);
+		this.value = 4;
+		mark(id(this.resource));
+	}
+}
+int main() { { Context c = Context.init(); } if (live() != 0) { return 1; } return 42; }

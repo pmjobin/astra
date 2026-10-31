@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using Work8;
+int inspect_ticket(borrowed Ticket ticket) { return ticket_code(ticket); }
+void complete_ticket(owned Ticket ticket) throws Error {
+	var report = new Utf8ByteBuilder();
+	report_value(report, "completed=", inspect_ticket(ticket));
+	show_report(report);
+}
+int main() {
+	try {
+		var ticket = create_ticket(73);
+		if (ticket == null || app_created() != 1 || app_destroyed() != 0) { return 1; }
+		complete_ticket(move ticket);
+		if (app_destroyed() != 1 || app_last_destroyed() != 73) { return 2; }
+		println("destructors=1\nallocator=native");
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 70; }
+}

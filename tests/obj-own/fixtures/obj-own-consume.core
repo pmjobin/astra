@@ -1,0 +1,123 @@
+(core-program
+	(class #0 "Counter"
+		(field #0 "value" : int)
+	)
+	(cleanup #0 (domain object) (class #0) exact-destructor)
+	(extern-function #0 "life_record" (abi C) (symbol "life_record")
+		(parameters
+			(parameter #0 : int)
+			(parameter #1 : int)
+		)
+		(result int))
+	(function "consume" -> void
+		(parameters
+			(parameter #0 "value" : Counter (contract owned-transfer))
+		)
+		(ownership (owner #0) transferable-object incoming-parameter)
+		(owned-parameter #0 (owner #0) function-root)
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "value" : Counter)
+		)
+		(block
+			(acquire-parameter #0 (owner #0) (cleanup #0))
+			(store
+				(object-field-place null-traps : int
+					(load : Counter
+						(local-place #0 : Counter)
+					)
+					(field #0 "value")
+				)
+				(binary + : int
+					(load : int
+						(object-field-place null-traps : int
+							(load : Counter
+								(local-place #0 : Counter)
+							)
+							(field #0 "value")
+						)
+					)
+					(integer 1 : int)
+				)
+			)
+		)
+	)
+	(function "main" -> int
+		(object-storage #0 (class #0) : Counter (region #0) lexical-memory)
+		(object-cleanup (storage #0) transferable-owner null-disarm)
+		(parameters)
+		(ownership (owner #0) transferable-object (storage #0))
+		(owned-local (local-place #0) (cleanup #0) lexical-block)
+		(locals
+			(local-place #0 "c" : Counter)
+		)
+		(block
+			(construct (storage #0) (constructor class #0) (ref-local #0)
+				(integer 41 : int)
+			)
+			(call-statement "consume" -> void
+				(arguments
+					(owned-transfer-argument (parameter #0) (move owner #0) : Counter (cleanup #0))
+				)
+			)
+			(return
+				(integer 42 : int)
+			)
+		)
+	)
+	(method #0 "add" (declaring-class #0 "Counter") (member #3) -> void
+		(receiver : Receiver<Counter> mutable nonnull non-owning)
+		(parameters
+			(parameter #0 "n" : int)
+		)
+		(block
+			(store
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(binary + : int
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+					(parameter #0 : int)
+				)
+			)
+		)
+	)
+	(constructor (class #0) (member #1)
+		(receiver initializing Counter nonnull mutable)
+		(parameters
+			(parameter #0 "value" : int)
+		)
+		(block
+			(initialize
+				(indirect-field-place : int
+					(this : Receiver<Counter>)
+					(field #0 "value")
+				)
+				(parameter #0 : int)
+			)
+		)
+	)
+	(destructor (class #0) (member #2)
+		(receiver live Counter nonnull mutable)
+		(parameters)
+		(block
+			(c-call-statement "life_record" -> int
+				(arguments
+					(load : int
+						(indirect-field-place : int
+							(this : Receiver<Counter>)
+							(field #0 "value")
+						)
+					)
+					(integer 0 : int)
+				)
+			)
+		)
+	)
+)

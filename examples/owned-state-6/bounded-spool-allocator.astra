@@ -1,0 +1,22 @@
+// A45: genuine alternate byte-storage policy; backing acquisition stays fatal.
+int main(string[] args) {
+	if (len(args) != 2) { return 64; }
+	try {
+		var arena = byte_arena(16, 4);
+		int header = arena.allocate(3, 1); int payload = arena.allocate(8, 8);
+		arena.write(header, 0, 65); arena.write(header, 1, 0); arena.write(header, 2, 255);
+		arena.write(payload, 0, 195); arena.write(payload, 1, 169);
+		if (arena.offset(payload) != 8 || arena.occupied() != 16) { return 81; }
+		try { arena.allocate(1, 1); return 82; } catch(ArenaError error) { println("spool full; recovered"); }
+		arena.release_last(payload); payload = arena.allocate(2, 8);
+		arena.write(payload, 0, 195); arena.write(payload, 1, 169);
+		var output = new u8[5]; int i = 0;
+		while (i < 3) { output[i] = arena.read(header, i); i = i + 1; }
+		output[3] = arena.read(payload, 0); output[4] = arena.read(payload, 1);
+		write_file(args[1], output);
+		arena.release_last(payload); arena.release_last(header);
+		if (arena.count() != 0 || arena.occupied() != 0) { return 83; }
+		println("A45 wrote 5 binary bytes; arena empty");
+	} catch(Error error) { return 84; }
+	return 0;
+}

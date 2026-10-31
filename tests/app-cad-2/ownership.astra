@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Uses the actual I Context declaration and numeric implementation.
+extern(C) int cad_same_bits(f64 a, f64 b);
+extern(C) f64 cad_nextafter(f64 value, f64 toward);
+
+void drop_context(owned Context value) {}
+Kernel snapshot(Kernel[] values, int index) { return values[index]; }
+void mutate(Kernel[] values) { values[0].sigma = 7.0; values[0].mx = 0.0; }
+Kernel lifetime(int count) {
+	owned Context context = Context.init(count, 1, count, 1);
+	require(len(context.state) == count && len(context.next) == count && len(context.supports) == count, 301, cad_number(count));
+	context.state[0].mx = -0.0;
+	context.state[0].sigma = cad_nextafter(1.0, 2.0);
+	Kernel saved = snapshot(context.state, 0);
+	mutate(context.state);
+	require(cad_same_bits(saved.mx, -0.0) != 0 && cad_same_bits(saved.sigma, cad_nextafter(1.0, 2.0)) != 0, 302, saved.sigma);
+	context.logw = new f64[3] else cad_fail(3, 3.0);
+	context.logw[2] = saved.sigma;
+	f64 scalar = context.logw[2];
+	context.logw = new f64[4] else cad_fail(3, 4.0);
+	require(cad_same_bits(scalar, saved.sigma) != 0 && cad_same_bits(context.logw[2], 0.0) != 0, 303, scalar);
+	drop_context(move context);
+	return saved;
+}
+
+int main() {
+	int repeat = 0;
+	while (repeat < 3) {
+		Kernel saved = lifetime(3 + repeat);
+		require(cad_same_bits(saved.mx, -0.0) != 0 && cad_same_bits(saved.sigma, cad_nextafter(1.0, 2.0)) != 0, 304, saved.sigma);
+		repeat = repeat + 1;
+	}
+	int[10] boundaries = {0,1,2,16383,16384,4194303,4194304,37748736,67108863,67108864};
+	int index = 0;
+	while (index < 10) {
+		Support support = {x0=boundaries[index],y0=0,x1=0,y1=0,start=boundaries[index]};
+		require(cad_integer(cad_number(support.x0)) == boundaries[index] && cad_integer(cad_number(support.start)) == boundaries[index], 305, cad_number(index));
+		index = index + 1;
+	}
+	SymMat2 matrix = {xx=3.0,xy=1.0,yy=2.0};
+	SymMat2 inverted = inverse(matrix);
+	matrix.xx = 17.0;
+	require(cad_same_bits(inverted.xx, 0.4) != 0 && cad_same_bits(inverted.xy, -0.2) != 0 && cad_same_bits(inverted.yy, 0.6) != 0, 306, inverted.xx);
+	return 0;
+}

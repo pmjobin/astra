@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+int main() {
+	int[4] storage = {1, 2, 3, 4};
+	int[] a = slice(storage);
+	i32[] b = a;
+	if (len(a) != 4 || len(storage) != 4) { return 1; }
+	a[1] = 42;
+	if (b[1] != 42 || storage[1] != 42) { return 2; }
+	storage[2] = 12;
+	if (slice(storage)[2] != 12) { return 3; }
+	slice(storage)[2] = 14;
+	if (storage[2] != 14) { return 4; }
+	int i = 0;
+	while (i < len(b)) { if (b[i] != storage[i]) { return 5; } i = i + 1; }
+	return 0;
+}

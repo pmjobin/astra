@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void affine_home_prepare(int identity);
+extern(C) void affine_home_retired(int identity);
+extern(C) int affine_home_observed(int identity);
+extern(C) int affine_home_finish();
+[Allocator(kind="context",context="owned-affine")]
+class HomeOwner {
+	private int identity;
+	init(int identity) { this.identity = identity; }
+	deinit() { affine_home_retired(this.identity); }
+}
+async void home(owned WorkerPool pool, owned HomeOwner owner, int identity, bool fail) throws Error {
+	int result = await pool.submit(CPU.compute(identity, fail));
+	if (result < 0) { throw new Error("affine worker result"); }
+}
+export(C) int run_affine_home() {
+	for (int identity = 1; identity <= 3; identity = identity + 1) {
+		affine_home_prepare(identity);
+		var objects = affine_allocator(1, 4099, 3, 64);
+		var frames = affine_allocator(2, 32771, 3, 64);
+		if (objects == null || frames == null) { return 1; }
+		var owner = new(objects) HomeOwner(identity);
+		bool caught = false;
+		try {
+			var pool = worker_pool(2);
+			if (pool == null) { return 2; }
+			var executor = HomeExecutor.open(8);
+			var pending = task_in(frames, home(move pool, move owner, identity, identity == 2));
+			var status = executor.run(move pending);
+			match(status) {
+				case HomeStatus.Completed(): { if (identity == 3) { return 3; } }
+				case HomeStatus.Cancelled(): { if (identity != 3) { return 3; } }
+			}
+		} catch (Error error) {
+			if (error.message != "affine worker failure") { return 4; }
+			caught = true;
+		}
+		if (caught != (identity == 2) || affine_allocator_query(objects, 1) != 0 || affine_allocator_query(frames, 1) != 0) { return 5; }
+		if (affine_home_observed(identity) != 0) { return 6; }
+	}
+	return 0;
+}
+int main() {
+	int result = run_affine_home();
+	if (result != 0) { return result; }
+	return affine_home_finish();
+}

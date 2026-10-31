@@ -1,0 +1,386 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A117: executable Surge 13 application.
+extern(C) int listener_oracle_start(int port, int clients, int seed);
+
+extern(C) int listener_oracle_guard();
+
+extern(C) int listener_oracle_guard_close();
+
+extern(C) int listener_oracle_finish(int clients);
+
+async int serve_connection(owned TcpSocket socket, int seed) throws Error {
+
+	var bytes = new u8[4096];
+
+	int started = astra_net_milliseconds();
+
+	int used = 0;
+
+	while (used < len(bytes)) {
+
+		int count = len(bytes) - used;
+
+		if (count > 29) {
+			count = 29;
+
+		}
+
+		int progress = socket.try_read(bytes, used, count);
+
+		if (progress > 0) {
+			used = used + progress;
+
+		}
+
+		else {
+
+			if (progress == 0) {
+				throw new Error("early client EOF");
+
+			}
+
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+
+		}
+
+	}
+
+	int id = bytes[4] as int;
+
+	if (id < 1 || id > 8) {
+		throw new Error("invalid client identity");
+
+	}
+
+	for (int frame = 0; frame < 4; frame = frame + 1) {
+
+		int base = frame * 1024;
+
+		if (bytes[base] != 0 || bytes[base + 1] != 0 || bytes[base + 2] != 3 || bytes[base + 3] != 252) {
+			throw new Error("invalid frame extent");
+
+		}
+
+		for (int i = 0; i < 1020; i = i + 1) {
+
+			int expected = (id * 17 + seed + frame * 31 + i) % 251;
+
+			if (i == 0) {
+				expected = id;
+
+			}
+
+			if (i == 1) {
+				expected = 0;
+
+			}
+
+			if (i == 2) {
+				expected = 195;
+
+			}
+
+			if (i == 3) {
+				expected = 169;
+
+			}
+
+			if (bytes[base + 4 + i] != expected as u8) {
+				throw new Error("request byte corruption");
+
+			}
+
+		}
+
+	}
+
+	bool bounds = false;
+
+	try {
+		int ignored = socket.try_read(bytes, -1, 1);
+
+	}
+
+	catch (SocketError error) {
+		if (error.code != -22) {
+			throw;
+
+		}
+		bounds = true;
+
+	}
+
+	if (!bounds) {
+		throw new Error("missing buffer bound check");
+
+	}
+
+	// Preserve an immutable UTF-8 snapshot from the actual received frame.
+	var label = new u8[3];
+	label[0] = bytes[5]; label[1] = bytes[6]; label[2] = bytes[7];
+	var message = utf8_message(label);
+	label[1] = 120;
+	release label;
+	if (message.text != "\0é" || message.text.byte_length != 3) { throw new Error("UTF-8 snapshot changed"); }
+	int sent = 0;
+
+	while (sent < len(bytes)) {
+
+		int count = len(bytes) - sent;
+
+		if (count > 31) {
+			count = 31;
+
+		}
+
+		int progress = socket.try_write(bytes, sent, count);
+
+		if (progress > 0) {
+			sent = sent + progress;
+
+		}
+
+		else {
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+
+		}
+
+	}
+
+	socket.half_close();
+
+	while (true) {
+
+		int progress = socket.try_read(bytes, 0, 1);
+
+		if (progress == 0) {
+			break;
+
+		}
+
+		if (progress > 0) {
+			throw new Error("trailing client bytes");
+
+		}
+
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+
+	}
+
+	return id;
+
+}
+
+async void refused_connection() throws Error {
+
+	int port = listener_oracle_guard();
+
+	{
+
+		var probe = new TcpSocket();
+		probe.open();
+
+		bool refused = false;
+
+		try {
+
+			int result = probe.connect(port);
+
+			int started = astra_net_milliseconds();
+
+			while (result == NetAgain || result == NetInterrupted) {
+
+				if (probe.ready(true) == 1) {
+					probe.connected();
+					break;
+
+				}
+
+				network_deadline(started, 10000);
+				await delay_ticks(1);
+
+			}
+
+		}
+		catch (SocketError error) {
+			if (error.code != -111) {
+				throw;
+
+			}
+			refused = true;
+
+		}
+
+		if (!refused) {
+			throw new Error("missing refused connection");
+
+		}
+
+	}
+
+	listener_oracle_guard_close();
+
+}
+
+async void serve(owned TcpSocket listener) throws Error{
+
+	int port=listener.local_port();
+	bool busy=false;
+
+	{
+		var duplicate=new TcpSocket();
+		duplicate.open();
+		try{
+			duplicate.listen(port,2);
+
+		}
+		catch(SocketError error){
+			if(error.code!=-98){
+				throw;
+
+			}
+			busy=true;
+
+		}
+
+	}
+
+	if(!busy){
+		throw new Error("missing busy endpoint");
+
+	}
+
+	listener_oracle_start(port,4,17);
+	int started=astra_net_milliseconds();
+
+	var s0=new TcpSocket();
+	while(!listener.accept_into(s0)){
+		network_deadline(started,10000);
+		await delay_ticks(1);
+
+	}
+
+	var t0=serve_connection(move s0,17);
+	start(t0);
+
+	try{
+
+		var s1=new TcpSocket();
+		while(!listener.accept_into(s1)){
+			network_deadline(started,10000);
+			await delay_ticks(1);
+
+		}
+
+		var t1=serve_connection(move s1,17);
+		start(t1);
+
+		try{
+
+			var s2=new TcpSocket();
+			while(!listener.accept_into(s2)){
+				network_deadline(started,10000);
+				await delay_ticks(1);
+
+			}
+
+			var t2=serve_connection(move s2,17);
+			start(t2);
+
+			try{
+
+				var s3=new TcpSocket();
+				while(!listener.accept_into(s3)){
+					network_deadline(started,10000);
+					await delay_ticks(1);
+
+				}
+
+				var t3=serve_connection(move s3,17);
+				start(t3);
+
+				int r3=await move t3;
+				if(r3<1 || r3>4){
+					throw new Error("client result");
+
+				}
+
+			}
+			catch(Error error){
+				await cancel_and_join(move t2);
+				throw;
+
+			}
+
+			int r2=await move t2;
+			if(r2<1 || r2>4){
+				throw new Error("client result");
+
+			}
+
+		}
+		catch(Error error){
+			await cancel_and_join(move t1);
+			throw;
+
+		}
+
+		int r1=await move t1;
+		if(r1<1 || r1>4){
+			throw new Error("client result");
+
+		}
+
+	}
+	catch(Error error){
+		await cancel_and_join(move t0);
+		throw;
+
+	}
+
+	int r0=await move t0;
+	if(r0<1 || r0>4){
+		throw new Error("client result");
+
+	}
+
+	await refused_connection();
+
+}
+
+export(C) int run_listener(){
+	try{
+
+		var listener=new TcpSocket();
+		listener.open();
+		listener.listen(0,16);
+		var executor=ThreadedExecutor.open(4);
+		var status=executor.run(serve(move listener));
+
+		match(status){
+			case ThreadedStatus.Completed():{
+
+			}
+			else:{
+				return 81;
+
+			}
+
+		}
+
+	}
+	catch(Error error){
+		return 82;
+
+	}
+	return listener_oracle_finish(4);
+
+}
+
+int main(){
+	return run_listener();
+
+}

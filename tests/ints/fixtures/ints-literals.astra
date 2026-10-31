@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Packet { u8 tag; u16 length; u32 checksum; i16 delta; }
+u8 narrow(u8 x) { return x; }
+u32 large() { return 4000000000; }
+i8 minimum() { return -(128); }
+i16 minimum16() { return -((32768)); }
+int main() {
+	u8 a = 1 + 2;
+	i16 b = 1 + 2;
+	u16 c = 1 + 2;
+	u32 d = 1 + 2;
+	a = 254;
+	a = narrow(a + 1);
+	Packet p = { tag = 255, length = 65535, checksum = 4000000000, delta = -32768 };
+	p.tag = 42;
+	if (p.tag != 42 || p.length != 65535 || p.checksum != large() || p.delta != minimum16()) { return 1; }
+	if (a != 255 || b != 3 || c != 3 || d != 3) { return 2; }
+	if (1 + a != 0 || a + 1 != 0 || 0 != 1 + a || minimum() != -128) { return 3; }
+	if (1 + (2 + a) != 2 || 1 + (2 + narrow(255)) != 2 || 1 + p.length != 0) { return 4; }
+	return 0;
+}

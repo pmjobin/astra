@@ -1,0 +1,74 @@
+(program
+	(function "main" -> int
+		(parameters)
+		(locals
+			(local #0 "storage" : int[4])
+			(local #1 "a" : int[])
+			(local #2 "b" : int[])
+			(local #3 "i" : int)
+		)
+		(block
+			(array-initialize #0 int[4]
+				(integer 1 : int)
+				(integer 2 : int)
+				(integer 3 : int)
+				(integer 4 : int)
+			)
+			(local-init #1 "a" : int[] (slice-from-array (array #0 "storage" : int[4]) full (region #0) : int[]))
+			(local-init #2 "b" : int[] (local-ref #1 "a" : int[]))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (slice-length (local-ref #1 "a" : int[]) : int) (integer 4 : int)) (binary != : bool (array-length (array #0) 4 : int) (integer 4 : int))))
+				(then
+					(block
+						(return (integer 1 : int))
+					)
+				)
+			)
+			(store (slice-element-place : int (slice (local-ref #1 "a" : int[])) (index (integer 1 : int)) runtime-bounds-trap) (integer 42 : int))
+			(if
+				(condition (short-circuit || : bool (binary != : bool (load (slice-element-place : int (slice (local-ref #2 "b" : int[])) (index (integer 1 : int)) runtime-bounds-trap)) (integer 42 : int)) (binary != : bool (load (array-element-place #0 int[4] (bounds 0 4 trap) (integer 1 : int))) (integer 42 : int))))
+				(then
+					(block
+						(return (integer 2 : int))
+					)
+				)
+			)
+			(store (array-element-place #0 int[4] (bounds 0 4 trap) (integer 2 : int)) (integer 12 : int))
+			(if
+				(condition (binary != : bool (load (slice-element-place : int (slice (slice-from-array (array #0 "storage" : int[4]) full (region #0) : int[])) (index (integer 2 : int)) runtime-bounds-trap)) (integer 12 : int)))
+				(then
+					(block
+						(return (integer 3 : int))
+					)
+				)
+			)
+			(store (slice-element-place : int (slice (slice-from-array (array #0 "storage" : int[4]) full (region #0) : int[])) (index (integer 2 : int)) runtime-bounds-trap) (integer 14 : int))
+			(if
+				(condition (binary != : bool (load (array-element-place #0 int[4] (bounds 0 4 trap) (integer 2 : int))) (integer 14 : int)))
+				(then
+					(block
+						(return (integer 4 : int))
+					)
+				)
+			)
+			(local-init #3 "i" : int (integer 0 : int))
+			(while #0
+				(condition (binary < : bool (local-ref #3 "i" : int) (slice-length (local-ref #2 "b" : int[]) : int)))
+				(body
+					(block
+						(if
+							(condition (binary != : bool (load (slice-element-place : int (slice (local-ref #2 "b" : int[])) (index (local-ref #3 "i" : int)) runtime-bounds-trap)) (load (array-element-place #0 int[4] (bounds 0 4 trap) (local-ref #3 "i" : int)))))
+							(then
+								(block
+									(return (integer 5 : int))
+								)
+							)
+						)
+						(assign (local-ref #3 "i" : int) (binary + : int (local-ref #3 "i" : int) (integer 1 : int)))
+					)
+				)
+			)
+			(return (integer 0 : int))
+		)
+	)
+)

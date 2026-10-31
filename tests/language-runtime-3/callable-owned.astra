@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int callable_event(int stage, int tag);
+
+class Payload {
+	int bias;
+	init(int bias) { this.bias = bias; callable_event(1, bias); }
+	int apply(int value) { return this.bias + value; }
+	deinit() { callable_event(2, this.bias); }
+}
+int apply_payload(borrowed Payload payload, int value) { return payload.apply(value); }
+
+// This environment owns its exact heap Class capture. Its ordinary native
+// owner contract supplies move, unwind and deterministic destruction authority.
+class OwnedTransform {
+	private owned Payload payload;
+	int tag;
+	init(owned Payload payload, int tag) { this.payload = move payload; this.tag = tag; callable_event(3, tag); }
+	int invoke(int value) { return apply_payload(this.payload, value); }
+	deinit() { callable_event(4, this.tag); }
+}
+
+owned OwnedTransform make_transform(int bias, int tag) {
+	var payload = new Payload(bias);
+	var function = new OwnedTransform(move payload, tag);
+	return move function;
+}
+owned OwnedTransform forward(owned OwnedTransform function) { return move function; }
+int twice(borrowed OwnedTransform function, int value) { return function(value) + function(value + 1); }
+int early(owned OwnedTransform function, int value) {
+	if (value > 0) { return function(value); }
+	return function(0);
+}
+void fail(owned OwnedTransform function) throws Error {
+	if (function(1) == 31) { throw new Error("captured failure"); }
+}
+
+int main() {
+	var first = make_transform(10, 100);
+	var moved = move first;
+	if (twice(moved, 5) != 31) { return 81; }
+	var forwarded = forward(move moved);
+	if (forwarded(7) != 17) { return 82; }
+	release forwarded;
+	var second = make_transform(20, 200);
+	if (early(move second, 2) != 22) { return 83; }
+	var third = make_transform(30, 300);
+	try { fail(move third); return 84; }
+	catch (Error error) { if (error.message != "captured failure") { return 85; } callable_event(5, 0); }
+	return 0;
+}
