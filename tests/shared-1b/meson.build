@@ -3,3 +3,4 @@ shared_lifetime_proof = executable('astra-shared-lifetime-proof', ['contracts.va
 test('shared-1b-contracts', shared_lifetime_proof, args: ['--tap'], protocol: 'tap')
 test('shared-1b-native', ints_python, args: [files('qualify.py'), astrac, meson.current_build_dir() / 'native'], depends: astrac, timeout: 600, workdir: meson.project_source_root())
 test('shared-1b-applications', ints_python, args: [files('apps.py'), astrac, meson.current_build_dir() / 'applications'], depends: astrac, timeout: 600, workdir: meson.project_source_root())
+test('shared-1b-identity', ints_python, args: [files('identity.py'), astrac, meson.current_build_dir() / 'identity'], depends: astrac, timeout: 180, workdir: meson.project_source_root())

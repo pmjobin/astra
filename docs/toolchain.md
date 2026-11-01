@@ -1,7 +1,8 @@
 # Building and testing Astra
 
-The production compiler builds from the preserved Vala implementation in
-`bootstrap/`. Use explicit source and output paths.
+The production compiler currently builds from Vala in `bootstrap/`. The Astra
+source and lexer ports live in `compiler/`; they are component implementations,
+not a self-hosted full compiler. Use explicit source and output paths.
 
 ## Dependencies and build
 
@@ -57,6 +58,7 @@ The [installed guide](tools/developer-release.md) includes package and editor us
 ```sh
 meson test -C "$astra_build" --list
 meson compile -C "$astra_build" astrac
+meson test -C "$astra_build" --no-rebuild selfhost-foundation-source selfhost-lexer
 meson test -C "$astra_build" --no-rebuild --print-errorlogs TEST_NAME
 ```
 

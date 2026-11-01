@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void identity_drop(int value);
+extern(C) int identity_drops();
+class IdentityPayload {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { identity_drop(this.value); }
+}
+bool payload_same(borrowed IdentityPayload first, borrowed IdentityPayload last) {
+	return first == last;
+}
+bool handle_same(borrowed shared IdentityPayload first, borrowed shared IdentityPayload last) {
+	if (first == null) { return last == null; }
+	if (last == null) { return false; }
+	return payload_same(shared_borrow(first), shared_borrow(last));
+}
+class IdentityHolder {
+	owned shared IdentityPayload value;
+	init(owned shared IdentityPayload value) { this.value = move value; }
+	bool matches(borrowed IdentityHolder other) { return handle_same(this.value, other.value); }
+}
+int main() {
+	var first = new IdentityPayload(7);
+	var other = new IdentityPayload(7);
+	var root = shared_acquire(move first);
+	var distinct = shared_acquire(move other);
+	var alias = shared_clone(root);
+	if (!handle_same(root, root) || !handle_same(root, alias)) { return 11; }
+	if (handle_same(root, distinct) || handle_same(distinct, root)) { return 12; }
+	if (!handle_same(null, null) || handle_same(root, null) || handle_same(null, root)) { return 13; }
+	var a = new IdentityHolder(move root);
+	var b = new IdentityHolder(move alias);
+	var c = new IdentityHolder(move distinct);
+	if (!a.matches(b) || a.matches(c) || !a.matches(a)) { return 14; }
+	if (identity_drops() != 0) { return 15; }
+	release a;
+	if (identity_drops() != 0) { return 16; }
+	release b;
+	if (identity_drops() != 1) { return 17; }
+	release c;
+	if (identity_drops() != 2) { return 18; }
+	return 0;
+}

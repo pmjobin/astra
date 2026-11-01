@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void dump_number(Utf8ByteBuilder output, int n) { append_int(output, n); source_append_text(output, " "); }
+void dump_hex(Utf8ByteBuilder output, string text) {
+	string digits = "0123456789abcdef";
+	int i = 0;
+	while (i < text.byte_length) {
+		int b = astra_host_text_byte(text, i);
+		u8[2] pair = {astra_host_text_byte(digits, b / 16) as u8, astra_host_text_byte(digits, b % 16) as u8};
+		output.append_bytes(slice(pair)); i = i + 1;
+	}
+	source_append_text(output, " ");
+}
+owned SourceBuffer load_source(string path) throws Error {
+	var file = read_file(path);
+	var bytes = new u8[file.byte_count()];
+	int i = 0;
+	while (i < len(bytes)) { bytes[i] = file.byte_at(i) as u8; i = i + 1; }
+	var result = source_buffer("input", move bytes, false);
+	return move result;
+}
+void dump_token(Utf8ByteBuilder output, Token token) {
+	source_append_text(output, token_kind_name(token.kind())); source_append_text(output, " ");
+	dump_number(output, token.span.start); dump_number(output, token.span.end);
+	dump_hex(output, token.spelling.text); dump_hex(output, token.payload.text);
+	source_append_text(output, "\n");
+}
+void dump_scan(Utf8ByteBuilder output, Lexer scan) throws Error {
+	while (true) {
+		var token = scan.next_token();
+		if (scan.failed) { break; }
+		dump_token(output, token);
+		if (token.kind() == TokenKind.EOF()) {
+			var again = scan.next_token(); assert_that(again.span.start == token.span.start && again.kind() == TokenKind.EOF()); break;
+		}
+	}
+	if (scan.failed) {
+		source_append_text(output, "ERROR "); dump_number(output, scan.error_start); dump_number(output, scan.error_end);
+		dump_hex(output, scan.error_message.text); source_append_text(output, "\n");
+		int cursor = scan.cursor; var again = scan.next_token(); assert_that(scan.failed && scan.cursor == cursor);
+	}
+	int i = 0;
+	while (i < scan.comment_count) {
+		var span = scan.comment(i); source_append_text(output, "COMMENT "); dump_number(output, span.start); dump_number(output, span.end);
+		source_append_text(output, "\n"); i = i + 1;
+	}
+}
+int main(string[] args) {
+	try {
+		if (len(args) == 2 && args[1] == "--lifetime") { lifetime_checks(); return 0; }
+		int i = 1;
+		while (i < len(args)) {
+			var source = load_source(args[i]);
+			shared SourceBuffer root = shared_acquire(move source);
+			var retained = shared_clone(root);
+			var scan = lexer(move retained);
+			var output = new Utf8ByteBuilder();
+			dump_scan(output, scan);
+			source_append_text(output, "END\n");
+			var second = shared_clone(root); var original = lexer(move second);
+			var first = original.next_token();
+			var fork = original.fork(); assert_that(fork.comment_count == 0);
+			dump_scan(output, fork);
+			source_append_text(output, "FORK\n");
+			var text = output.snapshot(); print(text.text);
+			i = i + 1;
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 1; }
+}

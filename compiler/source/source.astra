@@ -1,0 +1,250 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Byte offsets are half-open; columns count non-continuation UTF-8 bytes.
+class SourceBoundsError : Error {
+	init() : base("invalid source span or offset") {}
+}
+struct SourceLocation {
+	int line;
+	int column;
+}
+
+bool source_append_text(Utf8ByteBuilder output, string text) {
+	var bytes = new u8[text.byte_length];
+	int i = 0;
+	while (i < len(bytes)) {
+		bytes[i] = astra_host_text_byte(text, i) as u8;
+		i = i + 1;
+	}
+	return output.append_bytes(bytes);
+}
+
+owned Utf8Message source_normalize_path(string path) throws Error {
+	var output = new Utf8ByteBuilder();
+	u8[1] slash = {47};
+	if (path.byte_length > 0 && astra_host_text_byte(path, 0) == 47) {
+		output.append_bytes(slice(slash));
+	}
+	int at = 0;
+	bool component = false;
+	while (at < path.byte_length) {
+		int start = at;
+		while (at < path.byte_length && astra_host_text_byte(path, at) != 47) {
+			at = at + 1;
+		}
+		int count = at - start;
+		if (count > 0 && !(count == 1 && astra_host_text_byte(path, start) == 46)) {
+			if (component) { output.append_bytes(slice(slash)); }
+			var bytes = new u8[count];
+			int i = 0;
+			while (i < count) {
+				bytes[i] = astra_host_text_byte(path, start + i) as u8;
+				i = i + 1;
+			}
+			output.append_bytes(bytes);
+			component = true;
+		}
+		if (at < path.byte_length) { at = at + 1; }
+	}
+	if (output.byte_count() == 0) { source_append_text(output, "."); }
+	var result = output.snapshot();
+	return move result;
+}
+
+owned SourceBuffer source_buffer(string path, owned u8[] content, bool native_interface) throws Error {
+	assert_that(len(content) < 2147483647);
+	var starts = new int[len(content) + 1];
+	starts[0] = 0;
+	int lines = 1;
+	int i = 0;
+	while (i < len(content)) {
+		if ((content[i] as int) == 13) {
+			if (i + 1 < len(content) && (content[i + 1] as int) == 10) { i = i + 1; }
+			starts[lines] = i + 1;
+			lines = lines + 1;
+		} else {
+			if ((content[i] as int) == 10) { starts[lines] = i + 1; lines = lines + 1; }
+		}
+		i = i + 1;
+	}
+	var filename = source_normalize_path(path);
+	var result = new SourceBuffer(move filename, move content, move starts, lines, native_interface);
+	return move result;
+}
+
+class SourceBuffer {
+	private owned Utf8Message filename;
+	private owned u8[] content;
+	private owned int[] starts;
+	private int lines;
+	private bool interface_input;
+	init(owned Utf8Message filename, owned u8[] content, owned int[] starts, int lines, bool native_interface) {
+		this.filename = move filename;
+		this.content = move content;
+		this.interface_input = native_interface;
+		this.starts = move starts;
+		this.lines = lines;
+	}
+	void append_path(Utf8ByteBuilder output) { source_append_text(output, this.filename.text); }
+	property int length { get { return len(this.content); } }
+	property bool native_interface { get { return this.interface_input; } }
+	int byte_at(int offset) throws SourceBoundsError {
+		if (offset < 0 || offset >= len(this.content)) { throw new SourceBoundsError(); }
+		return this.content[offset] as int;
+	}
+	bool valid_span(int start, int end) {
+		return start >= 0 && start <= end && end <= len(this.content);
+	}
+	owned u8[] copy_range(int start, int end) throws SourceBoundsError {
+		if (!this.valid_span(start, end)) { throw new SourceBoundsError(); }
+		var bytes = new u8[end - start];
+		int i = 0;
+		while (i < len(bytes)) { bytes[i] = this.content[start + i]; i = i + 1; }
+		return move bytes;
+	}
+	SourceLocation locate(int offset) throws SourceBoundsError {
+		if (offset < 0 || offset > len(this.content)) { throw new SourceBoundsError(); }
+		int low = 0;
+		int high = this.lines;
+		while (low + 1 < high) {
+			int middle = low + (high - low) / 2;
+			if (this.starts[middle] <= offset) { low = middle; } else { high = middle; }
+		}
+		int column = 1;
+		int i = this.starts[low];
+		while (i < offset) {
+			int byte = this.content[i] as int;
+			if ((byte & 192) != 128 && byte != 13 && byte != 10) { column = column + 1; }
+			i = i + 1;
+		}
+		SourceLocation result = {line = low + 1, column = column};
+		return result;
+	}
+	// Match bounded GLib UTF-8 validation: the first malformed sequence starts
+	// at its leading byte, including truncated, overlong and surrogate encodings.
+	int encoding_error() {
+		int i = 0;
+		while (i < len(this.content)) {
+			int head = this.content[i] as int;
+			if (head == 0) { return i; }
+			int width = 1;
+			int second_low = 128;
+			int second_high = 191;
+			if (head >= 128) {
+				if (head >= 194 && head <= 223) { width = 2; }
+				else {
+					if (head >= 224 && head <= 239) {
+						width = 3;
+						if (head == 224) { second_low = 160; }
+						if (head == 237) { second_high = 159; }
+					} else {
+						if (head >= 240 && head <= 244) {
+							width = 4;
+							if (head == 240) { second_low = 144; }
+							if (head == 244) { second_high = 143; }
+						} else { return i; }
+					}
+				}
+			}
+			if (width > len(this.content) - i) { return i; }
+			int j = 1;
+			while (j < width) {
+				int byte = this.content[i + j] as int;
+				if (j == 1) {
+					if (byte < second_low || byte > second_high) { return i; }
+				} else { if (byte < 128 || byte > 191) { return i; } }
+				j = j + 1;
+			}
+			i = i + width;
+		}
+		return -1;
+	}
+	string encoding_message(int offset) throws SourceBoundsError {
+		if (this.byte_at(offset) == 0) { return "unexpected NUL byte"; }
+		return "invalid UTF-8 encoding";
+	}
+}
+
+bool source_valid_span(borrowed SourceBuffer source, int start, int end) {
+	return source.valid_span(start, end);
+}
+bool source_same_objects(borrowed SourceBuffer first, borrowed SourceBuffer last) {
+	return first == last;
+}
+bool source_same_handles(borrowed shared SourceBuffer first, borrowed shared SourceBuffer last) {
+	if (first == null) { return last == null; }
+	if (last == null) { return false; }
+	return source_same_objects(shared_borrow(first), shared_borrow(last));
+}
+SourceLocation source_locate(borrowed SourceBuffer source, int offset) throws SourceBoundsError {
+	return source.locate(offset);
+}
+owned Utf8Message source_path(borrowed SourceBuffer source) throws Error {
+	var output = new Utf8ByteBuilder();
+	source.append_path(output);
+	var result = output.snapshot();
+	return move result;
+}
+owned u8[] source_bytes(borrowed SourceBuffer source, int start, int end) throws SourceBoundsError {
+	var result = source.copy_range(start, end);
+	return move result;
+}
+
+class SourceSpan {
+	private owned shared SourceBuffer source;
+	private int first;
+	private int last;
+	init(owned shared SourceBuffer source, int first, int last) {
+		assert_that(source_valid_span(shared_borrow(source), first, last));
+		this.source = move source;
+		this.first = first;
+		this.last = last;
+	}
+	property int start { get { return this.first; } }
+	property int end { get { return this.last; } }
+	bool same_source(borrowed SourceSpan other) {
+		return source_same_handles(this.source, other.source);
+	}
+	owned SourceSpan cover(borrowed SourceSpan last) throws SourceBoundsError {
+		if (!this.same_source(last) || this.first > last.last) { throw new SourceBoundsError(); }
+		var retained = shared_clone(this.source);
+		var result = new SourceSpan(move retained, this.first, last.last);
+		return move result;
+	}
+	SourceLocation location() throws SourceBoundsError {
+		var source = shared_clone(this.source);
+		return source_locate(shared_borrow(source), this.first);
+	}
+	owned Utf8Message path() throws Error {
+		var source = shared_clone(this.source);
+		var result = source_path(shared_borrow(source));
+		return move result;
+	}
+	owned u8[] bytes() throws SourceBoundsError {
+		var source = shared_clone(this.source);
+		var bytes = source_bytes(shared_borrow(source), this.first, this.last);
+		return move bytes;
+	}
+}
+
+class SourceDiagnostic {
+	private owned SourceSpan span;
+	private owned Utf8Message message;
+	init(owned SourceSpan span, owned Utf8Message message) {
+		this.span = move span;
+		this.message = move message;
+	}
+	owned Utf8Message format() throws Error {
+		var location = this.span.location();
+		var output = new Utf8ByteBuilder();
+		var path = this.span.path();
+		source_append_text(output, path.text);
+		source_append_text(output, ":");
+		append_int(output, location.line);
+		source_append_text(output, ":");
+		append_int(output, location.column);
+		source_append_text(output, ": error: ");
+		source_append_text(output, this.message.text);
+		var result = output.snapshot();
+		return move result;
+	}
+}

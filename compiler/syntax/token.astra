@@ -1,0 +1,420 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Semantic names follow the bootstrap contract; representation is component-local.
+enum TokenKind {
+	EOF,
+	IDENTIFIER,
+	SLICE,
+	LEN,
+	ALL,
+	ANY,
+	AS,
+	DOT_WRAP,
+	MAC_WRAP,
+	DOT_F32,
+	MAC_F32,
+	SAT_ADD,
+	SAT_SUB,
+	WIDEN_LOW,
+	WIDEN_HIGH,
+	PACK_WRAP,
+	PACK_SAT,
+	INTERLEAVE_LOW,
+	INTERLEAVE_HIGH,
+	SPLAT,
+	INSERT,
+	SHUFFLE,
+	SELECT,
+	BORROWED,
+	INTEGER,
+	FLOAT,
+	TEXT,
+	ENUM,
+	MATCH,
+	CASE,
+	STRUCT,
+	CLASS,
+	THIS,
+	OWNED,
+	VAR,
+	CONST,
+	MOVE,
+	RELEASE,
+	SWAP,
+	DOT,
+	EXTERN,
+	EXPORT,
+	RETURN,
+	ASYNC,
+	AWAIT,
+	THROWS,
+	THROW,
+	TRY,
+	CATCH,
+	TRUE,
+	FALSE,
+	NULL,
+	IF,
+	ELSE,
+	WHILE,
+	FOR,
+	FOREACH,
+	WITH,
+	NONNULL,
+	BREAK,
+	CONTINUE,
+	OPEN_PAREN,
+	CLOSE_PAREN,
+	OPEN_BRACKET,
+	CLOSE_BRACKET,
+	OPEN_BRACE,
+	CLOSE_BRACE,
+	COMMA,
+	COLON,
+	SEMICOLON,
+	EQUAL,
+	EQUAL_EQUAL,
+	BANG,
+	BANG_EQUAL,
+	AMPERSAND,
+	PIPE,
+	CARET,
+	TILDE,
+	SHIFT_LEFT,
+	SHIFT_RIGHT,
+	ARROW,
+	AMPERSAND_AMPERSAND,
+	PIPE_PIPE,
+	LESS,
+	LESS_EQUAL,
+	GREATER,
+	GREATER_EQUAL,
+	PLUS,
+	MINUS,
+	STAR,
+	SLASH,
+	PERCENT
+}
+string token_kind_name(TokenKind kind) {
+	match (kind) {
+		case TokenKind.EOF(): { return "EOF"; }
+		case TokenKind.IDENTIFIER(): { return "IDENTIFIER"; }
+		case TokenKind.SLICE(): { return "SLICE"; }
+		case TokenKind.LEN(): { return "LEN"; }
+		case TokenKind.ALL(): { return "ALL"; }
+		case TokenKind.ANY(): { return "ANY"; }
+		case TokenKind.AS(): { return "AS"; }
+		case TokenKind.DOT_WRAP(): { return "DOT_WRAP"; }
+		case TokenKind.MAC_WRAP(): { return "MAC_WRAP"; }
+		case TokenKind.DOT_F32(): { return "DOT_F32"; }
+		case TokenKind.MAC_F32(): { return "MAC_F32"; }
+		case TokenKind.SAT_ADD(): { return "SAT_ADD"; }
+		case TokenKind.SAT_SUB(): { return "SAT_SUB"; }
+		case TokenKind.WIDEN_LOW(): { return "WIDEN_LOW"; }
+		case TokenKind.WIDEN_HIGH(): { return "WIDEN_HIGH"; }
+		case TokenKind.PACK_WRAP(): { return "PACK_WRAP"; }
+		case TokenKind.PACK_SAT(): { return "PACK_SAT"; }
+		case TokenKind.INTERLEAVE_LOW(): { return "INTERLEAVE_LOW"; }
+		case TokenKind.INTERLEAVE_HIGH(): { return "INTERLEAVE_HIGH"; }
+		case TokenKind.SPLAT(): { return "SPLAT"; }
+		case TokenKind.INSERT(): { return "INSERT"; }
+		case TokenKind.SHUFFLE(): { return "SHUFFLE"; }
+		case TokenKind.SELECT(): { return "SELECT"; }
+		case TokenKind.BORROWED(): { return "BORROWED"; }
+		case TokenKind.INTEGER(): { return "INTEGER"; }
+		case TokenKind.FLOAT(): { return "FLOAT"; }
+		case TokenKind.TEXT(): { return "TEXT"; }
+		case TokenKind.ENUM(): { return "ENUM"; }
+		case TokenKind.MATCH(): { return "MATCH"; }
+		case TokenKind.CASE(): { return "CASE"; }
+		case TokenKind.STRUCT(): { return "STRUCT"; }
+		case TokenKind.CLASS(): { return "CLASS"; }
+		case TokenKind.THIS(): { return "THIS"; }
+		case TokenKind.OWNED(): { return "OWNED"; }
+		case TokenKind.VAR(): { return "VAR"; }
+		case TokenKind.CONST(): { return "CONST"; }
+		case TokenKind.MOVE(): { return "MOVE"; }
+		case TokenKind.RELEASE(): { return "RELEASE"; }
+		case TokenKind.SWAP(): { return "SWAP"; }
+		case TokenKind.DOT(): { return "DOT"; }
+		case TokenKind.EXTERN(): { return "EXTERN"; }
+		case TokenKind.EXPORT(): { return "EXPORT"; }
+		case TokenKind.RETURN(): { return "RETURN"; }
+		case TokenKind.ASYNC(): { return "ASYNC"; }
+		case TokenKind.AWAIT(): { return "AWAIT"; }
+		case TokenKind.THROWS(): { return "THROWS"; }
+		case TokenKind.THROW(): { return "THROW"; }
+		case TokenKind.TRY(): { return "TRY"; }
+		case TokenKind.CATCH(): { return "CATCH"; }
+		case TokenKind.TRUE(): { return "TRUE"; }
+		case TokenKind.FALSE(): { return "FALSE"; }
+		case TokenKind.NULL(): { return "NULL"; }
+		case TokenKind.IF(): { return "IF"; }
+		case TokenKind.ELSE(): { return "ELSE"; }
+		case TokenKind.WHILE(): { return "WHILE"; }
+		case TokenKind.FOR(): { return "FOR"; }
+		case TokenKind.FOREACH(): { return "FOREACH"; }
+		case TokenKind.WITH(): { return "WITH"; }
+		case TokenKind.NONNULL(): { return "NONNULL"; }
+		case TokenKind.BREAK(): { return "BREAK"; }
+		case TokenKind.CONTINUE(): { return "CONTINUE"; }
+		case TokenKind.OPEN_PAREN(): { return "OPEN_PAREN"; }
+		case TokenKind.CLOSE_PAREN(): { return "CLOSE_PAREN"; }
+		case TokenKind.OPEN_BRACKET(): { return "OPEN_BRACKET"; }
+		case TokenKind.CLOSE_BRACKET(): { return "CLOSE_BRACKET"; }
+		case TokenKind.OPEN_BRACE(): { return "OPEN_BRACE"; }
+		case TokenKind.CLOSE_BRACE(): { return "CLOSE_BRACE"; }
+		case TokenKind.COMMA(): { return "COMMA"; }
+		case TokenKind.COLON(): { return "COLON"; }
+		case TokenKind.SEMICOLON(): { return "SEMICOLON"; }
+		case TokenKind.EQUAL(): { return "EQUAL"; }
+		case TokenKind.EQUAL_EQUAL(): { return "EQUAL_EQUAL"; }
+		case TokenKind.BANG(): { return "BANG"; }
+		case TokenKind.BANG_EQUAL(): { return "BANG_EQUAL"; }
+		case TokenKind.AMPERSAND(): { return "AMPERSAND"; }
+		case TokenKind.PIPE(): { return "PIPE"; }
+		case TokenKind.CARET(): { return "CARET"; }
+		case TokenKind.TILDE(): { return "TILDE"; }
+		case TokenKind.SHIFT_LEFT(): { return "SHIFT_LEFT"; }
+		case TokenKind.SHIFT_RIGHT(): { return "SHIFT_RIGHT"; }
+		case TokenKind.ARROW(): { return "ARROW"; }
+		case TokenKind.AMPERSAND_AMPERSAND(): { return "AMPERSAND_AMPERSAND"; }
+		case TokenKind.PIPE_PIPE(): { return "PIPE_PIPE"; }
+		case TokenKind.LESS(): { return "LESS"; }
+		case TokenKind.LESS_EQUAL(): { return "LESS_EQUAL"; }
+		case TokenKind.GREATER(): { return "GREATER"; }
+		case TokenKind.GREATER_EQUAL(): { return "GREATER_EQUAL"; }
+		case TokenKind.PLUS(): { return "PLUS"; }
+		case TokenKind.MINUS(): { return "MINUS"; }
+		case TokenKind.STAR(): { return "STAR"; }
+		case TokenKind.SLASH(): { return "SLASH"; }
+		case TokenKind.PERCENT(): { return "PERCENT"; }
+	}
+}
+class Token {
+	owned SourceSpan span;
+	private int kind_code;
+	TokenKind kind() { return token_kind_from_code(this.kind_code); }
+	bool generated;
+	owned Utf8Message spelling;
+	owned Utf8Message payload;
+	init(TokenKind kind, owned SourceSpan span, bool generated, owned Utf8Message spelling, owned Utf8Message payload) {
+		this.kind_code = token_kind_code(kind);
+		this.span = move span;
+		this.generated = generated;
+		this.spelling = move spelling;
+		this.payload = move payload;
+	}
+}
+owned Utf8Message syntax_text(string text) throws Error {
+	var builder = new Utf8ByteBuilder();
+	source_append_text(builder, text);
+	var result = builder.snapshot();
+	return move result;
+}
+owned Token generated_token(TokenKind kind, owned SourceSpan span, string spelling) throws Error {
+	var text = syntax_text(spelling);
+	var payload = syntax_text("");
+	var result = new Token(kind, move span, true, move text, move payload);
+	return move result;
+}
+int syntax_byte(borrowed SourceBuffer source, int offset) throws SourceBoundsError {
+	if (offset >= source.length) { return -1; }
+	return source.byte_at(offset);
+}
+int syntax_length(borrowed SourceBuffer source) { return source.length; }
+int syntax_encoding_error(borrowed SourceBuffer source) { return source.encoding_error(); }
+string syntax_encoding_message(borrowed SourceBuffer source, int offset) throws SourceBoundsError { if (source.byte_at(offset) == 0) { return "unexpected NUL byte"; }
+	return "invalid UTF-8 encoding"; }
+
+int token_kind_code(TokenKind kind) {
+	match (kind) {
+		case TokenKind.EOF(): { return 0; }
+		case TokenKind.IDENTIFIER(): { return 1; }
+		case TokenKind.SLICE(): { return 2; }
+		case TokenKind.LEN(): { return 3; }
+		case TokenKind.ALL(): { return 4; }
+		case TokenKind.ANY(): { return 5; }
+		case TokenKind.AS(): { return 6; }
+		case TokenKind.DOT_WRAP(): { return 7; }
+		case TokenKind.MAC_WRAP(): { return 8; }
+		case TokenKind.DOT_F32(): { return 9; }
+		case TokenKind.MAC_F32(): { return 10; }
+		case TokenKind.SAT_ADD(): { return 11; }
+		case TokenKind.SAT_SUB(): { return 12; }
+		case TokenKind.WIDEN_LOW(): { return 13; }
+		case TokenKind.WIDEN_HIGH(): { return 14; }
+		case TokenKind.PACK_WRAP(): { return 15; }
+		case TokenKind.PACK_SAT(): { return 16; }
+		case TokenKind.INTERLEAVE_LOW(): { return 17; }
+		case TokenKind.INTERLEAVE_HIGH(): { return 18; }
+		case TokenKind.SPLAT(): { return 19; }
+		case TokenKind.INSERT(): { return 20; }
+		case TokenKind.SHUFFLE(): { return 21; }
+		case TokenKind.SELECT(): { return 22; }
+		case TokenKind.BORROWED(): { return 23; }
+		case TokenKind.INTEGER(): { return 24; }
+		case TokenKind.FLOAT(): { return 25; }
+		case TokenKind.TEXT(): { return 26; }
+		case TokenKind.ENUM(): { return 27; }
+		case TokenKind.MATCH(): { return 28; }
+		case TokenKind.CASE(): { return 29; }
+		case TokenKind.STRUCT(): { return 30; }
+		case TokenKind.CLASS(): { return 31; }
+		case TokenKind.THIS(): { return 32; }
+		case TokenKind.OWNED(): { return 33; }
+		case TokenKind.VAR(): { return 34; }
+		case TokenKind.CONST(): { return 35; }
+		case TokenKind.MOVE(): { return 36; }
+		case TokenKind.RELEASE(): { return 37; }
+		case TokenKind.SWAP(): { return 38; }
+		case TokenKind.DOT(): { return 39; }
+		case TokenKind.EXTERN(): { return 40; }
+		case TokenKind.EXPORT(): { return 41; }
+		case TokenKind.RETURN(): { return 42; }
+		case TokenKind.ASYNC(): { return 43; }
+		case TokenKind.AWAIT(): { return 44; }
+		case TokenKind.THROWS(): { return 45; }
+		case TokenKind.THROW(): { return 46; }
+		case TokenKind.TRY(): { return 47; }
+		case TokenKind.CATCH(): { return 48; }
+		case TokenKind.TRUE(): { return 49; }
+		case TokenKind.FALSE(): { return 50; }
+		case TokenKind.NULL(): { return 51; }
+		case TokenKind.IF(): { return 52; }
+		case TokenKind.ELSE(): { return 53; }
+		case TokenKind.WHILE(): { return 54; }
+		case TokenKind.FOR(): { return 55; }
+		case TokenKind.FOREACH(): { return 56; }
+		case TokenKind.WITH(): { return 57; }
+		case TokenKind.NONNULL(): { return 58; }
+		case TokenKind.BREAK(): { return 59; }
+		case TokenKind.CONTINUE(): { return 60; }
+		case TokenKind.OPEN_PAREN(): { return 61; }
+		case TokenKind.CLOSE_PAREN(): { return 62; }
+		case TokenKind.OPEN_BRACKET(): { return 63; }
+		case TokenKind.CLOSE_BRACKET(): { return 64; }
+		case TokenKind.OPEN_BRACE(): { return 65; }
+		case TokenKind.CLOSE_BRACE(): { return 66; }
+		case TokenKind.COMMA(): { return 67; }
+		case TokenKind.COLON(): { return 68; }
+		case TokenKind.SEMICOLON(): { return 69; }
+		case TokenKind.EQUAL(): { return 70; }
+		case TokenKind.EQUAL_EQUAL(): { return 71; }
+		case TokenKind.BANG(): { return 72; }
+		case TokenKind.BANG_EQUAL(): { return 73; }
+		case TokenKind.AMPERSAND(): { return 74; }
+		case TokenKind.PIPE(): { return 75; }
+		case TokenKind.CARET(): { return 76; }
+		case TokenKind.TILDE(): { return 77; }
+		case TokenKind.SHIFT_LEFT(): { return 78; }
+		case TokenKind.SHIFT_RIGHT(): { return 79; }
+		case TokenKind.ARROW(): { return 80; }
+		case TokenKind.AMPERSAND_AMPERSAND(): { return 81; }
+		case TokenKind.PIPE_PIPE(): { return 82; }
+		case TokenKind.LESS(): { return 83; }
+		case TokenKind.LESS_EQUAL(): { return 84; }
+		case TokenKind.GREATER(): { return 85; }
+		case TokenKind.GREATER_EQUAL(): { return 86; }
+		case TokenKind.PLUS(): { return 87; }
+		case TokenKind.MINUS(): { return 88; }
+		case TokenKind.STAR(): { return 89; }
+		case TokenKind.SLASH(): { return 90; }
+		case TokenKind.PERCENT(): { return 91; }
+	}
+}
+TokenKind token_kind_from_code(int code) {
+	if (code == 0) { return TokenKind.EOF(); }
+	if (code == 1) { return TokenKind.IDENTIFIER(); }
+	if (code == 2) { return TokenKind.SLICE(); }
+	if (code == 3) { return TokenKind.LEN(); }
+	if (code == 4) { return TokenKind.ALL(); }
+	if (code == 5) { return TokenKind.ANY(); }
+	if (code == 6) { return TokenKind.AS(); }
+	if (code == 7) { return TokenKind.DOT_WRAP(); }
+	if (code == 8) { return TokenKind.MAC_WRAP(); }
+	if (code == 9) { return TokenKind.DOT_F32(); }
+	if (code == 10) { return TokenKind.MAC_F32(); }
+	if (code == 11) { return TokenKind.SAT_ADD(); }
+	if (code == 12) { return TokenKind.SAT_SUB(); }
+	if (code == 13) { return TokenKind.WIDEN_LOW(); }
+	if (code == 14) { return TokenKind.WIDEN_HIGH(); }
+	if (code == 15) { return TokenKind.PACK_WRAP(); }
+	if (code == 16) { return TokenKind.PACK_SAT(); }
+	if (code == 17) { return TokenKind.INTERLEAVE_LOW(); }
+	if (code == 18) { return TokenKind.INTERLEAVE_HIGH(); }
+	if (code == 19) { return TokenKind.SPLAT(); }
+	if (code == 20) { return TokenKind.INSERT(); }
+	if (code == 21) { return TokenKind.SHUFFLE(); }
+	if (code == 22) { return TokenKind.SELECT(); }
+	if (code == 23) { return TokenKind.BORROWED(); }
+	if (code == 24) { return TokenKind.INTEGER(); }
+	if (code == 25) { return TokenKind.FLOAT(); }
+	if (code == 26) { return TokenKind.TEXT(); }
+	if (code == 27) { return TokenKind.ENUM(); }
+	if (code == 28) { return TokenKind.MATCH(); }
+	if (code == 29) { return TokenKind.CASE(); }
+	if (code == 30) { return TokenKind.STRUCT(); }
+	if (code == 31) { return TokenKind.CLASS(); }
+	if (code == 32) { return TokenKind.THIS(); }
+	if (code == 33) { return TokenKind.OWNED(); }
+	if (code == 34) { return TokenKind.VAR(); }
+	if (code == 35) { return TokenKind.CONST(); }
+	if (code == 36) { return TokenKind.MOVE(); }
+	if (code == 37) { return TokenKind.RELEASE(); }
+	if (code == 38) { return TokenKind.SWAP(); }
+	if (code == 39) { return TokenKind.DOT(); }
+	if (code == 40) { return TokenKind.EXTERN(); }
+	if (code == 41) { return TokenKind.EXPORT(); }
+	if (code == 42) { return TokenKind.RETURN(); }
+	if (code == 43) { return TokenKind.ASYNC(); }
+	if (code == 44) { return TokenKind.AWAIT(); }
+	if (code == 45) { return TokenKind.THROWS(); }
+	if (code == 46) { return TokenKind.THROW(); }
+	if (code == 47) { return TokenKind.TRY(); }
+	if (code == 48) { return TokenKind.CATCH(); }
+	if (code == 49) { return TokenKind.TRUE(); }
+	if (code == 50) { return TokenKind.FALSE(); }
+	if (code == 51) { return TokenKind.NULL(); }
+	if (code == 52) { return TokenKind.IF(); }
+	if (code == 53) { return TokenKind.ELSE(); }
+	if (code == 54) { return TokenKind.WHILE(); }
+	if (code == 55) { return TokenKind.FOR(); }
+	if (code == 56) { return TokenKind.FOREACH(); }
+	if (code == 57) { return TokenKind.WITH(); }
+	if (code == 58) { return TokenKind.NONNULL(); }
+	if (code == 59) { return TokenKind.BREAK(); }
+	if (code == 60) { return TokenKind.CONTINUE(); }
+	if (code == 61) { return TokenKind.OPEN_PAREN(); }
+	if (code == 62) { return TokenKind.CLOSE_PAREN(); }
+	if (code == 63) { return TokenKind.OPEN_BRACKET(); }
+	if (code == 64) { return TokenKind.CLOSE_BRACKET(); }
+	if (code == 65) { return TokenKind.OPEN_BRACE(); }
+	if (code == 66) { return TokenKind.CLOSE_BRACE(); }
+	if (code == 67) { return TokenKind.COMMA(); }
+	if (code == 68) { return TokenKind.COLON(); }
+	if (code == 69) { return TokenKind.SEMICOLON(); }
+	if (code == 70) { return TokenKind.EQUAL(); }
+	if (code == 71) { return TokenKind.EQUAL_EQUAL(); }
+	if (code == 72) { return TokenKind.BANG(); }
+	if (code == 73) { return TokenKind.BANG_EQUAL(); }
+	if (code == 74) { return TokenKind.AMPERSAND(); }
+	if (code == 75) { return TokenKind.PIPE(); }
+	if (code == 76) { return TokenKind.CARET(); }
+	if (code == 77) { return TokenKind.TILDE(); }
+	if (code == 78) { return TokenKind.SHIFT_LEFT(); }
+	if (code == 79) { return TokenKind.SHIFT_RIGHT(); }
+	if (code == 80) { return TokenKind.ARROW(); }
+	if (code == 81) { return TokenKind.AMPERSAND_AMPERSAND(); }
+	if (code == 82) { return TokenKind.PIPE_PIPE(); }
+	if (code == 83) { return TokenKind.LESS(); }
+	if (code == 84) { return TokenKind.LESS_EQUAL(); }
+	if (code == 85) { return TokenKind.GREATER(); }
+	if (code == 86) { return TokenKind.GREATER_EQUAL(); }
+	if (code == 87) { return TokenKind.PLUS(); }
+	if (code == 88) { return TokenKind.MINUS(); }
+	if (code == 89) { return TokenKind.STAR(); }
+	if (code == 90) { return TokenKind.SLASH(); }
+	if (code == 91) { return TokenKind.PERCENT(); }
+	assert_that(false);
+	return TokenKind.EOF();
+}

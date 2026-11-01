@@ -1,7 +1,8 @@
 # Current Astra language contract
 
-The complete compiler is the Vala bootstrap in `bootstrap/`.
-The inherited `0.0.3`/RC2 banner is not a new release qualification.
+The complete compiler is the Vala bootstrap in `bootstrap/`. The source/diagnostic
+and lexer components in `compiler/` execute in Astra; later compiler stages remain
+to be ported. The inherited `0.0.3`/RC2 banner is not a new release qualification.
 The domain table below and the [structural generics](structural-generics.md),
 [foreign APIs](declaration-driven-interop.md), [concurrency](concurrency.md) and
 [optimizer proof](semantic-optimization.md) guides describe current contracts.

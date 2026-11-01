@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned SourceBuffer fixture() throws Error {
+	var bytes = new u8[5];
+	bytes[0] = 97 as u8;
+	bytes[1] = 13 as u8;
+	bytes[2] = 10 as u8;
+	bytes[3] = 98 as u8;
+	bytes[4] = 99 as u8;
+	var result = source_buffer("./same//file.astra", move bytes, false);
+	return move result;
+}
+owned SourceSpan retained_cover() throws Error {
+	var source = fixture();
+	var duplicate = fixture();
+	var root = shared_acquire(move source);
+	var other = shared_acquire(move duplicate);
+	assert_that(source_same_handles(root, root));
+	assert_that(!source_same_handles(root, other));
+	assert_that(source_same_handles(null, null));
+	assert_that(!source_same_handles(root, null));
+	assert_that(!source_same_handles(null, root));
+	var a = shared_clone(root);
+	var b = shared_clone(root);
+	var c = shared_clone(other);
+	var first = new SourceSpan(move a, 0, 1);
+	var last = new SourceSpan(move b, 3, 5);
+	var foreign = new SourceSpan(move c, 3, 5);
+	assert_that(first.same_source(last));
+	assert_that(!first.same_source(foreign));
+	int refused = 0;
+	try { var invalid = first.cover(foreign); } catch (SourceBoundsError error) { refused = refused + 1; }
+	try { var invalid = last.cover(first); } catch (SourceBoundsError error) { refused = refused + 1; }
+	assert_that(refused == 2);
+	var result = first.cover(last);
+	assert_that(result.start == 0 && result.end == 5 && result.same_source(first));
+	return move result;
+}
+int main() {
+	try {
+		var covered = retained_cover();
+		var bytes = covered.bytes();
+		assert_that(len(bytes) == 5 && (bytes[0] as int) == 97 && (bytes[4] as int) == 99);
+		var location = covered.location();
+		assert_that(location.line == 1 && location.column == 1);
+		var path = covered.path();
+		assert_that(path.text == "same/file.astra");
+		println("SPAN_OK");
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 1; }
+}

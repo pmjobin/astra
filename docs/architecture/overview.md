@@ -1,7 +1,8 @@
 # Compiler architecture
 
-The complete compiler is the Vala implementation in `bootstrap/`.
-The [canonical roadmap](../history/ASTRA_VISION_AND_ROADMAP_v2.0_2026-10-18.md)
+The complete compiler is the Vala implementation in `bootstrap/`. Astra's
+source/diagnostic and lexer components live in `compiler/`; parser/AST and later
+stages remain the next self-hosting work. The [canonical roadmap](../history/ASTRA_VISION_AND_ROADMAP_v2.0_2026-10-18.md)
 and [current capability matrix](../language/capabilities.md) describe direction
 and implemented scope respectively.
 

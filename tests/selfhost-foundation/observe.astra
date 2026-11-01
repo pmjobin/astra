@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void number(Utf8ByteBuilder output, int value) { append_int(output, value); source_append_text(output, " "); }
+
+owned SourceSpan observe(string input, string logical_path) throws Error {
+	var file = read_file(input);
+	var bytes = new u8[file.byte_count()];
+	int i = 0;
+	while (i < len(bytes)) { bytes[i] = file.byte_at(i) as u8; i = i + 1; }
+	var source = source_buffer(logical_path, move bytes, false);
+	var output = new Utf8ByteBuilder();
+	source.append_path(output);
+	source_append_text(output, "\n");
+	number(output, source.length);
+	int error = source.encoding_error();
+	number(output, error);
+	source_append_text(output, "\n");
+	if (error >= 0) { source_append_text(output, source.encoding_message(error)); }
+	source_append_text(output, "\n");
+	i = 0;
+	while (i <= source.length) {
+		var location = source.locate(i);
+		number(output, location.line);
+		number(output, location.column);
+		source_append_text(output, "\n");
+		i = i + 1;
+	}
+	var copy = source.copy_range(0, source.length);
+	i = 0;
+	while (i < len(copy)) { number(output, copy[i] as int); i = i + 1; }
+	source_append_text(output, "\n");
+	int refused = 0;
+	try { var invalid = source.locate(-1); number(output, invalid.line); } catch (SourceBoundsError caught) { refused = refused + 1; }
+	try { var invalid = source.copy_range(1, 0); number(output, len(invalid)); } catch (SourceBoundsError caught) { refused = refused + 1; }
+	try { source.byte_at(source.length); } catch (SourceBoundsError caught) { refused = refused + 1; }
+	assert_that(refused == 3);
+	var text = output.snapshot();
+	print(text.text);
+	int start = error;
+	int end = error + 1;
+	if (error < 0) { start = source.length; end = source.length; }
+	shared SourceBuffer root = shared_acquire(move source);
+	var retained = shared_clone(root);
+	var span = new SourceSpan(move retained, start, end);
+	return move span;
+}
+
+int main(string[] args) {
+	if (len(args) != 3) { return 2; }
+	try {
+		// The creator's file, byte buffer, path builder and strong root are gone.
+		var span = observe(args[1], args[2]);
+		var content = span.bytes();
+		assert_that(len(content) == span.end - span.start);
+		var message = new Utf8ByteBuilder();
+		source_append_text(message, "example");
+		var snapshot = message.snapshot();
+		var diagnostic = new SourceDiagnostic(move span, move snapshot);
+		var text = diagnostic.format();
+		println(text.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 1; }
+}

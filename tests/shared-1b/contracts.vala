@@ -17,7 +17,9 @@ private static extern uint incoming_count(CApi.ValueRef instruction);
 private static extern unowned string block_name(CApi.BasicBlockRef block);
 private CheckedProgram source() {
 	string text = "class P{int value;init(int n){this.value=n;}deinit(){}}class Q{init(){}}"
-	    + "int read(borrowed P p){return p.value;}int main(){var p=new P(7);var s=shared_acquire(move p);var copy=shared_clone(s);var w=shared_downgrade(s);var again=weak_upgrade(w);if(again==null){return 81;}return read(shared_borrow(again));}";
+	    + "bool same_payload(borrowed P a,borrowed P b){return a==b;}"
+	    + "bool same(borrowed shared P a,borrowed shared P b){if(a==null){return b==null;}if(b==null){return false;}return same_payload(shared_borrow(a),shared_borrow(b));}"
+	    + "int read(borrowed P p){return p.value;}int main(){var p=new P(7);var s=shared_acquire(move p);var copy=shared_clone(s);if(!same(s,copy)){return 82;}var w=shared_downgrade(s);var again=weak_upgrade(w);if(again==null){return 81;}return read(shared_borrow(again));}";
 	var parsed = Parser.parse(new SourceFile.from_text("shared-contract", text));
 	if (parsed.diagnostic != null) {
 		GLib.error("%s", parsed.diagnostic.message);
@@ -363,9 +365,49 @@ private void authority() {
 		GLib.error("%s", error.message);
 	}
 }
+private void identity_authority() {
+	try {
+		var core = CoreBuilder.build(source());
+		CoreVerifier.verify(core);
+		CoreFunction? function = null;
+		foreach (var candidate in core.functions) {
+			if (candidate.name == "same_payload") {
+				function = candidate;
+			}
+		}
+		assert(function != null);
+		var saved = function.body.statements[0];
+		var value = ((CoreReturn) saved).value as CoreBinaryValue;
+		assert(value != null && value.operator_kind == BinaryOperator.EQUAL);
+		function.body.statements[0] = new CoreReturn(value.span,
+			new CoreBinaryValue(value.span, value.semantic_type, BinaryOperator.LESS, value.left, value.right));
+		bool rejected = false;
+		try {
+			CoreVerifier.verify(core);
+		} catch (CoreError error) {
+			rejected = true;
+		}
+		assert(rejected);
+		function.body.statements[0] = new CoreReturn(value.span,
+			new CoreBinaryValue(value.span, value.semantic_type, BinaryOperator.EQUAL, value.left,
+				new CoreNullPointerValue(value.span, core.classes[1].semantic_type)));
+		rejected = false;
+		try {
+			CoreVerifier.verify(core);
+		} catch (CoreError error) {
+			rejected = true;
+		}
+		assert(rejected);
+		function.body.statements[0] = saved;
+		CoreVerifier.verify(core);
+	} catch (GLib.Error error) {
+		GLib.error("%s", error.message);
+	}
+}
 public int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/shared/exact-native-lifetime-authority", authority);
+	Test.add_func("/shared/borrowed-payload-identity-authority", identity_authority);
 	return Test.run();
 }
 }

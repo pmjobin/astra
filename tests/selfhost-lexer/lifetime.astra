@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned shared SourceBuffer lifetime_source() throws Error {
+	u8[14] literal = {47, 42, 120, 42, 47, 32, 34, 97, 92, 48, 98, 34, 32, 122};
+	var bytes = new u8[14];
+	int i = 0;
+	while (i < 14) { bytes[i] = literal[i]; i = i + 1; }
+	var source = source_buffer("lifetime", move bytes, false);
+	shared SourceBuffer result = shared_acquire(move source);
+	return move result;
+}
+owned Token survivor() throws Error {
+	var source = lifetime_source();
+	var scan = lexer(move source);
+	var token = scan.next_token();
+	assert_that(!scan.failed && token.kind() == TokenKind.TEXT());
+	var result = scan.fork();
+	assert_that(result.comment_count == 0);
+	var next = result.next_token();
+	assert_that(next.kind() == TokenKind.IDENTIFIER() && next.spelling.text == "z");
+	assert_that(scan.cursor == 12);
+	var original_next = scan.next_token();
+	assert_that(original_next.span.same_source(next.span));
+	var eof = result.next_token();
+	assert_that(eof.kind() == TokenKind.EOF());
+	return move token;
+}
+owned SourceSpan trivia_survivor() throws Error {
+	var source = lifetime_source();
+	var scan = lexer(move source);
+	var token = scan.next_token();
+	var result = scan.comment(0);
+	assert_that(result.same_source(token.span));
+	return move result;
+}
+void lifetime_checks() throws Error {
+	var token = survivor();
+	assert_that(token.spelling.text == "\"a\\0b\"");
+	assert_that(token.payload.text.byte_length == 3);
+	assert_that(astra_host_text_byte(token.payload.text, 1) == 0);
+	var bytes = token.span.bytes(); assert_that(len(bytes) == 6);
+	var trivia = trivia_survivor();
+	assert_that(!token.span.same_source(trivia));
+	var comment = trivia.bytes(); assert_that(len(comment) == 5 && (comment[0] as int) == 47);
+	var span = token.span.cover(token.span);
+	var generated = generated_token(TokenKind.IDENTIFIER(), move span, "invented");
+	assert_that(generated.generated && !token.generated && generated.spelling.text == "invented");
+	assert_that(generated.span.same_source(token.span));
+	var original = generated.span.bytes(); assert_that(len(original) == 6);
+	u8[3] invalid = {120, 32, 64};
+	var data = new u8[3]; int i = 0;
+	while (i < 3) { data[i] = invalid[i]; i = i + 1; }
+	var bad = source_buffer("bad", move data, false);
+	shared SourceBuffer root = shared_acquire(move bad);
+	var scanner = lexer(move root);
+	var first = scanner.next_token();
+	var fork = scanner.fork();
+	var failure = fork.next_token();
+	assert_that(fork.failed && !scanner.failed && scanner.cursor == 1);
+	var error_fork = fork.fork();
+	assert_that(error_fork.failed && error_fork.comment_count == 0);
+	var original_failure = scanner.next_token();
+	assert_that(scanner.failed && scanner.error_start == fork.error_start && scanner.error_message.text == fork.error_message.text);
+	println("LIFETIME_OK");
+}

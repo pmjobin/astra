@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class DuplicateSourceInput : Error {
+	init() : base("duplicate source input") {}
+}
+
+int source_path_compare(borrowed Utf8Message first, borrowed Utf8Message last) {
+	int a = first.text.byte_length;
+	int b = last.text.byte_length;
+	int i = 0;
+	while (i < a && i < b) {
+		int difference = astra_host_text_byte(first.text, i) - astra_host_text_byte(last.text, i);
+		if (difference != 0) { return difference; }
+		i = i + 1;
+	}
+	return a - b;
+}
+
+// The path-list facade is independent of parser and compilation policy.
+// It owns normalized snapshots, sorts by UTF-8 byte order and rejects duplicates.
+owned Vector<Utf8Message> source_canonical_paths(string[] inputs) throws Error {
+	var pending = new Vector<Utf8Message>(len(inputs));
+	var paths = new Vector<Utf8Message>(len(inputs));
+	int i = 0;
+	while (i < len(inputs)) {
+		var path = source_normalize_path(inputs[i]);
+		assert_that(pending.append(move path));
+		i = i + 1;
+	}
+	// take removes an element and shifts later owners; it does not leave a hole.
+	while (pending.count() > 0) {
+		int least = 0;
+		i = 1;
+		while (i < pending.count()) {
+			if (source_path_compare(pending.entries[i], pending.entries[least]) < 0) { least = i; }
+			i = i + 1;
+		}
+		var next = pending.take(least);
+		assert_that(paths.append(move next));
+	}
+	i = 1;
+	while (i < paths.count()) {
+		if (source_path_compare(paths.entries[i - 1], paths.entries[i]) == 0) { throw new DuplicateSourceInput(); }
+		i = i + 1;
+	}
+	return move paths;
+}
