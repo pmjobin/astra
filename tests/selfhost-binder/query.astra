@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		if (len(args) == 2 && args[1] == "--lifetime") {
+			binder_lifetime();
+			parser_lifetime(false);
+			parser_cursor_checks();
+			return 0;
+		}
+		if (len(args) > 2 && args[1] == "--syntax") {
+			var program = binding_load_program(args, 2);
+			if (program.failed()) {
+				var index = binding_index(move program, 0);
+				var text = binding_observation(index);
+				print(text.text);
+				return 1;
+			}
+			var dump = syntax_program_dump(program);
+			print(dump.text);
+			return 0;
+		}
+		if (len(args) < 3) {
+			println_stderr("usage: astra-bind --index FILE... | --definition PATH OFFSET FILE... | --references PATH START FILE... | --partial COUNT FILE...");
+			return 2;
+		}
+		int start = 2;
+		int stop_after = 0;
+		if (args[1] == "--definition" || args[1] == "--references") {
+			start = 4;
+		}
+		if (args[1] == "--partial") {
+			start = 3;
+			stop_after = binding_decimal(args[2]);
+		}
+		if (start >= len(args)) {
+			return 2;
+		}
+		var index = binder_requested_index(args, start, stop_after);
+		var observation = binding_observation(index);
+		print(observation.text);
+		if (index.failed()) {
+			return 1;
+		}
+		if (args[1] == "--definition" || args[1] == "--references") {
+			var query_path = source_normalize_path(args[2]);
+			int offset = binding_decimal(args[3]);
+			int i = 1;
+			while (i <= index.program.arena.source_count) {
+				SyntaxSourceId source = {
+					index = i
+				};
+				var backing = index.program.arena.source(source);
+				var path = source_path(shared_borrow(backing));
+				if (path.text == query_path.text) {
+					if (args[1] == "--definition") {
+						int number = index.reference_at(source, offset);
+						if (number == 0) {
+							print("QUERY absent\n");
+							return 0;
+						}
+						var output = new Utf8ByteBuilder();
+						binding_write_reference(index, number, output);
+						var row = output.snapshot();
+						print("QUERY definition\n");
+						print(row.text);
+					} else {
+						int n = 1;
+						while (n <= index.symbol_count) {
+							SymbolId id = {
+								index = n
+							};
+							var symbol = index.symbol(id);
+							if (symbol.span.source.index == source.index && symbol.span.start == offset) {
+								print("QUERY references\n");
+								int reference = symbol.first_reference;
+								while (reference != 0) {
+									var output = new Utf8ByteBuilder();
+									binding_write_reference(index, reference, output);
+									var row = output.snapshot();
+									print(row.text);
+									var record = index.reference(reference);
+									reference = record.next_reference;
+								}
+								return 0;
+							}
+							n = n + 1;
+						}
+						print("QUERY absent\n");
+					}
+					return 0;
+				}
+				i = i + 1;
+			}
+			print("QUERY absent\n");
+		}
+		return 0;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}
+
+owned BindingIndex binder_requested_index(string[] args, int start, int stop_after) throws Error {
+	var program = binding_load_program(args, start);
+	if (args[1] == "--mutate-span") {
+		var before = syntax_program_dump(program);
+		int i = 1;
+		while (i <= program.arena.node_count) {
+			SyntaxNodeId node = {
+				index = i
+			};
+			if (program.arena.kind(node) == SyntaxKind.NameExpressionSyntax()) {
+				var token = program.arena.get_token_identifier(node);
+				var span = program.arena.token_span(token);
+				span.start = span.start + 1;
+				span.end = span.end + 1;
+				var spelling = program.arena.token_message(token);
+				var replacement = program.arena.generated_token(TokenKind.IDENTIFIER(), span, spelling.text);
+				program.arena.set_token_identifier(node, replacement);
+				break;
+			}
+			i = i + 1;
+		}
+		var after = syntax_program_dump(program);
+		assert_that(before.text == after.text);
+	}
+	var result = binding_index(move program, stop_after);
+	return move result;
+}
+
+void binder_lifetime() throws Error {
+	var program = parser_text_program("int f(int x){return x;}");
+	SyntaxSourceId source = {
+		index = 1
+	};
+	var backing = program.arena.source(source);
+	var observer = shared_downgrade(backing);
+	release backing;
+	var index = binding_index(move program, 0);
+	assert_that(!index.failed());
+	SymbolId function = {
+		index = 1
+	};
+	var symbol = index.symbol(function);
+	var retained = index.program.arena.source_span(symbol.span);
+	int ref = index.reference_at(source, 20);
+	assert_that(ref > 0);
+	var bound = index.reference(ref);
+	assert_that(bound.state_code == 1);
+	release index;
+	var alive = weak_upgrade(observer);
+	assert_that(alive != null);
+	release alive;
+	var bytes = retained.bytes();
+	assert_that(len(bytes) == 1 && bytes[0] == 102 as u8);
+	release retained;
+	var expired = weak_upgrade(observer);
+	assert_that(expired == null);
+	println("BINDER_LIFETIME_OK");
+}
