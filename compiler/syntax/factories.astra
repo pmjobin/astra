@@ -1,0 +1,1750 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+SyntaxNodeId syntax_make_ArrayStructInitializerSyntax(SyntaxArena arena, SyntaxNodeId arg_initializer) throws Error {
+	var data = syntax_empty_array_struct_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.header(arg_initializer).span;
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_initializer = arg_initializer;
+	return arena.add_array_struct_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_ArrayTypeSyntax(SyntaxArena arena, SyntaxNodeId arg_element_type, SyntaxTokenId arg_length, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_array_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_element_type).span, arena.token_span(arg_close));
+	var tmp_2 = arena.get_token_identifier(arg_element_type);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_element_type = arg_element_type;
+	data.f_extent = syntax_make_IntegerLiteralExpressionSyntax(arena, arg_length);
+	return arena.add_array_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_ArrayTypeSyntax_expression(SyntaxArena arena, SyntaxNodeId arg_element_type, SyntaxNodeId arg_extent, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_array_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_element_type).span, arena.token_span(arg_close));
+	var tmp_2 = arena.get_token_identifier(arg_element_type);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_element_type = arg_element_type;
+	data.f_extent = arg_extent;
+	return arena.add_array_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_ArrayInitializerSyntax(SyntaxArena arena, SyntaxNodeId arg_positional) throws Error {
+	var data = syntax_empty_array_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.header(arg_positional).span;
+	var tmp_2 = arena.header(arg_positional).depth;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_elements = arena.get_list_lanes(arg_positional);
+	return arena.add_array_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_IndexExpressionSyntax(SyntaxArena arena, SyntaxNodeId arg_container, SyntaxNodeId arg_subscript, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_index_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_container).span, arena.token_span(arg_close));
+	var tmp_2 = (syntax_max(arena.header(arg_container).depth, arena.header(arg_subscript).depth) + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_container = arg_container;
+	data.f_subscript = arg_subscript;
+	data.f_close = arg_close;
+	return arena.add_index_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_IndexedAssignmentSyntax(SyntaxArena arena, SyntaxNodeId arg_target, SyntaxNodeId arg_expression, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_indexed_assignment();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_semicolon.index == 0)) {
+		tmp_1 = arena.header(arg_expression).span;
+	} else {
+		tmp_1 = arena.token_span(arg_semicolon);
+	}
+	var tmp_2 = syntax_cover(arena.header(arg_target).span, tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_target = arg_target;
+	data.f_expression = arg_expression;
+	return arena.add_indexed_assignment(data, span, depth);
+}
+SyntaxNodeId syntax_make_AsyncRuntimeSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_name, SyntaxNodeId arg_error, SyntaxNodeId arg_status, SyntaxTokenId arg_end, SyntaxTokenId arg_provider) throws Error {
+	var data = syntax_empty_async_runtime();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_end));
+	span = tmp_1;
+	data.f_provider = arg_provider;
+	data.f_name = arg_name;
+	data.f_error = arg_error;
+	data.f_status = arg_status;
+	return arena.add_async_runtime(data, span, depth);
+}
+SyntaxNodeId syntax_make_AwaitExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_operation) throws Error {
+	var data = syntax_empty_await_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_operation).span);
+	var tmp_2 = (arena.header(arg_operation).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_operation = arg_operation;
+	return arena.add_await_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_AwaitStatementSyntax(SyntaxArena arena, SyntaxNodeId arg_expression, SyntaxTokenId arg_end) throws Error {
+	var data = syntax_empty_await_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_expression).span, arena.token_span(arg_end));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_expression = arg_expression;
+	return arena.add_await_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_SwapStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_left, SyntaxNodeId arg_right, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_swap_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_semicolon));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_left = arg_left;
+	data.f_right = arg_right;
+	return arena.add_swap_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_BufferAllocationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_element_type, SyntaxNodeId arg_count, SyntaxTokenId arg_close, SyntaxNodeId arg_failure_call, SyntaxNodeId arg_allocation_context) throws Error {
+	var data = syntax_empty_buffer_allocation();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_failure_call.index == 0)) {
+		tmp_1 = arena.token_span(arg_close);
+	} else {
+		tmp_1 = arena.header(arg_failure_call).span;
+	}
+	int tmp_2 = 0;
+	if ((arg_allocation_context.index == 0)) {
+		tmp_2 = 0;
+	} else {
+		tmp_2 = arena.header(arg_allocation_context).depth;
+	}
+	int tmp_3 = 0;
+	if ((arg_failure_call.index == 0)) {
+		tmp_3 = 0;
+	} else {
+		tmp_3 = arena.header(arg_failure_call).depth;
+	}
+	var tmp_4 = syntax_cover(arena.token_span(arg_keyword), tmp_1);
+	var tmp_5 = (syntax_max(tmp_2, syntax_max(arena.header(arg_count).depth, tmp_3)) + 1);
+	var tmp_6 = tmp_4;
+	span = tmp_6;
+	depth = tmp_5;
+	data.f_element_type = arg_element_type;
+	data.f_count = arg_count;
+	data.f_failure_call = arg_failure_call;
+	data.f_allocation_context = arg_allocation_context;
+	return arena.add_buffer_allocation(data, span, depth);
+}
+SyntaxNodeId syntax_make_OwnerSlotsTypeSyntax(SyntaxArena arena, SyntaxNodeId arg_element, SyntaxTokenId arg_marker, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_owner_slots_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_element).span, arena.token_span(arg_close));
+	var tmp_2 = arena.get_token_identifier(arg_element);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_element = arg_element;
+	data.f_marker = arg_marker;
+	data.f_close = arg_close;
+	return arena.add_owner_slots_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_ComImportSyntax(SyntaxArena arena, SyntaxNodeId arg_policy, SyntaxTokenId arg_name, SyntaxTokenId arg_end, SyntaxNodeId arg_declaration) throws Error {
+	var data = syntax_empty_com_import();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_policy).span, arena.token_span(arg_end));
+	span = tmp_1;
+	data.f_name = arg_name;
+	data.f_policy = arg_policy;
+	data.f_declaration = arg_declaration;
+	return arena.add_com_import(data, span, depth);
+}
+SyntaxNodeId syntax_make_ForeignPolicySyntax(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxListId arg_entries) throws Error {
+	var data = syntax_empty_foreign_policy();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_name);
+	span = tmp_1;
+	data.f_name = arg_name;
+	var tmp_2 = arena.token_message(arg_name);
+	data.f_kind = syntax_policy_lookup(tmp_2.text);
+	data.f_entries = arg_entries;
+	return arena.add_foreign_policy(data, span, depth);
+}
+SyntaxNodeId syntax_make_CCodeEntrySyntax(SyntaxArena arena, SyntaxTokenId arg_key, SyntaxTokenId arg_value, string arg_decoded_value) throws Error {
+	var data = syntax_empty_c_code_entry();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_key), arena.token_span(arg_value));
+	span = tmp_1;
+	data.f_key = arg_key;
+	data.f_value = arg_value;
+	var tmp_2 = syntax_text(arg_decoded_value);
+	data.f_decoded_value = arena.add_text(move tmp_2);
+	var tmp_3 = arena.text_message(data.f_decoded_value);
+	return arena.add_c_code_entry(data, span, depth);
+}
+SyntaxNodeId syntax_make_CallerInformationSyntax(SyntaxArena arena, SyntaxSpan arg_span, SyntaxTokenId arg_name, SyntaxTokenId arg_target) throws Error {
+	var data = syntax_empty_caller_information();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arg_span;
+	span = tmp_1;
+	data.f_name = arg_name;
+	data.f_target = arg_target;
+	return arena.add_caller_information(data, span, depth);
+}
+SyntaxNodeId syntax_make_ConstantDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxNodeId arg_initializer, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_constant_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_semicolon));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	data.f_initializer = arg_initializer;
+	return arena.add_constant_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_EnumPayloadSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name) throws Error {
+	var data = syntax_empty_enum_payload();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_type_name).span, arena.token_span(arg_name));
+	span = tmp_1;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	return arena.add_enum_payload(data, span, depth);
+}
+SyntaxNodeId syntax_make_EnumVariantSyntax(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxListId arg_fields, SyntaxSpan arg_end) throws Error {
+	var data = syntax_empty_enum_variant();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_name), arg_end);
+	span = tmp_1;
+	data.f_name = arg_name;
+	data.f_fields = arg_fields;
+	return arena.add_enum_variant(data, span, depth);
+}
+SyntaxNodeId syntax_make_EnumDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_name, SyntaxListId arg_variants, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_enum_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close));
+	span = tmp_1;
+	data.f_name = arg_name;
+	data.f_variants = arg_variants;
+	return arena.add_enum_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_EnumBindingSyntax(SyntaxArena arena, SyntaxTokenId arg_binding, SyntaxTokenId arg_field) throws Error {
+	var data = syntax_empty_enum_binding();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_field.index == 0)) {
+		tmp_1 = arena.token_span(arg_binding);
+	} else {
+		tmp_1 = arena.token_span(arg_field);
+	}
+	var tmp_2 = syntax_cover(tmp_1, arena.token_span(arg_binding));
+	span = tmp_2;
+	data.f_field = arg_field;
+	data.f_binding = arg_binding;
+	return arena.add_enum_binding(data, span, depth);
+}
+SyntaxNodeId syntax_make_EnumArmSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_qualifier, SyntaxTokenId arg_variant, SyntaxListId arg_bindings, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_enum_arm();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	span = tmp_1;
+	data.f_qualifier = arg_qualifier;
+	data.f_variant = arg_variant;
+	data.f_bindings = arg_bindings;
+	data.f_body = arg_body;
+	return arena.add_enum_arm(data, span, depth);
+}
+SyntaxNodeId syntax_make_MatchStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_scrutinee, SyntaxListId arg_arms, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_match_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_scrutinee = arg_scrutinee;
+	data.f_arms = arg_arms;
+	return arena.add_match_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_HeapObjectConstructionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_class_name, SyntaxListId arg_arguments, SyntaxTokenId arg_close, SyntaxNodeId arg_allocation_context) throws Error {
+	var data = syntax_empty_heap_object_construction();
+	var span = syntax_empty_span();
+	int depth = 0;
+	int tmp_1 = 0;
+	if ((arg_allocation_context.index == 0)) {
+		tmp_1 = 0;
+	} else {
+		tmp_1 = (arena.header(arg_allocation_context).depth + 1);
+	}
+	var tmp_2 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close));
+	var tmp_3 = syntax_max(syntax_arguments_depth(arena, arg_arguments), tmp_1);
+	var tmp_4 = tmp_2;
+	span = tmp_4;
+	depth = tmp_3;
+	data.f_allocation_context = arg_allocation_context;
+	data.f_class_name = arg_class_name;
+	data.f_arguments = arg_arguments;
+	var tmp_5 = arena.token_message(arg_keyword);
+	data.f_fallible = (tmp_5.text == "try_new");
+	return arena.add_heap_object_construction(data, span, depth);
+}
+SyntaxNodeId syntax_make_ThrowStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_expression, SyntaxTokenId arg_end) throws Error {
+	var data = syntax_empty_throw_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_end));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_expression = arg_expression;
+	return arena.add_throw_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_CatchClauseSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_class_name, SyntaxTokenId arg_binding, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_catch_clause();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	span = tmp_1;
+	data.f_class_name = arg_class_name;
+	data.f_binding = arg_binding;
+	data.f_body = arg_body;
+	return arena.add_catch_clause(data, span, depth);
+}
+SyntaxNodeId syntax_make_TryStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_body, SyntaxListId arg_catches) throws Error {
+	var data = syntax_empty_try_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arena.node_at(arg_catches, (arena.list_count(arg_catches) - 1))).span);
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_body = arg_body;
+	data.f_catches = arg_catches;
+	return arena.add_try_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_CompilationUnitSyntax(SyntaxArena arena, SyntaxSourceId arg_source, SyntaxListId arg_functions, SyntaxTokenId arg_end_of_file, SyntaxListId arg_structs) throws Error {
+	var data = syntax_empty_compilation_unit();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_span(arg_source, 0, arena.source_length(arg_source));
+	span = tmp_1;
+	data.f_functions = arg_functions;
+	SyntaxListId tmp_2 = {index = 0};
+	if ((arg_structs.index != 0)) {
+		tmp_2 = arg_structs;
+	} else {
+		tmp_2 = arena.new_list(syntax_kind_code(SyntaxKind.StructDeclarationSyntax()));
+	}
+	data.f_structs = tmp_2;
+	data.f_end_of_file = arg_end_of_file;
+	return arena.add_compilation_unit(data, span, depth);
+}
+SyntaxNodeId syntax_make_StructDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_name, SyntaxTokenId arg_open_brace, SyntaxListId arg_fields, SyntaxTokenId arg_close_brace, SyntaxListId arg_members) throws Error {
+	var data = syntax_empty_struct_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arg_keyword;
+	var tmp_2 = arg_name;
+	var tmp_3 = arg_open_brace;
+	var tmp_4 = arg_fields;
+	var tmp_5 = arg_close_brace;
+	var tmp_6 = arg_members;
+	var tmp_7 = syntax_cover(arena.token_span(tmp_1), arena.token_span(tmp_5));
+	span = tmp_7;
+	data.f_keyword = tmp_1;
+	data.f_name = tmp_2;
+	data.f_open_brace = tmp_3;
+	data.f_fields = tmp_4;
+	SyntaxListId tmp_8 = {index = 0};
+	if ((tmp_6.index != 0)) {
+		tmp_8 = tmp_6;
+	} else {
+		tmp_8 = arena.new_list(syntax_kind_code(SyntaxKind.SyntaxNode()));
+	}
+	data.f_members = tmp_8;
+	if ((tmp_6.index == 0)) {
+		var tmp_9 = -1;
+		while (tmp_9 + 1 < arena.list_count(tmp_4)) {
+			tmp_9 = tmp_9 + 1;
+			var v_field_10 = arena.node_at(tmp_4, tmp_9);
+			var tmp_11 = data.f_members;
+			if (tmp_11.index == 0) {
+				tmp_11 = arena.new_list(syntax_kind_code(SyntaxKind.SyntaxNode()));
+				data.f_members = tmp_11;
+			}
+			arena.append_node(tmp_11, v_field_10);
+		}
+	}
+	var tmp_12 = -1;
+	while (tmp_12 + 1 < arena.list_count(data.f_members)) {
+		tmp_12 = tmp_12 + 1;
+		var v_member_13 = arena.node_at(data.f_members, tmp_12);
+		var tmp_14 = (v_member_13.index != 0 && syntax_kind_accepts(arena.kind(v_member_13), SyntaxKind.FunctionDeclarationSyntax()));
+		if (tmp_14) {
+			tmp_14 = (!(v_member_13.index != 0 && syntax_kind_accepts(arena.kind(v_member_13), SyntaxKind.LifecycleDeclarationSyntax())));
+		}
+		if (tmp_14) {
+			var tmp_15 = data.f_methods;
+			if (tmp_15.index == 0) {
+				tmp_15 = arena.new_list(syntax_kind_code(SyntaxKind.FunctionDeclarationSyntax()));
+				data.f_methods = tmp_15;
+			}
+			arena.append_node(tmp_15, v_member_13);
+		}
+	}
+	data.f_close_brace = tmp_5;
+	return arena.add_struct_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_ClassDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_name, SyntaxTokenId arg_open_brace, SyntaxListId arg_fields, SyntaxTokenId arg_close_brace, SyntaxListId arg_members) throws Error {
+	var data = syntax_empty_class_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arg_keyword;
+	var tmp_2 = arg_name;
+	var tmp_3 = arg_open_brace;
+	var tmp_4 = arg_fields;
+	var tmp_5 = arg_close_brace;
+	var tmp_6 = arg_members;
+	var tmp_7 = syntax_cover(arena.token_span(tmp_1), arena.token_span(tmp_5));
+	span = tmp_7;
+	data.f_keyword = tmp_1;
+	data.f_name = tmp_2;
+	data.f_open_brace = tmp_3;
+	data.f_fields = tmp_4;
+	SyntaxListId tmp_8 = {index = 0};
+	if ((tmp_6.index != 0)) {
+		tmp_8 = tmp_6;
+	} else {
+		tmp_8 = arena.new_list(syntax_kind_code(SyntaxKind.SyntaxNode()));
+	}
+	data.f_members = tmp_8;
+	if ((tmp_6.index == 0)) {
+		var tmp_9 = -1;
+		while (tmp_9 + 1 < arena.list_count(tmp_4)) {
+			tmp_9 = tmp_9 + 1;
+			var v_field_10 = arena.node_at(tmp_4, tmp_9);
+			var tmp_11 = data.f_members;
+			if (tmp_11.index == 0) {
+				tmp_11 = arena.new_list(syntax_kind_code(SyntaxKind.SyntaxNode()));
+				data.f_members = tmp_11;
+			}
+			arena.append_node(tmp_11, v_field_10);
+		}
+	}
+	var tmp_12 = -1;
+	while (tmp_12 + 1 < arena.list_count(data.f_members)) {
+		tmp_12 = tmp_12 + 1;
+		var v_member_13 = arena.node_at(data.f_members, tmp_12);
+		var tmp_14 = (v_member_13.index != 0 && syntax_kind_accepts(arena.kind(v_member_13), SyntaxKind.FunctionDeclarationSyntax()));
+		if (tmp_14) {
+			tmp_14 = (!(v_member_13.index != 0 && syntax_kind_accepts(arena.kind(v_member_13), SyntaxKind.LifecycleDeclarationSyntax())));
+		}
+		if (tmp_14) {
+			var tmp_15 = data.f_methods;
+			if (tmp_15.index == 0) {
+				tmp_15 = arena.new_list(syntax_kind_code(SyntaxKind.FunctionDeclarationSyntax()));
+				data.f_methods = tmp_15;
+			}
+			arena.append_node(tmp_15, v_member_13);
+		}
+	}
+	data.f_close_brace = tmp_5;
+	return arena.add_class_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_StructFieldDeclarationSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxTokenId arg_semicolon, SyntaxTokenId arg_owned_keyword) throws Error {
+	var data = syntax_empty_struct_field_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_owned_keyword.index == 0)) {
+		tmp_1 = arena.header(arg_type_name).span;
+	} else {
+		tmp_1 = arena.token_span(arg_owned_keyword);
+	}
+	var tmp_2 = syntax_cover(tmp_1, arena.token_span(arg_semicolon));
+	span = tmp_2;
+	SyntaxTokenId tmp_4 = {index = 0};
+	if ((arg_owned_keyword.index != 0)) {
+		tmp_4 = arg_owned_keyword;
+	} else {
+		SyntaxTokenId tmp_3 = {index = 0};
+		if ((arg_type_name.index != 0 && syntax_kind_accepts(arena.kind(arg_type_name), SyntaxKind.SharedTypeSyntax()))) {
+			tmp_3 = arena.get_token_keyword(arg_type_name);
+		} else {
+		}
+		tmp_4 = tmp_3;
+	}
+	data.f_owned_keyword = tmp_4;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_struct_field_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_WhereClauseSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_parameter, SyntaxTokenId arg_colon, SyntaxListId arg_capabilities, SyntaxListId arg_commas) throws Error {
+	var data = syntax_empty_where_clause();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arena.token_at(arg_capabilities, (arena.list_count(arg_capabilities) - 1))));
+	span = tmp_1;
+	data.f_keyword = arg_keyword;
+	data.f_type_parameter = arg_parameter;
+	data.f_colon = arg_colon;
+	data.f_capabilities = arg_capabilities;
+	data.f_commas = arg_commas;
+	return arena.add_where_clause(data, span, depth);
+}
+SyntaxNodeId syntax_make_FunctionDeclarationSyntax(SyntaxArena arena, SyntaxNodeId arg_return_type, SyntaxTokenId arg_name, SyntaxTokenId arg_open_paren, SyntaxListId arg_parameters, SyntaxListId arg_commas, SyntaxTokenId arg_close_paren, SyntaxNodeId arg_body, SyntaxTokenId arg_export_keyword, SyntaxTokenId arg_abi_identifier, SyntaxTokenId arg_owned_keyword, SyntaxTokenId arg_async_keyword, SyntaxTokenId arg_factory_end, SyntaxNodeId arg_foreign_policy) throws Error {
+	var data = syntax_empty_function_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_5 = syntax_empty_span();
+	if ((arg_foreign_policy.index != 0)) {
+		tmp_5 = arena.header(arg_foreign_policy).span;
+	} else {
+		SyntaxSpan tmp_4 = syntax_empty_span();
+		if ((arg_async_keyword.index != 0)) {
+			tmp_4 = arena.token_span(arg_async_keyword);
+		} else {
+			SyntaxSpan tmp_3 = syntax_empty_span();
+			if ((arg_export_keyword.index == 0)) {
+				SyntaxSpan tmp_2 = syntax_empty_span();
+				if ((arg_owned_keyword.index == 0)) {
+					SyntaxSpan tmp_1 = syntax_empty_span();
+					if ((arg_return_type.index == 0)) {
+						tmp_1 = arena.token_span(arg_name);
+					} else {
+						tmp_1 = arena.header(arg_return_type).span;
+					}
+					tmp_2 = tmp_1;
+				} else {
+					tmp_2 = arena.token_span(arg_owned_keyword);
+				}
+				tmp_3 = tmp_2;
+			} else {
+				tmp_3 = arena.token_span(arg_export_keyword);
+			}
+			tmp_4 = tmp_3;
+		}
+		tmp_5 = tmp_4;
+	}
+	SyntaxSpan tmp_6 = syntax_empty_span();
+	if ((arg_factory_end.index == 0)) {
+		tmp_6 = arena.header(arg_body).span;
+	} else {
+		tmp_6 = arena.token_span(arg_factory_end);
+	}
+	var tmp_7 = syntax_cover(tmp_5, tmp_6);
+	span = tmp_7;
+	data.f_async_keyword = arg_async_keyword;
+	data.f_foreign_policy = arg_foreign_policy;
+	SyntaxTokenId tmp_9 = {index = 0};
+	if ((arg_owned_keyword.index != 0)) {
+		tmp_9 = arg_owned_keyword;
+	} else {
+		SyntaxTokenId tmp_8 = {index = 0};
+		if ((arg_return_type.index != 0 && syntax_kind_accepts(arena.kind(arg_return_type), SyntaxKind.SharedTypeSyntax()))) {
+			tmp_8 = arena.get_token_keyword(arg_return_type);
+		} else {
+		}
+		tmp_9 = tmp_8;
+	}
+	data.f_owned_keyword = tmp_9;
+	data.f_export_keyword = arg_export_keyword;
+	data.f_abi_identifier = arg_abi_identifier;
+	data.f_return_type = arg_return_type;
+	data.f_name = arg_name;
+	data.f_open_paren = arg_open_paren;
+	data.f_parameters = arg_parameters;
+	data.f_commas = arg_commas;
+	data.f_close_paren = arg_close_paren;
+	data.f_body = arg_body;
+	return arena.add_function_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_FunctionDeclarationSyntax_foreign(SyntaxArena arena, SyntaxTokenId arg_introducer, SyntaxTokenId arg_abi_identifier, SyntaxNodeId arg_return_type, SyntaxTokenId arg_name, SyntaxTokenId arg_open_paren, SyntaxListId arg_parameters, SyntaxListId arg_commas, SyntaxTokenId arg_close_paren, SyntaxTokenId arg_semicolon, SyntaxTokenId arg_owned_keyword, SyntaxNodeId arg_foreign_policy) throws Error {
+	var data = syntax_empty_function_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_introducer), arena.token_span(arg_semicolon));
+	span = tmp_1;
+	data.f_foreign_policy = arg_foreign_policy;
+	SyntaxTokenId tmp_3 = {index = 0};
+	if ((arg_owned_keyword.index != 0)) {
+		tmp_3 = arg_owned_keyword;
+	} else {
+		SyntaxTokenId tmp_2 = {index = 0};
+		if ((arg_return_type.index != 0 && syntax_kind_accepts(arena.kind(arg_return_type), SyntaxKind.SharedTypeSyntax()))) {
+			tmp_2 = arena.get_token_keyword(arg_return_type);
+		} else {
+		}
+		tmp_3 = tmp_2;
+	}
+	data.f_owned_keyword = tmp_3;
+	data.f_return_type = arg_return_type;
+	data.f_name = arg_name;
+	data.f_open_paren = arg_open_paren;
+	data.f_parameters = arg_parameters;
+	data.f_commas = arg_commas;
+	data.f_close_paren = arg_close_paren;
+	SyntaxTokenId tmp_4 = {index = 0};
+	if ((arg_foreign_policy.index == 0)) {
+		tmp_4 = arg_introducer;
+	} else {
+	}
+	data.f_extern_keyword = tmp_4;
+	data.f_abi_identifier = arg_abi_identifier;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_function_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_LifecycleDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxTokenId arg_open, SyntaxListId arg_parameters, SyntaxListId arg_commas, SyntaxTokenId arg_close, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_lifecycle_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxNodeId tmp_1 = {index = 0};
+	SyntaxTokenId tmp_2 = {index = 0};
+	SyntaxTokenId tmp_3 = {index = 0};
+	SyntaxTokenId tmp_4 = {index = 0};
+	SyntaxTokenId tmp_5 = {index = 0};
+	SyntaxTokenId tmp_6 = {index = 0};
+	SyntaxNodeId tmp_7 = {index = 0};
+	var tmp_8 = tmp_1;
+	var tmp_9 = arg_name;
+	var tmp_10 = arg_open;
+	var tmp_11 = arg_parameters;
+	var tmp_12 = arg_commas;
+	var tmp_13 = arg_close;
+	var tmp_14 = arg_body;
+	var tmp_15 = tmp_2;
+	var tmp_16 = tmp_3;
+	var tmp_17 = tmp_4;
+	var tmp_18 = tmp_5;
+	var tmp_19 = tmp_6;
+	var tmp_20 = tmp_7;
+	SyntaxSpan tmp_25 = syntax_empty_span();
+	if ((tmp_20.index != 0)) {
+		tmp_25 = arena.header(tmp_20).span;
+	} else {
+		SyntaxSpan tmp_24 = syntax_empty_span();
+		if ((tmp_18.index != 0)) {
+			tmp_24 = arena.token_span(tmp_18);
+		} else {
+			SyntaxSpan tmp_23 = syntax_empty_span();
+			if ((tmp_15.index == 0)) {
+				SyntaxSpan tmp_22 = syntax_empty_span();
+				if ((tmp_17.index == 0)) {
+					SyntaxSpan tmp_21 = syntax_empty_span();
+					if ((tmp_8.index == 0)) {
+						tmp_21 = arena.token_span(tmp_9);
+					} else {
+						tmp_21 = arena.header(tmp_8).span;
+					}
+					tmp_22 = tmp_21;
+				} else {
+					tmp_22 = arena.token_span(tmp_17);
+				}
+				tmp_23 = tmp_22;
+			} else {
+				tmp_23 = arena.token_span(tmp_15);
+			}
+			tmp_24 = tmp_23;
+		}
+		tmp_25 = tmp_24;
+	}
+	SyntaxSpan tmp_26 = syntax_empty_span();
+	if ((tmp_19.index == 0)) {
+		tmp_26 = arena.header(tmp_14).span;
+	} else {
+		tmp_26 = arena.token_span(tmp_19);
+	}
+	var tmp_27 = syntax_cover(tmp_25, tmp_26);
+	span = tmp_27;
+	data.f_async_keyword = tmp_18;
+	data.f_foreign_policy = tmp_20;
+	SyntaxTokenId tmp_29 = {index = 0};
+	if ((tmp_17.index != 0)) {
+		tmp_29 = tmp_17;
+	} else {
+		SyntaxTokenId tmp_28 = {index = 0};
+		if ((tmp_8.index != 0 && syntax_kind_accepts(arena.kind(tmp_8), SyntaxKind.SharedTypeSyntax()))) {
+			tmp_28 = arena.get_token_keyword(tmp_8);
+		} else {
+		}
+		tmp_29 = tmp_28;
+	}
+	data.f_owned_keyword = tmp_29;
+	data.f_export_keyword = tmp_15;
+	data.f_abi_identifier = tmp_16;
+	data.f_return_type = tmp_8;
+	data.f_name = tmp_9;
+	data.f_open_paren = tmp_10;
+	data.f_parameters = tmp_11;
+	data.f_commas = tmp_12;
+	data.f_close_paren = tmp_13;
+	data.f_body = tmp_14;
+	return arena.add_lifecycle_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_TypeNameSyntax(SyntaxArena arena, SyntaxTokenId arg_identifier, SyntaxListId arg_stars, SyntaxTokenId arg_qualifier) throws Error {
+	var data = syntax_empty_type_name();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_qualifier.index == 0)) {
+		tmp_1 = arena.token_span(arg_identifier);
+	} else {
+		tmp_1 = arena.token_span(arg_qualifier);
+	}
+	var tmp_2 = (arg_stars.index == 0);
+	if (!tmp_2) {
+		tmp_2 = (arena.list_count(arg_stars) == 0);
+	}
+	SyntaxSpan tmp_3 = syntax_empty_span();
+	if (tmp_2) {
+		tmp_3 = arena.token_span(arg_identifier);
+	} else {
+		tmp_3 = arena.token_span(arena.token_at(arg_stars, (arena.list_count(arg_stars) - 1)));
+	}
+	var tmp_4 = syntax_cover(tmp_1, tmp_3);
+	span = tmp_4;
+	data.f_namespace_qualifier = arg_qualifier;
+	data.f_identifier = arg_identifier;
+	SyntaxListId tmp_5 = {index = 0};
+	if ((arg_stars.index != 0)) {
+		tmp_5 = arg_stars;
+	} else {
+		tmp_5 = arena.new_list(-1);
+	}
+	data.f_stars = tmp_5;
+	return arena.add_type_name(data, span, depth);
+}
+SyntaxNodeId syntax_make_PointerTypeSyntax(SyntaxArena arena, SyntaxNodeId arg_pointee, SyntaxTokenId arg_star) throws Error {
+	var data = syntax_empty_pointer_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_pointee).span, arena.token_span(arg_star));
+	var tmp_2 = arena.get_token_identifier(arg_pointee);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_pointee = arg_pointee;
+	data.f_star = arg_star;
+	return arena.add_pointer_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_NonNullTypeSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_underlying) throws Error {
+	var data = syntax_empty_non_null_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_underlying).span);
+	var tmp_2 = arena.get_token_identifier(arg_underlying);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_keyword = arg_keyword;
+	data.f_underlying = arg_underlying;
+	data.f_namespace_qualifier = arena.get_token_namespace_qualifier(arg_underlying);
+	return arena.add_non_null_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_CallableChannelTypeSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_underlying) throws Error {
+	var data = syntax_empty_callable_channel_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_underlying).span);
+	var tmp_2 = arena.get_token_identifier(arg_underlying);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_keyword = arg_keyword;
+	data.f_underlying = arg_underlying;
+	data.f_namespace_qualifier = arena.get_token_namespace_qualifier(arg_underlying);
+	return arena.add_callable_channel_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_SharedTypeSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_payload) throws Error {
+	var data = syntax_empty_shared_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_payload).span);
+	var tmp_2 = arg_keyword;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_keyword = arg_keyword;
+	data.f_payload = arg_payload;
+	return arena.add_shared_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_VectorTypeSyntax(SyntaxArena arena, SyntaxNodeId arg_element_type, SyntaxTokenId arg_open_angle, SyntaxTokenId arg_lane_count, SyntaxTokenId arg_close_angle) throws Error {
+	var data = syntax_empty_vector_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_element_type).span, arena.token_span(arg_close_angle));
+	var tmp_2 = arena.get_token_identifier(arg_element_type);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_element_type = arg_element_type;
+	data.f_open_angle = arg_open_angle;
+	data.f_lane_count = arg_lane_count;
+	data.f_close_angle = arg_close_angle;
+	return arena.add_vector_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_GenericTypeApplicationSyntax(SyntaxArena arena, SyntaxTokenId arg_identifier, SyntaxListId arg_arguments, SyntaxSpan arg_end) throws Error {
+	var data = syntax_empty_generic_type_application();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arg_end;
+	var tmp_2 = arg_identifier;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_type_arguments = arg_arguments;
+	return arena.add_generic_type_application(data, span, depth);
+}
+SyntaxNodeId syntax_make_ParameterSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxTokenId arg_borrowed_keyword, SyntaxTokenId arg_owned_keyword, SyntaxNodeId arg_caller_information) throws Error {
+	var data = syntax_empty_parameter();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_3 = syntax_empty_span();
+	if ((arg_caller_information.index != 0)) {
+		tmp_3 = arena.header(arg_caller_information).span;
+	} else {
+		SyntaxSpan tmp_2 = syntax_empty_span();
+		if ((arg_borrowed_keyword.index == 0)) {
+			SyntaxSpan tmp_1 = syntax_empty_span();
+			if ((arg_owned_keyword.index == 0)) {
+				tmp_1 = arena.header(arg_type_name).span;
+			} else {
+				tmp_1 = arena.token_span(arg_owned_keyword);
+			}
+			tmp_2 = tmp_1;
+		} else {
+			tmp_2 = arena.token_span(arg_borrowed_keyword);
+		}
+		tmp_3 = tmp_2;
+	}
+	var tmp_4 = syntax_cover(tmp_3, arena.token_span(arg_name));
+	span = tmp_4;
+	data.f_caller_information = arg_caller_information;
+	SyntaxTokenId tmp_7 = {index = 0};
+	if ((arg_owned_keyword.index != 0)) {
+		tmp_7 = arg_owned_keyword;
+	} else {
+		var tmp_5 = (arg_borrowed_keyword.index == 0);
+		if (tmp_5) {
+			tmp_5 = (arg_type_name.index != 0 && syntax_kind_accepts(arena.kind(arg_type_name), SyntaxKind.SharedTypeSyntax()));
+		}
+		SyntaxTokenId tmp_6 = {index = 0};
+		if (tmp_5) {
+			tmp_6 = arena.get_token_keyword(arg_type_name);
+		} else {
+		}
+		tmp_7 = tmp_6;
+	}
+	data.f_owned_keyword = tmp_7;
+	data.f_borrowed_keyword = arg_borrowed_keyword;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	return arena.add_parameter(data, span, depth);
+}
+SyntaxNodeId syntax_make_BlockStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_open_brace, SyntaxListId arg_statements, SyntaxTokenId arg_close_brace) throws Error {
+	var data = syntax_empty_block_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_open_brace), arena.token_span(arg_close_brace));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_open_brace = arg_open_brace;
+	data.f_statements = arg_statements;
+	data.f_close_brace = arg_close_brace;
+	return arena.add_block_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_IfStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_open_paren, SyntaxNodeId arg_condition, SyntaxTokenId arg_close_paren, SyntaxNodeId arg_then_body, SyntaxTokenId arg_else_keyword, SyntaxNodeId arg_else_body) throws Error {
+	var data = syntax_empty_if_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_else_body.index == 0)) {
+		tmp_1 = arena.header(arg_then_body).span;
+	} else {
+		tmp_1 = arena.header(arg_else_body).span;
+	}
+	var tmp_2 = syntax_cover(arena.token_span(arg_keyword), tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_keyword = arg_keyword;
+	data.f_open_paren = arg_open_paren;
+	data.f_condition = arg_condition;
+	data.f_close_paren = arg_close_paren;
+	data.f_then_body = arg_then_body;
+	data.f_else_keyword = arg_else_keyword;
+	data.f_else_body = arg_else_body;
+	return arena.add_if_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_WithStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_receiver, SyntaxNodeId arg_initializer, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_with_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_receiver = arg_receiver;
+	data.f_initializer = arg_initializer;
+	data.f_body = arg_body;
+	return arena.add_with_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_ForeachStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_binding, SyntaxNodeId arg_collection, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_foreach_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_binding = arg_binding;
+	data.f_collection = arg_collection;
+	data.f_body = arg_body;
+	return arena.add_foreach_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_ForStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_initializer, SyntaxNodeId arg_condition, SyntaxNodeId arg_step, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_for_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_initializer = arg_initializer;
+	data.f_condition = arg_condition;
+	data.f_step = arg_step;
+	data.f_body = arg_body;
+	return arena.add_for_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_WhileStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_open_paren, SyntaxNodeId arg_condition, SyntaxTokenId arg_close_paren, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_while_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_open_paren = arg_open_paren;
+	data.f_condition = arg_condition;
+	data.f_close_paren = arg_close_paren;
+	data.f_body = arg_body;
+	return arena.add_while_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_BreakStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_break_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_semicolon));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_break_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_ContinueStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_continue_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_semicolon));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_continue_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_ReleaseStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_owner, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_release_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_semicolon));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_owner = arg_owner;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_release_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_ReturnStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_expression, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_return_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_semicolon));
+	var tmp_2 = tmp_1;
+	span = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_expression = arg_expression;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_return_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_StructInitializerSyntax(SyntaxArena arena, SyntaxTokenId arg_open_brace, SyntaxListId arg_fields, SyntaxListId arg_commas, SyntaxTokenId arg_close_brace) throws Error {
+	var data = syntax_empty_struct_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_open_brace), arena.token_span(arg_close_brace));
+	span = tmp_1;
+	data.f_open_brace = arg_open_brace;
+	data.f_fields = arg_fields;
+	data.f_commas = arg_commas;
+	data.f_close_brace = arg_close_brace;
+	return arena.add_struct_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_FieldInitializerSyntax_nested(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_initializer) throws Error {
+	var data = syntax_empty_field_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_name), arena.header(arg_initializer).span);
+	span = tmp_1;
+	data.f_name = arg_name;
+	data.f_equals_token = arg_equals_token;
+	data.f_initializer = arg_initializer;
+	return arena.add_field_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_FieldInitializerSyntax(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_expression) throws Error {
+	var data = syntax_empty_field_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_name), arena.header(arg_expression).span);
+	span = tmp_1;
+	data.f_name = arg_name;
+	data.f_equals_token = arg_equals_token;
+	data.f_expression = arg_expression;
+	return arena.add_field_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_StructLocalDeclarationSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_initializer, SyntaxTokenId arg_semicolon, SyntaxTokenId arg_owned_keyword) throws Error {
+	var data = syntax_empty_struct_local_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_owned_keyword.index == 0)) {
+		tmp_1 = arena.header(arg_type_name).span;
+	} else {
+		tmp_1 = arena.token_span(arg_owned_keyword);
+	}
+	var tmp_2 = syntax_cover(tmp_1, arena.token_span(arg_semicolon));
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_owned_keyword = arg_owned_keyword;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	data.f_equals_token = arg_equals_token;
+	data.f_initializer = arg_initializer;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_struct_local_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_FieldAssignmentStatementSyntax(SyntaxArena arena, SyntaxNodeId arg_target, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_expression, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_field_assignment_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_semicolon.index == 0)) {
+		tmp_1 = arena.header(arg_expression).span;
+	} else {
+		tmp_1 = arena.token_span(arg_semicolon);
+	}
+	var tmp_2 = syntax_cover(arena.header(arg_target).span, tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_target = arg_target;
+	data.f_equals_token = arg_equals_token;
+	data.f_expression = arg_expression;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_field_assignment_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_MoveExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_source, SyntaxListId arg_fields) throws Error {
+	var data = syntax_empty_move_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = (arg_fields.index == 0);
+	if (!tmp_1) {
+		tmp_1 = (arena.list_count(arg_fields) == 0);
+	}
+	SyntaxSpan tmp_2 = syntax_empty_span();
+	if (tmp_1) {
+		tmp_2 = arena.token_span(arg_source);
+	} else {
+		tmp_2 = arena.token_span(arena.token_at(arg_fields, (arena.list_count(arg_fields) - 1)));
+	}
+	var tmp_3 = syntax_cover(arena.token_span(arg_keyword), tmp_2);
+	var tmp_4 = 1;
+	var tmp_5 = tmp_3;
+	span = tmp_5;
+	depth = tmp_4;
+	data.f_keyword = arg_keyword;
+	data.f_source = arg_source;
+	SyntaxListId tmp_6 = {index = 0};
+	if ((arg_fields.index != 0)) {
+		tmp_6 = arg_fields;
+	} else {
+		tmp_6 = arena.new_list(-1);
+	}
+	data.f_fields = tmp_6;
+	return arena.add_move_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_InferredLocalDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_name, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_initializer, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_inferred_local_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_semicolon.index == 0)) {
+		tmp_1 = arena.header(arg_initializer).span;
+	} else {
+		tmp_1 = arena.token_span(arg_semicolon);
+	}
+	var tmp_2 = syntax_cover(arena.token_span(arg_keyword), tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_keyword = arg_keyword;
+	data.f_name = arg_name;
+	data.f_equals_token = arg_equals_token;
+	data.f_initializer = arg_initializer;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_inferred_local_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_LocalDeclarationSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_initializer, SyntaxTokenId arg_semicolon, SyntaxTokenId arg_owned_keyword) throws Error {
+	var data = syntax_empty_local_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_owned_keyword.index == 0)) {
+		tmp_1 = arena.header(arg_type_name).span;
+	} else {
+		tmp_1 = arena.token_span(arg_owned_keyword);
+	}
+	var tmp_2 = syntax_cover(tmp_1, arena.token_span(arg_semicolon));
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	SyntaxTokenId tmp_5 = {index = 0};
+	if ((arg_owned_keyword.index != 0)) {
+		tmp_5 = arg_owned_keyword;
+	} else {
+		SyntaxTokenId tmp_4 = {index = 0};
+		if ((arg_type_name.index != 0 && syntax_kind_accepts(arena.kind(arg_type_name), SyntaxKind.SharedTypeSyntax()))) {
+			tmp_4 = arena.get_token_keyword(arg_type_name);
+		} else {
+		}
+		tmp_5 = tmp_4;
+	}
+	data.f_owned_keyword = tmp_5;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	data.f_equals_token = arg_equals_token;
+	data.f_initializer = arg_initializer;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_local_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_CallStatementSyntax(SyntaxArena arena, SyntaxNodeId arg_call, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_call_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_semicolon.index == 0)) {
+		tmp_1 = arena.header(arg_call).span;
+	} else {
+		tmp_1 = arena.token_span(arg_semicolon);
+	}
+	var tmp_2 = syntax_cover(arena.header(arg_call).span, tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_call = arg_call;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_call_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_AssignmentStatementSyntax(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxTokenId arg_equals_token, SyntaxNodeId arg_expression, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_assignment_statement();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_semicolon.index == 0)) {
+		tmp_1 = arena.header(arg_expression).span;
+	} else {
+		tmp_1 = arena.token_span(arg_semicolon);
+	}
+	var tmp_2 = syntax_cover(arena.token_span(arg_name), tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_name = arg_name;
+	data.f_equals_token = arg_equals_token;
+	data.f_expression = arg_expression;
+	data.f_semicolon = arg_semicolon;
+	return arena.add_assignment_statement(data, span, depth);
+}
+SyntaxNodeId syntax_make_VectorInitializerSyntax(SyntaxArena arena, SyntaxTokenId arg_open_brace, SyntaxListId arg_lanes, SyntaxListId arg_commas, SyntaxTokenId arg_close_brace) throws Error {
+	var data = syntax_empty_vector_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_open_brace), arena.token_span(arg_close_brace));
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_open_brace = arg_open_brace;
+	data.f_lanes = arg_lanes;
+	data.f_commas = arg_commas;
+	data.f_close_brace = arg_close_brace;
+	var tmp_4 = -1;
+	while (tmp_4 + 1 < arena.list_count(arg_lanes)) {
+		tmp_4 = tmp_4 + 1;
+		var v_lane_5 = arena.node_at(arg_lanes, tmp_4);
+		depth = syntax_max(depth, (arena.header(v_lane_5).depth + 1));
+	}
+	return arena.add_vector_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_VectorPrimitiveExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_open_paren, SyntaxListId arg_operands, SyntaxListId arg_indices, SyntaxListId arg_commas, SyntaxTokenId arg_close_paren) throws Error {
+	var data = syntax_empty_vector_primitive_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close_paren));
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_open_paren = arg_open_paren;
+	data.f_operands = arg_operands;
+	data.f_indices = arg_indices;
+	data.f_commas = arg_commas;
+	data.f_close_paren = arg_close_paren;
+	var tmp_4 = -1;
+	while (tmp_4 + 1 < arena.list_count(arg_operands)) {
+		tmp_4 = tmp_4 + 1;
+		var v_operand_5 = arena.node_at(arg_operands, tmp_4);
+		depth = syntax_max(depth, (arena.header(v_operand_5).depth + 1));
+	}
+	return arena.add_vector_primitive_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_VectorDotExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_open_paren, SyntaxListId arg_operands, SyntaxNodeId arg_destination, SyntaxListId arg_commas, SyntaxTokenId arg_close_paren) throws Error {
+	var data = syntax_empty_vector_dot_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close_paren));
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_open_paren = arg_open_paren;
+	data.f_operands = arg_operands;
+	data.f_destination = arg_destination;
+	data.f_commas = arg_commas;
+	data.f_close_paren = arg_close_paren;
+	var tmp_4 = -1;
+	while (tmp_4 + 1 < arena.list_count(arg_operands)) {
+		tmp_4 = tmp_4 + 1;
+		var v_operand_5 = arena.node_at(arg_operands, tmp_4);
+		depth = syntax_max(depth, (arena.header(v_operand_5).depth + 1));
+	}
+	return arena.add_vector_dot_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_DspExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_open_paren, SyntaxNodeId arg_first, SyntaxNodeId arg_second, SyntaxNodeId arg_destination, SyntaxListId arg_commas, SyntaxTokenId arg_close_paren) throws Error {
+	var data = syntax_empty_dsp_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	int tmp_1 = 0;
+	if ((arg_second.index == 0)) {
+		tmp_1 = 0;
+	} else {
+		tmp_1 = arena.header(arg_second).depth;
+	}
+	var tmp_2 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close_paren));
+	var tmp_3 = (syntax_max(arena.header(arg_first).depth, tmp_1) + 1);
+	var tmp_4 = tmp_2;
+	span = tmp_4;
+	depth = tmp_3;
+	data.f_keyword = arg_keyword;
+	data.f_open_paren = arg_open_paren;
+	data.f_first = arg_first;
+	data.f_second = arg_second;
+	data.f_destination = arg_destination;
+	data.f_commas = arg_commas;
+	data.f_close_paren = arg_close_paren;
+	return arena.add_dsp_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_ConversionExpressionSyntax(SyntaxArena arena, SyntaxNodeId arg_operand, SyntaxTokenId arg_keyword, SyntaxNodeId arg_destination) throws Error {
+	var data = syntax_empty_conversion_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_operand).span, arena.header(arg_destination).span);
+	var tmp_2 = (arena.header(arg_operand).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_operand = arg_operand;
+	data.f_keyword = arg_keyword;
+	data.f_destination = arg_destination;
+	return arena.add_conversion_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_VectorExtractExpressionSyntax(SyntaxArena arena, SyntaxNodeId arg_vector, SyntaxTokenId arg_open_bracket, SyntaxTokenId arg_index, SyntaxTokenId arg_close_bracket) throws Error {
+	var data = syntax_empty_vector_extract_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arg_vector;
+	var tmp_2 = syntax_make_IntegerLiteralExpressionSyntax(arena, arg_index);
+	var tmp_3 = arg_close_bracket;
+	var tmp_4 = syntax_cover(arena.header(tmp_1).span, arena.token_span(tmp_3));
+	var tmp_5 = (syntax_max(arena.header(tmp_1).depth, arena.header(tmp_2).depth) + 1);
+	var tmp_6 = tmp_4;
+	span = tmp_6;
+	depth = tmp_5;
+	data.f_container = tmp_1;
+	data.f_subscript = tmp_2;
+	data.f_close = tmp_3;
+	data.f_vector = arg_vector;
+	data.f_open_bracket = arg_open_bracket;
+	data.f_index = arg_index;
+	data.f_close_bracket = arg_close_bracket;
+	return arena.add_vector_extract_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_VectorReductionExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxTokenId arg_open_paren, SyntaxNodeId arg_operand, SyntaxTokenId arg_close_paren) throws Error {
+	var data = syntax_empty_vector_reduction_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close_paren));
+	var tmp_2 = (arena.header(arg_operand).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_keyword = arg_keyword;
+	data.f_open_paren = arg_open_paren;
+	data.f_operand = arg_operand;
+	data.f_close_paren = arg_close_paren;
+	return arena.add_vector_reduction_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_ConstructorInitializerSyntax(SyntaxArena arena, SyntaxTokenId arg_name, SyntaxTokenId arg_open, SyntaxListId arg_arguments, SyntaxListId arg_commas, SyntaxTokenId arg_close, SyntaxTokenId arg_type_name, SyntaxTokenId arg_dot) throws Error {
+	var data = syntax_empty_constructor_initializer();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxNodeId tmp_1 = {index = 0};
+	var tmp_2 = arg_name;
+	var tmp_3 = arg_open;
+	var tmp_4 = arg_arguments;
+	var tmp_5 = arg_commas;
+	var tmp_6 = arg_close;
+	var tmp_7 = arg_type_name;
+	var tmp_8 = arg_dot;
+	var tmp_9 = tmp_1;
+	SyntaxSpan tmp_11 = syntax_empty_span();
+	if ((tmp_9.index != 0)) {
+		tmp_11 = arena.header(tmp_9).span;
+	} else {
+		SyntaxSpan tmp_10 = syntax_empty_span();
+		if ((tmp_7.index == 0)) {
+			tmp_10 = arena.token_span(tmp_2);
+		} else {
+			tmp_10 = arena.token_span(tmp_7);
+		}
+		tmp_11 = tmp_10;
+	}
+	int tmp_12 = 0;
+	if ((tmp_9.index == 0)) {
+		tmp_12 = 1;
+	} else {
+		tmp_12 = (arena.header(tmp_9).depth + 1);
+	}
+	var tmp_13 = syntax_cover(tmp_11, arena.token_span(tmp_6));
+	var tmp_14 = tmp_12;
+	var tmp_15 = tmp_13;
+	span = tmp_15;
+	depth = tmp_14;
+	data.f_receiver_place = tmp_9;
+	data.f_receiver = tmp_7;
+	data.f_member_operator = tmp_8;
+	data.f_identifier = tmp_2;
+	data.f_open_paren = tmp_3;
+	data.f_arguments = tmp_4;
+	data.f_commas = tmp_5;
+	data.f_close_paren = tmp_6;
+	var v_i_16 = 0;
+	var tmp_17 = true;
+	while (true) {
+		if (tmp_17) {
+			tmp_17 = false;
+		} else {
+			var tmp_18 = v_i_16;
+			v_i_16 = (v_i_16 + 1);
+		}
+		if (!((v_i_16 < arena.list_count(tmp_4)))) {
+			break;
+		}
+		depth = syntax_max(depth, (arena.header(arena.node_at(tmp_4, v_i_16)).depth + 1));
+	}
+	return arena.add_constructor_initializer(data, span, depth);
+}
+SyntaxNodeId syntax_make_CallExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_identifier, SyntaxTokenId arg_open_paren, SyntaxListId arg_arguments, SyntaxListId arg_commas, SyntaxTokenId arg_close_paren, SyntaxTokenId arg_receiver, SyntaxTokenId arg_member_operator, SyntaxNodeId arg_receiver_place) throws Error {
+	var data = syntax_empty_call_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_2 = syntax_empty_span();
+	if ((arg_receiver_place.index != 0)) {
+		tmp_2 = arena.header(arg_receiver_place).span;
+	} else {
+		SyntaxSpan tmp_1 = syntax_empty_span();
+		if ((arg_receiver.index == 0)) {
+			tmp_1 = arena.token_span(arg_identifier);
+		} else {
+			tmp_1 = arena.token_span(arg_receiver);
+		}
+		tmp_2 = tmp_1;
+	}
+	int tmp_3 = 0;
+	if ((arg_receiver_place.index == 0)) {
+		tmp_3 = 1;
+	} else {
+		tmp_3 = (arena.header(arg_receiver_place).depth + 1);
+	}
+	var tmp_4 = syntax_cover(tmp_2, arena.token_span(arg_close_paren));
+	var tmp_5 = tmp_3;
+	var tmp_6 = tmp_4;
+	span = tmp_6;
+	depth = tmp_5;
+	data.f_receiver_place = arg_receiver_place;
+	data.f_receiver = arg_receiver;
+	data.f_member_operator = arg_member_operator;
+	data.f_identifier = arg_identifier;
+	data.f_open_paren = arg_open_paren;
+	data.f_arguments = arg_arguments;
+	data.f_commas = arg_commas;
+	data.f_close_paren = arg_close_paren;
+	var v_i_7 = 0;
+	var tmp_8 = true;
+	while (true) {
+		if (tmp_8) {
+			tmp_8 = false;
+		} else {
+			var tmp_9 = v_i_7;
+			v_i_7 = (v_i_7 + 1);
+		}
+		if (!((v_i_7 < arena.list_count(arg_arguments)))) {
+			break;
+		}
+		depth = syntax_max(depth, (arena.header(arena.node_at(arg_arguments, v_i_7)).depth + 1));
+	}
+	return arena.add_call_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_FieldAccessExpressionSyntax_projection(SyntaxArena arena, SyntaxNodeId arg_aggregate, SyntaxTokenId arg_dot, SyntaxTokenId arg_field_name) throws Error {
+	var data = syntax_empty_field_access_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_aggregate).span, arena.token_span(arg_field_name));
+	var tmp_2 = (arena.header(arg_aggregate).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_aggregate = arg_aggregate;
+	SyntaxTokenId tmp_4 = {index = 0};
+	if ((arg_aggregate.index != 0 && syntax_kind_accepts(arena.kind(arg_aggregate), SyntaxKind.FieldAccessExpressionSyntax()))) {
+		tmp_4 = arena.get_token_identifier(arg_aggregate);
+	} else {
+		tmp_4 = arg_field_name;
+	}
+	data.f_identifier = tmp_4;
+	data.f_dot = arg_dot;
+	data.f_field_name = arg_field_name;
+	return arena.add_field_access_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_FieldAccessExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_identifier, SyntaxTokenId arg_dot, SyntaxTokenId arg_field_name) throws Error {
+	var data = syntax_empty_field_access_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_identifier), arena.token_span(arg_field_name));
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_identifier = arg_identifier;
+	data.f_dot = arg_dot;
+	data.f_field_name = arg_field_name;
+	return arena.add_field_access_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_NameExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_identifier) throws Error {
+	var data = syntax_empty_name_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_identifier);
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_identifier = arg_identifier;
+	return arena.add_name_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_FloatLiteralExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_literal) throws Error {
+	var data = syntax_empty_float_literal_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_literal);
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_literal = arg_literal;
+	return arena.add_float_literal_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_IntegerLiteralExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_literal) throws Error {
+	var data = syntax_empty_integer_literal_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_literal);
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_literal = arg_literal;
+	return arena.add_integer_literal_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_NullPointerExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword) throws Error {
+	var data = syntax_empty_null_pointer_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_keyword);
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_keyword = arg_keyword;
+	return arena.add_null_pointer_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_BooleanLiteralExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_literal) throws Error {
+	var data = syntax_empty_boolean_literal_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_literal);
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_literal = arg_literal;
+	return arena.add_boolean_literal_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_ParenthesizedExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_open_paren, SyntaxNodeId arg_expression, SyntaxTokenId arg_close_paren) throws Error {
+	var data = syntax_empty_parenthesized_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_open_paren), arena.token_span(arg_close_paren));
+	var tmp_2 = (arena.header(arg_expression).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_open_paren = arg_open_paren;
+	data.f_expression = arg_expression;
+	data.f_close_paren = arg_close_paren;
+	return arena.add_parenthesized_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_PrefixExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_operator_token, SyntaxNodeId arg_operand) throws Error {
+	var data = syntax_empty_prefix_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_operator_token), arena.header(arg_operand).span);
+	var tmp_2 = (arena.header(arg_operand).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_operator_token = arg_operator_token;
+	data.f_operand = arg_operand;
+	return arena.add_prefix_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_ShortCircuitExpressionSyntax(SyntaxArena arena, SyntaxNodeId arg_left, SyntaxTokenId arg_operator_token, SyntaxNodeId arg_right) throws Error {
+	var data = syntax_empty_short_circuit_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_left).span, arena.header(arg_right).span);
+	var tmp_2 = (syntax_max(arena.header(arg_left).depth, arena.header(arg_right).depth) + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_left = arg_left;
+	data.f_operator_token = arg_operator_token;
+	data.f_right = arg_right;
+	return arena.add_short_circuit_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_ComparisonChainSyntax(SyntaxArena arena, SyntaxListId arg_operands, SyntaxListId arg_operators) throws Error {
+	var data = syntax_empty_comparison_chain();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arena.node_at(arg_operands, 0)).span, arena.header(arena.node_at(arg_operands, (arena.list_count(arg_operands) - 1))).span);
+	var tmp_2 = arena.list_count(arg_operands);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_operands = arg_operands;
+	data.f_operators = arg_operators;
+	var tmp_4 = -1;
+	while (tmp_4 + 1 < arena.list_count(arg_operands)) {
+		tmp_4 = tmp_4 + 1;
+		var v_operand_5 = arena.node_at(arg_operands, tmp_4);
+		depth = syntax_max(depth, (arena.header(v_operand_5).depth + 1));
+	}
+	return arena.add_comparison_chain(data, span, depth);
+}
+SyntaxNodeId syntax_make_BinaryExpressionSyntax(SyntaxArena arena, SyntaxNodeId arg_left, SyntaxTokenId arg_operator_token, SyntaxNodeId arg_right) throws Error {
+	var data = syntax_empty_binary_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_left).span, arena.header(arg_right).span);
+	var tmp_2 = (syntax_max(arena.header(arg_left).depth, arena.header(arg_right).depth) + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_left = arg_left;
+	data.f_operator_token = arg_operator_token;
+	data.f_right = arg_right;
+	return arena.add_binary_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_DereferenceExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_star, SyntaxNodeId arg_pointer) throws Error {
+	var data = syntax_empty_dereference_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_star), arena.header(arg_pointer).span);
+	var tmp_2 = (arena.header(arg_pointer).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_star = arg_star;
+	data.f_pointer = arg_pointer;
+	return arena.add_dereference_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_DereferenceAssignmentSyntax(SyntaxArena arena, SyntaxNodeId arg_target, SyntaxNodeId arg_expression, SyntaxTokenId arg_semicolon) throws Error {
+	var data = syntax_empty_dereference_assignment();
+	var span = syntax_empty_span();
+	int depth = 0;
+	SyntaxSpan tmp_1 = syntax_empty_span();
+	if ((arg_semicolon.index == 0)) {
+		tmp_1 = arena.header(arg_expression).span;
+	} else {
+		tmp_1 = arena.token_span(arg_semicolon);
+	}
+	var tmp_2 = syntax_cover(arena.header(arg_target).span, tmp_1);
+	var tmp_3 = tmp_2;
+	span = tmp_3;
+	data.f_target = arg_target;
+	data.f_expression = arg_expression;
+	return arena.add_dereference_assignment(data, span, depth);
+}
+SyntaxNodeId syntax_make_AddressOfExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_ampersand, SyntaxTokenId arg_identifier) throws Error {
+	var data = syntax_empty_address_of_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_ampersand), arena.token_span(arg_identifier));
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_ampersand = arg_ampersand;
+	data.f_identifier = arg_identifier;
+	return arena.add_address_of_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_PropertyDeclarationSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxNodeId arg_getter, SyntaxNodeId arg_setter, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_property_declaration();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.token_span(arg_close));
+	span = tmp_1;
+	data.f_keyword = arg_keyword;
+	data.f_type_name = arg_type_name;
+	data.f_name = arg_name;
+	data.f_getter = arg_getter;
+	data.f_setter = arg_setter;
+	return arena.add_property_declaration(data, span, depth);
+}
+SyntaxNodeId syntax_make_PropertyAccessorSyntax(SyntaxArena arena, SyntaxTokenId arg_keyword, SyntaxNodeId arg_parameter, SyntaxNodeId arg_body) throws Error {
+	var data = syntax_empty_property_accessor();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.token_span(arg_keyword), arena.header(arg_body).span);
+	span = tmp_1;
+	data.f_keyword = arg_keyword;
+	data.f_parameter = arg_parameter;
+	data.f_body = arg_body;
+	return arena.add_property_accessor(data, span, depth);
+}
+SyntaxNodeId syntax_make_SliceTypeSyntax(SyntaxArena arena, SyntaxNodeId arg_element_type, SyntaxTokenId arg_close) throws Error {
+	var data = syntax_empty_slice_type();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_element_type).span, arena.token_span(arg_close));
+	var tmp_2 = arena.get_token_identifier(arg_element_type);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	data.f_identifier = tmp_2;
+	data.f_stars = arena.new_list(-1);
+	data.f_element_type = arg_element_type;
+	return arena.add_slice_type(data, span, depth);
+}
+SyntaxNodeId syntax_make_Utf8FactoryExpressionSyntax(SyntaxArena arena, SyntaxSpan arg_span, SyntaxTokenId arg_input, bool arg_validates) throws Error {
+	var data = syntax_empty_utf8_factory_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arg_span;
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_input = arg_input;
+	data.f_validates = arg_validates;
+	return arena.add_utf8_factory_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_TextLiteralExpressionSyntax(SyntaxArena arena, SyntaxTokenId arg_token) throws Error {
+	var data = syntax_empty_text_literal_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = arena.token_span(arg_token);
+	var tmp_2 = 1;
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_token = arg_token;
+	return arena.add_text_literal_expression(data, span, depth);
+}
+SyntaxNodeId syntax_make_TextMemberExpressionSyntax(SyntaxArena arena, SyntaxNodeId arg_receiver, SyntaxTokenId arg_member) throws Error {
+	var data = syntax_empty_text_member_expression();
+	var span = syntax_empty_span();
+	int depth = 0;
+	var tmp_1 = syntax_cover(arena.header(arg_receiver).span, arena.token_span(arg_member));
+	var tmp_2 = (arena.header(arg_receiver).depth + 1);
+	var tmp_3 = tmp_1;
+	span = tmp_3;
+	depth = tmp_2;
+	data.f_receiver = arg_receiver;
+	data.f_member = arg_member;
+	return arena.add_text_member_expression(data, span, depth);
+}

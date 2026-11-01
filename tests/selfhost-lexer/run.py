@@ -67,7 +67,8 @@ def main():
 		target = build / (provider + '.o')
 		product(['/usr/bin/gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', source, '-o', target], target, [source, *sorted((ROOT / 'lib/runtime').rglob('*.h'))], provider)
 		objects.extend(['--link-object', target])
-	sources = [ROOT / 'compiler/source/source.astra', *sorted((ROOT / 'compiler/syntax').glob('*.astra')), ROOT / 'tests/selfhost-lexer/dump.astra', ROOT / 'tests/selfhost-lexer/lifetime.astra', *[ROOT / f'lib/astra/{n}.astra' for n in LIBRARIES]]
+	scanner_sources = [ROOT / f'compiler/syntax/{name}.astra' for name in ('token', 'keywords', 'text-decoder', 'lexer')]
+	sources = [ROOT / 'compiler/source/source.astra', *scanner_sources, ROOT / 'tests/selfhost-lexer/dump.astra', ROOT / 'tests/selfhost-lexer/lifetime.astra', *[ROOT / f'lib/astra/{n}.astra' for n in LIBRARIES]]
 	programs = []
 	for mode in ('O0', 'O2'):
 		program = build / ('lexer-' + mode)

@@ -1,0 +1,1561 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Typed arena payloads. Reference indices are local to one SyntaxArena.
+// No record owns another node; arena destruction is iterative.
+struct SyntaxNodeId {
+	int index;
+}
+struct SyntaxTokenId {
+	int index;
+}
+struct SyntaxListId {
+	int index;
+}
+struct SyntaxTextId {
+	int index;
+}
+struct SyntaxSourceId {
+	int index;
+}
+struct SyntaxSpan {
+	SyntaxSourceId source;
+	int start;
+	int end;
+}
+struct SyntaxConcurrency {
+	bool present;
+	int kinds;
+	int admitted;
+}
+struct SyntaxHeader {
+	SyntaxNodeId foreign_member;
+	bool module_internal;
+	SyntaxListId foreign_channels;
+	int kind_code;
+	int slot;
+	SyntaxSpan span;
+	int depth;
+}
+enum SyntaxKind {
+	AddressOfExpressionSyntax,
+	ArrayInitializerSyntax,
+	ArrayStructInitializerSyntax,
+	ArrayTypeSyntax,
+	AssignmentStatementSyntax,
+	AsyncRuntimeSyntax,
+	AwaitExpressionSyntax,
+	AwaitStatementSyntax,
+	BinaryExpressionSyntax,
+	BlockStatementSyntax,
+	BooleanLiteralExpressionSyntax,
+	BreakStatementSyntax,
+	BufferAllocationSyntax,
+	CCodeEntrySyntax,
+	CallExpressionSyntax,
+	CallStatementSyntax,
+	CallableChannelTypeSyntax,
+	CallerInformationSyntax,
+	CatchClauseSyntax,
+	ClassDeclarationSyntax,
+	ComImportSyntax,
+	ComparisonChainSyntax,
+	CompilationUnitSyntax,
+	ConstantDeclarationSyntax,
+	ConstructorInitializerSyntax,
+	ContinueStatementSyntax,
+	ConversionExpressionSyntax,
+	DereferenceAssignmentSyntax,
+	DereferenceExpressionSyntax,
+	DspExpressionSyntax,
+	EnumArmSyntax,
+	EnumBindingSyntax,
+	EnumDeclarationSyntax,
+	EnumPayloadSyntax,
+	EnumVariantSyntax,
+	ExpressionSyntax,
+	FieldAccessExpressionSyntax,
+	FieldAssignmentStatementSyntax,
+	FieldInitializerSyntax,
+	FloatLiteralExpressionSyntax,
+	ForStatementSyntax,
+	ForeachStatementSyntax,
+	ForeignPolicySyntax,
+	FunctionDeclarationSyntax,
+	GenericTypeApplicationSyntax,
+	HeapObjectConstructionSyntax,
+	IfStatementSyntax,
+	IndexExpressionSyntax,
+	IndexedAssignmentSyntax,
+	InferredLocalDeclarationSyntax,
+	IntegerLiteralExpressionSyntax,
+	LifecycleDeclarationSyntax,
+	LocalDeclarationSyntax,
+	MatchStatementSyntax,
+	MoveExpressionSyntax,
+	NameExpressionSyntax,
+	NativeInstanceDeclarationSyntax,
+	NonNullTypeSyntax,
+	NullPointerExpressionSyntax,
+	OwnerSlotsTypeSyntax,
+	ParameterSyntax,
+	ParenthesizedExpressionSyntax,
+	PointerTypeSyntax,
+	PrefixExpressionSyntax,
+	PropertyAccessorSyntax,
+	PropertyDeclarationSyntax,
+	ReleaseStatementSyntax,
+	ReturnStatementSyntax,
+	SharedTypeSyntax,
+	ShortCircuitExpressionSyntax,
+	SliceTypeSyntax,
+	StatementSyntax,
+	StructDeclarationSyntax,
+	StructFieldDeclarationSyntax,
+	StructInitializerSyntax,
+	StructLocalDeclarationSyntax,
+	SwapStatementSyntax,
+	SyntaxNode,
+	TextLiteralExpressionSyntax,
+	TextMemberExpressionSyntax,
+	ThrowStatementSyntax,
+	TryStatementSyntax,
+	TypeNameSyntax,
+	Utf8FactoryExpressionSyntax,
+	VectorDotExpressionSyntax,
+	VectorExtractExpressionSyntax,
+	VectorInitializerSyntax,
+	VectorPrimitiveExpressionSyntax,
+	VectorReductionExpressionSyntax,
+	VectorTypeSyntax,
+	WhereClauseSyntax,
+	WhileStatementSyntax,
+	WithStatementSyntax,
+}
+int syntax_kind_code(SyntaxKind kind) {
+	match (kind) {
+		case SyntaxKind.AddressOfExpressionSyntax(): {
+			return 1;
+		}
+		case SyntaxKind.ArrayInitializerSyntax(): {
+			return 2;
+		}
+		case SyntaxKind.ArrayStructInitializerSyntax(): {
+			return 3;
+		}
+		case SyntaxKind.ArrayTypeSyntax(): {
+			return 4;
+		}
+		case SyntaxKind.AssignmentStatementSyntax(): {
+			return 5;
+		}
+		case SyntaxKind.AsyncRuntimeSyntax(): {
+			return 6;
+		}
+		case SyntaxKind.AwaitExpressionSyntax(): {
+			return 7;
+		}
+		case SyntaxKind.AwaitStatementSyntax(): {
+			return 8;
+		}
+		case SyntaxKind.BinaryExpressionSyntax(): {
+			return 9;
+		}
+		case SyntaxKind.BlockStatementSyntax(): {
+			return 10;
+		}
+		case SyntaxKind.BooleanLiteralExpressionSyntax(): {
+			return 11;
+		}
+		case SyntaxKind.BreakStatementSyntax(): {
+			return 12;
+		}
+		case SyntaxKind.BufferAllocationSyntax(): {
+			return 13;
+		}
+		case SyntaxKind.CCodeEntrySyntax(): {
+			return 14;
+		}
+		case SyntaxKind.CallExpressionSyntax(): {
+			return 15;
+		}
+		case SyntaxKind.CallStatementSyntax(): {
+			return 16;
+		}
+		case SyntaxKind.CallableChannelTypeSyntax(): {
+			return 17;
+		}
+		case SyntaxKind.CallerInformationSyntax(): {
+			return 18;
+		}
+		case SyntaxKind.CatchClauseSyntax(): {
+			return 19;
+		}
+		case SyntaxKind.ClassDeclarationSyntax(): {
+			return 20;
+		}
+		case SyntaxKind.ComImportSyntax(): {
+			return 21;
+		}
+		case SyntaxKind.ComparisonChainSyntax(): {
+			return 22;
+		}
+		case SyntaxKind.CompilationUnitSyntax(): {
+			return 23;
+		}
+		case SyntaxKind.ConstantDeclarationSyntax(): {
+			return 24;
+		}
+		case SyntaxKind.ConstructorInitializerSyntax(): {
+			return 25;
+		}
+		case SyntaxKind.ContinueStatementSyntax(): {
+			return 26;
+		}
+		case SyntaxKind.ConversionExpressionSyntax(): {
+			return 27;
+		}
+		case SyntaxKind.DereferenceAssignmentSyntax(): {
+			return 28;
+		}
+		case SyntaxKind.DereferenceExpressionSyntax(): {
+			return 29;
+		}
+		case SyntaxKind.DspExpressionSyntax(): {
+			return 30;
+		}
+		case SyntaxKind.EnumArmSyntax(): {
+			return 31;
+		}
+		case SyntaxKind.EnumBindingSyntax(): {
+			return 32;
+		}
+		case SyntaxKind.EnumDeclarationSyntax(): {
+			return 33;
+		}
+		case SyntaxKind.EnumPayloadSyntax(): {
+			return 34;
+		}
+		case SyntaxKind.EnumVariantSyntax(): {
+			return 35;
+		}
+		case SyntaxKind.ExpressionSyntax(): {
+			return 36;
+		}
+		case SyntaxKind.FieldAccessExpressionSyntax(): {
+			return 37;
+		}
+		case SyntaxKind.FieldAssignmentStatementSyntax(): {
+			return 38;
+		}
+		case SyntaxKind.FieldInitializerSyntax(): {
+			return 39;
+		}
+		case SyntaxKind.FloatLiteralExpressionSyntax(): {
+			return 40;
+		}
+		case SyntaxKind.ForStatementSyntax(): {
+			return 41;
+		}
+		case SyntaxKind.ForeachStatementSyntax(): {
+			return 42;
+		}
+		case SyntaxKind.ForeignPolicySyntax(): {
+			return 43;
+		}
+		case SyntaxKind.FunctionDeclarationSyntax(): {
+			return 44;
+		}
+		case SyntaxKind.GenericTypeApplicationSyntax(): {
+			return 45;
+		}
+		case SyntaxKind.HeapObjectConstructionSyntax(): {
+			return 46;
+		}
+		case SyntaxKind.IfStatementSyntax(): {
+			return 47;
+		}
+		case SyntaxKind.IndexExpressionSyntax(): {
+			return 48;
+		}
+		case SyntaxKind.IndexedAssignmentSyntax(): {
+			return 49;
+		}
+		case SyntaxKind.InferredLocalDeclarationSyntax(): {
+			return 50;
+		}
+		case SyntaxKind.IntegerLiteralExpressionSyntax(): {
+			return 51;
+		}
+		case SyntaxKind.LifecycleDeclarationSyntax(): {
+			return 52;
+		}
+		case SyntaxKind.LocalDeclarationSyntax(): {
+			return 53;
+		}
+		case SyntaxKind.MatchStatementSyntax(): {
+			return 54;
+		}
+		case SyntaxKind.MoveExpressionSyntax(): {
+			return 55;
+		}
+		case SyntaxKind.NameExpressionSyntax(): {
+			return 56;
+		}
+		case SyntaxKind.NativeInstanceDeclarationSyntax(): {
+			return 57;
+		}
+		case SyntaxKind.NonNullTypeSyntax(): {
+			return 58;
+		}
+		case SyntaxKind.NullPointerExpressionSyntax(): {
+			return 59;
+		}
+		case SyntaxKind.OwnerSlotsTypeSyntax(): {
+			return 60;
+		}
+		case SyntaxKind.ParameterSyntax(): {
+			return 61;
+		}
+		case SyntaxKind.ParenthesizedExpressionSyntax(): {
+			return 62;
+		}
+		case SyntaxKind.PointerTypeSyntax(): {
+			return 63;
+		}
+		case SyntaxKind.PrefixExpressionSyntax(): {
+			return 64;
+		}
+		case SyntaxKind.PropertyAccessorSyntax(): {
+			return 65;
+		}
+		case SyntaxKind.PropertyDeclarationSyntax(): {
+			return 66;
+		}
+		case SyntaxKind.ReleaseStatementSyntax(): {
+			return 67;
+		}
+		case SyntaxKind.ReturnStatementSyntax(): {
+			return 68;
+		}
+		case SyntaxKind.SharedTypeSyntax(): {
+			return 69;
+		}
+		case SyntaxKind.ShortCircuitExpressionSyntax(): {
+			return 70;
+		}
+		case SyntaxKind.SliceTypeSyntax(): {
+			return 71;
+		}
+		case SyntaxKind.StatementSyntax(): {
+			return 72;
+		}
+		case SyntaxKind.StructDeclarationSyntax(): {
+			return 73;
+		}
+		case SyntaxKind.StructFieldDeclarationSyntax(): {
+			return 74;
+		}
+		case SyntaxKind.StructInitializerSyntax(): {
+			return 75;
+		}
+		case SyntaxKind.StructLocalDeclarationSyntax(): {
+			return 76;
+		}
+		case SyntaxKind.SwapStatementSyntax(): {
+			return 77;
+		}
+		case SyntaxKind.SyntaxNode(): {
+			return 78;
+		}
+		case SyntaxKind.TextLiteralExpressionSyntax(): {
+			return 79;
+		}
+		case SyntaxKind.TextMemberExpressionSyntax(): {
+			return 80;
+		}
+		case SyntaxKind.ThrowStatementSyntax(): {
+			return 81;
+		}
+		case SyntaxKind.TryStatementSyntax(): {
+			return 82;
+		}
+		case SyntaxKind.TypeNameSyntax(): {
+			return 83;
+		}
+		case SyntaxKind.Utf8FactoryExpressionSyntax(): {
+			return 84;
+		}
+		case SyntaxKind.VectorDotExpressionSyntax(): {
+			return 85;
+		}
+		case SyntaxKind.VectorExtractExpressionSyntax(): {
+			return 86;
+		}
+		case SyntaxKind.VectorInitializerSyntax(): {
+			return 87;
+		}
+		case SyntaxKind.VectorPrimitiveExpressionSyntax(): {
+			return 88;
+		}
+		case SyntaxKind.VectorReductionExpressionSyntax(): {
+			return 89;
+		}
+		case SyntaxKind.VectorTypeSyntax(): {
+			return 90;
+		}
+		case SyntaxKind.WhereClauseSyntax(): {
+			return 91;
+		}
+		case SyntaxKind.WhileStatementSyntax(): {
+			return 92;
+		}
+		case SyntaxKind.WithStatementSyntax(): {
+			return 93;
+		}
+	}
+}
+SyntaxKind syntax_kind_from_code(int code) {
+	if (code == 1) {
+		return SyntaxKind.AddressOfExpressionSyntax();
+	}
+	if (code == 2) {
+		return SyntaxKind.ArrayInitializerSyntax();
+	}
+	if (code == 3) {
+		return SyntaxKind.ArrayStructInitializerSyntax();
+	}
+	if (code == 4) {
+		return SyntaxKind.ArrayTypeSyntax();
+	}
+	if (code == 5) {
+		return SyntaxKind.AssignmentStatementSyntax();
+	}
+	if (code == 6) {
+		return SyntaxKind.AsyncRuntimeSyntax();
+	}
+	if (code == 7) {
+		return SyntaxKind.AwaitExpressionSyntax();
+	}
+	if (code == 8) {
+		return SyntaxKind.AwaitStatementSyntax();
+	}
+	if (code == 9) {
+		return SyntaxKind.BinaryExpressionSyntax();
+	}
+	if (code == 10) {
+		return SyntaxKind.BlockStatementSyntax();
+	}
+	if (code == 11) {
+		return SyntaxKind.BooleanLiteralExpressionSyntax();
+	}
+	if (code == 12) {
+		return SyntaxKind.BreakStatementSyntax();
+	}
+	if (code == 13) {
+		return SyntaxKind.BufferAllocationSyntax();
+	}
+	if (code == 14) {
+		return SyntaxKind.CCodeEntrySyntax();
+	}
+	if (code == 15) {
+		return SyntaxKind.CallExpressionSyntax();
+	}
+	if (code == 16) {
+		return SyntaxKind.CallStatementSyntax();
+	}
+	if (code == 17) {
+		return SyntaxKind.CallableChannelTypeSyntax();
+	}
+	if (code == 18) {
+		return SyntaxKind.CallerInformationSyntax();
+	}
+	if (code == 19) {
+		return SyntaxKind.CatchClauseSyntax();
+	}
+	if (code == 20) {
+		return SyntaxKind.ClassDeclarationSyntax();
+	}
+	if (code == 21) {
+		return SyntaxKind.ComImportSyntax();
+	}
+	if (code == 22) {
+		return SyntaxKind.ComparisonChainSyntax();
+	}
+	if (code == 23) {
+		return SyntaxKind.CompilationUnitSyntax();
+	}
+	if (code == 24) {
+		return SyntaxKind.ConstantDeclarationSyntax();
+	}
+	if (code == 25) {
+		return SyntaxKind.ConstructorInitializerSyntax();
+	}
+	if (code == 26) {
+		return SyntaxKind.ContinueStatementSyntax();
+	}
+	if (code == 27) {
+		return SyntaxKind.ConversionExpressionSyntax();
+	}
+	if (code == 28) {
+		return SyntaxKind.DereferenceAssignmentSyntax();
+	}
+	if (code == 29) {
+		return SyntaxKind.DereferenceExpressionSyntax();
+	}
+	if (code == 30) {
+		return SyntaxKind.DspExpressionSyntax();
+	}
+	if (code == 31) {
+		return SyntaxKind.EnumArmSyntax();
+	}
+	if (code == 32) {
+		return SyntaxKind.EnumBindingSyntax();
+	}
+	if (code == 33) {
+		return SyntaxKind.EnumDeclarationSyntax();
+	}
+	if (code == 34) {
+		return SyntaxKind.EnumPayloadSyntax();
+	}
+	if (code == 35) {
+		return SyntaxKind.EnumVariantSyntax();
+	}
+	if (code == 36) {
+		return SyntaxKind.ExpressionSyntax();
+	}
+	if (code == 37) {
+		return SyntaxKind.FieldAccessExpressionSyntax();
+	}
+	if (code == 38) {
+		return SyntaxKind.FieldAssignmentStatementSyntax();
+	}
+	if (code == 39) {
+		return SyntaxKind.FieldInitializerSyntax();
+	}
+	if (code == 40) {
+		return SyntaxKind.FloatLiteralExpressionSyntax();
+	}
+	if (code == 41) {
+		return SyntaxKind.ForStatementSyntax();
+	}
+	if (code == 42) {
+		return SyntaxKind.ForeachStatementSyntax();
+	}
+	if (code == 43) {
+		return SyntaxKind.ForeignPolicySyntax();
+	}
+	if (code == 44) {
+		return SyntaxKind.FunctionDeclarationSyntax();
+	}
+	if (code == 45) {
+		return SyntaxKind.GenericTypeApplicationSyntax();
+	}
+	if (code == 46) {
+		return SyntaxKind.HeapObjectConstructionSyntax();
+	}
+	if (code == 47) {
+		return SyntaxKind.IfStatementSyntax();
+	}
+	if (code == 48) {
+		return SyntaxKind.IndexExpressionSyntax();
+	}
+	if (code == 49) {
+		return SyntaxKind.IndexedAssignmentSyntax();
+	}
+	if (code == 50) {
+		return SyntaxKind.InferredLocalDeclarationSyntax();
+	}
+	if (code == 51) {
+		return SyntaxKind.IntegerLiteralExpressionSyntax();
+	}
+	if (code == 52) {
+		return SyntaxKind.LifecycleDeclarationSyntax();
+	}
+	if (code == 53) {
+		return SyntaxKind.LocalDeclarationSyntax();
+	}
+	if (code == 54) {
+		return SyntaxKind.MatchStatementSyntax();
+	}
+	if (code == 55) {
+		return SyntaxKind.MoveExpressionSyntax();
+	}
+	if (code == 56) {
+		return SyntaxKind.NameExpressionSyntax();
+	}
+	if (code == 57) {
+		return SyntaxKind.NativeInstanceDeclarationSyntax();
+	}
+	if (code == 58) {
+		return SyntaxKind.NonNullTypeSyntax();
+	}
+	if (code == 59) {
+		return SyntaxKind.NullPointerExpressionSyntax();
+	}
+	if (code == 60) {
+		return SyntaxKind.OwnerSlotsTypeSyntax();
+	}
+	if (code == 61) {
+		return SyntaxKind.ParameterSyntax();
+	}
+	if (code == 62) {
+		return SyntaxKind.ParenthesizedExpressionSyntax();
+	}
+	if (code == 63) {
+		return SyntaxKind.PointerTypeSyntax();
+	}
+	if (code == 64) {
+		return SyntaxKind.PrefixExpressionSyntax();
+	}
+	if (code == 65) {
+		return SyntaxKind.PropertyAccessorSyntax();
+	}
+	if (code == 66) {
+		return SyntaxKind.PropertyDeclarationSyntax();
+	}
+	if (code == 67) {
+		return SyntaxKind.ReleaseStatementSyntax();
+	}
+	if (code == 68) {
+		return SyntaxKind.ReturnStatementSyntax();
+	}
+	if (code == 69) {
+		return SyntaxKind.SharedTypeSyntax();
+	}
+	if (code == 70) {
+		return SyntaxKind.ShortCircuitExpressionSyntax();
+	}
+	if (code == 71) {
+		return SyntaxKind.SliceTypeSyntax();
+	}
+	if (code == 72) {
+		return SyntaxKind.StatementSyntax();
+	}
+	if (code == 73) {
+		return SyntaxKind.StructDeclarationSyntax();
+	}
+	if (code == 74) {
+		return SyntaxKind.StructFieldDeclarationSyntax();
+	}
+	if (code == 75) {
+		return SyntaxKind.StructInitializerSyntax();
+	}
+	if (code == 76) {
+		return SyntaxKind.StructLocalDeclarationSyntax();
+	}
+	if (code == 77) {
+		return SyntaxKind.SwapStatementSyntax();
+	}
+	if (code == 78) {
+		return SyntaxKind.SyntaxNode();
+	}
+	if (code == 79) {
+		return SyntaxKind.TextLiteralExpressionSyntax();
+	}
+	if (code == 80) {
+		return SyntaxKind.TextMemberExpressionSyntax();
+	}
+	if (code == 81) {
+		return SyntaxKind.ThrowStatementSyntax();
+	}
+	if (code == 82) {
+		return SyntaxKind.TryStatementSyntax();
+	}
+	if (code == 83) {
+		return SyntaxKind.TypeNameSyntax();
+	}
+	if (code == 84) {
+		return SyntaxKind.Utf8FactoryExpressionSyntax();
+	}
+	if (code == 85) {
+		return SyntaxKind.VectorDotExpressionSyntax();
+	}
+	if (code == 86) {
+		return SyntaxKind.VectorExtractExpressionSyntax();
+	}
+	if (code == 87) {
+		return SyntaxKind.VectorInitializerSyntax();
+	}
+	if (code == 88) {
+		return SyntaxKind.VectorPrimitiveExpressionSyntax();
+	}
+	if (code == 89) {
+		return SyntaxKind.VectorReductionExpressionSyntax();
+	}
+	if (code == 90) {
+		return SyntaxKind.VectorTypeSyntax();
+	}
+	if (code == 91) {
+		return SyntaxKind.WhereClauseSyntax();
+	}
+	if (code == 92) {
+		return SyntaxKind.WhileStatementSyntax();
+	}
+	if (code == 93) {
+		return SyntaxKind.WithStatementSyntax();
+	}
+	assert_that(false);
+	return SyntaxKind.AddressOfExpressionSyntax();
+}
+bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
+	if (actual == expected) {
+		return true;
+	}
+	match (actual) {
+		case SyntaxKind.AddressOfExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ArrayInitializerSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ArrayStructInitializerSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ArrayTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.AssignmentStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.AsyncRuntimeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.AwaitExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.AwaitStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.BinaryExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.BlockStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.BooleanLiteralExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.BreakStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.BufferAllocationSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.CCodeEntrySyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.CallExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.CallStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.CallableChannelTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.CallerInformationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.CatchClauseSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ClassDeclarationSyntax(): {
+			return expected == SyntaxKind.NativeInstanceDeclarationSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ComImportSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ComparisonChainSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.CompilationUnitSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ConstantDeclarationSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ConstructorInitializerSyntax(): {
+			return expected == SyntaxKind.CallExpressionSyntax() || expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ContinueStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ConversionExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.DereferenceAssignmentSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.DereferenceExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.DspExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.EnumArmSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.EnumBindingSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.EnumDeclarationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.EnumPayloadSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.EnumVariantSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ExpressionSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.FieldAccessExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.FieldAssignmentStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.FieldInitializerSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.FloatLiteralExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ForStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ForeachStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ForeignPolicySyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.FunctionDeclarationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.GenericTypeApplicationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.HeapObjectConstructionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.IfStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.IndexExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.IndexedAssignmentSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.InferredLocalDeclarationSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.IntegerLiteralExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.LifecycleDeclarationSyntax(): {
+			return expected == SyntaxKind.FunctionDeclarationSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.LocalDeclarationSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.MatchStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.MoveExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.NameExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.NativeInstanceDeclarationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.NonNullTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.NullPointerExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.OwnerSlotsTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.ParameterSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ParenthesizedExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.PointerTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.PrefixExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.PropertyAccessorSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.PropertyDeclarationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ReleaseStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ReturnStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.SharedTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.ShortCircuitExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.SliceTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.StatementSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.StructDeclarationSyntax(): {
+			return expected == SyntaxKind.NativeInstanceDeclarationSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.StructFieldDeclarationSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.StructInitializerSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.StructLocalDeclarationSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.SwapStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.SyntaxNode(): {
+			return false;
+		}
+		case SyntaxKind.TextLiteralExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.TextMemberExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.ThrowStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.TryStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.TypeNameSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.Utf8FactoryExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.VectorDotExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.VectorExtractExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.IndexExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.VectorInitializerSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.VectorPrimitiveExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.VectorReductionExpressionSyntax(): {
+			return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.VectorTypeSyntax(): {
+			return expected == SyntaxKind.SyntaxNode() || expected == SyntaxKind.TypeNameSyntax();
+		}
+		case SyntaxKind.WhereClauseSyntax(): {
+			return expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.WhileStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+		case SyntaxKind.WithStatementSyntax(): {
+			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
+		}
+	}
+}
+struct AddressOfExpressionSyntaxData {
+	SyntaxTokenId f_ampersand;
+	SyntaxTokenId f_identifier;
+}
+struct ArrayInitializerSyntaxData {
+	SyntaxListId f_elements;
+}
+struct ArrayStructInitializerSyntaxData {
+	SyntaxNodeId f_initializer;
+}
+struct ArrayTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxNodeId f_element_type;
+	SyntaxNodeId f_extent;
+}
+struct AssignmentStatementSyntaxData {
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_equals_token;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_semicolon;
+}
+struct AsyncRuntimeSyntaxData {
+	SyntaxTokenId f_provider;
+	SyntaxTokenId f_name;
+	SyntaxNodeId f_error;
+	SyntaxNodeId f_status;
+}
+struct AwaitExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_operation;
+}
+struct AwaitStatementSyntaxData {
+	SyntaxNodeId f_expression;
+}
+struct BinaryExpressionSyntaxData {
+	SyntaxNodeId f_left;
+	SyntaxTokenId f_operator_token;
+	SyntaxNodeId f_right;
+}
+struct BlockStatementSyntaxData {
+	SyntaxTokenId f_open_brace;
+	SyntaxListId f_statements;
+	SyntaxTokenId f_close_brace;
+}
+struct BooleanLiteralExpressionSyntaxData {
+	SyntaxTokenId f_literal;
+}
+struct BreakStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_semicolon;
+}
+struct BufferAllocationSyntaxData {
+	SyntaxNodeId f_allocation_context;
+	SyntaxNodeId f_element_type;
+	SyntaxNodeId f_count;
+	SyntaxNodeId f_failure_call;
+}
+struct CCodeEntrySyntaxData {
+	SyntaxTokenId f_key;
+	SyntaxTokenId f_value;
+	SyntaxTextId f_decoded_value;
+}
+struct CallExpressionSyntaxData {
+	bool f_signal_emission;
+	SyntaxListId f_qualifier_arguments;
+	SyntaxListId f_type_arguments;
+	SyntaxNodeId f_receiver_place;
+	SyntaxTokenId f_receiver;
+	SyntaxTokenId f_member_operator;
+	SyntaxTokenId f_identifier;
+	SyntaxTokenId f_open_paren;
+	SyntaxListId f_arguments;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+}
+struct CallStatementSyntaxData {
+	SyntaxNodeId f_call;
+	SyntaxTokenId f_semicolon;
+}
+struct CallableChannelTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_underlying;
+}
+struct CallerInformationSyntaxData {
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_target;
+}
+struct CatchClauseSyntaxData {
+	SyntaxNodeId f_class_name;
+	SyntaxTokenId f_binding;
+	SyntaxNodeId f_body;
+}
+struct ClassDeclarationSyntaxData {
+	SyntaxConcurrency f_concurrency_policy;
+	SyntaxListId f_allocator;
+	SyntaxListId f_alignment;
+	SyntaxListId f_representation;
+	SyntaxListId f_members;
+	SyntaxListId f_methods;
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_open_brace;
+	SyntaxListId f_fields;
+	SyntaxTokenId f_close_brace;
+	SyntaxListId f_where_clauses;
+	SyntaxNodeId f_foreign_import;
+	SyntaxNodeId f_foreign_export;
+	SyntaxNodeId f_com_export;
+	SyntaxNodeId f_gobject_export;
+	bool f_is_interface;
+	SyntaxListId f_type_parameters;
+	bool f_exact_heap_class;
+	SyntaxNodeId f_parent_class;
+	SyntaxTokenId f_exception_root;
+}
+struct ComImportSyntaxData {
+	SyntaxNodeId f_declaration;
+	SyntaxTokenId f_name;
+	SyntaxNodeId f_policy;
+}
+struct ComparisonChainSyntaxData {
+	SyntaxListId f_operands;
+	SyntaxListId f_operators;
+}
+struct CompilationUnitSyntaxData {
+	SyntaxListId f_c_classes;
+	SyntaxListId f_com_interfaces;
+	SyntaxTokenId f_namespace_name;
+	SyntaxListId f_imports;
+	SyntaxListId f_type_applications;
+	SyntaxListId f_async_runtimes;
+	SyntaxListId f_enums;
+	SyntaxListId f_constants;
+	SyntaxListId f_classes;
+	SyntaxListId f_functions;
+	SyntaxListId f_structs;
+	SyntaxTokenId f_end_of_file;
+}
+struct ConstantDeclarationSyntaxData {
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+	SyntaxNodeId f_initializer;
+}
+struct ConstructorInitializerSyntaxData {
+	bool f_signal_emission;
+	SyntaxListId f_qualifier_arguments;
+	SyntaxListId f_type_arguments;
+	SyntaxNodeId f_receiver_place;
+	SyntaxTokenId f_receiver;
+	SyntaxTokenId f_member_operator;
+	SyntaxTokenId f_identifier;
+	SyntaxTokenId f_open_paren;
+	SyntaxListId f_arguments;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+}
+struct ContinueStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_semicolon;
+}
+struct ConversionExpressionSyntaxData {
+	SyntaxNodeId f_operand;
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_destination;
+}
+struct DereferenceAssignmentSyntaxData {
+	SyntaxNodeId f_target;
+	SyntaxNodeId f_expression;
+}
+struct DereferenceExpressionSyntaxData {
+	SyntaxTokenId f_star;
+	SyntaxNodeId f_pointer;
+}
+struct DspExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxNodeId f_first;
+	SyntaxNodeId f_second;
+	SyntaxNodeId f_destination;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+}
+struct EnumArmSyntaxData {
+	SyntaxListId f_type_arguments;
+	SyntaxTokenId f_qualifier;
+	SyntaxTokenId f_variant;
+	SyntaxListId f_bindings;
+	SyntaxNodeId f_body;
+}
+struct EnumBindingSyntaxData {
+	SyntaxTokenId f_field;
+	SyntaxTokenId f_binding;
+}
+struct EnumDeclarationSyntaxData {
+	SyntaxListId f_type_parameters;
+	SyntaxTokenId f_name;
+	SyntaxListId f_variants;
+}
+struct EnumPayloadSyntaxData {
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+}
+struct EnumVariantSyntaxData {
+	SyntaxTokenId f_name;
+	SyntaxListId f_fields;
+}
+struct FieldAccessExpressionSyntaxData {
+	SyntaxTokenId f_identifier;
+	SyntaxTokenId f_dot;
+	SyntaxTokenId f_field_name;
+	SyntaxNodeId f_aggregate;
+}
+struct FieldAssignmentStatementSyntaxData {
+	SyntaxNodeId f_target;
+	SyntaxTokenId f_equals_token;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_semicolon;
+}
+struct FieldInitializerSyntaxData {
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_equals_token;
+	SyntaxNodeId f_expression;
+	SyntaxNodeId f_initializer;
+}
+struct FloatLiteralExpressionSyntaxData {
+	SyntaxTokenId f_literal;
+}
+struct ForStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_initializer;
+	SyntaxNodeId f_condition;
+	SyntaxNodeId f_step;
+	SyntaxNodeId f_body;
+}
+struct ForeachStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_binding;
+	SyntaxNodeId f_collection;
+	SyntaxNodeId f_body;
+}
+struct ForeignPolicySyntaxData {
+	int f_kind;
+	SyntaxTokenId f_name;
+	SyntaxListId f_entries;
+}
+struct FunctionDeclarationSyntaxData {
+	bool f_is_signal;
+	SyntaxNodeId f_foreign_policy;
+	bool f_utf8_factory;
+	SyntaxTokenId f_async_keyword;
+	int f_dispatch;
+	SyntaxNodeId f_throws_class;
+	SyntaxListId f_ccode;
+	SyntaxListId f_floating_point;
+	SyntaxListId f_where_clauses;
+	SyntaxListId f_type_parameters;
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_return_type;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_open_paren;
+	SyntaxListId f_parameters;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+	SyntaxNodeId f_body;
+	SyntaxTokenId f_extern_keyword;
+	SyntaxTokenId f_export_keyword;
+	SyntaxTokenId f_abi_identifier;
+	SyntaxTokenId f_semicolon;
+}
+struct GenericTypeApplicationSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxListId f_type_arguments;
+}
+struct HeapObjectConstructionSyntaxData {
+	SyntaxNodeId f_allocation_context;
+	bool f_fallible;
+	SyntaxNodeId f_class_name;
+	SyntaxListId f_arguments;
+}
+struct IfStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxNodeId f_condition;
+	SyntaxTokenId f_close_paren;
+	SyntaxNodeId f_then_body;
+	SyntaxTokenId f_else_keyword;
+	SyntaxNodeId f_else_body;
+}
+struct IndexExpressionSyntaxData {
+	SyntaxNodeId f_container;
+	SyntaxNodeId f_subscript;
+	SyntaxTokenId f_close;
+}
+struct IndexedAssignmentSyntaxData {
+	SyntaxNodeId f_target;
+	SyntaxNodeId f_expression;
+}
+struct InferredLocalDeclarationSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_equals_token;
+	SyntaxNodeId f_initializer;
+	SyntaxTokenId f_semicolon;
+}
+struct IntegerLiteralExpressionSyntaxData {
+	SyntaxTokenId f_literal;
+}
+struct LifecycleDeclarationSyntaxData {
+	bool f_is_signal;
+	SyntaxNodeId f_foreign_policy;
+	bool f_utf8_factory;
+	SyntaxTokenId f_async_keyword;
+	int f_dispatch;
+	SyntaxNodeId f_throws_class;
+	SyntaxListId f_ccode;
+	SyntaxListId f_floating_point;
+	SyntaxListId f_where_clauses;
+	SyntaxListId f_type_parameters;
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_return_type;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_open_paren;
+	SyntaxListId f_parameters;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+	SyntaxNodeId f_body;
+	SyntaxTokenId f_extern_keyword;
+	SyntaxTokenId f_export_keyword;
+	SyntaxTokenId f_abi_identifier;
+	SyntaxTokenId f_semicolon;
+	SyntaxListId f_base_arguments;
+}
+struct LocalDeclarationSyntaxData {
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_equals_token;
+	SyntaxNodeId f_initializer;
+	SyntaxTokenId f_semicolon;
+}
+struct MatchStatementSyntaxData {
+	SyntaxNodeId f_scrutinee;
+	SyntaxListId f_arms;
+}
+struct MoveExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_source;
+	SyntaxListId f_fields;
+}
+struct NameExpressionSyntaxData {
+	SyntaxTokenId f_identifier;
+}
+struct NonNullTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_underlying;
+}
+struct NullPointerExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+}
+struct OwnerSlotsTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxNodeId f_element;
+	SyntaxTokenId f_marker;
+	SyntaxTokenId f_close;
+}
+struct ParameterSyntaxData {
+	SyntaxNodeId f_caller_information;
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_borrowed_keyword;
+	SyntaxTokenId f_owned_keyword;
+}
+struct ParenthesizedExpressionSyntaxData {
+	SyntaxTokenId f_open_paren;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_close_paren;
+}
+struct PointerTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxNodeId f_pointee;
+	SyntaxTokenId f_star;
+}
+struct PrefixExpressionSyntaxData {
+	SyntaxTokenId f_operator_token;
+	SyntaxNodeId f_operand;
+}
+struct PropertyAccessorSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_parameter;
+	SyntaxNodeId f_body;
+}
+struct PropertyDeclarationSyntaxData {
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_factory_syntax;
+	bool f_is_borrowed;
+	SyntaxTokenId f_lazy_keyword;
+	SyntaxNodeId f_throws_class;
+	int f_dispatch;
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+	SyntaxNodeId f_getter;
+	SyntaxNodeId f_setter;
+}
+struct ReleaseStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_owner;
+	SyntaxTokenId f_semicolon;
+}
+struct ReturnStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_semicolon;
+}
+struct SharedTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxTokenId f_keyword;
+	SyntaxNodeId f_payload;
+}
+struct ShortCircuitExpressionSyntaxData {
+	SyntaxNodeId f_left;
+	SyntaxTokenId f_operator_token;
+	SyntaxNodeId f_right;
+}
+struct SliceTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxNodeId f_element_type;
+}
+struct StructDeclarationSyntaxData {
+	SyntaxConcurrency f_concurrency_policy;
+	SyntaxListId f_allocator;
+	SyntaxListId f_alignment;
+	SyntaxListId f_representation;
+	SyntaxListId f_members;
+	SyntaxListId f_methods;
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_open_brace;
+	SyntaxListId f_fields;
+	SyntaxTokenId f_close_brace;
+	SyntaxListId f_where_clauses;
+	SyntaxListId f_type_parameters;
+}
+struct StructFieldDeclarationSyntaxData {
+	SyntaxTokenId f_private_keyword;
+	SyntaxTokenId f_readonly_keyword;
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_semicolon;
+}
+struct StructInitializerSyntaxData {
+	SyntaxTokenId f_open_brace;
+	SyntaxListId f_fields;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_brace;
+}
+struct StructLocalDeclarationSyntaxData {
+	SyntaxTokenId f_owned_keyword;
+	SyntaxNodeId f_type_name;
+	SyntaxTokenId f_name;
+	SyntaxTokenId f_equals_token;
+	SyntaxNodeId f_initializer;
+	SyntaxTokenId f_semicolon;
+}
+struct SwapStatementSyntaxData {
+	SyntaxNodeId f_left;
+	SyntaxNodeId f_right;
+}
+struct TextLiteralExpressionSyntaxData {
+	SyntaxTokenId f_token;
+}
+struct TextMemberExpressionSyntaxData {
+	SyntaxNodeId f_receiver;
+	SyntaxTokenId f_member;
+}
+struct ThrowStatementSyntaxData {
+	SyntaxNodeId f_expression;
+}
+struct TryStatementSyntaxData {
+	SyntaxNodeId f_body;
+	SyntaxListId f_catches;
+}
+struct TypeNameSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+}
+struct Utf8FactoryExpressionSyntaxData {
+	bool f_validates;
+	SyntaxTokenId f_input;
+}
+struct VectorDotExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxListId f_operands;
+	SyntaxNodeId f_destination;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+}
+struct VectorExtractExpressionSyntaxData {
+	SyntaxNodeId f_container;
+	SyntaxNodeId f_subscript;
+	SyntaxTokenId f_close;
+	SyntaxNodeId f_vector;
+	SyntaxTokenId f_open_bracket;
+	SyntaxTokenId f_index;
+	SyntaxTokenId f_close_bracket;
+}
+struct VectorInitializerSyntaxData {
+	SyntaxTokenId f_open_brace;
+	SyntaxListId f_lanes;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_brace;
+}
+struct VectorPrimitiveExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxListId f_operands;
+	SyntaxListId f_indices;
+	SyntaxListId f_commas;
+	SyntaxTokenId f_close_paren;
+}
+struct VectorReductionExpressionSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxNodeId f_operand;
+	SyntaxTokenId f_close_paren;
+}
+struct VectorTypeSyntaxData {
+	SyntaxTokenId f_namespace_qualifier;
+	SyntaxTokenId f_identifier;
+	SyntaxListId f_stars;
+	SyntaxNodeId f_element_type;
+	SyntaxTokenId f_open_angle;
+	SyntaxTokenId f_lane_count;
+	SyntaxTokenId f_close_angle;
+}
+struct WhereClauseSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_type_parameter;
+	SyntaxTokenId f_colon;
+	SyntaxListId f_capabilities;
+	SyntaxListId f_commas;
+}
+struct WhileStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxNodeId f_condition;
+	SyntaxTokenId f_close_paren;
+	SyntaxNodeId f_body;
+}
+struct WithStatementSyntaxData {
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_receiver;
+	SyntaxNodeId f_initializer;
+	SyntaxNodeId f_body;
+}

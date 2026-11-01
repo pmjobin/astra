@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int syntax_grown_capacity(int capacity, int needed) {
+	assert_that(needed >= 0 && capacity >= 0);
+	int grown = capacity;
+	if (grown == 0) {
+		grown = 4;
+	}
+	while (grown < needed) {
+		if (grown > 1073741823) {
+			grown = 2147483647;
+		} else {
+			grown = grown * 2;
+		}
+	}
+	return grown;
+}
+// -1 denotes a token list, otherwise the element tag is a SyntaxKind code.
+// No list stores owners or pointers to node payloads.
+class SyntaxList {
+	private int element_code;
+	private owned int[] items;
+	private int used;
+	init(int element_code) {
+		this.element_code = element_code;
+		this.items = new int[0];
+		this.used = 0;
+	}
+	property int count {
+		get {
+			return this.used;
+		}
+	}
+	property int element {
+		get {
+			return this.element_code;
+		}
+	}
+	int at(int index) {
+		assert_that(index >= 0 && index < this.used);
+		return this.items[index];
+	}
+	void append(int value) {
+		assert_that(value > 0 && this.used < 2147483647);
+		if (this.used == len(this.items)) {
+			var replacement = new int[syntax_grown_capacity(len(this.items), this.used + 1)];
+			int i = 0;
+			while (i < this.used) {
+				replacement[i] = this.items[i];
+				i = i + 1;
+			}
+			swap(this.items, replacement);
+		}
+		this.items[this.used] = value;
+		this.used = this.used + 1;
+	}
+	void replace(int index, int value) {
+		assert_that(index >= 0 && index < this.used && value > 0);
+		this.items[index] = value;
+	}
+}
+int syntax_list_count(borrowed SyntaxList values) {
+	return values.count;
+}
+int syntax_list_element(borrowed SyntaxList values) {
+	return values.element;
+}
+int syntax_list_at(borrowed SyntaxList values, int index) {
+	return values.at(index);
+}
+void syntax_list_append(borrowed SyntaxList values, int value) {
+	values.append(value);
+}
+void syntax_list_replace(borrowed SyntaxList values, int index, int value) {
+	values.replace(index, value);
+}
+int syntax_token_code(borrowed Token token) {
+	return token_kind_code(token.kind());
+}
+int syntax_token_start(borrowed Token token) {
+	return token.span.start;
+}
+int syntax_token_end(borrowed Token token) {
+	return token.span.end;
+}
+bool syntax_token_spelling_is(borrowed Token token, string text) {
+	return token.spelling.text == text;
+}
+void syntax_token_write_spelling(borrowed Token token, Utf8ByteBuilder output) {
+	source_append_text(output, token.spelling.text);
+}
+void syntax_token_write_payload(borrowed Token token, Utf8ByteBuilder output) {
+	source_append_text(output, token.payload.text);
+}
+bool syntax_token_source_is(borrowed Token token, borrowed SourceSpan span) {
+	return token.span.same_source(span);
+}
+void syntax_text_write(borrowed Utf8Message text, Utf8ByteBuilder output) {
+	source_append_text(output, text.text);
+}
+SyntaxSpan syntax_empty_span() {
+	SyntaxSourceId source = {index = 0};
+	SyntaxSpan span = {source = source, start = 0, end = 0};
+	return span;
+}
+SyntaxSpan syntax_span(SyntaxSourceId source, int first, int last) {
+	SyntaxSpan result = {source = source, start = first, end = last};
+	return result;
+}
+SyntaxSpan syntax_cover(SyntaxSpan first, SyntaxSpan last) {
+	assert_that(first.source.index == last.source.index && first.start <= last.end);
+	return syntax_span(first.source, first.start, last.end);
+}
+SyntaxConcurrency syntax_concurrency(int kinds) {
+	SyntaxConcurrency result = {present = true, kinds = kinds, admitted = kinds};
+	return result;
+}
+int syntax_max(int first, int last) {
+	if (first > last) {
+		return first;
+	}
+	return last;
+}
+void syntax_append_byte(Utf8ByteBuilder output, int value) {
+	u8[1] byte = {value as u8};
+	output.append_bytes(slice(byte));
+}

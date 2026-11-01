@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned shared SourceBuffer set_test_source(string path, int value) throws Error {
+	var bytes = new u8[1];
+	bytes[0] = value as u8;
+	var unique = source_buffer(path, move bytes, false);
+	var shared = shared_acquire(move unique);
+	return move shared;
+}
+void set_test_add(Vector<SourceEntry> entries, owned shared SourceBuffer source) {
+	if (entries.count() == entries.capacity()) {
+		assert_that(entries.reserve(entries.count() * 2 + 1));
+	}
+	var entry = new SourceEntry(move source);
+	assert_that(entries.append(move entry));
+}
+void set_test_scale(int count) throws Error {
+	assert_that(count > 0 && count <= 65536);
+	var entries = new Vector<SourceEntry>(count);
+	int i = count;
+	while (i > 0) {
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "set/");
+		append_int(output, i);
+		var path = output.snapshot();
+		var source = set_test_source(path.text, i % 256);
+		set_test_add(entries, move source);
+		i = i - 1;
+	}
+	var sources = source_set(move entries);
+	assert_that(sources.count == count);
+	i = 1;
+	while (i < count) {
+		var first = sources.source(i - 1);
+		var second = sources.source(i);
+		var a = source_path(shared_borrow(first));
+		var b = source_path(shared_borrow(second));
+		assert_that(source_path_compare(a, b) < 0);
+		i = i + 1;
+	}
+	println("SOURCE_SET_SCALE_OK");
+}
+int main(string[] args) {
+	try {
+		if (len(args) == 3 && args[1] == "--scale") {
+			set_test_scale(parse_int(args[2]));
+			return 0;
+		}
+		var first = set_test_source("./z//item", 122);
+		var second = set_test_source("a/item", 97);
+		var entries = new Vector<SourceEntry>(2);
+		if (len(args) > 1 && args[1] == "--empty") {
+			var empty = source_set(move entries);
+			return 91;
+		}
+		var second_owner = shared_clone(second);
+		set_test_add(entries, move second_owner);
+		var first_owner = shared_clone(first);
+		set_test_add(entries, move first_owner);
+		if (len(args) > 1 && args[1] == "--duplicate") {
+			var duplicate = set_test_source("a/./item", 100);
+			set_test_add(entries, move duplicate);
+		}
+		var sources = source_set(move entries);
+		assert_that(sources.count == 2);
+		var a = sources.source(0);
+		var z = sources.source(1);
+		assert_that(source_same_handles(a, second));
+		assert_that(source_same_handles(z, first));
+		var survivor = sources.source(0);
+		release sources;
+		release first;
+		release second;
+		release a;
+		release z;
+		var path = source_path(shared_borrow(survivor));
+		assert_that(path.text == "a/item");
+		var bytes = source_bytes(shared_borrow(survivor), 0, 1);
+		assert_that(bytes[0] == 97 as u8);
+		println("SOURCE_SET_OK");
+		return 0;
+	} catch (DuplicateSourceInput error) {
+		println(error.message);
+		return 2;
+	} catch (Error error) {
+		println(error.message);
+		return 1;
+	}
+}

@@ -13,8 +13,11 @@ location. Invalid UTF-8 reports the leading byte of the first malformed sequence
 
 Path normalization removes empty and `.` components, preserves `..`, case and
 Unicode bytes, and performs no filesystem access or symlink resolution.
-`source-set.astra` owns, sorts and deduplicates normalized path snapshots by UTF-8
-byte order. It uses a simple selection sort for this initial facade.
+`source-set.astra` owns normalized path snapshots and retains actual source
+objects in `SourceSet`. A stable bottom-up merge sort orders indices by UTF-8
+bytes without moving source owners. Sorting takes O(n log n) comparisons;
+retrieving a sorted source takes constant time and returns an explicit Shared
+clone of the original object. Equal content does not merge object identities.
 Source identity uses the existing typed borrowed Class comparison described in
 [shared identity](../../docs/language/shared-identity.md), independently of paths.
 `cover` retains its source once for the new span; comparison acquires no owners.
@@ -26,11 +29,16 @@ snapshots, and invalid byte/range/cover requests throw `SourceBoundsError` where
 the Vala reference asserts. The span constructor still asserts valid bounds.
 The native-interface input flag is retained. File loading is a caller primitive.
 
-The `SourceSet.files` object collection, nonempty-set constructor policy and
-path-bearing duplicate error text remain unported; the facade returns normalized
-paths and a typed duplicate error. No SourceSet IDs or global source registry are
-introduced. Lexer/parser callers and their diagnostic integration are next;
-semantic analysis, IR, native-unit interfaces and LLVM lowering remain Vala.
+Construct a set with `source_set(move entries)`, where each `SourceEntry` owns
+one Shared source handle. The constructor asserts a nonempty collection, sorts
+it, and throws `DuplicateSourceInput` with the reference path-bearing message.
+The separate `source_canonical_paths` facade retains its empty-list behavior.
+Neither operation resolves symlinks, removes `..`, or merges physical files.
+The synchronous indexed-inspection API returns copied values only; an explicit
+output collector acquires source clones without returning a borrowed element.
+Temporary path keys and collectors do not become additional persistent source
+owners. Parser/AST integration is described in the [syntax component](../syntax/README.md).
+Semantic analysis, IR, native-unit interfaces and LLVM lowering remain Vala.
 
 Run the component with an explicit compiler and external output directories:
 

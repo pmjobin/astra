@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SyntaxStringVariable {
+	owned Utf8Message value;
+	init(owned Utf8Message value) {
+		this.value = move value;
+	}
+}
+owned Utf8Message syntax_integer_message(int value) throws Error {
+	var output = new Utf8ByteBuilder();
+	append_int(output, value);
+	var result = output.snapshot();
+	return move result;
+}
+owned Utf8Message syntax_format_one(string format, string value) throws Error {
+	var output = new Utf8ByteBuilder();
+	int i = 0;
+	while (i < format.byte_length) {
+		int byte = astra_host_text_byte(format, i);
+		if (byte == 37 && i + 1 < format.byte_length && astra_host_text_byte(format, i + 1) == 115) {
+			source_append_text(output, value);
+			i = i + 2;
+		} else {
+			syntax_append_byte(output, byte);
+			i = i + 1;
+		}
+	}
+	var result = output.snapshot();
+	return move result;
+}
+owned Utf8Message syntax_escape(string value) throws Error {
+	var output = new Utf8ByteBuilder();
+	int i = 0;
+	while (i < value.byte_length) {
+		int byte = astra_host_text_byte(value, i);
+		if (byte == 8) {
+			source_append_text(output, "\\b");
+		} else {
+			if (byte == 12) {
+				source_append_text(output, "\\f");
+			} else {
+				if (byte == 10) {
+					source_append_text(output, "\\n");
+				} else {
+					if (byte == 13) {
+						source_append_text(output, "\\r");
+					} else {
+						if (byte == 9) {
+							source_append_text(output, "\\t");
+						} else {
+							if (byte == 11) {
+								source_append_text(output, "\\v");
+							} else {
+								if (byte == 34 || byte == 92) {
+									syntax_append_byte(output, 92);
+									syntax_append_byte(output, byte);
+								} else {
+									if (byte < 32 || byte >= 127) {
+										u8[4] octal = {92, (48 + byte / 64) as u8, (48 + byte / 8 % 8) as u8, (48 + byte % 8) as u8};
+										output.append_bytes(slice(octal));
+									} else {
+										syntax_append_byte(output, byte);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		i = i + 1;
+	}
+	var result = output.snapshot();
+	return move result;
+}
+int syntax_token_payload_length(borrowed Token token) {
+	return token.payload.text.byte_length;
+}
+void syntax_write_hex(Utf8ByteBuilder output, string value) {
+	string digits = "0123456789abcdef";
+	int i = 0;
+	while (i < value.byte_length) {
+		int byte = astra_host_text_byte(value, i);
+		u8[2] pair = {astra_host_text_byte(digits, byte / 16) as u8, astra_host_text_byte(digits, byte % 16) as u8};
+		output.append_bytes(slice(pair));
+		i = i + 1;
+	}
+}
+void syntax_token_payload_hex(borrowed Token token, Utf8ByteBuilder output) {
+	syntax_write_hex(output, token.payload.text);
+}
+SyntaxListId syntax_unit_native_instances(SyntaxArena arena, SyntaxNodeId unit, bool include_generic) {
+	var result = arena.new_list(syntax_kind_code(SyntaxKind.NativeInstanceDeclarationSyntax()));
+	var structures = arena.get_list_structs(unit);
+	int i = 0;
+	while (i < arena.list_count(structures)) {
+		var instance = arena.node_at(structures, i);
+		var parameters = arena.get_list_type_parameters(instance);
+		if (include_generic || arena.list_count(parameters) == 0) {
+			arena.append_node(result, instance);
+		}
+		i = i + 1;
+	}
+	var classes = arena.get_list_classes(unit);
+	i = 0;
+	while (i < arena.list_count(classes)) {
+		var instance = arena.node_at(classes, i);
+		var parameters = arena.get_list_type_parameters(instance);
+		if (include_generic || arena.list_count(parameters) == 0) {
+			arena.append_node(result, instance);
+		}
+		i = i + 1;
+	}
+	return result;
+}
