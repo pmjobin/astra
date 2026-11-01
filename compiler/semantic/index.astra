@@ -1,0 +1,1458 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// This owner retains the original typed program. All edges below are indices.
+class BindingIndex {
+	owned SyntaxProgram program;
+	owned BindingNames names;
+	private owned BindingSymbol[] symbols;
+	private owned BindingScope[] scopes;
+	private owned BindingReference[] references;
+	private owned BindingWork[] work;
+	private int work_count;
+	int symbol_count;
+	int scope_count;
+	int reference_count;
+	private owned ScopeId[] unit_scopes;
+	private owned SymbolId[] node_symbols;
+	private owned ScopeId[] node_scopes;
+	private owned bool[] visited;
+	private owned bool[] slot_counts;
+	SyntaxSpan error_span;
+	int error_message;
+	// A deterministic failure checkpoint exercises partially constructed owners.
+	int stop_after;
+	init(owned SyntaxProgram program, int stop_after) {
+		this.program = move program;
+		var names = new BindingNames();
+		this.names = move names;
+		this.symbols = new BindingSymbol[16];
+		this.scopes = new BindingScope[16];
+		this.references = new BindingReference[16];
+		this.work = new BindingWork[16];
+		this.work_count = 0;
+		this.symbol_count = 0;
+		this.scope_count = 0;
+		this.reference_count = 0;
+		this.unit_scopes = new ScopeId[this.program.arena.source_count + 1];
+		this.node_symbols = new SymbolId[this.program.arena.node_count + 1];
+		this.node_scopes = new ScopeId[this.program.arena.node_count + 1];
+		this.visited = new bool[this.program.arena.node_count + 1];
+		this.slot_counts = new bool[this.program.arena.node_count + 1];
+		this.error_span = syntax_empty_span();
+		this.error_message = 0;
+		this.stop_after = stop_after;
+	}
+	bool failed() {
+		return this.error_message != 0;
+	}
+	BindingSymbol symbol(SymbolId id) {
+		assert_that(id.index > 0 && id.index <= this.symbol_count);
+		return this.symbols[id.index - 1];
+	}
+	BindingScope scope(ScopeId id) {
+		assert_that(id.index > 0 && id.index <= this.scope_count);
+		return this.scopes[id.index - 1];
+	}
+	BindingReference reference(int index) {
+		assert_that(index > 0 && index <= this.reference_count);
+		return this.references[index - 1];
+	}
+	ScopeId scope_for_node(SyntaxNodeId node) {
+		assert_that(node.index > 0 && node.index < len(this.node_scopes));
+		return this.node_scopes[node.index];
+	}
+	void fail(SyntaxSpan span, string message) throws Error {
+		if (!this.failed()) {
+			this.error_span = span;
+			this.error_message = this.names.intern(message);
+		}
+	}
+	void duplicate(SyntaxSpan span, string message, SymbolId previous) throws Error {
+		var old = this.symbol(previous);
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, message);
+		if (span.source.index != old.span.source.index) {
+			var previous_span = this.program.arena.source_span(old.span);
+			var location = previous_span.location();
+			var path = previous_span.path();
+			source_append_text(output, "\nprevious declaration: ");
+			source_append_text(output, path.text);
+			source_append_text(output, ":");
+			append_int(output, location.line);
+			source_append_text(output, ":");
+			append_int(output, location.column);
+		}
+		var text = output.snapshot();
+		this.fail(span, text.text);
+	}
+	ScopeId new_scope(ScopeId parent, SymbolId owner, SyntaxNodeId node, SyntaxNodeId unit, int kind, int namespace_name) {
+		if (this.scope_count == len(this.scopes)) {
+			var replacement = new BindingScope[syntax_grown_capacity(len(this.scopes), this.scope_count + 1)];
+			int i = 0;
+			while (i < this.scope_count) {
+				replacement[i] = this.scopes[i];
+				i = i + 1;
+			}
+			swap(this.scopes, replacement);
+		}
+		BindingScope record = {
+			parent = parent, owner = owner, node = node, unit = unit, kind = kind, namespace_name = namespace_name
+		};
+		this.scopes[this.scope_count] = record;
+		this.scope_count = this.scope_count + 1;
+		ScopeId result = {
+			index = this.scope_count
+		};
+		return result;
+	}
+	ScopeId child_scope(ScopeId parent, SymbolId owner, SyntaxNodeId node, int kind) {
+		var outer = this.scope(parent);
+		return this.new_scope(parent, owner, node, outer.unit, kind, outer.namespace_name);
+	}
+	SymbolId declaration(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
+		SymbolId absent = {
+			index = 0
+		};
+		if (this.failed() || token.index == 0) {
+			return absent;
+		}
+		var span = this.program.arena.token_span(token);
+		var name = this.program.arena.token_message(token);
+		if (name.text.byte_length == 0 || span.start == span.end || !this.program.arena.valid_span(span)) {
+			this.fail(span, "empty or malformed declaration");
+			return absent;
+		}
+		var context = this.scope(scope);
+		var canonical = this.canonical_name(scope, owner, global, name.text);
+		int map_scope = scope.index;
+		if (global) {
+			map_scope = 0;
+		}
+		var lookup_name = binding_lookup_name(name.text, canonical.text, global);
+		var key = binding_key(map_scope, domain, lookup_name.text);
+		SymbolId previous = {
+			index = this.names.get(key.text)
+		};
+		// C0 forbids hiding active lexical locals or parameters, but permits
+		// equal names in sibling blocks. Global values are a separate layer.
+		if (kind == 7 || kind == 8 || kind == 15) {
+			previous = this.lexical(scope, name.text, domain);
+		}
+		if ((kind == 7 || kind == 8 || kind == 15) && previous.index == 0) {
+			var visible = this.resolve(scope, node, token, name.text, 2);
+			if (visible.state_code == 1) {
+				var selected = this.symbol(visible.target);
+				if (selected.kind == 2) {
+					previous = visible.target;
+				}
+			}
+		}
+		if (global && domain == 1 && binding_builtin(name.text)) {
+			var output = new Utf8ByteBuilder();
+			if (kind == 3) {
+				source_append_text(output, "struct name '");
+			} else {
+				source_append_text(output, "class name '");
+			}
+			source_append_text(output, canonical.text);
+			source_append_text(output, "' conflicts with builtin type");
+			var message = output.snapshot();
+			this.fail(span, message.text);
+			return absent;
+		}
+		if (previous.index != 0 && domain == 4 && kind != 16) {
+			this.member_duplicate(span, name.text, kind, owner, previous);
+			return absent;
+		}
+		if (previous.index != 0 && kind != 10) {
+			var old = this.symbol(previous);
+			var output = new Utf8ByteBuilder();
+			if (kind == 1) {
+				source_append_text(output, "duplicate function '");
+			} else {
+				if (kind == 2) {
+					source_append_text(output, "duplicate constant or callable '");
+				} else {
+					if (kind == 7) {
+						source_append_text(output, "duplicate parameter '");
+					} else {
+						if (kind == 8 || kind == 15) {
+							if (old.kind == 7) {
+								source_append_text(output, "local '");
+							} else {
+								source_append_text(output, "duplicate local '");
+							}
+						} else {
+							if (kind == 9) {
+								source_append_text(output, "duplicate type parameter '");
+							} else {
+								if (kind == 3) {
+									source_append_text(output, "duplicate struct type '");
+								} else {
+									source_append_text(output, "duplicate class type '");
+								}
+							}
+						}
+					}
+				}
+			}
+			source_append_text(output, lookup_name.text);
+			source_append_text(output, "'");
+			if (kind == 1) {
+				source_append_text(output, "; overloading is not implemented");
+			}
+			if ((kind == 8 || kind == 15) && old.kind == 7) {
+				source_append_text(output, " conflicts with parameter");
+			}
+			if (kind == 7 && old.kind == 2) {
+				var special = new Utf8ByteBuilder();
+				source_append_text(special, "parameter '");
+				source_append_text(special, name.text);
+				source_append_text(special, "' conflicts with a visible constant");
+				var message = special.snapshot();
+				this.fail(span, message.text);
+			} else {
+				var message = output.snapshot();
+				this.duplicate(span, message.text, previous);
+			}
+			return absent;
+		}
+		if (this.symbol_count == len(this.symbols)) {
+			var replacement = new BindingSymbol[syntax_grown_capacity(len(this.symbols), this.symbol_count + 1)];
+			int i = 0;
+			while (i < this.symbol_count) {
+				replacement[i] = this.symbols[i];
+				i = i + 1;
+			}
+			swap(this.symbols, replacement);
+		}
+		bool restricted = this.program.arena.header(node).module_internal;
+		BindingSymbol record = {
+			node = node, token = token, span = span, scope = scope, owner = owner, name = this.names.intern(name.text), canonical = this.names.intern(canonical.text), kind = kind, domain = domain, restricted = restricted, first_reference = 0
+		};
+		this.symbols[this.symbol_count] = record;
+		this.symbol_count = this.symbol_count + 1;
+		SymbolId result = {
+			index = this.symbol_count
+		};
+		if (kind != 10) {
+			this.names.put(key.text, result.index);
+		}
+		if (node.index != 0 && kind != 9 && kind != 10) {
+			this.node_symbols[node.index] = result;
+		}
+		if (this.stop_after > 0 && this.symbol_count == this.stop_after) {
+			this.fail(span, "injected partial binding construction");
+		}
+		return result;
+	}
+	SymbolId lexical(ScopeId scope, string name, int domain) throws Error {
+		var current = scope;
+		while (current.index != 0) {
+			var context = this.scope(current);
+			if (context.kind <= 2) {
+				break;
+			}
+			var key = binding_key(current.index, domain, name);
+			int found = this.names.get(key.text);
+			if (found != 0) {
+				SymbolId result = {
+					index = found
+				};
+				return result;
+			}
+			current = context.parent;
+		}
+		SymbolId absent = {
+			index = 0
+		};
+		return absent;
+	}
+	SymbolId lexical_at(ScopeId scope, string name, int domain, SyntaxSpan origin) throws Error {
+		var current = scope;
+		while (current.index != 0) {
+			var context = this.scope(current);
+			if (context.kind <= 2) {
+				break;
+			}
+			var key = binding_key(current.index, domain, name);
+			SymbolId found = {
+				index = this.names.get(key.text)
+			};
+			if (found.index != 0) {
+				var symbol = this.symbol(found);
+				bool visible = symbol.kind != 8 && symbol.kind != 15;
+				visible = visible || symbol.span.source.index != origin.source.index || symbol.span.end <= origin.start;
+				if (visible) {
+					return found;
+				}
+			}
+			current = context.parent;
+		}
+		SymbolId absent = {
+			index = 0
+		};
+		return absent;
+	}
+	BindingReference resolve(ScopeId scope, SyntaxNodeId node, SyntaxTokenId token, string name, int requested_domain) throws Error {
+		int domain = requested_domain;
+		if (domain == 5) {
+			domain = 2;
+		}
+		SymbolId absent = {
+			index = 0
+		};
+		BindingReference result = {
+			node = node, token = token, span = this.program.arena.token_span(token), scope = scope, target = absent, alternative = absent, state_code = 2, reason = 0, domain = domain, next_reference = 0
+		};
+		if (domain == 3) {
+			var key = binding_key(0, 3, name);
+			ScopeId space = {
+				index = this.names.get(key.text)
+			};
+			if (space.index != 0) {
+				var context = this.scope(space);
+				result.target = context.owner;
+				result.state_code = 1;
+			}
+			return result;
+		}
+		var local = this.lexical_at(scope, name, domain, result.span);
+		if (requested_domain == 5 && local.index != 0) {
+			var context = this.scope(scope);
+			var global = this.resolve(this.unit_scope(context.unit), node, token, name, 2);
+			if (global.state_code == 1) {
+				var symbol = this.symbol(global.target);
+				if (symbol.kind == 1) {
+					return global;
+				}
+			}
+		}
+		if (local.index != 0) {
+			result.target = local;
+			result.state_code = 1;
+			return result;
+		}
+		var context = this.scope(scope);
+		var space = this.names.text(context.namespace_name);
+		bool qualified = false;
+		int i = 0;
+		while (i < name.byte_length) {
+			if (astra_host_text_byte(name, i) == 46) {
+				qualified = true;
+			}
+			i = i + 1;
+		}
+		var key = binding_key(0, domain, name);
+		if (qualified) {
+			result.target.index = this.names.get(key.text);
+			if (result.target.index != 0) {
+				var selected = this.symbol(result.target);
+				var selected_context = this.scope(selected.scope);
+				result.state_code = 1;
+				if (selected.restricted && selected_context.namespace_name != context.namespace_name) {
+					result.state_code = 4;
+				}
+			}
+			return result;
+		}
+		var same_name = binding_qualified(space.text, name);
+		var same_key = binding_key(0, domain, same_name.text);
+		result.target.index = this.names.get(same_key.text);
+		if (result.target.index != 0) {
+			result.state_code = 1;
+			return result;
+		}
+		if (context.unit.index != 0) {
+			var imports = this.program.arena.get_list_imports(context.unit);
+			i = 0;
+			while (i < this.program.arena.list_count(imports)) {
+				var imported = this.program.arena.token_message(this.program.arena.token_at(imports, i));
+				var candidate_name = binding_qualified(imported.text, name);
+				var candidate_key = binding_key(0, domain, candidate_name.text);
+				SymbolId candidate = {
+					index = this.names.get(candidate_key.text)
+				};
+				if (candidate.index != 0) {
+					var symbol = this.symbol(candidate);
+					var candidate_context = this.scope(symbol.scope);
+					if (!symbol.restricted || candidate_context.namespace_name == context.namespace_name) {
+						if (result.target.index != 0 && result.target.index != candidate.index) {
+							result.alternative = candidate;
+							result.state_code = 3;
+							return result;
+						}
+						result.target = candidate;
+					}
+				}
+				i = i + 1;
+			}
+		}
+		if (result.target.index == 0) {
+			result.target.index = this.names.get(key.text);
+		}
+		if (result.target.index != 0) {
+			result.state_code = 1;
+		} else {
+			if (domain == 1 && (binding_builtin(name) || binding_type_constructor(name))) {
+				result.state_code = 6;
+			}
+		}
+		return result;
+	}
+	void add_reference(BindingReference record) {
+		assert_that(record.state_code >= 1 && record.state_code <= 6);
+		assert_that(record.state_code != 5 || (record.reason >= 1 && record.reason <= 6 && record.target.index == 0));
+		if (this.reference_count == len(this.references)) {
+			var replacement = new BindingReference[syntax_grown_capacity(len(this.references), this.reference_count + 1)];
+			int i = 0;
+			while (i < this.reference_count) {
+				replacement[i] = this.references[i];
+				i = i + 1;
+			}
+			swap(this.references, replacement);
+		}
+		var next = record;
+		if (record.state_code == 1) {
+			var symbol = this.symbol(record.target);
+			next.next_reference = symbol.first_reference;
+			symbol.first_reference = this.reference_count + 1;
+			this.symbols[record.target.index - 1] = symbol;
+		}
+		this.references[this.reference_count] = next;
+		this.reference_count = this.reference_count + 1;
+	}
+	void bind(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, int domain, string name, int reason, bool whole_span) throws Error {
+		if (token.index == 0 || this.failed()) {
+			return;
+		}
+		var result = this.resolve(scope, node, token, name, domain);
+		if (reason != 0) {
+			result.state_code = 5;
+			result.reason = reason;
+			result.target.index = 0;
+		}
+		if (whole_span) {
+			result.span = this.program.arena.header(node).span;
+		}
+		this.add_reference(result);
+		if (result.state_code == 1 || result.state_code >= 5) {
+			return;
+		}
+		var output = new Utf8ByteBuilder();
+		if (result.state_code == 3) {
+			var first = this.symbol(result.target);
+			var second = this.symbol(result.alternative);
+			var first_name = this.names.text(first.canonical);
+			var second_name = this.names.text(second.canonical);
+			source_append_text(output, "ambiguous imported name '");
+			source_append_text(output, name);
+			source_append_text(output, "': '");
+			source_append_text(output, first_name.text);
+			source_append_text(output, "' and '");
+			source_append_text(output, second_name.text);
+			source_append_text(output, "'; qualify the reference");
+		} else {
+			if (result.state_code == 4) {
+				var symbol = this.symbol(result.target);
+				var owner_scope = this.scope(symbol.scope);
+				var namespace_name = this.names.text(owner_scope.namespace_name);
+				source_append_text(output, "internal declaration '");
+				source_append_text(output, name);
+				source_append_text(output, "' is accessible only within namespace '");
+				source_append_text(output, namespace_name.text);
+				source_append_text(output, "'");
+			} else {
+				if (domain == 1) {
+					source_append_text(output, "unknown type '");
+				} else {
+					if (domain == 5) {
+						source_append_text(output, "unknown function '");
+					} else {
+						source_append_text(output, "unknown name '");
+					}
+				}
+				source_append_text(output, name);
+				source_append_text(output, "'");
+			}
+		}
+		var message = output.snapshot();
+		this.fail(result.span, message.text);
+	}
+	void bind_token(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, int domain, int reason) throws Error {
+		if (token.index == 0) {
+			return;
+		}
+		var name = this.program.arena.token_message(token);
+		this.bind(node, token, scope, domain, name.text, reason, false);
+	}
+	void push(SyntaxNodeId node, ScopeId scope, int action) {
+		if (node.index == 0) {
+			return;
+		}
+		if (this.work_count == len(this.work)) {
+			var replacement = new BindingWork[syntax_grown_capacity(len(this.work), this.work_count + 1)];
+			int i = 0;
+			while (i < this.work_count) {
+				replacement[i] = this.work[i];
+				i = i + 1;
+			}
+			swap(this.work, replacement);
+		}
+		BindingWork record = {
+			node = node, scope = scope, action = action
+		};
+		this.work[this.work_count] = record;
+		this.work_count = this.work_count + 1;
+	}
+	void push_list(SyntaxListId list, ScopeId scope) {
+		int i = this.program.arena.list_count(list);
+		while (i > 0) {
+			i = i - 1;
+			this.push(this.program.arena.node_at(list, i), scope, 0);
+		}
+	}
+	owned Utf8Message canonical_name(ScopeId scope, SymbolId owner, bool global, string name) throws Error {
+		if (owner.index != 0 && !global) {
+			var parent = this.symbol(owner);
+			var prefix = this.names.text(parent.canonical);
+			var result = binding_qualified(prefix.text, name);
+			return move result;
+		}
+		var context = this.scope(scope);
+		var space = this.names.text(context.namespace_name);
+		var result = binding_qualified(space.text, name);
+		return move result;
+	}
+	ScopeId unit_scope(SyntaxNodeId unit) {
+		var header = this.program.arena.header(unit);
+		return this.unit_scopes[header.span.source.index];
+	}
+	void collect_list(SyntaxListId list, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
+		int i = 0;
+		while (i < this.program.arena.list_count(list) && !this.failed()) {
+			var node = this.program.arena.node_at(list, i);
+			var declared_1 = this.declaration(node, this.program.arena.get_token_name(node), scope, owner, kind, domain, global);
+			i = i + 1;
+		}
+	}
+	void collect() throws Error {
+		ScopeId absent_scope = {
+			index = 0
+		};
+		SymbolId absent_symbol = {
+			index = 0
+		};
+		SyntaxNodeId absent_node = {
+			index = 0
+		};
+		int empty = this.names.intern("");
+		var root = this.new_scope(absent_scope, absent_symbol, absent_node, absent_node, 0, empty);
+		int i = 0;
+		while (i < this.program.arena.list_count(this.program.units)) {
+			var unit = this.program.arena.node_at(this.program.units, i);
+			var namespace_token = this.program.arena.get_token_namespace_name(unit);
+			var parent = root;
+			var owner = absent_symbol;
+			int namespace_name = empty;
+			if (namespace_token.index != 0) {
+				var name = this.program.arena.token_message(namespace_token);
+				namespace_name = this.names.intern(name.text);
+				var key = binding_key(0, 3, name.text);
+				int existing = this.names.get(key.text);
+				if (existing == 0) {
+					owner = this.declaration(unit, namespace_token, root, absent_symbol, 10, 3, false);
+					parent = this.new_scope(root, owner, unit, absent_node, 1, namespace_name);
+					this.names.put(key.text, parent.index);
+				} else {
+					parent.index = existing;
+					var context = this.scope(parent);
+					owner = context.owner;
+				}
+			}
+			var scope = this.new_scope(parent, owner, unit, unit, 2, namespace_name);
+			var header = this.program.arena.header(unit);
+			this.unit_scopes[header.span.source.index] = scope;
+			this.node_scopes[unit.index] = scope;
+			i = i + 1;
+		}
+		// Match collect_modules: validate all imports before deeper declarations.
+		i = 0;
+		while (i < this.program.arena.list_count(this.program.units) && !this.failed()) {
+			var unit = this.program.arena.node_at(this.program.units, i);
+			var imports = this.program.arena.get_list_imports(unit);
+			int n = 0;
+			while (n < this.program.arena.list_count(imports) && !this.failed()) {
+				var token = this.program.arena.token_at(imports, n);
+				var name = this.program.arena.token_message(token);
+				var key = binding_key(0, 3, name.text);
+				int found = this.names.get(key.text);
+				if (found == 0) {
+					var output = new Utf8ByteBuilder();
+					source_append_text(output, "unknown imported namespace '");
+					source_append_text(output, name.text);
+					source_append_text(output, "'; supply its source files explicitly");
+					var message = output.snapshot();
+					this.fail(this.program.arena.token_span(token), message.text);
+				} else {
+					ScopeId imported_scope = {
+						index = found
+					};
+					var imported = this.scope(imported_scope);
+					var header = this.program.arena.header(unit);
+					var scope = this.unit_scopes[header.span.source.index];
+					BindingReference reference = {
+						node = unit, token = token, span = this.program.arena.token_span(token), scope = scope, target = imported.owner, alternative = absent_symbol, state_code = 1, reason = 0, domain = 3, next_reference = 0
+					};
+					this.add_reference(reference);
+				}
+				n = n + 1;
+			}
+			i = i + 1;
+		}
+		// Collection is complete before any signature/body use: forward names
+		// are visible across source files without rescanning the syntax tree.
+		i = 0;
+		while (i < this.program.arena.list_count(this.program.units) && !this.failed()) {
+			var unit = this.program.arena.node_at(this.program.units, i);
+			var header = this.program.arena.header(unit);
+			var scope = this.unit_scopes[header.span.source.index];
+			var context = this.scope(scope);
+			this.collect_list(this.program.arena.get_list_structs(unit), scope, context.owner, 3, 1, true);
+			this.collect_list(this.program.arena.get_list_classes(unit), scope, context.owner, 4, 1, true);
+			this.collect_list(this.program.arena.get_list_c_classes(unit), scope, context.owner, 4, 1, true);
+			this.collect_list(this.program.arena.get_list_com_interfaces(unit), scope, context.owner, 4, 1, true);
+			this.collect_list(this.program.arena.get_list_enums(unit), scope, context.owner, 5, 1, true);
+			this.collect_list(this.program.arena.get_list_functions(unit), scope, context.owner, 1, 2, true);
+			this.collect_list(this.program.arena.get_list_constants(unit), scope, context.owner, 2, 2, true);
+			this.collect_list(this.program.arena.get_list_async_runtimes(unit), scope, context.owner, 16, 4, true);
+			i = i + 1;
+		}
+	}
+	void generics(SyntaxNodeId node, ScopeId scope, SymbolId owner) throws Error {
+		var list = this.program.arena.get_list_type_parameters(node);
+		int i = 0;
+		while (i < this.program.arena.list_count(list) && !this.failed()) {
+			var token = this.program.arena.token_at(list, i);
+			var name = this.program.arena.token_message(token);
+			var outer = this.scope(scope);
+			var visible = this.resolve(outer.parent, node, token, name.text, 1);
+			bool builtin = binding_builtin(name.text);
+			bool nominal = visible.state_code == 1;
+			if (builtin || nominal) {
+				var output = new Utf8ByteBuilder();
+				if (this.program.arena.kind(node) == SyntaxKind.ClassDeclarationSyntax()) {
+					source_append_text(output, "generic Class type parameter cannot shadow a builtin or nominal definition");
+				} else {
+					if (this.program.arena.kind(node) == SyntaxKind.EnumDeclarationSyntax()) {
+						source_append_text(output, "duplicate or shadowing enum type parameter '");
+						source_append_text(output, name.text);
+						source_append_text(output, "'");
+					} else {
+						if (builtin) {
+							source_append_text(output, "builtin type name '");
+							source_append_text(output, name.text);
+							source_append_text(output, "' is unavailable as a type parameter");
+						} else {
+							source_append_text(output, "type parameter '");
+							source_append_text(output, name.text);
+							source_append_text(output, "' cannot shadow an outer type in GEN-1");
+						}
+					}
+				}
+				var message = output.snapshot();
+				this.fail(this.program.arena.token_span(token), message.text);
+			} else {
+				var declaration = this.declaration(node, token, scope, owner, 9, 1, false);
+			}
+			i = i + 1;
+		}
+	}
+	void bind_type(SyntaxNodeId node, ScopeId scope) throws Error {
+		var token = this.program.arena.get_token_identifier(node);
+		var qualifier = this.program.arena.get_token_namespace_qualifier(node);
+		if (qualifier.index != 0 && this.namespace_token(qualifier)) {
+			this.bind_token(node, qualifier, scope, 3, 0);
+		}
+		var name = binding_type_name(this.program.arena, node);
+		this.bind(node, token, scope, 1, name.text, 0, false);
+	}
+	bool namespace_token(SyntaxTokenId token) throws Error {
+		if (token.index == 0) {
+			return false;
+		}
+		var name = this.program.arena.token_message(token);
+		var key = binding_key(0, 3, name.text);
+		return this.names.get(key.text) != 0;
+	}
+	void bind_selection(SyntaxNodeId node, SyntaxTokenId receiver, SyntaxTokenId member, ScopeId scope, bool whole_span, bool aggregate) throws Error {
+		bool qualified = false;
+		if (!aggregate && receiver.index != 0) {
+			var name = this.program.arena.token_message(receiver);
+			var local = this.lexical(scope, name.text, 2);
+			qualified = local.index == 0 && this.namespace_token(receiver);
+		}
+		if (qualified) {
+			this.bind_token(node, receiver, scope, 3, 0);
+			var space = this.program.arena.token_message(receiver);
+			var name = this.program.arena.token_message(member);
+			var full = binding_qualified(space.text, name.text);
+			this.bind(node, member, scope, 2, full.text, 0, whole_span);
+		} else {
+			if (!aggregate && receiver.index != 0) {
+				var name = this.program.arena.token_message(receiver);
+				if (name.text != "this" && name.text != "base") {
+					// A nominal receiver can be an enum/static construction. The
+					// selection still waits for semantic classification.
+					var value = this.resolve(scope, node, receiver, name.text, 2);
+					if (value.state_code == 2) {
+						var type = this.resolve(scope, node, receiver, name.text, 1);
+						if (type.state_code != 2) {
+							this.bind_token(node, receiver, scope, 1, 0);
+						} else {
+							this.bind_token(node, receiver, scope, 2, 0);
+						}
+					} else {
+						this.bind_token(node, receiver, scope, 2, 0);
+					}
+				} else {
+					this.bind_token(node, receiver, scope, 2, 2);
+				}
+			}
+			this.bind_token(node, member, scope, 4, 1);
+		}
+	}
+	void member_duplicate(SyntaxSpan span, string name, int kind, SymbolId owner, SymbolId previous) throws Error {
+		var parent = this.symbol(owner);
+		var owner_name = this.names.text(parent.canonical);
+		var old = this.symbol(previous);
+		var output = new Utf8ByteBuilder();
+		if (kind == 13) {
+			source_append_text(output, "duplicate enum variant '");
+			source_append_text(output, owner_name.text);
+			source_append_text(output, ".");
+			source_append_text(output, name);
+			source_append_text(output, "'");
+		} else {
+			if (kind == 17) {
+				source_append_text(output, "duplicate enum payload field '");
+				source_append_text(output, name);
+				source_append_text(output, "'");
+			} else {
+				if (kind == 14) {
+					source_append_text(output, "property/member name collision '");
+					source_append_text(output, name);
+					source_append_text(output, "' in '");
+					source_append_text(output, owner_name.text);
+					source_append_text(output, "'; fields, methods and properties share one namespace without overloading");
+				} else {
+					if (kind == 12) {
+						source_append_text(output, "duplicate lifecycle member '");
+						source_append_text(output, name);
+						source_append_text(output, "' in class '");
+						source_append_text(output, owner_name.text);
+						source_append_text(output, "'; only one is permitted, without overloading");
+					} else {
+						if (kind == 11 && old.kind == 14) {
+							source_append_text(output, "method/property name collision '");
+							source_append_text(output, name);
+							source_append_text(output, "' in '");
+							source_append_text(output, owner_name.text);
+							source_append_text(output, "'");
+						} else {
+							if (kind == 6) {
+								source_append_text(output, "duplicate field '");
+							} else {
+								if (old.kind == 6) {
+									source_append_text(output, "field/method name collision '");
+								} else {
+									source_append_text(output, "duplicate method '");
+								}
+							}
+							source_append_text(output, name);
+							source_append_text(output, "' in ");
+							if (parent.kind == 3) {
+								source_append_text(output, "struct '");
+							} else {
+								source_append_text(output, "class '");
+							}
+							source_append_text(output, owner_name.text);
+							source_append_text(output, "'");
+							if (kind == 11 && old.kind != 6) {
+								source_append_text(output, "; overloading is not implemented");
+							}
+						}
+					}
+				}
+			}
+		}
+		var message = output.snapshot();
+		this.fail(span, message.text);
+	}
+	void caller_information(SyntaxNodeId node, ScopeId scope) throws Error {
+		var target = this.program.arena.get_token_target(node);
+		if (target.index == 0) {
+			return;
+		}
+		var output = new Utf8ByteBuilder();
+		this.program.arena.write_payload(target, output);
+		var name = output.snapshot();
+		var reference = this.resolve(scope, node, target, name.text, 2);
+		bool valid = false;
+		if (reference.state_code == 1) {
+			var parameter = this.symbol(reference.target);
+			valid = parameter.kind == 7 && parameter.span.end <= this.program.arena.header(node).span.start;
+			if (valid) {
+				valid = this.program.arena.get_node_caller_information(parameter.node).index == 0;
+			}
+		}
+		if (!valid) {
+			reference.state_code = 2;
+			reference.target.index = 0;
+			this.fail(this.program.arena.header(node).span, "CallerArgumentExpression must name an earlier required non-annotated parameter; unknown names, self, caller parameters, this and member paths are unsupported");
+		}
+		this.add_reference(reference);
+	}
+	void contextual_count(SyntaxNodeId node, ScopeId scope) throws Error {
+		var target = this.program.arena.get_node_target(node);
+		var value = this.program.arena.get_node_expression(node);
+		if (this.program.arena.kind(value) != SyntaxKind.BufferAllocationSyntax() || this.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax()) {
+			return;
+		}
+		if (this.program.arena.get_node_aggregate(target).index != 0) {
+			return;
+		}
+		var receiver = this.program.arena.get_token_identifier(target);
+		if (receiver.index == 0) {
+			return;
+		}
+		var receiver_name = this.program.arena.token_message(receiver);
+		if (receiver_name.text != "this") {
+			return;
+		}
+		var context = this.scope(scope);
+		var owner = context.owner;
+		while (owner.index != 0) {
+			var symbol = this.symbol(owner);
+			if (symbol.kind == 3 || symbol.kind == 4) {
+				var member_scope = this.node_scopes[symbol.node.index];
+				var name = this.program.arena.token_message(this.program.arena.get_token_field_name(target));
+				var key = binding_key(member_scope.index, 4, name.text);
+				SymbolId field_id = {
+					index = this.names.get(key.text)
+				};
+				if (field_id.index == 0) {
+					return;
+				}
+				var field = this.symbol(field_id);
+				if (field.kind != 6) {
+					return;
+				}
+				var type = this.program.arena.get_node_type_name(field.node);
+				if (this.program.arena.kind(type) != SyntaxKind.OwnerSlotsTypeSyntax()) {
+					return;
+				}
+				var count = this.program.arena.get_node_count(value);
+				if (this.program.arena.kind(count) != SyntaxKind.NameExpressionSyntax()) {
+					return;
+				}
+				var marker = this.program.arena.token_message(this.program.arena.get_token_identifier(count));
+				if (marker.text == "slots") {
+					this.slot_counts[count.index] = true;
+				}
+				return;
+			}
+			owner = symbol.owner;
+		}
+	}
+	void schedule_count(SyntaxNodeId node, ScopeId scope) throws Error {
+		var count = this.program.arena.get_node_count(node);
+		if (this.slot_counts[count.index]) {
+			this.bind_token(count, this.program.arena.get_token_identifier(count), scope, 2, 6);
+		} else {
+			this.push(count, scope, 0);
+		}
+	}
+	void visit(SyntaxNodeId node, ScopeId inherited, int action) throws Error {
+		var kind = this.program.arena.kind(node);
+		var scope = inherited;
+		var outer = this.scope(scope);
+		var owner = outer.owner;
+		if (action == 1) {
+			var declared_3 = this.declaration(node, this.program.arena.get_token_name(node), scope, owner, 8, 2, false);
+			return;
+		}
+		if (action == 2) {
+			var declared_4 = this.declaration(node, this.program.arena.get_token_binding(node), scope, owner, 15, 2, false);
+			return;
+		}
+		if (this.visited[node.index]) {
+			return;
+		}
+		this.visited[node.index] = true;
+		if (kind == SyntaxKind.ComImportSyntax()) {
+			var definition = this.program.arena.get_node_declaration(node);
+			if (definition.index != 0) {
+				this.node_symbols[definition.index] = this.node_symbols[node.index];
+			}
+		}
+		if (kind == SyntaxKind.ClassDeclarationSyntax() || kind == SyntaxKind.StructDeclarationSyntax() || kind == SyntaxKind.EnumDeclarationSyntax()) {
+			owner = this.node_symbols[node.index];
+			// A COM interface wrapper owns its generated class declaration.
+			if (owner.index == 0) {
+				owner = outer.owner;
+			}
+			scope = this.child_scope(scope, owner, node, 3);
+			this.generics(node, scope, owner);
+			if (kind == SyntaxKind.EnumDeclarationSyntax()) {
+				this.collect_list(this.program.arena.get_list_variants(node), scope, owner, 13, 4, false);
+			} else {
+				this.collect_list(this.program.arena.get_list_fields(node), scope, owner, 6, 4, false);
+				var members = this.program.arena.get_list_members(node);
+				int i = 0;
+				while (i < this.program.arena.list_count(members) && !this.failed()) {
+					var member = this.program.arena.node_at(members, i);
+					var member_kind = this.program.arena.kind(member);
+					if (member_kind == SyntaxKind.StructFieldDeclarationSyntax()) {
+						i = i + 1;
+						continue;
+					}
+					int code = 6;
+					if (member_kind == SyntaxKind.FunctionDeclarationSyntax()) {
+						code = 11;
+					}
+					if (member_kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+						code = 12;
+					}
+					if (member_kind == SyntaxKind.PropertyDeclarationSyntax()) {
+						code = 14;
+					}
+					var declared_5 = this.declaration(member, this.program.arena.get_token_name(member), scope, owner, code, 4, false);
+					i = i + 1;
+				}
+			}
+		} else {
+			if (syntax_kind_accepts(kind, SyntaxKind.FunctionDeclarationSyntax())) {
+				owner = this.node_symbols[node.index];
+				scope = this.child_scope(scope, owner, node, 4);
+				this.generics(node, scope, owner);
+				this.collect_list(this.program.arena.get_list_parameters(node), scope, owner, 7, 2, false);
+			} else {
+				if (kind == SyntaxKind.BlockStatementSyntax() || kind == SyntaxKind.ForStatementSyntax() || kind == SyntaxKind.ForeachStatementSyntax() || kind == SyntaxKind.CatchClauseSyntax() || kind == SyntaxKind.EnumArmSyntax() || kind == SyntaxKind.WithStatementSyntax() || kind == SyntaxKind.PropertyAccessorSyntax()) {
+					scope = this.child_scope(scope, owner, node, 5);
+					if (kind == SyntaxKind.CatchClauseSyntax()) {
+						var declared_6 = this.declaration(node, this.program.arena.get_token_binding(node), scope, owner, 15, 2, false);
+					}
+					if (kind == SyntaxKind.EnumArmSyntax()) {
+						var bindings = this.program.arena.get_list_bindings(node);
+						int i = 0;
+						while (i < this.program.arena.list_count(bindings) && !this.failed()) {
+							var binding = this.program.arena.node_at(bindings, i);
+							var binding_name = this.program.arena.token_message(this.program.arena.get_token_binding(binding));
+							if (binding_name.text == "_") {
+								i = i + 1;
+								continue;
+							}
+							var declared_7 = this.declaration(binding, this.program.arena.get_token_binding(binding), scope, owner, 15, 2, false);
+							i = i + 1;
+						}
+					}
+					if (kind == SyntaxKind.PropertyAccessorSyntax()) {
+						var accessor = this.declaration(node, this.program.arena.get_token_keyword(node), inherited, owner, 18, 4, false);
+						owner = accessor;
+						var accessor_scope = this.scope(scope);
+						accessor_scope.owner = owner;
+						this.scopes[scope.index - 1] = accessor_scope;
+						var parameter = this.program.arena.get_node_parameter(node);
+						if (parameter.index != 0) {
+							var declared_inline = this.declaration(parameter, this.program.arena.get_token_name(parameter), scope, owner, 7, 2, false);
+						}
+					}
+				} else {
+					if (kind == SyntaxKind.EnumVariantSyntax() || kind == SyntaxKind.PropertyDeclarationSyntax()) {
+						owner = this.node_symbols[node.index];
+						scope = this.child_scope(scope, owner, node, 3);
+						if (kind == SyntaxKind.EnumVariantSyntax()) {
+							this.collect_list(this.program.arena.get_list_fields(node), scope, owner, 17, 4, false);
+						}
+					}
+				}
+			}
+		}
+		this.node_scopes[node.index] = scope;
+		if (kind == SyntaxKind.CallerInformationSyntax()) {
+			this.caller_information(node, scope);
+		}
+		if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
+			this.contextual_count(node, scope);
+		}
+		if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax() || kind == SyntaxKind.StructLocalDeclarationSyntax()) {
+			this.push(node, scope, 1);
+		}
+		if (kind == SyntaxKind.TypeNameSyntax() || kind == SyntaxKind.GenericTypeApplicationSyntax()) {
+			this.bind_type(node, scope);
+		}
+		if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax()) {
+			var token = this.program.arena.get_token_identifier(node);
+			var name = this.program.arena.token_message(token);
+			if (name.text == "this" || name.text == "base") {
+				this.bind_token(node, token, scope, 2, 2);
+			} else {
+				this.bind_token(node, token, scope, 2, 0);
+			}
+		}
+		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_name(node), scope, 2, 0);
+		}
+		if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			var source = this.program.arena.get_token_source(node);
+			var source_name = this.program.arena.token_message(source);
+			int reason = 0;
+			if (source_name.text == "this") {
+				reason = 2;
+			}
+			this.bind_token(node, source, scope, 2, reason);
+			var fields = this.program.arena.get_list_fields(node);
+			int i = 0;
+			while (i < this.program.arena.list_count(fields)) {
+				this.bind_token(node, this.program.arena.token_at(fields, i), scope, 4, 1);
+				i = i + 1;
+			}
+		}
+		if (kind == SyntaxKind.ReleaseStatementSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_owner(node), scope, 2, 0);
+		}
+		if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_input(node), scope, 2, 0);
+		}
+		if (kind == SyntaxKind.WhereClauseSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_type_parameter(node), scope, 1, 0);
+		}
+		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+			this.bind_selection(node, this.program.arena.get_token_identifier(node), this.program.arena.get_token_field_name(node), scope, true, this.program.arena.get_node_aggregate(node).index != 0);
+		}
+		if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConstructorInitializerSyntax()) {
+			var receiver = this.program.arena.get_token_receiver(node);
+			if (receiver.index != 0 || this.program.arena.get_node_receiver_place(node).index != 0) {
+				this.bind_selection(node, receiver, this.program.arena.get_token_identifier(node), scope, false, this.program.arena.get_node_receiver_place(node).index != 0);
+			} else {
+				if (kind == SyntaxKind.ConstructorInitializerSyntax()) {
+					this.bind_token(node, this.program.arena.get_token_identifier(node), scope, 1, 0);
+				} else {
+					var token = this.program.arena.get_token_identifier(node);
+					var name = this.program.arena.token_message(token);
+					var selected = this.resolve(scope, node, token, name.text, 5);
+					int reason = 0;
+					if (selected.state_code == 2 && binding_intrinsic(name.text)) {
+						reason = 5;
+					}
+					this.bind_token(node, token, scope, 5, reason);
+				}
+			}
+		}
+		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_member(node), scope, 4, 1);
+		}
+		if (kind == SyntaxKind.FieldInitializerSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_name(node), scope, 4, 3);
+		}
+		if (kind == SyntaxKind.EnumArmSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_qualifier(node), scope, 1, 0);
+			this.bind_token(node, this.program.arena.get_token_variant(node), scope, 4, 4);
+		}
+		if (kind == SyntaxKind.EnumBindingSyntax()) {
+			this.bind_token(node, this.program.arena.get_token_field(node), scope, 4, 4);
+		}
+		if (kind == SyntaxKind.WithStatementSyntax() && this.program.arena.get_node_initializer(node).index == 0) {
+			this.bind_token(node, this.program.arena.get_token_receiver(node), scope, 2, 0);
+		}
+		if (kind == SyntaxKind.ForeachStatementSyntax()) {
+			this.push(this.program.arena.get_node_body(node), scope, 0);
+			this.push(node, scope, 2);
+			this.push(this.program.arena.get_node_collection(node), scope, 0);
+		} else {
+			this.schedule_children(node, scope);
+		}
+	}
+	void run() throws Error {
+		if (this.program.failed()) {
+			var message = this.program.arena.text_message(this.program.error_message);
+			this.fail(this.program.error_span, message.text);
+			return;
+		}
+		this.collect();
+		int i = this.program.arena.list_count(this.program.units);
+		while (i > 0) {
+			i = i - 1;
+			var unit = this.program.arena.node_at(this.program.units, i);
+			var header = this.program.arena.header(unit);
+			this.push(unit, this.unit_scopes[header.span.source.index], 0);
+		}
+		while (this.work_count > 0 && !this.failed()) {
+			this.work_count = this.work_count - 1;
+			var next = this.work[this.work_count];
+			this.visit(next.node, next.scope, next.action);
+		}
+	}
+	int visits(int kind_code) {
+		int result = 0;
+		int i = 1;
+		while (i < len(this.visited)) {
+			if (this.visited[i]) {
+				SyntaxNodeId node = {
+					index = i
+				};
+				if (this.program.arena.header(node).kind_code == kind_code) {
+					result = result + 1;
+				}
+			}
+			i = i + 1;
+		}
+		return result;
+	}
+	int reference_at(SyntaxSourceId source, int offset) {
+		// Query returns the narrowest token/span containing this byte.
+		int result = 0;
+		int width = 2147483647;
+		int i = 0;
+		while (i < this.reference_count) {
+			var record = this.references[i];
+			if (record.span.source.index == source.index && record.span.start <= offset && record.span.end > offset && record.span.end - record.span.start < width) {
+				result = i + 1;
+				width = record.span.end - record.span.start;
+			}
+			i = i + 1;
+		}
+		return result;
+	}
+	// BEGIN GENERATED CHILD SCHEDULING
+	// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+	// Generated by generate-walk.py from the syntax schema; no text scanning.
+	void schedule_children(SyntaxNodeId node, ScopeId scope) throws Error {
+		match (this.program.arena.kind(node)) {
+			case SyntaxKind.AddressOfExpressionSyntax(): {
+			}
+			case SyntaxKind.ArrayInitializerSyntax(): {
+				this.push_list(this.program.arena.get_list_elements(node), scope);
+			}
+			case SyntaxKind.ArrayStructInitializerSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+			}
+			case SyntaxKind.ArrayTypeSyntax(): {
+				this.push(this.program.arena.get_node_extent(node), scope, 0);
+				this.push(this.program.arena.get_node_element_type(node), scope, 0);
+			}
+			case SyntaxKind.AssignmentStatementSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.AsyncRuntimeSyntax(): {
+				this.push(this.program.arena.get_node_status(node), scope, 0);
+				this.push(this.program.arena.get_node_error(node), scope, 0);
+			}
+			case SyntaxKind.AwaitExpressionSyntax(): {
+				this.push(this.program.arena.get_node_operation(node), scope, 0);
+			}
+			case SyntaxKind.AwaitStatementSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.BinaryExpressionSyntax(): {
+				this.push(this.program.arena.get_node_right(node), scope, 0);
+				this.push(this.program.arena.get_node_left(node), scope, 0);
+			}
+			case SyntaxKind.BlockStatementSyntax(): {
+				this.push_list(this.program.arena.get_list_statements(node), scope);
+			}
+			case SyntaxKind.BooleanLiteralExpressionSyntax(): {
+			}
+			case SyntaxKind.BreakStatementSyntax(): {
+			}
+			case SyntaxKind.BufferAllocationSyntax(): {
+				this.push(this.program.arena.get_node_failure_call(node), scope, 0);
+				this.schedule_count(node, scope);
+				this.push(this.program.arena.get_node_element_type(node), scope, 0);
+				this.push(this.program.arena.get_node_allocation_context(node), scope, 0);
+			}
+			case SyntaxKind.CCodeEntrySyntax(): {
+			}
+			case SyntaxKind.CallExpressionSyntax(): {
+				this.push_list(this.program.arena.get_list_arguments(node), scope);
+				this.push(this.program.arena.get_node_receiver_place(node), scope, 0);
+				this.push_list(this.program.arena.get_list_type_arguments(node), scope);
+				this.push_list(this.program.arena.get_list_qualifier_arguments(node), scope);
+			}
+			case SyntaxKind.CallStatementSyntax(): {
+				this.push(this.program.arena.get_node_call(node), scope, 0);
+			}
+			case SyntaxKind.CallableChannelTypeSyntax(): {
+				this.push(this.program.arena.get_node_underlying(node), scope, 0);
+			}
+			case SyntaxKind.CallerInformationSyntax(): {
+			}
+			case SyntaxKind.CatchClauseSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push(this.program.arena.get_node_class_name(node), scope, 0);
+			}
+			case SyntaxKind.ClassDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_parent_class(node), scope, 0);
+				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
+				this.push_list(this.program.arena.get_list_members(node), scope);
+			}
+			case SyntaxKind.ComImportSyntax(): {
+				this.push(this.program.arena.get_node_declaration(node), scope, 0);
+			}
+			case SyntaxKind.ComparisonChainSyntax(): {
+				this.push_list(this.program.arena.get_list_operands(node), scope);
+			}
+			case SyntaxKind.CompilationUnitSyntax(): {
+				this.push_list(this.program.arena.get_list_async_runtimes(node), scope);
+				this.push_list(this.program.arena.get_list_functions(node), scope);
+				this.push_list(this.program.arena.get_list_constants(node), scope);
+				this.push_list(this.program.arena.get_list_enums(node), scope);
+				this.push_list(this.program.arena.get_list_classes(node), scope);
+				this.push_list(this.program.arena.get_list_structs(node), scope);
+				this.push_list(this.program.arena.get_list_com_interfaces(node), scope);
+				this.push_list(this.program.arena.get_list_c_classes(node), scope);
+			}
+			case SyntaxKind.ConstantDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			case SyntaxKind.ConstructorInitializerSyntax(): {
+				this.push_list(this.program.arena.get_list_arguments(node), scope);
+				this.push(this.program.arena.get_node_receiver_place(node), scope, 0);
+				this.push_list(this.program.arena.get_list_type_arguments(node), scope);
+				this.push_list(this.program.arena.get_list_qualifier_arguments(node), scope);
+			}
+			case SyntaxKind.ContinueStatementSyntax(): {
+			}
+			case SyntaxKind.ConversionExpressionSyntax(): {
+				this.push(this.program.arena.get_node_destination(node), scope, 0);
+				this.push(this.program.arena.get_node_operand(node), scope, 0);
+			}
+			case SyntaxKind.DereferenceAssignmentSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+				this.push(this.program.arena.get_node_target(node), scope, 0);
+			}
+			case SyntaxKind.DereferenceExpressionSyntax(): {
+				this.push(this.program.arena.get_node_pointer(node), scope, 0);
+			}
+			case SyntaxKind.DspExpressionSyntax(): {
+				this.push(this.program.arena.get_node_destination(node), scope, 0);
+				this.push(this.program.arena.get_node_second(node), scope, 0);
+				this.push(this.program.arena.get_node_first(node), scope, 0);
+			}
+			case SyntaxKind.EnumArmSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push_list(this.program.arena.get_list_bindings(node), scope);
+				this.push_list(this.program.arena.get_list_type_arguments(node), scope);
+			}
+			case SyntaxKind.EnumBindingSyntax(): {
+			}
+			case SyntaxKind.EnumDeclarationSyntax(): {
+				this.push_list(this.program.arena.get_list_variants(node), scope);
+			}
+			case SyntaxKind.EnumPayloadSyntax(): {
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			case SyntaxKind.EnumVariantSyntax(): {
+				this.push_list(this.program.arena.get_list_fields(node), scope);
+			}
+			case SyntaxKind.FieldAccessExpressionSyntax(): {
+				this.push(this.program.arena.get_node_aggregate(node), scope, 0);
+			}
+			case SyntaxKind.FieldAssignmentStatementSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+				this.push(this.program.arena.get_node_target(node), scope, 0);
+			}
+			case SyntaxKind.FieldInitializerSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.FloatLiteralExpressionSyntax(): {
+			}
+			case SyntaxKind.ForStatementSyntax(): {
+				this.push(this.program.arena.get_node_step(node), scope, 0);
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push(this.program.arena.get_node_condition(node), scope, 0);
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+			}
+			case SyntaxKind.ForeachStatementSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push(this.program.arena.get_node_collection(node), scope, 0);
+			}
+			case SyntaxKind.ForeignPolicySyntax(): {
+				this.push_list(this.program.arena.get_list_entries(node), scope);
+			}
+			case SyntaxKind.FunctionDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push_list(this.program.arena.get_list_parameters(node), scope);
+				this.push(this.program.arena.get_node_return_type(node), scope, 0);
+				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
+				this.push(this.program.arena.get_node_throws_class(node), scope, 0);
+			}
+			case SyntaxKind.GenericTypeApplicationSyntax(): {
+				this.push_list(this.program.arena.get_list_type_arguments(node), scope);
+			}
+			case SyntaxKind.HeapObjectConstructionSyntax(): {
+				this.push_list(this.program.arena.get_list_arguments(node), scope);
+				this.push(this.program.arena.get_node_class_name(node), scope, 0);
+				this.push(this.program.arena.get_node_allocation_context(node), scope, 0);
+			}
+			case SyntaxKind.IfStatementSyntax(): {
+				this.push(this.program.arena.get_node_else_body(node), scope, 0);
+				this.push(this.program.arena.get_node_then_body(node), scope, 0);
+				this.push(this.program.arena.get_node_condition(node), scope, 0);
+			}
+			case SyntaxKind.IndexExpressionSyntax(): {
+				this.push(this.program.arena.get_node_subscript(node), scope, 0);
+				this.push(this.program.arena.get_node_container(node), scope, 0);
+			}
+			case SyntaxKind.IndexedAssignmentSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+				this.push(this.program.arena.get_node_target(node), scope, 0);
+			}
+			case SyntaxKind.InferredLocalDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+			}
+			case SyntaxKind.IntegerLiteralExpressionSyntax(): {
+			}
+			case SyntaxKind.LifecycleDeclarationSyntax(): {
+				this.push_list(this.program.arena.get_list_base_arguments(node), scope);
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push_list(this.program.arena.get_list_parameters(node), scope);
+				this.push(this.program.arena.get_node_return_type(node), scope, 0);
+				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
+				this.push(this.program.arena.get_node_throws_class(node), scope, 0);
+			}
+			case SyntaxKind.LocalDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			case SyntaxKind.MatchStatementSyntax(): {
+				this.push_list(this.program.arena.get_list_arms(node), scope);
+				this.push(this.program.arena.get_node_scrutinee(node), scope, 0);
+			}
+			case SyntaxKind.MoveExpressionSyntax(): {
+			}
+			case SyntaxKind.NameExpressionSyntax(): {
+			}
+			case SyntaxKind.NonNullTypeSyntax(): {
+				this.push(this.program.arena.get_node_underlying(node), scope, 0);
+			}
+			case SyntaxKind.NullPointerExpressionSyntax(): {
+			}
+			case SyntaxKind.OwnerSlotsTypeSyntax(): {
+				this.push(this.program.arena.get_node_element(node), scope, 0);
+			}
+			case SyntaxKind.ParameterSyntax(): {
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+				this.push(this.program.arena.get_node_caller_information(node), scope, 0);
+			}
+			case SyntaxKind.ParenthesizedExpressionSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.PointerTypeSyntax(): {
+				this.push(this.program.arena.get_node_pointee(node), scope, 0);
+			}
+			case SyntaxKind.PrefixExpressionSyntax(): {
+				this.push(this.program.arena.get_node_operand(node), scope, 0);
+			}
+			case SyntaxKind.PropertyAccessorSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push(this.program.arena.get_node_parameter(node), scope, 0);
+			}
+			case SyntaxKind.PropertyDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_setter(node), scope, 0);
+				this.push(this.program.arena.get_node_getter(node), scope, 0);
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+				this.push(this.program.arena.get_node_throws_class(node), scope, 0);
+			}
+			case SyntaxKind.ReleaseStatementSyntax(): {
+			}
+			case SyntaxKind.ReturnStatementSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.SharedTypeSyntax(): {
+				this.push(this.program.arena.get_node_payload(node), scope, 0);
+			}
+			case SyntaxKind.ShortCircuitExpressionSyntax(): {
+				this.push(this.program.arena.get_node_right(node), scope, 0);
+				this.push(this.program.arena.get_node_left(node), scope, 0);
+			}
+			case SyntaxKind.SliceTypeSyntax(): {
+				this.push(this.program.arena.get_node_element_type(node), scope, 0);
+			}
+			case SyntaxKind.StructDeclarationSyntax(): {
+				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
+				this.push_list(this.program.arena.get_list_members(node), scope);
+			}
+			case SyntaxKind.StructFieldDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			case SyntaxKind.StructInitializerSyntax(): {
+				this.push_list(this.program.arena.get_list_fields(node), scope);
+			}
+			case SyntaxKind.StructLocalDeclarationSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			case SyntaxKind.SwapStatementSyntax(): {
+				this.push(this.program.arena.get_node_right(node), scope, 0);
+				this.push(this.program.arena.get_node_left(node), scope, 0);
+			}
+			case SyntaxKind.TextLiteralExpressionSyntax(): {
+			}
+			case SyntaxKind.TextMemberExpressionSyntax(): {
+				this.push(this.program.arena.get_node_receiver(node), scope, 0);
+			}
+			case SyntaxKind.ThrowStatementSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.TryStatementSyntax(): {
+				this.push_list(this.program.arena.get_list_catches(node), scope);
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+			}
+			case SyntaxKind.TypeNameSyntax(): {
+			}
+			case SyntaxKind.Utf8FactoryExpressionSyntax(): {
+			}
+			case SyntaxKind.VectorDotExpressionSyntax(): {
+				this.push(this.program.arena.get_node_destination(node), scope, 0);
+				this.push_list(this.program.arena.get_list_operands(node), scope);
+			}
+			case SyntaxKind.VectorExtractExpressionSyntax(): {
+				this.push(this.program.arena.get_node_vector(node), scope, 0);
+			}
+			case SyntaxKind.VectorInitializerSyntax(): {
+				this.push_list(this.program.arena.get_list_lanes(node), scope);
+			}
+			case SyntaxKind.VectorPrimitiveExpressionSyntax(): {
+				this.push_list(this.program.arena.get_list_operands(node), scope);
+			}
+			case SyntaxKind.VectorReductionExpressionSyntax(): {
+				this.push(this.program.arena.get_node_operand(node), scope, 0);
+			}
+			case SyntaxKind.VectorTypeSyntax(): {
+				this.push(this.program.arena.get_node_element_type(node), scope, 0);
+			}
+			case SyntaxKind.WhereClauseSyntax(): {
+			}
+			case SyntaxKind.WhileStatementSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push(this.program.arena.get_node_condition(node), scope, 0);
+			}
+			case SyntaxKind.WithStatementSyntax(): {
+				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+			}
+			else: {
+				assert_that(false);
+			}
+		}
+	}
+	// END GENERATED CHILD SCHEDULING
+}
+owned BindingIndex binding_index(owned SyntaxProgram program, int stop_after) throws Error {
+	var result = new BindingIndex(move program, stop_after);
+	result.run();
+	return move result;
+}

@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Development-only consumer of typed tables; never invokes another compiler.
+void binding_write_span(BindingIndex index, SyntaxSpan span, Utf8ByteBuilder output) throws Error {
+	var backing = index.program.arena.source_span(span);
+	var path = backing.path();
+	syntax_write_hex(output, path.text);
+	source_append_text(output, " ");
+	append_int(output, span.start);
+	source_append_text(output, " ");
+	append_int(output, span.end);
+}
+void binding_write_reference(BindingIndex index, int number, Utf8ByteBuilder output) throws Error {
+	var reference = index.reference(number);
+	source_append_text(output, "R ");
+	append_int(output, number);
+	source_append_text(output, " ");
+	binding_write_span(index, reference.span, output);
+	source_append_text(output, " ");
+	append_int(output, reference.state_code);
+	source_append_text(output, " ");
+	append_int(output, reference.target.index);
+	source_append_text(output, " ");
+	append_int(output, reference.alternative.index);
+	source_append_text(output, " ");
+	append_int(output, reference.scope.index);
+	source_append_text(output, " ");
+	append_int(output, reference.domain);
+	source_append_text(output, " ");
+	append_int(output, reference.reason);
+	source_append_text(output, " ");
+	append_int(output, reference.node.index);
+	source_append_text(output, "\n");
+}
+owned Utf8Message binding_observation(BindingIndex index) throws Error {
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "astra-bindings/1\n");
+	if (index.failed()) {
+		source_append_text(output, "ERROR ");
+		binding_write_span(index, index.error_span, output);
+		source_append_text(output, " ");
+		var message = index.names.text(index.error_message);
+		syntax_write_hex(output, message.text);
+		source_append_text(output, "\n");
+	} else {
+		int i = 1;
+		while (i <= index.symbol_count) {
+			SymbolId id = {
+				index = i
+			};
+			var symbol = index.symbol(id);
+			var name = index.names.text(symbol.name);
+			var canonical = index.names.text(symbol.canonical);
+			source_append_text(output, "D ");
+			append_int(output, i);
+			source_append_text(output, " ");
+			binding_write_span(index, symbol.span, output);
+			source_append_text(output, " ");
+			syntax_write_hex(output, name.text);
+			source_append_text(output, " ");
+			syntax_write_hex(output, canonical.text);
+			source_append_text(output, " ");
+			append_int(output, symbol.kind);
+			source_append_text(output, " ");
+			append_int(output, symbol.domain);
+			source_append_text(output, " ");
+			append_int(output, symbol.scope.index);
+			source_append_text(output, " ");
+			append_int(output, symbol.owner.index);
+			source_append_text(output, " ");
+			append_int(output, symbol.node.index);
+			source_append_text(output, "\n");
+			i = i + 1;
+		}
+		i = 1;
+		while (i <= index.scope_count) {
+			ScopeId id = {
+				index = i
+			};
+			var scope = index.scope(id);
+			source_append_text(output, "S ");
+			append_int(output, i);
+			source_append_text(output, " ");
+			append_int(output, scope.parent.index);
+			source_append_text(output, " ");
+			append_int(output, scope.owner.index);
+			source_append_text(output, " ");
+			append_int(output, scope.kind);
+			source_append_text(output, " ");
+			append_int(output, scope.node.index);
+			source_append_text(output, "\n");
+			i = i + 1;
+		}
+		i = 1;
+		while (i <= 93) {
+			source_append_text(output, "C ");
+			append_int(output, i);
+			source_append_text(output, " ");
+			append_int(output, index.visits(i));
+			source_append_text(output, "\n");
+			i = i + 1;
+		}
+		i = 1;
+		while (i <= index.reference_count) {
+			binding_write_reference(index, i, output);
+			i = i + 1;
+		}
+	}
+	var result = output.snapshot();
+	return move result;
+}
+int binding_decimal(string value) {
+	int result = 0;
+	int i = 0;
+	while (i < value.byte_length) {
+		int byte = astra_host_text_byte(value, i);
+		assert_that(byte >= 48 && byte <= 57 && result <= (2147483647 - (byte - 48)) / 10);
+		result = result * 10 + byte - 48;
+		i = i + 1;
+	}
+	return result;
+}
+owned SyntaxProgram binding_load_program(string[] args, int start) throws Error {
+	var entries = new Vector<SourceEntry>(len(args));
+	int i = start;
+	while (i < len(args)) {
+		var file = read_file(args[i]);
+		var bytes = new u8[file.byte_count()];
+		int at = 0;
+		while (at < len(bytes)) {
+			bytes[at] = file.byte_at(at) as u8;
+			at = at + 1;
+		}
+		var buffer = source_buffer(args[i], move bytes, false);
+		var shared = shared_acquire(move buffer);
+		var entry = new SourceEntry(move shared);
+		assert_that(entries.append(move entry));
+		i = i + 1;
+	}
+	var sources = source_set(move entries);
+	var program = syntax_program(move sources);
+	return move program;
+}
+owned BindingIndex binding_load(string[] args, int start, int stop_after) throws Error {
+	var program = binding_load_program(args, start);
+	var result = binding_index(move program, stop_after);
+	return move result;
+}
