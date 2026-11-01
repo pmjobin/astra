@@ -1,0 +1,2257 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SyntaxObservation {
+	owned Utf8ByteBuilder output;
+	init() {
+		var output = new Utf8ByteBuilder();
+		this.output = move output;
+	}
+	owned Utf8Message format(SyntaxArena arena, SyntaxNodeId arg_unit) throws Error {
+		var tmp_1 = (arena.list_count(arena.get_list_com_interfaces(arg_unit)) == 0);
+		if (tmp_1) {
+			tmp_1 = (arena.get_token_namespace_name(arg_unit).index == 0);
+		}
+		var tmp_2 = tmp_1;
+		if (tmp_2) {
+			tmp_2 = (arena.list_count(arena.get_list_imports(arg_unit)) == 0);
+		}
+		var tmp_3 = tmp_2;
+		if (tmp_3) {
+			tmp_3 = (arena.list_count(arena.get_list_async_runtimes(arg_unit)) == 0);
+		}
+		var tmp_4 = tmp_3;
+		if (tmp_4) {
+			tmp_4 = (arena.list_count(arena.get_list_enums(arg_unit)) == 0);
+		}
+		var tmp_5 = tmp_4;
+		if (tmp_5) {
+			tmp_5 = (arena.list_count(arena.get_list_functions(arg_unit)) == 0);
+		}
+		var tmp_6 = tmp_5;
+		if (tmp_6) {
+			tmp_6 = (arena.list_count(arena.get_list_structs(arg_unit)) == 0);
+		}
+		var tmp_7 = tmp_6;
+		if (tmp_7) {
+			tmp_7 = (arena.list_count(arena.get_list_classes(arg_unit)) == 0);
+		}
+		var tmp_8 = tmp_7;
+		if (tmp_8) {
+			tmp_8 = (arena.list_count(arena.get_list_constants(arg_unit)) == 0);
+		}
+		if (tmp_8) {
+			var tmp_9 = syntax_text("(unit)\n");
+			return move tmp_9;
+		}
+		var v_dump_10 = new SyntaxObservation();
+		v_dump_10.line(arena, 0, "(unit");
+		var tmp_11 = -1;
+		while (tmp_11 + 1 < arena.list_count(arena.get_list_com_interfaces(arg_unit))) {
+			tmp_11 = tmp_11 + 1;
+			var v_imported_12 = arena.node_at(arena.get_list_com_interfaces(arg_unit), tmp_11);
+			var tmp_13 = arena.token_message(arena.get_token_name(v_imported_12));
+			var tmp_14 = new Utf8ByteBuilder();
+			source_append_text(tmp_14, "(COMImport ");
+			source_append_text(tmp_14, tmp_13.text);
+			var tmp_15 = tmp_14.snapshot();
+			v_dump_10.line(arena, 1, tmp_15.text);
+			var tmp_16 = -1;
+			while (tmp_16 + 1 < arena.list_count(arena.get_list_entries(arena.get_node_policy(v_imported_12)))) {
+				tmp_16 = tmp_16 + 1;
+				var v_entry_17 = arena.node_at(arena.get_list_entries(arena.get_node_policy(v_imported_12)), tmp_16);
+				var tmp_18 = arena.token_message(arena.get_token_key(v_entry_17));
+				var tmp_19 = arena.text_message(arena.get_text_decoded_value(v_entry_17));
+				var tmp_20 = syntax_escape(tmp_19.text);
+				var tmp_21 = new Utf8ByteBuilder();
+				source_append_text(tmp_21, "(");
+				source_append_text(tmp_21, tmp_18.text);
+				source_append_text(tmp_21, " \"");
+				source_append_text(tmp_21, tmp_20.text);
+				source_append_text(tmp_21, "\")");
+				var tmp_22 = tmp_21.snapshot();
+				v_dump_10.line(arena, 2, tmp_22.text);
+			}
+			if ((arena.get_node_declaration(v_imported_12).index != 0)) {
+				if ((arena.get_node_parent_class(arena.get_node_declaration(v_imported_12)).index != 0)) {
+					var tmp_23 = arena.type_message(arena.get_node_parent_class(arena.get_node_declaration(v_imported_12)));
+					var tmp_24 = new Utf8ByteBuilder();
+					source_append_text(tmp_24, "(base ");
+					source_append_text(tmp_24, tmp_23.text);
+					var tmp_25 = tmp_24.snapshot();
+					var tmp_26 = new Utf8ByteBuilder();
+					source_append_text(tmp_26, tmp_25.text);
+					source_append_text(tmp_26, ")");
+					var tmp_27 = tmp_26.snapshot();
+					v_dump_10.line(arena, 2, tmp_27.text);
+				}
+				var tmp_28 = -1;
+				while (tmp_28 + 1 < arena.list_count(arena.get_list_members(arena.get_node_declaration(v_imported_12)))) {
+					tmp_28 = tmp_28 + 1;
+					var v_member_29 = arena.node_at(arena.get_list_members(arena.get_node_declaration(v_imported_12)), tmp_28);
+					if ((v_member_29.index != 0 && syntax_kind_accepts(arena.kind(v_member_29), SyntaxKind.FunctionDeclarationSyntax()))) {
+						v_dump_10.write_function(arena, v_member_29, 2, true);
+					} else {
+						if ((v_member_29.index != 0 && syntax_kind_accepts(arena.kind(v_member_29), SyntaxKind.PropertyDeclarationSyntax()))) {
+							v_dump_10.write_property(arena, v_member_29);
+						} else {
+							var v_field_30 = v_member_29;
+							var tmp_31 = arena.type_message(arena.get_node_type_name(v_field_30));
+							var tmp_32 = arena.token_message(arena.get_token_name(v_field_30));
+							var tmp_33 = new Utf8ByteBuilder();
+							source_append_text(tmp_33, "(field (type \"");
+							source_append_text(tmp_33, tmp_31.text);
+							source_append_text(tmp_33, "\") (name \"");
+							source_append_text(tmp_33, tmp_32.text);
+							source_append_text(tmp_33, "\"))");
+							var tmp_34 = tmp_33.snapshot();
+							v_dump_10.line(arena, 2, tmp_34.text);
+						}
+					}
+				}
+			}
+			v_dump_10.line(arena, 1, ")");
+		}
+		if ((arena.get_token_namespace_name(arg_unit).index != 0)) {
+			var tmp_35 = arena.token_message(arena.get_token_namespace_name(arg_unit));
+			var tmp_36 = new Utf8ByteBuilder();
+			source_append_text(tmp_36, "(namespace ");
+			source_append_text(tmp_36, tmp_35.text);
+			var tmp_37 = tmp_36.snapshot();
+			var tmp_38 = new Utf8ByteBuilder();
+			source_append_text(tmp_38, tmp_37.text);
+			source_append_text(tmp_38, ")");
+			var tmp_39 = tmp_38.snapshot();
+			v_dump_10.line(arena, 1, tmp_39.text);
+		}
+		var tmp_40 = -1;
+		while (tmp_40 + 1 < arena.list_count(arena.get_list_imports(arg_unit))) {
+			tmp_40 = tmp_40 + 1;
+			var v_imported_41 = arena.token_at(arena.get_list_imports(arg_unit), tmp_40);
+			var tmp_42 = arena.token_message(v_imported_41);
+			var tmp_43 = new Utf8ByteBuilder();
+			source_append_text(tmp_43, "(using ");
+			source_append_text(tmp_43, tmp_42.text);
+			var tmp_44 = tmp_43.snapshot();
+			var tmp_45 = new Utf8ByteBuilder();
+			source_append_text(tmp_45, tmp_44.text);
+			source_append_text(tmp_45, ")");
+			var tmp_46 = tmp_45.snapshot();
+			v_dump_10.line(arena, 1, tmp_46.text);
+		}
+		var tmp_47 = -1;
+		while (tmp_47 + 1 < arena.list_count(arena.get_list_async_runtimes(arg_unit))) {
+			tmp_47 = tmp_47 + 1;
+			var v_runtime_48 = arena.node_at(arena.get_list_async_runtimes(arg_unit), tmp_47);
+			var tmp_49 = arena.token_message(arena.get_token_name(v_runtime_48));
+			var tmp_50 = arena.type_message(arena.get_node_error(v_runtime_48));
+			var tmp_51 = arena.type_message(arena.get_node_status(v_runtime_48));
+			var tmp_52 = new Utf8ByteBuilder();
+			source_append_text(tmp_52, "(async-runtime ");
+			source_append_text(tmp_52, tmp_49.text);
+			source_append_text(tmp_52, " throws ");
+			source_append_text(tmp_52, tmp_50.text);
+			source_append_text(tmp_52, " returns ");
+			source_append_text(tmp_52, tmp_51.text);
+			source_append_text(tmp_52, ")");
+			var tmp_53 = tmp_52.snapshot();
+			v_dump_10.line(arena, 1, tmp_53.text);
+			if ((arena.get_token_provider(v_runtime_48).index != 0)) {
+				var tmp_54 = arena.token_message(arena.get_token_provider(v_runtime_48));
+				var tmp_55 = new Utf8ByteBuilder();
+				source_append_text(tmp_55, "(async-provider ");
+				source_append_text(tmp_55, tmp_54.text);
+				source_append_text(tmp_55, ")");
+				var tmp_56 = tmp_55.snapshot();
+				v_dump_10.line(arena, 1, tmp_56.text);
+			}
+		}
+		var tmp_57 = -1;
+		while (tmp_57 + 1 < arena.list_count(arena.get_list_enums(arg_unit))) {
+			tmp_57 = tmp_57 + 1;
+			var v_definition_58 = arena.node_at(arena.get_list_enums(arg_unit), tmp_57);
+			if (arena.get_bool_module_internal(v_definition_58)) {
+				var tmp_59 = arena.token_message(arena.get_token_name(v_definition_58));
+				var tmp_60 = new Utf8ByteBuilder();
+				source_append_text(tmp_60, "(internal-declaration ");
+				source_append_text(tmp_60, tmp_59.text);
+				var tmp_61 = tmp_60.snapshot();
+				var tmp_62 = new Utf8ByteBuilder();
+				source_append_text(tmp_62, tmp_61.text);
+				source_append_text(tmp_62, ")");
+				var tmp_63 = tmp_62.snapshot();
+				v_dump_10.line(arena, 1, tmp_63.text);
+			}
+			var tmp_64 = arena.token_message(arena.get_token_name(v_definition_58));
+			var tmp_65 = new Utf8ByteBuilder();
+			source_append_text(tmp_65, "(enum ");
+			source_append_text(tmp_65, tmp_64.text);
+			var tmp_66 = tmp_65.snapshot();
+			v_dump_10.line(arena, 1, tmp_66.text);
+			var tmp_67 = -1;
+			while (tmp_67 + 1 < arena.list_count(arena.get_list_variants(v_definition_58))) {
+				tmp_67 = tmp_67 + 1;
+				var v_variant_68 = arena.node_at(arena.get_list_variants(v_definition_58), tmp_67);
+				var tmp_69 = arena.token_message(arena.get_token_name(v_variant_68));
+				var tmp_70 = new Utf8ByteBuilder();
+				source_append_text(tmp_70, "(variant ");
+				source_append_text(tmp_70, tmp_69.text);
+				var tmp_71 = tmp_70.snapshot();
+				v_dump_10.line(arena, 2, tmp_71.text);
+				var tmp_72 = -1;
+				while (tmp_72 + 1 < arena.list_count(arena.get_list_fields(v_variant_68))) {
+					tmp_72 = tmp_72 + 1;
+					var v_field_73 = arena.node_at(arena.get_list_fields(v_variant_68), tmp_72);
+					var tmp_74 = arena.type_message(arena.get_node_type_name(v_field_73));
+					var tmp_75 = arena.token_message(arena.get_token_name(v_field_73));
+					var tmp_76 = new Utf8ByteBuilder();
+					source_append_text(tmp_76, "(payload ");
+					source_append_text(tmp_76, tmp_74.text);
+					source_append_text(tmp_76, " ");
+					source_append_text(tmp_76, tmp_75.text);
+					source_append_text(tmp_76, ")");
+					var tmp_77 = tmp_76.snapshot();
+					v_dump_10.line(arena, 3, tmp_77.text);
+				}
+				v_dump_10.line(arena, 2, ")");
+			}
+			v_dump_10.line(arena, 1, ")");
+		}
+		var tmp_78 = -1;
+		while (tmp_78 + 1 < arena.list_count(arena.get_list_constants(arg_unit))) {
+			tmp_78 = tmp_78 + 1;
+			var v_constant_79 = arena.node_at(arena.get_list_constants(arg_unit), tmp_78);
+			if (arena.get_bool_module_internal(v_constant_79)) {
+				var tmp_80 = arena.token_message(arena.get_token_name(v_constant_79));
+				var tmp_81 = new Utf8ByteBuilder();
+				source_append_text(tmp_81, "(internal-declaration ");
+				source_append_text(tmp_81, tmp_80.text);
+				var tmp_82 = tmp_81.snapshot();
+				var tmp_83 = new Utf8ByteBuilder();
+				source_append_text(tmp_83, tmp_82.text);
+				source_append_text(tmp_83, ")");
+				var tmp_84 = tmp_83.snapshot();
+				v_dump_10.line(arena, 1, tmp_84.text);
+			}
+			v_dump_10.write_statement(arena, v_constant_79, 1);
+		}
+		var tmp_85 = -1;
+		while (tmp_85 + 1 < arena.list_count(syntax_unit_native_instances(arena, arg_unit, true))) {
+			tmp_85 = tmp_85 + 1;
+			var v_declaration_86 = arena.node_at(syntax_unit_native_instances(arena, arg_unit, true), tmp_85);
+			if (arena.get_bool_module_internal(v_declaration_86)) {
+				var tmp_87 = arena.token_message(arena.get_token_name(v_declaration_86));
+				var tmp_88 = new Utf8ByteBuilder();
+				source_append_text(tmp_88, "(internal-declaration ");
+				source_append_text(tmp_88, tmp_87.text);
+				var tmp_89 = tmp_88.snapshot();
+				var tmp_90 = new Utf8ByteBuilder();
+				source_append_text(tmp_90, tmp_89.text);
+				source_append_text(tmp_90, ")");
+				var tmp_91 = tmp_90.snapshot();
+				v_dump_10.line(arena, 1, tmp_91.text);
+			}
+			var tmp_92 = new Utf8ByteBuilder();
+			if ((arena.token_kind(arena.get_token_keyword(v_declaration_86)) == TokenKind.CLASS())) {
+				source_append_text(tmp_92, "class");
+			} else {
+				source_append_text(tmp_92, "struct");
+			}
+			var tmp_93 = tmp_92.snapshot();
+			var tmp_94 = arena.token_message(arena.get_token_name(v_declaration_86));
+			var tmp_95 = new Utf8ByteBuilder();
+			source_append_text(tmp_95, "(");
+			source_append_text(tmp_95, tmp_93.text);
+			source_append_text(tmp_95, " \"");
+			source_append_text(tmp_95, tmp_94.text);
+			source_append_text(tmp_95, "\"");
+			var tmp_96 = tmp_95.snapshot();
+			v_dump_10.line(arena, 1, tmp_96.text);
+			var v_object_class_97 = arena.try_kind(v_declaration_86, SyntaxKind.ClassDeclarationSyntax());
+			var tmp_98 = (v_object_class_97.index != 0);
+			if (tmp_98) {
+				tmp_98 = (arena.get_node_foreign_export(v_object_class_97).index != 0);
+			}
+			if (tmp_98) {
+				var v_policy_99 = arena.get_node_foreign_export(v_object_class_97);
+				var tmp_100 = syntax_policy_spelling(arena.get_int_kind(v_policy_99));
+				var tmp_101 = new Utf8ByteBuilder();
+				source_append_text(tmp_101, "(policy ");
+				source_append_text(tmp_101, tmp_100.text);
+				var tmp_102 = tmp_101.snapshot();
+				var tmp_103 = new Utf8ByteBuilder();
+				source_append_text(tmp_103, tmp_102.text);
+				source_append_text(tmp_103, ")");
+				var tmp_104 = tmp_103.snapshot();
+				v_dump_10.line(arena, 2, tmp_104.text);
+				var tmp_105 = -1;
+				while (tmp_105 + 1 < arena.list_count(arena.get_list_entries(v_policy_99))) {
+					tmp_105 = tmp_105 + 1;
+					var v_entry_106 = arena.node_at(arena.get_list_entries(v_policy_99), tmp_105);
+					var tmp_107 = arena.token_message(arena.get_token_key(v_entry_106));
+					var tmp_108 = arena.text_message(arena.get_text_decoded_value(v_entry_106));
+					var tmp_109 = syntax_escape(tmp_108.text);
+					var tmp_110 = new Utf8ByteBuilder();
+					source_append_text(tmp_110, "(foreign-class ");
+					source_append_text(tmp_110, tmp_107.text);
+					source_append_text(tmp_110, " \"");
+					source_append_text(tmp_110, tmp_109.text);
+					source_append_text(tmp_110, "\")");
+					var tmp_111 = tmp_110.snapshot();
+					v_dump_10.line(arena, 2, tmp_111.text);
+				}
+			}
+			var tmp_112 = (v_object_class_97.index != 0);
+			if (tmp_112) {
+				tmp_112 = (arena.get_node_com_export(v_object_class_97).index != 0);
+			}
+			if (tmp_112) {
+				var v_policy_113 = arena.get_node_com_export(v_object_class_97);
+				v_dump_10.line(arena, 2, "(policy COMExport)");
+				var tmp_114 = -1;
+				while (tmp_114 + 1 < arena.list_count(arena.get_list_entries(v_policy_113))) {
+					tmp_114 = tmp_114 + 1;
+					var v_entry_115 = arena.node_at(arena.get_list_entries(v_policy_113), tmp_114);
+					var tmp_116 = arena.token_message(arena.get_token_key(v_entry_115));
+					var tmp_117 = arena.text_message(arena.get_text_decoded_value(v_entry_115));
+					var tmp_118 = syntax_escape(tmp_117.text);
+					var tmp_119 = new Utf8ByteBuilder();
+					source_append_text(tmp_119, "(COMExport ");
+					source_append_text(tmp_119, tmp_116.text);
+					source_append_text(tmp_119, " \"");
+					source_append_text(tmp_119, tmp_118.text);
+					source_append_text(tmp_119, "\")");
+					var tmp_120 = tmp_119.snapshot();
+					v_dump_10.line(arena, 2, tmp_120.text);
+				}
+			}
+			var tmp_121 = (v_object_class_97.index != 0);
+			if (tmp_121) {
+				tmp_121 = (arena.get_node_gobject_export(v_object_class_97).index != 0);
+			}
+			if (tmp_121) {
+				var v_policy_122 = arena.get_node_gobject_export(v_object_class_97);
+				v_dump_10.line(arena, 2, "(policy GObjectExport)");
+				var tmp_123 = -1;
+				while (tmp_123 + 1 < arena.list_count(arena.get_list_entries(v_policy_122))) {
+					tmp_123 = tmp_123 + 1;
+					var v_entry_124 = arena.node_at(arena.get_list_entries(v_policy_122), tmp_123);
+					var tmp_125 = arena.token_message(arena.get_token_key(v_entry_124));
+					var tmp_126 = arena.text_message(arena.get_text_decoded_value(v_entry_124));
+					var tmp_127 = syntax_escape(tmp_126.text);
+					var tmp_128 = new Utf8ByteBuilder();
+					source_append_text(tmp_128, "(GObjectExport ");
+					source_append_text(tmp_128, tmp_125.text);
+					source_append_text(tmp_128, " \"");
+					source_append_text(tmp_128, tmp_127.text);
+					source_append_text(tmp_128, "\")");
+					var tmp_129 = tmp_128.snapshot();
+					v_dump_10.line(arena, 2, tmp_129.text);
+				}
+			}
+			var tmp_130 = (v_object_class_97.index != 0);
+			if (tmp_130) {
+				tmp_130 = arena.get_bool_is_interface(v_object_class_97);
+			}
+			if (tmp_130) {
+				v_dump_10.line(arena, 2, "(interface-contract fieldless nonconstructible borrowed int-operations)");
+			}
+			var tmp_131 = (v_object_class_97.index != 0);
+			if (tmp_131) {
+				tmp_131 = (arena.list_count(arena.get_list_type_parameters(v_object_class_97)) != 0);
+			}
+			if (tmp_131) {
+				var tmp_132 = arena.get_bool_exact_heap_class(v_object_class_97);
+				if (tmp_132) {
+					tmp_132 = (arena.list_count(arena.get_list_type_parameters(v_object_class_97)) == 1);
+				}
+				if (tmp_132) {
+					var tmp_133 = arena.token_message(arena.token_at(arena.get_list_type_parameters(v_object_class_97), 0));
+					var tmp_134 = new Utf8ByteBuilder();
+					source_append_text(tmp_134, "(exact-class-parameter ");
+					source_append_text(tmp_134, tmp_133.text);
+					var tmp_135 = tmp_134.snapshot();
+					var tmp_136 = new Utf8ByteBuilder();
+					source_append_text(tmp_136, tmp_135.text);
+					source_append_text(tmp_136, ")");
+					var tmp_137 = tmp_136.snapshot();
+					v_dump_10.line(arena, 2, tmp_137.text);
+				} else {
+					var tmp_138 = new Utf8ByteBuilder();
+					source_append_text(tmp_138, "(type-parameters");
+					var v_parameters_139 = move tmp_138;
+					var tmp_140 = -1;
+					while (tmp_140 + 1 < arena.list_count(arena.get_list_type_parameters(v_object_class_97))) {
+						tmp_140 = tmp_140 + 1;
+						var v_parameter_141 = arena.token_at(arena.get_list_type_parameters(v_object_class_97), tmp_140);
+						var tmp_142 = arena.token_message(v_parameter_141);
+						var tmp_143 = new Utf8ByteBuilder();
+						source_append_text(tmp_143, " ");
+						source_append_text(tmp_143, tmp_142.text);
+						var tmp_144 = tmp_143.snapshot();
+						source_append_text(v_parameters_139, tmp_144.text);
+					}
+					source_append_text(v_parameters_139, ")");
+					var tmp_145 = v_parameters_139.snapshot();
+					v_dump_10.line(arena, 2, tmp_145.text);
+				}
+				var tmp_146 = -1;
+				while (tmp_146 + 1 < arena.list_count(arena.get_list_where_clauses(v_object_class_97))) {
+					tmp_146 = tmp_146 + 1;
+					var v_clause_147 = arena.node_at(arena.get_list_where_clauses(v_object_class_97), tmp_146);
+					var tmp_148 = this.format_where(arena, v_clause_147);
+					v_dump_10.line(arena, 2, tmp_148.text);
+				}
+			}
+			var tmp_149 = (v_object_class_97.index != 0);
+			if (tmp_149) {
+				tmp_149 = (arena.get_node_parent_class(v_object_class_97).index != 0);
+			}
+			if (tmp_149) {
+				var tmp_150 = arena.type_message(arena.get_node_parent_class(v_object_class_97));
+				var tmp_151 = new Utf8ByteBuilder();
+				source_append_text(tmp_151, "(base ");
+				source_append_text(tmp_151, tmp_150.text);
+				var tmp_152 = tmp_151.snapshot();
+				var tmp_153 = new Utf8ByteBuilder();
+				source_append_text(tmp_153, tmp_152.text);
+				source_append_text(tmp_153, ")");
+				var tmp_154 = tmp_153.snapshot();
+				v_dump_10.line(arena, 2, tmp_154.text);
+			}
+			var tmp_155 = (v_object_class_97.index != 0);
+			if (tmp_155) {
+				tmp_155 = (arena.get_token_exception_root(v_object_class_97).index != 0);
+			}
+			if (tmp_155) {
+				v_dump_10.line(arena, 2, "(exception-root)");
+			}
+			var v_generic_156 = arena.try_kind(v_declaration_86, SyntaxKind.StructDeclarationSyntax());
+			var tmp_157 = (v_generic_156.index != 0);
+			if (tmp_157) {
+				tmp_157 = (arena.list_count(arena.get_list_type_parameters(v_generic_156)) != 0);
+			}
+			if (tmp_157) {
+				var tmp_158 = new Utf8ByteBuilder();
+				source_append_text(tmp_158, "(type-parameters");
+				var v_parameters_159 = move tmp_158;
+				var tmp_160 = -1;
+				while (tmp_160 + 1 < arena.list_count(arena.get_list_type_parameters(v_generic_156))) {
+					tmp_160 = tmp_160 + 1;
+					var v_parameter_161 = arena.token_at(arena.get_list_type_parameters(v_generic_156), tmp_160);
+					var tmp_162 = arena.token_message(v_parameter_161);
+					var tmp_163 = new Utf8ByteBuilder();
+					source_append_text(tmp_163, " ");
+					source_append_text(tmp_163, tmp_162.text);
+					var tmp_164 = tmp_163.snapshot();
+					source_append_text(v_parameters_159, tmp_164.text);
+				}
+				source_append_text(v_parameters_159, ")");
+				var tmp_165 = v_parameters_159.snapshot();
+				v_dump_10.line(arena, 2, tmp_165.text);
+			}
+			if ((v_generic_156.index != 0)) {
+				var tmp_166 = -1;
+				while (tmp_166 + 1 < arena.list_count(arena.get_list_where_clauses(v_generic_156))) {
+					tmp_166 = tmp_166 + 1;
+					var v_clause_167 = arena.node_at(arena.get_list_where_clauses(v_generic_156), tmp_166);
+					var tmp_168 = this.format_where(arena, v_clause_167);
+					v_dump_10.line(arena, 2, tmp_168.text);
+				}
+			}
+			var tmp_169 = -1;
+			while (tmp_169 + 1 < arena.list_count(arena.get_list_members(v_declaration_86))) {
+				tmp_169 = tmp_169 + 1;
+				var v_member_170 = arena.node_at(arena.get_list_members(v_declaration_86), tmp_169);
+				if ((v_member_170.index != 0 && syntax_kind_accepts(arena.kind(v_member_170), SyntaxKind.FunctionDeclarationSyntax()))) {
+					v_dump_10.write_function(arena, v_member_170, 2, true);
+					continue;
+				}
+				if ((v_member_170.index != 0 && syntax_kind_accepts(arena.kind(v_member_170), SyntaxKind.PropertyDeclarationSyntax()))) {
+					v_dump_10.write_property(arena, v_member_170);
+					continue;
+				}
+				var v_field_171 = v_member_170;
+				if ((arena.get_token_private_keyword(v_field_171).index != 0)) {
+					var tmp_172 = arena.token_message(arena.get_token_name(v_field_171));
+					var tmp_173 = new Utf8ByteBuilder();
+					source_append_text(tmp_173, "(private-field \"");
+					source_append_text(tmp_173, tmp_172.text);
+					source_append_text(tmp_173, "\" lexical-declaring-class)");
+					var tmp_174 = tmp_173.snapshot();
+					v_dump_10.line(arena, 2, tmp_174.text);
+				}
+				if ((arena.get_token_readonly_keyword(v_field_171).index != 0)) {
+					var tmp_175 = arena.type_message(arena.get_node_type_name(v_field_171));
+					var tmp_176 = arena.token_message(arena.get_token_name(v_field_171));
+					var tmp_177 = new Utf8ByteBuilder();
+					source_append_text(tmp_177, "(readonly-field (type \"");
+					source_append_text(tmp_177, tmp_175.text);
+					source_append_text(tmp_177, "\") (name \"");
+					source_append_text(tmp_177, tmp_176.text);
+					source_append_text(tmp_177, "\"))");
+					var tmp_178 = tmp_177.snapshot();
+					v_dump_10.line(arena, 2, tmp_178.text);
+					continue;
+				}
+				if ((arena.get_token_owned_keyword(v_field_171).index != 0)) {
+					var tmp_179 = arena.type_message(arena.get_node_type_name(v_field_171));
+					var tmp_180 = arena.token_message(arena.get_token_name(v_field_171));
+					var tmp_181 = new Utf8ByteBuilder();
+					source_append_text(tmp_181, "(owned-field (type \"");
+					source_append_text(tmp_181, tmp_179.text);
+					source_append_text(tmp_181, "\") (name \"");
+					source_append_text(tmp_181, tmp_180.text);
+					source_append_text(tmp_181, "\"))");
+					var tmp_182 = tmp_181.snapshot();
+					v_dump_10.line(arena, 2, tmp_182.text);
+					continue;
+				}
+				var tmp_183 = arena.type_message(arena.get_node_type_name(v_field_171));
+				var tmp_184 = arena.token_message(arena.get_token_name(v_field_171));
+				var tmp_185 = new Utf8ByteBuilder();
+				source_append_text(tmp_185, "(field (type \"");
+				source_append_text(tmp_185, tmp_183.text);
+				source_append_text(tmp_185, "\") (name \"");
+				source_append_text(tmp_185, tmp_184.text);
+				source_append_text(tmp_185, "\"))");
+				var tmp_186 = tmp_185.snapshot();
+				v_dump_10.line(arena, 2, tmp_186.text);
+			}
+			v_dump_10.line(arena, 1, ")");
+		}
+		var v_i_187 = 0;
+		var tmp_188 = true;
+		while (true) {
+			if (tmp_188) {
+				tmp_188 = false;
+			} else {
+				var tmp_189 = v_i_187;
+				v_i_187 = (v_i_187 + 1);
+			}
+			if (!((v_i_187 < arena.list_count(arena.get_list_functions(arg_unit))))) {
+				break;
+			}
+			if (arena.get_bool_module_internal(arena.node_at(arena.get_list_functions(arg_unit), v_i_187))) {
+				var tmp_190 = arena.token_message(arena.get_token_name(arena.node_at(arena.get_list_functions(arg_unit), v_i_187)));
+				var tmp_191 = new Utf8ByteBuilder();
+				source_append_text(tmp_191, "(internal-declaration ");
+				source_append_text(tmp_191, tmp_190.text);
+				var tmp_192 = tmp_191.snapshot();
+				var tmp_193 = new Utf8ByteBuilder();
+				source_append_text(tmp_193, tmp_192.text);
+				source_append_text(tmp_193, ")");
+				var tmp_194 = tmp_193.snapshot();
+				v_dump_10.line(arena, 1, tmp_194.text);
+			}
+			v_dump_10.write_function(arena, arena.node_at(arena.get_list_functions(arg_unit), v_i_187), 1, false);
+		}
+		v_dump_10.line(arena, 0, ")");
+		var tmp_195 = v_dump_10.output.snapshot();
+		var tmp_196 = syntax_text(tmp_195.text);
+		return move tmp_196;
+		var unreachable = syntax_text("");
+		return move unreachable;
+	}
+	void line(SyntaxArena arena, int arg_indentation, string arg_text) throws Error {
+		var v_i_1 = 0;
+		var tmp_2 = true;
+		while (true) {
+			if (tmp_2) {
+				tmp_2 = false;
+			} else {
+				var tmp_3 = v_i_1;
+				v_i_1 = (v_i_1 + 1);
+			}
+			if (!((v_i_1 < arg_indentation))) {
+				break;
+			}
+			syntax_append_byte(this.output, 9);
+		}
+		source_append_text(this.output, arg_text);
+		syntax_append_byte(this.output, 10);
+	}
+	void write_property(SyntaxArena arena, SyntaxNodeId arg_property) throws Error {
+		if ((arena.get_token_owned_keyword(arg_property).index != 0)) {
+			this.line(arena, 2, "(owned-lazy-factory receiver-borrow-observation)");
+		}
+		if (arena.get_bool_is_borrowed(arg_property)) {
+			this.line(arena, 2, "(borrowed receiver-owned-field temporary-use)");
+		}
+		if (arena.computed_is_lazy(arg_property)) {
+			this.line(arena, 2, "(lazy)");
+		}
+		if ((arena.get_node_throws_class(arg_property).index != 0)) {
+			var tmp_1 = arena.type_message(arena.get_node_throws_class(arg_property));
+			var tmp_2 = new Utf8ByteBuilder();
+			source_append_text(tmp_2, "(throws ");
+			source_append_text(tmp_2, tmp_1.text);
+			source_append_text(tmp_2, ")");
+			var tmp_3 = tmp_2.snapshot();
+			this.line(arena, 2, tmp_3.text);
+		}
+		if ((arena.get_int_dispatch(arg_property) != 0)) {
+			var tmp_4 = new Utf8ByteBuilder();
+			if ((arena.get_int_dispatch(arg_property) == 1)) {
+				source_append_text(tmp_4, "(virtual)");
+			} else {
+				source_append_text(tmp_4, "(override)");
+			}
+			var tmp_5 = tmp_4.snapshot();
+			this.line(arena, 2, tmp_5.text);
+		}
+		var tmp_6 = arena.type_message(arena.get_node_type_name(arg_property));
+		var tmp_7 = arena.token_message(arena.get_token_name(arg_property));
+		var tmp_8 = new Utf8ByteBuilder();
+		source_append_text(tmp_8, "(property (type \"");
+		source_append_text(tmp_8, tmp_6.text);
+		source_append_text(tmp_8, "\") (name \"");
+		source_append_text(tmp_8, tmp_7.text);
+		source_append_text(tmp_8, "\")");
+		var tmp_9 = tmp_8.snapshot();
+		this.line(arena, 2, tmp_9.text);
+		this.line(arena, 3, "(getter");
+		this.write_block(arena, arena.get_node_body(arena.get_node_getter(arg_property)), 4);
+		this.line(arena, 3, ")");
+		if ((arena.get_node_setter(arg_property).index != 0)) {
+			var v_parameter_10 = arena.get_node_parameter(arena.get_node_setter(arg_property));
+			var tmp_11 = arena.type_message(arena.get_node_type_name(v_parameter_10));
+			var tmp_12 = arena.token_message(arena.get_token_name(v_parameter_10));
+			var tmp_13 = new Utf8ByteBuilder();
+			source_append_text(tmp_13, "(setter (parameter (type \"");
+			source_append_text(tmp_13, tmp_11.text);
+			source_append_text(tmp_13, "\") (name \"");
+			source_append_text(tmp_13, tmp_12.text);
+			source_append_text(tmp_13, "\"))");
+			var tmp_14 = tmp_13.snapshot();
+			this.line(arena, 3, tmp_14.text);
+			this.write_block(arena, arena.get_node_body(arena.get_node_setter(arg_property)), 4);
+			this.line(arena, 3, ")");
+		}
+		this.line(arena, 2, ")");
+	}
+	void write_function(SyntaxArena arena, SyntaxNodeId arg_function, int arg_indentation, bool arg_method) throws Error {
+		if ((arena.get_node_foreign_policy(arg_function).index != 0)) {
+			var v_policy_1 = arena.get_node_foreign_policy(arg_function);
+			var tmp_2 = syntax_policy_spelling(arena.get_int_kind(v_policy_1));
+			var tmp_3 = new Utf8ByteBuilder();
+			source_append_text(tmp_3, "(policy ");
+			source_append_text(tmp_3, tmp_2.text);
+			source_append_text(tmp_3, ")");
+			var tmp_4 = tmp_3.snapshot();
+			this.line(arena, arg_indentation, tmp_4.text);
+			var tmp_5 = -1;
+			while (tmp_5 + 1 < arena.list_count(arena.get_list_entries(v_policy_1))) {
+				tmp_5 = tmp_5 + 1;
+				var v_entry_6 = arena.node_at(arena.get_list_entries(v_policy_1), tmp_5);
+				var tmp_7 = syntax_policy_spelling(arena.get_int_kind(v_policy_1));
+				var tmp_8 = arena.token_message(arena.get_token_key(v_entry_6));
+				var tmp_9 = arena.text_message(arena.get_text_decoded_value(v_entry_6));
+				var tmp_10 = syntax_escape(tmp_9.text);
+				var tmp_11 = new Utf8ByteBuilder();
+				source_append_text(tmp_11, "(");
+				source_append_text(tmp_11, tmp_7.text);
+				source_append_text(tmp_11, " ");
+				source_append_text(tmp_11, tmp_8.text);
+				source_append_text(tmp_11, " \"");
+				source_append_text(tmp_11, tmp_10.text);
+				source_append_text(tmp_11, "\")");
+				var tmp_12 = tmp_11.snapshot();
+				this.line(arena, arg_indentation, tmp_12.text);
+			}
+		}
+		if ((arena.get_list_floating_point(arg_function).index != 0)) {
+			var tmp_13 = -1;
+			while (tmp_13 + 1 < arena.list_count(arena.get_list_floating_point(arg_function))) {
+				tmp_13 = tmp_13 + 1;
+				var v_entry_14 = arena.node_at(arena.get_list_floating_point(arg_function), tmp_13);
+				var tmp_15 = arena.token_message(arena.get_token_key(v_entry_14));
+				var tmp_16 = arena.text_message(arena.get_text_decoded_value(v_entry_14));
+				var tmp_17 = new Utf8ByteBuilder();
+				source_append_text(tmp_17, "(FloatingPoint ");
+				source_append_text(tmp_17, tmp_15.text);
+				source_append_text(tmp_17, " ");
+				source_append_text(tmp_17, tmp_16.text);
+				source_append_text(tmp_17, ")");
+				var tmp_18 = tmp_17.snapshot();
+				this.line(arena, arg_indentation, tmp_18.text);
+			}
+		}
+		if (arena.computed_is_async(arg_function)) {
+			this.line(arena, arg_indentation, "(async)");
+		}
+		if (arena.get_bool_is_signal(arg_function)) {
+			this.line(arena, arg_indentation, "(signal)");
+		}
+		if ((arena.get_int_dispatch(arg_function) != 0)) {
+			var tmp_19 = new Utf8ByteBuilder();
+			if ((arena.get_int_dispatch(arg_function) == 1)) {
+				source_append_text(tmp_19, "(virtual)");
+			} else {
+				source_append_text(tmp_19, "(override)");
+			}
+			var tmp_20 = tmp_19.snapshot();
+			this.line(arena, arg_indentation, tmp_20.text);
+		}
+		if ((arena.get_node_throws_class(arg_function).index != 0)) {
+			var tmp_21 = arena.type_message(arena.get_node_throws_class(arg_function));
+			var tmp_22 = new Utf8ByteBuilder();
+			source_append_text(tmp_22, "(throws ");
+			source_append_text(tmp_22, tmp_21.text);
+			var tmp_23 = tmp_22.snapshot();
+			var tmp_24 = new Utf8ByteBuilder();
+			source_append_text(tmp_24, tmp_23.text);
+			source_append_text(tmp_24, ")");
+			var tmp_25 = tmp_24.snapshot();
+			this.line(arena, arg_indentation, tmp_25.text);
+		}
+		var v_lifecycle_26 = arena.try_kind(arg_function, SyntaxKind.LifecycleDeclarationSyntax());
+		var tmp_27 = (v_lifecycle_26.index != 0);
+		if (tmp_27) {
+			tmp_27 = (arena.get_list_base_arguments(v_lifecycle_26).index != 0);
+		}
+		if (tmp_27) {
+			var tmp_28 = new Utf8ByteBuilder();
+			source_append_text(tmp_28, "(base-initializer");
+			var v_args_29 = move tmp_28;
+			var tmp_30 = -1;
+			while (tmp_30 + 1 < arena.list_count(arena.get_list_base_arguments(v_lifecycle_26))) {
+				tmp_30 = tmp_30 + 1;
+				var v_argument_31 = arena.node_at(arena.get_list_base_arguments(v_lifecycle_26), tmp_30);
+				var tmp_32 = this.format_expression(arena, v_argument_31);
+				var tmp_33 = new Utf8ByteBuilder();
+				source_append_text(tmp_33, " ");
+				source_append_text(tmp_33, tmp_32.text);
+				var tmp_34 = tmp_33.snapshot();
+				source_append_text(v_args_29, tmp_34.text);
+			}
+			var tmp_35 = v_args_29.snapshot();
+			var tmp_36 = new Utf8ByteBuilder();
+			source_append_text(tmp_36, tmp_35.text);
+			source_append_text(tmp_36, ")");
+			var tmp_37 = tmp_36.snapshot();
+			this.line(arena, arg_indentation, tmp_37.text);
+		}
+		if ((arena.get_list_ccode(arg_function).index != 0)) {
+			var tmp_38 = -1;
+			while (tmp_38 + 1 < arena.list_count(arena.get_list_ccode(arg_function))) {
+				tmp_38 = tmp_38 + 1;
+				var v_entry_39 = arena.node_at(arena.get_list_ccode(arg_function), tmp_38);
+				var tmp_40 = arena.token_message(arena.get_token_key(v_entry_39));
+				var tmp_41 = arena.text_message(arena.get_text_decoded_value(v_entry_39));
+				var tmp_42 = syntax_escape(tmp_41.text);
+				var tmp_43 = new Utf8ByteBuilder();
+				source_append_text(tmp_43, "(CCode ");
+				source_append_text(tmp_43, tmp_40.text);
+				source_append_text(tmp_43, " \"");
+				source_append_text(tmp_43, tmp_42.text);
+				source_append_text(tmp_43, "\")");
+				var tmp_44 = tmp_43.snapshot();
+				this.line(arena, arg_indentation, tmp_44.text);
+			}
+		}
+		var tmp_51 = new Utf8ByteBuilder();
+		if ((arg_function.index != 0 && syntax_kind_accepts(arena.kind(arg_function), SyntaxKind.LifecycleDeclarationSyntax()))) {
+			var tmp_45 = new Utf8ByteBuilder();
+			if (arena.computed_is_constructor(arg_function)) {
+				source_append_text(tmp_45, "(constructor");
+			} else {
+				source_append_text(tmp_45, "(destructor");
+			}
+			var tmp_46 = tmp_45.snapshot();
+			source_append_text(tmp_51, tmp_46.text);
+		} else {
+			var tmp_49 = new Utf8ByteBuilder();
+			if (arg_method) {
+				source_append_text(tmp_49, "(method");
+			} else {
+				var tmp_47 = new Utf8ByteBuilder();
+				if (arena.computed_is_c_import(arg_function)) {
+					source_append_text(tmp_47, "(extern-function");
+				} else {
+					source_append_text(tmp_47, "(function");
+				}
+				var tmp_48 = tmp_47.snapshot();
+				source_append_text(tmp_49, tmp_48.text);
+			}
+			var tmp_50 = tmp_49.snapshot();
+			source_append_text(tmp_51, tmp_50.text);
+		}
+		var tmp_52 = tmp_51.snapshot();
+		this.line(arena, (arg_indentation + 0), tmp_52.text);
+		if (arena.computed_is_c_export(arg_function)) {
+			var tmp_54 = new Utf8ByteBuilder();
+			if ((arena.get_node_foreign_policy(arg_function).index != 0)) {
+				source_append_text(tmp_54, "C");
+			} else {
+				var tmp_53 = arena.token_message(arena.get_token_abi_identifier(arg_function));
+				source_append_text(tmp_54, tmp_53.text);
+			}
+			var tmp_55 = tmp_54.snapshot();
+			var tmp_56 = new Utf8ByteBuilder();
+			source_append_text(tmp_56, "(export (abi ");
+			source_append_text(tmp_56, tmp_55.text);
+			source_append_text(tmp_56, "))");
+			var tmp_57 = tmp_56.snapshot();
+			this.line(arena, (arg_indentation + 1), tmp_57.text);
+		} else {
+			var tmp_58 = (arena.get_token_abi_identifier(arg_function).index != 0);
+			if (!tmp_58) {
+				tmp_58 = arena.computed_is_c_import(arg_function);
+			}
+			if (tmp_58) {
+				var tmp_60 = new Utf8ByteBuilder();
+				if ((arena.get_node_foreign_policy(arg_function).index != 0)) {
+					source_append_text(tmp_60, "C");
+				} else {
+					var tmp_59 = arena.token_message(arena.get_token_abi_identifier(arg_function));
+					source_append_text(tmp_60, tmp_59.text);
+				}
+				var tmp_61 = tmp_60.snapshot();
+				var tmp_62 = new Utf8ByteBuilder();
+				source_append_text(tmp_62, "(abi ");
+				source_append_text(tmp_62, tmp_61.text);
+				source_append_text(tmp_62, ")");
+				var tmp_63 = tmp_62.snapshot();
+				this.line(arena, (arg_indentation + 1), tmp_63.text);
+			}
+		}
+		if ((arena.list_count(arena.get_list_type_parameters(arg_function)) != 0)) {
+			var tmp_64 = new Utf8ByteBuilder();
+			source_append_text(tmp_64, "(type-parameters");
+			var v_names_65 = move tmp_64;
+			var tmp_66 = -1;
+			while (tmp_66 + 1 < arena.list_count(arena.get_list_type_parameters(arg_function))) {
+				tmp_66 = tmp_66 + 1;
+				var v_parameter_67 = arena.token_at(arena.get_list_type_parameters(arg_function), tmp_66);
+				var tmp_68 = arena.token_message(v_parameter_67);
+				var tmp_69 = new Utf8ByteBuilder();
+				source_append_text(tmp_69, " ");
+				source_append_text(tmp_69, tmp_68.text);
+				var tmp_70 = tmp_69.snapshot();
+				source_append_text(v_names_65, tmp_70.text);
+			}
+			source_append_text(v_names_65, ")");
+			var tmp_71 = v_names_65.snapshot();
+			this.line(arena, (arg_indentation + 1), tmp_71.text);
+		}
+		if ((arena.get_token_owned_keyword(arg_function).index != 0)) {
+			this.line(arena, (arg_indentation + 1), "(owned-result)");
+		}
+		if ((arena.get_node_return_type(arg_function).index != 0)) {
+			var tmp_72 = arena.type_message(arena.get_node_return_type(arg_function));
+			var tmp_73 = new Utf8ByteBuilder();
+			source_append_text(tmp_73, "(type \"");
+			source_append_text(tmp_73, tmp_72.text);
+			source_append_text(tmp_73, "\")");
+			var tmp_74 = tmp_73.snapshot();
+			this.line(arena, (arg_indentation + 1), tmp_74.text);
+		}
+		var tmp_75 = arena.token_message(arena.get_token_name(arg_function));
+		var tmp_76 = new Utf8ByteBuilder();
+		source_append_text(tmp_76, "(name \"");
+		source_append_text(tmp_76, tmp_75.text);
+		source_append_text(tmp_76, "\")");
+		var tmp_77 = tmp_76.snapshot();
+		this.line(arena, (arg_indentation + 1), tmp_77.text);
+		if ((arena.list_count(arena.get_list_parameters(arg_function)) == 0)) {
+			this.line(arena, (arg_indentation + 1), "(parameters)");
+		} else {
+			this.line(arena, (arg_indentation + 1), "(parameters");
+			var v_i_78 = 0;
+			var tmp_79 = true;
+			while (true) {
+				if (tmp_79) {
+					tmp_79 = false;
+				} else {
+					var tmp_80 = v_i_78;
+					v_i_78 = (v_i_78 + 1);
+				}
+				if (!((v_i_78 < arena.list_count(arena.get_list_parameters(arg_function))))) {
+					break;
+				}
+				var v_parameter_81 = arena.node_at(arena.get_list_parameters(arg_function), v_i_78);
+				if ((arena.get_node_caller_information(v_parameter_81).index != 0)) {
+					var v_info_82 = arena.get_node_caller_information(v_parameter_81);
+					var tmp_83 = arena.token_message(arena.get_token_name(v_info_82));
+					var tmp_87 = new Utf8ByteBuilder();
+					if ((arena.get_token_target(v_info_82).index == 0)) {
+						source_append_text(tmp_87, "");
+					} else {
+						var tmp_84 = arena.token_message(arena.get_token_target(v_info_82));
+						var tmp_85 = new Utf8ByteBuilder();
+						source_append_text(tmp_85, " ");
+						source_append_text(tmp_85, tmp_84.text);
+						var tmp_86 = tmp_85.snapshot();
+						source_append_text(tmp_87, tmp_86.text);
+					}
+					var tmp_88 = tmp_87.snapshot();
+					var tmp_89 = new Utf8ByteBuilder();
+					source_append_text(tmp_89, "(caller-information ");
+					source_append_text(tmp_89, tmp_83.text);
+					source_append_text(tmp_89, tmp_88.text);
+					source_append_text(tmp_89, ")");
+					var tmp_90 = tmp_89.snapshot();
+					this.line(arena, (arg_indentation + 2), tmp_90.text);
+				}
+				var tmp_93 = new Utf8ByteBuilder();
+				if ((arena.get_token_owned_keyword(v_parameter_81).index != 0)) {
+					source_append_text(tmp_93, " (owned)");
+				} else {
+					var tmp_91 = new Utf8ByteBuilder();
+					if ((arena.get_token_borrowed_keyword(v_parameter_81).index == 0)) {
+						source_append_text(tmp_91, "");
+					} else {
+						source_append_text(tmp_91, " (borrowed)");
+					}
+					var tmp_92 = tmp_91.snapshot();
+					source_append_text(tmp_93, tmp_92.text);
+				}
+				var tmp_94 = tmp_93.snapshot();
+				var tmp_95 = arena.type_message(arena.get_node_type_name(v_parameter_81));
+				var tmp_96 = arena.token_message(arena.get_token_name(v_parameter_81));
+				var tmp_97 = new Utf8ByteBuilder();
+				source_append_text(tmp_97, "(parameter");
+				source_append_text(tmp_97, tmp_94.text);
+				source_append_text(tmp_97, " (type \"");
+				source_append_text(tmp_97, tmp_95.text);
+				source_append_text(tmp_97, "\") (name \"");
+				source_append_text(tmp_97, tmp_96.text);
+				source_append_text(tmp_97, "\"))");
+				var tmp_98 = tmp_97.snapshot();
+				this.line(arena, (arg_indentation + 2), tmp_98.text);
+			}
+			this.line(arena, (arg_indentation + 1), ")");
+		}
+		var tmp_99 = -1;
+		while (tmp_99 + 1 < arena.list_count(arena.get_list_where_clauses(arg_function))) {
+			tmp_99 = tmp_99 + 1;
+			var v_clause_100 = arena.node_at(arena.get_list_where_clauses(arg_function), tmp_99);
+			var tmp_101 = this.format_where(arena, v_clause_100);
+			this.line(arena, (arg_indentation + 1), tmp_101.text);
+		}
+		if ((arena.get_node_body(arg_function).index != 0)) {
+			this.write_block(arena, arena.get_node_body(arg_function), (arg_indentation + 1));
+		}
+		this.line(arena, (arg_indentation + 0), ")");
+	}
+	owned Utf8Message format_where(SyntaxArena arena, SyntaxNodeId arg_clause) throws Error {
+		var tmp_1 = new Utf8ByteBuilder();
+		var tmp_2 = arena.token_message(arena.get_token_type_parameter(arg_clause));
+		var tmp_3 = new Utf8ByteBuilder();
+		source_append_text(tmp_3, "(where ");
+		source_append_text(tmp_3, tmp_2.text);
+		var tmp_4 = tmp_3.snapshot();
+		source_append_text(tmp_1, tmp_4.text);
+		var v_text_5 = move tmp_1;
+		var tmp_6 = -1;
+		while (tmp_6 + 1 < arena.list_count(arena.get_list_capabilities(arg_clause))) {
+			tmp_6 = tmp_6 + 1;
+			var v_capability_7 = arena.token_at(arena.get_list_capabilities(arg_clause), tmp_6);
+			var tmp_8 = arena.token_message(v_capability_7);
+			var tmp_9 = new Utf8ByteBuilder();
+			source_append_text(tmp_9, " ");
+			source_append_text(tmp_9, tmp_8.text);
+			var tmp_10 = tmp_9.snapshot();
+			source_append_text(v_text_5, tmp_10.text);
+		}
+		source_append_text(v_text_5, ")");
+		var tmp_11 = v_text_5.snapshot();
+		var tmp_12 = syntax_text(tmp_11.text);
+		return move tmp_12;
+		var unreachable = syntax_text("");
+		return move unreachable;
+	}
+	void write_block(SyntaxArena arena, SyntaxNodeId arg_block, int arg_indentation) throws Error {
+		if ((arena.list_count(arena.get_list_statements(arg_block)) == 0)) {
+			this.line(arena, arg_indentation, "(block)");
+			return;
+		}
+		this.line(arena, arg_indentation, "(block");
+		var v_i_1 = 0;
+		var tmp_2 = true;
+		while (true) {
+			if (tmp_2) {
+				tmp_2 = false;
+			} else {
+				var tmp_3 = v_i_1;
+				v_i_1 = (v_i_1 + 1);
+			}
+			if (!((v_i_1 < arena.list_count(arena.get_list_statements(arg_block))))) {
+				break;
+			}
+			this.write_statement(arena, arena.node_at(arena.get_list_statements(arg_block), v_i_1), (arg_indentation + 1));
+		}
+		this.line(arena, arg_indentation, ")");
+	}
+	void write_statement(SyntaxArena arena, SyntaxNodeId arg_statement, int arg_indentation) throws Error {
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.AwaitStatementSyntax()))) {
+			var tmp_1 = this.format_expression(arena, arena.get_node_expression(arg_statement));
+			var tmp_2 = new Utf8ByteBuilder();
+			source_append_text(tmp_2, "(await-statement ");
+			source_append_text(tmp_2, tmp_1.text);
+			var tmp_3 = tmp_2.snapshot();
+			var tmp_4 = new Utf8ByteBuilder();
+			source_append_text(tmp_4, tmp_3.text);
+			source_append_text(tmp_4, ")");
+			var tmp_5 = tmp_4.snapshot();
+			this.line(arena, arg_indentation, tmp_5.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.ThrowStatementSyntax()))) {
+			var v_thrown_6 = arg_statement;
+			var tmp_12 = new Utf8ByteBuilder();
+			if (arena.computed_is_rethrow(v_thrown_6)) {
+				source_append_text(tmp_12, "(rethrow)");
+			} else {
+				var tmp_7 = this.format_expression(arena, arena.get_node_expression(v_thrown_6));
+				var tmp_8 = new Utf8ByteBuilder();
+				source_append_text(tmp_8, "(throw ");
+				source_append_text(tmp_8, tmp_7.text);
+				var tmp_9 = tmp_8.snapshot();
+				var tmp_10 = new Utf8ByteBuilder();
+				source_append_text(tmp_10, tmp_9.text);
+				source_append_text(tmp_10, ")");
+				var tmp_11 = tmp_10.snapshot();
+				source_append_text(tmp_12, tmp_11.text);
+			}
+			var tmp_13 = tmp_12.snapshot();
+			this.line(arena, arg_indentation, tmp_13.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.TryStatementSyntax()))) {
+			var v_guarded_14 = arg_statement;
+			this.line(arena, arg_indentation, "(try");
+			this.write_block(arena, arena.get_node_body(v_guarded_14), (arg_indentation + 1));
+			var tmp_15 = -1;
+			while (tmp_15 + 1 < arena.list_count(arena.get_list_catches(v_guarded_14))) {
+				tmp_15 = tmp_15 + 1;
+				var v_handler_16 = arena.node_at(arena.get_list_catches(v_guarded_14), tmp_15);
+				var tmp_17 = arena.type_message(arena.get_node_class_name(v_handler_16));
+				var tmp_18 = new Utf8ByteBuilder();
+				source_append_text(tmp_18, "(catch ");
+				source_append_text(tmp_18, tmp_17.text);
+				var tmp_19 = tmp_18.snapshot();
+				var tmp_20 = new Utf8ByteBuilder();
+				source_append_text(tmp_20, tmp_19.text);
+				source_append_text(tmp_20, " ");
+				var tmp_21 = tmp_20.snapshot();
+				var tmp_22 = arena.token_message(arena.get_token_binding(v_handler_16));
+				var tmp_23 = new Utf8ByteBuilder();
+				source_append_text(tmp_23, tmp_21.text);
+				source_append_text(tmp_23, tmp_22.text);
+				var tmp_24 = tmp_23.snapshot();
+				this.line(arena, (arg_indentation + 1), tmp_24.text);
+				this.write_block(arena, arena.get_node_body(v_handler_16), (arg_indentation + 2));
+				this.line(arena, (arg_indentation + 1), ")");
+			}
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.MatchStatementSyntax()))) {
+			var v_match_25 = arg_statement;
+			var tmp_26 = this.format_expression(arena, arena.get_node_scrutinee(v_match_25));
+			var tmp_27 = new Utf8ByteBuilder();
+			source_append_text(tmp_27, "(match ");
+			source_append_text(tmp_27, tmp_26.text);
+			var tmp_28 = tmp_27.snapshot();
+			this.line(arena, arg_indentation, tmp_28.text);
+			var tmp_29 = -1;
+			while (tmp_29 + 1 < arena.list_count(arena.get_list_arms(v_match_25))) {
+				tmp_29 = tmp_29 + 1;
+				var v_arm_30 = arena.node_at(arena.get_list_arms(v_match_25), tmp_29);
+				var tmp_31 = new Utf8ByteBuilder();
+				var tmp_36 = new Utf8ByteBuilder();
+				if ((arena.get_token_variant(v_arm_30).index == 0)) {
+					source_append_text(tmp_36, "(else");
+				} else {
+					var tmp_32 = arena.token_message(arena.get_token_qualifier(v_arm_30));
+					var tmp_33 = arena.token_message(arena.get_token_variant(v_arm_30));
+					var tmp_34 = new Utf8ByteBuilder();
+					source_append_text(tmp_34, "(case ");
+					source_append_text(tmp_34, tmp_32.text);
+					source_append_text(tmp_34, ".");
+					source_append_text(tmp_34, tmp_33.text);
+					var tmp_35 = tmp_34.snapshot();
+					source_append_text(tmp_36, tmp_35.text);
+				}
+				var tmp_37 = tmp_36.snapshot();
+				source_append_text(tmp_31, tmp_37.text);
+				var v_pattern_38 = move tmp_31;
+				var tmp_39 = -1;
+				while (tmp_39 + 1 < arena.list_count(arena.get_list_bindings(v_arm_30))) {
+					tmp_39 = tmp_39 + 1;
+					var v_binding_40 = arena.node_at(arena.get_list_bindings(v_arm_30), tmp_39);
+					var tmp_44 = new Utf8ByteBuilder();
+					if ((arena.get_token_field(v_binding_40).index == 0)) {
+						source_append_text(tmp_44, "");
+					} else {
+						var tmp_41 = arena.token_message(arena.get_token_field(v_binding_40));
+						var tmp_42 = new Utf8ByteBuilder();
+						source_append_text(tmp_42, tmp_41.text);
+						source_append_text(tmp_42, "=");
+						var tmp_43 = tmp_42.snapshot();
+						source_append_text(tmp_44, tmp_43.text);
+					}
+					var tmp_45 = tmp_44.snapshot();
+					var tmp_46 = new Utf8ByteBuilder();
+					source_append_text(tmp_46, " ");
+					source_append_text(tmp_46, tmp_45.text);
+					var tmp_47 = tmp_46.snapshot();
+					var tmp_48 = arena.token_message(arena.get_token_binding(v_binding_40));
+					var tmp_49 = new Utf8ByteBuilder();
+					source_append_text(tmp_49, tmp_47.text);
+					source_append_text(tmp_49, tmp_48.text);
+					var tmp_50 = tmp_49.snapshot();
+					source_append_text(v_pattern_38, tmp_50.text);
+				}
+				var tmp_51 = v_pattern_38.snapshot();
+				this.line(arena, (arg_indentation + 1), tmp_51.text);
+				this.write_block(arena, arena.get_node_body(v_arm_30), (arg_indentation + 2));
+				this.line(arena, (arg_indentation + 1), ")");
+			}
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.ConstantDeclarationSyntax()))) {
+			var v_declaration_52 = arg_statement;
+			var tmp_53 = arena.token_message(arena.get_token_name(v_declaration_52));
+			var tmp_57 = new Utf8ByteBuilder();
+			if ((arena.get_node_type_name(v_declaration_52).index == 0)) {
+				source_append_text(tmp_57, "");
+			} else {
+				var tmp_54 = arena.type_message(arena.get_node_type_name(v_declaration_52));
+				var tmp_55 = new Utf8ByteBuilder();
+				source_append_text(tmp_55, " (type \"");
+				source_append_text(tmp_55, tmp_54.text);
+				source_append_text(tmp_55, "\")");
+				var tmp_56 = tmp_55.snapshot();
+				source_append_text(tmp_57, tmp_56.text);
+			}
+			var tmp_58 = tmp_57.snapshot();
+			var tmp_59 = this.format_expression(arena, arena.get_node_initializer(v_declaration_52));
+			var tmp_60 = new Utf8ByteBuilder();
+			source_append_text(tmp_60, "(const (name \"");
+			source_append_text(tmp_60, tmp_53.text);
+			source_append_text(tmp_60, "\")");
+			source_append_text(tmp_60, tmp_58.text);
+			source_append_text(tmp_60, " (initializer ");
+			source_append_text(tmp_60, tmp_59.text);
+			source_append_text(tmp_60, "))");
+			var tmp_61 = tmp_60.snapshot();
+			this.line(arena, arg_indentation, tmp_61.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.BlockStatementSyntax()))) {
+			this.write_block(arena, arg_statement, arg_indentation);
+			return;
+		}
+		var tmp_62 = (arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.BreakStatementSyntax()));
+		if (!tmp_62) {
+			tmp_62 = (arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.ContinueStatementSyntax()));
+		}
+		if (tmp_62) {
+			var tmp_63 = new Utf8ByteBuilder();
+			if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.BreakStatementSyntax()))) {
+				source_append_text(tmp_63, "(break)");
+			} else {
+				source_append_text(tmp_63, "(continue)");
+			}
+			var tmp_64 = tmp_63.snapshot();
+			this.line(arena, arg_indentation, tmp_64.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.WithStatementSyntax()))) {
+			var v_scoped_65 = arg_statement;
+			var tmp_66 = arena.token_message(arena.get_token_receiver(v_scoped_65));
+			var tmp_67 = new Utf8ByteBuilder();
+			source_append_text(tmp_67, "(with ");
+			source_append_text(tmp_67, tmp_66.text);
+			var tmp_68 = tmp_67.snapshot();
+			this.line(arena, arg_indentation, tmp_68.text);
+			if ((arena.get_node_initializer(v_scoped_65).index != 0)) {
+				this.write_statement(arena, arena.get_node_initializer(v_scoped_65), (arg_indentation + 1));
+			}
+			this.write_block(arena, arena.get_node_body(v_scoped_65), (arg_indentation + 1));
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.ForeachStatementSyntax()))) {
+			var v_loop_69 = arg_statement;
+			var tmp_70 = arena.token_message(arena.get_token_binding(v_loop_69));
+			var tmp_71 = new Utf8ByteBuilder();
+			source_append_text(tmp_71, "(foreach ");
+			source_append_text(tmp_71, tmp_70.text);
+			var tmp_72 = tmp_71.snapshot();
+			var tmp_73 = new Utf8ByteBuilder();
+			source_append_text(tmp_73, tmp_72.text);
+			source_append_text(tmp_73, " ");
+			var tmp_74 = tmp_73.snapshot();
+			var tmp_75 = this.format_expression(arena, arena.get_node_collection(v_loop_69));
+			var tmp_76 = new Utf8ByteBuilder();
+			source_append_text(tmp_76, tmp_74.text);
+			source_append_text(tmp_76, tmp_75.text);
+			var tmp_77 = tmp_76.snapshot();
+			this.line(arena, arg_indentation, tmp_77.text);
+			this.write_block(arena, arena.get_node_body(v_loop_69), (arg_indentation + 1));
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.ForStatementSyntax()))) {
+			var v_loop_78 = arg_statement;
+			this.line(arena, arg_indentation, "(for");
+			if ((arena.get_node_initializer(v_loop_78).index != 0)) {
+				this.line(arena, (arg_indentation + 1), "(initializer");
+				this.write_statement(arena, arena.get_node_initializer(v_loop_78), (arg_indentation + 2));
+				this.line(arena, (arg_indentation + 1), ")");
+			}
+			var tmp_84 = new Utf8ByteBuilder();
+			if ((arena.get_node_condition(v_loop_78).index == 0)) {
+				source_append_text(tmp_84, "(condition true)");
+			} else {
+				var tmp_79 = this.format_expression(arena, arena.get_node_condition(v_loop_78));
+				var tmp_80 = new Utf8ByteBuilder();
+				source_append_text(tmp_80, "(condition ");
+				source_append_text(tmp_80, tmp_79.text);
+				var tmp_81 = tmp_80.snapshot();
+				var tmp_82 = new Utf8ByteBuilder();
+				source_append_text(tmp_82, tmp_81.text);
+				source_append_text(tmp_82, ")");
+				var tmp_83 = tmp_82.snapshot();
+				source_append_text(tmp_84, tmp_83.text);
+			}
+			var tmp_85 = tmp_84.snapshot();
+			this.line(arena, (arg_indentation + 1), tmp_85.text);
+			this.write_block(arena, arena.get_node_body(v_loop_78), (arg_indentation + 1));
+			if ((arena.get_node_step(v_loop_78).index != 0)) {
+				this.line(arena, (arg_indentation + 1), "(step");
+				this.write_statement(arena, arena.get_node_step(v_loop_78), (arg_indentation + 2));
+				this.line(arena, (arg_indentation + 1), ")");
+			}
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		var v_loop_86 = arena.try_kind(arg_statement, SyntaxKind.WhileStatementSyntax());
+		if ((v_loop_86.index != 0)) {
+			this.line(arena, arg_indentation, "(while");
+			var tmp_87 = this.format_expression(arena, arena.get_node_condition(v_loop_86));
+			var tmp_88 = new Utf8ByteBuilder();
+			source_append_text(tmp_88, "(condition ");
+			source_append_text(tmp_88, tmp_87.text);
+			source_append_text(tmp_88, ")");
+			var tmp_89 = tmp_88.snapshot();
+			this.line(arena, (arg_indentation + 1), tmp_89.text);
+			this.line(arena, (arg_indentation + 1), "(body");
+			this.write_block(arena, arena.get_node_body(v_loop_86), (arg_indentation + 2));
+			this.line(arena, (arg_indentation + 1), ")");
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		var v_call_90 = arena.try_kind(arg_statement, SyntaxKind.CallStatementSyntax());
+		if ((v_call_90.index != 0)) {
+			var tmp_91 = this.format_expression(arena, arena.get_node_call(v_call_90));
+			var tmp_92 = new Utf8ByteBuilder();
+			source_append_text(tmp_92, "(call-statement ");
+			source_append_text(tmp_92, tmp_91.text);
+			source_append_text(tmp_92, ")");
+			var tmp_93 = tmp_92.snapshot();
+			this.line(arena, arg_indentation, tmp_93.text);
+			return;
+		}
+		var v_conditional_94 = arena.try_kind(arg_statement, SyntaxKind.IfStatementSyntax());
+		if ((v_conditional_94.index != 0)) {
+			this.line(arena, arg_indentation, "(if");
+			var tmp_95 = this.format_expression(arena, arena.get_node_condition(v_conditional_94));
+			var tmp_96 = new Utf8ByteBuilder();
+			source_append_text(tmp_96, "(condition ");
+			source_append_text(tmp_96, tmp_95.text);
+			source_append_text(tmp_96, ")");
+			var tmp_97 = tmp_96.snapshot();
+			this.line(arena, (arg_indentation + 1), tmp_97.text);
+			this.line(arena, (arg_indentation + 1), "(then");
+			this.write_block(arena, arena.get_node_then_body(v_conditional_94), (arg_indentation + 2));
+			this.line(arena, (arg_indentation + 1), ")");
+			if ((arena.get_node_else_body(v_conditional_94).index != 0)) {
+				this.line(arena, (arg_indentation + 1), "(else");
+				this.write_block(arena, arena.get_node_else_body(v_conditional_94), (arg_indentation + 2));
+				this.line(arena, (arg_indentation + 1), ")");
+			}
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		var v_aggregate_98 = arena.try_kind(arg_statement, SyntaxKind.StructLocalDeclarationSyntax());
+		if ((v_aggregate_98.index != 0)) {
+			if ((arena.get_token_owned_keyword(v_aggregate_98).index != 0)) {
+				this.line(arena, arg_indentation, "(ownership transferable-owned)");
+			}
+			var tmp_99 = arena.type_message(arena.get_node_type_name(v_aggregate_98));
+			var tmp_100 = arena.token_message(arena.get_token_name(v_aggregate_98));
+			var tmp_101 = new Utf8ByteBuilder();
+			source_append_text(tmp_101, "(struct-local (type \"");
+			source_append_text(tmp_101, tmp_99.text);
+			source_append_text(tmp_101, "\") (name \"");
+			source_append_text(tmp_101, tmp_100.text);
+			source_append_text(tmp_101, "\")");
+			var tmp_102 = tmp_101.snapshot();
+			this.line(arena, arg_indentation, tmp_102.text);
+			var tmp_103 = -1;
+			while (tmp_103 + 1 < arena.list_count(arena.get_list_fields(arena.get_node_initializer(v_aggregate_98)))) {
+				tmp_103 = tmp_103 + 1;
+				var v_field_104 = arena.node_at(arena.get_list_fields(arena.get_node_initializer(v_aggregate_98)), tmp_103);
+				this.write_field_initializer(arena, v_field_104, (arg_indentation + 1));
+			}
+			this.line(arena, arg_indentation, ")");
+			return;
+		}
+		var v_indexed_105 = arena.try_kind(arg_statement, SyntaxKind.IndexedAssignmentSyntax());
+		if ((v_indexed_105.index != 0)) {
+			var tmp_106 = this.format_expression(arena, arena.get_node_target(v_indexed_105));
+			var tmp_107 = this.format_expression(arena, arena.get_node_expression(v_indexed_105));
+			var tmp_108 = new Utf8ByteBuilder();
+			source_append_text(tmp_108, "(indexed-assignment ");
+			source_append_text(tmp_108, tmp_106.text);
+			source_append_text(tmp_108, " ");
+			source_append_text(tmp_108, tmp_107.text);
+			source_append_text(tmp_108, ")");
+			var tmp_109 = tmp_108.snapshot();
+			this.line(arena, arg_indentation, tmp_109.text);
+			return;
+		}
+		var v_dereference_110 = arena.try_kind(arg_statement, SyntaxKind.DereferenceAssignmentSyntax());
+		if ((v_dereference_110.index != 0)) {
+			var tmp_111 = this.format_expression(arena, arena.get_node_target(v_dereference_110));
+			var tmp_112 = this.format_expression(arena, arena.get_node_expression(v_dereference_110));
+			var tmp_113 = new Utf8ByteBuilder();
+			source_append_text(tmp_113, "(assign ");
+			source_append_text(tmp_113, tmp_111.text);
+			source_append_text(tmp_113, " ");
+			source_append_text(tmp_113, tmp_112.text);
+			source_append_text(tmp_113, ")");
+			var tmp_114 = tmp_113.snapshot();
+			this.line(arena, arg_indentation, tmp_114.text);
+			return;
+		}
+		var v_field_assignment_115 = arena.try_kind(arg_statement, SyntaxKind.FieldAssignmentStatementSyntax());
+		if ((v_field_assignment_115.index != 0)) {
+			var tmp_116 = this.format_expression(arena, arena.get_node_target(v_field_assignment_115));
+			var tmp_117 = this.format_expression(arena, arena.get_node_expression(v_field_assignment_115));
+			var tmp_118 = new Utf8ByteBuilder();
+			source_append_text(tmp_118, "(assign ");
+			source_append_text(tmp_118, tmp_116.text);
+			source_append_text(tmp_118, " ");
+			source_append_text(tmp_118, tmp_117.text);
+			source_append_text(tmp_118, ")");
+			var tmp_119 = tmp_118.snapshot();
+			this.line(arena, arg_indentation, tmp_119.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.InferredLocalDeclarationSyntax()))) {
+			var v_local_120 = arg_statement;
+			var tmp_121 = arena.token_message(arena.get_token_name(v_local_120));
+			var tmp_122 = this.format_expression(arena, arena.get_node_initializer(v_local_120));
+			var tmp_123 = new Utf8ByteBuilder();
+			source_append_text(tmp_123, "(inferred-local (name \"");
+			source_append_text(tmp_123, tmp_121.text);
+			source_append_text(tmp_123, "\") ");
+			source_append_text(tmp_123, tmp_122.text);
+			source_append_text(tmp_123, ")");
+			var tmp_124 = tmp_123.snapshot();
+			this.line(arena, arg_indentation, tmp_124.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.LocalDeclarationSyntax()))) {
+			var v_local_125 = arg_statement;
+			var tmp_126 = new Utf8ByteBuilder();
+			if ((arena.get_token_owned_keyword(v_local_125).index == 0)) {
+				source_append_text(tmp_126, "local");
+			} else {
+				source_append_text(tmp_126, "owned-local");
+			}
+			var tmp_127 = tmp_126.snapshot();
+			var tmp_128 = arena.type_message(arena.get_node_type_name(v_local_125));
+			var tmp_129 = arena.token_message(arena.get_token_name(v_local_125));
+			var tmp_130 = this.format_expression(arena, arena.get_node_initializer(v_local_125));
+			var tmp_131 = new Utf8ByteBuilder();
+			source_append_text(tmp_131, "(");
+			source_append_text(tmp_131, tmp_127.text);
+			source_append_text(tmp_131, " (type \"");
+			source_append_text(tmp_131, tmp_128.text);
+			source_append_text(tmp_131, "\") (name \"");
+			source_append_text(tmp_131, tmp_129.text);
+			source_append_text(tmp_131, "\") ");
+			source_append_text(tmp_131, tmp_130.text);
+			source_append_text(tmp_131, ")");
+			var tmp_132 = tmp_131.snapshot();
+			this.line(arena, arg_indentation, tmp_132.text);
+			return;
+		}
+		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.AssignmentStatementSyntax()))) {
+			var v_assignment_133 = arg_statement;
+			var tmp_134 = arena.token_message(arena.get_token_name(v_assignment_133));
+			var tmp_135 = this.format_expression(arena, arena.get_node_expression(v_assignment_133));
+			var tmp_136 = new Utf8ByteBuilder();
+			source_append_text(tmp_136, "(assign (name \"");
+			source_append_text(tmp_136, tmp_134.text);
+			source_append_text(tmp_136, "\") ");
+			source_append_text(tmp_136, tmp_135.text);
+			source_append_text(tmp_136, ")");
+			var tmp_137 = tmp_136.snapshot();
+			this.line(arena, arg_indentation, tmp_137.text);
+			return;
+		}
+		var v_exchange_138 = arena.try_kind(arg_statement, SyntaxKind.SwapStatementSyntax());
+		if ((v_exchange_138.index != 0)) {
+			var tmp_139 = this.format_expression(arena, arena.get_node_left(v_exchange_138));
+			var tmp_140 = this.format_expression(arena, arena.get_node_right(v_exchange_138));
+			var tmp_141 = new Utf8ByteBuilder();
+			source_append_text(tmp_141, "(swap ");
+			source_append_text(tmp_141, tmp_139.text);
+			source_append_text(tmp_141, " ");
+			source_append_text(tmp_141, tmp_140.text);
+			source_append_text(tmp_141, ")");
+			var tmp_142 = tmp_141.snapshot();
+			this.line(arena, arg_indentation, tmp_142.text);
+			return;
+		}
+		var v_release_143 = arena.try_kind(arg_statement, SyntaxKind.ReleaseStatementSyntax());
+		if ((v_release_143.index != 0)) {
+			var tmp_144 = arena.token_message(arena.get_token_owner(v_release_143));
+			var tmp_145 = new Utf8ByteBuilder();
+			source_append_text(tmp_145, "(release (name \"");
+			source_append_text(tmp_145, tmp_144.text);
+			source_append_text(tmp_145, "\"))");
+			var tmp_146 = tmp_145.snapshot();
+			this.line(arena, arg_indentation, tmp_146.text);
+			return;
+		}
+		var v_returned_147 = arg_statement;
+		var tmp_151 = new Utf8ByteBuilder();
+		if ((arena.get_node_expression(v_returned_147).index == 0)) {
+			source_append_text(tmp_151, "(return)");
+		} else {
+			var tmp_148 = this.format_expression(arena, arena.get_node_expression(v_returned_147));
+			var tmp_149 = new Utf8ByteBuilder();
+			source_append_text(tmp_149, "(return ");
+			source_append_text(tmp_149, tmp_148.text);
+			source_append_text(tmp_149, ")");
+			var tmp_150 = tmp_149.snapshot();
+			source_append_text(tmp_151, tmp_150.text);
+		}
+		var tmp_152 = tmp_151.snapshot();
+		this.line(arena, arg_indentation, tmp_152.text);
+	}
+	void write_field_initializer(SyntaxArena arena, SyntaxNodeId arg_field, int arg_indentation) throws Error {
+		var stack = new SyntaxDumpWalk();
+		stack.push(0, arg_field, arg_indentation);
+		int visits = 0;
+		while (stack.count > 0) {
+			var task = stack.pop();
+			if (task.phase == 1) {
+				this.line(arena, task.indentation, "))");
+				continue;
+			}
+			visits = visits + 1;
+			assert_that(visits <= arena.node_count);
+			var field = arena.field_initializer(task.node);
+			var name = arena.token_message(field.f_name);
+			var text = new Utf8ByteBuilder();
+			source_append_text(text, "(initialize-field \"");
+			source_append_text(text, name.text);
+			source_append_text(text, "\"");
+			if (field.f_initializer.index == 0) {
+				var expression = this.format_expression(arena, field.f_expression);
+				source_append_text(text, " ");
+				source_append_text(text, expression.text);
+				source_append_text(text, ")");
+				var line = text.snapshot();
+				this.line(arena, task.indentation, line.text);
+				continue;
+			}
+			source_append_text(text, " (storage-initializer");
+			var line = text.snapshot();
+			this.line(arena, task.indentation, line.text);
+			stack.push(1, task.node, task.indentation);
+			var children = arena.get_list_fields(field.f_initializer);
+			int i = arena.list_count(children);
+			while (i > 0) {
+				i = i - 1;
+				stack.push(0, arena.node_at(children, i), task.indentation + 1);
+			}
+		}
+	}
+	owned Utf8Message format_storage_initializer(SyntaxArena arena, SyntaxNodeId arg_initializer) throws Error {
+		var stack = new SyntaxDumpWalk();
+		var output = new Utf8ByteBuilder();
+		stack.push(0, arg_initializer, 0);
+		int visits = 0;
+		while (stack.count > 0) {
+			var task = stack.pop();
+			if (task.phase == 2) {
+				source_append_text(output, ")");
+				continue;
+			}
+			visits = visits + 1;
+			assert_that(visits <= arena.node_count);
+			if (task.phase == 0) {
+				source_append_text(output, "(storage-initializer");
+				stack.push(2, task.node, 0);
+				var fields = arena.get_list_fields(task.node);
+				int i = arena.list_count(fields);
+				while (i > 0) {
+					i = i - 1;
+					stack.push(1, arena.node_at(fields, i), 0);
+				}
+				continue;
+			}
+			var field = arena.field_initializer(task.node);
+			var name = arena.token_message(field.f_name);
+			source_append_text(output, " (initialize-field \"");
+			source_append_text(output, name.text);
+			source_append_text(output, "\" ");
+			stack.push(2, task.node, 0);
+			if (field.f_initializer.index != 0) {
+				stack.push(0, field.f_initializer, 0);
+			} else {
+				var expression = this.format_expression(arena, field.f_expression);
+				source_append_text(output, expression.text);
+			}
+		}
+		var result = output.snapshot();
+		return move result;
+	}
+	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.AwaitExpressionSyntax()))) {
+			var tmp_1 = this.format_expression(arena, arena.get_node_operation(arg_expression));
+			var tmp_2 = new Utf8ByteBuilder();
+			source_append_text(tmp_2, "(await ");
+			source_append_text(tmp_2, tmp_1.text);
+			var tmp_3 = tmp_2.snapshot();
+			var tmp_4 = new Utf8ByteBuilder();
+			source_append_text(tmp_4, tmp_3.text);
+			source_append_text(tmp_4, ")");
+			var tmp_5 = tmp_4.snapshot();
+			var tmp_6 = syntax_text(tmp_5.text);
+			return move tmp_6;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.HeapObjectConstructionSyntax()))) {
+			var v_allocation_7 = arg_expression;
+			var tmp_8 = new Utf8ByteBuilder();
+			var tmp_9 = new Utf8ByteBuilder();
+			if (arena.get_bool_fallible(v_allocation_7)) {
+				source_append_text(tmp_9, "(try-new-object ");
+			} else {
+				source_append_text(tmp_9, "(new-object ");
+			}
+			var tmp_10 = tmp_9.snapshot();
+			var tmp_11 = arena.type_message(arena.get_node_class_name(v_allocation_7));
+			var tmp_12 = new Utf8ByteBuilder();
+			source_append_text(tmp_12, tmp_10.text);
+			source_append_text(tmp_12, tmp_11.text);
+			var tmp_13 = tmp_12.snapshot();
+			source_append_text(tmp_8, tmp_13.text);
+			var v_text_14 = move tmp_8;
+			if ((arena.get_node_allocation_context(v_allocation_7).index != 0)) {
+				var tmp_15 = this.format_expression(arena, arena.get_node_allocation_context(v_allocation_7));
+				var tmp_16 = new Utf8ByteBuilder();
+				source_append_text(tmp_16, " (allocation-context ");
+				source_append_text(tmp_16, tmp_15.text);
+				var tmp_17 = tmp_16.snapshot();
+				var tmp_18 = new Utf8ByteBuilder();
+				source_append_text(tmp_18, tmp_17.text);
+				source_append_text(tmp_18, ")");
+				var tmp_19 = tmp_18.snapshot();
+				source_append_text(v_text_14, tmp_19.text);
+			}
+			var tmp_20 = -1;
+			while (tmp_20 + 1 < arena.list_count(arena.get_list_arguments(v_allocation_7))) {
+				tmp_20 = tmp_20 + 1;
+				var v_argument_21 = arena.node_at(arena.get_list_arguments(v_allocation_7), tmp_20);
+				var tmp_22 = this.format_expression(arena, v_argument_21);
+				var tmp_23 = new Utf8ByteBuilder();
+				source_append_text(tmp_23, " ");
+				source_append_text(tmp_23, tmp_22.text);
+				var tmp_24 = tmp_23.snapshot();
+				source_append_text(v_text_14, tmp_24.text);
+			}
+			var tmp_25 = v_text_14.snapshot();
+			var tmp_26 = new Utf8ByteBuilder();
+			source_append_text(tmp_26, tmp_25.text);
+			source_append_text(tmp_26, ")");
+			var tmp_27 = tmp_26.snapshot();
+			var tmp_28 = syntax_text(tmp_27.text);
+			return move tmp_28;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.ArrayStructInitializerSyntax()))) {
+			var tmp_29 = this.format_storage_initializer(arena, arena.get_node_initializer(arg_expression));
+			var tmp_30 = syntax_text(tmp_29.text);
+			return move tmp_30;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.Utf8FactoryExpressionSyntax()))) {
+			var tmp_31 = new Utf8ByteBuilder();
+			if (arena.get_bool_validates(arg_expression)) {
+				source_append_text(tmp_31, "(utf8-validate bytes)");
+			} else {
+				source_append_text(tmp_31, "(utf8-certified-copy-input bytes)");
+			}
+			var tmp_32 = tmp_31.snapshot();
+			var tmp_33 = syntax_text(tmp_32.text);
+			return move tmp_33;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.TextLiteralExpressionSyntax()))) {
+			var v_payload_34 = arena.get_token_token(arg_expression);
+			var tmp_35 = syntax_integer_message(arena.payload_length(v_payload_34));
+			var tmp_36 = arena.payload_hex(v_payload_34);
+			var tmp_37 = new Utf8ByteBuilder();
+			source_append_text(tmp_37, "(text (bytes ");
+			source_append_text(tmp_37, tmp_35.text);
+			source_append_text(tmp_37, ") (hex ");
+			source_append_text(tmp_37, tmp_36.text);
+			source_append_text(tmp_37, "))");
+			var tmp_38 = tmp_37.snapshot();
+			var tmp_39 = syntax_text(tmp_38.text);
+			return move tmp_39;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.TextMemberExpressionSyntax()))) {
+			var v_member_40 = arg_expression;
+			var tmp_41 = arena.token_message(arena.get_token_member(v_member_40));
+			var tmp_42 = this.format_expression(arena, arena.get_node_receiver(v_member_40));
+			var tmp_43 = new Utf8ByteBuilder();
+			source_append_text(tmp_43, "(text-member ");
+			source_append_text(tmp_43, tmp_41.text);
+			source_append_text(tmp_43, " ");
+			source_append_text(tmp_43, tmp_42.text);
+			source_append_text(tmp_43, ")");
+			var tmp_44 = tmp_43.snapshot();
+			var tmp_45 = syntax_text(tmp_44.text);
+			return move tmp_45;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.BufferAllocationSyntax()))) {
+			var v_allocation_46 = arg_expression;
+			var tmp_47 = arena.type_message(arena.get_node_element_type(v_allocation_46));
+			var tmp_48 = this.format_expression(arena, arena.get_node_count(v_allocation_46));
+			var tmp_54 = new Utf8ByteBuilder();
+			if ((arena.get_node_failure_call(v_allocation_46).index == 0)) {
+				source_append_text(tmp_54, "");
+			} else {
+				var tmp_49 = this.format_expression(arena, arena.get_node_failure_call(v_allocation_46));
+				var tmp_50 = new Utf8ByteBuilder();
+				source_append_text(tmp_50, " (else ");
+				source_append_text(tmp_50, tmp_49.text);
+				var tmp_51 = tmp_50.snapshot();
+				var tmp_52 = new Utf8ByteBuilder();
+				source_append_text(tmp_52, tmp_51.text);
+				source_append_text(tmp_52, ")");
+				var tmp_53 = tmp_52.snapshot();
+				source_append_text(tmp_54, tmp_53.text);
+			}
+			var tmp_55 = tmp_54.snapshot();
+			var tmp_56 = new Utf8ByteBuilder();
+			source_append_text(tmp_56, "(owned-buffer-allocate (element ");
+			source_append_text(tmp_56, tmp_47.text);
+			source_append_text(tmp_56, ") (count ");
+			source_append_text(tmp_56, tmp_48.text);
+			source_append_text(tmp_56, ")");
+			source_append_text(tmp_56, tmp_55.text);
+			source_append_text(tmp_56, ")");
+			var tmp_57 = tmp_56.snapshot();
+			var tmp_58 = syntax_text(tmp_57.text);
+			return move tmp_58;
+		}
+		var v_dot_59 = arena.try_kind(arg_expression, SyntaxKind.VectorDotExpressionSyntax());
+		if ((v_dot_59.index != 0)) {
+			var tmp_60 = new Utf8ByteBuilder();
+			var tmp_61 = arena.token_message(arena.get_token_keyword(v_dot_59));
+			var tmp_62 = new Utf8ByteBuilder();
+			source_append_text(tmp_62, "(");
+			source_append_text(tmp_62, tmp_61.text);
+			var tmp_63 = tmp_62.snapshot();
+			source_append_text(tmp_60, tmp_63.text);
+			var v_text_64 = move tmp_60;
+			var tmp_65 = -1;
+			while (tmp_65 + 1 < arena.list_count(arena.get_list_operands(v_dot_59))) {
+				tmp_65 = tmp_65 + 1;
+				var v_operand_66 = arena.node_at(arena.get_list_operands(v_dot_59), tmp_65);
+				var tmp_67 = this.format_expression(arena, v_operand_66);
+				var tmp_68 = new Utf8ByteBuilder();
+				source_append_text(tmp_68, " ");
+				source_append_text(tmp_68, tmp_67.text);
+				var tmp_69 = tmp_68.snapshot();
+				source_append_text(v_text_64, tmp_69.text);
+			}
+			if ((arena.get_node_destination(v_dot_59).index != 0)) {
+				var tmp_70 = arena.type_message(arena.get_node_destination(v_dot_59));
+				var tmp_71 = new Utf8ByteBuilder();
+				source_append_text(tmp_71, " (type \"");
+				source_append_text(tmp_71, tmp_70.text);
+				var tmp_72 = tmp_71.snapshot();
+				var tmp_73 = new Utf8ByteBuilder();
+				source_append_text(tmp_73, tmp_72.text);
+				source_append_text(tmp_73, "\")");
+				var tmp_74 = tmp_73.snapshot();
+				source_append_text(v_text_64, tmp_74.text);
+			}
+			source_append_text(v_text_64, ")");
+			var tmp_75 = v_text_64.snapshot();
+			var tmp_76 = syntax_text(tmp_75.text);
+			return move tmp_76;
+		}
+		var v_dsp_77 = arena.try_kind(arg_expression, SyntaxKind.DspExpressionSyntax());
+		if ((v_dsp_77.index != 0)) {
+			var tmp_78 = arena.token_message(arena.get_token_keyword(v_dsp_77));
+			var tmp_79 = this.format_expression(arena, arena.get_node_first(v_dsp_77));
+			var tmp_83 = new Utf8ByteBuilder();
+			if ((arena.get_node_second(v_dsp_77).index == 0)) {
+				source_append_text(tmp_83, "");
+			} else {
+				var tmp_80 = this.format_expression(arena, arena.get_node_second(v_dsp_77));
+				var tmp_81 = new Utf8ByteBuilder();
+				source_append_text(tmp_81, " ");
+				source_append_text(tmp_81, tmp_80.text);
+				var tmp_82 = tmp_81.snapshot();
+				source_append_text(tmp_83, tmp_82.text);
+			}
+			var tmp_84 = tmp_83.snapshot();
+			var tmp_90 = new Utf8ByteBuilder();
+			if ((arena.get_node_destination(v_dsp_77).index == 0)) {
+				source_append_text(tmp_90, "");
+			} else {
+				var tmp_85 = arena.type_message(arena.get_node_destination(v_dsp_77));
+				var tmp_86 = new Utf8ByteBuilder();
+				source_append_text(tmp_86, " (type \"");
+				source_append_text(tmp_86, tmp_85.text);
+				var tmp_87 = tmp_86.snapshot();
+				var tmp_88 = new Utf8ByteBuilder();
+				source_append_text(tmp_88, tmp_87.text);
+				source_append_text(tmp_88, "\")");
+				var tmp_89 = tmp_88.snapshot();
+				source_append_text(tmp_90, tmp_89.text);
+			}
+			var tmp_91 = tmp_90.snapshot();
+			var tmp_92 = new Utf8ByteBuilder();
+			source_append_text(tmp_92, "(");
+			source_append_text(tmp_92, tmp_78.text);
+			source_append_text(tmp_92, " ");
+			source_append_text(tmp_92, tmp_79.text);
+			source_append_text(tmp_92, tmp_84.text);
+			source_append_text(tmp_92, tmp_91.text);
+			source_append_text(tmp_92, ")");
+			var tmp_93 = tmp_92.snapshot();
+			var tmp_94 = syntax_text(tmp_93.text);
+			return move tmp_94;
+		}
+		var v_conversion_95 = arena.try_kind(arg_expression, SyntaxKind.ConversionExpressionSyntax());
+		if ((v_conversion_95.index != 0)) {
+			var tmp_96 = this.format_expression(arena, arena.get_node_operand(v_conversion_95));
+			var tmp_97 = arena.type_message(arena.get_node_destination(v_conversion_95));
+			var tmp_98 = new Utf8ByteBuilder();
+			source_append_text(tmp_98, "(as ");
+			source_append_text(tmp_98, tmp_96.text);
+			source_append_text(tmp_98, " (type \"");
+			source_append_text(tmp_98, tmp_97.text);
+			source_append_text(tmp_98, "\"))");
+			var tmp_99 = tmp_98.snapshot();
+			var tmp_100 = syntax_text(tmp_99.text);
+			return move tmp_100;
+		}
+		var v_primitive_101 = arena.try_kind(arg_expression, SyntaxKind.VectorPrimitiveExpressionSyntax());
+		if ((v_primitive_101.index != 0)) {
+			var tmp_102 = new Utf8ByteBuilder();
+			var tmp_103 = arena.token_message(arena.get_token_keyword(v_primitive_101));
+			var tmp_104 = new Utf8ByteBuilder();
+			source_append_text(tmp_104, "(vector-");
+			source_append_text(tmp_104, tmp_103.text);
+			var tmp_105 = tmp_104.snapshot();
+			source_append_text(tmp_102, tmp_105.text);
+			var v_text_106 = move tmp_102;
+			var tmp_107 = -1;
+			while (tmp_107 + 1 < arena.list_count(arena.get_list_operands(v_primitive_101))) {
+				tmp_107 = tmp_107 + 1;
+				var v_operand_108 = arena.node_at(arena.get_list_operands(v_primitive_101), tmp_107);
+				var tmp_109 = this.format_expression(arena, v_operand_108);
+				var tmp_110 = new Utf8ByteBuilder();
+				source_append_text(tmp_110, " ");
+				source_append_text(tmp_110, tmp_109.text);
+				var tmp_111 = tmp_110.snapshot();
+				source_append_text(v_text_106, tmp_111.text);
+			}
+			if ((arena.list_count(arena.get_list_indices(v_primitive_101)) > 0)) {
+				source_append_text(v_text_106, " (ordinals");
+				var tmp_112 = -1;
+				while (tmp_112 + 1 < arena.list_count(arena.get_list_indices(v_primitive_101))) {
+					tmp_112 = tmp_112 + 1;
+					var v_index_113 = arena.token_at(arena.get_list_indices(v_primitive_101), tmp_112);
+					var tmp_114 = arena.token_message(v_index_113);
+					var tmp_115 = new Utf8ByteBuilder();
+					source_append_text(tmp_115, " ");
+					source_append_text(tmp_115, tmp_114.text);
+					var tmp_116 = tmp_115.snapshot();
+					source_append_text(v_text_106, tmp_116.text);
+				}
+				source_append_text(v_text_106, ")");
+			}
+			source_append_text(v_text_106, ")");
+			var tmp_117 = v_text_106.snapshot();
+			var tmp_118 = syntax_text(tmp_117.text);
+			return move tmp_118;
+		}
+		var v_extract_119 = arena.try_kind(arg_expression, SyntaxKind.VectorExtractExpressionSyntax());
+		if ((v_extract_119.index != 0)) {
+			var tmp_120 = arena.token_message(arena.get_token_index(v_extract_119));
+			var tmp_121 = this.format_expression(arena, arena.get_node_vector(v_extract_119));
+			var tmp_122 = new Utf8ByteBuilder();
+			source_append_text(tmp_122, "(vector-extract (lane ");
+			source_append_text(tmp_122, tmp_120.text);
+			source_append_text(tmp_122, ") ");
+			source_append_text(tmp_122, tmp_121.text);
+			source_append_text(tmp_122, ")");
+			var tmp_123 = tmp_122.snapshot();
+			var tmp_124 = syntax_text(tmp_123.text);
+			return move tmp_124;
+		}
+		var v_indexed_125 = arena.try_kind(arg_expression, SyntaxKind.IndexExpressionSyntax());
+		if ((v_indexed_125.index != 0)) {
+			var tmp_126 = this.format_expression(arena, arena.get_node_container(v_indexed_125));
+			var tmp_127 = this.format_expression(arena, arena.get_node_subscript(v_indexed_125));
+			var tmp_128 = new Utf8ByteBuilder();
+			source_append_text(tmp_128, "(index ");
+			source_append_text(tmp_128, tmp_126.text);
+			source_append_text(tmp_128, " ");
+			source_append_text(tmp_128, tmp_127.text);
+			source_append_text(tmp_128, ")");
+			var tmp_129 = tmp_128.snapshot();
+			var tmp_130 = syntax_text(tmp_129.text);
+			return move tmp_130;
+		}
+		var v_array_131 = arena.try_kind(arg_expression, SyntaxKind.ArrayInitializerSyntax());
+		if ((v_array_131.index != 0)) {
+			var tmp_132 = new Utf8ByteBuilder();
+			source_append_text(tmp_132, "(array-init");
+			var v_text_133 = move tmp_132;
+			var tmp_134 = -1;
+			while (tmp_134 + 1 < arena.list_count(arena.get_list_elements(v_array_131))) {
+				tmp_134 = tmp_134 + 1;
+				var v_element_135 = arena.node_at(arena.get_list_elements(v_array_131), tmp_134);
+				var tmp_136 = this.format_expression(arena, v_element_135);
+				var tmp_137 = new Utf8ByteBuilder();
+				source_append_text(tmp_137, " ");
+				source_append_text(tmp_137, tmp_136.text);
+				var tmp_138 = tmp_137.snapshot();
+				source_append_text(v_text_133, tmp_138.text);
+			}
+			var tmp_139 = v_text_133.snapshot();
+			var tmp_140 = new Utf8ByteBuilder();
+			source_append_text(tmp_140, tmp_139.text);
+			source_append_text(tmp_140, ")");
+			var tmp_141 = tmp_140.snapshot();
+			var tmp_142 = syntax_text(tmp_141.text);
+			return move tmp_142;
+		}
+		var v_vector_143 = arena.try_kind(arg_expression, SyntaxKind.VectorInitializerSyntax());
+		if ((v_vector_143.index != 0)) {
+			var tmp_144 = new Utf8ByteBuilder();
+			source_append_text(tmp_144, "(vector-init");
+			var v_text_145 = move tmp_144;
+			var tmp_146 = -1;
+			while (tmp_146 + 1 < arena.list_count(arena.get_list_lanes(v_vector_143))) {
+				tmp_146 = tmp_146 + 1;
+				var v_lane_147 = arena.node_at(arena.get_list_lanes(v_vector_143), tmp_146);
+				var tmp_148 = this.format_expression(arena, v_lane_147);
+				var tmp_149 = new Utf8ByteBuilder();
+				source_append_text(tmp_149, " ");
+				source_append_text(tmp_149, tmp_148.text);
+				var tmp_150 = tmp_149.snapshot();
+				source_append_text(v_text_145, tmp_150.text);
+			}
+			source_append_text(v_text_145, ")");
+			var tmp_151 = v_text_145.snapshot();
+			var tmp_152 = syntax_text(tmp_151.text);
+			return move tmp_152;
+		}
+		var v_reduction_153 = arena.try_kind(arg_expression, SyntaxKind.VectorReductionExpressionSyntax());
+		if ((v_reduction_153.index != 0)) {
+			var tmp_154 = arena.token_message(arena.get_token_keyword(v_reduction_153));
+			var tmp_155 = this.format_expression(arena, arena.get_node_operand(v_reduction_153));
+			var tmp_156 = new Utf8ByteBuilder();
+			source_append_text(tmp_156, "(vector-");
+			source_append_text(tmp_156, tmp_154.text);
+			source_append_text(tmp_156, " ");
+			source_append_text(tmp_156, tmp_155.text);
+			source_append_text(tmp_156, ")");
+			var tmp_157 = tmp_156.snapshot();
+			var tmp_158 = syntax_text(tmp_157.text);
+			return move tmp_158;
+		}
+		var v_dereference_159 = arena.try_kind(arg_expression, SyntaxKind.DereferenceExpressionSyntax());
+		if ((v_dereference_159.index != 0)) {
+			var tmp_160 = this.format_expression(arena, arena.get_node_pointer(v_dereference_159));
+			var tmp_161 = new Utf8ByteBuilder();
+			source_append_text(tmp_161, "(dereference ");
+			source_append_text(tmp_161, tmp_160.text);
+			source_append_text(tmp_161, ")");
+			var tmp_162 = tmp_161.snapshot();
+			var tmp_163 = syntax_text(tmp_162.text);
+			return move tmp_163;
+		}
+		var v_address_164 = arena.try_kind(arg_expression, SyntaxKind.AddressOfExpressionSyntax());
+		if ((v_address_164.index != 0)) {
+			var tmp_165 = arena.token_message(arena.get_token_identifier(v_address_164));
+			var tmp_166 = new Utf8ByteBuilder();
+			source_append_text(tmp_166, "(address-of \"");
+			source_append_text(tmp_166, tmp_165.text);
+			source_append_text(tmp_166, "\")");
+			var tmp_167 = tmp_166.snapshot();
+			var tmp_168 = syntax_text(tmp_167.text);
+			return move tmp_168;
+		}
+		var v_field_169 = arena.try_kind(arg_expression, SyntaxKind.FieldAccessExpressionSyntax());
+		if ((v_field_169.index != 0)) {
+			if ((arena.get_node_aggregate(v_field_169).index != 0)) {
+				var tmp_170 = (arena.get_node_aggregate(v_field_169).index != 0 && syntax_kind_accepts(arena.kind(arena.get_node_aggregate(v_field_169)), SyntaxKind.IndexExpressionSyntax()));
+				if (tmp_170) {
+					var tmp_171 = arena.token_message(arena.get_token_field_name(v_field_169));
+					tmp_170 = (tmp_171.text == "byte_length");
+				}
+				if (tmp_170) {
+					var tmp_172 = this.format_expression(arena, arena.get_node_aggregate(v_field_169));
+					var tmp_173 = new Utf8ByteBuilder();
+					source_append_text(tmp_173, "(text-member byte_length ");
+					source_append_text(tmp_173, tmp_172.text);
+					source_append_text(tmp_173, ")");
+					var tmp_174 = tmp_173.snapshot();
+					var tmp_175 = syntax_text(tmp_174.text);
+					return move tmp_175;
+				}
+				var tmp_176 = this.format_expression(arena, arena.get_node_aggregate(v_field_169));
+				var tmp_177 = arena.token_message(arena.get_token_field_name(v_field_169));
+				var tmp_178 = new Utf8ByteBuilder();
+				source_append_text(tmp_178, "(field-access (base ");
+				source_append_text(tmp_178, tmp_176.text);
+				source_append_text(tmp_178, ") \"");
+				source_append_text(tmp_178, tmp_177.text);
+				source_append_text(tmp_178, "\")");
+				var tmp_179 = tmp_178.snapshot();
+				var tmp_180 = syntax_text(tmp_179.text);
+				return move tmp_180;
+			}
+			var tmp_181 = new Utf8ByteBuilder();
+			if (arena.token_kind(arena.get_token_dot(v_field_169)) == TokenKind.ARROW()) {
+				source_append_text(tmp_181, "indirect-field-access");
+			} else {
+				source_append_text(tmp_181, "field-access");
+			}
+			var tmp_182 = tmp_181.snapshot();
+			var tmp_183 = arena.token_message(arena.get_token_identifier(v_field_169));
+			var tmp_184 = arena.token_message(arena.get_token_field_name(v_field_169));
+			var tmp_185 = new Utf8ByteBuilder();
+			source_append_text(tmp_185, "(");
+			source_append_text(tmp_185, tmp_182.text);
+			source_append_text(tmp_185, " \"");
+			source_append_text(tmp_185, tmp_183.text);
+			source_append_text(tmp_185, "\" \"");
+			source_append_text(tmp_185, tmp_184.text);
+			source_append_text(tmp_185, "\")");
+			var tmp_186 = tmp_185.snapshot();
+			var tmp_187 = syntax_text(tmp_186.text);
+			return move tmp_187;
+		}
+		var v_call_188 = arena.try_kind(arg_expression, SyntaxKind.CallExpressionSyntax());
+		if ((v_call_188.index != 0)) {
+			if ((arena.list_count(arena.get_list_type_arguments(v_call_188)) != 0)) {
+				var tmp_189 = new Utf8ByteBuilder();
+				var tmp_190 = arena.token_message(arena.get_token_identifier(v_call_188));
+				var tmp_191 = new Utf8ByteBuilder();
+				source_append_text(tmp_191, "(generic-call \"");
+				source_append_text(tmp_191, tmp_190.text);
+				source_append_text(tmp_191, "\" (type-arguments");
+				var tmp_192 = tmp_191.snapshot();
+				source_append_text(tmp_189, tmp_192.text);
+				var v_text_193 = move tmp_189;
+				var tmp_194 = -1;
+				while (tmp_194 + 1 < arena.list_count(arena.get_list_type_arguments(v_call_188))) {
+					tmp_194 = tmp_194 + 1;
+					var v_type_195 = arena.node_at(arena.get_list_type_arguments(v_call_188), tmp_194);
+					var tmp_196 = arena.type_message(v_type_195);
+					var tmp_197 = new Utf8ByteBuilder();
+					source_append_text(tmp_197, " ");
+					source_append_text(tmp_197, tmp_196.text);
+					var tmp_198 = tmp_197.snapshot();
+					source_append_text(v_text_193, tmp_198.text);
+				}
+				source_append_text(v_text_193, ") (arguments");
+				var tmp_199 = -1;
+				while (tmp_199 + 1 < arena.list_count(arena.get_list_arguments(v_call_188))) {
+					tmp_199 = tmp_199 + 1;
+					var v_argument_200 = arena.node_at(arena.get_list_arguments(v_call_188), tmp_199);
+					var tmp_201 = this.format_expression(arena, v_argument_200);
+					var tmp_202 = new Utf8ByteBuilder();
+					source_append_text(tmp_202, " ");
+					source_append_text(tmp_202, tmp_201.text);
+					var tmp_203 = tmp_202.snapshot();
+					source_append_text(v_text_193, tmp_203.text);
+				}
+				source_append_text(v_text_193, "))");
+				var tmp_204 = v_text_193.snapshot();
+				var tmp_205 = syntax_text(tmp_204.text);
+				return move tmp_205;
+			}
+			var tmp_206 = (arena.token_kind(arena.get_token_identifier(v_call_188)) == TokenKind.SLICE());
+			if (!tmp_206) {
+				tmp_206 = (arena.token_kind(arena.get_token_identifier(v_call_188)) == TokenKind.LEN());
+			}
+			var tmp_207 = new Utf8ByteBuilder();
+			if (tmp_206) {
+				source_append_text(tmp_207, "(%s-form (arguments");
+			} else {
+				source_append_text(tmp_207, "(call \"%s\" (arguments");
+			}
+			var tmp_208 = tmp_207.snapshot();
+			var v_form_209 = syntax_text(tmp_208.text);
+			var tmp_210 = new Utf8ByteBuilder();
+			var tmp_228 = new Utf8ByteBuilder();
+			if ((v_call_188.index != 0 && syntax_kind_accepts(arena.kind(v_call_188), SyntaxKind.ConstructorInitializerSyntax()))) {
+				var tmp_211 = arena.token_message(arena.get_token_receiver(v_call_188));
+				var tmp_212 = new Utf8ByteBuilder();
+				source_append_text(tmp_212, "(constructor-initializer (class \"");
+				source_append_text(tmp_212, tmp_211.text);
+				source_append_text(tmp_212, "\") (arguments");
+				var tmp_213 = tmp_212.snapshot();
+				source_append_text(tmp_228, tmp_213.text);
+			} else {
+				var tmp_226 = new Utf8ByteBuilder();
+				if ((arena.get_node_receiver_place(v_call_188).index != 0)) {
+					var tmp_214 = this.format_expression(arena, arena.get_node_receiver_place(v_call_188));
+					var tmp_215 = arena.token_message(arena.get_token_identifier(v_call_188));
+					var tmp_216 = new Utf8ByteBuilder();
+					source_append_text(tmp_216, "(method-call (receiver ");
+					source_append_text(tmp_216, tmp_214.text);
+					source_append_text(tmp_216, ") (target \"");
+					source_append_text(tmp_216, tmp_215.text);
+					source_append_text(tmp_216, "\") (arguments");
+					var tmp_217 = tmp_216.snapshot();
+					source_append_text(tmp_226, tmp_217.text);
+				} else {
+					var tmp_224 = new Utf8ByteBuilder();
+					if ((arena.get_token_receiver(v_call_188).index == 0)) {
+						var tmp_218 = arena.token_message(arena.get_token_identifier(v_call_188));
+						var tmp_219 = syntax_format_one(v_form_209.text, tmp_218.text);
+						source_append_text(tmp_224, tmp_219.text);
+					} else {
+						var tmp_220 = arena.token_message(arena.get_token_receiver(v_call_188));
+						var tmp_221 = arena.token_message(arena.get_token_identifier(v_call_188));
+						var tmp_222 = new Utf8ByteBuilder();
+						source_append_text(tmp_222, "(method-call (receiver \"");
+						source_append_text(tmp_222, tmp_220.text);
+						source_append_text(tmp_222, "\") (target \"");
+						source_append_text(tmp_222, tmp_221.text);
+						source_append_text(tmp_222, "\") (arguments");
+						var tmp_223 = tmp_222.snapshot();
+						source_append_text(tmp_224, tmp_223.text);
+					}
+					var tmp_225 = tmp_224.snapshot();
+					source_append_text(tmp_226, tmp_225.text);
+				}
+				var tmp_227 = tmp_226.snapshot();
+				source_append_text(tmp_228, tmp_227.text);
+			}
+			var tmp_229 = tmp_228.snapshot();
+			source_append_text(tmp_210, tmp_229.text);
+			var v_text_230 = move tmp_210;
+			var v_i_231 = 0;
+			var tmp_232 = true;
+			while (true) {
+				if (tmp_232) {
+					tmp_232 = false;
+				} else {
+					var tmp_233 = v_i_231;
+					v_i_231 = (v_i_231 + 1);
+				}
+				if (!((v_i_231 < arena.list_count(arena.get_list_arguments(v_call_188))))) {
+					break;
+				}
+				var tmp_234 = this.format_expression(arena, arena.node_at(arena.get_list_arguments(v_call_188), v_i_231));
+				var tmp_235 = new Utf8ByteBuilder();
+				source_append_text(tmp_235, " ");
+				source_append_text(tmp_235, tmp_234.text);
+				var tmp_236 = tmp_235.snapshot();
+				source_append_text(v_text_230, tmp_236.text);
+			}
+			source_append_text(v_text_230, "))");
+			var tmp_237 = v_text_230.snapshot();
+			var tmp_238 = syntax_text(tmp_237.text);
+			return move tmp_238;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.NameExpressionSyntax()))) {
+			if ((arena.token_kind(arena.get_token_identifier(arg_expression)) == TokenKind.THIS())) {
+				var tmp_239 = syntax_text("(this)");
+				return move tmp_239;
+			}
+			var tmp_240 = arena.token_message(arena.get_token_identifier(arg_expression));
+			var tmp_241 = new Utf8ByteBuilder();
+			source_append_text(tmp_241, "(name \"");
+			source_append_text(tmp_241, tmp_240.text);
+			source_append_text(tmp_241, "\")");
+			var tmp_242 = tmp_241.snapshot();
+			var tmp_243 = syntax_text(tmp_242.text);
+			return move tmp_243;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.NullPointerExpressionSyntax()))) {
+			var tmp_244 = syntax_text("(null)");
+			return move tmp_244;
+		}
+		var v_move_245 = arena.try_kind(arg_expression, SyntaxKind.MoveExpressionSyntax());
+		if ((v_move_245.index != 0)) {
+			var tmp_246 = arena.token_message(arena.get_token_source(v_move_245));
+			var tmp_248 = syntax_text(tmp_246.text);
+			var v_name_247 = new SyntaxStringVariable(move tmp_248);
+			var tmp_249 = -1;
+			while (tmp_249 + 1 < arena.list_count(arena.get_list_fields(v_move_245))) {
+				tmp_249 = tmp_249 + 1;
+				var v_path_field_250 = arena.token_at(arena.get_list_fields(v_move_245), tmp_249);
+				var tmp_251 = arena.token_message(v_path_field_250);
+				var tmp_252 = new Utf8ByteBuilder();
+				source_append_text(tmp_252, ".");
+				source_append_text(tmp_252, tmp_251.text);
+				var tmp_253 = tmp_252.snapshot();
+				var tmp_254 = new Utf8ByteBuilder();
+				source_append_text(tmp_254, v_name_247.value.text);
+				source_append_text(tmp_254, tmp_253.text);
+				var tmp_255 = tmp_254.snapshot();
+				var tmp_256 = syntax_text(tmp_255.text);
+				v_name_247.value = move tmp_256;
+			}
+			var tmp_257 = new Utf8ByteBuilder();
+			source_append_text(tmp_257, "(move (name \"");
+			source_append_text(tmp_257, v_name_247.value.text);
+			source_append_text(tmp_257, "\"))");
+			var tmp_258 = tmp_257.snapshot();
+			var tmp_259 = syntax_text(tmp_258.text);
+			return move tmp_259;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.BooleanLiteralExpressionSyntax()))) {
+			var tmp_260 = arena.token_message(arena.get_token_literal(arg_expression));
+			var tmp_261 = new Utf8ByteBuilder();
+			source_append_text(tmp_261, "(bool ");
+			source_append_text(tmp_261, tmp_260.text);
+			source_append_text(tmp_261, ")");
+			var tmp_262 = tmp_261.snapshot();
+			var tmp_263 = syntax_text(tmp_262.text);
+			return move tmp_263;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.FloatLiteralExpressionSyntax()))) {
+			var tmp_264 = arena.token_message(arena.get_token_literal(arg_expression));
+			var tmp_265 = new Utf8ByteBuilder();
+			source_append_text(tmp_265, "(float \"");
+			source_append_text(tmp_265, tmp_264.text);
+			source_append_text(tmp_265, "\")");
+			var tmp_266 = tmp_265.snapshot();
+			var tmp_267 = syntax_text(tmp_266.text);
+			return move tmp_267;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.IntegerLiteralExpressionSyntax()))) {
+			var tmp_268 = arena.token_message(arena.get_token_literal(arg_expression));
+			var tmp_269 = new Utf8ByteBuilder();
+			source_append_text(tmp_269, "(integer \"");
+			source_append_text(tmp_269, tmp_268.text);
+			source_append_text(tmp_269, "\")");
+			var tmp_270 = tmp_269.snapshot();
+			var tmp_271 = syntax_text(tmp_270.text);
+			return move tmp_271;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.ParenthesizedExpressionSyntax()))) {
+			var tmp_272 = this.format_expression(arena, arena.get_node_expression(arg_expression));
+			var tmp_273 = new Utf8ByteBuilder();
+			source_append_text(tmp_273, "(parenthesized ");
+			source_append_text(tmp_273, tmp_272.text);
+			source_append_text(tmp_273, ")");
+			var tmp_274 = tmp_273.snapshot();
+			var tmp_275 = syntax_text(tmp_274.text);
+			return move tmp_275;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.PrefixExpressionSyntax()))) {
+			var v_prefix_276 = arg_expression;
+			var tmp_277 = arena.token_message(arena.get_token_operator_token(v_prefix_276));
+			var tmp_278 = this.format_expression(arena, arena.get_node_operand(v_prefix_276));
+			var tmp_279 = new Utf8ByteBuilder();
+			source_append_text(tmp_279, "(prefix \"");
+			source_append_text(tmp_279, tmp_277.text);
+			source_append_text(tmp_279, "\" ");
+			source_append_text(tmp_279, tmp_278.text);
+			source_append_text(tmp_279, ")");
+			var tmp_280 = tmp_279.snapshot();
+			var tmp_281 = syntax_text(tmp_280.text);
+			return move tmp_281;
+		}
+		var v_short_circuit_282 = arena.try_kind(arg_expression, SyntaxKind.ShortCircuitExpressionSyntax());
+		if ((v_short_circuit_282.index != 0)) {
+			var tmp_283 = arena.token_message(arena.get_token_operator_token(v_short_circuit_282));
+			var tmp_284 = this.format_expression(arena, arena.get_node_left(v_short_circuit_282));
+			var tmp_285 = this.format_expression(arena, arena.get_node_right(v_short_circuit_282));
+			var tmp_286 = new Utf8ByteBuilder();
+			source_append_text(tmp_286, "(short-circuit \"");
+			source_append_text(tmp_286, tmp_283.text);
+			source_append_text(tmp_286, "\" ");
+			source_append_text(tmp_286, tmp_284.text);
+			source_append_text(tmp_286, " ");
+			source_append_text(tmp_286, tmp_285.text);
+			source_append_text(tmp_286, ")");
+			var tmp_287 = tmp_286.snapshot();
+			var tmp_288 = syntax_text(tmp_287.text);
+			return move tmp_288;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.ComparisonChainSyntax()))) {
+			var v_chain_289 = arg_expression;
+			var tmp_290 = new Utf8ByteBuilder();
+			source_append_text(tmp_290, "(comparison-chain");
+			var v_text_291 = move tmp_290;
+			var v_i_292 = 0;
+			var tmp_293 = true;
+			while (true) {
+				if (tmp_293) {
+					tmp_293 = false;
+				} else {
+					var tmp_294 = v_i_292;
+					v_i_292 = (v_i_292 + 1);
+				}
+				if (!((v_i_292 < arena.list_count(arena.get_list_operands(v_chain_289))))) {
+					break;
+				}
+				if ((v_i_292 > 0)) {
+					var tmp_295 = arena.token_message(arena.token_at(arena.get_list_operators(v_chain_289), (v_i_292 - 1)));
+					var tmp_296 = new Utf8ByteBuilder();
+					source_append_text(tmp_296, " ");
+					source_append_text(tmp_296, tmp_295.text);
+					var tmp_297 = tmp_296.snapshot();
+					source_append_text(v_text_291, tmp_297.text);
+				}
+				var tmp_298 = this.format_expression(arena, arena.node_at(arena.get_list_operands(v_chain_289), v_i_292));
+				var tmp_299 = new Utf8ByteBuilder();
+				source_append_text(tmp_299, " ");
+				source_append_text(tmp_299, tmp_298.text);
+				var tmp_300 = tmp_299.snapshot();
+				source_append_text(v_text_291, tmp_300.text);
+			}
+			source_append_text(v_text_291, ")");
+			var tmp_301 = v_text_291.snapshot();
+			var tmp_302 = syntax_text(tmp_301.text);
+			return move tmp_302;
+		}
+		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.BinaryExpressionSyntax()))) {
+			var v_binary_303 = arg_expression;
+			var tmp_304 = arena.token_message(arena.get_token_operator_token(v_binary_303));
+			var tmp_305 = this.format_expression(arena, arena.get_node_left(v_binary_303));
+			var tmp_306 = this.format_expression(arena, arena.get_node_right(v_binary_303));
+			var tmp_307 = new Utf8ByteBuilder();
+			source_append_text(tmp_307, "(binary \"");
+			source_append_text(tmp_307, tmp_304.text);
+			source_append_text(tmp_307, "\" ");
+			source_append_text(tmp_307, tmp_305.text);
+			source_append_text(tmp_307, " ");
+			source_append_text(tmp_307, tmp_306.text);
+			source_append_text(tmp_307, ")");
+			var tmp_308 = tmp_307.snapshot();
+			var tmp_309 = syntax_text(tmp_308.text);
+			return move tmp_309;
+		}
+		assert_that(false);
+		var unreachable = syntax_text("");
+		return move unreachable;
+	}
+}

@@ -1,0 +1,1524 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Development observation v1: a breadth-first walk of typed AST edges.
+class SyntaxProjection {
+	private owned int[] numbers;
+	private owned SyntaxNodeId[] queue;
+	private int used;
+	private owned int[] source_numbers;
+	private int next_source;
+	owned Utf8ByteBuilder output;
+	init(int nodes, int sources, int generated) {
+		this.numbers = new int[nodes + 1];
+		this.queue = new SyntaxNodeId[nodes + 1];
+		this.source_numbers = new int[sources + generated + 1];
+		this.next_source = sources;
+		this.used = 0;
+		int i = 1;
+		while (i <= sources) {
+			this.source_numbers[i] = i;
+			i = i + 1;
+		}
+		var output = new Utf8ByteBuilder();
+		this.output = move output;
+	}
+	int reference(SyntaxNodeId node) {
+		assert_that(node.index >= 0 && node.index < len(this.numbers));
+		if (node.index == 0) {
+			return 0;
+		}
+		if (this.numbers[node.index] == 0) {
+			this.queue[this.used] = node;
+			this.used = this.used + 1;
+			this.numbers[node.index] = this.used;
+		}
+		return this.numbers[node.index];
+	}
+	void source_line(SyntaxArena arena, SyntaxSourceId source, int ordinal) throws Error {
+		var backing = arena.source(source);
+		var path = source_path(shared_borrow(backing));
+		source_append_text(this.output, "S ");
+		append_int(this.output, ordinal);
+		source_append_text(this.output, " ");
+		syntax_write_hex(this.output, path.text);
+		source_append_text(this.output, " ");
+		append_int(this.output, arena.source_length(source));
+		source_append_text(this.output, " ");
+		if (arena.source_native_interface(source)) {
+			source_append_text(this.output, "1");
+		} else {
+			source_append_text(this.output, "0");
+		}
+		source_append_text(this.output, "\n");
+	}
+	int source_number(SyntaxArena arena, SyntaxSourceId source) throws Error {
+		int slot = source.index;
+		if (slot < 0) {
+			slot = arena.source_count - slot;
+		}
+		assert_that(slot > 0 && slot < len(this.source_numbers));
+		if (this.source_numbers[slot] == 0) {
+			this.next_source = this.next_source + 1;
+			this.source_numbers[slot] = this.next_source;
+			this.source_line(arena, source, this.next_source);
+		}
+		return this.source_numbers[slot];
+	}
+	void edge(string name, string expected, SyntaxNodeId value) {
+		int ordinal = this.reference(value);
+		source_append_text(this.output, "E ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		source_append_text(this.output, expected);
+		source_append_text(this.output, " ");
+		append_int(this.output, ordinal);
+		source_append_text(this.output, "\n");
+	}
+	void boolean(string name, bool value) {
+		source_append_text(this.output, "B ");
+		source_append_text(this.output, name);
+		if (value) {
+			source_append_text(this.output, " 1\n");
+		} else {
+			source_append_text(this.output, " 0\n");
+		}
+	}
+	void integer(string name, int value) {
+		source_append_text(this.output, "I ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		append_int(this.output, value);
+		source_append_text(this.output, "\n");
+	}
+	void token(SyntaxArena arena, string name, SyntaxTokenId value) throws Error {
+		if (value.index == 0) {
+			source_append_text(this.output, "T ");
+			source_append_text(this.output, name);
+			source_append_text(this.output, " -\n");
+			return;
+		}
+		var span = arena.token_span(value);
+		int source = this.source_number(arena, span.source);
+		source_append_text(this.output, "T ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		source_append_text(this.output, token_kind_name(arena.token_kind(value)));
+		source_append_text(this.output, " ");
+		append_int(this.output, source);
+		source_append_text(this.output, " ");
+		append_int(this.output, span.start);
+		source_append_text(this.output, " ");
+		append_int(this.output, span.end);
+		source_append_text(this.output, " ");
+		var spelling = arena.token_message(value);
+		syntax_write_hex(this.output, spelling.text);
+		source_append_text(this.output, " ");
+		var payload = arena.payload_hex(value);
+		source_append_text(this.output, payload.text);
+		source_append_text(this.output, "\n");
+	}
+	void text(SyntaxArena arena, string name, SyntaxTextId value) throws Error {
+		var text = arena.text_message(value);
+		source_append_text(this.output, "X ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		syntax_write_hex(this.output, text.text);
+		source_append_text(this.output, "\n");
+	}
+	void concurrency(string name, SyntaxConcurrency value) {
+		source_append_text(this.output, "C ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		if (!value.present) {
+			source_append_text(this.output, "-\n");
+			return;
+		}
+		append_int(this.output, value.kinds);
+		source_append_text(this.output, " ");
+		append_int(this.output, value.admitted);
+		source_append_text(this.output, "\n");
+	}
+	void nodes(SyntaxArena arena, string name, string expected, SyntaxListId list, bool nullable) throws Error {
+		source_append_text(this.output, "L ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		if (nullable && list.index == 0) {
+			source_append_text(this.output, "-1\n");
+			return;
+		}
+		append_int(this.output, arena.list_count(list));
+		source_append_text(this.output, "\n");
+		int i = 0;
+		while (i < arena.list_count(list)) {
+			this.edge(name, expected, arena.node_at(list, i));
+			i = i + 1;
+		}
+	}
+	void tokens(SyntaxArena arena, string name, SyntaxListId list, bool nullable) throws Error {
+		source_append_text(this.output, "L ");
+		source_append_text(this.output, name);
+		source_append_text(this.output, " ");
+		if (nullable && list.index == 0) {
+			source_append_text(this.output, "-1\n");
+			return;
+		}
+		append_int(this.output, arena.list_count(list));
+		source_append_text(this.output, "\n");
+		int i = 0;
+		while (i < arena.list_count(list)) {
+			this.token(arena, name, arena.token_at(list, i));
+			i = i + 1;
+		}
+	}
+	void fields(SyntaxArena arena, SyntaxNodeId node) throws Error {
+		var kind = arena.kind(node);
+		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
+			var data = arena.address_of_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "ampersand", data.f_ampersand);
+			this.token(arena, "identifier", data.f_identifier);
+			return;
+		}
+		if (kind == SyntaxKind.ArrayInitializerSyntax()) {
+			var data = arena.array_initializer(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.nodes(arena, "elements", "ExpressionSyntax", data.f_elements, false);
+			return;
+		}
+		if (kind == SyntaxKind.ArrayStructInitializerSyntax()) {
+			var data = arena.array_struct_initializer(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("initializer", "StructInitializerSyntax", data.f_initializer);
+			return;
+		}
+		if (kind == SyntaxKind.ArrayTypeSyntax()) {
+			var data = arena.array_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.edge("element_type", "TypeNameSyntax", data.f_element_type);
+			this.edge("extent", "ExpressionSyntax", data.f_extent);
+			return;
+		}
+		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
+			var data = arena.assignment_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "equals_token", data.f_equals_token);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
+			var data = arena.async_runtime(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "provider", data.f_provider);
+			this.token(arena, "name", data.f_name);
+			this.edge("error", "TypeNameSyntax", data.f_error);
+			this.edge("status", "TypeNameSyntax", data.f_status);
+			return;
+		}
+		if (kind == SyntaxKind.AwaitExpressionSyntax()) {
+			var data = arena.await_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("operation", "ExpressionSyntax", data.f_operation);
+			return;
+		}
+		if (kind == SyntaxKind.AwaitStatementSyntax()) {
+			var data = arena.await_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("expression", "AwaitExpressionSyntax", data.f_expression);
+			return;
+		}
+		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
+			var data = arena.binary_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("left", "ExpressionSyntax", data.f_left);
+			this.token(arena, "operator_token", data.f_operator_token);
+			this.edge("right", "ExpressionSyntax", data.f_right);
+			return;
+		}
+		if (kind == SyntaxKind.BlockStatementSyntax()) {
+			var data = arena.block_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "open_brace", data.f_open_brace);
+			this.nodes(arena, "statements", "StatementSyntax", data.f_statements, false);
+			this.token(arena, "close_brace", data.f_close_brace);
+			return;
+		}
+		if (kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
+			var data = arena.boolean_literal_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "literal", data.f_literal);
+			return;
+		}
+		if (kind == SyntaxKind.BreakStatementSyntax()) {
+			var data = arena.break_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.BufferAllocationSyntax()) {
+			var data = arena.buffer_allocation(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("allocation_context", "ExpressionSyntax", data.f_allocation_context);
+			this.edge("element_type", "TypeNameSyntax", data.f_element_type);
+			this.edge("count", "ExpressionSyntax", data.f_count);
+			this.edge("failure_call", "ExpressionSyntax", data.f_failure_call);
+			return;
+		}
+		if (kind == SyntaxKind.CCodeEntrySyntax()) {
+			var data = arena.c_code_entry(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "key", data.f_key);
+			this.token(arena, "value", data.f_value);
+			this.text(arena, "decoded_value", data.f_decoded_value);
+			return;
+		}
+		if (kind == SyntaxKind.CallExpressionSyntax()) {
+			var data = arena.call_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.boolean("signal_emission", data.f_signal_emission);
+			this.nodes(arena, "qualifier_arguments", "TypeNameSyntax", data.f_qualifier_arguments, false);
+			this.nodes(arena, "type_arguments", "TypeNameSyntax", data.f_type_arguments, false);
+			this.edge("receiver_place", "ExpressionSyntax", data.f_receiver_place);
+			this.token(arena, "receiver", data.f_receiver);
+			this.token(arena, "member_operator", data.f_member_operator);
+			this.token(arena, "identifier", data.f_identifier);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.CallStatementSyntax()) {
+			var data = arena.call_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("call", "CallExpressionSyntax", data.f_call);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.CallableChannelTypeSyntax()) {
+			var data = arena.callable_channel_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("underlying", "TypeNameSyntax", data.f_underlying);
+			return;
+		}
+		if (kind == SyntaxKind.CallerInformationSyntax()) {
+			var data = arena.caller_information(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "target", data.f_target);
+			return;
+		}
+		if (kind == SyntaxKind.CatchClauseSyntax()) {
+			var data = arena.catch_clause(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("class_name", "TypeNameSyntax", data.f_class_name);
+			this.token(arena, "binding", data.f_binding);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
+			var data = arena.class_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.concurrency("concurrency_policy", data.f_concurrency_policy);
+			this.nodes(arena, "allocator", "CCodeEntrySyntax", data.f_allocator, true);
+			this.nodes(arena, "alignment", "CCodeEntrySyntax", data.f_alignment, true);
+			this.nodes(arena, "representation", "CCodeEntrySyntax", data.f_representation, true);
+			this.nodes(arena, "members", "SyntaxNode", data.f_members, false);
+			this.nodes(arena, "methods", "FunctionDeclarationSyntax", data.f_methods, false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "open_brace", data.f_open_brace);
+			this.nodes(arena, "fields", "StructFieldDeclarationSyntax", data.f_fields, false);
+			this.token(arena, "close_brace", data.f_close_brace);
+			this.nodes(arena, "where_clauses", "WhereClauseSyntax", data.f_where_clauses, false);
+			this.edge("foreign_import", "ForeignPolicySyntax", data.f_foreign_import);
+			this.edge("foreign_export", "ForeignPolicySyntax", data.f_foreign_export);
+			this.edge("com_export", "ForeignPolicySyntax", data.f_com_export);
+			this.edge("gobject_export", "ForeignPolicySyntax", data.f_gobject_export);
+			this.boolean("is_interface", data.f_is_interface);
+			this.tokens(arena, "type_parameters", data.f_type_parameters, false);
+			this.boolean("exact_heap_class", data.f_exact_heap_class);
+			this.edge("parent_class", "TypeNameSyntax", data.f_parent_class);
+			this.token(arena, "exception_root", data.f_exception_root);
+			return;
+		}
+		if (kind == SyntaxKind.ComImportSyntax()) {
+			var data = arena.com_import(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("declaration", "ClassDeclarationSyntax", data.f_declaration);
+			this.token(arena, "name", data.f_name);
+			this.edge("policy", "ForeignPolicySyntax", data.f_policy);
+			return;
+		}
+		if (kind == SyntaxKind.ComparisonChainSyntax()) {
+			var data = arena.comparison_chain(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.nodes(arena, "operands", "ExpressionSyntax", data.f_operands, false);
+			this.tokens(arena, "operators", data.f_operators, false);
+			return;
+		}
+		if (kind == SyntaxKind.CompilationUnitSyntax()) {
+			var data = arena.compilation_unit(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.nodes(arena, "c_classes", "ClassDeclarationSyntax", data.f_c_classes, false);
+			this.nodes(arena, "com_interfaces", "ComImportSyntax", data.f_com_interfaces, false);
+			this.token(arena, "namespace_name", data.f_namespace_name);
+			this.tokens(arena, "imports", data.f_imports, false);
+			this.nodes(arena, "type_applications", "GenericTypeApplicationSyntax", data.f_type_applications, false);
+			this.nodes(arena, "async_runtimes", "AsyncRuntimeSyntax", data.f_async_runtimes, false);
+			this.nodes(arena, "enums", "EnumDeclarationSyntax", data.f_enums, false);
+			this.nodes(arena, "constants", "ConstantDeclarationSyntax", data.f_constants, false);
+			this.nodes(arena, "classes", "ClassDeclarationSyntax", data.f_classes, false);
+			this.nodes(arena, "functions", "FunctionDeclarationSyntax", data.f_functions, false);
+			this.nodes(arena, "structs", "StructDeclarationSyntax", data.f_structs, false);
+			this.token(arena, "end_of_file", data.f_end_of_file);
+			return;
+		}
+		if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
+			var data = arena.constant_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			this.edge("initializer", "ExpressionSyntax", data.f_initializer);
+			return;
+		}
+		if (kind == SyntaxKind.ConstructorInitializerSyntax()) {
+			var data = arena.constructor_initializer(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.boolean("signal_emission", data.f_signal_emission);
+			this.nodes(arena, "qualifier_arguments", "TypeNameSyntax", data.f_qualifier_arguments, false);
+			this.nodes(arena, "type_arguments", "TypeNameSyntax", data.f_type_arguments, false);
+			this.edge("receiver_place", "ExpressionSyntax", data.f_receiver_place);
+			this.token(arena, "receiver", data.f_receiver);
+			this.token(arena, "member_operator", data.f_member_operator);
+			this.token(arena, "identifier", data.f_identifier);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.ContinueStatementSyntax()) {
+			var data = arena.continue_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.ConversionExpressionSyntax()) {
+			var data = arena.conversion_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("operand", "ExpressionSyntax", data.f_operand);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("destination", "TypeNameSyntax", data.f_destination);
+			return;
+		}
+		if (kind == SyntaxKind.DereferenceAssignmentSyntax()) {
+			var data = arena.dereference_assignment(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("target", "DereferenceExpressionSyntax", data.f_target);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			return;
+		}
+		if (kind == SyntaxKind.DereferenceExpressionSyntax()) {
+			var data = arena.dereference_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "star", data.f_star);
+			this.edge("pointer", "ExpressionSyntax", data.f_pointer);
+			return;
+		}
+		if (kind == SyntaxKind.DspExpressionSyntax()) {
+			var data = arena.dsp_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.edge("first", "ExpressionSyntax", data.f_first);
+			this.edge("second", "ExpressionSyntax", data.f_second);
+			this.edge("destination", "TypeNameSyntax", data.f_destination);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.EnumArmSyntax()) {
+			var data = arena.enum_arm(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.nodes(arena, "type_arguments", "TypeNameSyntax", data.f_type_arguments, false);
+			this.token(arena, "qualifier", data.f_qualifier);
+			this.token(arena, "variant", data.f_variant);
+			this.nodes(arena, "bindings", "EnumBindingSyntax", data.f_bindings, false);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		if (kind == SyntaxKind.EnumBindingSyntax()) {
+			var data = arena.enum_binding(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "field", data.f_field);
+			this.token(arena, "binding", data.f_binding);
+			return;
+		}
+		if (kind == SyntaxKind.EnumDeclarationSyntax()) {
+			var data = arena.enum_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.tokens(arena, "type_parameters", data.f_type_parameters, false);
+			this.token(arena, "name", data.f_name);
+			this.nodes(arena, "variants", "EnumVariantSyntax", data.f_variants, false);
+			return;
+		}
+		if (kind == SyntaxKind.EnumPayloadSyntax()) {
+			var data = arena.enum_payload(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			return;
+		}
+		if (kind == SyntaxKind.EnumVariantSyntax()) {
+			var data = arena.enum_variant(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "name", data.f_name);
+			this.nodes(arena, "fields", "EnumPayloadSyntax", data.f_fields, false);
+			return;
+		}
+		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+			var data = arena.field_access_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "identifier", data.f_identifier);
+			this.token(arena, "dot", data.f_dot);
+			this.token(arena, "field_name", data.f_field_name);
+			this.edge("aggregate", "ExpressionSyntax", data.f_aggregate);
+			return;
+		}
+		if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
+			var data = arena.field_assignment_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("target", "FieldAccessExpressionSyntax", data.f_target);
+			this.token(arena, "equals_token", data.f_equals_token);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.FieldInitializerSyntax()) {
+			var data = arena.field_initializer(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "equals_token", data.f_equals_token);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.edge("initializer", "StructInitializerSyntax", data.f_initializer);
+			return;
+		}
+		if (kind == SyntaxKind.FloatLiteralExpressionSyntax()) {
+			var data = arena.float_literal_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "literal", data.f_literal);
+			return;
+		}
+		if (kind == SyntaxKind.ForStatementSyntax()) {
+			var data = arena.for_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("initializer", "StatementSyntax", data.f_initializer);
+			this.edge("condition", "ExpressionSyntax", data.f_condition);
+			this.edge("step", "StatementSyntax", data.f_step);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		if (kind == SyntaxKind.ForeachStatementSyntax()) {
+			var data = arena.foreach_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "binding", data.f_binding);
+			this.edge("collection", "ExpressionSyntax", data.f_collection);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		if (kind == SyntaxKind.ForeignPolicySyntax()) {
+			var data = arena.foreign_policy(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.integer("kind", data.f_kind);
+			this.token(arena, "name", data.f_name);
+			this.nodes(arena, "entries", "CCodeEntrySyntax", data.f_entries, false);
+			return;
+		}
+		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
+			var data = arena.function_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.boolean("is_signal", data.f_is_signal);
+			this.edge("foreign_policy", "ForeignPolicySyntax", data.f_foreign_policy);
+			this.boolean("utf8_factory", data.f_utf8_factory);
+			this.token(arena, "async_keyword", data.f_async_keyword);
+			this.integer("dispatch", data.f_dispatch);
+			this.edge("throws_class", "TypeNameSyntax", data.f_throws_class);
+			this.nodes(arena, "ccode", "CCodeEntrySyntax", data.f_ccode, true);
+			this.nodes(arena, "floating_point", "CCodeEntrySyntax", data.f_floating_point, true);
+			this.nodes(arena, "where_clauses", "WhereClauseSyntax", data.f_where_clauses, false);
+			this.tokens(arena, "type_parameters", data.f_type_parameters, false);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("return_type", "TypeNameSyntax", data.f_return_type);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.nodes(arena, "parameters", "ParameterSyntax", data.f_parameters, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			this.token(arena, "extern_keyword", data.f_extern_keyword);
+			this.token(arena, "export_keyword", data.f_export_keyword);
+			this.token(arena, "abi_identifier", data.f_abi_identifier);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.GenericTypeApplicationSyntax()) {
+			var data = arena.generic_type_application(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.nodes(arena, "type_arguments", "TypeNameSyntax", data.f_type_arguments, false);
+			return;
+		}
+		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+			var data = arena.heap_object_construction(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("allocation_context", "ExpressionSyntax", data.f_allocation_context);
+			this.boolean("fallible", data.f_fallible);
+			this.edge("class_name", "TypeNameSyntax", data.f_class_name);
+			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false);
+			return;
+		}
+		if (kind == SyntaxKind.IfStatementSyntax()) {
+			var data = arena.if_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.edge("condition", "ExpressionSyntax", data.f_condition);
+			this.token(arena, "close_paren", data.f_close_paren);
+			this.edge("then_body", "BlockStatementSyntax", data.f_then_body);
+			this.token(arena, "else_keyword", data.f_else_keyword);
+			this.edge("else_body", "BlockStatementSyntax", data.f_else_body);
+			return;
+		}
+		if (kind == SyntaxKind.IndexExpressionSyntax()) {
+			var data = arena.index_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("container", "ExpressionSyntax", data.f_container);
+			this.edge("subscript", "ExpressionSyntax", data.f_subscript);
+			this.token(arena, "close", data.f_close);
+			return;
+		}
+		if (kind == SyntaxKind.IndexedAssignmentSyntax()) {
+			var data = arena.indexed_assignment(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("target", "IndexExpressionSyntax", data.f_target);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			return;
+		}
+		if (kind == SyntaxKind.InferredLocalDeclarationSyntax()) {
+			var data = arena.inferred_local_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "equals_token", data.f_equals_token);
+			this.edge("initializer", "ExpressionSyntax", data.f_initializer);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+			var data = arena.integer_literal_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "literal", data.f_literal);
+			return;
+		}
+		if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+			var data = arena.lifecycle_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.boolean("is_signal", data.f_is_signal);
+			this.edge("foreign_policy", "ForeignPolicySyntax", data.f_foreign_policy);
+			this.boolean("utf8_factory", data.f_utf8_factory);
+			this.token(arena, "async_keyword", data.f_async_keyword);
+			this.integer("dispatch", data.f_dispatch);
+			this.edge("throws_class", "TypeNameSyntax", data.f_throws_class);
+			this.nodes(arena, "ccode", "CCodeEntrySyntax", data.f_ccode, true);
+			this.nodes(arena, "floating_point", "CCodeEntrySyntax", data.f_floating_point, true);
+			this.nodes(arena, "where_clauses", "WhereClauseSyntax", data.f_where_clauses, false);
+			this.tokens(arena, "type_parameters", data.f_type_parameters, false);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("return_type", "TypeNameSyntax", data.f_return_type);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.nodes(arena, "parameters", "ParameterSyntax", data.f_parameters, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			this.token(arena, "extern_keyword", data.f_extern_keyword);
+			this.token(arena, "export_keyword", data.f_export_keyword);
+			this.token(arena, "abi_identifier", data.f_abi_identifier);
+			this.token(arena, "semicolon", data.f_semicolon);
+			this.nodes(arena, "base_arguments", "ExpressionSyntax", data.f_base_arguments, true);
+			return;
+		}
+		if (kind == SyntaxKind.LocalDeclarationSyntax()) {
+			var data = arena.local_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "equals_token", data.f_equals_token);
+			this.edge("initializer", "ExpressionSyntax", data.f_initializer);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.MatchStatementSyntax()) {
+			var data = arena.match_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("scrutinee", "ExpressionSyntax", data.f_scrutinee);
+			this.nodes(arena, "arms", "EnumArmSyntax", data.f_arms, false);
+			return;
+		}
+		if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			var data = arena.move_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "source", data.f_source);
+			this.tokens(arena, "fields", data.f_fields, false);
+			return;
+		}
+		if (kind == SyntaxKind.NameExpressionSyntax()) {
+			var data = arena.name_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "identifier", data.f_identifier);
+			return;
+		}
+		if (kind == SyntaxKind.NonNullTypeSyntax()) {
+			var data = arena.non_null_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("underlying", "TypeNameSyntax", data.f_underlying);
+			return;
+		}
+		if (kind == SyntaxKind.NullPointerExpressionSyntax()) {
+			var data = arena.null_pointer_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			return;
+		}
+		if (kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
+			var data = arena.owner_slots_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.edge("element", "TypeNameSyntax", data.f_element);
+			this.token(arena, "marker", data.f_marker);
+			this.token(arena, "close", data.f_close);
+			return;
+		}
+		if (kind == SyntaxKind.ParameterSyntax()) {
+			var data = arena.parameter(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("caller_information", "CallerInformationSyntax", data.f_caller_information);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "borrowed_keyword", data.f_borrowed_keyword);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			return;
+		}
+		if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+			var data = arena.parenthesized_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.PointerTypeSyntax()) {
+			var data = arena.pointer_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.edge("pointee", "TypeNameSyntax", data.f_pointee);
+			this.token(arena, "star", data.f_star);
+			return;
+		}
+		if (kind == SyntaxKind.PrefixExpressionSyntax()) {
+			var data = arena.prefix_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "operator_token", data.f_operator_token);
+			this.edge("operand", "ExpressionSyntax", data.f_operand);
+			return;
+		}
+		if (kind == SyntaxKind.PropertyAccessorSyntax()) {
+			var data = arena.property_accessor(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("parameter", "ParameterSyntax", data.f_parameter);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
+			var data = arena.property_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("factory_syntax", "FunctionDeclarationSyntax", data.f_factory_syntax);
+			this.boolean("is_borrowed", data.f_is_borrowed);
+			this.token(arena, "lazy_keyword", data.f_lazy_keyword);
+			this.edge("throws_class", "TypeNameSyntax", data.f_throws_class);
+			this.integer("dispatch", data.f_dispatch);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			this.edge("getter", "PropertyAccessorSyntax", data.f_getter);
+			this.edge("setter", "PropertyAccessorSyntax", data.f_setter);
+			return;
+		}
+		if (kind == SyntaxKind.ReleaseStatementSyntax()) {
+			var data = arena.release_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "owner", data.f_owner);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.ReturnStatementSyntax()) {
+			var data = arena.return_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.SharedTypeSyntax()) {
+			var data = arena.shared_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.edge("payload", "TypeNameSyntax", data.f_payload);
+			return;
+		}
+		if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
+			var data = arena.short_circuit_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("left", "ExpressionSyntax", data.f_left);
+			this.token(arena, "operator_token", data.f_operator_token);
+			this.edge("right", "ExpressionSyntax", data.f_right);
+			return;
+		}
+		if (kind == SyntaxKind.SliceTypeSyntax()) {
+			var data = arena.slice_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.edge("element_type", "TypeNameSyntax", data.f_element_type);
+			return;
+		}
+		if (kind == SyntaxKind.StructDeclarationSyntax()) {
+			var data = arena.struct_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.concurrency("concurrency_policy", data.f_concurrency_policy);
+			this.nodes(arena, "allocator", "CCodeEntrySyntax", data.f_allocator, true);
+			this.nodes(arena, "alignment", "CCodeEntrySyntax", data.f_alignment, true);
+			this.nodes(arena, "representation", "CCodeEntrySyntax", data.f_representation, true);
+			this.nodes(arena, "members", "SyntaxNode", data.f_members, false);
+			this.nodes(arena, "methods", "FunctionDeclarationSyntax", data.f_methods, false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "open_brace", data.f_open_brace);
+			this.nodes(arena, "fields", "StructFieldDeclarationSyntax", data.f_fields, false);
+			this.token(arena, "close_brace", data.f_close_brace);
+			this.nodes(arena, "where_clauses", "WhereClauseSyntax", data.f_where_clauses, false);
+			this.tokens(arena, "type_parameters", data.f_type_parameters, false);
+			return;
+		}
+		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
+			var data = arena.struct_field_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "private_keyword", data.f_private_keyword);
+			this.token(arena, "readonly_keyword", data.f_readonly_keyword);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.StructInitializerSyntax()) {
+			var data = arena.struct_initializer(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "open_brace", data.f_open_brace);
+			this.nodes(arena, "fields", "FieldInitializerSyntax", data.f_fields, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_brace", data.f_close_brace);
+			return;
+		}
+		if (kind == SyntaxKind.StructLocalDeclarationSyntax()) {
+			var data = arena.struct_local_declaration(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "owned_keyword", data.f_owned_keyword);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.token(arena, "name", data.f_name);
+			this.token(arena, "equals_token", data.f_equals_token);
+			this.edge("initializer", "StructInitializerSyntax", data.f_initializer);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.SwapStatementSyntax()) {
+			var data = arena.swap_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("left", "ExpressionSyntax", data.f_left);
+			this.edge("right", "ExpressionSyntax", data.f_right);
+			return;
+		}
+		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) {
+			var data = arena.text_literal_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "token", data.f_token);
+			return;
+		}
+		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
+			var data = arena.text_member_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("receiver", "ExpressionSyntax", data.f_receiver);
+			this.token(arena, "member", data.f_member);
+			return;
+		}
+		if (kind == SyntaxKind.ThrowStatementSyntax()) {
+			var data = arena.throw_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			return;
+		}
+		if (kind == SyntaxKind.TryStatementSyntax()) {
+			var data = arena.try_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			this.nodes(arena, "catches", "CatchClauseSyntax", data.f_catches, false);
+			return;
+		}
+		if (kind == SyntaxKind.TypeNameSyntax()) {
+			var data = arena.type_name(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			return;
+		}
+		if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
+			var data = arena.utf8_factory_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.boolean("validates", data.f_validates);
+			this.token(arena, "input", data.f_input);
+			return;
+		}
+		if (kind == SyntaxKind.VectorDotExpressionSyntax()) {
+			var data = arena.vector_dot_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.nodes(arena, "operands", "ExpressionSyntax", data.f_operands, false);
+			this.edge("destination", "TypeNameSyntax", data.f_destination);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
+			var data = arena.vector_extract_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("container", "ExpressionSyntax", data.f_container);
+			this.edge("subscript", "ExpressionSyntax", data.f_subscript);
+			this.token(arena, "close", data.f_close);
+			this.edge("vector", "ExpressionSyntax", data.f_vector);
+			this.token(arena, "open_bracket", data.f_open_bracket);
+			this.token(arena, "index", data.f_index);
+			this.token(arena, "close_bracket", data.f_close_bracket);
+			return;
+		}
+		if (kind == SyntaxKind.VectorInitializerSyntax()) {
+			var data = arena.vector_initializer(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "open_brace", data.f_open_brace);
+			this.nodes(arena, "lanes", "ExpressionSyntax", data.f_lanes, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_brace", data.f_close_brace);
+			return;
+		}
+		if (kind == SyntaxKind.VectorPrimitiveExpressionSyntax()) {
+			var data = arena.vector_primitive_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.nodes(arena, "operands", "ExpressionSyntax", data.f_operands, false);
+			this.tokens(arena, "indices", data.f_indices, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.VectorReductionExpressionSyntax()) {
+			var data = arena.vector_reduction_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.edge("operand", "ExpressionSyntax", data.f_operand);
+			this.token(arena, "close_paren", data.f_close_paren);
+			return;
+		}
+		if (kind == SyntaxKind.VectorTypeSyntax()) {
+			var data = arena.vector_type(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "namespace_qualifier", data.f_namespace_qualifier);
+			this.token(arena, "identifier", data.f_identifier);
+			this.tokens(arena, "stars", data.f_stars, false);
+			this.edge("element_type", "TypeNameSyntax", data.f_element_type);
+			this.token(arena, "open_angle", data.f_open_angle);
+			this.token(arena, "lane_count", data.f_lane_count);
+			this.token(arena, "close_angle", data.f_close_angle);
+			return;
+		}
+		if (kind == SyntaxKind.WhereClauseSyntax()) {
+			var data = arena.where_clause(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "type_parameter", data.f_type_parameter);
+			this.token(arena, "colon", data.f_colon);
+			this.tokens(arena, "capabilities", data.f_capabilities, false);
+			this.tokens(arena, "commas", data.f_commas, false);
+			return;
+		}
+		if (kind == SyntaxKind.WhileStatementSyntax()) {
+			var data = arena.while_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.edge("condition", "ExpressionSyntax", data.f_condition);
+			this.token(arena, "close_paren", data.f_close_paren);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		if (kind == SyntaxKind.WithStatementSyntax()) {
+			var data = arena.with_statement(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "receiver", data.f_receiver);
+			this.edge("initializer", "InferredLocalDeclarationSyntax", data.f_initializer);
+			this.edge("body", "BlockStatementSyntax", data.f_body);
+			return;
+		}
+		assert_that(false);
+	}
+	void walk(SyntaxProgram program) throws Error {
+		source_append_text(this.output, "astra-ast-projection/1\n");
+		int i = 1;
+		while (i <= program.arena.source_count) {
+			SyntaxSourceId source = {index = i};
+			this.source_line(program.arena, source, i);
+			i = i + 1;
+		}
+		i = 0;
+		while (i < program.arena.list_count(program.units)) {
+			var root = program.arena.node_at(program.units, i);
+			this.edge("unit", "CompilationUnitSyntax", root);
+			i = i + 1;
+		}
+		i = 0;
+		while (i < this.used) {
+			var node = this.queue[i];
+			var header = program.arena.header(node);
+			int source = this.source_number(program.arena, header.span.source);
+			source_append_text(this.output, "N ");
+			append_int(this.output, i + 1);
+			source_append_text(this.output, " ");
+			source_append_text(this.output, syntax_kind_name(program.arena.kind(node)));
+			source_append_text(this.output, " ");
+			append_int(this.output, source);
+			source_append_text(this.output, " ");
+			append_int(this.output, header.span.start);
+			source_append_text(this.output, " ");
+			append_int(this.output, header.span.end);
+			source_append_text(this.output, " ");
+			append_int(this.output, header.depth);
+			source_append_text(this.output, "\n");
+			this.fields(program.arena, node);
+			i = i + 1;
+		}
+	}
+}
+owned Utf8Message syntax_projection(SyntaxProgram program) throws Error {
+	assert_that(!program.failed());
+	var visitor = new SyntaxProjection(program.arena.node_count, program.arena.source_count, program.arena.generated_source_count);
+	visitor.walk(program);
+	var result = visitor.output.snapshot();
+	return move result;
+}
+string syntax_kind_name(SyntaxKind kind) {
+	match (kind) {
+		case SyntaxKind.AddressOfExpressionSyntax(): {
+			return "AddressOfExpressionSyntax";
+		}
+		case SyntaxKind.ArrayInitializerSyntax(): {
+			return "ArrayInitializerSyntax";
+		}
+		case SyntaxKind.ArrayStructInitializerSyntax(): {
+			return "ArrayStructInitializerSyntax";
+		}
+		case SyntaxKind.ArrayTypeSyntax(): {
+			return "ArrayTypeSyntax";
+		}
+		case SyntaxKind.AssignmentStatementSyntax(): {
+			return "AssignmentStatementSyntax";
+		}
+		case SyntaxKind.AsyncRuntimeSyntax(): {
+			return "AsyncRuntimeSyntax";
+		}
+		case SyntaxKind.AwaitExpressionSyntax(): {
+			return "AwaitExpressionSyntax";
+		}
+		case SyntaxKind.AwaitStatementSyntax(): {
+			return "AwaitStatementSyntax";
+		}
+		case SyntaxKind.BinaryExpressionSyntax(): {
+			return "BinaryExpressionSyntax";
+		}
+		case SyntaxKind.BlockStatementSyntax(): {
+			return "BlockStatementSyntax";
+		}
+		case SyntaxKind.BooleanLiteralExpressionSyntax(): {
+			return "BooleanLiteralExpressionSyntax";
+		}
+		case SyntaxKind.BreakStatementSyntax(): {
+			return "BreakStatementSyntax";
+		}
+		case SyntaxKind.BufferAllocationSyntax(): {
+			return "BufferAllocationSyntax";
+		}
+		case SyntaxKind.CCodeEntrySyntax(): {
+			return "CCodeEntrySyntax";
+		}
+		case SyntaxKind.CallExpressionSyntax(): {
+			return "CallExpressionSyntax";
+		}
+		case SyntaxKind.CallStatementSyntax(): {
+			return "CallStatementSyntax";
+		}
+		case SyntaxKind.CallableChannelTypeSyntax(): {
+			return "CallableChannelTypeSyntax";
+		}
+		case SyntaxKind.CallerInformationSyntax(): {
+			return "CallerInformationSyntax";
+		}
+		case SyntaxKind.CatchClauseSyntax(): {
+			return "CatchClauseSyntax";
+		}
+		case SyntaxKind.ClassDeclarationSyntax(): {
+			return "ClassDeclarationSyntax";
+		}
+		case SyntaxKind.ComImportSyntax(): {
+			return "ComImportSyntax";
+		}
+		case SyntaxKind.ComparisonChainSyntax(): {
+			return "ComparisonChainSyntax";
+		}
+		case SyntaxKind.CompilationUnitSyntax(): {
+			return "CompilationUnitSyntax";
+		}
+		case SyntaxKind.ConstantDeclarationSyntax(): {
+			return "ConstantDeclarationSyntax";
+		}
+		case SyntaxKind.ConstructorInitializerSyntax(): {
+			return "ConstructorInitializerSyntax";
+		}
+		case SyntaxKind.ContinueStatementSyntax(): {
+			return "ContinueStatementSyntax";
+		}
+		case SyntaxKind.ConversionExpressionSyntax(): {
+			return "ConversionExpressionSyntax";
+		}
+		case SyntaxKind.DereferenceAssignmentSyntax(): {
+			return "DereferenceAssignmentSyntax";
+		}
+		case SyntaxKind.DereferenceExpressionSyntax(): {
+			return "DereferenceExpressionSyntax";
+		}
+		case SyntaxKind.DspExpressionSyntax(): {
+			return "DspExpressionSyntax";
+		}
+		case SyntaxKind.EnumArmSyntax(): {
+			return "EnumArmSyntax";
+		}
+		case SyntaxKind.EnumBindingSyntax(): {
+			return "EnumBindingSyntax";
+		}
+		case SyntaxKind.EnumDeclarationSyntax(): {
+			return "EnumDeclarationSyntax";
+		}
+		case SyntaxKind.EnumPayloadSyntax(): {
+			return "EnumPayloadSyntax";
+		}
+		case SyntaxKind.EnumVariantSyntax(): {
+			return "EnumVariantSyntax";
+		}
+		case SyntaxKind.ExpressionSyntax(): {
+			return "ExpressionSyntax";
+		}
+		case SyntaxKind.FieldAccessExpressionSyntax(): {
+			return "FieldAccessExpressionSyntax";
+		}
+		case SyntaxKind.FieldAssignmentStatementSyntax(): {
+			return "FieldAssignmentStatementSyntax";
+		}
+		case SyntaxKind.FieldInitializerSyntax(): {
+			return "FieldInitializerSyntax";
+		}
+		case SyntaxKind.FloatLiteralExpressionSyntax(): {
+			return "FloatLiteralExpressionSyntax";
+		}
+		case SyntaxKind.ForStatementSyntax(): {
+			return "ForStatementSyntax";
+		}
+		case SyntaxKind.ForeachStatementSyntax(): {
+			return "ForeachStatementSyntax";
+		}
+		case SyntaxKind.ForeignPolicySyntax(): {
+			return "ForeignPolicySyntax";
+		}
+		case SyntaxKind.FunctionDeclarationSyntax(): {
+			return "FunctionDeclarationSyntax";
+		}
+		case SyntaxKind.GenericTypeApplicationSyntax(): {
+			return "GenericTypeApplicationSyntax";
+		}
+		case SyntaxKind.HeapObjectConstructionSyntax(): {
+			return "HeapObjectConstructionSyntax";
+		}
+		case SyntaxKind.IfStatementSyntax(): {
+			return "IfStatementSyntax";
+		}
+		case SyntaxKind.IndexExpressionSyntax(): {
+			return "IndexExpressionSyntax";
+		}
+		case SyntaxKind.IndexedAssignmentSyntax(): {
+			return "IndexedAssignmentSyntax";
+		}
+		case SyntaxKind.InferredLocalDeclarationSyntax(): {
+			return "InferredLocalDeclarationSyntax";
+		}
+		case SyntaxKind.IntegerLiteralExpressionSyntax(): {
+			return "IntegerLiteralExpressionSyntax";
+		}
+		case SyntaxKind.LifecycleDeclarationSyntax(): {
+			return "LifecycleDeclarationSyntax";
+		}
+		case SyntaxKind.LocalDeclarationSyntax(): {
+			return "LocalDeclarationSyntax";
+		}
+		case SyntaxKind.MatchStatementSyntax(): {
+			return "MatchStatementSyntax";
+		}
+		case SyntaxKind.MoveExpressionSyntax(): {
+			return "MoveExpressionSyntax";
+		}
+		case SyntaxKind.NameExpressionSyntax(): {
+			return "NameExpressionSyntax";
+		}
+		case SyntaxKind.NativeInstanceDeclarationSyntax(): {
+			return "NativeInstanceDeclarationSyntax";
+		}
+		case SyntaxKind.NonNullTypeSyntax(): {
+			return "NonNullTypeSyntax";
+		}
+		case SyntaxKind.NullPointerExpressionSyntax(): {
+			return "NullPointerExpressionSyntax";
+		}
+		case SyntaxKind.OwnerSlotsTypeSyntax(): {
+			return "OwnerSlotsTypeSyntax";
+		}
+		case SyntaxKind.ParameterSyntax(): {
+			return "ParameterSyntax";
+		}
+		case SyntaxKind.ParenthesizedExpressionSyntax(): {
+			return "ParenthesizedExpressionSyntax";
+		}
+		case SyntaxKind.PointerTypeSyntax(): {
+			return "PointerTypeSyntax";
+		}
+		case SyntaxKind.PrefixExpressionSyntax(): {
+			return "PrefixExpressionSyntax";
+		}
+		case SyntaxKind.PropertyAccessorSyntax(): {
+			return "PropertyAccessorSyntax";
+		}
+		case SyntaxKind.PropertyDeclarationSyntax(): {
+			return "PropertyDeclarationSyntax";
+		}
+		case SyntaxKind.ReleaseStatementSyntax(): {
+			return "ReleaseStatementSyntax";
+		}
+		case SyntaxKind.ReturnStatementSyntax(): {
+			return "ReturnStatementSyntax";
+		}
+		case SyntaxKind.SharedTypeSyntax(): {
+			return "SharedTypeSyntax";
+		}
+		case SyntaxKind.ShortCircuitExpressionSyntax(): {
+			return "ShortCircuitExpressionSyntax";
+		}
+		case SyntaxKind.SliceTypeSyntax(): {
+			return "SliceTypeSyntax";
+		}
+		case SyntaxKind.StatementSyntax(): {
+			return "StatementSyntax";
+		}
+		case SyntaxKind.StructDeclarationSyntax(): {
+			return "StructDeclarationSyntax";
+		}
+		case SyntaxKind.StructFieldDeclarationSyntax(): {
+			return "StructFieldDeclarationSyntax";
+		}
+		case SyntaxKind.StructInitializerSyntax(): {
+			return "StructInitializerSyntax";
+		}
+		case SyntaxKind.StructLocalDeclarationSyntax(): {
+			return "StructLocalDeclarationSyntax";
+		}
+		case SyntaxKind.SwapStatementSyntax(): {
+			return "SwapStatementSyntax";
+		}
+		case SyntaxKind.SyntaxNode(): {
+			return "SyntaxNode";
+		}
+		case SyntaxKind.TextLiteralExpressionSyntax(): {
+			return "TextLiteralExpressionSyntax";
+		}
+		case SyntaxKind.TextMemberExpressionSyntax(): {
+			return "TextMemberExpressionSyntax";
+		}
+		case SyntaxKind.ThrowStatementSyntax(): {
+			return "ThrowStatementSyntax";
+		}
+		case SyntaxKind.TryStatementSyntax(): {
+			return "TryStatementSyntax";
+		}
+		case SyntaxKind.TypeNameSyntax(): {
+			return "TypeNameSyntax";
+		}
+		case SyntaxKind.Utf8FactoryExpressionSyntax(): {
+			return "Utf8FactoryExpressionSyntax";
+		}
+		case SyntaxKind.VectorDotExpressionSyntax(): {
+			return "VectorDotExpressionSyntax";
+		}
+		case SyntaxKind.VectorExtractExpressionSyntax(): {
+			return "VectorExtractExpressionSyntax";
+		}
+		case SyntaxKind.VectorInitializerSyntax(): {
+			return "VectorInitializerSyntax";
+		}
+		case SyntaxKind.VectorPrimitiveExpressionSyntax(): {
+			return "VectorPrimitiveExpressionSyntax";
+		}
+		case SyntaxKind.VectorReductionExpressionSyntax(): {
+			return "VectorReductionExpressionSyntax";
+		}
+		case SyntaxKind.VectorTypeSyntax(): {
+			return "VectorTypeSyntax";
+		}
+		case SyntaxKind.WhereClauseSyntax(): {
+			return "WhereClauseSyntax";
+		}
+		case SyntaxKind.WhileStatementSyntax(): {
+			return "WhileStatementSyntax";
+		}
+		case SyntaxKind.WithStatementSyntax(): {
+			return "WithStatementSyntax";
+		}
+	}
+}

@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned Utf8Message syntax_program_dump(SyntaxProgram program) throws Error {
+	assert_that(!program.failed());
+	var observation = new SyntaxObservation();
+	if (program.arena.list_count(program.units) == 1) {
+		var unit = program.arena.node_at(program.units, 0);
+		var result = observation.format(program.arena, unit);
+		return move result;
+	}
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "(program\n");
+	int i = 0;
+	while (i < program.arena.list_count(program.units)) {
+		var unit = program.arena.node_at(program.units, i);
+		var header = program.arena.header(unit);
+		var source = program.arena.source(header.span.source);
+		var path = source_path(shared_borrow(source));
+		var escaped = syntax_escape(path.text);
+		source_append_text(output, "\t(source \"");
+		source_append_text(output, escaped.text);
+		source_append_text(output, "\"\n");
+		var dump = observation.format(program.arena, unit);
+		int at = 0;
+		while (at < dump.text.byte_length) {
+			int end = at;
+			while (end < dump.text.byte_length && astra_host_text_byte(dump.text, end) != 10) {
+				end = end + 1;
+			}
+			if (end > at) {
+				source_append_text(output, "\t\t");
+				while (at < end) {
+					syntax_append_byte(output, astra_host_text_byte(dump.text, at));
+					at = at + 1;
+				}
+				source_append_text(output, "\n");
+			}
+			at = end + 1;
+		}
+		source_append_text(output, "\t)\n");
+		i = i + 1;
+	}
+	source_append_text(output, ")\n");
+	var result = output.snapshot();
+	return move result;
+}
