@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import resource
+from collections import defaultdict
 import shutil
 import subprocess
 import time
@@ -55,9 +56,21 @@ def expectation(observed, item, marks):
 		assert len(rows) == 1 and rows[0]['owner'] in declared and declared[rows[0]['owner']]['span'] == marks[owner], (item['name'], declaration, owner, rows)
 	for use, reason in item.get('deferred', {}).items():
 		assert any(r['span'] == marks[use] and r['state'] == 5 and r['reason'] == reason and r['target'] == 0 for r in observed['references']), (item['name'], use)
+	for use, declaration in item.get('deferral_candidates', {}).items():
+		assert any(r['span']==marks[use] and r['state']==5 and r['alternative'] in declared and declared[r['alternative']]['span']==marks[declaration] for r in observed['references'])
 	for r in observed['references']:
 		assert r['state'] in (1,5,6)
 		assert r['state'] != 1 or r['target'] in declared
+	scopes={row[0]:row for row in observed['scopes']}
+	for reference in observed['references']:
+		assert reference['scope'] in scopes
+		if reference['state']==1 and declared[reference['target']]['kind'] in (7,8,9,15):
+			declaration_scope=declared[reference['target']]['scope']
+			at=reference['scope']; ancestors=set()
+			while at:
+				assert at in scopes and at not in ancestors
+				ancestors.add(at); at=scopes[at][1]
+			assert declaration_scope in ancestors,(item['name'],'lexical reference outside declaring scope',reference)
 	for scope in observed['scopes']:
 		assert scope[1] < scope[0]
 
@@ -74,11 +87,13 @@ def correspondence(candidate, oracle):
 		assert symbol['name'].split('<',1)[0] in (actual['name'], actual['canonical']), (symbol,actual)
 		assert kinds.get(actual['kind']) == symbol['kind'], (symbol,actual)
 	matched = deferred = 0
+	references=defaultdict(list)
+	for row in candidate['references']: references[row['span']].append(row)
 	for reference in oracle['references']:
 		if reference['id'] in synthetic: continue
 		key = (reference['file'], reference['start'], reference['end'])
-		rows = [r for r in candidate['references'] if r['span'] == key]
-		if any(r['state'] == 5 and r['reason'] in (1,2,3,4,5) for r in rows): deferred += 1; continue
+		rows = references[key]
+		if any(r['state'] == 5 and r['reason'] in (1,2,3,4,5,6,7) for r in rows): deferred += 1; continue
 		assert any(r['state'] == 1 and declared[r['target']]['id'] == reference['id'] for r in rows), ('C0 edge', reference, rows)
 		matched += 1
 	return dict(symbols=len(oracle['symbols'])-len(synthetic), matched=matched, deferred=deferred, synthetic_keyword_temporaries=len(synthetic))
@@ -121,12 +136,14 @@ def main():
 		item=dict(item,paths=list(paths.values()),marks={tag:(paths[path],start,end) for tag,(path,start,end) in marks.items()},source_sha256={paths[name]:hashlib.sha256(data).hexdigest() for name,data in files.items()})
 		if item['oracle']=='previous':
 			item['error'] += '\nprevious declaration: '+paths['a.astra']+':1:5'
+		if item.get('error_width'):
+			path,start,end=item['marks']['error'];item['marks']['error']=(path,start,start+item['error_width'])
 		entries.append(item)
 	(attempt/'frozen.json').write_text(json.dumps(entries,indent=2)+'\n')
 	modes=a.mode or ('O0','O2')
 	products=build(compiler,directory,capture,modes)
 	(attempt/'products.json').write_text(json.dumps(products,indent=2)+'\n')
-	results=[]; observations={}; current_observations={}
+	results=[]; observations={}; current_observations={}; current_oracle=None
 	for item in entries:
 		name=item['name']; negative='error' in item or item.get('raw_error')
 		oracle_data=capture([compiler,'--tooling-index',*item['paths']],name+'-C0',None)
@@ -152,16 +169,18 @@ def main():
 	# frozen assertions above must reject each. Source import A/B is a seventh.
 	import copy
 	item=entries[0]; original=decode(observations[item['name']]); killed=[]
-	for fault in ('target','span','source','missing','scope-edge','first-spelling'):
+	for fault in ('target','span','source','missing','import-target','scope-parent','first-spelling'):
 		mutant=copy.deepcopy(original)
 		row=next(r for r in mutant['references'] if r['span']==item['marks']['readA'])
 		if fault=='target': row['target']=next(n for n,d in mutant['declarations'].items() if d['span']==item['marks']['funcB'])
 		elif fault=='span': row['span']=(row['span'][0],row['span'][1]+1,row['span'][2]+1)
 		elif fault=='source': row['span']=(item['paths'][1],*row['span'][1:])
 		elif fault=='missing': mutant['references'].remove(row)
-		elif fault=='scope-edge':
+		elif fault=='import-target':
 			# Redirect one imported edge to the local callable's identity.
 			row=next(r for r in mutant['references'] if r['span']==item['marks']['callA']); row['target']=next(n for n,d in mutant['declarations'].items() if d['span']==item['marks']['funcB'])
+		elif fault=='scope-parent':
+			scope=next(s for s in mutant['scopes'] if s[0]==row['scope']); scope[1]=0
 		else:
 			item=next(e for e in entries if e['name']=='sibling-locals'); mutant=decode(observations[item['name']]); row=next(r for r in mutant['references'] if r['span']==item['marks']['r2']); row['target']=next(n for n,d in mutant['declarations'].items() if d['span']==item['marks']['one'])
 		try: expectation(mutant,item,item['marks'])
@@ -192,6 +211,13 @@ def main():
 		current_data=capture(['/usr/bin/time','-v',exe,'--index',*inputs],mode+'-current-source')
 		current_observations[mode]=current_data
 		assert current_data==current_observations[modes[0]], 'current-source optimization divergence'
+		identity=json.loads((directory/('astra-bind-'+mode+'.identity.json')).read_text())['identity']['sources']
+		assert all(sha(path)==identity[path] for path in inputs), 'current-source input identity drift'
+		if current_oracle is None:
+			current_oracle=json.loads(capture([compiler,'--tooling-index',*inputs],'current-source-C0'))
+			assert not current_oracle['diagnostics']
+		comparison=correspondence(decode(current_data),current_oracle)
+		(attempt/(mode+'-current-correspondence.json')).write_text(json.dumps(comparison,indent=2)+'\n')
 		(attempt/(mode+'-current-summary.json')).write_text(json.dumps(dict(coverage=decode(current_data)['coverage'],declarations=len(decode(current_data)['declarations']),references=len(decode(current_data)['references']),stdout_sha256=hashlib.sha256(current_data).hexdigest()),indent=2)+'\n')
 	(attempt/'mutations.json').write_text(json.dumps(killed,indent=2)+'\n')
 	for mode in modes:
@@ -225,7 +251,7 @@ def main():
 		capture(['/usr/bin/time','-v',exe,'--index',*long_imports],mode+'-long-imports')
 		if not a.no_memory:
 			assert shutil.which('valgrind'),'memory checker required'
-			for name in ('cross-file','ambiguity','nested-collision','unknown-first','unknown-import','members'):
+			for name in ('cross-file','ambiguity','nested-collision','unknown-first','unknown-import','members','ownership','phase-field-duplicate','phase-signature-body','callable-parameter-shadow','callable-inferred-shadow'):
 				case=next(e for e in entries if e['name']==name)
 				capture(['valgrind','--error-exitcode=99','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=definite,indirect,possible',exe,'--index',*case['paths']],mode+'-memory-'+name,1 if 'error' in case else 0)
 			for label,argv,expected in [('deep',['--index',deep],0),('stress',['--index',*stress_paths],0),('partial',['--partial','4',*entries[0]['paths']],1),('lifetime',['--lifetime'],0),('long-imports',['--index',*long_imports],0)]:

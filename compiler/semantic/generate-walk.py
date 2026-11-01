@@ -17,14 +17,20 @@ for name, spec in model.items():
 	fields = list(spec['fields'].items())
 	if name == 'CompilationUnitSyntax':
 		fields = [(k, spec['fields'][k]) for k in ('c_classes', 'com_interfaces', 'structs', 'classes', 'enums', 'constants', 'functions', 'async_runtimes')]
+	if name in ('ClassDeclarationSyntax', 'StructDeclarationSyntax'):
+		fields = [(k, spec['fields'][k]) for k in ('where_clauses','parent_class','fields') if k in spec['fields']]
 	if name == 'ForStatementSyntax':
 		fields = [(k, spec['fields'][k]) for k in ('initializer', 'condition', 'body', 'step')]
 	if name == 'VectorExtractExpressionSyntax':
 		fields = [(k, v) for k, v in fields if k not in ('container', 'subscript')]
 	for field, typ in reversed(fields):
-		if field in skip and not (field == 'fields' and name in ('EnumVariantSyntax', 'StructInitializerSyntax')):
+		if field in skip and not (field == 'fields' and name in ('EnumVariantSyntax', 'StructInitializerSyntax', 'ClassDeclarationSyntax', 'StructDeclarationSyntax')):
 			continue
-		if name == 'BufferAllocationSyntax' and field == 'count':
+		if name in ('FunctionDeclarationSyntax','LifecycleDeclarationSyntax','PropertyAccessorSyntax') and field == 'body':
+			lines.append('\t\t\tthis.callable_body(this.program.arena.get_node_body(node), scope);')
+		elif name == 'LifecycleDeclarationSyntax' and field == 'base_arguments':
+			lines.append('\t\t\tthis.lifecycle_arguments(this.program.arena.get_list_base_arguments(node), scope);')
+		elif name == 'BufferAllocationSyntax' and field == 'count':
 			lines.append('\t\t\tthis.schedule_count(node, scope);')
 		elif typ.rstrip('?') in model:
 			lines.append(f'\t\t\tthis.push(this.program.arena.get_node_{field}(node), scope, 0);')

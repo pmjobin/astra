@@ -8,6 +8,11 @@ class BindingIndex {
 	private owned BindingReference[] references;
 	private owned BindingWork[] work;
 	private int work_count;
+	private owned BindingWork[] bodies;
+	private int body_count;
+	private owned int[] pending_errors;
+	private owned SyntaxSpan[] pending_spans;
+	private bool checking_local;
 	int symbol_count;
 	int scope_count;
 	int reference_count;
@@ -29,6 +34,11 @@ class BindingIndex {
 		this.references = new BindingReference[16];
 		this.work = new BindingWork[16];
 		this.work_count = 0;
+		this.bodies = new BindingWork[16];
+		this.body_count = 0;
+		this.pending_errors = new int[this.program.arena.node_count + 1];
+		this.pending_spans = new SyntaxSpan[this.program.arena.node_count + 1];
+		this.checking_local = false;
 		this.symbol_count = 0;
 		this.scope_count = 0;
 		this.reference_count = 0;
@@ -121,6 +131,31 @@ class BindingIndex {
 			this.fail(span, "empty or malformed declaration");
 			return absent;
 		}
+		if (owner.index != 0 && domain == 4) {
+			var parent = this.symbol(owner);
+			if (kind == 12 && parent.kind == 3) {
+				this.fail(this.program.arena.header(node).span, "struct lifecycle members are unsupported");
+				return absent;
+			}
+			if (parent.kind == 4 && (name.text == "init" || name.text == "deinit") && (kind == 6 || kind == 11 || kind == 14)) {
+				var output = new Utf8ByteBuilder();
+				source_append_text(output, "class lifecycle name '");
+				source_append_text(output, name.text);
+				source_append_text(output, "' is reserved; ");
+				if (kind == 6) {
+					source_append_text(output, "fields cannot use it");
+				} else {
+					if (kind == 14) {
+						source_append_text(output, "properties cannot use it");
+					} else {
+						source_append_text(output, "lifecycle declarations have no result type");
+					}
+				}
+				var message = output.snapshot();
+				this.fail(span, message.text);
+				return absent;
+			}
+		}
 		var context = this.scope(scope);
 		var canonical = this.canonical_name(scope, owner, global, name.text);
 		int map_scope = scope.index;
@@ -137,13 +172,42 @@ class BindingIndex {
 		if (kind == 7 || kind == 8 || kind == 15) {
 			previous = this.lexical(scope, name.text, domain);
 		}
-		if ((kind == 7 || kind == 8 || kind == 15) && previous.index == 0) {
-			var visible = this.resolve(scope, node, token, name.text, 2);
-			if (visible.state_code == 1) {
-				var selected = this.symbol(visible.target);
-				if (selected.kind == 2) {
-					previous = visible.target;
+		if ((kind == 8 || kind == 15) && previous.index == 0) {
+			previous = this.root_constant(name.text);
+			if (previous.index != 0 && !this.accessible(previous, scope)) {
+				previous.index = 0;
+			}
+		}
+		if (global && domain == 1 && (binding_builtin(name.text) || previous.index != 0)) {
+			int parameters = 0;
+			if (this.program.arena.kind(node) == SyntaxKind.ClassDeclarationSyntax() || this.program.arena.kind(node) == SyntaxKind.StructDeclarationSyntax()) {
+				parameters = this.program.arena.list_count(this.program.arena.get_list_type_parameters(node));
+			}
+			if (kind == 5 || (parameters > 0 && (kind == 3 || kind == 4))) {
+				var output = new Utf8ByteBuilder();
+				if (kind == 4) {
+					source_append_text(output, "duplicate or conflicting generic Class definition");
+				} else {
+					if (kind == 5) {
+						source_append_text(output, "duplicate or conflicting enum type '");
+					} else {
+						source_append_text(output, "duplicate or conflicting generic struct type '");
+					}
+					source_append_text(output, canonical.text);
+					source_append_text(output, "'");
 				}
+				var message = output.snapshot();
+				bool locate_previous = false;
+				if (kind == 3 && previous.index != 0) {
+					var old = this.symbol(previous);
+					locate_previous = old.kind == 3 && this.program.arena.list_count(this.program.arena.get_list_type_parameters(old.node)) > 0;
+				}
+				if (locate_previous) {
+					this.duplicate(span, message.text, previous);
+				} else {
+					this.fail(span, message.text);
+				}
+				return absent;
 			}
 		}
 		if (global && domain == 1 && binding_builtin(name.text)) {
@@ -214,6 +278,9 @@ class BindingIndex {
 				var message = output.snapshot();
 				this.duplicate(span, message.text, previous);
 			}
+			return absent;
+		}
+		if (this.checking_local) {
 			return absent;
 		}
 		if (this.symbol_count == len(this.symbols)) {
@@ -293,6 +360,67 @@ class BindingIndex {
 		};
 		return absent;
 	}
+	SymbolId root_constant(string name) throws Error {
+		SymbolId absent = {
+			index = 0
+		};
+		int i = 0;
+		while (i < name.byte_length) {
+			if (astra_host_text_byte(name, i) == 46) {
+				return absent;
+			}
+			i = i + 1;
+		}
+		var key = binding_key(0, 2, name);
+		SymbolId found = {
+			index = this.names.get(key.text)
+		};
+		if (found.index != 0) {
+			var value = this.symbol(found);
+			if (value.kind == 2) {
+				return found;
+			}
+		}
+		return absent;
+	}
+	bool accessible(SymbolId symbol, ScopeId scope) {
+		var value = this.symbol(symbol);
+		var declaration = this.scope(value.scope);
+		var use = this.scope(scope);
+		return !value.restricted || declaration.namespace_name == use.namespace_name;
+	}
+	bool function_type(SyntaxNodeId type, ScopeId scope) throws Error {
+		if (type.index == 0 || this.program.arena.kind(type) != SyntaxKind.GenericTypeApplicationSyntax()) {
+			return false;
+		}
+		if (this.program.arena.get_token_namespace_qualifier(type).index != 0) {
+			return false;
+		}
+		var token = this.program.arena.get_token_identifier(type);
+		var name = this.program.arena.token_message(token);
+		if (name.text == "Fn") {
+			return true;
+		}
+		if (name.text != "Callback") {
+			return false;
+		}
+		var context = this.scope(scope);
+		var selected = this.resolve(this.unit_scope(context.unit), type, token, name.text, 1);
+		return selected.state_code == 6;
+	}
+	int callee_category(SymbolId local, ScopeId scope) throws Error {
+		var symbol = this.symbol(local);
+		var kind = this.program.arena.kind(symbol.node);
+		if (kind == SyntaxKind.InferredLocalDeclarationSyntax() || symbol.kind == 15) {
+			return 2;
+		}
+		if (kind == SyntaxKind.ParameterSyntax() || kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.StructLocalDeclarationSyntax()) {
+			if (this.function_type(this.program.arena.get_node_type_name(symbol.node), scope)) {
+				return 1;
+			}
+		}
+		return 0;
+	}
 	BindingReference resolve(ScopeId scope, SyntaxNodeId node, SyntaxTokenId token, string name, int requested_domain) throws Error {
 		int domain = requested_domain;
 		if (domain == 5) {
@@ -318,11 +446,29 @@ class BindingIndex {
 		}
 		var local = this.lexical_at(scope, name, domain, result.span);
 		if (requested_domain == 5 && local.index != 0) {
+			int category = this.callee_category(local, scope);
 			var context = this.scope(scope);
-			var global = this.resolve(this.unit_scope(context.unit), node, token, name, 2);
+			var global = this.resolve(this.unit_scope(context.unit), node, token, name, 5);
+			global.scope = scope;
+			// C0's free-call prepass preserves module ambiguity even for a
+			// lexical Fn. A unique module callable can be superseded by Fn.
+			if (global.state_code == 3 || global.state_code == 4) {
+				return global;
+			}
+			if (category == 1) {
+				result.target = local;
+				result.state_code = 1;
+				return result;
+			}
 			if (global.state_code == 1) {
 				var symbol = this.symbol(global.target);
 				if (symbol.kind == 1) {
+					if (category == 2) {
+						result.state_code = 5;
+						result.reason = 7;
+						result.alternative = local;
+						return result;
+					}
 					return global;
 				}
 			}
@@ -331,6 +477,17 @@ class BindingIndex {
 			result.target = local;
 			result.state_code = 1;
 			return result;
+		}
+		if (domain == 2 && requested_domain != 5) {
+			var constant = this.root_constant(name);
+			if (constant.index != 0) {
+				result.target = constant;
+				result.state_code = 1;
+				if (!this.accessible(constant, scope)) {
+					result.state_code = 4;
+				}
+				return result;
+			}
 		}
 		var context = this.scope(scope);
 		var space = this.names.text(context.namespace_name);
@@ -401,7 +558,7 @@ class BindingIndex {
 	}
 	void add_reference(BindingReference record) {
 		assert_that(record.state_code >= 1 && record.state_code <= 6);
-		assert_that(record.state_code != 5 || (record.reason >= 1 && record.reason <= 6 && record.target.index == 0));
+		assert_that(record.state_code != 5 || (record.reason >= 1 && record.reason <= 7 && record.target.index == 0));
 		if (this.reference_count == len(this.references)) {
 			var replacement = new BindingReference[syntax_grown_capacity(len(this.references), this.reference_count + 1)];
 			int i = 0;
@@ -475,6 +632,12 @@ class BindingIndex {
 				source_append_text(output, "'");
 			}
 		}
+		if (result.state_code == 2 && domain != 1) {
+			var context = this.scope(scope);
+			if (context.kind == 6) {
+				source_append_text(output, " in constant expression");
+			}
+		}
 		var message = output.snapshot();
 		this.fail(result.span, message.text);
 	}
@@ -527,11 +690,66 @@ class BindingIndex {
 		var header = this.program.arena.header(unit);
 		return this.unit_scopes[header.span.source.index];
 	}
+	SymbolId header_declaration(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
+		var result = this.declaration(node, token, scope, owner, kind, domain, global);
+		// Headers provide forward lookup. Duplicate headers never mint an ID;
+		// their diagnostic is delivered when C0 reaches that declaration phase.
+		if (this.failed() && this.stop_after == 0 && (domain == 4 || kind == 7 || (global && domain == 2))) {
+			if (this.pending_errors[node.index] == 0) {
+				this.pending_errors[node.index] = this.error_message;
+				this.pending_spans[node.index] = this.error_span;
+			}
+			this.error_message = 0;
+			this.error_span = syntax_empty_span();
+		}
+		return result;
+	}
+	void deferred_body(SyntaxNodeId body, ScopeId scope, int priority) {
+		if (body.index == 0) {
+			return;
+		}
+		if (this.body_count == len(this.bodies)) {
+			var replacement = new BindingWork[syntax_grown_capacity(len(this.bodies), this.body_count + 1)];
+			int i = 0;
+			while (i < this.body_count) {
+				replacement[i] = this.bodies[i];
+				i = i + 1;
+			}
+			swap(this.bodies, replacement);
+		}
+		BindingWork work = {
+			node = body, scope = scope, action = priority
+		};
+		this.bodies[this.body_count] = work;
+		this.body_count = this.body_count + 1;
+	}
+	void callable_body(SyntaxNodeId body, ScopeId scope) {
+		var context = this.scope(scope);
+		var owner = this.symbol(context.owner);
+		int priority = 0;
+		if (owner.kind == 11) {
+			priority = 1;
+		}
+		if (owner.kind == 12) {
+			priority = 2;
+		}
+		if (owner.kind == 18) {
+			priority = 3;
+		}
+		this.deferred_body(body, scope, priority);
+	}
+	void lifecycle_arguments(SyntaxListId list, ScopeId scope) {
+		int i = 0;
+		while (i < this.program.arena.list_count(list)) {
+			this.deferred_body(this.program.arena.node_at(list, i), scope, 2);
+			i = i + 1;
+		}
+	}
 	void collect_list(SyntaxListId list, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
 		int i = 0;
 		while (i < this.program.arena.list_count(list) && !this.failed()) {
 			var node = this.program.arena.node_at(list, i);
-			var declared_1 = this.declaration(node, this.program.arena.get_token_name(node), scope, owner, kind, domain, global);
+			var declared_1 = this.header_declaration(node, this.program.arena.get_token_name(node), scope, owner, kind, domain, global);
 			i = i + 1;
 		}
 	}
@@ -573,6 +791,7 @@ class BindingIndex {
 			var header = this.program.arena.header(unit);
 			this.unit_scopes[header.span.source.index] = scope;
 			this.node_scopes[unit.index] = scope;
+			this.visited[unit.index] = true;
 			i = i + 1;
 		}
 		// Match collect_modules: validate all imports before deeper declarations.
@@ -609,23 +828,59 @@ class BindingIndex {
 			}
 			i = i + 1;
 		}
-		// Collection is complete before any signature/body use: forward names
-		// are visible across source files without rescanning the syntax tree.
-		i = 0;
-		while (i < this.program.arena.list_count(this.program.units) && !this.failed()) {
-			var unit = this.program.arena.node_at(this.program.units, i);
-			var header = this.program.arena.header(unit);
-			var scope = this.unit_scopes[header.span.source.index];
-			var context = this.scope(scope);
-			this.collect_list(this.program.arena.get_list_structs(unit), scope, context.owner, 3, 1, true);
-			this.collect_list(this.program.arena.get_list_classes(unit), scope, context.owner, 4, 1, true);
-			this.collect_list(this.program.arena.get_list_c_classes(unit), scope, context.owner, 4, 1, true);
-			this.collect_list(this.program.arena.get_list_com_interfaces(unit), scope, context.owner, 4, 1, true);
-			this.collect_list(this.program.arena.get_list_enums(unit), scope, context.owner, 5, 1, true);
-			this.collect_list(this.program.arena.get_list_functions(unit), scope, context.owner, 1, 2, true);
-			this.collect_list(this.program.arena.get_list_constants(unit), scope, context.owner, 2, 2, true);
-			this.collect_list(this.program.arena.get_list_async_runtimes(unit), scope, context.owner, 16, 4, true);
-			i = i + 1;
+		int part = 0;
+		while (part < 10 && !this.failed()) {
+			i = 0;
+			while (i < this.program.arena.list_count(this.program.units) && !this.failed()) {
+				var unit = this.program.arena.node_at(this.program.units, i);
+				var scope = this.unit_scope(unit);
+				var context = this.scope(scope);
+				int phase = part;
+				int kind = 4;
+				int domain = 1;
+				if (part == 2 || part == 5) {
+					phase = 3;
+				}
+				if (part == 3 || part == 4) {
+					phase = 2;
+					kind = 3;
+				}
+				if (part == 6) {
+					phase = 4;
+					kind = 5;
+				}
+				if (part == 7) {
+					phase = 6;
+					kind = 1;
+					domain = 2;
+				}
+				if (part == 8) {
+					phase = 7;
+					kind = 2;
+					domain = 2;
+				}
+				if (part == 9) {
+					phase = 8;
+					kind = 16;
+					domain = 4;
+				}
+				var list = this.phase_roots(unit, phase);
+				int n = 0;
+				while (n < this.program.arena.list_count(list) && !this.failed()) {
+					var node = this.program.arena.node_at(list, n);
+					bool selected = true;
+					if (part >= 2 && part <= 5) {
+						bool generic = this.program.arena.list_count(this.program.arena.get_list_type_parameters(node)) > 0;
+						selected = generic == (part == 2 || part == 3);
+					}
+					if (selected) {
+						var declared = this.header_declaration(node, this.program.arena.get_token_name(node), scope, context.owner, kind, domain, true);
+					}
+					n = n + 1;
+				}
+				i = i + 1;
+			}
+			part = part + 1;
 		}
 	}
 	void generics(SyntaxNodeId node, ScopeId scope, SymbolId owner) throws Error {
@@ -673,6 +928,14 @@ class BindingIndex {
 		if (qualifier.index != 0 && this.namespace_token(qualifier)) {
 			this.bind_token(node, qualifier, scope, 3, 0);
 		}
+		if (this.function_type(node, scope)) {
+			var builtin = this.resolve(scope, node, token, "Fn", 1);
+			builtin.state_code = 6;
+			builtin.target.index = 0;
+			builtin.alternative.index = 0;
+			this.add_reference(builtin);
+			return;
+		}
 		var name = binding_type_name(this.program.arena, node);
 		this.bind(node, token, scope, 1, name.text, 0, false);
 	}
@@ -689,6 +952,12 @@ class BindingIndex {
 		if (!aggregate && receiver.index != 0) {
 			var name = this.program.arena.token_message(receiver);
 			var local = this.lexical(scope, name.text, 2);
+			if (local.index == 0) {
+				local = this.root_constant(name.text);
+				if (local.index != 0 && !this.accessible(local, scope)) {
+					local.index = 0;
+				}
+			}
 			qualified = local.index == 0 && this.namespace_token(receiver);
 		}
 		if (qualified) {
@@ -812,6 +1081,87 @@ class BindingIndex {
 		}
 		this.add_reference(reference);
 	}
+	void where_subject(SyntaxNodeId node, ScopeId scope) throws Error {
+		var token = this.program.arena.get_token_type_parameter(node);
+		var name = this.program.arena.token_message(token);
+		var found = this.lexical(scope, name.text, 1);
+		var reference = this.resolve(scope, node, token, name.text, 1);
+		bool bound = false;
+		if (found.index != 0) {
+			var parameter = this.symbol(found);
+			bound = parameter.kind == 9;
+		}
+		reference.target = found;
+		reference.alternative.index = 0;
+		reference.state_code = 2;
+		if (bound) {
+			reference.state_code = 1;
+		}
+		this.add_reference(reference);
+		if (!bound) {
+			var context = this.scope(scope);
+			bool record = false;
+			if (context.owner.index != 0) {
+				var owner = this.symbol(context.owner);
+				record = owner.kind == 3;
+			}
+			if (record) {
+				this.fail(this.program.arena.token_span(token), "unknown owning record type parameter");
+			} else {
+				var output = new Utf8ByteBuilder();
+				source_append_text(output, "unknown type parameter '");
+				source_append_text(output, name.text);
+				source_append_text(output, "' in where clause");
+				var message = output.snapshot();
+				this.fail(this.program.arena.token_span(token), message.text);
+			}
+		}
+	}
+	void where_subjects(SyntaxNodeId owner, ScopeId scope) throws Error {
+		if (this.program.arena.kind(owner) == SyntaxKind.EnumDeclarationSyntax()) {
+			return;
+		}
+		var clauses = this.program.arena.get_list_where_clauses(owner);
+		int i = 0;
+		while (i < this.program.arena.list_count(clauses) && !this.failed()) {
+			var node = this.program.arena.node_at(clauses, i);
+			this.visited[node.index] = true;
+			this.node_scopes[node.index] = scope;
+			this.where_subject(node, scope);
+			i = i + 1;
+		}
+	}
+	void constructor_selection(SyntaxNodeId node, ScopeId scope) throws Error {
+		var receiver = this.program.arena.get_token_receiver(node);
+		var member = this.program.arena.get_token_identifier(node);
+		if (receiver.index == 0) {
+			this.bind_token(node, member, scope, 4, 1);
+			return;
+		}
+		this.bind_token(node, receiver, scope, 1, 0);
+		if (this.failed()) {
+			return;
+		}
+		var name = this.program.arena.token_message(receiver);
+		var type = this.resolve(scope, node, receiver, name.text, 1);
+		if (type.state_code == 1) {
+			var symbol = this.symbol(type.target);
+			if (symbol.kind == 4 && this.program.arena.kind(symbol.node) == SyntaxKind.ClassDeclarationSyntax()) {
+				var member_scope = this.node_scopes[symbol.node.index];
+				var member_name = this.program.arena.token_message(member);
+				var selected = this.resolve(member_scope, node, member, member_name.text, 4);
+				if (selected.state_code == 1) {
+					var target = this.symbol(selected.target);
+					if (target.kind == 12) {
+						selected.scope = scope;
+						this.add_reference(selected);
+						return;
+					}
+				}
+			}
+		}
+		this.bind_token(node, member, scope, 4, 1);
+	}
 	void contextual_count(SyntaxNodeId node, ScopeId scope) throws Error {
 		var target = this.program.arena.get_node_target(node);
 		var value = this.program.arena.get_node_expression(node);
@@ -885,6 +1235,24 @@ class BindingIndex {
 			var declared_4 = this.declaration(node, this.program.arena.get_token_binding(node), scope, owner, 15, 2, false);
 			return;
 		}
+		if (action == 3) {
+			this.checking_local = true;
+			var checked = this.declaration(node, this.program.arena.get_token_name(node), scope, owner, 8, 2, false);
+			this.checking_local = false;
+			return;
+		}
+		if (action == 4) {
+			if (this.pending_errors[node.index] != 0) {
+				this.error_message = this.pending_errors[node.index];
+				this.error_span = this.pending_spans[node.index];
+			}
+			return;
+		}
+		if (this.pending_errors[node.index] != 0 && kind != SyntaxKind.ParameterSyntax() && !(kind == SyntaxKind.FunctionDeclarationSyntax() && outer.kind == 2)) {
+			this.error_message = this.pending_errors[node.index];
+			this.error_span = this.pending_spans[node.index];
+			return;
+		}
 		if (this.visited[node.index]) {
 			return;
 		}
@@ -903,6 +1271,7 @@ class BindingIndex {
 			}
 			scope = this.child_scope(scope, owner, node, 3);
 			this.generics(node, scope, owner);
+			this.where_subjects(node, scope);
 			if (kind == SyntaxKind.EnumDeclarationSyntax()) {
 				this.collect_list(this.program.arena.get_list_variants(node), scope, owner, 13, 4, false);
 			} else {
@@ -926,7 +1295,7 @@ class BindingIndex {
 					if (member_kind == SyntaxKind.PropertyDeclarationSyntax()) {
 						code = 14;
 					}
-					var declared_5 = this.declaration(member, this.program.arena.get_token_name(member), scope, owner, code, 4, false);
+					var declared_5 = this.header_declaration(member, this.program.arena.get_token_name(member), scope, owner, code, 4, false);
 					i = i + 1;
 				}
 			}
@@ -935,6 +1304,14 @@ class BindingIndex {
 				owner = this.node_symbols[node.index];
 				scope = this.child_scope(scope, owner, node, 4);
 				this.generics(node, scope, owner);
+				this.where_subjects(node, scope);
+				if (!this.failed() && this.pending_errors[node.index] != 0) {
+					this.error_message = this.pending_errors[node.index];
+					this.error_span = this.pending_spans[node.index];
+				}
+				if (this.failed()) {
+					return;
+				}
 				this.collect_list(this.program.arena.get_list_parameters(node), scope, owner, 7, 2, false);
 			} else {
 				if (kind == SyntaxKind.BlockStatementSyntax() || kind == SyntaxKind.ForStatementSyntax() || kind == SyntaxKind.ForeachStatementSyntax() || kind == SyntaxKind.CatchClauseSyntax() || kind == SyntaxKind.EnumArmSyntax() || kind == SyntaxKind.WithStatementSyntax() || kind == SyntaxKind.PropertyAccessorSyntax()) {
@@ -987,6 +1364,26 @@ class BindingIndex {
 		}
 		if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax() || kind == SyntaxKind.StructLocalDeclarationSyntax()) {
 			this.push(node, scope, 1);
+			this.push(this.program.arena.get_node_initializer(node), scope, 0);
+			this.push(node, scope, 3);
+			if (kind != SyntaxKind.InferredLocalDeclarationSyntax()) {
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			return;
+		}
+		if (kind == SyntaxKind.ParameterSyntax()) {
+			this.push(this.program.arena.get_node_caller_information(node), scope, 0);
+			this.push(node, scope, 4);
+			this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			return;
+		}
+		if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
+			owner = this.node_symbols[node.index];
+			scope = this.child_scope(scope, owner, node, 6);
+			this.node_scopes[node.index] = scope;
+			this.deferred_body(this.program.arena.get_node_type_name(node), scope, 4);
+			this.push(this.program.arena.get_node_initializer(node), scope, 0);
+			return;
 		}
 		if (kind == SyntaxKind.TypeNameSyntax() || kind == SyntaxKind.GenericTypeApplicationSyntax()) {
 			this.bind_type(node, scope);
@@ -1025,12 +1422,15 @@ class BindingIndex {
 			this.bind_token(node, this.program.arena.get_token_input(node), scope, 2, 0);
 		}
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
-			this.bind_token(node, this.program.arena.get_token_type_parameter(node), scope, 1, 0);
+			this.where_subject(node, scope);
 		}
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
 			this.bind_selection(node, this.program.arena.get_token_identifier(node), this.program.arena.get_token_field_name(node), scope, true, this.program.arena.get_node_aggregate(node).index != 0);
 		}
-		if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConstructorInitializerSyntax()) {
+		if (kind == SyntaxKind.ConstructorInitializerSyntax()) {
+			this.constructor_selection(node, scope);
+		}
+		if (kind == SyntaxKind.CallExpressionSyntax()) {
 			var receiver = this.program.arena.get_token_receiver(node);
 			if (receiver.index != 0 || this.program.arena.get_node_receiver_place(node).index != 0) {
 				this.bind_selection(node, receiver, this.program.arena.get_token_identifier(node), scope, false, this.program.arena.get_node_receiver_place(node).index != 0);
@@ -1073,6 +1473,139 @@ class BindingIndex {
 			this.schedule_children(node, scope);
 		}
 	}
+	void drain_work() throws Error {
+		while (this.work_count > 0 && !this.failed()) {
+			this.work_count = this.work_count - 1;
+			var next = this.work[this.work_count];
+			this.visit(next.node, next.scope, next.action);
+		}
+	}
+	SyntaxListId phase_roots(SyntaxNodeId unit, int phase) {
+		if (phase == 0) {
+			return this.program.arena.get_list_c_classes(unit);
+		}
+		if (phase == 1) {
+			return this.program.arena.get_list_com_interfaces(unit);
+		}
+		if (phase == 2) {
+			return this.program.arena.get_list_structs(unit);
+		}
+		if (phase == 3) {
+			return this.program.arena.get_list_classes(unit);
+		}
+		if (phase == 4) {
+			return this.program.arena.get_list_enums(unit);
+		}
+		if (phase == 6) {
+			return this.program.arena.get_list_functions(unit);
+		}
+		if (phase == 7) {
+			return this.program.arena.get_list_constants(unit);
+		}
+		assert_that(phase == 8);
+		return this.program.arena.get_list_async_runtimes(unit);
+	}
+	void root_phase(int phase) throws Error {
+		int i = this.program.arena.list_count(this.program.units);
+		while (i > 0 && !this.failed()) {
+			i = i - 1;
+			var unit = this.program.arena.node_at(this.program.units, i);
+			this.push_list(this.phase_roots(unit, phase), this.unit_scope(unit));
+		}
+		this.drain_work();
+	}
+	void push_members(SyntaxNodeId type) {
+		var scope = this.node_scopes[type.index];
+		var list = this.program.arena.get_list_members(type);
+		int i = this.program.arena.list_count(list);
+		while (i > 0) {
+			i = i - 1;
+			var node = this.program.arena.node_at(list, i);
+			if (this.program.arena.kind(node) != SyntaxKind.StructFieldDeclarationSyntax()) {
+				this.push(node, scope, 0);
+			}
+		}
+	}
+	void member_phase(bool foreign) throws Error {
+		if (foreign) {
+			int i = this.program.arena.list_count(this.program.units);
+			while (i > 0 && !this.failed()) {
+				i = i - 1;
+				var unit = this.program.arena.node_at(this.program.units, i);
+				var list = this.program.arena.get_list_c_classes(unit);
+				int n = this.program.arena.list_count(list);
+				while (n > 0) {
+					n = n - 1;
+					this.push_members(this.program.arena.node_at(list, n));
+				}
+				var com = this.program.arena.get_list_com_interfaces(unit);
+				n = this.program.arena.list_count(com);
+				while (n > 0) {
+					n = n - 1;
+					var declaration = this.program.arena.get_node_declaration(this.program.arena.node_at(com, n));
+					if (declaration.index != 0) {
+						this.push_members(declaration);
+					}
+				}
+			}
+		} else {
+			var types = this.program.native_instances(true);
+			int i = this.program.arena.list_count(types);
+			while (i > 0 && !this.failed()) {
+				i = i - 1;
+				this.push_members(this.program.arena.node_at(types, i));
+			}
+		}
+		this.drain_work();
+	}
+	void parameter_values(SyntaxNodeId parameter, ScopeId scope) throws Error {
+		if (parameter.index == 0) {
+			return;
+		}
+		var context = this.scope(scope);
+		var token = this.program.arena.get_token_name(parameter);
+		var name = this.program.arena.token_message(token);
+		var constant = this.root_constant(name.text);
+		if (constant.index != 0 && this.accessible(constant, scope)) {
+			var output = new Utf8ByteBuilder();
+			source_append_text(output, "parameter '");
+			source_append_text(output, name.text);
+			source_append_text(output, "' conflicts with a visible constant");
+			var message = output.snapshot();
+			this.fail(this.program.arena.token_span(token), message.text);
+		}
+	}
+	void body_values(ScopeId scope) throws Error {
+		var context = this.scope(scope);
+		var kind = this.program.arena.kind(context.node);
+		if (kind == SyntaxKind.PropertyAccessorSyntax()) {
+			this.parameter_values(this.program.arena.get_node_parameter(context.node), scope);
+		} else {
+			var parameters = this.program.arena.get_list_parameters(context.node);
+			int i = 0;
+			while (i < this.program.arena.list_count(parameters) && !this.failed()) {
+				this.parameter_values(this.program.arena.node_at(parameters, i), scope);
+				i = i + 1;
+			}
+		}
+	}
+	void constant_header_errors() {
+		int i = 0;
+		while (i < this.program.arena.list_count(this.program.units) && !this.failed()) {
+			var unit = this.program.arena.node_at(this.program.units, i);
+			var list = this.program.arena.get_list_constants(unit);
+			int n = 0;
+			while (n < this.program.arena.list_count(list) && !this.failed()) {
+				var node = this.program.arena.node_at(list, n);
+				if (this.pending_errors[node.index] != 0) {
+					this.error_message = this.pending_errors[node.index];
+					this.error_span = this.pending_spans[node.index];
+				}
+				n = n + 1;
+			}
+			i = i + 1;
+		}
+	}
 	void run() throws Error {
 		if (this.program.failed()) {
 			var message = this.program.arena.text_message(this.program.error_message);
@@ -1080,17 +1613,53 @@ class BindingIndex {
 			return;
 		}
 		this.collect();
-		int i = this.program.arena.list_count(this.program.units);
-		while (i > 0) {
-			i = i - 1;
-			var unit = this.program.arena.node_at(this.program.units, i);
-			var header = this.program.arena.header(unit);
-			this.push(unit, this.unit_scopes[header.span.source.index], 0);
+		int phase = 0;
+		while (phase <= 4 && !this.failed()) {
+			this.root_phase(phase);
+			phase = phase + 1;
 		}
-		while (this.work_count > 0 && !this.failed()) {
-			this.work_count = this.work_count - 1;
-			var next = this.work[this.work_count];
-			this.visit(next.node, next.scope, next.action);
+		if (!this.failed()) {
+			this.member_phase(false);
+		}
+		if (!this.failed()) {
+			this.root_phase(6);
+		}
+		if (!this.failed()) {
+			this.member_phase(true);
+		}
+		this.constant_header_errors();
+		if (!this.failed()) {
+			this.root_phase(7);
+		}
+		int deferred = 0;
+		while (deferred < this.body_count && !this.failed()) {
+			var type = this.bodies[deferred];
+			if (type.action == 4) {
+				this.push(type.node, type.scope, 0);
+				this.drain_work();
+			}
+			deferred = deferred + 1;
+		}
+		if (!this.failed()) {
+			this.root_phase(8);
+		}
+		var checked_values = new bool[this.scope_count + 1];
+		int priority = 0;
+		while (priority <= 3 && !this.failed()) {
+			int i = 0;
+			while (i < this.body_count && !this.failed()) {
+				var body = this.bodies[i];
+				if (body.action == priority) {
+					if (!checked_values[body.scope.index]) {
+						this.body_values(body.scope);
+						checked_values[body.scope.index] = true;
+					}
+					this.push(body.node, body.scope, 0);
+					this.drain_work();
+				}
+				i = i + 1;
+			}
+			priority = priority + 1;
 		}
 	}
 	int visits(int kind_code) {
@@ -1192,9 +1761,9 @@ class BindingIndex {
 				this.push(this.program.arena.get_node_class_name(node), scope, 0);
 			}
 			case SyntaxKind.ClassDeclarationSyntax(): {
+				this.push_list(this.program.arena.get_list_fields(node), scope);
 				this.push(this.program.arena.get_node_parent_class(node), scope, 0);
 				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
-				this.push_list(this.program.arena.get_list_members(node), scope);
 			}
 			case SyntaxKind.ComImportSyntax(): {
 				this.push(this.program.arena.get_node_declaration(node), scope, 0);
@@ -1283,7 +1852,7 @@ class BindingIndex {
 				this.push_list(this.program.arena.get_list_entries(node), scope);
 			}
 			case SyntaxKind.FunctionDeclarationSyntax(): {
-				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.callable_body(this.program.arena.get_node_body(node), scope);
 				this.push_list(this.program.arena.get_list_parameters(node), scope);
 				this.push(this.program.arena.get_node_return_type(node), scope, 0);
 				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
@@ -1316,8 +1885,8 @@ class BindingIndex {
 			case SyntaxKind.IntegerLiteralExpressionSyntax(): {
 			}
 			case SyntaxKind.LifecycleDeclarationSyntax(): {
-				this.push_list(this.program.arena.get_list_base_arguments(node), scope);
-				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.lifecycle_arguments(this.program.arena.get_list_base_arguments(node), scope);
+				this.callable_body(this.program.arena.get_node_body(node), scope);
 				this.push_list(this.program.arena.get_list_parameters(node), scope);
 				this.push(this.program.arena.get_node_return_type(node), scope, 0);
 				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
@@ -1357,7 +1926,7 @@ class BindingIndex {
 				this.push(this.program.arena.get_node_operand(node), scope, 0);
 			}
 			case SyntaxKind.PropertyAccessorSyntax(): {
-				this.push(this.program.arena.get_node_body(node), scope, 0);
+				this.callable_body(this.program.arena.get_node_body(node), scope);
 				this.push(this.program.arena.get_node_parameter(node), scope, 0);
 			}
 			case SyntaxKind.PropertyDeclarationSyntax(): {
@@ -1382,8 +1951,8 @@ class BindingIndex {
 				this.push(this.program.arena.get_node_element_type(node), scope, 0);
 			}
 			case SyntaxKind.StructDeclarationSyntax(): {
+				this.push_list(this.program.arena.get_list_fields(node), scope);
 				this.push_list(this.program.arena.get_list_where_clauses(node), scope);
-				this.push_list(this.program.arena.get_list_members(node), scope);
 			}
 			case SyntaxKind.StructFieldDeclarationSyntax(): {
 				this.push(this.program.arena.get_node_type_name(node), scope, 0);

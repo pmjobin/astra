@@ -35,7 +35,8 @@
       "generic",
       "nested-types",
       "where",
-      "generic-nominal-collision"
+      "generic-nominal-collision",
+      "generic-import-shadow"
     ],
     "enum/variant/payload/arm binding": [
       "enum",
@@ -50,7 +51,17 @@
       "catch",
       "with"
     ],
-    "async runtime": "Typed AsyncRuntimeSyntax name and its error/status type children; current syntax/runtime fixtures are continuity inputs, not a new runtime qualification."
+    "async runtime": [
+      "async-nomination"
+    ],
+    "reserved/duplicate domain controls": [
+      "reserved-field",
+      "reserved-method",
+      "struct-lifecycle",
+      "duplicate-enum-type",
+      "duplicate-generic-struct",
+      "duplicate-generic-class"
+    ]
   },
   "references": {
     "type heads and nested type constructors": [
@@ -69,6 +80,7 @@
     ],
     "address/move/release/UTF8 factory": [
       "address",
+      "ownership",
       "current compiler source and selected preserved library inputs"
     ],
     "caller-information target": [
@@ -81,7 +93,28 @@
       "ambiguity",
       "import-order"
     ],
-    "typed traversal": "Generated child scheduling covers every concrete schema family. C rows record actual visit counts; mapping is not a claim of every semantic branch being executed."
+    "typed traversal": "Generated child scheduling covers every concrete schema family. C rows record actual visit counts; mapping is not a claim of every semantic branch being executed.",
+    "callable selection": [
+      "call-precedence",
+      "callable-parameter-shadow",
+      "callable-local-shadow",
+      "callable-inferred-shadow",
+      "callable-import-shadow",
+      "callable-import-scalar"
+    ],
+    "lexical constant layers": [
+      "namespace-constant-shadow",
+      "root-constant-priority",
+      "root-value-call-separation",
+      "constant-param"
+    ],
+    "explicit typed roles": [
+      "constructor-reference",
+      "constructor-type-value",
+      "where-unknown-subject",
+      "where-record-subject",
+      "root-constant-receiver"
+    ]
   },
   "deferrals": {
     "1": {
@@ -126,6 +159,12 @@
         "ordinary-slots-unknown",
         "current compiler source"
       ]
+    },
+    "7": {
+      "reason": "An inferred lexical callee competes with module free-call lookup; resolved function-value type must choose. The lexical candidate is retained, target remains absent.",
+      "witness": [
+        "callable-inferred-shadow"
+      ]
     }
   },
   "non_references": [
@@ -144,10 +183,31 @@
       "with",
       "later-types",
       "com-type",
-      "foreign-owner"
+      "foreign-owner",
+      "constructor-type-value",
+      "root-constant-receiver"
     ],
-    "lexical_policy": "C0 forbids hiding active locals, parameters and visible constants; sibling scopes can reuse names."
+    "lexical_policy": "Active lexical locals and ambient unqualified root constants cannot be hidden. Canonical namespace/imported constants can be hidden by locals/formals. An ambiguous imported nominal set may be replaced by a lexical type parameter, while an unambiguously visible nominal cannot.",
+    "callable_policy": "Module ambiguity is preserved before callee selection. Against a unique module callable, explicit Fn/Callback values take precedence; inferred competing values are deferred with their lexical candidate."
   },
   "complexity": "Open-addressed names with geometric growth; lexical queries visit parent scopes; imported lookup visits ordered imports; source-offset query scans references. No worst-case O(1), global O(n), or isolated throughput claim.",
-  "qualification": "Focused maintained run.py and continuity.py, O0/O2, actual C0 tooling, independent expectations, output corruption controls, actual AST span mutation preserving SyntaxDump, partial construction, Valgrind, source lifetime and current-source integration. Raw receipts stay outside Git."
+  "qualification": "Focused maintained run.py and continuity.py, O0/O2, actual C0 tooling, independent expectations, output corruption controls, actual AST span mutation preserving SyntaxDump, partial construction, Valgrind, source lifetime and current-source integration. Raw receipts stay outside Git.",
+  "diagnostic_phases": {
+    "ordering": "Native types and signatures; free signatures; constants and runtime nominations; free, method, lifecycle and accessor bodies. Forward headers retain pending errors until their owning phase; duplicate headers receive no SymbolId. Constant evaluation, generic instantiation and later type-dependent diagnostics remain subsequent semantic work.",
+    "witness": [
+      "phase-field-duplicate",
+      "phase-signature-body",
+      "phase-cross-file",
+      "phase-field-duplicate-local",
+      "phase-param-duplicate",
+      "phase-local-initializer",
+      "phase-member-body",
+      "phase-param-type-duplicate",
+      "phase-param-type-annotation",
+      "phase-generic-duplicate",
+      "phase-constant-param",
+      "phase-constant-type",
+      "constant-param"
+    ]
+  }
 }

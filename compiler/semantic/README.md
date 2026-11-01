@@ -24,6 +24,11 @@ property factory mirrors, inherited vector operands) are visited once.
 
 The category/deferral ledger is `port.json`; raw current results remain external.
 
+Explicit `ClassName.init` syntax binds a declared lifecycle symbol through its
+type owner; construction legality stays in later checking. A `where` subject
+can bind only a lexical type parameter. Reserved lifecycle spellings and the
+generic/enum declaration domains retain their own diagnostic categories.
+
 The API enumerates symbols/scopes/references through counts and checked copied
 records; `resolve` takes an explicit scope, node, token, spelling and domain;
 `scope_for_node` locates syntax context; `reference_at` queries source offsets.
@@ -35,8 +40,19 @@ Lookup uses an open-addressed table keyed by domain plus canonical spelling for
 globals and domain plus scope plus spelling for lexical names. Types and values
 are disjoint. Same-namespace lookup precedes ordered imports, inaccessible
 imports are skipped, explicit qualification checks internal visibility, and
-fallback uses the global namespace. Import ambiguity records both candidates.
-Free names are collected before uses; local initializers precede local insertion.
+fallback uses the global namespace. ValueScope first checks lexical values and
+ambient root-namespace constants, as C0 does. Canonical namespace/imported
+constants can be hidden by locals and formals; root constants cannot. Callable
+lookup remains separate: explicit Fn/Callback values take precedence, other
+known lexical categories retain C0 free-call precedence, and inferred competing
+callees wait for their semantic type. Import ambiguity records both candidates.
+Free headers are collected before uses. Pending header errors do not mint IDs.
+Native field/enum/member signatures and then free signatures precede constants
+and runtime nominations. Bodies run after those phases in free/method/lifecycle/
+accessor order, matching the common C0 name stages. Parameters bind types before
+duplicate and caller-information checks. Constant dependency names precede
+constant type heads; parameter/constant collisions are checked on body entry.
+Local types and collision checks precede initializers; insertion follows them.
 C0 `ValueScope.lookup` forbids hiding an active local/parameter; sibling blocks
 can reuse a name. The source of truth is `bootstrap/semantic/analyzer.vala`
 (`collect_modules`, `resolve_name`, `ValueScope`, declaration/body checking).
@@ -70,7 +86,9 @@ Only genuinely receiver/type-directed selections are deferred. Reasons are:
 1 receiver member/method/property (including enum/static classification),
 2 implicit `this`/`base` receiver, 3 contextual aggregate field initializer,
 4 match variant/payload selection, 5 compiler-recognized intrinsic call,
-6 the contextual `slots` initializer of a syntactically declared owner-slot field.
+6 the contextual `slots` initializer of a syntactically declared owner-slot field,
+7 a free call with an inferred lexical callee competing with a module callable.
+Reason 7 records the lexical candidate in `alternative`; no target is guessed.
 An ordinary undeclared `slots` value is still an error. These need the subsequent checked type model.
 Types nested in these constructs and direct receiver value names are still bound.
 Generic legality, constants' values, ownership, effects, ABI metadata selection
