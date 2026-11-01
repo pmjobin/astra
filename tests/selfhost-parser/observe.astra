@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned SourceBuffer parser_load_source(string path, string identity, bool native_interface) throws Error {
+	var file = read_file(path);
+	var bytes = new u8[file.byte_count()];
+	int i = 0;
+	while (i < len(bytes)) {
+		bytes[i] = file.byte_at(i) as u8;
+		i = i + 1;
+	}
+	var result = source_buffer(identity, move bytes, native_interface);
+	return move result;
+}
+void parser_observe(SyntaxProgram program) throws Error {
+	if (program.failed()) {
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "ERROR ");
+		append_int(output, program.error_span.start);
+		source_append_text(output, " ");
+		append_int(output, program.error_span.end);
+		source_append_text(output, " ");
+		var message = program.arena.text_message(program.error_message);
+		syntax_write_hex(output, message.text);
+		source_append_text(output, "\n");
+		var span = program.arena.source_span(program.error_span);
+		var diagnostic = new SourceDiagnostic(move span, move message);
+		var formatted = diagnostic.format();
+		source_append_text(output, formatted.text);
+		source_append_text(output, "\nEND\n");
+		var result = output.snapshot();
+		print(result.text);
+		return;
+	}
+	var dump = syntax_program_dump(program);
+	print("OK\n");
+	print(dump.text);
+	var projection = syntax_projection(program);
+	print("AST\n");
+	print(projection.text);
+	print("END\n");
+}
+int main(string[] args) {
+	try {
+		if (len(args) > 1 && args[1] == "--lifetime") {
+			parser_lifetime(false);
+			return 0;
+		}
+		if (len(args) > 1 && args[1] == "--cursors") {
+			parser_cursor_checks();
+			return 0;
+		}
+		if (len(args) > 1 && args[1] == "--fault-lifetime") {
+			parser_lifetime(true);
+			return 0;
+		}
+		if (len(args) > 1 && (args[1] == "--program" || args[1] == "--inventory" || args[1] == "--parse" || args[1] == "--dump-syntax" || args[1] == "--aggregation")) {
+			var entries = new Vector<SourceEntry>(len(args));
+			int i = 2;
+			while (i < len(args)) {
+				var buffer = parser_load_source(args[i], args[i], false);
+				var shared = shared_acquire(move buffer);
+				var entry = new SourceEntry(move shared);
+				assert_that(entries.append(move entry));
+				i = i + 1;
+			}
+			var sources = source_set(move entries);
+			var program = syntax_program(move sources);
+			if (args[1] == "--aggregation") { parser_aggregation(program); return 0; }
+			if (args[1] == "--parse" || args[1] == "--dump-syntax") {
+				if (program.failed()) {
+					var message = program.arena.text_message(program.error_message);
+					var span = program.arena.source_span(program.error_span);
+					var diagnostic = new SourceDiagnostic(move span, move message);
+					var formatted = diagnostic.format();
+					println_stderr(formatted.text);
+					return 1;
+				}
+				if (args[1] == "--dump-syntax") { var dump = syntax_program_dump(program); print(dump.text); }
+				return 0;
+			}
+			if (args[1] == "--inventory") {
+				var inventory = syntax_inventory(program);
+				print(inventory.text);
+			} else {
+				parser_observe(program);
+			}
+			return 0;
+		}
+		int i = 1;
+		bool native_interface = false;
+		if (len(args) > 1 && args[1] == "--native-interface") {
+			native_interface = true;
+			i = 2;
+		}
+		int fault = parser_requested_fault(args);
+		if (fault != 0) {
+			i = 2;
+		}
+		while (i < len(args)) {
+			var buffer = parser_load_source(args[i], "input", native_interface);
+			var shared = shared_acquire(move buffer);
+			var entries = new Vector<SourceEntry>(1);
+			var entry = new SourceEntry(move shared);
+			assert_that(entries.append(move entry));
+			var sources = source_set(move entries);
+			var program = syntax_program(move sources);
+			if (fault != 0) {
+				parser_fault(program, fault);
+			}
+			parser_observe(program);
+			i = i + 1;
+		}
+		return 0;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}

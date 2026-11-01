@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int parser_requested_fault(string[] args) {
+	if (len(args) < 3) {
+		return 0;
+	}
+	if (args[1] == "--fault-kind") {
+		return 1;
+	}
+	if (args[1] == "--fault-span") {
+		return 2;
+	}
+	if (args[1] == "--fault-order") {
+		return 3;
+	}
+	if (args[1] == "--fault-source") {
+		return 4;
+	}
+	if (args[1] == "--fault-missing") {
+		return 5;
+	}
+	if (args[1] == "--fault-diagnostic") {
+		return 6;
+	}
+	if (args[1] == "--fault-message") {
+		return 7;
+	}
+	return 0;
+}
+void parser_fault(SyntaxProgram program, int fault) throws Error {
+	if (fault == 6) {
+		assert_that(program.failed());
+		var span = program.error_span;
+		assert_that(span.start < span.end);
+		span.start = span.start + 1;
+		program.error_span = span;
+		return;
+	}
+	if (fault == 7) {
+		assert_that(program.failed());
+		var message = syntax_text("deliberately changed first diagnostic");
+		program.error_message = program.arena.add_text(move message);
+		return;
+	}
+	assert_that(!program.failed());
+	var unit = program.arena.node_at(program.units, 0);
+	var functions = program.arena.get_list_functions(unit);
+	var function = program.arena.node_at(functions, 0);
+	var body = program.arena.get_node_body(function);
+	var statements = program.arena.get_list_statements(body);
+	var returned = program.arena.node_at(statements, 0);
+	var header = program.arena.header(returned);
+	var data = program.arena.return_statement(returned);
+	if (fault == 1) {
+		var binary = program.arena.binary_expression(data.f_expression);
+		var literal = program.arena.get_token_literal(binary.f_left);
+		data.f_expression = syntax_make_BooleanLiteralExpressionSyntax(program.arena, literal);
+		program.arena.replace_return_statement(returned, data);
+		return;
+	}
+	if (fault == 2) {
+		var span = header.span;
+		span.start = span.start + 1;
+		var changed = program.arena.add_return_statement(data, span, header.depth);
+		program.arena.replace_node_at(statements, 0, changed);
+		return;
+	}
+	if (fault == 3) {
+		var binary = program.arena.binary_expression(data.f_expression);
+		var left = binary.f_left;
+		binary.f_left = binary.f_right;
+		binary.f_right = left;
+		program.arena.replace_binary_expression(data.f_expression, binary);
+		return;
+	}
+	if (fault == 4) {
+		var original = program.arena.source(header.span.source);
+		var bytes = source_bytes(shared_borrow(original), 0, syntax_length(shared_borrow(original)));
+		var copy = source_buffer("input", move bytes, false);
+		var shared = shared_acquire(move copy);
+		assert_that(!source_same_handles(original, shared));
+		var source = program.arena.add_generated_source(move shared);
+		var span = header.span;
+		span.source = source;
+		var changed = program.arena.add_return_statement(data, span, header.depth);
+		program.arena.replace_node_at(statements, 0, changed);
+		return;
+	}
+	assert_that(fault == 5);
+	var empty = program.arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax()));
+	program.arena.set_list_statements(body, empty);
+}
+owned SyntaxProgram parser_text_program(string text) throws Error {
+	var bytes = new u8[text.byte_length];
+	int i = 0;
+	while (i < len(bytes)) {
+		bytes[i] = astra_host_text_byte(text, i) as u8;
+		i = i + 1;
+	}
+	var buffer = source_buffer("input", move bytes, false);
+	var shared = shared_acquire(move buffer);
+	var entries = new Vector<SourceEntry>(1);
+	var entry = new SourceEntry(move shared);
+	assert_that(entries.append(move entry));
+	var sources = source_set(move entries);
+	var result = syntax_program(move sources);
+	return move result;
+}
+void parser_lifetime(bool fail_control) throws Error {
+	var program = parser_text_program("int f(){return 1+2;}");
+	assert_that(!program.failed());
+	var unit = program.arena.node_at(program.units, 0);
+	var fallback = program.span();
+	assert_that(fallback.source.index == 1 && fallback.start == 0 && fallback.end == 20);
+	var functions = program.arena.get_list_functions(unit);
+	var function = program.arena.node_at(functions, 0);
+	var body = program.arena.get_node_body(function);
+	var statements = program.arena.get_list_statements(body);
+	var returned = program.arena.node_at(statements, 0);
+	var expression = program.arena.get_node_expression(returned);
+	var data = program.arena.binary_expression(expression);
+	assert_that(program.arena.kind(data.f_left) == SyntaxKind.IntegerLiteralExpressionSyntax());
+	assert_that(program.arena.kind(data.f_right) == SyntaxKind.IntegerLiteralExpressionSyntax());
+	var header = program.arena.header(expression);
+	var retained = program.arena.source_span(header.span);
+	var backing = program.arena.source(header.span.source);
+	var observer = shared_downgrade(backing);
+	release backing;
+	var inventory = syntax_inventory(program);
+	assert_that(inventory.text == "function f() -> int\n");
+	var policy_program = parser_text_program("[CImport] int read();");
+	var policy_unit = policy_program.arena.node_at(policy_program.units, 0);
+	var policy_functions = policy_program.arena.get_list_functions(policy_unit);
+	var policy_function = policy_program.arena.node_at(policy_functions, 0);
+	var policy = policy_program.arena.get_node_foreign_policy(policy_function);
+	assert_that(policy_program.arena.policy(policy) == SyntaxPolicy.C_IMPORT());
+	assert_that(policy_program.arena.dispatch(policy_function) == SyntaxDispatch.DIRECT());
+	release policy_program;
+	release program;
+	var alive = weak_upgrade(observer);
+	assert_that(alive != null);
+	var bytes = retained.bytes();
+	assert_that(len(bytes) == 3 && bytes[0] == 49 as u8 && bytes[1] == 43 as u8 && bytes[2] == 50 as u8);
+	var path = retained.path();
+	assert_that(path.text == "input");
+	release alive;
+	release retained;
+	var expired = weak_upgrade(observer);
+	if (fail_control) {
+		assert_that(expired != null);
+	} else {
+		assert_that(expired == null);
+	}
+	println("PARSER_LIFETIME_OK");
+}
+
+void parser_aggregation(SyntaxProgram program) {
+	assert_that(!program.failed() && program.arena.list_count(program.units) == 2);
+	var functions = program.declarations(SyntaxKind.FunctionDeclarationSyntax());
+	var structures = program.declarations(SyntaxKind.StructDeclarationSyntax());
+	var classes = program.declarations(SyntaxKind.ClassDeclarationSyntax());
+	var enums = program.declarations(SyntaxKind.EnumDeclarationSyntax());
+	var constants = program.declarations(SyntaxKind.ConstantDeclarationSyntax());
+	var runtimes = program.declarations(SyntaxKind.AsyncRuntimeSyntax());
+	var com = program.declarations(SyntaxKind.ComImportSyntax());
+	var foreign_classes = program.foreign_classes();
+	assert_that(program.arena.list_count(functions) == 2);
+	assert_that(program.arena.list_count(structures) == 2);
+	assert_that(program.arena.list_count(classes) == 2);
+	assert_that(program.arena.list_count(enums) == 1);
+	assert_that(program.arena.list_count(constants) == 1);
+	assert_that(program.arena.list_count(runtimes) == 1);
+	assert_that(program.arena.list_count(com) == 1);
+	assert_that(program.arena.list_count(foreign_classes) == 1);
+	var first = program.arena.node_at(functions, 0);
+	var last = program.arena.node_at(functions, 1);
+	assert_that(program.arena.token_is(program.arena.get_token_name(first), "first"));
+	assert_that(program.arena.token_is(program.arena.get_token_name(last), "last"));
+	var including_generic = program.native_instances(true);
+	var plain = program.native_instances(false);
+	assert_that(program.arena.list_count(including_generic) == 4 && program.arena.list_count(plain) == 2);
+	var a = program.arena.node_at(including_generic, 0);
+	var b = program.arena.node_at(including_generic, 1);
+	var c = program.arena.node_at(including_generic, 2);
+	var d = program.arena.node_at(including_generic, 3);
+	assert_that(program.arena.token_is(program.arena.get_token_name(a), "Plain"));
+	assert_that(program.arena.token_is(program.arena.get_token_name(b), "Generic"));
+	assert_that(program.arena.token_is(program.arena.get_token_name(c), "C"));
+	assert_that(program.arena.token_is(program.arena.get_token_name(d), "G"));
+	var plain_first = program.arena.node_at(plain, 0);
+	var plain_last = program.arena.node_at(plain, 1);
+	assert_that(plain_first.index == a.index && plain_last.index == c.index);
+	var fallback = program.span();
+	assert_that(fallback.source.index == 1 && fallback.start == 0);
+	assert_that(fallback.end == program.arena.source_length(fallback.source));
+	println("PARSER_AGGREGATION_OK");
+}
