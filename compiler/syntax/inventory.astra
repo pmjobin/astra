@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A syntax consumer: these names and signatures carry no resolution authority.
+void syntax_inventory_generics(SyntaxArena arena, SyntaxListId parameters, Utf8ByteBuilder output) {
+	if (arena.list_count(parameters) == 0) {
+		return;
+	}
+	source_append_text(output, "<");
+	int i = 0;
+	while (i < arena.list_count(parameters)) {
+		if (i != 0) {
+			source_append_text(output, ",");
+		}
+		arena.write_token(arena.token_at(parameters, i), output);
+		i = i + 1;
+	}
+	source_append_text(output, ">");
+}
+void syntax_inventory_function(SyntaxArena arena, SyntaxNodeId function, string owner, Utf8ByteBuilder output) throws Error {
+	var kind = arena.kind(function);
+	if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+		source_append_text(output, "lifecycle ");
+	} else {
+		if (owner.byte_length == 0) {
+			source_append_text(output, "function ");
+		} else {
+			source_append_text(output, "method ");
+		}
+	}
+	if (owner.byte_length != 0) {
+		source_append_text(output, owner);
+		source_append_text(output, ".");
+	}
+	arena.write_token(arena.get_token_name(function), output);
+	syntax_inventory_generics(arena, arena.get_list_type_parameters(function), output);
+	source_append_text(output, "(");
+	var parameters = arena.get_list_parameters(function);
+	int i = 0;
+	while (i < arena.list_count(parameters)) {
+		if (i != 0) {
+			source_append_text(output, ", ");
+		}
+		var parameter = arena.node_at(parameters, i);
+		var owned_token = arena.get_token_owned_keyword(parameter);
+		var borrowed_token = arena.get_token_borrowed_keyword(parameter);
+		if (owned_token.index != 0) {
+			source_append_text(output, "owned ");
+		}
+		if (borrowed_token.index != 0) {
+			source_append_text(output, "borrowed ");
+		}
+		var type = arena.type_message(arena.get_node_type_name(parameter));
+		source_append_text(output, type.text);
+		source_append_text(output, " ");
+		arena.write_token(arena.get_token_name(parameter), output);
+		i = i + 1;
+	}
+	source_append_text(output, ")");
+	var result_type = arena.get_node_return_type(function);
+	if (result_type.index != 0) {
+		source_append_text(output, " -> ");
+		var owned_token = arena.get_token_owned_keyword(function);
+		if (owned_token.index != 0) {
+			source_append_text(output, "owned ");
+		}
+		var type = arena.type_message(result_type);
+		source_append_text(output, type.text);
+	}
+	var clauses = arena.get_list_where_clauses(function);
+	i = 0;
+	while (i < arena.list_count(clauses)) {
+		var clause = arena.node_at(clauses, i);
+		source_append_text(output, " where ");
+		arena.write_token(arena.get_token_type_parameter(clause), output);
+		source_append_text(output, ": ");
+		var capabilities = arena.get_list_capabilities(clause);
+		int n = 0;
+		while (n < arena.list_count(capabilities)) {
+			if (n != 0) {
+				source_append_text(output, ",");
+			}
+			arena.write_token(arena.token_at(capabilities, n), output);
+			n = n + 1;
+		}
+		i = i + 1;
+	}
+	source_append_text(output, "\n");
+}
+void syntax_inventory_type(SyntaxArena arena, SyntaxNodeId instance, Utf8ByteBuilder output) throws Error {
+	var kind = arena.kind(instance);
+	if (kind == SyntaxKind.StructDeclarationSyntax()) {
+		source_append_text(output, "struct ");
+	} else {
+		source_append_text(output, "class ");
+	}
+	var name = arena.token_message(arena.get_token_name(instance));
+	source_append_text(output, name.text);
+	syntax_inventory_generics(arena, arena.get_list_type_parameters(instance), output);
+	source_append_text(output, "\n");
+	var members = arena.get_list_members(instance);
+	int i = 0;
+	while (i < arena.list_count(members)) {
+		var member = arena.node_at(members, i);
+		var member_kind = arena.kind(member);
+		if (syntax_kind_accepts(member_kind, SyntaxKind.FunctionDeclarationSyntax())) {
+			syntax_inventory_function(arena, member, name.text, output);
+		}
+		if (member_kind == SyntaxKind.StructFieldDeclarationSyntax()) {
+			source_append_text(output, "field ");
+			source_append_text(output, name.text);
+			source_append_text(output, ".");
+			arena.write_token(arena.get_token_name(member), output);
+			source_append_text(output, " : ");
+			var owned_token = arena.get_token_owned_keyword(member);
+			if (owned_token.index != 0) {
+				source_append_text(output, "owned ");
+			}
+			var type = arena.type_message(arena.get_node_type_name(member));
+			source_append_text(output, type.text);
+			source_append_text(output, "\n");
+		}
+		if (member_kind == SyntaxKind.PropertyDeclarationSyntax()) {
+			source_append_text(output, "property ");
+			source_append_text(output, name.text);
+			source_append_text(output, ".");
+			arena.write_token(arena.get_token_name(member), output);
+			source_append_text(output, " : ");
+			var type = arena.type_message(arena.get_node_type_name(member));
+			source_append_text(output, type.text);
+			source_append_text(output, "\n");
+		}
+		i = i + 1;
+	}
+}
+owned Utf8Message syntax_inventory(SyntaxProgram program) throws Error {
+	assert_that(!program.failed());
+	var output = new Utf8ByteBuilder();
+	int i = 0;
+	while (i < program.arena.list_count(program.units)) {
+		var unit = program.arena.node_at(program.units, i);
+		var namespace_name = program.arena.get_token_namespace_name(unit);
+		if (namespace_name.index != 0) {
+			source_append_text(output, "namespace ");
+			program.arena.write_token(namespace_name, output);
+			source_append_text(output, "\n");
+		}
+		var imports = program.arena.get_list_imports(unit);
+		int n = 0;
+		while (n < program.arena.list_count(imports)) {
+			source_append_text(output, "using ");
+			program.arena.write_token(program.arena.token_at(imports, n), output);
+			source_append_text(output, "\n");
+			n = n + 1;
+		}
+		var types = syntax_unit_native_instances(program.arena, unit, true);
+		n = 0;
+		while (n < program.arena.list_count(types)) {
+			syntax_inventory_type(program.arena, program.arena.node_at(types, n), output);
+			n = n + 1;
+		}
+		var foreign_types = program.arena.get_list_c_classes(unit);
+		n = 0;
+		while (n < program.arena.list_count(foreign_types)) {
+			source_append_text(output, "foreign ");
+			syntax_inventory_type(program.arena, program.arena.node_at(foreign_types, n), output);
+			n = n + 1;
+		}
+		var com_types = program.arena.get_list_com_interfaces(unit);
+		n = 0;
+		while (n < program.arena.list_count(com_types)) {
+			var imported = program.arena.node_at(com_types, n);
+			source_append_text(output, "COM interface ");
+			program.arena.write_token(program.arena.get_token_name(imported), output);
+			source_append_text(output, "\n");
+			var definition = program.arena.get_node_declaration(imported);
+			if (definition.index != 0) {
+				syntax_inventory_type(program.arena, definition, output);
+			}
+			n = n + 1;
+		}
+		var functions = program.arena.get_list_functions(unit);
+		n = 0;
+		while (n < program.arena.list_count(functions)) {
+			syntax_inventory_function(program.arena, program.arena.node_at(functions, n), "", output);
+			n = n + 1;
+		}
+		var enums = program.arena.get_list_enums(unit);
+		n = 0;
+		while (n < program.arena.list_count(enums)) {
+			var definition = program.arena.node_at(enums, n);
+			source_append_text(output, "enum ");
+			program.arena.write_token(program.arena.get_token_name(definition), output);
+			syntax_inventory_generics(program.arena, program.arena.get_list_type_parameters(definition), output);
+			source_append_text(output, "\n");
+			n = n + 1;
+		}
+		i = i + 1;
+	}
+	var result = output.snapshot();
+	return move result;
+}

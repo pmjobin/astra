@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct SyntaxParseResult {
+	SyntaxNodeId unit;
+	SyntaxSpan error_span;
+	SyntaxTextId error_message;
+}
+int syntax_arguments_depth(SyntaxArena arena, SyntaxListId arguments) {
+	int result = 0;
+	int i = 0;
+	while (i < arena.list_count(arguments)) {
+		var child = arena.node_at(arguments, i);
+		var header = arena.header(child);
+		result = syntax_max(result, header.depth);
+		i = i + 1;
+	}
+	return result + 1;
+}
+bool syntax_key_is(borrowed Utf8Message entry, string name) {
+	return entry.text == name;
+}
+class SyntaxKeySet {
+	private owned Vector<Utf8Message> keys;
+	init() {
+		var keys = new Vector<Utf8Message>(16);
+		this.keys = move keys;
+	}
+	bool contains(string name) {
+		int i = 0;
+		while (i < this.keys.count()) {
+			if (syntax_key_is(this.keys.entries[i], name)) {
+				return true;
+			}
+			i = i + 1;
+		}
+		return false;
+	}
+	void add_key(string name) throws Error {
+		if (this.keys.count() == this.keys.capacity()) {
+			assert_that(this.keys.reserve(syntax_grown_capacity(this.keys.capacity(), this.keys.count() + 1)));
+		}
+		var text = syntax_text(name);
+		assert_that(this.keys.append(move text));
+	}
+}
+SyntaxParseResult syntax_parse(SyntaxArena arena, SyntaxSourceId source) throws Error {
+	var retained = arena.source(source);
+	var scanner = lexer(move retained);
+	var empty = syntax_text("");
+	var prefix = syntax_text("");
+	var parser = new SyntaxParser(arena, source, move scanner, move empty, move prefix);
+	SyntaxNodeId unit = {index = 0};
+	if (parser.advance(arena)) {
+		unit = parser.parse_unit(arena);
+	}
+	if (unit.index != 0) {
+		arena.set_list_type_applications(unit, parser.type_applications);
+	}
+	SyntaxTextId message = {index = 0};
+	if (parser.error_message.text.byte_length != 0) {
+		var copy = syntax_text(parser.error_message.text);
+		message = arena.add_text(move copy);
+	}
+	assert_that((unit.index == 0) != (message.index == 0));
+	SyntaxParseResult result = {unit = unit, error_span = parser.error_span, error_message = message};
+	return result;
+}
+SyntaxNodeId syntax_interface_prerequisites(SyntaxArena arena, bool native_interface) throws Error {
+	var source = arena.add_source_text("<native-interface>", "class __Contract { init() {} int requirement() { return 0; } }", native_interface);
+	var parsed = syntax_parse(arena, source);
+	assert_that(parsed.unit.index != 0);
+	var classes = arena.get_list_classes(parsed.unit);
+	return arena.node_at(classes, 0);
+}
+SyntaxNodeId syntax_utf8_factory_body(SyntaxArena arena, string namespace_prefix) throws Error {
+	var text = new Utf8ByteBuilder();
+	source_append_text(text, "int generated(){if(valid(bytes)){var message=new ");
+	source_append_text(text, namespace_prefix);
+	source_append_text(text, "Utf8Message(text(bytes));return move message;}throw new ");
+	source_append_text(text, namespace_prefix);
+	source_append_text(text, "InvalidUtf8();}");
+	var message = text.snapshot();
+	var source = arena.add_source_text("<Utf8MessageFactory>", message.text, false);
+	var parsed = syntax_parse(arena, source);
+	assert_that(parsed.error_message.index == 0);
+	var functions = arena.get_list_functions(parsed.unit);
+	var function = arena.node_at(functions, 0);
+	var body = arena.get_node_body(function);
+	var statements = arena.get_list_statements(body);
+	var branch_id = arena.node_at(statements, 0);
+	var branch = arena.if_statement(branch_id);
+	var args = arena.get_list_arguments(branch.f_condition);
+	var argument = arena.node_at(args, 0);
+	var input = arena.get_token_identifier(argument);
+	var condition_header = arena.header(branch.f_condition);
+	var condition = syntax_make_Utf8FactoryExpressionSyntax(arena, condition_header.span, input, true);
+	SyntaxTokenId no_else = {index = 0};
+	SyntaxNodeId no_body = {index = 0};
+	var replacement = syntax_make_IfStatementSyntax(arena, branch.f_keyword, branch.f_open_paren, condition, branch.f_close_paren, branch.f_then_body, no_else, no_body);
+	arena.replace_node_at(statements, 0, replacement);
+	var then_statements = arena.get_list_statements(branch.f_then_body);
+	var local = arena.node_at(then_statements, 0);
+	var construction = arena.get_node_initializer(local);
+	var construction_args = arena.get_list_arguments(construction);
+	var original = arena.node_at(construction_args, 0);
+	var original_header = arena.header(original);
+	var payload = syntax_make_Utf8FactoryExpressionSyntax(arena, original_header.span, input, false);
+	arena.replace_node_at(construction_args, 0, payload);
+	return body;
+}

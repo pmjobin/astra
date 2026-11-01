@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SyntaxProgram {
+	owned SyntaxArena arena;
+	SyntaxListId units;
+	SyntaxSpan error_span;
+	SyntaxTextId error_message;
+	init(owned SyntaxArena arena, SyntaxListId units, SyntaxSpan error_span, SyntaxTextId error_message) {
+		this.arena = move arena;
+		this.units = units;
+		this.error_span = error_span;
+		this.error_message = error_message;
+	}
+	bool failed() {
+		return this.error_message.index != 0;
+	}
+	SyntaxSpan span() {
+		assert_that(!this.failed() && this.arena.list_count(this.units) > 0);
+		var first = this.arena.node_at(this.units, 0);
+		var header = this.arena.header(first);
+		return header.span;
+	}
+	SyntaxListId foreign_classes() {
+		var result = this.arena.new_list(syntax_kind_code(SyntaxKind.ClassDeclarationSyntax()));
+		int i = 0;
+		while (i < this.arena.list_count(this.units)) {
+			var unit = this.arena.node_at(this.units, i);
+			var selected = this.arena.get_list_c_classes(unit);
+			int n = 0;
+			while (n < this.arena.list_count(selected)) {
+				this.arena.append_node(result, this.arena.node_at(selected, n));
+				n = n + 1;
+			}
+			i = i + 1;
+		}
+		return result;
+	}
+	SyntaxListId declarations(SyntaxKind kind) {
+		assert_that(kind == SyntaxKind.FunctionDeclarationSyntax() || kind == SyntaxKind.StructDeclarationSyntax() || kind == SyntaxKind.ClassDeclarationSyntax() || kind == SyntaxKind.ComImportSyntax() || kind == SyntaxKind.AsyncRuntimeSyntax() || kind == SyntaxKind.EnumDeclarationSyntax() || kind == SyntaxKind.ConstantDeclarationSyntax());
+		var result = this.arena.new_list(syntax_kind_code(kind));
+		int i = 0;
+		while (i < this.arena.list_count(this.units)) {
+			var unit = this.arena.node_at(this.units, i);
+			SyntaxListId selected = {index = 0};
+			if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
+				selected = this.arena.get_list_functions(unit);
+			}
+			if (kind == SyntaxKind.StructDeclarationSyntax()) {
+				selected = this.arena.get_list_structs(unit);
+			}
+			if (kind == SyntaxKind.ClassDeclarationSyntax()) {
+				selected = this.arena.get_list_classes(unit);
+			}
+			if (kind == SyntaxKind.ComImportSyntax()) {
+				selected = this.arena.get_list_com_interfaces(unit);
+			}
+			if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
+				selected = this.arena.get_list_async_runtimes(unit);
+			}
+			if (kind == SyntaxKind.EnumDeclarationSyntax()) {
+				selected = this.arena.get_list_enums(unit);
+			}
+			if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
+				selected = this.arena.get_list_constants(unit);
+			}
+			int n = 0;
+			while (n < this.arena.list_count(selected)) {
+				this.arena.append_node(result, this.arena.node_at(selected, n));
+				n = n + 1;
+			}
+			i = i + 1;
+		}
+		return result;
+	}
+	SyntaxListId native_instances(bool include_generic) {
+		var result = this.arena.new_list(syntax_kind_code(SyntaxKind.NativeInstanceDeclarationSyntax()));
+		var structures = this.declarations(SyntaxKind.StructDeclarationSyntax());
+		var classes = this.declarations(SyntaxKind.ClassDeclarationSyntax());
+		int i = 0;
+		while (i < this.arena.list_count(structures)) {
+			var instance = this.arena.node_at(structures, i);
+			var parameters = this.arena.get_list_type_parameters(instance);
+			if (include_generic || this.arena.list_count(parameters) == 0) {
+				this.arena.append_node(result, instance);
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < this.arena.list_count(classes)) {
+			var instance = this.arena.node_at(classes, i);
+			var parameters = this.arena.get_list_type_parameters(instance);
+			if (include_generic || this.arena.list_count(parameters) == 0) {
+				this.arena.append_node(result, instance);
+			}
+			i = i + 1;
+		}
+		return result;
+	}
+}
+owned SyntaxProgram syntax_program(owned SourceSet sources) throws Error {
+	var arena = new SyntaxArena(move sources);
+	var units = arena.new_list(syntax_kind_code(SyntaxKind.CompilationUnitSyntax()));
+	SyntaxTextId message = {index = 0};
+	var span = syntax_empty_span();
+	int i = 0;
+	while (i < arena.source_count) {
+		SyntaxSourceId source = {index = i + 1};
+		var parsed = syntax_parse(arena, source);
+		if (parsed.error_message.index != 0) {
+			message = parsed.error_message;
+			span = parsed.error_span;
+			break;
+		}
+		arena.append_node(units, parsed.unit);
+		i = i + 1;
+	}
+	var result = new SyntaxProgram(move arena, units, span, message);
+	return move result;
+}
