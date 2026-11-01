@@ -1,0 +1,175 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Indices belong to exactly one BindingIndex. Zero never names a declaration.
+struct SymbolId {
+	int index;
+}
+struct ScopeId {
+	int index;
+}
+enum BindingState {
+	Bound, Unknown, Ambiguous, Inaccessible, Deferred, Builtin 
+}
+enum BindingDomain {
+	Type, Value, Namespace, Member 
+}
+struct BindingSymbol {
+	SyntaxNodeId node;
+	SyntaxTokenId token;
+	SyntaxSpan span;
+	ScopeId scope;
+	SymbolId owner;
+	int name;
+	int canonical;
+	int kind;
+	int domain;
+	bool restricted;
+	int first_reference;
+}
+struct BindingScope {
+	ScopeId parent;
+	SymbolId owner;
+	SyntaxNodeId node;
+	SyntaxNodeId unit;
+	int kind;
+	int namespace_name;
+}
+struct BindingReference {
+	SyntaxNodeId node;
+	SyntaxTokenId token;
+	SyntaxSpan span;
+	ScopeId scope;
+	SymbolId target;
+	SymbolId alternative;
+	int state_code;
+	int reason;
+	int domain;
+	int next_reference;
+}
+struct BindingWork {
+	SyntaxNodeId node;
+	ScopeId scope;
+	int action;
+}
+BindingState binding_state(int code) {
+	if (code == 1) {
+		return BindingState.Bound();
+	}
+	if (code == 2) {
+		return BindingState.Unknown();
+	}
+	if (code == 3) {
+		return BindingState.Ambiguous();
+	}
+	if (code == 4) {
+		return BindingState.Inaccessible();
+	}
+	if (code == 5) {
+		return BindingState.Deferred();
+	}
+	assert_that(code == 6);
+	return BindingState.Builtin();
+}
+int binding_domain_code(BindingDomain domain) {
+	if (domain == BindingDomain.Type()) {
+		return 1;
+	}
+	if (domain == BindingDomain.Value()) {
+		return 2;
+	}
+	if (domain == BindingDomain.Namespace()) {
+		return 3;
+	}
+	return 4;
+}
+
+enum BindingSymbolKind {
+	Function,
+	Constant,
+	Struct,
+	Class,
+	Enum,
+	Field,
+	Parameter,
+	Local,
+	TypeParameter,
+	Namespace,
+	Method,
+	Lifecycle,
+	Variant,
+	Property,
+	ScopedBinding,
+	AsyncRuntime,
+	Payload,
+	Accessor,
+}
+BindingSymbolKind binding_symbol_kind(BindingSymbol symbol) {
+	if (symbol.kind == 1) {
+		return BindingSymbolKind.Function();
+	}
+	if (symbol.kind == 2) {
+		return BindingSymbolKind.Constant();
+	}
+	if (symbol.kind == 3) {
+		return BindingSymbolKind.Struct();
+	}
+	if (symbol.kind == 4) {
+		return BindingSymbolKind.Class();
+	}
+	if (symbol.kind == 5) {
+		return BindingSymbolKind.Enum();
+	}
+	if (symbol.kind == 6) {
+		return BindingSymbolKind.Field();
+	}
+	if (symbol.kind == 7) {
+		return BindingSymbolKind.Parameter();
+	}
+	if (symbol.kind == 8) {
+		return BindingSymbolKind.Local();
+	}
+	if (symbol.kind == 9) {
+		return BindingSymbolKind.TypeParameter();
+	}
+	if (symbol.kind == 10) {
+		return BindingSymbolKind.Namespace();
+	}
+	if (symbol.kind == 11) {
+		return BindingSymbolKind.Method();
+	}
+	if (symbol.kind == 12) {
+		return BindingSymbolKind.Lifecycle();
+	}
+	if (symbol.kind == 13) {
+		return BindingSymbolKind.Variant();
+	}
+	if (symbol.kind == 14) {
+		return BindingSymbolKind.Property();
+	}
+	if (symbol.kind == 15) {
+		return BindingSymbolKind.ScopedBinding();
+	}
+	if (symbol.kind == 16) {
+		return BindingSymbolKind.AsyncRuntime();
+	}
+	if (symbol.kind == 17) {
+		return BindingSymbolKind.Payload();
+	}
+	if (symbol.kind == 18) {
+		return BindingSymbolKind.Accessor();
+	}
+	assert_that(false);
+	return BindingSymbolKind.Function();
+}
+BindingDomain binding_domain(int code) {
+	if (code == 1) {
+		return BindingDomain.Type();
+	}
+	if (code == 2) {
+		return BindingDomain.Value();
+	}
+	if (code == 3) {
+		return BindingDomain.Namespace();
+	}
+	assert_that(code == 4);
+	return BindingDomain.Member();
+}

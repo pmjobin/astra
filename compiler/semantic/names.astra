@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Open addressing; keys and values are immutable. Resizing preserves ordinals.
+class BindingNames {
+	owned Vector<Utf8Message> keys;
+	private owned int[] slots;
+	private owned int[] values;
+	init() {
+		var keys = new Vector<Utf8Message>(16);
+		this.keys = move keys;
+		this.slots = new int[32];
+		this.values = new int[32];
+	}
+	int hash(string key) {
+		int hash = 0;
+		int i = 0;
+		while (i < key.byte_length) {
+			hash = (hash * 33 + astra_host_text_byte(key, i)) % 1000003;
+			i = i + 1;
+		}
+		return hash;
+	}
+	int find_slot(string key) {
+		int at = this.hash(key) % len(this.slots);
+		while (this.slots[at] != 0) {
+			if (binding_text_is(this.keys.entries[this.slots[at] - 1], key)) {
+				return at;
+			}
+			at = (at + 1) % len(this.slots);
+		}
+		return at;
+	}
+	int get(string key) {
+		int at = this.find_slot(key);
+		return this.values[at];
+	}
+	int intern(string key) throws Error {
+		int at = this.find_slot(key);
+		if (this.slots[at] != 0) {
+			return this.slots[at];
+		}
+		if (this.keys.count() >= len(this.slots) / 2) {
+			var old_slots = new int[len(this.slots) * 2];
+			var old_values = new int[len(this.values) * 2];
+			swap(this.slots, old_slots);
+			swap(this.values, old_values);
+			int i = 0;
+			while (i < len(old_slots)) {
+				if (old_slots[i] != 0) {
+					int next = binding_text_hash(this.keys.entries[old_slots[i] - 1]) % len(this.slots);
+					while (this.slots[next] != 0) {
+						next = (next + 1) % len(this.slots);
+					}
+					this.slots[next] = old_slots[i];
+					this.values[next] = old_values[i];
+				}
+				i = i + 1;
+			}
+			at = this.find_slot(key);
+		}
+		if (this.keys.count() == this.keys.capacity()) {
+			assert_that(this.keys.reserve(syntax_grown_capacity(this.keys.capacity(), this.keys.count() + 1)));
+		}
+		var text = syntax_text(key);
+		assert_that(this.keys.append(move text));
+		this.slots[at] = this.keys.count();
+		return this.slots[at];
+	}
+	void put(string key, int value) throws Error {
+		int id = this.intern(key);
+		int at = this.find_slot(key);
+		assert_that(this.slots[at] == id && this.values[at] == 0 && value > 0);
+		this.values[at] = value;
+	}
+	owned Utf8Message text(int id) throws Error {
+		assert_that(id > 0 && id <= this.keys.count());
+		var output = new Utf8ByteBuilder();
+		syntax_text_write(this.keys.entries[id - 1], output);
+		var result = output.snapshot();
+		return move result;
+	}
+}
+owned Utf8Message binding_key(int scope, int domain, string name) throws Error {
+	var output = new Utf8ByteBuilder();
+	append_int(output, scope);
+	source_append_text(output, ":");
+	append_int(output, domain);
+	source_append_text(output, ":");
+	source_append_text(output, name);
+	var result = output.snapshot();
+	return move result;
+}
+owned Utf8Message binding_qualified(string space, string name) throws Error {
+	var output = new Utf8ByteBuilder();
+	if (space.byte_length > 0) {
+		source_append_text(output, space);
+		source_append_text(output, ".");
+	}
+	source_append_text(output, name);
+	var result = output.snapshot();
+	return move result;
+}
+bool binding_builtin(string name) {
+	return name == "void" || name == "bool" || name == "int" || name == "i8" || name == "u8" || name == "i16" || name == "u16" || name == "i32" || name == "u32" || name == "i64" || name == "u64" || name == "isize" || name == "usize" || name == "f32" || name == "f64" || name == "string";
+}
+
+owned Utf8Message binding_lookup_name(string name, string canonical, bool global) throws Error {
+	if (global) {
+		var result = syntax_text(canonical);
+		return move result;
+	}
+	var result = syntax_text(name);
+	return move result;
+}
+owned Utf8Message binding_type_name(SyntaxArena arena, SyntaxNodeId node) throws Error {
+	var name = arena.token_message(arena.get_token_identifier(node));
+	var qualifier = arena.get_token_namespace_qualifier(node);
+	if (qualifier.index != 0) {
+		var space = arena.token_message(qualifier);
+		var result = binding_qualified(space.text, name.text);
+		return move result;
+	}
+	return move name;
+}
+
+bool binding_text_is(borrowed Utf8Message value, string text) {
+	return value.text == text;
+}
+int binding_text_hash(borrowed Utf8Message value) {
+	int hash = 0;
+	int i = 0;
+	while (i < value.text.byte_length) {
+		hash = (hash * 33 + astra_host_text_byte(value.text, i)) % 1000003;
+		i = i + 1;
+	}
+	return hash;
+}
+
+bool binding_type_constructor(string name) {
+	return name == "Fn" || name == "Callback" || name == "Closure" || name == "CheckedClosure" || name == "ActorSender" || name == "Thread" || name == "ContextBytes" || name == "Shared" || name == "Weak";
+}
+bool binding_intrinsic(string name) {
+	return name == "len" || name == "slice" || name == "shared_acquire" || name == "shared_clone" || name == "shared_downgrade" || name == "shared_borrow" || name == "weak_clone" || name == "weak_upgrade" || name == "singleton_shutdown" || name == "actor_clone" || name == "actor_bind" || name == "actor_send" || name == "actor_shutdown" || name == "actor_cancel" || name == "thread_bind" || name == "thread_start" || name == "thread_join" || name == "thread_cancel" || name == "closure_bind" || name == "checked_closure_bind" || name == "closure_invoke" || name == "retained_register" || name == "retained_dispatch" || name == "retained_revoke" || name == "retained_observe" || name == "retained_signal_register" || name == "retained_signal_revoke" || name == "retained_signal_observe" || name == "volatile_load" || name == "volatile_store" || name == "load_vector" || name == "store_vector" || name == "scoped_allocator" || name == "cancel_and_join";
+}
