@@ -68,4 +68,55 @@ deferral counts are not themselves proof closures or a coverage percentage.
 The fact-cell ceiling includes owner, loan, null-value and field inventories;
 row/step exhaustion remains FLOW_RESOURCE_EXHAUSTED with no published proof.
 
-Qualification results will be recorded here after final-source execution.
+The compiled inputs at `9c224525848a362e0936b3df6050ca5b32ac68b0` pass the
+50-case corpus at O0/O2: 20 positives, 20 negatives and 10 named deferrals.
+The 69 paired observations and original-use ledgers are byte-identical. Both
+profiles reject all 14 graph/fact/obligation mutations, seven forged-observation
+or reference controls, wrong-origin/function/field IDs and bounded row/step
+exhaustion. Repeated construction/destruction and selected positive/negative
+queries pass unsuppressed Valgrind. All 20 admitted positives independently
+compile with C0 at both profiles; nine meaningful runtime cases execute and
+pass unsuppressed Valgrind at each profile.
+
+The corpus publishes 32 reason-18, 16 reason-19 and 23 reason-20 proofs. Of these,
+18/14/6 respectively close matching original node/reason identities; 14/2/17
+are new obligations exposed by the adapter. Four original reason-18 and seven
+reason-19 records have different adapter classifications and are **not** counted
+as closures. Their before/after records remain in the report ledger. Ownership
+demands still execute on the same CFG, and the separate legacy consumer retains
+its original checked-use contract.
+
+The five actual registered `language-usability-7/nonnull-check.py` positive
+families close 12 matching original reason-18 obligations. The existing
+`owned-state-6/prototypes/two-owner.astra` closes its original reason 20.
+A bounded five-source application has 137 graphs, 3,671 events, 256 field
+identities and 128/321/68 proofs for reasons 18/19/20. Native observations match
+across profiles; native analysis and independently compiled execution pass
+unsuppressed Valgrind at both profiles.
+
+The unchanged original source inventory retains all 1,460 graphs and 1,361
+loans, with 79,568 events versus the original 81,304. Current compiler inputs
+have 1,503 graphs, 83,609 events and 1,518 loans. Both remain deferred, with no
+checked errors, flow errors or published proofs. The full named-deferral ledger
+is in the report: changes in reconstruction/admission reduce event counts and
+reclassify deferrals; these are not claimed as safety closures or coverage gains.
+
+Native component recompilation took 332.44 s / 1,237,112 KiB peak RSS at O0
+and 633.82 s / 1,245,824 KiB at O2, with qualified C support reused. Identical
+product checks took 0.54/0.55 s. Builds ran concurrently; these are measured
+costs, not a speedup claim. Query, Valgrind, full-source and campaign wall times,
+including superseded/interrupted attempts, remain separate in the report.
+
+Typecore-5 (121), Binder-4 (85), foundation (63 plus eight path cases/profile),
+lexer (18 hand, 448 generated, 2,171 final sources), focused parser/lexer
+lifetimes and LLVM module-layout O0/O2 plus wrong-layout rejection pass their
+unchanged contracts. Original OWNFlow-6 passes all 93 cases (40/35/18), its
+265-function/7,743-event/256-loan/1,285-proof workload, source-edit and depth
+controls. Its original 40 positives compile at both profiles and seven runtime
+cases execute with memory checks at both profiles. The legacy current-source
+observation remains deferred with zero reason-19 closures.
+
+The next seam is declaration-bound nested-field copying, owning-record channels
+and exact member/effect admission, followed by independent checked IR/CFG/SSA
+and lowering work. Deferred properties or compiler-source graphs confer no
+downstream safety qualification.
