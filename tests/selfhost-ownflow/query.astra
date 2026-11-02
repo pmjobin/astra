@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		if (len(args) == 2 && args[1] == "--lifetime") {
+			flow_lifetime();
+			return 0;
+		}
+		if (len(args) < 3) {
+			println_stderr("usage: astra-flow --flow FILE... | --owner-at PATH OFFSET FILE... | --loan-at PATH OFFSET FILE... | --limit N FILE... | --steps N FILE...");
+			return 2;
+		}
+		int start = 2;
+		int limit = 8192;
+		int steps = 1000000;
+		if (args[1] == "--owner-at" || args[1] == "--loan-at") {
+			start = 4;
+		}
+		if (args[1] == "--limit" || args[1] == "--steps") {
+			start = 3;
+			if (args[1] == "--limit") {
+				limit = binding_decimal(args[2]);
+			} else {
+				steps = binding_decimal(args[2]);
+			}
+			if (limit < 1 || limit > 8192 || steps < 1 || steps > 1000000) {
+				return 2;
+			}
+		}
+		var program = binding_load_program(args, start);
+		var bindings = binding_index(move program, 0);
+		var checked = flow_checked_index(move bindings);
+		var index = flow_index(move checked, limit, steps);
+		if (args[1] == "--mutate-backedge" || args[1] == "--mutate-owner" || args[1] == "--mutate-loan-end" || args[1] == "--mutate-span" || args[1] == "--mutate-function" || args[1] == "--mutate-ordinal") {
+			flow_mutate(index, args[1]);
+			return 0;
+		}
+		var observation = flow_observation(index);
+		print(observation.text);
+		if (args[1] == "--owner-at" || args[1] == "--loan-at") {
+			flow_query(index, args[2], binding_decimal(args[3]), args[1] == "--loan-at");
+		}
+		return flow_status(index);
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}
+void flow_query(FlowIndex index, string path, int offset, bool loan) throws Error {
+	int width = 2147483647;
+	FlowBlockId block = {
+		function = 0, index = 0
+	};
+	OwnerSlotId slot = {
+		function = 0, index = 0
+	};
+	int g = 0;
+	while (g < index.graphs.count()) {
+		int e = 0;
+		while (e < flow_graph_count(index.graphs.entries[g])) {
+			var event = flow_graph_event(index.graphs.entries[g], e);
+			if (event.slot > 0 && event.span.start <= offset && offset < event.span.end && event.span.end - event.span.start < width) {
+				var backing = index.checked.bindings.program.arena.source_span(event.span);
+				var current = backing.path();
+				if (current.text == path) {
+					block.function = g + 1;
+					block.index = e + 1;
+					slot.function = g + 1;
+					slot.index = event.slot;
+					width = event.span.end - event.span.start;
+				}
+			}
+			e = e + 1;
+		}
+		g = g + 1;
+	}
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "QUERY_OWNER");
+	flow_number(output, block.function);
+	flow_number(output, block.index);
+	flow_number(output, slot.index);
+	flow_number(output, index.owner_at(index, block, slot));
+	source_append_text(output, "\n");
+	if (loan && block.function > 0) {
+		int l = 1;
+		while (l <= flow_graph_loan_count(index.graphs.entries[block.function - 1])) {
+			FlowLoanId id = {
+				function = block.function, index = l
+			};
+			source_append_text(output, "QUERY_LOAN");
+			flow_number(output, l);
+			flow_number(output, index.loan_at(index, block, id));
+			source_append_text(output, "\n");
+			l = l + 1;
+		}
+	}
+	var text = output.snapshot();
+	print(text.text);
+}
+void flow_mutate(FlowIndex index, string mode) throws Error {
+	var before = syntax_program_dump(index.checked.bindings.program);
+	bool changed = false;
+	while (index.graphs.count() > 0 && !changed) {
+		var graph = index.graphs.take(index.graphs.count() - 1);
+		assert_that(flow_verify(graph, index.checked, index.class_origins));
+		if (mode == "--mutate-ordinal") {
+			graph.ordinal = graph.ordinal + 1;
+			changed = true;
+			assert_that(!flow_verify(graph, index.checked, index.class_origins));
+		}
+		if (mode == "--mutate-function" && graph.slot_count == 0) {
+			int candidate = 1;
+			while (candidate <= index.checked.bindings.symbol_count && !changed) {
+				if (index.checked.bindings.symbol(type_symbol(candidate)).kind == 4) {
+					graph.function = type_symbol(candidate);
+					changed = true;
+					assert_that(!flow_verify(graph, index.checked, index.class_origins));
+				}
+				candidate = candidate + 1;
+			}
+		}
+		int e = 0;
+		while (e < graph.count && !changed) {
+			var event = graph.events[e];
+			if (mode == "--mutate-backedge" && event.operation == 11) {
+				event.next = graph.exit;
+				changed = true;
+			}
+			if (mode == "--mutate-owner" && (event.operation == 4 || event.operation == 13)) {
+				int s = 1;
+				while (s <= graph.slot_count && !changed) {
+					if (s != event.slot && graph.slots[s - 1].owner) {
+						event.slot = s;
+						changed = true;
+					}
+					s = s + 1;
+				}
+			}
+			if (mode == "--mutate-loan-end" && event.operation == 8 && graph.loan_count > 0) {
+				event.operation = 1;
+				event.call = 0;
+				changed = true;
+			}
+			if (mode == "--mutate-span" && event.operation == 3) {
+				event.span.start = event.span.start + 1;
+				changed = true;
+			}
+			if (changed) {
+				graph.events[e] = event;
+				assert_that(!flow_verify(graph, index.checked, index.class_origins));
+			}
+			e = e + 1;
+		}
+	}
+	var after = syntax_program_dump(index.checked.bindings.program);
+	assert_that(changed && before.text == after.text);
+	println("MUTANT_REJECTED");
+}
+owned FlowIndex flow_text(string source, int limit, int steps) throws Error {
+	var program = parser_text_program(source);
+	var bindings = binding_index(move program, 0);
+	var checked = flow_checked_index(move bindings);
+	var result = flow_index(move checked, limit, steps);
+	return move result;
+}
+void flow_lifetime() throws Error {
+	string source = "void f(owned int[] x){release x;}void g(owned int[] x){release x;}";
+	var one = flow_text(source, 8192, 1000000);
+	var two = flow_text(source, 8192, 1000000);
+	assert_that(flow_status(one) == 0 && flow_status(two) == 0 && !one.same_owner(two));
+	FlowBlockId block = {
+		function = 1, index = flow_graph_entry(one.graphs.entries[0])
+	};
+	OwnerSlotId slot = {
+		function = 1, index = 1
+	};
+	OwnerSlotId wrong = {
+		function = 2, index = 1
+	};
+	FlowLoanId bad_loan = {
+		function = 1, index = 999
+	};
+	assert_that(one.owns_block(one, block) && !one.owns_block(two, block) && one.owns_slot(one, slot) && !one.owns_slot(two, slot));
+	assert_that(one.owner_at(one, block, wrong) == -1 && one.loan_at(one, block, bad_loan) == -1);
+	block.index = 999999;
+	assert_that(!one.owns_block(one, block));
+	SyntaxSourceId id = {
+		index = 1
+	};
+	var backing = one.checked.bindings.program.arena.source(id);
+	var observer = shared_downgrade(backing);
+	release backing;
+	var symbol = one.checked.bindings.symbol(flow_graph_function(one.graphs.entries[0]));
+	var retained = one.checked.bindings.program.arena.source_span(symbol.span);
+	var other_symbol = two.checked.bindings.symbol(flow_graph_function(two.graphs.entries[0]));
+	var other_span = two.checked.bindings.program.arena.source_span(other_symbol.span);
+	assert_that(!retained.same_source(other_span));
+	release one;
+	var alive = weak_upgrade(observer);
+	assert_that(alive != null);
+	release alive;
+	var bytes = retained.bytes();
+	assert_that(len(bytes) > 0);
+	release retained;
+	var expired = weak_upgrade(observer);
+	assert_that(expired == null);
+	int repeat = 0;
+	while (repeat < 32) {
+		var partial = flow_text(source, 1, 1000000);
+		assert_that(flow_status(partial) == 1 && flow_graph_error(partial.graphs.entries[0]) == 11);
+		var negative = flow_text("void f(owned int[] x){release x;release x;}", 8192, 1000000);
+		assert_that(flow_status(negative) == 1 && flow_graph_error(negative.graphs.entries[0]) == 4);
+		var bounded = flow_text(source, 8192, 1);
+		assert_that(flow_status(bounded) == 1 && flow_graph_error(bounded.graphs.entries[0]) == 11);
+		var invalid_limit = flow_text(source, 8193, 1000000);
+		assert_that(flow_status(invalid_limit) == 2 && !invalid_limit.capacity_ok);
+		var ill_typed = flow_text("int f(){return true;}", 8192, 1000000);
+		assert_that(flow_status(ill_typed) == 1 && ill_typed.checked.failed());
+		repeat = repeat + 1;
+	}
+	println("FLOW_LIFETIME_OK");
+}

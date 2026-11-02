@@ -78,6 +78,18 @@ string flow_deferred_name(int code) {
 	if (code == 13) {
 		return "BORROW_CHANNEL_POLICY";
 	}
+	if (code == 14) {
+		return "CONSTANT_VALUE_POLICY";
+	}
+	if (code == 15) {
+		return "CLASS_LOCAL_POLICY";
+	}
+	if (code == 16) {
+		return "RETURN_COMPLETENESS";
+	}
+	if (code == 17) {
+		return "TEXT_LIFETIME_POLICY";
+	}
 	return "SYNTAX_FAMILY";
 }
 void flow_number(Utf8ByteBuilder output, int value) throws Error {
@@ -185,7 +197,11 @@ void flow_write_graph(CheckedIndex checked, FlowGraph graph, Utf8ByteBuilder out
 		binding_write_span(checked.bindings, event.span, output);
 		source_append_text(output, "\n");
 		if (graph.complete && event.slot > 0) {
-			if (graph.obligation_count == 0) { source_append_text(output, "STATE"); } else { source_append_text(output, "PARTIAL_STATE"); }
+			if (graph.obligation_count == 0) {
+				source_append_text(output, "STATE");
+			} else {
+				source_append_text(output, "PARTIAL_STATE");
+			}
 			flow_number(output, graph.ordinal);
 			flow_number(output, i + 1);
 			flow_number(output, event.slot);
@@ -238,6 +254,20 @@ owned Utf8Message flow_observation(FlowIndex index) throws Error {
 		syntax_write_hex(output, text.text);
 		source_append_text(output, "\n");
 	} else {
+		int global = 1;
+		while (global < len(index.global_deferred)) {
+			if (index.global_deferred[global] != 0) {
+				source_append_text(output, "DEFER ");
+				source_append_text(output, flow_deferred_name(index.global_deferred[global]));
+				flow_number(output, index.global_deferred[global]);
+				source_append_text(output, " ");
+				var declaration = index.checked.bindings.symbol(type_symbol(global));
+				var span = index.checked.bindings.program.arena.header(declaration.node).span;
+				binding_write_span(index.checked.bindings, span, output);
+				source_append_text(output, "\n");
+			}
+			global = global + 1;
+		}
 		int origin = 1;
 		while (origin < len(index.class_origins)) {
 			if (index.class_origins[origin] != 0) {

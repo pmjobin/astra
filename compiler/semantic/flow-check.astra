@@ -7,7 +7,16 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 	if (graph.function.index <= 0 || graph.function.index > checked.bindings.symbol_count || graph.count > len(graph.events) || graph.slot_count < 0 || graph.slot_count > len(graph.slots) || graph.loan_count < 0 || graph.loan_count > len(graph.loans) || graph.region_count < 0 || graph.region_count > len(graph.regions) || graph.obligation_count < 0 || graph.obligation_count > len(graph.obligations)) {
 		return false;
 	}
-	if (graph.exhausted || graph.entry <= 0 || graph.entry > graph.count || graph.exit <= 0 || graph.exit > graph.count || graph.count > graph.limit) {
+	// Validate declaration/ordinal routing before any node-specific AST getter.
+	if (graph.ordinal <= 0 || graph.ordinal > checked.signature_count || checked.symbol_signatures[graph.function.index].index != graph.ordinal || len(class_origins) != checked.bindings.symbol_count + 1 || graph.limit < 1 || graph.limit > 8192) {
+		return false;
+	}
+	var function_declaration = checked.bindings.symbol(graph.function);
+	var declaration_kind = checked.bindings.program.arena.kind(function_declaration.node);
+	if ((function_declaration.kind != 1 && function_declaration.kind != 11 && function_declaration.kind != 12) || (declaration_kind != SyntaxKind.FunctionDeclarationSyntax() && declaration_kind != SyntaxKind.LifecycleDeclarationSyntax()) || checked.signatures[graph.ordinal - 1].declaration.index != graph.function.index) {
+		return false;
+	}
+	if (graph.exhausted || graph.entry <= 0 || graph.entry > graph.count || graph.exit <= 0 || graph.exit > graph.count || graph.normal_exit <= 0 || graph.normal_exit > graph.count || graph.count > graph.limit) {
 		return false;
 	}
 	int i = 0;
@@ -504,8 +513,41 @@ void flow_solve(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 }
 owned FlowIndex flow_index(owned CheckedIndex checked, int limit, int max_steps) throws Error {
 	var index = new FlowIndex(move checked);
+	if (limit < 1 || limit > 8192 || max_steps < 1 || max_steps > 1000000) {
+		index.capacity_ok = false;
+		return move index;
+	}
 	if (!index.capacity_ok || index.checked.failed() || !index.checked.validate()) {
 		return move index;
+	}
+	index.global_deferred = new int[index.checked.bindings.symbol_count + 1];
+	int global = 1;
+	while (global <= index.checked.bindings.symbol_count) {
+		var symbol = index.checked.bindings.symbol(type_symbol(global));
+		int reason = 0;
+		if (symbol.kind == 2 && !flow_constant_admitted(index.checked, type_symbol(global))) {
+			reason = 14;
+		}
+		if (symbol.kind == 3) {
+			reason = 3;
+		}
+		if (symbol.kind == 4 && !flow_simple_class(index.checked, index.checked.symbol_types[global])) {
+			reason = 7;
+		}
+		if (symbol.kind == 5) {
+			reason = 7;
+		}
+		if (symbol.kind == 16) {
+			reason = 6;
+		}
+		if ((symbol.kind == 1 || symbol.kind == 11 || symbol.kind == 12) && index.checked.symbol_signatures[global].index == 0) {
+			reason = 9;
+		}
+		index.global_deferred[global] = reason;
+		if (reason != 0) {
+			index.unmodeled = index.unmodeled + 1;
+		}
+		global = global + 1;
 	}
 	var origins = flow_class_origins(index.checked);
 	index.class_origins = move origins;
@@ -528,14 +570,6 @@ owned FlowIndex flow_index(owned CheckedIndex checked, int limit, int max_steps)
 		index.graphs.append(move graph);
 		i = i + 1;
 	}
-	i = 1;
-	while (i <= index.checked.bindings.symbol_count) {
-		var symbol = index.checked.bindings.symbol(type_symbol(i));
-		if ((symbol.kind == 1 || symbol.kind == 11) && index.checked.symbol_signatures[i].index == 0) {
-			index.unmodeled = index.unmodeled + 1;
-		}
-		i = i + 1;
-	}
 	index.complete = true;
 	return move index;
 }
@@ -544,7 +578,7 @@ owned FlowIndex flow_index(owned CheckedIndex checked, int limit, int max_steps)
 // this is a corruption check, not a separate verified IR pipeline.
 bool flow_source_matches(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins) throws Error {
 	var original = flow_graph(checked, class_origins, graph.function, graph.ordinal, graph.limit);
-	if (original.exhausted || original.entry != graph.entry || original.exit != graph.exit || original.count != graph.count || original.slot_count != graph.slot_count || original.region_count != graph.region_count || original.loan_count != graph.loan_count || original.obligation_count != graph.obligation_count) {
+	if (original.exhausted || original.entry != graph.entry || original.exit != graph.exit || original.normal_exit != graph.normal_exit || original.count != graph.count || original.slot_count != graph.slot_count || original.region_count != graph.region_count || original.loan_count != graph.loan_count || original.obligation_count != graph.obligation_count) {
 		return false;
 	}
 	int i = 0;

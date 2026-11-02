@@ -4,6 +4,9 @@ TypeId checked_context(CheckedIndex index, SyntaxNodeId node, int depth) throws 
 		return no_type();
 	}
 	var kind = index.bindings.program.arena.kind(node);
+	if (index.flow_adapters && (checked_flow_index_kind(kind) || kind == SyntaxKind.DereferenceExpressionSyntax() || kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.PrefixExpressionSyntax())) {
+		return checked_flow_context(index, node, depth);
+	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 		return checked_context(index, index.bindings.program.arena.get_node_expression(node), depth + 1);
 	}
@@ -177,7 +180,9 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 		if (checked_kind(index, receiver) == 31) {
 			var nominal = index.types.descriptor(index.types, receiver);
 			var declaration = index.bindings.symbol(nominal.nominal);
-			if (index.bindings.program.arena.kind(declaration.node) == SyntaxKind.ClassDeclarationSyntax() && index.bindings.program.arena.get_node_parent_class(declaration.node).index != 0) { return index.defer(node, 12); }
+			if (index.bindings.program.arena.kind(declaration.node) == SyntaxKind.ClassDeclarationSyntax() && index.bindings.program.arena.get_node_parent_class(declaration.node).index != 0) {
+				return index.defer(node, 12);
+			}
 		}
 		if (checked_nominal_kind(checked_kind(index, receiver))) {
 			index.fail(index.bindings.program.arena.token_span(field), "unknown field in exact nominal receiver");
@@ -189,7 +194,10 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	if (member.kind != 6) {
 		return index.defer(node, 12);
 	}
-	if (!checked_field_accessible(index, node, selected)) { index.fail(index.bindings.program.arena.token_span(field), "private field is accessible only from its declaring Class"); return no_type(); }
+	if (!checked_field_accessible(index, node, selected)) {
+		index.fail(index.bindings.program.arena.token_span(field), "private field is accessible only from its declaring Class");
+		return no_type();
+	}
 	checked_complete_member(index, node, field, selected);
 	return checked_substitute(index, index.symbol_types[selected.index], receiver, 0);
 }
@@ -218,7 +226,9 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 }
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
-	if (index.flow_adapters && checked_flow_admits(kind)) { return checked_flow_expression(index, node, expected, depth); }
+	if (index.flow_adapters && checked_flow_admits(kind)) {
+		return checked_flow_expression(index, node, expected, depth);
+	}
 	var span = index.bindings.program.arena.header(node).span;
 	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax()) {
 		return checked_integer_literal(index, node, span, expected, false);
@@ -296,7 +306,10 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var result = checked_call(index, node, depth + 1);
-		if (result.index == 14) { index.fail(span, "void callable cannot be used as a value"); return no_type(); }
+		if (result.index == 14) {
+			index.fail(span, "void callable cannot be used as a value");
+			return no_type();
+		}
 		return result;
 	}
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
@@ -462,7 +475,9 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 	return left;
 }
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
-	if (index.flow_adapters && checked_flow_intrinsic(index, node)) { return checked_flow_length(index, node, depth); }
+	if (index.flow_adapters && checked_flow_intrinsic(index, node)) {
+		return checked_flow_length(index, node, depth);
+	}
 	var token = index.bindings.program.arena.get_token_identifier(node);
 	var target = checked_target(index, node, token);
 	int i = index.node_references[node.index];
@@ -506,7 +521,8 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 			var param = index.bindings.program.arena.node_at(params, p);
 			if (index.bindings.program.arena.get_node_caller_information(param).index != 0 && p < required) {
 				required = p;
-			} p = p + 1;
+			}
+			p = p + 1;
 		}
 	}
 	if (count < required || count > signature.count - 1) {
@@ -522,13 +538,18 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 		var actual = checked_expression(index, child, parameter.type, depth + 1);
 		deferred = deferred || actual.index == 0;
 		int contract = checked_contract(index, child, parameter.flags);
-		if (contract != 0) { deferred = true; deferred_reason = contract; }
+		if (contract != 0) {
+			deferred = true;
+			deferred_reason = contract;
+		}
 		checked_mismatch(index, index.bindings.program.arena.header(child).span, parameter.type, actual, "argument");
 		i = i + 1;
 	}
 	if (deferred) {
 		var ignored = index.defer(node, deferred_reason);
-		if (!index.flow_adapters || deferred_reason != 19) { return no_type(); }
+		if (!index.flow_adapters || deferred_reason != 19) {
+			return no_type();
+		}
 	}
 	var result = index.types.argument(index.types, type, 0);
 	var use = index.uses[node.index];
@@ -539,26 +560,40 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 
 bool checked_payload_free_enum(CheckedIndex index, TypeId type) {
 	var row = index.types.descriptor(index.types, type);
-	if (row.kind != 32 && row.kind != 34) { return false; }
+	if (row.kind != 32 && row.kind != 34) {
+		return false;
+	}
 	var symbol = index.bindings.symbol(row.nominal);
-	if (symbol.kind != 5) { return false; }
+	if (symbol.kind != 5) {
+		return false;
+	}
 	var variants = index.bindings.program.arena.get_list_variants(symbol.node);
 	int i = 0;
 	while (i < index.bindings.program.arena.list_count(variants)) {
 		var variant = index.bindings.program.arena.node_at(variants, i);
-		if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(variant)) != 0) { return false; }
+		if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(variant)) != 0) {
+			return false;
+		}
 		i = i + 1;
 	}
 	return true;
 }
 bool checked_field_accessible(CheckedIndex index, SyntaxNodeId node, SymbolId field) {
 	var symbol = index.bindings.symbol(field);
-	if ((index.symbol_flags[field.index] & 256) == 0) { return true; }
+	if ((index.symbol_flags[field.index] & 256) == 0) {
+		return true;
+	}
 	var scope = index.bindings.scope_for_node(node);
-	if (scope.index == 0) { return false; }
+	if (scope.index == 0) {
+		return false;
+	}
 	var context = index.bindings.scope(scope);
-	if (context.owner.index == 0) { return false; }
-	if (context.owner.index == symbol.owner.index) { return true; }
+	if (context.owner.index == 0) {
+		return false;
+	}
+	if (context.owner.index == symbol.owner.index) {
+		return true;
+	}
 	var owner = index.bindings.symbol(context.owner);
 	return owner.owner.index == symbol.owner.index;
 }
@@ -567,11 +602,16 @@ bool checked_field_accessible(CheckedIndex index, SyntaxNodeId node, SymbolId fi
 // A missing flow proof stays named; an explicit null violation is reported in
 // the later contract phase, after ordinary type diagnostics, as C0 does.
 int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) throws Error {
-	if (expression.index == 0) { return 0; }
+	if (expression.index == 0) {
+		return 0;
+	}
 	if ((flags & 1) != 0 && (index.uses[expression.index].flags & 1) == 0) {
 		var inner = expression;
 		int depth = 0;
-		while (index.bindings.program.arena.kind(inner) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 256) { inner = index.bindings.program.arena.get_node_expression(inner); depth = depth + 1; }
+		while (index.bindings.program.arena.kind(inner) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 256) {
+			inner = index.bindings.program.arena.get_node_expression(inner);
+			depth = depth + 1;
+		}
 		if (index.bindings.program.arena.kind(inner) == SyntaxKind.NullPointerExpressionSyntax() && index.pending_contract_message == 0) {
 			index.pending_contract_message = index.bindings.names.intern("null cannot satisfy a nonnull destination");
 			index.pending_contract_span = index.bindings.program.arena.header(expression).span;
@@ -579,6 +619,9 @@ int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) thr
 		var ignored = index.defer(expression, 18);
 		return 18;
 	}
-	if ((flags & 6) != 0) { var ignored = index.defer(expression, 19); return 19; }
+	if ((flags & 6) != 0) {
+		var ignored = index.defer(expression, 19);
+		return 19;
+	}
 	return 0;
 }

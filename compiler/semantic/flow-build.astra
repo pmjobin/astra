@@ -21,6 +21,10 @@ bool flow_simple_class(CheckedIndex checked, TypeId type) {
 	if (checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0) {
 		return false;
 	}
+	var concurrency = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	if (concurrency.present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0 || checked.bindings.program.arena.get_bool_exact_heap_class(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0) {
+		return false;
+	}
 	var members = checked.bindings.program.arena.get_list_members(node);
 	int i = 0;
 	bool constructor = false;
@@ -30,6 +34,9 @@ bool flow_simple_class(CheckedIndex checked, TypeId type) {
 			return false;
 		}
 		var body = checked.bindings.program.arena.get_node_body(member);
+		if (checked.bindings.program.arena.get_node_foreign_member(member).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(member)) != 0 || checked.bindings.program.arena.get_bool_utf8_factory(member) || checked.bindings.program.arena.get_node_foreign_policy(member).index != 0 || checked.bindings.program.arena.get_token_extern_keyword(member).index != 0 || checked.bindings.program.arena.get_token_export_keyword(member).index != 0 || checked.bindings.program.arena.get_token_async_keyword(member).index != 0 || checked.bindings.program.arena.get_bool_is_signal(member) || checked.bindings.program.arena.get_int_dispatch(member) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(member)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(member)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(member)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(member)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(member)) != 0) {
+			return false;
+		}
 		if (!checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init") || body.index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_statements(body)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(member)) != 0 || checked.bindings.program.arena.get_node_throws_class(member).index != 0) {
 			return false;
 		}
@@ -55,6 +62,9 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	}
 	if (row.owner && code == 31 && (class_origins[symbol.index] & 12) != 0) {
 		graph.defer(declaration.node, 12);
+	}
+	if (parameter && code == 15) {
+		graph.defer(declaration.node, 17);
 	}
 	if (parameter && (flags & 2) != 0 && code == 20) {
 		graph.defer(declaration.node, 13);
@@ -113,6 +123,33 @@ SyntaxNodeId flow_unwrap(CheckedIndex checked, SyntaxNodeId node) {
 		depth = depth + 1;
 	}
 	return current;
+}
+// Constants outside this literal subset need their own evaluation/lifetime proof.
+bool flow_constant_admitted(CheckedIndex checked, SymbolId symbol) {
+	if (symbol.index <= 0 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 2) {
+		return false;
+	}
+	int code = checked_kind(checked, checked.symbol_types[symbol.index]);
+	if (!type_numeric(code) && code != 13 && code != 15) {
+		return false;
+	}
+	var declaration = checked.bindings.symbol(symbol);
+	var initializer = checked.bindings.program.arena.get_node_initializer(declaration.node);
+	var node = flow_unwrap(checked, initializer);
+	if (node.index == 0) {
+		return false;
+	}
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
+		var token = checked.bindings.program.arena.get_token_operator_token(node);
+		if (!checked.bindings.program.arena.token_is(token, "+") && !checked.bindings.program.arena.token_is(token, "-")) {
+			return false;
+		}
+		var operand = checked.bindings.program.arena.get_node_operand(node);
+		node = flow_unwrap(checked, operand);
+		kind = checked.bindings.program.arena.kind(node);
+	}
+	return kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax() || kind == SyntaxKind.TextLiteralExpressionSyntax();
 }
 int flow_origin(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId value) {
 	var node = flow_unwrap(checked, value);
@@ -269,10 +306,20 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		int slot = flow_symbol_slot(graph, checked, class_origins, node, token);
 		if (slot == 0) {
 			var symbol = checked_target(checked, node, token);
-			if (symbol.index == 0 || checked.bindings.symbol(symbol).kind != 2) {
-				graph.defer(node, 9);
+			if (kind != SyntaxKind.NameExpressionSyntax() || symbol.index == 0 || checked.bindings.symbol(symbol).kind != 2) {
+				graph.defer(node, 13);
+			} else {
+				if (!flow_constant_admitted(checked, symbol)) {
+					graph.defer(node, 14);
+				}
 			}
 			return next;
+		}
+		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
+			var source = checked.bindings.symbol(graph.slots[slot - 1].symbol);
+			if (source.kind != 8 || !type_numeric(checked_kind(checked, graph.slots[slot - 1].type))) {
+				graph.defer(node, 13);
+			}
 		}
 		if (kind == SyntaxKind.MoveExpressionSyntax() && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0) {
 			graph.defer(node, 6);
@@ -319,9 +366,9 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_operand(node), region, next, 0, depth + 1);
 	}
 	if (kind == SyntaxKind.ConversionExpressionSyntax()) {
-		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_expression(node), region, next, 0, depth + 1);
+		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_operand(node), region, next, 0, depth + 1);
 	}
-	if (kind == SyntaxKind.IndexExpressionSyntax()) {
+	if (checked_flow_index_kind(kind)) {
 		int tail = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_subscript(node), region, next, 0, depth + 1);
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_container(node), region, tail, 0, depth + 1);
 	}
@@ -345,6 +392,9 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	var destination = graph.slots[slot - 1];
 	var direct = flow_unwrap(checked, value);
 	var kind = checked.bindings.program.arena.kind(direct);
+	if (checked_kind(checked, destination.type) == 15 && kind != SyntaxKind.TextLiteralExpressionSyntax()) {
+		graph.defer(node, 17);
+	}
 	int operation = 15;
 	if (initializing) {
 		operation = 2;
@@ -355,6 +405,12 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	}
 	int tail = next;
 	int source = flow_origin(graph, checked, class_origins, direct);
+	if (!destination.owner && flow_borrow_type(checked, destination.type) && source == 0 && kind != SyntaxKind.NullPointerExpressionSyntax()) {
+		graph.defer(node, 4);
+	}
+	if (initializing && destination.owner && checked_kind(checked, destination.type) == 31 && checked.bindings.program.arena.kind(node) == SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.HeapObjectConstructionSyntax() && kind != SyntaxKind.MoveExpressionSyntax()) {
+		graph.defer(node, 15);
+	}
 	if (source > 0 && (graph.slots[source - 1].flags & 2) != 0 && checked_kind(checked, graph.slots[source - 1].type) == 16) {
 		graph.fail(8, checked.bindings.program.arena.header(direct).span);
 	}
@@ -512,6 +568,9 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_target(node), region, tail, 0, depth + 1);
 	}
 	if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
+		if (!flow_constant_admitted(checked, checked.node_symbols[node.index])) {
+			graph.defer(node, 14);
+		}
 		return next;
 	}
 	int reason = 100 + syntax_kind_code(kind);
@@ -520,6 +579,33 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 	}
 	graph.defer(node, reason);
 	return graph.add(flow_event(checked, node, 14, 0, region, next));
+}
+// Structural reachability is independent of value folding and ownership facts.
+bool flow_normal_reachable(borrowed FlowGraph graph) {
+	if (graph.exhausted || graph.entry <= 0 || graph.normal_exit <= 0) { return false; }
+	var seen = new bool[graph.count];
+	var pending = new int[graph.count];
+	int count = 1;
+	pending[0] = graph.entry;
+	seen[graph.entry - 1] = true;
+	while (count > 0) {
+		count = count - 1;
+		int block = pending[count];
+		if (block == graph.normal_exit) { return true; }
+		var event = graph.events[block - 1];
+		int edge = 0;
+		while (edge < 2) {
+			int target = event.next;
+			if (edge == 1) { target = event.other; }
+			if (target > 0 && target <= graph.count && !seen[target - 1]) {
+				seen[target - 1] = true;
+				pending[count] = target;
+				count = count + 1;
+			}
+			edge = edge + 1;
+		}
+	}
+	return false;
 }
 owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId function, int ordinal, int limit) throws Error {
 	var graph = new FlowGraph(function, ordinal, checked.bindings.symbol_count, checked.bindings.program.arena.node_count, limit);
@@ -536,6 +622,7 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 	flow_collect(graph, checked, class_origins, body, root, 0);
 	graph.exit = graph.add(flow_event(checked, symbol.node, 0, 0, 0, 0));
 	int leave = graph.add(flow_event(checked, symbol.node, 9, 0, root, graph.exit));
+	graph.normal_exit = leave;
 	graph.entry = flow_statement(graph, checked, class_origins, body, root, leave, 0, 0, root, 0);
 	i = graph.slot_count - 1;
 	while (i >= 0) {
@@ -552,6 +639,9 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 	if (symbol.kind == 12 && symbol.owner.index > 0 && flow_simple_class(checked, checked.symbol_types[symbol.owner.index])) {
 		admitted_function = true;
 	}
+	if (checked.bindings.program.arena.get_node_foreign_member(symbol.node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(symbol.node)) != 0 || checked.bindings.program.arena.get_bool_utf8_factory(symbol.node) || checked.bindings.program.arena.get_node_foreign_policy(symbol.node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(symbol.node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(symbol.node)) != 0) {
+		graph.defer(symbol.node, 6);
+	}
 	if (!admitted_function || (signature.flags & (8 | 16 | 32 | 64)) != 0 || signature.dispatch != 0) {
 		graph.defer(symbol.node, 6);
 	}
@@ -563,6 +653,9 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 	}
 	if (checked_kind(checked, result.type) == 31 && (result.flags & 4) != 0 && (class_origins[function.index] == 0 || (class_origins[function.index] & 12) != 0)) {
 		graph.defer(symbol.node, 12);
+	}
+	if (checked_kind(checked, result.type) != 14 && flow_normal_reachable(graph)) {
+		graph.defer(symbol.node, 16);
 	}
 	return move graph;
 }

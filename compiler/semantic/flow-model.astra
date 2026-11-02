@@ -70,6 +70,7 @@ class FlowGraph {
 	int obligation_count;
 	int entry;
 	int exit;
+	int normal_exit;
 	int limit;
 	int steps;
 	int error;
@@ -95,6 +96,7 @@ class FlowGraph {
 		this.obligation_count = 0;
 		this.entry = 0;
 		this.exit = 0;
+		this.normal_exit = 0;
 		this.limit = limit;
 		this.steps = 0;
 		this.error = 0;
@@ -242,6 +244,7 @@ class FlowIndex {
 	owned Bag<FlowGraph> graphs;
 	owned int[] proofs;
 	owned int[] class_origins;
+	owned int[] global_deferred;
 	bool origins_ok;
 	bool complete;
 	int unmodeled;
@@ -252,6 +255,7 @@ class FlowIndex {
 		this.graphs = move graphs;
 		this.proofs = new int[this.checked.bindings.program.arena.node_count + 1];
 		this.class_origins = new int[0];
+		this.global_deferred = new int[0];
 		this.origins_ok = true;
 		this.complete = false;
 		this.unmodeled = 0;
@@ -282,11 +286,17 @@ class FlowIndex {
 		if (!this.owns_block(origin, block) || !this.owns_slot(origin, slot) || block.function != slot.function) {
 			return -1;
 		}
+		if (this.unmodeled != 0) {
+			return -2;
+		}
 		return flow_owner_fact(this.graphs.entries[block.function - 1], block.index, slot.index);
 	}
 	int loan_at(borrowed FlowIndex origin, FlowBlockId block, FlowLoanId loan) {
 		if (!this.owns_block(origin, block) || !this.owns_loan(origin, loan) || block.function != loan.function) {
 			return -1;
+		}
+		if (this.unmodeled != 0) {
+			return -2;
 		}
 		return flow_loan_fact(this.graphs.entries[block.function - 1], block.index, loan.index);
 	}
@@ -339,14 +349,18 @@ bool flow_slot_owner(borrowed FlowGraph graph, int index) {
 	return graph.slots[index - 1].owner;
 }
 int flow_owner_fact(borrowed FlowGraph graph, int block, int slot) {
-	if (graph.obligation_count != 0) { return -2; }
+	if (graph.obligation_count != 0) {
+		return -2;
+	}
 	if (!graph.complete || !graph.reachable[block - 1]) {
 		return 0;
 	}
 	return graph.facts[(block - 1) * graph.slot_count + slot - 1];
 }
 int flow_loan_fact(borrowed FlowGraph graph, int block, int loan) {
-	if (graph.obligation_count != 0) { return -2; }
+	if (graph.obligation_count != 0) {
+		return -2;
+	}
 	if (!graph.complete || !graph.reachable[block - 1]) {
 		return 0;
 	}

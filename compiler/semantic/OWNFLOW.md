@@ -9,11 +9,11 @@ observations. Only full checking supplies the C0 ownership oracle.
 
 | Family | Supported domain | Remaining authority |
 |---|---|---|
-| Owners | numeric/bool owned buffers; exact native nongeneric Classes with empty zero-argument init and admitted producers | Resource import/cleanup metadata, generic owners, records, enums, shared/weak and owner slots |
+| Owners | numeric/bool owned buffers; unannotated native nongeneric Classes with empty zero-argument init and admitted producers | Resource import/cleanup metadata, generic owners, records, enums, shared/weak and owner slots |
 | Producers | numeric/bool buffer allocation without allocation context or failure callback; direct nonthrowing owned result; default-heap simple Class construction and source-derived Class result/parameter origins | allocator contexts, fallible construction, aggregate completeness (20), arbitrary Class lifecycle/effects |
 | Operations | initialize, read, local move, owned return/argument, release, buffer replacement/rearm, automatic scope exit | Class rebind (C0 rejects), Resource rearm/foreign cleanup, projected fields, buffer exchange |
 | Flow | free functions, blocks, if/else, while/for, return, break/continue; structural zero-or-more loop fixpoint; ordered calls and short circuit | exceptions/reservation abort, async, callbacks, virtual/member effects, generic specialization |
-| Loans | exact scalar typed-pointer addresses, pointer/object-reference local copies, null, raw borrowed noescape forwarding, direct borrowed call arguments | persistent borrow of owned buffer/Class (C0 rejects); projected owner fields, general returned borrow contracts, explicit borrowed POD-pointer admission (BORROW_CHANNEL_POLICY) |
+| Loans | exact numeric local typed-pointer addresses (not parameter/constant/bool addresses), pointer/object-reference local copies, null, raw borrowed noescape forwarding, direct borrowed call arguments | persistent borrow of owned buffer/Class (C0 rejects); projected owner fields, general returned borrow contracts, explicit borrowed POD-pointer admission (BORROW_CHANNEL_POLICY) |
 | Provenance | local reads summarize at that exact local's region; source and backing are separate identities; call loans last through all arguments and commit | arbitrary aliasing receiver mutation, deep text, foreign capture, thread synchronization |
 | Other proof boundaries | original TypeId/SignatureId and Binder edges retained | reason 18 nonnull facts and reason 20 aggregate completion remain separate |
 
@@ -68,3 +68,38 @@ Limits are 8,192 functions, 262,144 symbols, 8,192 rows per function, 2,000,000
 fact cells, 192 flow nesting levels, 1,000,000 event steps per solve and 8,000,000
 Class-origin visits. Exhaustion emits FLOW_RESOURCE_EXHAUSTED and no proof.
 The source/runtime receipts retain earlier failed fixture/implementation attempts.
+
+Admission also checks declaration metadata and the source of constants. Literal
+numeric/bool/text constants are admitted; effectful or composite constant
+expressions retain CONSTANT_VALUE_POLICY. General struct/enum/Class policies,
+missing checked signatures, foreign/concurrency/allocator metadata and lifecycle
+effects retain source-located global deferrals. Text parameters/copies need
+TEXT_LIFETIME_POLICY. A nonvoid function with a structurally reachable normal
+fallthrough retains RETURN_COMPLETENESS, including constant-condition cases;
+this does not assert C0's complete return analysis. Explicit owned Class locals
+admit heap construction and moves; other initialization stays CLASS_LOCAL_POLICY.
+
+Graph facts and per-use proof overlays are scoped to that function. Any remaining
+global admission obligation prevents whole-program status 0 and public owner/loan
+query proof. Original nonnull and aggregate obligations are never discharged.
+The default Typecore consumer still reports its historical reason-19 deferrals.
+
+Reproduce the focused qualification with explicit external paths:
+
+```sh
+python3 -B tests/selfhost-ownflow/freeze.py --compiler C0 --runtime RUNTIME/frozen
+python3 -B tests/selfhost-ownflow/run.py --compiler C0 --build BUILD/products --runtime RUNTIME/runs --baseline RUNTIME/frozen
+python3 -B tests/selfhost-ownflow/reference.py --compiler C0 --build BUILD/reference --runtime RUNTIME/reference --baseline RUNTIME/frozen
+python3 -B tests/selfhost-ownflow/workloads.py --compiler C0 --build BUILD/products --runtime RUNTIME/workloads
+```
+
+The Meson `selfhost-ownflow` test and `ownflow-component-check` target create a
+fresh frozen corpus when no baseline is supplied. Compilation products are reused
+only with identical compiler, dependency/tool, source, flag and environment
+identities. Every test command executes again, including memory qualification.
+
+Before source reconstruction, graph verification checks the function declaration,
+its exact checked-signature ordinal, model bounds and origin-table extent.
+Mutating a declaration into a nonfunction or forging its function ordinal rejects
+without invoking an AST accessor for the wrong node kind. FlowIndex construction
+also rejects caller-supplied bounds outside the published limits, without clamping.

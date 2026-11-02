@@ -145,7 +145,7 @@
     "17": "intrinsic/member/generic call requires additional checked-call authority",
     "100+SyntaxKind": "specific unsupported expression/statement and its dependent subtree; original kind retained in every U row",
     "18": "nonnull destination needs a control-flow proof; declared qualifier retained",
-    "19": "explicit owned/borrowed channel needs the later transfer/loan proof",
+    "19": "explicit owned/borrowed channel: original CheckedIndex obligation retained; FlowIndex overlays only individual uses belonging to a validated, fully admitted, error-free ownership graph",
     "20": "contextual aggregate fields checked; full construction/completeness/storage proof remains pending"
   },
   "binder_seam": {
@@ -158,5 +158,36 @@
     "6": "slot construction/lifetime remains deferred",
     "7": "known inferred Fn/Callback local selected over competing module callable"
   },
-  "historical_status": "Binder-4 remains accepted at its original revision. This ledger describes candidate scope; only current executed receipts establish qualification. No Stage 1 or full semantic compiler claim."
+  "historical_status": "Binder-4 remains accepted at its original revision. This ledger describes candidate scope; only current executed receipts establish qualification. No Stage 1 or full semantic compiler claim.",
+  "ownership_flow": {
+    "contract": "compiler/semantic/OWNFLOW.md",
+    "implementation": [
+      "flow-model.astra",
+      "flow-checked.astra",
+      "flow-build.astra",
+      "flow-origins.astra",
+      "flow-check.astra",
+      "flow-query.astra"
+    ],
+    "consumer": "tests/selfhost-ownflow/query.astra",
+    "admission": "numeric/bool buffers, default unannotated empty native Classes, numeric local pointers and conservative lexical loans; direct nonthrowing free functions and structural loop fixpoints",
+    "boundary": "opt-in checked-use adapters preserve default Typecore observations, exact source/Binder/type identities and original obligations; reasons 18 and 20 are never discharged",
+    "deferred": [
+      "foreign effects",
+      "generic owners",
+      "nonnull_18",
+      "aggregate_20",
+      "returned borrow contracts",
+      "fallible calls/reservation abort",
+      "async/member/receiver effects",
+      "Resource cleanup policy",
+      "Class lexical/unknown origins",
+      "signed/constant buffer-count policy",
+      "explicit borrowed POD pointer policy",
+      "nonliteral constant evaluation",
+      "text lifetime",
+      "structural nonvoid fallthrough"
+    ],
+    "observation": "astra-flow/1; source spans, owner/loan-at with exact originating FlowIndex; partial states are not proofs"
+  }
 }

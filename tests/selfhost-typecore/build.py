@@ -18,23 +18,35 @@ def sha(path):
 	return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def build(compiler, directory, capture, modes=('O0', 'O2')):
+def build(compiler, directory, capture, modes=('O0', 'O2'), consumer=None, with_flow=False):
 	directory.mkdir(parents=True, exist_ok=True)
 	paths = {compiler}
-	for tool in ('gcc', 'ld', 'as', 'pkg-config', 'llvm-config'):
-		paths.add(Path(shutil.which(tool)).resolve())
+	for tool in ('gcc', 'cc', 'ld', 'as', 'pkg-config', 'llvm-config'):
+		executable = Path(shutil.which(tool)).resolve()
+		paths.add(executable)
+		if executable.name == 'ccache':
+			# CCACHE_DISABLE still executes the underlying compiler from PATH.
+			assert not os.environ.get('CCACHE_COMPILER') and not os.environ.get('CCACHE_PATH'), 'explicit ccache compiler/path needs a separate tool identity'
+			candidates = [Path(entry) / tool for entry in os.get_exec_path()]
+			underlying = next(path.resolve() for path in candidates if path.is_file() and os.access(path, os.X_OK) and path.resolve().name != 'ccache')
+			paths.add(underlying)
+	for program in ('cc1', 'collect2'):
+		path = Path(subprocess.check_output([shutil.which('gcc'), '-print-prog-name=' + program], text=True).strip()).resolve(strict=True)
+		paths.add(path)
 	for exe in list(paths):
 		out = subprocess.run(['ldd', exe], capture_output=True, text=True).stdout
 		for word in out.split():
-			if word.startswith('/') and Path(word).is_file(): paths.add(Path(word).resolve())
+			if word.startswith('/') and Path(word).is_file():
+				paths.add(Path(word).resolve())
 	gcc = shutil.which('gcc')
 	for name in ('crt1.o', 'crti.o', 'crtn.o', 'crtbegin.o', 'crtend.o', 'libgcc.a', 'libgcc_s.so'):
 		path = Path(subprocess.check_output([gcc, '-print-file-name=' + name], text=True).strip())
-		if path.is_file(): paths.add(path.resolve())
+		if path.is_file():
+			paths.add(path.resolve())
 	tools = {str(p): sha(p) for p in sorted(paths)}
 	products = {}
 	def product(argv, target, sources, name):
-		identity = dict(argv=list(map(str, argv)), sources={str(p): sha(p) for p in sources}, tools=tools)
+		identity = dict(argv=list(map(str, argv)), sources={str(p): sha(p) for p in sources}, tools=tools, environment={k: os.environ.get(k) for k in ('CC', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS', 'PATH', 'LIBRARY_PATH', 'CPATH', 'C_INCLUDE_PATH', 'LD_LIBRARY_PATH', 'LC_ALL', 'LANG')}, CCACHE_DISABLE='1')
 		cache = target.with_suffix('.identity.json')
 		previous = json.loads(cache.read_text()) if cache.exists() else None
 		if target.exists() and previous and previous['identity'] == identity and previous['sha256'] == sha(target):
@@ -52,10 +64,10 @@ def build(compiler, directory, capture, modes=('O0', 'O2')):
 		target = directory / (name + '.o')
 		product([gcc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', source, '-o', target], target, [Path(p) for p in deps], name)
 		objects += ['--link-object', target]
-	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *sorted((ROOT / 'compiler/semantic').glob('*.astra')), ROOT / 'tests/selfhost-typecore/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
+	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *[p for p in sorted((ROOT / 'compiler/semantic').glob('*.astra')) if with_flow or not p.name.startswith('flow-') or p.name == 'flow-checked.astra'], consumer or ROOT / 'tests/selfhost-typecore/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
 	for mode in modes:
-		target = directory / ('astra-types-' + mode)
-		product([compiler, '-' + mode, *sources, *objects, '-o', target], target, [*sources, *objects[1::2]], 'typecore-' + mode)
+		target = directory / (('astra-flow-' if with_flow else 'astra-types-') + mode)
+		product([compiler, '-' + mode, *sources, *objects, '-o', target], target, [*sources, *objects[1::2]], ('ownflow-' if with_flow else 'typecore-') + mode)
 	return products
 
 

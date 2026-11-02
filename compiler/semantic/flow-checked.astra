@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // General checked-use adapters, enabled only by the ownership consumer.
 // Types/qualifiers are evidence, never an ownership/constructor safety proof.
+bool checked_flow_index_kind(SyntaxKind kind) {
+	return kind == SyntaxKind.IndexExpressionSyntax() || kind == SyntaxKind.VectorExtractExpressionSyntax();
+}
 bool checked_flow_admits(SyntaxKind kind) {
-	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.IndexExpressionSyntax() || kind == SyntaxKind.DereferenceExpressionSyntax();
+	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || checked_flow_index_kind(kind) || kind == SyntaxKind.DereferenceExpressionSyntax();
 }
 bool checked_flow_intrinsic(CheckedIndex index, SyntaxNodeId node) {
 	return index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "len") && checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0;
@@ -63,17 +66,20 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		index.uses[node.index] = use;
 		return type;
 	}
-	var operand = index.bindings.program.arena.get_node_pointer(node);
-	if (kind == SyntaxKind.IndexExpressionSyntax()) {
+	SyntaxNodeId operand = {
+		index = 0};
+	if (checked_flow_index_kind(kind)) {
 		operand = index.bindings.program.arena.get_node_container(node);
+	} else {
+		operand = index.bindings.program.arena.get_node_pointer(node);
 	}
 	var type = checked_expression(index, operand, no_type(), depth + 1);
-	if (kind == SyntaxKind.IndexExpressionSyntax()) {
+	if (checked_flow_index_kind(kind)) {
 		var subscript = index.bindings.program.arena.get_node_subscript(node);
 		var ignored = checked_expression(index, subscript, type_id(1), depth + 1);
 	}
 	int code = checked_kind(index, type);
-	if ((kind == SyntaxKind.DereferenceExpressionSyntax() && code == 20) || (kind == SyntaxKind.IndexExpressionSyntax() && (code == 21 || code == 22))) {
+	if ((kind == SyntaxKind.DereferenceExpressionSyntax() && code == 20) || (checked_flow_index_kind(kind) && (code == 21 || code == 22))) {
 		return index.types.argument(index.types, type, 0).type;
 	}
 	return index.defer(node, 15);
@@ -112,4 +118,39 @@ bool checked_flow_statement(CheckedIndex index, SyntaxNodeId node, int depth) th
 	checked_mismatch(index, index.bindings.program.arena.header(value).span, expected, actual, "store");
 	var ignored = index.record(node, expected, 0);
 	return true;
+}
+
+// Result context may search value operators, but never comparisons or call arguments.
+TypeId checked_flow_context(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var kind = index.bindings.program.arena.kind(node);
+	if (checked_flow_index_kind(kind) || kind == SyntaxKind.DereferenceExpressionSyntax()) {
+		SyntaxNodeId source = {
+			index = 0};
+		if (checked_flow_index_kind(kind)) {
+			source = index.bindings.program.arena.get_node_container(node);
+		} else {
+			source = index.bindings.program.arena.get_node_pointer(node);
+		}
+		var type = checked_context(index, source, depth + 1);
+		int code = checked_kind(index, type);
+		if (code == 20 || code == 21 || code == 22) {
+			return index.types.argument(index.types, type, 0).type;
+		}
+		return no_type();
+	}
+	var token = index.bindings.program.arena.get_token_operator_token(node);
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
+		if (index.bindings.program.arena.token_is(token, "!")) {
+			return no_type();
+		}
+		return checked_context(index, index.bindings.program.arena.get_node_operand(node), depth + 1);
+	}
+	if (index.bindings.program.arena.token_is(token, "==") || index.bindings.program.arena.token_is(token, "!=") || index.bindings.program.arena.token_is(token, "<") || index.bindings.program.arena.token_is(token, "<=") || index.bindings.program.arena.token_is(token, ">") || index.bindings.program.arena.token_is(token, ">=")) {
+		return no_type();
+	}
+	var left = checked_context(index, index.bindings.program.arena.get_node_left(node), depth + 1);
+	if (left.index != 0 || index.bindings.program.arena.token_is(token, "<<") || index.bindings.program.arena.token_is(token, ">>")) {
+		return left;
+	}
+	return checked_context(index, index.bindings.program.arena.get_node_right(node), depth + 1);
 }
