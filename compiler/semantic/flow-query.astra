@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+string flow_error_name(int code) {
+	if (code == 1) {
+		return "MOVED_READ";
+	}
+	if (code == 2) {
+		return "MAYBE_MOVED_READ";
+	}
+	if (code == 3) {
+		return "RELEASED_READ";
+	}
+	if (code == 4) {
+		return "DOUBLE_RELEASE";
+	}
+	if (code == 5) {
+		return "INVALID_TRANSFER";
+	}
+	if (code == 6) {
+		return "DEAD_SLOT";
+	}
+	if (code == 7) {
+		return "UNINITIALIZED_SLOT";
+	}
+	if (code == 8) {
+		return "BORROW_ESCAPE";
+	}
+	if (code == 9) {
+		return "INVALIDATES_ACTIVE_BORROW";
+	}
+	if (code == 10) {
+		return "BAD_OWNER_ID";
+	}
+	if (code == 11) {
+		return "FLOW_RESOURCE_EXHAUSTED";
+	}
+	if (code == 12) {
+		return "INVALID_REARM";
+	}
+	return "BAD_GRAPH";
+}
+string flow_deferred_name(int code) {
+	if (code == 1) {
+		return "FOREIGN_CALL";
+	}
+	if (code == 2) {
+		return "NONNULL_18";
+	}
+	if (code == 3) {
+		return "AGGREGATE_20";
+	}
+	if (code == 4) {
+		return "RESULT_LIFETIME";
+	}
+	if (code == 5) {
+		return "GENERIC_POLICY";
+	}
+	if (code == 6) {
+		return "UNSUPPORTED_EFFECT";
+	}
+	if (code == 7) {
+		return "TYPE_POLICY";
+	}
+	if (code == 8) {
+		return "CONSTRUCTION_POLICY";
+	}
+	if (code == 9) {
+		return "DEPENDENT_CHECKED_USE";
+	}
+	if (code == 10) {
+		return "CLASS_RELEASE_ORIGIN";
+	}
+	if (code == 11) {
+		return "BUFFER_COUNT_POLICY";
+	}
+	if (code == 12) {
+		return "CLASS_ORIGIN_POLICY";
+	}
+	if (code == 13) {
+		return "BORROW_CHANNEL_POLICY";
+	}
+	return "SYNTAX_FAMILY";
+}
+void flow_number(Utf8ByteBuilder output, int value) throws Error {
+	source_append_text(output, " ");
+	append_int(output, value);
+}
+int flow_status(FlowIndex index) {
+	if (index.checked.failed()) {
+		return 1;
+	}
+	if (!index.complete) {
+		return 2;
+	}
+	int status = 0;
+	if (index.unmodeled != 0) {
+		status = 3;
+	}
+	int i = 0;
+	while (i < index.graphs.count()) {
+		if (flow_graph_error(index.graphs.entries[i]) != 0) {
+			return 1;
+		}
+		if (flow_graph_obligation_count(index.graphs.entries[i]) != 0) {
+			status = 3;
+		}
+		if (!flow_graph_complete(index.graphs.entries[i])) {
+			return 2;
+		}
+		i = i + 1;
+	}
+	return status;
+}
+void flow_write_graph(CheckedIndex checked, FlowGraph graph, Utf8ByteBuilder output) throws Error {
+	source_append_text(output, "G");
+	flow_number(output, graph.ordinal);
+	flow_number(output, graph.function.index);
+	flow_number(output, graph.count);
+	flow_number(output, graph.slot_count);
+	flow_number(output, graph.loan_count);
+	flow_number(output, graph.obligation_count);
+	flow_number(output, graph.steps);
+	source_append_text(output, "\n");
+	if (graph.error != 0) {
+		source_append_text(output, "ERROR ");
+		source_append_text(output, flow_error_name(graph.error));
+		source_append_text(output, " ");
+		binding_write_span(checked.bindings, graph.error_span, output);
+		source_append_text(output, "\n");
+	}
+	int i = 0;
+	while (i < graph.obligation_count) {
+		var obligation = graph.obligations[i];
+		source_append_text(output, "DEFER ");
+		source_append_text(output, flow_deferred_name(obligation.reason));
+		flow_number(output, obligation.reason);
+		source_append_text(output, " ");
+		binding_write_span(checked.bindings, checked.bindings.program.arena.header(obligation.node).span, output);
+		source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.slot_count) {
+		var slot = graph.slots[i];
+		var symbol = checked.bindings.symbol(slot.symbol);
+		source_append_text(output, "S");
+		flow_number(output, graph.ordinal);
+		flow_number(output, i + 1);
+		flow_number(output, slot.symbol.index);
+		flow_number(output, slot.region);
+		flow_number(output, slot.type.index);
+		flow_number(output, slot.flags);
+		source_append_text(output, " ");
+		binding_write_span(checked.bindings, symbol.span, output);
+		source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.loan_count) {
+		var loan = graph.loans[i];
+		source_append_text(output, "L");
+		flow_number(output, graph.ordinal);
+		flow_number(output, i + 1);
+		flow_number(output, loan.source);
+		flow_number(output, loan.borrower);
+		flow_number(output, loan.region);
+		flow_number(output, loan.call.index);
+		source_append_text(output, " ");
+		binding_write_span(checked.bindings, checked.bindings.program.arena.header(loan.node).span, output);
+		source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.count) {
+		var event = graph.events[i];
+		source_append_text(output, "E");
+		flow_number(output, graph.ordinal);
+		flow_number(output, i + 1);
+		flow_number(output, event.operation);
+		flow_number(output, event.slot);
+		flow_number(output, event.next);
+		flow_number(output, event.other);
+		flow_number(output, event.region);
+		flow_number(output, event.call);
+		source_append_text(output, " ");
+		binding_write_span(checked.bindings, event.span, output);
+		source_append_text(output, "\n");
+		if (graph.complete && event.slot > 0) {
+			if (graph.obligation_count == 0) { source_append_text(output, "STATE"); } else { source_append_text(output, "PARTIAL_STATE"); }
+			flow_number(output, graph.ordinal);
+			flow_number(output, i + 1);
+			flow_number(output, event.slot);
+			int fact = 0;
+			if (graph.reachable[i]) {
+				fact = graph.facts[i * graph.slot_count + event.slot - 1];
+			}
+			flow_number(output, fact);
+			flow_number(output, graph.reservations[i * graph.slot_count + event.slot - 1]);
+			source_append_text(output, "\n");
+		}
+		if (graph.complete) {
+			int l = 0;
+			while (l < graph.loan_count) {
+				if (graph.reachable[i] && graph.active[i * graph.loan_count + l]) {
+					source_append_text(output, "ACTIVE");
+					flow_number(output, graph.ordinal);
+					flow_number(output, i + 1);
+					flow_number(output, l + 1);
+					source_append_text(output, "\n");
+				}
+				l = l + 1;
+			}
+		}
+		i = i + 1;
+	}
+}
+owned Utf8Message flow_observation(FlowIndex index) throws Error {
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "astra-flow/1\nSTATUS");
+	flow_number(output, flow_status(index));
+	flow_number(output, index.unmodeled);
+	source_append_text(output, "\n");
+	if (!index.capacity_ok || !index.origins_ok) {
+		source_append_text(output, "ERROR FLOW_RESOURCE_EXHAUSTED ");
+		binding_write_span(index.checked.bindings, index.checked.bindings.program.span(), output);
+		source_append_text(output, "\n");
+	}
+	if (index.checked.failed()) {
+		source_append_text(output, "CHECKED_ERROR ");
+		var span = index.checked.error_span;
+		int message = index.checked.error_message;
+		if (message == 0) {
+			span = index.checked.bindings.error_span;
+			message = index.checked.bindings.error_message;
+		}
+		binding_write_span(index.checked.bindings, span, output);
+		source_append_text(output, " ");
+		var text = index.checked.bindings.names.text(message);
+		syntax_write_hex(output, text.text);
+		source_append_text(output, "\n");
+	} else {
+		int origin = 1;
+		while (origin < len(index.class_origins)) {
+			if (index.class_origins[origin] != 0) {
+				source_append_text(output, "ORIGIN");
+				flow_number(output, origin);
+				flow_number(output, index.class_origins[origin]);
+				source_append_text(output, "\n");
+			}
+			origin = origin + 1;
+		}
+		int i = 0;
+		while (i < index.graphs.count()) {
+			if (!flow_write_graph_observation(index.checked, index.graphs.entries[i], output)) {
+				throw new Error("ownership observation allocation failed");
+			}
+			i = i + 1;
+		}
+		i = 1;
+		while (i < len(index.checked.uses)) {
+			var use = index.checked.uses[i];
+			if (use.deferred == 19 || use.deferred == 18 || use.deferred == 20) {
+				source_append_text(output, "PROOF");
+				flow_number(output, i);
+				flow_number(output, use.deferred);
+				flow_number(output, index.proofs[i]);
+				source_append_text(output, " ");
+				binding_write_span(index.checked.bindings, use.span, output);
+				source_append_text(output, "\n");
+			}
+			i = i + 1;
+		}
+	}
+	return output.snapshot();
+}
+
+// Slot inspection is synchronous/nonthrowing; observation allocation failures
+// cross the boundary as an explicit failure, never as a safety observation.
+bool flow_write_graph_observation(CheckedIndex checked, borrowed FlowGraph graph, Utf8ByteBuilder output) {
+	try {
+		flow_write_graph(checked, graph, output);
+		return true;
+	} catch (Error error) {
+		return false;
+	}
+}

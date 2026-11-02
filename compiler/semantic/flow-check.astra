@@ -1,0 +1,592 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Verification reads the original syntax/binding/type owners, not emitted text.
+bool flow_equal_span(SyntaxSpan first, SyntaxSpan second) {
+	return first.source.index == second.source.index && first.start == second.start && first.end == second.end;
+}
+bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins) {
+	if (graph.function.index <= 0 || graph.function.index > checked.bindings.symbol_count || graph.count > len(graph.events) || graph.slot_count < 0 || graph.slot_count > len(graph.slots) || graph.loan_count < 0 || graph.loan_count > len(graph.loans) || graph.region_count < 0 || graph.region_count > len(graph.regions) || graph.obligation_count < 0 || graph.obligation_count > len(graph.obligations)) {
+		return false;
+	}
+	if (graph.exhausted || graph.entry <= 0 || graph.entry > graph.count || graph.exit <= 0 || graph.exit > graph.count || graph.count > graph.limit) {
+		return false;
+	}
+	int i = 0;
+	while (i < graph.region_count) {
+		var region = graph.regions[i];
+		if (region.parent < 0 || region.parent > i || (i > 0 && region.parent == 0)) {
+			return false;
+		}
+		if (region.node.index <= 0 || region.node.index > checked.bindings.program.arena.node_count) {
+			return false;
+		}
+		var kind = checked.bindings.program.arena.kind(region.node);
+		if (kind != SyntaxKind.BlockStatementSyntax() && kind != SyntaxKind.ForStatementSyntax() && kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) {
+			return false;
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.slot_count) {
+		var slot = graph.slots[i];
+		if (slot.symbol.index <= 0 || slot.symbol.index > checked.bindings.symbol_count || slot.region <= 0 || slot.region > graph.region_count) {
+			return false;
+		}
+		var declaration = checked.bindings.symbol(slot.symbol);
+		if (slot.type.index != checked.symbol_types[slot.symbol.index].index || slot.flags != checked.symbol_flags[slot.symbol.index] || declaration.owner.index != graph.function.index || (declaration.kind != 7 && declaration.kind != 8)) {
+			return false;
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.loan_count) {
+		var loan = graph.loans[i];
+		if (loan.source < 0 || loan.source > graph.slot_count || loan.borrower < 0 || loan.borrower > graph.slot_count || loan.region <= 0 || loan.region > graph.region_count || loan.node.index <= 0 || loan.node.index > checked.bindings.program.arena.node_count) {
+			return false;
+		}
+		if (loan.source != flow_origin(graph, checked, class_origins, loan.node)) {
+			return false;
+		}
+		if (loan.borrower != 0) {
+			if (loan.call.index != 0 || graph.slots[loan.borrower - 1].region != loan.region) {
+				return false;
+			}
+		} else {
+			if (loan.call.index <= 0 || loan.call.index > checked.bindings.program.arena.node_count || checked.bindings.program.arena.kind(loan.call) != SyntaxKind.CallExpressionSyntax()) {
+				return false;
+			}
+			var args = checked.bindings.program.arena.get_list_arguments(loan.call);
+			int a = 0;
+			bool exact = false;
+			while (a < checked.bindings.program.arena.list_count(args)) {
+				var argument = flow_unwrap(checked, checked.bindings.program.arena.node_at(args, a));
+				if (argument.index == loan.node.index) {
+					exact = true;
+				}
+				a = a + 1;
+			}
+			if (!exact) {
+				return false;
+			}
+			bool committed = false;
+			a = 0;
+			while (a < graph.count) {
+				var row = graph.events[a];
+				if (row.operation == 8 && row.node.index == loan.call.index && row.call == loan.call.index) {
+					committed = true;
+				}
+				a = a + 1;
+			}
+			if (!committed) {
+				return false;
+			}
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.count) {
+		var event = graph.events[i];
+		if (event.node.index <= 0 || event.node.index > checked.bindings.program.arena.node_count || !flow_equal_span(event.span, checked.bindings.program.arena.header(event.node).span) || event.operation < 0 || event.operation > 17) {
+			return false;
+		}
+		if (event.slot < 0 || event.slot > graph.slot_count || event.region < 0 || event.region > graph.region_count) {
+			return false;
+		}
+		if (event.operation == 0) {
+			if (event.next != 0 || event.other != 0 || i + 1 != graph.exit) {
+				return false;
+			}
+		} else {
+			if (event.next <= 0 || event.next > graph.count) {
+				return false;
+			}
+			if (event.operation == 10) {
+				if (event.other <= 0 || event.other > graph.count) {
+					return false;
+				}
+			} else {
+				if (event.other != 0) {
+					return false;
+				}
+			}
+		}
+		var kind = checked.bindings.program.arena.kind(event.node);
+		if (event.operation == 3 || event.operation == 4 || event.operation == 13 || event.operation == 5 || event.operation == 6 || event.operation == 15 || event.operation == 2) {
+			SymbolId symbol = type_symbol(0);
+			if (event.operation == 3) {
+				if (kind != SyntaxKind.NameExpressionSyntax() && kind != SyntaxKind.AddressOfExpressionSyntax()) {
+					return false;
+				}
+				symbol = checked_target(checked, event.node, checked.bindings.program.arena.get_token_identifier(event.node));
+			}
+			if (event.operation == 4 || event.operation == 13) {
+				if (kind != SyntaxKind.MoveExpressionSyntax()) {
+					return false;
+				}
+				symbol = checked_target(checked, event.node, checked.bindings.program.arena.get_token_source(event.node));
+				if (event.operation == 13 && (event.call <= 0 || event.call > checked.bindings.program.arena.node_count || checked.bindings.program.arena.kind(flow_node(event.call)) != SyntaxKind.CallExpressionSyntax())) {
+					return false;
+				}
+			}
+			if (event.operation == 5) {
+				if (kind != SyntaxKind.ReleaseStatementSyntax()) {
+					return false;
+				}
+				symbol = checked_target(checked, event.node, checked.bindings.program.arena.get_token_owner(event.node));
+			}
+			if (event.operation == 6 || event.operation == 15) {
+				if (kind != SyntaxKind.AssignmentStatementSyntax()) {
+					return false;
+				}
+				symbol = checked_target(checked, event.node, checked.bindings.program.arena.get_token_name(event.node));
+			}
+			if (event.operation == 2) {
+				symbol = checked.node_symbols[event.node.index];
+			}
+			if (event.slot == 0 || graph.slots[event.slot - 1].symbol.index != symbol.index) {
+				return false;
+			}
+		}
+		if (event.operation == 7) {
+			if (event.loan <= 0 || event.loan > graph.loan_count) {
+				return false;
+			}
+			var loan = graph.loans[event.loan - 1];
+			if (loan.source != event.slot || loan.node.index != event.node.index || loan.call.index != event.call) {
+				return false;
+			}
+		}
+		if (event.operation == 8 && (kind != SyntaxKind.CallExpressionSyntax() || event.call != event.node.index)) {
+			return false;
+		}
+		if (event.operation == 9 || event.operation == 17) {
+			if (kind != SyntaxKind.BlockStatementSyntax() && kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax() && kind != SyntaxKind.ForStatementSyntax() && kind != SyntaxKind.ReturnStatementSyntax() && kind != SyntaxKind.BreakStatementSyntax() && kind != SyntaxKind.ContinueStatementSyntax()) {
+				return false;
+			}
+			if (event.region == 0) {
+				return false;
+			}
+		}
+		if (event.operation == 11) {
+			if ((kind != SyntaxKind.WhileStatementSyntax() && kind != SyntaxKind.ForStatementSyntax()) || event.next != event.loop_head || event.loop_head <= 0 || event.loop_head > graph.count) {
+				return false;
+			}
+			var head = graph.events[event.loop_head - 1];
+			if (head.node.index != event.node.index || head.operation != 1 || head.region != event.region) {
+				return false;
+			}
+		}
+		i = i + 1;
+	}
+	try {
+		return flow_source_matches(graph, checked, class_origins);
+	} catch (Error error) {
+		return false;
+	}
+}
+SyntaxNodeId flow_node(int index) {
+	SyntaxNodeId result = {
+		index = index
+	};
+	return result;
+}
+void flow_require(borrowed FlowGraph graph, FlowEvent event, int fact, int reservation, bool transfer) {
+	if (reservation != 0) {
+		if (transfer) {
+			graph.fail(5, event.span);
+		} else {
+			graph.fail(9, event.span);
+		}
+		return;
+	}
+	if ((fact & 8) != 0) {
+		graph.fail(6, event.span);
+		return;
+	}
+	if ((fact & 16) != 0 || fact == 0) {
+		graph.fail(7, event.span);
+		return;
+	}
+	if (fact == 1) {
+		return;
+	}
+	if (event.operation == 5 && fact == 4) {
+		graph.fail(4, event.span);
+		return;
+	}
+	if (transfer || event.operation == 5) {
+		graph.fail(5, event.span);
+		return;
+	}
+	if (fact == 2) {
+		graph.fail(1, event.span);
+		return;
+	}
+	if (fact == 4) {
+		graph.fail(3, event.span);
+		return;
+	}
+	graph.fail(2, event.span);
+}
+void flow_invalidation(borrowed FlowGraph graph, FlowEvent event, bool[] loans) {
+	int i = 0;
+	while (i < graph.loan_count) {
+		if (loans[i] && graph.loans[i].source == event.slot) {
+			graph.fail(9, event.span);
+		}
+		i = i + 1;
+	}
+}
+void flow_simulate(borrowed FlowGraph graph, FlowEvent event, int[] facts, int[] reservations, bool[] loans, bool validate) {
+	int operation = event.operation;
+	int slot = event.slot - 1;
+	if (operation == 3 || operation == 4 || operation == 5 || operation == 13) {
+		if (slot < 0 || slot >= graph.slot_count) {
+			if (validate) {
+				graph.fail(10, event.span);
+			}
+			return;
+		}
+		if (validate) {
+			flow_require(graph, event, facts[slot], reservations[slot], operation == 4 || operation == 13);
+			if (operation != 3) {
+				if (!graph.slots[slot].owner) {
+					graph.fail(5, event.span);
+				}
+				flow_invalidation(graph, event, loans);
+			}
+		}
+		if (operation == 4) {
+			facts[slot] = 2;
+		}
+		if (operation == 5) {
+			facts[slot] = 4;
+		}
+		if (operation == 13) {
+			reservations[slot] = event.call;
+		}
+	}
+	if (operation == 2 || operation == 6 || operation == 15) {
+		if (slot < 0 || slot >= graph.slot_count) {
+			if (validate) {
+				graph.fail(10, event.span);
+			}
+			return;
+		}
+		if (validate) {
+			if (operation == 2 && facts[slot] != 16) {
+				graph.fail(13, event.span);
+			}
+			if (operation != 2 && ((facts[slot] & (8 | 16)) != 0 || reservations[slot] != 0)) {
+				graph.fail(12, event.span);
+			}
+			if (operation == 6) {
+				flow_invalidation(graph, event, loans);
+			}
+		}
+		facts[slot] = 1;
+		int i = 0;
+		while (i < graph.loan_count) {
+			if (graph.loans[i].borrower == event.slot) {
+				loans[i] = false;
+			}
+			i = i + 1;
+		}
+	}
+	if (operation == 7) {
+		var loan = graph.loans[event.loan - 1];
+		if (loan.source != 0) {
+			if (validate) {
+				flow_require(graph, event, facts[loan.source - 1], reservations[loan.source - 1], false);
+			}
+			loans[event.loan - 1] = true;
+		}
+	}
+	if (operation == 8) {
+		int i = 0;
+		while (i < graph.slot_count) {
+			if (reservations[i] == event.call) {
+				if (validate) {
+					var owner = event;
+					owner.slot = i + 1;
+					flow_invalidation(graph, owner, loans);
+				}
+				facts[i] = 2;
+				reservations[i] = 0;
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < graph.loan_count) {
+			if (graph.loans[i].call.index == event.call) {
+				loans[i] = false;
+			}
+			i = i + 1;
+		}
+	}
+	if (operation == 9 || operation == 17) {
+		int i = 0;
+		if (operation == 9) {
+			while (i < graph.loan_count) {
+				if (graph.loans[i].borrower != 0 && graph.loans[i].region == event.region) {
+					loans[i] = false;
+				}
+				i = i + 1;
+			}
+		}
+		i = graph.slot_count - 1;
+		while (i >= 0) {
+			if (graph.slots[i].region == event.region) {
+				if (validate) {
+					if (operation == 17 && facts[i] != 8) {
+						graph.fail(13, event.span);
+					}
+					if (operation == 9 && (facts[i] & 8) != 0) {
+						graph.fail(13, event.span);
+					}
+					if (operation == 9 && reservations[i] != 0) {
+						graph.fail(13, event.span);
+					}
+					if (operation == 9) {
+						var owner = event;
+						owner.slot = i + 1;
+						flow_invalidation(graph, owner, loans);
+					}
+				}
+				facts[i] = 8;
+				if (operation == 17) {
+					facts[i] = 16;
+				}
+			}
+			i = i - 1;
+		}
+	}
+	if (operation == 16 && validate) {
+		graph.fail(event.call, event.span);
+	}
+}
+bool flow_merge(borrowed FlowGraph graph, int block, int[] facts, int[] reservations, bool[] loans) {
+	int first = (block - 1) * graph.slot_count;
+	bool fresh = !graph.reachable[block - 1];
+	bool changed = fresh;
+	graph.reachable[block - 1] = true;
+	int i = 0;
+	while (i < graph.slot_count) {
+		int previous = graph.facts[first + i];
+		int joined = previous | facts[i];
+		if (joined != previous) {
+			changed = true;
+			graph.facts[first + i] = joined;
+		}
+		int pending = graph.reservations[first + i];
+		int updated = reservations[i];
+		if (!fresh && pending != updated) {
+			updated = -1;
+		}
+		if (pending != updated) {
+			changed = true;
+			graph.reservations[first + i] = updated;
+		}
+		i = i + 1;
+	}
+	first = (block - 1) * graph.loan_count;
+	i = 0;
+	while (i < graph.loan_count) {
+		if (loans[i] && !graph.active[first + i]) {
+			graph.active[first + i] = true;
+			changed = true;
+		}
+		i = i + 1;
+	}
+	return changed;
+}
+void flow_solve(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, int max_steps) {
+	var symbol = checked.bindings.symbol(graph.function);
+	var span = checked.bindings.program.arena.header(symbol.node).span;
+	if (graph.exhausted || graph.count > 2000000 / (graph.slot_count + graph.loan_count + 1)) {
+		graph.fail(11, span);
+		return;
+	}
+	if (!flow_verify(graph, checked, class_origins)) {
+		graph.fail(13, span);
+		return;
+	}
+	graph.facts = new int[graph.count * graph.slot_count];
+	graph.reservations = new int[graph.count * graph.slot_count];
+	graph.active = new bool[graph.count * graph.loan_count];
+	graph.reachable = new bool[graph.count];
+	var facts = new int[graph.slot_count];
+	var reservations = new int[graph.slot_count];
+	var loans = new bool[graph.loan_count];
+	int i = 0;
+	while (i < graph.slot_count) {
+		facts[i] = 8;
+		i = i + 1;
+	}
+	bool changed = flow_merge(graph, graph.entry, facts, reservations, loans);
+	while (changed) {
+		changed = false;
+		int block = graph.count - 1;
+		while (block >= 0) {
+			if (graph.reachable[block]) {
+				graph.steps = graph.steps + 1;
+				if (graph.steps > max_steps) {
+					graph.fail(11, span);
+					return;
+				}
+				i = 0;
+				while (i < graph.slot_count) {
+					facts[i] = graph.facts[block * graph.slot_count + i];
+					reservations[i] = graph.reservations[block * graph.slot_count + i];
+					i = i + 1;
+				}
+				i = 0;
+				while (i < graph.loan_count) {
+					loans[i] = graph.active[block * graph.loan_count + i];
+					i = i + 1;
+				}
+				var event = graph.events[block];
+				flow_simulate(graph, event, facts, reservations, loans, false);
+				if (event.next != 0) {
+					changed = flow_merge(graph, event.next, facts, reservations, loans) || changed;
+				}
+				if (event.other != 0) {
+					changed = flow_merge(graph, event.other, facts, reservations, loans) || changed;
+				}
+			}
+			block = block - 1;
+		}
+	}
+	// Partial-domain facts are observations; they discharge no safety obligation.
+	if (graph.obligation_count != 0) {
+		graph.complete = true;
+		return;
+	}
+	// Static ownership-use admission precedes path-dependent ownership demands.
+	i = graph.count - 1;
+	while (i >= 0) {
+		var event = graph.events[i];
+		if (event.operation == 16) {
+			graph.fail(event.call, event.span);
+		}
+		if ((event.operation == 4 || event.operation == 5 || event.operation == 13) && !graph.slots[event.slot - 1].owner) {
+			graph.fail(5, event.span);
+		}
+		i = i - 1;
+	}
+	// Lexical escape restrictions are static, including structurally unreachable code.
+	i = 0;
+	while (i < graph.loan_count) {
+		var loan = graph.loans[i];
+		if (loan.borrower != 0 && loan.source != 0 && !graph.outlives(graph.slots[loan.source - 1].region, loan.region)) {
+			graph.fail(8, checked.bindings.program.arena.header(loan.node).span);
+		}
+		i = i + 1;
+	}
+	int block = graph.count - 1;
+	while (block >= 0) {
+		if (graph.reachable[block]) {
+			i = 0;
+			while (i < graph.slot_count) {
+				facts[i] = graph.facts[block * graph.slot_count + i];
+				reservations[i] = graph.reservations[block * graph.slot_count + i];
+				i = i + 1;
+			}
+			i = 0;
+			while (i < graph.loan_count) {
+				loans[i] = graph.active[block * graph.loan_count + i];
+				i = i + 1;
+			}
+			flow_simulate(graph, graph.events[block], facts, reservations, loans, true);
+		}
+		block = block - 1;
+	}
+	graph.complete = true;
+}
+owned FlowIndex flow_index(owned CheckedIndex checked, int limit, int max_steps) throws Error {
+	var index = new FlowIndex(move checked);
+	if (!index.capacity_ok || index.checked.failed() || !index.checked.validate()) {
+		return move index;
+	}
+	var origins = flow_class_origins(index.checked);
+	index.class_origins = move origins;
+	index.origins_ok = index.class_origins[0] == 0;
+	if (!index.origins_ok) {
+		return move index;
+	}
+	int i = 0;
+	while (i < index.checked.signature_count) {
+		var signature = index.checked.signatures[i];
+		var graph = flow_graph(index.checked, index.class_origins, signature.declaration, index.graphs.count() + 1, limit);
+		flow_solve(graph, index.checked, index.class_origins, max_steps);
+		if (graph.complete && graph.error == 0 && graph.obligation_count == 0) {
+			int e = 0;
+			while (e < graph.count) {
+				index.proofs[graph.events[e].node.index] = 1;
+				e = e + 1;
+			}
+		}
+		index.graphs.append(move graph);
+		i = i + 1;
+	}
+	i = 1;
+	while (i <= index.checked.bindings.symbol_count) {
+		var symbol = index.checked.bindings.symbol(type_symbol(i));
+		if ((symbol.kind == 1 || symbol.kind == 11) && index.checked.symbol_signatures[i].index == 0) {
+			index.unmodeled = index.unmodeled + 1;
+		}
+		i = i + 1;
+	}
+	index.complete = true;
+	return move index;
+}
+// Reconstruct the canonical source graph before accepting an externally supplied
+// model. Differential/source-state tests independently qualify the builder's rules;
+// this is a corruption check, not a separate verified IR pipeline.
+bool flow_source_matches(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins) throws Error {
+	var original = flow_graph(checked, class_origins, graph.function, graph.ordinal, graph.limit);
+	if (original.exhausted || original.entry != graph.entry || original.exit != graph.exit || original.count != graph.count || original.slot_count != graph.slot_count || original.region_count != graph.region_count || original.loan_count != graph.loan_count || original.obligation_count != graph.obligation_count) {
+		return false;
+	}
+	int i = 0;
+	while (i < graph.count) {
+		var a = original.events[i];
+		var b = graph.events[i];
+		if (a.operation != b.operation || a.node.index != b.node.index || !flow_equal_span(a.span, b.span) || a.slot != b.slot || a.loan != b.loan || a.region != b.region || a.call != b.call || a.next != b.next || a.other != b.other || a.loop_head != b.loop_head) {
+			return false;
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.slot_count) {
+		var a = original.slots[i];
+		var b = graph.slots[i];
+		if (a.symbol.index != b.symbol.index || a.type.index != b.type.index || a.region != b.region || a.flags != b.flags || a.owner != b.owner || a.parameter != b.parameter) {
+			return false;
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.region_count) {
+		if (original.regions[i].parent != graph.regions[i].parent || original.regions[i].node.index != graph.regions[i].node.index) {
+			return false;
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.loan_count) {
+		var a = original.loans[i];
+		var b = graph.loans[i];
+		if (a.source != b.source || a.borrower != b.borrower || a.region != b.region || a.node.index != b.node.index || a.call.index != b.call.index) {
+			return false;
+		}
+		i = i + 1;
+	}
+	i = 0;
+	while (i < graph.obligation_count) {
+		if (original.obligations[i].node.index != graph.obligations[i].node.index || original.obligations[i].reason != graph.obligations[i].reason) {
+			return false;
+		}
+		i = i + 1;
+	}
+	return true;
+}
