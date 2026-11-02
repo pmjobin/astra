@@ -1,0 +1,413 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		if (len(args) == 2 && args[1] == "--lifetime") {
+			flow_lifetime();
+			flowsem_lifetime();
+			return 0;
+		}
+		if (len(args) < 3) {
+			println_stderr("usage: astra-flow --flow FILE... | --owner-at PATH OFFSET FILE... | --loan-at PATH OFFSET FILE... | --limit N FILE... | --steps N FILE...");
+			return 2;
+		}
+		int start = 2;
+		int limit = 8192;
+		int steps = 1000000;
+		if (args[1] == "--owner-at" || args[1] == "--loan-at" || args[1] == "--nonnull-at" || args[1] == "--field-at") {
+			start = 4;
+		}
+		if (args[1] == "--limit" || args[1] == "--steps") {
+			start = 3;
+			if (args[1] == "--limit") {
+				limit = binding_decimal(args[2]);
+			} else {
+				steps = binding_decimal(args[2]);
+			}
+			if (limit < 1 || limit > 8192 || steps < 1 || steps > 1000000) {
+				return 2;
+			}
+		}
+		var program = binding_load_program(args, start);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build(move bindings, 0, true, args[1] != "--compat");
+		var index = flow_index(move checked, limit, steps);
+		if (args[1] == "--mutate-backedge" || args[1] == "--mutate-owner" || args[1] == "--mutate-loan-end" || args[1] == "--mutate-span" || args[1] == "--mutate-function" || args[1] == "--mutate-ordinal") {
+			flow_mutate(index, args[1]);
+			return 0;
+		}
+		if (args[1] == "--mutate-semantic") {
+			flowsem_mutations(index);
+			return 0;
+		}
+		var observation = flow_observation(index);
+		print(observation.text);
+		if (args[1] == "--owner-at" || args[1] == "--loan-at" || args[1] == "--nonnull-at" || args[1] == "--field-at") {
+			flow_query(index, args[2], binding_decimal(args[3]), args[1] == "--loan-at" || args[1] == "--nonnull-at" || args[1] == "--field-at");
+		}
+		return flow_status(index);
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}
+void flow_query(FlowIndex index, string path, int offset, bool loan) throws Error {
+	int width = 2147483647;
+	FlowBlockId block = {
+		function = 0, index = 0
+	};
+	OwnerSlotId slot = {
+		function = 0, index = 0
+	};
+	int g = 0;
+	while (g < index.graphs.count()) {
+		int e = 0;
+		while (e < flow_graph_count(index.graphs.entries[g])) {
+			var event = flow_graph_event(index.graphs.entries[g], e);
+			if (event.slot > 0 && event.span.start <= offset && offset < event.span.end && event.span.end - event.span.start < width) {
+				var backing = index.checked.bindings.program.arena.source_span(event.span);
+				var current = backing.path();
+				if (current.text == path) {
+					block.function = g + 1;
+					block.index = e + 1;
+					slot.function = g + 1;
+					slot.index = event.slot;
+					width = event.span.end - event.span.start;
+				}
+			}
+			e = e + 1;
+		}
+		g = g + 1;
+	}
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "QUERY_OWNER");
+	flow_number(output, block.function);
+	flow_number(output, block.index);
+	flow_number(output, slot.index);
+	flow_number(output, index.owner_at(index, block, slot));
+	if (index.checked.semantic_flow && block.function > 0) {
+		source_append_text(output, "\nQUERY_NONNULL");
+		flow_number(output, index.nonnull_at(index, block, slot));
+		int f = 1;
+		while (f <= flow_field_count(index.graphs.entries[block.function - 1])) {
+			FlowFieldId field = { function = block.function, index = f };
+			source_append_text(output, "\nQUERY_FIELD");
+			flow_number(output, f);
+			flow_number(output, index.field_at(index, block, field));
+			f = f + 1;
+		}
+	}
+	source_append_text(output, "\n");
+	if (loan && block.function > 0) {
+		int l = 1;
+		while (l <= flow_graph_loan_count(index.graphs.entries[block.function - 1])) {
+			FlowLoanId id = {
+				function = block.function, index = l
+			};
+			source_append_text(output, "QUERY_LOAN");
+			flow_number(output, l);
+			flow_number(output, index.loan_at(index, block, id));
+			source_append_text(output, "\n");
+			l = l + 1;
+		}
+	}
+	var text = output.snapshot();
+	print(text.text);
+}
+void flow_mutate(FlowIndex index, string mode) throws Error {
+	var before = syntax_program_dump(index.checked.bindings.program);
+	bool changed = false;
+	while (index.graphs.count() > 0 && !changed) {
+		var graph = index.graphs.take(index.graphs.count() - 1);
+		assert_that(flow_verify(graph, index.checked, index.class_origins));
+		if (mode == "--mutate-ordinal") {
+			graph.ordinal = graph.ordinal + 1;
+			changed = true;
+			assert_that(!flow_verify(graph, index.checked, index.class_origins));
+		}
+		if (mode == "--mutate-function" && graph.slot_count == 0) {
+			int candidate = 1;
+			while (candidate <= index.checked.bindings.symbol_count && !changed) {
+				if (index.checked.bindings.symbol(type_symbol(candidate)).kind == 4) {
+					graph.function = type_symbol(candidate);
+					changed = true;
+					assert_that(!flow_verify(graph, index.checked, index.class_origins));
+				}
+				candidate = candidate + 1;
+			}
+		}
+		int e = 0;
+		while (e < graph.count && !changed) {
+			var event = graph.events[e];
+			if (mode == "--mutate-backedge" && event.operation == 11) {
+				event.next = graph.exit;
+				changed = true;
+			}
+			if (mode == "--mutate-owner" && (event.operation == 4 || event.operation == 13)) {
+				int s = 1;
+				while (s <= graph.slot_count && !changed) {
+					if (s != event.slot && graph.slots[s - 1].owner) {
+						event.slot = s;
+						changed = true;
+					}
+					s = s + 1;
+				}
+			}
+			if (mode == "--mutate-loan-end" && event.operation == 8 && graph.loan_count > 0) {
+				event.operation = 1;
+				event.call = 0;
+				changed = true;
+			}
+			if (mode == "--mutate-span" && event.operation == 3) {
+				event.span.start = event.span.start + 1;
+				changed = true;
+			}
+			if (changed) {
+				graph.events[e] = event;
+				assert_that(!flow_verify(graph, index.checked, index.class_origins));
+			}
+			e = e + 1;
+		}
+	}
+	var after = syntax_program_dump(index.checked.bindings.program);
+	assert_that(changed && before.text == after.text);
+	println("MUTANT_REJECTED");
+}
+owned FlowIndex flow_text(string source, int limit, int steps) throws Error {
+	var program = parser_text_program(source);
+	var bindings = binding_index(move program, 0);
+	var checked = flowsem_checked_index(move bindings);
+	var result = flow_index(move checked, limit, steps);
+	return move result;
+}
+void flow_lifetime() throws Error {
+	string source = "void f(owned int[] x){release x;}void g(owned int[] x){release x;}";
+	var one = flow_text(source, 8192, 1000000);
+	var two = flow_text(source, 8192, 1000000);
+	assert_that(flow_status(one) == 0 && flow_status(two) == 0 && !one.same_owner(two));
+	FlowBlockId block = {
+		function = 1, index = flow_graph_entry(one.graphs.entries[0])
+	};
+	OwnerSlotId slot = {
+		function = 1, index = 1
+	};
+	OwnerSlotId wrong = {
+		function = 2, index = 1
+	};
+	FlowLoanId bad_loan = {
+		function = 1, index = 999
+	};
+	assert_that(one.owns_block(one, block) && !one.owns_block(two, block) && one.owns_slot(one, slot) && !one.owns_slot(two, slot));
+	assert_that(one.owner_at(one, block, wrong) == -1 && one.loan_at(one, block, bad_loan) == -1);
+	block.index = 999999;
+	assert_that(!one.owns_block(one, block));
+	SyntaxSourceId id = {
+		index = 1
+	};
+	var backing = one.checked.bindings.program.arena.source(id);
+	var observer = shared_downgrade(backing);
+	release backing;
+	var symbol = one.checked.bindings.symbol(flow_graph_function(one.graphs.entries[0]));
+	var retained = one.checked.bindings.program.arena.source_span(symbol.span);
+	var other_symbol = two.checked.bindings.symbol(flow_graph_function(two.graphs.entries[0]));
+	var other_span = two.checked.bindings.program.arena.source_span(other_symbol.span);
+	assert_that(!retained.same_source(other_span));
+	release one;
+	var alive = weak_upgrade(observer);
+	assert_that(alive != null);
+	release alive;
+	var bytes = retained.bytes();
+	assert_that(len(bytes) > 0);
+	release retained;
+	var expired = weak_upgrade(observer);
+	assert_that(expired == null);
+	int repeat = 0;
+	while (repeat < 32) {
+		var partial = flow_text(source, 1, 1000000);
+		assert_that(flow_status(partial) == 1 && flow_graph_error(partial.graphs.entries[0]) == 11);
+		var negative = flow_text("void f(owned int[] x){release x;release x;}", 8192, 1000000);
+		assert_that(flow_status(negative) == 1 && flow_graph_error(negative.graphs.entries[0]) == 4);
+		var bounded = flow_text(source, 8192, 1);
+		assert_that(flow_status(bounded) == 1 && flow_graph_error(bounded.graphs.entries[0]) == 11);
+		var invalid_limit = flow_text(source, 8193, 1000000);
+		assert_that(flow_status(invalid_limit) == 2 && !invalid_limit.capacity_ok);
+		var ill_typed = flow_text("int f(){return true;}", 8192, 1000000);
+		assert_that(flow_status(ill_typed) == 1 && ill_typed.checked.failed());
+		repeat = repeat + 1;
+	}
+	println("FLOW_LIFETIME_OK");
+}
+void flowsem_mutations(FlowIndex index) throws Error {
+	var before = syntax_program_dump(index.checked.bindings.program);
+	var seen = new bool[14];
+	while (index.graphs.count() > 0) {
+		var graph = index.graphs.take(index.graphs.count() - 1);
+		assert_that(flow_verify(graph, index.checked, index.class_origins));
+		int i = 0;
+		while (i < graph.count) {
+			var original = graph.events[i];
+			int mutation = 0;
+			while (mutation < 8) {
+				var changed = original;
+				bool applies = false;
+				if (mutation == 0 && original.operation == 10 && original.next != original.other) {
+					changed.next = original.other;
+					changed.other = original.next;
+					applies = true;
+				}
+				if (mutation == 1 && original.operation == 10 && original.predicate.index != 0) {
+					changed.predicate = flow_no_node();
+					applies = true;
+				}
+				if (mutation == 2 && original.operation == 15) {
+					changed.operation = 1;
+					changed.input = 0;
+					changed.output = 0;
+					applies = true;
+				}
+				if (mutation == 3 && original.required) {
+					changed.required = false;
+					applies = true;
+				}
+				if (mutation == 4 && original.operation == 20) {
+					changed.operation = 1;
+					changed.field = 0;
+					applies = true;
+				}
+				if (mutation == 5 && original.operation == 20 && graph.field_count > 1) {
+					changed.field = original.field % graph.field_count + 1;
+					applies = true;
+				}
+				if (mutation == 6 && original.operation == 21) {
+					changed.operation = 1;
+					applies = true;
+				}
+				if (mutation == 7 && original.operation == 9 && graph.field_count > 0) {
+					changed.operation = 1;
+					changed.region = 0;
+					applies = true;
+				}
+				if (applies && !seen[mutation]) {
+					graph.events[i] = changed;
+					assert_that(!flow_verify(graph, index.checked, index.class_origins));
+					graph.events[i] = original;
+					seen[mutation] = true;
+				}
+				mutation = mutation + 1;
+			}
+			i = i + 1;
+		}
+		if (graph.field_count > 0 && !seen[8]) {
+			var original = graph.fields[0];
+			var changed = original;
+			changed.root = graph.slot_count + 1;
+			graph.fields[0] = changed;
+			assert_that(!flow_verify(graph, index.checked, index.class_origins));
+			graph.fields[0] = original;
+			seen[8] = true;
+		}
+		if (graph.value_count > 0 && !seen[9]) {
+			var original = graph.values[0];
+			var changed = original;
+			changed.node = flow_no_node();
+			graph.values[0] = changed;
+			assert_that(!flow_verify(graph, index.checked, index.class_origins));
+			graph.values[0] = original;
+			seen[9] = true;
+		}
+		if (graph.complete && len(graph.null_facts) > 0 && !seen[10]) {
+			int original = graph.null_facts[0];
+			graph.null_facts[0] = original % 3 + 1;
+			assert_that(!flowsem_verify_solution(graph, index.checked, index.class_origins));
+			graph.null_facts[0] = original;
+			seen[10] = true;
+		}
+		if (graph.complete && len(graph.field_facts) > 0 && !seen[11]) {
+			int original = graph.field_facts[0];
+			graph.field_facts[0] = 1;
+			if (original == 1) { graph.field_facts[0] = 16; }
+			assert_that(!flowsem_verify_solution(graph, index.checked, index.class_origins));
+			graph.field_facts[0] = original;
+			seen[11] = true;
+		}
+		i = 0;
+		while (i < graph.count && !seen[12]) {
+			var event = graph.events[i];
+			if (event.required && index.checked.uses[event.node.index].deferred == 18) {
+				var original = index.checked.uses[event.node.index];
+				var changed = original;
+				changed.deferred = 0;
+				index.checked.uses[event.node.index] = changed;
+				assert_that(!flow_verify(graph, index.checked, index.class_origins));
+				index.checked.uses[event.node.index] = original;
+				seen[12] = true;
+			}
+			i = i + 1;
+		}
+
+		i = 0;
+		while (i < graph.count && !seen[13]) {
+			var event = graph.events[i];
+			if (event.operation == 21 && index.checked.bindings.program.arena.kind(event.node) == SyntaxKind.StructInitializerSyntax() && index.checked.uses[event.node.index].deferred == 20) {
+				var original = index.checked.uses[event.node.index];
+				var changed = original;
+				changed.deferred = 0;
+				index.checked.uses[event.node.index] = changed;
+				assert_that(!flow_verify(graph, index.checked, index.class_origins));
+				index.checked.uses[event.node.index] = original;
+				seen[13] = true;
+			}
+			i = i + 1;
+		}
+
+	}
+	int count = 0;
+	int i = 0;
+	while (i < len(seen)) {
+		if (seen[i]) {
+			count = count + 1;
+			var row = new Utf8ByteBuilder();
+			source_append_text(row, "MUTATION");
+			flow_number(row, i);
+			source_append_text(row, "\n");
+			var text = row.snapshot();
+			print(text.text);
+		}
+		i = i + 1;
+	}
+	var after = syntax_program_dump(index.checked.bindings.program);
+	assert_that(before.text == after.text);
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "SEMANTIC_MUTANTS_REJECTED");
+	flow_number(output, count);
+	source_append_text(output, "\n");
+	var text = output.snapshot();
+	print(text.text);
+}
+void flowsem_lifetime() throws Error {
+	string source = "struct Pair{int a;int b;}void f(){Pair x={a=1,b=2};}void g(){Pair x={a=3,b=4};}";
+	var one = flow_text(source, 8192, 1000000);
+	var two = flow_text(source, 8192, 1000000);
+	assert_that(flow_status(one) == 0 && flow_status(two) == 0);
+	FlowBlockId block = { function = 1, index = flow_graph_entry(one.graphs.entries[0]) };
+	OwnerSlotId slot = { function = 1, index = 1 };
+	FlowFieldId field = { function = 1, index = 1 };
+	assert_that(one.field_at(two, block, field) == -1 && one.nonnull_at(two, block, slot) == -1);
+	field.function = 2;
+	assert_that(one.field_at(one, block, field) == -1);
+	field.function = 1;
+	field.index = 999999;
+	assert_that(one.field_at(one, block, field) == -1);
+	int repeat = 0;
+	while (repeat < 32) {
+		var fields = flow_text(source, 8192, 1000000);
+		assert_that(flow_status(fields) == 0);
+		var incomplete = flow_text("struct P{int a;int b;}void f(){P p={a=1};}", 8192, 1000000);
+		assert_that(flow_status(incomplete) == 1);
+		var nulls = flow_text("class C{init(){}}void use(nonnull C c){}void f(C c){use(c);}", 8192, 1000000);
+		assert_that(flow_status(nulls) == 1);
+		var limit = flow_text(source, 1, 1000000);
+		assert_that(flow_status(limit) == 1);
+		repeat = repeat + 1;
+	}
+	println("FLOWSEM_LIFETIME_OK");
+}

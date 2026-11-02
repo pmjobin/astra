@@ -1,0 +1,586 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source-level facts on the existing graph; no predecessor IR safety authority.
+bool flowsem_record_shape(CheckedIndex checked, TypeId type, int depth) {
+	if (checked_kind(checked, type) != 30 || depth > 64) { return false; }
+	var descriptor = checked.types.descriptor(checked.types, type);
+	var declaration = checked.bindings.symbol(descriptor.nominal);
+	var node = declaration.node;
+	if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0) { return false; }
+	var concurrency = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	if (concurrency.present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || checked.bindings.program.arena.get_node_foreign_member(node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(node)) != 0) { return false; }
+	var members = checked.bindings.program.arena.get_list_members(node);
+	int member = 0;
+	while (member < checked.bindings.program.arena.list_count(members)) {
+		if (checked.bindings.program.arena.kind(checked.bindings.program.arena.node_at(members, member)) != SyntaxKind.StructFieldDeclarationSyntax()) { return false; }
+		member = member + 1;
+	}
+	var fields = checked.bindings.program.arena.get_list_fields(node);
+	if (checked.bindings.program.arena.list_count(fields) == 0) { return false; }
+	int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var field_node = checked.bindings.program.arena.node_at(fields, i);
+		var field = checked.node_symbols[field_node.index];
+		if (field.index == 0 || (checked.symbol_flags[field.index] & 7) != flowsem_source_flags(checked, field_node) || (checked.symbol_flags[field.index] & 1) != 0 || !flowsem_field_type(checked, checked.symbol_types[field.index], checked.symbol_flags[field.index], depth + 1)) { return false; }
+		i = i + 1;
+	}
+	return true;
+}
+bool flowsem_field_type(CheckedIndex checked, TypeId type, int flags, int depth) {
+	int code = checked_kind(checked, type);
+	if (type_numeric(code) || code == 13) { return (flags & 7) == 0; }
+	if (code == 30) { return (flags & 7) == 0 && flowsem_record_shape(checked, type, depth + 1); }
+	if ((flags & 4) == 0 || (flags & 2) != 0) { return false; }
+	if (code == 22) { return (flags & 1) == 0 && flow_buffer_type(checked, type); }
+	return code == 31 && flow_empty_class(checked, type);
+}
+bool flowsem_class_shape(CheckedIndex checked, TypeId type) {
+	if (checked_kind(checked, type) != 31) { return false; }
+	var descriptor = checked.types.descriptor(checked.types, type);
+	var declaration = checked.bindings.symbol(descriptor.nominal);
+	var node = declaration.node;
+	if (checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0) { return false; }
+	var concurrency = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	if (concurrency.present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0 || checked.bindings.program.arena.get_bool_exact_heap_class(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0) { return false; }
+	var fields = checked.bindings.program.arena.get_list_fields(node);
+	int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var field_node = checked.bindings.program.arena.node_at(fields, i);
+		var field = checked.node_symbols[field_node.index];
+		if (field.index == 0 || (checked.symbol_flags[field.index] & 7) != flowsem_source_flags(checked, field_node) || checked_kind(checked, checked.symbol_types[field.index]) == 30 || !flowsem_field_type(checked, checked.symbol_types[field.index], checked.symbol_flags[field.index], 0)) { return false; }
+		i = i + 1;
+	}
+	var members = checked.bindings.program.arena.get_list_members(node);
+	int constructors = 0;
+	i = 0;
+	while (i < checked.bindings.program.arena.list_count(members)) {
+		var constructor = checked.bindings.program.arena.node_at(members, i);
+		var kind = checked.bindings.program.arena.kind(constructor);
+		if (kind != SyntaxKind.StructFieldDeclarationSyntax()) {
+			if (kind != SyntaxKind.LifecycleDeclarationSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(constructor), "init") || checked.bindings.program.arena.get_node_body(constructor).index == 0 || checked.bindings.program.arena.get_node_throws_class(constructor).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(constructor)) != 0) { return false; }
+			constructors = constructors + 1;
+		}
+		i = i + 1;
+	}
+	if (constructors != 1) { return false; }
+	return true;
+}
+void flowsem_inventory(borrowed FlowGraph graph, CheckedIndex checked, TypeId type, int root, int parent, int depth) {
+	if (depth > 64 || graph.exhausted) {
+		graph.exhausted = true;
+		return;
+	}
+	var descriptor = checked.types.descriptor(checked.types, type);
+	var declaration = checked.bindings.symbol(descriptor.nominal);
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields) && !graph.exhausted) {
+		var field_node = checked.bindings.program.arena.node_at(fields, i);
+		var symbol = checked.node_symbols[field_node.index];
+		var field_type = checked.symbol_types[symbol.index];
+		bool leaf = checked_kind(checked, field_type) != 30;
+		FlowField field = { root = root, parent = parent, symbol = symbol, type = field_type, flags = checked.symbol_flags[symbol.index], leaf = leaf };
+		int id = graph.add_field(field);
+		if (!leaf && id > 0) { flowsem_inventory(graph, checked, field_type, root, id, depth + 1); }
+		i = i + 1;
+	}
+}
+int flowsem_find_field(borrowed FlowGraph graph, int root, int parent, SymbolId symbol) {
+	int i = 0;
+	while (i < graph.field_count) {
+		var field = graph.fields[i];
+		if (field.root == root && field.parent == parent && field.symbol.index == symbol.index) { return i + 1; }
+		i = i + 1;
+	}
+	return 0;
+}
+int flowsem_place(borrowed FlowGraph graph, CheckedIndex checked, SyntaxNodeId node, int depth) {
+	if (depth > 64 || checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax()) { return 0; }
+	int root = 0;
+	int parent = 0;
+	var aggregate = checked.bindings.program.arena.get_node_aggregate(node);
+	if (aggregate.index != 0) {
+		parent = flowsem_place(graph, checked, aggregate, depth + 1);
+		if (parent == 0) { return 0; }
+		root = graph.fields[parent - 1].root;
+	} else {
+		var token = checked.bindings.program.arena.get_token_identifier(node);
+		var symbol = checked_target(checked, node, token);
+		if (symbol.index != 0) { root = graph.slot_for(symbol); }
+		if (root == 0 && checked_this_type(checked, node, token).index == 0) { return 0; }
+	}
+	return flowsem_find_field(graph, root, parent, checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node)));
+}
+bool flowsem_under(borrowed FlowGraph graph, int field, int parent) {
+	int current = field;
+	while (current > 0) {
+		if (current == parent) { return true; }
+		current = graph.fields[current - 1].parent;
+	}
+	return false;
+}
+int flow_field_summary(borrowed FlowGraph graph, int[] state, int first, int field) {
+	if (graph.fields[field - 1].leaf) { return state[first + field - 1]; }
+	int result = 1;
+	int i = field;
+	while (i < graph.field_count) {
+		if (graph.fields[i].leaf && flowsem_under(graph, i + 1, field)) {
+			int fact = state[first + i];
+			if (fact != 1) { result = result | fact | 16; }
+		}
+		i = i + 1;
+	}
+	return result;
+}
+int flowsem_null_cell(borrowed FlowGraph graph, CheckedIndex checked, SyntaxNodeId node) {
+	var inner = flow_unwrap(checked, node);
+	if (inner.index == 0 || checked_kind(checked, checked.uses[inner.index].type) != 31) { return 0; }
+	return graph.null_value(inner);
+}
+int flowsem_demand(borrowed FlowGraph graph, CheckedIndex checked, SyntaxNodeId node, int flags, int region, int next) {
+	if ((flags & 1) == 0) { return next; }
+	int cell = flowsem_null_cell(graph, checked, node);
+	if (cell == 0) {
+		graph.defer(node, 2);
+		return next;
+	}
+	var event = flow_event(checked, node, 18, 0, region, next);
+	event.input = cell;
+	event.required = true;
+	return graph.add(event);
+}
+int flowsem_condition(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId input, int region, int yes, int no, int depth) throws Error {
+	if (depth > 192) {
+		graph.exhausted = true;
+		return no;
+	}
+	var node = flow_unwrap(checked, input);
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.PrefixExpressionSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_operator_token(node), "!")) {
+		return flowsem_condition(graph, checked, origins, checked.bindings.program.arena.get_node_operand(node), region, no, yes, depth + 1);
+	}
+	if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
+		var left = checked.bindings.program.arena.get_node_left(node);
+		var right = checked.bindings.program.arena.get_node_right(node);
+		bool conjunction = checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_operator_token(node), "&&");
+		int tail = flowsem_condition(graph, checked, origins, right, region, yes, no, depth + 1);
+		if (conjunction) { return flowsem_condition(graph, checked, origins, left, region, tail, no, depth + 1); }
+		return flowsem_condition(graph, checked, origins, left, region, yes, tail, depth + 1);
+	}
+	var branch = flow_event(checked, node, 10, 0, region, yes);
+	branch.other = no;
+	branch.predicate = node;
+	return flow_expression(graph, checked, origins, node, region, graph.add(branch), 0, depth + 1);
+}
+int flowsem_initializer(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int root, int parent, int region, int next, int depth) throws Error {
+	if (depth > 64) {
+		graph.exhausted = true;
+		return next;
+	}
+	var marker = flow_event(checked, node, 21, root, region, next);
+	marker.field = parent;
+	int head = graph.add(marker);
+	var fields = checked.bindings.program.arena.get_list_fields(node);
+	int i = checked.bindings.program.arena.list_count(fields) - 1;
+	while (i >= 0 && !graph.exhausted) {
+		var init = checked.bindings.program.arena.node_at(fields, i);
+		var symbol = checked_target(checked, init, checked.bindings.program.arena.get_token_name(init));
+		int field = flowsem_find_field(graph, root, parent, symbol);
+		if (field == 0) {
+			graph.defer(init, 3);
+			return head;
+		}
+		var nested = checked.bindings.program.arena.get_node_initializer(init);
+		if (nested.index != 0) {
+			head = flowsem_initializer(graph, checked, origins, nested, root, field, region, head, depth + 1);
+		} else {
+			var value = checked.bindings.program.arena.get_node_expression(init);
+			var event = flow_event(checked, init, 20, root, region, head);
+			event.field = field;
+			event.input = flowsem_null_cell(graph, checked, value);
+			event.required = (graph.fields[field - 1].flags & 1) != 0;
+			head = flow_expression(graph, checked, origins, value, region, graph.add(event), 0, depth + 1);
+			if ((graph.fields[field - 1].flags & 4) != 0 && !flowsem_owner_producer(checked, value)) { graph.fail(5, checked.bindings.program.arena.header(value).span); }
+		}
+		i = i - 1;
+	}
+	return head;
+}
+bool flowsem_owner_producer(CheckedIndex checked, SyntaxNodeId input) {
+	var node = flow_unwrap(checked, input);
+	var kind = checked.bindings.program.arena.kind(node);
+	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || (kind == SyntaxKind.CallExpressionSyntax() && (checked.uses[node.index].flags & 4) != 0);
+}
+int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
+	var target = checked.bindings.program.arena.get_node_target(node);
+	int field = flowsem_place(graph, checked, target, 0);
+	if (field == 0) {
+		graph.defer(node, 18);
+		return next;
+	}
+	var destination = graph.fields[field - 1];
+	var value = checked.bindings.program.arena.get_node_expression(node);
+	// Only the constructor owns a Class's incomplete receiver. Detached record
+	// copies never become that receiver, and owning-record extraction is deferred.
+	if ((destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 31) || ((destination.flags & 4) != 0 && destination.root > 0) || (destination.flags & 128) != 0 && destination.root > 0 || !destination.leaf) {
+		graph.defer(node, 6);
+		return next;
+	}
+	if ((destination.flags & 4) != 0 && !flowsem_owner_producer(checked, value)) { graph.fail(5, checked.bindings.program.arena.header(value).span); }
+	var event = flow_event(checked, node, 20, destination.root, region, next);
+	event.field = field;
+	event.input = flowsem_null_cell(graph, checked, value);
+	event.required = (destination.flags & 1) != 0;
+	return flow_expression(graph, checked, origins, value, region, graph.add(event), 0, depth + 1);
+}
+int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
+	var type = checked.uses[node.index].type;
+	var constructor = checked_constructor(checked, type);
+	if (!flow_simple_class(checked, type) || constructor.index == 0 || checked.symbol_signatures[constructor.index].index == 0 || checked.bindings.program.arena.get_node_allocation_context(node).index != 0 || checked.bindings.program.arena.get_bool_fallible(node)) {
+		graph.defer(node, 8);
+		return next;
+	}
+	var signature = checked.signatures[checked.symbol_signatures[constructor.index].index - 1];
+	if ((signature.flags & (8 | 16 | 32 | 64)) != 0 || signature.dispatch != 0) {
+		graph.defer(node, 6);
+		return next;
+	}
+	var arguments = checked.bindings.program.arena.get_list_arguments(node);
+	var descriptor = checked.types.descriptor(checked.types, signature.callable);
+	if (descriptor.count != checked.bindings.program.arena.list_count(arguments) + 1) {
+		graph.defer(node, 9);
+		return next;
+	}
+	var marker = flow_event(checked, node, 8, 0, region, next);
+	marker.call = node.index;
+	int head = graph.add(marker);
+	int i = checked.bindings.program.arena.list_count(arguments) - 1;
+	while (i >= 0) {
+		var argument = checked.bindings.program.arena.node_at(arguments, i);
+		var parameter = checked.types.argument(checked.types, signature.callable, i + 1);
+		head = flowsem_demand(graph, checked, argument, parameter.flags, region, head);
+		if ((parameter.flags & 4) != 0) {
+			if (!flowsem_owner_producer(checked, argument)) { graph.fail(5, checked.bindings.program.arena.header(argument).span); }
+			head = flow_expression(graph, checked, origins, argument, region, head, node.index, depth + 1);
+		} else {
+			if (flow_borrow_type(checked, parameter.type)) { head = flow_temporary(graph, checked, origins, argument, node, region, head); }
+			head = flow_expression(graph, checked, origins, argument, region, head, 0, depth + 1);
+		}
+		i = i - 1;
+	}
+	return head;
+}
+// Null state cells contain possibilities, not declaration promises. Field cells
+// use the existing responsibility bits, independently of whole-root ownership.
+void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] owners, int[] nulls, int[] fields, bool validate) {
+	int operation = event.operation;
+	int incoming = event.null_kind;
+	if (event.input > 0) { incoming = nulls[event.input - 1]; }
+	if (incoming == 0) { incoming = 3; }
+	if (event.required && validate && incoming != 2) { graph.fail(14, event.span); }
+	if (event.output > 0) { nulls[event.output - 1] = incoming; }
+	if (operation == 2 && event.slot > 0) {
+		var slot = graph.slots[event.slot - 1];
+		if (slot.parameter) {
+			nulls[event.slot - 1] = 3;
+			if ((slot.flags & 1) != 0 && flow_simple_class(checked, slot.type)) { nulls[event.slot - 1] = 2; }
+		}
+		if (checked.bindings.program.arena.kind(event.node) != SyntaxKind.StructLocalDeclarationSyntax()) {
+			int i = 0;
+			while (i < graph.field_count) {
+				if (graph.fields[i].root == event.slot && graph.fields[i].leaf) { fields[i] = 1; }
+				i = i + 1;
+			}
+		}
+	}
+	if ((operation == 3 || operation == 4 || operation == 13) && event.slot > 0 && (checked_kind(checked, graph.slots[event.slot - 1].type) == 30 || checked_kind(checked, graph.slots[event.slot - 1].type) == 31)) {
+		flowsem_require_complete(graph, event, fields, event.slot, 0, validate);
+		if (operation != 3) {
+			int i = 0;
+			while (i < graph.field_count) {
+				if (graph.fields[i].root == event.slot && graph.fields[i].leaf) { fields[i] = 2; }
+				i = i + 1;
+			}
+		}
+	}
+	if (operation == 4 || operation == 5) {
+		if (event.slot > 0) { nulls[event.slot - 1] = 3; }
+	}
+	if (operation == 8) {
+		int i = 0;
+		while (i < graph.slot_count) {
+			// Reservation state is inspected by the ordinary transfer below;
+			// consumed values no longer carry a usable local refinement.
+			if (owners[i] != 1) { nulls[i] = 3; }
+			i = i + 1;
+		}
+	}
+	if (operation == 19) {
+		var field = graph.fields[event.field - 1];
+		if (validate) {
+			if (event.slot > 0) { flow_require(graph, event, owners[event.slot - 1], 0, false); }
+			if (flow_field_summary(graph, fields, 0, event.field) != 1) { graph.fail(17, event.span); }
+		}
+		if (event.output > 0) {
+			nulls[event.output - 1] = 3;
+			if ((field.flags & 1) != 0 && fields[event.field - 1] == 1) { nulls[event.output - 1] = 2; }
+		}
+	}
+	if (operation == 20) {
+		var field = graph.fields[event.field - 1];
+		if (validate && !field.leaf) { graph.fail(15, event.span); }
+		if (validate && event.slot > 0 && checked.bindings.program.arena.kind(event.node) == SyntaxKind.FieldAssignmentStatementSyntax()) { flow_require(graph, event, owners[event.slot - 1], 0, false); }
+		if (validate && (field.flags & 128) != 0 && (fields[event.field - 1] & 1) != 0) { graph.fail(16, event.span); }
+		if (validate && checked.bindings.program.arena.kind(event.node) == SyntaxKind.FieldInitializerSyntax() && (fields[event.field - 1] & 1) != 0) { graph.fail(16, event.span); }
+		fields[event.field - 1] = 1;
+	}
+	if (operation == 21) { flowsem_require_complete(graph, event, fields, event.slot, event.field, validate); }
+	if (operation == 9 || operation == 17) {
+		int i = 0;
+		while (i < graph.field_count) {
+			var field = graph.fields[i];
+			bool applies = field.root > 0 && graph.slots[field.root - 1].region == event.region;
+			if (field.root == 0 && event.region == 1) { applies = true; }
+			if (applies && field.leaf) {
+				if (operation == 17) { fields[i] = 16; } else {
+					// Constructor leaves transfer to the result. Local leaves retire
+					// in reverse inventory order under the exact root's cleanup.
+					if (field.root == 0) {
+						fields[i] = 2;
+					} else {
+						fields[i] = 8;
+					}
+				}
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < graph.slot_count) {
+			if (graph.slots[i].region == event.region) { nulls[i] = 3; }
+			i = i + 1;
+		}
+	}
+}
+void flowsem_require_complete(borrowed FlowGraph graph, FlowEvent event, int[] fields, int root, int parent, bool validate) {
+	if (!validate) { return; }
+	int i = 0;
+	while (i < graph.field_count) {
+		var field = graph.fields[i];
+		if (field.root == root && field.leaf && (parent == 0 || flowsem_under(graph, i + 1, parent)) && fields[i] != 1) { graph.fail(15, event.span); }
+		i = i + 1;
+	}
+}
+// Both actual branch edges retain their original syntax predicate. A refinement
+// belongs only to an exact local/parameter, never to a same-spelled receiver.
+bool flowsem_refine(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] nulls, bool truth) {
+	if (event.operation != 10 || event.predicate.index == 0) { return true; }
+	var node = event.predicate;
+	if (checked.bindings.program.arena.kind(node) != SyntaxKind.BinaryExpressionSyntax()) { return true; }
+	var token = checked.bindings.program.arena.get_token_operator_token(node);
+	bool unequal = checked.bindings.program.arena.token_is(token, "!=");
+	if (!unequal && !checked.bindings.program.arena.token_is(token, "==")) { return true; }
+	var left = flow_unwrap(checked, checked.bindings.program.arena.get_node_left(node));
+	var right = flow_unwrap(checked, checked.bindings.program.arena.get_node_right(node));
+	var pointer = left;
+	if (checked.bindings.program.arena.kind(left) == SyntaxKind.NullPointerExpressionSyntax()) { pointer = right; } else {
+		if (checked.bindings.program.arena.kind(right) != SyntaxKind.NullPointerExpressionSyntax()) { return true; }
+	}
+	if (checked.bindings.program.arena.kind(pointer) != SyntaxKind.NameExpressionSyntax()) { return true; }
+	var symbol = checked_target(checked, pointer, checked.bindings.program.arena.get_token_identifier(pointer));
+	int slot = graph.slot_for(symbol);
+	if (slot == 0 || checked_kind(checked, graph.slots[slot - 1].type) != 31) { return true; }
+	int fact = 1;
+	if (unequal == truth) { fact = 2; }
+	int current = nulls[slot - 1];
+	if ((current & fact) == 0) { return false; }
+	nulls[slot - 1] = fact;
+	return true;
+}
+void flowsem_publish_proofs(borrowed FlowGraph graph, int[] proofs) {
+	int i = 0;
+	while (i < graph.count) {
+		proofs[graph.events[i].node.index] = 1;
+		i = i + 1;
+	}
+}
+void flowsem_write_graph(FlowGraph graph, CheckedIndex checked, Utf8ByteBuilder output) throws Error {
+	int i = 0;
+	while (i < graph.field_count) {
+		var field = graph.fields[i];
+		source_append_text(output, "FIELD");
+		flow_number(output, graph.ordinal);
+		flow_number(output, i + 1);
+		flow_number(output, field.root);
+		flow_number(output, field.parent);
+		flow_number(output, field.symbol.index);
+		flow_number(output, field.type.index);
+		flow_number(output, field.flags);
+		source_append_text(output, " ");
+		binding_write_span(checked.bindings, checked.bindings.symbol(field.symbol).span, output);
+		source_append_text(output, "\n");
+		i = i + 1;
+	}
+	if (!graph.complete) { return; }
+	int e = 0;
+	while (e < graph.count) {
+		var event = graph.events[e];
+		if (event.input > 0 || event.output > 0 || event.required) {
+			source_append_text(output, "NULL");
+			flow_number(output, graph.ordinal);
+			flow_number(output, e + 1);
+			flow_number(output, event.input);
+			flow_number(output, event.output);
+			int cell = event.input;
+			if (cell == 0) { cell = event.output; }
+			int fact = 0;
+			if (cell > 0 && graph.reachable[e]) { fact = graph.null_facts[e * (graph.slot_count + graph.value_count) + cell - 1]; }
+			flow_number(output, fact);
+			source_append_text(output, " ");
+			binding_write_span(checked.bindings, event.span, output);
+			source_append_text(output, "\n");
+		}
+		i = 1;
+		while (i <= graph.field_count) {
+			if (graph.fields[i - 1].leaf && (event.field == i || event.operation == 21 || event.operation == 9)) {
+				source_append_text(output, "FIELD_STATE");
+				flow_number(output, graph.ordinal);
+				flow_number(output, e + 1);
+				flow_number(output, i);
+				int fact = 0;
+				if (graph.reachable[e]) { fact = flow_field_stored_summary(graph, e * graph.field_count, i); }
+				flow_number(output, fact);
+				source_append_text(output, "\n");
+			}
+			i = i + 1;
+		}
+		e = e + 1;
+	}
+}
+bool flowsem_verify_demands(borrowed FlowGraph graph, CheckedIndex checked) {
+	int i = 0;
+	while (i < graph.count) {
+		var event = graph.events[i];
+		if (event.operation == 12) {
+			var signature = checked.signatures[graph.ordinal - 1];
+			var result = checked.types.argument(checked.types, signature.callable, 0);
+			var value = checked.bindings.program.arena.get_node_expression(event.node);
+			if ((result.flags & 1) != 0 && value.index != 0 && !flowsem_value_promise(checked, value) && (checked.uses[value.index].deferred != 18 || checked.uses[event.node.index].deferred != 18)) { return false; }
+		}
+		if (event.operation == 21) {
+			var kind = checked.bindings.program.arena.kind(event.node);
+			if ((kind == SyntaxKind.StructInitializerSyntax() || kind == SyntaxKind.LifecycleDeclarationSyntax()) && checked.uses[event.node.index].deferred != 20) { return false; }
+		}
+		if (event.required) {
+			var node = event.node;
+			if (event.operation == 2) { node = checked.bindings.program.arena.get_node_initializer(node); }
+			if (event.operation == 15 || event.operation == 6 || event.operation == 20) { node = checked.bindings.program.arena.get_node_expression(node); }
+			if (node.index == 0) { return false; }
+			if (!flowsem_value_promise(checked, node)) {
+				if (checked.uses[node.index].deferred != 18 || checked.uses[event.node.index].deferred != 18) { return false; }
+			}
+		}
+		i = i + 1;
+	}
+	return true;
+}
+// Public fact queries also bind the solved tables to a fresh source solve.
+// This checks mutable model corruption; it is not an independent IR verifier.
+bool flowsem_verify_solution(borrowed FlowGraph graph, CheckedIndex checked, int[] origins) {
+	if (!flow_verify(graph, checked, origins)) { return false; }
+	try {
+		var expected = flow_graph(checked, origins, graph.function, graph.ordinal, graph.limit);
+		flow_solve(expected, checked, origins, 1000000);
+		if (!graph.complete || !expected.complete || graph.error != expected.error || graph.obligation_count != expected.obligation_count || len(graph.null_facts) != len(expected.null_facts) || len(graph.field_facts) != len(expected.field_facts) || len(graph.facts) != len(expected.facts) || len(graph.reservations) != len(expected.reservations) || len(graph.active) != len(expected.active) || len(graph.reachable) != len(expected.reachable)) { return false; }
+		int i = 0;
+		while (i < len(graph.null_facts)) {
+			if (graph.null_facts[i] != expected.null_facts[i]) {
+				return false;
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < len(graph.field_facts)) {
+			if (graph.field_facts[i] != expected.field_facts[i]) {
+				return false;
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < len(graph.facts)) {
+			if (graph.facts[i] != expected.facts[i] || graph.reservations[i] != expected.reservations[i]) {
+				return false;
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < len(graph.reachable)) {
+			if (graph.reachable[i] != expected.reachable[i]) {
+				return false;
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < len(graph.active)) {
+			if (graph.active[i] != expected.active[i]) {
+				return false;
+			}
+			i = i + 1;
+		}
+		return true;
+	} catch (Error error) {
+		return false;
+	}
+}
+
+bool flowsem_field_available(borrowed FlowGraph graph, CheckedIndex checked, int block, int field) {
+	int root = graph.fields[field - 1].root;
+	if (root == 0) { return true; }
+	if (!graph.reachable[block - 1] || graph.facts[(block - 1) * graph.slot_count + root - 1] != 1) { return false; }
+	if (checked_kind(checked, graph.slots[root - 1].type) == 31 && graph.null_facts[(block - 1) * (graph.slot_count + graph.value_count) + root - 1] != 2) { return false; }
+	return true;
+}
+// Typecore keeps inferred qualifier metadata. A declaration promise instead
+// comes from the exact retained source type; an inferred local can be overwritten.
+int flowsem_source_flags(CheckedIndex checked, SyntaxNodeId node) {
+	int flags = checked_flags(checked.bindings.program.arena, node) & 7;
+	var type = checked.bindings.program.arena.get_node_type_name(node);
+	if (type.index != 0 && checked.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax()) {
+		flags = flags | 1;
+	}
+	return flags;
+}
+bool flowsem_declared_nonnull(CheckedIndex checked, SymbolId symbol) {
+	var declaration = checked.bindings.symbol(symbol);
+	var kind = checked.bindings.program.arena.kind(declaration.node);
+	if (kind != SyntaxKind.ParameterSyntax() && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.StructFieldDeclarationSyntax()) {
+		return false;
+	}
+	return (flowsem_source_flags(checked, declaration.node) & 1) != 0;
+}
+bool flowsem_promised_result(CheckedIndex checked, SyntaxNodeId node) {
+	var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (target.index == 0) {
+		return false;
+	}
+	var declaration = checked.bindings.symbol(target);
+	if (declaration.kind != 1) {
+		return false;
+	}
+	var type = checked.bindings.program.arena.get_node_return_type(declaration.node);
+	return type.index != 0 && checked.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax();
+}
+
+bool flowsem_value_promise(CheckedIndex checked, SyntaxNodeId input) {
+	if ((checked.uses[input.index].flags & 1) == 0) { return false; }
+	var node = flow_unwrap(checked, input);
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+		return target.index != 0 && flowsem_declared_nonnull(checked, target);
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) { return flowsem_promised_result(checked, node); }
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		var target = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
+		return target.index != 0 && flowsem_declared_nonnull(checked, target);
+	}
+	return false;
+}

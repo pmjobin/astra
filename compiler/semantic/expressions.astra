@@ -173,6 +173,8 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
 		if (target.index != 0) {
 			receiver = index.symbol_types[target.index];
+		} else {
+			receiver = checked_this_type(index, node, index.bindings.program.arena.get_token_identifier(node));
 		}
 	}
 	var selected = checked_member(index, receiver, field);
@@ -269,6 +271,8 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 	if (kind == SyntaxKind.NameExpressionSyntax()) {
 		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
 		if (target.index == 0) {
+			var receiver = checked_this_type(index, node, index.bindings.program.arena.get_token_identifier(node));
+			if (receiver.index != 0) { return receiver; }
 			return index.defer(node, 13);
 		}
 		var symbol = index.bindings.symbol(target);
@@ -547,7 +551,7 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 	}
 	if (deferred) {
 		var ignored = index.defer(node, deferred_reason);
-		if (!index.flow_adapters || deferred_reason != 19) {
+		if (!index.flow_adapters || (deferred_reason != 19 && !(index.semantic_flow && deferred_reason == 18))) {
 			return no_type();
 		}
 	}
@@ -605,7 +609,23 @@ int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) thr
 	if (expression.index == 0) {
 		return 0;
 	}
-	if ((flags & 1) != 0 && (index.uses[expression.index].flags & 1) == 0) {
+	bool promised = (index.uses[expression.index].flags & 1) != 0;
+	if (index.semantic_flow && promised) {
+		var source = expression;
+		int steps = 0;
+		while (index.bindings.program.arena.kind(source) == SyntaxKind.ParenthesizedExpressionSyntax() && steps < 256) {
+			source = index.bindings.program.arena.get_node_expression(source);
+			steps = steps + 1;
+		}
+		if (index.bindings.program.arena.kind(source) == SyntaxKind.NameExpressionSyntax()) {
+			var target = checked_target(index, source, index.bindings.program.arena.get_token_identifier(source));
+			if (target.index != 0) {
+				var declaration = index.bindings.symbol(target);
+				if (declaration.kind == 7 || declaration.kind == 8) { promised = checked_flow_declared_nonnull(index, target); }
+			}
+		}
+	}
+	if ((flags & 1) != 0 && !promised) {
 		var inner = expression;
 		int depth = 0;
 		while (index.bindings.program.arena.kind(inner) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 256) {
@@ -620,6 +640,9 @@ int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) thr
 		return 18;
 	}
 	if ((flags & 6) != 0) {
+		// A record has both completeness and responsibility obligations. Keep
+		// its original aggregate use; the containing declaration records 19.
+		if (index.semantic_flow && index.bindings.program.arena.kind(expression) == SyntaxKind.StructInitializerSyntax() && index.uses[expression.index].deferred == 20) { return 19; }
 		var ignored = index.defer(expression, 19);
 		return 19;
 	}

@@ -55,9 +55,29 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 		var type = checked_resolve(index, index.bindings.program.arena.get_node_class_name(node), 0, 0);
 		var arguments = index.bindings.program.arena.get_list_arguments(node);
+		var constructor = type_symbol(0);
+		if (index.semantic_flow && checked_kind(index, type) == 31) { constructor = checked_constructor(index, type); }
 		int i = 0;
 		while (i < index.bindings.program.arena.list_count(arguments)) {
-			var ignored = checked_expression(index, index.bindings.program.arena.node_at(arguments, i), no_type(), depth + 1);
+			var expected_argument = no_type();
+			int flags = 0;
+			if (constructor.index != 0 && index.symbol_signatures[constructor.index].index > 0) {
+				var signature = index.signatures[index.symbol_signatures[constructor.index].index - 1];
+				var descriptor = index.types.descriptor(index.types, signature.callable);
+				if (descriptor.count != index.bindings.program.arena.list_count(arguments) + 1) {
+					index.fail(index.uses[node.index].span, "constructor argument count does not match signature");
+					return no_type();
+				}
+				var parameter = index.types.argument(index.types, signature.callable, i + 1);
+				expected_argument = parameter.type;
+				flags = parameter.flags;
+			}
+			var argument = index.bindings.program.arena.node_at(arguments, i);
+			var actual = checked_expression(index, argument, expected_argument, depth + 1);
+			if (index.semantic_flow) {
+				checked_mismatch(index, index.uses[argument.index].span, expected_argument, actual, "constructor argument");
+				var contract = checked_contract(index, argument, flags);
+			}
 			i = i + 1;
 		}
 		var use = index.uses[node.index];
@@ -98,7 +118,7 @@ TypeId checked_flow_length(CheckedIndex index, SyntaxNodeId node, int depth) thr
 	return index.defer(node, 17);
 }
 owned CheckedIndex flow_checked_index(owned BindingIndex bindings) throws Error {
-	var result = checked_build(move bindings, 0, true);
+	var result = checked_build(move bindings, 0, true, false);
 	return move result;
 }
 bool checked_flow_statement(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
@@ -153,4 +173,55 @@ TypeId checked_flow_context(CheckedIndex index, SyntaxNodeId node, int depth) th
 		return left;
 	}
 	return checked_context(index, index.bindings.program.arena.get_node_right(node), depth + 1);
+}
+
+// The semantic consumer retains all original uses and adds no foreign authority.
+owned CheckedIndex flowsem_checked_index(owned BindingIndex bindings) throws Error {
+	return checked_build(move bindings, 0, true, true);
+}
+bool checked_record_owned(CheckedIndex index, TypeId type, int depth) {
+	if (checked_kind(index, type) != 30 || depth > 64) { return false; }
+	var descriptor = index.types.descriptor(index.types, type);
+	var declaration = index.bindings.symbol(descriptor.nominal);
+	var fields = index.bindings.program.arena.get_list_fields(declaration.node);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(fields)) {
+		var field = index.bindings.program.arena.node_at(fields, i);
+		var symbol = index.node_symbols[field.index];
+		if (symbol.index != 0 && ((index.symbol_flags[symbol.index] & 4) != 0 || checked_record_owned(index, index.symbol_types[symbol.index], depth + 1))) { return true; }
+		i = i + 1;
+	}
+	return false;
+}
+TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) {
+	if (!index.semantic_flow || !index.bindings.program.arena.token_is(token, "this")) { return no_type(); }
+	var scope = index.bindings.scope_for_node(node);
+	if (scope.index == 0) { return no_type(); }
+	var context = index.bindings.scope(scope);
+	if (context.owner.index == 0) { return no_type(); }
+	var symbol = index.bindings.symbol(context.owner);
+	if ((symbol.kind == 11 || symbol.kind == 12 || symbol.kind == 18) && symbol.owner.index != 0) { return index.symbol_types[symbol.owner.index]; }
+	return no_type();
+}
+
+SymbolId checked_constructor(CheckedIndex index, TypeId type) {
+	if (checked_kind(index, type) != 31) { return type_symbol(0); }
+	var descriptor = index.types.descriptor(index.types, type);
+	var declaration = index.bindings.symbol(descriptor.nominal);
+	var members = index.bindings.program.arena.get_list_members(declaration.node);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(members)) {
+		var member = index.bindings.program.arena.node_at(members, i);
+		if (index.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) { return index.node_symbols[member.index]; }
+		i = i + 1;
+	}
+	return type_symbol(0);
+}
+
+bool checked_flow_declared_nonnull(CheckedIndex index, SymbolId symbol) {
+	var declaration = index.bindings.symbol(symbol);
+	var kind = index.bindings.program.arena.kind(declaration.node);
+	if (kind != SyntaxKind.ParameterSyntax() && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.StructFieldDeclarationSyntax()) { return false; }
+	var type = index.bindings.program.arena.get_node_type_name(declaration.node);
+	return type.index != 0 && index.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax();
 }

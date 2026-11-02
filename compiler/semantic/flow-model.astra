@@ -8,6 +8,21 @@ struct OwnerSlotId {
 	int function;
 	int index;
 }
+struct FlowFieldId {
+	int function;
+	int index;
+}
+struct FlowField {
+	int root;
+	int parent;
+	SymbolId symbol;
+	TypeId type;
+	int flags;
+	bool leaf;
+}
+struct FlowNullValue {
+	SyntaxNodeId node;
+}
 struct FlowLoanId {
 	int function;
 	int index;
@@ -39,6 +54,12 @@ struct FlowEvent {
 	int next;
 	int other;
 	int loop_head;
+	int input;
+	int output;
+	int null_kind;
+	int field;
+	SyntaxNodeId predicate;
+	bool required;
 }
 struct FlowLoan {
 	int source;
@@ -63,6 +84,13 @@ class FlowGraph {
 	owned int[] reservations;
 	owned bool[] active;
 	owned bool[] reachable;
+	owned FlowField[] fields;
+	owned FlowNullValue[] values;
+	owned int[] null_facts;
+	owned int[] field_facts;
+	int field_count;
+	int value_count;
+	bool semantic_flow;
 	int count;
 	int slot_count;
 	int region_count;
@@ -89,6 +117,13 @@ class FlowGraph {
 		this.reservations = new int[0];
 		this.active = new bool[0];
 		this.reachable = new bool[0];
+		this.fields = new FlowField[16];
+		this.values = new FlowNullValue[16];
+		this.null_facts = new int[0];
+		this.field_facts = new int[0];
+		this.field_count = 0;
+		this.value_count = 0;
+		this.semantic_flow = false;
 		this.count = 0;
 		this.slot_count = 0;
 		this.region_count = 0;
@@ -206,6 +241,42 @@ class FlowGraph {
 		this.obligations[this.obligation_count] = row;
 		this.obligation_count = this.obligation_count + 1;
 	}
+	int null_value(SyntaxNodeId node) {
+		int i = 0;
+		while (i < this.value_count) {
+			if (this.values[i].node.index == node.index) { return this.slot_count + i + 1; }
+			i = i + 1;
+		}
+		if (!this.room(this.value_count)) { return 0; }
+		if (this.value_count == len(this.values)) {
+			var grown = new FlowNullValue[syntax_grown_capacity(len(this.values), this.value_count + 1)];
+			i = 0;
+			while (i < this.value_count) {
+				grown[i] = this.values[i];
+				i = i + 1;
+			}
+			swap(this.values, grown);
+		}
+		FlowNullValue value = { node = node };
+		this.values[this.value_count] = value;
+		this.value_count = this.value_count + 1;
+		return this.slot_count + this.value_count;
+	}
+	int add_field(FlowField field) {
+		if (!this.room(this.field_count)) { return 0; }
+		if (this.field_count == len(this.fields)) {
+			var grown = new FlowField[syntax_grown_capacity(len(this.fields), this.field_count + 1)];
+			int i = 0;
+			while (i < this.field_count) {
+				grown[i] = this.fields[i];
+				i = i + 1;
+			}
+			swap(this.fields, grown);
+		}
+		this.fields[this.field_count] = field;
+		this.field_count = this.field_count + 1;
+		return this.field_count;
+	}
 	int slot_for(SymbolId symbol) {
 		int i = 0;
 		while (i < this.slot_count) {
@@ -246,6 +317,7 @@ class FlowIndex {
 	owned int[] class_origins;
 	owned int[] global_deferred;
 	bool origins_ok;
+	bool semantic_proved;
 	bool complete;
 	int unmodeled;
 	bool capacity_ok;
@@ -257,6 +329,7 @@ class FlowIndex {
 		this.class_origins = new int[0];
 		this.global_deferred = new int[0];
 		this.origins_ok = true;
+		this.semantic_proved = false;
 		this.complete = false;
 		this.unmodeled = 0;
 		this.capacity_ok = this.checked.signature_count <= 8192 && this.checked.bindings.symbol_count <= 262144 && this.graphs.reserve(this.checked.signature_count);
@@ -291,6 +364,18 @@ class FlowIndex {
 		}
 		return flow_owner_fact(this.graphs.entries[block.function - 1], block.index, slot.index);
 	}
+	int nonnull_at(borrowed FlowIndex origin, FlowBlockId block, OwnerSlotId slot) {
+		if (!this.owns_block(origin, block) || !this.owns_slot(origin, slot) || block.function != slot.function) { return -1; }
+		if (!this.semantic_proved || !this.checked.semantic_flow || !flowsem_verify_solution(this.graphs.entries[block.function - 1], this.checked, this.class_origins)) { return -2; }
+		if (checked_kind(this.checked, flow_graph_slot_type(this.graphs.entries[block.function - 1], slot.index)) != 31) { return -2; }
+		return flow_null_fact(this.graphs.entries[block.function - 1], block.index, slot.index);
+	}
+	int field_at(borrowed FlowIndex origin, FlowBlockId block, FlowFieldId field) {
+		if (!this.owns_block(origin, block) || field.function != block.function || field.index < 1 || field.index > flow_field_count(this.graphs.entries[block.function - 1])) { return -1; }
+		if (!this.semantic_proved || !this.checked.semantic_flow || !flowsem_verify_solution(this.graphs.entries[block.function - 1], this.checked, this.class_origins)) { return -2; }
+		if (!flowsem_field_available(this.graphs.entries[block.function - 1], this.checked, block.index, field.index)) { return -2; }
+		return flow_field_fact(this.graphs.entries[block.function - 1], block.index, field.index);
+	}
 	int loan_at(borrowed FlowIndex origin, FlowBlockId block, FlowLoanId loan) {
 		if (!this.owns_block(origin, block) || !this.owns_loan(origin, loan) || block.function != loan.function) {
 			return -1;
@@ -303,7 +388,7 @@ class FlowIndex {
 }
 FlowEvent flow_event(CheckedIndex checked, SyntaxNodeId node, int operation, int slot, int region, int next) {
 	FlowEvent result = {
-		operation = operation, node = node, span = checked.bindings.program.arena.header(node).span, slot = slot, loan = 0, region = region, call = 0, next = next, other = 0, loop_head = 0
+		operation = operation, node = node, span = checked.bindings.program.arena.header(node).span, slot = slot, loan = 0, region = region, call = 0, next = next, other = 0, loop_head = 0, input = 0, output = 0, null_kind = 0, field = 0, predicate = flow_no_node(), required = false
 	};
 	return result;
 }
@@ -369,3 +454,31 @@ int flow_loan_fact(borrowed FlowGraph graph, int block, int loan) {
 	}
 	return 0;
 }
+
+int flow_field_count(borrowed FlowGraph graph) { return graph.field_count; }
+int flow_null_fact(borrowed FlowGraph graph, int block, int slot) {
+	if (!graph.semantic_flow || !graph.complete || graph.error != 0 || graph.obligation_count != 0) { return -2; }
+	if (!graph.reachable[block - 1]) { return 0; }
+	return graph.null_facts[(block - 1) * (graph.slot_count + graph.value_count) + slot - 1];
+}
+int flow_field_fact(borrowed FlowGraph graph, int block, int field) {
+	if (!graph.semantic_flow || !graph.complete || graph.error != 0 || graph.obligation_count != 0) { return -2; }
+	if (!graph.reachable[block - 1]) { return 0; }
+	return flow_field_stored_summary(graph, (block - 1) * graph.field_count, field);
+}
+
+int flow_field_stored_summary(borrowed FlowGraph graph, int first, int field) {
+	if (graph.fields[field - 1].leaf) { return graph.field_facts[first + field - 1]; }
+	int result = 1;
+	int i = field;
+	while (i < graph.field_count) {
+		if (graph.fields[i].leaf && flowsem_under(graph, i + 1, field)) {
+			int fact = graph.field_facts[first + i];
+			if (fact != 1) { result = result | fact | 16; }
+		}
+		i = i + 1;
+	}
+	return result;
+}
+
+TypeId flow_graph_slot_type(borrowed FlowGraph graph, int slot) { return graph.slots[slot - 1].type; }

@@ -124,6 +124,9 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			index.fail(index.bindings.program.arena.header(node).span, "Callback is call-scoped and cannot initialize a local");
 			return;
 		}
+		if (index.semantic_flow && checked_record_owned(index, expected, 0)) {
+			index.symbol_flags[id.index] = index.symbol_flags[id.index] | 4;
+		}
 		var initializer = index.bindings.program.arena.get_node_initializer(node);
 		if (kind == SyntaxKind.StructLocalDeclarationSyntax()) {
 			checked_initializer(index, initializer, expected, depth + 1);
@@ -152,6 +155,7 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			if (target.index != 0) {
 				expected = index.symbol_types[target.index];
 				expected_flags = index.symbol_flags[target.index];
+				if (index.semantic_flow && !checked_flow_declared_nonnull(index, target)) { expected_flags = expected_flags & ~1; }
 			}
 		} else {
 			var field_node = index.bindings.program.arena.get_node_target(node);
@@ -201,9 +205,10 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
 	var ignored = index.defer(node, 100 + syntax_kind_code(kind));
 }
-owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bool flow_adapters) throws Error {
+owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
 	result.flow_adapters = flow_adapters;
+	result.semantic_flow = semantic_flow;
 	if (result.bindings.failed()) {
 		int r = 1;
 		while (r <= result.bindings.reference_count) {
@@ -247,6 +252,7 @@ owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bo
 		var type = result.types.argument(result.types, signature.callable, 0);
 		result.current_result_flags = type.flags;
 		checked_statement(result, body, type.type, 0);
+		if (result.semantic_flow && symbol.kind == 12) { var obligation = result.defer(symbol.node, 20); }
 		i = i + 1;
 	}
 	if (result.inspect_prefix) {
@@ -266,6 +272,6 @@ bool checked_past_binding_error(CheckedIndex index, SyntaxNodeId node) {
 }
 
 owned CheckedIndex checked_index(owned BindingIndex bindings, int stop_after) throws Error {
-	var result = checked_build(move bindings, stop_after, false);
+	var result = checked_build(move bindings, stop_after, false, false);
 	return move result;
 }
