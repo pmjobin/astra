@@ -70,6 +70,7 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	if (node.index == 0 || index.failed() || checked_past_binding_error(index, node)) {
 		return;
 	}
+	if (index.flow_adapters && checked_flow_statement(index, node, depth)) { return; }
 	var kind = index.bindings.program.arena.kind(node);
 	if (depth > 256) {
 		index.fail(index.bindings.program.arena.header(node).span, "checked statement depth exceeds 256");
@@ -200,8 +201,9 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
 	var ignored = index.defer(node, 100 + syntax_kind_code(kind));
 }
-owned CheckedIndex checked_index(owned BindingIndex bindings, int stop_after) throws Error {
+owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bool flow_adapters) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
+	result.flow_adapters = flow_adapters;
 	if (result.bindings.failed()) {
 		int r = 1;
 		while (r <= result.bindings.reference_count) {
@@ -261,4 +263,9 @@ bool checked_past_binding_error(CheckedIndex index, SyntaxNodeId node) {
 	var span = index.bindings.program.arena.header(node).span;
 	var error = index.bindings.error_span;
 	return span.source.index > error.source.index || (span.source.index == error.source.index && span.start >= error.start);
+}
+
+owned CheckedIndex checked_index(owned BindingIndex bindings, int stop_after) throws Error {
+	var result = checked_build(move bindings, stop_after, false);
+	return move result;
 }

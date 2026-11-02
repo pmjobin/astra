@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// General checked-use adapters, enabled only by the ownership consumer.
+// Types/qualifiers are evidence, never an ownership/constructor safety proof.
+bool checked_flow_admits(SyntaxKind kind) {
+	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.IndexExpressionSyntax() || kind == SyntaxKind.DereferenceExpressionSyntax();
+}
+bool checked_flow_intrinsic(CheckedIndex index, SyntaxNodeId node) {
+	return index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "len") && checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0;
+}
+TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	var kind = index.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax()) {
+		SyntaxTokenId token = {
+			index = 0
+		};
+		if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			token = index.bindings.program.arena.get_token_source(node);
+		} else {
+			token = index.bindings.program.arena.get_token_identifier(node);
+		}
+		var symbol = checked_target(index, node, token);
+		if (symbol.index == 0 || (kind == SyntaxKind.MoveExpressionSyntax() && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node)) != 0)) {
+			return index.defer(node, 19);
+		}
+		var type = index.symbol_types[symbol.index];
+		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
+			if (type.index == 0) {
+				return index.defer(node, 15);
+			}
+			return index.types.unary(20, type, 0);
+		}
+		var use = index.uses[node.index];
+		use.flags = 4;
+		use.deferred = 19;
+		index.uses[node.index] = use;
+		return type;
+	}
+	if (kind == SyntaxKind.BufferAllocationSyntax()) {
+		var element = checked_resolve(index, index.bindings.program.arena.get_node_element_type(node), 0, 0);
+		var count_node = index.bindings.program.arena.get_node_count(node);
+		var count = checked_expression(index, count_node, type_id(1), depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(count_node).span, type_id(1), count, "buffer count");
+		var use = index.uses[node.index];
+		use.flags = 4;
+		use.deferred = 19;
+		index.uses[node.index] = use;
+		if (element.index == 0) {
+			return no_type();
+		}
+		return index.types.unary(22, element, 0);
+	}
+	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+		var type = checked_resolve(index, index.bindings.program.arena.get_node_class_name(node), 0, 0);
+		var arguments = index.bindings.program.arena.get_list_arguments(node);
+		int i = 0;
+		while (i < index.bindings.program.arena.list_count(arguments)) {
+			var ignored = checked_expression(index, index.bindings.program.arena.node_at(arguments, i), no_type(), depth + 1);
+			i = i + 1;
+		}
+		var use = index.uses[node.index];
+		use.flags = 4;
+		use.deferred = 19;
+		index.uses[node.index] = use;
+		return type;
+	}
+	var operand = index.bindings.program.arena.get_node_pointer(node);
+	if (kind == SyntaxKind.IndexExpressionSyntax()) {
+		operand = index.bindings.program.arena.get_node_container(node);
+	}
+	var type = checked_expression(index, operand, no_type(), depth + 1);
+	if (kind == SyntaxKind.IndexExpressionSyntax()) {
+		var subscript = index.bindings.program.arena.get_node_subscript(node);
+		var ignored = checked_expression(index, subscript, type_id(1), depth + 1);
+	}
+	int code = checked_kind(index, type);
+	if ((kind == SyntaxKind.DereferenceExpressionSyntax() && code == 20) || (kind == SyntaxKind.IndexExpressionSyntax() && (code == 21 || code == 22))) {
+		return index.types.argument(index.types, type, 0).type;
+	}
+	return index.defer(node, 15);
+}
+TypeId checked_flow_length(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var args = index.bindings.program.arena.get_list_arguments(node);
+	if (index.bindings.program.arena.list_count(args) != 1) {
+		return index.defer(node, 17);
+	}
+	var operand = index.bindings.program.arena.node_at(args, 0);
+	var type = checked_expression(index, operand, no_type(), depth + 1);
+	int code = checked_kind(index, type);
+	if (code == 21 || code == 22) {
+		return type_id(1);
+	}
+	return index.defer(node, 17);
+}
+owned CheckedIndex flow_checked_index(owned BindingIndex bindings) throws Error {
+	var result = checked_build(move bindings, 0, true);
+	return move result;
+}
+bool checked_flow_statement(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var kind = index.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.ReleaseStatementSyntax()) {
+		var ignored = index.defer(node, 19);
+		var recorded = index.record(node, type_id(14), 0);
+		return true;
+	}
+	if (kind != SyntaxKind.DereferenceAssignmentSyntax() && kind != SyntaxKind.IndexedAssignmentSyntax()) {
+		return false;
+	}
+	var target = index.bindings.program.arena.get_node_target(node);
+	var expected = checked_expression(index, target, no_type(), depth + 1);
+	var value = index.bindings.program.arena.get_node_expression(node);
+	var actual = checked_expression(index, value, expected, depth + 1);
+	checked_mismatch(index, index.bindings.program.arena.header(value).span, expected, actual, "store");
+	var ignored = index.record(node, expected, 0);
+	return true;
+}

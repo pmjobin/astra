@@ -218,6 +218,7 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 }
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
+	if (index.flow_adapters && checked_flow_admits(kind)) { return checked_flow_expression(index, node, expected, depth); }
 	var span = index.bindings.program.arena.header(node).span;
 	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax()) {
 		return checked_integer_literal(index, node, span, expected, false);
@@ -461,6 +462,7 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 	return left;
 }
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (index.flow_adapters && checked_flow_intrinsic(index, node)) { return checked_flow_length(index, node, depth); }
 	var token = index.bindings.program.arena.get_token_identifier(node);
 	var target = checked_target(index, node, token);
 	int i = index.node_references[node.index];
@@ -524,7 +526,10 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 		checked_mismatch(index, index.bindings.program.arena.header(child).span, parameter.type, actual, "argument");
 		i = i + 1;
 	}
-	if (deferred) { return index.defer(node, deferred_reason); }
+	if (deferred) {
+		var ignored = index.defer(node, deferred_reason);
+		if (!index.flow_adapters || deferred_reason != 19) { return no_type(); }
+	}
 	var result = index.types.argument(index.types, type, 0);
 	var use = index.uses[node.index];
 	use.flags = result.flags;

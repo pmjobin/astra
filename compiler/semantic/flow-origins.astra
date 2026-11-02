@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Logical Class allocation provenance, distinct from owner state and pointer bits.
+// Null=1, proved default heap=2, lexical=4, unsupported producer=8; 0 is bottom.
+// Transport constraints are rebuilt from retained checked/Binder source identities.
+bool flow_class_type(CheckedIndex checked, TypeId type) {
+	return checked_kind(checked, type) == 31 && flow_simple_class(checked, type);
+}
+int flow_class_value(CheckedIndex checked, int[] origins, SyntaxNodeId value) {
+	var node = flow_unwrap(checked, value);
+	if (node.index == 0) {
+		return 8;
+	}
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.NullPointerExpressionSyntax()) {
+		return 1;
+	}
+	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+		if (checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && !checked.bindings.program.arena.get_bool_fallible(node) && flow_class_type(checked, checked.uses[node.index].type)) {
+			return 2;
+		}
+		return 8;
+	}
+	if (kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.NameExpressionSyntax()) {
+		SyntaxTokenId token = {
+			index = 0
+		};
+		if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			token = checked.bindings.program.arena.get_token_source(node);
+		} else {
+			token = checked.bindings.program.arena.get_token_identifier(node);
+		}
+		var symbol = checked_target(checked, node, token);
+		if (symbol.index > 0 && (checked.symbol_flags[symbol.index] & 4) != 0) {
+			return origins[symbol.index];
+		}
+		return 8;
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+		if (symbol.index > 0 && checked.bindings.symbol(symbol).kind == 1 && (checked.symbol_flags[symbol.index] & (8 | 16 | 32 | 64)) == 0) {
+			return origins[symbol.index];
+		}
+		return 8;
+	}
+	return 8;
+}
+bool flow_origin_merge(int[] origins, SymbolId symbol, int value) {
+	if (symbol.index <= 0 || symbol.index >= len(origins)) {
+		return false;
+	}
+	int joined = origins[symbol.index] | value;
+	if (joined == origins[symbol.index]) {
+		return false;
+	}
+	origins[symbol.index] = joined;
+	return true;
+}
+owned int[] flow_class_origins(CheckedIndex checked) {
+	var origins = new int[checked.bindings.symbol_count + 1];
+	bool needed = false;
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		if (flow_class_type(checked, checked.symbol_types[s])) {
+			needed = true;
+		}
+		s = s + 1;
+	}
+	if (!needed) {
+		return move origins;
+	}
+	bool changed = true;
+	int work = 0;
+	while (changed) {
+		changed = false;
+		s = 1;
+		while (s <= checked.bindings.symbol_count) {
+			var symbol = checked.bindings.symbol(type_symbol(s));
+			if (symbol.kind == 8 && (checked.symbol_flags[s] & 4) != 0 && flow_class_type(checked, checked.symbol_types[s])) {
+				var value = checked.bindings.program.arena.get_node_initializer(symbol.node);
+				changed = flow_origin_merge(origins, type_symbol(s), flow_class_value(checked, origins, value)) || changed;
+			}
+			s = s + 1;
+		}
+		int n = 1;
+		while (n < len(checked.uses)) {
+			work = work + 1;
+			if (work > 8000000) {
+				origins[0] = -1;
+				return move origins;
+			}
+			var node = checked.uses[n].node;
+			var kind = checked.bindings.program.arena.kind(node);
+			if (kind == SyntaxKind.ReturnStatementSyntax()) {
+				var scope = checked.bindings.scope_for_node(node);
+				if (scope.index > 0) {
+					var owner = checked.bindings.scope(scope).owner;
+					if (owner.index > 0 && checked.symbol_signatures[owner.index].index > 0) {
+						var signature = checked.signatures[checked.symbol_signatures[owner.index].index - 1];
+						var result = checked.types.argument(checked.types, signature.callable, 0);
+						if ((result.flags & 4) != 0 && flow_class_type(checked, result.type)) {
+							var value = checked.bindings.program.arena.get_node_expression(node);
+							changed = flow_origin_merge(origins, owner, flow_class_value(checked, origins, value)) || changed;
+						}
+					}
+				}
+			}
+			if (kind == SyntaxKind.CallExpressionSyntax()) {
+				var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+				if (target.index > 0 && checked.bindings.symbol(target).kind == 1 && checked.symbol_signatures[target.index].index > 0) {
+					var declaration = checked.bindings.symbol(target);
+					var args = checked.bindings.program.arena.get_list_arguments(node);
+					var params = checked.bindings.program.arena.get_list_parameters(declaration.node);
+					int p = 0;
+					while (p < checked.bindings.program.arena.list_count(args) && p < checked.bindings.program.arena.list_count(params)) {
+						var param = checked.bindings.program.arena.node_at(params, p);
+						var symbol = checked.node_symbols[param.index];
+						if (symbol.index > 0 && (checked.symbol_flags[symbol.index] & 4) != 0 && flow_class_type(checked, checked.symbol_types[symbol.index])) {
+							var value = checked.bindings.program.arena.node_at(args, p);
+							changed = flow_origin_merge(origins, symbol, flow_class_value(checked, origins, value)) || changed;
+						}
+						p = p + 1;
+					}
+				}
+			}
+			n = n + 1;
+		}
+	}
+	return move origins;
+}
+bool flow_count_admitted(CheckedIndex checked, SyntaxNodeId value) {
+	var node = flow_unwrap(checked, value);
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
+		if (checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_operator_token(node), "-")) {
+			return false;
+		}
+	}
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+		if (symbol.index > 0 && checked.bindings.symbol(symbol).kind == 2) {
+			return false;
+		}
+	}
+	return true;
+}
