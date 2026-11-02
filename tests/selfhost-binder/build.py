@@ -51,7 +51,7 @@ def build(compiler, directory, capture, modes=('O0', 'O2')):
 		target = directory / (name + '.o')
 		product([gcc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', source, '-o', target], target, [Path(p) for p in deps], name)
 		objects += ['--link-object', target]
-	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *sorted((ROOT / 'compiler/semantic').glob('*.astra')), ROOT / 'tests/selfhost-binder/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
+	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *[ROOT / f'compiler/semantic/{name}.astra' for name in ('index', 'model', 'names', 'query')], ROOT / 'tests/selfhost-binder/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
 	for mode in modes:
 		target = directory / ('astra-bind-' + mode)
 		product([compiler, '-' + mode, *sources, *objects, '-o', target], target, [*sources, *objects[1::2]], 'binder-' + mode)

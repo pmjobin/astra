@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		if (len(args) == 2 && args[1] == "--lifetime") {
+			typecore_lifetime();
+			return 0;
+		}
+		if (len(args) < 3) {
+			println_stderr("usage: astra-types --types FILE... | --type-at PATH OFFSET FILE... | --signature PATH OFFSET FILE... | --partial FILE...");
+			return 2;
+		}
+		int start = 2;
+		if (args[1] == "--type-at" || args[1] == "--signature") {
+			start = 4;
+		}
+		var bindings = typecore_load(args, start);
+		int stop = 0;
+		if (args[1] == "--partial") {
+			stop = 1;
+		}
+		var index = checked_index(move bindings, stop);
+		if ((args[1] == "--mutate-use" || args[1] == "--mutate-signature") && !index.failed()) {
+			var before = syntax_program_dump(index.bindings.program);
+			bool changed = false;
+			int i = 1;
+			while (i < len(index.uses) && !changed) {
+				var use = index.uses[i];
+				if (args[1] == "--mutate-use" && use.type.index == 1 && index.bindings.program.arena.kind(use.node) == SyntaxKind.NameExpressionSyntax()) {
+					use.type = type_id(6);
+					index.uses[i] = use;
+					changed = true;
+				}
+				i = i + 1;
+			}
+			if (args[1] == "--mutate-signature") {
+				i = 1;
+				while (i < len(index.symbol_types) && !changed) {
+					var symbol = index.bindings.symbol(type_symbol(i));
+					if (symbol.kind == 7 && index.symbol_types[i].index == 1) {
+						index.symbol_types[i] = type_id(6);
+						changed = true;
+					} i = i + 1;
+				}
+			}
+			var after = syntax_program_dump(index.bindings.program);
+			assert_that(changed && before.text == after.text && !index.validate());
+			println("MUTANT_REJECTED");
+			return 0;
+		}
+		var observation = checked_observation(index);
+		print(observation.text);
+		if (index.failed()) {
+			return 1;
+		}
+		if (args[1] == "--type-at" || args[1] == "--signature") {
+			var path = source_normalize_path(args[2]);
+			int offset = binding_decimal(args[3]);
+			int best = 0;
+			int width = 2147483647;
+			int i = 1;
+			while (i < len(index.uses)) {
+				var use = index.uses[i];
+				if (use.type.index != 0 && offset >= use.span.start && offset < use.span.end && use.span.end - use.span.start < width) {
+					var backing = index.bindings.program.arena.source_span(use.span);
+					var current = backing.path();
+					if (path.text == current.text) {
+						best = i;
+						width = use.span.end - use.span.start;
+					}
+				}
+				i = i + 1;
+			}
+			if (args[1] == "--signature") {
+				i = 1;
+				best = 0;
+				while (i <= index.bindings.symbol_count) {
+					var symbol = index.bindings.symbol(type_symbol(i));
+					if (offset >= symbol.span.start && offset < symbol.span.end) {
+						var backing = index.bindings.program.arena.source_span(symbol.span);
+						var current = backing.path();
+						if (current.text == path.text) {
+							best = index.symbol_signatures[i].index;
+						}
+					}
+					i = i + 1;
+				}
+				print("QUERY signature ");
+				var output = new Utf8ByteBuilder();
+				append_int(output, best);
+				source_append_text(output, "\n");
+				var text = output.snapshot();
+				print(text.text);
+			} else {
+				if (best == 0) {
+					print("QUERY absent\n");
+				} else {
+					var output = new Utf8ByteBuilder();
+					checked_write_use(index, index.uses[best], output);
+					var text = output.snapshot();
+					print("QUERY type\n");
+					print(text.text);
+				}
+			}
+		}
+		return 0;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}
+void typecore_lifetime() throws Error {
+	var a = new TypeTable(20);
+	var b = new TypeTable(20);
+	assert_that(a.owns(a, type_id(1)) && !a.owns(b, type_id(1)) && !a.owns(a, type_id(0)) && !a.owns(a, type_id(17)));
+	var first = a.unary(20, type_id(1), 0);
+	var second = a.unary(20, type_id(1), 0);
+	assert_that(first.index == second.index);
+	var deep = type_id(1);
+	int n = 0;
+	var table = new TypeTable(1024);
+	while (n < 129) {
+		deep = table.unary(22, deep, 0);
+		n = n + 1;
+	}
+	assert_that(deep.index == 0 && table.exhausted);
+	var program = parser_text_program("int f(int p){return p;}");
+	SyntaxSourceId source = {
+		index = 1
+	};
+	var backing = program.arena.source(source);
+	var observer = shared_downgrade(backing);
+	release backing;
+	var bindings = binding_index(move program, 0);
+	var checked = checked_index(move bindings, 0);
+	assert_that(checked.validate());
+	var symbol = checked.bindings.symbol(type_symbol(1));
+	var retained = checked.bindings.program.arena.source_span(symbol.span);
+	release checked;
+	var alive = weak_upgrade(observer);
+	assert_that(alive != null);
+	release alive;
+	var bytes = retained.bytes();
+	assert_that(len(bytes) == 1 && bytes[0] == 102 as u8);
+	release retained;
+	var expired = weak_upgrade(observer);
+	assert_that(expired == null);
+	var one_program = parser_text_program("struct Item{int x;}int f(Item p){return p.x;}");
+	var two_program = parser_text_program("struct Item{int x;}int f(Item p){return p.x;}");
+	var one_bindings = binding_index(move one_program, 0);
+	var two_bindings = binding_index(move two_program, 0);
+	var one = checked_index(move one_bindings, 0);
+	var two = checked_index(move two_bindings, 0);
+	assert_that(one.validate() && two.validate() && !one.types.same_owner(two.types));
+	var one_symbol = one.bindings.symbol(type_symbol(1));
+	var two_symbol = two.bindings.symbol(type_symbol(1));
+	var one_span = one.bindings.program.arena.source_span(one_symbol.span);
+	var two_span = two.bindings.program.arena.source_span(two_symbol.span);
+	assert_that(!one_span.same_source(two_span));
+	var limited = new TypeTable(16);
+	var refused = limited.unary(20, type_id(1), 0);
+	assert_that(refused.index == 0 && limited.exhausted);
+	int repeated = 0;
+	while (repeated < 32) {
+		var fresh = parser_text_program("int f(){return true;}");
+		var bound = binding_index(move fresh, 0);
+		var failed = checked_index(move bound, 0);
+		assert_that(failed.failed() && !failed.complete);
+		repeated = repeated + 1;
+	}
+	println("TYPECORE_LIFETIME_OK");
+}
+owned BindingIndex typecore_load(string[] args, int start) throws Error {
+	var program = binding_load_program(args, start);
+	if (args[1] == "--mutate-ast") {
+		var before = syntax_program_dump(program);
+		int i = 1;
+		bool changed = false;
+		while (i <= program.arena.node_count && !changed) {
+			SyntaxNodeId node = {
+				index = i
+			};
+			if (program.arena.kind(node) == SyntaxKind.NameExpressionSyntax()) {
+				var token = program.arena.get_token_identifier(node);
+				var span = program.arena.token_span(token);
+				var text = program.arena.token_message(token);
+				span.start = span.start + 1;
+				span.end = span.end + 1;
+				var mutant = program.arena.generated_token(TokenKind.IDENTIFIER(), span, text.text);
+				program.arena.set_token_identifier(node, mutant);
+				changed = true;
+			}
+			i = i + 1;
+		}
+		var after = syntax_program_dump(program);
+		assert_that(changed && before.text == after.text);
+	}
+	var result = binding_index(move program, 0);
+	return move result;
+}
