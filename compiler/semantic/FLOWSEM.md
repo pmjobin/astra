@@ -16,7 +16,7 @@ remain in `flowsem7/frozen-initial`; corrected sources and expectations are in
 | Family | Admission | Explicit frontier |
 |---|---|---|
 | Nonnull | exact native nongeneric Class locals/parameters, owned constructions and direct nonthrowing qualified results; null guards, negation, short circuit, joins, structural loop fixpoints, overwrite and owner invalidation | Resource/foreign/generic/Fn/member and property contracts; captured Boolean implications |
-| Records | concrete native structs with scalar/bool leaves, nested structs, owned numeric buffers and empty native Class children; explicit aggregate initialization, complete copies/moves, scalar member reads/writes, ordered automatic cleanup | owning-member extraction/replacement, generic fields, fallible construction, borrowed record channels |
+| Records | concrete native structs with scalar/bool leaves, nested structs, owned numeric buffers and empty native Class children; explicit aggregate initialization, complete root copies/moves, scalar member reads/writes, ordered automatic cleanup | nonliteral nested-field copies, owning-member extraction/replacement, generic fields, fallible construction, borrowed record channels |
 | Classes | direct native constructor, scalar/bool fields and owned empty-Class/buffer children, explicit assignments, branch completion and nonnull owning-field requirements | constructor loops/explicit returns, standalone receiver escape, custom destructor, inheritance, methods/properties/virtual dispatch, allocator/concurrency/foreign metadata, nested mutable Class fields |
 | Identity | exact program/function, original checked use, SymbolId/TypeId, receiver root and declaration path | matching names or equal source bytes confer no identity |
 
@@ -33,6 +33,15 @@ returns and standalone receiver escape into explicit deferrals. Field token
 anchors enrich the independently authored initialization expectations without
 changing source bytes. C0 does not expose the native lattice; these expectations
 are separate from its enforcing outcomes.
+
+Three later source-authored witnesses extend that freeze: inferred-local
+overwrite followed by a fresh guard, a stale copied guard after overwrite, and
+a nested-field record copy. The first two distinguish inferred qualifier
+metadata from a source-declared promise. The last remains UNSUPPORTED_EFFECT
+until a declaration-bound leaf-copy transition exists. Whole compiler-source
+execution exposed this boundary and an unqualified implicit receiver; neither
+is converted into a safety proof. The original failures and rebuild receipts
+remain in external task evidence.
 
 Class construction validates exact constructor argument types and channels.
 Each aggregate has a declaration-bound tree of field identities, including

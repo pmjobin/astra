@@ -47,6 +47,7 @@ def cases():
 	nested = pair+'struct Outer{Pair pair;int tag;} '
 	yield dict(name='nested', files={'a.astra':nested+'int main(){Outer o={pair={a=3,b=4},tag=9};return o.pair.a+o.pair.b-7;}'}, error=None, family='aggregate', execute=True)
 	yield dict(name='nested-missing', files={'a.astra':nested+'int main(){Outer o={pair={a=3},tag=9};return 0;}'}, error='FIELD_INCOMPLETE', family='aggregate')
+	yield dict(name='nested-copy', files={'a.astra':nested+'int main(){Pair p={a=3,b=4};Outer o={pair=p,tag=9};return o.pair.a+o.pair.b-7;}'}, error=None, deferred='UNSUPPORTED_EFFECT', family='aggregate')
 	owned = 'struct Packet{owned int[] data;int tag;} '
 	for name, body, error in [
 		('owned-record','var x=new int[2];Packet p={data={{init_data|move x}},tag=7};return {{read_tag|p.tag}}-7;',None),

@@ -56,7 +56,7 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		var type = checked_resolve(index, index.bindings.program.arena.get_node_class_name(node), 0, 0);
 		var arguments = index.bindings.program.arena.get_list_arguments(node);
 		var constructor = type_symbol(0);
-		if (index.semantic_flow && checked_kind(index, type) == 31) { constructor = checked_constructor(index, type); }
+		if (index.semantic_flow && checked_kind(index, type) == 31 && checked_flow_receiver_shape(index, type)) { constructor = checked_constructor(index, type); }
 		int i = 0;
 		while (i < index.bindings.program.arena.list_count(arguments)) {
 			var expected_argument = no_type();
@@ -200,7 +200,7 @@ TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId to
 	var context = index.bindings.scope(scope);
 	if (context.owner.index == 0) { return no_type(); }
 	var symbol = index.bindings.symbol(context.owner);
-	if ((symbol.kind == 11 || symbol.kind == 12 || symbol.kind == 18) && symbol.owner.index != 0) { return index.symbol_types[symbol.owner.index]; }
+	if (symbol.kind == 12 && symbol.owner.index != 0 && checked_flow_receiver_shape(index, index.symbol_types[symbol.owner.index])) { return index.symbol_types[symbol.owner.index]; }
 	return no_type();
 }
 
@@ -224,4 +224,36 @@ bool checked_flow_declared_nonnull(CheckedIndex index, SymbolId symbol) {
 	if (kind != SyntaxKind.ParameterSyntax() && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.StructFieldDeclarationSyntax()) { return false; }
 	var type = index.bindings.program.arena.get_node_type_name(declaration.node);
 	return type.index != 0 && index.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax();
+}
+
+// Completing an implicit receiver must not expose unqualified storage families
+// to the small type adapter (owner slots, shared fields and richer records).
+bool checked_flow_receiver_shape(CheckedIndex index, TypeId type) {
+	if (checked_kind(index, type) != 31) { return false; }
+	var descriptor = index.types.descriptor(index.types, type);
+	var declaration = index.bindings.symbol(descriptor.nominal);
+	var node = declaration.node;
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || index.bindings.program.arena.get_node_parent_class(node).index != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_bool_is_interface(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0) { return false; }
+	var fields = index.bindings.program.arena.get_list_fields(node);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(fields)) {
+		var field = index.bindings.program.arena.node_at(fields, i);
+		var symbol = index.node_symbols[field.index];
+		if (symbol.index == 0) { return false; }
+		var field_type = index.symbol_types[symbol.index];
+		int code = checked_kind(index, field_type);
+		bool admitted = type_numeric(code) || code == 13;
+		if ((index.symbol_flags[symbol.index] & 4) != 0 && code == 22) {
+			var element = index.types.argument(index.types, field_type, 0);
+			admitted = type_numeric(checked_kind(index, element.type)) || checked_kind(index, element.type) == 13;
+		}
+		if ((index.symbol_flags[symbol.index] & 4) != 0 && code == 31) {
+			var child = index.types.descriptor(index.types, field_type);
+			var child_declaration = index.bindings.symbol(child.nominal);
+			admitted = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(child_declaration.node)) == 0;
+		}
+		if (!admitted) { return false; }
+		i = i + 1;
+	}
+	return true;
 }

@@ -25,6 +25,9 @@ def main():
 	a = p.parse_args()
 	a.runtime.mkdir(parents=True, exist_ok=False)
 	rows, result = [], {}
+	old = json.loads((a.before/'product.json').read_text())
+	old_exe = Path(old['identity']['argv'][-1])
+	assert sha(old_exe)==old['sha256']
 	def run(argv, name, expected=None):
 		argv = list(map(str,argv))
 		start = time.monotonic()
@@ -52,6 +55,7 @@ def main():
 			source.write_text(cases[name]+'\n')
 			run([a.compiler,'--check',source],'existing-c0-'+name,0)
 			selected[name] = dict(origin=str(path),origin_sha256=sha(path),source=str(source),sha256=sha(source))
+			before = decode(run([old_exe,'--flow',source],'existing-before-'+name,3).stdout)
 			outputs = []
 			for mode in ('O0','O2'):
 				r = run([a.build/('astra-flow-'+mode),'--flow',source],'existing-'+name+'-'+mode,0)
@@ -59,12 +63,47 @@ def main():
 				assert {18,20} <= {p['reason'] for p in o['proofs'] if p['proved']},(name,o['proofs'])
 				outputs.append(r.stdout)
 			assert outputs[0]==outputs[1]
+			selected[name]['before'] = before['proofs']
+			selected[name]['after'] = o['proofs']
+			assert any(p['reason']==18 and not p['proved'] for p in before['proofs'])
 		owned = ROOT/'tests/owned-state-6/prototypes/two-owner.astra'
 		run([a.compiler,'--check',owned],'existing-owning-c0',0)
+		before = decode(run([old_exe,'--flow',owned],'existing-owning-before',3).stdout)
 		for mode in ('O0','O2'):
 			r = run([a.build/('astra-flow-'+mode),'--flow',owned],'existing-owning-'+mode,0)
 			assert any(p['reason']==20 and p['proved'] for p in decode(r.stdout)['proofs'])
-		result['existing'] = dict(nonnull=selected,owning=dict(path=str(owned),sha256=sha(owned)))
+		result['existing'] = dict(nonnull=selected,owning=dict(path=str(owned),sha256=sha(owned),before=before['proofs'],after=decode(r.stdout)['proofs']))
+		# One bounded multisource program exercises both proof families at scale.
+		paths = []
+		for batch in range(4):
+			source = a.runtime/('scale-'+str(batch)+'.astra')
+			text = 'namespace Scale'+str(batch)+';class C{init(){}}void use(nonnull C p){}struct Packet{owned int[] data;int tag;}\n'
+			for number in range(16):
+				text += 'int classify_'+str(number)+'(C p,int rounds){int i=0;int total=0;while(i<rounds){if(p!=null){use(p);total=total+1;}i=i+1;}return total;}\n'
+				text += 'int packet_'+str(number)+'(int size){var data=new int[size];Packet p={data=move data,tag=size};var q=move p;return q.tag;}\n'
+			source.write_text(text)
+			paths.append(source)
+		client = a.runtime/'scale-client.astra'
+		client.write_text('int main(){var p=new Scale0.C();if(Scale0.classify_0(p,0)!=0||Scale0.classify_0(p,1)!=1||Scale0.classify_0(p,5)!=5||Scale0.classify_0(null,5)!=0||Scale0.packet_0(3)!=3||Scale0.packet_1(0)!=0){return 1;}return 0;}\n')
+		paths.append(client)
+		run([a.compiler,'--check',*paths],'scale-c0',0)
+		outputs = []
+		for mode in ('O0','O2'):
+			exe = a.build/('astra-flow-'+mode)
+			r = run([exe,'--flow',*paths],'scale-'+mode,0)
+			o = decode(r.stdout)
+			assert len(o['graphs'])==137 and {18,19,20}<={p['reason'] for p in o['proofs'] if p['proved']}
+			outputs.append(r.stdout)
+			result['scale_'+mode] = dict(graphs=len(o['graphs']),events=len(o['events']),fields=len(o['fields']),proofs=dict(Counter(p['reason'] for p in o['proofs'] if p['proved'])))
+			r = run(['valgrind','--default-suppressions=no','--error-exitcode=97','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=definite,indirect,possible',exe,'--flow',*paths],'scale-memory-'+mode,0)
+			assert b'ERROR SUMMARY: 0 errors' in r.stderr and not re.search(rb'(?:definitely|indirectly|possibly) lost: [1-9]',r.stderr)
+			program = a.build/('scale-program-'+mode)
+			run([a.compiler,'-'+mode,*paths,'-o',program],'scale-compile-'+mode,0)
+			run([program],'scale-execute-'+mode,0)
+			r = run(['valgrind','--default-suppressions=no','--error-exitcode=97','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=definite,indirect,possible',program],'scale-program-memory-'+mode,0)
+			assert b'ERROR SUMMARY: 0 errors' in r.stderr and not re.search(rb'(?:definitely|indirectly|possibly) lost: [1-9]',r.stderr)
+		assert outputs[0]==outputs[1]
+		result['scale_sources'] = {str(p):sha(p) for p in paths}
 		# Reconstruct the original Git-pinned workload into task-owned runtime;
 		# original and candidate observations use exactly these same source bytes.
 		inventory = json.loads((a.before/'compiler-source-inputs.json').read_text())
@@ -79,16 +118,19 @@ def main():
 			assert hashlib.sha256(data).hexdigest()==digest
 			source.write_bytes(data)
 			paths.append(source)
-		old = json.loads((a.before/'product.json').read_text())
-		old_exe = Path(old['identity']['argv'][-1])
-		assert sha(old_exe)==old['sha256']
 		before = run([old_exe,'--flow',*paths],'same-source-before',3)
-		result['fixed_before'] = dict(sources={str(p):sha(p) for p in paths},status=3,deferrals=dict(Counter(decode(before.stdout)['deferrals'])),proofs=decode(before.stdout)['proofs'])
+		o = decode(before.stdout)
+		counts = (len(o['graphs']),len(o['events']),sum(line.startswith(b'L ') for line in before.stdout.splitlines()))
+		assert counts==(1460,81304,1361),counts
+		result['fixed_before'] = dict(sources={str(p):sha(p) for p in paths},status=3,graphs=counts[0],events=counts[1],loans=counts[2],deferrals=dict(Counter(o['deferrals'])),proofs=o['proofs'])
+		outputs = []
 		for mode in ('O0','O2'):
 			r = run([a.build/('astra-flow-'+mode),'--flow',*paths],'same-source-after-'+mode)
 			o = decode(r.stdout)
-			assert o['graphs'] and 'checked_error' not in o
-			result['fixed_after_'+mode] = dict(status=o['status'],graphs=len(o['graphs']),events=len(o['events']),deferrals=dict(Counter(o['deferrals'])),errors=o['errors'],proofs=o['proofs'])
+			assert r.returncode==o['status']==3 and o['graphs'] and not o['errors'] and 'checked_error' not in o
+			outputs.append(r.stdout)
+			result['fixed_after_'+mode] = dict(status=o['status'],graphs=len(o['graphs']),events=len(o['events']),loans=sum(line.startswith(b'L ') for line in r.stdout.splitlines()),deferrals=dict(Counter(o['deferrals'])),errors=o['errors'],proofs=o['proofs'])
+		assert outputs[0]==outputs[1]
 			# Current source is separately identified and never counted as whole-program safety.
 		identity = json.loads((a.build/'astra-flow-O0.identity.json').read_text())['identity']
 		current = [p for p in identity['sources'] if p.endswith('.astra') and '/tests/' not in p]
@@ -96,9 +138,9 @@ def main():
 		for mode in ('O0','O2'):
 			r = run([a.build/('astra-flow-'+mode),'--flow',*current],'current-source-'+mode)
 			o = decode(r.stdout)
-			assert o['status']!=0 and o['graphs'] and 'checked_error' not in o
+			assert r.returncode==o['status']==3 and o['graphs'] and not o['errors'] and 'checked_error' not in o
 			outputs.append(r.stdout)
-			result['current_'+mode] = dict(status=o['status'],graphs=len(o['graphs']),events=len(o['events']),deferrals=dict(Counter(o['deferrals'])),errors=o['errors'],proofs=o['proofs'])
+			result['current_'+mode] = dict(status=o['status'],graphs=len(o['graphs']),events=len(o['events']),loans=sum(line.startswith(b'L ') for line in r.stdout.splitlines()),deferrals=dict(Counter(o['deferrals'])),errors=o['errors'],proofs=o['proofs'])
 		assert outputs[0]==outputs[1]
 		result['current_sources'] = {p:sha(p) for p in current}
 	finally:

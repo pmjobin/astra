@@ -193,6 +193,12 @@ int flowsem_initializer(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 		if (nested.index != 0) {
 			head = flowsem_initializer(graph, checked, origins, nested, root, field, region, head, depth + 1);
 		} else {
+			// A whole nested value needs an explicit leaf-copy transition. Never
+			// treat its parent as a scalar leaf or fabricate child completion.
+			if (!graph.fields[field - 1].leaf) {
+				graph.defer(init, 6);
+				return head;
+			}
 			var value = checked.bindings.program.arena.get_node_expression(init);
 			var event = flow_event(checked, init, 20, root, region, head);
 			event.field = field;
