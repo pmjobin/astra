@@ -1,0 +1,162 @@
+{
+  "format": "astra-typecore-port/1",
+  "scope": "Astra checked type/signature tables and finite scalar expression checker over BindingIndex; independent Vala production semantics and lowering remain authoritative",
+  "authority": {
+    "type_identity": "bootstrap/semantic/types.vala:SemanticType,BuiltinTypes,GenericResourceLimits,TypeArgumentVector",
+    "type_resolution": "bootstrap/semantic/analyzer.vala:resolve_type,resolve_contract_type,resolve_pointer_type,collect_signature",
+    "expression_rules": "bootstrap/semantic/operators.vala; bootstrap/semantic/analyzer.vala:check_observed_expression,check_integer,check_shift",
+    "calling_contract": "bootstrap/semantic/symbols.vala; bootstrap/semantic/checked-nodes.vala; bootstrap/semantic/generic-call-inference.vala",
+    "observation": "bootstrap/semantic/semantic-dump.vala; bootstrap/main.vala; compiler/syntax/model.json"
+  },
+  "families": {
+    "scalar/void/text": {
+      "constructor": "TypeTable fixed logical IDs 1..16; i32 aliases int",
+      "identity": "canonical exact width/sign/format; isize/usize separate host-scope identities",
+      "witnesses": [
+        "scalar-*",
+        "text",
+        "bad-void",
+        "bad-width"
+      ]
+    },
+    "struct/class/enum/type-parameter": {
+      "constructor": "CheckedIndex.symbol_types and TypeDescriptor.nominal",
+      "identity": "exact Binder SymbolId, whose original node/token/source span survives; no name-key type equality",
+      "witnesses": [
+        "nominal-imports",
+        "nominal-mismatch",
+        "forward-recursive",
+        "generic-template"
+      ]
+    },
+    "qualified/imported": {
+      "constructor": "checked_target consumes existing type-use edges",
+      "identity": "Binder scope/import/visibility authority",
+      "witnesses": [
+        "nominal-imports",
+        "ambiguity",
+        "inaccessible"
+      ]
+    },
+    "generic applications": {
+      "constructor": "kind 34 with definition and ordered argument edges; checked_substitute",
+      "identity": "definition plus exact argument identities; storage fields do not contribute to type-expression depth",
+      "witnesses": [
+        "generic",
+        "bad-arity",
+        "bad-generic-void"
+      ],
+      "later": "general class/record storage capability proof, body specialization and inference require subsequent semantic authority"
+    },
+    "pointer": {
+      "constructor": "kind 20 or canonical raw void* 16",
+      "identity": "exact pointee; one pointer layer",
+      "witnesses": [
+        "pointer",
+        "raw",
+        "bad-pointer",
+        "bad-pointer-depth"
+      ]
+    },
+    "array/slice/slots": {
+      "constructor": "kinds 21/22/23; fixed extent belongs to array identity",
+      "identity": "element and constructor remain distinct",
+      "witnesses": [
+        "array",
+        "slice",
+        "slots",
+        "bad-array"
+      ],
+      "later": "nonliteral constant extents, transitive storage/copyability, slot construction and ownership flow"
+    },
+    "vector/mask": {
+      "constructor": "kind 24; element plus exact lane count",
+      "identity": "numeric 128-bit shape or bool mask; no implicit broadcast",
+      "witnesses": [
+        "vector",
+        "mask",
+        "bad-vector"
+      ],
+      "later": "vector expression lowering and physical mask layout"
+    },
+    "nonnull": {
+      "constructor": "CheckedTypeUse.flags bit 1, same logical type as C0",
+      "identity": "qualifier preserved separately from ownership and type equivalence",
+      "witnesses": [
+        "nonnull",
+        "bad-nonnull"
+      ],
+      "later": "control-flow proof/refinement; a typed signature alone grants no nullability proof"
+    },
+    "shared/weak": {
+      "constructor": "kinds 27/28 and exact payload",
+      "identity": "separate shared/weak and original Class declaration",
+      "witnesses": [
+        "shared",
+        "bad-shared"
+      ],
+      "later": "intrusive/foreign policy, thread and lifetime rules"
+    },
+    "Fn/Callback/channels": {
+      "constructor": "kinds 25/26; result then ordered parameters with ownership bits",
+      "identity": "exact ordered type/channel identities, independent SignatureId for declarations",
+      "witnesses": [
+        "fn",
+        "callback",
+        "fn-channel",
+        "bad-fn-call",
+        "competing-callable"
+      ],
+      "later": "general closure/record ownership proofs, escaping borrowed channels, checked closure environments; explicit channel identities are retained"
+    },
+    "task/executor/context": {
+      "constructor": "named deferred type uses; no invented success TypeId",
+      "identity": "Task escapes are excluded by C0; ContextBytes needs its declared Resource allocator contract",
+      "later": "nominated async/runtime/allocator contracts remain in Vala; syntax acceptance is not admission"
+    },
+    "foreign": {
+      "constructor": "original Binder declaration/policy nodes retained",
+      "identity": "source nominal identity never asserts C/GObject/COM ABI identity",
+      "later": "foreign type/policy admission, adapters and layout remain in Vala"
+    }
+  },
+  "expression_slice": [
+    "integer/bool/floating/text literals",
+    "contextual null",
+    "name/parameter/local/constant",
+    "parentheses",
+    "finite scalar unary/binary/short-circuit/comparison",
+    "explicit numeric conversion type",
+    "typed/inferred locals",
+    "assignment",
+    "returns",
+    "direct free/Fn/Callback calls",
+    "block/if/while/for conditions",
+    "known field projection and contextual aggregate field initializer"
+  ],
+  "deferred_reasons": {
+    "10": "type constructor needs additional native/foreign/generic policy authority",
+    "11": "constant array extent needs constant evaluation",
+    "12": "member receiver or dispatch needs additional type/place authority",
+    "13": "implicit receiver/value reference needs lifecycle context",
+    "14": "function address needs an explicit callable expectation",
+    "15": "expression depends on a specifically deferred operand or declaration",
+    "16": "conversion requires nonscalar or ownership policy",
+    "17": "intrinsic/member/generic call requires additional checked-call authority",
+    "100+SyntaxKind": "specific unsupported expression/statement and its dependent subtree; original kind retained in every U row",
+    "18": "nonnull destination needs a control-flow proof; declared qualifier retained",
+    "19": "explicit owned/borrowed channel needs the later transfer/loan proof",
+    "20": "contextual aggregate fields checked; full construction/completeness/storage proof remains pending"
+  },
+  "binder_seam": {
+    "api": "BindingIndex.complete_reference preserves original node/token/span/scope and updates reverse references",
+    "1": "selected exact known nominal field receivers only; methods/properties/enum selection stay deferred",
+    "2": "implicit this/base remains deferred",
+    "3": "selected known destination aggregate fields only",
+    "4": "match variant and payload selection remain deferred",
+    "5": "compiler intrinsics remain deferred",
+    "6": "slot construction/lifetime remains deferred",
+    "7": "known inferred Fn/Callback local selected over competing module callable"
+  },
+  "historical_status": "Binder-4 remains accepted at its original revision. This ledger describes candidate scope; only current executed receipts establish qualification. No Stage 1 or full semantic compiler claim."
+}

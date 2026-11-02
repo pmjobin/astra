@@ -1,0 +1,535 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool checked_nominal_kind(int kind) {
+	return kind == 30 || kind == 31 || kind == 32 || kind == 34;
+}
+bool checked_nullable(CheckedIndex index, TypeId type) {
+	int kind = checked_kind(index, type);
+	return kind == 16 || kind == 20 || kind == 31 || kind == 26 || kind == 27 || kind == 28 || kind == 29 || kind == 35;
+}
+int checked_decimal(string text, int limit) {
+	int n = 0;
+	int i = 0;
+	while (i < text.byte_length) {
+		int digit = astra_host_text_byte(text, i) - 48;
+		if (digit < 0 || digit > 9 || n > (limit - digit) / 10) {
+			return -1;
+		}
+		n = n * 10 + digit;
+		i = i + 1;
+	}
+	return n;
+}
+TypeId checked_resolve(CheckedIndex index, SyntaxNodeId node, int context, int depth) throws Error {
+	if (node.index == 0 || index.failed()) {
+		return no_type();
+	}
+	var span = index.bindings.program.arena.header(node).span;
+	if (depth > 128 || index.checking[node.index]) {
+		index.fail(span, "checked type depth exceeds 128 or cyclic type syntax");
+		return no_type();
+	}
+	if (index.uses[node.index].type.index != 0) {
+		return index.uses[node.index].type;
+	}
+	index.checking[node.index] = true;
+	var result = checked_resolve_inner(index, node, context, depth);
+	index.checking[node.index] = false;
+	return result;
+}
+TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context, int depth) throws Error {
+	var span = index.bindings.program.arena.header(node).span;
+	var kind = index.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.NonNullTypeSyntax() || kind == SyntaxKind.CallableChannelTypeSyntax()) {
+		var type = checked_resolve(index, index.bindings.program.arena.get_node_underlying(node), 0, depth + 1);
+		int flags = 1;
+		if (kind == SyntaxKind.NonNullTypeSyntax()) {
+			int code = checked_kind(index, type);
+			if (context == 0 || (code != 31 && code != 25 && code != 34 && code != 0)) {
+				index.fail(span, "nonnull requires an exact concrete Class or Resource reference, closed general Class, interface borrow or native Fn; raw, Weak and open generic strengthening is excluded");
+			}
+		} else {
+			if (context != 3) {
+				index.fail(span, "typed callable ownership channel requires its enclosing signature contract");
+			}
+			flags = 2;
+			if (index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_keyword(node), "owned")) {
+				flags = 4;
+			}
+		}
+		return index.record(node, type, flags);
+	}
+	if (kind == SyntaxKind.SharedTypeSyntax()) {
+		var payload = checked_resolve(index, index.bindings.program.arena.get_node_payload(node), 0, depth + 1);
+		if (payload.index == 0) {
+			return index.defer(node, 10);
+		}
+		if (checked_kind(index, payload) != 31) {
+			index.fail(span, "shared requires a nonshared concrete native Class payload; redundant intrusive boxing and unsupported value families are rejected");
+			return no_type();
+		}
+		return index.record(node, index.types.unary(27, payload, 0), 0);
+	}
+	if (kind == SyntaxKind.PointerTypeSyntax() || kind == SyntaxKind.SliceTypeSyntax() || kind == SyntaxKind.ArrayTypeSyntax() || kind == SyntaxKind.VectorTypeSyntax() || kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
+		SyntaxNodeId child = {
+			index = 0
+		};
+		int constructor = 20;
+		if (kind == SyntaxKind.PointerTypeSyntax()) {
+			child = index.bindings.program.arena.get_node_pointee(node);
+		}
+		if (kind == SyntaxKind.SliceTypeSyntax()) {
+			child = index.bindings.program.arena.get_node_element_type(node);
+			constructor = 22;
+		}
+		if (kind == SyntaxKind.ArrayTypeSyntax()) {
+			child = index.bindings.program.arena.get_node_element_type(node);
+			constructor = 21;
+		}
+		if (kind == SyntaxKind.VectorTypeSyntax()) {
+			child = index.bindings.program.arena.get_node_element_type(node);
+			constructor = 24;
+		}
+		if (kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
+			child = index.bindings.program.arena.get_node_element(node);
+			constructor = 23;
+		}
+		var element = checked_resolve(index, child, 0, depth + 1);
+		int code = checked_kind(index, element);
+		if (code == 0) {
+			return index.defer(node, 10);
+		}
+		int extent = 0;
+		if (constructor == 20) {
+			if (code == 34) { var nominal = index.types.descriptor(index.types, element); var definition = index.bindings.symbol(nominal.nominal); if (definition.kind == 4) { index.fail(span, "ClassType* is unsupported; object references are not typed data pointers"); return no_type(); } }
+			if (code == 20 || code == 16) {
+				index.fail(span, "pointer depth greater than one is unsupported");
+				return no_type();
+			}
+			if (code == 14) {
+				return index.record(node, type_id(16), 0);
+			}
+			if (code == 33) {
+				index.fail(span, "GEN-1 type parameters cannot occur inside pointer, array or vector type constructors; only direct T[] is supported");
+				return no_type();
+			}
+			if (code == 24) {
+				var child_edge = index.types.argument(index.types, element, 0);
+				if (child_edge.type.index == 13) {
+					index.fail(span, "bool-vector pointers are unsupported; bool memory representation and alignment are not defined");
+					return no_type();
+				}
+			}
+			if (!type_numeric(code) && code != 30 && code != 34 && code != 24) {
+				index.fail(span, "typed pointer pointee must be an integer, f32, numeric vector, or native struct; bool and resource storage are unsupported");
+				return no_type();
+			}
+		}
+		if (constructor == 24) {
+			var lanes = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_lane_count(node));
+			extent = checked_decimal(lanes.text, 16);
+			if ((!type_numeric(code) && code != 13) || code == 9 || code == 10 || (extent != 2 && extent != 4 && extent != 8 && extent != 16) || (code != 13 && type_width(code) * extent > 128)) {
+				index.fail(span, "unsupported vector element or lane count (2,4,8,16; numeric payload at most 128 bits)");
+				return no_type();
+			}
+		}
+		if (constructor == 21 || constructor == 22) {
+			if (!type_numeric(code) && code != 24 && code != 30 && code != 34 && !(constructor == 22 && (code == 15 || code == 33 || code == 13 || code == 16))) {
+				index.fail(index.bindings.program.arena.header(child).span, "unsupported array or slice element type");
+				return no_type();
+			}
+			if (constructor == 21) {
+				if (code == 24) { var element_row = index.types.argument(index.types, element, 0); if (element_row.type.index == 13) { index.fail(span, "fixed arrays of mask vectors have no admitted scalar storage contract"); return no_type(); } }
+				var expression = index.bindings.program.arena.get_node_extent(node);
+				if (index.bindings.program.arena.kind(expression) != SyntaxKind.IntegerLiteralExpressionSyntax()) {
+					return index.defer(node, 11);
+				}
+				var text = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(expression));
+				extent = checked_decimal(text.text, 1024);
+				if (extent < 1) {
+					index.fail(index.bindings.program.arena.header(expression).span, "ARRAY-1 array length must be in 1..1024 (current implementation bound)");
+					return no_type();
+				}
+			}
+		}
+		// Numeric int[slots] is an ordinary constant extent, not an owner store.
+		if (constructor == 23 && type_numeric(code)) { return index.defer(node, 11); }
+		if (constructor == 23 && (context != 2 || (!checked_nominal_kind(code) && code != 33))) {
+			index.fail(span, "owner-slot types are admitted only as owned native Class fields");
+			return no_type();
+		}
+		return index.record(node, index.types.unary(constructor, element, extent), 0);
+	}
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	var name = index.bindings.program.arena.token_message(token);
+	var target = checked_target(index, node, token);
+	int builtin = type_builtin(name.text);
+	if (kind != SyntaxKind.GenericTypeApplicationSyntax()) {
+		var result = no_type();
+		if (target.index != 0) {
+			var declaration = index.bindings.symbol(target);
+			result = index.symbol_types[target.index];
+			if (declaration.kind == 3 || declaration.kind == 4 || declaration.kind == 5) {
+				var params = index.bindings.program.arena.get_list_type_parameters(declaration.node);
+				if (index.bindings.program.arena.list_count(params) != 0) {
+					index.fail(span, "generic nominal type requires explicit type arguments");
+					return no_type();
+				}
+			}
+		} else {
+			if (builtin != 0 && index.bindings.program.arena.get_token_namespace_qualifier(node).index == 0) {
+				result = type_id(builtin);
+			}
+		}
+		if (result.index == 0) {
+			if (name.text == "Task") {
+				index.fail(span, "Task fields, parameters and return escapes are excluded; use an inferred local and explicit consuming await");
+				return no_type();
+			}
+			return index.defer(node, 10);
+		}
+		var stars = index.bindings.program.arena.get_list_stars(node);
+		if (index.bindings.program.arena.list_count(stars) > 1) {
+			index.fail(span, "pointer depth greater than one is unsupported");
+			return no_type();
+		}
+		if (index.bindings.program.arena.list_count(stars) == 1) {
+			int code = checked_kind(index, result);
+			if (code == 14) {
+				result = type_id(16);
+			} else {
+				if (!type_numeric(code) && code != 30 && code != 34) {
+					index.fail(span, "unsupported typed pointer pointee");
+					return no_type();
+				}
+				result = index.types.unary(20, result, 0);
+			}
+		}
+		return index.record(node, result, 0);
+	}
+	var arguments = index.bindings.program.arena.get_list_type_arguments(node);
+	int count = index.bindings.program.arena.list_count(arguments);
+	if (count > 257) {
+		index.fail(span, "too many type arguments");
+		return no_type();
+	}
+	var edges = new TypeEdge[count];
+	int constructor = 34;
+	if (target.index == 0 && index.bindings.program.arena.get_token_namespace_qualifier(node).index == 0) {
+		if (name.text == "Fn") {
+			constructor = 25;
+		}
+		if (name.text == "Callback") {
+			constructor = 26;
+		}
+		if (name.text == "Shared") {
+			constructor = 27;
+		}
+		if (name.text == "Weak") {
+			constructor = 28;
+		}
+		if (name.text == "Closure") {
+			constructor = 29;
+		}
+		if (name.text == "CheckedClosure") {
+			constructor = 35;
+		}
+		if (name.text == "ContextBytes") {
+			if (count != 1) {
+				index.fail(span, "ContextBytes requires one exact owned allocator handle type");
+				return no_type();
+			}
+			var allocator = checked_resolve(index, index.bindings.program.arena.node_at(arguments, 0), 0, depth + 1);
+			if (checked_kind(index, allocator) <= 16) {
+				index.fail(span, "ContextBytes requires a declared owned allocator lifetime/thread contract");
+				return no_type();
+			}
+			return index.defer(node, 10);
+		}
+	}
+	if ((constructor == 29 && (count < 2 || count > 6)) || (constructor == 35 && (count < 3 || count > 7)) || (constructor == 25 && (count < 1 || count > 5)) || (constructor == 26 && count < 1) || ((constructor == 27 || constructor == 28) && count != 1)) {
+		index.fail(span, "invalid type constructor arity");
+		return no_type();
+	}
+	if (constructor == 34) {
+		if (target.index == 0) {
+			return index.defer(node, 10);
+		}
+		var declaration = index.bindings.symbol(target);
+		int expected = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node));
+		if (expected != count || expected == 0) {
+			index.fail(span, "generic nominal type argument count mismatch");
+			return no_type();
+		}
+	}
+	int i = 0;
+	while (i < count) {
+		var argument = index.bindings.program.arena.node_at(arguments, i);
+		var type = checked_resolve(index, argument, 3, depth + 1);
+		if (type.index == 0) {
+			return index.defer(node, 10);
+		}
+		int flags = index.uses[argument.index].flags;
+		int code = checked_kind(index, type);
+		int result_position = 0;
+		if (constructor == 29) {
+			result_position = 1;
+		}
+		if (constructor == 35) {
+			result_position = 2;
+		}
+		if ((constructor == 29 || constructor == 35) && i < result_position && code != 31 && code != 34) {
+			index.fail(index.bindings.program.arena.header(argument).span, "closure environment/error requires an exact Class");
+			return no_type();
+		}
+		if ((constructor == 25 || constructor == 26 || constructor == 29 || constructor == 35) && i >= result_position && (flags & 4) != 0 && code != 31 && code != 33 && code != 34) {
+			index.fail(index.bindings.program.arena.header(argument).span, "owned callable channel requires an exact Class or Resource");
+			return no_type();
+		}
+		if ((constructor == 25 || constructor == 26) && ((i != 0 && code == 14) || (flags == 0 && !type_numeric(code) && code != 13 && code != 14 && code != 30 && code != 33 && code != 34) || (i == 0 && (flags & 2) != 0))) {
+			index.fail(index.bindings.program.arena.header(argument).span, "unsupported callable channel type");
+			return no_type();
+		}
+		if ((constructor == 27 || constructor == 28) && code != 31) {
+			index.fail(span, "Shared/Weak payload requires an exact concrete nongeneric native Class");
+			return no_type();
+		}
+		if (constructor == 34 && code == 31) {
+			var definition = index.bindings.symbol(target);
+			if (definition.kind == 3) {
+				bool ownable = false;
+				var params = index.bindings.program.arena.get_list_type_parameters(definition.node);
+				var parameter = index.bindings.program.arena.token_at(params, i);
+				var token_text = index.bindings.program.arena.token_message(parameter);
+				int s = 1;
+				while (s <= index.bindings.symbol_count) {
+					var symbol = index.bindings.symbol(type_symbol(s));
+					if (symbol.kind == 9 && symbol.owner.index == target.index && index.bindings.program.arena.token_is(symbol.token, token_text.text)) {
+						ownable = checked_parameter_capability(index, index.symbol_types[s], "Ownable");
+					} s = s + 1;
+				}
+				if (!ownable) {
+					index.fail(index.bindings.program.arena.header(argument).span, "generic struct type argument requires GEN1_PLAIN_COPY or its explicit Ownable constraint");
+					return no_type();
+				}
+			}
+		}
+		if (constructor == 34 && (code == 14 || code == 16 || code == 20 || code == 21 || code == 22 || code == 23)) {
+			index.fail(index.bindings.program.arena.header(argument).span, "generic type argument requires a declared copy/ownership capability");
+			return no_type();
+		}
+		TypeEdge edge = {
+			type = type, flags = flags
+		};
+		edges[i] = edge;
+		i = i + 1;
+	}
+	if (constructor == 34 && !checked_constraints(index, target, edges, span)) {
+		return no_type();
+	}
+	return index.record(node, index.types.intern(constructor, target, 0, edges), 0);
+}
+TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId type, int context) throws Error {
+	var resolved = checked_resolve(index, type, context, 0);
+	if (type.index != 0 && resolved.index == 14) {
+		index.fail(index.bindings.program.arena.header(type).span, "parameter, field or local type cannot be 'void'");
+	}
+	index.symbol_types[index.node_symbols[symbol.node.index].index] = resolved;
+	int flags = checked_flags(index.bindings.program.arena, symbol.node);
+	if (type.index != 0) {
+		flags = flags | index.uses[type.index].flags;
+	}
+	index.symbol_flags[index.node_symbols[symbol.node.index].index] = flags;
+	if ((flags & 6) != 0 && (type_numeric(checked_kind(index, resolved)) || resolved.index == 13)) {
+		index.fail(index.bindings.program.arena.header(symbol.node).span, "owned/borrowed declaration requires an admitted reference or symbolic ownership contract");
+	}
+	return resolved;
+}
+void checked_heads(CheckedIndex index) throws Error {
+	int i = 1;
+	while (i <= index.bindings.symbol_count && !index.failed()) {
+		var symbol = index.bindings.symbol(type_symbol(i));
+		int code = 0;
+		if (symbol.kind == 3) {
+			code = 30;
+		}
+		if (symbol.kind == 4) {
+			code = 31;
+		}
+		if (symbol.kind == 5) {
+			code = 32;
+		}
+		if (symbol.kind == 9) {
+			code = 33;
+		}
+		if (code != 0) {
+			var empty = new TypeEdge[0];
+			index.symbol_types[i] = index.types.intern(code, type_symbol(i), 0, empty);
+		}
+		i = i + 1;
+	}
+	// Field/method signatures precede free signatures; bodies are separate.
+	int phase = 0;
+	while (phase < 2 && !index.failed()) {
+		i = 1;
+		while (i <= index.bindings.symbol_count && !index.failed()) {
+			var symbol = index.bindings.symbol(type_symbol(i));
+			bool member = symbol.owner.index != 0;
+			if ((phase == 0 && member) || (phase == 1 && !member)) {
+				if (symbol.kind == 6 || symbol.kind == 14 || symbol.kind == 17) {
+					int context = 1;
+					if (symbol.kind == 6 && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0) {
+						context = 2;
+					}
+					var resolved = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), context);
+				}
+				if (symbol.kind == 1 || symbol.kind == 11 || symbol.kind == 12) {
+					checked_signature(index, type_symbol(i));
+				}
+			}
+			i = i + 1;
+		}
+		phase = phase + 1;
+	}
+}
+void checked_signature(CheckedIndex index, SymbolId id) throws Error {
+	var symbol = index.bindings.symbol(id);
+	var node = symbol.node;
+	var return_node = index.bindings.program.arena.get_node_return_type(node);
+	var result = type_id(14);
+	if (return_node.index != 0) {
+		result = checked_resolve(index, return_node, 1, 0);
+	}
+	var params = index.bindings.program.arena.get_list_parameters(node);
+	int count = index.bindings.program.arena.list_count(params);
+	var edges = new TypeEdge[count + 1];
+	int flags = checked_flags(index.bindings.program.arena, node);
+	if (return_node.index != 0) {
+		flags = flags | index.uses[return_node.index].flags;
+	}
+	if ((flags & 4) != 0 && (type_numeric(checked_kind(index, result)) || result.index == 13 || result.index == 14 || result.index == 16)) {
+		index.fail(index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_owned_keyword(node)), "owned result requires an exact nominal ownership contract");
+		return;
+	}
+	TypeEdge result_edge = {
+		type = result, flags = flags
+	};
+	edges[0] = result_edge;
+	int i = 0;
+	bool deferred = result.index == 0;
+	while (i < count && !index.failed()) {
+		var param = index.bindings.program.arena.node_at(params, i);
+		var binding = index.bindings.symbol(index.node_symbols[param.index]);
+		var type = checked_declared(index, binding, index.bindings.program.arena.get_node_type_name(param), 1);
+		TypeEdge edge = {
+			type = type, flags = index.symbol_flags[index.node_symbols[param.index].index]
+		};
+		edges[i + 1] = edge;
+		deferred = deferred || type.index == 0;
+		i = i + 1;
+	}
+	var error_node = index.bindings.program.arena.get_node_throws_class(node);
+	var error = checked_resolve(index, error_node, 0, 0);
+	if (error.index != 0 && checked_kind(index, error) != 31 && checked_kind(index, error) != 34) {
+		index.fail(index.bindings.program.arena.header(error_node).span, "exception type must derive from the nominated ExceptionRoot class");
+		return;
+	}
+	if (index.bindings.program.arena.get_token_async_keyword(node).index != 0) {
+		flags = flags | 8;
+	}
+	if (index.bindings.program.arena.computed_is_c_import(node) || index.bindings.program.arena.computed_is_c_export(node)) {
+		flags = flags | 16;
+	}
+	if (index.bindings.program.arena.get_bool_is_signal(node)) {
+		flags = flags | 32;
+	}
+	if (error.index != 0) {
+		flags = flags | 64;
+	}
+	if (deferred) {
+		var ignored = index.defer(node, 10);
+		return;
+	}
+	var callable = index.types.intern(25, type_symbol(0), 0, edges);
+	index.symbol_types[id.index] = callable;
+	index.symbol_flags[id.index] = flags;
+	index.add_signature(id, callable, error, flags, index.bindings.program.arena.get_int_dispatch(node));
+}
+bool checked_parameter_capability(CheckedIndex index, TypeId type, string capability) throws Error {
+	if (checked_kind(index, type) != 33) {
+		return false;
+	}
+	var row = index.types.descriptor(index.types, type);
+	var parameter = index.bindings.symbol(row.nominal);
+	if (parameter.owner.index == 0) {
+		return false;
+	}
+	var owner = index.bindings.symbol(parameter.owner);
+	var clauses = index.bindings.program.arena.get_list_where_clauses(owner.node);
+	var name = index.bindings.names.text(parameter.name);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(clauses)) {
+		var clause = index.bindings.program.arena.node_at(clauses, i);
+		if (index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_type_parameter(clause), name.text)) {
+			var capabilities = index.bindings.program.arena.get_list_capabilities(clause);
+			int a = 0;
+			while (a < index.bindings.program.arena.list_count(capabilities)) {
+				if (index.bindings.program.arena.token_is(index.bindings.program.arena.token_at(capabilities, a), capability)) {
+					return true;
+				}
+				a = a + 1;
+			}
+		}
+		i = i + 1;
+	}
+	return false;
+}
+bool checked_capability(CheckedIndex index, TypeId type, string capability) throws Error {
+	int kind = checked_kind(index, type);
+	if (kind == 33) {
+		return checked_parameter_capability(index, type, capability);
+	}
+	if (capability == "Numeric" || capability == "Ordered") {
+		return type_numeric(kind);
+	}
+	if (capability == "Eq") {
+		return type_numeric(kind) || kind == 13 || kind == 16;
+	}
+	if (capability == "Bitwise") {
+		return type_integer(kind) || kind == 13;
+	}
+	if (capability == "Shift") {
+		return type_integer(kind);
+	}
+	if (capability == "Ownable" || capability == "ExactHeapClass") {
+		return kind == 31 || kind == 27 || kind == 28 || kind == 29 || kind == 35 || kind == 34;
+	}
+	return false;
+}
+bool checked_constraints(CheckedIndex index, SymbolId target, TypeEdge[] arguments, SyntaxSpan span) throws Error {
+	var definition = index.bindings.symbol(target);
+	var parameters = index.bindings.program.arena.get_list_type_parameters(definition.node);
+	var clauses = index.bindings.program.arena.get_list_where_clauses(definition.node);
+	int c = 0;
+	while (c < index.bindings.program.arena.list_count(clauses)) {
+		var clause = index.bindings.program.arena.node_at(clauses, c);
+		var subject = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_type_parameter(clause));
+		int p = 0;
+		while (p < len(arguments)) {
+			if (index.bindings.program.arena.token_is(index.bindings.program.arena.token_at(parameters, p), subject.text)) {
+				var capabilities = index.bindings.program.arena.get_list_capabilities(clause);
+				int a = 0;
+				while (a < index.bindings.program.arena.list_count(capabilities)) {
+					var capability = index.bindings.program.arena.token_message(index.bindings.program.arena.token_at(capabilities, a));
+					if (!checked_capability(index, arguments[p].type, capability.text)) {
+						index.fail(span, "generic type arguments do not satisfy the declared capability constraint");
+						return false;
+					}
+					a = a + 1;
+				}
+			}
+			p = p + 1;
+		}
+		c = c + 1;
+	}
+	return true;
+}

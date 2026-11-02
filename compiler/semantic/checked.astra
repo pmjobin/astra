@@ -1,0 +1,360 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// One owner chain: CheckedIndex -> BindingIndex -> SyntaxProgram -> SourceSet.
+// Qualifier bits: nonnull 1, borrowed 2, owned 4. No ownership flow is implied.
+class CheckedIndex {
+	owned BindingIndex bindings;
+	owned TypeTable types;
+	owned CheckedTypeUse[] uses;
+	owned TypeId[] symbol_types;
+	owned int[] symbol_flags;
+	owned SignatureId[] symbol_signatures;
+	owned CheckedSignature[] signatures;
+	owned SymbolId[] node_symbols;
+	owned int[] node_references;
+	owned int[] reference_next;
+	owned bool[] checking;
+	int signature_count;
+	int error_message;
+	SyntaxSpan error_span;
+	int stage;
+	bool complete;
+	int stop_after;
+	bool inspect_prefix;
+	int current_result_flags;
+	int pending_contract_message;
+	SyntaxSpan pending_contract_span;
+	init(owned BindingIndex bindings, int stop_after) {
+		this.bindings = move bindings;
+		var types = new TypeTable(65536);
+		this.types = move types;
+		int nodes = this.bindings.program.arena.node_count + 1;
+		int symbols = this.bindings.symbol_count + 1;
+		this.uses = new CheckedTypeUse[nodes];
+		this.symbol_types = new TypeId[symbols];
+		this.symbol_flags = new int[symbols];
+		this.symbol_signatures = new SignatureId[symbols];
+		this.signatures = new CheckedSignature[16];
+		this.node_symbols = new SymbolId[nodes];
+		this.node_references = new int[nodes];
+		this.reference_next = new int[this.bindings.reference_count + 1];
+		this.checking = new bool[nodes];
+		this.signature_count = 0;
+		this.error_message = 0;
+		this.error_span = syntax_empty_span();
+		this.stage = 0;
+		this.complete = false;
+		this.stop_after = stop_after;
+		this.inspect_prefix = false;
+		this.current_result_flags = 0;
+		this.pending_contract_message = 0;
+		this.pending_contract_span = syntax_empty_span();
+		int i = 1;
+		while (i < nodes) {
+			SyntaxNodeId node = {
+				index = i
+			};
+			CheckedTypeUse use = {
+				node = node, span = this.bindings.program.arena.header(node).span, type = no_type(), flags = 0, deferred = 0
+			};
+			this.uses[i] = use;
+			i = i + 1;
+		}
+		i = 1;
+		while (i < symbols) {
+			var symbol = this.bindings.symbol(type_symbol(i));
+			if (symbol.kind != 9) {
+				this.node_symbols[symbol.node.index] = type_symbol(i);
+			}
+			i = i + 1;
+		}
+		i = 1;
+		while (i <= this.bindings.reference_count) {
+			var edge = this.bindings.reference(i);
+			// Prefer a selection/callee over its receiver/type-head reference.
+			this.reference_next[i] = this.node_references[edge.node.index];
+			this.node_references[edge.node.index] = i;
+			i = i + 1;
+		}
+	}
+	bool failed() {
+		return this.error_message != 0 || (this.bindings.failed() && !this.inspect_prefix);
+	}
+	void fail(SyntaxSpan span, string message) throws Error {
+		if (!this.failed()) {
+			this.error_span = span;
+			this.error_message = this.bindings.names.intern(message);
+		}
+	}
+	TypeId record(SyntaxNodeId node, TypeId type, int flags) throws Error {
+		if (node.index != 0) {
+			var use = this.uses[node.index];
+			use.type = type;
+			use.flags = flags;
+			if (type.index == 0 && use.deferred == 0 && !this.failed()) {
+				use.deferred = 15;
+			}
+			this.uses[node.index] = use;
+		}
+		if (this.types.exhausted) {
+			this.fail(this.uses[node.index].span, "checked type resource limit exceeded");
+		}
+		return type;
+	}
+	TypeId defer(SyntaxNodeId node, int reason) {
+		var use = this.uses[node.index];
+		use.deferred = reason;
+		this.uses[node.index] = use;
+		return no_type();
+	}
+	bool owns(borrowed CheckedIndex origin, SignatureId id) {
+		return this.types.same_owner(origin.types) && this.complete && !this.failed() && id.index > 0 && id.index <= this.signature_count;
+	}
+	CheckedSignature signature(borrowed CheckedIndex origin, SignatureId id) {
+		assert_that(this.owns(origin, id));
+		return this.signatures[id.index - 1];
+	}
+	CheckedTypeUse type_use(borrowed CheckedIndex origin, SyntaxNodeId node) {
+		assert_that(this.types.same_owner(origin.types) && this.complete && !this.failed() && node.index > 0 && node.index < len(this.uses));
+		return this.uses[node.index];
+	}
+	void add_signature(SymbolId symbol, TypeId callable, TypeId error, int flags, int dispatch) {
+		if (this.signature_count == len(this.signatures)) {
+			var grown = new CheckedSignature[syntax_grown_capacity(len(this.signatures), this.signature_count + 1)];
+			int i = 0;
+			while (i < this.signature_count) {
+				grown[i] = this.signatures[i];
+				i = i + 1;
+			}
+			swap(this.signatures, grown);
+		}
+		CheckedSignature row = {
+			declaration = symbol, callable = callable, error = error, flags = flags, dispatch = dispatch
+		};
+		this.signatures[this.signature_count] = row;
+		this.signature_count = this.signature_count + 1;
+		SignatureId id = {
+			index = this.signature_count
+		};
+		this.symbol_signatures[symbol.index] = id;
+	}
+	bool validate() {
+		if (!this.complete || this.failed() || !this.types.valid()) {
+			return false;
+		}
+		int i = 1;
+		while (i < len(this.uses)) {
+			var use = this.uses[i];
+			if (use.type.index != 0 && !this.types.owns(this.types, use.type)) {
+				return false;
+			}
+			if (!this.bindings.program.arena.valid_span(use.span)) {
+				return false;
+			}
+			var original = this.bindings.program.arena.header(use.node).span;
+			if (original.source.index != use.span.source.index || original.start != use.span.start || original.end != use.span.end) {
+				return false;
+			}
+			if (use.type.index != 0 && this.bindings.program.arena.kind(use.node) == SyntaxKind.NameExpressionSyntax()) {
+				var token = this.bindings.program.arena.get_token_identifier(use.node);
+				var token_span = this.bindings.program.arena.token_span(token);
+				if (token_span.source.index != use.span.source.index || token_span.start != use.span.start || token_span.end != use.span.end) {
+					return false;
+				}
+				int r = this.node_references[use.node.index];
+				while (r != 0) {
+					var edge = this.bindings.reference(r);
+					if (edge.node.index == use.node.index && edge.token.index == token.index && edge.state_code == 1) {
+						var target = this.bindings.symbol(edge.target);
+						if (target.kind != 1 && this.symbol_types[edge.target.index].index != use.type.index) {
+							return false;
+						}
+					}
+					r = this.reference_next[r];
+				}
+			}
+			i = i + 1;
+		}
+		i = 1;
+		while (i < len(this.symbol_types)) {
+			if (this.symbol_types[i].index != 0 && !this.types.owns(this.types, this.symbol_types[i])) {
+				return false;
+			}
+			i = i + 1;
+		}
+		i = 0;
+		while (i < this.signature_count) {
+			var sig = this.signatures[i];
+			if (!this.types.owns(this.types, sig.callable)) {
+				return false;
+			}
+			var row = this.types.descriptor(this.types, sig.callable);
+			if (row.kind != 25 || row.count == 0 || this.symbol_types[sig.declaration.index].index != sig.callable.index) {
+				return false;
+			}
+			var symbol = this.bindings.symbol(sig.declaration);
+			var params = this.bindings.program.arena.get_list_parameters(symbol.node);
+			if (this.bindings.program.arena.list_count(params) != row.count - 1) {
+				return false;
+			}
+			int p = 0;
+			while (p < row.count - 1) {
+				var node = this.bindings.program.arena.node_at(params, p);
+				var id = this.node_symbols[node.index];
+				var edge = this.types.argument(this.types, sig.callable, p + 1);
+				if (id.index == 0 || this.symbol_types[id.index].index != edge.type.index || this.symbol_flags[id.index] != edge.flags) {
+					return false;
+				}
+				p = p + 1;
+			}
+			i = i + 1;
+		}
+		return true;
+	}
+}
+int checked_kind(CheckedIndex index, TypeId type) {
+	if (type.index == 0) {
+		return 0;
+	}
+	var row = index.types.descriptor(index.types, type);
+	return row.kind;
+}
+int checked_flags(borrowed SyntaxArena arena, SyntaxNodeId node) {
+	int flags = 0;
+	if (arena.get_token_owned_keyword(node).index != 0) {
+		flags = flags | 4;
+	}
+	if (arena.kind(node) == SyntaxKind.ParameterSyntax() && arena.get_token_borrowed_keyword(node).index != 0) {
+		flags = flags | 2;
+	}
+	if (arena.kind(node) == SyntaxKind.StructFieldDeclarationSyntax()) {
+		if (arena.get_token_readonly_keyword(node).index != 0) {
+			flags = flags | 128;
+		}
+		if (arena.get_token_private_keyword(node).index != 0) {
+			flags = flags | 256;
+		}
+	}
+	if (arena.kind(node) == SyntaxKind.PropertyDeclarationSyntax() && arena.get_bool_is_borrowed(node)) {
+		flags = flags | 2;
+	}
+	return flags;
+}
+SymbolId checked_target(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) {
+	int i = index.node_references[node.index];
+	while (i != 0) {
+		var edge = index.bindings.reference(i);
+		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 1) {
+			return edge.target;
+		}
+		i = index.reference_next[i];
+	}
+	return type_symbol(0);
+}
+void checked_name(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int depth) throws Error {
+	if (type.index == 0) {
+		source_append_text(output, "<deferred>");
+		return;
+	}
+	assert_that(depth <= 128);
+	var row = index.types.descriptor(index.types, type);
+	if (row.kind <= 16) {
+		source_append_text(output, type_builtin_name(row.kind));
+		return;
+	}
+	if (row.nominal.index != 0) {
+		var symbol = index.bindings.symbol(row.nominal);
+		int name_id = symbol.canonical;
+		if (row.kind == 33) {
+			name_id = symbol.name;
+		}
+		var name = index.bindings.names.text(name_id);
+		source_append_text(output, name.text);
+		if (row.count == 0) {
+			return;
+		}
+	} else {
+		if (row.kind == 25) {
+			source_append_text(output, "Fn");
+		}
+		if (row.kind == 26) {
+			source_append_text(output, "Callback");
+		}
+		if (row.kind == 27) {
+			source_append_text(output, "Shared");
+		}
+		if (row.kind == 28) {
+			source_append_text(output, "Weak");
+		}
+		if (row.kind == 29) {
+			source_append_text(output, "Closure");
+		}
+		if (row.kind == 35) {
+			source_append_text(output, "CheckedClosure");
+		}
+	}
+	bool bracket = row.kind >= 25 || row.kind == 34;
+	if (bracket) {
+		source_append_text(output, "<");
+	}
+	int i = 0;
+	while (i < row.count) {
+		if (i != 0) {
+			source_append_text(output, ",");
+		}
+		var edge = index.types.argument(index.types, type, i);
+		if ((edge.flags & 4) != 0) {
+			source_append_text(output, "owned ");
+		}
+		if ((edge.flags & 2) != 0) {
+			source_append_text(output, "borrowed ");
+		}
+		if ((edge.flags & 1) != 0) {
+			source_append_text(output, "nonnull ");
+		}
+		checked_name(index, edge.type, output, depth + 1);
+		i = i + 1;
+	}
+	if (bracket) {
+		source_append_text(output, ">");
+	}
+	if (row.kind == 20) {
+		source_append_text(output, "*");
+	}
+	if (row.kind == 21) {
+		source_append_text(output, "[");
+		append_int(output, row.extent);
+		source_append_text(output, "]");
+	}
+	if (row.kind == 22) {
+		source_append_text(output, "[]");
+	}
+	if (row.kind == 23) {
+		source_append_text(output, "[slots]");
+	}
+	if (row.kind == 24) {
+		source_append_text(output, "<");
+		append_int(output, row.extent);
+		source_append_text(output, ">");
+	}
+}
+owned Utf8Message checked_type_name(CheckedIndex index, TypeId type) throws Error {
+	var output = new Utf8ByteBuilder();
+	checked_name(index, type, output, 0);
+	var result = output.snapshot();
+	return move result;
+}
+void checked_mismatch(CheckedIndex index, SyntaxSpan span, TypeId expected, TypeId actual, string context) throws Error {
+	if (expected.index == 0 || actual.index == 0 || expected.index == actual.index) {
+		return;
+	}
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "expected ");
+	source_append_text(output, context);
+	source_append_text(output, " of type '");
+	checked_name(index, expected, output, 0);
+	source_append_text(output, "', found '");
+	checked_name(index, actual, output, 0);
+	source_append_text(output, "'");
+	var text = output.snapshot();
+	index.fail(span, text.text);
+}

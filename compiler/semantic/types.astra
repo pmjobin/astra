@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// IDs are nonowning ordinals. Public reads require the originating table too.
+// Native Class identity checks that owner; no address or process-global counter.
+struct TypeId {
+	int index;
+}
+struct SignatureId {
+	int index;
+}
+struct TypeEdge {
+	TypeId type;
+	int flags;
+}
+struct TypeDescriptor {
+	int kind;
+	SymbolId nominal;
+	int extent;
+	int first;
+	int count;
+	int depth;
+}
+struct CheckedTypeUse {
+	SyntaxNodeId node;
+	SyntaxSpan span;
+	TypeId type;
+	int flags;
+	int deferred;
+}
+struct CheckedSignature {
+	SymbolId declaration;
+	TypeId callable;
+	TypeId error;
+	int flags;
+	int dispatch;
+}
+TypeId no_type() {
+	TypeId result = {
+		index = 0
+	};
+	return result;
+}
+TypeId type_id(int index) {
+	TypeId result = {
+		index = index
+	};
+	return result;
+}
+SymbolId type_symbol(int index) {
+	SymbolId result = {
+		index = index
+	};
+	return result;
+}
+// Kind 1..16: fixed canonical builtins. 20..28: structural constructors.
+// 30..33: exact nominal declarations/type parameters; 34: closed application.
+class TypeOwner {
+	init() {
+	}
+}
+bool type_owner_refs(borrowed TypeOwner first, borrowed TypeOwner second) {
+	return first == second;
+}
+bool type_owner_same(borrowed shared TypeOwner first, borrowed shared TypeOwner second) {
+	return type_owner_refs(shared_borrow(first), shared_borrow(second));
+}
+class TypeTable {
+	owned shared TypeOwner identity;
+	private owned TypeDescriptor[] rows;
+	private owned TypeEdge[] edges;
+	int count;
+	private int edge_count;
+	int limit;
+	bool exhausted;
+	init(int limit) {
+		var identity = new TypeOwner();
+		var shared = shared_acquire(move identity);
+		this.identity = move shared;
+		this.rows = new TypeDescriptor[16];
+		this.edges = new TypeEdge[16];
+		this.count = 16;
+		this.edge_count = 0;
+		this.limit = limit;
+		this.exhausted = false;
+		int i = 1;
+		while (i <= 16) {
+			TypeDescriptor row = {
+				kind = i, nominal = type_symbol(0), extent = 0, first = 0, count = 0, depth = 0
+			};
+			this.rows[i - 1] = row;
+			i = i + 1;
+		}
+	}
+	bool same_owner(borrowed TypeTable origin) {
+		return type_owner_same(origin.identity, this.identity);
+	}
+	bool valid_id(TypeId id) {
+		return id.index > 0 && id.index <= this.count;
+	}
+	TypeDescriptor row(TypeId id) {
+		assert_that(this.valid_id(id));
+		return this.rows[id.index - 1];
+	}
+	bool owns(borrowed TypeTable origin, TypeId id) {
+		return this.same_owner(origin) && this.valid_id(id);
+	}
+	TypeDescriptor descriptor(borrowed TypeTable origin, TypeId id) {
+		assert_that(this.owns(origin, id));
+		return this.rows[id.index - 1];
+	}
+	TypeEdge argument(borrowed TypeTable origin, TypeId id, int ordinal) {
+		var row = this.descriptor(origin, id);
+		assert_that(ordinal >= 0 && ordinal < row.count);
+		return this.edges[row.first + ordinal];
+	}
+	TypeId intern(int kind, SymbolId nominal, int extent, TypeEdge[] args) {
+		if (kind <= 16 && (kind < 1 || nominal.index != 0 || extent != 0 || len(args) != 0)) {
+			return no_type();
+		}
+		if ((kind >= 30 && kind <= 34) && nominal.index <= 0) {
+			return no_type();
+		}
+		if ((kind >= 30 && kind <= 33) && len(args) != 0) {
+			return no_type();
+		}
+		if ((kind >= 20 && kind <= 24) && (len(args) != 1 || nominal.index != 0)) {
+			return no_type();
+		}
+		if ((kind == 25 || kind == 26) && (len(args) < 1 || nominal.index != 0)) {
+			return no_type();
+		}
+		int depth = 0;
+		int i = 0;
+		while (i < len(args)) {
+			if (!this.valid_id(args[i].type)) {
+				return no_type();
+			}
+			var row = this.row(args[i].type);
+			if (row.depth + 1 > depth) {
+				depth = row.depth + 1;
+			}
+			i = i + 1;
+		}
+		if (depth > 128) {
+			this.exhausted = true;
+			return no_type();
+		}
+		i = 0;
+		while (i < this.count) {
+			var row = this.rows[i];
+			bool same = row.kind == kind && row.nominal.index == nominal.index && row.extent == extent && row.count == len(args);
+			int a = 0;
+			while (same && a < len(args)) {
+				var old = this.edges[row.first + a];
+				same = old.type.index == args[a].type.index && old.flags == args[a].flags;
+				a = a + 1;
+			}
+			if (same) {
+				return type_id(i + 1);
+			}
+			i = i + 1;
+		}
+		if (this.count >= this.limit || len(args) > 257 || this.edge_count > 4194304 - len(args)) {
+			this.exhausted = true;
+			return no_type();
+		}
+		if (this.count == len(this.rows)) {
+			var grown = new TypeDescriptor[syntax_grown_capacity(len(this.rows), this.count + 1)];
+			i = 0;
+			while (i < this.count) {
+				grown[i] = this.rows[i];
+				i = i + 1;
+			}
+			swap(this.rows, grown);
+		}
+		if (len(this.edges) < this.edge_count + len(args)) {
+			var grown = new TypeEdge[syntax_grown_capacity(len(this.edges), this.edge_count + len(args))];
+			i = 0;
+			while (i < this.edge_count) {
+				grown[i] = this.edges[i];
+				i = i + 1;
+			}
+			swap(this.edges, grown);
+		}
+		TypeDescriptor row = {
+			kind = kind, nominal = nominal, extent = extent, first = this.edge_count, count = len(args), depth = depth
+		};
+		this.rows[this.count] = row;
+		this.count = this.count + 1;
+		i = 0;
+		while (i < len(args)) {
+			this.edges[this.edge_count] = args[i];
+			this.edge_count = this.edge_count + 1;
+			i = i + 1;
+		}
+		return type_id(this.count);
+	}
+	TypeId unary(int kind, TypeId element, int extent) {
+		var args = new TypeEdge[1];
+		TypeEdge edge = {
+			type = element, flags = 0
+		};
+		args[0] = edge;
+		return this.intern(kind, type_symbol(0), extent, args);
+	}
+	bool valid() {
+		int i = 1;
+		while (i <= this.count) {
+			var row = this.row(type_id(i));
+			if (row.kind <= 0 || row.depth > 128 || row.first < 0 || row.count < 0 || row.first > this.edge_count - row.count) {
+				return false;
+			}
+			int a = 0;
+			while (a < row.count) {
+				var edge = this.edges[row.first + a];
+				if (edge.type.index <= 0 || edge.type.index >= i) {
+					return false;
+				}
+				a = a + 1;
+			}
+			i = i + 1;
+		}
+		return !this.exhausted;
+	}
+}
+int type_builtin(string name) {
+	if (name == "int" || name == "i32") {
+		return 1;
+	}
+	if (name == "i8") {
+		return 2;
+	}
+	if (name == "u8") {
+		return 3;
+	}
+	if (name == "i16") {
+		return 4;
+	}
+	if (name == "u16") {
+		return 5;
+	}
+	if (name == "u32") {
+		return 6;
+	}
+	if (name == "i64") {
+		return 7;
+	}
+	if (name == "u64") {
+		return 8;
+	}
+	if (name == "isize") {
+		return 9;
+	}
+	if (name == "usize") {
+		return 10;
+	}
+	if (name == "f32") {
+		return 11;
+	}
+	if (name == "f64") {
+		return 12;
+	}
+	if (name == "bool") {
+		return 13;
+	}
+	if (name == "void") {
+		return 14;
+	}
+	if (name == "string") {
+		return 15;
+	}
+	return 0;
+}
+string type_builtin_name(int kind) {
+	if (kind == 1) {
+		return "int";
+	}
+	if (kind == 2) {
+		return "i8";
+	}
+	if (kind == 3) {
+		return "u8";
+	}
+	if (kind == 4) {
+		return "i16";
+	}
+	if (kind == 5) {
+		return "u16";
+	}
+	if (kind == 6) {
+		return "u32";
+	}
+	if (kind == 7) {
+		return "i64";
+	}
+	if (kind == 8) {
+		return "u64";
+	}
+	if (kind == 9) {
+		return "isize";
+	}
+	if (kind == 10) {
+		return "usize";
+	}
+	if (kind == 11) {
+		return "f32";
+	}
+	if (kind == 12) {
+		return "f64";
+	}
+	if (kind == 13) {
+		return "bool";
+	}
+	if (kind == 14) {
+		return "void";
+	}
+	if (kind == 15) {
+		return "string";
+	}
+	return "void*";
+}
+bool type_integer(int kind) {
+	return kind >= 1 && kind <= 10;
+}
+bool type_numeric(int kind) {
+	return kind >= 1 && kind <= 12;
+}
+bool type_signed(int kind) {
+	return kind == 1 || kind == 2 || kind == 4 || kind == 7 || kind == 9;
+}
+int type_width(int kind) {
+	if (kind == 2 || kind == 3) {
+		return 8;
+	}
+	if (kind == 4 || kind == 5) {
+		return 16;
+	}
+	if (kind == 7 || kind == 8 || kind == 9 || kind == 10 || kind == 12) {
+		return 64;
+	}
+	return 32;
+}
