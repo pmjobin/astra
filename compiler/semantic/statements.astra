@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+TypeId checked_constant(CheckedIndex index, SymbolId id, int depth) throws Error {
+	if (index.symbol_types[id.index].index != 0) {
+		return index.symbol_types[id.index];
+	}
+	if (id.index == 0) { return no_type(); }
+	var symbol = index.bindings.symbol(id);
+	var node = symbol.node;
+	if (depth > 256 || index.checking[node.index]) {
+		index.fail(symbol.span, "cyclic constant type dependency");
+		return no_type();
+	}
+	index.checking[node.index] = true;
+	var type_node = index.bindings.program.arena.get_node_type_name(node);
+	var expected = checked_resolve(index, type_node, 0, 0);
+	var expression = index.bindings.program.arena.get_node_initializer(node);
+	var actual = checked_expression(index, expression, expected, depth + 1);
+	if (type_node.index != 0) {
+		checked_mismatch(index, index.bindings.program.arena.header(expression).span, expected, actual, "constant initializer");
+	} else {
+		expected = actual;
+	}
+	index.symbol_types[id.index] = expected;
+	index.checking[node.index] = false;
+	return expected;
+}
+void checked_condition(CheckedIndex index, SyntaxNodeId expression, int depth) throws Error {
+	var actual = checked_expression(index, expression, no_type(), depth + 1);
+	if (actual.index != 0 && actual.index != 13) {
+		index.fail(index.bindings.program.arena.header(expression).span, "condition must have type 'bool'");
+	}
+}
+void checked_initializer(CheckedIndex index, SyntaxNodeId node, TypeId type, int depth) throws Error {
+	var fields = index.bindings.program.arena.get_list_fields(node);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(fields) && !index.failed()) {
+		var field = index.bindings.program.arena.node_at(fields, i);
+		var token = index.bindings.program.arena.get_token_name(field);
+		var target = checked_member(index, type, token);
+		if (target.index == 0) {
+			index.fail(index.bindings.program.arena.token_span(token), "unknown field in typed aggregate initializer");
+			return;
+		}
+		var selected = index.bindings.symbol(target);
+		if (selected.kind != 6) {
+			index.fail(index.bindings.program.arena.token_span(token), "aggregate initializer requires an exact declared field");
+			return;
+		}
+		checked_complete_member(index, field, token, target);
+		var expected = checked_substitute(index, index.symbol_types[target.index], type, 0);
+		var nested = index.bindings.program.arena.get_node_initializer(field);
+		if (nested.index != 0) {
+			checked_initializer(index, nested, expected, depth + 1);
+		} else {
+			var expression = index.bindings.program.arena.get_node_expression(field);
+			var actual = checked_expression(index, expression, expected, depth + 1);
+			checked_mismatch(index, index.bindings.program.arena.header(expression).span, expected, actual, "field initializer");
+			int contract = checked_contract(index, expression, index.symbol_flags[target.index]);
+			if (contract != 0) { var ignored = index.defer(field, contract); }
+		}
+		var recorded = index.record(field, expected, index.symbol_flags[target.index]);
+		i = i + 1;
+	}
+	// Field selection/type compatibility is checked; complete aggregate
+	// construction and storage/ownership obligations belong to the next layer.
+	var deferred = index.defer(node, 20);
+	var recorded = index.record(node, type, 0);
+}
+void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int depth) throws Error {
+	if (node.index == 0 || index.failed() || checked_past_binding_error(index, node)) {
+		return;
+	}
+	var kind = index.bindings.program.arena.kind(node);
+	if (depth > 256) {
+		index.fail(index.bindings.program.arena.header(node).span, "checked statement depth exceeds 256");
+		return;
+	}
+	if (kind == SyntaxKind.BlockStatementSyntax()) {
+		var statements = index.bindings.program.arena.get_list_statements(node);
+		int i = 0;
+		while (i < index.bindings.program.arena.list_count(statements) && !index.failed()) {
+			checked_statement(index, index.bindings.program.arena.node_at(statements, i), result, depth + 1);
+			i = i + 1;
+		}
+		return;
+	}
+	if (kind == SyntaxKind.IfStatementSyntax() || kind == SyntaxKind.WhileStatementSyntax()) {
+		checked_condition(index, index.bindings.program.arena.get_node_condition(node), depth + 1);
+		if (kind == SyntaxKind.IfStatementSyntax()) {
+			checked_statement(index, index.bindings.program.arena.get_node_then_body(node), result, depth + 1);
+			checked_statement(index, index.bindings.program.arena.get_node_else_body(node), result, depth + 1);
+		} else {
+			checked_statement(index, index.bindings.program.arena.get_node_body(node), result, depth + 1);
+		}
+		return;
+	}
+	if (kind == SyntaxKind.ForStatementSyntax()) {
+		checked_statement(index, index.bindings.program.arena.get_node_initializer(node), result, depth + 1);
+		var condition = index.bindings.program.arena.get_node_condition(node);
+		if (condition.index != 0) {
+			checked_condition(index, condition, depth + 1);
+		}
+		checked_statement(index, index.bindings.program.arena.get_node_body(node), result, depth + 1);
+		checked_statement(index, index.bindings.program.arena.get_node_step(node), result, depth + 1);
+		return;
+	}
+	if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax() || kind == SyntaxKind.StructLocalDeclarationSyntax()) {
+		var expected = no_type();
+		var id = index.node_symbols[node.index];
+		if (id.index == 0) {
+			if (kind != SyntaxKind.InferredLocalDeclarationSyntax()) {
+				var type_node = index.bindings.program.arena.get_node_type_name(node);
+				var type = checked_resolve(index, type_node, 1, 0);
+				if (type.index == 14) { index.fail(index.bindings.program.arena.header(type_node).span, "local type cannot be void"); }
+			}
+			var ignored = index.defer(node, 15); return;
+		}
+		var symbol = index.bindings.symbol(id);
+		if (kind != SyntaxKind.InferredLocalDeclarationSyntax()) {
+			expected = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(node), 1);
+		}
+		if (checked_kind(index, expected) == 26) {
+			index.fail(index.bindings.program.arena.header(node).span, "Callback is call-scoped and cannot initialize a local");
+			return;
+		}
+		var initializer = index.bindings.program.arena.get_node_initializer(node);
+		if (kind == SyntaxKind.StructLocalDeclarationSyntax()) {
+			checked_initializer(index, initializer, expected, depth + 1);
+		} else {
+			var actual = checked_expression(index, initializer, expected, depth + 1);
+			if (kind == SyntaxKind.InferredLocalDeclarationSyntax()) {
+				expected = actual;
+			} else {
+				checked_mismatch(index, index.bindings.program.arena.header(initializer).span, expected, actual, "initializer");
+			}
+		}
+		int contract = checked_contract(index, initializer, index.symbol_flags[id.index]);
+		if (contract != 0) { var ignored = index.defer(node, contract); }
+		index.symbol_types[id.index] = expected;
+		if (kind == SyntaxKind.InferredLocalDeclarationSyntax() && expected.index != 0) {
+			index.symbol_flags[id.index] = index.uses[initializer.index].flags;
+		}
+		var recorded = index.record(node, expected, index.symbol_flags[id.index]);
+		return;
+	}
+	if (kind == SyntaxKind.AssignmentStatementSyntax() || kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
+		var expected = no_type();
+		int expected_flags = 0;
+		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
+			var target = checked_target(index, node, index.bindings.program.arena.get_token_name(node));
+			if (target.index != 0) {
+				expected = index.symbol_types[target.index];
+				expected_flags = index.symbol_flags[target.index];
+			}
+		} else {
+			var field_node = index.bindings.program.arena.get_node_target(node);
+			expected = checked_field(index, field_node, depth + 1);
+			var field = checked_target(index, field_node, index.bindings.program.arena.get_token_field_name(field_node));
+			if (field.index != 0) { expected_flags = index.symbol_flags[field.index]; }
+		}
+		var expression = index.bindings.program.arena.get_node_expression(node);
+		var actual = checked_expression(index, expression, expected, depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(expression).span, expected, actual, "assignment value");
+		int contract = checked_contract(index, expression, expected_flags);
+		if (contract != 0) { var ignored = index.defer(node, contract); }
+		var recorded = index.record(node, expected, 0);
+		return;
+	}
+	if (kind == SyntaxKind.ReturnStatementSyntax()) {
+		var expression = index.bindings.program.arena.get_node_expression(node);
+		if (expression.index == 0) {
+			if (result.index != 14 && result.index != 0) {
+				index.fail(index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_keyword(node)), "non-void return requires a value");
+			}
+		} else {
+			var actual = checked_expression(index, expression, result, depth + 1);
+			if (result.index == 14) {
+				index.fail(index.bindings.program.arena.header(expression).span, "cannot return a value from a 'void' function");
+			} else {
+				checked_mismatch(index, index.bindings.program.arena.header(expression).span, result, actual, "return value");
+				int contract = checked_contract(index, expression, index.current_result_flags);
+				if (contract != 0) { var ignored = index.defer(node, contract); }
+			}
+		}
+		return;
+	}
+	if (kind == SyntaxKind.CallStatementSyntax()) {
+		var call = index.bindings.program.arena.get_node_call(node);
+		var ignored = checked_call(index, call, depth + 1);
+		var recorded = index.record(call, ignored, index.uses[call.index].flags);
+		return;
+	}
+	if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
+		var ignored = checked_constant(index, index.node_symbols[node.index], depth + 1);
+		return;
+	}
+	if (kind == SyntaxKind.BreakStatementSyntax() || kind == SyntaxKind.ContinueStatementSyntax()) {
+		return;
+	}
+	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
+	var ignored = index.defer(node, 100 + syntax_kind_code(kind));
+}
+owned CheckedIndex checked_index(owned BindingIndex bindings, int stop_after) throws Error {
+	var result = new CheckedIndex(move bindings, stop_after);
+	if (result.bindings.failed()) {
+		int r = 1;
+		while (r <= result.bindings.reference_count) {
+			var edge = result.bindings.reference(r);
+			if (edge.state_code >= 2 && edge.state_code <= 4) {
+				if (edge.domain == 1) {
+					result.error_span = result.bindings.program.arena.header(edge.node).span;
+					result.error_message = result.bindings.error_message;
+				}
+				var kind = result.bindings.program.arena.kind(edge.node);
+				if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.CallExpressionSyntax()) {
+					result.inspect_prefix = true;
+				}
+			}
+			r = r + 1;
+		}
+		if (!result.inspect_prefix) {
+			return move result;
+		}
+	}
+	result.stage = 1;
+	checked_heads(result);
+	if (stop_after == 1 && !result.failed()) {
+		result.fail(result.bindings.program.span(), "stopped after checked signatures");
+	}
+	result.stage = 2;
+	int i = 1;
+	while (i <= result.bindings.symbol_count && !result.failed()) {
+		var symbol = result.bindings.symbol(type_symbol(i));
+		if (symbol.kind == 2) {
+			var ignored = checked_constant(result, type_symbol(i), 0);
+		}
+		i = i + 1;
+	}
+	result.stage = 3;
+	i = 0;
+	while (i < result.signature_count && !result.failed()) {
+		var signature = result.signatures[i];
+		var symbol = result.bindings.symbol(signature.declaration);
+		var body = result.bindings.program.arena.get_node_body(symbol.node);
+		var type = result.types.argument(result.types, signature.callable, 0);
+		result.current_result_flags = type.flags;
+		checked_statement(result, body, type.type, 0);
+		i = i + 1;
+	}
+	if (result.inspect_prefix) {
+		result.inspect_prefix = false;
+	}
+	if (!result.failed() && result.pending_contract_message != 0) { var message = result.bindings.names.text(result.pending_contract_message); result.stage = 4; result.fail(result.pending_contract_span, message.text); }
+	result.complete = !result.failed();
+	return move result;
+}
+bool checked_past_binding_error(CheckedIndex index, SyntaxNodeId node) {
+	if (!index.inspect_prefix || node.index == 0) {
+		return false;
+	}
+	var span = index.bindings.program.arena.header(node).span;
+	var error = index.bindings.error_span;
+	return span.source.index > error.source.index || (span.source.index == error.source.index && span.start >= error.start);
+}

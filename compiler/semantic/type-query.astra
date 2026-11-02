@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void checked_write_use(CheckedIndex index, CheckedTypeUse use, Utf8ByteBuilder output) throws Error {
+	source_append_text(output, "U ");
+	append_int(output, use.node.index);
+	source_append_text(output, " ");
+	binding_write_span(index.bindings, use.span, output);
+	source_append_text(output, " ");
+	append_int(output, use.type.index);
+	source_append_text(output, " ");
+	append_int(output, use.flags);
+	source_append_text(output, " ");
+	append_int(output, use.deferred);
+	source_append_text(output, " ");
+	append_int(output, syntax_kind_code(index.bindings.program.arena.kind(use.node)));
+	source_append_text(output, "\n");
+}
+owned Utf8Message checked_observation(CheckedIndex index) throws Error {
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "astra-types/1\n");
+	if (index.failed()) {
+		var span = index.error_span;
+		int message_id = index.error_message;
+		if (message_id == 0) {
+			span = index.bindings.error_span;
+			message_id = index.bindings.error_message;
+		}
+		source_append_text(output, "ERROR ");
+		binding_write_span(index.bindings, span, output);
+		source_append_text(output, " ");
+		var message = index.bindings.names.text(message_id);
+		syntax_write_hex(output, message.text);
+		source_append_text(output, "\n");
+	} else {
+		if (index.failed()) {
+			source_append_text(output, "ERROR ");
+			binding_write_span(index.bindings, index.error_span, output);
+			source_append_text(output, " ");
+			var message = index.bindings.names.text(index.error_message);
+			syntax_write_hex(output, message.text);
+			source_append_text(output, "\n");
+		} else {
+			assert_that(index.validate());
+			var bindings = binding_observation(index.bindings);
+			source_append_text(output, bindings.text);
+			int i = 1;
+			while (i <= index.types.count) {
+				var type = type_id(i);
+				var row = index.types.descriptor(index.types, type);
+				source_append_text(output, "T ");
+				append_int(output, i);
+				source_append_text(output, " ");
+				append_int(output, row.kind);
+				source_append_text(output, " ");
+				append_int(output, row.nominal.index);
+				source_append_text(output, " ");
+				append_int(output, row.extent);
+				source_append_text(output, " ");
+				append_int(output, row.depth);
+				source_append_text(output, " ");
+				var name = checked_type_name(index, type);
+				syntax_write_hex(output, name.text);
+				int a = 0;
+				while (a < row.count) {
+					var edge = index.types.argument(index.types, type, a);
+					source_append_text(output, " ");
+					append_int(output, edge.type.index);
+					source_append_text(output, ":");
+					append_int(output, edge.flags);
+					a = a + 1;
+				}
+				source_append_text(output, "\n");
+				i = i + 1;
+			}
+			i = 1;
+			while (i < len(index.symbol_types)) {
+				source_append_text(output, "Y ");
+				append_int(output, i);
+				source_append_text(output, " ");
+				append_int(output, index.symbol_types[i].index);
+				source_append_text(output, " ");
+				append_int(output, index.symbol_flags[i]);
+				source_append_text(output, " ");
+				append_int(output, index.symbol_signatures[i].index);
+				source_append_text(output, "\n");
+				i = i + 1;
+			}
+			i = 0;
+			while (i < index.signature_count) {
+				var sig = index.signatures[i];
+				source_append_text(output, "F ");
+				append_int(output, i + 1);
+				source_append_text(output, " ");
+				append_int(output, sig.declaration.index);
+				source_append_text(output, " ");
+				append_int(output, sig.callable.index);
+				source_append_text(output, " ");
+				append_int(output, sig.error.index);
+				source_append_text(output, " ");
+				append_int(output, sig.flags);
+				source_append_text(output, " ");
+				append_int(output, sig.dispatch);
+				source_append_text(output, "\n");
+				i = i + 1;
+			}
+			i = 1;
+			while (i < len(index.uses)) {
+				var use = index.uses[i];
+				if (use.type.index != 0 || use.deferred != 0) {
+					checked_write_use(index, use, output);
+				}
+				i = i + 1;
+			}
+		}
+	}
+	var result = output.snapshot();
+	return move result;
+}

@@ -1,0 +1,579 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+TypeId checked_context(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (node.index == 0 || depth > 128) {
+		return no_type();
+	}
+	var kind = index.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+		return checked_context(index, index.bindings.program.arena.get_node_expression(node), depth + 1);
+	}
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (target.index != 0) {
+			return index.symbol_types[target.index];
+		}
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (target.index != 0) {
+			var type = index.symbol_types[target.index];
+			int code = checked_kind(index, type);
+			if (code == 25 || code == 26) {
+				var edge = index.types.argument(index.types, type, 0);
+				return edge.type;
+			}
+		}
+	}
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		return checked_field(index, node, depth + 1);
+	}
+	return no_type();
+}
+TypeId checked_integer_literal(CheckedIndex index, SyntaxNodeId literal, SyntaxSpan span, TypeId expected, bool negative) throws Error {
+	var type = expected;
+	if (!type_integer(checked_kind(index, type))) {
+		type = type_id(1);
+	}
+	int kind = checked_kind(index, type);
+	var spelling = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(literal));
+	var name = checked_type_name(index, type);
+	if (negative && !type_signed(kind)) {
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "unary '-' is not supported for unsigned integer type '");
+		source_append_text(output, name.text);
+		source_append_text(output, "'");
+		var message = output.snapshot();
+		index.fail(span, message.text);
+		return no_type();
+	}
+	u64 limit = 18446744073709551615;
+	int width = type_width(kind);
+	if (width < 64) {
+		limit = (1 as u64 << width) - 1;
+	}
+	if (type_signed(kind)) {
+		limit = 1 as u64 << (width - 1);
+		if (!negative) {
+			limit = limit - 1;
+		}
+	}
+	u64 value = 0;
+	int i = 0;
+	bool valid = spelling.text.byte_length > 0;
+	while (i < spelling.text.byte_length && valid) {
+		int digit = astra_host_text_byte(spelling.text, i) - 48;
+		if (digit < 0 || digit > 9 || value > (limit - digit as u64) / 10) {
+			valid = false;
+		} else {
+			value = value * 10 + digit as u64;
+		}
+		i = i + 1;
+	}
+	if (!valid) {
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "integer literal is out of range for '");
+		source_append_text(output, name.text);
+		source_append_text(output, "'");
+		var message = output.snapshot();
+		index.fail(span, message.text);
+		return no_type();
+	}
+	return type;
+}
+TypeId checked_substitute(CheckedIndex index, TypeId type, TypeId application, int depth) {
+	if (type.index == 0 || application.index == 0 || depth > 128) {
+		return type;
+	}
+	var instance = index.types.descriptor(index.types, application);
+	if (instance.kind != 34) {
+		return type;
+	}
+	var row = index.types.descriptor(index.types, type);
+	if (row.kind == 33) {
+		var parameter = index.bindings.symbol(row.nominal);
+		int ordinal = 0;
+		int i = 1;
+		while (i <= index.bindings.symbol_count) {
+			var candidate = index.bindings.symbol(type_symbol(i));
+			if (candidate.kind == 9 && candidate.owner.index == instance.nominal.index) {
+				if (candidate.node.index == parameter.node.index && candidate.token.index == parameter.token.index && ordinal < instance.count) {
+					var edge = index.types.argument(index.types, application, ordinal);
+					return edge.type;
+				}
+				ordinal = ordinal + 1;
+			}
+			i = i + 1;
+		}
+		return type;
+	}
+	if (row.count == 0) {
+		return type;
+	}
+	var args = new TypeEdge[row.count];
+	int i = 0;
+	while (i < row.count) {
+		var edge = index.types.argument(index.types, type, i);
+		edge.type = checked_substitute(index, edge.type, application, depth + 1);
+		args[i] = edge;
+		i = i + 1;
+	}
+	return index.types.intern(row.kind, row.nominal, row.extent, args);
+}
+SymbolId checked_member(CheckedIndex index, TypeId receiver, SyntaxTokenId token) throws Error {
+	if (receiver.index == 0) {
+		return type_symbol(0);
+	}
+	var row = index.types.descriptor(index.types, receiver);
+	if (row.kind == 20) {
+		var edge = index.types.argument(index.types, receiver, 0);
+		row = index.types.descriptor(index.types, edge.type);
+	}
+	if (row.nominal.index == 0) {
+		return type_symbol(0);
+	}
+	var name = index.bindings.program.arena.token_message(token);
+	int i = 1;
+	while (i <= index.bindings.symbol_count) {
+		var symbol = index.bindings.symbol(type_symbol(i));
+		if (symbol.owner.index == row.nominal.index && (symbol.kind == 6 || symbol.kind == 14 || symbol.kind == 11)) {
+			var spelling = index.bindings.names.text(symbol.name);
+			if (name.text == spelling.text) {
+				return type_symbol(i);
+			}
+		}
+		i = i + 1;
+	}
+	return type_symbol(0);
+}
+void checked_complete_member(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token, SymbolId member) {
+	var symbol = index.bindings.symbol(member);
+	int i = index.node_references[node.index];
+	while (i != 0) {
+		var edge = index.bindings.reference(i);
+		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 5 && (edge.reason == 1 || edge.reason == 3)) {
+			assert_that(index.bindings.complete_reference(i, member, symbol.owner));
+		}
+		i = index.reference_next[i];
+	}
+}
+TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var field = index.bindings.program.arena.get_token_field_name(node);
+	var existing = checked_target(index, node, field);
+	if (existing.index != 0) {
+		return index.symbol_types[existing.index];
+	}
+	var receiver = no_type();
+	var aggregate = index.bindings.program.arena.get_node_aggregate(node);
+	if (aggregate.index != 0) {
+		receiver = checked_expression(index, aggregate, no_type(), depth + 1);
+	} else {
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (target.index != 0) {
+			receiver = index.symbol_types[target.index];
+		}
+	}
+	var selected = checked_member(index, receiver, field);
+	if (selected.index == 0) {
+		if (checked_kind(index, receiver) == 31) {
+			var nominal = index.types.descriptor(index.types, receiver);
+			var declaration = index.bindings.symbol(nominal.nominal);
+			if (index.bindings.program.arena.kind(declaration.node) == SyntaxKind.ClassDeclarationSyntax() && index.bindings.program.arena.get_node_parent_class(declaration.node).index != 0) { return index.defer(node, 12); }
+		}
+		if (checked_nominal_kind(checked_kind(index, receiver))) {
+			index.fail(index.bindings.program.arena.token_span(field), "unknown field in exact nominal receiver");
+			return no_type();
+		}
+		return index.defer(node, 12);
+	}
+	var member = index.bindings.symbol(selected);
+	if (member.kind != 6) {
+		return index.defer(node, 12);
+	}
+	if (!checked_field_accessible(index, node, selected)) { index.fail(index.bindings.program.arena.token_span(field), "private field is accessible only from its declaring Class"); return no_type(); }
+	checked_complete_member(index, node, field, selected);
+	return checked_substitute(index, index.symbol_types[selected.index], receiver, 0);
+}
+TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	if (node.index == 0 || index.failed()) {
+		return no_type();
+	}
+	if (checked_past_binding_error(index, node)) {
+		return no_type();
+	}
+	if (depth > 256) {
+		index.fail(index.uses[node.index].span, "checked expression depth exceeds 256");
+		return no_type();
+	}
+	if (index.bindings.program.arena.kind(node) == SyntaxKind.NameExpressionSyntax()) {
+		var token = index.bindings.program.arena.get_token_identifier(node);
+		var actual = index.bindings.program.arena.token_span(token);
+		var original = index.uses[node.index].span;
+		if (actual.source.index != original.source.index || actual.start != original.start || actual.end != original.end) {
+			index.fail(original, "expression token span does not match its original AST span");
+			return no_type();
+		}
+	}
+	var type = checked_expression_inner(index, node, expected, depth);
+	return index.record(node, type, index.uses[node.index].flags);
+}
+TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	var kind = index.bindings.program.arena.kind(node);
+	var span = index.bindings.program.arena.header(node).span;
+	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+		return checked_integer_literal(index, node, span, expected, false);
+	}
+	if (kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
+		return type_id(13);
+	}
+	if (kind == SyntaxKind.TextLiteralExpressionSyntax()) {
+		return type_id(15);
+	}
+	if (kind == SyntaxKind.FloatLiteralExpressionSyntax()) {
+		var text = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(node));
+		int last = astra_host_text_byte(text.text, text.text.byte_length - 1);
+		if (last == 100 || last == 68) {
+			return type_id(12);
+		}
+		if (last == 102 || last == 70) {
+			return type_id(11);
+		}
+		if (expected.index == 12) {
+			return expected;
+		}
+		return type_id(11);
+	}
+	if (kind == SyntaxKind.NullPointerExpressionSyntax()) {
+		if (checked_nullable(index, expected)) {
+			return expected;
+		}
+		if (checked_kind(index, expected) == 22 || checked_kind(index, expected) == 33) {
+			index.fail(span, "null has no state in slice or plain-copy type parameter");
+			return no_type();
+		}
+		return type_id(16);
+	}
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+		return checked_expression(index, index.bindings.program.arena.get_node_expression(node), expected, depth + 1);
+	}
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (target.index == 0) {
+			return index.defer(node, 13);
+		}
+		var symbol = index.bindings.symbol(target);
+		var type = index.symbol_types[target.index];
+		if (symbol.kind == 2 && type.index == 0) {
+			type = checked_constant(index, target, depth + 1);
+		}
+		if (symbol.kind == 1) {
+			if (checked_kind(index, expected) != 25 && checked_kind(index, expected) != 26) {
+				return index.defer(node, 14);
+			}
+			if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0) {
+				index.fail(span, "function address requires an exact nonthrowing native signature");
+				return no_type();
+			}
+			if (type.index != expected.index) {
+				index.fail(span, "function address requires exact parameter, result and ownership channel identity");
+				return no_type();
+			}
+			var address_use = index.uses[node.index];
+			address_use.flags = address_use.flags | 1;
+			index.uses[node.index] = address_use;
+			return expected;
+		}
+		var use = index.uses[node.index];
+		use.flags = index.symbol_flags[target.index];
+		index.uses[node.index] = use;
+		if (type.index == 0) {
+			return index.defer(node, 15);
+		}
+		return type;
+	}
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		return checked_field(index, node, depth + 1);
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var result = checked_call(index, node, depth + 1);
+		if (result.index == 14) { index.fail(span, "void callable cannot be used as a value"); return no_type(); }
+		return result;
+	}
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
+		var operation = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_operator_token(node));
+		var operand = index.bindings.program.arena.get_node_operand(node);
+		var literal = operand;
+		int steps = 0;
+		while (index.bindings.program.arena.kind(literal) == SyntaxKind.ParenthesizedExpressionSyntax() && steps <= 256) {
+			literal = index.bindings.program.arena.get_node_expression(literal);
+			steps = steps + 1;
+		}
+		if ((operation.text == "+" || operation.text == "-") && index.bindings.program.arena.kind(literal) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+			return checked_integer_literal(index, literal, span, expected, operation.text == "-");
+		}
+		var context = expected;
+		if (operation.text == "!") {
+			context = no_type();
+		}
+		var type = checked_expression(index, operand, context, depth + 1);
+		int code = checked_kind(index, type);
+		if (code == 0) {
+			return index.defer(node, 15);
+		}
+		bool valid = (operation.text == "!" && code == 13) || (operation.text == "~" && type_integer(code)) || (operation.text == "+" && type_numeric(code)) || (operation.text == "-" && (type_signed(code) || code == 11 || code == 12));
+		if (!valid) {
+			index.fail(span, "unary operator is incompatible with its exact operand type");
+			return no_type();
+		}
+		return type;
+	}
+	if (kind == SyntaxKind.ShortCircuitExpressionSyntax() || kind == SyntaxKind.BinaryExpressionSyntax()) {
+		return checked_binary(index, node, expected, depth + 1);
+	}
+	if (kind == SyntaxKind.ComparisonChainSyntax()) {
+		var operands = index.bindings.program.arena.get_list_operands(node);
+		var context = no_type();
+		int i = 0;
+		while (i < index.bindings.program.arena.list_count(operands) && context.index == 0) {
+			context = checked_context(index, index.bindings.program.arena.node_at(operands, i), depth + 1);
+			i = i + 1;
+		}
+		i = 0;
+		while (i < index.bindings.program.arena.list_count(operands) && !index.failed()) {
+			var child = index.bindings.program.arena.node_at(operands, i);
+			var actual = checked_expression(index, child, context, depth + 1);
+			if (actual.index == 0) {
+				return index.defer(node, 15);
+			}
+			if (!type_numeric(checked_kind(index, actual))) {
+				index.fail(index.bindings.program.arena.header(child).span, "comparison chain requires one exact scalar numeric type");
+				return no_type();
+			}
+			if (context.index == 0) {
+				context = actual;
+			}
+			checked_mismatch(index, index.bindings.program.arena.header(child).span, context, actual, "comparison operand");
+			i = i + 1;
+		}
+		return type_id(13);
+	}
+	// Conversions have explicit checked nodes; never a promotion rule.
+	if (kind == SyntaxKind.ConversionExpressionSyntax()) {
+		var destination = checked_resolve(index, index.bindings.program.arena.get_node_destination(node), 0, 0);
+		var operand = checked_expression(index, index.bindings.program.arena.get_node_operand(node), no_type(), depth + 1);
+		if (operand.index == 0 || destination.index == 0) {
+			return index.defer(node, 15);
+		}
+		if (!type_numeric(checked_kind(index, operand)) || !type_numeric(checked_kind(index, destination))) {
+			return index.defer(node, 16);
+		}
+		return destination;
+	}
+	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
+	return index.defer(node, 100 + syntax_kind_code(kind));
+}
+TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	var left_node = index.bindings.program.arena.get_node_left(node);
+	var right_node = index.bindings.program.arena.get_node_right(node);
+	var token = index.bindings.program.arena.get_token_operator_token(node);
+	var op = index.bindings.program.arena.token_message(token);
+	bool logical = index.bindings.program.arena.kind(node) == SyntaxKind.ShortCircuitExpressionSyntax();
+	bool comparison = op.text == "==" || op.text == "!=" || op.text == "<" || op.text == ">" || op.text == "<=" || op.text == ">=";
+	bool equality = op.text == "==" || op.text == "!=";
+	bool bitwise = op.text == "&" || op.text == "|" || op.text == "^";
+	bool shift = op.text == "<<" || op.text == ">>";
+	var context = no_type();
+	if (!logical) {
+		if (!comparison && type_numeric(checked_kind(index, expected))) {
+			context = expected;
+		}
+		if (context.index == 0) {
+			context = checked_context(index, left_node, depth + 1);
+		}
+		if (context.index == 0) {
+			context = checked_context(index, right_node, depth + 1);
+		}
+	}
+	var left = checked_expression(index, left_node, context, depth + 1);
+	var right_context = context;
+	if (shift) {
+		right_context = no_type();
+	}
+	var right = checked_expression(index, right_node, right_context, depth + 1);
+	if (left.index == 0 || right.index == 0) {
+		return index.defer(node, 15);
+	}
+	int code = checked_kind(index, left);
+	int other = checked_kind(index, right);
+	if (logical) {
+		if (code != 13 || other != 13) {
+			index.fail(index.bindings.program.arena.token_span(token), "short-circuit operands must have type bool");
+			return no_type();
+		}
+		return type_id(13);
+	}
+	bool valid = false;
+	if (shift) {
+		valid = type_integer(code) && type_integer(other);
+	} else {
+		if (left.index == right.index) {
+			valid = type_numeric(code);
+			if (bitwise) {
+				valid = type_integer(code) || code == 13;
+			}
+			if (equality) {
+				valid = type_numeric(code) || code == 13 || code == 15 || checked_nullable(index, left) || checked_payload_free_enum(index, left);
+			}
+			if (op.text == "%" && (code == 11 || code == 12)) {
+				valid = false;
+			}
+		}
+	}
+	if (!logical && !equality && !bitwise && !shift) {
+		if (!type_numeric(code) && code != 0) {
+			index.fail(index.bindings.program.arena.header(left_node).span, "numeric operator requires a numeric operand");
+			return no_type();
+		}
+		if (!type_numeric(other) && other != 0) {
+			index.fail(index.bindings.program.arena.header(right_node).span, "numeric operator requires a numeric operand");
+			return no_type();
+		}
+	}
+	if (shift && valid && index.bindings.program.arena.kind(right_node) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+		var spelling = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(right_node));
+		int count = checked_decimal(spelling.text, 64);
+		if (count < 0 || count >= type_width(code)) {
+			index.fail(index.bindings.program.arena.header(right_node).span, "shift count is outside the exact integer width");
+			return no_type();
+		}
+	}
+	if (!valid) {
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "operator '");
+		source_append_text(output, op.text);
+		source_append_text(output, "' requires compatible exact operand types");
+		var message = output.snapshot();
+		index.fail(index.bindings.program.arena.token_span(token), message.text);
+		return no_type();
+	}
+	if (comparison) {
+		return type_id(13);
+	}
+	return left;
+}
+TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	var target = checked_target(index, node, token);
+	int i = index.node_references[node.index];
+	while (i != 0) {
+		var edge = index.bindings.reference(i);
+		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 5 && edge.reason == 7) {
+			int code = checked_kind(index, index.symbol_types[edge.alternative.index]);
+			if (code == 25 || code == 26) {
+				target = edge.alternative;
+				assert_that(index.bindings.complete_reference(i, target, type_symbol(0)));
+			}
+		}
+		i = index.reference_next[i];
+	}
+	if (target.index == 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0) {
+		checked_deferred_children(index, node, 17, depth + 1);
+		return index.defer(node, 17);
+	}
+	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0) {
+		checked_deferred_children(index, node, 17, depth + 1);
+		return index.defer(node, 17);
+	}
+	var type = index.symbol_types[target.index];
+	int code = checked_kind(index, type);
+	if (code == 0) {
+		return index.defer(node, 15);
+	}
+	if (code != 25 && code != 26) {
+		index.fail(index.bindings.program.arena.header(node).span, "call target does not have a callable type");
+		return no_type();
+	}
+	var signature = index.types.descriptor(index.types, type);
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	int count = index.bindings.program.arena.list_count(arguments);
+	int required = signature.count - 1;
+	var declared = index.bindings.symbol(target);
+	if (declared.kind == 1 || declared.kind == 11) {
+		var params = index.bindings.program.arena.get_list_parameters(declared.node);
+		int p = 0;
+		while (p < index.bindings.program.arena.list_count(params)) {
+			var param = index.bindings.program.arena.node_at(params, p);
+			if (index.bindings.program.arena.get_node_caller_information(param).index != 0 && p < required) {
+				required = p;
+			} p = p + 1;
+		}
+	}
+	if (count < required || count > signature.count - 1) {
+		index.fail(index.bindings.program.arena.header(node).span, "call argument count does not match signature");
+		return no_type();
+	}
+	bool deferred = false;
+	int deferred_reason = 15;
+	i = 0;
+	while (i < count && !index.failed()) {
+		var child = index.bindings.program.arena.node_at(arguments, i);
+		var parameter = index.types.argument(index.types, type, i + 1);
+		var actual = checked_expression(index, child, parameter.type, depth + 1);
+		deferred = deferred || actual.index == 0;
+		int contract = checked_contract(index, child, parameter.flags);
+		if (contract != 0) { deferred = true; deferred_reason = contract; }
+		checked_mismatch(index, index.bindings.program.arena.header(child).span, parameter.type, actual, "argument");
+		i = i + 1;
+	}
+	if (deferred) { return index.defer(node, deferred_reason); }
+	var result = index.types.argument(index.types, type, 0);
+	var use = index.uses[node.index];
+	use.flags = result.flags;
+	index.uses[node.index] = use;
+	return result.type;
+}
+
+bool checked_payload_free_enum(CheckedIndex index, TypeId type) {
+	var row = index.types.descriptor(index.types, type);
+	if (row.kind != 32 && row.kind != 34) { return false; }
+	var symbol = index.bindings.symbol(row.nominal);
+	if (symbol.kind != 5) { return false; }
+	var variants = index.bindings.program.arena.get_list_variants(symbol.node);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(variants)) {
+		var variant = index.bindings.program.arena.node_at(variants, i);
+		if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(variant)) != 0) { return false; }
+		i = i + 1;
+	}
+	return true;
+}
+bool checked_field_accessible(CheckedIndex index, SyntaxNodeId node, SymbolId field) {
+	var symbol = index.bindings.symbol(field);
+	if ((index.symbol_flags[field.index] & 256) == 0) { return true; }
+	var scope = index.bindings.scope_for_node(node);
+	if (scope.index == 0) { return false; }
+	var context = index.bindings.scope(scope);
+	if (context.owner.index == 0) { return false; }
+	if (context.owner.index == symbol.owner.index) { return true; }
+	var owner = index.bindings.symbol(context.owner);
+	return owner.owner.index == symbol.owner.index;
+}
+
+// Compatibility obligations are separate from logical TypeId equivalence.
+// A missing flow proof stays named; an explicit null violation is reported in
+// the later contract phase, after ordinary type diagnostics, as C0 does.
+int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) throws Error {
+	if (expression.index == 0) { return 0; }
+	if ((flags & 1) != 0 && (index.uses[expression.index].flags & 1) == 0) {
+		var inner = expression;
+		int depth = 0;
+		while (index.bindings.program.arena.kind(inner) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 256) { inner = index.bindings.program.arena.get_node_expression(inner); depth = depth + 1; }
+		if (index.bindings.program.arena.kind(inner) == SyntaxKind.NullPointerExpressionSyntax() && index.pending_contract_message == 0) {
+			index.pending_contract_message = index.bindings.names.intern("null cannot satisfy a nonnull destination");
+			index.pending_contract_span = index.bindings.program.arena.header(expression).span;
+		}
+		var ignored = index.defer(expression, 18);
+		return 18;
+	}
+	if ((flags & 6) != 0) { var ignored = index.defer(expression, 19); return 19; }
+	return 0;
+}

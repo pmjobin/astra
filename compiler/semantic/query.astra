@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Development-only consumer of typed tables; never invokes another compiler.
-void binding_write_span(BindingIndex index, SyntaxSpan span, Utf8ByteBuilder output) throws Error {
+void binding_write_span(borrowed BindingIndex index, SyntaxSpan span, Utf8ByteBuilder output) throws Error {
 	var backing = index.program.arena.source_span(span);
 	var path = backing.path();
 	syntax_write_hex(output, path.text);
@@ -9,7 +9,7 @@ void binding_write_span(BindingIndex index, SyntaxSpan span, Utf8ByteBuilder out
 	source_append_text(output, " ");
 	append_int(output, span.end);
 }
-void binding_write_reference(BindingIndex index, int number, Utf8ByteBuilder output) throws Error {
+void binding_write_reference(borrowed BindingIndex index, int number, Utf8ByteBuilder output) throws Error {
 	var reference = index.reference(number);
 	source_append_text(output, "R ");
 	append_int(output, number);
@@ -31,7 +31,7 @@ void binding_write_reference(BindingIndex index, int number, Utf8ByteBuilder out
 	append_int(output, reference.node.index);
 	source_append_text(output, "\n");
 }
-owned Utf8Message binding_observation(BindingIndex index) throws Error {
+owned Utf8Message binding_observation(borrowed BindingIndex index) throws Error {
 	var output = new Utf8ByteBuilder();
 	source_append_text(output, "astra-bindings/1\n");
 	if (index.failed()) {

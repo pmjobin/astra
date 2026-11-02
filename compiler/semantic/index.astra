@@ -66,6 +66,31 @@ class BindingIndex {
 		assert_that(index > 0 && index <= this.reference_count);
 		return this.references[index - 1];
 	}
+	// The checked layer may complete only the original deferred edge. It must
+	// supply the exact receiver declaration for member/initializer selections.
+	// Keep its source/token/node/scope and maintain the existing reverse lists.
+	bool complete_reference(int number, SymbolId target, SymbolId receiver) {
+		if (number <= 0 || number > this.reference_count || target.index <= 0 || target.index > this.symbol_count) {
+			return false;
+		}
+		var edge = this.reference(number);
+		var symbol = this.symbol(target);
+		if (edge.state_code != 5 || edge.target.index != 0) { return false; }
+		if (edge.reason == 1 || edge.reason == 3) {
+			if (symbol.owner.index != receiver.index || receiver.index == 0 || symbol.kind != 6) { return false; }
+		} else {
+			if (edge.reason != 7 || target.index != edge.alternative.index || (symbol.kind != 8 && symbol.kind != 7)) { return false; }
+		}
+		if (!this.accessible(target, edge.scope)) { return false; }
+		edge.state_code = 1;
+		edge.reason = 0;
+		edge.target = target;
+		edge.next_reference = symbol.first_reference;
+		symbol.first_reference = number;
+		this.symbols[target.index - 1] = symbol;
+		this.references[number - 1] = edge;
+		return true;
+	}
 	ScopeId scope_for_node(SyntaxNodeId node) {
 		assert_that(node.index > 0 && node.index < len(this.node_scopes));
 		return this.node_scopes[node.index];
@@ -1241,6 +1266,19 @@ class BindingIndex {
 			this.checking_local = false;
 			return;
 		}
+		if (action == 5 || action == 6) {
+			var token = this.program.arena.get_token_name(node);
+			var name = this.program.arena.token_message(token);
+			var previous = this.resolve(scope, node, token, name.text, 2);
+			if (previous.state_code == 1) {
+				var output = new Utf8ByteBuilder();
+				source_append_text(output, "constant '"); source_append_text(output, name.text); source_append_text(output, "' conflicts with a visible binding or callable");
+				var text = output.snapshot(); this.duplicate(this.program.arena.token_span(token), text.text, previous.target);
+				return;
+			}
+			if (action == 5) { var declared = this.declaration(node, token, scope, owner, 2, 2, false); }
+			return;
+		}
 		if (action == 4) {
 			if (this.pending_errors[node.index] != 0) {
 				this.error_message = this.pending_errors[node.index];
@@ -1378,6 +1416,14 @@ class BindingIndex {
 			return;
 		}
 		if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
+			if (this.node_symbols[node.index].index == 0 && outer.kind > 2) {
+				this.node_scopes[node.index] = scope;
+				this.push(node, scope, 5);
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+				this.push(node, scope, 6);
+				return;
+			}
 			owner = this.node_symbols[node.index];
 			scope = this.child_scope(scope, owner, node, 6);
 			this.node_scopes[node.index] = scope;
