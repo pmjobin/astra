@@ -36,6 +36,17 @@ def main():
 	assert formatting['applied'] and formatting['changed'] > 0
 	for name in ('format-check-before-commit.json', 'format-reapply-before-commit.json', 'format-check-final.json'):
 		assert read(a.runtime/name)['changed'] == 0
+	final_format = read(a.runtime/'format-check-final.json')
+	final_rows = {row['path']: row for row in final_format['rows']}
+	complete_map = []
+	for row in formatting['rows']:
+		current = final_rows.pop(row['path'])
+		complete_map.append(dict(**row, final_sha256=current['after_sha256'], final_mode=current['after_mode'],
+			subsequent_functional_change=row['after_sha256'] != current['after_sha256']))
+	for row in final_rows.values():
+		assert row['state'] == 'compliant'
+		complete_map.append(dict(**row, before_mechanical_sha256=None, after_mechanical_sha256=None,
+			final_sha256=row['after_sha256'], final_mode=row['after_mode'], added_after_mechanical=True))
 	mechanical = read(a.runtime/'formatting-commit.json')
 	for row in formatting['rows']:
 		for commit, key in ((mechanical['before'], 'before_sha256'), (mechanical['commit'], 'after_sha256')):
@@ -56,6 +67,12 @@ def main():
 		before = a.runtime/(a.before_prefix+mode); after = a.runtime/(a.after_prefix+mode)
 		assert read(before/'result.json')['status'] == read(after/'result.json')['status'] == 'PASS'
 		assert read(a.runtime/('paired-'+mode+'.json'))['status'] == 'PASS'
+		for phase in ('before', 'after'):
+			style = read(a.runtime/('native-style-'+phase+'-'+mode)/'result.json'); assert style['status'] == 'PASS'
+			for case in style['cases']:
+				for label, product in case['products'].items():
+					path = Path(product['path']); assert sha(path.read_bytes()) == product['sha256']
+					regular(path, 'native-style/'+phase+'/'+mode+'/'+case['name']+'/'+label)
 		for phase, leaf in [('before', before), ('after', after)]:
 			for family in ('legacy', 'additions'):
 				cases = read(leaf/family/'result.json')['cases']
@@ -107,11 +124,11 @@ def main():
 	def attach(name, data):
 		path = out/name; path.write_text(json.dumps(data, indent=2)+'\n'); attachments.append(path)
 	map_parts = []
-	for index, start in enumerate(range(0, len(formatting['rows']), 800)):
+	for index, start in enumerate(range(0, len(complete_map), 800)):
 		name = 'format-map-'+str(index).zfill(3)+'.json'
-		attach(name, formatting['rows'][start:start+800]); map_parts.append(name)
+		attach(name, complete_map[start:start+800]); map_parts.append(name)
 	attach('format-map-index.json', dict(format='astra-full-format-map/1', before=mechanical['before'], after=mechanical['commit'],
-		rows=len(formatting['rows']), changed=formatting['changed'], parts=map_parts,
+		rows=len(complete_map), mechanical_scope_rows=len(formatting['rows']), changed=formatting['changed'], parts=map_parts,
 		engine=formatting['configs'], tools=formatting['tools']))
 	index = {name: dict(bytes=len(data), sha256=sha(data)) for name, data in payload.items()}
 	index_parts = []
