@@ -12,8 +12,8 @@ int main(string[] args) {
 		var output = new Utf8ByteBuilder();
 		source_append_text(output, "astra-source-ledger/1\n");
 		int s = 1;
-		while (s <= flow.checked.bindings.program.arena.source_count) {
-			SyntaxSourceId id = {index = s};
+		while (s <= flow.checked.bindings.program.arena.generated_source_count) {
+			SyntaxSourceId id = {index = -s};
 			var backing = flow.checked.bindings.program.arena.source(id);
 			var path = source_path(shared_borrow(backing));
 			if (path.text.byte_length > 0 && astra_host_text_byte(path.text, 0) == 60) {
@@ -46,6 +46,11 @@ int main(string[] args) {
 			SyntaxNodeId node = {index = i};
 			var scope = flow.checked.bindings.scope_for_node(node);
 			int function = 0; int remaining = flow.checked.bindings.scope_count + 1;
+			var direct = flow.checked.node_symbols[i];
+			if (direct.index != 0) {
+				var declaration = flow.checked.bindings.symbol(direct);
+				if (declaration.kind == 1 || declaration.kind == 11 || declaration.kind == 12 || declaration.kind == 18) function = direct.index;
+			}
 			while (scope.index != 0 && remaining > 0 && function == 0) {
 				var row = flow.checked.bindings.scope(scope);
 				if (row.owner.index != 0) {

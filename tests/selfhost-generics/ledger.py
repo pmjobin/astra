@@ -68,7 +68,8 @@ def main():
 			path = bytes.fromhex(r[1]).decode(); raw = bytes(map(int, r[2:]))
 			identities[path] = dict(relative=path, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest(), synthetic_source_hex=raw.hex(), provenance='actual retained parser source backing')
 		elif r[0] == 'DECL':
-			decls[int(r[1])] = dict(kind=int(r[2]), node=int(r[3]), owner=int(r[4]), name=bytes.fromhex(r[5]).decode(), path=bytes.fromhex(r[6]).decode(), start=int(r[7]), end=int(r[8]))
+			path = bytes.fromhex(r[6]).decode()
+			decls[int(r[1])] = dict(kind=int(r[2]), node=int(r[3]), owner=int(r[4]), name=bytes.fromhex(r[5]).decode(), path=path, start=int(r[7]), end=int(r[8]), source_sha256=identities[path]['sha256'])
 		elif r[0] == 'NODE':
 			path = bytes.fromhex(r[7]).decode()
 			nodes.append(dict(node=int(r[1]), syntax_kind=int(r[2]), function_symbol=int(r[3]), type=int(r[4]), flags=int(r[5]), deferred=int(r[6]), path=path, start=int(r[8]), end=int(r[9]), source_sha256=identities[path]['sha256']))
@@ -76,15 +77,25 @@ def main():
 			flow.append(line)
 	assert nodes and len(nodes) == len({n['node'] for n in nodes})
 	failed = any(x.startswith('CHECKED_ERROR ') for x in flow)
+	reason_authority = target_root/'compiler/semantic/typecore-port.json'
+	reasons = json.loads(reason_authority.read_text())['deferred_reasons']
 	for row in nodes:
 		row['function'] = decls.get(row['function_symbol'])
+		row['deferred_reason'] = reasons.get(str(row['deferred']), 'specific syntax family '+str(row['syntax_kind']) if row['deferred'] >= 100 else None)
 		row['disposition'] = ('TYPE_DEFERRED_'+str(row['deferred']) if row['deferred'] else 'TYPE_RECORDED_WITHOUT_WHOLE_PROGRAM_ADMISSION' if row['type'] else 'NO_CHECKED_USE_RECORDED')
 		row['program_checked_error'] = failed
 	files = []
 	for path, identity in identities.items():
 		selected = [n for n in nodes if n['path'] == path]
 		files.append(dict(path=path, **identity, nodes=len(selected), dispositions=dict(Counter(n['disposition'] for n in selected))))
-	result = dict(format='astra-whole-source-ledger/1', phase=a.phase, initial_commit=INITIAL if a.phase == 'before' else None, component_sha256=sha(a.build/'astra-ledger-O0'), files=files, declarations=decls, nodes=nodes, raw_flow=flow, limitations='Zero typed use is not acceptance. It may name a structural syntax node or a node unvisited after the recorded first error. Deferred and typed observations do not imply Flow/IR/LLVM admission. Original and current whole compiler remain unqualified.')
+	diagnostics = []
+	for line in flow:
+		values = line.split()
+		if values[0] == 'CHECKED_ERROR':
+			diagnostics.append(dict(kind='CHECKED_ERROR', path=bytes.fromhex(values[1]).decode(), start=int(values[2]), end=int(values[3]), message=bytes.fromhex(values[4]).decode()))
+		if values[0] == 'DEFER':
+			diagnostics.append(dict(kind='DEFERRED', reason=values[1], code=int(values[2]), path=bytes.fromhex(values[3]).decode(), start=int(values[4]), end=int(values[5])))
+	result = dict(format='astra-whole-source-ledger/1', phase=a.phase, initial_commit=INITIAL if a.phase == 'before' else None, component_sha256=sha(a.build/'astra-ledger-O0'), files=files, declarations=decls, nodes=nodes, raw_flow=flow, diagnostics=diagnostics, reason_authority=dict(path=str(reason_authority), sha256=sha(reason_authority), reasons=reasons), limitations='Zero typed use is not acceptance. It may name a structural syntax node or a node unvisited after the recorded first error. Deferred and typed observations do not imply Flow/IR/LLVM admission. Original and current whole compiler remain unqualified.')
 	(a.runtime/'ledger.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(a.phase, len(files), 'files', len(nodes), 'original parsed nodes; full-source disposition preserved')
 
