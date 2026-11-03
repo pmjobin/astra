@@ -8,11 +8,8 @@ import io
 import json
 import lzma
 from pathlib import Path
-import shutil
 import subprocess
 import tarfile
-import tempfile
-import time
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -110,34 +107,20 @@ def main():
 		profiles[mode] = dict(executions=39, original=24, additions=14, existing_nested=1,
 			original_fault_categories=21, additional_fault_categories=18,
 			upstream=dict(core=22, cfg=26, ssa=30), paired_sha256=sha((a.runtime/('paired-'+mode+'.json')).read_bytes()))
-		# Ship all three complete compiler artifacts losslessly within the installed
-		# publisher's evidence budget. The existing zstd tool supplies byte deltas;
-		# an actual decode must reproduce each target's SHA-256 before attachment.
-	seed = a.build/'formatter-before/astrac'
-	regular(seed, 'compilers/formatter-before.seed')
-	codec = Path(shutil.which('zstd')).resolve()
-	transport = a.runtime/'handoff/compiler-transport'; transport.mkdir(parents=True, exist_ok=True)
-	codec_rows, codec_commands = [], []
-	for label, target in [('reference-C0', Path(initial['c0']['path'])), ('formatter-after', a.build/'formatter-after/astrac')]:
-		patch = transport/(label+'.zst')
-		with tempfile.TemporaryDirectory(prefix='verify-', dir=transport) as scratch:
-			decoded = Path(scratch)/'compiler'
-			for stage, argv in [('encode', [codec, '-q', '-f', '-9', '--long=27', '--patch-from='+str(seed), target, '-o', patch]),
-				('decode', [codec, '-q', '-d', '--patch-from='+str(seed), patch, '-o', decoded])]:
-				start = time.monotonic()
-				result = subprocess.run(['/usr/bin/time', '-v', '-o', str(a.runtime/('transport-'+label+'-'+stage+'.time')), *map(str, argv)], capture_output=True)
-				codec_commands.append(dict(argv=list(map(str, argv)), exit=result.returncode, monotonic_start=start, monotonic_end=time.monotonic()))
-				(a.runtime/'compiler-transport-commands.json').write_text(json.dumps(codec_commands, indent=2)+'\n')
-				assert result.returncode == 0, result.stderr[-2000:]
-			assert sha(decoded.read_bytes()) == sha(target.read_bytes())
-		regular(patch, 'compilers/'+label+'.delta.zst')
-		codec_rows.append(dict(target=label, bytes=target.stat().st_size, sha256=sha(target.read_bytes()),
-			seed='compilers/formatter-before.seed', seed_sha256=sha(seed.read_bytes()), patch='compilers/'+label+'.delta.zst',
-			patch_sha256=sha(patch.read_bytes()), decoded_and_verified=True, executable_mode=0o755))
-	put('compilers/transport.json', json.dumps(dict(format='astra-lossless-compiler-transport/1',
-		tool=dict(path=str(codec), sha256=sha(codec.read_bytes()), version=subprocess.check_output([str(codec), '--version'], text=True).strip()),
-		decode='zstd -d --patch-from=compilers/formatter-before.seed compilers/TARGET.delta.zst -o TARGET; verify SHA-256 before use',
-		artifacts=codec_rows), indent=2).encode()+b'\n')
+		# C0 tool distributions exceed the installed publisher's 25 MiB ZIP cap.
+		# Retain their exact identities and source/build/qualification receipts;
+		# every native component and selected application artifact remains embedded.
+	tool_rows = []
+	for label, target, expected, receipt in [
+		('reference-C0', Path(initial['c0']['path']), initial['c0']['sha256'], 'initial identity; tools-before.json; base-reconciliation.json'),
+		('formatter-before', a.build/'formatter-before/astrac', read(a.runtime/'formatter-before-identity.json')['compiler_sha256'], 'formatter-before-identity.json'),
+		('formatter-after', a.build/'formatter-after/astrac', read(a.runtime/'formatter-after-identity.json')['compiler_sha256'], 'formatter-after-identity.json')]:
+		assert target.is_file() and not target.is_symlink() and sha(target.read_bytes()) == expected
+		tool_rows.append(dict(tool=label, path=str(target), bytes=target.stat().st_size, sha256=expected,
+			source_build_qualification_receipts=receipt, embedded=False))
+	put('compilers/tool-references.json', json.dumps(dict(format='astra-c0-tool-references/1',
+		reason='Installed publisher final ZIP limit is 25 MiB. C0 tool binaries remain locally available with exact identity and rebuild receipts; native components and application artifacts are embedded.',
+		tools=tool_rows), indent=2).encode()+b'\n')
 	for path in sorted(a.runtime.rglob('*')):
 		if not path.is_file() or path.is_symlink():
 			continue
@@ -190,7 +173,7 @@ def main():
 		formatting_commit=mechanical, full_task_patch_sha256=index['patches/full-task.patch']['sha256'],
 		mechanical_patch_sha256=index['patches/mechanical-format.patch']['sha256'],
 		raw_archive=dict(bytes=len(data), sha256=sha(data), members=len(payload)),
-		transport='Raw archive uses independently hashed Base85 chunks; complete file/map index parts use verified LZMA+Base85. No logical files or artifact bytes are omitted.',
+		transport='Independently hashed Base85 archive chunks and verified LZMA+Base85 file/map indices retain full patches, required native components/application artifacts and raw receipts. C0 tool distributions use exact identity/source/build references in compilers/tool-references.json to respect the installed 25 MiB final ZIP limit.',
 		private_initial_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),
 		instrumentation_observations={mode: read(a.runtime/(a.after_prefix+mode)/'numeric/result.json')['instrumented'] for mode in ('O0', 'O2')},
 		named_deferrals=['Valgrind numerical conformance for the independently reproduced wide-u64-to-f32 conversion discrepancy; native host expectations remain exact.',

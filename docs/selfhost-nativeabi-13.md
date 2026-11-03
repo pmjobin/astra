@@ -128,6 +128,12 @@ input bytes and exits. Final format check: all4639 classified files, zero
 changes; protected451 and donor6622 identities remain exact. The installed
 publisher's `RESULT.json`/`MANIFEST.json` supply the final publication identity.
 
+The installed publisher limits the final ZIP to 25 MiB. All native components,
+selected program artifacts, full patches, formatting maps and raw receipts are
+included losslessly. The three existing C0 tool binaries remain local; the
+report carries their exact hashes, source identities and rebuild/qualification
+receipts rather than distributing these tools.
+
 The owner approved base `b589e48ec94131de3b330f6377076ddbdac88c62`, whose tree is
 the required `46f72a3381161aac36f158c5b5a5ccd0d551e9af`, after the earlier email
 history rewrite. The original R1 ZIP remains byte-exact; the unchanged installed
