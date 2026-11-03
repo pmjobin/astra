@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// astra-core/1. Ordinals have meaning only with their retained program owner.
+struct CoreId {
+	int function;
+	int index;
+}
+struct CoreFunction {
+	SymbolId symbol;
+	SignatureId signature;
+	TypeId result;
+	int flags;
+	SyntaxSpan span;
+	int body;
+	int place_first;
+	int place_count;
+}
+// Storage authority is never a CoreNode/value. A projection retains its whole
+// nominal parent chain, including nonleaf records and equal-typed distinct roots.
+struct CorePlace {
+	int function;
+	int root;
+	int parent;
+	int slot;
+	int field;
+	SymbolId symbol;
+	TypeId type;
+	int flags;
+	int region;
+	bool parameter;
+	bool leaf;
+}
+// Value kinds 1 literal, 2 signed literal, 3 load/snapshot, 4 move producer,
+// 5 unary, 6 binary, 7 conditional RHS, 8 conversion, 9 direct call,
+// 10 record initializer, 11 buffer producer, 12 parentheses.
+// Statements 20 block, 21 initialize, 22 store, 23 if, 24 while,
+// 25 break, 26 continue, 27 return, 28 call statement.
+struct CoreNode {
+	int kind;
+	int function;
+	SyntaxNodeId source;
+	SyntaxSpan span;
+	TypeId type;
+	int flags;
+	SyntaxTokenId token;
+	SyntaxTokenId operation;
+	int a;
+	int b;
+	int c;
+	int place;
+	SymbolId symbol;
+	SignatureId signature;
+	int target;
+	int first;
+	int count;
+}
+// Ordered, single-evaluation children. Labels are exact fields or parameters;
+// mode is the checked qualifier/transfer contract, not an alias/noalias promise.
+struct CoreEdge {
+	int child;
+	SymbolId label;
+	int mode;
+}
+// A verified scope-exit plan is conditional on the runtime owner being armed.
+// Flow facts may join OWNED and MOVED. Nullness never disarms an owner.
+struct CoreExit {
+	int function;
+	SyntaxNodeId source;
+	int region;
+	int witness;
+	int first;
+	int count;
+}
+struct CoreCleanup {
+	int place;
+	int owner;
+	TypeId type;
+	int state;
+}
+// Loan endpoints are admitted source-flow blocks, not inferred alias effects.
+struct CoreLoan {
+	int function;
+	int source;
+	SyntaxNodeId value;
+	SyntaxNodeId call;
+	int region;
+	int begin;
+	int end;
+}
+class CoreProgram {
+	owned FlowIndex flow;
+	owned shared TypeOwner identity;
+	owned CoreFunction[] functions;
+	owned CoreNode[] nodes;
+	owned CorePlace[] places;
+	owned CoreEdge[] edges;
+	owned CoreExit[] exits;
+	owned CoreCleanup[] cleanups;
+	owned CoreLoan[] loans;
+	int function_count;
+	int node_count;
+	int place_count;
+	int edge_count;
+	int exit_count;
+	int cleanup_count;
+	int loan_count;
+	int limit;
+	int status;
+	SyntaxSpan error_span;
+	init(owned FlowIndex flow, int limit) {
+		this.flow = move flow;
+		var owner = new TypeOwner();
+		var identity = shared_acquire(move owner);
+		this.identity = move identity;
+		this.functions = new CoreFunction[16];
+		this.nodes = new CoreNode[16];
+		this.places = new CorePlace[16];
+		this.edges = new CoreEdge[16];
+		this.exits = new CoreExit[16];
+		this.cleanups = new CoreCleanup[16];
+		this.loans = new CoreLoan[16];
+		this.function_count = 0;
+		this.node_count = 0;
+		this.place_count = 0;
+		this.edge_count = 0;
+		this.exit_count = 0;
+		this.cleanup_count = 0;
+		this.loan_count = 0;
+		this.limit = limit;
+		this.status = 0;
+		this.error_span = syntax_empty_span();
+	}
+	bool room(int count) {
+		if (this.status != 0) { return false; }
+		if (this.limit < 1 || this.limit > 65536 || count >= this.limit) {
+			this.status = 2;
+			return false;
+		}
+		return true;
+	}
+	bool same_owner(borrowed CoreProgram origin) {
+		return type_owner_same(this.identity, origin.identity) && this.flow.same_owner(origin.flow);
+	}
+}
