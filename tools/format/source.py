@@ -3,6 +3,7 @@
 import sys
 sys.dont_write_bytecode = True
 import argparse
+import difflib
 import hashlib
 import json
 import os
@@ -14,6 +15,7 @@ import tempfile
 import time
 
 from lanes import stable_format
+from lexical import scan, call_interiors
 
 ROOT = Path(__file__).resolve().parents[2]
 SUFFIXES = {'.vala', '.vapi', '.c', '.h', '.cpp', '.hpp', '.py', '.astra', '.sh', '.js', '.S', '.ld', '.in', '.cmd', '.build', '.options'}
@@ -21,6 +23,33 @@ SUFFIXES = {'.vala', '.vapi', '.c', '.h', '.cpp', '.hpp', '.py', '.astra', '.sh'
 
 def sha(data):
 	return hashlib.sha256(data).hexdigest()
+
+
+def transformation(before, after, lane):
+	old, new = before.splitlines(), after.splitlines()
+	added_blank = removed_blank = 0
+	for tag, left, right, start, end in difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
+		if tag != 'equal':
+			removed_blank += sum(not line.strip() for line in old[left:right])
+			added_blank += sum(not line.strip() for line in new[start:end])
+	braces = 0
+	if lane == 'astra':
+		braces = sum(t[0] in ('{', '}') for t in scan(before)) - sum(t[0] in ('{', '}') for t in scan(after))
+		if braces < 0 or braces % 2:
+			raise ValueError('unbalanced formatting brace receipt')
+	classes = []
+	if before == after:
+		classes.append('compliant')
+	else:
+		classes.append('ordinary-lane-formatter')
+		if added_blank or removed_blank:
+			classes.append('blank-spacing')
+		if braces:
+			classes.append('safe-braced-one-liner')
+	return dict(classification=classes, before_lines=len(old), after_lines=len(new),
+		before_bytes=len(before), after_bytes=len(after), added_blank_lines=added_blank,
+		removed_blank_lines=removed_blank, removed_brace_pairs=braces // 2,
+		preserved_call_interiors=len(call_interiors(before)) if lane in ('c', 'cpp') else 0)
 
 
 def source_identity(metadata):
@@ -161,11 +190,12 @@ def main():
 	for name in sorted(selected):
 		entry = scope[name]
 		before, metadata = read_source(ROOT, name)
-		row = dict(path=name, before_sha256=sha(before), mode=stat.S_IMODE(metadata.st_mode))
+		row = dict(path=name, before_sha256=sha(before), mode=stat.S_IMODE(metadata.st_mode), after_mode=stat.S_IMODE(metadata.st_mode))
 		if 'exclude' in entry:
 			if sha(before) != entry['sha256']:
 				raise ValueError('protected source identity changed: ' + name)
 			row.update(state='protected', reason=entry['exclude'], after_sha256=sha(before))
+			row.update(transformation(before, before, None), classification=['protected'])
 		else:
 			try:
 				after = stable_format(entry['lane'], before, name, ROOT, tools)
@@ -173,6 +203,7 @@ def main():
 				raise ValueError(name + ': ' + str(error)) from error
 			changed = before != after
 			row.update(state='changed' if changed else 'compliant', lane=entry['lane'], after_sha256=sha(after), guard='PASS', stable=True)
+			row.update(transformation(before, after, entry['lane']))
 			if changed:
 				pending.append((name, before, metadata, after))
 		rows.append(row)
@@ -180,8 +211,10 @@ def main():
 	if args.apply:
 		for name, before, metadata, after in pending:
 			publish(ROOT, name, before, metadata, after)
-	receipt = dict(format='astra-source-format/1', applied=args.apply, tools=identities,
-		configs={n: sha((ROOT/n).read_bytes()) for n in ('format/vala.cfg', 'format/clang-format.yaml')},
+	receipt = dict(format='astra-source-format/2', applied=args.apply, tools=identities,
+		head=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip(),
+		tree=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD^{tree}'], text=True).strip(),
+		configs={n: sha((ROOT/n).read_bytes()) for n in ('CODING_STYLE.md', 'format/scope.json', 'format/toolchain.json', 'format/vala.cfg', 'format/clang-format.yaml', 'tools/format/source.py', 'tools/format/lanes.py', 'tools/format/lexical.py')},
 		changed=len(pending), rows=rows, seconds=time.monotonic() - start)
 	if args.receipt:
 		args.receipt.write_text(json.dumps(receipt, indent=2) + '\n')

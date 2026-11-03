@@ -93,6 +93,44 @@ def compare(before, after):
 	if a != b:
 		index = next((i for i, pair in enumerate(zip(a, b)) if pair[0] != pair[1]), min(len(a), len(b)))
 		raise ValueError('tokens/comments/literals/directives changed at ' + str(index) + ': ' + repr((a[index:index+2], b[index:index+2])))
+
+
+def call_interiors(data):
+	# A header can define even a lowercase call spelling as a macro. Whitespace
+	# within its arguments can be observable through # stringification. Keep
+	# every identifier-call/declaration interior, rather than guessing macros.
+	tokens = scan(data)
+	controls = {'if', 'for', 'while', 'switch', 'sizeof', 'alignof', '_Alignof', '_Generic', 'decltype', 'typeid', 'catch'}
+	ranges = []
+	end = -1
+	for index in range(1, len(tokens)):
+		word, start, stop = tokens[index]
+		name = tokens[index-1][0]
+		if word != '(' or start < end or name in controls or not WORD.fullmatch(name):
+			continue
+		depth = 1
+		for close in tokens[index+1:]:
+			depth += int(close[0] == '(') - int(close[0] == ')')
+			if depth == 0:
+				ranges.append((index, stop, close[1]))
+				end = close[2]
+				break
+		else:
+			raise ValueError('unbalanced call/declaration parentheses')
+	return ranges
+
+
+def preserve_call_interiors(before, after):
+	compare(before, after)
+	a, b = call_interiors(before), call_interiors(after)
+	if len(a) != len(b) or [x[0] for x in a] != [x[0] for x in b]:
+		raise ValueError('call/declaration boundaries changed')
+	old, new = before.decode('utf-8'), after.decode('utf-8')
+	for (_, left, right), (_, start, end) in reversed(list(zip(a, b))):
+		new = new[:start] + old[left:right] + new[end:]
+	result = new.encode('utf-8')
+	compare(before, result)
+	return result
 	return True
 
 

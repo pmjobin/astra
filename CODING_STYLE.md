@@ -93,3 +93,10 @@ directories, preserving binaries, logs and compiler generated C. Use
 `meson test --no-rebuild` afterwards. This does not replace ordinary Meson usage.
 `tools/format/compare_compilers.py` compares two compilers on identical inputs
 read from an explicit Git base, including native behavior and exact typed dumps.
+
+Call and declaration interiors in C/C++ remain byte-exact: an included header
+can define a call spelling as a stringifying macro, making argument whitespace
+observable. The lane still formats declaration separation and outer layout.
+The formatting ledger records this conservative exception per file. C/C++
+brace tokens remain exact, including scopes that own RAII objects.
+

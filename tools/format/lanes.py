@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import tokenize
 
-from lexical import compare, scan, attach_clauses, expand_accessors
+from lexical import compare, scan, attach_clauses, expand_accessors, preserve_call_interiors
 
 
 def run(argv, data=None, timeout=30):
@@ -128,11 +128,13 @@ def format_once(lane, data, name, root, tools):
 	if lane == 'python':
 		return python_format(data)
 	if lane in ('c', 'cpp', 'javascript'):
+		original = data
 		if lane != 'javascript':
 			data = shield_directives(data)
 		result = run([tools['clang-format'], '--style=file:' + str(root/'format/clang-format.yaml'), '--assume-filename=' + name], data)
 		if lane != 'javascript':
 			result = re.sub(rb'(?m)^[ \t]*// clang-format (?:off|on): ASTRA_DIRECTIVE_GUARD\n', b'', result)
+			result = preserve_call_interiors(original, result)
 		return result
 	if lane == 'meson':
 		return meson_format(data)
