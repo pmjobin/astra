@@ -431,7 +431,7 @@ class LlvmModule {
 					var parent_type = this.type(program.cfg.core.flow.checked, parent.type, 0); var pointer = LLVMBuildStructGEP2(this.builder, parent_type, this.places[place.parent - 1], field, this.empty); LLVMGEPSetNoWrapFlags(pointer, 0); this.places[p] = pointer;
 				}
 				if (place.leaf && (place.flags & 4) != 0) {
-					if (checked_kind(program.cfg.core.flow.checked, place.type) != 22) {
+					if (checked_kind(program.cfg.core.flow.checked, place.type) != 22 && !generic_empty_class(program.cfg.core.flow.checked, place.type)) {
 						throw new Error("LLVM_DEFERRED: cleanup type");
 					}
 					this.armed[p] = LLVMBuildAlloca(this.builder, LLVMIntTypeInContext(this.context, 1), this.empty);
