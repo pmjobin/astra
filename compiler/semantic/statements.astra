@@ -270,6 +270,20 @@ owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_a
 		i = i + 1;
 	}
 	result.stage = 3;
+	if (result.native_abi) {
+		result.generic_definition = true;
+		i = 1;
+		while (i <= result.generic_symbols && !result.failed()) {
+			var definition = result.bindings.symbol(type_symbol(i));
+			if ((definition.kind == 1 || definition.kind == 11) && generic_template(result, type_symbol(i)) && result.symbol_types[i].index != 0) {
+				var signature_result = result.types.argument(result.types, result.symbol_types[i], 0);
+				result.current_result_flags = signature_result.flags;
+				checked_statement(result, result.bindings.program.arena.get_node_body(definition.node), signature_result.type, 0);
+			}
+			i = i + 1;
+		}
+		result.generic_definition = false;
+	}
 	i = 0;
 	while (i < result.signature_count && !result.failed()) {
 		var signature = result.signatures[i];

@@ -268,6 +268,7 @@ int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 
 int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
 	var type = checked.uses[node.index].type;
+	if (generic_empty_class(checked, type) && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(node)) == 0 && checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && !checked.bindings.program.arena.get_bool_fallible(node)) return graph.add(flow_event(checked, node, 8, 0, region, next));
 	var constructor = checked_constructor(checked, type);
 	if (!flow_simple_class(checked, type) || constructor.index == 0 || checked.symbol_signatures[constructor.index].index == 0 || checked.bindings.program.arena.get_node_allocation_context(node).index != 0 || checked.bindings.program.arena.get_bool_fallible(node)) {
 		graph.defer(node, 8);
@@ -278,7 +279,7 @@ int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] o
 		graph.defer(node, 6);
 		return next;
 	}
-	var arguments = checked.bindings.program.arena.get_list_arguments(node);
+	var arguments = checked_call_arguments(checked, node);
 	var descriptor = checked.types.descriptor(checked.types, signature.callable);
 	if (descriptor.count != checked.bindings.program.arena.list_count(arguments) + 1) {
 		graph.defer(node, 9);

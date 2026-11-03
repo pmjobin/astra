@@ -505,7 +505,8 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 		}
 		i = index.reference_next[i];
 	}
-	if (target.index == 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0) {
+	if (index.native_abi) target = generic_call_target(index, node, target, depth);
+	if (target.index == 0 || (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 && !(index.native_abi && node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0))) {
 		checked_deferred_children(index, node, 17, depth + 1);
 		return index.defer(node, 17);
 	}
@@ -523,7 +524,7 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 		return no_type();
 	}
 	var signature = index.types.descriptor(index.types, type);
-	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	var arguments = checked_call_arguments(index, node);
 	int count = index.bindings.program.arena.list_count(arguments);
 	int required = signature.count - 1;
 	var declared = index.bindings.symbol(target);

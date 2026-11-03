@@ -225,7 +225,12 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 			var releasing = LLVMGetInstructionParent(call); var next = LLVMGetSuccessor(guard, 1);
 			if (LLVMGetSuccessor(guard, 0) != releasing || LLVMGetBasicBlockParent(releasing) != function || LLVMGetBasicBlockParent(next) != function) return false;
 			var load = LLVMGetFirstInstruction(releasing); var pointer = LLVMGetArgOperand(call, 0);
-			if (load == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[p] || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 53 || llvm13_index(pointer, 0, 0) != 1 || LLVMGetOperand(pointer, 0) != load || LLVMGetNextInstruction(load) != pointer || LLVMGetNextInstruction(pointer) != call) return false;
+			if (load == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[p]) return false;
+			if (generic_empty_class(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type)) {
+				if (pointer != load || LLVMGetNextInstruction(load) != call) return false;
+			} else {
+				if (LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 53 || llvm13_index(pointer, 0, 0) != 1 || LLVMGetOperand(pointer, 0) != load || LLVMGetNextInstruction(load) != pointer || LLVMGetNextInstruction(pointer) != call) return false;
+			}
 			var disarm = LLVMGetNextInstruction(call);
 			if (disarm == null || LLVMGetInstructionOpcode(disarm) != 28 || LLVMGetOperand(disarm, 1) != armed[p] || LLVMIsAConstantInt(LLVMGetOperand(disarm, 0)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(disarm, 0)) != 0) return false;
 			var jump = LLVMGetNextInstruction(disarm);
@@ -412,6 +417,21 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 			}
 			if ((op == 3 && !instruction.promoted || op == 4) && !((row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30)) {
 				if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) return false;
+			}
+			if (op == 13) {
+				if (!generic_empty_class(program.cfg.core.flow.checked, row.value.type) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || llvm13_named(LLVMGetCalledValue(result), "calloc") != 1 || LLVMGetNumArgOperands(result) != 2) return false;
+				int a = 0;
+				while (a < 2) {
+					var argument = LLVMGetArgOperand(result, a);
+					if (LLVMIsAConstantInt(argument) == null || LLVMGetIntTypeWidth(LLVMTypeOf(argument)) != 64 || LLVMConstIntGetZExtValue(argument) != 1) return false;
+					a = a + 1;
+				}
+				var condition = LLVMGetNextInstruction(result);
+				if (condition == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 32 || LLVMGetOperand(condition, 0) != result || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0) return false;
+				var branch = LLVMGetNextInstruction(condition);
+				if (branch == null || LLVMGetInstructionOpcode(branch) != 2 || LLVMGetCondition(branch) != condition || LLVMGetNumSuccessors(branch) != 2 || LLVMGetSuccessor(branch, 1) != ends[row.block - 1]) return false;
+				var trap = LLVMGetSuccessor(branch, 0); var call = LLVMGetFirstInstruction(trap); var end = LLVMGetBasicBlockTerminator(trap);
+				if (call == null || llvm13_named(LLVMGetCalledValue(call), "llvm.trap") != 1 || LLVMGetInstructionOpcode(end) != 7 || LLVMGetNextInstruction(call) != end) return false;
 			}
 			if (op == 6) {
 				int a = llvm_check_use(program.data, i + 1, 1, 0, budget); int z = llvm_check_use(program.data, i + 1, 2, 0, budget);

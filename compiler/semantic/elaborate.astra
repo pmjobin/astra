@@ -343,7 +343,7 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 	if (constructor == 34 && !checked_constraints(index, target, edges, span)) {
 		return no_type();
 	}
-	return index.record(node, index.types.intern(constructor, target, 0, edges), 0);
+	return index.record(node, generic_concrete_type(index, index.types.intern(constructor, target, 0, edges), 0), 0);
 }
 
 TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId type, int context) throws Error {
@@ -366,7 +366,7 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 
 void checked_heads(CheckedIndex index) throws Error {
 	int i = 1;
-	while (i <= index.bindings.symbol_count && !index.failed()) {
+	while (i <= index.generic_symbols && !index.failed()) {
 		var symbol = index.bindings.symbol(type_symbol(i));
 		int code = 0;
 		if (symbol.kind == 3) {
@@ -391,7 +391,7 @@ void checked_heads(CheckedIndex index) throws Error {
 	int phase = 0;
 	while (phase < 2 && !index.failed()) {
 		i = 1;
-		while (i <= index.bindings.symbol_count && !index.failed()) {
+		while (i <= index.generic_symbols && !index.failed()) {
 			var symbol = index.bindings.symbol(type_symbol(i));
 			bool member = symbol.owner.index != 0;
 			if ((phase == 0 && member) || (phase == 1 && !member)) {
@@ -474,7 +474,7 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	var callable = index.types.intern(25, type_symbol(0), 0, edges);
 	index.symbol_types[id.index] = callable;
 	index.symbol_flags[id.index] = flags;
-	index.add_signature(id, callable, error, flags, index.bindings.program.arena.get_int_dispatch(node));
+	if (!generic_template(index, id)) index.add_signature(id, callable, error, flags, index.bindings.program.arena.get_int_dispatch(node));
 }
 
 bool checked_parameter_capability(CheckedIndex index, TypeId type, string capability) throws Error {

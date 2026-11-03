@@ -79,16 +79,18 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 					row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_left(source), function, loop, 0, depth + 1);
 					row.b = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_right(source), function, loop, 0, depth + 1);
 				} else {
-					if (kind == SyntaxKind.BufferAllocationSyntax()) {
-						row.kind = 11;
-						row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_count(source), function, loop, 0, depth + 1);
-					} else {
-						if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.StructInitializerSyntax() || kind == SyntaxKind.BlockStatementSyntax()) {
-							row = core_lower_list(core, checked, graph, row, id, function, loop, depth);
+					if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+						row.kind = 13;
+					} else { if (kind == SyntaxKind.BufferAllocationSyntax()) {
+							row.kind = 11;
+							row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_count(source), function, loop, 0, depth + 1);
 						} else {
-							row = core_lower_statement(core, checked, graph, row, id, function, loop, depth);
-						}
-					}
+							if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.StructInitializerSyntax() || kind == SyntaxKind.BlockStatementSyntax()) {
+								row = core_lower_list(core, checked, graph, row, id, function, loop, depth);
+							} else {
+								row = core_lower_statement(core, checked, graph, row, id, function, loop, depth);
+							}
+						} }
 				}
 			}
 		}
@@ -123,7 +125,7 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 			core.status = 3;
 			return row;
 		}
-		list = checked.bindings.program.arena.get_list_arguments(row.source);
+		list = checked_call_arguments(checked, row.source);
 		var callee_declaration = checked.bindings.symbol(row.symbol);
 		params = checked.bindings.program.arena.get_list_parameters(callee_declaration.node);
 	}

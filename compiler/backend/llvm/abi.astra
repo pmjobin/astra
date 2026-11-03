@@ -68,6 +68,7 @@ int native_abi_representation(CheckedIndex checked, TypeEdge edge, bool foreign)
 	}
 	if ((edge.flags & 2) != 0) {
 		if (kind == 30) return 5;
+		if (kind == 31) return 8;
 		return -1;
 	}
 	if (kind == 30 || kind == 22) return 6;
@@ -92,7 +93,7 @@ void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, in
 				row.size = 4;
 				row.alignment = 4;
 			}
-			else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20)) {
+			else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20) || (source.kind == 31 && generic_empty_class(checked, type))) {
 					row.size = 8;
 					row.alignment = 8;
 				}
@@ -162,7 +163,9 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 				previous = previous + 1;
 			}
 		}
-		NativeAbiFunction row = {ordinal = f + 1, symbol = source.symbol.index, signature = source.signature.index, linkage = linkage, convention = 0, result_convention = 1, receiver = -1, hidden_result = -1, first = cursor, count = shape.count, span = source.span};
+		int receiver = -1; int instance = generic_instance_for(program.cfg.core.flow.checked, source.symbol);
+		if (instance > 0 && program.cfg.core.flow.checked.instances[instance - 1].enclosing.index != 0) receiver = 0;
+		NativeAbiFunction row = {ordinal = f + 1, symbol = source.symbol.index, signature = source.signature.index, linkage = linkage, convention = 0, result_convention = 1, receiver = receiver, hidden_result = -1, first = cursor, count = shape.count, span = source.span};
 		if (source.result.index == 14) row.result_convention = 0;
 		int p = 0;
 		while (p < shape.count) {
@@ -207,6 +210,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 				if (LLVMGetTypeKind(actual) != 8 || LLVMGetIntTypeWidth(actual) != width) return false;
 			}
 			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || (source.kind == 16 || source.kind == 20) && LLVMGetTypeKind(actual) != 12) return false;
+			if (source.kind == 31 && (!generic_empty_class(program.cfg.core.flow.checked, type_id(t)) || LLVMGetTypeKind(actual) != 12 || row.size != 8 || row.alignment != 8)) return false;
 			if (source.kind == 22) {
 				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) != 32 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8) return false;
 			}
@@ -235,7 +239,9 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 		if (program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node)) linkage = 2;
 		int count = program.cfg.core.flow.checked.types.row(signature.callable).count;
 		int result = 1; if (source.result.index == 14) result = 0;
-		if (row.ordinal != f + 1 || row.symbol != source.symbol.index || row.signature != source.signature.index || row.linkage != linkage || row.convention != 0 || row.result_convention != result || row.receiver != -1 || row.hidden_result != -1 || row.first != cursor || row.count != count || !core_span_equal(row.span, source.span) || LLVMCountParams(functions[f]) != count - 1 || LLVMGetFunctionCallConv(functions[f]) != 0) return false;
+		int receiver = -1; int instance = generic_instance_for(program.cfg.core.flow.checked, source.symbol);
+		if (instance > 0 && program.cfg.core.flow.checked.instances[instance - 1].enclosing.index != 0) receiver = 0;
+		if (row.ordinal != f + 1 || row.symbol != source.symbol.index || row.signature != source.signature.index || row.linkage != linkage || row.convention != 0 || row.result_convention != result || row.receiver != receiver || row.hidden_result != -1 || row.first != cursor || row.count != count || !core_span_equal(row.span, source.span) || LLVMCountParams(functions[f]) != count - 1 || LLVMGetFunctionCallConv(functions[f]) != 0) return false;
 		int p = 0;
 		while (p < count && budget.take(1)) {
 			if (cursor >= len(plan.channels)) return false;
@@ -250,7 +256,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 					expected = 0;
 				} else {
 					if ((edge.flags & 2) != 0) {
-						expected = 5;
+						expected = 5; if (kind == 31 && generic_empty_class(program.cfg.core.flow.checked, edge.type)) expected = 8;
 					} else {
 						if (kind == 22 || kind == 30) expected = 6;
 					}
@@ -258,12 +264,14 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 			}
 			if (expected < 0 || channel.representation != expected) return false;
 			void* physical = LLVMGetReturnType(LLVMGlobalGetValueType(functions[f])); if (p > 0) physical = LLVMTypeOf(LLVMGetParam(functions[f], p - 1));
-			if (expected == 5) {
-				if (LLVMGetTypeKind(physical) != 12 || kind != 30) return false;
-			}
-			else {
-				if (physical != types[edge.type.index]) return false;
-			}
+			if (expected == 8) {
+				if (kind != 31 || LLVMGetTypeKind(physical) != 12 || physical != types[edge.type.index]) return false;
+			} else { if (expected == 5) {
+					if (LLVMGetTypeKind(physical) != 12 || kind != 30) return false;
+				}
+				else {
+					if (physical != types[edge.type.index]) return false;
+				} }
 			cursor = cursor + 1; p = p + 1;
 		}
 		f = f + 1;
@@ -272,6 +280,30 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 }
 
 bool native_abi_fault(NativeAbiPlan plan, int category) {
+	if (category == 39) {
+		int i = 0;
+		while (i < len(plan.functions)) {
+			var row = plan.functions[i];
+			if (row.receiver == 0) {
+				row.receiver = -1;
+				plan.functions[i] = row;
+				return true;
+			}
+			i = i + 1;
+		}
+	}
+	if (category == 40) {
+		int i = 0;
+		while (i < len(plan.types)) {
+			var row = plan.types[i];
+			if (row.kind == 31 && row.complete) {
+				row.size = row.size + 8;
+				plan.types[i] = row;
+				return true;
+			}
+			i = i + 1;
+		}
+	}
 	if (category == 21 && len(plan.functions) > 0) {
 		var row = plan.functions[0];
 		row.linkage = row.linkage ^ 1;

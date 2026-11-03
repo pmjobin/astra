@@ -3,6 +3,23 @@
 // Qualifier bits: nonnull 1, borrowed 2, owned 4. No ownership flow is implied.
 class CheckedIndex {
 	owned BindingIndex bindings;
+	owned GenericInstance[] instances;
+	int instance_count;
+	owned TypeEdge[] generic_arguments;
+	int generic_argument_used;
+	owned int[] generic_node_map;
+	int generic_node_used;
+	owned int[] generic_symbol_map;
+	int generic_symbol_used;
+	owned int[] generic_scope_map;
+	int generic_scope_used;
+	owned SymbolId[] generic_calls;
+	owned SyntaxListId[] generic_argument_lists;
+	owned bool[] generic_active;
+	int generic_nodes;
+	int generic_symbols;
+	int generic_scopes;
+	int generic_references;
 	owned TypeTable types;
 	owned CheckedTypeUse[] uses;
 	owned TypeId[] symbol_types;
@@ -24,6 +41,7 @@ class CheckedIndex {
 	bool semantic_flow;
 	bool semantic_admission;
 	bool native_abi;
+	bool generic_definition;
 	int current_result_flags;
 	int pending_contract_message;
 	SyntaxSpan pending_contract_span;
@@ -32,7 +50,20 @@ class CheckedIndex {
 		this.bindings = move bindings;
 		var types = new TypeTable(65536);
 		this.types = move types;
+		this.instances = new GenericInstance[0];
+		this.instance_count = 0;
+		this.generic_arguments = new TypeEdge[0]; this.generic_argument_used = 0;
+		this.generic_node_map = new int[0]; this.generic_node_used = 0;
+		this.generic_symbol_map = new int[0]; this.generic_symbol_used = 0;
+		this.generic_scope_map = new int[0]; this.generic_scope_used = 0;
+		this.generic_nodes = this.bindings.program.arena.node_count;
+		this.generic_symbols = this.bindings.symbol_count;
+		this.generic_scopes = this.bindings.scope_count;
+		this.generic_references = this.bindings.reference_count;
 		int nodes = this.bindings.program.arena.node_count + 1;
+		this.generic_calls = new SymbolId[nodes];
+		this.generic_argument_lists = new SyntaxListId[nodes];
+		this.generic_active = new bool[this.generic_symbols + 1];
 		int symbols = this.bindings.symbol_count + 1;
 		this.uses = new CheckedTypeUse[nodes];
 		this.symbol_types = new TypeId[symbols];
@@ -54,6 +85,7 @@ class CheckedIndex {
 		this.semantic_flow = false;
 		this.semantic_admission = false;
 		this.native_abi = false;
+		this.generic_definition = false;
 		this.current_result_flags = 0;
 		this.pending_contract_message = 0;
 		this.pending_contract_span = syntax_empty_span();
@@ -262,6 +294,7 @@ int checked_flags(borrowed SyntaxArena arena, SyntaxNodeId node) {
 }
 
 SymbolId checked_target(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) {
+	if (index.native_abi && node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0 && index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && index.bindings.program.arena.get_token_identifier(node).index == token.index) return index.generic_calls[node.index];
 	int i = index.node_references[node.index];
 	while (i != 0) {
 		var edge = index.bindings.reference(i);

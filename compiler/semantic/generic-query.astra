@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Canonical source/type keys contain no arena insertion order or pointer value.
+void generic_write_origin(CheckedIndex index, SymbolId symbol, Utf8ByteBuilder output) throws Error {
+	var declaration = index.bindings.symbol(symbol);
+	binding_write_span(index.bindings, declaration.span, output);
+	source_append_text(output, ":"); append_int(output, declaration.kind);
+}
+
+void generic_write_type(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int depth) throws Error {
+	if (depth > 128 || !index.types.valid_id(type)) {
+		throw new Error("GENERIC_INVALID_TYPE_KEY");
+	}
+	var row = index.types.row(type);
+	append_int(output, row.kind); source_append_text(output, ":"); append_int(output, row.extent);
+	if (row.nominal.index > 0) {
+		int instance = generic_instance_for(index, row.nominal);
+		if (instance > 0) {
+			generic_write_key(index, row.nominal, output, depth + 1);
+		} else {
+			generic_write_origin(index, row.nominal, output);
+		}
+	}
+	int i = 0;
+	while (i < row.count) {
+		var edge = index.types.argument(index.types, type, i);
+		source_append_text(output, "["); append_int(output, edge.flags); source_append_text(output, ":");
+		generic_write_type(index, edge.type, output, depth + 1); source_append_text(output, "]"); i = i + 1;
+	}
+}
+
+void generic_write_key(CheckedIndex index, SymbolId symbol, Utf8ByteBuilder output, int depth) throws Error {
+	if (depth > 128) {
+		throw new Error("GENERIC_INVALID_INSTANCE_KEY");
+	}
+	int ordinal = generic_instance_for(index, symbol);
+	if (ordinal == 0) {
+		throw new Error("GENERIC_NO_INSTANCE");
+	}
+	var plan = index.instances[ordinal - 1];
+	source_append_text(output, "generic-v1:"); generic_write_origin(index, plan.origin, output);
+	if (plan.enclosing.index != 0) generic_write_type(index, plan.enclosing, output, depth + 1);
+	int i = 0;
+	while (i < plan.argument_count) {
+		source_append_text(output, "["); generic_write_type(index, index.generic_arguments[plan.arguments + i].type, output, depth + 1); source_append_text(output, "]"); i = i + 1;
+	}
+}
+
+owned Utf8Message generic_backend_name(CheckedIndex index, SymbolId symbol, string target, string layout) throws Error {
+	var key = new Utf8ByteBuilder(); generic_write_key(index, symbol, key, 0);
+	source_append_text(key, ":abi13:"); source_append_text(key, target); source_append_text(key, ":"); source_append_text(key, layout);
+	var text = key.snapshot(); var encoded = new Utf8ByteBuilder(); source_append_text(encoded, "astra.g."); syntax_write_hex(encoded, text.text); return encoded.snapshot();
+}
+
+owned Utf8Message generic_observation(CheckedIndex index) throws Error {
+	if (!index.complete || index.failed() || !index.validate() || !generic_verify(index)) {
+		throw new Error("GENERIC_INVALID_INSTANCE_PLAN");
+	}
+	var output = new Utf8ByteBuilder(); source_append_text(output, "astra-generics/1\nTARGET_AGNOSTIC_ABI_REQUIRES_LLVM_PLAN\n");
+	int i = 0;
+	while (i < index.instance_count) {
+		var plan = index.instances[i]; source_append_text(output, "INSTANCE "); append_int(output, i + 1);
+		source_append_text(output, " "); append_int(output, plan.origin.index); source_append_text(output, " "); append_int(output, plan.concrete.index);
+		source_append_text(output, " "); generic_write_key(index, plan.concrete, output, 0);
+		source_append_text(output, " SIGNATURE "); checked_name(index, index.symbol_types[plan.concrete.index], output, 0);
+		source_append_text(output, "\n"); i = i + 1;
+	}
+	return output.snapshot();
+}

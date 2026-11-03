@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct Box<T> { T value; }
+
+T identity<T>(T value) { return value; }
+
+B second<A, B>(A first, B last) { return last; }
+
+T add<T>(T first, T last) where T : Numeric { return first + last; }
+
+owned T[] relay<T>(owned T[] value) { return move value; }
+
+class Echo<T> {
+	init() {}
+
+	U echo<U>(U value) { return value; }
+}
+
+int main() {
+	Box<int> box = { value = 43 };
+	var copied = identity<Box<int>>(box);
+	var number = identity<int>(17);
+	var truth = identity<bool>(true);
+	var selected = second<int, bool>(number, truth);
+	var sum = add<int>(number, copied.value);
+	var source = new int[7];
+	var returned = relay<int>(move source);
+	var echo = new Echo<int>();
+	var observed = echo.echo<int>(sum);
+	if (!selected || observed != 60 || len(returned) != 7) return 1;
+	return 0;
+}

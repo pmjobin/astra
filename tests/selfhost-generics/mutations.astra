@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Development-only forgeries. Production consumers reconstruct each authority.
+int generic_mutation_stage(FlowIndex flow) {
+	if (!flow.checked.validate()) return 1;
+	if (!generic_verify(flow.checked)) return 2;
+	if (!admit_verify_index(flow)) return 3;
+	return 0;
+}
+
+int generic_test_plan(CheckedIndex index, int family) {
+	int i = 0;
+	while (i < index.instance_count) {
+		var plan = index.instances[i]; var declaration = index.bindings.symbol(plan.origin);
+		if (family == 1 && plan.argument_count == 2) return i;
+		if (family == 2 && declaration.kind == 3) return i;
+		if (family == 3 && plan.enclosing.index != 0) return i;
+		if (declaration.kind == 1 && index.symbol_types[plan.concrete.index].index != 0) {
+			var result = index.types.argument(index.types, index.symbol_types[plan.concrete.index], 0);
+			if (family == 0 && result.type.index == 1 && result.flags == 0 && plan.argument_count == 1) return i;
+			if (family == 4 && (result.flags & 4) != 0) return i;
+		}
+		i = i + 1;
+	}
+	return -1;
+}
+
+void generic_mutations(FlowIndex flow) throws Error {
+	assert_that(flow_status(flow) == 0 && generic_mutation_stage(flow) == 0);
+	int scalar = generic_test_plan(flow.checked, 0); int ordered = generic_test_plan(flow.checked, 1);
+	int record = generic_test_plan(flow.checked, 2); int method = generic_test_plan(flow.checked, 3); int owner = generic_test_plan(flow.checked, 4);
+	assert_that(scalar >= 0 && ordered >= 0 && record >= 0 && method >= 0 && owner >= 0);
+	var scalar_plan = flow.checked.instances[scalar]; var owner_plan = flow.checked.instances[owner]; var record_plan = flow.checked.instances[record]; var method_plan = flow.checked.instances[method];
+	var scalar_declaration = flow.checked.bindings.symbol(scalar_plan.concrete); var owner_declaration = flow.checked.bindings.symbol(owner_plan.concrete); var record_declaration = flow.checked.bindings.symbol(record_plan.concrete); var method_declaration = flow.checked.bindings.symbol(method_plan.concrete);
+	var owner_params = flow.checked.bindings.program.arena.get_list_parameters(owner_declaration.node); var owner_param = flow.checked.bindings.program.arena.node_at(owner_params, 0); var owner_symbol = flow.checked.node_symbols[owner_param.index];
+	var method_params = flow.checked.bindings.program.arena.get_list_parameters(method_declaration.node); var hidden = flow.checked.bindings.program.arena.node_at(method_params, 0); var hidden_symbol = flow.checked.node_symbols[hidden.index];
+	var fields = flow.checked.bindings.program.arena.get_list_fields(record_declaration.node); var field = flow.checked.bindings.program.arena.node_at(fields, 0); var field_symbol = flow.checked.node_symbols[field.index];
+	var original = flow.checked.bindings.symbol(scalar_plan.origin); var body = flow.checked.bindings.program.arena.get_node_body(original.node); var statements = flow.checked.bindings.program.arena.get_list_statements(body); var returned = flow.checked.bindings.program.arena.get_node_expression(flow.checked.bindings.program.arena.node_at(statements, 0));
+	int returned_copy = generic_node(flow.checked, scalar_plan, returned.index);
+	int call = 1;
+	while (call < len(flow.checked.generic_calls) && flow.checked.generic_calls[call].index != scalar_plan.concrete.index) call = call + 1;
+	assert_that(call < len(flow.checked.generic_calls));
+	var before = generic_observation(flow.checked); var typed_before = checked_observation(flow.checked); var flow_before = flow_observation(flow);
+	int category = 0;
+	while (category < 19) {
+		int stage = 0;
+		if (category == 0 || category == 1 || category == 3 || category == 4 || category == 17) {
+			int ordinal = scalar; if (category == 3 || category == 4) ordinal = method;
+			var old = flow.checked.instances[ordinal]; var changed = old;
+			if (category == 0) changed.origin = owner_plan.origin;
+			if (category == 1) changed.concrete = owner_plan.concrete;
+			if (category == 3) changed.enclosing = no_type();
+			if (category == 4) changed.enclosing = type_id(13);
+			if (category == 17) changed.state = 1;
+			flow.checked.instances[ordinal] = changed; stage = generic_mutation_stage(flow); flow.checked.instances[ordinal] = old;
+		}
+		if (category == 2) {
+			var plan = flow.checked.instances[ordered]; var first = flow.checked.generic_arguments[plan.arguments]; var second = flow.checked.generic_arguments[plan.arguments + 1];
+			assert_that(first.type.index != second.type.index);
+			flow.checked.generic_arguments[plan.arguments] = second; flow.checked.generic_arguments[plan.arguments + 1] = first;
+			stage = generic_mutation_stage(flow);
+			flow.checked.generic_arguments[plan.arguments] = first; flow.checked.generic_arguments[plan.arguments + 1] = second;
+		}
+		if (category == 5 || category == 6 || category == 14) {
+			var symbol = owner_symbol; if (category == 6) symbol = field_symbol; if (category == 14) symbol = hidden_symbol;
+			int old = flow.checked.symbol_flags[symbol.index]; int changed = old ^ 4; if (category == 14) changed = old & ~2;
+			flow.checked.symbol_flags[symbol.index] = changed; stage = generic_mutation_stage(flow); flow.checked.symbol_flags[symbol.index] = old;
+		}
+		if (category == 7 || category == 13) {
+			var symbol = field_symbol; if (category == 13) symbol = hidden_symbol;
+			var old = flow.checked.symbol_types[symbol.index]; flow.checked.symbol_types[symbol.index] = type_id(13);
+			stage = generic_mutation_stage(flow); flow.checked.symbol_types[symbol.index] = old;
+		}
+		if (category == 8 || category == 18) {
+			int position = record_plan.symbols + record_plan.origin.index;
+			if (category == 18) position = scalar_plan.nodes + body.index;
+			if (category == 8) {
+				int old = flow.checked.generic_symbol_map[position]; flow.checked.generic_symbol_map[position] = scalar_plan.concrete.index;
+				stage = generic_mutation_stage(flow); flow.checked.generic_symbol_map[position] = old;
+			} else {
+				int old = flow.checked.generic_node_map[position]; flow.checked.generic_node_map[position] = 0;
+				stage = generic_mutation_stage(flow); flow.checked.generic_node_map[position] = old;
+			}
+		}
+		if (category == 9 || category == 10 || category == 16) {
+			int node = returned_copy; if (category == 16) node = call;
+			var old = flow.checked.uses[node]; var changed = old;
+			if (category == 9) changed.type = type_id(13);
+			if (category == 10) changed.span.start = changed.span.start + 1;
+			if (category == 16) changed.flags = changed.flags ^ 4;
+			flow.checked.uses[node] = changed; stage = generic_mutation_stage(flow); flow.checked.uses[node] = old;
+		}
+		if (category == 11) {
+			var old = flow.checked.generic_calls[call]; flow.checked.generic_calls[call] = owner_plan.concrete;
+			stage = generic_mutation_stage(flow); flow.checked.generic_calls[call] = old;
+		}
+		if (category == 12) {
+			int number = scalar_plan.first_reference; var old = flow.checked.bindings.reference(number); var changed = old; changed.target = owner_plan.origin;
+			flow.checked.bindings.replace_instance_reference(number, changed); stage = generic_mutation_stage(flow); flow.checked.bindings.replace_instance_reference(number, old);
+		}
+		if (category == 15) {
+			int number = flow.checked.symbol_signatures[method_plan.concrete.index].index - 1; var old = flow.checked.signatures[number]; var changed = old; changed.dispatch = 1;
+			flow.checked.signatures[number] = changed; stage = generic_mutation_stage(flow); flow.checked.signatures[number] = old;
+		}
+		assert_that(stage > 0 && generic_mutation_stage(flow) == 0);
+		var after = generic_observation(flow.checked); var typed_after = checked_observation(flow.checked); var flow_after = flow_observation(flow);
+		assert_that(before.text == after.text && typed_before.text == typed_after.text && flow_before.text == flow_after.text);
+		print("GENERIC_MUTATION "); var row = generic_test_number("", category); print(row.text); var boundary = generic_test_number(" ", stage); println(boundary.text);
+		category = category + 1;
+	}
+}
+
+owned Utf8Message generic_test_number(string prefix, int number) throws Error {
+	var output = new Utf8ByteBuilder(); source_append_text(output, prefix); append_int(output, number); return output.snapshot();
+}

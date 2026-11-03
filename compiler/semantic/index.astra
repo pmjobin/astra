@@ -53,6 +53,53 @@ class BindingIndex {
 		this.stop_after = stop_after;
 	}
 
+	// Instantiated declarations retain source tokens/spans; they are deliberately
+	// absent from source lexical lookup maps. The generic plan owns their origin.
+	SymbolId append_instance_symbol(BindingSymbol original, SyntaxNodeId node) {
+		if (this.symbol_count == len(this.symbols)) {
+			var grown = new BindingSymbol[syntax_grown_capacity(len(this.symbols), this.symbol_count + 1)]; int i = 0;
+			while (i < this.symbol_count) {
+				grown[i] = this.symbols[i];
+				i = i + 1;
+			}
+			swap(this.symbols, grown);
+		}
+		var row = original; row.node = node; row.first_reference = 0;
+		this.symbols[this.symbol_count] = row; this.symbol_count = this.symbol_count + 1;
+		return type_symbol(this.symbol_count);
+	}
+
+	ScopeId append_instance_scope(BindingScope original) {
+		if (this.scope_count == len(this.scopes)) {
+			var grown = new BindingScope[syntax_grown_capacity(len(this.scopes), this.scope_count + 1)]; int i = 0;
+			while (i < this.scope_count) {
+				grown[i] = this.scopes[i];
+				i = i + 1;
+			}
+			swap(this.scopes, grown);
+		}
+		this.scopes[this.scope_count] = original; this.scope_count = this.scope_count + 1;
+		ScopeId result = {index = this.scope_count}; return result;
+	}
+
+	void replace_instance_reference(int ordinal, BindingReference row) { this.references[ordinal - 1] = row; }
+
+	void replace_instance_symbol(SymbolId id, BindingSymbol row) { this.symbols[id.index - 1] = row; }
+
+	void replace_instance_scope(int ordinal, BindingScope row) { this.scopes[ordinal - 1] = row; }
+
+	void set_instance_node_scope(SyntaxNodeId node, ScopeId scope) {
+		if (node.index >= len(this.node_scopes)) {
+			var grown = new ScopeId[this.program.arena.node_count + 1]; int i = 0;
+			while (i < len(this.node_scopes)) {
+				grown[i] = this.node_scopes[i];
+				i = i + 1;
+			}
+			swap(this.node_scopes, grown);
+		}
+		this.node_scopes[node.index] = scope;
+	}
+
 	bool failed() {
 		return this.error_message != 0;
 	}

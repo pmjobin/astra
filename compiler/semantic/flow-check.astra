@@ -607,6 +607,8 @@ void flow_solve(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 
 int flow_global_reason(CheckedIndex checked, SymbolId id) {
 	var symbol = checked.bindings.symbol(id);
+	if (generic_template(checked, id)) return 0;
+	if (symbol.kind == 12 && symbol.owner.index > 0 && generic_empty_class(checked, checked.symbol_types[symbol.owner.index])) return 0;
 	if (symbol.kind == 2 && !flow_constant_admitted(checked, id)) return 14;
 	if (symbol.kind == 3 && !(checked.semantic_flow && flowsem_record_shape(checked, checked.symbol_types[id.index], 0))) return 3;
 	if (symbol.kind == 4 && !flow_simple_class(checked, checked.symbol_types[id.index])) return 7;
@@ -622,7 +624,7 @@ owned FlowIndex flow_index(owned CheckedIndex checked, int limit, int max_steps)
 		index.capacity_ok = false;
 		return move index;
 	}
-	if (!index.capacity_ok || index.checked.failed() || !index.checked.validate()) {
+	if (!index.capacity_ok || index.checked.failed() || (!index.checked.validate() || !generic_verify(index.checked))) {
 		return move index;
 	}
 	index.global_deferred = new int[index.checked.bindings.symbol_count + 1];

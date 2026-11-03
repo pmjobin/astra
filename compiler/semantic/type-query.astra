@@ -40,7 +40,7 @@ owned Utf8Message checked_observation(CheckedIndex index) throws Error {
 			syntax_write_hex(output, message.text);
 			source_append_text(output, "\n");
 		} else {
-			assert_that(index.validate());
+			assert_that(index.validate() && generic_verify(index));
 			var bindings = binding_observation(index.bindings);
 			source_append_text(output, bindings.text);
 			int i = 1;

@@ -4,7 +4,7 @@ int main(string[] args) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
 	}
-	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa") return llvm_ssa_cli(args);
+	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa" && args[1] != "--generic-plan" && args[1] != "--generic-mutations" && args[1] != "--generic-native-mutations") return llvm_ssa_cli(args);
 	if (len(args) < 5) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
@@ -20,6 +20,13 @@ int main(string[] args) {
 		}
 		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
 		var checked = checked_build_nativeabi(move bindings, 0); var flow = flow_index(move checked, 8192, 1000000);
+		if (args[1] == "--generic-mutations") {
+			generic_mutations(flow);
+			return 0;
+		}
+		if (args[1] == "--generic-plan") {
+			var observation = generic_observation(flow.checked); print(observation.text); return flow_status(flow);
+		}
 		if (args[1] == "--nativeabi-admit") {
 			var observation = flow_observation(flow);
 			print(observation.text);
@@ -33,6 +40,10 @@ int main(string[] args) {
 			}
 			var projection = ssa_projection(program);
 			print(projection.text);
+			return 0;
+		}
+		if (args[1] == "--generic-native-mutations") {
+			generic_native_mutations(program, profile, args[3]);
 			return 0;
 		}
 		if (args[1] == "--mutate-llvm") {
@@ -124,4 +135,21 @@ void llvm_lifecycle(LlvmArtifact module, SsaProgram program, LlvmProfile profile
 	module.close(); module.close(); rejected = false;
 	try { module.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
 	println("LLVM_LIFECYCLE_REJECTED");
+}
+
+void generic_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 39;
+	while (category < 44) {
+		var baseline = llvm_lower(program, program, profile); assert_that(baseline.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile); assert_that(mutant.fault(category));
+		int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+		bool rejected = false;
+		try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; }
+		assert_that(rejected);
+		print("GENERIC_NATIVE_MUTATION "); var number = llvm_name("", category); print(number.text); var boundary = llvm_name(" ", stage); print(boundary.text); print(" ");
+		baseline.abi_snapshot(); print(" "); baseline.snapshot(); print(" "); mutant.abi_snapshot(); print(" "); mutant.snapshot(); println("");
+		mutant.close(); var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0);
+		var after = ssa_test_snapshot(program.data); assert_that(after.text == upstream.text && ssa_verify(program) == 0);
+		category = category + 1;
+	}
 }

@@ -1,0 +1,466 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Typed specialization is target agnostic. LLVM's independent ABI plan binds
+// each concrete body to the actual target and representation policy afterwards.
+struct GenericInstance {
+	SymbolId origin;
+	SymbolId concrete;
+	TypeId enclosing;
+	int arguments;
+	int argument_count;
+	int nodes;
+	int symbols;
+	int scopes;
+	int state;
+	int first_reference;
+	int reference_count;
+}
+
+GenericInstance generic_new_plan(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeEdge[] arguments) {
+	GenericInstance plan = {origin = origin, concrete = {index = 0}, enclosing = enclosing, arguments = index.generic_argument_used, argument_count = len(arguments), nodes = index.generic_node_used, symbols = index.generic_symbol_used, scopes = index.generic_scope_used, state = 1, first_reference = 0, reference_count = 0};
+	int size = index.generic_argument_used + len(arguments);
+	var args = new TypeEdge[size]; int i = 0;
+	while (i < index.generic_argument_used) {
+		args[i] = index.generic_arguments[i];
+		i = i + 1;
+	}
+	i = 0;
+	while (i < len(arguments)) {
+		args[plan.arguments + i] = arguments[i];
+		i = i + 1;
+	}
+	swap(index.generic_arguments, args); index.generic_argument_used = size;
+	generic_grow_maps(index);
+	return plan;
+}
+
+void generic_grow_maps(CheckedIndex index) {
+	int size = index.generic_node_used + index.generic_nodes + 1;
+	var nodes = new int[size]; int i = 0;
+	while (i < index.generic_node_used) {
+		nodes[i] = index.generic_node_map[i];
+		i = i + 1;
+	}
+	swap(index.generic_node_map, nodes); index.generic_node_used = size;
+	size = index.generic_symbol_used + index.generic_symbols + 1;
+	var symbols = new int[size]; i = 0;
+	while (i < index.generic_symbol_used) {
+		symbols[i] = index.generic_symbol_map[i];
+		i = i + 1;
+	}
+	swap(index.generic_symbol_map, symbols); index.generic_symbol_used = size;
+	size = index.generic_scope_used + index.generic_scopes + 1;
+	var scopes = new int[size]; i = 0;
+	while (i < index.generic_scope_used) {
+		scopes[i] = index.generic_scope_map[i];
+		i = i + 1;
+	}
+	swap(index.generic_scope_map, scopes); index.generic_scope_used = size;
+}
+
+void generic_add_plan(CheckedIndex index, GenericInstance plan) {
+	if (index.instance_count == len(index.instances)) {
+		var grown = new GenericInstance[syntax_grown_capacity(len(index.instances), index.instance_count + 1)]; int i = 0;
+		while (i < index.instance_count) {
+			grown[i] = index.instances[i];
+			i = i + 1;
+		}
+		swap(index.instances, grown);
+	}
+	index.instances[index.instance_count] = plan; index.instance_count = index.instance_count + 1;
+}
+
+bool generic_template(CheckedIndex index, SymbolId id) {
+	if (!index.native_abi || id.index < 1 || id.index > index.generic_symbols) return false;
+	var symbol = index.bindings.symbol(id);
+	if (symbol.kind != 1 && symbol.kind != 3 && symbol.kind != 4 && symbol.kind != 11 && symbol.kind != 12) return false;
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0) return true;
+	return symbol.owner.index > 0 && generic_template(index, symbol.owner);
+}
+
+int generic_instance_for(CheckedIndex index, SymbolId concrete) {
+	int i = 0;
+	while (i < index.instance_count) {
+		if (generic_declaration(index.instances[i]).index == concrete.index) return i + 1;
+		i = i + 1;
+	}
+	return 0;
+}
+
+TypeId generic_parameter(CheckedIndex index, GenericInstance plan, SymbolId parameter) {
+	var symbol = index.bindings.symbol(parameter);
+	if (symbol.owner.index != plan.origin.index) return no_type();
+	var declaration = index.bindings.symbol(plan.origin);
+	var params = index.bindings.program.arena.get_list_type_parameters(declaration.node);
+	int i = 0;
+	while (i < index.bindings.program.arena.list_count(params)) {
+		if (index.bindings.program.arena.token_at(params, i).index == symbol.token.index && i < plan.argument_count) return index.generic_arguments[plan.arguments + i].type;
+		i = i + 1;
+	}
+	return no_type();
+}
+
+TypeId generic_substitute(CheckedIndex index, GenericInstance plan, TypeId original, int depth) throws Error {
+	if (original.index == 0 || depth > 128) return no_type();
+	var row = index.types.row(original);
+	if (row.kind == 33) {
+		var result = generic_parameter(index, plan, row.nominal);
+		if (result.index == 0 && plan.enclosing.index != 0) {
+			var outer_type = index.types.row(plan.enclosing); int outer = generic_instance_for(index, outer_type.nominal);
+			if (outer > 0) result = generic_parameter(index, index.instances[outer - 1], row.nominal);
+		}
+		return result;
+	}
+	if (row.count == 0) return original;
+	var args = new TypeEdge[row.count];
+	int i = 0;
+	while (i < row.count) {
+		var edge = index.types.argument(index.types, original, i);
+		edge.type = generic_substitute(index, plan, edge.type, depth + 1);
+		if (edge.type.index == 0) return no_type();
+		args[i] = edge; i = i + 1;
+	}
+	var result = index.types.intern(row.kind, row.nominal, row.extent, args);
+	return generic_concrete_type(index, result, depth + 1);
+}
+
+bool generic_closed(CheckedIndex index, TypeId type, int depth) {
+	if (!index.types.valid_id(type) || depth > 128) return false;
+	var row = index.types.row(type);
+	if (row.kind == 33) return false;
+	int i = 0;
+	while (i < row.count) {
+		if (!generic_closed(index, index.types.argument(index.types, type, i).type, depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+void generic_resize(CheckedIndex index) {
+	int size = index.bindings.program.arena.node_count + 1;
+	if (size > len(index.uses)) {
+		var uses = new CheckedTypeUse[size]; var symbols = new SymbolId[size]; var refs = new int[size]; var checking = new bool[size]; var calls = new SymbolId[size]; var lists = new SyntaxListId[size];
+		int i = 1;
+		while (i < size) {
+			if (i < len(index.uses)) {
+				uses[i] = index.uses[i]; symbols[i] = index.node_symbols[i]; refs[i] = index.node_references[i]; checking[i] = index.checking[i]; calls[i] = index.generic_calls[i]; lists[i] = index.generic_argument_lists[i];
+			} else {
+				SyntaxNodeId node = {index = i};
+				CheckedTypeUse use = {node = node, span = index.bindings.program.arena.header(node).span, type = no_type(), flags = 0, deferred = 0}; uses[i] = use;
+			}
+			i = i + 1;
+		}
+		swap(index.uses, uses); swap(index.node_symbols, symbols); swap(index.node_references, refs); swap(index.checking, checking); swap(index.generic_calls, calls); swap(index.generic_argument_lists, lists);
+	}
+	size = index.bindings.symbol_count + 1;
+	if (size > len(index.symbol_types)) {
+		var types = new TypeId[size]; var flags = new int[size]; var signatures = new SignatureId[size];
+		int i = 0;
+		while (i < len(index.symbol_types)) {
+			types[i] = index.symbol_types[i];
+			flags[i] = index.symbol_flags[i];
+			signatures[i] = index.symbol_signatures[i];
+			i = i + 1;
+		}
+		swap(index.symbol_types, types); swap(index.symbol_flags, flags); swap(index.symbol_signatures, signatures);
+	}
+	size = index.bindings.reference_count + 1;
+	if (size > len(index.reference_next)) {
+		var refs = new int[size]; int i = 0;
+		while (i < len(index.reference_next)) {
+			refs[i] = index.reference_next[i];
+			i = i + 1;
+		}
+		swap(index.reference_next, refs);
+	}
+}
+
+GenericInstance generic_copy_bindings(CheckedIndex index, GenericInstance input) {
+	var plan = input;
+	int i = 1;
+	while (i <= index.generic_symbols) {
+		var symbol = index.bindings.symbol(type_symbol(i));
+		if (symbol.kind != 9 && index.generic_node_map[plan.nodes + symbol.node.index] != 0) {
+			SyntaxNodeId node = {index = index.generic_node_map[plan.nodes + symbol.node.index]};
+			index.generic_symbol_map[plan.symbols + i] = index.bindings.append_instance_symbol(symbol, node).index;
+		}
+		i = i + 1;
+	}
+	plan.concrete = type_symbol(index.generic_symbol_map[plan.symbols + plan.origin.index]);
+	i = 1;
+	while (i <= index.generic_scopes) {
+		ScopeId scope_id = {index = i}; var scope = index.bindings.scope(scope_id);
+		if (scope.node.index > 0 && index.generic_node_map[plan.nodes + scope.node.index] != 0) index.generic_scope_map[plan.scopes + i] = index.bindings.append_instance_scope(scope).index;
+		i = i + 1;
+	}
+	i = 1;
+	while (i <= index.generic_scopes) {
+		if (index.generic_scope_map[plan.scopes + i] != 0) {
+			ScopeId old_id = {index = i}; var scope = index.bindings.scope(old_id);
+			if (scope.parent.index > 0 && index.generic_scope_map[plan.scopes + scope.parent.index] != 0) scope.parent.index = index.generic_scope_map[plan.scopes + scope.parent.index];
+			if (scope.owner.index > 0 && index.generic_symbol_map[plan.symbols + scope.owner.index] != 0) scope.owner.index = index.generic_symbol_map[plan.symbols + scope.owner.index];
+			scope.node.index = index.generic_node_map[plan.nodes + scope.node.index];
+			index.bindings.replace_instance_scope(index.generic_scope_map[plan.scopes + i], scope);
+		}
+		i = i + 1;
+	}
+	i = 1;
+	while (i <= index.generic_symbols) {
+		if (index.generic_symbol_map[plan.symbols + i] != 0) {
+			var symbol = index.bindings.symbol(type_symbol(index.generic_symbol_map[plan.symbols + i]));
+			if (symbol.owner.index > 0 && index.generic_symbol_map[plan.symbols + symbol.owner.index] != 0) symbol.owner.index = index.generic_symbol_map[plan.symbols + symbol.owner.index];
+			if (symbol.scope.index > 0 && index.generic_scope_map[plan.scopes + symbol.scope.index] != 0) symbol.scope.index = index.generic_scope_map[plan.scopes + symbol.scope.index];
+			index.bindings.replace_instance_symbol(type_symbol(index.generic_symbol_map[plan.symbols + i]), symbol);
+		}
+		i = i + 1;
+	}
+	generic_resize(index);
+	i = 1;
+	while (i <= index.generic_nodes) {
+		if (index.generic_node_map[plan.nodes + i] != 0) {
+			SyntaxNodeId old_node = {index = i}; SyntaxNodeId new_node = {index = index.generic_node_map[plan.nodes + i]};
+			var scope = index.bindings.scope_for_node(old_node);
+			if (scope.index > 0 && index.generic_scope_map[plan.scopes + scope.index] != 0) scope.index = index.generic_scope_map[plan.scopes + scope.index];
+			index.bindings.set_instance_node_scope(new_node, scope);
+			if (index.node_symbols[i].index > 0) index.node_symbols[new_node.index] = type_symbol(index.generic_symbol_map[plan.symbols + index.node_symbols[i].index]);
+		}
+		i = i + 1;
+	}
+	int first = index.bindings.reference_count;
+	plan.first_reference = first + 1;
+	i = 1;
+	while (i <= index.generic_references) {
+		var edge = index.bindings.reference(i);
+		if (index.generic_node_map[plan.nodes + edge.node.index] != 0) {
+			edge.node.index = index.generic_node_map[plan.nodes + edge.node.index];
+			if (edge.scope.index > 0 && index.generic_scope_map[plan.scopes + edge.scope.index] != 0) edge.scope.index = index.generic_scope_map[plan.scopes + edge.scope.index];
+			if (edge.target.index > 0 && index.generic_symbol_map[plan.symbols + edge.target.index] != 0) edge.target.index = index.generic_symbol_map[plan.symbols + edge.target.index];
+			if (edge.alternative.index > 0 && index.generic_symbol_map[plan.symbols + edge.alternative.index] != 0) edge.alternative.index = index.generic_symbol_map[plan.symbols + edge.alternative.index];
+			index.bindings.add_reference(edge);
+		}
+		i = i + 1;
+	}
+	generic_resize(index);
+	i = first + 1;
+	while (i <= index.bindings.reference_count) {
+		var edge = index.bindings.reference(i);
+		index.reference_next[i] = index.node_references[edge.node.index]; index.node_references[edge.node.index] = i; i = i + 1;
+	}
+	plan.reference_count = index.bindings.reference_count - first;
+	return plan;
+}
+
+SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeEdge[] arguments, SyntaxSpan span) throws Error {
+	var declaration = index.bindings.symbol(origin);
+	int count = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node));
+	if (count != len(arguments) || (count == 0 && enclosing.index == 0)) {
+		index.fail(span, "generic specialization arity mismatch");
+		return type_symbol(0);
+	}
+	if (declaration.kind == 4 && !generic_class_source(index, origin)) {
+		index.fail(span, "DEFERRED: generic Class requires the bounded empty receiver policy");
+		return type_symbol(0);
+	}
+	if (declaration.kind == 3) {
+		var fields = index.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
+		while (f < index.bindings.program.arena.list_count(fields)) {
+			if (index.bindings.program.arena.get_token_owned_keyword(index.bindings.program.arena.node_at(fields, f)).index != 0) {
+				index.fail(span, "DEFERRED: C0 rejects owning generic record fields");
+				return type_symbol(0);
+			}
+			f = f + 1;
+		}
+	}
+	int i = 0;
+	while (i < len(arguments)) {
+		if (arguments[i].flags != 0 || !generic_closed(index, arguments[i].type, 0)) {
+			index.fail(span, "DEFERRED: generic specialization requires closed unqualified type arguments");
+			return type_symbol(0);
+		}
+		i = i + 1;
+	}
+	if (!checked_constraints(index, origin, arguments, span)) return type_symbol(0);
+	i = 0;
+	while (i < index.instance_count) {
+		var old_origin = generic_origin(index.instances[i]);
+		bool same = old_origin.index == origin.index && generic_enclosing(index.instances[i]).index == enclosing.index && generic_argument_count(index, index.instances[i]) == len(arguments);
+		int p = 0;
+		while (same && p < len(arguments)) {
+			same = generic_argument(index, index.instances[i], p).type.index == arguments[p].type.index && generic_argument(index, index.instances[i], p).flags == arguments[p].flags;
+			p = p + 1;
+		}
+		if (same) {
+			if (generic_state(index.instances[i]) != 2) {
+				index.fail(span, "DEFERRED: recursive generic instantiation");
+				return type_symbol(0);
+			}
+			return generic_declaration(index.instances[i]);
+		}
+		i = i + 1;
+	}
+	if (index.instance_count >= 256 || index.generic_node_used > 8000000 - index.generic_nodes - 1 || index.generic_symbol_used > 8000000 - index.generic_symbols - 1) {
+		index.fail(span, "generic instance resource limit");
+		return type_symbol(0);
+	}
+	if (index.generic_active[origin.index]) {
+		index.fail(span, "DEFERRED: recursive generic instantiation");
+		return type_symbol(0);
+	}
+	index.generic_active[origin.index] = true;
+	var plan = generic_new_plan(index, origin, enclosing, arguments);
+	var clone = generic_copy_node(index, plan, declaration.node, 0);
+	if (index.failed() || clone.index == 0) return type_symbol(0);
+	plan = generic_copy_bindings(index, plan);
+	var concrete = plan.concrete;
+
+	if (declaration.kind == 3 || declaration.kind == 4) {
+		int kind = 30; if (declaration.kind == 4) kind = 31;
+		var empty = new TypeEdge[0]; index.symbol_types[concrete.index] = index.types.intern(kind, concrete, 0, empty);
+	}
+	i = 1;
+	while (i <= index.generic_nodes && !index.failed()) {
+		int mapped = index.generic_node_map[plan.nodes + i];
+		if (mapped != 0) {
+			SyntaxNodeId node = {index = i};
+			if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && index.uses[i].type.index != 0) {
+				var type = generic_substitute(index, plan, index.uses[i].type, 0);
+				SyntaxNodeId copy = {index = mapped}; var ignored = index.record(copy, type, index.uses[i].flags);
+			}
+		}
+		i = i + 1;
+	}
+	i = 1;
+	while (i <= index.generic_symbols && !index.failed()) {
+		int mapped = index.generic_symbol_map[plan.symbols + i];
+		if (mapped != 0) {
+			var symbol = index.bindings.symbol(type_symbol(mapped));
+			if (symbol.kind == 6) {
+				var ignored = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), 1);
+			}
+		}
+		i = i + 1;
+	}
+	if (declaration.kind == 11) {
+		var function = index.bindings.symbol(concrete); function.kind = 1; index.bindings.replace_instance_symbol(concrete, function);
+		var hidden = generic_hidden_parameter(index, plan);
+	}
+	if (declaration.kind == 1 || declaration.kind == 11) checked_signature(index, concrete);
+	plan.state = 2;
+	generic_add_plan(index, plan);
+	index.generic_active[origin.index] = false;
+	return concrete;
+}
+
+TypeId generic_concrete_type(CheckedIndex index, TypeId type, int depth) throws Error {
+	if (!index.native_abi || type.index == 0 || depth > 128) return type;
+	var row = index.types.row(type);
+	if (row.kind != 34 || !generic_closed(index, type, 0)) return type;
+	var declaration = index.bindings.symbol(row.nominal);
+	if (declaration.kind != 3 && declaration.kind != 4) return type;
+	var args = new TypeEdge[row.count]; int i = 0;
+	while (i < row.count) {
+		args[i] = index.types.argument(index.types, type, i);
+		i = i + 1;
+	}
+	var concrete = generic_instantiate(index, row.nominal, no_type(), args, index.bindings.program.arena.header(declaration.node).span);
+	if (concrete.index == 0) return no_type();
+	return index.symbol_types[concrete.index];
+}
+
+bool generic_unify(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeId pattern, TypeId actual, TypeEdge[] arguments, int depth) {
+	if (pattern.index == 0 || actual.index == 0 || depth > 128) return false;
+	var p = index.types.row(pattern); var a = index.types.row(actual);
+	if (p.kind == 33) {
+		var parameter = index.bindings.symbol(p.nominal);
+		if (parameter.owner.index != origin.index) {
+			if (enclosing.index == 0) return pattern.index == actual.index;
+			int outer = generic_instance_for(index, index.types.row(enclosing).nominal);
+			return outer > 0 && generic_parameter(index, index.instances[outer - 1], p.nominal).index == actual.index;
+		}
+		var declaration = index.bindings.symbol(origin);
+		var params = index.bindings.program.arena.get_list_type_parameters(declaration.node); int i = 0;
+		while (i < len(arguments)) {
+			if (index.bindings.program.arena.token_at(params, i).index == parameter.token.index) {
+				if (arguments[i].type.index != 0) return arguments[i].type.index == actual.index;
+				TypeEdge edge = {type = actual, flags = 0}; arguments[i] = edge; return true;
+			}
+			i = i + 1;
+		}
+		return false;
+	}
+	if (p.kind != a.kind || p.nominal.index != a.nominal.index || p.extent != a.extent || p.count != a.count) return false;
+	int i = 0;
+	while (i < p.count) {
+		var pe = index.types.argument(index.types, pattern, i); var ae = index.types.argument(index.types, actual, i);
+		if (pe.flags != ae.flags || !generic_unify(index, origin, enclosing, pe.type, ae.type, arguments, depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+SymbolId generic_select_call(CheckedIndex index, SyntaxNodeId node, SymbolId target, TypeId enclosing, int depth) throws Error {
+	if (index.generic_definition) return type_symbol(0);
+	var declaration = index.bindings.symbol(target);
+	if (declaration.kind != 1 && declaration.kind != 11) return type_symbol(0);
+	var params = index.bindings.program.arena.get_list_type_parameters(declaration.node);
+	int count = index.bindings.program.arena.list_count(params);
+	var args = new TypeEdge[count];
+	var explicit = index.bindings.program.arena.get_list_type_arguments(node);
+	int supplied = index.bindings.program.arena.list_count(explicit);
+	if (supplied != 0 && supplied != count) {
+		index.fail(index.uses[node.index].span, "generic call type argument count mismatch");
+		return type_symbol(0);
+	}
+	int i = 0;
+	while (i < supplied) {
+		var type = checked_resolve(index, index.bindings.program.arena.node_at(explicit, i), 0, 0);
+		TypeEdge edge = {type = type, flags = 0}; args[i] = edge; i = i + 1;
+	}
+	if (supplied == 0) {
+		var callable = index.symbol_types[target.index];
+		if (callable.index == 0) return type_symbol(0);
+		var arguments = index.bindings.program.arena.get_list_arguments(node);
+		if (index.types.row(callable).count != index.bindings.program.arena.list_count(arguments) + 1) {
+			index.fail(index.uses[node.index].span, "generic call argument count mismatch");
+			return type_symbol(0);
+		}
+		i = 0;
+		while (i < index.bindings.program.arena.list_count(arguments)) {
+			var actual = checked_expression(index, index.bindings.program.arena.node_at(arguments, i), no_type(), depth + 1);
+			if (!generic_unify(index, target, enclosing, index.types.argument(index.types, callable, i + 1).type, actual, args, 0)) {
+				index.fail(index.uses[node.index].span, "conflicting or unavailable generic argument inference");
+				return type_symbol(0);
+			}
+			i = i + 1;
+		}
+	}
+	var concrete = generic_instantiate(index, target, enclosing, args, index.uses[node.index].span);
+	if (concrete.index > 0) index.generic_calls[node.index] = concrete;
+	return concrete;
+}
+
+SymbolId generic_call_target(CheckedIndex index, SyntaxNodeId node, SymbolId target, int depth) throws Error {
+	if (node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0) return index.generic_calls[node.index];
+	if (!index.generic_definition && index.bindings.program.arena.get_token_receiver(node).index != 0) {
+		var method = generic_method_target(index, node, depth);
+		if (method.index > 0 || index.failed()) return method;
+	}
+	if (target.index == 0) return generic_method_target(index, node, depth);
+	if (!generic_template(index, target)) return target;
+	return generic_select_call(index, node, target, no_type(), depth);
+}
+
+SymbolId generic_origin(GenericInstance plan) { return plan.origin; }
+
+SymbolId generic_declaration(GenericInstance plan) { return plan.concrete; }
+
+TypeId generic_enclosing(GenericInstance plan) { return plan.enclosing; }
+
+int generic_argument_count(CheckedIndex index, GenericInstance plan) { return plan.argument_count; }
+
+TypeEdge generic_argument(CheckedIndex index, GenericInstance plan, int ordinal) { return index.generic_arguments[plan.arguments + ordinal]; }
+
+int generic_node(CheckedIndex index, GenericInstance plan, int ordinal) { return index.generic_node_map[plan.nodes + ordinal]; }
+
+int generic_symbol(CheckedIndex index, GenericInstance plan, int ordinal) { return index.generic_symbol_map[plan.symbols + ordinal]; }
+
+int generic_state(GenericInstance plan) { return plan.state; }

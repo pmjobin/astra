@@ -13,6 +13,11 @@ owned Utf8Message llvm_name(string prefix, int index) throws Error {
 	var out = new Utf8ByteBuilder(); source_append_text(out, prefix); append_int(out, index); return out.snapshot();
 }
 
+owned Utf8Message llvm_native_name(CheckedIndex checked, SymbolId symbol, int ordinal) throws Error {
+	if (generic_instance_for(checked, symbol) > 0) return generic_backend_name(checked, symbol, "x86_64-linux-p64", "nativeabi13");
+	return llvm_name("astra.f", ordinal);
+}
+
 bool llvm_imported(SsaProgram program, int function) {
 	var symbol = program.cfg.core.flow.checked.bindings.symbol(program.cfg.core.data.functions[function - 1].symbol);
 	return program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(symbol.node);
@@ -179,9 +184,10 @@ class LlvmModule {
 			}
 			result = LLVMPointerTypeInContext(this.context, 0);
 		}
+		if (row.kind == 31 && generic_empty_class(checked, id)) result = LLVMPointerTypeInContext(this.context, 0);
 		if (row.kind == 22) {
 			var element = checked.types.argument(checked.types, id, 0);
-			if (!type_integer(checked_kind(checked, element.type)) && element.type.index != 13) {
+			if (!type_numeric(checked_kind(checked, element.type)) && element.type.index != 13) {
 				throw new Error("LLVM_DEFERRED: buffer element");
 			}
 			var fields = new void*[2]; fields[0] = LLVMPointerTypeInContext(this.context, 0); fields[1] = LLVMIntTypeInContext(this.context, 32);
@@ -319,7 +325,7 @@ class LlvmModule {
 				var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, checked.callable, p + 1);
 				parameters[p] = this.type(program.cfg.core.flow.checked, edge.type, 0);
 				if ((edge.flags & 2) != 0 && !(llvm_imported(program, f + 1) && (checked_kind(program.cfg.core.flow.checked, edge.type) == 16 || checked_kind(program.cfg.core.flow.checked, edge.type) == 20))) {
-					if (checked_kind(program.cfg.core.flow.checked, edge.type) != 30) {
+					if (checked_kind(program.cfg.core.flow.checked, edge.type) != 30 && !generic_empty_class(program.cfg.core.flow.checked, edge.type)) {
 						throw new Error("LLVM_DEFERRED: borrowed ABI");
 					}
 					parameters[p] = LLVMPointerTypeInContext(this.context, 0);
@@ -329,7 +335,7 @@ class LlvmModule {
 			var result = this.type(program.cfg.core.flow.checked, row.result, 0);
 			var raw_parameters = this.handle_args(parameters, 0); var signature = LLVMFunctionType(result, raw_parameters, count, 0); this.signatures[f] = signature;
 			var declaration = program.cfg.core.flow.checked.bindings.symbol(row.symbol); var spelling = program.cfg.core.flow.checked.bindings.names.text(declaration.name);
-			var name = llvm_name("astra.f", f + 1);
+			var name = llvm_native_name(program.cfg.core.flow.checked, row.symbol, f + 1);
 			bool foreign = llvm_imported(program, f + 1) || llvm_exported(program, f + 1);
 			if (foreign && (!checked_c_scalar_signature(program.cfg.core.flow.checked, row.symbol) || spelling.text == "main" || spelling.text == "calloc" || spelling.text == "free")) {
 				throw new Error("LLVM_DEFERRED: foreign signature or reserved symbol");
@@ -401,14 +407,14 @@ class LlvmModule {
 			while (p < function.place_first + function.place_count) {
 				this.take(1); var place = program.cfg.core.data.places[p]; var type = this.type(program.cfg.core.flow.checked, place.type, 0);
 				if (place.parent == 0) {
-					if (place.parameter && (place.flags & 2) != 0) {
+					if (place.parameter && (place.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, place.type) == 30) {
 						this.places[p] = LLVMGetParam(this.functions[f], parameter);
 					} else {
 						this.places[p] = LLVMBuildAlloca(this.builder, type, this.empty);
 					}
 					if (place.parameter) {
 						var value = LLVMGetParam(this.functions[f], parameter);
-						if ((place.flags & 2) == 0) {
+						if ((place.flags & 2) == 0 || checked_kind(program.cfg.core.flow.checked, place.type) == 31) {
 							var ignored = LLVMBuildStore(this.builder, value, this.places[p]);
 							if ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0)) LLVMSetVolatile(ignored, 1);
 						}
@@ -584,14 +590,14 @@ class LlvmModule {
 
 	void* retire_buffer(SsaProgram program, int place, void* function, int instruction) throws Error {
 		int p = place - 1;
-		if (p < 0 || p >= len(this.armed) || this.armed[p] == null || checked_kind(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type) != 22) {
+		if (p < 0 || p >= len(this.armed) || this.armed[p] == null || (checked_kind(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type) != 22 && !generic_empty_class(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type))) {
 			throw new Error("LLVM_DEFERRED: cleanup representation");
 		}
 		var live = LLVMBuildLoad2(this.builder, LLVMIntTypeInContext(this.context, 1), this.armed[p], this.empty);
 		var releasing = llvm12_block(this.context, function, "release"); var next = llvm12_block(this.context, function, "released"); var split = LLVMBuildCondBr(this.builder, live, releasing, next);
 		this.retirement_guards[instruction - 1] = split;
 		LLVMPositionBuilderAtEnd(this.builder, releasing);
-		var buffer_type = this.type(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type, 0); var buffer = LLVMBuildLoad2(this.builder, buffer_type, this.places[p], this.empty); var pointer = LLVMBuildExtractValue(this.builder, buffer, 0, this.empty);
+		var buffer_type = this.type(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type, 0); var buffer = LLVMBuildLoad2(this.builder, buffer_type, this.places[p], this.empty); void* pointer = buffer; if (checked_kind(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type) == 22) pointer = LLVMBuildExtractValue(this.builder, buffer, 0, this.empty);
 		var parameters = new void*[1]; parameters[0] = LLVMPointerTypeInContext(this.context, 0); var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), this.handle_args(parameters, 0), 1, 0); var callee = llvm12_function(this.module, signature, "free");
 		var args = new void*[1]; args[0] = pointer; var call = LLVMBuildCall2(this.builder, signature, callee, this.handle_args(args, 0), 1, this.empty); llvm12_nobuiltin(this.context, call);
 		this.arm(program.cfg.core.data, place, false); var jump = LLVMBuildBr(this.builder, next); LLVMPositionBuilderAtEnd(this.builder, next);
@@ -722,7 +728,7 @@ class LlvmModule {
 					a = 0;
 					while (a < row.count) {
 						var parameter = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, a + 1);
-						if ((parameter.flags & 2) != 0 && !(llvm_imported(program, f + 1) && (checked_kind(program.cfg.core.flow.checked, parameter.type) == 16 || checked_kind(program.cfg.core.flow.checked, parameter.type) == 20))) args[a] = this.borrow_argument(program.data, index, a);
+						if ((parameter.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, parameter.type) == 30 && !(llvm_imported(program, f + 1) && (checked_kind(program.cfg.core.flow.checked, parameter.type) == 16 || checked_kind(program.cfg.core.flow.checked, parameter.type) == 20))) args[a] = this.borrow_argument(program.data, index, a);
 						a = a + 1;
 					}
 					var raw_args = this.handle_args(args, 0);
@@ -731,6 +737,18 @@ class LlvmModule {
 				f = f + 1;
 			}
 			throw new Error("LLVM_DEFERRED: direct callee");
+		}
+		if (op == 13) {
+			if (!generic_empty_class(program.cfg.core.flow.checked, row.type)) {
+				throw new Error("LLVM_DEFERRED: native Class allocation");
+			}
+			var word = LLVMIntTypeInContext(this.context, 64); var pointer = LLVMPointerTypeInContext(this.context, 0);
+			var parameters = new void*[2]; parameters[0] = word; parameters[1] = word;
+			var signature = LLVMFunctionType(pointer, this.handle_args(parameters, 0), 2, 0); var callee = llvm12_function(this.module, signature, "calloc");
+			var args = new void*[2]; args[0] = LLVMConstInt(word, 1, 0); args[1] = LLVMConstInt(word, 1, 0);
+			var allocation = LLVMBuildCall2(this.builder, signature, callee, this.handle_args(args, 0), 2, this.empty); llvm12_nobuiltin(this.context, allocation);
+			var failed = LLVMBuildICmp(this.builder, 32, allocation, LLVMConstNull(pointer), this.empty); this.guard(failed, function);
+			return allocation;
 		}
 		if (op == 11) {
 			var count = this.use(program.data, index, 1, 0); var i32 = LLVMIntTypeInContext(this.context, 32); var word = LLVMIntTypeInContext(this.context, 64); var pointer = LLVMPointerTypeInContext(this.context, 0);
@@ -952,6 +970,49 @@ class LlvmModule {
 			throw new Error("LLVM_INVALID_IR: fault input");
 		}
 		if (native_abi_fault(this.abi, category)) return true;
+		if (category == 41) {
+			int i = 0;
+			while (i < len(this.values)) {
+				var value = this.values[i];
+				if (value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 45 && llvm13_named(LLVMGetCalledValue(value), "calloc") == 1 && LLVMGetTypeKind(LLVMTypeOf(value)) == 12) {
+					var width = LLVMGetArgOperand(value, 1); LLVMSetOperand(value, 1, LLVMConstInt(LLVMTypeOf(width), 2, 0)); return true;
+				}
+				i = i + 1;
+			}
+		}
+		if (category == 42) {
+			int f = 0;
+			while (f < len(this.functions)) {
+				if (this.abi.functions[f].receiver == 0) {
+					int caller = 0;
+					while (caller < len(this.functions)) {
+						var block = LLVMGetFirstBasicBlock(this.functions[caller]);
+						while (block != null) {
+							var instruction = LLVMGetFirstInstruction(block);
+							while (instruction != null) {
+								if (LLVMGetInstructionOpcode(instruction) == 45 && LLVMGetCalledValue(instruction) == this.functions[f]) {
+									var receiver = LLVMGetArgOperand(instruction, 0); LLVMSetOperand(instruction, 0, LLVMConstNull(LLVMTypeOf(receiver))); return true;
+								}
+								instruction = LLVMGetNextInstruction(instruction);
+							}
+							block = LLVMGetNextBasicBlock(block);
+						}
+						caller = caller + 1;
+					}
+				}
+				f = f + 1;
+			}
+		}
+		if (category == 43) {
+			int i = 0;
+			while (i < len(this.retirements)) {
+				var call = this.retirements[i];
+				if (call != null && LLVMGetInstructionOpcode(LLVMGetArgOperand(call, 0)) == 27) {
+					LLVMSetOperand(this.retirement_guards[i], 0, LLVMConstInt(LLVMIntTypeInContext(this.context, 1), 0, 0)); return true;
+				}
+				i = i + 1;
+			}
+		}
 		if (category == 33 && len(this.types) > 11 && this.types[11] != null) {
 			this.types[11] = LLVMIntTypeInContext(this.context, 32);
 			return true;

@@ -174,7 +174,7 @@ bool admit_verified_graph(borrowed FlowGraph graph, CheckedIndex checked, int[] 
 }
 
 bool admit_verify_index(FlowIndex index) {
-	if (!index.checked.validate() || !index.complete || !index.checked.semantic_admission || len(index.proofs) != len(index.checked.uses) || len(index.global_deferred) != index.checked.bindings.symbol_count + 1 || index.graphs.count() != index.checked.signature_count) return false;
+	if ((!index.checked.validate() || !generic_verify(index.checked)) || !index.complete || !index.checked.semantic_admission || len(index.proofs) != len(index.checked.uses) || len(index.global_deferred) != index.checked.bindings.symbol_count + 1 || index.graphs.count() != index.checked.signature_count) return false;
 	int count = 0;
 	int i = 1;
 	while (i < len(index.global_deferred)) {

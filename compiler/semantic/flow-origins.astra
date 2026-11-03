@@ -111,7 +111,7 @@ owned int[] flow_class_origins(CheckedIndex checked) {
 				var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
 				if (target.index > 0 && checked.bindings.symbol(target).kind == 1 && checked.symbol_signatures[target.index].index > 0) {
 					var declaration = checked.bindings.symbol(target);
-					var args = checked.bindings.program.arena.get_list_arguments(node);
+					var args = checked_call_arguments(checked, node);
 					var params = checked.bindings.program.arena.get_list_parameters(declaration.node);
 					int p = 0;
 					while (p < checked.bindings.program.arena.list_count(args) && p < checked.bindings.program.arena.list_count(params)) {

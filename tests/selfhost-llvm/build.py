@@ -19,7 +19,7 @@ spec.loader.exec_module(core)
 
 
 def sources():
-	return [*sorted((ROOT/'compiler/core').glob('*.astra')), *sorted((ROOT/'compiler/cfg').glob('*.astra')), ROOT/'tests/selfhost-coreir/mutations.astra', ROOT/'tests/selfhost-cfg/mutations.astra', *sorted((ROOT/'compiler/ssa').glob('*.astra')), ROOT/'tests/selfhost-ssa/predecessor.astra', ROOT/'tests/selfhost-ssa/mutations.astra', ROOT/'tests/selfhost-ssa/graphs.astra', ROOT/'tests/selfhost-llvm/ssa-cli.astra', *sorted((ROOT/'compiler/backend/llvm').glob('*.astra'))]
+	return [*sorted((ROOT/'compiler/core').glob('*.astra')), *sorted((ROOT/'compiler/cfg').glob('*.astra')), ROOT/'tests/selfhost-coreir/mutations.astra', ROOT/'tests/selfhost-cfg/mutations.astra', *sorted((ROOT/'compiler/ssa').glob('*.astra')), ROOT/'tests/selfhost-ssa/predecessor.astra', ROOT/'tests/selfhost-ssa/mutations.astra', ROOT/'tests/selfhost-ssa/graphs.astra', ROOT/'tests/selfhost-llvm/ssa-cli.astra', ROOT/'tests/selfhost-generics/mutations.astra', *sorted((ROOT/'compiler/backend/llvm').glob('*.astra'))]
 
 
 def main():

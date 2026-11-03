@@ -515,6 +515,12 @@ class SyntaxArena {
 		return token_kind_from_code(syntax_token_code(this.tokens.entries[id.index - 1]));
 	}
 
+	bool token_text_equal(SyntaxTokenId first, SyntaxTokenId second) {
+		this.check_token(first); this.check_token(second);
+		if (first.index == 0 || second.index == 0) return first.index == second.index;
+		return syntax_token_text_equal(this.tokens.entries[first.index - 1], this.tokens.entries[second.index - 1]);
+	}
+
 	bool token_is(SyntaxTokenId id, string text) {
 		assert_that(id.index > 0);
 		this.check_token(id);
