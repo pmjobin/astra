@@ -64,3 +64,37 @@ unchanged legacy mode. This exercises the maintained contract; it is not a
 replacement for a campaign's authenticated pre-edit observations. The bounded
 next frontier is exact receiver/callee effect summaries and owning field
 extraction/replacement, followed by independently checked Core IR and lowering.
+
+The SEMADMIT-8 qualification has 38 cases: 17 admitted, 10 rejected and 11
+deferred. O0/O2 observations match byte for byte. Eighteen substantive model,
+source-authority and proof mutations reject at their owning checks. Independent
+C0 checks retain exact first diagnostics; normally returning executable and
+native-query cases pass unsuppressed Valgrind. A separate two-child destructor
+witness verifies exact count and order through C0 while custom effects defer
+natively. The original 50 FLOWSEM cases and 69 paired observations, 93 OWNFlow
+expectations, 121 Typecore cases, 85 Binder cases, source/lexer/parser and focused
+LLVM layout-cache checks retain their contracts.
+
+The unchanged nested/deep repository fixtures become fully admitted. The frozen
+matrix closes 82 matching original node/reason/span obligations, including nine
+in those fixtures; nine new proofs and zero absent original rows are counted
+separately. An exact pre-task syntax function slice also qualifies; its three
+function obligations and one harness obligation have their own origin map and
+ledger. Neither slice extraction nor changed deferral counts count as whole
+compiler proofs. The immutable 1,503-graph/83,609-event/1,518-loan observation is
+retained, and complete frozen/current compiler inventories still defer with
+zero published whole-program proofs.
+
+Qualification retained and fixed false admissions found by additional C0
+boundary controls: discarded copied/owning results and explicit record release.
+Readonly field policies and forged signature effects/dispatch have explicit
+controls. Earlier builds and failures remain tied to their source hashes in
+external evidence; they do not qualify the final implementation.
+
+Compiled source inputs are committed at
+`ca7a70b19375209d2f4c516cdd91670375ec688c`. The independent C0 binary is
+SHA-256 `30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de`.
+Final cold component compilation took 349.24 s / 1,299,104 KiB at O0 and
+680.35 s / 1,298,844 KiB at O2. Exact-product warm checks took 0.57/0.61 s.
+These concurrent host measurements are costs, not a controlled speed comparison.
+Failed, superseded and deliberately interrupted attempts have separate receipts.
