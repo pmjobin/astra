@@ -32,7 +32,10 @@ qualified ABI policy; independently verified machine layout remains separate
 from target-agnostic Typecore identity. Source-unit ordering cannot select a
 different instance or produce duplicate public definitions.
 
-Approval would authorize implementing and qualifying this bounded convention,
-not claiming it passes. Acceptance still requires the frozen C0 executions,
-actual Astra LLVM/ELF execution at both profiles, independently checked receiver
-plans, malformed-receiver/owner/ABI mutations and unsuppressed memory evidence.
+The final v6 products qualify both frozen method programs at O0/O2 with actual
+Astra LLVM/ELF execution, independently checked receiver plans, receiver/owner
+and physical ABI mutations, and unsuppressed memory evidence. C0 O2 elides its
+unused empty-Class objects; that distinct trace is retained beside the real
+Astra allocations and once-only frees. It does not authorize erasing Astra's
+receiver objects. Class value/owner/aggregate ABI channels beyond this hidden
+borrowed receiver remain DEFERRED, even when C0 accepts the source.

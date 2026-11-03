@@ -1,7 +1,8 @@
 # GENERICS-14 source and verification boundaries
 
-This map describes the implementation, not completed qualification. Runtime
-receipts and the final milestone findings govern which programs actually pass.
+This map describes the bounded implementation qualified by the 13 new programs
+at each O0/O2. Runtime receipts and the milestone findings delimit that claim;
+it does not admit the whole compiler or generalized generic policies.
 
 | Stage | Original boundary | Task implementation and independent authority |
 | --- | --- | --- |
