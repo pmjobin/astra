@@ -112,7 +112,8 @@ The decrease in typed observations is an early-stop effect, not progress or
 acceptance. The separate 13 executed source identities demonstrate progress.
 
 The final guarded read-only style check passes 4,662 sources with zero changes.
-All current eligible source bytes match that receipt. Formatting applies were
+Current eligible source bytes match that receipt plus a fresh single-path
+guard for the final transport recipe. Formatting applies were
 limited to task-touched eligible paths; the qualified style, restricted
 unbraced controls, all 451 protected byte/mode identities and the five excluded
 Windows scripts remain unchanged. There was no repeat of the 3,033-file rewrite

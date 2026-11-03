@@ -44,10 +44,19 @@ def main():
 	preservation = passed(config['preservation']); proof = passed(config['proof'])
 	assert preservation['protected_files'] == 451 and preservation['donor_files'] == 6622 and proof['observations'] == 1044
 	style = read(config['format']); assert style['changed'] == 0 and not style['applied']
+	style_rows = {row['path']: row for row in style['rows']}
+	for path in config.get('format_followups', []):
+		followup = read(path); assert followup['changed'] == 0 and not followup['applied']
+		assert followup['configs'] == style['configs']
+		assert all(style['tools'].get(name) == identity for name, identity in followup['tools'].items())
+		style_rows.update((row['path'], row) for row in followup['rows'])
+	assert set(style_rows) == set(read(ROOT/'format/scope.json'))
+	assert all(sha((ROOT/name).read_bytes()) == row['after_sha256'] and (ROOT/name).stat().st_mode & 0o7777 == row['after_mode'] for name, row in style_rows.items())
 	passed(config['standalone'])
 	for name in ('ledger_before', 'ledger_after_initial', 'ledger_after_current'):
 		ledger = read(config[name]); assert ledger['nodes'] and ledger['files']
 		assert all(row['source_sha256'] for row in ledger['nodes'])
+	del ledger
 	profiles, identities = {}, []
 	for mode in ('O0', 'O2'):
 		c = config['profiles'][mode]
@@ -130,10 +139,24 @@ def main():
 				stored[key] = name
 				with path.open('rb') as stream: tar.addfile(info, stream)
 		raw = (json.dumps(index, separators=(',', ':'))+'\n').encode(); info = tarfile.TarInfo('index.json'); info.size = len(raw); info.mode = 0o644; tar.addfile(info, io.BytesIO(raw))
-	with tarfile.open(archive, 'r:xz') as tar:
-		assert len(tar.getmembers()) == len(index)+1
-		for row in index:
-			data = tar.extractfile(row['path']).read(); assert len(data) == row['bytes'] and sha(data) == row['sha256']
+	expected = {row['path']: row for row in index}; verified = {}; regular = set(); index_seen = False
+	with tarfile.open(archive, 'r|xz') as tar:
+		for member in tar:
+			if member.name == 'index.json':
+				assert not index_seen and tar.extractfile(member).read() == raw
+				index_seen = True; continue
+			assert member.name in expected and member.name not in verified
+			row = expected[member.name]
+			if member.islnk():
+				assert member.linkname in regular and member.size == 0
+				actual = verified[member.linkname]
+			else:
+				assert member.isfile()
+				data = tar.extractfile(member).read(); actual = (len(data), sha(data))
+				regular.add(member.name)
+			assert actual == (row['bytes'], row['sha256'])
+			verified[member.name] = actual
+	assert index_seen and len(verified) == len(index)
 	encoded = a.runtime/'report-evidence'
 	subprocess.run([sys.executable, '-B', ROOT/'tools/qualification/encoded-evidence.py', 'pack', '--input', archive, '--output', encoded, '--stem', 'generics14-raw'], check=True)
 	attachments = [*sorted(encoded.glob('*')), out/'summary.json']
