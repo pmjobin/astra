@@ -168,6 +168,10 @@ def main():
 	if args.receipt:
 		args.receipt = receipt_path(args.receipt)
 	start = time.monotonic()
+	engine_paths = ('CODING_STYLE.md', 'format/scope.json', 'format/toolchain.json', 'format/vala.cfg', 'format/clang-format.yaml', 'tools/format/source.py', 'tools/format/lanes.py', 'tools/format/lexical.py')
+	engine_identity = {n: sha((ROOT/n).read_bytes()) for n in engine_paths}
+	head = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
+	tree = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
 	scope = json.loads((ROOT/'format/scope.json').read_text())
 	names = tracked()
 	candidates = {n for n in names if Path(n).suffix in SUFFIXES}
@@ -186,10 +190,11 @@ def main():
 				raise ValueError('protected source: ' + prefix + ': ' + scope[prefix]['exclude'])
 			selected.update(matches)
 	tools, identities = qualified_tools({scope[n]['lane'] for n in selected if 'lane' in scope[n]}, args.astrac, args.uncrustify)
-	rows, pending = [], []
+	rows, pending, observed = [], [], {}
 	for name in sorted(selected):
 		entry = scope[name]
 		before, metadata = read_source(ROOT, name)
+		observed[name] = source_identity(metadata)
 		row = dict(path=name, before_sha256=sha(before), mode=stat.S_IMODE(metadata.st_mode), after_mode=stat.S_IMODE(metadata.st_mode))
 		if 'exclude' in entry:
 			if sha(before) != entry['sha256']:
@@ -208,13 +213,17 @@ def main():
 				pending.append((name, before, metadata, after))
 		rows.append(row)
 		# Every candidate is computed and verified before any source is published.
+	if engine_identity != {n: sha((ROOT/n).read_bytes()) for n in engine_paths} or head != subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip():
+		raise ValueError('formatter engine, policy or Git HEAD changed during the pass')
+	for row in rows:
+		current, metadata = read_source(ROOT, row['path'])
+		if sha(current) != row['before_sha256'] or source_identity(metadata) != observed[row['path']]:
+			raise ValueError('concurrent source change: ' + row['path'])
 	if args.apply:
 		for name, before, metadata, after in pending:
 			publish(ROOT, name, before, metadata, after)
 	receipt = dict(format='astra-source-format/2', applied=args.apply, tools=identities,
-		head=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip(),
-		tree=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD^{tree}'], text=True).strip(),
-		configs={n: sha((ROOT/n).read_bytes()) for n in ('CODING_STYLE.md', 'format/scope.json', 'format/toolchain.json', 'format/vala.cfg', 'format/clang-format.yaml', 'tools/format/source.py', 'tools/format/lanes.py', 'tools/format/lexical.py')},
+		head=head, tree=tree, configs=engine_identity,
 		changed=len(pending), rows=rows, seconds=time.monotonic() - start)
 	if args.receipt:
 		args.receipt.write_text(json.dumps(receipt, indent=2) + '\n')
