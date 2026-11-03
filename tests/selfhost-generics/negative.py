@@ -23,6 +23,7 @@ CASES = {
 	'borrow-consume': ('int inspect<T>(T[] x,owned T[] y) { return len(x); } int main() { var a=new int[3]; return inspect<int>(a,move a); }', 'borrow'),
 	'borrow-escape': ('T[] escape<T>(T[] x) { return x; } int main() { var a=new int[3]; var b=escape<int>(a); return len(b); }', 'lifetime'),
 	'class-owner-copy': ('class Echo<T> { init() {} T echo(T value) { return value; } } int main() { var a=new Echo<int>(); owned Echo<int> b=a; return b.echo(1)-1; }', 'fresh object'),
+	'receiver-consume-during-arguments': ('class Echo<T> { init() {} U echo<U>(U value) { return value; } } int take(owned Echo<int> e) { return 1; } int main() { var e=new Echo<int>(); return e.echo<int>(take(move e))-1; }', 'receiver'),
 	'wrong-receiver': ('class A<T> { init() {} T echo(T value) { return value; } } class B<T> { init() {} } int main() { var b=new B<int>(); return b.echo(1); }', 'method'),
 }
 
