@@ -26,6 +26,13 @@ FATAL = {
 	'i64-high': ('i64', '9223372036854775808.0d'),
 	'u64-high': ('u64', '18446744073709551616.0d'),
 }
+REPRODUCER = '''#include <stdint.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <string.h>
+volatile uint64_t source=UINT64_C(9223372586610589697);
+int main(void){float x=(float)source;uint32_t bits;memcpy(&bits,&x,sizeof bits);printf("%08" PRIx32 "\\n",bits);return bits==UINT32_C(0x5f000001)?0:1;}
+'''
 
 
 def sha(path):
@@ -48,7 +55,7 @@ def main():
 	assert sha(a.component) == identity['sha256']
 	assert all(sha(path) == digest for path, digest in identity['identity']['sources'].items())
 	assert sha(a.compiler) == '30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de'
-	commands, results = [], []
+	commands, results, instrumented = [], [], []
 	def run(argv, name, expected=0):
 		start = time.monotonic()
 		r = subprocess.run(list(map(str, argv)), capture_output=True, cwd=a.build, timeout=180)
@@ -56,8 +63,24 @@ def main():
 		commands.append(dict(name=name, argv=list(map(str, argv)), exit=r.returncode,
 			monotonic_start=start, monotonic_end=time.monotonic()))
 		(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
-		assert r.returncode == expected, (name, r.returncode, r.stderr[-2000:])
+		assert r.returncode in (expected if isinstance(expected, tuple) else (expected,)), (name, r.returncode, r.stderr[-2000:])
 		return r
+	# Keep host arithmetic qualification distinct from this measured emulator
+	# limitation. Both independent C compilers must reproduce its exact bits.
+	repro = a.inputs/'instrumentation-reproducer.c'
+	if repro.exists():
+		assert repro.read_text() == REPRODUCER
+	else:
+		repro.write_text(REPRODUCER)
+	deviations = []
+	for compiler in ('gcc', 'clang'):
+		exe = a.build/('instrumentation-'+compiler)
+		run([compiler, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', repro, '-o', exe], compiler+'-reproducer-build')
+		r = run([exe], compiler+'-reproducer-host'); assert r.stdout == b'5f000001\n'
+		v = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', exe], compiler+'-reproducer-instrumented', (0, 1))
+		assert (v.returncode, v.stdout) in ((0, b'5f000001\n'), (1, b'5f000000\n'))
+		memory(v.stderr); deviations.append(v.returncode == 1)
+	shared_emulator_deviation = all(deviations)
 	cases = [(name, source, 0) for name, source in NORMAL.items()]
 	for name, (type_name, expression) in FATAL.items():
 		source = type_name+' convert(f64 value){return value as '+type_name+';}int main(){f64 x=0.0d;var converted=convert('+expression+');return 0;}'
@@ -77,8 +100,10 @@ def main():
 			r = run([product], name+'-'+label, expected)
 			assert not r.stdout and not r.stderr
 			if expected == 0:
-				v = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', product], name+'-memory-'+label)
-				memory(v.stderr)
+				allowed = (0, 1) if name == 'integer-to-FP' and shared_emulator_deviation else 0
+				v = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', product], name+'-memory-'+label, allowed)
+				instrumented.append(dict(case=name, producer=label, exit=v.returncode, memory=memory(v.stderr),
+					numeric_conformance='DEFERRED: exact GCC/Clang emulator discrepancy' if v.returncode else 'PASS'))
 		if name == 'FP-to-narrow':
 			forbidden = a.runtime/'numeric.forbidden.o'
 			r = run([a.component, '--nativeabi-mutations', a.mode, forbidden, source], 'numeric-guard-mutation')
@@ -98,7 +123,9 @@ def main():
 		results.append(dict(name=name, source_sha256=sha(source), expected_exit=expected,
 			native_sha256=sha(exe), C0_sha256=sha(c0), normal_leak_claim=expected == 0))
 	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS', mode=a.mode,
-		component_sha256=sha(a.component), cases=results, normal=3, fatal=8, counted_in_39=False), indent=2)+'\n')
+		component_sha256=sha(a.component), cases=results, normal=3, fatal=8, counted_in_39=False,
+		instrumented=instrumented, shared_emulator_deviation=shared_emulator_deviation,
+		limits='Native host executions remain exact. Valgrind wide-u64-to-f32 numerical agreement is a named instrumentation deferral, independently reproduced with GCC and Clang; memory errors/lost bytes remain zero.'), indent=2)+'\n')
 	print(a.mode, '3 explicit-conversion executions and 8 independent SIGILL edges passed')
 
 

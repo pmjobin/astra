@@ -53,6 +53,7 @@ def main():
 	assert old['outcomes'] == new['outcomes'] and old['mutations'] == new['mutations']
 	old, new = read(a.before, 'numeric'), read(a.after, 'numeric')
 	assert old['cases'] == new['cases'] and old['normal'] == new['normal'] and old['fatal'] == new['fatal']
+	assert old['instrumented'] == new['instrumented'] and old['shared_emulator_deviation'] == new['shared_emulator_deviation']
 	assert (a.before/'numeric/numeric-mutation.json').read_bytes() == (a.after/'numeric/numeric-mutation.json').read_bytes()
 	old, new = read(a.before, 'lifetime'), read(a.after, 'lifetime')
 	assert old['zero_size_memory'] == new['zero_size_memory'] and old['self_move'] == new['self_move']

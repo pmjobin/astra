@@ -107,6 +107,23 @@ its example implementation remains eligible. User-global Codex config bytes
 changed externally during this session; current model, reasoning, approval and
 sandbox settings remain equal to intake, and no task config write occurred.
 
+The complete v5 closure passes at both profiles: 39 selected executions,
+three additional documented numeric conversions, eight additional conversion
+SIGILL controls, exact source-literal bits, void/zero-argument C channels,
+physical symbol collision and unresolved link refusals, and all inherited
+gates. Numeric guard corruption is an eighteenth distinct new backend category.
+
+One instrumentation limit is explicit: native and unchanged C0 correctly round
+u64 9223372586610589697 directly to f32 bits `5f000001` on this host. Valgrind
+produces `5f000000` for separately compiled GCC and Clang C reproducers, including
+with VEX optimization disabled; the Astra/C0 check consequently exits 1 under
+that instrumentor. Native numerical expectations remain exact and unchanged.
+This is a named deferral of Valgrind numerical conformance for that conversion,
+not a claim that the failing instrumented numeric observation passed. All
+observed memory errors/lost bytes are zero; the 39 selected programs and owner
+traces pass under unsuppressed Valgrind. The final report must retain the failed
+trial and independent C reproducers and state this instrumentation boundary.
+
 The machine-readable migration receipt includes each classified path's hashes,
 modes, line/byte counts, blank-line changes, safe Astra brace-pair deletions,
 call-interior exceptions and actual engine/policy/tool identities. The 39-input
