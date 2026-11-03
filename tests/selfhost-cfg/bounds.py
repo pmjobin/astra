@@ -50,8 +50,8 @@ def main():
 		for name in ('unknown-call', 'bad-field'):
 			out, _ = run([exe, '--cfg-forge-input', *items[name]['paths']], 'forged-'+name+'-'+mode, 0)
 			assert out == b'CFG_FORGED_INPUT_REJECTED\n'
-		# A branch-rich graph has one more edge than blocks: isolate the edge
-		# arena's exhaustion after the block and instruction arenas fit exactly.
+			# A branch-rich graph has one more edge than blocks: isolate the edge
+			# arena's exhaustion after the block and instruction arenas fit exactly.
 		case = items['nested-loops']
 		out, _ = run([exe, '--cfg', *case['paths']], 'edge-control-'+mode, 0)
 		blocks = sum(x.startswith(b'BLOCK ') for x in out.splitlines())
