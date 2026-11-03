@@ -27,6 +27,7 @@ def main():
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', action='append')
 	p.add_argument('--development', action='store_true')
+	p.add_argument('--product-prefix', default='astra-ssa-')
 	a = p.parse_args()
 	a.runtime.mkdir(parents=True, exist_ok=False)
 	commands = []
@@ -46,7 +47,7 @@ def main():
 		assert r.returncode == expected, (name, r.returncode, expected, r.stderr.decode()[-2000:])
 		return r
 	for mode in a.mode or ('O0', 'O2'):
-		exe = a.build/('astra-ssa-'+mode)
+		exe = a.build/(a.product_prefix+mode)
 		identity = json.loads(exe.with_suffix('.identity.json').read_text())
 		assert sha(exe.read_bytes()) == identity['sha256']
 		assert all(sha(Path(p).read_bytes()) == h for p, h in identity['identity']['sources'].items())

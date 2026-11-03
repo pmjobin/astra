@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	if (len(args) < 2) { println_stderr("LLVM_INVALID_COMMAND"); return 2; }
+	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle") { return llvm_ssa_cli(args); }
+	if (len(args) < 5) { println_stderr("LLVM_INVALID_COMMAND"); return 2; }
+	try {
+		int optimization = 0;
+		if (args[2] == "O2") { optimization = 2; } else { if (args[2] != "O0") { throw new Error("LLVM_TARGET_UNAVAILABLE"); } }
+		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
+		var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
+		var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var program = ssa_lower(move cfg, 65536, 8000000);
+		var profile = new LlvmProfile(optimization, 8000000, 16777216);
+		if (args[1] == "--mutate-llvm") { llvm_mutations(program, profile, args[3]); return 0; }
+		if (args[1] == "--llvm-limits") { llvm_limits(program, args[3]); return 0; }
+		var module = llvm_lower(program, program, profile);
+		if (args[1] == "--llvm-lifecycle") { llvm_lifecycle(module, program, profile, args, args[3]); return 0; }
+		if (args[1] == "--llvm-raw") { module.raw(program, args[3]); return 0; }
+		module.write(program, program, profile, args[3], args[1] == "--emit-obj");
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}
+
+void llvm_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var initial = ssa_test_snapshot(program.data); int category = 0;
+	while (category < 20) {
+		var module = llvm_lower(program, program, profile);
+		// Snapshot before mutation is emitted only for applicable categories.
+		var baseline = llvm_lower(program, program, profile);
+		if (module.fault(category)) {
+			bool rejected = false;
+			try { module.write(program, program, profile, path, true); } catch (Error error) { rejected = true; }
+			assert_that(rejected);
+			var prefix = llvm_name("LLVM_MUTATION ", category); print(prefix.text); print(" "); baseline.snapshot(); print(" "); module.snapshot(); print(" ");
+			module.close(); var restored = llvm_lower(program, program, profile); restored.snapshot(); println("");
+			var after = ssa_test_snapshot(program.data); assert_that(initial.text == after.text); assert_that(ssa_verify(program) == 0);
+		}
+		category = category + 1;
+	}
+}
+void llvm_limits(SsaProgram program, string path) throws Error {
+	int i = 0;
+	while (i < 5) {
+		int work = 8000000; int output = 16777216; int level = 0;
+		if (i == 0) { work = 0; } if (i == 1) { work = 1; } if (i == 2) { output = 0; } if (i == 3) { output = 1; } if (i == 4) { level = 1; }
+		var profile = new LlvmProfile(level, work, output); bool rejected = false;
+		try { var module = llvm_lower(program, program, profile); module.write(program, program, profile, path, true); } catch (Error error) { rejected = true; }
+		assert_that(rejected); i = i + 1;
+	}
+	println("LLVM_LIMITS_REJECTED");
+}
+void llvm_lifecycle(LlvmModule module, SsaProgram program, LlvmProfile profile, string[] args, string path) throws Error {
+	var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
+	var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
+	var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var other = ssa_lower(move cfg, 65536, 8000000);
+	bool rejected = false;
+	try { module.write(program, other, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+	rejected = false; try { var crossed = llvm_lower(program, other, profile); } catch (Error error) { rejected = true; } assert_that(rejected);
+	module.close(); module.close(); rejected = false;
+	try { module.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+	println("LLVM_LIFECYCLE_REJECTED");
+}

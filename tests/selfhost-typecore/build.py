@@ -18,7 +18,7 @@ def sha(path):
 	return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def build(compiler, directory, capture, modes=('O0', 'O2'), consumer=None, with_flow=False, extra_sources=(), product_prefix=None):
+def build(compiler, directory, capture, modes=('O0', 'O2'), consumer=None, with_flow=False, extra_sources=(), product_prefix=None, link_objects=(), link_libraries=(), link_inputs=()):
 	directory.mkdir(parents=True, exist_ok=True)
 	paths = {compiler}
 	for tool in ('gcc', 'cc', 'ld', 'as', 'pkg-config', 'llvm-config'):
@@ -67,7 +67,8 @@ def build(compiler, directory, capture, modes=('O0', 'O2'), consumer=None, with_
 	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *[p for p in sorted((ROOT / 'compiler/semantic').glob('*.astra')) if with_flow or not p.name.startswith('flow-') or p.name == 'flow-checked.astra'], *extra_sources, consumer or ROOT / 'tests/selfhost-typecore/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
 	for mode in modes:
 		target = directory / ((product_prefix or ('astra-flow-' if with_flow else 'astra-types-')) + mode)
-		product([compiler, '-' + mode, *sources, *objects, '-o', target], target, [*sources, *objects[1::2]], ('ownflow-' if with_flow else 'typecore-') + mode)
+		extra_links = [arg for path in link_objects for arg in ('--link-object', path)] + [arg for name in link_libraries for arg in ('--link-library', name)]
+		product([compiler, '-' + mode, *sources, *objects, *extra_links, '-o', target], target, [*sources, *objects[1::2], *link_objects, *link_inputs], ('ownflow-' if with_flow else 'typecore-') + mode)
 	return products
 
 
