@@ -98,18 +98,28 @@ def main():
 	qualified_tools.update(Path(path).resolve() for path in [config['standalone_component'], *config['ledger_components']])
 	tool_references = [dict(path=str(path), bytes=path.stat().st_size, sha256=sha(path.read_bytes()), embedded=path.resolve() in qualified_tools) for path in sorted(a.build.rglob('astra-*')) if path.is_file() and path.suffix != '.json']
 	costs = read(config['costs']); cost_summary = {key: value for key, value in costs.items() if key not in ('commands', 'unplaced_measurements', 'GNU_time_logs')}
-	summary = dict(format='astra-generics14-evidence/1', readiness='READY_FOR_UNCHANGED_NATIVE_PUBLISHER', initial_head=base, initial_tree=initial['repository']['tree'], final_head=head, final_tree=tree, profiles=profiles, proof_observations=1044, protected=451, donor_files=6622, qualification=config, costs=cost_summary, tool_references=tool_references, tool_transport_limit='Qualified native/query/ledger products are embedded. Obsolete development tool binaries remain private with exact hashes and build receipts, to respect the installed publisher ZIP cap. All task runtime observations are retained.', remaining_deferrals=config['deferrals'], publication='G9 requires the unchanged installed publisher and verification of its canonical outer ZIP; this preparer does not publish.')
+	summary = dict(format='astra-generics14-evidence/1', readiness='READY_FOR_UNCHANGED_NATIVE_PUBLISHER', initial_head=base, initial_tree=initial['repository']['tree'], final_head=head, final_tree=tree, profiles=profiles, proof_observations=1044, protected=451, donor_files=6622, qualification=config, costs=cost_summary, tool_references=tool_references, tool_transport_limit='All selected qualification source/runtime/oracle/mutation/memory evidence and qualified native/query/ledger products are embedded. Obsolete tool binaries, superseded prototype dumps and duplicate successful-run raw artifacts remain private with exact hash references and receipts. Complete earlier transport archives are preserved privately. See private-obsolete-artifacts.json; no required final evidence is omitted.', remaining_deferrals=config['deferrals'], publication='G9 requires the unchanged installed publisher and verification of its canonical outer ZIP; this preparer does not publish.')
 	out = a.runtime/'handoff'; out.mkdir(exist_ok=False)
 	(out/'summary.json').write_text(json.dumps(summary, indent=2)+'\n')
 	payload = {}
 	def include(path, name):
 		path = Path(path); assert path.is_file() and not path.is_symlink()
 		assert name not in payload; payload[name] = path
+	private = []
+	prototype_dumps = {'ledger-before/whole-compiler.stdout', 'ledger-before-v2/whole-compiler.stdout', 'method-cfg-debug.stdout', 'method-core-debug-v2.stdout'}
+	obsolete_successes = {'old-v5-O0', 'old-v5-O2', 'new-v5b-O0', 'new-v5b-O2', 'check-5'}
+	retained_receipts = {'result.json', 'results.json', 'commands.json', 'inputs.json'}
 	for path in sorted(a.runtime.rglob('*')):
 		if not path.is_file() or path.is_symlink(): continue
 		rel = path.relative_to(a.runtime)
 		if rel.parts[0] in ('handoff', 'report-evidence') or path.suffix in ('.zip', '.xz'): continue
+		if rel.as_posix() in prototype_dumps or rel.parts[0] in obsolete_successes and path.name not in retained_receipts:
+			private.append(dict(path=str(path), bytes=path.stat().st_size, sha256=sha(path.read_bytes()), reason='Superseded prototype dump or duplicate successful-run artifact; retained live and in complete earlier private transports. Final selected evidence is embedded.'))
+			continue
 		include(path, 'runtime/'+rel.as_posix())
+	private_index = out/'private-obsolete-artifacts.json'
+	private_index.write_text(json.dumps(dict(format='astra-private-artifact-references/1', files=private), indent=2)+'\n')
+	include(private_index, 'private-obsolete-artifacts.json')
 	for path in sorted(a.build.rglob('*')):
 		if path.is_file() and not path.is_symlink():
 			if path.name.startswith('astra-') and path.suffix != '.json' and path.resolve() not in qualified_tools: continue
@@ -160,8 +170,14 @@ def main():
 	encoded = a.runtime/'report-evidence'
 	subprocess.run([sys.executable, '-B', ROOT/'tools/qualification/encoded-evidence.py', 'pack', '--input', archive, '--output', encoded, '--stem', 'generics14-raw'], check=True)
 	attachments = [*sorted(encoded.glob('*')), out/'summary.json']
-	manifest = dict(format='pm-next-evidence/1', files=[dict(path=str(path), bytes=path.stat().st_size, sha256=sha(path.read_bytes())) for path in attachments])
 	assert len(attachments) <= 128 and sum(path.stat().st_size for path in attachments) <= 64*1024*1024 and all(path.stat().st_size <= 2*1024*1024 for path in attachments)
+	delivery = out/'attachments'; delivery.mkdir()
+	files = []
+	for path in attachments:
+		target = delivery/path.name; assert not target.exists()
+		target.write_bytes(path.read_bytes())
+		files.append(dict(path='attachments/'+path.name, bytes=target.stat().st_size, sha256=sha(target.read_bytes())))
+	manifest = dict(format='pm-next-evidence/1', files=files)
 	(out/'evidence-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
 	print('Ready:', len(index), 'verified raw members;', len(attachments), 'bounded attachments; unchanged pm-next publisher still required')
 
