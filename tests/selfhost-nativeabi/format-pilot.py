@@ -65,7 +65,11 @@ def main():
 			assert b'\n\t\tint y=3;' in formatted.read_bytes()
 			# Neither local declarations nor nested controls can become implicit scopes.
 	for i, text in enumerate(['int main(){if(true) int x=1;return 0;}',
-		'int main(){if(true) if(false) return 1;else{return 0;}return 0;}']):
+		'int main(){if(true) if(false) return 1;else{return 0;}return 0;}',
+		'int main(){if(false){return 1;}else if(false){return 2;}return 0;}',
+		'int main(){do{return 0;}while(false);}',
+		'int main(){try{return 0;}finally{return 1;}}',
+		'int main(){outer: while(false){break;}return 0;}']):
 		bad = a.runtime/('bad-'+str(i)+'.astra'); bad.write_text(text+'\n')
 		run([a.compiler, '--format', bad], 'bad-'+str(i), expected=1)
 	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS', cases=list(cases),
