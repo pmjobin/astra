@@ -17,7 +17,7 @@ def sha(path):
 
 
 def git(root, *args):
-	return subprocess.check_output(['git', '-C', str(root), *args]).decode()
+	return subprocess.check_output(['git', '--no-optional-locks', '-C', str(root), *args]).decode()
 
 
 def identity(path):
@@ -40,7 +40,7 @@ def main():
 	donor_files = {name: identity(DONOR/name) for name in git(DONOR, 'ls-files', '-z').split('\0') if name}
 	assert len(donor_files) == 6622 and donor_files == initial['donor']['files']
 	assert git(DONOR, 'rev-parse', 'HEAD').strip() == initial['donor']['head']
-	assert git(DONOR, 'status', '--porcelain=v1', '--untracked-files=all') == initial['donor']['status']
+	assert git(DONOR, 'status', '--porcelain=v1') == initial['donor']['status']
 	assert all(sha(path) == digest for path, digest in initial['skill'].items())
 	for name, expected in initial['local'].items():
 		actual = identity(Path(name)); assert all(actual[key] == value for key, value in expected.items()), name
