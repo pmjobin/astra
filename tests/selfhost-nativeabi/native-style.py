@@ -92,8 +92,8 @@ def main():
 		results.append(dict(name=name, original_sha256=sha(original), formatted_sha256=sha(formatted),
 			AST_sha256=hashlib.sha256(before).hexdigest(), exact_physical_ABI_except_source_spans=True,
 			expected_trace=trace, products=products, memory=memories))
-	# Native parser admission for the restricted single-statement for grammar;
-	# existing native semantic for-loop deferrals are not changed by this test.
+		# Native parser admission for the restricted single-statement for grammar;
+		# existing native semantic for-loop deferrals are not changed by this test.
 	for_source = frozen('for-syntax.astra', b'int main(){int x=0;for(int i=0;i<3;i=i+1){x=x+1;}return x-3;}\n')
 	for_formatted = frozen('for-syntax-formatted.astra', run([a.compiler, '--format', for_source], 'for-format').stdout)
 	run([a.binder, '--syntax', for_formatted], 'native-for-parse')
