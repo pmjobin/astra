@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int cfg_add_block(CfgData data, CfgBlock row) {
+	if (!data.room(data.block_count)) { return 0; }
+	if (data.block_count == len(data.blocks)) {
+		var grown = new CfgBlock[syntax_grown_capacity(len(data.blocks), data.block_count + 1)];
+		int i = 0;
+		while (i < data.block_count) { grown[i] = data.blocks[i]; i = i + 1; }
+		swap(data.blocks, grown);
+	}
+	data.blocks[data.block_count] = row;
+	data.block_count = data.block_count + 1;
+	return data.block_count;
+}
+int cfg_add_instruction(CfgData data, CfgInstruction row) {
+	if (!data.room(data.instruction_count)) { return 0; }
+	if (data.instruction_count == len(data.instructions)) {
+		var grown = new CfgInstruction[syntax_grown_capacity(len(data.instructions), data.instruction_count + 1)];
+		int i = 0;
+		while (i < data.instruction_count) { grown[i] = data.instructions[i]; i = i + 1; }
+		swap(data.instructions, grown);
+	}
+	data.instructions[data.instruction_count] = row;
+	data.instruction_count = data.instruction_count + 1;
+	return data.instruction_count;
+}
+int cfg_add_edge(CfgData data, CfgEdge row) {
+	if (!data.room(data.edge_count)) { return 0; }
+	if (data.edge_count == len(data.edges)) {
+		var grown = new CfgEdge[syntax_grown_capacity(len(data.edges), data.edge_count + 1)];
+		int i = 0;
+		while (i < data.edge_count) { grown[i] = data.edges[i]; i = i + 1; }
+		swap(data.edges, grown);
+	}
+	data.edges[data.edge_count] = row;
+	data.edge_count = data.edge_count + 1;
+	return data.edge_count;
+}
+int cfg_add_predecessor(CfgData data, CfgPredecessor row) {
+	if (!data.room(data.predecessor_count)) { return 0; }
+	if (data.predecessor_count == len(data.predecessors)) {
+		var grown = new CfgPredecessor[syntax_grown_capacity(len(data.predecessors), data.predecessor_count + 1)];
+		int i = 0;
+		while (i < data.predecessor_count) { grown[i] = data.predecessors[i]; i = i + 1; }
+		swap(data.predecessors, grown);
+	}
+	data.predecessors[data.predecessor_count] = row;
+	data.predecessor_count = data.predecessor_count + 1;
+	return data.predecessor_count;
+}
+int cfg_add_operand(CfgData data, CfgOperand row) {
+	if (!data.room(data.operand_count)) { return 0; }
+	if (data.operand_count == len(data.operands)) {
+		var grown = new CfgOperand[syntax_grown_capacity(len(data.operands), data.operand_count + 1)];
+		int i = 0;
+		while (i < data.operand_count) { grown[i] = data.operands[i]; i = i + 1; }
+		swap(data.operands, grown);
+	}
+	data.operands[data.operand_count] = row;
+	data.operand_count = data.operand_count + 1;
+	return data.operand_count;
+}

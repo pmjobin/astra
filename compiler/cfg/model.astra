@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Append-only stage IDs require both the retained program and function owner.
+struct CfgId { int function; int index; }
+struct CfgFunction { int entry; int exit; }
+// One ordered instruction per block is the initial (deliberately unfused) form.
+// Terminators: 1 jump, 2 bool split, 3 return, 4 unreachable normal exit.
+struct CfgBlock {
+	int function;
+	int origin;
+	int role;
+	int instruction;
+	int terminators;
+	int term;
+	int condition;
+	int yes;
+	int no;
+	bool reachable;
+}
+// Core payload retains exact typed operation/place/callee/source authority.
+// 40 conditional cleanup, 41 scope exit, 42/43 loan begin/end,
+// 44 short-circuit result assignment; all other opcodes are Core operations.
+struct CfgInstruction {
+	CoreNode value;
+	int block;
+	int origin;
+	int opcode;
+	int result;
+	int a;
+	int b;
+	int contract;
+	int guarded;
+}
+struct CfgOperand { int function; int instruction; int ordinal; int temp; SymbolId label; int mode; }
+struct CfgEdge { int function; int source; int target; int polarity; }
+struct CfgPredecessor { int function; int edge; int source; int target; }
+// These are checked region anchors, never certificates of correctness.
+struct CfgRegion { int entry; int operation; int one; int two; int three; }
+class CfgData {
+	owned shared TypeOwner identity;
+	owned CfgFunction[] functions;
+	owned CfgRegion[] regions;
+	owned CfgBlock[] blocks;
+	owned CfgInstruction[] instructions;
+	owned CfgEdge[] edges;
+	owned CfgOperand[] operands;
+	owned CfgPredecessor[] predecessors;
+	int function_count;
+	int region_count;
+	int block_count;
+	int instruction_count;
+	int edge_count;
+	int operand_count;
+	int predecessor_count;
+	int limit;
+	int status;
+	init(int functions, int nodes, int limit) {
+		var owner = new TypeOwner();
+		var identity = shared_acquire(move owner);
+		this.identity = move identity;
+		this.functions = new CfgFunction[functions];
+		this.regions = new CfgRegion[nodes];
+		this.blocks = new CfgBlock[16];
+		this.instructions = new CfgInstruction[16];
+		this.edges = new CfgEdge[16];
+		this.operands = new CfgOperand[16];
+		this.operand_count = 0;
+		this.predecessors = new CfgPredecessor[16];
+		this.function_count = functions;
+		this.region_count = nodes;
+		this.block_count = 0; this.instruction_count = 0;
+		this.edge_count = 0; this.predecessor_count = 0;
+		this.limit = limit;
+		this.status = 0;
+	}
+	bool room(int count) {
+		if (this.status != 0) { return false; }
+		if (this.limit < 1 || this.limit > 65536 || count >= this.limit) { this.status = 2; return false; }
+		return true;
+	}
+}
+class CfgProgram {
+	owned CoreProgram core;
+	owned CfgData data;
+	init(owned CoreProgram core, int functions, int nodes, int limit) {
+		this.core = move core;
+		var data = new CfgData(functions, nodes, limit);
+		this.data = move data;
+	}
+	bool same_owner(borrowed CfgProgram origin) {
+		return type_owner_same(this.data.identity, origin.data.identity) && this.core.same_owner(origin.core);
+	}
+}

@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Test-private byte-complete live-table snapshots; never public CFG projection.
+class CfgBackup {
+	owned CfgFunction[] functions;
+	owned CfgRegion[] regions;
+	owned CfgBlock[] blocks;
+	owned CfgInstruction[] instructions;
+	owned CfgEdge[] edges;
+	owned CfgPredecessor[] predecessors;
+	owned CfgOperand[] operands;
+	int function_count;
+	int region_count;
+	int block_count;
+	int instruction_count;
+	int edge_count;
+	int predecessor_count;
+	int operand_count;
+	int limit;
+	int status;
+	init(CfgData d) {
+		this.functions = new CfgFunction[len(d.functions)];
+		int functions_i = 0;
+		while (functions_i < len(d.functions)) { this.functions[functions_i] = d.functions[functions_i]; functions_i = functions_i + 1; }
+		this.regions = new CfgRegion[len(d.regions)];
+		int regions_i = 0;
+		while (regions_i < len(d.regions)) { this.regions[regions_i] = d.regions[regions_i]; regions_i = regions_i + 1; }
+		this.blocks = new CfgBlock[len(d.blocks)];
+		int blocks_i = 0;
+		while (blocks_i < len(d.blocks)) { this.blocks[blocks_i] = d.blocks[blocks_i]; blocks_i = blocks_i + 1; }
+		this.instructions = new CfgInstruction[len(d.instructions)];
+		int instructions_i = 0;
+		while (instructions_i < len(d.instructions)) { this.instructions[instructions_i] = d.instructions[instructions_i]; instructions_i = instructions_i + 1; }
+		this.edges = new CfgEdge[len(d.edges)];
+		int edges_i = 0;
+		while (edges_i < len(d.edges)) { this.edges[edges_i] = d.edges[edges_i]; edges_i = edges_i + 1; }
+		this.predecessors = new CfgPredecessor[len(d.predecessors)];
+		int predecessors_i = 0;
+		while (predecessors_i < len(d.predecessors)) { this.predecessors[predecessors_i] = d.predecessors[predecessors_i]; predecessors_i = predecessors_i + 1; }
+		this.operands = new CfgOperand[len(d.operands)];
+		int operands_i = 0;
+		while (operands_i < len(d.operands)) { this.operands[operands_i] = d.operands[operands_i]; operands_i = operands_i + 1; }
+		this.function_count = d.function_count;
+		this.region_count = d.region_count;
+		this.block_count = d.block_count;
+		this.instruction_count = d.instruction_count;
+		this.edge_count = d.edge_count;
+		this.predecessor_count = d.predecessor_count;
+		this.operand_count = d.operand_count;
+		this.limit = d.limit;
+		this.status = d.status;
+	}
+}
+void cfg_test_restore(CfgData d, CfgBackup backup) {
+	swap(d.functions, backup.functions);
+	swap(d.regions, backup.regions);
+	swap(d.blocks, backup.blocks);
+	swap(d.instructions, backup.instructions);
+	swap(d.edges, backup.edges);
+	swap(d.predecessors, backup.predecessors);
+	swap(d.operands, backup.operands);
+	d.function_count = backup.function_count;
+	d.region_count = backup.region_count;
+	d.block_count = backup.block_count;
+	d.instruction_count = backup.instruction_count;
+	d.edge_count = backup.edge_count;
+	d.predecessor_count = backup.predecessor_count;
+	d.operand_count = backup.operand_count;
+	d.limit = backup.limit;
+	d.status = backup.status;
+}
+owned Utf8Message cfg_test_snapshot(CfgData d) throws Error {
+	var out = new Utf8ByteBuilder();
+	flow_number(out, d.function_count);
+	flow_number(out, d.region_count);
+	flow_number(out, d.block_count);
+	flow_number(out, d.instruction_count);
+	flow_number(out, d.edge_count);
+	flow_number(out, d.predecessor_count);
+	flow_number(out, d.operand_count);
+	flow_number(out, d.limit);
+	flow_number(out, d.status);
+	int functions_i = 0;
+	while (functions_i < d.function_count) {
+		var row = d.functions[functions_i];
+		flow_number(out, row.entry); flow_number(out, row.exit);
+		functions_i = functions_i + 1;
+	}
+	int regions_i = 0;
+	while (regions_i < d.region_count) {
+		var row = d.regions[regions_i];
+		flow_number(out, row.entry); flow_number(out, row.operation); flow_number(out, row.one); flow_number(out, row.two); flow_number(out, row.three);
+		regions_i = regions_i + 1;
+	}
+	int blocks_i = 0;
+	while (blocks_i < d.block_count) {
+		var row = d.blocks[blocks_i];
+		flow_number(out, row.function); flow_number(out, row.origin); flow_number(out, row.role); flow_number(out, row.instruction); flow_number(out, row.terminators); flow_number(out, row.term); flow_number(out, row.condition); flow_number(out, row.yes); flow_number(out, row.no);
+		int live = 0; if (row.reachable) { live = 1; } flow_number(out, live);
+		blocks_i = blocks_i + 1;
+	}
+	int instructions_i = 0;
+	while (instructions_i < d.instruction_count) {
+		var row = d.instructions[instructions_i];
+		flow_number(out, row.block); flow_number(out, row.origin); flow_number(out, row.opcode); flow_number(out, row.result); flow_number(out, row.a); flow_number(out, row.b); flow_number(out, row.contract); flow_number(out, row.guarded); flow_number(out, row.value.kind); flow_number(out, row.value.function); flow_number(out, row.value.source.index); flow_number(out, row.value.span.source.index); flow_number(out, row.value.span.start); flow_number(out, row.value.span.end); flow_number(out, row.value.type.index); flow_number(out, row.value.flags); flow_number(out, row.value.token.index); flow_number(out, row.value.operation.index); flow_number(out, row.value.a); flow_number(out, row.value.b); flow_number(out, row.value.c); flow_number(out, row.value.place); flow_number(out, row.value.symbol.index); flow_number(out, row.value.signature.index); flow_number(out, row.value.target); flow_number(out, row.value.first); flow_number(out, row.value.count);
+		instructions_i = instructions_i + 1;
+	}
+	int edges_i = 0;
+	while (edges_i < d.edge_count) {
+		var row = d.edges[edges_i];
+		flow_number(out, row.function); flow_number(out, row.source); flow_number(out, row.target); flow_number(out, row.polarity);
+		edges_i = edges_i + 1;
+	}
+	int predecessors_i = 0;
+	while (predecessors_i < d.predecessor_count) {
+		var row = d.predecessors[predecessors_i];
+		flow_number(out, row.function); flow_number(out, row.edge); flow_number(out, row.source); flow_number(out, row.target);
+		predecessors_i = predecessors_i + 1;
+	}
+	int operands_i = 0;
+	while (operands_i < d.operand_count) {
+		var row = d.operands[operands_i];
+		flow_number(out, row.function); flow_number(out, row.instruction); flow_number(out, row.ordinal); flow_number(out, row.temp); flow_number(out, row.label.index); flow_number(out, row.mode);
+		operands_i = operands_i + 1;
+	}
+	return out.snapshot();
+}
+// Preserve reciprocal graph tables while changing semantics, so structural
+// edge rejection cannot stand in for branch/order/cleanup contract checking.
+void cfg_test_target(CfgData d, int block, int polarity, int target) {
+	var b = d.blocks[block - 1]; if (polarity == 1) { b.yes = target; } else { b.no = target; } d.blocks[block - 1] = b;
+	int e = 0;
+	while (e < d.edge_count) {
+		var edge = d.edges[e];
+		if (edge.source == block && edge.polarity == polarity) {
+			edge.target = target; d.edges[e] = edge;
+			int p = 0;
+			while (p < d.predecessor_count) { var pred = d.predecessors[p]; if (pred.edge == e + 1) { pred.target = target; d.predecessors[p] = pred; } p = p + 1; }
+		}
+		e = e + 1;
+	}
+}
+bool cfg_test_apply(CfgData d, CoreData core, int mutation) {
+	if (mutation == 1 && d.predecessor_count > 0) { var p = d.predecessors[0]; p.target = d.block_count + 1; d.predecessors[0] = p; return true; }
+	if (mutation == 19) { d.status = 3; return true; }
+	if (mutation == 20) { d.limit = 1; return true; }
+	if (mutation == 21) { var b = d.blocks[0]; b.reachable = true; int added = cfg_add_block(d, b); return added > 0; }
+	int b = 0;
+	while (b < d.block_count) {
+		var row = d.blocks[b];
+		if ((mutation == 0 && row.role == 23) || (mutation == 6 && row.role == 7)) {
+			int yes = row.yes; cfg_test_target(d, b + 1, 1, row.no); cfg_test_target(d, b + 1, 2, yes); return true;
+		}
+		if (mutation == 2) { row.terminators = 2; d.blocks[b] = row; return true; }
+		if (mutation == 3 && row.role == 24) { cfg_test_target(d, b + 1, 2, row.yes); return true; }
+		if (mutation == 4) { row.function = row.function + 1; d.blocks[b] = row; return true; }
+		if (mutation == 5 && row.role == 27) { row.term = 4; row.condition = 0; d.blocks[b] = row; return true; }
+		if (mutation == 7 && row.role == 7) {
+			int previous = 0;
+			while (previous < d.block_count) {
+				if (d.blocks[previous].term == 1 && d.blocks[previous].yes == b + 1) { cfg_test_target(d, previous + 1, 1, d.regions[row.origin - 1].three); return true; }
+				previous = previous + 1;
+			}
+		}
+		b = b + 1;
+	}
+	int i = 0;
+	while (i < d.instruction_count) {
+		var row = d.instructions[i]; var value = row.value;
+		if (mutation == 8 && row.opcode == 9 && value.count >= 2) {
+			int a = -1; int b_arg = -1; int p = 0;
+			while (p < d.operand_count) { if (d.operands[p].instruction == i + 1) { if (d.operands[p].ordinal == 0) { a = p; } if (d.operands[p].ordinal == 1) { b_arg = p; } } p = p + 1; }
+			if (a >= 0 && b_arg >= 0) { var first = d.operands[a]; var second = d.operands[b_arg]; int temp = first.temp; first.temp = second.temp; second.temp = temp; d.operands[a] = first; d.operands[b_arg] = second; return true; }
+		}
+		if (mutation == 9 && row.opcode == 9 && core.function_count > 1) {
+			int f = 0;
+			while (f < core.function_count) { if (f + 1 != value.target && core.functions[f].result.index == value.type.index) { value.symbol = core.functions[f].symbol; value.signature = core.functions[f].signature; value.target = f + 1; row.value = value; d.instructions[i] = row; return true; } f = f + 1; }
+		}
+		if (mutation == 10 && (row.opcode == 21 || row.opcode == 22) && value.a != value.place) { value.place = value.a; row.value = value; d.instructions[i] = row; return true; }
+		if (mutation == 11 && row.opcode == 4) { row.opcode = 3; value.kind = 3; value.target = 0; row.value = value; var block = d.blocks[row.block - 1]; block.role = 3; d.blocks[row.block - 1] = block; d.instructions[i] = row; return true; }
+		if (mutation == 12 && row.opcode == 41) {
+			int next = d.blocks[row.block - 1].yes;
+			if (next > 0 && d.blocks[next - 1].role == 40) { cfg_test_target(d, row.block, 1, d.blocks[next - 1].yes); return true; }
+		}
+		if (mutation == 13 && row.opcode == 40) { cfg_test_target(d, row.block, 1, row.block); return true; }
+		if (mutation == 14 && row.opcode == 40) {
+			int next = d.blocks[row.block - 1].yes;
+			if (next > 0 && d.blocks[next - 1].role == 40) { int at = d.blocks[next - 1].instruction - 1; var other = d.instructions[at]; int contract = row.contract; row.contract = other.contract; other.contract = contract; d.instructions[i] = row; d.instructions[at] = other; return true; }
+		}
+		if (mutation == 15 && row.opcode == 41) {
+			int p = 0;
+			while (p < d.instruction_count) { if (d.instructions[p].opcode == 40 && d.instructions[p].value.function == value.function && d.instructions[p].block != d.blocks[row.block - 1].yes) { cfg_test_target(d, row.block, 1, d.instructions[p].block); return true; } p = p + 1; }
+		}
+		if (mutation == 16 && row.opcode == 42) { row.opcode = 43; var block = d.blocks[row.block - 1]; block.role = 43; d.blocks[row.block - 1] = block; d.instructions[i] = row; return true; }
+		if (mutation == 17 && row.origin != 0) { value.span.start = value.span.start + 1; row.value = value; d.instructions[i] = row; return true; }
+		if (mutation == 18 && row.opcode == 6) { row.a = row.result; d.instructions[i] = row; return true; }
+		if (mutation == 22 && row.opcode == 3) { value.type = type_id(13); if (row.value.type.index == 13) { value.type = type_id(1); } row.value = value; d.instructions[i] = row; return true; }
+		if (mutation == 23 && row.opcode == 43) { int next = d.blocks[row.block - 1].yes; cfg_test_target(d, row.block, 1, row.block); if (next != row.block) { return true; } }
+		if (mutation == 24 && row.opcode == 40) { row.guarded = 0; d.instructions[i] = row; return true; }
+		i = i + 1;
+	}
+	return false;
+}
+owned Utf8Message cfg_mutations(CfgProgram program) throws Error {
+	assert_that(cfg_verify(program) == 0);
+	var out = new Utf8ByteBuilder();
+	int mutation = 0;
+	while (mutation < 25) {
+		var backup = new CfgBackup(program.data);
+		var before = cfg_test_snapshot(program.data);
+		if (cfg_test_apply(program.data, program.core.data, mutation)) {
+			int rejected = cfg_verify(program);
+			assert_that(rejected == 1 || rejected == 2);
+			var after = cfg_test_snapshot(program.data);
+			bool blocked = false;
+			try { var forbidden = cfg_projection(program); } catch (Error error) { blocked = true; }
+			assert_that(blocked);
+			cfg_test_restore(program.data, backup);
+			assert_that(cfg_verify(program) == 0);
+			var restored = cfg_test_snapshot(program.data);
+			assert_that(before.text == restored.text && before.text != after.text);
+			source_append_text(out, "CFG_MUTATION"); flow_number(out, mutation); flow_number(out, rejected);
+			source_append_text(out, " "); syntax_write_hex(out, before.text); source_append_text(out, " "); syntax_write_hex(out, after.text); source_append_text(out, " "); syntax_write_hex(out, restored.text); source_append_text(out, "\n");
+		}
+		mutation = mutation + 1;
+	}
+	return out.snapshot();
+}

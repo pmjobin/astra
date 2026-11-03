@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Full validation precedes every observable row. Internal format, not a file ABI.
+owned Utf8Message cfg_projection(CfgProgram program) throws Error {
+	if (cfg_verify(program) != 0) { throw new Error("INVALID_CFG"); }
+	var walk = cfg_walk(program);
+	var out = new Utf8ByteBuilder(); source_append_text(out, "astra-cfg/1\n");
+	core_projection_authority(program.core.flow.checked, out);
+	core_projection_proofs(program.core.flow.checked, program.core.flow.proofs, out);
+	core_projection_tables(program.core.data, program.core.flow.checked, out);
+	core_projection_nodes(program.core.data, program.core.flow.checked, out);
+	int f = 0;
+	while (f < program.data.function_count) {
+		var row = program.data.functions[f]; source_append_text(out, "CFG_FUNCTION"); flow_number(out, f + 1); flow_number(out, row.entry); flow_number(out, row.exit); source_append_text(out, "\n"); f = f + 1;
+	}
+	int b = 0;
+	while (b < program.data.block_count) {
+		var row = program.data.blocks[b];
+		source_append_text(out, "BLOCK"); flow_number(out, b + 1); flow_number(out, row.function); flow_number(out, row.origin); flow_number(out, row.role); flow_number(out, row.instruction); flow_number(out, row.terminators); flow_number(out, row.term); flow_number(out, row.condition); flow_number(out, row.yes); flow_number(out, row.no);
+		int live = 0; if (row.reachable) { live = 1; } flow_number(out, live); source_append_text(out, "\n"); b = b + 1;
+	}
+	int i = 0;
+	while (i < program.data.instruction_count) {
+		var row = program.data.instructions[i]; var value = row.value;
+		source_append_text(out, "INST"); flow_number(out, i + 1); flow_number(out, row.block); flow_number(out, row.origin); flow_number(out, row.opcode); flow_number(out, row.result); flow_number(out, row.a); flow_number(out, row.b); flow_number(out, row.contract); flow_number(out, row.guarded);
+		flow_number(out, value.function); flow_number(out, value.type.index); flow_number(out, value.flags); flow_number(out, value.place); flow_number(out, value.symbol.index); flow_number(out, value.signature.index); flow_number(out, value.target); flow_number(out, value.first); flow_number(out, value.count);
+		var span = value.span;
+		if (row.origin == 0) { span = program.core.data.functions[value.function - 1].span; }
+		source_append_text(out, " "); binding_write_span(program.core.flow.checked.bindings, span, out); source_append_text(out, "\n");
+		if (out.byte_count() > 16777216) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
+		i = i + 1;
+	}
+	i = 0;
+	while (i < program.data.edge_count) {
+		var edge = program.data.edges[i]; source_append_text(out, "SUCC"); flow_number(out, i + 1); flow_number(out, edge.function); flow_number(out, edge.source); flow_number(out, edge.target); flow_number(out, edge.polarity); source_append_text(out, "\n"); i = i + 1;
+	}
+	i = 0;
+	while (i < program.data.predecessor_count) {
+		var p = program.data.predecessors[i]; source_append_text(out, "PRED"); flow_number(out, i + 1); flow_number(out, p.function); flow_number(out, p.edge); flow_number(out, p.source); flow_number(out, p.target); source_append_text(out, "\n"); i = i + 1;
+	}
+	i = 0;
+	while (i < program.data.operand_count) {
+		var a = program.data.operands[i]; source_append_text(out, "ARG"); flow_number(out, i + 1); flow_number(out, a.function); flow_number(out, a.instruction); flow_number(out, a.ordinal); flow_number(out, a.temp); flow_number(out, a.label.index); flow_number(out, a.mode); source_append_text(out, "\n"); i = i + 1;
+	}
+	i = 1;
+	while (i <= program.core.flow.checked.types.count) {
+		var type = type_id(i);
+		var t = program.core.flow.checked.types.descriptor(program.core.flow.checked.types, type);
+		source_append_text(out, "TYPE"); flow_number(out, i); flow_number(out, t.kind); flow_number(out, t.nominal.index); flow_number(out, t.extent); flow_number(out, t.count); source_append_text(out, "\n");
+		int a = 0;
+		while (a < t.count) {
+			var argument = program.core.flow.checked.types.argument(program.core.flow.checked.types, type, a);
+			source_append_text(out, "TYPEARG"); flow_number(out, i); flow_number(out, a); flow_number(out, argument.type.index); flow_number(out, argument.flags); source_append_text(out, "\n"); a = a + 1;
+		}
+		i = i + 1;
+	}
+	cfg_write_walk(walk, out);
+	if (out.byte_count() > 16777216) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
+	return out.snapshot();
+}

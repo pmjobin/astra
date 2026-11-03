@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Continuation construction from verified Core only. No syntax parsing/Flow replay.
+CoreNode cfg_payload(CoreData core, int origin, int function) {
+	CoreNode row = {kind = 0, function = function, source = {index = 0}, span = syntax_empty_span(), type = {index = 14}, flags = 0, token = {index = 0}, operation = {index = 0}, a = 0, b = 0, c = 0, place = 0, symbol = {index = 0}, signature = {index = 0}, target = 0, first = 0, count = 0};
+	if (origin > 0) { row = core.nodes[origin - 1]; }
+	return row;
+}
+int cfg_block(CfgData data, int function, int origin, int role, int term, int condition, int yes, int no) {
+	CfgBlock b = {function = function, origin = origin, role = role, instruction = 0, terminators = 1, term = term, condition = condition, yes = yes, no = no, reachable = false};
+	return cfg_add_block(data, b);
+}
+int cfg_emit(CfgData data, CoreData core, int function, int origin, int opcode, int result, int a, int b, int contract, int guarded, int next) {
+	int block = cfg_block(data, function, origin, opcode, 1, 0, next, 0);
+	if (block == 0) { return 0; }
+	CfgInstruction row = {value = cfg_payload(core, origin, function), block = block, origin = origin, opcode = opcode, result = result, a = a, b = b, contract = contract, guarded = guarded};
+	int instruction = cfg_add_instruction(data, row);
+	if (opcode == 9 || opcode == 10) {
+		var value = row.value;
+		int i = 0;
+		while (i < value.count && data.status == 0) {
+			var edge = core.edges[value.first + i];
+			CfgOperand operand = {function = function, instruction = instruction, ordinal = i, temp = edge.child, label = edge.label, mode = edge.mode};
+			int added = cfg_add_operand(data, operand);
+			i = i + 1;
+		}
+	}
+	var saved = data.blocks[block - 1]; saved.instruction = instruction; data.blocks[block - 1] = saved;
+	return block;
+}
+int cfg_cleanup(CfgData data, CoreData core, int function, int origin, SyntaxNodeId source, int next) {
+	// Core exits are ordered outer to inner in the arena; prepend reverses scopes.
+	int p = 0;
+	int head = next;
+	while (p < core.exit_count && data.status == 0) {
+		var plan = core.exits[p];
+		if (plan.function == function && plan.source.index == source.index) {
+			int j = plan.count - 1;
+			while (j >= 0 && data.status == 0) {
+				head = cfg_emit(data, core, function, origin, 40, 0, 0, 0, plan.first + j + 1, 1, head);
+				j = j - 1;
+			}
+			head = cfg_emit(data, core, function, origin, 41, 0, 0, 0, p + 1, 0, head);
+		}
+		p = p + 1;
+	}
+	return head;
+}
+int cfg_loan_chain(CfgData data, CoreData core, int function, int origin, int opcode, int next) {
+	int l = core.loan_count - 1;
+	int head = next;
+	while (l >= 0 && data.status == 0) {
+		var loan = core.loans[l];
+		var row = core.nodes[origin - 1];
+		bool applies = loan.function == function && loan.value.index == row.source.index;
+		if (opcode == 43) { applies = loan.function == function && loan.call.index == row.source.index; }
+		if (applies) { head = cfg_emit(data, core, function, origin, opcode, 0, 0, 0, l + 1, 0, head); }
+		l = l - 1;
+	}
+	return head;
+}
+int cfg_lower_node(CfgData data, CoreData core, CheckedIndex checked, int id, int next, int break_to, int continue_to, int depth) throws Error {
+	if (id == 0 || data.status != 0) { return next; }
+	if (depth > 192) { data.status = 2; return 0; }
+	var row = core.nodes[id - 1];
+	int function = row.function;
+	CfgRegion region = {entry = 0, operation = 0, one = 0, two = 0, three = 0};
+	int head = next;
+	if (row.kind == 20) {
+		head = cfg_cleanup(data, core, function, id, row.source, next);
+		region.operation = head;
+		int i = row.count - 1;
+		while (i >= 0 && data.status == 0) { head = cfg_lower_node(data, core, checked, core.edges[row.first + i].child, head, break_to, continue_to, depth + 1); i = i - 1; }
+	} else {
+		if (row.kind == 23 || row.kind == 24) {
+			int branch = cfg_block(data, function, id, row.kind, 2, row.a, 0, 0);
+			region.operation = branch;
+			if (data.status != 0) { return 0; }
+			int check = cfg_lower_node(data, core, checked, row.a, branch, break_to, continue_to, depth + 1);
+			region.one = check;
+			int yes = 0;
+			int no = next;
+			if (row.kind == 24) { yes = cfg_lower_node(data, core, checked, row.b, check, next, check, depth + 1); }
+			if (row.kind == 23) {
+				yes = cfg_lower_node(data, core, checked, row.b, next, break_to, continue_to, depth + 1);
+				no = cfg_lower_node(data, core, checked, row.c, next, break_to, continue_to, depth + 1);
+			}
+			var b = data.blocks[branch - 1]; b.yes = yes; b.no = no; data.blocks[branch - 1] = b;
+			head = check;
+		} else {
+			if (row.kind == 25 || row.kind == 26 || row.kind == 27) {
+				int destination = break_to;
+				if (row.kind == 26) { destination = continue_to; }
+				if (row.kind == 27) { destination = cfg_block(data, function, id, 27, 3, row.a, 0, 0); }
+				region.operation = destination;
+				head = cfg_cleanup(data, core, function, id, row.source, destination);
+				region.one = head;
+				if (row.kind == 27) { head = cfg_lower_node(data, core, checked, row.a, head, break_to, continue_to, depth + 1); }
+			} else {
+				if (row.kind == 7) {
+					int skip = cfg_emit(data, core, function, id, 44, id, row.a, 0, 0, 0, next);
+					int merge = cfg_emit(data, core, function, id, 44, id, row.b, 0, 0, 0, next);
+					int right = cfg_lower_node(data, core, checked, row.b, merge, break_to, continue_to, depth + 1);
+					var op = checked.bindings.program.arena.token_message(row.operation);
+					int yes = right; int no = skip;
+					if (op.text == "||") { yes = skip; no = right; }
+					int branch = cfg_block(data, function, id, 7, 2, row.a, yes, no);
+					region.operation = branch; region.one = skip; region.two = merge; region.three = right;
+					head = cfg_lower_node(data, core, checked, row.a, branch, break_to, continue_to, depth + 1);
+				} else {
+					int tail = next;
+					if (row.kind == 9) { tail = cfg_loan_chain(data, core, function, id, 43, tail); }
+					if (core_value_kind(row.kind)) { tail = cfg_loan_chain(data, core, function, id, 42, tail); }
+					int result = 0;
+					if (core_value_kind(row.kind)) { result = id; }
+					int operation = cfg_emit(data, core, function, id, row.kind, result, row.a, row.b, 0, 0, tail);
+					region.operation = operation;
+					head = operation;
+					int i = row.count - 1;
+					while (i >= 0 && data.status == 0) { head = cfg_lower_node(data, core, checked, core.edges[row.first + i].child, head, break_to, continue_to, depth + 1); i = i - 1; }
+					if (row.b != 0) { head = cfg_lower_node(data, core, checked, row.b, head, break_to, continue_to, depth + 1); }
+					if (row.a != 0) { head = cfg_lower_node(data, core, checked, row.a, head, break_to, continue_to, depth + 1); }
+				}
+			}
+		}
+	}
+	region.entry = head;
+	data.regions[id - 1] = region;
+	return head;
+}
+void cfg_finish_edges(CfgData data) {
+	int i = 0;
+	while (i < data.block_count && data.status == 0) {
+		var b = data.blocks[i];
+		int p = 1;
+		while (p <= 2 && data.status == 0) {
+			int target = b.yes;
+			if (p == 2) { target = b.no; }
+			if (target != 0) {
+				CfgEdge edge = {function = b.function, source = i + 1, target = target, polarity = p};
+				int e = cfg_add_edge(data, edge);
+				CfgPredecessor pred = {function = b.function, edge = e, source = i + 1, target = target};
+				int added = cfg_add_predecessor(data, pred);
+			}
+			p = p + 1;
+		}
+		i = i + 1;
+	}
+	var reachable = cfg_reach(data);
+	i = 0;
+	while (i < data.block_count) { var b = data.blocks[i]; b.reachable = reachable[i]; data.blocks[i] = b; i = i + 1; }
+}
+void cfg_set_status(CfgData data, int status) { data.status = status; }
+owned CfgProgram cfg_lower(owned CoreProgram core, int limit) throws Error {
+	int status = core_verify(core);
+	int functions = core.data.function_count; int nodes = core.data.node_count;
+	if (status != 0) { functions = 0; nodes = 0; }
+	var program = new CfgProgram(move core, functions, nodes, limit);
+	if (status != 0) { if (status == 1) { status = 4; } cfg_set_status(program.data, status); return move program; }
+	int f = 0;
+	while (f < program.data.function_count && program.data.status == 0) {
+		var function = program.core.data.functions[f];
+		int term = 4; if (function.result.index == 14) { term = 3; }
+		int exit = cfg_block(program.data, f + 1, 0, 0, term, 0, 0, 0);
+		var declaration = program.core.flow.checked.bindings.symbol(function.symbol);
+		int tail = cfg_cleanup(program.data, program.core.data, f + 1, 0, declaration.node, exit);
+		int entry = cfg_lower_node(program.data, program.core.data, program.core.flow.checked, function.body, tail, 0, 0, 0);
+		CfgFunction row = {entry = entry, exit = exit};
+		program.data.functions[f] = row;
+		f = f + 1;
+	}
+	if (program.data.status == 0) { cfg_finish_edges(program.data); }
+	if (program.data.status == 0) { int verified = cfg_verify(program); cfg_set_status(program.data, verified); }
+	return move program;
+}
