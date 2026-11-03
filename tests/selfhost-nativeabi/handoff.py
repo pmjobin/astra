@@ -7,8 +7,11 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import tarfile
+import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -106,8 +109,34 @@ def main():
 		profiles[mode] = dict(executions=39, original=24, additions=14, existing_nested=1,
 			original_fault_categories=21, additional_fault_categories=18,
 			upstream=dict(core=22, cfg=26, ssa=30), paired_sha256=sha((a.runtime/('paired-'+mode+'.json')).read_bytes()))
-	for label, path in [('reference-C0', Path(initial['c0']['path'])), ('formatter-before', a.build/'formatter-before/astrac'), ('formatter-after', a.build/'formatter-after/astrac')]:
-		regular(path, 'compilers/'+label)
+		# Ship all three complete compiler artifacts losslessly within the installed
+		# publisher's evidence budget. The existing zstd tool supplies byte deltas;
+		# an actual decode must reproduce each target's SHA-256 before attachment.
+	seed = a.build/'formatter-before/astrac'
+	regular(seed, 'compilers/formatter-before.seed')
+	codec = Path(shutil.which('zstd')).resolve()
+	transport = a.runtime/'handoff/compiler-transport'; transport.mkdir(parents=True, exist_ok=True)
+	codec_rows, codec_commands = [], []
+	for label, target in [('reference-C0', Path(initial['c0']['path'])), ('formatter-after', a.build/'formatter-after/astrac')]:
+		patch = transport/(label+'.zst')
+		with tempfile.TemporaryDirectory(prefix='verify-', dir=transport) as scratch:
+			decoded = Path(scratch)/'compiler'
+			for stage, argv in [('encode', [codec, '-q', '-f', '-9', '--long=27', '--patch-from='+str(seed), target, '-o', patch]),
+				('decode', [codec, '-q', '-d', '--patch-from='+str(seed), patch, '-o', decoded])]:
+				start = time.monotonic()
+				result = subprocess.run(['/usr/bin/time', '-v', '-o', str(a.runtime/('transport-'+label+'-'+stage+'.time')), *map(str, argv)], capture_output=True)
+				codec_commands.append(dict(argv=list(map(str, argv)), exit=result.returncode, monotonic_start=start, monotonic_end=time.monotonic()))
+				(a.runtime/'compiler-transport-commands.json').write_text(json.dumps(codec_commands, indent=2)+'\n')
+				assert result.returncode == 0, result.stderr[-2000:]
+			assert sha(decoded.read_bytes()) == sha(target.read_bytes())
+		regular(patch, 'compilers/'+label+'.delta.zst')
+		codec_rows.append(dict(target=label, bytes=target.stat().st_size, sha256=sha(target.read_bytes()),
+			seed='compilers/formatter-before.seed', seed_sha256=sha(seed.read_bytes()), patch='compilers/'+label+'.delta.zst',
+			patch_sha256=sha(patch.read_bytes()), decoded_and_verified=True, executable_mode=0o755))
+	put('compilers/transport.json', json.dumps(dict(format='astra-lossless-compiler-transport/1',
+		tool=dict(path=str(codec), sha256=sha(codec.read_bytes()), version=subprocess.check_output([str(codec), '--version'], text=True).strip()),
+		decode='zstd -d --patch-from=compilers/formatter-before.seed compilers/TARGET.delta.zst -o TARGET; verify SHA-256 before use',
+		artifacts=codec_rows), indent=2).encode()+b'\n')
 	for path in sorted(a.runtime.rglob('*')):
 		if not path.is_file() or path.is_symlink():
 			continue
@@ -137,7 +166,7 @@ def main():
 		name = 'raw-index-'+str(number).zfill(3)+'.json'; attach(name, dict(items[start:start+1000])); index_parts.append(name)
 	attach('raw-index.json', dict(format='astra-evidence-raw-index/1', members=len(index), parts=index_parts))
 	archive = a.runtime/'handoff/raw-evidence.tar.xz'; archive.parent.mkdir(exist_ok=True)
-	with tarfile.open(archive, 'w:xz', preset=3) as tar:
+	with tarfile.open(archive, 'w:xz', preset=9) as tar:
 		for name, data in sorted(payload.items()):
 			info = tarfile.TarInfo(name); info.size = len(data); info.mode = 0o644; tar.addfile(info, io.BytesIO(data))
 	data = archive.read_bytes()
@@ -153,9 +182,14 @@ def main():
 		mechanical_patch_sha256=index['patches/mechanical-format.patch']['sha256'],
 		raw_archive=dict(bytes=len(data), sha256=sha(data), members=len(payload)),
 		private_initial_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),
+		instrumentation_observations={mode: read(a.runtime/(a.after_prefix+mode)/'numeric/result.json')['instrumented'] for mode in ('O0', 'O2')},
+		named_deferrals=['Valgrind numerical conformance for the independently reproduced wide-u64-to-f32 conversion discrepancy; native host expectations remain exact.',
+		'Owning-record reassignment rejected by the unchanged C0 reference; typed/general foreign pointers, aggregate C ABI, callbacks, varargs and retained pointers.',
+		'Other targets, Windows execution, full historical registry and Stage1/self-hosting completion are outside this bounded qualification.'],
 		publication='Prepared evidence; unchanged installed pm-next publisher must complete publication.'))
 	files = [dict(path=path.name, bytes=path.stat().st_size, sha256=sha(path.read_bytes())) for path in sorted(attachments)]
-	assert all(row['bytes'] <= 2*1024*1024 for row in files) and len(files) < 220
+	assert all(row['bytes'] <= 2*1024*1024 for row in files) and len(files) <= 128
+	assert sum(row['bytes'] for row in files) <= 64*1024*1024
 	(out/'evidence-index.json').write_text(json.dumps(dict(format='pm-next-evidence/1', files=files), indent=2)+'\n')
 	print('Prepared', len(files), 'hashed attachments with full patches, per-file map and lossless raw receipts; installed publisher still required')
 
