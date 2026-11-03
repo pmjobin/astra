@@ -37,9 +37,19 @@ def main():
 	for key in ('component', 'compiler', 'runtime', 'build'):
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
+	p.add_argument('--inputs', type=Path, required=True)
 	a = p.parse_args()
 	assert all(not path.resolve().is_relative_to(ROOT) for path in (a.runtime, a.build))
 	a.runtime.mkdir(parents=True, exist_ok=False); a.build.mkdir(parents=True, exist_ok=True)
+	assert not a.inputs.resolve().is_relative_to(ROOT)
+	a.inputs.mkdir(parents=True, exist_ok=True)
+	def frozen(name, text):
+		path = a.inputs/name
+		if path.exists():
+			assert path.read_bytes() == text.encode()
+		else:
+			path.write_text(text)
+		return path
 	commands = []
 	def run(argv, name, expected=0):
 		start = time.monotonic()
@@ -51,8 +61,7 @@ def main():
 		assert r.returncode == expected, (name, r.returncode, r.stderr[-2000:])
 		return r
 	# An empty buffer has no allocation, but retires the preceding owner.
-	source = a.runtime/'zero-replace.astra'
-	source.write_text('int main(){owned int[] value=new int[2];value=new int[0];value=new int[3];return 0;}\n')
+	source = frozen('zero-replace.astra', 'int main(){owned int[] value=new int[2];value=new int[0];value=new int[3];return 0;}\n')
 	obj = a.build/'zero-replace.o'; native = a.build/'zero-replace'; c0 = native.with_suffix('.c0')
 	run([a.component, '--emit-obj', a.mode, obj, source], 'zero-native-emit')
 	run(['gcc', obj, '-o', native], 'zero-native-link')
@@ -63,17 +72,15 @@ def main():
 		r = run(['valgrind', '--default-suppressions=no', '--trace-malloc=yes', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', exe], 'zero-memory-'+label)
 		memories[label] = memory(r.stderr, [('A', 2), ('F', 2), ('A', 3), ('F', 3)])
 	# C0 rejects self-move replacement; preserve rejection, without emitting.
-	self_move = a.runtime/'self-move.astra'
-	self_move.write_text('int main(){owned int[] value=new int[2];value=move value;return 0;}\n')
+	self_move = frozen('self-move.astra', 'int main(){owned int[] value=new int[2];value=move value;return 0;}\n')
 	r = run([a.compiler, '--check', self_move], 'self-move-C0', 1)
 	assert b'self-move replacement is unsupported' in r.stderr
 	forbidden = a.runtime/'self-move.forbidden.o'
 	run([a.component, '--emit-obj', a.mode, forbidden, self_move], 'self-move-native', 2)
 	assert not forbidden.exists()
 	# Linker wrapping changes only the allocator oracle, not Astra bodies.
-	failure = a.runtime/'failed-replacement.astra'
-	failure.write_text('int main(){owned int[] value=new int[2];value=new int[3];return 0;}\n')
-	companion = a.runtime/'allocator-fault.c'; companion.write_text(FAULT)
+	failure = frozen('failed-replacement.astra', 'int main(){owned int[] value=new int[2];value=new int[3];return 0;}\n')
+	companion = frozen('allocator-fault.c', FAULT)
 	wrapper = a.build/'allocator-fault.o'
 	run(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', companion, '-o', wrapper], 'allocator-fault-build')
 	traps = {}

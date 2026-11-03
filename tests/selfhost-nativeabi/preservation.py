@@ -37,7 +37,7 @@ def main():
 		assert sha(path) == entry['sha256'] == old['sha256']
 		assert stat.S_IMODE(path.stat().st_mode) == old['mode']
 		protected[name] = dict(sha256=sha(path), mode=old['mode'], reason=entry['exclude'])
-	assert set(initial['protected']) <= protected.keys() and len(protected) == 449
+	assert set(initial['protected']) <= protected.keys() and len(protected) == 451
 	donor = ROOT.parent/'astra-bootstrap'
 	assert git(donor, 'rev-parse', 'HEAD').strip() == initial['donor']['head']
 	assert git(donor, 'status', '--porcelain=v1') == initial['donor']['status']

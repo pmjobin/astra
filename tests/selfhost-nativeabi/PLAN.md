@@ -83,6 +83,30 @@ call and declaration interiors now remain byte-exact, since an included header
 can define lowercase function-like macros. This conservative exception is
 counted in the per-file formatting ledger; scope braces stay exact.
 
+At the v4 source closure both O0 and O2 freshly pass all 39 selected programs,
+the 21 original plus 17 new backend fault categories, Core22/CFG26/SSA30,
+all 80 original statuses, complemented literals, the three inherited fatal
+controls and new zero-size/self-move-refusal/failed-allocation controls. All
+1044 original observations replay byte-exact with six rebuilt query products.
+The original `existing-nested` deferral remains historical; current verified IR
+coverage is 56. This is pre-migration evidence, not final milestone acceptance.
+
+The full contract audit additionally requires the documented NUM-CONV-1 integer
+and floating casts. New independent controls freeze direct integer-to-f32 rounding,
+fractional truncation edges and eight fatal nonfinite/range cases. Their new
+module-owned guard records are checked independently against source widths and
+exact intervals; a new post-SSA guard corruption must fail at correspondence.
+Fresh numeric component qualification is pending. C physical symbol uniqueness
+is independently checked, with explicit collision and unresolved-link controls.
+
+Source-location review found two more genuine debugger fixtures with fixed line
+expectations. They stay byte/mode exact, bringing protected sources to 451
+(all original 446 plus five identified proof/debug inputs). The maintained
+numeric-unit portability harness instead derives its actual statement line;
+its example implementation remains eligible. User-global Codex config bytes
+changed externally during this session; current model, reasoning, approval and
+sandbox settings remain equal to intake, and no task config write occurred.
+
 The machine-readable migration receipt includes each classified path's hashes,
 modes, line/byte counts, blank-line changes, safe Astra brace-pair deletions,
 call-interior exceptions and actual engine/policy/tool identities. The 39-input

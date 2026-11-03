@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit NUM-CONV-1 scalar semantics. These handles stay in the module owner.
+void* llvm_numeric_convert(void* builder, void* context, void* function, void* empty, void* value, void* destination, int from, int to, void*[] guards, int index) throws Error {
+	if (type_integer(from) && (to == 11 || to == 12)) {
+		if (type_signed(from)) { return LLVMBuildSIToFP(builder, value, destination, empty); }
+		return LLVMBuildUIToFP(builder, value, destination, empty);
+	}
+	if ((from != 11 && from != 12) || !type_integer(to)) { throw new Error("LLVM_DEFERRED: numeric conversion"); }
+	void* wide = value; var double_type = LLVMDoubleTypeInContext(context);
+	if (from == 11) { wide = LLVMBuildFPExt(builder, value, double_type, empty); }
+	int width = type_width(to); int exponent = width; if (type_signed(to)) { exponent = width - 1; }
+	f64 upper = 1.0d; int bit = 0; while (bit < exponent) { upper = upper * 2.0d; bit = bit + 1; }
+	f64 lower = -1.0d; int predicate = 2;
+	if (type_signed(to)) { lower = -upper; if (width == 64) { predicate = 3; } else { lower = lower - 1.0d; } }
+	var above = LLVMBuildFCmp(builder, predicate, wide, LLVMConstReal(double_type, lower), empty);
+	var below = LLVMBuildFCmp(builder, 4, wide, LLVMConstReal(double_type, upper), empty);
+	var valid = LLVMBuildAnd(builder, above, below, empty);
+	var safe = LLVMBuildSelect(builder, valid, value, LLVMConstNull(LLVMTypeOf(value)), empty);
+	var bad = LLVMBuildXor(builder, valid, LLVMConstInt(LLVMIntTypeInContext(context, 1), 1, 0), empty);
+	var trap = llvm12_block(context, function, "numeric.trap"); var next = llvm12_block(context, function, "numeric.valid");
+	guards[index - 1] = LLVMBuildCondBr(builder, bad, trap, next);
+	LLVMPositionBuilderAtEnd(builder, trap);
+	var signature = LLVMFunctionType(LLVMVoidTypeInContext(context), null, 0, 0);
+	var declaration = llvm12_function(LLVMGetGlobalParent(function), signature, "llvm.trap");
+	var call = LLVMBuildCall2(builder, signature, declaration, null, 0, empty); var end = LLVMBuildUnreachable(builder);
+	LLVMPositionBuilderAtEnd(builder, next);
+	if (type_signed(to)) { return LLVMBuildFPToSI(builder, safe, destination, empty); }
+	return LLVMBuildFPToUI(builder, safe, destination, empty);
+}
+
+// Independent checker: reconstruct fixed-width truncation intervals directly
+// from the source destination. Never invokes the emitter or its bound loop.
+bool llvm_check_numeric(SsaProgram program, void*[] functions, void*[] blocks, void*[] ends, void*[] values, void*[] guards) {
+	if (len(guards) != program.data.instruction_count) { return false; }
+	var budget = new SsaBudget(8000000); int i = 0;
+	while (i < program.data.instruction_count && budget.take(1)) {
+		var source = program.data.instructions[i]; var row = source.origin; bool required = false;
+		if (row.opcode == 8 && program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.value.function)) {
+			var operand = program.cfg.core.flow.checked.bindings.program.arena.get_node_operand(row.value.source);
+			int from = checked_kind(program.cfg.core.flow.checked, program.cfg.core.flow.checked.uses[operand.index].type); int to = checked_kind(program.cfg.core.flow.checked, row.value.type);
+			if ((type_integer(from) && (to == 11 || to == 12)) || ((from == 11 || from == 12) && type_integer(to))) {
+				int use = llvm_check_use(program.data, i + 1, 1, 0, budget);
+				if (use < 1 || source.result < 1) { return false; }
+				var value = values[use - 1]; var result = values[source.result - 1];
+				if (type_integer(from)) {
+					int code = 35; if (type_signed(from)) { code = 36; }
+					if (LLVMIsAInstruction(result) != null) { if (LLVMGetInstructionOpcode(result) != code || LLVMGetOperand(result, 0) != value) { return false; } }
+					else {
+						if (LLVMIsAConstantInt(value) == null || LLVMIsAConstantFP(result) == null) { return false; }
+						u64 bits = LLVMConstIntGetZExtValue(value); f64 expected = 0.0d;
+						if (type_signed(from)) {
+							int width = type_width(from); if (width < 64 && (bits & (1 as u64 << (width - 1))) != 0) { bits = bits | (18446744073709551615 << width); }
+							i64 signed_bits = bits as i64;
+							if (to == 11) { f32 rounded = signed_bits as f32; expected = rounded as f64; } else { expected = signed_bits as f64; }
+						} else { if (to == 11) { f32 rounded = bits as f32; expected = rounded as f64; } else { expected = bits as f64; } }
+						if (result != LLVMConstReal(LLVMTypeOf(result), expected)) { return false; }
+					}
+				} else {
+					required = true; int width = type_width(to); f64 low = -1.0d; f64 high = 0.0d; int predicate = 2;
+					if (type_signed(to)) {
+						if (width == 8) { low = -129.0d; high = 128.0d; }
+						if (width == 16) { low = -32769.0d; high = 32768.0d; }
+						if (width == 32) { low = -2147483649.0d; high = 2147483648.0d; }
+						if (width == 64) { low = -9223372036854775808.0d; high = 9223372036854775808.0d; predicate = 3; }
+					} else {
+						if (width == 8) { high = 256.0d; } if (width == 16) { high = 65536.0d; }
+						if (width == 32) { high = 4294967296.0d; } if (width == 64) { high = 18446744073709551616.0d; }
+					}
+					var branch = guards[i]; var function = functions[row.value.function - 1];
+					if (branch == null || !llvm_check_live_instruction(function, branch, budget) || LLVMGetInstructionOpcode(branch) != 2 || LLVMGetNumSuccessors(branch) != 2 || LLVMGetInstructionParent(branch) != blocks[row.block - 1]) { return false; }
+					var trap = LLVMGetSuccessor(branch, 0); var next = LLVMGetSuccessor(branch, 1);
+					if (LLVMGetBasicBlockParent(trap) != function || next != ends[row.block - 1]) { return false; }
+					var call = LLVMGetFirstInstruction(trap); var end = LLVMGetBasicBlockTerminator(trap);
+					if (call == null || end == null || LLVMGetInstructionOpcode(call) != 45 || llvm13_named(LLVMGetCalledValue(call), "llvm.trap") != 1 || LLVMGetNumArgOperands(call) != 0 || LLVMGetInstructionOpcode(end) != 7 || LLVMGetNextInstruction(call) != end) { return false; }
+					var bad = LLVMGetOperand(branch, 0);
+					if (LLVMIsAConstantFP(value) != null) {
+						f64 number = llvm13_real_value(value); bool above = number > low; if (predicate == 3) { above = number >= low; }
+						bool valid = above && number < high; u64 bad_bit = 1; if (valid) { bad_bit = 0; }
+						if (LLVMIsAConstantInt(bad) == null || LLVMConstIntGetZExtValue(bad) != bad_bit || LLVMIsAConstantInt(result) == null) { return false; }
+						u64 expected = 0; if (valid) { if (type_signed(to)) { i64 signed_value = number as i64; expected = signed_value as u64; } else { expected = number as u64; } }
+						if (result != LLVMConstInt(LLVMTypeOf(result), expected, 0)) { return false; }
+					} else {
+						int code = 33; if (type_signed(to)) { code = 34; }
+						if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != code || LLVMGetInstructionParent(result) != next || LLVMIsAInstruction(bad) == null || LLVMGetInstructionOpcode(bad) != 25 || LLVMGetInstructionParent(bad) != blocks[row.block - 1]) { return false; }
+						var valid = LLVMGetOperand(bad, 0); var one = LLVMGetOperand(bad, 1); var safe = LLVMGetOperand(result, 0);
+						if (LLVMIsAConstantInt(one) == null || LLVMConstIntGetZExtValue(one) != 1 || LLVMIsAInstruction(valid) == null || LLVMGetInstructionOpcode(valid) != 23 || LLVMIsAInstruction(safe) == null || LLVMGetInstructionOpcode(safe) != 46 || LLVMGetOperand(safe, 0) != valid || LLVMGetOperand(safe, 1) != value || LLVMGetOperand(safe, 2) != LLVMConstNull(LLVMTypeOf(value))) { return false; }
+						var above = LLVMGetOperand(valid, 0); var below = LLVMGetOperand(valid, 1);
+						if (LLVMIsAInstruction(above) == null || LLVMIsAInstruction(below) == null || LLVMGetInstructionOpcode(above) != 43 || LLVMGetInstructionOpcode(below) != 43 || LLVMGetFCmpPredicate(above) != predicate || LLVMGetFCmpPredicate(below) != 4) { return false; }
+						var wide = LLVMGetOperand(above, 0);
+						if (LLVMGetOperand(below, 0) != wide || LLVMGetTypeKind(LLVMTypeOf(wide)) != 3 || LLVMGetOperand(above, 1) != LLVMConstReal(LLVMTypeOf(wide), low) || LLVMGetOperand(below, 1) != LLVMConstReal(LLVMTypeOf(wide), high)) { return false; }
+						if (from == 12) { if (wide != value) { return false; } } else { if (LLVMIsAInstruction(wide) == null || LLVMGetInstructionOpcode(wide) != 38 || LLVMGetOperand(wide, 0) != value) { return false; } }
+					}
+				}
+			}
+		}
+		if (!required && guards[i] != null) { return false; }
+		i = i + 1;
+	}
+	return !budget.exhausted;
+}

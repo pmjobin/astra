@@ -57,6 +57,13 @@ def main():
 		admission = run([a.component, '--nativeabi-admit', a.mode, a.runtime/'unused', source], name+'-admit').stdout
 		assert admission.startswith(b'astra-flow/4\nSTATUS 0 0\n')
 		ssa = run([a.component, '--nativeabi-ssa', a.mode, a.runtime/'unused', source], name+'-ssa').stdout
+		plan = bytes.fromhex(run([a.component, '--abi-plan', a.mode, a.runtime/'unused', source], name+'-abi').stdout.decode().strip())
+		assert plan.startswith(b'astra-nativeabi/1')
+		products['ABI-plan'] = a.runtime/(name+'.abi')
+		products['ABI-plan'].write_bytes(plan)
+		for command, suffix in [('--dump-nabi', 'nabi'), ('--dump-cabi', 'cabi')]:
+			products['C0-'+suffix] = a.runtime/(name+'.'+suffix)
+			products['C0-'+suffix].write_bytes(run([a.compiler, command, source], name+'-C0-'+suffix).stdout)
 		for command, key in [('--llvm-raw', 'raw'), ('--llvm-ir', 'ir'), ('--emit-obj', 'object')]:
 			run([a.component, command, a.mode, products[key], source], name+'-'+key)
 		text = products['raw'].read_text()

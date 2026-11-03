@@ -199,6 +199,10 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 	while (f < program.data.function_count && budget.take(1)) {
 		var original = program.cfg.core.data.functions[f]; var declaration = program.cfg.core.flow.checked.bindings.symbol(original.symbol);
 		bool imported = program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node); bool exported = program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node);
+		int previous = 0; while (previous < f && budget.take(1)) {
+			if (functions[f] == functions[previous] || (wrappers[f] != null && (wrappers[f] == functions[previous] || wrappers[f] == wrappers[previous])) || (wrappers[previous] != null && functions[f] == wrappers[previous])) { return false; }
+			previous = previous + 1;
+		}
 		if (!llvm_check_attributes(functions[f], LLVMCountParams(functions[f]), 0)) { return false; }
 		if (imported || exported) {
 			if (!checked_c_scalar_signature(program.cfg.core.flow.checked, original.symbol)) { return false; }

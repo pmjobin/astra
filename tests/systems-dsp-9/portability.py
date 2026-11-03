@@ -26,7 +26,9 @@ def main(compiler, output):
 		e.run(['llvm-dwarfdump', '--verify', exe], contains='No errors.')
 		e.files(obj, interface, exe)
 		e.run([e.compiler, '--format', '--check', apps/'a71-consumer.astra'])
-	e.run(['gdb', '--nx', '--batch', '-ex', 'set debuginfod enabled off', '-ex', f'break {apps/"numeric-unit.astra"}:4',
+	unit_lines = (apps/'numeric-unit.astra').read_text().splitlines()
+	state_line = next(i for i, line in enumerate(unit_lines, 1) if 'int state' in line)
+	e.run(['gdb', '--nx', '--batch', '-ex', 'set debuginfod enabled off', '-ex', f'break {apps/"numeric-unit.astra"}:{state_line}',
 		'-ex', 'run', '-ex', 'print input', '-ex', 'continue', e.output/'a71-0-0'], contains='$1 = 4', env=dict(DEBUGINFOD_URLS=''))
 	tampered = e.output/'numeric-wrong-target.nabi'
 	interface_text = (e.output/'numeric-O0.nabi').read_text()

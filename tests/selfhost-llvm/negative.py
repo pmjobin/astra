@@ -64,6 +64,7 @@ def main():
 	mapping = []
 	for item in json.loads((a.frozen/'predecessor.json').read_text()):
 		artifact = a.runtime/(item['name']+'.forbidden.o')
+		matrix = None
 		upstream = run([a.component,'--ssa',*item['paths']],item['name']+'-upstream',item['core_status'])
 		if item['core_status']:
 			r = run([a.component,'--emit-obj',a.mode,artifact,*item['paths']],item['name']+'-backend',2)
@@ -73,7 +74,8 @@ def main():
 			# Positives are enumerated even if outside the frozen execution pool.
 			r = run([a.component,'--llvm-raw',a.mode,artifact,*item['paths']],item['name']+'-matrix',(0,2))
 			if r.returncode == 0:
-				assert artifact.exists(); artifact.unlink(); status = 'LLVM_IR_VERIFIED'
+				assert artifact.exists()
+				matrix = a.runtime/(item['name']+'.matrix.ll'); artifact.rename(matrix); status = 'LLVM_IR_VERIFIED'
 			else:
 				assert r.returncode == 2 and b'LLVM_DEFERRED' in r.stderr and not artifact.exists(),(item['name'],r.returncode,r.stderr)
 				status = 'LLVM_DEFERRED'
@@ -86,8 +88,9 @@ def main():
 					rows.setdefault(x[0],[]).append(x[1:])
 			active = {int(x[7]) for x in rows.get('SSA_VALUE',[])} | {int(x[6]) for x in rows.get('PLACE',[])} | {int(x[3]) for x in rows.get('FUNCTION',[])}
 			used_types = sorted(active)
-		unmapped_builtins = {str(i):name for i,name in [(11,'f32'),(12,'f64'),(15,'string'),(16,'void*')] if i in used_types}
-		mapping.append(dict(unmapped_builtin_types=unmapped_builtins,active_type_ids=used_types,name=item['name'],source_sha256=item['sha256'],ssa_status=item['core_status'],llvm_status=status,diagnostic=r.stderr.decode()))
+		special_builtins = {str(i):name for i,name in [(11,'f32'),(12,'f64'),(15,'string'),(16,'void*')] if i in used_types}
+		mapping.append(dict(special_builtin_types=special_builtins,active_type_ids=used_types,name=item['name'],source_sha256=item['sha256'],ssa_status=item['core_status'],llvm_status=status,diagnostic=r.stderr.decode(),
+			ir_path=str(matrix) if matrix else None, ir_sha256=sha(matrix) if matrix else None))
 		# Real unsuppressed LLVM lifecycle/error-path runs, separate from fatal apps.
 	memory_rows = []
 	for name,command in [('ssa-diamond','--llvm-lifecycle'),('ssa-argument-order','--llvm-limits'),('ssa-borrow-end','--emit-obj'),('numeric-conversions','--mutate-llvm')]:

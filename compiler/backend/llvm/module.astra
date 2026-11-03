@@ -32,6 +32,7 @@ class LlvmModule {
 	private owned void*[] effects;
 	private owned void*[] retirements;
 	private owned void*[] retirement_guards;
+	private owned void*[] numeric_guards;
 	private owned int[] retirement_modes;
 	private owned void*[] types;
 	private owned void*[] functions;
@@ -62,6 +63,7 @@ class LlvmModule {
 		this.context = null; this.module = null; this.builder = null; this.machine = null; this.layout = null;
 		this.seal = null; this.effects = new void*[instructions]; this.handles = null; this.empty = llvm12_empty(); this.optimization = profile.optimization; this.output_limit = profile.output; this.remaining = profile.work; this.complete = false; this.disposed = false;
 		this.retirements = new void*[instructions]; this.retirement_guards = new void*[instructions];
+		this.numeric_guards = new void*[instructions];
 		this.retirement_modes = new int[instructions];
 		this.types = new void*[types];
 		this.functions = new void*[functions]; this.wrappers = new void*[functions]; this.signatures = new void*[functions];
@@ -420,7 +422,7 @@ class LlvmModule {
 				if (to == 12) { return LLVMBuildFPExt(this.builder, value, type, this.empty); }
 				return LLVMBuildFPTrunc(this.builder, value, type, this.empty);
 			}
-			if (!type_integer(from) || !type_integer(to)) { throw new Error("LLVM_DEFERRED: conversion"); }
+			if (!type_integer(from) || !type_integer(to)) { return llvm_numeric_convert(this.builder, this.context, function, this.empty, value, type, from, to, this.numeric_guards, index); }
 			if (type_width(from) == type_width(to)) { return value; }
 			if (type_width(from) > type_width(to)) { return LLVMBuildTrunc(this.builder, value, type, this.empty); }
 			if (type_signed(from)) { return LLVMBuildSExt(this.builder, value, type, this.empty); }
@@ -544,12 +546,13 @@ class LlvmModule {
 		}
 	}
 	bool check(SsaProgram program) throws Error {
-		return native_abi_verify(this.abi, program, this.optimization, this.layout, this.types, this.functions) && llvm_check_retirements(program, this.functions, this.blocks, this.places, this.armed, this.retirements, this.retirement_guards) && llvm_check(program, this.types, this.functions, this.wrappers, this.signatures, this.blocks, this.ends, this.edges, this.values, this.places, this.effects, 8000000);
+		return native_abi_verify(this.abi, program, this.optimization, this.layout, this.types, this.functions) && llvm_check_retirements(program, this.functions, this.blocks, this.places, this.armed, this.retirements, this.retirement_guards) && llvm_check_numeric(program, this.functions, this.blocks, this.ends, this.values, this.numeric_guards) && llvm_check(program, this.types, this.functions, this.wrappers, this.signatures, this.blocks, this.ends, this.edges, this.values, this.places, this.effects, 8000000);
 	}
 	int audit(SsaProgram program) throws Error {
 		if (!this.complete || this.disposed || this.module == null || !type_owner_same(this.source_owner, program.data.identity) || ssa_verify(program) != 0) { return 5; }
 		if (!native_abi_verify(this.abi, program, this.optimization, this.layout, this.types, this.functions)) { return 1; }
 		if (!llvm_check_retirements(program, this.functions, this.blocks, this.places, this.armed, this.retirements, this.retirement_guards)) { return 2; }
+		if (!llvm_check_numeric(program, this.functions, this.blocks, this.ends, this.values, this.numeric_guards)) { return 3; }
 		if (!llvm_check(program, this.types, this.functions, this.wrappers, this.signatures, this.blocks, this.ends, this.edges, this.values, this.places, this.effects, 8000000)) { return 3; }
 		if (llvm12_verify(this.module) != 0) { return 4; } return 0;
 	}
@@ -579,6 +582,14 @@ class LlvmModule {
 		if (!this.complete || this.module == null) { throw new Error("LLVM_INVALID_IR: fault input"); }
 		if (native_abi_fault(this.abi, category)) { return true; }
 		if (category == 33 && len(this.types) > 11 && this.types[11] != null) { this.types[11] = LLVMIntTypeInContext(this.context, 32); return true; }
+		if (category == 38) {
+			int i = 0; while (i < len(this.numeric_guards)) {
+				var branch = this.numeric_guards[i];
+				if (branch != null && LLVMIsAInstruction(LLVMGetOperand(branch, 0)) != null) { LLVMSetOperand(branch, 0, LLVMConstInt(LLVMIntTypeInContext(this.context, 1), 0, 0)); return true; }
+				i = i + 1;
+			}
+			return false;
+		}
 		if (category == 27 || category == 28 || category == 35) {
 			int i = 0;
 			while (i < len(this.retirements)) {

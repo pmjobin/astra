@@ -60,6 +60,12 @@ def main():
 		admission = run([a.component,'--admit',source], name+'-admission').stdout
 		proofs = [line.decode() for line in admission.splitlines() if line.startswith(b'PROOF ')]
 		assert admission.startswith(b'astra-flow/3\nSTATUS 0 0\n'), (name, 'semantic admission failed')
+		plan = bytes.fromhex(run([a.component,'--abi-plan',a.mode,a.runtime/'unused',source], name+'-abi').stdout.decode().strip())
+		assert plan.startswith(b'astra-nativeabi/1')
+		paths['ABI-plan'] = a.runtime/(name+'.abi'); paths['ABI-plan'].write_bytes(plan)
+		for command, suffix in [('--dump-nabi','nabi'),('--dump-cabi','cabi')]:
+			paths['C0-'+suffix] = a.runtime/(name+'.'+suffix)
+			paths['C0-'+suffix].write_bytes(run([a.compiler,command,source],name+'-C0-'+suffix).stdout)
 		for stage, key in [('--llvm-raw','raw'),('--llvm-ir','ir'),('--emit-obj','object')]:
 			run([a.component,stage,a.mode,paths[key],source], name+'-'+key)
 		facts = inspect(paths['raw'].read_bytes(), ssa)

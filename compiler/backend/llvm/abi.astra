@@ -108,6 +108,15 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 		var signature = program.cfg.core.flow.checked.signatures[source.signature.index - 1]; var shape = program.cfg.core.flow.checked.types.row(signature.callable);
 		int linkage = 0; if (llvm_imported(program, f + 1)) { linkage = 1; } if (llvm_exported(program, f + 1)) { linkage = 2; }
 		if (linkage != 0 && !checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) { throw new Error("LLVM_DEFERRED: C ABI contract"); }
+		if (linkage != 0) {
+			int previous = 0; while (previous < f && budget.take(1)) {
+				if (llvm_imported(program, previous + 1) || llvm_exported(program, previous + 1)) {
+					var prior = program.cfg.core.flow.checked.bindings.symbol(program.cfg.core.data.functions[previous].symbol);
+					if (prior.name == declaration.name) { throw new Error("LLVM_DEFERRED: C physical symbol collision"); }
+				}
+				previous = previous + 1;
+			}
+		}
 		NativeAbiFunction row = {ordinal = f + 1, symbol = source.symbol.index, signature = source.signature.index, linkage = linkage, convention = 0, result_convention = 1, receiver = -1, hidden_result = -1, first = cursor, count = shape.count, span = source.span};
 		if (source.result.index == 14) { row.result_convention = 0; }
 		int p = 0;

@@ -38,9 +38,16 @@ def main():
 	for key in ('component', 'compiler', 'runtime', 'build'):
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
+	p.add_argument('--inputs', type=Path, required=True)
 	a = p.parse_args()
 	assert all(not path.resolve().is_relative_to(ROOT) for path in (a.runtime, a.build))
 	a.runtime.mkdir(parents=True, exist_ok=False); a.build.mkdir(parents=True, exist_ok=True)
+	assert not a.inputs.resolve().is_relative_to(ROOT)
+	a.inputs.mkdir(parents=True, exist_ok=True)
+	identity = json.loads(a.component.with_suffix('.identity.json').read_text())
+	assert sha(a.component) == identity['sha256']
+	assert all(sha(path) == digest for path, digest in identity['identity']['sources'].items())
+	assert sha(a.compiler) == '30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de'
 	commands, results = [], []
 	def run(argv, name, expected=0):
 		start = time.monotonic()
@@ -56,7 +63,11 @@ def main():
 		source = type_name+' convert(f64 value){return value as '+type_name+';}int main(){f64 x=0.0d;var converted=convert('+expression+');return 0;}'
 		cases.append((name, source, -4))
 	for name, text, expected in cases:
-		source = a.runtime/(name+'.astra'); source.write_text(text+'\n')
+		source = a.inputs/(name+'.astra')
+		if source.exists():
+			assert source.read_bytes() == (text+'\n').encode()
+		else:
+			source.write_text(text+'\n')
 		obj = a.build/(name+'.o'); exe = obj.with_suffix('.native'); c0 = obj.with_suffix('.c0')
 		run([a.compiler, '--check', source], name+'-C0-check')
 		run([a.component, '--emit-obj', a.mode, obj, source], name+'-emit')
@@ -68,6 +79,22 @@ def main():
 			if expected == 0:
 				v = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', product], name+'-memory-'+label)
 				memory(v.stderr)
+		if name == 'FP-to-narrow':
+			forbidden = a.runtime/'numeric.forbidden.o'
+			r = run([a.component, '--nativeabi-mutations', a.mode, forbidden, source], 'numeric-guard-mutation')
+			proof = []
+			for line in r.stdout.splitlines():
+				parts = line.split()
+				if int(parts[1]) == 38:
+					assert int(parts[2]) == 3 and len(parts) == 9
+					assert parts[3:5] == parts[7:9] and parts[3:5] != parts[5:7]
+					proof.append(hashlib.sha256(line).hexdigest())
+			assert len(proof) == 1 and not forbidden.exists()
+			(a.runtime/'numeric-mutation.json').write_text(json.dumps(dict(category=38,
+				name='unguarded-FP-to-integer', independent_stage=3, seal_independent=True,
+				proof_line_sha256=proof[0]), indent=2)+'\n')
+			v = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', a.component, '--nativeabi-mutations', a.mode, forbidden, source], 'numeric-guard-mutation-memory')
+			memory(v.stderr)
 		results.append(dict(name=name, source_sha256=sha(source), expected_exit=expected,
 			native_sha256=sha(exe), C0_sha256=sha(c0), normal_leak_claim=expected == 0))
 	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS', mode=a.mode,
