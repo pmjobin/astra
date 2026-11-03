@@ -26,6 +26,7 @@ def main():
 	run('runtime_order.py', '--compiler', a.compiler, '--build', a.build/'runtime-order', '--runtime', leaf/'runtime-order', '--frozen', leaf/'frozen')
 	run('run.py', '--build', a.build, '--runtime', leaf/'runs', '--frozen', leaf/'frozen')
 	run('bounds.py', '--compiler', a.compiler, '--build', a.build, '--runtime', leaf/'bounds', '--frozen', leaf/'frozen')
+	run('whole.py', '--build', a.build, '--runtime', leaf/'whole')
 	run('memory.py', '--build', a.build, '--runtime', leaf/'memory', '--frozen', leaf/'frozen', '--reference', a.build/'reference')
 	subprocess.run([sys.executable, '-B', ROOT/'tests/selfhost-coreir/reference.py', '--compiler', a.compiler, '--build', a.build/'core-reference', '--runtime', leaf/'core-reference', '--baseline', leaf/'frozen/core/frozen', '--additional', leaf/'frozen/core/additional-frozen'], check=True)
 
