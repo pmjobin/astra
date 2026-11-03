@@ -15,6 +15,7 @@ CASES = {
 	'generic-record-buffer-copy': (['struct Box<T> { T[] value; } int main() { Box<int> a={value=new int[2]}; var b=a; return 0; }'], 1),
 	'foreign-generic': (['extern(C) T external<T>(T x); int main() { return external<int>(1); }'], 1),
 	'cross-unit-conflict': (['T identity<T>(T x) { return x; }', 'T identity<T>(T x) { return x; } int main() { return identity<int>(1); }'], 1),
+	'unapproved-Class-transfer-ABI': (['class Echo<T>{init(){} T echo(T value){return value;}} owned Echo<int> relay(owned Echo<int> value){return move value;} int main(){var a=new Echo<int>();var b=relay(move a);return b.echo(43)-43;}'], 0),
 }
 
 
@@ -45,13 +46,18 @@ def main():
 		if name == 'foreign-generic': assert b'generic extern(C)' in parsed.stderr
 		c0 = run([a.compiler, '--check', *sources], name+'-C0'); assert c0.returncode == c0_exit, (name, c0.returncode, c0.stderr)
 		admit = run([a.component, '--nativeabi-admit', a.mode, a.build/'unused', *sources], name+'-admit')
-		assert admit.returncode in (1, 3) and (b'CHECKED_ERROR' in admit.stdout or b'DEFER ' in admit.stdout), (name, admit.returncode, admit.stdout, admit.stderr)
+		abi_only = name == 'unapproved-Class-transfer-ABI'
+		if abi_only:
+			assert admit.returncode == 0 and b'STATUS 0 0' in admit.stdout
+		else:
+			assert admit.returncode in (1, 3) and (b'CHECKED_ERROR' in admit.stdout or b'DEFER ' in admit.stdout), (name, admit.returncode, admit.stdout, admit.stderr)
 		diagnostics = [bytes.fromhex(line.split()[-1]) for line in admit.stdout.decode().splitlines() if line.startswith('CHECKED_ERROR ')]
-		if c0_exit == 0:
+		if c0_exit == 0 and not abi_only:
 			assert any(b'DEFERRED' in text for text in diagnostics) or b'DEFER ' in admit.stdout, (name, admit.stdout)
 		out = a.build/(name+'.o'); out.write_bytes(b'refused-policy-sentinel\n'); before = sha(out)
 		emit = run([a.component, '--emit-obj', a.mode, out, *sources], name+'-emit')
 		assert emit.returncode == 2 and sha(out) == before
+		if abi_only: assert b'LLVM_DEFERRED: Class ABI is qualified only for the hidden borrowed receiver' in emit.stderr
 		rows.append(dict(name=name, sources=[dict(path=str(path), sha256=sha(path)) for path in sources], independent_c0_parse_exit=parsed.returncode, independent_c0_exit=c0.returncode, independent_c0_diagnostic=c0.stderr.decode(), native_exit=admit.returncode, native_diagnostic=admit.stdout.decode(), checked_diagnostics=[text.decode() for text in diagnostics], destination_preserved=before, classification='REJECTED' if name == 'cross-unit-conflict' else 'DEFERRED', limitation='Generic field cases fail the C0 storage premise before any copy; foreign generic ABI is refused at the C0 parser policy.' if name.startswith(('generic-', 'foreign-')) else '', result='PASS'))
 		(a.runtime/'results.json').write_text(json.dumps(rows, indent=2)+'\n')
 		print(name, a.mode, rows[-1]['classification'], flush=True)

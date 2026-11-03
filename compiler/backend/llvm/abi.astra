@@ -109,7 +109,11 @@ void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, in
 							while (symbol <= checked.bindings.symbol_count && budget.take(1)) {
 								var field = checked.bindings.symbol(type_symbol(symbol));
 								if (field.kind == 6 && field.owner.index == source.nominal.index) {
-									var field_type = checked.symbol_types[symbol]; native_abi_layout(plan, checked, field_type, depth + 1, budget);
+									var field_type = checked.symbol_types[symbol];
+									if (checked_kind(checked, field_type) == 31) {
+										throw new Error("LLVM_DEFERRED: Class aggregate channels require a separate ABI qualification");
+									}
+									native_abi_layout(plan, checked, field_type, depth + 1, budget);
 									var child = plan.types[field_type.index];
 									int padding = (child.alignment - row.size % child.alignment) % child.alignment;
 									if (row.size > 16777216 - child.size - padding) {
@@ -172,6 +176,9 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 		int p = 0;
 		while (p < shape.count) {
 			var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, p);
+			if (checked_kind(program.cfg.core.flow.checked, edge.type) == 31 && (receiver != 0 || p != 1 || edge.flags != 2)) {
+				throw new Error("LLVM_DEFERRED: Class ABI is qualified only for the hidden borrowed receiver");
+			}
 			native_abi_layout(plan, program.cfg.core.flow.checked, edge.type, 0, budget);
 			int representation = native_abi_representation(program.cfg.core.flow.checked, edge, linkage != 0);
 			if (representation < 0) {
@@ -223,6 +230,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 					var field = program.cfg.core.flow.checked.bindings.symbol(type_symbol(symbol));
 					if (field.kind == 6 && field.owner.index == source.nominal.index) {
 						var expected = program.cfg.core.flow.checked.symbol_types[symbol]; var entry = plan.fields[symbol];
+						if (checked_kind(program.cfg.core.flow.checked, expected) == 31) return false;
 						if (entry.owner != t || entry.ordinal != ordinal || entry.symbol != symbol || entry.semantic != expected.index || entry.offset < 0 || LLVMOffsetOfElement(layout, actual, ordinal) != entry.offset as u64 || LLVMStructGetTypeAtIndex(actual, ordinal) != types[expected.index]) return false; ordinal = ordinal + 1;
 					}
 					symbol = symbol + 1;
@@ -250,6 +258,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 			var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, p); var channel = plan.channels[cursor];
 			if (channel.function != f + 1 || channel.ordinal != p - 1 || channel.semantic != edge.type.index || channel.ownership != edge.flags) return false;
 			int kind = checked_kind(program.cfg.core.flow.checked, edge.type); int expected = 7;
+			if (kind == 31 && (receiver != 0 || p != 1 || edge.flags != 2)) return false;
 			if (linkage != 0) {
 				if (!checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) return false;
 				expected = -1; if (kind == 1) expected = 1; if (kind == 11) expected = 2; if (kind == 12) expected = 3; if ((kind == 16 || kind == 20)) expected = 4; if (p == 0 && kind == 14) expected = 0;
