@@ -14,12 +14,15 @@ internal class LlvmScopedConstructorStack : Object {
 	private static bool one(CApi.ValueRef value) {
 		return (void*) CApi.is_constant_int (value) != null && CApi.const_int_zext (value) == 1;
 	}
+
 	private bool count_address(CApi.ValueRef value) {
 		return (void*) value == (void*) count;
 	}
+
 	private bool stack_address(CApi.ValueRef value) {
 		return (void*) CApi.is_instruction (value) != null && CApi.opcode (value) == CApi.Opcode.GEP && CApi.operand_count (value) == 3 && (void*) CApi.gep_source_type (value) == (void*) array && (void*) CApi.operand (value, 0) == (void*) stack && (void*) CApi.is_constant_int (CApi.operand (value, 1)) != null && CApi.const_int_zext (CApi.operand (value, 1)) == 0;
 	}
+
 	private void memory_uses(CApi.ValueRef address) throws LlvmError {
 		for (var use = CApi.first_use (address); (void*) use != null; use = CApi.next_use (use)) {
 			var user = CApi.user (use);
@@ -32,6 +35,7 @@ internal class LlvmScopedConstructorStack : Object {
 			}
 		}
 	}
+
 	internal LlvmScopedConstructorStack (CApi.ValueRef function, int capacity) throws LlvmError {
 		if (capacity <= 0) {
 			throw new LlvmError.VERIFICATION ("checked constructor stack lost its exact native capacity");
@@ -91,6 +95,7 @@ internal class LlvmScopedConstructorStack : Object {
 			}
 		} while (changed);
 	}
+
 	// Zero is unknown; a bounded nonnegative integer is encoded as n + 1.
 	private uint value(CApi.ValueRef input, uint[] state, int offset) {
 		if ((void*) CApi.type_of (input) != (void*) word) {
@@ -102,6 +107,7 @@ internal class LlvmScopedConstructorStack : Object {
 		}
 		return registers.contains ((void*) input) ? state[offset + capacity + 1 + registers.lookup ((void*) input)] : 0;
 	}
+
 	private int address(CApi.ValueRef input, uint[] state, int offset, bool strict) throws LlvmError {
 		if (count_address (input)) {
 			return 0;
@@ -118,6 +124,7 @@ internal class LlvmScopedConstructorStack : Object {
 		}
 		return (int) index;
 	}
+
 	internal void effect(CApi.ValueRef instruction, uint[] state, int offset, bool strict) throws LlvmError {
 		var opcode = CApi.opcode (instruction);
 		if (opcode == CApi.Opcode.STORE) {
@@ -158,6 +165,7 @@ internal class LlvmScopedConstructorStack : Object {
 		}
 		state[offset + capacity + 1 + registers.lookup ((void*) instruction)] = result;
 	}
+
 	internal int condition(CApi.ValueRef instruction, uint[] state, int offset) {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.ICMP) {
 			return -1;
@@ -177,6 +185,7 @@ internal class LlvmScopedConstructorStack : Object {
 			return -1;
 		}
 	}
+
 	internal bool edge(CApi.ValueRef end, uint successor, uint[] state, int offset) {
 		if (CApi.opcode (end) != CApi.Opcode.SWITCH) {
 			return true;
@@ -195,5 +204,6 @@ internal class LlvmScopedConstructorStack : Object {
 		}
 		return choice == successor;
 	}
+
 }
 }

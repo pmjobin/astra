@@ -21,6 +21,7 @@ private LlvmModuleArtifact artifact() throws GLib.Error {
 	result.verify ();
 	return result;
 }
+
 private void lifetime() {
 	try {
 		for (int repeat = 0; repeat < 3; repeat++) {
@@ -49,6 +50,7 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private ContinuationAction replace_owner(ContinuationAction action, int owner) {
 	var captures = new int[action.capture_count];
 	for (int i = 0; i < captures.length; i++) {
@@ -56,6 +58,7 @@ private ContinuationAction replace_owner(ContinuationAction action, int owner) {
 	}
 	return new ContinuationAction (action.kind, owner, action.destination, action.family, action.instance, action.witness, action.operand, action.first_entry, action.second_entry, action.role, captures);
 }
+
 private void mutate_actions(GenericArray<ContinuationAction> actions, int variant) {
 	if (variant == 0) {
 		actions[0] = new ContinuationAction (ContinuationActionKind.CREATE, 0, -1, 99, 0);
@@ -112,12 +115,14 @@ private void mutate_actions(GenericArray<ContinuationAction> actions, int varian
 		actions[8] = new ContinuationAction (ContinuationActionKind.END, 1, -1, -1, -1, 0);
 	}
 }
+
 private string[] reasons;
 private void initialize_reasons() {
 	reasons = {
 		"wrong operation family", "step", "duplicate owning descriptor", "duplicate environment", "initializ", "capture", "signature", "role", "reentrant", "destruction", "move overlaps", "use after", "destruction", "association", "use after", "destruction", "duplicat", "association"
 	};
 }
+
 private void logical_negative(int variant) {
 	try {
 		var source = build ();
@@ -135,6 +140,7 @@ private void logical_negative(int variant) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void plan_negative(int variant) {
 	try {
 		var source = build ();
@@ -152,6 +158,7 @@ private void plan_negative(int variant) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void contract_negative(int variant) {
 	try {
 		var source = build ();
@@ -194,6 +201,7 @@ private void contract_negative(int variant) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void physical_contract_negative(int variant) {
 	try {
 		var source = build ();
@@ -230,6 +238,7 @@ private void physical_contract_negative(int variant) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void correspondence() {
 	try {
 		var source = build ();
@@ -251,6 +260,7 @@ private void correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void wrong_region() {
 	try {
 		var first = build ();
@@ -268,6 +278,7 @@ private void wrong_region() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void llvm_negative(int variant) {
 	try {
 		var lowered = artifact ();
@@ -307,25 +318,32 @@ private void llvm_negative(int variant) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private int test_variant() {
 	var path = Test.get_path ();
 	return int.parse (path.substring (path.length - 2));
 }
+
 private void logical_case() {
 	logical_negative (test_variant ());
 }
+
 private void plan_case() {
 	plan_negative (test_variant ());
 }
+
 private void contract_case() {
 	contract_negative (test_variant ());
 }
+
 private void physical_contract_case() {
 	physical_contract_negative (test_variant ());
 }
+
 private void llvm_case() {
 	llvm_negative (test_variant ());
 }
+
 int main(string[] args) {
 	if (args.length == 3 && args[1] == "--emit") {
 		try {
@@ -361,4 +379,5 @@ int main(string[] args) {
 	}
 	return Test.run ();
 }
+
 }

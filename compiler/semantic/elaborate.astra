@@ -2,10 +2,12 @@
 bool checked_nominal_kind(int kind) {
 	return kind == 30 || kind == 31 || kind == 32 || kind == 34;
 }
+
 bool checked_nullable(CheckedIndex index, TypeId type) {
 	int kind = checked_kind(index, type);
 	return kind == 16 || kind == 20 || kind == 31 || kind == 26 || kind == 27 || kind == 28 || kind == 29 || kind == 35;
 }
+
 int checked_decimal(string text, int limit) {
 	int n = 0;
 	int i = 0;
@@ -19,6 +21,7 @@ int checked_decimal(string text, int limit) {
 	}
 	return n;
 }
+
 TypeId checked_resolve(CheckedIndex index, SyntaxNodeId node, int context, int depth) throws Error {
 	if (node.index == 0 || index.failed()) {
 		return no_type();
@@ -36,6 +39,7 @@ TypeId checked_resolve(CheckedIndex index, SyntaxNodeId node, int context, int d
 	index.checking[node.index] = false;
 	return result;
 }
+
 TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context, int depth) throws Error {
 	var span = index.bindings.program.arena.header(node).span;
 	var kind = index.bindings.program.arena.kind(node);
@@ -100,7 +104,14 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 		}
 		int extent = 0;
 		if (constructor == 20) {
-			if (code == 34) { var nominal = index.types.descriptor(index.types, element); var definition = index.bindings.symbol(nominal.nominal); if (definition.kind == 4) { index.fail(span, "ClassType* is unsupported; object references are not typed data pointers"); return no_type(); } }
+			if (code == 34) {
+				var nominal = index.types.descriptor(index.types, element);
+				var definition = index.bindings.symbol(nominal.nominal);
+				if (definition.kind == 4) {
+					index.fail(span, "ClassType* is unsupported; object references are not typed data pointers");
+					return no_type();
+				}
+			}
 			if (code == 20 || code == 16) {
 				index.fail(span, "pointer depth greater than one is unsupported");
 				return no_type();
@@ -138,7 +149,13 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 				return no_type();
 			}
 			if (constructor == 21) {
-				if (code == 24) { var element_row = index.types.argument(index.types, element, 0); if (element_row.type.index == 13) { index.fail(span, "fixed arrays of mask vectors have no admitted scalar storage contract"); return no_type(); } }
+				if (code == 24) {
+					var element_row = index.types.argument(index.types, element, 0);
+					if (element_row.type.index == 13) {
+						index.fail(span, "fixed arrays of mask vectors have no admitted scalar storage contract");
+						return no_type();
+					}
+				}
 				var expression = index.bindings.program.arena.get_node_extent(node);
 				if (index.bindings.program.arena.kind(expression) != SyntaxKind.IntegerLiteralExpressionSyntax()) {
 					return index.defer(node, 11);
@@ -152,7 +169,7 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 			}
 		}
 		// Numeric int[slots] is an ordinary constant extent, not an owner store.
-		if (constructor == 23 && type_numeric(code)) { return index.defer(node, 11); }
+		if (constructor == 23 && type_numeric(code)) return index.defer(node, 11);
 		if (constructor == 23 && (context != 2 || (!checked_nominal_kind(code) && code != 33))) {
 			index.fail(span, "owner-slot types are admitted only as owned native Class fields");
 			return no_type();
@@ -328,6 +345,7 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 	}
 	return index.record(node, index.types.intern(constructor, target, 0, edges), 0);
 }
+
 TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId type, int context) throws Error {
 	var resolved = checked_resolve(index, type, context, 0);
 	if (type.index != 0 && resolved.index == 14) {
@@ -338,13 +356,14 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 	if (type.index != 0) {
 		flags = flags | index.uses[type.index].flags;
 	}
-	if (index.semantic_admission && symbol.kind == 7 && checked_record_owned(index, resolved, 0) && (flags & 2) == 0) { flags = flags | 4; }
+	if (index.semantic_admission && symbol.kind == 7 && checked_record_owned(index, resolved, 0) && (flags & 2) == 0) flags = flags | 4;
 	index.symbol_flags[index.node_symbols[symbol.node.index].index] = flags;
 	if ((flags & 6) != 0 && (type_numeric(checked_kind(index, resolved)) || resolved.index == 13)) {
 		index.fail(index.bindings.program.arena.header(symbol.node).span, "owned/borrowed declaration requires an admitted reference or symbolic ownership contract");
 	}
 	return resolved;
 }
+
 void checked_heads(CheckedIndex index) throws Error {
 	int i = 1;
 	while (i <= index.bindings.symbol_count && !index.failed()) {
@@ -392,6 +411,7 @@ void checked_heads(CheckedIndex index) throws Error {
 		phase = phase + 1;
 	}
 }
+
 void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	var symbol = index.bindings.symbol(id);
 	var node = symbol.node;
@@ -407,7 +427,7 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	if (return_node.index != 0) {
 		flags = flags | index.uses[return_node.index].flags;
 	}
-	if (index.semantic_admission && checked_record_owned(index, result, 0)) { flags = flags | 4; }
+	if (index.semantic_admission && checked_record_owned(index, result, 0)) flags = flags | 4;
 	if ((flags & 4) != 0 && (type_numeric(checked_kind(index, result)) || result.index == 13 || result.index == 14 || result.index == 16)) {
 		index.fail(index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_owned_keyword(node)), "owned result requires an exact nominal ownership contract");
 		return;
@@ -456,6 +476,7 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	index.symbol_flags[id.index] = flags;
 	index.add_signature(id, callable, error, flags, index.bindings.program.arena.get_int_dispatch(node));
 }
+
 bool checked_parameter_capability(CheckedIndex index, TypeId type, string capability) throws Error {
 	if (checked_kind(index, type) != 33) {
 		return false;
@@ -485,6 +506,7 @@ bool checked_parameter_capability(CheckedIndex index, TypeId type, string capabi
 	}
 	return false;
 }
+
 bool checked_capability(CheckedIndex index, TypeId type, string capability) throws Error {
 	int kind = checked_kind(index, type);
 	if (kind == 33) {
@@ -507,6 +529,7 @@ bool checked_capability(CheckedIndex index, TypeId type, string capability) thro
 	}
 	return false;
 }
+
 bool checked_constraints(CheckedIndex index, SymbolId target, TypeEdge[] arguments, SyntaxSpan span) throws Error {
 	var definition = index.bindings.symbol(target);
 	var parameters = index.bindings.program.arena.get_list_type_parameters(definition.node);

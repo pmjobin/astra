@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void shared_policy_event(int value);
+
 extern(C) int shared_policy_probe(int phase);
+
 [Allocator(kind="pool", domain="shared12.payload", capacity="128", blocks="2")]
 class SharedPayload {
 	int value;
+
 	init(int value) { this.value = value; shared_policy_event(value); }
+
 	deinit() { shared_policy_event(0 - this.value); }
 }
+
 int inspect(borrowed SharedPayload payload) { return payload.value; }
+
 int main() {
 	var unique = new SharedPayload(7);
 	var first = shared_acquire(move unique);
@@ -15,17 +21,17 @@ int main() {
 	var observer = shared_downgrade(first);
 	release first;
 	var upgraded = weak_upgrade(observer);
-	if (upgraded == null || inspect(shared_borrow(upgraded)) != 7) { return 81; }
+	if (upgraded == null || inspect(shared_borrow(upgraded)) != 7) return 81;
 	release second;
-	if (shared_policy_probe(1) != 1) { return 82; }
+	if (shared_policy_probe(1) != 1) return 82;
 	release upgraded;
-	if (shared_policy_probe(2) != 1) { return 83; }
+	if (shared_policy_probe(2) != 1) return 83;
 	var next = new SharedPayload(8);
 	var current = shared_acquire(move next);
 	var expired = weak_upgrade(observer);
-	if (expired != null || inspect(shared_borrow(current)) != 8) { return 84; }
+	if (expired != null || inspect(shared_borrow(current)) != 8) return 84;
 	release observer;
 	release current;
-	if (shared_policy_probe(3) != 1) { return 85; }
+	if (shared_policy_probe(3) != 1) return 85;
 	return 42;
 }

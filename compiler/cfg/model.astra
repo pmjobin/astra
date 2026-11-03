@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Append-only stage IDs require both the retained program and function owner.
 struct CfgBlockId { int function; int index; }
+
 struct CfgInstructionId { int function; int index; }
+
 struct CfgPlaceId { int function; int index; }
+
 struct CfgTempId { int function; int index; }
+
 struct CfgEdgeId { int function; int index; }
+
 struct CfgFunction { int entry; int exit; }
+
 // One ordered instruction per block is the initial (deliberately unfused) form.
 // Terminators: 1 jump, 2 bool split, 3 return, 4 unreachable normal exit.
 struct CfgBlock {
@@ -20,6 +26,7 @@ struct CfgBlock {
 	int no;
 	bool reachable;
 }
+
 // Core payload retains exact typed operation/place/callee/source authority.
 // 40 conditional cleanup, 41 scope exit, 42/43 loan begin/end,
 // 44 short-circuit result assignment; all other opcodes are Core operations.
@@ -34,11 +41,16 @@ struct CfgInstruction {
 	int contract;
 	int guarded;
 }
+
 struct CfgOperand { int function; int instruction; int ordinal; int temp; SymbolId label; int mode; }
+
 struct CfgEdge { int function; int source; int target; int polarity; int meaning; }
+
 struct CfgPredecessor { int function; int edge; int source; int target; }
+
 // These are checked region anchors, never certificates of correctness.
 struct CfgRegion { int entry; int operation; int one; int two; int three; }
+
 class CfgData {
 	owned shared TypeOwner identity;
 	owned CfgFunction[] functions;
@@ -57,6 +69,7 @@ class CfgData {
 	int predecessor_count;
 	int limit;
 	int status;
+
 	init(int functions, int nodes, int limit) {
 		var owner = new TypeOwner();
 		var identity = shared_acquire(move owner);
@@ -76,20 +89,27 @@ class CfgData {
 		this.limit = limit;
 		this.status = 0;
 	}
+
 	bool room(int count) {
-		if (this.status != 0) { return false; }
-		if (this.limit < 1 || this.limit > 65536 || count >= this.limit) { this.status = 2; return false; }
+		if (this.status != 0) return false;
+		if (this.limit < 1 || this.limit > 65536 || count >= this.limit) {
+			this.status = 2;
+			return false;
+		}
 		return true;
 	}
 }
+
 class CfgProgram {
 	owned CoreProgram core;
 	owned CfgData data;
+
 	init(owned CoreProgram core, int functions, int nodes, int limit) {
 		this.core = move core;
 		var data = new CfgData(functions, nodes, limit);
 		this.data = move data;
 	}
+
 	bool same_owner(borrowed CfgProgram origin) {
 		return type_owner_same(this.data.identity, origin.data.identity) && this.core.same_owner(origin.core);
 	}

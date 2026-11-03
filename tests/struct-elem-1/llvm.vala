@@ -38,6 +38,7 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private LlvmModuleArtifact overflow(bool index, bool unsigned_overflow = false) throws LlvmError {
 	var artifact = new LlvmModuleArtifact ();
 	var i32 = CApi.int32_type_in_context (artifact.context);
@@ -62,6 +63,7 @@ private LlvmModuleArtifact overflow(bool index, bool unsigned_overflow = false) 
 	artifact.verify ();
 	return artifact;
 }
+
 private void arithmetic() {
 	try {
 		foreach (bool index in new bool[] {false, true}) {
@@ -92,6 +94,7 @@ private void arithmetic() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private int emit(string[] args) throws GLib.Error {
 	var files = new GenericArray<SourceFile> ();
 	var foreign = new GenericArray<ForeignDeclarationInput> ();
@@ -137,6 +140,7 @@ private int emit(string[] args) throws GLib.Error {
 	FileUtils.set_contents (args[2], artifact.dump ());
 	return 0;
 }
+
 int main(string[] args) {
 	if (args.length >= 4 && args[1] == "--emit") {
 		try {
@@ -160,4 +164,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-elements/llvm/independent-physical-overflow-and-target-gates", arithmetic);
 	return Test.run ();
 }
+
 }

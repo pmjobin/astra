@@ -1,40 +1,49 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int alloc_event(int tag, int stage);
+
 extern(C) int alloc_ok();
+
 class Box {
 	int value;
+
 	init(int tag, int value) { this.value = value; alloc_event(tag, 1); }
+
 	deinit() { alloc_event(0, 2); }
 }
+
 int fail() throws Error { throw new Error("checked"); }
+
 owned Box make(bool failing) throws Error {
 	var value = new Box(1, 42);
-	if (failing) { fail(); }
+	if (failing) fail();
 	return move value;
 }
+
 int consume(owned Box value, int other) { return value.value + other; }
+
 int retained() {
 	var original = new Box(2, 42);
 	try { consume(move original, fail()); } catch (Error error) {
-		if (original.value != 42) { return 83; }
+		if (original.value != 42) return 83;
 		try { var aborted = make(true); } catch (Error inner) {
-			if (original.value != 42) { return 84; }
+			if (original.value != 42) return 84;
 		}
 		return consume(move original, 0);
 	}
 	return 85;
 }
+
 int main() {
 	// Init is nonthrowing. A checked argument failure precedes allocation.
 	try { var aborted = new Box(9, fail()); } catch (Error error) {
-		if (error.message != "checked") { return 81; }
+		if (error.message != "checked") return 81;
 	}
 	try { var aborted = make(true); } catch (Error error) {
-		if (error.message != "checked") { return 82; }
+		if (error.message != "checked") return 82;
 	}
-	if (retained() != 42) { return 85; }
+	if (retained() != 42) return 85;
 	// Successful checked owner results acquire a named owner before release.
 	try { var successful = make(false); release successful; } catch (Error error) { return 87; }
-	if (alloc_ok() != 1) { return 86; }
+	if (alloc_ok() != 1) return 86;
 	return 42;
 }

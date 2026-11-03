@@ -11,6 +11,7 @@ private SemanticResult analyze(string source) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private CheckedProgram check(string source) {
 	var result = analyze (source);
 	if (result.diagnostic != null) {
@@ -18,6 +19,7 @@ private CheckedProgram check(string source) {
 	}
 	return result.program;
 }
+
 private void reject(string source, string message) {
 	string? previous = null;
 	for (int repeat = 0; repeat < 2; repeat++) {
@@ -31,6 +33,7 @@ private void reject(string source, string message) {
 		previous = diagnostic.format ();
 	}
 }
+
 private void types() {
 	foreach (string type in new string[] {"bool", "i8", "u8", "i16", "u16", "int", "i32", "u32", "f32", "f64"}) {
 		string literal = type == "bool" ? "true" : type.has_prefix ("f") ? "1.25" : "1";
@@ -60,6 +63,7 @@ private void types() {
 	reject ("struct Box<T>{T x;} const Box<int[X]> X=1;", "unsupported constant type");
 	reject ("struct Box<T>{T x;} const X=1 as Box<int[X]>;", "expected expression");
 }
+
 private void integer_steps() {
 	var p = check ("const u8 W=(255+1)/2;const i8 S=(127+1)/2;const i8 Q=-128/-1;const i8 R=-128%-1;const i8 SHIFT=(-128)>>7;const u32 HIGH=4294967295>>31;const MOD=(-1 as u8);const B=(true^false)&!false;");
 	int64[] expected = {
@@ -70,6 +74,7 @@ private void integer_steps() {
 	}
 	assert (p.constants[7].value.boolean);
 }
+
 private void scopes() {
 	check ("const RESULT=LATER+LATER;const LATER=21; int f(){const L=RESULT; if(true){const A=L; int x=A;} if(false){const A=2;} return L;}");
 	check ("int f(){return 1;const C=2;}");
@@ -100,6 +105,7 @@ private void scopes() {
 	reject (text.str, "dependency cycle");
 	check ("const C=42;");
 }
+
 private void eligibility() {
 	check ("const SAFE=false && ((1/0)==0);const ALSO=true || ((1<<32)==0);const CAST=false && ((1e1000d as int)==0);");
 	reject ("const X=false && missing;", "unknown name");
@@ -133,6 +139,7 @@ private void eligibility() {
 	}
 	check ("int f(int n){return 1/n;}int c(f64 n){return n as int;}");
 }
+
 private void extents() {
 	check ("const u8 N=1;void f(){int[N] a={1};const M=N+1;int[M] b={1,2};int[1+1] c={1,2};}");
 	foreach (string type in new string[] {"i8", "u8", "i16", "u16", "int", "i32", "u32"}) {
@@ -151,6 +158,7 @@ private void extents() {
 	reject ("void f(){const u8 N=2;var a=new int[N];}", "count requires int/i32");
 	check ("void f(){const N=2;var a=new int[N];}");
 }
+
 private int values() {
 	var source = new StringBuilder ();
 	string? line;
@@ -165,6 +173,7 @@ private int values() {
 	}
 	return 0;
 }
+
 int main(string[] args) {
 	if (args.length == 2 && args[1] == "--values") {
 		return values ();
@@ -177,4 +186,5 @@ int main(string[] args) {
 	Test.add_func ("/const/array-extents", extents);
 	return Test.run ();
 }
+
 }

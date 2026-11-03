@@ -1,12 +1,21 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; life_record(67, 0); }
-	deinit() { if (this.value != 42) { life_record(88, 0); } life_record(68, 0); }
+
+	deinit() { if (this.value != 42) life_record(88, 0); life_record(68, 0); }
+
 	void add(int n) { this.value = this.value + n; }
+
 	owned Counter copy() { return Counter.init(this.value); }
 }
+
 owned Counter make() { return Counter.init(41); }
+
 int inspect(borrowed Counter c) { c.add(1); return c.value; }
-void consume(owned Counter c) { if (c.value != 42) { life_record(88, 0); } }
+
+void consume(owned Counter c) { if (c.value != 42) life_record(88, 0); }
+
 int main() { owned Counter c = make(); int n = inspect(c); consume(move c); return n; }

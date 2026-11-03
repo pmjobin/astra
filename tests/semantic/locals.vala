@@ -87,4 +87,5 @@ private void register_local_semantic_tests() {
 	register_error ("assignment-rhs-unknown", "int f(){int x = 1; x = missing; return x;}", 23, 7, "unknown name 'missing'");
 	register_error ("local-errors-after-return", "int f(){return 1; int x = x; return x;}", 26, 1, "unknown name 'x'");
 }
+
 }

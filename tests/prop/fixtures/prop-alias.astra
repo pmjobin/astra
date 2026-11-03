@@ -1,16 +1,19 @@
 class Counter {
 	int raw;
+
 	property int value { get { return this.raw; } set(int next) { this.raw = next; } }
 }
+
 int alias(borrowed Counter a, borrowed Counter b) {
 	a.value = 40;
 	b.value = b.value + 2;
 	return a.value;
 }
+
 int main() {
 	Counter a = { raw = 1 };
 	Counter b = a;
 	b.value = 42;
-	if (a.value != 42 || alias(a, b) != 42) { return 1; }
+	if (a.value != 42 || alias(a, b) != 42) return 1;
 	return a.raw;
 }

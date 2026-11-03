@@ -15,15 +15,18 @@
 static uintptr_t debug_offset(int index) {
 	return offsetof(struct user, u_debugreg) + (uintptr_t)index * sizeof(unsigned long);
 }
+
 static void debug(pid_t child, int index, uintptr_t value) {
 	assert(ptrace(PTRACE_POKEUSER, child, (void *)debug_offset(index), (void *)value) == 0);
 }
+
 static unsigned long peek(pid_t child, enum __ptrace_request request, uintptr_t address) {
 	errno = 0;
 	long result = ptrace(request, child, (void *)address, NULL);
 	assert(result != -1 || errno == 0);
 	return (unsigned long)result;
 }
+
 int main(int argc, char **argv) {
 	assert(argc == 2);
 	int channel[2];

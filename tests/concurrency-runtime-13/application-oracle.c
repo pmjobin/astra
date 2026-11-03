@@ -5,6 +5,7 @@
 #include <stdio.h>
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static int sampled[4], dropped[3];
+
 int32_t app_sample(int32_t app, int32_t tag, int32_t value) {
 	int expected = 0;
 	if (app == 109) {
@@ -26,6 +27,7 @@ int32_t app_sample(int32_t app, int32_t tag, int32_t value) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t app_drop(int32_t app, int32_t tag) {
 	assert(tag >= 0 && tag < 3 && (app == 110 || app == 111 || app == 113 || app == 120));
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -34,6 +36,7 @@ int32_t app_drop(int32_t app, int32_t tag) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t app_finish(int32_t app) {
 	if (app == 109 || app == 111) {
 		for (int i = 0; i < 4; ++i)

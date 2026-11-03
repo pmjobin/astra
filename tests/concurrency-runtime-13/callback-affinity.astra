@@ -1,38 +1,56 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int callback_capture_drop(int id);
+
 extern(C) int callback_local_drop();
+
 extern(C) int callback_ledger_drop();
+
 extern(C) int callback_affinity_finish();
 
 [ThreadBound]
 class Local {
 	private int value;
+
 	init() { this.value = 7; }
+
 	int add(int n) { return this.value + n; }
+
 	deinit() { callback_local_drop(); }
 }
+
 int local_event(borrowed Local local, int n) { return local.add(n); }
 
 [Monitor]
 class Ledger {
 	private int total;
+
 	init() { this.total = 0; }
+
 	void credit(int value) throws Error {
-		if (value == 2) { throw new Error("rejected callback event"); }
+		if (value == 2) {
+			throw new Error("rejected callback event");
+		}
 		this.total = this.total + value;
 	}
+
 	int read() { return this.total; }
+
 	deinit() { callback_ledger_drop(); }
 }
+
 void credit(borrowed Ledger ledger, int n) throws Error { ledger.credit(n); }
+
 int read(borrowed Ledger ledger) { return ledger.read(); }
 
 class Capture {
 	owned Shared<Ledger> ledger;
 	int id;
+
 	init(owned Shared<Ledger> ledger, int id) { this.ledger = move ledger; this.id = id; }
+
 	deinit() { callback_capture_drop(this.id); }
 }
+
 // The private C-convention thunk enters this exact native function. The
 // checked failure is caught before control returns to the foreign C stack.
 int event(borrowed Capture capture, int n) {
@@ -46,17 +64,17 @@ int main() {
 	{
 		var local = new Local();
 		var callback = closure_bind(move local, local_event);
-		if (closure_invoke(callback, 2) != 9) { return 81; }
+		if (closure_invoke(callback, 2) != 9) return 81;
 	}
 	var unique = new Ledger(); var root = shared_acquire(move unique);
 	var c0 = shared_clone(root); var e0 = new Capture(move c0, 0); var t0 = thread_bind(move e0, event);
 	var c1 = shared_clone(root); var e1 = new Capture(move c1, 1); var t1 = thread_bind(move e1, event);
 	var c2 = shared_clone(root); var e2 = new Capture(move c2, 2); var t2 = thread_bind(move e2, event);
 	var c3 = shared_clone(root); var e3 = new Capture(move c3, 3); var t3 = thread_bind(move e3, event);
-	if (thread_start(t0, 1) != 0 || thread_start(t1, 2) != 0 || thread_start(t2, 3) != 0 || thread_start(t3, 4) != 0) { return 82; }
-	if (thread_join(t0) != 1 || thread_join(t1) != -7 || thread_join(t2) != 3 || thread_join(t3) != 4) { return 83; }
+	if (thread_start(t0, 1) != 0 || thread_start(t1, 2) != 0 || thread_start(t2, 3) != 0 || thread_start(t3, 4) != 0) return 82;
+	if (thread_join(t0) != 1 || thread_join(t1) != -7 || thread_join(t2) != 3 || thread_join(t3) != 4) return 83;
 	release t0; release t1; release t2; release t3;
-	if (read(shared_borrow(root)) != 8) { return 84; }
+	if (read(shared_borrow(root)) != 8) return 84;
 	release root;
 	return callback_affinity_finish();
 }

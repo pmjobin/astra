@@ -198,6 +198,7 @@ public class CoreVerifier : Object {
 		return generic != null && generic.return_type is ClassType && generic.owned_cleanup != null
 		       && equation != null && (equation.domains & GenericResultOrigins.UNKNOWN) != 0;
 	}
+
 	private CoreCleanupContract? class_result_cleanup(SemanticType type, bool heap) {
 		foreach (var cleanup in cleanups.get_keys ()) {
 			if (cleanup.is_object && cleanup.is_heap_object == heap && cleanup.object_class.semantic_type == type) {
@@ -221,11 +222,13 @@ public class CoreVerifier : Object {
 		}
 		return ownership_function != null && ownership_function.generic_instance != null && owner.place.incoming_parameter != null && ownership_function.generic_instance.owns_parameter (owner.place.incoming_parameter.ordinal);
 	}
+
 	private HashTable<CoreOwnedLocal, CoreOwnershipTransfer> generic_local_transfers = new HashTable<CoreOwnedLocal, CoreOwnershipTransfer> (direct_hash, direct_equal);
 	private HashTable<CoreOwnedLocal, bool> generic_local_acquisitions = new HashTable<CoreOwnedLocal, bool> (direct_hash, direct_equal);
 	private bool generic_local_owner(CoreOwnedLocal owner) {
 		return generic_local_transfers.contains (owner) || generic_local_acquisitions.contains (owner);
 	}
+
 	private ObjectResultProvenance returned_object_origin(CoreFunction function, CoreOwnedLocal owner) throws CoreError {
 		if (owner.cleanup.is_heap_object) {
 			return ObjectResultProvenance.HEAP_OBJECT;
@@ -266,6 +269,7 @@ public class CoreVerifier : Object {
 		}
 		return ObjectResultProvenance.OWNED_PARAMETER_STORAGE;
 	}
+
 	private static bool generic_local_transfer(CoreFunction function, CoreOwnedLocal source, CoreOwnedLocal destination) {
 		if (!(function is CoreGenericFunction) && function.generic_instance == null) {
 			return false;
@@ -276,6 +280,7 @@ public class CoreVerifier : Object {
 		return source.place.semantic_type == destination.place.semantic_type && source.cleanup == destination.cleanup
 		       && destination.place.incoming_parameter == null && source.object_storage == null && destination.object_storage == null;
 	}
+
 	private int heap_consumer_parameter(CoreFunction function, GenericOwnershipFlow flow) {
 		bool returning = function.owned_cleanup != null;
 		if (function.async_body != null || function.throws_type != null) {
@@ -325,6 +330,7 @@ public class CoreVerifier : Object {
 		}
 		return -1;
 	}
+
 	private bool consuming_class_member(Object? target, int ordinal, SemanticType type) {
 		var method = target as CoreMethod;
 		if (method == null || !functions.contains (method) || !GenericClassTypes.general (method.declaring_type.semantic_type) || method.async_body != null || method.throws_type != null || method.owned_cleanup != null || ordinal < 0 || ordinal >= method.parameters.length) {
@@ -333,9 +339,11 @@ public class CoreVerifier : Object {
 		var parameter = method.parameters[ordinal];
 		return parameter.semantic_type == type && parameter.pointer_contract == PointerParameterContract.OWNED_TRANSFER && (ownable_parameter (type) || type is ClassType && parameter.heap_object);
 	}
+
 	private static bool heap_transfer(SemanticType source, CoreCleanupContract from, SemanticType target, CoreCleanupContract to) {
 		return from.is_heap_object && to.is_heap_object && source is ClassType && target is ClassType && ((ClassType) source).derives_from ((ClassType) target) && (source == target || to.object_class.polymorphic);
 	}
+
 	private GenericArray<CoreExceptionHandlerScope> exception_handlers = new GenericArray<CoreExceptionHandlerScope> ();
 	private GenericArray<CoreLocalPlace> caught_exceptions = new GenericArray<CoreLocalPlace> ();
 	private HashTable<CoreLocalPlace, GenericArray<ClassType>> caught_effects = new HashTable<CoreLocalPlace, GenericArray<ClassType>> (direct_hash, direct_equal);
@@ -739,6 +747,7 @@ public class CoreVerifier : Object {
 		var field = load == null ? null : load.source as CoreIndirectFieldPlace;
 		return field != null && interface_read_field (field, method);
 	}
+
 	private static bool interface_read_field(CoreIndirectFieldPlace field, CoreMethod method) {
 		CoreValue receiver = field.pointer;
 		while (receiver is CoreClassUpcast) {
@@ -797,6 +806,7 @@ public class CoreVerifier : Object {
 		}
 		return false;
 	}
+
 	private void with_mutation(CorePlace place, string path) throws CoreError {
 		foreach (var contract in active_with) {
 			if (place == contract.source) {
@@ -813,6 +823,7 @@ public class CoreVerifier : Object {
 			fail (path, "with receiver excludes overlapping buffer mutation");
 		}
 	}
+
 	private HashTable<CoreFunction, bool> readonly_inspectors = new HashTable<CoreFunction, bool> (direct_hash, direct_equal);
 
 	private static bool same_iteration_store(CoreIndirectFieldPlace left, CoreIndirectFieldPlace right) {
@@ -828,6 +839,7 @@ public class CoreVerifier : Object {
 		var q = right.pointer as CoreParameterValue;
 		return p != null && q != null && p.parameter == q.parameter;
 	}
+
 	private void verify_iteration_consumption(CoreOwnedLocal? owner, string path) throws CoreError {
 		if (owner == null) {
 			return;
@@ -849,6 +861,7 @@ public class CoreVerifier : Object {
 			}
 		}
 	}
+
 	private static CoreLocalPlace? sequence_local(CoreValue source) {
 		if (source is CoreSliceFromArrayValue) {
 			return ((CoreSliceFromArrayValue) source).storage;
@@ -859,6 +872,7 @@ public class CoreVerifier : Object {
 		var load = source as CoreLoadValue;
 		return load == null ? null : load.source as CoreLocalPlace;
 	}
+
 	private static bool same_sequence(CoreValue left, CoreValue right) {
 		if (left.semantic_type != right.semantic_type || left.get_type () != right.get_type ()) {
 			return false;
@@ -875,6 +889,7 @@ public class CoreVerifier : Object {
 		var b = right as CoreParameterValue;
 		return a != null && b != null && a.parameter == b.parameter;
 	}
+
 	private void verify_sequence_shape(CoreWhile loop, CoreFunction function, string path) throws CoreError {
 		var sequence = loop.sequence;
 		if (sequence.is_iterator) {
@@ -917,10 +932,12 @@ public class CoreVerifier : Object {
 			fail (path, "foreach sequence must advance its hidden index by one");
 		}
 	}
+
 	private static bool iterator_receiver(CoreValue? receiver, CoreSequenceIteration contract) {
 		var object_receiver = receiver as CoreObjectReceiverValue;
 		return object_receiver != null && same_sequence (object_receiver.reference, contract.source);
 	}
+
 	private void verify_iterator_shape(CoreWhile loop, CoreFunction function, string path) throws CoreError {
 		var sequence = loop.sequence;
 		var owner = structs.lookup (sequence.source.semantic_type) as CoreClass;
@@ -955,6 +972,7 @@ public class CoreVerifier : Object {
 			fail (path, "foreach iterator must copy current before its body");
 		}
 	}
+
 	private void verify_iteration_shape(CoreWhile loop, CoreFunction function, string path) throws CoreError {
 		var iteration = loop.iteration;
 		if (iteration == null || iteration.target != loop.target || iteration.index.address_taken || iteration.index.semantic_type.kind != TypeKind.INT || !function.locals.find (iteration.index) || !(iteration.store.semantic_type is OwnerSlotsType) || !(iteration.store.field.containing_type is CoreClass) || ((CoreClass) iteration.store.field.containing_type).generic_instance == null) {
@@ -986,6 +1004,7 @@ public class CoreVerifier : Object {
 			fail (path, "foreach step must advance its exact hidden index by one");
 		}
 	}
+
 	private CodeEffectAnalysis? readonly_inference;
 	private CoreFunction? readonly_scope;
 	private CodeEffectSummary? readonly_result;
@@ -1034,6 +1053,7 @@ public class CoreVerifier : Object {
 		effects.infer_requirements ();
 		return effects;
 	}
+
 	private bool probe_readonly(Object function, CodeEffectSummary result) {
 		var checker = new CoreVerifier ();
 		foreach (var definition in code_program.all_definitions ()) {
@@ -1055,6 +1075,7 @@ public class CoreVerifier : Object {
 			return false;
 		}
 	}
+
 	private static void verify_callback_effects(CoreProgram program) throws CoreError {
 		bool needed = false;
 		foreach (var function in program.functions) {
@@ -1072,6 +1093,7 @@ public class CoreVerifier : Object {
 			}
 		}
 	}
+
 	// Vala shares closure storage within one method. Keep this long-lived
 	// frontier separate from probes that capture the analysis or its owner.
 	private static CodeEffectAnalysis create_effect_analysis(CoreCodeOrigins origins) {
@@ -1085,6 +1107,7 @@ public class CoreVerifier : Object {
 		}
 		return result;
 	}
+
 	private void readonly_call(CoreFunction? target, GenericArray<CoreValue> arguments, string path) throws CoreError {
 		if (readonly_inference == null) {
 			readonly_inspector (target, path);
@@ -1113,6 +1136,7 @@ public class CoreVerifier : Object {
 		}
 		return true;
 	}
+
 	private void readonly_c_arguments(GenericArray<CoreValue> arguments, string path) throws CoreError {
 		foreach (var argument in arguments) {
 			if (!readonly_scalar (argument.semantic_type)) {
@@ -1121,6 +1145,7 @@ public class CoreVerifier : Object {
 			readonly_value (argument, path);
 		}
 	}
+
 	private void readonly_place(CorePlace place, string path) throws CoreError {
 		if (place is CoreLocalPlace) {
 			return;
@@ -1141,6 +1166,7 @@ public class CoreVerifier : Object {
 		}
 		fail (path, "readonly scoped inspector cannot read unproved indirect storage");
 	}
+
 	private void readonly_producer(CoreStructProducer source, string path) throws CoreError {
 		if (source is CoreStructInvocationResult) {
 			readonly_value (((CoreStructInvocationResult) source).invocation, path);
@@ -1189,6 +1215,7 @@ public class CoreVerifier : Object {
 		}
 		fail (path, "readonly scoped inspector requires a bounded record snapshot or call");
 	}
+
 	private void readonly_value(CoreValue value, string path) throws CoreError {
 		if (readonly_inference != null && value is CoreFunctionAddress) {
 			return;
@@ -1330,6 +1357,7 @@ public class CoreVerifier : Object {
 		}
 		fail (path, "readonly scoped inspector requires scalar/text observations and bounded native calls");
 	}
+
 	private bool readonly_writable(CorePlace place) {
 		while (place is CoreStorageFieldPlace) {
 			place = ((CoreStorageFieldPlace) place).aggregate;
@@ -1341,9 +1369,11 @@ public class CoreVerifier : Object {
 		var parameter = local.incoming_parameter;
 		return parameter == null || parameter.struct_value_contract == null || parameter.struct_value_contract.mode != StructValueMode.BORROW_VALUE;
 	}
+
 	private void readonly_block(CoreBlock block, string path) throws CoreError {
 		readonly_statements (block.statements, path);
 	}
+
 	private void readonly_statements(GenericArray<CoreStatement> statements, string path) throws CoreError {
 		foreach (var statement in statements) {
 			if (statement is CoreInitialize) {
@@ -1424,6 +1454,7 @@ public class CoreVerifier : Object {
 			}
 		}
 	}
+
 	private void readonly_inspector(CoreFunction? target, string path) throws CoreError {
 		if (readonly_inference != null && target is CoreLifecycle) {
 			fail (path, "readonly scoped inspector cannot perform lifecycle work");
@@ -1453,6 +1484,7 @@ public class CoreVerifier : Object {
 		readonly_inspectors.insert (target, true);
 		readonly_block (target.body, path);
 	}
+
 	private HashTable<Astra.Text.TextBytes, bool> text_literals = new HashTable<Astra.Text.TextBytes, bool> (direct_hash, direct_equal);
 	private HashTable<CorePlace, CorePlace> enum_views = new HashTable<CorePlace, CorePlace> (direct_hash, direct_equal);
 	private GenericArray<CorePlace> enum_inspections = new GenericArray<CorePlace> ();
@@ -1525,6 +1557,7 @@ public class CoreVerifier : Object {
 		}
 		return result;
 	}
+
 	private GenericArray<SemanticType>? possible_child_edges(SemanticType type) {
 		var result = child_edges (type);
 		var owner = type as ClassType;
@@ -1540,6 +1573,7 @@ public class CoreVerifier : Object {
 		}
 		return result;
 	}
+
 	private FieldInitializationState? field_state;
 	private HashTable<CoreLoopTarget, CoreLoopTarget> constructor_breaks = new HashTable<CoreLoopTarget, CoreLoopTarget> (direct_hash, direct_equal);
 	private HashTable<int, SemanticType> integer_types = new HashTable<int, SemanticType> (direct_hash, direct_equal);
@@ -1564,9 +1598,11 @@ public class CoreVerifier : Object {
 	private static bool ownable_parameter(SemanticType type) {
 		return type is TypeParameterType && ((TypeParameterType) type).transport_mode == GenericTransportMode.OWNABLE;
 	}
+
 	private static int generic_truth(CoreValue value) {
 		return (value is CoreBooleanValue) ? (((CoreBooleanValue) value).literal == BooleanLiteral.TRUE ? 1 : 0) : -1;
 	}
+
 	private CoreVerifier () {
 	}
 
@@ -1785,6 +1821,7 @@ public class CoreVerifier : Object {
 			fail (path, "owner slots lost exact bounded heap Class cleanup");
 		}
 	}
+
 	private void verify_slots_place(CoreIndirectFieldPlace store, CoreFunction function, bool read, string path) throws CoreError {
 		if (function.async_body != null || function is CoreGenericFunction || function.generic_instance != null) {
 			fail (path, "owner slots require synchronous concrete code");
@@ -1796,6 +1833,7 @@ public class CoreVerifier : Object {
 			fail (path, "owner-slot store read before definite initialization");
 		}
 	}
+
 	private void verify_slots_mutation(CoreIndirectFieldPlace store, string path) throws CoreError {
 		if (active_with.length != 0) {
 			fail (path, "with receiver scope excludes structural slot mutation");
@@ -2087,6 +2125,7 @@ public class CoreVerifier : Object {
 		}
 		return found;
 	}
+
 	private bool copied_generic_record_leaf(SemanticType type, StructLeafPath path) {
 		bool generic = false;
 		SemanticType current = type;
@@ -2110,6 +2149,7 @@ public class CoreVerifier : Object {
 		}
 		return generic && current == path.semantic_type && NativeFieldTypes.supports (current, false);
 	}
+
 	private CoreStructField? record_leaf(SemanticType type, StructLeafPath path) {
 		CoreStructField? field = null;
 		for (int d = 0; d < path.depth; d++) {
@@ -2123,6 +2163,7 @@ public class CoreVerifier : Object {
 		}
 		return field != null && field.semantic_type == path.semantic_type ? field : null;
 	}
+
 	private CoreFieldPlace? record_projection(CorePlace aggregate, CoreStructField field, CoreFunction function) {
 		foreach (var place in function.field_places) {
 			if (place is CoreFieldPlace && ((CoreFieldPlace) place).aggregate == aggregate && ((CoreFieldPlace) place).field == field) {
@@ -2131,6 +2172,7 @@ public class CoreVerifier : Object {
 		}
 		return null;
 	}
+
 	private bool closure_capture_type(SemanticType type, HashTable<SemanticType, bool> seen) {
 		if (type is RawPointerType || type is TypedPointerType) {
 			return false;
@@ -2169,6 +2211,7 @@ public class CoreVerifier : Object {
 		var object_class = owner as CoreClass;
 		return object_class == null || object_class.parent_class == null || closure_capture_type (object_class.parent_class.semantic_type, seen);
 	}
+
 	private bool matches_cleanup(SemanticType type, CoreCleanupContract cleanup) {
 		if (cleanup.record_type != null) {
 			return type == cleanup.record_type.semantic_type && structs.lookup (type) == cleanup.record_type && record_field (type) != null;
@@ -2199,6 +2242,7 @@ public class CoreVerifier : Object {
 	private static bool borrowed_record_parameter(CoreParameter parameter) {
 		return parameter.pointer_contract == PointerParameterContract.BORROWED_NOESCAPE && parameter.struct_value_contract != null && parameter.struct_value_contract.mode == StructValueMode.BORROW_VALUE && parameter.struct_value_contract.semantic_type == parameter.semantic_type;
 	}
+
 	private void verify_parameter_contract(CoreParameter parameter, string path) throws CoreError {
 		if (ownable_parameter (parameter.semantic_type) && parameter.heap_object) {
 			fail (path, "symbolic ownership parameter must remain allocation-neutral");
@@ -4834,6 +4878,7 @@ public class CoreVerifier : Object {
 		}
 		return false;
 	}
+
 	private void verify_exception_effect(ClassType bound, CoreFunction function, string path) throws CoreError {
 		for (int i = (int) exception_handlers.length - 1; i >= 0; i--) {
 			var scope = exception_handlers[i];
@@ -4849,11 +4894,13 @@ public class CoreVerifier : Object {
 		}
 		fail (path, "checked exception bound lacks an ancestor catch or compatible throws declaration");
 	}
+
 	private void verify_exception_cleanup(CoreCleanupContract cleanup, string path) throws CoreError {
 		if (!cleanups.contains (cleanup) || !cleanup.is_heap_object || cleanup.object_class == null || !cleanup.object_class.exception_root) {
 			fail (path, "exception channel requires the exact nominated root heap cleanup");
 		}
 	}
+
 	// Compound verification recurses without retaining the large scalar verifier frame.
 	private void verify_statement_body(CoreStatement statement, CoreFunction function, CoreBlock scope, string path) throws CoreError {
 		if (statement is CoreForeignSignalReturn) {

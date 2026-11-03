@@ -1,29 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Box<T> { T value; }
+
 struct Meter {
 	int stored;
+
 	int observe(int value) { Box<int> b = { value = value }; return b.value + this.stored; }
+
 	property int value {
 		get { Box<int> b = { value = this.stored }; return b.value; }
 		set(int value) { Box<int> b = { value = value }; this.stored = b.value; }
 	}
 }
+
 class Counter {
 	int stored;
+
 	property int value { get { Box<int> b = { value = this.stored }; return b.value; } }
 }
-class Owner { int value; init(int value) { this.value = value; } deinit() {} }
+
+class Owner { int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() {} }
+
 T observe<T>(borrowed Counter c, T value) {
 	Box<T> b = { value = value };
 	int x = c.value;
 	return b.value;
 }
+
 T consume<T>(owned Owner owner, T value) { Box<T> b = { value = value }; return b.value; }
+
 int main() {
 	Meter meter = { stored = 1 };
 	meter.value = 7;
 	Counter counter = { stored = 3 };
 	owned Owner owner = Owner.init(42);
-	if (meter.observe(35) != 42 || meter.value != 7 || observe<f64>(counter, 3.5) != 3.5 || consume<int>(move owner, 42) != 42) { return 1; }
+	if (meter.observe(35) != 42 || meter.value != 7 || observe<f64>(counter, 3.5) != 3.5 || consume<int>(move owner, 42) != 42) return 1;
 	return 0;
 }

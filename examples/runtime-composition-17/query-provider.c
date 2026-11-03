@@ -12,24 +12,29 @@
  * The separate finished list contains telemetry only. */
 enum { GUARD_BYTES = 64,
 	   GUARD_VALUE = 0xd3 };
+
 typedef struct Block {
 	void *pointer;
 	uint64_t requested, rounded, charged;
 	uint32_t alignment;
 } Block;
+
 typedef struct Snapshot {
 	int identity;
 	uint64_t capacity, slots, live, peak, allocations, releases, refusals;
 } Snapshot;
+
 typedef struct State {
 	pthread_mutex_t lock;
 	Snapshot count;
 	Block *blocks;
 } State;
+
 typedef struct Finished {
 	Snapshot count;
 	struct Finished *next;
 } Finished;
+
 static pthread_mutex_t report_lock = PTHREAD_MUTEX_INITIALIZER;
 static Finished *finished;
 static uint64_t opened;
@@ -77,6 +82,7 @@ static int allocate(void *opaque, uint64_t bytes, uint32_t alignment, void **out
 	assert(pthread_mutex_unlock(&state->lock) == 0);
 	return ASTRA_CONTEXT17_OK;
 }
+
 static void release(void *opaque, void *pointer, uint64_t bytes, uint32_t alignment) {
 	State *state = opaque;
 	assert(pthread_mutex_lock(&state->lock) == 0);
@@ -95,6 +101,7 @@ static void release(void *opaque, void *pointer, uint64_t bytes, uint32_t alignm
 	state->blocks[slot] = (Block){0};
 	assert(pthread_mutex_unlock(&state->lock) == 0);
 }
+
 static void dispose(void *opaque) {
 	State *state = opaque;
 	assert(pthread_mutex_lock(&state->lock) == 0);
@@ -114,8 +121,10 @@ static void dispose(void *opaque) {
 	free(state->blocks);
 	free(state);
 }
+
 static const AstraContext17Provider contract = {
     ASTRA_CONTEXT17_ABI, sizeof(AstraContext17Provider), ASTRA_CONTEXT17_CONCURRENT, 0, allocate, release, dispose};
+
 AstraContext17 *query_custom_allocator(int64_t capacity, int32_t slots, int32_t identity) {
 	if (capacity <= 0 || slots <= 0 || (uint64_t)slots > SIZE_MAX / sizeof(Block)) {
 		return NULL;
@@ -147,6 +156,7 @@ AstraContext17 *query_custom_allocator(int64_t capacity, int32_t slots, int32_t 
 	assert(pthread_mutex_unlock(&report_lock) == 0);
 	return context;
 }
+
 int query_provider_disposed(int32_t identity) {
 	int count = 0;
 	assert(pthread_mutex_lock(&report_lock) == 0);
@@ -158,6 +168,7 @@ int query_provider_disposed(int32_t identity) {
 	assert(pthread_mutex_unlock(&report_lock) == 0);
 	return count;
 }
+
 int query_provider_finish(void) {
 	assert(pthread_mutex_lock(&report_lock) == 0);
 	uint64_t count = 0;

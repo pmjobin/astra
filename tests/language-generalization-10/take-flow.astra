@@ -2,28 +2,35 @@
 class Item {
 	owned R resource;
 	int code;
+
 	init(int code) {
 		this.resource = make(code);
 		this.code = code;
 	}
+
 	deinit() { mark(200 + this.code); }
 }
+
 struct Leaf {
 	owned R first;
 	owned Item child;
 	owned int[] values;
 	int tag;
 }
+
 struct Envelope { Leaf fields; }
+
 owned Item create(int code) {
 	var child = new Item(code);
 	return move child;
 }
+
 owned Item through(owned Item incoming) {
 	Envelope envelope = {fields = {first = make(11), child = move incoming, values = new int[1], tag = 0}};
 	var child = move envelope.fields.child;
 	return move child;
 }
+
 void exercise(bool take) {
 	Envelope envelope = {fields = {first = make(1), child = create(2), values = new int[1], tag = 7}};
 	for (int i = 0; i < 3; i = i + 1) {
@@ -45,6 +52,7 @@ void exercise(bool take) {
 	var whole = move envelope;
 	mark(whole.fields.tag);
 }
+
 void partial(bool take) {
 	Envelope envelope = {fields = {first = make(8), child = create(9), values = new int[0], tag = 0}};
 	if (take) {
@@ -52,6 +60,7 @@ void partial(bool take) {
 		release first;
 	}
 }
+
 int main() {
 	{
 		var incoming = new Item(10);

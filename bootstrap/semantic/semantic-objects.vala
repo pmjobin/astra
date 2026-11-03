@@ -15,6 +15,7 @@ public class CheckedClassUpcast : CheckedExpression {
 		this.source_identity = WeakRef (source_class);
 		this.target_identity = WeakRef (target_class);
 	}
+
 }
 
 public class LexicalObjectStorageSymbol : Symbol {
@@ -35,6 +36,7 @@ public class LexicalObjectStorageSymbol : Symbol {
 		this.ordinal = ordinal;
 		this.lexical_region = region;
 	}
+
 }
 
 public class CheckedObjectConstruction : CheckedStatement {
@@ -50,6 +52,7 @@ public class CheckedObjectConstruction : CheckedStatement {
 		this.initializers = initializers;
 		this.reference = new CheckedObjectReferenceExpression (span, storage);
 	}
+
 }
 
 public class CheckedObjectReferenceExpression : CheckedExpression {
@@ -58,6 +61,7 @@ public class CheckedObjectReferenceExpression : CheckedExpression {
 		base (span, storage.semantic_type);
 		this.storage = storage;
 	}
+
 }
 
 public class CheckedObjectFieldPlace : CheckedPlace {
@@ -69,6 +73,7 @@ public class CheckedObjectFieldPlace : CheckedPlace {
 		this.reference = reference;
 		this.field = field;
 	}
+
 }
 
 // Validating a nullable reference forms the existing nonnull receiver contract.
@@ -79,5 +84,6 @@ public class CheckedObjectReceiverExpression : CheckedExpression {
 		base (span, contract);
 		this.reference = reference;
 	}
+
 }
 }

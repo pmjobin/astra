@@ -19,6 +19,7 @@ public class NativeMethodRequest : Object {
 		this.member = member;
 		this.is_export = is_export;
 	}
+
 }
 // Construction-local correspondence. Only copied declaration facts survive
 // source analysis; this table never enters Core or a native plan.
@@ -98,5 +99,6 @@ public class NativeDeclarationRegistry : Object {
 			function.throws_type, types, contracts, heaps, nonnull, records,
 			function.struct_result_contract == null ? -1 : (int) function.struct_result_contract.mode, null, function.async_body);
 	}
+
 }
 }

@@ -88,8 +88,8 @@ int main(void){return work();}
 			x = run(['gcc', '-std=c11', '-E', '-P', old], 'c-before-preprocess')
 			y = run(['gcc', '-std=c11', '-E', '-P', new], 'c-after-preprocess')
 			coordinate_maps = compare_preprocessed(x, y, old.read_bytes(), new.read_bytes(), str(old), str(new))
-	# Coordinate-bearing production source is explicitly inventoried, never
-	# normalized as ordinary whitespace. True test inputs remain protected.
+			# Coordinate-bearing production source is explicitly inventoried, never
+			# normalized as ordinary whitespace. True test inputs remain protected.
 	coordinates = []
 	for name, entry in scope.items():
 		if entry.get('lane') in ('c', 'cpp', 'vala', 'astra'):

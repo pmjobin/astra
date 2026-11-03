@@ -5,6 +5,7 @@ class Cache<K, V> {
 	private int hits;
 	private int misses;
 	private int changes;
+
 	init(Fn<bool, K, K> equal) {
 		var values = new Map<K, V>(equal);
 		this.values = move values;
@@ -12,15 +13,24 @@ class Cache<K, V> {
 		this.misses = 0;
 		this.changes = 0;
 	}
+
 	property int count { get { return this.values.count; } }
+
 	property int hit_count { get { return this.hits; } }
+
 	property int miss_count { get { return this.misses; } }
+
 	property int revision { get { return this.changes; } }
+
 	bool contains(K key) {
-		if (this.values.contains(key)) { this.hits = this.hits + 1; return true; }
+		if (this.values.contains(key)) {
+			this.hits = this.hits + 1;
+			return true;
+		}
 		this.misses = this.misses + 1;
 		return false;
 	}
+
 	Result lookup<Result>(K key, Fn<Result, borrowed V> query, Result missing) {
 		if (this.values.contains(key)) {
 			this.hits = this.hits + 1;
@@ -29,6 +39,7 @@ class Cache<K, V> {
 		this.misses = this.misses + 1;
 		return missing;
 	}
+
 	Result lookup_with<Context, Result>(K key, Context context,
 		Fn<Result, borrowed V, Context> query, Result missing) {
 		if (this.values.contains(key)) {
@@ -38,14 +49,16 @@ class Cache<K, V> {
 		this.misses = this.misses + 1;
 		return missing;
 	}
+
 	bool put(K key, owned V value) {
-		if (!this.values.put(key, move value)) { return false; }
+		if (!this.values.put(key, move value)) return false;
 		this.changes = this.changes + 1;
 		return true;
 	}
+
 	owned MapEntry<K, V> remove(K key) {
 		var entry = this.values.remove(key);
-		if (entry != null) { this.changes = this.changes + 1; }
+		if (entry != null) this.changes = this.changes + 1;
 		return move entry;
 	}
 }

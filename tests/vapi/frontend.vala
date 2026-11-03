@@ -18,6 +18,7 @@ private void borrowed_grammar() {
 	}
 	assert (VapiParser.parse (new SourceFile.from_text ("result.vapi", "borrowed void* f();")).diagnostic != null);
 }
+
 private void grammar() {
 	string text = "// é\r\nint add(int a, /* ignored */ int b);\rvoid reset();\nint identity(int value); // eof";
 	var parsed = VapiParser.parse (new SourceFile.from_text ("declarations.data", text));
@@ -219,12 +220,14 @@ private void handles() {
 	assert (parsed.file.functions[0].span.text () == "owned Resource create();");
 	assert (parsed.file.functions[1].parameters[0].borrowed_keyword.kind == VapiTokenKind.BORROWED);
 }
+
 private void malformed_handles() {
 	foreach (string text in new string[] {"handle Resource;", "[CCode(cheader_filename = \"missing.h\")] handle Resource;", "[CCode(destroy_function = \"\")] handle Resource;", "[CCode(destroy_function = \"d\", cname = \"R\")] handle Resource;", "[CCode(destroy_function = \"d\", destroy_function = \"d\")] handle Resource;", "[CCode(destroy_function = \"d\")] handle;", "[CCode(destroy_function = \"d\")] handle Resource", "[CCode(destroy_function = \"d\")] handle Resource();", "[CCode(destroy_function = \"d\")] handle Resource*;", "owned Resource;", "owned borrowed Resource f();", "Resource f(owned Resource r);"}) {
 		var parsed = VapiParser.parse (new SourceFile.from_text ("invalid-handle.vapi", text));
 		assert (parsed.file == null && parsed.diagnostic != null);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/vapi-frontend/handle-grammar-metadata", handles);
@@ -241,4 +244,5 @@ int main(string[] args) {
 	Test.add_func ("/vapi-frontend/metadata-diagnostics", metadata_errors);
 	return Test.run ();
 }
+
 }

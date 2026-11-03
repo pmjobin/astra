@@ -166,4 +166,5 @@ int main(string[] args) {
 	Test.add_func ("/slice/semantic/diagnostics-and-deferrals", diagnostics);
 	return Test.run ();
 }
+
 }

@@ -2,76 +2,97 @@
 class MadeChild {
 	private owned R guard;
 	private int number;
+
 	init(owned R guard, int number) {
 		this.guard = move guard;
 		this.number = number;
 	}
+
 	int read() { return id(this.guard) + this.number; }
+
 	deinit() { mark(1900 + this.number); }
 }
+
 struct MadePair { int small; i64 wide; }
+
 class MadeCrate<Value> {
 	private owned R guard;
 	private Value payload;
+
 	init(owned R guard, Value payload) {
 		this.guard = move guard;
 		this.payload = payload;
 	}
+
 	property Value value { get { return this.payload; } }
+
 	int ticket() { return id(this.guard); }
+
 	deinit() { mark(1910); }
 }
+
 class Maker<Label> {
 	private Label label;
 	private int calls;
+
 	init(Label label) { this.label = label; this.calls = 0; }
+
 	property int count { get { return this.calls; } }
+
 	owned Result fixed_heap<Result>(owned R guard, int number) {
 		this.calls = this.calls + 1;
 		var value = new MadeChild(move guard, number);
 		return move value;
 	}
+
 	owned Result fixed_caller<Result>(owned R guard, int number) {
 		this.calls = this.calls + 1;
 		return MadeChild.init(move guard, number);
 	}
+
 	owned Result application<Value, Result>(owned R guard, Value payload) {
 		this.calls = this.calls + 1;
 		var value = new MadeCrate<Value>(move guard, payload);
 		return move value;
 	}
 }
+
 owned MadeChild make_fixed<Marker>(borrowed Maker<bool> host, owned R guard, int number) {
 	return host.fixed_heap<MadeChild>(move guard, number);
 }
+
 owned MadeChild nested_fixed<Marker>(borrowed Maker<bool> host, owned R guard, int number) {
 	return make_fixed<Marker>(host, move guard, number);
 }
+
 owned MadeChild make_caller<Marker>(borrowed Maker<bool> host, owned R guard, int number) {
 	return host.fixed_caller<MadeChild>(move guard, number);
 }
+
 owned MadeCrate<Value> make_application<Value, Marker>(borrowed Maker<bool> host, owned R guard, Value payload) {
 	return host.application<Value, MadeCrate<Value>>(move guard, payload);
 }
+
 owned MadeCrate<Value> nested_application<Value, Marker>(borrowed Maker<bool> host, owned R guard, Value payload) {
 	return make_application<Value, Marker>(host, move guard, payload);
 }
+
 int exercise() {
 	var host = new Maker<bool>(true);
 	{
 		var guard = make(221);
 		var result = nested_fixed<int>(host, move guard, 1);
-		if (result.read() != 222) { return 1; }
+		if (result.read() != 222) return 1;
 	}
 	{
 		var guard = make(222);
 		var result = make_caller<bool>(host, move guard, 2);
-		if (result.read() != 224) { return 2; }
+		if (result.read() != 224) return 2;
 	}
 	{
 		var guard = make(223);
 		var result = nested_application<int, bool>(host, move guard, 42);
-		if (result.ticket() != 223 || result.value != 42) { return 3; }
+		if (result.ticket() != 223 || result.value != 42) return 3;
 	}
 	{
 		var guard = make(224);
@@ -79,9 +100,10 @@ int exercise() {
 		var result = nested_application<MadePair, int>(host, move guard, pair);
 		MadePair copied = result.value;
 		i64 expected = 9000000001;
-		if (result.ticket() != 224 || copied.small != 73 || copied.wide != expected) { return 4; }
+		if (result.ticket() != 224 || copied.small != 73 || copied.wide != expected) return 4;
 	}
-	if (host.count != 4) { return 5; }
+	if (host.count != 4) return 5;
 	return live();
 }
+
 int main() { return exercise(); }

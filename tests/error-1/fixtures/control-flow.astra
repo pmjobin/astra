@@ -1,54 +1,79 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 class RuntimeError : Error { init(string text) : base(text) {} }
+
 class DecodeError : RuntimeError { init(string text) : base(text) {} }
+
 class DeepDecodeError : DecodeError { init(string text) : base(text) {} }
+
 class DisplayError : Error {
 	init(string text) : base(text) {}
+
 	override property string message { get { return "display\0é"; } }
 }
+
 void choose(int mode) throws Error {
-	if(mode == 0) { throw new DeepDecodeError("decode"); }
-	if(mode == 1) { throw new RuntimeError("runtime"); }
-	if(mode == 2) { var named = new DisplayError("underlying"); throw move named; }
+	if(mode == 0) {
+		throw new DeepDecodeError("decode");
+	}
+	if(mode == 1) {
+		throw new RuntimeError("runtime");
+	}
+	if(mode == 2) {
+		var named = new DisplayError("underlying");
+		throw move named;
+	}
 	throw new Error("");
 }
+
 int selected(int mode) {
-	try { choose(mode); } catch(DecodeError error) { return 10; } catch(RuntimeError error) { return 11; } catch(Error error) { if(mode == 2 && error.message == "display\0é") { return 12; } if(error.message.byte_length == 0) { return 13; } return 81; }
+	try { choose(mode); } catch(DecodeError error) { return 10; } catch(RuntimeError error) { return 11; } catch(Error error) { if(mode == 2 && error.message == "display\0é") return 12; if(error.message.byte_length == 0) return 13; return 81; }
 	return 82;
 }
+
 void replace() throws Error {
 	try { throw new DecodeError("incoming\0é"); } catch(Error original) { throw new RuntimeError(original.message); }
 }
+
 owned int[] produce(bool fail) throws Error {
-	if(fail) { throw new Error("preserve old destination"); }
+	if(fail) {
+		throw new Error("preserve old destination");
+	}
 	owned int[] result = new int[3]; result[0] = 42; return move result;
 }
+
 T identity<T>(T value, bool fail) throws DecodeError {
-	if(fail) { throw new DecodeError("generic"); }
+	if(fail) {
+		throw new DecodeError("generic");
+	}
 	return value;
 }
+
 int loops() {
 	int value = 0;
 	while(value < 5) {
 		owned int[] local = new int[2];
 		value = value + 1;
-		try { choose(0); } catch(Error error) { if(value < 3) { continue; } if(value == 4) { break; } }
+		try { choose(0); } catch(Error error) { if(value < 3) continue; if(value == 4) break; }
 	}
 	return value;
 }
+
 int main(string[] args) {
-	if(selected(0) != 10 || selected(1) != 11 || selected(2) != 12 || selected(3) != 13) { return 83; }
-	try { replace(); } catch(RuntimeError error) { if(error.message != "incoming\0é") { return 84; } } catch(Error error) { return 85; }
+	if(selected(0) != 10 || selected(1) != 11 || selected(2) != 12 || selected(3) != 13) return 83;
+	try { replace(); } catch(RuntimeError error) { if(error.message != "incoming\0é") return 84; } catch(Error error) { return 85; }
 	var first = new Error(args[0]); var second = new Error(first.message); release first;
-	if(second.message != args[0] || second.message != args[0]) { return 86; }
+	if(second.message != args[0] || second.message != args[0]) return 86;
 	owned int[] destination = new int[2]; destination[0] = 7;
-	try { destination = produce(true); } catch(Error error) { if(len(destination) != 2 || destination[0] != 7) { return 87; } }
-	try { destination = produce(false); if(len(destination) != 3 || destination[0] != 42) { return 88; } if(identity(42, false) != 42) { return 89; } identity(42, true); } catch(DecodeError error) { if(error.message != "generic") { return 90; } } catch(Error error) { return 91; }
-	if(loops() != 4) { return 92; }
+	try { destination = produce(true); } catch(Error error) { if(len(destination) != 2 || destination[0] != 7) return 87; }
+	try { destination = produce(false); if(len(destination) != 3 || destination[0] != 42) return 88; if(identity(42, false) != 42) return 89; identity(42, true); } catch(DecodeError error) { if(error.message != "generic") return 90; } catch(Error error) { return 91; }
+	if(loops() != 4) return 92;
 	return 42;
 }

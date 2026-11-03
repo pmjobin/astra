@@ -1,8 +1,17 @@
 T identity<T>(T value) {
 	return value;
 }
+
 extern(C) int life_record(int code, int value);
-class Item { int raw; init(int x) { this.raw=x; } deinit() { life_record(this.raw,0); } }
+
+class Item { int raw;
+
+	init(int x) { this.raw=x; }
+
+	deinit() { life_record(this.raw,0); } }
+
 T consume<T>(owned Item item, T value) { return identity<T>(value); }
+
 T local<T>(T value) { owned Item item=Item.init(66); return consume<T>(move item,value); }
+
 int main() { owned Item item=Item.init(65); int first=consume<int>(move item,1); return local<int>(42); }

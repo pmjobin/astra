@@ -25,6 +25,7 @@ private NativeAbiProgram sample(bool single = false, NativeAbiVersion version = 
 	program.struct_values.add (plan);
 	return program;
 }
+
 private void positive() {
 	try {
 		foreach (bool single in new bool[] {false, true}) {
@@ -39,6 +40,7 @@ private void positive() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void vector_matrix() {
 	try {
 		int count = 0;
@@ -63,6 +65,7 @@ private void vector_matrix() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	try {
 		for (int scenario = 0; scenario < 12; scenario++) {
@@ -120,6 +123,7 @@ private void invalid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-abi/nabi/physical-only-nested-single-multi-deterministic-plans", positive);
@@ -127,4 +131,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-abi/nabi/profile-count-order-channel-nominal-carrier-firewalls", invalid);
 	return Test.run ();
 }
+
 }

@@ -1,26 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Native8;
 struct Before { int noise; }
+
 class Earlier {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() {}
 }
+
 int main() {
 	Before before = { noise = 1 };
 	var earlier = new Earlier(before.noise);
-	if (twice(21) != 42 || earlier.value != 1) { return 1; }
+	if (twice(21) != 42 || earlier.value != 1) return 1;
 	Pair pair = pack(7, 3.5);
-	if (pair.value != 7 || pair.weight != 3.5) { return 2; }
+	if (pair.value != 7 || pair.weight != 3.5) return 2;
 	Pair changed = adjust(pair, 2);
-	if (changed.value != 9 || changed.weight != 4.5) { return 5; }
+	if (changed.value != 9 || changed.weight != 4.5) return 5;
 	{
 		var cell = make(9);
-		if (inspect(cell) != 9 || cell.read() != 9) { return 3; }
+		if (inspect(cell) != 9 || cell.read() != 9) return 3;
 	}
 	{
 		var direct = new Cell(10);
-		if (inspect(direct) != 10) { return 4; }
+		if (inspect(direct) != 10) return 4;
 	}
 	return 0;
 }

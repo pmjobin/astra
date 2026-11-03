@@ -17,11 +17,13 @@ enum AstraAsyncLinuxOperation { ASTRA_LINUX_NONE,
 	                            ASTRA_LINUX_DECODE,
 	                            ASTRA_LINUX_TARGET,
 	                            ASTRA_LINUX_CANCEL };
+
 typedef struct AstraAsyncLinuxFailure {
 	int operation;
 	int error;
 	uint64_t operation_id;
 } AstraAsyncLinuxFailure;
+
 AstraAsyncExecutor *astra_async_linux_open(uint32_t capacity);
 int astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds);
 int astra_async_linux_delay_result(AstraAsyncTask *task, uint32_t pc);
@@ -40,6 +42,7 @@ int astra_linux_payload_finish(AstraLinuxPayload *payload);
 int astra_async_linux_payload(AstraAsyncTask *task, AstraLinuxPayload *payload);
 #ifdef ASTRA_ASYNC_LINUX_TEST_PROTOCOL
 void astra_linux_payload_test_bad_fd(AstraLinuxPayload *payload);
+
 typedef struct AstraAsyncLinuxSnapshot {
 	AstraAsyncToken token;
 	uint64_t target;
@@ -59,6 +62,7 @@ typedef struct AstraAsyncLinuxSnapshot {
 	unsigned cancel_exposed;
 	unsigned cancel_consumed;
 } AstraAsyncLinuxSnapshot;
+
 int astra_async_linux_test_snapshot(AstraAsyncExecutor *executor, uint32_t slot, AstraAsyncLinuxSnapshot *out);
 int astra_async_linux_test_record(AstraAsyncExecutor *executor, uint32_t slot, AstraAsyncLinuxSnapshot *out);
 int astra_async_linux_test_decode(AstraAsyncExecutor *executor, uint64_t id, int result, unsigned flags);

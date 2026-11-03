@@ -1,30 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int borrowed_identity(borrowed Counter value) { return counter_identity(value); }
+
 void release_counter(owned Counter value) {}
+
 int main() {
 	{
 		owned Counter object = counter_new(7);
-		if (object == null || counter_get(object) != 7) { return 1; }
+		if (object == null || counter_get(object) != 7) return 1;
 		owned CounterWeak weak = counter_weak(object);
-		if (weak == null) { return 8; }
+		if (weak == null) return 8;
 		{
 			int identity = borrowed_identity(object);
-			if (identity <= 0 || borrowed_identity(object) != identity) { return 2; }
-			if (counter_set(object, 42) != 1 || counter_get(object) != 42) { return 3; }
-			if (counter_label(object, "héllo") != 1) { return 4; }
+			if (identity <= 0 || borrowed_identity(object) != identity) return 2;
+			if (counter_set(object, 42) != 1 || counter_get(object) != 42) return 3;
+			if (counter_label(object, "héllo") != 1) return 4;
 			owned ForeignUtf8 snapshot = counter_snapshot(object);
-			if (snapshot == null || foreign_text_length(snapshot) != 6 || foreign_text_byte(snapshot, 1) != 195 || foreign_text_byte(snapshot, 2) != 169) { return 5; }
-			if (counter_label(object, "changed") != 1 || foreign_text_length(snapshot) != 6) { return 6; }
+			if (snapshot == null || foreign_text_length(snapshot) != 6 || foreign_text_byte(snapshot, 1) != 195 || foreign_text_byte(snapshot, 2) != 169) return 5;
+			if (counter_label(object, "changed") != 1 || foreign_text_length(snapshot) != 6) return 6;
 			owned Counter retained = counter_ref(object);
-			if (retained == null || counter_same(object, retained) != 1 || borrowed_identity(retained) != identity) { return 7; }
+			if (retained == null || counter_same(object, retained) != 1 || borrowed_identity(retained) != identity) return 7;
 			owned Counter upgraded = counter_upgrade(weak);
-			if (upgraded == null || counter_same(object, upgraded) != 1 || counter_finalized() != 0) { return 9; }
+			if (upgraded == null || counter_same(object, upgraded) != 1 || counter_finalized() != 0) return 9;
 		}
 		release_counter(move object);
-		if (counter_disposed() != 1 || counter_finalized() != 1) { return 10; }
+		if (counter_disposed() != 1 || counter_finalized() != 1) return 10;
 		owned Counter expired = counter_upgrade(weak);
-		if (expired != null) { return 11; }
+		if (expired != null) return 11;
 	}
-	if (foreign_live() != 0) { return 12; }
+	if (foreign_live() != 0) return 12;
 	return 0;
 }

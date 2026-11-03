@@ -9,27 +9,36 @@ CoreNode core_node(CheckedIndex checked, SyntaxNodeId source, int function) {
 	};
 	return row;
 }
+
 int core_lower_place(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, int function, SyntaxNodeId node) {
 	int first = core.functions[function - 1].place_first;
 	var kind = checked.bindings.program.arena.kind(node);
 	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
 		int field = flowsem_place(graph, checked, node, 0);
-		if (field > 0) { return first + graph.slot_count + field; }
+		if (field > 0) return first + graph.slot_count + field;
 		return 0;
 	}
 	SyntaxTokenId token = {index = 0};
-	if (kind == SyntaxKind.MoveExpressionSyntax()) { token = checked.bindings.program.arena.get_token_source(node); } else { token = checked.bindings.program.arena.get_token_identifier(node); }
+	if (kind == SyntaxKind.MoveExpressionSyntax()) {
+		token = checked.bindings.program.arena.get_token_source(node);
+	} else {
+		token = checked.bindings.program.arena.get_token_identifier(node);
+	}
 	int slot = graph.slot_for(checked_target(checked, node, token));
-	if (slot == 0) { return 0; }
+	if (slot == 0) return 0;
 	return first + slot;
 }
+
 int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, SyntaxNodeId source, int function, int loop, int call, int depth) {
-	if (source.index == 0 || core.status != 0) { return 0; }
-	if (depth > 192) { core.status = 2; return 0; }
+	if (source.index == 0 || core.status != 0) return 0;
+	if (depth > 192) {
+		core.status = 2;
+		return 0;
+	}
 	var kind = checked.bindings.program.arena.kind(source);
 	var row = core_node(checked, source, function);
 	int id = core_add_node(core, row);
-	if (id == 0) { return 0; }
+	if (id == 0) return 0;
 	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
 		row.kind = 1;
 		row.token = checked.bindings.program.arena.get_token_literal(source);
@@ -37,26 +46,35 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 		if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
 			row.kind = 3;
 			row.place = core_lower_place(core, checked, graph, function, source);
-			if (kind == SyntaxKind.MoveExpressionSyntax()) { row.kind = 4; row.target = call; }
-			if (row.place == 0) { core.status = 3; }
+			if (kind == SyntaxKind.MoveExpressionSyntax()) {
+				row.kind = 4;
+				row.target = call;
+			}
+			if (row.place == 0) core.status = 3;
 		} else {
 			if (kind == SyntaxKind.PrefixExpressionSyntax() || kind == SyntaxKind.ConversionExpressionSyntax() || kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 				row.kind = 5;
 				SyntaxNodeId operand = {index = 0};
-				if (kind != SyntaxKind.ParenthesizedExpressionSyntax()) { operand = checked.bindings.program.arena.get_node_operand(source); }
+				if (kind != SyntaxKind.ParenthesizedExpressionSyntax()) operand = checked.bindings.program.arena.get_node_operand(source);
 				int child_call = 0;
-				if (kind == SyntaxKind.PrefixExpressionSyntax()) { row.operation = checked.bindings.program.arena.get_token_operator_token(source); }
-				if (kind == SyntaxKind.ConversionExpressionSyntax()) { row.kind = 8; }
-				if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) { row.kind = 12; operand = checked.bindings.program.arena.get_node_expression(source); child_call = call; }
+				if (kind == SyntaxKind.PrefixExpressionSyntax()) row.operation = checked.bindings.program.arena.get_token_operator_token(source);
+				if (kind == SyntaxKind.ConversionExpressionSyntax()) row.kind = 8;
+				if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+					row.kind = 12;
+					operand = checked.bindings.program.arena.get_node_expression(source);
+					child_call = call;
+				}
 				var direct = flow_unwrap(checked, operand);
 				if (row.kind == 5 && checked.bindings.program.arena.kind(direct) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
 					row.kind = 2;
 					row.token = checked.bindings.program.arena.get_token_literal(direct);
-				} else { row.a = core_lower_tree(core, checked, graph, operand, function, loop, child_call, depth + 1); }
+				} else {
+					row.a = core_lower_tree(core, checked, graph, operand, function, loop, child_call, depth + 1);
+				}
 			} else {
 				if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
 					row.kind = 6;
-					if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) { row.kind = 7; }
+					if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) row.kind = 7;
 					row.operation = checked.bindings.program.arena.get_token_operator_token(source);
 					row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_left(source), function, loop, 0, depth + 1);
 					row.b = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_right(source), function, loop, 0, depth + 1);
@@ -67,16 +85,22 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 					} else {
 						if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.StructInitializerSyntax() || kind == SyntaxKind.BlockStatementSyntax()) {
 							row = core_lower_list(core, checked, graph, row, id, function, loop, depth);
-						} else { row = core_lower_statement(core, checked, graph, row, id, function, loop, depth); }
+						} else {
+							row = core_lower_statement(core, checked, graph, row, id, function, loop, depth);
+						}
 					}
 				}
 			}
 		}
 	}
-	if (row.kind == 0) { core.status = 3; core.error_span = row.span; }
+	if (row.kind == 0) {
+		core.status = 3;
+		core.error_span = row.span;
+	}
 	core.nodes[id - 1] = row;
 	return id;
 }
+
 CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, CoreNode input, int id, int function, int loop, int depth) {
 	var row = input;
 	var kind = checked.bindings.program.arena.kind(row.source);
@@ -85,17 +109,34 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		row.kind = 9;
 		row.symbol = checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source));
-		if (row.symbol.index == 0) { core.status = 3; return row; }
+		if (row.symbol.index == 0) {
+			core.status = 3;
+			return row;
+		}
 		row.signature = checked.symbol_signatures[row.symbol.index];
 		int i = 0;
-		while (i < core.function_count) { if (core.functions[i].symbol.index == row.symbol.index) { row.target = i + 1; } i = i + 1; }
-		if (row.target == 0 || row.signature.index == 0) { core.status = 3; return row; }
+		while (i < core.function_count) {
+			if (core.functions[i].symbol.index == row.symbol.index) row.target = i + 1;
+			i = i + 1;
+		}
+		if (row.target == 0 || row.signature.index == 0) {
+			core.status = 3;
+			return row;
+		}
 		list = checked.bindings.program.arena.get_list_arguments(row.source);
 		var callee_declaration = checked.bindings.symbol(row.symbol);
 		params = checked.bindings.program.arena.get_list_parameters(callee_declaration.node);
 	}
-	if (kind == SyntaxKind.StructInitializerSyntax()) { row.kind = 10; list = checked.bindings.program.arena.get_list_fields(row.source); }
-	if (kind == SyntaxKind.BlockStatementSyntax()) { row.kind = 20; row.type = type_id(14); row.flags = 0; list = checked.bindings.program.arena.get_list_statements(row.source); }
+	if (kind == SyntaxKind.StructInitializerSyntax()) {
+		row.kind = 10;
+		list = checked.bindings.program.arena.get_list_fields(row.source);
+	}
+	if (kind == SyntaxKind.BlockStatementSyntax()) {
+		row.kind = 20;
+		row.type = type_id(14);
+		row.flags = 0;
+		list = checked.bindings.program.arena.get_list_statements(row.source);
+	}
 	row.count = checked.bindings.program.arena.list_count(list);
 	// Reserve ordered edges before descending; nested lists cannot interleave them.
 	row.first = core.edge_count;
@@ -122,7 +163,7 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 			edge.label = checked_target(checked, source, checked.bindings.program.arena.get_token_name(source));
 			edge.mode = checked.symbol_flags[edge.label.index];
 			var initializer = checked.bindings.program.arena.get_node_initializer(source);
-			if (initializer.index == 0) { initializer = checked.bindings.program.arena.get_node_expression(source); }
+			if (initializer.index == 0) initializer = checked.bindings.program.arena.get_node_expression(source);
 			source = initializer;
 		}
 		edge.child = core_lower_tree(core, checked, graph, source, function, loop, child_call, depth + 1);
@@ -131,6 +172,7 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 	}
 	return row;
 }
+
 CoreNode core_lower_statement(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, CoreNode input, int id, int function, int loop, int depth) {
 	var row = input;
 	var source = row.source;
@@ -140,19 +182,22 @@ CoreNode core_lower_statement(CoreData core, CheckedIndex checked, borrowed Flow
 	if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax() || kind == SyntaxKind.StructLocalDeclarationSyntax() || kind == SyntaxKind.AssignmentStatementSyntax() || kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
 		row.kind = 21;
 		SyntaxNodeId value = {index = 0};
-		if (kind != SyntaxKind.AssignmentStatementSyntax() && kind != SyntaxKind.FieldAssignmentStatementSyntax()) { value = checked.bindings.program.arena.get_node_initializer(source); }
+		if (kind != SyntaxKind.AssignmentStatementSyntax() && kind != SyntaxKind.FieldAssignmentStatementSyntax()) value = checked.bindings.program.arena.get_node_initializer(source);
 		var symbol = checked.node_symbols[source.index];
 		if (kind == SyntaxKind.AssignmentStatementSyntax() || kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
 			row.kind = 22;
 			value = checked.bindings.program.arena.get_node_expression(source);
-			if (kind == SyntaxKind.AssignmentStatementSyntax()) { symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_name(source)); }
+			if (kind == SyntaxKind.AssignmentStatementSyntax()) symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_name(source));
 		}
 		int slot = graph.slot_for(symbol);
-		if (slot > 0) { row.place = core.functions[function - 1].place_first + slot; }
-		if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) { row.place = core_lower_place(core, checked, graph, function, checked.bindings.program.arena.get_node_target(source)); }
-		if (row.place == 0) { core.status = 3; return row; }
+		if (slot > 0) row.place = core.functions[function - 1].place_first + slot;
+		if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) row.place = core_lower_place(core, checked, graph, function, checked.bindings.program.arena.get_node_target(source));
+		if (row.place == 0) {
+			core.status = 3;
+			return row;
+		}
 		row.type = checked.uses[source.index].type;
-		if (row.kind == 21) { row.flags = checked.uses[source.index].flags; }
+		if (row.kind == 21) row.flags = checked.uses[source.index].flags;
 		row.a = core_lower_tree(core, checked, graph, value, function, loop, 0, depth + 1);
 	}
 	if (kind == SyntaxKind.IfStatementSyntax() || kind == SyntaxKind.WhileStatementSyntax()) {
@@ -168,7 +213,7 @@ CoreNode core_lower_statement(CoreData core, CheckedIndex checked, borrowed Flow
 	}
 	if (kind == SyntaxKind.BreakStatementSyntax() || kind == SyntaxKind.ContinueStatementSyntax()) {
 		row.kind = 25;
-		if (kind == SyntaxKind.ContinueStatementSyntax()) { row.kind = 26; }
+		if (kind == SyntaxKind.ContinueStatementSyntax()) row.kind = 26;
 		row.target = loop;
 	}
 	if (kind == SyntaxKind.ReturnStatementSyntax()) {
@@ -183,6 +228,7 @@ CoreNode core_lower_statement(CoreData core, CheckedIndex checked, borrowed Flow
 	}
 	return row;
 }
+
 void core_lower_inventory(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, int function) {
 	int first = core.place_count;
 	int s = 0;
@@ -195,19 +241,24 @@ void core_lower_inventory(CoreData core, CheckedIndex checked, borrowed FlowGrap
 	int i = 0;
 	while (i < graph.field_count && core.status == 0) {
 		var field = graph.fields[i];
-		if (field.root == 0) { core.status = 3; return; }
+		if (field.root == 0) {
+			core.status = 3;
+			return;
+		}
 		var slot = graph.slots[field.root - 1];
 		int parent = first + field.root;
-		if (field.parent > 0) { parent = first + graph.slot_count + field.parent; }
+		if (field.parent > 0) parent = first + graph.slot_count + field.parent;
 		CorePlace row = { function = function, root = first + field.root, parent = parent, slot = field.root, field = i + 1, symbol = field.symbol, type = field.type, flags = field.flags, region = slot.region, parameter = slot.parameter, leaf = field.leaf };
 		int added = core_add_place(core, row);
 		i = i + 1;
 	}
 }
+
 void core_lower_cleanup(CoreData core, int place, int owner, int state) {
 	CoreCleanup row = {place = place, owner = owner, type = core.places[place - 1].type, state = state};
 	int added = core_add_cleanup(core, row);
 }
+
 void core_lower_responsibility(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, int function) {
 	int first = core.functions[function - 1].place_first;
 	int e = 0;
@@ -224,10 +275,12 @@ void core_lower_responsibility(CoreData core, CheckedIndex checked, borrowed Flo
 					if (checked_kind(checked, slot.type) == 30) {
 						int field = graph.field_count - 1;
 						while (field >= 0 && core.status == 0) {
-							if (graph.fields[field].root == s + 1 && graph.fields[field].leaf && (graph.fields[field].flags & 4) != 0) { core_lower_cleanup(core, first + graph.slot_count + field + 1, owner, state); }
+							if (graph.fields[field].root == s + 1 && graph.fields[field].leaf && (graph.fields[field].flags & 4) != 0) core_lower_cleanup(core, first + graph.slot_count + field + 1, owner, state);
 							field = field - 1;
 						}
-					} else { core_lower_cleanup(core, owner, owner, state); }
+					} else {
+						core_lower_cleanup(core, owner, owner, state);
+					}
 				}
 				s = s - 1;
 			}
@@ -239,33 +292,53 @@ void core_lower_responsibility(CoreData core, CheckedIndex checked, borrowed Flo
 	int l = 0;
 	while (l < graph.loan_count && core.status == 0) {
 		var loan = graph.loans[l];
-		if (loan.call.index == 0 || loan.borrower != 0) { core.status = 3; return; }
+		if (loan.call.index == 0 || loan.borrower != 0) {
+			core.status = 3;
+			return;
+		}
 		CoreLoan row = {function = function, source = first + loan.source, value = loan.node, call = loan.call, region = loan.region, begin = 0, end = 0};
 		e = 0;
 		while (e < graph.count) {
-			if (graph.events[e].operation == 7 && graph.events[e].loan == l + 1) { row.begin = e + 1; }
-			if (graph.events[e].operation == 8 && graph.events[e].call == loan.call.index) { row.end = e + 1; }
+			if (graph.events[e].operation == 7 && graph.events[e].loan == l + 1) row.begin = e + 1;
+			if (graph.events[e].operation == 8 && graph.events[e].call == loan.call.index) row.end = e + 1;
 			e = e + 1;
 		}
 		int added = core_add_loan(core, row);
 		l = l + 1;
 	}
 }
+
 void core_set_status(CoreData core, int status) { core.status = status; }
+
 void core_replace_function(CoreData core, int ordinal, CoreFunction row) { core.functions[ordinal] = row; }
+
 owned CoreProgram core_lower(owned FlowIndex flow, int limit) {
 	var program = new CoreProgram(move flow, limit);
 	// No partial success when any source proof/function remains deferred.
-	if (!program.flow.checked.semantic_admission || program.flow.checked.failed()) { core_set_status(program.data, 4); return move program; }
+	if (!program.flow.checked.semantic_admission || program.flow.checked.failed()) {
+		core_set_status(program.data, 4);
+		return move program;
+	}
 	int status = flow_status(program.flow);
-	if (status != 0) { core_set_status(program.data, 4); if (status == 3) { core_set_status(program.data, 3); } if (status == 2) { core_set_status(program.data, 2); } return move program; }
-	if (!admit_verify_index(program.flow)) { core_set_status(program.data, 4); return move program; }
+	if (status != 0) {
+		core_set_status(program.data, 4);
+		if (status == 3) core_set_status(program.data, 3);
+		if (status == 2) core_set_status(program.data, 2);
+		return move program;
+	}
+	if (!admit_verify_index(program.flow)) {
+		core_set_status(program.data, 4);
+		return move program;
+	}
 	int i = 0;
 	int first = 0;
 	while (i < program.flow.checked.signature_count && program.data.status == 0) {
 		var sig = program.flow.checked.signatures[i];
 		var declaration = program.flow.checked.bindings.symbol(sig.declaration);
-		if (declaration.kind != 1) { core_set_status(program.data, 3); return move program; }
+		if (declaration.kind != 1) {
+			core_set_status(program.data, 3);
+			return move program;
+		}
 		var result = program.flow.checked.types.argument(program.flow.checked.types, sig.callable, 0);
 		CoreFunction f = {symbol = sig.declaration, signature = {index = i + 1}, result = result.type, flags = result.flags, span = program.flow.checked.bindings.program.arena.header(declaration.node).span, body = 0, place_first = first, place_count = flow_graph_slot_count(program.flow.graphs.entries[i]) + flow_field_count(program.flow.graphs.entries[i])};
 		int added = core_add_function(program.data, f);
@@ -282,6 +355,9 @@ owned CoreProgram core_lower(owned FlowIndex flow, int limit) {
 		core_replace_function(program.data, i, f);
 		i = i + 1;
 	}
-	if (program.data.status == 0) { int verified = core_verify(program); core_set_status(program.data, verified); }
+	if (program.data.status == 0) {
+		int verified = core_verify(program);
+		core_set_status(program.data, verified);
+	}
 	return move program;
 }

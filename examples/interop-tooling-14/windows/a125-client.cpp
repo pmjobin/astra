@@ -3,11 +3,13 @@
 struct CHandle;
 struct CWeak;
 using AsCom = HRESULT (*)(CHandle *, IUnknown **);
+
 struct Worker {
 	CHandle *root;
 	AsCom adapt;
 	Value *value;
 };
+
 static DWORD WINAPI other_thread(void *input) {
 	auto context = static_cast<Worker *>(input);
 	CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED) == S_OK);
@@ -17,6 +19,7 @@ static DWORD WINAPI other_thread(void *input) {
 	CoUninitialize();
 	return 0;
 }
+
 int main(int argc, char **argv) {
 	CHECK(argc == 2 && CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED) == S_OK);
 	HMODULE module = LoadLibraryA(argv[1]);

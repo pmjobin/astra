@@ -2,19 +2,21 @@
 int consumer_retire_class(owned NativeClassCallbacks.Cargo<int,bool> value, int extra) {
 	return value.value + extra + 10;
 }
+
 int exercise_class_callbacks() {
 	Fn<int,owned NativeClassCallbacks.Cargo<int,bool>,int> code = ClassCallbackTransport.callback();
 	var first = new NativeClassCallbacks.Cargo<int,bool>(40, true, 241);
-	if (ClassCallbackTransport.apply(code, move first, 2) != 42) { return 1; }
+	if (ClassCallbackTransport.apply(code, move first, 2) != 42) return 1;
 	var second = new NativeClassCallbacks.Cargo<int,bool>(40, true, 242);
 	Fn<int,owned NativeClassCallbacks.Cargo<int,bool>,int> consumer = consumer_retire_class;
-	if (ClassCallbackTransport.apply(consumer, move second, 2) != 52) { return 2; }
+	if (ClassCallbackTransport.apply(consumer, move second, 2) != 52) return 2;
 	var third = new NativeClassCallbacks.Cargo<int,bool>(40, true, 243);
-	if (ClassCallbackTransport.direct(code, move third, 2) != 42) { return 3; }
+	if (ClassCallbackTransport.direct(code, move third, 2) != 42) return 3;
 	return 0;
 }
+
 int main() {
 	int result = exercise_class_callbacks();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

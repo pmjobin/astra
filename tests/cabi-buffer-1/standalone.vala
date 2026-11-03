@@ -29,6 +29,7 @@ private CAbiProgram sample(int variant) throws CAbiError {
 	}
 	return new CAbiProgram (span, CAbiProfile.BUFFER_VIEW_V4, functions, exports);
 }
+
 private void independent() {
 	for (int variant = 0; variant <= 18; variant++) {
 		bool rejected = false;
@@ -45,6 +46,7 @@ private void independent() {
 		}
 	}
 }
+
 private void wide() {
 	var span = SourceSpan (new SourceFile.from_text ("independent-wide", "x"), 0, 1);
 	foreach (var scalar in new CAbiScalarType[] { CAbiScalarType.I64, CAbiScalarType.U64 }) {
@@ -63,10 +65,12 @@ private void wide() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/cabi-buffer/independent-bounded-groups", independent);
 	Test.add_func ("/cabi-buffer/exact-wide-scalar-profiles", wide);
 	return Test.run ();
 }
+
 }

@@ -12,6 +12,7 @@ public class CfgResultObjectStorage : CfgValue {
 		base (span, object_class.semantic_type);
 		this.class_identity = WeakRef (object_class);
 	}
+
 }
 
 public class CfgResultStorageReceiverValue : CfgValue {
@@ -20,6 +21,7 @@ public class CfgResultStorageReceiverValue : CfgValue {
 		base (span, contract);
 		this.storage = storage;
 	}
+
 }
 
 public class CfgResultConstructionInstruction : CfgCallInstruction {
@@ -28,6 +30,7 @@ public class CfgResultConstructionInstruction : CfgCallInstruction {
 		base (span, constructor, arguments, null, new CfgResultStorageReceiverValue (span, storage, constructor.receiver.contract));
 		this.storage = storage;
 	}
+
 }
 // Caller roots are reconstructed from CFG calls, acquisitions and transfers.
 // No Core summary or source ownership marker participates in this proof.
@@ -72,9 +75,11 @@ internal class CfgCallerResultOrigins : Object {
 		} while (changed);
 		locals.remove_all ();
 	}
+
 	private GenericResultOrigins local(CfgLocalPlace place, HashTable<CfgLocalPlace, GenericResultOrigins> values) {
 		return values.lookup (place) ?? new GenericResultOrigins (GenericResultOrigins.UNKNOWN);
 	}
+
 	private GenericResultOrigins value(CfgValue? operand, HashTable<CfgLocalPlace, GenericResultOrigins> values) {
 		if (operand == null || operand is CfgNullPointerValue) {
 			return new GenericResultOrigins ();
@@ -124,6 +129,7 @@ internal class CfgCallerResultOrigins : Object {
 		}
 		return new GenericResultOrigins (GenericResultOrigins.UNKNOWN);
 	}
+
 	private static bool merge(HashTable<CfgLocalPlace, GenericResultOrigins> values, CfgLocalPlace place, GenericResultOrigins incoming) {
 		var prior = values.lookup (place) ?? new GenericResultOrigins ();
 		var combined = prior.union (incoming);
@@ -133,6 +139,7 @@ internal class CfgCallerResultOrigins : Object {
 		values.insert (place, combined);
 		return true;
 	}
+
 	private GenericResultOrigins analyze(CfgFunction function) {
 		var values = new HashTable<CfgLocalPlace, GenericResultOrigins> (direct_hash, direct_equal);
 		foreach (var place in function.locals) {
@@ -177,6 +184,7 @@ internal class CfgCallerResultOrigins : Object {
 		locals.insert (function, values);
 		return result;
 	}
+
 	internal GenericResultOrigins inputs(CfgFunction function, CfgLocalPlace owner) {
 		var values = locals.lookup (function);
 		if (values == null) {
@@ -185,6 +193,7 @@ internal class CfgCallerResultOrigins : Object {
 		}
 		return local (owner, values);
 	}
+
 }
 
 }

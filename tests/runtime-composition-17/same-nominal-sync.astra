@@ -1,27 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void same_sync_retired(int identity);
+
 extern(C) int same_sync_finish();
+
 [Allocator(kind="context",context="scoped-affine")]
 class SyncLeaf {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int read() { return this.identity; }
+
 	deinit() { same_sync_retired(this.identity); }
 }
+
 owned SyncLeaf sync_empty() { return null; }
+
 [ExceptionRoot]
 class SyncFault {
 	private owned SyncLeaf child;
+
 	init(string message) { this.child = sync_empty(); }
+
 	void put(owned SyncLeaf child) { this.child = move child; }
-	int read() { if (this.child == null) { return -1; } return this.child.read(); }
+
+	int read() { if (this.child == null) return -1; return this.child.read(); }
+
 	virtual property string message { get { return "sync error"; } }
 }
+
 void sync_fail(owned SyncLeaf input) throws SyncFault {
 	var error = new SyncFault("body");
 	error.put(move input);
 	throw move error;
 }
+
 export(C) int same_sync_probe() {
 	owned u8[] backing = new u8[8197];
 	var context = scoped_allocator<ScopedAllocator>(backing, 2, 1);
@@ -30,8 +43,8 @@ export(C) int same_sync_probe() {
 		sync_fail(move input);
 		return 1;
 	} catch(SyncFault error) {
-		if (error.read() != 17) { return 2; }
+		if (error.read() != 17) return 2;
 	}
-	if (scoped_allocator_query(context, 1) != 0) { return 3; }
+	if (scoped_allocator_query(context, 1) != 0) return 3;
 	return same_sync_finish();
 }

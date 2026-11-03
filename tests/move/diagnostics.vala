@@ -12,10 +12,12 @@ private void parse_invalid(string statement) {
 	assert (parsed.unit == null && parsed.diagnostic != null);
 	assert (parsed.diagnostic.message.contains ("move"));
 }
+
 private void semantic_invalid(string text, string message) {
 	var result = analyze (text);
 	assert (result.program == null && result.diagnostic != null && result.diagnostic.message.contains (message));
 }
+
 private void flow_invalid(string statements, bool maybe, string operand) throws GLib.Error {
 	var control = cfg ("void f(bool condition) { owned void* a = create(1); " + statements + " }");
 	var result = CfgFlowChecker.check (control);
@@ -29,6 +31,7 @@ private void flow_invalid(string statements, bool maybe, string operand) throws 
 		assert (error.message.contains (result.diagnostic.message));
 	}
 }
+
 private void register_diagnostics() {
 	string[] syntax = {
 		"void* p = move a;", "move a == null;", "int x = move a;", "owned void* b = (move a);", "owned void* b = move create(1);", "owned void* b = move (a);", "owned void* b = move a == null;", "owned void* b = move a.field;", "a = move a;", "if (true && move a) { return; }", "owned void* b = move;"
@@ -80,4 +83,5 @@ private void register_diagnostics() {
 	add ("/move/break/maybe-read", () => flow_invalid ("while (condition) { owned void* b = move a; break; } if (a == null) { return; }", true, "a"));
 	add ("/move/null-is-still-moved", () => flow_invalid ("if (a == null) { owned void* b = move a; if (a == null) { return; } }", false, "a"));
 }
+
 }

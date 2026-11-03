@@ -1,25 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-class CheckedCacheItem { int tag; init(int tag) { this.tag = tag; } }
+class CheckedCacheItem { int tag;
+
+	init(int tag) { this.tag = tag; } }
+
 int checked_cached_tag(CheckedCacheItem item) { return item.tag; }
+
 class RetryCard {
 	int attempts;
+
 	init() { this.attempts = 0; }
+
 	lazy property owned CheckedCacheItem content throws Error {
 		get {
 			this.attempts = this.attempts + 1;
 			var value = new CheckedCacheItem(7);
-			if (this.attempts == 1) { throw new Error("retry"); }
+			if (this.attempts == 1) {
+				throw new Error("retry");
+			}
 			return move value;
 		}
 	}
 }
+
 int main() {
 	try {
 		var card = new RetryCard();
-		try { if (checked_cached_tag(card.content) == 7) { return 71; } } catch(Error error) {}
-		if (checked_cached_tag(card.content) != 7 || checked_cached_tag(card.content) != 7 || card.attempts != 2) { return 72; }
+		try { if (checked_cached_tag(card.content) == 7) return 71; } catch(Error error) {}
+		if (checked_cached_tag(card.content) != 7 || checked_cached_tag(card.content) != 7 || card.attempts != 2) return 72;
 		var moved = move card;
-		if (checked_cached_tag(moved.content) != 7 || moved.attempts != 2) { return 73; }
+		if (checked_cached_tag(moved.content) != 7 || moved.attempts != 2) return 73;
 	} catch(Error error) { return 74; }
 	return 0;
 }

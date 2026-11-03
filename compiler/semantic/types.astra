@@ -4,13 +4,16 @@
 struct TypeId {
 	int index;
 }
+
 struct SignatureId {
 	int index;
 }
+
 struct TypeEdge {
 	TypeId type;
 	int flags;
 }
+
 struct TypeDescriptor {
 	int kind;
 	SymbolId nominal;
@@ -19,6 +22,7 @@ struct TypeDescriptor {
 	int count;
 	int depth;
 }
+
 struct CheckedTypeUse {
 	SyntaxNodeId node;
 	SyntaxSpan span;
@@ -26,6 +30,7 @@ struct CheckedTypeUse {
 	int flags;
 	int deferred;
 }
+
 struct CheckedSignature {
 	SymbolId declaration;
 	TypeId callable;
@@ -33,36 +38,43 @@ struct CheckedSignature {
 	int flags;
 	int dispatch;
 }
+
 TypeId no_type() {
 	TypeId result = {
 		index = 0
 	};
 	return result;
 }
+
 TypeId type_id(int index) {
 	TypeId result = {
 		index = index
 	};
 	return result;
 }
+
 SymbolId type_symbol(int index) {
 	SymbolId result = {
 		index = index
 	};
 	return result;
 }
+
 // Kind 1..16: fixed canonical builtins. 20..28: structural constructors.
 // 30..33: exact nominal declarations/type parameters; 34: closed application.
 class TypeOwner {
 	init() {
 	}
 }
+
 bool type_owner_refs(borrowed TypeOwner first, borrowed TypeOwner second) {
 	return first == second;
 }
+
 bool type_owner_same(borrowed shared TypeOwner first, borrowed shared TypeOwner second) {
 	return type_owner_refs(shared_borrow(first), shared_borrow(second));
 }
+
 class TypeTable {
 	owned shared TypeOwner identity;
 	private owned TypeDescriptor[] rows;
@@ -71,6 +83,7 @@ class TypeTable {
 	private int edge_count;
 	int limit;
 	bool exhausted;
+
 	init(int limit) {
 		var identity = new TypeOwner();
 		var shared = shared_acquire(move identity);
@@ -90,28 +103,35 @@ class TypeTable {
 			i = i + 1;
 		}
 	}
+
 	bool same_owner(borrowed TypeTable origin) {
 		return type_owner_same(origin.identity, this.identity);
 	}
+
 	bool valid_id(TypeId id) {
 		return id.index > 0 && id.index <= this.count;
 	}
+
 	TypeDescriptor row(TypeId id) {
 		assert_that(this.valid_id(id));
 		return this.rows[id.index - 1];
 	}
+
 	bool owns(borrowed TypeTable origin, TypeId id) {
 		return this.same_owner(origin) && this.valid_id(id);
 	}
+
 	TypeDescriptor descriptor(borrowed TypeTable origin, TypeId id) {
 		assert_that(this.owns(origin, id));
 		return this.rows[id.index - 1];
 	}
+
 	TypeEdge argument(borrowed TypeTable origin, TypeId id, int ordinal) {
 		var row = this.descriptor(origin, id);
 		assert_that(ordinal >= 0 && ordinal < row.count);
 		return this.edges[row.first + ordinal];
 	}
+
 	TypeId intern(int kind, SymbolId nominal, int extent, TypeEdge[] args) {
 		if (kind <= 16 && (kind < 1 || nominal.index != 0 || extent != 0 || len(args) != 0)) {
 			return no_type();
@@ -194,6 +214,7 @@ class TypeTable {
 		}
 		return type_id(this.count);
 	}
+
 	TypeId unary(int kind, TypeId element, int extent) {
 		var args = new TypeEdge[1];
 		TypeEdge edge = {
@@ -202,6 +223,7 @@ class TypeTable {
 		args[0] = edge;
 		return this.intern(kind, type_symbol(0), extent, args);
 	}
+
 	bool valid() {
 		int i = 1;
 		while (i <= this.count) {
@@ -222,6 +244,7 @@ class TypeTable {
 		return !this.exhausted;
 	}
 }
+
 int type_builtin(string name) {
 	if (name == "int" || name == "i32") {
 		return 1;
@@ -270,6 +293,7 @@ int type_builtin(string name) {
 	}
 	return 0;
 }
+
 string type_builtin_name(int kind) {
 	if (kind == 1) {
 		return "int";
@@ -318,15 +342,19 @@ string type_builtin_name(int kind) {
 	}
 	return "void*";
 }
+
 bool type_integer(int kind) {
 	return kind >= 1 && kind <= 10;
 }
+
 bool type_numeric(int kind) {
 	return kind >= 1 && kind <= 12;
 }
+
 bool type_signed(int kind) {
 	return kind == 1 || kind == 2 || kind == 4 || kind == 7 || kind == 9;
 }
+
 int type_width(int kind) {
 	if (kind == 2 || kind == 3) {
 		return 8;

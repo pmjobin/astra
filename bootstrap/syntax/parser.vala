@@ -12,6 +12,7 @@ public class ParseResult : Object {
 		this.unit = unit;
 		this.diagnostic = diagnostic;
 	}
+
 }
 
 public class Parser : Object {
@@ -3075,6 +3076,7 @@ public class Parser : Object {
 		}
 		return false;
 	}
+
 	private ExpressionSyntax? parse_primary_or_prefix(int recursion_depth) {
 		var token = current;
 		if (token.kind == TokenKind.AWAIT) {
@@ -3272,5 +3274,6 @@ public class Parser : Object {
 			return null;
 		}
 	}
+
 }
 }

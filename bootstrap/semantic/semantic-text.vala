@@ -12,6 +12,7 @@ public class CheckedUtf8FactoryExpression : CheckedExpression {
 		this.input = input;
 		this.validates = validates;
 	}
+
 }
 public class Utf8FactoryContracts : Object {
 	private static CheckedFunction? definition(CheckedProgram program, FunctionSymbol? symbol) {
@@ -22,6 +23,7 @@ public class Utf8FactoryContracts : Object {
 		}
 		return null;
 	}
+
 	private static bool snapshot_constructor(CheckedProgram program, ClassSymbol owner) {
 		var constructor = definition (program, owner.constructor);
 		if (constructor == null || constructor.symbol.parameters.length != 1 || !(constructor.symbol.parameters[0].semantic_type is StringType) || constructor.locals.length != 0 || constructor.body.statements.length != 1) {
@@ -32,6 +34,7 @@ public class Utf8FactoryContracts : Object {
 		var receiver = init == null ? null : init.target.receiver as CheckedThisExpression;
 		return init != null && value != null && value.parameter == constructor.symbol.parameters[0] && init.target.field == owner.fields[0] && receiver != null && receiver.receiver == owner.constructor.receiver;
 	}
+
 	public static Diagnostic? validate_program(CheckedProgram program) {
 		int count = 0;
 		foreach (var function in program.functions) {
@@ -82,6 +85,7 @@ public class Utf8FactoryContracts : Object {
 		}
 		return null;
 	}
+
 }
 public class CheckedTextExpression : CheckedExpression {
 	public TextBytes payload { get; private set; }
@@ -89,6 +93,7 @@ public class CheckedTextExpression : CheckedExpression {
 		base (span, type);
 		this.payload = payload;
 	}
+
 }
 public class CheckedTextLengthExpression : CheckedExpression {
 	public CheckedExpression receiver { get; private set; }
@@ -96,6 +101,7 @@ public class CheckedTextLengthExpression : CheckedExpression {
 		base (span, type);
 		this.receiver = receiver;
 	}
+
 }
 
 // Check every definition before the checked program is published. Calls
@@ -108,6 +114,7 @@ private class SemanticStoredText : Object {
 		this.value = value;
 		this.destination = destination;
 	}
+
 }
 private class SemanticTextInvalidation : Object {
 	internal Object owner;
@@ -117,6 +124,7 @@ private class SemanticTextInvalidation : Object {
 		this.owner = owner;
 		this.span = span;
 	}
+
 }
 internal class SemanticTextOrigins : Object {
 	private TextOriginFlow flow = new TextOriginFlow ();
@@ -149,6 +157,7 @@ internal class SemanticTextOrigins : Object {
 		}
 		return null;
 	}
+
 	private void invalidate(Object owner, SourceSpan span) {
 		if (!flow.state.reachable) {
 			return;
@@ -159,6 +168,7 @@ internal class SemanticTextOrigins : Object {
 		}
 		invalidations.add (event);
 	}
+
 	private void protected_group(CheckedTry guarded) {
 		var entry = flow.state.snapshot ();
 		flow.begin_try ();
@@ -191,6 +201,7 @@ internal class SemanticTextOrigins : Object {
 		}
 		flow.state = merged;
 	}
+
 	private void value(CheckedExpression expression) {
 		if (expression is CheckedSlotsValue && ((CheckedSlotsValue) expression).operand != null) {
 			value (((CheckedSlotsValue) expression).operand);
@@ -288,6 +299,7 @@ internal class SemanticTextOrigins : Object {
 			flow.read (((CheckedLocalReferenceExpression) expression).local, expression);
 		}
 	}
+
 	private void statement(CheckedStatement source) {
 		if (source is CheckedTry) {
 			protected_group ((CheckedTry) source);
@@ -417,6 +429,7 @@ internal class SemanticTextOrigins : Object {
 			flow.state.reachable = false;
 		}
 	}
+
 	internal static Diagnostic? check(CheckedProgram program) {
 		var proof = new SemanticTextOrigins ();
 		foreach (var function in program.all_definitions ()) {
@@ -458,5 +471,6 @@ internal class SemanticTextOrigins : Object {
 		}
 		return null;
 	}
+
 }
 }

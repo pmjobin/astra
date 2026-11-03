@@ -15,6 +15,7 @@ public class NativeRecordApplicationPlan : Object {
 	public unowned NativeDeclaredType argument(int ordinal) {
 		return arguments[ordinal];
 	}
+
 	public NativeStructValuePlan record { get; private set; }
 	internal NativeRecordApplicationPlan (string name, NativeDeclaredType[] arguments, NativeStructValuePlan record, NativeOwnedRecordDeclaration? owned_declaration = null) {
 		identifier = name;
@@ -22,6 +23,7 @@ public class NativeRecordApplicationPlan : Object {
 		this.record = record;
 		this.owned_declaration = owned_declaration;
 	}
+
 	internal static string spelling(string name, NativeDeclaredType[] arguments) {
 		string result = name + "<";
 		for (int a = 0; a < arguments.length; a++) {
@@ -29,6 +31,7 @@ public class NativeRecordApplicationPlan : Object {
 		}
 		return result + ">";
 	}
+
 	internal bool matches(string name, NativeDeclaredType[] actual) {
 		if (name != definition_name || actual.length != arguments.length) {
 			return false;
@@ -40,9 +43,11 @@ public class NativeRecordApplicationPlan : Object {
 		}
 		return true;
 	}
+
 	internal bool declared_argument(GenericTypePattern pattern, NativeDeclaredType actual, NativeAbiProgram program) {
 		return NativeDeclaredClass.match_arguments (pattern, actual, arguments, program);
 	}
+
 }
 public class NativeOwnedRecordDeclaration : Object {
 	private GenericFieldPattern[] declaration;
@@ -57,6 +62,7 @@ public class NativeOwnedRecordDeclaration : Object {
 		this.owned_fields = owned_fields.copy ();
 		this.private_fields = private_fields.copy ();
 	}
+
 	private static bool resource(NativeRecordResource owner, NativeDeclaredType type) {
 		if (owner.type_name != type.name) {
 			return false;
@@ -78,6 +84,7 @@ public class NativeOwnedRecordDeclaration : Object {
 		}
 		return element.record != null ? buffer.record_element != null && buffer.record_element.struct_name == element.record.struct_name : buffer.element_type != null && element.storage != null && buffer.element_type.same_type (element.storage);
 	}
+
 	private static bool channel(NativeStructValuePlan record, ref int position, string path, string storage, int component, NativeAbiType type) {
 		if (position >= record.leaves.length) {
 			return false;
@@ -85,6 +92,7 @@ public class NativeOwnedRecordDeclaration : Object {
 		var actual = record.leaves[position++];
 		return actual.field_path == path && actual.storage_path == storage && actual.buffer_component == component && actual.abi_type.get_type () == type.get_type () && actual.abi_type.same_type (type);
 	}
+
 	internal bool valid(NativeRecordApplicationPlan application, NativeAbiProgram program, out string reason) {
 		reason = "declared argument arity, field inventory or nominal record name";
 		if (application.argument_count != owner_parameters.length || application.nominal_name != application.record.struct_name || fields.length != declaration.length || fields.length != owned_fields.length || fields.length != private_fields.length) {
@@ -173,6 +181,7 @@ public class NativeOwnedRecordDeclaration : Object {
 		reason = "complete recursive owner conservation";
 		return physical == application.record.leaves.length && (actual == null ? owners == 0 : owners == actual.field_count && actual.fields.length == actual.field_count);
 	}
+
 }
 public class NativeDeclaredType : Object {
 	private string identifier;
@@ -300,6 +309,7 @@ public class NativeDeclaredType : Object {
 		var element = application_arguments[0];
 		return element.valid (program) && name == element.name + "[]" && nominal_name == element.nominal_name + "[]";
 	}
+
 	private bool valid_context_bytes(NativeAbiProgram program) {
 		var bytes = storage as NativeContextSliceType;
 		if (bytes == null || !bytes.valid () || application_arguments.length != 1 || class_ordinal >= 0 || record != null || resource != null || name != bytes.name || nominal_name != bytes.name) {
@@ -317,12 +327,14 @@ public class NativeDeclaredType : Object {
 	internal bool is_slice() {
 		return constructor_name == "@slice" || constructor_name == "ContextBytes";
 	}
+
 	internal NativeDeclaredType? slice_element() {
 		if (constructor_name == "ContextBytes") {
 			return new NativeDeclaredType ("u8", new NativeScalarAbiType (NativeScalarType.U8));
 		}
 		return constructor_name == "@slice" && application_arguments.length == 1 ? application_arguments[0] : null;
 	}
+
 	internal bool plain_record_argument(NativeAbiProgram program) {
 		if (!valid (program) || class_ordinal >= 0 || resource != null || is_slice ()) {
 			return false;
@@ -475,6 +487,7 @@ public class NativeDeclaredType : Object {
 		}
 		return true;
 	}
+
 }
 
 public class NativeDeclaredMember : Object {
@@ -650,6 +663,7 @@ public class NativeDeclaredMember : Object {
 			NativeDeclaredClass.reject ("unrelated parameter channel");
 		}
 	}
+
 }
 
 public class NativeDeclaredClass : Object {
@@ -661,10 +675,12 @@ public class NativeDeclaredClass : Object {
 	public unowned NativeDeclaredType argument(int ordinal) {
 		return arguments[ordinal];
 	}
+
 	public int field_count { get { return fields.length; } }
 	public unowned NativeDeclaredType field_type(int ordinal) {
 		return fields[ordinal];
 	}
+
 	public int member_count { get { return members.length; } }
 	public unowned NativeDeclaredMember member(int ordinal) {
 		return members[ordinal];
@@ -706,6 +722,7 @@ public class NativeDeclaredClass : Object {
 	internal bool matches(GenericTypePattern pattern, NativeDeclaredType actual, NativeAbiProgram program, NativeDeclaredType[]? method_arguments = null) {
 		return match_arguments (pattern, actual, arguments, program, method_arguments);
 	}
+
 	internal static bool match_arguments(GenericTypePattern pattern, NativeDeclaredType actual, NativeDeclaredType[] arguments, NativeAbiProgram program, NativeDeclaredType[]? method_arguments = null) {
 		if (pattern.kind == GenericTypePatternKind.PARAMETER) {
 			return pattern.parameter >= 0 && pattern.parameter < arguments.length && arguments[pattern.parameter].same_type (actual);
@@ -895,5 +912,6 @@ public class NativeDeclaredClass : Object {
 			}
 		}
 	}
+
 }
 }

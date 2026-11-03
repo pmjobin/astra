@@ -17,6 +17,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 
@@ -211,4 +212,5 @@ int main(string[] args) {
 	cases = null;
 	return status;
 }
+
 }

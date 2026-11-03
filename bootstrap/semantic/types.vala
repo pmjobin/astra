@@ -66,6 +66,7 @@ public class GenericResourceLimits : Object {
 		}
 		return element == null || remaining > 0 && admits_type (element, remaining - 1);
 	}
+
 }
 
 public enum BooleanLiteral {
@@ -75,6 +76,7 @@ public enum BooleanLiteral {
 	public string spelling() {
 		return this == TRUE ? "true" : "false";
 	}
+
 }
 
 public enum TypeKind {
@@ -119,6 +121,7 @@ public class SemanticType : Object {
 		nominal_token = token;
 		nominal_bound = true;
 	}
+
 	private TypeKind type_kind;
 	public TypeKind kind { get { return type_kind; } }
 
@@ -133,18 +136,23 @@ public class SemanticType : Object {
 	public bool is_struct_storage() {
 		return this is StructType || kind == TypeKind.GENERIC_STRUCT_APPLICATION;
 	}
+
 	public virtual bool is_parameterized() {
 		return this is TypeParameterType;
 	}
+
 	internal virtual SemanticType substitute(TypeSubstitution substitution) {
 		return this;
 	}
+
 	public virtual string? generic_definition_name() {
 		return null;
 	}
+
 	public virtual TypeArgumentVector? generic_arguments() {
 		return null;
 	}
+
 	// Materialized records have private storage symbols. Public nominal
 	// contracts retain the definition and recursively ordered arguments.
 	public string nominal_name() {
@@ -170,6 +178,7 @@ public class SemanticType : Object {
 	public bool is_text_slice() {
 		return this is SliceType && ((SliceType) this).element_type is StringType;
 	}
+
 	public bool is_text_view() {
 		return this is StringType || is_text_slice ();
 	}
@@ -269,6 +278,7 @@ public class SemanticType : Object {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 // Immutable lexical identity token, owned one-to-one by its declaring symbol.
@@ -305,6 +315,7 @@ public class RecordDefinitionIdentity : Object {
 			}
 		}
 	}
+
 	public string application_name(GenericArray<SemanticType> arguments) {
 		var result = new StringBuilder (name + "<");
 		for (int a = 0; a < arguments.length; a++) {
@@ -312,6 +323,7 @@ public class RecordDefinitionIdentity : Object {
 		}
 		return result.str + ">";
 	}
+
 	public bool admits(GenericArray<SemanticType> arguments) {
 		if (!native_closed) {
 			return true;
@@ -331,6 +343,7 @@ public class RecordDefinitionIdentity : Object {
 		}
 		return false;
 	}
+
 	public RecordApplicationIdentity application(GenericArray<SemanticType> arguments) {
 		foreach (var prior in applications) {
 			if (prior.matches (arguments)) {
@@ -341,6 +354,7 @@ public class RecordDefinitionIdentity : Object {
 		applications.add (result);
 		return result;
 	}
+
 }
 public class RecordApplicationIdentity : Object {
 	private GenericArray<Object> arguments = new GenericArray<Object> ();
@@ -349,6 +363,7 @@ public class RecordApplicationIdentity : Object {
 			arguments.add (type.logical_identity);
 		}
 	}
+
 	public bool matches(GenericArray<SemanticType> types) {
 		if (types.length != arguments.length) {
 			return false;
@@ -360,6 +375,7 @@ public class RecordApplicationIdentity : Object {
 		}
 		return true;
 	}
+
 }
 // Immutable nominal-only use. This carries no value, cleanup or stage graph.
 public class ClassTypeArgument : Object {
@@ -371,12 +387,15 @@ public class ClassTypeArgument : Object {
 		this.ordinal = ordinal;
 		semantic_type = type;
 	}
+
 	public ClassTypeArgument copy() {
 		return new ClassTypeArgument (owner_type, ordinal, semantic_type);
 	}
+
 	public bool matches(ExactClassGenericInstance key, ClassType owner, int ordinal) {
 		return owner_type == owner && this.ordinal == ordinal && key.instance_type == owner && ordinal >= 0 && ordinal < key.arguments.length && semantic_type.logical_identity == key.arguments.at (ordinal).logical_identity;
 	}
+
 }
 public class CallableTypes : Object {
 	public static bool consumes(Object? target, int ordinal, SemanticType type) {
@@ -385,12 +404,14 @@ public class CallableTypes : Object {
 		       signature.parameter_contract (ordinal) == PointerParameterContract.OWNED_TRANSFER &&
 		       signature.parameter_types[ordinal] == type;
 	}
+
 	public static SemanticType result_type(SemanticType signature) {
 		if (signature is FunctionValueType) {
 			return ((FunctionValueType) signature).result_type;
 		}
 		return ((ClosureHandleType) signature).result_type;
 	}
+
 	public static SemanticType with_parameters(SemanticType original, GenericArray<SemanticType> parameters, SemanticType? mapped_result = null, ClassType? mapped_environment = null) {
 		var signature = (CallableSignature) original;
 		var function = original as FunctionValueType;
@@ -427,6 +448,7 @@ public class CallableTypes : Object {
 		}
 		return result;
 	}
+
 }
 public class CallableRecordGroups : Object {
 	public static StructValueShape? complete_result(SemanticType type, CopyabilityFields fields) throws StructLeafError {
@@ -440,6 +462,7 @@ public class CallableRecordGroups : Object {
 		}
 		return new StructValueShape ((StructType) type, leaves, copied ? StructValueMode.COPY_VALUE : StructValueMode.MOVE_VALUE);
 	}
+
 	public static void verify_result(SemanticType type, StructValueShape? shape, CopyabilityFields fields) throws StructLeafError {
 		var expected = complete_result (type, fields);
 		if (expected == null ? shape != null : shape == null || shape.semantic_type != expected.semantic_type || shape.mode != expected.mode || shape.physical_buffers) {
@@ -453,12 +476,14 @@ public class CallableRecordGroups : Object {
 	public static bool heap_parameter(CallableSignature signature, int ordinal) {
 		return signature.parameter_types[ordinal] is ClassType && signature.parameter_contract (ordinal) == PointerParameterContract.OWNED_TRANSFER;
 	}
+
 	private static StructValueMode parameter_mode(CallableSignature signature, int ordinal, CopyabilityFields fields) {
 		if (CopyabilityAuthority.of (signature.parameter_types[ordinal], fields) == Copyability.COPYABLE) {
 			return StructValueMode.COPY_VALUE;
 		}
 		return signature.parameter_contract (ordinal) == PointerParameterContract.BORROWED_NOESCAPE ? StructValueMode.BORROW_VALUE : StructValueMode.MOVE_VALUE;
 	}
+
 	public static void complete(CallableSignature signature, GenericArray<StructBoundaryGroup> groups, CopyabilityFields fields) throws StructLeafError {
 		if (groups.length != 0) {
 			verify (signature, groups, fields);
@@ -480,6 +505,7 @@ public class CallableRecordGroups : Object {
 		}
 		verify (signature, groups, fields);
 	}
+
 	public static void verify(CallableSignature signature, GenericArray<StructBoundaryGroup> groups, CopyabilityFields fields, int source_offset = 0, int physical_offset = 0) throws StructLeafError {
 		int first = physical_offset;
 		int group = 0;
@@ -510,6 +536,7 @@ public class CallableRecordGroups : Object {
 			throw new StructLeafError.INVALID_FIELDS ("callable signature contains an extra record group");
 		}
 	}
+
 	public static GenericArray<SemanticType> physical_parameters(CallableSignature signature, GenericArray<StructBoundaryGroup> groups) {
 		var result = new GenericArray<SemanticType> ();
 		int group = 0;
@@ -530,6 +557,7 @@ public class CallableRecordGroups : Object {
 		}
 		return result;
 	}
+
 	public static bool borrowed_record_leaf(GenericArray<StructBoundaryGroup> groups, int ordinal) {
 		foreach (var group in groups) {
 			if (group.shape.mode == StructValueMode.BORROW_VALUE && ordinal >= group.first_leaf && ordinal < group.first_leaf + group.shape.leaves.length) {
@@ -538,6 +566,7 @@ public class CallableRecordGroups : Object {
 		}
 		return false;
 	}
+
 	public static GenericArray<PointerParameterContract> physical_contracts(CallableSignature signature, GenericArray<StructBoundaryGroup> groups) {
 		var result = new GenericArray<PointerParameterContract> ();
 		int group = 0;
@@ -560,6 +589,7 @@ public class CallableRecordGroups : Object {
 		}
 		return result;
 	}
+
 }
 public class FunctionValueType : SemanticType, CallableSignature {
 	private ResultOwnershipContract result_ownership;
@@ -573,6 +603,7 @@ public class FunctionValueType : SemanticType, CallableSignature {
 	public PointerParameterContract parameter_contract(int ordinal) {
 		return parameter_contracts[ordinal];
 	}
+
 	public GenericArray<StructBoundaryGroup> record_parameters { get; private set; default = new GenericArray<StructBoundaryGroup> (); }
 	internal FunctionValueType (SemanticType result, GenericArray<SemanticType> parameters, GenericArray<PointerParameterContract>? contracts = null, ResultOwnershipContract result_contract = ResultOwnershipContract.UNMANAGED, TypeKind kind = TypeKind.FUNCTION_VALUE) {
 		base (kind);
@@ -583,15 +614,19 @@ public class FunctionValueType : SemanticType, CallableSignature {
 			parameter_contracts.add (contracts == null ? PointerParameterContract.UNMANAGED : contracts[p]);
 		}
 	}
+
 	public static bool supported_result(SemanticType type, ResultOwnershipContract contract) {
 		return contract == ResultOwnershipContract.UNMANAGED && (type.kind == TypeKind.VOID || scalar (type) || symbolic_copy (type) || type.is_struct_storage ()) || contract == ResultOwnershipContract.OWNED_TRANSFER && (GenericBorrowTypes.symbolic (type) || type.get_type () == typeof (HandleType) || type is ClassType && !((ClassType) type).is_interface && (!(type is ExactGenericClassType) || GenericClassTypes.general (type)));
 	}
+
 	public static bool symbolic_copy(SemanticType type) {
 		return type is TypeParameterType && ((TypeParameterType) type).transport_mode == GenericTransportMode.PLAIN_COPY;
 	}
+
 	public static bool scalar(SemanticType type) {
 		return type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL;
 	}
+
 	public override bool is_parameterized() {
 		if (result_type.is_parameterized ()) {
 			return true;
@@ -603,12 +638,15 @@ public class FunctionValueType : SemanticType, CallableSignature {
 		}
 		return false;
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return substitution.function (this);
 	}
+
 	public override string? generic_definition_name() {
 		return (this is CallbackType) ? "Callback" : "Fn";
 	}
+
 	public override TypeArgumentVector? generic_arguments() {
 		var values = new GenericArray<SemanticType> ();
 		values.add (result_type);
@@ -617,6 +655,7 @@ public class FunctionValueType : SemanticType, CallableSignature {
 		}
 		return new TypeArgumentVector (values);
 	}
+
 	internal void complete_records(CopyabilityFields fields) throws StructLeafError {
 		if (parameter_contracts.length != parameter_types.length) {
 			throw new StructLeafError.INVALID_FIELDS ("function signature lost its complete parameter channel contracts");
@@ -624,6 +663,7 @@ public class FunctionValueType : SemanticType, CallableSignature {
 		CallableRecordGroups.complete (this, record_parameters, fields);
 		result_shape = CallableRecordGroups.complete_result (result_type, fields);
 	}
+
 	public void verify_records(GenericArray<StructBoundaryGroup> groups, CopyabilityFields fields) throws StructLeafError {
 		if (parameter_contracts.length != parameter_types.length) {
 			throw new StructLeafError.INVALID_FIELDS ("function signature lost its complete parameter channel contracts");
@@ -631,6 +671,7 @@ public class FunctionValueType : SemanticType, CallableSignature {
 		CallableRecordGroups.verify (this, groups, fields);
 		CallableRecordGroups.verify_result (result_type, result_shape, fields);
 	}
+
 	public bool has_owner_channels() {
 		for (int p = 0; p < parameter_contracts.length; p++) {
 			if (parameter_contracts[p] != PointerParameterContract.UNMANAGED) {
@@ -639,12 +680,15 @@ public class FunctionValueType : SemanticType, CallableSignature {
 		}
 		return false;
 	}
+
 	public GenericArray<PointerParameterContract> physical_contracts() {
 		return CallableRecordGroups.physical_contracts (this, record_parameters);
 	}
+
 	public GenericArray<SemanticType> physical_parameters() {
 		return CallableRecordGroups.physical_parameters (this, record_parameters);
 	}
+
 	public string signature_name(bool nominal = false) {
 		string name = ((this is CallbackType) ? "Callback<" : "Fn<") + (result_contract == ResultOwnershipContract.OWNED_TRANSFER ? "owned " : "") + (nominal ? result_type.nominal_name () : result_type.display_name ());
 		for (int p = 0; p < parameter_types.length; p++) {
@@ -652,6 +696,7 @@ public class FunctionValueType : SemanticType, CallableSignature {
 		}
 		return name + ">";
 	}
+
 }
 
 // A borrowed code/context view. It never owns an environment and cannot be
@@ -660,6 +705,7 @@ public class CallbackType : FunctionValueType {
 	internal CallbackType (SemanticType result, GenericArray<SemanticType> parameters) {
 		base (result, parameters, null, ResultOwnershipContract.UNMANAGED, TypeKind.CALLBACK);
 	}
+
 	public bool matches_closure(SemanticType source) {
 		var closure = source as ClosureHandleType;
 		if (closure == null || !supported () || closure.threaded || closure.actor || closure.throws_type != null || closure.result_contract != ResultOwnershipContract.UNMANAGED || closure.result_type != result_type || closure.parameter_types.length != parameter_types.length) {
@@ -672,12 +718,15 @@ public class CallbackType : FunctionValueType {
 		}
 		return true;
 	}
+
 	public static SemanticType borrowed_type(SemanticType source, SemanticType? target) {
 		return (source is ClosureHandleType && target is CallbackType) ? target : source;
 	}
+
 	public static bool copied(SemanticType type) {
 		return type.kind == TypeKind.INT || type.kind == TypeKind.U32 || type.kind == TypeKind.I64 || type.kind == TypeKind.U64 || type.kind == TypeKind.F32 || type.kind == TypeKind.F64 || type.kind == TypeKind.BOOL || FunctionValueType.symbolic_copy (type);
 	}
+
 	public bool supported() {
 		if (result_contract != ResultOwnershipContract.UNMANAGED || result_type.kind != TypeKind.VOID && !copied (result_type) || parameter_types.length > 256) {
 			return false;
@@ -689,11 +738,13 @@ public class CallbackType : FunctionValueType {
 		}
 		return true;
 	}
+
 }
 
 public enum GenericCapability {
 	GEN1_PLAIN_COPY, OWNABLE
 }
+
 public enum GenericTransportMode {
 	PLAIN_COPY, OWNABLE
 }
@@ -709,18 +760,22 @@ public class TypeParameterType : SemanticType {
 		this.identifier = name;
 		this.explicit_capabilities = capabilities ?? new GenericCapabilitySet ();
 	}
+
 }
 
 public class GenericArgumentTypes : Object {
 	public static bool plain_copy(SemanticType type, CopyabilityFields? fields = null, CopyabilityPremise? premise = null) {
 		return (fields == null ? CopyabilityAuthority.value_copy (type, (aggregate) => null, premise) : CopyabilityAuthority.value_copy (type, fields, premise)) == Copyability.COPYABLE;
 	}
+
 	public static bool accepts(TypeParameterType parameter, SemanticType type, CopyabilityFields? fields = null, CopyabilityPremise? premise = null) {
 		return parameter.transport_mode == GenericTransportMode.OWNABLE ? GenericCapabilityAuthority.satisfies (type, GenericCapabilityIdentity.OWNABLE) : plain_copy (type, fields, premise);
 	}
+
 	public static bool supports(SemanticType type, CopyabilityFields? fields = null) {
 		return !type.is_parameterized () && plain_copy (type, fields);
 	}
+
 }
 
 // One exact substitution authority shared by checking and Core. Only generic
@@ -739,6 +794,7 @@ public class GenericStorageVector : Object {
 	public int parameter(int position) {
 		return heap_inputs[position];
 	}
+
 	public GenericStorageVector (bool[] heap_parameters) {
 		for (int p = 0; p < heap_parameters.length; p++) {
 			if (heap_parameters[p]) {
@@ -746,6 +802,7 @@ public class GenericStorageVector : Object {
 			}
 		}
 	}
+
 	public GenericStorageVector.single (int parameter = -1) {
 		if (parameter != -1) {
 			heap_inputs += parameter;
@@ -759,6 +816,7 @@ public class GenericStorageVector : Object {
 		}
 		return false;
 	}
+
 	public bool valid(int parameters) {
 		foreach (int input in heap_inputs) {
 			if (input < 0 || input >= parameters) {
@@ -767,6 +825,7 @@ public class GenericStorageVector : Object {
 		}
 		return parameters >= 0;
 	}
+
 	public bool same(GenericStorageVector other) {
 		if (heap_inputs.length != other.heap_inputs.length) {
 			return false;
@@ -778,6 +837,7 @@ public class GenericStorageVector : Object {
 		}
 		return true;
 	}
+
 	public uint identity_hash() {
 		uint result = 5381;
 		foreach (int input in heap_inputs) {
@@ -785,6 +845,7 @@ public class GenericStorageVector : Object {
 		}
 		return result;
 	}
+
 }
 
 // Hashes accelerate canonical lookup only. Exact ordered identities and the
@@ -798,12 +859,15 @@ public class GenericRequestKey : Object {
 		this.arguments = arguments;
 		this.storage = storage ?? new GenericStorageVector.single (storage_variant);
 	}
+
 	public static uint hash(GenericRequestKey key) {
 		return (direct_hash (key.definition) * 33 + key.arguments.identity_hash ()) * 33 + key.storage.identity_hash ();
 	}
+
 	public static bool equal(GenericRequestKey left, GenericRequestKey right) {
 		return left.definition == right.definition && left.storage.same (right.storage) && left.arguments.matches (right.arguments);
 	}
+
 }
 
 // Ordered canonical type identities, never display-name keys. The private
@@ -830,6 +894,7 @@ public class TypeArgumentVector : Object {
 	public bool matches(TypeArgumentVector other) {
 		return same_values (values, other.values);
 	}
+
 	public uint identity_hash() {
 		uint result = length;
 		foreach (var type in values) {
@@ -896,6 +961,7 @@ public class TypeArgumentVector : Object {
 		text.append (">");
 		return text.str;
 	}
+
 }
 
 // Declarative result-origin equation. An owned Class result may originate
@@ -918,9 +984,11 @@ public class GenericResultOrigins : Object {
 		this.captured_caller = captured_caller;
 		this.inputs = inputs == null ? null : inputs.copy ();
 	}
+
 	public GenericResultOrigins captured() {
 		return new GenericResultOrigins (domains, inputs, captured_caller || (domains & CALLER) != 0);
 	}
+
 	public GenericResultOrigins union(GenericResultOrigins other) {
 		int[] merged = inputs.copy ();
 		foreach (var ordinal in other.inputs) {
@@ -934,6 +1002,7 @@ public class GenericResultOrigins : Object {
 		}
 		return new GenericResultOrigins (domains | other.domains, merged, captured_caller || other.captured_caller);
 	}
+
 	public bool same(GenericResultOrigins other) {
 		if (domains != other.domains || captured_caller != other.captured_caller || inputs.length != other.inputs.length) {
 			return false;
@@ -949,6 +1018,7 @@ public class GenericResultOrigins : Object {
 		}
 		return true;
 	}
+
 	public GenericResultOrigins compose(GenericArray<GenericResultOrigins> arguments) {
 		var result = new GenericResultOrigins (domains, null, captured_caller);
 		foreach (var ordinal in inputs) {
@@ -959,6 +1029,7 @@ public class GenericResultOrigins : Object {
 		}
 		return result;
 	}
+
 	public uint evaluate(bool[] heap_arguments) {
 		uint result = domains;
 		foreach (var ordinal in inputs) {
@@ -969,6 +1040,7 @@ public class GenericResultOrigins : Object {
 		}
 		return result;
 	}
+
 }
 
 public class TypeSubstitution : Object {
@@ -986,6 +1058,7 @@ public class TypeSubstitution : Object {
 		this.classes = (owned) classes;
 		this.closures = (owned) closures;
 	}
+
 	internal ExactGenericClassType class_type(ExactGenericClassType original) {
 		var prior = class_types.lookup (original);
 		if (prior != null) {
@@ -999,6 +1072,7 @@ public class TypeSubstitution : Object {
 		class_types.insert (original, mapped);
 		return mapped;
 	}
+
 	internal FunctionValueType function(FunctionValueType original) {
 		var prior = function_types.lookup (original);
 		if (prior != null) {
@@ -1010,10 +1084,12 @@ public class TypeSubstitution : Object {
 		function_types.insert (original, mapped);
 		return mapped;
 	}
+
 	internal SliceType slice(SliceType original) {
 		var element = apply (original.element_type);
 		return element == original.element_type ? original : slices == null ? new SliceType (element) : slices (element);
 	}
+
 	internal ClosureHandleType closure(ClosureHandleType original) {
 		var prior = closure_types.lookup (original);
 		if (prior != null) {
@@ -1026,6 +1102,7 @@ public class TypeSubstitution : Object {
 		closure_types.insert (original, mapped);
 		return mapped;
 	}
+
 	public bool matches(SemanticType formal, SemanticType actual) {
 		if (formal is SliceType) {
 			return actual is SliceType && matches (((SliceType) formal).element_type, ((SliceType) actual).element_type);
@@ -1076,6 +1153,7 @@ public class TypeSubstitution : Object {
 		}
 		return apply (formal) == actual;
 	}
+
 	public void bind(TypeParameterType parameter, SemanticType argument) {
 		assert (!bindings.contains (parameter));
 		bindings.insert (parameter, argument);
@@ -1083,9 +1161,11 @@ public class TypeSubstitution : Object {
 		closure_types.remove_all ();
 		class_types.remove_all ();
 	}
+
 	public SemanticType apply(SemanticType type) {
 		return (type is TypeParameterType) ? (bindings.lookup ((TypeParameterType) type) ?? type) : type.substitute (this);
 	}
+
 	public GenericArray<SemanticType> apply_arguments(GenericArray<SemanticType> arguments) {
 		var result = new GenericArray<SemanticType> ();
 		foreach (var argument in arguments) {
@@ -1093,6 +1173,7 @@ public class TypeSubstitution : Object {
 		}
 		return result;
 	}
+
 }
 
 // Compiler-owned receiver contract, never a source pointer or whole-struct value.
@@ -1105,9 +1186,11 @@ public class PropertyValueTypes : Object {
 	public static bool supports_cache(SemanticType type) {
 		return !(type is StringType) && supports (type);
 	}
+
 	public static bool supports(SemanticType type, CopyabilityFields? fields = null) {
 		return type is StringType || type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL || type.is_void_pointer () || (type is VectorType && VectorType.supports (((VectorType) type).element_type, ((VectorType) type).lane_count)) || type.is_struct_storage () && fields != null && GenericArgumentTypes.plain_copy (type, fields);
 	}
+
 }
 
 public enum ReceiverMode {
@@ -1126,11 +1209,13 @@ public class ReceiverType : SemanticType {
 		this.instance_type = instance_type;
 		this.mode = mode;
 	}
+
 }
 
 public enum SliceElementAccess {
 	READ, READ_WRITE
 }
+
 // One non-null, non-owning bounded view value. Runtime extent is not type identity.
 public class SliceType : SemanticType {
 	public SemanticType element_type { get; private set; }
@@ -1145,16 +1230,20 @@ public class SliceType : SemanticType {
 	public override bool is_parameterized() {
 		return element_type.is_parameterized ();
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return substitution.slice (this);
 	}
+
 	public static bool supports(SemanticType element) {
 		return element is StringType || BufferElementTypes.candidate (element);
 	}
+
 	public SemanticType canonical_key() {
 		var bytes = this as ContextBytesType;
 		return bytes == null ? element_type : (SemanticType) bytes.allocator_type;
 	}
+
 }
 // A distinct owning byte pair keeps its original context release authority.
 // Ordinary borrowed u8[] views may observe it without acquiring that authority.
@@ -1165,27 +1254,35 @@ public class ContextBytesType : SliceType {
 		base (element);
 		this.allocator_type = allocator_type;
 	}
+
 	public bool valid() {
 		return element_type.kind == TypeKind.U8 && (context_mode == "owned-concurrent" || context_mode == "owned-affine" || context_mode == "owned-transfer");
 	}
+
 	public override string display_name() {
 		return "ContextBytes<" + allocator_type.display_name () + ">";
 	}
+
 	public override string? generic_definition_name() {
 		return "ContextBytes";
 	}
+
 	public override TypeArgumentVector? generic_arguments() {
 		return new TypeArgumentVector.single (allocator_type);
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return this;
 	}
+
 	public static bool permits_view(SemanticType owner, SemanticType view) {
 		return owner is ContextBytesType && ((ContextBytesType) owner).valid () && view is SliceType && !(view is ContextBytesType) && ((SliceType) view).element_type == ((ContextBytesType) owner).element_type;
 	}
+
 	public static SemanticType borrowed_type(SemanticType owner, SemanticType? requested) {
 		return requested != null && permits_view (owner, requested) ? requested : owner;
 	}
+
 }
 
 // Contiguous local storage identity; never a value, pointer, vector or ABI type.
@@ -1203,6 +1300,7 @@ public class ArrayType : SemanticType {
 	public static bool supports(SemanticType element, int length) {
 		return length >= 1 && length <= MAX_LENGTH && (element.is_directly_dereferenceable_value_type () || (element.is_struct_storage () && !element.is_parameterized ()));
 	}
+
 }
 
 // One exact value identity. Shape is a milestone capability, not storage or
@@ -1235,6 +1333,7 @@ public class VectorType : SemanticType {
 		// Pointer-sized integers remain scalar target-dependent aliases.
 		return element is IntegerType && element.kind != TypeKind.ISIZE && element.kind != TypeKind.USIZE && ((IntegerType) element).bit_width * lanes <= 128;
 	}
+
 }
 
 // Exact scalar format authority; concrete identities remain nominal.
@@ -1244,12 +1343,14 @@ public abstract class FloatingType : SemanticType {
 		base (kind);
 		this.format = format;
 	}
+
 }
 
 public class F64Type : FloatingType {
 	internal F64Type () {
 		base (TypeKind.F64, BinaryFloatFormat.BINARY64);
 	}
+
 }
 
 // Exactly one immutable binary32 identity per BuiltinTypes universe.
@@ -1257,6 +1358,7 @@ public class F32Type : FloatingType {
 	internal F32Type () {
 		base (TypeKind.F32, BinaryFloatFormat.BINARY32);
 	}
+
 }
 
 // Exact immutable identities per BuiltinTypes universe. The legacy INT tag
@@ -1280,6 +1382,7 @@ public class IntegerType : SemanticType {
 		base (kind);
 		assert (kind == TypeKind.INT || kind == TypeKind.I8 || kind == TypeKind.U8 || kind == TypeKind.I16 || kind == TypeKind.U16 || kind == TypeKind.U32 || kind == TypeKind.I64 || kind == TypeKind.U64 || kind == TypeKind.ISIZE || kind == TypeKind.USIZE);
 	}
+
 }
 
 // Exact nominal identity, with no syntax, symbol, cleanup or stage backlink.
@@ -1301,6 +1404,7 @@ public class HandleType : SemanticType {
 		this.context_contract = context_mode;
 		this.context_release = context_cleanup;
 	}
+
 }
 
 // Canonical nominal reference identity. It owns no declaration or layout.
@@ -1312,6 +1416,7 @@ public class NonNullReferenceTypes : Object {
 	public static bool supports(SemanticType type) {
 		return type is FunctionValueType || (type is HandleType && !(type is SharedHandleType) && !(type is ClosureHandleType)) || (type is ClassType && (!(type is ExactGenericClassType) || GenericClassTypes.general (type)) && !type.is_parameterized ());
 	}
+
 }
 
 public class ClassType : SemanticType {
@@ -1326,6 +1431,7 @@ public class ClassType : SemanticType {
 		foreign_bound = true;
 		return true;
 	}
+
 	private uint concurrency_identity;
 	private bool concurrency_bound;
 	public uint concurrency_policy_identity { get { return concurrency_identity; } }
@@ -1340,6 +1446,7 @@ public class ClassType : SemanticType {
 		concurrency_bound = true;
 		return true;
 	}
+
 	private string allocation_identity = "";
 	private bool allocation_bound;
 	public string allocation_policy_identity { get { return allocation_identity; } }
@@ -1351,6 +1458,7 @@ public class ClassType : SemanticType {
 		allocation_bound = true;
 		return true;
 	}
+
 	// A fieldless, nonconstructible nominal contract; its physical borrowed
 	// receiver uses the existing pay-for-use native Class dispatch channel.
 	public bool is_interface { get; internal set; default = false; }
@@ -1368,6 +1476,7 @@ public class ClassType : SemanticType {
 		}
 		return false;
 	}
+
 	private string identifier;
 	public string name { get { return identifier; } }
 
@@ -1375,6 +1484,7 @@ public class ClassType : SemanticType {
 		base (TypeKind.CLASS);
 		this.identifier = name;
 	}
+
 }
 
 // The single native field authority, shared by structs and classes.
@@ -1382,6 +1492,7 @@ public class NativeFieldTypes : Object {
 	public static bool supports(SemanticType type, bool struct_owner = false) {
 		return type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL || type is FunctionValueType || type.is_void_pointer () || (struct_owner && ((type.is_struct_storage () && !type.is_parameterized ()) || type is VectorType));
 	}
+
 }
 
 // Declared identity only. No symbol, syntax, fields, layout, or ABI backlink.
@@ -1392,6 +1503,7 @@ public class StructType : SemanticType {
 		assert (owning_application == null);
 		owning_application = contract;
 	}
+
 	private RecordDefinitionIdentity? generic_origin;
 	private TypeArgumentVector? generic_values;
 	internal void bind_generic_application(RecordDefinitionIdentity origin, GenericArray<SemanticType> arguments) {
@@ -1400,12 +1512,15 @@ public class StructType : SemanticType {
 		generic_values = new TypeArgumentVector (arguments);
 		bind_logical_identity (origin.application (arguments));
 	}
+
 	public override string? generic_definition_name() {
 		return generic_origin == null ? null : generic_origin.name;
 	}
+
 	public override TypeArgumentVector? generic_arguments() {
 		return generic_values;
 	}
+
 	private string representation_origin = "";
 	private bool representation_bound;
 	public string representation_identity { get { return representation_origin; } }
@@ -1417,6 +1532,7 @@ public class StructType : SemanticType {
 		representation_bound = true;
 		return true;
 	}
+
 	private string identifier;
 	public string name { get { return identifier; } }
 
@@ -1424,6 +1540,7 @@ public class StructType : SemanticType {
 		base (TypeKind.STRUCT);
 		this.identifier = name;
 	}
+
 }
 
 // Astra-owned nullable, unmanaged address identity. No width or host type.
@@ -1435,6 +1552,7 @@ public class RawPointerType : SemanticType {
 		base (TypeKind.RAW_POINTER);
 		this.pointee = pointee;
 	}
+
 }
 
 // One general exact typed data-pointer identity, including native structs.
@@ -1446,6 +1564,7 @@ public class TypedPointerType : SemanticType {
 		base (TypeKind.TYPED_POINTER);
 		this.pointee = pointee;
 	}
+
 }
 
 // One canonical type universe per analysis, retained by the checked program.
@@ -1453,6 +1572,7 @@ public class StringType : SemanticType {
 	internal StringType () {
 		base (TypeKind.STRING);
 	}
+
 }
 
 public class BuiltinTypes : Object {
@@ -1485,6 +1605,7 @@ public class BuiltinTypes : Object {
 		}
 		return result;
 	}
+
 	private HashTable<SemanticType, SliceType> slices = new HashTable<SemanticType, SliceType> (direct_hash, direct_equal);
 
 	private GenericArray<FunctionValueType> function_values = new GenericArray<FunctionValueType> ();
@@ -1493,6 +1614,7 @@ public class BuiltinTypes : Object {
 			signature.complete_records (fields);
 		}
 	}
+
 	public FunctionValueType substitute_function(FunctionValueType original, GenericArray<SemanticType> parameters, SemanticType result) {
 		var contracts = new GenericArray<PointerParameterContract> ();
 		for (int p = 0; p < parameters.length; p++) {
@@ -1500,6 +1622,7 @@ public class BuiltinTypes : Object {
 		}
 		return function_value (result, parameters, contracts, original.result_contract, original is CallbackType);
 	}
+
 	public FunctionValueType function_value(SemanticType result, GenericArray<SemanticType> parameters, GenericArray<PointerParameterContract>? contracts = null, ResultOwnershipContract result_contract = ResultOwnershipContract.UNMANAGED, bool callback = false) {
 		foreach (var candidate in function_values) {
 			if ((candidate is CallbackType) != callback || candidate.result_type != result || candidate.result_contract != result_contract || candidate.parameter_types.length != parameters.length) {
@@ -1519,6 +1642,7 @@ public class BuiltinTypes : Object {
 		function_values.add (type);
 		return type;
 	}
+
 	private GenericArray<ArrayType> arrays = new GenericArray<ArrayType> ();
 
 	private GenericArray<VectorType> vectors = new GenericArray<VectorType> ();
@@ -1592,6 +1716,7 @@ public class BuiltinTypes : Object {
 		}
 		return slice;
 	}
+
 	private HashTable<HandleType, ContextBytesType> context_bytes = new HashTable<HandleType, ContextBytesType> (direct_hash, direct_equal);
 	public ContextBytesType? context_bytes_of(HandleType allocator) {
 		var candidate = context_bytes.lookup (allocator);
@@ -1649,6 +1774,7 @@ public class BuiltinTypes : Object {
 			return null;
 		}
 	}
+
 }
 }
 
@@ -1660,8 +1786,10 @@ public class OwnerSlotsType : SemanticType {
 		base (TypeKind.OWNER_SLOTS);
 		this.element = element;
 	}
+
 }
 public enum OwnerSlotsAction {
 	LENGTH, CAPACITY, RESERVE, BORROW, TAKE
 }
+
 }

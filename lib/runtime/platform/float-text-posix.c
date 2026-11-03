@@ -56,6 +56,7 @@ static int32_t format_value(double value, int precision, unsigned char *output, 
 int32_t astra_numeric_format_f32(float value, unsigned char *output, int32_t capacity) {
 	return format_value((double)value, 9, output, capacity);
 }
+
 int32_t astra_numeric_format_f64(double value, unsigned char *output, int32_t capacity) {
 	return format_value(value, 17, output, capacity);
 }
@@ -63,6 +64,7 @@ int32_t astra_numeric_format_f64(double value, unsigned char *output, int32_t ca
 static int digit(unsigned char value) {
 	return value >= '0' && value <= '9';
 }
+
 /* Validate counted ASCII before libc sees a terminator, whitespace, hex, payload,
  * locale decimal separator, or a truncated prefix. Track nonzero mantissa digits
  * independently from exponent digits so exact signed zero is never underflow. */

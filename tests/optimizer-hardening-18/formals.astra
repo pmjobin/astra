@@ -1,21 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) f64 formal18_observe(f64 value);
+
 class Formal18 {
 	f64 value;
+
 	init(f64 value) { this.value=value; }
+
 	f64 method_read18() { return this.value; }
 }
+
 f64 formal18_read(borrowed Formal18 input) { return input.value; }
+
 f64 formal18_branch(borrowed Formal18 input,bool first) {
-	if (first) { return formal18_read(input); }
+	if (first) return formal18_read(input);
 	return input.value;
 }
+
 void formal18_write(borrowed Formal18 first,borrowed Formal18 second) {
 	first.value=2.0;
 	second.value=3.0;
 }
+
 f64 formal18_callback(borrowed Formal18 input) {
 	f64 result=input.value;
 	return formal18_observe(result);
 }
+
 f64 formal18_pure(f64 input,f64 scale) { return input*scale; }

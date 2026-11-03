@@ -26,6 +26,7 @@ private void logical_phis() throws GLib.Error {
 		control_phi_predecessors (f);
 	}
 }
+
 private void logical_calls() throws GLib.Error {
 	var artifact = lower (fixture ("tests/shortcircuit/fixtures/call-short.astra"));
 	var fs = functions (artifact);
@@ -47,6 +48,7 @@ private void logical_calls() throws GLib.Error {
 	assert ((void*) CApi.called_value (calls[4]) == (void*) fs[2]);
 	control_phi_predecessors (fs[5]);
 }
+
 private void logical_traps() throws GLib.Error {
 	var artifact = lower (fixture ("tests/shortcircuit/fixtures/trap-short.astra"));
 	assert (audit_division (artifact) == 2);
@@ -69,6 +71,7 @@ private void logical_traps() throws GLib.Error {
 		control_phi_predecessors (fs[i]);
 	}
 }
+
 private void logical_loops_nested() throws GLib.Error {
 	foreach (string name in new string[] {"nested-short", "loop-short", "contexts-short"}) {
 		var artifact = lower (fixture ("tests/shortcircuit/fixtures/" + name + ".astra"));
@@ -90,6 +93,7 @@ private void logical_loops_nested() throws GLib.Error {
 		assert ((void*) CApi.instruction_parent (call) == (void*) b[5]);
 	}
 }
+
 private void logical_lifetime() throws GLib.Error {
 	SsaProgram? ssa = build_ssa (fixture ("tests/shortcircuit/fixtures/loop-short.astra"));
 	var header_ref = WeakRef (ssa.functions[0].blocks[1]);
@@ -103,6 +107,7 @@ private void logical_lifetime() throws GLib.Error {
 	artifact.verify ();
 	assert (artifact.dump ().contains ("phi i1"));
 }
+
 private void register_shortcircuit_tests() {
 	add ("/llvm/shortcircuit/branch-phi-no-eager-ops", logical_phis);
 	add ("/llvm/shortcircuit/conditional-calls-argument-order", logical_calls);
@@ -110,4 +115,5 @@ private void register_shortcircuit_tests() {
 	add ("/llvm/shortcircuit/loop-nested-phis", logical_loops_nested);
 	add ("/llvm/shortcircuit/lifetime", logical_lifetime);
 }
+
 }

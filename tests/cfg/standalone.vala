@@ -64,6 +64,7 @@ private class InvalidReturn : CfgReturn {
 		result.add (target);
 		return result;
 	}
+
 }
 
 private void invalid_successor(bool foreign) {
@@ -127,4 +128,5 @@ int main(string[] args) {
 	Test.add_func ("/cfg-standalone/verifier/return-successor", return_successor);
 	return Test.run ();
 }
+
 }

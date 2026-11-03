@@ -1,32 +1,46 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void mixed_result_retired(int identity);
+
 extern(C) void mixed_result_observed();
+
 extern(C) int mixed_result_finish();
+
 [Allocator(kind="context",context="scoped-affine")]
 class MixedResultLeaf {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int read() { return this.identity; }
+
 	deinit() { mixed_result_retired(this.identity); }
 }
+
 owned MixedResultLeaf mixed_result_empty() { return null; }
+
 struct MixedResultPacket { owned MixedResultLeaf empty; owned MixedResultLeaf retained; int marker; }
+
 async MixedResultPacket mixed_result_deliver(owned MixedResultLeaf retired, owned MixedResultLeaf retained) throws Error {
 	await delay_ticks(1);
 	MixedResultPacket result = { empty = mixed_result_empty(), retained = move retained, marker = 17 };
 	return move result;
 }
+
 int mixed_result_inspect(borrowed MixedResultPacket input) {
-	if (input.empty != null || input.retained == null || input.retained.read() != 2 || input.marker != 17) { return 1; }
+	if (input.empty != null || input.retained == null || input.retained.read() != 2 || input.marker != 17) return 1;
 	mixed_result_observed();
 	return 0;
 }
+
 async void mixed_result_collect(owned MixedResultLeaf first, owned MixedResultLeaf second) throws Error {
 	var child = mixed_result_deliver(move first, move second);
 	var result = await move child;
 	await delay_ticks(1);
-	if (mixed_result_inspect(result) != 0) { throw new Error("mixed empty result lost ownership"); }
+	if (mixed_result_inspect(result) != 0) {
+		throw new Error("mixed empty result lost ownership");
+	}
 }
+
 export(C) int mixed_result_probe() {
 	owned u8[] first_backing = new u8[8197];
 	owned u8[] second_backing = new u8[12289];
@@ -40,6 +54,6 @@ export(C) int mixed_result_probe() {
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 1; } }
 	} catch (Error error) { return 2; }
-	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) { return 3; }
+	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) return 3;
 	return mixed_result_finish();
 }

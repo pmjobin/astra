@@ -62,6 +62,7 @@ private void lifetime() throws GLib.Error {
 		CAbiVerifier.verify (cabi);
 	}
 }
+
 private void correspondence() throws GLib.Error {
 	var ssa = build ("struct A{int x;}struct B{int x;}void fill<T>(T[] a,T x){a[0]=x;}void fa(A[] a,A x){fill(a,x);}void fb(B[] a,B x){fill(a,x);}");
 	var nabi = NativeAbiBuilder.build (ssa);
@@ -83,6 +84,7 @@ private void correspondence() throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 private void recovery() throws GLib.Error {
 	for (int repeat = 0; repeat < 3; repeat++) {
 		foreach (string bad in new string[] {"void f<T>(T[] a){a[0]=1;}", "void f<T>(T[] a){T[] b=null;}", "void f<T>(T[] a,T x){}void root(f64[] a){f(a,1.0);}"}) {
@@ -120,6 +122,7 @@ private void recovery() throws GLib.Error {
 		SsaVerifier.verify (build (fixture ("basic")));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -130,4 +133,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

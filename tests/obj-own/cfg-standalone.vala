@@ -55,6 +55,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	p.classes.add (d);
 	return p;
 }
+
 private void valid() {
 	try {
 		CfgProgram? p = sample ();
@@ -68,6 +69,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 5; variant++) {
 		try {
@@ -81,6 +83,7 @@ private void malformed() {
 		GLib.error ("accepted malformed object CFG %d", variant);
 	}
 }
+
 private void flow() {
 	try {
 		assert (CfgFlowChecker.check (sample (20)).diagnostic.message == "use of moved owned value 'c'");
@@ -90,6 +93,7 @@ private void flow() {
 	assert (OwnershipState.OWNED.definitely_owned () && !OwnershipState.MOVED.definitely_owned ());
 	assert (OwnershipState.join (OwnershipState.OWNED, OwnershipState.MOVED).may_own ());
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/cfg/pending-commit-and-cleanup-authority", valid);
@@ -97,4 +101,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-own/ownership/shared-possibility-state-and-moved-use", flow);
 	return Test.run ();
 }
+
 }

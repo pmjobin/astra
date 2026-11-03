@@ -39,5 +39,6 @@ internal class LlvmSharedAtomicBinding : Object {
 			throw new LlvmError.VERIFICATION ("shared count load/publication lost its admitted memory order or initial value");
 		}
 	}
+
 }
 }

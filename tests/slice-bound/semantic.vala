@@ -103,4 +103,5 @@ int main(string[] args) {
 	Test.add_func ("/slice-bound/semantic/contracts-escapes-and-deferrals", diagnostics);
 	return Test.run ();
 }
+
 }

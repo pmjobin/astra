@@ -5,12 +5,15 @@ namespace ForeignSchemaTests {
 private ForeignValueType scalar(ForeignValueKind kind = ForeignValueKind.I32) {
 	return new ForeignValueType (kind);
 }
+
 private ForeignChannel result(ForeignValueKind kind = ForeignValueKind.VOID) {
 	return new ForeignChannel ("result", scalar (kind), ForeignDirection.OUT);
 }
+
 private ForeignMemberContract method(GenericArray<ForeignChannel> parameters, string key = "sdk@closed/Service.process", string error = "") {
 	return new ForeignMemberContract (ForeignMemberKind.METHOD, "process", key, parameters, result (), error);
 }
+
 private void scalar_and_record_domain() {
 	var fields = new GenericArray<ForeignRecordField> ();
 	for (int value = (int) ForeignValueKind.I32; value <= (int) ForeignValueKind.BOOL; value++) {
@@ -30,6 +33,7 @@ private void scalar_and_record_domain() {
 	duplicate.add (new ForeignRecordField ("x", ForeignValueKind.F64));
 	assert_false (new ForeignValueType (ForeignValueKind.RECORD, "sdk/Record", duplicate).valid ());
 }
+
 private void nominal_identity() {
 	var left = new ForeignValueType (ForeignValueKind.NATIVE_OBJECT, "first@closed/Item<int>");
 	var right = new ForeignValueType (ForeignValueKind.NATIVE_OBJECT, "second@closed/Item<int>");
@@ -41,6 +45,7 @@ private void nominal_identity() {
 	assert_false (scalar (ForeignValueKind.COM_OBJECT).valid ());
 	assert_false (new ForeignValueType (ForeignValueKind.I64, "forged-owner").valid ());
 }
+
 private void counted_output() {
 	var parameters = new GenericArray<ForeignChannel> ();
 	var bytes = new ForeignValueType (ForeignValueKind.BYTES);
@@ -71,6 +76,7 @@ private void counted_output() {
 	assert_false (new ForeignChannel ("input", bytes, ForeignDirection.IN, ForeignTransfer.BORROW,
 		false, ForeignTextEncoding.BYTES, 1, -1, -1, "", true, -1, -1, true).valid ());
 }
+
 private void ownership_and_text() {
 	var text = new ForeignValueType (ForeignValueKind.TEXT);
 	var owner = new ForeignChannel ("snapshot", text, ForeignDirection.OUT, ForeignTransfer.OWN,
@@ -91,6 +97,7 @@ private void ownership_and_text() {
 	assert_false (new ForeignChannel ("item", handle, ForeignDirection.IN, ForeignTransfer.BORROW,
 		true, ForeignTextEncoding.NONE, -1, -1, -1, "", true, -1, -1, false, false, true).valid ());
 }
+
 private void lifetime_and_member_binding() {
 	var parameters = new GenericArray<ForeignChannel> ();
 	parameters.add (new ForeignChannel ("word", scalar ()));
@@ -111,6 +118,7 @@ private void lifetime_and_member_binding() {
 	parameters.add (new ForeignChannel ("late", scalar ()));
 	assert (selected.parameter_count == 1);
 }
+
 private void callback_and_signal_scope() {
 	var values = new GenericArray<ForeignValueType> ();
 	values.add (scalar (ForeignValueKind.F64));
@@ -132,6 +140,7 @@ private void callback_and_signal_scope() {
 	}
 	assert_false (nested.valid ());
 }
+
 private void com_protocol_identity_and_slots() {
 	var parameters = new GenericArray<ForeignChannel> ();
 	parameters.add (new ForeignChannel ("input",scalar (ForeignValueKind.BOOL)));
@@ -165,6 +174,7 @@ private void com_protocol_identity_and_slots() {
 	assert_false (next.same_signature (alternate));
 	assert (base_interface.identity () != derived.identity ());
 }
+
 private void com_record_storage() {
 	var fields = new GenericArray<ForeignRecordField> ();
 	fields.add (new ForeignRecordField ("first",ForeignValueKind.BOOL));
@@ -205,7 +215,6 @@ private void com_record_storage() {
 	assert (policy.com_count == 1);
 
 }
-
 
 private void gobject_contract_profiles() {
 	var modern = new GObjectExportContract ("SdkSession","Sdk","2.3",true);
@@ -257,6 +266,7 @@ private void gobject_contract_profiles() {
 	assert_true (ForeignClassPolicy.distinct_gobjects (roots));
 	assert_false (new ForeignClassPolicy.declared (new ForeignApiContract ("Service","native_session",ForeignLifetime.UNIQUE,ForeignClassPolicy.C | ForeignClassPolicy.GOBJECT,members),null,modern).valid ());
 }
+
 public static int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/foreign-schema/gobject-profile-version-selection-and-weak-native-owner",gobject_contract_profiles);
@@ -270,4 +280,5 @@ public static int main(string[] args) {
 	Test.add_func ("/foreign-schema/callback-signal-scope-and-depth",callback_and_signal_scope);
 	return Test.run ();
 }
+
 }

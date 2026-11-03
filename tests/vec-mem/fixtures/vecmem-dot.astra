@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 void dot_to(f32* out, f32<4>* a, f32<4>* b) { *out = dot(*a,*b); }
+
 f32 accumulate(f32 c, f32<4>* a, f32<4>* b) { return mac(c,*a,*b); }
+
 int integer_mac(int c, i16<8>* a, i16<8>* b) { return mac_wrap(c,*a,*b); }
+
 int main() {
 	f32<4> a = {1.0,2.0,3.0,4.0};
 	f32<4> b = {5.0,6.0,7.0,8.0};
 	f32 out = 0.0;
 	dot_to(&out,&a,&b);
-	if (out != 70.0 || accumulate(2.0,&a,&b) != 72.0) { return 1; }
+	if (out != 70.0 || accumulate(2.0,&a,&b) != 72.0) return 1;
 	// Left fold: ((16777216 + 1) - 16777216) + 1 = 1 in binary32.
 	f32<4> order = {16777216.0,1.0,-16777216.0,1.0};
 	f32<4> ones = splat(1.0,4);
 	dot_to(&out,&order,&ones);
-	if (out != 1.0) { return 2; }
+	if (out != 1.0) return 2;
 	i16<8> x = splat(2,8);
 	i16<8> y = splat(3,8);
 	i16<8>* p = &x;
 	i16<8>* q = &y;
-	if (dot_wrap(*p,*q,int) != 48 || integer_mac(5,p,q) != 53) { return 3; }
+	if (dot_wrap(*p,*q,int) != 48 || integer_mac(5,p,q) != 53) return 3;
 	return 0;
 }

@@ -15,6 +15,7 @@ public enum ObjectResultProvenance {
 	public bool is_returnable() {
 		return this == RESULT_STORAGE || this == OWNED_PARAMETER_STORAGE || this == FORWARDED_OWNED_RESULT || this == HEAP_OBJECT || this == NULL;
 	}
+
 	public string label() {
 		switch (this) {
 		case RESULT_STORAGE:
@@ -35,5 +36,7 @@ public enum ObjectResultProvenance {
 			return "none";
 		}
 	}
+
 }
+
 }

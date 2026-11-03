@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Containers;
 int inspect(Item value) { return value.read(); }
+
 int main() {
 	var values = new Containers.Bag<Containers.Item>();
-	if (!values.reserve(1)) { return 1; }
+	if (!values.reserve(1)) return 1;
 	var value = new Item(42); values.append(move value);
-	if (values.count() != 1 || inspect(values.entries[0]) != 42) { return 2; }
+	if (values.count() != 1 || inspect(values.entries[0]) != 42) return 2;
 	owned Containers.Bag<Containers.Item> moved = move values;
-	if (count(moved) != 1) { return 3; }
+	if (count(moved) != 1) return 3;
 	return 0;
 }

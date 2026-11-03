@@ -11,6 +11,7 @@ static unsigned errors[7], caught[7], errors_retired[7];
 static int live, closed, freed;
 
 AstraContext17 *__real_astra_context17_open_scoped(void *, int32_t, int32_t, int32_t);
+
 AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, int32_t kind, int32_t slots) {
 	assert(base && length == 8197 && kind == ASTRA_CONTEXT17_POOL && slots == 1 && !context);
 	backing = base;
@@ -20,6 +21,7 @@ AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, i
 }
 
 void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	assert(selected == context && !closed && count == 1 && size == 8 && alignment == 4 && tag && mode == 3);
@@ -65,6 +67,7 @@ void scoped_rollback_event(int event, int identity) {
 }
 
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	if (!pointer) return __real_astra_context17_release_origin_checked(pointer, tag);
 	assert(pointer == cell && tag == cell_tag && live && allocations == releases + 1 && !closed);
@@ -81,6 +84,7 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 }
 
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	assert(selected == context && !closed && !live && allocations == 6 && releases == 6 && refusals == 1);
 	for (unsigned id = 1; id <= 6; ++id) {
@@ -95,6 +99,7 @@ void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 }
 
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	if (backing && pointer == backing) {
 		assert(closed && !freed);
@@ -104,6 +109,7 @@ void __wrap_free(void *pointer) {
 }
 
 extern int scoped_constructor_rollback_run(void);
+
 int main(void) {
 	int result = scoped_constructor_rollback_run();
 	if (result) return result;

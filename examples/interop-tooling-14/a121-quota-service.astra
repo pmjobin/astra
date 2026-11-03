@@ -8,18 +8,21 @@ int quota_closed(int capacity, int used);
 class QuotaService {
 	private int capacity;
 	private int used;
+
 	init(int capacity) {
 		int admitted = capacity;
-		if (admitted < 0) { admitted = 0; }
+		if (admitted < 0) admitted = 0;
 		this.capacity = admitted;
 		this.used = 0;
 	}
+
 	property int value {
 		get { return this.capacity - this.used; }
 		set(int requested) {
-			if (requested >= 0 && requested <= this.capacity) { this.used = requested; }
+			if (requested >= 0 && requested <= this.capacity) this.used = requested;
 		}
 	}
+
 	deinit() { quota_closed(this.capacity, this.used); }
 }
 
@@ -28,9 +31,9 @@ int native_work() {
 	var service = new QuotaService(23);
 	var alias = service.clone();
 	service.value = 4;
-	if (alias.value != 19) { return 1; }
+	if (alias.value != 19) return 1;
 	release service;
 	alias.value = 24;
-	if (alias.value != 19) { return 2; }
+	if (alias.value != 19) return 2;
 	return 0;
 }

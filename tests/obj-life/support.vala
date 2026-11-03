@@ -23,12 +23,15 @@ private CheckedProgram check(string text) throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private string read(string name) throws GLib.Error {
 	string text;
 	FileUtils.get_contents ("tests/obj-life/fixtures/obj-life-" + name + ".astra", out text);
 	return text;
 }
+
 private SsaProgram build(string text) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check (text))));
 }
+
 }

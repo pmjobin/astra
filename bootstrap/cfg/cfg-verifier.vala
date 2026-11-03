@@ -138,6 +138,7 @@ internal class CfgDeclaredClassAuthority : Object {
 			}
 		}
 	}
+
 }
 
 public class CfgVerifier : Object {
@@ -476,6 +477,7 @@ public class CfgVerifier : Object {
 			}
 		}
 	}
+
 	private HashTable<CfgUtf8FactoryValue, CfgFunction> utf8_values;
 	private void verify_text_exits(CfgFunction function) throws CfgError {
 		foreach (var block in function.blocks) {
@@ -496,9 +498,11 @@ public class CfgVerifier : Object {
 			}
 		}
 	}
+
 	private static bool heap_transfer(SemanticType source, CfgCleanupContract from, SemanticType target, CfgCleanupContract to) {
 		return from.is_heap_object && to.is_heap_object && source is ClassType && target is ClassType && ((ClassType) source).derives_from ((ClassType) target) && (source == target || to.object_class.polymorphic);
 	}
+
 	private void verify_class_hierarchy(CfgProgram program) throws CfgError {
 		var classes = new HashTable<CfgClass, bool> (direct_hash, direct_equal);
 		foreach (var owner in program.classes) {
@@ -790,7 +794,6 @@ public class CfgVerifier : Object {
 		}
 	}
 
-
 	private void verify_interface_readonly(CfgMethod method) throws CfgError {
 		if (method.native_declaration != null) {
 			verify_native_declaration (method, "native interface implementation");
@@ -1001,7 +1004,6 @@ public class CfgVerifier : Object {
 		return result;
 	}
 
-
 	private GenericArray<VectorType> vectors = new GenericArray<VectorType> ();
 
 	private GenericArray<CfgFunction> scoped_constructions = new GenericArray<CfgFunction> ();
@@ -1172,6 +1174,7 @@ public class CfgVerifier : Object {
 			fail (path, "owner slots lost exact bounded heap Class cleanup");
 		}
 	}
+
 	private void verify_slots_place(CfgIndirectFieldPlace store, CfgFunction function, bool read, string path) throws CfgError {
 		if (function.async_body != null) {
 			fail (path, "owner slots require synchronous code");
@@ -1183,6 +1186,7 @@ public class CfgVerifier : Object {
 			fail (path, "owner-slot read before initialization");
 		}
 	}
+
 	private GenericArray<SemanticType>? slot_edges(SemanticType type) {
 		var edges = child_edges (type);
 		var parent = type as ClassType;
@@ -1198,12 +1202,14 @@ public class CfgVerifier : Object {
 		}
 		return edges;
 	}
+
 	private bool slot_alias(SemanticType candidate, SemanticType backing) {
 		if (candidate is ReceiverType) {
 			candidate = ((ReceiverType) candidate).instance_type;
 		}
 		return OwnedChildComposition.may_invalidate (candidate, backing, slot_edges);
 	}
+
 	private CfgProgram code_program;
 	private CfgCodeOrigins? code_origins;
 	private CodeEffectAnalysis? readonly_inference;
@@ -1278,6 +1284,7 @@ public class CfgVerifier : Object {
 		effects.infer_requirements ();
 		return effects;
 	}
+
 	private bool probe_readonly(Object function, CodeEffectSummary result) {
 		scoped_inspectors.remove_all ();
 		readonly_scope = (CfgFunction) function;
@@ -1289,6 +1296,7 @@ public class CfgVerifier : Object {
 			return false;
 		}
 	}
+
 	private static void verify_callback_effects(CfgProgram program) throws CfgError {
 		bool needed = false;
 		foreach (var function in program.functions) {
@@ -1306,6 +1314,7 @@ public class CfgVerifier : Object {
 			}
 		}
 	}
+
 	// Vala shares closure storage within one method. Keep this long-lived
 	// frontier separate from probes that capture the analysis or its owner.
 	private static CodeEffectAnalysis create_effect_analysis(CfgCodeOrigins origins) {
@@ -1319,6 +1328,7 @@ public class CfgVerifier : Object {
 		}
 		return result;
 	}
+
 	private void scoped_call(CfgFunction target, GenericArray<CfgValue> arguments) throws CfgError {
 		if (readonly_inference == null) {
 			scoped_inspector (target);
@@ -1346,12 +1356,14 @@ public class CfgVerifier : Object {
 		}
 		return true;
 	}
+
 	private bool scoped_local(CfgPlace place) {
 		while (place is CfgFieldPlace) {
 			place = ((CfgFieldPlace) place).aggregate;
 		}
 		return place is CfgLocalPlace || place is CfgTemporaryPlace;
 	}
+
 	private bool scoped_writable(CfgPlace place) {
 		while (place is CfgFieldPlace) {
 			place = ((CfgFieldPlace) place).aggregate;
@@ -1359,6 +1371,7 @@ public class CfgVerifier : Object {
 		var local = place as CfgLocalPlace;
 		return local != null ? local.struct_parameter == null || local.struct_parameter.shape.mode != StructValueMode.BORROW_VALUE : place is CfgTemporaryPlace;
 	}
+
 	private void scoped_place(CfgPlace place) throws CfgError {
 		if (scoped_local (place)) {
 			return;
@@ -1379,6 +1392,7 @@ public class CfgVerifier : Object {
 		}
 		fail ("readonly scoped inspector", "cannot read unproved indirect storage");
 	}
+
 	private void scoped_value(CfgValue value) throws CfgError {
 		if (value is CfgSliceLengthValue) {
 			scoped_value (((CfgSliceLengthValue) value).slice);
@@ -1478,6 +1492,7 @@ public class CfgVerifier : Object {
 		}
 		fail ("readonly scoped inspector", "unproved value effect: " + value.get_type ().name ());
 	}
+
 	private void scoped_inspector(CfgFunction target) throws CfgError {
 		if (!functions.contains (target) || target.async_body != null || target.throws_type != null || target.dispatch_kind != ClassDispatchKind.DIRECT || target.result_contract == ResultOwnershipContract.OWNED_TRANSFER || target is CfgLifecycle) {
 			fail ("readonly scoped inspector", "requires a direct synchronous nonconsuming definition");
@@ -1601,6 +1616,7 @@ public class CfgVerifier : Object {
 			}
 		}
 	}
+
 	private bool slots_invalidates(CfgInstruction instruction, SemanticType backing, bool readonly_receiver = false) {
 		CfgIndirectFieldPlace? store = (instruction is CfgSlotsReplace) ? ((CfgSlotsReplace) instruction).store : (instruction is CfgSlotsAppend) ? ((CfgSlotsAppend) instruction).store : (instruction is CfgSlotsDrop) ? ((CfgSlotsDrop) instruction).store : (instruction is CfgSlotsInitialize) ? ((CfgSlotsInitialize) instruction).store : (instruction is CfgStore) ? ((CfgStore) instruction).target as CfgIndirectFieldPlace : null;
 		if (store != null && slot_alias (store.field.containing_type.semantic_type, backing)) {
@@ -1641,6 +1657,7 @@ public class CfgVerifier : Object {
 		}
 		return false;
 	}
+
 	private bool slots_reaches(CfgBlock start, CfgBlock target) {
 		var pending = new GenericArray<CfgBlock> ();
 		var seen = new HashTable<CfgBlock, bool> (direct_hash, direct_equal);
@@ -1660,6 +1677,7 @@ public class CfgVerifier : Object {
 		}
 		return false;
 	}
+
 	private void verify_slots_loans(CfgFunction function) throws CfgError {
 		foreach (var origin in function.blocks) {
 			for (int i = 0; i < origin.instructions.length; i++) {
@@ -1979,6 +1997,7 @@ public class CfgVerifier : Object {
 		}
 		return found;
 	}
+
 	private CfgStructField? record_leaf(SemanticType type, StructLeafPath path) {
 		CfgStructField? field = null;
 		for (int d = 0; d < path.depth; d++) {
@@ -1992,6 +2011,7 @@ public class CfgVerifier : Object {
 		}
 		return field != null && field.semantic_type == path.semantic_type ? field : null;
 	}
+
 	private bool matches_cleanup(SemanticType type, CfgCleanupContract cleanup) {
 		if (cleanup.record_type != null) {
 			return type == cleanup.record_type.semantic_type && structs.lookup (type) == cleanup.record_type && record_field (type) != null;
@@ -3544,10 +3564,12 @@ public class CfgVerifier : Object {
 		}
 		return valid;
 	}
+
 	private bool null_local_owner(CfgFunction function, CfgLocalPlace owner) {
 		var equation = caller_result_origins.inputs (function, owner);
 		return equation.domains == 0 && equation.input_count == 0;
 	}
+
 	private bool incoming_local_transfer(CfgFunction function, CfgOwnershipTransferInstruction transfer) {
 		if (transfer.destination.incoming_parameter != null || transfer.destination.object_storage != null
 		    || transfer.source.semantic_type != transfer.destination.semantic_type || transfer.source.cleanup != transfer.destination.cleanup) {
@@ -3832,6 +3854,7 @@ public class CfgVerifier : Object {
 	private bool guarded_exception_success(CfgCallInstruction call, CfgFunction function) {
 		return guarded_effect_success (call.exception_result, function);
 	}
+
 	private bool guarded_effect_success(CfgValue? exception, CfgFunction function) {
 		if (exception == null) {
 			return false;
@@ -3841,6 +3864,7 @@ public class CfgVerifier : Object {
 		var condition = branch == null ? null : branch.condition as CfgBinaryValue;
 		return condition != null && condition.operator_kind == BinaryOperator.EQUAL && condition.left == exception && condition.right is CfgNullPointerValue && (current_block == branch.true_target || block_available_on_entry (branch.true_target, function)) && current_block != branch.false_target && !block_available_on_entry (branch.false_target, function);
 	}
+
 	private bool guarded_exception_catch(CfgCatchBorrow caught, CfgFunction function) {
 		foreach (var block in function.blocks) {
 			var branch = block.terminator as CfgConditionalBranch;
@@ -3851,6 +3875,7 @@ public class CfgVerifier : Object {
 		}
 		return false;
 	}
+
 	private void verify_pending_interval(CfgPendingOwnedArgument transfer, CfgOwnedCallTransferCommit commit, CfgFunction function, string path) throws CfgError {
 		var start = definition_blocks.lookup (transfer);
 		if (start == null) {
@@ -4861,6 +4886,7 @@ public class CfgVerifier : Object {
 			fail (path, "constructor abort changed lazy-cache inventory");
 		}
 	}
+
 	private void verify_instruction(CfgInstruction instruction, CfgFunction function, string path) throws CfgError {
 		if (instruction is CfgConstructorAbort) {
 			verify_constructor_abort ((CfgConstructorAbort) instruction, function, path);
@@ -7972,5 +7998,6 @@ public class CfgVerifier : Object {
 		}
 		fail (path, "unsupported CFG value");
 	}
+
 }
 }

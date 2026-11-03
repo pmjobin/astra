@@ -35,6 +35,7 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	string source = "struct S{int x;int y;}S make(){S s={x=1,y=2};return s;}void f(){S[2] a={make(),make()};a[1]=a[0];}";
 	for (int variant = 0; variant < 5; variant++) {
@@ -168,6 +169,7 @@ private void malformed() {
 		}
 	}
 }
+
 private void byte_length() {
 	string nested = "struct I{int byte_length;}struct O{I inner;}int f(){O a={inner={byte_length=1}};return a.inner.byte_length;}";
 	var syntax = Parser.parse (new SourceFile.from_text ("control", nested));
@@ -181,6 +183,7 @@ private void byte_length() {
 	check (indexed);
 	check ("struct S{int byte_length;}int f(){S[1] a={{byte_length=3}};return a[0].byte_length;}");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-elements/pipeline/recursive-generic-ownership-plans-predecessor-lifetimes", qualify);
@@ -188,4 +191,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-elements/pipeline/indexed-text-and-ordinary-field-byte-length-controls", byte_length);
 	return Test.run ();
 }
+
 }

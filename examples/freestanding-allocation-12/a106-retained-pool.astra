@@ -1,32 +1,39 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void closure_event(int stage, int value);
+
 extern(C) int closure_probe(int phase);
 
 [Allocator(kind="pool", domain="a106.closures", capacity="256", blocks="4")]
 class Capture {
 	int total;
+
 	init(int total) { this.total = total; closure_event(1, total); }
+
 	int receive(int value) { this.total = this.total + value; closure_event(2, this.total); return this.total; }
+
 	deinit() { closure_event(3, this.total); }
 }
+
 int deliver(borrowed Capture capture, int value) { return capture.receive(value); }
+
 owned Closure<Capture,int,int> subscribe(int total) {
 	var capture = new Capture(total);
 	var callback = closure_bind(move capture, deliver);
 	return move callback;
 }
+
 int main() {
 	var first = subscribe(10);
 	var second = subscribe(20);
-	if (retained_register(first, 0) != 0 || retained_register(second, 0) != 0) { return 81; }
-	if (closure_probe(1) != 1 || retained_dispatch(first, 5) != 15) { return 82; }
-	if (retained_revoke(first) != 1 || retained_dispatch(first, 100) != -2 || retained_observe(first) != 1) { return 83; }
+	if (retained_register(first, 0) != 0 || retained_register(second, 0) != 0) return 81;
+	if (closure_probe(1) != 1 || retained_dispatch(first, 5) != 15) return 82;
+	if (retained_revoke(first) != 1 || retained_dispatch(first, 100) != -2 || retained_observe(first) != 1) return 83;
 	release first;
-	if (closure_probe(2) != 1 || retained_dispatch(second, 7) != 27) { return 84; }
+	if (closure_probe(2) != 1 || retained_dispatch(second, 7) != 27) return 84;
 	release second;
-	if (closure_probe(3) != 1) { return 85; }
+	if (closure_probe(3) != 1) return 85;
 	// Return cleanup must revoke and observe this registration before deinit.
 	var final = subscribe(30);
-	if (retained_register(final, 0) != 0) { return 86; }
+	if (retained_register(final, 0) != 0) return 86;
 	return 42;
 }

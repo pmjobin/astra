@@ -29,6 +29,7 @@ internal class LlvmCUnionGuard : Object {
 		CApi.position_builder_at_end (builder, accepted);
 		return accepted;
 	}
+
 }
 // Completed contract owns only copied text and borrowed LLVM handles.
 // No CABI, NABI or SSA identity survives into the artifact.
@@ -215,5 +216,6 @@ internal class LlvmCExportBinding : Object {
 			throw new LlvmError.VERIFICATION ("internal LLVM C export verification error: wrapper '%s' must return its native result", external_symbol);
 		}
 	}
+
 }
 }

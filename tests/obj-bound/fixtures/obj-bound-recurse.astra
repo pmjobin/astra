@@ -1,9 +1,14 @@
 class Counter { int value; }
+
 void recurse(borrowed Counter c, int remaining) {
-	if (remaining == 0) { c.value = 42; return; }
+	if (remaining == 0) {
+		c.value = 42;
+		return;
+	}
 	Counter local = c;
 	recurse(local, remaining - 1);
 }
+
 int main() {
 	Counter c = { value = 0 };
 	recurse(c, 5);

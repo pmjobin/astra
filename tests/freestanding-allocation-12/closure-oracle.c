@@ -5,6 +5,7 @@
 
 extern AstraAlloc12Domain CLOSURE_DOMAIN;
 static int registered, valid = 1;
+
 static void finish(void) {
 	AstraAlloc12Domain *d = &CLOSURE_DOMAIN;
 	putchar('\n');
@@ -12,6 +13,7 @@ static void finish(void) {
 		_Exit(93);
 	}
 }
+
 void closure_event(int32_t stage, int32_t value) {
 	if (!registered) {
 		if (atexit(finish)) {
@@ -25,6 +27,7 @@ void closure_event(int32_t stage, int32_t value) {
 		valid = 0;
 	}
 }
+
 int32_t closure_probe(int32_t phase) {
 	AstraAlloc12Domain *d = &CLOSURE_DOMAIN;
 	if (phase == 1) {

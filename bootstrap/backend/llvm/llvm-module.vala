@@ -60,12 +60,15 @@ public class LlvmModuleArtifact : Object {
 		}
 		targets.insert (source.declaring_type_ordinal, (void*) function);
 	}
+
 	internal CApi.ValueRef class_constructor(int ordinal) {
 		return (CApi.ValueRef) class_constructors.lookup (ordinal);
 	}
+
 	internal CApi.ValueRef class_destructor(int ordinal) {
 		return (CApi.ValueRef) class_destructors.lookup (ordinal);
 	}
+
 	internal GenericArray<LlvmClassFunctionBinding> class_functions = new GenericArray<LlvmClassFunctionBinding> ();
 	internal GenericArray<LlvmForeignFunctionBinding> foreign_functions = new GenericArray<LlvmForeignFunctionBinding> ();
 	internal GenericArray<LlvmForeignRecordLayoutBinding> foreign_records = new GenericArray<LlvmForeignRecordLayoutBinding> ();
@@ -83,19 +86,23 @@ public class LlvmModuleArtifact : Object {
 		scoped_backings.add (binding);
 		scoped_backing_origins.add (binding);
 	}
+
 	private HashTable<void*, LlvmScopedBorrowBinding> scoped_borrows = new HashTable<void*, LlvmScopedBorrowBinding> (direct_hash, direct_equal);
 	private HashTable<void*, LlvmScopedClassLoans> scoped_class_loans = new HashTable<void*, LlvmScopedClassLoans> (direct_hash, direct_equal);
 	internal bool has_scoped_class_loans(CApi.ValueRef function) {
 		return scoped_class_loans.contains ((void*) function);
 	}
+
 	private HashTable<void*, LlvmScopedOwnedInputs> scoped_owned_inputs = new HashTable<void*, LlvmScopedOwnedInputs> (direct_hash, direct_equal);
 	internal bool has_scoped_owned_inputs(CApi.ValueRef function) {
 		return scoped_owned_inputs.contains ((void*) function);
 	}
+
 	private HashTable<void*, LlvmScopedFreshResult> scoped_fresh_results = new HashTable<void*, LlvmScopedFreshResult> (direct_hash, direct_equal);
 	internal bool has_scoped_fresh_result(CApi.ValueRef function) {
 		return scoped_fresh_results.contains ((void*) function);
 	}
+
 	internal void bind_scoped_owned_inputs(CApi.ValueRef function, CApi.TypeRef type, NativeAbi.NativeFunction source, NativeAbi.NativeAbiProgram program, LlvmStructRegistry structs) throws LlvmError {
 		if (scope_contracts_sealed) {
 			throw new LlvmError.LOWERING ("owned scoped input inventory is already sealed");
@@ -121,6 +128,7 @@ public class LlvmModuleArtifact : Object {
 			scoped_owned_inputs.insert ((void*) function, contract);
 		}
 	}
+
 	internal void bind_scoped_imported_values(CApi.ValueRef function, CApi.TypeRef type, NativeAbi.NativeFunction source, NativeAbi.NativeAbiProgram program, LlvmStructRegistry structs, string symbol) throws LlvmError {
 		bool required = LlvmScopedOwnedInputs.required (source.signature, program);
 		if (source.declaring_type_is_class && source.declaring_type_ordinal >= 0 && source.declaring_type_ordinal < program.classes.length) {
@@ -154,6 +162,7 @@ public class LlvmModuleArtifact : Object {
 			fresh.attach_import (binding);
 		}
 	}
+
 	private GenericArray<LlvmAsyncFrameBinding> scoped_coroutines = new GenericArray<LlvmAsyncFrameBinding> ();
 	internal void bind_scoped_coroutine(LlvmAsyncFrameBinding frame) throws LlvmError {
 		if (scope_contracts_sealed || scoped_coroutines.find (frame) || frame.scoped_captures == null) {
@@ -161,6 +170,7 @@ public class LlvmModuleArtifact : Object {
 		}
 		scoped_coroutines.add (frame);
 	}
+
 	private GenericArray<LlvmScopedImportedTask> scoped_task_imports = new GenericArray<LlvmScopedImportedTask> ();
 	internal LlvmScopedImportedTask? bind_scoped_imported_task(NativeAbi.NativeFunction source, NativeAbi.NativeAbiProgram program, LlvmStructRegistry structs, CApi.ValueRef factory, CApi.ValueRef checked_factory, CApi.TypeRef type, string symbol) throws LlvmError {
 		if (scope_contracts_sealed) {
@@ -172,12 +182,14 @@ public class LlvmModuleArtifact : Object {
 		}
 		return contract;
 	}
+
 	internal void bind_scoped_imported_capture(CApi.ValueRef instruction, LlvmScopedImportedTask imported, CApi.ValueRef factory, CApi.TypeRef type, CApi.ValueRef[] arguments, bool checked_admission) throws LlvmError {
 		if (scope_contracts_sealed || !scoped_task_imports.find (imported) || scoped_captured_tasks.contains ((void*) instruction)) {
 			throw new LlvmError.LOWERING ("opaque scoped captured task requires its original admitted import");
 		}
 		scoped_captured_tasks.insert ((void*) instruction, new LlvmScopedCapturedTask.opaque (instruction, imported, factory, type, arguments, checked_admission));
 	}
+
 	private HashTable<void*, LlvmScopedCapturedTask> scoped_captured_tasks = new HashTable<void*, LlvmScopedCapturedTask> (direct_hash, direct_equal);
 	internal void bind_scoped_captured_task(CApi.ValueRef instruction, LlvmAsyncFrameBinding frame, CApi.ValueRef factory, CApi.TypeRef type, CApi.ValueRef[] arguments, bool checked_admission) throws LlvmError {
 		if (scope_contracts_sealed || scoped_captured_tasks.contains ((void*) instruction)) {
@@ -185,6 +197,7 @@ public class LlvmModuleArtifact : Object {
 		}
 		scoped_captured_tasks.insert ((void*) instruction, new LlvmScopedCapturedTask (instruction, frame, factory, type, arguments, checked_admission));
 	}
+
 	private HashTable<void*, LlvmScopedTaskFrame> scoped_task_frames = new HashTable<void*, LlvmScopedTaskFrame> (direct_hash, direct_equal);
 	internal void bind_scoped_task_frame(CApi.ValueRef instruction, CApi.ValueRef factory, CApi.TypeRef type, CApi.ValueRef[] arguments) throws LlvmError {
 		if (scope_contracts_sealed || scoped_task_frames.contains ((void*) instruction)) {
@@ -192,13 +205,16 @@ public class LlvmModuleArtifact : Object {
 		}
 		scoped_task_frames.insert ((void*) instruction, new LlvmScopedTaskFrame (instruction, factory, type, arguments));
 	}
+
 	private HashTable<void*, LlvmScopedContextInputs> scoped_inputs = new HashTable<void*, LlvmScopedContextInputs> (direct_hash, direct_equal);
 	internal bool scoped_borrow(CApi.ValueRef function) {
 		return scoped_borrows.contains ((void*) function);
 	}
+
 	internal bool has_scoped_context_inputs(CApi.ValueRef function) {
 		return scoped_inputs.contains ((void*) function);
 	}
+
 	internal void bind_scoped_borrow(CApi.ValueRef function, CApi.TypeRef type, NativeAbi.NativeFunction source, NativeAbi.NativeAbiProgram program, LlvmStructRegistry structs) throws LlvmError {
 		var classes = program.classes;
 		if (scope_contracts_sealed) {
@@ -245,6 +261,7 @@ public class LlvmModuleArtifact : Object {
 			scoped_inputs.insert ((void*) function, inputs);
 		}
 	}
+
 	internal void seal_scoped_borrows() throws LlvmError {
 		if (scope_contracts_sealed) {
 			throw new LlvmError.LOWERING ("scoped lifetime inventories seal once");
@@ -272,16 +289,19 @@ public class LlvmModuleArtifact : Object {
 		}
 		scope_contracts_sealed = true;
 	}
+
 	internal void verify_scoped_borrows() throws LlvmError {
 		foreach (var contract in scoped_borrows.get_values ()) {
 			contract.verify ();
 		}
 	}
+
 	internal void verify_scoped_context_inputs() throws LlvmError {
 		foreach (var inputs in scoped_inputs.get_values ()) {
 			inputs.verify ();
 		}
 	}
+
 	internal void verify_scoped_owned_inputs() throws LlvmError {
 		foreach (var imported in scoped_task_imports) {
 			imported.verify ();
@@ -293,6 +313,7 @@ public class LlvmModuleArtifact : Object {
 			fresh.verify ();
 		}
 	}
+
 	internal void verify_scoped_allocations() throws LlvmError {
 		foreach (var frame in scoped_coroutines) {
 			if (!async_frames.find (frame)) {
@@ -304,6 +325,7 @@ public class LlvmModuleArtifact : Object {
 		}
 		LlvmScopedAllocationVerifier.verify (module, scoped_borrows, scoped_inputs, scoped_owned_inputs, scoped_class_loans, scoped_fresh_results, scoped_task_frames, scoped_coroutines, scoped_captured_tasks);
 	}
+
 	private void verify_scoped_factories() throws LlvmError {
 		var expected = new HashTable<void*, bool> (direct_hash, direct_equal);
 		foreach (var binding in scoped_backings) {
@@ -347,6 +369,7 @@ public class LlvmModuleArtifact : Object {
 			}
 		}
 	}
+
 	internal GenericArray<LlvmClassBranchBinding> class_branches = new GenericArray<LlvmClassBranchBinding> ();
 	internal GenericArray<LlvmClassPhiBinding> class_phis = new GenericArray<LlvmClassPhiBinding> ();
 	internal GenericArray<LlvmClassAllocationBinding> class_allocations = new GenericArray<LlvmClassAllocationBinding> ();
@@ -399,6 +422,7 @@ public class LlvmModuleArtifact : Object {
 		windows_declarations = LlvmWindowsInteropProfile.declarations (source) || native_modules;
 		windows_interop_validated = true;
 	}
+
 	internal bool requires_vectors;
 	internal bool requires_hosted_buffers;
 	internal GenericArray<LlvmRecordLayoutBinding> record_layouts = new GenericArray<LlvmRecordLayoutBinding> ();
@@ -753,5 +777,6 @@ public class LlvmModuleArtifact : Object {
 		has_launch_wrapper = true;
 		verify ();
 	}
+
 }
 }

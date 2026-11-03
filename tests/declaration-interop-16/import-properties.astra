@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Reading { int count; f64 scale; bool enabled; }
+
 struct Pair<T> { T first; int second; }
+
 [CImport(name="properties16_error_seen")] int seen();
+
 [ExceptionRoot] class Fault {
 	readonly string text; private int status;
+
 	init(int status) { this.status=status; this.text="imported property failure"; }
+
 	virtual property string message { get { return this.text; } }
+
 	int code() { return this.status; }
 }
+
 owned Fault foreign_fault(int domain,int status) { seen();var fault=new Fault(status);return move fault; }
+
 [CImport(name="property_child16",profile="declarations-v1",lifetime="unique",threading="constructing")]
 class Child {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
@@ -47,30 +55,33 @@ class Provider {
 	property owned Child child throws Fault { get; set(owned Child input); }
 }
 int doubled(borrowed Provider provider) throws Fault { return provider.total*2; }
+
 Reading read(borrowed Provider provider) throws Fault { return provider.reading; }
+
 int count(Reading reading) { return reading.count; }
+
 export(C) int import_properties16_run(int mode) {
 	try {
 		var provider=Provider.init(mode);
-		provider.total=17;if(provider.total!=17 || doubled(provider)!=34){return 1;}
-		provider.unsigned32=4000000000;u32 u32value=4000000000;if(provider.unsigned32!=u32value){return 2;}
-		provider.signed64=-5000000000;i64 i64value=-5000000000;if(provider.signed64!=i64value){return 3;}
-		provider.unsigned64=9223372036854775809;u64 u64value=9223372036854775809;if(provider.unsigned64!=u64value){return 4;}
+		provider.total=17;if(provider.total!=17 || doubled(provider)!=34) return 1;
+		provider.unsigned32=4000000000;u32 u32value=4000000000;if(provider.unsigned32!=u32value) return 2;
+		provider.signed64=-5000000000;i64 i64value=-5000000000;if(provider.signed64!=i64value) return 3;
+		provider.unsigned64=9223372036854775809;u64 u64value=9223372036854775809;if(provider.unsigned64!=u64value) return 4;
 		provider.single=1.25;provider.precise=2.5;provider.enabled=true;
-		if(provider.single!=1.25 || provider.precise!=2.5 || !provider.enabled){return 5;}
+		if(provider.single!=1.25 || provider.precise!=2.5 || !provider.enabled) return 5;
 		Reading reading={count=9,scale=3.5,enabled=false};provider.reading=reading;
 		var copy=provider.reading;Reading returned=read(provider);reading.count=99;
-		if(copy.count!=9 || copy.scale!=3.5 || copy.enabled || returned.count!=9 || count(provider.reading)!=9 || provider.reading.count!=9){return 6;}
+		if(copy.count!=9 || copy.scale!=3.5 || copy.enabled || returned.count!=9 || count(provider.reading)!=9 || provider.reading.count!=9) return 6;
 		Pair<f64> pair={first=4.5,second=13};provider.pair=pair;var pair_copy=provider.pair;
-		if(pair_copy.first!=4.5 || pair_copy.second!=13){return 7;}
+		if(pair_copy.first!=4.5 || pair_copy.second!=13) return 7;
 		u8[3] bytes={1,0,3};provider.bytes=slice(bytes);var snapshot=provider.bytes;bytes[0]=99;
-		if(len(snapshot)!=3 || snapshot[0]!=1 || snapshot[1]!=0 || snapshot[2]!=3){return 8;}
+		if(len(snapshot)!=3 || snapshot[0]!=1 || snapshot[1]!=0 || snapshot[2]!=3) return 8;
 		provider.title="a\0é";var title=provider.title;
-		if(len(title)!=4 || title[0]!=97 || title[1]!=0 || title[2]!=195 || title[3]!=169){return 9;}
+		if(len(title)!=4 || title[0]!=97 || title[1]!=0 || title[2]!=195 || title[3]!=169) return 9;
 		var child=Child.init(23);provider.child=move child;var result=provider.child;
-		if(result.code!=23){return 10;}
-		try{provider.total=-1;return 11;}catch(Fault fault){if(fault.code()!=-1600 || provider.total!=17){return 12;}}
-		if(mode!=0){return 13;}
-	} catch(Fault fault) { if(mode==1 && fault.code()==-1600){return 0;}if(mode==2 && fault.code()==-2147024809){return 0;}return 90; }
+		if(result.code!=23) return 10;
+		try{provider.total=-1;return 11;}catch(Fault fault){if(fault.code()!=-1600 || provider.total!=17) return 12;}
+		if(mode!=0) return 13;
+	} catch(Fault fault) { if(mode==1 && fault.code()==-1600) return 0;if(mode==2 && fault.code()==-2147024809) return 0;return 90; }
 	return 0;
 }

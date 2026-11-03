@@ -28,6 +28,7 @@ internal class LlvmBufferSlotPlan : Object {
 		this.receiver_type = receiver_type;
 		this.class_type = class_type;
 	}
+
 	internal static LlvmBufferSlotPlan build(SsaBufferPlace place) throws LlvmError {
 		if (!place.cleanup.is_buffer || (place.storage == null) == (place.field == null)) {
 			throw new LlvmError.INVALID_INPUT ("exchange plan requires one complete buffer owner slot");
@@ -37,6 +38,7 @@ internal class LlvmBufferSlotPlan : Object {
 		plan.verify ();
 		return plan;
 	}
+
 	internal void verify() throws LlvmError {
 		bool local = storage >= 0;
 		bool valid_field = class_ordinal >= 0 && field >= 0 && receiver >= 0 && class_type is ClassType && (receiver_type == class_type || (receiver_type is ReceiverType && ((ReceiverType) receiver_type).instance_type == class_type));
@@ -44,9 +46,11 @@ internal class LlvmBufferSlotPlan : Object {
 			throw new LlvmError.VERIFICATION ("exchange slot plan has invalid type, cleanup or storage identity");
 		}
 	}
+
 	internal bool same(LlvmBufferSlotPlan other) {
 		return type == other.type && cleanup == other.cleanup && storage == other.storage && owner == other.owner && class_ordinal == other.class_ordinal && field == other.field && receiver == other.receiver && receiver_type == other.receiver_type && class_type == other.class_type;
 	}
+
 	internal void validate(SsaFunction function, SsaBufferPlace place) throws LlvmError {
 		verify ();
 		if (!same (build (place))) {
@@ -84,11 +88,13 @@ internal class LlvmBufferSlotPlan : Object {
 			}
 		}
 	}
+
 }
 
 internal enum LlvmBufferExchangeStep {
 	LEFT_BASE, LEFT_COUNT, RIGHT_BASE, RIGHT_COUNT, STORE_LEFT_BASE, STORE_LEFT_COUNT, STORE_RIGHT_BASE, STORE_RIGHT_COUNT
 }
+
 internal class LlvmBufferExchangePlan : Object {
 	internal SourceSpan span;
 	internal int function_ordinal;
@@ -108,6 +114,7 @@ internal class LlvmBufferExchangePlan : Object {
 			LlvmBufferExchangeStep.LEFT_BASE, LlvmBufferExchangeStep.LEFT_COUNT, LlvmBufferExchangeStep.RIGHT_BASE, LlvmBufferExchangeStep.RIGHT_COUNT, LlvmBufferExchangeStep.STORE_LEFT_BASE, LlvmBufferExchangeStep.STORE_LEFT_COUNT, LlvmBufferExchangeStep.STORE_RIGHT_BASE, LlvmBufferExchangeStep.STORE_RIGHT_COUNT
 		};
 	}
+
 	internal static LlvmBufferExchangePlan build(SsaFunction function, SsaBlock block, int position) throws LlvmError {
 		var operation = block.instructions[position] as SsaBufferExchangeInstruction;
 		if (operation == null) {
@@ -117,6 +124,7 @@ internal class LlvmBufferExchangePlan : Object {
 		plan.validate (function, operation);
 		return plan;
 	}
+
 	internal void verify() throws LlvmError {
 		left.verify ();
 		right.verify ();
@@ -129,6 +137,7 @@ internal class LlvmBufferExchangePlan : Object {
 			}
 		}
 	}
+
 	internal void validate(SsaFunction function, SsaBufferExchangeInstruction operation) throws LlvmError {
 		verify ();
 		if (function.ordinal != function_ordinal || block_ordinal >= function.blocks.length || position >= function.blocks[block_ordinal].instructions.length || function.blocks[block_ordinal].instructions[position] != operation || span.file != operation.span.file || span.start != operation.span.start || span.end != operation.span.end) {
@@ -140,6 +149,7 @@ internal class LlvmBufferExchangePlan : Object {
 			throw new LlvmError.INVALID_INPUT ("exchange plan cannot merge distinct cleanup contracts");
 		}
 	}
+
 }
 
 // These associations are created when ordinary storage, receiver definitions
@@ -159,6 +169,7 @@ internal class LlvmBufferLocalBinding : Object {
 		this.type = storage.cleanup.buffer_type;
 		this.address = address;
 	}
+
 }
 internal class LlvmBufferReceiverBinding : Object {
 	internal int function_ordinal;
@@ -172,6 +183,7 @@ internal class LlvmBufferReceiverBinding : Object {
 		this.type = source.semantic_type;
 		this.value = value;
 	}
+
 }
 
 // Physical dominance is checked from the retained LLVM graph, independently
@@ -204,6 +216,7 @@ internal class LlvmBufferExchangeOrder : Object {
 		}
 		return true;
 	}
+
 	internal static bool precedes(CApi.ValueRef left, CApi.ValueRef right) {
 		if ((void*) CApi.is_instruction (left) == null || (void*) CApi.is_instruction (right) == null) {
 			return false;
@@ -220,6 +233,7 @@ internal class LlvmBufferExchangeOrder : Object {
 		}
 		return false;
 	}
+
 	internal static void receiver(LlvmBufferReceiverBinding binding, CApi.ValueRef projection) throws LlvmError {
 		if (!(binding.type is ClassType)) {
 			return;
@@ -241,6 +255,7 @@ internal class LlvmBufferExchangeOrder : Object {
 			throw new LlvmError.VERIFICATION ("exchange field projection requires its successful guard continuation and terminal trap");
 		}
 	}
+
 }
 internal class LlvmBufferFieldBinding : Object {
 	internal int class_ordinal;
@@ -255,6 +270,7 @@ internal class LlvmBufferFieldBinding : Object {
 		this.type = field.semantic_type;
 		this.container = container;
 	}
+
 }
 
 // Raw LLVM handles are borrowed from the artifact. They identify descriptor
@@ -284,12 +300,15 @@ internal class LlvmBufferSlotBinding : Object {
 		this.receiver_origin = receiver_origin;
 		this.field_origin = field_origin;
 	}
+
 	private static bool index(CApi.ValueRef value, uint expected) {
 		return (void*) CApi.is_constant_int (value) != null && CApi.const_int_zext (value) == expected;
 	}
+
 	private static bool projection(CApi.ValueRef value, CApi.ValueRef root, CApi.TypeRef type, uint field) {
 		return (void*) CApi.is_instruction (value) != null && CApi.opcode (value) == CApi.Opcode.GEP && CApi.operand_count (value) == 3 && (void*) CApi.operand (value, 0) == (void*) root && (void*) CApi.gep_source_type (value) == (void*) type && index (CApi.operand (value, 1), 0) && index (CApi.operand (value, 2), field);
 	}
+
 	internal void verify() throws LlvmError {
 		plan.verify ();
 		if (!projection (base_address, address, carrier, 0) || !projection (count_address, address, carrier, 1)) {
@@ -312,6 +331,7 @@ internal class LlvmBufferSlotBinding : Object {
 			LlvmBufferExchangeOrder.receiver (receiver_origin, address);
 		}
 	}
+
 }
 
 internal class LlvmBufferExchangeBinding : Object {
@@ -325,6 +345,7 @@ internal class LlvmBufferExchangeBinding : Object {
 		this.right = right;
 		this.instructions = instructions;
 	}
+
 	internal void verify() throws LlvmError {
 		plan.verify ();
 		left.verify ();
@@ -375,5 +396,6 @@ internal class LlvmBufferExchangeBinding : Object {
 			}
 		}
 	}
+
 }
 }

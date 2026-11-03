@@ -27,6 +27,7 @@ public class SsaArrayInitialize : SsaInstruction {
 		this.storage = storage;
 		this.elements = elements;
 	}
+
 }
 
 public class SsaArrayElementPlace : SsaMemoryPlace {
@@ -43,6 +44,7 @@ public class SsaArrayElementPlace : SsaMemoryPlace {
 		this.index = index;
 		this.provenance = provenance;
 	}
+
 }
 
 public class SsaArrayBoundsCheck : SsaInstruction {
@@ -54,5 +56,6 @@ public class SsaArrayBoundsCheck : SsaInstruction {
 		this.storage = storage;
 		this.index = index;
 	}
+
 }
 }

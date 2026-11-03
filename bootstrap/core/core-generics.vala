@@ -13,6 +13,7 @@ public class CoreGenericCapabilityRequirement : CoreNode {
 		this.parameter = WeakRef (parameter);
 		this.capability = capability;
 	}
+
 }
 
 public class CoreGenericCapabilityOperation : CoreValue {
@@ -29,6 +30,7 @@ public class CoreGenericCapabilityOperation : CoreValue {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 // Select existing concrete operations; their accepted scalar/BIT semantics own
@@ -61,6 +63,7 @@ public class CoreGenericOperationResolver : Object {
 		}
 		return new CoreBinaryValue (operation.span, result, binary, left, right);
 	}
+
 }
 
 public class CoreTypeParameter : CoreNode {
@@ -73,6 +76,7 @@ public class CoreTypeParameter : CoreNode {
 		this.semantic_type = type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Stable origin identity has no body or upstream backlink. Concrete instances
@@ -86,6 +90,7 @@ public class CoreGenericIdentity : CoreNode {
 		this.identifier = name;
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CoreGenericFunction : CoreFunction {
@@ -98,6 +103,7 @@ public class CoreGenericFunction : CoreFunction {
 		this.type_parameters = type_parameters;
 		this.identity = new CoreGenericIdentity (span, name, ordinal);
 	}
+
 	public void verify_capability_arguments(GenericArray<SemanticType> arguments, CopyabilityFields? fields = null, CopyabilityPremise? premise = null, CopyabilityPremise? element_premise = null) throws CoreError {
 		if (arguments.length != type_parameters.length) {
 			throw new CoreError.INVALID_IR ("generic type-argument arity mismatch");
@@ -119,6 +125,7 @@ public class CoreGenericFunction : CoreFunction {
 			}
 		}
 	}
+
 	public TypeSubstitution substitution(GenericArray<SemanticType> arguments) throws CoreError {
 		if (arguments.length != type_parameters.length) {
 			throw new CoreError.INVALID_IR ("generic type-argument arity mismatch");
@@ -129,6 +136,7 @@ public class CoreGenericFunction : CoreFunction {
 		}
 		return result;
 	}
+
 }
 
 public class CoreGenericCall : CoreCallValue {
@@ -142,6 +150,7 @@ public class CoreGenericCall : CoreCallValue {
 			this.target_requirements.add (requirement);
 		}
 	}
+
 }
 
 public class CoreGenericCallStatement : CoreCallStatement {
@@ -155,6 +164,7 @@ public class CoreGenericCallStatement : CoreCallStatement {
 			this.target_requirements.add (requirement);
 		}
 	}
+
 }
 
 internal class CoreResultOriginRequest : Object {
@@ -168,6 +178,7 @@ internal class CoreResultOriginRequest : Object {
 		this.arguments = new TypeArgumentVector (arguments);
 		this.substitution = (function is CoreGenericFunction) ? ((CoreGenericFunction) function).substitution (arguments) : new TypeSubstitution ();
 	}
+
 }
 
 // A member header carries nominal binding authority, not an implementation.
@@ -277,6 +288,7 @@ internal class CoreResultOriginProjection : Object {
 		}
 		return root.equation;
 	}
+
 }
 
 // Reconstruct the result equation from this stage's own definitions. Calls
@@ -299,6 +311,7 @@ internal class CoreGenericResultOrigins : Object {
 		this.function = function;
 		this.equations = equations;
 	}
+
 	private GenericResultOrigins owner(CoreOwnedLocal owned) throws CoreError {
 		if (!function.owned_locals.find (owned)) {
 			throw new CoreError.INVALID_IR ("owned T result analysis requires incoming owner provenance or a local owned by the exact function");
@@ -314,6 +327,7 @@ internal class CoreGenericResultOrigins : Object {
 		return parameter == null ? new GenericResultOrigins (owned.cleanup.is_heap_object ? GenericResultOrigins.HEAP : GenericResultOrigins.CALLER)
 		        : new GenericResultOrigins (0, new int[] { parameter.ordinal });
 	}
+
 	private GenericResultOrigins value(CoreValue? expression) throws CoreError {
 		if (expression == null || expression is CoreNullPointerValue) {
 			return new GenericResultOrigins ();
@@ -374,6 +388,7 @@ internal class CoreGenericResultOrigins : Object {
 		}
 		return new GenericResultOrigins (GenericResultOrigins.UNKNOWN);
 	}
+
 	private void block(CoreBlock body) throws CoreError {
 		if (visited.contains (body)) {
 			return;
@@ -425,16 +440,19 @@ internal class CoreGenericResultOrigins : Object {
 			}
 		}
 	}
+
 	internal static GenericResultOrigins projected(CoreFunction function, CoreResultOriginProjection projection, TypeSubstitution substitution) throws CoreError {
 		var analysis = new CoreGenericResultOrigins (function, null, projection, substitution);
 		analysis.block (function.body);
 		return analysis.result;
 	}
+
 	internal static HashTable<CoreOwnedLocal, GenericResultOrigins> projected_locals(CoreGenericFunction function, CoreResultOriginProjection projection, TypeSubstitution substitution) throws CoreError {
 		var analysis = new CoreGenericResultOrigins (function, null, projection, substitution);
 		analysis.block (function.body);
 		return analysis.locals;
 	}
+
 	internal static HashTable<CoreGenericFunction, GenericResultOrigins> derive(CoreProgram program) throws CoreError {
 		var equations = new HashTable<CoreGenericFunction, GenericResultOrigins> (direct_hash, direct_equal);
 		foreach (var function in program.generic_functions) {
@@ -457,6 +475,7 @@ internal class CoreGenericResultOrigins : Object {
 		} while (changed);
 		return equations;
 	}
+
 	internal static HashTable<CoreFunction, GenericResultOrigins> concrete_results(CoreProgram program) throws CoreError {
 		var equations = new HashTable<CoreFunction, GenericResultOrigins> (direct_hash, direct_equal);
 		foreach (var function in program.all_definitions ()) {
@@ -478,11 +497,13 @@ internal class CoreGenericResultOrigins : Object {
 		} while (changed);
 		return equations;
 	}
+
 	internal static HashTable<CoreOwnedLocal, GenericResultOrigins> concrete_locals(CoreFunction function, HashTable<CoreFunction, GenericResultOrigins> equations) throws CoreError {
 		var analysis = new CoreGenericResultOrigins (function, null, null, null, equations);
 		analysis.block (function.body);
 		return analysis.locals;
 	}
+
 	internal static bool[] heap_arguments(GenericArray<CoreValue> arguments) {
 		var heaps = new bool[arguments.length];
 		for (int i = 0; i < arguments.length; i++) {
@@ -491,6 +512,7 @@ internal class CoreGenericResultOrigins : Object {
 		}
 		return heaps;
 	}
+
 }
 
 public enum GenericInstanceState {
@@ -506,6 +528,7 @@ public class GenericInstanceCaller : Object {
 		this.callable = WeakRef (function);
 		this.identifier = label;
 	}
+
 }
 
 public class GenericFunctionInstance : Object {
@@ -567,6 +590,7 @@ public class GenericFunctionInstance : Object {
 			canonical_arguments.add (type);
 		}
 	}
+
 	public bool has_canonical_key() {
 		if (type_arguments.length != canonical_arguments.length) {
 			return false;
@@ -578,6 +602,7 @@ public class GenericFunctionInstance : Object {
 		}
 		return true;
 	}
+
 	public bool owns_parameter(int ordinal) {
 		foreach (var parameter in consuming_parameters) {
 			if (parameter == ordinal) {
@@ -586,6 +611,7 @@ public class GenericFunctionInstance : Object {
 		}
 		return false;
 	}
+
 	public bool requires_exact_source(int ordinal) {
 		foreach (var parameter in exact_parameters) {
 			if (parameter == ordinal) {
@@ -594,6 +620,7 @@ public class GenericFunctionInstance : Object {
 		}
 		return false;
 	}
+
 	private bool declared_heap(int ordinal) {
 		foreach (var parameter in declared_heap_parameters) {
 			if (parameter == ordinal) {
@@ -602,9 +629,11 @@ public class GenericFunctionInstance : Object {
 		}
 		return false;
 	}
+
 	public string symbol_name() {
 		return "astra.gen.%d.%d".printf (origin.ordinal, ordinal);
 	}
+
 	public bool matches(CoreGenericIdentity definition, GenericArray<SemanticType> arguments, int heap_owned_parameter = -1, GenericStorageVector? storage = null) {
 		var expected = storage ?? new GenericStorageVector.single (heap_owned_parameter);
 		if (!has_canonical_key () || origin != definition || type_arguments.length != arguments.length || !this.storage.same (expected)) {
@@ -617,6 +646,7 @@ public class GenericFunctionInstance : Object {
 		}
 		return true;
 	}
+
 	public bool has_storage_domain(CoreFunction function) {
 		if (!storage.valid ((int) function.parameters.length)) {
 			return false;
@@ -646,5 +676,6 @@ public class GenericFunctionInstance : Object {
 		}
 		return true;
 	}
+
 }
 }

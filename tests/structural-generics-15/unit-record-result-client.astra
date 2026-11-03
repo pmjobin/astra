@@ -5,33 +5,39 @@ NativeRecordResults.Copy<NativeRecordResults.Leaf,int> consumer_copy(int ticket)
 	NativeRecordResults.Copy<NativeRecordResults.Leaf,int> result = {data = data, extra = ticket + 10};
 	return result;
 }
+
 int adjust(int value) { return value + 1; }
+
 NativeRecordResults.Packet consumer_packet(int ticket) {
 	NativeRecordResults.Packet result = NativeRecordResults.create_packet(ticket);
 	return move result;
 }
+
 int observe_copy(NativeRecordResults.Copy<NativeRecordResults.Leaf,int> value) {
 	i64 wide = 9000000001;
-	if (!value.data.ready || value.data.wide != wide) { return 0; }
+	if (!value.data.ready || value.data.wide != wide) return 0;
 	Fn<int,int> code = value.data.adjust;
 	return code(value.data.value) + value.extra;
 }
+
 int observe_packet(borrowed NativeRecordResults.Packet value) {
-	if (len(value.contents.samples) != 2 || id(value.contents.retained) != value.ticket) { return 0; }
+	if (len(value.contents.samples) != 2 || id(value.contents.retained) != value.ticket) return 0;
 	return value.contents.samples[1];
 }
+
 int exercise() {
 	Fn<NativeRecordResults.Copy<NativeRecordResults.Leaf,int>,int> copied = RecordResultTransport.copy_callback();
 	NativeRecordResults.Copy<NativeRecordResults.Leaf,int> a = copied(7);
 	NativeRecordResults.Copy<NativeRecordResults.Leaf,int> b = RecordResultTransport.copy(copied, 8);
 	NativeRecordResults.Copy<NativeRecordResults.Leaf,int> c = RecordResultTransport.copy(consumer_copy, 9);
-	if (observe_copy(a) != 25 || observe_copy(b) != 27 || observe_copy(c) != 29) { return 1; }
+	if (observe_copy(a) != 25 || observe_copy(b) != 27 || observe_copy(c) != 29) return 1;
 	Fn<NativeRecordResults.Packet,int> record_code = RecordResultTransport.packet_callback();
 	NativeRecordResults.Packet first = record_code(181);
 	NativeRecordResults.Packet second = RecordResultTransport.packet(record_code, 182);
 	NativeRecordResults.Packet third = RecordResultTransport.packet(consumer_packet, 183);
 	NativeRecordResults.Packet fourth = RecordResultTransport.direct(184);
-	if (observe_packet(first) != 191 || observe_packet(second) != 192 || observe_packet(third) != 193 || observe_packet(fourth) != 194) { return 2; }
+	if (observe_packet(first) != 191 || observe_packet(second) != 192 || observe_packet(third) != 193 || observe_packet(fourth) != 194) return 2;
 	return 0;
 }
-int main() { int result = exercise(); if (result != 0) { return result; } return live(); }
+
+int main() { int result = exercise(); if (result != 0) return result; return live(); }

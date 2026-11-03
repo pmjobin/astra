@@ -66,8 +66,8 @@ def main():
 						regular(path, 'products/'+phase+'/'+mode+'/'+case['name']+'/'+label+path.suffix)
 					if phase == 'after' and mode == 'O0':
 						regular(Path(case['source_path']), 'inputs/selected/'+case['name']+'.astra')
-			# The command ledger, rather than a guessed build directory, identifies
-			# the exact component that emitted these application bodies.
+						# The command ledger, rather than a guessed build directory, identifies
+						# the exact component that emitted these application bodies.
 			commands = read(leaf/'legacy/commands.json')
 			component = Path(next(row['argv'][0] for row in commands if '--ssa' in row['argv']))
 			identity = read(component.with_suffix('.identity.json'))

@@ -26,4 +26,5 @@ int main(string[] args) {
 	stdout.printf ("LLVM smoke module constructed and verified: astra_smoke returns i32 0.\n");
 	return 0;
 }
+
 }

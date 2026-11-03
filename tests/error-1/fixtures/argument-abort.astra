@@ -1,16 +1,24 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 int fail() throws Error { throw new Error("later argument"); }
+
 int consume(owned int[] data, int second) { return len(data) + second; }
+
 int recovered() { try { return fail(); } catch(Error error) { return 40; } }
+
 int aborted() {
 	owned int[] data = new int[2];
-	try { consume(move data, fail()); } catch(Error error) { if(len(data) != 2) { return 81; } return consume(move data, recovered()); }
+	try { consume(move data, fail()); } catch(Error error) { if(len(data) != 2) return 81; return consume(move data, recovered()); }
 	return 82;
 }
+
 int committed() { owned int[] data = new int[2]; return consume(move data, recovered()); }
-int main() { if(aborted() != 42 || committed() != 42) { return 83; } return 42; }
+
+int main() { if(aborted() != 42 || committed() != 42) return 83; return 42; }

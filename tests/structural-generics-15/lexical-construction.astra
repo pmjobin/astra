@@ -3,11 +3,13 @@ class LexicalCell<T, U> {
 	owned T payload;
 	U tag;
 	private int code;
+
 	init(owned T payload, U tag, int code) {
 		this.payload = move payload;
 		this.tag = tag;
 		this.code = code;
 	}
+
 	deinit() { mark(this.code); }
 }
 
@@ -20,10 +22,12 @@ struct LexicalOwners {
 class LexicalChild {
 	owned R first;
 	owned R second;
+
 	init(owned R first, owned R second) {
 		this.first = move first;
 		this.second = move second;
 	}
+
 	deinit() { mark(300); }
 }
 
@@ -51,15 +55,15 @@ int exercise_construction() {
 	var parent = LexicalCell<LexicalChild, int>.init(move child, 42, 205);
 	var heap = new LexicalCell<int, int>(42, 42, 206);
 	var outer = LexicalCell<LexicalCell<int, int>, bool>.init(move heap, true, 207);
-	if (inferred.payload != 42 || !inferred.tag || returned.payload != 42 || returned.tag != 99) { return 1; }
-	if (explicit_value.payload != 42 || owners.payload.stamp != 42 || !owners.tag) { return 2; }
-	if (parent.tag != 42 || outer.payload.payload != 42) { return 3; }
-	if (consume_number(move returned) != 42) { return 4; }
+	if (inferred.payload != 42 || !inferred.tag || returned.payload != 42 || returned.tag != 99) return 1;
+	if (explicit_value.payload != 42 || owners.payload.stamp != 42 || !owners.tag) return 2;
+	if (parent.tag != 42 || outer.payload.payload != 42) return 3;
+	if (consume_number(move returned) != 42) return 4;
 	return 0;
 }
 
 int main() {
 	int result = exercise_construction();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

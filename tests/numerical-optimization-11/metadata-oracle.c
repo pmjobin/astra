@@ -8,6 +8,7 @@ static unsigned long allocations;
 static int observed, failed, factories;
 static FILE *output;
 #ifndef ASTRA_SANITIZER_OBSERVER
+
 void *calloc(size_t count, size_t size) {
 	if (size && count > SIZE_MAX / size) return NULL;
 	void *memory = malloc(count * size);
@@ -15,14 +16,18 @@ void *calloc(size_t count, size_t size) {
 	allocations++;
 	return memory;
 }
+
 #endif
+
 static double sample(int sequence) {
 	uint32_t bits = (uint32_t)sequence * UINT32_C(22695477) + UINT32_C(1);
 	return (double)((int)(bits >> 17) - 16384) / 16384.0;
 }
+
 void metadata_factory_event(void) {
 	factories++;
 }
+
 double metadata_sample(int sequence) {
 	if (!sequence) {
 		const char *path = getenv("ASTRA_NUMERICAL_OUTPUT");
@@ -34,6 +39,7 @@ double metadata_sample(int sequence) {
 	}
 	return sample(sequence);
 }
+
 int metadata_observe(int block, double value) {
 	double energy = 0;
 	for (int lane = 0; lane < 128; lane++) {
@@ -47,6 +53,7 @@ int metadata_observe(int block, double value) {
 	observed++;
 	return failed;
 }
+
 int metadata_finish(int count) {
 	if (output && fclose(output)) failed = 1;
 	if (observed != count) failed = 1;

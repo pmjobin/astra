@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 u8<16> step(u8<16> a,u8<16> b){return sat_add(a,b);}
+
 int main(){
 	u8<16> max=splat(255,16);
 	u8<16> one=splat(1,16);
 	u8<16> wrap=max+one;
 	u8<16> sat=step(max,one);
-	if(!all(wrap==splat(0 as u8,16)) || !all(sat==max)){return 1;}
+	if(!all(wrap==splat(0 as u8,16)) || !all(sat==max)) return 1;
 	i8<16> signed_max=splat(127,16);
 	i8<16> signed_one=splat(1,16);
 	i8<16> signed_wrap=signed_max+signed_one;
-	if(!all(signed_wrap==splat(-128 as i8,16)) || !all(sat_add(signed_max,signed_one)==signed_max)){return 2;}
+	if(!all(signed_wrap==splat(-128 as i8,16)) || !all(sat_add(signed_max,signed_one)==signed_max)) return 2;
 	bool<16> mask={true,false,true,false,true,false,true,false,true,false,true,false,true,false,true,false};
 	u8<16> chosen=select(mask,sat,wrap);
 	chosen=insert(chosen,1,7);
-	if(chosen[0]!=255 || chosen[1]!=7 || chosen[3]!=0){return 3;}
+	if(chosen[0]!=255 || chosen[1]!=7 || chosen[3]!=0) return 3;
 	return 0;
 }

@@ -50,4 +50,5 @@ void *astra_test_pointer_roundtrip(void *p) {
 int32_t astra_test_check_pointer_roundtrip(void *p) {
 	return astra_export_echo_ptr(p) == p;
 }
+
 #endif

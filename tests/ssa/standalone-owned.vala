@@ -36,6 +36,7 @@ private SsaProgram owned_program(int variant = -1) throws SsaError {
 	functions.add (new SsaFunction (span, span, "f", types.void_type, 0, new GenericArray<SsaFunctionParameter> (), blocks, block));
 	return new SsaProgram (span, functions, imports, null, null, cleanups);
 }
+
 private void owned_model() {
 	try {
 		SsaProgram? program = owned_program ();
@@ -49,6 +50,7 @@ private void owned_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void owned_invalid() {
 	for (int variant = 0; variant < 7; variant++) {
 		try {
@@ -60,6 +62,7 @@ private void owned_invalid() {
 		GLib.error ("malformed cleanup %d accepted", variant);
 	}
 }
+
 private void moved_source_null() {
 	try {
 		var program = owned_program ();
@@ -71,6 +74,7 @@ private void moved_source_null() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void normalized_borrow() {
 	try {
 		SsaProgram? program = owned_program ();
@@ -95,6 +99,7 @@ private void normalized_borrow() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private SsaProgram borrowed_parameter_program(int variant = -1) throws SsaError {
 	var file = new SourceFile.from_text ("borrowed-native", "borrowed void* p");
 	var span = SourceSpan (file, 0, file.length);
@@ -120,6 +125,7 @@ private SsaProgram borrowed_parameter_program(int variant = -1) throws SsaError 
 	functions.add (new SsaFunction (span, span, "f", types.raw_pointer_type, 0, parameters, blocks, block));
 	return new SsaProgram (span, functions, imports);
 }
+
 private void borrowed_parameter_contract() {
 	try {
 		SsaVerifier.verify (borrowed_parameter_program ());
@@ -136,6 +142,7 @@ private void borrowed_parameter_contract() {
 		GLib.error ("escaping native SSA parameter %d accepted", i);
 	}
 }
+
 private void normalized_release() {
 	try {
 		var program = owned_program ();
@@ -153,6 +160,7 @@ private void normalized_release() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void normalized_rearm() {
 	try {
 		SsaProgram? program = owned_program ();
@@ -173,6 +181,7 @@ private void normalized_rearm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void register_owned_tests() {
 	Test.add_func ("/ssa-standalone/rearm/normalized-pointer-lifetime", normalized_rearm);
 	Test.add_func ("/ssa-standalone/release/normalized-cleanup-null", normalized_release);
@@ -182,4 +191,5 @@ private void register_owned_tests() {
 	Test.add_func ("/ssa-standalone/ownership/model-order-lifetime", owned_model);
 	Test.add_func ("/ssa-standalone/ownership/malformed", owned_invalid);
 }
+
 }

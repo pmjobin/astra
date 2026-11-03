@@ -7,6 +7,7 @@ namespace Astra.Tests.ContinuationPlans {
 private NativeScalarAbiType scalar(NativeScalarType type) {
 	return new NativeScalarAbiType (type);
 }
+
 private NativeContinuationRegionPlan construct () {
 	var span = SourceSpan (new SourceFile.from_text ("generated-plan", ""), 0, 0);
 	var fields = new GenericArray<NativeRecordField> ();
@@ -71,10 +72,12 @@ private void independent() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/callable/independently-constructed-plan-without-ssa-or-llvm", independent);
 	Test.add_func ("/callable/native-provenance", Astra.Tests.NativeProvenance.check);
 	return Test.run ();
 }
+
 }

@@ -157,4 +157,5 @@ private void register_loop_tests() {
 	Test.add_func ("/ssa-standalone/loop/invalid-edges-and-uses", invalid_loop_edges_and_uses);
 	Test.add_func ("/ssa-standalone/loop/expired-edge", expired_loop_edge);
 }
+
 }

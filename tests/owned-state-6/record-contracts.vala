@@ -29,6 +29,7 @@ private CheckedProgram record_checked(bool checked_factory = false) throws GLib.
 	}
 	return result.program;
 }
+
 private void record_core() {
 	try {
 		var checked = record_checked ();
@@ -78,6 +79,7 @@ private void record_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_cfg() {
 	try {
 		var graph = CfgBuilder.build (CoreBuilder.build (record_checked (true)));
@@ -138,6 +140,7 @@ private void record_cfg() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_ssa() {
 	try {
 		var model = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (record_checked (true))));
@@ -175,6 +178,7 @@ private void record_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_llvm() {
 	try {
 		CheckedProgram? checked = record_checked (true);
@@ -233,6 +237,7 @@ private void record_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_native() {
 	try {
 		var native = NativeAbiBuilder.build (SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (record_checked (true)))));
@@ -263,6 +268,7 @@ private void record_native() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 internal void register_records() {
 	Test.add_func ("/owned-state-completion/record-native-field-obligations", record_native);
 	Test.add_func ("/owned-state-completion/record-checked-core-prefix", record_core);
@@ -270,4 +276,5 @@ internal void register_records() {
 	Test.add_func ("/owned-state-completion/record-ssa-fields-and-moves", record_ssa);
 	Test.add_func ("/owned-state-completion/record-independent-llvm-cleanup", record_llvm);
 }
+
 }

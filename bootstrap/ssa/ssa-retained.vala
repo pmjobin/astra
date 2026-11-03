@@ -14,5 +14,6 @@ public class SsaRetainedOperation : SsaInstruction {
 		this.arguments = arguments;
 		this.source_owner = source_owner;
 	}
+
 }
 }

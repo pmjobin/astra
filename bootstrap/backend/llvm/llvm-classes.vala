@@ -24,6 +24,7 @@ internal class LlvmClassAddressBinding : Object {
 		this.member = member;
 		this.aggregate = aggregate;
 	}
+
 	internal void verify() throws LlvmError {
 		// A constant-root GEP may fold to a constant (notably after an always
 		// trapping null guard). Retain its actual authorized emission block;
@@ -62,6 +63,7 @@ internal class LlvmClassAddressBinding : Object {
 			throw new LlvmError.VERIFICATION ("class address lost exact field/header/virtual slot selection");
 		}
 	}
+
 }
 internal class LlvmClassValueBinding : Object {
 	internal CApi.ValueRef instruction;
@@ -86,6 +88,7 @@ internal class LlvmClassValueBinding : Object {
 			this.operands[i] = (void*) operands[i];
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != operation || (void*) CApi.type_of (instruction) != (void*) type || CApi.operand_count (instruction) != operands.length) {
 			throw new LlvmError.VERIFICATION ("class %s lost intended operation and complete channel type", purpose);
@@ -108,6 +111,7 @@ internal class LlvmClassValueBinding : Object {
 			throw new LlvmError.VERIFICATION ("class %s changed ordinary read/write effects", purpose);
 		}
 	}
+
 }
 internal class LlvmClassPhiBinding : Object {
 	private CApi.ValueRef instruction;
@@ -122,6 +126,7 @@ internal class LlvmClassPhiBinding : Object {
 			this.blocks[i] = (void*) blocks[i];
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if (CApi.opcode (instruction) != CApi.Opcode.PHI || CApi.incoming_count (instruction) != values.length || blocks.length != values.length) {
 			throw new LlvmError.VERIFICATION ("checked admission lost complete original predecessor/result association");
@@ -132,6 +137,7 @@ internal class LlvmClassPhiBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmClassCallBinding : Object {
 	internal CApi.ValueRef instruction;
@@ -151,6 +157,7 @@ internal class LlvmClassCallBinding : Object {
 			this.arguments[i] = (void*) arguments[i];
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.CALL || (void*) CApi.called_value (instruction) != (void*) target || (void*) CApi.called_function_type (instruction) != (void*) signature || CApi.argument_count (instruction) != arguments.length || CApi.instruction_call_conv (instruction) != convention) {
 			throw new LlvmError.VERIFICATION ("class %s lost exact target, signature or call convention", purpose);
@@ -161,6 +168,7 @@ internal class LlvmClassCallBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmClassAllocationBinding : Object {
 	private CApi.TypeRef complete_type;
@@ -171,11 +179,13 @@ internal class LlvmClassAllocationBinding : Object {
 		this.size = CApi.abi_size_of_type (data, complete_type);
 		this.alignment = CApi.abi_alignment_of_type (data, complete_type);
 	}
+
 	internal void verify(CApi.TargetDataRef data) throws LlvmError {
 		if (size == 0 || size != CApi.abi_size_of_type (data, complete_type) || alignment != CApi.abi_alignment_of_type (data, complete_type) || alignment == 0 || alignment > 16 || size % alignment != 0) {
 			throw new LlvmError.VERIFICATION ("class allocation lost complete target extent and qualified calloc alignment");
 		}
 	}
+
 }
 internal class LlvmClassBranchBinding : Object {
 	internal CApi.ValueRef instruction;
@@ -188,11 +198,13 @@ internal class LlvmClassBranchBinding : Object {
 		this.matched = matched;
 		this.next = next;
 	}
+
 	internal void verify() throws LlvmError {
 		if (CApi.opcode (instruction) != CApi.Opcode.BR || CApi.successor_count (instruction) != 2 || (void*) CApi.operand (instruction, 0) != (void*) condition || (void*) CApi.successor (instruction, 0) != (void*) matched || (void*) CApi.successor (instruction, 1) != (void*) next) {
 			throw new LlvmError.VERIFICATION ("class handler lost exact guarded condition and source-ordered target association");
 		}
 	}
+
 }
 internal class LlvmClassLayoutBinding : Object {
 	internal CApi.TypeRef type;
@@ -201,6 +213,7 @@ internal class LlvmClassLayoutBinding : Object {
 		this.type = type;
 		this.expected = expected;
 	}
+
 	internal void verify() throws LlvmError {
 		if (CApi.is_packed_struct (type) != 0 || CApi.count_struct_element_types (type) != expected.length) {
 			throw new LlvmError.VERIFICATION ("native class layout lost complete naturally aligned parent/header/field shape");
@@ -211,6 +224,7 @@ internal class LlvmClassLayoutBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmClassGlobalBinding : Object {
 	internal CApi.ValueRef value;
@@ -227,6 +241,7 @@ internal class LlvmClassGlobalBinding : Object {
 		visibility = symbol != null && windows_unit ? CApi.Visibility.HIDDEN : CApi.Visibility.DEFAULT;
 		this.symbol = symbol;
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.get_initializer (value) != initializer || (void*) CApi.global_value_type (value) != (void*) type ||
 		    CApi.is_global_constant (value) != 1 || CApi.get_linkage (value) != linkage || CApi.get_visibility (value) != visibility) {
@@ -239,6 +254,7 @@ internal class LlvmClassGlobalBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmClassFunctionBinding : Object {
 	internal CApi.ValueRef value;
@@ -251,12 +267,14 @@ internal class LlvmClassFunctionBinding : Object {
 		parameters = CApi.count_params (value);
 		sequence = new LlvmSumSequence (value, true);
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.global_value_type (value) != (void*) type || CApi.count_params (value) != parameters || CApi.function_call_conv (value) != LlvmLowering.CALL_CONVENTION) {
 			throw new LlvmError.VERIFICATION ("native class/exception function lost exact signature and call convention");
 		}
 		sequence.verify ();
 	}
+
 }
 internal class LlvmClassRuntime : Object {
 	private LlvmModuleArtifact artifact;
@@ -274,15 +292,19 @@ internal class LlvmClassRuntime : Object {
 		}
 		return null;
 	}
+
 	internal SsaClass? declaration_ordinal(int ordinal) {
 		return source_classes.lookup (ordinal);
 	}
+
 	internal void retire_foreign_wrapper(CApi.BuilderRef builder, CApi.ValueRef function, CApi.ValueRef root, SsaClass owner, LlvmBlockState state, LlvmBufferAllocation allocator) throws LlvmError {
 		LlvmForeignClasses.retire_cache (artifact, types, structs, native, builder, function, root, owner, state, allocator);
 	}
+
 	internal void begin_foreign_retirement(CApi.BuilderRef builder, CApi.ValueRef function, CApi.ValueRef root, SsaClass owner, LlvmBlockState state) throws LlvmError {
 		LlvmForeignClasses.begin_retirement (artifact, types, structs, native, builder, function, root, owner, state);
 	}
+
 	internal void release_owned(CApi.BuilderRef builder, CApi.ValueRef function, LlvmBufferAllocation allocator, SsaClass owner, CApi.ValueRef pointer, LlvmBlockState state, string name) throws LlvmError {
 		if (((ClassType) owner.semantic_type).intrinsically_shared) {
 			var scalars = new LlvmScalarLowering (artifact, types, builder, function);
@@ -312,6 +334,7 @@ internal class LlvmClassRuntime : Object {
 		}
 		allocator.deallocate (pointer, name + ".free", state, owner.allocation_policy, owner.name);
 	}
+
 	internal void release_scalar(CApi.BuilderRef builder, CApi.ValueRef function, LlvmBufferAllocation allocator, NativeScalarOwner owner, CApi.ValueRef pointer, LlvmBlockState state, string name) throws LlvmError {
 		exact_class (owner);
 		var declaration = source_classes.lookup (owner.class_ordinal);
@@ -320,6 +343,7 @@ internal class LlvmClassRuntime : Object {
 		}
 		release_owned (builder, function, allocator, declaration, pointer, state, name);
 	}
+
 	internal NativeStructValuePlan inline_record(SsaStructField field) throws LlvmError {
 		var owner = field.containing_type as SsaClass;
 		if (owner == null || owner.ordinal < 0 || owner.ordinal >= native.classes.length || field.record_owner == null || field.ordinal < 0 || field.ordinal >= native.classes[owner.ordinal].fields.length) {
@@ -350,6 +374,7 @@ internal class LlvmClassRuntime : Object {
 		}
 		return slot.record_value;
 	}
+
 	private HashTable<int, LlvmFunctionBinding> exact_destructors = new HashTable<int, LlvmFunctionBinding> (direct_hash, direct_equal);
 	internal LlvmFunctionBinding? exact_destructor(NativeScalarOwner owner) throws LlvmError {
 		int ordinal = owner.class_ordinal;
@@ -358,10 +383,12 @@ internal class LlvmClassRuntime : Object {
 		}
 		return exact_destructors.lookup (ordinal);
 	}
+
 	internal NativeClassPlan exact_class(NativeScalarOwner owner) throws LlvmError {
 		exact_destructor (owner);
 		return native.classes[owner.class_ordinal];
 	}
+
 	private HashTable<SsaClass, void*> descriptors = new HashTable<SsaClass, void*> (direct_hash, direct_equal);
 	private HashTable<ClassType, void*> nominal_descriptors = new HashTable<ClassType, void*> (direct_hash, direct_equal);
 	private int origin_count;
@@ -373,6 +400,7 @@ internal class LlvmClassRuntime : Object {
 		artifact.class_addresses.add (new LlvmClassAddressBinding (instruction, root, layout, member));
 		return instruction;
 	}
+
 	private CApi.ValueRef compare(CApi.BuilderRef builder, CApi.ValueRef left, CApi.ValueRef right, string name) {
 		var instruction = CApi.build_icmp (builder, CApi.IntPredicate.EQ, left, right, name);
 		if ((void*) CApi.is_instruction (instruction) != null) {
@@ -380,15 +408,18 @@ internal class LlvmClassRuntime : Object {
 		}
 		return instruction;
 	}
+
 	private CApi.ValueRef read(CApi.BuilderRef builder, CApi.TypeRef type, CApi.ValueRef address, string name) {
 		var instruction = CApi.build_load (builder, type, address, name);
 		artifact.class_values.add (new LlvmClassValueBinding (instruction, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { address }, "header/descriptor read"));
 		return instruction;
 	}
+
 	private void store(CApi.BuilderRef builder, CApi.ValueRef value, CApi.ValueRef address) {
 		var instruction = CApi.build_store (builder, value, address);
 		artifact.class_values.add (new LlvmClassValueBinding (instruction, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, address }, "header/origin publication"));
 	}
+
 	internal LlvmClassRuntime (LlvmModuleArtifact artifact, LlvmTypeMapper types, SsaProgram program, HashTable<SsaFunction, LlvmFunctionBinding> functions, LlvmStructRegistry structs, NativeAbiProgram native, LlvmNativeModulePlan? modules = null) throws LlvmError {
 		this.artifact = artifact;
 		this.types = types;
@@ -477,6 +508,7 @@ internal class LlvmClassRuntime : Object {
 			artifact.scoped_descriptors.insert (owner.ordinal, new LlvmScopedDescriptorAuthority ((CApi.ValueRef) descriptors.lookup (owner), parent, destroy, global, false));
 		}
 	}
+
 	private CApi.ValueRef nonthrowing_adapter(int owner, int slot, LlvmFunctionBinding inherited, LlvmFunctionBinding implementation) throws LlvmError {
 		var adapter = CApi.add_function (artifact.module, "astra.virtual.adapter.%d.%d".printf (owner, slot), inherited.type);
 		CApi.set_linkage (adapter, CApi.Linkage.INTERNAL);
@@ -505,6 +537,7 @@ internal class LlvmClassRuntime : Object {
 		artifact.class_functions.add (new LlvmClassFunctionBinding (adapter, inherited.type));
 		return adapter;
 	}
+
 	internal void initialize(CApi.BuilderRef builder, SsaClass owner, CApi.ValueRef pointer, string name) throws LlvmError {
 		if (owner.foreign_export != null) {
 			store (builder, CApi.const_null (types.scalar (NativeScalarType.PTR)), LlvmForeignClasses.cache_address (artifact, structs, native, builder, pointer, owner));
@@ -542,6 +575,7 @@ internal class LlvmClassRuntime : Object {
 		var origin_address = field_address (builder, header, pointer, 1, name + ".origin.address");
 		store (builder, CApi.const_null (CApi.struct_type_at_index (header, 1)), origin_address);
 	}
+
 	internal void retire_monitor(CApi.BuilderRef builder, CApi.ValueRef pointer, ClassType type, LlvmBlockState state) throws LlvmError {
 		if (!type.monitored) {
 			return;
@@ -559,10 +593,12 @@ internal class LlvmClassRuntime : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 	private CApi.ValueRef class_descriptor(CApi.BuilderRef builder, CApi.ValueRef pointer, string name) throws LlvmError {
 		var address = field_address (builder, header, pointer, 0, name + ".class.address");
 		return read (builder, types.scalar (NativeScalarType.PTR), address, name + ".class");
 	}
+
 	internal CApi.ValueRef virtual_target(CApi.BuilderRef builder, CApi.ValueRef receiver, int slot, bool throwing, string name) throws LlvmError {
 		var owner = class_descriptor (builder, receiver, name);
 		var table_address = field_address (builder, descriptor, owner, 2, name + ".table.address");
@@ -572,6 +608,7 @@ internal class LlvmClassRuntime : Object {
 		artifact.class_addresses.add (new LlvmClassAddressBinding (slot_address, table, types.scalar (NativeScalarType.PTR), slot * 2 + (throwing ? 1 : 0), false));
 		return read (builder, types.scalar (NativeScalarType.PTR), slot_address, name + ".implementation");
 	}
+
 	internal void stamp_origin(CApi.BuilderRef builder, CApi.ValueRef exception, Astra.Source.SourceSpan span) throws LlvmError {
 		string name = "astra.exception.origin.%d".printf (origin_count++);
 		string path = span.file.path;
@@ -606,6 +643,7 @@ internal class LlvmClassRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (original, CApi.Opcode.SELECT, types.scalar (NativeScalarType.PTR), new CApi.ValueRef[] { fresh, origin, prior }, "original throw origin"));
 		store (builder, original, address);
 	}
+
 	internal CApi.ValueRef matches(CApi.BuilderRef builder, CApi.ValueRef function, CApi.ValueRef exception, ClassType match_type, LlvmBlockState state) throws LlvmError {
 		string name = "exception.match.%d".printf (match_count++);
 		var pointer = types.scalar (NativeScalarType.PTR);
@@ -654,6 +692,7 @@ internal class LlvmClassRuntime : Object {
 		CApi.add_incoming (result, values, branches, values.length);
 		return result;
 	}
+
 	internal void destroy(CApi.BuilderRef builder, CApi.ValueRef function, CApi.ValueRef pointer, string name, LlvmBlockState state, LlvmBufferAllocation allocator, bool release_allocation = true, ClassType? owner_type = null) throws LlvmError {
 		var pointer_type = types.scalar (NativeScalarType.PTR);
 		var live = CApi.append_basic_block_in_context (artifact.context, function, name + ".live");
@@ -685,5 +724,6 @@ internal class LlvmClassRuntime : Object {
 		CApi.position_builder_at_end (builder, joined);
 		state.end = joined;
 	}
+
 }
 }

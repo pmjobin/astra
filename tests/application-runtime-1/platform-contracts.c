@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stddef.h>
 int32_t astra_host_text_byte(const unsigned char *, int32_t, int32_t);
+
 int main(void) {
 	static const unsigned char text[] = {'a', 0, 255};
 	assert(astra_host_text_byte(text, 3, 0) == 'a');

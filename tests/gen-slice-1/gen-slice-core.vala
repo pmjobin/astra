@@ -96,9 +96,11 @@ private void qualify() {
 		}
 	}
 }
+
 public int run_core(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-slice/core/independent-obligations-places-materialization-and-key-lifetimes", qualify);
 	return Test.run ();
 }
+
 }

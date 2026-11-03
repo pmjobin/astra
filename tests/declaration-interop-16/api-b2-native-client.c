@@ -4,6 +4,7 @@
 #include <stdio.h>
 extern int32_t catalog16_native_run(void);
 extern uint32_t lens16_retired_count(int32_t);
+
 int main(void) {
 	int32_t result = catalog16_native_run();
 	if (result) {

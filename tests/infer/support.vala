@@ -10,6 +10,7 @@ private string[] fixtures() {
 			   "scalars", "literals", "conversions", "pointers", "vectors", "structs", "generic-struct", "generic-result", "resource", "object", "constructor", "generic-owner", "buffer", "move", "property-method", "foreign", "slice-loop", "cad"
 	};
 }
+
 private CheckedProgram check(string source) {
 	string api;
 	try {
@@ -32,6 +33,7 @@ private CheckedProgram check(string source) {
 	assert (syntax.get () == null);
 	return result.program;
 }
+
 private CheckedProgram fixture(string name, bool inferred = true) {
 	string source;
 	try {
@@ -41,4 +43,5 @@ private CheckedProgram fixture(string name, bool inferred = true) {
 	}
 	return check (source);
 }
+
 }

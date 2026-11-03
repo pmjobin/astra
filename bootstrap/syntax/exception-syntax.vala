@@ -17,6 +17,7 @@ public class HeapObjectConstructionSyntax : ExpressionSyntax {
 		}
 		return depth + 1;
 	}
+
 	public TypeNameSyntax class_name { get; private set; }
 	public GenericArray<ExpressionSyntax> arguments { get; private set; }
 	internal HeapObjectConstructionSyntax (Token keyword, TypeNameSyntax class_name, GenericArray<ExpressionSyntax> arguments, Token close, ExpressionSyntax? allocation_context = null) {
@@ -26,6 +27,7 @@ public class HeapObjectConstructionSyntax : ExpressionSyntax {
 		this.arguments = arguments;
 		this.fallible = keyword.spelling () == "try_new";
 	}
+
 }
 
 public class ThrowStatementSyntax : StatementSyntax {
@@ -35,6 +37,7 @@ public class ThrowStatementSyntax : StatementSyntax {
 		base (SourceSpan.cover (keyword.span, end.span));
 		this.expression = expression;
 	}
+
 }
 
 public class CatchClauseSyntax : SyntaxNode {
@@ -47,6 +50,7 @@ public class CatchClauseSyntax : SyntaxNode {
 		this.binding = binding;
 		this.body = body;
 	}
+
 }
 
 public class TryStatementSyntax : StatementSyntax {
@@ -57,5 +61,6 @@ public class TryStatementSyntax : StatementSyntax {
 		this.body = body;
 		this.catches = catches;
 	}
+
 }
 }

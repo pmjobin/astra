@@ -46,5 +46,6 @@ public class ExecutableOutput : Object {
 			throw new ExecutionError.OUTPUT ("astrac: error: cannot publish object '%s': %s", final_path, strerror (errno));
 		}
 	}
+
 }
 }

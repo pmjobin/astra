@@ -1,20 +1,31 @@
-struct Pair { f64 value; f64 add(f64 x) { this.value = this.value + x; return this.value; } }
+struct Pair { f64 value;
+
+	f64 add(f64 x) { this.value = this.value + x; return this.value; } }
+
 class Counter {
 	f64 value;
+
 	f64 get() { return this.value; }
+
 	init(f64 value) { this.value = value; }
+
 	f64 add(f64 x) { this.value = this.value + x; return this.value; }
+
 	owned Counter copy(f64 offset) { return Counter.init(this.value + offset); }
 }
+
 owned Counter make(f64 value) { return Counter.init(value); }
+
 bool initial(borrowed Counter c) { return 1.0000000000000002 == c.get(); }
+
 f64 read(borrowed Counter c, f64 extra) { return c.value + extra; }
+
 int main() {
 	Pair pair = { value = 1.25 };
-	if (pair.add(0.25) != 1.5) { return 1; }
+	if (pair.add(0.25) != 1.5) return 1;
 	owned Counter c = make(1.0000000000000002);
-	if (!initial(c) || read(c, 0.0) == 1.0 || c.add(0.25) != 1.2500000000000002) { return 2; }
+	if (!initial(c) || read(c, 0.0) == 1.0 || c.add(0.25) != 1.2500000000000002) return 2;
 	owned Counter copy = c.copy(0.5);
-	if (copy.value != 1.7500000000000002) { return 3; }
+	if (copy.value != 1.7500000000000002) return 3;
 	return 0;
 }

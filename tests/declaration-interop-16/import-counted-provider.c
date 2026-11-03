@@ -8,28 +8,35 @@
 #ifdef USE_SDK
 #include "imports16.h"
 #else
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 #endif
+
 typedef struct counted_provider16_handle {
 	int32_t seed;
 	unsigned references;
 } counted_provider16_handle;
+
 static unsigned created, retired, exceptions, constructors;
 static bool provisional;
 static int deny;
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (deny > 0 && --deny == 0) {
 		return NULL;
 	}
 	return __real_calloc(count, size);
 }
+
 int32_t counted16_exception_retired(void) {
 	++exceptions;
 	return 0;
 }
+
 int32_t counted16_error_seen(void) {
 	if (provisional) {
 		assert(created == retired);
@@ -37,16 +44,19 @@ int32_t counted16_error_seen(void) {
 	}
 	return 0;
 }
+
 static void clear(astra_foreign_error *error) {
 	assert(error);
 	error->domain = 0;
 	error->code = 0;
 }
+
 static int32_t fail(astra_foreign_error *error) {
 	error->domain = 16;
 	error->code = -1600;
 	return -1600;
 }
+
 int32_t counted_provider16_create(const uint8_t *input, int32_t length, uint8_t *output, int32_t capacity, int32_t *count, int32_t mode, counted_provider16_handle **out, astra_foreign_error *error) {
 	assert(input && output && count && out && length == 3 && capacity == 4);
 	++constructors;
@@ -76,7 +86,9 @@ int32_t counted_provider16_create(const uint8_t *input, int32_t length, uint8_t 
 	}
 	return 0;
 }
+
 #ifdef EXPECT_SHARED
+
 uint32_t counted_provider16_release(counted_provider16_handle *self) {
 	if (!self) return 0;
 	unsigned n = --self->references;
@@ -86,7 +98,9 @@ uint32_t counted_provider16_release(counted_provider16_handle *self) {
 	}
 	return n;
 }
+
 #else
+
 int32_t counted_provider16_destroy(counted_provider16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner);
@@ -97,7 +111,9 @@ int32_t counted_provider16_destroy(counted_provider16_handle **owner, astra_fore
 	}
 	return 0;
 }
+
 #endif
+
 int32_t counted_provider16_fold(counted_provider16_handle *self, const uint8_t *input, int32_t length, int32_t *out, astra_foreign_error *error) {
 	assert(self && input && out);
 	clear(error);
@@ -110,6 +126,7 @@ int32_t counted_provider16_fold(counted_provider16_handle *self, const uint8_t *
 	}
 	return 0;
 }
+
 int32_t counted_provider16_rewrite(counted_provider16_handle *self, const uint8_t *input, int32_t length, uint8_t *output, int32_t capacity, int32_t *count, int32_t mode, bool *out, astra_foreign_error *error) {
 	assert(self && input && output && count && out && length == 3 && capacity >= 2);
 	clear(error);
@@ -129,9 +146,11 @@ int32_t counted_provider16_rewrite(counted_provider16_handle *self, const uint8_
 	}
 	return 0;
 }
+
 int32_t counted_provider16_named(counted_provider16_handle *self, const uint8_t *input, int32_t length, uint8_t *output, int32_t capacity, int32_t *count, bool *out, astra_foreign_error *error) {
 	return counted_provider16_rewrite(self, input, length, output, capacity, count, 0, out, error);
 }
+
 int32_t counted_provider16_mutate(counted_provider16_handle *self, uint8_t *data, int32_t capacity, int32_t *out, astra_foreign_error *error) {
 	assert(self && data && capacity == 3 && out);
 	clear(error);
@@ -140,6 +159,7 @@ int32_t counted_provider16_mutate(counted_provider16_handle *self, uint8_t *data
 	*out = 2;
 	return 0;
 }
+
 int32_t counted_provider16_utf8(counted_provider16_handle *self, const char *input, int32_t length, int32_t *out, astra_foreign_error *error) {
 	const unsigned char expected[] = {97, 0, 195, 169};
 	assert(self && input && length == 4 && out && memcmp(input, expected, 4) == 0);
@@ -148,19 +168,23 @@ int32_t counted_provider16_utf8(counted_provider16_handle *self, const char *inp
 	((char *)input)[0] = 'Z';
 	return 0;
 }
+
 int32_t counted_provider16_nul(counted_provider16_handle *self, const char *input, int32_t *out, astra_foreign_error *error) {
 	assert(self && input && strcmp(input, "caf\xc3\xa9") == 0 && out);
 	clear(error);
 	*out = (int32_t)strlen(input);
 	return 0;
 }
+
 int32_t counted_provider16_text_count(counted_provider16_handle *self, const char *input, int32_t count, int32_t *out, astra_foreign_error *error) {
 	assert(self && input && count == 2 && (unsigned char)input[0] == 206 && (unsigned char)input[1] == 187);
 	clear(error);
 	*out = count;
 	return 0;
 }
+
 extern int32_t import_counted16_run(int32_t mode);
+
 int main(void) {
 	for (int32_t mode = 0; mode < 6; ++mode) {
 		deny = mode == 4 ? 1 : mode == 5 ? 2

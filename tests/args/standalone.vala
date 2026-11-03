@@ -122,6 +122,7 @@ private void models() {
 		}
 	}
 }
+
 #if !ARGS_CORE && !ARGS_CFG && !ARGS_SSA
 private void entry() {
 	var span = SourceSpan (new SourceFile.from_text ("entry", "main"), 0, 4);
@@ -150,6 +151,7 @@ private void entry() {
 	assert (!new NativeTextSliceLayout (0, 8, 12, 8, 8).qualified ());
 	assert (!new NativeTextSliceLayout (0, 4, 8, 4, 4).qualified ());
 }
+
 #endif
 int main(string[] args) {
 	Test.init (ref args);
@@ -159,4 +161,5 @@ int main(string[] args) {
 #endif
 	return Test.run ();
 }
+
 }

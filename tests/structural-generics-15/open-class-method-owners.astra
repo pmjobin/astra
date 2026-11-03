@@ -2,49 +2,60 @@
 class MethodChild {
 	owned R guard;
 	int value;
+
 	init(owned R guard, int value) { this.guard = move guard; this.value = value; }
 }
+
 class ConsumingMethods<Label> {
 	Label label;
 	int calls;
+
 	init(Label label) { this.label = label; this.calls = 0; }
+
 	int consume<Owner>(owned Owner value, Fn<int, borrowed Owner> read, int extra) where Owner : Ownable {
 		this.calls = this.calls + 1;
 		return read(value) + extra;
 	}
 }
+
 int method_child_value(borrowed MethodChild value) { return value.value + id(value.guard); }
+
 int method_resource_value(borrowed R value) { return id(value); }
+
 int consume_method<Label, Owner>(borrowed ConsumingMethods<Label> host, owned Owner value, Fn<int, borrowed Owner> read, int extra)
 where Owner : Ownable { return host.consume<Owner>(move value, read, extra); }
+
 int relay_method<Owner, Label>(owned Owner value, borrowed ConsumingMethods<Label> host, Fn<int, borrowed Owner> read)
 where Owner : Ownable { return consume_method(host, move value, read, 0); }
+
 int fail_method_argument() throws Error { mark(901); throw new Error("later method argument"); }
+
 int exercise_methods() {
 	var host = new ConsumingMethods<bool>(true);
 	var first_guard = make(201);
 	var first = new MethodChild(move first_guard, 42);
-	if (consume_method(host, move first, method_child_value, 0) != 243 || live() != 0) { return 1; }
+	if (consume_method(host, move first, method_child_value, 0) != 243 || live() != 0) return 1;
 	var resource = make(202);
-	if (consume_method(host, move resource, method_resource_value, 0) != 202 || live() != 0) { return 2; }
+	if (consume_method(host, move resource, method_resource_value, 0) != 202 || live() != 0) return 2;
 	var next_guard = make(203);
 	var next = new MethodChild(move next_guard, 73);
-	if (relay_method(move next, host, method_child_value) != 276 || live() != 0) { return 3; }
+	if (relay_method(move next, host, method_child_value) != 276 || live() != 0) return 3;
 	var next_resource = make(204);
-	if (relay_method(move next_resource, host, method_resource_value) != 204 || live() != 0) { return 4; }
+	if (relay_method(move next_resource, host, method_resource_value) != 204 || live() != 0) return 4;
 	i64 label = 9000000001;
 	var second_host = new ConsumingMethods<i64>(label);
 	var second_resource = make(205);
-	if (consume_method(second_host, move second_resource, method_resource_value, 0) != 205 || second_host.label != label || second_host.calls != 1) { return 5; }
+	if (consume_method(second_host, move second_resource, method_resource_value, 0) != 205 || second_host.label != label || second_host.calls != 1) return 5;
 	var pending = make(206);
 	try { consume_method(host, move pending, method_resource_value, fail_method_argument()); return 6; }
 	catch (Error error) { mark(902); }
-	if (host.calls != 4 || live() != 1 || id(pending) != 206) { return 7; }
-	if (consume_method(host, move pending, method_resource_value, 0) != 206 || host.calls != 5 || live() != 0) { return 8; }
+	if (host.calls != 4 || live() != 1 || id(pending) != 206) return 7;
+	if (consume_method(host, move pending, method_resource_value, 0) != 206 || host.calls != 5 || live() != 0) return 8;
 	return 0;
 }
+
 int main() {
 	int result = exercise_methods();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

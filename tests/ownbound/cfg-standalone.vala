@@ -70,6 +70,7 @@ private CfgProgram model(int variant = -1) throws GLib.Error {
 	functions.add (function);
 	return new CfgProgram (span, functions, null, null, null, cleanups, handles);
 }
+
 private void valid() {
 	try {
 		var program = model ();
@@ -80,6 +81,7 @@ private void valid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 0; variant < 12; variant++) {
 		try {
@@ -91,6 +93,7 @@ private void invalid() {
 		GLib.error ("malformed CFG boundary %d accepted", variant);
 	}
 }
+
 private void flow() {
 	try {
 		assert (CfgFlowChecker.check (model (20)).diagnostic.message == "use of released owned value 'r'");
@@ -99,6 +102,7 @@ private void flow() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cyclic() {
 	try {
 		var program = model ();
@@ -135,6 +139,7 @@ private void cyclic() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/ownbound/cfg/standalone", valid);
@@ -143,4 +148,5 @@ private int main(string[] args) {
 	Test.add_func ("/ownbound/flow/cyclic-parameter", cyclic);
 	return Test.run ();
 }
+
 }

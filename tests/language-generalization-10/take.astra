@@ -2,12 +2,15 @@
 class Item {
 	owned R resource;
 	int code;
+
 	init(int code) {
 		this.resource = make(code);
 		this.code = code;
 	}
+
 	deinit() { mark(200 + this.code); }
 }
+
 struct Inner {
 	owned R first;
 	owned Other second;
@@ -15,23 +18,32 @@ struct Inner {
 	owned int[] values;
 	int tag;
 }
+
 struct Document {
 	Inner payload;
 	int kind;
 }
+
 owned Item create(int code) {
 	var result = new Item(code);
 	return move result;
 }
+
 int checked(int failure) throws Error {
-	if (failure == 1) { throw new Error("take"); }
+	if (failure == 1) {
+		throw new Error("take");
+	}
 	return 7;
 }
+
 owned Other replacement(int code, bool failure) throws Error {
 	owned Other result = make_other(code);
-	if (failure) { throw new Error("replacement"); }
+	if (failure) {
+		throw new Error("replacement");
+	}
 	return move result;
 }
+
 void exercise(int failure) {
 	try {
 		Document document = {
@@ -66,6 +78,7 @@ void exercise(int failure) {
 		mark(900);
 	}
 }
+
 int main() {
 	exercise(0);
 	exercise(1);

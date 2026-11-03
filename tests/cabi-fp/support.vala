@@ -10,6 +10,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -21,11 +22,13 @@ private void add(string path, owned TestBody body) {
 								 }
 	});
 }
+
 private string fixture(string name) throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/cabi-fp/fixtures/" + name + ".astra", out text);
 	return text;
 }
+
 private CheckedProgram check(string text, string declarations = "") {
 	var parsed = Parser.parse (new SourceFile.from_text ("cabi-f64.astra", text));
 	if (parsed.diagnostic != null) {
@@ -39,4 +42,5 @@ private CheckedProgram check(string text, string declarations = "") {
 	}
 	return result.program;
 }
+
 }

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception */
 #include <stdio.h>
+
 int main(void) {
 	fputs("S:", stdout);
 	for (int block = 0; block < 4; ++block) {

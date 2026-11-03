@@ -42,9 +42,11 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/param-borrow/pipeline/canonical-equivalence-destroy-every-predecessor", lifetimes);
 	return Test.run ();
 }
+
 }

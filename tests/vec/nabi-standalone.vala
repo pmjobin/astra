@@ -77,4 +77,5 @@ int main(string[] args) {
 	Test.add_func ("/vec/nabi/standalone-24-shapes-signedness-mixed-profiles", channels);
 	return Test.run ();
 }
+
 }

@@ -8,6 +8,7 @@
 // Independent IID, slot sequence and BOOL32 declarations.
 inline constexpr IID facet_iid = {0xe4211800, 0x12cb, 0x4d3a, {0xbc, 0xda, 0x80, 0x16, 0x26, 0x01, 0x66, 0x11}};
 using Callback = BOOL(STDMETHODCALLTYPE *)(void *, BOOL);
+
 struct Facet : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE get_count(LONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE set_count(LONG) = 0;
@@ -15,24 +16,29 @@ struct Facet : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE visit(BOOL, Callback, void *, BOOL *) = 0;
 };
 struct Native;
+
 struct Error {
 	std::int32_t domain, code;
 };
+
 extern "C" std::int32_t personality16_native_run(void);
 extern "C" std::int32_t personality16_native_create(std::int32_t, bool, double, Native **, Error *);
 extern "C" std::int32_t personality16_native_get_count(Native *, std::int32_t *, Error *);
 extern "C" std::uint32_t personality16_native_release(Native *);
 extern "C" HRESULT personality16_native_as_com(Native *, IUnknown **);
 static unsigned destroyed, callbacks;
+
 extern "C" std::int32_t personality16_retired(void) {
 	++destroyed;
 	return 0;
 }
+
 static BOOL STDMETHODCALLTYPE invert(void *data, BOOL input) {
 	assert(data == &callbacks);
 	++callbacks;
 	return !input;
 }
+
 int main() {
 	assert(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
 	assert(personality16_native_run() == 0 && destroyed == 1);

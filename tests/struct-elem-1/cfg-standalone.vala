@@ -46,6 +46,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	functions.add (function);
 	return new CfgProgram (s, functions, null, null, structures);
 }
+
 private void qualify() {
 	try {
 		CfgProgram? program = sample ();
@@ -68,9 +69,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-elements/cfg/independent-indexed-root-bounds-and-malformed-models", qualify);
 	return Test.run ();
 }
+
 }

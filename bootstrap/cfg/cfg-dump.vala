@@ -1416,5 +1416,6 @@ public class CfgDump : Object {
 		}
 		throw new CfgError.INVALID_CFG ("internal CFG dump error: unsupported CFG value");
 	}
+
 }
 }

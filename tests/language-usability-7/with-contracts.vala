@@ -17,6 +17,7 @@ private CheckedProgram sample() {
 	}
 	return checked.program;
 }
+
 private CheckedFunction checked_function(CheckedProgram program) {
 	foreach (var function in program.functions) {
 		if (function.symbol.name == "f") {
@@ -25,6 +26,7 @@ private CheckedFunction checked_function(CheckedProgram program) {
 	}
 	assert_not_reached ();
 }
+
 private CoreFunction core_function(CoreProgram program) {
 	foreach (var function in program.functions) {
 		if (function.name == "f") {
@@ -33,6 +35,7 @@ private CoreFunction core_function(CoreProgram program) {
 	}
 	assert_not_reached ();
 }
+
 private void checked_capture() {
 	try {
 		var program = sample ();
@@ -55,6 +58,7 @@ private void checked_capture() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_capture() {
 	try {
 		var program = CoreBuilder.build (sample ());
@@ -106,6 +110,7 @@ private void core_capture() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_capture() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -140,6 +145,7 @@ private void cfg_capture() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_capture() {
 	try {
 		var graph = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -175,6 +181,7 @@ private void ssa_capture() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/with/checked-receiver-origin", checked_capture);
@@ -183,4 +190,5 @@ int main(string[] args) {
 	Test.add_func ("/with/ssa-capture-definition", ssa_capture);
 	return Test.run ();
 }
+
 }

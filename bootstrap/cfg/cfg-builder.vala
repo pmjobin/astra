@@ -26,6 +26,7 @@ private class CleanupScope : Object {
 	public CleanupScope (CoreBlock scope) {
 		this.scope = scope;
 	}
+
 }
 
 private class ExceptionTarget : Object {
@@ -37,6 +38,7 @@ private class ExceptionTarget : Object {
 		this.slot = slot;
 		this.retained_depth = retained_depth;
 	}
+
 }
 private class ArgumentFrame : Object {
 	// Acquisition order spans named reservations and completed fresh producers.
@@ -70,6 +72,7 @@ public class CfgBuilder : Object {
 		}
 		return owner is CoreClass && ((CoreClass) owner).generic_instance != null;
 	}
+
 	private HashTable<CoreWithContract, CfgValue> with_captures = new HashTable<CoreWithContract, CfgValue> (direct_hash, direct_equal);
 	private GenericArray<ExceptionTarget> exception_targets = new GenericArray<ExceptionTarget> ();
 	private HashTable<CoreLocalPlace, CfgTemporaryPlace> catch_owners = new HashTable<CoreLocalPlace, CfgTemporaryPlace> (direct_hash, direct_equal);
@@ -1962,6 +1965,7 @@ public class CfgBuilder : Object {
 		function.temporaries.add (slot);
 		return slot;
 	}
+
 	private void route_exception(SourceSpan span, owned CfgValue exception) throws CfgError {
 		for (int f = (int) argument_frames.length - 1; f >= 0; f--) {
 			var staged = argument_frames[f].staged;
@@ -2012,6 +2016,7 @@ public class CfgBuilder : Object {
 			current.complete (span, new CfgExceptionReturn (span, exception));
 		}
 	}
+
 	private void lower_try(CoreTry guarded) throws CfgError {
 		bool exhaustive = false;
 		foreach (var caught in guarded.catches) {
@@ -2615,6 +2620,7 @@ public class CfgBuilder : Object {
 		}
 		return result;
 	}
+
 	private CfgValue build_value_without_text_intent(CoreValue value) throws CfgError {
 		if (value is CoreStructProjectionValue) {
 			var projection = (CoreStructProjectionValue) value;
@@ -3086,5 +3092,6 @@ public class CfgBuilder : Object {
 		}
 		throw new CfgError.INVALID_CORE ("internal CFG construction error: unsupported Core value");
 	}
+
 }
 }

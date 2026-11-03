@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int shared_app_event(int stage,int value);
+
 class Counter {
 	int value;
+
 	init(int value){this.value=value;shared_app_event(1,value);}
+
 	deinit(){shared_app_event(2,this.value);}
 }
+
 int read(borrowed Counter value){return value.value;}
+
 bool identical(borrowed Counter first,borrowed Counter second){return first==second;}
+
 int main(){
 	var unique=new Counter(5);
 	var strong=shared_acquire(move unique);
@@ -17,9 +23,11 @@ int main(){
 		var observer=shared_downgrade(clone);
 		var weak_copy=weak_clone(observer);
 		var upgraded=weak_upgrade(weak_copy);
-		if(upgraded==null){return 81;}
-		if(!identical(shared_borrow(clone),shared_borrow(upgraded))){return 82;}
-		if(step%2==0){release clone;}
+		if(upgraded==null) return 81;
+		if(!identical(shared_borrow(clone),shared_borrow(upgraded))) return 82;
+		if(step%2==0){
+			release clone;
+		}
 		total=total+read(shared_borrow(upgraded));
 		release observer;
 		release upgraded;

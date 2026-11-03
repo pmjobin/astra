@@ -7,23 +7,27 @@ int scenario(int i) {
 	a[i] = a[i] + 40;
 	return a[i];
 }
+
 int take_index(owned Resource r) { return 0; }
+
 bool use_prior(bool prior, int value) { return prior && value == 1; }
+
 bool transfer_index(bool argument) {
 	owned Resource r = create_resource(1);
 	int[1] a = {1};
-	if (argument) { return use_prior(r != null, a[take_index(move r)]); }
+	if (argument) return use_prior(r != null, a[take_index(move r)]);
 	return (r != null) & (a[take_index(move r)] == 1);
 }
+
 int main() {
 	resource_reset();
-	if (scenario(1) != 42) { return 1; }
-	if (resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 1) { return 2; }
+	if (scenario(1) != 42) return 1;
+	if (resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 1) return 2;
 	resource_reset();
-	if (!transfer_index(false)) { return 3; }
-	if (resource_destroy_count() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 4; }
+	if (!transfer_index(false)) return 3;
+	if (resource_destroy_count() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 4;
 	resource_reset();
-	if (!transfer_index(true)) { return 5; }
-	if (resource_destroy_count() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 6; }
+	if (!transfer_index(true)) return 5;
+	if (resource_destroy_count() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 6;
 	return 0;
 }

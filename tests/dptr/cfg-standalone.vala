@@ -119,4 +119,5 @@ int main(string[] args) {
 	Test.add_func ("/dptr/cfg/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

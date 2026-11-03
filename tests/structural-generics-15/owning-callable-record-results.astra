@@ -1,33 +1,49 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class ResultChild {
 	private int ticket;
+
 	init(int ticket) { this.ticket = ticket; }
+
 	deinit() { mark(this.ticket); }
 }
+
 struct ResultContents {
 	owned ResultChild child;
 	owned R retained;
 	owned int[] samples;
 }
+
 struct OwnedResult { ResultContents contents; owned Other extra; int ticket; }
+
 class OwnedResultEnvironment<T> {
 	private T seed;
 	private owned R retained;
+
 	init(T seed, owned R retained) { this.seed = seed; this.retained = move retained; }
+
 	property T amount { get { return this.seed; } }
+
 	deinit() { mark(890); }
 }
+
 struct OwnedResultCode { Fn<OwnedResult,int> create; }
+
 class OwnedResultHolder {
 	private OwnedResult current;
+
 	init(OwnedResult initial) { this.current = move initial; }
+
 	property borrowed OwnedResult view { get { return this.current; } }
+
 	int sample() { return inspect_owned_result(this.view); }
+
 	void update(Fn<OwnedResult,int> code, int ticket) { this.current = code(ticket); }
+
 	void checked_update(borrowed CheckedClosure<OwnedResultEnvironment<int>,Error,OwnedResult,bool> code, bool fail) throws Error {
 		this.current = closure_invoke(code, fail);
 	}
 }
+
 OwnedResult make_owned_result(int ticket) {
 	var child = new ResultChild(ticket);
 	var retained = make(ticket);
@@ -39,31 +55,38 @@ OwnedResult make_owned_result(int ticket) {
 	OwnedResult result = {contents = move contents, extra = move extra, ticket = ticket};
 	return move result;
 }
+
 Fn<OwnedResult,int> owned_result_factory() { return make_owned_result; }
+
 OwnedResult forward_owned_result(Fn<OwnedResult,int> code, int ticket) {
 	return code(ticket);
 }
+
 int inspect_owned_result(borrowed OwnedResult result) {
-	if (len(result.contents.samples) != 2 || result.contents.samples[0] != result.ticket || id(result.contents.retained) != result.ticket) { return 0; }
+	if (len(result.contents.samples) != 2 || result.contents.samples[0] != result.ticket || id(result.contents.retained) != result.ticket) return 0;
 	return result.contents.samples[1];
 }
+
 int consume_owned_result(OwnedResult result) { return inspect_owned_result(result); }
+
 int exercise_owned_result_functions() {
 	OwnedResultCode stored = {create = owned_result_factory()};
 	Fn<OwnedResult,int> code = stored.create;
 	OwnedResult initial = code(171);
 	var first = new OwnedResultHolder(move initial);
 	OwnedResult second = forward_owned_result(code, 173);
-	if (first.sample() != 181 || inspect_owned_result(second) != 183) { return 1; }
+	if (first.sample() != 181 || inspect_owned_result(second) != 183) return 1;
 	first.update(code, 175);
-	if (first.sample() != 185 || inspect_owned_result(second) != 183) { return 2; }
+	if (first.sample() != 185 || inspect_owned_result(second) != 183) return 2;
 	Fn<int,OwnedResult> consume = consume_owned_result;
-	if (consume(move second) != 183) { return 3; }
+	if (consume(move second) != 183) return 3;
 	return 0;
 }
+
 OwnedResult closure_owned_result(borrowed OwnedResultEnvironment<int> environment, int offset) {
 	return make_owned_result(environment.amount + offset);
 }
+
 OwnedResult checked_owned_result(borrowed OwnedResultEnvironment<int> environment, bool fail) throws Error {
 	if (fail) {
 		OwnedResult rejected = make_owned_result(183);
@@ -72,6 +95,7 @@ OwnedResult checked_owned_result(borrowed OwnedResultEnvironment<int> environmen
 	}
 	return make_owned_result(environment.amount);
 }
+
 int exercise_owned_result_closures() {
 	var retained = make(179);
 	var environment = new OwnedResultEnvironment<int>(180, move retained);
@@ -83,16 +107,17 @@ int exercise_owned_result_closures() {
 	owned CheckedClosure<OwnedResultEnvironment<int>,Error,OwnedResult,bool> checked = checked_closure_bind(move checked_environment, checked_owned_result);
 	try { first.checked_update(checked, true); return 4; }
 	catch (Error error) { mark(892); }
-	if (first.sample() != 190) { return 5; }
+	if (first.sample() != 190) return 5;
 	try { first.checked_update(checked, false); }
 	catch (Error error) { return 6; }
-	if (first.sample() != 195) { return 7; }
+	if (first.sample() != 195) return 7;
 	return 0;
 }
+
 int main() {
 	int result = exercise_owned_result_functions();
-	if (result != 0 || live() != 0) { return 8; }
+	if (result != 0 || live() != 0) return 8;
 	result = exercise_owned_result_closures();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

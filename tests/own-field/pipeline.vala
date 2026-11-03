@@ -28,9 +28,11 @@ private void lifetime() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/pipeline/destroy-each-upstream-stage-before-next-verification", lifetime);
 	return Test.run ();
 }
+
 }

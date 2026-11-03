@@ -67,6 +67,7 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void correspondence() {
 	try {
 		var ssa = build ("struct A{int x;}struct B{int x;}void report(A[] a){}owned A[] make(A[] a,int n){return new A[n] else report(a);}void unused(B[] b){}");
@@ -191,10 +192,12 @@ private void correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/alloc-fail/pipeline/predecessor-destruction-and-dedup", lifetimes);
 	Test.add_func ("/alloc-fail/pipeline/independent-abi-and-capture-correspondence", correspondence);
 	return Test.run ();
 }
+
 }

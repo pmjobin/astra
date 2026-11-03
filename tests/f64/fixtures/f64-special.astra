@@ -1,14 +1,17 @@
 f64 divide(f64 a, f64 b) { return a / b; }
+
 f64 multiply(f64 a, f64 b) { return a * b; }
+
 f64 sum(f64 a, f64 b) { return a + b; }
+
 int main() {
 	f64 positive = divide(1.0, 0.0);
 	f64 negative = divide(1.0, -0.0);
 	f64 nan = divide(0.0, 0.0);
-	if (positive != 1e309 || negative != -1e309 || nan == nan || !(nan != nan)) { return 1; }
-	if (divide(1.0, multiply(0.0, -1.0)) != negative || divide(1.0, sum(-0.0, -0.0)) != negative || divide(1.0, sum(0.0, -0.0)) != positive) { return 2; }
+	if (positive != 1e309 || negative != -1e309 || nan == nan || !(nan != nan)) return 1;
+	if (divide(1.0, multiply(0.0, -1.0)) != negative || divide(1.0, sum(-0.0, -0.0)) != negative || divide(1.0, sum(0.0, -0.0)) != positive) return 2;
 	f64 minimum = 4.9406564584124654e-324;
-	if (multiply(minimum, 2.0) != sum(minimum, minimum) || divide(minimum, 2.0) != 0.0 || divide(1.0, divide(-minimum, 2.0)) != negative) { return 3; }
-	if (divide(2.2250738585072014e-308, 2.0) == 0.0 || sum(2.2250738585072009e-308, minimum) != 2.2250738585072014e-308) { return 4; }
+	if (multiply(minimum, 2.0) != sum(minimum, minimum) || divide(minimum, 2.0) != 0.0 || divide(1.0, divide(-minimum, 2.0)) != negative) return 3;
+	if (divide(2.2250738585072014e-308, 2.0) == 0.0 || sum(2.2250738585072009e-308, minimum) != 2.2250738585072014e-308) return 4;
 	return 0;
 }

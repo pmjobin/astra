@@ -3,18 +3,21 @@ namespace IndexAnalysis;
 
 class AsciiPolicy : IndexFoundation.IdentifierPolicy {
 	init() : base() {}
+
 	override int classify(int byte) {
-		if (byte >= 65 && byte <= 90 || byte >= 97 && byte <= 122 || byte == 95) { return 1; }
-		if (byte >= 48 && byte <= 57) { return 2; }
+		if (byte >= 65 && byte <= 90 || byte >= 97 && byte <= 122 || byte == 95) return 1;
+		if (byte >= 48 && byte <= 57) return 2;
 		return 0;
 	}
 }
+
 bool equal_word(borrowed IndexFoundation.Document document, int first, int second, int count) throws IndexFoundation.FileError {
 	for (int index = 0; index < count; index = index + 1) {
-		if (document.byte_at(first + index) != document.byte_at(second + index)) { return false; }
+		if (document.byte_at(first + index) != document.byte_at(second + index)) return false;
 	}
 	return true;
 }
+
 void record_word(borrowed IndexFoundation.Document document, IndexFoundation.Word word, int hash) throws IndexFoundation.Error {
 	int candidate = document.head(hash);
 	while (candidate >= 0) {
@@ -27,6 +30,7 @@ void record_word(borrowed IndexFoundation.Document document, IndexFoundation.Wor
 	}
 	document.add_word(hash, word);
 }
+
 owned IndexFoundation.Document analyze(string path, borrowed IndexFoundation.IdentifierPolicy policy, int generation) throws IndexFoundation.Error {
 	var bytes = IndexFoundation.read_file(path);
 	var decoded = bytes.decode();
@@ -43,14 +47,16 @@ owned IndexFoundation.Document analyze(string path, borrowed IndexFoundation.Ide
 	int occurrences = 0;
 	while (offset < count) {
 		int byte = document.byte_at(offset);
-		if (byte == 0) { throw new IndexFoundation.IndexError("embedded-nul"); }
+		if (byte == 0) {
+			throw new IndexFoundation.IndexError("embedded-nul");
+		}
 		if (policy.classify(byte) == 1) {
 			int start = offset;
 			int first_column = column;
 			int hash = 0;
 			while (offset < count) {
 				byte = document.byte_at(offset);
-				if (policy.classify(byte) == 0) { break; }
+				if (policy.classify(byte) == 0) break;
 				hash = (hash * 31 + byte) % 65521;
 				offset = offset + 1;
 				column = column + 1;
@@ -64,15 +70,20 @@ owned IndexFoundation.Document analyze(string path, borrowed IndexFoundation.Ide
 		}
 		if (byte < 128 || byte >= 192) {
 			scalars = scalars + 1;
-			if (byte == 10) { line = line + 1; column = 1; }
-			else { column = column + 1; }
+			if (byte == 10) {
+				line = line + 1;
+				column = 1;
+			}
+			else {
+				column = column + 1;
+			}
 		}
 		offset = offset + 1;
 	}
 	int lines = 0;
 	if (count > 0) {
 		lines = line;
-		if (document.byte_at(count - 1) == 10) { lines = lines - 1; }
+		if (document.byte_at(count - 1) == 10) lines = lines - 1;
 	}
 	IndexFoundation.Summary summary = {bytes = count, scalars = scalars, lines = lines,
 		occurrences = occurrences, distinct = document.word_count()};
@@ -85,38 +96,52 @@ void append_byte(borrowed IndexFoundation.Utf8ByteBuilder output, int byte) thro
 	value[0] = byte as u8;
 	IndexFoundation.require_text(output.append_bytes(slice(value)));
 }
+
 void append_path(borrowed IndexFoundation.Utf8ByteBuilder output, string path) throws IndexFoundation.Error {
 	for (int offset = 0; offset < path.byte_length; offset = offset + 1) {
 		int byte = IndexFoundation.text_byte(path, offset);
-		if (byte >= 33 && byte <= 126 && byte != 37) { append_byte(output, byte); }
+		if (byte >= 33 && byte <= 126 && byte != 37) {
+			append_byte(output, byte);
+		}
 		else {
 			append_byte(output, 37);
 			int high = byte / 16;
 			int low = byte % 16;
-			if (high < 10) { append_byte(output, 48 + high); }
-			else { append_byte(output, 65 + high - 10); }
-			if (low < 10) { append_byte(output, 48 + low); }
-			else { append_byte(output, 65 + low - 10); }
+			if (high < 10) {
+				append_byte(output, 48 + high);
+			}
+			else {
+				append_byte(output, 65 + high - 10);
+			}
+			if (low < 10) {
+				append_byte(output, 48 + low);
+			}
+			else {
+				append_byte(output, 65 + low - 10);
+			}
 		}
 	}
 }
+
 void append_number(borrowed IndexFoundation.Utf8ByteBuilder output, int number) throws IndexFoundation.Error {
 	append_byte(output, 9);
 	IndexFoundation.require_text(IndexFoundation.append_int(output, number));
 }
+
 int compare_words(borrowed IndexFoundation.Document document, int first, int second) throws IndexFoundation.Error {
 	var left = document.word(first);
 	var right = document.word(second);
 	int length = left.length;
-	if (right.length < length) { length = right.length; }
+	if (right.length < length) length = right.length;
 	for (int index = 0; index < length; index = index + 1) {
 		int a = document.byte_at(left.offset + index);
 		int b = document.byte_at(right.offset + index);
-		if (a < b) { return -1; }
-		if (a > b) { return 1; }
+		if (a < b) return -1;
+		if (a > b) return 1;
 	}
 	return left.length - right.length;
 }
+
 void prepare_report(borrowed IndexFoundation.Document document, string path) throws IndexFoundation.Error {
 	var output = new IndexFoundation.Utf8ByteBuilder();
 	IndexFoundation.require_text(IndexFoundation.append_text(output, "file\t"));
@@ -172,7 +197,9 @@ IndexFoundation.Summary process(borrowed IndexFoundation.Store store, int key, s
 			throw new IndexFoundation.IndexError("invalid sink receipt");
 		}
 		store.note_receipt(receipt);
-		if (!store.remember(key, move document)) { throw new IndexFoundation.IndexError("document cache allocation"); }
+		if (!store.remember(key, move document)) {
+			throw new IndexFoundation.IndexError("document cache allocation");
+		}
 	}
 	return store.summary(key);
 }

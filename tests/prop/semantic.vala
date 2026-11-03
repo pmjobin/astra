@@ -15,6 +15,7 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private void reject(string text, string message) {
 	var parsed = Parser.parse (new SourceFile.from_text ("invalid", text));
 	var result = parsed.diagnostic == null ? SemanticAnalyzer.analyze(parsed.unit) : null;
@@ -23,6 +24,7 @@ private void reject(string text, string message) {
 		GLib.error ("expected '%s', got '%s' for %s", message, diagnostic == null ? "accepted" : diagnostic.message, text);
 	}
 }
+
 private void identities() {
 	CheckedProgram? p = check ("struct S{int raw;property int value{get{return this.later();}set(int next){this.other=next;}}property int other{get{return this.raw;}set(int next){this.raw=next;}}int later(){return this.other;}}class C{property int value{get{return 42;}}}int main(){S a={raw=1};S b={raw=2};b.value=42;return b.value+a.raw;}");
 	var property = p.structs[0].properties[0];
@@ -48,6 +50,7 @@ private void identities() {
 	p = null;
 	assert (witness.get () == null && getter_witness.get () == null);
 }
+
 private void types() {
 	foreach (string type in new string[] {"bool", "i8", "u8", "i16", "u16", "int", "i32", "u32", "f32", "f64", "void*", "i8<16>", "u8<16>", "i16<8>", "u16<8>", "int<4>", "u32<4>", "f32<4>", "f64<2>", "bool<16>"}) {
 		var p = check ("class C{property %s p{get{return this.p;}set(%s next){this.p=next;}}}".printf (type, type));
@@ -60,6 +63,7 @@ private void types() {
 	check ("struct S{int x;}class C{property S p{get{return this.p;}}}");
 	reject ("class C{property f64<4> p{get{}}}", "vector shape");
 }
+
 private void diagnostics() {
 	reject ("class C{property int p{get{return 1;}}}void f(){C c={};c.p[0]=1;}", "not assignment targets");
 	reject ("class C{property int p{set(int n){}}}", "requires one getter");
@@ -86,6 +90,7 @@ private void diagnostics() {
 	reject ("struct S{int x;property int p{get{return this.x;}}}int f(S* s){return s.p;}", "pointer and arbitrary expression");
 	check ("class C{int next;property int p{get{return this.next;}set(int next){this.next=next;}}}");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/prop/semantic/identities-callables-receivers-addressability-lifetime", identities);
@@ -93,4 +98,5 @@ int main(string[] args) {
 	Test.add_func ("/prop/semantic/diagnostics-shadowing-no-implicit-binding", diagnostics);
 	return Test.run ();
 }
+
 }

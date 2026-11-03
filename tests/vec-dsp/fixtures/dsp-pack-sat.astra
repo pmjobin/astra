@@ -7,15 +7,15 @@ int main(){
 	u8<16> eu={0,0,0,0,0,127,128,255,0,0,100,255,255,255,255,0};
 	i8<16> s=pack_sat(a,b,i8);
 	i8<16> es={-128,-128,-128,-1,0,127,127,127,-100,0,100,127,127,127,127,-128};
-	if(!all(u==eu) || !all(s==es)){return 1;}
+	if(!all(u==eu) || !all(s==es)) return 1;
 	u16<8> c={0,126,127,128,255,256,32768,65535};
 	i8<16> cross=pack_sat(c,c,i8);
 	i8<16> ec={0,126,127,127,127,127,127,127,0,126,127,127,127,127,127,127};
-	if(!all(cross==ec)){return 2;}
+	if(!all(cross==ec)) return 2;
 	i32<4> wide={-2147483648,-1,255,2147483647};
 	u8<8> skip=pack_sat(wide,wide,u8);
-	if(skip[0]!=0 || skip[2]!=255 || skip[3]!=255){return 3;}
+	if(skip[0]!=0 || skip[2]!=255 || skip[3]!=255) return 3;
 	u8<16> chosen=select(splat(true,16),u,splat(9,16));
-	if(!all(chosen==eu)){return 4;}
+	if(!all(chosen==eu)) return 4;
 	return 0;
 }

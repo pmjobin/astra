@@ -187,4 +187,5 @@ private void register_loop_tests() {
 	add ("/llvm/loop/lifetime-nested", () => loop_artifact_lifetime ("nested-loop"));
 	add ("/llvm/loop/lifetime-trap", () => loop_artifact_lifetime ("trap-loop"));
 }
+
 }

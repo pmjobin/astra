@@ -11,6 +11,7 @@ public class SwapStatementSyntax : StatementSyntax {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 public class BufferAllocationSyntax : ExpressionSyntax {
@@ -25,6 +26,7 @@ public class BufferAllocationSyntax : ExpressionSyntax {
 		this.failure_call = failure_call;
 		this.allocation_context = allocation_context;
 	}
+
 }
 }
 
@@ -39,8 +41,10 @@ public class OwnerSlotsTypeSyntax : TypeNameSyntax {
 		this.marker = marker;
 		this.close = close;
 	}
+
 	public override string spelling() {
 		return element.spelling () + "[slots]";
 	}
+
 }
 }

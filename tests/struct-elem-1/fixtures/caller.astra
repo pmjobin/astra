@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct S {
 	int value;
+
 	int inspect(bool condition, [CallerLineNumber] int line, [CallerArgumentExpression("condition")] string expression) {
-		if (!condition || expression != "records[0].value == 7") { return 1; }
+		if (!condition || expression != "records[0].value == 7") return 1;
 		return line;
 	}
 }
+
 T generic<T>(T value) {
 	S[1] records = {{value=7}};
 	int line = records[0]
 	.inspect(records[0].value == 7);
-	if (line != 12) { int zero = 0; int failure = 1 / zero; }
+	if (line != 12) {
+		int zero = 0;
+		int failure = 1 / zero;
+	}
 	return value;
 }
+
 int main() { return generic(0); }

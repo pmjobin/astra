@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int c_later();
+
 extern(C) f64 c_later_f64();
+
 extern(C) int c_order(int tag, f32 small, f64 value, void* token, int tail);
+
 int divide(int value, int divisor) { return value / divisor; }
+
 int main() { return c_order(divide(1, 0), 1.0, c_later_f64(), null, c_later()); }

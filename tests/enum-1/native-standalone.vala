@@ -14,6 +14,7 @@ private NativeSignature signature(int mutation) {
 	}
 	return signature;
 }
+
 private void positive() {
 	try {
 		var plan = signature (0);
@@ -23,6 +24,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int mutation = 1; mutation <= 7; mutation++) {
 		try {
@@ -34,6 +36,7 @@ private void malformed() {
 		GLib.error ("accepted malformed detached sum signature %d", mutation);
 	}
 }
+
 private void graph() {
 	try {
 		var span = SourceSpan (new SourceFile.from_text ("sum-native-graph", "x"), 0, 1);
@@ -91,6 +94,7 @@ private void graph() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum/native/detached-signature", positive);
@@ -98,4 +102,5 @@ int main(string[] args) {
 	Test.add_func ("/enum/native/detached-capability-channel-profile", malformed);
 	return Test.run ();
 }
+
 }

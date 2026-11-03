@@ -1,46 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Point { int x; int y; }
+
 struct Sample { Point point; i64 tick; bool valid; }
+
 struct Count { int value; }
+
 struct OtherCount { int value; }
+
 Sample make_sample(int value) {
 	Sample result = {point = {x = value, y = value + 1}, tick = 9000000001, valid = true};
 	return result;
 }
+
 int main() {
 	var values = new Vector<Sample>(0);
 	Sample sample = {point = {x = 3, y = 4}, tick = 9000000001, valid = true};
 	bool one = values.append(sample);
 	sample.point.x = 99;
 	var copy = values.entries[0];
-	if (copy.point.x != 3 || copy.point.y != 4 || copy.tick != 9000000001 || !copy.valid) { return 81; }
+	if (copy.point.x != 3 || copy.point.y != 4 || copy.tick != 9000000001 || !copy.valid) return 81;
 	copy.point.y = 88;
 	bool grown = values.reserve(9);
 	bool two = values.append(sample);
 	values.replace(1, copy);
 	var last = values.take(1);
-	if (last.point.x != 3 || last.point.y != 88 || values.count() != 1 || values.capacity() != 9) { return 82; }
+	if (last.point.x != 3 || last.point.y != 88 || values.count() != 1 || values.capacity() != 9) return 82;
 	var first = values.take(0);
-	if (first.point.x != 3 || first.point.y != 4 || values.count() != 0) { return 83; }
+	if (first.point.x != 3 || first.point.y != 4 || values.count() != 0) return 83;
 	values.entries.append(make_sample(7));
 	values.entries.append(values.entries[0]);
 	values.entries.replace(0, make_sample(8));
 	var copied_result = values.take(1);
 	var produced_result = values.take(0);
-	if (copied_result.point.x != 7 || produced_result.point.x != 8 || values.count() != 0) { return 85; }
+	if (copied_result.point.x != 7 || produced_result.point.x != 8 || values.count() != 0) return 85;
 	var counts = new Vector<Count>(1);
 	Count count = {value = 42};
 	bool accepted = counts.append(count);
 	var result = counts.take(0);
-	if (result.value != 42) { return 84; }
+	if (result.value != 42) return 84;
 	Count zero = {value = 0};
 	bool zero_accepted = counts.append(zero);
 	var zero_result = counts.take(0);
-	if (zero_result.value != 0 || counts.count() != 0) { return 86; }
+	if (zero_result.value != 0 || counts.count() != 0) return 86;
 	var alternatives = new Vector<OtherCount>(1);
 	OtherCount other = {value = 43};
 	bool other_accepted = alternatives.append(other);
 	var other_result = alternatives.take(0);
-	if (other_result.value != 43) { return 87; }
+	if (other_result.value != 43) return 87;
 	return 0;
 }

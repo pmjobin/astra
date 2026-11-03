@@ -1,14 +1,20 @@
-class Item { int tag; init(int tag) { this.tag = tag; } }
+class Item { int tag;
+
+	init(int tag) { this.tag = tag; } }
+
 class Other { init() {} }
+
 bool inspect(Item value) { return value.tag == 2; }
+
 bool check(Bag<Item> bag) { return inspect(bag.entries[0]); }
+
 int main() {
-	var bag = new Bag<Item>(); if (!bag.reserve(2)) { return 81; }
+	var bag = new Bag<Item>(); if (!bag.reserve(2)) return 81;
 	var first = new Item(1); var second = new Item(2);
 	bag.append(move first); bag.append(move second);
 	var taken = bag.take(0); var replacement = new Item(3);
 	bag.replace(0, move replacement);
-	var other = new Bag<Other>(); if (!other.reserve(1)) { return 82; }
+	var other = new Bag<Other>(); if (!other.reserve(1)) return 82;
 	var item = new Other(); other.append(move item);
 	return 0;
 }

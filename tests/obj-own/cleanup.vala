@@ -52,9 +52,11 @@ private void ordering() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/cleanup/shared-fixed-object-owner-resource-and-parameter-order", ordering);
 	return Test.run ();
 }
+
 }

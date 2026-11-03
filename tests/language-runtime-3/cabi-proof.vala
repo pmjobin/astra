@@ -22,6 +22,7 @@ private CoreProgram core() throws GLib.Error {
 	}
 	return CoreBuilder.build (checked.program);
 }
+
 private void stage_callback_authority() {
 	try {
 		var c = core ();
@@ -58,6 +59,7 @@ private void stage_callback_authority() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void cabi_layout_and_nominal_authority() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -98,6 +100,7 @@ private void cabi_layout_and_nominal_authority() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void cabi_callback_correspondence() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -122,6 +125,7 @@ private void cabi_callback_correspondence() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void native_callback_correspondence() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -143,6 +147,7 @@ private void native_callback_correspondence() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void llvm_callback_and_context() {
 	try {
 		SsaProgram? ssa = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -196,6 +201,7 @@ private void llvm_callback_and_context() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/c-record/core-cfg-ssa-callback-authority", stage_callback_authority);
@@ -205,4 +211,5 @@ int main(string[] args) {
 	Test.add_func ("/c-record/llvm-callback-context-and-lifetime", llvm_callback_and_context);
 	return Test.run ();
 }
+
 }

@@ -1,15 +1,25 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; life_record(67, 0); }
-	deinit() { if (this.value != 42) { life_record(88, 0); } life_record(68, 0); }
+
+	deinit() { if (this.value != 42) life_record(88, 0); life_record(68, 0); }
+
 	void add(int n) { this.value = this.value + n; }
+
 	owned Counter copy() { return Counter.init(this.value); }
 }
+
 class Wrapper {
 	int value;
+
 	init(owned Counter c, int value) { this.value = c.value + value; life_record(87, 0); }
+
 	deinit() { life_record(90, 0); }
 }
+
 owned Wrapper make(owned Counter c) { return Wrapper.init(move c, life_record(65, 0)); }
+
 int main() { owned Counter source = Counter.init(42); owned Wrapper w = make(move source); return w.value; }

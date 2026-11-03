@@ -15,6 +15,7 @@
 #else
 typedef struct Directory Directory;
 typedef struct Row Row;
+
 typedef struct {
 	float boost;
 	double ceiling;
@@ -23,6 +24,7 @@ typedef struct {
 	uint32_t mask;
 	bool lowest;
 } Probe;
+
 typedef struct {
 	float score;
 	int64_t code;
@@ -30,9 +32,11 @@ typedef struct {
 	bool found;
 	uint64_t visited;
 } Selection;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 _Static_assert(sizeof(Probe) == 40 && offsetof(Probe, lowest) == 36 && offsetof(Probe, cap) == 24 && sizeof(Selection) == 32 && offsetof(Selection, found) == 20 && offsetof(Selection, visited) == 24, "independent query/answer POD layout");
 extern int32_t orbit16_create(Directory **, Error *);
 extern int32_t orbit16_scan(Directory *, Probe, Selection *, Error *);
@@ -62,11 +66,13 @@ extern uint32_t orbit_row16_release(Row *);
 #define A_FOUND(value) ((value).found)
 #endif
 extern uint32_t orbit16_retired_count(int32_t);
+
 static void requests(Directory *root, int expected) {
 	int32_t actual = -1;
 	Error error = {0};
 	assert(orbit16_get_requests(root, &actual, &error) == 0 && actual == expected);
 }
+
 int main(void) {
 	Directory *root = NULL;
 	Error error = {0};

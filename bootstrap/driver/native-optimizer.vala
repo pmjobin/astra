@@ -50,6 +50,7 @@ internal class NativeOptimizerSpec : Object {
 			return 0;
 		}
 	}
+
 	private bool formal(SemanticType type, int ordinal, SsaProgram source, LlvmStructRegistry layouts, CApi.TargetDataRef data) throws LlvmError {
 		uint scalar = scalar_type (type);
 		if (scalar != 0) {
@@ -95,6 +96,7 @@ internal class NativeOptimizerSpec : Object {
 		types += 32;
 		return true;
 	}
+
 	internal NativeOptimizerSpec (SsaFunction function, SsaProgram source, NativeSignature signature, LlvmStructRegistry layouts, CApi.TargetDataRef data) throws LlvmError {
 		parameter_count = function.parameters.length;
 		if (function.async_body != null || function.throws_type != null || signature.exception_plan != null || function.struct_parameters.length != 0 || function.buffer_parameters.length != 0 || function.struct_result != null) {
@@ -118,6 +120,7 @@ internal class NativeOptimizerSpec : Object {
 		}
 		supported = true;
 	}
+
 	internal OptimizerSummary propose(FunctionEffectFacts? facts) throws OptimizerSummaryError {
 		var summary = new OptimizerSummary (supported && facts != null && (facts.flags & FunctionEffectFacts.NO_EXTERNAL_MEMORY) != 0);
 		if (!supported || facts == null || pointer_ordinal == -2) {
@@ -129,6 +132,7 @@ internal class NativeOptimizerSpec : Object {
 		}
 		return summary;
 	}
+
 	internal string? call_contract(OptimizerSummary summary, bool local, NativeOptimizerSpec caller) {
 		if (!supported || summary.count > 1 || summary.count != 0 && summary.parameter (0).ordinal != pointer_ordinal || pointer_identity != null && caller.pointer_identity != pointer_identity) {
 			return null;
@@ -143,6 +147,7 @@ internal class NativeOptimizerSpec : Object {
 		}
 		return text.str;
 	}
+
 	internal bool accepts(OptimizerSummary summary, uint8[] object_bytes, string symbol, string[] callee_symbols, string[] callee_contracts) {
 		if (!summary.memory_none && summary.count == 0) {
 			return true;
@@ -156,6 +161,7 @@ internal class NativeOptimizerSpec : Object {
 		}
 		return summary.count == 0 || (summary.parameter (0).facts & ~(proved & 3U)) == 0;
 	}
+
 	internal FunctionEffectFacts facts(OptimizerSummary summary) {
 		uint flags = summary.memory_none ? FunctionEffectFacts.NO_EXTERNAL_MEMORY : 0;
 		var parameters = new uint[parameter_count];
@@ -169,5 +175,6 @@ internal class NativeOptimizerSpec : Object {
 		}
 		return new FunctionEffectFacts (flags, parameters);
 	}
+
 }
 }

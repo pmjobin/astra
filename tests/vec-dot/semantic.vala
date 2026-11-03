@@ -150,4 +150,5 @@ int main(string[] args) {
 	Test.add_func ("/dot/semantic/grammar-reservations-depth", grammar);
 	return Test.run ();
 }
+
 }

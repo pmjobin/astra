@@ -16,6 +16,7 @@ private SsaProgram lower() throws CoreError, CfgError, SsaError {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void qualify() {
 	try {
 		for (int variant = 0; variant < 4; variant++) {
@@ -67,9 +68,11 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int run_ssa(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-buffer/ssa/independent-bounds-complete-owner-groups-and-disarming", qualify);
 	return Test.run ();
 }
+
 }

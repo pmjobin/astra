@@ -1,46 +1,66 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) f64 fp_input(int i);
+
 extern(C) f32 fp_input32(int i);
+
 extern(C) int fp_observe(int mode, int i, f64 a, f64 b, f64 c, f64 value);
+
 extern(C) int fp_observe32(int mode, int i, f32 a, f32 b, f32 c, f32 value);
+
 extern(C) int fp_finished(int count);
 
 f64 strict64(f64 a, f64 b, f64 c) { return a * b + c; }
+
 [FloatingPoint(contract="on")]
 f64 contract64(f64 a, f64 b, f64 c) { return a * b + c; }
+
 [FloatingPoint(reassociate="on")]
 f64 reassociate64(f64 a, f64 b, f64 c) { return (a + b) + c; }
+
 [FloatingPoint(reciprocal="on")]
 f64 reciprocal64(f64 a, f64 b) { return a / b; }
+
 [FloatingPoint(no_signed_zero="on")]
 f64 zero64(f64 a, f64 b, f64 c) { return a * b + c; }
+
 [FloatingPoint(finite="on")]
 f64 finite64(f64 a, f64 b, f64 c) { return a * b + c; }
+
 [FloatingPoint(no_nan="on")]
 f64 nan64(f64 a, f64 b, f64 c) { return a * b + c; }
+
 [FloatingPoint(contract="on", reassociate="on")]
 f64 mixed64(f64 a, f64 b, f64 c) { return strict64(a, b, c); }
+
 [FloatingPoint(strict="on")]
 f64 explicit_strict64(f64 a, f64 b, f64 c) { return a * b + c; }
 
 f32 strict32(f32 a, f32 b, f32 c) { return a * b + c; }
+
 [FloatingPoint(contract="on")]
 f32 contract32(f32 a, f32 b, f32 c) { return a * b + c; }
+
 [FloatingPoint(reassociate="on")]
 f32 reassociate32(f32 a, f32 b, f32 c) { return (a + b) + c; }
+
 [FloatingPoint(reciprocal="on")]
 f32 reciprocal32(f32 a, f32 b) { return a / b; }
+
 [FloatingPoint(no_signed_zero="on")]
 f32 zero32(f32 a, f32 b, f32 c) { return a * b + c; }
+
 [FloatingPoint(finite="on", contract="on")]
 f32 finite32(f32 a, f32 b, f32 c) { return a * b + c; }
+
 [FloatingPoint(no_nan="on")]
 f32 nan32(f32 a, f32 b, f32 c) { return a * b + c; }
+
 [FloatingPoint(contract="on", reassociate="on")]
 f32 mixed32(f32 a, f32 b, f32 c) { return strict32(a, b, c); }
 
 [FloatingPoint(contract="on")]
 f64<2> vector_contract(f64<2> a, f64<2> b, f64<2> c) { return a * b + c; }
+
 [FloatingPoint(finite="on")]
 f32<4> vector_finite(f32<4> a, f32<4> b) { return a / b; }
 
@@ -49,43 +69,43 @@ int main() {
 	for (int i = 0; i < 256; i = i + 1) {
 		f64 a = fp_input(i); f64 b = fp_input(i / 16); f64 c = fp_input(i + 3);
 		f32 x = fp_input32(i); f32 y = fp_input32(i / 16); f32 z = fp_input32(i + 3);
-		if (fp_observe(0, i, a, b, c, strict64(a,b,c)) != 0) { return 1; }
-		if (fp_observe(1, i, a, b, c, contract64(a,b,c)) != 0) { return 2; }
-		if (fp_observe(2, i, a, b, c, reassociate64(a,b,c)) != 0) { return 3; }
-		if (fp_observe(3, i, a, b, c, reciprocal64(a,b)) != 0) { return 4; }
-		if (fp_observe(4, i, a, b, c, zero64(a,b,c)) != 0) { return 5; }
-		if (fp_observe(0, i, a, b, c, mixed64(a,b,c)) != 0) { return 6; }
-		if (fp_observe(0, i, a, b, c, explicit_strict64(a,b,c)) != 0) { return 7; }
-		if (fp_observe32(0, i, x, y, z, strict32(x,y,z)) != 0) { return 8; }
-		if (fp_observe32(1, i, x, y, z, contract32(x,y,z)) != 0) { return 9; }
-		if (fp_observe32(2, i, x, y, z, reassociate32(x,y,z)) != 0) { return 10; }
-		if (fp_observe32(3, i, x, y, z, reciprocal32(x,y)) != 0) { return 11; }
-		if (fp_observe32(4, i, x, y, z, zero32(x,y,z)) != 0) { return 12; }
-		if (fp_observe32(0, i, x, y, z, mixed32(x,y,z)) != 0) { return 13; }
+		if (fp_observe(0, i, a, b, c, strict64(a,b,c)) != 0) return 1;
+		if (fp_observe(1, i, a, b, c, contract64(a,b,c)) != 0) return 2;
+		if (fp_observe(2, i, a, b, c, reassociate64(a,b,c)) != 0) return 3;
+		if (fp_observe(3, i, a, b, c, reciprocal64(a,b)) != 0) return 4;
+		if (fp_observe(4, i, a, b, c, zero64(a,b,c)) != 0) return 5;
+		if (fp_observe(0, i, a, b, c, mixed64(a,b,c)) != 0) return 6;
+		if (fp_observe(0, i, a, b, c, explicit_strict64(a,b,c)) != 0) return 7;
+		if (fp_observe32(0, i, x, y, z, strict32(x,y,z)) != 0) return 8;
+		if (fp_observe32(1, i, x, y, z, contract32(x,y,z)) != 0) return 9;
+		if (fp_observe32(2, i, x, y, z, reassociate32(x,y,z)) != 0) return 10;
+		if (fp_observe32(3, i, x, y, z, reciprocal32(x,y)) != 0) return 11;
+		if (fp_observe32(4, i, x, y, z, zero32(x,y,z)) != 0) return 12;
+		if (fp_observe32(0, i, x, y, z, mixed32(x,y,z)) != 0) return 13;
 		count = count + 13;
 	}
 	for (int i = 0; i < 1024; i = i + 1) {
 		f64 a = ((i - 512) as f64) / 32.0; f64 b = 0.25; f64 c = -0.5;
 		f32 x = ((i - 512) as f32) / 32.0f; f32 y = 0.25f; f32 z = -0.5f;
-		if (fp_observe(0, i, a,b,c,finite64(a,b,c)) != 0) { return 14; }
-		if (fp_observe(0, i, a,b,c,nan64(a,b,c)) != 0) { return 15; }
-		if (fp_observe32(1, i, x,y,z,finite32(x,y,z)) != 0) { return 16; }
-		if (fp_observe32(0, i, x,y,z,nan32(x,y,z)) != 0) { return 17; }
+		if (fp_observe(0, i, a,b,c,finite64(a,b,c)) != 0) return 14;
+		if (fp_observe(0, i, a,b,c,nan64(a,b,c)) != 0) return 15;
+		if (fp_observe32(1, i, x,y,z,finite32(x,y,z)) != 0) return 16;
+		if (fp_observe32(0, i, x,y,z,nan32(x,y,z)) != 0) return 17;
 		count = count + 4;
 	}
 	f64<2> a = {1.25, -0.0}; f64<2> b = {2.0, 3.0}; f64<2> c = {0.5, -0.0};
 	f64<2> result = vector_contract(a,b,c);
-	if (fp_observe(1, 0, a[0],b[0],c[0],result[0]) != 0) { return 18; }
+	if (fp_observe(1, 0, a[0],b[0],c[0],result[0]) != 0) return 18;
 	f32<4> quotient = vector_finite(splat(1.0f,4),splat(2.0f,4));
-	if (!all(quotient == splat(0.5f,4))) { return 19; }
-	if(fp_observe32(3,0,1.0f,2.0f,0.0f,quotient[0])!=0 || fp_observe32(3,1,1.0f,2.0f,0.0f,quotient[1])!=0 || fp_observe32(3,2,1.0f,2.0f,0.0f,quotient[2])!=0 || fp_observe32(3,3,1.0f,2.0f,0.0f,quotient[3])!=0){return 26;}
+	if (!all(quotient == splat(0.5f,4))) return 19;
+	if(fp_observe32(3,0,1.0f,2.0f,0.0f,quotient[0])!=0 || fp_observe32(3,1,1.0f,2.0f,0.0f,quotient[1])!=0 || fp_observe32(3,2,1.0f,2.0f,0.0f,quotient[2])!=0 || fp_observe32(3,3,1.0f,2.0f,0.0f,quotient[3])!=0) return 26;
 	f64 sensitive_a=fp_input(9);f64 sensitive_b=fp_input(10);
 	f32 sensitive_x=fp_input32(9);f32 sensitive_y=fp_input32(10);
-	if(fp_observe(0,0,sensitive_a,sensitive_b,-1.0,strict64(sensitive_a,sensitive_b,-1.0))!=0){return 20;}
-	if(fp_observe(1,0,sensitive_a,sensitive_b,-1.0,contract64(sensitive_a,sensitive_b,-1.0))!=0){return 21;}
-	if(fp_observe(0,0,sensitive_a,sensitive_b,-1.0,mixed64(sensitive_a,sensitive_b,-1.0))!=0){return 22;}
-	if(fp_observe32(0,0,sensitive_x,sensitive_y,-1.0f,strict32(sensitive_x,sensitive_y,-1.0f))!=0){return 23;}
-	if(fp_observe32(1,0,sensitive_x,sensitive_y,-1.0f,contract32(sensitive_x,sensitive_y,-1.0f))!=0){return 24;}
-	if(fp_observe32(0,0,sensitive_x,sensitive_y,-1.0f,mixed32(sensitive_x,sensitive_y,-1.0f))!=0){return 25;}
+	if(fp_observe(0,0,sensitive_a,sensitive_b,-1.0,strict64(sensitive_a,sensitive_b,-1.0))!=0) return 20;
+	if(fp_observe(1,0,sensitive_a,sensitive_b,-1.0,contract64(sensitive_a,sensitive_b,-1.0))!=0) return 21;
+	if(fp_observe(0,0,sensitive_a,sensitive_b,-1.0,mixed64(sensitive_a,sensitive_b,-1.0))!=0) return 22;
+	if(fp_observe32(0,0,sensitive_x,sensitive_y,-1.0f,strict32(sensitive_x,sensitive_y,-1.0f))!=0) return 23;
+	if(fp_observe32(1,0,sensitive_x,sensitive_y,-1.0f,contract32(sensitive_x,sensitive_y,-1.0f))!=0) return 24;
+	if(fp_observe32(0,0,sensitive_x,sensitive_y,-1.0f,mixed32(sensitive_x,sensitive_y,-1.0f))!=0) return 25;
 	return fp_finished(count + 11);
 }

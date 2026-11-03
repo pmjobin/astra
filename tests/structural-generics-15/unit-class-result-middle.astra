@@ -2,10 +2,12 @@
 namespace ClassResultTransport;
 
 Fn<owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int>,int> callback() { return NativeClassResults.callback(); }
+
 owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int> apply(Fn<owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int>,int> code, int ticket) {
 	var value = NativeClassResults.invoke(code, ticket);
 	return move value;
 }
+
 owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int> direct(int ticket) {
 	Fn<owned NativeClassResults.Cargo<NativeClassResults.Seed<int,bool>,int>,int> code = NativeClassResults.callback();
 	var value = code(ticket);

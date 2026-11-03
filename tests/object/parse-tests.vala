@@ -47,4 +47,5 @@ int main(string[] args) {
 	Test.add_func ("/object/parser/deferred-grammar", deferred);
 	return Test.run ();
 }
+
 }

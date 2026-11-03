@@ -209,4 +209,5 @@ private void register_diagnostics() {
 			});
 	}
 }
+
 }

@@ -1,11 +1,16 @@
 // Same 301,989,888-byte payload, expressed in the original f64 slot units.
 extern(C) void cad_fail(int code, f64 value);
+
 void report_allocation(int diagnostic_code, int count) { cad_fail(diagnostic_code, count as f64); }
+
 owned T[] make_array<T>(int count, int diagnostic_code) { return new T[count] else report_allocation(diagnostic_code, count); }
 
 int main(string[] args) {
 	int count = 37748736;
-	if (len(args) == 2 && args[1] == "generic") { var generic = make_array<f64>(count, 3); return len(generic); }
+	if (len(args) == 2 && args[1] == "generic") {
+		var generic = make_array<f64>(count, 3);
+		return len(generic);
+	}
 	owned f64[] state = new f64[count] else report_allocation(3, count);
 	return len(state);
 }

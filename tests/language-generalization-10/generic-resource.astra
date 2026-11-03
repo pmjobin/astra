@@ -3,19 +3,28 @@ class Entry {
 	int value;
 	owned R resource;
 	owned int[] bytes;
+
 	init(int value, owned R resource) {
 		this.value = value;
 		this.resource = move resource;
 		this.bytes = new int[3];
 	}
+
 	deinit() { mark(200 + this.value); }
 }
+
 int entry_id(Entry value) { return value.value; }
+
 int resource_id(R value) { return id(value); }
+
 int another_id(Other value) { return other_id(value); }
+
 int first(Vector<R> values) { return resource_id(values.entries[0]); }
+
 int other_first(Vector<Other> values) { return another_id(values.entries[0]); }
+
 int class_first(Vector<Entry> values) { return entry_id(values.entries[0]); }
+
 void exercise() {
 	var values = new Vector<R>(1);
 	var one = make(1);
@@ -51,6 +60,7 @@ void exercise() {
 	var extracted = classes.take(0);
 	mark(entry_id(extracted));
 }
+
 int main() {
 	exercise();
 	return live();

@@ -28,9 +28,11 @@ private void lowering() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/llvm/physical-handles-direct-release-and-stage-lifetime", lowering);
 	return Test.run ();
 }
+
 }

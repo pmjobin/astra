@@ -32,9 +32,11 @@ private void lowering() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/llvm/direct-storage-pointer-transfer-and-stage-lifetime", lowering);
 	return Test.run ();
 }
+
 }

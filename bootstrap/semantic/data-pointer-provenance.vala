@@ -27,5 +27,6 @@ public class DataPointerProvenance : Object {
 		}
 		return origin_ordinal >= 0 && ((origin == DataPointerOrigin.LOCAL || origin == DataPointerOrigin.OBJECT_STORAGE || origin == DataPointerOrigin.BUFFER_FIELD || origin == DataPointerOrigin.RECEIVER_RECORD) ? region_ordinal >= 0 : origin == DataPointerOrigin.PARAMETER && region_ordinal == 0);
 	}
+
 }
 }

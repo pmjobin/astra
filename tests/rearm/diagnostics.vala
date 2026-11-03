@@ -22,6 +22,7 @@ private void flow_invalid(string body, string message, string operand = "a = cre
 		assert (error.message.contains (message));
 	}
 }
+
 private void register_diagnostics() {
 	foreach (string rhs in new string[] {"raw()", "null", "a", "effect()", "a == null", "native()", "raw() == null", "(raw())"}) {
 		add ("/rearm/invalid-rhs/" + rhs, () => {
@@ -60,4 +61,5 @@ private void register_diagnostics() {
 			});
 	}
 }
+
 }

@@ -1,17 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct ProjectionPart { i64 wide; int code; }
+
 struct ProjectionStats { ProjectionPart part; bool enabled; int tag; i64 byte_length; }
+
 struct OtherProjectionStats { ProjectionPart part; bool enabled; int tag; i64 byte_length; }
+
 struct ProjectionMemberName { ProjectionPart byte_length; }
+
 struct ProjectionEnvelope<T> { T value; }
 
 class ProjectionStore<T> {
 	private T payload;
 	private int observations;
+
 	init(T payload) { this.payload = payload; this.observations = 0; }
+
 	property T value {
 		get { this.observations = this.observations + 1; return this.payload; }
 	}
+
 	property int reads { get { return this.observations; } }
 }
 
@@ -32,63 +39,72 @@ ProjectionMemberName make_named_part() {
 
 class ProjectionPlain {
 	private ProjectionStats payload;
+
 	init() {
 		ProjectionStats value = make_stats(42);
 		this.payload = value;
 	}
+
 	property ProjectionStats value { get { return this.payload; } }
 }
 
 int observe_nonnull(nonnull ProjectionPlain source) { return source.value.part.code; }
+
 int exercise_nonnull() {
 	var source = new ProjectionPlain();
 	return observe_nonnull(source);
 }
 
 T copy_value<T>(T value) { return value; }
+
 T project_value<T>(T value) {
 	ProjectionEnvelope<T> envelope = {value = value};
 	T selected = copy_value(envelope).value;
 	selected = copy_value(envelope).value;
 	return selected;
 }
+
 T forward_projected<T>(T value) {
 	ProjectionEnvelope<T> envelope = {value = value};
 	return copy_value(copy_value(envelope).value);
 }
+
 int use_part(ProjectionPart value) { return value.code; }
+
 ProjectionPart copy_part(ProjectionStore<ProjectionStats> source) { return source.value.part; }
+
 int consume_store(owned ProjectionStore<ProjectionStats> source) { return source.reads; }
+
 int combine(int left, int right) { return left * 100 + right; }
 
 int main() {
 	ProjectionStats input = make_stats(42);
-	if (((input)).part.code != 42 || (input.part).wide != 7000000001) { return 16; }
+	if (((input)).part.code != 42 || (input.part).wide != 7000000001) return 16;
 	var store = new ProjectionStore<ProjectionStats>(input);
-	if (store.value.part.code != 42 || store.reads != 1) { return 1; }
+	if (store.value.part.code != 42 || store.reads != 1) return 1;
 	var inferred = store.value.part;
 	ProjectionPart explicit_value = store.value.part;
-	if (inferred.wide != 7000000001 || explicit_value.code != 42 || store.reads != 3) { return 2; }
-	if (use_part(store.value.part) != 42 || store.reads != 4) { return 3; }
+	if (inferred.wide != 7000000001 || explicit_value.code != 42 || store.reads != 3) return 2;
+	if (use_part(store.value.part) != 42 || store.reads != 4) return 3;
 	var returned = copy_part(store);
-	if (returned.code != 42 || store.reads != 5) { return 4; }
-	if (make_stats(43).part.wide != 7000000001 || make_stats(43).part.code != 43) { return 5; }
-	if (make_stats(43).byte_length != 7000000002) { return 8; }
-	if (make_other_stats(45).part.code != 45) { return 9; }
-	if (exercise_nonnull() != 42) { return 10; }
+	if (returned.code != 42 || store.reads != 5) return 4;
+	if (make_stats(43).part.wide != 7000000001 || make_stats(43).part.code != 43) return 5;
+	if (make_stats(43).byte_length != 7000000002) return 8;
+	if (make_other_stats(45).part.code != 45) return 9;
+	if (exercise_nonnull() != 42) return 10;
 	var generic = copy_value<ProjectionStats>(input).part;
-	if (generic.code != 42 || use_part(copy_value<ProjectionStats>(input).part) != 42) { return 6; }
+	if (generic.code != 42 || use_part(copy_value<ProjectionStats>(input).part) != 42) return 6;
 	var implicit = copy_value(input).part;
-	if (implicit.code != 42 || copy_value(input).part.wide != 7000000001) { return 11; }
+	if (implicit.code != 42 || copy_value(input).part.wide != 7000000001) return 11;
 	var inferred_store = new ProjectionStore<ProjectionStats>(input);
 	var from_inferred = copy_value(inferred_store.value).part;
-	if (from_inferred.code != 42 || inferred_store.reads != 1) { return 13; }
-	if (combine(copy_value(inferred_store.value).part.code, consume_store(move inferred_store)) != 4202) { return 14; }
+	if (from_inferred.code != 42 || inferred_store.reads != 1) return 13;
+	if (combine(copy_value(inferred_store.value).part.code, consume_store(move inferred_store)) != 4202) return 14;
 	var named = make_named_part().byte_length;
-	if (named.code != 46 || named.wide != 7000000001) { return 12; }
+	if (named.code != 46 || named.wide != 7000000001) return 12;
 	var specialized = project_value<ProjectionPart>(inferred);
 	var forwarded = forward_projected<ProjectionPart>(inferred);
-	if (specialized.code != 42 || forwarded.wide != 7000000001 || project_value<int>(47) != 47) { return 15; }
-	if (combine(store.value.part.code, consume_store(move store)) != 4206) { return 7; }
+	if (specialized.code != 42 || forwarded.wide != 7000000001 || project_value<int>(47) != 47) return 15;
+	if (combine(store.value.part.code, consume_store(move store)) != 4206) return 7;
 	return 0;
 }

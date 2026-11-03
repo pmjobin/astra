@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Analyzer8;
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	try {
 		var source = read_file(args[1]);
 		int letters = 0;
@@ -11,10 +11,10 @@ int main(string[] args) {
 		int offset = 0;
 		while (offset < source.byte_count()) {
 			int category = classify(source.byte_at(offset));
-			if (category == 1) { letters = letters + 1; }
-			if (category == 2) { digits = digits + 1; }
-			if (category == 3) { tabs = tabs + 1; }
-			if (category == 4) { lines = lines + 1; }
+			if (category == 1) letters = letters + 1;
+			if (category == 2) digits = digits + 1;
+			if (category == 3) tabs = tabs + 1;
+			if (category == 4) lines = lines + 1;
 			offset = offset + 1;
 		}
 		var report = new Utf8ByteBuilder();

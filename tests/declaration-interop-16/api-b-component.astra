@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace Query16;
 owned QueryCore16.Fault foreign_fault(int domain,int status){var result=new QueryCore16.Fault("foreign query failure");return move result;}
+
 [Shared][CExport(name="record_query16",profile="declarations-v1",bool_abi="c99")]
 [COMExport(interfaces="IRecordQuery16,IRecordMetadata16",threading="constructing",profile="declarations-v1")]
 [GObjectExport(type="RecordQuery16Index",namespace="RecordQuery16",version="3.4",profile="declarations-v1")]
@@ -8,38 +9,64 @@ class Index {
 	private owned QueryCore16.Engine engine;
 	private owned Match last_match;
 	private bool active;private bool last_found;private int calls;private f64 offset;
+
 	[Foreign]init(){var engine=new QueryCore16.Engine();this.engine=move engine;var item=new Match(0,0.0);this.last_match=move item;this.active=true;this.last_found=false;this.calls=0;this.offset=0.0;}
+
 	[Foreign]property int requests{get{return this.calls;}}
+
 	[Foreign]property bool enabled{get{return this.active;}set(bool value){this.active=value;}}
+
 	[Foreign]property f64 bias{get{return this.offset;}set(f64 value){this.offset=value;}}
+
 	[Foreign(personalities="c,gobject")][ForeignChannel(parameter="result",encoding="utf8-nul")]
 	property string description{get{return "Record index λ";}}
+
 	[Foreign(personalities="c,gobject")][ForeignChannel(parameter="result",nullable="true")]
-	property owned Match last{get{if(!this.last_found){return null;}var result=clone_match(this.last_match);return move result;}}
+	property owned Match last{get{if(!this.last_found) return null;var result=clone_match(this.last_match);return move result;}}
+
 	[Foreign(error_domain="16",errors="QueryCore16.Fault=-1620")]
 	QueryCore16.Answer<f64> search(QueryCore16.Query query)throws QueryCore16.Fault{
-		if(!this.active){throw new QueryCore16.Fault("record index disabled");}
+		if(!this.active){
+			throw new QueryCore16.Fault("record index disabled");
+		}
 		var result=this.engine.evaluate(query,this.offset);this.calls=this.calls+1;this.last_found=result.found;
-		if(result.found){var item=new Match(result.code,result.score);this.last_match=move item;}
+		if(result.found){
+			var item=new Match(result.code,result.score);
+			this.last_match=move item;
+		}
 		emit completed(this.calls,result.found,result.score);
-		if(result.found){var item=clone_match(this.last_match);emit selected(item,"Record index λ");}
+		if(result.found){
+			var item=clone_match(this.last_match);
+			emit selected(item,"Record index λ");
+		}
 		return result;
 	}
+
 	[Foreign(error_domain="16",errors="QueryCore16.Fault=-1620",null_status="1")][ForeignChannel(parameter="result",nullable="true")]
-	owned Match find(QueryCore16.Query query)throws QueryCore16.Fault{var answer=this.search(query);if(!answer.found){return null;}var result=new Match(answer.code,answer.score);return move result;}
-	[Foreign]int compare(borrowed Match left,borrowed Match right){if(left.code==right.code){return 0;}if(left.code<right.code){return -1;}return 1;}
+	owned Match find(QueryCore16.Query query)throws QueryCore16.Fault{var answer=this.search(query);if(!answer.found) return null;var result=new Match(answer.code,answer.score);return move result;}
+
+	[Foreign]int compare(borrowed Match left,borrowed Match right){if(left.code==right.code) return 0;if(left.code<right.code) return -1;return 1;}
+
 	[Foreign]signal void completed(int requests,bool matched,f64 score);
+
 	[Foreign]signal void selected(borrowed Match item,string description);
+
 	deinit(){QueryCore16.observe_retirement(2);}
 }
+
 [Shared][CExport(name="record_match16",profile="declarations-v1")]
 [COMExport(interfaces="IRecordMatch16",threading="constructing",profile="declarations-v1")]
 [GObjectExport(type="RecordQuery16Match",namespace="RecordQuery16",version="3.4",profile="declarations-v1")]
 class Match {
 	private i64 identifier;private f64 value;
+
 	[Foreign]init(i64 code,f64 score){this.identifier=code;this.value=score;}
+
 	[Foreign]property i64 code{get{return this.identifier;}}
+
 	[Foreign]property f64 score{get{return this.value;}}
+
 	deinit(){QueryCore16.observe_retirement(3);}
 }
+
 owned Match clone_match(borrowed Match input){var result=input.clone();return move result;}

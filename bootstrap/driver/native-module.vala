@@ -34,6 +34,7 @@ internal class NativeModuleRecord : Object {
 		this.path = path;
 		this.imported = imported;
 	}
+
 }
 
 // Explicit finite interfaces contain declaration models, never producer bodies.
@@ -50,9 +51,11 @@ public class NativeModuleContext : Object {
 	private static string foreign_schema(NativeModuleRecord record) {
 		return record.windows ? WINDOWS_FOREIGN_SCHEMA : FOREIGN_SCHEMA;
 	}
+
 	private static bool foreign_schema_matches(NativeModuleRecord record, string schema) {
 		return schema == foreign_schema (record) || record.legacy && schema == LEGACY_FOREIGN_SCHEMA;
 	}
+
 	private const int MAX_INTERFACES = GenericResourceLimits.NATIVE_UNITS;
 	private const int MAX_DEPTH = GenericResourceLimits.NATIVE_DEPTH;
 	private const int MAX_CALLABLES = GenericResourceLimits.NATIVE_CALLABLES;
@@ -81,6 +84,7 @@ public class NativeModuleContext : Object {
 	public LinkInput[] link_dependencies() {
 		return dependencies;
 	}
+
 	public bool optimizer_exports { get { return producer != null && !producer.windows; } }
 	public string[] required_types() {
 		string[] result = {};
@@ -95,6 +99,7 @@ public class NativeModuleContext : Object {
 	private static string hash(string text) {
 		return Checksum.compute_for_string (ChecksumType.SHA256, text);
 	}
+
 	private static string[] sorted(string[] values) {
 		var list = new GLib.List<string> ();
 		foreach (string value in values) {
@@ -107,6 +112,7 @@ public class NativeModuleContext : Object {
 		}
 		return result;
 	}
+
 	private static string[] sorted_names(GLib.List<unowned string> names) {
 		string[] values = {};
 		foreach (string name in names) {
@@ -114,6 +120,7 @@ public class NativeModuleContext : Object {
 		}
 		return sorted (values);
 	}
+
 	private static bool identifier(string value) {
 		if (value.length == 0) {
 			return false;
@@ -130,6 +137,7 @@ public class NativeModuleContext : Object {
 		}
 		return true;
 	}
+
 	private static bool nominal_selector(string value) {
 		if (value.length > 512) {
 			return false;
@@ -152,6 +160,7 @@ public class NativeModuleContext : Object {
 		var type = structure.fields[0].type_name;
 		return type is GenericTypeApplicationSyntax && type.spelling () == value;
 	}
+
 	private NativeMethodRequest? method_selector(string value, GenericArray<CompilationUnitSyntax> units, string module_name, bool is_export = false) throws NativeModuleError {
 		int separator = value.index_of ("::");
 		if (separator < 0) {
@@ -179,6 +188,7 @@ public class NativeModuleContext : Object {
 		units.add (parsed.unit);
 		return result;
 	}
+
 	private static bool artifact_basename(string name) {
 		if (name == "" || name == "." || name == ".." || name.length > 255 || Path.get_basename (name) != name) {
 			return false;
@@ -190,12 +200,15 @@ public class NativeModuleContext : Object {
 		}
 		return true;
 	}
+
 	private static void reject(string path, string message) throws NativeModuleError {
 		throw new NativeModuleError.CONTRACT ("%s: error: native module: %s", path, message);
 	}
+
 	private static void source_reject(SourceSpan span, string message) throws NativeModuleError {
 		throw new NativeModuleError.CONTRACT ("%s", new Diagnostic (span, "native module: " + message).format ());
 	}
+
 	private static uint8[] read_artifact(string path, int limit) throws NativeModuleError {
 		if (!FileUtils.test (path, FileTest.IS_REGULAR)) {
 			reject (path, "cannot read a regular artifact file");
@@ -228,6 +241,7 @@ public class NativeModuleContext : Object {
 		}
 		return bytes;
 	}
+
 	private static string bytes_hash(string path, bool object = false, bool windows = false) throws NativeModuleError {
 		uint8[] bytes = read_artifact (path, 128 * 1024 * 1024);
 		if (object && windows) {
@@ -239,6 +253,7 @@ public class NativeModuleContext : Object {
 		}
 		return Checksum.compute_for_data (ChecksumType.SHA256, bytes);
 	}
+
 	private static string digest(KeyFile data, bool include_object) throws KeyFileError {
 		var result = new StringBuilder ();
 		foreach (string group in sorted (data.get_groups ())) {
@@ -256,6 +271,7 @@ public class NativeModuleContext : Object {
 		}
 		return hash (result.str);
 	}
+
 	private static string symbol(string identity, string key) {
 		return "astra_mod_" + identity + "_" + hash (key);
 	}
@@ -666,6 +682,7 @@ public class NativeModuleContext : Object {
 		}
 		return result;
 	}
+
 	private static void check_symbols(NativeModuleRecord record) throws NativeModuleError, KeyFileError {
 		string output, diagnostic;
 		int status;
@@ -744,6 +761,7 @@ public class NativeModuleContext : Object {
 		}
 		return text.str;
 	}
+
 	private static string foreign_attribute(ForeignPolicySyntax policy) {
 		var text = new StringBuilder ("[" + policy.name.spelling ());
 		if (policy.entries.length != 0) {
@@ -760,6 +778,7 @@ public class NativeModuleContext : Object {
 		text.append ("]\n");
 		return text.str;
 	}
+
 	private string storage_attributes(NativeInstanceDeclarationSyntax type) throws NativeModuleError {
 		var text = new StringBuilder ();
 		var object = type as ClassDeclarationSyntax;
@@ -855,6 +874,7 @@ public class NativeModuleContext : Object {
 		}
 		return unit.c_classes.length == 0 && unit.com_interfaces.length == 1 && unit.com_interfaces[0].declaration != null && unit.com_interfaces[0].name.spelling () == name;
 	}
+
 	private void capture_foreign_import(ClassDeclarationSyntax declaration) throws NativeModuleError {
 		if (declaration.foreign_import == null || declaration.span.file.native_interface || inherited_foreign_source (declaration.span.file)) {
 			return;
@@ -1368,6 +1388,7 @@ public class NativeModuleContext : Object {
 	private static bool scalar(SemanticType type) {
 		return type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL;
 	}
+
 	private static string foreign_symbols(ForeignClassPolicy policy, NativeClassPlan owner) {
 		if (policy.active_personalities == 0) {
 			return "";
@@ -1388,6 +1409,7 @@ public class NativeModuleContext : Object {
 		}
 		return result;
 	}
+
 	private static bool declared_nominal(NativeModuleRecord record, string name, HashTable<NativeModuleRecord, bool>? visited = null) {
 		var seen = visited ?? new HashTable<NativeModuleRecord, bool> (direct_hash, direct_equal);
 		if (seen.contains (record)) {
@@ -1406,6 +1428,7 @@ public class NativeModuleContext : Object {
 		}
 		return false;
 	}
+
 	private static void require_nominal(NativeModuleRecord record, SemanticType type, SourceSpan span) throws NativeModuleError {
 		if (type is ContextBytesType) {
 			if (record.legacy || record.windows) {
@@ -1448,6 +1471,7 @@ public class NativeModuleContext : Object {
 		}
 		source_reject (span, "public nominal type requires its exact exported module declaration");
 	}
+
 	private static void check_profile(SsaFunction function, NativeSignature signature, bool foreign_member = false) throws NativeModuleError {
 		var buffer = signature.buffer_result;
 		var element = buffer == null ? null : buffer.element_type as NativeScalarAbiType;
@@ -2007,6 +2031,7 @@ public class NativeModuleContext : Object {
 		}
 		return false;
 	}
+
 	private bool accepts_optimizer(NativeModuleRecord record, string key, OptimizerSummary summary, uint8[] bytes) throws KeyFileError, OptimizerSummaryError {
 		var spec = record.optimizer_specs.lookup (key);
 		if (spec == null) {
@@ -2045,6 +2070,7 @@ public class NativeModuleContext : Object {
 		}
 		return spec.accepts (summary, bytes, record.data.get_string ("function " + key, "symbol"), symbols, contracts);
 	}
+
 	public bool validate_optimizer_imports() throws NativeModuleError {
 		bool changed = false;
 		try {
@@ -2199,5 +2225,6 @@ public class NativeModuleContext : Object {
 			reject ("astrac", error.message);
 		}
 	}
+
 }
 }

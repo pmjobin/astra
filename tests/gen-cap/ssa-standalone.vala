@@ -23,9 +23,11 @@ private void boundary() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-cap/ssa/concrete-only-shift-lifetime", boundary);
 	return Test.run ();
 }
+
 }

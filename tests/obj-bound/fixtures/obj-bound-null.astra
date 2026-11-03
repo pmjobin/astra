@@ -1,16 +1,21 @@
 extern(C) int life_record(int code, int value);
+
 class Counter { int value; }
+
 bool is_null(borrowed Counter c) {
 	Counter local = c;
 	return local == null;
 }
+
 int effect() { return life_record(69, 42); }
+
 int accept(borrowed Counter c, int n) {
-	if (c == null) { return life_record(67, n); }
+	if (c == null) return life_record(67, n);
 	return 1;
 }
+
 int main() {
 	Counter live = { value = 42 };
-	if (!is_null(null) || is_null(live)) { return 1; }
+	if (!is_null(null) || is_null(live)) return 1;
 	return accept(null, effect());
 }

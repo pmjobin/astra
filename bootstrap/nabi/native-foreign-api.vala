@@ -19,6 +19,7 @@ public class NativeForeignApi : Object {
 		}
 		return true;
 	}
+
 	public static NativeScalarType scalar(ForeignValueKind kind) {
 		switch (kind) {
 		case ForeignValueKind.I32:
@@ -39,6 +40,7 @@ public class NativeForeignApi : Object {
 			return (NativeScalarType) (-1);
 		}
 	}
+
 	private static NativeCallableKind kind(ForeignMemberKind kind) {
 		switch (kind) {
 		case ForeignMemberKind.CONSTRUCTOR:
@@ -54,6 +56,7 @@ public class NativeForeignApi : Object {
 			return (NativeCallableKind) (-1);
 		}
 	}
+
 	public static bool record(NativeAbiProgram program,NativeStructValuePlan? plan,ForeignValueType type) {
 		if (plan == null || !program.struct_values.find (plan) || plan.foreign_record == null || !plan.foreign_record.equal (type) || !type.valid () || type.kind != ForeignValueKind.RECORD || plan.mode != NativeStructValueMode.COPY_VALUE || plan.ownership.length != 0 || plan.leaves.length != type.field_count) {
 			return false;
@@ -76,6 +79,7 @@ public class NativeForeignApi : Object {
 		}
 		return true;
 	}
+
 	public static ForeignApiContract? object_api(NativeAbiProgram program,int ordinal,ForeignChannel channel) {
 		if (ordinal < 0 || ordinal >= program.classes.length || channel.value_type.kind != ForeignValueKind.NATIVE_OBJECT || !channel.valid ()) {
 			return null;
@@ -87,6 +91,7 @@ public class NativeForeignApi : Object {
 		}
 		return api;
 	}
+
 	private static int named_class(NativeAbiProgram program,string name) {
 		for (int c = 0; c < program.classes.length; c++) {
 			if (program.classes[c].name == name) {
@@ -95,6 +100,7 @@ public class NativeForeignApi : Object {
 		}
 		return -1;
 	}
+
 	private static bool subtype(NativeAbiProgram program,int child,int parent) {
 		for (int depth = 0; depth <= program.classes.length && child >= 0 && child < program.classes.length; depth++) {
 			if (child == parent) {
@@ -104,6 +110,7 @@ public class NativeForeignApi : Object {
 		}
 		return false;
 	}
+
 	public static bool errors(NativeAbiProgram program,ForeignMemberContract member,NativeExceptionPlan? plan) {
 		if (plan == null) {
 			return member.error_origin == "" && member.error_map == null;
@@ -125,6 +132,7 @@ public class NativeForeignApi : Object {
 		}
 		return true;
 	}
+
 	public static bool valid(NativeAbiProgram program,NativeClassPlan owner) {
 		var policy = owner.foreign_export;
 		var api = policy == null ? null : policy.declared_api;
@@ -297,12 +305,14 @@ public class NativeForeignApi : Object {
 		}
 		return true;
 	}
+
 }
 public class NativeForeignSignalPlan: Object {
 	public ForeignSignalBinding binding { get; private set; }
 	public NativeForeignSignalPlan (ForeignSignalBinding binding) {
 		this.binding = binding;
 	}
+
 	public bool valid(NativeAbiProgram program,NativeFunction function) {
 		if (!binding.valid () || function.span.file.native_interface || function.kind != NativeCallableKind.METHOD || !function.declaring_type_is_class || function.declaring_type_ordinal < 0 || function.declaring_type_ordinal >= program.classes.length || function.signature.exception_plan != null || function.signature.result != null) {
 			return false;
@@ -310,6 +320,7 @@ public class NativeForeignSignalPlan: Object {
 		var owner = program.classes[function.declaring_type_ordinal];
 		return owner.foreign_export != null && owner.foreign_export.identity () == binding.root.identity () && binding.member_index < owner.foreign_targets ().length && owner.foreign_member (binding.member_index) == function.ordinal;
 	}
+
 }
 public class NativeForeignImportPlan: Object {
 	internal static bool object_channel(NativeAbiProgram program,ForeignChannel channel,NativeScalarOwner? resource,bool owns,bool result = false,bool nonnull = false) {
@@ -323,12 +334,14 @@ public class NativeForeignImportPlan: Object {
 		}
 		return false;
 	}
+
 	public ForeignImportBinding binding { get; private set; }
 	public int error_factory { get; private set; }
 	public NativeForeignImportPlan (ForeignImportBinding binding,int error_factory) {
 		this.binding = binding;
 		this.error_factory = error_factory;
 	}
+
 	public bool valid(NativeAbiProgram program,NativeFunction function) {
 		if (!binding.valid () || function.name != binding.root.api.native_origin + "." + binding.root.native_name (binding.member_index) || !NativeForeignApi.errors (program,binding.member,function.signature.exception_plan) || function.kind != NativeCallableKind.FUNCTION || function.signature.receiver != null || function.signature.exception_plan == null || function.signature.exception_plan.bound_name != binding.member.error_origin || error_factory < 0 || error_factory >= program.functions.length) {
 			return false;
@@ -470,6 +483,7 @@ public class NativeForeignImportPlan: Object {
 		}
 		return function.signature.resource_result == null && (member.result.value_type.kind == ForeignValueKind.VOID ? result == null : result != null && result.scalar_type == NativeForeignApi.scalar (member.result.value_type.kind));
 	}
+
 }
 
 }

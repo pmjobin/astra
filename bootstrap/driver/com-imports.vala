@@ -123,5 +123,6 @@ extern "C" int32_t @P@_scale(@P@_handle *self, int32_t factor, int32_t *out) noe
 		text.append (declared);
 		return text.str;
 	}
+
 }
 }

@@ -1,38 +1,44 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int signal_trace(int stage, int value);
+
 class SignalEnvironment {
 	private owned Counter source;
 	int calls;
+
 	init(owned Counter source) {
 		this.source = move source;
 		this.calls = 0;
 		signal_trace(1, 0);
 	}
+
 	deinit() { signal_trace(9, this.calls); }
+
 	int receive(int value) {
 		this.calls = this.calls + 1;
 		signal_trace(2, value);
-		if (value == 7) { signal_trace(3, counter_emit(this.source, 8)); }
+		if (value == 7) signal_trace(3, counter_emit(this.source, 8));
 		return value * 2;
 	}
 }
+
 int receive_signal(borrowed SignalEnvironment environment, int value) { return environment.receive(value); }
+
 int main() {
 	{
 		owned Counter object = counter_new(1);
-		if (object == null) { return 1; }
+		if (object == null) return 1;
 		owned SignalSource source = signal_source(object, "changed");
-		if (source == null) { return 2; }
+		if (source == null) return 2;
 		owned Counter capture = counter_ref(object);
 		var environment = new SignalEnvironment(move capture);
 		var handler = closure_bind(move environment, receive_signal);
-		if (retained_register(handler, signal_mode(source)) != 0) { return 3; }
-		if (counter_emit(object, 7) != 14 || counter_emit(object, 9) != 18) { return 4; }
-		if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 5; }
-		if (counter_emit(object, 10) != 0 || retained_dispatch(handler, 10) != -2) { return 6; }
+		if (retained_register(handler, signal_mode(source)) != 0) return 3;
+		if (counter_emit(object, 7) != 14 || counter_emit(object, 9) != 18) return 4;
+		if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) return 5;
+		if (counter_emit(object, 10) != 0 || retained_dispatch(handler, 10) != -2) return 6;
 		release handler;
-		if (signal_connections() != 0 || counter_finalized() != 0) { return 7; }
+		if (signal_connections() != 0 || counter_finalized() != 0) return 7;
 	}
-	if (counter_finalized() != 1 || counter_disposed() != 1 || foreign_live() != 0) { return 8; }
+	if (counter_finalized() != 1 || counter_disposed() != 1 || foreign_live() != 0) return 8;
 	return 0;
 }

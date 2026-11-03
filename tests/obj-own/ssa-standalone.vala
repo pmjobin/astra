@@ -37,6 +37,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	p.classes.add (d);
 	return p;
 }
+
 private void valid() {
 	try {
 		SsaProgram? p = sample ();
@@ -50,6 +51,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 4; variant++) {
 		try {
@@ -61,10 +63,12 @@ private void malformed() {
 		GLib.error ("accepted malformed object SSA %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/ssa/one-pointer-exact-contract-and-source-null", valid);
 	Test.add_func ("/obj-own/ssa/reject-missing-commit-and-wrong-class-cleanup", malformed);
 	return Test.run ();
 }
+
 }

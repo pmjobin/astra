@@ -8,20 +8,24 @@ static _Atomic int observed[6];
 static _Thread_local int finishing;
 int32_t net_oracle_lifetimes(int32_t expected);
 void __real_astra_async_complete(AstraAsyncTask *, int, void *);
+
 int32_t network_pending(int32_t id) {
 	assert(id > 0 && id < 6 && id != 4);
 	assert(atomic_exchange(&observed[id], 1) == 0);
 	return 0;
 }
+
 int32_t network_pending_ready(int32_t id) {
 	assert(id > 0 && id < 6);
 	return atomic_load(&observed[id]);
 }
+
 int32_t network_finishing(int32_t id) {
 	assert(id == 4 && finishing == 0);
 	finishing = id;
 	return 0;
 }
+
 void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exception) {
 	__real_astra_async_complete(task, phase, exception);
 	if (finishing) {
@@ -32,6 +36,7 @@ void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exceptio
 		finishing = 0;
 	}
 }
+
 int32_t network_lifetimes_finish(void) {
 	assert(atomic_load(&observed[1]) == 1 && atomic_load(&observed[2]) == 0);
 	assert(atomic_load(&observed[3]) == 1 && atomic_load(&observed[4]) == 1 && atomic_load(&observed[5]) == 1);

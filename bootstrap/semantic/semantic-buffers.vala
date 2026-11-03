@@ -17,6 +17,7 @@ public class CheckedScopedAllocator : CheckedExpression {
 		this.slots = slots;
 		this.cleanup = cleanup;
 	}
+
 }
 public class CheckedSlotsRecordTransfer : CheckedStatement {
 	public CheckedPlace store { get; private set; }
@@ -28,6 +29,7 @@ public class CheckedSlotsRecordTransfer : CheckedStatement {
 		this.index = index;
 		this.value = value;
 	}
+
 }
 public class CheckedSlotsRecordRead : CheckedStructProducer {
 	public CheckedPlace store { get; private set; }
@@ -39,6 +41,7 @@ public class CheckedSlotsRecordRead : CheckedStructProducer {
 		this.index = index;
 		this.remove = remove;
 	}
+
 }
 // Storage responsibility, never a slice view or a transferable value.
 public class CheckedBufferOwnerSlot : CheckedNode {
@@ -51,6 +54,7 @@ public class CheckedBufferOwnerSlot : CheckedNode {
 		this.owner = owner;
 		this.field = field;
 	}
+
 }
 
 public class CheckedOwnedBufferExchange : CheckedStatement {
@@ -61,6 +65,7 @@ public class CheckedOwnedBufferExchange : CheckedStatement {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 // Owning producer over the canonical SliceType; never a persistent view.
@@ -75,6 +80,7 @@ public class CheckedOwnedBufferAllocate : CheckedExpression {
 		this.failure_call = failure_call;
 		this.allocation_context = allocation_context;
 	}
+
 }
 
 public class CheckedOwnedBufferBorrow : CheckedExpression {
@@ -85,6 +91,7 @@ public class CheckedOwnedBufferBorrow : CheckedExpression {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 
 public class CheckedOwnedBufferReplace : CheckedStatement {
@@ -95,6 +102,7 @@ public class CheckedOwnedBufferReplace : CheckedStatement {
 		this.owner = owner;
 		this.incoming = incoming;
 	}
+
 }
 }
 
@@ -111,6 +119,7 @@ public class CheckedSlotsTake : CheckedExpression {
 		this.element = element;
 		this.resource_cleanup = resource_cleanup;
 	}
+
 }
 public class CheckedSlotsInitialize : CheckedStatement {
 	public CheckedPlace store { get; private set; }
@@ -118,6 +127,7 @@ public class CheckedSlotsInitialize : CheckedStatement {
 		base (span);
 		this.store = store;
 	}
+
 }
 public class CheckedSlotsReplace : CheckedStatement {
 	public CheckedPlace store { get; private set; }
@@ -129,6 +139,7 @@ public class CheckedSlotsReplace : CheckedStatement {
 		this.index = index;
 		this.incoming = incoming;
 	}
+
 }
 public class CheckedSlotsAppend : CheckedStatement {
 	public CheckedPlace store { get; private set; }
@@ -138,6 +149,7 @@ public class CheckedSlotsAppend : CheckedStatement {
 		this.store = store;
 		this.incoming = incoming;
 	}
+
 }
 public class CheckedSlotsValue : CheckedExpression {
 	public bool has_iteration { get; private set; }
@@ -155,6 +167,7 @@ public class CheckedSlotsValue : CheckedExpression {
 		this.iteration = iteration;
 		this.has_iteration = iteration != null;
 	}
+
 	public StructFieldSymbol field { get { return (store is CheckedReceiverFieldPlace) ? ((CheckedReceiverFieldPlace) store).field : ((CheckedObjectFieldPlace) store).field; } }
 }
 }

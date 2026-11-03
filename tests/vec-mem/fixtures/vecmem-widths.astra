@@ -1,26 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 i8<16> transport_i8(i8<16>* p,i8<16> value){*p=value;return *p;}
+
 bool check_i8(){i8<16> v=splat(-1,16);i8<16>* p=&v;i8<16> loaded=transport_i8(p,v);return all(loaded==v);}
+
 u8<16> transport_u8(u8<16>* p,u8<16> value){*p=value;return *p;}
+
 bool check_u8(){u8<16> v=splat(255,16);u8<16>* p=&v;u8<16> loaded=transport_u8(p,v);return all(loaded==v);}
+
 i16<8> transport_i16(i16<8>* p,i16<8> value){*p=value;return *p;}
+
 bool check_i16(){i16<8> v=splat(-1,8);i16<8>* p=&v;i16<8> loaded=transport_i16(p,v);return all(loaded==v);}
+
 u16<8> transport_u16(u16<8>* p,u16<8> value){*p=value;return *p;}
+
 bool check_u16(){u16<8> v=splat(65535,8);u16<8>* p=&v;u16<8> loaded=transport_u16(p,v);return all(loaded==v);}
+
 int<4> transport_int(int<4>* p,int<4> value){*p=value;return *p;}
+
 bool check_int(){int<4> v=splat(-1,4);int<4>* p=&v;int<4> loaded=transport_int(p,v);return all(loaded==v);}
+
 u32<4> transport_u32(u32<4>* p,u32<4> value){*p=value;return *p;}
+
 bool check_u32(){u32<4> v=splat(4294967295,4);u32<4>* p=&v;u32<4> loaded=transport_u32(p,v);return all(loaded==v);}
+
 f32<4> transport_f32(f32<4>* p,f32<4> value){*p=value;return *p;}
+
 bool check_f32(){f32<4> v=splat(3.5,4);f32<4>* p=&v;f32<4> loaded=transport_f32(p,v);return all(loaded==v);}
+
 int main(){
-	if(!check_i8()){return 1;}
-	if(!check_u8()){return 1;}
-	if(!check_i16()){return 1;}
-	if(!check_u16()){return 1;}
-	if(!check_int()){return 1;}
-	if(!check_u32()){return 1;}
-	if(!check_f32()){return 1;}
+	if(!check_i8()) return 1;
+	if(!check_u8()) return 1;
+	if(!check_i16()) return 1;
+	if(!check_u16()) return 1;
+	if(!check_int()) return 1;
+	if(!check_u32()) return 1;
+	if(!check_f32()) return 1;
 	return 0;
 }

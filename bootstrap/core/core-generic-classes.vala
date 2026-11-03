@@ -130,6 +130,7 @@ internal class CoreDeclaredClassAuthority : Object {
 			}
 		}
 	}
+
 }
 
 // Reconstruct concrete template signatures independently of Checked. The
@@ -141,10 +142,12 @@ internal class CoreExactClassAuthority : Object {
 			throw new CoreError.INVALID_IR ("exact-Class generic specialization lost definition/key/field/member operation authority");
 		}
 	}
+
 	private static bool store(CoreIndirectFieldPlace value, CoreClass owner, CoreFunction function) {
 		var receiver = value.pointer as CoreReceiverValue;
 		return owner.fields.length == 1 && value.field == owner.fields[0] && receiver != null && receiver.receiver == function.implicit_receiver;
 	}
+
 	private static void body(CoreFunction function, CoreClass owner, ExactClassOperation operation, int member, ClassMethodInstance? method_key = null) throws CoreError {
 		var key = owner.generic_instance;
 		var types = new GenericArray<SemanticType> ();
@@ -196,6 +199,7 @@ internal class CoreExactClassAuthority : Object {
 			require (value.operand == null && value.action == (operation == ExactClassOperation.COUNT ? OwnerSlotsAction.LENGTH : OwnerSlotsAction.CAPACITY));
 		}
 	}
+
 	internal static void verify(CoreProgram program) throws CoreError {
 		var definitions = new HashTable<ExactClassDefinitionIdentity, bool> (direct_hash, direct_equal);
 		foreach (var definition in program.generic_classes) {
@@ -309,5 +313,6 @@ internal class CoreExactClassAuthority : Object {
 			require (owner.destructor.body.statements.length == 0);
 		}
 	}
+
 }
 }

@@ -1,21 +1,27 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int n) { this.value = n; }
+
 	int get() { return this.value; }
+
 	deinit() { life_record(this.value, 0); }
 }
+
 void set(borrowed Counter c) {
 	Counter local = c;
 	local.value = 42;
 	life_record(77, 0);
 }
+
 int main() {
 	{
 		Counter c = Counter.init(1);
 		Counter alias = c;
 		{ Counter second = alias; set(second); }
-		if (alias.get() != 42 || c != alias) { return 1; }
+		if (alias.get() != 42 || c != alias) return 1;
 		c = null;
 		life_record(66, 0);
 	}

@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int se_mark(int n);
+
 struct S { int tag; f64 value; }
+
 class Context {
 	owned R first;
 	owned S[] records;
 	owned R third;
 	owned f64[] scratch;
+
 	init() { this.first=resource(1); this.records=new S[2]; this.third=resource(3); this.scratch=new f64[4]; this.records[0].tag=7; }
+
 	deinit() { var saved=this.records[0]; se_mark(saved.tag); this.records=new S[3]; this.records[2]=saved; se_mark(this.records[2].tag); }
 }
+
 owned Context make() { return Context.init(); }
+
 owned Context forward(owned Context value) { return move value; }
+
 owned T generic_forward<T>(owned T value) where T : Ownable { return move value; }
+
 int main() { owned Context a=make(); owned Context b=forward(move a); owned Context c=generic_forward(move b); return 0; }

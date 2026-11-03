@@ -25,6 +25,7 @@ private void members() {
 	result = null;
 	assert (witness.get () == null);
 }
+
 private void malformed() {
 	foreach (string text in new string[] {
 			"struct S { int x; void f( {} }", "struct S { int x; void f() ; }",
@@ -36,10 +37,12 @@ private void malformed() {
 		assert (Parser.parse (new SourceFile.from_text ("invalid", text)).diagnostic != null);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/method/parser/mixed-members-this-calls-and-lifetime", members);
 	Test.add_func ("/method/parser/malformed-and-deferred-grammar", malformed);
 	return Test.run ();
 }
+
 }

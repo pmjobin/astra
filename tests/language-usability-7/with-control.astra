@@ -1,18 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void usability_event(int tag);
+
 class Config {
 	int port;
 	readonly string name;
+
 	init(int port) { this.port = port; this.name = "config"; }
+
 	property int next { get { return this.port + 1; } }
+
 	deinit() { usability_event(100 + this.port); }
 }
+
 owned Config make_config(int tag) {
 	usability_event(tag);
 	var config = new Config(tag);
 	return move config;
 }
+
 void fail() throws Error { usability_event(90); throw new Error("checked exit"); }
+
 int render(bool early) throws Error {
 	with (var config = make_config(1)) {
 		usability_event(10 + config.port);
@@ -21,13 +28,14 @@ int render(bool early) throws Error {
 			usability_event(30 + nested.port);
 			usability_event(40 + config.port);
 		}
-		if (early) { return 7; }
+		if (early) return 7;
 		fail();
 	}
 	return 0;
 }
+
 int main() {
-	try { if (render(true) != 7) { return 1; } }
+	try { if (render(true) != 7) return 1; }
 	catch (Error error) { return 2; }
 	try { render(false); return 3; }
 	catch (Error error) { usability_event(91); }

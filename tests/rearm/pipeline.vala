@@ -46,6 +46,7 @@ private void model() throws GLib.Error {
 	assert (NativeAbiDump.format (NativeAbiBuilder.build (ssa)) == NativeAbiDump.format (NativeAbiBuilder.build (baseline)));
 	assert (CAbiDump.format (CAbiBuilder.build (ssa, NativeAbiBuilder.build (ssa))) == CAbiDump.format (CAbiBuilder.build (baseline, NativeAbiBuilder.build (baseline))));
 }
+
 private void branch(bool both) throws GLib.Error {
 	var control = cfg ("void f(bool c) { owned void* a = create(1); release a; if (c) { a = create(2); } " + (both ? "else { a = variant(3); } inspect(a);" : "") + " }");
 	var function = control.functions[0];
@@ -65,6 +66,7 @@ private void branch(bool both) throws GLib.Error {
 	var cleanup = (SsaCleanupInstruction) merged.instructions[merged.instructions.length - 1];
 	assert (cleanup.value == merged.parameters[0]);
 }
+
 private void mixed() throws GLib.Error {
 	var control = cfg ("void f(bool c) { owned void* a = create(1); if (c) { release a; } else { owned void* b = move a; } a = create(2); inspect(a); }");
 	var function = control.functions[0];
@@ -78,11 +80,13 @@ private void mixed() throws GLib.Error {
 	var join = ssa.functions[0].blocks[3];
 	assert (((SsaCCallInstruction) join.instructions[1]).arguments[0] == join.instructions[0].result);
 }
+
 private void terminating(string body) throws GLib.Error {
 	var control = cfg ("void f(bool c) { owned void* a = create(1); " + body + " a = create(2); inspect(a); }");
 	assert (OwnershipFlow.analyze (control.functions[0]).diagnostic == null);
 	SsaVerifier.verify (SsaBuilder.build (control));
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -107,4 +111,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -52,6 +52,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	functions.add (new SsaFunction (span, span, "make", slice, 2, new GenericArray<SsaFunctionParameter> (), blocks, entry, cleanup));
 	return new SsaProgram (span, functions, null, null, null, cleanups);
 }
+
 private void qualify() {
 	try {
 		SsaProgram? program = sample ();
@@ -73,9 +74,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/alloc-fail/ssa/independent-cause-pairs-and-terminal-region", qualify);
 	return Test.run ();
 }
+
 }

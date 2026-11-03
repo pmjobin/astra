@@ -21,17 +21,21 @@ private CheckedProgram check() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var p = CoreBuilder.build (check ());
 	CoreVerifier.verify (p);
 	return p;
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	return CfgBuilder.build (core ());
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	return SsaBuilder.build (cfg ());
 }
+
 private CoreFunction core_function(CoreProgram p, string name) {
 	foreach (var f in p.functions) {
 		if (f.name == name) {
@@ -40,6 +44,7 @@ private CoreFunction core_function(CoreProgram p, string name) {
 	}
 	assert_not_reached ();
 }
+
 private CfgFunction cfg_function(CfgProgram p, string name) {
 	foreach (var f in p.functions) {
 		if (f.name == name) {
@@ -48,6 +53,7 @@ private CfgFunction cfg_function(CfgProgram p, string name) {
 	}
 	assert_not_reached ();
 }
+
 private SsaFunction ssa_function(SsaProgram p, string name) {
 	foreach (var f in p.functions) {
 		if (f.name == name) {
@@ -56,6 +62,7 @@ private SsaFunction ssa_function(SsaProgram p, string name) {
 	}
 	assert_not_reached ();
 }
+
 private CoreStructField core_field(CoreProgram p) {
 	foreach (var c in p.classes) {
 		foreach (var f in c.fields) {
@@ -66,6 +73,7 @@ private CoreStructField core_field(CoreProgram p) {
 	}
 	assert_not_reached ();
 }
+
 private CfgStructField cfg_field(CfgProgram p) {
 	foreach (var c in p.classes) {
 		foreach (var f in c.fields) {
@@ -76,6 +84,7 @@ private CfgStructField cfg_field(CfgProgram p) {
 	}
 	assert_not_reached ();
 }
+
 private SsaStructField ssa_field(SsaProgram p) {
 	foreach (var c in p.classes) {
 		foreach (var f in c.fields) {
@@ -86,6 +95,7 @@ private SsaStructField ssa_field(SsaProgram p) {
 	}
 	assert_not_reached ();
 }
+
 private void core_reject(CoreProgram p, string diagnostic) {
 	bool rejected = false;
 	try {
@@ -96,6 +106,7 @@ private void core_reject(CoreProgram p, string diagnostic) {
 	}
 	assert (rejected);
 }
+
 private void cfg_reject(CfgProgram p, string diagnostic) {
 	bool rejected = false;
 	try {
@@ -106,6 +117,7 @@ private void cfg_reject(CfgProgram p, string diagnostic) {
 	}
 	assert (rejected);
 }
+
 private void ssa_reject(SsaProgram p, string diagnostic) {
 	bool rejected = false;
 	try {
@@ -116,6 +128,7 @@ private void ssa_reject(SsaProgram p, string diagnostic) {
 	}
 	assert (rejected);
 }
+
 private void llvm_reject(LlvmModuleArtifact a) {
 	bool rejected = false;
 	try {
@@ -126,6 +139,7 @@ private void llvm_reject(LlvmModuleArtifact a) {
 	}
 	assert (rejected);
 }
+
 private void independent_models() {
 	try {
 		CheckedProgram? checked = check ();
@@ -159,6 +173,7 @@ private void independent_models() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void checked_mutations() {
 	try {
 		var p = check ();
@@ -211,6 +226,7 @@ private void checked_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_mutations() {
 	try {
 		var p = core ();
@@ -250,6 +266,7 @@ private void core_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_mutations() {
 	try {
 		var p = cfg ();
@@ -323,6 +340,7 @@ private void cfg_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_mutations() {
 	try {
 		var p = ssa ();
@@ -407,6 +425,7 @@ private void ssa_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_mutations() {
 	try {
 		var p = ssa ();
@@ -453,11 +472,13 @@ private void native_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private LlvmModuleArtifact artifact() throws GLib.Error {
 	var p = ssa ();
 	var n = NativeAbiBuilder.build (p);
 	return LlvmLowering.lower (p, n, CAbiBuilder.build (p, n));
 }
+
 private void llvm_mutations() {
 	try {
 		var a = artifact ();
@@ -551,6 +572,7 @@ private void llvm_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/container-1a/independent-models-and-v15-layout", independent_models);
@@ -562,4 +584,5 @@ int main(string[] args) {
 	Test.add_func ("/container-1a/actual-llvm-count-transfer-disarm-commit-bounds-drop-restored", llvm_mutations);
 	return Test.run ();
 }
+
 }

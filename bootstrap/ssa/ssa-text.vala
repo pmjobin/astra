@@ -13,6 +13,7 @@ public class SsaUtf8FactoryInstruction : SsaInstruction {
 		this.input = input;
 		this.validates = validates;
 	}
+
 }
 internal class SsaUtf8FactoryAuthority : Object {
 	private static void require(bool valid) throws SsaError {
@@ -20,6 +21,7 @@ internal class SsaUtf8FactoryAuthority : Object {
 			throw new SsaError.INVALID_SSA ("UTF-8 factory lost exact validation dominance, byte group, copy or checked-error authority");
 		}
 	}
+
 	private static void snapshot_constructor(SsaClass owner) throws SsaError {
 		var ctor = owner.constructor;
 		require (ctor != null && ctor.parameters.length == 1 && ctor.parameters[0].semantic_type is StringType && ctor.blocks.length == 1 && ctor.entry.instructions.length == 1);
@@ -27,6 +29,7 @@ internal class SsaUtf8FactoryAuthority : Object {
 		var place = init == null ? null : init.target as SsaIndirectFieldPlace;
 		require (place != null && place.field == owner.fields[0] && place.pointer == ctor.receiver && init.value == ctor.parameters[0]);
 	}
+
 	private static void snapshot_getter(SsaClass owner) throws SsaError {
 		require (owner.properties.length == 1);
 		var getter = owner.properties[0].getter;
@@ -36,6 +39,7 @@ internal class SsaUtf8FactoryAuthority : Object {
 		var returned = getter.entry.terminator as SsaReturn;
 		require (place != null && place.field == owner.fields[0] && returned != null && returned.value == load.result);
 	}
+
 	internal static HashTable<SsaUtf8FactoryInstruction, SsaFunction> authorize(SsaProgram program) throws SsaError {
 		var allowed = new HashTable<SsaUtf8FactoryInstruction, SsaFunction> (direct_hash, direct_equal);
 		int count = 0;
@@ -95,6 +99,7 @@ internal class SsaUtf8FactoryAuthority : Object {
 		}
 		return allowed;
 	}
+
 }
 
 public class SsaTextLoan : Object {
@@ -104,6 +109,7 @@ public class SsaTextLoan : Object {
 		this.local_ordinal = local_ordinal;
 		this.extent = extent;
 	}
+
 }
 public class SsaTextLoanBind : SsaInstruction {
 	public SsaTextLoan loan { get; private set; }
@@ -115,6 +121,7 @@ public class SsaTextLoanBind : SsaInstruction {
 		this.value = value;
 		this.intent = intent;
 	}
+
 }
 public class SsaTextLoanEnd : SsaInstruction {
 	public TextLoanIntent exit_authority { get; private set; }
@@ -124,6 +131,7 @@ public class SsaTextLoanEnd : SsaInstruction {
 		this.loan = loan;
 		this.exit_authority = exit_authority;
 	}
+
 }
 public class SsaTextLoanUse : SsaInstruction {
 	public SsaTextLoan loan { get; private set; }
@@ -133,6 +141,7 @@ public class SsaTextLoanUse : SsaInstruction {
 		this.loan = loan;
 		this.value = value;
 	}
+
 }
 
 public class SsaTextSnapshotDestroy : SsaInstruction {
@@ -141,6 +150,7 @@ public class SsaTextSnapshotDestroy : SsaInstruction {
 		base (span, null, -1);
 		this.field = field;
 	}
+
 }
 
 // StringType is an indivisible bounded text group. There is no operation
@@ -151,6 +161,7 @@ public class SsaTextConstant : SsaValue {
 		base (span, type);
 		this.payload = payload;
 	}
+
 }
 public class SsaTextLengthInstruction : SsaInstruction {
 	public SsaValue receiver { get; private set; }
@@ -158,5 +169,6 @@ public class SsaTextLengthInstruction : SsaInstruction {
 		base (span, type, ordinal);
 		this.receiver = receiver;
 	}
+
 }
 }

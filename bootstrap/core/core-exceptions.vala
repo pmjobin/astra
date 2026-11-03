@@ -23,6 +23,7 @@ internal class CoreExceptionHandlerScope : Object {
 		}
 		return result;
 	}
+
 }
 public class CoreDiscardOwnedSuccess : CoreCallStatement {
 	public CoreCleanupContract cleanup { get; private set; }
@@ -30,6 +31,7 @@ public class CoreDiscardOwnedSuccess : CoreCallStatement {
 		base (span, target, arguments, receiver);
 		this.cleanup = cleanup;
 	}
+
 }
 public class CoreCatch : Object {
 	public CoreLocalPlace binding { get; private set; }
@@ -38,6 +40,7 @@ public class CoreCatch : Object {
 		this.binding = binding;
 		this.body = body;
 	}
+
 }
 public class CoreTry : CoreStatement {
 	private GenericArray<CoreCatch> ordered_catches = new GenericArray<CoreCatch> ();
@@ -53,6 +56,7 @@ public class CoreTry : CoreStatement {
 			ordered_catches.add (caught);
 		}
 	}
+
 	internal bool matches_catches() {
 		if (catches.length != ordered_catches.length) {
 			return false;
@@ -64,6 +68,7 @@ public class CoreTry : CoreStatement {
 		}
 		return true;
 	}
+
 }
 public class CoreThrow : CoreStatement {
 	public CoreLocalPlace source { get; private set; }
@@ -76,6 +81,7 @@ public class CoreThrow : CoreStatement {
 		this.owner = owner;
 		this.cleanup = cleanup;
 	}
+
 }
 public class CoreForeignReturn : CoreReturn {
 	public ForeignImportBinding binding { get; internal set; }
@@ -91,6 +97,7 @@ public class CoreForeignReturn : CoreReturn {
 			}
 		}
 	}
+
 }
 public class CoreForeignSignalReturn : CoreReturn {
 	public ForeignSignalBinding binding { get; internal set; }
@@ -98,6 +105,7 @@ public class CoreForeignSignalReturn : CoreReturn {
 		base (span, null);
 		this.binding = binding;
 	}
+
 }
 
 }

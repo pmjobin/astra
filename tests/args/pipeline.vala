@@ -23,6 +23,7 @@ private SsaProgram build(string text) throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (checked.program))));
 }
+
 private void lifetimes() {
 	try {
 		SourceFile? file = new SourceFile.from_text ("args.astra", "const LABEL=\"ok\"; int f(string[] a){var copy=a;var t=copy[0];if(t==LABEL){return t.byte_length;}return len(copy);} int main(string[] a){return f(a);}");
@@ -95,6 +96,7 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void correspondence() {
 	try {
 		var source = build ("int f(string[] a){return len(a);}");
@@ -135,6 +137,7 @@ private void correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 #if ARGS_LLVM
 private int emit(string[] args) throws GLib.Error {
 	var files = new GenericArray<SourceFile> ();
@@ -176,6 +179,7 @@ private int emit(string[] args) throws GLib.Error {
 	FileUtils.set_contents (args[2], artifact.dump ());
 	return 0;
 }
+
 #endif
 int main(string[] args) {
 #if ARGS_LLVM
@@ -193,4 +197,5 @@ int main(string[] args) {
 	Test.add_func ("/args/pipeline/exact-correspondence", correspondence);
 	return Test.run ();
 }
+
 }

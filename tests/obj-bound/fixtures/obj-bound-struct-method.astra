@@ -1,15 +1,18 @@
 class Counter { int value; }
+
 struct Inspector {
 	int offset;
+
 	int inspect(borrowed Counter c) {
-		if (c == null) { return this.offset; }
+		if (c == null) return this.offset;
 		c.value = c.value + this.offset;
 		return c.value;
 	}
 }
+
 int main() {
 	Counter c = { value = 40 };
 	Inspector reader = { offset = 2 };
-	if (reader.inspect(null) != 2) { return 1; }
+	if (reader.inspect(null) != 2) return 1;
 	return reader.inspect(c);
 }

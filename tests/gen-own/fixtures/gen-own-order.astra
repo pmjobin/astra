@@ -1,17 +1,26 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	deinit() { life_record(this.code, 0); }
 }
+
 void dispose<T>(owned T value) where T : Ownable {}
+
 owned T relay<T>(owned T value) where T : Ownable { return move value; }
+
 owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+
 int evaluate() { return life_record(86, 42); }
+
 int order<T,U>(owned T first, owned U second) where T : Ownable where U : Ownable {
 	owned Counter local = Counter.init(67);
 	return evaluate();
 }
+
 int main() {
 	owned Resource a = create_resource(65); owned Counter b = Counter.init(66);
 	int result = order<Resource,Counter>(move a, move b); life_record(83, 0);

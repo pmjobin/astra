@@ -1,9 +1,10 @@
 T identity<T>(T value) { return value; }
+
 int main() {
 	var a=identity(1.25); var b=identity(1.25f); var c=identity(1.0000000000000002d);
 	int count=42; var d=identity(count as f64);
 	var right=1.0+identity(1.0d); var nested=identity(1.0+identity(1.0d));
-	if(right!=2.0d || nested!=2.0d){return 1;}
-	if(bits32(a,1067450368)==1 && bits32(b,1067450368)==1 && bits64(c,1072693248,1)==1 && d==42.0d){return 0;}
+	if(right!=2.0d || nested!=2.0d) return 1;
+	if(bits32(a,1067450368)==1 && bits32(b,1067450368)==1 && bits64(c,1072693248,1)==1 && d==42.0d) return 0;
 	return 1;
 }

@@ -1,41 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void context_bytes_envelope_retired();
+
 extern(C) int context_bytes_finish();
+
 extern(C) void context_bytes_zero_failed();
+
 owned ContextBytes<ConcurrentAllocator> make_context_bytes(int count) {
 	var context = custom_allocator(16387, 11);
 	var bytes = new (context) u8[count];
 	int index = 0;
 	while (index < len(bytes)) {
-		if (bytes[index] != 0) { context_bytes_zero_failed(); return move bytes; }
+		if (bytes[index] != 0) {
+			context_bytes_zero_failed();
+			return move bytes;
+		}
 		index = index + 1;
 	}
 	bytes[3] = 17;
 	return move bytes;
 }
+
 class ByteEnvelope {
 	private owned ContextBytes<ConcurrentAllocator> bytes;
+
 	init(owned ContextBytes<ConcurrentAllocator> bytes) { this.bytes = move bytes; }
+
 	int read() { return len(this.bytes) + (this.bytes[3] as int); }
+
 	deinit() { context_bytes_envelope_retired(); }
 }
+
 struct ByteRecord<T> where T : Ownable {
 	owned T item;
 	owned ContextBytes<ConcurrentAllocator> bytes;
 	int marker;
 }
+
 int inspect_bytes(borrowed ContextBytes<ConcurrentAllocator> bytes) { return len(bytes) + (bytes[3] as int); }
+
 export(C) int context_bytes_run() {
 	{
 		owned ContextBytes<ConcurrentAllocator> first = make_context_bytes(19);
-		if (inspect_bytes(first) != 36) { return 1; }
+		if (inspect_bytes(first) != 36) return 1;
 		var envelope = new ByteEnvelope(move first);
-		if (envelope.read() != 36) { return 2; }
+		if (envelope.read() != 36) return 2;
 		var second = make_context_bytes(23);
 		ByteRecord<ConcurrentAllocator> record = {item = concurrent_allocator(2, 4099, 5, 64), bytes = move second, marker = 7};
-		if (record.marker != 7) { return 3; }
+		if (record.marker != 7) return 3;
 		ByteRecord<ConcurrentAllocator> moved = move record;
-		if (moved.marker != 7) { return 4; }
+		if (moved.marker != 7) return 4;
 	}
 	return context_bytes_finish();
 }

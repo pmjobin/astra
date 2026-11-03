@@ -1,23 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // A39: cold, submitted and completed task cancellation with real file payloads.
 extern(C) void payload_scan_observed(int bytes, int checksum);
+
 async void cancellable_scan(owned LinuxPayload input) throws Error {
 	await payload_io(input);
 	int count = astra_linux_payload_count(input); int index = 0; int checksum = 0;
-	while (index < count) { checksum = (checksum * 31 + payload_byte(input, index)) % 1000003; index = index + 1; }
+	while (index < count) {
+		checksum = (checksum * 31 + payload_byte(input, index)) % 1000003;
+		index = index + 1;
+	}
 	payload_scan_observed(count, checksum);
 	payload_finish(input);
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try {
-		int when = parse_int(args[2]); if (when < 0 || when > 2) { return 64; }
+		int when = parse_int(args[2]); if (when < 0 || when > 2) return 64;
 		var input = payload_open(args[1], 65536, 0);
 		var executor = LinuxExecutor.open(1); var task = cancellable_scan(move input);
 		executor.start(task);
 		try {
-			if (when > 0) { executor.pump(1); }
-			if (when == 2) { executor.wait(); executor.pump(1); }
+			if (when > 0) executor.pump(1);
+			if (when == 2) {
+				executor.wait();
+				executor.pump(1);
+			}
 			executor.cancel(task);
 		} catch (Error error) {
 			executor.cancel(task);
@@ -26,8 +34,8 @@ int main(string[] args) {
 		}
 		var status = executor.run(move task);
 		match (status) {
-			case RunStatus.Completed(): { if (when != 2) { return 71; } return 0; }
-			case RunStatus.Cancelled(): { if (when == 2) { return 72; } return 0; }
+			case RunStatus.Completed(): { if (when != 2) return 71; return 0; }
+			case RunStatus.Cancelled(): { if (when == 2) return 72; return 0; }
 		}
 	} catch (Error error) { return 2; }
 }

@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="counted16_exception_retired")] int retired();
+
 [CImport(name="counted16_error_seen")] int error_seen();
+
 [ExceptionRoot] class Fault {
 	readonly string text; private int status;
+
 	init(int status) { error_seen(); this.status=status; this.text="foreign counted failure"; }
+
 	virtual property string message { get { return this.text; } }
+
 	int code() { return this.status; }
+
 	deinit() { retired(); }
 }
+
 owned Fault foreign_fault(int domain,int status) { var fault=new Fault(status); return move fault; }
+
 [CImport(name="counted_provider16",profile="declarations-v1",lifetime="unique",threading="constructing",bool_abi="c99")]
 class Provider {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
@@ -39,37 +47,37 @@ class Provider {
 	int text_count(string input,int count) throws Fault;
 }
 export(C) int import_counted16_run(int mode) {
-	u8[3] seed={1,2,3}; u8[4] output={77,77,77,77}; int count=-1; int ctor_mode=mode; if(mode>=4){ctor_mode=0;}
+	u8[3] seed={1,2,3}; u8[4] output={77,77,77,77}; int count=-1; int ctor_mode=mode; if(mode>=4) ctor_mode=0;
 	try {
 		var provider=Provider.init(slice(seed),slice(output),&count,ctor_mode);
-		if(mode!=0){return 1;}
-		if(count!=2 || output[0]!=11 || output[1]!=12 || output[2]!=77 || seed[0]!=1){return 2;}
-		if(provider.fold(slice(seed),3)!=6 || seed[0]!=1){return 3;}
-		try { int ignored=provider.fold(slice(seed),2); return ignored; } catch(Fault fault){if(fault.code()!=-2147024809){return 4;}}
-		var empty=new u8[0]; if(provider.fold(empty,0)!=0){return 5;}
+		if(mode!=0) return 1;
+		if(count!=2 || output[0]!=11 || output[1]!=12 || output[2]!=77 || seed[0]!=1) return 2;
+		if(provider.fold(slice(seed),3)!=6 || seed[0]!=1) return 3;
+		try { int ignored=provider.fold(slice(seed),2); return ignored; } catch(Fault fault){if(fault.code()!=-2147024809) return 4;}
+		var empty=new u8[0]; if(provider.fold(empty,0)!=0) return 5;
 		output[0]=77; output[1]=77;
-		if(!provider.rewrite(slice(seed),slice(output),&count,0) || count!=2 || output[0]!=7 || output[1]!=8 || output[2]!=77){return 6;}
+		if(!provider.rewrite(slice(seed),slice(output),&count,0) || count!=2 || output[0]!=7 || output[1]!=8 || output[2]!=77) return 6;
 		int failure=1;
 		while(failure<4){
 			output[0]=77;output[1]=77;count=-1;
-			try { bool ignored=provider.rewrite(slice(seed),slice(output),&count,failure); if(ignored){return 7;} return 8; }
-			catch(Fault fault){if(failure==1 && fault.code()!=-1600){return 9;} if(failure!=1 && fault.code()!=-2147418113){return 10;}}
-			if(output[0]!=77 || output[1]!=77 || output[2]!=77 || count!=0){return 11;}
+			try { bool ignored=provider.rewrite(slice(seed),slice(output),&count,failure); if(ignored) return 7; return 8; }
+			catch(Fault fault){if(failure==1 && fault.code()!=-1600) return 9; if(failure!=1 && fault.code()!=-2147418113) return 10;}
+			if(output[0]!=77 || output[1]!=77 || output[2]!=77 || count!=0) return 11;
 			failure=failure+1;
 		}
-		if(!provider.named(slice(seed),slice(output),4,&count) || count!=2 || output[0]!=7 || output[1]!=8){return 12;}
-		if(!provider.rewrite(slice(seed),slice(seed),&count,0) || count!=2 || seed[0]!=7 || seed[1]!=8 || seed[2]!=3){return 13;}
+		if(!provider.named(slice(seed),slice(output),4,&count) || count!=2 || output[0]!=7 || output[1]!=8) return 12;
+		if(!provider.rewrite(slice(seed),slice(seed),&count,0) || count!=2 || seed[0]!=7 || seed[1]!=8 || seed[2]!=3) return 13;
 		seed[0]=1;seed[1]=2;seed[2]=3;
-		if(provider.mutate(slice(seed))!=2 || seed[0]!=17 || seed[1]!=18 || seed[2]!=3){return 14;}
-		if(provider.utf8("a\0é")!=4 || provider.nul("café")!=5 || provider.text_count("λ",2)!=2){return 15;}
-		try{int ignored=provider.nul("bad\0text");return ignored;}catch(Fault fault){if(fault.code()!=-2147024809){return 16;}}
-		try{int ignored=provider.text_count("λ",1);return ignored;}catch(Fault fault){if(fault.code()!=-2147024809){return 17;}}
+		if(provider.mutate(slice(seed))!=2 || seed[0]!=17 || seed[1]!=18 || seed[2]!=3) return 14;
+		if(provider.utf8("a\0é")!=4 || provider.nul("café")!=5 || provider.text_count("λ",2)!=2) return 15;
+		try{int ignored=provider.nul("bad\0text");return ignored;}catch(Fault fault){if(fault.code()!=-2147024809) return 16;}
+		try{int ignored=provider.text_count("λ",1);return ignored;}catch(Fault fault){if(fault.code()!=-2147024809) return 17;}
 	} catch(Fault fault){
-		if(mode==0){return 90;}
-		if(output[0]!=77 || output[1]!=77 || output[2]!=77 || count!=0){return 91;}
-		if(mode==1 && fault.code()!=-1600){return 92;}
-		if((mode==2 || mode==3) && fault.code()!=-2147418113){return 93;}
-		if(mode>=4 && fault.code()!=-2147024882){return 94;}
+		if(mode==0) return 90;
+		if(output[0]!=77 || output[1]!=77 || output[2]!=77 || count!=0) return 91;
+		if(mode==1 && fault.code()!=-1600) return 92;
+		if((mode==2 || mode==3) && fault.code()!=-2147418113) return 93;
+		if(mode>=4 && fault.code()!=-2147024882) return 94;
 	}
 	return 0;
 }

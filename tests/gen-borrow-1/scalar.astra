@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 bool echo_bool<T>(borrowed T value, bool flag) where T: Ownable { return flag; }
+
 u16 echo_int<T>(borrowed T value, u16 number) where T: Ownable { return number; }
+
 f32 echo_float<T>(borrowed T value, f32 number) where T: Ownable { return number; }
+
 f64 echo_double<T>(borrowed T value, f64 number) where T: Ownable { return number; }
+
 int main() {
 	observe_begin(1, 0);
 	owned R value = create_r(1);
 	leaf<R>(value, 66);
-	if (!echo_bool<R>(value, true) || echo_int<R>(value, 7) != 7 || echo_float<R>(value, 1.25f) != 1.25f || echo_double<R>(value, 2.5d) != 2.5d) { return 81; }
-	if (resource_id(value) != 1) { return 82; }
+	if (!echo_bool<R>(value, true) || echo_int<R>(value, 7) != 7 || echo_float<R>(value, 1.25f) != 1.25f || echo_double<R>(value, 2.5d) != 2.5d) return 81;
+	if (resource_id(value) != 1) return 82;
 	dispose<R>(move value);
 	return observe_end();
 }

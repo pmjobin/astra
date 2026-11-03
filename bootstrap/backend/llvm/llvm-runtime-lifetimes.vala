@@ -13,12 +13,14 @@ internal class LlvmScopedTaskFrame : Object {
 	internal CApi.ValueRef backing_context() {
 		return context;
 	}
+
 	internal void verify_call(CApi.ValueRef actual) throws LlvmError {
 		if ((void*) actual != (void*) instruction) {
 			throw new LlvmError.VERIFICATION ("scoped task frame lost its original factory instruction");
 		}
 		verify ();
 	}
+
 	private CApi.ValueRef descriptor;
 	private LlvmClassCallBinding call;
 	private CApi.ValueRef caller;
@@ -33,6 +35,7 @@ internal class LlvmScopedTaskFrame : Object {
 		call = new LlvmClassCallBinding (instruction, factory, type, arguments, LlvmLowering.CALL_CONVENTION, "scoped task frame factory");
 		verify ();
 	}
+
 	internal void verify() throws LlvmError {
 		call.verify ();
 		var llvm_context = CApi.type_context (CApi.type_of (instruction));
@@ -51,6 +54,7 @@ internal class LlvmScopedTaskFrame : Object {
 			throw new LlvmError.VERIFICATION ("scoped task frame lost its exact runtime descriptor ABI");
 		}
 	}
+
 	internal bool context_use(CApi.ValueRef use, uint position) throws LlvmError {
 		if ((void*) use != (void*) instruction || position + 1 != CApi.argument_count (instruction)) {
 			return false;
@@ -58,6 +62,7 @@ internal class LlvmScopedTaskFrame : Object {
 		verify ();
 		return true;
 	}
+
 	internal static bool operation(CApi.ValueRef use, uint position, out bool retires) throws LlvmError {
 		retires = false;
 		if (CApi.opcode (use) != CApi.Opcode.CALL || (void*) CApi.is_function (CApi.called_value (use)) == null) {
@@ -113,6 +118,7 @@ internal class LlvmScopedTaskFrame : Object {
 		}
 		return true;
 	}
+
 }
 // Native-unit capture authority retains no producer frame layout or body.
 // Only exact imported symbols, physical ABI and copied owner channels survive.
@@ -126,6 +132,7 @@ internal class LlvmScopedImportedTask : Object {
 	private bool sealed;
 	private LlvmScopedImportedTask () {
 	}
+
 	internal static LlvmScopedImportedTask? from_native(LlvmModuleArtifact artifact, NativeFunction source, NativeAbiProgram program, LlvmStructRegistry structs, CApi.ValueRef factory, CApi.ValueRef checked_factory, CApi.TypeRef type, string symbol) throws LlvmError {
 		if (!LlvmScopedOwnedInputs.required (source.signature, program)) {
 			return null;
@@ -153,6 +160,7 @@ internal class LlvmScopedImportedTask : Object {
 		contract.checked = new LlvmNativeModuleBinding (checked_factory, type, symbol + "_checked", true);
 		return contract;
 	}
+
 	internal void seal(HashTable<int, LlvmScopedDescriptorAuthority> descriptors) throws LlvmError {
 		if (sealed) {
 			throw new LlvmError.LOWERING ("opaque scoped task seals once");
@@ -165,6 +173,7 @@ internal class LlvmScopedImportedTask : Object {
 		}
 		sealed = true;
 	}
+
 	internal void verify() throws LlvmError {
 		if (!sealed) {
 			throw new LlvmError.VERIFICATION ("opaque scoped task capture contract is not sealed");
@@ -176,6 +185,7 @@ internal class LlvmScopedImportedTask : Object {
 			result.verify (inputs);
 		}
 	}
+
 }
 // Original cold capture publication, copied before scoped inventories seal.
 // The caller keeps allocation debt while the task owns the moved handle.
@@ -194,6 +204,7 @@ internal class LlvmScopedCapturedTask : Object {
 	internal CApi.ValueRef admission_branch() {
 		return admission;
 	}
+
 	internal void seal() throws LlvmError {
 		if (sealed) {
 			throw new LlvmError.LOWERING ("scoped capture admission binds once");
@@ -209,12 +220,14 @@ internal class LlvmScopedCapturedTask : Object {
 		sealed = true;
 		verify (original);
 	}
+
 	internal LlvmScopedCapturedTask (CApi.ValueRef call, LlvmAsyncFrameBinding frame, CApi.ValueRef factory, CApi.TypeRef type, CApi.ValueRef[] arguments, bool checked_admission) {
 		this.frame = frame;
 		this.checked_admission = checked_admission;
 		original = call;
 		binding = new LlvmClassCallBinding (call, factory, type, arguments, LlvmLowering.CALL_CONVENTION, "scoped captured task original factory");
 	}
+
 	internal LlvmScopedCapturedTask.opaque (CApi.ValueRef call, LlvmScopedImportedTask imported, CApi.ValueRef factory, CApi.TypeRef type, CApi.ValueRef[] arguments, bool checked_admission) {
 		this.imported = imported;
 		this.checked_admission = checked_admission;
@@ -241,10 +254,12 @@ internal class LlvmScopedCapturedTask : Object {
 			}
 		}
 	}
+
 	internal bool accepts(CApi.ValueRef call, uint position, CApi.ValueRef tag, CApi.ValueRef count, CApi.ValueRef size, CApi.ValueRef alignment) throws LlvmError {
 		verify (call);
 		return inputs.input_shape (position, tag, count, size, alignment);
 	}
+
 }
 private class LlvmScopedHeldTask : Object {
 	internal CApi.ValueRef call;
@@ -257,6 +272,7 @@ private class LlvmScopedHeldTask : Object {
 		this.capture = capture;
 		this.ordinal = ordinal;
 	}
+
 }
 internal class LlvmScopedBorrowBinding : Object {
 	private CApi.ValueRef function;
@@ -279,6 +295,7 @@ internal class LlvmScopedBorrowBinding : Object {
 		this.type = type;
 		parameters = CApi.count_params (function);
 	}
+
 	internal static bool requires_layout(NativeFunction source) {
 		var signature = source.signature;
 		// Owning lifecycle effects use the separate field-transfer contract.
@@ -303,6 +320,7 @@ internal class LlvmScopedBorrowBinding : Object {
 		}
 		return signature.result == null || signature.result.abi_type.get_type () == typeof (NativeScalarAbiType) && signature.result.scalar_type != NativeScalarType.PTR;
 	}
+
 	internal static LlvmScopedBorrowBinding? from_native(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.TypeRef type, NativeFunction source, NativeAbiProgram program, LlvmStructRegistry structs) throws LlvmError {
 		var signature = source.signature;
 		var classes = program.classes;
@@ -388,6 +406,7 @@ internal class LlvmScopedBorrowBinding : Object {
 		}
 		return result;
 	}
+
 	internal void attach_import(LlvmNativeModuleBinding binding) throws LlvmError {
 		if (body != null || imported_body != null || CApi.count_basic_blocks (function) != 0) {
 			throw new LlvmError.LOWERING ("scoped borrow requires its original opaque native declaration");
@@ -395,6 +414,7 @@ internal class LlvmScopedBorrowBinding : Object {
 		binding.verify ();
 		imported_body = binding;
 	}
+
 	internal void seal() throws LlvmError {
 		if (imported_body != null) {
 			verify ();
@@ -405,6 +425,7 @@ internal class LlvmScopedBorrowBinding : Object {
 		}
 		body = new LlvmSumSequence (function, true);
 	}
+
 	internal void verify() throws LlvmError {
 		if ((body == null && imported_body == null) || (void*) CApi.global_value_type (function) != (void*) type || CApi.count_params (function) != parameters || CApi.function_call_conv (function) != LlvmLowering.CALL_CONVENTION) {
 			throw new LlvmError.VERIFICATION ("scoped native borrow lost its exact signature/body authority");
@@ -415,13 +436,16 @@ internal class LlvmScopedBorrowBinding : Object {
 		}
 		body.verify ();
 	}
+
 	internal bool accepts(CApi.ValueRef call, uint parameter) throws LlvmError {
 		verify ();
 		return parameter == 0 && (void*) CApi.called_value (call) == (void*) function && (void*) CApi.called_function_type (call) == (void*) type && CApi.argument_count (call) == parameters && CApi.instruction_call_conv (call) == LlvmLowering.CALL_CONVENTION;
 	}
+
 	internal bool accepts_loan(CApi.ValueRef call, uint parameter, int owner) throws LlvmError {
 		return !lifecycle && receiver_class == owner && accepts (call, parameter);
 	}
+
 	internal bool accepts_scope(CApi.ValueRef call, uint parameter, CApi.ValueRef actual_tag, CApi.ValueRef count, CApi.ValueRef actual_size, CApi.ValueRef actual_alignment) throws LlvmError {
 		if (parameter != 0 || receiver_class < 0) {
 			return false;
@@ -431,6 +455,7 @@ internal class LlvmScopedBorrowBinding : Object {
 		}
 		return accepts (call, parameter);
 	}
+
 	private int child_receiver(CApi.ValueRef value) {
 		if ((void*) carrier_layout == null || (void*) CApi.is_instruction (value) == null || CApi.opcode (value) != CApi.Opcode.LOAD || CApi.type_kind (CApi.type_of (value)) != CApi.TypeKind.POINTER || CApi.get_volatile (value) != 0 || CApi.get_ordering (value) != 0) {
 			return -1;
@@ -443,11 +468,13 @@ internal class LlvmScopedBorrowBinding : Object {
 		}
 		return -1;
 	}
+
 	internal bool forwards_receiver(CApi.ValueRef value, LlvmScopedBorrowBinding target, CApi.ValueRef call, uint position) throws LlvmError {
 		verify ();
 		int child = child_receiver (value);
 		return ((void*) value == (void*) CApi.get_param (function, 0) || child >= 0) && target.accepts_loan (call, position, (void*) value == (void*) CApi.get_param (function, 0) ? receiver_class : child);
 	}
+
 	internal bool forwards_loan(CApi.ValueRef value, LlvmScopedClassLoans target, CApi.ValueRef call, uint position) throws LlvmError {
 		verify ();
 		if (receiver_class >= 0 && (void*) value == (void*) CApi.get_param (function, 0)) {
@@ -456,9 +483,11 @@ internal class LlvmScopedBorrowBinding : Object {
 		int child = child_receiver (value);
 		return child >= 0 && target.accepts_class (call, position, child);
 	}
+
 	internal bool preserves_carrier(CApi.ValueRef call, CApi.TypeRef layout) throws LlvmError {
 		return (void*) carrier_layout != null && (void*) carrier_layout == (void*) layout && accepts (call, 0);
 	}
+
 }
 private class LlvmScopedClassLoan : Object {
 	internal CApi.ValueRef value;
@@ -477,6 +506,7 @@ private class LlvmScopedClassLoan : Object {
 		this.layout = layout;
 		this.position = position;
 	}
+
 	internal bool scalar_projection(CApi.ValueRef address) throws LlvmError {
 		if (CApi.opcode (address) != CApi.Opcode.GEP || CApi.operand_count (address) != 3 || (void*) CApi.operand (address, 0) != (void*) value || (void*) CApi.gep_source_type (address) != (void*) layout || (void*) CApi.is_constant_int (CApi.operand (address, 1)) == null || CApi.const_int_zext (CApi.operand (address, 1)) != 0 || (void*) CApi.is_constant_int (CApi.operand (address, 2)) == null) {
 			return false;
@@ -499,6 +529,7 @@ private class LlvmScopedClassLoan : Object {
 		}
 		return true;
 	}
+
 }
 internal class LlvmScopedClassLoans : Object {
 	private LlvmNativeModuleBinding? imported_body;
@@ -565,6 +596,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return true;
 	}
+
 	internal static LlvmScopedClassLoans? from_native(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.TypeRef type, NativeFunction source, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs) throws LlvmError {
 		var result = new LlvmScopedClassLoans (function, type);
 		var signature = source.signature;
@@ -650,6 +682,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return result.loans.length == 0 ? null : result;
 	}
+
 	internal void attach_import(LlvmNativeModuleBinding binding) throws LlvmError {
 		if (sealed || imported_body != null || CApi.count_basic_blocks (function) != 0) {
 			throw new LlvmError.LOWERING ("scoped Class loan requires its original opaque native declaration");
@@ -657,6 +690,7 @@ internal class LlvmScopedClassLoans : Object {
 		binding.verify ();
 		imported_body = binding;
 	}
+
 	internal void seal() throws LlvmError {
 		if (imported_body != null) {
 			imported_body.verify ();
@@ -669,6 +703,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		sealed = true;
 	}
+
 	private void signature() throws LlvmError {
 		if (imported_body != null) {
 			imported_body.verify ();
@@ -682,6 +717,7 @@ internal class LlvmScopedClassLoans : Object {
 			}
 		}
 	}
+
 	internal bool accepts(CApi.ValueRef call, uint position, CApi.TypeRef layout) throws LlvmError {
 		signature ();
 		foreach (var loan in loans) {
@@ -694,6 +730,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal bool accepts_scope(CApi.ValueRef call, uint position, CApi.ValueRef tag, CApi.ValueRef count, CApi.ValueRef size, CApi.ValueRef alignment) throws LlvmError {
 		foreach (var loan in loans) {
 			if (loan.position != position) {
@@ -706,6 +743,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal bool class_position(uint position) {
 		foreach (var loan in loans) {
 			if (loan.position == position) {
@@ -714,6 +752,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal bool accepts_class(CApi.ValueRef call, uint position, int owner) throws LlvmError {
 		foreach (var loan in loans) {
 			if (loan.position == position && loan.class_ordinal == owner) {
@@ -722,6 +761,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal bool accepts_null(CApi.ValueRef call, uint position) throws LlvmError {
 		foreach (var loan in loans) {
 			if (loan.position == position) {
@@ -730,6 +770,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal bool forwards(CApi.ValueRef value, LlvmScopedClassLoans target, CApi.ValueRef call, uint position) throws LlvmError {
 		signature ();
 		if (!sealed) {
@@ -742,6 +783,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal bool forwards_receiver(CApi.ValueRef value, LlvmScopedBorrowBinding target, CApi.ValueRef call, uint position) throws LlvmError {
 		signature ();
 		if (!sealed) {
@@ -754,6 +796,7 @@ internal class LlvmScopedClassLoans : Object {
 		}
 		return false;
 	}
+
 	internal void verify(HashTable<void*, LlvmScopedBorrowBinding> borrows, HashTable<void*, LlvmScopedClassLoans> callees) throws LlvmError {
 		signature ();
 		foreach (var loan in loans) {
@@ -792,6 +835,7 @@ internal class LlvmScopedClassLoans : Object {
 			throw new LlvmError.VERIFICATION ("scoped Class loan body is unsealed");
 		}
 	}
+
 }
 private class LlvmScopedPointer : Object {
 	internal int allocation;
@@ -802,6 +846,7 @@ private class LlvmScopedPointer : Object {
 		this.root = root;
 		this.owner = owner < 0 ? allocation : owner;
 	}
+
 }
 private class LlvmScopedRecordCall : Object {
 	internal HashTable<int, LlvmScopedPointer> fields = new HashTable<int, LlvmScopedPointer> (direct_hash, direct_equal);
@@ -825,6 +870,7 @@ private class LlvmScopedCheckedCall : Object {
 		}
 		return false;
 	}
+
 	internal LlvmScopedCheckedCall (CApi.ValueRef call, CApi.ValueRef slot, int allocation, int owner, int ordinal) {
 		this.call = call;
 		this.slot = slot;
@@ -832,12 +878,14 @@ private class LlvmScopedCheckedCall : Object {
 		this.owner = owner;
 		this.ordinal = ordinal;
 	}
+
 }
 private class LlvmScopedState : Object {
 	internal uint[] values;
 	internal LlvmScopedState (int count) {
 		values = new uint[count];
 	}
+
 }
 private class LlvmScopedErrorCall : Object {
 	internal CApi.ValueRef call;
@@ -851,6 +899,7 @@ private class LlvmScopedErrorCall : Object {
 		this.heap = heap;
 		this.ordinal = ordinal;
 	}
+
 }
 // A storage channel is discovered from actual stores, not lowering markers.
 // Its address must be a nonescaping local pointer slot or exact struct field.
@@ -866,6 +915,7 @@ private class LlvmScopedOwnerRead : Object {
 		this.cell = cell;
 		this.ordinal = ordinal;
 	}
+
 }
 private class LlvmScopedOwnerSlot : Object {
 	internal CApi.ValueRef store;
@@ -882,6 +932,7 @@ private class LlvmScopedOwnerSlot : Object {
 		this.allocation = allocation;
 		this.owner = owner;
 	}
+
 }
 // Common layout permits static use checking; it never selects ownership.
 // Each solving state retains the actual predecessor/SELECT origin separately.
@@ -900,6 +951,7 @@ private class LlvmScopedHostError : Object {
 		this.ordinal = ordinal;
 		this.alternatives = alternatives;
 	}
+
 }
 private class LlvmScopedWork : Object {
 	internal uint[] values;
@@ -910,6 +962,7 @@ private class LlvmScopedWork : Object {
 		this.start = start;
 		this.prepared = prepared;
 	}
+
 }
 private class LlvmScopedHeapChoice : Object {
 	internal CApi.ValueRef value;
@@ -920,6 +973,7 @@ private class LlvmScopedHeapChoice : Object {
 		this.alternatives = alternatives;
 		this.ordinal = ordinal;
 	}
+
 }
 private class LlvmScopedHeapSlot : Object {
 	internal CApi.ValueRef address;
@@ -931,6 +985,7 @@ private class LlvmScopedHeapSlot : Object {
 		this.alternatives = alternatives;
 		this.ordinal = ordinal;
 	}
+
 }
 private class LlvmScopedOwnerStorage : Object {
 	private GenericArray<LlvmScopedOwnerCell> owner_cells = new GenericArray<LlvmScopedOwnerCell> ();
@@ -950,6 +1005,7 @@ private class LlvmScopedOwnerStorage : Object {
 		owner_cells[slot.cell].variants.add (slot);
 		slots.add (slot);
 	}
+
 	private LlvmScopedOwnerSlot? current_slot(LlvmScopedOwnerSlot? first) {
 		if (first == null || active_state == null || owner_cells[first.cell].variants.length == 1) {
 			return first;
@@ -966,6 +1022,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return first;
 	}
+
 	internal void append_owner_state(StringBuilder key, uint[] state, int offset) {
 		foreach (var cell in owner_cells) {
 			if (cell.variants.length > 1) {
@@ -975,9 +1032,11 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal bool current_variant(LlvmScopedOwnerSlot slot) {
 		return current_slot (owner_cells[slot.cell].variants[0]) == slot;
 	}
+
 	internal LlvmScopedOwnerSlot? publication_slot(CApi.ValueRef instruction, LlvmScopedOwnerSlot? first) {
 		if (first == null) {
 			return null;
@@ -989,6 +1048,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return null;
 	}
+
 	internal void prepare_owner_reads(GenericArray<void*> blocks) throws LlvmError {
 		foreach (void* block in blocks) {
 			for (var i = CApi.first_instruction ((CApi.BasicBlockRef) block); (void*) i != null; i = CApi.next_instruction (i)) {
@@ -1008,9 +1068,11 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	private int owner_read_offset() {
 		return choice_offset + (int) choices.length + (int) heap_channels.length;
 	}
+
 	internal void owner_read_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		var read = owner_reads.lookup ((void*) instruction);
 		if (read == null) {
@@ -1023,6 +1085,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		state[owner_read_offset () + read.ordinal] = (uint) slot.ordinal + 1;
 	}
+
 	internal LlvmScopedPointer? owner_read_pointer(CApi.ValueRef instruction) {
 		var read = owner_reads.lookup ((void*) instruction);
 		if (read == null || active_state == null) {
@@ -1035,6 +1098,7 @@ private class LlvmScopedOwnerStorage : Object {
 		var slot = slots[(int) selected - 1];
 		return slot.cell != read.cell.variants[0].cell || slot.allocation < 0 ? null : new LlvmScopedPointer (slot.allocation, true, slot.owner);
 	}
+
 	internal void verify_owner_read_use(CApi.ValueRef instruction) throws LlvmError {
 		for (uint p = 0; p < CApi.operand_count (instruction); p++) {
 			var read = owner_reads.lookup ((void*) CApi.operand (instruction, p));
@@ -1050,6 +1114,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal void invalidate_owner_allocation(int allocation, uint[] state) {
 		foreach (var read in owner_read_channels) {
 			uint selected = state[owner_read_offset () + read.ordinal];
@@ -1058,6 +1123,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal void publish(LlvmScopedOwnerSlot slot, uint[] state, bool strict) throws LlvmError {
 		foreach (var read in owner_read_channels) {
 			if (read.cell == owner_cells[slot.cell]) {
@@ -1074,6 +1140,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	private HashTable<string, LlvmScopedOwnerSlot> addresses = new HashTable<string, LlvmScopedOwnerSlot> (str_hash, str_equal);
 	private LlvmScopedFieldContract? fields;
 	private HashTable<void*, LlvmScopedHeapChoice> heap_choices = new HashTable<void*, LlvmScopedHeapChoice> (direct_hash, direct_equal);
@@ -1090,6 +1157,7 @@ private class LlvmScopedOwnerStorage : Object {
 		choice_offset = offset;
 		active_storage_offset = storage_offset;
 	}
+
 	private LlvmScopedHeapCarrier? selected_heap(CApi.ValueRef value) {
 		var direct = heap_roots.lookup ((void*) value);
 		if (direct != null) {
@@ -1106,6 +1174,7 @@ private class LlvmScopedOwnerStorage : Object {
 		var heap = heaps[(int) selected - 1];
 		return choice.alternatives.find (heap) ? heap : null;
 	}
+
 	private GenericArray<LlvmScopedHeapCarrier>? candidates(CApi.ValueRef value) {
 		var direct = heap_roots.lookup ((void*) value);
 		if (direct != null) {
@@ -1116,6 +1185,7 @@ private class LlvmScopedOwnerStorage : Object {
 		var choice = heap_choices.lookup ((void*) value);
 		return choice == null ? null : choice.alternatives;
 	}
+
 	private LlvmScopedExceptionShape? common_exception(GenericArray<LlvmScopedHeapCarrier> options) {
 		var base_shape = options[0].empty_base_shape ?? options[0].exception_shape;
 		if (base_shape == null) {
@@ -1128,20 +1198,24 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return base_shape;
 	}
+
 	internal bool error_view(CApi.ValueRef value, LlvmScopedExceptionShape shape) {
 		var options = candidates (value);
 		var view = options == null ? null : common_exception (options);
 		return view != null && view.same (shape);
 	}
+
 	private CApi.TypeRef choice_layout(CApi.ValueRef value, LlvmScopedHeapCarrier heap) {
 		var options = candidates (value);
 		var base_shape = options == null ? null : common_exception (options);
 		return heap_choices.contains ((void*) value) && base_shape != null ? base_shape.layout : heap.layout;
 	}
+
 	private LlvmScopedHeapCarrier? shape_heap(CApi.ValueRef value) {
 		var options = candidates (value);
 		return options == null || options.length == 0 ? null : options[0];
 	}
+
 	private bool aliases_into(CApi.ValueRef value, CApi.ValueRef user) {
 		var source = candidates (value);
 		var target = candidates (user);
@@ -1155,10 +1229,12 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return true;
 	}
+
 	internal bool choice_null(CApi.ValueRef value) {
 		var choice = heap_choices.lookup ((void*) value);
 		return choice != null && active_state != null && active_state[choice_offset + choice.ordinal] == 0;
 	}
+
 	// Origin facts are ordinals, not bit masks: 0 is null, MAX is unproved.
 	// They participate in the state key and must never join with bitwise OR.
 	private uint chosen(CApi.ValueRef value, uint[] state, int offset) {
@@ -1173,6 +1249,7 @@ private class LlvmScopedOwnerStorage : Object {
 		uint position = 0;
 		return heap != null && heaps.find (heap, out position) ? position + 1 : uint.MAX;
 	}
+
 	internal void choice_phi_edge(CApi.BasicBlockRef block, CApi.BasicBlockRef prior, uint[] state, int offset) {
 		var selected = new uint[choices.length];
 		for (int c = 0; c < choices.length; c++) {
@@ -1193,6 +1270,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal void choice_select(CApi.ValueRef value, int condition, uint[] state, int offset) {
 		var choice = heap_choices.lookup ((void*) value);
 		if (choice == null || CApi.opcode (value) != CApi.Opcode.SELECT) {
@@ -1202,6 +1280,7 @@ private class LlvmScopedOwnerStorage : Object {
 		uint right = chosen (CApi.operand (value, 2), state, offset);
 		state[offset + choice.ordinal] = condition == 1 ? left : condition == 0 ? right : left == right ? left : uint.MAX;
 	}
+
 	internal void verify_choice_use(CApi.ValueRef instruction) throws LlvmError {
 		var opcode = CApi.opcode (instruction);
 		if (opcode == CApi.Opcode.PHI || opcode == CApi.Opcode.SELECT) {
@@ -1221,29 +1300,36 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	private HashTable<void*, LlvmScopedHeapCarrier> heap_roots = new HashTable<void*, LlvmScopedHeapCarrier> (direct_hash, direct_equal);
 	private HashTable<void*, bool> handle_aliases = new HashTable<void*, bool> (direct_hash, direct_equal);
 	internal bool handle_alias(CApi.ValueRef value) {
 		return handle_aliases.contains ((void*) value);
 	}
+
 	internal GenericArray<LlvmScopedHeapCarrier> heaps = new GenericArray<LlvmScopedHeapCarrier> ();
 	internal GenericArray<LlvmScopedOwnerSlot> slots = new GenericArray<LlvmScopedOwnerSlot> ();
 	internal void admit(LlvmScopedFieldContract fields) {
 		this.fields = fields;
 	}
+
 	private string field_key(string path) {
 		return "%p".printf ((void*) fields.receiver) + path;
 	}
+
 	internal LlvmScopedOwnerSlot? field_slot(string path) {
 		return current_slot (addresses.lookup (field_key (path)));
 	}
+
 	internal LlvmScopedOwnerSlot? result_field(CApi.ValueRef root, int member, string? path = null) {
 		var heap = selected_heap (root);
 		return current_slot (addresses.lookup ("%p".printf ((void*) (heap == null ? root : heap.root)) + (path ?? "/" + member.to_string ())));
 	}
+
 	internal bool is_heap_root(CApi.ValueRef value, LlvmScopedHeapCarrier heap) {
 		return selected_heap (value) == heap;
 	}
+
 	private bool common_shape(GenericArray<LlvmScopedHeapCarrier> options) {
 		if (common_exception (options) != null) {
 			return true;
@@ -1255,6 +1341,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return true;
 	}
+
 	private LlvmScopedHeapSlot? private_heap_slot(CApi.ValueRef address) throws LlvmError {
 		var known = heap_slots.lookup ((void*) address);
 		if (known != null) {
@@ -1302,6 +1389,7 @@ private class LlvmScopedOwnerStorage : Object {
 		heap_slots.insert ((void*) address, slot);
 		return slot;
 	}
+
 	private LlvmScopedHeapSlot? private_frame_slot(int field) throws LlvmError {
 		var known = frame_channels.lookup (field);
 		if (known != null) {
@@ -1360,6 +1448,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return slot;
 	}
+
 	internal void initialize_frame_origins(uint[] state, int offset) {
 		foreach (var slot in heap_channels) {
 			if (slot.frame_field >= 0) {
@@ -1367,9 +1456,11 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal bool frame_origin_field(int field) {
 		return frame_channels.contains (field);
 	}
+
 	internal bool retained_heap(LlvmScopedHeapCarrier heap, uint[] state, int frame_offset, int offset) {
 		foreach (int field in frame_heaps.get_keys ()) {
 			if (frame_heaps.lookup (field) == heap && state[frame_offset + field] == 2) {
@@ -1387,6 +1478,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return false;
 	}
+
 	private bool bind_heap_load(CApi.ValueRef value) throws LlvmError {
 		if (heap_choices.contains ((void*) value) || CApi.type_kind (CApi.type_of (value)) != CApi.TypeKind.POINTER || CApi.get_volatile (value) != 0 || CApi.get_ordering (value) != 0) {
 			return false;
@@ -1405,12 +1497,15 @@ private class LlvmScopedOwnerStorage : Object {
 		heap_choices.insert ((void*) value, choice);
 		return true;
 	}
+
 	internal bool checked_pointer_store(CApi.ValueRef store) {
 		return heap_slot_store (store);
 	}
+
 	private bool heap_slot_store(CApi.ValueRef store) {
 		return CApi.opcode (store) == CApi.Opcode.STORE && heap_slots.contains ((void*) CApi.operand (store, 1));
 	}
+
 	internal void heap_slot_effect(CApi.ValueRef instruction, uint[] state, int offset, bool strict) throws LlvmError {
 		var opcode = CApi.opcode (instruction);
 		if (opcode == CApi.Opcode.ALLOCA) {
@@ -1441,6 +1536,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal bool bind_heap_alias(CApi.ValueRef value) throws LlvmError {
 		if (CApi.opcode (value) == CApi.Opcode.LOAD) {
 			return bind_heap_load (value);
@@ -1491,6 +1587,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return true;
 	}
+
 	internal void verify_heap_phi_edge(CApi.BasicBlockRef target, CApi.BasicBlockRef prior, uint[] state, int heap_offset) throws LlvmError {
 		for (var instruction = CApi.first_instruction (target); (void*) instruction != null && CApi.opcode (instruction) == CApi.Opcode.PHI; instruction = CApi.next_instruction (instruction)) {
 			var heap = heap_roots.lookup ((void*) instruction);
@@ -1509,6 +1606,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal void verify_exception(LlvmScopedHeapCarrier heap, CApi.ValueRef publication) throws LlvmError {
 		if (heap.exception_shape == null) {
 			throw new LlvmError.VERIFICATION ("scoped exception lost its physical descriptor shape");
@@ -1525,6 +1623,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		heap.exception_shape.verify_roots (roots, publication);
 	}
+
 	internal bool known_destructor(CApi.ValueRef value) {
 		foreach (var choice in choices) {
 			var heap = choice.alternatives[0];
@@ -1540,6 +1639,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return false;
 	}
+
 	internal GenericArray<LlvmScopedHeapCarrier> bind_observed_error(CApi.ValueRef read, LlvmScopedOwnedInputs shape, GenericArray<LlvmScopedOwnedInputs> empty) {
 		var options = new GenericArray<LlvmScopedHeapCarrier> ();
 		var original = LlvmScopedHeapCarrier.from_error_call (read, shape);
@@ -1561,6 +1661,7 @@ private class LlvmScopedOwnerStorage : Object {
 		heap_choices.insert ((void*) read, choice);
 		return options;
 	}
+
 	internal void invalidate_heap_origin(LlvmScopedHeapCarrier heap, uint[] state, int offset) {
 		uint position = 0;
 		assert (heaps.find (heap, out position));
@@ -1570,32 +1671,38 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 	internal void select_observed_error(CApi.ValueRef read, LlvmScopedHeapCarrier? heap, uint[] state, int offset) {
 		uint position = 0;
 		state[offset + heap_choices.lookup ((void*) read).ordinal] = heap != null && heaps.find (heap, out position) ? position + 1 : 0;
 	}
+
 	internal LlvmScopedOwnerSlot bind_empty_error_field(CApi.ValueRef root, int member) {
 		var slot = new LlvmScopedOwnerSlot (root, root, -1, -1);
 		add_slot ("%p/%d".printf ((void*) root, member), slot);
 		return slot;
 	}
+
 	internal LlvmScopedHeapCarrier bind_error_root(CApi.ValueRef call, LlvmScopedOwnedInputs contract) {
 		var heap = LlvmScopedHeapCarrier.from_error_call (call, contract);
 		heap_roots.insert ((void*) call, heap);
 		heaps.add (heap);
 		return heap;
 	}
+
 	internal LlvmScopedOwnerSlot bind_error_field(CApi.ValueRef call, int member, uint source_position, LlvmScopedPointer pointer, ref int owner_count) {
 		var slot = new LlvmScopedOwnerSlot (call, call, pointer.allocation, owner_count++);
 		slot.source_position = source_position;
 		add_slot ("%p/%d".printf ((void*) call, member), slot);
 		return slot;
 	}
+
 	internal void seed_field(string path, int allocation) {
 		var slot = new LlvmScopedOwnerSlot ((CApi.ValueRef) null, fields.receiver, allocation, allocation);
 		slot.entry_live = true;
 		add_slot (field_key (path), slot);
 	}
+
 	private string? address(CApi.ValueRef value, out CApi.ValueRef root, out CApi.TypeRef type) {
 		root = (CApi.ValueRef) null;
 		type = (CApi.TypeRef) null;
@@ -1644,16 +1751,19 @@ private class LlvmScopedOwnerStorage : Object {
 		type = CApi.struct_type_at_index (type, (uint) member);
 		return key + "/" + member.to_string ();
 	}
+
 	internal LlvmScopedOwnerSlot? lookup(CApi.ValueRef value) {
 		CApi.ValueRef root;
 		CApi.TypeRef type;
 		var key = address (value, out root, out type);
 		return key == null ? null : current_slot (addresses.lookup (key));
 	}
+
 	internal bool exception_header(CApi.ValueRef address) {
 		var heap = heap_owner (address);
 		return heap != null && heap.exception_shape != null && heap.exception_shape.member (address, CApi.operand (address, 0)) >= 0;
 	}
+
 	internal LlvmScopedHeapCarrier? admit_heap(CApi.ValueRef root, LlvmScopedFieldContract fields) throws LlvmError {
 		var prior = heap_roots.lookup ((void*) root);
 		if (prior != null) {
@@ -1670,16 +1780,19 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return heap;
 	}
+
 	private LlvmScopedHeapCarrier? shape_owner(CApi.ValueRef value) {
 		CApi.ValueRef root;
 		CApi.TypeRef type;
 		return address (value, out root, out type) == null ? null : shape_heap (root);
 	}
+
 	internal LlvmScopedHeapCarrier? heap_owner(CApi.ValueRef value) {
 		CApi.ValueRef root;
 		CApi.TypeRef type;
 		return address (value, out root, out type) == null ? null : selected_heap (root);
 	}
+
 	internal void graph_input(CApi.ValueRef call, CApi.ValueRef input, LlvmScopedOwnerGraph graph, bool forwarding, bool complete = false) throws LlvmError {
 		var heap = heap_owner (input);
 		if (heap == null && !complete) {
@@ -1697,6 +1810,7 @@ private class LlvmScopedOwnerStorage : Object {
 			heap_roots.insert ((void*) call, heap);
 		}
 	}
+
 	internal CApi.ValueRef receiver_root(CApi.ValueRef call, LlvmScopedBorrowBinding contract) throws LlvmError {
 		CApi.ValueRef root;
 		CApi.TypeRef type;
@@ -1715,6 +1829,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return (CApi.ValueRef) null;
 	}
+
 	internal bool bind(CApi.ValueRef store, LlvmScopedPointer pointer, ref int owner_count) throws LlvmError {
 		CApi.ValueRef root;
 		CApi.TypeRef type;
@@ -1733,16 +1848,19 @@ private class LlvmScopedOwnerStorage : Object {
 		add_slot (key, slot);
 		return true;
 	}
+
 	private string? call_key(CApi.ValueRef call, LlvmScopedFieldContract fields, int field, out CApi.ValueRef root) {
 		CApi.TypeRef type;
 		var key = address (CApi.operand (call, 0), out root, out type);
 		return key == null || (void*) type != (void*) fields.layout ? null : key + fields.path (field);
 	}
+
 	internal LlvmScopedOwnerSlot? call_slot(CApi.ValueRef call, LlvmScopedFieldContract fields, int field) {
 		CApi.ValueRef root;
 		var key = call_key (call, fields, field, out root);
 		return key == null ? null : current_slot (addresses.lookup (key));
 	}
+
 	private LlvmAsyncFrameBinding? coroutine;
 	private HashTable<void*, bool> frame_heap_aliases = new HashTable<void*, bool> (direct_hash, direct_equal);
 	private HashTable<int, LlvmScopedHeapCarrier> frame_heaps = new HashTable<int, LlvmScopedHeapCarrier> (direct_hash, direct_equal);
@@ -1786,12 +1904,15 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		} while (changed);
 	}
+
 	internal LlvmScopedHeapCarrier? frame_heap(int field) {
 		return frame_heaps.lookup (field);
 	}
+
 	internal bool frame_heap_store(CApi.ValueRef store, LlvmScopedHeapCarrier heap) {
 		return coroutine != null && CApi.opcode (store) == CApi.Opcode.STORE && frame_heaps.lookup (coroutine.lifetime_field (CApi.operand (store, 1))) == heap;
 	}
+
 	private LlvmScopedHeapCarrier? resolve_frame_heap(CApi.ValueRef value, LlvmScopedFieldContract fields, HashTable<void*, bool> active) throws LlvmError {
 		var known = heap_roots.lookup ((void*) value);
 		if (known != null) {
@@ -1838,6 +1959,7 @@ private class LlvmScopedOwnerStorage : Object {
 		heap_roots.insert ((void*) value, found);
 		return found;
 	}
+
 	// Discover actual frame cells receiving an original checked-empty
 	// allocation. Their null/value accesses still require full cell proof.
 	private bool empty_frame_origins(CApi.ValueRef root) {
@@ -1882,6 +2004,7 @@ private class LlvmScopedOwnerStorage : Object {
 		} while (changed);
 		return added;
 	}
+
 	internal bool bind_empty_error(CApi.ValueRef call, LlvmScopedOwnedInputs contract) throws LlvmError {
 		if (!contract.empty_constructor_call (call)) {
 			return false;
@@ -1910,6 +2033,7 @@ private class LlvmScopedOwnerStorage : Object {
 		bool origins = heap != null && (void*) CApi.operand (call, 0) == (void*) heap.root && empty_frame_origins (heap.root);
 		return origins || heap_roots.size () + frame_heaps.size () != prior;
 	}
+
 	internal bool bind_frame_heap_alias(CApi.ValueRef value) throws LlvmError {
 		if (coroutine == null) {
 			return false;
@@ -1952,6 +2076,7 @@ private class LlvmScopedOwnerStorage : Object {
 		frame_heap_aliases.insert ((void*) value, true);
 		return true;
 	}
+
 	internal bool bind_call(CApi.ValueRef call, LlvmScopedFieldContract fields, int field, LlvmScopedPointer? pointer, ref int owner_count) throws LlvmError {
 		CApi.ValueRef existing;
 		CApi.TypeRef physical;
@@ -1987,6 +2112,7 @@ private class LlvmScopedOwnerStorage : Object {
 		add_slot (key, slot);
 		return true;
 	}
+
 	internal bool checked_destructor(LlvmScopedHeapCarrier heap, CApi.ValueRef call, CApi.ValueRef root, HashTable<void*, LlvmScopedOwnedInputs>? contracts) throws LlvmError {
 		if (heap.exception_shape == null || !heap.exception_shape.destructor_call (call, root)) {
 			return false;
@@ -2002,6 +2128,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return true;
 	}
+
 	private bool empty_payload_address(CApi.ValueRef value) {
 		CApi.ValueRef root;
 		CApi.TypeRef type;
@@ -2019,6 +2146,7 @@ private class LlvmScopedOwnerStorage : Object {
 		}
 		return false;
 	}
+
 	internal void verify_addresses(HashTable<void*, LlvmScopedOwnedInputs>? contracts, HashTable<void*, LlvmScopedBorrowBinding>? borrows, LlvmScopedOwnedInputs? output, LlvmScopedFreshResult? fresh_output) throws LlvmError {
 		var roots = new HashTable<void*, bool> (direct_hash, direct_equal);
 		foreach (var slot in slots) {
@@ -2189,6 +2317,7 @@ private class LlvmScopedOwnerStorage : Object {
 			}
 		}
 	}
+
 }
 // Reconstruct local scoped allocation obligations from actual IR. No upstream
 // owner graph, lowering event inventory or mutable artifact snapshot is used.
@@ -2228,6 +2357,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 	private int frame_field(CApi.ValueRef address) {
 		return coroutine == null ? -1 : coroutine.lifetime_field (address);
 	}
+
 	private int heap_choice_offset;
 	private int host_error_offset;
 	private GenericArray<LlvmScopedHostError> host_errors = new GenericArray<LlvmScopedHostError> ();
@@ -2299,6 +2429,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		this.consuming = consuming;
 		owned_inputs = coroutine == null ? consuming == null ? null : consuming.lookup ((void*) function) : coroutine.scoped_captures;
 	}
+
 	private static string callee(CApi.ValueRef call) {
 		var target = CApi.called_value (call);
 		if ((void*) CApi.is_function (target) == null) {
@@ -2307,6 +2438,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		size_t length;
 		return CApi.value_name (target, out length);
 	}
+
 	private static void provider(CApi.ValueRef call, string role) throws LlvmError {
 		var context = CApi.type_context (CApi.type_of (call));
 		var pointer = CApi.pointer_type_in_context (context, 0);
@@ -2327,12 +2459,15 @@ internal class LlvmScopedAllocationVerifier : Object {
 			throw new LlvmError.VERIFICATION ("scoped lifetime operation lost its exact external runtime ABI");
 		}
 	}
+
 	private static bool number(CApi.ValueRef value, uint64 expected) {
 		return (void*) CApi.is_constant_int (value) != null && CApi.const_int_zext (value) == expected;
 	}
+
 	private static bool null_pointer(CApi.ValueRef value) {
 		return (void*) CApi.is_constant_pointer_null (value) != null;
 	}
+
 	private static bool empty_join(CApi.ValueRef value, HashTable<void*, bool> active) {
 		if (null_pointer (value)) {
 			return true;
@@ -2353,9 +2488,11 @@ internal class LlvmScopedAllocationVerifier : Object {
 		active.remove ((void*) value);
 		return empty;
 	}
+
 	private LlvmScopedPointer? pointer(CApi.ValueRef value) {
 		return storage.owner_read_pointer (value) ?? pointers.lookup ((void*) value);
 	}
+
 	internal static void verify(CApi.ModuleRef module, HashTable<void*, LlvmScopedBorrowBinding>? borrows = null, HashTable<void*, LlvmScopedContextInputs>? inputs = null, HashTable<void*, LlvmScopedOwnedInputs>? consuming = null, HashTable<void*, LlvmScopedClassLoans>? class_callees = null, HashTable<void*, LlvmScopedFreshResult>? fresh_callees = null, HashTable<void*, LlvmScopedTaskFrame>? task_frames = null, GenericArray<LlvmAsyncFrameBinding>? coroutines = null, HashTable<void*, LlvmScopedCapturedTask>? captured_tasks = null) throws LlvmError {
 		// A mode-3 descriptor may enter only an original registered cold factory.
 		// Reconstruct membership from LLVM uses so deleting a sidecar is not a bypass.
@@ -2407,6 +2544,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			new LlvmScopedAllocationVerifier (function, borrows, inputs == null ? null : inputs.lookup ((void*) function), consuming, inputs, class_callees, fresh_callees, task_frames, frame, captured_tasks).analyze ();
 		}
 	}
+
 	private void inventory() throws LlvmError {
 		if (fresh_result != null) {
 			fresh_result.verify_signature ();
@@ -2612,6 +2750,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private bool checked_alias(CApi.ValueRef call, LlvmScopedOwnedInputs contract) throws LlvmError {
 		if (contract.checked_success && contract.aggregate_fields != 0) {
 			return checked_record_alias (call, contract);
@@ -2650,6 +2789,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		checked_slots.insert ((void*) slot, channel);
 		return true;
 	}
+
 	private bool checked_record_alias(CApi.ValueRef call, LlvmScopedOwnedInputs contract) throws LlvmError {
 		var channel = checked_calls.lookup ((void*) call);
 		bool changed = false;
@@ -2706,6 +2846,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return changed;
 	}
+
 	private bool error_alias(CApi.ValueRef call, LlvmScopedOwnedInputs contract) throws LlvmError {
 		if (contract.error_count == 0 || error_calls.contains ((void*) call)) {
 			return false;
@@ -2743,6 +2884,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		error_calls.insert ((void*) call, channel);
 		return true;
 	}
+
 	// A null task result means either original absence or callee retirement.
 	// It never proves that the original backing allocation is still live.
 	private uint frame_null_mask(LlvmScopedPointer pointer) {
@@ -2755,6 +2897,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return 1;
 	}
+
 	private bool bind_host_error(CApi.ValueRef call) throws LlvmError {
 		if (host_error_calls.contains ((void*) call) || callee (call) != "astra_async_run" || CApi.argument_count (call) != 3) {
 			return false;
@@ -2821,6 +2964,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		host_error_reads.insert ((void*) read, observer);
 		return true;
 	}
+
 	private bool bind_wait_error(CApi.ValueRef call) throws LlvmError {
 		if (coroutine == null || host_error_calls.contains ((void*) call) || callee (call) != "astra_async_exception" || CApi.argument_count (call) != 1) {
 			return false;
@@ -2860,6 +3004,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		host_error_calls.insert ((void*) call, observer);
 		return true;
 	}
+
 	private bool wait_error_bound(LlvmScopedHeldTask task) {
 		foreach (var observer in host_errors) {
 			if (observer.asynchronous && observer.task == task) {
@@ -2868,6 +3013,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return false;
 	}
+
 	private bool wait_error_owner(LlvmScopedHeldTask task, LlvmScopedPointer held, uint[] state) {
 		foreach (var observer in host_errors) {
 			if (!observer.asynchronous || observer.task != task || state[observed_offset + task.ordinal] != 2) {
@@ -2886,10 +3032,12 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return false;
 	}
+
 	private int host_error_phase(LlvmScopedHostError observer, uint[] state) {
 		uint mode = state[host_error_offset + observer.ordinal];
 		return mode == 1 ? -1 : mode == 2 ? 5 : mode == 3 ? 7 : mode >= 4 && mode < 4 + observer.alternatives.length ? 6 : mode >= 4 + observer.alternatives.length ? -(int) (mode - (3 + observer.alternatives.length) + 1) : 0;
 	}
+
 	private int host_error_condition(CApi.ValueRef condition, uint[] state) {
 		if ((void*) CApi.is_instruction (condition) == null || CApi.opcode (condition) != CApi.Opcode.ICMP) {
 			return -1;
@@ -2907,6 +3055,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			default: return -1;
 		}
 	}
+
 	private void host_error_fork(CApi.ValueRef instruction, uint[] state, GenericArray<LlvmScopedWork> pending) {
 		var observer = host_error_calls.lookup ((void*) instruction);
 		if (observer == null) {
@@ -2921,6 +3070,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		state[host_error_offset + observer.ordinal] = first;
 	}
+
 	private void host_error_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		var observer = host_error_reads.lookup ((void*) instruction);
 		if (observer != null) {
@@ -2995,6 +3145,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			storage.select_observed_error (observer.read, observer.alternatives[(int) mode - 4], state, heap_choice_offset);
 		}
 	}
+
 	private void aliases() throws LlvmError {
 		if (coroutine != null) {
 			storage.admit_coroutine (coroutine);
@@ -3657,6 +3808,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	// A restore SELECT can be null while its original allocation is owned by
 	// a carrier. Resolve only exact physical conditions; null transport never
 	// discharges that separate allocation or its current owner handle.
@@ -3773,6 +3925,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return empty < 0 ? -1 : CApi.predicate (condition) == CApi.IntPredicate.EQ ? empty : 1 - empty;
 	}
+
 	private CApi.ValueRef selected_value(CApi.ValueRef value, uint[] state) {
 		if (storage.choice_null (value)) {
 			return CApi.const_null (CApi.type_of (value));
@@ -3816,6 +3969,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		int condition = known_condition (CApi.operand (value, 0), state);
 		return condition < 0 ? value : selected_value (CApi.operand (value, condition == 1 ? 1 : 2), state);
 	}
+
 	// A loop may revisit a nullable publication after an older generation
 	// retired. Use this edge's incoming null alternative, not the union of
 	// all predecessor generations accumulated by correlate_null.
@@ -3829,6 +3983,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return null_lifetimes.lookup ((void*) value);
 	}
+
 	private void select_pointer_phis(CApi.BasicBlockRef target, CApi.BasicBlockRef prior, uint[] state) {
 		uint[] previous = state.copy ();
 		// Short-circuit boolean PHIs retain the exact incoming edge's truth.
@@ -3858,6 +4013,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private bool null_record_input(CApi.ValueRef value, HashTable<void*, bool> seen) {
 		if (null_pointer (value)) {
 			return true;
@@ -3887,6 +4043,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return null_record_input (CApi.operand (call, contract.physical_position (contract.result_slot (field))), seen);
 	}
+
 	private bool fresh_return(CApi.ValueRef value, LlvmScopedPointer? alias, uint[] state) throws LlvmError {
 		if (fresh_result == null || alias == null || !alias.root) {
 			return false;
@@ -3900,6 +4057,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return fresh_result.matches ((CApi.ValueRef) contexts[alias.allocation], (CApi.ValueRef) tags[alias.allocation], (CApi.ValueRef) counts[alias.allocation], (CApi.ValueRef) sizes[alias.allocation], (CApi.ValueRef) alignments[alias.allocation]);
 	}
+
 	private bool absent_graph_call(CApi.ValueRef call, uint position, uint[] state) throws LlvmError {
 		if (consuming == null || CApi.opcode (call) != CApi.Opcode.CALL) {
 			return false;
@@ -3950,6 +4108,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		owner_transport (CApi.operand (instruction, position), state);
 		return true;
 	}
+
 	private bool held_wait(CApi.ValueRef call, uint position) throws LlvmError {
 		if (coroutine == null || position != 1) {
 			return false;
@@ -3963,6 +4122,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return false;
 	}
+
 	private static void observed_abi(CApi.ValueRef call, bool phase) throws LlvmError {
 		var context = CApi.type_context (CApi.type_of (call));
 		var pointer = CApi.pointer_type_in_context (context, 0);
@@ -3974,6 +4134,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			throw new LlvmError.VERIFICATION ("scoped child observation lost its exact external runtime ABI");
 		}
 	}
+
 	// The typed read acquires the original f0 owners only on an admitted
 	// successful observation. release_wait must then transfer that payload.
 	private void result_observation(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
@@ -4019,6 +4180,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		state[observed_offset + task.ordinal] = 2;
 	}
+
 	private void child_phase_edge(CApi.ValueRef end, uint successor, uint[] state, bool strict) throws LlvmError {
 		if (CApi.opcode (end) != CApi.Opcode.SWITCH) {
 			return;
@@ -4038,6 +4200,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		uint value = successor == 0 ? 0U : (uint) CApi.const_int_zext (CApi.switch_case_value (end, successor));
 		state[phase_offset + task.ordinal] = value == 5 || value == 6 || value == 7 ? value : 0;
 	}
+
 	private void retire_held(LlvmScopedHeldTask task, uint[] state, bool strict, bool observed_result = false) throws LlvmError {
 		if (strict && state[held_offset + task.ordinal] != 2 && state[held_offset + task.ordinal] != 8) {
 			throw new LlvmError.VERIFICATION ("scoped task retirement lacks its actual held obligation");
@@ -4066,6 +4229,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[owner_offset + owner.owner] = 4;
 		}
 	}
+
 	private void transfer_held(LlvmScopedHeldTask task, uint[] state, bool strict) throws LlvmError {
 		foreach (int position in task.owners.get_keys ()) {
 			var source = pointer (CApi.operand (task.call, (uint) position));
@@ -4081,6 +4245,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[owner_offset + held.owner] = 2;
 		}
 	}
+
 	private void held_edge(CApi.ValueRef end, uint successor, uint[] state, bool strict) throws LlvmError {
 		if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
 			return;
@@ -4134,6 +4299,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void held_use(CApi.ValueRef instruction, uint[] state) throws LlvmError {
 		var opcode = CApi.opcode (instruction);
 		for (uint p = 0; p < CApi.operand_count (instruction); p++) {
@@ -4210,6 +4376,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void held_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		var task = held_aliases.lookup ((void*) instruction);
 		if (task != null && (void*) task.call == (void*) instruction) {
@@ -4277,6 +4444,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void empty_error_effect(CApi.ValueRef call, uint[] state, bool strict) throws LlvmError {
 		if (CApi.opcode (call) != CApi.Opcode.CALL || consuming == null || CApi.argument_count (call) == 0) {
 			return;
@@ -4306,6 +4474,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		storage.verify_exception (heap, call);
 		state[empty_heap_offset + (int) h] = 2;
 	}
+
 	private bool deferred_publication(CApi.ValueRef call, CApi.ValueRef value) throws LlvmError {
 		if (coroutine == null || deferred_error == null || !LlvmScopedHeapCarrier.named_call (call, "astra_async_complete") || CApi.argument_count (call) != 3 || (void*) CApi.operand (call, 0) != (void*) coroutine.task || !number (CApi.operand (call, 1), 6) || (void*) CApi.operand (call, 2) != (void*) value) {
 			return false;
@@ -4323,6 +4492,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		var heap = storage.heap_owner (value);
 		return heap != null && storage.is_heap_root (value, heap) && heap.exception_shape != null && (heap.exception_shape.same (owned_inputs.error_shape) || heap.empty_base_shape != null && heap.empty_base_shape.same (owned_inputs.error_shape));
 	}
+
 	private void deferred_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (deferred_error == null || CApi.opcode (instruction) != CApi.Opcode.CALL) {
 			return;
@@ -4411,6 +4581,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		state[deferred_offset] = 2;
 		state[deferred_empty_offset] = empty_payload ? 2U : 1U;
 	}
+
 	private void deferred_edge(CApi.ValueRef end, uint successor, uint[] state) throws LlvmError {
 		if (deferred_error == null || CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
 			return;
@@ -4444,6 +4615,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[owner_offset + slot.owner] = 4;
 		}
 	}
+
 	private void result_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (result_shape == null) {
 			return;
@@ -4492,6 +4664,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void result_return(CApi.ValueRef end, uint[] state) throws LlvmError {
 		if (result_shape == null || CApi.opcode (end) != CApi.Opcode.RET || (void*) CApi.block_parent (CApi.instruction_parent (end)) != (void*) coroutine.destroy) {
 			return;
@@ -4509,6 +4682,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[result_offset + f] = 4;
 		}
 	}
+
 	private int pointer_presence(CApi.ValueRef value, uint[] state) {
 		value = selected_value (value, state);
 		if (null_pointer (value)) {
@@ -4536,6 +4710,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return 0;
 	}
+
 	private void frame_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (coroutine == null) {
 			return;
@@ -4623,6 +4798,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void frame_boundary(CApi.ValueRef end, uint[] state) throws LlvmError {
 		if (coroutine == null || CApi.opcode (end) != CApi.Opcode.RET || (void*) CApi.block_parent (CApi.instruction_parent (end)) == (void*) coroutine.destroy) {
 			return;
@@ -4702,6 +4878,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void use(CApi.ValueRef instruction, uint[] state) throws LlvmError {
 		held_use (instruction, state);
 		var opcode = CApi.opcode (instruction);
@@ -4954,10 +5131,12 @@ internal class LlvmScopedAllocationVerifier : Object {
 			throw new LlvmError.VERIFICATION ("emitted scoped pointer transport requires its exact ownership effect (caller=%s, value=%s, instruction=%s, opcode=%d, callee=%s)", CApi.value_name (function, out length), CApi.value_name (operand, out length), CApi.value_name (instruction, out length), (int) opcode, opcode == CApi.Opcode.CALL ? callee (instruction) : "");
 		}
 	}
+
 	private LlvmScopedOwnerGraph? graph_obligation(int allocation) {
 		var fresh = fresh_graphs.lookup (allocation);
 		return fresh ?? (owned_inputs == null ? null : owned_inputs.input_graph (allocation));
 	}
+
 	private bool formal_graph(CApi.ValueRef value, LlvmScopedOwnerGraph graph, uint[] state, bool consume = false) throws LlvmError {
 		var alias = pointer (value);
 		var original = alias == null ? null : graph_obligation (alias.allocation);
@@ -4972,6 +5151,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return true;
 	}
+
 	private void verify_graph(CApi.ValueRef value, LlvmScopedOwnerGraph graph, uint[] state, HashTable<int, bool> seen) throws LlvmError {
 		if (formal_graph (value, graph, state)) {
 			return;
@@ -5002,6 +5182,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void verify_result_contexts(CApi.ValueRef value, LlvmScopedOwnerGraph graph, uint[] state, HashTable<int, bool> seen) throws LlvmError {
 		var root = pointer (value);
 		if (root == null || !root.root || seen.contains (root.allocation)) {
@@ -5040,9 +5221,11 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void consume_graph(CApi.ValueRef call, LlvmScopedOwnedInputs contract, uint[] state) throws LlvmError {
 		consume_graph_value (CApi.operand (call, contract.graph_parameter), contract.owner_graph, state, new HashTable<int, bool> (direct_hash, direct_equal));
 	}
+
 	private void consume_graph_value(CApi.ValueRef value, LlvmScopedOwnerGraph graph, uint[] state, HashTable<int, bool> seen) throws LlvmError {
 		if (formal_graph (value, graph, state, true)) {
 			return;
@@ -5115,6 +5298,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return true;
 	}
+
 	// A null PHI/select may discard a still-live allocation. Its null edge can
 	// discharge the obligation only when actual incoming paths prove absence.
 	private bool correlate_null(CApi.ValueRef instruction, uint[] state, GenericArray<LlvmScopedState> outputs) {
@@ -5190,6 +5374,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		null_lifetimes.insert ((void*) instruction, mask);
 		return true;
 	}
+
 	private void checked_read(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (CApi.opcode (instruction) != CApi.Opcode.LOAD) {
 			return;
@@ -5211,6 +5396,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[owner_offset + channel.owner] = 2;
 		}
 	}
+
 	private void checked_effect(CApi.ValueRef instruction, LlvmScopedOwnedInputs contract, uint[] state, bool strict) throws LlvmError {
 		var channel = checked_calls.lookup ((void*) instruction);
 		if (channel == null) {
@@ -5236,6 +5422,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		state[owner_offset + channel.owner] = 1;
 		state[flag] = 2;
 	}
+
 	private void checked_record_effect(CApi.ValueRef call, LlvmScopedOwnedInputs contract, LlvmScopedCheckedCall channel, uint[] state, bool strict) throws LlvmError {
 		int flag = call_offset + channel.ordinal;
 		bool live = state[flag] == 2 || state[flag] == 4;
@@ -5264,6 +5451,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		state[flag] = 2;
 	}
+
 	private bool checked_edge(CApi.ValueRef end, uint successor, uint[] state) {
 		if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
 			return true;
@@ -5297,9 +5485,11 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return success ? state[flag] == 4 || state[flag] == 16 : state[flag] == 8;
 	}
+
 	private static bool no_live_allocation(uint value) {
 		return value != 0 && (value & ~5U) == 0;
 	}
+
 	private bool empty_error_call(CApi.ValueRef call, LlvmScopedOwnedInputs contract) throws LlvmError {
 		if (contract.error_count == 0) {
 			return false;
@@ -5311,6 +5501,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return contract.empty_error_call (call, true);
 	}
+
 	private void error_effect(CApi.ValueRef call, LlvmScopedOwnedInputs contract, uint[] state, bool strict) throws LlvmError {
 		var channel = error_calls.lookup ((void*) call);
 		if (channel == null) {
@@ -5361,6 +5552,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		state[flag] = 2;
 	}
+
 	private bool error_edge(CApi.ValueRef end, uint successor, uint[] state) {
 		if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
 			return true;
@@ -5391,9 +5583,11 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return true;
 	}
+
 	private bool success_store(CApi.ValueRef instruction) {
 		return owned_inputs != null && owned_inputs.checked_success && CApi.opcode (instruction) == CApi.Opcode.STORE && (void*) CApi.operand (instruction, 1) == (void*) owned_inputs.success_slot ();
 	}
+
 	private void record_success_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (strict && state[success_offset] != 1) {
 			throw new LlvmError.VERIFICATION ("checked scoped record success was published more than once");
@@ -5425,6 +5619,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		state[success_offset] = 2;
 	}
+
 	private void record_checked_return(CApi.ValueRef end, uint[] state) throws LlvmError {
 		bool success = null_pointer (selected_value (CApi.operand (end, 0), state));
 		if (success ? state[success_offset] != 2 : state[success_offset] != 1) {
@@ -5446,6 +5641,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	private void success_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (!success_store (instruction)) {
 			return;
@@ -5480,6 +5676,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		state[owner_offset + alias.owner] = 4;
 		state[success_offset] = 2;
 	}
+
 	private void transfer_return(CApi.ValueRef end, uint[] state) throws LlvmError {
 		if (fresh_result != null) {
 			if (CApi.operand_count (end) != 1) {
@@ -5604,6 +5801,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		state[allocation] = 4;
 		state[owner_offset + alias.owner] = 4;
 	}
+
 	private void transfer_exception(CApi.ValueRef end, uint[] state) throws LlvmError {
 		var value = CApi.operand (end, 0);
 		var heap = storage.heap_owner (value);
@@ -5650,6 +5848,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		state[heap_offset + (int) h] = 4;
 	}
+
 	private void mutate_fields(CApi.ValueRef call, LlvmScopedOwnedInputs contract, uint[] state, bool strict) throws LlvmError {
 		contract.field_call (call);
 		var fields = contract.fields;
@@ -5726,6 +5925,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 
 	}
+
 	private void field_call(CApi.ValueRef call, LlvmScopedOwnedInputs contract, uint[] state, bool strict, bool indirect = false) throws LlvmError {
 		var fields = contract.fields;
 		if (fields == null) {
@@ -5848,6 +6048,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[owner_offset + slot.owner] = 2;
 		}
 	}
+
 	private void constructor_error_edge(CApi.ValueRef end, uint successor, uint[] state, bool strict) throws LlvmError {
 		if (consuming == null || CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
 			return;
@@ -5888,6 +6089,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			state[index] = 8;
 		}
 	}
+
 	private void heap_effect(CApi.ValueRef instruction, uint[] state, bool strict) throws LlvmError {
 		if (strict) {
 			storage.verify_choice_use (instruction);
@@ -5957,6 +6159,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 			}
 		}
 	}
+
 	// Preserve field/allocation correlations across nullable backing alternatives.
 	// Other facts still join monotonically within the same backing state.
 	private string state_key(uint[] values) {
@@ -6025,6 +6228,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 		}
 		return key.str;
 	}
+
 	private void analyze() throws LlvmError {
 		inventory ();
 		if (allocations.length == 0 && inputs == null && !has_record_calls && !has_class_calls && result_shape == null && !(owned_inputs != null && owned_inputs.fields != null && owned_inputs.fields.publishes)) {
@@ -6551,5 +6755,6 @@ internal class LlvmScopedAllocationVerifier : Object {
 			} while (changed);
 		}
 	}
+
 }
 }

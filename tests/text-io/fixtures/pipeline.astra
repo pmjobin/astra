@@ -1,15 +1,19 @@
 [CCode (cname = "unfamiliar_reader", cheader_filename = "opaque/not-opened.h", text_abi = "utf8-i32")]
 extern(C) int inspect(int tag, borrowed string a, f32 scale, borrowed string b, f64 wide, void* token);
+
 const LABEL = "é\0😀";
 string label() { return LABEL; }
+
 int forward(string x, string y) {
 	var copy = x;
 	int result = inspect(7, copy, 1.5, y, 2.5d, null);
-	if (copy != x || x.byte_length != copy.byte_length) { return 99; }
+	if (copy != x || x.byte_length != copy.byte_length) return 99;
 	return result;
 }
+
 int generic<T>(T x) {
 	var text = label();
 	return forward(text, text);
 }
+
 int main() { return generic(1); }

@@ -1,46 +1,61 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct MethodReading { int value; bool ready; }
+
 struct MethodEnvelope<Value> { Value value; i64 stamp; }
+
 class MethodOwner { init() {} }
+
 class MethodPort<Value, Label> {
 	Value payload;
 	Label label;
 	int calls;
+
 	init(Value payload, Label label) { this.payload = payload; this.label = label; this.calls = 0; }
+
 	Result choose<Result>(Result value) { this.calls = this.calls + 1; return value; }
+
 	Result choose_two<Result, Spare>(Spare spare, Result value) { this.calls = this.calls + 2; return value; }
+
 	Result ordered<Result>(Result value) where Result : Ordered { this.calls = this.calls + 3; return value; }
+
 	int constant<Unused>() { this.calls = this.calls + 4; return 73; }
 }
+
 Result choose_open<Value, Label, Result>(borrowed MethodPort<Value, Label> port, Result value) {
 	return port.choose<Result>(value);
 }
+
 Result choose_closed<Result>(borrowed MethodPort<int, bool> port, Result value) { return port.choose<Result>(value); }
+
 Result relay_choice<Value, Label, Result>(borrowed MethodPort<Value, Label> port, Result value) {
 	return choose_open(port, value);
 }
+
 Result choose_two_open<Value, Label, Result, Spare>(borrowed MethodPort<Value, Label> port, Spare spare, Result value) {
 	return port.choose_two<Result, Spare>(spare, value);
 }
+
 Result choose_ordered<Value, Label, Result>(borrowed MethodPort<Value, Label> port, Result value)
 where Result : Ordered { return port.ordered<Result>(value); }
+
 int constant_open<Value, Unused>(borrowed MethodPort<Value, bool> port)
 where Unused : Ownable { return port.constant<Unused>(); }
+
 int main() {
 	var first = new MethodPort<int, bool>(42, true);
-	if (choose_open(first, 41) != 41 || !choose_closed(first, true)) { return 1; }
+	if (choose_open(first, 41) != 41 || !choose_closed(first, true)) return 1;
 	MethodReading reading = {value = 73, ready = true};
 	MethodReading observed = relay_choice(first, reading);
-	if (observed.value != 73 || !observed.ready || reading.value != 73) { return 2; }
+	if (observed.value != 73 || !observed.ready || reading.value != 73) return 2;
 	i64 wide = 9000000001;
 	MethodEnvelope<MethodReading> envelope = {value = reading, stamp = wide};
 	MethodEnvelope<MethodReading> copied = choose_two_open(first, false, envelope);
-	if (copied.value.value != 73 || !copied.value.ready || copied.stamp != wide) { return 3; }
-	if (choose_ordered(first, wide) != wide || constant_open<int, MethodOwner>(first) != 73) { return 4; }
-	if (first.calls != 12 || first.payload != 42 || !first.label) { return 5; }
+	if (copied.value.value != 73 || !copied.value.ready || copied.stamp != wide) return 3;
+	if (choose_ordered(first, wide) != wide || constant_open<int, MethodOwner>(first) != 73) return 4;
+	if (first.calls != 12 || first.payload != 42 || !first.label) return 5;
 	var second = new MethodPort<MethodReading, i64>(reading, wide);
 	MethodReading next = choose_two_open(second, 42, reading);
-	if (next.value != 73 || !next.ready || second.calls != 2 || first.calls != 12) { return 6; }
-	if (choose_open(second, wide) != wide || second.calls != 3 || second.label != wide) { return 7; }
+	if (next.value != 73 || !next.ready || second.calls != 2 || first.calls != 12) return 6;
+	if (choose_open(second, wide) != wide || second.calls != 3 || second.label != wide) return 7;
 	return 0;
 }

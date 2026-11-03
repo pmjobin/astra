@@ -77,9 +77,11 @@ private void verify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/ssa/independent-cross-file-exact-call-identities", verify);
 	return Test.run ();
 }
+
 }

@@ -7,32 +7,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 struct Slots {
 	void **base;
 	int32_t length, capacity;
 };
+
 struct Message {
 	const unsigned char *bytes;
 	int32_t length;
 };
+
 struct Diagnostic {
 	int32_t tag;
 	struct Message *message;
 };
+
 _Static_assert(sizeof(struct Slots) == 16 && offsetof(struct Slots, length) == 8 && offsetof(struct Slots, capacity) == 12, "qualified descriptor");
 _Static_assert(sizeof(struct Message) == 16 && offsetof(struct Diagnostic, message) == 8, "exact element layout");
+
 enum Role { OTHER,
 	        BAG,
 	        BACKING,
 	        ELEMENT,
 	        CHILD,
 	        PAYLOAD };
+
 struct Allocation {
 	void *pointer;
 	size_t count, stride;
 	enum Role role;
 	bool live, retiring;
 };
+
 struct Element {
 	void *pointer;
 	struct Message *message;
@@ -42,6 +49,7 @@ struct Element {
 	int kind, bag;
 	bool retiring, freed;
 };
+
 struct Bag {
 	struct Slots *pointer;
 	void **backing;
@@ -55,9 +63,11 @@ static int allocation_count, element_count, bag_count, borrows;
 void *__real_malloc(size_t);
 void *__real_calloc(size_t, size_t);
 void __real_free(void *);
+
 static void flush(void) {
 	fflush(stdout);
 }
+
 static int allocation(void *pointer) {
 	if (!pointer) return 0;
 	for (int i = allocation_count; i; --i)
@@ -65,12 +75,14 @@ static int allocation(void *pointer) {
 	assert(!"not an actual live allocation");
 	return 0;
 }
+
 static int bag(struct Slots *pointer) {
 	for (int i = bag_count; i; --i)
 		if (bags[i].pointer == pointer && !bags[i].dropped) return i;
 	assert(!"unknown live bag");
 	return 0;
 }
+
 static void role(void *pointer, enum Role value) {
 	if (pointer) {
 		int a = allocation(pointer);
@@ -78,6 +90,7 @@ static void role(void *pointer, enum Role value) {
 		allocations[a].role = value;
 	}
 }
+
 static void stable(int e) {
 	struct Element *p = &elements[e];
 	assert(!p->freed && allocation(p->pointer) && allocation(p->message));
@@ -89,6 +102,7 @@ static void stable(int e) {
 	if (p->bytes) assert(allocation((void *)p->bytes));
 	assert(!p->length || !memcmp(p->snapshot, p->bytes, (size_t)p->length));
 }
+
 static void *record(void *pointer, size_t count, size_t stride) {
 	assert(pointer && allocation_count + 1 < 512);
 	int a = ++allocation_count;
@@ -97,9 +111,11 @@ static void *record(void *pointer, size_t count, size_t stride) {
 	flush();
 	return pointer;
 }
+
 void *__wrap_malloc(size_t bytes) {
 	return record(__real_malloc(bytes), 1, bytes);
 }
+
 void *__wrap_calloc(size_t count, size_t stride) {
 	if (count == 3 && stride == sizeof(void *) && getenv("GEN_BAG_FAIL_GROW")) {
 		puts("OOM growth");
@@ -108,6 +124,7 @@ void *__wrap_calloc(size_t count, size_t stride) {
 	}
 	return record(__real_calloc(count, stride), count, stride);
 }
+
 void __wrap_free(void *pointer) {
 	if (!pointer) {
 		__real_free(pointer);
@@ -148,6 +165,7 @@ void __wrap_free(void *pointer) {
 	flush();
 	__real_free(pointer);
 }
+
 void bag_obs_init(int kind, struct Slots *pointer) {
 	assert((kind == 1 || kind == 2) && bag_count + 1 < 16 && !pointer->base && !pointer->length && !pointer->capacity);
 	int b = ++bag_count;
@@ -156,6 +174,7 @@ void bag_obs_init(int kind, struct Slots *pointer) {
 	printf("B%d kind=%d object=%d\n", b, kind, allocation(pointer));
 	flush();
 }
+
 void bag_obs_append(int kind, struct Slots *pointer, void *incoming) {
 	int b = bag(pointer);
 	struct Bag *p = &bags[b];
@@ -176,6 +195,7 @@ void bag_obs_append(int kind, struct Slots *pointer, void *incoming) {
 	printf("P%d index=%d element=%d kind=%d object=%d message=%d bytes=%d\n", b, p->length - 1, e, kind, allocation(incoming), allocation(message), allocation((void *)message->bytes));
 	flush();
 }
+
 void bag_obs_commit(int kind, struct Slots *pointer, void **old, void **replacement, int32_t length, int32_t capacity) {
 	int b = bag(pointer);
 	struct Bag *p = &bags[b];
@@ -198,6 +218,7 @@ void bag_obs_commit(int kind, struct Slots *pointer, void **old, void **replacem
 	p->backing = replacement;
 	p->capacity = capacity;
 }
+
 void bag_obs_borrow(int kind, struct Slots *pointer, int32_t index, void *element) {
 	int b = bag(pointer);
 	struct Bag *p = &bags[b];
@@ -207,6 +228,7 @@ void bag_obs_borrow(int kind, struct Slots *pointer, int32_t index, void *elemen
 	printf("V%d index=%d element=%d\n", b, index, p->elements[index]);
 	flush();
 }
+
 void bag_obs_drop_begin(int kind, struct Slots *pointer) {
 	int b = bag(pointer);
 	struct Bag *p = &bags[b];
@@ -216,6 +238,7 @@ void bag_obs_drop_begin(int kind, struct Slots *pointer) {
 	printf("D%d kind=%d len=%d\n", b, kind, p->length);
 	flush();
 }
+
 void bag_obs_retire(int kind, struct Slots *pointer, int32_t index, void *element) {
 	int b = bag(pointer);
 	struct Bag *p = &bags[b];
@@ -228,6 +251,7 @@ void bag_obs_retire(int kind, struct Slots *pointer, int32_t index, void *elemen
 	printf("R%d kind=%d index=%d element=%d\n", b, kind, index, e);
 	flush();
 }
+
 void bag_obs_drop_done(int kind, struct Slots *pointer) {
 	int b = bag(pointer);
 	struct Bag *p = &bags[b];
@@ -239,6 +263,7 @@ void bag_obs_drop_done(int kind, struct Slots *pointer) {
 	printf("Z%d\n", b);
 	flush();
 }
+
 void bag_obs_done(void) {
 	int growth = 0;
 	for (int b = 1; b <= bag_count; b++) {

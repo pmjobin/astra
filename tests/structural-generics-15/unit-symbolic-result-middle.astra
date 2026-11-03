@@ -3,38 +3,48 @@ namespace GenericFactoryTransport;
 internal owned Value apply<Value>(Fn<owned Value, int> factory, int number) where Value:Ownable {
 	return factory(number);
 }
+
 internal owned Value relay<Value>(int number, Fn<owned Value, int> factory) where Value:Ownable {
 	return apply<Value>(factory, number);
 }
+
 internal class FactoryField<Value, Label> where Value:Ownable {
 	private Fn<owned Value, int> factory;
 	private Label label;
+
 	init(Fn<owned Value, int> factory, Label label) { this.factory = factory; this.label = label; }
+
 	owned Value create(int number) {
 		Fn<owned Value, int> code = this.factory;
 		var result = code(number);
 		return move result;
 	}
 }
+
 Fn<owned R, int> resource_factory() { return NativeGenericFactory.resource_factory(); }
+
 owned R resource(Fn<owned R, int> factory, int number) {
 	var result = relay<R>(number, factory);
 	return move result;
 }
+
 owned Other other(int number) {
 	var result = apply<Other>(NativeGenericFactory.other_factory(), number);
 	return move result;
 }
+
 owned NativeGenericFactory.Ticket<int, bool> ticket(int number) {
 	var field = new FactoryField<NativeGenericFactory.Ticket<int, bool>, bool>(NativeGenericFactory.ticket_factory(), true);
 	var result = field.create(number);
 	return move result;
 }
+
 owned NativeGenericFactory.Ticket<int, bool> direct_ticket(int number) {
 	Fn<owned NativeGenericFactory.Ticket<int, bool>, int> factory = NativeGenericFactory.ticket_factory();
 	var result = relay<NativeGenericFactory.Ticket<int, bool>>(number, factory);
 	return move result;
 }
+
 owned NativeGenericFactory.Ticket<int, bool> inferred_ticket(int number) {
 	Fn<owned NativeGenericFactory.Ticket<int, bool>, int> factory = NativeGenericFactory.ticket_factory();
 	var result = apply(factory, number);

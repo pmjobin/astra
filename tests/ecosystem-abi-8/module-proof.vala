@@ -19,6 +19,7 @@ private SsaProgram source() throws GLib.Error {
 	assert (CfgFlowChecker.check (cfg).diagnostic == null);
 	return SsaBuilder.build (cfg);
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message;
 	int failed = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -27,6 +28,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 	}
 	assert (failed == 0);
 }
+
 private void rejected(LlvmModuleArtifact artifact) {
 	bool refused = false;
 	try {
@@ -37,6 +39,7 @@ private void rejected(LlvmModuleArtifact artifact) {
 	}
 	assert (refused);
 }
+
 private void imports() {
 	try {
 		var ssa = source ();
@@ -87,6 +90,7 @@ private void imports() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void exports() {
 	try {
 		var ssa = source ();
@@ -109,6 +113,7 @@ private void exports() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_correspondence() {
 	try {
 		string text;
@@ -191,6 +196,7 @@ private void record_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_correspondence() {
 	try {
 		var files = new GenericArray<SourceFile> ();
@@ -261,6 +267,7 @@ private void generic_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void declaration_binding() {
 	try {
 		var producer = source ();
@@ -321,4 +328,5 @@ public int main(string[] args) {
 	Test.add_func ("/native-modules/declaration-requires-exact-import-binding", declaration_binding);
 	return Test.run ();
 }
+
 }

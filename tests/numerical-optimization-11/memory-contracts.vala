@@ -19,6 +19,7 @@ private CheckedProgram check() {
 	}
 	return result.program;
 }
+
 private void checked_contract() {
 	try {
 		var source = check();
@@ -37,6 +38,7 @@ private void checked_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void core_contract() {
 	try {
 		CheckedProgram? source = check();
@@ -59,6 +61,7 @@ private void core_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		CoreProgram? source = CoreBuilder.build(check());
@@ -104,6 +107,7 @@ private void cfg_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void ssa_contract() {
 	try {
 		CfgProgram? source = CfgBuilder.build(CoreBuilder.build(check()));
@@ -148,6 +152,7 @@ private void ssa_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void native_contract() {
 	try {
 		SsaProgram? source = SsaBuilder.build(CfgBuilder.build(CoreBuilder.build(check())));
@@ -182,6 +187,7 @@ private void native_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void reject_llvm(LlvmModuleArtifact artifact) {
 	bool rejected = false;
 	try{
@@ -192,6 +198,7 @@ private void reject_llvm(LlvmModuleArtifact artifact) {
 	}
 	assert(rejected);
 }
+
 private void llvm_contract() {
 	try {
 		SsaProgram? source = SsaBuilder.build(CfgBuilder.build(CoreBuilder.build(check())));
@@ -234,6 +241,7 @@ private void llvm_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 public static int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/vector-memory/checked", checked_contract);
@@ -244,4 +252,5 @@ public static int main(string[] args) {
 	Test.add_func("/vector-memory/llvm-detached", llvm_contract);
 	return Test.run();
 }
+
 }

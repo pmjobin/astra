@@ -14,6 +14,7 @@
 typedef struct Frame {
 	int identity;
 } Frame;
+
 static AstraAsyncTask *probe;
 static const AstraAsyncFrameAllocator *original;
 static _Atomic int fail_header, destroyed, entered;
@@ -22,6 +23,7 @@ static long home;
 static _Atomic long worker;
 
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (atomic_exchange(&fail_header, 0)) {
 		errno = ENOMEM;
@@ -29,31 +31,37 @@ void *__wrap_calloc(size_t count, size_t size) {
 	}
 	return __real_calloc(count, size);
 }
+
 static void no_resume(AstraAsyncTask *task) {
 	(void)task;
 	assert(0);
 }
+
 static void no_destroy(AstraAsyncTask *task, int discard) {
 	(void)task;
 	assert(discard);
 }
+
 static void *allocate(void *context, size_t size, size_t alignment) {
 	assert(astra_async_phase(probe) == ASTRA_ASYNC_NEW);
 	++attempts;
 	return original->allocate(context, size, alignment);
 }
+
 static void release(void *context, void *frame) {
 	assert(astra_async_phase(probe) == ASTRA_ASYNC_NEW);
 	assert(astra_context17_origin(frame, UINT64_C(0x6173747261667231)) == context);
 	original->release(context, frame);
 	++released;
 }
+
 static void destroy(AstraAsyncTask *task, int discard) {
 	(void)discard;
 	Frame *frame = astra_async_data(task);
 	assert(frame->identity == 17 || frame->identity == 19 || frame->identity == 23);
 	atomic_fetch_add(&destroyed, 1);
 }
+
 static void resume(AstraAsyncTask *task) {
 	Frame *frame = astra_async_data(task);
 	assert(frame->identity == 19 || frame->identity == 23);
@@ -67,6 +75,7 @@ static void resume(AstraAsyncTask *task) {
 	atomic_fetch_add(&entered, 1);
 	astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 int main(void) {
 	home = syscall(SYS_gettid);
 	probe = astra_async_new(8, 8, no_resume, no_destroy, NULL);

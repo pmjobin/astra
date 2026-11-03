@@ -9,6 +9,7 @@ namespace Astra.Tests.CAbiFp {
 private SsaProgram build(string source, string declarations = "") throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check (source, declarations))));
 }
+
 private void profiles() throws GLib.Error {
 	foreach (string source in new string[] {"extern(C) void f(f32 x);", "extern(C) f32 f();", "extern(C) f32 f(f32 a,f64 b);", "export(C) f32 f(f32 x){return x;}", "extern(C) void f(f64 x);", "extern(C) f64 f();", "extern(C) f64 f(f64 a,f64 b);", "extern(C) int f(int a,f64 b,void* p);", "export(C) f64 f(f64 x){return x;}"}) {
 		var ssa = build (source);
@@ -34,6 +35,7 @@ private void profiles() throws GLib.Error {
 	var vapi = build ("f64 f(f64 x){return echo(x);}", "double echo(double x);");
 	assert (CAbiBuilder.build (vapi, NativeAbiBuilder.build (vapi)).functions[0].signature.result.scalar_type == CAbiScalarType.F64);
 }
+
 private void lifetime() throws GLib.Error {
 	foreach (string width in new string[] {"f32", "f64"}) {
 		string spelling = width == "f32" ? "float" : "double";
@@ -73,6 +75,7 @@ private void lifetime() throws GLib.Error {
 		assert (cabi.profile == CAbiProfile.SCALAR_FP_V2 && nabi.abi_version == (width == "f32" ? NativeAbiVersion.SCALAR_FP_V3 : NativeAbiVersion.FP64_V6));
 	}
 }
+
 private void malformed() throws GLib.Error {
 	// Each structurally valid plan still has to match its exact SSA channel.
 	for (int mode = 0; mode < 3; mode++) {
@@ -109,6 +112,7 @@ private void malformed() throws GLib.Error {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -119,4 +123,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

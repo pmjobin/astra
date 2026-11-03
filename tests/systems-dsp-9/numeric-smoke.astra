@@ -2,7 +2,9 @@
 f64<2> filter(f64<2> input, f64<2> gain, f64<2> bias) {
 	return input * gain + bias;
 }
+
 void store(f64<2>* destination, f64<2> value) { *destination = value; }
+
 int main() {
 	f64<2> input = {1.25, -2.5};
 	f64<2> gain = {2.0, 4.0};
@@ -10,13 +12,13 @@ int main() {
 	f64<2> result = filter(input, gain, bias);
 	f64<2> memory = {0.0, 0.0};
 	store(&memory, result);
-	if (memory[0] != 3.0 || memory[1] != -9.0) { return 1; }
+	if (memory[0] != 3.0 || memory[1] != -9.0) return 1;
 	i64<2> maximum = {9223372036854775807, -9223372036854775808};
 	i64<2> delta = {1, -1};
-	if (!all(sat_add(maximum, delta) == maximum)) { return 2; }
+	if (!all(sat_add(maximum, delta) == maximum)) return 2;
 	u64<2> unsigned_maximum = {18446744073709551615, 0};
 	u64<2> unsigned_delta = {1, 1};
 	u64<2> expected = {18446744073709551615, 1};
-	if (!all(sat_add(unsigned_maximum, unsigned_delta) == expected)) { return 3; }
+	if (!all(sat_add(unsigned_maximum, unsigned_delta) == expected)) return 3;
 	return 0;
 }

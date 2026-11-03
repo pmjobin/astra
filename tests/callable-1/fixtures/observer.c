@@ -13,14 +13,17 @@ static void *allocations[32];
 static int live[32], allocated, observed, seed_value, flag_value;
 static uint32_t expected_small;
 static uint64_t expected_large;
+
 struct bits {
 	float single;
 	double wide;
 };
+
 struct state {
 	int count;
 	struct bits bits;
 };
+
 struct environment {
 	struct state state;
 	int *buffer;
@@ -36,6 +39,7 @@ void *__wrap_calloc(size_t count, size_t size) {
 	printf("A%d:%zu:%zu:%p\n", allocated, count, size, pointer);
 	return pointer;
 }
+
 void __wrap_free(void *pointer) {
 	int id = 0;
 	for (int i = 1; i <= allocated; i++) {
@@ -55,6 +59,7 @@ void __wrap_free(void *pointer) {
 	printf("F%d\n", id);
 	__real_free(pointer);
 }
+
 void observe_state(int count, float single, double wide, int buffer) {
 	uint32_t small;
 	uint64_t large;
@@ -75,9 +80,11 @@ void observe_state(int count, float single, double wide, int buffer) {
 	environment->state.count = -123456;
 	printf("S%d:%d:%d:%08x:%016llx:%p\n", id, count, buffer, small, (unsigned long long)large, (void *)environment);
 }
+
 void observe_int(int value) {
 	printf("I:%d\n", value);
 }
+
 int main(int argc, char **argv) {
 	assert(argc == 3);
 	flag_value = atoi(argv[1]);

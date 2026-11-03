@@ -1,32 +1,47 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 interface Transform { int invoke(int input); }
+
 class Add : Transform {
 	int amount;
+
 	init(int amount) : base() { this.amount = amount; }
+
 	override int invoke(int input) { return input + this.amount; }
 }
+
 struct Point { int x; int y; }
+
 int count(nonnull Vector<Point> values) { return values.count(); }
+
 int apply(borrowed nonnull Transform transform, int value) { return transform(value); }
+
 int increment(int value) { return value + 1; }
+
 nonnull Fn<int,int> select_code() { return increment; }
+
 int apply_function(nonnull Fn<int,int> function, int value) { return function(value); }
+
 owned nonnull Vector<Point> create() { var values = new Vector<Point>(0); return move values; }
+
 class Repository {
 	owned nonnull Vector<Point> values;
+
 	init(owned nonnull Vector<Point> values) { this.values = move values; }
+
 	property borrowed nonnull Vector<Point> view { get { return this.values; } }
 }
+
 int guarded(Vector<Point> values, borrowed Transform transform, nonnull Fn<int,int> function) {
-	if (values == null || transform == null) { return 0; }
+	if (values == null || transform == null) return 0;
 	return count(values) + apply(transform, 10) + apply_function(function, 7);
 }
+
 int main() {
 	var values = create();
 	var transform = new Add(5);
 	nonnull Fn<int,int> function = select_code();
-	if (guarded(values, transform, function) != 23) { return 81; }
+	if (guarded(values, transform, function) != 23) return 81;
 	var repository = new Repository(move values);
-	if (count(repository.view) != 0) { return 82; }
+	if (count(repository.view) != 0) return 82;
 	return 0;
 }

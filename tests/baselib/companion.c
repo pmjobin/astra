@@ -12,6 +12,7 @@
 int32_t test_integer(int32_t type, int32_t row, int32_t column) {
 	return integer_cases[type][row][column];
 }
+
 int32_t test_integer_count(void) {
 	return INTEGER_COUNT;
 }
@@ -59,12 +60,14 @@ int32_t test_mark(int32_t value) {
 	fflush(stdout);
 	return value;
 }
+
 float test_nan32(void) {
 	uint32_t bits = UINT32_C(0xffc0005b);
 	float value;
 	memcpy(&value, &bits, sizeof(value));
 	return value;
 }
+
 double test_nan64(void) {
 	uint64_t bits = UINT64_C(0xfff800000000005b);
 	double value;
@@ -77,6 +80,7 @@ struct test_resource {
 	int live;
 };
 static struct test_resource test_slot;
+
 void *test_acquire(int32_t id) {
 	if (test_slot.live) {
 		abort();
@@ -86,6 +90,7 @@ void *test_acquire(int32_t id) {
 	test_mark(id);
 	return &test_slot;
 }
+
 void test_release(void *address) {
 	if (address != &test_slot || !test_slot.live) {
 		abort();
@@ -96,10 +101,12 @@ void test_release(void *address) {
 
 void *__real_calloc(size_t count, size_t width);
 void __real_free(void *pointer);
+
 void *__wrap_calloc(size_t count, size_t width) {
 	test_mark(90);
 	return __real_calloc(count, width);
 }
+
 void __wrap_free(void *pointer) {
 	test_mark(-90);
 	__real_free(pointer);

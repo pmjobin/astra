@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 enum Message { Ready(owned Utf8Message text, owned u8[] bytes), Empty }
+
 Message relay(Message message) { return move message; }
+
 owned Utf8Message extract(Message message) {
 	match (move message) {
 		case Message.Ready(text, _): { return move text; }
 		case Message.Empty(): { var empty = new Utf8Message(""); return move empty; }
 	}
 }
+
 int main() {
 	owned u8[] bytes = new u8[5];
 	bytes[0] = 195; bytes[1] = 169; bytes[2] = 116; bytes[3] = 195; bytes[4] = 169;
@@ -15,7 +18,7 @@ int main() {
 		var state = Message.Ready(move text, move bytes);
 		state = relay(move state);
 		var extracted = extract(move state);
-		if (extracted.text != "été" || extracted.text.byte_length != 5) { return 71; }
+		if (extracted.text != "été" || extracted.text.byte_length != 5) return 71;
 		mark(extracted.text.byte_length);
 		release extracted;
 		owned u8[] invalid = new u8[1]; invalid[0] = 255;

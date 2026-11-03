@@ -46,10 +46,12 @@ typedef struct {
 	guint64 astra_field_4_stamp;
 	gfloat astra_field_5_weight;
 } Provider16Sample;
+
 typedef struct {
 	gdouble astra_field_0_first;
 	gint astra_field_1_second;
 } Provider16Pair;
+
 GType provider16_sample_get_type(void);
 Provider16Sample *provider16_sample_copy(const Provider16Sample *);
 void provider16_sample_free(Provider16Sample *);

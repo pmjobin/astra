@@ -106,4 +106,5 @@ public int main(string[] args) {
 	Test.add_func ("/concurrency/atomic-order-scope-alignment-and-restore", atomics);
 	return Test.run ();
 }
+
 }

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 export(C)int orbit16_import_provider(void* unknown){try{
 		var query=IOrbitQuery16.init(unknown);var metadata=IOrbitMetadata16.init(unknown);
-		if(metadata.requests!=0 || !metadata.enabled || metadata.bias!=0.0){return 1;}
-		if(metadata.population(7)!=(49 as u64)){return 8;}metadata.bias=1.0;OrbitCore16.Probe input={boost=0.5,ceiling=12.0,minimum=4,cap=0,mask=7,lowest=true};
-		var answer=query.scan(input);if(answer.code!=1004 || answer.score!=7.5 || answer.matches!=2 || !answer.found || answer.visited!=9){return 2;}
-		var item=query.entry_for(input);if(item==null || item.code!=1004 || item.score!=7.5 || metadata.requests!=2){return 3;}
-		input.mask=0;var missing=query.entry_for(input);if(missing!=null || metadata.requests!=3){return 4;}
+		if(metadata.requests!=0 || !metadata.enabled || metadata.bias!=0.0) return 1;
+		if(metadata.population(7)!=(49 as u64)) return 8;metadata.bias=1.0;OrbitCore16.Probe input={boost=0.5,ceiling=12.0,minimum=4,cap=0,mask=7,lowest=true};
+		var answer=query.scan(input);if(answer.code!=1004 || answer.score!=7.5 || answer.matches!=2 || !answer.found || answer.visited!=9) return 2;
+		var item=query.entry_for(input);if(item==null || item.code!=1004 || item.score!=7.5 || metadata.requests!=2) return 3;
+		input.mask=0;var missing=query.entry_for(input);if(missing!=null || metadata.requests!=3) return 4;
 		metadata.enabled=false;try{var ignored=query.scan(input);return 5;}catch(OrbitCore16.Fault fault){}
-		metadata.enabled=true;if(metadata.requests!=3){return 6;}
-		release query;release metadata;if(item.code!=1004 || item.score!=7.5){return 7;}
+		metadata.enabled=true;if(metadata.requests!=3) return 6;
+		release query;release metadata;if(item.code!=1004 || item.score!=7.5) return 7;
 	}catch(OrbitCore16.Fault fault){return 90;}return 0;}

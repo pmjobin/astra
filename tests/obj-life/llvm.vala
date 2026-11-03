@@ -9,6 +9,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void storage_authority() {
 	try {
 		foreach (var name in new string[] { "alias", "null-rebind", "rebind", "return", "order", "loop", "empty", "slice", "owned" }) {
@@ -49,9 +50,11 @@ private void storage_authority() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/llvm/direct-void-lifecycle-storage-targets-and-stage-release", storage_authority);
 	return Test.run ();
 }
+
 }

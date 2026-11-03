@@ -1,9 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-class C { int value; init(int n) { this.value = n; } deinit() { mark(this.value); } void draw() { this.value = this.value + 1; } }
+class C { int value;
+
+	init(int n) { this.value = n; }
+
+	deinit() { mark(this.value); }
+
+	void draw() { this.value = this.value + 1; } }
+
 owned C make(int n) { return C.init(n); }
+
 int inspect(borrowed C value) { value.draw(); return value.value; }
+
 int main() {
 	var image = make(7);
-	if (inspect(image) != 8 || inspect(image) != 9 || image.value != 9) { return 1; }
+	if (inspect(image) != 8 || inspect(image) != 9 || image.value != 9) return 1;
 	return 0;
 }

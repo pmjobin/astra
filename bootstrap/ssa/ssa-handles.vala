@@ -27,5 +27,6 @@ public class SsaHandle : SsaNode {
 		this.ordinal = ordinal;
 		this.context_contract = context_mode;
 	}
+
 }
 }

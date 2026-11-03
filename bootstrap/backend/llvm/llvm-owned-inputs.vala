@@ -71,6 +71,7 @@ internal class LlvmScopedRecordInputs : Object {
 		}
 		return true;
 	}
+
 }
 
 // Presence discovery follows copied native owning declarations only. It never
@@ -82,12 +83,14 @@ private class LlvmScopedGraphInventory : Object {
 	internal LlvmScopedGraphInventory (NativeAbiProgram program) {
 		this.program = program;
 	}
+
 	internal void add_class(int ordinal) throws LlvmError {
 		if (ordinal < 0 || ordinal >= program.classes.length) {
 			throw new LlvmError.INVALID_INPUT ("scoped graph lost its exact native Class origin");
 		}
 		classes.add (program.classes[ordinal]);
 	}
+
 	private void add_fields(NativeClassPlan owner) throws LlvmError {
 		foreach (var field in owner.fields) {
 			if (field.owned_class_ordinal >= 0) {
@@ -104,6 +107,7 @@ private class LlvmScopedGraphInventory : Object {
 			}
 		}
 	}
+
 	internal void add_value_class(int ordinal) throws LlvmError {
 		// Caller-provided Class storage does not use the Class heap allocator.
 		// Its owned fields still retain their actual heap/context authority.
@@ -136,6 +140,7 @@ private class LlvmScopedGraphInventory : Object {
 			}
 		}
 	}
+
 	private void add_name(string name) throws LlvmError {
 		foreach (var owner in program.classes) {
 			if (owner.name == name) {
@@ -145,9 +150,11 @@ private class LlvmScopedGraphInventory : Object {
 		}
 		throw new LlvmError.INVALID_INPUT ("scoped graph lost its exact retained Class declaration");
 	}
+
 	internal void add_record(NativeStructValuePlan record) {
 		records.add (record);
 	}
+
 	private void add_record_ordinal(int ordinal) throws LlvmError {
 		bool found = false;
 		foreach (var record in program.struct_values) {
@@ -160,6 +167,7 @@ private class LlvmScopedGraphInventory : Object {
 			throw new LlvmError.INVALID_INPUT ("scoped graph lost its exact owning record declaration");
 		}
 	}
+
 	internal void add_buffer(NativeBufferValuePlan buffer) throws LlvmError {
 		if (buffer.record_element != null) {
 			if (!buffer.record_element.trivial_destruction) {
@@ -169,6 +177,7 @@ private class LlvmScopedGraphInventory : Object {
 			add_type (buffer.element_type);
 		}
 	}
+
 	internal void add_type(NativeAbiType? type) throws LlvmError {
 		var slots = type as NativeOwnerSlotsType;
 		if (slots != null) {
@@ -195,6 +204,7 @@ private class LlvmScopedGraphInventory : Object {
 			}
 		}
 	}
+
 	internal bool contains_scope() throws LlvmError {
 		var seen_classes = new HashTable<NativeClassPlan, bool> (direct_hash, direct_equal);
 		var seen_records = new HashTable<NativeStructValuePlan, bool> (direct_hash, direct_equal);
@@ -247,6 +257,7 @@ private class LlvmScopedGraphInventory : Object {
 		}
 		return false;
 	}
+
 }
 // An ordinary Class parameter may accompany a scoped input only when its
 // complete native owning graph proves that no scoped authority is hidden in it.
@@ -256,6 +267,7 @@ internal class LlvmScopedClassGraph : Object {
 		inventory.add_class (root.ordinal);
 		return inventory.contains_scope ();
 	}
+
 	internal static bool scope_free(NativeClassPlan root, GenericArray<NativeClassPlan> classes) {
 		var pending = new GenericArray<NativeClassPlan> ();
 		var seen = new HashTable<NativeClassPlan, bool> (direct_hash, direct_equal);
@@ -307,6 +319,7 @@ internal class LlvmScopedClassGraph : Object {
 		}
 		return true;
 	}
+
 	internal static bool value_scope_free(NativeClassPlan owner, GenericArray<NativeClassPlan> classes) {
 		// Caller-provided value storage ignores only the outer heap allocator.
 		// Unknown layouts and owning descendants still require their own proof.
@@ -333,6 +346,7 @@ internal class LlvmScopedClassGraph : Object {
 		}
 		return true;
 	}
+
 }
 // Inline owned records carry exact copied leaf/cleanup plans. Only ordinary
 // Class owners and numeric/vector copied data participate in this descriptor.
@@ -373,6 +387,7 @@ internal class LlvmScopedPlainRecords : Object {
 		}
 		return found.size () == plan.ownership.length ? result : null;
 	}
+
 	internal static bool scope_free(NativeClassField field, GenericArray<NativeClassPlan> classes) {
 		var children = children (field, classes);
 		if (children == null) {
@@ -385,6 +400,7 @@ internal class LlvmScopedPlainRecords : Object {
 		}
 		return true;
 	}
+
 	internal static GenericArray<int>? inputs(RuntimeLifetimeSummary summary, int field, NativeStructValuePlan plan, NativeSignature signature) throws RuntimeLifetimeError {
 		GenericArray<int>? found = null;
 		foreach (var group in signature.struct_parameters) {
@@ -425,6 +441,7 @@ internal class LlvmScopedPlainRecords : Object {
 		}
 		return found;
 	}
+
 }
 // Ordinary numeric/vector buffer contents carry no scoped owners. The full
 // owned PTR/I32 role and element descriptor remain mandatory at admission.
@@ -436,9 +453,11 @@ internal class LlvmScopedPlainBuffers : Object {
 		var scalar = plan.element_type as NativeScalarAbiType;
 		return scalar != null && plan.element_type.get_type () == typeof (NativeScalarAbiType) && scalar.scalar_type != NativeScalarType.PTR || plan.element_type is NativeVectorType;
 	}
+
 	internal static bool field(NativeClassField field) {
 		return field.owns_buffer && field.owned_class_ordinal < 0 && field.resource_owner == null && !field.text_snapshot && !field.owns_record && field.storage_type != null && field.storage_type.get_type () == typeof (NativeSliceType) && scope_free (field.buffer_value);
 	}
+
 	internal static NativeBufferValuePlan? parameter(NativeSignature signature, int position) {
 		foreach (var group in signature.buffer_parameters) {
 			if (group.first_leaf == position && scope_free (group.value_plan)) {
@@ -447,6 +466,7 @@ internal class LlvmScopedPlainBuffers : Object {
 		}
 		return null;
 	}
+
 	internal static bool groups(NativeSignature signature) {
 		var occupied = new HashTable<int, bool> (direct_hash, direct_equal);
 		foreach (var group in signature.buffer_parameters) {
@@ -464,6 +484,7 @@ internal class LlvmScopedPlainBuffers : Object {
 		}
 		return true;
 	}
+
 	internal static bool component(NativeSignature signature, int position) {
 		foreach (var group in signature.buffer_parameters) {
 			if (position == group.first_leaf || position == group.first_leaf + 1) {
@@ -472,6 +493,7 @@ internal class LlvmScopedPlainBuffers : Object {
 		}
 		return false;
 	}
+
 }
 // A copied physical projection. Every GEP retains its exact containing type,
 // bounded constant index and original receiver; no source place survives.
@@ -482,6 +504,7 @@ internal class LlvmScopedMemberPath : Object {
 			field
 		};
 	}
+
 	internal LlvmScopedMemberPath.record (int field, NativeRecordResource owner) throws LlvmError {
 		if (owner.depth < 1 || owner.depth > 255) {
 			throw new LlvmError.INVALID_INPUT ("scoped record field requires a bounded complete physical path");
@@ -517,9 +540,11 @@ internal class LlvmScopedMemberPath : Object {
 		}
 		return matches_depth (CApi.operand (value, 0), receiver, layout, depth - 1);
 	}
+
 	internal bool matches(CApi.ValueRef value, CApi.ValueRef receiver, CApi.TypeRef layout) {
 		return steps.length > 0 && steps.length <= 256 && matches_depth (value, receiver, layout, steps.length);
 	}
+
 }
 // Copied field effects of an exact native Class constructor/destructor. These
 // establish callee proofs; caller field transport needs its own loan tracking.
@@ -553,10 +578,12 @@ internal class LlvmScopedFieldContract : Object {
 	internal LlvmScopedOwnerGraph? graph(int field) {
 		return graphs[field];
 	}
+
 	internal uint count { get { return members.length; } }
 	internal string path(int field) {
 		return paths[field].key;
 	}
+
 	internal bool empty_exception {
 		get {
 			if (!constructor || exception_class < 0 || !default_backing || count == 0) {
@@ -575,12 +602,15 @@ internal class LlvmScopedFieldContract : Object {
 	internal bool empty_field(int field) {
 		return publishes && inputs[field] < 0;
 	}
+
 	internal int input(int field) {
 		return inputs[field];
 	}
+
 	internal int owner(int field) {
 		return owners[field];
 	}
+
 	private int path_index(LlvmScopedMemberPath path) {
 		for (int i = 0; i < paths.length; i++) {
 			if (paths[i].key == path.key) {
@@ -589,6 +619,7 @@ internal class LlvmScopedFieldContract : Object {
 		}
 		return -1;
 	}
+
 	private bool track(LlvmModuleArtifact artifact, NativeClassPlan child, int member, LlvmScopedMemberPath path, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs) throws LlvmError {
 		if (!child.allocation_policy_valid ()) {
 			return false;
@@ -614,6 +645,7 @@ internal class LlvmScopedFieldContract : Object {
 		inputs.add (-1);
 		return true;
 	}
+
 	internal LlvmScopedExceptionShape? empty_base_shape;
 	internal static LlvmScopedFieldContract empty_error(CApi.TypeRef layout, LlvmScopedExceptionShape shape, LlvmScopedExceptionShape parent) {
 		var result = new LlvmScopedFieldContract ();
@@ -623,6 +655,7 @@ internal class LlvmScopedFieldContract : Object {
 		result.empty_base_shape = parent;
 		return result;
 	}
+
 	internal static LlvmScopedFieldContract? from_native(LlvmModuleArtifact artifact, CApi.ValueRef function, NativeFunction source, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs) throws LlvmError {
 		if (!source.declaring_type_is_class || source.kind != NativeCallableKind.CONSTRUCTOR && source.kind != NativeCallableKind.DESTRUCTOR && source.kind != NativeCallableKind.METHOD || source.declaring_type_ordinal < 0 || source.declaring_type_ordinal >= classes.length || source.signature.receiver == null || source.signature.result != null || source.signature.exception_plan != null && (source.kind != NativeCallableKind.CONSTRUCTOR || source.constructor_unwind == null)) {
 			return null;
@@ -832,6 +865,7 @@ internal class LlvmScopedFieldContract : Object {
 		}
 		return result;
 	}
+
 	internal bool accepts_receiver(uint position, CApi.ValueRef tag, CApi.ValueRef count, CApi.ValueRef size, CApi.ValueRef alignment) throws LlvmError {
 		if ((!scoped_receiver && this.count == 0) || position != 0) {
 			return false;
@@ -841,6 +875,7 @@ internal class LlvmScopedFieldContract : Object {
 		}
 		return true;
 	}
+
 	internal bool buffer_address(CApi.ValueRef value, CApi.TypeRef type) {
 		if ((void*) CApi.is_instruction (value) == null || CApi.opcode (value) != CApi.Opcode.GEP || CApi.operand_count (value) != 3 || (void*) CApi.gep_source_type (value) != (void*) layout || (void*) CApi.operand (value, 0) != (void*) receiver || (void*) CApi.is_constant_int (CApi.operand (value, 1)) == null || CApi.const_int_zext (CApi.operand (value, 1)) != 0 || (void*) CApi.is_constant_int (CApi.operand (value, 2)) == null) {
 			return false;
@@ -851,9 +886,11 @@ internal class LlvmScopedFieldContract : Object {
 		}
 		return CApi.type_kind (CApi.struct_get_type_at_index (type, 0)) == CApi.TypeKind.POINTER && (void*) CApi.struct_get_type_at_index (type, 1) == (void*) CApi.int32_type_in_context (CApi.type_context (type));
 	}
+
 	internal bool address(CApi.ValueRef value, int field) {
 		return paths[field].matches (value, receiver, layout);
 	}
+
 	internal bool null_initialization(CApi.ValueRef function, CApi.ValueRef end, int field, HashTable<void*, LlvmScopedOwnedInputs>? contracts) throws LlvmError {
 		bool initialized = false;
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
@@ -878,6 +915,7 @@ internal class LlvmScopedFieldContract : Object {
 		}
 		return initialized;
 	}
+
 	internal CApi.ValueRef load(CApi.ValueRef function, int field) throws LlvmError {
 		CApi.ValueRef found = (CApi.ValueRef) null;
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
@@ -894,6 +932,7 @@ internal class LlvmScopedFieldContract : Object {
 		}
 		return found;
 	}
+
 }
 // Forwarding preserves the complete existing field carrier. Copy its physical
 // scoped members and shapes without retaining a native declaration graph.
@@ -904,6 +943,7 @@ internal class LlvmScopedOwnerGraph : Object {
 	internal string path(int field) {
 		return paths[field].key;
 	}
+
 	internal GenericArray<LlvmScopedOwnerGraph?> children = new GenericArray<LlvmScopedOwnerGraph?> ();
 	private GenericArray<void*> tags = new GenericArray<void*> ();
 	private GenericArray<void*> sizes = new GenericArray<void*> ();
@@ -911,6 +951,7 @@ internal class LlvmScopedOwnerGraph : Object {
 	internal static LlvmScopedOwnerGraph? from_native(LlvmModuleArtifact artifact, NativeClassPlan owner, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs) throws LlvmError {
 		return build (artifact, owner, classes, structs, new HashTable<NativeClassPlan, bool> (direct_hash, direct_equal));
 	}
+
 	private static LlvmScopedOwnerGraph? build(LlvmModuleArtifact artifact, NativeClassPlan owner, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs, HashTable<NativeClassPlan, bool> visiting) throws LlvmError {
 		if (visiting.contains (owner) || owner.parent_ordinal >= 0 || owner.polymorphic || owner.foreign_export != null || owner.concurrency_policy != null || owner.lazy_caches.length != 0 || !owner.allocation_policy_valid ()) {
 			return null;
@@ -964,6 +1005,7 @@ internal class LlvmScopedOwnerGraph : Object {
 		visiting.remove (owner);
 		return result.members.length == 0 ? null : result;
 	}
+
 	private bool child(LlvmModuleArtifact artifact, NativeClassPlan child, int member, LlvmScopedMemberPath path, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs, HashTable<NativeClassPlan, bool> visiting, CApi.TargetDataRef data) throws LlvmError {
 		if (!child.allocation_policy_valid ()) {
 			return false;
@@ -993,9 +1035,11 @@ internal class LlvmScopedOwnerGraph : Object {
 		alignments.add ((void*) CApi.const_int (CApi.int32_type_in_context (artifact.context), uint.max (CApi.abi_alignment_of_type (data, layout), (policy == null ? 1 : policy.alignment)), 0));
 		return true;
 	}
+
 	internal bool matches(int field, CApi.ValueRef tag, CApi.ValueRef size, CApi.ValueRef alignment) {
 		return tags[field] == (void*) tag && sizes[field] == (void*) size && alignments[field] == (void*) alignment;
 	}
+
 }
 
 // Physical Class ownership channels. Complete native effects may consume
@@ -1018,6 +1062,7 @@ internal class LlvmScopedEmptyImport : Object {
 		size_t length;
 		cleanup = new LlvmNativeModuleBinding (target, CApi.global_value_type (target), CApi.value_name (target, out length), true);
 	}
+
 	private void effect(RuntimeLifetimeSummary summary) throws RuntimeLifetimeError, LlvmError {
 		if (!summary.complete || summary.has_exception || summary.equations.requirements (summary.result).length != 0) {
 			throw new LlvmError.VERIFICATION ("opaque empty lifecycle requires its complete nonthrowing effects");
@@ -1042,6 +1087,7 @@ internal class LlvmScopedEmptyImport : Object {
 			}
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		try {
 			effect (constructor);
@@ -1051,6 +1097,7 @@ internal class LlvmScopedEmptyImport : Object {
 			throw new LlvmError.VERIFICATION ("opaque empty lifecycle lost its versioned effects: %s", failure.message);
 		}
 	}
+
 }
 internal class LlvmScopedOwnedInputs : Object {
 	private CApi.ValueRef function;
@@ -1065,6 +1112,7 @@ internal class LlvmScopedOwnedInputs : Object {
 	internal int result_slot(int field) {
 		return result_slots[field];
 	}
+
 	internal int result_field(uint position) {
 		for (int f = 0; f < result_slots.length; f++) {
 			int slot = result_slots[f];
@@ -1074,14 +1122,17 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return -1;
 	}
+
 	private CApi.ValueRef success_output = (CApi.ValueRef) null;
 	internal bool checked_success { get { return (void*) success_output != null; } }
 	internal CApi.ValueRef success_slot() {
 		return success_output;
 	}
+
 	internal CApi.TypeRef success_type() {
 		return aggregate_type;
 	}
+
 	internal LlvmScopedFieldContract? fields { get; private set; }
 	internal int error_class { get; private set; default = -1; }
 	internal bool deferred_error { get; private set; }
@@ -1101,6 +1152,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		verify ();
 		return (void*) CApi.called_value (call) == (void*) function && (void*) CApi.called_function_type (call) == (void*) type && CApi.argument_count (call) == parameter_count && CApi.instruction_call_conv (call) == LlvmLowering.CALL_CONVENTION;
 	}
+
 	private void verify_empty_cleanup() throws LlvmError {
 		if (empty_backing == null) {
 			return;
@@ -1133,6 +1185,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		empty_backing.exception_shape.verify_empty_parent (empty_backing.empty_base_shape);
 	}
+
 	internal bool empty_base { get { return (void*) empty_base_target != null; } }
 	private void verify_empty_base() throws LlvmError {
 		if (!empty_base) {
@@ -1172,6 +1225,7 @@ internal class LlvmScopedOwnedInputs : Object {
 			throw new LlvmError.VERIFICATION ("empty inherited constructor requires exactly one base initialization");
 		}
 	}
+
 	internal bool empty_base_call(CApi.ValueRef call, LlvmScopedOwnedInputs target) throws LlvmError {
 		if (!empty_base || target.fields == null || !target.fields.constructor || (void*) target.fields.layout != (void*) empty_base_layout || (void*) CApi.called_value (call) != (void*) empty_base_target) {
 			return false;
@@ -1180,6 +1234,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		target.field_call (call);
 		return true;
 	}
+
 	internal CApi.TypeRef error_layout;
 	internal LlvmScopedExceptionShape? error_shape;
 	private GenericArray<int> error_members = new GenericArray<int> ();
@@ -1188,9 +1243,11 @@ internal class LlvmScopedOwnedInputs : Object {
 	internal int error_member(int field) {
 		return error_members[field];
 	}
+
 	internal int error_slot(int field) {
 		return error_slots[field];
 	}
+
 	private GenericArray<int> positions = new GenericArray<int> ();
 	private GenericArray<void*> values = new GenericArray<void*> ();
 	private GenericArray<void*> sizes = new GenericArray<void*> ();
@@ -1206,12 +1263,15 @@ internal class LlvmScopedOwnedInputs : Object {
 	internal bool scoped_input(int slot) {
 		return scoped_inputs[slot];
 	}
+
 	internal bool contextual_input(int slot) {
 		return contextual_inputs[slot];
 	}
+
 	internal LlvmScopedOwnerGraph? input_graph(int slot) {
 		return slot < 0 || slot >= input_graphs.length ? null : input_graphs[slot];
 	}
+
 	internal LlvmScopedOwnerGraph? owner_graph { get; private set; }
 	internal int graph_parameter { get; private set; default = -1; }
 	internal bool graph_forwarding { get { return owner_graph != null && returned_parameter >= 0; } }
@@ -1220,6 +1280,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		this.type = type;
 		parameter_count = CApi.count_params (function);
 	}
+
 	private void shape(LlvmModuleArtifact artifact, NativeClassPlan owner, LlvmStructRegistry structs, LlvmScopedOwnerGraph? graph = null) throws LlvmError {
 		input_graphs.add (graph);
 		contextual_inputs.add (owner.allocation_policy != null);
@@ -1235,6 +1296,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		alignments.add ((void*) CApi.const_int (CApi.int32_type_in_context (artifact.context), alignment, 0));
 		tags.add ((void*) new LlvmPolicyAllocation (artifact).tag (owner.name, "object"));
 	}
+
 	internal static bool required(NativeSignature signature, NativeAbiProgram program) throws LlvmError {
 		var inventory = new LlvmScopedGraphInventory (program);
 		foreach (var parameter in signature.parameters) {
@@ -1292,6 +1354,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return inventory.contains_scope ();
 	}
+
 	private static NativeObjectOriginPlan? single_record_result(NativeStructValuePlan? record, GenericArray<NativeClassPlan> classes) throws LlvmError {
 		if (record == null || record.mode != NativeStructValueMode.MOVE_VALUE || record.result_carrier != NativeStructResultCarrier.SINGLE_LEAF || record.leaves.length != 1 || record.ownership.length != 1) {
 			return null;
@@ -1552,6 +1615,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return result;
 	}
+
 	private bool bind_record_result(LlvmModuleArtifact artifact, NativeSignature signature, RuntimeLifetimeSummary summary, HashTable<int, NativeObjectOriginPlan> records, GenericArray<NativeClassPlan> classes, int offset) throws RuntimeLifetimeError, LlvmError {
 		var record = signature.struct_result;
 		if (record.mode != NativeStructValueMode.MOVE_VALUE || record.leaves.length < 2 || record.ownership.length == 0) {
@@ -1630,6 +1694,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		aggregate_type = CApi.struct_type_in_context (artifact.context, types, types.length, 0);
 		return true;
 	}
+
 	// Reconstruct the actual flat native tuple, with every member written once.
 	// Intermediate aggregate values may only advance that publication chain.
 	private bool is_publication(CApi.ValueRef instruction) {
@@ -1638,6 +1703,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return CApi.opcode (instruction) == CApi.Opcode.RET && CApi.operand_count (instruction) == 1;
 	}
+
 	private GenericArray<void*> publications() {
 		var result = new GenericArray<void*> ();
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
@@ -1649,6 +1715,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return result;
 	}
+
 	private void publication_uses(CApi.ValueRef value, HashTable<void*, bool> seen) throws LlvmError {
 		if (seen.contains ((void*) value)) {
 			return;
@@ -1668,6 +1735,7 @@ internal class LlvmScopedOwnedInputs : Object {
 			publication_uses (user, seen);
 		}
 	}
+
 	internal CApi.ValueRef publication(CApi.ValueRef end, int field) throws LlvmError {
 		if (!is_publication (end) || (void*) CApi.type_of (CApi.operand (end, 0)) != (void*) aggregate_type) {
 			throw new LlvmError.VERIFICATION ("scoped record return lost its exact aggregate type");
@@ -1695,6 +1763,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return selected;
 	}
+
 	internal bool publishes(CApi.ValueRef instruction, int slot) throws LlvmError {
 		if (aggregate_fields == 0 || CApi.opcode (instruction) != CApi.Opcode.INSERT_VALUE || CApi.index_count (instruction) != 1) {
 			return false;
@@ -1714,6 +1783,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return false;
 	}
+
 	internal int extracted_field(CApi.ValueRef value) {
 		if (aggregate_fields == 0 || (void*) CApi.is_instruction (value) == null || CApi.opcode (value) != CApi.Opcode.EXTRACT_VALUE || CApi.index_count (value) != 1) {
 			return -1;
@@ -1721,6 +1791,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		uint field = CApi.indices (value)[0];
 		return field < aggregate_fields ? (int) field : -1;
 	}
+
 	internal void verify_record_call(CApi.ValueRef call) throws LlvmError {
 		if (aggregate_fields == 0) {
 			return;
@@ -1738,6 +1809,7 @@ internal class LlvmScopedOwnedInputs : Object {
 			}
 		}
 	}
+
 	private bool bind_error(NativeFunction source, RuntimeLifetimeSummary summary, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs, int offset, bool deferred = false) throws RuntimeLifetimeError, LlvmError {
 		var channel = deferred ? summary.result : summary.exception;
 		string prefix = deferred ? "f1" : "";
@@ -1792,25 +1864,32 @@ internal class LlvmScopedOwnedInputs : Object {
 		error_layout = structs.class_layout (owner.ordinal, owner.name);
 		return true;
 	}
+
 	internal uint count { get { return values.length; } }
 	internal CApi.ValueRef parameter(int index) {
 		return (CApi.ValueRef) values[index];
 	}
+
 	internal uint physical_position(int index) {
 		return (uint) positions[index];
 	}
+
 	internal CApi.ValueRef size(int index) {
 		return (CApi.ValueRef) sizes[index];
 	}
+
 	internal CApi.ValueRef alignment(int index) {
 		return (CApi.ValueRef) alignments[index];
 	}
+
 	internal CApi.ValueRef tag(int index) {
 		return (CApi.ValueRef) tags[index];
 	}
+
 	internal int field_slot(int field) {
 		return (int) count - (int) fields.count + field;
 	}
+
 	internal int input_slot(int logical) {
 		for (int p = 0; p < positions.length; p++) {
 			if (positions[p] == logical + 1) {
@@ -1819,6 +1898,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return -1;
 	}
+
 	private bool contains_instruction(CApi.ValueRef value) {
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
 			for (var instruction = CApi.first_instruction (block); (void*) instruction != null; instruction = CApi.next_instruction (instruction)) {
@@ -1829,6 +1909,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return false;
 	}
+
 	internal void verify_signature() throws LlvmError {
 		verify_empty_base ();
 		verify_empty_cleanup ();
@@ -1896,6 +1977,7 @@ internal class LlvmScopedOwnedInputs : Object {
 			}
 		}
 	}
+
 	internal void verify_success_slot() throws LlvmError {
 		if (!checked_success) {
 			return;
@@ -1908,6 +1990,7 @@ internal class LlvmScopedOwnedInputs : Object {
 			}
 		}
 	}
+
 	internal void seal(HashTable<int, LlvmScopedDescriptorAuthority> descriptors) throws LlvmError {
 		if (empty_base) {
 			empty_backing = LlvmScopedFieldContract.empty_error (empty_derived_layout, new LlvmScopedExceptionShape (empty_derived_layout, descriptors.lookup (empty_class)), new LlvmScopedExceptionShape (empty_base_layout, descriptors.lookup (empty_parent)));
@@ -1936,6 +2019,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		verify_signature ();
 		body = new LlvmSumSequence (function, true);
 	}
+
 	internal void attach_import(LlvmNativeModuleBinding binding) throws LlvmError {
 		if (cold_shape || body != null || imported_body != null || CApi.count_basic_blocks (function) != 0) {
 			throw new LlvmError.LOWERING ("scoped native input requires its exact ordinary external declaration role");
@@ -1944,6 +2028,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		imported_body = binding;
 		verify_signature ();
 	}
+
 	// Opaque factories carry declaration-verified capture shapes. Their producer
 	// proves its coroutine body; the consumer proves the retained caller debt.
 	internal void seal_imported_capture(LlvmNativeModuleBinding binding, HashTable<int, LlvmScopedDescriptorAuthority> descriptors) throws LlvmError {
@@ -1957,6 +2042,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		verify_signature ();
 		imported_body = binding;
 	}
+
 	internal bool literal_null_call(CApi.ValueRef call) throws LlvmError {
 		if (!null_result) {
 			return false;
@@ -1967,6 +2053,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return true;
 	}
+
 	internal void verify() throws LlvmError {
 		verify_signature ();
 		if (imported_body != null) {
@@ -1981,6 +2068,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		body.verify ();
 	}
+
 	internal int stored_field(uint position) {
 		if (fields != null && fields.publishes) {
 			for (int f = 0; f < fields.count; f++) {
@@ -1991,6 +2079,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return -1;
 	}
+
 	internal bool field_call(CApi.ValueRef call) throws LlvmError {
 		if (fields == null) {
 			return false;
@@ -2001,6 +2090,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return true;
 	}
+
 	internal bool empty_error_call(CApi.ValueRef call, bool proven_null = false) throws LlvmError {
 		// A caller may substitute its independently reconstructed null tuple
 		// dependency for a literal null; the actual native ABI stays mandatory.
@@ -2020,6 +2110,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return true;
 	}
+
 	internal bool input_shape(uint position, CApi.ValueRef allocation_tag, CApi.ValueRef count, CApi.ValueRef size, CApi.ValueRef alignment) throws LlvmError {
 		verify ();
 		for (int p = 0; p < positions.length; p++) {
@@ -2033,6 +2124,7 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return false;
 	}
+
 	internal bool accepts(CApi.ValueRef call, uint position, CApi.ValueRef allocation_tag, CApi.ValueRef count, CApi.ValueRef size, CApi.ValueRef alignment, bool checked_transport = false) throws LlvmError {
 		if (fields != null && !fields.publishes) {
 			return false;
@@ -2052,5 +2144,6 @@ internal class LlvmScopedOwnedInputs : Object {
 		}
 		return false;
 	}
+
 }
 }

@@ -3,18 +3,19 @@ int scoped() {
 	int n = 0;
 	while (n < 3) {
 		owned void* h = create_resource(n + 1);
-		if (resource_live_count() != 1) { return 1; }
+		if (resource_live_count() != 1) return 1;
 		n = n + 1;
 	}
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped() != 0) { return 1; }
-	if (resource_live_count() != 0) { return 2; }
-	if (resource_destroy_count() != 3) { return 3; }
-	if (resource_destroy_order() != 123) { return 4; }
-	if (resource_error_count() != 0) { return 5; }
-	if (resource_create_count() != 3) { return 6; }
+	if (scoped() != 0) return 1;
+	if (resource_live_count() != 0) return 2;
+	if (resource_destroy_count() != 3) return 3;
+	if (resource_destroy_order() != 123) return 4;
+	if (resource_error_count() != 0) return 5;
+	if (resource_create_count() != 3) return 6;
 	return 0;
 }

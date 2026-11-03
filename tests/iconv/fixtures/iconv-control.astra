@@ -2,7 +2,11 @@
 u16 scalar(bool choose, u8 x, i8 y) {
 	u16 result = 0;
 	u8 current = x;
-	if (choose) { result = x as u16; } else { result = y as u16; }
+	if (choose) {
+		result = x as u16;
+	} else {
+		result = y as u16;
+	}
 	int i = 0;
 	while (i < 4) {
 		current = current + 1;
@@ -11,9 +15,14 @@ u16 scalar(bool choose, u8 x, i8 y) {
 	}
 	return result;
 }
+
 i16<8> vector(bool choose, i8<8> x, u8<8> y) {
 	i16<8> result = splat(0,8);
-	if (choose) { result = x as i16<8>; } else { result = y as i16<8>; }
+	if (choose) {
+		result = x as i16<8>;
+	} else {
+		result = y as i16<8>;
+	}
 	int i = 0;
 	while (i < 3) {
 		result = (result as i8<8>) as i16<8>;
@@ -22,10 +31,11 @@ i16<8> vector(bool choose, i8<8> x, u8<8> y) {
 	}
 	return result;
 }
+
 int main() {
-	if (scalar(true,254,-1) != 512 || scalar(false,254,-1) != 257) { return 1; }
+	if (scalar(true,254,-1) != 512 || scalar(false,254,-1) != 257) return 1;
 	i8<8> x = splat(-1,8);
 	u8<8> y = splat(255,8);
-	if (!all(vector(true,x,y) == splat(2 as i16,8)) || !all(vector(false,x,y) == splat(2 as i16,8))) { return 2; }
+	if (!all(vector(true,x,y) == splat(2 as i16,8)) || !all(vector(false,x,y) == splat(2 as i16,8))) return 2;
 	return 0;
 }

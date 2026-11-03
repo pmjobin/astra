@@ -8,22 +8,29 @@ public enum CBoolAbi {
 	public static CBoolAbi parse(string mode) {
 		return mode == "c99" ? C99 : INVALID;
 	}
+
 	public bool valid() {
 		return this == NONE || this == C99;
 	}
+
 }
+
 public enum CPointerAbi {
 	NONE, I32_NOESCAPE, INVALID;
 	public static CPointerAbi parse(string mode) {
 		return mode == "i32-noescape" ? I32_NOESCAPE : INVALID;
 	}
+
 	public bool is_valid() {
 		return this == NONE || this == I32_NOESCAPE;
 	}
+
 	public string dump_suffix() {
 		return this == NONE ? "" : " (pointer-abi i32-noescape read-write)";
 	}
+
 }
+
 // Finite target primitives. No address, pointer, foreign lifetime promise,
 // or arbitrary assembly can be supplied by a source declaration.
 public enum PcDeviceOperation {
@@ -64,18 +71,23 @@ public enum PcDeviceOperation {
 			return INVALID;
 		}
 	}
+
 	public bool atomic_load() {
 		return this >= ATOMIC_LOAD_RELAXED && this <= ATOMIC_LOAD_SEQ_CST;
 	}
+
 	public bool atomic_store() {
 		return this >= ATOMIC_STORE_RELAXED && this <= ATOMIC_STORE_SEQ_CST;
 	}
+
 	public bool atomic_add() {
 		return this >= ATOMIC_ADD_RELAXED && this <= ATOMIC_ADD_SEQ_CST;
 	}
+
 	public int argument_count() {
 		return this == EDU_READ32 || atomic_load () ? 0 : 1;
 	}
+
 	public int ordering() {
 		if (this == ATOMIC_LOAD_ACQUIRE) {
 			return 4;
@@ -91,6 +103,7 @@ public enum PcDeviceOperation {
 		}
 		return atomic_load () || atomic_store () || atomic_add () ? 2 : 0;
 	}
+
 }
 
 public class PcDeviceContract : Object {
@@ -100,14 +113,17 @@ public class PcDeviceContract : Object {
 		this.operation = operation;
 		admitted_operation = operation;
 	}
+
 	public bool valid() {
 		return operation == admitted_operation && operation > PcDeviceOperation.INVALID && operation <= PcDeviceOperation.ATOMIC_ADD_SEQ_CST;
 	}
+
 	public PcDeviceContract copy() {
 		var result = new PcDeviceContract (admitted_operation);
 		result.operation = operation;
 		return result;
 	}
+
 }
 
 public enum CCallbackAbi {
@@ -115,22 +131,29 @@ public enum CCallbackAbi {
 	public static CCallbackAbi parse(string mode) {
 		return mode == "i32-context-i32-sync" ? I32_CONTEXT_I32_SYNC : INVALID;
 	}
+
 	public bool is_valid() {
 		return this == NONE || this == I32_CONTEXT_I32_SYNC;
 	}
+
 }
+
 public enum CRecordAbi {
 	NONE, NATURAL_LP64, VALUE_LP64, INVALID;
 	public static CRecordAbi parse(string mode) {
 		return mode == "natural-lp64" ? NATURAL_LP64 : mode == "value-lp64" ? VALUE_LP64 : INVALID;
 	}
+
 	public bool is_valid() {
 		return this == NONE || this == NATURAL_LP64 || this == VALUE_LP64;
 	}
+
 	public string dump_suffix() {
 		return this == NONE ? "" : this == VALUE_LP64 ? " (record-abi value-lp64 sysv-eightbytes)" : " (record-abi natural-lp64 borrowed-noescape)";
 	}
+
 }
+
 // Trusted synchronous foreign obligation. Payloads are arbitrary octets;
 // unlike CTextAbi this conveys no UTF-8 or terminated-string promise.
 public enum CBufferAbi {
@@ -141,13 +164,17 @@ public enum CBufferAbi {
 	public static CBufferAbi parse(string mode) {
 		return mode == "u8-i32" ? U8_I32 : INVALID;
 	}
+
 	public bool is_valid() {
 		return this == NONE || this == U8_I32;
 	}
+
 	public string dump_suffix() {
 		return this == NONE ? "" : " (buffer-abi u8-i32)";
 	}
+
 }
+
 // Explicit outbound transport authority, independent of native text ABI.
 public enum CTextAbi {
 	NONE,
@@ -157,12 +184,15 @@ public enum CTextAbi {
 	public static CTextAbi parse(string mode) {
 		return mode == "utf8-i32" ? UTF8_I32 : INVALID;
 	}
+
 	public bool is_valid() {
 		return this == NONE || this == UTF8_I32;
 	}
+
 	public string dump_suffix() {
 		return this == NONE ? "" : " (text-abi utf8-i32)";
 	}
+
 }
 
 // Immutable normalized foreign resource contracts. The signature is fixed
@@ -176,6 +206,7 @@ public class CForeignCleanupContract : Object {
 		this.identifier = external_symbol;
 		this.symbol_span = symbol_span;
 	}
+
 }
 
 public class CForeignOwnedResultContract : Object {
@@ -184,6 +215,7 @@ public class CForeignOwnedResultContract : Object {
 	public CForeignOwnedResultContract (CForeignCleanupContract cleanup) {
 		this.cleanup = cleanup;
 	}
+
 }
 
 // Descriptive integration metadata, never a file to open or a link input.
@@ -196,6 +228,7 @@ public class CForeignHeader : Object {
 		this.filename = name;
 		this.span = span;
 	}
+
 }
 
 // Immutable, origin-independent C declaration metadata. No syntax or types.
@@ -206,9 +239,11 @@ public class CForeignMetadata : Object {
 	public bool bool_policy_valid() {
 		return bool_abi == admitted_bool_abi && bool_abi.valid ();
 	}
+
 	public bool bool_signature_valid(bool has_bool) {
 		return bool_policy_valid () && (has_bool == (bool_abi == CBoolAbi.C99)) && (bool_abi == CBoolAbi.NONE || import_policy == DeclarationPolicyId.C_IMPORT && com_import == null && device == null && callback == null && owned_result == null && record_abi == CRecordAbi.NONE && pointer_abi == CPointerAbi.NONE && text_abi == CTextAbi.NONE && buffer_abi == CBufferAbi.NONE);
 	}
+
 	public DeclarationPolicyId import_policy { get; internal set; }
 	private DeclarationPolicyId admitted_import_policy;
 	private string carrier_identifier;
@@ -217,6 +252,7 @@ public class CForeignMetadata : Object {
 	public bool import_policy_valid() {
 		return gobject_carrier == admitted_gobject_carrier && (gobject_carrier == "" || import_policy == DeclarationPolicyId.GOBJECT_IMPORT && Astra.Source.ForeignClassPolicy.identifier (gobject_carrier) && com_import == null && device == null && callback == null && pointer_abi == CPointerAbi.NONE && record_abi == CRecordAbi.NONE && text_abi == CTextAbi.NONE && buffer_abi == CBufferAbi.NONE && bool_abi == CBoolAbi.NONE) && import_policy == admitted_import_policy && (import_policy == DeclarationPolicyId.C_IMPORT || import_policy == DeclarationPolicyId.GOBJECT_IMPORT && com_import == null && device == null && header_count > 0);
 	}
+
 	public string policy_identity() {
 		var text = new StringBuilder ("%u;%d:%s;".printf ((uint) import_policy, external_symbol.length, external_symbol));
 		if (gobject_carrier != "") {
@@ -230,6 +266,7 @@ public class CForeignMetadata : Object {
 		}
 		return Checksum.compute_for_string (ChecksumType.SHA256, text.str);
 	}
+
 	public ComImportContract? com_import { get; private set; }
 	public ComImportRole com_role { get; private set; }
 	private string com_identity;
@@ -237,6 +274,7 @@ public class CForeignMetadata : Object {
 	public bool valid_com() {
 		return com_import == null ? com_role == ComImportRole.NONE : com_import.valid () && com_import.identity () == com_identity && com_import.admits (com_role) && external_symbol == com_import.prefix + "_" + ComImportContract.suffix (com_role) && callback == null && device == null && header_count == 0 && record_abi == CRecordAbi.NONE && text_abi == CTextAbi.NONE && buffer_abi == CBufferAbi.NONE && pointer_abi == (com_role == ComImportRole.SET ? CPointerAbi.NONE : CPointerAbi.I32_NOESCAPE);
 	}
+
 	public static bool portable_symbol(string name) {
 		if (name.length == 0) {
 			return false;
@@ -249,16 +287,19 @@ public class CForeignMetadata : Object {
 		}
 		return true;
 	}
+
 	public PcDeviceContract? device { get; private set; }
 	public bool device_signature(bool result_word, int parameter_count, bool parameters_word) {
 		return device == null || (device.valid () && result_word && parameters_word && parameter_count == device.operation.argument_count () && header_count == 0 && owned_result == null && callback == null && callback_abi == CCallbackAbi.NONE && record_abi == CRecordAbi.NONE && text_abi == CTextAbi.NONE && buffer_abi == CBufferAbi.NONE && pointer_abi == CPointerAbi.NONE);
 	}
+
 	private string? callback_identifier;
 	public string? callback { get { return callback_identifier; } }
 	public CCallbackAbi callback_abi { get; private set; }
 	public string callback_dump_suffix() {
 		return callback == null ? "" : " (callback \"%s\" i32-context-i32-sync nonretaining)".printf (callback.escape ());
 	}
+
 	public CRecordAbi record_abi { get; private set; }
 	public CPointerAbi pointer_abi { get; private set; }
 	public SourceSpan? record_abi_span { get; private set; }
@@ -305,6 +346,7 @@ public class CForeignMetadata : Object {
 	public CForeignMetadata copy() {
 		return copy_with_owned_result (owned_result);
 	}
+
 	public CForeignMetadata copy_with_owned_result(CForeignOwnedResultContract? owned_result = null) {
 		CForeignHeader[] copies = {};
 		foreach (var header in headers) {
@@ -320,5 +362,6 @@ public class CForeignMetadata : Object {
 	public CForeignHeader header_at(int ordinal) {
 		return headers[ordinal];
 	}
+
 }
 }

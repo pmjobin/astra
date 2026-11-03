@@ -15,12 +15,14 @@ public class SsaContinuationEnvironment : Object {
 	public SemanticType leaf_type(int index) {
 		return record_shape == null ? state_type : record_shape.leaves[index].semantic_type;
 	}
+
 	internal SsaContinuationEnvironment (SemanticType state_type, StructValueShape? record_shape = null, SsaCleanupContract? buffer_cleanup = null, bool stable = true) {
 		this.state_type = state_type;
 		this.record_shape = record_shape;
 		this.buffer_cleanup = buffer_cleanup;
 		this.stable = stable;
 	}
+
 }
 
 public class SsaContinuationEntry : Object {
@@ -34,6 +36,7 @@ public class SsaContinuationEntry : Object {
 		this.environment = environment;
 		this.body = WeakRef (target);
 	}
+
 }
 
 public class SsaContinuationFamily : Object {
@@ -47,6 +50,7 @@ public class SsaContinuationFamily : Object {
 		this.destroy = destroy;
 		this.repeat_step = repeat_step;
 	}
+
 }
 
 // Internal typed executable region, not a source SemanticType or erased value.
@@ -58,6 +62,7 @@ public class SsaContinuationRegion : SsaInstruction {
 	internal SsaContinuationRegion (SourceSpan span, SemanticType result_type, int ordinal) {
 		base (span, result_type, ordinal);
 	}
+
 }
 
 private class ContinuationOwnerState : Object {
@@ -75,6 +80,7 @@ private class ContinuationOwnerState : Object {
 		this.instance = instance;
 		this.initialized = family.environment == null;
 	}
+
 }
 
 private class ContinuationFields : Object {
@@ -82,6 +88,7 @@ private class ContinuationFields : Object {
 	internal ContinuationFields (GenericArray<SsaStruct> structs) {
 		this.structs = structs;
 	}
+
 	internal GenericArray<SemanticType>? fields(SemanticType type) {
 		foreach (var structure in structs) {
 			if (structure.semantic_type == type) {
@@ -94,6 +101,7 @@ private class ContinuationFields : Object {
 		}
 		return null;
 	}
+
 }
 
 public class SsaContinuationVerifier : Object {
@@ -102,6 +110,7 @@ public class SsaContinuationVerifier : Object {
 			throw new SsaError.INVALID_SSA ("internal continuation verification: %s", reason);
 		}
 	}
+
 	public static void verify(SsaContinuationRegion region, GenericArray<SsaFunction> functions, GenericArray<SsaStruct> structs, GenericArray<SsaCleanupContract> cleanups) throws SsaError {
 		require (region.result != null && region.result.semantic_type.kind == TypeKind.INT, "region result must be exact int");
 		var seen = new HashTable<ContinuationIdentity, bool> (direct_hash, direct_equal);
@@ -256,5 +265,6 @@ public class SsaContinuationVerifier : Object {
 		}
 		require (witnesses.size () == 0 && result, "region requires retired uses and a produced result");
 	}
+
 }
 }

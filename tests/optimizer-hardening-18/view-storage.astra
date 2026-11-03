@@ -1,29 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void storage18_begin();
+
 extern(C) void storage18_retire(int value);
+
 extern(C) int view18_count();
+
 extern(C) int view18_overlap();
+
 extern(C) int view18_short();
+
 extern(C) f64 view18_input(int index);
+
 extern(C) int view18_check(int index, f64 value);
 
 struct ViewLoop18 {
 	int index;
 	f64 factor;
+
 	void advance(int step) { this.index = this.index + step; }
 }
 
 class ViewState18 {
 	f64 gain;
 	int stamp;
+
 	init(f64 gain, int stamp) { this.gain = gain; this.stamp = stamp; }
+
 	deinit() { storage18_retire(this.stamp); }
+
 	property f64 scale { get { return this.gain; } }
 }
+
 f64 view18_weights(ViewState18 first, ViewState18 second) {
 	return first.scale + second.scale;
 }
+
 owned ViewState18 view18_relay(owned ViewState18 input) { return move input; }
+
 void view18_process(f64[] input, f64[] output, int count) {
 	owned ViewState18 first = new ViewState18(2.0, 1);
 	owned ViewState18 second = new ViewState18(-0.5, 2);
@@ -35,34 +48,45 @@ void view18_process(f64[] input, f64[] output, int count) {
 		store_vector(output, loop.index, value * splat(loop.factor, 2), 1);
 		loop.advance(2);
 	}
-	while (loop.index < count) { output[loop.index] = input[loop.index] * loop.factor; loop.index = loop.index + 1; }
+	while (loop.index < count) {
+		output[loop.index] = input[loop.index] * loop.factor;
+		loop.index = loop.index + 1;
+	}
 }
+
 void view18_buffer(f64[] input, f64[] output, int count) {
 	owned ViewState18 first = new ViewState18(2.0, 4);
 	owned ViewState18 second = new ViewState18(-0.5, 5);
 	owned f64[] scratch = new f64[count];
 	f64 factor = view18_weights(first, second);
-	for (int index = 0; index < count; index = index + 1) { scratch[index] = input[index] * factor; }
-	for (int index = 0; index < count; index = index + 1) { output[index] = scratch[index]; }
+	for (int index = 0; index < count; index = index + 1) scratch[index] = input[index] * factor;
+	for (int index = 0; index < count; index = index + 1) output[index] = scratch[index];
 }
+
 int main() {
 	storage18_begin();
 	int count = view18_count();
 	int overlap = view18_overlap();
 	int extent = count;
-	if (view18_short() != 0) { extent = count - 1; }
+	if (view18_short() != 0) extent = count - 1;
 	f64[12] input = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	f64[12] output = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	for (int index = 0; index < 12; index = index + 1) { input[index] = view18_input(index); }
-	if (overlap == 0) { view18_process(slice(input, 0, extent), slice(output, 0, extent), count); }
-	else { view18_process(slice(input, 0, extent), slice(input, 1, extent), count); }
+	for (int index = 0; index < 12; index = index + 1) input[index] = view18_input(index);
+	if (overlap == 0) {
+		view18_process(slice(input, 0, extent), slice(output, 0, extent), count);
+	}
+	else {
+		view18_process(slice(input, 0, extent), slice(input, 1, extent), count);
+	}
 	for (int index = 0; index < count; index = index + 1) {
 		f64 value = output[index];
-		if (overlap != 0) { value = input[index + 1]; }
-		if (view18_check(index, value) != 0) { return 1; }
+		if (overlap != 0) value = input[index + 1];
+		if (view18_check(index, value) != 0) return 1;
 	}
-	for (int index = 0; index < 12; index = index + 1) { input[index] = view18_input(index); }
+	for (int index = 0; index < 12; index = index + 1) input[index] = view18_input(index);
 	view18_buffer(slice(input, 0, count), slice(output, 0, count), count);
-	for (int index = 0; index < count; index = index + 1) { if (view18_check(index + 100, output[index]) != 0) { return 2; } }
+	for (int index = 0; index < count; index = index + 1) {
+		if (view18_check(index + 100, output[index]) != 0) return 2;
+	}
 	return 0;
 }

@@ -1,25 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace SymbolicTransport;
 internal T apply<T>(Fn<T, T> code, T value) { return code(value); }
+
 internal int observe<T>(Fn<int, borrowed T> code, borrowed T value) where T:Ownable { return code(value); }
+
 class Callback<Input, Output> {
 	private Fn<Output, Input> code;
+
 	init(Fn<Output, Input> code) { this.code = code; }
+
 	Output run(Input value) { Fn<Output, Input> copy = this.code; return copy(value); }
 }
+
 Fn<SymbolicNative.Packet, SymbolicNative.Packet> callback() { return SymbolicNative.callback(); }
+
 SymbolicNative.Packet invoke(Fn<SymbolicNative.Packet, SymbolicNative.Packet> code, SymbolicNative.Packet value) {
 	SymbolicNative.Packet first = apply<SymbolicNative.Packet>(code, value);
 	var field = new Callback<SymbolicNative.Packet, SymbolicNative.Packet>(code);
 	SymbolicNative.Packet second = field.run(first);
 	return SymbolicNative.invoke(code, second);
 }
+
 owned SymbolicNative.Child create_child(int code) {
 	var result = SymbolicNative.create_child(code);
 	return move result;
 }
+
 Fn<int, borrowed SymbolicNative.Child> loan_callback() { return SymbolicNative.loan_callback(); }
+
 int invoke_loan(Fn<int, borrowed SymbolicNative.Child> code, borrowed SymbolicNative.Child value) {
-	if (observe<SymbolicNative.Child>(code, value) != SymbolicNative.invoke_loan(code, value)) { return -1; }
+	if (observe<SymbolicNative.Child>(code, value) != SymbolicNative.invoke_loan(code, value)) return -1;
 	return observe(code, value);
 }

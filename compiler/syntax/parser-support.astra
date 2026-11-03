@@ -4,6 +4,7 @@ struct SyntaxParseResult {
 	SyntaxSpan error_span;
 	SyntaxTextId error_message;
 }
+
 int syntax_arguments_depth(SyntaxArena arena, SyntaxListId arguments) {
 	int result = 0;
 	int i = 0;
@@ -15,15 +16,19 @@ int syntax_arguments_depth(SyntaxArena arena, SyntaxListId arguments) {
 	}
 	return result + 1;
 }
+
 bool syntax_key_is(borrowed Utf8Message entry, string name) {
 	return entry.text == name;
 }
+
 class SyntaxKeySet {
 	private owned Vector<Utf8Message> keys;
+
 	init() {
 		var keys = new Vector<Utf8Message>(16);
 		this.keys = move keys;
 	}
+
 	bool contains(string name) {
 		int i = 0;
 		while (i < this.keys.count()) {
@@ -34,6 +39,7 @@ class SyntaxKeySet {
 		}
 		return false;
 	}
+
 	void add_key(string name) throws Error {
 		if (this.keys.count() == this.keys.capacity()) {
 			assert_that(this.keys.reserve(syntax_grown_capacity(this.keys.capacity(), this.keys.count() + 1)));
@@ -42,6 +48,7 @@ class SyntaxKeySet {
 		assert_that(this.keys.append(move text));
 	}
 }
+
 SyntaxParseResult syntax_parse(SyntaxArena arena, SyntaxSourceId source) throws Error {
 	var retained = arena.source(source);
 	var scanner = lexer(move retained);
@@ -64,6 +71,7 @@ SyntaxParseResult syntax_parse(SyntaxArena arena, SyntaxSourceId source) throws 
 	SyntaxParseResult result = {unit = unit, error_span = parser.error_span, error_message = message};
 	return result;
 }
+
 SyntaxNodeId syntax_interface_prerequisites(SyntaxArena arena, bool native_interface) throws Error {
 	var source = arena.add_source_text("<native-interface>", "class __Contract { init() {} int requirement() { return 0; } }", native_interface);
 	var parsed = syntax_parse(arena, source);
@@ -71,6 +79,7 @@ SyntaxNodeId syntax_interface_prerequisites(SyntaxArena arena, bool native_inter
 	var classes = arena.get_list_classes(parsed.unit);
 	return arena.node_at(classes, 0);
 }
+
 SyntaxNodeId syntax_utf8_factory_body(SyntaxArena arena, string namespace_prefix) throws Error {
 	var text = new Utf8ByteBuilder();
 	source_append_text(text, "int generated(){if(valid(bytes)){var message=new ");

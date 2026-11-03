@@ -1,31 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace OpaqueScope;
 extern(C) void host_error_begin(int mode);
+
 extern(C) void host_error_retired(int identity);
+
 extern(C) void host_error_outcome(int mode, int value);
+
 extern(C) void host_error_delay_arm();
+
 extern(C) int host_error_finish();
+
 [Allocator(kind="context",context="scoped-affine")]
 class HostErrorLeaf {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int read() { return this.identity; }
+
 	deinit() { host_error_retired(this.identity); }
 }
+
 [ExceptionRoot]
 class HostErrorFault {
 	private owned HostErrorLeaf child;
+
 	init(string message) { this.child = same_error_empty(); }
+
 	void put(owned HostErrorLeaf child) { this.child = move child; }
-	int read() { if (this.child == null) { return -1; } return this.child.read(); }
+
+	int read() { if (this.child == null) return -1; return this.child.read(); }
+
 	virtual property string message { get { return "host error"; } }
 }
+
 enum HostErrorPhase { Completed, Cancelled }
+
 async runtime HostErrorTasks throws HostErrorFault returns HostErrorPhase;
 async void host_error_fail(owned HostErrorLeaf input, int mode) throws HostErrorFault {
-	if (mode == 5) { return; }
-	if (mode == 3) { host_error_delay_arm(); }
-	if (mode == 1 || mode == 3) { await delay_ticks(1); }
+	if (mode == 5) return;
+	if (mode == 3) host_error_delay_arm();
+	if (mode == 1 || mode == 3) {
+		await delay_ticks(1);
+	}
 	var error = new HostErrorFault("body"); error.put(move input); throw move error;
 }
 

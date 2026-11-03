@@ -15,6 +15,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -27,16 +28,19 @@ private void add(string path, owned TestBody body) {
 			}
 		});
 }
+
 private string read(string name) throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/f64/fixtures/f64-" + name + ".astra", out text);
 	return text;
 }
+
 private string declarations() throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/obj-life/fixtures/lifecycle.vapi", out text);
 	return text;
 }
+
 private CheckedProgram check(string text) throws FileError {
 	var parsed = Parser.parse (new SourceFile.from_text ("f64.astra", text));
 	if (parsed.diagnostic != null) {
@@ -50,7 +54,9 @@ private CheckedProgram check(string text) throws FileError {
 	}
 	return result.program;
 }
+
 private SsaProgram build(string text) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check (text))));
 }
+
 }

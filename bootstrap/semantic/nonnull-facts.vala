@@ -9,6 +9,7 @@ private class NonNullOutcome : Object {
 	internal NonNullOutcome (bool possible) {
 		this.possible = possible;
 	}
+
 	internal NonNullOutcome copy() {
 		var result = new NonNullOutcome (possible);
 		foreach (var key in facts.get_keys ()) {
@@ -16,6 +17,7 @@ private class NonNullOutcome : Object {
 		}
 		return result;
 	}
+
 	internal static NonNullOutcome meet(NonNullOutcome a, NonNullOutcome b) {
 		if (!a.possible) {
 			return b.copy ();
@@ -31,6 +33,7 @@ private class NonNullOutcome : Object {
 		}
 		return result;
 	}
+
 	internal bool same(NonNullOutcome other) {
 		if (possible != other.possible || facts.size () != other.facts.size ()) {
 			return false;
@@ -42,6 +45,7 @@ private class NonNullOutcome : Object {
 		}
 		return true;
 	}
+
 }
 private class NonNullPredicate : Object {
 	internal NonNullOutcome yes;
@@ -50,9 +54,11 @@ private class NonNullPredicate : Object {
 		this.yes = yes;
 		this.no = no;
 	}
+
 	internal NonNullPredicate copy() {
 		return new NonNullPredicate (yes.copy (), no.copy ());
 	}
+
 }
 // Canonical keys belong to one stage's proof run. A projection is a pure
 // borrowed property of one exact receiver; effects erase all such facts.
@@ -74,6 +80,7 @@ public class NonNullProjections : Object {
 		}
 		return value;
 	}
+
 	public void invalidate(NonNullFacts state) {
 		foreach (var members in receivers.get_values ()) {
 			foreach (var value in members.get_values ()) {
@@ -81,6 +88,7 @@ public class NonNullProjections : Object {
 			}
 		}
 	}
+
 }
 // Mechanical must-fact storage shared by independent stage adapters. Keys are
 // stage-owned slots/values; this class never interprets a predecessor model.
@@ -96,9 +104,11 @@ public class NonNullFacts : Object {
 		}
 		return result;
 	}
+
 	public void boolean(Object value, NonNullFacts yes, NonNullFacts no) {
 		predicates.insert (value, new NonNullPredicate (yes.outcome (), no.outcome ()));
 	}
+
 	public void assume(Object value, bool truth) {
 		var predicate = predicates.lookup (value);
 		if (predicate == null) {
@@ -113,6 +123,7 @@ public class NonNullFacts : Object {
 			refine (key);
 		}
 	}
+
 	private void invalidate(Object key) {
 		predicates.remove (key);
 		foreach (var predicate in predicates.get_values ()) {
@@ -120,12 +131,15 @@ public class NonNullFacts : Object {
 			predicate.no.facts.remove (key);
 		}
 	}
+
 	public bool knows(Object key) {
 		return facts.contains (key);
 	}
+
 	public Object? backing(Object value) {
 		return aliases.lookup (value);
 	}
+
 	private void set_fact(Object key, bool proven) {
 		if (proven) {
 			facts.insert (key, true);
@@ -133,6 +147,7 @@ public class NonNullFacts : Object {
 			facts.remove (key);
 		}
 	}
+
 	public void capture(Object value, bool proven, Object? backing = null) {
 		invalidate (value);
 		set_fact (value, proven);
@@ -141,6 +156,7 @@ public class NonNullFacts : Object {
 			aliases.insert (value, backing);
 		}
 	}
+
 	public void assign(Object slot, bool proven) {
 		invalidate (slot);
 		foreach (var value in aliases.get_keys ()) {
@@ -150,6 +166,7 @@ public class NonNullFacts : Object {
 		}
 		set_fact (slot, proven);
 	}
+
 	public void refine(Object value) {
 		set_fact (value, true);
 		var slot = aliases.lookup (value);
@@ -157,6 +174,7 @@ public class NonNullFacts : Object {
 			set_fact (slot, true);
 		}
 	}
+
 	public NonNullFacts copy() {
 		var result = new NonNullFacts ();
 		result.reachable = reachable;
@@ -171,6 +189,7 @@ public class NonNullFacts : Object {
 		}
 		return result;
 	}
+
 	public static NonNullFacts join(NonNullFacts left, NonNullFacts right) {
 		if (!left.reachable) {
 			return right.copy ();
@@ -203,6 +222,7 @@ public class NonNullFacts : Object {
 		}
 		return result;
 	}
+
 	public bool same(NonNullFacts other) {
 		if (reachable != other.reachable || facts.size () != other.facts.size () || aliases.size () != other.aliases.size () || predicates.size () != other.predicates.size ()) {
 			return false;
@@ -226,5 +246,6 @@ public class NonNullFacts : Object {
 		}
 		return true;
 	}
+
 }
 }

@@ -8,7 +8,9 @@ class CfgWalk {
 	int cleanups;
 	int loans;
 	int effects;
+
 	init() { this.reachable = 0; this.edges = 0; this.joins = 0; this.backedges = 0; this.cleanups = 0; this.loans = 0; this.effects = 0; }
+
 	void inspect(CfgData d) {
 		var color = new int[d.block_count];
 		var stack = new int[d.block_count];
@@ -18,7 +20,12 @@ class CfgWalk {
 		while (f < d.function_count) {
 			int top = 0;
 			int entry = d.functions[f].entry;
-			if (color[entry - 1] == 0) { stack[0] = entry; phase[0] = 0; color[entry - 1] = 1; top = 1; }
+			if (color[entry - 1] == 0) {
+				stack[0] = entry;
+				phase[0] = 0;
+				color[entry - 1] = 1;
+				top = 1;
+			}
 			while (top > 0) {
 				int at = stack[top - 1]; var b = d.blocks[at - 1];
 				int p = phase[top - 1]; phase[top - 1] = p + 1;
@@ -26,30 +33,45 @@ class CfgWalk {
 					this.reachable = this.reachable + 1;
 					if (b.instruction != 0) {
 						var i = d.instructions[b.instruction - 1];
-						if (i.opcode == 40) { this.cleanups = this.cleanups + 1; }
-						if (i.opcode == 42 || i.opcode == 43) { this.loans = this.loans + 1; }
-						if (i.opcode == 4 || i.opcode == 9 || i.opcode == 11 || i.opcode == 21 || i.opcode == 22 || i.opcode == 40) { this.effects = this.effects + 1; }
+						if (i.opcode == 40) this.cleanups = this.cleanups + 1;
+						if (i.opcode == 42 || i.opcode == 43) this.loans = this.loans + 1;
+						if (i.opcode == 4 || i.opcode == 9 || i.opcode == 11 || i.opcode == 21 || i.opcode == 22 || i.opcode == 40) this.effects = this.effects + 1;
 					}
 				}
-				if (p >= 2) { color[at - 1] = 2; top = top - 1; } else {
-					int target = b.yes; if (p == 1) { target = b.no; }
+				if (p >= 2) {
+					color[at - 1] = 2;
+					top = top - 1;
+				} else {
+					int target = b.yes; if (p == 1) target = b.no;
 					if (target != 0) {
 						this.edges = this.edges + 1; incoming[target - 1] = incoming[target - 1] + 1;
-						if (color[target - 1] == 1) { this.backedges = this.backedges + 1; }
-						if (color[target - 1] == 0) { color[target - 1] = 1; stack[top] = target; phase[top] = 0; top = top + 1; }
+						if (color[target - 1] == 1) this.backedges = this.backedges + 1;
+						if (color[target - 1] == 0) {
+							color[target - 1] = 1;
+							stack[top] = target;
+							phase[top] = 0;
+							top = top + 1;
+						}
 					}
 				}
 			}
 			f = f + 1;
 		}
 		int b = 0;
-		while (b < d.block_count) { if (incoming[b] > 1) { this.joins = this.joins + 1; } b = b + 1; }
+		while (b < d.block_count) {
+			if (incoming[b] > 1) this.joins = this.joins + 1;
+			b = b + 1;
+		}
 	}
 }
+
 owned CfgWalk cfg_walk(CfgProgram program) throws Error {
-	if (cfg_verify(program) != 0) { throw new Error("INVALID_CFG"); }
+	if (cfg_verify(program) != 0) {
+		throw new Error("INVALID_CFG");
+	}
 	var walk = new CfgWalk(); walk.inspect(program.data); return move walk;
 }
+
 void cfg_write_walk(CfgWalk walk, Utf8ByteBuilder out) throws Error {
 	source_append_text(out, "CFG_WALK"); flow_number(out, walk.reachable); flow_number(out, walk.edges); flow_number(out, walk.joins); flow_number(out, walk.backedges); flow_number(out, walk.cleanups); flow_number(out, walk.loans); flow_number(out, walk.effects); source_append_text(out, "\n");
 }

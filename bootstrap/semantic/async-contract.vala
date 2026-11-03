@@ -9,6 +9,7 @@ public class AsyncClosureCaptures : Object {
 		var closure = type as ClosureHandleType;
 		return closure == null || contract == PointerParameterContract.OWNED_TRANSFER && !threaded && !closure.threaded && !closure.actor;
 	}
+
 }
 // This opaque provider resource owns its fd and pinned byte allocation.
 // Name and destructor are a joint imported protocol; stage verifiers also
@@ -17,14 +18,17 @@ public class AsyncPayloadTypes : Object {
 	public static bool matches(SemanticType type, string cleanup) {
 		return type is HandleType && ((HandleType) type).name == "LinuxPayload" && cleanup == "astra_linux_payload_close";
 	}
+
 }
 public class AsyncBridgeTypes : Object {
 	public static bool matches(SemanticType type, string cleanup) {
 		return type.get_type () == typeof (HandleType) && ((HandleType) type).name == "WorkerPool" && ((HandleType) type).context_mode == "" && cleanup == "astra_async_worker_pool_close";
 	}
+
 	public static bool compatible(AsyncRuntimeIdentity source, AsyncRuntimeIdentity target) {
 		return source.composable && target.composable && !source.threaded && target.threaded && source.error_type == target.error_type;
 	}
+
 }
 // Exact opt-in identity is resolved once from a source nomination. Printed
 // operation names cannot grant authority after checking.
@@ -44,6 +48,7 @@ public class AsyncRuntimeIdentity : Object {
 	public bool compatible(AsyncRuntimeIdentity other) {
 		return provider == other.provider && error_type == other.error_type;
 	}
+
 	internal AsyncRuntimeIdentity (SourceSpan nomination, string name, ClassType error, EnumType status, AsyncProviderKind provider = AsyncProviderKind.VIRTUAL, bool composable = false) {
 		this.composable = composable;
 		this.provider = provider;
@@ -53,6 +58,7 @@ public class AsyncRuntimeIdentity : Object {
 		error_type = error;
 		status_type = status;
 	}
+
 }
 public class AsyncBodyContract : Object {
 	public TaskType task_type { get; private set; }
@@ -69,6 +75,7 @@ public class AsyncBodyContract : Object {
 		this.runtime = runtime;
 		task_type = new TaskType (success_type, success_mode, exception_bound, runtime);
 	}
+
 }
 // Logical unique-task contract is separate from the exact generated body
 // identity. Task has no source generic, field or parameter spelling.
@@ -85,12 +92,15 @@ public class TaskType : SemanticType {
 		this.exception_bound = exception_bound;
 		this.runtime = runtime;
 	}
+
 	internal string task_display_name() {
 		return "Task<%s%s%s>".printf (success_mode == ResultOwnershipContract.OWNED_TRANSFER ? "owned " : "", success_type.display_name (), exception_bound == null ? "" : " throws " + exception_bound.display_name ());
 	}
+
 	public bool same_contract(TaskType other) {
 		return success_type == other.success_type && success_mode == other.success_mode && exception_bound == other.exception_bound && runtime == other.runtime;
 	}
+
 }
 public class ExecutorType : SemanticType {
 	public TaskContractIdentity identity { get; private set; default = new TaskContractIdentity (); }
@@ -100,13 +110,16 @@ public class ExecutorType : SemanticType {
 		base (TypeKind.EXECUTOR);
 		runtime_identity = WeakRef (runtime);
 	}
+
 	internal string executor_display_name() {
 		return runtime != null && (runtime.linux || runtime.threaded) ? runtime.executor_name : "VirtualExecutor";
 	}
+
 }
 public enum AsyncOperationKind {
 	OPEN, START, CANCEL, PUMP, ADVANCE, BEGIN_SHUTDOWN, SHUTDOWN_COMPLETE, FINISH_SHUTDOWN, RUN, CLOSE, WAIT
 }
+
 public class AsyncOperationContract : Object {
 	public AsyncRuntimeIdentity runtime { get; private set; }
 	public AsyncOperationKind kind { get; private set; }
@@ -150,11 +163,13 @@ public class AsyncOperationContract : Object {
 			return false;
 		}
 	}
+
 	internal AsyncOperationContract (AsyncRuntimeIdentity runtime, AsyncOperationKind kind, SemanticType result) {
 		this.runtime = runtime;
 		this.kind = kind;
 		this.result = result;
 	}
+
 }
 
 }

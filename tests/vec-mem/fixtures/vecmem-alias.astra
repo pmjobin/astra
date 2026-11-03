@@ -4,19 +4,20 @@ void transform(i16<8>* a, i16<8>* b) {
 	*a = splat(12,8);
 	*b = *b + splat(30,8);
 }
+
 int main() {
 	i16<8> v = splat(1,8);
 	i16<8>* p = &v;
 	i16<8>* q = &v;
 	v = splat(7,8);
-	if (!all(*p == splat(7,8))) { return 1; }
+	if (!all(*p == splat(7,8))) return 1;
 	*p = splat(9,8);
-	if (!all(v == splat(9,8)) || !all(*q == v)) { return 2; }
+	if (!all(v == splat(9,8)) || !all(*q == v)) return 2;
 	v = splat(11,8);
-	if (!all(*q == splat(11,8))) { return 3; }
+	if (!all(*q == splat(11,8))) return 3;
 	*q = splat(12,8);
-	if (!all(*p == splat(12,8))) { return 4; }
+	if (!all(*p == splat(12,8))) return 4;
 	transform(&v,&v);
-	if (!all(v == splat(42,8)) || !all(*p == *q)) { return 5; }
+	if (!all(v == splat(42,8)) || !all(*p == *q)) return 5;
 	return 0;
 }

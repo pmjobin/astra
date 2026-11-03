@@ -14,12 +14,15 @@ public enum VectorDotKind {
 	public bool is_integer() {
 		return this == INTEGER_WRAP_DOT || this == INTEGER_WRAP_MAC;
 	}
+
 	public bool is_mac() {
 		return this == INTEGER_WRAP_MAC || this == F32_MAC || this == F64_MAC;
 	}
+
 	public string order() {
 		return is_integer () ? "modular" : "ascending-lane";
 	}
+
 	public string spelling() {
 		switch (this) {
 		case INTEGER_WRAP_DOT:
@@ -71,5 +74,7 @@ public enum VectorDotKind {
 		}
 		return null;
 	}
+
 }
+
 }

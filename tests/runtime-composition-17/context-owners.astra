@@ -1,52 +1,61 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void context_owner_event(int value);
+
 extern(C) int context_owner_finish();
+
 [Allocator(kind="context",context="owned-concurrent")]
 [Align(bytes="64")]
 class ContextEntry {
 	private int value;
+
 	init(int value) { this.value = value; context_owner_event(value); }
+
 	int read() { return this.value; }
+
 	deinit() { context_owner_event(0 - this.value); }
 }
+
 owned ContextEntry create_entry(borrowed ConcurrentAllocator context, int value) {
 	var entry = new (context) ContextEntry(value);
 	return move entry;
 }
+
 owned ContextEntry escaping_backing(int value) {
 	var context = concurrent_allocator(1, 8197, 7, 128);
-	if (context == null) { return null; }
+	if (context == null) return null;
 	var entry = new (context) ContextEntry(value);
 	return move entry;
 }
+
 owned ContextEntry custom_backing(int value) {
 	var context = custom_allocator(12299, 11);
-	if (context == null) { return null; }
+	if (context == null) return null;
 	var entry = new (context) ContextEntry(value);
 	return move entry;
 }
+
 int main() {
 	{
 		var first = concurrent_allocator(1, 16387, 11, 128);
 		var second = concurrent_allocator(2, 32771, 13, 128);
-		if (first == null || second == null) { return 1; }
-		if (concurrent_allocator_query(first, 0) == concurrent_allocator_query(second, 0)) { return 2; }
+		if (first == null || second == null) return 1;
+		if (concurrent_allocator_query(first, 0) == concurrent_allocator_query(second, 0)) return 2;
 		{
 			var a = new (first) ContextEntry(11);
 			var b = create_entry(first, 17);
 			var c = new (second) ContextEntry(23);
-			if (a.read() != 11 || b.read() != 17 || c.read() != 23) { return 3; }
-			if (concurrent_allocator_query(first, 1) != 2 || concurrent_allocator_query(second, 1) != 1) { return 4; }
+			if (a.read() != 11 || b.read() != 17 || c.read() != 23) return 3;
+			if (concurrent_allocator_query(first, 1) != 2 || concurrent_allocator_query(second, 1) != 1) return 4;
 		}
-		if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) { return 5; }
-		if (concurrent_allocator_query(first, 4) != 2 || concurrent_allocator_query(first, 5) != 2) { return 6; }
+		if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) return 5;
+		if (concurrent_allocator_query(first, 4) != 2 || concurrent_allocator_query(first, 5) != 2) return 6;
 		{
 			var escaped = escaping_backing(31);
-			if (escaped == null || escaped.read() != 31) { return 7; }
+			if (escaped == null || escaped.read() != 31) return 7;
 		}
 		{
 			var custom = custom_backing(37);
-			if (custom == null || custom.read() != 37) { return 8; }
+			if (custom == null || custom.read() != 37) return 8;
 		}
 	}
 	return context_owner_finish();

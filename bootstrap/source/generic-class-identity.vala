@@ -3,9 +3,11 @@ namespace Astra.Source {
 public enum ExactClassOperation {
 	INITIALIZE, RESERVE, APPEND, COUNT, CAPACITY, TAKE, REPLACE, BODY
 }
+
 public enum GenericClassValueRole {
 	VOID, BOOL, INT, ARGUMENT, METHOD_ARGUMENT
 }
+
 // A declaration's type expressions, independent of syntax and IR bodies.
 public class GenericClassMemberSignature : Object {
 	public bool is_generic_method { get; private set; }
@@ -17,9 +19,11 @@ public class GenericClassMemberSignature : Object {
 	public GenericClassValueRole parameter(int index) {
 		return parameters[index];
 	}
+
 	public bool owns_parameter(int index) {
 		return owned_parameters[index];
 	}
+
 	internal GenericClassMemberSignature (GenericClassValueRole result, bool owned_result, GenericClassValueRole[] parameters, bool[] owned_parameters, bool generic_method = false) {
 		this.is_generic_method = generic_method;
 		this.result = result;
@@ -27,6 +31,7 @@ public class GenericClassMemberSignature : Object {
 		this.parameters = parameters.copy ();
 		this.owned_parameters = owned_parameters.copy ();
 	}
+
 	public bool valid() {
 		if (result < GenericClassValueRole.VOID || result > GenericClassValueRole.METHOD_ARGUMENT || (result == GenericClassValueRole.METHOD_ARGUMENT && !is_generic_method) || owned_result != (result == GenericClassValueRole.ARGUMENT) || parameters.length != owned_parameters.length) {
 			return false;
@@ -38,6 +43,7 @@ public class GenericClassMemberSignature : Object {
 		}
 		return true;
 	}
+
 }
 
 // Immutable definition identity, signatures and legacy operation recipes. No syntax,
@@ -60,20 +66,25 @@ public class ExactClassDefinitionIdentity : Object {
 	public string property_name(int property) {
 		return properties[property];
 	}
+
 	public GenericClassValueRole property_result(int property) {
 		return property_results[property];
 	}
+
 	public int generic_method_count { get { return generic_methods.length; } }
 	public string generic_method_name(int member) {
 		return generic_methods[member];
 	}
+
 	public GenericClassMemberSignature? generic_method_signature(int member) {
 		return member < 0 || member >= generic_signatures.length ? null : generic_signatures[member];
 	}
+
 	public bool general_bodies { get { return structure != null || signatures != null; } }
 	public GenericClassMemberSignature? signature(int member) {
 		return signatures == null || member < 0 || member >= signatures.length ? null : signatures[member];
 	}
+
 	public int member_count { get { return members.length; } }
 	internal ExactClassDefinitionIdentity (string name, string field_name, string[] members, ExactClassOperation[] operations, GenericClassMemberSignature[]? signatures = null, string[]? generic_methods = null, GenericClassMemberSignature[]? generic_signatures = null, string[]? properties = null, GenericClassValueRole[]? property_results = null) {
 		this.identifier = name;
@@ -90,6 +101,7 @@ public class ExactClassDefinitionIdentity : Object {
 			this.property_results = property_results.copy ();
 		}
 	}
+
 	internal ExactClassDefinitionIdentity.declared (string name, GenericClassStructure structure) {
 		identifier = name;
 		this.structure = structure;
@@ -117,9 +129,11 @@ public class ExactClassDefinitionIdentity : Object {
 	public string member_name(int index) {
 		return members[index];
 	}
+
 	public ExactClassOperation operation(int index) {
 		return operations[index];
 	}
+
 	public bool valid() {
 		if (structure != null) {
 			return name != "" && structure.valid ();
@@ -209,5 +223,6 @@ public class ExactClassDefinitionIdentity : Object {
 		}
 		return (seen & 31) == 31;
 	}
+
 }
 }

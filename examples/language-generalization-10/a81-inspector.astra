@@ -4,11 +4,12 @@ MemberDescriptor named_member(TypeDescriptor type, string name) throws Error {
 	int index = 0;
 	while (index < type_member_count(type)) {
 		var candidate = member(type, index);
-		if (member_name(candidate) == name) { return candidate; }
+		if (member_name(candidate) == name) return candidate;
 		index = index + 1;
 	}
 	throw new Error("unknown selected member");
 }
+
 void run_inspector(string selected_type, string selected_member, int raw, int bias) throws Error {
 	var guard = open_lease(81);
 	var session = inspection_session(raw, bias, selected_type);
@@ -16,17 +17,25 @@ void run_inspector(string selected_type, string selected_member, int raw, int bi
 	var label = move session.label;
 	var descriptor = lookup(selected_type);
 	var selected = named_member(descriptor, selected_member);
-	if (!println(type_name(descriptor)) || !println(type_kind(descriptor)) || !println(member_name(selected)) || !println(member_type(selected))) { throw new Error("inspector output"); }
+	if (!println(type_name(descriptor)) || !println(type_kind(descriptor)) || !println(member_name(selected)) || !println(member_type(selected))) {
+		throw new Error("inspector output");
+	}
 	number(descriptor.id);
 	number(selected.ordinal);
 	number(type_member_count(descriptor));
 	int value = 0;
 	if (selected_type == "SensorReading") {
-		if (member_kind(selected) == "method") { value = call_SensorReading_int(sensor, selected, bias + 2); }
-		else { value = read_SensorReading_int(sensor, selected); }
+		if (member_kind(selected) == "method") {
+			value = call_SensorReading_int(sensor, selected, bias + 2);
+		}
+		else {
+			value = read_SensorReading_int(sensor, selected);
+		}
 	}
 	else {
-		if (selected_type == "SensorPoint") { value = read_SensorPoint_int(session.point, selected); }
+		if (selected_type == "SensorPoint") {
+			value = read_SensorPoint_int(session.point, selected);
+		}
 		else {
 			var scale = new SensorOffset(bias);
 			value = call_SensorScale_int(scale, selected, raw);
@@ -37,16 +46,21 @@ void run_inspector(string selected_type, string selected_member, int raw, int bi
 	var forged = descriptor;
 	forged.id = 0;
 	try { string invalid = type_name(forged); throw new Error("forged descriptor accepted"); }
-	catch(Error error) { if (error.message != "unknown native type descriptor") { throw; } }
+	catch(Error error) { if (error.message != "unknown native type descriptor") {
+			throw;
+		} }
 	try { var invalid = from_id(0); throw new Error("unknown descriptor accepted"); }
-	catch(Error error) { if (error.message != "unknown native type descriptor") { throw; } }
+	catch(Error error) { if (error.message != "unknown native type descriptor") {
+			throw;
+		} }
 }
+
 int main(string[] args) {
-	if (len(args) != 5) { return 81; }
+	if (len(args) != 5) return 81;
 	int result = 0;
 	try { run_inspector(args[1], args[2], parse_int(args[3]), parse_int(args[4])); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
-	if (live_leases() != 0) { return 83; }
+	if (live_leases() != 0) return 83;
 	return result;
 }

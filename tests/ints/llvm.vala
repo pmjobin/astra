@@ -11,6 +11,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void physical() throws GLib.Error {
 	string dump = lower (build (read ("physical"))).dump ();
 	foreach (string width in new string[] {"i8", "i16", "i32"}) {
@@ -33,6 +34,7 @@ private void physical() throws GLib.Error {
 	string constants = lower (build ("i8 a(){return -1;} u8 b(){return 255;} u32 c(){return 4294967295;} i8 d(){return -128/-1;} i16 e(){return -32768%-1;} u8 f(){return 1/0;} u16 g(){return 1%0;}")).dump ();
 	assert (constants.contains ("ret i8 -1") && constants.contains ("ret i32 -1") && !constants.contains ("poison"));
 }
+
 private void joins_storage() throws GLib.Error {
 	foreach (string name in new string[] {"branch", "loop", "struct", "addressable", "ownership"}) {
 		var artifact = lower (build (read (name)));
@@ -48,6 +50,7 @@ private void joins_storage() throws GLib.Error {
 		}
 	}
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (read ("physical"));
 	NativeAbiProgram? nabi = NativeAbiBuilder.build (ssa);
@@ -68,6 +71,7 @@ private void lifetime() throws GLib.Error {
 	target.emit_object (artifact, path);
 	assert (FileUtils.test (path, FileTest.IS_REGULAR) && FileUtils.unlink (path) == 0);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -78,4 +82,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

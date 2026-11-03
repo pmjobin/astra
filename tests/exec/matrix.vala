@@ -72,4 +72,5 @@ int main() {
 private void register_matrix() {
 	add ("/exec/scalar-reference-matrix", matrix);
 }
+
 }

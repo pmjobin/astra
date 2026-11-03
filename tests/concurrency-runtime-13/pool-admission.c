@@ -11,15 +11,18 @@
 typedef struct State {
 	int root;
 } State;
+
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static int entered, proceed;
 static _Atomic int destroyed;
+
 static void dispose(AstraAsyncTask *task, int discard) {
 	(void)task;
 	assert(discard);
 	atomic_fetch_add(&destroyed, 1);
 }
+
 static void resume(AstraAsyncTask *task) {
 	if (astra_async_cancel_requested(task)) {
 		if (astra_async_cancel_scope(task)) astra_async_complete(task, ASTRA_ASYNC_CANCELLED, NULL);
@@ -38,11 +41,13 @@ static void resume(AstraAsyncTask *task) {
 	}
 	assert(astra_async_delay(task, 60000));
 }
+
 static AstraAsyncTask *create(AstraAsyncTask *parent, int root) {
 	AstraAsyncTask *task = astra_async_new(sizeof(State), _Alignof(State), resume, dispose, parent);
 	*(State *)astra_async_data(task) = (State){.root = root};
 	return task;
 }
+
 int main(void) {
 	AstraAsyncExecutor *executor = astra_async_open(2), *other = astra_async_open(2);
 	assert(executor && other);

@@ -7,6 +7,7 @@ public class CPlainRecordTypes : Object {
 	public static bool i32_pointer(SemanticType type) {
 		return type is TypedPointerType && ((TypedPointerType) type).pointee.kind == TypeKind.INT;
 	}
+
 	public static uint scalar_bytes(SemanticType type) {
 		switch (type.kind) {
 		case TypeKind.I8:
@@ -67,5 +68,6 @@ public class CPlainRecordTypes : Object {
 		}
 		return true;
 	}
+
 }
 }

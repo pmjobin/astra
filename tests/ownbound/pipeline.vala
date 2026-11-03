@@ -31,6 +31,7 @@ private void contracts() throws GLib.Error {
 	assert (core.functions[0].owned_locals[0].place.incoming_parameter == core.functions[0].parameters[0]);
 	assert (core.functions[0].owned_cleanup == core.handles[0].cleanup);
 }
+
 private void ordering() throws GLib.Error {
 	var control = cfg ("void consume(int n, owned Resource r, int m) { } void f() { owned Resource r = create(1); consume(inspect(r), move r, inspect(null)); }", TYPES + API);
 	CfgVerifier.verify (control);
@@ -70,6 +71,7 @@ private void ordering() throws GLib.Error {
 	var last = (SsaCleanupInstruction) ssa.functions[1].entry.instructions[ssa.functions[1].entry.instructions.length - 1];
 	assert (last.value is SsaNullPointerConstant);
 }
+
 private void returned_pointer() throws GLib.Error {
 	var ssa = build (BASIC);
 	var pass = ssa.functions[0];
@@ -93,6 +95,7 @@ private void returned_pointer() throws GLib.Error {
 	}
 	assert (acquire == 1 && rearm == 1);
 }
+
 private void physical() throws GLib.Error {
 	string? reference = null;
 	foreach (string qualifier in new string[] {"", "borrowed ", "owned "}) {
@@ -113,6 +116,7 @@ private void physical() throws GLib.Error {
 	var ssa = build (BASIC);
 	CAbiVerifier.verify (CAbiBuilder.build (ssa, NativeAbiBuilder.build (ssa)));
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -147,4 +151,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

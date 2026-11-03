@@ -16,9 +16,11 @@
 #error LLVM 22 required
 #endif
 _Static_assert(sizeof(void *) == 8, "qualified x86-64 pointers required");
+
 const char *llvm12_empty(void) {
 	return "";
 }
+
 static char *text_copy(const char *p, int32_t n) {
 	if (!p || n < 0 || n > 4096 || memchr(p, 0, (size_t)n)) return NULL;
 	char *out = malloc((size_t)n + 1);
@@ -28,24 +30,29 @@ static char *text_copy(const char *p, int32_t n) {
 	}
 	return out;
 }
+
 LLVMValueRef llvm13_real(LLVMTypeRef type, const char *p, int32_t n, int32_t count) {
 	if (!p || count < 1 || count > n || n > 4096 || memchr(p, 0, (size_t)n)) return NULL;
 	return LLVMConstRealOfStringAndSize(type, p, (unsigned)count);
 }
+
 double llvm13_real_value(LLVMValueRef value) {
 	LLVMBool loses = 0;
 	return LLVMConstRealGetDouble(value, &loses);
 }
+
 int32_t llvm13_named(LLVMValueRef value, const char *p, int32_t n) {
 	if (!value || !p || n < 1 || n > 4096) return 0;
 	size_t length = 0;
 	const char *actual = LLVMGetValueName2(value, &length);
 	return length == (size_t)n && !memcmp(actual, p, length);
 }
+
 int32_t llvm13_index(LLVMValueRef instruction, int32_t ordinal, int32_t expected) {
 	if (ordinal < 0 || expected < 0 || (unsigned)ordinal >= LLVMGetNumIndices(instruction)) return 0;
 	return LLVMGetIndices(instruction)[ordinal] == (unsigned)expected;
 }
+
 int32_t llvm13_attribute(LLVMValueRef value, int32_t index, int32_t call, const char *p, int32_t n) {
 	if (!value || !p || n < 1 || n > 128 || index < -1 || index > 512) return 1;
 	unsigned kind = LLVMGetEnumAttributeKindForName(p, (size_t)n);
@@ -53,13 +60,16 @@ int32_t llvm13_attribute(LLVMValueRef value, int32_t index, int32_t call, const 
 	LLVMAttributeRef attribute = call ? LLVMGetCallSiteEnumAttribute(value, (LLVMAttributeIndex)index, kind) : LLVMGetEnumAttributeAtIndex(value, (LLVMAttributeIndex)index, kind);
 	return attribute != NULL;
 }
+
 void llvm13_rename(LLVMValueRef value, const char *p, int32_t n) {
 	if (value && p && n > 0 && n <= 4096) LLVMSetValueName2(value, p, (size_t)n);
 }
+
 void llvm13_false_align(LLVMContextRef context, LLVMValueRef function, int32_t parameter) {
 	unsigned kind = LLVMGetEnumAttributeKindForName("align", 5);
 	LLVMAddAttributeAtIndex(function, (LLVMAttributeIndex)(parameter + 1), LLVMCreateEnumAttribute(context, kind, 64));
 }
+
 LLVMValueRef llvm12_function(LLVMModuleRef m, LLVMTypeRef t, const char *p, int32_t n) {
 	char *name = text_copy(p, n);
 	if (!name) return NULL;
@@ -72,6 +82,7 @@ LLVMValueRef llvm12_function(LLVMModuleRef m, LLVMTypeRef t, const char *p, int3
 	free(name);
 	return result;
 }
+
 LLVMBasicBlockRef llvm12_block(LLVMContextRef c, LLVMValueRef f, const char *p, int32_t n) {
 	char *name = text_copy(p, n);
 	if (!name) return NULL;
@@ -79,6 +90,7 @@ LLVMBasicBlockRef llvm12_block(LLVMContextRef c, LLVMValueRef f, const char *p, 
 	free(name);
 	return result;
 }
+
 LLVMTargetMachineRef llvm12_machine(int32_t level) {
 	if (level != 0 && level != 2) return NULL;
 	if (LLVMInitializeNativeTarget() || LLVMInitializeNativeAsmPrinter()) return NULL;
@@ -91,6 +103,7 @@ LLVMTargetMachineRef llvm12_machine(int32_t level) {
 	if (triple) LLVMDisposeMessage(triple);
 	return result;
 }
+
 int32_t llvm12_target(LLVMModuleRef m, LLVMTargetMachineRef t) {
 	char *triple = LLVMGetTargetMachineTriple(t);
 	if (!triple) return 1;
@@ -98,6 +111,7 @@ int32_t llvm12_target(LLVMModuleRef m, LLVMTargetMachineRef t) {
 	LLVMDisposeMessage(triple);
 	return 0;
 }
+
 int32_t llvm12_verify(LLVMModuleRef m) {
 	char *error = NULL;
 	int result = LLVMVerifyModule(m, LLVMReturnStatusAction, &error);
@@ -105,6 +119,7 @@ int32_t llvm12_verify(LLVMModuleRef m) {
 	if (error) LLVMDisposeMessage(error);
 	return result;
 }
+
 int32_t llvm12_optimize(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t level) {
 	if (llvm12_verify(m)) return 1;
 	if (level == 0) return 0;
@@ -121,6 +136,7 @@ int32_t llvm12_optimize(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t level) 
 	}
 	return llvm12_verify(m);
 }
+
 int32_t llvm12_write(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t object, int32_t limit, const char *p, int32_t n) {
 	if (limit < 1 || limit > 16777216 || (object != 0 && object != 1) || llvm12_verify(m)) return 1;
 	char *path = text_copy(p, n);
@@ -174,20 +190,25 @@ done:
 void llvm12_nobuiltin(LLVMContextRef c, LLVMValueRef call) {
 	LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("nobuiltin", 9), 0));
 }
+
 // The current Astra C boundary cannot address a dynamic buffer element. This
 // bounded pointer-vector adapter copies only opaque handles selected in Astra.
 void *llvm12_handles(void) {
 	return calloc(1024, sizeof(void *));
 }
+
 void llvm12_handles_dispose(void *p) {
 	free(p);
 }
+
 void llvm12_handle_set(void *p, int32_t i, void *value) {
 	if (p && i >= 0 && i < 1024) ((void **)p)[i] = value;
 }
+
 void *llvm12_handle_offset(void *p, int32_t i) {
 	return p && i >= 0 && i < 1024 ? (void *)((void **)p + i) : NULL;
 }
+
 void *llvm12_seal(LLVMModuleRef m, int32_t limit) {
 	char *s = LLVMPrintModuleToString(m);
 	if (s && (limit < 1 || strlen(s) > (size_t)limit)) {
@@ -196,6 +217,7 @@ void *llvm12_seal(LLVMModuleRef m, int32_t limit) {
 	}
 	return s;
 }
+
 int32_t llvm12_matches(LLVMModuleRef m, const char *seal) {
 	if (!seal) return 0;
 	char *s = LLVMPrintModuleToString(m);
@@ -203,6 +225,7 @@ int32_t llvm12_matches(LLVMModuleRef m, const char *seal) {
 	if (s) LLVMDisposeMessage(s);
 	return same;
 }
+
 void llvm12_print_hex(LLVMModuleRef m) {
 	char *s = LLVMPrintModuleToString(m);
 	if (s) {
@@ -212,11 +235,13 @@ void llvm12_print_hex(LLVMModuleRef m) {
 	}
 	fflush(stdout);
 }
+
 void llvm12_bad_target(LLVMModuleRef m, int32_t bad) {
 	char *s = LLVMGetDefaultTargetTriple();
 	LLVMSetTarget(m, bad ? "aarch64-unknown-linux-gnu" : s);
 	LLVMDisposeMessage(s);
 }
+
 void llvm12_bad_layout(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t bad) {
 	LLVMTargetDataRef d = LLVMCreateTargetDataLayout(t);
 	if (bad)
@@ -225,9 +250,11 @@ void llvm12_bad_layout(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t bad) {
 		LLVMSetModuleDataLayout(m, d);
 	LLVMDisposeTargetData(d);
 }
+
 void llvm12_false_noalias(LLVMContextRef c, LLVMValueRef f) {
 	LLVMAddAttributeAtIndex(f, 1, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("noalias", 7), 0));
 }
+
 void llvm12_noinline(LLVMContextRef c, LLVMValueRef f) {
 	LLVMAddAttributeAtIndex(f, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("noinline", 8), 0));
 }

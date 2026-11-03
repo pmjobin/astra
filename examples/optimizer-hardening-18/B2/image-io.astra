@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 enum ImageIoPhase18 { Completed, Cancelled }
+
 async runtime ImageIo18 throws Error returns ImageIoPhase18 provider "linux-io-uring-composed";
 async void image2_stream(owned LinuxPayload reader, owned WorkerPool pool,
 	owned ConcurrentAllocator context, owned ConcurrentAllocator frames) throws Error {
@@ -8,13 +9,15 @@ async void image2_stream(owned LinuxPayload reader, owned WorkerPool pool,
 		payload_configure(reader, received, count - received, received as i64);
 		await payload_io(reader);
 		int amount = astra_linux_payload_count(reader);
-		if (amount <= 0 || amount > count - received) { throw new Error("image input progress"); }
+		if (amount <= 0 || amount > count - received) {
+			throw new Error("image input progress");
+		}
 		received = received + amount;
 	}
 	int foreground = 0;
 	for (int lane = 0; lane < 4; lane = lane + 1) {
 		var bytes = new(context)u8[count];
-		for (int index = 0; index < count; index = index + 1) { bytes[index] = payload_byte(reader, index) as u8; }
+		for (int index = 0; index < count; index = index + 1) bytes[index] = payload_byte(reader, index) as u8;
 		var job = new(context)ImageJob18(move bytes, lane);
 		foreground = foreground + await pool.submit(checked_task_in(frames, ImageCPU18.calculate(move job)));
 	}
@@ -24,16 +27,23 @@ async void image2_stream(owned LinuxPayload reader, owned WorkerPool pool,
 		throw new Error("image stream retirement/output");
 	}
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
-	if (image2_prepare(args[1], args[2]) != 0) { return 65; }
+	if (len(args) != 3) return 64;
+	if (image2_prepare(args[1], args[2]) != 0) return 65;
 	var context = concurrent_allocator(1, 2097152, 64, 64);
 	var frames = concurrent_allocator(2, 262144, 32, 64);
-	if (context == null || frames == null) { image2_abort(); return 2; }
+	if (context == null || frames == null) {
+		image2_abort();
+		return 2;
+	}
 	try {
-		int capacity = image2_size(); if (capacity == 0) { capacity = 1; }
+		int capacity = image2_size(); if (capacity == 0) capacity = 1;
 		var reader = payload_open(args[1], capacity, 0);
-		var pool = worker_pool(image2_workers()); if (pool == null) { image2_abort(); return 2; }
+		var pool = worker_pool(image2_workers()); if (pool == null) {
+			image2_abort();
+			return 2;
+		}
 		var executor = ImageIo18.open(8);
 		var status = executor.run(image2_stream(move reader, move pool, move context, move frames));
 		match (status) { case ImageIoPhase18.Completed(): {} else: { image2_abort(); return 4; } }

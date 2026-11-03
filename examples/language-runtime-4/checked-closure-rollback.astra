@@ -2,63 +2,84 @@
 // A30: checked caller rollback before acquisition, after capture/upgrade and
 // after invocation. The indirect code has an exact nonthrowing scalar effect.
 extern(C) int closure_app_event(int stage, int value);
+
 class RollbackState {
 	int value;
+
 	init(int value) { this.value = value; closure_app_event(11, value); }
+
 	deinit() { closure_app_event(12, this.value); }
 }
+
 class RollbackJournal {
 	int bias;
+
 	init(int bias) { this.bias = bias; closure_app_event(13, bias); }
+
 	deinit() { closure_app_event(14, this.bias); }
 }
+
 int journal_bias(borrowed RollbackJournal journal) { return journal.bias; }
+
 int rollback_value(borrowed RollbackState state) { return state.value; }
+
 class RollbackEnvironment {
 	private owned RollbackJournal journal;
 	private owned Shared<RollbackState> state;
 	private owned Weak<RollbackState> observer;
+
 	init(owned RollbackJournal journal, owned Shared<RollbackState> state, owned Weak<RollbackState> observer) {
 		this.journal = move journal; this.state = move state; this.observer = move observer;
 		closure_app_event(15, 1);
 	}
+
 	int compute(int input) {
 		var active = weak_upgrade(this.observer);
-		if (active == null) { return -1; }
+		if (active == null) return -1;
 		return rollback_value(shared_borrow(active)) + journal_bias(this.journal) + input;
 	}
+
 	deinit() { closure_app_event(16, 1); }
 }
+
 int rollback_code(borrowed RollbackEnvironment environment, int input) { return environment.compute(input); }
+
 void closure_transaction(borrowed Shared<RollbackState> state, borrowed Weak<RollbackState> observer, int mode) throws Error {
-	if (mode == 0) { throw new Error("before capture"); }
+	if (mode == 0) {
+		throw new Error("before capture");
+	}
 	var journal = new RollbackJournal(7);
 	var retained = shared_clone(state);
 	var observed = weak_clone(observer);
 	var environment = new RollbackEnvironment(move journal, move retained, move observed);
 	var function = closure_bind(move environment, rollback_code);
 	var active = weak_upgrade(observer);
-	if (active == null) { throw new Error("unexpected expiration"); }
-	if (mode == 1) { throw new Error("after capture and upgrade"); }
+	if (active == null) {
+		throw new Error("unexpected expiration");
+	}
+	if (mode == 1) {
+		throw new Error("after capture and upgrade");
+	}
 	int value = closure_invoke(function, 5);
 	closure_app_event(17, value);
 	throw new Error("after invocation");
 }
+
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	try {
 		int mode = parse_int(args[1]);
-		if (mode < 0 || mode > 2) { return 64; }
+		if (mode < 0 || mode > 2) return 64;
 		var payload = new RollbackState(30);
 		var state = shared_acquire(move payload);
 		var observer = shared_downgrade(state);
 		try { closure_transaction(state, observer, mode); return 81; }
-		catch (Error error) { if (!println(error.message)) { return 82; } }
+		catch (Error error) { if (!println(error.message)) return 82; }
 		closure_app_event(18, rollback_value(shared_borrow(state)));
 		release state;
 		var expired = weak_upgrade(observer);
-		if (expired != null) { return 83; }
-		if (!println("expired")) { return 84; }
+		if (expired != null) return 83;
+		if (!println("expired")) return 84;
 		return 0;
 	} catch (Error error) { return 2; }
 }

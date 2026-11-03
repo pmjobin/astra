@@ -24,6 +24,7 @@ private CheckedProgram source() {
 	}
 	return checked.program;
 }
+
 private void checked_core() {
 	try {
 		var checked = source ();
@@ -83,6 +84,7 @@ private void checked_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (source ()));
@@ -135,9 +137,11 @@ private void cfg_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private SsaProgram ssa_source() throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
 }
+
 private void ssa_contract() {
 	try {
 		var ssa = ssa_source ();
@@ -188,6 +192,7 @@ private void ssa_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_cabi() {
 	try {
 		var ssa = ssa_source ();
@@ -256,6 +261,7 @@ private void native_cabi() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void foreign_boundary() {
 	try {
 		var core = CoreBuilder.build (source ());
@@ -318,6 +324,7 @@ private void foreign_boundary() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message = null;
 	int invalid = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -326,6 +333,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 	}
 	assert (invalid == 0);
 }
+
 private void llvm_contract() {
 	try {
 		var ssa = ssa_source ();
@@ -396,6 +404,7 @@ private void llvm_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/retained/checked-core-action-owner", checked_core);
@@ -406,4 +415,5 @@ public int main(string[] args) {
 	Test.add_func ("/retained/llvm-code-context-quiescence", llvm_contract);
 	return Test.run ();
 }
+
 }

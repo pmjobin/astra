@@ -10,6 +10,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void physical() throws GLib.Error {
 	string dump = lower (build (BASIC)).dump ();
 	assert (dump.split ("call ptr @resource_create_impl").length == 3);
@@ -18,6 +19,7 @@ private void physical() throws GLib.Error {
 		assert (!dump.contains (forbidden));
 	}
 }
+
 private void pointer_phi(bool both) throws GLib.Error {
 	string dump = lower (build ("void f(bool c) { owned void* a = create(1); release a; if (c) { a = create(2); } " + (both ? "else { a = variant(3); } inspect(a);" : "") + " }")).dump ();
 	int phis = 0;
@@ -30,6 +32,7 @@ private void pointer_phi(bool both) throws GLib.Error {
 	}
 	assert (phis == 1 && dump.contains ("icmp eq ptr %v"));
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (BASIC);
 	NativeAbiProgram? nabi = NativeAbiBuilder.build (ssa);
@@ -49,6 +52,7 @@ private void lifetime() throws GLib.Error {
 	target.emit_object (artifact, path);
 	assert (FileUtils.test (path, FileTest.IS_REGULAR) && FileUtils.unlink (path) == 0);
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -63,4 +67,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -9,6 +9,7 @@ internal class SsaSharedScalarWork : Object {
 	private static bool scalar(SemanticType type) {
 		return type.kind == TypeKind.BOOL || type is IntegerType || type is FloatingType || type is VectorType;
 	}
+
 	internal static bool permits(SsaInstruction instruction) {
 		var owner = instruction as SsaHeapOwnerEvent;
 		if (owner != null) {
@@ -55,6 +56,7 @@ internal class SsaSharedScalarWork : Object {
 		       instruction is SsaVectorShuffleInstruction || instruction is SsaVectorSelectInstruction || instruction is SsaVectorConstructInstruction ||
 		       instruction is SsaVectorReductionInstruction;
 	}
+
 	internal static GenericArray<SsaBlock>? successors(SsaBlock block) {
 		if (block.terminator is SsaBranch) {
 			foreach (var argument in ((SsaBranch) block.terminator).edge.arguments) {
@@ -79,6 +81,7 @@ internal class SsaSharedScalarWork : Object {
 		}
 		return block.terminator.successors ();
 	}
+
 }
 internal class SsaSharedRegion : Object {
 	internal SsaBlock block;
@@ -90,6 +93,7 @@ internal class SsaSharedRegion : Object {
 		this.block = block;
 		this.first = first;
 	}
+
 }
 internal class SsaSharedBalance : Object {
 	// Prove an all-path transparent region using reverse edge counts. Cycles
@@ -158,6 +162,7 @@ internal class SsaSharedBalance : Object {
 		}
 		return result;
 	}
+
 	internal static GenericArray<SsaSharedElisionPlan> derive(SsaFunction function) {
 		var result = new GenericArray<SsaSharedElisionPlan> ();
 		if (function.async_body != null || function.span.file.native_interface) {
@@ -209,6 +214,7 @@ internal class SsaSharedBalance : Object {
 		}
 		return result;
 	}
+
 }
 // Independent forward state checker; it never asks the region producer to
 // rederive its chosen pair and never compares a stored answer with itself.
@@ -222,6 +228,7 @@ internal class SsaSharedBalanceVerifier : Object {
 			throw new SsaError.INVALID_SSA ("Shared balance checker: " + reason);
 		}
 	}
+
 	private static void pair(SsaFunction function, SsaSharedElisionPlan plan) throws SsaError {
 		require (function.async_body == null && !function.span.file.native_interface,
 			"unproved function domain");
@@ -283,6 +290,7 @@ internal class SsaSharedBalanceVerifier : Object {
 			}
 		}
 	}
+
 	internal static void verify(SsaProgram program) throws SsaError {
 		foreach (var function in program.functions) {
 			var copies = new HashTable<SsaInstruction, bool> (direct_hash, direct_equal);
@@ -295,5 +303,6 @@ internal class SsaSharedBalanceVerifier : Object {
 			}
 		}
 	}
+
 }
 }

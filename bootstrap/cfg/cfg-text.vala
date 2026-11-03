@@ -13,6 +13,7 @@ public class CfgUtf8FactoryValue : CfgValue {
 		this.input = input;
 		this.validates = validates;
 	}
+
 }
 internal class CfgUtf8FactoryAuthority : Object {
 	private static void require(bool valid) throws CfgError {
@@ -20,6 +21,7 @@ internal class CfgUtf8FactoryAuthority : Object {
 			throw new CfgError.INVALID_CFG ("UTF-8 factory lost exact guarded byte group, canonical copy or checked-error edge");
 		}
 	}
+
 	private static void snapshot_constructor(CfgClass owner) throws CfgError {
 		var ctor = owner.constructor;
 		require (ctor != null && ctor.parameters.length == 1 && ctor.parameters[0].semantic_type is StringType && ctor.blocks.length == 1 && ctor.entry.instructions.length == 1);
@@ -29,6 +31,7 @@ internal class CfgUtf8FactoryAuthority : Object {
 		var receiver = place == null ? null : place.pointer as CfgReceiverValue;
 		require (place != null && place.field == owner.fields[0] && input != null && input.parameter == ctor.parameters[0] && receiver != null && receiver.receiver == ctor.receiver);
 	}
+
 	private static void snapshot_getter(CfgClass owner) throws CfgError {
 		require (owner.properties.length == 1);
 		var getter = owner.properties[0].getter;
@@ -39,6 +42,7 @@ internal class CfgUtf8FactoryAuthority : Object {
 		var returned = getter.entry.terminator as CfgReturn;
 		require (place != null && place.field == owner.fields[0] && returned != null && returned.value == read.result);
 	}
+
 	internal static HashTable<CfgUtf8FactoryValue, CfgFunction> authorize(CfgProgram program) throws CfgError {
 		var allowed = new HashTable<CfgUtf8FactoryValue, CfgFunction> (direct_hash, direct_equal);
 		int count = 0;
@@ -97,6 +101,7 @@ internal class CfgUtf8FactoryAuthority : Object {
 		}
 		return allowed;
 	}
+
 }
 
 // No runtime retention: an explicit exit discharges one local's lexical loan.
@@ -108,6 +113,7 @@ public class CfgTextLoanEnd : CfgInstruction {
 		this.local = local;
 		this.exit_authority = exit_authority;
 	}
+
 }
 
 public class CfgTextSnapshotDestroy : CfgInstruction {
@@ -116,6 +122,7 @@ public class CfgTextSnapshotDestroy : CfgInstruction {
 		base (span);
 		this.field = field;
 	}
+
 }
 
 public class CfgTextValue : CfgValue {
@@ -124,6 +131,7 @@ public class CfgTextValue : CfgValue {
 		base (span, type);
 		this.payload = payload;
 	}
+
 }
 public class CfgTextLengthValue : CfgValue {
 	public CfgValue receiver { get; private set; }
@@ -131,6 +139,7 @@ public class CfgTextLengthValue : CfgValue {
 		base (span, type);
 		this.receiver = receiver;
 	}
+
 }
 
 private class CfgStoredText : Object {
@@ -140,6 +149,7 @@ private class CfgStoredText : Object {
 		this.value = value;
 		this.destination = destination;
 	}
+
 }
 private class CfgTextInvalidation : Object {
 	internal Object owner;
@@ -147,6 +157,7 @@ private class CfgTextInvalidation : Object {
 	internal CfgTextInvalidation (Object owner) {
 		this.owner = owner;
 	}
+
 }
 internal class CfgTextOrigins : Object {
 	private GenericArray<CfgStoredText> stored = new GenericArray<CfgStoredText> ();
@@ -178,6 +189,7 @@ internal class CfgTextOrigins : Object {
 		}
 		return null;
 	}
+
 	private void invalidate(Object owner, TextOriginState state) {
 		var event = new CfgTextInvalidation (owner);
 		foreach (var key in state.bindings.get_keys ()) {
@@ -185,6 +197,7 @@ internal class CfgTextOrigins : Object {
 		}
 		invalidations.add (event);
 	}
+
 	private void value(CfgValue expression, TextOriginState state) {
 		if (expression is CfgSlotsValue && ((CfgSlotsValue) expression).operand != null) {
 			value (((CfgSlotsValue) expression).operand, state);
@@ -218,6 +231,7 @@ internal class CfgTextOrigins : Object {
 			origins.copy (expression, state.bindings.lookup (((CfgLoadValue) expression).source) ?? new Object ());
 		}
 	}
+
 	private void function(CfgFunction function) {
 		foreach (var block in function.blocks) {
 			foreach (var instruction in block.instructions) {
@@ -348,6 +362,7 @@ internal class CfgTextOrigins : Object {
 			}
 		}
 	}
+
 	internal static void verify(CfgProgram program) throws CfgError {
 		var proof = new CfgTextOrigins ();
 		foreach (var function in program.functions) {
@@ -400,5 +415,6 @@ internal class CfgTextOrigins : Object {
 			}
 		}
 	}
+
 }
 }

@@ -1,37 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int lazy_input(int rank);
+
 extern(C) int lazy_event(int code, int value);
+
 class Sample {
 	int input;
 	int calls;
 	int other_calls;
 	int ordinary_calls;
+
 	init(int input) { this.input = input; this.calls = 0; this.other_calls = 0; this.ordinary_calls = 0; }
+
 	lazy property int doubled { get { this.calls = this.calls + 1; return lazy_event(65, this.input * 2); } }
+
 	lazy property int equal_value { get { this.other_calls = this.other_calls + 1; return lazy_event(69, this.input * 2); } }
+
 	lazy property int nested { get { return lazy_event(78, this.doubled + this.equal_value); } }
+
 	property int ordinary { get { this.ordinary_calls = this.ordinary_calls + 1; return lazy_event(79, this.input); } }
 }
+
 class Other {
 	int input;
 	int calls;
 	int other_calls;
 	int ordinary_calls;
+
 	init(int input) { this.input = input; this.calls = 0; this.other_calls = 0; this.ordinary_calls = 0; }
+
 	lazy property int doubled { get { this.calls = this.calls + 1; return lazy_event(84, this.input * 3); } }
 }
+
 int main() {
 	var first = new Sample(lazy_input(0));
 	Sample second = Sample.init(lazy_input(1));
 	var unused = new Sample(99);
 	var different = new Other(14);
-	if (first.calls != 0 || second.calls != 0 || unused.calls != 0) { return 81; }
+	if (first.calls != 0 || second.calls != 0 || unused.calls != 0) return 81;
 	lazy_event(66, 0);
 	first.input = 21;
-	if (first.doubled != 42 || first.doubled != 42 || first.calls != 1) { return 82; }
+	if (first.doubled != 42 || first.doubled != 42 || first.calls != 1) return 82;
 	first.input = 20;
-	if (first.doubled != 42 || first.equal_value != 40 || first.equal_value != 40 || first.nested != 82 || first.nested != 82) { return 83; }
-	if (first.calls != 1 || first.other_calls != 1 || second.doubled != 40 || second.calls != 1 || different.doubled != 42 || different.doubled != 42 || different.calls != 1) { return 84; }
-	if (first.ordinary != 20 || first.ordinary != 20 || first.ordinary_calls != 2) { return 85; }
+	if (first.doubled != 42 || first.equal_value != 40 || first.equal_value != 40 || first.nested != 82 || first.nested != 82) return 83;
+	if (first.calls != 1 || first.other_calls != 1 || second.doubled != 40 || second.calls != 1 || different.doubled != 42 || different.doubled != 42 || different.calls != 1) return 84;
+	if (first.ordinary != 20 || first.ordinary != 20 || first.ordinary_calls != 2) return 85;
 	return 42;
 }

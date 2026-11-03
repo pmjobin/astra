@@ -1,41 +1,60 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int field_event(int stage, int tag);
+
 extern(C) int field_done();
+
 class Child {
 	int value;
+
 	init(int tag) { this.value = 42; field_event(1, tag); }
+
 	int probe(int tag) { field_event(3, tag); return this.value; }
+
 	deinit() { field_event(2, 0); }
 }
+
 int inspect(Child child, int tag) { return child.probe(tag); }
-owned Child make(int tag, bool present) { if (present) { var child = new Child(tag); return move child; } return null; }
+
+owned Child make(int tag, bool present) { if (present) {
+		var child = new Child(tag);
+		return move child;
+	} return null; }
+
 class Holder {
 	owned Child child;
+
 	init(owned Child child) { this.child = move child; }
+
 	void replace(owned Child child) { this.child = move child; }
+
 	int get(int tag) { return inspect(this.child, tag); }
+
 	deinit() { field_event(4, 90); this.child = make(9, true); }
 }
+
 class Derived : Holder { init(owned Child child) : base(move child) {} }
+
 class Automatic {
 	owned Child child;
+
 	init() { this.child = make(10, true); }
 }
+
 int main() {
 	var first = new Child(1);
 	var parent = new Derived(move first);
-	if (inspect(parent.child, 1) != 42) { return 81; }
+	if (inspect(parent.child, 1) != 42) return 81;
 	var next = new Child(2);
 	parent.child = move next;
-	if (parent.get(2) != 42) { return 82; }
+	if (parent.get(2) != 42) return 82;
 	parent.child = make(3, true);
-	if (inspect(parent.child, 3) != 42) { return 83; }
+	if (inspect(parent.child, 3) != 42) return 83;
 	var fourth = new Child(4); parent.replace(move fourth);
-	if (parent.get(4) != 42) { return 84; }
+	if (parent.get(4) != 42) return 84;
 	parent.child = make(0, false);
-	if (parent.child != null) { return 85; }
+	if (parent.child != null) return 85;
 	parent.child = make(5, true);
-	if (parent.get(5) != 42) { return 86; }
+	if (parent.get(5) != 42) return 86;
 	release parent;
 	var automatic = new Automatic(); release automatic;
 	return field_done();

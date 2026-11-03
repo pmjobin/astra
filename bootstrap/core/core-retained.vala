@@ -12,5 +12,6 @@ public class CoreRetainedOperation : CoreValue {
 		this.callee = callee;
 		this.arguments = arguments;
 	}
+
 }
 }

@@ -1,25 +1,36 @@
 void initialize(f64[] weights) {
 	int i = 0;
-	while (i < len(weights)) { weights[i] = 2.0; i = i + 1; }
+	while (i < len(weights)) {
+		weights[i] = 2.0;
+		i = i + 1;
+	}
 }
+
 void process(f64[] weights, f64[] scratch) {
 	int i = 0;
-	while (i < len(weights)) { scratch[i] = weights[i] * 3.0; i = i + 1; }
+	while (i < len(weights)) {
+		scratch[i] = weights[i] * 3.0;
+		i = i + 1;
+	}
 }
+
 class CadState {
 	owned f64[] weights;
 	owned f64[] scratch;
 	int width;
+
 	init(int count) {
 		this.weights = new f64[count];
 		this.scratch = new f64[count];
 		this.width = count;
 	}
+
 	int run() {
 		initialize(this.weights);
 		process(this.weights, this.scratch);
-		if (this.scratch[this.width - 1] != 6.0) { return 1; }
+		if (this.scratch[this.width - 1] != 6.0) return 1;
 		return 0;
 	}
 }
+
 int main() { owned CadState state = CadState.init(11); return state.run(); }

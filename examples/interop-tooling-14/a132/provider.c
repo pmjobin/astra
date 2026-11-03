@@ -11,6 +11,7 @@ static _Atomic int worker_records;
 static pthread_t main_thread, region_thread;
 static _Atomic int64_t created_sum, closed_sum;
 static _Atomic(AstraAlloc12Domain *) region;
+
 static void retain_fd(int32_t fd) {
 	if (fd < 0) return;
 	for (int i = 0; i < 16; ++i) {
@@ -22,19 +23,23 @@ static void retain_fd(int32_t fd) {
 	}
 	abort();
 }
+
 int32_t a132_real_astra_net_socket(int32_t);
 int32_t a132_real_astra_net_accept(int32_t);
 int32_t a132_real_astra_net_close(int32_t);
+
 int32_t astra_net_socket(int32_t kind) {
 	int32_t fd = a132_real_astra_net_socket(kind);
 	retain_fd(fd);
 	return fd;
 }
+
 int32_t astra_net_accept(int32_t listener) {
 	int32_t fd = a132_real_astra_net_accept(listener);
 	retain_fd(fd);
 	return fd;
 }
+
 int32_t astra_net_close(int32_t fd) {
 	if (fd >= 0) {
 		int found = 0;
@@ -50,7 +55,9 @@ int32_t astra_net_close(int32_t fd) {
 	}
 	return a132_real_astra_net_close(fd);
 }
+
 void *a132_real_astra_alloc12_allocate(AstraAlloc12Domain *, uint64_t, uint64_t, uint32_t, uint64_t);
+
 void *astra_alloc12_allocate(AstraAlloc12Domain *domain, uint64_t count, uint64_t extent, uint32_t alignment, uint64_t tag) {
 	if (!domain || domain->kind != ASTRA_ALLOC12_REGION || alignment != 64 || count != 1) ++bad;
 	AstraAlloc12Domain *previous = atomic_exchange(&region, domain);
@@ -61,11 +68,13 @@ void *astra_alloc12_allocate(AstraAlloc12Domain *domain, uint64_t count, uint64_
 		++bad;
 	return a132_real_astra_alloc12_allocate(domain, count, extent, alignment, tag);
 }
+
 int32_t a132_ready(int32_t tcp, int32_t udp) {
 	printf("READY A132 %d %d\n", tcp, udp);
 	fflush(stdout);
 	return 0;
 }
+
 int32_t a132_event(int32_t phase, int32_t kind, int32_t value) {
 	if (kind == 100) {
 		if (phase == 1) {
@@ -90,10 +99,12 @@ int32_t a132_event(int32_t phase, int32_t kind, int32_t value) {
 	}
 	return 0;
 }
+
 static int setting(const char *name) {
 	const char *value = getenv(name);
 	return value ? atoi(value) : 0;
 }
+
 int32_t a132_finish(int32_t status, int32_t count, int32_t total) {
 	int expected_status = setting("A132_STATUS"), wanted = expected_status == 0 ? 8 : 0;
 	int expected_total = setting("A132_TOTAL");

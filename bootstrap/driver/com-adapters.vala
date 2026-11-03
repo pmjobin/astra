@@ -9,6 +9,7 @@ public class ComAdapters : Object {
 	internal static string guid_initializer(string guid) {
 		return "{0x%s,0x%s,0x%s,{0x%s,0x%s,0x%s,0x%s,0x%s,0x%s,0x%s,0x%s}}".printf (guid.substring (0, 8), guid.substring (9, 4), guid.substring (14, 4), guid.substring (19, 2), guid.substring (21, 2), guid.substring (24, 2), guid.substring (26, 2), guid.substring (28, 2), guid.substring (30, 2), guid.substring (32, 2), guid.substring (34, 2));
 	}
+
 	public static string generate(CheckedProgram program, bool implementation) throws ForeignAdapterError {
 		bool exported = false;
 		foreach (var owner in program.classes) {
@@ -141,5 +142,6 @@ extern "C" __declspec(dllexport) HRESULT @P@_com_create(int32_t value, IUnknown 
 		text.append ("\n#endif\n");
 		return text.str;
 	}
+
 }
 }

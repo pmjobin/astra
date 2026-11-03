@@ -4,11 +4,16 @@ public class Config {
 	private owned Utf8Message original;
 	private int entries_value;
 	private i64 total_value;
+
 	init(owned Utf8Message original, int entries, i64 total) {
 		this.original = move original; this.entries_value = entries; this.total_value = total;
 	}
+
 	int entries() { return this.entries_value; }
+
 	i64 total() { return this.total_value; }
+
 	int source_bytes() { return observe(this.original); }
 }
+
 internal int observe(Utf8Message original) { return original.text.byte_length; }

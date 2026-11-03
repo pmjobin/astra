@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="a127_created")] int created(int severity);
+
 [CImport(name="a127_closed")] int closed(int severity, int revisions);
+
 [CImport(name="a127_text_event")] int text_event(int delta);
+
 [CImport(name="astra_host_text_byte",text_abi="utf8-i32")]
 int text_byte(borrowed string text, int index);
+
 [GObjectExport(type="Astra127Diagnostic",namespace="Astra127",version="1.0")]
 [Shared]
 [CExport(name="astra127_diagnostic",property="value")]
 class Diagnostic {
 	private int severity;
 	private int revisions;
+
 	init(int initial) { this.severity = initial; this.revisions = 0; created(initial); }
+
 	property int value {
 		get { return this.severity; }
 		set(int severity) {
@@ -19,32 +25,49 @@ class Diagnostic {
 			}
 		}
 	}
+
 	deinit() { closed(this.severity, this.revisions); }
 }
+
 class ReportCodeError : Error { init() : base("unsupported diagnostic severity") {} }
+
 class ReportText {
 	private owned Utf8Message message;
+
 	init(owned Utf8Message message) { this.message = move message; text_event(1); }
+
 	int byte(int index) { return message_byte(this.message, index); }
+
 	deinit() { text_event(-1); }
 }
+
 int message_byte(borrowed Utf8Message message, int index) {
 	var text = message.text;
-	if (index == -1) { return text.byte_length; }
-	if (index < 0 || index >= text.byte_length) { return -7; }
+	if (index == -1) return text.byte_length;
+	if (index < 0 || index >= text.byte_length) return -7;
 	return text_byte(text, index);
 }
+
 owned ReportText report_text(int severity) throws Error {
 	string text = "info[0]: ready 🖤";
-	if (severity == 1) { text = "warning[1]: retry café"; }
-	else { if (severity == 2) { text = "error[2]: invalid packet"; }
-		else { if (severity != 0) { throw new ReportCodeError(); } } }
+	if (severity == 1) {
+		text = "warning[1]: retry café";
+	}
+	else { if (severity == 2) {
+			text = "error[2]: invalid packet";
+		}
+		else {
+			if (severity != 0) {
+				throw new ReportCodeError();
+			}
+		} }
 	var bytes = new u8[text.byte_length];
-	for (int i = 0; i < text.byte_length; i = i + 1) { bytes[i] = text_byte(text, i) as u8; }
+	for (int i = 0; i < text.byte_length; i = i + 1) bytes[i] = text_byte(text, i) as u8;
 	var message = utf8_message(bytes);
 	var result = new ReportText(move message);
 	return move result;
 }
+
 // The explicit SDK companion copies these scalar bytes into a transfer-full
 // GLib UTF-8 string. Native Text and checked exceptions never cross that ABI.
 [CExport(name="a127_report_byte")]

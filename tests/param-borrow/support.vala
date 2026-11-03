@@ -10,6 +10,7 @@ private string[] fixtures() {
 			   "resource", "class", "slice", "method", "constructor", "mutation", "reborrow", "owned-control", "values", "var", "after-call", "order", "null"
 	};
 }
+
 private CheckedProgram check(string source) {
 	string api;
 	try {
@@ -32,6 +33,7 @@ private CheckedProgram check(string source) {
 	assert (syntax.get () == null);
 	return result.program;
 }
+
 private CheckedProgram fixture(string name, bool implicit = true) {
 	string source;
 	try {
@@ -41,4 +43,5 @@ private CheckedProgram fixture(string name, bool implicit = true) {
 	}
 	return check (source);
 }
+
 }

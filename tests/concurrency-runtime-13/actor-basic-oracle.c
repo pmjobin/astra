@@ -9,6 +9,7 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static int active, proceed, finished, receivers, cooperative;
 static int drops[5];
+
 int32_t actor_test_handle(int32_t id) {
 	char name[16];
 	assert(pthread_getname_np(pthread_self(), name, sizeof(name)) == 0);
@@ -25,6 +26,7 @@ int32_t actor_test_handle(int32_t id) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_test_message_drop(int32_t id) {
 	assert(id >= 0 && id < 5);
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -32,12 +34,14 @@ int32_t actor_test_message_drop(int32_t id) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_test_receiver_drop(void) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	assert(active == 0 && finished == 1 && cooperative == 1 && drops[0] == 1 && receivers++ == 0);
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_test_wait(void) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	while (!active)
@@ -45,6 +49,7 @@ int32_t actor_test_wait(void) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_test_continue(void) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	proceed = 1;
@@ -52,6 +57,7 @@ int32_t actor_test_continue(void) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_test_rejected(int32_t id) {
 	assert(id >= 0 && id < 5);
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -59,6 +65,7 @@ int32_t actor_test_rejected(int32_t id) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_test_finish(void) {
 	assert(receivers == 1 && finished == 1);
 	for (int i = 0; i < 5; ++i)

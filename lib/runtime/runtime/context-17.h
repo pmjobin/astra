@@ -6,13 +6,16 @@
 
 #define ASTRA_CONTEXT17_ABI 1u
 typedef struct AstraContext17 AstraContext17;
+
 enum AstraContext17Kind { ASTRA_CONTEXT17_HEAP,
 	                      ASTRA_CONTEXT17_REGION,
 	                      ASTRA_CONTEXT17_POOL,
 	                      ASTRA_CONTEXT17_CUSTOM };
+
 enum AstraContext17Threading { ASTRA_CONTEXT17_AFFINE,
 	                           ASTRA_CONTEXT17_TRANSFER,
 	                           ASTRA_CONTEXT17_CONCURRENT };
+
 enum AstraContext17Status {
 	ASTRA_CONTEXT17_OK,
 	ASTRA_CONTEXT17_INVALID,
@@ -28,6 +31,7 @@ enum AstraContext17Status {
 	ASTRA_CONTEXT17_CLOSED,
 	ASTRA_CONTEXT17_PROVIDER
 };
+
 /* Foreign provider trust: callbacks must supply valid nonoverlapping storage,
  * honor threading, never unwind and never reenter this context's mutation.
  * On successful construction the context owns state until dispose(state).
@@ -38,10 +42,12 @@ typedef struct AstraContext17Provider {
 	void (*release)(void *state, void *pointer, uint64_t bytes, uint32_t alignment);
 	void (*dispose)(void *state);
 } AstraContext17Provider;
+
 typedef struct AstraContext17Token {
 	void *pointer;
 	uint64_t instance, generation, tag, slot;
 } AstraContext17Token;
+
 typedef struct AstraContext17Snapshot {
 	uint64_t instance, anchors, live, live_bytes, peak_bytes;
 	uint64_t allocations, releases, generation, reserved_bytes;

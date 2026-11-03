@@ -42,6 +42,7 @@ private SsaProgram model(int variant = -1) throws GLib.Error {
 	functions.add (function);
 	return new SsaProgram (span, functions, null, null, null, cleanups, handles);
 }
+
 private void valid() {
 	try {
 		var program = model ();
@@ -51,6 +52,7 @@ private void valid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 0; variant < 7; variant++) {
 		try {
@@ -62,10 +64,12 @@ private void invalid() {
 		GLib.error ("malformed SSA boundary %d accepted", variant);
 	}
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/ownbound/ssa/standalone", valid);
 	Test.add_func ("/ownbound/ssa/malformed", invalid);
 	return Test.run ();
 }
+
 }

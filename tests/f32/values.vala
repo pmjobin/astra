@@ -69,4 +69,5 @@ int main(string[] args) {
 	Test.add_func ("/f32/value/spellings-bounded-extremes-sticky", spellings);
 	return Test.run ();
 }
+
 }

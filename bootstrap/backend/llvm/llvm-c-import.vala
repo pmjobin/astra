@@ -13,11 +13,13 @@ internal class LlvmCRecordStackSlot : Object {
 		this.layout = layout;
 		this.alignment = alignment;
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (slot) == null || CApi.opcode (slot) != CApi.Opcode.ALLOCA || (void*) CApi.instruction_parent (slot) != (void*) CApi.first_block (function) || (void*) CApi.allocated_type (slot) != (void*) layout || CApi.get_alignment (slot) != alignment || CApi.operand_count (slot) != 1 || (void*) CApi.operand (slot, 0) != (void*) CApi.const_int (CApi.type_of (CApi.operand (slot, 0)), 1, 0)) {
 			throw new LlvmError.VERIFICATION ("C record staging requires one exact bounded entry allocation");
 		}
 	}
+
 }
 internal class LlvmCRecordAttributes : Object {
 	private CApi.ValueRef value;
@@ -48,12 +50,14 @@ internal class LlvmCRecordAttributes : Object {
 			}
 		}
 	}
+
 	private void add(LlvmCTypeMapper mapper, CAbi.CAbiRecordPlan record, uint index, string name) throws LlvmError {
 		indices += index;
 		kinds += CApi.enum_attribute_kind (name, name.length);
 		types += (void*) mapper.record_type (record);
 		alignments += record.alignment;
 	}
+
 	internal void verify() throws LlvmError {
 		foreach (uint index in boolean_indices) {
 			var attribute = call ? CApi.call_enum_attribute (value, index, CApi.enum_attribute_kind ("zeroext", 7)) : CApi.enum_attribute (value, index, CApi.enum_attribute_kind ("zeroext", 7));
@@ -69,6 +73,7 @@ internal class LlvmCRecordAttributes : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmCCallbackBinding : Object {
 	internal CApi.ValueRef value;
@@ -103,6 +108,7 @@ internal class LlvmCCallbackBinding : Object {
 		returned = CApi.build_ret (builder, call);
 		CApi.dispose_builder (builder);
 	}
+
 	internal void verify() throws LlvmError {
 		size_t length;
 		unowned string name = CApi.value_name (value, out length);
@@ -114,6 +120,7 @@ internal class LlvmCCallbackBinding : Object {
 			throw new LlvmError.VERIFICATION ("C callback lost exact native identity, convention or typed context/value forwarding");
 		}
 	}
+
 }
 internal class LlvmCRecordLayoutBinding : Object {
 	private CApi.TypeRef layout;
@@ -154,6 +161,7 @@ internal class LlvmCRecordLayoutBinding : Object {
 			}
 		}
 	}
+
 	internal void verify(CApi.TargetDataRef data) throws LlvmError {
 		if (CApi.is_packed_struct (layout) != 0 || CApi.count_struct_element_types (layout) != fields.length || CApi.abi_size_of_type (data, layout) != size || CApi.abi_alignment_of_type (data, layout) != alignment) {
 			throw new LlvmError.VERIFICATION ("C record lost exact natural extent/alignment/field count");
@@ -164,6 +172,7 @@ internal class LlvmCRecordLayoutBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmCGroupBinding : Object {
 	private CApi.ValueRef group;
@@ -174,6 +183,7 @@ internal class LlvmCGroupBinding : Object {
 		this.data = data;
 		this.length = length;
 	}
+
 	internal void verify() throws LlvmError {
 		CApi.ValueRef[] components = {
 			data, length
@@ -192,6 +202,7 @@ internal class LlvmCGroupBinding : Object {
 			}
 		}
 	}
+
 }
 // Artifact-owned physical contract: copied symbol and borrowed LLVM handles
 // only. LLVM's general verifier does not enforce Astra's ABI domain rules.
@@ -210,12 +221,14 @@ internal class LlvmCFunctionBinding : Object {
 	internal void define_class_import(LlvmModuleArtifact artifact, LlvmTypeMapper types, Astra.Source.ForeignImportContract root) throws LlvmError {
 		imported_cleanup = LlvmForeignImports.cleanup (artifact, types, root, value);
 	}
+
 	private Astra.Foreign.PcDeviceContract? device;
 	private LlvmSumSequence? device_sequence;
 	internal void define_device(LlvmModuleArtifact artifact, Astra.Foreign.PcDeviceContract contract) throws LlvmError {
 		device = contract.copy ();
 		device_sequence = LlvmPcDevices.emit (artifact, value, type, contract);
 	}
+
 	internal CApi.ValueRef callback_value;
 	internal CApi.TypeRef type;
 	internal CApi.ValueRef value;
@@ -225,6 +238,7 @@ internal class LlvmCFunctionBinding : Object {
 	internal void record_record_attributes(CAbi.CAbiSignature signature, LlvmCTypeMapper mapper, CApi.ValueRef value, bool call = false) throws LlvmError {
 		record_attributes.add (new LlvmCRecordAttributes (signature, mapper, value, call));
 	}
+
 	private GenericArray<LlvmCGroupBinding> group_bindings = new GenericArray<LlvmCGroupBinding> ();
 	private string external_symbol;
 
@@ -238,6 +252,7 @@ internal class LlvmCFunctionBinding : Object {
 		calls.add ((void*) call);
 		argument_bindings.add (new LlvmClassCallBinding (call, value, type, arguments, CApi.CallConv.C, "foreign exact counted/scalar inputs"));
 	}
+
 	internal void record_group(CApi.ValueRef group, CApi.ValueRef data, CApi.ValueRef length) {
 		group_bindings.add (new LlvmCGroupBinding (group, data, length));
 	}
@@ -294,5 +309,6 @@ internal class LlvmCFunctionBinding : Object {
 			binding.verify ();
 		}
 	}
+
 }
 }

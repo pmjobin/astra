@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class ParameterLeafChild {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	int read() { return this.code; }
+
 	deinit() { mark(this.code); }
 }
+
 struct ParameterLeafStats { int count; i64 total; }
+
 struct ParameterLeaves {
 	owned ParameterLeafChild child;
 	owned R first;
@@ -13,20 +18,27 @@ struct ParameterLeaves {
 	owned int[] samples;
 	owned i64[] wide;
 }
+
 struct ParameterLeafEnvelope { int tag; ParameterLeaves leaves; ParameterLeafStats stats; }
+
 int inspect_parameter_leaves(borrowed ParameterLeafEnvelope value) {
 	i64 expected = 9000000001;
 	ParameterLeafStats copied = value.stats;
-	if (value.tag != 7 || copied.total != expected || value.leaves.wide[0] != expected) { return 0; }
-	if (value.leaves.child.code != 19) { return 0; }
+	if (value.tag != 7 || copied.total != expected || value.leaves.wide[0] != expected) return 0;
+	if (value.leaves.child.code != 19) return 0;
 	return copied.count + value.leaves.child.read() + id(value.leaves.first) + other_id(value.leaves.second) + len(value.leaves.samples) + value.leaves.samples[0] + len(value.leaves.wide);
 }
+
 int forward_parameter_leaves(borrowed ParameterLeafEnvelope value) { return inspect_parameter_leaves(value); }
+
 int inspect_two_parameter_leaves(borrowed ParameterLeafEnvelope left, borrowed ParameterLeafEnvelope right) {
 	return inspect_parameter_leaves(left) + inspect_parameter_leaves(right);
 }
+
 int tagged_parameter_leaves(borrowed ParameterLeafEnvelope value, int tag) { return inspect_parameter_leaves(value) + tag; }
+
 int finish_parameter_getter(int copied, owned Box<ParameterLeafEnvelope> box) { return copied; }
+
 int exercise_parameter_leaves() {
 	var child = new ParameterLeafChild(19);
 	var first = make(201);
@@ -38,14 +50,15 @@ int exercise_parameter_leaves() {
 	wide[0] = expected;
 	ParameterLeafEnvelope value = {tag = 7, leaves = {child = move child, first = move first, second = move second, samples = move samples, wide = move wide}, stats = {count = 42, total = expected}};
 	var box = new Box<ParameterLeafEnvelope>(move value);
-	if (inspect_parameter_leaves(box.view) != 483 || forward_parameter_leaves(box.view) != 483) { return 1; }
-	if (inspect_two_parameter_leaves(box.view, box.view) != 966 || live() != 2) { return 2; }
-	if (tagged_parameter_leaves(box.view, mark(5)) != 488) { return 3; }
-	if (finish_parameter_getter(box.view.stats.count, move box) != 42) { return 4; }
+	if (inspect_parameter_leaves(box.view) != 483 || forward_parameter_leaves(box.view) != 483) return 1;
+	if (inspect_two_parameter_leaves(box.view, box.view) != 966 || live() != 2) return 2;
+	if (tagged_parameter_leaves(box.view, mark(5)) != 488) return 3;
+	if (finish_parameter_getter(box.view.stats.count, move box) != 42) return 4;
 	return 0;
 }
+
 int main() {
 	int result = exercise_parameter_leaves();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

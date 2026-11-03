@@ -1,31 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int thread_oracle_arrive(int expected);
+
 extern(C) int thread_oracle_destroy();
+
 extern(C) int thread_oracle_finish(int expected);
+
 extern(C) int monitor_pair_visit(int id);
+
 extern(C) int monitor_pair_drop(int id);
+
 extern(C) int monitor_pair_finish();
+
 [Monitor]
 class Counter {
 	private int id;
 	private int value;
+
 	init(int id) { this.id = id; this.value = 0; }
+
 	void add() { monitor_pair_visit(this.id); this.value = this.value + 1; }
+
 	int read() { return this.value; }
+
 	deinit() { monitor_pair_drop(this.id); }
 }
+
 void add(borrowed Counter counter) { counter.add(); }
+
 int read(borrowed Counter counter) { return counter.read(); }
+
 class Request {
 	owned Shared<Counter> counter;
+
 	init(owned Shared<Counter> counter) { this.counter = move counter; }
+
 	deinit() { thread_oracle_destroy(); }
 }
+
 int run(borrowed Request request, int iterations) {
 	var counter = shared_clone(request.counter); thread_oracle_arrive(4);
-	for (int i = 0; i < iterations; i = i + 1) { add(shared_borrow(counter)); }
+	for (int i = 0; i < iterations; i = i + 1) add(shared_borrow(counter));
 	return iterations;
 }
+
 int main() {
 	var left = new Counter(0); var a = shared_acquire(move left);
 	var right = new Counter(1); var b = shared_acquire(move right);
@@ -33,11 +50,11 @@ int main() {
 	var c1 = b.clone(); var e1 = new Request(move c1); var t1 = thread_bind(move e1, run);
 	var c2 = a.clone(); var e2 = new Request(move c2); var t2 = thread_bind(move e2, run);
 	var c3 = b.clone(); var e3 = new Request(move c3); var t3 = thread_bind(move e3, run);
-	if (thread_start(t0, 1000) != 0 || thread_start(t1, 1000) != 0 || thread_start(t2, 1000) != 0 || thread_start(t3, 1000) != 0) { return 81; }
-	if (thread_join(t0) != 1000 || thread_join(t1) != 1000 || thread_join(t2) != 1000 || thread_join(t3) != 1000) { return 82; }
+	if (thread_start(t0, 1000) != 0 || thread_start(t1, 1000) != 0 || thread_start(t2, 1000) != 0 || thread_start(t3, 1000) != 0) return 81;
+	if (thread_join(t0) != 1000 || thread_join(t1) != 1000 || thread_join(t2) != 1000 || thread_join(t3) != 1000) return 82;
 	release t0; release t1; release t2; release t3;
-	if (read(shared_borrow(a)) != 2000 || read(shared_borrow(b)) != 2000) { return 83; }
+	if (read(shared_borrow(a)) != 2000 || read(shared_borrow(b)) != 2000) return 83;
 	release a; release b;
-	if (thread_oracle_finish(4) != 0) { return 84; }
+	if (thread_oracle_finish(4) != 0) return 84;
 	return monitor_pair_finish();
 }

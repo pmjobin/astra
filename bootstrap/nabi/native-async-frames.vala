@@ -21,6 +21,7 @@ public class NativeAsyncCallablePlan : Object {
 		this.success_mode = success_mode;
 		signature_origin = channels (signature);
 	}
+
 	private static string channels(NativeSignature signature) {
 		var text = new StringBuilder ();
 		text.append_printf ("receiver=%s;result=%s;", signature.receiver == null ? "none" : signature.receiver.spelling (),
@@ -65,9 +66,11 @@ public class NativeAsyncCallablePlan : Object {
 		}
 		return text.str;
 	}
+
 	public string contract() {
 		return "native-tasks-v17;task-abi=17;provider=%d;runtime-error=%s;success=%s;mode=%d;cold-factory=fastcc:parent,frame-descriptor,frame-context;checked-factory=nullable-unpublished/1;provider-admission=exact;resume=ccc:void(ptr);destroy=ccc:void(ptr,i32);complete=5;error=6;cancelled=7;retire=descendants-and-provider-users;".printf ((int) provider, runtime_error, success_name, success_mode) + (composable ? "bridge=worker-submit-observe/1;" : "");
 	}
+
 	public bool matches(NativeSignature signature) {
 		foreach (var parameter in signature.parameters) {
 			if (parameter.abi_type is NativeSharedHandleType) {
@@ -81,6 +84,7 @@ public class NativeAsyncCallablePlan : Object {
 		return provider >= Astra.Source.AsyncProviderKind.VIRTUAL && provider <= Astra.Source.AsyncProviderKind.POSIX_THREADED &&
 		       runtime_error != "" && success_name != "" && signature.receiver == null && signature_origin == channels (signature);
 	}
+
 }
 public class NativeTaskHandleType : NativeAbiType {
 	public Astra.Source.TaskContractIdentity identity { get; private set; }
@@ -91,12 +95,15 @@ public class NativeTaskHandleType : NativeAbiType {
 		this.success = success;
 		this.owns_success = owns_success;
 	}
+
 	public override string spelling() {
 		return "UNIQUE_TASK(%s%s)".printf (owns_success ? "owned " : "", success == null ? "void" : success.spelling ());
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		return other is NativeTaskHandleType && ((NativeTaskHandleType) other).identity == identity && ((NativeTaskHandleType) other).owns_success == owns_success && ((((NativeTaskHandleType) other).success == null) == (success == null)) && (success == null || success.same_type (((NativeTaskHandleType) other).success));
 	}
+
 }
 // Logical record success identity. Its concrete leaf carrier belongs to the
 // frame/result plan, never to an ordinary scalar parameter ABI.
@@ -107,17 +114,21 @@ public class NativeTaskRecordSuccessType : NativeAbiType {
 		this.identity = identity;
 		identifier = name;
 	}
+
 	public override string spelling() {
 		return "TASK_RECORD(" + identifier + ")";
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var record = other as NativeTaskRecordSuccessType;
 		return record != null && record.identity == identity && record.identifier == identifier;
 	}
+
 }
 public enum NativeTaskCapability {
 	NATIVE_TASKS_V15
 }
+
 // One detached observation right binds its producer, continuation and full
 // success group. The source contract remains independent of emitted operands.
 public class NativeAsyncWait : Object {
@@ -138,6 +149,7 @@ public class NativeAsyncWait : Object {
 	public int leaf(uint ordinal) {
 		return leaves[ordinal];
 	}
+
 	internal NativeAsyncWait (int block, int position, int child_definition, int exception_definition, bool discard, Astra.Source.TaskContractIdentity identity, GenericArray<int> leaves, int enum_ordinal = -1, Astra.Source.EnumInstanceIdentity? enum_instance = null, int bridge_definition = -1, int bridge_owner = -1, Astra.Source.AsyncProviderKind target_provider = Astra.Source.AsyncProviderKind.VIRTUAL, bool composed = false) {
 		this.bridge_definition = bridge_definition;
 		this.bridge_owner = bridge_owner;
@@ -156,6 +168,7 @@ public class NativeAsyncWait : Object {
 			this.leaves[l] = leaves[l];
 		}
 	}
+
 }
 public class NativeAsyncLoan : Object {
 	public Astra.Source.SuspensionLoanIdentity identity { get; private set; }
@@ -178,6 +191,7 @@ public class NativeAsyncLoan : Object {
 		this.view_definition = view_definition;
 		this.storage_ordinal = storage_ordinal;
 	}
+
 }
 public class NativeAsyncEnumStorage : Object {
 	public int cleanup_position { get; private set; }
@@ -200,6 +214,7 @@ public class NativeAsyncEnumStorage : Object {
 		this.instance = instance;
 		this.owning = owning;
 	}
+
 }
 public class NativeAsyncStorage : Object {
 	public int ordinal { get; private set; }
@@ -214,6 +229,7 @@ public class NativeAsyncStorage : Object {
 		this.leaf = leaf;
 		this.record = record;
 	}
+
 }
 public class NativeAsyncOwner : Object {
 	public int record_rank { get; private set; }
@@ -223,6 +239,7 @@ public class NativeAsyncOwner : Object {
 	internal bool closure_valid() {
 		return closure == original_closure;
 	}
+
 	public int cleanup_position { get; private set; }
 	public int ordinal { get; private set; }
 	public int source_ordinal { get; private set; }
@@ -244,6 +261,7 @@ public class NativeAsyncOwner : Object {
 		this.cleanup_identifier = cleanup_symbol;
 		this.capture_first_leaf = capture_first_leaf;
 	}
+
 }
 public class NativeAsyncBuffer : Object {
 	public int record_rank { get; private set; }
@@ -263,6 +281,7 @@ public class NativeAsyncBuffer : Object {
 		this.capture_first_leaf = capture_first_leaf;
 		this.context_origin = context_origin;
 	}
+
 	internal NativeAsyncBuffer.for_record (int ordinal, int owner_ordinal, NativeRecordElement element, int capture_first_leaf = -1, int cleanup_position = -1, int record_rank = -1) {
 		this.record_rank = record_rank;
 		this.cleanup_position = cleanup_position;
@@ -283,6 +302,7 @@ public class NativeAsyncField : Object {
 		this.position = position;
 		this.abi_type = type;
 	}
+
 }
 public class NativeAsyncState : Object {
 	public int payload_definition { get; private set; }
@@ -295,6 +315,7 @@ public class NativeAsyncState : Object {
 	public int initialized_field(uint ordinal) {
 		return initialized[ordinal];
 	}
+
 	internal NativeAsyncState (int pc, int block, int position, GenericArray<int> initialized, int payload_definition = -1, int payload_owner = -1) {
 		this.payload_definition = payload_definition;
 		this.payload_owner = payload_owner;
@@ -306,6 +327,7 @@ public class NativeAsyncState : Object {
 			this.initialized[i] = initialized[i];
 		}
 	}
+
 }
 // Detached concrete code/storage plan. No SSA or semantic function survives.
 public class NativeAsyncFramePlan : Object {
@@ -323,6 +345,7 @@ public class NativeAsyncFramePlan : Object {
 		}
 		return text.str;
 	}
+
 	public const string CAPABILITY = "native-tasks-v17";
 	public const string LINUX_CAPABILITY = "linux-uring-timers-v1";
 	public Astra.Source.AsyncProviderKind provider { get; private set; }
@@ -332,9 +355,11 @@ public class NativeAsyncFramePlan : Object {
 	public int cleanup_domain(uint ordinal) {
 		return cleanup_domains[ordinal];
 	}
+
 	public int cleanup_ordinal(uint ordinal) {
 		return cleanup_ordinals[ordinal];
 	}
+
 	private void order_cleanups() {
 		int count = (int) (owner_count + buffer_count + enum_count);
 		cleanup_domains = new int[count];
@@ -363,6 +388,7 @@ public class NativeAsyncFramePlan : Object {
 			}
 		}
 	}
+
 	public int function_ordinal { get; private set; }
 	public Astra.Source.SourceSpan declaration { get; private set; }
 	public NativeAbiType? result { get; private set; }
@@ -378,36 +404,44 @@ public class NativeAsyncFramePlan : Object {
 	public NativeAsyncWait wait(uint ordinal) {
 		return waits[ordinal];
 	}
+
 	private GenericArray<NativeAsyncLoan> loans = new GenericArray<NativeAsyncLoan> ();
 	public uint loan_count { get { return loans.length; } }
 	public NativeAsyncLoan loan(uint ordinal) {
 		return loans[ordinal];
 	}
+
 	private GenericArray<NativeAsyncStorage> storage = new GenericArray<NativeAsyncStorage> ();
 	private GenericArray<NativeAsyncEnumStorage> enums = new GenericArray<NativeAsyncEnumStorage> ();
 	public uint enum_count { get { return enums.length; } }
 	public NativeAsyncEnumStorage enum_slot(uint ordinal) {
 		return enums[ordinal];
 	}
+
 	public uint storage_count { get { return storage.length; } }
 	public NativeAsyncStorage storage_slot(uint ordinal) {
 		return storage[ordinal];
 	}
+
 	public NativeAsyncOwner owner(uint ordinal) {
 		return owners[ordinal];
 	}
+
 	public uint buffer_count { get { return buffers.length; } }
 	public NativeAsyncBuffer buffer(uint ordinal) {
 		return buffers[ordinal];
 	}
+
 	public uint field_count { get { return fields.length; } }
 	public uint state_count { get { return states.length; } }
 	public NativeAsyncField field(uint ordinal) {
 		return fields[ordinal];
 	}
+
 	public NativeAsyncState state(uint ordinal) {
 		return states[ordinal];
 	}
+
 	internal NativeAsyncFramePlan (int function_ordinal, Astra.Source.SourceSpan declaration, NativeAbiType? result, GenericArray<NativeAsyncField> fields, GenericArray<NativeAsyncState> states, uint object_count = 0, uint owner_count = 0, GenericArray<NativeAsyncBuffer>? buffers = null, GenericArray<NativeAsyncOwner>? owners = null, GenericArray<NativeAsyncStorage>? storage = null, GenericArray<NativeAsyncEnumStorage>? enums = null, NativeStructValuePlan? record_result = null, GenericArray<NativeAsyncLoan>? loans = null, GenericArray<NativeAsyncWait>? waits = null, Astra.Source.AsyncProviderKind provider = Astra.Source.AsyncProviderKind.VIRTUAL) {
 		this.provider = provider;
 		if (waits != null) {
@@ -459,6 +493,7 @@ public class NativeAsyncFramePlan : Object {
 		}
 		order_cleanups ();
 	}
+
 	public void verify() throws NativeAbiError {
 		if (record_origin != record_identity (record_result)) {
 			throw new NativeAbiError.INVALID_ABI ("async record result lost its original complete carrier and cleanup authority");
@@ -601,18 +636,22 @@ public class NativeAsyncFramePlan : Object {
 			}
 		}
 	}
+
 }
 public class NativeExecutorHandleType : NativeAbiType {
 	public Astra.Source.TaskContractIdentity identity { get; private set; }
 	internal NativeExecutorHandleType (Astra.Source.TaskContractIdentity identity) {
 		this.identity = identity;
 	}
+
 	public override string spelling() {
 		return "UNIQUE_VIRTUAL_EXECUTOR";
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		return other is NativeExecutorHandleType && ((NativeExecutorHandleType) other).identity == identity;
 	}
+
 }
 
 }

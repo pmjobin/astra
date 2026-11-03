@@ -1,23 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int lazy_input(int rank);
+
 extern(C) int lazy_event(int code, int value);
+
 [ExceptionRoot]
 class Error {
 	readonly string text;
 	int serial;
+
 	init(string message, int serial) { this.text = message; this.serial = serial; }
+
 	virtual property string message { get { return this.text; } }
+
 	deinit() { lazy_event(88, this.serial); }
 }
+
 class DecodeError : Error { init(string message, int serial) : base(message, serial) {} }
+
 enum Owner { Empty, Data(owned int[] items) }
+
 class Computation {
 	int input;
 	int calls;
 	int sibling_calls;
 	int ordinary_calls;
+
 	init(int input) { this.input = input; this.calls = 0; this.sibling_calls = 0; this.ordinary_calls = 0; }
+
 	lazy property int sibling { get { this.sibling_calls = this.sibling_calls + 1; return lazy_event(83, 2); } }
+
 	lazy property int value throws DecodeError {
 		get {
 			this.calls = this.calls + 1;
@@ -26,28 +37,35 @@ class Computation {
 			buffer[0] = this.sibling;
 			var owner = Owner.Data(new int[3]);
 			lazy_event(70, this.calls);
-			if (this.input < 0) { throw new DecodeError("retry original", lazy_input(2)); }
+			if (this.input < 0) {
+				throw new DecodeError("retry original", lazy_input(2));
+			}
 			match (move owner) { case Owner.Data(items): { return lazy_event(86, this.input + buffer[0] + len(items) - 3); } else: { return 81; } }
 		}
 	}
+
 	lazy property int caught { get { try { throw new DecodeError("caught locally", 9); } catch (Error error) { lazy_event(76, error.serial); } return 42; } }
+
 	property int ordinary throws DecodeError { get { this.ordinary_calls = this.ordinary_calls + 1; return lazy_event(79, 42); } }
 }
+
 int consume(owned int[] items, int value) { return len(items) + value; }
-int relay(Computation value) throws DecodeError { try { return value.value; } catch (Error error) { if (error.serial != 42 || error.message != "retry original") { return 81; } throw; } }
+
+int relay(Computation value) throws DecodeError { try { return value.value; } catch (Error error) { if (error.serial != 42 || error.message != "retry original") return 81; throw; } }
+
 int main() {
 	var computation = new Computation(-1);
 	owned int[] surviving = new int[2];
 	try { consume(move surviving, relay(computation)); } catch (DecodeError original) {
-		if (original.serial != 42 || original.message != "retry original" || len(surviving) != 2 || computation.calls != 1 || computation.sibling_calls != 1) { return 82; }
+		if (original.serial != 42 || original.message != "retry original" || len(surviving) != 2 || computation.calls != 1 || computation.sibling_calls != 1) return 82;
 		computation.input = 40;
-		try { if (computation.value != 42 || computation.calls != 2 || computation.sibling_calls != 1) { return 83; } } catch (Error retry_error) { return 88; }
+		try { if (computation.value != 42 || computation.calls != 2 || computation.sibling_calls != 1) return 83; } catch (Error retry_error) { return 88; }
 	}
 	try {
 		computation.input = -2;
-		if (computation.value != 42 || computation.value != 42 || computation.calls != 2 || computation.sibling_calls != 1 || computation.ordinary != 42 || computation.ordinary != 42 || computation.ordinary_calls != 2) { return 84; }
-		if (computation.caught != 42 || computation.caught != 42) { return 85; }
+		if (computation.value != 42 || computation.value != 42 || computation.calls != 2 || computation.sibling_calls != 1 || computation.ordinary != 42 || computation.ordinary != 42 || computation.ordinary_calls != 2) return 84;
+		if (computation.caught != 42 || computation.caught != 42) return 85;
 	} catch (Error error) { return 86; }
-	if (resource_live() != 0) { return 87; }
+	if (resource_live() != 0) return 87;
 	return 42;
 }

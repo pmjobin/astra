@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="scalar16_born")] int born(int value);
+
 [CImport(name="scalar16_retired")] int retired(int value);
 
 [CExport(name="scalar16", profile="declarations-v1", bool_abi="c99")]
@@ -7,27 +8,38 @@ class ScalarService {
 	private i64 total;
 	private f64 factor;
 	private bool flag_value;
+
 	[Foreign(name="start")]
 	init(i64 seed, f64 factor) {
 		this.total = seed; this.factor = factor; this.flag_value = false; born(1);
 	}
+
 	[Foreign]
 	i64 add(i64 delta) { this.total = this.total + delta; return this.total; }
+
 	[Foreign]
 	u32 bits(u32 value) { return value; }
+
 	[Foreign]
 	u64 wide(u64 value) { return value; }
+
 	[Foreign]
 	f32 narrow(f32 value) { return value; }
+
 	[Foreign]
 	f64 floating(f64 value) { return value; }
+
 	[Foreign]
 	bool flag(bool value) { this.flag_value = value; return !this.flag_value; }
+
 	[Foreign(name="select")]
-	int choose(int left, int right, bool first) { if (first) { return left; } return right; }
+	int choose(int left, int right, bool first) { if (first) return left; return right; }
+
 	[Foreign]
 	f64 weigh(f64 sample, f64 bias) { this.factor = this.factor + sample; return this.factor + bias; }
+
 	[Foreign]
 	property f64 gain { get { return this.factor; } }
+
 	deinit() { retired(1); }
 }

@@ -1,14 +1,20 @@
 class Context {
 	owned f64[] samples;
+
 	init(int count) { this.samples = new f64[count]; }
+
 	int size() { return len(this.samples); }
 }
+
 owned Context factory(int count) { return Context.init(count); }
+
 owned Context forward(int count) { return factory(count); }
+
 owned Context relay(owned Context value) { return move value; }
+
 int main() {
 	owned Context value = forward(9);
 	owned Context final = relay(move value);
-	if (final.size() != 9) { return 1; }
+	if (final.size() != 9) return 1;
 	return 0;
 }

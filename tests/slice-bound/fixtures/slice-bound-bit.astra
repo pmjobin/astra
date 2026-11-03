@@ -7,6 +7,7 @@ void bits(borrowed u8[] bytes, borrowed i16[] signed_values, borrowed u8<16>[] b
 	blocks[1] = ~blocks[1] & splat(15,16);
 	blocks[0] = insert(blocks[0],7,blocks[1][0]);
 }
+
 int main() {
 	u8[2] bytes = {128,255};
 	i16[1] signed_values = {-32768};
@@ -14,7 +15,7 @@ int main() {
 	u8<16> second = splat(85,16);
 	u8<16>[2] blocks = {first,second};
 	bits(slice(bytes),slice(signed_values),slice(blocks));
-	if (bytes[0] != 64 || bytes[1] != 230 || signed_values[0] != -8192) { return 1; }
-	if (!all(blocks[0] == insert(splat(147,16),7,10)) || !all(blocks[1] == splat(10,16))) { return 2; }
+	if (bytes[0] != 64 || bytes[1] != 230 || signed_values[0] != -8192) return 1;
+	if (!all(blocks[0] == insert(splat(147,16),7,10)) || !all(blocks[1] == splat(10,16))) return 2;
 	return 0;
 }

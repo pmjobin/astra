@@ -52,4 +52,5 @@ int main(string[] args) {
 	Test.add_func ("/f64/nabi/v6-all-channels-old-profile-rejection", profiles);
 	return Test.run ();
 }
+
 }

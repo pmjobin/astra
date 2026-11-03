@@ -67,4 +67,5 @@ private void lifetime() throws GLib.Error {
 private void register_lifetime() {
 	add ("/tptr/stage-lifetime", lifetime);
 }
+
 }

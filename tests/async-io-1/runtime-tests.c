@@ -13,17 +13,21 @@ typedef struct Frame {
 	int error;
 	int destroyed;
 } Frame;
+
 static int destroys;
+
 static uint64_t clock_ns(void) {
 	struct timespec ts;
 	assert(clock_gettime(CLOCK_MONOTONIC, &ts) == 0);
 	return (uint64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
+
 static void destroy(AstraAsyncTask *task, int discard) {
 	(void)task;
 	(void)discard;
 	destroys++;
 }
+
 static void resume(AstraAsyncTask *task) {
 	Frame *f = astra_async_data(task);
 	f->turns++;
@@ -41,12 +45,14 @@ static void resume(AstraAsyncTask *task) {
 	f->error = astra_async_linux_delay_result(task, 1);
 	astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 static AstraAsyncTask *root(AstraAsyncExecutor *executor) {
 	AstraAsyncTask *task = astra_async_new(sizeof(Frame), _Alignof(Frame), resume, destroy, NULL);
 	*(Frame *)astra_async_data(task) = (Frame){0};
 	assert(astra_async_start(executor, task, NULL) == ASTRA_ASYNC_ADMITTED);
 	return task;
 }
+
 int main(void) {
 	alarm(15);
 	assert(astra_async_linux_open(0) == NULL && astra_async_linux_last_failure().operation == ASTRA_LINUX_CAPACITY);

@@ -147,4 +147,5 @@ int main(string[] args) {
 	Test.add_func ("/array/semantic/diagnostics-and-deferrals", diagnostics);
 	return Test.run ();
 }
+
 }

@@ -2,7 +2,7 @@
 int scoped() {
 	int i = 0;
 	while (i < 3) {
-		if (resource_destroy_count() != i) { return 1; }
+		if (resource_destroy_count() != i) return 1;
 		owned void* h = create_resource(1);
 		release h;
 		i = i + 1;
@@ -10,11 +10,12 @@ int scoped() {
 	}
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped() != 0) { return 1; }
-	if (resource_create_count() != 3 || resource_destroy_count() != 3) { return 2; }
-	if (resource_destroy_order() != 111 || resource_effect_order() != 111) { return 3; }
-	if (resource_live_count() != 0 || resource_error_count() != 0) { return 4; }
+	if (scoped() != 0) return 1;
+	if (resource_create_count() != 3 || resource_destroy_count() != 3) return 2;
+	if (resource_destroy_order() != 111 || resource_effect_order() != 111) return 3;
+	if (resource_live_count() != 0 || resource_error_count() != 0) return 4;
 	return 0;
 }

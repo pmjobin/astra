@@ -13,6 +13,7 @@ inline constexpr IID entry_iid = {0x0b585052, 0x5ee5, 0x4475, {0xa7, 0xa0, 0x05,
 #include "sdk.hpp"
 #include "api-com-types.h"
 #else
+
 struct Probe {
 	FLOAT boost;
 	DOUBLE ceiling;
@@ -21,6 +22,7 @@ struct Probe {
 	ULONG mask;
 	BOOL lowest;
 };
+
 struct Selection {
 	FLOAT score;
 	LONGLONG code;
@@ -28,14 +30,17 @@ struct Selection {
 	BOOL found;
 	ULONGLONG visited;
 };
+
 struct EntryOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE get_code(LONGLONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE get_score(DOUBLE *) = 0;
 };
+
 struct QueryOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE scan(Probe, Selection *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE entry_for(Probe, EntryOracle **) = 0;
 };
+
 struct MetadataOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE get_bias(DOUBLE *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE set_bias(DOUBLE) = 0;
@@ -45,9 +50,11 @@ struct MetadataOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE population(ULONG, ULONGLONG *) = 0;
 };
 struct Native;
+
 struct Error {
 	std::int32_t domain, code;
 };
+
 extern "C" std::int32_t orbit16_create(Native **, Error *);
 extern "C" std::uint32_t orbit16_release(Native *);
 extern "C" HRESULT orbit16_as_com(Native *, IUnknown **);
@@ -67,6 +74,7 @@ static_assert(sizeof(Probe) == 40 && offsetof(Probe, lowest) == 36 && sizeof(Sel
 extern "C" std::int32_t orbit16_import_provider(void *);
 extern "C" std::uint32_t orbit16_retired_count(std::int32_t);
 static unsigned providers_retired, entries_retired;
+
 class ProviderEntry final : public EntryOracle {
 	ULONG refs_ = 1;
 	LONGLONG code_;
@@ -74,6 +82,7 @@ class ProviderEntry final : public EntryOracle {
 
   public:
 	ProviderEntry(LONGLONG code, DOUBLE score) : code_(code), score_(score) {}
+
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override {
 		if (!out) return E_POINTER;
 		*out = nullptr;
@@ -82,7 +91,9 @@ class ProviderEntry final : public EntryOracle {
 		AddRef();
 		return S_OK;
 	}
+
 	ULONG STDMETHODCALLTYPE AddRef() override { return ++refs_; }
+
 	ULONG STDMETHODCALLTYPE Release() override {
 		ULONG result = --refs_;
 		if (!result) {
@@ -91,17 +102,20 @@ class ProviderEntry final : public EntryOracle {
 		}
 		return result;
 	}
+
 	HRESULT STDMETHODCALLTYPE get_code(LONGLONG *out) override {
 		if (!out) return E_POINTER;
 		*out = code_;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE get_score(DOUBLE *out) override {
 		if (!out) return E_POINTER;
 		*out = score_;
 		return S_OK;
 	}
 };
+
 class Provider final : public QueryOracle, public MetadataOracle {
 	ULONG refs_ = 1;
 	LONG calls_ = 0;
@@ -114,8 +128,11 @@ class Provider final : public QueryOracle, public MetadataOracle {
 		*out = 42 + (mask & 7);
 		return S_OK;
 	}
+
 	ULONG refs() const { return refs_; }
+
 	LONG calls() const { return calls_; }
+
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override {
 		if (!out) return E_POINTER;
 		*out = nullptr;
@@ -128,7 +145,9 @@ class Provider final : public QueryOracle, public MetadataOracle {
 		AddRef();
 		return S_OK;
 	}
+
 	ULONG STDMETHODCALLTYPE AddRef() override { return ++refs_; }
+
 	ULONG STDMETHODCALLTYPE Release() override {
 		ULONG result = --refs_;
 		if (!result) {
@@ -137,6 +156,7 @@ class Provider final : public QueryOracle, public MetadataOracle {
 		}
 		return result;
 	}
+
 	HRESULT STDMETHODCALLTYPE scan(Probe input, Selection *out) override {
 		if (!out) return E_POINTER;
 		*out = {};
@@ -150,6 +170,7 @@ class Provider final : public QueryOracle, public MetadataOracle {
 		A_VISITED(*out) = 9;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE entry_for(Probe input, EntryOracle **out) override {
 		if (!out) return E_POINTER;
 		*out = nullptr;
@@ -160,30 +181,36 @@ class Provider final : public QueryOracle, public MetadataOracle {
 		*out = new ProviderEntry(A_CODE(result), A_SCORE(result));
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE get_requests(LONG *out) override {
 		if (!out) return E_POINTER;
 		*out = calls_;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE get_enabled(BOOL *out) override {
 		if (!out) return E_POINTER;
 		*out = enabled_;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE set_enabled(BOOL value) override {
 		enabled_ = value != FALSE;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE get_bias(DOUBLE *out) override {
 		if (!out) return E_POINTER;
 		*out = bias_;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE set_bias(DOUBLE value) override {
 		bias_ = value;
 		return S_OK;
 	}
 };
+
 static DWORD WINAPI wrong_thread(void *data) {
 	auto query = static_cast<QueryOracle *>(data);
 	Probe input{};
@@ -191,6 +218,7 @@ static DWORD WINAPI wrong_thread(void *data) {
 	A_CODE(out) = 99;
 	return query->scan(input, &out) == RPC_E_WRONG_THREAD && A_CODE(out) == 0 && A_VISITED(out) == 0 ? 0 : 1;
 }
+
 int main() {
 	assert(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
 	Native *root = nullptr;

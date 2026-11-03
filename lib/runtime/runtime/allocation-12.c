@@ -28,11 +28,13 @@ static int enter(AstraAlloc12Domain *domain) {
 	domain->error = ASTRA_ALLOC12_OK;
 	return 1;
 }
+
 static void *failure(AstraAlloc12Domain *domain, uint32_t error) {
 	domain->error = error;
 	domain->busy = 0;
 	return NULL;
 }
+
 static void zero_bytes(void *pointer, uint64_t bytes) {
 	/* Volatile here prevents a hidden libc memset dependency in this runtime. */
 	volatile unsigned char *target = pointer;
@@ -40,12 +42,15 @@ static void zero_bytes(void *pointer, uint64_t bytes) {
 		target[i] = 0;
 	}
 }
+
 static int valid_alignment(uint32_t alignment) {
 	return alignment && alignment <= 4096 && !(alignment & (alignment - 1));
 }
+
 static int admit_counters(AstraAlloc12Domain *domain) {
 	return domain->generation != UINT64_MAX && domain->allocations != UINT64_MAX && domain->live != UINT64_MAX;
 }
+
 static void publish(AstraAlloc12Domain *domain, uint64_t end) {
 	++domain->generation;
 	++domain->allocations;
@@ -61,6 +66,7 @@ static void publish(AstraAlloc12Domain *domain, uint64_t end) {
 	}
 	domain->busy = 0;
 }
+
 void *astra_alloc12_allocate(AstraAlloc12Domain *domain, uint64_t count,
                              uint64_t extent, uint32_t alignment, uint64_t tag) {
 	if (!enter(domain)) {
@@ -271,6 +277,7 @@ int32_t astra_alloc12_reset(AstraAlloc12Domain *domain) {
 	domain->busy = 0;
 	return 1;
 }
+
 uint64_t astra_alloc12_token(AstraAlloc12Domain *domain, void *pointer, uint64_t tag) {
 	if (!domain || !pointer || domain->busy) {
 		return 0;
@@ -295,6 +302,7 @@ uint64_t astra_alloc12_token(AstraAlloc12Domain *domain, void *pointer, uint64_t
 	}
 	return 0;
 }
+
 int32_t astra_alloc12_query(AstraAlloc12Domain *domain, int32_t query) {
 	if (!domain) {
 		return -1;

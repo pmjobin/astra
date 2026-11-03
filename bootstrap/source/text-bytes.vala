@@ -11,12 +11,15 @@ public class TextBytes : Object {
 		this.bytes = bytes.copy ();
 		this.byte_length = declared_length == -1 ? bytes.length : declared_length;
 	}
+
 	public uint8 byte_at(int index) {
 		return bytes[index];
 	}
+
 	public bool valid() {
 		return byte_length >= 0 && byte_length <= int32.MAX && byte_length == bytes.length && valid_utf8 (bytes);
 	}
+
 	public bool equal_content(TextBytes other) {
 		if (byte_length != other.byte_length || bytes.length != other.bytes.length) {
 			return false;
@@ -28,6 +31,7 @@ public class TextBytes : Object {
 		}
 		return true;
 	}
+
 	public string hex() {
 		var result = new StringBuilder ();
 		foreach (uint8 value in bytes) {
@@ -35,9 +39,11 @@ public class TextBytes : Object {
 		}
 		return result.str;
 	}
+
 	public static bool scalar(uint32 value) {
 		return value <= 0x10ffff && (value < 0xd800 || value > 0xdfff);
 	}
+
 	public static bool valid_utf8(uint8[] bytes) {
 		for (int i = 0; i < bytes.length;) {
 			uint32 first = bytes[i++];
@@ -78,5 +84,6 @@ public class TextBytes : Object {
 		}
 		return true;
 	}
+
 }
 }

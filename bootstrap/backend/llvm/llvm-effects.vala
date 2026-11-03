@@ -13,12 +13,14 @@ internal class LlvmUniqueReceiverBinding : Object {
 		target = CApi.called_value (call);
 		CApi.add_call_attribute (call, 1, CApi.create_enum_attribute (artifact.context, CApi.enum_attribute_kind ("noalias", 7), 0));
 	}
+
 	internal void verify() throws LlvmError {
 		var attribute = CApi.call_enum_attribute (call, 1, CApi.enum_attribute_kind ("noalias", 7));
 		if ((void*) CApi.instruction_parent (call) == null || (void*) CApi.instruction_parent (root) == null || CApi.opcode (root) != CApi.Opcode.ALLOCA || (void*) CApi.block_parent (CApi.instruction_parent (root)) != (void*) CApi.block_parent (CApi.instruction_parent (call)) || (void*) CApi.operand (call, 0) != (void*) root || (void*) CApi.called_value (call) != (void*) target || (void*) attribute == null || CApi.enum_attribute_value (attribute) != 0) {
 			throw new LlvmError.VERIFICATION ("unique receiver call lost its exact activation-local allocation and callee authority");
 		}
 	}
+
 }
 
 internal class LlvmSemanticOptimizations : Object {
@@ -32,6 +34,7 @@ internal class LlvmSemanticOptimizations : Object {
 		}
 		return setting == "on";
 	}
+
 }
 
 // Detached artifact authority: upstream graphs may be released. These are
@@ -86,15 +89,18 @@ internal class LlvmEffectBinding : Object {
 			}
 		}
 	}
+
 	private void add(CApi.ContextRef context, uint index, string name, uint64 value) {
 		CApi.add_attribute (function, index, CApi.create_enum_attribute (context, CApi.enum_attribute_kind (name, name.length), value));
 	}
+
 	private void attribute(uint index, string name, bool expected) throws LlvmError {
 		var attribute = CApi.enum_attribute (function, index, CApi.enum_attribute_kind (name, name.length));
 		if (((void*) attribute != null) != expected || (expected && CApi.enum_attribute_value (attribute) != 0)) {
 			throw new LlvmError.VERIFICATION ("derived effect attribute lost its exact verified source authority");
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		attribute (uint.MAX, "memory", (flags & FunctionEffectFacts.NO_EXTERNAL_MEMORY) != 0);
 		for (uint i = 0; i <= CApi.count_params (function); i++) {
@@ -128,5 +134,6 @@ internal class LlvmEffectBinding : Object {
 			step.verify ();
 		}
 	}
+
 }
 }

@@ -12,6 +12,7 @@ private SsaProgram lower() throws CoreError, CfgError, SsaError {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void qualify() {
 	try {
 		var program = lower ();
@@ -57,9 +58,11 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-slice/ssa/independent-erasure-scalarization-and-exact-boundary-groups", qualify);
 	return Test.run ();
 }
+
 }

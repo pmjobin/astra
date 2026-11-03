@@ -9,16 +9,19 @@ extern AstraAsyncTask *test_factory_0(int tag, uint32_t ticks, int seed, AstraAs
 extern AstraAsyncTask *test_factory_1(AstraAsyncTask *parent);
 extern int cold(void);
 static int captures;
+
 int capture(int ordinal) {
 	assert(ordinal == ++captures);
 	return ordinal;
 }
+
 static AstraAsyncTask *tasks[3];
 static void *frames[3];
 static int events[3];
 static int steps[3];
 static volatile int injected = 7;
 static int starts[3] = {0, 10, 40};
+
 void event(int tag, int value) {
 	assert(tag == 1 || tag == 2);
 	assert(astra_async_data(tasks[tag]) == frames[tag]);
@@ -29,11 +32,13 @@ void event(int tag, int value) {
 	assert(value == expected);
 	events[tag]++;
 }
+
 int step(int tag, int ordinal) {
 	assert(tag == 1 || tag == 2);
 	assert(ordinal == steps[tag]++);
 	return tag * 10 + ordinal + injected;
 }
+
 static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int phase) {
 	assert(astra_async_phase(root) == phase);
 	astra_async_begin_shutdown(executor);
@@ -43,6 +48,7 @@ static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int phase
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 static void source_progress(void) {
 	AstraAsyncExecutor *executor = astra_async_open(3);
 	AstraAsyncTask *root = test_factory_1(NULL);
@@ -85,6 +91,7 @@ static void source_progress(void) {
 	assert(astra_async_pump(executor, 8) != 0);
 	finish(executor, root, ASTRA_ASYNC_SUCCESS);
 }
+
 static void source_cancellation(void) {
 	int before = events[1];
 	AstraAsyncTask *cold = test_factory_0(1, 5, starts[1], NULL);
@@ -106,6 +113,7 @@ static void source_cancellation(void) {
 	assert(astra_async_pump(executor, 8) != 0);
 	finish(executor, root, ASTRA_ASYNC_CANCELLED);
 }
+
 int main(int argc, char **argv) {
 	if (argc == 2) {
 		injected = atoi(argv[1]);

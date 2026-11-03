@@ -23,6 +23,7 @@ public class MethodSymbol : FunctionSymbol {
 		this.ordinal = ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class ReceiverSymbol : Symbol {
@@ -32,6 +33,7 @@ public class ReceiverSymbol : Symbol {
 		base (span, name_span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 public class CheckedMethod : CheckedFunction {
@@ -40,6 +42,7 @@ public class CheckedMethod : CheckedFunction {
 	internal CheckedMethod (MethodSymbol method, GenericArray<LocalSymbol> locals, CheckedBlockStatement body) {
 		base (method, locals, body);
 	}
+
 }
 
 public class CheckedThisExpression : CheckedExpression {
@@ -49,6 +52,7 @@ public class CheckedThisExpression : CheckedExpression {
 		base (span, receiver.semantic_type);
 		this.receiver = receiver;
 	}
+
 }
 
 // Uses the same address-taken local storage; this value cannot escape a call.
@@ -64,6 +68,7 @@ public class CheckedReceiverAddressExpression : CheckedExpression {
 		base (span, semantic_type);
 		this.local = local;
 	}
+
 }
 
 public class CheckedReceiverFieldPlace : CheckedPlace {
@@ -75,5 +80,6 @@ public class CheckedReceiverFieldPlace : CheckedPlace {
 		this.receiver = receiver;
 		this.field = field;
 	}
+
 }
 }

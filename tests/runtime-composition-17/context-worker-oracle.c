@@ -19,10 +19,12 @@ static pthread_t identities[2];
 static long kernel_identities[2];
 static _Atomic unsigned retired;
 static int initial_threads;
+
 static void *calibrate(void *argument) {
 	*(long *)argument = syscall(SYS_gettid);
 	return NULL;
 }
+
 static void await_kernel_retirement(long identity) {
 	char path[128];
 	assert(snprintf(path, sizeof(path), "/proc/self/task/%ld", identity) > 0);
@@ -36,6 +38,7 @@ static void await_kernel_retirement(long identity) {
 	}
 	assert(errno == ENOENT);
 }
+
 static int thread_count(void) {
 	DIR *directory = opendir("/proc/self/task");
 	assert(directory);
@@ -46,6 +49,7 @@ static int thread_count(void) {
 	assert(closedir(directory) == 0);
 	return count;
 }
+
 void context_workers_prepare(void) {
 	/* The independent pthread-only probe establishes that TSAN lazily starts
 	 * a persistent infrastructure thread on first use. Calibrate before the
@@ -57,6 +61,7 @@ void context_workers_prepare(void) {
 	await_kernel_retirement(identity);
 	initial_threads = thread_count();
 }
+
 int context_worker_enter(int identity) {
 	assert(identity == 1 || identity == 2);
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -74,12 +79,14 @@ int context_worker_enter(int identity) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 void context_worker_destroy(int identity) {
 	assert(identity == 1 || identity == 2);
 	assert(pthread_equal(identities[identity - 1], pthread_self()));
 	unsigned bit = 1u << (identity - 1);
 	assert(!(atomic_fetch_or(&retired, bit) & bit));
 }
+
 int context_workers_finish(void) {
 	assert(entered == 3 && atomic_load(&retired) == 3 && m17_custom_provider_retired() == 1);
 	/* pthread_join has completed, but Linux can still expose the terminated

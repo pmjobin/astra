@@ -10,6 +10,7 @@ internal class LlvmTypeMapper : Object {
 	internal void bind_storage(SemanticType type, CApi.TypeRef storage) {
 		records.insert (type, (void*) storage);
 	}
+
 	internal bool uses_text_slices;
 	internal bool uses_vectors { get; private set; }
 	internal bool uses_f32 { get; private set; }
@@ -227,5 +228,6 @@ internal class LlvmTypeMapper : Object {
 		}
 		return CApi.function_type (boundary_result_type (signature), parameters, parameters.length, 0);
 	}
+
 }
 }

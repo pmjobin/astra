@@ -16,6 +16,7 @@ private void boundaries() {
 	assert (minimum.convert_to (t.u8_type).bits == 0);
 	assert (t.isize_type != t.i64_type && t.usize_type != t.u64_type && t.isize_type.bit_width == 64 && t.usize_type.bit_width == 64);
 }
+
 private void arithmetic() {
 	var t = new BuiltinTypes ();
 	var maximum = AstraIntegerValue.from_bits (t.u64_type, uint64.MAX);
@@ -41,10 +42,12 @@ private void arithmetic() {
 	assert (maximum.shift_left (AstraIntegerValue.from_int64 (t.i32_type, 64)) == null);
 	assert (maximum.shift_left (maximum) == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/wide/value/boundaries", boundaries);
 	Test.add_func ("/wide/value/arithmetic", arithmetic);
 	return Test.run ();
 }
+
 }

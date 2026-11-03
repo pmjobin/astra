@@ -9,6 +9,7 @@ private SourceSpan span(string text) {
 	var file = new SourceFile.from_text ("resource-contract", text);
 	return SourceSpan (file, 0, file.length);
 }
+
 private SemanticResult check(string source) {
 	var resources = new GenericArray<ForeignHandleInput> ();
 	resources.add (new ForeignHandleInput (span ("R"), span ("R"), new CForeignCleanupContract ("release_r")));
@@ -17,6 +18,7 @@ private SemanticResult check(string source) {
 	assert (parsed.diagnostic == null);
 	return SemanticAnalyzer.analyze (parsed.unit, null, resources);
 }
+
 private void valid() {
 	var result = check ("void use(borrowed R r) {} owned R empty() { return null; } class C { owned R r; init(owned R incoming) { this.r = move incoming; use(this.r); } void replace(owned R next) { this.r = move next; } deinit() { this.r = empty(); use(this.r); } }");
 	if (result.diagnostic != null) {
@@ -37,6 +39,7 @@ private void valid() {
 	}
 	assert (SemanticDump.format (result.program).contains ("owned-field-borrow"));
 }
+
 private void invalid() {
 	assert (check ("class C { owned int[] field; init() { this.field = new int[2]; } }").diagnostic == null);
 	foreach (var type in new string[] { "Child", "Pair", "int", "bool", "f32", "f64", "f32<4>", "void*", "int*", "int[2]" }) {
@@ -63,10 +66,12 @@ private void invalid() {
 		assert (check ("class C { owned R r; init(owned R r) { this.r = move r; } R escape() { " + body + " } }").diagnostic.message.contains ("copying and escaping"));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/semantic/exact-contract-initialization-borrow-replacement", valid);
 	Test.add_func ("/own-field/semantic/eligibility-definite-initialization-and-escape", invalid);
 	return Test.run ();
 }
+
 }

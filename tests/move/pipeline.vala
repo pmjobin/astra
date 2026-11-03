@@ -48,6 +48,7 @@ private void model() throws GLib.Error {
 	assert (NativeAbiDump.format (NativeAbiBuilder.build (ssa)) == NativeAbiDump.format (NativeAbiBuilder.build (baseline)));
 	assert (CAbiDump.format (CAbiBuilder.build (ssa, NativeAbiBuilder.build (ssa))) == CAbiDump.format (CAbiBuilder.build (baseline, NativeAbiBuilder.build (baseline))));
 }
+
 private void conditional() throws GLib.Error {
 	var control = cfg ("void f(bool condition) { owned void* a = create(1); if (condition) { owned void* b = move a; } }");
 	CfgVerifier.verify (control);
@@ -64,6 +65,7 @@ private void conditional() throws GLib.Error {
 	assert (split.false_edge.arguments[0] == ssa.functions[0].entry.instructions[0].result);
 	assert (((SsaBranch) ssa.functions[0].blocks[1].terminator).edge.arguments[0] is SsaNullPointerConstant);
 }
+
 private void state_at_join(string body, int block, OwnershipState expected) throws GLib.Error {
 	var control = cfg ("void f(bool condition) { owned void* a = create(1); " + body + " }");
 	CfgVerifier.verify (control);
@@ -72,6 +74,7 @@ private void state_at_join(string body, int block, OwnershipState expected) thro
 	assert (result.diagnostic == null && result.entry_state (function.blocks[block], function.locals[0]) == expected);
 	SsaVerifier.verify (SsaBuilder.build (control));
 }
+
 private void chain() throws GLib.Error {
 	var ssa = build ("void f() { owned void* a = create(1); owned void* b = move a; owned void* c = move b; owned void* d = move c; }");
 	var instructions = ssa.functions[0].entry.instructions;
@@ -80,6 +83,7 @@ private void chain() throws GLib.Error {
 		assert (((SsaCleanupInstruction) instructions[i]).value is SsaNullPointerConstant);
 	}
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -106,4 +110,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

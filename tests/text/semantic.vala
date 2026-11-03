@@ -11,6 +11,7 @@ private SemanticResult analyze(string text) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private void contracts() {
 	var result = analyze ("const A=\"a\\0b\"; const string B=A; const N=B.byte_length; const E=A==\"a\\u0000b\"; bool f(string a, borrowed string b){var copy=a;return copy==b;} string g(){return B;}");
 	assert (result.diagnostic == null);
@@ -22,6 +23,7 @@ private void contracts() {
 	assert (!GenericArgumentTypes.supports (p.types.string_type));
 	assert (BuiltinTypes.is_builtin_name ("string") && p.types.resolve ("string") == p.types.string_type);
 }
+
 private void lifetimes() {
 	string[] accepted = {
 		"string f(bool c){var r=\"a\";if(c){r=\"b\";}return r;}",
@@ -53,10 +55,12 @@ private void lifetimes() {
 		assert (result.diagnostic != null && result.diagnostic.message.contains ("borrowed text cannot escape"));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text/semantic/canonical-type-constants-contracts", contracts);
 	Test.add_func ("/text/semantic/backing-origin-joins-recursion", lifetimes);
 	return Test.run ();
 }
+
 }

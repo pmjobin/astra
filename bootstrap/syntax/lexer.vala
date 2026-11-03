@@ -8,6 +8,7 @@ public class CommentTrivia : Object {
 	internal CommentTrivia (SourceSpan span) {
 		this.span = span;
 	}
+
 }
 
 public class Lexer : Object {
@@ -403,5 +404,6 @@ public class Lexer : Object {
 		}
 		return false;
 	}
+
 }
 }

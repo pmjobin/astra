@@ -2,19 +2,24 @@
 class Box<T> {
 	private int generation;
 	private owned T payload;
+
 	init(owned T value) {
 		this.generation = 1;
 		this.payload = move value;
 	}
+
 	property borrowed T view {
 		get { return this.payload; }
 	}
+
 	int revision() { return this.generation; }
 }
 
 class Child {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	int inspect(int delta) { return this.code + delta; }
 }
 
@@ -25,7 +30,7 @@ int main() {
 	var child = new Child(42);
 	var object = new Box<Child>(move child);
 	var nested = new Box<Box<Child>>(move object);
-	if (read(nested.view.view) != 42) { return 1; }
-	if (nested.view.view.inspect(0) != 42) { return 2; }
+	if (read(nested.view.view) != 42) return 1;
+	if (nested.view.view.inspect(0) != 42) return 2;
 	return number.view + number.revision() - 42;
 }

@@ -10,6 +10,7 @@ namespace Astra.Tests.CAbiFp {
 private SsaProgram build(string source) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check (source))));
 }
+
 private void physical_lifetime() throws GLib.Error {
 	var aggregate = build (fixture ("cabi-fp-struct-native"));
 	var native = NativeAbiBuilder.build (aggregate);
@@ -43,6 +44,7 @@ private void physical_lifetime() throws GLib.Error {
 		assert (FileUtils.unlink (path) == 0);
 	}
 }
+
 private void target_gate() throws GLib.Error {
 	LlvmTargetMachineArtifact.qualify_c_floating ("x86_64-unknown-linux-gnu");
 	foreach (string triple in new string[] {"sh4-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "unknown"}) {
@@ -61,6 +63,7 @@ private void target_gate() throws GLib.Error {
 		assert (artifact.requires_c_floating && !artifact.requires_binary32 && !artifact.requires_binary64);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -70,4 +73,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

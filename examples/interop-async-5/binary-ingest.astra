@@ -4,20 +4,33 @@ int payload_decimal(borrowed LinuxPayload output, int start, int value) throws E
 	int[10] digits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	int used = 0;
 	int remaining = value;
-	while (remaining >= 10) { digits[used] = remaining % 10; remaining = remaining / 10; used = used + 1; }
+	while (remaining >= 10) {
+		digits[used] = remaining % 10;
+		remaining = remaining / 10;
+		used = used + 1;
+	}
 	digits[used] = remaining; used = used + 1;
 	int index = used;
-	while (index > 0) { index = index - 1; payload_set(output, start + used - index - 1, 48 + digits[index]); }
+	while (index > 0) {
+		index = index - 1;
+		payload_set(output, start + used - index - 1, 48 + digits[index]);
+	}
 	return start + used;
 }
+
 async void binary_ingest(owned LinuxPayload input, owned LinuxPayload output) throws Error {
 	await payload_io(input);
 	int count = astra_linux_payload_count(input);
 	int checksum = 0; int index = 0;
-	while (index < count) { checksum = (checksum * 31 + payload_byte(input, index)) % 1000003; index = index + 1; }
+	while (index < count) {
+		checksum = (checksum * 31 + payload_byte(input, index)) % 1000003;
+		index = index + 1;
+	}
 	payload_configure(input, 0, 65536, count as i64);
 	await payload_io(input);
-	if (astra_linux_payload_count(input) != 0) { throw new Error("input exceeds finite ingest capacity"); }
+	if (astra_linux_payload_count(input) != 0) {
+		throw new Error("input exceeds finite ingest capacity");
+	}
 	int used = payload_decimal(output, 0, count);
 	payload_set(output, used, 58); used = used + 1;
 	used = payload_decimal(output, used, checksum); payload_set(output, used, 10); used = used + 1;
@@ -26,13 +39,16 @@ async void binary_ingest(owned LinuxPayload input, owned LinuxPayload output) th
 		payload_configure(output, written, used - written, written as i64);
 		await payload_io(output);
 		int progress = astra_linux_payload_count(output);
-		if (progress <= 0) { throw new Error("async write made no progress"); }
+		if (progress <= 0) {
+			throw new Error("async write made no progress");
+		}
 		written = written + progress;
 	}
 	payload_finish(input); payload_finish(output);
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try {
 		var input = payload_open(args[1], 65536, 0); var output = payload_open(args[2], 64, 1);
 		var executor = LinuxExecutor.open(1);

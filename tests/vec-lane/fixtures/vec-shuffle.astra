@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Log { int calls; }
+
 int<4> make_vector(Log* log) { log->calls = log->calls + 1; int<4> v = {10, 20, 30, 40}; return v; }
+
 i16<8> reverse(i16<8> v) { return shuffle(v, 7, 6, 5, 4, 3, 2, 1, 0); }
+
 int main() {
 	Log log = {calls = 0};
 	int<4> r = shuffle(make_vector(&log), 3, 2, 1, 0);
 	int<4> expected = {40, 30, 20, 10};
-	if (log.calls != 1 || !all(r == expected)) { return 1; }
-	if (!all(shuffle(r, 0, 1, 2, 3) == r)) { return 2; }
+	if (log.calls != 1 || !all(r == expected)) return 1;
+	if (!all(shuffle(r, 0, 1, 2, 3) == r)) return 2;
 	int<4> repeat = splat(r[1], 4);
-	if (!all(shuffle(r, 1, 1, 1, 1) == repeat)) { return 3; }
+	if (!all(shuffle(r, 1, 1, 1, 1) == repeat)) return 3;
 	int<4> rotated = {30, 20, 10, 40};
-	if (!all(shuffle(r, 1, 2, 3, 0) == rotated)) { return 4; }
+	if (!all(shuffle(r, 1, 2, 3, 0) == rotated)) return 4;
 	bool<4> mask = {true, false, false, true};
-	if (!all(shuffle(mask, 0, 3, 0, 3)) || any(shuffle(mask, 1, 2, 1, 2))) { return 5; }
+	if (!all(shuffle(mask, 0, 3, 0, 3)) || any(shuffle(mask, 1, 2, 1, 2))) return 5;
 	return 0;
 }

@@ -25,6 +25,7 @@ internal class GenericCallContext : Object {
 		this.result = result;
 		this.flow = flow;
 	}
+
 }
 
 // Argument/call transactions exist only in semantic checking. The inherited
@@ -33,6 +34,7 @@ internal class SemanticOwnershipFlow : GenericOwnershipFlow {
 	internal SemanticOwnershipFlow (SourceSpan span, string context = "generic definition checking") {
 		base (span, context);
 	}
+
 	// Compose a completed temporary proof without sharing mutable event IDs.
 	// Discarding a fragment has no effect on the receiving flow or its owners.
 	internal void append(SemanticOwnershipFlow fragment) {
@@ -49,6 +51,7 @@ internal class SemanticOwnershipFlow : GenericOwnershipFlow {
 		}
 		current.children.add (copy_event (fragment.root, mapping));
 	}
+
 	private static GenericOwnershipEvent copy_event(GenericOwnershipEvent source, int[] mapping) {
 		var event = new GenericOwnershipEvent (source.kind, source.span);
 		event.owner = source.owner == -1 ? -1 : mapping[source.owner];
@@ -66,6 +69,7 @@ internal class SemanticOwnershipFlow : GenericOwnershipFlow {
 		}
 		return event;
 	}
+
 }
 
 // Temporary checking evidence, never attached to a Checked call or type.
@@ -80,6 +84,7 @@ internal class GenericInferenceObservation : Object {
 		this.argument_index = argument_index;
 		this.span = span;
 	}
+
 }
 
 internal class GenericCallInference : Object {
@@ -90,6 +95,7 @@ internal class GenericCallInference : Object {
 	internal GenericCallInference (GenericFunctionSymbol definition) {
 		this.definition = definition;
 	}
+
 	internal TypeParameterSymbol? parameter_for(SemanticType type) {
 		foreach (var parameter in definition.type_parameters) {
 			if (parameter.semantic_type == type) {
@@ -98,6 +104,7 @@ internal class GenericCallInference : Object {
 		}
 		return null;
 	}
+
 	internal bool observe_type(SemanticType pattern, SemanticType candidate, int index, SourceSpan span, int depth = 0) {
 		if (depth > 256) {
 			diagnostic = new Diagnostic (span, "generic argument inference exceeds the type-application depth limit of 256");
@@ -162,6 +169,7 @@ internal class GenericCallInference : Object {
 		diagnostic = new Diagnostic (span, "generic argument requires exact nominal type pattern '%s', found '%s'".printf (pattern.display_name (), candidate.display_name ()));
 		return false;
 	}
+
 	internal bool observe(TypeParameterSymbol parameter, SemanticType candidate, int index, SourceSpan span) {
 		assert (parameter_for (parameter.semantic_type) == parameter);
 		// Expression checking and symbol resolution already use the program's
@@ -183,9 +191,11 @@ internal class GenericCallInference : Object {
 		diagnostic = new Diagnostic (span, "conflicting inferred types for generic parameter '%s': '%s' and '%s' (arguments %d and %d; first at %s:%d:%d)".printf (parameter.name, previous.candidate.display_name (), candidate.display_name (), previous.argument_index + 1, index + 1, previous.span.file.path, line, column));
 		return false;
 	}
+
 	internal SourceSpan argument_span(TypeParameterSymbol parameter) {
 		return first.lookup (parameter).span;
 	}
+
 	internal GenericArray<SemanticType>? complete(SourceSpan span) {
 		var arguments = new GenericArray<SemanticType> ();
 		foreach (var parameter in definition.type_parameters) {
@@ -198,5 +208,6 @@ internal class GenericCallInference : Object {
 		}
 		return arguments;
 	}
+
 }
 }

@@ -36,6 +36,7 @@ private CoreProgram sample() {
 	}
 	return new CoreProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		CoreProgram? p = sample ();
@@ -50,6 +51,7 @@ private void positive() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 10; scenario++) {
 		var p = sample ();
@@ -98,10 +100,12 @@ private void invalid() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-abi/core/independent-copy-contracts-forwarding-lifetime", positive);
 	Test.add_func ("/struct-abi/core/contract-nominality-acquisition-mutation-value-firewalls", invalid);
 	return Test.run ();
 }
+
 }

@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-class C { int value; init(int n) { this.value = n; } deinit() { mark(this.value); } }
-int aliases(C a, C b) { if (a != b) { return 0; } a.value = 1; b.value = 42; return a.value; }
-int mutate(R a, R b) { if (a != b) { return 0; } touch(a); return value(b); }
+class C { int value;
+
+	init(int n) { this.value = n; }
+
+	deinit() { mark(this.value); } }
+
+int aliases(C a, C b) { if (a != b) return 0; a.value = 1; b.value = 42; return a.value; }
+
+int mutate(R a, R b) { if (a != b) return 0; touch(a); return value(b); }
+
 int main() {
 	var object = C.init(0); var handle = resource(1);
-	if (aliases(object, object) != 42 || object.value != 42 || mutate(handle, handle) != 2 || value(handle) != 2) { return 1; }
+	if (aliases(object, object) != 42 || object.value != 42 || mutate(handle, handle) != 2 || value(handle) != 2) return 1;
 	return 0;
 }

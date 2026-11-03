@@ -27,6 +27,7 @@ private void composition() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void duplicates() {
 	try {
 		var units = new GenericArray<CompilationUnitSyntax> ();
@@ -38,10 +39,12 @@ private void duplicates() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/semantic/global-universe-exact-contracts-syntax-destruction", composition);
 	Test.add_func ("/sources/semantic/duplicate-declarations-both-source-locations", duplicates);
 	return Test.run ();
 }
+
 }

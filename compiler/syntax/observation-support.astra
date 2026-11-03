@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class SyntaxStringVariable {
 	owned Utf8Message value;
+
 	init(owned Utf8Message value) {
 		this.value = move value;
 	}
 }
+
 owned Utf8Message syntax_integer_message(int value) throws Error {
 	var output = new Utf8ByteBuilder();
 	append_int(output, value);
 	var result = output.snapshot();
 	return move result;
 }
+
 owned Utf8Message syntax_format_one(string format, string value) throws Error {
 	var output = new Utf8ByteBuilder();
 	int i = 0;
@@ -27,6 +30,7 @@ owned Utf8Message syntax_format_one(string format, string value) throws Error {
 	var result = output.snapshot();
 	return move result;
 }
+
 owned Utf8Message syntax_escape(string value) throws Error {
 	var output = new Utf8ByteBuilder();
 	int i = 0;
@@ -72,9 +76,11 @@ owned Utf8Message syntax_escape(string value) throws Error {
 	var result = output.snapshot();
 	return move result;
 }
+
 int syntax_token_payload_length(borrowed Token token) {
 	return token.payload.text.byte_length;
 }
+
 void syntax_write_hex(Utf8ByteBuilder output, string value) {
 	string digits = "0123456789abcdef";
 	int i = 0;
@@ -85,9 +91,11 @@ void syntax_write_hex(Utf8ByteBuilder output, string value) {
 		i = i + 1;
 	}
 }
+
 void syntax_token_payload_hex(borrowed Token token, Utf8ByteBuilder output) {
 	syntax_write_hex(output, token.payload.text);
 }
+
 SyntaxListId syntax_unit_native_instances(SyntaxArena arena, SyntaxNodeId unit, bool include_generic) {
 	var result = arena.new_list(syntax_kind_code(SyntaxKind.NativeInstanceDeclarationSyntax()));
 	var structures = arena.get_list_structs(unit);

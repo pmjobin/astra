@@ -1,26 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace CPU;
 enum CancellationWorkerStatus { Completed, Cancelled }
+
 async runtime CancellationWorker throws BridgeError returns CancellationWorkerStatus provider "posix-threaded-composed";
 extern(C) void cancellation_gate(int mode);
+
 extern(C) void cancellation_computed(int value);
+
 extern(C) void cancellation_guard_retired();
+
 [Allocator(kind="context",context="owned-concurrent")]
 class CancellationGuard {
 	private owned int[] input;
+
 	init(owned int[] input) { this.input = move input; }
+
 	int compute() {
 		int value = 17;
-		for (int i = 0; i < 131071; i = i + 1) { value = (value * 19 + this.input[i % len(this.input)] + i % 251) % 65521; }
+		for (int i = 0; i < 131071; i = i + 1) value = (value * 19 + this.input[i % len(this.input)] + i % 251) % 65521;
 		return value;
 	}
+
 	deinit() { cancellation_guard_retired(); }
 }
+
 async int cancellation_work(owned CancellationGuard guard, int mode) throws Error {
 	cancellation_gate(mode);
 	int value = guard.compute();
 	cancellation_computed(value);
-	if (mode == 1) { await delay_ticks(1); }
-	if (mode == 3) { throw new Error("published cancellation-matrix error"); }
+	if (mode == 1) {
+		await delay_ticks(1);
+	}
+	if (mode == 3) {
+		throw new Error("published cancellation-matrix error");
+	}
 	return value;
 }

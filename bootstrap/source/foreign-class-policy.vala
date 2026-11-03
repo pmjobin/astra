@@ -13,6 +13,7 @@ public class GObjectExportContract : Object {
 	public static bool indirect_reference(ForeignChannel channel) {
 		return channel.by_reference && channel.direction != ForeignDirection.IN;
 	}
+
 	public bool weak_cache { get; internal set; default = true; }
 	public bool checked_context { get; internal set; default = true; }
 	public bool native_owner { get; internal set; default = true; }
@@ -23,6 +24,7 @@ public class GObjectExportContract : Object {
 		version_identifier = version;
 		this.declarations = declarations;
 	}
+
 	private static bool version_valid(string version) {
 		string[] pair = version.split (".");
 		if (pair.length != 2) {
@@ -40,6 +42,7 @@ public class GObjectExportContract : Object {
 		}
 		return true;
 	}
+
 	private static bool type_identifier_valid(string name) {
 		if (name.length == 0 || !(name[0] >= 'A' && name[0] <= 'Z')) {
 			return false;
@@ -52,9 +55,11 @@ public class GObjectExportContract : Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		return type_identifier_valid (type_name) && type_identifier_valid (namespace_name) && type_name.has_prefix (namespace_name) && type_name.length > namespace_name.length && (declarations ? version_valid (version) : version == "1.0") && weak_cache && checked_context && native_owner && !floating;
 	}
+
 	public string symbol_prefix() {
 		var output = new StringBuilder ();
 		for (int i = 0; i < type_name.length; i++) {
@@ -70,9 +75,11 @@ public class GObjectExportContract : Object {
 		}
 		return output.str;
 	}
+
 	public string identity() {
 		return (declarations ? "GObjectExport;declarations-v1;linux-x64;final-GType;gboolean32;gint32;pointer64;inref=value;outref=pointer;counted=GBytes;bounded=caller-array-slot+capacity-slot;owned=GLib-copy;POD=boxed-gboolean32;" : "GObjectExport;linux-x64-v1;") + "%s;%s;%s;%d,%d,%d,%d".printf (type_name, namespace_name, version, (int) weak_cache, (int) checked_context, (int) native_owner, (int) floating);
 	}
+
 	public GObjectExportContract copy() {
 		var result = new GObjectExportContract (type_name, namespace_name, version, declarations);
 		result.weak_cache = weak_cache;
@@ -81,10 +88,12 @@ public class GObjectExportContract : Object {
 		result.floating = floating;
 		return result;
 	}
+
 }
 public enum ComImportRole {
 	NONE, ACQUIRE, CLONE, GET, SET, SCALE
 }
+
 public class ComImportContract : Object {
 	private string declared_name;
 	private string external_prefix;
@@ -105,12 +114,15 @@ public class ComImportContract : Object {
 		interface_identity = iid.ascii_down ();
 		selected_view = view;
 	}
+
 	public bool valid() {
 		return ForeignClassPolicy.identifier (native_name) && ForeignClassPolicy.identifier (prefix) && !prefix.has_prefix ("astra_") && ComExportContract.guid (iid) && (view == "value" || view == "scale") && query_slot == 0 && acquire_slot == 1 && release_slot == 2 && method_slot == 3 && checked_context;
 	}
+
 	public string identity() {
 		return "COMImport;windows-x64-v1;%s;%s;%s;%s;%d,%d,%d,%d;%d".printf (native_name, prefix, iid, view, query_slot, acquire_slot, release_slot, method_slot, (int) checked_context);
 	}
+
 	public ComImportContract copy() {
 		var result = new ComImportContract (native_name, prefix, iid, view);
 		result.query_slot = query_slot;
@@ -120,12 +132,15 @@ public class ComImportContract : Object {
 		result.checked_context = checked_context;
 		return result;
 	}
+
 	public static bool matches(ComImportContract? contract, string identity, string name, string cleanup) {
 		return contract == null ? identity == "" : contract.valid () && contract.identity () == identity && contract.native_name == name && cleanup == contract.prefix + "_release";
 	}
+
 	public bool admits(ComImportRole role) {
 		return role == ComImportRole.ACQUIRE || role == ComImportRole.CLONE || view == "value" && (role == ComImportRole.GET || role == ComImportRole.SET) || view == "scale" && role == ComImportRole.SCALE;
 	}
+
 	public static string suffix(ComImportRole role) {
 		switch (role) {
 		case ComImportRole.ACQUIRE: return "acquire";
@@ -141,6 +156,7 @@ public class ComImportContract : Object {
 			return "<invalid>";
 		}
 	}
+
 }
 public class ComExportContract : Object {
 	private string value_identity;
@@ -160,6 +176,7 @@ public class ComExportContract : Object {
 		value_identity = value_iid.ascii_down ();
 		scale_identity = scale_iid.ascii_down ();
 	}
+
 	public static bool guid(string value) {
 		if (value.length != 36 || value == "00000000-0000-0000-0000-000000000000" || value == "00000000-0000-0000-c000-000000000046") {
 			return false;
@@ -175,12 +192,15 @@ public class ComExportContract : Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		return guid (value_iid) && guid (scale_iid) && value_iid != scale_iid && query_slot == 0 && acquire_slot == 1 && release_slot == 2 && get_slot == 3 && set_slot == 4 && scale_slot == 3 && query_acquires && checked_context && windows_x64;
 	}
+
 	public string identity() {
 		return "com-windows-x64-v1;%s;%s;%d,%d,%d,%d,%d,%d;%d,%d,%d".printf (value_iid, scale_iid, query_slot, acquire_slot, release_slot, get_slot, set_slot, scale_slot, (int) query_acquires, (int) checked_context, (int) windows_x64);
 	}
+
 	public ComExportContract copy() {
 		var result = new ComExportContract (value_iid, scale_iid);
 		result.query_slot = query_slot;
@@ -194,6 +214,7 @@ public class ComExportContract : Object {
 		result.windows_x64 = windows_x64;
 		return result;
 	}
+
 }
 // Immutable declaration authority, independent of syntax, semantic symbols,
 // IR graphs and foreign/native physical layout. Stages copy the value and
@@ -205,6 +226,7 @@ public class ForeignClassPolicy : Object {
 	public ForeignComExportBinding com_binding(uint index) {
 		return com_bindings[index];
 	}
+
 	private bool com_names_valid() {
 		var names = new HashTable<string, string> (str_hash, str_equal);
 		foreach (var binding in com_bindings) {
@@ -218,6 +240,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return true;
 	}
+
 	private bool gobject_members_valid() {
 		if (gobject == null || declared_api == null) {
 			return true;
@@ -257,6 +280,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return true;
 	}
+
 	public static bool distinct_gobjects(GenericArray<ForeignClassPolicy> roots) {
 		var types = new HashTable<string,bool> (str_hash,str_equal);
 		var prefixes = new HashTable<string,bool> (str_hash,str_equal);
@@ -273,6 +297,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return true;
 	}
+
 	private static ForeignComInterface? protocol_named(GenericArray<ForeignComInterface> protocols,string name) {
 		foreach (var protocol in protocols) {
 			if (protocol.name == name) {
@@ -281,6 +306,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return null;
 	}
+
 	private static bool com_channel_root_valid(ForeignChannel native_channel,ForeignChannel required,GenericArray<ForeignClassPolicy> roots,GenericArray<ForeignComInterface> protocols) {
 		if (!ForeignComExportBinding.native_view (native_channel,required)) {
 			return true;
@@ -304,6 +330,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return false;
 	}
+
 	private static bool gobject_channel_root_valid(ForeignChannel channel,GenericArray<ForeignClassPolicy> roots) {
 		if (channel.value_type.kind != ForeignValueKind.NATIVE_OBJECT) {
 			return true;
@@ -315,6 +342,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return false;
 	}
+
 	public static bool com_roots_valid(ForeignClassPolicy policy,GenericArray<ForeignClassPolicy> roots,GenericArray<ForeignComInterface> protocols) {
 		if (!policy.valid () || !distinct_gobjects (roots)) {
 			return false;
@@ -355,6 +383,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return true;
 	}
+
 	public const uint C = 1;
 	public const uint COM = 2;
 	public const uint GOBJECT = 4;
@@ -369,9 +398,11 @@ public class ForeignClassPolicy : Object {
 		}
 		return names == "" ? "none" : names;
 	}
+
 	public bool active(uint personality) {
 		return (active_personalities & personality) != 0;
 	}
+
 	public ComExportContract? com { get; internal set; }
 	public GObjectExportContract? gobject { get; internal set; }
 	private string native_identifier;
@@ -404,6 +435,7 @@ public class ForeignClassPolicy : Object {
 		this.com = com == null ? null : com.copy ();
 		this.gobject = gobject == null ? null : gobject.copy ();
 	}
+
 	public static bool identifier(string name) {
 		if (name.length == 0) {
 			return false;
@@ -416,6 +448,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return true;
 	}
+
 	public static bool nominal_identifier(string name) {
 		foreach (string part in name.split (".")) {
 			if (!identifier (part)) {
@@ -424,6 +457,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		if (declared_api != null) {
 			var seen = new HashTable<string, bool> (str_hash, str_equal);
@@ -440,6 +474,7 @@ public class ForeignClassPolicy : Object {
 		}
 		return (personalities == C && com == null && gobject == null || personalities == (C | COM) && com != null && com.valid () && gobject == null || personalities == (C | GOBJECT) && com == null && gobject != null && gobject.valid () && gobject.symbol_prefix () == prefix && property_name == "value") && native_name != "" && identifier (prefix) && !prefix.has_prefix ("astra_") && identifier (property_name) && property_ordinal >= 0;
 	}
+
 	public string identity() {
 		if (declared_api != null) {
 			var text = new StringBuilder (declared_api.identity ());
@@ -453,20 +488,25 @@ public class ForeignClassPolicy : Object {
 		}
 		return "%u;%d:%s;%d:%s;%d:%s;%d%s%s".printf (personalities, native_name.length, native_name, prefix.length, prefix, property_name.length, property_name, property_ordinal, com == null ? "" : ";" + com.identity (), gobject == null ? "" : ";" + gobject.identity ());
 	}
+
 	public ForeignClassPolicy copy() {
 		return declared_api != null ? new ForeignClassPolicy.declared (declared_api, com_bindings, gobject) : new ForeignClassPolicy (native_name, prefix, property_name, property_ordinal, personalities, com, gobject);
 	}
+
 	public string dump() {
 		if (declared_api != null) {
 			return "(foreign-class CExport declarations-v1 name=%s native=%s lifetime=%s members=%u)".printf (prefix, native_name, declared_api.lifetime == ForeignLifetime.UNIQUE ? "unique" : "shared", declared_api.member_count);
 		}
 		return "(foreign-class CExport name=%s native=%s property=%s ordinal=%d native-strong-weak separate-wrapper constructing-thread-data%s%s)".printf (prefix, native_name, property_name, property_ordinal, com == null ? "" : " COMExport " + com.identity (), gobject == null ? "" : " " + gobject.identity ());
 	}
+
 	public static bool matches(ForeignClassPolicy? policy, string identity, string name) {
 		return policy == null ? identity == "" : policy.valid () && policy.identity () == identity && policy.native_name == name;
 	}
+
 	public static bool reserved_symbol(string name) {
 		return name.has_prefix ("astra_foreign14_");
 	}
+
 }
 }

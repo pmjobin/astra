@@ -6,6 +6,7 @@ namespace Astra.Semantic {
 public enum EnumUse {
 	COPY, MOVE, INSPECT
 }
+
 public class EnumType : SemanticType {
 	public EnumIdentity identity { get; private set; }
 	private WeakRef definition;
@@ -17,6 +18,7 @@ public class EnumType : SemanticType {
 	public SemanticType argument(uint ordinal) {
 		return arguments[ordinal];
 	}
+
 	internal EnumType (string name, GenericArray<SemanticType>? parameters = null, bool[]? array_elements = null) {
 		base (TypeKind.ENUM);
 		identity = new EnumIdentity (name);
@@ -33,6 +35,7 @@ public class EnumType : SemanticType {
 			}
 		}
 	}
+
 	public bool require_array_element(uint ordinal) {
 		if (array_elements[ordinal]) {
 			return false;
@@ -40,10 +43,12 @@ public class EnumType : SemanticType {
 		array_elements[ordinal] = true;
 		return true;
 	}
+
 	public bool requires_array_element(uint ordinal) {
 		var origin = this.origin;
 		return origin != null && origin.array_elements[ordinal];
 	}
+
 	public bool declares_copy(TypeParameterType parameter) {
 		foreach (var argument in arguments) {
 			if (argument == parameter) {
@@ -52,6 +57,7 @@ public class EnumType : SemanticType {
 		}
 		return false;
 	}
+
 	public bool declares_element(TypeParameterType parameter) {
 		for (uint i = 0; i < arguments.length; i++) {
 			if (arguments[i] == parameter && requires_array_element (i)) {
@@ -60,6 +66,7 @@ public class EnumType : SemanticType {
 		}
 		return false;
 	}
+
 	private EnumType.applied (EnumType origin, GenericArray<SemanticType> arguments) {
 		base (TypeKind.ENUM);
 		definition = WeakRef (origin);
@@ -85,6 +92,7 @@ public class EnumType : SemanticType {
 		}
 		return true;
 	}
+
 	public EnumType application(GenericArray<SemanticType> key) {
 		var origin = this.origin;
 		assert (origin != null && key.length == origin.argument_count);
@@ -100,6 +108,7 @@ public class EnumType : SemanticType {
 		origin.applications.add (result);
 		return result;
 	}
+
 	public override bool is_parameterized() {
 		foreach (var argument in arguments) {
 			if (argument.is_parameterized ()) {
@@ -108,15 +117,18 @@ public class EnumType : SemanticType {
 		}
 		return false;
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		if (arguments.length == 0) {
 			return this;
 		}
 		return application (substitution.apply_arguments (arguments));
 	}
+
 	public override string display_name() {
 		return identity.name;
 	}
+
 }
 
 }

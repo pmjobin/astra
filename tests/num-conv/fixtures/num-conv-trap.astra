@@ -1,4 +1,7 @@
 extern(C) int mark(int x);
+
 f64 invalid_float() { mark(2); return 1e1000d; }
+
 int consume(int a, int b, int c) { mark(4); return a + b + c; }
+
 int main() { return consume(mark(1), invalid_float() as int, mark(3)); }

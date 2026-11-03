@@ -87,4 +87,5 @@ int main(string[] args) {
 	Test.add_func ("/f64/semantic/diagnostics-deferred-capabilities", diagnostics);
 	return Test.run ();
 }
+
 }

@@ -2,12 +2,17 @@
 [ExceptionRoot]
 class EmptyFrameError {
 	init(string message) {}
+
 	virtual property string message { get { return "empty frame error"; } }
 }
+
 enum EmptyFrameStatus { Completed, Cancelled }
+
 async runtime EmptyFrames throws EmptyFrameError returns EmptyFrameStatus;
 extern(C) int borrowed_frames_finish_empty_error();
+
 async void empty_frame_child() throws EmptyFrameError { await delay_ticks(1); }
+
 int checked_empty_frame(borrowed ScopedAllocator frames) {
 	try {
 		var executor = EmptyFrames.open(8);
@@ -17,15 +22,17 @@ int checked_empty_frame(borrowed ScopedAllocator frames) {
 	} catch (EmptyFrameError error) { return 1; }
 	return 0;
 }
+
 export(C) int run_borrowed_frame_contexts() {
 	owned u8[] backing = new u8[8197];
 	var frames = scoped_allocator<ScopedAllocator>(backing, 2, 1);
 	{
 		var blocker = task_in(frames, empty_frame_child());
-		if (checked_empty_frame(frames) != 1) { return 1; }
+		if (checked_empty_frame(frames) != 1) return 1;
 	}
-	if (checked_empty_frame(frames) != 0) { return 2; }
-	if (scoped_allocator_query(frames, 1) != 0) { return 3; }
+	if (checked_empty_frame(frames) != 0) return 2;
+	if (scoped_allocator_query(frames, 1) != 0) return 3;
 	return borrowed_frames_finish_empty_error();
 }
+
 int main() { return run_borrowed_frame_contexts(); }

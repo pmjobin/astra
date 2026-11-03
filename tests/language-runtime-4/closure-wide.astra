@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class WideClosureEnvironment {
 	i64 offset;
+
 	init(i64 offset) { this.offset = offset; }
 }
+
 i64 wide_closure_code(borrowed WideClosureEnvironment environment, i64 input) { return environment.offset + input; }
+
 owned Closure<WideClosureEnvironment,i64,i64> wide_closure(i64 offset) {
 	var environment = new WideClosureEnvironment(offset);
 	var function = closure_bind(move environment, wide_closure_code);
 	return move function;
 }
+
 i64 invoke_wide(borrowed Closure<WideClosureEnvironment,i64,i64> function, i64 input) { return closure_invoke(function, input); }
+
 int main() {
 	var function = wide_closure(4294967296);
 	var moved = move function;
-	if (invoke_wide(moved, 8589934593) != 12884901889) { return 81; }
+	if (invoke_wide(moved, 8589934593) != 12884901889) return 81;
 	return 0;
 }

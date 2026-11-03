@@ -19,9 +19,11 @@ private void concrete() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own/concrete-core/exact-resource-class-contracts", concrete);
 	return Test.run ();
 }
+
 }

@@ -12,6 +12,7 @@ extern int32_t astra_native_lifetime14(int32_t count);
 extern void *astra_native_identity14(void *token);
 static int destroyed;
 static int invalid;
+
 int32_t native_destroy14(int32_t value) {
 	if (value != 42) {
 		++invalid;
@@ -19,12 +20,14 @@ int32_t native_destroy14(int32_t value) {
 	++destroyed;
 	return 0;
 }
+
 int32_t native_increment14(int32_t value) {
 	if (value != 40) {
 		++invalid;
 	}
 	return value + 2;
 }
+
 void *native_identity14(void *value) {
 	return value;
 }

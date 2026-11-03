@@ -18,6 +18,7 @@ private void reject(LlvmModuleArtifact artifact) {
 	}
 	assert (rejected);
 }
+
 private void physical() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("wide-physical.astra", "i64 widen_i(int x){return x as i64;}u64 widen_u(u32 x){return x as u64;}int narrow(i64 x){return x as int;}"));
@@ -62,9 +63,11 @@ private void physical() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/wide/llvm/extension-truncation-physical-mutations", physical);
 	return Test.run ();
 }
+
 }

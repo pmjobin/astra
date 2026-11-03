@@ -1,30 +1,45 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Archive<T> {
 	owned T[slots] entries;
+
 	init() { this.entries = new T[slots]; }
+
 	property int size { get { return len(this.entries); } }
+
 	property bool empty { get { return len(this.entries) == 0; } }
+
 	bool reserve(int count) { return this.entries.reserve(count); }
+
 	bool append(owned T value) {
 		if (len(this.entries) == this.entries.capacity) {
-			if (!this.entries.reserve(len(this.entries) + 3)) { return false; }
+			if (!this.entries.reserve(len(this.entries) + 3)) return false;
 		}
 		this.entries.append(move value);
 		return true;
 	}
+
 	owned T take(int index) { var value = this.entries.take(index); return move value; }
+
 	void replace(int index, owned T value) { this.entries.replace(index, move value); }
+
 	U echo<U>(U value) { return value; }
 }
+
 struct ArchiveStamp { int key; int ordinal; }
+
 class ArchiveAsset {
 	owned Lease lease;
 	int code;
+
 	init(int code) { this.lease = open_lease(code); this.code = code; }
+
 	deinit() { event(2000 + this.code); }
 }
+
 struct ArchivePacket { owned OtherLease guard; owned Utf8Message label; owned int[] samples; int code; }
+
 int archive_asset_code(ArchiveAsset value) { return value.code; }
+
 ArchivePacket archive_packet(int code, string label) {
 	var guard = open_other(code + 100);
 	var message = new Utf8Message(label);
@@ -34,21 +49,26 @@ ArchivePacket archive_packet(int code, string label) {
 	ArchivePacket result = {guard = move guard, label = move message, samples = move samples, code = code};
 	return move result;
 }
+
 int archive_stamp_sum(Archive<ArchiveStamp> values) {
 	int total = 0;
 	int weight = 1;
 	foreach (var value in values) { total = total + value.key * weight + value.ordinal; weight = weight + 1; }
 	return total;
 }
+
 int archive_asset_sum(Archive<ArchiveAsset> values) {
 	int total = 0;
 	int weight = 1;
 	foreach (var value in values) { total = total + archive_asset_code(value) * weight; weight = weight + 1; }
 	return total;
 }
+
 void run_archive(string input) throws Error {
 	var tokens = text_split_owned(input, ",");
-	if (tokens.count() < 3 || tokens.count() > 16) { throw new Error("archive count"); }
+	if (tokens.count() < 3 || tokens.count() > 16) {
+		throw new Error("archive count");
+	}
 	var stamps = new Archive<ArchiveStamp>();
 	var assets = new Archive<ArchiveAsset>();
 	var packets = new Archive<ArchivePacket>();
@@ -57,10 +77,14 @@ void run_archive(string input) throws Error {
 	while (tokens.count() != 0) {
 		var token = tokens.take(0);
 		int code = parse_int(token.text);
-		if (code < 1 || code > 40) { throw new Error("archive range"); }
+		if (code < 1 || code > 40) {
+			throw new Error("archive range");
+		}
 		int previous = 0;
 		while (previous < index) {
-			if (seen[previous] == code) { throw new Error("duplicate archive key"); }
+			if (seen[previous] == code) {
+				throw new Error("duplicate archive key");
+			}
 			previous = previous + 1;
 		}
 		seen[index] = code;
@@ -72,7 +96,9 @@ void run_archive(string input) throws Error {
 		bool stored_packet = packets.append(move packet);
 		index = index + 1;
 	}
-	if (stamps.empty || assets.empty || packets.empty || stamps.size != index || assets.size != index || packets.size != index) { throw new Error("archive state"); }
+	if (stamps.empty || assets.empty || packets.empty || stamps.size != index || assets.size != index || packets.size != index) {
+		throw new Error("archive state");
+	}
 	bool grown_stamps = stamps.reserve(23);
 	bool grown_assets = assets.reserve(23);
 	bool grown_packets = packets.reserve(23);
@@ -102,12 +128,13 @@ void run_archive(string input) throws Error {
 	number(packet_total);
 	number(stamps.size + assets.size + packets.size);
 }
+
 int main(string[] args) {
-	if (len(args) != 2) { return 81; }
+	if (len(args) != 2) return 81;
 	int result = 0;
 	try { run_archive(args[1]); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
-	if (live_leases() != 0) { return 83; }
+	if (live_leases() != 0) return 83;
 	return result;
 }

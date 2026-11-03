@@ -2,10 +2,17 @@
 
 i16<4> branch(i16<4>* p, bool condition) {
 	i16<4> result = splat(0,4);
-	if (condition) { *p = splat(7,4); result = *p; }
-	else { *p = splat(9,4); result = *p; }
+	if (condition) {
+		*p = splat(7,4);
+		result = *p;
+	}
+	else {
+		*p = splat(9,4);
+		result = *p;
+	}
 	return result;
 }
+
 i16<4> loop(i16<4>* p, int n) {
 	int i = 0;
 	i16<4> result = splat(0,4);
@@ -19,6 +26,7 @@ i16<4> loop(i16<4>* p, int n) {
 	}
 	return result;
 }
+
 int main() {
 	i16<4> v = splat(0,4);
 	i16<4>* p = &v;
@@ -28,12 +36,20 @@ int main() {
 		*p = *p + splat(2,4);
 		i = i + 1;
 	}
-	if (!all(v == splat(30,4)) || !all(loop(p,12) == splat(42,4)) || !all(v == splat(42,4))) { return 1; }
-	if (!all(branch(p,true) == splat(7,4)) || !all(v == splat(7,4))) { return 2; }
-	if (!all(branch(p,false) == splat(9,4)) || !all(v == splat(9,4))) { return 3; }
-	if (all(*p > splat(0,4))) { *p = splat(11,4); } else { v = splat(13,4); }
-	if (!all(v == splat(11,4))) { return 4; }
-	if (all(*p < splat(0,4))) { *p = splat(17,4); } else { v = splat(19,4); }
-	if (!all(*p == splat(19,4)) || !all(loop(null,3) == splat(0,4))) { return 5; }
+	if (!all(v == splat(30,4)) || !all(loop(p,12) == splat(42,4)) || !all(v == splat(42,4))) return 1;
+	if (!all(branch(p,true) == splat(7,4)) || !all(v == splat(7,4))) return 2;
+	if (!all(branch(p,false) == splat(9,4)) || !all(v == splat(9,4))) return 3;
+	if (all(*p > splat(0,4))) {
+		*p = splat(11,4);
+	} else {
+		v = splat(13,4);
+	}
+	if (!all(v == splat(11,4))) return 4;
+	if (all(*p < splat(0,4))) {
+		*p = splat(17,4);
+	} else {
+		v = splat(19,4);
+	}
+	if (!all(*p == splat(19,4)) || !all(loop(null,3) == splat(0,4))) return 5;
 	return 0;
 }

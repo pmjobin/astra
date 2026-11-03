@@ -1,36 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int actor_stress_prepare(int workers, int messages, int seed);
+
 extern(C) int actor_stress_arrive(int id);
+
 extern(C) int actor_stress_pause(int sequence);
+
 extern(C) int actor_stress_ticket();
+
 extern(C) int actor_stress_drop(int ticket);
+
 extern(C) int actor_stress_observe(int id, int sequence, int ticket);
+
 extern(C) int actor_stress_wait();
+
 extern(C) int actor_stress_receiver();
+
 extern(C) int actor_stress_producer();
+
 extern(C) int actor_stress_finish();
 
 class Parcel {
 	private int producer;
 	private int sequence;
 	private int ticket;
+
 	init(int producer, int sequence) {
 		this.producer = producer;
 		this.sequence = sequence;
 		this.ticket = actor_stress_ticket();
 	}
+
 	int deliver() { return actor_stress_observe(this.producer, this.sequence, this.ticket); }
+
 	deinit() { actor_stress_drop(this.ticket); }
 }
 
 [Actor]
 class Collector {
 	private int received;
+
 	init() { this.received = 0; }
+
 	int accept(borrowed Parcel parcel) {
 		this.received = this.received + 1;
 		return parcel.deliver();
 	}
+
 	deinit() { actor_stress_receiver(); }
 }
 
@@ -41,10 +56,12 @@ int handle(borrowed Collector receiver, owned Parcel parcel) {
 class Producer {
 	owned ActorSender<Collector,Parcel> sender;
 	int id;
+
 	init(owned ActorSender<Collector,Parcel> sender, int id) {
 		this.sender = move sender;
 		this.id = id;
 	}
+
 	deinit() { actor_stress_producer(); }
 }
 

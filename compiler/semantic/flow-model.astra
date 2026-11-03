@@ -4,14 +4,17 @@ struct FlowBlockId {
 	int function;
 	int index;
 }
+
 struct OwnerSlotId {
 	int function;
 	int index;
 }
+
 struct FlowFieldId {
 	int function;
 	int index;
 }
+
 struct FlowField {
 	int root;
 	int parent;
@@ -20,13 +23,16 @@ struct FlowField {
 	int flags;
 	bool leaf;
 }
+
 struct FlowNullValue {
 	SyntaxNodeId node;
 }
+
 struct FlowLoanId {
 	int function;
 	int index;
 }
+
 struct FlowSlot {
 	SymbolId symbol;
 	TypeId type;
@@ -35,10 +41,12 @@ struct FlowSlot {
 	bool owner;
 	bool parameter;
 }
+
 struct FlowRegion {
 	int parent;
 	SyntaxNodeId node;
 }
+
 // One typed event per basic block; next/other are explicit successor edges.
 // 0 exit, 1 nop, 2 init, 3 read, 4 move, 5 release, 6 rearm,
 // 7 loan, 8 commit, 9 scope-exit, 10 branch, 11 backedge, 12 return,
@@ -63,6 +71,7 @@ struct FlowEvent {
 	SyntaxNodeId predicate;
 	bool required;
 }
+
 struct FlowLoan {
 	int source;
 	int borrower;
@@ -70,10 +79,12 @@ struct FlowLoan {
 	SyntaxNodeId node;
 	SyntaxNodeId call;
 }
+
 struct FlowObligation {
 	SyntaxNodeId node;
 	int reason;
 }
+
 class FlowGraph {
 	SymbolId function;
 	int ordinal;
@@ -107,6 +118,7 @@ class FlowGraph {
 	SyntaxSpan error_span;
 	bool complete;
 	bool exhausted;
+
 	init(SymbolId function, int ordinal, int symbols, int nodes, int limit) {
 		this.function = function;
 		this.ordinal = ordinal;
@@ -141,12 +153,14 @@ class FlowGraph {
 		this.complete = false;
 		this.exhausted = false;
 	}
+
 	void fail(int code, SyntaxSpan span) {
 		if (this.error == 0) {
 			this.error = code;
 			this.error_span = span;
 		}
 	}
+
 	bool room(int count) {
 		if (count >= this.limit) {
 			this.exhausted = true;
@@ -154,6 +168,7 @@ class FlowGraph {
 		}
 		return true;
 	}
+
 	int add(FlowEvent row) {
 		if (!this.room(this.count)) {
 			return 0;
@@ -171,6 +186,7 @@ class FlowGraph {
 		this.count = this.count + 1;
 		return this.count;
 	}
+
 	int region(SyntaxNodeId node, int parent) {
 		if (!this.room(this.region_count)) {
 			return 0;
@@ -191,6 +207,7 @@ class FlowGraph {
 		this.region_count = this.region_count + 1;
 		return this.region_count;
 	}
+
 	void add_slot(FlowSlot row) {
 		if (!this.room(this.slot_count)) {
 			return;
@@ -207,6 +224,7 @@ class FlowGraph {
 		this.slots[this.slot_count] = row;
 		this.slot_count = this.slot_count + 1;
 	}
+
 	int add_loan(FlowLoan row) {
 		if (!this.room(this.loan_count)) {
 			return 0;
@@ -224,6 +242,7 @@ class FlowGraph {
 		this.loan_count = this.loan_count + 1;
 		return this.loan_count;
 	}
+
 	void defer(SyntaxNodeId node, int reason) {
 		if (!this.room(this.obligation_count)) {
 			return;
@@ -243,13 +262,14 @@ class FlowGraph {
 		this.obligations[this.obligation_count] = row;
 		this.obligation_count = this.obligation_count + 1;
 	}
+
 	int null_value(SyntaxNodeId node) {
 		int i = 0;
 		while (i < this.value_count) {
-			if (this.values[i].node.index == node.index) { return this.slot_count + i + 1; }
+			if (this.values[i].node.index == node.index) return this.slot_count + i + 1;
 			i = i + 1;
 		}
-		if (!this.room(this.value_count)) { return 0; }
+		if (!this.room(this.value_count)) return 0;
 		if (this.value_count == len(this.values)) {
 			var grown = new FlowNullValue[syntax_grown_capacity(len(this.values), this.value_count + 1)];
 			i = 0;
@@ -264,8 +284,9 @@ class FlowGraph {
 		this.value_count = this.value_count + 1;
 		return this.slot_count + this.value_count;
 	}
+
 	int add_field(FlowField field) {
-		if (!this.room(this.field_count)) { return 0; }
+		if (!this.room(this.field_count)) return 0;
 		if (this.field_count == len(this.fields)) {
 			var grown = new FlowField[syntax_grown_capacity(len(this.fields), this.field_count + 1)];
 			int i = 0;
@@ -279,6 +300,7 @@ class FlowGraph {
 		this.field_count = this.field_count + 1;
 		return this.field_count;
 	}
+
 	int slot_for(SymbolId symbol) {
 		int i = 0;
 		while (i < this.slot_count) {
@@ -289,6 +311,7 @@ class FlowGraph {
 		}
 		return 0;
 	}
+
 	int region_for(SyntaxNodeId node) {
 		int i = 0;
 		while (i < this.region_count) {
@@ -299,6 +322,7 @@ class FlowGraph {
 		}
 		return 0;
 	}
+
 	bool outlives(int source, int destination) {
 		int current = destination;
 		int remaining = this.region_count + 1;
@@ -312,6 +336,7 @@ class FlowGraph {
 		return false;
 	}
 }
+
 class FlowIndex {
 	owned CheckedIndex checked;
 	owned Bag<FlowGraph> graphs;
@@ -323,6 +348,7 @@ class FlowIndex {
 	bool complete;
 	int unmodeled;
 	bool capacity_ok;
+
 	init(owned CheckedIndex checked) {
 		this.checked = move checked;
 		var graphs = new Bag<FlowGraph>();
@@ -336,27 +362,32 @@ class FlowIndex {
 		this.unmodeled = 0;
 		this.capacity_ok = this.checked.signature_count <= 8192 && this.checked.bindings.symbol_count <= 262144 && this.graphs.reserve(this.checked.signature_count);
 	}
+
 	bool same_owner(borrowed FlowIndex origin) {
 		return this.checked.types.same_owner(origin.checked.types);
 	}
+
 	bool owns_block(borrowed FlowIndex origin, FlowBlockId id) {
 		if (!this.same_owner(origin) || !this.complete || id.function <= 0 || id.function > this.graphs.count()) {
 			return false;
 		}
 		return id.index > 0 && id.index <= flow_graph_count(this.graphs.entries[id.function - 1]);
 	}
+
 	bool owns_slot(borrowed FlowIndex origin, OwnerSlotId id) {
 		if (!this.same_owner(origin) || !this.complete || id.function <= 0 || id.function > this.graphs.count()) {
 			return false;
 		}
 		return id.index > 0 && id.index <= flow_graph_slot_count(this.graphs.entries[id.function - 1]);
 	}
+
 	bool owns_loan(borrowed FlowIndex origin, FlowLoanId id) {
 		if (!this.same_owner(origin) || !this.complete || id.function <= 0 || id.function > this.graphs.count()) {
 			return false;
 		}
 		return id.index > 0 && id.index <= flow_graph_loan_count(this.graphs.entries[id.function - 1]);
 	}
+
 	int owner_at(borrowed FlowIndex origin, FlowBlockId block, OwnerSlotId slot) {
 		if (!this.owns_block(origin, block) || !this.owns_slot(origin, slot) || block.function != slot.function) {
 			return -1;
@@ -366,18 +397,21 @@ class FlowIndex {
 		}
 		return flow_owner_fact(this.graphs.entries[block.function - 1], block.index, slot.index);
 	}
+
 	int nonnull_at(borrowed FlowIndex origin, FlowBlockId block, OwnerSlotId slot) {
-		if (!this.owns_block(origin, block) || !this.owns_slot(origin, slot) || block.function != slot.function) { return -1; }
-		if (!this.semantic_proved || !this.checked.semantic_flow || !flowsem_verify_solution(this.graphs.entries[block.function - 1], this.checked, this.class_origins)) { return -2; }
-		if (checked_kind(this.checked, flow_graph_slot_type(this.graphs.entries[block.function - 1], slot.index)) != 31) { return -2; }
+		if (!this.owns_block(origin, block) || !this.owns_slot(origin, slot) || block.function != slot.function) return -1;
+		if (!this.semantic_proved || !this.checked.semantic_flow || !flowsem_verify_solution(this.graphs.entries[block.function - 1], this.checked, this.class_origins)) return -2;
+		if (checked_kind(this.checked, flow_graph_slot_type(this.graphs.entries[block.function - 1], slot.index)) != 31) return -2;
 		return flow_null_fact(this.graphs.entries[block.function - 1], block.index, slot.index);
 	}
+
 	int field_at(borrowed FlowIndex origin, FlowBlockId block, FlowFieldId field) {
-		if (!this.owns_block(origin, block) || field.function != block.function || field.index < 1 || field.index > flow_field_count(this.graphs.entries[block.function - 1])) { return -1; }
-		if (!this.semantic_proved || !this.checked.semantic_flow || !flowsem_verify_solution(this.graphs.entries[block.function - 1], this.checked, this.class_origins)) { return -2; }
-		if (!flowsem_field_available(this.graphs.entries[block.function - 1], this.checked, block.index, field.index)) { return -2; }
+		if (!this.owns_block(origin, block) || field.function != block.function || field.index < 1 || field.index > flow_field_count(this.graphs.entries[block.function - 1])) return -1;
+		if (!this.semantic_proved || !this.checked.semantic_flow || !flowsem_verify_solution(this.graphs.entries[block.function - 1], this.checked, this.class_origins)) return -2;
+		if (!flowsem_field_available(this.graphs.entries[block.function - 1], this.checked, block.index, field.index)) return -2;
 		return flow_field_fact(this.graphs.entries[block.function - 1], block.index, field.index);
 	}
+
 	int loan_at(borrowed FlowIndex origin, FlowBlockId block, FlowLoanId loan) {
 		if (!this.owns_block(origin, block) || !this.owns_loan(origin, loan) || block.function != loan.function) {
 			return -1;
@@ -388,6 +422,7 @@ class FlowIndex {
 		return flow_loan_fact(this.graphs.entries[block.function - 1], block.index, loan.index);
 	}
 }
+
 FlowEvent flow_event(CheckedIndex checked, SyntaxNodeId node, int operation, int slot, int region, int next) {
 	FlowEvent result = {
 		operation = operation, node = node, span = checked.bindings.program.arena.header(node).span, slot = slot, loan = 0, region = region, call = 0, next = next, other = 0, loop_head = 0, input = 0, output = 0, null_kind = 0, field = 0, source_field = 0, producer = flow_no_node(), predicate = flow_no_node(), required = false
@@ -401,40 +436,52 @@ SyntaxNodeId flow_no_node() {
 	};
 	return result;
 }
+
 // Indexed owner slots admit borrowed inspection; these return only copied facts.
 int flow_graph_count(borrowed FlowGraph graph) {
 	return graph.count;
 }
+
 int flow_graph_slot_count(borrowed FlowGraph graph) {
 	return graph.slot_count;
 }
+
 int flow_graph_loan_count(borrowed FlowGraph graph) {
 	return graph.loan_count;
 }
+
 int flow_graph_error(borrowed FlowGraph graph) {
 	return graph.error;
 }
+
 int flow_graph_obligation_count(borrowed FlowGraph graph) {
 	return graph.obligation_count;
 }
+
 bool flow_graph_complete(borrowed FlowGraph graph) {
 	return graph.complete;
 }
+
 int flow_graph_entry(borrowed FlowGraph graph) {
 	return graph.entry;
 }
+
 int flow_graph_exit(borrowed FlowGraph graph) {
 	return graph.exit;
 }
+
 SymbolId flow_graph_function(borrowed FlowGraph graph) {
 	return graph.function;
 }
+
 FlowEvent flow_graph_event(borrowed FlowGraph graph, int index) {
 	return graph.events[index];
 }
+
 bool flow_slot_owner(borrowed FlowGraph graph, int index) {
 	return graph.slots[index - 1].owner;
 }
+
 int flow_owner_fact(borrowed FlowGraph graph, int block, int slot) {
 	if (graph.obligation_count != 0) {
 		return -2;
@@ -444,6 +491,7 @@ int flow_owner_fact(borrowed FlowGraph graph, int block, int slot) {
 	}
 	return graph.facts[(block - 1) * graph.slot_count + slot - 1];
 }
+
 int flow_loan_fact(borrowed FlowGraph graph, int block, int loan) {
 	if (graph.obligation_count != 0) {
 		return -2;
@@ -458,25 +506,27 @@ int flow_loan_fact(borrowed FlowGraph graph, int block, int loan) {
 }
 
 int flow_field_count(borrowed FlowGraph graph) { return graph.field_count; }
+
 int flow_null_fact(borrowed FlowGraph graph, int block, int slot) {
-	if (!graph.semantic_flow || !graph.complete || graph.error != 0 || graph.obligation_count != 0) { return -2; }
-	if (!graph.reachable[block - 1]) { return 0; }
+	if (!graph.semantic_flow || !graph.complete || graph.error != 0 || graph.obligation_count != 0) return -2;
+	if (!graph.reachable[block - 1]) return 0;
 	return graph.null_facts[(block - 1) * (graph.slot_count + graph.value_count) + slot - 1];
 }
+
 int flow_field_fact(borrowed FlowGraph graph, int block, int field) {
-	if (!graph.semantic_flow || !graph.complete || graph.error != 0 || graph.obligation_count != 0) { return -2; }
-	if (!graph.reachable[block - 1]) { return 0; }
+	if (!graph.semantic_flow || !graph.complete || graph.error != 0 || graph.obligation_count != 0) return -2;
+	if (!graph.reachable[block - 1]) return 0;
 	return flow_field_stored_summary(graph, (block - 1) * graph.field_count, field);
 }
 
 int flow_field_stored_summary(borrowed FlowGraph graph, int first, int field) {
-	if (graph.fields[field - 1].leaf) { return graph.field_facts[first + field - 1]; }
+	if (graph.fields[field - 1].leaf) return graph.field_facts[first + field - 1];
 	int result = 1;
 	int i = field;
 	while (i < graph.field_count) {
 		if (graph.fields[i].leaf && flowsem_under(graph, i + 1, field)) {
 			int fact = graph.field_facts[first + i];
-			if (fact != 1) { result = result | fact | 16; }
+			if (fact != 1) result = result | fact | 16;
 		}
 		i = i + 1;
 	}

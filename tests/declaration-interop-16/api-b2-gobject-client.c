@@ -8,6 +8,7 @@
 typedef struct Native Native;
 typedef struct _LensCatalog16Catalog Catalog;
 typedef struct _LensCatalog16Entry Entry;
+
 typedef struct {
 	double ceiling;
 	int64_t minimum;
@@ -15,6 +16,7 @@ typedef struct {
 	uint32_t mask;
 	bool lowest;
 } Query;
+
 typedef struct {
 	double score;
 	int64_t code;
@@ -22,6 +24,7 @@ typedef struct {
 	bool found;
 	uint64_t visited;
 } Answer;
+
 typedef struct {
 	gdouble ceiling;
 	gint64 minimum;
@@ -29,9 +32,11 @@ typedef struct {
 	guint mask;
 	gboolean lowest;
 } GQuery;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t catalog16_create(Native **, Error *);
 extern int32_t catalog16_lookup(Native *, Query, Answer *, Error *);
 extern uint32_t catalog16_acquire(Native *);
@@ -39,6 +44,7 @@ extern uint32_t catalog16_release(Native *);
 extern Catalog *lens_catalog16_catalog_as_gobject(Native *, GError **);
 extern gboolean lens_catalog16_catalog_try_resolve(Catalog *, GQuery *, Entry **, GError **);
 extern uint32_t lens16_retired_count(int32_t);
+
 struct State {
 	Native *root;
 	unsigned complete, selected, destroyed;
@@ -46,6 +52,7 @@ struct State {
 	Entry *saved;
 	GBytes *description;
 };
+
 static void completed(Catalog *object, gint requests, gboolean matched, gdouble score, gpointer data) {
 	struct State *s = data;
 	++s->complete;
@@ -64,11 +71,13 @@ static void completed(Catalog *object, gint requests, gboolean matched, gdouble 
 	catalog16_release(s->root);
 	g_object_unref(object);
 }
+
 static void destroyed(gpointer data, GClosure *closure) {
 	(void)closure;
 	struct State *s = data;
 	++s->destroyed;
 }
+
 static void selected(Catalog *object, Entry *item, GBytes *description, gpointer data) {
 	struct State *s = data;
 	assert(s->complete == 1 && item && description);
@@ -78,6 +87,7 @@ static void selected(Catalog *object, Entry *item, GBytes *description, gpointer
 	g_signal_handler_disconnect(object, s->connection);
 	assert(s->destroyed == 0);
 }
+
 int main(void) {
 	Native *root = NULL;
 	Error native = {0};

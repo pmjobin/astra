@@ -10,6 +10,7 @@ private class NativeRecordSourceFields : Object {
 	public NativeRecordSourceFields (SsaProgram source) {
 		this.source = source;
 	}
+
 	private SsaStruct? structure(SemanticType type) {
 		foreach (var record in source.structs) {
 			if (record.semantic_type == type) {
@@ -18,6 +19,7 @@ private class NativeRecordSourceFields : Object {
 		}
 		return null;
 	}
+
 	public GenericArray<SemanticType>? fields(SemanticType type) {
 		var record = structure (type);
 		if (record == null) {
@@ -29,6 +31,7 @@ private class NativeRecordSourceFields : Object {
 		}
 		return result;
 	}
+
 	public BufferValueShape? buffer_shape(SliceType type) {
 		foreach (var cleanup in source.cleanups) {
 			if (cleanup.is_buffer && cleanup.buffer_type == type) {
@@ -37,6 +40,7 @@ private class NativeRecordSourceFields : Object {
 		}
 		return null;
 	}
+
 	public SsaStructField? leaf(SemanticType type, owned StructLeafPath path) {
 		path = path.storage_path ();
 		SsaStructField? field = null;
@@ -51,11 +55,13 @@ private class NativeRecordSourceFields : Object {
 		}
 		return type == path.semantic_type ? field : null;
 	}
+
 }
 public class NativeAbiBuilder : Object {
 	internal static NativeStructValueMode record_mode(StructValueMode mode) {
 		return NativeTypeMapper.record_mode (mode);
 	}
+
 	private static SemanticType materialized_record_type(SemanticType type, SsaProgram source) throws NativeAbiError {
 		if (type.kind != TypeKind.GENERIC_STRUCT_APPLICATION) {
 			return type;
@@ -376,6 +382,7 @@ public class NativeAbiBuilder : Object {
 		}
 		return new NativeCopyType (type.display_name (), NativeTypeMapper.map_type (type));
 	}
+
 	internal static NativeScalarOwner? resource_owner(SemanticType type, SsaProgram source) {
 		if (type.get_type () != typeof (HandleType)) {
 			return null;
@@ -387,6 +394,7 @@ public class NativeAbiBuilder : Object {
 		}
 		return null;
 	}
+
 	internal static NativeOwnerSlotsType slots_type(SsaStructField field, HashTable<SsaFunction, NativeFunction> callees, SsaProgram source, GenericArray<NativeStructValuePlan>? values = null) throws NativeAbiError {
 		var type = field.semantic_type as OwnerSlotsType;
 		var cleanup = field.slots_cleanup;
@@ -418,6 +426,7 @@ public class NativeAbiBuilder : Object {
 		}
 		return new NativeOwnerSlotsType (cleanup.object_class.ordinal, cleanup.object_class.name, cleanup.destructor == null ? -1 : callees.lookup (cleanup.destructor).ordinal);
 	}
+
 	private static NativeRecordResource record_resource(StructLeafPath path, SemanticType type, SsaCleanupContract cleanup, int rank, HashTable<SemanticType, NativeRecordElement> records) throws NativeAbiError {
 		var buffer = cleanup.is_buffer ? buffer_plan (cleanup.buffer_type, records) : null;
 		int[] ordinals = new int[path.depth];
@@ -427,6 +436,7 @@ public class NativeAbiBuilder : Object {
 		return new NativeRecordResource.projected (ordinals, type.display_name (), cleanup.external_symbol, rank,
 			cleanup.is_heap_object ? cleanup.object_class.ordinal : -1, buffer);
 	}
+
 	private static NativeRecordDeclarationPlan? record_declaration(SsaStruct record, int ordinal, NativeRecordSourceFields fields, HashTable<SemanticType, NativeRecordElement> records) throws NativeAbiError {
 		if (CopyabilityAuthority.of (record.semantic_type, fields.fields) == Copyability.COPYABLE) {
 			return null;
@@ -528,6 +538,7 @@ public class NativeAbiBuilder : Object {
 		}
 		return borrowed;
 	}
+
 	private static NativeScalarOwner? callable_result_owner(SsaCallableInvocation call) throws NativeAbiError {
 		var cleanup = call.result_cleanup ();
 		if (cleanup == null) {
@@ -602,6 +613,7 @@ public class NativeAbiBuilder : Object {
 		}
 		return result;
 	}
+
 	public static NativeAbiProgram build(SsaProgram source) throws NativeAbiError {
 		var record_fields = new NativeRecordSourceFields (source);
 		var private_accesses = new GenericArray<SsaPrivateFieldAccess> ();
@@ -1465,5 +1477,6 @@ public class NativeAbiBuilder : Object {
 		NativeAbiValidator.validate_ssa_calls (source, result, callees);
 		return result;
 	}
+
 }
 }

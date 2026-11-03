@@ -10,6 +10,7 @@ public class SsaStructBorrowResultArgument : StructBoundaryGroup {
 		base (source_ordinal, first_leaf, shape);
 		this.results = results;
 	}
+
 }
 
 public class SsaStructBorrowArgument : StructBoundaryGroup {
@@ -22,16 +23,19 @@ public class SsaStructBorrowArgument : StructBoundaryGroup {
 	public int owner_leaf(int index) {
 		return owner_leaves[index];
 	}
+
 	internal void add_owner(SsaHeapOwner owner, int leaf) {
 		owners.add (owner);
 		owner_leaves.add (leaf);
 	}
+
 	internal SsaStructBorrowArgument (int source_ordinal, int first_leaf, StructValueShape shape, SsaStruct record_type, int source_local_ordinal, StructBoundaryGroup? incoming) {
 		base (source_ordinal, first_leaf, shape);
 		this.record_type = record_type;
 		this.source_local_ordinal = source_local_ordinal;
 		this.incoming = incoming;
 	}
+
 }
 
 public class SsaStructParameterBorrow : SsaInstruction {
@@ -43,6 +47,7 @@ public class SsaStructParameterBorrow : SsaInstruction {
 		this.parameter = parameter;
 		this.leaves = leaves;
 	}
+
 }
 
 public class SsaRecordFieldCommit : SsaInstruction {
@@ -61,6 +66,7 @@ public class SsaRecordFieldCommit : SsaInstruction {
 		this.initializes = initializes;
 		this.results = results;
 	}
+
 }
 
 public class SsaRecordFieldDrop : SsaInstruction {
@@ -71,6 +77,7 @@ public class SsaRecordFieldDrop : SsaInstruction {
 		this.source = source;
 		this.shape = shape;
 	}
+
 }
 
 public abstract class SsaStructBoundary : SsaInstruction {
@@ -93,6 +100,7 @@ public abstract class SsaStructBoundary : SsaInstruction {
 		}
 		return new StructLeafPath (path, leaf.semantic_type);
 	}
+
 	public GenericArray<SsaBufferStorage> buffers { get; private set; default = new GenericArray<SsaBufferStorage> (); }
 	public GenericArray<SsaBufferPair> buffer_pairs { get; private set; default = new GenericArray<SsaBufferPair> (); }
 	private GenericArray<StructLeafPath> buffer_paths = new GenericArray<StructLeafPath> ();
@@ -100,23 +108,28 @@ public abstract class SsaStructBoundary : SsaInstruction {
 	public StructLeafPath buffer_path(int index) {
 		return buffer_paths[index];
 	}
+
 	public int buffer_rank(int index) {
 		return buffer_ranks[index];
 	}
+
 	internal void add_buffer(SsaBufferStorage storage, SsaBufferPair pair) {
 		buffers.add (storage);
 		buffer_pairs.add (pair);
 		buffer_paths.add (storage.record_path);
 		buffer_ranks.add (storage.record_rank);
 	}
+
 	private GenericArray<StructLeafPath> paths = new GenericArray<StructLeafPath> ();
 	private int[] ranks;
 	public StructLeafPath owner_path(int index) {
 		return paths[index];
 	}
+
 	public int owner_rank(int index) {
 		return ranks[index];
 	}
+
 	internal bool owns_value(SsaHeapOwner owner, SsaValue value) {
 		for (int i = 0; i < owners.length; i++) {
 			if (owners[i] != owner) {
@@ -130,6 +143,7 @@ public abstract class SsaStructBoundary : SsaInstruction {
 		}
 		return false;
 	}
+
 	protected SsaStructBoundary (SourceSpan span, SsaStruct record_type, int source_ordinal, StructValueShape shape, GenericArray<SsaValue> leaves, GenericArray<SsaHeapOwner> owners, StructLeafPath? projection = null) {
 		base (span, null, -1);
 		this.record_type = record_type;
@@ -144,6 +158,7 @@ public abstract class SsaStructBoundary : SsaInstruction {
 			ranks[i] = owners[i].record_rank;
 		}
 	}
+
 }
 
 public class SsaStructBoundaryAcquire : SsaStructBoundary {
@@ -156,6 +171,7 @@ public class SsaStructBoundaryAcquire : SsaStructBoundary {
 		this.parameter = parameter;
 		this.results = results;
 	}
+
 }
 
 public class SsaStructBoundaryMove : SsaStructBoundary {
@@ -166,6 +182,7 @@ public class SsaStructBoundaryMove : SsaStructBoundary {
 		base (span, record_type, source_ordinal, shape, leaves, owners);
 		this.use_kind = use_kind;
 	}
+
 }
 // Bounded physical call identity over ordinary SSA definitions; not SsaValue.
 public class SsaStructCallResults : SsaNode {
@@ -177,6 +194,7 @@ public class SsaStructCallResults : SsaNode {
 		this.shape = shape;
 		this.leaves = leaves;
 	}
+
 }
 
 // Retains exact complete consumption when destination field definitions promote.
@@ -189,6 +207,7 @@ public class SsaStructResultConsume : SsaInstruction {
 		this.results = results;
 		this.use_kind = use_kind;
 	}
+
 }
 
 public class SsaStructReturn : SsaReturn {
@@ -200,5 +219,6 @@ public class SsaStructReturn : SsaReturn {
 		this.shape = shape;
 		this.leaves = leaves;
 	}
+
 }
 }

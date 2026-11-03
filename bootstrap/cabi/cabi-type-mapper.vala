@@ -69,5 +69,6 @@ public class CAbiTypeMapper : Object {
 	public static CAbiResult? map_result(SemanticType type, Astra.Foreign.CBoolAbi bool_abi = Astra.Foreign.CBoolAbi.NONE) throws CAbiError {
 		return type.kind == TypeKind.VOID ? null : new CAbiResult (map_scalar (type, bool_abi));
 	}
+
 }
 }

@@ -1,44 +1,65 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct CaptureReply { int value; int attempt; }
+
 class CaptureState<T> {
 	private T seed;
 	private int calls;
 	private owned R retained;
+
 	init(T seed, owned R retained) { this.seed = seed; this.calls = 0; this.retained = move retained; }
+
 	property T value { get { return this.seed; } }
+
 	property int attempts { get { return this.calls; } }
+
 	void record() { this.calls = this.calls + 1; }
+
 	deinit() { mark(2300); }
 }
+
 CaptureReply captured_call(borrowed CaptureState<int> state, int input, bool fail) throws Error {
 	state.record();
 	mark(2310);
-	if (fail) { mark(2311); throw new Error("sink failure"); }
+	if (fail) {
+		mark(2311);
+		throw new Error("sink failure");
+	}
 	CaptureReply result = {value = state.value + input, attempt = state.attempts};
 	return result;
 }
+
 CaptureReply invoke_capture(borrowed CheckedClosure<CaptureState<int>, Error, CaptureReply, int, bool> code,
 	int input, bool fail) throws Error {
 	return closure_invoke(code, input, fail);
 }
+
 async void run_capture(owned CheckedClosure<CaptureState<int>, Error, CaptureReply, int, bool> code,
 	bool fail) throws Error {
 	mark(2301);
 	await delay_ticks(3);
 	mark(2302);
 	var first = invoke_capture(code, 1, false);
-	if (first.value != 42 || first.attempt != 1) { throw new Error("first callback"); }
+	if (first.value != 42 || first.attempt != 1) {
+		throw new Error("first callback");
+	}
 	try {
 		var rejected = invoke_capture(code, 10, true);
 		throw new Error("missing sink error");
 	} catch (Error error) {
-		if (error.message != "sink failure") { throw; }
+		if (error.message != "sink failure") {
+			throw;
+		}
 		mark(2303);
 	}
 	var retry = invoke_capture(code, 2, false);
-	if (retry.value != 43 || retry.attempt != 3 || first.value != 42) { throw new Error("callback retry"); }
-	if (fail) { throw new Error("task failure"); }
+	if (retry.value != 43 || retry.attempt != 3 || first.value != 42) {
+		throw new Error("callback retry");
+	}
+	if (fail) {
+		throw new Error("task failure");
+	}
 }
+
 int exercise_capture(int mode) throws Error {
 	var retained = make(241 + mode);
 	var state = new CaptureState<int>(41, move retained);
@@ -57,7 +78,9 @@ int exercise_capture(int mode) throws Error {
 		executor.pump(1);
 		executor.advance(2);
 		executor.pump(1);
-		if (live() != 1) { throw new Error("closure retired before deadline"); }
+		if (live() != 1) {
+			throw new Error("closure retired before deadline");
+		}
 	} catch (Error error) {
 		executor.cancel(task);
 		var status = executor.run(move task);
@@ -71,18 +94,21 @@ int exercise_capture(int mode) throws Error {
 	}
 	try {
 		var status = executor.run(move task);
-		if (mode == 3) { return 3; }
+		if (mode == 3) return 3;
 		match (status) { case RunStatus.Completed(): {} else: { return 4; } }
 	} catch (Error error) {
-		if (mode != 3 || error.message != "task failure") { throw; }
+		if (mode != 3 || error.message != "task failure") {
+			throw;
+		}
 		mark(2304);
 	}
 	return live();
 }
+
 int main() {
 	try {
 		for (int mode = 0; mode < 4; mode = mode + 1) {
-			if (exercise_capture(mode) != 0) { return 10 + mode; }
+			if (exercise_capture(mode) != 0) return 10 + mode;
 		}
 	} catch (Error error) { return 20; }
 	return live();

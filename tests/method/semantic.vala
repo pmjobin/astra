@@ -16,6 +16,7 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private void reject(string text, string message) {
 	var parsed = Parser.parse (new SourceFile.from_text ("invalid", text));
 	if (parsed.diagnostic != null) {
@@ -28,6 +29,7 @@ private void reject(string text, string message) {
 	}
 	assert (result.diagnostic.format () == SemanticAnalyzer.analyze (parsed.unit).diagnostic.format ());
 }
+
 private void identity() {
 	CheckedProgram? p = check ("struct S { int x; void set(int x){this.x=x;this.later();} int y; void later(){this.set(2);} } struct T { int x; void set(){} } void set(){} void f(){S a={x=0,y=1};S b={x=1,y=2};b.set(3);}");
 	var structure = p.structs[0];
@@ -55,6 +57,7 @@ private void identity() {
 	p = null;
 	assert (witness.get () == null && receiver_witness.get () == null);
 }
+
 private void diagnostics() {
 	reject ("int main(){return this;}", "only valid inside");
 	reject ("int main(){return this.x;}", "only valid inside");
@@ -84,6 +87,7 @@ private void diagnostics() {
 	reject ("struct S{int x;void f(){release this;}}", "expected");
 	reject ("struct S{int x;void f(){S* p=&this;}}", "expected direct local");
 }
+
 private void signatures() {
 	foreach (string type in new string[] {"int", "u8", "f32", "i16<8>", "f32<4>"}) {
 		var p = check ("struct S{int x;%s f(%s value){return value;}}".printf (type, type));
@@ -91,6 +95,7 @@ private void signatures() {
 	}
 	check ("struct S{int x;u8 byte(u8 n){return n;}bool test(){return this.byte(255)==255;}void p(S* p,int* q,borrowed int[] s){this.x=p->x+*q+s[0];}}");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/method/semantic/identity-namespace-receiver-places-and-addressability", identity);
@@ -98,4 +103,5 @@ int main(string[] args) {
 	Test.add_func ("/method/semantic/native-signature-reuse", signatures);
 	return Test.run ();
 }
+
 }

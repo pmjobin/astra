@@ -22,6 +22,7 @@ public class CallerInformationContract : Object {
 		this.span = span;
 		this.target_ordinal = target_ordinal;
 	}
+
 	public string dump_suffix() {
 		switch (kind) {
 		case CallerInformationKind.FILE_PATH:
@@ -34,6 +35,7 @@ public class CallerInformationContract : Object {
 			return " (invalid-caller-information)";
 		}
 	}
+
 }
 
 public class CallerInformation : Object {
@@ -43,6 +45,7 @@ public class CallerInformation : Object {
 	private static bool available(SourceSpan span) {
 		return span.file != null && span.start >= 0 && span.end > span.start && span.end <= span.file.length;
 	}
+
 	private static bool contains(SourceSpan outer, SourceSpan inner) {
 		return available (outer) && available (inner) && outer.file == inner.file && outer.start <= inner.start && outer.end >= inner.end;
 	}
@@ -181,5 +184,6 @@ public class CallerInformation : Object {
 		}
 		return result;
 	}
+
 }
 }

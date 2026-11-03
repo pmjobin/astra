@@ -316,4 +316,5 @@ int main(string[] args) {
 	Test.add_func ("/ssa/lifetime-and-scalar-value", lifetime);
 	return Test.run ();
 }
+
 }

@@ -7,19 +7,25 @@
 #ifdef USE_SDK
 #include "imports16.h"
 #else
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 #endif
+
 typedef struct provider16_handle {
 	int32_t value;
 	unsigned references;
 } provider16_handle;
+
 static unsigned constructed, retired, exceptions;
+
 int32_t imports16_exception_retired(void) {
 	++exceptions;
 	return 0;
 }
+
 static int32_t failure(astra_foreign_error *error) {
 	if (error) {
 		error->domain = 16;
@@ -27,12 +33,14 @@ static int32_t failure(astra_foreign_error *error) {
 	}
 	return -1600;
 }
+
 static void clear(astra_foreign_error *error) {
 	if (error) {
 		error->domain = 0;
 		error->code = 0;
 	}
 }
+
 int32_t provider16_create(int32_t initial, provider16_handle **out, astra_foreign_error *error) {
 	assert(out);
 	*out = NULL;
@@ -61,7 +69,9 @@ int32_t provider16_create(int32_t initial, provider16_handle **out, astra_foreig
 	}
 	return initial == -2 ? failure(error) : 0;
 }
+
 #ifdef EXPECT_SHARED
+
 uint32_t provider16_release(provider16_handle *self) {
 	if (!self) return 0;
 	unsigned n = --self->references;
@@ -71,7 +81,9 @@ uint32_t provider16_release(provider16_handle *self) {
 	}
 	return n;
 }
+
 #else
+
 int32_t provider16_destroy(provider16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner);
@@ -83,6 +95,7 @@ int32_t provider16_destroy(provider16_handle **owner, astra_foreign_error *error
 	}
 	return 0;
 }
+
 #endif
 #define COPIED(NAME, TYPE, EXPR) \
 int32_t provider16_##NAME(provider16_handle *self, TYPE input, TYPE *out, astra_foreign_error *error) { assert(self && out); clear(error); *out=(EXPR); return 0; }
@@ -92,6 +105,7 @@ COPIED(unsigned64, uint64_t, input + (uint64_t)self->value)
 COPIED(single, float, input + (float)self->value)
 COPIED(double_value, double, input + self->value)
 COPIED(choose, bool, !input)
+
 int32_t provider16_sum(provider16_handle *self, int32_t input, int32_t *out, astra_foreign_error *error) {
 	assert(self && out);
 	*out = 999;
@@ -100,13 +114,16 @@ int32_t provider16_sum(provider16_handle *self, int32_t input, int32_t *out, ast
 	*out = self->value + input;
 	return 0;
 }
+
 int32_t provider16_update(provider16_handle *self, int32_t input, astra_foreign_error *error) {
 	assert(self);
 	clear(error);
 	self->value = input;
 	return 0;
 }
+
 extern int32_t imported16_run(int32_t mode);
+
 int main(void) {
 	for (int32_t mode = 0; mode < 8; ++mode) {
 		int32_t code = imported16_run(mode);

@@ -18,10 +18,12 @@ int __real_close(int);
 static bool active[1024];
 static unsigned reads, writes, opens, flushes, closes, read_interrupt, write_interrupt;
 static unsigned long long read_bytes, written_bytes;
+
 static bool mode(const char *name) {
 	const char *s = getenv("CS_IO_MODE");
 	return s && !strcmp(s, name);
 }
+
 int __wrap_open(const char *path, int flags, ...) {
 	mode_t permissions = 0;
 	if (flags & O_CREAT) {
@@ -38,6 +40,7 @@ int __wrap_open(const char *path, int flags, ...) {
 	}
 	return fd;
 }
+
 ssize_t __wrap_read(int fd, void *bytes, size_t count) {
 	assert(fd >= 0 && fd < 1024 && active[fd] && count > 0);
 	reads++;
@@ -62,6 +65,7 @@ ssize_t __wrap_read(int fd, void *bytes, size_t count) {
 	}
 	return result;
 }
+
 ssize_t __wrap_write(int fd, const void *bytes, size_t count) {
 	if (fd <= 2) {
 		return __real_write(fd, bytes, count);
@@ -88,6 +92,7 @@ ssize_t __wrap_write(int fd, const void *bytes, size_t count) {
 	}
 	return result;
 }
+
 int __wrap_fsync(int fd) {
 	assert(fd >= 0 && fd < 1024 && active[fd]);
 	flushes++;
@@ -97,6 +102,7 @@ int __wrap_fsync(int fd) {
 	}
 	return __real_fsync(fd);
 }
+
 int __wrap_close(int fd) {
 	assert(fd >= 0 && fd < 1024 && active[fd]);
 	closes++;
@@ -108,6 +114,7 @@ int __wrap_close(int fd) {
 	}
 	return result;
 }
+
 __attribute__((destructor)) static void finish(void) {
 	for (int fd = 0; fd < 1024; fd++) {
 		assert(!active[fd]);

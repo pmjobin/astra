@@ -13,6 +13,7 @@ private void reject(string source, string expected) throws GLib.Error {
 		GLib.error ("expected '%s', got '%s' for %s", expected, diagnostic == null ? "accepted" : diagnostic.message, source);
 	}
 }
+
 private void register_diagnostics() {
 	foreach (string type in new string[] {"void*", "int", "bool", "Pair", "Pair*"}) {
 		add ("/ownbound/reject/parameter-type/" + type, () => reject ("struct Pair { int n; } void f(owned " + type + " r) { }", "nominal handle type"));
@@ -57,4 +58,5 @@ private void register_diagnostics() {
 	add ("/ownbound/reject/duplicate-qualifier", () => reject ("void f(owned borrowed Resource r) { }", "only one ownership qualifier"));
 	add ("/ownbound/reject/no-overloads", () => reject ("void f(Resource r) { } void f(owned Resource r) { }", "overloading is not implemented"));
 }
+
 }

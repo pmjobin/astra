@@ -3,10 +3,10 @@ bool guarded(void* p) {
 }
 
 int main() {
-	if (guarded(null)) { return 1; }
-	if (predicate_calls() != 0) { return 2; }
-	if (!guarded(handle_a())) { return 3; }
-	if (predicate_calls() != 1) { return 4; }
+	if (guarded(null)) return 1;
+	if (predicate_calls() != 0) return 2;
+	if (!guarded(handle_a())) return 3;
+	if (predicate_calls() != 1) return 4;
 	void* p = null;
 	int i = 0;
 	while (i < 4) {
@@ -20,8 +20,8 @@ int main() {
 		}
 		return 5;
 	}
-	if (i != 2) { return 6; }
-	if (predicate_calls() != 2) { return 7; }
-	if (p != handle_a()) { return 8; }
+	if (i != 2) return 6;
+	if (predicate_calls() != 2) return 7;
+	if (p != handle_a()) return 8;
 	return 0;
 }

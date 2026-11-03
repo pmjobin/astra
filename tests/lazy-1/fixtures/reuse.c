@@ -9,6 +9,7 @@ static size_t extent;
 static int allocations, disposals;
 extern void *__real_calloc(size_t count, size_t bytes);
 extern void __real_free(void *pointer);
+
 void *__wrap_calloc(size_t count, size_t bytes) {
 	assert(count == 1 && bytes >= 12);
 	if (!slot) {
@@ -22,6 +23,7 @@ void *__wrap_calloc(size_t count, size_t bytes) {
 	allocations++;
 	return slot;
 }
+
 void __wrap_free(void *pointer) {
 	if (pointer == slot) {
 		disposals++;
@@ -30,6 +32,7 @@ void __wrap_free(void *pointer) {
 		__real_free(pointer);
 	}
 }
+
 int32_t lazy_reused(void) {
 	assert(allocations == 2 && disposals == 2);
 	__real_free(slot);

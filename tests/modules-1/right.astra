@@ -2,16 +2,25 @@
 namespace Right;
 public class Payload {
 	private int value;
+
 	init(int value) { this.value = value; }
+
 	int read() { return this.value; }
 }
+
 public class Record {
 	private owned Payload child;
+
 	init(int value) { var child = new Payload(value * 2); this.child = move child; }
+
 	int read() { return inspect(this.child); }
 }
+
 internal int inspect(Payload value) { return value.read(); }
+
 public int measure(Record value) { return value.read(); }
+
 public void consume(owned Record value) {}
+
 public const int adjustment = 17;
 public export(C) int identity(int value) { return value + adjustment; }

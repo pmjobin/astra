@@ -51,6 +51,7 @@ private void review_slice_channels(bool wrong_base) {
 private void review_bad_slice_base() {
 	review_slice_channels (true);
 }
+
 private void review_bad_slice_length() {
 	review_slice_channels (false);
 }
@@ -101,9 +102,11 @@ private void review_nonzero_descriptor_index(bool code_slot) {
 		GLib.error ("probe setup failed: %s", error.message);
 	}
 }
+
 private void review_bad_code_base_index() {
 	review_nonzero_descriptor_index (true);
 }
+
 private void review_bad_environment_base_index() {
 	review_nonzero_descriptor_index (false);
 }
@@ -213,6 +216,7 @@ private void review_retained_signature(int variant) {
 		GLib.error ("retained signature setup failed: %s", error.message);
 	}
 }
+
 private void review_signature_case() {
 	var path = Test.get_path ();
 	review_retained_signature (int.parse (path.substring (path.length - 2)));
@@ -278,6 +282,7 @@ private void review_publication_mutation(int variant) {
 		GLib.error ("publication mutation setup failed: %s", error.message);
 	}
 }
+
 private void review_publication_case() {
 	var path = Test.get_path ();
 	review_publication_mutation (int.parse (path.substring (path.length - 2)));
@@ -354,4 +359,5 @@ private void register_review_probes() {
 	Test.add_func ("/review-callable/all-operation-projections", review_all_operation_projections);
 	Test.add_func ("/review-callable/environment-free-move", review_environment_free_move);
 }
+
 }

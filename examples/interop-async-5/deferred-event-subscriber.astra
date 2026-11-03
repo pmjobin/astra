@@ -1,32 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int retained_app_event(int stage, int value);
+
 class DeferredPayload {
 	int total;
+
 	init(int bias) { this.total=bias; retained_app_event(1,bias); }
+
 	deinit() { retained_app_event(8,this.total); }
+
 	int receive(int input) { this.total=this.total+input; retained_app_event(3,this.total); return this.total; }
 }
+
 int deferred_receive(borrowed DeferredPayload payload, int input) { return payload.receive(input); }
+
 int main() {
 	var payload=new DeferredPayload(10);
 	var handler=closure_bind(move payload,deferred_receive);
-	if (retained_register(handler,1) != -1) { return 71; }
-	if (retained_register(handler,0) != 0) { return 72; }
-	if (retained_register(handler,0) != -2) { return 73; }
+	if (retained_register(handler,1) != -1) return 71;
+	if (retained_register(handler,0) != 0) return 72;
+	if (retained_register(handler,0) != -2) return 73;
 	retained_app_event(2,0);
-	if (retained_observe(handler) != 0) { return 74; }
-	if (retained_dispatch(handler,3) != 13) { return 75; }
-	if (retained_dispatch(handler,5) != 18) { return 76; }
-	if (retained_revoke(handler) != 1) { return 77; }
-	if (retained_revoke(handler) != 1) { return 78; }
-	if (retained_dispatch(handler,100) != -2) { return 79; }
-	if (retained_observe(handler) != 1) { return 80; }
-	if (retained_observe(handler) != 1) { return 81; }
+	if (retained_observe(handler) != 0) return 74;
+	if (retained_dispatch(handler,3) != 13) return 75;
+	if (retained_dispatch(handler,5) != 18) return 76;
+	if (retained_revoke(handler) != 1) return 77;
+	if (retained_revoke(handler) != 1) return 78;
+	if (retained_dispatch(handler,100) != -2) return 79;
+	if (retained_observe(handler) != 1) return 80;
+	if (retained_observe(handler) != 1) return 81;
 	retained_app_event(7,18);
 	release handler;
 	var empty_payload=new DeferredPayload(20);
 	var empty=closure_bind(move empty_payload,deferred_receive);
-	if (retained_register(empty,0) != 0) { return 82; }
+	if (retained_register(empty,0) != 0) return 82;
 	// Early return performs revoke + observed quiescence before payload deinit.
 	return 0;
 }

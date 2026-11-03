@@ -20,15 +20,18 @@ static int listener;
 static _Atomic int opens, closes, again, partial, eof;
 static pthread_mutex_t fd_lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char live_fd[4096];
+
 int32_t net_oracle_lifetimes(int32_t expected) {
 	assert(atomic_load(&opens) == expected && atomic_load(&closes) == expected);
 	return 0;
 }
+
 int __real_socket(int, int, int);
 int __real_accept4(int, struct sockaddr *, socklen_t *, int);
 int __real_close(int);
 ssize_t __real_send(int, const void *, size_t, int);
 ssize_t __real_recv(int, void *, size_t, int);
+
 static int admit(int fd) {
 	if (fd >= 0) {
 		assert(fd < 4096);
@@ -40,12 +43,15 @@ static int admit(int fd) {
 	}
 	return fd;
 }
+
 int __wrap_socket(int a, int b, int c) {
 	return admit(__real_socket(a, b, c));
 }
+
 int __wrap_accept4(int a, struct sockaddr *b, socklen_t *c, int d) {
 	return admit(__real_accept4(a, b, c, d));
 }
+
 int __wrap_close(int fd) {
 	assert(pthread_mutex_lock(&fd_lock) == 0);
 	int tracked = fd >= 0 && fd < 4096 && live_fd[fd];
@@ -56,17 +62,20 @@ int __wrap_close(int fd) {
 	assert(pthread_mutex_unlock(&fd_lock) == 0);
 	return __real_close(fd);
 }
+
 ssize_t __wrap_send(int fd, const void *data, size_t count, int flags) {
 	ssize_t result = __real_send(fd, data, count, flags);
 	if (result < 0 && errno == EAGAIN) atomic_fetch_add(&again, 1);
 	if (result > 0 && (size_t)result < count) atomic_fetch_add(&partial, 1);
 	return result;
 }
+
 ssize_t __wrap_recv(int fd, void *data, size_t count, int flags) {
 	ssize_t result = __real_recv(fd, data, count, flags);
 	if (result == 0 && count != 0) atomic_fetch_add(&eof, 1);
 	return result;
 }
+
 static void ready(int fd, short events) {
 	struct pollfd event = {.fd = fd, .events = events};
 	int result;
@@ -75,6 +84,7 @@ static void ready(int fd, short events) {
 	} while (result < 0 && errno == EINTR);
 	assert(result == 1 && !(event.revents & POLLNVAL));
 }
+
 static void *serve(void *unused) {
 	(void)unused;
 	int clients[2];
@@ -156,6 +166,7 @@ static void *serve(void *unused) {
 	assert(close(listener) == 0);
 	return NULL;
 }
+
 int32_t tcp_oracle_start(void) {
 	listener = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	assert(listener >= 0);
@@ -167,6 +178,7 @@ int32_t tcp_oracle_start(void) {
 	assert(pthread_create(&peer, NULL, serve, NULL) == 0);
 	return ntohs(address.sin_port);
 }
+
 int32_t tcp_oracle_finish(void) {
 	assert(pthread_join(peer, NULL) == 0);
 	assert(atomic_load(&opens) == 5 && atomic_load(&closes) == 5);

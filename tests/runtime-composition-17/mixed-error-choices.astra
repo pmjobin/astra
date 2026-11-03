@@ -1,26 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void mixed_error_retired(int identity);
+
 extern(C) void mixed_error_observed(int mode, int value);
+
 extern(C) int mixed_error_finish();
+
 [Allocator(kind="context",context="scoped-affine")]
 class MixedLeaf {
 	private int identity;
 	private int value;
+
 	init(int identity, int value) { this.identity = identity; this.value = value; }
+
 	int read() { return this.value; }
+
 	deinit() { mixed_error_retired(this.identity); }
 }
+
 [ExceptionRoot]
 class MixedFault {
 	private owned MixedLeaf child;
+
 	init(owned MixedLeaf child) { this.child = move child; }
-	int read() { if (this.child == null) { return -1; } return this.child.read(); }
+
+	int read() { if (this.child == null) return -1; return this.child.read(); }
+
 	virtual property string message { get { return "choice"; } }
 }
+
 class MixedRuntimeFault : MixedFault { init(string message) : base(null) {} }
+
 enum MixedStatus { Completed, Cancelled }
+
 async runtime MixedTasks throws MixedRuntimeFault returns MixedStatus;
 void choice_raise(owned MixedLeaf input) throws MixedFault { throw new MixedFault(move input); }
+
 int mixed_error_case(int mode) {
 	owned u8[] left_backing = new u8[8197];
 	owned u8[] right_backing = new u8[8197];
@@ -29,16 +43,21 @@ int mixed_error_case(int mode) {
 	try {
 		var left = new(first) MixedLeaf(mode * 2 + 1, 17);
 		var right = new(second) MixedLeaf(mode * 2 + 2, 29);
-		if (mode == 0) { choice_raise(move left); }
-		else { var executor = MixedTasks.open(0); }
+		if (mode == 0) {
+			choice_raise(move left);
+		}
+		else {
+			var executor = MixedTasks.open(0);
+		}
 	} catch(MixedFault error) { mixed_error_observed(mode, error.read()); }
-	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) { return 1; }
+	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) return 1;
 	return 0;
 }
+
 export(C) int mixed_error_probe() {
 	for (int mode = 0; mode < 2; mode = mode + 1) {
 		int result = mixed_error_case(mode);
-		if (result != 0) { return result; }
+		if (result != 0) return result;
 	}
 	return mixed_error_finish();
 }

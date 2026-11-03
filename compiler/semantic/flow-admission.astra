@@ -2,42 +2,47 @@
 // Opt-in astra-flow/3. Every copied leaf has two declaration-bound paths.
 // A result producer is trusted only under complete, global source admission.
 bool admit_signature_authority(CheckedIndex checked, SymbolId function) {
-	if (function.index <= 0 || function.index > checked.bindings.symbol_count) { return false; }
+	if (function.index <= 0 || function.index > checked.bindings.symbol_count) return false;
 	int ordinal = checked.symbol_signatures[function.index].index;
-	if (ordinal <= 0 || ordinal > checked.signature_count) { return false; }
+	if (ordinal <= 0 || ordinal > checked.signature_count) return false;
 	var signature = checked.signatures[ordinal - 1];
 	var declaration = checked.bindings.symbol(function);
 	var node = declaration.node;
 	var kind = checked.bindings.program.arena.kind(node);
-	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) { return false; }
+	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 	int flags = checked_flags(checked.bindings.program.arena, node) & 4;
 	var return_type = checked.bindings.program.arena.get_node_return_type(node);
-	if (return_type.index != 0 && checked.bindings.program.arena.kind(return_type) == SyntaxKind.NonNullTypeSyntax()) { flags = flags | 1; }
+	if (return_type.index != 0 && checked.bindings.program.arena.kind(return_type) == SyntaxKind.NonNullTypeSyntax()) flags = flags | 1;
 	var result = checked.types.argument(checked.types, signature.callable, 0);
-	if (checked_record_owned(checked, result.type, 0)) { flags = flags | 4; }
-	if (result.flags != flags) { return false; }
-	if (checked.bindings.program.arena.get_token_async_keyword(node).index != 0) { flags = flags | 8; }
-	if (checked.bindings.program.arena.computed_is_c_import(node) || checked.bindings.program.arena.computed_is_c_export(node)) { flags = flags | 16; }
-	if (checked.bindings.program.arena.get_bool_is_signal(node)) { flags = flags | 32; }
-	if (checked.bindings.program.arena.get_node_throws_class(node).index != 0) { flags = flags | 64; }
+	if (checked_record_owned(checked, result.type, 0)) flags = flags | 4;
+	if (result.flags != flags) return false;
+	if (checked.bindings.program.arena.get_token_async_keyword(node).index != 0) flags = flags | 8;
+	if (checked.bindings.program.arena.computed_is_c_import(node) || checked.bindings.program.arena.computed_is_c_export(node)) flags = flags | 16;
+	if (checked.bindings.program.arena.get_bool_is_signal(node)) flags = flags | 32;
+	if (checked.bindings.program.arena.get_node_throws_class(node).index != 0) flags = flags | 64;
 	return signature.declaration.index == function.index && signature.flags == flags && checked.symbol_flags[function.index] == flags && signature.dispatch == checked.bindings.program.arena.get_int_dispatch(node);
 }
+
 int admit_corresponding(borrowed FlowGraph graph, int destination, int base, int root, int parent, int depth) {
-	if (depth > 64 || destination <= 0 || destination > graph.field_count) { return 0; }
+	if (depth > 64 || destination <= 0 || destination > graph.field_count) return 0;
 	var field = graph.fields[destination - 1];
 	int source_parent = parent;
 	if (field.parent != base) {
 		source_parent = admit_corresponding(graph, field.parent, base, root, parent, depth + 1);
-		if (source_parent == 0) { return 0; }
+		if (source_parent == 0) return 0;
 	}
 	return flowsem_find_field(graph, root, source_parent, field.symbol);
 }
+
 int admit_record_value(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, SyntaxNodeId value, int root, int parent, int region, int next, int depth) throws Error {
 	var direct = flow_unwrap(checked, value);
 	var kind = checked.bindings.program.arena.kind(direct);
 	var type = graph.slots[root - 1].type;
-	if (parent > 0) { type = graph.fields[parent - 1].type; }
-	if (depth > 192 || !flowsem_record_shape(checked, type, 0) || checked.uses[direct.index].type.index != type.index) { graph.defer(node, 6); return next; }
+	if (parent > 0) type = graph.fields[parent - 1].type;
+	if (depth > 192 || !flowsem_record_shape(checked, type, 0) || checked.uses[direct.index].type.index != type.index) {
+		graph.defer(node, 6);
+		return next;
+	}
 	bool owning = checked_record_owned(checked, type, 0);
 	int source_root = 0;
 	int source_parent = 0;
@@ -47,21 +52,39 @@ int admit_record_value(borrowed FlowGraph graph, CheckedIndex checked, int[] ori
 	}
 	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
 		source_parent = flowsem_place(graph, checked, direct, 0);
-		if (source_parent > 0) { source_root = graph.fields[source_parent - 1].root; }
+		if (source_parent > 0) source_root = graph.fields[source_parent - 1].root;
 	}
-	if (owning && !producer) { graph.fail(5, checked.bindings.program.arena.header(direct).span); return next; }
-	if (!producer && source_root <= 0) { graph.defer(node, 18); return next; }
+	if (owning && !producer) {
+		graph.fail(5, checked.bindings.program.arena.header(direct).span);
+		return next;
+	}
+	if (!producer && source_root <= 0) {
+		graph.defer(node, 18);
+		return next;
+	}
 	// Transfer into an existing owning record and partial owning replacement
 	// need their own disposal/extraction contract. Do not infer it from TypeId.
-	if (owning && (parent != 0 || checked.bindings.program.arena.kind(node) == SyntaxKind.AssignmentStatementSyntax())) { graph.defer(node, 6); return next; }
+	if (owning && (parent != 0 || checked.bindings.program.arena.kind(node) == SyntaxKind.AssignmentStatementSyntax())) {
+		graph.defer(node, 6);
+		return next;
+	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var target = checked_target(checked, direct, checked.bindings.program.arena.get_token_identifier(direct));
-		if (target.index == 0 || checked.bindings.symbol(target).kind != 1 || checked.symbol_signatures[target.index].index == 0) { graph.defer(node, 6); return next; }
+		if (target.index == 0 || checked.bindings.symbol(target).kind != 1 || checked.symbol_signatures[target.index].index == 0) {
+			graph.defer(node, 6);
+			return next;
+		}
 		var signature = checked.signatures[checked.symbol_signatures[target.index].index - 1];
 		var declaration = checked.bindings.symbol(target);
-		if (signature.dispatch != 0 || (signature.flags & (8 | 16 | 32 | 64)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0) { graph.defer(node, 6); return next; }
+		if (signature.dispatch != 0 || (signature.flags & (8 | 16 | 32 | 64)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0) {
+			graph.defer(node, 6);
+			return next;
+		}
 	}
-	if (kind == SyntaxKind.MoveExpressionSyntax() && !owning) { graph.defer(node, 6); return next; }
+	if (kind == SyntaxKind.MoveExpressionSyntax() && !owning) {
+		graph.defer(node, 6);
+		return next;
+	}
 	int head = next;
 	int i = graph.field_count - 1;
 	while (i >= 0) {
@@ -74,7 +97,10 @@ int admit_record_value(borrowed FlowGraph graph, CheckedIndex checked, int[] ori
 				event.operation = 23;
 			} else {
 				event.source_field = admit_corresponding(graph, i + 1, parent, source_root, source_parent, 0);
-				if (event.source_field == 0 || (destination.flags & 4) != 0 || graph.fields[event.source_field - 1].type.index != destination.type.index) { graph.defer(node, 6); return next; }
+				if (event.source_field == 0 || (destination.flags & 4) != 0 || graph.fields[event.source_field - 1].type.index != destination.type.index) {
+					graph.defer(node, 6);
+					return next;
+				}
 			}
 			head = graph.add(event);
 		}
@@ -82,12 +108,13 @@ int admit_record_value(borrowed FlowGraph graph, CheckedIndex checked, int[] ori
 	}
 	return flow_expression(graph, checked, origins, value, region, head, 0, depth + 1);
 }
+
 void admit_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] owners, int[] reservations, bool[] loans, int[] fields, bool validate) {
 	int operation = event.operation;
 	if ((operation == 20 || operation == 22 || operation == 23) && event.slot > 0 && checked.bindings.program.arena.kind(event.node) == SyntaxKind.FieldAssignmentStatementSyntax() && validate) {
 		flow_require(graph, event, owners[event.slot - 1], reservations[event.slot - 1], false);
 		flow_invalidation(graph, event, loans);
-		if (graph.slots[event.slot - 1].parameter) { graph.fail(5, event.span); }
+		if (graph.slots[event.slot - 1].parameter) graph.fail(5, event.span);
 	}
 	if (operation == 22 || operation == 23) {
 		if (operation == 22 && validate) {
@@ -95,7 +122,7 @@ void admit_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent ev
 			var read = event;
 			read.slot = source.root;
 			flow_require(graph, read, owners[source.root - 1], reservations[source.root - 1], false);
-			if (fields[event.source_field - 1] != 1) { graph.fail(17, event.span); }
+			if (fields[event.source_field - 1] != 1) graph.fail(17, event.span);
 		}
 		fields[event.field - 1] = 1;
 	}
@@ -103,11 +130,12 @@ void admit_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent ev
 		int i = 0;
 		while (i < graph.field_count) {
 			var field = graph.fields[i];
-			if (field.root > 0 && field.leaf && owners[field.root - 1] == 2) { fields[i] = 2; }
+			if (field.root > 0 && field.leaf && owners[field.root - 1] == 2) fields[i] = 2;
 			i = i + 1;
 		}
 	}
 }
+
 void admit_write_graph(borrowed FlowGraph graph, CheckedIndex checked, Utf8ByteBuilder output) throws Error {
 	int i = 0;
 	while (i < graph.count) {
@@ -138,41 +166,43 @@ void admit_write_graph(borrowed FlowGraph graph, CheckedIndex checked, Utf8ByteB
 		i = i + 1;
 	}
 }
+
 bool admit_verified_graph(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, int[] proofs) {
-	if (!flowsem_verify_solution(graph, checked, origins)) { return false; }
+	if (!flowsem_verify_solution(graph, checked, origins)) return false;
 	flowsem_publish_proofs(graph, proofs);
 	return true;
 }
+
 bool admit_verify_index(FlowIndex index) {
-	if (!index.checked.validate() || !index.complete || !index.checked.semantic_admission || len(index.proofs) != len(index.checked.uses) || len(index.global_deferred) != index.checked.bindings.symbol_count + 1 || index.graphs.count() != index.checked.signature_count) { return false; }
+	if (!index.checked.validate() || !index.complete || !index.checked.semantic_admission || len(index.proofs) != len(index.checked.uses) || len(index.global_deferred) != index.checked.bindings.symbol_count + 1 || index.graphs.count() != index.checked.signature_count) return false;
 	int count = 0;
 	int i = 1;
 	while (i < len(index.global_deferred)) {
 		int reason = flow_global_reason(index.checked, type_symbol(i));
-		if (index.global_deferred[i] != reason) { return false; }
-		if (reason != 0) { count = count + 1; }
+		if (index.global_deferred[i] != reason) return false;
+		if (reason != 0) count = count + 1;
 		i = i + 1;
 	}
-	if (count != index.unmodeled) { return false; }
+	if (count != index.unmodeled) return false;
 	i = 0;
 	while (i < index.checked.signature_count) {
 		var signature = index.checked.signatures[i];
-		if (!admit_signature_authority(index.checked, signature.declaration)) { return false; }
+		if (!admit_signature_authority(index.checked, signature.declaration)) return false;
 		i = i + 1;
 	}
 	var expected = new int[len(index.proofs)];
 	bool proved = flow_status(index) == 0;
-	if (proved != index.semantic_proved) { return false; }
+	if (proved != index.semantic_proved) return false;
 	if (proved) {
 		i = 0;
 		while (i < index.graphs.count()) {
-			if (!admit_verified_graph(index.graphs.entries[i], index.checked, index.class_origins, expected)) { return false; }
+			if (!admit_verified_graph(index.graphs.entries[i], index.checked, index.class_origins, expected)) return false;
 			i = i + 1;
 		}
 	}
 	i = 0;
 	while (i < len(expected)) {
-		if (index.proofs[i] != expected[i]) { return false; }
+		if (index.proofs[i] != expected[i]) return false;
 		i = i + 1;
 	}
 	return true;

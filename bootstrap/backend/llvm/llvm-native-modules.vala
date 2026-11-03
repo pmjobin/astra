@@ -12,6 +12,7 @@ internal class LlvmNativeModuleSymbol : Object {
 		this.shape = shape;
 		this.imported = imported;
 	}
+
 }
 
 internal class LlvmNativeModuleBinding : Object {
@@ -27,12 +28,14 @@ internal class LlvmNativeModuleBinding : Object {
 		this.symbol = symbol;
 		this.imported = imported;
 	}
+
 	internal void verify() throws LlvmError {
 		size_t length;
 		if (CApi.value_name (function, out length) != symbol || length != symbol.length || (void*) CApi.global_value_type (function) != (void*) type || CApi.get_linkage (function) != CApi.Linkage.EXTERNAL || CApi.function_call_conv (function) != convention || (CApi.count_basic_blocks (function) == 0) != imported) {
 			throw new LlvmError.VERIFICATION ("native module function lost exact symbol/signature/linkage/body authority");
 		}
 	}
+
 }
 
 // Construction-local typed correspondence, independent of serialized text.
@@ -59,6 +62,7 @@ public class LlvmNativeModulePlan : Object {
 		}
 		return function.implicit_receiver == null ? "F:" + function.name : "C:" + function.implicit_receiver.contract.instance_type.display_name () + "::" + member;
 	}
+
 	public static string class_shape(NativeClassPlan owner, NativeAbiProgram program) {
 		var text = new StringBuilder ("class=" + owner.name + ";");
 		text.append_printf ("polymorphic=%d;exception-root=%d;parent=%s;", owner.polymorphic ? 1 : 0,
@@ -105,6 +109,7 @@ public class LlvmNativeModulePlan : Object {
 		}
 		return text.str;
 	}
+
 	public static string record_shape(NativeStructValuePlan record, NativeAbiProgram program) {
 		var text = new StringBuilder ();
 		string nominal = record.struct_name;
@@ -322,6 +327,7 @@ public class LlvmNativeModulePlan : Object {
 		var binding = bindings.lookup (source);
 		return binding == null ? null : binding.symbol;
 	}
+
 	public void bind_descriptor(SsaClass source, NativeAbiProgram program, string symbol, bool imported) throws LlvmError {
 		if (descriptors.contains (source) || symbols.contains (symbol) || !symbol.has_prefix ("astra_mod_") ||
 		    source.ordinal < 0 || source.ordinal >= program.classes.length || !source.polymorphic ||
@@ -331,18 +337,22 @@ public class LlvmNativeModulePlan : Object {
 		descriptors.insert (source, new LlvmNativeModuleSymbol (symbol, class_shape (program.classes[source.ordinal], program), imported));
 		symbols.insert (symbol, true);
 	}
+
 	internal string? descriptor_symbol(SsaClass source) {
 		var binding = descriptors.lookup (source);
 		return binding == null ? null : binding.symbol;
 	}
+
 	internal bool descriptor_imported(SsaClass source) {
 		var binding = descriptors.lookup (source);
 		return binding != null && binding.imported;
 	}
+
 	internal bool is_import(SsaFunction source) {
 		var binding = bindings.lookup (source);
 		return binding != null && binding.imported;
 	}
+
 	internal void validate(SsaProgram source, NativeAbiProgram program) throws LlvmError {
 		if (source.functions.length != program.functions.length) {
 			throw new LlvmError.INVALID_INPUT ("native module SSA/NABI inventory mismatch");
@@ -374,5 +384,6 @@ public class LlvmNativeModulePlan : Object {
 			}
 		}
 	}
+
 }
 }

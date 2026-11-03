@@ -23,6 +23,7 @@ private NativeAbiProgram sample(int shape = 0, int variant = 0) throws NativeAbi
 	functions.add (new NativeFunction (span, span, "set", 1, set_signature, NativeLinkage.NATIVE_INTERNAL, 0, -1, variant == 5, NativeCallableKind.PROPERTY_SETTER, variant == 6 ? 1 : 0));
 	return new NativeAbiProgram (span, version, functions);
 }
+
 private void profiles() {
 	try {
 		for (int shape = 0; shape < 5; shape++) {
@@ -47,9 +48,11 @@ private void profiles() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/prop/nabi/existing-channels-property-identity-and-malformed-signatures", profiles);
 	return Test.run ();
 }
+
 }

@@ -2,16 +2,24 @@
 namespace Left;
 class Value {
 	private int amount;
+
 	init(int amount) { this.amount = amount; }
+
 	int read() { return this.amount; }
 }
+
 public class Record {
 	private owned Value child;
+
 	init(int amount) { var child = new Value(amount); this.child = move child; }
+
 	int read() { return inspect(this.child); }
 }
+
 internal int inspect(Value value) { return value.read(); }
+
 public bool render(Record value, Utf8ByteBuilder output) {
 	return append_text(output, "left=") && append_int(output, value.read()) && append_text(output, "\n");
 }
+
 public void consume(owned Record value) {}

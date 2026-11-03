@@ -23,6 +23,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -35,11 +36,13 @@ private void add(string path, owned TestBody body) {
 			}
 		});
 }
+
 private string read(string name) throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/oborrow/fixtures/" + name, out text);
 	return text;
 }
+
 private SemanticResult analyze(string text, string declarations = VAPI) {
 	var parsed = Parser.parse (new SourceFile.from_text ("own.astra", text));
 	if (parsed.diagnostic != null) {
@@ -51,6 +54,7 @@ private SemanticResult analyze(string text, string declarations = VAPI) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit, VapiNormalizer.normalize (vapi.file));
 }
+
 private CheckedProgram check(string text, string declarations = VAPI) {
 	var result = analyze (text, declarations);
 	if (result.diagnostic != null) {
@@ -58,10 +62,13 @@ private CheckedProgram check(string text, string declarations = VAPI) {
 	}
 	return result.program;
 }
+
 private CfgProgram cfg(string text, string declarations = VAPI) throws GLib.Error {
 	return CfgBuilder.build (CoreBuilder.build (check (text, declarations)));
 }
+
 private SsaProgram build(string text, string declarations = VAPI) throws GLib.Error {
 	return SsaBuilder.build (cfg (text, declarations));
 }
+
 }

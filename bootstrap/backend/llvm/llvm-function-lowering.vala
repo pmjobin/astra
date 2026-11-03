@@ -15,6 +15,7 @@ internal class LlvmBlockState : Object {
 		this.primary = primary;
 		this.end = primary;
 	}
+
 }
 
 internal class LlvmFunctionLowering : Object {
@@ -51,6 +52,7 @@ internal class LlvmFunctionLowering : Object {
 			}
 		}
 	}
+
 	private HashTable<SsaFunction, LlvmFunctionBinding> functions;
 	private HashTable<SsaCFunction, CAbiFunction> c_correspondence;
 	private HashTable<CAbiFunction, LlvmCFunctionBinding> c_functions;
@@ -69,6 +71,7 @@ internal class LlvmFunctionLowering : Object {
 		}
 		return retained_runtime;
 	}
+
 	private LlvmClosureLowering? closure_runtime;
 	private LlvmCallbackRuntime? callback_runtime;
 	private LlvmCallbackRuntime callbacks() throws LlvmError {
@@ -77,12 +80,14 @@ internal class LlvmFunctionLowering : Object {
 		}
 		return callback_runtime;
 	}
+
 	private LlvmClosureLowering closure_lowering() throws LlvmError {
 		if (closure_runtime == null) {
 			closure_runtime = new LlvmClosureLowering (artifact, types, builder, function.value, scalars, buffer_allocator, functions, classes);
 		}
 		return closure_runtime;
 	}
+
 	private LlvmSharedLowering? shared_runtime;
 	private LlvmSharedLowering shared_lowering() throws LlvmError {
 		if (shared_runtime == null) {
@@ -90,6 +95,7 @@ internal class LlvmFunctionLowering : Object {
 		}
 		return shared_runtime;
 	}
+
 	private HashTable<SsaObjectStorage, void*> object_storage = new HashTable<SsaObjectStorage, void*> (direct_hash, direct_equal);
 	private HashTable<SsaObjectStorage, void*> singleton_initializers = new HashTable<SsaObjectStorage, void*> (direct_hash, direct_equal);
 	private HashTable<SsaObjectStorage, bool> promoted_objects = new HashTable<SsaObjectStorage, bool> (direct_hash, direct_equal);
@@ -148,12 +154,14 @@ internal class LlvmFunctionLowering : Object {
 			artifact.class_values.add (new LlvmClassValueBinding (instruction, operation, type, inputs, purpose, member));
 		}
 	}
+
 	private CApi.ValueRef constructor_stack_place(CApi.ValueRef index) throws LlvmError {
 		CApi.ValueRef[] indices = {
 			CApi.const_null (types.scalar (NativeScalarType.I32)), index
 		};
 		return CApi.build_gep (builder, unwind_stack_type, unwind_stack, indices, indices.length, "constructor.owner.slot");
 	}
+
 	private void constructor_acquired(SsaInstruction source, LlvmBlockState state) throws LlvmError {
 		if (unwind_recipe == null || unwind_recipe.fields.length == 0) {
 			return;
@@ -192,6 +200,7 @@ internal class LlvmFunctionLowering : Object {
 		CApi.build_store (builder, ordinal, constructor_stack_place (count));
 		CApi.build_store (builder, CApi.build_add (builder, count, CApi.const_int (word, 1, 0), "constructor.owner.push"), unwind_count);
 	}
+
 	private void constructor_drop_field(SsaConstructorUnwindField recipe, LlvmBlockState state) throws LlvmError, NativeAbiError {
 		var field = recipe.field;
 		var place = new SsaIndirectFieldPlace (field.span, unwind_constructor.receiver, field);
@@ -248,6 +257,7 @@ internal class LlvmFunctionLowering : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 	private void constructor_abort(SsaConstructorAbort abort, LlvmBlockState state) throws LlvmError, NativeAbiError {
 		if (unwind_recipe == null || function.constructor_unwind == null || unwind_constructor == null || abort.receiver != unwind_constructor.receiver || function.constructor_unwind.field_count != abort.fields.length) {
 			throw new LlvmError.LOWERING ("constructor abort lost exact native unwind authority");
@@ -291,6 +301,7 @@ internal class LlvmFunctionLowering : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 	private CApi.ValueRef class_field_address(CApi.TypeRef layout, CApi.ValueRef receiver, uint field, string name, SsaStructField? declaration = null) throws LlvmError {
 		bool restricted = declaration != null && declaration.is_private;
 		if (restricted && declaration.containing_type.semantic_type != lexical_field_owner) {
@@ -300,11 +311,13 @@ internal class LlvmFunctionLowering : Object {
 		artifact.class_addresses.add (new LlvmClassAddressBinding (address, receiver, layout, field, true, restricted ? function.value : (CApi.ValueRef) null, restricted ? CApi.insert_block (builder) : (CApi.BasicBlockRef) null));
 		return address;
 	}
+
 	private CApi.ValueRef success_read(CApi.TypeRef type, CApi.ValueRef slot, string name) {
 		var result = CApi.build_load (builder, type, slot, name);
 		retain_value (result, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { slot }, "guarded private success storage");
 		return result;
 	}
+
 	private void success_write(CApi.ValueRef value) {
 		var stored = CApi.build_store (builder, value, exception_success_slot);
 		retain_value (stored, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, exception_success_slot }, "complete private success publication");
@@ -957,6 +970,7 @@ internal class LlvmFunctionLowering : Object {
 		classes.stamp_origin (builder, pointer, span);
 		return pointer;
 	}
+
 	private void lower_async_operation(SsaAsyncOperation operation, LlvmBlockState state) throws LlvmError, NativeAbiError {
 		var runtime = new LlvmAsyncRuntime (artifact);
 		var pointer = types.scalar (NativeScalarType.PTR);
@@ -1041,6 +1055,7 @@ internal class LlvmFunctionLowering : Object {
 			state.end = done;
 		}
 	}
+
 	private void lower_task_wait(SsaTaskWait wait, int block, int position, LlvmBlockState state) throws LlvmError, NativeAbiError {
 		if (function.async_frame == null) {
 			throw new LlvmError.LOWERING ("await requires its exact native source frame");
@@ -1121,6 +1136,7 @@ internal class LlvmFunctionLowering : Object {
 		CApi.position_builder_at_end (builder, joined);
 		state.end = joined;
 	}
+
 	// Plain native objects have no dynamic class header. Retired frames use
 	// their existing exact owner contract, just as ordinary scope cleanup does.
 	private void destroy_plain_frame_owner(CApi.BuilderRef cleanup_builder, CApi.ValueRef cleanup_function, CApi.ValueRef owned, SsaCleanupContract contract, LlvmBlockState state, LlvmBufferAllocation allocator) throws LlvmError {
@@ -1135,6 +1151,7 @@ internal class LlvmFunctionLowering : Object {
 		CApi.position_builder_at_end (cleanup_builder, next);
 		state.end = next;
 	}
+
 	private void emit_async_destroy(SsaFunction source) throws LlvmError {
 		var frame = function.async_frame;
 		var destructor_builder = CApi.create_builder_in_context (artifact.context);
@@ -1279,11 +1296,13 @@ internal class LlvmFunctionLowering : Object {
 		CApi.build_ret_void (destructor_builder);
 		CApi.dispose_builder (destructor_builder);
 	}
+
 	private CApi.ValueRef async_result_read(CApi.TypeRef type, CApi.ValueRef address, string name) {
 		var loaded = CApi.build_load (builder, type, address, name);
 		artifact.class_values.add (new LlvmClassValueBinding (loaded, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { address }, "exact observed child result carrier"));
 		return loaded;
 	}
+
 	private CApi.ValueRef async_result_extract(CApi.ValueRef carrier, uint member, string name) {
 		var extracted = CApi.build_extract_value (builder, carrier, member, name);
 		if ((void*) CApi.is_instruction (extracted) != null) {
@@ -1291,6 +1310,7 @@ internal class LlvmFunctionLowering : Object {
 		}
 		return extracted;
 	}
+
 	private CApi.ValueRef async_result_insert(CApi.ValueRef carrier, CApi.ValueRef value, uint member, string name) {
 		var inserted = CApi.build_insert_value (builder, carrier, value, member, name);
 		if ((void*) CApi.is_instruction (inserted) != null) {
@@ -1298,9 +1318,11 @@ internal class LlvmFunctionLowering : Object {
 		}
 		return inserted;
 	}
+
 	private CApi.ValueRef storage_address(SsaAddressableLocal slot) {
 		return function.async_frame == null ? (CApi.ValueRef) storage.lookup (slot) : function.async_frame.storage_address (builder, (uint) slot.ordinal);
 	}
+
 	private CApi.ValueRef array_address(SsaAddressableLocal object, CApi.ValueRef index, string name) throws LlvmError, NativeAbiError {
 		// Only verified constant or bounds-check results reach here. Zero
 		// extension is lossless after validation, including high-bit u8/u32.
@@ -1535,9 +1557,11 @@ internal class LlvmFunctionLowering : Object {
 	private bool owns_enum_slot(SsaEnumSlot slot) {
 		return function.async_frame == null ? enum_liveness.contains(slot) : function.async_frame.plan.enum_slot ((uint) slot.ordinal).owning && slot.inspection_root == null;
 	}
+
 	private CApi.ValueRef enum_flag(SsaEnumSlot slot) {
 		return function.async_frame == null ? (CApi.ValueRef) enum_liveness.lookup (slot) : function.async_frame.enum_flag (builder, (uint) slot.ordinal);
 	}
+
 	private void enum_live(SsaEnumSlot slot, bool live) {
 		if (owns_enum_slot (slot)) {
 			var selected = CApi.const_int (CApi.int1_type_in_context (artifact.context), live ? 1 : 0, 0);
@@ -1552,6 +1576,7 @@ internal class LlvmFunctionLowering : Object {
 	private void destroy_enum_payload(NativeSumPlan plan, CApi.ValueRef root, LlvmBlockState state, GenericArray<EnumFieldIdentity>? retained = null) throws LlvmError {
 		destroy_enum_payload_on (builder, function.value, buffer_allocator, scalars, plan, root, state, retained);
 	}
+
 	private void destroy_enum_record(CApi.BuilderRef cleanup_builder, CApi.ValueRef cleanup_function, LlvmBufferAllocation allocator, NativeStructValuePlan plan, CApi.ValueRef root, LlvmBlockState state, string name) throws LlvmError {
 		var leaves = new CApi.ValueRef[plan.leaves.length];
 		for (int l = 0; l < leaves.length; l++) {
@@ -1560,9 +1585,11 @@ internal class LlvmFunctionLowering : Object {
 		}
 		new LlvmRecordOwnership (artifact, types, classes, cleanup_correspondence, cleanup_functions).destroy_record (cleanup_builder, cleanup_function, allocator, plan, leaves, state, name);
 	}
+
 	private void destroy_enum_scalar(CApi.BuilderRef cleanup_builder, CApi.ValueRef cleanup_function, LlvmBufferAllocation allocator, NativeScalarOwner owner, CApi.ValueRef pointer, LlvmBlockState state, string name) throws LlvmError {
 		new LlvmRecordOwnership (artifact, types, classes, cleanup_correspondence, cleanup_functions).destroy_scalar (cleanup_builder, cleanup_function, allocator, owner, pointer, state, name);
 	}
+
 	private void destroy_enum_payload_on(CApi.BuilderRef cleanup_builder, CApi.ValueRef cleanup_function, LlvmBufferAllocation cleanup_allocator, LlvmScalarLowering cleanup_scalars, NativeSumPlan plan, CApi.ValueRef root, LlvmBlockState state, GenericArray<EnumFieldIdentity>? retained = null) throws LlvmError {
 		var layout = sum_registry.lookup (plan.identity);
 		string name = "sum.destroy%d".printf (next_cleanup++);
@@ -3205,5 +3232,6 @@ internal class LlvmFunctionLowering : Object {
 			throw new LlvmError.LOWERING ("internal LLVM lowering error: unsupported SSA terminator");
 		}
 	}
+
 }
 }

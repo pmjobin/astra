@@ -95,4 +95,5 @@ int main(string[] args) {
 	Test.add_func ("/ints/semantic/diagnostics", diagnostics);
 	return Test.run ();
 }
+
 }

@@ -12,6 +12,7 @@ public class EnumPayloadSyntax : SyntaxNode {
 		this.type_name = type_name;
 		this.name = name;
 	}
+
 }
 
 public class EnumVariantSyntax : SyntaxNode {
@@ -22,6 +23,7 @@ public class EnumVariantSyntax : SyntaxNode {
 		this.name = name;
 		this.fields = fields;
 	}
+
 }
 
 public class EnumDeclarationSyntax : SyntaxNode {
@@ -33,6 +35,7 @@ public class EnumDeclarationSyntax : SyntaxNode {
 		this.name = name;
 		this.variants = variants;
 	}
+
 }
 
 public class EnumBindingSyntax : SyntaxNode {
@@ -43,6 +46,7 @@ public class EnumBindingSyntax : SyntaxNode {
 		this.field = field;
 		this.binding = binding;
 	}
+
 }
 
 public class EnumArmSyntax : SyntaxNode {
@@ -58,6 +62,7 @@ public class EnumArmSyntax : SyntaxNode {
 		this.bindings = bindings;
 		this.body = body;
 	}
+
 }
 
 public class MatchStatementSyntax : StatementSyntax {
@@ -68,5 +73,6 @@ public class MatchStatementSyntax : StatementSyntax {
 		this.scrutinee = scrutinee;
 		this.arms = arms;
 	}
+
 }
 }

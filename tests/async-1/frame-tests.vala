@@ -13,30 +13,39 @@ namespace Astra.Tests.AsyncFrames {
 private string support() {
 	return "[ExceptionRoot] class Error { readonly string text; init(string s) { this.text=s; } virtual property string message { get { return this.text; } } } class AsyncError:Error { init(string s):base(s){} } enum RunStatus { Completed, Cancelled } async runtime VirtualExecutor throws AsyncError returns RunStatus;";
 }
+
 private string body() {
 	return "extern(C) void event(int tag,int value); extern(C) int step(int tag,int ordinal); extern(C) int capture(int ordinal); async int worker(int tag,u32 ticks,int seed) throws Error { int value=seed; int n=0; while(n<3) { event(tag,value); await delay_ticks(ticks); value=value+step(tag,n); if(n==1) { await delay_ticks(0); } n=n+1; } return value; } async void root() throws Error { await delay_ticks(20); } export(C) int cold(){var first=worker(capture(1),capture(2) as u32,capture(3)); var second=move first; var third=worker(capture(4),capture(5) as u32,capture(6));return 42;} int main(){return 42;}";
 }
+
 private string await_body() {
 	return "extern(C) void observed(int stage,int value); class DecodeError:Error { init(string s):base(s){} deinit(){observed(9,42);} } async int leaf(int seed) throws Error {await delay_ticks(1);await delay_ticks(2);return seed+5;} async int faulty() throws DecodeError {try {await delay_ticks(1);}catch(AsyncError error){}throw new DecodeError(\"original\\0é\");} async void joined() throws Error {int answer=await leaf(17);observed(1,answer);try {try {await faulty();}catch(Error error){var message=error.message;var copy=message;observed(5,42);int value=await leaf(3);if(copy==\"original\\0é\" && value==8){observed(2,42);}throw;}}catch(DecodeError error){if(error.message==\"original\\0é\"){observed(3,42);}}} async void discarded() throws Error {var task=faulty();await cancel_and_join(move task);observed(4,42);} async void propagated() throws Error {await faulty();} async void invalid_delay(int n) throws Error {try {await delay_ticks(n);observed(7,81);}catch(AsyncError error){observed(7,42);}} async void replacing() throws Error {try {await faulty();}catch(Error error){var message=error.message;await faulty();observed(8,81);}} export(C) int host_replacement(){try {var executor=VirtualExecutor.open(3);var status=executor.run(replacing());return 90;}catch(DecodeError error){if(error.message==\"original\\0é\"){observed(8,42);return 42;}return 91;}catch(Error error){return 92;}} async int timed(int stage,int ticks,int result) throws Error {await delay_ticks(ticks);observed(stage,42);return result;} async void concurrent() throws Error {var slow=timed(11,5,1);start(slow);var fast=timed(10,1,2);int fast_value=0;try {start(fast);fast_value=await move fast;}catch(Error error){await cancel_and_join(move slow);throw;}int slow_value=await move slow;if(fast_value+slow_value==3){observed(12,42);}} async void refused_start() throws Error {var child=leaf(4);try {start(child);}catch(AsyncError error){await cancel_and_join(move child);observed(13,42);return;}await move child;} async void refused_await() throws Error {try {int value=await leaf(4);observed(14,81);}catch(AsyncError error){observed(14,42);}} async void cancelled_child() throws Error {var child=leaf(4);cancel(child);try {await move child;observed(15,81);}catch(Error error){observed(15,81);}} async void sibling_error() throws Error {var slow=timed(11,5,1);start(slow);try {await faulty();}catch(Error error){var message=error.message;await cancel_and_join(move slow);if(message==\"original\\0é\"){observed(16,42);}throw;}await move slow;} export(C) int host_sibling_error(){try {var executor=VirtualExecutor.open(3);var status=executor.run(sibling_error());return 98;}catch(DecodeError error){return 42;}catch(Error error){return 99;}} async void discard_completed() throws Error {var child=leaf(4);start(child);try {await delay_ticks(10);}catch(Error error){await cancel_and_join(move child);throw;}cancel(child);await cancel_and_join(move child);observed(17,42);} async void discard_exceptional() throws Error {var child=faulty();start(child);try {await delay_ticks(10);}catch(Error error){await cancel_and_join(move child);throw;}cancel(child);await cancel_and_join(move child);observed(18,42);} export(C) int host_discard_outcomes(){try {var first=VirtualExecutor.open(3);var a=first.run(discard_completed());var second=VirtualExecutor.open(3);var b=second.run(discard_exceptional());return 42;}catch(Error error){return 100;}} async void parent_work() throws Error {int value=await leaf(4);observed(19,81);} async void parent_only(bool first) throws Error {var parent=parent_work();var unrelated=timed(20,8,2);try {if(first){start(parent);start(unrelated);}else{start(unrelated);start(parent);}await delay_ticks(2);}catch(Error error){await cancel_and_join(move parent);await cancel_and_join(move unrelated);throw;}cancel(parent);await cancel_and_join(move parent);int value=await move unrelated;if(value==2){observed(21,42);}} export(C) int host_parent_only(){try {var first=VirtualExecutor.open(4);var a=first.run(parent_only(true));var second=VirtualExecutor.open(4);var b=second.run(parent_only(false));return 42;}catch(Error error){return 101;}} export(C) int host_concurrent(){try {var executor=VirtualExecutor.open(3);var status=executor.run(concurrent());return 42;}catch(Error error){return 93;}} export(C) int host_refused_start(){try {var executor=VirtualExecutor.open(1);var status=executor.run(refused_start());return 42;}catch(Error error){return 94;}} export(C) int host_refused_await(){try {var executor=VirtualExecutor.open(1);var status=executor.run(refused_await());return 42;}catch(Error error){return 95;}} export(C) int host_child_cancel(){try {var executor=VirtualExecutor.open(1);var status=executor.run(cancelled_child());match(status){case RunStatus.Cancelled():{return 42;}else:{return 96;}}}catch(Error error){return 97;}} export(C) int host_invalid_delay(){try {var executor=VirtualExecutor.open(1);var status=executor.run(invalid_delay(-1));return 42;}catch(Error error){return 89;}} export(C) int host(){try{var executor=VirtualExecutor.open(3);var root=joined();executor.advance(0);executor.start(root);executor.pump(1);var status=executor.run(move root);match(status){case RunStatus.Completed():{return 42;}else:{return 82;}}}catch(Error error){return 81;}} export(C) int host_cancel(){try{var executor=VirtualExecutor.open(3);var root=joined();executor.start(root);executor.pump(1);executor.cancel(root);var status=executor.run(move root);match(status){case RunStatus.Cancelled():{return 42;}else:{return 84;}}}catch(Error error){return 83;}} export(C) int host_invalid_capacity(){try{var executor=VirtualExecutor.open(0);return 85;}catch(AsyncError error){return 42;}} export(C) int host_original_error(){try{var executor=VirtualExecutor.open(3);var status=executor.run(propagated());return 86;}catch(DecodeError error){if(error.message==\"original\\0é\"){observed(6,42);return 42;}return 87;}catch(Error error){return 88;}} int main(){return 42;}";
 }
+
 private string buffer_body() {
 	return "extern(C) void buffered(int stage,int value); async owned int[] produce(int seed) throws Error {owned int[] values=new int[3];values[0]=seed;await delay_ticks(1);values[1]=seed+1;await delay_ticks(2);values[2]=seed+2;return move values;} async void buffers() throws Error {owned int[] values=await produce(40);buffered(1,values[0]+values[1]+values[2]);await delay_ticks(2);values[0]=values[0]+1;buffered(2,values[0]);} async void failing_buffer() throws Error {owned int[] values=new int[3];await delay_ticks(1);throw new AsyncError(\"buffer failure\");} async void keeper() throws Error {await delay_ticks(20);} async owned int[] captured(owned int[] first,owned int[] second,int seed) throws Error {first[0]=seed;await delay_ticks(1);first[1]=second[0];await delay_ticks(2);return move first;} async void capture_parent() throws Error {owned int[] first=new int[3];owned int[] second=new int[2];second[0]=2;var child=captured(move first,move second,40);owned int[] result=await move child;buffered(3,result[0]+result[1]);await delay_ticks(1);result[0]=result[0]+2;buffered(4,result[0]);} int later_failure() throws Error {throw new AsyncError(\"later capture argument\");} export(C) int cold_captures(){owned int[] first=new int[3];owned int[] second=new int[2];var child=captured(move first,move second,40);var moved=move child;return 42;} export(C) int capture_abort(){owned int[] first=new int[3];owned int[] second=new int[2];first[0]=40;second[0]=2;try {var child=captured(move first,move second,later_failure());return 80;}catch(Error error){buffered(5,first[0]+second[0]);return 42;}} export(C) int fresh_captures(){var child=captured(new int[3],new int[2],40);return 42;} export(C) int fresh_abort(){owned int[] named=new int[3];named[0]=42;try{var child=captured(move named,new int[2],later_failure());return 80;}catch(Error error){buffered(6,named[0]);return 42;}} int main(){return 42;}";
 }
+
 private string resource_api() {
 	return "[CCode(destroy_function=\"close_resource\")] handle Resource; owned Resource open_resource(int id); int read_resource(borrowed Resource resource);";
 }
+
 private string resource_body() {
 	return "extern(C) void resource_event(int stage,int value); async int resources(owned Resource first,owned Resource second,int seed) throws Error {resource_event(1,read_resource(first)+read_resource(second));await delay_ticks(1);owned Resource next=move first;second=open_resource(seed);await delay_ticks(2);resource_event(2,read_resource(next)+read_resource(second));return 42;} async void resource_root() throws Error {owned Resource first=open_resource(10);owned Resource second=open_resource(20);int value=await resources(move first,move second,32);resource_event(3,value);} async void resource_waiting() throws Error {owned Resource first=open_resource(40);owned Resource second=open_resource(41);await delay_ticks(20);resource_event(4,81);} int argument_failure() throws Error {throw new AsyncError(\"resource argument failure\");} export(C) int resource_cold(){owned Resource first=open_resource(10);owned Resource second=open_resource(20);var child=resources(move first,move second,32);var moved=move child;return 42;} export(C) int resource_abort(){owned Resource first=open_resource(10);owned Resource second=open_resource(20);try{var child=resources(move first,move second,argument_failure());return 81;}catch(Error error){resource_event(5,read_resource(first)+read_resource(second));return 42;}} async void resource_refused() throws Error {owned Resource first=open_resource(10);owned Resource second=open_resource(20);try{int value=await resources(move first,move second,32);resource_event(6,81);}catch(AsyncError error){resource_event(6,42);}} export(C) int resource_host(){try{var executor=VirtualExecutor.open(3);var status=executor.run(resource_root());return 42;}catch(Error error){return 80;}} export(C) int resource_admission(){try{var executor=VirtualExecutor.open(1);var status=executor.run(resource_refused());return 42;}catch(Error error){return 82;}} export(C) int resource_fresh(){var child=resources(open_resource(10),open_resource(20),32);return 42;} export(C) int resource_fresh_abort(){owned Resource named=open_resource(10);try{var child=resources(move named,open_resource(20),argument_failure());return 81;}catch(Error error){resource_event(7,read_resource(named));return 42;}} class MixedError:Error {init(string value):base(value){}deinit(){resource_event(10,42);}} enum MixedOwner {Live(owned int[] data),Empty} async void mixed_child(owned Resource first,owned int[] second,MixedOwner third) throws Error {int n=0;resource_event(11,read_resource(first));await delay_ticks(1);while(n<3){owned Resource turn=open_resource(60+n);await delay_ticks(1);n=n+1;if(n==1){continue;}if(n==2){break;}}match(move third){case MixedOwner.Live(data):{await delay_ticks(2);second[0]=data[0];}else:{resource_event(8,81);}}throw new MixedError(\"mixed original\");} async int mixed_loan(owned Resource resource,owned int[] buffer,int[] view) throws Error {await delay_ticks(1);buffer[0]=read_resource(resource)-68;view[0]=view[0]+buffer[0];await delay_ticks(2);return view[0]+view[1];} async void mixed_parent() throws Error {owned Resource retained=open_resource(50);int[2] backing={20,20};try{await mixed_child(open_resource(10),new int[2],MixedOwner.Live(new int[2]));}catch(Error error){var message=error.message;var copy=message;resource_event(9,42);await delay_ticks(1);int value=await mixed_loan(open_resource(70),new int[2],slice(backing));if(copy==\"mixed original\"){resource_event(8,read_resource(retained)+value);}}} async void mixed_replacement() throws Error {owned Resource retained=open_resource(50);try{await mixed_child(open_resource(10),new int[2],MixedOwner.Live(new int[2]));}catch(Error error){var message=error.message;resource_event(9,42);await delay_ticks(1);if(message==\"mixed original\"){await mixed_child(open_resource(10),new int[2],MixedOwner.Live(new int[2]));}}} export(C) int mixed_host(){try{var executor=VirtualExecutor.open(3);var status=executor.run(mixed_parent());return 42;}catch(Error error){return 81;}} export(C) int mixed_replace_host(){try{var executor=VirtualExecutor.open(3);var status=executor.run(mixed_replacement());return 81;}catch(MixedError error){if(error.message==\"mixed original\"){return 42;}return 82;}catch(Error error){return 83;}} owned Resource recovered_resource() throws Error {try{argument_failure();}catch(Error error){owned Resource recovered=open_resource(21);return move recovered;}owned Resource fallback=open_resource(81);return move fallback;} int completed_resource_consumer(owned Resource value){return read_resource(value);} int nested_argument_failure() throws Error {owned Resource inner=open_resource(22);int value=completed_resource_consumer(move inner);argument_failure();return value;} export(C) int resource_nested_abort(){try{var child=resources(open_resource(10),recovered_resource(),nested_argument_failure());return 81;}catch(Error error){resource_event(12,42);return 42;}} int main(){return 42;}";
 }
+
 private string storage_body() {
 	return "extern(C) void storage_event(int stage,int value); struct Record{int left;int right;} enum Copy{Ready(Record record,int marker),Empty} enum Owner{Ready(owned int[] first,owned Record[] second),Empty} async void persistent(int seed) throws Error {int[3] numbers={seed,2,3};Record record={left=seed,right=2};var copied=Copy.Ready(record,3);owned Record[] records=new Record[2];records[0].left=seed;records[1].right=2;var owner=Owner.Ready(new int[2],new Record[3]);int n=0;while(n<2){await delay_ticks(1);numbers[0]=numbers[0]+1;record.left=record.left+1;records[0].left=records[0].left+1;n=n+1;}match(copied){case Copy.Ready(original,marker):{storage_event(1,original.left+original.right+marker);}else:{storage_event(1,81);}}storage_event(2,numbers[0]+numbers[1]+numbers[2]);storage_event(3,record.left+record.right);storage_event(4,records[0].left+records[1].right);match(move owner){case Owner.Ready(first,second):{storage_event(5,len(first)+len(second));}else:{storage_event(5,81);}}} async void enum_capture(Owner first,Owner second) throws Error {await delay_ticks(1);await delay_ticks(2);match(first){case Owner.Ready(a,b):{storage_event(6,len(a)+len(b));}else:{storage_event(6,81);}}match(move second){case Owner.Ready(a,_):{storage_event(7,len(a));}else:{storage_event(7,81);}}} async void enum_waiting() throws Error {var first=Owner.Ready(new int[2],new Record[3]);var second=Owner.Ready(new int[3],new Record[2]);await delay_ticks(20);storage_event(8,81);} export(C) int storage_host(){try{var executor=VirtualExecutor.open(2);var status=executor.run(persistent(35));var second=VirtualExecutor.open(2);var next=second.run(enum_capture(Owner.Ready(new int[2],new Record[3]),Owner.Ready(new int[3],new Record[2])));return 42;}catch(Error error){return 80;}} export(C) int storage_cold(){var first=Owner.Ready(new int[2],new Record[3]);var second=Owner.Ready(new int[3],new Record[2]);var child=enum_capture(move first,move second);return 42;} int main(){return 42;}";
 }
+
 private string result_body() {
 	return "extern(C) void result_event(int stage,int value); extern(C) int float_bits(f32 value); extern(C) f32 input_float(); struct Record{int left;int right;f32 bits;} enum Copy{Ready(Record record,int marker),Empty} enum Owner{Ready(owned int[] first,owned Record[] second),Empty} async Record record_result(Record first,Record second) throws Error {await delay_ticks(1);await delay_ticks(2);Record result={left=first.left+second.left,right=first.right+second.right,bits=first.bits};return result;} async Copy copy_result(Copy value) throws Error {await delay_ticks(1);await delay_ticks(2);return value;} async owned Record[] array_result(owned Record[] values) throws Error {await delay_ticks(1);values[0].left=values[0].left+2;await delay_ticks(2);values[1].right=values[1].right+3;return move values;} async Owner owning_result(Owner first,Owner second) throws Error {await delay_ticks(1);match(second){case Owner.Ready(a,b):{result_event(5,len(a)+len(b));}else:{result_event(5,81);}}await delay_ticks(2);return move first;} async void results_root() throws Error {Record first={left=30,right=2,bits=input_float()};Record second={left=7,right=3,bits=1.0};var record=await record_result(first,second);result_event(1,record.left+record.right);result_event(6,float_bits(record.bits));var copied=await copy_result(Copy.Ready(record,2));match(copied){case Copy.Ready(value,marker):{result_event(2,value.left+value.right+marker);}else:{result_event(2,81);}}owned Record[] input=new Record[2];input[0].left=35;input[1].right=2;owned Record[] returned=await array_result(move input);result_event(3,returned[0].left+returned[1].right);var owner=await owning_result(Owner.Ready(new int[2],new Record[3]),Owner.Ready(new int[3],new Record[2]));await delay_ticks(1);match(move owner){case Owner.Ready(a,b):{b[0].left=37;result_event(4,a[0]+b[0].left+len(a)+len(b));}else:{result_event(4,81);}}owned f32<4>[] vector_input=new f32<4>[2];f32<4> lanes={0.5,1.0,1.5,2.0};vector_input[0]=lanes;owned f32<4>[] vector_output=await vector_array(move vector_input);if(all(vector_output[0]==lanes)){result_event(8,42);}else{result_event(8,81);}owned bool<4>[] mask_input=new bool<4>[2];mask_input[0]=lanes==lanes;owned bool<4>[] mask_output=await mask_array(move mask_input);if(all(mask_output[0])){result_event(9,42);}else{result_event(9,81);}} async void results_discard() throws Error {var child=owning_result(Owner.Ready(new int[2],new Record[3]),Owner.Ready(new int[3],new Record[2]));start(child);try{await delay_ticks(20);}catch(Error error){await cancel_and_join(move child);throw;}await cancel_and_join(move child);result_event(7,42);} export(C) int result_host(){try{var executor=VirtualExecutor.open(3);var status=executor.run(results_root());var second=VirtualExecutor.open(3);var next=second.run(results_discard());return 42;}catch(Error error){return 80;}} async owned f32<4>[] vector_array(owned f32<4>[] values) throws Error {await delay_ticks(1);await delay_ticks(2);return move values;} async owned bool<4>[] mask_array(owned bool<4>[] values) throws Error {await delay_ticks(1);await delay_ticks(2);return move values;} async void array_discard() throws Error {owned Record[] input=new Record[2];var child=array_result(move input);start(child);try{await delay_ticks(20);}catch(Error error){await cancel_and_join(move child);throw;}await cancel_and_join(move child);result_event(10,42);} Owner owner_failure() throws Error {throw new AsyncError(\"enum argument failure\");} export(C) int owning_abort(){try{var task=owning_result(Owner.Ready(new int[2],new Record[3]),owner_failure());return 81;}catch(Error error){if(error.message==\"enum argument failure\"){result_event(11,42);}else{return 82;}}var owner=Owner.Ready(new int[2],new Record[3]);try{var task=owning_result(move owner,owner_failure());return 83;}catch(Error error){match(move owner){case Owner.Ready(a,b):{result_event(11,len(a)+len(b)+37);}else:{return 84;}}}return 42;} int main(){return 42;}";
 }
+
 private string loan_body() {
 	return "extern(C) void loan_event(int stage,int value); async int loan_child(int[] first,int[] second,int seed) throws Error {loan_event(1,first[0]+second[0]);await delay_ticks(2);first[0]=first[0]+seed;await delay_ticks(3);loan_event(2,first[0]+first[1]);return first[0]+first[1];} async void loan_parent() throws Error {int[4] backing={20,2,3,4};int result=await loan_child(slice(backing,0,2),slice(backing,2,2),20);loan_event(3,result);backing[0]=backing[0]-2;loan_event(4,backing[0]+backing[3]);} int main(){return 42;}";
 }
+
 private SsaProgram build(string text, string? declarations = null) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("native-frames.astra", support () + text));
 	if (parsed.diagnostic != null) {
@@ -52,6 +61,7 @@ private SsaProgram build(string text, string? declarations = null) throws GLib.E
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message = null;
 	assert (CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message) == 0);
@@ -59,6 +69,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 		CApi.dispose_message (message);
 	}
 }
+
 private void native_frame() {
 	try {
 		SsaProgram? ssa = build (body ());
@@ -79,6 +90,7 @@ private void native_frame() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void frame_correspondence() {
 	try {
 		var ssa = build (body ());
@@ -115,6 +127,7 @@ private void frame_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void dispatcher_correspondence() {
 	try {
 		var ssa = build (body ());
@@ -141,6 +154,7 @@ private void dispatcher_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void runtime_correspondence() {
 	try {
 		SsaProgram? ssa = build (body ());
@@ -181,6 +195,7 @@ private void runtime_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void unsupported_consumers() {
 	foreach (var text in new string[] { "int main(){await delay_ticks(1);return 0;}", "async void f(){await delay_ticks(-1);}", "async void f(){await delay_ticks(1.5);}", "async void f(){}int main(){var task=f();var duplicate=task;return 0;}", "async void f(){}int main(){f();return 0;}", "void delay_ticks(u32 n){}async void f(){await delay_ticks(1);}" }) {
 		var parsed = Parser.parse (new SourceFile.from_text ("negative.astra", support () + text));
@@ -188,6 +203,7 @@ private void unsupported_consumers() {
 		assert (SemanticAnalyzer.analyze (parsed.unit).diagnostic != null);
 	}
 }
+
 private void started_obligations() {
 	try {
 		foreach (var text in new string[] { "async void child() throws Error {await delay_ticks(1);}async void shortened() throws Error {var task=child();start(task);throw new AsyncError(\"lost sibling\");}int main(){return 42;}", "async void child() throws Error {await delay_ticks(1);}async void lost() throws Error {var task=child();start(task);return;}int main(){return 42;}", "async void child(){}async void twice(){var task=child();await move task;await move task;}int main(){return 42;}" }) {
@@ -208,6 +224,7 @@ private void started_obligations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void capture_correspondence() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("capture-correspondence.astra", support () + body ()));
@@ -321,6 +338,7 @@ private void capture_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void owner_correspondence() {
 	try {
 		SsaProgram? ssa = build (await_body ());
@@ -399,6 +417,7 @@ private void owner_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private NativeAsyncFramePlan copied_frame(NativeAsyncFramePlan original, GenericArray<NativeAsyncOwner>? replacement_owners = null, GenericArray<NativeAsyncBuffer>? replacement_buffers = null, GenericArray<NativeAsyncLoan>? replacement_loans = null, GenericArray<NativeAsyncWait>? replacement_waits = null, GenericArray<NativeAsyncEnumStorage>? replacement_enums = null, NativeStructValuePlan? replacement_result = null, GenericArray<NativeAsyncState>? replacement_states = null) {
 	var fields = new GenericArray<NativeAsyncField> ();
 	for (uint i = 0; i < original.field_count; i++) {
@@ -434,6 +453,7 @@ private NativeAsyncFramePlan copied_frame(NativeAsyncFramePlan original, Generic
 	}
 	return new NativeAsyncFramePlan (original.function_ordinal, original.declaration, original.result, fields, replacement_states ?? states, original.object_count, original.owner_count, replacement_buffers ?? buffers, replacement_owners ?? owners, storage, replacement_enums ?? enums, replacement_result ?? original.record_result, replacement_loans ?? loans, replacement_waits ?? waits);
 }
+
 private void wrong_plan(string name, SsaProgram ssa, NativeAbiProgram native, int ordinal, NativeAsyncFramePlan wrong, string diagnostic, string native_diagnostic = "") throws GLib.Error {
 	var original = native.async_frames[ordinal];
 	var foreign = CAbiBuilder.build (ssa, native);
@@ -473,6 +493,7 @@ private void wrong_plan(string name, SsaProgram ssa, NativeAbiProgram native, in
 	restored.verify ();
 	generic_valid (restored);
 }
+
 private void loan_stage_correspondence() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("loan-stages.astra", support () + loan_body ()));
@@ -562,6 +583,7 @@ private void loan_stage_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void completion_correspondence() {
 	try {
 		var scalar = build (body ());
@@ -671,6 +693,7 @@ private void completion_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CApi.ValueRef named_call(LlvmModuleArtifact artifact, string symbol, int permission = -1) {
 	for (var function = CApi.first_function (artifact.module); (void*) function != null; function = CApi.next_function (function)) {
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
@@ -683,6 +706,7 @@ private CApi.ValueRef named_call(LlvmModuleArtifact artifact, string symbol, int
 	}
 	assert_not_reached ();
 }
+
 private CApi.ValueRef named_instruction(LlvmModuleArtifact artifact, string prefix) {
 	foreach (var binding in artifact.class_values) {
 		size_t length;
@@ -692,6 +716,7 @@ private CApi.ValueRef named_instruction(LlvmModuleArtifact artifact, string pref
 	}
 	assert_not_reached ();
 }
+
 private void wrong_llvm(LlvmModuleArtifact artifact, string name, string diagnostic) {
 	generic_valid (artifact);
 	bool rejected = false;
@@ -703,6 +728,7 @@ private void wrong_llvm(LlvmModuleArtifact artifact, string name, string diagnos
 	}
 	assert (rejected);
 }
+
 private void completion_llvm() {
 	try {
 		var ssa = build (loan_body ());
@@ -826,6 +852,7 @@ private void completion_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void creation_commit_abort_correspondence() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("task-argument-authority.astra", support () + buffer_body ()));
@@ -882,6 +909,7 @@ private void creation_commit_abort_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void suspended_message_correspondence() {
 	try {
 		var ssa = build (resource_body (), resource_api ());
@@ -933,6 +961,7 @@ private void suspended_message_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void loan_diagnostics() {
 	string child = "async int child(int[] values) throws Error {await delay_ticks(1);return values[0];}";
 	string[] sources = {
@@ -977,6 +1006,7 @@ private void loan_diagnostics() {
 	assert (method.diagnostic != null && method.diagnostic.message.contains ("async methods"));
 	Test.message ("R1 async method: Parser: %s", method.diagnostic.message);
 }
+
 private void emit_fixture(string path, bool awaited = false, bool buffered = false, bool resource = false, bool stored = false, bool results = false, bool loaned = false) throws GLib.Error {
 	var ssa = build (loaned ? loan_body () : results ? result_body () : stored ? storage_body () : resource ? resource_body () : buffered ? buffer_body () : awaited ? await_body () : body (), resource ? resource_api () : null);
 	var native = NativeAbiBuilder.build (ssa);
@@ -1058,6 +1088,7 @@ private void emit_fixture(string path, bool awaited = false, bool buffered = fal
 	target.configure (artifact);
 	target.emit_object (artifact, path);
 }
+
 public static int main(string[] args) {
 	if (args.length == 3 && (args[1] == "--emit-fixture" || args[1] == "--emit-await-fixture" || args[1] == "--emit-buffer-fixture" || args[1] == "--emit-resource-fixture" || args[1] == "--emit-storage-fixture" || args[1] == "--emit-result-fixture" || args[1] == "--emit-loan-fixture")) {
 		try {
@@ -1085,4 +1116,5 @@ public static int main(string[] args) {
 	Test.add_func ("/async-1/frame/runtime-correspondence", runtime_correspondence);
 	return Test.run ();
 }
+
 }

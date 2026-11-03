@@ -16,9 +16,11 @@ private CheckedProgram check(string text) {
 	}
 	return checked.program;
 }
+
 private string source() {
 	return "class Box{int value;init(int value){this.value=value;}property int item{get{return this.value;}}}int read(Box b){return b.item;}int main(){var first=new Box(42);owned Box second=move first;return read(second);}";
 }
+
 private void origins() {
 	try {
 		var checked = check (source ());
@@ -37,6 +39,7 @@ private void origins() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void legacy() {
 	try {
 		var checked = check ("class Box{int value;init(int value){this.value=value;}}int main(){owned Box b=Box.init(42);return b.value;}");
@@ -49,6 +52,7 @@ private void legacy() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void wrong_storage() {
 	try {
 		var core = CoreBuilder.build (check (source ()));
@@ -91,6 +95,7 @@ private void wrong_storage() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void unsupported_escapes() {
 	foreach (string body in new string[] {"Box b=new Box(1);", "var b=new Box(1);Box copy=b;", "var b=new Box(1);consume(move b);return b.value;", "var b=new Box(1);var c=move b;return b.value;", "var b=new Box(1);owned Box b=move b;"}) {
 		var parsed = Parser.parse (new SourceFile.from_text ("invalid", "class Box{int value;init(int n){this.value=n;}}void consume(owned Box b){}int main(){" + body + "return 0;}"));
@@ -108,6 +113,7 @@ private void unsupported_escapes() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/error-1/heap/exact-storage-owner-move-and-borrow", origins);
@@ -116,4 +122,5 @@ int main(string[] args) {
 	Test.add_func ("/error-1/heap/unsupported-alias-consumer-and-double-use", unsupported_escapes);
 	return Test.run ();
 }
+
 }

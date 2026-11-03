@@ -16,6 +16,7 @@ public abstract class SsaNode : Object {
 	protected SsaNode (SourceSpan span) {
 		this.span = span;
 	}
+
 }
 
 // Attached foreign boundary only. The program owns the native target;
@@ -45,6 +46,7 @@ public class SsaCExport : SsaNode {
 		this.ordinal = ordinal;
 		this.record_abi = record_abi;
 	}
+
 }
 
 // Stage-owned responsibility with foreign cleanup or exact native class
@@ -90,6 +92,7 @@ public class SsaCleanupContract : Object {
 		this.symbol_span = symbol_span;
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class SsaProgram : SsaNode {
@@ -125,6 +128,7 @@ public class SsaProgram : SsaNode {
 		this.c_exports = c_exports ?? new GenericArray<SsaCExport> ();
 		this.structs = structs ?? new GenericArray<SsaStruct> ();
 	}
+
 }
 
 // Independent foreign declaration identity, without a body or native ABI data.
@@ -159,6 +163,7 @@ public class SsaCFunction : SsaNode {
 		}
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class SsaFunction : SsaNode {
@@ -170,14 +175,17 @@ public class SsaFunction : SsaNode {
 		}
 		native_declaration = native_declaration_origin = declaration;
 	}
+
 	internal bool native_declaration_valid() {
 		return native_declaration == native_declaration_origin;
 	}
+
 	internal bool declaration_only() {
 		return native_declaration != null && native_declaration_valid () && name_span.file.native_interface &&
 		       blocks.length == 1 && blocks[0] == entry && entry.instructions.length == 0 && entry.parameters.length == 0 &&
 		       entry.terminator is SsaNativeDeclaration && storage.length == 0 && object_storage.length == 0 && heap_owners.length == 0;
 	}
+
 	public FunctionEffectFacts? effect_facts { get; internal set; }
 	public NativeOptimizerEvidence? checked_native_optimizer { get; private set; }
 	internal void bind_native_optimizer(NativeOptimizerEvidence evidence) throws SsaError {
@@ -186,12 +194,14 @@ public class SsaFunction : SsaNode {
 		}
 		checked_native_optimizer = evidence;
 	}
+
 	internal FunctionEffectFacts? checked_native_effects() {
 		if (checked_native_optimizer == null || !declaration_only () || module_import_symbol != checked_native_optimizer.symbol || native_declaration.identity.symbol != checked_native_optimizer.symbol || native_declaration.identity.signature_shape != checked_native_optimizer.signature) {
 			return null;
 		}
 		return checked_native_optimizer.facts ();
 	}
+
 	public GenericArray<SsaObjectStorage> stack_objects { get; private set; default = new GenericArray<SsaObjectStorage> (); }
 	public GenericArray<SsaSharedElisionPlan> shared_elisions { get; private set; default = new GenericArray<SsaSharedElisionPlan> (); }
 	private GenericArray<SsaVectorMemoryInstruction> vector_effects = new GenericArray<SsaVectorMemoryInstruction> ();
@@ -202,6 +212,7 @@ public class SsaFunction : SsaNode {
 		vector_blocks.add (block);
 		vector_positions.add ((int) block.instructions.length - 1);
 	}
+
 	internal void verify_vector_memory() throws SsaError {
 		for (int i = 0; i < vector_effects.length; i++) {
 			var block = vector_blocks[i];
@@ -233,9 +244,11 @@ public class SsaFunction : SsaNode {
 			floating_policy_bound = true;
 		}
 	}
+
 	public bool floating_policy_valid() {
 		return floating_policy == floating_policy_origin && Astra.Semantic.FloatingPointPolicy.valid (floating_policy);
 	}
+
 	private GenericArray<SsaCleanupInstruction> required_cleanups = new GenericArray<SsaCleanupInstruction> ();
 	private GenericArray<SsaBlock> cleanup_blocks = new GenericArray<SsaBlock> ();
 	private GenericArray<int> cleanup_positions = new GenericArray<int> ();
@@ -244,6 +257,7 @@ public class SsaFunction : SsaNode {
 		cleanup_blocks.add (block);
 		cleanup_positions.add ((int) block.instructions.length - 1);
 	}
+
 	internal void verify_cleanup_effects() throws SsaError {
 		for (int i = 0; i < required_cleanups.length; i++) {
 			var block = cleanup_blocks[i];
@@ -264,6 +278,7 @@ public class SsaFunction : SsaNode {
 			}
 		}
 	}
+
 	private GenericArray<SsaInstruction> volatile_effects = new GenericArray<SsaInstruction> ();
 	private GenericArray<SsaBlock> volatile_blocks = new GenericArray<SsaBlock> ();
 	private GenericArray<int> volatile_positions = new GenericArray<int> ();
@@ -272,6 +287,7 @@ public class SsaFunction : SsaNode {
 		volatile_blocks.add (block);
 		volatile_positions.add ((int) block.instructions.length - 1);
 	}
+
 	internal void verify_volatile_effects() throws SsaError {
 		for (int i = 0; i < volatile_effects.length; i++) {
 			var block = volatile_blocks[i];
@@ -297,6 +313,7 @@ public class SsaFunction : SsaNode {
 			throw new SsaError.INVALID_SSA ("volatile effects lost a required source operation");
 		}
 	}
+
 	private string? import_symbol;
 	public string? module_import_symbol { get { return import_symbol; } }
 	public void bind_module_import(string symbol) throws SsaError {
@@ -305,11 +322,13 @@ public class SsaFunction : SsaNode {
 		}
 		import_symbol = symbol;
 	}
+
 	private GenericArray<SsaNonNullUse> nonnull_uses = new GenericArray<SsaNonNullUse> ();
 	internal bool has_nonnull_uses { get { return nonnull_uses.length != 0; } }
 	internal void retain_nonnull_use(SsaNonNullUse use) {
 		nonnull_uses.add (use);
 	}
+
 	internal void verify_nonnull_uses() throws SsaError {
 		foreach (var use in nonnull_uses) {
 			int count = 0;
@@ -328,16 +347,19 @@ public class SsaFunction : SsaNode {
 			}
 		}
 	}
+
 	public bool nonnull_result { get; private set; default = false; }
 	internal void mark_nonnull_result() {
 		nonnull_result = true;
 	}
+
 	public bool utf8_factory { get; internal set; default = false; }
 	public AsyncBodyContract? async_body { get; internal set; }
 	private GenericArray<SsaTextLoanUse> text_uses = new GenericArray<SsaTextLoanUse> ();
 	public void retain_text_use(SsaTextLoanUse use) {
 		text_uses.add (use);
 	}
+
 	internal void verify_text_uses() throws SsaError {
 		foreach (var use in text_uses) {
 			bool present = false;
@@ -353,10 +375,12 @@ public class SsaFunction : SsaNode {
 			}
 		}
 	}
+
 	private GenericArray<SsaExceptionDisposition> exception_dispositions = new GenericArray<SsaExceptionDisposition> ();
 	public void retain_exception_disposition(SsaNode effect, SsaValue value) {
 		exception_dispositions.add (new SsaExceptionDisposition (effect, value));
 	}
+
 	internal void verify_exception_dispositions() throws SsaError {
 		foreach (var binding in exception_dispositions) {
 			bool present = false;
@@ -377,6 +401,7 @@ public class SsaFunction : SsaNode {
 			}
 		}
 	}
+
 	public GenericArray<SsaExceptionHandler> handlers { get; private set; default = new GenericArray<SsaExceptionHandler> (); }
 	public GenericArray<SsaFrameCatchOwner> frame_catch_owners { get; private set; default = new GenericArray<SsaFrameCatchOwner> (); }
 	public GenericArray<SsaTaskOwner> task_owners { get; private set; default = new GenericArray<SsaTaskOwner> (); }
@@ -420,6 +445,7 @@ public class SsaFunction : SsaNode {
 		this.entry = entry;
 		this.storage = new GenericArray<SsaAddressableLocal> ();
 	}
+
 }
 
 public class SsaBlock : SsaNode {
@@ -453,6 +479,7 @@ public class SsaBlock : SsaNode {
 		}
 		completed_terminator = terminator;
 	}
+
 }
 
 public abstract class SsaValue : SsaNode {
@@ -462,6 +489,7 @@ public abstract class SsaValue : SsaNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 public abstract class SsaDefinition : SsaValue {
@@ -471,6 +499,7 @@ public abstract class SsaDefinition : SsaValue {
 		base (span, semantic_type);
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class SsaFunctionParameter : SsaDefinition {
@@ -478,6 +507,7 @@ public class SsaFunctionParameter : SsaDefinition {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool heap_object { get; internal set; default = false; }
 	public PointerParameterContract pointer_contract { get; private set; }
 	private string identifier;
@@ -490,6 +520,7 @@ public class SsaFunctionParameter : SsaDefinition {
 		this.name_span = name_span;
 		this.identifier = name;
 	}
+
 }
 
 public enum SsaPromotionOrigin {
@@ -516,6 +547,7 @@ public class SsaBlockParameter : SsaDefinition {
 		}
 		return source_field_path.length - previous.source_field_path.length;
 	}
+
 	public int source_local_ordinal { get { return origin_kind == SsaPromotionOrigin.TEMPORARY ? -1 : origin_ordinal; } }
 
 	internal SsaBlockParameter (SourceSpan span, SourceSpan name_span, string name, SemanticType semantic_type, int ordinal, int source_local_ordinal) {
@@ -552,6 +584,7 @@ public class SsaInstructionResult : SsaDefinition {
 	internal SsaInstructionResult (SourceSpan span, SemanticType semantic_type, int ordinal) {
 		base (span, semantic_type, ordinal);
 	}
+
 }
 
 public class SsaFloatConstant : SsaValue {
@@ -561,6 +594,7 @@ public class SsaFloatConstant : SsaValue {
 		base (span, semantic_type);
 		this.value = value;
 	}
+
 }
 
 public class SsaIntegerConstant : SsaValue {
@@ -581,6 +615,7 @@ public class SsaNullPointerConstant : SsaValue {
 	internal SsaNullPointerConstant (SourceSpan span, SemanticType semantic_type) {
 		base (span, semantic_type);
 	}
+
 }
 
 public class SsaBooleanConstant : SsaValue {
@@ -590,6 +625,7 @@ public class SsaBooleanConstant : SsaValue {
 		base (span, semantic_type);
 		this.literal = literal;
 	}
+
 }
 
 // Ordered, effectful, resultless; null skips the foreign call.
@@ -604,6 +640,7 @@ public class SsaCleanupInstruction : SsaInstruction {
 		this.value = value;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public abstract class SsaInstruction : SsaNode {
@@ -613,6 +650,7 @@ public abstract class SsaInstruction : SsaNode {
 		base (span);
 		result = semantic_type == null ? null : new SsaInstructionResult (span, semantic_type, ordinal);
 	}
+
 }
 
 // Verifier-only obligation at an explicit qualified local write. Promotion
@@ -629,9 +667,11 @@ public class SsaNonNullUse : SsaInstruction {
 		this.original_block = WeakRef (block);
 		this.original_position = position;
 	}
+
 	internal bool at_original_write(SsaBlock block, int position) {
 		return original_block.get () == block && original_position == position;
 	}
+
 }
 
 // Array order is execution order. A void call has no definition; an unused
@@ -661,6 +701,7 @@ public abstract class SsaOwnedTransfer : SsaNode {
 		this.source_after_commit = source_after_commit;
 		this.source_storage = source_storage;
 	}
+
 }
 public class SsaOwnedArgument : SsaOwnedTransfer {
 	public SsaFunctionParameter parameter { get; private set; }
@@ -668,6 +709,7 @@ public class SsaOwnedArgument : SsaOwnedTransfer {
 		base (span, value, cleanup, source_ordinal, source_after_commit, source_storage);
 		this.parameter = parameter;
 	}
+
 }
 public class SsaCallableOwnedArgument : SsaOwnedTransfer {
 	public int ordinal { get; private set; }
@@ -675,6 +717,7 @@ public class SsaCallableOwnedArgument : SsaOwnedTransfer {
 		base (span, value, cleanup, source_ordinal, source_after_commit, source_storage);
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class SsaOwnershipReturn : SsaReturn {
@@ -685,6 +728,7 @@ public class SsaOwnershipReturn : SsaReturn {
 		this.provenance = provenance;
 		this.source_parameter = source_parameter;
 	}
+
 }
 
 public class SsaCallInstruction : SsaInstruction {
@@ -694,9 +738,11 @@ public class SsaCallInstruction : SsaInstruction {
 		readonly_required = required;
 		original_readonly_required = required;
 	}
+
 	internal bool readonly_context_valid() {
 		return readonly_required == original_readonly_required;
 	}
+
 	private WeakRef exact_identity;
 	public SsaFunction? exact_target { owned get { return (SsaFunction?) exact_identity.get (); } internal set { exact_identity = WeakRef (value); } }
 	public GenericArray<SsaStructBoundaryMove> record_moves { get; private set; default = new GenericArray<SsaStructBoundaryMove> (); }
@@ -711,6 +757,7 @@ public class SsaCallInstruction : SsaInstruction {
 		enum_result = slot;
 		original_enum_result = slot;
 	}
+
 	internal bool matches_enum_channels() {
 		if (enum_result != original_enum_result || arguments.length != original_enum_arguments.length) {
 			return false;
@@ -722,6 +769,7 @@ public class SsaCallInstruction : SsaInstruction {
 		}
 		return true;
 	}
+
 	public SsaBufferPair? buffer_result { get; internal set; }
 	public GenericArray<SsaBufferArgument> buffer_arguments { get; private set; default = new GenericArray<SsaBufferArgument> (); }
 	public GenericArray<StructBoundaryGroup> struct_arguments { get; private set; default = new GenericArray<StructBoundaryGroup> (); }
@@ -744,6 +792,7 @@ public class SsaCallInstruction : SsaInstruction {
 			original_enum_arguments.add (argument);
 		}
 	}
+
 }
 
 // Conservatively effectful C boundary; only the program owns the target.
@@ -759,6 +808,7 @@ public class SsaCCallInstruction : SsaInstruction {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class SsaVectorDotInstruction : SsaInstruction {
@@ -777,6 +827,7 @@ public class SsaVectorDotInstruction : SsaInstruction {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 public class SsaDspInstruction : SsaInstruction {
@@ -795,6 +846,7 @@ public class SsaDspInstruction : SsaInstruction {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 // Direction owns the invalid-count trap contract; width and count type
@@ -811,6 +863,7 @@ public class SsaIntegerShiftInstruction : SsaInstruction {
 		this.operand = operand;
 		this.count = count;
 	}
+
 }
 
 // A normal floating scalar definition whose producer proves truncation fits.
@@ -825,6 +878,7 @@ public class SsaNumericGuard : SsaInstruction {
 		this.operand = operand;
 		this.policy = policy;
 	}
+
 }
 
 public class SsaNumericConversionInstruction : SsaInstruction {
@@ -841,6 +895,7 @@ public class SsaNumericConversionInstruction : SsaInstruction {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class SsaFloatConversionInstruction : SsaInstruction {
@@ -855,6 +910,7 @@ public class SsaFloatConversionInstruction : SsaInstruction {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class SsaIntegerConversionInstruction : SsaInstruction {
@@ -867,6 +923,7 @@ public class SsaIntegerConversionInstruction : SsaInstruction {
 		this.source_type = source_type;
 		this.operand = operand;
 	}
+
 }
 
 public class SsaVectorSplatInstruction : SsaInstruction {
@@ -880,6 +937,7 @@ public class SsaVectorSplatInstruction : SsaInstruction {
 		this.lane_count = lane_count;
 		this.lane_count_span = lane_count_span;
 	}
+
 }
 
 public class SsaVectorExtractInstruction : SsaInstruction {
@@ -891,6 +949,7 @@ public class SsaVectorExtractInstruction : SsaInstruction {
 		this.vector = vector;
 		this.index = index.copy ();
 	}
+
 }
 
 public class SsaVectorInsertInstruction : SsaInstruction {
@@ -904,6 +963,7 @@ public class SsaVectorInsertInstruction : SsaInstruction {
 		this.index = index.copy ();
 		this.replacement = replacement;
 	}
+
 }
 
 public class SsaVectorShuffleInstruction : SsaInstruction {
@@ -915,6 +975,7 @@ public class SsaVectorShuffleInstruction : SsaInstruction {
 		this.vector = vector;
 		this.selectors = selectors.copy ();
 	}
+
 }
 
 public class SsaVectorMemoryInstruction : SsaInstruction {
@@ -929,6 +990,7 @@ public class SsaVectorMemoryInstruction : SsaInstruction {
 		this.offset = offset;
 		this.stored = stored;
 	}
+
 }
 
 public class SsaVectorSelectInstruction : SsaInstruction {
@@ -942,6 +1004,7 @@ public class SsaVectorSelectInstruction : SsaInstruction {
 		this.true_value = true_value;
 		this.false_value = false_value;
 	}
+
 }
 
 public class SsaVectorConstructInstruction : SsaInstruction {
@@ -951,6 +1014,7 @@ public class SsaVectorConstructInstruction : SsaInstruction {
 		base (span, semantic_type, ordinal);
 		this.lanes = lanes;
 	}
+
 }
 
 public class SsaVectorReductionInstruction : SsaInstruction {
@@ -962,6 +1026,7 @@ public class SsaVectorReductionInstruction : SsaInstruction {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class SsaPrefixInstruction : SsaInstruction {
@@ -973,6 +1038,7 @@ public class SsaPrefixInstruction : SsaInstruction {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class SsaBinaryInstruction : SsaInstruction {
@@ -986,6 +1052,7 @@ public class SsaBinaryInstruction : SsaInstruction {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 // Each edge is owned by one terminator. Functions own blocks; weak targets
@@ -1000,6 +1067,7 @@ public class SsaEdge : Object {
 		this.successor = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public abstract class SsaTerminator : SsaNode {
@@ -1046,6 +1114,7 @@ public abstract class SsaTerminator : SsaNode {
 		}
 		return result;
 	}
+
 }
 
 public class SsaBranch : SsaTerminator {
@@ -1055,6 +1124,7 @@ public class SsaBranch : SsaTerminator {
 		base (span);
 		this.edge = edge;
 	}
+
 }
 
 public class SsaConditionalBranch : SsaTerminator {
@@ -1068,6 +1138,7 @@ public class SsaConditionalBranch : SsaTerminator {
 		this.true_edge = true_edge;
 		this.false_edge = false_edge;
 	}
+
 }
 
 public class SsaReturn : SsaTerminator {
@@ -1077,18 +1148,21 @@ public class SsaReturn : SsaTerminator {
 		base (span);
 		this.value = value;
 	}
+
 }
 
 public class SsaFunctionEnd : SsaTerminator {
 	internal SsaFunctionEnd (SourceSpan span) {
 		base (span);
 	}
+
 }
 
 public class SsaNativeDeclaration : SsaFunctionEnd {
 	internal SsaNativeDeclaration (SourceSpan span) {
 		base (span);
 	}
+
 }
 }
 
@@ -1100,6 +1174,7 @@ public class SsaFunctionAddress : SsaValue {
 		base (span, type);
 		callee = WeakRef (target);
 	}
+
 }
 public class SsaCallbackView : SsaValue {
 	public SsaValue closure { get; internal set; }
@@ -1107,6 +1182,7 @@ public class SsaCallbackView : SsaValue {
 		base (span, type);
 		closure = source;
 	}
+
 }
 public class SsaCallableBorrowArgument : Object {
 	public int ordinal { get; private set; }
@@ -1117,6 +1193,7 @@ public class SsaCallableBorrowArgument : Object {
 		this.value = value;
 		source_owner = owner;
 	}
+
 }
 public interface SsaCallableInvocation : Object {
 	public abstract SsaCleanupContract? result_cleanup();
@@ -1133,9 +1210,11 @@ public class SsaFunctionValueCall : SsaInstruction, SsaCallableInvocation {
 	public SsaCleanupContract? result_cleanup() {
 		return owned_cleanup;
 	}
+
 	public SsaValue? owned_result_value() {
 		return result;
 	}
+
 	private GenericArray<SsaStructBoundaryMove> record_transfers = new GenericArray<SsaStructBoundaryMove> ();
 	public GenericArray<SsaStructBoundaryMove> record_moves { get { return record_transfers; } }
 	private GenericArray<SsaCallableOwnedArgument> argument_transfers = new GenericArray<SsaCallableOwnedArgument> ();
@@ -1154,5 +1233,6 @@ public class SsaFunctionValueCall : SsaInstruction, SsaCallableInvocation {
 		this.call_arguments = arguments;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 }

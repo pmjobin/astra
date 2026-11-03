@@ -10,6 +10,7 @@ private string[] fixtures() {
 			   "basic", "f32", "f64", "bool", "vector", "mask", "pointer", "multi", "capabilities", "nested", "literals", "outer", "outer-capabilities", "owned-resource", "owned-class", "outer-owned", "recursive", "method-property", "flow"
 	};
 }
+
 private SemanticResult analyze(string source) {
 	string api;
 	try {
@@ -29,6 +30,7 @@ private SemanticResult analyze(string source) {
 	assert (syntax.get () == null);
 	return result;
 }
+
 private CheckedProgram check(string source) {
 	var result = analyze (source);
 	if (result.diagnostic != null) {
@@ -36,6 +38,7 @@ private CheckedProgram check(string source) {
 	}
 	return result.program;
 }
+
 private CheckedProgram fixture(string name, bool inferred = true) {
 	string source;
 	try {
@@ -45,4 +48,5 @@ private CheckedProgram fixture(string name, bool inferred = true) {
 	}
 	return check (source);
 }
+
 }

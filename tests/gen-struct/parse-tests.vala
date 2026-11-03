@@ -5,6 +5,7 @@ namespace Astra.Tests.GenStructParser {
 private ParseResult parse(string text) {
 	return Parser.parse (new SourceFile.from_text ("generic-struct.astra", text));
 }
+
 private void declarations() {
 	var result = parse ("struct Pair<T,U>{T first;U second;}struct Quad<A,B,C,D>{A a;B b;C c;D d;}struct Bundle<T>{Pair<T,T> pair;int tag;}");
 	assert (result.diagnostic == null && result.unit.structs.length == 3 && result.unit.native_instances (false).length == 0);
@@ -15,6 +16,7 @@ private void declarations() {
 	// The accepted grammar now parses this; nonempty storage is checked semantically.
 	assert (parse ("struct S<T>{}").diagnostic == null);
 }
+
 private void applications() {
 	foreach (string type in new string[] {"Box<i16<8>>", "Pair<i16<8>,bool<4>>", "Bundle<i16<8>>", "Box<Pair<int,int>>", "Box<i16<8>>*", "Pair<int,f64>*", "Box<int[]>"}) {
 		var result = parse ("void f(){" + type + " value={value=x};}");
@@ -31,6 +33,7 @@ private void applications() {
 		assert (parse ("void f(" + type + " value){}").diagnostic.message.contains ("lane count must be"));
 	}
 }
+
 private void malformed() {
 	foreach (string source in new string[] {"struct Bad<>{int x;}", "struct Bad<T,>{T x;}", "struct Bad<T U>{T x;}", "struct Bad<T>{T f(){return x;}}", "struct Bad<T>{property T p{get{return x;}}}", "struct Bad<T> where T:Eq {T x;}", "class Bad<T,>{T x;}", "struct Bad<T>{owned T value;}", "struct Bad<T>{borrowed T value;}", "struct Bad<T>{init(){}}", "void f(){Box<> b={value=1};}", "void f(){Pair<int,> b={first=1};}", "void f(){Pair<int f64> b={first=1};}", "void f(){Pair<int,f64 b={first=1};}"}) {
 		assert (parse (source).diagnostic != null);
@@ -46,9 +49,11 @@ private void malformed() {
 	nested.append (" b={value=1};}");
 	assert (parse (nested.str).diagnostic != null);
 }
+
 private void accepted_current_grammar() {
 	assert (Parser.parse (new SourceFile.from_text ("accepted-current-grammar", "class Bad<T>{T x;}")).diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	accepted_current_grammar ();
@@ -57,4 +62,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-struct/parser/malformed-and-deferred-members", malformed);
 	return Test.run ();
 }
+
 }

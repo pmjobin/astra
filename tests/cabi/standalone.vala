@@ -39,6 +39,7 @@ private class Sample : Object {
 		}
 		return new CAbiProgram (span, profile, functions);
 	}
+
 }
 
 private void reject(CAbiProgram program, string path, string message) {
@@ -83,6 +84,7 @@ private class InvalidCase : Object {
 			GLib.error ("Test failed before verification: %s", error.message);
 		}
 	}
+
 }
 
 private HashTable<string, InvalidCase> cases;
@@ -263,4 +265,5 @@ int main(string[] args) {
 	cases = null;
 	return status;
 }
+
 }

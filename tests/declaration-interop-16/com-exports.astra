@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="comexport16_retired")]int retired();
+
 [CImport(name="comexport16_operation")]int operation();
+
 [ExceptionRoot]class Fault{
 	readonly string text;private int status;
+
 	init(int status){this.status=status;this.text="COM native failure";}
+
 	virtual property string message{get{return this.text;}}
+
 	int code(){return this.status;}
 }
+
 owned Fault foreign_fault(int domain,int status){var error=new Fault(status);return move error;}
+
 [COMImport(name="exportquery16",iid="473dc7e9-41d6-4768-bda4-cc48396af301",threading="constructing",profile="declarations-v1")]
 interface IQuery {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]init(borrowed void* unknown) throws Fault;
@@ -22,6 +29,7 @@ interface IDetail : IQuery {
 }
 
 struct ComSample { bool enabled; bool marked; int count; f64 scale; u64 stamp; f32 weight; u32 flags; i64 offset; }
+
 [COMImport(name="exportrecords16",iid="473dc7e9-41d6-4768-bda4-cc48396af303",threading="constructing",profile="declarations-v1")]
 interface ITyped {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]init(borrowed void* unknown) throws Fault;
@@ -56,28 +64,55 @@ interface IRoots {
 [COMExport(interfaces="IQuery,IDetail,ITyped,IProxy,IRoots",threading="constructing",profile="declarations-v1")]
 class NativeQuery {
 	private f64 factor;
+
 	[Foreign]init(f64 seed){this.factor=seed;}
-	[Foreign(error_domain="16",errors="Fault=-1600")]i64 evaluate(i64 input,f64 bias,bool enabled) throws Fault {operation();if(input<0){var error=new Fault(-1600);throw move error;}if(enabled){return input+7;}return input;}
+
+	[Foreign(error_domain="16",errors="Fault=-1600")]i64 evaluate(i64 input,f64 bias,bool enabled) throws Fault {operation();if(input<0){
+			var error=new Fault(-1600);
+			throw move error;
+		}if(enabled) return input+7;return input;}
+
 	[Foreign]property f64 gain {get{operation();return this.factor;}set(f64 input){operation();this.factor=input;}}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]bool decide(bool input,borrowed Callback<bool,bool> code) throws Fault {operation();return code(input);}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]u64 tag(u64 input) throws Fault {operation();return input+9;}
 
-	[Foreign(error_domain="16",errors="Fault=-1600")]ComSample adjust(ComSample input,f64 delta,int mode) throws Fault {operation();if(mode!=0){var error=new Fault(-1600);throw move error;}ComSample result={enabled=!input.enabled,marked=!input.marked,count=input.count+7,scale=input.scale+delta,stamp=input.stamp,weight=input.weight+2.0,flags=input.flags,offset=input.offset};return result;}
+	[Foreign(error_domain="16",errors="Fault=-1600")]ComSample adjust(ComSample input,f64 delta,int mode) throws Fault {operation();if(mode!=0){
+			var error=new Fault(-1600);
+			throw move error;
+		}ComSample result={enabled=!input.enabled,marked=!input.marked,count=input.count+7,scale=input.scale+delta,stamp=input.stamp,weight=input.weight+2.0,flags=input.flags,offset=input.offset};return result;}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	[ForeignChannel(parameter="output",direction="out",produced="count")]
 	[ForeignChannel(parameter="count",direction="out")]
-	owned u8[] snapshot(borrowed u8[] input,borrowed u8[] output,borrowed int* count,int mode) throws Fault {operation();int index=0;var result=new u8[len(input)];while(index<len(input)){result[index]=(input[index] as int+10) as u8;if(index<len(output)){output[index]=(input[index] as int+20) as u8;}index=index+1;}*count=len(input);if(mode!=0){var error=new Fault(-1600);throw move error;}return move result;}
-	[Foreign]string constant(int mode){operation();if(mode!=0){return "";}return "a\0é";}
+	owned u8[] snapshot(borrowed u8[] input,borrowed u8[] output,borrowed int* count,int mode) throws Fault {operation();int index=0;var result=new u8[len(input)];while(index<len(input)){
+			result[index]=(input[index] as int+10) as u8;
+			if(index<len(output)) output[index]=(input[index] as int+20) as u8;
+			index=index+1;
+		}*count=len(input);if(mode!=0){
+			var error=new Fault(-1600);
+			throw move error;
+		}return move result;}
+
+	[Foreign]string constant(int mode){operation();if(mode!=0) return "";return "a\0é";}
+
 	[Foreign]
 	[ForeignChannel(parameter="input",encoding="utf8-nul")]
 	int measure(string input,string counted){operation();return input.byte_length+counted.byte_length;}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]i64 observe(borrowed IQuery input) throws Fault {operation();return input.gain as i64;}
+
 	[Foreign]owned IQuery relay(owned IQuery input){operation();return move input;}
 
 	[Foreign]f64 native_read(borrowed NativeQuery input){operation();return input.gain;}
+
 	[Foreign]owned NativeQuery native_duplicate(borrowed NativeQuery input){operation();var result=input.clone();return move result;}
+
 	[Foreign]owned NativeQuery native_relay(owned NativeQuery input){operation();return move input;}
+
 	[Foreign(null_status="1")][ForeignChannel(parameter="result",nullable="true")]
-	owned NativeQuery native_lookup(bool present,borrowed NativeQuery input){operation();if(!present){return null;}var result=input.clone();return move result;}
+	owned NativeQuery native_lookup(bool present,borrowed NativeQuery input){operation();if(!present) return null;var result=input.clone();return move result;}
+
 	deinit(){retired();}
 }

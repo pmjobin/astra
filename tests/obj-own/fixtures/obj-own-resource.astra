@@ -1,18 +1,24 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { life_record(this.value, 0); }
+
 	void add(int n) { this.value = this.value + n; }
 }
+
 void consume(owned Counter c, owned Resource r) {
-	if (resource_id(r) != 82) { life_record(88, 0); }
+	if (resource_id(r) != 82) life_record(88, 0);
 	c.add(1);
 }
+
 int main() {
 	owned Counter c = Counter.init(41);
 	owned Resource r = create_resource(82);
 	consume(move c, move r);
-	if (resource_live() != 0) { return 1; }
+	if (resource_live() != 0) return 1;
 	return 42;
 }

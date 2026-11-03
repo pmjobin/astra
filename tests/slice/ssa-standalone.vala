@@ -136,4 +136,5 @@ int main(string[] args) {
 	Test.add_func ("/slice/ssa/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

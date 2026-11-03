@@ -11,6 +11,7 @@ public class ArrayStructInitializerSyntax : ExpressionSyntax {
 		base (initializer.span, 1);
 		this.initializer = initializer;
 	}
+
 }
 
 public class ArrayTypeSyntax : TypeNameSyntax {
@@ -32,6 +33,7 @@ public class ArrayTypeSyntax : TypeNameSyntax {
 	public override string spelling() {
 		return element_type.spelling () + "[" + extent.span.text () + "]";
 	}
+
 }
 
 // Declaration-only positional syntax; it never becomes an array Value.
@@ -42,6 +44,7 @@ public class ArrayInitializerSyntax : ExpressionSyntax {
 		base (positional.span, positional.tree_depth);
 		this.elements = positional.lanes;
 	}
+
 }
 
 // Brackets are syntax only. Checking selects array Place or vector Value.
@@ -56,6 +59,7 @@ public class IndexExpressionSyntax : ExpressionSyntax {
 		this.subscript = subscript;
 		this.close = close;
 	}
+
 }
 
 public class IndexedAssignmentSyntax : StatementSyntax {
@@ -67,5 +71,6 @@ public class IndexedAssignmentSyntax : StatementSyntax {
 		this.target = target;
 		this.expression = expression;
 	}
+
 }
 }

@@ -76,6 +76,7 @@ private CfgProgram model(int mutation) throws CfgError {
 	program.enums.add (definition);
 	return program;
 }
+
 private CfgProgram tag_model() throws CfgError {
 	var original = model (0);
 	var previous = original.functions[0];
@@ -95,6 +96,7 @@ private CfgProgram tag_model() throws CfgError {
 	program.enums.add (slot.definition);
 	return program;
 }
+
 private void returned_tag_initialization() {
 	try {
 		var program = tag_model ();
@@ -117,6 +119,7 @@ private void returned_tag_initialization() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void positive() {
 	try {
 		CfgProgram? program = model (0);
@@ -129,6 +132,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int mutation = 1; mutation <= 8; mutation++) {
 		try {
@@ -214,6 +218,7 @@ private void malformed() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum/cfg/independent-model-lifetime", positive);
@@ -221,4 +226,5 @@ int main(string[] args) {
 	Test.add_func ("/enum/cfg/returned-tag-initialization", returned_tag_initialization);
 	return Test.run ();
 }
+
 }

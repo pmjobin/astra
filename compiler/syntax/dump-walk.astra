@@ -7,23 +7,28 @@ struct SyntaxInitializerFrame {
 	SyntaxTokenId equals_token;
 	int state;
 }
+
 struct SyntaxDumpTask {
 	int phase;
 	SyntaxNodeId node;
 	int indentation;
 }
+
 class SyntaxDumpWalk {
 	private owned SyntaxDumpTask[] tasks;
 	private int used;
+
 	init() {
 		this.tasks = new SyntaxDumpTask[0];
 		this.used = 0;
 	}
+
 	property int count {
 		get {
 			return this.used;
 		}
 	}
+
 	void push(int phase, SyntaxNodeId node, int indentation) {
 		assert_that(this.used < 2147483647);
 		if (this.used == len(this.tasks)) {
@@ -39,6 +44,7 @@ class SyntaxDumpWalk {
 		this.tasks[this.used] = task;
 		this.used = this.used + 1;
 	}
+
 	SyntaxDumpTask pop() {
 		assert_that(this.used > 0);
 		this.used = this.used - 1;

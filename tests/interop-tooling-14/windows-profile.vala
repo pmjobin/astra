@@ -27,6 +27,7 @@ private void rejected(string label, owned Check check) throws GLib.Error {
 	}
 	assert (refused);
 }
+
 private LlvmModuleArtifact artifact(string target) throws GLib.Error {
 	ParseResult? parsed = Parser.parse (new SourceFile.from_text ("windows-native-contract.astra", SOURCE));
 	assert (parsed.diagnostic == null);
@@ -50,6 +51,7 @@ private LlvmModuleArtifact artifact(string target) throws GLib.Error {
 	assert (source_identity.get () == null);
 	return result;
 }
+
 private void ordinary(LlvmModuleArtifact module) {
 	char* message;
 	int status = CApi.verify_module (module.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -61,6 +63,7 @@ private void ordinary(LlvmModuleArtifact module) {
 		error ("ordinary LLVM control failed: %s", text);
 	}
 }
+
 private void target_admission() {
 	try {
 		var windows = new LlvmTargetMachineArtifact (0, LlvmTargetMachineArtifact.WINDOWS_INTEROP);
@@ -81,6 +84,7 @@ private void target_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void lifetime_and_call_mutations() {
 	try {
 		var module = artifact (LlvmTargetMachineArtifact.WINDOWS_INTEROP);
@@ -143,10 +147,12 @@ private void lifetime_and_call_mutations() {
 		error ("%s", failure.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/windows-interop/target-admission-and-restoration", target_admission);
 	Test.add_func ("/windows-interop/ordinary-LLVM-valid-lifetime-and-call-mutations", lifetime_and_call_mutations);
 	return Test.run ();
 }
+
 }

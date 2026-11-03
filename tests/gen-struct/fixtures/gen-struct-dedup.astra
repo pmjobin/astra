@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair<T,U> { T first; U second; }
+
 struct Bundle<T> { Pair<T,T> pair; int tag; }
+
 struct Box<T> { T value; }
+
 T first<T,U>(T a, U b) { Pair<T,U> p = { first = a, second = b }; return p.first; }
+
 int main() {
 	Pair<f64,f64> p = { first = 1.0, second = 2.0 };
 	Bundle<f64> b = { pair = { first = p.first, second = p.second }, tag = 7 };
@@ -10,6 +14,6 @@ int main() {
 	Box<i32> j = { value = 2 };
 	Box<i8> s = { value = 3 };
 	Box<u8> u = { value = 4 };
-	if (first<f64,f64>(b.pair.first, b.pair.second) != 1.0 || i.value + j.value != 3 || s.value != 3 || u.value != 4) { return 1; }
+	if (first<f64,f64>(b.pair.first, b.pair.second) != 1.0 || i.value + j.value != 3 || s.value != 3 || u.value != 4) return 1;
 	return 0;
 }

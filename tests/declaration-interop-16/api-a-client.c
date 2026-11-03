@@ -10,18 +10,22 @@
 #include "api-types.h"
 #else
 typedef struct Session Session;
+
 typedef struct {
 	int32_t mask;
 	bool rotate;
 	double weight;
 } Configuration;
+
 typedef struct {
 	double score;
 	uint64_t revision, processed;
 } Statistics;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 _Static_assert(sizeof(Configuration) == 16 && sizeof(Statistics) == 24, "independent application POD layouts");
 extern int32_t byte_session16_create(Configuration, Session **, Error *);
 extern int32_t byte_session16_configure(Session *, Configuration, Error *);
@@ -34,11 +38,13 @@ extern int32_t byte_session16_destroy(Session **, Error *);
 extern uint32_t byte16_retired_count(int32_t);
 #define sessions byte16_retired_count(1)
 #define errors byte16_retired_count(2)
+
 static void stats(Session *session, uint64_t revision, uint64_t processed, double score) {
 	Statistics actual = {0};
 	Error error = {0};
 	assert(byte_session16_statistics(session, &actual, &error) == 0 && actual.revision == revision && actual.processed == processed && actual.score == score);
 }
+
 int main(void) {
 	Configuration configuration = {85, true, 2.5};
 	Session *session = NULL;

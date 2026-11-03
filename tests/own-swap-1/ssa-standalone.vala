@@ -83,6 +83,7 @@ private SsaProgram model(int variant = 0) throws SsaError {
 	functions.add (function);
 	return new SsaProgram (s, functions, null, null, null, cleanups);
 }
+
 private void positive() {
 	try {
 		for (int variant = -2; variant <= 0; variant++) {
@@ -96,6 +97,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void negative() {
 	string[] reasons = {
 		"storage/cleanup identity", "exact storage origin", "each slot capture", "precede and dominate", "precede and dominate", "initialized live owner", "invalidated before exchange", "orphan", "outlives owner", "outlives owner"
@@ -111,6 +113,7 @@ private void negative() {
 		GLib.error ("accepted malformed exchange SSA variant %d", variant);
 	}
 }
+
 private SsaProgram fields(int variant) throws SsaError {
 	var t = new BuiltinTypes ();
 	var s = SourceSpan (new SourceFile.from_text ("independent-field-exchange-ssa", "x"), 0, 1);
@@ -226,6 +229,7 @@ private SsaProgram fields(int variant) throws SsaError {
 	program.classes.add (c);
 	return program;
 }
+
 private void field_models() {
 	try {
 		SsaVerifier.verify (fields (0));
@@ -250,6 +254,7 @@ private void field_models() {
 		GLib.error ("accepted malformed field exchange %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-swap/ssa/independent-live-empty-self", positive);
@@ -257,4 +262,5 @@ int main(string[] args) {
 	Test.add_func ("/own-swap/ssa/independent-field-membership-checks-initialization-aliases", field_models);
 	return Test.run ();
 }
+
 }

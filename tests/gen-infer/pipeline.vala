@@ -49,6 +49,7 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void dedup() {
 	try {
 		var checked = check ("T identity<T>(T x){return x;}T outer<T>(T x){T a=identity(x);return identity<T>(a);}int main(){return outer(42);}");
@@ -66,10 +67,12 @@ private void dedup() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-infer/pipeline/explicit-equivalence-destroy-predecessors", lifetimes);
 	Test.add_func ("/gen-infer/pipeline/parameterized-request-global-dedup", dedup);
 	return Test.run ();
 }
+
 }

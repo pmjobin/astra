@@ -65,8 +65,8 @@ def main():
 		(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 		assert r.returncode in (expected if isinstance(expected, tuple) else (expected,)), (name, r.returncode, r.stderr[-2000:])
 		return r
-	# Keep host arithmetic qualification distinct from this measured emulator
-	# limitation. Both independent C compilers must reproduce its exact bits.
+		# Keep host arithmetic qualification distinct from this measured emulator
+		# limitation. Both independent C compilers must reproduce its exact bits.
 	repro = a.inputs/'instrumentation-reproducer.c'
 	if repro.exists():
 		assert repro.read_text() == REPRODUCER

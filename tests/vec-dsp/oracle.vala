@@ -9,6 +9,7 @@ private class BoolLane : Object {
 	internal BoolLane (bool value) {
 		this.value = value;
 	}
+
 }
 
 // Test-only ordered scalar objects. Integer math/conversion delegates to
@@ -19,9 +20,11 @@ private class VectorValue : Object {
 	internal VectorValue sat_add(VectorValue other) {
 		return saturate (other, true);
 	}
+
 	internal VectorValue sat_sub(VectorValue other) {
 		return saturate (other, false);
 	}
+
 	private VectorValue saturate(VectorValue other, bool add) {
 		assert (count == other.count);
 		var result = new VectorValue ();
@@ -32,12 +35,15 @@ private class VectorValue : Object {
 		}
 		return result;
 	}
+
 	internal VectorValue widen_low(IntegerType destination) {
 		return widen (destination, 0);
 	}
+
 	internal VectorValue widen_high(IntegerType destination) {
 		return widen (destination, count / 2);
 	}
+
 	private VectorValue widen(IntegerType destination, int start) {
 		var result = new VectorValue ();
 		for (int i = 0; i < count / 2; i++) {
@@ -45,12 +51,15 @@ private class VectorValue : Object {
 		}
 		return result;
 	}
+
 	internal VectorValue pack_wrap(VectorValue other, IntegerType destination) {
 		return pack (other, destination, false);
 	}
+
 	internal VectorValue pack_sat(VectorValue other, IntegerType destination) {
 		return pack (other, destination, true);
 	}
+
 	private VectorValue pack(VectorValue other, IntegerType destination, bool saturate) {
 		assert (count == other.count);
 		var result = new VectorValue ();
@@ -61,12 +70,15 @@ private class VectorValue : Object {
 		}
 		return result;
 	}
+
 	internal VectorValue interleave_low(VectorValue other) {
 		return interleave (other, 0);
 	}
+
 	internal VectorValue interleave_high(VectorValue other) {
 		return interleave (other, count / 2);
 	}
+
 	private VectorValue interleave(VectorValue other, int start) {
 		assert (count == other.count);
 		var result = new VectorValue ();
@@ -76,6 +88,7 @@ private class VectorValue : Object {
 		}
 		return result;
 	}
+
 }
 
 private HashTable<Object, string> spellings;
@@ -279,4 +292,5 @@ int main() {
 	stdout.printf ("\treturn 0;\n}\n// oracle scalar_checks=%d vector_shapes=%d widen_pairs=%d pack_pairs=%d vector_cases=%d lane_checks=%d roundtrips=%d identity_checks=%d\n", scalar_checks, shapes, widen_pairs, pack_pairs, vector_cases, lane_checks, roundtrips, identity_checks);
 	return 0;
 }
+
 }

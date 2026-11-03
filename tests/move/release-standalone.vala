@@ -6,6 +6,7 @@ namespace Astra.Tests.OwnershipDataflow {
 private void release(Fixture fixture, int block, int owner) {
 	fixture.function.blocks[block].instructions.add (new CfgOwnershipReleaseInstruction (fixture.span, fixture.function.locals[owner], fixture.cleanup));
 }
+
 private void release_lattice() throws GLib.Error {
 	var o = OwnershipState.OWNED;
 	var m = OwnershipState.MOVED;
@@ -37,6 +38,7 @@ private void release_lattice() throws GLib.Error {
 		}
 	}
 }
+
 private void release_linear(string mode) throws GLib.Error {
 	bool moving = mode == "moved-source" || mode == "destination";
 	var fixture = new Fixture (moving ? 2 : 1, 2);
@@ -73,6 +75,7 @@ private void release_linear(string mode) throws GLib.Error {
 		assert (result.entry_state (fixture.function.blocks[1], fixture.function.locals[mode == "destination" ? 1 : 0]) == OwnershipState.RELEASED);
 	}
 }
+
 private Fixture release_diamond(string mode) throws CfgError {
 	bool moved = mode == "three-way" || mode == "all-disarmed";
 	var fixture = new Fixture (moved ? 2 : 1, moved ? 6 : mode == "unreachable" ? 5 : 4);
@@ -109,6 +112,7 @@ private Fixture release_diamond(string mode) throws CfgError {
 	fixture.finish (3);
 	return fixture;
 }
+
 private void release_join(string mode) throws GLib.Error {
 	var fixture = release_diamond (mode);
 	var result = fixture.analyze ();
@@ -125,6 +129,7 @@ private void release_join(string mode) throws GLib.Error {
 		assert (!result.dump ().contains ("block #4"));
 	}
 }
+
 private void release_loop(string mode) throws GLib.Error {
 	var fixture = new Fixture (mode == "fresh-move" ? 2 : 1, 4);
 	bool fresh = mode == "fresh" || mode == "fresh-move";
@@ -169,6 +174,7 @@ private void release_loop(string mode) throws GLib.Error {
 		assert (result.entry_state (fixture.function.blocks[1], fixture.function.locals[0]) == null);
 	}
 }
+
 private void release_flow_lifetime() throws GLib.Error {
 	Fixture? fixture = release_diamond ("three-way");
 	var owner = WeakRef (fixture.function.locals[0]);
@@ -179,6 +185,7 @@ private void release_flow_lifetime() throws GLib.Error {
 	flow = null;
 	assert (owner.get () == null && event.get () == null);
 }
+
 private void register_release() {
 	add ("release/lattice", release_lattice);
 	add ("release/lifetime", release_flow_lifetime);
@@ -192,4 +199,5 @@ private void register_release() {
 		add ("release/loop/" + mode, () => release_loop (mode));
 	}
 }
+
 }

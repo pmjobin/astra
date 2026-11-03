@@ -32,6 +32,7 @@ public class PodRepresentation : Object {
 		}
 		origin = canonical ();
 	}
+
 	private PodRepresentation.snapshot (PodRepresentation other) {
 		union_members = other.union_members;
 		active_member = other.active_member;
@@ -50,6 +51,7 @@ public class PodRepresentation : Object {
 	public PodRepresentation copy() {
 		return new PodRepresentation.snapshot (this);
 	}
+
 	private string canonical() {
 		var text = new StringBuilder (name + ";%u;".printf (minimum_alignment));
 		if (is_union || active_member != "" || tagged_union || union_tag != 0) {
@@ -63,6 +65,7 @@ public class PodRepresentation : Object {
 		}
 		return Checksum.compute_for_string (ChecksumType.SHA256, text.str);
 	}
+
 	public static uint width(string type) {
 		switch (type) {
 		case "i8":
@@ -85,6 +88,7 @@ public class PodRepresentation : Object {
 			return 0;
 		}
 	}
+
 	public uint alignment() {
 		uint value = 1;
 		foreach (string type in field_types) {
@@ -92,6 +96,7 @@ public class PodRepresentation : Object {
 		}
 		return value;
 	}
+
 	public uint offset(uint ordinal) {
 		uint position = 0;
 		for (uint i = 0; i <= ordinal; i++) {
@@ -107,6 +112,7 @@ public class PodRepresentation : Object {
 		}
 		return uint.MAX;
 	}
+
 	public uint size() {
 		if (field_types.length == 0) {
 			return 0;
@@ -115,6 +121,7 @@ public class PodRepresentation : Object {
 		uint align = alignment ();
 		return (end + align - 1) & ~(align - 1);
 	}
+
 	public bool valid() {
 		if (origin != canonical () || name == "" || field_names.length == 0 || field_names.length > 32 || field_names.length != field_types.length || !AllocationPolicy.power_of_two (minimum_alignment) || minimum_alignment > alignment ()) {
 			return false;
@@ -155,6 +162,7 @@ public class PodRepresentation : Object {
 		}
 		return true;
 	}
+
 	private static bool member_identifier(string name) {
 		if (name == "") {
 			return false;
@@ -167,6 +175,7 @@ public class PodRepresentation : Object {
 		}
 		return true;
 	}
+
 	public bool matches(string identity, string name, string[] names, string[] types) {
 		if (!valid () || origin != identity || this.name != name || names.length != field_names.length || types.length != field_types.length) {
 			return false;
@@ -178,11 +187,13 @@ public class PodRepresentation : Object {
 		}
 		return true;
 	}
+
 	public string dump() {
 		if (is_union) {
 			return ("(repr %s members=\"%s\" active=\"%s\" tag=%" + int64.FORMAT + " size=%u alignment=%u identity=%s)").printf (tagged_union ? "C-tagged-union" : "C-union", union_members, active_member, union_tag, size (), alignment (), identity);
 		}
 		return "(repr C natural-lp64 size=%u alignment=%u identity=%s)".printf (size (), alignment (), identity);
 	}
+
 }
 }

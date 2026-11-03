@@ -4,9 +4,10 @@ public owned ContextLeaf.Entry relay(borrowed ConcurrentAllocator context, int v
 	var entry = ContextLeaf.create(context, value + 2);
 	return move entry;
 }
+
 public owned ContextLeaf.Entry escaping(int value) {
 	var context = concurrent_allocator(1, 16387, 17, 64);
-	if (context == null) { return null; }
+	if (context == null) return null;
 	var entry = ContextLeaf.create(context, value);
 	return move entry;
 }

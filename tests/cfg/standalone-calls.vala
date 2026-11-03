@@ -181,4 +181,5 @@ private void register_call_tests() {
 	Test.add_func ("/cfg-standalone/calls/model-and-recursive-lifetime", calls_model_and_lifetime);
 	Test.add_func ("/cfg-standalone/calls/invalid-models", invalid_calls);
 }
+
 }

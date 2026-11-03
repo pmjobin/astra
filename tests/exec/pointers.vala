@@ -113,4 +113,5 @@ private void register_pointers() {
 	add ("/exec/pointers/object-linkage-lifetime", pointer_object_lifetime);
 	add ("/exec/pointers/check-versus-link", pointer_unresolved);
 }
+
 }

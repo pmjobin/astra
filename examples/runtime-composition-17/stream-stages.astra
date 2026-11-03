@@ -1,50 +1,102 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 void stream_put_integer(u8[] bytes, int offset, int value) {
 	int remaining = value;
-	for (int i = 0; i < 4; i = i + 1) { bytes[offset + i] = (remaining % 256) as u8; remaining = remaining / 256; }
+	for (int i = 0; i < 4; i = i + 1) {
+		bytes[offset + i] = (remaining % 256) as u8;
+		remaining = remaining / 256;
+	}
 }
 
 async void stream_ingest(owned TcpSocket socket, owned Stream.Queue input, owned Stream.Progress progress) throws Error {
 	try {
 		var context = concurrent_allocator(2, stream_context_bytes() as i64, 23, stream_alignment());
-		if (context == null) { throw new Error("stream input context"); }
+		if (context == null) {
+			throw new Error("stream input context");
+		}
 		var header = new(context)u8[4];
 		int frames = 0; i64 offset = 0; int started = astra_net_milliseconds(); bool finished = false;
 		while (!finished) {
 			int received = 0;
 			while (received < 4) {
-				if (progress.stopped()) { throw new Error("stream pipeline stopped"); }
+				if (progress.stopped()) {
+					throw new Error("stream pipeline stopped");
+				}
 				int count = socket.try_read(header, received, 4 - received);
-				if (count > 0) { received = received + count; stream_event(0, frames, count); }
-				else { if (count == 0) { throw new Error("stream header EOF"); } network_deadline(started, 15000); await delay_ms(1); }
+				if (count > 0) {
+					received = received + count;
+					stream_event(0, frames, count);
+				}
+				else {
+					if (count == 0) {
+						throw new Error("stream header EOF");
+					}
+					network_deadline(started, 15000);
+					await delay_ms(1);
+				}
 			}
-			if (header[3] != 0) { throw new Error("stream frame limit"); }
+			if (header[3] != 0) {
+				throw new Error("stream frame limit");
+			}
 			int length = (header[0] as int) + (header[1] as int) * 256 + (header[2] as int) * 65536;
-			if (length == 0) { finished = true; }
+			if (length == 0) {
+				finished = true;
+			}
 			else {
-				if (length > stream_chunk_limit() || frames >= 64) { throw new Error("stream frame limit"); }
-				while (!input.can_offer()) { if (progress.stopped()) { throw new Error("stream pipeline stopped"); } network_deadline(started, 15000); await delay_ms(1); }
+				if (length > stream_chunk_limit() || frames >= 64) {
+					throw new Error("stream frame limit");
+				}
+				while (!input.can_offer()) {
+					if (progress.stopped()) {
+						throw new Error("stream pipeline stopped");
+					}
+					network_deadline(started, 15000);
+					await delay_ms(1);
+				}
 				var bytes = new(context)u8[length]; received = 0;
 				while (received < length) {
-					if (progress.stopped()) { throw new Error("stream pipeline stopped"); }
+					if (progress.stopped()) {
+						throw new Error("stream pipeline stopped");
+					}
 					int count = socket.try_read(bytes, received, length - received);
-					if (count > 0) { received = received + count; stream_event(0, frames, count); }
-					else { if (count == 0) { throw new Error("stream payload EOF"); } network_deadline(started, 15000); await delay_ms(1); }
+					if (count > 0) {
+						received = received + count;
+						stream_event(0, frames, count);
+					}
+					else {
+						if (count == 0) {
+							throw new Error("stream payload EOF");
+						}
+						network_deadline(started, 15000);
+						await delay_ms(1);
+					}
 				}
 				var chunk = new(context)Stream.Chunk(frames, offset, move bytes);
-				if (!input.offer(move chunk)) { throw new Error("stream bounded input admission"); }
+				if (!input.offer(move chunk)) {
+					throw new Error("stream bounded input admission");
+				}
 				progress.read_frame(frames); frames = frames + 1; offset = offset + (length as i64);
 			}
 		}
 		input.finish();
-		while (progress.count() != frames) { if (progress.stopped()) { throw new Error("stream pipeline stopped"); } network_deadline(started, 15000); await delay_ms(1); }
+		while (progress.count() != frames) {
+			if (progress.stopped()) {
+				throw new Error("stream pipeline stopped");
+			}
+			network_deadline(started, 15000);
+			await delay_ms(1);
+		}
 		var reply = new(context)u8[16];
 		stream_put_integer(reply, 0, 17); stream_put_integer(reply, 4, frames);
 		stream_put_integer(reply, 8, progress.total_bytes()); stream_put_integer(reply, 12, progress.checksum());
 		int sent = 0;
 		while (sent < len(reply)) {
 			int count = socket.try_write(reply, sent, len(reply) - sent);
-			if (count > 0) { sent = sent + count; } else { network_deadline(started, 15000); await delay_ms(1); }
+			if (count > 0) {
+				sent = sent + count;
+			} else {
+				network_deadline(started, 15000);
+				await delay_ms(1);
+			}
 		}
 		socket.half_close(); progress.done();
 	} catch (Error error) { progress.fail(); throw; }
@@ -53,9 +105,13 @@ async void stream_ingest(owned TcpSocket socket, owned Stream.Queue input, owned
 async void stream_workers(owned WorkerPool pool, owned Stream.Queue input, owned Stream.Queue output, owned Stream.Progress progress) throws Error {
 	try {
 		var frames = concurrent_allocator(1, stream_frame_bytes() as i64, 23, stream_alignment());
-		if (frames == null) { throw new Error("stream worker frame context"); }
+		if (frames == null) {
+			throw new Error("stream worker frame context");
+		}
 		var children = nested_allocator(frames, 1, (stream_frame_bytes() / 2 - 7) as i64, 13, stream_alignment());
-		if (children == null) { throw new Error("stream child frame context"); }
+		if (children == null) {
+			throw new Error("stream child frame context");
+		}
 		int computed = await pool.submit(task_in(frames, StreamCPU.pipeline(move children, Stream.clone_queue(input), Stream.clone_queue(output), Stream.clone_progress(progress))));
 		stream_event(4, computed, 0);
 		output.finish(); progress.done();
@@ -66,17 +122,27 @@ async void stream_spool(owned LinuxPayload writer, owned Stream.Queue output, ow
 	try {
 		bool finished = false;
 		while (!finished) {
-			if (progress.stopped()) { throw new Error("stream pipeline stopped"); }
+			if (progress.stopped()) {
+				throw new Error("stream pipeline stopped");
+			}
 			var chunk = output.pop();
-			if (chunk == null) { if (output.finished()) { finished = true; } else { await delay_ms(1); } }
+			if (chunk == null) {
+				if (output.finished()) {
+					finished = true;
+				} else {
+					await delay_ms(1);
+				}
+			}
 			else {
-				for (int i = 0; i < chunk.count(); i = i + 1) { payload_set(writer, i, chunk.byte_at(i)); }
+				for (int i = 0; i < chunk.count(); i = i + 1) payload_set(writer, i, chunk.byte_at(i));
 				int written = 0;
 				while (written < chunk.count()) {
 					payload_configure(writer, written, chunk.count() - written, chunk.file_offset() + (written as i64));
 					await payload_io(writer);
 					int count = astra_linux_payload_count(writer);
-					if (count <= 0 || count > chunk.count() - written) { throw new Error("stream file progress"); }
+					if (count <= 0 || count > chunk.count() - written) {
+						throw new Error("stream file progress");
+					}
 					written = written + count;
 				}
 				progress.wrote_frame(chunk.id(), chunk.count(), chunk.checksum());
@@ -89,19 +155,27 @@ async void stream_spool(owned LinuxPayload writer, owned Stream.Queue output, ow
 async void stream_status(owned UdpSocket socket, owned Stream.Progress progress) throws Error {
 	try {
 		var context = concurrent_allocator(1, 32779, 7, 128);
-		if (context == null) { throw new Error("stream status context"); }
+		if (context == null) {
+			throw new Error("stream status context");
+		}
 		var bytes = new(context)u8[16];
 		while (true) {
 			try {
 				NetworkDatagram packet = socket.receive_from(bytes, 0, 1);
-				if (packet.count != 1 || packet.message_length != 1 || bytes[0] != 81) { stream_event(9, 0, packet.message_length); }
+				if (packet.count != 1 || packet.message_length != 1 || bytes[0] != 81) {
+					stream_event(9, 0, packet.message_length);
+				}
 				else {
 					stream_put_integer(bytes, 0, 17); stream_put_integer(bytes, 4, progress.count());
 					stream_put_integer(bytes, 8, progress.total_bytes()); stream_put_integer(bytes, 12, progress.checksum());
 					int count = socket.send_to(packet.peer, bytes, 0, 16);
-					if (count != 16 && count != NetAgain && count != NetInterrupted) { throw new Error("stream status reply"); }
+					if (count != 16 && count != NetAgain && count != NetInterrupted) {
+						throw new Error("stream status reply");
+					}
 				}
-			} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) { throw; } }
+			} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) {
+					throw;
+				} }
 			await delay_ms(1);
 		}
 	} catch (Error error) { progress.fail(); throw; }
@@ -114,7 +188,9 @@ async void stream_pipeline(owned TcpSocket socket, owned UdpSocket datagrams, ow
 	var status = stream_status(move datagrams, Stream.clone_progress(progress));
 	try {
 		start(producer); start(workers); start(spool); start(status);
-		while (!progress.finished() && !progress.stopped() && stream_stop_requested() == 0) { await delay_ms(1); }
+		while (!progress.finished() && !progress.stopped() && stream_stop_requested() == 0) {
+			await delay_ms(1);
+		}
 	}
 	catch (Error error) {
 		cancel(producer); cancel(workers); cancel(spool); cancel(status);
@@ -123,7 +199,9 @@ async void stream_pipeline(owned TcpSocket socket, owned UdpSocket datagrams, ow
 	if (progress.stopped() || stream_stop_requested() != 0) {
 		cancel(producer); cancel(workers); cancel(spool); cancel(status);
 		await cancel_and_join(move producer); await cancel_and_join(move workers); await cancel_and_join(move spool); await cancel_and_join(move status);
-		if (progress.stopped()) { throw new Error("stream pipeline failed"); }
+		if (progress.stopped()) {
+			throw new Error("stream pipeline failed");
+		}
 	} else {
 		await cancel_and_join(move status);
 		try { await move producer; }

@@ -204,4 +204,5 @@ int main() {
 	add ("/exec/loopctrl/wrapping-differential", control_recurrence);
 	add ("/exec/loopctrl/native-artifact-lifetime", () => lifetime (control_source ("nested-loop-control") + "int main(){if(nested_control(3,10) != 6){return 1;}return 0;}"));
 }
+
 }

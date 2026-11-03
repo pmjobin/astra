@@ -19,5 +19,7 @@ public enum FloatConversionKind {
 		}
 		return false;
 	}
+
 }
+
 }

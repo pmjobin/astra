@@ -7,13 +7,16 @@ bool flow_buffer_type(CheckedIndex checked, TypeId type) {
 	int code = checked_kind(checked, edge.type);
 	return type_numeric(code) || code == 13;
 }
+
 bool flow_borrow_type(CheckedIndex checked, TypeId type) {
 	int code = checked_kind(checked, type);
 	return code == 20 || code == 22 || code == 31 || code == 16;
 }
+
 bool flow_simple_class(CheckedIndex checked, TypeId type) {
 	return flow_empty_class(checked, type) || checked.semantic_flow && flowsem_class_shape(checked, type);
 }
+
 bool flow_empty_class(CheckedIndex checked, TypeId type) {
 	if (checked_kind(checked, type) != 31) {
 		return false;
@@ -48,6 +51,7 @@ bool flow_empty_class(CheckedIndex checked, TypeId type) {
 	}
 	return constructor;
 }
+
 void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SymbolId symbol, int region, bool parameter) {
 	if (symbol.index == 0) {
 		return;
@@ -67,7 +71,7 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	if (row.owner && code == 31 && (class_origins[symbol.index] & 12) != 0) {
 		graph.defer(declaration.node, 12);
 	}
-	if (checked.semantic_flow && !checked.semantic_admission && parameter && checked_record_owned(checked, type, 0)) { graph.defer(declaration.node, 4); }
+	if (checked.semantic_flow && !checked.semantic_admission && parameter && checked_record_owned(checked, type, 0)) graph.defer(declaration.node, 4);
 	if (parameter && code == 15) {
 		graph.defer(declaration.node, 17);
 	}
@@ -79,6 +83,7 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 		graph.defer(declaration.node, 2);
 	}
 }
+
 void flow_collect(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int depth) {
 	if (node.index == 0 || graph.exhausted) {
 		return;
@@ -117,10 +122,12 @@ void flow_collect(borrowed FlowGraph graph, CheckedIndex checked, int[] class_or
 		flow_slot(graph, checked, class_origins, checked.node_symbols[node.index], region, false);
 	}
 }
+
 int flow_symbol_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, SyntaxTokenId token) {
 	var target = checked_target(checked, node, token);
 	return graph.slot_for(target);
 }
+
 SyntaxNodeId flow_unwrap(CheckedIndex checked, SyntaxNodeId node) {
 	var current = node;
 	int depth = 0;
@@ -130,6 +137,7 @@ SyntaxNodeId flow_unwrap(CheckedIndex checked, SyntaxNodeId node) {
 	}
 	return current;
 }
+
 // Constants outside this literal subset need their own evaluation/lifetime proof.
 bool flow_constant_admitted(CheckedIndex checked, SymbolId symbol) {
 	if (symbol.index <= 0 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 2) {
@@ -157,6 +165,7 @@ bool flow_constant_admitted(CheckedIndex checked, SymbolId symbol) {
 	}
 	return kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax() || kind == SyntaxKind.TextLiteralExpressionSyntax();
 }
+
 int flow_origin(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId value) {
 	var node = flow_unwrap(checked, value);
 	if (node.index == 0) {
@@ -168,6 +177,7 @@ int flow_origin(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 	}
 	return 0;
 }
+
 int flow_unwind(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int stop, int next) {
 	// Construct inside-out execution while the construction order is reversed.
 	if (region == stop) {
@@ -180,6 +190,7 @@ int flow_unwind(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 	int outer = flow_unwind(graph, checked, class_origins, node, graph.regions[region - 1].parent, stop, next);
 	return graph.add(flow_event(checked, node, 9, 0, region, outer));
 }
+
 int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId value, SyntaxNodeId call, int region, int next) {
 	var node = flow_unwrap(checked, value);
 	int source = flow_origin(graph, checked, class_origins, node);
@@ -198,6 +209,7 @@ int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 	event.call = call.index;
 	return graph.add(event);
 }
+
 int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
 	var arguments = checked.bindings.program.arena.get_list_arguments(node);
 	if (checked_flow_intrinsic(checked, node)) {
@@ -244,7 +256,7 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 				graph.defer(node, 12);
 			}
 		}
-		if (checked.semantic_flow) { head = flowsem_demand(graph, checked, argument, parameter.flags, region, head); }
+		if (checked.semantic_flow) head = flowsem_demand(graph, checked, argument, parameter.flags, region, head);
 		int source_slot = flow_origin(graph, checked, class_origins, argument);
 		if (source_slot > 0 && checked_kind(checked, graph.slots[source_slot - 1].type) == 16 && (graph.slots[source_slot - 1].flags & 2) != 0 && (parameter.flags & 2) == 0) {
 			var bad = flow_event(checked, flow_unwrap(checked, argument), 16, source_slot, region, head);
@@ -270,6 +282,7 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 	}
 	return head;
 }
+
 int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int continuation, int call, int depth) throws Error {
 	int next = continuation;
 	if (node.index == 0 || graph.exhausted) {
@@ -301,9 +314,9 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 			var value_event = flow_event(checked, node, 18, 0, region, next);
 			value_event.output = capture;
 			value_event.null_kind = 3;
-			if (kind == SyntaxKind.NullPointerExpressionSyntax()) { value_event.null_kind = 1; }
-			if (kind == SyntaxKind.HeapObjectConstructionSyntax()) { value_event.null_kind = 2; }
-			if (kind == SyntaxKind.CallExpressionSyntax() && flowsem_promised_result(checked, node)) { value_event.null_kind = 2; }
+			if (kind == SyntaxKind.NullPointerExpressionSyntax()) value_event.null_kind = 1;
+			if (kind == SyntaxKind.HeapObjectConstructionSyntax()) value_event.null_kind = 2;
+			if (kind == SyntaxKind.CallExpressionSyntax() && flowsem_promised_result(checked, node)) value_event.null_kind = 2;
 			if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
 				SyntaxTokenId token = { index = 0 };
 				if (kind == SyntaxKind.MoveExpressionSyntax()) {
@@ -385,7 +398,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_count(node), region, marker, 0, depth + 1);
 	}
 	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
-		if (checked.semantic_flow) { return flowsem_construction(graph, checked, class_origins, node, region, next, depth + 1); }
+		if (checked.semantic_flow) return flowsem_construction(graph, checked, class_origins, node, region, next, depth + 1);
 		if (!flow_simple_class(checked, checked.uses[node.index].type) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(node)) != 0 || checked.bindings.program.arena.get_node_allocation_context(node).index != 0 || checked.bindings.program.arena.get_bool_fallible(node)) {
 			graph.defer(node, 8);
 		}
@@ -398,7 +411,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 			return next;
 		}
 		var place = graph.fields[field - 1];
-		if (place.root > 0 && (place.flags & 4) != 0 && checked_kind(checked, graph.slots[place.root - 1].type) == 30) { graph.defer(node, 6); }
+		if (place.root > 0 && (place.flags & 4) != 0 && checked_kind(checked, graph.slots[place.root - 1].type) == 30) graph.defer(node, 6);
 		var event = flow_event(checked, node, 19, place.root, region, next);
 		event.field = field;
 		event.output = capture;
@@ -414,7 +427,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		var op = checked.bindings.program.arena.token_message(checked.bindings.program.arena.get_token_operator_token(node));
 		var left = checked.bindings.program.arena.get_node_left(node);
 		var right = checked.bindings.program.arena.get_node_right(node);
-		if (checked.semantic_flow && (op.text == "&&" || op.text == "||")) { return flowsem_condition(graph, checked, class_origins, node, region, next, next, depth + 1); }
+		if (checked.semantic_flow && (op.text == "&&" || op.text == "||")) return flowsem_condition(graph, checked, class_origins, node, region, next, next, depth + 1);
 		if (op.text == "&&" || op.text == "||") {
 			int right_head = flow_expression(graph, checked, class_origins, right, region, next, 0, depth + 1);
 			var branch = flow_event(checked, node, 10, 0, region, right_head);
@@ -447,6 +460,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 	graph.defer(node, 100 + syntax_kind_code(kind));
 	return graph.add(flow_event(checked, node, 14, 0, region, next));
 }
+
 int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, SyntaxNodeId value, int slot, int region, int next, bool initializing, int depth) throws Error {
 	if (slot == 0) {
 		graph.defer(node, 9);
@@ -516,9 +530,10 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 		store_event.required = flowsem_declared_nonnull(checked, destination.symbol);
 	}
 	int store = graph.add(store_event);
-	if (checked.semantic_admission && checked_kind(checked, destination.type) == 30) { return admit_record_value(graph, checked, class_origins, node, value, slot, 0, region, store, depth + 1); }
+	if (checked.semantic_admission && checked_kind(checked, destination.type) == 30) return admit_record_value(graph, checked, class_origins, node, value, slot, 0, region, store, depth + 1);
 	return flow_expression(graph, checked, class_origins, value, region, store, 0, depth + 1);
 }
+
 int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int next, int break_to, int continue_to, int loop_region, int depth) throws Error {
 	if (node.index == 0 || graph.exhausted) {
 		return next;
@@ -542,14 +557,14 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 	if (kind == SyntaxKind.IfStatementSyntax()) {
 		int yes = flow_statement(graph, checked, class_origins, checked.bindings.program.arena.get_node_then_body(node), region, next, break_to, continue_to, loop_region, depth + 1);
 		int no = flow_statement(graph, checked, class_origins, checked.bindings.program.arena.get_node_else_body(node), region, next, break_to, continue_to, loop_region, depth + 1);
-		if (checked.semantic_flow) { return flowsem_condition(graph, checked, class_origins, checked.bindings.program.arena.get_node_condition(node), region, yes, no, depth + 1); }
+		if (checked.semantic_flow) return flowsem_condition(graph, checked, class_origins, checked.bindings.program.arena.get_node_condition(node), region, yes, no, depth + 1);
 		var branch = flow_event(checked, node, 10, 0, region, yes);
 		branch.other = no;
 		int choice = graph.add(branch);
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_condition(node), region, choice, 0, depth + 1);
 	}
 	if (kind == SyntaxKind.WhileStatementSyntax() || kind == SyntaxKind.ForStatementSyntax()) {
-		if (checked.semantic_flow && checked.bindings.symbol(graph.function).kind == 12) { graph.defer(node, 6); }
+		if (checked.semantic_flow && checked.bindings.symbol(graph.function).kind == 12) graph.defer(node, 6);
 		int child = region;
 		int leave = next;
 		if (kind == SyntaxKind.ForStatementSyntax()) {
@@ -571,7 +586,7 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 			var branch = flow_event(checked, node, 10, 0, child, body);
 			branch.other = leave;
 			int choice = graph.add(branch);
-			if (!checked.semantic_flow) { check = flow_expression(graph, checked, class_origins, condition, child, choice, 0, depth + 1); }
+			if (!checked.semantic_flow) check = flow_expression(graph, checked, class_origins, condition, child, choice, 0, depth + 1);
 			if (checked.semantic_flow) {
 				// Retire the unused legacy branch before constructing the semantic split.
 				graph.count = choice - 1;
@@ -588,7 +603,7 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		return header;
 	}
 	if (kind == SyntaxKind.ReturnStatementSyntax()) {
-		if (checked.semantic_flow && checked.bindings.symbol(graph.function).kind == 12) { graph.defer(node, 6); }
+		if (checked.semantic_flow && checked.bindings.symbol(graph.function).kind == 12) graph.defer(node, 6);
 		int leave = flow_unwind(graph, checked, class_origins, node, region, 0, graph.exit);
 		int marker = graph.add(flow_event(checked, node, 12, 0, region, leave));
 		var value = checked.bindings.program.arena.get_node_expression(node);
@@ -631,7 +646,7 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		int store = graph.add(flow_event(checked, node, 2, slot, region, next));
 		return flowsem_initializer(graph, checked, class_origins, checked.bindings.program.arena.get_node_initializer(node), slot, 0, region, store, depth + 1);
 	}
-	if (checked.semantic_flow && kind == SyntaxKind.FieldAssignmentStatementSyntax()) { return flowsem_field_write(graph, checked, class_origins, node, region, next, depth + 1); }
+	if (checked.semantic_flow && kind == SyntaxKind.FieldAssignmentStatementSyntax()) return flowsem_field_write(graph, checked, class_origins, node, region, next, depth + 1);
 	if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax()) {
 		var symbol = checked.node_symbols[node.index];
 		int slot = 0;
@@ -646,12 +661,15 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 	}
 	if (kind == SyntaxKind.CallStatementSyntax()) {
 		var call_node = checked.bindings.program.arena.get_node_call(node);
-		if (checked.semantic_admission && checked_kind(checked, checked.uses[call_node.index].type) == 30) { graph.fail(5, checked.bindings.program.arena.header(call_node).span); }
+		if (checked.semantic_admission && checked_kind(checked, checked.uses[call_node.index].type) == 30) graph.fail(5, checked.bindings.program.arena.header(call_node).span);
 		return flow_call(graph, checked, class_origins, call_node, region, next, depth + 1);
 	}
 	if (kind == SyntaxKind.ReleaseStatementSyntax()) {
 		int slot = flow_symbol_slot(graph, checked, class_origins, node, checked.bindings.program.arena.get_token_owner(node));
-		if (checked.semantic_admission && slot > 0 && checked_kind(checked, graph.slots[slot - 1].type) == 30 && graph.slots[slot - 1].owner) { graph.defer(node, 6); return next; }
+		if (checked.semantic_admission && slot > 0 && checked_kind(checked, graph.slots[slot - 1].type) == 30 && graph.slots[slot - 1].owner) {
+			graph.defer(node, 6);
+			return next;
+		}
 		if (slot > 0 && checked_kind(checked, graph.slots[slot - 1].type) == 31) {
 			int origin = class_origins[graph.slots[slot - 1].symbol.index];
 			if ((origin & 2) == 0 || (origin & 12) != 0) {
@@ -677,9 +695,10 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 	graph.defer(node, reason);
 	return graph.add(flow_event(checked, node, 14, 0, region, next));
 }
+
 // Structural reachability is independent of value folding and ownership facts.
 bool flow_normal_reachable(borrowed FlowGraph graph) {
-	if (graph.exhausted || graph.entry <= 0 || graph.normal_exit <= 0) { return false; }
+	if (graph.exhausted || graph.entry <= 0 || graph.normal_exit <= 0) return false;
 	var seen = new bool[graph.count];
 	var pending = new int[graph.count];
 	int count = 1;
@@ -688,12 +707,12 @@ bool flow_normal_reachable(borrowed FlowGraph graph) {
 	while (count > 0) {
 		count = count - 1;
 		int block = pending[count];
-		if (block == graph.normal_exit) { return true; }
+		if (block == graph.normal_exit) return true;
 		var event = graph.events[block - 1];
 		int edge = 0;
 		while (edge < 2) {
 			int target = event.next;
-			if (edge == 1) { target = event.other; }
+			if (edge == 1) target = event.other;
 			if (target > 0 && target <= graph.count && !seen[target - 1]) {
 				seen[target - 1] = true;
 				pending[count] = target;
@@ -704,6 +723,7 @@ bool flow_normal_reachable(borrowed FlowGraph graph) {
 	}
 	return false;
 }
+
 owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId function, int ordinal, int limit) throws Error {
 	var graph = new FlowGraph(function, ordinal, checked.bindings.symbol_count, checked.bindings.program.arena.node_count, limit);
 	graph.semantic_flow = checked.semantic_flow;
@@ -722,15 +742,15 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 		i = 0;
 		while (i < graph.slot_count) {
 			var type = graph.slots[i].type;
-			if (flowsem_record_shape(checked, type, 0) || flow_simple_class(checked, type)) { flowsem_inventory(graph, checked, type, i + 1, 0, 0); }
+			if (flowsem_record_shape(checked, type, 0) || flow_simple_class(checked, type)) flowsem_inventory(graph, checked, type, i + 1, 0, 0);
 			i = i + 1;
 		}
-		if (symbol.kind == 12 && symbol.owner.index != 0 && flowsem_class_shape(checked, checked.symbol_types[symbol.owner.index])) { flowsem_inventory(graph, checked, checked.symbol_types[symbol.owner.index], 0, 0, 0); }
+		if (symbol.kind == 12 && symbol.owner.index != 0 && flowsem_class_shape(checked, checked.symbol_types[symbol.owner.index])) flowsem_inventory(graph, checked, checked.symbol_types[symbol.owner.index], 0, 0, 0);
 	}
 	graph.exit = graph.add(flow_event(checked, symbol.node, 0, 0, 0, 0));
 	int leave = graph.add(flow_event(checked, symbol.node, 9, 0, root, graph.exit));
 	graph.normal_exit = leave;
-	if (checked.semantic_flow && symbol.kind == 12) { leave = graph.add(flow_event(checked, symbol.node, 21, 0, root, leave)); }
+	if (checked.semantic_flow && symbol.kind == 12) leave = graph.add(flow_event(checked, symbol.node, 21, 0, root, leave));
 	graph.entry = flow_statement(graph, checked, class_origins, body, root, leave, 0, 0, root, 0);
 	i = graph.slot_count - 1;
 	while (i >= 0) {
@@ -756,7 +776,7 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 	if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0) {
 		graph.defer(symbol.node, 5);
 	}
-	if (checked.semantic_flow && !checked.semantic_admission && checked_record_owned(checked, result.type, 0)) { graph.defer(symbol.node, 4); }
+	if (checked.semantic_flow && !checked.semantic_admission && checked_record_owned(checked, result.type, 0)) graph.defer(symbol.node, 4);
 	if (flow_borrow_type(checked, result.type) && (result.flags & 4) == 0 && !(checked_c_scalar_signature(checked, function) && (checked_kind(checked, result.type) == 16 || checked_kind(checked, result.type) == 20))) {
 		graph.defer(symbol.node, 4);
 	}

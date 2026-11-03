@@ -38,9 +38,11 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/param-borrow/llvm/destroy-all-predecessors-no-borrow-attributes", lifetime);
 	return Test.run ();
 }
+
 }

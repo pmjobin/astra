@@ -21,11 +21,13 @@ internal class LlvmTextLowering : Object {
 		this.artifact = artifact;
 		this.types = types;
 	}
+
 	private CApi.ValueRef utf8_compare(CApi.BuilderRef builder, CApi.IntPredicate predicate, CApi.ValueRef left, CApi.ValueRef right, string name) throws LlvmError {
 		var result = CApi.build_icmp (builder, predicate, left, right, name);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.ICMP, types.scalar (NativeScalarType.B1), new CApi.ValueRef[] { left, right }, "UTF-8 exact range/bounds predicate", -1, (int) predicate));
 		return result;
 	}
+
 	private CApi.ValueRef utf8_byte(CApi.BuilderRef builder, CApi.ValueRef pointer, CApi.ValueRef index, string name) throws LlvmError {
 		var byte = types.scalar (NativeScalarType.U8);
 		CApi.ValueRef[] indices = {
@@ -38,10 +40,12 @@ internal class LlvmTextLowering : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, byte, new CApi.ValueRef[] { address }, "UTF-8 counted byte load", -1, -1, 1));
 		return result;
 	}
+
 	private CApi.ValueRef utf8_range(CApi.BuilderRef builder, CApi.ValueRef value, uint low, uint high, string name) throws LlvmError {
 		var byte = types.scalar (NativeScalarType.U8);
 		return CApi.build_and (builder, utf8_compare (builder, CApi.IntPredicate.UGE, value, CApi.const_int (byte, low, 0), name + ".low"), utf8_compare (builder, CApi.IntPredicate.ULE, value, CApi.const_int (byte, high, 0), name + ".high"), name);
 	}
+
 	private void build_utf8_helper() throws LlvmError {
 		if ((void*) utf8_helper != null) {
 			return;
@@ -134,6 +138,7 @@ internal class LlvmTextLowering : Object {
 		artifact.class_functions.add (new LlvmClassFunctionBinding (utf8_helper, utf8_type));
 		CApi.dispose_builder (builder);
 	}
+
 	internal CApi.ValueRef validate_utf8(CApi.BuilderRef builder, CApi.ValueRef input) throws LlvmError {
 		var pointer = CApi.build_extract_value (builder, input, 0, "utf8.input.base");
 		var count = CApi.build_extract_value (builder, input, 1, "utf8.input.count");
@@ -141,6 +146,7 @@ internal class LlvmTextLowering : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (count, CApi.Opcode.EXTRACT_VALUE, types.scalar (NativeScalarType.I32), new CApi.ValueRef[] { input }, "UTF-8 input count", 1));
 		return validate_counted_utf8 (builder, pointer, count);
 	}
+
 	internal CApi.ValueRef validate_counted_utf8(CApi.BuilderRef builder, CApi.ValueRef pointer, CApi.ValueRef count) throws LlvmError {
 		build_utf8_helper ();
 		CApi.ValueRef[] arguments = {
@@ -151,6 +157,7 @@ internal class LlvmTextLowering : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, utf8_helper, utf8_type, arguments, LlvmLowering.CALL_CONVENTION, "UTF-8 exact counted validation"));
 		return call;
 	}
+
 	// Returns the first NUL offset in [0, limit), or -1. A null base has no
 	// searchable bytes. NUL input conversion supplies the maximum native
 	// storage extent; output conversion supplies the exact native byte count.
@@ -204,6 +211,7 @@ internal class LlvmTextLowering : Object {
 		artifact.class_functions.add (new LlvmClassFunctionBinding (nul_helper, nul_type));
 		CApi.dispose_builder (b);
 	}
+
 	internal CApi.ValueRef find_nul(CApi.BuilderRef builder, CApi.ValueRef pointer, CApi.ValueRef limit) throws LlvmError {
 		build_nul_helper ();
 		CApi.ValueRef[] arguments = {
@@ -214,6 +222,7 @@ internal class LlvmTextLowering : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, nul_helper, nul_type, arguments, LlvmLowering.CALL_CONVENTION, "exact bounded NUL conversion"));
 		return call;
 	}
+
 	internal CApi.ValueRef literal(TextBytes payload) throws LlvmError {
 		if (!payload.valid ()) {
 			throw new LlvmError.INVALID_INPUT ("invalid immutable UTF-8 literal payload");
@@ -315,5 +324,6 @@ internal class LlvmTextLowering : Object {
 		CApi.set_instruction_call_conv (result, LlvmLowering.CALL_CONVENTION);
 		return negate ? CApi.build_icmp (builder, CApi.IntPredicate.EQ, result, CApi.const_int (types.scalar (NativeScalarType.B1), 0, 0), name) : result;
 	}
+
 }
 }

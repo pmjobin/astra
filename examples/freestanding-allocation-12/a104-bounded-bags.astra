@@ -1,40 +1,53 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void bag_event(int value);
+
 extern(C) int bag_probe(int phase);
+
 [Allocator(kind="pool", domain="a104.diagnostics", capacity="512", blocks="8")]
 class Diagnostic {
 	int code;
+
 	init(int code) { this.code = code; bag_event(code); }
+
 	deinit() { bag_event(0 - this.code); }
 }
+
 [Allocator(kind="region", domain="a104.bags", capacity="512", blocks="32")]
 class BoundedBag<T> where T : ExactHeapClass {
 	owned T[slots] entries;
+
 	init() { this.entries = new T[slots]; }
+
 	bool reserve(int requested) { return this.entries.reserve(requested); }
+
 	void append(owned T value) { this.entries.append(move value); }
+
 	int count() { return len(this.entries); }
+
 	int capacity() { return this.entries.capacity; }
+
 	owned T take(int index) { var value = this.entries.take(index); return move value; }
+
 	void replace(int index, owned T value) { this.entries.replace(index, move value); }
 }
+
 int main() {
 	{
 		var diagnostics = new BoundedBag<Diagnostic>();
 		var messages = new BoundedBag<Utf8Message>();
-		if (!diagnostics.reserve(2) || !messages.reserve(1)) { return 81; }
+		if (!diagnostics.reserve(2) || !messages.reserve(1)) return 81;
 		var first = new Diagnostic(1); var second = new Diagnostic(2);
 		diagnostics.append(move first); diagnostics.append(move second);
 		var hello = new Utf8Message("hé"); messages.append(move hello);
-		if (!diagnostics.reserve(4) || !messages.reserve(2)) { return 82; }
+		if (!diagnostics.reserve(4) || !messages.reserve(2)) return 82;
 		var third = new Diagnostic(3); diagnostics.append(move third);
 		var binary = new Utf8Message("a\0b"); messages.append(move binary);
-		if (diagnostics.reserve(1024) || messages.reserve(1024) || diagnostics.count() != 3 || messages.count() != 2 || diagnostics.capacity() != 4 || messages.capacity() != 2) { return 83; }
+		if (diagnostics.reserve(1024) || messages.reserve(1024) || diagnostics.count() != 3 || messages.count() != 2 || diagnostics.capacity() != 4 || messages.capacity() != 2) return 83;
 		var chosen = diagnostics.take(1);
 		var replacement = new Diagnostic(4); diagnostics.replace(0, move replacement);
 		var message = messages.take(0);
-		if (chosen.code != 2 || message.text != "hé" || diagnostics.count() != 2 || messages.count() != 1 || bag_probe(1) != 1) { return 84; }
+		if (chosen.code != 2 || message.text != "hé" || diagnostics.count() != 2 || messages.count() != 1 || bag_probe(1) != 1) return 84;
 	}
-	if (bag_probe(2) != 1) { return 85; }
+	if (bag_probe(2) != 1) return 85;
 	return 42;
 }

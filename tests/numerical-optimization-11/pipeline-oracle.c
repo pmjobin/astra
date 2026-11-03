@@ -3,6 +3,7 @@
 #include <stdlib.h>
 static int created, destroyed, observed, failed;
 static FILE *output;
+
 void pipeline_lifetime(int event) {
 	if (event == 1)
 		created++;
@@ -12,6 +13,7 @@ void pipeline_lifetime(int event) {
 		failed = 1;
 	if (created != 1 || destroyed > 1) failed = 1;
 }
+
 int pipeline_observe(int sequence, int value) {
 	if (!sequence) {
 		const char *path = getenv("ASTRA_NUMERICAL_OUTPUT");
@@ -27,6 +29,7 @@ int pipeline_observe(int sequence, int value) {
 	observed++;
 	return failed;
 }
+
 int pipeline_finish(int count) {
 	if (output && fclose(output)) failed = 1;
 	if (observed != count || created != 1 || destroyed != 1) failed = 1;

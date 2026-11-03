@@ -2,6 +2,7 @@
 class DuplicateSourceInput : Error {
 	init(string message) : base(message) {}
 }
+
 int source_path_compare(borrowed Utf8Message first, borrowed Utf8Message last) {
 	int a = first.text.byte_length;
 	int b = last.text.byte_length;
@@ -15,6 +16,7 @@ int source_path_compare(borrowed Utf8Message first, borrowed Utf8Message last) {
 	}
 	return a - b;
 }
+
 // Stable bottom-up merge sort of indices. Owners never move during comparison.
 owned int[] source_path_order(Vector<Utf8Message> paths) {
 	int count = paths.count();
@@ -68,6 +70,7 @@ owned int[] source_path_order(Vector<Utf8Message> paths) {
 	}
 	return move order;
 }
+
 owned Utf8Message source_duplicate_message(string path) throws Error {
 	var output = new Utf8ByteBuilder();
 	source_append_text(output, "source file '");
@@ -76,12 +79,15 @@ owned Utf8Message source_duplicate_message(string path) throws Error {
 	var result = output.snapshot();
 	return move result;
 }
+
 int source_path_length(borrowed Utf8Message path) {
 	return path.text.byte_length;
 }
+
 int source_path_byte(borrowed Utf8Message path, int offset) {
 	return astra_host_text_byte(path.text, offset);
 }
+
 // The path facade permits an empty argument list, as the Vala static helper does.
 owned Vector<Utf8Message> source_canonical_paths(string[] inputs) throws Error {
 	var pending = new Vector<Utf8Message>(len(inputs));
@@ -112,28 +118,34 @@ owned Vector<Utf8Message> source_canonical_paths(string[] inputs) throws Error {
 	}
 	return move paths;
 }
+
 // Exactly one retained owner per physical source; path snapshots are comparison
 // keys only. Sorted indices preserve object identity, including equal contents.
 class SourceEntry {
 	owned shared SourceBuffer source;
+
 	init(owned shared SourceBuffer source) {
 		this.source = move source;
 	}
 }
+
 // Inspection may return only copied values. This explicit output collector
 // acquires a strong clone; the borrowed entry itself never leaves the call.
 class SourceSelection {
 	private owned SourceEntry[slots] selected;
+
 	init() {
 		this.selected = new SourceEntry[slots];
 		bool reserved = this.selected.reserve(1);
 		assert_that(reserved);
 	}
+
 	void accept(owned shared SourceBuffer source) {
 		assert_that(len(this.selected) == 0);
 		var entry = new SourceEntry(move source);
 		this.selected.append(move entry);
 	}
+
 	owned shared SourceBuffer take() {
 		assert_that(len(this.selected) == 1);
 		var entry = this.selected.take(0);
@@ -141,33 +153,40 @@ class SourceSelection {
 		return move result;
 	}
 }
+
 void source_entry_select(borrowed SourceEntry entry, SourceSelection output) {
 	var retained = shared_clone(entry.source);
 	output.accept(move retained);
 }
+
 bool source_entry_valid_span(borrowed SourceEntry entry, int first, int last) {
 	var source = shared_clone(entry.source);
 	return source_valid_span(shared_borrow(source), first, last);
 }
+
 class SourceSet {
 	private owned Vector<SourceEntry> files;
 	private owned int[] order;
+
 	init(owned Vector<SourceEntry> files, owned int[] order) {
 		assert_that(files.count() > 0 && files.count() == len(order));
 		this.files = move files;
 		this.order = move order;
 	}
+
 	property int count {
 		get {
 			return len(this.order);
 		}
 	}
+
 	bool valid_span(int index, int first, int last) {
 		if (index < 0 || index >= len(this.order)) {
 			return false;
 		}
 		return source_entry_valid_span(this.files.entries[this.order[index]], first, last);
 	}
+
 	owned shared SourceBuffer source(int index) {
 		assert_that(index >= 0 && index < len(this.order));
 		var selection = new SourceSelection();
@@ -176,6 +195,7 @@ class SourceSet {
 		return move result;
 	}
 }
+
 owned SourceSet source_set(owned Vector<SourceEntry> files) throws Error {
 	assert_that(files.count() > 0);
 	var paths = new Vector<Utf8Message>(files.count());

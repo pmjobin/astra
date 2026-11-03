@@ -480,7 +480,6 @@ private void callback_library_core() {
 	}
 }
 
-
 private void callback_library_cfg() {
 	try {
 		var program = CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (callback_library_checked ())));
@@ -516,31 +515,34 @@ private void callback_library_cfg() {
 	}
 }
 
-
 private void released_source_callback_analysis(ref WeakRef previous) throws GLib.Error {
 	var program = callback_summary_checked ();
 	previous.set (program.functions[0].symbol);
 	var effects = ReadonlyInspection.infer_effects (program, (type) => null);
 	assert (effects.readonly_summary (program.functions[0].symbol) != null);
 }
+
 private void released_core_callback_analysis(ref WeakRef previous) throws GLib.Error {
 	var program = callback_summary_core_program ();
 	previous.set (program.functions[0]);
 	var effects = CoreVerifier.infer_effects (program);
 	assert (effects.readonly_summary (program.functions[0]) != null);
 }
+
 private void released_cfg_callback_analysis(ref WeakRef previous) throws GLib.Error {
 	var program = CfgBuilder.build (callback_summary_core_program ());
 	previous.set (program.functions[0]);
 	var effects = CfgVerifier.infer_effects (program);
 	assert (effects.readonly_summary (program.functions[0]) != null);
 }
+
 private void released_ssa_callback_analysis(ref WeakRef previous) throws GLib.Error {
 	var program = callback_summary_program ();
 	previous.set (program.functions[0]);
 	var effects = new SsaReadonlyInference (program);
 	assert (effects.summary (program.functions[0]) != null);
 }
+
 private void callback_analysis_release() {
 	try {
 		WeakRef previous = WeakRef (null);
@@ -572,6 +574,7 @@ private SsaProgram callback_iteration_program() throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (checked.program))));
 }
+
 private void callback_iteration_context() {
 	try {
 		var program = callback_iteration_program ();
@@ -655,6 +658,7 @@ private CfgProgram native_buffer_parameter_cfg() throws GLib.Error {
 	}
 	return CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (checked.program)));
 }
+
 private void native_buffer_parameter_ssa() {
 	try {
 		CfgProgram? previous = native_buffer_parameter_cfg ();
@@ -684,6 +688,7 @@ private void native_buffer_parameter_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_buffer_parameter_detached() {
 	try {
 		SsaProgram? previous = SsaBuilder.build (native_buffer_parameter_cfg ());
@@ -735,6 +740,7 @@ private SemanticResult runtime_composition_semantics(bool different_provider = f
 	}
 	return SemanticAnalyzer.analyze_program (new SyntaxProgram (units));
 }
+
 private void runtime_composition_conflicts() {
 	try {
 		var provider = runtime_composition_semantics (true);
@@ -745,6 +751,7 @@ private void runtime_composition_conflicts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void runtime_composition_detached() {
 	try {
 		var checked = runtime_composition_semantics ();
@@ -806,6 +813,7 @@ private void async_closure_core_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void async_closure_cfg_proof() {
 	try {
 		CoreProgram? previous = core ("owned-closure-async");
@@ -836,6 +844,7 @@ private void async_closure_cfg_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void async_closure_ssa_proof() {
 	try {
 		CfgProgram? previous = CfgBuilder.build (core ("owned-closure-async"));
@@ -866,6 +875,7 @@ private void async_closure_ssa_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void async_closure_native_proof() {
 	try {
 		SsaProgram? previous = SsaBuilder.build (CfgBuilder.build (core ("owned-closure-async")));
@@ -921,6 +931,7 @@ private SemanticResult native_callback_with_semantics(bool mutating, bool scoped
 	units.add (consumer.unit);
 	return SemanticAnalyzer.analyze_program (new SyntaxProgram (units), null, null, null, null, registry);
 }
+
 private CoreProgram native_callback_with_core() throws GLib.Error {
 	var checked = native_callback_with_semantics (false);
 	if (checked.diagnostic != null) {
@@ -928,6 +939,7 @@ private CoreProgram native_callback_with_core() throws GLib.Error {
 	}
 	return CoreGenericMonomorphizer.build (CoreBuilder.build (checked.program));
 }
+
 private void native_callback_with_source() {
 	try {
 		assert (native_callback_with_semantics (false).diagnostic == null);
@@ -938,6 +950,7 @@ private void native_callback_with_source() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CoreCallValue? callback_with_core_call(CoreBlock body) {
 	foreach (var statement in body.statements) {
 		var returned = statement as CoreReturn;
@@ -953,6 +966,7 @@ private CoreCallValue? callback_with_core_call(CoreBlock body) {
 	}
 	return null;
 }
+
 private void native_callback_with_core_proof() {
 	try {
 		var program = native_callback_with_core ();
@@ -982,6 +996,7 @@ private void native_callback_with_core_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_callback_with_cfg_proof() {
 	try {
 		CoreProgram? previous = native_callback_with_core ();
@@ -1029,6 +1044,7 @@ private void native_callback_with_cfg_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_callback_with_ssa_proof() {
 	try {
 		CfgProgram? previous = CfgBuilder.build (native_callback_with_core ());
@@ -1076,6 +1092,7 @@ private void native_callback_with_ssa_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram native_callback_checked() throws GLib.Error {
 	var result = native_callback_semantics (false);
 	if (result.diagnostic != null) {
@@ -1083,15 +1100,19 @@ private CheckedProgram native_callback_checked() throws GLib.Error {
 	}
 	return result.program;
 }
+
 private CoreProgram native_callback_core() throws GLib.Error {
 	return CoreGenericMonomorphizer.build (CoreBuilder.build (native_callback_checked ()));
 }
+
 private CfgProgram native_callback_cfg() throws GLib.Error {
 	return CfgBuilder.build (native_callback_core ());
 }
+
 private SsaProgram native_callback_ssa() throws GLib.Error {
 	return SsaBuilder.build (native_callback_cfg ());
 }
+
 private void native_callback_source() {
 	try {
 		var result = native_callback_semantics (true);
@@ -1100,6 +1121,7 @@ private void native_callback_source() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_callback_core_proof() {
 	try {
 		CheckedProgram? previous = native_callback_checked ();
@@ -1140,6 +1162,7 @@ private void native_callback_core_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_callback_cfg_proof() {
 	try {
 		CoreProgram? previous = native_callback_core ();
@@ -1182,6 +1205,7 @@ private void native_callback_cfg_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_callback_ssa_proof() {
 	try {
 		CfgProgram? previous = native_callback_cfg ();
@@ -1224,6 +1248,7 @@ private void native_callback_ssa_proof() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_callback_detached_proof() {
 	try {
 		SsaProgram? previous = native_callback_ssa ();
@@ -8512,7 +8537,6 @@ private void owned_callable_native() {
 	}
 }
 
-
 private void copied_callable_fields_native() {
 	try {
 		SsaProgram? predecessor = SsaBuilder.build (CfgBuilder.build (core ("copied-callable-fields")));
@@ -9702,6 +9726,7 @@ private void callable_record_result_native_acquisition() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void callable_record_result_native_field() {
 	try {
 		SsaProgram? predecessor = SsaBuilder.build (CfgBuilder.build (core ("copied-callable-record-results")));
@@ -9759,7 +9784,6 @@ private void callable_record_result_native_field() {
 		GLib.error ("%s", error.message);
 	}
 }
-
 
 private void borrowed_record_callable_core() {
 	try {

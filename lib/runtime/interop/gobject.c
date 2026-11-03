@@ -10,6 +10,7 @@ _Static_assert(sizeof(void *) == 8 && sizeof(GType) == 8, "GObject adapter profi
 enum handle_kind { STRONG = 1,
 	               WEAK,
 	               TEXT };
+
 struct foreign_handle {
 	uintptr_t token;
 	enum handle_kind kind;

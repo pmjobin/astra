@@ -121,4 +121,5 @@ private void register_loop_tests() {
 	Test.add_func ("/cfg-standalone/loop/model-reachability-lifetime", loop_lifetime);
 	Test.add_func ("/cfg-standalone/loop/expired-targets", expired_loop_targets);
 }
+
 }

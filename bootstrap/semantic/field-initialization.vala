@@ -14,18 +14,22 @@ public class FieldInitializationState : Object {
 		definite = new bool[count];
 		possible = new bool[count];
 	}
+
 	public bool is_definite(int field) {
 		return !reachable || definite[field];
 	}
+
 	public bool is_possible(int field) {
 		return reachable && possible[field];
 	}
+
 	public void initialize(int field) {
 		if (reachable) {
 			definite[field] = true;
 			possible[field] = true;
 		}
 	}
+
 	public bool is_part_possible(int field, string part) {
 		return reachable && (possible[field] || possible_parts.contains ("%d/%s".printf (field, part)));
 	}
@@ -57,6 +61,7 @@ public class FieldInitializationState : Object {
 		initialize (field);
 		return true;
 	}
+
 	public bool same_as(FieldInitializationState other) {
 		if (reachable != other.reachable || field_count != other.field_count) {
 			return false;
@@ -81,6 +86,7 @@ public class FieldInitializationState : Object {
 		}
 		return true;
 	}
+
 	public FieldInitializationState copy() {
 		var result = new FieldInitializationState (field_count);
 		result.reachable = reachable;
@@ -96,6 +102,7 @@ public class FieldInitializationState : Object {
 		}
 		return result;
 	}
+
 	public static FieldInitializationState join(FieldInitializationState left, FieldInitializationState right) {
 		if (!left.reachable) {
 			return right.copy ();
@@ -121,5 +128,6 @@ public class FieldInitializationState : Object {
 		}
 		return result;
 	}
+
 }
 }

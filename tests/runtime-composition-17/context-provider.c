@@ -14,6 +14,7 @@ TestContextProvider *test_context_provider(uint64_t capacity, _Atomic int *dispo
 	state->disposed = disposed;
 	return state;
 }
+
 static int allocate(void *opaque, uint64_t bytes, uint32_t alignment, void **out) {
 	TestContextProvider *state = opaque;
 	++state->attempts;
@@ -26,6 +27,7 @@ static int allocate(void *opaque, uint64_t bytes, uint32_t alignment, void **out
 	++state->live;
 	return ASTRA_CONTEXT17_OK;
 }
+
 static void release(void *opaque, void *pointer, uint64_t bytes, uint32_t alignment) {
 	TestContextProvider *state = opaque;
 	assert(state->live && (uintptr_t)pointer >= (uintptr_t)state->backing);
@@ -35,6 +37,7 @@ static void release(void *opaque, void *pointer, uint64_t bytes, uint32_t alignm
 	++state->releases;
 	if (!--state->live) state->used = 0;
 }
+
 static void dispose(void *opaque) {
 	TestContextProvider *state = opaque;
 	assert(!state->live);
@@ -42,10 +45,12 @@ static void dispose(void *opaque) {
 	free(state->backing);
 	free(state);
 }
+
 const AstraContext17Provider test_context_contract = {
     ASTRA_CONTEXT17_ABI, sizeof(AstraContext17Provider), ASTRA_CONTEXT17_CONCURRENT, 0,
     allocate, release, dispose};
 static _Atomic int source_disposed;
+
 AstraContext17 *m17_custom_allocator(int64_t capacity, int32_t slots) {
 	if (capacity <= 0 || slots <= 0) return NULL;
 	TestContextProvider *state = test_context_provider((uint64_t)capacity, &source_disposed);
@@ -58,6 +63,7 @@ AstraContext17 *m17_custom_allocator(int64_t capacity, int32_t slots) {
 	state->context = context;
 	return context;
 }
+
 int m17_custom_provider_retired(void) {
 	return atomic_load(&source_disposed);
 }

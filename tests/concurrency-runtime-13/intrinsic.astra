@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int intrinsic_destroy(int value);
+
 extern(C) int intrinsic_finish();
 
 [Shared]
 class Resource {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	int read() { return this.value; }
+
 	deinit() { intrinsic_destroy(this.value); }
 }
 
@@ -16,13 +20,13 @@ int main() {
 	var weak = shared_downgrade(first);
 	release first;
 	var third = weak_upgrade(weak);
-	if (third == null) { return 81; }
-	if (third.read() != 17) { return 82; }
+	if (third == null) return 81;
+	if (third.read() != 17) return 82;
 	release second;
-	if (third.read() != 17) { return 83; }
+	if (third.read() != 17) return 83;
 	release third;
 	var expired = weak_upgrade(weak);
-	if (expired != null) { return 84; }
+	if (expired != null) return 84;
 	release weak;
 	return intrinsic_finish();
 }

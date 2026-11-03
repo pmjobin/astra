@@ -16,6 +16,7 @@ public class SsaEnumReadRecord : SsaInstruction {
 		this.binding = binding;
 		this.results = results;
 	}
+
 }
 public class SsaEnumScalarCapture : SsaInstruction {
 	public SsaHeapOwner owner { get; private set; }
@@ -25,6 +26,7 @@ public class SsaEnumScalarCapture : SsaInstruction {
 		this.owner = owner;
 		this.pointer = pointer;
 	}
+
 }
 public class SsaEnumScalarAbort : SsaInstruction {
 	public SsaEnumScalarCapture capture { get; private set; }
@@ -32,6 +34,7 @@ public class SsaEnumScalarAbort : SsaInstruction {
 		base (span, null, -1);
 		this.capture = capture;
 	}
+
 }
 public class SsaEnumScalarCommit : SsaInstruction {
 	public SsaEnumScalarCapture capture { get; private set; }
@@ -44,6 +47,7 @@ public class SsaEnumScalarCommit : SsaInstruction {
 		this.field = field;
 		this.target = WeakRef (consumer);
 	}
+
 }
 public class SsaEnumReadScalar : SsaInstruction {
 	public SsaEnumSlot source { get; private set; }
@@ -57,6 +61,7 @@ public class SsaEnumReadScalar : SsaInstruction {
 		this.binding = binding;
 		this.owner = owner;
 	}
+
 }
 public class SsaEnumBufferCapture : SsaInstruction {
 	public SsaBufferPair pair { get; private set; }
@@ -68,6 +73,7 @@ public class SsaEnumBufferCapture : SsaInstruction {
 		this.place = place;
 		this.fresh = fresh;
 	}
+
 }
 public class SsaEnumBufferAbort : SsaInstruction {
 	public SsaEnumBufferCapture capture { get; private set; }
@@ -75,6 +81,7 @@ public class SsaEnumBufferAbort : SsaInstruction {
 		base (span, null, -1);
 		this.capture = capture;
 	}
+
 }
 internal class SsaEnumProjectionContract : Object {
 	internal SsaEnumRead instruction;
@@ -91,9 +98,11 @@ internal class SsaEnumProjectionContract : Object {
 		result = instruction.result;
 		path = instruction.record_path == null ? "" : instruction.record_path.spelling ();
 	}
+
 	internal bool matches() {
 		return instruction.source == source && instruction.field == field && instruction.binding == binding && instruction.result == result && (instruction.record_path == null ? "" : instruction.record_path.spelling ()) == path;
 	}
+
 }
 public class SsaEnumSlot : SsaNode {
 	public SsaEnumSlot? reservation_source { get; internal set; }
@@ -111,6 +120,7 @@ public class SsaEnumSlot : SsaNode {
 		this.source_ordinal = source_ordinal;
 		this.parameter_ordinal = parameter_ordinal;
 	}
+
 }
 
 public class SsaEnumFieldInput : SsaNode {
@@ -129,6 +139,7 @@ public class SsaEnumFieldInput : SsaNode {
 		this.buffer = buffer;
 		this.scalar_owner = scalar_owner;
 	}
+
 }
 
 public class SsaEnumConstruct : SsaInstruction {
@@ -149,6 +160,7 @@ public class SsaEnumConstruct : SsaInstruction {
 			input_contract.add (new SsaEnumFieldInput (input.span, input.field, leaves, input.sum, input.buffer, input.scalar_owner, input.record_move));
 		}
 	}
+
 	internal bool matches_inputs() {
 		if (fields.length != input_contract.length) {
 			return false;
@@ -167,6 +179,7 @@ public class SsaEnumConstruct : SsaInstruction {
 		}
 		return true;
 	}
+
 }
 
 public class SsaEnumCopy : SsaInstruction {
@@ -181,6 +194,7 @@ public class SsaEnumCopy : SsaInstruction {
 		this.initializes_destination = initializes_destination;
 		this.mode = mode;
 	}
+
 }
 public class SsaEnumEndInspection : SsaInstruction {
 	public SsaEnumSlot source { get; private set; }
@@ -188,6 +202,7 @@ public class SsaEnumEndInspection : SsaInstruction {
 		base (span, null, -1);
 		this.source = source;
 	}
+
 }
 
 public class SsaEnumCommit : SsaInstruction {
@@ -196,6 +211,7 @@ public class SsaEnumCommit : SsaInstruction {
 		base (span, null, -1);
 		this.captured = captured;
 	}
+
 }
 public class SsaEnumDrop : SsaInstruction {
 	public SsaEnumSlot source { get; private set; }
@@ -203,6 +219,7 @@ public class SsaEnumDrop : SsaInstruction {
 		base (span, null, -1);
 		this.source = source;
 	}
+
 }
 public class SsaEnumReadBuffer : SsaInstruction {
 	public SsaEnumSlot source { get; private set; }
@@ -216,6 +233,7 @@ public class SsaEnumReadBuffer : SsaInstruction {
 		this.binding = binding;
 		pair = new SsaBufferPair.results (span, shape, first_ordinal);
 	}
+
 }
 public class SsaEnumFinishArm : SsaInstruction {
 	public SsaEnumSlot source { get; private set; }
@@ -225,6 +243,7 @@ public class SsaEnumFinishArm : SsaInstruction {
 	public EnumField field(uint ordinal) {
 		return retained[ordinal];
 	}
+
 	internal SsaEnumFinishArm (SourceSpan span, SsaEnumSlot source, EnumVariant? variant, GenericArray<EnumField> fields) {
 		base (span, null, -1);
 		this.source = source;
@@ -233,6 +252,7 @@ public class SsaEnumFinishArm : SsaInstruction {
 			retained.add (field);
 		}
 	}
+
 }
 
 public class SsaEnumAcquire : SsaInstruction {
@@ -243,6 +263,7 @@ public class SsaEnumAcquire : SsaInstruction {
 		this.destination = destination;
 		this.parameter = parameter;
 	}
+
 }
 
 public class SsaEnumArgument : SsaValue {
@@ -251,6 +272,7 @@ public class SsaEnumArgument : SsaValue {
 		base (span, source.definition.semantic_type);
 		this.source = source;
 	}
+
 }
 
 public class SsaEnumTagInstruction : SsaInstruction {
@@ -259,6 +281,7 @@ public class SsaEnumTagInstruction : SsaInstruction {
 		base (span, integer, ordinal);
 		this.source = source;
 	}
+
 }
 
 public class SsaEnumRead : SsaInstruction {
@@ -273,6 +296,7 @@ public class SsaEnumRead : SsaInstruction {
 		this.field = field;
 		this.record_path = record_path;
 	}
+
 }
 
 public class SsaEnumExtractSum : SsaInstruction {
@@ -287,6 +311,7 @@ public class SsaEnumExtractSum : SsaInstruction {
 		this.field = field;
 		this.destination = destination;
 	}
+
 }
 
 public class SsaEnumReturn : SsaReturn {
@@ -295,6 +320,7 @@ public class SsaEnumReturn : SsaReturn {
 		base (span, null);
 		this.source = source;
 	}
+
 }
 
 public class SsaEnumCase : Object {
@@ -304,6 +330,7 @@ public class SsaEnumCase : Object {
 		this.variant = variant;
 		this.edge = edge;
 	}
+
 }
 
 public class SsaEnumDispatch : SsaTerminator {
@@ -316,11 +343,13 @@ public class SsaEnumDispatch : SsaTerminator {
 		this.cases = cases;
 		this.invalid_edge = invalid_edge;
 	}
+
 }
 
 public class SsaEnumInvalidTag : SsaTerminator {
 	internal SsaEnumInvalidTag (SourceSpan span) {
 		base (span);
 	}
+
 }
 }

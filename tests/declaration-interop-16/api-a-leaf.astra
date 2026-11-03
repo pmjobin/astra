@@ -1,46 +1,70 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace Byte16;
 [CImport(name="byte16_retired")]int retired(int kind);
+
 void observe_retirement(int kind){retired(kind);}
+
 [ExceptionRoot]class Fault {
 	readonly string text;
+
 	init(string text){this.text=text;}
+
 	virtual property string message{get{return this.text;}}
+
 	deinit(){retired(2);}
 }
+
 struct Configuration{int mask;bool rotate;f64 weight;}
+
 struct Statistics<T>{T score;u64 revision;u64 processed;}
+
 [CExport(name="byte_session16",profile="declarations-v1",bool_abi="c99")]
 class Session {
 	private Configuration configuration;
 	private u64 revision;private u64 processed;private f64 score;
 	private owned u8[] latest;
+
 	[Foreign(error_domain="16",errors="Byte16.Fault=-1610")]
 	init(Configuration configuration)throws Fault {
-		if(configuration.mask<0 || configuration.mask>255 || !(configuration.weight>=0.0 && configuration.weight<=16.0)){throw new Fault("invalid configuration");}
+		if(configuration.mask<0 || configuration.mask>255 || !(configuration.weight>=0.0 && configuration.weight<=16.0)){
+			throw new Fault("invalid configuration");
+		}
 		this.configuration=configuration;this.revision=0;this.processed=0;this.score=0.0;this.latest=new u8[0];
 	}
+
 	[Foreign(error_domain="16",errors="Byte16.Fault=-1610")]
 	void configure(Configuration configuration)throws Fault {
-		if(configuration.mask<0 || configuration.mask>255 || !(configuration.weight>=0.0 && configuration.weight<=16.0)){throw new Fault("invalid configuration");}
+		if(configuration.mask<0 || configuration.mask>255 || !(configuration.weight>=0.0 && configuration.weight<=16.0)){
+			throw new Fault("invalid configuration");
+		}
 		this.configuration=configuration;
 	}
+
 	[Foreign(error_domain="16",errors="Byte16.Fault=-1610")]
 	[ForeignChannel(parameter="input",nullable="true")]
 	[ForeignChannel(parameter="output",direction="out",nullable="true",produced="result")]
 	int process(borrowed u8[] input,borrowed u8[] output)throws Fault {
-		if(len(output)<len(input)){throw new Fault("insufficient capacity");}
+		if(len(output)<len(input)){
+			throw new Fault("insufficient capacity");
+		}
 		var snapshot=new u8[len(input)];int index=0;f64 total=0.0;
 		while(index<len(input)){
 			int value=input[index] as int ^ this.configuration.mask;
-			if(this.configuration.rotate){value=((value<<1)|(value>>7))&255;}
+			if(this.configuration.rotate) value=((value<<1)|(value>>7))&255;
 			snapshot[index]=value as u8;output[index]=value as u8;total=total+value as f64;index=index+1;
 		}
 		this.latest=move snapshot;this.revision=this.revision+1;this.processed=this.processed+len(input) as u64;this.score=this.score+total*this.configuration.weight;
 		return len(input);
 	}
+
 	[Foreign]Statistics<f64> statistics(){Statistics<f64> result={score=this.score,revision=this.revision,processed=this.processed};return result;}
-	[Foreign]owned u8[] snapshot(){var result=new u8[len(this.latest)];int index=0;while(index<len(this.latest)){result[index]=this.latest[index];index=index+1;}return move result;}
+
+	[Foreign]owned u8[] snapshot(){var result=new u8[len(this.latest)];int index=0;while(index<len(this.latest)){
+			result[index]=this.latest[index];
+			index=index+1;
+		}return move result;}
+
 	[Foreign]property bool rotating{get{return this.configuration.rotate;}}
+
 	deinit(){retired(1);}
 }

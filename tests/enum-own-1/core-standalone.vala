@@ -28,6 +28,7 @@ private CoreProgram model(BuiltinTypes? supplied = null) {
 	program.cleanups.add (cleanup);
 	return program;
 }
+
 private void contracts() {
 	try {
 		CoreProgram? program = model ();
@@ -79,6 +80,7 @@ private void contracts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void nonnull_field_authority() {
 	try {
 		var types = new BuiltinTypes ();
@@ -102,10 +104,12 @@ private void nonnull_field_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum-own/core/independent-mutations-restoration-lifetime", contracts);
 	Test.add_func ("/enum-own/core/reject-forged-nonnull-field", nonnull_field_authority);
 	return Test.run ();
 }
+
 }

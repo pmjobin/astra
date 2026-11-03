@@ -19,6 +19,7 @@ private void concrete() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void firewall() {
 	try {
 		CfgBuilder.build (sample ());
@@ -28,10 +29,12 @@ private void firewall() {
 	}
 	GLib.error ("accepted unresolved owned T at CFG");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own/cfg/concrete-flow-stage-lifetime", concrete);
 	Test.add_func ("/gen-own/cfg/unresolved-owner-firewall", firewall);
 	return Test.run ();
 }
+
 }

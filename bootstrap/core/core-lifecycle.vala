@@ -8,6 +8,7 @@ public class CoreBaseLifecycleCall : CoreCallStatement {
 	internal CoreBaseLifecycleCall (SourceSpan span, CoreLifecycle target, GenericArray<CoreValue> arguments, CoreValue receiver) {
 		base (span, target, arguments, receiver);
 	}
+
 }
 
 // Exact stage-owned lifecycle identity, independent of upstream symbols.
@@ -22,6 +23,7 @@ public abstract class CoreLifecycle : CoreFunction {
 		this.receiver = receiver;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class CoreConstructor : CoreLifecycle {
@@ -30,6 +32,7 @@ public class CoreConstructor : CoreLifecycle {
 	internal CoreConstructor (SourceSpan span, SourceSpan name_span, CoreClass owner, CoreReceiver receiver, int member_ordinal, SemanticType void_type, GenericArray<CoreParameter> parameters, GenericArray<CoreLocalPlace> locals, CoreBlock body) {
 		base (span, name_span, "init", owner, receiver, member_ordinal, void_type, parameters, locals, body);
 	}
+
 }
 
 public class CoreDestructor : CoreLifecycle {
@@ -38,6 +41,7 @@ public class CoreDestructor : CoreLifecycle {
 	internal CoreDestructor (SourceSpan span, SourceSpan name_span, CoreClass owner, CoreReceiver receiver, int member_ordinal, SemanticType void_type, GenericArray<CoreParameter> parameters, GenericArray<CoreLocalPlace> locals, CoreBlock body) {
 		base (span, name_span, "deinit", owner, receiver, member_ordinal, void_type, parameters, locals, body);
 	}
+
 }
 
 public class CoreConstructorObjectInitialization : CoreObjectConstruction {
@@ -51,6 +55,7 @@ public class CoreConstructorObjectInitialization : CoreObjectConstruction {
 		this.arguments = arguments;
 		this.allocation_context = allocation_context;
 	}
+
 }
 
 public class CoreStorageReceiverValue : CoreValue {
@@ -59,12 +64,14 @@ public class CoreStorageReceiverValue : CoreValue {
 		base (span, contract);
 		this.storage = storage;
 	}
+
 }
 
 public class CoreFieldInitialize : CoreInitialize {
 	internal CoreFieldInitialize (SourceSpan span, CoreIndirectFieldPlace target, CoreValue value) {
 		base (span, target, value);
 	}
+
 }
 
 public enum CleanupActionKind {

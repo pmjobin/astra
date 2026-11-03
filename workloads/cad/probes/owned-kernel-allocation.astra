@@ -5,12 +5,12 @@ struct Kernel { f64 mx; f64 my; f64 xx; f64 xy; f64 yy; f64 l; f64 a; f64 b; f64
 
 int main(string[] args) {
 	int count = 2048 * 2048;
-	if (len(args) == 2 && args[1] == "small") { count = 12; }
+	if (len(args) == 2 && args[1] == "small") count = 12;
 	owned Kernel[] state = new Kernel[count];
 	var first = state[0];
 	var last = first;
 	last.sigma = 1.0d;
 	state[count - 1] = last;
-	if (first.sigma != 0.0d || state[0].sigma != 0.0d || state[count - 1].sigma != 1.0d) { return 1; }
+	if (first.sigma != 0.0d || state[0].sigma != 0.0d || state[count - 1].sigma != 1.0d) return 1;
 	return 0;
 }

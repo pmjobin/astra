@@ -24,6 +24,7 @@ private CheckedProgram source() {
 	}
 	return checked.program;
 }
+
 private bool core_rejects(CoreProgram program) {
 	try {
 		CoreVerifier.verify (program);
@@ -32,6 +33,7 @@ private bool core_rejects(CoreProgram program) {
 	}
 	return false;
 }
+
 private bool cfg_rejects(CfgProgram program) {
 	try {
 		CfgVerifier.verify (program);
@@ -40,6 +42,7 @@ private bool cfg_rejects(CfgProgram program) {
 	}
 	return false;
 }
+
 private bool ssa_rejects(SsaProgram program) {
 	try {
 		SsaVerifier.verify (program);
@@ -48,6 +51,7 @@ private bool ssa_rejects(SsaProgram program) {
 	}
 	return false;
 }
+
 private bool cabi_rejects(CAbiProgram program) {
 	try {
 		CAbiVerifier.verify (program);
@@ -56,6 +60,7 @@ private bool cabi_rejects(CAbiProgram program) {
 	}
 	return false;
 }
+
 private bool llvm_rejects(LlvmModuleArtifact artifact) {
 	try {
 		artifact.verify ();
@@ -64,6 +69,7 @@ private bool llvm_rejects(LlvmModuleArtifact artifact) {
 	}
 	return false;
 }
+
 private void core_contract() {
 	try {
 		var program = CoreBuilder.build(source());
@@ -95,6 +101,7 @@ private void core_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		var program = CfgBuilder.build(CoreBuilder.build(source()));
@@ -124,6 +131,7 @@ private void cfg_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void ssa_contract() {
 	try {
 		var program = SsaBuilder.build(CfgBuilder.build(CoreBuilder.build(source())));
@@ -153,6 +161,7 @@ private void ssa_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void cabi_contract() {
 	try {
 		var ssa = SsaBuilder.build(CfgBuilder.build(CoreBuilder.build(source())));
@@ -186,6 +195,7 @@ private void cabi_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void llvm_contract() {
 	try {
 		var ssa = SsaBuilder.build(CfgBuilder.build(CoreBuilder.build(source())));
@@ -215,6 +225,7 @@ private void llvm_contract() {
 		GLib.error("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/record-value/core", core_contract);
@@ -224,4 +235,5 @@ int main(string[] args) {
 	Test.add_func("/record-value/llvm", llvm_contract);
 	return Test.run();
 }
+
 }

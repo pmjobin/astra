@@ -3,13 +3,13 @@ export(C) int opaque16_consumer(){
 	var session=new Hidden16.Session(3);
 	Hidden16.Sample sample={enabled=false,count=5,weight=2.0};
 	var result=session.amend(sample);
-	if(!result.enabled || result.count!=8 || result.weight!=3.0){return 1;}
+	if(!result.enabled || result.count!=8 || result.weight!=3.0) return 1;
 	Hidden16.Pair<f64> pair={left=4.5,right=1.25};var swapped=session.exchange(pair);
-	if(swapped.left!=4.25 || swapped.right!=4.5){return 2;}
-	session.count=11;if(session.count!=11){return 3;}
+	if(swapped.left!=4.25 || swapped.right!=4.5) return 2;
+	session.count=11;if(session.count!=11) return 3;
 	var bytes=new u8[3];bytes[0]=3;bytes[1]=0;bytes[2]=254;var snapshot=session.snapshot(bytes);
-	if(len(snapshot)!=3 || snapshot[0]!=4 || snapshot[1]!=1 || snapshot[2]!=255){return 5;}
-	try{var value=session.checked(-1.0);return 6;}catch(Hidden16.Fault fault){if(fault.message.byte_length!=14){return 7;}}
+	if(len(snapshot)!=3 || snapshot[0]!=4 || snapshot[1]!=1 || snapshot[2]!=255) return 5;
+	try{var value=session.checked(-1.0);return 6;}catch(Hidden16.Fault fault){if(fault.message.byte_length!=14) return 7;}
 	var facade=new Adapter16.Facade(9);var composed=facade.amend(sample,4);
-	if(!composed.enabled || composed.count!=18 || composed.weight!=3.0){return 4;}return 0;
+	if(!composed.enabled || composed.count!=18 || composed.weight!=3.0) return 4;return 0;
 }

@@ -20,10 +20,12 @@ static struct timespec began;
 static int queue_capacity, cache_capacity, workers, quota, extent, verbose;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned tickets, retired_tickets, entries, retired_entries, analyses, active, peak, reads, responses, refusals, network_overlap, io_overlap;
+
 static void stop(int signal) {
 	(void)signal;
 	atomic_store_explicit(&stopped, 1, memory_order_relaxed);
 }
+
 static int option(const char *name, int fallback, int low, int high) {
 	const char *value = getenv(name);
 	if (!value) {
@@ -34,6 +36,7 @@ static int option(const char *name, int fallback, int low, int high) {
 	long parsed = strtol(value, &end, 10);
 	return errno || end == value || *end || parsed < low || parsed > high ? -1 : (int)parsed;
 }
+
 int sequence_prepare(const unsigned char *path, int length) {
 	if (!path || length <= 0 || length > 4095) {
 		return 1;
@@ -64,28 +67,36 @@ int sequence_prepare(const unsigned char *path, int length) {
 	}
 	return 0;
 }
+
 int sequence_stop_requested(void) {
 	return atomic_load_explicit(&stopped, memory_order_relaxed);
 }
+
 int sequence_queue_capacity(void) {
 	return queue_capacity;
 }
+
 int sequence_cache_capacity(void) {
 	return cache_capacity;
 }
+
 int sequence_worker_count(void) {
 	return workers;
 }
+
 int sequence_quota(void) {
 	return quota;
 }
+
 int sequence_file_extent(void) {
 	return extent;
 }
+
 void sequence_ready(int tcp, int udp) {
 	printf("{\"tcp\":%d,\"udp\":%d,\"pid\":%ld}\n", tcp, udp, (long)getpid());
 	assert(fflush(stdout) == 0);
 }
+
 void sequence_event(int kind, int identity, int value) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	switch (kind) {
@@ -144,6 +155,7 @@ void sequence_event(int kind, int identity, int value) {
 	}
 	assert(pthread_mutex_unlock(&lock) == 0);
 }
+
 void sequence_error(const unsigned char *message, int length) {
 	assert(message && length >= 0);
 	if (length > 1024) {
@@ -153,6 +165,7 @@ void sequence_error(const unsigned char *message, int length) {
 	fwrite(message, 1, (size_t)length, stderr);
 	fputc('\n', stderr);
 }
+
 int sequence_finish(int result) {
 	struct timespec end;
 	assert(clock_gettime(CLOCK_MONOTONIC, &end) == 0 && sigaction(SIGINT, &previous_int, NULL) == 0 && sigaction(SIGTERM, &previous_term, NULL) == 0);

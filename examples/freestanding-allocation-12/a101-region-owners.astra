@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void owner_event(int value);
+
 extern(C) int region_probe(int phase);
 
 [Allocator(kind="region", domain="a101.region", capacity="4096", blocks="64")]
 [Align(bytes="64")]
 class Reading {
 	int value;
+
 	init(int value) { this.value = value; owner_event(value); }
+
 	deinit() { owner_event(0 - this.value); }
 }
 
@@ -15,7 +18,9 @@ class Window {
 	int first;
 	int second;
 	int third;
+
 	init(int seed) { this.first = seed; this.second = seed + 1; this.third = seed + 2; owner_event(seed); }
+
 	deinit() { owner_event(0 - this.first); }
 }
 
@@ -26,21 +31,21 @@ int main() {
 		var first = make_reading(11);
 		var second = new Window(22);
 		var third = new Reading(33);
-		if (first.value + second.third + third.value != 68) { return 81; }
-		if (region_probe(1) != 1) { return 82; }
+		if (first.value + second.third + third.value != 68) return 81;
+		if (region_probe(1) != 1) return 82;
 		for (int index = 0; index < 12; index = index + 1) {
 			var sample = new Reading(100 + index);
 			var frame = new Window(200 + index);
-			if (sample.value + 102 != frame.third) { return 87; }
+			if (sample.value + 102 != frame.third) return 87;
 		}
 		var moved = move first;
-		if (moved.value != 11) { return 83; }
+		if (moved.value != 11) return 83;
 	}
-	if (region_probe(2) != 1) { return 84; }
+	if (region_probe(2) != 1) return 84;
 	{
 		var recycled = new Reading(44);
-		if (region_probe(3) != 1) { return 85; }
+		if (region_probe(3) != 1) return 85;
 	}
-	if (region_probe(4) != 1) { return 86; }
+	if (region_probe(4) != 1) return 86;
 	return 42;
 }

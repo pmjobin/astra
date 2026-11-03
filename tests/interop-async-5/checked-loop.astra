@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // O0 must keep the private checked success slot in entry, outside the loop.
 [ExceptionRoot]
-class Error { init() {} virtual property string message { get { return "loop"; } } }
+class Error { init() {}
+
+	virtual property string message { get { return "loop"; } } }
+
 class Env { init() {} }
-i64 checked_step(borrowed Env env, i64 value) throws Error { if (value < 0) { throw new Error(); } return value + 1; }
+
+i64 checked_step(borrowed Env env, i64 value) throws Error { if (value < 0) {
+		throw new Error();
+	} return value + 1; }
+
 int main() {
 	var env = new Env(); var f = checked_closure_bind(move env, checked_step);
 	i64 value = 0;
-	try { while (value < 2000000) { value = closure_invoke(f, value); } }
+	try { while (value < 2000000) value = closure_invoke(f, value); }
 	catch (Error error) { return 81; }
-	if (value != 2000000) { return 82; }
+	if (value != 2000000) return 82;
 	return 0;
 }

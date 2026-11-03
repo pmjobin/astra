@@ -12,6 +12,7 @@ private class StorageGraph : Object {
 	internal GenericArray<SemanticType>? lookup(SemanticType type) {
 		return fields.lookup (type);
 	}
+
 }
 private CheckedProgram sample(bool buffer = false) {
 	string source = buffer ? "var values=new int[3];" : "int[3] values={2,4,6};";
@@ -24,9 +25,11 @@ private CheckedProgram sample(bool buffer = false) {
 	}
 	return result.program;
 }
+
 private CoreWhile core_loop(CoreProgram program) {
 	return (CoreWhile) ((CoreScope) program.functions[0].body.statements[2]).body.statements[1];
 }
+
 private void reject(CoreProgram program) {
 	bool rejected = false;
 	try {
@@ -37,6 +40,7 @@ private void reject(CoreProgram program) {
 	}
 	assert (rejected);
 }
+
 private void checked_authority() {
 	try {
 		var program = sample ();
@@ -56,6 +60,7 @@ private void checked_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_authority() {
 	try {
 		var program = CoreBuilder.build (sample ());
@@ -100,6 +105,7 @@ private void core_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void buffer_liveness() {
 	try {
 		var program = CoreBuilder.build (sample (true));
@@ -113,6 +119,7 @@ private void buffer_liveness() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_initialization() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -142,6 +149,7 @@ private void cfg_initialization() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_bounds() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample ())));
@@ -171,6 +179,7 @@ private void ssa_bounds() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void iterator_methods() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("iterator.astra",
@@ -210,6 +219,7 @@ private void iterator_methods() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void aggregate_storage_paths() {
 	try {
 		var types = new BuiltinTypes ();
@@ -256,6 +266,7 @@ private void aggregate_storage_paths() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed_storage_paths() {
 	var types = new BuiltinTypes ();
 	for (int variant = 0; variant < 4; variant++) {
@@ -282,6 +293,7 @@ private void malformed_storage_paths() {
 		assert (rejected);
 	}
 }
+
 private void container_snapshot() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("container-snapshot.astra",
@@ -377,6 +389,7 @@ private void container_snapshot() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sequence/container-complete-snapshot-authority-restored", container_snapshot);
@@ -390,4 +403,5 @@ int main(string[] args) {
 	Test.add_func ("/aggregate/storage-paths-reject-malformed-graphs", malformed_storage_paths);
 	return Test.run ();
 }
+
 }

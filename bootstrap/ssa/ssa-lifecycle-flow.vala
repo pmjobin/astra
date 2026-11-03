@@ -85,5 +85,6 @@ public class SsaObjectLifecycleFlow : Object {
 			} while (changed);
 		}
 	}
+
 }
 }

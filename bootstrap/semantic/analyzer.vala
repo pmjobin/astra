@@ -14,6 +14,7 @@ public class SemanticResult : Object {
 		this.program = program;
 		this.diagnostic = diagnostic;
 	}
+
 }
 
 // Visibility is lexical; the function-wide local array owns declaration order.
@@ -27,6 +28,7 @@ private class ModuleBinding : Object {
 		this.space = space;
 		this.restricted = restricted;
 	}
+
 }
 
 private class ValueScope : Object {
@@ -47,6 +49,7 @@ private class ValueScope : Object {
 	public void insert(string name, Symbol symbol) {
 		values.insert (name, symbol);
 	}
+
 }
 
 private enum OwnershipUse {
@@ -56,6 +59,7 @@ private enum OwnershipUse {
 	BUFFER_VIEW,
 	RECEIVER_BORROW
 }
+
 // Declaration-phase constraints establish one allocation domain per owned
 // signature. They do not grant ownership: ordinary checking still proves
 // every acquisition, move, extent, exact type and cleanup independently.
@@ -70,11 +74,13 @@ private class ObjectOriginConstraint : Object {
 		this.intrinsic_domains = domains;
 		this.domains = domains;
 	}
+
 	internal void include(ObjectOriginConstraint? input) {
 		if (input != null && !inputs.find (input)) {
 			inputs.add (input);
 		}
 	}
+
 }
 
 public class SemanticAnalyzer : Object {
@@ -89,6 +95,7 @@ public class SemanticAnalyzer : Object {
 		shared = c_class_shared.contains (type);
 		return type is HandleType && prefix != "";
 	}
+
 	private HashTable<LocalSymbol, GenericArray<CheckedFieldPlace>> record_flow_fields = new HashTable<LocalSymbol, GenericArray<CheckedFieldPlace>> (direct_hash, direct_equal);
 	private bool aggregate_owner_flow_needed;
 	private void begin_ownership_flow(FunctionSymbol symbol) {
@@ -100,6 +107,7 @@ public class SemanticAnalyzer : Object {
 		string context = (symbol is GenericFunctionSymbol) ? "generic definition checking" : "ownership checking in '%s'".printf (symbol.name);
 		generic_owner_flow = !declaration_only && (aggregate_owner_flow_needed || symbol is GenericFunctionSymbol) ? new SemanticOwnershipFlow (symbol.span, context) : null;
 	}
+
 	private bool verify_ownership_flow(CheckedBlockStatement? body, FunctionSymbol symbol) {
 		if (body == null) {
 			return false;
@@ -110,10 +118,12 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private HashTable<string, AsyncRuntimeIdentity> async_runtimes = new HashTable<string, AsyncRuntimeIdentity> (str_hash, str_equal);
 	private AsyncRuntimeIdentity? runtime_for(SourceSpan span) {
 		return async_runtimes.lookup (source_namespace (span)) ?? async_runtimes.lookup ("");
 	}
+
 	private GenericArray<ConstantSymbol> constants = new GenericArray<ConstantSymbol> ();
 	private HashTable<ConstantSymbol, int> constant_indices = new HashTable<ConstantSymbol, int> (direct_hash, direct_equal);
 	private ValueScope? constant_scope;
@@ -220,6 +230,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return result;
 	}
+
 	private GenericArray<SemanticType>? possible_child_edges(SemanticType type) {
 		var result = child_edges (type);
 		var owner = type as ClassType;
@@ -235,9 +246,11 @@ public class SemanticAnalyzer : Object {
 		}
 		return result;
 	}
+
 	private bool field_overlap(SemanticType candidate, SemanticType backing) {
 		return OwnedChildComposition.may_invalidate (candidate, backing, possible_child_edges);
 	}
+
 	private HashTable<CallExpressionSyntax, GenericCallContext> generic_call_contexts = new HashTable<CallExpressionSyntax, GenericCallContext> (direct_hash, direct_equal);
 	private HashTable<CheckedOwnedArgument, GenericFunctionSymbol> heap_generic_requests = new HashTable<CheckedOwnedArgument, GenericFunctionSymbol> (direct_hash, direct_equal);
 	private GenericArray<CheckedOwnedArgument> lexical_generic_order = new GenericArray<CheckedOwnedArgument> ();
@@ -355,6 +368,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return !origins_changed || origin_program == null || resolve_object_origins (origin_program, origin_declarations, class_requests);
 	}
+
 	private GenericArray<FunctionSymbol> origin_functions = new GenericArray<FunctionSymbol> ();
 	private GenericArray<BlockStatementSyntax> origin_bodies = new GenericArray<BlockStatementSyntax> ();
 	private HashTable<FunctionSymbol, bool> queued_origin_functions = new HashTable<FunctionSymbol, bool> (direct_hash, direct_equal);
@@ -378,11 +392,13 @@ public class SemanticAnalyzer : Object {
 		}
 		return origin_record_results.lookup (expression);
 	}
+
 	private ObjectOriginConstraint origin_constraint(ClassSymbol owner, int domains = 0) {
 		var node = new ObjectOriginConstraint (owner, domains);
 		origin_constraints.add (node);
 		return node;
 	}
+
 	private void origin_arguments(GenericArray<ExpressionSyntax> arguments, DirectCallableSymbol? target, HashTable<string, ObjectOriginConstraint> bindings, CallableSignature? indirect = null, int first = 0) {
 		for (int i = 0; i < arguments.length; i++) {
 			var incoming = origin_expression (arguments[i], bindings);
@@ -397,6 +413,7 @@ public class SemanticAnalyzer : Object {
 			}
 		}
 	}
+
 	private SemanticType? origin_receiver_type(ExpressionSyntax syntax, HashTable<string, ObjectOriginConstraint> bindings) {
 		if (syntax is ParenthesizedExpressionSyntax) {
 			return origin_receiver_type (((ParenthesizedExpressionSyntax) syntax).expression, bindings);
@@ -431,6 +448,7 @@ public class SemanticAnalyzer : Object {
 		var field = storage_field (type, projection.field_name.spelling ());
 		return field == null ? null : storage_field_type (type, field);
 	}
+
 	private void require_callable_heap_inputs(DirectCallableSymbol? target) {
 		if (target == null) {
 			return;
@@ -451,6 +469,7 @@ public class SemanticAnalyzer : Object {
 			}
 		}
 	}
+
 	private TypeSubstitution? generic_origin_substitution(GenericFunctionSymbol function, CallExpressionSyntax call, HashTable<string, ObjectOriginConstraint> bindings, TypeSubstitution? outer = null) {
 		var substitution = new TypeSubstitution ((element) => types.slice_of (element), types.substitute_function, substitute_class, substitute_closure);
 		if (call.type_arguments.length == function.type_parameters.length) {
@@ -498,6 +517,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return substitution;
 	}
+
 	private ClassSymbol? generic_origin_result_class(GenericFunctionSymbol function, CallExpressionSyntax call, HashTable<string, ObjectOriginConstraint> bindings) {
 		var substitution = generic_origin_substitution (function, call, bindings);
 		if (substitution == null) {
@@ -506,6 +526,7 @@ public class SemanticAnalyzer : Object {
 		var result = substitution.apply (function.return_type);
 		return result.is_parameterized () ? null : instance_for (result) as ClassSymbol;
 	}
+
 	private ObjectOriginConstraint? origin_expression(ExpressionSyntax? expression, HashTable<string, ObjectOriginConstraint> bindings) {
 		if (expression == null) {
 			return null;
@@ -719,9 +740,11 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private void origin_block(BlockStatementSyntax body, FunctionSymbol function, HashTable<string, ObjectOriginConstraint> outer) {
 		origin_statements (body.statements, function, outer);
 	}
+
 	private void origin_match(MatchStatementSyntax match, FunctionSymbol function, HashTable<string, ObjectOriginConstraint> outer) {
 		origin_expression (match.scrutinee, outer);
 		var scrutinee = match.scrutinee;
@@ -759,6 +782,7 @@ public class SemanticAnalyzer : Object {
 		}
 		origin_record_types = incoming_records;
 	}
+
 	private void origin_record_initializer(StructInitializerSyntax initializer, SemanticType type, HashTable<string, ObjectOriginConstraint> bindings) {
 		var record = instance_for (type) as StructSymbol;
 		if (record == null) {
@@ -779,6 +803,7 @@ public class SemanticAnalyzer : Object {
 			}
 		}
 	}
+
 	private void origin_statements(GenericArray<StatementSyntax> statements, FunctionSymbol function, HashTable<string, ObjectOriginConstraint> outer, ExpressionSyntax? condition = null) {
 		var incoming_records = origin_record_types;
 		origin_record_types = new HashTable<string, SemanticType> (str_hash, str_equal);
@@ -921,6 +946,7 @@ public class SemanticAnalyzer : Object {
 		origin_expression (condition, bindings);
 		origin_record_types = incoming_records;
 	}
+
 	private void seed_origin_signature(FunctionSymbol function) {
 		bool heap_boundary = function.foreign_heap_boundary;
 		if (native_heap_boundaries != null) {
@@ -1245,9 +1271,11 @@ public class SemanticAnalyzer : Object {
 	private bool slots_candidate(ExpressionSyntax? syntax, ValueScope values) {
 		return syntax is FieldAccessExpressionSyntax && field_context_type ((FieldAccessExpressionSyntax) syntax, values) is OwnerSlotsType;
 	}
+
 	private bool slots_call(CallExpressionSyntax syntax, ValueScope values) {
 		return slots_candidate (syntax.receiver_place, values);
 	}
+
 	private CheckedPlace? check_slots_place(ExpressionSyntax syntax, ValueScope values) {
 		if (checking_function != null && (checking_function.async_body != null || checking_function is GenericFunctionSymbol)) {
 			fail (syntax.span, "owner-slot operations require synchronous concrete native code");
@@ -1259,6 +1287,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return load.source;
 	}
+
 	private CheckedExpression? check_slot_operand(CheckedPlace store, ExpressionSyntax operand, ValueScope values) {
 		var field = (store is CheckedReceiverFieldPlace) ? ((CheckedReceiverFieldPlace) store).field : ((CheckedObjectFieldPlace) store).field;
 		pending_field_borrows.add (field.containing_type.semantic_type);
@@ -1266,6 +1295,7 @@ public class SemanticAnalyzer : Object {
 		pending_field_borrows.remove_index (pending_field_borrows.length - 1);
 		return result;
 	}
+
 	private bool slots_mutation(CheckedPlace store, SourceSpan span) {
 		if (active_with.length != 0) {
 			fail (span, "with receiver scope excludes structural slot mutation");
@@ -1281,7 +1311,6 @@ public class SemanticAnalyzer : Object {
 		return true;
 	}
 
-
 	private SyntaxProgram? source_program;
 	private HashTable<string, ModuleBinding> module_types = new HashTable<string, ModuleBinding> (str_hash, str_equal);
 	private HashTable<string, ModuleBinding> module_values = new HashTable<string, ModuleBinding> (str_hash, str_equal);
@@ -1296,19 +1325,23 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private string source_namespace(SourceSpan span) {
 		var unit = source_unit (span);
 		return unit == null || unit.namespace_name == null ? "" : unit.namespace_name.spelling ();
 	}
+
 	private string declaration_name(Token token) {
 		string space = source_namespace (token.span);
 		return space == "" ? token.spelling () : space + "." + token.spelling ();
 	}
+
 	private void bind_module(Token token, SyntaxNode declaration, bool type) {
 		string space = source_namespace (token.span);
 		string key = declaration_name (token);
 		(type ? module_types : module_values).insert (key, new ModuleBinding (key, space, declaration.module_internal));
 	}
+
 	private bool collect_modules(SyntaxProgram source) {
 		source_program = source;
 		foreach (var unit in source.units) {
@@ -1338,6 +1371,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	// Lookup returns canonical keys; the original source remains diagnostic and
 	// caller-information provenance. Imports never create new symbol identities.
 	private string resolve_name(SourceSpan span, string name, bool type = true) {
@@ -1374,16 +1408,19 @@ public class SemanticAnalyzer : Object {
 		}
 		return selected == null ? name : selected.name;
 	}
+
 	private ConstantSymbol? qualified_constant(FieldAccessExpressionSyntax field, ValueScope values) {
 		if (field.aggregate != null || field.indirect || field.identifier == null || values.lookup (field.identifier.spelling ()) != null || !module_names.contains (field.identifier.spelling ())) {
 			return null;
 		}
 		return constant_scope == null ? null : constant_scope.lookup (resolve_name (field.span, field.identifier.spelling () + "." + field.field_name.spelling (), false)) as ConstantSymbol;
 	}
+
 	private bool visible_nominal(SourceSpan span, string name) {
 		string key = resolve_name (span, name);
 		return named_types.contains (key) || generic_struct_names.contains (key) || generic_class_names.contains (key);
 	}
+
 	// Origin collection precedes lexical generic body checking. Consult only
 	// already-established Class identities; resolving arbitrary body types here
 	// would diagnose symbolic T or Struct<T> before their real checking scope.
@@ -1407,6 +1444,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return instance_names.lookup (type_key (syntax)) as ClassSymbol;
 	}
+
 	private ClassSymbol? qualified_class(CallExpressionSyntax call, bool origin = false) {
 		if (call.receiver == null) {
 			return null;
@@ -1424,13 +1462,16 @@ public class SemanticAnalyzer : Object {
 		var type = resolve_type (application);
 		return type == null ? null : instance_for (type) as ClassSymbol;
 	}
+
 	private string type_key(TypeNameSyntax syntax) {
 		return resolve_name (syntax.span, syntax.lookup_name ());
 	}
+
 	private bool exact_heap_class_argument(SemanticType type) {
 		var owner = instance_for (type) as ClassSymbol;
 		return owner != null && owner.generic_instance == null && !owner.polymorphic && owner.parent_class == null && !((ClassType) type).is_interface;
 	}
+
 	private ExactGenericClassType? request_class(GenericTypeApplicationSyntax application, ExactClassTemplate definition) {
 		if (application.type_arguments.length != definition.identity.parameter_count) {
 			fail (application.span, "generic Class '%s' requires exactly %d type arguments, found %u".printf (definition.identity.name, definition.identity.parameter_count, application.type_arguments.length));
@@ -1661,15 +1702,19 @@ public class SemanticAnalyzer : Object {
 		}
 		return parameter && (FunctionValueType.symbolic_copy (type) || GenericArgumentTypes.plain_copy (type, copy_fields, copy_premise));
 	}
+
 	private DirectCallableSymbol? find_function(Token token) {
 		return function_names.lookup (resolve_name (token.span, token.spelling (), false));
 	}
+
 	private NativeInstanceSymbol? find_instance(Token token) {
 		return instance_names.lookup (resolve_name (token.span, token.spelling ()));
 	}
+
 	private SemanticType? find_named(Token token) {
 		return named_types.lookup (resolve_name (token.span, token.spelling ()));
 	}
+
 	private static string export_name(string canonical) {
 		if (!canonical.contains (".")) {
 			return canonical;
@@ -1680,6 +1725,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return result.str;
 	}
+
 	private static string c_export_name(FunctionDeclarationSyntax syntax, string canonical) {
 		if (syntax.foreign_policy != null) {
 			foreach (var entry in syntax.foreign_policy.entries) {
@@ -1690,6 +1736,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return export_name (canonical);
 	}
+
 	private static CBoolAbi c_bool_abi(FunctionDeclarationSyntax syntax) {
 		if (syntax.foreign_policy != null) {
 			foreach (var entry in syntax.foreign_policy.entries) {
@@ -1700,6 +1747,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return CBoolAbi.NONE;
 	}
+
 	private static bool c_value_export(FunctionDeclarationSyntax syntax) {
 		var entries = syntax.foreign_policy == null ? syntax.ccode : syntax.foreign_policy.entries;
 		if (!syntax.is_c_export || entries == null) {
@@ -1719,6 +1767,7 @@ public class SemanticAnalyzer : Object {
 	private int foreign_selection = -1;
 	private SemanticAnalyzer () {
 	}
+
 	private ToolingIndex? tooling;
 	~SemanticAnalyzer () {
 		foreach (var node in origin_constraints) {
@@ -1750,9 +1799,11 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private static CheckedBlockStatement native_block(SourceSpan span) {
 		return new CheckedBlockStatement (span, new GenericArray<CheckedStatement> (), new LexicalRegion (null, 0));
 	}
+
 	public static SemanticResult analyze_program(SyntaxProgram syntax, GenericArray<ForeignDeclarationInput>? foreign_inputs = null, GenericArray<ForeignHandleInput>? handle_inputs = null, ToolingIndex? tooling = null, GenericArray<FunctionDeclarationSyntax>? native_heap_boundaries = null, NativeDeclarationRegistry? native_declarations = null, int foreign_selection = -1) {
 		var analyzer = new SemanticAnalyzer ();
 		analyzer.foreign_selection = foreign_selection;
@@ -2023,6 +2074,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return type;
 	}
+
 	private SemanticType? callable_result(TypeNameSyntax syntax, out ResultOwnershipContract contract, string invalid_result) {
 		var channel = syntax as CallableChannelTypeSyntax;
 		contract = channel != null && channel.keyword.kind == TokenKind.OWNED ? ResultOwnershipContract.OWNED_TRANSFER : ResultOwnershipContract.UNMANAGED;
@@ -2993,6 +3045,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return value is CheckedThisExpression && ((CheckedThisExpression) value).receiver == receiver;
 	}
+
 	private CheckedExpression upcast_class(CheckedExpression value, SemanticType expected) {
 		if (value.semantic_type == expected) {
 			return value;
@@ -3019,6 +3072,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return false;
 	}
+
 	private CheckedPropertyAccessor? check_accessor(PropertyAccessorSyntax syntax, PropertyAccessorSymbol symbol) {
 		var locals = new GenericArray<LocalSymbol> ();
 		if (native_body (symbol)) {
@@ -3215,6 +3269,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private static bool interface_read_block(BlockStatementSyntax body, ClassSymbol owner) {
 		foreach (var statement in body.statements) {
 			var returned = statement as ReturnStatementSyntax;
@@ -3548,6 +3603,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private bool order_com_declaration(ClassDeclarationSyntax syntax, SyntaxProgram unit, GenericArray<ClassDeclarationSyntax> output, HashTable<string, int> state, uint remaining = 32) {
 		string name = syntax.name.spelling ();
 		if (remaining == 0 || state.lookup (name) == 1) {
@@ -3572,6 +3628,7 @@ public class SemanticAnalyzer : Object {
 		output.add (syntax);
 		return true;
 	}
+
 	private GenericArray<ClassDeclarationSyntax>? imported_class_declarations(SyntaxProgram unit) {
 		var result = new GenericArray<ClassDeclarationSyntax> ();
 		foreach (var syntax in unit.c_classes) {
@@ -3585,6 +3642,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return result;
 	}
+
 	private GenericArray<SyntaxNode> imported_class_members(ClassDeclarationSyntax syntax, SyntaxProgram unit) {
 		var result = new GenericArray<SyntaxNode> ();
 		if (syntax.foreign_import.kind == DeclarationPolicyId.COM_IMPORT && syntax.parent_class != null) {
@@ -3600,6 +3658,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return result;
 	}
+
 	private ForeignGObjectImport? gobject_class_identity(ClassDeclarationSyntax syntax) {
 		if (syntax.foreign_import.kind != DeclarationPolicyId.GOBJECT_IMPORT) {
 			return null;
@@ -3628,6 +3687,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return result;
 	}
+
 	private bool c_class_identity(ClassDeclarationSyntax syntax, out string prefix, out ForeignLifetime lifetime, out string iid) {
 		bool com = syntax.foreign_import.kind == DeclarationPolicyId.COM_IMPORT;
 		bool gobject = syntax.foreign_import.kind == DeclarationPolicyId.GOBJECT_IMPORT;
@@ -3679,6 +3739,7 @@ public class SemanticAnalyzer : Object {
 		lifetime = ownership == "shared" ? ForeignLifetime.SHARED : ForeignLifetime.UNIQUE;
 		return true;
 	}
+
 	private bool collect_c_class_handles(SyntaxProgram unit, GenericArray<HandleSymbol> handles) {
 		var prefixes = new HashTable<string, bool> (str_hash, str_equal);
 		var iids = new HashTable<string, bool> (str_hash, str_equal);
@@ -3719,6 +3780,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private GenericArray<FunctionSymbol>? collect_c_class_functions(SyntaxProgram unit, GenericArray<NativeInstanceSymbol> instances) {
 		var output = new GenericArray<FunctionSymbol> ();
 		var imports = imported_class_declarations (unit);
@@ -4127,6 +4189,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return output;
 	}
+
 	private CallExpressionSyntax? imported_member(CallExpressionSyntax syntax, ValueScope values, out DirectCallableSymbol? target) {
 		target = null;
 		if (syntax.receiver == null && syntax.receiver_place == null || syntax.type_arguments.length != 0 || syntax.qualifier_arguments.length != 0) {
@@ -4153,10 +4216,12 @@ public class SemanticAnalyzer : Object {
 		}
 		return new CallExpressionSyntax (syntax.identifier, syntax.open_paren, arguments, syntax.commas, syntax.close_paren);
 	}
+
 	private FunctionSymbol? imported_property_for_type(SemanticType? type, string name, bool setter = false) {
 		var handle = type == null ? null : handle_types.lookup (type);
 		return handle == null || handle.c_import == null ? null : (setter ? imported_setters : imported_getters).lookup (handle.name + "." + name);
 	}
+
 	private FunctionSymbol? imported_property(FieldAccessExpressionSyntax syntax, ValueScope values, bool setter = false) {
 		if (syntax.indirect) {
 			return null;
@@ -4164,6 +4229,7 @@ public class SemanticAnalyzer : Object {
 		var receiver = syntax.aggregate ?? new NameExpressionSyntax (syntax.identifier);
 		return imported_property_for_type (place_context_type (receiver, values), syntax.field_name.spelling (), setter);
 	}
+
 	private CallExpressionSyntax? imported_property_call(ExpressionSyntax input, ValueScope values, ExpressionSyntax? replacement = null) {
 		var syntax = input as FieldAccessExpressionSyntax;
 		if (syntax == null) {
@@ -4220,6 +4286,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return handles;
 	}
+
 	private bool collect_com_handles(SyntaxProgram unit, GenericArray<HandleSymbol> handles) {
 		var prefixes = new HashTable<string, bool> (str_hash, str_equal);
 		foreach (var syntax in unit.com_interfaces) {
@@ -4256,6 +4323,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private bool collect_com_functions(HandleSymbol handle, GenericArray<CFunctionSymbol> output) {
 		var contract = handle.com_import;
 		foreach (var role in new ComImportRole[] { ComImportRole.ACQUIRE, ComImportRole.CLONE, ComImportRole.GET, ComImportRole.SET, ComImportRole.SCALE }) {
@@ -4321,6 +4389,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private bool bind_pod_representation(StructSymbol owner, NativeInstanceDeclarationSyntax syntax) {
 		var type = (StructType) owner.semantic_type;
 		if (syntax.representation == null && syntax.alignment == null) {
@@ -4384,6 +4453,7 @@ public class SemanticAnalyzer : Object {
 		owner.representation = policy;
 		return true;
 	}
+
 	private bool bind_class_allocation(ClassSymbol owner, NativeInstanceDeclarationSyntax syntax) {
 		if (syntax.representation != null) {
 			fail (syntax.span, "Repr(C) requires an eligible POD record; native Class layout is not a C representation");
@@ -4464,6 +4534,7 @@ public class SemanticAnalyzer : Object {
 		owner.allocation_policy = policy;
 		return true;
 	}
+
 	private bool validate_allocation_policies(CheckedProgram program) {
 		foreach (var owner in program.structs) {
 			if (owner.representation != null && (owner.methods.length != 0 || owner.properties.length != 0)) {
@@ -4576,6 +4647,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	// Initial and member-local requests share one ordered declaration worklist.
 	// A nested request can append a skeleton during collection; all its fields
 	// are completed before collecting the next member signature.
@@ -6021,6 +6093,7 @@ public class SemanticAnalyzer : Object {
 		var parameter = method.parameters[ordinal];
 		return parameter.semantic_type == type && parameter.pointer_contract == PointerParameterContract.OWNED_TRANSFER && (ownable_parameter (type) || type is ClassType && parameter.heap_object);
 	}
+
 	private int heap_consumer_parameter(GenericFunctionSymbol function, GenericArray<LocalSymbol> locals, GenericOwnershipFlow flow) {
 		bool returning = function.result_contract == ResultOwnershipContract.OWNED_TRANSFER;
 		if (function.async_body != null || function.throws_type != null) {
@@ -6066,9 +6139,11 @@ public class SemanticAnalyzer : Object {
 		}
 		return -1;
 	}
+
 	private static bool ownable_parameter(SemanticType? type) {
 		return type is TypeParameterType && ((TypeParameterType) type).transport_mode == GenericTransportMode.OWNABLE;
 	}
+
 	private CheckedStatement? check_generic_owner_local(SourceSpan span, Token name, ExpressionSyntax expression, SemanticType type, ValueScope values, GenericArray<LocalSymbol> locals, CheckedExpression? checked_initializer = null) {
 		if (!(checking_function is GenericFunctionSymbol) || !ownable_parameter (type)) {
 			fail (span, "generic owned locals require the declared Ownable capability");
@@ -6125,12 +6200,14 @@ public class SemanticAnalyzer : Object {
 		values.insert (local.name, local);
 		return new CheckedOwnedLocalDeclaration (span, local, initializer);
 	}
+
 	private static bool deferred_class_result(FunctionSymbol function) {
 		var generic = function as GenericFunctionSymbol;
 		return generic != null && generic.return_type is ClassType
 		       && generic.result_contract == ResultOwnershipContract.OWNED_TRANSFER
 		       && (generic.result_origins.domains & GenericResultOrigins.UNKNOWN) != 0;
 	}
+
 	private GenericArray<SourceResultOriginRequest> projected_origin_requests = new GenericArray<SourceResultOriginRequest> ();
 	private int projected_generic_origins;
 	private HashTable<GenericRequestKey, SourceResultOriginRequest> projected_origin_registry = new HashTable<GenericRequestKey, SourceResultOriginRequest> (GenericRequestKey.hash, GenericRequestKey.equal);
@@ -6167,6 +6244,7 @@ public class SemanticAnalyzer : Object {
 		projected_origin_registry.insert (key, result);
 		return result;
 	}
+
 	private BlockStatementSyntax? source_result_body(FunctionSymbol function) {
 		var method = function as MethodSymbol;
 		if (method != null) {
@@ -6180,6 +6258,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private GenericResultOrigins source_result_edge(FunctionSymbol function, CallExpressionSyntax call, HashTable<string, SemanticType> locals, TypeSubstitution substitution) {
 		var arguments = new GenericArray<SemanticType> ();
 		var generic = function as GenericFunctionSymbol;
@@ -6198,6 +6277,7 @@ public class SemanticAnalyzer : Object {
 		var request = request_source_result (function, arguments);
 		return request == null ? new GenericResultOrigins (GenericResultOrigins.UNKNOWN) : request.equation;
 	}
+
 	private GenericResultOrigins project_source_result(FunctionSymbol function, GenericArray<SemanticType> arguments) {
 		var root = request_source_result (function, arguments);
 		if (root == null) {
@@ -6269,6 +6349,7 @@ public class SemanticAnalyzer : Object {
 		origin_function = saved_function;
 		return root.equation;
 	}
+
 	private FunctionSymbol? generic_origin_target(CallExpressionSyntax call, HashTable<string, SemanticType> locals, TypeSubstitution? substitution) {
 		SemanticType? receiver = null;
 		if (call.receiver != null) {
@@ -6297,6 +6378,7 @@ public class SemanticAnalyzer : Object {
 		string name = (call.receiver == null ? "" : call.receiver.spelling () + ".") + call.identifier.spelling ();
 		return function_names.lookup (resolve_name (call.span, name, false)) as FunctionSymbol;
 	}
+
 	private void derive_generic_result_origins() {
 		// Resolve source factory dependencies with generic wrappers. Ordinary
 		// functions have not received their solved allocation flags yet.
@@ -6343,6 +6425,7 @@ public class SemanticAnalyzer : Object {
 		} while (changed);
 		lexical_types.remove_all ();
 	}
+
 	private bool owned_call_heap_result(CheckedCallExpression call) {
 		var function = call.target as FunctionSymbol;
 		if (function == null) {
@@ -6372,6 +6455,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return domains == GenericResultOrigins.HEAP;
 	}
+
 	private bool check_generic_position(SemanticType? type, bool owned, bool borrowed, SourceSpan span) {
 		if (!(type is TypeParameterType)) {
 			return true;
@@ -6393,6 +6477,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private bool check_generic_borrow_source(ExpressionSyntax syntax, ValueScope values) {
 		while (syntax is ParenthesizedExpressionSyntax) {
 			syntax = ((ParenthesizedExpressionSyntax) syntax).expression;
@@ -6407,6 +6492,7 @@ public class SemanticAnalyzer : Object {
 		fail (syntax.span, "generic borrowed argument requires a live exact owner, borrowed T parameter or explicit contextual null");
 		return false;
 	}
+
 	private CheckedOwnershipReturn? check_generic_owned_return(ReturnStatementSyntax syntax, FunctionSymbol function, ValueScope values) {
 		CheckedOwnershipMove? transfer = null;
 		CheckedExpression? producer = null;
@@ -6433,6 +6519,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return new CheckedOwnershipReturn (syntax.span, function.return_type, null, transfer, null, producer);
 	}
+
 	private static int generic_truth(CheckedExpression? expression) {
 		return (expression is CheckedBooleanExpression) ? (((CheckedBooleanExpression) expression).literal == BooleanLiteral.TRUE ? 1 : 0) : -1;
 	}
@@ -6701,6 +6788,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return false;
 	}
+
 	private DirectCallableSymbol? collect_signature(FunctionDeclarationSyntax syntax,NativeInstanceSymbol? declaring_type = null,int member_ordinal = -1) {
 		if (syntax.foreign_policy != null) {
 			var policy = syntax.foreign_policy;
@@ -7958,6 +8046,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return type;
 	}
+
 	private bool check_exception_effect(ClassType bound, SourceSpan span) {
 		for (int i = (int) exception_handlers.length - 1; i >= 0; i--) {
 			var scope = exception_handlers[i];
@@ -7974,6 +8063,7 @@ public class SemanticAnalyzer : Object {
 		fail (span, "unhandled checked exception bound '%s'; catch an ancestor bound or declare compatible throws".printf (bound.display_name ()));
 		return false;
 	}
+
 	private CheckedStatement? check_throw(ThrowStatementSyntax syntax, FunctionSymbol function, ValueScope values, GenericArray<LocalSymbol> locals) {
 		if (exception_root == null) {
 			fail (syntax.span, "throw requires a concrete native definition and nominated exception root");
@@ -8022,6 +8112,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return new CheckedThrow (syntax.span, owner, (ClassType) exception_root.semantic_type, false, construction);
 	}
+
 	private CheckedStatement? check_try(TryStatementSyntax syntax, FunctionSymbol function, ValueScope values, GenericArray<LocalSymbol> locals) {
 		if (exception_root == null) {
 			fail (syntax.span, "try requires a nominated exception root and concrete native definition");
@@ -8090,6 +8181,7 @@ public class SemanticAnalyzer : Object {
 		var executor = local == null ? null : local.semantic_type as ExecutorType;
 		return executor == null ? runtime_for(call.span) : executor.runtime;
 	}
+
 	private bool async_operation_call(CallExpressionSyntax call, ValueScope values) {
 		var async_runtime = async_operation_runtime (call, values);
 		if (async_runtime == null) {
@@ -8101,6 +8193,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return checking_function != null && checking_function.async_body != null && find_function (call.identifier) == null && values.lookup (call.identifier.spelling ()) == null && (call.identifier.spelling () == "start" || call.identifier.spelling () == "cancel");
 	}
+
 	private CheckedNode? check_async_operation(CallExpressionSyntax call, ValueScope values, bool requires_value) {
 		var runtime = async_operation_runtime (call, values);
 		if (runtime == null || call.type_arguments.length != 0 || call.qualifier_arguments.length != 0) {
@@ -8317,6 +8410,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private bool with_overlap(SemanticType type) {
 		if (type is ReceiverType) {
 			type = ((ReceiverType) type).instance_type;
@@ -8328,6 +8422,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return false;
 	}
+
 	private CheckedExpression object_reference(SourceSpan span, LocalSymbol? local, ParameterSymbol? parameter) {
 		for (int i = active_with.length - 1; i >= 0; i--) {
 			if (active_with[i].source == local) {
@@ -8336,6 +8431,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return local != null ? (CheckedExpression) new CheckedLocalReferenceExpression (span, local) : new CheckedParameterReferenceExpression (span, parameter);
 	}
+
 	private void with_call(DirectCallableSymbol target, CheckedExpression? receiver, GenericArray<CheckedExpression> arguments) {
 		bool overlaps = receiver != null && with_overlap (receiver.semantic_type);
 		foreach (var argument in arguments) {
@@ -8347,6 +8443,7 @@ public class SemanticAnalyzer : Object {
 			readonly_inspection.require ((FunctionSymbol) target);
 		}
 	}
+
 	private CheckedStatement? check_with(WithStatementSyntax syntax, FunctionSymbol function, ValueScope values, GenericArray<LocalSymbol> locals) {
 		if (function.async_body != null || function is GenericFunctionSymbol) {
 			fail (syntax.span, "with requires synchronous concrete native code");
@@ -9881,6 +9978,7 @@ public class SemanticAnalyzer : Object {
 		var call = syntax as CallExpressionSyntax;
 		return call != null && call.receiver == null && call.receiver_place == null && call.identifier.spelling () == "scoped_allocator" && find_function (call.identifier) == null && values.lookup (call.identifier.spelling ()) == null;
 	}
+
 	private bool scoped_backing_access(LocalSymbol owner, LexicalRegion region, SourceSpan span) {
 		if (pending_scoped_backings.find (owner)) {
 			fail (span, "scoped backing is reserved throughout context argument evaluation");
@@ -9894,6 +9992,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private CheckedStatement? check_scoped_allocator_binding(SourceSpan span, Token name, CallExpressionSyntax call, SemanticType? expected, ValueScope values, GenericArray<LocalSymbol> locals) {
 		if (values.lookup (name.spelling ()) != null) {
 			fail (name.span, "duplicate scoped context binding");
@@ -9947,6 +10046,7 @@ public class SemanticAnalyzer : Object {
 		scoped_contexts.add (local);
 		return new CheckedOwnedLocalDeclaration (span, local, initializer);
 	}
+
 	private CheckedStatement? check_inferred_local(InferredLocalDeclarationSyntax syntax, ValueScope values, GenericArray<LocalSymbol> locals) {
 		if (scoped_allocator_binding (syntax.initializer, values)) {
 			return check_scoped_allocator_binding (syntax.span, syntax.name, (CallExpressionSyntax) syntax.initializer, null, values, locals);
@@ -10196,6 +10296,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private bool record_context(SourceSpan span) {
 		// A local becomes visible only after its complete initializer sequence.
 		// Checked effects retire the acquired field prefix before publication.
@@ -10205,6 +10306,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private void collect_record_flow_fields(CheckedPlace place, GenericArray<CheckedFieldPlace> fields) {
 		foreach (var field in storage_fields (place.semantic_type)) {
 			var projection = new CheckedFieldPlace (place.span, place, (StructFieldSymbol) field);
@@ -10215,6 +10317,7 @@ public class SemanticAnalyzer : Object {
 			}
 		}
 	}
+
 	private GenericArray<CheckedFieldPlace> record_fields_for_flow(LocalSymbol local) {
 		var fields = record_flow_fields.lookup (local);
 		if (fields == null) {
@@ -10224,6 +10327,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return fields;
 	}
+
 	private void record_root_event(GenericOwnershipEventKind kind, LocalSymbol local, SourceSpan span) {
 		if (kind != GenericOwnershipEventKind.READ && pending_record_borrows.find (local)) {
 			fail (span, "record ownership mutation overlaps an active borrowed record argument");
@@ -10233,6 +10337,7 @@ public class SemanticAnalyzer : Object {
 			generic_owner_flow.owner_event (kind, local, local.name, span);
 		}
 	}
+
 	private void record_leaf_event(GenericOwnershipEventKind kind, LocalSymbol local, CheckedFieldPlace field, SourceSpan span) {
 		if (kind != GenericOwnershipEventKind.READ && pending_record_borrows.find (local)) {
 			fail (span, "record field mutation overlaps an active borrowed record argument");
@@ -10249,12 +10354,14 @@ public class SemanticAnalyzer : Object {
 		}
 		assert_not_reached ();
 	}
+
 	private void record_all_events(GenericOwnershipEventKind kind, LocalSymbol local, SourceSpan span) {
 		record_root_event (kind, local, span);
 		foreach (var field in record_fields_for_flow (local)) {
 			record_leaf_event (kind, local, field, span);
 		}
 	}
+
 	private CheckedFieldPlace? record_field_path(Token root, GenericArray<Token> fields, SourceSpan span, ValueScope values) {
 		var source = values.lookup (root.spelling ()) as LocalSymbol;
 		if (source == null || !source.is_record_owner || fields.length == 0) {
@@ -10280,6 +10387,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return (CheckedFieldPlace) place;
 	}
+
 	private CheckedExpression? record_incoming(FieldSymbol field, ExpressionSyntax syntax, ValueScope values) {
 		var move = syntax as MoveExpressionSyntax;
 		var incoming = move == null ? check_expression(syntax, values, field.semantic_type, OwnershipUse.ACQUIRE) : check_move (move, values);
@@ -10308,6 +10416,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return incoming;
 	}
+
 	private CheckedStatement? check_record_take(SourceSpan span, Token name, MoveExpressionSyntax move, SemanticType? expected, ValueScope values, GenericArray<LocalSymbol> locals) {
 		if (!record_context (span)) {
 			return null;
@@ -10338,6 +10447,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return new CheckedRecordTake (span, source, place, destination);
 	}
+
 	private CheckedStatement? check_record_replace(FieldAssignmentStatementSyntax assignment, ValueScope values) {
 		var target = assignment.target;
 		var fields = new GenericArray<Token> ();
@@ -10478,6 +10588,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return null;
 	}
+
 	private SemanticType storage_field_type(SemanticType owner, FieldSymbol field) {
 		return (owner is GenericStructApplicationType) ? ((GenericStructApplicationType) owner).field_type ((GenericStructFieldSymbol) field) : field.semantic_type;
 	}
@@ -13054,6 +13165,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return object_class == null || object_class.parent_class == null || thread_capture_type (object_class.parent_class.semantic_type, seen, mailbox_graph, affinity_only);
 	}
+
 	private bool closure_capture_type(SemanticType type, HashTable<SemanticType, bool> seen) {
 		if (type is RawPointerType || type is TypedPointerType) {
 			return false;
@@ -13092,6 +13204,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return true;
 	}
+
 	private GenericArray<CheckedExpression>? check_indirect_arguments(CallExpressionSyntax call, ValueScope values, CallableSignature type, int first, string kind, out GenericArray<ParameterSymbol> channels) {
 		uint reservation_depth = enum_reservations.length;
 		uint record_depth = pending_record_borrows.length;
@@ -13219,6 +13332,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return closure_type (environment, result, parameters, handle_types.lookup (original).span, original.throws_type, original.threaded, original.actor, contracts, original.result_contract);
 	}
+
 	private ClosureHandleType closure_type(ClassType environment, SemanticType result, GenericArray<SemanticType> parameters, SourceSpan span, ClassType? throws_type = null, bool threaded = false, bool actor = false, GenericArray<PointerParameterContract>? contracts = null, ResultOwnershipContract result_contract = ResultOwnershipContract.UNMANAGED) {
 		foreach (var symbol in shared_handle_inventory) {
 			var prior = symbol.semantic_type as ClosureHandleType;
@@ -13242,9 +13356,11 @@ public class SemanticAnalyzer : Object {
 		handle_types.insert (type, symbol);
 		return type;
 	}
+
 	private static bool is_closure_call(CallExpressionSyntax call) {
 		return call.receiver == null && call.receiver_place == null && (call.identifier.spelling () == "actor_bind" || call.identifier.spelling () == "thread_bind" || call.identifier.spelling () == "closure_bind" || call.identifier.spelling () == "checked_closure_bind" || call.identifier.spelling () == "closure_invoke" || (call.identifier.spelling () == "thread_start" || call.identifier.spelling () == "thread_join" || call.identifier.spelling () == "thread_cancel" || call.identifier.spelling () == "retained_signal_register" || call.identifier.spelling () == "retained_signal_revoke" || call.identifier.spelling () == "retained_signal_observe" || call.identifier.spelling () == "retained_register" || call.identifier.spelling () == "retained_dispatch" || call.identifier.spelling () == "retained_revoke" || call.identifier.spelling () == "retained_observe"));
 	}
+
 	private CheckedStatement? check_actor_send(CallExpressionSyntax call, ValueScope values) {
 		var action = call.identifier.spelling () == "actor_send" ? ActorAction.SEND : call.identifier.spelling () == "actor_shutdown" ? ActorAction.SHUTDOWN : ActorAction.CANCEL;
 		if (checking_function == null || checking_function.async_body != null || checking_function is GenericFunctionSymbol || call.type_arguments.length != 0 || call.arguments.length != (action == ActorAction.SEND ? 2 : 1)) {
@@ -13295,6 +13411,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return new CheckedActorSend (call.span, action, sender, scalar, message, (ClassType) exception_root.semantic_type);
 	}
+
 	private CheckedNode? check_closure_call(CallExpressionSyntax call, ValueScope values, bool acquire, bool allow_struct = false) {
 		if (checking_function != null && checking_function.async_body != null) {
 			fail (call.span, "Closure operations require a synchronous caller");
@@ -13531,6 +13648,7 @@ public class SemanticAnalyzer : Object {
 		handle_types.insert (type, symbol);
 		return type;
 	}
+
 	private bool intrinsic_shared_call(CallExpressionSyntax call, ValueScope values) {
 		if (call.receiver == null || call.receiver_place != null || call.arguments.length != 0 || (call.identifier.spelling () != "clone" && call.identifier.spelling () != "downgrade" && call.identifier.spelling () != "upgrade")) {
 			return false;
@@ -13544,6 +13662,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return type is ClosureHandleType && ((ClosureHandleType) type).actor || type is SharedHandleType || type is ClassType && ((ClassType) type).intrinsically_shared;
 	}
+
 	private static bool is_shared_call(CallExpressionSyntax call) {
 		if (call.receiver != null || call.receiver_place != null) {
 			return false;
@@ -13551,6 +13670,7 @@ public class SemanticAnalyzer : Object {
 		string name = call.identifier.spelling ();
 		return name == "actor_clone" || name == "shared_acquire" || name == "shared_clone" || name == "shared_downgrade" || name == "weak_clone" || name == "weak_upgrade" || name == "shared_borrow" || name == "singleton_shutdown";
 	}
+
 	private CheckedSharedOperation? check_shared_call(CallExpressionSyntax call, ValueScope values, bool acquire, ParameterSymbol? borrower = null) {
 		if (checking_function != null && checking_function.async_body != null) {
 			fail (call.span, "Shared/Weak operations require a synchronous single-threaded caller");
@@ -14054,6 +14174,7 @@ public class SemanticAnalyzer : Object {
 		}
 		return result;
 	}
+
 	private CheckedNode? check_observed_value_call(CallExpressionSyntax call, ValueScope values, bool acquire_owned, bool allow_struct) {
 		if (call.receiver == null && call.receiver_place == null && (call.identifier.spelling () == "task_in" || call.identifier.spelling () == "checked_task_in") && find_function (call.identifier) == null && values.lookup (call.identifier.spelling ()) == null) {
 			bool checked_admission = call.identifier.spelling () == "checked_task_in";
@@ -15156,5 +15277,6 @@ public class SemanticAnalyzer : Object {
 			assert_not_reached ();
 		}
 	}
+
 }
 }

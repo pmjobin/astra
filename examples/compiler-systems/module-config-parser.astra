@@ -2,20 +2,23 @@
 namespace ConfigParsing;
 using ConfigData;
 class ConfigError : Error { init() : base("invalid config") {} }
+
 // Every nonempty record is key=signed-i32; the sum is exact signed i64.
 public owned Config parse(owned Utf8Message original) throws Error {
 	int entries = 0; i64 total = 0;
 	{
 		var text = original.text; int start = 0;
 		while (start < text.byte_length) {
-			int end = text_find(text, "\n", start); if (end < 0) { end = text.byte_length; }
+			int end = text_find(text, "\n", start); if (end < 0) end = text.byte_length;
 			if (end > start) {
 				int separator = text_find(text, "=", start);
-				if (separator <= start || separator >= end) { throw new ConfigError(); }
+				if (separator <= start || separator >= end) {
+					throw new ConfigError();
+				}
 				var value_text = text_segment(text, separator + 1, end - separator - 1);
 				int value = parse_int(value_text.text); total = total + (value as i64); entries = entries + 1;
 			}
-			if (end == text.byte_length) { break; } start = end + 1;
+			if (end == text.byte_length) break; start = end + 1;
 		}
 	}
 	var result = new Config(move original, entries, total); return move result;

@@ -243,4 +243,5 @@ private void register_call_tests() {
 	Test.add_func ("/nabi/reject-invalid-ssa/void-parameter", () => invalid_ssa (true));
 	Test.add_func ("/nabi/reject-invalid-ssa/foreign-callee", () => invalid_ssa (false));
 }
+
 }

@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 async void inspect_composition() throws Error {
 	var result = await TaskProducer.compute(40, false);
-	if (result.value != 42 || result.generation != 7) { throw new Error("result"); }
+	if (result.value != 42 || result.generation != 7) {
+		throw new Error("result");
+	}
 	try {
 		var unused = await TaskProducer.compute(0, true);
 		throw new Error("missing failure");
 	} catch (Error error) {
-		if (error.message != "producer failure") { throw; }
+		if (error.message != "producer failure") {
+			throw;
+		}
 	}
 	var retry = await TaskProducer.compute(42, false);
-	if (retry.value != 44) { throw new Error("retry"); }
+	if (retry.value != 44) {
+		throw new Error("retry");
+	}
 }
+
 int main() {
 	try {
 		var executor = VirtualExecutor.open(4);

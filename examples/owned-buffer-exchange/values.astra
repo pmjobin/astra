@@ -3,15 +3,17 @@ owned Kernel[] initial_state() {
 	Kernel value = {index=7,gain=0.5d};
 	return filled_array(2, value);
 }
+
 owned Kernel[] initial_next() {
 	Kernel value = {index=11,gain=-2.0d};
 	return filled_array(3, value);
 }
+
 bool same_records(Kernel[] left, Kernel[] right) {
-	if (len(left) != len(right)) { return false; }
+	if (len(left) != len(right)) return false;
 	var i = 0;
 	while (i < len(left)) {
-		if (left[i].index != right[i].index || left[i].gain != right[i].gain) { return false; }
+		if (left[i].index != right[i].index || left[i].gain != right[i].gain) return false;
 		i = i + 1;
 	}
 	return true;

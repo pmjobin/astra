@@ -36,4 +36,5 @@ int main(string[] args) {
 	Test.add_func ("/object/borrow/conservative-stored-reference-escape", escapes);
 	return Test.run ();
 }
+
 }

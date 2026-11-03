@@ -1,18 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace Hidden16;
 [CImport(name="opaque16_retired")]int retired();
-[ExceptionRoot]class Fault{readonly string text;init(){this.text="opaque failure";}virtual property string message{get{return this.text;}}}
+
+[ExceptionRoot]class Fault{readonly string text;
+
+	init(){this.text="opaque failure";}
+
+	virtual property string message{get{return this.text;}}}
+
 struct Sample{bool enabled;int count;f64 weight;}
+
 struct Pair<T>{T left;T right;}
+
 [CExport(name="opaque16",profile="declarations-v1",bool_abi="c99")]
 class Session{
 	[Foreign]init(int seed){this.seed=seed;}
+
 	private int seed;
+
 	[Foreign]property int count{get{return this.seed;}set(int input){this.seed=input;}}
+
 	[Foreign]Sample amend(Sample input){Sample result={enabled=!input.enabled,count=input.count+this.seed,weight=input.weight*1.5};return result;}
+
 	[Foreign]Pair<f64> exchange(Pair<f64> input){Pair<f64> result={left=input.right+this.seed as f64,right=input.left};return result;}
+
 	[Foreign]bool visit(bool input,borrowed Callback<bool,bool> callback){return callback(input);}
-	[Foreign]owned u8[] snapshot(borrowed u8[] input){var result=new u8[len(input)];int i=0;while(i<len(input)){result[i]=input[i]+1;i=i+1;}return move result;}
-	[Foreign(error_domain="16",errors="Hidden16.Fault=-1600")]f64 checked(f64 input)throws Fault{if(input<0.0){var fault=new Fault();throw move fault;}return input*1.5+this.seed as f64;}
+
+	[Foreign]owned u8[] snapshot(borrowed u8[] input){var result=new u8[len(input)];int i=0;while(i<len(input)){
+			result[i]=input[i]+1;
+			i=i+1;
+		}return move result;}
+
+	[Foreign(error_domain="16",errors="Hidden16.Fault=-1600")]f64 checked(f64 input)throws Fault{if(input<0.0){
+			var fault=new Fault();
+			throw move fault;
+		}return input*1.5+this.seed as f64;}
+
 	deinit(){retired();}
 }

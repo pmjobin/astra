@@ -11,6 +11,7 @@ public class LlvmWindowsInteropProfile : Object {
 	private static void reject(string detail) throws LlvmError {
 		throw new LlvmError.TARGET ("Windows interop object profile: unsupported %s", detail);
 	}
+
 	internal static bool declarations(SsaProgram program) {
 		foreach (var owner in program.classes) {
 			if (owner.foreign_export != null && owner.foreign_export.declared_api != null) {
@@ -24,6 +25,7 @@ public class LlvmWindowsInteropProfile : Object {
 		}
 		return false;
 	}
+
 	internal static void require_declared_value(SemanticType type) throws LlvmError {
 		if (type.kind == TypeKind.VOID || type.kind == TypeKind.BOOL || type is RawPointerType || type is StringType) {
 			return;
@@ -84,6 +86,7 @@ public class LlvmWindowsInteropProfile : Object {
 		}
 		reject ("declarations-v1 type " + type.display_name ());
 	}
+
 	private static void validate_declarations(SsaProgram program, bool native_modules = false) throws LlvmError {
 		if (program.enums.length != 0) {
 			reject ("declarations-v1 enum storage");
@@ -135,6 +138,7 @@ public class LlvmWindowsInteropProfile : Object {
 			}
 		}
 	}
+
 	private static bool value(SemanticType type) {
 		if (type.kind == TypeKind.VOID || type.kind == TypeKind.BOOL || type is RawPointerType) {
 			return true;
@@ -161,16 +165,19 @@ public class LlvmWindowsInteropProfile : Object {
 		}
 		return false;
 	}
+
 	internal static void require_value(SemanticType type) throws LlvmError {
 		if (!value (type)) {
 			reject ("type " + type.display_name ());
 		}
 	}
+
 	internal static void require_metadata(Astra.Foreign.CForeignMetadata metadata) throws LlvmError {
 		if (!metadata.valid_com () || metadata.owned_result != null && !metadata.com_owner_result || metadata.device != null || metadata.callback != null || metadata.callback_abi != Astra.Foreign.CCallbackAbi.NONE || metadata.record_abi != Astra.Foreign.CRecordAbi.NONE || metadata.text_abi != Astra.Foreign.CTextAbi.NONE || metadata.buffer_abi != Astra.Foreign.CBufferAbi.NONE) {
 			reject ("alternate C transport or provider protocol");
 		}
 	}
+
 	public static void validate_source(SsaProgram program, bool native_modules = false) throws LlvmError {
 		if (declarations (program) || native_modules) {
 			validate_declarations (program, native_modules);
@@ -227,6 +234,7 @@ public class LlvmWindowsInteropProfile : Object {
 			}
 		}
 	}
+
 }
 
 // An opt-in closed source domain, checked before any product is emitted.
@@ -284,7 +292,6 @@ public class LlvmRuntimeProfile : Object {
 	private static void reject(string detail) throws LlvmError {
 		throw new LlvmError.INVALID_INPUT ("runtime none: unsupported source requirement: %s", detail);
 	}
-
 
 	public void validate_source(SsaProgram program) throws LlvmError {
 		SsaFunction? trap_handler = null;
@@ -415,5 +422,6 @@ public class LlvmRuntimeProfile : Object {
 			}
 		}
 	}
+
 }
 }

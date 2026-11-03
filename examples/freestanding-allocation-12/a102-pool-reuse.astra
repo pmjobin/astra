@@ -1,33 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void pool_event(int value);
+
 extern(C) int pool_probe(int phase);
 
 [Allocator(kind="pool", domain="a102.pool", capacity="128", blocks="2")]
 [Align(bytes="64")]
 class Sample {
 	int tag;
+
 	init(int tag) { this.tag = tag; pool_event(tag); }
+
 	deinit() { pool_event(0 - this.tag); }
 }
 
 int main() {
 	var first = try_new Sample(1);
 	var second = try_new Sample(2);
-	if (first == null || second == null) { return 81; }
+	if (first == null || second == null) return 81;
 	var exhausted = try_new Sample(3);
-	if (exhausted != null || first.tag != 1 || second.tag != 2) { return 82; }
-	if (pool_probe(1) != 1) { return 83; }
+	if (exhausted != null || first.tag != 1 || second.tag != 2) return 82;
+	if (pool_probe(1) != 1) return 83;
 	release first;
 	var reused = try_new Sample(4);
-	if (reused == null || reused.tag != 4 || pool_probe(2) != 1) { return 84; }
+	if (reused == null || reused.tag != 4 || pool_probe(2) != 1) return 84;
 	release reused;
 	release second;
 	int index = 10;
 	while (index < 26) {
 		var iteration = try_new Sample(index);
-		if (iteration == null || iteration.tag != index) { return 85; }
+		if (iteration == null || iteration.tag != index) return 85;
 		index = index + 1;
 	}
-	if (pool_probe(3) != 1) { return 86; }
+	if (pool_probe(3) != 1) return 86;
 	return 42;
 }

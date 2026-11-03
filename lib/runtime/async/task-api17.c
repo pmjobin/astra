@@ -8,6 +8,7 @@
 RETURN_OPERATION(AstraAsyncTask *, new, (size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent), (size, alignment, resume, destroy, parent))
 RETURN_OPERATION(AstraAsyncTask *, new_allocated, (size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context), (size, alignment, resume, destroy, parent, allocator, context))
 RETURN_OPERATION(AstraAsyncTask *, try_new_allocated, (size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context), (size, alignment, resume, destroy, parent, allocator, context))
+
 void astra_async_require_provider(AstraAsyncTask *task, uint32_t provider) {
 	lock_runtime();
 	ASTRA_ASYNC_REQUIRE(task && !task->executor && task->phase == ASTRA_ASYNC_NEW && task->required_provider == UINT32_MAX && provider <= 2);
@@ -34,6 +35,7 @@ RETURN_OPERATION(void *, discarded_exception, (AstraAsyncTask * task, int discar
 VOID_OPERATION(complete, (AstraAsyncTask * task, int phase, void *exception), (task, phase, exception))
 VOID_OPERATION(drop, (AstraAsyncTask * task), (task))
 VOID_OPERATION(begin_shutdown, (AstraAsyncExecutor * executor), (executor))
+
 int astra_async_request_shutdown(AstraAsyncExecutor *executor) {
 	lock_runtime();
 	ASTRA_ASYNC_REQUIRE(executor);
@@ -67,6 +69,7 @@ RETURN_OPERATION(int, provider_ready, (AstraAsyncExecutor * executor), (executor
 RETURN_OPERATION(int, provider_suspend, (AstraAsyncTask * task, const void *record), (task, record))
 RETURN_OPERATION(int, provider_complete, (AstraAsyncExecutor * executor, AstraAsyncToken token, uint32_t pc, int error), (executor, token, pc, error))
 RETURN_OPERATION(int, provider_result, (AstraAsyncTask * task, uint32_t pc), (task, pc))
+
 int astra_async_concurrent_core(void) {
 #ifdef ASTRA_ASYNC_PTHREADS
 	return 1;
@@ -74,6 +77,7 @@ int astra_async_concurrent_core(void) {
 	return 0;
 #endif
 }
+
 void astra_async_provider_notify(AstraAsyncExecutor *executor, void (*notification)(void *), void *state) {
 	lock_runtime();
 	ASTRA_ASYNC_REQUIRE(executor && executor->provider && executor->associated == 0 && executor->retiring == 0 && (notification == NULL ? state == NULL : state != NULL));
@@ -81,6 +85,7 @@ void astra_async_provider_notify(AstraAsyncExecutor *executor, void (*notificati
 	executor->notify_state = state;
 	unlock_runtime();
 }
+
 int astra_async_provider_take_cancel(AstraAsyncExecutor *executor, AstraAsyncToken *token) {
 	lock_runtime();
 	ASTRA_ASYNC_REQUIRE(executor && executor->provider && token);
@@ -97,6 +102,7 @@ int astra_async_provider_take_cancel(AstraAsyncExecutor *executor, AstraAsyncTok
 	unlock_runtime();
 	return 0;
 }
+
 AstraAsyncExecutor *astra_async_virtual_open(uint32_t capacity) {
 	lock_runtime();
 	AstraAsyncExecutor *result = core_open(capacity);
@@ -111,24 +117,31 @@ AstraAsyncExecutor *astra_async_open(uint32_t capacity) {
 	return astra_async_virtual_open(capacity);
 #endif
 }
+
 #ifdef ASTRA_ASYNC_PTHREADS
+
 AstraAsyncExecutor *astra_async_threaded_open(uint32_t workers) {
 	return worker_open(workers);
 }
+
 AstraAsyncExecutor *astra_async_worker_pool_open(int32_t workers) {
 	return workers > 0 ? worker_open((uint32_t)workers) : NULL;
 }
+
 void astra_async_worker_pool_close(AstraAsyncExecutor *executor) {
 	if (executor) {
 		ASTRA_ASYNC_REQUIRE(executor->threaded);
 		worker_close(executor);
 	}
 }
+
 int astra_async_worker_pool_request_shutdown(AstraAsyncExecutor *executor) {
 	ASTRA_ASYNC_REQUIRE(executor && executor->threaded);
 	return astra_async_request_shutdown(executor);
 }
+
 #endif
+
 int astra_async_run(AstraAsyncExecutor *executor, AstraAsyncTask *root, void **exception) {
 #ifdef ASTRA_ASYNC_PTHREADS
 	if (executor->threaded) return worker_run(executor, root, exception);
@@ -138,6 +151,7 @@ int astra_async_run(AstraAsyncExecutor *executor, AstraAsyncTask *root, void **e
 	unlock_runtime();
 	return result;
 }
+
 uint32_t astra_async_pump(AstraAsyncExecutor *executor, uint32_t budget) {
 #ifdef ASTRA_ASYNC_PTHREADS
 	if (executor->threaded) return worker_pump(executor, budget);
@@ -147,6 +161,7 @@ uint32_t astra_async_pump(AstraAsyncExecutor *executor, uint32_t budget) {
 	unlock_runtime();
 	return result;
 }
+
 void astra_async_close(AstraAsyncExecutor *executor) {
 #ifdef ASTRA_ASYNC_PTHREADS
 	if (executor->threaded) {
@@ -158,6 +173,7 @@ void astra_async_close(AstraAsyncExecutor *executor) {
 	core_close(executor);
 	unlock_runtime();
 }
+
 int astra_async_advance(AstraAsyncExecutor *executor, uint64_t ticks) {
 	if (executor->threaded) return 0;
 	lock_runtime();
@@ -165,6 +181,7 @@ int astra_async_advance(AstraAsyncExecutor *executor, uint64_t ticks) {
 	unlock_runtime();
 	return result;
 }
+
 int astra_async_advance_next(AstraAsyncExecutor *executor) {
 	if (executor->threaded) return 0;
 	lock_runtime();
@@ -172,6 +189,7 @@ int astra_async_advance_next(AstraAsyncExecutor *executor) {
 	unlock_runtime();
 	return result;
 }
+
 #ifdef ASTRA_ASYNC_TEST_PROTOCOL
 VOID_OPERATION(test_generation, (AstraAsyncExecutor * executor, uint32_t slot, uint64_t generation), (executor, slot, generation))
 #endif

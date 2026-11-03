@@ -6,6 +6,7 @@ namespace Astra.Tests.GenCapCore {
 private SourceSpan span() {
 	return SourceSpan (new SourceFile.from_text ("capability", "T"), 0, 1);
 }
+
 private CoreProgram sample(GenericOperationKind kind = GenericOperationKind.ADD, string type_name = "int", bool unused = false) {
 	var s = span ();
 	var types = new BuiltinTypes ();
@@ -45,4 +46,5 @@ private CoreProgram sample(GenericOperationKind kind = GenericOperationKind.ADD,
 	program.generic_functions.add (definition);
 	return program;
 }
+
 }

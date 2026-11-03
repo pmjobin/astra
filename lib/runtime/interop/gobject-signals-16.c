@@ -9,6 +9,7 @@
 _Static_assert(sizeof(void *) == 8 && sizeof(GType) == 8 && sizeof(gint) == 4 && sizeof(gboolean) == 4 && sizeof(gfloat) == 4 && sizeof(gdouble) == 8, "typed GObject signal transport layout");
 
 extern uint64_t astra_foreign14_thread_identity(void);
+
 struct signal_source {
 	struct signal_source *next;
 	GWeakRef object;
@@ -18,6 +19,7 @@ struct signal_source {
 	char *signature;
 	GClosureMarshal marshal;
 };
+
 struct signal_connection {
 	struct signal_connection *next;
 	uintptr_t identity;
@@ -28,6 +30,7 @@ struct signal_connection {
 	void *context;
 	gboolean active, stopped, foreign_retired;
 };
+
 static GMutex registry;
 static struct signal_source *sources;
 static struct signal_connection *connections;
@@ -50,6 +53,7 @@ static struct signal_connection *lookup(void *token) {
 	g_mutex_unlock(&registry);
 	return found;
 }
+
 static void invalidated(gpointer data, GClosure *closure) {
 	(void)closure;
 	struct signal_connection *c = data;
@@ -59,6 +63,7 @@ static void invalidated(gpointer data, GClosure *closure) {
 	c->stopped = TRUE;
 	c->handler = 0;
 }
+
 static void finalized(gpointer data, GClosure *closure) {
 	(void)closure;
 	struct signal_connection *c = data;
@@ -69,6 +74,7 @@ static void finalized(gpointer data, GClosure *closure) {
 	c->handler = 0;
 	c->foreign_retired = TRUE;
 }
+
 void *astra_gobject16_signal_source(GObject *object, const char *name, const char *signature, GClosureMarshal marshal, guint count, const GType *types) {
 	if (!object || !G_IS_OBJECT(object) || g_object_is_floating(object) || !name || !g_signal_is_valid_name(name) || !signature || strlen(signature) > 65536 || !marshal || count > 256 || (count && !types)) {
 		return NULL;
@@ -113,6 +119,7 @@ void *astra_gobject16_signal_source(GObject *object, const char *name, const cha
 	g_mutex_unlock(&registry);
 	return s;
 }
+
 int32_t astra_gobject16_signal_mode(void *source) {
 	uint64_t thread = astra_foreign14_thread_identity();
 	int32_t mode = -1;
@@ -126,6 +133,7 @@ int32_t astra_gobject16_signal_mode(void *source) {
 	g_mutex_unlock(&registry);
 	return mode;
 }
+
 void astra_gobject16_signal_source_free(void *source) {
 	if (!source) {
 		return;
@@ -148,6 +156,7 @@ void astra_gobject16_signal_source_free(void *source) {
 	g_free(found->signature);
 	g_free(found);
 }
+
 void *astra_gobject16_signal_register(void (*callback)(void), void *context, int32_t mode, const char *signature) {
 	if (!callback || !context || mode <= 0 || !signature) {
 		return NULL;
@@ -200,6 +209,7 @@ void *astra_gobject16_signal_register(void (*callback)(void), void *context, int
 	g_mutex_unlock(&registry);
 	return (void *)identity;
 }
+
 int32_t astra_gobject16_signal_revoke(void *token) {
 	struct signal_connection *c = lookup(token);
 	if (!c) {
@@ -213,6 +223,7 @@ int32_t astra_gobject16_signal_revoke(void *token) {
 	}
 	return 1;
 }
+
 int32_t astra_gobject16_signal_observe(void *token) {
 	struct signal_connection *c = lookup(token);
 	if (!c) {
@@ -220,6 +231,7 @@ int32_t astra_gobject16_signal_observe(void *token) {
 	}
 	return c->stopped && !c->active && c->foreign_retired ? 1 : 0;
 }
+
 int32_t astra_gobject16_signal_retire(void *token) {
 	struct signal_connection *c = lookup(token);
 	if (!c || c->active) {
@@ -243,6 +255,7 @@ int32_t astra_gobject16_signal_retire(void *token) {
 	g_object_unref(object);
 	return 1;
 }
+
 int32_t astra_gobject16_signal_enter(void *data) {
 	struct signal_connection *c = data;
 	if (!c || lookup((void *)c->identity) != c || c->stopped || c->foreign_retired) {
@@ -257,6 +270,7 @@ int32_t astra_gobject16_signal_enter(void *data) {
 	c->active = TRUE;
 	return 1;
 }
+
 void astra_gobject16_signal_leave(void *data) {
 	struct signal_connection *c = data;
 	if (!c || lookup((void *)c->identity) != c || !c->active) {
@@ -264,14 +278,17 @@ void astra_gobject16_signal_leave(void *data) {
 	}
 	c->active = FALSE;
 }
+
 void (*astra_gobject16_signal_callback(void *data))(void) {
 	struct signal_connection *c = data;
 	return c && c->active && c->thread == astra_foreign14_thread_identity() ? c->callback : NULL;
 }
+
 void *astra_gobject16_signal_context(void *data) {
 	struct signal_connection *c = data;
 	return c && c->active && c->thread == astra_foreign14_thread_identity() ? c->context : NULL;
 }
+
 int32_t astra_gobject16_signal_connections(void) {
 	int32_t count = 0;
 	g_mutex_lock(&registry);
@@ -284,6 +301,7 @@ int32_t astra_gobject16_signal_connections(void) {
 	g_mutex_unlock(&registry);
 	return count;
 }
+
 uint64_t astra_gobject16_signal_reentry_refusals(void) {
 	g_mutex_lock(&registry);
 	uint64_t result = reentry_refusals;

@@ -11,6 +11,7 @@ static struct {
 	AstraContext17 *context;
 	int remembered, admitted, retired, freed, probed;
 } owners[4];
+
 static int refusals, null_drops;
 
 void scoped_backing_remember(void *backing, int32_t length, int32_t id) {
@@ -21,7 +22,9 @@ void scoped_backing_remember(void *backing, int32_t length, int32_t id) {
 	owners[id].backing = backing;
 	owners[id].length = length;
 }
+
 AstraContext17 *__real_astra_context17_open_scoped(void *, int32_t, int32_t, int32_t);
+
 AstraContext17 *__wrap_astra_context17_open_scoped(void *backing, int32_t length, int32_t kind, int32_t slots) {
 	int id = length == 8197 ? 1 : length == 12341 ? 2
 	                                              : 3;
@@ -40,6 +43,7 @@ AstraContext17 *__wrap_astra_context17_open_scoped(void *backing, int32_t length
 	}
 	return context;
 }
+
 int32_t scoped_backing_probe(AstraContext17 *context, int32_t id) {
 	assert(id > 0 && id < 3 && owners[id].context == context && owners[id].admitted && !owners[id].retired && !owners[id].freed && !owners[id].probed);
 	AstraContext17Snapshot before, after;
@@ -55,7 +59,9 @@ int32_t scoped_backing_probe(AstraContext17 *context, int32_t id) {
 	owners[id].probed = 1;
 	return 0;
 }
+
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	if (!context) {
 		++null_drops;
@@ -73,7 +79,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	}
 	__real_astra_context17_destroy(context);
 }
+
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	if (pointer) {
 		for (int id = 1; id < 4; ++id) {
@@ -86,7 +94,9 @@ void __wrap_free(void *pointer) {
 	}
 	__real_free(pointer);
 }
+
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	if (owners[2].remembered && !owners[2].freed && owners[2].backing == pointer) {
 		assert(owners[2].retired);
@@ -94,6 +104,7 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	}
 	return __real_astra_context17_release_origin_checked(pointer, tag);
 }
+
 int scoped_backing_finish(void) {
 	for (int id = 1; id < 3; ++id) {
 		assert(owners[id].remembered && owners[id].admitted && owners[id].probed && owners[id].retired && owners[id].freed);
@@ -102,7 +113,9 @@ int scoped_backing_finish(void) {
 	puts("scoped backing: exact caller buffers, exclusive lexical loans, original storage and ordered retirement");
 	return 0;
 }
+
 extern int scoped_backing_run(void);
+
 int main(void) {
 	return scoped_backing_run();
 }

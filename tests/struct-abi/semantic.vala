@@ -10,6 +10,7 @@ private SemanticResult analyze(string text) {
 	}
 	return SemanticAnalyzer.analyze (p.unit);
 }
+
 private CheckedProgram check(string text) {
 	var r = analyze (text);
 	if (r.diagnostic != null) {
@@ -17,12 +18,14 @@ private CheckedProgram check(string text) {
 	}
 	return r.program;
 }
+
 private void reject(string text, string message) {
 	var r = analyze (text);
 	if (r.diagnostic == null || !r.diagnostic.message.contains (message)) {
 		GLib.error ("expected %s, found %s", message, r.diagnostic == null ? "accepted" : r.diagnostic.format ());
 	}
 }
+
 private void contracts() {
 	var p = check ("struct Pair{int x;f64 y;}Pair identity(Pair value){return value;}int main(){Pair a={x=7,y=3.5};Pair b=identity(a);b=identity(identity(a));return a.x;}");
 	var f = p.functions[0];
@@ -42,6 +45,7 @@ private void contracts() {
 	assert (!store.initializes_destination && ((CheckedStructArgument)call.arguments[0]).producer is CheckedStructCallResult);
 	assert (!(((Object)store.producer) is CheckedExpression) && !SemanticDump.format (p).contains ("StructValue"));
 }
+
 private void negatives() {
 	string s = "struct A{int x;}struct B{int x;}A make(){A a={x=7};return a;}";
 	reject (s + "void take(B value){}void f(){A a={x=7};take(a);}", "exact nominal type 'B', found 'A'; equal layout is insufficient");
@@ -70,6 +74,7 @@ private void negatives() {
 		reject ("T f<T>(T a) where T:" + capability + "{return a;}", "unknown generic capability");
 	}
 }
+
 private void authority() {
 	var t = new BuiltinTypes ();
 	var s = new StructType ("Future");
@@ -90,6 +95,7 @@ private void authority() {
 		fields.remove_index (1);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-abi/semantic/exact-copy-contracts-bounded-producers", contracts);
@@ -97,4 +103,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-abi/semantic/shared-copyability-future-safety", authority);
 	return Test.run ();
 }
+
 }

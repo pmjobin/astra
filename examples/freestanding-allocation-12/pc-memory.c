@@ -2,6 +2,7 @@
 /* Explicit no-OS core primitives. No allocator, syscall or hosted provider. */
 #include <stddef.h>
 #include <stdint.h>
+
 void *memset(void *destination, int byte, size_t count) {
 	volatile unsigned char *out = destination;
 	for (size_t i = 0; i < count; ++i) {
@@ -9,6 +10,7 @@ void *memset(void *destination, int byte, size_t count) {
 	}
 	return destination;
 }
+
 void *memcpy(void *destination, const void *source, size_t count) {
 	volatile unsigned char *out = destination;
 	const volatile unsigned char *in = source;
@@ -17,6 +19,7 @@ void *memcpy(void *destination, const void *source, size_t count) {
 	}
 	return destination;
 }
+
 void *memmove(void *destination, const void *source, size_t count) {
 	volatile unsigned char *out = destination;
 	const volatile unsigned char *in = source;

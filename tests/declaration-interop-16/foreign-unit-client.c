@@ -5,17 +5,21 @@
 #include <stddef.h>
 #include <stdio.h>
 typedef struct Native Native;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 typedef struct {
 	bool enabled;
 	int32_t count;
 	double weight;
 } Sample;
+
 typedef struct {
 	double left, right;
 } Pair;
+
 _Static_assert(sizeof(Sample) == 16 && offsetof(Sample, count) == 4 && offsetof(Sample, weight) == 8, "independent mixed POD layout");
 extern int32_t opaque16_create(int32_t, Native **, Error *);
 extern int32_t opaque16_amend(Native *, Sample, Sample *, Error *);
@@ -31,19 +35,23 @@ extern int32_t opaque16_facade_create(int32_t, Native **, Error *);
 extern int32_t opaque16_facade_amend(Native *, Sample, int32_t, Sample *, Error *);
 extern int32_t opaque16_facade_destroy(Native **, Error *);
 static unsigned destroyed, callbacks, facades;
+
 int32_t opaque16_retired(void) {
 	++destroyed;
 	return 0;
 }
+
 int32_t opaque16_facade_retired(void) {
 	++facades;
 	return 0;
 }
+
 static bool invert(void *data, bool input) {
 	assert(data == &callbacks);
 	++callbacks;
 	return !input;
 }
+
 int main(void) {
 	assert(opaque16_consumer() == 0 && destroyed == 2 && facades == 1);
 	Native *root = NULL;

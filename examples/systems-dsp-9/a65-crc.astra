@@ -9,12 +9,12 @@ export(C) int astra_entry() {
 		while (bit < 8) {
 			u32 feedback = crc & 1;
 			crc = crc >> 1;
-			if (feedback != 0) { crc = crc ^ 3988292384; }
+			if (feedback != 0) crc = crc ^ 3988292384;
 			bit = bit + 1;
 		}
 		digit = digit + 1;
 	}
 	crc = crc ^ 4294967295;
-	if (crc != 3421780262) { return 65; }
+	if (crc != 3421780262) return 65;
 	return 0;
 }

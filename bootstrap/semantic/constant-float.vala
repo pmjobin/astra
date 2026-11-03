@@ -11,6 +11,7 @@ private class ConstantMagnitude : Object {
 		words[1] = (uint32) (value >> 32);
 		trim ();
 	}
+
 	private void trim() {
 		int n = words.length;
 		while (n > 1 && words[n - 1] == 0) {
@@ -18,6 +19,7 @@ private class ConstantMagnitude : Object {
 		}
 		words.resize (n);
 	}
+
 	internal ConstantMagnitude shifted(int bits) {
 		assert (bits >= 0 && bits <= 4096);
 		var result = new ConstantMagnitude (0);
@@ -30,6 +32,7 @@ private class ConstantMagnitude : Object {
 		result.trim ();
 		return result;
 	}
+
 	internal int compare(ConstantMagnitude other) {
 		if (words.length != other.words.length) {
 			return words.length < other.words.length ? -1 : 1;
@@ -41,6 +44,7 @@ private class ConstantMagnitude : Object {
 		}
 		return 0;
 	}
+
 	internal ConstantMagnitude add(ConstantMagnitude other) {
 		var result = new ConstantMagnitude (0);
 		int n = int.max (words.length, other.words.length);
@@ -55,6 +59,7 @@ private class ConstantMagnitude : Object {
 		result.trim ();
 		return result;
 	}
+
 	internal ConstantMagnitude subtract(ConstantMagnitude other) {
 		assert (compare (other) >= 0);
 		var result = new ConstantMagnitude (0);
@@ -70,6 +75,7 @@ private class ConstantMagnitude : Object {
 		result.trim ();
 		return result;
 	}
+
 	internal ConstantMagnitude multiply(ConstantMagnitude other) {
 		var result = new ConstantMagnitude (0);
 		result.words = new uint32[words.length + other.words.length];
@@ -85,6 +91,7 @@ private class ConstantMagnitude : Object {
 		result.trim ();
 		return result;
 	}
+
 }
 
 // Exact rational arithmetic, rounded against adjacent-format midpoints at
@@ -93,12 +100,15 @@ public class ConstantFloat : Object {
 	private static uint64 significand(BinaryFloatValue value) {
 		return value.fraction_field | (value.exponent_field == 0 ? 0 : value.format.hidden_bit ());
 	}
+
 	private static int unit(BinaryFloatValue value) {
 		return value.exponent_field == 0 ? value.format.minimum_unit () : (int) value.exponent_field - value.format.bias () - (int) value.format.fraction_bits ();
 	}
+
 	private static BinaryFloatValue special(BinaryFloatFormat format, bool negative, bool infinity) {
 		return new BinaryFloatValue.from_bits (format, (negative ? format.sign_mask () : 0) | (infinity ? format.infinity_bits () : 0));
 	}
+
 	private static BinaryFloatValue nan(BinaryFloatFormat format) {
 		return new BinaryFloatValue.from_bits (format, format.infinity_bits () | (format.hidden_bit () >> 1));
 	}
@@ -214,5 +224,6 @@ public class ConstantFloat : Object {
 		}
 		return round_rational (format, negative, new ConstantMagnitude (significand (a)), new ConstantMagnitude (significand (b)), unit (a) - unit (b));
 	}
+
 }
 }

@@ -19,6 +19,7 @@ private CoreProgram short_program(int variant = -1) {
 	functions.add (new CoreFunction (span, span, "f", type, new GenericArray<CoreParameter> (), new GenericArray<CoreLocalPlace> (), new CoreBlock (span, statements)));
 	return new CoreProgram (span, functions);
 }
+
 private void short_model() {
 	try {
 		CoreProgram? program = short_program ();
@@ -33,6 +34,7 @@ private void short_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void short_invalid() {
 	for (int i = 0; i < 4; i++) {
 		try {
@@ -44,8 +46,10 @@ private void short_invalid() {
 		GLib.error ("Invalid short-circuit Core accepted: %d", i);
 	}
 }
+
 private void register_shortcircuit_tests() {
 	Test.add_func ("/core-standalone/shortcircuit/structure-lifetime", short_model);
 	Test.add_func ("/core-standalone/shortcircuit/invalid-types-operator", short_invalid);
 }
+
 }

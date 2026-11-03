@@ -1,31 +1,45 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void scoped_owning_event(int kind, int identity);
+
 class PlainChild {
 	private int identity;
 	private int value;
+
 	init(int identity, int value) { this.identity=identity; this.value=value; scoped_owning_event(1,identity); }
+
 	int read() { return this.value; }
+
 	deinit() { scoped_owning_event(2,this.identity); }
 }
+
 class PlainNode {
 	private owned PlainChild child;
+
 	init(owned PlainChild child) { this.child=move child; }
+
 	int read() { return this.child.read(); }
 }
+
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedHost {
 	private int identity;
 	private owned PlainChild left;
 	private owned PlainNode right;
+
 	init(int identity,owned PlainChild left,owned PlainNode right) {
 		this.identity=identity; this.left=move left; this.right=move right;
 		scoped_owning_event(3,identity);
 	}
+
 	int read() { return this.left.read()+this.right.read(); }
+
 	deinit() { scoped_owning_event(4,this.identity); }
 }
+
 owned ScopedHost relay_host(owned ScopedHost input) { return move input; }
+
 int consume_host(owned ScopedHost input) { return input.read(); }
+
 owned ScopedHost create_host(borrowed ScopedAllocator context,int identity,int first,int second) {
 	var left=new PlainChild(identity*2-1,first);
 	var leaf=new PlainChild(identity*2,second);
@@ -33,6 +47,7 @@ owned ScopedHost create_host(borrowed ScopedAllocator context,int identity,int f
 	var host=new(context)ScopedHost(identity,move left,move right);
 	return move host;
 }
+
 owned ScopedHost try_create_host(borrowed ScopedAllocator context,int identity,int first,int second) {
 	var left=new PlainChild(identity*2-1,first);
 	var leaf=new PlainChild(identity*2,second);
@@ -40,41 +55,42 @@ owned ScopedHost try_create_host(borrowed ScopedAllocator context,int identity,i
 	var host=try_new(context)ScopedHost(identity,move left,move right);
 	return move host;
 }
+
 export(C) int scoped_owning_run() {
 	owned u8[] first_backing=new u8[8197];
 	owned u8[] second_backing=new u8[12289];
 	{
 		var first=scoped_allocator<ScopedAllocator>(first_backing,2,1);
 		var second=scoped_allocator<ScopedAllocator>(second_backing,1,7);
-		if(first==null||second==null){return 1;}
+		if(first==null||second==null) return 1;
 		{
 			var left=new PlainChild(1,17);
 			var leaf=new PlainChild(2,23);
 			var right=new PlainNode(move leaf);
 			var original=new(first)ScopedHost(1,move left,move right);
 			var host=relay_host(move original);
-			if(host.read()!=40){return 2;}
+			if(host.read()!=40) return 2;
 			var other_left=new PlainChild(3,31);
 			var other_leaf=new PlainChild(4,37);
 			var other_right=new PlainNode(move other_leaf);
 			var refused=try_new(first)ScopedHost(99,move other_left,move other_right);
-			if(refused!=null||other_left.read()+other_right.read()!=68){return 3;}
+			if(refused!=null||other_left.read()+other_right.read()!=68) return 3;
 			var factory_refused=try_create_host(first,5,97,101);
-			if(factory_refused!=null){return 11;}
+			if(factory_refused!=null) return 11;
 			var other=try_new(second)ScopedHost(2,move other_left,move other_right);
-			if(other==null||other.read()!=68){return 4;}
-			if(scoped_allocator_query(first,1)!=1||scoped_allocator_query(second,1)!=1){return 5;}
+			if(other==null||other.read()!=68) return 4;
+			if(scoped_allocator_query(first,1)!=1||scoped_allocator_query(second,1)!=1) return 5;
 		}
-		if(scoped_allocator_query(first,1)!=0||scoped_allocator_query(second,1)!=0){return 6;}
+		if(scoped_allocator_query(first,1)!=0||scoped_allocator_query(second,1)!=0) return 6;
 		{
 			var reused=try_create_host(first,3,41,43);
-			if(reused==null||consume_host(move reused)!=84){return 7;}
+			if(reused==null||consume_host(move reused)!=84) return 7;
 			var produced=create_host(second,4,47,53);
-			if(produced.read()!=100){return 12;}
+			if(produced.read()!=100) return 12;
 		}
-		if(scoped_allocator_query(first,4)!=2||scoped_allocator_query(first,5)!=2){return 8;}
-		if(scoped_allocator_query(second,4)!=2||scoped_allocator_query(second,5)!=2){return 9;}
+		if(scoped_allocator_query(first,4)!=2||scoped_allocator_query(first,5)!=2) return 8;
+		if(scoped_allocator_query(second,4)!=2||scoped_allocator_query(second,5)!=2) return 9;
 	}
-	if(len(first_backing)!=8197||len(second_backing)!=12289){return 10;}
+	if(len(first_backing)!=8197||len(second_backing)!=12289) return 10;
 	return 0;
 }

@@ -8,9 +8,11 @@ internal class GObjectDeclared : Object {
 	private static bool selected(ForeignMemberContract member) {
 		return (member.personalities & ForeignClassPolicy.GOBJECT) != 0;
 	}
+
 	private static string callback_name(ForeignClassPolicy policy, ForeignValueType type) {
 		return policy.gobject.type_name + "Callback" + Checksum.compute_for_string (ChecksumType.SHA256, type.identity ()).up ();
 	}
+
 	private static string signal_type(ForeignClassPolicy policy, ForeignChannel channel, CheckedProgram program) throws ForeignAdapterError {
 		if (channel.value_type.kind == ForeignValueKind.RECORD) {
 			return record_prefix (policy, channel.value_type) + "_get_type()";
@@ -43,6 +45,7 @@ internal class GObjectDeclared : Object {
 			throw new ForeignAdapterError.INVALID ("native signal argument lacks a completed GValue mapping");
 		}
 	}
+
 	private static void signal_bridge(StringBuilder text, ForeignClassPolicy policy, ForeignMemberContract member, uint index, CheckedProgram program) throws ForeignAdapterError {
 		string p = policy.gobject.symbol_prefix (), n = policy.prefix, t = policy.gobject.type_name;
 		var binding = new ForeignSignalBinding (policy, index);
@@ -111,6 +114,7 @@ internal class GObjectDeclared : Object {
 		}
 		text.append_printf ("g_object_unref(self); %s_release(root); }\n", n);
 	}
+
 	private static void callbacks(StringBuilder text, ForeignClassPolicy policy, bool implementation) throws ForeignAdapterError {
 		var seen = new HashTable<string, bool> (str_hash, str_equal);
 		var api = policy.declared_api;
@@ -158,6 +162,7 @@ internal class GObjectDeclared : Object {
 			}
 		}
 	}
+
 	private static string scalar_type(ForeignValueType type) throws ForeignAdapterError {
 		switch (type.kind) {
 		case ForeignValueKind.I32:
@@ -178,12 +183,15 @@ internal class GObjectDeclared : Object {
 			throw new ForeignAdapterError.INVALID ("declared GObject value requires its completed physical channel plan");
 		}
 	}
+
 	private static string record_name(ForeignClassPolicy policy, ForeignValueType type) {
 		return policy.gobject.namespace_name + "Record" + Checksum.compute_for_string (ChecksumType.SHA256, new ForeignGObjectRecordLayout (type).identity ()).up ();
 	}
+
 	private static string record_prefix(ForeignClassPolicy policy, ForeignValueType type) {
 		return policy.gobject.namespace_name.ascii_down () + "_record_" + Checksum.compute_for_string (ChecksumType.SHA256, new ForeignGObjectRecordLayout (type).identity ());
 	}
+
 	private static void records(StringBuilder text, ForeignClassPolicy policy, bool implementation, HashTable<string, bool> seen) throws ForeignAdapterError {
 		var api = policy.declared_api;
 		for (uint m = 0; m < api.member_count; m++) {
@@ -233,6 +241,7 @@ internal class GObjectDeclared : Object {
 			}
 		}
 	}
+
 	private static ForeignImportContract imported_object(CheckedProgram program, ForeignValueType type) throws ForeignAdapterError {
 		foreach (var handle in program.handles) {
 			if (handle.c_import != null && handle.c_import.gobject != null && handle.c_import.api.native_origin == type.nominal_origin && handle.c_import.valid ()) {
@@ -241,6 +250,7 @@ internal class GObjectDeclared : Object {
 		}
 		throw new ForeignAdapterError.INVALID ("GObject export channel lost its exact imported GType and reference contract");
 	}
+
 	private static ForeignClassPolicy object_policy(CheckedProgram program, ForeignValueType type) throws ForeignAdapterError {
 		foreach (var owner in program.classes) {
 			var policy = owner.foreign_export;
@@ -250,6 +260,7 @@ internal class GObjectDeclared : Object {
 		}
 		throw new ForeignAdapterError.INVALID ("GObject native Class projection requires its exact Shared root and declared GType");
 	}
+
 	private static void object_inputs(StringBuilder text, CheckedProgram program, ForeignMemberContract member, string prefix, bool factory) throws ForeignAdapterError {
 		for (uint a = 0; a < member.parameter_count; a++) {
 			var channel = member.parameter (a);
@@ -273,9 +284,11 @@ internal class GObjectDeclared : Object {
 			text.append_printf ("if (argument%u) { object%u = %s_native_acquire(argument%u, error); if (!object%u) return %s; }\n", a, a, root.gobject.symbol_prefix (), a, a, factory ? "NULL" : "FALSE");
 		}
 	}
+
 	private static bool sequence(ForeignChannel channel) {
 		return channel.value_type.kind == ForeignValueKind.BYTES || channel.value_type.kind == ForeignValueKind.TEXT;
 	}
+
 	private static string channel_type(ForeignChannel channel, ForeignClassPolicy policy, CheckedProgram program) throws ForeignAdapterError {
 		if (channel.value_type.kind == ForeignValueKind.GOBJECT) {
 			return imported_object (program, channel.value_type).gobject.type_name + " *";
@@ -294,9 +307,11 @@ internal class GObjectDeclared : Object {
 		}
 		return scalar_type (channel.value_type);
 	}
+
 	private static string native_type(ForeignChannel channel, string prefix) throws ForeignAdapterError {
 		return sequence (channel) ? channel.value_type.kind == ForeignValueKind.TEXT ? "char *" : "uint8_t *" : ForeignAdapters.declared_type (channel.value_type, prefix);
 	}
+
 	private static string channel_attributes(ForeignChannel channel) {
 		string kind = channel.value_type.kind == ForeignValueKind.TEXT ? "text" : channel.value_type.kind == ForeignValueKind.BYTES ? "bytes" : "";
 		if (kind == "") {
@@ -309,6 +324,7 @@ internal class GObjectDeclared : Object {
 		}
 		return attributes + ")";
 	}
+
 	private static string member_attributes(ForeignMemberContract member) {
 		string attributes = " (attributes astra.profile=declarations-v1";
 		if (member.kind == ForeignMemberKind.SIGNAL) {
@@ -323,6 +339,7 @@ internal class GObjectDeclared : Object {
 		}
 		return attributes + ")";
 	}
+
 	private static bool is_capacity(ForeignMemberContract member,uint parameter) {
 		for (uint a = 0; a < member.parameter_count; a++) {
 			var channel = member.parameter (a);
@@ -332,9 +349,11 @@ internal class GObjectDeclared : Object {
 		}
 		return false;
 	}
+
 	private static string capacity(ForeignChannel channel,uint ordinal) {
 		return channel.intrinsic_length ? "argument%u_capacity".printf (ordinal) : "argument%d".printf (channel.capacity_index);
 	}
+
 	private static void sequence_inputs(StringBuilder text,ForeignMemberContract member,string prefix,bool factory) {
 		for (uint a = 0; a < member.parameter_count; a++) {
 			var channel = member.parameter (a);
@@ -349,6 +368,7 @@ internal class GObjectDeclared : Object {
 			}
 		}
 	}
+
 	private static void sequence_result(StringBuilder text,ForeignChannel channel,string prefix) {
 		text.append_printf ("if (ok && (value_length < 0 || (value_length && !value))) ok = %s_error(error, (int32_t)UINT32_C(0x8000ffff));\n",prefix);
 		if (channel.encoding == ForeignTextEncoding.UTF8_NUL) {
@@ -358,6 +378,7 @@ internal class GObjectDeclared : Object {
 		}
 		text.append_printf ("%s(&value, &value_length, NULL);\n",channel.release_symbol);
 	}
+
 	private static string value_suffix(ForeignValueType type) throws ForeignAdapterError {
 		switch (type.kind) {
 		case ForeignValueKind.I32:
@@ -378,9 +399,11 @@ internal class GObjectDeclared : Object {
 			throw new ForeignAdapterError.INVALID ("declared GObject property requires a typed GValue plan");
 		}
 	}
+
 	private static string converted(ForeignValueType type,string value,bool native) throws ForeignAdapterError {
 		return type.kind == ForeignValueKind.BOOL ? "(" + value + (native ? " != FALSE)" : " ? TRUE : FALSE)") : "(" + (native ? ForeignAdapters.declared_type (type,"") : scalar_type (type)) + ")(" + value + ")";
 	}
+
 	private static int property_id(ForeignApiContract api,ForeignMemberContract member) {
 		for (uint m = 0; m < api.member_count; m++) {
 			if (api.member (m).kind == ForeignMemberKind.GETTER && api.member (m).native_member_ordinal == member.native_member_ordinal) {
@@ -389,9 +412,11 @@ internal class GObjectDeclared : Object {
 		}
 		return 0;
 	}
+
 	private static string property_name(ForeignMemberContract member) {
 		return member.name.substring (4).replace ("_","-");
 	}
+
 	private static ForeignMemberContract? setter(ForeignApiContract api,ForeignMemberContract getter) {
 		for (uint m = 0; m < api.member_count; m++) {
 			var member = api.member (m);
@@ -404,6 +429,7 @@ internal class GObjectDeclared : Object {
 		}
 		return null;
 	}
+
 	private static void signature(StringBuilder text,ForeignClassPolicy policy,ForeignMemberContract member,CheckedProgram program) throws ForeignAdapterError {
 		string p = policy.gobject.symbol_prefix (),t = policy.gobject.type_name;
 		bool factory = member.kind == ForeignMemberKind.CONSTRUCTOR;
@@ -432,6 +458,7 @@ internal class GObjectDeclared : Object {
 		}
 		text.append_printf ("%sGError **error)", comma ? ", " : "");
 	}
+
 	private static string property_suffix(ForeignChannel channel) throws ForeignAdapterError {
 		if (channel.value_type.kind == ForeignValueKind.NATIVE_OBJECT) {
 			return "object";
@@ -444,6 +471,7 @@ internal class GObjectDeclared : Object {
 		}
 		return value_suffix (channel.value_type);
 	}
+
 	private static string property_spec(ForeignChannel channel, ForeignClassPolicy policy, CheckedProgram program) throws ForeignAdapterError {
 		if (channel.value_type.kind == ForeignValueKind.NATIVE_OBJECT) {
 			return "object(@ARGS@, " + object_policy (program, channel.value_type).gobject.symbol_prefix () + "_get_type(), @FLAGS@)";
@@ -456,6 +484,7 @@ internal class GObjectDeclared : Object {
 		}
 		return param_spec (channel.value_type);
 	}
+
 	private static string param_spec(ForeignValueType type) throws ForeignAdapterError {
 		switch (type.kind) {
 		case ForeignValueKind.I32: return "int(@ARGS@, G_MININT, G_MAXINT, 0, @FLAGS@)";
@@ -475,6 +504,7 @@ internal class GObjectDeclared : Object {
 			throw new ForeignAdapterError.INVALID ("declared property has no admitted GParamSpec");
 		}
 	}
+
 	internal static string generate(CheckedProgram program, bool implementation) throws ForeignAdapterError {
 		var identities = new StringBuilder ();
 		var policies = new GenericArray<ForeignClassPolicy> ();
@@ -863,5 +893,6 @@ static void @P@_init(@T@ *self) { g_rec_mutex_init(&self->gate); }
 		}
 		return text.str;
 	}
+
 }
 }

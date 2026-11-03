@@ -21,6 +21,7 @@ private CheckedProgram lazy_checked() throws GLib.Error {
 	}
 	return result.program;
 }
+
 private void lazy_checked_core() {
 	try {
 		var checked = lazy_checked ();
@@ -74,6 +75,7 @@ private void lazy_checked_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void lazy_cfg() {
 	try {
 		var graph = CfgBuilder.build (CoreBuilder.build (lazy_checked ()));
@@ -111,6 +113,7 @@ private void lazy_cfg() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void lazy_ssa() {
 	try {
 		var model = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (lazy_checked ())));
@@ -149,6 +152,7 @@ private void lazy_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void lazy_native() {
 	try {
 		var model = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (lazy_checked ())));
@@ -196,6 +200,7 @@ private void lazy_native() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_reject(NativeAbiProgram program) {
 	bool rejected = false;
 	try {
@@ -206,6 +211,7 @@ private void native_reject(NativeAbiProgram program) {
 	}
 	assert (rejected);
 }
+
 private void lazy_independent_llvm() {
 	try {
 		CheckedProgram? checked = lazy_checked ();
@@ -261,6 +267,7 @@ private void lazy_independent_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 internal void register_lazy() {
 	Test.add_func ("/owned-state-completion/lazy-checked-core-channels", lazy_checked_core);
 	Test.add_func ("/owned-state-completion/lazy-cfg-retirement-and-checked-success", lazy_cfg);
@@ -268,4 +275,5 @@ internal void register_lazy() {
 	Test.add_func ("/owned-state-completion/lazy-native-distinct-channels", lazy_native);
 	Test.add_func ("/owned-state-completion/lazy-independent-llvm-states", lazy_independent_llvm);
 }
+
 }

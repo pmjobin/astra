@@ -11,10 +11,12 @@
 
 enum { MAX_ACTORS = 64,
 	   MAX_MAILBOX = 1024 };
+
 struct message {
 	void *owner;
 	uint64_t scalar;
 };
+
 struct actor {
 	_Atomic uint64_t strong;
 	pthread_mutex_t lock;
@@ -30,20 +32,26 @@ struct actor {
 	void *receiver;
 	char name[16];
 };
+
 static _Atomic unsigned active_actors;
 static _Thread_local struct actor *current_actor;
+
 static void require(int condition) {
 	if (!condition) abort();
 }
+
 static void lock(struct actor *actor) {
 	require(pthread_mutex_lock(&actor->lock) == 0);
 }
+
 static void unlock(struct actor *actor) {
 	require(pthread_mutex_unlock(&actor->lock) == 0);
 }
+
 static void changed(struct actor *actor) {
 	require(pthread_cond_broadcast(&actor->changed) == 0);
 }
+
 static uint32_t detach(struct actor *actor, struct message retired[MAX_MAILBOX]) {
 	uint32_t count = actor->size;
 	for (uint32_t i = 0; i < count; ++i) {
@@ -57,6 +65,7 @@ static uint32_t detach(struct actor *actor, struct message retired[MAX_MAILBOX])
 	actor->retiring += count;
 	return count;
 }
+
 static void discard(struct actor *actor, struct message *messages, uint32_t count) {
 	if (actor->drop_message)
 		for (uint32_t i = 0; i < count; ++i)
@@ -69,6 +78,7 @@ static void discard(struct actor *actor, struct message *messages, uint32_t coun
 		unlock(actor);
 	}
 }
+
 static void *execute(void *opaque) {
 	struct actor *actor = opaque;
 	current_actor = actor;
@@ -96,6 +106,7 @@ static void *execute(void *opaque) {
 	current_actor = NULL;
 	return NULL;
 }
+
 static int reserve_actor(void) {
 	unsigned expected = atomic_load_explicit(&active_actors, memory_order_acquire);
 	for (;;) {
@@ -104,6 +115,7 @@ static int reserve_actor(void) {
 		                                            expected + 1, memory_order_acq_rel, memory_order_acquire)) return 1;
 	}
 }
+
 void *astra_actor_open(AstraActorDispatch dispatch, void *receiver,
                        AstraActorDrop drop_receiver, AstraActorDrop drop_message,
                        int32_t capacity, const char *name, int32_t name_length) {
@@ -154,6 +166,7 @@ failed:
 	drop_receiver(receiver);
 	return NULL;
 }
+
 void *astra_actor_clone(void *opaque) {
 	struct actor *actor = opaque;
 	if (!actor) return NULL;
@@ -164,6 +177,7 @@ void *astra_actor_clone(void *opaque) {
 		                                            expected + 1, memory_order_acq_rel, memory_order_acquire)) return actor;
 	}
 }
+
 int32_t astra_actor_send(void *opaque, void *message, uint64_t scalar, AstraActorDrop drop) {
 	struct actor *actor = opaque;
 	if (!actor) {
@@ -191,6 +205,7 @@ int32_t astra_actor_send(void *opaque, void *message, uint64_t scalar, AstraActo
 	if (status != 0 && drop) drop(message);
 	return status;
 }
+
 int32_t astra_actor_cancel(void *opaque) {
 	struct actor *actor = opaque;
 	if (!actor) return 0;
@@ -203,6 +218,7 @@ int32_t astra_actor_cancel(void *opaque) {
 	discard(actor, retired, count);
 	return (int32_t)count;
 }
+
 int32_t astra_actor_shutdown(void *opaque) {
 	struct actor *actor = opaque;
 	if (!actor) return 0;
@@ -239,6 +255,7 @@ int32_t astra_actor_shutdown(void *opaque) {
 	unlock(actor);
 	return 0;
 }
+
 void astra_actor_release(void *opaque) {
 	struct actor *actor = opaque;
 	if (!actor) return;
@@ -255,6 +272,7 @@ void astra_actor_release(void *opaque) {
 	free(actor);
 	require(atomic_fetch_sub_explicit(&active_actors, 1, memory_order_acq_rel) != 0);
 }
+
 int32_t astra_actor_cancelled(void) {
 	return current_actor ? atomic_load_explicit(&current_actor->cancel, memory_order_acquire) : 0;
 }

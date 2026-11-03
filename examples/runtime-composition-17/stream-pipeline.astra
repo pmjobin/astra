@@ -8,23 +8,31 @@ class Chunk {
 	private int digest;
 	private i64 offset;
 	private owned ContextBytes<ConcurrentAllocator> bytes;
+
 	init(int sequence, i64 offset, owned ContextBytes<ConcurrentAllocator> bytes) {
 		this.sequence = sequence; this.digest = 0; this.offset = offset; this.bytes = move bytes;
 		stream_event(7, sequence, len(this.bytes));
 	}
+
 	int id() { return this.sequence; }
+
 	int count() { return len(this.bytes); }
+
 	int byte_at(int index) { return this.bytes[index] as int; }
+
 	int checksum() { return this.digest; }
+
 	i64 file_offset() { return this.offset; }
+
 	void transform() {
 		stream_event(2, this.sequence, len(this.bytes));
 		int digest = this.sequence + 17;
-		for (int i = 0; i < 2000003; i = i + 1) { digest = (digest * 19 + (this.bytes[i % len(this.bytes)] as int) + i % 251) % 65521; }
-		for (int i = 0; i < len(this.bytes); i = i + 1) { this.bytes[i] = (((this.bytes[i] as int) + this.sequence % 31 + 17) % 256) as u8; }
+		for (int i = 0; i < 2000003; i = i + 1) digest = (digest * 19 + (this.bytes[i % len(this.bytes)] as int) + i % 251) % 65521;
+		for (int i = 0; i < len(this.bytes); i = i + 1) this.bytes[i] = (((this.bytes[i] as int) + this.sequence % 31 + 17) % 256) as u8;
 		this.digest = digest;
 		stream_event(3, this.sequence, digest);
 	}
+
 	deinit() { stream_event(8, this.sequence, len(this.bytes)); }
 }
 
@@ -38,30 +46,40 @@ class Queue {
 	private int reserved;
 	private bool admitted;
 	private bool closed;
+
 	init(int limit) {
 		this.entries = new Chunk[slots]; this.limit = limit; this.reserved = 0;
 		this.admitted = this.entries.reserve(limit); this.closed = false;
 	}
+
 	bool ready() { return this.admitted; }
+
 	int count() { return len(this.entries); }
+
 	bool can_offer() { return !this.closed && len(this.entries) + this.reserved < this.limit; }
+
 	bool offer(owned Chunk chunk) {
-		if (this.closed || len(this.entries) + this.reserved >= this.limit) { return false; }
+		if (this.closed || len(this.entries) + this.reserved >= this.limit) return false;
 		this.entries.append(move chunk); stream_event(10, len(this.entries) + this.reserved, this.limit); return true;
 	}
+
 	bool reserve_offer() {
-		if (this.closed || len(this.entries) + this.reserved >= this.limit) { return false; }
+		if (this.closed || len(this.entries) + this.reserved >= this.limit) return false;
 		this.reserved = this.reserved + 1; stream_event(10, len(this.entries) + this.reserved, this.limit); return true;
 	}
+
 	bool offer_reserved(owned Chunk chunk) {
-		if (this.closed || this.reserved <= 0 || len(this.entries) >= this.limit) { return false; }
+		if (this.closed || this.reserved <= 0 || len(this.entries) >= this.limit) return false;
 		this.reserved = this.reserved - 1; this.entries.append(move chunk); stream_event(10, len(this.entries) + this.reserved, this.limit); return true;
 	}
+
 	owned Chunk pop() {
-		if (len(this.entries) == 0) { return null; }
+		if (len(this.entries) == 0) return null;
 		var chunk = this.entries.take(0); stream_event(10, len(this.entries) + this.reserved, this.limit); return move chunk;
 	}
+
 	void finish() { this.closed = true; }
+
 	bool finished() { return this.closed && len(this.entries) == 0 && this.reserved == 0; }
 }
 
@@ -75,22 +93,35 @@ class Progress {
 	private int digest;
 	private int completed;
 	private bool failed;
+
 	init() { this.received = 0; this.computed = 0; this.written = 0; this.bytes = 0; this.digest = 0; this.completed = 0; this.failed = false; }
+
 	void read_frame(int sequence) { this.received = this.received + 1; stream_event(1, sequence, this.received); }
+
 	void computed_frame() { this.computed = this.computed + 1; }
+
 	void wrote_frame(int sequence, int count, int digest) {
 		this.written = this.written + 1; this.bytes = this.bytes + count; this.digest = (this.digest + digest) % 65521;
 		stream_event(5, sequence, count);
 	}
+
 	int count() { return this.written; }
+
 	int total_bytes() { return this.bytes; }
+
 	int checksum() { return this.digest; }
+
 	void done() { this.completed = this.completed + 1; }
+
 	void fail() { this.failed = true; }
+
 	bool stopped() { return this.failed; }
+
 	bool finished() { return this.completed == 3; }
 }
 
 owned Chunk clone_chunk(borrowed Chunk source) { var result = shared_clone(source); return move result; }
+
 owned Queue clone_queue(borrowed Queue source) { var result = shared_clone(source); return move result; }
+
 owned Progress clone_progress(borrowed Progress source) { var result = shared_clone(source); return move result; }

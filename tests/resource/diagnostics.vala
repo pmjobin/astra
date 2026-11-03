@@ -14,6 +14,7 @@ private void reject(string source, string expected, string declarations = TYPES 
 		GLib.error ("Expected rejection containing '%s'; got '%s' for %s", expected, message ?? "accepted", source);
 	}
 }
+
 private void register_diagnostics() {
 	string[] nominal = {
 		"void f() { Resource r = raw_other(); }",
@@ -93,4 +94,5 @@ private void register_diagnostics() {
 		                                               assert (flow.diagnostic == null);
 	});
 }
+
 }

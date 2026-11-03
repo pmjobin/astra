@@ -32,6 +32,7 @@ internal class LlvmSumOperandContract : Object {
 			cases[i] = (void*) CApi.switch_case_value (instruction, (uint) i + 1);
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if (CApi.opcode (instruction) != opcode || (void*) CApi.type_of (instruction) != type || CApi.operand_count (instruction) != operands.length || (opcode == CApi.Opcode.CALL && CApi.instruction_call_conv (instruction) != convention)) {
 			throw new LlvmError.VERIFICATION ("owning sum effect lost its exact operation/type/call convention");
@@ -47,6 +48,7 @@ internal class LlvmSumOperandContract : Object {
 			}
 		}
 	}
+
 }
 
 internal class LlvmSumBlockSequence : Object {
@@ -68,6 +70,7 @@ internal class LlvmSumBlockSequence : Object {
 			successors[i] = (void*) CApi.successor (end, i);
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		foreach (var effect in effects) {
 			effect.verify ();
@@ -92,6 +95,7 @@ internal class LlvmSumBlockSequence : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmSumSequence : Object {
 	internal bool owns_values { get; private set; }
@@ -106,6 +110,7 @@ internal class LlvmSumSequence : Object {
 			sequences.add (new LlvmSumBlockSequence (block, owning));
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		var next = CApi.first_block (function);
 		for (int i = 0; i < blocks.length; i++) {
@@ -119,6 +124,7 @@ internal class LlvmSumSequence : Object {
 			throw new LlvmError.VERIFICATION ("sum function has an unassociated physical block");
 		}
 	}
+
 }
 // These bindings preserve full physical paths and reads without retaining IR.
 internal class LlvmSumAddress : Object {
@@ -132,11 +138,13 @@ internal class LlvmSumAddress : Object {
 		this.type = type;
 		this.member = member;
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.GEP || CApi.operand_count (instruction) != 3 || (void*) CApi.gep_source_type (instruction) != (void*) type || (void*) CApi.operand (instruction, 0) != (void*) root || (void*) CApi.is_constant_int (CApi.operand (instruction, 1)) == null || CApi.const_int_zext (CApi.operand (instruction, 1)) != 0 || (void*) CApi.is_constant_int (CApi.operand (instruction, 2)) == null || CApi.const_int_zext (CApi.operand (instruction, 2)) != member) {
 			throw new LlvmError.VERIFICATION ("sum tag/record projection lost complete base and physical path");
 		}
 	}
+
 }
 internal class LlvmSumRead : Object {
 	internal CApi.ValueRef instruction;
@@ -147,11 +155,13 @@ internal class LlvmSumRead : Object {
 		this.address = address;
 		this.type = type;
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.LOAD || CApi.operand_count (instruction) != 1 || (void*) CApi.operand (instruction, 0) != (void*) address || (void*) CApi.type_of (instruction) != (void*) type || CApi.get_volatile (instruction) != 0 || CApi.get_ordering (instruction) != 0) {
 			throw new LlvmError.VERIFICATION ("sum selected payload/tag read lost its intended instance and address");
 		}
 	}
+
 }
 internal class LlvmSumDispatch : Object {
 	internal CApi.ValueRef instruction;
@@ -168,6 +178,7 @@ internal class LlvmSumDispatch : Object {
 			cases[i] = (void*) CApi.switch_case_value (instruction, (uint) i + 1);
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.SWITCH || CApi.operand_count (instruction) != operands.length) {
 			throw new LlvmError.VERIFICATION ("sum dispatch lost tag/complete case correspondence");
@@ -186,6 +197,7 @@ internal class LlvmSumDispatch : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmSumCall : Object {
 	internal CApi.ValueRef instruction;
@@ -201,6 +213,7 @@ internal class LlvmSumCall : Object {
 			this.arguments[i] = (void*) arguments[i];
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.CALL || (void*) CApi.called_value (instruction) != (void*) callee || (void*) CApi.called_function_type (instruction) != (void*) signature || CApi.argument_count (instruction) != arguments.length || CApi.instruction_call_conv (instruction) != LlvmLowering.CALL_CONVENTION || CApi.function_call_conv (callee) != LlvmLowering.CALL_CONVENTION) {
 			throw new LlvmError.VERIFICATION ("sum call lost exact callee/signature/native convention publication correspondence");
@@ -211,6 +224,7 @@ internal class LlvmSumCall : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmSumAccess : Object {
 	internal CApi.ValueRef instruction;
@@ -221,11 +235,13 @@ internal class LlvmSumAccess : Object {
 		this.expected_address = expected_address;
 		this.expected_value = expected_value;
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.STORE || (void*) CApi.operand (instruction, 0) != (void*) expected_value || (void*) CApi.operand (instruction, 1) != (void*) expected_address || CApi.get_volatile (instruction) != 0 || CApi.get_ordering (instruction) != 0) {
 			throw new LlvmError.VERIFICATION ("sum payload store lost intended field/address/value correspondence");
 		}
 	}
+
 }
 
 // Derive operation authority from the selected LLVM intrinsic and overloads,
@@ -252,15 +268,18 @@ internal class LlvmSumMemoryOperation : Object {
 		target = CApi.get_intrinsic_declaration (artifact.module, identity, overloads, overloads.length);
 		signature = CApi.intrinsic_get_type (artifact.context, identity, overloads, overloads.length);
 	}
+
 	private bool aligned(CApi.ValueRef instruction, uint parameter) {
 		var attribute = CApi.call_enum_attribute (instruction, parameter, CApi.enum_attribute_kind ("align", 5));
 		return (void*) attribute != null && CApi.enum_attribute_value (attribute) == alignment;
 	}
+
 	internal void verify(CApi.ValueRef instruction) throws LlvmError {
 		if ((void*) CApi.is_instruction (instruction) == null || CApi.opcode (instruction) != CApi.Opcode.CALL || CApi.argument_count (instruction) != 4 || (void*) CApi.called_value (instruction) != (void*) target || CApi.intrinsic_id (target) != identity || (void*) CApi.called_function_type (instruction) != (void*) signature || (void*) CApi.global_value_type (target) != (void*) signature || CApi.instruction_call_conv (instruction) != CApi.CallConv.C || CApi.function_call_conv (target) != CApi.CallConv.C || !aligned (instruction, 1) || (copy && !aligned (instruction, 2))) {
 			throw new LlvmError.VERIFICATION ("sum memory operation lost exact intrinsic/overload/signature/convention/alignment correspondence");
 		}
 	}
+
 }
 internal class LlvmSumClear : Object {
 	internal CApi.ValueRef instruction;
@@ -273,12 +292,14 @@ internal class LlvmSumClear : Object {
 		bytes = layout.size;
 		operation = new LlvmSumMemoryOperation (artifact, layout.alignment, false);
 	}
+
 	internal void verify() throws LlvmError {
 		operation.verify (instruction);
 		if ((void*) CApi.operand (instruction, 0) != (void*) destination || (void*) CApi.is_constant_int (CApi.operand (instruction, 1)) == null || CApi.const_int_zext (CApi.operand (instruction, 1)) != 0 || (void*) CApi.is_constant_int (CApi.operand (instruction, 2)) == null || CApi.const_int_zext (CApi.operand (instruction, 2)) != bytes || (void*) CApi.is_constant_int (CApi.operand (instruction, 3)) == null || CApi.const_int_zext (CApi.operand (instruction, 3)) != 0) {
 			throw new LlvmError.VERIFICATION ("sum clear lost exact destination, zero fill, full carrier extent or nonvolatile initialization");
 		}
 	}
+
 }
 
 internal class LlvmSumCopy : Object {
@@ -296,12 +317,14 @@ internal class LlvmSumCopy : Object {
 		this.required_ready = required_ready;
 		operation = new LlvmSumMemoryOperation (artifact, layout.alignment, true);
 	}
+
 	internal void verify() throws LlvmError {
 		operation.verify (instruction);
 		if ((void*) CApi.operand (instruction, 0) != (void*) destination || (void*) CApi.operand (instruction, 1) != (void*) source || (void*) CApi.is_constant_int (CApi.operand (instruction, 2)) == null || CApi.const_int_zext (CApi.operand (instruction, 2)) != bytes || (void*) CApi.is_constant_int (CApi.operand (instruction, 3)) == null || CApi.const_int_zext (CApi.operand (instruction, 3)) != 0 || (required_ready != null && !LlvmBufferExchangeOrder.precedes ((CApi.ValueRef) required_ready, instruction))) {
 			throw new LlvmError.VERIFICATION ("sum copy lost exact source/result destination, complete byte publication or required stores");
 		}
 	}
+
 }
 internal class LlvmSumLayout : Object {
 	internal NativeSumPlan plan;
@@ -333,6 +356,7 @@ internal class LlvmSumLayout : Object {
 			throw new LlvmError.VERIFICATION ("sum carrier differs from tag plus maximum active payload target layout");
 		}
 	}
+
 }
 
 // Physical bindings carry only frozen nominal plans and LLVM handles. Slot
@@ -354,12 +378,15 @@ internal class LlvmSumProjection : Object {
 		original_root = root;
 		original_field = field;
 	}
+
 	private static bool index(CApi.ValueRef value, uint expected) {
 		return (void*) CApi.is_constant_int (value) != null && CApi.const_int_zext (value) == expected;
 	}
+
 	private static bool gep(CApi.ValueRef value, CApi.ValueRef base_address, CApi.TypeRef type, uint member) {
 		return (void*) CApi.is_instruction (value) != null && CApi.opcode (value) == CApi.Opcode.GEP && CApi.operand_count (value) == 3 && (void*) CApi.operand (value, 0) == (void*) base_address && (void*) CApi.gep_source_type (value) == (void*) type && index (CApi.operand (value, 1), 0) && index (CApi.operand (value, 2), member);
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) root != (void*) original_root || field != original_field || field.variant.enumeration != layout.plan.identity || field.variant.ordinal < 0 || field.variant.ordinal >= layout.plan.variants.length) {
 			throw new LlvmError.VERIFICATION ("sum projection lost intended instance or nominal variant identity");
@@ -369,6 +396,7 @@ internal class LlvmSumProjection : Object {
 			throw new LlvmError.VERIFICATION ("sum projection lost exact base/variant/selected-field correspondence");
 		}
 	}
+
 }
 
 internal class LlvmSumRegistry : Object {
@@ -393,6 +421,7 @@ internal class LlvmSumRegistry : Object {
 		artifact.sum_target_triple = target.triple;
 		artifact.sum_data_layout = target.data_layout;
 	}
+
 	internal LlvmSumLayout lookup(EnumIdentity identity) throws LlvmError {
 		var layout = layouts.lookup (identity);
 		if (layout == null) {
@@ -400,6 +429,7 @@ internal class LlvmSumRegistry : Object {
 		}
 		return layout;
 	}
+
 	private CApi.TypeRef record_value_type(NativeStructValuePlan plan) throws LlvmError {
 		if (record_values.contains (plan)) {
 			return (CApi.TypeRef) record_values.lookup (plan);
@@ -412,12 +442,14 @@ internal class LlvmSumRegistry : Object {
 		record_values.insert (plan, (void*) result);
 		return result;
 	}
+
 	internal CApi.ValueRef record_leaf(CApi.BuilderRef builder, NativeStructValuePlan plan, CApi.ValueRef root, uint ordinal) throws LlvmError {
 		if (ordinal >= plan.leaves.length) {
 			throw new LlvmError.LOWERING ("enum record lost its complete physical channel index");
 		}
 		return address (builder, record_value_type (plan), root, ordinal, "sum.record.value.leaf");
 	}
+
 	private LlvmSumLayout build(NativeSumPlan plan) throws LlvmError {
 		var prior = layouts.lookup (plan.identity);
 		if (prior != null) {
@@ -452,39 +484,48 @@ internal class LlvmSumRegistry : Object {
 		artifact.sum_layouts.add (result);
 		return result;
 	}
+
 	internal CApi.ValueRef tag(CApi.BuilderRef builder, LlvmSumLayout layout, CApi.ValueRef root) {
 		return address (builder, layout.carrier, root, 0, "sum.tag.address");
 	}
+
 	internal CApi.ValueRef field(CApi.BuilderRef builder, LlvmSumLayout layout, CApi.ValueRef root, EnumFieldIdentity identity) {
 		var payload = CApi.build_struct_gep (builder, layout.carrier, root, 1, "sum.payload.address");
 		var address = CApi.build_struct_gep (builder, (CApi.TypeRef) layout.variants[identity.variant.ordinal], payload, identity.ordinal, "sum.field.address");
 		artifact.sum_projections.add (new LlvmSumProjection (layout, identity, root, payload, address));
 		return address;
 	}
+
 	internal CApi.ValueRef address(CApi.BuilderRef builder, CApi.TypeRef type, CApi.ValueRef root, uint member, string name) {
 		var result = CApi.build_struct_gep (builder, type, root, member, name);
 		artifact.sum_addresses.add (new LlvmSumAddress (result, root, type, member));
 		return result;
 	}
+
 	internal CApi.ValueRef read(CApi.BuilderRef builder, CApi.TypeRef type, CApi.ValueRef address, string name) {
 		var result = CApi.build_load (builder, type, address, name);
 		artifact.sum_reads.add (new LlvmSumRead (result, address, type));
 		return result;
 	}
+
 	internal void publish(CApi.BuilderRef builder, CApi.ValueRef root) {
 		ready.insert ((void*) root, (void*) CApi.last_instruction (CApi.insert_block (builder)));
 	}
+
 	internal void copy(CApi.BuilderRef builder, LlvmSumLayout layout, CApi.ValueRef destination, CApi.ValueRef source) {
 		var instruction = CApi.build_mem_copy (builder, destination, layout.alignment, source, layout.alignment, CApi.const_int (CApi.int_type_in_context (artifact.context, 64), layout.size, 0));
 		artifact.sum_copies.add (new LlvmSumCopy (artifact, instruction, destination, source, layout, (void*) ready.lookup ((void*) source)));
 	}
+
 	internal void store(CApi.BuilderRef builder, CApi.ValueRef value, CApi.ValueRef address) {
 		var instruction = CApi.build_store (builder, value, address);
 		artifact.sum_accesses.add (new LlvmSumAccess (instruction, address, value));
 	}
+
 	internal void clear(CApi.BuilderRef builder, LlvmSumLayout layout, CApi.ValueRef destination) {
 		var instruction = CApi.build_mem_set (builder, destination, CApi.const_int (CApi.int_type_in_context (artifact.context, 8), 0, 0), CApi.const_int (CApi.int_type_in_context (artifact.context, 64), layout.size, 0), layout.alignment);
 		artifact.sum_clears.add (new LlvmSumClear (artifact, instruction, destination, layout));
 	}
+
 }
 }

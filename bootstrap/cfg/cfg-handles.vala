@@ -27,5 +27,6 @@ public class CfgHandle : CfgNode {
 		this.ordinal = ordinal;
 		this.context_contract = context_mode;
 	}
+
 }
 }

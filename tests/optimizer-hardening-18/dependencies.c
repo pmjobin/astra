@@ -7,11 +7,13 @@
 #include <string.h>
 
 static gint completed;
+
 static gpointer work(gpointer unused) {
 	(void)unused;
 	g_atomic_int_inc(&completed);
 	return NULL;
 }
+
 int main(int argc, char **argv) {
 	GObject *object = g_object_new(G_TYPE_OBJECT, NULL);
 	GWeakRef weak;

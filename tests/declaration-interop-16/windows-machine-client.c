@@ -11,9 +11,11 @@
 #include "machine16.h"
 #else
 typedef struct machine16_handle machine16_handle;
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 extern int32_t machine16_create(machine16_handle **, astra_foreign_error *);
 extern int32_t machine16_half32(machine16_handle *, float, float *, astra_foreign_error *);
 extern int32_t machine16_half64(machine16_handle *, double, double *, astra_foreign_error *);
@@ -24,16 +26,19 @@ extern int32_t machine16_destroy(machine16_handle **, astra_foreign_error *);
 #endif
 _Static_assert(sizeof(void *) == 8 && sizeof(long) == 4 && sizeof(bool) == 1, "Windows x64 LLP64 and C99 bool");
 _Static_assert(sizeof(float) == 4 && sizeof(double) == 8 && FLT_RADIX == 2 && FLT_MANT_DIG == 24 && DBL_MANT_DIG == 53, "IEEE binary32/binary64");
+
 static float from32(uint32_t bits) {
 	float value;
 	memcpy(&value, &bits, sizeof value);
 	return value;
 }
+
 static double from64(uint64_t bits) {
 	double value;
 	memcpy(&value, &bits, sizeof value);
 	return value;
 }
+
 int main(void) {
 	unsigned mxcsr = _mm_getcsr();
 	assert((mxcsr & (UINT32_C(1) << 15 | UINT32_C(1) << 6 | UINT32_C(3) << 13)) == 0);

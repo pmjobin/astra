@@ -2,34 +2,43 @@
 class RecordProducedChild {
 	owned R guard;
 	int value;
+
 	init(owned R guard, int value) { this.guard = move guard; this.value = value; }
 }
+
 struct CallerRecordProducer {
 	int code;
 	int value;
+
 	owned RecordProducedChild make() {
 		var guard = make(this.code);
 		return RecordProducedChild.init(move guard, this.value);
 	}
 }
+
 struct HeapRecordProducer {
 	int code;
 	int value;
+
 	owned RecordProducedChild make() {
 		var guard = make(this.code);
 		var result = new RecordProducedChild(move guard, this.value);
 		return move result;
 	}
 }
+
 class RecordResultFactory<Producer, Label> {
 	Producer producer;
 	Label label;
+
 	init(Producer producer, Label label) { this.producer = producer; this.label = label; }
+
 	owned Result produce<Result>() {
 		Producer local = this.producer;
 		return local.make();
 	}
 }
+
 int exercise_record_origins() {
 	CallerRecordProducer first = {code = 241, value = 42};
 	HeapRecordProducer second = {code = 242, value = 73};
@@ -38,12 +47,13 @@ int exercise_record_origins() {
 	var heap_factory = new RecordResultFactory<HeapRecordProducer, i64>(second, label);
 	var caller = caller_factory.produce<RecordProducedChild>();
 	var heap = heap_factory.produce<RecordProducedChild>();
-	if (caller.value != 42 || id(caller.guard) != 241 || heap.value != 73 || id(heap.guard) != 242 || live() != 2) { return 1; }
-	if (!caller_factory.label || heap_factory.label != label || first.value != 42 || second.value != 73) { return 2; }
+	if (caller.value != 42 || id(caller.guard) != 241 || heap.value != 73 || id(heap.guard) != 242 || live() != 2) return 1;
+	if (!caller_factory.label || heap_factory.label != label || first.value != 42 || second.value != 73) return 2;
 	return 0;
 }
+
 int main() {
 	int result = exercise_record_origins();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

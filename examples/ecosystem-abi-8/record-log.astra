@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class RecordLog {
 	private owned Utf8ByteBuilder report;
+
 	init() { var report = new Utf8ByteBuilder(); this.report = move report; }
+
 	bool record(string key, int value) {
 		return report_text(this.report, key) && append_int(this.report, value) && report_text(this.report, "\n");
 	}
+
 	owned Utf8Message snapshot() throws Error { var text = report_snapshot(this.report); return move text; }
 }
+
 bool log_event(borrowed RecordLog log, string key, int value) { return log.record(key, value); }
+
 owned Utf8Message log_snapshot(borrowed RecordLog log) throws Error { var text = log.snapshot(); return move text; }

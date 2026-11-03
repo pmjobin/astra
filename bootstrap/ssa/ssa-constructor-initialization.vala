@@ -17,6 +17,7 @@ public class SsaConstructorInitialization : Object {
 		}
 		return part == "" || !(place is SsaIndirectFieldPlace) || !(place.semantic_type is StructType) ? null : (SsaIndirectFieldPlace) place;
 	}
+
 	public FieldInitializationState at_entry(SsaBlock block) {
 		var state = entries.lookup (block);
 		if (state != null) {
@@ -26,6 +27,7 @@ public class SsaConstructorInitialization : Object {
 		unreachable.reachable = false;
 		return unreachable;
 	}
+
 	internal static GenericArray<SsaBlock> successors(SsaBlock block) {
 		if (block.terminator is SsaBufferAllocationBranch) {
 			return block.terminator.successors ();
@@ -47,6 +49,7 @@ public class SsaConstructorInitialization : Object {
 		}
 		return result;
 	}
+
 	public SsaConstructorInitialization (SsaConstructor function, CopyabilityFields fields) throws SsaError {
 		count = (int) function.declaring_class.fields.length + (function.declaring_class.parent_class == null ? 0 : 1);
 		entries.insert (function.entry, new FieldInitializationState (count));
@@ -99,5 +102,6 @@ public class SsaConstructorInitialization : Object {
 			}
 		}
 	}
+
 }
 }

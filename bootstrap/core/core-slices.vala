@@ -21,6 +21,7 @@ public class CoreSliceFromArrayValue : CoreValue {
 		this.count = count;
 		this.provenance = provenance;
 	}
+
 }
 
 public class CoreSliceLengthValue : CoreValue {
@@ -30,6 +31,7 @@ public class CoreSliceLengthValue : CoreValue {
 		base (span, type);
 		this.slice = slice;
 	}
+
 }
 
 public class CoreSliceElementPlace : CorePlace {
@@ -46,5 +48,6 @@ public class CoreSliceElementPlace : CorePlace {
 		this.index = index;
 		this.provenance = provenance;
 	}
+
 }
 }

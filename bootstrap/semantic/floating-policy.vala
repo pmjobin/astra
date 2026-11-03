@@ -15,9 +15,11 @@ public class FloatingPointPolicy : Object {
 	public static bool valid(uint permissions) {
 		return Astra.Source.FloatingPointPermissions.valid (permissions);
 	}
+
 	public static bool floating(SemanticType type) {
 		return type is FloatingType || (type is VectorType && ((VectorType) type).element_type is FloatingType);
 	}
+
 	public static uint option(string name) {
 		switch (name) {
 		case "contract":
@@ -36,5 +38,6 @@ public class FloatingPointPolicy : Object {
 			return 0;
 		}
 	}
+
 }
 }

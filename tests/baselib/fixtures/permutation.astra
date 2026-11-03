@@ -1,5 +1,7 @@
 T outer_min<T>(T a, T b) where T : Ordered { return min(a, b); }
+
 f64 explicit_clamp(f64 value) { return clamp<f64>(outer_min<f64>(value, 2.0d), 0.0d, 1.0d); }
+
 int main() {
 	var value = explicit_clamp(max(0.5d, 0.25d));
 	assert_code(clamp(value, 0.0d, 1.0d) == 0.5d, 401);

@@ -11,6 +11,7 @@ internal class ReadonlyCallContext : Object {
 			declarations.insert (type, new GenericArray<SemanticType> ());
 		}
 	}
+
 	internal void add_field(SemanticType owner, SemanticType field) {
 		add_type (owner);
 		if (field is OwnerSlotsType) {
@@ -20,6 +21,7 @@ internal class ReadonlyCallContext : Object {
 			declarations.lookup (owner).add (field);
 		}
 	}
+
 	private GenericArray<SemanticType>? children(SemanticType type) {
 		var result = new GenericArray<SemanticType> ();
 		foreach (var declared in declarations.get_keys ()) {
@@ -37,12 +39,15 @@ internal class ReadonlyCallContext : Object {
 		}
 		return result;
 	}
+
 	internal void enter(SemanticType type) {
 		active.add (type);
 	}
+
 	internal void leave() {
 		active.remove_index (active.length - 1);
 	}
+
 	internal bool overlaps(SemanticType type) {
 		if (type is ReceiverType) {
 			type = ((ReceiverType) type).instance_type;
@@ -54,6 +59,7 @@ internal class ReadonlyCallContext : Object {
 		}
 		return false;
 	}
+
 }
 
 // The stage supplies its own exact declaration graph, without owner backlinks.
@@ -61,6 +67,7 @@ public class OwnedChildComposition : Object {
 	public static bool acyclic(SemanticType type, CopyabilityFields edges) {
 		return visit (type, edges, new HashTable<SemanticType, int> (direct_hash, direct_equal));
 	}
+
 	private static bool visit(SemanticType type, CopyabilityFields edges, HashTable<SemanticType, int> states) {
 		if (states.contains (type)) {
 			return states.lookup (type) == 2;
@@ -78,11 +85,13 @@ public class OwnedChildComposition : Object {
 		states.insert (type, 2);
 		return true;
 	}
+
 	// Possible dynamic subtypes and inherited slots belong in this callback.
 	// A borrowed ancestor container can replace/destroy the exact backing slot.
 	public static bool may_invalidate(SemanticType candidate, SemanticType backing, CopyabilityFields children) {
 		return overlaps (candidate, backing, children, new HashTable<SemanticType, bool> (direct_hash, direct_equal));
 	}
+
 	private static bool overlaps(SemanticType candidate, SemanticType backing, CopyabilityFields children, HashTable<SemanticType, bool> seen) {
 		if (candidate == backing) {
 			return true;
@@ -106,5 +115,6 @@ public class OwnedChildComposition : Object {
 		}
 		return false;
 	}
+
 }
 }

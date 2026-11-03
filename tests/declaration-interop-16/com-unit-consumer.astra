@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-class Context{bool flip;init(bool flip){this.flip=flip;}}
+class Context{bool flip;
+
+	init(bool flip){this.flip=flip;}}
+
 bool invert(borrowed Context context,bool input){return context.flip && !input;}
+
 export(C) int opaquecom16_native_run(){try{
-		var session=new WinUnit16.Session(7,1.5);if(session.evaluate(2.0)!=10.0){return 1;}session.count=19;if(session.count!=19){return 2;}
-		u8[3] bytes={3,0,254};var copy=session.snapshot(slice(bytes));if(len(copy)!=3 || copy[0]!=86 || copy[1]!=85 || copy[2]!=171){return 3;}
-		var context=new Context(true);var callback=closure_bind(move context,invert);if(!session.visit(false,callback) || session.visit(true,callback)){return 4;}
+		var session=new WinUnit16.Session(7,1.5);if(session.evaluate(2.0)!=10.0) return 1;session.count=19;if(session.count!=19) return 2;
+		u8[3] bytes={3,0,254};var copy=session.snapshot(slice(bytes));if(len(copy)!=3 || copy[0]!=86 || copy[1]!=85 || copy[2]!=171) return 3;
+		var context=new Context(true);var callback=closure_bind(move context,invert);if(!session.visit(false,callback) || session.visit(true,callback)) return 4;
 	}catch(WinUnit16.Fault fault){return 90;}return 0;}
+
 export(C) int opaquecom16_import_run(void* unknown){try{
-		var session=IOpaque16.init(unknown);if(session.count!=7){return 1;}session.count=23;if(session.evaluate(4.0)!=33.0){return 2;}
-		try{var ignored=session.evaluate(-1.0);return 3;}catch(WinUnit16.Fault fault){if(fault.code()!=-1600){return 4;}}
-		u8[3] bytes={3,0,254};var copy=session.snapshot(slice(bytes));if(len(copy)!=3 || copy[0]!=41 || copy[1]!=42 || copy[2]!=212){return 5;}
-		var context=new Context(true);var callback=closure_bind(move context,invert);if(!session.visit(false,callback) || session.visit(true,callback)){return 6;}
+		var session=IOpaque16.init(unknown);if(session.count!=7) return 1;session.count=23;if(session.evaluate(4.0)!=33.0) return 2;
+		try{var ignored=session.evaluate(-1.0);return 3;}catch(WinUnit16.Fault fault){if(fault.code()!=-1600) return 4;}
+		u8[3] bytes={3,0,254};var copy=session.snapshot(slice(bytes));if(len(copy)!=3 || copy[0]!=41 || copy[1]!=42 || copy[2]!=212) return 5;
+		var context=new Context(true);var callback=closure_bind(move context,invert);if(!session.visit(false,callback) || session.visit(true,callback)) return 6;
 	}catch(WinUnit16.Fault fault){return 90;}return 0;}

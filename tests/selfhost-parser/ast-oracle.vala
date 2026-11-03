@@ -17,9 +17,11 @@ class AstOracle : Object {
 		}
 		return ordinal;
 	}
+
 	void source_line(SourceFile source, int ordinal) {
 		output.append_printf("S %d %s %d %d\n", ordinal, hex(source.path), source.length, source.native_interface?1:0);
 	}
+
 	int source_number(SourceFile source) {
 		for (int i = 0; i < sources.length; i++) {
 			if (sources[i] == source)
@@ -29,18 +31,23 @@ class AstOracle : Object {
 		source_line(source, sources.length);
 		return sources.length;
 	}
+
 	void edge(string name, string expected, SyntaxNode? node) {
 		output.append_printf("E %s %s %d\n", name, expected, reference(node));
 	}
+
 	void boolean(string name, bool value) {
 		output.append_printf("B %s %d\n", name, value?1:0);
 	}
+
 	void integer(string name, int value) {
 		output.append_printf("I %s %d\n", name, value);
 	}
+
 	void text(string name, string value) {
 		output.append_printf("X %s %s\n", name, hex(value));
 	}
+
 	void concurrency(string name, ConcurrencyPolicy? policy) {
 		if (policy == null) {
 			output.append_printf("C %s -\n", name);
@@ -48,6 +55,7 @@ class AstOracle : Object {
 		}
 		output.append_printf("C %s %d %d\n", name, (int)policy.kinds, (int)policy.identity);
 	}
+
 	void token(string name, Token? token) {
 		if (token == null) {
 			output.append_printf("T %s -\n", name);
@@ -56,6 +64,7 @@ class AstOracle : Object {
 		int source = source_number(token.span.file);
 		output.append_printf("T %s %s %d %d %d %s %s\n", name, token.kind.to_string().substring("ASTRA_SYNTAX_TOKEN_KIND_".length), source, token.span.start, token.span.end, hex(token.spelling()), token.text_payload == null?"":token.text_payload.hex());
 	}
+
 	void fields(SyntaxNode node) {
 		if (node is ConstructorInitializerSyntax) {
 			var value = (ConstructorInitializerSyntax)node;
@@ -1644,6 +1653,7 @@ class AstOracle : Object {
 		}
 		assert_not_reached();
 	}
+
 	public string format(SyntaxProgram program) {
 		output.append("astra-ast-projection/1\n");
 		foreach (var source in program.sources.files) {
@@ -1662,6 +1672,7 @@ class AstOracle : Object {
 		}
 		return output.str;
 	}
+
 	string kind_name(SyntaxNode node) {
 		if (node is ConstructorInitializerSyntax)
 			return "ConstructorInitializerSyntax";
@@ -1843,4 +1854,5 @@ class AstOracle : Object {
 			return "WhereClauseSyntax";
 		assert_not_reached();
 	}
+
 }

@@ -13,6 +13,7 @@ public class CoreSuspensionLoan : Object {
 		this.storage = storage;
 		this.view = view;
 	}
+
 }
 
 public class CoreTaskCreate : CoreCallValue {
@@ -31,6 +32,7 @@ public class CoreTaskCreate : CoreCallValue {
 		}
 		return true;
 	}
+
 	internal CoreTaskCreate (SourceSpan span, TaskType type, CoreFunction target, GenericArray<CoreValue> arguments, CoreValue? allocation_context = null, bool checked_admission = false) {
 		base (span, type, target, arguments);
 		this.checked_admission = checked_admission;
@@ -39,6 +41,7 @@ public class CoreTaskCreate : CoreCallValue {
 			captures.add (argument);
 		}
 	}
+
 }
 public class CoreStructAwait : CoreStructProducer {
 	public CoreTaskAwait operation { get; private set; }
@@ -46,6 +49,7 @@ public class CoreStructAwait : CoreStructProducer {
 		base (operation.span, operation.semantic_type, mode);
 		this.operation = operation;
 	}
+
 }
 public class CoreEnumAwait : CoreEnumProducer {
 	public CoreTaskAwait operation { get; private set; }
@@ -53,6 +57,7 @@ public class CoreEnumAwait : CoreEnumProducer {
 		base (operation.span, definition, instance);
 		this.operation = operation;
 	}
+
 }
 public class CoreTaskMove : CoreValue {
 	public CoreLocalPlace source { get; private set; }
@@ -60,6 +65,7 @@ public class CoreTaskMove : CoreValue {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 public class CoreAsyncDelay : CoreStatement {
 	public bool payload { get; private set; }
@@ -71,6 +77,7 @@ public class CoreAsyncDelay : CoreStatement {
 		this.ticks = ticks;
 		this.payload = payload;
 	}
+
 }
 public class CoreTaskAwait : CoreValue {
 	public CoreValue? bridge_executor { get; private set; }
@@ -86,6 +93,7 @@ public class CoreTaskAwait : CoreValue {
 		this.discard = discard;
 		this.buffer_cleanup = buffer_cleanup;
 	}
+
 }
 public class CoreTaskAwaitStatement : CoreStatement {
 	public CoreTaskAwait operation { get; private set; }
@@ -93,6 +101,7 @@ public class CoreTaskAwaitStatement : CoreStatement {
 		base (span);
 		this.operation = operation;
 	}
+
 }
 
 public class CoreTaskBorrow : CoreValue {
@@ -101,6 +110,7 @@ public class CoreTaskBorrow : CoreValue {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 public class CoreExecutorBorrow : CoreValue {
 	public CoreLocalPlace source { get; private set; }
@@ -108,6 +118,7 @@ public class CoreExecutorBorrow : CoreValue {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 public class CoreAsyncOperation : CoreValue {
 	public AsyncOperationContract contract { get; private set; }
@@ -121,6 +132,7 @@ public class CoreAsyncOperation : CoreValue {
 		this.task = task;
 		this.argument = argument;
 	}
+
 }
 public class CoreAsyncOperationStatement : CoreStatement {
 	public CoreAsyncOperation operation { get; private set; }
@@ -128,6 +140,7 @@ public class CoreAsyncOperationStatement : CoreStatement {
 		base (span);
 		this.operation = operation;
 	}
+
 }
 public class CoreAsyncRun : CoreEnumProducer {
 	public CoreAsyncOperation operation { get; private set; }
@@ -135,6 +148,7 @@ public class CoreAsyncRun : CoreEnumProducer {
 		base (span, definition, instance);
 		this.operation = operation;
 	}
+
 }
 
 }

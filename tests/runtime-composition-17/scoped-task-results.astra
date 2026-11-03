@@ -1,22 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void scoped_result_retired(int identity);
+
 extern(C) void scoped_result_observed(int first, int second, int marker);
+
 extern(C) void scoped_result_ready(int mode);
+
 extern(C) int scoped_result_is_ready();
+
 extern(C) int scoped_result_finish();
 
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedResultLeaf {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int read() { return this.identity; }
+
 	deinit() { scoped_result_retired(this.identity); }
 }
+
 owned ScopedResultLeaf scoped_result_empty() { return null; }
+
 struct ScopedResultPacket { owned ScopedResultLeaf first; owned ScopedResultLeaf second; int marker; }
+
 async ScopedResultPacket scoped_result_deliver(ScopedResultPacket input, int mode) throws Error {
 	await delay_ticks(1);
-	if (mode == 1) { throw new Error("scoped result failure"); }
+	if (mode == 1) {
+		throw new Error("scoped result failure");
+	}
 	if (mode == 6) {
 		ScopedResultPacket vacant = { first = scoped_result_empty(), second = scoped_result_empty(), marker = 17 };
 		return move vacant;
@@ -24,15 +36,23 @@ async ScopedResultPacket scoped_result_deliver(ScopedResultPacket input, int mod
 	scoped_result_ready(mode);
 	return move input;
 }
+
 void scoped_result_inspect(borrowed ScopedResultPacket input) {
-	if (input.first == null && input.second == null) { scoped_result_observed(0, 0, input.marker); }
-	else { scoped_result_observed(input.first.read(), input.second.read(), input.marker); }
+	if (input.first == null && input.second == null) {
+		scoped_result_observed(0, 0, input.marker);
+	}
+	else {
+		scoped_result_observed(input.first.read(), input.second.read(), input.marker);
+	}
 }
+
 void scoped_result_drop(ScopedResultPacket input) {}
+
 async ScopedResultPacket scoped_result_empty_task() {
 	ScopedResultPacket vacant = { first = scoped_result_empty(), second = scoped_result_empty(), marker = 17 };
 	return move vacant;
 }
+
 async void scoped_result_collect(ScopedResultPacket input, int mode) throws Error {
 	if (mode == 7) {
 		scoped_result_drop(move input);
@@ -47,13 +67,17 @@ async void scoped_result_collect(ScopedResultPacket input, int mode) throws Erro
 	scoped_result_inspect(result);
 	await delay_ticks(1);
 }
+
 async void scoped_result_discard(ScopedResultPacket input) throws Error {
 	var child = scoped_result_deliver(move input, 4);
 	start(child);
-	try { while (scoped_result_is_ready() == 0) { await delay_ticks(1); } }
+	try { while (scoped_result_is_ready() == 0) {
+			await delay_ticks(1);
+		} }
 	catch (Error error) { await cancel_and_join(move child); throw; }
 	await cancel_and_join(move child);
 }
+
 int scoped_result_case(borrowed ScopedAllocator first, borrowed ScopedAllocator second, int mode) {
 	try {
 		var left = new (first) ScopedResultLeaf(mode * 2 + 1);
@@ -62,14 +86,14 @@ int scoped_result_case(borrowed ScopedAllocator first, borrowed ScopedAllocator 
 		var executor = VirtualExecutor.open(8);
 		if (mode == 3) {
 			var cold = scoped_result_deliver(move input, 0);
-			if (scoped_allocator_query(first, 1) != 1 || scoped_allocator_query(second, 1) != 1) { return 1; }
+			if (scoped_allocator_query(first, 1) != 1 || scoped_allocator_query(second, 1) != 1) return 1;
 		} else { if (mode == 4) {
 				var discarded = scoped_result_discard(move input);
 				var status = executor.run(move discarded);
 				match (status) { case RunStatus.Completed(): {} else: { return 7; } }
 			} else { if (mode == 5) {
 					var discarded = checked_task_in(first, scoped_result_deliver(move input, 0));
-					if (scoped_allocator_query(first, 1) != 2 || scoped_allocator_query(second, 1) != 1) { return 9; }
+					if (scoped_allocator_query(first, 1) != 2 || scoped_allocator_query(second, 1) != 1) return 9;
 				} else {
 					var task = scoped_result_collect(move input, mode);
 					if (mode == 2) {
@@ -78,14 +102,19 @@ int scoped_result_case(borrowed ScopedAllocator first, borrowed ScopedAllocator 
 						executor.cancel(task);
 					}
 					var status = executor.run(move task);
-					if (mode == 1) { return 2; }
-					if (mode == 2) { match (status) { case RunStatus.Cancelled(): {} else: { return 3; } } }
-					else { match (status) { case RunStatus.Completed(): {} else: { return 4; } } }
+					if (mode == 1) return 2;
+					if (mode == 2) {
+						match (status) { case RunStatus.Cancelled(): {} else: { return 3; } }
+					}
+					else {
+						match (status) { case RunStatus.Completed(): {} else: { return 4; } }
+					}
 				} } }
-	} catch (Error error) { if (mode != 1) { return 5; } }
-	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) { return 6; }
+	} catch (Error error) { if (mode != 1) return 5; }
+	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) return 6;
 	return 0;
 }
+
 export(C) int scoped_result_probe() {
 	owned u8[] first_backing = new u8[16381];
 	owned u8[] second_backing = new u8[16381];
@@ -93,7 +122,7 @@ export(C) int scoped_result_probe() {
 	var second = scoped_allocator<ScopedAllocator>(second_backing, 2, 1);
 	for (int mode = 0; mode < 8; mode = mode + 1) {
 		int result = scoped_result_case(first, second, mode);
-		if (result != 0) { return 10 + mode * 10 + result; }
+		if (result != 0) return 10 + mode * 10 + result;
 	}
 	return scoped_result_finish();
 }

@@ -4,20 +4,26 @@ struct CRecord {
 	isize delta; f64 measure; f32 ratio; int total; u32 flags;
 	i8 negative; i16 narrow;
 }
+
 [CCode(record_abi="natural-lp64")]
 extern(C) int produce_record(borrowed CRecord* record, int seed);
+
 [CCode(record_abi="natural-lp64")]
 extern(C) int verify_record(borrowed CRecord* record, int seed);
+
 export(C) int astra_record_bridge(int seed) {
 	CRecord record = {tag=7, signed_value=-9223372036854775808, small=65535,
 		wide=18446744073709551615, count=123456, delta=-17, measure=2.5,
 		ratio=1.25, total=seed, flags=4294967295, negative=-128, narrow=-32768};
-	if (produce_record(&record, seed) != 0) { return 1; }
+	if (produce_record(&record, seed) != 0) return 1;
 	if (record.tag != 201 || record.signed_value != -9223372036854775807 ||
 		record.small != 54321 || record.wide != 18446744073709551614 ||
 		record.count != 987654 || record.delta != -19 || record.measure != 3.5 ||
 		record.ratio != 1.5 || record.total != seed + 9 || record.flags != 2147483649 ||
-		record.negative != -127 || record.narrow != -12345) { return 2; }
+		record.negative != -127 || record.narrow != -12345) {
+		return 2;
+	}
 	return verify_record(&record, seed);
 }
+
 int main() { return astra_record_bridge(23); }

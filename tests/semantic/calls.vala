@@ -62,4 +62,5 @@ private void register_call_semantic_tests() {
 	call_error ("argument-order", "int add(int a,int b){return a+b;} int f(){return add(left(),right());}", "left", "unknown function 'left'");
 	call_error ("checked-after-return", "int f(){return 1; missing();}", "missing", "unknown function 'missing'");
 }
+
 }

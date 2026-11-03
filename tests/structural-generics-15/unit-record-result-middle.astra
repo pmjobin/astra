@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace RecordResultTransport;
 Fn<NativeRecordResults.Copy<NativeRecordResults.Leaf,int>,int> copy_callback() { return NativeRecordResults.copy_callback(); }
+
 NativeRecordResults.Copy<NativeRecordResults.Leaf,int> copy(Fn<NativeRecordResults.Copy<NativeRecordResults.Leaf,int>,int> code, int ticket) { return NativeRecordResults.invoke_copy(code, ticket); }
+
 Fn<NativeRecordResults.Packet,int> packet_callback() { return NativeRecordResults.packet_callback(); }
+
 NativeRecordResults.Packet packet(Fn<NativeRecordResults.Packet,int> code, int ticket) { return NativeRecordResults.invoke_packet(code, ticket); }
+
 NativeRecordResults.Packet direct(int ticket) {
 	Fn<NativeRecordResults.Packet,int> code = NativeRecordResults.packet_callback();
 	return code(ticket);

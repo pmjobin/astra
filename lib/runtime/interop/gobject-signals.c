@@ -10,6 +10,7 @@ struct source {
 	GWeakRef object;
 	guint signal;
 };
+
 struct connection {
 	GObject *object;
 	gulong handler;

@@ -17,6 +17,7 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private SsaProgram build(string text) throws GLib.Error {
 	var cfg = CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (text))));
 	var flow = CfgFlowChecker.check (cfg);
@@ -25,5 +26,6 @@ private SsaProgram build(string text) throws GLib.Error {
 	}
 	return SsaBuilder.build (cfg);
 }
+
 private const string SOURCE = "struct Box<T>{T value;}extern(C) void output(int code,int n);void report(int code,int n,[CallerFilePath] string file,[CallerLineNumber] int line,[CallerArgumentExpression(\"n\")] string text){output(code,n);}owned T[] make<T>(int n,int code){return new T[n] else report(code,n);}void root(){var a=make<Box<int>>(0,17);var b=make<Box<int>>(2,19);}";
 }

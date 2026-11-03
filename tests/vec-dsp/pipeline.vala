@@ -15,9 +15,11 @@ private class LifetimeWitness : Object {
 	internal LifetimeWitness (Object value) {
 		reference = WeakRef (value);
 	}
+
 	internal bool gone() {
 		return reference.get () == null;
 	}
+
 }
 
 private const string STRAIGHT = "i8 a(i8 a,i8 b){return sat_add(a,b);} u32 b(u32 a,u32 b){return sat_sub(a,b);} i16<8> c(i16<8> a,i16<8> b){return sat_add(a,b);} u8<16> d(u8<16> a,u8<16> b){return sat_sub(a,b);} u16<8> e(i8<16> a){return widen_low(a,u16);} i16<8> f(u8<16> a){return widen_high(a,i16);} u8<16> g(i16<8> a,i16<8> b){return pack_wrap(a,b,u8);} i8<16> h(u16<8> a,u16<8> b){return pack_sat(a,b,i8);} f32<4> i(f32<4> a,f32<4> b){return interleave_low(a,b);} bool<8> j(bool<8> a,bool<8> b){return interleave_high(a,b);}";
@@ -137,4 +139,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -8,6 +8,7 @@ public class CfgBaseLifecycleCall : CfgCallInstruction {
 	internal CfgBaseLifecycleCall (SourceSpan span, CfgLifecycle target, GenericArray<CfgValue> arguments, CfgValue receiver) {
 		base (span, target, arguments, null, receiver);
 	}
+
 }
 
 // Exact stage-owned lifecycle identity, independent of upstream symbols.
@@ -22,18 +23,21 @@ public abstract class CfgLifecycle : CfgFunction {
 		this.receiver = receiver;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class CfgConstructor : CfgLifecycle {
 	internal CfgConstructor (SourceSpan span, SourceSpan name_span, CfgClass owner, CfgReceiver receiver, int member_ordinal, SemanticType void_type, int ordinal, GenericArray<CfgParameter> parameters, GenericArray<CfgLocalPlace> locals, GenericArray<CfgBlock> blocks, CfgBlock entry) {
 		base (span, name_span, "init", owner, receiver, member_ordinal, void_type, ordinal, parameters, locals, blocks, entry);
 	}
+
 }
 
 public class CfgDestructor : CfgLifecycle {
 	internal CfgDestructor (SourceSpan span, SourceSpan name_span, CfgClass owner, CfgReceiver receiver, int member_ordinal, SemanticType void_type, int ordinal, GenericArray<CfgParameter> parameters, GenericArray<CfgLocalPlace> locals, GenericArray<CfgBlock> blocks, CfgBlock entry) {
 		base (span, name_span, "deinit", owner, receiver, member_ordinal, void_type, ordinal, parameters, locals, blocks, entry);
 	}
+
 }
 
 public class CfgStorageReceiverValue : CfgValue {
@@ -44,6 +48,7 @@ public class CfgStorageReceiverValue : CfgValue {
 		this.storage = storage;
 		this.allocation_context = allocation_context;
 	}
+
 }
 
 // Normal return from a constructor call is the successful construction
@@ -55,5 +60,6 @@ public class CfgLifecycleCallInstruction : CfgCallInstruction {
 		base (span, target, arguments, null, new CfgStorageReceiverValue (span, storage, target.receiver.contract, allocation_context));
 		this.storage = storage;
 	}
+
 }
 }

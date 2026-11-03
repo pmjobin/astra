@@ -18,6 +18,7 @@ struct shared_root {
 	void *monitor;
 	uint64_t thread;
 };
+
 _Static_assert(offsetof(struct shared_root, strong) == 16, "intrusive strong ABI");
 _Static_assert(offsetof(struct shared_root, weak) == 24, "intrusive weak ABI");
 _Static_assert(sizeof(struct shared_root) == 48, "intrusive root ABI");
@@ -28,6 +29,7 @@ struct singleton {
 	pthread_t initializer;
 	int state; /* 0 uninitialized, 1 constructing, 2 ready, 3 closed */
 };
+
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static struct singleton entries[128];

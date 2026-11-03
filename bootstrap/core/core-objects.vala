@@ -16,6 +16,7 @@ public class CoreClassUpcast : CoreValue {
 		this.source_identity = WeakRef (source_class);
 		this.target_identity = WeakRef (target_class);
 	}
+
 }
 
 public class CoreObjectStorage : CoreNode {
@@ -43,6 +44,7 @@ public class CoreObjectStorage : CoreNode {
 		this.region_ordinal = region_ordinal;
 		this.lexical_scope = WeakRef (scope);
 	}
+
 }
 
 public class CoreObjectFieldInitializer : CoreNode {
@@ -53,6 +55,7 @@ public class CoreObjectFieldInitializer : CoreNode {
 		this.field = field;
 		this.value = value;
 	}
+
 }
 
 public class CoreObjectConstruction : CoreStatement {
@@ -66,6 +69,7 @@ public class CoreObjectConstruction : CoreStatement {
 		this.target = target;
 		this.initializers = initializers;
 	}
+
 }
 
 public class CoreObjectReceiverValue : CoreValue {
@@ -75,5 +79,6 @@ public class CoreObjectReceiverValue : CoreValue {
 		base (span, contract);
 		this.reference = reference;
 	}
+
 }
 }

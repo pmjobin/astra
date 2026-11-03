@@ -30,6 +30,7 @@ public class RuntimeLifetimeLayout : Object {
 		}
 		this.count = count;
 	}
+
 	private static int replace(RuntimeLifetimeEquations graph, int root, string path, int value) throws RuntimeLifetimeError {
 		if (path == "") {
 			return value;
@@ -50,6 +51,7 @@ public class RuntimeLifetimeLayout : Object {
 		}
 		return value;
 	}
+
 	public RuntimeLifetimeSummary to_logical(RuntimeLifetimeSummary summary, bool receiver, bool[] owners, bool[] contexts, bool[] mutable_owners) throws RuntimeLifetimeError {
 		if (!summary.complete) {
 			return summary;
@@ -100,6 +102,7 @@ public class RuntimeLifetimeLayout : Object {
 		graph.seal ();
 		return new RuntimeLifetimeSummary (graph, result, updates, stores, "", exception).logical_archive ();
 	}
+
 	public RuntimeLifetimeSummary to_physical(RuntimeLifetimeSummary summary, bool receiver, bool[] owners, bool[] contexts, bool[] mutable_owners) throws RuntimeLifetimeError {
 		if (!summary.complete) {
 			return summary;
@@ -163,6 +166,7 @@ public class RuntimeLifetimeLayout : Object {
 		graph.seal ();
 		return new RuntimeLifetimeSummary (graph, result, updates, stores, "", exception);
 	}
+
 }
 // Neutral summary storage contains no compiler nodes or callable backlinks.
 // Each stage must derive its own equations and validate exact signature roles.
@@ -173,6 +177,7 @@ public class RuntimeLifetimeStore : Object {
 		this.parameter = parameter;
 		this.value = value;
 	}
+
 }
 public class RuntimeLifetimeSummary : Object {
 	private const string LOGICAL_ARCHIVE = "runtime-lifetime-logical/1\n";
@@ -185,6 +190,7 @@ public class RuntimeLifetimeSummary : Object {
 		result.logical_coordinates = true;
 		return result;
 	}
+
 	public RuntimeLifetimeEquations equations { get; private set; }
 	public int result { get; private set; }
 	public bool has_exception { get; private set; }
@@ -201,13 +207,16 @@ public class RuntimeLifetimeSummary : Object {
 		}
 		return result;
 	}
+
 	public int update(int parameter) {
 		return updates.lookup (parameter);
 	}
+
 	public uint store_count { get { return stores.length; } }
 	public RuntimeLifetimeStore store(uint index) {
 		return stores[index];
 	}
+
 	public RuntimeLifetimeSummary (RuntimeLifetimeEquations equations, int result, HashTable<int, int> updates, GenericArray<RuntimeLifetimeStore> stores, string unsupported, int exception = -1) {
 		this.equations = equations;
 		this.result = result;
@@ -222,9 +231,11 @@ public class RuntimeLifetimeSummary : Object {
 			this.stores.add (store);
 		}
 	}
+
 	public bool matches_exception(bool throwing) {
 		return !complete || has_exception == throwing;
 	}
+
 	public bool valid() {
 		if (!equations.is_sealed || !equations.contains (result) || !equations.contains (exception)) {
 			return false;
@@ -241,6 +252,7 @@ public class RuntimeLifetimeSummary : Object {
 		}
 		return true;
 	}
+
 	private GenericArray<string> ordered_updates() {
 		var result = new GenericArray<string> ();
 		foreach (int key in updates.get_keys ()) {
@@ -249,6 +261,7 @@ public class RuntimeLifetimeSummary : Object {
 		RuntimeLifetimeEquations.sort_edges (result);
 		return result;
 	}
+
 	public string encode() throws RuntimeLifetimeError {
 		if (!valid ()) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("lifetime archive requires a valid sealed summary");
@@ -286,6 +299,7 @@ public class RuntimeLifetimeSummary : Object {
 		text.append (graph);
 		return logical_coordinates ? LOGICAL_ARCHIVE + text.str : text.str;
 	}
+
 	public static RuntimeLifetimeSummary decode(string text) throws RuntimeLifetimeError {
 		if (text.length > 8 * 1024 * 1024) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("lifetime archive exceeds its bounded inventory");
@@ -377,5 +391,6 @@ public class RuntimeLifetimeSummary : Object {
 			}
 		}
 	}
+
 }
 }

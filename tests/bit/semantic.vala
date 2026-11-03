@@ -148,4 +148,5 @@ int main(string[] args) {
 	Test.add_func ("/bit/semantic/diagnostics", diagnostics);
 	return Test.run ();
 }
+
 }

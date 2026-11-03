@@ -16,11 +16,13 @@ private CheckedProgram checked() {
 	assert (result.diagnostic == null);
 	return result.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var result = CoreBuilder.build (checked ());
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private void rejects(CoreProgram program, string text) {
 	bool failed = false;
 	try {
@@ -33,6 +35,7 @@ private void rejects(CoreProgram program, string text) {
 	}
 	assert (failed);
 }
+
 private CoreFunction function(CoreProgram program, string name, bool heap = false) {
 	foreach (var candidate in program.generic_functions) {
 		if (candidate.name == name) {
@@ -46,6 +49,7 @@ private CoreFunction function(CoreProgram program, string name, bool heap = fals
 	}
 	assert_not_reached ();
 }
+
 private CoreCallStatement outgoing(CoreFunction function) {
 	foreach (var statement in function.body.statements) {
 		var call = statement as CoreCallStatement;
@@ -59,6 +63,7 @@ private CoreCallStatement outgoing(CoreFunction function) {
 	}
 	assert_not_reached ();
 }
+
 private void semantic_owner() {
 	var parsed = Parser.parse (new SourceFile.from_text ("forged-source-owner", "class C{init(){}}void sink<T>(owned T v) where T:Ownable{}void relay<T>(owned T v) where T:Ownable{sink<T>(move v);}void bad(C alias){relay<C>(move alias);}int main(){return 42;}"));
 	assert (parsed.diagnostic == null);
@@ -66,6 +71,7 @@ private void semantic_owner() {
 	assert (result.diagnostic != null && result.diagnostic.message.contains ("nontransferable"));
 	assert (checked () != null);
 }
+
 private void checked_eligibility() throws GLib.Error {
 	var program = checked ();
 	CheckedGenericFunction? relay = null;
@@ -91,6 +97,7 @@ private void checked_eligibility() throws GLib.Error {
 	relay.definition.heap_consumer_parameter = ordinal;
 	CoreVerifier.verify (CoreBuilder.build (program));
 }
+
 private void core_parameter(bool source) throws GLib.Error {
 	var program = core ();
 	var relay = function (program, "relay");
@@ -101,6 +108,7 @@ private void core_parameter(bool source) throws GLib.Error {
 	call.arguments[0] = original;
 	CoreVerifier.verify (program);
 }
+
 private void core_acquisition() throws GLib.Error {
 	var program = core ();
 	var relay = function (program, "relay");
@@ -110,6 +118,7 @@ private void core_acquisition() throws GLib.Error {
 	relay.body.statements.insert (0, acquire);
 	CoreVerifier.verify (program);
 }
+
 private void core_dead_second_site() throws GLib.Error {
 	var program = core ();
 	var relay = function (program, "relay");
@@ -126,11 +135,13 @@ private void core_dead_second_site() throws GLib.Error {
 	relay.body.statements.remove_index (relay.body.statements.length - 1);
 	CoreVerifier.verify (program);
 }
+
 private CoreProgram concrete() throws GLib.Error {
 	var result = CoreGenericMonomorphizer.build (core ());
 	CoreVerifier.verify_concrete (result);
 	return result;
 }
+
 private void concrete_cycle() throws GLib.Error {
 	var program = concrete ();
 	var relay = function (program, "relay", true);
@@ -151,6 +162,7 @@ private void concrete_cycle() throws GLib.Error {
 	relay.body.statements[site] = call;
 	CoreVerifier.verify_concrete (program);
 }
+
 private void concrete_domain(bool key) throws GLib.Error {
 	var program = concrete ();
 	var relay = function (program, "relay", true);
@@ -178,6 +190,7 @@ private void concrete_domain(bool key) throws GLib.Error {
 	}
 	CoreVerifier.verify_concrete (program);
 }
+
 private void concrete_nominal() throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("forged-generic-upcast", "class B{init(){}virtual int id(){return 1;}}class D:B{init():base(){}}void sink<T>(owned T v) where T:Ownable{}void relay<T>(owned T v) where T:Ownable{sink<T>(move v);}int main(){var b=new B();var d=new D();relay<B>(move b);relay<D>(move d);return 42;}"));
 	assert (parsed.diagnostic == null);
@@ -209,12 +222,14 @@ private void concrete_nominal() throws GLib.Error {
 	relay.body.statements[1] = original;
 	CoreVerifier.verify_concrete (program);
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	var result = CfgBuilder.build (concrete ());
 	CfgVerifier.verify (result);
 	assert (CfgFlowChecker.check (result).diagnostic == null);
 	return result;
 }
+
 private CfgFunction cfg_relay(CfgProgram program) {
 	foreach (var function in program.functions) {
 		if (function.parameters.length != 2 || !function.parameters[0].heap_object) {
@@ -228,6 +243,7 @@ private CfgFunction cfg_relay(CfgProgram program) {
 	}
 	assert_not_reached ();
 }
+
 private void cfg_commit() throws GLib.Error {
 	var program = cfg ();
 	var block = cfg_relay (program).entry;
@@ -252,6 +268,7 @@ private void cfg_commit() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private void cfg_moved_read() throws GLib.Error {
 	var program = cfg ();
 	var block = cfg_relay (program).entry;
@@ -301,6 +318,7 @@ private void cfg_moved_read() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private void cfg_double_acquire() throws GLib.Error {
 	var program = cfg ();
 	var entry = cfg_relay (program).entry;
@@ -318,11 +336,13 @@ private void cfg_double_acquire() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	var result = SsaBuilder.build (cfg ());
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void ssa_argument() throws GLib.Error {
 	var program = ssa ();
 	SsaCleanupContract? lexical = null;
@@ -364,6 +384,7 @@ private void ssa_argument() throws GLib.Error {
 	}
 	assert (tested);
 }
+
 private void ssa_cleanup(bool duplicate) throws GLib.Error {
 	var program = ssa ();
 	SsaCleanupContract? lexical = null;
@@ -444,6 +465,7 @@ private void ssa_cleanup(bool duplicate) throws GLib.Error {
 	}
 	assert (tested);
 }
+
 private void native_domain() throws GLib.Error {
 	var source = ssa ();
 	var program = NativeAbiBuilder.build (source);
@@ -471,6 +493,7 @@ private void native_domain() throws GLib.Error {
 	NativeAbiVerifier.verify (program);
 	NativeAbiValidator.validate_ssa_calls (source, program, correspondence);
 }
+
 private delegate void Check() throws GLib.Error;
 private void run(Check check) {
 	try {
@@ -479,6 +502,7 @@ private void run(Check check) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own-2b/semantic/forged-source-owner", semantic_owner);
@@ -522,4 +546,5 @@ int main(string[] args) {
 	});
 	return Test.run ();
 }
+
 }

@@ -4,9 +4,10 @@ int scoped() {
 	release h;
 	return record_effect(2);
 }
+
 int main() {
 	resource_reset();
-	if (scoped() != 2) { return 1; }
-	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_effect_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	if (scoped() != 2) return 1;
+	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_effect_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0) return 2;
 	return 0;
 }

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Vectors { i16<8> samples; f32<4> colors; bool<4> mask; }
+
 Vectors identity(Vectors value) { return value; }
+
 Vectors forward(Vectors value) { return identity(value); }
+
 int main() {
 	Vectors a = { samples = splat(9,8), colors = splat(1.5,4), mask = splat(true,4) };
 	Vectors b = forward(a);
 	b.samples = insert(b.samples,7,42);
-	if (a.samples[7] != 9 || b.samples[7] != 42 || b.colors[3] != 1.5 || !b.mask[2]) { return 1; }
+	if (a.samples[7] != 9 || b.samples[7] != 42 || b.colors[3] != 1.5 || !b.mask[2]) return 1;
 	return 0;
 }

@@ -25,14 +25,17 @@ extern void *__real_calloc(size_t, size_t);
 extern void *__real_realloc(void *, size_t);
 static int armed;
 static unsigned allocations;
+
 void *__wrap_malloc(size_t size) {
 	if (armed) ++allocations;
 	return __real_malloc(size);
 }
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (armed) ++allocations;
 	return __real_calloc(count, size);
 }
+
 void *__wrap_realloc(void *pointer, size_t size) {
 	if (armed) ++allocations;
 	return __real_realloc(pointer, size);

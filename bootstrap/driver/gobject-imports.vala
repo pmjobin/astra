@@ -27,9 +27,11 @@ internal class GObjectImports : Object {
 			throw new ForeignAdapterError.INVALID ("GObject import channel requires its completed physical conversion plan");
 		}
 	}
+
 	private static string convert(ForeignValueType type, string value, bool to_glib) throws ForeignAdapterError {
 		return type.kind == ForeignValueKind.BOOL ? "(" + value + (to_glib ? " ? TRUE : FALSE)" : " != FALSE)") : "(" + (to_glib ? scalar (type) : ForeignAdapters.declared_type (type, "")) + ")(" + value + ")";
 	}
+
 	private static ForeignImportContract object_root(CheckedProgram program, ForeignValueType type) throws ForeignAdapterError {
 		foreach (var handle in program.handles) {
 			var root = handle.c_import;
@@ -39,6 +41,7 @@ internal class GObjectImports : Object {
 		}
 		throw new ForeignAdapterError.INVALID ("GObject channel requires its exact imported GType and foreign reference authority");
 	}
+
 	private static void object_inputs(StringBuilder text, CheckedProgram program, ForeignImportContract root, ForeignMemberContract member) throws ForeignAdapterError {
 		for (uint a = 0; a < member.parameter_count; a++) {
 			var channel = member.parameter (a);
@@ -65,12 +68,15 @@ internal class GObjectImports : Object {
 			}
 		}
 	}
+
 	private static bool sequence(ForeignChannel channel) {
 		return channel.value_type.kind == ForeignValueKind.BYTES || channel.value_type.kind == ForeignValueKind.TEXT;
 	}
+
 	private static string physical_result(ForeignChannel channel, CheckedProgram program) throws ForeignAdapterError {
 		return channel.value_type.kind == ForeignValueKind.GOBJECT ? object_root (program, channel.value_type).gobject.type_name + " *" : sequence (channel) ? channel.encoding == ForeignTextEncoding.UTF8_NUL ? "gchar *" : "GBytes *" : scalar (channel.value_type);
 	}
+
 	private static ForeignGObjectRecordBinding record(ForeignImportContract root, ForeignValueType type) throws ForeignAdapterError {
 		var binding = root.gobject.record (type);
 		if (binding == null || !binding.valid ()) {
@@ -78,9 +84,11 @@ internal class GObjectImports : Object {
 		}
 		return binding;
 	}
+
 	private static string record_helper(ForeignImportContract root, ForeignValueType type) {
 		return root.api.prefix + "_record_" + Checksum.compute_for_string (ChecksumType.SHA256, type.identity ());
 	}
+
 	private static void records(StringBuilder text, ForeignImportContract root) throws ForeignAdapterError {
 		var seen = new HashTable<string, bool> (str_hash, str_equal);
 		for (uint m = 0; m < root.api.member_count; m++) {
@@ -119,6 +127,7 @@ internal class GObjectImports : Object {
 			}
 		}
 	}
+
 	private static string? capacity_slot(ForeignMemberContract member, uint parameter) {
 		for (uint a = 0; a < member.parameter_count; a++) {
 			var channel = member.parameter (a);
@@ -128,9 +137,11 @@ internal class GObjectImports : Object {
 		}
 		return null;
 	}
+
 	private static string input_count(ForeignChannel channel, uint a) {
 		return channel.intrinsic_length ? "argument%u_%s".printf (a, channel.direction == ForeignDirection.IN ? "length" : "capacity") : "argument%d".printf (channel.direction == ForeignDirection.IN ? channel.length_index : channel.capacity_index);
 	}
+
 	private static void sequences(StringBuilder text, ForeignImportContract root, ForeignMemberContract member) {
 		for (uint a = 0; a < member.parameter_count; a++) {
 			var channel = member.parameter (a);
@@ -147,9 +158,11 @@ internal class GObjectImports : Object {
 			}
 		}
 	}
+
 	private static string callback_name(ForeignImportContract root, ForeignValueType type) {
 		return root.api.prefix + "_glib_callback_" + Checksum.compute_for_string (ChecksumType.SHA256, type.identity ());
 	}
+
 	private static void callbacks(StringBuilder text, ForeignImportContract root) throws ForeignAdapterError {
 		var seen = new HashTable<string, bool> (str_hash, str_equal);
 		for (uint m = 0; m < root.api.member_count; m++) {
@@ -178,6 +191,7 @@ internal class GObjectImports : Object {
 			}
 		}
 	}
+
 	private static void report(StringBuilder text, ForeignImportContract root, ForeignMemberContract member, string status, string glib_error = "NULL") {
 		string mapped = "0";
 		if (member.error_map != null) {
@@ -187,6 +201,7 @@ internal class GObjectImports : Object {
 		}
 		text.append_printf ("{ int32_t failure = %s; GError *reported = %s; if (error) { error->domain = reported && reported->domain == g_quark_from_static_string(\"astra-foreign-domain-%d\") && (%s) ? %d : 0; error->code = failure; } if (reported) g_error_free(reported); return failure; }\n", status, glib_error, member.error_map == null ? 0 : member.error_map.domain, mapped, member.error_map == null ? 0 : member.error_map.domain);
 	}
+
 	private static void method(StringBuilder text, ForeignImportContract root, ForeignMemberContract member, HashTable<string, string> roots, CheckedProgram program) throws ForeignAdapterError {
 		string p = root.api.prefix, target = root.gobject.symbol_prefix;
 		bool factory = member.kind == ForeignMemberKind.CONSTRUCTOR, result = !factory && member.result.value_type.kind != ForeignValueKind.VOID;
@@ -365,6 +380,7 @@ internal class GObjectImports : Object {
 		}
 		text.append ("return 0;\n}\n");
 	}
+
 	internal static string generate(CheckedProgram program, bool implementation) throws ForeignAdapterError {
 		var imports = new GenericArray<ForeignImportContract> ();
 		foreach (var handle in program.handles) {
@@ -450,5 +466,6 @@ static int32_t @P@_adopt(GObject *view, @P@_handle **result) { if (!view || !G_T
 		}
 		return text.str;
 	}
+
 }
 }

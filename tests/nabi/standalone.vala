@@ -38,6 +38,7 @@ private class Sample : Object {
 		}
 		return new NativeAbiProgram (span, version, functions);
 	}
+
 }
 
 private void reject(NativeAbiProgram program, string path, string message) {
@@ -81,6 +82,7 @@ private class InvalidCase : Object {
 			GLib.error ("Test failed before verification: %s", error.message);
 		}
 	}
+
 }
 
 private HashTable<string, InvalidCase> cases;
@@ -269,4 +271,5 @@ int main(string[] args) {
 	cases = null;
 	return status;
 }
+
 }

@@ -18,15 +18,18 @@ private class Witness : Object {
 	public Witness (Object value) {
 		reference = WeakRef (value);
 	}
+
 	public new Object? get() {
 		return reference.get ();
 	}
+
 }
 private string read(string path) throws FileError {
 	string text;
 	FileUtils.get_contents (path, out text);
 	return text;
 }
+
 private CheckedProgram consumer(string[] paths, string[] apis, out GenericArray<Witness> sources) throws GLib.Error {
 	var files = new GenericArray<SourceFile> ();
 	foreach (string path in paths) {
@@ -65,6 +68,7 @@ private CheckedProgram consumer(string[] paths, string[] apis, out GenericArray<
 	}
 	return result.program;
 }
+
 private void lifetime(string[] paths, string[] apis) throws GLib.Error {
 	GenericArray<Witness> sources;
 	CheckedProgram? checked = consumer (paths, apis, out sources);
@@ -114,6 +118,7 @@ private void lifetime(string[] paths, string[] apis) throws GLib.Error {
 	artifact.verify ();
 #endif
 }
+
 private void consumers() {
 	try {
 		string[] base_paths = {
@@ -130,6 +135,7 @@ private void consumers() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void capabilities() {
 	try {
 		var types = new BuiltinTypes ();
@@ -164,10 +170,12 @@ private void capabilities() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/baselib/consumer-stage-lifetimes", consumers);
 	Test.add_func ("/baselib/exact-ordered-universe", capabilities);
 	return Test.run ();
 }
+
 }

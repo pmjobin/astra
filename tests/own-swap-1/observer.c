@@ -14,6 +14,7 @@ static struct {
 	size_t bytes, mapped, count, stride;
 	int live;
 } allocations[16384];
+
 static int generation, frees, active, fail_next, token;
 static void *addresses[4], *before[2];
 static int32_t counts[2];
@@ -30,35 +31,42 @@ float se_f32(int32_t n) {
 	memcpy(&v, bits32 + n, sizeof v);
 	return v;
 }
+
 double se_f64(int32_t n) {
 	assert(n >= 0 && n < 12);
 	double v;
 	memcpy(&v, bits64 + n, sizeof v);
 	return v;
 }
+
 int32_t se_check32(float v, int32_t n) {
 	uint32_t b;
 	memcpy(&b, &v, sizeof b);
 	return b == bits32[n];
 }
+
 int32_t se_check64(double v, int32_t n) {
 	uint64_t b;
 	memcpy(&b, &v, sizeof b);
 	return b == bits64[n];
 }
+
 void *se_pointer(void) {
 	return &token;
 }
+
 int32_t se_mark(int32_t n) {
 	assert(!active);
 	printf("M%d\n", n);
 	fflush(stdout);
 	return n;
 }
+
 void se_fail(void) {
 	assert(!active);
 	fail_next = 1;
 }
+
 void os_live(int32_t expected) {
 	int live = 0;
 	for (int i = 1; i <= generation; i++) {

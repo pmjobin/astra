@@ -13,6 +13,7 @@ private void validate_plan(SsaProgram ssa, NativeAbiProgram nabi) throws NativeA
 	}
 	NativeAbiValidator.validate_ssa_calls (ssa, nabi, map);
 }
+
 private void lifetime() throws GLib.Error {
 	foreach (string name in new string[] {"basic", "identity", "result", "order", "nested", "vector", "f32", "f64", "branch", "forward", "generic", "single", "cad", "method", "mixed", "pointer", "deep", "many"}) {
 		CheckedProgram? checked = check (fixture (name));
@@ -47,6 +48,7 @@ private void lifetime() throws GLib.Error {
 		assert (nabi.abi_version == NativeAbiVersion.AGGREGATE_V7);
 	}
 }
+
 private void snapshots() throws GLib.Error {
 	var cfg = CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (fixture ("order")))));
 	var f = cfg.functions[4];
@@ -88,6 +90,7 @@ private void snapshots() throws GLib.Error {
 		}
 	}
 }
+
 private void shapes() throws GLib.Error {
 	var ssa = build (fixture ("nested"));
 	var f = ssa.functions[0];
@@ -114,6 +117,7 @@ private void shapes() throws GLib.Error {
 	}
 	assert (merged);
 }
+
 private void checked_firewall() throws GLib.Error {
 	for (int scenario = 0; scenario < 3; scenario++) {
 		var checked = check (fixture ("identity"));
@@ -137,6 +141,7 @@ private void checked_firewall() throws GLib.Error {
 		assert (rejected);
 	}
 }
+
 private void nominal_firewall() throws GLib.Error {
 	var ssa = build ("struct A{int x;}struct B{int x;}A fa(A a){return a;}B fb(B b){return b;}");
 	var nabi = NativeAbiBuilder.build (ssa);
@@ -187,6 +192,7 @@ private void nominal_firewall() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	validate_plan (ssa, nabi);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -199,4 +205,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

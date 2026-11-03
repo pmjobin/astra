@@ -14,11 +14,13 @@
 static pthread_t peer;
 static int descriptor;
 int32_t net_oracle_lifetimes(int32_t expected);
+
 struct client {
 	struct sockaddr_in address;
 	int state;
 	int id;
 };
+
 static void *serve_udp(void *unused) {
 	(void)unused;
 	struct client clients[2] = {0};
@@ -82,6 +84,7 @@ static void *serve_udp(void *unused) {
 	assert(close(descriptor) == 0);
 	return NULL;
 }
+
 int32_t udp_oracle_start(void) {
 	descriptor = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 	assert(descriptor >= 0);
@@ -92,6 +95,7 @@ int32_t udp_oracle_start(void) {
 	assert(pthread_create(&peer, NULL, serve_udp, NULL) == 0);
 	return ntohs(address.sin_port);
 }
+
 int32_t udp_oracle_finish(void) {
 	assert(pthread_join(peer, NULL) == 0);
 	net_oracle_lifetimes(3);

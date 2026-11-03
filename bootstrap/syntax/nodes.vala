@@ -21,6 +21,7 @@ public abstract class SyntaxNode : Object {
 	protected SyntaxNode (SourceSpan span) {
 		this.span = span;
 	}
+
 }
 
 public class CompilationUnitSyntax : SyntaxNode {
@@ -59,6 +60,7 @@ public class CompilationUnitSyntax : SyntaxNode {
 		this.structs = structs ?? new GenericArray<StructDeclarationSyntax> ();
 		this.end_of_file = end_of_file;
 	}
+
 }
 
 public abstract class NativeInstanceDeclarationSyntax : SyntaxNode {
@@ -93,6 +95,7 @@ public abstract class NativeInstanceDeclarationSyntax : SyntaxNode {
 		}
 		this.close_brace = close_brace;
 	}
+
 }
 
 public class StructDeclarationSyntax : NativeInstanceDeclarationSyntax {
@@ -101,6 +104,7 @@ public class StructDeclarationSyntax : NativeInstanceDeclarationSyntax {
 	public StructDeclarationSyntax (Token keyword, Token name, Token open_brace, GenericArray<StructFieldDeclarationSyntax> fields, Token close_brace, GenericArray<SyntaxNode>? members = null) {
 		base (keyword, name, open_brace, fields, close_brace, members);
 	}
+
 }
 
 public class ClassDeclarationSyntax : NativeInstanceDeclarationSyntax {
@@ -117,6 +121,7 @@ public class ClassDeclarationSyntax : NativeInstanceDeclarationSyntax {
 	public ClassDeclarationSyntax (Token keyword, Token name, Token open_brace, GenericArray<StructFieldDeclarationSyntax> fields, Token close_brace, GenericArray<SyntaxNode>? members = null) {
 		base (keyword, name, open_brace, fields, close_brace, members);
 	}
+
 }
 
 public class StructFieldDeclarationSyntax : SyntaxNode {
@@ -134,6 +139,7 @@ public class StructFieldDeclarationSyntax : SyntaxNode {
 		this.name = name;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class WhereClauseSyntax : SyntaxNode {
@@ -150,6 +156,7 @@ public class WhereClauseSyntax : SyntaxNode {
 		this.capabilities = capabilities;
 		this.commas = commas;
 	}
+
 }
 
 public class FunctionDeclarationSyntax : SyntaxNode {
@@ -218,6 +225,7 @@ public class LifecycleDeclarationSyntax : FunctionDeclarationSyntax {
 	public LifecycleDeclarationSyntax (Token name, Token open, GenericArray<ParameterSyntax> parameters, GenericArray<Token> commas, Token close, BlockStatementSyntax body) {
 		base (null, name, open, parameters, commas, close, body);
 	}
+
 }
 
 public class TypeNameSyntax : SyntaxNode {
@@ -225,6 +233,7 @@ public class TypeNameSyntax : SyntaxNode {
 	public string lookup_name() {
 		return (namespace_qualifier == null ? "" : namespace_qualifier.spelling () + ".") + identifier.spelling ();
 	}
+
 	public Token identifier { get; private set; }
 	public GenericArray<Token> stars { get; private set; }
 
@@ -244,6 +253,7 @@ public class TypeNameSyntax : SyntaxNode {
 	public virtual string spelling() {
 		return lookup_name () + string.nfill (stars.length, '*');
 	}
+
 }
 
 // Compose a pointer suffix with an already parsed shaped type. Scalar
@@ -261,6 +271,7 @@ public class PointerTypeSyntax : TypeNameSyntax {
 	public override string spelling() {
 		return pointee.spelling () + "*";
 	}
+
 }
 
 public class NonNullTypeSyntax : TypeNameSyntax {
@@ -272,9 +283,11 @@ public class NonNullTypeSyntax : TypeNameSyntax {
 		this.underlying = underlying;
 		this.namespace_qualifier = underlying.namespace_qualifier;
 	}
+
 	public override string spelling() {
 		return "nonnull " + underlying.spelling ();
 	}
+
 }
 // Ownership belongs to a callable channel rather than the represented type.
 // The parser creates this wrapper only within Fn/Closure signatures.
@@ -287,9 +300,11 @@ public class CallableChannelTypeSyntax : TypeNameSyntax {
 		this.underlying = underlying;
 		this.namespace_qualifier = underlying.namespace_qualifier;
 	}
+
 	public override string spelling() {
 		return keyword.spelling () + " " + underlying.spelling ();
 	}
+
 }
 
 public class SharedTypeSyntax : TypeNameSyntax {
@@ -300,9 +315,11 @@ public class SharedTypeSyntax : TypeNameSyntax {
 		this.keyword = keyword;
 		this.payload = payload;
 	}
+
 	public override string spelling() {
 		return "shared " + payload.spelling ();
 	}
+
 }
 
 public class VectorTypeSyntax : TypeNameSyntax {
@@ -322,6 +339,7 @@ public class VectorTypeSyntax : TypeNameSyntax {
 	public override string spelling() {
 		return element_type.spelling () + "<" + lane_count.spelling () + ">";
 	}
+
 }
 
 public class GenericTypeApplicationSyntax : TypeNameSyntax {
@@ -330,6 +348,7 @@ public class GenericTypeApplicationSyntax : TypeNameSyntax {
 		base.shaped (end, identifier);
 		this.type_arguments = arguments;
 	}
+
 	public override string spelling() {
 		var text = new StringBuilder (lookup_name () + "<");
 		for (int i = 0; i < type_arguments.length; i++) {
@@ -341,6 +360,7 @@ public class GenericTypeApplicationSyntax : TypeNameSyntax {
 		text.append (">");
 		return text.str;
 	}
+
 }
 
 public class ParameterSyntax : SyntaxNode {
@@ -358,12 +378,14 @@ public class ParameterSyntax : SyntaxNode {
 		this.type_name = type_name;
 		this.name = name;
 	}
+
 }
 
 public abstract class StatementSyntax : SyntaxNode {
 	protected StatementSyntax (SourceSpan span) {
 		base (span);
 	}
+
 }
 
 public class BlockStatementSyntax : StatementSyntax {
@@ -377,6 +399,7 @@ public class BlockStatementSyntax : StatementSyntax {
 		this.statements = statements;
 		this.close_brace = close_brace;
 	}
+
 }
 
 public class IfStatementSyntax : StatementSyntax {
@@ -398,6 +421,7 @@ public class IfStatementSyntax : StatementSyntax {
 		this.else_keyword = else_keyword;
 		this.else_body = else_body;
 	}
+
 }
 
 public class WithStatementSyntax : StatementSyntax {
@@ -412,6 +436,7 @@ public class WithStatementSyntax : StatementSyntax {
 		this.initializer = initializer;
 		this.body = body;
 	}
+
 }
 
 public class ForeachStatementSyntax : StatementSyntax {
@@ -426,6 +451,7 @@ public class ForeachStatementSyntax : StatementSyntax {
 		this.collection = collection;
 		this.body = body;
 	}
+
 }
 
 public class ForStatementSyntax : StatementSyntax {
@@ -443,6 +469,7 @@ public class ForStatementSyntax : StatementSyntax {
 		this.step = step;
 		this.body = body;
 	}
+
 }
 
 public class WhileStatementSyntax : StatementSyntax {
@@ -460,6 +487,7 @@ public class WhileStatementSyntax : StatementSyntax {
 		this.close_paren = close_paren;
 		this.body = body;
 	}
+
 }
 
 public class BreakStatementSyntax : StatementSyntax {
@@ -471,6 +499,7 @@ public class BreakStatementSyntax : StatementSyntax {
 		this.keyword = keyword;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class ContinueStatementSyntax : StatementSyntax {
@@ -482,6 +511,7 @@ public class ContinueStatementSyntax : StatementSyntax {
 		this.keyword = keyword;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class ReleaseStatementSyntax : StatementSyntax {
@@ -495,6 +525,7 @@ public class ReleaseStatementSyntax : StatementSyntax {
 		this.owner = owner;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class ReturnStatementSyntax : StatementSyntax {
@@ -508,6 +539,7 @@ public class ReturnStatementSyntax : StatementSyntax {
 		this.expression = expression;
 		this.semicolon = semicolon;
 	}
+
 }
 
 // Contextual local initializer, deliberately not an ExpressionSyntax.
@@ -524,6 +556,7 @@ public class StructInitializerSyntax : SyntaxNode {
 		this.commas = commas;
 		this.close_brace = close_brace;
 	}
+
 }
 
 public class FieldInitializerSyntax : SyntaxNode {
@@ -546,6 +579,7 @@ public class FieldInitializerSyntax : SyntaxNode {
 		this.equals_token = equals_token;
 		this.expression = expression;
 	}
+
 }
 
 public class StructLocalDeclarationSyntax : StatementSyntax {
@@ -565,6 +599,7 @@ public class StructLocalDeclarationSyntax : StatementSyntax {
 		this.initializer = initializer;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class FieldAssignmentStatementSyntax : StatementSyntax {
@@ -580,6 +615,7 @@ public class FieldAssignmentStatementSyntax : StatementSyntax {
 		this.expression = expression;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class MoveExpressionSyntax : ExpressionSyntax {
@@ -593,6 +629,7 @@ public class MoveExpressionSyntax : ExpressionSyntax {
 		this.source = source;
 		this.fields = fields ?? new GenericArray<Token> ();
 	}
+
 }
 
 public class InferredLocalDeclarationSyntax : StatementSyntax {
@@ -610,6 +647,7 @@ public class InferredLocalDeclarationSyntax : StatementSyntax {
 		this.initializer = initializer;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class LocalDeclarationSyntax : StatementSyntax {
@@ -629,6 +667,7 @@ public class LocalDeclarationSyntax : StatementSyntax {
 		this.initializer = initializer;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class CallStatementSyntax : StatementSyntax {
@@ -640,6 +679,7 @@ public class CallStatementSyntax : StatementSyntax {
 		this.call = call;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class AssignmentStatementSyntax : StatementSyntax {
@@ -655,6 +695,7 @@ public class AssignmentStatementSyntax : StatementSyntax {
 		this.expression = expression;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public abstract class ExpressionSyntax : SyntaxNode {
@@ -665,6 +706,7 @@ public abstract class ExpressionSyntax : SyntaxNode {
 		base (span);
 		this.tree_depth = tree_depth;
 	}
+
 }
 
 // Parsed only at the direct local initializer site, never as a general literal.
@@ -684,6 +726,7 @@ public class VectorInitializerSyntax : ExpressionSyntax {
 			tree_depth = int.max (tree_depth, lane.tree_depth + 1);
 		}
 	}
+
 }
 
 // Ordinals remain tokens, never ordinary expression operands.
@@ -707,6 +750,7 @@ public class VectorPrimitiveExpressionSyntax : ExpressionSyntax {
 			tree_depth = int.max (tree_depth, operand.tree_depth + 1);
 		}
 	}
+
 }
 
 public class VectorDotExpressionSyntax : ExpressionSyntax {
@@ -729,6 +773,7 @@ public class VectorDotExpressionSyntax : ExpressionSyntax {
 			tree_depth = int.max (tree_depth, operand.tree_depth + 1);
 		}
 	}
+
 }
 
 public class DspExpressionSyntax : ExpressionSyntax {
@@ -750,6 +795,7 @@ public class DspExpressionSyntax : ExpressionSyntax {
 		this.commas = commas;
 		this.close_paren = close_paren;
 	}
+
 }
 
 public class ConversionExpressionSyntax : ExpressionSyntax {
@@ -763,6 +809,7 @@ public class ConversionExpressionSyntax : ExpressionSyntax {
 		this.keyword = keyword;
 		this.destination = destination;
 	}
+
 }
 
 public class VectorExtractExpressionSyntax : IndexExpressionSyntax {
@@ -778,6 +825,7 @@ public class VectorExtractExpressionSyntax : IndexExpressionSyntax {
 		this.index = index;
 		this.close_bracket = close_bracket;
 	}
+
 }
 
 public class VectorReductionExpressionSyntax : ExpressionSyntax {
@@ -793,6 +841,7 @@ public class VectorReductionExpressionSyntax : ExpressionSyntax {
 		this.operand = operand;
 		this.close_paren = close_paren;
 	}
+
 }
 
 // Reuses ordered argument syntax, but is produced only at a fresh local
@@ -801,6 +850,7 @@ public class ConstructorInitializerSyntax : CallExpressionSyntax {
 	public ConstructorInitializerSyntax (Token name, Token open, GenericArray<ExpressionSyntax> arguments, GenericArray<Token> commas, Token close, Token type_name, Token dot) {
 		base (name, open, arguments, commas, close, type_name, dot);
 	}
+
 }
 
 public class CallExpressionSyntax : ExpressionSyntax {
@@ -830,6 +880,7 @@ public class CallExpressionSyntax : ExpressionSyntax {
 			tree_depth = int.max (tree_depth, arguments[i].tree_depth + 1);
 		}
 	}
+
 }
 
 public class FieldAccessExpressionSyntax : ExpressionSyntax {
@@ -854,6 +905,7 @@ public class FieldAccessExpressionSyntax : ExpressionSyntax {
 		this.dot = dot;
 		this.field_name = field_name;
 	}
+
 }
 
 public class NameExpressionSyntax : ExpressionSyntax {
@@ -863,6 +915,7 @@ public class NameExpressionSyntax : ExpressionSyntax {
 		base (identifier.span, 1);
 		this.identifier = identifier;
 	}
+
 }
 
 public class FloatLiteralExpressionSyntax : ExpressionSyntax {
@@ -872,6 +925,7 @@ public class FloatLiteralExpressionSyntax : ExpressionSyntax {
 		base (literal.span, 1);
 		this.literal = literal;
 	}
+
 }
 
 public class IntegerLiteralExpressionSyntax : ExpressionSyntax {
@@ -881,6 +935,7 @@ public class IntegerLiteralExpressionSyntax : ExpressionSyntax {
 		base (literal.span, 1);
 		this.literal = literal;
 	}
+
 }
 
 public class NullPointerExpressionSyntax : ExpressionSyntax {
@@ -890,6 +945,7 @@ public class NullPointerExpressionSyntax : ExpressionSyntax {
 		base (keyword.span, 1);
 		this.keyword = keyword;
 	}
+
 }
 
 public class BooleanLiteralExpressionSyntax : ExpressionSyntax {
@@ -899,6 +955,7 @@ public class BooleanLiteralExpressionSyntax : ExpressionSyntax {
 		base (literal.span, 1);
 		this.literal = literal;
 	}
+
 }
 
 public class ParenthesizedExpressionSyntax : ExpressionSyntax {
@@ -912,6 +969,7 @@ public class ParenthesizedExpressionSyntax : ExpressionSyntax {
 		this.expression = expression;
 		this.close_paren = close_paren;
 	}
+
 }
 
 public class PrefixExpressionSyntax : ExpressionSyntax {
@@ -923,6 +981,7 @@ public class PrefixExpressionSyntax : ExpressionSyntax {
 		this.operator_token = operator_token;
 		this.operand = operand;
 	}
+
 }
 
 // Evaluates left first and right only on the required path.
@@ -937,6 +996,7 @@ public class ShortCircuitExpressionSyntax : ExpressionSyntax {
 		this.operator_token = operator_token;
 		this.right = right;
 	}
+
 }
 
 public class ComparisonChainSyntax : ExpressionSyntax {
@@ -950,6 +1010,7 @@ public class ComparisonChainSyntax : ExpressionSyntax {
 			tree_depth = int.max (tree_depth, operand.tree_depth + 1);
 		}
 	}
+
 }
 
 public class BinaryExpressionSyntax : ExpressionSyntax {
@@ -963,6 +1024,7 @@ public class BinaryExpressionSyntax : ExpressionSyntax {
 		this.operator_token = operator_token;
 		this.right = right;
 	}
+
 }
 
 public class DereferenceExpressionSyntax : ExpressionSyntax {
@@ -974,6 +1036,7 @@ public class DereferenceExpressionSyntax : ExpressionSyntax {
 		this.star = star;
 		this.pointer = pointer;
 	}
+
 }
 
 public class DereferenceAssignmentSyntax : StatementSyntax {
@@ -985,6 +1048,7 @@ public class DereferenceAssignmentSyntax : StatementSyntax {
 		this.target = target;
 		this.expression = expression;
 	}
+
 }
 
 public class AddressOfExpressionSyntax : ExpressionSyntax {
@@ -996,5 +1060,6 @@ public class AddressOfExpressionSyntax : ExpressionSyntax {
 		this.ampersand = ampersand;
 		this.identifier = identifier;
 	}
+
 }
 }

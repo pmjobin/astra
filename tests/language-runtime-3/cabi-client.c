@@ -4,6 +4,7 @@
 #include <stdlib.h>
 extern int32_t astra_record_bridge(int32_t);
 extern int32_t astra_callback_bridge(int32_t);
+
 int main(int argc, char **argv) {
 	if (argc != 2) return 64;
 	int32_t seed = (int32_t)strtol(argv[1], NULL, 10);

@@ -39,6 +39,7 @@ public class AstraIntegerValue : Object {
 		this.type = type;
 		this.pattern = bits;
 	}
+
 	public static AstraIntegerValue? from_bits(IntegerType type, uint64 bits) {
 		return bits > type.mask ? null : new AstraIntegerValue (type, bits);
 	}
@@ -117,42 +118,53 @@ public class AstraIntegerValue : Object {
 	public string to_string() {
 		return negative ? signed_value.to_string () : pattern.to_string ();
 	}
+
 	private AstraIntegerValue wrap(uint64 residue) {
 		return new AstraIntegerValue (type, residue & type.mask);
 	}
+
 	public AstraIntegerValue add_wrap(AstraIntegerValue other) {
 		assert (type == other.type);
 		return wrap (pattern + other.pattern);
 	}
+
 	public AstraIntegerValue sub_wrap(AstraIntegerValue other) {
 		assert (type == other.type);
 		return wrap (pattern - other.pattern);
 	}
+
 	public AstraIntegerValue mul_wrap(AstraIntegerValue other) {
 		assert (type == other.type);
 		return wrap (pattern * other.pattern);
 	}
+
 	public AstraIntegerValue bit_and(AstraIntegerValue other) {
 		assert (type == other.type);
 		return new AstraIntegerValue (type, pattern & other.pattern);
 	}
+
 	public AstraIntegerValue bit_or(AstraIntegerValue other) {
 		assert (type == other.type);
 		return new AstraIntegerValue (type, pattern | other.pattern);
 	}
+
 	public AstraIntegerValue bit_xor(AstraIntegerValue other) {
 		assert (type == other.type);
 		return new AstraIntegerValue (type, pattern ^ other.pattern);
 	}
+
 	public AstraIntegerValue bit_not() {
 		return new AstraIntegerValue (type, pattern ^ type.mask);
 	}
+
 	public static bool valid_shift_count(IntegerType value_type, AstraIntegerValue count) {
 		return count.fits_nonnegative (value_type.bit_width - 1);
 	}
+
 	public AstraIntegerValue? shift_left(AstraIntegerValue count) {
 		return valid_shift_count (type, count) ? wrap (pattern << (uint) count.pattern) : null;
 	}
+
 	public AstraIntegerValue? shift_right(AstraIntegerValue count) {
 		if (!valid_shift_count (type, count)) {
 			return null;
@@ -164,10 +176,12 @@ public class AstraIntegerValue : Object {
 		}
 		return new AstraIntegerValue (type, bits);
 	}
+
 	public AstraIntegerValue neg_wrap() {
 		assert (type.is_signed);
 		return wrap (0UL - pattern);
 	}
+
 	public AstraIntegerValue positive() {
 		return this;
 	}
@@ -182,6 +196,7 @@ public class AstraIntegerValue : Object {
 		result = wrap (negative != divisor.negative ? 0UL - quotient : quotient);
 		return IntArithmeticOutcome.VALUE;
 	}
+
 	public IntArithmeticOutcome rem(AstraIntegerValue divisor, out AstraIntegerValue? result) {
 		assert (type == divisor.type);
 		result = null;
@@ -192,6 +207,7 @@ public class AstraIntegerValue : Object {
 		result = wrap (negative ? 0UL - remainder : remainder);
 		return IntArithmeticOutcome.VALUE;
 	}
+
 	public int compare(AstraIntegerValue other) {
 		assert (type == other.type);
 		if (negative != other.negative) {
@@ -199,8 +215,10 @@ public class AstraIntegerValue : Object {
 		}
 		return pattern < other.pattern ? -1 : pattern > other.pattern ? 1 : 0;
 	}
+
 	public bool equal_value(AstraIntegerValue other) {
 		return type == other.type && pattern == other.pattern;
 	}
+
 }
 }

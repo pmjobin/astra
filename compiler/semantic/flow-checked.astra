@@ -3,47 +3,52 @@
 // Types/qualifiers are evidence, never an ownership/constructor safety proof.
 bool checked_c_scalar_type(CheckedIndex index, TypeId type, bool result) {
 	int kind = checked_kind(index, type);
-	if (kind == 1 || kind == 11 || kind == 12 || kind == 16 || (result && kind == 14)) { return true; }
-	if (kind != 20) { return false; }
+	if (kind == 1 || kind == 11 || kind == 12 || kind == 16 || (result && kind == 14)) return true;
+	if (kind != 20) return false;
 	var pointee = index.types.argument(index.types, type, 0);
 	return pointee.flags == 0 && checked_kind(index, pointee.type) == 14;
 }
+
 // Opt-in admission of existing explicit C0 scalar C semantics. Metadata,
 // owned channels, borrowed C exports, callbacks and aggregate C ABI defer.
 // Imported borrowed void* is a trusted noescape assertion, not an LLVM alias
 // or capture premise and not a proof of the foreign implementation.
 bool checked_c_scalar_signature(CheckedIndex index, SymbolId symbol) {
-	if (!index.native_abi || !index.semantic_admission || symbol.index < 1 || symbol.index > index.bindings.symbol_count || index.symbol_signatures[symbol.index].index < 1) { return false; }
+	if (!index.native_abi || !index.semantic_admission || symbol.index < 1 || symbol.index > index.bindings.symbol_count || index.symbol_signatures[symbol.index].index < 1) return false;
 	var declaration = index.bindings.symbol(symbol);
-	if (declaration.kind != 1 || index.bindings.program.arena.kind(declaration.node) != SyntaxKind.FunctionDeclarationSyntax()) { return false; }
+	if (declaration.kind != 1 || index.bindings.program.arena.kind(declaration.node) != SyntaxKind.FunctionDeclarationSyntax()) return false;
 	var node = declaration.node;
 	bool imported = index.bindings.program.arena.get_token_extern_keyword(node).index != 0;
 	bool exported = index.bindings.program.arena.get_token_export_keyword(node).index != 0;
-	if (imported == exported || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_abi_identifier(node), "C")) { return false; }
-	if (index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(node)) != 0) { return false; }
+	if (imported == exported || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_abi_identifier(node), "C")) return false;
+	if (index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(node)) != 0) return false;
 	var signature = index.signatures[index.symbol_signatures[symbol.index].index - 1];
-	if (signature.flags != 16 || signature.dispatch != 0 || signature.error.index != 0) { return false; }
+	if (signature.flags != 16 || signature.dispatch != 0 || signature.error.index != 0) return false;
 	var shape = index.types.row(signature.callable);
-	if (shape.count < 1 || shape.count > 257) { return false; }
+	if (shape.count < 1 || shape.count > 257) return false;
 	int i = 0;
 	while (i < shape.count) {
 		var channel = index.types.argument(index.types, signature.callable, i);
 		int kind = checked_kind(index, channel.type);
 		bool noescape = imported && i > 0 && channel.flags == 2 && (kind == 16 || kind == 20);
-		if ((channel.flags != 0 && !noescape) || !checked_c_scalar_type(index, channel.type, i == 0)) { return false; }
+		if ((channel.flags != 0 && !noescape) || !checked_c_scalar_type(index, channel.type, i == 0)) return false;
 		i = i + 1;
 	}
 	return imported == (index.bindings.program.arena.get_node_body(node).index == 0);
 }
+
 bool checked_flow_index_kind(SyntaxKind kind) {
 	return kind == SyntaxKind.IndexExpressionSyntax() || kind == SyntaxKind.VectorExtractExpressionSyntax();
 }
+
 bool checked_flow_admits(SyntaxKind kind) {
 	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || checked_flow_index_kind(kind) || kind == SyntaxKind.DereferenceExpressionSyntax();
 }
+
 bool checked_flow_intrinsic(CheckedIndex index, SyntaxNodeId node) {
 	return index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "len") && checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0;
 }
+
 TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
 	if (kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax()) {
@@ -90,7 +95,7 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		var type = checked_resolve(index, index.bindings.program.arena.get_node_class_name(node), 0, 0);
 		var arguments = index.bindings.program.arena.get_list_arguments(node);
 		var constructor = type_symbol(0);
-		if (index.semantic_flow && checked_kind(index, type) == 31 && checked_flow_receiver_shape(index, type)) { constructor = checked_constructor(index, type); }
+		if (index.semantic_flow && checked_kind(index, type) == 31 && checked_flow_receiver_shape(index, type)) constructor = checked_constructor(index, type);
 		int i = 0;
 		while (i < index.bindings.program.arena.list_count(arguments)) {
 			var expected_argument = no_type();
@@ -138,6 +143,7 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 	}
 	return index.defer(node, 15);
 }
+
 TypeId checked_flow_length(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	var args = index.bindings.program.arena.get_list_arguments(node);
 	if (index.bindings.program.arena.list_count(args) != 1) {
@@ -151,10 +157,12 @@ TypeId checked_flow_length(CheckedIndex index, SyntaxNodeId node, int depth) thr
 	}
 	return index.defer(node, 17);
 }
+
 owned CheckedIndex flow_checked_index(owned BindingIndex bindings) throws Error {
 	var result = checked_build(move bindings, 0, true, false);
 	return move result;
 }
+
 bool checked_flow_statement(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
 	if (kind == SyntaxKind.ReleaseStatementSyntax()) {
@@ -213,8 +221,9 @@ TypeId checked_flow_context(CheckedIndex index, SyntaxNodeId node, int depth) th
 owned CheckedIndex flowsem_checked_index(owned BindingIndex bindings) throws Error {
 	return checked_build(move bindings, 0, true, true);
 }
+
 bool checked_record_owned(CheckedIndex index, TypeId type, int depth) {
-	if (checked_kind(index, type) != 30 || depth > 64) { return false; }
+	if (checked_kind(index, type) != 30 || depth > 64) return false;
 	var descriptor = index.types.descriptor(index.types, type);
 	var declaration = index.bindings.symbol(descriptor.nominal);
 	var fields = index.bindings.program.arena.get_list_fields(declaration.node);
@@ -222,31 +231,32 @@ bool checked_record_owned(CheckedIndex index, TypeId type, int depth) {
 	while (i < index.bindings.program.arena.list_count(fields)) {
 		var field = index.bindings.program.arena.node_at(fields, i);
 		var symbol = index.node_symbols[field.index];
-		if (symbol.index != 0 && ((index.symbol_flags[symbol.index] & 4) != 0 || checked_record_owned(index, index.symbol_types[symbol.index], depth + 1))) { return true; }
+		if (symbol.index != 0 && ((index.symbol_flags[symbol.index] & 4) != 0 || checked_record_owned(index, index.symbol_types[symbol.index], depth + 1))) return true;
 		i = i + 1;
 	}
 	return false;
 }
+
 TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) {
-	if (!index.semantic_flow || !index.bindings.program.arena.token_is(token, "this")) { return no_type(); }
+	if (!index.semantic_flow || !index.bindings.program.arena.token_is(token, "this")) return no_type();
 	var scope = index.bindings.scope_for_node(node);
-	if (scope.index == 0) { return no_type(); }
+	if (scope.index == 0) return no_type();
 	var context = index.bindings.scope(scope);
-	if (context.owner.index == 0) { return no_type(); }
+	if (context.owner.index == 0) return no_type();
 	var symbol = index.bindings.symbol(context.owner);
-	if (symbol.kind == 12 && symbol.owner.index != 0 && checked_flow_receiver_shape(index, index.symbol_types[symbol.owner.index])) { return index.symbol_types[symbol.owner.index]; }
+	if (symbol.kind == 12 && symbol.owner.index != 0 && checked_flow_receiver_shape(index, index.symbol_types[symbol.owner.index])) return index.symbol_types[symbol.owner.index];
 	return no_type();
 }
 
 SymbolId checked_constructor(CheckedIndex index, TypeId type) {
-	if (checked_kind(index, type) != 31) { return type_symbol(0); }
+	if (checked_kind(index, type) != 31) return type_symbol(0);
 	var descriptor = index.types.descriptor(index.types, type);
 	var declaration = index.bindings.symbol(descriptor.nominal);
 	var members = index.bindings.program.arena.get_list_members(declaration.node);
 	int i = 0;
 	while (i < index.bindings.program.arena.list_count(members)) {
 		var member = index.bindings.program.arena.node_at(members, i);
-		if (index.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) { return index.node_symbols[member.index]; }
+		if (index.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) return index.node_symbols[member.index];
 		i = i + 1;
 	}
 	return type_symbol(0);
@@ -255,7 +265,7 @@ SymbolId checked_constructor(CheckedIndex index, TypeId type) {
 bool checked_flow_declared_nonnull(CheckedIndex index, SymbolId symbol) {
 	var declaration = index.bindings.symbol(symbol);
 	var kind = index.bindings.program.arena.kind(declaration.node);
-	if (kind != SyntaxKind.ParameterSyntax() && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.StructFieldDeclarationSyntax()) { return false; }
+	if (kind != SyntaxKind.ParameterSyntax() && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.StructFieldDeclarationSyntax()) return false;
 	var type = index.bindings.program.arena.get_node_type_name(declaration.node);
 	return type.index != 0 && index.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax();
 }
@@ -263,17 +273,17 @@ bool checked_flow_declared_nonnull(CheckedIndex index, SymbolId symbol) {
 // Completing an implicit receiver must not expose unqualified storage families
 // to the small type adapter (owner slots, shared fields and richer records).
 bool checked_flow_receiver_shape(CheckedIndex index, TypeId type) {
-	if (checked_kind(index, type) != 31) { return false; }
+	if (checked_kind(index, type) != 31) return false;
 	var descriptor = index.types.descriptor(index.types, type);
 	var declaration = index.bindings.symbol(descriptor.nominal);
 	var node = declaration.node;
-	if (index.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || index.bindings.program.arena.get_node_parent_class(node).index != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_bool_is_interface(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0) { return false; }
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || index.bindings.program.arena.get_node_parent_class(node).index != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_bool_is_interface(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0) return false;
 	var fields = index.bindings.program.arena.get_list_fields(node);
 	int i = 0;
 	while (i < index.bindings.program.arena.list_count(fields)) {
 		var field = index.bindings.program.arena.node_at(fields, i);
 		var symbol = index.node_symbols[field.index];
-		if (symbol.index == 0) { return false; }
+		if (symbol.index == 0) return false;
 		var field_type = index.symbol_types[symbol.index];
 		int code = checked_kind(index, field_type);
 		bool admitted = type_numeric(code) || code == 13;
@@ -286,7 +296,7 @@ bool checked_flow_receiver_shape(CheckedIndex index, TypeId type) {
 			var child_declaration = index.bindings.symbol(child.nominal);
 			admitted = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(child_declaration.node)) == 0;
 		}
-		if (!admitted) { return false; }
+		if (!admitted) return false;
 		i = i + 1;
 	}
 	return true;

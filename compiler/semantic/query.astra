@@ -9,6 +9,7 @@ void binding_write_span(borrowed BindingIndex index, SyntaxSpan span, Utf8ByteBu
 	source_append_text(output, " ");
 	append_int(output, span.end);
 }
+
 void binding_write_reference(borrowed BindingIndex index, int number, Utf8ByteBuilder output) throws Error {
 	var reference = index.reference(number);
 	source_append_text(output, "R ");
@@ -31,6 +32,7 @@ void binding_write_reference(borrowed BindingIndex index, int number, Utf8ByteBu
 	append_int(output, reference.node.index);
 	source_append_text(output, "\n");
 }
+
 owned Utf8Message binding_observation(borrowed BindingIndex index) throws Error {
 	var output = new Utf8ByteBuilder();
 	source_append_text(output, "astra-bindings/1\n");
@@ -108,6 +110,7 @@ owned Utf8Message binding_observation(borrowed BindingIndex index) throws Error 
 	var result = output.snapshot();
 	return move result;
 }
+
 int binding_decimal(string value) {
 	int result = 0;
 	int i = 0;
@@ -119,6 +122,7 @@ int binding_decimal(string value) {
 	}
 	return result;
 }
+
 owned SyntaxProgram binding_load_program(string[] args, int start) throws Error {
 	var entries = new Vector<SourceEntry>(len(args));
 	int i = start;
@@ -140,6 +144,7 @@ owned SyntaxProgram binding_load_program(string[] args, int start) throws Error 
 	var program = syntax_program(move sources);
 	return move program;
 }
+
 owned BindingIndex binding_load(string[] args, int start, int stop_after) throws Error {
 	var program = binding_load_program(args, start);
 	var result = binding_index(move program, stop_after);

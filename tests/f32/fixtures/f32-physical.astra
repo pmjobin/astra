@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-f32 signed_value(int q, f32 x) { if (q == -2147483648) { return x; } return -x; }
-f32 unsigned_value(u8 q, f32 x) { if (q == 2) { return x; } return -x; }
+f32 signed_value(int q, f32 x) { if (q == -2147483648) return x; return -x; }
+
+f32 unsigned_value(u8 q, f32 x) { if (q == 2) return x; return -x; }
+
 f32 mixed(bool flag, int a, int b, u8 c, u8 d, f32 x, f32 y) {
 	f32 result = 0.0;
-	if (flag) { int q = a / b; result = signed_value(q, x); }
-	else { u8 q = c / d; result = unsigned_value(q, y); }
+	if (flag) {
+		int q = a / b;
+		result = signed_value(q, x);
+	}
+	else {
+		u8 q = c / d;
+		result = unsigned_value(q, y);
+	}
 	return result;
 }
+
 int main() {
-	if (mixed(true, -2147483648, -1, 4, 2, 1.5, 2.5) != 1.5) { return 1; }
-	if (mixed(false, -2147483648, -1, 4, 2, 1.5, 2.5) != 2.5) { return 2; }
+	if (mixed(true, -2147483648, -1, 4, 2, 1.5, 2.5) != 1.5) return 1;
+	if (mixed(false, -2147483648, -1, 4, 2, 1.5, 2.5) != 2.5) return 2;
 	return 0;
 }

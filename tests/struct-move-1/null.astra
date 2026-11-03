@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Bag { owned R resource; }
+
 int main() {
 	{ Bag bag={resource=make(0)}; var moved=move bag; Bag final=move moved; mark(0); }
-	if (live() != 0) { return 81; }
+	if (live() != 0) return 81;
 	return 42;
 }

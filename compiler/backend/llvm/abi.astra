@@ -9,6 +9,7 @@ struct NativeAbiType {
 	int count;
 	bool complete;
 }
+
 struct NativeAbiField {
 	int owner;
 	int ordinal;
@@ -16,6 +17,7 @@ struct NativeAbiField {
 	int semantic;
 	int offset;
 }
+
 struct NativeAbiChannel {
 	int function;
 	int ordinal;
@@ -23,6 +25,7 @@ struct NativeAbiChannel {
 	int ownership;
 	int representation;
 }
+
 struct NativeAbiFunction {
 	int ordinal;
 	int symbol;
@@ -36,6 +39,7 @@ struct NativeAbiFunction {
 	int count;
 	SyntaxSpan span;
 }
+
 class NativeAbiPlan {
 	owned NativeAbiType[] types;
 	owned NativeAbiField[] fields;
@@ -44,87 +48,130 @@ class NativeAbiPlan {
 	int optimization;
 	int pointer_size;
 	bool active;
+
 	init(int types, int fields, int channels, int functions, int optimization) {
 		this.types = new NativeAbiType[types]; this.fields = new NativeAbiField[fields];
 		this.channels = new NativeAbiChannel[channels]; this.functions = new NativeAbiFunction[functions];
 		this.optimization = optimization; this.pointer_size = 8; this.active = true;
 	}
+
 	void close() { this.active = false; }
 }
+
 int native_abi_representation(CheckedIndex checked, TypeEdge edge, bool foreign) {
 	int kind = checked_kind(checked, edge.type);
 	if (foreign) {
-		if (edge.flags != 0 && !(edge.flags == 2 && (kind == 16 || kind == 20))) { return -1; }
-		if (kind == 1) { return 1; } if (kind == 11) { return 2; }
-		if (kind == 12) { return 3; } if ((kind == 16 || kind == 20)) { return 4; }
-		if (kind == 14) { return 0; } return -1;
+		if (edge.flags != 0 && !(edge.flags == 2 && (kind == 16 || kind == 20))) return -1;
+		if (kind == 1) return 1; if (kind == 11) return 2;
+		if (kind == 12) return 3; if ((kind == 16 || kind == 20)) return 4;
+		if (kind == 14) return 0; return -1;
 	}
-	if ((edge.flags & 2) != 0) { if (kind == 30) { return 5; } return -1; }
-	if (kind == 30 || kind == 22) { return 6; }
-	if (kind == 14) { return 0; } return 7;
+	if ((edge.flags & 2) != 0) {
+		if (kind == 30) return 5;
+		return -1;
+	}
+	if (kind == 30 || kind == 22) return 6;
+	if (kind == 14) return 0; return 7;
 }
+
 void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, int depth, SsaBudget budget) throws Error {
-	if (depth > 64 || !budget.take(1) || type.index < 1 || type.index >= len(plan.types)) { throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI layout"); }
-	if (plan.types[type.index].complete) { return; }
+	if (depth > 64 || !budget.take(1) || type.index < 1 || type.index >= len(plan.types)) {
+		throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI layout");
+	}
+	if (plan.types[type.index].complete) return;
 	var source = checked.types.row(type);
 	NativeAbiType row = {semantic = type.index, kind = source.kind, size = 0, alignment = 1, count = 0, complete = true};
-	if (type_integer(source.kind)) { row.size = type_width(source.kind) / 8; row.alignment = row.size; }
-	else { if (source.kind == 13) { row.size = 1; }
-	else { if (source.kind == 11) { row.size = 4; row.alignment = 4; }
-	else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20)) { row.size = 8; row.alignment = 8; }
-	else { if (source.kind == 22) { row.size = 16; row.alignment = 8; row.count = 2; }
-	else { if (source.kind == 30) {
-		int symbol = 1;
-		while (symbol <= checked.bindings.symbol_count && budget.take(1)) {
-			var field = checked.bindings.symbol(type_symbol(symbol));
-			if (field.kind == 6 && field.owner.index == source.nominal.index) {
-				var field_type = checked.symbol_types[symbol]; native_abi_layout(plan, checked, field_type, depth + 1, budget);
-				var child = plan.types[field_type.index];
-				int padding = (child.alignment - row.size % child.alignment) % child.alignment;
-				if (row.size > 16777216 - child.size - padding) { throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI record size"); }
-				row.size = row.size + padding;
-				NativeAbiField entry = {owner = type.index, ordinal = row.count, symbol = symbol, semantic = field_type.index, offset = row.size}; plan.fields[symbol] = entry;
-				row.size = row.size + child.size; if (child.alignment > row.alignment) { row.alignment = child.alignment; } row.count = row.count + 1;
-			}
-			symbol = symbol + 1;
+	if (type_integer(source.kind)) {
+		row.size = type_width(source.kind) / 8;
+		row.alignment = row.size;
+	}
+	else { if (source.kind == 13) {
+			row.size = 1;
 		}
-		if (row.count < 1 || row.count > 256) { throw new Error("LLVM_DEFERRED: ABI record fields"); }
-		row.size = row.size + (row.alignment - row.size % row.alignment) % row.alignment;
-	} else { if (source.kind != 14) { throw new Error("LLVM_DEFERRED: ABI type"); } } } } } } }
-	if (budget.exhausted) { throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI source"); }
+		else { if (source.kind == 11) {
+				row.size = 4;
+				row.alignment = 4;
+			}
+			else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20)) {
+					row.size = 8;
+					row.alignment = 8;
+				}
+				else { if (source.kind == 22) {
+						row.size = 16;
+						row.alignment = 8;
+						row.count = 2;
+					}
+					else { if (source.kind == 30) {
+							int symbol = 1;
+							while (symbol <= checked.bindings.symbol_count && budget.take(1)) {
+								var field = checked.bindings.symbol(type_symbol(symbol));
+								if (field.kind == 6 && field.owner.index == source.nominal.index) {
+									var field_type = checked.symbol_types[symbol]; native_abi_layout(plan, checked, field_type, depth + 1, budget);
+									var child = plan.types[field_type.index];
+									int padding = (child.alignment - row.size % child.alignment) % child.alignment;
+									if (row.size > 16777216 - child.size - padding) {
+										throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI record size");
+									}
+									row.size = row.size + padding;
+									NativeAbiField entry = {owner = type.index, ordinal = row.count, symbol = symbol, semantic = field_type.index, offset = row.size}; plan.fields[symbol] = entry;
+									row.size = row.size + child.size; if (child.alignment > row.alignment) row.alignment = child.alignment; row.count = row.count + 1;
+								}
+								symbol = symbol + 1;
+							}
+							if (row.count < 1 || row.count > 256) {
+								throw new Error("LLVM_DEFERRED: ABI record fields");
+							}
+							row.size = row.size + (row.alignment - row.size % row.alignment) % row.alignment;
+						} else {
+							if (source.kind != 14) {
+								throw new Error("LLVM_DEFERRED: ABI type");
+							}
+						} } } } } }
+	if (budget.exhausted) {
+		throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI source");
+	}
 	plan.types[type.index] = row;
 }
+
 owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws Error {
 	int count = 0; int f = 0;
 	while (f < program.data.function_count) {
 		var signature = program.cfg.core.flow.checked.signatures[program.cfg.core.data.functions[f].signature.index - 1];
 		count = count + program.cfg.core.flow.checked.types.row(signature.callable).count;
-		if (count > 65536) { throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI channels"); } f = f + 1;
+		if (count > 65536) {
+			throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI channels");
+		} f = f + 1;
 	}
 	var plan = new NativeAbiPlan(program.cfg.core.flow.checked.types.count + 1, program.cfg.core.flow.checked.bindings.symbol_count + 1, count, program.data.function_count, optimization);
 	var budget = new SsaBudget(8000000); int cursor = 0; f = 0;
 	while (f < program.data.function_count) {
 		var source = program.cfg.core.data.functions[f]; var declaration = program.cfg.core.flow.checked.bindings.symbol(source.symbol);
 		var signature = program.cfg.core.flow.checked.signatures[source.signature.index - 1]; var shape = program.cfg.core.flow.checked.types.row(signature.callable);
-		int linkage = 0; if (llvm_imported(program, f + 1)) { linkage = 1; } if (llvm_exported(program, f + 1)) { linkage = 2; }
-		if (linkage != 0 && !checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) { throw new Error("LLVM_DEFERRED: C ABI contract"); }
+		int linkage = 0; if (llvm_imported(program, f + 1)) linkage = 1; if (llvm_exported(program, f + 1)) linkage = 2;
+		if (linkage != 0 && !checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) {
+			throw new Error("LLVM_DEFERRED: C ABI contract");
+		}
 		if (linkage != 0) {
 			int previous = 0; while (previous < f && budget.take(1)) {
 				if (llvm_imported(program, previous + 1) || llvm_exported(program, previous + 1)) {
 					var prior = program.cfg.core.flow.checked.bindings.symbol(program.cfg.core.data.functions[previous].symbol);
-					if (prior.name == declaration.name) { throw new Error("LLVM_DEFERRED: C physical symbol collision"); }
+					if (prior.name == declaration.name) {
+						throw new Error("LLVM_DEFERRED: C physical symbol collision");
+					}
 				}
 				previous = previous + 1;
 			}
 		}
 		NativeAbiFunction row = {ordinal = f + 1, symbol = source.symbol.index, signature = source.signature.index, linkage = linkage, convention = 0, result_convention = 1, receiver = -1, hidden_result = -1, first = cursor, count = shape.count, span = source.span};
-		if (source.result.index == 14) { row.result_convention = 0; }
+		if (source.result.index == 14) row.result_convention = 0;
 		int p = 0;
 		while (p < shape.count) {
 			var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, p);
 			native_abi_layout(plan, program.cfg.core.flow.checked, edge.type, 0, budget);
 			int representation = native_abi_representation(program.cfg.core.flow.checked, edge, linkage != 0);
-			if (representation < 0) { throw new Error("LLVM_DEFERRED: ABI channel"); }
+			if (representation < 0) {
+				throw new Error("LLVM_DEFERRED: ABI channel");
+			}
 			NativeAbiChannel channel = {function = f + 1, ordinal = p - 1, semantic = edge.type.index, ownership = edge.flags, representation = representation}; plan.channels[cursor] = channel;
 			cursor = cursor + 1; p = p + 1;
 		}
@@ -133,7 +180,7 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 	int node = 0;
 	while (node < program.cfg.core.data.node_count) {
 		var type = program.cfg.core.data.nodes[node].type;
-		if (type.index > 0) { native_abi_layout(plan, program.cfg.core.flow.checked, type, 0, budget); }
+		if (type.index > 0) native_abi_layout(plan, program.cfg.core.flow.checked, type, 0, budget);
 		node = node + 1;
 	}
 	int place = 0;
@@ -143,33 +190,38 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 	native_abi_layout(plan, program.cfg.core.flow.checked, type_id(14), 0, budget);
 	return move plan;
 }
+
 // Read-only verification walks original declarations and actual machine types.
 // It never calls the planner, its layout recursion, or the emitter's type mapper.
 bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization, void* layout, void*[] types, void*[] functions) {
-	if (!plan.active || plan.optimization != optimization || plan.pointer_size != 8 || LLVMPointerSize(layout) != 8 || len(plan.functions) != program.data.function_count || len(plan.types) != len(types) || len(plan.fields) != program.cfg.core.flow.checked.bindings.symbol_count + 1) { return false; }
+	if (!plan.active || plan.optimization != optimization || plan.pointer_size != 8 || LLVMPointerSize(layout) != 8 || len(plan.functions) != program.data.function_count || len(plan.types) != len(types) || len(plan.fields) != program.cfg.core.flow.checked.bindings.symbol_count + 1) return false;
 	var budget = new SsaBudget(8000000); int t = 1;
 	while (t < len(types) && budget.take(1)) {
 		if (types[t] != null) {
 			var source = program.cfg.core.flow.checked.types.row(type_id(t)); var row = plan.types[t]; var actual = types[t];
-			if (!row.complete || row.semantic != t || row.kind != source.kind || row.alignment < 1) { return false; }
-			if (source.kind != 14 && (LLVMABISizeOfType(layout, actual) != row.size as u64 || LLVMABIAlignmentOfType(layout, actual) != row.alignment)) { return false; }
-			if (type_integer(source.kind) || source.kind == 13) { int width = type_width(source.kind); if (source.kind == 13) { width = 1; } if (LLVMGetTypeKind(actual) != 8 || LLVMGetIntTypeWidth(actual) != width) { return false; } }
-			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || (source.kind == 16 || source.kind == 20) && LLVMGetTypeKind(actual) != 12) { return false; }
+			if (!row.complete || row.semantic != t || row.kind != source.kind || row.alignment < 1) return false;
+			if (source.kind != 14 && (LLVMABISizeOfType(layout, actual) != row.size as u64 || LLVMABIAlignmentOfType(layout, actual) != row.alignment)) return false;
+			if (type_integer(source.kind) || source.kind == 13) {
+				int width = type_width(source.kind);
+				if (source.kind == 13) width = 1;
+				if (LLVMGetTypeKind(actual) != 8 || LLVMGetIntTypeWidth(actual) != width) return false;
+			}
+			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || (source.kind == 16 || source.kind == 20) && LLVMGetTypeKind(actual) != 12) return false;
 			if (source.kind == 22) {
-				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) != 32 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8) { return false; }
+				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) != 32 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8) return false;
 			}
 			if (source.kind == 30) {
-				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != row.count) { return false; }
+				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != row.count) return false;
 				int symbol = 1; int ordinal = 0;
 				while (symbol <= program.cfg.core.flow.checked.bindings.symbol_count && budget.take(1)) {
 					var field = program.cfg.core.flow.checked.bindings.symbol(type_symbol(symbol));
 					if (field.kind == 6 && field.owner.index == source.nominal.index) {
 						var expected = program.cfg.core.flow.checked.symbol_types[symbol]; var entry = plan.fields[symbol];
-						if (entry.owner != t || entry.ordinal != ordinal || entry.symbol != symbol || entry.semantic != expected.index || entry.offset < 0 || LLVMOffsetOfElement(layout, actual, ordinal) != entry.offset as u64 || LLVMStructGetTypeAtIndex(actual, ordinal) != types[expected.index]) { return false; } ordinal = ordinal + 1;
+						if (entry.owner != t || entry.ordinal != ordinal || entry.symbol != symbol || entry.semantic != expected.index || entry.offset < 0 || LLVMOffsetOfElement(layout, actual, ordinal) != entry.offset as u64 || LLVMStructGetTypeAtIndex(actual, ordinal) != types[expected.index]) return false; ordinal = ordinal + 1;
 					}
 					symbol = symbol + 1;
 				}
-				if (ordinal != row.count) { return false; }
+				if (ordinal != row.count) return false;
 			}
 		}
 		t = t + 1;
@@ -179,48 +231,94 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 		var source = program.cfg.core.data.functions[f]; var row = plan.functions[f];
 		var declaration = program.cfg.core.flow.checked.bindings.symbol(source.symbol); var signature = program.cfg.core.flow.checked.signatures[source.signature.index - 1];
 		int linkage = 0;
-		if (program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node)) { linkage = 1; }
-		if (program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node)) { linkage = 2; }
+		if (program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node)) linkage = 1;
+		if (program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node)) linkage = 2;
 		int count = program.cfg.core.flow.checked.types.row(signature.callable).count;
-		int result = 1; if (source.result.index == 14) { result = 0; }
-		if (row.ordinal != f + 1 || row.symbol != source.symbol.index || row.signature != source.signature.index || row.linkage != linkage || row.convention != 0 || row.result_convention != result || row.receiver != -1 || row.hidden_result != -1 || row.first != cursor || row.count != count || !core_span_equal(row.span, source.span) || LLVMCountParams(functions[f]) != count - 1 || LLVMGetFunctionCallConv(functions[f]) != 0) { return false; }
+		int result = 1; if (source.result.index == 14) result = 0;
+		if (row.ordinal != f + 1 || row.symbol != source.symbol.index || row.signature != source.signature.index || row.linkage != linkage || row.convention != 0 || row.result_convention != result || row.receiver != -1 || row.hidden_result != -1 || row.first != cursor || row.count != count || !core_span_equal(row.span, source.span) || LLVMCountParams(functions[f]) != count - 1 || LLVMGetFunctionCallConv(functions[f]) != 0) return false;
 		int p = 0;
 		while (p < count && budget.take(1)) {
-			if (cursor >= len(plan.channels)) { return false; }
+			if (cursor >= len(plan.channels)) return false;
 			var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, p); var channel = plan.channels[cursor];
-			if (channel.function != f + 1 || channel.ordinal != p - 1 || channel.semantic != edge.type.index || channel.ownership != edge.flags) { return false; }
+			if (channel.function != f + 1 || channel.ordinal != p - 1 || channel.semantic != edge.type.index || channel.ownership != edge.flags) return false;
 			int kind = checked_kind(program.cfg.core.flow.checked, edge.type); int expected = 7;
 			if (linkage != 0) {
-				if (!checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) { return false; }
-				expected = -1; if (kind == 1) { expected = 1; } if (kind == 11) { expected = 2; } if (kind == 12) { expected = 3; } if ((kind == 16 || kind == 20)) { expected = 4; } if (p == 0 && kind == 14) { expected = 0; }
-			} else { if (kind == 14) { expected = 0; } else { if ((edge.flags & 2) != 0) { expected = 5; } else { if (kind == 22 || kind == 30) { expected = 6; } } } }
-			if (expected < 0 || channel.representation != expected) { return false; }
-			void* physical = LLVMGetReturnType(LLVMGlobalGetValueType(functions[f])); if (p > 0) { physical = LLVMTypeOf(LLVMGetParam(functions[f], p - 1)); }
-			if (expected == 5) { if (LLVMGetTypeKind(physical) != 12 || kind != 30) { return false; } }
-			else { if (physical != types[edge.type.index]) { return false; } }
+				if (!checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) return false;
+				expected = -1; if (kind == 1) expected = 1; if (kind == 11) expected = 2; if (kind == 12) expected = 3; if ((kind == 16 || kind == 20)) expected = 4; if (p == 0 && kind == 14) expected = 0;
+			} else {
+				if (kind == 14) {
+					expected = 0;
+				} else {
+					if ((edge.flags & 2) != 0) {
+						expected = 5;
+					} else {
+						if (kind == 22 || kind == 30) expected = 6;
+					}
+				}
+			}
+			if (expected < 0 || channel.representation != expected) return false;
+			void* physical = LLVMGetReturnType(LLVMGlobalGetValueType(functions[f])); if (p > 0) physical = LLVMTypeOf(LLVMGetParam(functions[f], p - 1));
+			if (expected == 5) {
+				if (LLVMGetTypeKind(physical) != 12 || kind != 30) return false;
+			}
+			else {
+				if (physical != types[edge.type.index]) return false;
+			}
 			cursor = cursor + 1; p = p + 1;
 		}
 		f = f + 1;
 	}
 	return cursor == len(plan.channels) && !budget.exhausted;
 }
+
 bool native_abi_fault(NativeAbiPlan plan, int category) {
-	if (category == 21 && len(plan.functions) > 0) { var row = plan.functions[0]; row.linkage = row.linkage ^ 1; plan.functions[0] = row; return true; }
+	if (category == 21 && len(plan.functions) > 0) {
+		var row = plan.functions[0];
+		row.linkage = row.linkage ^ 1;
+		plan.functions[0] = row;
+		return true;
+	}
 	int i = 0;
 	if (category == 22) {
-		while (i < len(plan.channels)) { var row = plan.channels[i]; if (row.representation == 2 || row.representation == 3) { row.representation = 1; plan.channels[i] = row; return true; } i = i + 1; }
+		while (i < len(plan.channels)) {
+			var row = plan.channels[i];
+			if (row.representation == 2 || row.representation == 3) {
+				row.representation = 1;
+				plan.channels[i] = row;
+				return true;
+			}
+			i = i + 1;
+		}
 	}
 	if (category == 25) {
-		while (i < len(plan.fields)) { var row = plan.fields[i]; if (row.owner != 0) { row.offset = row.offset + 1; plan.fields[i] = row; return true; } i = i + 1; }
+		while (i < len(plan.fields)) {
+			var row = plan.fields[i];
+			if (row.owner != 0) {
+				row.offset = row.offset + 1;
+				plan.fields[i] = row;
+				return true;
+			}
+			i = i + 1;
+		}
 	}
 	if (category == 32) {
-		while (i < len(plan.functions)) { var row = plan.functions[i]; if (plan.channels[row.first].representation == 6) { row.result_convention = 2; row.hidden_result = 0; plan.functions[i] = row; return true; } i = i + 1; }
+		while (i < len(plan.functions)) {
+			var row = plan.functions[i];
+			if (plan.channels[row.first].representation == 6) {
+				row.result_convention = 2;
+				row.hidden_result = 0;
+				plan.functions[i] = row;
+				return true;
+			}
+			i = i + 1;
+		}
 	}
 	return false;
 }
+
 owned Utf8Message native_abi_snapshot(NativeAbiPlan plan) throws Error {
 	var out = new Utf8ByteBuilder(); source_append_text(out, "astra-nativeabi/1");
-	flow_number(out, plan.optimization); flow_number(out, plan.pointer_size); int active = 0; if (plan.active) { active = 1; } flow_number(out, active); source_append_text(out, "\n");
+	flow_number(out, plan.optimization); flow_number(out, plan.pointer_size); int active = 0; if (plan.active) active = 1; flow_number(out, active); source_append_text(out, "\n");
 	int i = 0;
 	while (i < len(plan.functions)) {
 		var row = plan.functions[i]; source_append_text(out, "FUNCTION");
@@ -232,11 +330,27 @@ owned Utf8Message native_abi_snapshot(NativeAbiPlan plan) throws Error {
 	}
 	i = 0;
 	while (i < len(plan.types)) {
-		var row = plan.types[i]; if (row.complete) { source_append_text(out, "TYPE"); flow_number(out, row.semantic); flow_number(out, row.kind); flow_number(out, row.size); flow_number(out, row.alignment); flow_number(out, row.count); source_append_text(out, "\n"); } i = i + 1;
+		var row = plan.types[i]; if (row.complete) {
+			source_append_text(out, "TYPE");
+			flow_number(out, row.semantic);
+			flow_number(out, row.kind);
+			flow_number(out, row.size);
+			flow_number(out, row.alignment);
+			flow_number(out, row.count);
+			source_append_text(out, "\n");
+		} i = i + 1;
 	}
 	i = 0;
 	while (i < len(plan.fields)) {
-		var row = plan.fields[i]; if (row.owner != 0) { source_append_text(out, "FIELD"); flow_number(out, row.owner); flow_number(out, row.ordinal); flow_number(out, row.symbol); flow_number(out, row.semantic); flow_number(out, row.offset); source_append_text(out, "\n"); } i = i + 1;
+		var row = plan.fields[i]; if (row.owner != 0) {
+			source_append_text(out, "FIELD");
+			flow_number(out, row.owner);
+			flow_number(out, row.ordinal);
+			flow_number(out, row.symbol);
+			flow_number(out, row.semantic);
+			flow_number(out, row.offset);
+			source_append_text(out, "\n");
+		} i = i + 1;
 	}
 	return out.snapshot();
 }

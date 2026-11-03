@@ -12,6 +12,7 @@ static AstraContext17Snapshot snapshot(AstraContext17 *context) {
 	assert(astra_context17_snapshot(context, &result) == ASTRA_CONTEXT17_OK);
 	return result;
 }
+
 static void instances(uint32_t kind) {
 	AstraContext17 *first = astra_context17_owned(kind, 32771, 17, 64, ASTRA_CONTEXT17_AFFINE);
 	AstraContext17 *second = astra_context17_owned(kind, 40963, 19, 128, ASTRA_CONTEXT17_AFFINE);
@@ -43,6 +44,7 @@ static void instances(uint32_t kind) {
 	assert(!astra_context17_drop(first));
 	assert(!astra_context17_drop(second));
 }
+
 static void failures(void) {
 	AstraContext17 *context = astra_context17_owned(ASTRA_CONTEXT17_POOL, 4099, 3, 64, ASTRA_CONTEXT17_AFFINE);
 	assert(context);
@@ -65,6 +67,7 @@ static void failures(void) {
 	assert(!astra_context17_close(context));
 	assert(!astra_context17_drop(context));
 }
+
 static void backing(void) {
 	_Alignas(128) unsigned char bytes[8197];
 	AstraContext17 *borrow = astra_context17_borrowed(bytes + 1, sizeof(bytes) - 1, 7, ASTRA_CONTEXT17_REGION);
@@ -84,6 +87,7 @@ static void backing(void) {
 	assert(astra_context17_acquire(owned, 1, 1, 8, 71, &(AstraContext17Token){0}) == ASTRA_CONTEXT17_CLOSED);
 	assert(!astra_context17_release_origin(token.pointer, 71));
 }
+
 static void custom(void) {
 	_Atomic int disposed = 0;
 	TestContextProvider *state = test_context_provider(12299, &disposed);
@@ -109,11 +113,13 @@ static void custom(void) {
 	assert(!astra_context17_release_origin(second.pointer, 72));
 	assert(disposed == 1);
 }
+
 typedef struct ThreadWork {
 	AstraContext17 *context;
 	pthread_barrier_t *barrier;
 	int affine;
 } ThreadWork;
+
 static void *worker(void *opaque) {
 	ThreadWork *work = opaque;
 	AstraContext17Token token;
@@ -133,6 +139,7 @@ static void *worker(void *opaque) {
 	}
 	return NULL;
 }
+
 static void threads(void) {
 	AstraContext17 *context = astra_context17_owned(ASTRA_CONTEXT17_HEAP, 0, 13, 64, ASTRA_CONTEXT17_CONCURRENT);
 	assert(context);
@@ -155,6 +162,7 @@ static void threads(void) {
 	assert(!pthread_join(workers[0], NULL));
 	assert(!astra_context17_drop(context));
 }
+
 int main(void) {
 	for (uint32_t kind = ASTRA_CONTEXT17_HEAP; kind <= ASTRA_CONTEXT17_POOL; ++kind)
 		instances(kind);

@@ -19,9 +19,11 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/num-conv/pipeline/destroy-predecessors-all-fixtures", lifetime);
 	return Test.run ();
 }
+
 }

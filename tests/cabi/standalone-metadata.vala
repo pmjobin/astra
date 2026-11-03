@@ -77,4 +77,5 @@ private void register_standalone_metadata() {
 	Test.add_func ("/cabi-standalone/metadata/physical-collision-provenance", standalone_metadata_collision);
 	Test.add_func ("/cabi-standalone/metadata/empty-header", standalone_empty_header);
 }
+
 }

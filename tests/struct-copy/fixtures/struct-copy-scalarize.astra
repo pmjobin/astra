@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct S { int x; f64 y; }
+
 int promoted(bool choose) {
 	S a = { x = 42, y = 3.5 };
 	S b = a;
-	if (choose) { b = a; } else { a = b; }
+	if (choose) {
+		b = a;
+	} else {
+		a = b;
+	}
 	int i = 0;
-	while (i < 10) { b = a; a.x = b.x + 1; i = i + 1; }
+	while (i < 10) {
+		b = a;
+		a.x = b.x + 1;
+		i = i + 1;
+	}
 	return a.x;
 }
-int main() { if (promoted(true) != 52 || promoted(false) != 52) { return 1; } return 0; }
+
+int main() { if (promoted(true) != 52 || promoted(false) != 52) return 1; return 0; }

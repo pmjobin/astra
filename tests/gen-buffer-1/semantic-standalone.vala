@@ -55,6 +55,7 @@ private void qualify() {
 	assert (!GenericArgumentTypes.supports (types.slice_of (types.int_type)) && !GenericCapabilityAuthority.satisfies (types.slice_of (types.int_type), GenericCapabilityIdentity.OWNABLE));
 	assert (GenericCapabilityAuthority.satisfies (new HandleType ("R"), GenericCapabilityIdentity.OWNABLE) && GenericCapabilityAuthority.satisfies (new ClassType ("C"), GenericCapabilityIdentity.OWNABLE));
 }
+
 private void flow_models() {
 	var span = Astra.Source.SourceSpan (new Astra.Source.SourceFile.from_text ("independent-owner-facts", "x"), 0, 1);
 	var owner = new Object ();
@@ -124,10 +125,12 @@ private void flow_models() {
 		assert (flow.verify () == (variant != 0));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-buffer/semantic/separate-scoped-facts-and-unchanged-complete-domain", qualify);
 	Test.add_func ("/gen-buffer/semantic/independent-owner-possibility-models", flow_models);
 	return Test.run ();
 }
+
 }

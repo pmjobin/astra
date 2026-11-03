@@ -7,22 +7,27 @@ public enum DebugLanguage {
 	[CCode (cname = "LLVMDWARFSourceLanguageC11", cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 	C11
 }
+
 [CCode (cname = "LLVMDWARFEmissionKind", has_type_id = false, cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 public enum DebugEmission {
 	[CCode (cname = "LLVMDWARFEmissionFull", cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 	FULL
 }
+
 [CCode (cname = "LLVMModuleFlagBehavior", has_type_id = false, cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 public enum ModuleFlagBehavior {
 	[CCode (cname = "LLVMModuleFlagBehaviorWarning", cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 	WARNING
 }
+
 [SimpleType]
 [CCode (cname = "LLVMMetadataRef", has_type_id = false, cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 public struct MetadataRef {}
+
 [SimpleType]
 [CCode (cname = "LLVMDIBuilderRef", has_type_id = false, cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 public struct DIBuilderRef {}
+
 [SimpleType]
 [CCode (cname = "LLVMDbgRecordRef", has_type_id = false, cheader_filename = "llvm-c/Core.h,llvm-c/DebugInfo.h")]
 public struct DbgRecordRef {}

@@ -8,17 +8,22 @@ public class VolatileAccessContract : Object {
 	public VolatileAccessContract (SemanticType type) {
 		value_type = type;
 	}
+
 	public static bool supports(SemanticType type) {
 		return type.kind == TypeKind.U32 || type.kind == TypeKind.U64;
 	}
+
 	public bool matches(SemanticType type) {
 		return type == value_type && supports (type);
 	}
+
 	public VolatileAccessContract copy() {
 		return new VolatileAccessContract (value_type);
 	}
+
 	public static bool valid(VolatileAccessContract? contract, bool enabled, SemanticType type) {
 		return enabled == (contract != null) && (contract == null || contract.matches (type));
 	}
+
 }
 }

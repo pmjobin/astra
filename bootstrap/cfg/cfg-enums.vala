@@ -18,6 +18,7 @@ public class CfgEnumExtractRecord : CfgInstruction {
 		this.binding = binding;
 		results = new CfgStructCallResults (span, shape);
 	}
+
 }
 public class CfgEnumScalarCapture : CfgEvaluateInstruction {
 	public CfgLocalPlace source { get; private set; }
@@ -27,6 +28,7 @@ public class CfgEnumScalarCapture : CfgEvaluateInstruction {
 		this.source = source;
 		this.cleanup = cleanup;
 	}
+
 }
 public class CfgEnumScalarAbort : CfgInstruction {
 	public CfgEnumScalarCapture capture { get; private set; }
@@ -34,6 +36,7 @@ public class CfgEnumScalarAbort : CfgInstruction {
 		base (span);
 		this.capture = capture;
 	}
+
 }
 public class CfgEnumBufferCapture : CfgInstruction {
 	public bool fresh_staged { get; private set; }
@@ -47,6 +50,7 @@ public class CfgEnumBufferCapture : CfgInstruction {
 		this.producer = producer;
 		this.fresh_staged = fresh_staged;
 	}
+
 }
 public class CfgEnumBufferAbort : CfgInstruction {
 	public CfgEnumBufferCapture capture { get; private set; }
@@ -54,6 +58,7 @@ public class CfgEnumBufferAbort : CfgInstruction {
 		base (span);
 		this.capture = capture;
 	}
+
 }
 public class CfgEnumSlot : CfgNode {
 	public CfgEnumSlot? reservation_source { get; internal set; }
@@ -69,6 +74,7 @@ public class CfgEnumSlot : CfgNode {
 		this.ordinal = ordinal;
 		this.local = local;
 	}
+
 }
 
 public class CfgEnumFieldInput : CfgNode {
@@ -87,6 +93,7 @@ public class CfgEnumFieldInput : CfgNode {
 		this.buffer = buffer;
 		this.scalar_owner = scalar_owner;
 	}
+
 }
 
 public class CfgEnumConstruct : CfgInstruction {
@@ -107,6 +114,7 @@ public class CfgEnumConstruct : CfgInstruction {
 			input_contract.add (new CfgEnumFieldInput (input.span, input.field, leaves, input.sum, input.buffer, input.scalar_owner, input.record_move));
 		}
 	}
+
 	internal bool matches_inputs() {
 		if (fields.length != input_contract.length) {
 			return false;
@@ -125,6 +133,7 @@ public class CfgEnumConstruct : CfgInstruction {
 		}
 		return true;
 	}
+
 }
 
 public class CfgEnumCopy : CfgInstruction {
@@ -139,6 +148,7 @@ public class CfgEnumCopy : CfgInstruction {
 		this.initializes_destination = initializes_destination;
 		this.mode = mode;
 	}
+
 }
 public class CfgEnumEndInspection : CfgInstruction {
 	public CfgEnumSlot source { get; private set; }
@@ -146,6 +156,7 @@ public class CfgEnumEndInspection : CfgInstruction {
 		base (span);
 		this.source = source;
 	}
+
 }
 
 public class CfgEnumCommit : CfgInstruction {
@@ -154,6 +165,7 @@ public class CfgEnumCommit : CfgInstruction {
 		base (span);
 		this.captured = captured;
 	}
+
 }
 public class CfgEnumDrop : CfgInstruction {
 	public CfgEnumSlot source { get; private set; }
@@ -161,6 +173,7 @@ public class CfgEnumDrop : CfgInstruction {
 		base (span);
 		this.source = source;
 	}
+
 }
 public class CfgEnumExtractBuffer : CfgInstruction {
 	public CfgEnumSlot source { get; private set; }
@@ -174,6 +187,7 @@ public class CfgEnumExtractBuffer : CfgInstruction {
 		this.destination = destination;
 		this.binding = binding;
 	}
+
 }
 public class CfgEnumExtractScalar : CfgInstruction {
 	public CfgEnumSlot source { get; private set; }
@@ -187,6 +201,7 @@ public class CfgEnumExtractScalar : CfgInstruction {
 		this.destination = destination;
 		this.binding = binding;
 	}
+
 }
 public class CfgEnumFinishArm : CfgInstruction {
 	public CfgEnumSlot source { get; private set; }
@@ -196,6 +211,7 @@ public class CfgEnumFinishArm : CfgInstruction {
 	public EnumField field(uint ordinal) {
 		return retained[ordinal];
 	}
+
 	internal CfgEnumFinishArm (SourceSpan span, CfgEnumSlot source, EnumVariant? variant, GenericArray<EnumField> fields) {
 		base (span);
 		this.source = source;
@@ -204,6 +220,7 @@ public class CfgEnumFinishArm : CfgInstruction {
 			retained.add (field);
 		}
 	}
+
 }
 
 public class CfgEnumAcquire : CfgInstruction {
@@ -214,6 +231,7 @@ public class CfgEnumAcquire : CfgInstruction {
 		this.destination = destination;
 		this.parameter = parameter;
 	}
+
 }
 
 public class CfgEnumArgument : CfgValue {
@@ -222,6 +240,7 @@ public class CfgEnumArgument : CfgValue {
 		base (span, source.definition.semantic_type);
 		this.source = source;
 	}
+
 }
 
 public class CfgEnumTag : CfgValue {
@@ -230,6 +249,7 @@ public class CfgEnumTag : CfgValue {
 		base (span, integer);
 		this.source = source;
 	}
+
 }
 
 public class CfgEnumPayloadValue : CfgValue {
@@ -244,6 +264,7 @@ public class CfgEnumPayloadValue : CfgValue {
 		this.field = field;
 		this.record_path = record_path;
 	}
+
 }
 
 public class CfgEnumExtractSum : CfgInstruction {
@@ -258,6 +279,7 @@ public class CfgEnumExtractSum : CfgInstruction {
 		this.field = field;
 		this.destination = destination;
 	}
+
 }
 
 public class CfgEnumReturn : CfgReturn {
@@ -266,6 +288,7 @@ public class CfgEnumReturn : CfgReturn {
 		base (span, null);
 		this.source = source;
 	}
+
 }
 
 public class CfgEnumCase : Object {
@@ -276,6 +299,7 @@ public class CfgEnumCase : Object {
 		this.variant = variant;
 		successor = WeakRef (target);
 	}
+
 }
 
 public class CfgEnumDispatch : CfgTerminator {
@@ -289,6 +313,7 @@ public class CfgEnumDispatch : CfgTerminator {
 		this.cases = cases;
 		failure = WeakRef (invalid_target);
 	}
+
 	public override GenericArray<CfgBlock> successors() {
 		var result = new GenericArray<CfgBlock> ();
 		foreach (var branch in cases) {
@@ -301,14 +326,17 @@ public class CfgEnumDispatch : CfgTerminator {
 		}
 		return result;
 	}
+
 }
 
 public class CfgEnumInvalidTag : CfgTerminator {
 	internal CfgEnumInvalidTag (SourceSpan span) {
 		base (span);
 	}
+
 	public override GenericArray<CfgBlock> successors() {
 		return new GenericArray<CfgBlock> ();
 	}
+
 }
 }

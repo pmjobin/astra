@@ -18,6 +18,7 @@ public class CheckedSliceFromArrayExpression : CheckedExpression {
 		this.count = count;
 		this.provenance = new DataPointerProvenance (DataPointerOrigin.LOCAL, local.ordinal, local.lexical_region.ordinal);
 	}
+
 }
 
 public class CheckedLengthExpression : CheckedExpression {
@@ -29,6 +30,7 @@ public class CheckedLengthExpression : CheckedExpression {
 		this.array = array;
 		this.slice = slice;
 	}
+
 }
 
 public class CheckedSliceElementPlace : CheckedPlace {
@@ -45,5 +47,6 @@ public class CheckedSliceElementPlace : CheckedPlace {
 		this.index = index;
 		this.provenance = BorrowProvenance.for_expression (slice);
 	}
+
 }
 }

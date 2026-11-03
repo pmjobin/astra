@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Box<T> { T value; }
+
 i16<8> scalarized(i16<8> x) { Box<i16<8>> b = { value = x }; return b.value; }
+
 void mutate(Box<i16<8>>* b) { b->value = insert(b->value, 7, 42); }
+
 int main() {
 	i16<8> v = { 1, 2, 3, 4, 5, 6, 7, 8 };
 	bool<4> m = { true, false, true, false };
 	Box<i16<8>> b = { value = v };
 	Box<bool<4>> mask = { value = m };
-	if (!all(scalarized(b.value) == v) || !all(mask.value == m)) { return 1; }
+	if (!all(scalarized(b.value) == v) || !all(mask.value == m)) return 1;
 	mutate(&b);
-	if (b.value[7] != 42 || b.value[0] != 1) { return 2; }
+	if (b.value[7] != 42 || b.value[0] != 1) return 2;
 	return 0;
 }

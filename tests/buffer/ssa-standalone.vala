@@ -78,6 +78,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	functions.add(function);
 	return new SsaProgram(span, functions, null, null, null, cleanups);
 }
+
 private void positive() {
 	try {
 		SsaProgram? program = sample();
@@ -90,6 +91,7 @@ private void positive() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void negative() {
 	for (int variant = 1; variant <= 15; variant++) {
 		try {
@@ -101,6 +103,7 @@ private void negative() {
 		GLib.error("accepted malformed SSA buffer %d", variant);
 	}
 }
+
 private SsaProgram fields(int variant = 0) throws SsaError {
 	var t = new BuiltinTypes();
 	var s = SourceSpan(new SourceFile.from_text("buffer-field-ssa", "C"), 0, 1);
@@ -173,6 +176,7 @@ private SsaProgram fields(int variant = 0) throws SsaError {
 	program.classes.add(c);
 	return program;
 }
+
 private void mixed_fields() {
 	try {
 		SsaVerifier.verify(fields());
@@ -189,6 +193,7 @@ private void mixed_fields() {
 		GLib.error("accepted malformed mixed field cleanup %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/ssa/independent-ptr-i32-memory-and-cleanup", positive);
@@ -196,4 +201,5 @@ int main(string[] args) {
 	Test.add_func("/buffer/ssa/independent-mixed-field-cleanup", mixed_fields);
 	return Test.run();
 }
+
 }

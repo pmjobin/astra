@@ -17,6 +17,7 @@ private CheckedProgram sample() {
 	}
 	return checked.program;
 }
+
 private void source_fields() {
 	var program = sample ();
 	var selected = new GenericArray<FunctionSymbol> ();
@@ -38,6 +39,7 @@ private void source_fields() {
 	}
 	assert_not_reached ();
 }
+
 private CoreBlock transfers(CoreBlock block) {
 	foreach (var node in block.statements) {
 		if (node is CoreOwnedFieldTransfer) {
@@ -49,6 +51,7 @@ private CoreBlock transfers(CoreBlock block) {
 	}
 	assert_not_reached ();
 }
+
 private void core_fields() {
 	try {
 		var program = CoreBuilder.build (sample ());
@@ -85,6 +88,7 @@ private void core_fields() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_fields() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -129,6 +133,7 @@ private void cfg_fields() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_fields() {
 	try {
 		var graph = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -173,6 +178,7 @@ private void ssa_fields() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/nonnull-fields/source-reject-restore", source_fields);
@@ -181,4 +187,5 @@ int main(string[] args) {
 	Test.add_func ("/nonnull-fields/ssa-reject-restore", ssa_fields);
 	return Test.run ();
 }
+
 }

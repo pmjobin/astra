@@ -24,6 +24,7 @@ private CheckedProgram source() {
 	}
 	return checked.program;
 }
+
 private CheckedFunction checked_named(CheckedProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.symbol.name == name) {
@@ -32,6 +33,7 @@ private CheckedFunction checked_named(CheckedProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private CoreFunction core_named(CoreProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -40,6 +42,7 @@ private CoreFunction core_named(CoreProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private SsaFunction ssa_named(SsaProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -48,6 +51,7 @@ private SsaFunction ssa_named(SsaProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private bool core_rejects(CoreProgram program) {
 	try {
 		CoreVerifier.verify (program);
@@ -57,6 +61,7 @@ private bool core_rejects(CoreProgram program) {
 	}
 	return false;
 }
+
 private bool cfg_rejects(CfgProgram program) {
 	try {
 		CfgVerifier.verify (program);
@@ -66,6 +71,7 @@ private bool cfg_rejects(CfgProgram program) {
 	}
 	return false;
 }
+
 private bool ssa_rejects(SsaProgram program) {
 	try {
 		SsaVerifier.verify (program);
@@ -75,6 +81,7 @@ private bool ssa_rejects(SsaProgram program) {
 	}
 	return false;
 }
+
 private void checked_core() {
 	try {
 		var checked = source ();
@@ -138,6 +145,7 @@ private void checked_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (source ()));
@@ -190,6 +198,7 @@ private void cfg_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_contract() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
@@ -246,6 +255,7 @@ private void ssa_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_contract() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
@@ -315,6 +325,7 @@ private void native_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message = null;
 	int invalid = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -323,6 +334,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 	}
 	assert (invalid == 0);
 }
+
 private void llvm_contract() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
@@ -405,6 +417,7 @@ private void llvm_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/closure/checked-core-environment-code-signature", checked_core);
@@ -414,4 +427,5 @@ public int main(string[] args) {
 	Test.add_func ("/closure/llvm-carried-triple-and-convention", llvm_contract);
 	return Test.run ();
 }
+
 }

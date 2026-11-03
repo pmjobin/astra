@@ -16,9 +16,11 @@ private void declarations() {
 	}
 	assert (Parser.parse (new SourceFile.from_text ("transfer", "class C { owned R field; init(owned R r) { this.field = move r; } }")).diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/parser/contracts-and-deferred-forms", declarations);
 	return Test.run ();
 }
+
 }

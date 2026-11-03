@@ -3,36 +3,53 @@
 u8<16> run(u8<16> seed,int count){
 	u8<16> v=seed;
 	int i=0;
-	while(i<count){v=sat_add(v,splat(1,16));i=i+1;}
+	while(i<count){
+		v=sat_add(v,splat(1,16));
+		i=i+1;
+	}
 	return v;
 }
+
 u8<8> permute(u8<8> seed,int count){
 	u8<8> v=seed;
 	int i=0;
-	while(i<count){v=interleave_low(v,v);i=i+1;}
+	while(i<count){
+		v=interleave_low(v,v);
+		i=i+1;
+	}
 	return v;
 }
+
 u8<8> narrow(bool flag,i16<4> a,i16<4> b){
 	u8<8> v=splat(0,8);
-	if(flag){v=pack_sat(a,b,u8);}else{v=pack_wrap(a,b,u8);}
+	if(flag){
+		v=pack_sat(a,b,u8);
+	}else{
+		v=pack_wrap(a,b,u8);
+	}
 	return v;
 }
+
 i16<4> round(i16<4> seed){
 	i16<4> v=seed;
 	int i=0;
-	while(i<4){v=pack_wrap(widen_low(v,u32),widen_high(v,u32),i16);i=i+1;}
+	while(i<4){
+		v=pack_wrap(widen_low(v,u32),widen_high(v,u32),i16);
+		i=i+1;
+	}
 	return v;
 }
+
 int main(){
 	u8<16> v=run(splat(250,16),12);
-	if(!all(v==splat(255 as u8,16))){return 1;}
+	if(!all(v==splat(255 as u8,16))) return 1;
 	u8<8> seq={0,1,2,3,4,5,6,7};
 	u8<8> p=permute(seq,3);
-	if(!all(p==splat(0 as u8,8))){return 2;}
+	if(!all(p==splat(0 as u8,8))) return 2;
 	i16<4> a={-1,0,255,300};
 	u8<8> sat=narrow(true,a,a);
 	u8<8> wrap=narrow(false,a,a);
-	if(sat[0]!=0 || wrap[0]!=255 || sat[3]!=255 || wrap[3]!=44){return 3;}
-	if(!all(round(a)==a)){return 4;}
+	if(sat[0]!=0 || wrap[0]!=255 || sat[3]!=255 || wrap[3]!=44) return 3;
+	if(!all(round(a)==a)) return 4;
 	return 0;
 }

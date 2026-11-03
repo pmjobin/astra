@@ -25,17 +25,21 @@ private CheckedProgram check() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var result = CoreBuilder.build (check ());
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	return CfgBuilder.build (core ());
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	return SsaBuilder.build (cfg ());
 }
+
 private CoreFunction core_factory(CoreProgram p) {
 	foreach (var f in p.functions) {
 		if (f.utf8_factory) {
@@ -44,6 +48,7 @@ private CoreFunction core_factory(CoreProgram p) {
 	}
 	assert_not_reached ();
 }
+
 private CfgFunction cfg_factory(CfgProgram p) {
 	foreach (var f in p.functions) {
 		if (f.utf8_factory) {
@@ -52,6 +57,7 @@ private CfgFunction cfg_factory(CfgProgram p) {
 	}
 	assert_not_reached ();
 }
+
 private SsaFunction ssa_factory(SsaProgram p) {
 	foreach (var f in p.functions) {
 		if (f.utf8_factory) {
@@ -60,6 +66,7 @@ private SsaFunction ssa_factory(SsaProgram p) {
 	}
 	assert_not_reached ();
 }
+
 private void core_reject(CoreProgram p) {
 	bool rejected = false;
 	try {
@@ -70,6 +77,7 @@ private void core_reject(CoreProgram p) {
 	}
 	assert (rejected);
 }
+
 private void cfg_reject(CfgProgram p) {
 	bool rejected = false;
 	try {
@@ -80,6 +88,7 @@ private void cfg_reject(CfgProgram p) {
 	}
 	assert (rejected);
 }
+
 private void ssa_reject(SsaProgram p) {
 	bool rejected = false;
 	try {
@@ -90,6 +99,7 @@ private void ssa_reject(SsaProgram p) {
 	}
 	assert (rejected);
 }
+
 private void llvm_reject(LlvmModuleArtifact artifact) {
 	bool rejected = false;
 	try {
@@ -100,6 +110,7 @@ private void llvm_reject(LlvmModuleArtifact artifact) {
 	}
 	assert (rejected);
 }
+
 private void lifetimes() {
 	try {
 		CheckedProgram? checked = check ();
@@ -139,6 +150,7 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void checked_mutations() {
 	try {
 		var p = check ();
@@ -179,6 +191,7 @@ private void checked_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_mutations() {
 	try {
 		var p = core ();
@@ -210,6 +223,7 @@ private void core_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void forged_ranges() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("ranges", "void inspect(u8[] b){}int main(){u8[1] bytes={0};inspect(slice(bytes));return 0;}"));
@@ -242,6 +256,7 @@ private void forged_ranges() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_mutations() {
 	try {
 		var p = cfg ();
@@ -291,6 +306,7 @@ private void cfg_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_mutations() {
 	try {
 		var p = ssa ();
@@ -338,6 +354,7 @@ private void ssa_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_mutations() {
 	try {
 		var p = ssa ();
@@ -372,11 +389,13 @@ private void native_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private LlvmModuleArtifact artifact() throws GLib.Error {
 	var p = ssa ();
 	var n = NativeAbiBuilder.build (p);
 	return LlvmLowering.lower (p, n, CAbiBuilder.build (p, n));
 }
+
 private void llvm_mutations() {
 	try {
 		var a = artifact ();
@@ -430,6 +449,7 @@ private void llvm_mutations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text-own-1a/independent-stages-and-physical-contract", lifetimes);
@@ -442,4 +462,5 @@ int main(string[] args) {
 	Test.add_func ("/text-own-1a/llvm-guard-count-copy-and-read-restored", llvm_mutations);
 	return Test.run ();
 }
+
 }

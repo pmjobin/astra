@@ -21,6 +21,7 @@ private string cleanup_names(CfgBlock block) {
 	}
 	return names.str;
 }
+
 private void model() throws GLib.Error {
 	var program = check (BASIC);
 	var declaration = (CheckedOwnedLocalDeclaration) program.functions[0].body.statements[0];
@@ -186,4 +187,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

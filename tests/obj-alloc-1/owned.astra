@@ -1,56 +1,68 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int alloc_event(int tag, int stage);
+
 extern(C) int alloc_ok();
+
 class Box {
 	int value;
 	int cached_calls;
 	int computed_calls;
+
 	init(int tag, int value) {
 		this.value = value;
 		this.cached_calls = 0;
 		this.computed_calls = 0;
 		alloc_event(tag, 1);
 	}
+
 	lazy property int cached { get { this.cached_calls = this.cached_calls + 1; return this.value * 2; } }
+
 	property int computed { get { this.computed_calls = this.computed_calls + 1; return this.value * 2; } }
+
 	int probe(int tag) { alloc_event(tag, 3); return this.cached; }
+
 	deinit() { alloc_event(0, 2); }
 }
+
 owned Box relay(owned Box value) {
-	if (value.probe(1) != 42) { alloc_event(99, 4); }
+	if (value.probe(1) != 42) alloc_event(99, 4);
 	return move value;
 }
+
 int consume(owned Box value) { return value.probe(1); }
+
 owned Box make(int tag) {
 	var value = new Box(tag, 21);
-	if (value.cached != 42) { alloc_event(99, 4); }
+	if (value.cached != 42) alloc_event(99, 4);
 	return move value;
 }
+
 int early() { var value = new Box(3, 21); return value.computed; }
+
 int main() {
 	{
 		var first = new Box(1, 21);
 		owned Box second = new Box(2, 21);
 		// Every field is equal here; equality must still compare identity.
-		if (first == second || first.value != second.value || first.cached_calls != second.cached_calls || first.computed_calls != second.computed_calls) { return 81; }
-		if (first.probe(1) != 42 || second.probe(2) != 42) { return 82; }
+		if (first == second || first.value != second.value || first.cached_calls != second.cached_calls || first.computed_calls != second.computed_calls) return 81;
+		if (first.probe(1) != 42 || second.probe(2) != 42) return 82;
 		first.value = 6;
-		if (first.computed != 12 || first.computed != 12 || first.computed_calls != 2) { return 83; }
+		if (first.computed != 12 || first.computed != 12 || first.computed_calls != 2) return 83;
 		owned Box moved = move first;
-		if (moved == second || moved.probe(1) != 42 || moved.cached_calls != 1) { return 84; }
+		if (moved == second || moved.probe(1) != 42 || moved.cached_calls != 1) return 84;
 		moved.value = 7;
-		if (moved.computed != 14 || moved.computed_calls != 3) { return 85; }
+		if (moved.computed != 14 || moved.computed_calls != 3) return 85;
 		var forwarded = relay(move moved);
-		if (forwarded.probe(1) != 42 || forwarded.cached_calls != 1 || consume(move forwarded) != 42) { return 86; }
+		if (forwarded.probe(1) != 42 || forwarded.cached_calls != 1 || consume(move forwarded) != 42) return 86;
 	}
-	if (early() != 42) { return 87; }
+	if (early() != 42) return 87;
 	{
 		var released = new Box(4, 21);
 		var fresh = make(5);
-		if (fresh.cached != 42 || fresh.cached_calls != 1) { return 88; }
+		if (fresh.cached != 42 || fresh.cached_calls != 1) return 88;
 		release released;
 		release fresh;
 	}
-	if (alloc_ok() != 1) { return 89; }
+	if (alloc_ok() != 1) return 89;
 	return 42;
 }

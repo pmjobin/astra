@@ -4,23 +4,30 @@
 bool ssa_same_block(CfgBlock a, CfgBlock b) {
 	return a.function == b.function && a.origin == b.origin && a.role == b.role && a.instruction == b.instruction && a.terminators == b.terminators && a.term == b.term && a.condition == b.condition && a.yes == b.yes && a.no == b.no && a.reachable == b.reachable;
 }
+
 bool ssa_same_instruction(CfgInstruction a, CfgInstruction b) {
 	return cfg_same_value(a.value, b.value) && a.block == b.block && a.origin == b.origin && a.opcode == b.opcode && a.result == b.result && a.a == b.a && a.b == b.b && a.contract == b.contract && a.guarded == b.guarded;
 }
+
 bool ssa_same_edge(CfgEdge a, CfgEdge b) { return a.function == b.function && a.source == b.source && a.target == b.target && a.polarity == b.polarity && a.meaning == b.meaning; }
+
 bool ssa_check_promotion(CoreData core, int id) {
 	var p = core.places[id - 1];
-	if (p.parent != 0 || !p.leaf || p.flags != 0 || p.type.index < 1 || p.type.index > 13) { return false; }
+	if (p.parent != 0 || !p.leaf || p.flags != 0 || p.type.index < 1 || p.type.index > 13) return false;
 	int n = 0;
 	while (n < core.node_count) {
 		var node = core.nodes[n];
-		if (node.place == id && (node.kind != 3 && node.kind != 21 && node.kind != 22)) { return false; }
-		if (node.place == id && node.kind == 3 && node.flags != 0) { return false; }
+		if (node.place == id && (node.kind != 3 && node.kind != 21 && node.kind != 22)) return false;
+		if (node.place == id && node.kind == 3 && node.flags != 0) return false;
 		n = n + 1;
 	}
-	n = 0; while (n < core.place_count) { if (core.places[n].parent == id) { return false; } n = n + 1; }
+	n = 0; while (n < core.place_count) {
+		if (core.places[n].parent == id) return false;
+		n = n + 1;
+	}
 	return true;
 }
+
 class SsaCheck {
 	owned int[] temp_variable;
 	owned int[] place_variable;
@@ -29,17 +36,19 @@ class SsaCheck {
 	owned int[] phis;
 	owned int[] writes;
 	int cursor;
+
 	init(int nodes, int places, int blocks, int variables) {
 		this.temp_variable = new int[nodes]; this.place_variable = new int[places]; this.temporary = new int[nodes]; this.parameters = new int[places];
 		this.phis = new int[blocks * variables]; this.writes = new int[blocks * variables]; this.cursor = 0;
 	}
+
 	bool variables(SsaData d, CoreData core, SsaBudget budget) {
 		int expected = 0; int p = 0;
 		while (p < core.place_count && budget.take(core.node_count + core.place_count + 1)) {
 			if (ssa_check_promotion(core, p + 1)) {
-				if (expected >= d.variable_count) { return false; }
+				if (expected >= d.variable_count) return false;
 				var row = d.variables[expected]; var place = core.places[p];
-				if (row.kind != 2 || row.origin != p + 1 || row.function != place.function || row.type.index != place.type.index) { return false; }
+				if (row.kind != 2 || row.origin != p + 1 || row.function != place.function || row.type.index != place.type.index) return false;
 				this.place_variable[p] = expected + 1; expected = expected + 1;
 			}
 			p = p + 1;
@@ -48,126 +57,171 @@ class SsaCheck {
 		while (t < core.node_count && budget.take(1)) {
 			var node = core.nodes[t];
 			if (node.kind == 7) {
-				if (expected >= d.variable_count) { return false; }
+				if (expected >= d.variable_count) return false;
 				var row = d.variables[expected];
-				if (row.kind != 1 || row.origin != t + 1 || row.function != node.function || row.type.index != node.type.index || row.parameter != 0 || !ssa_scalar(row.type, node.flags)) { return false; }
+				if (row.kind != 1 || row.origin != t + 1 || row.function != node.function || row.type.index != node.type.index || row.parameter != 0 || !ssa_scalar(row.type, node.flags)) return false;
 				this.temp_variable[t] = expected + 1; expected = expected + 1;
 			}
 			t = t + 1;
 		}
 		return expected == d.variable_count && !budget.exhausted;
 	}
+
 	bool instructions(SsaData d, CfgData cfg, SsaBudget budget) {
 		int i = 0;
 		while (i < d.instruction_count && budget.take(1)) {
 			var row = d.instructions[i]; var original = cfg.instructions[i]; int variable = 0; bool promoted = false;
-			if (!ssa_same_instruction(row.origin, original) || row.noalias) { return false; }
-			if (original.opcode == 44) { variable = this.temp_variable[original.result - 1]; }
-			if (original.opcode == 21 || original.opcode == 22) { variable = this.place_variable[original.value.place - 1]; promoted = variable != 0; }
-			if (original.opcode == 3) { promoted = this.place_variable[original.value.place - 1] != 0; }
-			if (row.variable != variable || row.promoted != promoted || (row.result != 0) != (original.result != 0 || variable != 0) || row.result < 0 || row.result > d.value_count) { return false; }
+			if (!ssa_same_instruction(row.origin, original) || row.noalias) return false;
+			if (original.opcode == 44) variable = this.temp_variable[original.result - 1];
+			if (original.opcode == 21 || original.opcode == 22) {
+				variable = this.place_variable[original.value.place - 1];
+				promoted = variable != 0;
+			}
+			if (original.opcode == 3) promoted = this.place_variable[original.value.place - 1] != 0;
+			if (row.variable != variable || row.promoted != promoted || (row.result != 0) != (original.result != 0 || variable != 0) || row.result < 0 || row.result > d.value_count) return false;
 			i = i + 1;
 		}
 		return !budget.exhausted;
 	}
+
 	bool values(SsaData d, CfgData cfg, CoreData core, SsaGraph graph, SsaBudget budget) {
 		var claimed = new bool[d.instruction_count]; int i = 0;
 		while (i < d.value_count && budget.take(1)) {
 			var v = d.values[i];
-			if (v.function < 1 || v.function > d.function_count || v.block < 1 || v.block > d.block_count || cfg.blocks[v.block - 1].function != v.function || v.variable < 0 || v.variable > d.variable_count) { return false; }
+			if (v.function < 1 || v.function > d.function_count || v.block < 1 || v.block > d.block_count || cfg.blocks[v.block - 1].function != v.function || v.variable < 0 || v.variable > d.variable_count) return false;
 			if (v.kind == 1) {
-				if (v.instruction < 1 || v.instruction > d.instruction_count || claimed[v.instruction - 1] || v.place != 0) { return false; }
+				if (v.instruction < 1 || v.instruction > d.instruction_count || claimed[v.instruction - 1] || v.place != 0) return false;
 				var row = d.instructions[v.instruction - 1]; var original = row.origin;
-				if (row.result != i + 1 || v.block != original.block || v.function != original.value.function || v.variable != row.variable) { return false; }
+				if (row.result != i + 1 || v.block != original.block || v.function != original.value.function || v.variable != row.variable) return false;
 				TypeId type = original.value.type; int flags = original.value.flags;
 				if (v.variable != 0) {
 					type = d.variables[v.variable - 1].type; flags = 0;
 					int at = (v.variable - 1) * d.block_count + v.block - 1;
-					if (this.writes[at] != 0) { return false; } this.writes[at] = i + 1;
+					if (this.writes[at] != 0) return false; this.writes[at] = i + 1;
 				}
-				if (type.index != v.type.index || flags != v.flags) { return false; }
+				if (type.index != v.type.index || flags != v.flags) return false;
 				if (original.result != 0 && original.opcode != 44) {
-					if (this.temporary[original.result - 1] != 0) { return false; } this.temporary[original.result - 1] = i + 1;
+					if (this.temporary[original.result - 1] != 0) return false; this.temporary[original.result - 1] = i + 1;
 				}
 				claimed[v.instruction - 1] = true;
 			} else {
-				if (v.instruction != 0) { return false; }
+				if (v.instruction != 0) return false;
 				if (v.kind == 2) {
-					if (v.place < 1 || v.place > core.place_count || this.parameters[v.place - 1] != 0) { return false; }
+					if (v.place < 1 || v.place > core.place_count || this.parameters[v.place - 1] != 0) return false;
 					var p = core.places[v.place - 1];
-					if (!p.parameter || p.parent != 0 || p.function != v.function || p.type.index != v.type.index || p.flags != v.flags || v.block != cfg.functions[v.function - 1].entry || v.variable != this.place_variable[v.place - 1]) { return false; }
-					if (v.variable != 0 && d.variables[v.variable - 1].parameter != i + 1) { return false; }
+					if (!p.parameter || p.parent != 0 || p.function != v.function || p.type.index != v.type.index || p.flags != v.flags || v.block != cfg.functions[v.function - 1].entry || v.variable != this.place_variable[v.place - 1]) return false;
+					if (v.variable != 0 && d.variables[v.variable - 1].parameter != i + 1) return false;
 					this.parameters[v.place - 1] = i + 1;
 				} else {
-					if (v.kind != 3 || v.variable == 0 || v.place != 0 || !graph.reachable[v.block - 1] || v.block == cfg.functions[v.function - 1].entry) { return false; }
+					if (v.kind != 3 || v.variable == 0 || v.place != 0 || !graph.reachable[v.block - 1] || v.block == cfg.functions[v.function - 1].entry) return false;
 					var variable = d.variables[v.variable - 1]; int at = (v.variable - 1) * d.block_count + v.block - 1;
-					if (variable.function != v.function || variable.type.index != v.type.index || !ssa_scalar(v.type, v.flags) || this.phis[at] != 0) { return false; }
+					if (variable.function != v.function || variable.type.index != v.type.index || !ssa_scalar(v.type, v.flags) || this.phis[at] != 0) return false;
 					this.phis[at] = i + 1;
 				}
 			}
 			i = i + 1;
 		}
-		i = 0; while (i < d.instruction_count) { if (claimed[i] != (d.instructions[i].result != 0)) { return false; } i = i + 1; }
+		i = 0; while (i < d.instruction_count) {
+			if (claimed[i] != (d.instructions[i].result != 0)) return false;
+			i = i + 1;
+		}
 		i = 0;
 		while (i < core.place_count) {
 			var p = core.places[i];
-			if ((this.parameters[i] != 0) != (p.parameter && p.parent == 0)) { return false; }
+			if ((this.parameters[i] != 0) != (p.parameter && p.parent == 0)) return false;
 			int variable = this.place_variable[i];
-			if (variable != 0 && d.variables[variable - 1].parameter != this.parameters[i]) { return false; }
+			if (variable != 0 && d.variables[variable - 1].parameter != this.parameters[i]) return false;
 			i = i + 1;
 		}
 		return !budget.exhausted;
 	}
+
 	bool available(SsaData d, SsaGraph graph, int value, int block, bool after) {
-		if (value < 1 || value > d.value_count) { return false; }
+		if (value < 1 || value > d.value_count) return false;
 		var v = d.values[value - 1];
 		return graph.reachable[v.block - 1] && graph.dominates[(v.block - 1) * d.block_count + block - 1] && (v.kind != 1 || v.block != block || after);
 	}
+
 	// Each backwards path stops at its nearest write, block parameter or entry.
 	// A value merely dominating the use is insufficient: stale versions fail.
 	bool reaching(SsaData d, CfgData cfg, SsaGraph graph, SsaIncoming incoming, int variable, int block, bool after, int expected, SsaBudget budget) {
 		int offset = (variable - 1) * d.block_count;
 		if (!after) {
-			int phi = this.phis[offset + block - 1]; if (phi != 0) { return phi == expected; }
-			if (block == cfg.functions[d.variables[variable - 1].function - 1].entry) { return d.variables[variable - 1].parameter == expected && expected != 0; }
+			int phi = this.phis[offset + block - 1]; if (phi != 0) return phi == expected;
+			if (block == cfg.functions[d.variables[variable - 1].function - 1].entry) return d.variables[variable - 1].parameter == expected && expected != 0;
 		}
 		var seen = new bool[d.block_count]; var queue = new int[d.block_count]; int head = 0; int tail = 0;
-		if (after) { seen[block - 1] = true; queue[tail] = block; tail = tail + 1; } else {
+		if (after) {
+			seen[block - 1] = true;
+			queue[tail] = block;
+			tail = tail + 1;
+		} else {
 			int e = incoming.first[block - 1];
-			while (e >= 0) { int source = cfg.edges[e].source; if (graph.reachable[source - 1] && !seen[source - 1]) { seen[source - 1] = true; queue[tail] = source; tail = tail + 1; } e = incoming.next[e]; }
+			while (e >= 0) {
+				int source = cfg.edges[e].source;
+				if (graph.reachable[source - 1] && !seen[source - 1]) {
+					seen[source - 1] = true;
+					queue[tail] = source;
+					tail = tail + 1;
+				}
+				e = incoming.next[e];
+			}
 		}
 		bool anchored = false;
 		while (head < tail && budget.take(1)) {
 			int at = queue[head]; int value = this.writes[offset + at - 1];
-			if (value == 0) { value = this.phis[offset + at - 1]; }
-			if (value == 0 && at == cfg.functions[d.variables[variable - 1].function - 1].entry) { value = d.variables[variable - 1].parameter; if (value == 0) { return false; } }
-			if (value != 0) { if (value != expected) { return false; } anchored = true; } else {
+			if (value == 0) value = this.phis[offset + at - 1];
+			if (value == 0 && at == cfg.functions[d.variables[variable - 1].function - 1].entry) {
+				value = d.variables[variable - 1].parameter;
+				if (value == 0) return false;
+			}
+			if (value != 0) {
+				if (value != expected) return false;
+				anchored = true;
+			} else {
 				int e = incoming.first[at - 1]; bool has_parent = false;
 				while (e >= 0 && budget.take(1)) {
 					int source = cfg.edges[e].source;
-					if (graph.reachable[source - 1]) { has_parent = true; if (!seen[source - 1]) { seen[source - 1] = true; queue[tail] = source; tail = tail + 1; } }
+					if (graph.reachable[source - 1]) {
+						has_parent = true;
+						if (!seen[source - 1]) {
+							seen[source - 1] = true;
+							queue[tail] = source;
+							tail = tail + 1;
+						}
+					}
 					e = incoming.next[e];
 				}
-				if (!has_parent) { return false; }
+				if (!has_parent) return false;
 			}
 			head = head + 1;
 		}
 		return anchored && !budget.exhausted;
 	}
+
 	bool use(SsaData d, CfgData cfg, CoreData core, SsaGraph graph, SsaIncoming incoming, int block, int instruction, int kind, int ordinal, int source, SymbolId label, int mode, SsaBudget budget) {
-		if (source == 0) { return true; }
-		if (this.cursor >= d.use_count || !budget.take(1)) { return false; }
+		if (source == 0) return true;
+		if (this.cursor >= d.use_count || !budget.take(1)) return false;
 		var u = d.uses[this.cursor]; this.cursor = this.cursor + 1;
 		int function = cfg.blocks[block - 1].function;
-		if (u.function != function || u.block != block || u.instruction != instruction || u.kind != kind || u.ordinal != ordinal || u.source != source || u.label.index != label.index || u.mode != mode) { return false; }
-		if (!graph.reachable[block - 1]) { return u.value == 0; }
-		if (!this.available(d, graph, u.value, block, false)) { return false; }
+		if (u.function != function || u.block != block || u.instruction != instruction || u.kind != kind || u.ordinal != ordinal || u.source != source || u.label.index != label.index || u.mode != mode) return false;
+		if (!graph.reachable[block - 1]) return u.value == 0;
+		if (!this.available(d, graph, u.value, block, false)) return false;
 		var value = d.values[u.value - 1]; TypeId type = type_id(0); int flags = 0; int variable = 0;
-		if (kind == 4) { type = core.places[source - 1].type; variable = this.place_variable[source - 1]; } else { var n = core.nodes[source - 1]; type = n.type; flags = n.flags; variable = this.temp_variable[source - 1]; }
-		if (value.function != function || value.type.index != type.index || value.flags != flags) { return false; }
-		if (variable != 0) { return this.reaching(d, cfg, graph, incoming, variable, block, false, u.value, budget); }
+		if (kind == 4) {
+			type = core.places[source - 1].type;
+			variable = this.place_variable[source - 1];
+		} else {
+			var n = core.nodes[source - 1];
+			type = n.type;
+			flags = n.flags;
+			variable = this.temp_variable[source - 1];
+		}
+		if (value.function != function || value.type.index != type.index || value.flags != flags) return false;
+		if (variable != 0) return this.reaching(d, cfg, graph, incoming, variable, block, false, u.value, budget);
 		return kind != 4 && u.value == this.temporary[source - 1];
 	}
+
 	bool uses(SsaData d, CfgData cfg, CoreData core, SsaGraph graph, SsaIncoming incoming, SsaBudget budget) {
 		int b = 0;
 		while (b < cfg.block_count && !budget.exhausted) {
@@ -175,25 +229,26 @@ class SsaCheck {
 			if (id != 0) {
 				var row = cfg.instructions[id - 1];
 				if (row.opcode < 40 || row.opcode == 44) {
-					if (!this.use(d, cfg, core, graph, incoming, b + 1, id, 1, 0, row.a, type_symbol(0), 0, budget) || !this.use(d, cfg, core, graph, incoming, b + 1, id, 2, 0, row.b, type_symbol(0), 0, budget)) { return false; }
+					if (!this.use(d, cfg, core, graph, incoming, b + 1, id, 1, 0, row.a, type_symbol(0), 0, budget) || !this.use(d, cfg, core, graph, incoming, b + 1, id, 2, 0, row.b, type_symbol(0), 0, budget)) return false;
 				}
-				if (row.opcode == 3 && this.place_variable[row.value.place - 1] != 0 && !this.use(d, cfg, core, graph, incoming, b + 1, id, 4, 0, row.value.place, type_symbol(0), 0, budget)) { return false; }
+				if (row.opcode == 3 && this.place_variable[row.value.place - 1] != 0 && !this.use(d, cfg, core, graph, incoming, b + 1, id, 4, 0, row.value.place, type_symbol(0), 0, budget)) return false;
 				if (row.opcode == 9 || row.opcode == 10) {
 					int a = 0;
 					while (a < row.value.count && budget.take(1)) {
 						var edge = core.edges[row.value.first + a];
-						if (!this.use(d, cfg, core, graph, incoming, b + 1, id, 3, a, edge.child, edge.label, edge.mode, budget)) { return false; }
+						if (!this.use(d, cfg, core, graph, incoming, b + 1, id, 3, a, edge.child, edge.label, edge.mode, budget)) return false;
 						a = a + 1;
 					}
 				}
 			}
-			if (!this.use(d, cfg, core, graph, incoming, b + 1, 0, 5, 0, block.condition, type_symbol(0), 0, budget)) { return false; }
-			int condition = 0; if (block.condition != 0) { condition = d.uses[this.cursor - 1].value; }
-			if (d.blocks[b].condition != condition) { return false; }
+			if (!this.use(d, cfg, core, graph, incoming, b + 1, 0, 5, 0, block.condition, type_symbol(0), 0, budget)) return false;
+			int condition = 0; if (block.condition != 0) condition = d.uses[this.cursor - 1].value;
+			if (d.blocks[b].condition != condition) return false;
 			b = b + 1;
 		}
 		return this.cursor == d.use_count && !budget.exhausted;
 	}
+
 	bool arguments(SsaData d, CfgData cfg, SsaGraph graph, SsaIncoming incoming, SsaBudget budget) {
 		int cursor = 0; int p = 0;
 		while (p < d.value_count && !budget.exhausted) {
@@ -201,46 +256,64 @@ class SsaCheck {
 			if (phi.kind == 3) {
 				int e = incoming.first[phi.block - 1]; int live = 0;
 				while (e >= 0 && budget.take(1)) {
-					if (cursor >= d.argument_count) { return false; }
+					if (cursor >= d.argument_count) return false;
 					var arg = d.arguments[cursor]; var edge = cfg.edges[e]; cursor = cursor + 1;
-					if (arg.function != phi.function || arg.phi != p + 1 || arg.edge != e + 1) { return false; }
+					if (arg.function != phi.function || arg.phi != p + 1 || arg.edge != e + 1) return false;
 					if (graph.reachable[edge.source - 1]) {
 						live = live + 1;
-						if (!this.available(d, graph, arg.value, edge.source, true)) { return false; }
+						if (!this.available(d, graph, arg.value, edge.source, true)) return false;
 						var value = d.values[arg.value - 1];
-						if (value.function != phi.function || value.type.index != phi.type.index || value.flags != 0 || !this.reaching(d, cfg, graph, incoming, phi.variable, edge.source, true, arg.value, budget)) { return false; }
-					} else { if (arg.value != 0) { return false; } }
+						if (value.function != phi.function || value.type.index != phi.type.index || value.flags != 0 || !this.reaching(d, cfg, graph, incoming, phi.variable, edge.source, true, arg.value, budget)) return false;
+					} else {
+						if (arg.value != 0) return false;
+					}
 					e = incoming.next[e];
 				}
-				if (live < 2) { return false; }
+				if (live < 2) return false;
 			}
 			p = p + 1;
 		}
 		return cursor == d.argument_count && !budget.exhausted;
 	}
 }
+
 int ssa_verify_model(SsaData d, CfgProgram cfg) throws Error {
 	int input = cfg_verify(cfg);
-	if (input != 0) { int expected = 4; if (input == 3) { expected = 3; } if (d.status != expected) { return 1; } return expected; }
-	if (d.limit < 1 || d.limit > 65536 || d.work_limit < 1 || d.work_limit > 8000000) { return 2; }
-	if (d.function_count != cfg.data.function_count || d.block_count != cfg.data.block_count || d.instruction_count != cfg.data.instruction_count || d.edge_count != cfg.data.edge_count || d.function_count != len(d.functions) || d.block_count != len(d.blocks) || d.instruction_count != len(d.instructions) || d.edge_count != len(d.edges)) { return 1; }
-	if (d.value_count < 0 || d.value_count > len(d.values) || d.variable_count < 0 || d.variable_count > len(d.variables) || d.use_count < 0 || d.use_count > len(d.uses) || d.argument_count < 0 || d.argument_count > len(d.arguments)) { return 1; }
-	if (d.function_count > d.limit || d.block_count > d.limit || d.instruction_count > d.limit || d.edge_count > d.limit || d.value_count > d.limit || d.variable_count > d.limit || d.use_count > d.limit || d.argument_count > d.limit || d.block_count > 1024 || (d.block_count != 0 && d.variable_count > 1048576 / d.block_count)) { return 2; }
-	if (d.status == 2) { return 2; }
-	if (d.status != 0 || d.graph.status != 0 || d.graph.count != d.block_count || len(d.graph.reachable) != d.block_count || len(d.graph.parent) != d.block_count || len(d.graph.dominates) != d.block_count * d.block_count || len(d.graph.frontier) != d.block_count * d.block_count) { return 1; }
+	if (input != 0) {
+		int expected = 4;
+		if (input == 3) expected = 3;
+		if (d.status != expected) return 1;
+		return expected;
+	}
+	if (d.limit < 1 || d.limit > 65536 || d.work_limit < 1 || d.work_limit > 8000000) return 2;
+	if (d.function_count != cfg.data.function_count || d.block_count != cfg.data.block_count || d.instruction_count != cfg.data.instruction_count || d.edge_count != cfg.data.edge_count || d.function_count != len(d.functions) || d.block_count != len(d.blocks) || d.instruction_count != len(d.instructions) || d.edge_count != len(d.edges)) return 1;
+	if (d.value_count < 0 || d.value_count > len(d.values) || d.variable_count < 0 || d.variable_count > len(d.variables) || d.use_count < 0 || d.use_count > len(d.uses) || d.argument_count < 0 || d.argument_count > len(d.arguments)) return 1;
+	if (d.function_count > d.limit || d.block_count > d.limit || d.instruction_count > d.limit || d.edge_count > d.limit || d.value_count > d.limit || d.variable_count > d.limit || d.use_count > d.limit || d.argument_count > d.limit || d.block_count > 1024 || (d.block_count != 0 && d.variable_count > 1048576 / d.block_count)) return 2;
+	if (d.status == 2) return 2;
+	if (d.status != 0 || d.graph.status != 0 || d.graph.count != d.block_count || len(d.graph.reachable) != d.block_count || len(d.graph.parent) != d.block_count || len(d.graph.dominates) != d.block_count * d.block_count || len(d.graph.frontier) != d.block_count * d.block_count) return 1;
 	var budget = new SsaBudget(d.work_limit); var graph = ssa_independent_graph(cfg.data, budget);
-	if (graph.status != 0 || budget.exhausted) { return 2; }
+	if (graph.status != 0 || budget.exhausted) return 2;
 	int b = 0;
 	while (b < d.block_count && budget.take(1)) {
-		if (!ssa_same_block(d.blocks[b].origin, cfg.data.blocks[b]) || d.graph.parent[b] != graph.parent[b] || d.graph.reachable[b] != graph.reachable[b]) { return 1; }
+		if (!ssa_same_block(d.blocks[b].origin, cfg.data.blocks[b]) || d.graph.parent[b] != graph.parent[b] || d.graph.reachable[b] != graph.reachable[b]) return 1;
 		b = b + 1;
 	}
 	int at = 0;
-	while (at < d.block_count * d.block_count && budget.take(1)) { if (d.graph.dominates[at] != graph.dominates[at] || d.graph.frontier[at] != graph.frontier[at]) { return 1; } at = at + 1; }
-	int f = 0; while (f < d.function_count) { if (d.functions[f].entry != cfg.data.functions[f].entry || d.functions[f].exit != cfg.data.functions[f].exit) { return 1; } f = f + 1; }
-	int e = 0; while (e < d.edge_count && budget.take(1)) { if (!ssa_same_edge(d.edges[e].origin, cfg.data.edges[e])) { return 1; } e = e + 1; }
+	while (at < d.block_count * d.block_count && budget.take(1)) {
+		if (d.graph.dominates[at] != graph.dominates[at] || d.graph.frontier[at] != graph.frontier[at]) return 1;
+		at = at + 1;
+	}
+	int f = 0; while (f < d.function_count) {
+		if (d.functions[f].entry != cfg.data.functions[f].entry || d.functions[f].exit != cfg.data.functions[f].exit) return 1;
+		f = f + 1;
+	}
+	int e = 0; while (e < d.edge_count && budget.take(1)) {
+		if (!ssa_same_edge(d.edges[e].origin, cfg.data.edges[e])) return 1;
+		e = e + 1;
+	}
 	var check = new SsaCheck(cfg.core.data.node_count, cfg.core.data.place_count, d.block_count, d.variable_count); var incoming = new SsaIncoming(cfg.data);
 	bool valid = check.variables(d, cfg.core.data, budget) && check.instructions(d, cfg.data, budget) && check.values(d, cfg.data, cfg.core.data, graph, budget) && check.uses(d, cfg.data, cfg.core.data, graph, incoming, budget) && check.arguments(d, cfg.data, graph, incoming, budget);
-	if (budget.exhausted) { return 2; } if (!valid) { return 1; } return 0;
+	if (budget.exhausted) return 2; if (!valid) return 1; return 0;
 }
+
 int ssa_verify(SsaProgram program) throws Error { return ssa_verify_model(program.data, program.cfg); }

@@ -1,8 +1,10 @@
 f64 separate(f64 a, f64 b, f64 c) { return a * b + c; }
+
 f64 grouped(f64 a, f64 b) { return (a + b) - a; }
+
 int main() {
 	// (1+2^-27)*(1-2^-27) rounds to 1 before subtracting 1.
-	if (separate(1.000000007450580596923828125, 0.999999992549419403076171875, -1.0) != 0.0) { return 1; }
-	if (grouped(10000000000000000.0, 1.0) != 0.0) { return 2; }
+	if (separate(1.000000007450580596923828125, 0.999999992549419403076171875, -1.0) != 0.0) return 1;
+	if (grouped(10000000000000000.0, 1.0) != 0.0) return 2;
 	return 0;
 }

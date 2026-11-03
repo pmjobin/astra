@@ -9,6 +9,7 @@ private class SemanticRuntimeStorage : Object {
 		this.binding = binding;
 		this.path = path;
 	}
+
 }
 private class SemanticRuntimeObligation : Object {
 	internal int value;
@@ -19,6 +20,7 @@ private class SemanticRuntimeObligation : Object {
 		this.destination = destination;
 		this.span = span;
 	}
+
 }
 internal class SemanticRuntimeLifetimes : Object {
 	private CheckedProgram program;
@@ -40,6 +42,7 @@ internal class SemanticRuntimeLifetimes : Object {
 		}
 		return null;
 	}
+
 	internal RuntimeLifetimeSummary? summary(FunctionSymbol? symbol) {
 		if (symbol == null) {
 			return null;
@@ -75,6 +78,7 @@ internal class SemanticRuntimeLifetimes : Object {
 		visiting.remove (symbol);
 		return definition.runtime_lifetimes;
 	}
+
 }
 private class SemanticRuntimeLifetimeBody : Object {
 	private SemanticRuntimeLifetimes analysis;
@@ -109,15 +113,18 @@ private class SemanticRuntimeLifetimeBody : Object {
 			scope_requested |= scoped_type (local.semantic_type);
 		}
 	}
+
 	private RuntimeLifetimeEquations graph { get { return flow.equations; } }
 	private void unsupported_node(string reason) {
 		if (unsupported == "") {
 			unsupported = reason;
 		}
 	}
+
 	private static int parameter_binding(int parameter) {
 		return -parameter - 2;
 	}
+
 	private int region_id(LexicalRegion region) throws RuntimeLifetimeError {
 		if (!region_ids.contains (region)) {
 			int parent = region.parent == null ? -1 : region_id (region.parent);
@@ -125,9 +132,11 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return region_ids.lookup (region);
 	}
+
 	private static bool graph_input(SemanticType type) {
 		return !(type is HandleType && ((HandleType) type).context_mode != "") && (type is ClassType || type is ReceiverType || type is HandleType || type.is_struct_storage () || type is TypeParameterType || type is TaskType);
 	}
+
 	private NativeInstanceSymbol? instance(SemanticType type) {
 		if (type is ReceiverType) {
 			type = ((ReceiverType) type).instance_type;
@@ -144,9 +153,11 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private bool scoped_type(SemanticType type) {
 		return RuntimeScopeTypes.contains (type, expand_scoped_type);
 	}
+
 	private bool expand_scoped_type(SemanticType type, GenericArray<SemanticType> following) {
 		var owner = instance (type);
 		if (owner != null) {
@@ -184,6 +195,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool scoped_arguments(GenericArray<CheckedExpression> arguments, CheckedExpression? receiver = null) {
 		if (scoped_expression (receiver)) {
 			return true;
@@ -195,6 +207,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool scoped_producer(CheckedStructProducer producer) {
 		if (producer is CheckedStructInvocationResult) {
 			return scoped_expression (((CheckedStructInvocationResult) producer).invocation);
@@ -211,6 +224,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool scoped_initializers(GenericArray<CheckedFieldInitializer> fields) {
 		foreach (var field in fields) {
 			if (scoped_expression (field.expression) || field.initializer != null && scoped_initializers (field.initializer.fields) || field.producer != null && scoped_producer (field.producer)) {
@@ -219,6 +233,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool scoped_expression(CheckedExpression? value) {
 		if (value == null) {
 			return false;
@@ -286,6 +301,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	// Inventory runs before inference, including bodies whose operation family
 	// is still unsupported. An opaque statement cannot hide scoped allocation.
 	private bool scoped_statement(CheckedStatement source) {
@@ -355,6 +371,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private int empty_product(SemanticType type, CheckedExpression? context = null) throws RuntimeLifetimeError {
 		var roots = new GenericArray<RuntimeScopeOrigin> ();
 		var anchor = context_origin (context);
@@ -378,6 +395,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return graph.product (roots, fields);
 	}
+
 	private int allocation(ClassSymbol owner, CheckedExpression? context) throws RuntimeLifetimeError {
 		var policy = owner.allocation_policy;
 		var handle = context == null ? null : context.semantic_type as HandleType;
@@ -386,6 +404,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return empty_product (owner.semantic_type, context);
 	}
+
 	private static string field_path(StructLeafPath path) {
 		var result = new StringBuilder ();
 		for (int i = 0; i < path.depth; i++) {
@@ -396,6 +415,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return result.str;
 	}
+
 	private RuntimeScopeOrigin? context_origin(CheckedExpression? expression) throws RuntimeLifetimeError {
 		if (expression == null || !expression.semantic_type.is_scoped_allocator ()) {
 			return null;
@@ -414,6 +434,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeScopeOrigin.local (local.ordinal, region_id (local.lexical_region));
 	}
+
 	private SemanticRuntimeStorage? reference(CheckedExpression? expression) {
 		if (expression is CheckedStructProjectionValue) {
 			var projected = (CheckedStructProjectionValue) expression;
@@ -464,6 +485,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private SemanticRuntimeStorage? producer_reference(CheckedStructProducer producer) {
 		if (producer is CheckedStructSnapshot) {
 			return place (((CheckedStructSnapshot) producer).source);
@@ -481,12 +503,14 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private SemanticRuntimeStorage? field_storage(SemanticRuntimeStorage? storage, FieldSymbol field) {
 		if (storage != null) {
 			storage.path += (storage.path == "" ? "" : ".") + "f%d".printf (field.ordinal);
 		}
 		return storage;
 	}
+
 	private SemanticRuntimeStorage? place(CheckedPlace? source) {
 		if (source is CheckedLocalPlace) {
 			return new SemanticRuntimeStorage (((CheckedLocalPlace) source).local.ordinal);
@@ -506,6 +530,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		unsupported_node ("indirect or indexed storage requires an exact owning path");
 		return null;
 	}
+
 	private int read(SemanticRuntimeStorage? storage) throws RuntimeLifetimeError {
 		if (storage == null) {
 			unsupported_node ("value has no exact source storage");
@@ -514,6 +539,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		int result = flow.read (storage.binding);
 		return storage.path == "" ? result : graph.project (result, storage.path);
 	}
+
 	private int replace_path(int root, string path, int incoming) throws RuntimeLifetimeError {
 		int dot = path.index_of_char ('.');
 		if (dot < 0) {
@@ -522,6 +548,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		string head = path.substring (0, dot);
 		return graph.replace (root, head, replace_path (graph.project (root, head), path.substring (dot + 1), incoming));
 	}
+
 	private void write(SemanticRuntimeStorage? storage, int incoming, SourceSpan span, bool effect = true) throws RuntimeLifetimeError {
 		if (storage == null) {
 			unsupported_node ("write has no exact destination storage");
@@ -535,6 +562,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 			stores.add (new RuntimeLifetimeStore (storage.binding == -1 ? -1 : -storage.binding - 2, incoming));
 		}
 	}
+
 	private int invoke(DirectCallableSymbol? target, GenericArray<CheckedExpression> arguments, CheckedExpression? receiver, SourceSpan span, int constructed = -1) throws RuntimeLifetimeError {
 		var inputs = new HashTable<int, int> (direct_hash, direct_equal);
 		var contexts = new HashTable<int, RuntimeScopeOrigin> (direct_hash, direct_equal);
@@ -635,6 +663,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	// A cold task carries separate future success/error values and all
 	// captures. Observation projects the outcome; moving/dropping the task
 	// retains the complete frame/capture debt until that owned operation.
@@ -682,6 +711,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return graph.product (roots, fields);
 	}
+
 	private int task_await(CheckedTaskAwait operation) throws RuntimeLifetimeError {
 		value (operation.bridge_executor);
 		int task = value (operation.child);
@@ -695,6 +725,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		exception (graph.project (task, "f1"), type.exception_bound ?? type.runtime.error_type);
 		return graph.project (task, "f0");
 	}
+
 	private int async_operation(CheckedAsyncOperation operation) throws RuntimeLifetimeError {
 		value (operation.executor);
 		value (operation.argument);
@@ -706,6 +737,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return graph.absent ();
 	}
+
 	private int enum_value(CheckedEnumProducer producer) throws RuntimeLifetimeError {
 		if (producer is CheckedAsyncRun) {
 			return async_operation (((CheckedAsyncRun) producer).operation);
@@ -716,6 +748,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		unsupported_node ("enum lifetime requires its exact copied/owning operation");
 		return graph.absent ();
 	}
+
 	private int initializer(SemanticType type, GenericArray<CheckedFieldInitializer> initializers) throws RuntimeLifetimeError {
 		int result = empty_product (type);
 		foreach (var field in initializers) {
@@ -724,6 +757,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private int producer(CheckedStructProducer source) throws RuntimeLifetimeError {
 		if (source is CheckedStructAwait) {
 			return task_await (((CheckedStructAwait) source).operation);
@@ -754,6 +788,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		unsupported_node ("record producer requires its exact lifetime operation");
 		return graph.absent ();
 	}
+
 	private int value(CheckedExpression? source) throws RuntimeLifetimeError {
 		if (source == null) {
 			return graph.absent ();
@@ -894,6 +929,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		unsupported_node ("expression requires its exact lifetime operation: " + source.get_type ().name ());
 		return graph.absent ();
 	}
+
 	private void exit() throws RuntimeLifetimeError {
 		if (!flow.state.reachable) {
 			return;
@@ -903,11 +939,13 @@ private class SemanticRuntimeLifetimeBody : Object {
 			graph.alternative (exits.lookup (binding), flow.read (binding));
 		}
 	}
+
 	private void exception(int value, ClassType type) throws RuntimeLifetimeError {
 		int site = (int) exception_types.size ();
 		exception_types.insert (site, type);
 		flow.exception (value, site);
 	}
+
 	private void guarded(CheckedTry source) throws RuntimeLifetimeError {
 		var entry = flow.state.snapshot ();
 		flow.begin_try ();
@@ -965,6 +1003,7 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		flow.state = normal;
 	}
+
 	private void statement(CheckedStatement source) throws RuntimeLifetimeError {
 		if (!flow.state.reachable) {
 			return;
@@ -1145,10 +1184,12 @@ private class SemanticRuntimeLifetimeBody : Object {
 			unsupported_node ("statement requires its exact lifetime operation: " + source.get_type ().name ());
 		}
 	}
+
 	internal RuntimeLifetimeSummary incomplete(string reason) {
 		graph.seal ();
 		return new RuntimeLifetimeSummary (graph, graph.absent (), new HashTable<int, int> (direct_hash, direct_equal), new GenericArray<RuntimeLifetimeStore> (), reason);
 	}
+
 	internal RuntimeLifetimeSummary analyze() throws RuntimeLifetimeError {
 		region_id (definition.body.region);
 		returned = graph.join ();
@@ -1279,5 +1320,6 @@ private class SemanticRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeLifetimeSummary (graph, returned, updates, stores, unsupported, definition.symbol.throws_type == null ? -1 : exceptional_result);
 	}
+
 }
 }

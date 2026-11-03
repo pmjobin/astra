@@ -1,33 +1,46 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CCode(text_abi="utf8-i32")]
 extern(C) int query_prepare(borrowed string path);
+
 [CCode(text_abi="utf8-i32")]
 extern(C) void query_error(borrowed string message);
+
 extern(C) int query_finish(int result);
 
 [Allocator(kind="context",context="scoped-affine")]
 class LocalInterval {
 	private int offset;
 	private int count;
+
 	init(int offset, int count) { this.offset = offset; this.count = count; }
+
 	bool valid(int extent) { return this.offset >= 0 && this.count > 0 && this.count <= 3071 && this.count <= extent && this.offset <= extent - this.count; }
 }
+
 bool query_valid_pair(QueryModel.Pair pair, int extent) {
 	owned u8[] backing = new u8[8191];
 	var context = scoped_allocator<ScopedAllocator>(backing, 1, 7);
-	if (context == null) { return false; }
+	if (context == null) return false;
 	var first = new(context) LocalInterval(pair.first.offset, pair.first.count);
 	var second = new(context) LocalInterval(pair.second.offset, pair.second.count);
 	return first.valid(extent) && second.valid(extent);
 }
+
 int query_integer(u8[] bytes, int offset) throws QueryModel.Fault {
-	if (bytes[offset + 3] != 0) { throw new Error("query integer exceeds protocol bound"); }
+	if (bytes[offset + 3] != 0) {
+		throw new Error("query integer exceeds protocol bound");
+	}
 	return (bytes[offset] as int) + (bytes[offset + 1] as int) * 256 + (bytes[offset + 2] as int) * 65536;
 }
+
 void query_put_integer(u8[] bytes, int offset, int value) {
 	int remaining = value;
-	for (int i = 0; i < 4; i = i + 1) { bytes[offset + i] = (remaining % 256) as u8; remaining = remaining / 256; }
+	for (int i = 0; i < 4; i = i + 1) {
+		bytes[offset + i] = (remaining % 256) as u8;
+		remaining = remaining / 256;
+	}
 }
+
 void query_encode(u8[] bytes, QueryModel.Reply<QueryModel.Distribution> reply, int zero, int last) {
 	query_put_integer(bytes, 0, 82); query_put_integer(bytes, 4, reply.identity); query_put_integer(bytes, 8, 0);
 	query_put_integer(bytes, 12, reply.cached); query_put_integer(bytes, 16, reply.payload.generation);
@@ -39,14 +52,20 @@ void query_encode(u8[] bytes, QueryModel.Reply<QueryModel.Distribution> reply, i
 	query_put_integer(bytes, 60, reply.payload.value.order.median); query_put_integer(bytes, 64, reply.payload.value.order.upper);
 	query_put_integer(bytes, 68, reply.payload.value.order.maximum); query_put_integer(bytes, 72, zero); query_put_integer(bytes, 76, last);
 }
+
 void query_failure(u8[] bytes, int identity, int status) {
-	for (int i = 0; i < 80; i = i + 1) { bytes[i] = 0; }
+	for (int i = 0; i < 80; i = i + 1) bytes[i] = 0;
 	query_put_integer(bytes, 0, 82); query_put_integer(bytes, 4, identity); query_put_integer(bytes, 8, status);
 }
+
 owned QueryModel.Entry query_lookup(borrowed QueryModel.Cache cache, QueryModel.Pair ranges, int mode) {
-	if (mode == 1) { cache.miss(); return null; }
+	if (mode == 1) {
+		cache.miss();
+		return null;
+	}
 	var result = QueryModel.lookup(cache, ranges); return move result;
 }
+
 void query_success(u8[] bytes, borrowed QueryModel.Entry entry, int identity, int cached) {
 	QueryModel.Reply<QueryModel.Distribution> reply = QueryModel.reply(entry, identity, cached); query_encode(bytes, reply, entry.frequency(0), entry.frequency(255));
 }
@@ -54,40 +73,87 @@ void query_success(u8[] bytes, borrowed QueryModel.Entry entry, int identity, in
 async void query_client(owned TcpSocket socket, owned QueryModel.Queue reads, owned QueryModel.Cache cache, int client, int quota, int extent) throws QueryModel.Fault {
 	try {
 		var context = query_allocator(quota as i64, 128, 10 + client);
-		if (context == null) { throw new Error("query client allocator"); }
+		if (context == null) {
+			throw new Error("query client allocator");
+		}
 		var header = new(context)u8[24]; var response = new(context)u8[80];
 		bool done = false; int queries = 0;
 		while (!done) {
 			int received = 0; int started = astra_net_milliseconds();
 			while (received < 24) {
-				if (cache.stopped()) { throw new Error("query client stopped"); }
+				if (cache.stopped()) {
+					throw new Error("query client stopped");
+				}
 				int count = socket.try_read(header, received, 24 - received);
-				if (count > 0) { received = received + count; query_event(12, client, count); }
-				else { if (count == 0) { throw new Error("query client EOF"); } network_deadline(started, 15000); await delay_ms(1); }
+				if (count > 0) {
+					received = received + count;
+					query_event(12, client, count);
+				}
+				else {
+					if (count == 0) {
+						throw new Error("query client EOF");
+					}
+					network_deadline(started, 15000);
+					await delay_ms(1);
+				}
 			}
 			int identity = query_integer(header, 0);
-			if (identity == 0) { done = true; }
+			if (identity == 0) {
+				done = true;
+			}
 			else {
-				if (queries >= 64) { throw new Error("query request budget"); } queries = queries + 1;
+				if (queries >= 64) {
+					throw new Error("query request budget");
+				} queries = queries + 1;
 				QueryModel.Pair ranges = {first = {offset = query_integer(header, 4), count = query_integer(header, 8)}, second = {offset = query_integer(header, 12), count = query_integer(header, 16)}};
 				int mode = query_integer(header, 20); int cached = 0;
-				if (mode > 1 || !query_valid_pair(ranges, extent)) { cache.rejection(); query_failure(response, identity, 1); }
+				if (mode > 1 || !query_valid_pair(ranges, extent)) {
+					cache.rejection();
+					query_failure(response, identity, 1);
+				}
 				else {
 					var entry = query_lookup(cache, ranges, mode);
-					if (entry != null) { cached = 1; query_success(response, entry, identity, cached); }
+					if (entry != null) {
+						cached = 1;
+						query_success(response, entry, identity, cached);
+					}
 					else {
 						var ticket = QuerySetup.ticket(context, identity, mode, ranges);
-						while (!reads.available()) { if (cache.stopped()) { throw new Error("query read queue stopped"); } network_deadline(started, 15000); await delay_ms(1); }
-						var enqueued = QueryModel.clone_ticket(ticket); if (!reads.offer(move enqueued)) { throw new Error("query read queue admission"); }
-						while (ticket.state() == 0) { if (cache.stopped()) { throw new Error("query analysis stopped"); } network_deadline(started, 15000); await delay_ms(1); }
-						if (ticket.state() == 1) { var computed = ticket.outcome(); query_success(response, computed, identity, 0); }
-						else { query_failure(response, identity, 2); }
+						while (!reads.available()) {
+							if (cache.stopped()) {
+								throw new Error("query read queue stopped");
+							}
+							network_deadline(started, 15000);
+							await delay_ms(1);
+						}
+						var enqueued = QueryModel.clone_ticket(ticket); if (!reads.offer(move enqueued)) {
+							throw new Error("query read queue admission");
+						}
+						while (ticket.state() == 0) {
+							if (cache.stopped()) {
+								throw new Error("query analysis stopped");
+							}
+							network_deadline(started, 15000);
+							await delay_ms(1);
+						}
+						if (ticket.state() == 1) {
+							var computed = ticket.outcome();
+							query_success(response, computed, identity, 0);
+						}
+						else {
+							query_failure(response, identity, 2);
+						}
 					}
 				}
 				int sent = 0;
 				while (sent < 80) {
 					int count = socket.try_write(response, sent, 80 - sent);
-					if (count > 0) { sent = sent + count; } else { network_deadline(started, 15000); await delay_ms(1); }
+					if (count > 0) {
+						sent = sent + count;
+					} else {
+						network_deadline(started, 15000);
+						await delay_ms(1);
+					}
 				}
 				query_event(13, identity, cached);
 			}
@@ -100,42 +166,66 @@ async void query_read(owned LinuxPayload file, owned QueryModel.Queue reads, own
 	try {
 		bool done = false;
 		while (!done) {
-			if (cache.stopped()) { throw new Error("query file stage stopped"); }
+			if (cache.stopped()) {
+				throw new Error("query file stage stopped");
+			}
 			var ticket = reads.pop();
-			if (ticket == null) { if (cache.completed_clients() == 3) { done = true; } else { await delay_ms(1); } }
+			if (ticket == null) {
+				if (cache.completed_clients() == 3) {
+					done = true;
+				} else {
+					await delay_ms(1);
+				}
+			}
 			else {
 				var block = ticket.payload(); int destination = 0;
 				for (int half = 0; half < 2; half = half + 1) {
 					int offset = ticket.first_offset(); int length = ticket.first_count();
-					if (half == 1) { offset = ticket.second_offset(); length = ticket.second_count(); }
+					if (half == 1) {
+						offset = ticket.second_offset();
+						length = ticket.second_count();
+					}
 					int received = 0;
 					while (received < length) {
 						payload_configure(file, 0, length - received, (offset + received) as i64); await payload_io(file);
-						int count = astra_linux_payload_count(file); if (count <= 0 || count > length - received) { throw new Error("query file range progress"); }
-						for (int i = 0; i < count; i = i + 1) { block.set_byte(destination + received + i, payload_byte(file, i)); }
+						int count = astra_linux_payload_count(file); if (count <= 0 || count > length - received) {
+							throw new Error("query file range progress");
+						}
+						for (int i = 0; i < count; i = i + 1) block.set_byte(destination + received + i, payload_byte(file, i));
 						received = received + count;
 					}
 					destination = destination + length;
 				}
 				query_event(4, ticket.id(), destination);
-				while (!ready.available()) { if (cache.stopped()) { throw new Error("query CPU queue stopped"); } await delay_ms(1); }
-				if (!ready.offer(move ticket)) { throw new Error("query CPU queue admission"); }
+				while (!ready.available()) {
+					if (cache.stopped()) {
+						throw new Error("query CPU queue stopped");
+					}
+					await delay_ms(1);
+				}
+				if (!ready.offer(move ticket)) {
+					throw new Error("query CPU queue admission");
+				}
 			}
 		}
 		payload_finish(file);
 	} catch (QueryModel.Fault error) { cache.fail(); throw; }
 }
+
 async void query_compute(owned WorkerPool pool, owned QueryModel.Queue ready, owned QueryModel.Cache cache, int quota) throws QueryModel.Fault {
 	try {
 		int completed = 0;
 		{
 			var frames = query_allocator((quota * 2) as i64, 32, 40); var children = query_allocator((quota * 2) as i64, 32, 41);
-			if (frames == null || children == null) { throw new Error("query frame allocator"); }
+			if (frames == null || children == null) {
+				throw new Error("query frame allocator");
+			}
 			completed = await pool.submit(task_in(frames, QueryCPU.pipeline(move children, QueryModel.clone_queue(ready), QueryModel.clone_cache(cache), quota)));
 		}
 		query_event(10, completed, 0); query_event(11, query_provider_disposed(61), query_provider_disposed(62));
 	} catch (QueryModel.Fault error) { cache.fail(); throw; }
 }
+
 async void query_status(owned UdpSocket socket, owned QueryModel.Cache cache) throws QueryModel.Fault {
 	var bytes = new u8[24];
 	while (true) {
@@ -144,9 +234,13 @@ async void query_status(owned UdpSocket socket, owned QueryModel.Cache cache) th
 			if (packet.count == 1 && packet.message_length == 1 && bytes[0] == 81) {
 				query_put_integer(bytes, 0, 82); query_put_integer(bytes, 4, cache.hit_count()); query_put_integer(bytes, 8, cache.miss_count());
 				query_put_integer(bytes, 12, cache.count()); query_put_integer(bytes, 16, cache.rejections()); query_put_integer(bytes, 20, cache.completed_clients());
-				int count = socket.send_to(packet.peer, bytes, 0, 24); if (count != 24 && count != NetAgain && count != NetInterrupted) { throw new Error("query status send"); }
+				int count = socket.send_to(packet.peer, bytes, 0, 24); if (count != 24 && count != NetAgain && count != NetInterrupted) {
+					throw new Error("query status send");
+				}
 			}
-		} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) { throw; } }
+		} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) {
+				throw;
+			} }
 		await delay_ms(1);
 	}
 }
@@ -160,7 +254,9 @@ async void query_pipeline(owned TcpSocket first_socket, owned TcpSocket second_s
 	var status = query_status(move datagrams, QueryModel.clone_cache(cache));
 	try {
 		start(first); start(second); start(third); start(reader); start(workers); start(status);
-		while (cache.completed_clients() != 3 && !cache.stopped() && query_stop_requested() == 0) { await delay_ms(1); }
+		while (cache.completed_clients() != 3 && !cache.stopped() && query_stop_requested() == 0) {
+			await delay_ms(1);
+		}
 	} catch (QueryModel.Fault error) {
 		cancel(first); cancel(second); cancel(third); cancel(reader); cancel(workers); cancel(status);
 		await cancel_and_join(move first); await cancel_and_join(move second); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); await cancel_and_join(move status); throw;
@@ -168,7 +264,9 @@ async void query_pipeline(owned TcpSocket first_socket, owned TcpSocket second_s
 	if (cache.stopped() || query_stop_requested() != 0) {
 		cancel(first); cancel(second); cancel(third); cancel(reader); cancel(workers); cancel(status);
 		await cancel_and_join(move first); await cancel_and_join(move second); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); await cancel_and_join(move status);
-		if (query_stop_requested() == 0) { throw new Error("query pipeline failed"); }
+		if (query_stop_requested() == 0) {
+			throw new Error("query pipeline failed");
+		}
 	} else {
 		await cancel_and_join(move status);
 		try { await move first; } catch (QueryModel.Fault error) { cancel(second); cancel(third); cancel(reader); cancel(workers); await cancel_and_join(move second); await cancel_and_join(move third); await cancel_and_join(move reader); await cancel_and_join(move workers); throw; }
@@ -178,6 +276,7 @@ async void query_pipeline(owned TcpSocket first_socket, owned TcpSocket second_s
 		await move workers;
 	}
 }
+
 int query_service(string address, int family, string input) throws QueryModel.Fault {
 	NetworkEndpoint endpoint = network_endpoint(address, family, 0, 0);
 	var listener = new TcpSocket(); listener.open_family(family); listener.listen_at(endpoint, 8);
@@ -185,22 +284,38 @@ int query_service(string address, int family, string input) throws QueryModel.Fa
 	NetworkEndpoint tcp = listener.local_address(); NetworkEndpoint udp = datagrams.local_address(); query_ready(tcp.port, udp.port);
 	var first = new TcpSocket(); var second = new TcpSocket(); var third = new TcpSocket(); NetworkEndpoint peer = endpoint;
 	int started = astra_net_milliseconds();
-	while (!listener.accept_from(first, &peer)) { if (query_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
-	while (!listener.accept_from(second, &peer)) { if (query_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
-	while (!listener.accept_from(third, &peer)) { if (query_stop_requested() != 0) { return 130; } network_deadline(started, 15000); }
+	while (!listener.accept_from(first, &peer)) {
+		if (query_stop_requested() != 0) return 130;
+		network_deadline(started, 15000);
+	}
+	while (!listener.accept_from(second, &peer)) {
+		if (query_stop_requested() != 0) return 130;
+		network_deadline(started, 15000);
+	}
+	while (!listener.accept_from(third, &peer)) {
+		if (query_stop_requested() != 0) return 130;
+		network_deadline(started, 15000);
+	}
 	var context = concurrent_allocator(1, 262147, 31, 128);
-	if (context == null) { throw new Error("query control context"); }
+	if (context == null) {
+		throw new Error("query control context");
+	}
 	var reads = QuerySetup.queue(context, query_queue_capacity()); var ready = QuerySetup.queue(context, query_queue_capacity()); var cache = QuerySetup.cache(context, query_cache_capacity());
-	if (!reads.ready() || !ready.ready() || !cache.ready()) { throw new Error("query queue/cache admission"); }
-	var file = payload_open(input, 3071, 0); var pool = worker_pool(query_worker_count()); if (pool == null) { throw new Error("query worker pool"); }
+	if (!reads.ready() || !ready.ready() || !cache.ready()) {
+		throw new Error("query queue/cache admission");
+	}
+	var file = payload_open(input, 3071, 0); var pool = worker_pool(query_worker_count()); if (pool == null) {
+		throw new Error("query worker pool");
+	}
 	var executor = QueryIo.open(16); var result = executor.run(query_pipeline(move first, move second, move third, move datagrams, move file, move pool, move reads, move ready, move cache, query_quota(), query_file_extent()));
 	match (result) { case QueryPhase.Completed(): {} else: { return 2; } }
-	if (query_stop_requested() != 0) { return 130; } return 0;
+	if (query_stop_requested() != 0) return 130; return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 4 || args[2] != "4" && args[2] != "6") { return 64; }
-	if (query_prepare(args[3]) != 0) { return 64; }
-	int family = 4; if (args[2] == "6") { family = 6; }
+	if (len(args) != 4 || args[2] != "4" && args[2] != "6") return 64;
+	if (query_prepare(args[3]) != 0) return 64;
+	int family = 4; if (args[2] == "6") family = 6;
 	int result = 0;
 	try { result = query_service(args[1], family, args[3]); }
 	catch (QueryModel.Fault error) { query_error(error.message); result = 1; }

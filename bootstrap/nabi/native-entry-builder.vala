@@ -17,6 +17,7 @@ public class NativeEntryBuilder : Object {
 		validate (plan, source, native, selected);
 		return plan;
 	}
+
 	public static void validate(NativeProgramEntryPlan plan, SsaProgram source, NativeAbiProgram native, SsaFunction selected) throws NativeAbiError {
 		plan.verify ();
 		int ordinal = plan.function_ordinal;
@@ -36,5 +37,6 @@ public class NativeEntryBuilder : Object {
 			throw new NativeAbiError.INVALID_ABI ("text entry plan requires exact deep borrowed string[] and text-slice-v10 correspondence");
 		}
 	}
+
 }
 }

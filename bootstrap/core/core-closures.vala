@@ -10,6 +10,7 @@ public class CoreCallbackParameterView : CoreValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 public class CoreClosureBind : CoreValue {
 	public ActorBindingSpec? actor_binding { get; private set; }
@@ -24,12 +25,14 @@ public class CoreClosureBind : CoreValue {
 		this.cleanup = cleanup;
 		this.actor_binding = actor_binding == null ? null : actor_binding.copy ();
 	}
+
 }
 public class CoreClosureCall : CoreValue, CoreInvocation {
 	public CoreCleanupContract? owned_cleanup { get; private set; }
 	public CoreCleanupContract? result_cleanup() {
 		return owned_cleanup;
 	}
+
 	public GenericArray<CoreParameter> channel_parameters { get; private set; default = new GenericArray<CoreParameter> (); }
 	public CoreValue callee { get; private set; }
 	public GenericArray<CoreValue> arguments { get; private set; }
@@ -39,6 +42,7 @@ public class CoreClosureCall : CoreValue, CoreInvocation {
 		this.arguments = arguments;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 }
 namespace Astra.Core {
@@ -56,5 +60,6 @@ public class CoreActorSend : CoreStatement {
 		this.message = message;
 		this.error_type = error_type;
 	}
+
 }
 }

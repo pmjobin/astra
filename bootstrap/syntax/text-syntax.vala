@@ -13,6 +13,7 @@ public class Utf8FactoryExpressionSyntax : ExpressionSyntax {
 		this.input = input;
 		this.validates = validates;
 	}
+
 }
 internal class Utf8FactorySyntax : Object {
 	internal static BlockStatementSyntax body(string namespace_prefix = "") {
@@ -31,6 +32,7 @@ internal class Utf8FactorySyntax : Object {
 		construction.arguments[0] = new Utf8FactoryExpressionSyntax (construction.arguments[0].span, input, false);
 		return body;
 	}
+
 }
 public class TextLiteralExpressionSyntax : ExpressionSyntax {
 	public Token token { get; private set; }
@@ -39,6 +41,7 @@ public class TextLiteralExpressionSyntax : ExpressionSyntax {
 		base (token.span, 1);
 		this.token = token;
 	}
+
 }
 // Existing named fields keep their grammar. This bounded postfix permits
 // byte_length on a literal, parenthesized expression or native result.
@@ -50,6 +53,7 @@ public class TextMemberExpressionSyntax : ExpressionSyntax {
 		this.receiver = receiver;
 		this.member = member;
 	}
+
 }
 public class TextLiteralDecoder : Object {
 	public Diagnostic? diagnostic { get; private set; }
@@ -57,6 +61,7 @@ public class TextLiteralDecoder : Object {
 		diagnostic = new Diagnostic (SourceSpan (file, start, end), message);
 		return false;
 	}
+
 	private bool append(ByteArray bytes, uint8 value, SourceFile file, int start, int end) {
 		if (bytes.len >= int32.MAX) {
 			return fail (file, start, end, "string byte length exceeds signed I32 limit");
@@ -64,6 +69,7 @@ public class TextLiteralDecoder : Object {
 		bytes.append ({value});
 		return true;
 	}
+
 	public TextBytes? decode(SourceFile file, int start, ref int offset) {
 		var bytes = new ByteArray ();
 		while (offset < file.length) {
@@ -170,5 +176,6 @@ public class TextLiteralDecoder : Object {
 		fail (file, start, offset, "unterminated string literal");
 		return null;
 	}
+
 }
 }

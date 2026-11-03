@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 int mutate(int* p) { *p = 9; return 2; }
+
 int main() {
 	int x = 0;
 	int* p = &x;
 	int* q = p;
 	*p = 12;
 	*q = *q + 30;
-	if (x != 42) { return 1; }
+	if (x != 42) return 1;
 	x = 5;
 	int before = x + mutate(p);
-	if (before != 7 || x != 9) { return 2; }
+	if (before != 7 || x != 9) return 2;
 	x = 5;
 	int after = mutate(p) + x;
-	if (after != 11) { return 3; }
+	if (after != 11) return 3;
 	*p = *q + mutate(p);
-	if (x != 11) { return 4; }
+	if (x != 11) return 4;
 	*(&x) = 17;
-	if (*(&x) != 17 || *p != 17) { return 5; }
+	if (*(&x) != 17 || *p != 17) return 5;
 	return 0;
 }

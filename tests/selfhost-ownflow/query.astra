@@ -45,6 +45,7 @@ int main(string[] args) {
 		return 2;
 	}
 }
+
 void flow_query(FlowIndex index, string path, int offset, bool loan) throws Error {
 	int width = 2147483647;
 	FlowBlockId block = {
@@ -96,6 +97,7 @@ void flow_query(FlowIndex index, string path, int offset, bool loan) throws Erro
 	var text = output.snapshot();
 	print(text.text);
 }
+
 void flow_mutate(FlowIndex index, string mode) throws Error {
 	var before = syntax_program_dump(index.checked.bindings.program);
 	bool changed = false;
@@ -155,6 +157,7 @@ void flow_mutate(FlowIndex index, string mode) throws Error {
 	assert_that(changed && before.text == after.text);
 	println("MUTANT_REJECTED");
 }
+
 owned FlowIndex flow_text(string source, int limit, int steps) throws Error {
 	var program = parser_text_program(source);
 	var bindings = binding_index(move program, 0);
@@ -162,6 +165,7 @@ owned FlowIndex flow_text(string source, int limit, int steps) throws Error {
 	var result = flow_index(move checked, limit, steps);
 	return move result;
 }
+
 void flow_lifetime() throws Error {
 	string source = "void f(owned int[] x){release x;}void g(owned int[] x){release x;}";
 	var one = flow_text(source, 8192, 1000000);

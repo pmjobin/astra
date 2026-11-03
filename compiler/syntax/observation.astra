@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class SyntaxObservation {
 	owned Utf8ByteBuilder output;
+
 	init() {
 		var output = new Utf8ByteBuilder();
 		this.output = move output;
 	}
+
 	owned Utf8Message format(SyntaxArena arena, SyntaxNodeId arg_unit) throws Error {
 		var tmp_1 = (arena.list_count(arena.get_list_com_interfaces(arg_unit)) == 0);
 		if (tmp_1) {
@@ -551,6 +553,7 @@ class SyntaxObservation {
 		var unreachable = syntax_text("");
 		return move unreachable;
 	}
+
 	void line(SyntaxArena arena, int arg_indentation, string arg_text) throws Error {
 		var v_i_1 = 0;
 		var tmp_2 = true;
@@ -569,6 +572,7 @@ class SyntaxObservation {
 		source_append_text(this.output, arg_text);
 		syntax_append_byte(this.output, 10);
 	}
+
 	void write_property(SyntaxArena arena, SyntaxNodeId arg_property) throws Error {
 		if ((arena.get_token_owned_keyword(arg_property).index != 0)) {
 			this.line(arena, 2, "(owned-lazy-factory receiver-borrow-observation)");
@@ -628,6 +632,7 @@ class SyntaxObservation {
 		}
 		this.line(arena, 2, ")");
 	}
+
 	void write_function(SyntaxArena arena, SyntaxNodeId arg_function, int arg_indentation, bool arg_method) throws Error {
 		if ((arena.get_node_foreign_policy(arg_function).index != 0)) {
 			var v_policy_1 = arena.get_node_foreign_policy(arg_function);
@@ -933,6 +938,7 @@ class SyntaxObservation {
 		}
 		this.line(arena, (arg_indentation + 0), ")");
 	}
+
 	owned Utf8Message format_where(SyntaxArena arena, SyntaxNodeId arg_clause) throws Error {
 		var tmp_1 = new Utf8ByteBuilder();
 		var tmp_2 = arena.token_message(arena.get_token_type_parameter(arg_clause));
@@ -960,6 +966,7 @@ class SyntaxObservation {
 		var unreachable = syntax_text("");
 		return move unreachable;
 	}
+
 	void write_block(SyntaxArena arena, SyntaxNodeId arg_block, int arg_indentation) throws Error {
 		if ((arena.list_count(arena.get_list_statements(arg_block)) == 0)) {
 			this.line(arena, arg_indentation, "(block)");
@@ -982,6 +989,7 @@ class SyntaxObservation {
 		}
 		this.line(arena, arg_indentation, ")");
 	}
+
 	void write_statement(SyntaxArena arena, SyntaxNodeId arg_statement, int arg_indentation) throws Error {
 		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.AwaitStatementSyntax()))) {
 			var tmp_1 = this.format_expression(arena, arena.get_node_expression(arg_statement));
@@ -1438,6 +1446,7 @@ class SyntaxObservation {
 		var tmp_152 = tmp_151.snapshot();
 		this.line(arena, arg_indentation, tmp_152.text);
 	}
+
 	void write_field_initializer(SyntaxArena arena, SyntaxNodeId arg_field, int arg_indentation) throws Error {
 		var stack = new SyntaxDumpWalk();
 		stack.push(0, arg_field, arg_indentation);
@@ -1477,6 +1486,7 @@ class SyntaxObservation {
 			}
 		}
 	}
+
 	owned Utf8Message format_storage_initializer(SyntaxArena arena, SyntaxNodeId arg_initializer) throws Error {
 		var stack = new SyntaxDumpWalk();
 		var output = new Utf8ByteBuilder();
@@ -1517,6 +1527,7 @@ class SyntaxObservation {
 		var result = output.snapshot();
 		return move result;
 	}
+
 	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
 		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.AwaitExpressionSyntax()))) {
 			var tmp_1 = this.format_expression(arena, arena.get_node_operation(arg_expression));

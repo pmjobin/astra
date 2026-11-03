@@ -23,6 +23,7 @@ public abstract class CoreNativeInstance : CoreNode {
 		this.ordinal = ordinal;
 		this.fields = new GenericArray<CoreStructField> ();
 	}
+
 }
 
 public class CoreStruct : CoreNativeInstance {
@@ -32,6 +33,7 @@ public class CoreStruct : CoreNativeInstance {
 	internal CoreStruct (SourceSpan span, SourceSpan name_span, string name, SemanticType semantic_type, int ordinal = 0) {
 		base (span, name_span, name, semantic_type, ordinal);
 	}
+
 }
 
 public class CoreClass : CoreNativeInstance {
@@ -50,6 +52,7 @@ public class CoreClass : CoreNativeInstance {
 	internal CoreClass (SourceSpan span, SourceSpan name_span, string name, ClassType semantic_type, int ordinal = 0) {
 		base (span, name_span, name, semantic_type, ordinal);
 	}
+
 }
 
 // Shared native field descriptor; the historical name remains compatible.
@@ -58,6 +61,7 @@ public class CoreStructField : CoreNode {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool is_private { get; private set; }
 	public bool text_snapshot { get; internal set; default = false; }
 	public CoreCleanupContract? owned_cleanup { get; internal set; }
@@ -82,6 +86,7 @@ public class CoreStructField : CoreNode {
 		this.semantic_type = semantic_type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Function owns projections and bases. Projection -> base is strong and
@@ -97,10 +102,12 @@ public abstract class CoreStorageFieldPlace : CorePlace {
 		}
 		return root as CoreLocalPlace;
 	}
+
 	protected CoreStorageFieldPlace (SourceSpan span, CorePlace aggregate, SemanticType type) {
 		base (span, type);
 		this.aggregate = aggregate;
 	}
+
 }
 
 public class CoreFieldPlace : CoreStorageFieldPlace {
@@ -108,6 +115,7 @@ public class CoreFieldPlace : CoreStorageFieldPlace {
 	public StructLeafPath storage_path() {
 		return new StructLeafPath (path_ordinals (), semantic_type);
 	}
+
 	private int[] path_ordinals() {
 		var parent = aggregate as CoreFieldPlace;
 		int[]? prefix = parent == null ? null : parent.path_ordinals ();
@@ -119,10 +127,12 @@ public class CoreFieldPlace : CoreStorageFieldPlace {
 		result[depth] = field.ordinal;
 		return result;
 	}
+
 	internal CoreFieldPlace (SourceSpan span, CorePlace aggregate, CoreStructField field) {
 		base (span, aggregate, field.semantic_type);
 		this.field = field;
 	}
+
 }
 
 // Recursive direct-storage initialization, deliberately not a CoreValue.
@@ -143,6 +153,7 @@ public class CoreStructInitialize : CoreStatement {
 		this.target = target;
 		this.initializers = initializers;
 	}
+
 }
 
 // Unlike a direct field projection, this place follows a pointer VALUE.
@@ -155,6 +166,7 @@ public class CoreIndirectFieldPlace : CorePlace {
 		this.pointer = pointer;
 		this.field = field;
 	}
+
 }
 
 // A storage Place following one pointer value. Null must trap before access.
@@ -168,6 +180,7 @@ public class CoreDereferencePlace : CorePlace {
 		this.pointer = pointer;
 		this.provenance = provenance;
 	}
+
 }
 
 public class CoreAddressOfValue : CoreValue {
@@ -184,5 +197,6 @@ public class CoreAddressOfValue : CoreValue {
 		this.target = target;
 		this.provenance = provenance;
 	}
+
 }
 }

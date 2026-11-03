@@ -13,6 +13,7 @@ public class ComImportSyntax : SyntaxNode {
 		this.policy = policy;
 		this.declaration = declaration;
 	}
+
 }
 // Source identity is kept alongside the parsed arguments. Only checked
 // semantic C declarations grant an ABI; this syntax never generates code.
@@ -26,6 +27,7 @@ public class ForeignPolicySyntax : SyntaxNode {
 		this.kind = DeclarationPolicyRegistry.lookup (name.spelling ());
 		this.entries = entries;
 	}
+
 }
 
 // Bounded callable declaration metadata. No semantic or foreign ABI objects.
@@ -40,5 +42,6 @@ public class CCodeEntrySyntax : SyntaxNode {
 		this.value = value;
 		this.decoded = decoded_value;
 	}
+
 }
 }

@@ -13,6 +13,7 @@ internal class SourceFormatEdit : Object {
 		this.end = end;
 		this.replacement = replacement;
 	}
+
 }
 
 public class SourceFormatter : Object {
@@ -24,15 +25,18 @@ public class SourceFormatter : Object {
 
 	private static bool single_line(SourceFile source, int start, int end) {
 		for (int i = start; i < end; i++) {
-			if (source.byte_at (i) == '\r' || source.byte_at (i) == '\n') return false;
+			if (source.byte_at (i) == '\r' || source.byte_at (i) == '\n')
+				return false;
 		}
 		return true;
 	}
 
 	private static void expand(SourceFile source, BlockStatementSyntax body, GenericArray<CommentTrivia> comments, GenericArray<SourceFormatEdit> edits) {
-		if (body.open_brace.span.start == body.open_brace.span.end || body.statements.length == 0 || !single_line (source, body.span.start, body.span.end)) return;
+		if (body.open_brace.span.start == body.open_brace.span.end || body.statements.length == 0 || !single_line (source, body.span.start, body.span.end))
+			return;
 		foreach (var comment in comments) {
-			if (comment.span.start < body.span.end && comment.span.end > body.span.start) return;
+			if (comment.span.start < body.span.end && comment.span.end > body.span.start)
+				return;
 		}
 		int start = body.open_brace.span.end;
 		foreach (var statement in body.statements) {
@@ -43,13 +47,15 @@ public class SourceFormatter : Object {
 	}
 
 	private static void compact(SourceFile source, StatementSyntax control, BlockStatementSyntax body, GenericArray<CommentTrivia> comments, GenericArray<SourceFormatEdit> edits, HashTable<int, bool> removed) {
-		if (body.open_brace.span.start == body.open_brace.span.end) return;
+		if (body.open_brace.span.start == body.open_brace.span.end)
+			return;
 		if (body.statements.length != 1 || !simple (body.statements[0]) || !single_line (source, control.span.start, body.span.end)) {
 			expand (source, body, comments, edits);
 			return;
 		}
 		foreach (var comment in comments) {
-			if (comment.span.start < body.span.end && comment.span.end > control.span.start) return;
+			if (comment.span.start < body.span.end && comment.span.end > control.span.start)
+				return;
 		}
 		var statement = body.statements[0];
 		int before = body.open_brace.span.start - 1;
@@ -65,13 +71,15 @@ public class SourceFormatter : Object {
 			if (statement is IfStatementSyntax) {
 				var branch = (IfStatementSyntax) statement;
 				// Keep every explicit else boundary attached and braced.
-				if (branch.else_body == null) compact (source, branch, branch.then_body, comments, edits, removed);
+				if (branch.else_body == null)
+					compact (source, branch, branch.then_body, comments, edits, removed);
 				else {
 					expand (source, branch.then_body, comments, edits);
 					expand (source, branch.else_body, comments, edits);
 				}
 				walk (source, branch.then_body, comments, edits, removed);
-				if (branch.else_body != null) walk (source, branch.else_body, comments, edits, removed);
+				if (branch.else_body != null)
+					walk (source, branch.else_body, comments, edits, removed);
 			} else if (statement is WhileStatementSyntax) {
 				var loop = (WhileStatementSyntax) statement;
 				compact (source, loop, loop.body, comments, edits, removed);
@@ -89,30 +97,38 @@ public class SourceFormatter : Object {
 			} else if (statement is TryStatementSyntax) {
 				var attempt = (TryStatementSyntax) statement;
 				walk (source, attempt.body, comments, edits, removed);
-				foreach (var handler in attempt.catches) walk (source, handler.body, comments, edits, removed);
+				foreach (var handler in attempt.catches)
+					walk (source, handler.body, comments, edits, removed);
 			} else if (statement is MatchStatementSyntax) {
-				foreach (var arm in ((MatchStatementSyntax) statement).arms) walk (source, arm.body, comments, edits, removed);
+				foreach (var arm in ((MatchStatementSyntax) statement).arms)
+					walk (source, arm.body, comments, edits, removed);
 			}
 		}
 	}
 
 	private static void separate(SourceFile source, SyntaxNode previous, SyntaxNode next, GenericArray<SourceFormatEdit> edits) {
-		if (previous.span.end > next.span.start) return;
+		if (previous.span.end > next.span.start)
+			return;
 		int start = previous.span.end, end = start;
-		while (end < next.span.start && (source.byte_at (end) == ' ' || source.byte_at (end) == '\t' || source.byte_at (end) == '\n' || source.byte_at (end) == '\r')) end++;
+		while (end < next.span.start && (source.byte_at (end) == ' ' || source.byte_at (end) == '\t' || source.byte_at (end) == '\n' || source.byte_at (end) == '\r'))
+			end++;
 		// A line comment after the closing brace belongs to that line. Retain
 		// its attachment, and insert separation after its newline instead.
 		if (end + 1 < next.span.start && source.byte_at (end) == '/' && source.byte_at (end + 1) == '/' && single_line (source, start, end)) {
-			while (end < next.span.start && source.byte_at (end) != '\n') end++;
-			if (end == next.span.start) return;
+			while (end < next.span.start && source.byte_at (end) != '\n')
+				end++;
+			if (end == next.span.start)
+				return;
 			start = end++;
-			while (end < next.span.start && (source.byte_at (end) == ' ' || source.byte_at (end) == '\t' || source.byte_at (end) == '\n' || source.byte_at (end) == '\r')) end++;
+			while (end < next.span.start && (source.byte_at (end) == ' ' || source.byte_at (end) == '\t' || source.byte_at (end) == '\n' || source.byte_at (end) == '\r'))
+				end++;
 		}
 		edits.add (new SourceFormatEdit (start, end, "\n\n"));
 	}
 
 	private static bool authored(SyntaxNode node) {
-		if (!(node is FunctionDeclarationSyntax)) return true;
+		if (!(node is FunctionDeclarationSyntax))
+			return true;
 		var function = (FunctionDeclarationSyntax) node;
 		// Interfaces synthesize a default constructor and dummy method bodies.
 		// Generated names/bodies have no source declaration boundary to edit.
@@ -123,39 +139,51 @@ public class SourceFormatter : Object {
 		var edits = new GenericArray<SourceFormatEdit> ();
 		var removed = new HashTable<int, bool> (direct_hash, direct_equal);
 		var declarations = new GenericArray<SyntaxNode> ();
-		foreach (var value in unit.constants) declarations.add (value);
-		foreach (var value in unit.enums) declarations.add (value);
-		foreach (var value in unit.functions) {
-			if (!authored (value)) continue;
+		foreach (var value in unit.constants)
 			declarations.add (value);
-			if (value.body != null) walk (source, value.body, comments, edits, removed);
+		foreach (var value in unit.enums)
+			declarations.add (value);
+		foreach (var value in unit.functions) {
+			if (!authored (value))
+				continue;
+			declarations.add (value);
+			if (value.body != null)
+				walk (source, value.body, comments, edits, removed);
 		}
 		foreach (var value in unit.native_instances ()) {
 			declarations.add (value);
 			SyntaxNode? previous = null;
 			foreach (var member in value.members) {
-				if (!authored (member)) continue;
-				if (previous != null && (previous is FunctionDeclarationSyntax || member is FunctionDeclarationSyntax || previous is PropertyDeclarationSyntax || member is PropertyDeclarationSyntax)) separate (source, previous, member, edits);
-				if (member is FunctionDeclarationSyntax && ((FunctionDeclarationSyntax) member).body != null) walk (source, ((FunctionDeclarationSyntax) member).body, comments, edits, removed);
+				if (!authored (member))
+					continue;
+				if (previous != null && (previous is FunctionDeclarationSyntax || member is FunctionDeclarationSyntax || previous is PropertyDeclarationSyntax || member is PropertyDeclarationSyntax))
+					separate (source, previous, member, edits);
+				if (member is FunctionDeclarationSyntax && ((FunctionDeclarationSyntax) member).body != null)
+					walk (source, ((FunctionDeclarationSyntax) member).body, comments, edits, removed);
 				if (member is PropertyDeclarationSyntax) {
 					var property = (PropertyDeclarationSyntax) member;
 					walk (source, property.getter.body, comments, edits, removed);
-					if (property.setter != null) walk (source, property.setter.body, comments, edits, removed);
+					if (property.setter != null)
+						walk (source, property.setter.body, comments, edits, removed);
 				}
 				previous = member;
 			}
 		}
 		var ordered_declarations = new GLib.List<SyntaxNode> ();
-		foreach (var declaration in declarations) ordered_declarations.append (declaration);
+		foreach (var declaration in declarations)
+			ordered_declarations.append (declaration);
 		ordered_declarations.sort ((a, b) => a.span.start - b.span.start);
 		declarations = new GenericArray<SyntaxNode> ();
-		foreach (var declaration in ordered_declarations) declarations.add (declaration);
+		foreach (var declaration in ordered_declarations)
+			declarations.add (declaration);
 		for (int i = 1; i < declarations.length; i++) {
 			var previous = declarations[i - 1];
-			if (!(previous is ConstantDeclarationSyntax)) separate (source, previous, declarations[i], edits);
+			if (!(previous is ConstantDeclarationSyntax))
+				separate (source, previous, declarations[i], edits);
 		}
 		var ordered_edits = new GLib.List<SourceFormatEdit> ();
-		foreach (var edit in edits) ordered_edits.append (edit);
+		foreach (var edit in edits)
+			ordered_edits.append (edit);
 		ordered_edits.sort ((a, b) => a.start - b.start);
 		var output = new StringBuilder ();
 		int offset = 0;
@@ -172,19 +200,26 @@ public class SourceFormatter : Object {
 		var after_source = new SourceFile.from_text (source.path, output.str);
 		var after_parse = Parser.parse (after_source);
 		diagnostic = after_parse.diagnostic;
-		if (diagnostic != null) return null;
+		if (diagnostic != null)
+			return null;
 		GenericArray<CommentTrivia> after_comments;
 		var after = tokenize (after_source, out after_comments, out diagnostic);
-		if (after == null) return null;
+		if (after == null)
+			return null;
 		bool same = comments.length == after_comments.length && SyntaxDump.format (unit) == SyntaxDump.format (after_parse.unit);
 		int index = 0;
 		foreach (var token in tokens) {
-			if (removed.contains (token.span.start)) continue;
-			if (index >= after.length || token.kind != after[index].kind || token.spelling () != after[index].spelling ()) { same = false; break; }
+			if (removed.contains (token.span.start))
+				continue;
+			if (index >= after.length || token.kind != after[index].kind || token.spelling () != after[index].spelling ()) {
+				same = false;
+				break;
+			}
 			index++;
 		}
 		same = same && index == after.length;
-		for (int i = 0; same && i < comments.length; i++) same = comments[i].span.text () == after_comments[i].span.text ();
+		for (int i = 0; same && i < comments.length; i++)
+			same = comments[i].span.text () == after_comments[i].span.text ();
 		if (!same) {
 			diagnostic = new Diagnostic (SourceSpan (source, 0, 0), "formatter changed normalized AST or unapproved tokens/comments");
 			return null;
@@ -195,12 +230,15 @@ public class SourceFormatter : Object {
 	public static string? format(SourceFile source, out Diagnostic? diagnostic) {
 		var parsed = Parser.parse (source);
 		diagnostic = parsed.diagnostic;
-		if (diagnostic != null) return null;
+		if (diagnostic != null)
+			return null;
 		GenericArray<CommentTrivia> comments;
 		var tokens = tokenize (source, out comments, out diagnostic);
-		if (tokens == null) return null;
+		if (tokens == null)
+			return null;
 		var text = structure (source, parsed.unit, tokens, comments, out diagnostic);
-		if (text == null) return null;
+		if (text == null)
+			return null;
 		return indent (new SourceFile.from_text (source.path, text), out diagnostic);
 	}
 
@@ -331,5 +369,6 @@ public class SourceFormatter : Object {
 		diagnostic = Parser.parse (formatted).diagnostic;
 		return diagnostic == null ? output.str : null;
 	}
+
 }
 }

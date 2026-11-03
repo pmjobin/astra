@@ -92,4 +92,5 @@ private void register_malformed() {
 	add ("/ptr/verifier/ssa-null-and-canonical-types", malformed_ssa);
 	add ("/ptr/verifier/operators", malformed_operators);
 }
+
 }

@@ -18,6 +18,7 @@ private NativeAbiProgram sample(int variant = 0) throws NativeAbiError {
 	}
 	return program;
 }
+
 private void qualify() {
 	try {
 		NativeAbiProgram? program = sample ();
@@ -42,9 +43,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-slice/nabi/independent-exact-element-shape-and-borrow-plans", qualify);
 	return Test.run ();
 }
+
 }

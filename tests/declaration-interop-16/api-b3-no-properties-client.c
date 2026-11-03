@@ -5,13 +5,16 @@
 #include <stdint.h>
 #include <stdio.h>
 typedef struct Worker Worker;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t propertyless16_create(Worker **, Error *);
 extern int32_t propertyless16_apply(Worker *, int64_t, double, bool, int64_t *, Error *);
 extern uint32_t propertyless16_release(Worker *);
 extern GObject *propertyless16_worker_as_gobject(Worker *, GError **);
+
 int main(void) {
 	Worker *root = NULL;
 	Error error = {0};

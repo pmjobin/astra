@@ -2,39 +2,55 @@
 class Item {
 	owned Other resource;
 	int code;
+
 	init(int code) { this.resource = make_other(code); this.code = code; }
+
 	deinit() { mark(200 + this.code); }
 }
+
 struct Pair { owned R resource; owned Item child; owned int[] bytes; int tag; }
+
 struct Document { Pair payload; int serial; }
+
 enum Route { Held(Document value, int tag), Buffer(owned int[] bytes), Empty }
+
 enum Envelope { Wrapped(Route value), Empty }
+
 enum PairRoutes { Both(Document first, Document second, owned R tail), Empty }
+
 Document fresh(int code) {
 	var child = new Item(code + 1);
 	Document value = {payload={child=move child,bytes=new int[2],resource=make(code),tag=7},serial=9};
 	return move value;
 }
+
 int argument(bool failure) throws Error {
 	mark(100);
-	if (failure) { throw new Error("record enum payload"); }
+	if (failure) {
+		throw new Error("record enum payload");
+	}
 	return 4;
 }
+
 Route relay(Route value) { return move value; }
+
 void consume(Document value) {
 	var bytes = move value.payload.bytes;
 	mark(value.serial + value.payload.tag + len(bytes));
 }
+
 Document unwrap(Route value) {
 	match (move value) {
 		case Route.Held(record, _): { return move record; }
 		else: { return fresh(30); }
 	}
 }
+
 owned Item extract(Document value) {
 	var child = move value.payload.child;
 	return move child;
 }
+
 void exercise(bool failure) {
 	var document = fresh(1);
 	try {
@@ -56,6 +72,7 @@ void exercise(bool failure) {
 		}
 	} catch (Error error) { mark(900 + document.serial); }
 }
+
 int main() {
 	exercise(false);
 	exercise(true);

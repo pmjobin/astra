@@ -59,4 +59,5 @@ private void register_borrows() {
 	}
 	add ("/exec/borrow/object-linkage-lifetime", borrow_object_lifetime);
 }
+
 }

@@ -1,20 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair { int x; int y; }
+
 void mutate(Pair* p) { p->x = 7; }
+
 int scoped() {
 	Pair pair = { x = 1, y = 2 };
 	Pair* p = &pair;
 	owned void* a = create_resource(1);
-	if (a == null || null == a) { return 1; }
+	if (a == null || null == a) return 1;
 	owned void* b = move a;
 	Pair* q = p;
 	mutate(q);
-	if (b != null && p->x == 7) { return pair.x; }
+	if (b != null && p->x == 7) return pair.x;
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped() != 7) { return 1; }
-	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	if (scoped() != 7) return 1;
+	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 2;
 	return 0;
 }

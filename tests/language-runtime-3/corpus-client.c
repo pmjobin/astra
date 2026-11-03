@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 extern int64_t surge_shipment_total(int32_t, int32_t);
+
 int main(int argc, char **argv) {
 	if (argc != 3) return 64;
 	int32_t price = (int32_t)strtol(argv[1], NULL, 10);

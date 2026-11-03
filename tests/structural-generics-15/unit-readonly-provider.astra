@@ -1,24 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace ReadLibrary;
 struct Snapshot<T> { T value; int generation; }
+
 class Payload<T> {
 	private T data;
 	private int generation;
 	private owned R retained;
+
 	init(owned R retained, T value, int generation) {
 		this.retained = move retained;
 		this.data = value;
 		this.generation = generation;
 	}
+
 	property T value {
 		get { return this.data; }
 		set(T incoming) { this.data = incoming; }
 	}
+
 	property Snapshot<T> snapshot {
 		get {
 			Snapshot<T> result = {value = this.data, generation = this.generation};
 			return result;
 		}
 	}
+
 	deinit() { mark(2100); }
 }

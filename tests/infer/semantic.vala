@@ -28,6 +28,7 @@ private void exact_types() {
 		assert (value.value.exact_bits == (suffix.down () == "d" ? 0x3ff0000000000001UL : 0x3f800000UL));
 	}
 }
+
 private void contracts() {
 	foreach (string name in fixtures ()) {
 		var inferred = fixture (name);
@@ -56,10 +57,12 @@ private void contracts() {
 	assert (initializer.candidate_storage != null && initializer.candidate_storage.result_candidate);
 	assert (main.locals[0].name_span.text () == "image" && main.locals[0].span.text ().has_prefix ("var image"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/infer/semantic/exact-identities-literal-bits-null", exact_types);
 	Test.add_func ("/infer/semantic/explicit-equivalence-ownership-storage-provenance", contracts);
 	return Test.run ();
 }
+
 }

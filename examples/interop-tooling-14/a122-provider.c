@@ -4,15 +4,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+
 struct PacketReader {
 	FILE *file;
 	int32_t expected, consumed, kind, failed;
 };
+
 static int opened, closed, callbacks;
+
 static int setting(const char *name) {
 	const char *s = getenv(name);
 	return s ? atoi(s) : 0;
 }
+
 PacketReader *a122_open(void) {
 	if (setting("A122_ALLOC_FAIL")) return NULL;
 	PacketReader *r = calloc(1, sizeof(*r));
@@ -26,6 +30,7 @@ PacketReader *a122_open(void) {
 	++opened;
 	return r;
 }
+
 void a122_close(PacketReader *r) {
 	if (!r) return;
 	if (fclose(r->file) != 0) abort();
@@ -33,6 +38,7 @@ void a122_close(PacketReader *r) {
 	memset(r, 0xa5, sizeof(*r));
 	free(r);
 }
+
 int32_t a122_header(PacketReader *r, int32_t *magic, int32_t *count) {
 	unsigned char bytes[6];
 	if (!r || !magic || !count) return -1;
@@ -45,11 +51,13 @@ int32_t a122_header(PacketReader *r, int32_t *magic, int32_t *count) {
 	r->expected = *count;
 	return 0;
 }
+
 int32_t a122_kind(PacketReader *r) {
 	if (!r || r->failed) return -1;
 	r->kind = fgetc(r->file);
 	return r->kind;
 }
+
 static uint64_t payload(PacketReader *r, int expected) {
 	unsigned char bytes[8];
 	if (!r || r->kind != expected || fread(bytes, 1, 8, r->file) != 8) {
@@ -62,22 +70,27 @@ static uint64_t payload(PacketReader *r, int expected) {
 	++r->consumed;
 	return value;
 }
+
 A122Packet a122_signed(PacketReader *r) {
 	uint64_t bits = payload(r, 1);
 	A122Packet result = {1, {.integer = 0}};
 	memcpy(&result.payload.integer, &bits, sizeof(bits));
 	return result;
 }
+
 A122Packet a122_unsigned(PacketReader *r) {
 	A122Packet result = {2, {.bits = payload(r, 2)}};
 	return result;
 }
+
 int32_t a122_status(PacketReader *r) {
 	return r ? r->failed : -1;
 }
+
 bool a122_complete(PacketReader *r) {
 	return r && !r->failed && r->consumed == r->expected && fgetc(r->file) == EOF && !ferror(r->file);
 }
+
 int32_t a122_apply(int32_t (*callback)(A122Stats *, int32_t), A122Stats *stats, int32_t ordinal) {
 	if (!callback || !stats || stats->count != ordinal - 1) abort();
 	++callbacks;
@@ -85,6 +98,7 @@ int32_t a122_apply(int32_t (*callback)(A122Stats *, int32_t), A122Stats *stats, 
 	if (stats->count != ordinal || stats->last != ordinal || stats->total != (int64_t)ordinal * (ordinal + 1) / 2) abort();
 	return result;
 }
+
 int32_t a122_finish(int32_t result) {
 	int expected = setting("A122_EXPECT");
 	int owners = setting("A122_OWNERS");

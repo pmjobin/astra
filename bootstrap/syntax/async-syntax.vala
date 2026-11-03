@@ -15,6 +15,7 @@ public class AsyncRuntimeSyntax : SyntaxNode {
 		this.error = error;
 		this.status = status;
 	}
+
 }
 public class AwaitExpressionSyntax : ExpressionSyntax {
 	public Token keyword { get; private set; }
@@ -24,6 +25,7 @@ public class AwaitExpressionSyntax : ExpressionSyntax {
 		this.keyword = keyword;
 		this.operation = operation;
 	}
+
 }
 
 public class AwaitStatementSyntax : StatementSyntax {
@@ -32,5 +34,6 @@ public class AwaitStatementSyntax : StatementSyntax {
 		base (SourceSpan.cover (expression.span, end.span));
 		this.expression = expression;
 	}
+
 }
 }

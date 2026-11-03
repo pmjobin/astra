@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 async int image2_calculate(owned ImageJob18 job) throws Error { return job.run(); }
+
 async void image2_execute(owned ConcurrentAllocator context, owned ConcurrentAllocator frames) throws Error {
 	var job0 = image2_job(context, 0); var job1 = image2_job(context, 1);
 	var job2 = image2_job(context, 2); var job3 = image2_job(context, 3);
@@ -26,12 +27,16 @@ async void image2_execute(owned ConcurrentAllocator context, owned ConcurrentAll
 		throw new Error("image retirement/output");
 	}
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
-	if (image2_prepare(args[1], args[2]) != 0) { return 65; }
+	if (len(args) != 3) return 64;
+	if (image2_prepare(args[1], args[2]) != 0) return 65;
 	var context = concurrent_allocator(1, 2097152, 64, 64);
 	var frames = concurrent_allocator(2, 262144, 32, 64);
-	if (context == null || frames == null) { image2_abort(); return 2; }
+	if (context == null || frames == null) {
+		image2_abort();
+		return 2;
+	}
 	try {
 		var executor = ThreadedExecutor.open(image2_workers());
 		var status = executor.run(image2_execute(move context, move frames));

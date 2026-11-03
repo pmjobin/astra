@@ -11,6 +11,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void signatures() throws GLib.Error {
 	string basic = lower (build (read ("basic"))).dump ();
 	assert (basic.contains ("define internal fastcc void @astra.method.0.0(ptr %this, i32 %p0)"));
@@ -32,6 +33,7 @@ private void signatures() throws GLib.Error {
 	assert (owned.contains ("define internal fastcc ptr @astra.method.0.1(ptr %this, ptr %p0.base, i32 %p0.length, ptr %p1)"));
 	assert (!owned.contains ("noalias") && !owned.contains ("method.descriptor"));
 }
+
 private void entry() throws GLib.Error {
 	var ssa = build ("struct S { int x; int main () { return 42; } }");
 	var nabi = NativeAbiBuilder.build (ssa);
@@ -43,6 +45,7 @@ private void entry() throws GLib.Error {
 	}
 	GLib.error ("method accepted as a program entry without a receiver");
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (read ("recursive"));
 	var method = WeakRef (ssa.structs[0].methods[0]);
@@ -60,6 +63,7 @@ private void lifetime() throws GLib.Error {
 	FileUtils.unlink (directory + "/method.o");
 	DirUtils.remove (directory);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -70,4 +74,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

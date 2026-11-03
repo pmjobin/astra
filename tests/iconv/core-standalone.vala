@@ -105,4 +105,5 @@ int main(string[] args) {
 	Test.add_func ("/iconv/core/standalone-values-and-verifier", values);
 	return Test.run ();
 }
+
 }

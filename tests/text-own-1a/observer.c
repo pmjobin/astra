@@ -9,19 +9,23 @@
 
 extern void *__libc_calloc(size_t, size_t);
 extern void __libc_free(void *);
+
 static struct {
 	void *pointer;
 	size_t bytes;
 	int live;
 } allocations[256];
+
 static struct {
 	void *object, *payload;
 	int32_t length;
 	int dropped, payload_freed, freed;
 } messages[128];
+
 static int used, count, drops, object_frees, payload_frees, allocation_calls;
 static const unsigned char *input;
 static int32_t input_length;
+
 static void require(int yes) {
 	if (!yes) {
 		_Exit(98);
@@ -43,6 +47,7 @@ void *calloc(size_t n, size_t size) {
 	}
 	return pointer;
 }
+
 static size_t extent(void *pointer) {
 	for (int i = used - 1; i >= 0; i--) {
 		if (allocations[i].pointer == pointer && allocations[i].live) {
@@ -51,16 +56,19 @@ static size_t extent(void *pointer) {
 	}
 	_Exit(98);
 }
+
 void utf8_observe_input(const unsigned char *bytes, int32_t length) {
 	input = bytes;
 	input_length = length;
 }
+
 void utf8_observe_owner(void *object) {
 	// Native ordinary nonpolymorphic Class { counted-text {PTR,I32} }.
 	struct descriptor {
 		const unsigned char *data;
 		int32_t length;
 	};
+
 	_Static_assert(sizeof(void *) == 8 && offsetof(struct descriptor, length) == 8 && sizeof(struct descriptor) == 16, "qualified GNU x86-64 descriptor");
 	struct descriptor text;
 	require(object != NULL && extent(object) == sizeof(text));
@@ -84,6 +92,7 @@ void utf8_observe_owner(void *object) {
 	messages[count].payload = (void *)text.data;
 	messages[count++].length = text.length;
 }
+
 void utf8_observe_drop(void *object) {
 	for (int i = count - 1; i >= 0; i--) {
 		if (messages[i].object == object && !messages[i].freed) {
@@ -98,6 +107,7 @@ void utf8_observe_drop(void *object) {
 		}
 	}
 }
+
 void free(void *pointer) {
 	if (!pointer) {
 		return;
@@ -127,6 +137,7 @@ void free(void *pointer) {
 	}
 	__libc_free(pointer);
 }
+
 __attribute__((destructor)) static void finish(void) {
 	for (int i = 0; i < used; i++) {
 		require(!allocations[i].live);

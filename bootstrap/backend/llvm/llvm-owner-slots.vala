@@ -11,11 +11,13 @@ internal class LlvmSlotsLayoutBinding : Object {
 		this.descriptor = descriptor;
 		this.slot = slot;
 	}
+
 	internal void verify(CApi.TargetDataRef data) throws LlvmError {
 		if (CApi.abi_size_of_type (data, descriptor) != 16 || CApi.abi_alignment_of_type (data, descriptor) != 8 || CApi.offset_of_element (data, descriptor, 0) != 0 || CApi.offset_of_element (data, descriptor, 1) != 8 || CApi.offset_of_element (data, descriptor, 2) != 12 || CApi.abi_size_of_type (data, slot) != 8 || CApi.abi_alignment_of_type (data, slot) != 8) {
 			throw new LlvmError.VERIFICATION ("owner-slot descriptor/element lost qualified LP64 extent, stride or alignment");
 		}
 	}
+
 }
 
 // Private per-exact-Class operations. All arguments and complete bodies are
@@ -81,6 +83,7 @@ internal class LlvmSlotsLowering : Object {
 		}
 		return CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 	}
+
 	internal CApi.TypeRef record_type(SsaStructField field) throws LlvmError {
 		var record = classes.slot_record (field);
 		if (record == null) {
@@ -94,12 +97,14 @@ internal class LlvmSlotsLowering : Object {
 		artifact.class_addresses.add (new LlvmClassAddressBinding (address, descriptor, types.owner_slots_descriptor (), index));
 		return address;
 	}
+
 	private CApi.ValueRef slot_address(CApi.BuilderRef builder, CApi.TypeRef element_type, CApi.ValueRef backing, CApi.ValueRef index, string name) throws LlvmError {
 		CApi.ValueRef[] indices = {
 			index
 		};
 		return CApi.build_gep (builder, element_type, backing, indices, 1, name);
 	}
+
 	private CApi.BasicBlockRef block(CApi.ValueRef function, string name) {
 		return CApi.append_basic_block_in_context (artifact.context, function, name);
 	}
@@ -125,6 +130,7 @@ internal class LlvmSlotsLowering : Object {
 		CApi.position_builder_at_end (builder, next);
 		state.end = next;
 	}
+
 	private void destroy_record(CApi.BuilderRef builder, CApi.ValueRef function, LlvmBufferAllocation allocator, NativeStructValuePlan plan, CApi.ValueRef value, LlvmBlockState state, string name) throws LlvmError {
 		var leaves = new CApi.ValueRef[plan.leaves.length];
 		for (int l = 0; l < leaves.length; l++) {
@@ -132,6 +138,7 @@ internal class LlvmSlotsLowering : Object {
 		}
 		new LlvmRecordOwnership (artifact, types, classes, cleanup_correspondence, cleanup_functions).destroy_record (builder, function, allocator, plan, leaves, state, name);
 	}
+
 	private CApi.ValueRef helper(SsaCleanupContract? cleanup, NativeStructValuePlan? record, string action, SsaClass? container) throws LlvmError {
 		var element = cleanup == null ? null : cleanup.object_class;
 		bool heap = cleanup != null && cleanup.is_heap_object;
@@ -416,5 +423,6 @@ internal class LlvmSlotsLowering : Object {
 		artifact.slots_helpers.insert (name, (void*) function);
 		return function;
 	}
+
 }
 }

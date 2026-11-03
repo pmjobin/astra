@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="outs16_retired")] int retired(int kind);
+
 [ExceptionRoot] class Fault {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
+
 	deinit() { retired(1); }
 }
+
 [CExport(name="outs16",profile="declarations-v1",bool_abi="c99")]
 class Outputs {
 	private int seed;
+
 	[Foreign][ForeignChannel(parameter="born",direction="out")]
 	init(int seed, borrowed i64* born) { this.seed = seed; *born = seed as i64 + 4000000000; }
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	[ForeignChannel(parameter="sum",direction="out")]
 	[ForeignChannel(parameter="unsigned32",direction="out")]
@@ -20,41 +27,54 @@ class Outputs {
 	[ForeignChannel(parameter="double_value",direction="inout")]
 	void calculate(int mode, borrowed int* sum, borrowed u32* unsigned32, borrowed i64* signed64, borrowed u64* unsigned64, borrowed f32* single, borrowed f64* double_value) throws Fault {
 		*sum = this.seed + 9; *unsigned32 = 4000000000; *signed64 = -4000000000; *unsigned64 = 9223372036854775809; *single = 1.25; *double_value = *double_value + 2.5;
-		if (mode != 0) { throw new Fault("rollback"); }
+		if (mode != 0) {
+			throw new Fault("rollback");
+		}
 	}
+
 	[Foreign][ForeignChannel(parameter="value",direction="in")]
 	int snapshot(borrowed int* value) { int prior = *value; *value = 99; return prior + this.seed; }
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	[ForeignChannel(parameter="output",direction="out",produced="produced")]
 	[ForeignChannel(parameter="produced",direction="out")]
 	bool fill(borrowed u8[] output, borrowed int* produced, int mode) throws Fault {
-		if (len(output) > 0) { output[0] = 61; }
+		if (len(output) > 0) output[0] = 61;
 		*produced = len(output);
-		if (mode == 1) { throw new Fault("partial"); }
-		if (mode == 2) { *produced = len(output) + 1; }
-		if (mode == 3) { *produced = -1; }
+		if (mode == 1) {
+			throw new Fault("partial");
+		}
+		if (mode == 2) *produced = len(output) + 1;
+		if (mode == 3) *produced = -1;
 		return len(output) > 0;
 	}
+
 	[Foreign]
 	[ForeignChannel(parameter="output",direction="out",produced="produced")]
 	[ForeignChannel(parameter="produced",direction="out")]
 	owned Child compose(borrowed u8[] output, borrowed int* produced, int mode) {
-		var child = new Child(17); if (len(output) > 0) { output[0] = 65; } *produced = len(output);
-		if (mode != 0) { *produced = len(output) + 1; } return move child;
+		var child = new Child(17); if (len(output) > 0) output[0] = 65; *produced = len(output);
+		if (mode != 0) *produced = len(output) + 1; return move child;
 	}
 }
+
 [CExport(name="out_ctor16",profile="declarations-v1")]
 class BufferCtor {
 	[Foreign]
 	[ForeignChannel(parameter="output",direction="out",produced="produced")]
 	[ForeignChannel(parameter="produced",direction="out")]
-	init(borrowed u8[] output, borrowed int* produced, int mode) { if (len(output) > 0) { output[0] = 63; } *produced = len(output); if (mode != 0) { *produced = len(output) + 1; } }
+	init(borrowed u8[] output, borrowed int* produced, int mode) { if (len(output) > 0) output[0] = 63; *produced = len(output); if (mode != 0) *produced = len(output) + 1; }
+
 	deinit() { retired(3); }
 }
+
 [CExport(name="out_child16",profile="declarations-v1")]
 class Child {
 	private int value;
+
 	[Foreign] init(int value) { this.value = value; }
+
 	[Foreign] int code() { return this.value; }
+
 	deinit() { retired(2); }
 }

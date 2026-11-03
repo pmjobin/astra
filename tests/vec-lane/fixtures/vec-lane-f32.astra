@@ -1,31 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 f32 nan(f32 x) { return x / x; }
+
 f32<4> broadcast(f32 x) { return splat(x, 4); }
+
 f32<4> replace(f32<4> v, f32 x) { return insert(v, 1, x); }
+
 f32<4> reverse(f32<4> v) { return shuffle(v, 3, 2, 1, 0); }
+
 f32<4> choose(bool<4> m, f32<4> a, f32<4> b) { return select(m, a, b); }
+
 f32<4> rounds(f32<4> a, f32<4> b, f32<4> c) { return shuffle(a * b, 3, 2, 1, 0) + c; }
+
 int main() {
 	f32 tiny = 1.401298464324817070923729583289916131280e-45;
 	f32 infinity = 1.0 / 0.0;
 	f32 n = nan(0.0);
 	f32<4> ns = broadcast(n);
-	if (!all(ns != ns) || !all(broadcast(tiny) == splat(tiny, 4))) { return 1; }
+	if (!all(ns != ns) || !all(broadcast(tiny) == splat(tiny, 4))) return 1;
 	f32<4> special = {-0.0, tiny, 2.0, infinity};
 	f32<4> r = reverse(special);
-	if (r[0] != infinity || r[1] != 2.0 || r[2] != tiny || 1.0 / r[3] != -infinity) { return 2; }
+	if (r[0] != infinity || r[1] != 2.0 || r[2] != tiny || 1.0 / r[3] != -infinity) return 2;
 	f32<4> inserted = replace(special, -0.0);
-	if (1.0 / inserted[0] != -infinity || 1.0 / inserted[1] != -infinity || inserted[2] != 2.0 || inserted[3] != infinity) { return 3; }
+	if (1.0 / inserted[0] != -infinity || 1.0 / inserted[1] != -infinity || inserted[2] != 2.0 || inserted[3] != infinity) return 3;
 	inserted = replace(special, n);
-	if (inserted[1] == inserted[1]) { return 4; }
+	if (inserted[1] == inserted[1]) return 4;
 	bool<4> mask = {true, false, true, false};
 	f32<4> zeros = choose(mask, broadcast(0.0), broadcast(-0.0));
-	if (1.0 / zeros[0] != infinity || 1.0 / zeros[1] != -infinity || 1.0 / zeros[2] != infinity || 1.0 / zeros[3] != -infinity) { return 5; }
+	if (1.0 / zeros[0] != infinity || 1.0 / zeros[1] != -infinity || 1.0 / zeros[2] != infinity || 1.0 / zeros[3] != -infinity) return 5;
 	f32<4> chosen = choose(mask, ns, special);
-	if (chosen[0] == chosen[0] || chosen[2] == chosen[2] || chosen[1] != tiny || chosen[3] != infinity) { return 6; }
+	if (chosen[0] == chosen[0] || chosen[2] == chosen[2] || chosen[1] != tiny || chosen[3] != infinity) return 6;
 	f32<4> a = broadcast(1.00000011920928955078125);
 	f32<4> b = broadcast(1.00000011920928955078125);
 	f32<4> c = broadcast(-1.0000002384185791015625);
-	if (!all(rounds(a, b, c) == broadcast(0.0))) { return 7; }
+	if (!all(rounds(a, b, c) == broadcast(0.0))) return 7;
 	return 0;
 }

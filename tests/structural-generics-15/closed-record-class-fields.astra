@@ -1,18 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Exact declaration-only source from tests/gen-struct/semantic.vala.
-struct Box<T>{T value;}struct Pair<T,U>{T first;U second;}struct S{int value;}class C{}class D{Box<int> value;}
+struct Box<T>{T value;}
+
+struct Pair<T,U>{T first;U second;}
+
+struct S{int value;}
+
+class C{}
+
+class D{Box<int> value;}
 
 class InitializedRecords {
 	Box<int> first;
 	Pair<int, bool> second;
 	Box<Box<i64>> nested;
+
 	init(Box<int> first, Pair<int, bool> second, Box<Box<i64>> nested) {
 		this.first = first;
 		this.second = second;
 		this.nested = nested;
 	}
+
 	property Box<int> value { get { return this.first; } }
+
 	property Pair<int, bool> pair { get { return this.second; } }
+
 	property Box<Box<i64>> deep { get { return this.nested; } }
 }
 
@@ -24,7 +36,7 @@ int main() {
 	first.value = 7;
 	Box<int> copy = stored.value;
 	copy.value = 99;
-	if (stored.value.value != 42 || stored.pair.first != 19 || !stored.pair.second || stored.deep.value.value != (73 as i64)) { return 1; }
-	if (first.value != 7 || copy.value != 99) { return 2; }
+	if (stored.value.value != 42 || stored.pair.first != 19 || !stored.pair.second || stored.deep.value.value != (73 as i64)) return 1;
+	if (first.value != 7 || copy.value != 99) return 2;
 	return 0;
 }

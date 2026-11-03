@@ -13,6 +13,7 @@ public class VapiMetadataEntrySyntax : Object {
 		this.value = value;
 		this.span = SourceSpan.cover (key.span, value.span);
 	}
+
 }
 
 public class VapiCCodeAttributeSyntax : Object {
@@ -25,6 +26,7 @@ public class VapiCCodeAttributeSyntax : Object {
 		this.entries = entries;
 		this.kind = kind;
 	}
+
 }
 
 public class VapiTypeNameSyntax : Object {
@@ -41,6 +43,7 @@ public class VapiTypeNameSyntax : Object {
 	public string spelling() {
 		return identifier.spelling () + string.nfill (stars.length, '*');
 	}
+
 }
 
 public class VapiParameterSyntax : Object {
@@ -55,6 +58,7 @@ public class VapiParameterSyntax : Object {
 		this.type_name = type_name;
 		this.name = name;
 	}
+
 }
 
 public class VapiHandleDeclarationSyntax : Object {
@@ -71,6 +75,7 @@ public class VapiHandleDeclarationSyntax : Object {
 		this.name = name;
 		this.semicolon = semicolon;
 	}
+
 }
 
 public class VapiFunctionDeclarationSyntax : Object {
@@ -89,6 +94,7 @@ public class VapiFunctionDeclarationSyntax : Object {
 		this.name = name;
 		this.parameters = parameters;
 	}
+
 }
 
 public class VapiFileSyntax : Object {
@@ -103,5 +109,6 @@ public class VapiFileSyntax : Object {
 		this.functions = functions;
 		this.eof = eof;
 	}
+
 }
 }

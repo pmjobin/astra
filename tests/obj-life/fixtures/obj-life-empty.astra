@@ -1,13 +1,16 @@
 extern(C) int life_record(int code, int value);
+
 class Token {
 	init() {}
+
 	deinit() { life_record(84, 0); }
 }
+
 int main() {
 	Token a = Token.init();
 	Token b = Token.init();
 	Token alias = a;
-	if (a == b || alias != a || a == null) { return 1; }
+	if (a == b || alias != a || a == null) return 1;
 	a = b;
 	b = null;
 	return 42;

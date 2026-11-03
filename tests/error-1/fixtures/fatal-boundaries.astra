@@ -1,14 +1,30 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
-owned Error nullable_error(bool empty) { if(empty) { return null; } var error = new Error("valid"); return move error; }
+
+owned Error nullable_error(bool empty) { if(empty) return null; var error = new Error("valid"); return move error; }
+
 int main(string[] args) {
-	if(args[1] == "assert") { try { assert(false); } catch(Error error) { return 81; } return 82; }
-	if(args[1] == "bounds") { int[1] data = {42}; try { return data[len(args)]; } catch(Error error) { return 83; } }
-	if(args[1] == "arith") { int zero = args[1].byte_length - 5; try { return 42 / zero; } catch(Error error) { return 84; } }
-	if(args[1] == "null") { var error = nullable_error(args[1] == "null"); try { throw move error; } catch(Error caught) { return 86; } }
+	if(args[1] == "assert") {
+		try { assert(false); } catch(Error error) { return 81; }
+		return 82;
+	}
+	if(args[1] == "bounds") {
+		int[1] data = {42};
+		try { return data[len(args)]; } catch(Error error) { return 83; }
+	}
+	if(args[1] == "arith") {
+		int zero = args[1].byte_length - 5;
+		try { return 42 / zero; } catch(Error error) { return 84; }
+	}
+	if(args[1] == "null") {
+		var error = nullable_error(args[1] == "null");
+		try { throw move error; } catch(Error caught) { return 86; }
+	}
 	return 85;
 }

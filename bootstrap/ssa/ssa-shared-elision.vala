@@ -8,11 +8,13 @@ public class SsaSharedElisionPlan : Object {
 		this.acquisition = acquisition;
 		this.cleanup = cleanup;
 	}
+
 }
 public class SsaSharedElision : Object {
 	public static GenericArray<SsaSharedElisionPlan> derive(SsaFunction function) {
 		return SsaSharedBalance.derive (function);
 	}
+
 	public static void annotate(SsaProgram program) {
 		foreach (var function in program.functions) {
 			foreach (var plan in derive (function)) {
@@ -20,8 +22,10 @@ public class SsaSharedElision : Object {
 			}
 		}
 	}
+
 	public static void verify(SsaProgram program) throws SsaError {
 		SsaSharedBalanceVerifier.verify (program);
 	}
+
 }
 }

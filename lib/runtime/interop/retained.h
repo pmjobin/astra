@@ -4,6 +4,7 @@
 #include <stdint.h>
 /* Single thread, explicit dispatch only. Context is opaque native authority. */
 typedef int32_t (*astra_retained_callback)(void *, int32_t);
+
 /* Optional trusted single-threaded event provider. Version 1 open must not
  * dispatch before returning. stop prevents new callbacks; observe proves the
  * foreign callback has released its registration; close releases provider data.
@@ -15,6 +16,7 @@ struct astra_retained_provider {
 	int32_t (*observe)(void *);
 	int32_t (*close)(void *);
 };
+
 int32_t astra_retained_install_provider(const struct astra_retained_provider *);
 void *astra_retained_register(astra_retained_callback, void *, int32_t);
 int32_t astra_retained_dispatch(void *, int32_t);

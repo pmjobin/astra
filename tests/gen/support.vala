@@ -13,6 +13,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -24,11 +25,13 @@ private void add(string path, owned TestBody body) {
 								 }
 	});
 }
+
 private string read(string name) throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/gen/fixtures/gen-" + name + ".astra", out text);
 	return text;
 }
+
 private CheckedProgram check(string text) throws FileError {
 	var parsed = Parser.parse (new SourceFile.from_text ("generic.astra", text));
 	if (parsed.diagnostic != null) {
@@ -43,6 +46,7 @@ private CheckedProgram check(string text) throws FileError {
 	}
 	return result.program;
 }
+
 private SsaProgram unresolved_ssa() throws SsaError {
 	var span = SourceSpan (new SourceFile.from_text ("unresolved", "T"), 0, 1);
 	var type = new TypeParameterType ("T");
@@ -57,10 +61,13 @@ private SsaProgram unresolved_ssa() throws SsaError {
 	functions.add (new SsaFunction (span, span, "bad", type, 0, parameters, blocks, block));
 	return new SsaProgram (span, functions);
 }
+
 private CoreProgram core(string text) throws GLib.Error {
 	return CoreGenericMonomorphizer.build (CoreBuilder.build (check (text)));
 }
+
 private SsaProgram build(string text) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (core (text)));
 }
+
 }

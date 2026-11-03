@@ -5,19 +5,22 @@ int main() {
 		require_text(append_text(builder, "a|café||é|🖤|\0|"));
 		var message = builder.snapshot();
 		var text = message.text;
-		if (!text_starts_with(text, "a|") || !text_ends_with(text, "|")) { return 10; }
-		if (!text_contains(text, "café") || text_contains(text, "absent") || text_find(text, "", 2) != 2) { return 11; }
+		if (!text_starts_with(text, "a|") || !text_ends_with(text, "|")) return 10;
+		if (!text_contains(text, "café") || text_contains(text, "absent") || text_find(text, "", 2) != 2) return 11;
 		var fields = new Bag<Utf8Message>();
-		if (!text_split(text, "|", fields)) { return 21; }
-		if (fields.count() != 7) { return 12; }
+		if (!text_split(text, "|", fields)) return 21;
+		if (fields.count() != 7) return 12;
 		int i = 0;
-		while (i < fields.count()) { if (!emit_message(fields.entries[i])) { return 13; } i = i + 1; }
-		if (parse_int("-2147483648") != -2147483648 || parse_int("2147483647") != 2147483647 || parse_int("-0") != 0) { return 14; }
-		try { int bad = parse_int("2147483648"); return 15; } catch (IntegerParseError error) { if (!println("parse-error")) { return 16; } }
-		try { var bad = text_segment(text, 6, 1); return 17; } catch (TextRangeError error) { if (!println("range-error")) { return 18; } }
+		while (i < fields.count()) {
+			if (!emit_message(fields.entries[i])) return 13;
+			i = i + 1;
+		}
+		if (parse_int("-2147483648") != -2147483648 || parse_int("2147483647") != 2147483647 || parse_int("-0") != 0) return 14;
+		try { int bad = parse_int("2147483648"); return 15; } catch (IntegerParseError error) { if (!println("parse-error")) return 16; }
+		try { var bad = text_segment(text, 6, 1); return 17; } catch (TextRangeError error) { if (!println("range-error")) return 18; }
 		var empty = new Bag<Utf8Message>();
-		if (!text_split("", "|", empty)) { return 22; }
-		if (empty.count() != 1 || !message_equals(empty.entries[0], "") || !text_contains("", "")) { return 19; }
+		if (!text_split("", "|", empty)) return 22;
+		if (empty.count() != 1 || !message_equals(empty.entries[0], "") || !text_contains("", "")) return 19;
 		return 0;
 	} catch (Error error) { return 20; }
 }

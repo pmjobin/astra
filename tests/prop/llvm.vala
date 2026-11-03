@@ -10,6 +10,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void calls() throws GLib.Error {
 	string basic = lower (build (read ("basic"))).dump ();
 	assert (basic.contains ("define internal fastcc i32 @astra.propget.class.0.0(ptr %this)"));
@@ -22,6 +23,7 @@ private void calls() throws GLib.Error {
 	string nullable = lower (build (read ("null-set"))).dump ();
 	assert (nullable.index_of ("br i1 true, label %object.guard") < nullable.index_of ("call i32 @life_record") && nullable.index_of ("call i32 @life_record") < nullable.index_of ("call fastcc void @astra.propset"));
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (read ("recursive"));
 	var property = WeakRef (ssa.classes[0].properties[0]);
@@ -38,6 +40,7 @@ private void lifetime() throws GLib.Error {
 	FileUtils.unlink (directory + "/prop.o");
 	DirUtils.remove (directory);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -47,4 +50,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -12,6 +12,7 @@ public class SsaResultObjectStorage : SsaValue {
 		base (span, object_class.semantic_type);
 		this.class_identity = WeakRef (object_class);
 	}
+
 }
 
 public class SsaResultStorageReceiverValue : SsaValue {
@@ -20,6 +21,7 @@ public class SsaResultStorageReceiverValue : SsaValue {
 		base (span, contract);
 		this.storage = storage;
 	}
+
 }
 
 public class SsaResultConstructionInstruction : SsaCallInstruction {
@@ -28,6 +30,7 @@ public class SsaResultConstructionInstruction : SsaCallInstruction {
 		base (span, null, -1, constructor, arguments, new SsaResultStorageReceiverValue (span, storage, constructor.receiver.contract));
 		this.storage = storage;
 	}
+
 }
 // Derive caller-backed return roots from this stage's actual values and calls.
 internal class SsaCallerResultOrigins : Object {
@@ -70,6 +73,7 @@ internal class SsaCallerResultOrigins : Object {
 		} while (changed);
 		values.remove_all ();
 	}
+
 	private GenericResultOrigins value(SsaValue? operand, HashTable<SsaValue, GenericResultOrigins> origins) {
 		if (operand == null || operand is SsaNullPointerConstant) {
 			return new GenericResultOrigins ();
@@ -79,6 +83,7 @@ internal class SsaCallerResultOrigins : Object {
 		}
 		return origins.lookup (operand) ?? new GenericResultOrigins (definitions.contains (operand) ? 0 : GenericResultOrigins.UNKNOWN);
 	}
+
 	private static bool merge(HashTable<SsaValue, GenericResultOrigins> origins, SsaValue result, GenericResultOrigins incoming) {
 		var prior = origins.lookup (result) ?? new GenericResultOrigins ();
 		var combined = prior.union (incoming);
@@ -88,6 +93,7 @@ internal class SsaCallerResultOrigins : Object {
 		origins.insert (result, combined);
 		return true;
 	}
+
 	private GenericResultOrigins call(SsaCallInstruction invoked, HashTable<SsaValue, GenericResultOrigins> origins) {
 		if (invoked.target == null) {
 			return new GenericResultOrigins (GenericResultOrigins.UNKNOWN);
@@ -108,6 +114,7 @@ internal class SsaCallerResultOrigins : Object {
 		}
 		return equation.compose (arguments);
 	}
+
 	private static GenericArray<SsaEdge> edges(SsaTerminator terminator) {
 		var result = new GenericArray<SsaEdge> ();
 		if (terminator is SsaBranch) {
@@ -129,6 +136,7 @@ internal class SsaCallerResultOrigins : Object {
 		}
 		return result;
 	}
+
 	private GenericResultOrigins analyze(SsaFunction function) {
 		var origins = new HashTable<SsaValue, GenericResultOrigins> (direct_hash, direct_equal);
 		foreach (var parameter in function.parameters) {
@@ -182,6 +190,7 @@ internal class SsaCallerResultOrigins : Object {
 		values.insert (function, origins);
 		return result;
 	}
+
 	internal bool null_only(SsaFunction function, SsaValue operand) {
 		var origins = values.lookup (function);
 		if (origins == null) {
@@ -191,6 +200,7 @@ internal class SsaCallerResultOrigins : Object {
 		var equation = value (operand, origins);
 		return equation.domains == 0 && equation.input_count == 0;
 	}
+
 	internal bool incoming(SsaFunction function, SsaValue operand) {
 		var origins = values.lookup (function);
 		if (origins == null) {
@@ -213,6 +223,7 @@ internal class SsaCallerResultOrigins : Object {
 		}
 		return true;
 	}
+
 }
 
 }

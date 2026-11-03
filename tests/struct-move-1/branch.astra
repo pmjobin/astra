@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Bag { int tag; owned R resource; }
+
 enum Choice { Move, Stay }
+
 int branch(bool moving) {
 	Bag bag={tag=42, resource=make(8)};
 	var choice=Choice.Stay();
-	if (moving) { choice=Choice.Move(); }
+	if (moving) choice=Choice.Move();
 	match(choice) {
 		case Choice.Move(): { var consumed=move bag; mark(consumed.tag); }
 		case Choice.Stay(): { mark(18); }
 	}
 	return 42;
 }
+
 int main() {
-	if (branch(true) != 42 || live() != 0) { return 81; }
-	if (branch(false) != 42 || live() != 0) { return 82; }
+	if (branch(true) != 42 || live() != 0) return 81;
+	if (branch(false) != 42 || live() != 0) return 82;
 	return 42;
 }

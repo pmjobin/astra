@@ -1,27 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int early_resource_return() {
 	var value = ResourceTransport.create(235);
-	if (ResourceTransport.inspect(value) == 235) { return 0; }
+	if (ResourceTransport.inspect(value) == 235) return 0;
 	return 5;
 }
+
 int exercise_resources() {
 	var first = ResourceTransport.create(231);
-	if (ResourceTransport.inspect(first) != 231) { return 1; }
+	if (ResourceTransport.inspect(first) != 231) return 1;
 	var returned = ResourceTransport.relay(move first);
-	if (ResourceTransport.consume(move returned) != 231) { return 2; }
+	if (ResourceTransport.consume(move returned) != 231) return 2;
 	var second = make(232);
 	var next = ResourceTransport.relay(move second);
-	if (ResourceTransport.inspect(next) != 232 || ResourceTransport.consume(move next) != 232) { return 3; }
+	if (ResourceTransport.inspect(next) != 232 || ResourceTransport.consume(move next) != 232) return 3;
 	var other = ResourceTransport.create_other(233);
 	var relayed = ResourceTransport.relay_other(move other);
-	if (ResourceTransport.inspect_other(relayed) != 233 || ResourceTransport.consume_other(move relayed) != 233) { return 4; }
+	if (ResourceTransport.inspect_other(relayed) != 233 || ResourceTransport.consume_other(move relayed) != 233) return 4;
 	var remaining = ResourceTransport.create(234);
 	var empty = ResourceTransport.empty();
-	if (empty != null || ResourceTransport.inspect(remaining) != 234) { return 6; }
+	if (empty != null || ResourceTransport.inspect(remaining) != 234) return 6;
 	return early_resource_return();
 }
+
 int main() {
 	int result = exercise_resources();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

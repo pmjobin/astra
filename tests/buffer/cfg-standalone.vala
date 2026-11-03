@@ -28,6 +28,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	functions.add(function);
 	return new CfgProgram(span, functions, null, null, null, cleanups);
 }
+
 private void positive() {
 	try {
 		CfgProgram? program = sample();
@@ -41,6 +42,7 @@ private void positive() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void negative() {
 	for (int variant = 1; variant <= 6; variant++) {
 		try {
@@ -52,6 +54,7 @@ private void negative() {
 		GLib.error("accepted malformed CFG buffer %d", variant);
 	}
 }
+
 private CfgProgram fields(int variant = 0) throws CfgError {
 	var t = new BuiltinTypes();
 	var s = SourceSpan(new SourceFile.from_text("buffer-cfg-fields", "C"), 0, 1);
@@ -126,6 +129,7 @@ private CfgProgram fields(int variant = 0) throws CfgError {
 	program.classes.add(c);
 	return program;
 }
+
 private void field_cleanup() {
 	try {
 		var program = fields();
@@ -144,6 +148,7 @@ private void field_cleanup() {
 		GLib.error("accepted malformed CFG buffer field %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/cfg/independent-allocation-and-complete-owner-result", positive);
@@ -151,4 +156,5 @@ int main(string[] args) {
 	Test.add_func("/buffer/cfg/independent-field-replacement-and-cleanup-order", field_cleanup);
 	return Test.run();
 }
+
 }

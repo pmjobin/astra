@@ -55,6 +55,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	functions.add (new CfgFunction (span, span, "make", slice, 2, new GenericArray<CfgParameter> (), new GenericArray<CfgLocalPlace> (), blocks, entry, cleanup));
 	return new CfgProgram (span, functions, null, null, null, cleanups);
 }
+
 private void qualify() {
 	try {
 		CfgProgram? program = sample ();
@@ -77,9 +78,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/alloc-fail/cfg/independent-cause-publication-and-terminal-region", qualify);
 	return Test.run ();
 }
+
 }

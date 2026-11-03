@@ -14,6 +14,7 @@ public abstract class CheckedStructProducer : CheckedNode {
 		this.contract = new StructValueContract (type, mode);
 		this.copyability = copyability;
 	}
+
 }
 
 public class CheckedStructMoveProducer : CheckedStructProducer {
@@ -22,6 +23,7 @@ public class CheckedStructMoveProducer : CheckedStructProducer {
 		base (span, source.semantic_type, Copyability.NOT_COPYABLE, StructValueMode.MOVE_VALUE);
 		this.source = source;
 	}
+
 }
 
 public class CheckedStructSnapshot : CheckedStructProducer {
@@ -30,6 +32,7 @@ public class CheckedStructSnapshot : CheckedStructProducer {
 		base (span, source.semantic_type, copyability);
 		this.source = source;
 	}
+
 }
 
 // A read-only observation keeps the complete nominal storage graph while
@@ -41,6 +44,7 @@ public class CheckedStructBorrowSnapshot : CheckedStructProducer {
 		base (span, source.semantic_type, Copyability.NOT_COPYABLE, StructValueMode.BORROW_VALUE);
 		this.source = source;
 	}
+
 }
 
 // Observe a copied producer exactly once before selecting a field. A copied
@@ -54,6 +58,7 @@ public class CheckedStructProjectionValue : CheckedExpression {
 		this.source = source;
 		this.path = path;
 	}
+
 }
 
 public class CheckedStructProjectionProducer : CheckedStructProducer {
@@ -64,6 +69,7 @@ public class CheckedStructProjectionProducer : CheckedStructProducer {
 		this.source = source;
 		this.path = path;
 	}
+
 }
 
 public class CheckedCStructCallResult : CheckedStructProducer {
@@ -75,6 +81,7 @@ public class CheckedCStructCallResult : CheckedStructProducer {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class CheckedStructInvocationResult : CheckedStructProducer {
@@ -83,6 +90,7 @@ public class CheckedStructInvocationResult : CheckedStructProducer {
 		base (invocation.span, invocation.semantic_type, mode == StructValueMode.COPY_VALUE ? Copyability.COPYABLE : Copyability.NOT_COPYABLE, mode);
 		this.invocation = invocation;
 	}
+
 }
 
 public class CheckedStructCallResult : CheckedStructProducer {
@@ -98,6 +106,7 @@ public class CheckedStructCallResult : CheckedStructProducer {
 		this.receiver = receiver;
 		this.type_arguments = type_arguments;
 	}
+
 }
 
 // This adapter is legal only at an exact COPY_VALUE argument position.
@@ -109,6 +118,7 @@ public class CheckedStructArgument : CheckedExpression {
 		this.parameter = parameter;
 		this.producer = producer;
 	}
+
 }
 
 public class CheckedStructResultStore : CheckedStatement {
@@ -121,6 +131,7 @@ public class CheckedStructResultStore : CheckedStatement {
 		this.producer = producer;
 		this.initializes_destination = initializes_destination;
 	}
+
 }
 
 public class CheckedStructReturn : CheckedStatement {
@@ -129,5 +140,6 @@ public class CheckedStructReturn : CheckedStatement {
 		base (span);
 		this.producer = producer;
 	}
+
 }
 }

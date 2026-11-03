@@ -8,6 +8,7 @@ public enum NumericConversionPolicy {
 	public string spelling() {
 		return this == NEAREST_TIES_EVEN ? "nearest-ties-even" : "truncate-toward-zero-trap";
 	}
+
 }
 
 // Concrete scalar capability. IntegerType and FloatingType remain the only
@@ -26,6 +27,7 @@ public enum NumericConversionKind {
 	public bool traps() {
 		return this >= F32_TO_SIGNED_INT && this <= F64_TO_UNSIGNED_INT;
 	}
+
 	public NumericConversionPolicy policy() {
 		return traps () ? NumericConversionPolicy.TRUNCATE_TRAP : NumericConversionPolicy.NEAREST_TIES_EVEN;
 	}
@@ -74,5 +76,7 @@ public enum NumericConversionKind {
 			return "invalid";
 		}
 	}
+
 }
+
 }

@@ -58,6 +58,7 @@ private CoreProgram sample(int variant = 0) {
 	result.classes.add (d);
 	return result;
 }
+
 private void valid() {
 	try {
 		CoreProgram? p = sample ();
@@ -72,6 +73,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 7; variant++) {
 		try {
@@ -83,10 +85,12 @@ private void malformed() {
 		GLib.error ("accepted malformed transferable object %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/core/exact-storage-responsibility-move-and-stage-lifetime", valid);
 	Test.add_func ("/obj-own/core/reject-storage-contract-alias-and-rebind-corruption", malformed);
 	return Test.run ();
 }
+
 }

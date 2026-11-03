@@ -26,6 +26,7 @@ int parser_requested_fault(string[] args) {
 	}
 	return 0;
 }
+
 void parser_fault(SyntaxProgram program, int fault) throws Error {
 	if (fault == 6) {
 		assert_that(program.failed());
@@ -89,6 +90,7 @@ void parser_fault(SyntaxProgram program, int fault) throws Error {
 	var empty = program.arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax()));
 	program.arena.set_list_statements(body, empty);
 }
+
 owned SyntaxProgram parser_text_program(string text) throws Error {
 	var bytes = new u8[text.byte_length];
 	int i = 0;
@@ -105,6 +107,7 @@ owned SyntaxProgram parser_text_program(string text) throws Error {
 	var result = syntax_program(move sources);
 	return move result;
 }
+
 void parser_lifetime(bool fail_control) throws Error {
 	var program = parser_text_program("int f(){return 1+2;}");
 	assert_that(!program.failed());

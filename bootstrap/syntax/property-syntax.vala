@@ -25,6 +25,7 @@ public class PropertyDeclarationSyntax : SyntaxNode {
 		this.getter = getter;
 		this.setter = setter;
 	}
+
 }
 
 public class PropertyAccessorSyntax : SyntaxNode {
@@ -38,5 +39,6 @@ public class PropertyAccessorSyntax : SyntaxNode {
 		this.parameter = parameter;
 		this.body = body;
 	}
+
 }
 }

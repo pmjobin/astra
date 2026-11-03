@@ -7,21 +7,25 @@
 static unsigned entries[12];
 static const uint32_t patterns[] = {UINT32_C(0x80000000), UINT32_C(0x00000001), UINT32_C(0x7fc01234)};
 static unsigned selected;
+
 float input_float(void) {
 	float value;
 	memcpy(&value, &patterns[selected], sizeof(value));
 	return value;
 }
+
 int float_bits(float value) {
 	uint32_t bits;
 	memcpy(&bits, &value, sizeof(bits));
 	return bits == patterns[selected] ? 42 : 81;
 }
+
 void result_event(int stage, int value) {
 	static const int expected[] = {0, 42, 44, 42, 42, 5, 42, 42, 42, 42, 42, 42};
 	assert(stage > 0 && stage < 12 && value == expected[stage]);
 	entries[stage]++;
 }
+
 extern int result_host(void);
 extern int owning_abort(void);
 static AstraAsyncTask *root, *child;
@@ -35,6 +39,7 @@ extern unsigned char *test_record_backing(AstraAsyncTask *task);
 extern AstraAsyncTask *__real_astra_async_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent);
 extern int __real_astra_async_delay(AstraAsyncTask *task, int64_t ticks);
 extern void __real_free(void *pointer);
+
 AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent) {
 	AstraAsyncTask *task = __real_astra_async_new(size, alignment, resume, destroy, parent);
 	if (held_mode) {
@@ -50,6 +55,7 @@ AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsync
 	}
 	return task;
 }
+
 int __wrap_astra_async_delay(AstraAsyncTask *task, int64_t ticks) {
 	int result = __real_astra_async_delay(task, ticks);
 	if (held_mode && task == child && !retained) {
@@ -63,6 +69,7 @@ int __wrap_astra_async_delay(AstraAsyncTask *task, int64_t ticks) {
 	}
 	return result;
 }
+
 void __wrap_free(void *pointer) {
 	if (held_mode && pointer && (pointer == root_frame || pointer == child_frame || pointer == backing)) {
 		assert(released);
@@ -76,6 +83,7 @@ void __wrap_free(void *pointer) {
 	}
 	__real_free(pointer);
 }
+
 static void held_result(unsigned kind, unsigned mode) {
 	held_kind = kind;
 	held_mode = mode;
@@ -124,6 +132,7 @@ static void held_result(unsigned kind, unsigned mode) {
 	astra_async_close(executor);
 	held_mode = 0;
 }
+
 int main(void) {
 	for (unsigned cycle = 0; cycle < 16; cycle++) {
 		selected = cycle % 3;

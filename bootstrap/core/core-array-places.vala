@@ -16,6 +16,7 @@ public class CoreArrayRecordEntry : CoreNode {
 		this.initializers = initializers;
 		this.producer = producer;
 	}
+
 }
 
 public class CoreArrayInitialize : CoreStatement {
@@ -32,6 +33,7 @@ public class CoreArrayInitialize : CoreStatement {
 		this.storage = storage;
 		this.elements = elements;
 	}
+
 }
 
 public class CoreArrayElementPlace : CorePlace {
@@ -48,5 +50,6 @@ public class CoreArrayElementPlace : CorePlace {
 		this.index = index;
 		this.provenance = provenance;
 	}
+
 }
 }

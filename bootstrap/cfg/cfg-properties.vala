@@ -30,6 +30,7 @@ public class CfgProperty : CfgNode {
 		this.ordinal = ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class CfgLazyObserve : CfgValue {
@@ -39,6 +40,7 @@ public class CfgLazyObserve : CfgValue {
 		base (span, property_member.semantic_type);
 		this.property_identity = WeakRef (property_member);
 	}
+
 }
 public class CfgLazyDrop : CfgInstruction {
 	private WeakRef property_identity;
@@ -47,6 +49,7 @@ public class CfgLazyDrop : CfgInstruction {
 		base (span);
 		this.property_identity = WeakRef (property_member);
 	}
+
 }
 
 public abstract class CfgPropertyAccessor : CfgFunction {
@@ -59,17 +62,20 @@ public abstract class CfgPropertyAccessor : CfgFunction {
 		this.parent = WeakRef (property_member);
 		this.receiver = receiver;
 	}
+
 }
 
 public class CfgPropertyGetter : CfgPropertyAccessor {
 	internal CfgPropertyGetter (SourceSpan span, SourceSpan name_span, string name, CfgProperty property_member, CfgReceiver receiver, SemanticType return_type, int ordinal, GenericArray<CfgParameter> parameters, GenericArray<CfgLocalPlace> locals, GenericArray<CfgBlock> blocks, CfgBlock entry, CfgCleanupContract? owned_cleanup = null) {
 		base (span, name_span, name, property_member, receiver, return_type, ordinal, parameters, locals, blocks, entry, owned_cleanup);
 	}
+
 }
 
 public class CfgPropertySetter : CfgPropertyAccessor {
 	internal CfgPropertySetter (SourceSpan span, SourceSpan name_span, string name, CfgProperty property_member, CfgReceiver receiver, SemanticType return_type, int ordinal, GenericArray<CfgParameter> parameters, GenericArray<CfgLocalPlace> locals, GenericArray<CfgBlock> blocks, CfgBlock entry) {
 		base (span, name_span, name, property_member, receiver, return_type, ordinal, parameters, locals, blocks, entry);
 	}
+
 }
 }

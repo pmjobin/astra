@@ -2,18 +2,20 @@
 using OptimizerLeaf18;
 using OptimizerMiddle18;
 extern(C) void storage18_begin();
+
 f64 extracted(borrowed Cell input,bool branch) {
-	if (branch) { return inspect(input); }
+	if (branch) return inspect(input);
 	return input.read();
 }
+
 int main() {
 	storage18_begin();
-	if (external(6.0)!=6.0) { return 4; }
+	if (external(6.0)!=6.0) return 4;
 	var first=new Cell(1.25);
 	var second=new Cell(2.5);
-	if (combine(extracted(first,true),extracted(second,false))!=3.75) { return 1; }
-	if (relay(first)!=1.25 || combine_local(first.read(),second.read())!=3.75) { return 2; }
+	if (combine(extracted(first,true),extracted(second,false))!=3.75) return 1;
+	if (relay(first)!=1.25 || combine_local(first.read(),second.read())!=3.75) return 2;
 	write(second,4.0);
-	if (second.read()!=4.0) { return 3; }
+	if (second.read()!=4.0) return 3;
 	return 0;
 }

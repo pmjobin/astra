@@ -2,11 +2,13 @@
 #include <assert.h>
 #include <stdint.h>
 static uint32_t retired[5];
+
 int32_t query16_retired(int32_t kind) {
 	assert(kind > 0 && kind < 5);
 	++retired[kind];
 	return 0;
 }
+
 uint32_t query16_retired_count(int32_t kind) {
 	assert(kind > 0 && kind < 5);
 	return retired[kind];

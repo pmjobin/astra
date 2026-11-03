@@ -10,6 +10,7 @@ private bool rejects(CoreProgram program) {
 	}
 	return false;
 }
+
 private void requirements() {
 	try {
 		CoreVerifier.verify (sample ());
@@ -36,6 +37,7 @@ private void requirements() {
 	tp.capability_requirements.add (new CoreGenericCapabilityRequirement (tp.span, tp, (GenericCapabilityIdentity) 99));
 	assert (rejects (invalid_identity));
 }
+
 private void forwarding() {
 	try {
 		var program = sample (GenericOperationKind.EQ);
@@ -77,6 +79,7 @@ private void forwarding() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void operations() {
 	for (int scenario = 0; scenario < 6; scenario++) {
 		var program = sample ();
@@ -91,6 +94,7 @@ private void operations() {
 		assert (rejects (program));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-cap/core/requirements-identity-duplicates-concrete-call", requirements);
@@ -98,4 +102,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-cap/core/forged-operator-authority-identity-shapes", operations);
 	return Test.run ();
 }
+
 }

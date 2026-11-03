@@ -7,6 +7,7 @@ private CoreStruct? leaf_owner;
 private CoreStruct? resolve_leaf(SemanticType type) {
 	return leaf_owner.semantic_type == type ? leaf_owner : null;
 }
+
 private CoreProgram sample() {
 	var s = SourceSpan (new SourceFile.from_text ("core-copy", "x"), 0, 1);
 	var types = new BuiltinTypes ();
@@ -54,6 +55,7 @@ private CoreProgram sample() {
 	functions.add (function);
 	return new CoreProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		CoreProgram? program = sample ();
@@ -78,6 +80,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 9; scenario++) {
 		var p = sample ();
@@ -121,10 +124,12 @@ private void invalid() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-copy/core/exact-copy-recursive-leaves-independent-lifetime", positive);
 	Test.add_func ("/struct-copy/core/nominality-initialization-foreign-lifecycle-value-firewalls", invalid);
 	return Test.run ();
 }
+
 }

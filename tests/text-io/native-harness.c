@@ -14,11 +14,13 @@ void *expected_token;
 extern int observer_calls;
 /* Internal test entry. No Astra export(C) text acceptance is involved. */
 extern int32_t text_io_entry(const unsigned char *, int32_t, const unsigned char *, int32_t, void *);
+
 struct guarded {
 	unsigned char *mapping;
 	unsigned char *data;
 	size_t size;
 };
+
 static struct guarded allocate(int32_t count) {
 	if (count == 0) {
 		return (struct guarded){NULL, NULL, 0};
@@ -29,11 +31,13 @@ static struct guarded allocate(int32_t count) {
 	assert(mapping != MAP_FAILED && mprotect(mapping + size - page, page, PROT_NONE) == 0);
 	return (struct guarded){mapping, mapping + size - page - count, size};
 }
+
 static void release(struct guarded view) {
 	if (view.size) {
 		assert(munmap(view.mapping, view.size) == 0);
 	}
 }
+
 static void call(const unsigned char *a, int32_t an, const unsigned char *b, int32_t bn) {
 	int token = 19;
 	expected_a = a;
@@ -62,6 +66,7 @@ static void call(const unsigned char *a, int32_t an, const unsigned char *b, int
 	expected_b = NULL;
 	expected_token = NULL;
 }
+
 int main(void) {
 	static const unsigned char unicode[] = {0xc3, 0xa9, 0x65, 0xcc, 0x81, 0, 0xf0, 0x9f, 0x98, 0x80};
 	int32_t lengths[] = {0, 1, 10, 4096, 65536};

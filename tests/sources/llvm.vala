@@ -52,9 +52,11 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/llvm/one-module-source-destruction-target-aggregation", lifetime);
 	return Test.run ();
 }
+
 }

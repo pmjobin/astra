@@ -64,6 +64,7 @@ private CoreProgram model(int mutation) {
 	program.enums.add (definition);
 	return program;
 }
+
 private void positive() {
 	try {
 		CoreProgram? program = model (0);
@@ -76,6 +77,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int mutation = 1; mutation <= 7; mutation++) {
 		try {
@@ -146,10 +148,12 @@ private void malformed() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum/core/independent-model-lifetime", positive);
 	Test.add_func ("/enum/core/correspondence-coverage-nominal", malformed);
 	return Test.run ();
 }
+
 }

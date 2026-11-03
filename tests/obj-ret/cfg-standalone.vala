@@ -52,6 +52,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	p.classes.add (d);
 	return p;
 }
+
 private void valid() {
 	try {
 		foreach (int mode in new int[] { 0, 20, 22 }) {
@@ -66,6 +67,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed() {
 	for (int v = 1; v <= 7; v++) {
 		try {
@@ -77,6 +79,7 @@ private void malformed() {
 		GLib.error ("accepted malformed Cfg result %d", v);
 	}
 }
+
 private CfgProgram acquisitions(bool shared) throws CfgError {
 	var p = sample ();
 	var span = p.span;
@@ -107,6 +110,7 @@ private CfgProgram acquisitions(bool shared) throws CfgError {
 	p.functions.add (caller);
 	return p;
 }
+
 private void candidate_identity() {
 	try {
 		CfgVerifier.verify (acquisitions (false));
@@ -121,6 +125,7 @@ private void candidate_identity() {
 	}
 	GLib.error ("accepted two live acquisitions sharing one candidate");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/cfg/fresh-null-and-input-lifetime-without-upstream", valid);
@@ -128,4 +133,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-ret/cfg/candidate-storage-identity", candidate_identity);
 	return Test.run ();
 }
+
 }

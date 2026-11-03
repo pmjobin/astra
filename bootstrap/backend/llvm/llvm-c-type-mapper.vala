@@ -39,6 +39,7 @@ internal class LlvmCTypeMapper : Object {
 		}
 		return CApi.int_type_in_context (context, field.bytes * 8);
 	}
+
 	internal CApi.TypeRef record_type(CAbiRecordPlan record) throws LlvmError {
 		var fields = new CApi.TypeRef[record.fields.length];
 		for (int f = 0; f < fields.length; f++) {
@@ -46,6 +47,7 @@ internal class LlvmCTypeMapper : Object {
 		}
 		return CApi.struct_type_in_context (context, fields, fields.length, 0);
 	}
+
 	internal void attributes(CAbiSignature signature, CApi.ValueRef value, bool call = false) throws LlvmError {
 		if (signature.result != null && signature.result.record == null && signature.result.scalar_type == CAbiScalarType.CBOOL) {
 			boolean_attribute (value, 0, call);
@@ -64,6 +66,7 @@ internal class LlvmCTypeMapper : Object {
 			}
 		}
 	}
+
 	private void boolean_attribute(CApi.ValueRef value, uint index, bool call) {
 		var attribute = CApi.create_enum_attribute (context, CApi.enum_attribute_kind ("zeroext", 7), 0);
 		if (call) {
@@ -72,6 +75,7 @@ internal class LlvmCTypeMapper : Object {
 			CApi.add_attribute (value, index, attribute);
 		}
 	}
+
 	private void record_attribute(CApi.ValueRef value, uint index, string name, CAbiRecordPlan record, bool call) throws LlvmError {
 		var attribute = CApi.create_type_attribute (context, CApi.enum_attribute_kind (name, name.length), record_type (record));
 		var alignment = CApi.create_enum_attribute (context, CApi.enum_attribute_kind ("align", 5), record.alignment);
@@ -125,5 +129,6 @@ internal class LlvmCTypeMapper : Object {
 		}
 		return CApi.function_type (result_type (signature.result), parameters, parameters.length, 0);
 	}
+
 }
 }

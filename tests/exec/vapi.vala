@@ -29,6 +29,7 @@ private class VapiWorkspace : ForeignWorkspace {
 		FileUtils.unlink (vapi1);
 		FileUtils.unlink (vapi2);
 	}
+
 }
 
 private void vapi_execute(string fixture, bool roundtrip = false) throws GLib.Error {
@@ -203,4 +204,5 @@ private void register_vapi() {
 	add ("/exec/vapi/duplicate-mode", () => cli_error ({"--check", "--dump-cabi", "file.astra"}));
 	add ("/exec/vapi/output-with-check", () => cli_error ({"--check", "file.astra", "--vapi", "input.vapi", "-o", "out"}));
 }
+
 }

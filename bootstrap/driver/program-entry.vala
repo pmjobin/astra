@@ -36,5 +36,6 @@ public class ProgramEntry : Object {
 		}
 		throw new ExecutionError.ENTRY ("astrac: error: executable requires `int main()`; no source function named main");
 	}
+
 }
 }

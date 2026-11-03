@@ -1,46 +1,63 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int lazy_event(int code, int value);
+
 class Base {
 	int input;
 	int calls;
+
 	init(int input) { this.input = input; this.calls = 0; }
+
 	lazy property int value { get { this.calls = this.calls + 1; return lazy_event(73, this.input * 2); } }
+
 	deinit() { lazy_event(68, this.calls); }
 }
+
 class Derived : Base {
 	int extra;
+
 	init(int input, int extra) : base(input) { this.extra = extra; }
+
 	lazy property int more { get { return lazy_event(77, this.value + this.extra); } }
+
 	deinit() { lazy_event(69, 0); }
 }
+
 class LiveDeinit {
 	int input;
+
 	init(int input) { this.input = input; }
+
 	lazy property int value throws Error { get { return lazy_event(76, this.input); } }
-	deinit() { try { if (this.value != 42 || this.value != 42) { lazy_event(88, 0); } } catch (Error error) { lazy_event(88, 0); } lazy_event(81, 0); }
+
+	deinit() { try { if (this.value != 42 || this.value != 42) lazy_event(88, 0); } catch (Error error) { lazy_event(88, 0); } lazy_event(81, 0); }
 }
+
 owned Base caller_factory() { return Base.init(21); }
-owned Base heap_factory() { var result = new Base(21); if (result.value != 42) { lazy_event(88, 0); } return move result; }
+
+owned Base heap_factory() { var result = new Base(21); if (result.value != 42) lazy_event(88, 0); return move result; }
+
 owned Base heap_forward(owned Base value) { return move value; }
+
 int borrow(Base value) { return value.value; }
+
 int main() {
 	{
 		owned Base lexical = caller_factory();
-		if (lexical.value != 42) { return 80; }
+		if (lexical.value != 42) return 80;
 		lexical.input = -1;
-		if (lexical.value != 42 || lexical.calls != 1 || borrow(lexical) != 42) { return 81; }
+		if (lexical.value != 42 || lexical.calls != 1 || borrow(lexical) != 42) return 81;
 		var heap_source = heap_factory();
 		var heap = heap_forward(move heap_source);
 		heap.input = -2;
-		if (heap.value != 42 || heap.calls != 1 || borrow(heap) != 42) { return 82; }
+		if (heap.value != 42 || heap.calls != 1 || borrow(heap) != 42) return 82;
 		var derived = new Derived(20, 2);
-		if (borrow(derived) != 40 || derived.value != 40 || derived.more != 42 || derived.more != 42 || derived.calls != 1) { return 83; }
+		if (borrow(derived) != 40 || derived.value != 40 || derived.more != 42 || derived.more != 42 || derived.calls != 1) return 83;
 		var unused = new Base(17);
 		var live = new LiveDeinit(42);
 	}
 	{
 		var replacement = new Base(21);
-		if (replacement.value != 42 || replacement.calls != 1) { return 84; }
+		if (replacement.value != 42 || replacement.calls != 1) return 84;
 	}
 	return 42;
 }

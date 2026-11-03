@@ -12,6 +12,7 @@ namespace Astra.Tests.NativeExceptions {
 private string declarations() {
 	return "[ExceptionRoot]class Error{readonly string text;init(string s){this.text=s;}virtual property string message{get{return this.text;}}}class RuntimeError:Error{init(string s):base(s){}}class DecodeError:RuntimeError{init(string s):base(s){}}";
 }
+
 private SsaProgram build(string body) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("exceptions", declarations () + body));
 	assert (parsed.diagnostic == null);
@@ -21,9 +22,11 @@ private SsaProgram build(string body) throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private string slice() {
 	return "int fail() throws DecodeError{throw new DecodeError(\"x\");}int main(){try{fail();}catch(Error e){return 1;}return 42;}";
 }
+
 private void checked_bounds() {
 	try {
 		var ssa = build ("void leaf() throws DecodeError{throw new DecodeError(\"x\");}void relay() throws DecodeError{try{leaf();}catch(Error e){throw;}}int main(){try{relay();}catch(DecodeError e){return 42;}return 1;}");
@@ -39,6 +42,7 @@ private void checked_bounds() {
 		assert (SemanticAnalyzer.analyze (parsed.unit).diagnostic != null);
 	}
 }
+
 private void getter_negatives() {
 	foreach (string body in new string[] {
 			"class Bad:Error{init():base(\"x\"){}override property string message{get{var error=new Error(\"x\");return error.message;}}}",
@@ -56,6 +60,7 @@ private void getter_negatives() {
 		Test.message ("%s", result.diagnostic.message);
 	}
 }
+
 private void success_guard() {
 	try {
 		var ssa = build (slice ());
@@ -99,6 +104,7 @@ private void success_guard() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void catch_guard() {
 	try {
 		var ssa = build (slice ());
@@ -129,6 +135,7 @@ private void catch_guard() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void class_correspondence() {
 	try {
 		var ssa = build ("class OtherRuntimeError:Error{init(string s):base(s){}}" + slice ());
@@ -165,6 +172,7 @@ private void class_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_contracts() {
 	try {
 		var ssa = build ("class OtherRuntimeError:Error{init(string s):base(s){}}" + slice ());
@@ -204,6 +212,7 @@ private void native_contracts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void exhaustive_bound() {
 	try {
 		var ssa = build ("int fail() throws DecodeError{throw new DecodeError(\"x\");}int main(){try{fail();}catch(DecodeError e){return 42;}return 1;}");
@@ -224,6 +233,7 @@ private void exhaustive_bound() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void argument_abort() {
 	try {
 		var ssa = build ("int fail() throws Error{throw new Error(\"later\");}int consume(owned int[] data,int n){return len(data)+n;}int main(){owned int[] data=new int[2];try{consume(move data,fail());}catch(Error e){return len(data)+40;}return 1;}");
@@ -268,6 +278,7 @@ private void argument_abort() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message;
 	int result = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -279,6 +290,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 	}
 	assert (result == 0);
 }
+
 private void llvm_correspondence() {
 	try {
 		SsaProgram? ssa = build (slice ());
@@ -356,6 +368,7 @@ private void llvm_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void heap_owner_forgeries() {
 	try {
 		var ssa = build ("owned Error make() throws Error{var e=new DecodeError(\"x\");return move e;}owned Error forward() throws Error{return make();}int consume(owned Error e){return 42;}int main(){try{var a=forward();var b=make();release a;return consume(move b);}catch(Error e){return 1;}}");
@@ -458,6 +471,7 @@ private void heap_owner_forgeries() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void nested_reservation_forgeries() {
 	try {
 		var ssa = build ("int fail() throws Error{throw new Error(\"x\");}int consume(owned int[] data,int marker){return len(data)+marker;}int main(){owned int[] outer=new int[2];owned int[] inner=new int[3];try{consume(move outer,consume(move inner,fail()));}catch(Error error){return len(outer)+len(inner)+37;}return 1;}");
@@ -490,6 +504,7 @@ private void nested_reservation_forgeries() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void getter_and_export_contracts() {
 	try {
 		var ssa = build ("void side_effect(){}int fail() throws Error{throw new Error(\"x\");}export(C) int adapter(){try{return fail();}catch(Error error){return 42;}}int other(){return 42;}int main(){return adapter();}");
@@ -545,6 +560,7 @@ private void getter_and_export_contracts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void inherited_getter_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("inherited-getter", declarations () + "class Inherited:DecodeError{init(string text):base(text){}override property string message{get{return this.text;}}}class Other{readonly string text;init(string text){this.text=text;}}int main(){var error=new Inherited(\"inherited\");if(error.message==\"inherited\"){return 42;}return 1;}"));
@@ -577,6 +593,7 @@ private void inherited_getter_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void fresh_staging_forgeries() {
 	try {
 		var ssa = build ("enum Packet{Empty,Data(owned int[] data,int marker)}int fail() throws Error{throw new Error(\"x\");}int main(){try{var packet=Packet.Data(new int[3],fail());}catch(Error error){return 42;}return 1;}");
@@ -640,6 +657,7 @@ private void fresh_staging_forgeries() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void heap_origin_correspondence() {
 	try {
 		var ssa = build ("owned Error make(){var error=new Error(\"x\");return move error;}int consume(owned Error error){return 42;}int main(){var error=make();return consume(move error);}");
@@ -677,6 +695,7 @@ private void heap_origin_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void wrong_active_owner() {
 	try {
 		var ssa = build ("int fail() throws Error{throw new Error(\"x\");}int main(){try{fail();}catch(Error outer){try{fail();}catch(Error inner){return 42;}}return 1;}");
@@ -732,6 +751,7 @@ private void wrong_active_owner() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void handler_order() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("handlers", declarations () + "void fail() throws Error{throw new DecodeError(\"x\");}int main(){try{fail();}catch(DecodeError e){return 42;}catch(Error e){return 2;}return 1;}"));
@@ -764,6 +784,7 @@ private void handler_order() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void independent_physical_forgeries() {
 	try {
 		SsaProgram? ssa = build ("class Base{init(){}virtual int run() throws Error{return 42;}}class Child:Base{init():base(){}override int run(){return 42;}}class Loud:DecodeError{init(string text):base(text){}override property string message{get{return this.text;}}}owned Error make(bool bad) throws DecodeError{var e=new Loud(\"dynamic\\0é\");if(bad){throw new DecodeError(\"failure\");}return move e;}int main(){try{var first=make(false);var view=first.message;var second=new Error(view);var object=new Child();if(value(object)!=42){return 3;}if(second.message==\"dynamic\\0é\"){return 42;}return 2;}catch(Error e){return 1;}}int value(Base object) throws Error{return object.run();}");
@@ -1064,6 +1085,7 @@ private void independent_physical_forgeries() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/error-1/exceptions/inherited-getter-exact-parent-field-rejected-and-restored", inherited_getter_authority);
@@ -1086,4 +1108,5 @@ int main(string[] args) {
 	Test.add_func ("/error-1/exceptions/retained-generic-valid-llvm-publications-and-conventions", llvm_correspondence);
 	return Test.run ();
 }
+
 }

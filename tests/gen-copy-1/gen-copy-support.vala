@@ -8,6 +8,7 @@ private GenericArray<SemanticType> arguments(SemanticType type) {
 	result.add (type);
 	return result;
 }
+
 private CoreProgram sample() {
 	var s = SourceSpan (new SourceFile.from_text ("independent-copy-model", "x"), 0, 1);
 	var types = new BuiltinTypes ();
@@ -65,4 +66,5 @@ private CoreProgram sample() {
 	program.generic_functions.add (generic);
 	return program;
 }
+
 }

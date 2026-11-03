@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct ProducedSeed<A,B> { A value; B ready; }
+
 class ProducedResult<A,B> {
 	private A seed;
 	private B extra;
 	private owned R retained;
 	private owned int[] samples;
+
 	init(A seed, B extra, int ticket) {
 		var retained = make(ticket);
 		var samples = new int[2];
@@ -15,57 +17,74 @@ class ProducedResult<A,B> {
 		this.retained = move retained;
 		this.samples = move samples;
 	}
+
 	property A state { get { return this.seed; } }
+
 	property B additional { get { return this.extra; } }
+
 	int sample() { return this.samples[1]; }
+
 	deinit() { mark(840); }
 }
+
 class ClassResultEnvironment<T> {
 	private T seed;
 	private owned Other retained;
+
 	init(T seed, owned Other retained) { this.seed = seed; this.retained = move retained; }
+
 	property T state { get { return this.seed; } }
+
 	deinit() { mark(850); }
 }
+
 struct ClassResultCode { Fn<owned ProducedResult<ProducedSeed<int,bool>,int>,int> create; }
+
 owned ProducedResult<ProducedSeed<int,bool>,int> produce_class_result(int ticket) {
 	ProducedSeed<int,bool> seed = {value = ticket, ready = true};
 	var value = new ProducedResult<ProducedSeed<int,bool>,int>(seed, ticket + 1, ticket);
 	return move value;
 }
+
 owned ProducedResult<ProducedSeed<int,bool>,int> nullable_class_result(bool present) {
-	if (!present) { return null; }
+	if (!present) return null;
 	var value = produce_class_result(239);
 	return move value;
 }
+
 Fn<owned ProducedResult<ProducedSeed<int,bool>,int>,int> class_result_factory() { return produce_class_result; }
+
 int inspect_class_result(borrowed ProducedResult<ProducedSeed<int,bool>,int> value) {
 	ProducedSeed<int,bool> seed = value.state;
-	if (!seed.ready) { return 0; }
+	if (!seed.ready) return 0;
 	return seed.value + value.additional + value.sample();
 }
+
 int consume_class_result(owned ProducedResult<ProducedSeed<int,bool>,int> value) { return inspect_class_result(value); }
+
 int exercise_class_result_functions() {
 	ClassResultCode stored = {create = class_result_factory()};
 	Fn<owned ProducedResult<ProducedSeed<int,bool>,int>,int> code = stored.create;
 	var first = code(231);
 	owned ProducedResult<ProducedSeed<int,bool>,int> second = code(232);
 	Fn<int,borrowed ProducedResult<ProducedSeed<int,bool>,int>> observe = inspect_class_result;
-	if (observe(first) != 704 || observe(second) != 707) { return 1; }
+	if (observe(first) != 704 || observe(second) != 707) return 1;
 	Fn<owned ProducedResult<ProducedSeed<int,bool>,int>,bool> nullable = nullable_class_result;
 	var missing = nullable(false);
-	if (missing != null) { return 2; }
+	if (missing != null) return 2;
 	var present = nullable(true);
-	if (observe(present) != 728) { return 3; }
+	if (observe(present) != 728) return 3;
 	Fn<int,owned ProducedResult<ProducedSeed<int,bool>,int>> consume = consume_class_result;
-	if (consume(move first) != 704) { return 4; }
+	if (consume(move first) != 704) return 4;
 	return 0;
 }
+
 owned ProducedResult<ProducedSeed<int,bool>,int> plain_class_result(borrowed ClassResultEnvironment<ProducedSeed<int,bool>> environment, int ticket) {
 	ProducedSeed<int,bool> seed = environment.state;
 	var value = produce_class_result(ticket + seed.value);
 	return move value;
 }
+
 owned ProducedResult<ProducedSeed<int,bool>,int> checked_class_result(borrowed ClassResultEnvironment<ProducedSeed<int,bool>> environment, bool fail) throws Error {
 	ProducedSeed<int,bool> seed = environment.state;
 	if (fail) {
@@ -76,13 +95,14 @@ owned ProducedResult<ProducedSeed<int,bool>,int> checked_class_result(borrowed C
 	var value = produce_class_result(237 + seed.value);
 	return move value;
 }
+
 int exercise_class_result_closures() {
 	ProducedSeed<int,bool> seed = {value = 0, ready = true};
 	var retained = make_other(233);
 	var environment = new ClassResultEnvironment<ProducedSeed<int,bool>>(seed, move retained);
 	owned Closure<ClassResultEnvironment<ProducedSeed<int,bool>>,owned ProducedResult<ProducedSeed<int,bool>,int>,int> plain = closure_bind(move environment, plain_class_result);
 	var first = closure_invoke(plain, 234);
-	if (inspect_class_result(first) != 713) { return 5; }
+	if (inspect_class_result(first) != 713) return 5;
 	var checked_retained = make_other(235);
 	var checked_environment = new ClassResultEnvironment<ProducedSeed<int,bool>>(seed, move checked_retained);
 	owned CheckedClosure<ClassResultEnvironment<ProducedSeed<int,bool>>,Error,owned ProducedResult<ProducedSeed<int,bool>,int>,bool> checked = checked_closure_bind(move checked_environment, checked_class_result);
@@ -92,16 +112,17 @@ int exercise_class_result_closures() {
 	} catch (Error error) { mark(852); }
 	try {
 		var accepted = closure_invoke(checked, false);
-		if (inspect_class_result(accepted) != 722) { return 7; }
+		if (inspect_class_result(accepted) != 722) return 7;
 	} catch (Error error) { return 8; }
 	var second = closure_invoke(plain, 238);
-	if (inspect_class_result(first) != 713 || inspect_class_result(second) != 725) { return 9; }
+	if (inspect_class_result(first) != 713 || inspect_class_result(second) != 725) return 9;
 	return 0;
 }
+
 int main() {
 	int result = exercise_class_result_functions();
-	if (result != 0 || live() != 0) { return 10; }
+	if (result != 0 || live() != 0) return 10;
 	result = exercise_class_result_closures();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

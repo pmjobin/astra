@@ -2,19 +2,21 @@ struct Signal {
 	i16 raw;
 	int reads;
 	int writes;
+
 	property i16<8> samples {
 		get { this.reads = this.reads + 1; return splat(this.raw, 8); }
 		set(i16<8> next) { this.writes = this.writes + 1; this.raw = next[2]; }
 	}
 }
+
 int main() {
 	Signal s = { raw = 1, reads = 0, writes = 0 };
 	s.samples = insert(s.samples, 2, 21);
-	if (s.reads != 1 || s.writes != 1 || s.samples[2] != 21) { return 1; }
+	if (s.reads != 1 || s.writes != 1 || s.samples[2] != 21) return 1;
 	i16<8> masked = s.samples & splat(31, 8);
 	i16<8> doubled = sat_add(masked, masked);
 	i16<8> ones = splat(1, 8);
 	int total = dot_wrap(doubled, ones, i32);
-	if (total != 336) { return 2; }
+	if (total != 336) return 2;
 	return doubled[0] as int;
 }

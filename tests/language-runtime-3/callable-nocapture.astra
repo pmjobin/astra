@@ -2,14 +2,15 @@
 using CallableFunctions;
 
 int twice(Increment function, int value) { return function(function(value)); }
+
 int legacy(int value) { return value + 100; }
 
 int main() {
 	Increment function = Increment.init();
-	if (twice(function, 40) != 42) { return 81; }
+	if (twice(function, 40) != 42) return 81;
 	Wide wide = Wide.init();
-	if (wide(4294967296) + 2 != 4294967300) { return 82; }
+	if (wide(4294967296) + 2 != 4294967300) return 82;
 	Increment legacy = Increment.init();
-	if (legacy(1) != 101 || legacy.invoke(1) != 2) { return 83; }
+	if (legacy(1) != 101 || legacy.invoke(1) != 2) return 83;
 	return 0;
 }

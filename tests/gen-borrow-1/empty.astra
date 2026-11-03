@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Empty { init() { observe_event(67, 1); } }
+
 int main() {
 	observe_begin(0, 0);
 	owned Empty lexical = Empty.init();
 	var heap = new Empty();
-	if (lexical == heap) { return 81; }
+	if (lexical == heap) return 81;
 	forward<Empty>(lexical, 66);
 	forward<Empty>(heap, 70);
 	dispose<Empty>(move lexical);

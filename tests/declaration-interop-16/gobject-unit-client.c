@@ -7,9 +7,11 @@
 #include <string.h>
 typedef struct Native Native;
 typedef struct _Opaque16Session Session;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t gobjectunit16_create(int32_t, double, Native **, Error *);
 extern int32_t gobjectunit16_get_count(Native *, int32_t *, Error *);
 extern uint32_t gobjectunit16_release(Native *);
@@ -19,11 +21,13 @@ extern gboolean opaque16_session_try_evaluate(Session *, gdouble, gdouble *, GEr
 extern gboolean opaque16_session_try_snapshot(Session *, GBytes *, GBytes **, GError **);
 extern gboolean opaque16_session_try_visit(Session *, gboolean, gboolean (*)(gpointer, gboolean), gpointer, gboolean *, GError **);
 static unsigned callbacks;
+
 static gboolean invert(gpointer data, gboolean input) {
 	assert(data == &callbacks);
 	++callbacks;
 	return !input;
 }
+
 int main(void) {
 	Native *root = NULL;
 	Error native = {0, 0};

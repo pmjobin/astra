@@ -1,61 +1,85 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int dispatch18_input(int index);
+
 extern(C) int dispatch18_check(int index, int value);
+
 extern(C) void storage18_begin();
+
 extern(C) void storage18_retire(int value);
 
 interface Stage18 { int invoke(int value); }
+
 class Offset18 : Stage18 {
 	int bias;
+
 	init(int bias) : base() { this.bias = bias; }
+
 	deinit() { storage18_retire(this.bias); }
+
 	override int invoke(int value) { return value + this.bias; }
 }
+
 class Scale18 : Stage18 {
 	int gain;
+
 	init(int gain) : base() { this.gain = gain; }
+
 	deinit() { storage18_retire(this.gain + 100); }
+
 	override int invoke(int value) { return value * this.gain; }
 }
+
 class PropertyBase18 {
 	init() {}
+
 	virtual property int offset { get { return 0; } }
 }
+
 class Property18 : PropertyBase18 {
 	int bias;
+
 	init(int bias) : base() { this.bias = bias; }
+
 	deinit() { storage18_retire(this.bias + 200); }
+
 	override property int offset { get { return this.bias; } }
 }
+
 int dispatch18_inspect(Offset18 first, Offset18 second) { return first.bias + second.bias; }
+
 int dispatch18_pair(int value, bool first_branch) {
 	owned Offset18 first = new Offset18(3);
 	owned Offset18 second = new Offset18(7);
 	int inspected = dispatch18_inspect(first, second);
-	if (first_branch) { return first(value) + second(value + inspected); }
+	if (first_branch) return first(value) + second(value + inspected);
 	return second(value) + first(value + inspected);
 }
+
 int dispatch18_join(int value, bool first_branch) {
 	owned Offset18 first = new Offset18(5);
 	owned Offset18 second = new Offset18(9);
 	int bias = dispatch18_inspect(first, second);
-	if (!first_branch) { bias = bias + 1; }
+	if (!first_branch) bias = bias + 1;
 	return first(value + bias) + second(value);
 }
+
 int dispatch18_mixed(int value, bool first_branch) {
 	owned Offset18 first = new Offset18(11);
 	owned Scale18 second = new Scale18(2);
-	if (first_branch) { return dispatch18_dynamic(first, value); }
+	if (first_branch) return dispatch18_dynamic(first, value);
 	return dispatch18_dynamic(second, value);
 }
+
 int dispatch18_property(int value, bool first_branch) {
 	owned Property18 first = new Property18(17);
 	owned Property18 second = new Property18(19);
 	int result = first.offset;
-	if (first_branch) { result = result + value; }
+	if (first_branch) result = result + value;
 	return result + second.offset;
 }
+
 int dispatch18_dynamic(Stage18 input, int value) { return input(value); }
+
 int main() {
 	storage18_begin();
 	owned Offset18 first = new Offset18(13);
@@ -64,9 +88,13 @@ int main() {
 		int value = dispatch18_input(index);
 		bool choice = index % 2 == 0;
 		int result = dispatch18_pair(value, choice) + dispatch18_join(value, choice) + dispatch18_property(value, choice) + dispatch18_mixed(value, choice);
-		if (choice) { result = result + dispatch18_dynamic(first, value); }
-		else { result = result + dispatch18_dynamic(second, value); }
-		if (dispatch18_check(index, result) != 0) { return 1; }
+		if (choice) {
+			result = result + dispatch18_dynamic(first, value);
+		}
+		else {
+			result = result + dispatch18_dynamic(second, value);
+		}
+		if (dispatch18_check(index, result) != 0) return 1;
 	}
 	return 0;
 }

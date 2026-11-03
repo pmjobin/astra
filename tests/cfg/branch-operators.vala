@@ -98,4 +98,5 @@ private void register_branch_operator_tests() {
 			});
 	}
 }
+
 }

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 i32 dot_samples(i16<8> a,i16<8> b){return dot_wrap(a,b,i32);}
+
 f32 dot4(f32<4> a,f32<4> b){return dot(a,b);}
+
 i32 composed(i8<16> a,i8<16> b){
 	i16<8> low=widen_low(a,i16);
 	i16<8> high=widen_high(b,i16);
@@ -10,14 +12,15 @@ i32 composed(i8<16> a,i8<16> b){
 	i8<16> selected=select(splat(true,16),saturated,b);
 	return dot_wrap(interleave_low(selected,a),interleave_high(b,a),i32);
 }
+
 int main(){
-	if(dot_samples(splat(-32768,8),splat(-32768,8))!=0){return 1;}
-	if(dot4(splat(2.0,4),splat(4.0,4))!=32.0){return 2;}
-	if(composed(splat(2,16),splat(3,16))!=80){return 3;}
+	if(dot_samples(splat(-32768,8),splat(-32768,8))!=0) return 1;
+	if(dot4(splat(2.0,4),splat(4.0,4))!=32.0) return 2;
+	if(composed(splat(2,16),splat(3,16))!=80) return 3;
 	i8<4> a={1,2,3,4};
 	i8<4> b={4,3,2,1};
-	if(dot_wrap(shuffle(a,3,1,0,2),shuffle(b,3,1,0,2),i16)!=dot_wrap(a,b,i16)){return 4;}
+	if(dot_wrap(shuffle(a,3,1,0,2),shuffle(b,3,1,0,2),i16)!=dot_wrap(a,b,i16)) return 4;
 	i8<4> c=insert(a,2,7);
-	if(dot_wrap(c,b,i16)!=28){return 5;}
+	if(dot_wrap(c,b,i16)!=28) return 5;
 	return 0;
 }

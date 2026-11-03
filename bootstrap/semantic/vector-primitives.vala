@@ -16,9 +16,11 @@ public class VectorLaneIndex : Object {
 	public VectorLaneIndex copy() {
 		return new VectorLaneIndex (span, ordinal);
 	}
+
 	public bool in_range(VectorType type) {
 		return ordinal >= 0 && ordinal < type.lane_count;
 	}
+
 }
 
 // Each stage owns a snapshot. Neither the array nor mutable list access escapes.
@@ -36,6 +38,7 @@ public class VectorLaneSelectors : Object {
 	public VectorLaneIndex at(int position) {
 		return indices[position];
 	}
+
 	public VectorLaneSelectors copy() {
 		var snapshot = new GenericArray<VectorLaneIndex> ();
 		foreach (var index in indices) {
@@ -54,5 +57,6 @@ public class VectorLaneSelectors : Object {
 		}
 		return text.str;
 	}
+
 }
 }

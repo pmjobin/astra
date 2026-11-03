@@ -16,6 +16,7 @@ private SsaFunction named(SsaProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private SsaProgram bodies() throws GLib.Error {
 	string source;
 	FileUtils.get_contents ("tests/callable-1/fixtures/bodies.astra", out source);
@@ -51,11 +52,13 @@ private SsaProgram bodies() throws GLib.Error {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void add_call(SsaContinuationRegion region, int owner, int witness, ContinuationRole role = ContinuationRole.STEP) {
 	region.actions.add (new ContinuationAction (ContinuationActionKind.BEGIN, owner, -1, -1, -1, witness));
 	region.actions.add (new ContinuationAction (ContinuationActionKind.CALL, owner, -1, -1, -1, witness, 1, -1, -1, role));
 	region.actions.add (new ContinuationAction (ContinuationActionKind.END, owner, -1, -1, -1, witness));
 }
+
 private SsaContinuationFamily family(SsaContinuationEnvironment? environment, SsaFunction step, SsaFunction alternate, SsaFunction cancel) {
 	var result = new SsaContinuationFamily (environment, new SsaContinuationEntry (ContinuationRole.DESTROY, environment));
 	result.entries.add (new SsaContinuationEntry (ContinuationRole.STEP, environment, step));
@@ -63,6 +66,7 @@ private SsaContinuationFamily family(SsaContinuationEnvironment? environment, Ss
 	result.entries.add (new SsaContinuationEntry (ContinuationRole.CANCEL_DRAIN, environment, cancel));
 	return result;
 }
+
 private SsaProgram build() throws GLib.Error {
 	var program = bodies ();
 	var original = named (program, "generated_run");
@@ -133,7 +137,9 @@ private SsaProgram build() throws GLib.Error {
 	SsaVerifier.verify (program);
 	return program;
 }
+
 private SsaContinuationRegion region_of(SsaProgram program) {
 	return (SsaContinuationRegion) named (program, "generated_run").entry.instructions[1];
 }
+
 }

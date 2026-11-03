@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace ByteCPU;
 enum WorkerStatus { Completed, Cancelled }
+
 async runtime ByteWorkerExecutor throws ByteBridgeError returns WorkerStatus provider "posix-threaded-composed";
 extern(C) void context_bytes_worker_observed(int checksum);
+
 async owned ContextBytes<ConcurrentAllocator> transform(owned ContextBytes<ConcurrentAllocator> bytes) throws Error {
 	int checksum = 0;
-	for (int index = 0; index < len(bytes); index = index + 1) { checksum = checksum + (bytes[index] as int); }
+	for (int index = 0; index < len(bytes); index = index + 1) checksum = checksum + (bytes[index] as int);
 	context_bytes_worker_observed(checksum);
 	await delay_ticks(1);
 	return move bytes;

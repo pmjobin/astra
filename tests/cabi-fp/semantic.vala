@@ -22,6 +22,7 @@ private void declarations() throws GLib.Error {
 	assert (narrow.c_functions[0].parameters[0].span.text ().contains ("float value"));
 	assert (SemanticDump.format (program).contains ("f64"));
 }
+
 private void reject(string source, string expected, string declarations = "") {
 	var parsed = Parser.parse (new SourceFile.from_text ("invalid.astra", source));
 	assert (parsed.unit != null);
@@ -32,6 +33,7 @@ private void reject(string source, string expected, string declarations = "") {
 		GLib.error ("Expected %s for %s / %s, got %s", expected, source, declarations, result.diagnostic == null ? "success" : result.diagnostic.message);
 	}
 }
+
 private void exact_types() throws GLib.Error {
 	foreach (string type in new string[] {"f32", "int", "u32", "bool", "void*"}) {
 		reject ("extern(C) f64 echo(f64 x); f64 call(" + type + " x){return echo(x);}", "expects type");
@@ -59,6 +61,7 @@ private void exact_types() throws GLib.Error {
 		check (source);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -68,4 +71,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

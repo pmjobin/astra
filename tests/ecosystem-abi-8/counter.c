@@ -8,16 +8,19 @@ struct _AstCounter {
 	char *label;
 	gboolean disposed;
 };
+
 typedef struct {
 	GObjectClass parent;
 } AstCounterClass;
 G_DEFINE_TYPE(AstCounter, ast_counter, G_TYPE_OBJECT)
 static int disposed_count, finalized_count;
 static guint changed_signal;
+
 enum { PROP_NONE,
 	   PROP_VALUE,
 	   PROP_LABEL,
 	   PROP_COUNT };
+
 static GParamSpec *properties[PROP_COUNT];
 
 static void counter_get_property(GObject *object, guint id, GValue *value, GParamSpec *spec) {
@@ -92,17 +95,21 @@ AstCounter *ast_counter_new(gint value) {
 gint ast_counter_read(AstCounter *self) {
 	return self->disposed ? INT32_MIN : self->value;
 }
+
 gint ast_counter_write(AstCounter *self, gint value) {
 	if (self->disposed || value < -10000 || value > 10000) return -1;
 	g_object_set(self, "value", value, NULL);
 	return 1;
 }
+
 const gchar *ast_counter_label(AstCounter *self) {
 	return self->disposed ? NULL : self->label;
 }
+
 GObject *ast_counter_as_object(AstCounter *self) {
 	return self->disposed ? NULL : g_object_ref(G_OBJECT(self));
 }
+
 gint ast_counter_emit(AstCounter *self, gint value) {
 	if (self->disposed) return -3;
 	gint result = 0;
@@ -139,6 +146,7 @@ void *counter_snapshot(void *token) {
 int32_t counter_finalized(void) {
 	return finalized_count;
 }
+
 int32_t counter_disposed(void) {
 	return disposed_count;
 }

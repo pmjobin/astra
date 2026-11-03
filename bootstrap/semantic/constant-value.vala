@@ -40,9 +40,11 @@ public class ConstantValue : Object {
 		}
 		return new CheckedBooleanExpression (span, semantic_type, boolean ? BooleanLiteral.TRUE : BooleanLiteral.FALSE);
 	}
+
 	public static bool supports(SemanticType type) {
 		return type is StringType || type.kind == TypeKind.BOOL || type is IntegerType || type is FloatingType;
 	}
+
 }
 
 internal class ConstantDependency : Object {
@@ -52,6 +54,7 @@ internal class ConstantDependency : Object {
 		this.index = index;
 		this.span = span;
 	}
+
 }
 internal class ConstantEdges : Object {
 	internal GenericArray<ConstantDependency> dependencies = new GenericArray<ConstantDependency> ();
@@ -62,6 +65,7 @@ internal class ConstantFrame : Object {
 	internal ConstantFrame (int index) {
 		this.index = index;
 	}
+
 }
 
 public enum ConstantState {
@@ -80,6 +84,7 @@ public class ConstantSymbol : Symbol {
 		this.declaration = declaration;
 		this.region = region;
 	}
+
 }
 
 public class CheckedConstantDeclaration : CheckedStatement {
@@ -88,6 +93,7 @@ public class CheckedConstantDeclaration : CheckedStatement {
 		base (constant.span);
 		this.constant = constant;
 	}
+
 }
 
 public class CheckedConstantReference : CheckedExpression {
@@ -97,5 +103,6 @@ public class CheckedConstantReference : CheckedExpression {
 		assert (constant.state == ConstantState.COMPLETE);
 		this.constant = constant;
 	}
+
 }
 }

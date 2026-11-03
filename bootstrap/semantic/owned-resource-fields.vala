@@ -16,6 +16,7 @@ public class CheckedOwnedFieldTransfer : CheckedStatement {
 		this.incoming = incoming;
 		this.initializes = initializes;
 	}
+
 }
 
 // One temporary use of the live slot, never an independently owned handle.
@@ -30,5 +31,6 @@ public class CheckedOwnedFieldBorrow : CheckedExpression {
 		this.field = field;
 		this.parameter = parameter;
 	}
+
 }
 }

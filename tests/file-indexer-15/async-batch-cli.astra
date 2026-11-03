@@ -1,30 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 enum RunStatus { Completed, Cancelled }
+
 async runtime VirtualExecutor throws IndexFoundation.AsyncError returns RunStatus;
 
 class AsyncLaterPolicy : IndexFoundation.IdentifierPolicy {
 	private int first;
 	private int last;
+
 	init() : base() { this.first = 65; this.last = 90; }
+
 	override int classify(int byte) {
-		if (byte >= this.first && byte <= this.last) { return 1; }
-		if (byte >= 97 && byte <= 122 || byte == 95) { return 1; }
-		if (byte >= 48 && byte <= 57) { return 2; }
+		if (byte >= this.first && byte <= this.last) return 1;
+		if (byte >= 97 && byte <= 122 || byte == 95) return 1;
+		if (byte >= 48 && byte <= 57) return 2;
 		return 0;
 	}
 }
+
 void sample_policy(borrowed IndexFoundation.IdentifierPolicy policy, int[] categories) {
-	for (int byte = 0; byte < 256; byte = byte + 1) { categories[byte] = policy.classify(byte); }
+	for (int byte = 0; byte < 256; byte = byte + 1) categories[byte] = policy.classify(byte);
 }
+
 IndexFoundation.Receipt async_sink(borrowed IndexFoundation.SinkState<int> environment,
 	IndexFoundation.Summary input, bool reject) throws IndexFoundation.Error {
 	environment.attempt();
-	if (reject) { throw new IndexFoundation.SinkFailure(); }
+	if (reject) {
+		throw new IndexFoundation.SinkFailure();
+	}
 	environment.accept();
 	IndexFoundation.Receipt result = {sequence = environment.count, attempts = environment.attempts,
 		bytes = input.bytes, marker = environment.label};
 	return result;
 }
+
 async void run_batch(owned IndexFoundation.BatchInput arguments,
 	owned CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
 	IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink,
@@ -32,11 +40,17 @@ async void run_batch(owned IndexFoundation.BatchInput arguments,
 	var categories = new int[256];
 	var first = new IndexAnalysis.AsciiPolicy();
 	var later = new AsyncLaterPolicy();
-	if (alternate) { sample_policy(later, categories); }
-	else { sample_policy(first, categories); }
+	if (alternate) {
+		sample_policy(later, categories);
+	}
+	else {
+		sample_policy(first, categories);
+	}
 	var policy = new IndexFoundation.ClassificationTable(move categories);
 	var store = new IndexFoundation.Store();
-	if (!IndexFoundation.print("astra-index\t1\n")) { throw new IndexFoundation.IndexError("output"); }
+	if (!IndexFoundation.print("astra-index\t1\n")) {
+		throw new IndexFoundation.IndexError("output");
+	}
 	var summary = await IndexAnalysis.process_batch(move store, move arguments, move policy, move sink);
 	var output = new IndexFoundation.Utf8ByteBuilder();
 	IndexFoundation.require_text(IndexFoundation.append_text(output, "summary"));
@@ -46,29 +60,49 @@ async void run_batch(owned IndexFoundation.BatchInput arguments,
 	IndexAnalysis.append_number(output, summary.occurrences);
 	IndexAnalysis.append_byte(output, 10);
 	var message = output.snapshot();
-	if (!IndexFoundation.print(message.text)) { throw new IndexFoundation.IndexError("output"); }
+	if (!IndexFoundation.print(message.text)) {
+		throw new IndexFoundation.IndexError("output");
+	}
 }
+
 bool batch_retired(int count) {
 	return IndexFoundation.async_watch(7) == 0 && IndexFoundation.async_watch(8) == count &&
 	IndexFoundation.async_watch(9) == count;
 }
+
 int main(string[] args) {
 	bool alternate = false;
 	int cancellation = 0;
 	int paths = 0;
 	var arguments = new IndexFoundation.BatchInput();
 	for (int index = 1; index < len(args); index = index + 1) {
-		if (args[index] == "--cancel-cold") { cancellation = 1; continue; }
-		if (args[index] == "--cancel-suspended") { cancellation = 2; continue; }
-		if (args[index] == "--cancel-after-first") { cancellation = 3; continue; }
-		if (args[index] == "--policy=alternate") { alternate = true; }
+		if (args[index] == "--cancel-cold") {
+			cancellation = 1;
+			continue;
+		}
+		if (args[index] == "--cancel-suspended") {
+			cancellation = 2;
+			continue;
+		}
+		if (args[index] == "--cancel-after-first") {
+			cancellation = 3;
+			continue;
+		}
+		if (args[index] == "--policy=alternate") {
+			alternate = true;
+		}
 		else { if (args[index] != "--retry-sink" && args[index] != "--refresh" &&
-				args[index] != "--evict-last" && args[index] != "--cache-stats") { paths = paths + 1; } }
+				args[index] != "--evict-last" && args[index] != "--cache-stats") {
+				paths = paths + 1;
+			} }
 		int key = index;
 		for (int previous = 1; previous < index; previous = previous + 1) {
-			if (args[previous] == args[index]) { key = previous; break; }
+			if (args[previous] == args[index]) {
+				key = previous;
+				break;
+			}
 		}
-		if (!arguments.append(args[index], key)) { return 4; }
+		if (!arguments.append(args[index], key)) return 4;
 	}
 	int argument_count = arguments.count;
 	IndexFoundation.async_watch(0);
@@ -83,7 +117,7 @@ int main(string[] args) {
 			executor.cancel(task);
 			var status = executor.run(move task);
 			match (status) { case RunStatus.Cancelled(): {} else: { return 5; } }
-			if (!batch_retired(argument_count) || IndexFoundation.async_watch(3) != 0 || IndexFoundation.async_watch(4) != 0) { return 6; }
+			if (!batch_retired(argument_count) || IndexFoundation.async_watch(3) != 0 || IndexFoundation.async_watch(4) != 0) return 6;
 			return 0;
 		}
 		executor.start(task);
@@ -110,15 +144,17 @@ int main(string[] args) {
 			executor.cancel(task);
 			var status = executor.run(move task);
 			match (status) { case RunStatus.Cancelled(): {} else: { return 7; } }
-			if (!batch_retired(argument_count)) { return 10; }
+			if (!batch_retired(argument_count)) return 10;
 			if (cancellation == 2 && IndexFoundation.async_watch(4) != 0 ||
-				cancellation == 3 && IndexFoundation.async_watch(4) != 1) { return 8; }
+				cancellation == 3 && IndexFoundation.async_watch(4) != 1) {
+				return 8;
+			}
 			return 0;
 		}
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 3; } }
-		if (!batch_retired(argument_count)) { return 10; }
-		if (IndexFoundation.async_watch(3) != paths || IndexFoundation.async_watch(4) != paths) { return 9; }
+		if (!batch_retired(argument_count)) return 10;
+		if (IndexFoundation.async_watch(3) != paths || IndexFoundation.async_watch(4) != paths) return 9;
 	} catch (IndexFoundation.Error error) {
 		IndexFoundation.println_stderr(error.message);
 		return 4;

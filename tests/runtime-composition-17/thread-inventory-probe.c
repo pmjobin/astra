@@ -37,9 +37,11 @@ static void inventory(const char *phase) {
 	printf("],\"count\":%d}\n", count);
 	assert(fflush(stdout) == 0);
 }
+
 static void *empty(void *argument) {
 	return argument;
 }
+
 static void batch(void) {
 	pthread_t threads[2];
 	for (int i = 0; i < 2; ++i)
@@ -47,6 +49,7 @@ static void batch(void) {
 	for (int i = 0; i < 2; ++i)
 		assert(pthread_join(threads[i], NULL) == 0);
 }
+
 int main(void) {
 	inventory("before");
 	batch();

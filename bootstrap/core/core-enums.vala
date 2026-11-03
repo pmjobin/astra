@@ -12,6 +12,7 @@ public class CoreEnumScalarValue : CoreValue {
 		this.source = source;
 		this.cleanup = source.cleanup;
 	}
+
 }
 public class CoreEnumBufferValue : CoreValue {
 	public CoreOwnedLocal? source { get; private set; }
@@ -23,6 +24,7 @@ public class CoreEnumBufferValue : CoreValue {
 		this.source = source;
 		this.producer = producer;
 	}
+
 }
 public abstract class CoreEnumProducer : CoreNode {
 	public EnumInstanceIdentity instance { get; private set; }
@@ -33,6 +35,7 @@ public abstract class CoreEnumProducer : CoreNode {
 		this.instance = instance ?? new EnumInstanceIdentity ();
 		this.definition = definition;
 	}
+
 }
 
 public class CoreEnumSnapshot : CoreEnumProducer {
@@ -43,6 +46,7 @@ public class CoreEnumSnapshot : CoreEnumProducer {
 		this.source = source;
 		this.mode = mode;
 	}
+
 }
 
 public class CoreEnumFieldValue : CoreNode {
@@ -57,6 +61,7 @@ public class CoreEnumFieldValue : CoreNode {
 		this.record = record;
 		this.sum = sum;
 	}
+
 }
 
 public class CoreEnumConstruct : CoreEnumProducer {
@@ -71,6 +76,7 @@ public class CoreEnumConstruct : CoreEnumProducer {
 			input_contract.add (new CoreEnumFieldValue (input.span, input.field, input.scalar, input.record, input.sum));
 		}
 	}
+
 	internal bool matches_inputs() {
 		if (fields.length != input_contract.length) {
 			return false;
@@ -84,6 +90,7 @@ public class CoreEnumConstruct : CoreEnumProducer {
 		}
 		return true;
 	}
+
 }
 
 public class CoreEnumCallResult : CoreEnumProducer {
@@ -98,6 +105,7 @@ public class CoreEnumCallResult : CoreEnumProducer {
 		this.arguments = arguments;
 		this.receiver = receiver;
 	}
+
 }
 
 public class CoreEnumArgument : CoreValue {
@@ -108,6 +116,7 @@ public class CoreEnumArgument : CoreValue {
 		this.parameter = parameter;
 		this.producer = producer;
 	}
+
 }
 
 public class CoreEnumStore : CoreStatement {
@@ -120,6 +129,7 @@ public class CoreEnumStore : CoreStatement {
 		this.producer = producer;
 		this.initializes_destination = initializes_destination;
 	}
+
 }
 
 public class CoreEnumReturn : CoreStatement {
@@ -128,6 +138,7 @@ public class CoreEnumReturn : CoreStatement {
 		base (span);
 		this.producer = producer;
 	}
+
 }
 
 public class CoreEnumBinding : CoreNode {
@@ -142,6 +153,7 @@ public class CoreEnumBinding : CoreNode {
 		this.destination = destination;
 		this.acquisition = acquisition;
 	}
+
 }
 
 public class CoreEnumArm : CoreNode {
@@ -158,6 +170,7 @@ public class CoreEnumArm : CoreNode {
 			binding_contract.add (new CoreEnumBinding (binding.span, binding.field, binding.destination, binding.contract, binding.acquisition));
 		}
 	}
+
 	internal bool matches_bindings() {
 		if (bindings.length != binding_contract.length) {
 			return false;
@@ -171,6 +184,7 @@ public class CoreEnumArm : CoreNode {
 		}
 		return true;
 	}
+
 }
 
 public class CoreEnumMatch : CoreStatement {
@@ -181,6 +195,7 @@ public class CoreEnumMatch : CoreStatement {
 		this.scrutinee = scrutinee;
 		this.arms = arms;
 	}
+
 }
 
 public class CoreEnumEquality : CoreValue {
@@ -193,6 +208,7 @@ public class CoreEnumEquality : CoreValue {
 		this.right = right;
 		this.unequal = unequal;
 	}
+
 }
 
 public class CoreAcquireEnumParameter : CoreStatement {
@@ -203,5 +219,6 @@ public class CoreAcquireEnumParameter : CoreStatement {
 		this.destination = destination;
 		this.parameter = parameter;
 	}
+
 }
 }

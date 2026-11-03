@@ -28,6 +28,7 @@ private void profiles() throws GLib.Error {
 		assert (NativeAbiBuilder.build (build (text)).abi_version == NativeAbiVersion.SCALAR_FP_V3);
 	}
 }
+
 private void lifetime() throws GLib.Error {
 	foreach (string t in new string[] {"f32"}) {
 		CheckedProgram? checked = check (t + " f(){return -0.0;}");
@@ -110,4 +111,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

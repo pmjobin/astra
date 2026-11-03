@@ -8,6 +8,7 @@ string hex(string text) {
 	}
 	return result.str;
 }
+
 void dump(Lexer lexer) {
 	while (true) {
 		var token = lexer.next_token();
@@ -29,6 +30,7 @@ void dump(Lexer lexer) {
 		stdout.printf("COMMENT %d %d \n", comment.span.start, comment.span.end);
 	}
 }
+
 int main(string[] args) {
 	try {
 		for (int i = 1; i < args.length; i++) {

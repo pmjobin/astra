@@ -13,6 +13,7 @@ private class ExportWorkspace : ForeignWorkspace {
 		assert (FileUtils.unlink (object0) == 0);
 		assert (FileUtils.symlink (Environment.get_variable ("ASTRA_TEST_CEXPORT_OBJECT_%d".printf (variant)), object0) == 0);
 	}
+
 }
 
 private void export_execute(string fixture, int variant, bool trap = false) throws GLib.Error {
@@ -176,4 +177,5 @@ private void register_c_exports() {
 	add ("/exec/cexport/main-collision", exported_main_policy);
 	add ("/exec/cexport/link-transaction", export_link_transaction);
 }
+
 }

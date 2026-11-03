@@ -5,10 +5,14 @@ using Pc;
 class StreamState {
 	f64 previous;
 	f64 total;
+
 	init() { this.previous = 0.0; this.total = 0.0; }
+
 	void reset() { this.previous = 0.0; this.total = 0.0; }
+
 	deinit() { write_byte(68); }
 }
+
 [FloatingPoint(strict="on")]
 f64 process(borrowed StreamState state, f64 input) {
 	f64 filtered = state.previous * 0.5 + input * 0.25;
@@ -16,6 +20,7 @@ f64 process(borrowed StreamState state, f64 input) {
 	state.total = state.total + filtered;
 	return filtered;
 }
+
 void decimal6(int value) {
 	write_byte(48 + value / 100000 % 10);
 	write_byte(48 + value / 10000 % 10);
@@ -24,17 +29,18 @@ void decimal6(int value) {
 	write_byte(48 + value / 10 % 10);
 	write_byte(48 + value % 10);
 }
+
 export(C) int astra_entry(int index, int initialized, int zeroed) {
-	if (index != 0) { return 0; }
-	if (initialized != 324508639 || zeroed != 0) { return 33; }
+	if (index != 0) return 0;
+	if (initialized != 324508639 || zeroed != 0) return 33;
 	var state = try_new StreamState();
-	if (state == null) { return 63; }
+	if (state == null) return 63;
 	write_byte(83); write_byte(58);
 	f32[32] samples = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 	for (int block = 0; block < 4; block = block + 1) {
 		state.reset();
-		for (int i = 0; i < len(samples); i = i + 1) { samples[i] = (((block * 32 + i) % 9 + 1) as f32) / 16.0; }
-		for (int i = 0; i < len(samples); i = i + 1) { process(state, samples[i] as f64); }
+		for (int i = 0; i < len(samples); i = i + 1) samples[i] = (((block * 32 + i) % 9 + 1) as f32) / 16.0;
+		for (int i = 0; i < len(samples); i = i + 1) process(state, samples[i] as f64);
 		decimal6((state.total * 1024.0) as int);
 		write_byte(44);
 	}

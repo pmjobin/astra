@@ -51,5 +51,6 @@ public class RuntimeScopeTypes : Object {
 		}
 		return false;
 	}
+
 }
 }

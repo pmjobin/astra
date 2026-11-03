@@ -13,6 +13,7 @@ public class CfgInvocationContracts : Object {
 		var evaluation = instruction as CfgEvaluateInstruction;
 		return evaluation == null ? null : evaluation.value;
 	}
+
 	internal static GenericArray<CfgStructBoundaryMove>? record_moves(CfgInstruction instruction) {
 		var direct = instruction as CfgCallInstruction;
 		if (direct != null) {
@@ -26,6 +27,7 @@ public class CfgInvocationContracts : Object {
 		var closure = invocation as CfgClosureCall;
 		return closure == null ? null : closure.record_moves;
 	}
+
 	internal static GenericArray<CfgValue>? arguments(CfgInstruction instruction) {
 		var direct = instruction as CfgCallInstruction;
 		if (direct != null) {
@@ -39,6 +41,7 @@ public class CfgInvocationContracts : Object {
 		var closure = invocation as CfgClosureCall;
 		return closure == null ? null : closure.arguments;
 	}
+
 }
 public class CfgCallbackParameterView : CfgValue {
 	public CfgParameter source { get; private set; }
@@ -48,6 +51,7 @@ public class CfgCallbackParameterView : CfgValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 public class CfgClosureBind : CfgValue {
 	public ActorBindingSpec? actor_binding { get; private set; }
@@ -62,12 +66,14 @@ public class CfgClosureBind : CfgValue {
 		this.cleanup = cleanup;
 		this.actor_binding = actor_binding == null ? null : actor_binding.copy ();
 	}
+
 }
 public class CfgClosureCall : CfgValue, CfgInvocation {
 	public CfgCleanupContract? owned_cleanup { get; private set; }
 	public CfgCleanupContract? result_cleanup() {
 		return owned_cleanup;
 	}
+
 	public GenericArray<CfgStructBoundaryMove> record_moves { get; private set; default = new GenericArray<CfgStructBoundaryMove> (); }
 	public GenericArray<StructBoundaryGroup> struct_arguments { get; private set; default = new GenericArray<StructBoundaryGroup> (); }
 	public GenericArray<CfgParameter> channel_parameters { get; private set; default = new GenericArray<CfgParameter> (); }
@@ -79,6 +85,7 @@ public class CfgClosureCall : CfgValue, CfgInvocation {
 		this.arguments = arguments;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 // A checked indirect call produces only the rooted native exception channel.
 // The scalar result remains private until a verified null-error successor.
@@ -88,6 +95,7 @@ public class CfgCheckedClosureInvoke : CfgEvaluateInstruction {
 		base (span, call, new CfgEvaluatedValue (span, root));
 		this.call = call;
 	}
+
 }
 public class CfgClosureCallSuccess : CfgEvaluateInstruction {
 	public CfgCheckedClosureInvoke invocation { get; private set; }
@@ -95,6 +103,7 @@ public class CfgClosureCallSuccess : CfgEvaluateInstruction {
 		base (span, invocation.call, new CfgEvaluatedValue (span, invocation.call.semantic_type));
 		this.invocation = invocation;
 	}
+
 }
 
 }
@@ -110,5 +119,6 @@ public class CfgActorSend : CfgEvaluateInstruction {
 		this.message = message;
 		this.error_type = error_type;
 	}
+
 }
 }

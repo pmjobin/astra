@@ -14,11 +14,13 @@ static void *empty(void *argument) {
 	*(long *)argument = syscall(SYS_gettid);
 	return NULL;
 }
+
 static uint64_t nanoseconds(void) {
 	struct timespec now;
 	assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
 	return (uint64_t)now.tv_sec * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
 }
+
 int main(void) {
 	unsigned visible = 0;
 	uint64_t longest = 0;

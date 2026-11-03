@@ -181,4 +181,5 @@ private void register_c_exports() {
 	add ("/llvm/cexport/malformed", export_backend_rejections);
 	add ("/llvm/cexport/lifetime", export_llvm_lifetime);
 }
+
 }

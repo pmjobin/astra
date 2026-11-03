@@ -13,6 +13,7 @@ public class CfgConstructorUnwindField : Object {
 		this.cleanup = cleanup;
 		this.shape = shape;
 	}
+
 }
 public class CfgConstructorAbort : CfgInstruction {
 	public CfgReceiverValue receiver { get; private set; }
@@ -22,6 +23,7 @@ public class CfgConstructorAbort : CfgInstruction {
 		base (span);
 		this.receiver = receiver;
 	}
+
 }
 public class CfgExceptionHandler : Object {
 	private WeakRef dispatch_identity;
@@ -39,6 +41,7 @@ public class CfgExceptionHandler : Object {
 		this.selection = selection;
 		this.borrow = borrow;
 	}
+
 }
 public class CfgOwnedArgumentAbort : CfgInstruction {
 	public CfgPendingOwnedArgument transfer { get; private set; }
@@ -46,11 +49,13 @@ public class CfgOwnedArgumentAbort : CfgInstruction {
 		base (span);
 		this.transfer = transfer;
 	}
+
 }
 public class CfgExceptionStorage : CfgTemporaryPlace {
 	internal CfgExceptionStorage (SourceSpan span, ClassType root_type, int ordinal) {
 		base (span, root_type, ordinal);
 	}
+
 }
 
 public class CfgExceptionTake : CfgEvaluateInstruction {
@@ -59,6 +64,7 @@ public class CfgExceptionTake : CfgEvaluateInstruction {
 		base (span, new CfgLoadValue (span, owner), new CfgEvaluatedValue (span, owner.semantic_type));
 		this.owner = owner;
 	}
+
 }
 public class CfgExceptionStamp : CfgInstruction {
 	public CfgValue exception { get; private set; }
@@ -66,6 +72,7 @@ public class CfgExceptionStamp : CfgInstruction {
 		base (span);
 		this.exception = exception;
 	}
+
 }
 public class CfgExceptionMatch : CfgValue {
 	public CfgValue exception { get; private set; }
@@ -75,6 +82,7 @@ public class CfgExceptionMatch : CfgValue {
 		this.exception = exception;
 		this.match_type = match_type;
 	}
+
 }
 public class CfgCatchBorrow : CfgValue {
 	public CfgValue exception { get; private set; }
@@ -82,6 +90,7 @@ public class CfgCatchBorrow : CfgValue {
 		base (span, caught_type);
 		this.exception = exception;
 	}
+
 }
 public class CfgExceptionUnreachable : CfgTerminator {
 	public CfgValue exception { get; private set; }
@@ -89,14 +98,17 @@ public class CfgExceptionUnreachable : CfgTerminator {
 		base (span);
 		this.exception = exception;
 	}
+
 	public override GenericArray<CfgBlock> successors() {
 		return new GenericArray<CfgBlock> ();
 	}
+
 }
 public class CfgExceptionReturn : CfgReturn {
 	internal CfgExceptionReturn (SourceSpan span, CfgValue exception) {
 		base (span, exception);
 	}
+
 }
 public class CfgGroupCallSuccess : CfgInstruction {
 	private WeakRef invocation;
@@ -105,6 +117,7 @@ public class CfgGroupCallSuccess : CfgInstruction {
 		base (span);
 		invocation = WeakRef (call);
 	}
+
 }
 public class CfgCallSuccess : CfgEvaluateInstruction {
 	private WeakRef invocation;
@@ -113,6 +126,7 @@ public class CfgCallSuccess : CfgEvaluateInstruction {
 		base (span, call.result, new CfgEvaluatedValue (span, call.result.semantic_type));
 		this.invocation = WeakRef (call);
 	}
+
 }
 public class CfgForeignReturn : CfgFunctionEnd {
 	public ForeignImportBinding binding { get; internal set; }
@@ -128,6 +142,7 @@ public class CfgForeignReturn : CfgFunctionEnd {
 			}
 		}
 	}
+
 }
 public class CfgForeignSignalReturn : CfgFunctionEnd {
 	public ForeignSignalBinding binding { get; internal set; }
@@ -135,6 +150,7 @@ public class CfgForeignSignalReturn : CfgFunctionEnd {
 		base (span);
 		this.binding = binding;
 	}
+
 }
 
 }

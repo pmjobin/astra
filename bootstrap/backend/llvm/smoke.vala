@@ -30,4 +30,5 @@ internal bool verify_smoke_module(bool add_return, out string? diagnostic) {
 	CApi.context_dispose (context);
 	return failed == 0;
 }
+
 }

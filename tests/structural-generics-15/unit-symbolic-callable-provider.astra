@@ -5,22 +5,33 @@ struct Packet {
 	int value;
 	bool ready;
 }
+
 class Child {
 	private int code;
+
 	init(int code) { this.code = code; }
+
 	property int value { get { return this.code; } }
+
 	deinit() { mark(973); }
 }
+
 internal Packet advance(Packet value) {
 	Packet result = {wide = value.wide, value = value.value + 1, ready = !value.ready};
 	return result;
 }
+
 Fn<Packet, Packet> callback() { return advance; }
+
 Packet invoke(Fn<Packet, Packet> code, Packet value) { return code(value); }
+
 owned Child create_child(int code) {
 	var result = new Child(code);
 	return move result;
 }
+
 internal int observe(borrowed Child value) { return value.value; }
+
 Fn<int, borrowed Child> loan_callback() { return observe; }
+
 int invoke_loan(Fn<int, borrowed Child> code, borrowed Child value) { return code(value); }

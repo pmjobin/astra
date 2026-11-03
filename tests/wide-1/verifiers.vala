@@ -32,6 +32,7 @@ private SsaProgram conversion(bool narrowing, int mutation) throws SsaError {
 	functions.add (new SsaFunction (span, span, "f", mutation == 5 ? types.u64_type : destination, 0, parameters, blocks, entry));
 	return new SsaProgram (span, functions);
 }
+
 private void malformed() {
 	try {
 		foreach (bool narrowing in new bool[] {false, true}) {
@@ -52,9 +53,11 @@ private void malformed() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/wide/ssa/sign-width-result-provenance", malformed);
 	return Test.run ();
 }
+
 }

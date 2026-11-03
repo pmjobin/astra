@@ -23,6 +23,7 @@ public class CoreBuilder : Object {
 		}
 		return result;
 	}
+
 	private HashTable<ResultObjectStorageSymbol, CoreResultObjectStorage> result_storages = new HashTable<ResultObjectStorageSymbol, CoreResultObjectStorage> (direct_hash, direct_equal);
 	private HashTable<HandleSymbol, CoreHandle> handles = new HashTable<HandleSymbol, CoreHandle> (direct_hash, direct_equal);
 	private HashTable<SemanticType, CoreCleanupContract> buffer_cleanups = new HashTable<SemanticType, CoreCleanupContract> (direct_hash, direct_equal);
@@ -155,6 +156,7 @@ public class CoreBuilder : Object {
 		}
 		return cleanups.lookup (resource);
 	}
+
 	private Astra.Source.SourceSpan ownership_span;
 	private RawPointerType buffer_base_type;
 	private IntegerType buffer_length_type;
@@ -2023,6 +2025,7 @@ public class CoreBuilder : Object {
 		}
 		return value;
 	}
+
 	private CoreValue build_value_without_text_intent(CheckedExpression expression, CoreFunction function) throws CoreError {
 		if (expression is CheckedStructProjectionValue) {
 			var projection = (CheckedStructProjectionValue) expression;
@@ -2405,5 +2408,6 @@ public class CoreBuilder : Object {
 		}
 		throw new CoreError.INVALID_CHECKED_MODEL ("internal Core construction error: unsupported checked value");
 	}
+
 }
 }

@@ -7,9 +7,11 @@ public enum GenericCapabilityIdentity {
 	public bool valid() {
 		return this >= EQ && this <= OWNABLE;
 	}
+
 	public uint bit() {
 		return valid () ? 1u << (uint) this : 0;
 	}
+
 	public string spelling() {
 		switch (this) {
 		case EQ:
@@ -28,6 +30,7 @@ public enum GenericCapabilityIdentity {
 			return "invalid-capability";
 		}
 	}
+
 }
 
 // Immutable ordered list plus exact identity membership. No implication closure.
@@ -41,12 +44,15 @@ public class GenericCapabilitySet : Object {
 			membership |= capability.bit ();
 		}
 	}
+
 	public GenericCapabilityIdentity at(int index) {
 		return ordered[index];
 	}
+
 	public bool contains(GenericCapabilityIdentity capability) {
 		return capability.valid () && (membership & capability.bit ()) != 0;
 	}
+
 }
 // A single stage-neutral capability matrix. Each stage derives the domain
 // from its own exact type facts before consulting these language rules.
@@ -67,5 +73,7 @@ public enum GenericCapabilityDomain {
 			return 0;
 		}
 	}
+
 }
+
 }

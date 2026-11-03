@@ -27,6 +27,7 @@ private void physical() throws GLib.Error {
 	assert (artifact.requires_hosted_buffers && text.contains ("@calloc") && text.contains ("@free") && text.contains ("nobuiltin") && text.contains ("umul.with.overflow.i64"));
 	assert (text.contains ("phi i32") && text.contains ("llvm.trap") && text.contains ("insertvalue") && text.contains ("extractvalue"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -35,4 +36,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

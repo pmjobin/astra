@@ -460,4 +460,5 @@ public int main(string[] args) {
 	Test.add_func ("/concurrency/actor-binding-transfer-abi-and-llvm-authority-and-restore", actor_authority);
 	return Test.run ();
 }
+
 }

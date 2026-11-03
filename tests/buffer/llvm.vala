@@ -31,6 +31,7 @@ private void lowering() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void targets() {
 	try {
 		LlvmBufferAllocation.qualify("x86_64-pc-linux-gnu");
@@ -47,6 +48,7 @@ private void targets() {
 		GLib.error("accepted unqualified allocator target %s", triple);
 	}
 }
+
 private LlvmModuleArtifact overflow_artifact() throws LlvmError {
 	// Physical-stage adversarial layout, never admitted as an Astra element.
 	// The ordinary domain max (INT_MAX * 16) cannot overflow hosted size_t.
@@ -68,6 +70,7 @@ private LlvmModuleArtifact overflow_artifact() throws LlvmError {
 	artifact.verify();
 	return artifact;
 }
+
 private void overflow() {
 	try {
 		string text = overflow_artifact().dump();
@@ -76,6 +79,7 @@ private void overflow() {
 		GLib.error("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	if (args.length == 2 && args[1] == "--dump-overflow") {
 		try {
@@ -92,4 +96,5 @@ int main(string[] args) {
 	Test.add_func("/buffer/llvm/independent-checked-byte-size-overflow", overflow);
 	return Test.run();
 }
+
 }

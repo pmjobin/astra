@@ -2,23 +2,31 @@
 namespace NativeMethods;
 
 struct Answer<A, B> { A first; B second; }
+
 class Marker { init() {} }
+
 class Counter<T> {
 	private T stored;
 	private int observations;
+
 	init(T stored) {
 		this.stored = stored;
 		this.observations = 0;
 	}
+
 	property T value { get { return this.stored; } }
+
 	property int calls { get { return this.observations; } }
+
 	Result project<Result>(Fn<Result, T> query) {
 		this.observations = this.observations + 1;
 		return query(this.stored);
 	}
+
 	Result merge<Input, Result>(Input input, Fn<Result, T, Input> query) {
 		this.observations = this.observations + 1;
 		return query(this.stored, input);
 	}
+
 	int constant<Unused>() where Unused:Ownable { return 7; }
 }

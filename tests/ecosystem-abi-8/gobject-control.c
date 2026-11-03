@@ -5,12 +5,14 @@
 #include <string.h>
 
 static int notifications, rejected_finalized;
+
 static void notify(GObject *object, GParamSpec *spec, gpointer data) {
 	(void)object;
 	(void)spec;
 	(void)data;
 	notifications++;
 }
+
 static void finalized(gpointer data, GObject *object) {
 	(void)data;
 	(void)object;

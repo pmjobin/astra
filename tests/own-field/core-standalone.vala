@@ -81,6 +81,7 @@ private CoreProgram sample(int variant = 0) {
 	program.classes.add (c);
 	return program;
 }
+
 private void valid() {
 	try {
 		CoreProgram? program = sample ();
@@ -93,6 +94,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 1; variant <= 13; variant++) {
 		try {
@@ -104,10 +106,12 @@ private void invalid() {
 		GLib.error ("accepted malformed owned field Core %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/core/independent-contract-and-cleanup-lifetime", valid);
 	Test.add_func ("/own-field/core/malformed-type-init-source-order-cleanup", invalid);
 	return Test.run ();
 }
+
 }

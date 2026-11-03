@@ -1,30 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int consumer_identity(int value) { return value; }
+
 int consumer_retire(owned R value) { return id(value); }
+
 int consumer_callback(owned R value, NativeCallbacks.Input<int,bool> pair, borrowed Other side) {
-	if (!pair.second) { return 0; }
+	if (!pair.second) return 0;
 	Fn<int,int> code = pair.code;
 	Fn<int,owned R> retire = pair.retire;
 	return retire(move value) + code(pair.first) + other_id(side) + 10;
 }
+
 int exercise_callbacks() {
 	NativeCallbacks.Input<int,bool> pair = {first = 5, second = true, token = null, lanes = splat(7, 4), code = consumer_identity, retire = consumer_retire};
 	var side = make_other(236);
 	var first = make(237);
 	Fn<int,owned R,NativeCallbacks.Input<int,bool>,borrowed Other> code = CallbackTransport.callback();
 	Fn<int,owned R,NativeCallbacks.Input<int,bool>,borrowed Other> copy = code;
-	if (CallbackTransport.apply(copy, move first, pair, side) != 478) { return 1; }
+	if (CallbackTransport.apply(copy, move first, pair, side) != 478) return 1;
 	var second = make(238);
 	Fn<int,owned R,NativeCallbacks.Input<int,bool>,borrowed Other> consumer = consumer_callback;
-	if (CallbackTransport.apply(consumer, move second, pair, side) != 489) { return 2; }
+	if (CallbackTransport.apply(consumer, move second, pair, side) != 489) return 2;
 	var third = make(239);
-	if (CallbackTransport.direct(copy, move third, pair, side) != 480) { return 3; }
+	if (CallbackTransport.direct(copy, move third, pair, side) != 480) return 3;
 	Fn<int,NativeCallbacks.Input<int,bool>> inspect = CallbackTransport.field_callback();
-	if (inspect(pair) != 12) { return 4; }
+	if (inspect(pair) != 12) return 4;
 	return 0;
 }
+
 int main() {
 	int result = exercise_callbacks();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

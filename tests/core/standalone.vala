@@ -71,4 +71,5 @@ int main(string[] args) {
 	Test.add_func ("/core-standalone/verifier/foreign-place", foreign_place);
 	return Test.run ();
 }
+
 }

@@ -17,6 +17,7 @@ static unsigned allocations, releases;
 static int first_observation, second_observation, third_observation;
 static void *payloads[3];
 static uint64_t tags[3];
+
 static int inventory(void) {
 	DIR *directory = opendir("/proc/self/fd");
 	assert(directory);
@@ -30,6 +31,7 @@ static int inventory(void) {
 	assert(closedir(directory) == 0);
 	return count;
 }
+
 void endpoint_server_prepare(void) {
 	const char *setting = getenv("M17_SERVER_MODE");
 	assert(setting);
@@ -37,9 +39,11 @@ void endpoint_server_prepare(void) {
 	assert(scenario >= 0 && scenario <= 4);
 	baseline_fds = inventory();
 }
+
 int endpoint_server_mode(void) {
 	return scenario;
 }
+
 void endpoint_server_ready(int tcp, int udp) {
 	assert(tcp >= 1024 && tcp <= 65535 && udp >= 1024 && udp <= 65535);
 	const char *path = getenv("M17_SERVER_READY_PATH");
@@ -51,7 +55,9 @@ void endpoint_server_ready(int tcp, int udp) {
 	assert(fprintf(file, "{\"tcp\":%d,\"udp\":%d}\n", tcp, udp) > 0);
 	assert(fclose(file) == 0 && rename(temporary, path) == 0);
 }
+
 extern int __real_astra_net_accept_from(int, AstraNetEndpoint *);
+
 int __wrap_astra_net_accept_from(int descriptor, AstraNetEndpoint *endpoint) {
 	int result = __real_astra_net_accept_from(descriptor, endpoint);
 	if (result < 0) {
@@ -76,9 +82,11 @@ int __wrap_astra_net_accept_from(int descriptor, AstraNetEndpoint *endpoint) {
 	}
 	return result;
 }
+
 extern void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t,
                                                   uint64_t, uint32_t, uint64_t, uint32_t);
 extern int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	assert(allocations < 3 && size == 1 && mode == 2 && tag != 0);
@@ -89,6 +97,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t cou
 	tags[allocations++] = tag;
 	return pointer;
 }
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	unsigned slot = 0;
 	while (slot < allocations && payloads[slot] != pointer) {
@@ -99,6 +108,7 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	++releases;
 	return __real_astra_context17_release_origin_checked(pointer, tag);
 }
+
 void endpoint_server_observed(int first, int second, int third) {
 	assert(observed++ == 0 && accepted == 1);
 	first_observation = first;
@@ -123,6 +133,7 @@ void endpoint_server_observed(int first, int second, int third) {
 		assert(first == 1048577 && second > 0 && third > 0);
 	}
 }
+
 int endpoint_server_finish(int result) {
 	if (result != 0) {
 		fprintf(stderr, "server source result %d\n", result);

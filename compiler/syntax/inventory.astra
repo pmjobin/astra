@@ -15,6 +15,7 @@ void syntax_inventory_generics(SyntaxArena arena, SyntaxListId parameters, Utf8B
 	}
 	source_append_text(output, ">");
 }
+
 void syntax_inventory_function(SyntaxArena arena, SyntaxNodeId function, string owner, Utf8ByteBuilder output) throws Error {
 	var kind = arena.kind(function);
 	if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
@@ -85,6 +86,7 @@ void syntax_inventory_function(SyntaxArena arena, SyntaxNodeId function, string 
 	}
 	source_append_text(output, "\n");
 }
+
 void syntax_inventory_type(SyntaxArena arena, SyntaxNodeId instance, Utf8ByteBuilder output) throws Error {
 	var kind = arena.kind(instance);
 	if (kind == SyntaxKind.StructDeclarationSyntax()) {
@@ -131,6 +133,7 @@ void syntax_inventory_type(SyntaxArena arena, SyntaxNodeId instance, Utf8ByteBui
 		i = i + 1;
 	}
 }
+
 owned Utf8Message syntax_inventory(SyntaxProgram program) throws Error {
 	assert_that(!program.failed());
 	var output = new Utf8ByteBuilder();

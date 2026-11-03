@@ -17,10 +17,12 @@ int __real_fsync(int);
 int __real_close(int);
 static bool active[128];
 static int reads, writes, injected_open, injected_read, injected_write, injected_flush, injected_close;
+
 static bool selected(const char *name) {
 	const char *value = getenv("ASTRA_IO_FAULT");
 	return value && !strcmp(value, name);
 }
+
 int __wrap_open(const char *name, int flags, ...) {
 	mode_t mode = 0;
 	if (flags & O_CREAT) {
@@ -40,6 +42,7 @@ int __wrap_open(const char *name, int flags, ...) {
 	}
 	return fd;
 }
+
 ssize_t __wrap_read(int fd, void *data, size_t size) {
 	assert(fd >= 0 && fd < 128 && active[fd] && size > 0 && size <= 65536);
 	if (selected("eintr") && !injected_read++) {
@@ -56,6 +59,7 @@ ssize_t __wrap_read(int fd, void *data, size_t size) {
 	}
 	return __real_read(fd, data, size);
 }
+
 ssize_t __wrap_write(int fd, const void *data, size_t size) {
 	if (fd <= 2) {
 		return __real_write(fd, data, size);
@@ -77,6 +81,7 @@ ssize_t __wrap_write(int fd, const void *data, size_t size) {
 	}
 	return __real_write(fd, data, size);
 }
+
 int __wrap_fsync(int fd) {
 	assert(fd >= 0 && fd < 128 && active[fd]);
 	if (selected("eintr") && !injected_flush++) {
@@ -89,6 +94,7 @@ int __wrap_fsync(int fd) {
 	}
 	return __real_fsync(fd);
 }
+
 int __wrap_close(int fd) {
 	assert(fd >= 0 && fd < 128 && active[fd]);
 	active[fd] = false;
@@ -103,6 +109,7 @@ int __wrap_close(int fd) {
 	}
 	return result;
 }
+
 __attribute__((destructor)) static void verify_descriptors(void) {
 	for (int fd = 0; fd < 128; fd++) {
 		assert(!active[fd]);

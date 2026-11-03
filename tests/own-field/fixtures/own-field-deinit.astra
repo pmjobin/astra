@@ -1,7 +1,10 @@
 class Context {
 	owned R a;
 	owned R b;
+
 	init() { this.a = make(1); this.b = make(2); }
+
 	deinit() { mark(id(this.a) + id(this.b)); }
 }
+
 int main() { { Context context = Context.init(); } return 42; }

@@ -1,45 +1,63 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int document_label_bytes(Utf8Message value) { return value.text.byte_length; }
+
 class DocumentNote {
 	owned Utf8Message label;
 	int code;
+
 	init(string label, int code) {
 		var snapshot = new Utf8Message(label);
 		this.label = move snapshot;
 		this.code = code;
 	}
+
 	int fingerprint() { return this.code * 17 + document_label_bytes(this.label); }
+
 	deinit() { event(1000 + this.code); }
 }
+
 struct DocumentLeaf { owned Lease lease; owned DocumentNote note; owned int[] samples; int kind; }
+
 struct DocumentBranch { DocumentLeaf leaf; owned OtherLease marker; int weight; }
+
 struct OwnedDocument { DocumentBranch selected; DocumentBranch discarded; int version; }
+
 int document_stage(int value, bool fail) throws Error {
-	if (fail) { throw new Error("document stage"); }
+	if (fail) {
+		throw new Error("document stage");
+	}
 	return value;
 }
+
 owned Lease document_lease(int code, bool fail) throws Error {
 	int checked = document_stage(code, fail);
 	var value = open_lease(checked);
 	return move value;
 }
+
 owned OtherLease document_marker(int code, bool fail) throws Error {
 	int checked = document_stage(code, fail);
 	var value = open_other(checked);
 	return move value;
 }
+
 owned DocumentNote document_note(string label, int code, bool fail) throws Error {
 	int checked = document_stage(code, fail);
 	var value = new DocumentNote(label, checked);
 	return move value;
 }
+
 owned int[] document_samples(int code, bool fail) throws Error {
 	int checked = document_stage(code, fail);
 	var values = new int[3];
 	int index = 0;
-	while (index < 3) { values[index] = checked + index; index = index + 1; }
+	while (index < 3) {
+		values[index] = checked + index;
+		index = index + 1;
+	}
 	return move values;
 }
+
 OwnedDocument create_document(int left, string left_label, int right, string right_label, int fail) throws Error {
 	OwnedDocument value = {
 		selected = {
@@ -67,6 +85,7 @@ OwnedDocument create_document(int left, string left_label, int right, string rig
 	document_stage(0, fail == 13);
 	return move value;
 }
+
 DocumentLeaf select_subtree(OwnedDocument document) {
 	var lease = move document.selected.leaf.lease;
 	var note = move document.selected.leaf.note;
@@ -74,16 +93,21 @@ DocumentLeaf select_subtree(OwnedDocument document) {
 	DocumentLeaf result = {lease = move lease, note = move note, samples = move samples, kind = document.selected.leaf.kind};
 	return move result;
 }
+
 void document_cli(string input, int fail) throws Error {
 	var fields = text_split_owned(input, "/");
-	if (fields.count() != 4) { throw new Error("document needs id/name/id/name"); }
+	if (fields.count() != 4) {
+		throw new Error("document needs id/name/id/name");
+	}
 	var left_id = fields.take(0);
 	var left_label = fields.take(0);
 	var right_id = fields.take(0);
 	var right_label = fields.take(0);
 	int left = parse_int(left_id.text);
 	int right = parse_int(right_id.text);
-	if (left < 1 || left > 40 || right < 41 || right > 80 || fail < -1 || fail > 13) { throw new Error("document range"); }
+	if (left < 1 || left > 40 || right < 41 || right > 80 || fail < -1 || fail > 13) {
+		throw new Error("document range");
+	}
 	var document = create_document(left, left_label.text, right, right_label.text, fail);
 	number(document.version);
 	var selected = select_subtree(move document);
@@ -94,12 +118,13 @@ void document_cli(string input, int fail) throws Error {
 	foreach (var sample in samples) { total = total + sample; }
 	number(total);
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 81; }
+	if (len(args) != 3) return 81;
 	int result = 0;
 	try { document_cli(args[1], parse_int(args[2])); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
-	if (live_leases() != 0) { return 83; }
+	if (live_leases() != 0) return 83;
 	return result;
 }

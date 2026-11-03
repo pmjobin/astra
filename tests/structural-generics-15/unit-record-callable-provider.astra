@@ -2,20 +2,25 @@
 namespace NativeRecordCallbacks;
 class Child {
 	private int ticket;
+
 	init(int ticket) { this.ticket = ticket; }
+
 	deinit() { mark(this.ticket); }
 }
+
 struct Contents {
 	owned Child child;
 	owned R resource;
 	owned int[] samples;
 }
+
 struct Packet {
 	Contents contents;
 	owned Other other;
 	int value;
 	bool ready;
 }
+
 Packet packet(int ticket) {
 	var child = new Child(ticket);
 	var resource = make(ticket);
@@ -26,15 +31,19 @@ Packet packet(int ticket) {
 	Packet result = {contents = move contents, other = move other, value = 40, ready = true};
 	return move result;
 }
+
 internal int inspect(borrowed Packet packet) {
-	if (len(packet.contents.samples) != 3) { return 0; }
+	if (len(packet.contents.samples) != 3) return 0;
 	return packet.contents.samples[1];
 }
+
 internal int retire(Packet packet, owned R token, borrowed Other side, int extra) {
-	if (!packet.ready || inspect(packet) != 42) { return 0; }
+	if (!packet.ready || inspect(packet) != 42) return 0;
 	return packet.value + id(token) + other_id(side) + extra;
 }
+
 Fn<int,Packet,owned R,borrowed Other,int> callback() { return retire; }
+
 int invoke(Fn<int,Packet,owned R,borrowed Other,int> code, Packet packet, owned R token, borrowed Other side, int extra) {
 	return code(move packet, move token, side, extra);
 }

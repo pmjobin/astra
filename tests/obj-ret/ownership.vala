@@ -16,6 +16,7 @@ private CfgProgram cfg(string text) throws GLib.Error {
 	}
 	return CfgBuilder.build (CoreBuilder.build (checked.program));
 }
+
 private void nullable() {
 	try {
 		var p = cfg ("class C{init(){}}owned C make(){return null;}void sink(owned C c){}void f(){owned C c=make();bool absent=c==null;sink(move c);}");
@@ -31,6 +32,7 @@ private void nullable() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void transfer() {
 	try {
 		var p = cfg ("class C{init(){}deinit(){}}owned C identity(owned C c){return move c;}");
@@ -45,10 +47,12 @@ private void transfer() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/ownership/owned-null-versus-moved-and-branch-join", nullable);
 	Test.add_func ("/obj-ret/ownership/parameter-disarm-before-root-cleanup", transfer);
 	return Test.run ();
 }
+
 }

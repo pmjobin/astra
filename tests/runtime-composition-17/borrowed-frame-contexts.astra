@@ -1,42 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int borrowed_frames_finish();
+
 extern(C) void borrowed_frame_guard_retired(int identity);
+
 class BorrowedFrameGuard {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int id() { return this.identity; }
+
 	deinit() { borrowed_frame_guard_retired(this.identity); }
 }
+
 async void borrowed_frame_idle(owned BorrowedFrameGuard guard) {}
+
 async void borrowed_frame_body(int fail) throws Error {
 	await delay_ticks(1);
-	if (fail != 0) { throw new Error("borrowed frame error"); }
+	if (fail != 0) {
+		throw new Error("borrowed frame error");
+	}
 }
+
 int borrowed_frame_drop(borrowed ConcurrentAllocator frames, bool checked) {
 	var guard = new BorrowedFrameGuard(1);
 	if (checked) {
 		try {
 			var task = checked_task_in(frames, borrowed_frame_idle(move guard));
-			if (concurrent_allocator_query(frames, 1) != 1) { return 1; }
+			if (concurrent_allocator_query(frames, 1) != 1) return 1;
 		} catch (Error error) { return 2; }
 	} else {
 		var task = task_in(frames, borrowed_frame_idle(move guard));
-		if (concurrent_allocator_query(frames, 1) != 1) { return 3; }
+		if (concurrent_allocator_query(frames, 1) != 1) return 3;
 	}
 	return 0;
 }
+
 int borrowed_frame_run(borrowed ConcurrentAllocator frames, int fail) {
 	bool caught = false;
 	try {
 		var executor = VirtualExecutor.open(8);
 		var task = task_in(frames, borrowed_frame_body(fail));
-		if (concurrent_allocator_query(frames, 1) != 1) { return 1; }
+		if (concurrent_allocator_query(frames, 1) != 1) return 1;
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 2; } }
 	} catch (Error error) { caught = true; }
-	if (caught != (fail != 0)) { return 3; }
+	if (caught != (fail != 0)) return 3;
 	return 0;
 }
+
 int borrowed_frame_refuse(borrowed ConcurrentAllocator frames) {
 	var captured = new BorrowedFrameGuard(3);
 	var blocker = task_in(frames, borrowed_frame_idle(move captured));
@@ -44,9 +56,10 @@ int borrowed_frame_refuse(borrowed ConcurrentAllocator frames) {
 	bool refused = false;
 	try { var task = checked_task_in(frames, borrowed_frame_idle(move retained)); }
 	catch (Error error) { refused = true; }
-	if (!refused || retained == null || retained.id() != 4 || concurrent_allocator_query(frames, 1) != 1) { return 1; }
+	if (!refused || retained == null || retained.id() != 4 || concurrent_allocator_query(frames, 1) != 1) return 1;
 	return 0;
 }
+
 int borrowed_frame_cancel(borrowed ConcurrentAllocator frames) {
 	try {
 		var executor = VirtualExecutor.open(8);
@@ -57,21 +70,23 @@ int borrowed_frame_cancel(borrowed ConcurrentAllocator frames) {
 		executor.cancel(task);
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Cancelled(): {} else: { return 2; } }
-		if (!live) { return 1; }
+		if (!live) return 1;
 	} catch (Error error) { return 3; }
 	return 0;
 }
+
 export(C) int run_borrowed_frame_contexts() {
 	var first = concurrent_allocator(1, 8197, 1, 64);
 	var second = concurrent_allocator(2, 12289, 1, 64);
-	if (first == null || second == null) { return 1; }
-	if (borrowed_frame_drop(first, false) != 0 || borrowed_frame_drop(second, true) != 0) { return 2; }
-	if (borrowed_frame_run(first, 0) != 0 || borrowed_frame_run(second, 1) != 0) { return 3; }
-	if (borrowed_frame_refuse(first) != 0) { return 4; }
-	if (borrowed_frame_cancel(first) != 0) { return 8; }
-	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) { return 5; }
-	if (concurrent_allocator_query(first, 4) != 4 || concurrent_allocator_query(first, 5) != 4) { return 6; }
-	if (concurrent_allocator_query(second, 4) != 2 || concurrent_allocator_query(second, 5) != 2) { return 7; }
+	if (first == null || second == null) return 1;
+	if (borrowed_frame_drop(first, false) != 0 || borrowed_frame_drop(second, true) != 0) return 2;
+	if (borrowed_frame_run(first, 0) != 0 || borrowed_frame_run(second, 1) != 0) return 3;
+	if (borrowed_frame_refuse(first) != 0) return 4;
+	if (borrowed_frame_cancel(first) != 0) return 8;
+	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) return 5;
+	if (concurrent_allocator_query(first, 4) != 4 || concurrent_allocator_query(first, 5) != 4) return 6;
+	if (concurrent_allocator_query(second, 4) != 2 || concurrent_allocator_query(second, 5) != 2) return 7;
 	return borrowed_frames_finish();
 }
+
 int main() { return run_borrowed_frame_contexts(); }

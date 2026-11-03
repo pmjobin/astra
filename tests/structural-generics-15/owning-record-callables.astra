@@ -1,26 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class RecordChild {
 	private int tag;
+
 	init(int tag) { this.tag = tag; }
+
 	deinit() { mark(this.tag); }
 }
+
 struct RecordContents {
 	owned RecordChild child;
 	owned R resource;
 	owned int[] samples;
 }
+
 struct RecordPacket {
 	RecordContents contents;
 	owned Other other;
 	int value;
 	bool ready;
 }
+
 class RecordCallEnvironment<T> {
 	private T shift;
+
 	init(T shift) { this.shift = shift; }
+
 	property T amount { get { return this.shift; } }
+
 	deinit() { mark(760); }
 }
+
 RecordPacket make_record_packet(int ticket) {
 	var child = new RecordChild(ticket);
 	var resource = make(ticket);
@@ -33,53 +42,65 @@ RecordPacket make_record_packet(int ticket) {
 	RecordPacket result = {contents = move contents, other = move other, value = 40, ready = true};
 	return move result;
 }
+
 int inspect_record_packet(borrowed RecordPacket packet) {
-	if (len(packet.contents.samples) != 3) { return 0; }
+	if (len(packet.contents.samples) != 3) return 0;
 	return packet.contents.samples[1];
 }
+
 int consume_record_packet(RecordPacket packet, int extra) {
-	if (!packet.ready || inspect_record_packet(packet) != 42) { return 0; }
+	if (!packet.ready || inspect_record_packet(packet) != 42) return 0;
 	return packet.value + extra;
 }
+
 int forward_record_packet(Fn<int,RecordPacket,int> code, RecordPacket packet) { return code(move packet, 2); }
+
 int later_record_marker() throws Error { mark(761); throw new Error("owning record argument retry"); }
+
 int consume_record_extra(RecordPacket packet, owned R token, borrowed Other side, int extra) {
-	if (inspect_record_packet(packet) != 42) { return 0; }
+	if (inspect_record_packet(packet) != 42) return 0;
 	return packet.value + id(token) + other_id(side) + extra;
 }
+
 int plain_record_packet(borrowed RecordCallEnvironment<int> environment, RecordPacket packet) {
 	return environment.amount + packet.value;
 }
+
 int checked_record_packet(borrowed RecordCallEnvironment<int> environment, RecordPacket packet, bool fail) throws Error {
-	if (fail) { mark(762); throw new Error("consumed record callback"); }
+	if (fail) {
+		mark(762);
+		throw new Error("consumed record callback");
+	}
 	return environment.amount + packet.value;
 }
+
 int exercise_record_packets() {
 	Fn<int,RecordPacket,int> code = consume_record_packet;
 	RecordPacket first = make_record_packet(231);
-	if (forward_record_packet(code, move first) != 42) { return 1; }
+	if (forward_record_packet(code, move first) != 42) return 1;
 	RecordPacket pending = make_record_packet(233);
 	try { code(move pending, later_record_marker()); return 2; } catch (Error error) { mark(763); }
-	if (pending.value != 40 || code(move pending, 2) != 42) { return 3; }
+	if (pending.value != 40 || code(move pending, 2) != 42) return 3;
 	var environment = new RecordCallEnvironment<int>(2);
 	owned Closure<RecordCallEnvironment<int>,int,RecordPacket> plain = closure_bind(move environment, plain_record_packet);
 	RecordPacket plain_packet = make_record_packet(235);
-	if (closure_invoke(plain, move plain_packet) != 42) { return 4; }
+	if (closure_invoke(plain, move plain_packet) != 42) return 4;
 	var checked_environment = new RecordCallEnvironment<int>(3);
 	owned CheckedClosure<RecordCallEnvironment<int>,Error,int,RecordPacket,bool> checked = checked_closure_bind(move checked_environment, checked_record_packet);
 	RecordPacket rejected = make_record_packet(237);
 	try { closure_invoke(checked, move rejected, true); return 5; } catch (Error error) { mark(764); }
 	RecordPacket retried = make_record_packet(239);
-	try { if (closure_invoke(checked, move retried, false) != 43) { return 6; } } catch (Error error) { return 7; }
+	try { if (closure_invoke(checked, move retried, false) != 43) return 6; } catch (Error error) { return 7; }
 	var side = make_other(244);
 	RecordPacket mixed = make_record_packet(241);
 	var token = make(243);
 	Fn<int,RecordPacket,owned R,borrowed Other,int> mixed_code = consume_record_extra;
-	if (mixed_code(move mixed, move token, side, 2) != 529) { return 8; }
+	if (mixed_code(move mixed, move token, side, 2) != 529) return 8;
 	return 0;
 }
+
 int main() {
 	int result = exercise_record_packets();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

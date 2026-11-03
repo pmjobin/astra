@@ -3,18 +3,21 @@ void emit_message(FileHandle file, Utf8Message message) throws Error {
 	var text = message.text; int offset = 0;
 	while (offset < text.byte_length) {
 		int count = file.write_text_bytes(text, offset, text.byte_length - offset);
-		if (count == 0) { throw new Error("no write progress"); }
+		if (count == 0) {
+			throw new Error("no write progress");
+		}
 		offset = offset + count;
 	}
 }
+
 int rewrite(string input, string output) throws Error {
 	var source = new SettingsReader(input, 201);
 	try { if ((source.content != null)) {} } catch(Error error) {
 		write_text_file(input, "repaired=é\0record");
-		if (!(source.content != null)) { return 81; }
+		if (!(source.content != null)) return 81;
 	}
-	if (!(source.content != null)) { return 82; }
-	var bag = new Bag<Utf8Message>(); if (!bag.reserve(2)) { return 83; }
+	if (!(source.content != null)) return 82;
+	var bag = new Bag<Utf8Message>(); if (!bag.reserve(2)) return 83;
 	// Independent snapshots are made explicitly from bounded receiver loans.
 	var first = clone_message(source.content); var second = new Utf8Message("tail");
 	bag.append(move first); bag.append(move second);
@@ -22,20 +25,24 @@ int rewrite(string input, string output) throws Error {
 	var arena = byte_arena(32, 3); int token = arena.allocate(4, 4);
 	arena.write(token, 0, 79); arena.write(token, 1, 75); arena.write(token, 2, 0); arena.write(token, 3, 10);
 	var bytes = new u8[4]; int i = 0;
-	while (i < 4) { bytes[i] = arena.read(token, i); i = i + 1; }
+	while (i < 4) {
+		bytes[i] = arena.read(token, i);
+		i = i + 1;
+	}
 	var replacement = utf8_message(bytes); bag.replace(1, move replacement);
 	arena.release_last(token);
 	var final = bag.take(0); var footer = bag.take(0);
-	if (bag.count() != 0 || !message_equals(footer, "OK\0\n")) { return 84; }
+	if (bag.count() != 0 || !message_equals(footer, "OK\0\n")) return 84;
 	var file = new FileHandle(); file.open(output, 1);
 	emit_message(file, final); emit_message(file, footer); file.flush(); file.close();
 	// Warm read retains the successful snapshot after the source file changes.
 	write_text_file(input, "changed");
-	if (!(source.content != null) || source.attempts > 2) { return 85; }
+	if (!(source.content != null) || source.attempts > 2) return 85;
 	println("A48 rewritten exact bytes; cached source retained");
 	return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try { return rewrite(args[1], args[2]); } catch(Error error) { return 2; }
 }

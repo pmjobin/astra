@@ -1,18 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 void use(i16<8>* p, i16<8>* q) { *p = splat(12,8); *q = *q + splat(30,8); }
+
 void nested(i16<8>* parameter) {
 	i16<8>* p = parameter;
-	if (p != null) { i16<8>* q = p; use(p,q); }
+	if (p != null) {
+		i16<8>* q = p;
+		use(p,q);
+	}
 }
+
 int main() {
 	i16<8> v = splat(0,8);
 	i16<8>* p = null;
 	p = &v;
-	if (true) { i16<8>* q = &v; i16<8>* r = p; use(q,r); }
-	if (!all(v == splat(42,8))) { return 1; }
+	if (true) {
+		i16<8>* q = &v;
+		i16<8>* r = p;
+		use(q,r);
+	}
+	if (!all(v == splat(42,8))) return 1;
 	v = splat(0,8);
 	nested(p);
-	if (!all(*p == splat(42,8))) { return 2; }
+	if (!all(*p == splat(42,8))) return 2;
 	return 0;
 }

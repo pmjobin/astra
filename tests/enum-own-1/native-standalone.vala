@@ -67,6 +67,7 @@ private void contracts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void declaration_authority() {
 	try {
 		var span = SourceSpan (new SourceFile.from_text ("independent-native-authority", "x"), 0, 1);
@@ -162,6 +163,7 @@ private void declaration_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void method_binding() {
 	try {
 		var span = SourceSpan (new SourceFile.from_text ("independent-method-binding", "x"), 0, 1);
@@ -259,6 +261,7 @@ private void method_binding() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private NativeAbiProgram slot_record_graph(bool cyclic) throws NativeAbiError {
 	var span = SourceSpan (new SourceFile.from_text ("independent-slot-record-graph", "x"), 0, 1);
 	var obligation = new NativeRecordResource.projected ({0}, cyclic ? "Root" : "Leaf", "", 0, cyclic ? 0 : 1);
@@ -284,6 +287,7 @@ private NativeAbiProgram slot_record_graph(bool cyclic) throws NativeAbiError {
 	program.classes.add (new NativeClassPlan (span, "Leaf", 1, -1, -1, false, false, new GenericArray<NativeClassField> (), new GenericArray<int> ()));
 	return program;
 }
+
 private void slot_record_cycles() {
 	try {
 		var original = slot_record_graph (false);
@@ -301,6 +305,7 @@ private void slot_record_cycles() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/generic-ownership/native/independent-slot-record-cycle", slot_record_cycles);
@@ -309,4 +314,5 @@ int main(string[] args) {
 	Test.add_func ("/enum-own/native/immutable-declaration-authority", declaration_authority);
 	return Test.run ();
 }
+
 }

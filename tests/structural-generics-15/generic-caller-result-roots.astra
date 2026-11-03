@@ -1,30 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Item {
 	int number;
+
 	init() { this.number = 42; }
+
 	int read() { return this.number; }
 }
+
 owned T identity<T>(owned T input) where T:Ownable { return move input; }
+
 owned T relay<T>(owned T input) where T:Ownable {
 	owned T received = identity<T>(move input);
 	owned T result = move received;
 	return move result;
 }
+
 class NullFactory<T> {
 	init() {}
+
 	owned T make() { return null; }
 }
+
 owned T nullable<T>(borrowed NullFactory<T> factory) where T:Ownable {
 	owned T received = factory.make();
 	owned T result = move received;
 	return move result;
 }
+
 int main() {
 	owned Item input = Item.init();
 	var result = relay<Item>(move input);
-	if (result.read() != 42) { return 1; }
+	if (result.read() != 42) return 1;
 	var factory = new NullFactory<Item>();
 	var empty = nullable<Item>(factory);
-	if (empty != null) { return 2; }
+	if (empty != null) return 2;
 	return 0;
 }

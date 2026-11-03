@@ -15,6 +15,7 @@
 #else
 typedef struct Catalog Catalog;
 typedef struct Entry Entry;
+
 typedef struct {
 	double ceiling;
 	int64_t minimum;
@@ -22,6 +23,7 @@ typedef struct {
 	uint32_t mask;
 	bool lowest;
 } Query;
+
 typedef struct {
 	double score;
 	int64_t code;
@@ -29,9 +31,11 @@ typedef struct {
 	bool found;
 	uint64_t visited;
 } Answer;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 _Static_assert(sizeof(Query) == 32 && offsetof(Query, lowest) == 28 && offsetof(Query, cap) == 16 && sizeof(Answer) == 32 && offsetof(Answer, found) == 20 && offsetof(Answer, visited) == 24, "independent query/answer POD layout");
 extern int32_t catalog16_create(Catalog **, Error *);
 extern int32_t catalog16_lookup(Catalog *, Query, Answer *, Error *);
@@ -60,11 +64,13 @@ extern uint32_t catalog_entry16_release(Entry *);
 #define A_FOUND(value) ((value).found)
 #endif
 extern uint32_t lens16_retired_count(int32_t);
+
 static void requests(Catalog *root, int expected) {
 	int32_t actual = -1;
 	Error error = {0};
 	assert(catalog16_get_requests(root, &actual, &error) == 0 && actual == expected);
 }
+
 int main(void) {
 	Catalog *root = NULL;
 	Error error = {0};

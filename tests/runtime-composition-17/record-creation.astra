@@ -1,72 +1,108 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void record_creation_retired(int identity);
+
 extern(C) void record_creation_fault(int mode, int first, int event);
+
 extern(C) int record_creation_finish();
+
 class RecordValue {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int read() { return this.identity; }
+
 	deinit() { record_creation_retired(this.identity); }
 }
+
 [ExceptionRoot] class RecordFault {
 	private int mode;
 	private int first;
+
 	init(int mode, int first) {
 		this.mode = mode;
 		this.first = first;
 		record_creation_fault(mode, first, 1);
 	}
+
 	void observed() { record_creation_fault(this.mode, this.first, 2); }
+
 	virtual property string message { get { return "record factory"; } }
 }
+
 struct CreatedPair {
 	owned RecordValue first;
 	int marker;
 	owned RecordValue second;
 }
+
 struct CreatedNested { CreatedPair child; int stamp; }
+
 struct CreatedGeneric<T> where T : Ownable {
 	owned T first;
 	owned T second;
 	int marker;
 }
+
 owned RecordValue forward_value(owned RecordValue input) { return move input; }
+
 int observe_pair(borrowed CreatedPair input, borrowed ScopedAllocator context) {
-	if (scoped_allocator_query(context, 7) != 1) { return -1; }
+	if (scoped_allocator_query(context, 7) != 1) return -1;
 	return input.first.read() + input.marker + input.second.read();
 }
+
 int observe_nested(borrowed CreatedNested input, borrowed ScopedAllocator context) {
-	if (scoped_allocator_query(context, 7) != 1) { return -1; }
+	if (scoped_allocator_query(context, 7) != 1) return -1;
 	return input.child.first.read() + input.child.marker + input.child.second.read() + input.stamp;
 }
+
 int observe_generic(borrowed CreatedGeneric<RecordValue> input, borrowed ScopedAllocator context) {
-	if (scoped_allocator_query(context, 7) != 1) { return -1; }
+	if (scoped_allocator_query(context, 7) != 1) return -1;
 	return input.first.read() + input.second.read() + input.marker;
 }
+
 int consume_pair(CreatedPair input, borrowed ScopedAllocator context) { return observe_pair(input, context); }
+
 int consume_nested(CreatedNested input, borrowed ScopedAllocator context) { return observe_nested(input, context); }
+
 int consume_generic(CreatedGeneric<RecordValue> input, borrowed ScopedAllocator context) { return observe_generic(input, context); }
+
 CreatedPair build_pair(owned RecordValue first, owned RecordValue second, int mode) throws RecordFault {
 	int identity = first.read();
-	if (mode == 1) { throw new RecordFault(mode, identity); }
+	if (mode == 1) {
+		throw new RecordFault(mode, identity);
+	}
 	CreatedPair input = {first = move first, marker = 17, second = forward_value(move second)};
-	if (mode == 2) { throw new RecordFault(mode, identity); }
+	if (mode == 2) {
+		throw new RecordFault(mode, identity);
+	}
 	return move input;
 }
+
 CreatedNested build_nested(owned RecordValue first, owned RecordValue second, int mode) throws RecordFault {
 	int identity = first.read();
-	if (mode == 1) { throw new RecordFault(mode, identity); }
+	if (mode == 1) {
+		throw new RecordFault(mode, identity);
+	}
 	CreatedNested input = {child = {first = forward_value(move first), marker = 17, second = move second}, stamp = 7};
-	if (mode == 2) { throw new RecordFault(mode, identity); }
+	if (mode == 2) {
+		throw new RecordFault(mode, identity);
+	}
 	return move input;
 }
+
 CreatedGeneric<RecordValue> build_generic(owned RecordValue first, owned RecordValue second, int mode) throws RecordFault {
 	int identity = first.read();
-	if (mode == 1) { throw new RecordFault(mode, identity); }
+	if (mode == 1) {
+		throw new RecordFault(mode, identity);
+	}
 	CreatedGeneric<RecordValue> input = {first = move first, second = forward_value(move second), marker = 23};
-	if (mode == 2) { throw new RecordFault(mode, identity); }
+	if (mode == 2) {
+		throw new RecordFault(mode, identity);
+	}
 	return move input;
 }
+
 int create_pair(owned RecordValue first, owned RecordValue second, borrowed ScopedAllocator context, int mode) {
 	try {
 		CreatedPair input = build_pair(move first, move second, mode);
@@ -74,6 +110,7 @@ int create_pair(owned RecordValue first, owned RecordValue second, borrowed Scop
 		return consume_pair(move moved, context);
 	} catch (RecordFault error) { error.observed(); return -mode; }
 }
+
 int create_nested(owned RecordValue first, owned RecordValue second, borrowed ScopedAllocator context, int mode) {
 	try {
 		CreatedNested input = build_nested(move first, move second, mode);
@@ -82,6 +119,7 @@ int create_nested(owned RecordValue first, owned RecordValue second, borrowed Sc
 		return consume_nested(move final, context);
 	} catch (RecordFault error) { error.observed(); return -mode; }
 }
+
 int create_generic(owned RecordValue first, owned RecordValue second, borrowed ScopedAllocator context, int mode) {
 	try {
 		CreatedGeneric<RecordValue> input = build_generic(move first, move second, mode);
@@ -89,31 +127,32 @@ int create_generic(owned RecordValue first, owned RecordValue second, borrowed S
 		return consume_generic(move moved, context);
 	} catch (RecordFault error) { error.observed(); return -mode; }
 }
+
 int main() {
 	owned u8[] backing = new u8[8197];
 	{
 		var context = scoped_allocator<ScopedAllocator>(backing, 1, 7);
-		if (context == null) { return 1; }
+		if (context == null) return 1;
 		int round = 0;
 		while (round < 5) {
 			var first = new RecordValue(round * 6 + 1);
 			var second = new RecordValue(round * 6 + 2);
 			int expected_pair = round * 12 + 20;
-			if (round == 1 || round == 2) { expected_pair = -round; }
-			if (create_pair(move first, move second, context, round) != expected_pair) { return 2; }
+			if (round == 1 || round == 2) expected_pair = -round;
+			if (create_pair(move first, move second, context, round) != expected_pair) return 2;
 			var third = new RecordValue(round * 6 + 3);
 			var fourth = new RecordValue(round * 6 + 4);
 			int expected_nested = round * 12 + 31;
-			if (round == 1 || round == 2) { expected_nested = -round; }
-			if (create_nested(move third, move fourth, context, round) != expected_nested) { return 3; }
+			if (round == 1 || round == 2) expected_nested = -round;
+			if (create_nested(move third, move fourth, context, round) != expected_nested) return 3;
 			var fifth = new RecordValue(round * 6 + 5);
 			var sixth = new RecordValue(round * 6 + 6);
 			int expected_generic = round * 12 + 34;
-			if (round == 1 || round == 2) { expected_generic = -round; }
-			if (create_generic(move fifth, move sixth, context, round) != expected_generic) { return 4; }
+			if (round == 1 || round == 2) expected_generic = -round;
+			if (create_generic(move fifth, move sixth, context, round) != expected_generic) return 4;
 			round = round + 1;
 		}
 	}
-	if (len(backing) != 8197) { return 5; }
+	if (len(backing) != 8197) return 5;
 	return record_creation_finish();
 }

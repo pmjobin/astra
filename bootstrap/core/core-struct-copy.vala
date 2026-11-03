@@ -18,6 +18,7 @@ public class CoreStructCopy : CoreStatement {
 		this.semantic_type = semantic_type;
 		this.initializes_destination = initializes_destination;
 	}
+
 }
 
 // Each successful Resource initializer acquires one exact field obligation.
@@ -33,6 +34,7 @@ public class CoreStructAcquire : CoreStatement {
 		this.source = source;
 		this.producer = producer;
 	}
+
 }
 public class CoreStructMove : CoreStatement {
 	public CoreOwnedLocal source { get; private set; }
@@ -42,6 +44,7 @@ public class CoreStructMove : CoreStatement {
 		this.source = source;
 		this.destination = destination;
 	}
+
 }
 public class CoreRecordTake : CoreStatement {
 	public CoreOwnedLocal source { get; private set; }
@@ -53,6 +56,7 @@ public class CoreRecordTake : CoreStatement {
 		this.field = field;
 		this.destination = destination;
 	}
+
 }
 public class CoreRecordReplace : CoreStatement {
 	public CoreOwnedLocal owner { get; private set; }
@@ -66,6 +70,7 @@ public class CoreRecordReplace : CoreStatement {
 		this.source = source;
 		this.producer = producer;
 	}
+
 }
 
 public delegate CoreStruct? CoreStructResolver(SemanticType type);
@@ -79,6 +84,7 @@ public class CoreStructLeafPath : Object {
 			this.fields.add (field);
 		}
 	}
+
 }
 
 // The sole copy leaf walk: recursive declaration order, vectors stay one leaf.
@@ -116,5 +122,6 @@ public class CoreStructLeaves : Object {
 		}
 		return result;
 	}
+
 }
 }

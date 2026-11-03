@@ -1,11 +1,13 @@
 class Counter {
 	int value;
+
 	int recurse(int n) {
 		Counter local = { value = n };
 		Counter alias = local;
-		if (n == 0) { return this.value; }
+		if (n == 0) return this.value;
 		this.value = this.value + alias.value;
 		return this.recurse(n - 1);
 	}
 }
+
 int main() { Counter c = { value = 36 }; return c.recurse(3); }

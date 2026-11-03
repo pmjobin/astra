@@ -4,58 +4,67 @@
 bool core_span_equal(SyntaxSpan a, SyntaxSpan b) {
 	return a.source.index == b.source.index && a.start == b.start && a.end == b.end;
 }
+
 bool core_counts(CoreData core) {
 	return core.limit > 0 && core.limit <= 65536 && core.function_count >= 0 && core.function_count <= len(core.functions) && core.node_count >= 0 && core.node_count <= len(core.nodes) && core.place_count >= 0 && core.place_count <= len(core.places) && core.edge_count >= 0 && core.edge_count <= len(core.edges) && core.exit_count >= 0 && core.exit_count <= len(core.exits) && core.cleanup_count >= 0 && core.cleanup_count <= len(core.cleanups) && core.loan_count >= 0 && core.loan_count <= len(core.loans);
 }
+
 bool core_value_kind(int kind) { return kind >= 1 && kind <= 12; }
+
 // Find an authoritative place from Binder identity, not name equality.
 int core_symbol_place(CoreData core, int function, SymbolId symbol) {
-	if (function < 1 || function > core.function_count) { return 0; }
+	if (function < 1 || function > core.function_count) return 0;
 	var f = core.functions[function - 1];
 	int i = f.place_first;
 	while (i < f.place_first + f.place_count) {
-		if (core.places[i].parent == 0 && core.places[i].symbol.index == symbol.index) { return i + 1; }
+		if (core.places[i].parent == 0 && core.places[i].symbol.index == symbol.index) return i + 1;
 		i = i + 1;
 	}
 	return 0;
 }
+
 bool core_verify_places(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, int function, int first) {
 	var f = core.functions[function - 1];
-	if (f.place_first != first || f.place_count != graph.slot_count + graph.field_count || first > core.place_count - f.place_count) { return false; }
+	if (f.place_first != first || f.place_count != graph.slot_count + graph.field_count || first > core.place_count - f.place_count) return false;
 	int i = 0;
 	while (i < f.place_count) {
 		var p = core.places[first + i];
-		if (p.function != function) { return false; }
+		if (p.function != function) return false;
 		if (i < graph.slot_count) {
 			var slot = graph.slots[i];
 			var declaration = checked.bindings.symbol(slot.symbol);
-			if (p.root != first + i + 1 || p.parent != 0 || p.slot != i + 1 || p.field != 0 || p.symbol.index != slot.symbol.index || p.type.index != checked.symbol_types[p.symbol.index].index || p.type.index != slot.type.index || p.flags != checked.symbol_flags[p.symbol.index] || p.region != slot.region || p.parameter != slot.parameter || p.leaf != (checked_kind(checked, p.type) != 30) || (declaration.kind != 7 && declaration.kind != 8)) { return false; }
+			if (p.root != first + i + 1 || p.parent != 0 || p.slot != i + 1 || p.field != 0 || p.symbol.index != slot.symbol.index || p.type.index != checked.symbol_types[p.symbol.index].index || p.type.index != slot.type.index || p.flags != checked.symbol_flags[p.symbol.index] || p.region != slot.region || p.parameter != slot.parameter || p.leaf != (checked_kind(checked, p.type) != 30) || (declaration.kind != 7 && declaration.kind != 8)) return false;
 		} else {
 			int field_id = i - graph.slot_count + 1;
 			var field = graph.fields[field_id - 1];
-			if (field.root < 1 || field.root > graph.slot_count) { return false; }
+			if (field.root < 1 || field.root > graph.slot_count) return false;
 			int parent = first + field.root;
-			if (field.parent > 0) { parent = first + graph.slot_count + field.parent; }
-			if (parent < 1 || parent > first + i || p.root != first + field.root || p.parent != parent || p.slot != field.root || p.field != field_id || p.symbol.index != field.symbol.index || p.type.index != field.type.index || p.flags != field.flags || p.leaf != field.leaf || p.region != graph.slots[field.root - 1].region || p.parameter != graph.slots[field.root - 1].parameter) { return false; }
+			if (field.parent > 0) parent = first + graph.slot_count + field.parent;
+			if (parent < 1 || parent > first + i || p.root != first + field.root || p.parent != parent || p.slot != field.root || p.field != field_id || p.symbol.index != field.symbol.index || p.type.index != field.type.index || p.flags != field.flags || p.leaf != field.leaf || p.region != graph.slots[field.root - 1].region || p.parameter != graph.slots[field.root - 1].parameter) return false;
 			var parent_type = core.places[parent - 1].type;
 			var descriptor = checked.types.descriptor(checked.types, parent_type);
 			var declaration = checked.bindings.symbol(p.symbol);
-			if (descriptor.kind != 30 || declaration.kind != 6 || declaration.owner.index != descriptor.nominal.index || p.type.index != checked.symbol_types[p.symbol.index].index || p.flags != checked.symbol_flags[p.symbol.index]) { return false; }
+			if (descriptor.kind != 30 || declaration.kind != 6 || declaration.owner.index != descriptor.nominal.index || p.type.index != checked.symbol_types[p.symbol.index].index || p.flags != checked.symbol_flags[p.symbol.index]) return false;
 		}
 		i = i + 1;
 	}
 	return true;
 }
+
 // Walk the source field receiver chain, without trusting Core's root/parent.
 int core_source_place(CoreData core, CheckedIndex checked, int function, SyntaxNodeId node, int depth) {
-	if (depth > 64 || node.index <= 0 || node.index >= len(checked.uses)) { return 0; }
+	if (depth > 64 || node.index <= 0 || node.index >= len(checked.uses)) return 0;
 	var kind = checked.bindings.program.arena.kind(node);
 	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
 		SyntaxTokenId token = {index = 0};
-		if (kind == SyntaxKind.MoveExpressionSyntax()) { token = checked.bindings.program.arena.get_token_source(node); } else { token = checked.bindings.program.arena.get_token_identifier(node); }
+		if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			token = checked.bindings.program.arena.get_token_source(node);
+		} else {
+			token = checked.bindings.program.arena.get_token_identifier(node);
+		}
 		return core_symbol_place(core, function, checked_target(checked, node, token));
 	}
-	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) { return 0; }
+	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) return 0;
 	var aggregate = checked.bindings.program.arena.get_node_aggregate(node);
 	int parent = 0;
 	if (aggregate.index != 0) {
@@ -63,120 +72,127 @@ int core_source_place(CoreData core, CheckedIndex checked, int function, SyntaxN
 	} else {
 		parent = core_symbol_place(core, function, checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node)));
 	}
-	if (parent == 0) { return 0; }
+	if (parent == 0) return 0;
 	var field = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
 	var f = core.functions[function - 1];
 	int i = f.place_first;
 	while (i < f.place_first + f.place_count) {
-		if (core.places[i].parent == parent && core.places[i].symbol.index == field.index) { return i + 1; }
+		if (core.places[i].parent == parent && core.places[i].symbol.index == field.index) return i + 1;
 		i = i + 1;
 	}
 	return 0;
 }
+
 bool core_verify_edge(CoreData core, CoreNode row, int ordinal, SymbolId label, int mode, bool[] seen_edges) {
-	if (ordinal < 0 || ordinal >= row.count || row.first < 0 || row.first > core.edge_count - row.count) { return false; }
+	if (ordinal < 0 || ordinal >= row.count || row.first < 0 || row.first > core.edge_count - row.count) return false;
 	int at = row.first + ordinal;
-	if (seen_edges[at]) { return false; }
+	if (seen_edges[at]) return false;
 	seen_edges[at] = true;
 	var edge = core.edges[at];
 	return edge.label.index == label.index && edge.mode == mode && edge.child > 0 && edge.child <= core.node_count;
 }
+
 bool core_verify_child(CoreData core, CheckedIndex checked, int[] proofs, int id, SyntaxNodeId source, int function, int loop, int call, int depth, bool[] seen, bool[] seen_edges) {
-	if (source.index == 0) { return id == 0; }
+	if (source.index == 0) return id == 0;
 	return core_verify_tree(core, checked, proofs, id, source, function, loop, call, depth + 1, seen, seen_edges);
 }
+
 bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id, SyntaxNodeId source, int function, int loop, int call, int depth, bool[] seen, bool[] seen_edges) {
-	if (depth > 192 || id < 1 || id > core.node_count || source.index < 1 || source.index >= len(checked.uses) || seen[id - 1]) { return false; }
+	if (depth > 192 || id < 1 || id > core.node_count || source.index < 1 || source.index >= len(checked.uses) || seen[id - 1]) return false;
 	seen[id - 1] = true;
 	var row = core.nodes[id - 1];
 	var kind = checked.bindings.program.arena.kind(source);
 	var use = checked.uses[source.index];
-	if (row.function != function || row.source.index != source.index || !core_span_equal(row.span, checked.bindings.program.arena.header(source).span) || row.count < 0 || row.first < 0 || row.first > core.edge_count - row.count) { return false; }
+	if (row.function != function || row.source.index != source.index || !core_span_equal(row.span, checked.bindings.program.arena.header(source).span) || row.count < 0 || row.first < 0 || row.first > core.edge_count - row.count) return false;
 	var expected_type = use.type;
 	int expected_flags = use.flags;
 	if (!core_value_kind(row.kind)) {
 		expected_type = type_id(14);
 		expected_flags = 0;
-		if (row.kind == 21 || row.kind == 22) { expected_type = use.type; }
-		if (row.kind == 21) { expected_flags = use.flags; }
+		if (row.kind == 21 || row.kind == 22) expected_type = use.type;
+		if (row.kind == 21) expected_flags = use.flags;
 		if (row.kind == 27) {
 			expected_type = core.functions[function - 1].result;
 			expected_flags = core.functions[function - 1].flags;
 		}
 	} else {
-		if (expected_type.index == 0 || (use.deferred != 0 && proofs[source.index] != 1)) { return false; }
+		if (expected_type.index == 0 || (use.deferred != 0 && proofs[source.index] != 1)) return false;
 	}
-	if (row.type.index != expected_type.index || row.flags != expected_flags || !checked.types.owns(checked.types, row.type)) { return false; }
+	if (row.type.index != expected_type.index || row.flags != expected_flags || !checked.types.owns(checked.types, row.type)) return false;
 	// Each kind checks its complete schema, including unused metadata. This also
 	// rejects a plausible value substituted into a writable-place channel.
-	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.place != 0) { return false; }
-	if (row.kind != 9 && (row.symbol.index != 0 || row.signature.index != 0)) { return false; }
-	if (row.kind != 4 && row.kind != 9 && row.kind != 25 && row.kind != 26 && row.target != 0) { return false; }
-	if (row.kind != 1 && row.kind != 2 && row.token.index != 0) { return false; }
-	if (row.kind != 2 && row.kind != 5 && row.kind != 6 && row.kind != 7 && row.operation.index != 0) { return false; }
-	if (row.kind != 9 && row.kind != 10 && row.kind != 20 && (row.first != 0 || row.count != 0)) { return false; }
-	if (row.kind != 6 && row.kind != 7 && row.kind != 23 && row.kind != 24 && row.b != 0) { return false; }
-	if (row.kind != 23 && row.c != 0) { return false; }
+	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.place != 0) return false;
+	if (row.kind != 9 && (row.symbol.index != 0 || row.signature.index != 0)) return false;
+	if (row.kind != 4 && row.kind != 9 && row.kind != 25 && row.kind != 26 && row.target != 0) return false;
+	if (row.kind != 1 && row.kind != 2 && row.token.index != 0) return false;
+	if (row.kind != 2 && row.kind != 5 && row.kind != 6 && row.kind != 7 && row.operation.index != 0) return false;
+	if (row.kind != 9 && row.kind != 10 && row.kind != 20 && (row.first != 0 || row.count != 0)) return false;
+	if (row.kind != 6 && row.kind != 7 && row.kind != 23 && row.kind != 24 && row.b != 0) return false;
+	if (row.kind != 23 && row.c != 0) return false;
 	if (row.kind == 1) {
-		if (row.a != 0 || (kind != SyntaxKind.IntegerLiteralExpressionSyntax() && kind != SyntaxKind.FloatLiteralExpressionSyntax() && kind != SyntaxKind.BooleanLiteralExpressionSyntax())) { return false; }
+		if (row.a != 0 || (kind != SyntaxKind.IntegerLiteralExpressionSyntax() && kind != SyntaxKind.FloatLiteralExpressionSyntax() && kind != SyntaxKind.BooleanLiteralExpressionSyntax())) return false;
 		return row.token.index == checked.bindings.program.arena.get_token_literal(source).index;
 	}
 	if (row.kind == 2) {
-		if (kind != SyntaxKind.PrefixExpressionSyntax() || row.a != 0) { return false; }
+		if (kind != SyntaxKind.PrefixExpressionSyntax() || row.a != 0) return false;
 		var operand = flow_unwrap(checked, checked.bindings.program.arena.get_node_operand(source));
 		return operand.index > 0 && checked.bindings.program.arena.kind(operand) == SyntaxKind.IntegerLiteralExpressionSyntax() && row.token.index == checked.bindings.program.arena.get_token_literal(operand).index && row.operation.index == checked.bindings.program.arena.get_token_operator_token(source).index && type_integer(checked_kind(checked, row.type));
 	}
 	if (row.kind == 3 || row.kind == 4) {
-		if (row.a != 0 || row.place < 1 || row.place > core.place_count || core.places[row.place - 1].function != function || row.type.index != core.places[row.place - 1].type.index || core_source_place(core, checked, function, source, 0) != row.place) { return false; }
-		if (row.kind == 4) { return kind == SyntaxKind.MoveExpressionSyntax() && row.target == call && (core.places[row.place - 1].flags & 4) != 0; }
+		if (row.a != 0 || row.place < 1 || row.place > core.place_count || core.places[row.place - 1].function != function || row.type.index != core.places[row.place - 1].type.index || core_source_place(core, checked, function, source, 0) != row.place) return false;
+		if (row.kind == 4) return kind == SyntaxKind.MoveExpressionSyntax() && row.target == call && (core.places[row.place - 1].flags & 4) != 0;
 		return kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax();
 	}
 	if (row.kind == 5 || row.kind == 8 || row.kind == 12) {
-		if ((row.kind == 5 && (kind != SyntaxKind.PrefixExpressionSyntax() || row.operation.index != checked.bindings.program.arena.get_token_operator_token(source).index)) || (row.kind == 8 && kind != SyntaxKind.ConversionExpressionSyntax()) || (row.kind == 12 && kind != SyntaxKind.ParenthesizedExpressionSyntax())) { return false; }
+		if ((row.kind == 5 && (kind != SyntaxKind.PrefixExpressionSyntax() || row.operation.index != checked.bindings.program.arena.get_token_operator_token(source).index)) || (row.kind == 8 && kind != SyntaxKind.ConversionExpressionSyntax()) || (row.kind == 12 && kind != SyntaxKind.ParenthesizedExpressionSyntax())) return false;
 		SyntaxNodeId operand = {index = 0};
-		if (row.kind == 12) { operand = checked.bindings.program.arena.get_node_expression(source); } else { operand = checked.bindings.program.arena.get_node_operand(source); }
+		if (row.kind == 12) {
+			operand = checked.bindings.program.arena.get_node_expression(source);
+		} else {
+			operand = checked.bindings.program.arena.get_node_operand(source);
+		}
 		int child_call = 0;
-		if (row.kind == 12) { child_call = call; }
+		if (row.kind == 12) child_call = call;
 		return core_verify_child(core, checked, proofs, row.a, operand, function, loop, child_call, depth, seen, seen_edges);
 	}
 	if (row.kind == 6 || row.kind == 7) {
-		if ((row.kind == 6 && kind != SyntaxKind.BinaryExpressionSyntax()) || (row.kind == 7 && kind != SyntaxKind.ShortCircuitExpressionSyntax()) || row.operation.index != checked.bindings.program.arena.get_token_operator_token(source).index) { return false; }
+		if ((row.kind == 6 && kind != SyntaxKind.BinaryExpressionSyntax()) || (row.kind == 7 && kind != SyntaxKind.ShortCircuitExpressionSyntax()) || row.operation.index != checked.bindings.program.arena.get_token_operator_token(source).index) return false;
 		return core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_left(source), function, loop, 0, depth, seen, seen_edges) && core_verify_child(core, checked, proofs, row.b, checked.bindings.program.arena.get_node_right(source), function, loop, 0, depth, seen, seen_edges);
 	}
 	if (row.kind == 9) {
-		if (kind != SyntaxKind.CallExpressionSyntax() || row.a != 0) { return false; }
+		if (kind != SyntaxKind.CallExpressionSyntax() || row.a != 0) return false;
 		var callee = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
-		if (callee.index <= 0 || row.symbol.index != callee.index || row.signature.index != checked.symbol_signatures[callee.index].index || row.target < 1 || row.target > core.function_count || core.functions[row.target - 1].symbol.index != callee.index || !admit_signature_authority(checked, callee)) { return false; }
+		if (callee.index <= 0 || row.symbol.index != callee.index || row.signature.index != checked.symbol_signatures[callee.index].index || row.target < 1 || row.target > core.function_count || core.functions[row.target - 1].symbol.index != callee.index || !admit_signature_authority(checked, callee)) return false;
 		var sig = checked.signatures[row.signature.index - 1];
 		var args = checked.bindings.program.arena.get_list_arguments(source);
 		var callee_declaration = checked.bindings.symbol(callee);
 		var params = checked.bindings.program.arena.get_list_parameters(callee_declaration.node);
-		if (sig.dispatch != 0 || ((sig.flags & (8 | 16 | 32 | 64)) != 0 && !checked_c_scalar_signature(checked, callee)) || row.count != checked.bindings.program.arena.list_count(args)) { return false; }
+		if (sig.dispatch != 0 || ((sig.flags & (8 | 16 | 32 | 64)) != 0 && !checked_c_scalar_signature(checked, callee)) || row.count != checked.bindings.program.arena.list_count(args)) return false;
 		int i = 0;
 		while (i < row.count) {
 			var param = checked.types.argument(checked.types, sig.callable, i + 1);
 			var parameter_node = checked.bindings.program.arena.node_at(params, i);
 			var symbol = checked.node_symbols[parameter_node.index];
-			if (!core_verify_edge(core, row, i, symbol, param.flags, seen_edges)) { return false; }
+			if (!core_verify_edge(core, row, i, symbol, param.flags, seen_edges)) return false;
 			var edge = core.edges[row.first + i];
-			if (!core_verify_child(core, checked, proofs, edge.child, checked.bindings.program.arena.node_at(args, i), function, loop, id, depth, seen, seen_edges) || core.nodes[edge.child - 1].type.index != param.type.index) { return false; }
+			if (!core_verify_child(core, checked, proofs, edge.child, checked.bindings.program.arena.node_at(args, i), function, loop, id, depth, seen, seen_edges) || core.nodes[edge.child - 1].type.index != param.type.index) return false;
 			i = i + 1;
 		}
 		return true;
 	}
 	if (row.kind == 10) {
-		if (kind != SyntaxKind.StructInitializerSyntax() || row.a != 0 || checked_kind(checked, row.type) != 30) { return false; }
+		if (kind != SyntaxKind.StructInitializerSyntax() || row.a != 0 || checked_kind(checked, row.type) != 30) return false;
 		var fields = checked.bindings.program.arena.get_list_fields(source);
-		if (row.count != checked.bindings.program.arena.list_count(fields)) { return false; }
+		if (row.count != checked.bindings.program.arena.list_count(fields)) return false;
 		int i = 0;
 		while (i < row.count) {
 			var field = checked.bindings.program.arena.node_at(fields, i);
 			var symbol = checked_target(checked, field, checked.bindings.program.arena.get_token_name(field));
-			if (symbol.index == 0 || !core_verify_edge(core, row, i, symbol, checked.symbol_flags[symbol.index], seen_edges)) { return false; }
+			if (symbol.index == 0 || !core_verify_edge(core, row, i, symbol, checked.symbol_flags[symbol.index], seen_edges)) return false;
 			var value = checked.bindings.program.arena.get_node_initializer(field);
-			if (value.index == 0) { value = checked.bindings.program.arena.get_node_expression(field); }
+			if (value.index == 0) value = checked.bindings.program.arena.get_node_expression(field);
 			int child = core.edges[row.first + i].child;
-			if (!core_verify_child(core, checked, proofs, child, value, function, loop, 0, depth, seen, seen_edges) || core.nodes[child - 1].type.index != checked.symbol_types[symbol.index].index) { return false; }
+			if (!core_verify_child(core, checked, proofs, child, value, function, loop, 0, depth, seen, seen_edges) || core.nodes[child - 1].type.index != checked.symbol_types[symbol.index].index) return false;
 			i = i + 1;
 		}
 		return true;
@@ -185,12 +201,12 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		return kind == SyntaxKind.BufferAllocationSyntax() && flow_buffer_type(checked, row.type) && core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_count(source), function, loop, 0, depth, seen, seen_edges);
 	}
 	if (row.kind == 20) {
-		if (kind != SyntaxKind.BlockStatementSyntax() || row.a != 0) { return false; }
+		if (kind != SyntaxKind.BlockStatementSyntax() || row.a != 0) return false;
 		var statements = checked.bindings.program.arena.get_list_statements(source);
-		if (row.count != checked.bindings.program.arena.list_count(statements)) { return false; }
+		if (row.count != checked.bindings.program.arena.list_count(statements)) return false;
 		int i = 0;
 		while (i < row.count) {
-			if (!core_verify_edge(core, row, i, type_symbol(0), 0, seen_edges) || !core_verify_child(core, checked, proofs, core.edges[row.first + i].child, checked.bindings.program.arena.node_at(statements, i), function, loop, 0, depth, seen, seen_edges)) { return false; }
+			if (!core_verify_edge(core, row, i, type_symbol(0), 0, seen_edges) || !core_verify_child(core, checked, proofs, core.edges[row.first + i].child, checked.bindings.program.arena.node_at(statements, i), function, loop, 0, depth, seen, seen_edges)) return false;
 			i = i + 1;
 		}
 		return true;
@@ -199,51 +215,55 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		int place = 0;
 		SyntaxNodeId value = {index = 0};
 		if (row.kind == 21) {
-			if (kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.InferredLocalDeclarationSyntax() && kind != SyntaxKind.StructLocalDeclarationSyntax()) { return false; }
+			if (kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.InferredLocalDeclarationSyntax() && kind != SyntaxKind.StructLocalDeclarationSyntax()) return false;
 			place = core_symbol_place(core, function, checked.node_symbols[source.index]);
 			value = checked.bindings.program.arena.get_node_initializer(source);
 		} else {
-			if (kind == SyntaxKind.AssignmentStatementSyntax()) { place = core_symbol_place(core, function, checked_target(checked, source, checked.bindings.program.arena.get_token_name(source))); }
+			if (kind == SyntaxKind.AssignmentStatementSyntax()) {
+				place = core_symbol_place(core, function, checked_target(checked, source, checked.bindings.program.arena.get_token_name(source)));
+			}
 			else {
-				if (kind != SyntaxKind.FieldAssignmentStatementSyntax()) { return false; }
+				if (kind != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
 				place = core_source_place(core, checked, function, checked.bindings.program.arena.get_node_target(source), 0);
 			}
 		}
-		if (row.kind == 22) { value = checked.bindings.program.arena.get_node_expression(source); }
-		if (place < 1 || place != row.place || row.type.index != core.places[place - 1].type.index || (row.kind == 22 && (core.places[place - 1].flags & 128) != 0)) { return false; }
+		if (row.kind == 22) value = checked.bindings.program.arena.get_node_expression(source);
+		if (place < 1 || place != row.place || row.type.index != core.places[place - 1].type.index || (row.kind == 22 && (core.places[place - 1].flags & 128) != 0)) return false;
 		return core_verify_child(core, checked, proofs, row.a, value, function, loop, 0, depth, seen, seen_edges) && core.nodes[row.a - 1].type.index == row.type.index;
 	}
 	if (row.kind == 23 || row.kind == 24) {
-		if ((row.kind == 23 && kind != SyntaxKind.IfStatementSyntax()) || (row.kind == 24 && kind != SyntaxKind.WhileStatementSyntax())) { return false; }
-		if (!core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_condition(source), function, loop, 0, depth, seen, seen_edges) || core.nodes[row.a - 1].type.index != 13) { return false; }
-		if (row.kind == 24) { return core_verify_child(core, checked, proofs, row.b, checked.bindings.program.arena.get_node_body(source), function, id, 0, depth, seen, seen_edges); }
+		if ((row.kind == 23 && kind != SyntaxKind.IfStatementSyntax()) || (row.kind == 24 && kind != SyntaxKind.WhileStatementSyntax())) return false;
+		if (!core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_condition(source), function, loop, 0, depth, seen, seen_edges) || core.nodes[row.a - 1].type.index != 13) return false;
+		if (row.kind == 24) return core_verify_child(core, checked, proofs, row.b, checked.bindings.program.arena.get_node_body(source), function, id, 0, depth, seen, seen_edges);
 		return core_verify_child(core, checked, proofs, row.b, checked.bindings.program.arena.get_node_then_body(source), function, loop, 0, depth, seen, seen_edges) && core_verify_child(core, checked, proofs, row.c, checked.bindings.program.arena.get_node_else_body(source), function, loop, 0, depth, seen, seen_edges);
 	}
 	if (row.kind == 25 || row.kind == 26) {
 		return row.a == 0 && loop != 0 && row.target == loop && ((row.kind == 25 && kind == SyntaxKind.BreakStatementSyntax()) || (row.kind == 26 && kind == SyntaxKind.ContinueStatementSyntax()));
 	}
 	if (row.kind == 27) {
-		if (kind != SyntaxKind.ReturnStatementSyntax()) { return false; }
+		if (kind != SyntaxKind.ReturnStatementSyntax()) return false;
 		var value = checked.bindings.program.arena.get_node_expression(source);
 		return core_verify_child(core, checked, proofs, row.a, value, function, loop, 0, depth, seen, seen_edges) && (row.a == 0 || core.nodes[row.a - 1].type.index == row.type.index);
 	}
-	if (row.kind == 28) { return kind == SyntaxKind.CallStatementSyntax() && core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_call(source), function, loop, 0, depth, seen, seen_edges); }
+	if (row.kind == 28) return kind == SyntaxKind.CallStatementSyntax() && core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_call(source), function, loop, 0, depth, seen, seen_edges);
 	return false;
 }
+
 bool core_verify_cleanup_row(CoreData core, int at, int place, int owner, int state) {
-	if (at < 0 || at >= core.cleanup_count || place < 1 || place > core.place_count) { return false; }
+	if (at < 0 || at >= core.cleanup_count || place < 1 || place > core.place_count) return false;
 	var row = core.cleanups[at];
 	return row.place == place && row.owner == owner && row.state == state && row.type.index == core.places[place - 1].type.index;
 }
+
 bool core_verify_responsibility(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, int function, int[] cursors) {
 	var f = core.functions[function - 1];
 	int e = 0;
 	while (e < graph.count) {
 		var event = graph.events[e];
 		if (event.operation == 9) {
-			if (cursors[0] >= core.exit_count) { return false; }
+			if (cursors[0] >= core.exit_count) return false;
 			var plan = core.exits[cursors[0]];
-			if (plan.function != function || plan.source.index != event.node.index || plan.region != event.region || plan.witness != e + 1 || plan.first != cursors[1]) { return false; }
+			if (plan.function != function || plan.source.index != event.node.index || plan.region != event.region || plan.witness != e + 1 || plan.first != cursors[1]) return false;
 			int first = cursors[1];
 			int s = graph.slot_count - 1;
 			while (s >= 0) {
@@ -256,50 +276,57 @@ bool core_verify_responsibility(CoreData core, CheckedIndex checked, borrowed Fl
 						while (field >= 0) {
 							var leaf = graph.fields[field];
 							if (leaf.root == s + 1 && leaf.leaf && (leaf.flags & 4) != 0) {
-								if (!core_verify_cleanup_row(core, cursors[1], f.place_first + graph.slot_count + field + 1, owner, state)) { return false; }
+								if (!core_verify_cleanup_row(core, cursors[1], f.place_first + graph.slot_count + field + 1, owner, state)) return false;
 								cursors[1] = cursors[1] + 1;
 							}
 							field = field - 1;
 						}
 					} else {
-						if (!core_verify_cleanup_row(core, cursors[1], owner, owner, state)) { return false; }
+						if (!core_verify_cleanup_row(core, cursors[1], owner, owner, state)) return false;
 						cursors[1] = cursors[1] + 1;
 					}
 				}
 				s = s - 1;
 			}
-			if (plan.count != cursors[1] - first) { return false; }
+			if (plan.count != cursors[1] - first) return false;
 			cursors[0] = cursors[0] + 1;
 		}
 		e = e + 1;
 	}
 	int l = 0;
 	while (l < graph.loan_count) {
-		if (cursors[2] >= core.loan_count) { return false; }
+		if (cursors[2] >= core.loan_count) return false;
 		var expected = graph.loans[l];
 		var row = core.loans[cursors[2]];
-		if (expected.call.index == 0 || expected.borrower != 0 || row.function != function || row.source != f.place_first + expected.source || row.value.index != expected.node.index || row.call.index != expected.call.index || row.region != expected.region) { return false; }
+		if (expected.call.index == 0 || expected.borrower != 0 || row.function != function || row.source != f.place_first + expected.source || row.value.index != expected.node.index || row.call.index != expected.call.index || row.region != expected.region) return false;
 		int begin = 0;
 		int end = 0;
 		e = 0;
 		while (e < graph.count) {
 			var event = graph.events[e];
-			if (event.operation == 7 && event.loan == l + 1) { if (begin != 0) { return false; } begin = e + 1; }
-			if (event.operation == 8 && event.call == expected.call.index) { if (end != 0) { return false; } end = e + 1; }
+			if (event.operation == 7 && event.loan == l + 1) {
+				if (begin != 0) return false;
+				begin = e + 1;
+			}
+			if (event.operation == 8 && event.call == expected.call.index) {
+				if (end != 0) return false;
+				end = e + 1;
+			}
 			e = e + 1;
 		}
-		if (begin == 0 || end == 0 || row.begin != begin || row.end != end) { return false; }
+		if (begin == 0 || end == 0 || row.begin != begin || row.end != end) return false;
 		cursors[2] = cursors[2] + 1;
 		l = l + 1;
 	}
 	return true;
 }
+
 int core_verify_model(CoreData core, FlowIndex flow) {
-	if (!core_counts(core)) { return 1; }
-	if (core.status == 2 || core.node_count > core.limit || core.place_count > core.limit || core.edge_count > core.limit || core.exit_count > core.limit || core.cleanup_count > core.limit || core.loan_count > core.limit || (core.node_count > 0 && core.place_count > 8000000 / core.node_count)) { return 2; }
-	if (core.status != 0) { return core.status; }
-	if (!flow.checked.semantic_admission || flow_status(flow) != 0 || !admit_verify_index(flow)) { return 4; }
-	if (core.function_count != flow.graphs.count()) { return 1; }
+	if (!core_counts(core)) return 1;
+	if (core.status == 2 || core.node_count > core.limit || core.place_count > core.limit || core.edge_count > core.limit || core.exit_count > core.limit || core.cleanup_count > core.limit || core.loan_count > core.limit || (core.node_count > 0 && core.place_count > 8000000 / core.node_count)) return 2;
+	if (core.status != 0) return core.status;
+	if (!flow.checked.semantic_admission || flow_status(flow) != 0 || !admit_verify_index(flow)) return 4;
+	if (core.function_count != flow.graphs.count()) return 1;
 	var seen = new bool[core.node_count];
 	var seen_edges = new bool[core.edge_count];
 	var cursors = new int[3];
@@ -310,36 +337,53 @@ int core_verify_model(CoreData core, FlowIndex flow) {
 		var sig = flow.checked.signatures[i];
 		var declaration = flow.checked.bindings.symbol(sig.declaration);
 		var result = flow.checked.types.argument(flow.checked.types, sig.callable, 0);
-		if (declaration.kind != 1 || f.symbol.index != sig.declaration.index || f.signature.index != i + 1 || f.result.index != result.type.index || f.flags != result.flags || !core_span_equal(f.span, flow.checked.bindings.program.arena.header(declaration.node).span)) { return 1; }
-		if (!core_verify_places(core, flow.checked, flow.graphs.entries[i], i + 1, first_place) || !core_verify_responsibility(core, flow.checked, flow.graphs.entries[i], i + 1, cursors)) { return 1; }
+		if (declaration.kind != 1 || f.symbol.index != sig.declaration.index || f.signature.index != i + 1 || f.result.index != result.type.index || f.flags != result.flags || !core_span_equal(f.span, flow.checked.bindings.program.arena.header(declaration.node).span)) return 1;
+		if (!core_verify_places(core, flow.checked, flow.graphs.entries[i], i + 1, first_place) || !core_verify_responsibility(core, flow.checked, flow.graphs.entries[i], i + 1, cursors)) return 1;
 		first_place = first_place + f.place_count;
 		var body = flow.checked.bindings.program.arena.get_node_body(declaration.node);
 		if (body.index == 0) {
-			if (f.body != 0 || !flow.checked.bindings.program.arena.computed_is_c_import(declaration.node) || !checked_c_scalar_signature(flow.checked, sig.declaration)) { return 1; }
-		} else { if (!core_verify_tree(core, flow.checked, flow.proofs, f.body, body, i + 1, 0, 0, 0, seen, seen_edges)) { return 1; } }
+			if (f.body != 0 || !flow.checked.bindings.program.arena.computed_is_c_import(declaration.node) || !checked_c_scalar_signature(flow.checked, sig.declaration)) return 1;
+		} else {
+			if (!core_verify_tree(core, flow.checked, flow.proofs, f.body, body, i + 1, 0, 0, 0, seen, seen_edges)) return 1;
+		}
 		i = i + 1;
 	}
-	if (first_place != core.place_count || cursors[0] != core.exit_count || cursors[1] != core.cleanup_count || cursors[2] != core.loan_count) { return 1; }
+	if (first_place != core.place_count || cursors[0] != core.exit_count || cursors[1] != core.cleanup_count || cursors[2] != core.loan_count) return 1;
 	i = 0;
-	while (i < core.node_count) { if (!seen[i]) { return 1; } i = i + 1; }
+	while (i < core.node_count) {
+		if (!seen[i]) return 1;
+		i = i + 1;
+	}
 	i = 0;
-	while (i < core.edge_count) { if (!seen_edges[i]) { return 1; } i = i + 1; }
+	while (i < core.edge_count) {
+		if (!seen_edges[i]) return 1;
+		i = i + 1;
+	}
 	return 0;
 }
+
 int core_verify(CoreProgram core) { return core_verify_model(core.data, core.flow); }
+
 // All public reads validate the entire graph, including currently unqueried
 // functions and responsibility tables. IDs alone confer no authority.
 bool core_owns(CoreProgram core, borrowed CoreProgram origin, CoreId id) {
 	return core.same_owner(origin) && core_verify(core) == 0 && id.function > 0 && id.function <= core.data.function_count && id.index > 0 && id.index <= core.data.node_count && core.data.nodes[id.index - 1].function == id.function;
 }
+
 CoreNode core_read_node(CoreProgram core, borrowed CoreProgram origin, CoreId id) throws Error {
-	if (!core_owns(core, origin, id)) { throw new Error("INVALID_CORE_ID"); }
+	if (!core_owns(core, origin, id)) {
+		throw new Error("INVALID_CORE_ID");
+	}
 	return core.data.nodes[id.index - 1];
 }
+
 CorePlace core_read_place(CoreProgram core, borrowed CoreProgram origin, CoreId id) throws Error {
-	if (!core.same_owner(origin) || core_verify(core) != 0 || id.function < 1 || id.function > core.data.function_count || id.index < 1 || id.index > core.data.place_count || core.data.places[id.index - 1].function != id.function) { throw new Error("INVALID_CORE_PLACE_ID"); }
+	if (!core.same_owner(origin) || core_verify(core) != 0 || id.function < 1 || id.function > core.data.function_count || id.index < 1 || id.index > core.data.place_count || core.data.places[id.index - 1].function != id.function) {
+		throw new Error("INVALID_CORE_PLACE_ID");
+	}
 	return core.data.places[id.index - 1];
 }
+
 owned SourceSpan core_source_span(CoreProgram core, borrowed CoreProgram origin, CoreId id) throws Error {
 	var row = core_read_node(core, origin, id);
 	return core.flow.checked.bindings.program.arena.source_span(row.span);

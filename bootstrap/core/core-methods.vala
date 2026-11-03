@@ -22,6 +22,7 @@ public class CoreMethod : CoreFunction {
 		this.method_ordinal = method_ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class CoreReceiver : CoreNode {
@@ -31,6 +32,7 @@ public class CoreReceiver : CoreNode {
 		base (span);
 		this.contract = contract;
 	}
+
 }
 
 public class CoreReceiverValue : CoreValue {
@@ -40,5 +42,6 @@ public class CoreReceiverValue : CoreValue {
 		base (span, receiver.contract);
 		this.receiver = receiver;
 	}
+
 }
 }

@@ -38,6 +38,7 @@ private SemanticResult analyzed(string text, string declarations = API, string? 
 		error ("%s", failure.message);
 	}
 }
+
 private CheckedProgram checked(string text, string declarations = API, string? heap_boundary = null) {
 	var result = analyzed (text, declarations, heap_boundary);
 	if (result.diagnostic != null) {
@@ -45,6 +46,7 @@ private CheckedProgram checked(string text, string declarations = API, string? h
 	}
 	return result.program;
 }
+
 private CheckedFunction function(CheckedProgram program, string name) {
 	foreach (var definition in program.functions) {
 		if (definition.symbol.name == name) {
@@ -53,6 +55,7 @@ private CheckedFunction function(CheckedProgram program, string name) {
 	}
 	error ("missing %s", name);
 }
+
 private RuntimeLifetimeSummary summary(CheckedProgram program, string name) {
 	var result = function (program, name).runtime_lifetimes;
 	assert (result != null);
@@ -61,6 +64,7 @@ private RuntimeLifetimeSummary summary(CheckedProgram program, string name) {
 	}
 	return result;
 }
+
 private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string path = "") {
 	foreach (var origin in origins) {
 		if (origin.kind == RuntimeScopeOriginKind.OWNER_PARAMETER && origin.ordinal == parameter && origin.path == path) {
@@ -69,6 +73,7 @@ private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string
 	}
 	return false;
 }
+
 private void constructor_and_forward() {
 	try {
 		var program = checked (LEAF + HOLDER + "owned Holder wrap(owned Leaf child){var box=new Holder(move child);return move box;}owned Holder forward(owned Leaf input){var result=wrap(move input);return move result;}int main(){return 0;}");
@@ -89,6 +94,7 @@ private void constructor_and_forward() {
 		error ("%s", failure.message);
 	}
 }
+
 private void branch_and_loop() {
 	try {
 		var program = checked (LEAF + HOLDER + "owned Holder choose(owned Leaf left,owned Leaf right,int choice){if(choice==0){var box=new Holder(move left);return move box;}var box=new Holder(move right);return move box;}void replace_loop(borrowed Holder box,owned Leaf incoming,int count){while(count>0){box.put(move incoming);break;}}int main(){return 0;}");
@@ -103,6 +109,7 @@ private void branch_and_loop() {
 		error ("%s", failure.message);
 	}
 }
+
 private void records_and_replacement() {
 	try {
 		var program = checked (LEAF + HOLDER + "struct Record{owned Leaf child;int marker;}Record packet(owned Leaf input){Record value={child=move input,marker=7};return move value;}void replace(borrowed Holder box,owned Leaf input){box.put(move input);}int main(){return 0;}");
@@ -119,6 +126,7 @@ private void records_and_replacement() {
 		error ("%s", failure.message);
 	}
 }
+
 private void conditional_replacement() {
 	try {
 		string holder = "class Holder{private owned Leaf child;init(owned Leaf child){this.child=move child;}int change(owned Leaf child){this.child=move child;return 1;}}";
@@ -130,6 +138,7 @@ private void conditional_replacement() {
 		error ("%s", failure.message);
 	}
 }
+
 private void incomplete_contracts() {
 	var program = checked (LEAF + HOLDER + "extern(C) int foreign();int opaque(){return foreign();}owned Leaf recursive(owned Leaf input,int count){if(count>0){return recursive(move input,count-1);}return move input;}void alias(borrowed Holder left,borrowed Holder right,owned Leaf input){left.put(move input);}int main(){return 0;}");
 	assert (function (program, "opaque").runtime_lifetimes.complete);
@@ -139,12 +148,14 @@ private void incomplete_contracts() {
 		Test.message ("%s: %s", name, result.limitation);
 	}
 }
+
 private void argument_mutation() {
 	string holder = "class Holder{private owned Leaf child;init(owned Leaf child){this.child=move child;}void put(owned Leaf child){this.child=move child;}int observe(int ignored){return 0;}}";
 	var program = checked (LEAF + holder + "int mutate(borrowed Holder box,owned Leaf input){box.put(move input);return 1;}int nested(borrowed Holder box,owned Leaf input){return box.observe(mutate(box,move input));}int main(){return 0;}");
 	var result = function (program, "nested").runtime_lifetimes;
 	assert (result != null && !result.complete && result.limitation.contains ("pending borrowed owner"));
 }
+
 private void opaque_declaration() {
 	var program = checked (LEAF + "owned Leaf origin(owned Leaf input){return move input;}owned Leaf caller(owned Leaf input){return origin(move input);}int main(){return 0;}");
 	summary (program, "caller");
@@ -164,6 +175,7 @@ private void opaque_declaration() {
 	var consumer = function (program, "caller").runtime_lifetimes;
 	assert (consumer != null && !consumer.complete && consumer.limitation.contains ("complete direct lifetime summary"));
 }
+
 private LocalSymbol inject_scoped_leaf(CheckedBlockStatement block, LocalSymbol context) {
 	for (int i = 0; i < block.statements.length; i++) {
 		var declaration = block.statements[i] as CheckedLocalDeclaration;
@@ -180,6 +192,7 @@ private LocalSymbol inject_scoped_leaf(CheckedBlockStatement block, LocalSymbol 
 	}
 	error ("scoped fixture has no leaf declaration");
 }
+
 private CheckedProgram scoped_fixture(bool escaping) {
 	string source = SCOPED_LEAF + (escaping ? "owned ScopedLeaf exercise()" : "int exercise()") + "{owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=empty();" + (escaping ? "return null;" : "return 0;") + "}int main(){return 0;}";
 	var program = checked (source);
@@ -198,6 +211,7 @@ private CheckedProgram scoped_fixture(bool escaping) {
 	}
 	return program;
 }
+
 private void scoped_receiver_storage() {
 	string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}void put(owned ScopedLeaf child){this.child=move child;}}";
 	foreach (bool outer in new bool[] { false, true }) {
@@ -229,6 +243,7 @@ private void scoped_receiver_storage() {
 		}
 	}
 }
+
 private void scoped_formal_substitution() {
 	try {
 		var program = checked (SCOPED_LEAF + "owned ScopedLeaf build(borrowed Scoped context){var leaf=empty();return null;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var result=build(context);return 0;}int main(){return 0;}");
@@ -251,6 +266,7 @@ private void scoped_formal_substitution() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_actual_nodes() {
 	try {
 		var admitted = checked (SCOPED_LEAF + "int main(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=new(context)ScopedLeaf();return 0;}");
@@ -272,6 +288,7 @@ private void scoped_actual_nodes() {
 		error ("%s", failure.message);
 	}
 }
+
 private void fallible_scoped_construction() {
 	foreach (bool escaping in new bool[] { false, true }) {
 		var program = scoped_fixture (escaping);
@@ -300,6 +317,7 @@ private void fallible_scoped_construction() {
 		}
 	}
 }
+
 private void hidden_scoped_construction() {
 	string fault = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}";
 	string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}void put(owned ScopedLeaf child){this.child=move child;}}";
@@ -351,6 +369,7 @@ private void hidden_nested_carriers() {
 	assert (unsafe_call.diagnostic != null && unsafe_call.diagnostic.message.contains ("scoped lifetime proof is incomplete"));
 	Test.message ("%s", unsafe_call.diagnostic.message);
 }
+
 private void scoped_carrier_signature() {
 	string host = "class Inner{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}class Host{private owned Inner child;init(owned Inner child){this.child=move child;}}";
 	string body = "void probe(borrowed Host box){opaque();}int main(){return 0;}";
@@ -359,6 +378,7 @@ private void scoped_carrier_signature() {
 	assert (result.program == null && result.diagnostic != null && result.diagnostic.message.contains ("scoped lifetime proof is incomplete"));
 	Test.message ("%s", result.diagnostic.message);
 }
+
 private void scalar_lengths() {
 	try {
 		string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}void put(owned ScopedLeaf child){this.child=move child;}}";
@@ -370,6 +390,7 @@ private void scalar_lengths() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owned_context_factories() {
 	try {
 		string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}";
@@ -405,6 +426,7 @@ private void fallible_owner_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exceptional_results() {
 	try {
 		string fault = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}";
@@ -522,6 +544,7 @@ private void cold_task_contract() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_scoped_capture() {
 	try {
 		string text = TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();var pending=consume(move input);return 0;}int main(){return exercise();}";
@@ -535,6 +558,7 @@ private void cold_task_scoped_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_frame_region() {
 	foreach (bool late in new bool[] { false, true }) {
 		string context_text = "owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);";
@@ -569,6 +593,7 @@ private void cold_task_frame_region() {
 		}
 	}
 }
+
 private void cold_task_joined_capture() {
 	try {
 		var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}async void joined(owned Captured input) throws TaskError{var child=consume(move input);await move child;await delay_ticks(1);}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();try{var executor=Tasks.open(8);var pending=joined(move input);var status=executor.run(move pending);match(status){case TaskStatus.Completed():{}else:{return 2;}}}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -581,6 +606,7 @@ private void cold_task_joined_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_admission_refusal() {
 	try {
 		var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}owned Captured refused(borrowed Context frames,owned Captured input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}return null;}int main(){return 0;}", API + "[CCode(destroy_function=\"astra_context17_destroy\",context=\"owned-concurrent\")]handle Context;");
@@ -590,6 +616,7 @@ private void cold_task_admission_refusal() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_admission() {
 	try {
 		var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}struct Packet{owned Captured child;int marker;}async void consume(Packet input){}Packet refused(borrowed Context frames,Packet input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}Packet vacant={child=empty(),marker=0};return move vacant;}int main(){return 0;}", API + "[CCode(destroy_function=\"astra_context17_destroy\",context=\"owned-concurrent\")]handle Context;");
@@ -599,6 +626,7 @@ private void cold_task_record_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_buffer_admission() {
 	try {
 		var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}async void consume(owned Captured item,owned u8[] bytes){}owned Captured refused(borrowed Context frames,owned Captured item,owned u8[] bytes){try{var pending=checked_task_in(frames,consume(move item,move bytes));}catch(TaskError error){return move item;}return null;}int main(){return 0;}", API + "[CCode(destroy_function=\"astra_context17_destroy\",context=\"owned-concurrent\")]handle Context;");
@@ -608,6 +636,7 @@ private void cold_task_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_admission() {
 	try {
 		var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async void consume(Packet input){}Packet refused(borrowed Context frames,Packet input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}Packet vacant={child=empty(),data={left=new u8[0],right=new u8[0]},marker=0};return move vacant;}int main(){return 0;}", API + "[CCode(destroy_function=\"astra_context17_destroy\",context=\"owned-concurrent\")]handle Context;");
@@ -617,6 +646,7 @@ private void cold_task_record_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_deferred_error() {
 	try {
 		var program = checked ("[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}[ExceptionRoot]class DeferredError{private owned Captured child;init(string message){this.child=empty();}void put(owned Captured input){this.child=move input;}virtual property string message{get{return \"deferred\";}}}enum DeferredStatus{Completed,Cancelled}async runtime DeferredTasks throws DeferredError returns DeferredStatus;async void fail(owned Captured input)throws DeferredError{var error=new DeferredError(\"deferred\");error.put(move input);throw move error;}int main(){return 0;}");
@@ -629,16 +659,19 @@ private void cold_task_deferred_error() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_observation() {
 	var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Packet{owned Captured child;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
 	summary (program, "collect");
 	summary (program, "exercise");
 }
+
 private void cold_task_record_buffer_observation() {
 	var program = checked (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,data={left=new u8[7],right=new u8[9]},marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
 	summary (program, "collect");
 	summary (program, "exercise");
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/runtime-lifetime-source/cold-task-record-buffer-observation", cold_task_record_buffer_observation);
@@ -672,4 +705,5 @@ public int main(string[] args) {
 	Test.add_func ("/runtime-lifetime-source/scoped-formal-substitution", scoped_formal_substitution);
 	return Test.run ();
 }
+
 }

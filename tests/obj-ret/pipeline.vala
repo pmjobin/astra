@@ -42,6 +42,7 @@ private void lifetime() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void companions() {
 	try {
 		foreach (var name in new string[] { "basic", "null", "param", "forward", "recursive", "life", "method", "vector", "slice", "owned", "empty", "no-deinit", "constructor-owned" }) {
@@ -64,10 +65,12 @@ private void companions() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/pipeline/each-upstream-stage-dies-before-next-verification", lifetime);
 	Test.add_func ("/obj-ret/pipeline/vector-slice-resource-method-and-profile-stability", companions);
 	return Test.run ();
 }
+
 }

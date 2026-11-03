@@ -18,6 +18,7 @@ static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static int entered, local_drops, ledger_drops;
 void *__real_astra_thread_register(astra_thread_callback, void *, int32_t);
 int32_t __real_astra_thread_retire(void *);
+
 static int32_t foreign_entry(void *opaque, int32_t value) {
 	struct callback *callback = opaque;
 	assert(callback == &registrations[value - 1] && callback->code && callback->context);
@@ -38,6 +39,7 @@ static int32_t foreign_entry(void *opaque, int32_t value) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return result;
 }
+
 void *__wrap_astra_thread_register(astra_thread_callback code, void *context, int32_t value) {
 	assert(value >= 1 && value <= 4 && code && context);
 	struct callback *callback = &registrations[value - 1];
@@ -49,6 +51,7 @@ void *__wrap_astra_thread_register(astra_thread_callback code, void *context, in
 	assert(callback->token);
 	return callback->token;
 }
+
 int32_t __wrap_astra_thread_retire(void *token) {
 	int result = __real_astra_thread_retire(token);
 	assert(result == 1);
@@ -63,20 +66,24 @@ int32_t __wrap_astra_thread_retire(void *token) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return result;
 }
+
 int32_t callback_capture_drop(int32_t id) {
 	assert(id >= 0 && id < 4 && registrations[id].retired == 1 && registrations[id].dropped++ == 0);
 	return 0;
 }
+
 int32_t callback_local_drop(void) {
 	assert(local_drops++ == 0);
 	return 0;
 }
+
 int32_t callback_ledger_drop(void) {
 	for (int i = 0; i < 4; ++i)
 		assert(registrations[i].retired == 1 && registrations[i].dropped == 1);
 	assert(ledger_drops++ == 0);
 	return 0;
 }
+
 int32_t callback_affinity_finish(void) {
 	assert(entered == 4 && local_drops == 1 && ledger_drops == 1);
 	for (int i = 0; i < 4; ++i)

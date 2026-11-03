@@ -36,6 +36,7 @@ struct AstraLinuxPayload {
 	int active;
 	int64_t file_offset;
 };
+
 #ifdef ASTRA_ASYNC_LINUX_TEST_PROTOCOL
 /* Optional receipt observers receive copied identities/results, never buffer
  * addresses. They cannot replace production CQ ingress or release authority. */
@@ -78,12 +79,14 @@ AstraLinuxPayload *astra_linux_payload_open(const unsigned char *path, int lengt
 	payload->writing = writing;
 	return payload;
 }
+
 static void payload_idle(AstraLinuxPayload *payload) {
 	if (!payload || payload->active) {
 		fprintf(stderr, "Astra payload integrity stop: owner is null or still in flight\n");
 		_Exit(121);
 	}
 }
+
 void astra_linux_payload_close(AstraLinuxPayload *payload) {
 	if (!payload) {
 		return;
@@ -102,6 +105,7 @@ void astra_linux_payload_close(AstraLinuxPayload *payload) {
 	}
 #endif
 }
+
 int astra_linux_payload_finish(AstraLinuxPayload *payload) {
 	payload_idle(payload);
 	int fd = payload->fd;
@@ -109,6 +113,7 @@ int astra_linux_payload_finish(AstraLinuxPayload *payload) {
 	return fd < 0 ? -EBADF : close(fd) == 0 ? 0
 	                                        : -errno;
 }
+
 int astra_linux_payload_configure(AstraLinuxPayload *payload, int offset, int count, int64_t file_offset) {
 	payload_idle(payload);
 	if (offset < 0 || count < 0 || offset > payload->capacity || count > payload->capacity - offset || file_offset < 0 || file_offset > INT64_MAX - count) {
@@ -122,6 +127,7 @@ int astra_linux_payload_configure(AstraLinuxPayload *payload, int offset, int co
 	payload->error = 0;
 	return 0;
 }
+
 int astra_linux_payload_byte(AstraLinuxPayload *payload, int index) {
 	payload_idle(payload);
 	if (index < 0 || index >= payload->capacity || (!payload->writing && (index < payload->offset || index - payload->offset >= payload->result))) {
@@ -129,6 +135,7 @@ int astra_linux_payload_byte(AstraLinuxPayload *payload, int index) {
 	}
 	return payload->bytes[index];
 }
+
 int astra_linux_payload_set(AstraLinuxPayload *payload, int index, int byte) {
 	payload_idle(payload);
 	if (!payload->writing || index < 0 || index >= payload->capacity || byte < 0 || byte > 255) {
@@ -137,10 +144,12 @@ int astra_linux_payload_set(AstraLinuxPayload *payload, int index, int byte) {
 	payload->bytes[index] = (unsigned char)byte;
 	return 0;
 }
+
 int astra_linux_payload_count(AstraLinuxPayload *payload) {
 	payload_idle(payload);
 	return payload->result;
 }
+
 int astra_linux_payload_error(AstraLinuxPayload *payload) {
 	payload_idle(payload);
 	return payload->error;
@@ -196,6 +205,7 @@ static const AstraAsyncProvider linux_provider;
 static _Thread_local AstraAsyncLinuxFailure last_failure;
 /* Single-threaded L1: process-unique IDs additionally reject cross-ring ingress. */
 static _Atomic uint64_t next_operation_id = 1;
+
 static uint64_t reserve_operation_ids(void) {
 	uint64_t current = atomic_load_explicit(&next_operation_id, memory_order_relaxed);
 	while (current != 0 && current <= UINT64_MAX - 2) {
@@ -203,6 +213,7 @@ static uint64_t reserve_operation_ids(void) {
 	}
 	return 0;
 }
+
 static LinuxState *state_of(AstraAsyncExecutor *executor) {
 	LinuxState *state = astra_async_provider_state(executor, &linux_provider);
 	if (state->owner != syscall(SYS_gettid)) {
@@ -211,19 +222,23 @@ static LinuxState *state_of(AstraAsyncExecutor *executor) {
 	}
 	return state;
 }
+
 static int same_token(AstraAsyncToken a, AstraAsyncToken b) {
 	return a.slot == b.slot && a.generation == b.generation && a.executor == b.executor;
 }
+
 static int failure(int operation, int error, uint64_t id) {
 	last_failure = (AstraAsyncLinuxFailure){operation, error, id};
 	return 0;
 }
+
 static void fatal(int operation, int error, uint64_t id) {
 	failure(operation, error, id);
 	fprintf(stderr, "Astra Linux async integrity stop: operation=%d errno=%d id=%llu\n", operation, error, (unsigned long long)id);
 	fflush(stderr);
 	_Exit(120);
 }
+
 AstraAsyncLinuxFailure astra_async_linux_last_failure(void) {
 	return last_failure;
 }
@@ -331,6 +346,7 @@ static struct io_uring_sqe *get_sqe(LinuxState *state) {
 #endif
 	return io_uring_get_sqe(&state->ring);
 }
+
 static void prepare(LinuxState *state) {
 	for (uint32_t i = 0; i < state->capacity; i++) {
 		LinuxTimer *timer = &state->timers[i];
@@ -399,6 +415,7 @@ static int enter(LinuxState *state, int wait) {
 	/* liburing owns tail publication. Never rebuild SQEs after a short enter. */
 	return wait ? io_uring_submit_and_wait(&state->ring, 1) : io_uring_submit(&state->ring);
 }
+
 static int submit(LinuxState *state, int wait) {
 	int result = enter(state, wait);
 	/* Private helper head records flush; sq_ready uses liburing's kernel ordering. */
@@ -430,6 +447,7 @@ static int submit(LinuxState *state, int wait) {
 	}
 	return result;
 }
+
 static void completions(AstraAsyncExecutor *executor) {
 	LinuxState *state = state_of(executor);
 #ifdef ASTRA_ASYNC_LINUX_TEST_PROTOCOL
@@ -449,6 +467,7 @@ static void completions(AstraAsyncExecutor *executor) {
 		io_uring_cqe_seen(&state->ring, batch[i]);
 	}
 }
+
 static void transport_stop(AstraAsyncExecutor *executor, int error, uint64_t id) {
 	LinuxState *state = state_of(executor);
 	/* Preserve exposed identities; attempt only two nonwaiting drain batches. */
@@ -465,6 +484,7 @@ static void transport_stop(AstraAsyncExecutor *executor, int error, uint64_t id)
 	fprintf(stderr, "Astra Linux bounded drain: retained operations=%u; no user dispatch or unwind\n", state->active);
 	fatal(ASTRA_LINUX_SUBMIT, error, id);
 }
+
 static void notify_owner(void *opaque) {
 	LinuxState *state = opaque;
 	uint64_t one = 1;
@@ -476,11 +496,13 @@ static void notify_owner(void *opaque) {
 		fatal(ASTRA_LINUX_CREDITS, count < 0 ? errno : EIO, 0);
 	}
 }
+
 static void pending_cancels(AstraAsyncExecutor *executor) {
 	AstraAsyncToken token;
 	while (astra_async_provider_take_cancel(executor, &token))
 		cancel_timer(executor, token);
 }
+
 static void service(AstraAsyncExecutor *executor, int wait) {
 	LinuxState *state = state_of(executor);
 	pending_cancels(executor);
@@ -524,6 +546,7 @@ static void service(AstraAsyncExecutor *executor, int wait) {
 		completions(executor);
 	}
 }
+
 static void close_ring(AstraAsyncExecutor *executor) {
 	LinuxState *state = state_of(executor);
 	if (state->active != 0 || io_uring_sq_ready(&state->ring) != 0 || io_uring_cq_ready(&state->ring) != 0) {
@@ -536,6 +559,7 @@ static void close_ring(AstraAsyncExecutor *executor) {
 	}
 	free(state);
 }
+
 static const AstraAsyncProvider linux_provider = {service, cancel_timer, close_ring};
 
 AstraAsyncExecutor *astra_async_linux_open(uint32_t capacity) {
@@ -608,6 +632,7 @@ AstraAsyncExecutor *astra_async_linux_open(uint32_t capacity) {
 	}
 	return executor;
 }
+
 static int admit(AstraAsyncTask *task, int64_t milliseconds, AstraLinuxPayload *payload) {
 	LinuxState *state = state_of(astra_async_executor(task));
 	if (payload && (!state->payload_supported || payload->active)) {
@@ -658,25 +683,30 @@ static int admit(AstraAsyncTask *task, int64_t milliseconds, AstraLinuxPayload *
 	}
 	return 1;
 }
+
 int astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds) {
 	return admit(task, milliseconds, NULL);
 }
+
 int astra_async_linux_payload(AstraAsyncTask *task, AstraLinuxPayload *payload) {
 	if (!payload) {
 		return failure(ASTRA_LINUX_TARGET, EINVAL, 0);
 	}
 	return admit(task, 0, payload);
 }
+
 int astra_async_linux_delay_result(AstraAsyncTask *task, uint32_t pc) {
 	state_of(astra_async_executor(task));
 	return astra_async_provider_result(task, pc);
 }
+
 int astra_async_linux_wait(AstraAsyncExecutor *executor) {
 	service(executor, 1);
 	return 1;
 }
 
 #ifdef ASTRA_ASYNC_LINUX_TEST_PROTOCOL
+
 void astra_linux_payload_test_bad_fd(AstraLinuxPayload *payload) {
 	payload_idle(payload);
 	if (payload->fd >= 0) {
@@ -684,6 +714,7 @@ void astra_linux_payload_test_bad_fd(AstraLinuxPayload *payload) {
 	}
 	payload->fd = -1;
 }
+
 int astra_async_linux_test_record(AstraAsyncExecutor *executor, uint32_t slot, AstraAsyncLinuxSnapshot *out) {
 	LinuxState *state = state_of(executor);
 	if (slot >= state->capacity || state->timers[slot].generation == 0) {
@@ -693,12 +724,15 @@ int astra_async_linux_test_record(AstraAsyncExecutor *executor, uint32_t slot, A
 	*out = (AstraAsyncLinuxSnapshot){t->token, t->target, t->cancel, t->generation, t->pc, t->prepared, t->cancel_prepared, t->target_seen, t->cancel_seen, t->target_result, t->cancel_result, t->active, t->ns, t->exposed, t->consumed, t->cancel_exposed, t->cancel_consumed};
 	return 1;
 }
+
 int astra_async_linux_test_snapshot(AstraAsyncExecutor *executor, uint32_t slot, AstraAsyncLinuxSnapshot *out) {
 	return astra_async_linux_test_record(executor, slot, out) && out->active;
 }
+
 int astra_async_linux_test_decode(AstraAsyncExecutor *executor, uint64_t id, int result, unsigned flags) {
 	return decode(executor, id, result, flags);
 }
+
 void astra_async_linux_test_fake(AstraAsyncExecutor *executor) {
 	LinuxState *state = state_of(executor);
 	if (state->active != 0 || io_uring_sq_ready(&state->ring) != 0 || io_uring_cq_ready(&state->ring) != 0) {
@@ -706,11 +740,13 @@ void astra_async_linux_test_fake(AstraAsyncExecutor *executor) {
 	}
 	state->fake = 1;
 }
+
 void astra_async_linux_test_submit(AstraAsyncExecutor *executor, int result) {
 	LinuxState *state = state_of(executor);
 	state->injected_submit = result;
 	state->has_injected_submit = 1;
 }
+
 void astra_async_linux_test_hold_submit(AstraAsyncExecutor *executor, int hold) {
 	LinuxState *state = state_of(executor);
 	if (!state->fake) {
@@ -718,6 +754,7 @@ void astra_async_linux_test_hold_submit(AstraAsyncExecutor *executor, int hold) 
 	}
 	state->hold_submit = hold;
 }
+
 unsigned astra_async_linux_test_pending(AstraAsyncExecutor *executor) {
 	LinuxState *state = state_of(executor);
 	if (!state->fake) {
@@ -725,6 +762,7 @@ unsigned astra_async_linux_test_pending(AstraAsyncExecutor *executor) {
 	}
 	return state->fake_tail - state->fake_head;
 }
+
 int astra_async_linux_test_queued(AstraAsyncExecutor *executor, uint64_t id) {
 	LinuxState *state = state_of(executor);
 	if (state->fake) {
@@ -739,6 +777,7 @@ int astra_async_linux_test_queued(AstraAsyncExecutor *executor, uint64_t id) {
 	}
 	return 0;
 }
+
 void astra_async_linux_test_ids(AstraAsyncExecutor *executor, uint64_t next) {
 	LinuxState *state = state_of(executor);
 	if (state->active != 0) {
@@ -746,10 +785,12 @@ void astra_async_linux_test_ids(AstraAsyncExecutor *executor, uint64_t next) {
 	}
 	next_operation_id = next;
 }
+
 void astra_async_linux_test_transport(AstraAsyncExecutor *executor, int injected_submit, int hold_completions) {
 	LinuxState *state = state_of(executor);
 	state->injected_submit = injected_submit;
 	state->has_injected_submit = injected_submit != 0;
 	state->hold_completions = hold_completions;
 }
+
 #endif

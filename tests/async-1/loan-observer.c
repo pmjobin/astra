@@ -12,6 +12,7 @@ extern int *test_loan_view(AstraAsyncTask *task);
 extern AstraAsyncTask *__real_astra_async_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent);
 extern int __real_astra_async_delay(AstraAsyncTask *task, int64_t ticks);
 extern void __real_free(void *pointer);
+
 AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent) {
 	AstraAsyncTask *task = __real_astra_async_new(size, alignment, resume, destroy, parent);
 	if (!parent) {
@@ -25,6 +26,7 @@ AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsync
 	}
 	return task;
 }
+
 int __wrap_astra_async_delay(AstraAsyncTask *task, int64_t ticks) {
 	int result = __real_astra_async_delay(task, ticks);
 	if (task == child && mode && !retained) {
@@ -36,6 +38,7 @@ int __wrap_astra_async_delay(AstraAsyncTask *task, int64_t ticks) {
 	}
 	return result;
 }
+
 void __wrap_free(void *pointer) {
 	if (pointer && (pointer == root_frame || pointer == child_frame)) {
 		assert(!retained || observed_release);
@@ -47,16 +50,19 @@ void __wrap_free(void *pointer) {
 	}
 	__real_free(pointer);
 }
+
 void loan_event(int stage, int value) {
 	assert(stage > 0 && stage < 5 && value == (stage == 1 ? 23 : 42));
 	entries[stage]++;
 }
+
 static void release(AstraAsyncExecutor *executor, int value) {
 	assert(retained && !observed_release && astra_async_provider_read(executor, token) == value);
 	observed_release = 1;
 	assert(astra_async_observe_release(executor, token));
 	assert(!astra_async_observe_release(executor, token) && astra_async_provider_read(executor, token) == -1);
 }
+
 static void drive(AstraAsyncExecutor *executor) {
 	for (unsigned turn = 0; astra_async_phase(root) < ASTRA_ASYNC_SUCCESS; turn++) {
 		assert(turn < 50);
@@ -64,6 +70,7 @@ static void drive(AstraAsyncExecutor *executor) {
 		astra_async_advance_next(executor);
 	}
 }
+
 static void run(unsigned selected) {
 	mode = selected;
 	observed_release = retained = 0;
@@ -106,6 +113,7 @@ static void run(unsigned selected) {
 	}
 	astra_async_close(executor);
 }
+
 int main(void) {
 	for (unsigned cycle = 0; cycle < 16; cycle++) {
 		for (unsigned selected = 0; selected < 5; selected++) {

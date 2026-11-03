@@ -3,11 +3,13 @@ class DeferredProperty<T> {
 	private owned T payload;
 	int seed;
 	int calls;
+
 	init(owned T value, int seed) {
 		this.payload = move value;
 		this.seed = seed;
 		this.calls = 0;
 	}
+
 	lazy property int size {
 		get {
 			this.calls = this.calls + 1;
@@ -15,13 +17,17 @@ class DeferredProperty<T> {
 			return this.seed + this.calls;
 		}
 	}
+
 	property borrowed T view { get { return this.payload; } }
+
 	deinit() { mark(200 + this.calls); }
 }
 
 class DeferredChild {
 	owned R handle;
+
 	init(owned R handle) { this.handle = move handle; }
+
 	deinit() { mark(100 + id(this.handle)); }
 }
 
@@ -37,21 +43,21 @@ int exercise() {
 	var unused_handle = make(3);
 	var unused_child = new DeferredChild(move unused_handle);
 	var unused = new DeferredProperty<DeferredChild>(move unused_child, 90);
-	if (first.calls != 0 || second.calls != 0 || unused.calls != 0) { return 1; }
+	if (first.calls != 0 || second.calls != 0 || unused.calls != 0) return 1;
 	mark(10);
-	if (first.size != 41 || first.calls != 1 || second.calls != 0) { return 2; }
+	if (first.size != 41 || first.calls != 1 || second.calls != 0) return 2;
 	first.seed = 400;
-	if (first.size != 41 || first.calls != 1) { return 3; }
+	if (first.size != 41 || first.calls != 1) return 3;
 	mark(20);
-	if (second.size != 71 || second.calls != 1 || first.calls != 1) { return 4; }
+	if (second.size != 71 || second.calls != 1 || first.calls != 1) return 4;
 	second.seed = 700;
-	if (second.size != 71 || first.size != 41 || unused.calls != 0) { return 5; }
-	if (child_id(first.view) != 1 || child_id(second.view) != 2) { return 6; }
+	if (second.size != 71 || first.size != 41 || unused.calls != 0) return 5;
+	if (child_id(first.view) != 1 || child_id(second.view) != 2) return 6;
 	return 0;
 }
 
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

@@ -20,6 +20,7 @@ private void contracts() {
 	assert (p.functions[0].symbol.parameters[1].semantic_type == p.classes[0].semantic_type);
 	assert (p.functions[0].symbol.parameters[2].semantic_type == p.types.slice_of (p.types.f64_type));
 }
+
 private void controls() {
 	var p = check ("struct S{int x;}void values(bool b,int i,f32 f,f64 d,int<4> v,bool<4> m,S s,void* raw,int* ptr){}extern(C) void foreign_raw(R r);extern(C) void foreign_borrow(borrowed R r);export(C) void exported(void* p){}T copy<T>(T value){return value;}void consume<T>(owned T value) where T:Ownable{}");
 	foreach (var parameter in p.functions[0].symbol.parameters) {
@@ -40,10 +41,12 @@ private void controls() {
 	assert (checked_foreign == 2);
 	assert (p.functions[1].symbol.parameters[0].pointer_contract == PointerParameterContract.UNMANAGED);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/param-borrow/semantic/exact-type-canonical-contract-and-no-owner", contracts);
 	Test.add_func ("/param-borrow/semantic/value-struct-pointer-generic-and-foreign-controls", controls);
 	return Test.run ();
 }
+
 }

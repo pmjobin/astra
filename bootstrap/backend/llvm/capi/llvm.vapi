@@ -7,6 +7,7 @@ namespace Astra.Backend.LLVM.CApi {
 [SimpleType]
 [CCode (cname = "LLVMMemoryBufferRef", has_type_id = false)]
 public struct MemoryBufferRef {}
+
 [CCode (cname = "LLVMGetBufferStart")]
 public static unowned string buffer_start(MemoryBufferRef buffer);
 [CCode (cname = "LLVMGetBufferSize")]
@@ -24,6 +25,7 @@ public enum TypeKind {
 	[CCode (cname = "LLVMPointerTypeKind")]
 	POINTER
 }
+
 [CCode (cname = "LLVMGetTypeKind")]
 public static TypeKind type_kind(TypeRef type);
 [CCode (cname = "LLVMGetIncomingValue")]
@@ -87,6 +89,7 @@ public struct ValueRef {}
 [SimpleType]
 [CCode (cname = "LLVMUseRef", has_type_id = false)]
 public struct UseRef {}
+
 [CCode (cname = "LLVMGetFirstUse")]
 public static UseRef first_use(ValueRef value);
 [CCode (cname = "LLVMGetNextUse")]
@@ -405,6 +408,7 @@ public enum Visibility {
 	[CCode (cname = "LLVMHiddenVisibility")] HIDDEN,
 	[CCode (cname = "LLVMProtectedVisibility")] PROTECTED
 }
+
 [CCode (cname = "LLVMSetVisibility")]
 public static void set_visibility(ValueRef value, Visibility visibility);
 [CCode (cname = "LLVMGetVisibility")]

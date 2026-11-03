@@ -14,6 +14,7 @@ private void reject(string source, string message) {
 	assert (result.diagnostic.format () == analyze (source).diagnostic.format ());
 	Test.message ("%s", result.diagnostic.format ());
 }
+
 private void register_diagnostics() {
 	add ("/own/invalid/extern-owned-void-result", () => reject ("extern(C) owned void* f();", "nominal handle type"));
 	foreach (string type in new string[] {"int", "bool", "Pair", "Pair*", "void"}) {
@@ -50,4 +51,5 @@ private void register_diagnostics() {
 			});
 	}
 }
+
 }

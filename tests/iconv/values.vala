@@ -189,4 +189,5 @@ int main(string[] args) {
 	Test.add_func ("/iconv/integer-value/exact-capability", authority);
 	return Test.run ();
 }
+
 }

@@ -37,6 +37,7 @@ private CfgProgram sample() throws CfgError {
 	functions.add (new CfgFunction (s, s, "f", types.void_type, 0, parameters, new GenericArray<CfgLocalPlace> (), blocks, entry));
 	return new CfgProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		var p = sample ();
@@ -52,6 +53,7 @@ private void positive() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 4; scenario++) {
 		bool rejected = false;
@@ -88,10 +90,12 @@ private void invalid() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-copy/cfg/independent-leaf-snapshots-and-validation", positive);
 	Test.add_func ("/struct-copy/cfg/undefined-snapshot-and-foreign-place-firewalls", invalid);
 	return Test.run ();
 }
+
 }

@@ -1,22 +1,26 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int raw;
 	int reads;
 	int writes;
+
 	property int value {
 		get { this.reads = this.reads + 1; life_record(71, 0); return this.raw; }
 		set(int next) { this.writes = this.writes + 1; life_record(83, 0); this.raw = next; }
 	}
+
 	property int next { get { this.raw = this.raw + 1; return this.raw; } }
 }
+
 int main() {
 	Counter c = { raw = 0, reads = 0, writes = 0 };
 	c.value = life_record(82, 40);
 	int a = c.value;
 	int b = c.value;
-	if (a != 40 || b != 40 || c.reads != 2 || c.writes != 1) { return 1; }
+	if (a != 40 || b != 40 || c.reads != 2 || c.writes != 1) return 1;
 	int first = c.next;
 	int second = c.next;
-	if (first != 41 || second != 42) { return 2; }
+	if (first != 41 || second != 42) return 2;
 	return c.raw;
 }

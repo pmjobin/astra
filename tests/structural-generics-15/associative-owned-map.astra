@@ -12,14 +12,17 @@ class OwnedMapPayload {
 	private owned R first;
 	private owned R second;
 	private int code;
+
 	init(owned R first, owned R second, int code) {
 		this.first = move first;
 		this.second = move second;
 		this.code = code;
 	}
+
 	bool check(int code, int first, int second) {
 		return this.code == code && id(this.first) == first && id(this.second) == second;
 	}
+
 	deinit() { mark(200 + this.code); }
 }
 
@@ -35,27 +38,27 @@ int exercise() {
 		var second = make(122 + index * 2);
 		var payload = new OwnedMapPayload(move first, move second, index * 10);
 		var value = new Box<OwnedMapPayload>(move payload);
-		if (!cache.put(key, move value)) { return 1; }
+		if (!cache.put(key, move value)) return 1;
 	}
 	OwnedMapKey zero = {domain = 7000000001, code = 0};
 	OwnedMapKey two = {domain = 7000000001, code = 2};
 	OwnedMapKey other = {domain = 7000000002, code = 2};
-	if (!cache.contains(two) || cache.contains(other) || cache.count != 5) { return 2; }
+	if (!cache.contains(two) || cache.contains(other) || cache.count != 5) return 2;
 	var first = make(131);
 	var second = make(132);
 	var payload = new OwnedMapPayload(move first, move second, 99);
 	var replacement = new Box<OwnedMapPayload>(move payload);
-	if (!cache.put(two, move replacement) || cache.count != 5 || live() != 10) { return 3; }
+	if (!cache.put(two, move replacement) || cache.count != 5 || live() != 10) return 3;
 	var extracted = cache.remove(zero);
-	if (extracted == null || extracted.key.code != 0 || !read_payload(extracted.view.view, 0, 121, 122)) { return 4; }
+	if (extracted == null || extracted.key.code != 0 || !read_payload(extracted.view.view, 0, 121, 122)) return 4;
 	release extracted;
 	var missing = cache.remove(other);
-	if (missing != null || cache.count != 4 || cache.hit_count != 1 || cache.miss_count != 1 || cache.revision != 7 || live() != 8) { return 5; }
+	if (missing != null || cache.count != 4 || cache.hit_count != 1 || cache.miss_count != 1 || cache.revision != 7 || live() != 8) return 5;
 	return 0;
 }
 
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

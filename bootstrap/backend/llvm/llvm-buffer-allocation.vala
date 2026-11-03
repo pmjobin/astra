@@ -63,6 +63,7 @@ internal class LlvmBufferAllocation : Object {
 		}
 		return new Astra.Source.AllocationPolicy (Astra.Source.AllocationKind.CONTEXT, "ContextBytes", 0, 0, 1, null, null, origin.allocator.mode);
 	}
+
 	internal CApi.ValueRef allocate_buffer(CApi.ValueRef count, Astra.Semantic.SliceType type, CApi.TypeRef element, string name, LlvmBlockState state, LlvmBlockState? failure = null, CApi.ValueRef context = (CApi.ValueRef) null) throws LlvmError {
 		var origin = buffer_origin (type);
 		if ((origin != null) != ((void*) context != null)) {
@@ -73,6 +74,7 @@ internal class LlvmBufferAllocation : Object {
 		}
 		return allocate (count, element, name, state, type.element_type is Astra.Semantic.StructType, failure, false, origin == null ? null : buffer_policy (origin), origin == null ? "" : origin.name, "buffer", false, context);
 	}
+
 	internal void deallocate_buffer(CApi.ValueRef pointer, string name, LlvmBlockState state, NativeAbi.NativeContextSliceType? origin = null) throws LlvmError {
 		deallocate (pointer, name, state, origin == null ? null : buffer_policy (origin), origin == null ? "" : origin.name, "buffer");
 	}
@@ -195,5 +197,6 @@ internal class LlvmBufferAllocation : Object {
 		CApi.position_builder_at_end (builder, joined);
 		state.end = joined;
 	}
+
 }
 }

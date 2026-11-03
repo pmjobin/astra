@@ -1,11 +1,16 @@
-T clamp<T>(T value,T low,T high) where T : Ordered { if(value<low){return low;} if(value>high){return high;} return value; }
+T clamp<T>(T value,T low,T high) where T : Ordered { if(value<low) return low; if(value>high) return high; return value; }
+
 T add<T>(T a,T b) where T : Numeric { return a+b; }
+
 T bits<T>(T a,T b) where T : Bitwise { return a&b; }
+
 T shift<T>(T a,int b) where T : Shift { return a<<b; }
+
 bool eq<T>(T a,T b) where T : Eq { return a==b; }
+
 int main() {
 	f64 value=5.0d; f64 low=1.0d; f64 high=4.0d;
 	var result=clamp<f64>(value,low,high);
-	if(result==4.0d && add<int>(20,22)==42 && bits<int>(7,3)==3 && shift<int>(1,3)==8 && eq<bool>(true,true)){return 0;}
+	if(result==4.0d && add<int>(20,22)==42 && bits<int>(7,3)==3 && shift<int>(1,3)==8 && eq<bool>(true,true)) return 0;
 	return 1;
 }

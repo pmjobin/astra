@@ -19,6 +19,7 @@ internal class LlvmRecordOwnership : Object {
 		this.cleanup_correspondence = cleanup_correspondence;
 		this.cleanup_functions = cleanup_functions;
 	}
+
 	internal void destroy_record(CApi.BuilderRef builder, CApi.ValueRef function, LlvmBufferAllocation allocator, NativeStructValuePlan plan, CApi.ValueRef[] leaves, LlvmBlockState state, string name) throws LlvmError {
 		if (leaves.length != plan.leaves.length) {
 			throw new LlvmError.LOWERING ("record cleanup requires every original physical channel");
@@ -45,6 +46,7 @@ internal class LlvmRecordOwnership : Object {
 			}
 		}
 	}
+
 	internal void destroy_scalar(CApi.BuilderRef builder, CApi.ValueRef function, LlvmBufferAllocation allocator, NativeScalarOwner owner, CApi.ValueRef pointer, LlvmBlockState state, string name) throws LlvmError {
 		LlvmCFunctionBinding? foreign = null;
 		LlvmFunctionBinding? destructor = null;
@@ -89,6 +91,7 @@ internal class LlvmRecordOwnership : Object {
 		CApi.position_builder_at_end (builder, next);
 		state.end = next;
 	}
+
 }
 
 internal class LlvmRecordLayoutBinding : Object {
@@ -101,6 +104,7 @@ internal class LlvmRecordLayoutBinding : Object {
 		this.element = element;
 		this.type = type;
 	}
+
 }
 
 // Compiler-internal target-dependent layout, never a language aggregate ABI.
@@ -122,6 +126,7 @@ internal class LlvmStructRegistry : Object {
 		}
 		return null;
 	}
+
 	internal SsaStruct? debug_record(SemanticType type) {
 		foreach (var structure in types.get_keys ()) {
 			if (structure.semantic_type == type) {
@@ -130,6 +135,7 @@ internal class LlvmStructRegistry : Object {
 		}
 		return null;
 	}
+
 	internal SsaClass? debug_class(SemanticType type) {
 		foreach (var structure in types.get_keys ()) {
 			if (structure.semantic_type == type) {
@@ -480,11 +486,13 @@ internal class LlvmStructRegistry : Object {
 		}
 		throw new LlvmError.LOWERING ("owned scoped input lost its exact physical Class layout");
 	}
+
 	internal CApi.TypeRef lookup(SsaNativeInstance structure) throws LlvmError {
 		if (!types.contains (structure)) {
 			throw new LlvmError.LOWERING ("internal LLVM lowering error: addressable struct has no exact physical type binding");
 		}
 		return (CApi.TypeRef) types.lookup (structure);
 	}
+
 }
 }

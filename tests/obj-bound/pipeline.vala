@@ -47,6 +47,7 @@ private void lifetime() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void values() {
 	try {
 		foreach (var name in new string[] { "basic", "mutate", "null", "alias", "identity", "copy", "forward", "recurse", "method", "struct-method", "constructor", "life", "slice", "vector", "owned", "empty", "null-field", "null-write", "null-method" }) {
@@ -93,6 +94,7 @@ private void values() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void profiles() {
 	try {
 		foreach (var name in new string[] { "basic", "alias", "method", "constructor", "vector", "slice", "owned" }) {
@@ -121,6 +123,7 @@ private void profiles() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void ordering() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (check ("class C{}int effect(){return 1;}void consume(borrowed C c,owned Resource r,int n){}void f(borrowed C c,owned Resource r){consume(c,move r,effect());}")));
@@ -156,6 +159,7 @@ private void ordering() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed_nabi() {
 	try {
 		var ssa = build ("class A{}class B{}void f(borrowed A a){}void g(borrowed B b){}");
@@ -206,6 +210,7 @@ private void malformed_nabi() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-bound/pipeline/one-exact-value-contract-and-stage-lifetimes", lifetime);
@@ -215,4 +220,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-bound/pipeline/reject-semantic-and-physical-nabi-mismatches", malformed_nabi);
 	return Test.run ();
 }
+
 }

@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Log { int value; }
+
 int record(Log* log, int n) { log->value = log->value * 10 + n; return n; }
+
 bool condition(Log* log, int n) { return record(log, n) != 0; }
+
 int main() {
 	Log log = {value = 0};
 	int<4> v = {record(&log, 1), record(&log, 2), record(&log, 3), record(&log, 4)};
 	int<4> expected = {1, 2, 3, 4};
-	if (log.value != 1234 || !all(v == expected)) { return 1; }
+	if (log.value != 1234 || !all(v == expected)) return 1;
 	log.value = 0;
 	bool<4> m = {condition(&log, 1) && true, false || condition(&log, 2), condition(&log, 3), condition(&log, 4)};
-	if (log.value != 1234 || !all(m)) { return 2; }
+	if (log.value != 1234 || !all(m)) return 2;
 	log.value = 9;
 	int<2> loads = {log.value, record(&log, 1)};
 	int<2> loaded = {9, 1};
-	if (!all(loads == loaded) || log.value != 91) { return 3; }
+	if (!all(loads == loaded) || log.value != 91) return 3;
 	return 0;
 }

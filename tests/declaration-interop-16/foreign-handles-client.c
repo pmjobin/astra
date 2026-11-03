@@ -6,6 +6,7 @@
 #ifdef USE_SDK
 #include "foreign16.h"
 #else
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
@@ -25,10 +26,12 @@ uint32_t foreign_container16_release(foreign_container16_handle *);
 int32_t foreign_container16_destroy(foreign_container16_handle **, astra_foreign_error *);
 #endif
 #endif
+
 struct foreign_item16_handle {
 	int32_t value;
 	unsigned references;
 };
+
 static unsigned created, retired, exceptions, destructors, acquires;
 static unsigned reads;
 #ifdef ITEM_SHARED
@@ -36,12 +39,14 @@ static int refuse_acquire;
 #endif
 static int deny;
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (deny > 0 && --deny == 0) {
 		return NULL;
 	}
 	return __real_calloc(count, size);
 }
+
 int32_t foreign16_retired(int32_t kind) {
 	if (kind == 1) {
 		++exceptions;
@@ -51,11 +56,13 @@ int32_t foreign16_retired(int32_t kind) {
 	}
 	return 0;
 }
+
 static void clear(astra_foreign_error *error) {
 	assert(error);
 	error->domain = 0;
 	error->code = 0;
 }
+
 int32_t foreign_item16_create(int32_t value, foreign_item16_handle **out, astra_foreign_error *error) {
 	clear(error);
 	*out = malloc(sizeof **out);
@@ -65,6 +72,7 @@ int32_t foreign_item16_create(int32_t value, foreign_item16_handle **out, astra_
 	++created;
 	return 0;
 }
+
 int32_t foreign_item16_code(foreign_item16_handle *self, int32_t *out, astra_foreign_error *error) {
 	assert(self && self->references && out);
 	++reads;
@@ -72,7 +80,9 @@ int32_t foreign_item16_code(foreign_item16_handle *self, int32_t *out, astra_for
 	*out = self->value;
 	return 0;
 }
+
 #ifdef ITEM_SHARED
+
 uint32_t foreign_item16_acquire(foreign_item16_handle *self) {
 	assert(self && self->references);
 	if (refuse_acquire) {
@@ -81,6 +91,7 @@ uint32_t foreign_item16_acquire(foreign_item16_handle *self) {
 	++acquires;
 	return ++self->references;
 }
+
 uint32_t foreign_item16_release(foreign_item16_handle *self) {
 	assert(self && self->references);
 	unsigned n = --self->references;
@@ -91,6 +102,7 @@ uint32_t foreign_item16_release(foreign_item16_handle *self) {
 	}
 	return n;
 }
+
 static void drop(foreign_item16_handle **owner) {
 	foreign_item16_handle *self = *owner;
 	*owner = NULL;
@@ -98,7 +110,9 @@ static void drop(foreign_item16_handle **owner) {
 		foreign_item16_release(self);
 	}
 }
+
 #else
+
 int32_t foreign_item16_destroy(foreign_item16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner && *owner);
@@ -109,19 +123,23 @@ int32_t foreign_item16_destroy(foreign_item16_handle **owner, astra_foreign_erro
 	free(self);
 	return 0;
 }
+
 static void drop(foreign_item16_handle **owner) {
 	if (*owner) {
 		astra_foreign_error error;
 		assert(foreign_item16_destroy(owner, &error) == 0);
 	}
 }
+
 #endif
+
 static foreign_item16_handle *item(int32_t value) {
 	foreign_item16_handle *result = NULL;
 	astra_foreign_error error;
 	assert(foreign_item16_create(value, &result, &error) == 0);
 	return result;
 }
+
 static void close_container(foreign_container16_handle **owner) {
 	assert(owner && *owner);
 #ifdef EXPECT_SHARED
@@ -132,7 +150,9 @@ static void close_container(foreign_container16_handle **owner) {
 	assert(foreign_container16_destroy(owner, &error) == 0 && !*owner);
 #endif
 }
+
 #define STATUS(v) ((int32_t)UINT32_C(v))
+
 int main(void) {
 	astra_foreign_error error;
 	foreign_item16_handle *seed = item(10);

@@ -261,6 +261,7 @@ internal class SsaEnumVerifier : Object {
 			read (source, step);
 		}
 	}
+
 	private void read_place_view(SsaMemoryPlace place, EnumFlowStep step) throws EnumContractError {
 		if (place is SsaFieldPlace && ((SsaFieldPlace) place).aggregate != null) {
 			read_place_view (((SsaFieldPlace) place).aggregate, step);
@@ -269,6 +270,7 @@ internal class SsaEnumVerifier : Object {
 			read_view (((SsaSliceElementPlace) place).slice, step);
 		}
 	}
+
 	private void verify_function(SsaFunction input) throws EnumContractError {
 		views.remove_all ();
 		foreach (var block in input.blocks) {
@@ -752,5 +754,6 @@ internal class SsaEnumVerifier : Object {
 		}
 		EnumInitializationProof.verify ((int) function.enum_slots.length, function.entry.ordinal, blocks, owners, roots, loans);
 	}
+
 }
 }

@@ -107,11 +107,13 @@ internal class CfgCodeOrigins : Object {
 			}
 		} while (prior != graph.revision);
 	}
+
 	private void opaque_type(SemanticType type) {
 		if (type.kind != TypeKind.VOID && !FunctionValueType.scalar (type) && !(type is HandleType) && !(type is StringType)) {
 			graph.escape_storage ();
 		}
 	}
+
 	private Object? place(CfgPlace storage) {
 		if (storage is CfgLocalPlace || storage is CfgTemporaryPlace) {
 			return storage;
@@ -128,6 +130,7 @@ internal class CfgCodeOrigins : Object {
 		}
 		return null;
 	}
+
 	private void call(CfgFunction? target, GenericArray<CfgValue> arguments, CfgValue? receiver) {
 		if (receiver != null) {
 			value (receiver);
@@ -139,6 +142,7 @@ internal class CfgCodeOrigins : Object {
 			}
 		}
 	}
+
 	private void value(CfgValue expression) {
 		if (expression is CfgFunctionAddress) {
 			var target = ((CfgFunctionAddress) expression).target;
@@ -178,6 +182,7 @@ internal class CfgCodeOrigins : Object {
 			graph.unknown (expression);
 		}
 	}
+
 	internal Astra.Code.CodeOriginFrontier? effect_frontier (Object expression, GenericArray<Object> formals) {
 		if (!(expression is CfgValue)) {
 			return null;
@@ -202,5 +207,6 @@ internal class CfgCodeOrigins : Object {
 		}
 		return result;
 	}
+
 }
 }

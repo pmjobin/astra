@@ -13,6 +13,7 @@ private class CfgRuntimeStorage : Object {
 		this.destination = destination;
 		this.path = path;
 	}
+
 }
 private class CfgRuntimeBound : Object {
 	internal int value;
@@ -21,6 +22,7 @@ private class CfgRuntimeBound : Object {
 		this.value = value;
 		this.destination = destination;
 	}
+
 }
 private class CfgRuntimeContextUse : Object {
 	internal CfgInstruction instruction;
@@ -29,6 +31,7 @@ private class CfgRuntimeContextUse : Object {
 		this.instruction = instruction;
 		this.context = context;
 	}
+
 }
 private class CfgRuntimeContextEnd : Object {
 	internal int context;
@@ -43,6 +46,7 @@ private class CfgRuntimeContextEnd : Object {
 			}
 		}
 	}
+
 }
 private class CfgRuntimeCatchAlias : Object {
 	internal int owner;
@@ -54,6 +58,7 @@ private class CfgRuntimeCatchAlias : Object {
 		this.initialized = initialized;
 		this.captured = captured;
 	}
+
 }
 public class CfgRuntimeLifetimes : Object {
 	private CfgProgram program;
@@ -67,6 +72,7 @@ public class CfgRuntimeLifetimes : Object {
 		}
 		return analysis.summaries;
 	}
+
 	public static void verify(CfgProgram program, GenericArray<CfgFunction>? required = null) throws CfgError {
 		var summaries = analyze (program);
 		if (required != null) {
@@ -78,6 +84,7 @@ public class CfgRuntimeLifetimes : Object {
 			}
 		}
 	}
+
 	internal static RuntimeLifetimeSummary import_summary(CfgFunction function, RuntimeLifetimeSummary archived) throws RuntimeLifetimeError {
 		if (!archived.logical_coordinates) {
 			return archived;
@@ -105,6 +112,7 @@ public class CfgRuntimeLifetimes : Object {
 		}
 		return layout.to_physical (archived, function.implicit_receiver != null, owners, contexts, mutable_owners);
 	}
+
 	internal RuntimeLifetimeSummary? summary(CfgFunction? function) throws CfgError {
 		if (function == null || visiting.contains (function) || !program.functions.find (function)) {
 			return null;
@@ -143,6 +151,7 @@ public class CfgRuntimeLifetimes : Object {
 		summaries.insert (function, result);
 		return result;
 	}
+
 }
 // One equation per block-entry slot. Instructions run once; successor joins
 // receive exact output versions after all blocks have been reconstructed.
@@ -207,17 +216,21 @@ private class CfgRuntimeLifetimeBody : Object {
 			scoped_allocation |= scoped_type (local.semantic_type);
 		}
 	}
+
 	private void unsupported_node(string reason) {
 		if (unsupported == "") {
 			unsupported = reason;
 		}
 	}
+
 	private static int parameter_binding(int parameter) {
 		return -parameter - 2;
 	}
+
 	private static bool graph_input(SemanticType type) {
 		return !(type is HandleType && ((HandleType) type).context_mode != "") && (type is ClassType || type is ReceiverType || type is HandleType || type.is_struct_storage () || type is TaskType);
 	}
+
 	private int region_id(TextLoanExtent? extent) throws RuntimeLifetimeError {
 		if (extent == null) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("CFG lifetime requires actual lexical cleanup extents");
@@ -228,11 +241,13 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return region_ids.lookup (extent);
 	}
+
 	private int slot() {
 		int result = next_slot++;
 		slots.add (result);
 		return result;
 	}
+
 	private void define_value(CfgValue value, CfgBlock block, CfgValue? source = null, bool owning = false) throws RuntimeLifetimeError {
 		if (!values.contains (value)) {
 			values.insert (value, graph.join ());
@@ -245,6 +260,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private CfgValue origin(CfgValue value) {
 		var seen = new HashTable<CfgValue, bool> (direct_hash, direct_equal);
 		while (definitions.contains (value) && !seen.contains (value)) {
@@ -253,6 +269,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return value;
 	}
+
 	private CfgNativeInstance? instance(SemanticType type) {
 		if (type is ReceiverType) {
 			type = ((ReceiverType) type).instance_type;
@@ -264,9 +281,11 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private bool scoped_type(SemanticType type) {
 		return RuntimeScopeTypes.contains (type, expand_scoped_type);
 	}
+
 	private bool expand_scoped_type(SemanticType type, GenericArray<SemanticType> following) {
 		var owner = instance (type);
 		if (owner != null) {
@@ -295,6 +314,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private int product(SemanticType type, CfgValue? context = null) throws RuntimeLifetimeError {
 		var roots = new GenericArray<RuntimeScopeOrigin> ();
 		var anchor = context_origin (context);
@@ -313,6 +333,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return graph.product (roots, fields);
 	}
+
 	private RuntimeScopeOrigin? context_origin(CfgValue? argument) throws RuntimeLifetimeError {
 		CfgValue? value = argument;
 		if (value == null || !value.semantic_type.is_scoped_allocator ()) {
@@ -335,6 +356,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		context_uses.add (new CfgRuntimeContextUse (current_instruction, local));
 		return new RuntimeScopeOrigin.local (local.ordinal, region_id (local.text_extent));
 	}
+
 	private CfgRuntimeStorage? object_storage(CfgObjectStorage storage) {
 		var target = object_targets.lookup (storage);
 		if (target == null || !object_slots.contains (storage)) {
@@ -343,12 +365,14 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return new CfgRuntimeStorage (object_slots.lookup (storage), target.ordinal);
 	}
+
 	private CfgRuntimeStorage? field(CfgRuntimeStorage? storage, int ordinal) {
 		if (storage != null) {
 			storage.path += (storage.path == "" ? "" : ".") + "f%d".printf (ordinal);
 		}
 		return storage;
 	}
+
 	private CfgRuntimeStorage? reference(CfgValue? argument) {
 		CfgValue? value = argument;
 		if (value == null) {
@@ -391,6 +415,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private CfgRuntimeStorage? place(CfgPlace? source) {
 		if (source is CfgLocalPlace) {
 			int binding = ((CfgLocalPlace) source).ordinal;
@@ -412,6 +437,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		unsupported_node ("CFG storage requires its exact owning path");
 		return null;
 	}
+
 	private int read(CfgRuntimeStorage? storage) throws RuntimeLifetimeError {
 		if (storage == null || !state.bindings.contains (storage.binding)) {
 			unsupported_node ("CFG read requires a declared graph slot");
@@ -420,6 +446,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		int value = state.bindings.lookup (storage.binding);
 		return storage.path == "" ? value : graph.project (value, storage.path);
 	}
+
 	private int replace_path(int root, string path, int incoming) throws RuntimeLifetimeError {
 		int dot = path.index_of_char ('.');
 		if (dot < 0) {
@@ -428,6 +455,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		string head = path.substring (0, dot);
 		return graph.replace (root, head, replace_path (graph.project (root, head), path.substring (dot + 1), incoming));
 	}
+
 	private GenericArray<SemanticType>? record_fields(SemanticType type) {
 		var owner = instance (type) as CfgStruct;
 		if (owner == null) {
@@ -439,6 +467,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private void record_shape(StructValueShape shape) throws RuntimeLifetimeError {
 		try {
 			shape.verify (record_fields);
@@ -449,6 +478,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			unsupported_node ("CFG record buffer lifetimes require exact physical pair correspondence");
 		}
 	}
+
 	private bool record_parameter_owned(int ordinal) {
 		foreach (var group in function.struct_parameters) {
 			if (group.shape.mode == StructValueMode.MOVE_VALUE && ordinal >= group.first_leaf && ordinal < group.first_leaf + group.shape.leaves.length) {
@@ -457,6 +487,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool parameter_prefix(CfgInstruction instruction) {
 		if (instruction is CfgStructBoundaryAcquire) {
 			var acquired = (CfgStructBoundaryAcquire) instruction;
@@ -478,6 +509,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		local = field == null ? null : field.root_local ();
 		return local != null && local.struct_parameter != null && function.struct_parameters.find (local.struct_parameter) && local.struct_parameter.shape.mode == StructValueMode.COPY_VALUE;
 	}
+
 	private void record_parameters() throws RuntimeLifetimeError {
 		var occupied = new HashTable<int, bool> (direct_hash, direct_equal);
 		foreach (var group in function.struct_parameters) {
@@ -530,6 +562,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private int record_value(StructValueShape shape, GenericArray<CfgValue> leaves) throws RuntimeLifetimeError {
 		record_shape (shape);
 		if (shape.leaves.length != leaves.length) {
@@ -552,6 +585,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private int record_return(CfgStructReturn result) throws RuntimeLifetimeError {
 		if (function.struct_result != result.shape || result.shape.semantic_type != function.return_type) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("CFG record result lost its exact declared shape");
@@ -611,6 +645,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return value;
 	}
+
 	private string record_path(StructLeafPath leaf) {
 		var path = new StringBuilder ();
 		for (int depth = 0; depth < leaf.depth; depth++) {
@@ -621,6 +656,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return path.str;
 	}
+
 	private void record_call(CfgCallInstruction call, CfgBlock block) throws RuntimeLifetimeError {
 		var group = call.struct_result;
 		if (group == null) {
@@ -673,6 +709,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void task_record(CfgTaskSuccess success, CfgBlock publication) throws RuntimeLifetimeError {
 		var group = success.struct_result;
 		var wait = success.operation;
@@ -713,6 +750,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			task_record_blocks.insert (leaf, publication);
 		}
 	}
+
 	private void record_consumption(CfgStructResultConsume consumed) throws RuntimeLifetimeError {
 		var call = record_calls.lookup (consumed.results);
 		var task = task_records.lookup (consumed.results);
@@ -746,6 +784,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		record_consumptions.insert (consumed.results, consumed);
 	}
+
 	private void record_acquisition(CfgStructBoundaryAcquire acquired) throws RuntimeLifetimeError {
 		if (acquired.parameter != null) {
 			if (!function.struct_parameters.find (acquired.parameter) || acquired.results != null || acquired.record_move != null || acquired.projection != null) {
@@ -774,6 +813,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void write(CfgRuntimeStorage? storage, int incoming, bool effect = true) throws RuntimeLifetimeError {
 		if (storage == null) {
 			unsupported_node ("CFG write requires its actual destination");
@@ -787,6 +827,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			stores.add (new RuntimeLifetimeStore (storage.destination == -1 ? -1 : -storage.destination - 2, incoming));
 		}
 	}
+
 	private void publish_value(CfgValue result, int incoming) throws RuntimeLifetimeError {
 		if (!values.contains (result)) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("CFG value definition is outside the exact inventory");
@@ -796,11 +837,13 @@ private class CfgRuntimeLifetimeBody : Object {
 			state.bindings.insert (captures.lookup (result), incoming);
 		}
 	}
+
 	private void consume(CfgValue? value) {
 		if (value != null && captures.contains (value)) {
 			state.bindings.insert (captures.lookup (value), graph.absent ());
 		}
 	}
+
 	private void drop(CfgValue pointer, CfgCleanupContract cleanup) throws RuntimeLifetimeError, CfgError {
 		var storage = reference (pointer);
 		if (storage == null) {
@@ -816,6 +859,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		write (storage, graph.absent (), false);
 	}
+
 	private int value(CfgValue? source) throws RuntimeLifetimeError {
 		if (source != null && task_record_blocks.contains (source) && task_record_blocks.lookup (source) != current_block) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("CFG task record leaf escaped its exact success publication block");
@@ -874,6 +918,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		unsupported_node ("CFG value requires its exact lifetime operation: " + source.get_type ().name ());
 		return graph.absent ();
 	}
+
 	private void record_argument_move(CfgStructBoundaryMove moved) throws RuntimeLifetimeError {
 		if (moved.leaves.length != moved.shape.leaves.length || moved.consumer == null) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("CFG record argument lost its complete original move consumer");
@@ -901,6 +946,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			record_argument_moves.insert (captured, moved);
 		}
 	}
+
 	private HashTable<int, bool> record_arguments(CfgCallInstruction call) throws RuntimeLifetimeError {
 		var moved_positions = new HashTable<int, bool> (direct_hash, direct_equal);
 		var target = call.target;
@@ -943,6 +989,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return moved_positions;
 	}
+
 	private int task_create(CfgTaskCreate call) throws RuntimeLifetimeError, CfgError {
 		if (call.target == null || call.target.async_body == null || !call.matches_captures () || call.result == null || call.result.semantic_type != call.target.async_body.task_type || call.checked_admission != (call.exception_result != null)) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("CFG cold task lost its exact factory/capture/admission contract");
@@ -999,11 +1046,13 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return task;
 	}
+
 	private void empty_enum(CfgEnumSlot slot) {
 		if (slot.definition.value_fields ().length != 0) {
 			unsupported_node ("CFG enum lifetime requires its exact payload operation");
 		}
 	}
+
 	private int invoke(CfgCallInstruction call, int constructed = -1) throws RuntimeLifetimeError, CfgError {
 		var target = call.target;
 		var inputs = new HashTable<int, int> (direct_hash, direct_equal);
@@ -1081,6 +1130,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private void check_pending(CfgValue value) {
 		if (!value_blocks.contains (value) || !graph_input (value.semantic_type)) {
 			return;
@@ -1093,6 +1143,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			unsupported_node ("CFG mutating call requires unchanged exact pending borrowed storage");
 		}
 	}
+
 	private void conditional_state(RuntimeLifetimeState refused) throws RuntimeLifetimeError {
 		foreach (int key in refused.bindings.get_keys ()) {
 			if (!state.bindings.contains (key)) {
@@ -1107,6 +1158,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void instruction(CfgInstruction source) throws RuntimeLifetimeError, CfgError {
 		current_instruction = source;
 		current_site = source;
@@ -1437,6 +1489,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			unsupported_node ("CFG instruction requires its exact lifetime operation: " + source.get_type ().name ());
 		}
 	}
+
 	private void inventory(GenericArray<CfgBlock> blocks) throws RuntimeLifetimeError {
 		for (int i = 0; i < function.locals.length + function.temporaries.length; i++) {
 			slots.add (i);
@@ -1552,6 +1605,7 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	// Catch locals borrow the private error slot. They do not create another
 	// owner; physical cleanup/store paths must not invalidate a live borrow.
 	private bool invalidated_borrow(CfgBlock start, int after, Object use, CfgRuntimeCatchAlias alias) {
@@ -1591,6 +1645,7 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private void verify_catch_aliases(GenericArray<CfgBlock> blocks) throws RuntimeLifetimeError {
 		foreach (var alias in catch_aliases.get_values ()) {
 			alias.uses.add (alias.initialized);
@@ -1621,12 +1676,14 @@ private class CfgRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void exit() throws RuntimeLifetimeError {
 		exit_count++;
 		foreach (int binding in exits.get_keys ()) {
 			graph.alternative (exits.lookup (binding), state.bindings.lookup (binding));
 		}
 	}
+
 	// The checked constructor ABI unwinds initialized fields and retires its
 	// unpublished backing before exposing the error. Only that exact error
 	// edge loses the candidate; the success edge still has to publish it.
@@ -1658,10 +1715,12 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	internal RuntimeLifetimeSummary incomplete(string reason) {
 		graph.seal ();
 		return new RuntimeLifetimeSummary (graph, graph.absent (), new HashTable<int, int> (direct_hash, direct_equal), new GenericArray<RuntimeLifetimeStore> (), reason);
 	}
+
 	internal RuntimeLifetimeSummary analyze() throws RuntimeLifetimeError, CfgError {
 		record_parameters ();
 		var predecessors = CfgPredecessors.analyze (function);
@@ -1867,5 +1926,6 @@ private class CfgRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeLifetimeSummary (graph, returned, updates, stores, unsupported, function.throws_type == null ? -1 : exceptional_result);
 	}
+
 }
 }

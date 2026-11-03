@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void scoped_task_retired(int identity);
+
 extern(C) int scoped_task_finish();
 
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedTaskInput {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	deinit() { scoped_task_retired(this.identity); }
 }
+
 struct ScopedTaskBundle { owned ScopedTaskInput first; owned ScopedTaskInput second; int marker; }
+
 async void scoped_record_body(ScopedTaskBundle input) throws Error { await delay_ticks(1); }
+
 export(C) int scoped_record_probe() {
 	owned u8[] first_backing = new u8[8197];
 	owned u8[] second_backing = new u8[12289];
@@ -21,10 +27,10 @@ export(C) int scoped_record_probe() {
 		ScopedTaskBundle input = { first = move left, second = move right, marker = 17 };
 		var executor = VirtualExecutor.open(8);
 		var task = scoped_record_body(move input);
-		if (scoped_allocator_query(first, 1) != 1 || scoped_allocator_query(second, 1) != 1) { return 1; }
+		if (scoped_allocator_query(first, 1) != 1 || scoped_allocator_query(second, 1) != 1) return 1;
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 2; } }
 	} catch (Error error) { return 3; }
-	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) { return 4; }
+	if (scoped_allocator_query(first, 1) != 0 || scoped_allocator_query(second, 1) != 0) return 4;
 	return scoped_task_finish();
 }

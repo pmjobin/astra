@@ -2,11 +2,13 @@
 #include "../../lib/runtime/interop/retained.h"
 #include <assert.h>
 #include <stdio.h>
+
 struct capture {
 	int calls;
 	int total;
 	void *token;
 };
+
 static int32_t callback(void *context, int32_t input) {
 	struct capture *capture = context;
 	++capture->calls;
@@ -21,6 +23,7 @@ static int32_t callback(void *context, int32_t input) {
 	}
 	return capture->total;
 }
+
 int main(void) {
 	struct capture first = {0, 10, NULL}, second = {0, 20, NULL};
 	assert(astra_retained_dispatch((void *)999999, 1) == -3);

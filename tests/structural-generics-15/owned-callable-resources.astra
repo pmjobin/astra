@@ -1,64 +1,83 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct TransferTuple<A,B> { A value; B ready; }
+
 class TransferEnvironment<T> {
 	private T seed;
 	private owned Other retained;
+
 	init(T seed, owned Other retained) { this.seed = seed; this.retained = move retained; }
+
 	property T state { get { return this.seed; } }
+
 	deinit() { mark(640); }
 }
+
 int inspect_transfer_resource(borrowed R value) { return id(value); }
+
 int consume_transfer_resource(owned R value, TransferTuple<int,bool> pair, borrowed Other side, int extra) {
-	if (!pair.ready) { return 0; }
+	if (!pair.ready) return 0;
 	return id(value) + pair.value + other_id(side) + extra;
 }
+
 Fn<int,owned R,TransferTuple<int,bool>,borrowed Other,int> transfer_code() { return consume_transfer_resource; }
+
 int consume_transfer_number(owned R value, int extra) { return id(value) + extra; }
+
 int consume_transfer_null(owned R value) {
-	if (value == null) { return 0; }
+	if (value == null) return 0;
 	return id(value);
 }
+
 owned R empty_transfer_resource() { return null; }
+
 int forward_transfer(Fn<int,owned R> code, owned R value) { return code(move value); }
+
 int transfer_marker() throws Error { mark(650); throw new Error("later transfer argument"); }
+
 int exercise_function_transfers() {
 	var side = make_other(241);
 	var value = make(242);
 	Fn<int,borrowed R> observe = inspect_transfer_resource;
-	if (observe(value) != 242) { return 1; }
+	if (observe(value) != 242) return 1;
 	TransferTuple<int,bool> pair = {value = 3, ready = true};
 	Fn<int,owned R,TransferTuple<int,bool>,borrowed Other,int> code = transfer_code();
-	if (code(move value, pair, side, 4) != 490) { return 2; }
+	if (code(move value, pair, side, 4) != 490) return 2;
 	var pending = make(243);
 	Fn<int,owned R,int> with_marker = consume_transfer_number;
 	try {
 		with_marker(move pending, transfer_marker());
 		return 3;
 	} catch (Error error) { mark(651); }
-	if (observe(pending) != 243 || with_marker(move pending, 5) != 248) { return 4; }
+	if (observe(pending) != 243 || with_marker(move pending, 5) != 248) return 4;
 	Fn<int,owned R> nullable = consume_transfer_null;
 	var missing = empty_transfer_resource();
-	if (nullable(null) != 0 || nullable(move missing) != 0) { return 5; }
+	if (nullable(null) != 0 || nullable(move missing) != 0) return 5;
 	var forwarded = make(249);
-	if (forward_transfer(nullable, move forwarded) != 249) { return 11; }
+	if (forward_transfer(nullable, move forwarded) != 249) return 11;
 	return 0;
 }
+
 int plain_transfer_code(borrowed TransferEnvironment<TransferTuple<int,bool>> environment, owned R value) {
 	TransferTuple<int,bool> pair = environment.state;
 	return id(value) + pair.value;
 }
+
 int checked_transfer_code(borrowed TransferEnvironment<TransferTuple<int,bool>> environment, owned R value, bool fail) throws Error {
-	if (fail) { mark(641); throw new Error("owned callback failure"); }
+	if (fail) {
+		mark(641);
+		throw new Error("owned callback failure");
+	}
 	TransferTuple<int,bool> pair = environment.state;
 	return id(value) + pair.value;
 }
+
 int exercise_closure_transfers() {
 	TransferTuple<int,bool> pair = {value = 3, ready = true};
 	var retained = make_other(244);
 	var environment = new TransferEnvironment<TransferTuple<int,bool>>(pair, move retained);
 	owned Closure<TransferEnvironment<TransferTuple<int,bool>>,int,owned R> plain = closure_bind(move environment, plain_transfer_code);
 	var value = make(245);
-	if (closure_invoke(plain, move value) != 248) { return 6; }
+	if (closure_invoke(plain, move value) != 248) return 6;
 	var checked_retained = make_other(246);
 	var checked_environment = new TransferEnvironment<TransferTuple<int,bool>>(pair, move checked_retained);
 	owned CheckedClosure<TransferEnvironment<TransferTuple<int,bool>>,Error,int,owned R,bool> checked = checked_closure_bind(move checked_environment, checked_transfer_code);
@@ -67,17 +86,18 @@ int exercise_closure_transfers() {
 		closure_invoke(checked, move rejected, true);
 		return 7;
 	} catch (Error error) { mark(642); }
-	if (live() != 2) { return 8; }
+	if (live() != 2) return 8;
 	var accepted = make(248);
 	try {
-		if (closure_invoke(checked, move accepted, false) != 251) { return 9; }
+		if (closure_invoke(checked, move accepted, false) != 251) return 9;
 	} catch (Error error) { return 10; }
 	return 0;
 }
+
 int main() {
 	int result = exercise_function_transfers();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	result = exercise_closure_transfers();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

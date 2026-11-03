@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void unicode_number(int value);
+
 struct UnicodeReport {
 	owned Utf8Message original;
 	owned Vector<Utf8Message> fields;
 	int scalars;
 }
+
 UnicodeReport unicode_analyze(string input) throws Error {
 	var builder = new Utf8ByteBuilder();
 	require_text(append_text(builder, input));
@@ -13,7 +15,9 @@ UnicodeReport unicode_analyze(string input) throws Error {
 	UnicodeReport report = {original = move original, fields = move fields, scalars = text_scalar_count(input)};
 	return move report;
 }
+
 bool print_unicode(Utf8Message value) { return println(value.text); }
+
 int inspect_unicode(Utf8Message original, Vector<Utf8Message> fields) throws Error {
 	unicode_number(original.text.byte_length);
 	unicode_number(text_scalar_count(original.text));
@@ -26,26 +30,27 @@ int inspect_unicode(Utf8Message original, Vector<Utf8Message> fields) throws Err
 	unicode_number(text_scalar_offset(original.text, scalar));
 	if (scalar > 1) {
 		var middle = text_scalar_segment(original.text, 1, scalar - 2);
-		if (!println(middle.text)) { return 81; }
+		if (!println(middle.text)) return 81;
 	}
 	unicode_number(fields.count());
 	foreach (var field in fields) {
-		if (!print_unicode(field)) { return 82; }
+		if (!print_unicode(field)) return 82;
 	}
 	return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 83; }
+	if (len(args) != 3) return 83;
 	try {
 		var report = unicode_analyze(args[1]);
-		if (report.scalars != text_scalar_count(args[1])) { return 84; }
+		if (report.scalars != text_scalar_count(args[1])) return 84;
 		var original = move report.original;
 		var fields = move report.fields;
 		int result = inspect_unicode(original, fields);
-		if (result != 0) { return result; }
+		if (result != 0) return result;
 		unicode_number(parse_int(args[2]));
 		var number = text_scalar_segment(args[2], 0, text_scalar_count(args[2]));
-		if (parse_int(number.text) != parse_int(args[2])) { return 85; }
+		if (parse_int(number.text) != parse_int(args[2])) return 85;
 		try { var invalid = text_scalar_segment(args[1], 2147483647, 1); return 86; }
 		catch(ScalarRangeError error) {}
 		try { int invalid = text_scalar_at(args[1], report.scalars); return 87; }
@@ -54,8 +59,8 @@ int main(string[] args) {
 		catch(ScalarRangeError error) {}
 		try { var invalid = text_split_owned(args[1], ""); return 89; }
 		catch(TextDelimiterError error) {}
-		if (text_scalar_count(args[1]) != report.scalars) { return 90; }
+		if (text_scalar_count(args[1]) != report.scalars) return 90;
 	}
-	catch(Error error) { if (!println(error.message)) { return 91; } return 92; }
+	catch(Error error) { if (!println(error.message)) return 91; return 92; }
 	return 0;
 }

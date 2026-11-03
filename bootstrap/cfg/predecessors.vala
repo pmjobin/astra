@@ -52,5 +52,6 @@ public class CfgPredecessors : Object {
 		}
 		return result;
 	}
+
 }
 }

@@ -14,6 +14,7 @@ internal class LlvmForeignRecordLayoutBinding : Object {
 		this.declaration = declaration;
 		this.storage = storage;
 	}
+
 	internal static CApi.TypeRef storage_type(LlvmModuleArtifact artifact, LlvmTypeMapper types, ForeignValueType declaration) throws LlvmError {
 		if (!declaration.valid () || declaration.kind != ForeignValueKind.RECORD) {
 			throw new LlvmError.LOWERING ("foreign record storage requires a valid scalar POD declaration");
@@ -33,6 +34,7 @@ internal class LlvmForeignRecordLayoutBinding : Object {
 		artifact.foreign_records.add (witness);
 		return storage;
 	}
+
 	internal void verify(CApi.TargetDataRef data) throws LlvmError {
 		if (!declaration.valid () || declaration.kind != ForeignValueKind.RECORD || CApi.pointer_size (data) != 8 || CApi.count_struct_element_types (storage) != declaration.field_count || CApi.abi_size_of_type (data, storage) != CAbiClassAdapter.record_size (declaration) || CApi.abi_alignment_of_type (data, storage) != CAbiClassAdapter.record_alignment (declaration)) {
 			throw new LlvmError.VERIFICATION ("foreign POD lost natural target size/alignment/field authority");
@@ -44,6 +46,7 @@ internal class LlvmForeignRecordLayoutBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmForeignFunctionBinding : Object {
 	private CApi.ValueRef function;
@@ -58,6 +61,7 @@ internal class LlvmForeignFunctionBinding : Object {
 		this.bool_parameters = bool_parameters == null ? null : bool_parameters.copy ();
 		sequence = new LlvmSumSequence (function, true);
 	}
+
 	internal void verify() throws LlvmError {
 		size_t length;
 		if (CApi.value_name (function, out length) != symbol || length != symbol.length || (void*) CApi.global_value_type (function) != (void*) type || CApi.function_call_conv (function) != CApi.CallConv.C || CApi.get_linkage (function) != CApi.Linkage.EXTERNAL) {
@@ -76,6 +80,7 @@ internal class LlvmForeignFunctionBinding : Object {
 		}
 		sequence.verify ();
 	}
+
 }
 
 // Construction-local emitter. Native roots, counts and property bodies remain
@@ -130,6 +135,7 @@ internal class LlvmForeignClasses : Object {
 		artifact.class_layouts.add (new LlvmClassLayoutBinding (result, fields));
 		return result;
 	}
+
 	internal static CApi.ValueRef cache_address(LlvmModuleArtifact artifact, LlvmStructRegistry structs, NativeAbiProgram native, CApi.BuilderRef builder, CApi.ValueRef root, SsaClass owner) throws LlvmError {
 		if (owner.foreign_export == null || owner.parent_class != null || owner.concurrency_policy == null && owner.foreign_export.declared_api == null) {
 			throw new LlvmError.LOWERING ("foreign wrapper cache requires its admitted independent native root");
@@ -140,6 +146,7 @@ internal class LlvmForeignClasses : Object {
 		artifact.class_addresses.add (new LlvmClassAddressBinding (result, root, layout, member));
 		return result;
 	}
+
 	internal static CApi.ValueRef root_context_address(LlvmModuleArtifact artifact, LlvmStructRegistry structs, NativeAbiProgram native, CApi.BuilderRef builder, CApi.ValueRef root, SsaClass owner) throws LlvmError {
 		if (owner.foreign_export == null || owner.foreign_export.declared_api == null || owner.parent_class != null) {
 			throw new LlvmError.LOWERING ("native foreign context requires its exact declared independent root");
@@ -147,20 +154,24 @@ internal class LlvmForeignClasses : Object {
 		uint member = (uint) ((owner.concurrency_policy == null ? 0 : 6) + owner.fields.length + native.classes[owner.ordinal].lazy_caches.length * 2);
 		return address (artifact, builder, structs.lookup (owner), root, member);
 	}
+
 	private static CApi.ValueRef address(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.TypeRef layout, CApi.ValueRef root, uint member) {
 		var result = CApi.build_struct_gep (builder, layout, root, member, "foreign.member");
 		artifact.class_addresses.add (new LlvmClassAddressBinding (result, root, layout, member));
 		return result;
 	}
+
 	private static CApi.ValueRef load(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.TypeRef type, CApi.ValueRef place) {
 		var result = CApi.build_load (builder, type, place, "foreign.read");
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { place }, "foreign exact wrapper/cache read"));
 		return result;
 	}
+
 	private static void store(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.ValueRef value, CApi.ValueRef place) {
 		var result = CApi.build_store (builder, value, place);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, place }, "foreign exact wrapper/cache publication"));
 	}
+
 	private static CApi.ValueRef compare(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.IntPredicate predicate, CApi.ValueRef left, CApi.ValueRef right, string name) {
 		var result = CApi.build_icmp (builder, predicate, left, right, name);
 		if ((void*) CApi.is_instruction (result) != null) {
@@ -168,6 +179,7 @@ internal class LlvmForeignClasses : Object {
 		}
 		return result;
 	}
+
 	internal static void retire_cache(LlvmModuleArtifact artifact, LlvmTypeMapper types, LlvmStructRegistry structs, NativeAbiProgram native, CApi.BuilderRef builder, CApi.ValueRef function, CApi.ValueRef root, SsaClass owner, LlvmBlockState state, LlvmBufferAllocation allocator) throws LlvmError {
 		var pointer = types.scalar (NativeScalarType.PTR);
 		var place = cache_address (artifact, structs, native, builder, root, owner);
@@ -218,6 +230,7 @@ internal class LlvmForeignClasses : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 	internal LlvmForeignClasses (LlvmModuleArtifact artifact, LlvmTypeMapper types, LlvmStructRegistry structs, LlvmClassRuntime classes, LlvmTextLowering text, SsaClass owner, NativeClassPlan plan, CAbiClassAdapter adapter, HashTable<SsaFunction, LlvmFunctionBinding> functions, HashTable<CAbiCleanupFunction, LlvmCFunctionBinding> cleanup_functions) throws LlvmError {
 		this.artifact = artifact;
 		this.types = types;
@@ -242,6 +255,7 @@ internal class LlvmForeignClasses : Object {
 		weak_control = CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 		artifact.class_layouts.add (new LlvmClassLayoutBinding (weak_control, fields));
 	}
+
 	private void start(CAbiClassRole selected, CApi.TypeRef result, CApi.TypeRef[] parameters) throws LlvmError {
 		declared_error = (CApi.ValueRef) null;
 		declared_bool_parameters = null;
@@ -280,26 +294,33 @@ internal class LlvmForeignClasses : Object {
 		shared = new LlvmSharedLowering (artifact, types, builder, function, scalars, allocator, classes, functions);
 		serial = 0;
 	}
+
 	private CApi.ValueRef parameter(uint index) {
 		return CApi.get_param (function, index);
 	}
+
 	private CApi.ValueRef status(uint32 code) {
 		return CApi.const_int (word, code, 0);
 	}
+
 	private CApi.ValueRef empty() {
 		return CApi.const_null (pointer);
 	}
+
 	private CApi.ValueRef read(CApi.ValueRef root, uint member, bool weak = false) {
 		return load (artifact, builder, !weak && member == 1 ? wide : pointer, address (artifact, builder, weak ? weak_control : control, root, member));
 	}
+
 	private void write(CApi.ValueRef root, uint member, CApi.ValueRef value, bool weak = false) {
 		store (artifact, builder, value, address (artifact, builder, weak ? weak_control : control, root, member));
 	}
+
 	// C ownership duties are bookkeeping for transfers. Only the native root
 	// decides payload lifetime; unique roots still have no reference count.
 	private CApi.ValueRef duties(CApi.ValueRef handle) throws LlvmError {
 		return load (artifact, builder, wide, address (artifact, builder, control_type (artifact, types, true), handle, 5));
 	}
+
 	private ForeignImportContract resource_contract(NativeScalarOwner resource) throws LlvmError {
 		foreach (var root in native_program.class_imports) {
 			if (root.api.native_origin == resource.type_name && root.cleanup_symbol () == resource.cleanup_symbol && root.valid ()) {
@@ -308,6 +329,7 @@ internal class LlvmForeignClasses : Object {
 		}
 		throw new LlvmError.LOWERING ("foreign Resource lost exact declared provider root");
 	}
+
 	private LlvmCFunctionBinding resource_cleanup(NativeScalarOwner resource) throws LlvmError {
 		resource_contract (resource);
 		foreach (var cleanup in cleanup_functions.get_keys ()) {
@@ -317,12 +339,14 @@ internal class LlvmForeignClasses : Object {
 		}
 		throw new LlvmError.LOWERING ("foreign Resource lost exact provider retirement binding");
 	}
+
 	private CApi.ValueRef resource_call(LlvmCFunctionBinding binding, CApi.ValueRef[] arguments, string name) {
 		var value = CApi.build_call (builder, binding.type, binding.value, arguments, arguments.length, name);
 		CApi.set_instruction_call_conv (value, CApi.CallConv.C);
 		binding.record_call (value, arguments);
 		return value;
 	}
+
 	private CApi.ValueRef hold_resource(CApi.ValueRef value, NativeScalarOwner resource, bool nullable) throws LlvmError {
 		var root = resource_contract (resource);
 		if (!nullable) {
@@ -357,6 +381,7 @@ internal class LlvmForeignClasses : Object {
 		declared_held_resources += resource_cleanup (resource);
 		return value;
 	}
+
 	private void change_duties(CApi.ValueRef handle, bool acquire) throws LlvmError {
 		var layout = control_type (artifact, types, true);
 		var place = address (artifact, builder, layout, handle, 5);
@@ -366,6 +391,7 @@ internal class LlvmForeignClasses : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (next, acquire ? CApi.Opcode.ADD : CApi.Opcode.SUB, wide, new CApi.ValueRef[] { prior, one }, "foreign exact C ownership duty transition"));
 		store (artifact, builder, next, place);
 	}
+
 	private CApi.ValueRef owner_root(CApi.ValueRef handle, SsaClass root_class, bool nullable, CApi.ValueRef required) throws LlvmError {
 		if (!nullable) {
 			refuse (is_null (handle), status (0x80004003U));
@@ -395,6 +421,7 @@ internal class LlvmForeignClasses : Object {
 		CApi.add_incoming (result, &root, &admitted, 1);
 		return result;
 	}
+
 	private void validate_owner_borrows(ForeignMemberContract member, CApi.ValueRef[] handles, SsaClass?[] owner_classes) throws LlvmError {
 		// Recheck after all borrowed arguments were admitted, before clearing
 		// any slot. A later borrow can alias an earlier unique owner argument.
@@ -413,6 +440,7 @@ internal class LlvmForeignClasses : Object {
 			state.end = done;
 		}
 	}
+
 	private void consume_owners(ForeignMemberContract member, CApi.ValueRef[] handles, SsaClass?[] owner_classes) throws LlvmError {
 		for (uint p = 0; p < member.parameter_count; p++) {
 			var channel = member.parameter (p);
@@ -434,6 +462,7 @@ internal class LlvmForeignClasses : Object {
 			state.end = done;
 		}
 	}
+
 	private void retire_temporaries() throws LlvmError {
 		if (declared_provisional_resource != null) {
 			resource_call (declared_provisional_resource, new CApi.ValueRef[] { declared_provisional_root }, "");
@@ -452,11 +481,13 @@ internal class LlvmForeignClasses : Object {
 		retire_allocations ();
 		retire_holds ();
 	}
+
 	private void retire_allocations() throws LlvmError {
 		for (int p = declared_allocations.length - 1; p >= 0; p--) {
 			allocator.deallocate (declared_allocations[p], "foreign.temporary.%d".printf (p), state);
 		}
 	}
+
 	private void retire_holds() throws LlvmError {
 		for (int h = declared_holds.length - 1; h >= 0; h--) {
 			if (declared_held_resources[h] != null) {
@@ -485,6 +516,7 @@ internal class LlvmForeignClasses : Object {
 			state.end = done;
 		}
 	}
+
 	private CApi.ValueRef hold_root(CApi.ValueRef handle, SsaClass root_class, bool nullable) throws LlvmError {
 		if (!nullable) {
 			refuse (is_null (handle), status (0x80004003U));
@@ -523,6 +555,7 @@ internal class LlvmForeignClasses : Object {
 		declared_held_resources += null;
 		return value;
 	}
+
 	private void refuse(CApi.ValueRef invalid, CApi.ValueRef fallback) throws LlvmError {
 		var failed = CApi.append_basic_block_in_context (artifact.context, function, "foreign.refused.%d".printf (serial++));
 		var valid = CApi.append_basic_block_in_context (artifact.context, function, "foreign.admitted.%d".printf (serial++));
@@ -540,9 +573,11 @@ internal class LlvmForeignClasses : Object {
 		CApi.position_builder_at_end (builder, valid);
 		state.end = valid;
 	}
+
 	private CApi.ValueRef is_null(CApi.ValueRef input) {
 		return compare (artifact, builder, CApi.IntPredicate.EQ, input, CApi.const_null (CApi.type_of (input)), "foreign.null");
 	}
+
 	private void finish(CApi.ValueRef result) {
 		if ((void*) result == null) {
 			CApi.build_ret_void (builder);
@@ -552,6 +587,7 @@ internal class LlvmForeignClasses : Object {
 		CApi.dispose_builder (builder);
 		artifact.foreign_functions.add (new LlvmForeignFunctionBinding (function, function_type, active_symbol, declared_bool_parameters));
 	}
+
 	private CApi.ValueRef native_call(SsaFunction target, CApi.ValueRef[] arguments) throws LlvmError {
 		var binding = functions.lookup (target);
 		if (binding == null) {
@@ -562,6 +598,7 @@ internal class LlvmForeignClasses : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (result, binding.value, binding.type, arguments, LlvmLowering.CALL_CONVENTION, "foreign exact native constructor/property role"));
 		return result;
 	}
+
 	internal static CApi.ValueRef context_identity(LlvmModuleArtifact artifact, LlvmTypeMapper types, CApi.BuilderRef builder) throws LlvmError {
 		string symbol = "astra_foreign14_thread_identity";
 		var signature = CApi.function_type (types.scalar (NativeScalarType.U64), null, 0, 0);
@@ -583,12 +620,15 @@ internal class LlvmForeignClasses : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (result, target, signature, arguments, CApi.CallConv.C, "constructing-thread identity check"));
 		return result;
 	}
+
 	private CApi.ValueRef thread_identity() throws LlvmError {
 		return context_identity (artifact, types, builder);
 	}
+
 	private void require_thread(CApi.ValueRef handle, CApi.ValueRef fallback) throws LlvmError {
 		refuse (compare (artifact, builder, CApi.IntPredicate.NE, read (handle, 1), thread_identity (), "foreign.wrong.thread"), fallback);
 	}
+
 	private void require_weak_thread(CApi.ValueRef handle, CApi.ValueRef fallback) throws LlvmError {
 		if (adapter.policy.declared_api == null) {
 			return;
@@ -596,6 +636,7 @@ internal class LlvmForeignClasses : Object {
 		var context = load (artifact, builder, wide, address (artifact, builder, weak_control, handle, 2));
 		refuse (compare (artifact, builder, CApi.IntPredicate.NE, context, thread_identity (), "foreign.weak.wrong.thread"), fallback);
 	}
+
 	private CApi.ValueRef count_word(CApi.ValueRef count) throws LlvmError {
 		var overflow = compare (artifact, builder, CApi.IntPredicate.UGT, count, CApi.const_int (wide, uint32.MAX, 0), "foreign.count.overflow");
 		scalars.guard_slice_condition (overflow, "foreign.count.width", state);
@@ -603,6 +644,7 @@ internal class LlvmForeignClasses : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.TRUNC, word, new CApi.ValueRef[] { count }, "foreign bounded native reference count"));
 		return result;
 	}
+
 	private void emit_factory() throws LlvmError {
 		start (CAbiClassRole.CREATE, pointer, new CApi.TypeRef[] { word });
 		var root = allocator.allocate (status (1), structs.lookup (owner), "foreign.native.root", state, false, null, true, null, "", "object", true);
@@ -626,6 +668,7 @@ internal class LlvmForeignClasses : Object {
 		store (artifact, builder, cache, cache_address (artifact, structs, native_program, builder, root, owner));
 		finish (cache);
 	}
+
 	private NativeAbiProgram native_program;
 	private void report_error(CApi.ValueRef code, int32 domain = 0) {
 		var present = CApi.append_basic_block_in_context (artifact.context, function, "foreign.error.present");
@@ -644,6 +687,7 @@ internal class LlvmForeignClasses : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 	private SsaClass error_class(string name) throws LlvmError {
 		foreach (var plan in native_program.classes) {
 			if (plan.name == name) {
@@ -655,6 +699,7 @@ internal class LlvmForeignClasses : Object {
 		}
 		throw new LlvmError.LOWERING ("foreign error mapping lost its exact native exception declaration");
 	}
+
 	private CApi.ValueRef declared_call(SsaFunction target, CApi.ValueRef[] arguments, ForeignMemberContract member, CApi.ValueRef success) throws LlvmError {
 		var value = native_call (target, arguments);
 		var signature = functions.lookup (target).signature;
@@ -688,6 +733,7 @@ internal class LlvmForeignClasses : Object {
 		state.end = done;
 		return signature.has_exception_success_slot ? load (artifact, builder, types.success_result_type (signature), success) : value;
 	}
+
 	private void start_declared(string suffix, CApi.TypeRef[] parameters, uint[]? bool_parameters, bool record_bridge = false) throws LlvmError {
 		declared_allocations = null;
 		declared_holds = null;
@@ -720,6 +766,7 @@ internal class LlvmForeignClasses : Object {
 		declared_error = parameter ((uint) parameters.length - 1);
 		report_error (status (0));
 	}
+
 	private CApi.ValueRef boolean_and(CApi.ValueRef left, CApi.ValueRef right) throws LlvmError {
 		var result = CApi.build_and (builder, left, right, "foreign.both");
 		if ((void*) CApi.is_instruction (result) != null) {
@@ -727,6 +774,7 @@ internal class LlvmForeignClasses : Object {
 		}
 		return result;
 	}
+
 	private void copy_bytes(CApi.ValueRef destination, CApi.ValueRef source, CApi.ValueRef count) {
 		var extent = CApi.build_zext (builder, count, wide, "foreign.copy.extent");
 		if ((void*) CApi.is_instruction (extent) != null) {
@@ -745,11 +793,13 @@ internal class LlvmForeignClasses : Object {
 		CApi.set_instruction_call_conv (call, CApi.CallConv.C);
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, signature, arguments, CApi.CallConv.C, "foreign exact initialized byte copy"));
 	}
+
 	private CApi.ValueRef extract(CApi.ValueRef value, uint member, CApi.TypeRef type) {
 		var result = CApi.build_extract_value (builder, value, member, "foreign.result.part");
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.EXTRACT_VALUE, type, new CApi.ValueRef[] { value }, "foreign complete native result pair", (int) member));
 		return result;
 	}
+
 	private CApi.ValueRef choose(CApi.ValueRef condition, CApi.ValueRef yes, CApi.ValueRef no) {
 		var result = CApi.build_select (builder, condition, yes, no, "foreign.selected");
 		if ((void*) CApi.is_instruction (result) != null) {
@@ -757,6 +807,7 @@ internal class LlvmForeignClasses : Object {
 		}
 		return result;
 	}
+
 	private CApi.TypeRef record_type(ForeignValueType declaration) throws LlvmError {
 		if (!declaration.valid () || declaration.kind != ForeignValueKind.RECORD) {
 			throw new LlvmError.LOWERING ("foreign record storage requires a valid scalar POD declaration");
@@ -770,6 +821,7 @@ internal class LlvmForeignClasses : Object {
 		record_types.insert (key, (void*) storage);
 		return storage;
 	}
+
 	private void clear_record(CApi.ValueRef destination, ForeignValueType declaration) throws LlvmError {
 		record_type (declaration);
 		uint identity = CApi.lookup_intrinsic_id ("llvm.memset", 11);
@@ -785,6 +837,7 @@ internal class LlvmForeignClasses : Object {
 		CApi.set_instruction_call_conv (call, CApi.CallConv.C);
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, signature, arguments, CApi.CallConv.C, "foreign exact POD output initialization including padding"));
 	}
+
 	private void initialize_declared_wrapper(CApi.ValueRef cache, CApi.ValueRef root, SsaClass root_class) throws LlvmError {
 		var layout = control_type (artifact, types, true);
 		store (artifact, builder, root, address (artifact, builder, layout, cache, 0));
@@ -795,6 +848,7 @@ internal class LlvmForeignClasses : Object {
 		store (artifact, builder, status (0), address (artifact, builder, layout, cache, 4));
 		store (artifact, builder, CApi.const_null (wide), address (artifact, builder, layout, cache, 5));
 	}
+
 	private CApi.ValueRef owned_wrapper(CApi.ValueRef root, SsaClass root_class, bool nullable) throws LlvmError {
 		if (!nullable) {
 			refuse (is_null (root), status (0x8000ffffU));
@@ -845,6 +899,7 @@ internal class LlvmForeignClasses : Object {
 		CApi.add_incoming (result, &selected, &ready, 1);
 		return result;
 	}
+
 	private void publish_owner(CApi.ValueRef handle, CApi.ValueRef destination) throws LlvmError {
 		var live = CApi.append_basic_block_in_context (artifact.context, function, "foreign.owner.publish.live");
 		var done = CApi.append_basic_block_in_context (artifact.context, function, "foreign.owner.publish.done");
@@ -857,6 +912,7 @@ internal class LlvmForeignClasses : Object {
 		state.end = done;
 		store (artifact, builder, handle, destination);
 	}
+
 	private void publish_parameters(ForeignMemberContract member, CApi.ValueRef[] scalar_scratch, CApi.ValueRef[] byte_scratch, CApi.ValueRef[] produced_counts) throws LlvmError {
 		for (uint p = 0; p < member.parameter_count; p++) {
 			var channel = member.parameter (p);
@@ -868,6 +924,7 @@ internal class LlvmForeignClasses : Object {
 			}
 		}
 	}
+
 	private void emit_declared_member(uint ordinal) throws LlvmError {
 		var api = adapter.policy.declared_api;
 		var member = api.member (ordinal);
@@ -1253,6 +1310,7 @@ internal class LlvmForeignClasses : Object {
 		retire_allocations ();
 		finish (status (0));
 	}
+
 	private void emit_declared() throws LlvmError {
 		var api = adapter.policy.declared_api;
 		for (uint m = 0; m < api.member_count; m++) {
@@ -1312,6 +1370,7 @@ internal class LlvmForeignClasses : Object {
 		finish (read (parameter (0), 0));
 		emit_personality ();
 	}
+
 	private void emit_counts() throws LlvmError {
 		start (CAbiClassRole.ACQUIRE, word, new CApi.TypeRef[] { pointer });
 		refuse (is_null (parameter (0)), status (0));
@@ -1332,6 +1391,7 @@ internal class LlvmForeignClasses : Object {
 		}
 		finish (count_word (shared.release_foreign (read (parameter (0), 0), owner, state)));
 	}
+
 	private void emit_properties() throws LlvmError {
 		var property = owner.properties[plan.foreign_export.property_ordinal];
 		start (CAbiClassRole.GET, word, new CApi.TypeRef[] { pointer, pointer });
@@ -1351,6 +1411,7 @@ internal class LlvmForeignClasses : Object {
 		refuse (is_null (parameter (0)), empty ());
 		finish (read (parameter (0), 0));
 	}
+
 	private void emit_personality() throws LlvmError {
 		start (CAbiClassRole.CHECK_THREAD, word, new CApi.TypeRef[] { pointer });
 		refuse (is_null (parameter (0)), status (0x80004003U));
@@ -1369,6 +1430,7 @@ internal class LlvmForeignClasses : Object {
 		write (parameter (0), 3, parameter (2));
 		finish (status (0));
 	}
+
 	private void emit_weak() throws LlvmError {
 		start (CAbiClassRole.WEAK, pointer, new CApi.TypeRef[] { pointer });
 		refuse (is_null (parameter (0)), empty ());
@@ -1414,6 +1476,7 @@ internal class LlvmForeignClasses : Object {
 		allocator.deallocate (parameter (0), "foreign.weak.free", state);
 		finish ((CApi.ValueRef) null);
 	}
+
 	internal void lower(NativeAbiProgram native) throws LlvmError {
 		native_program = native;
 		if (adapter.policy.declared_api != null) {
@@ -1426,5 +1489,6 @@ internal class LlvmForeignClasses : Object {
 		emit_personality ();
 		emit_weak ();
 	}
+
 }
 }

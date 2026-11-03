@@ -10,6 +10,7 @@ owned SourceBuffer parser_load_source(string path, string identity, bool native_
 	var result = source_buffer(identity, move bytes, native_interface);
 	return move result;
 }
+
 void parser_observe(SyntaxProgram program) throws Error {
 	if (program.failed()) {
 		var output = new Utf8ByteBuilder();
@@ -38,6 +39,7 @@ void parser_observe(SyntaxProgram program) throws Error {
 	print(projection.text);
 	print("END\n");
 }
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1 && args[1] == "--lifetime") {
@@ -64,7 +66,10 @@ int main(string[] args) {
 			}
 			var sources = source_set(move entries);
 			var program = syntax_program(move sources);
-			if (args[1] == "--aggregation") { parser_aggregation(program); return 0; }
+			if (args[1] == "--aggregation") {
+				parser_aggregation(program);
+				return 0;
+			}
 			if (args[1] == "--parse" || args[1] == "--dump-syntax") {
 				if (program.failed()) {
 					var message = program.arena.text_message(program.error_message);
@@ -74,7 +79,10 @@ int main(string[] args) {
 					println_stderr(formatted.text);
 					return 1;
 				}
-				if (args[1] == "--dump-syntax") { var dump = syntax_program_dump(program); print(dump.text); }
+				if (args[1] == "--dump-syntax") {
+					var dump = syntax_program_dump(program);
+					print(dump.text);
+				}
 				return 0;
 			}
 			if (args[1] == "--inventory") {

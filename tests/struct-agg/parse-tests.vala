@@ -11,15 +11,18 @@ private void syntax() {
 	assert (store.target.aggregate is FieldAccessExpressionSyntax && ((FieldAccessExpressionSyntax) store.target.aggregate).field_name.spelling () == "inner" && store.target.field_name.spelling () == "x");
 	assert (SyntaxDump.format (parsed.unit).contains ("storage-initializer"));
 }
+
 private void malformed() {
 	foreach (string source in new string[] {"int f(){O o={inner={x=1,}};}", "int f(){O o={inner={x=}};}", "int f(){O o={inner={x=1};}", "int f(){return o.inner.;}"}) {
 		assert (Parser.parse (new SourceFile.from_text ("bad.astra", source)).diagnostic != null);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-agg/parser/recursive-storage-syntax", syntax);
 	Test.add_func ("/struct-agg/parser/malformed", malformed);
 	return Test.run ();
 }
+
 }

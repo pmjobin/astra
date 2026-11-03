@@ -4,22 +4,32 @@ class Ticket<A, B> {
 	private A key;
 	private B label;
 	private owned R guard;
+
 	init(A key, B label, int number) {
 		var guard = make(number);
 		this.key = key;
 		this.label = label;
 		this.guard = move guard;
 	}
+
 	property A value { get { return this.key; } }
+
 	property B ready { get { return this.label; } }
+
 	deinit() { mark(1201); }
 }
+
 owned Ticket<int, bool> create_ticket(int number) {
 	var result = new Ticket<int, bool>(42, true, number);
 	return move result;
 }
+
 owned R create_resource(int number) { var result = make(number); return move result; }
+
 owned Other create_other(int number) { var result = make_other(number); return move result; }
+
 Fn<owned Ticket<int, bool>, int> ticket_factory() { return create_ticket; }
+
 Fn<owned R, int> resource_factory() { return create_resource; }
+
 Fn<owned Other, int> other_factory() { return create_other; }

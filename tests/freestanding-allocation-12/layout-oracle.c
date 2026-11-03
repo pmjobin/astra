@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+
 struct WireReading {
 	uint8_t tag;
 	int64_t timestamp;
@@ -10,6 +11,7 @@ struct WireReading {
 	double total;
 	uint32_t flags;
 };
+
 _Static_assert(sizeof(struct WireReading) == 40, "C complete extent");
 _Static_assert(_Alignof(struct WireReading) == 8, "C record alignment");
 _Static_assert(offsetof(struct WireReading, tag) == 0, "C tag offset");
@@ -18,6 +20,7 @@ _Static_assert(offsetof(struct WireReading, gain) == 16, "C gain offset");
 _Static_assert(offsetof(struct WireReading, count) == 20, "C count offset");
 _Static_assert(offsetof(struct WireReading, total) == 24, "C total offset");
 _Static_assert(offsetof(struct WireReading, flags) == 32, "C flags offset");
+
 int32_t layout_oracle(struct WireReading *value) {
 	if ((uintptr_t)value % _Alignof(struct WireReading) || value->tag != 7 ||
 	    value->timestamp != INT64_C(4294967300) || value->gain != 1.25f || value->count != 6 ||

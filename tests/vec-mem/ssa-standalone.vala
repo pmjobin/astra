@@ -146,4 +146,5 @@ int main(string[] args) {
 	Test.add_func ("/vecmem/ssa/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

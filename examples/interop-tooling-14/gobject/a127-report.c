@@ -3,6 +3,7 @@
 #include <stdint.h>
 extern int32_t a127_report_byte(int32_t, int32_t);
 extern int32_t a127_stats(int32_t);
+
 gchar *astra127_diagnostic_report(Astra127Diagnostic *self, gint offset, GError **error) {
 	gint severity = 0;
 	if (!astra127_diagnostic_try_get_value(self, &severity, error)) return NULL;

@@ -1,42 +1,49 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int m17_custom_provider_retired();
+
 [Allocator(kind="context",context="owned-concurrent")]
 class CachedValue {
 	private int value;
+
 	init(int value) { this.value = value; }
+
 	int read() { return this.value; }
 }
+
 bool key_equal(int left, int right) { return left == right; }
+
 int inspect_value(borrowed CachedValue value) { return value.read(); }
+
 owned ContextMapEntry<int, CachedValue> escaping_entry() {
 	var table_context = concurrent_allocator(1, 32779, 17, 64);
 	var value_context = concurrent_allocator(1, 32771, 19, 64);
 	var entry_context = custom_allocator(16387, 23);
-	if (table_context == null || value_context == null || entry_context == null) { return null; }
+	if (table_context == null || value_context == null || entry_context == null) return null;
 	var map = new (table_context) ContextMap<int, CachedValue>(move entry_context, key_equal);
-	if (!map.reserve(3)) { return null; }
+	if (!map.reserve(3)) return null;
 	var cache = new (table_context) ContextCache<int, CachedValue>(move map);
 	var a = new (value_context) CachedValue(41);
 	var b = new (value_context) CachedValue(43);
-	if (!cache.put(17, move a) || !cache.put(19, move b)) { return null; }
-	if (cache.count != 2 || cache.capacity != 3 || cache.revision != 2) { return null; }
-	if (cache.lookup<int>(17, inspect_value, -1) != 41 || cache.lookup<int>(19, inspect_value, -1) != 43) { return null; }
-	if (cache.reserve(65537) || cache.count != 2 || cache.capacity != 3) { return null; }
-	if (!cache.reserve(7) || cache.capacity != 7 || cache.count != 2) { return null; }
+	if (!cache.put(17, move a) || !cache.put(19, move b)) return null;
+	if (cache.count != 2 || cache.capacity != 3 || cache.revision != 2) return null;
+	if (cache.lookup<int>(17, inspect_value, -1) != 41 || cache.lookup<int>(19, inspect_value, -1) != 43) return null;
+	if (cache.reserve(65537) || cache.count != 2 || cache.capacity != 3) return null;
+	if (!cache.reserve(7) || cache.capacity != 7 || cache.count != 2) return null;
 	var replacement = new (value_context) CachedValue(47);
-	if (!cache.put(17, move replacement) || cache.count != 2 || cache.revision != 3) { return null; }
-	if (cache.lookup<int>(17, inspect_value, -1) != 47 || cache.lookup<int>(23, inspect_value, -1) != -1) { return null; }
-	if (concurrent_allocator_query(table_context, 1) != 3 || concurrent_allocator_query(value_context, 1) != 2) { return null; }
+	if (!cache.put(17, move replacement) || cache.count != 2 || cache.revision != 3) return null;
+	if (cache.lookup<int>(17, inspect_value, -1) != 47 || cache.lookup<int>(23, inspect_value, -1) != -1) return null;
+	if (concurrent_allocator_query(table_context, 1) != 3 || concurrent_allocator_query(value_context, 1) != 2) return null;
 	var removed = cache.remove(17);
-	if (removed == null || cache.count != 1 || cache.revision != 4) { return null; }
+	if (removed == null || cache.count != 1 || cache.revision != 4) return null;
 	return move removed;
 }
+
 int main() {
 	{
 		var escaped = escaping_entry();
-		if (escaped == null || escaped.key != 17 || inspect_value(escaped.view) != 47) { return 1; }
-		if (m17_custom_provider_retired() != 0) { return 2; }
+		if (escaped == null || escaped.key != 17 || inspect_value(escaped.view) != 47) return 1;
+		if (m17_custom_provider_retired() != 0) return 2;
 	}
-	if (m17_custom_provider_retired() != 1) { return 3; }
+	if (m17_custom_provider_retired() != 1) return 3;
 	return 0;
 }

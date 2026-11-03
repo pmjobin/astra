@@ -30,5 +30,6 @@ internal class LlvmVolatileAccess : Object {
 			throw new LlvmError.VERIFICATION ("volatile access lost its exact operation, address, width, alignment or source intent");
 		}
 	}
+
 }
 }

@@ -24,9 +24,11 @@ double numerical_sample(int32_t i) {
 	if (i % 24000 == 2) return DBL_MIN;
 	return ((i * 17 + 13) % 257 - 128) / 128.0;
 }
+
 float numerical_sample32(int32_t i) {
 	return (float)numerical_sample(i);
 }
+
 int16_t numerical_pcm(int32_t track, int32_t i) {
 	static const int16_t extrema[2][8] = {{32767, -32768, 0, 32767, -32768, 1, -1, 123}, {1, -1, 0, 32767, -32768, -32768, 32767, -123}};
 	if (i < 8) return extrema[track][i];
@@ -36,9 +38,11 @@ int16_t numerical_pcm(int32_t track, int32_t i) {
 	memcpy(&value, &low, 2);
 	return value;
 }
+
 int32_t numerical_pcm32(int32_t track, int32_t i) {
 	return numerical_pcm(track, i);
 }
+
 float numerical_mask_sample(int32_t i) {
 	static const uint32_t bits[] = {0, UINT32_C(0x80000000), UINT32_C(0x7fc01234), UINT32_C(0x7f800000), UINT32_C(0xff800000), 1, UINT32_C(0x80000001), UINT32_C(0x3f800000)};
 	float value;
@@ -46,14 +50,17 @@ float numerical_mask_sample(int32_t i) {
 	memcpy(&value, &b, 4);
 	return value;
 }
+
 double numerical_twiddle(int32_t part, int32_t index) {
 	double angle = -2.0 * acos(-1.0) * (index % 64) / 64.0;
 	return part == 0 ? cos(angle) : sin(angle);
 }
+
 int32_t numerical_mode(void) {
 	const char *v = getenv("ASTRA_NUMERICAL_RELAXED");
 	return v && strcmp(v, "1") == 0;
 }
+
 static void initialize(void) {
 	if (initialized) return;
 	initialized = 1;
@@ -113,6 +120,7 @@ static void initialize(void) {
 			}
 	}
 }
+
 static double reference(int i) {
 	if (APP_ID == 85) {
 		int base = i / 4 * 4, other = base + (i % 4 + 1) % 4;
@@ -138,6 +146,7 @@ static double reference(int i) {
 	}
 	return expected[i];
 }
+
 int32_t numerical_observe(int32_t index, double value) {
 	initialize();
 	int count = APP_ID == 90 ? 4096 : APP_ID == 91 ? 48000
@@ -165,6 +174,7 @@ int32_t numerical_observe(int32_t index, double value) {
 	observations++;
 	return 0;
 }
+
 int32_t numerical_finish(int32_t wanted) {
 	if (output && fclose(output) != 0) abort();
 	output = NULL;

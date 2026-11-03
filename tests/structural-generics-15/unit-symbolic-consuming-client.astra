@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int consumer_callback(owned NativeGenericConsume.Cargo<int, bool> value, int extra) { return value.value + extra; }
+
 int consumer_resource(owned R value, int extra) { return id(value) + extra; }
+
 int main() {
 	Fn<int, owned NativeGenericConsume.Cargo<int, bool>, int> code = GenericConsumeTransport.callback();
 	var first = GenericConsumeTransport.create(181);
-	if (GenericConsumeTransport.invoke(code, move first, 2) != 42) { return 1; }
+	if (GenericConsumeTransport.invoke(code, move first, 2) != 42) return 1;
 	var second = GenericConsumeTransport.create(182);
-	if (GenericConsumeTransport.invoke(consumer_callback, move second, 2) != 42) { return 2; }
+	if (GenericConsumeTransport.invoke(consumer_callback, move second, 2) != 42) return 2;
 	var third = GenericConsumeTransport.create(183);
-	if (GenericConsumeTransport.producer_invoke(move third) != 42) { return 3; }
+	if (GenericConsumeTransport.producer_invoke(move third) != 42) return 3;
 	Fn<int, owned R, int> resource_code = GenericConsumeTransport.resource_callback();
 	var resource = make(184);
-	if (GenericConsumeTransport.invoke_resource(resource_code, move resource, 2) != 186) { return 4; }
+	if (GenericConsumeTransport.invoke_resource(resource_code, move resource, 2) != 186) return 4;
 	var other = make(185);
-	if (GenericConsumeTransport.invoke_resource(consumer_resource, move other, 2) != 187) { return 5; }
+	if (GenericConsumeTransport.invoke_resource(consumer_resource, move other, 2) != 187) return 5;
 	return live();
 }

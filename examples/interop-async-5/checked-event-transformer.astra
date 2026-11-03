@@ -3,38 +3,57 @@
 // The adapter records an owned diagnostic. Native code observes it after the
 // foreign dispatch frame returns; the private exception channel never enters C.
 extern(C) int retained_app_event(int stage, int value);
+
 class TransformFailure : Error { init(string text) : base(text) {} }
+
 class TransformCapture {
 	int scale;
+
 	init(int scale) { this.scale = scale; retained_app_event(31, scale); }
+
 	deinit() { retained_app_event(38, this.scale); }
 }
+
 int transform_checked(borrowed TransformCapture capture, int value) throws TransformFailure {
-	if (value < 0) { throw new TransformFailure("event rejected: negative payload"); }
+	if (value < 0) {
+		throw new TransformFailure("event rejected: negative payload");
+	}
 	return capture.scale * value;
 }
+
 void raise_transform_failure(borrowed Utf8Message diagnostic) throws TransformFailure { throw new TransformFailure(diagnostic.text); }
+
 class TransformReport {
 	int status;
 	int value;
 	private owned Utf8Message diagnostic;
+
 	init() { this.status = 0; this.value = 0; var diagnostic = new Utf8Message("pending"); this.diagnostic = move diagnostic; }
+
 	void record(int status, int value, owned Utf8Message diagnostic) {
 		this.status = status; this.value = value; this.diagnostic = move diagnostic;
 	}
+
 	int observe() throws TransformFailure {
-		if (this.status != 0) { raise_transform_failure(this.diagnostic); }
+		if (this.status != 0) raise_transform_failure(this.diagnostic);
 		return this.value;
 	}
+
 	deinit() { retained_app_event(39, this.value); }
 }
+
 void report_transform(borrowed TransformReport report, int status, int value, owned Utf8Message diagnostic) { report.record(status, value, move diagnostic); }
+
 int observe_transform(borrowed TransformReport report) throws TransformFailure { return report.observe(); }
+
 int invoke_transform(borrowed CheckedClosure<TransformCapture,TransformFailure,int,int> inner, int value) throws TransformFailure { return closure_invoke(inner, value); }
+
 class TransformAdapter {
 	private owned CheckedClosure<TransformCapture,TransformFailure,int,int> inner;
 	private owned Shared<TransformReport> report;
+
 	init(owned CheckedClosure<TransformCapture,TransformFailure,int,int> inner, owned Shared<TransformReport> report) { this.inner = move inner; this.report = move report; }
+
 	int receive(int value) {
 		var active_report = shared_clone(this.report);
 		try {
@@ -50,27 +69,30 @@ class TransformAdapter {
 			return -41;
 		}
 	}
+
 	deinit() { retained_app_event(37, 1); }
 }
+
 int transform_adapter_code(borrowed TransformAdapter adapter, int value) { return adapter.receive(value); }
+
 int main() {
 	var report_payload = new TransformReport(); var report = shared_acquire(move report_payload);
 	var capture = new TransformCapture(3); var checked = checked_closure_bind(move capture, transform_checked);
 	var retained_report = shared_clone(report); var adapter = new TransformAdapter(move checked, move retained_report);
 	var handler = closure_bind(move adapter, transform_adapter_code);
-	if (retained_register(handler, 0) != 0) { return 81; }
+	if (retained_register(handler, 0) != 0) return 81;
 	retained_app_event(32, 1);
-	if (retained_dispatch(handler, 4) != 12) { return 82; }
-	try { if (observe_transform(shared_borrow(report)) != 12) { return 83; } } catch (Error error) { return 84; }
-	if (retained_dispatch(handler, -7) != -41) { return 85; }
+	if (retained_dispatch(handler, 4) != 12) return 82;
+	try { if (observe_transform(shared_borrow(report)) != 12) return 83; } catch (Error error) { return 84; }
+	if (retained_dispatch(handler, -7) != -41) return 85;
 	// This marker is after the C dispatch has returned, before checked observation.
 	retained_app_event(35, 1);
 	try { observe_transform(shared_borrow(report)); return 86; }
-	catch (TransformFailure error) { if (!println(error.message)) { return 87; } }
+	catch (TransformFailure error) { if (!println(error.message)) return 87; }
 	// A caught callback failure preserves the retained environment for retry.
-	if (retained_dispatch(handler, 5) != 15) { return 88; }
-	try { if (observe_transform(shared_borrow(report)) != 15) { return 89; } } catch (Error error) { return 90; }
-	if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 91; }
+	if (retained_dispatch(handler, 5) != 15) return 88;
+	try { if (observe_transform(shared_borrow(report)) != 15) return 89; } catch (Error error) { return 90; }
+	if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) return 91;
 	retained_app_event(36, 1);
 	release handler;
 	return 0;

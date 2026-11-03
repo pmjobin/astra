@@ -7,11 +7,14 @@ struct Stats {
 class Cell<T> {
 	private owned T payload;
 	int revision;
+
 	init(owned T value) {
 		this.payload = move value;
 		this.revision = 1;
 	}
+
 	T copy() { return this.payload; }
+
 	property borrowed T view {
 		get { return this.payload; }
 	}
@@ -22,6 +25,6 @@ int main() {
 	var cell = new Cell<Stats>(input);
 	var copied = cell.copy();
 	var observed = cell.view;
-	if (copied.lines != 7000000001 || observed.bytes != 41) { return 1; }
+	if (copied.lines != 7000000001 || observed.bytes != 41) return 1;
 	return input.bytes + cell.revision - 42;
 }

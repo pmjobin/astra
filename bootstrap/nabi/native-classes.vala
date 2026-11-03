@@ -19,6 +19,7 @@ public class NativeCopyType : Object {
 			}
 		}
 	}
+
 	internal bool matches_layout() {
 		if (record == null) {
 			return leaves.length == 0;
@@ -35,6 +36,7 @@ public class NativeCopyType : Object {
 		}
 		return true;
 	}
+
 	internal bool valid(NativeAbiProgram program) {
 		if (name == "" || (record == null) == (abi_type == null) || !matches_layout ()) {
 			return false;
@@ -64,9 +66,11 @@ public class NativeCopyType : Object {
 		}
 		return false;
 	}
+
 	internal bool same_type(NativeCopyType other) {
 		return name == other.name && record == other.record && matches_layout () && other.matches_layout () && (abi_type == null ? other.abi_type == null : other.abi_type != null && abi_type.same_type (other.abi_type));
 	}
+
 }
 public class NativeGenericMethodInstance : Object {
 	public ExactClassDefinitionIdentity definition { get; private set; }
@@ -78,6 +82,7 @@ public class NativeGenericMethodInstance : Object {
 	public unowned NativeDeclaredType argument_type(int index) {
 		return arguments[index];
 	}
+
 	// Compatibility inspection for the original copied singleton profile.
 	public NativeCopyType argument { get; private set; }
 	public string name {
@@ -97,6 +102,7 @@ public class NativeGenericMethodInstance : Object {
 		this.declared (definition, owner, member, target, new NativeDeclaredType[] { new NativeDeclaredType (argument.name, argument.abi_type, -1, argument.record) });
 		this.argument = argument;
 	}
+
 	internal NativeGenericMethodInstance.declared (ExactClassDefinitionIdentity definition, int owner, int member, int target, NativeDeclaredType[] arguments) {
 		this.definition = definition;
 		class_ordinal = owner;
@@ -116,9 +122,11 @@ public class NativeGenericMethodInstance : Object {
 		}
 		return true;
 	}
+
 	internal bool same_arguments(NativeGenericMethodInstance other) {
 		return matches_arguments (other.arguments);
 	}
+
 	internal bool valid_arguments(NativeAbiProgram program) {
 		if (arguments.length == 0) {
 			return false;
@@ -130,6 +138,7 @@ public class NativeGenericMethodInstance : Object {
 		}
 		return true;
 	}
+
 }
 // Version 1: copied result only, synchronous first-success publication.
 // Independent immutable ordinals/channels; no predecessor graph or runtime box.
@@ -145,9 +154,11 @@ public class NativeLazyCache : Object {
 		factory_ordinal = original_factory = factory;
 		owned_class_ordinal = original_owner = owner;
 	}
+
 	internal bool matches_factory() {
 		return factory_ordinal == original_factory && owned_class_ordinal == original_owner;
 	}
+
 	public bool is_owned { get { return original_factory >= 0; } }
 	public SourceSpan span { get; private set; }
 	private string identifier;
@@ -169,6 +180,7 @@ public class NativeLazyCache : Object {
 		this.state_member = state_member;
 		this.value_type = value_type;
 	}
+
 }
 // Copied declaration identity and layout channels; no semantic or SSA objects.
 public class NativePrivateFieldAccess : Object {
@@ -180,6 +192,7 @@ public class NativePrivateFieldAccess : Object {
 		field_ordinal = field;
 		function_ordinal = function;
 	}
+
 }
 public class NativeClassField : Object {
 	public bool owns_record { get; private set; }
@@ -214,6 +227,7 @@ public class NativeClassField : Object {
 		this.storage_type = storage_type;
 		this.record_ordinal = record_ordinal;
 	}
+
 }
 public class NativeConstructorUnwindPlan : Object {
 	public int class_ordinal { get; private set; }
@@ -224,17 +238,21 @@ public class NativeConstructorUnwindPlan : Object {
 	public int field(int index) {
 		return fields[index];
 	}
+
 	public int lazy_property(int index) {
 		return lazy_properties[index];
 	}
+
 	internal NativeConstructorUnwindPlan (int class_ordinal, int[] fields, int[] lazy_properties) {
 		this.class_ordinal = class_ordinal;
 		this.fields = fields.copy ();
 		this.lazy_properties = lazy_properties.copy ();
 	}
+
 	public static bool owns_field(NativeClassField field) {
 		return field.text_snapshot || field.owns_record || field.owns_buffer || field.owned_class_ordinal >= 0 || field.resource_owner != null || field.storage_type is NativeOwnerSlotsType || field.storage_type is NativeSharedHandleType || field.storage_type is NativeClosureHandleType;
 	}
+
 	public static bool required(NativeAbiProgram program, NativeFunction function) {
 		if (function.kind != NativeCallableKind.CONSTRUCTOR || !function.declaring_type_is_class || function.declaring_type_ordinal < 0 || function.declaring_type_ordinal >= program.classes.length || function.signature.exception_plan == null) {
 			return false;
@@ -254,6 +272,7 @@ public class NativeConstructorUnwindPlan : Object {
 		}
 		return false;
 	}
+
 	public bool valid(NativeAbiProgram program, NativeFunction function) {
 		if (!required (program, function) || class_ordinal != function.declaring_type_ordinal || fields.length > 4096) {
 			return false;
@@ -283,6 +302,7 @@ public class NativeConstructorUnwindPlan : Object {
 		}
 		return cursor == lazy_properties.length;
 	}
+
 }
 public class NativeClassPlan : Object {
 	public ForeignClassPolicy? foreign_export { get; internal set; }
@@ -298,9 +318,11 @@ public class NativeClassPlan : Object {
 	public int foreign_member(uint index) {
 		return declared_foreign_targets[index];
 	}
+
 	public int[] foreign_targets() {
 		return declared_foreign_targets.copy ();
 	}
+
 	public void bind_declared_foreign(ForeignClassPolicy policy, string identity, int[] targets) throws NativeAbiError {
 		if (foreign_bound || policy.declared_api == null || !ForeignClassPolicy.matches (policy, identity, name) || targets.length != policy.declared_api.member_count) {
 			throw new NativeAbiError.INVALID_ABI ("declared foreign API lost its native root/member identity");
@@ -315,6 +337,7 @@ public class NativeClassPlan : Object {
 		foreign_identity = identity;
 		foreign_bound = true;
 	}
+
 	public void bind_foreign_export(ForeignClassPolicy? policy, string identity, int constructor = -1, int getter = -1, int setter = -1) throws NativeAbiError {
 		if (foreign_bound || !ForeignClassPolicy.matches (policy, identity, name)) {
 			throw new NativeAbiError.INVALID_ABI ("foreign Class policy lost its admitted native root identity");
@@ -329,9 +352,11 @@ public class NativeClassPlan : Object {
 		foreign_identity = identity;
 		foreign_bound = true;
 	}
+
 	public bool foreign_export_valid() {
 		return ForeignClassPolicy.matches (foreign_export, foreign_identity, name) && foreign_constructor == original_foreign_constructor && foreign_getter == original_foreign_getter && foreign_setter == original_foreign_setter;
 	}
+
 	public ConcurrencyPolicy? concurrency_policy { get; internal set; }
 	private uint concurrency_identity;
 	private bool concurrency_bound;
@@ -343,9 +368,11 @@ public class NativeClassPlan : Object {
 		concurrency_identity = identity;
 		concurrency_bound = true;
 	}
+
 	public bool concurrency_policy_valid() {
 		return ConcurrencyPolicy.matches (concurrency_policy, concurrency_identity);
 	}
+
 	public AllocationPolicy? allocation_policy { get; internal set; }
 	private string allocation_identity = "";
 	private bool allocation_bound;
@@ -357,9 +384,11 @@ public class NativeClassPlan : Object {
 		allocation_identity = identity;
 		allocation_bound = true;
 	}
+
 	public bool allocation_policy_valid() {
 		return AllocationPolicy.matches (allocation_policy, allocation_identity) && (allocation_policy == null || !polymorphic && parent_ordinal == -1 && !exception_root && !is_interface);
 	}
+
 	private GenericArray<NativeClassField> original_fields = new GenericArray<NativeClassField> ();
 	internal bool matches_slot_declarations() {
 		if (fields.length != original_fields.length) {
@@ -396,6 +425,7 @@ public class NativeClassPlan : Object {
 		}
 		return true;
 	}
+
 	public bool is_interface { get; private set; }
 	public NativeExactClassInstance? generic_instance { get; internal set; }
 	public ExactClassDefinitionIdentity? generic_origin { get; private set; }
@@ -404,6 +434,7 @@ public class NativeClassPlan : Object {
 		var current = generic_instance == null ? null : generic_instance.declared_structure;
 		return generic_declared_origin == null ? current == null : current != null && generic_declared_origin.same_arguments (current);
 	}
+
 	internal void bind_generic(NativeExactClassInstance instance) throws NativeAbiError {
 		if (generic_origin != null) {
 			throw new NativeAbiError.INVALID_ABI ("generic Class origin is immutable once bound");
@@ -412,6 +443,7 @@ public class NativeClassPlan : Object {
 		generic_instance = instance;
 		generic_declared_origin = instance.declared_structure;
 	}
+
 	public GenericArray<NativeLazyCache> lazy_caches { get; private set; default = new GenericArray<NativeLazyCache> (); }
 	private string identifier;
 	public string name { get { return identifier; } }
@@ -438,6 +470,7 @@ public class NativeClassPlan : Object {
 			original_fields.add (field);
 		}
 	}
+
 }
 internal class NativeClassVerifier : Object {
 	private static void generic_owner(int ordinal, ExactClassDefinitionIdentity? definition, bool heap, NativeObjectOriginPlan? actual, NativeAbiProgram program) throws NativeAbiError {
@@ -451,6 +484,7 @@ internal class NativeClassVerifier : Object {
 			throw new NativeAbiError.INVALID_ABI ("generic Class owner changed its exact original instance or storage origin");
 		}
 	}
+
 	private static bool generic_role(GenericClassValueRole role, NativeAbiType? type) {
 		if (role == GenericClassValueRole.VOID) {
 			return type == null;
@@ -458,6 +492,7 @@ internal class NativeClassVerifier : Object {
 		var scalar = type as NativeScalarAbiType;
 		return scalar != null && scalar.scalar_type == (role == GenericClassValueRole.ARGUMENT ? NativeScalarType.PTR : role == GenericClassValueRole.BOOL ? NativeScalarType.B1 : NativeScalarType.I32);
 	}
+
 	private static void generic_body_signature(NativeFunction function, NativeClassPlan plan, NativeClassPlan? argument, NativeExactClassInstance key, int member, NativeGenericMethodInstance? method = null) throws NativeAbiError {
 		var source = method == null ? key.definition.signature(member) : key.definition.generic_method_signature (member);
 		var signature = function.signature;
@@ -539,6 +574,7 @@ internal class NativeClassVerifier : Object {
 			throw new NativeAbiError.INVALID_ABI ("generic Class member has an unrelated parameter channel or group");
 		}
 	}
+
 	private static void generic_class(NativeClassPlan plan, NativeAbiProgram program) throws NativeAbiError {
 		var key = plan.generic_instance;
 		if ((key != null) != (plan.generic_origin != null) || (key != null && key.definition != plan.generic_origin)) {
@@ -679,6 +715,7 @@ internal class NativeClassVerifier : Object {
 
 		}
 	}
+
 	private static void verify_slot_ownership(int ordinal, NativeAbiProgram program, HashTable<int, int> states) throws NativeAbiError {
 		if (ordinal < 0 || ordinal >= program.classes.length) {
 			throw new NativeAbiError.INVALID_ABI ("owned slot dependency lost its exact Class rank");
@@ -716,6 +753,7 @@ internal class NativeClassVerifier : Object {
 		}
 		states.insert (ordinal, 2);
 	}
+
 	internal static void verify(NativeAbiProgram program) throws NativeAbiError {
 		var allocation_domains = new AllocationDomains ();
 		foreach (var owner in program.classes) {
@@ -1093,6 +1131,7 @@ internal class NativeClassVerifier : Object {
 			}
 		}
 	}
+
 }
 
 public class NativeExactClassInstance : Object {
@@ -1108,10 +1147,12 @@ public class NativeExactClassInstance : Object {
 	public int property_target(int index) {
 		return properties[index];
 	}
+
 	public int member_count { get { return targets.length; } }
 	public int member_target(int index) {
 		return targets[index];
 	}
+
 	internal NativeExactClassInstance (ExactClassDefinitionIdentity definition, int argument_ordinal, int[] targets, NativeScalarOwner? resource = null, NativeStructValuePlan? record = null, GenericArray<NativeGenericMethodInstance>? methods = null, int[]? properties = null) {
 		this.definition = definition;
 		this.argument_ordinal = argument_ordinal;
@@ -1127,6 +1168,7 @@ public class NativeExactClassInstance : Object {
 			}
 		}
 	}
+
 	internal NativeExactClassInstance.declared (ExactClassDefinitionIdentity definition, NativeDeclaredClass structure, int[] targets, int[] properties) {
 		this.definition = definition;
 		declared_structure = structure;
@@ -1174,6 +1216,7 @@ public class NativeOwnerSlotsType : NativeAbiType {
 		}
 		return true;
 	}
+
 	public NativeScalarOwner? resource { get; private set; }
 	public int element_ordinal { get; private set; }
 	private string element_identifier;
@@ -1201,6 +1244,7 @@ public class NativeOwnerSlotsType : NativeAbiType {
 		this.length_type = length_type;
 		this.capacity_type = capacity_type;
 	}
+
 	public override string spelling() {
 		if (record_value != null) {
 			return "OWNER_SLOTS(record#%d:%s,leaves#%u,%s,%s,%s)".printf (record_value.struct_ordinal, record_value.struct_name, record_value.leaf_count, base_type.spelling (), length_type.spelling (), capacity_type.spelling ());
@@ -1210,9 +1254,11 @@ public class NativeOwnerSlotsType : NativeAbiType {
 		}
 		return "OWNER_SLOTS(class#%d:%s,dtor#%d,%s,%s,%s)".printf (element_ordinal, element_name, destructor_ordinal, base_type.spelling (), length_type.spelling (), capacity_type.spelling ());
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var slots = other as NativeOwnerSlotsType;
 		return slots != null && matches_record_layout () && slots.matches_record_layout () && slots.record_value == record_value && (resource == null ? slots.resource == null : resource.same_owner (slots.resource)) && slots.element_ordinal == element_ordinal && slots.element_name == element_name && slots.destructor_ordinal == destructor_ordinal && slots.base_type == base_type && slots.length_type == length_type && slots.capacity_type == capacity_type;
 	}
+
 }
 }

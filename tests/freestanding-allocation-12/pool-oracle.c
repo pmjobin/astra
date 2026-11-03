@@ -5,9 +5,11 @@
 extern AstraAlloc12Domain POOL_DOMAIN;
 static uint64_t retired_generation, tag;
 static void *retired;
+
 void pool_event(int32_t value) {
 	printf("%d,", value);
 }
+
 int32_t pool_probe(int32_t phase) {
 	AstraAlloc12Domain *d = &POOL_DOMAIN;
 	if (phase == 1) {

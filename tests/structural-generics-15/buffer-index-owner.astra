@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct IndexBuffers { owned int[] first; owned int[] second; }
+
 class IndexBox<T> {
 	owned T value;
+
 	init(owned T value) { this.value = move value; }
 }
+
 int retire_index_box(owned IndexBox<IndexBuffers> box) { return 0; }
+
 int main() {
 	var first = new int[3];
 	var second = new int[5];

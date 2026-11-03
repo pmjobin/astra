@@ -25,6 +25,7 @@ public class LexicalRegion : Object {
 		}
 		return false;
 	}
+
 }
 
 public enum BorrowProvenanceKind {
@@ -126,5 +127,6 @@ public class BorrowProvenance : Object {
 		var local = origin as LocalSymbol;
 		return new DataPointerProvenance (local == null ? DataPointerOrigin.PARAMETER : DataPointerOrigin.LOCAL, local == null ? ((ParameterSymbol) origin).ordinal : local.ordinal, region.ordinal, deep_text);
 	}
+
 }
 }

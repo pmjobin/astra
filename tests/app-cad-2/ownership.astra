@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Uses the actual I Context declaration and numeric implementation.
 extern(C) int cad_same_bits(f64 a, f64 b);
+
 extern(C) f64 cad_nextafter(f64 value, f64 toward);
 
 void drop_context(owned Context value) {}
+
 Kernel snapshot(Kernel[] values, int index) { return values[index]; }
+
 void mutate(Kernel[] values) { values[0].sigma = 7.0; values[0].mx = 0.0; }
+
 Kernel lifetime(int count) {
 	owned Context context = Context.init(count, 1, count, 1);
 	require(len(context.state) == count && len(context.next) == count && len(context.supports) == count, 301, cad_number(count));

@@ -7,19 +7,24 @@
 #ifndef OWN_MEMORY
 extern void *__libc_calloc(size_t, size_t);
 extern void __libc_free(void *);
+
 static struct {
 	void *pointer;
 	int id, live;
 } allocations[32];
+
 #endif
+
 static struct {
 	void *pointer;
 	int initialized, heap, drops, observed, frees;
 } owners[128];
+
 static int pointer_checks, owner_count, free_count;
 #ifndef OWN_MEMORY
 static int used;
 #endif
+
 static void prepare(void) {
 	static int ready;
 	if (!ready) {
@@ -27,16 +32,20 @@ static void prepare(void) {
 		ready = 1;
 	}
 }
+
 static void require(int condition) {
 	if (!condition) {
 		_Exit(98);
 	}
 }
+
 static void event(int code, int id) {
 	prepare();
 	printf("%c%d\n", code, id);
 }
+
 #ifndef OWN_MEMORY
+
 void *calloc(size_t count, size_t size) {
 	void *pointer = __libc_calloc(count, size);
 	require(pointer != NULL && used < 32);
@@ -47,6 +56,7 @@ void *calloc(size_t count, size_t size) {
 	puts("A");
 	return pointer;
 }
+
 void free(void *pointer) {
 	if (pointer == NULL) {
 		return;
@@ -67,7 +77,9 @@ void free(void *pointer) {
 	event('F', id);
 	__libc_free(pointer);
 }
+
 #endif
+
 int32_t own_init(int32_t id, int32_t heap, int32_t drops) {
 	require(id > 0 && id < 128 && !owners[id].initialized && (heap == 0 || heap == 1) && drops >= 0);
 	owners[id].initialized = 1;
@@ -94,6 +106,7 @@ int32_t own_init(int32_t id, int32_t heap, int32_t drops) {
 	event('I', id);
 	return id;
 }
+
 int32_t own_drop(int32_t code, int32_t id) {
 	require(id > 0 && id < 128 && owners[id].initialized && !owners[id].frees);
 	// Derived complete destruction includes its own event and then base deinit.
@@ -105,16 +118,19 @@ int32_t own_drop(int32_t code, int32_t id) {
 	event(code, id);
 	return id;
 }
+
 int32_t own_derived(int32_t id) {
 	require(id > 0 && id < 128 && owners[id].initialized && owners[id].drops == 1 && owners[id].observed == 0);
 	owners[id].drops = 2;
 	return id;
 }
+
 int32_t own_mark(int32_t code, int32_t id) {
 	require(id > 0 && id < 128 && owners[id].initialized && owners[id].observed == 0 && owners[id].frees == 0);
 	event(code, id);
 	return id;
 }
+
 // Test-only entry instrumentation checks actual pointers in an independent C client.
 void own_pointer(void *pointer, int32_t id, int32_t heap, int32_t constructor) {
 	require(pointer != NULL && id > 0 && id < 128 && (heap == 0 || heap == 1));
@@ -137,10 +153,12 @@ void own_pointer(void *pointer, int32_t id, int32_t heap, int32_t constructor) {
 #endif
 	pointer_checks++;
 }
+
 void own_loan(void *pointer, int32_t id) {
 	require(id > 0 && id < 128 && owners[id].initialized);
 	own_pointer(pointer, id, owners[id].heap, 0);
 }
+
 int32_t own_finish(void) {
 #ifndef OWN_MEMORY
 	for (int i = 0; i < used; i++) {
@@ -158,11 +176,14 @@ int32_t own_finish(void) {
 	printf("Z%d:%d\n", owner_count, free_count);
 	return 42;
 }
+
 #ifdef OWN_CLIENT
 extern int32_t own_native_entry(void);
+
 int main(void) {
 	int result = own_native_entry();
 	printf("P%d\n", pointer_checks);
 	return result;
 }
+
 #endif

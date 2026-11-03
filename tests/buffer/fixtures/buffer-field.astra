@@ -1,10 +1,17 @@
 owned f64[] make(int count) { return new f64[count]; }
+
 void initialize(f64[] values) { values[0] = 2.0; }
+
 class Context {
 	owned f64[] values;
+
 	init(int count) { this.values = new f64[count]; }
+
 	void replace(int count) { this.values = make(count); initialize(this.values); }
+
 	int size() { return len(this.values); }
+
 	deinit() { this.replace(3); }
 }
+
 int main() { owned Context context = Context.init(4); context.replace(5); return context.size() - 5; }

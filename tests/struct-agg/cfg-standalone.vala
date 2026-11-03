@@ -65,6 +65,7 @@ private CfgProgram sample(bool addressed = false, bool pointer = false) {
 	functions.add (function);
 	return new CfgProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		foreach (bool addressed in new bool[] {false, true}) {
@@ -86,6 +87,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 7; scenario++) {
 		var program = sample ();
@@ -124,10 +126,12 @@ private void invalid() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-agg/cfg/recursive-places-vector-f64-lifetime", positive);
 	Test.add_func ("/struct-agg/cfg/owner-canonical-cycle-firewalls", invalid);
 	return Test.run ();
 }
+
 }

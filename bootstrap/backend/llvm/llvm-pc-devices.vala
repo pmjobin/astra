@@ -15,6 +15,7 @@ internal class LlvmPcAtomicBinding : Object {
 		this.type = type;
 		this.operation = operation;
 	}
+
 	internal void verify() throws LlvmError {
 		var opcode = operation.atomic_load () ? CApi.Opcode.LOAD : operation.atomic_store () ? CApi.Opcode.STORE : CApi.Opcode.ATOMIC_RMW;
 		int address_operand = operation.atomic_store () ? 1 : 0;
@@ -29,6 +30,7 @@ internal class LlvmPcAtomicBinding : Object {
 			throw new LlvmError.VERIFICATION ("PC atomic load lost its exact result type");
 		}
 	}
+
 }
 
 // These are compiler-defined operations at fixed selected-target registers,
@@ -112,5 +114,6 @@ internal class LlvmPcDevices : Object {
 		CApi.dispose_builder (builder);
 		return new LlvmSumSequence (function, true);
 	}
+
 }
 }

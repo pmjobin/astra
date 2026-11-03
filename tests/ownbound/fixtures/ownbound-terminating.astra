@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 owned Resource choose(owned Resource r, bool c) {
-	if (c) { release r; return null; }
+	if (c) {
+		release r;
+		return null;
+	}
 	return move r;
 }
+
 void scenario() {
 	owned Resource r = create_resource(1);
 	owned Resource a = choose(move r, true);
 	r = create_resource(2);
 	owned Resource b = choose(move r, false);
 }
+
 int main() {
 	resource_reset();
 	scenario();
-	if (resource_create_count() != 2 || resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 0) { return 1; }
+	if (resource_create_count() != 2 || resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 0) return 1;
 	return 0;
 }

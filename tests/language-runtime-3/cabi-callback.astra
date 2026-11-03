@@ -1,25 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Capture { i64 total; int invocations; int bias; }
+
 int accumulate(borrowed Capture* context, int value) {
 	context->total = context->total + ((value + context->bias) as i64);
 	context->invocations = context->invocations + 1;
 	return context->invocations;
 }
+
 int increment(borrowed Capture* context, int value) { return value + 1; }
+
 [CCode(record_abi="natural-lp64", callback="accumulate", callback_abi="i32-context-i32-sync")]
 extern(C) int invoke_sync(borrowed Capture* context, int input);
+
 [CCode(record_abi="natural-lp64", callback="increment", callback_abi="i32-context-i32-sync")]
 extern(C) int invoke_noncapturing(borrowed Capture* context, int input);
+
 extern(C) void clear_callback_calls();
+
 extern(C) int callback_calls();
+
 export(C) int astra_callback_bridge(int seed) {
 	Capture capture = {total=100, invocations=0, bias=7};
-	if (invoke_noncapturing(&capture, seed) != seed * 2 + 3 || capture.total != 100 || capture.invocations != 0) { return 5; }
+	if (invoke_noncapturing(&capture, seed) != seed * 2 + 3 || capture.total != 100 || capture.invocations != 0) return 5;
 	clear_callback_calls();
-	if (invoke_sync(&capture, seed) != 3) { return 1; }
-	if (capture.total != 124 + (seed as i64) * 3 || capture.invocations != 3 || callback_calls() != 1) { return 2; }
-	if (invoke_sync(&capture, seed + 2) != 6) { return 3; }
-	if (capture.total != 154 + (seed as i64) * 6 || capture.invocations != 6 || callback_calls() != 2) { return 4; }
+	if (invoke_sync(&capture, seed) != 3) return 1;
+	if (capture.total != 124 + (seed as i64) * 3 || capture.invocations != 3 || callback_calls() != 1) return 2;
+	if (invoke_sync(&capture, seed + 2) != 6) return 3;
+	if (capture.total != 154 + (seed as i64) * 6 || capture.invocations != 6 || callback_calls() != 2) return 4;
 	return 0;
 }
+
 int main() { return astra_callback_bridge(23); }

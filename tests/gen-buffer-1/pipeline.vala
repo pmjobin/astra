@@ -62,6 +62,7 @@ private void lifetime() throws GLib.Error {
 		CAbiVerifier.verify (cabi);
 	}
 }
+
 private void correspondence() throws GLib.Error {
 	var ssa = build ("struct A{int x;}struct B{int x;}void fill<T>(T[] a,T x){a[0]=x;}void fa(A[] a,A x){fill(a,x);}void fb(B[] a,B x){fill(a,x);}");
 	var nabi = NativeAbiBuilder.build (ssa);
@@ -127,6 +128,7 @@ private void correspondence() throws GLib.Error {
 		assert (rejected);
 	}
 }
+
 private void recovery() throws GLib.Error {
 	for (int repeat = 0; repeat < 3; repeat++) {
 		foreach (string bad in new string[] {"void f<T>(owned T[] a){release a;var n=len(a);}", "void drop<T>(owned T[] a){}void f<T>(owned T[] a){drop(move a);drop(move a);}", "void f<T>(T[] a,T x){}void root(f64[] a){f(a,1.0);}", "void f<T>(owned T[] a,T x){}void root(){var a=new f64[1];f(move a,1.0);}"}) {
@@ -164,6 +166,7 @@ private void recovery() throws GLib.Error {
 		SsaVerifier.verify (build (fixture ("basic")));
 	}
 }
+
 private void cleanup_rank() throws GLib.Error {
 	var checked = check ("struct S{int x;f64 y;}class Token{init(){}deinit(){}}V finish<V,U>(V snapshot,owned U companion) where U : Ownable{Token token=Token.init();return snapshot;}void root(S value){var token=Token.init();var saved=finish(value,move token);}");
 	var core = CoreGenericMonomorphizer.build (CoreBuilder.build (checked));
@@ -176,6 +179,7 @@ private void cleanup_rank() throws GLib.Error {
 	}
 	assert (found);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -187,4 +191,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

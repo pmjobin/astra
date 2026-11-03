@@ -23,6 +23,7 @@ private CoreCallValue expired(SourceSpan span, SemanticType type) {
 	var target = new CoreFunction (span, span, "expired", type, new GenericArray<CoreParameter> (), new GenericArray<CoreLocalPlace> (), body);
 	return new CoreCallValue (span, type, target, new GenericArray<CoreValue> ());
 }
+
 private CoreProgram sample(int variant) throws CoreError {
 #elif TEXT_CFG
 private CfgCallInstruction expired(SourceSpan span, SemanticType type) {
@@ -32,6 +33,7 @@ private CfgCallInstruction expired(SourceSpan span, SemanticType type) {
 	var target = new CfgFunction (span, span, "expired", type, 0, new GenericArray<CfgParameter> (), new GenericArray<CfgLocalPlace> (), blocks, block);
 	return new CfgCallInstruction (span, target, new GenericArray<CfgValue> (), new CfgCallResultValue (span, type));
 }
+
 private CfgProgram sample(int variant) throws CfgError {
 #elif TEXT_SSA
 private SsaCallInstruction expired(SourceSpan span, SemanticType type) {
@@ -41,6 +43,7 @@ private SsaCallInstruction expired(SourceSpan span, SemanticType type) {
 	var target = new SsaFunction (span, span, "expired", type, 0, new GenericArray<SsaFunctionParameter> (), blocks, block);
 	return new SsaCallInstruction (span, type, 0, target, new GenericArray<SsaValue> ());
 }
+
 private SsaProgram sample(int variant) throws SsaError {
 #else
 private NativeAbiProgram sample(int variant) throws NativeAbiError {
@@ -118,6 +121,7 @@ private NativeAbiProgram sample(int variant) throws NativeAbiError {
 	return new NativeAbiProgram (span, NativeAbiVersion.TEXT_V9, functions);
 #endif
 }
+
 private void models() {
 #if TEXT_CORE || TEXT_CFG || TEXT_SSA
 	int last = 8;
@@ -148,9 +152,11 @@ private void models() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text/independent-model-and-malformed", models);
 	return Test.run ();
 }
+
 }

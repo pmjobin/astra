@@ -4,13 +4,17 @@ int early(bool failing) throws ArenaError {
 	ArenaPacket packet = {tag=4294967295, payload=123456};
 	owned PacketResource resource = packet_open(7);
 	int id = arena.append(packet, move resource);
-	if (arena.offset(id) != 0 || arena.occupied() != 8) { return 81; }
-	if (failing) { throw new ArenaError("early construction scope"); }
+	if (arena.offset(id) != 0 || arena.occupied() != 8) return 81;
+	if (failing) {
+		throw new ArenaError("early construction scope");
+	}
 	return 0;
 }
+
 void consume(owned PacketArena arena) {
-	if (arena.count() != 1) { packet_audit(99); }
+	if (arena.count() != 1) packet_audit(99);
 }
+
 int main() {
 	try {
 		{
@@ -19,40 +23,40 @@ int main() {
 			ArenaPacket second = {tag=17, payload=2147483648};
 			owned PacketResource empty = empty_packet_resource();
 			try { arena.append(first, move empty); return 80; } catch(ArenaError error) {}
-			if (arena.count() != 0 || packet_live() != 0) { return 81; }
+			if (arena.count() != 0 || packet_live() != 0) return 81;
 			int epoch = packet_heap_epoch();
 			owned PacketResource r1 = packet_open(1);
 			int a = arena.append(first, move r1);
 			owned PacketResource r2 = packet_open(2);
 			int b = arena.append(second, move r2);
 			ArenaPacket read = arena.read(a);
-			if (read.tag != first.tag || read.payload != first.payload || arena.offset(b) != 8 || arena.occupied() != 16) { return 82; }
+			if (read.tag != first.tag || read.payload != first.payload || arena.offset(b) != 8 || arena.occupied() != 16) return 82;
 			packet_heap_unchanged(epoch);
 			owned PacketResource r3 = packet_open(3);
 			try { arena.append(first, move r3); return 83; } catch(ArenaError error) {}
-			if (packet_live() != 2) { return 84; }
+			if (packet_live() != 2) return 84;
 			try { arena.drop_last(a); return 85; } catch(ArenaError error) {}
-			if (packet_live() != 2) { return 86; }
+			if (packet_live() != 2) return 86;
 			arena.drop_last(b);
 			try { ArenaPacket expired = arena.read(b); return 87; } catch(ArenaError error) {}
 			try { arena.drop_last(b); return 88; } catch(ArenaError error) {}
 			owned PacketResource r4 = packet_open(4);
 			int c = arena.append(second, move r4);
-			if (c == b || packet_live() != 2) { return 89; }
+			if (c == b || packet_live() != 2) return 89;
 			arena.drop_last(c);
 			arena.drop_last(a);
-			if (arena.count() != 0 || arena.occupied() != 0 || packet_live() != 0) { return 90; }
+			if (arena.count() != 0 || arena.occupied() != 0 || packet_live() != 0) return 90;
 		}
 		{
 			var small = packet_arena(7);
 			ArenaPacket packet = {tag=1, payload=2};
 			owned PacketResource r5 = packet_open(5);
 			try { small.append(packet, move r5); return 91; } catch(ArenaError error) {}
-			if (small.count() != 0 || packet_live() != 0) { return 92; }
+			if (small.count() != 0 || packet_live() != 0) return 92;
 		}
-		if (early(false) != 0 || packet_live() != 0) { return 93; }
+		if (early(false) != 0 || packet_live() != 0) return 93;
 		try { early(true); return 94; } catch(ArenaError error) {}
-		if (packet_live() != 0) { return 95; }
+		if (packet_live() != 0) return 95;
 		{
 			var moved = packet_arena(16);
 			ArenaPacket packet = {tag=7, payload=8};

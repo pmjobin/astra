@@ -9,9 +9,11 @@ internal class RuntimeProfileAdmission : Object {
 	private static void reject_windows(string detail) throws LlvmError {
 		throw new LlvmError.TARGET ("Windows interop object profile: unsupported %s", detail);
 	}
+
 	private static void reject_none(string detail) throws LlvmError {
 		throw new LlvmError.INVALID_INPUT ("runtime none: unsupported source requirement: %s", detail);
 	}
+
 	public static void windows(CheckedProgram program, bool explicit_declarations = false) throws LlvmError {
 		bool declared = false;
 		foreach (var owner in program.classes) {
@@ -71,6 +73,7 @@ internal class RuntimeProfileAdmission : Object {
 			}
 		}
 	}
+
 	private static void windows_declarations(CheckedProgram program) throws LlvmError {
 		if (program.enums.length != 0) {
 			reject_windows ("declarations-v1 enum storage");
@@ -181,5 +184,6 @@ internal class RuntimeProfileAdmission : Object {
 			}
 		}
 	}
+
 }
 }

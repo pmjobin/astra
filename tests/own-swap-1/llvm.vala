@@ -18,6 +18,7 @@ private LlvmModuleArtifact artifact() throws GLib.Error {
 	lowered.verify ();
 	return lowered;
 }
+
 private void lifetime() {
 	try {
 		for (int i = 0; i < 3; i++) {
@@ -36,6 +37,7 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void correspondence() {
 	try {
 		var source = build ();
@@ -67,6 +69,7 @@ private void correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	string[] reasons = {
 		"opposite complete", "opposite complete", "different descriptor", "different declared owner", "before any store", "incomplete permutation", "intervening effect", "intervening effect", "intervening effect", "snapshot escapes"
@@ -140,6 +143,7 @@ private void malformed() {
 		}
 	}
 }
+
 private void field_guards() {
 	string[] reasons = {
 		"exact physical null guard", "exact reference", "successful guard continuation", "different receiver", "left-to-right order"
@@ -186,6 +190,7 @@ private void field_guards() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-swap/llvm/predecessor-lifetime-and-closed-region", lifetime);
@@ -195,4 +200,5 @@ int main(string[] args) {
 	Test.add_func ("/own-swap/pipeline/repeated-definition-growth-cycle-failure-success", recovery);
 	return Test.run ();
 }
+
 }

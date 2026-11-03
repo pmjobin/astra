@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #include "sdk-oracle.hpp"
+
 struct Worker {
 	Value *value;
 };
+
 static DWORD WINAPI other_thread(void *input) {
 	auto context = static_cast<Worker *>(input);
 	CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED) == S_OK);
@@ -16,6 +18,7 @@ static DWORD WINAPI other_thread(void *input) {
 	CoUninitialize();
 	return 0;
 }
+
 int main(int argc, char **argv) {
 	static_assert(sizeof(void *) == 8 && sizeof(LONG) == 4 && sizeof(GUID) == 16);
 	CHECK(argc == 2);

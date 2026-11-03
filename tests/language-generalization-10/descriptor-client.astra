@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using NativeMetadata_Witness;
 extern(C) void descriptor_number(int value);
+
 int main(string[] args) {
-	if (len(args) != 3) { return 81; }
+	if (len(args) != 3) return 81;
 	try {
 		var selected = lookup(args[1]);
-		if (!println(type_name(selected)) || !println(type_kind(selected))) { return 82; }
+		if (!println(type_name(selected)) || !println(type_kind(selected))) return 82;
 		int count = type_member_count(selected);
 		int ordinal = 0;
 		while (ordinal < count) {
 			var field = member(selected, ordinal);
-			if (!println(member_name(field)) || !println(member_kind(field)) || !println(member_type(field))) { return 83; }
+			if (!println(member_name(field)) || !println(member_kind(field)) || !println(member_type(field))) return 83;
 			ordinal = ordinal + 1;
 		}
 		int seed = args[2].byte_length;
@@ -33,31 +34,31 @@ int main(string[] args) {
 		var invoke = member(contract, 0);
 		descriptor_number(call_MetaTransform_int(transform, invoke, 7));
 		try { int invalid = read_MetaReading_int(value, y); return 84; }
-		catch(Error error) { if (error.message != "descriptor receiver type mismatch") { return 85; } }
+		catch(Error error) { if (error.message != "descriptor receiver type mismatch") return 85; }
 		try { int invalid = read_MetaReading_int(null, amount); return 86; }
-		catch(Error error) { if (error.message != "null native descriptor receiver") { return 87; } }
+		catch(Error error) { if (error.message != "null native descriptor receiver") return 87; }
 		try { var invalid = from_id(0); return 88; }
-		catch(Error error) { if (error.message != "unknown native type descriptor") { return 89; } }
+		catch(Error error) { if (error.message != "unknown native type descriptor") return 89; }
 		var forged = reading_type;
 		forged.version = 2;
 		try { string invalid = type_name(forged); return 90; }
-		catch(Error error) { if (error.message != "descriptor module/version mismatch") { return 91; } }
+		catch(Error error) { if (error.message != "descriptor module/version mismatch") return 91; }
 		forged = reading_type;
 		forged.unit_tag = 0;
 		try { string invalid = type_name(forged); return 92; }
-		catch(Error error) { if (error.message != "descriptor module/version mismatch") { return 93; } }
+		catch(Error error) { if (error.message != "descriptor module/version mismatch") return 93; }
 		try { var invalid = member(reading_type, count + 99); return 94; }
-		catch(Error error) { if (error.message != "native member index out of bounds") { return 95; } }
+		catch(Error error) { if (error.message != "native member index out of bounds") return 95; }
 		var forged_member = amount;
 		forged_member.ordinal = -1;
 		try { int invalid = read_MetaReading_int(value, forged_member); return 99; }
-		catch(Error error) { if (error.message != "native member index out of bounds") { return 100; } }
+		catch(Error error) { if (error.message != "native member index out of bounds") return 100; }
 		forged_member = amount;
 		forged_member.owner.id = 0;
 		try { int invalid = read_MetaReading_int(value, forged_member); return 101; }
-		catch(Error error) { if (error.message != "unknown native type descriptor") { return 102; } }
-		if (type_name(reading_type) != "MetaReading") { return 96; }
+		catch(Error error) { if (error.message != "unknown native type descriptor") return 102; }
+		if (type_name(reading_type) != "MetaReading") return 96;
 	}
-	catch(Error error) { if (!println(error.message)) { return 97; } return 98; }
+	catch(Error error) { if (!println(error.message)) return 97; return 98; }
 	return 0;
 }

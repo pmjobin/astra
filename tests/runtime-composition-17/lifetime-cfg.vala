@@ -19,6 +19,7 @@ private CfgFunction function(CfgProgram program, string name) {
 	}
 	error ("missing CFG function %s", name);
 }
+
 private RuntimeLifetimeSummary summary(CfgProgram program, string name) throws CfgError {
 	var facts = CfgRuntimeLifetimes.analyze (program);
 	var result = facts.lookup (function (program, name));
@@ -28,6 +29,7 @@ private RuntimeLifetimeSummary summary(CfgProgram program, string name) throws C
 	}
 	return result;
 }
+
 private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string path = "") {
 	foreach (var origin in origins) {
 		if (origin.kind == RuntimeScopeOriginKind.OWNER_PARAMETER && origin.ordinal == parameter && origin.path == path) {
@@ -36,6 +38,7 @@ private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string
 	}
 	return false;
 }
+
 private CfgProgram build(string text, string? heap_boundary = null) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("lifetime-cfg.astra", text));
 	assert (parsed.diagnostic == null);
@@ -76,6 +79,7 @@ private CfgProgram build(string text, string? heap_boundary = null) throws GLib.
 	assert (core_reference.get () == null);
 	return cfg;
 }
+
 private void context_instruction_states() {
 	try {
 		var cfg = build (CONTROLLER);
@@ -127,6 +131,7 @@ private void context_instruction_states() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_declaration() {
 	try {
 		var client = Parser.parse (new SourceFile.from_text ("lifetime-cfg-client.astra", "int main(){return opaque();}"));
@@ -156,6 +161,7 @@ private void native_declaration() {
 		error ("%s", failure.message);
 	}
 }
+
 private void constructor_and_versions() {
 	try {
 		CfgProgram? cfg = build (CLASSES + "owned Box wrap(owned Leaf input){var box=new Box(move input);return move box;}owned Box forward(owned Leaf input){var result=wrap(move input);return move result;}void compare(borrowed Box box,owned Leaf incoming,int count){bool ignored=0<count<box.change(move incoming);}void loop(borrowed Box box,owned Leaf incoming,int count){while(count>0){box.put(move incoming);break;}}int main(){return 0;}");
@@ -177,6 +183,7 @@ private void constructor_and_versions() {
 		error ("%s", failure.message);
 	}
 }
+
 private void inject_scoped_leaf(CfgFunction function) {
 	CfgLocalPlace? context = null;
 	foreach (var local in function.locals) {
@@ -216,6 +223,7 @@ private void inject_scoped_leaf(CfgFunction function) {
 	}
 	error ("CFG fixture lost empty producer");
 }
+
 private void scoped_retirement() {
 	try {
 		foreach (int mode in new int[] { 0, 1, 2 }) {
@@ -265,6 +273,7 @@ private void scoped_retirement() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_result() {
 	try {
 		var cfg = build (SCOPED + "owned ScopedLeaf exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=empty();return null;}int main(){return 0;}");
@@ -315,6 +324,7 @@ private void scoped_result() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_pending_handoff() {
 	try {
 		foreach (bool reordered in new bool[] { false, true }) {
@@ -356,6 +366,7 @@ private void scoped_pending_handoff() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_receiver_store() {
 	try {
 		string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}void put(owned ScopedLeaf child){this.child=move child;}}";
@@ -381,6 +392,7 @@ private void scoped_receiver_store() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_carrier_signature() {
 	try {
 		var program = build (SCOPED.replace ("init(){}", "int code;init(){this.code=7;}int read(){int value=this.code;return value;}") + "class Inner{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}class Host{private owned Inner child;init(owned Inner child){this.child=move child;}}extern(C) void* opaque_ptr();void opaque(){opaque_ptr();}void probe(borrowed Host box){}int main(){return 0;}");
@@ -402,6 +414,7 @@ private void scoped_carrier_signature() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owned_factory_roles() {
 	try {
 		var program = build (SCOPED + "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}int probe(borrowed Host host){var context=context_open();return 0;}int main(){return 0;}");
@@ -434,6 +447,7 @@ private void owned_factory_roles() {
 		error ("%s", failure.message);
 	}
 }
+
 private void fallible_owner_inputs() {
 	try {
 		var program = build (SCOPED + "[Allocator(kind=\"context\",context=\"owned-concurrent\")]class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}owned ScopedLeaf refuse(borrowed Context context,owned ScopedLeaf input){var host=try_new(context)Host(move input);if(host==null){return move input;}return null;}int main(){return 0;}");
@@ -490,6 +504,7 @@ private void fallible_owner_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exceptional_results() {
 	try {
 		string fault = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}";
@@ -652,7 +667,6 @@ private void exceptional_results() {
 	}
 }
 
-
 private void checked_constructor_rollback() {
 	try {
 		string declarations = "[ExceptionRoot]class Fault{init(){}virtual property string message{get{return \"failed\";}}}[Allocator(kind=\"context\",context=\"scoped-affine\")]class Item{private int code;init(int code)throws Fault{this.code=code;if(code<0){throw new Fault();}}int read(){return this.code;}}";
@@ -779,6 +793,7 @@ private void owned_record_arguments() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_buffer_fields() {
 	try {
 		var program = build ("[Allocator(kind=\"context\",context=\"scoped-affine\")]class Packet{private owned u8[] bytes;init(owned u8[] bytes,int marker){this.bytes=move bytes;}int count(){return len(this.bytes);}}int main(){return 0;}");
@@ -828,6 +843,7 @@ private void cold_task_contract() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_scoped_capture() {
 	try {
 		foreach (bool early in new bool[] { false, true }) {
@@ -875,6 +891,7 @@ private void cold_task_scoped_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_joined_capture() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}async void joined(owned Captured input) throws TaskError{var child=consume(move input);await move child;await delay_ticks(1);}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();try{var executor=Tasks.open(8);var pending=joined(move input);var status=executor.run(move pending);match(status){case TaskStatus.Completed():{}else:{return 2;}}}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -887,6 +904,7 @@ private void cold_task_joined_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_admission_refusal() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}owned Captured refused(borrowed Context frames,owned Captured input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}return null;}int main(){return 0;}");
@@ -921,6 +939,7 @@ private void cold_task_admission_refusal() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_admission() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}struct Packet{owned Captured child;int marker;}async void consume(Packet input){}Packet refused(borrowed Context frames,Packet input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}Packet vacant={child=empty(),marker=0};return move vacant;}int main(){return 0;}");
@@ -930,6 +949,7 @@ private void cold_task_record_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_buffer_admission() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}async void consume(owned Captured item,owned u8[] bytes){}owned Captured refused(borrowed Context frames,owned Captured item,owned u8[] bytes){try{var pending=checked_task_in(frames,consume(move item,move bytes));}catch(TaskError error){return move item;}return null;}int main(){return 0;}");
@@ -939,6 +959,7 @@ private void cold_task_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_admission() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async void consume(Packet input){}Packet refused(borrowed Context frames,Packet input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}Packet vacant={child=empty(),data={left=new u8[0],right=new u8[0]},marker=0};return move vacant;}int main(){return 0;}");
@@ -948,6 +969,7 @@ private void cold_task_record_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_deferred_error() {
 	try {
 		var program = build ("[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}[ExceptionRoot]class DeferredError{private owned Captured child;init(string message){this.child=empty();}void put(owned Captured input){this.child=move input;}virtual property string message{get{return \"deferred\";}}}enum DeferredStatus{Completed,Cancelled}async runtime DeferredTasks throws DeferredError returns DeferredStatus;async void fail(owned Captured input)throws DeferredError{var error=new DeferredError(\"deferred\");error.put(move input);throw move error;}int main(){return 0;}");
@@ -960,6 +982,7 @@ private void cold_task_deferred_error() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_observation() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Packet{owned Captured child;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -1018,6 +1041,7 @@ private void cold_task_record_observation() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_observation() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,data={left=new u8[7],right=new u8[9]},marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -1027,6 +1051,7 @@ private void cold_task_record_buffer_observation() {
 		error ("%s", failure.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/runtime-lifetime-cfg/cold-task-record-buffer-observation", cold_task_record_buffer_observation);
@@ -1055,4 +1080,5 @@ public int main(string[] args) {
 	Test.add_func ("/runtime-lifetime-cfg/scoped-receiver-store", scoped_receiver_store);
 	return Test.run ();
 }
+
 }

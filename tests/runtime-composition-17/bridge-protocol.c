@@ -21,6 +21,7 @@ typedef struct Frame {
 	AstraLinuxPayload *payload;
 	int identity, mode, value;
 } Frame;
+
 static _Atomic unsigned entered, retired, submitted, completed;
 static _Atomic long worker_ids[2];
 static long owner;
@@ -34,9 +35,11 @@ static void dispose(AstraAsyncTask *task, int discard) {
 	unsigned bit = 1u << frame->identity;
 	assert(!(atomic_fetch_or(&retired, bit) & bit));
 }
+
 static void cancellation(AstraAsyncTask *task) {
 	if (astra_async_cancel_scope(task)) astra_async_complete(task, ASTRA_ASYNC_CANCELLED, NULL);
 }
+
 static void compute(AstraAsyncTask *task) {
 	Frame *frame = astra_async_data(task);
 	assert(frame->identity == 2 || frame->identity == 3);
@@ -61,6 +64,7 @@ static void compute(AstraAsyncTask *task) {
 	astra_async_complete(task, frame->mode == 2 && frame->identity == 2 ? ASTRA_ASYNC_EXCEPTION : ASTRA_ASYNC_SUCCESS,
 	                     frame->mode == 2 && frame->identity == 2 ? &exception_identity : NULL);
 }
+
 static void file_io(AstraAsyncTask *task) {
 	Frame *frame = astra_async_data(task);
 	assert(syscall(SYS_gettid) == owner);
@@ -79,11 +83,13 @@ static void file_io(AstraAsyncTask *task) {
 		assert(astra_linux_payload_byte(frame->payload, i + 3) == ((i + 11) * 17 + 53) % 256);
 	astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 static AstraAsyncTask *create(AstraAsyncTask *parent, AstraAsyncResume resume, int identity, int mode) {
 	AstraAsyncTask *task = astra_async_new(sizeof(Frame), _Alignof(Frame), resume, dispose, parent);
 	*(Frame *)astra_async_data(task) = (Frame){.identity = identity, .mode = mode};
 	return task;
 }
+
 static void control(AstraAsyncTask *task) {
 	Frame *frame = astra_async_data(task);
 	assert(syscall(SYS_gettid) == owner);
@@ -127,14 +133,17 @@ static void control(AstraAsyncTask *task) {
 	} else
 		astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 void astra_payload_test_submitted(void) {
 	assert(atomic_fetch_add(&submitted, 1) == 0);
 }
+
 void astra_payload_test_completed(uint64_t target, uint64_t cancel, int result, int cancel_result, int cancel_seen) {
 	assert(target && cancel && target != cancel && (result == 67 || result == -ECANCELED));
 	if (cancel_seen) assert(cancel_result == 0 || cancel_result == -ENOENT || cancel_result == -EALREADY);
 	assert(atomic_fetch_add(&completed, 1) == 0);
 }
+
 static void *cancel_from_foreign_thread(void *unused) {
 	(void)unused;
 	struct timespec start, now, delay = {.tv_nsec = 1000000};
@@ -146,6 +155,7 @@ static void *cancel_from_foreign_thread(void *unused) {
 	assert(astra_async_request_shutdown(io_executor) == 1);
 	return NULL;
 }
+
 static void await_kernel_retirement(long identity) {
 	assert(identity > 0 && identity != owner);
 	char path[128];
@@ -159,6 +169,7 @@ static void await_kernel_retirement(long identity) {
 	}
 	assert(errno == ENOENT);
 }
+
 int main(int argc, char **argv) {
 	assert(argc == 2);
 	owner = syscall(SYS_gettid);

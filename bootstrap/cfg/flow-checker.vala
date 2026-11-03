@@ -10,6 +10,7 @@ public class CfgFlowResult : Object {
 	internal CfgFlowResult (Diagnostic? diagnostic) {
 		this.diagnostic = diagnostic;
 	}
+
 }
 
 public class CfgFlowChecker : Object {
@@ -38,5 +39,6 @@ public class CfgFlowChecker : Object {
 		}
 		return new CfgFlowResult (null);
 	}
+
 }
 }

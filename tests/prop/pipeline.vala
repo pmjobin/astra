@@ -43,6 +43,7 @@ private void lifetime() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	CAbiVerifier.verify (cabi);
 }
+
 private void storage() throws GLib.Error {
 	var ssa = build (read ("struct"));
 	assert (ssa.functions[0].storage.length == 1 && ssa.functions[0].storage[0].name == "b");
@@ -51,6 +52,7 @@ private void storage() throws GLib.Error {
 	assert (ssa.functions[0].storage.length == 0);
 	assert (ssa.structs[0].properties[0].getter.storage.length == 0);
 }
+
 private void order() throws GLib.Error {
 	var cfg = CfgBuilder.build (CoreBuilder.build (check (read ("null-set"))));
 	var events = new StringBuilder ();
@@ -70,6 +72,7 @@ private void order() throws GLib.Error {
 	}
 	assert (events.str == "guard rhs setter ");
 }
+
 private void profiles() throws GLib.Error {
 	foreach (string name in new string[] {"basic", "readonly", "effect", "alias", "struct", "method", "life", "constructor", "owned", "result", "bool", "f32", "f64", "vector", "pointer"}) {
 		var ssa = build (read (name));
@@ -97,6 +100,7 @@ private void profiles() throws GLib.Error {
 	var mixed = build (read ("vector") + "class D{property f64 value{get{return 1.25;}}}");
 	assert (NativeAbiBuilder.build (mixed).abi_version == NativeAbiVersion.FP64_V6);
 }
+
 private void negatives() throws GLib.Error {
 	foreach (string operation in new string[] {"int x=c.value;", "c.value=42;"}) {
 		string text = "class C{int raw;init(){this.raw=0;}property int value{get{return this.raw;}set(int next){this.raw=next;}}}void consume(owned C c){}void f(){owned C c=C.init();consume(move c);" + operation + "}";
@@ -122,6 +126,7 @@ private void negatives() throws GLib.Error {
 	var result = SemanticAnalyzer.analyze (parsed.unit, Astra.Vapi.VapiNormalizer.normalize (vapi.file), Astra.Vapi.VapiNormalizer.normalize_handles (vapi.file));
 	assert (result.diagnostic != null && result.diagnostic.message.contains ("unsupported property value type 'Resource'"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -134,4 +139,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

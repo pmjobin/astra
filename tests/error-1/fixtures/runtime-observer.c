@@ -12,13 +12,16 @@ static int calls, releases, writes, observed, drops, failed;
 static const unsigned char *input;
 static int input_count, prior_calls, prior_releases, prior_writes;
 #ifndef ERROR_MEMORY_ONLY
+
 static struct {
 	void *pointer;
 	size_t bytes;
 	int live;
 } allocations[256];
+
 static int used;
 static const unsigned char *first_snapshot, *second_snapshot;
+
 void *calloc(size_t count, size_t size) {
 	void *pointer = __libc_calloc(count, size);
 	if (pointer != NULL && used < 256 && (size == 0 || count <= SIZE_MAX / size)) {
@@ -30,6 +33,7 @@ void *calloc(size_t count, size_t size) {
 	calls++;
 	return pointer;
 }
+
 void free(void *pointer) {
 	for (int i = 0; i < used; i++) {
 		if (allocations[i].pointer == pointer && allocations[i].live) {
@@ -39,10 +43,12 @@ void free(void *pointer) {
 	}
 	__libc_free(pointer);
 }
+
 ssize_t write(int fd, const void *bytes, size_t count) {
 	writes++;
 	return syscall(SYS_write, fd, bytes, count);
 }
+
 static int live_backing(const void *pointer, int count) {
 	for (int i = 0; i < used; i++) {
 		if (allocations[i].live && allocations[i].pointer == pointer && allocations[i].bytes == (size_t)count) {
@@ -51,14 +57,18 @@ static int live_backing(const void *pointer, int count) {
 	}
 	return 0;
 }
+
 #endif
+
 void runtime_input(const unsigned char *text, int32_t count) {
 	input = text;
 	input_count = count;
 }
+
 void runtime_drop(int32_t rank) {
 	drops = drops * 10 + rank;
 }
+
 void runtime_snapshot(int32_t stage, const unsigned char *text, int32_t count) {
 	if (stage != observed + 1 || count != input_count || memcmp(text, input, (size_t)count) != 0) {
 		failed = 1;
@@ -102,6 +112,7 @@ void runtime_snapshot(int32_t stage, const unsigned char *text, int32_t count) {
 	prior_writes = writes;
 	observed = stage;
 }
+
 int32_t runtime_result(void) {
 #ifdef ERROR_MEMORY_ONLY
 	fprintf(stdout, "runtime-memory stages=%d drops=%d\n", observed, drops);

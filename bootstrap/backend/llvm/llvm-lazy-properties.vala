@@ -15,6 +15,7 @@ internal class LlvmLazyBlock : Object {
 			this.instructions[i] = (void*) instructions[i];
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		var current = CApi.first_instruction (block);
 		for (int i = 0; i < instructions.length; i++) {
@@ -37,6 +38,7 @@ internal class LlvmLazyBlock : Object {
 			throw new LlvmError.VERIFICATION ("lazy gate contains an undeclared transition or effect");
 		}
 	}
+
 }
 internal class LlvmLazyGateBinding : Object {
 	private CApi.ValueRef function;
@@ -48,13 +50,16 @@ internal class LlvmLazyGateBinding : Object {
 		this.function = function;
 		this.body = body;
 	}
+
 	internal void expect(CApi.BasicBlockRef block, CApi.ValueRef[] instructions) {
 		blocks.add (new LlvmLazyBlock (block, instructions));
 	}
+
 	internal void expect_result(CApi.ValueRef slot, CApi.TypeRef type) {
 		result_slot = slot;
 		result_type = type;
 	}
+
 	internal void verify() throws LlvmError {
 		verify_attributes (function);
 		verify_attributes (body);
@@ -68,6 +73,7 @@ internal class LlvmLazyGateBinding : Object {
 			throw new LlvmError.VERIFICATION ("lazy initializer lost complete private copied success storage");
 		}
 	}
+
 	private static void verify_attributes(CApi.ValueRef value) throws LlvmError {
 		if (CApi.attribute_count (value, uint.MAX) != 0) {
 			throw new LlvmError.VERIFICATION ("lazy gate/initializer gained an undeclared memory/effect promise");
@@ -78,6 +84,7 @@ internal class LlvmLazyGateBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmLazyProperties : Object {
 	internal static void retain_construction_order(LlvmModuleArtifact artifact) {
@@ -94,38 +101,45 @@ internal class LlvmLazyProperties : Object {
 			artifact.sum_sequences.add (new LlvmSumSequence (function, true));
 		}
 	}
+
 	private static CApi.ValueRef address(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.TypeRef layout, CApi.ValueRef receiver, uint member, string name) {
 		var result = CApi.build_struct_gep (builder, layout, receiver, member, name);
 		artifact.class_addresses.add (new LlvmClassAddressBinding (result, receiver, layout, member));
 		return result;
 	}
+
 	private static CApi.ValueRef read(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.TypeRef type, CApi.ValueRef source, string name) {
 		var result = CApi.build_load (builder, type, source, name);
 		CApi.set_alignment (result, 1);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { source }, "lazy guarded exact cache/result read", -1, -1, 1));
 		return result;
 	}
+
 	private static CApi.ValueRef store(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.ValueRef value, CApi.ValueRef destination, string purpose) {
 		var result = CApi.build_store (builder, value, destination);
 		CApi.set_alignment (result, 1);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, destination }, purpose, -1, -1, 1));
 		return result;
 	}
+
 	private static CApi.ValueRef equal(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.ValueRef left, CApi.ValueRef right, string name) {
 		var result = CApi.build_icmp (builder, CApi.IntPredicate.EQ, left, right, name);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.ICMP, CApi.int1_type_in_context (artifact.context), new CApi.ValueRef[] { left, right }, "lazy exact state/exception test", -1, (int) CApi.IntPredicate.EQ));
 		return result;
 	}
+
 	private static CApi.ValueRef branch(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.ValueRef condition, CApi.BasicBlockRef yes, CApi.BasicBlockRef no) {
 		var result = CApi.build_cond_br (builder, condition, yes, no);
 		artifact.class_branches.add (new LlvmClassBranchBinding (result, condition, yes, no));
 		return result;
 	}
+
 	private static CApi.ValueRef finish(LlvmModuleArtifact artifact, CApi.BuilderRef builder, CApi.ValueRef value) {
 		var result = CApi.build_ret (builder, value);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.RET, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value }, "lazy unchanged success/exception return"));
 		return result;
 	}
+
 	internal static void initialize(LlvmModuleArtifact artifact, LlvmTypeMapper types, LlvmStructRegistry structs, NativeAbiProgram native, CApi.BuilderRef builder, SsaClass owner, CApi.ValueRef receiver, string name) throws LlvmError {
 		var plan = native.classes[owner.ordinal];
 		if (plan.parent_ordinal >= 0) {
@@ -145,6 +159,7 @@ internal class LlvmLazyProperties : Object {
 			store (artifact, builder, CApi.const_int (types.scalar (NativeScalarType.U8), 0, 0), state, "lazy exact declaring cache construction Empty");
 		}
 	}
+
 	internal static void retire(LlvmModuleArtifact artifact, LlvmTypeMapper types, LlvmStructRegistry structs, CApi.BuilderRef builder, CApi.ValueRef function, SsaClass owner, NativeLazyCache cache, CApi.ValueRef receiver, LlvmFunctionBinding? destructor, LlvmBufferAllocation allocator, LlvmBlockState state, string name, LlvmClassRuntime classes, SsaClass cached_owner) throws LlvmError {
 		var byte = types.scalar (NativeScalarType.U8);
 		var pointer = types.scalar (NativeScalarType.PTR);
@@ -170,12 +185,14 @@ internal class LlvmLazyProperties : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 	internal static LlvmFunctionBinding declare_body(LlvmModuleArtifact artifact, LlvmFunctionBinding gate, NativeLazyCache cache) {
 		var body = CApi.add_function (artifact.module, "astra.lazy.body.%d.%d".printf (cache.class_ordinal, cache.property_ordinal), gate.type);
 		CApi.set_linkage (body, CApi.Linkage.INTERNAL);
 		CApi.set_function_call_conv (body, LlvmLowering.CALL_CONVENTION);
 		return new LlvmFunctionBinding (gate.signature, gate.type, body);
 	}
+
 	internal static void lower_gate(LlvmModuleArtifact artifact, LlvmTypeMapper types, LlvmStructRegistry structs, SsaClass owner, NativeLazyCache cache, LlvmFunctionBinding gate, LlvmFunctionBinding body) throws LlvmError {
 		var builder = CApi.create_builder_in_context (artifact.context);
 		var witness = new LlvmLazyGateBinding (gate.value, body.value);
@@ -265,5 +282,6 @@ internal class LlvmLazyProperties : Object {
 		artifact.class_functions.add (new LlvmClassFunctionBinding (gate.value, gate.type));
 		artifact.class_functions.add (new LlvmClassFunctionBinding (body.value, body.type));
 	}
+
 }
 }

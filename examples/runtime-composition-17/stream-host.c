@@ -14,10 +14,12 @@ static struct sigaction previous_int, previous_term;
 static struct timespec began;
 static int verbose;
 static _Atomic unsigned events;
+
 static void request_stop(int signal) {
 	(void)signal;
 	atomic_store_explicit(&stopped, 1, memory_order_relaxed);
 }
+
 int stream_requested_port(void) {
 	const char *value = getenv("ASTRA_STREAM_PORT");
 	if (!value) {
@@ -28,6 +30,7 @@ int stream_requested_port(void) {
 	long port = strtol(value, &end, 10);
 	return errno || end == value || *end || port < 0 || port > 65535 ? -1 : (int)port;
 }
+
 /* Configuration is supplied by the launching client; libraries receive the
  * resulting typed contexts and queues rather than consulting these options. */
 static int option(const char *name, int fallback, int minimum, int maximum) {
@@ -40,25 +43,32 @@ static int option(const char *name, int fallback, int minimum, int maximum) {
 	long parsed = strtol(value, &end, 10);
 	return errno || end == value || *end || parsed < minimum || parsed > maximum ? -1 : (int)parsed;
 }
+
 int stream_queue_capacity(void) {
 	return option("ASTRA_STREAM_CAPACITY", 2, 1, 8);
 }
+
 int stream_worker_count(void) {
 	return option("ASTRA_STREAM_WORKERS", 2, 2, 8);
 }
+
 int stream_context_bytes(void) {
 	return option("ASTRA_STREAM_CONTEXT_BYTES", 262147, 131071, 1048576);
 }
+
 int stream_frame_bytes(void) {
 	return option("ASTRA_STREAM_FRAME_BYTES", 524309, 524309, 2097152);
 }
+
 int stream_chunk_limit(void) {
 	return option("ASTRA_STREAM_CHUNK_LIMIT", 4093, 31, 4093);
 }
+
 int stream_alignment(void) {
 	int value = option("ASTRA_STREAM_ALIGNMENT", 128, 64, 256);
 	return value > 0 && (value & (value - 1)) == 0 ? value : -1;
 }
+
 void stream_prepare(void) {
 	struct sigaction action = {.sa_handler = request_stop};
 	if (sigemptyset(&action.sa_mask) || sigaction(SIGINT, &action, &previous_int) ||
@@ -67,15 +77,18 @@ void stream_prepare(void) {
 	}
 	verbose = getenv("ASTRA_STREAM_EVENTS") != NULL;
 }
+
 int stream_stop_requested(void) {
 	return atomic_load_explicit(&stopped, memory_order_relaxed) != 0;
 }
+
 void stream_ready(int tcp, int udp) {
 	printf("{\"tcp\":%d,\"udp\":%d,\"pid\":%ld}\n", tcp, udp, (long)getpid());
 	if (fflush(stdout)) {
 		abort();
 	}
 }
+
 void stream_event(int kind, int sequence, int value) {
 	atomic_fetch_add_explicit(&events, 1, memory_order_relaxed);
 	if (verbose) {
@@ -85,6 +98,7 @@ void stream_event(int kind, int sequence, int value) {
 		}
 	}
 }
+
 void stream_error(const unsigned char *message, int length) {
 	if (!message || length < 0) {
 		abort();
@@ -96,6 +110,7 @@ void stream_error(const unsigned char *message, int length) {
 	fwrite(message, 1, (size_t)length, stderr);
 	fputc('\n', stderr);
 }
+
 int stream_finish(int result) {
 	struct timespec ended;
 	if (clock_gettime(CLOCK_MONOTONIC, &ended) || sigaction(SIGINT, &previous_int, NULL) ||

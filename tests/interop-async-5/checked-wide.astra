@@ -1,16 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [ExceptionRoot]
-class Error { init() {} virtual property string message { get { return "wide"; } } }
+class Error { init() {}
+
+	virtual property string message { get { return "wide"; } } }
+
 class Env { init() {} }
-f64 wide(borrowed Env env, f64 x, i64 y, bool fail) throws Error { if (fail) { throw new Error(); } return x + (y as f64); }
-bool flag(borrowed Env env, bool x) throws Error { if (!x) { throw new Error(); } return x; }
+
+f64 wide(borrowed Env env, f64 x, i64 y, bool fail) throws Error { if (fail) {
+		throw new Error();
+	} return x + (y as f64); }
+
+bool flag(borrowed Env env, bool x) throws Error { if (!x) {
+		throw new Error();
+	} return x; }
+
 int main() {
 	var env = new Env(); var f = checked_closure_bind(move env, wide);
 	var other = new Env(); var g = checked_closure_bind(move other, flag);
 	try {
-		if (closure_invoke(f, 1.5, 9000000000, false) != 9000000001.5) { return 81; }
-		if (!closure_invoke(g, true)) { return 82; }
+		if (closure_invoke(f, 1.5, 9000000000, false) != 9000000001.5) return 81;
+		if (!closure_invoke(g, true)) return 82;
 		f64 unexpected = closure_invoke(f, 0.0, 0, true); return 83;
-	} catch (Error error) { if (error.message != "wide") { return 84; } }
+	} catch (Error error) { if (error.message != "wide") return 84; }
 	return 0;
 }

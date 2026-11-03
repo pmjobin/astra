@@ -21,6 +21,7 @@ public class SsaSliceConstructInstruction : SsaInstruction {
 		this.count = count;
 		this.provenance = provenance;
 	}
+
 }
 
 public class SsaSliceLengthInstruction : SsaInstruction {
@@ -30,6 +31,7 @@ public class SsaSliceLengthInstruction : SsaInstruction {
 		base (span, type, ordinal);
 		this.slice = slice;
 	}
+
 }
 
 public class SsaSliceElementPlace : SsaMemoryPlace {
@@ -46,6 +48,7 @@ public class SsaSliceElementPlace : SsaMemoryPlace {
 		this.index = index;
 		this.provenance = provenance;
 	}
+
 }
 
 public class SsaSliceBoundsCheck : SsaInstruction {
@@ -57,5 +60,6 @@ public class SsaSliceBoundsCheck : SsaInstruction {
 		this.slice = slice;
 		this.index = index;
 	}
+
 }
 }

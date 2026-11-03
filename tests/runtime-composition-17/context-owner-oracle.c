@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "context-provider.h"
 static unsigned born, retired;
+
 void context_owner_event(int value) {
 	unsigned bit;
 	switch (value < 0 ? -value : value) {
@@ -33,6 +34,7 @@ void context_owner_event(int value) {
 		retired |= bit;
 	}
 }
+
 int context_owner_finish(void) {
 	assert(born == 31 && retired == 31 && m17_custom_provider_retired() == 1);
 	puts("context owners: two runtime instances, borrowed factory, escaping backing, external custom provider, exact five destructors");

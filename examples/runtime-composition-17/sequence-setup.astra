@@ -3,9 +3,11 @@ namespace SequenceSetup;
 owned SequenceModel.Queue queue(borrowed ConcurrentAllocator context, int capacity) {
 	var result = new(context) SequenceModel.Queue(capacity); return move result;
 }
+
 owned SequenceModel.Cache cache(borrowed ConcurrentAllocator context, int capacity) {
 	var result = new(context) SequenceModel.Cache(capacity); return move result;
 }
+
 owned SequenceModel.Ticket ticket(borrowed ConcurrentAllocator context, int identity, int mode, SequenceModel.Triple ranges) {
 	var bytes = new(context)u8[ranges.first.count + ranges.second.count + ranges.third.count];
 	var block = new(context) SequenceModel.Block(ranges, move bytes);

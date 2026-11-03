@@ -187,4 +187,5 @@ private void register_struct_tests() {
 	Test.add_func ("/core-standalone/structs/model-lifetime", struct_model);
 	Test.add_func ("/core-standalone/structs/malformed", struct_invalid);
 }
+
 }

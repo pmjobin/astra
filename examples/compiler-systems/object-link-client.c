@@ -5,6 +5,7 @@
 #include <stdlib.h>
 extern uint64_t astra_systems_mix(uint64_t value);
 _Static_assert(sizeof(uint64_t) == 8 && sizeof(void *) == 8, "qualified host ABI");
+
 int main(int argc, char **argv) {
 	if (argc != 2 || argv[1][0] == '-') {
 		return 64;

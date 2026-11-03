@@ -1,39 +1,60 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int se_mark(int value);
+
 struct Kernel { int index; f64 gain; }
+
 struct Box<T> { T value; }
+
 class Token {
 	init() { se_mark(70); }
+
 	deinit() { se_mark(71); }
 }
+
 class Owner {
 	owned Kernel[] records;
+
 	init() { this.records = new Kernel[2]; this.records[0].index = 7; this.records[0].gain = 3.5d; }
+
 	int replace() { se_mark(80); this.records = new Kernel[3]; return 0; }
 }
+
 T element_at<T>(T[] values, int index) { return values[index]; }
+
 T with_buffer<T>(T value, owned Kernel[] owner) { return value; }
+
 T first<T>(T value, int effect) { T saved = value; return saved; }
+
 T mixed<T,U>(T[] values, T value, owned U owner) where U : Ownable { values[0] = value; return values[0]; }
+
 T mixed_outer<T,U>(owned U owner, T[] values, T value) where U : Ownable { return mixed(values, value, move owner); }
+
 Kernel produce(int index) { Kernel value = { index=se_mark(index), gain=3.5d }; return value; }
+
 void aliases<T>(T[] first, T[] second, T value) {
 	first[0] = value;
 	T saved = second[0];
 	first[1] = saved;
 }
+
 void saved_views<T>(T[] first, T[] second, T value, bool choose_view) {
 	T[] alias = first;
 	T[] saved = alias;
 	alias = second;
 	T[] joined = alias;
-	if (choose_view) { joined = saved; }
+	if (choose_view) joined = saved;
 	var i = 0;
-	while (i < 2) { joined = alias; if (choose_view) { joined = saved; } i = i + 1; }
+	while (i < 2) {
+		joined = alias;
+		if (choose_view) joined = saved;
+		i = i + 1;
+	}
 	joined[0] = value;
 	alias[0] = saved[0];
 }
+
 bool guarded<T>(T[] values, int index) { T saved = element_at(values, index); return true; }
+
 int main() {
 	var records = new Kernel[2];
 	fill(records, produce(7));
@@ -41,25 +62,25 @@ int main() {
 	var saved = element_at(records, se_mark(1));
 	swap_elements(records, se_mark(0), se_mark(1));
 	records = new Kernel[3];
-	if (saved.index != 7 || saved.gain != 3.5d) { return 1; }
+	if (saved.index != 7 || saved.gain != 3.5d) return 1;
 	fill(records, saved);
 	var moved = with_buffer(element_at(records, se_mark(2)), move records);
-	if (moved.index != 7) { return 2; }
+	if (moved.index != 7) return 2;
 	var owner = Owner.init();
 	fill(owner.records, saved);
 	var field_copy = first(element_at(owner.records, se_mark(0)), owner.replace());
-	if (field_copy.index != 7 || field_copy.gain != 3.5d) { return 3; }
+	if (field_copy.index != 7 || field_copy.gain != 3.5d) return 3;
 	Kernel[4] fixed = {saved,saved,saved,saved};
 	aliases(slice(fixed, se_mark(0), se_mark(2)), slice(fixed, se_mark(0), se_mark(3)), produce(11));
-	if (fixed[1].index != 11 || fixed[2].index != 7) { return 4; }
+	if (fixed[1].index != 11 || fixed[2].index != 7) return 4;
 	saved_views(slice(fixed, 0, 1), slice(fixed, 2, 2), produce(19), true);
-	if (fixed[0].index != 19 || fixed[2].index != 19 || fixed[1].index != 11 || fixed[3].index != 7) { return 5; }
+	if (fixed[0].index != 19 || fixed[2].index != 19 || fixed[1].index != 11 || fixed[3].index != 7) return 5;
 	Box<Kernel> boxed = {value=element_at(slice(fixed), se_mark(1))};
-	if (boxed.value.index != 11) { return 6; }
+	if (boxed.value.index != 11) return 6;
 	fill(slice(fixed, se_mark(4), se_mark(0)), produce(23));
-	if (false && guarded(slice(fixed), se_mark(-1))) { return 7; }
+	if (false && guarded(slice(fixed), se_mark(-1))) return 7;
 	var token = Token.init();
 	var combined = mixed_outer(move token, slice(fixed), fixed[0]);
-	if (combined.index != 19) { return 8; }
+	if (combined.index != 19) return 8;
 	return 0;
 }

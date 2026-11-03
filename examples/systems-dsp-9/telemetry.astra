@@ -10,7 +10,7 @@ int telemetry(int input) {
 	i64<2> result = sat_add(counters, increments);
 	u32[1] status = {0};
 	volatile_store(status[0], result[0] as u32);
-	if (output[0] != 24.0 || output[1] != -6.0 || result[1] != counters[1]) { return 72; }
-	if (volatile_load(status[0]) != 42) { return 73; }
+	if (output[0] != 24.0 || output[1] != -6.0 || result[1] != counters[1]) return 72;
+	if (volatile_load(status[0]) != 42) return 73;
 	return 42;
 }

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct StreamArena { owned Lease guard; owned ByteArena storage; owned int[] ids; }
+
 struct StreamSession { StreamArena arena; owned Utf8Message label; int seed; }
+
 struct StreamSample { int id; int state; u32 clipped; int ordinal; }
+
 StreamSession stream_session(int seed, int capacity, int count) throws Error {
 	var guard = open_lease(seed);
 	var storage = byte_arena(capacity, count);
@@ -10,10 +13,15 @@ StreamSession stream_session(int seed, int capacity, int count) throws Error {
 	StreamSession result = {arena = {guard = move guard, storage = move storage, ids = move ids}, label = move label, seed = seed};
 	return move result;
 }
+
 void run_stream(int seed, string csv, int capacity, string mode) throws Error {
-	if (seed < 1 || seed > 40 || capacity < 0 || capacity > 80 || (mode != "plain" && mode != "probe")) { throw new Error("stream range"); }
+	if (seed < 1 || seed > 40 || capacity < 0 || capacity > 80 || (mode != "plain" && mode != "probe")) {
+		throw new Error("stream range");
+	}
 	var fields = text_split_owned(csv, ",");
-	if (fields.count() < 1 || fields.count() > 8) { throw new Error("stream count"); }
+	if (fields.count() < 1 || fields.count() > 8) {
+		throw new Error("stream count");
+	}
 	int count = fields.count();
 	var session = stream_session(seed, capacity, count);
 	var arena = move session.arena.storage;
@@ -25,9 +33,11 @@ void run_stream(int seed, string csv, int capacity, string mode) throws Error {
 	while (fields.count() > 0) {
 		var field = fields.take(0);
 		int input = parse_int(field.text);
-		if (input < -100 || input > 100) { throw new Error("stream sample range"); }
+		if (input < -100 || input > 100) {
+			throw new Error("stream sample range");
+		}
 		int magnitude = input;
-		if (magnitude < 0) { magnitude = 0 - magnitude; }
+		if (magnitude < 0) magnitude = 0 - magnitude;
 		state = (state * 17 + magnitude + ordinal) % 65521;
 		u32<2> left = {4294967280, state as u32};
 		u32<2> right = {magnitude as u32, (input + 100) as u32};
@@ -39,8 +49,12 @@ void run_stream(int seed, string csv, int capacity, string mode) throws Error {
 			bool rejected = false;
 			try { arena.write_u32_le(id, 1, 99); }
 			catch(ArenaError error) { rejected = true; }
-			if (!rejected) { throw new Error("missing alignment refusal"); }
-			if (arena.read_u32_le(id, 0) != 0) { throw new Error("failed write changed storage"); }
+			if (!rejected) {
+				throw new Error("missing alignment refusal");
+			}
+			if (arena.read_u32_le(id, 0) != 0) {
+				throw new Error("failed write changed storage");
+			}
 			event(8401);
 		}
 		arena.write_u32_le(id, 0, state as u32);
@@ -52,7 +66,9 @@ void run_stream(int seed, string csv, int capacity, string mode) throws Error {
 	int checksum = 0;
 	var output = new Utf8ByteBuilder();
 	foreach (var sample in samples) {
-		if (arena.read_u32_le(sample.id, 0) != sample.state as u32 || arena.read_u32_le(sample.id, 4) != sample.clipped) { throw new Error("stream roundtrip"); }
+		if (arena.read_u32_le(sample.id, 0) != sample.state as u32 || arena.read_u32_le(sample.id, 4) != sample.clipped) {
+			throw new Error("stream roundtrip");
+		}
 		int lane = 0;
 		while (lane < 8) {
 			checksum = checksum + (sample.ordinal + 1) * (lane + 1) * (arena.read(sample.id, lane) as int);
@@ -67,24 +83,32 @@ void run_stream(int seed, string csv, int capacity, string mode) throws Error {
 	number(arena.occupied());
 	number(label.text.byte_length);
 	var report = output.snapshot();
-	if (!println(report.text)) { throw new Error("stream output"); }
+	if (!println(report.text)) {
+		throw new Error("stream output");
+	}
 	int last = ids[count - 1];
-	while (ordinal > 0) { ordinal = ordinal - 1; arena.release_last(ids[ordinal]); }
+	while (ordinal > 0) {
+		ordinal = ordinal - 1;
+		arena.release_last(ids[ordinal]);
+	}
 	number(arena.occupied());
 	if (mode == "probe") {
 		bool rejected = false;
 		try { u32 expired = arena.read_u32_le(last, 0); }
 		catch(ArenaError error) { rejected = true; }
-		if (!rejected) { throw new Error("missing expiration refusal"); }
+		if (!rejected) {
+			throw new Error("missing expiration refusal");
+		}
 		event(8402);
 	}
 }
+
 int main(string[] args) {
-	if (len(args) != 5) { return 81; }
+	if (len(args) != 5) return 81;
 	int result = 0;
 	try { run_stream(parse_int(args[1]), args[2], parse_int(args[3]), args[4]); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
-	if (live_leases() != 0) { return 83; }
+	if (live_leases() != 0) return 83;
 	return result;
 }

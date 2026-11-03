@@ -56,4 +56,5 @@ int main(string[] args) {
 	Test.add_func ("/ints/nabi/immutable-generic-private-provenance", Astra.Tests.NativeProvenance.check);
 	return Test.run ();
 }
+
 }

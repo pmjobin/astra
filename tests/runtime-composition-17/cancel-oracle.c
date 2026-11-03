@@ -24,6 +24,7 @@ typedef struct TrackedTask {
 	AstraAsyncDestroy destroy;
 	unsigned active;
 } TrackedTask;
+
 #define M17_TRACKED_TASKS 512u
 static TrackedTask tasks[M17_TRACKED_TASKS];
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -52,6 +53,7 @@ static _Atomic unsigned byte_releases;
 extern void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t,
                                                   uint64_t, uint32_t, uint64_t, uint32_t);
 extern int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t threading) {
 	void *pointer = __real_astra_context17_allocate_mode(context, count, size,
@@ -64,6 +66,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t cou
 	}
 	return pointer;
 }
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	if (pointer == byte_input) {
 		assert(tag == byte_tag && atomic_fetch_add(&byte_releases, 1) == 0);
@@ -75,6 +78,7 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	}
 	return __real_astra_context17_release_origin_checked(pointer, tag);
 }
+
 #endif
 
 static int inventory(const char *path) {
@@ -87,6 +91,7 @@ static int inventory(const char *path) {
 	assert(closedir(directory) == 0);
 	return count;
 }
+
 static void wait_threads(void) {
 	struct timespec start, now, delay = {.tv_nsec = 1000000};
 	assert(clock_gettime(CLOCK_MONOTONIC, &start) == 0);
@@ -95,8 +100,10 @@ static void wait_threads(void) {
 		assert(nanosleep(&delay, NULL) == 0);
 	}
 }
+
 int __real_pthread_create(pthread_t *, const pthread_attr_t *, void *(*)(void *), void *);
 int __real_pthread_join(pthread_t, void **);
+
 int __wrap_pthread_create(pthread_t *thread, const pthread_attr_t *attributes, void *(*entry)(void *), void *argument) {
 	if (mode != 6 && mode != 7) return __real_pthread_create(thread, attributes, entry, argument);
 	unsigned attempt = atomic_fetch_add(&thread_attempts, 1);
@@ -106,15 +113,18 @@ int __wrap_pthread_create(pthread_t *thread, const pthread_attr_t *attributes, v
 	assert(result == 0 && atomic_fetch_add(&thread_created, 1) == 0);
 	return result;
 }
+
 int __wrap_pthread_join(pthread_t thread, void **value) {
 	int result = __real_pthread_join(thread, value);
 	if (mode == 6 || mode == 7) assert(result == 0 && atomic_fetch_add(&thread_joined, 1) == 0);
 	return result;
 }
+
 static void *calibrate(void *argument) {
 	atomic_store(&calibrated, syscall(SYS_gettid));
 	return argument;
 }
+
 void cancellation_prepare(void) {
 	owner = syscall(SYS_gettid);
 	/* TSAN starts a persistent helper on the first pthread creation. Measure
@@ -137,17 +147,20 @@ void cancellation_prepare(void) {
 	baseline_fds = inventory("/proc/self/fd");
 	baseline_threads = inventory("/proc/self/task");
 }
+
 int cancellation_rounds(void) {
 	const char *setting = getenv("M17_CANCEL_ROUNDS");
 	int rounds = setting ? atoi(setting) : 1;
 	assert(rounds >= 1 && rounds <= 64);
 	return rounds;
 }
+
 static TrackedTask *find(AstraAsyncTask *task) {
 	for (unsigned i = 0; i < M17_TRACKED_TASKS; ++i)
 		if (tasks[i].task == task) return &tasks[i];
 	abort();
 }
+
 static void observe_resume(AstraAsyncTask *task) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	TrackedTask *entry = find(task);
@@ -165,6 +178,7 @@ static void observe_resume(AstraAsyncTask *task) {
 	assert(find(task)->active-- == 1);
 	assert(pthread_mutex_unlock(&lock) == 0);
 }
+
 static void observe_destroy(AstraAsyncTask *task, int discard) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	TrackedTask *entry = find(task);
@@ -183,6 +197,7 @@ static void observe_destroy(AstraAsyncTask *task, int discard) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	atomic_fetch_add(&destroyed, 1);
 }
+
 static AstraAsyncTask *track(AstraAsyncTask *task, AstraAsyncResume resume, AstraAsyncDestroy destroy) {
 	assert(task);
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -195,16 +210,20 @@ static AstraAsyncTask *track(AstraAsyncTask *task, AstraAsyncResume resume, Astr
 	atomic_fetch_add(&created, 1);
 	return task;
 }
+
 AstraAsyncTask *__real_astra_async_new(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *);
+
 AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent) {
 	return track(__real_astra_async_new(size, alignment, observe_resume, observe_destroy, parent), resume, destroy);
 }
+
 static void *observed_allocate(void *context, size_t size, size_t alignment) {
 	void *pointer = allocate_frame(context, size, alignment);
 	assert(pointer && astra_context17_origin(pointer, UINT64_C(0x6173747261667231)) == context);
 	assert(atomic_fetch_add(&frames, 1) == 0);
 	return pointer;
 }
+
 static void observed_release(void *context, void *pointer) {
 	assert(atomic_load(&selected_destroyed) == 1 && atomic_load(&guards) == 1);
 #ifdef M17_CONTEXT_BYTE_INPUT
@@ -219,7 +238,9 @@ static void observed_release(void *context, void *pointer) {
 	assert(m17_custom_provider_retired() == disposed_before + 1);
 	assert(atomic_fetch_add(&frame_releases, 1) == 0);
 }
+
 AstraAsyncTask *__real_astra_async_new_allocated(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *, const AstraAsyncFrameAllocator *, void *);
+
 AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy,
                                                  AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	assert(!selected && allocator && allocator->threading == 2 && context);
@@ -231,6 +252,7 @@ AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, 
 	selected = track(__real_astra_async_new_allocated(size, alignment, observe_resume, observe_destroy, parent, &observed_allocator, context), resume, destroy);
 	return selected;
 }
+
 /* The public Astra victim remains queued behind this separate test barrier.
  * Its source-generated resume/destructor and selected context are unchanged. */
 static void queue_barrier_destroy(AstraAsyncTask *task, int discard) {
@@ -238,6 +260,7 @@ static void queue_barrier_destroy(AstraAsyncTask *task, int discard) {
 	assert(astra_async_phase(task) == ASTRA_ASYNC_CANCELLED);
 	assert(atomic_fetch_add(&queue_disposed, 1) == 0);
 }
+
 static void queue_barrier(AstraAsyncTask *task) {
 	assert((mode == 4 || mode == 8) && running == task && task != selected);
 	atomic_store(&worker, syscall(SYS_gettid));
@@ -253,17 +276,20 @@ static void queue_barrier(AstraAsyncTask *task) {
 	assert(astra_async_cancel_requested(task) && astra_async_cancel_scope(task));
 	astra_async_complete(task, ASTRA_ASYNC_CANCELLED, NULL);
 }
+
 static void queue_filler_destroy(AstraAsyncTask *task, int discard) {
 	(void)discard;
 	assert(mode == 8 && astra_async_phase(task) == (*(int *)astra_async_data(task) ? ASTRA_ASYNC_CANCELLED : ASTRA_ASYNC_NEW));
 	atomic_fetch_add(&fill_disposed, 1);
 }
+
 static void queue_filler(AstraAsyncTask *task) {
 	assert(mode == 8 && running == task && astra_async_cancel_requested(task));
 	assert(astra_async_cancel_scope(task));
 	atomic_fetch_add(&fill_entered, 1);
 	astra_async_complete(task, ASTRA_ASYNC_CANCELLED, NULL);
 }
+
 static void occupy_worker(AstraAsyncExecutor *target, AstraAsyncTask *parent) {
 	AstraAsyncTask *barrier = astra_async_new(sizeof(int), _Alignof(int), queue_barrier, queue_barrier_destroy, parent);
 	assert(barrier && astra_async_bridge_start(target, barrier, parent) == ASTRA_ASYNC_ADMITTED);
@@ -274,11 +300,13 @@ static void occupy_worker(AstraAsyncExecutor *target, AstraAsyncTask *parent) {
 		assert(nanosleep(&delay, NULL) == 0);
 	}
 }
+
 static void fill_parent_destroy(AstraAsyncTask *task, int discard) {
 	(void)discard;
 	assert(mode == 8 && astra_async_phase(task) == ASTRA_ASYNC_CANCELLED);
 	assert(atomic_fetch_add(&fill_root_disposed, 1) == 0);
 }
+
 static void fill_parent_resume(AstraAsyncTask *task) {
 	assert(mode == 8 && task == fill_root && running == task);
 	if (astra_async_cancel_requested(task)) {
@@ -305,7 +333,9 @@ static void fill_parent_resume(AstraAsyncTask *task) {
 	assert(full && atomic_load(&fill_admitted) > 8 && atomic_load(&fill_disposed) == 1);
 	assert(astra_async_delay(task, 1));
 }
+
 int __real_astra_async_bridge_wait(AstraAsyncTask *, AstraAsyncTask *, AstraAsyncExecutor *, int);
+
 int __wrap_astra_async_bridge_wait(AstraAsyncTask *parent, AstraAsyncTask *child, AstraAsyncExecutor *target, int discard) {
 	if (mode == 5 && child == selected) {
 		int result = __real_astra_async_bridge_wait(parent, child, target, discard);
@@ -338,12 +368,15 @@ int __wrap_astra_async_bridge_wait(AstraAsyncTask *parent, AstraAsyncTask *child
 	assert(atomic_fetch_add(&queue_admitted, 1) == 0);
 	return result;
 }
+
 int cancellation_queued(void) {
 	return (int)atomic_load(&queue_admitted);
 }
+
 int cancellation_admission_refused(void) {
 	return (int)atomic_load(&admission_refused);
 }
+
 void cancellation_release_full_queue(void) {
 	assert(mode == 8 && syscall(SYS_gettid) == owner && atomic_load(&admission_refused) == 1);
 	assert(atomic_load(&selected_destroyed) == 1 && atomic_load(&guards) == 1 && atomic_load(&frame_releases) == 1);
@@ -364,17 +397,20 @@ void cancellation_release_full_queue(void) {
 	fill_target = NULL;
 	fill_root = NULL;
 }
+
 int cancellation_queue_cancelled(void) {
 	assert(mode == 4 && atomic_load(&queue_admitted) == 1 && atomic_load(&queue_release) == 0);
 	assert(atomic_load(&selected_destroyed) == 0 && atomic_load(&guards) == 0 && atomic_load(&entered) == 0);
 	return astra_async_cancel_requested(selected);
 }
+
 void cancellation_abort_queue(void) {
 	if (mode == 8 && fill_source)
 		cancellation_release_full_queue();
 	else
 		atomic_store(&queue_release, 1);
 }
+
 void cancellation_release_queue(void) {
 	assert(syscall(SYS_gettid) == owner && cancellation_queue_cancelled());
 	AstraContext17 *context = astra_context17_origin(astra_async_data(selected), UINT64_C(0x6173747261667231));
@@ -388,6 +424,7 @@ void cancellation_release_queue(void) {
 	assert(atomic_load(&frame_releases) == 0 && m17_custom_provider_retired() == disposed_before);
 	assert(atomic_fetch_add(&queue_release, 1) == 0);
 }
+
 void cancellation_begin(int requested_mode) {
 	assert(syscall(SYS_gettid) == owner && requested_mode >= 0 && requested_mode < 9);
 	mode = requested_mode;
@@ -424,6 +461,7 @@ void cancellation_begin(int requested_mode) {
 	assert(inventory("/proc/self/fd") == baseline_fds);
 	wait_threads();
 }
+
 void cancellation_gate(int requested_mode) {
 	assert(mode == requested_mode && mode != 0 && mode != 4 && mode < 5 && running == selected && syscall(SYS_gettid) != owner);
 	atomic_store(&worker, syscall(SYS_gettid));
@@ -447,6 +485,7 @@ void cancellation_gate(int requested_mode) {
 		assert(atomic_load(&guards) == 0 && atomic_load(&frame_releases) == 0);
 	}
 }
+
 void cancellation_computed(int value) {
 	/* Independent recurrence; the actual work and owning input are Astra. */
 	int expected = 17;
@@ -454,32 +493,40 @@ void cancellation_computed(int value) {
 		expected = (expected * 19 + ((i % 37) * 23 + 41) % 251 + i % 251) % 65521;
 	assert(running == selected && value == expected && atomic_fetch_add(&computed, 1) == 0);
 }
+
 void cancellation_guard_retired(void) {
 	long current = syscall(SYS_gettid);
 	assert(current == owner || current == atomic_load(&worker));
 	assert(atomic_load(&computed) == ((mode == 0 || mode >= 4) ? 0u : 1u));
 	assert(atomic_fetch_add(&guards, 1) == 0);
 }
+
 int cancellation_entered(void) {
 	return (int)atomic_load(&entered);
 }
+
 int cancellation_bridge_finished(void) {
 	return (int)atomic_load(&bridge_returned);
 }
+
 void cancellation_bridge_returned(void) {
 	assert(mode != 1 && mode != 4 && mode != 8 && atomic_load(&selected_destroyed) == 1 && atomic_load(&frame_releases) == 1);
 	assert(atomic_fetch_add(&bridge_returned, 1) == 0);
 }
+
 void __real_astra_async_worker_pool_close(AstraAsyncExecutor *);
+
 void __wrap_astra_async_worker_pool_close(AstraAsyncExecutor *pool) {
 	assert(syscall(SYS_gettid) == owner);
 	__real_astra_async_worker_pool_close(pool);
 	assert(atomic_fetch_add(&joined, 1) == 0);
 }
+
 void cancellation_joined(void) {
 	assert(atomic_load(&selected_destroyed) == 1 && atomic_load(&frame_releases) == 1 && atomic_load(&joined) == 1);
 	assert(atomic_load(&bridge_returned) == ((mode == 1 || mode == 4 || mode == 8) ? 0u : 1u));
 }
+
 void cancellation_case_finished(void) {
 	unsigned expected_tasks = mode == 8 ? 6u + atomic_load(&fill_admitted) : mode >= 6 ? 1u
 	                                                                     : mode == 4   ? 4u
@@ -513,6 +560,7 @@ void cancellation_case_finished(void) {
 		                   atomic_load(&joined), inventory("/proc/self/fd"), inventory("/proc/self/task"));
 	++cases;
 }
+
 int cancellation_finish(void) {
 	assert(cases == (unsigned)cancellation_rounds() * 9);
 	puts("source cancellation: cold, worker start failure, full/closed admission, queued, executing, published success/error; exact context/frame/capture retirement and FD/thread baselines");

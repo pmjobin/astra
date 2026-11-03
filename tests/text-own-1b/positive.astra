@@ -3,36 +3,38 @@ bool rejects(Utf8ByteBuilder builder) {
 	try { var invalid = builder.snapshot(); return false; }
 	catch (InvalidUtf8 error) { return error.message == "invalid UTF-8"; }
 }
+
 bool equals(Utf8Message message, string expected) { var text = message.text; return text == expected && text.byte_length == expected.byte_length; }
+
 int main() {
 	try {
 		var empty = new Utf8ByteBuilder();
-		if (empty.byte_count() != 0 || empty.capacity() != 0 || !empty.reserve(0) || empty.reserve(-1) || empty.reserve(-2147483648)) { return 81; }
+		if (empty.byte_count() != 0 || empty.capacity() != 0 || !empty.reserve(0) || empty.reserve(-1) || empty.reserve(-2147483648)) return 81;
 		var zero = new u8[0];
-		if (!empty.append_bytes(zero) || empty.capacity() != 0) { return 82; }
+		if (!empty.append_bytes(zero) || empty.capacity() != 0) return 82;
 		var empty_one = empty.snapshot(); var empty_two = empty.snapshot();
-		if (empty_one == empty_two || !equals(empty_one, "") || !equals(empty_two, "")) { return 83; }
+		if (empty_one == empty_two || !equals(empty_one, "") || !equals(empty_two, "")) return 83;
 		release empty;
 		var builder = new Utf8ByteBuilder();
 		var first = new u8[2]; first[0] = 240; first[1] = 159;
-		if (!builder.append_bytes(first) || builder.byte_count() != 2 || builder.capacity() != 2 || !rejects(builder) || builder.byte_count() != 2) { return 84; }
+		if (!builder.append_bytes(first) || builder.byte_count() != 2 || builder.capacity() != 2 || !rejects(builder) || builder.byte_count() != 2) return 84;
 		first[0] = 255; release first;
 		u8[2] tail = {150, 164};
-		if (!builder.append_bytes(slice(tail)) || builder.byte_count() != 4 || !builder.reserve(7) || builder.capacity() != 7) { return 85; }
+		if (!builder.append_bytes(slice(tail)) || builder.byte_count() != 4 || !builder.reserve(7) || builder.capacity() != 7) return 85;
 		var heart_one = builder.snapshot(); var heart_two = builder.snapshot();
-		if (heart_one == heart_two || !equals(heart_one, "🖤") || !equals(heart_two, "🖤")) { return 86; }
+		if (heart_one == heart_two || !equals(heart_one, "🖤") || !equals(heart_two, "🖤")) return 86;
 		var nul = new u8[3]; nul[0] = 97; nul[1] = 0; nul[2] = 98;
-		if (!builder.append_bytes(nul) || builder.byte_count() != 7 || builder.capacity() != 7) { return 87; }
+		if (!builder.append_bytes(nul) || builder.byte_count() != 7 || builder.capacity() != 7) return 87;
 		release nul;
 		u8[6] combining = {99, 97, 102, 101, 204, 129};
-		if (!builder.append_bytes(slice(combining)) || builder.byte_count() != 13 || builder.capacity() != 14 || !equals(heart_one, "🖤") || !equals(heart_two, "🖤")) { return 88; }
-		if (builder.reserve(-1) || !builder.reserve(1) || builder.capacity() != 14 || builder.byte_count() != 13) { return 89; }
+		if (!builder.append_bytes(slice(combining)) || builder.byte_count() != 13 || builder.capacity() != 14 || !equals(heart_one, "🖤") || !equals(heart_two, "🖤")) return 88;
+		if (builder.reserve(-1) || !builder.reserve(1) || builder.capacity() != 14 || builder.byte_count() != 13) return 89;
 		var complete = builder.snapshot();
 		owned Utf8ByteBuilder moved = move builder;
-		if (!moved.append_bytes(zero) || moved.byte_count() != 13) { return 90; }
+		if (!moved.append_bytes(zero) || moved.byte_count() != 13) return 90;
 		release moved;
-		if (!equals(complete, "🖤a\0bcafe\u0301") || !equals(heart_one, "🖤") || !equals(heart_two, "🖤") || !equals(empty_one, "")) { return 91; }
-		if (!println(complete.text)) { return 92; }
+		if (!equals(complete, "🖤a\0bcafe\u0301") || !equals(heart_one, "🖤") || !equals(heart_two, "🖤") || !equals(empty_one, "")) return 91;
+		if (!println(complete.text)) return 92;
 	} catch (InvalidUtf8 error) { return 93; }
 	return 0;
 }

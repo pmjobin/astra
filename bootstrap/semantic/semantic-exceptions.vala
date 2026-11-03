@@ -22,6 +22,7 @@ internal class ExceptionHandlerScope : Object {
 		}
 		return result;
 	}
+
 }
 public class CheckedCatch : Object {
 	public LocalSymbol binding { get; private set; }
@@ -30,6 +31,7 @@ public class CheckedCatch : Object {
 		this.binding = binding;
 		this.body = body;
 	}
+
 }
 public class CheckedTry : CheckedStatement {
 	public CheckedBlockStatement body { get; private set; }
@@ -41,6 +43,7 @@ public class CheckedTry : CheckedStatement {
 		this.catches = catches;
 		this.root_type = root_type;
 	}
+
 }
 public class CheckedThrow : CheckedStatement {
 	public LocalSymbol owner { get; private set; }
@@ -54,5 +57,6 @@ public class CheckedThrow : CheckedStatement {
 		this.rethrows = rethrows;
 		this.construction = construction;
 	}
+
 }
 }

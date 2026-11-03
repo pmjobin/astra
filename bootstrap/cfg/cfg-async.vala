@@ -13,6 +13,7 @@ public class CfgSuspensionLoan : Object {
 		this.storage = storage;
 		this.view = view;
 	}
+
 }
 
 public class CfgTaskCreate : CfgCallInstruction {
@@ -31,6 +32,7 @@ public class CfgTaskCreate : CfgCallInstruction {
 		}
 		return true;
 	}
+
 	internal int direct_wait_position(CfgBlock block, int position) {
 		for (int i = position + 1; i < block.instructions.length; i++) {
 			var wait = block.instructions[i] as CfgTaskWait;
@@ -54,6 +56,7 @@ public class CfgTaskCreate : CfgCallInstruction {
 		}
 		return -1;
 	}
+
 	internal CfgTaskCreate (SourceSpan span, CfgFunction target, GenericArray<CfgValue> arguments, CfgCallResultValue result, CfgValue? allocation_context = null, bool checked_admission = false) {
 		base (span, target, arguments, result);
 		this.checked_admission = checked_admission;
@@ -62,6 +65,7 @@ public class CfgTaskCreate : CfgCallInstruction {
 			captures.add (argument);
 		}
 	}
+
 }
 public class CfgTaskMove : CfgInstruction {
 	public CfgLocalPlace source { get; private set; }
@@ -71,6 +75,7 @@ public class CfgTaskMove : CfgInstruction {
 		this.source = source;
 		result = new CfgEvaluatedValue (span, source.semantic_type);
 	}
+
 }
 public class CfgTaskEnd : CfgInstruction {
 	public CfgLocalPlace source { get; private set; }
@@ -78,6 +83,7 @@ public class CfgTaskEnd : CfgInstruction {
 		base (span);
 		this.source = source;
 	}
+
 }
 public class CfgAsyncDelay : CfgInstruction {
 	public bool payload { get; private set; }
@@ -91,6 +97,7 @@ public class CfgAsyncDelay : CfgInstruction {
 		this.payload = payload;
 		exception = new CfgEvaluatedValue (span, error_root);
 	}
+
 }
 public class CfgTaskWait : CfgInstruction {
 	public CfgValue? bridge_executor { get; private set; }
@@ -108,6 +115,7 @@ public class CfgTaskWait : CfgInstruction {
 		this.discard = discard;
 		exception = new CfgEvaluatedValue (span, error_root);
 	}
+
 }
 public class CfgTaskSuccess : CfgInstruction {
 	public CfgCleanupContract? buffer_cleanup { get; private set; }
@@ -123,6 +131,7 @@ public class CfgTaskSuccess : CfgInstruction {
 		this.buffer_cleanup = buffer_cleanup;
 		this.result = buffer_cleanup == null ? (CfgValue) new CfgEvaluatedValue (span, result) : new CfgCallResultValue (span, result);
 	}
+
 	internal CfgTaskSuccess.for_record (SourceSpan span, CfgTaskWait operation, StructValueShape shape) {
 		base (span);
 		this.operation = operation;
@@ -145,6 +154,7 @@ public class CfgTaskBorrow : CfgInstruction {
 		this.source = source;
 		result = new CfgEvaluatedValue (span, source.semantic_type);
 	}
+
 }
 public class CfgAsyncOperation : CfgInstruction {
 	public AsyncOperationContract contract { get; private set; }
@@ -170,6 +180,7 @@ public class CfgAsyncOperation : CfgInstruction {
 			exception = new CfgEvaluatedValue (span, error_root);
 		}
 	}
+
 }
 public class CfgTaskStarted : CfgInstruction {
 	public CfgLocalPlace source { get; private set; }
@@ -179,6 +190,7 @@ public class CfgTaskStarted : CfgInstruction {
 		this.source = source;
 		this.operation = operation;
 	}
+
 }
 
 public class CfgExecutorEnd : CfgInstruction {
@@ -187,6 +199,7 @@ public class CfgExecutorEnd : CfgInstruction {
 		base (span);
 		this.source = source;
 	}
+
 }
 
 public class CfgAsyncRunStatus : CfgInstruction {
@@ -197,6 +210,7 @@ public class CfgAsyncRunStatus : CfgInstruction {
 		this.operation = operation;
 		this.destination = destination;
 	}
+
 }
 
 }

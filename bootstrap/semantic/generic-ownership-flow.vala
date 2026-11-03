@@ -25,6 +25,7 @@ internal class GenericOwnershipEvent : Object {
 		this.kind = kind;
 		this.span = span;
 	}
+
 }
 
 // One structural outgoing ownership edge, or a retaining terminal.
@@ -53,6 +54,7 @@ internal class GenericOwnerTransferEdge : Object {
 		local = event.kind == GenericOwnershipEventKind.LOCAL_TRANSFER;
 		span = event.span;
 	}
+
 }
 
 // Allocation requirements flow backwards along reachable ownership edges.
@@ -69,9 +71,11 @@ internal class GenericStorageRequirements : Object {
 	internal uint allowed(Object owner) {
 		return domains.contains (owner) ? domains.lookup (owner) : EITHER;
 	}
+
 	internal Object? reason(Object owner, bool heap) {
 		return (heap ? heap_blockers : caller_blockers).lookup (owner);
 	}
+
 	internal void constrain(Object owner, uint permitted, Object? boundary = null) {
 		uint removed = allowed (owner) & ~permitted;
 		if ((removed & CALLER) != 0) {
@@ -82,6 +86,7 @@ internal class GenericStorageRequirements : Object {
 		}
 		domains.insert (owner, allowed (owner) & permitted);
 	}
+
 	internal void link(Object source, Object destination) {
 		var outgoing = edges.lookup (source);
 		if (outgoing == null) {
@@ -92,6 +97,7 @@ internal class GenericStorageRequirements : Object {
 			outgoing.add (destination);
 		}
 	}
+
 	internal void solve() {
 		bool changed = false;
 		do {
@@ -110,9 +116,11 @@ internal class GenericStorageRequirements : Object {
 			}
 		} while (changed);
 	}
+
 	internal bool permits(Object owner, bool heap) {
 		return (allowed (owner) & (heap ? HEAP : CALLER)) != 0;
 	}
+
 }
 
 internal class GenericOwnerFacts : Object {
@@ -125,11 +133,13 @@ internal class GenericOwnerFacts : Object {
 			states[i] = OwnershipState.OWNED;
 		}
 	}
+
 	internal GenericOwnerFacts copy() {
 		var result = new GenericOwnerFacts (states.length, reachable);
 		result.states = states.copy ();
 		return result;
 	}
+
 	internal void merge(GenericOwnerFacts other) {
 		if (!other.reachable) {
 			return;
@@ -143,6 +153,7 @@ internal class GenericOwnerFacts : Object {
 			states[i] = OwnershipState.join (states[i], other.states[i]);
 		}
 	}
+
 	internal bool same(GenericOwnerFacts other) {
 		if (reachable != other.reachable) {
 			return false;
@@ -154,6 +165,7 @@ internal class GenericOwnerFacts : Object {
 		}
 		return true;
 	}
+
 }
 
 internal class GenericOwnerExits : Object {
@@ -164,6 +176,7 @@ internal class GenericOwnerExits : Object {
 	internal GenericOwnerExits (GenericOwnerFacts entry) {
 		next = entry.copy ();
 	}
+
 	internal static void merge_target(HashTable<Object, GenericOwnerFacts> exits, Object target, GenericOwnerFacts facts) {
 		var previous = exits.lookup (target);
 		if (previous == null) {
@@ -172,6 +185,7 @@ internal class GenericOwnerExits : Object {
 			previous.merge (facts);
 		}
 	}
+
 	internal void merge_exits(GenericOwnerExits other, Object? consumed = null) {
 		var iterator = HashTableIter<Object, GenericOwnerFacts> (other.breaks);
 		Object target;
@@ -192,6 +206,7 @@ internal class GenericOwnerExits : Object {
 			merge_target (exceptions, target, facts);
 		}
 	}
+
 }
 
 internal class GenericOwnershipFlow : Object {
@@ -210,6 +225,7 @@ internal class GenericOwnershipFlow : Object {
 		current = root;
 		this.checking_context = checking_context;
 	}
+
 	internal void owner_event(GenericOwnershipEventKind kind, Object owner, string name, SourceSpan span) {
 		if (!owners.contains (owner)) {
 			owners.insert (owner, (int) owners.size ());
@@ -219,6 +235,7 @@ internal class GenericOwnershipFlow : Object {
 		event.name = name;
 		current.children.add (event);
 	}
+
 	internal void move(Object owner, string name, SourceSpan span, Object? target = null, int parameter = -1, bool returned = false, bool local = false) {
 		if (local && target != null && !owners.contains (target)) {
 			owners.insert (target, (int) owners.size ());
@@ -229,6 +246,7 @@ internal class GenericOwnershipFlow : Object {
 		event.parameter = parameter;
 		event.returned = returned;
 	}
+
 	// Q11B eligibility is a structural scope gate over the existing proof,
 	// including unreachable events; it is not another liveness analysis.
 	private bool retains_event(GenericOwnershipEvent event, int owner) {
@@ -242,6 +260,7 @@ internal class GenericOwnershipFlow : Object {
 		}
 		return true;
 	}
+
 	// Q11C's finite scope is structural, including dead branches. Liveness
 	// remains evaluate() below; loop forwarding and multiple sites are deferred.
 	private bool transfer_event(GenericOwnershipEvent event, int owner, GenericOwnerTransferScope scope, bool loop = false) {
@@ -276,11 +295,13 @@ internal class GenericOwnershipFlow : Object {
 		}
 		return true;
 	}
+
 	internal void effect(ClassType bound, SourceSpan span, bool terminal = false) {
 		var event = new GenericOwnershipEvent (terminal ? GenericOwnershipEventKind.THROW : GenericOwnershipEventKind.EFFECT, span);
 		event.effect = bound;
 		current.children.add (event);
 	}
+
 	internal void begin_try(SourceSpan span, GenericArray<ClassType> bounds) {
 		var event = new GenericOwnershipEvent (GenericOwnershipEventKind.TRY, span);
 		foreach (var bound in bounds) {
@@ -294,11 +315,13 @@ internal class GenericOwnershipFlow : Object {
 		controls.add (event);
 		current = event.children[0];
 	}
+
 	internal void jump(GenericOwnershipEventKind kind, SourceSpan span, Object? target = null) {
 		var event = new GenericOwnershipEvent (kind, span);
 		event.target = target;
 		current.children.add (event);
 	}
+
 	internal void begin(GenericOwnershipEventKind kind, SourceSpan span, int truth = -1, Object? target = null) {
 		var event = new GenericOwnershipEvent (kind, span);
 		event.truth = truth;
@@ -311,6 +334,7 @@ internal class GenericOwnershipFlow : Object {
 		controls.add (event);
 		current = event.children[0];
 	}
+
 	internal void arm(int index, int truth = -1) {
 		var event = controls[controls.length - 1];
 		if (truth != -1) {
@@ -318,11 +342,13 @@ internal class GenericOwnershipFlow : Object {
 		}
 		current = event.children[index];
 	}
+
 	internal void end() {
 		current = parents[parents.length - 1];
 		parents.remove_index (parents.length - 1);
 		controls.remove_index (controls.length - 1);
 	}
+
 	private void collect_transfers(GenericOwnershipEvent event, int owner, GenericArray<GenericOwnerTransferEdge> result) {
 		if (event.owner == owner && reached_transfers.contains (event)) {
 			result.add (new GenericOwnerTransferEdge (event));
@@ -331,6 +357,7 @@ internal class GenericOwnershipFlow : Object {
 			collect_transfers (child, owner, result);
 		}
 	}
+
 	// Query after successful verify(). Arrays are independent snapshots; the
 	// descriptors contain only temporary stage-owned identities and positions.
 	internal GenericArray<GenericOwnerTransferEdge> transfers_for(Object owner) {
@@ -340,6 +367,7 @@ internal class GenericOwnershipFlow : Object {
 		}
 		return result;
 	}
+
 	private void initialize_local_destinations(GenericOwnershipEvent event, GenericOwnerFacts entry) {
 		if (event.kind == GenericOwnershipEventKind.LOCAL_TRANSFER && event.target != null && owners.contains (event.target)) {
 			entry.states[owners.lookup (event.target)] = OwnershipState.MOVED;
@@ -350,6 +378,7 @@ internal class GenericOwnershipFlow : Object {
 			initialize_local_destinations (child, entry);
 		}
 	}
+
 	internal bool verify(bool requires_return = false) {
 		assert (parents.length == 0);
 		reached_transfers.remove_all ();
@@ -379,6 +408,7 @@ internal class GenericOwnershipFlow : Object {
 		}
 		return diagnostic == null;
 	}
+
 	private GenericOwnerExits evaluate(GenericOwnershipEvent event, GenericOwnerFacts entry) {
 		var result = new GenericOwnerExits (entry);
 		if (!entry.reachable || diagnostic != null) {
@@ -517,5 +547,6 @@ internal class GenericOwnershipFlow : Object {
 		}
 		return result;
 	}
+
 }
 }

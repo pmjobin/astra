@@ -14,6 +14,7 @@ public class CoreResultObjectStorage : CoreNode {
 		this.class_identity = WeakRef (object_class);
 		this.semantic_type = (ClassType) object_class.semantic_type;
 	}
+
 }
 
 public class CoreResultStorageReceiverValue : CoreValue {
@@ -22,6 +23,7 @@ public class CoreResultStorageReceiverValue : CoreValue {
 		base (span, contract);
 		this.storage = storage;
 	}
+
 }
 
 public class CoreOwnedObjectResultConstruction : CoreValue {
@@ -35,5 +37,6 @@ public class CoreOwnedObjectResultConstruction : CoreValue {
 		this.callee = WeakRef (constructor);
 		this.arguments = arguments;
 	}
+
 }
 }

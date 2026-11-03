@@ -6,16 +6,19 @@
 static unsigned inputs, waits, caught;
 extern AstraAsyncExecutor *__real_astra_async_linux_open(uint32_t capacity);
 extern int __real_astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds);
+
 AstraAsyncExecutor *__wrap_astra_async_linux_open(uint32_t capacity) {
 	AstraAsyncExecutor *executor = __real_astra_async_linux_open(capacity);
 	assert(executor != NULL);
 	astra_async_linux_test_fake(executor);
 	return executor;
 }
+
 int duration_input(void) {
 	assert(inputs++ == 0);
 	return -1;
 }
+
 int __wrap_astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds) {
 	int result = __real_astra_async_linux_delay_ms(task, milliseconds);
 	if (milliseconds < 0) {
@@ -32,9 +35,11 @@ int __wrap_astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds
 	assert(astra_async_linux_test_decode(astra_async_executor(task), snapshot.target, -ETIME, 0));
 	return result;
 }
+
 void duration_observed(int stage) {
 	assert(stage == 1 && caught++ == 0);
 }
+
 __attribute__((destructor)) static void verify(void) {
 	assert(inputs == 1 && waits == 2 && caught == 1);
 	puts("INJECTED generated duration boundary: u32 max widens once to exact ns; zero handshake; signed negative admission reaches AsyncError");

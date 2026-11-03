@@ -12,6 +12,7 @@ private void reject(string text) {
 	}
 	assert (refused);
 }
+
 private void malformed() {
 	string prefix = "runtime-lifetime-summary/1\nr|0\n--\n";
 	reject (prefix + "runtime-lifetime-equations/1\na");
@@ -23,6 +24,7 @@ private void malformed() {
 	reject ("runtime-lifetime-logical/1\nruntime-lifetime-logical/1\n" + prefix);
 	reject ("runtime-lifetime-summary/2\nr|0\ne|99\n--\nruntime-lifetime-equations/1\na\n");
 }
+
 private void oversized() {
 	var text = new StringBuilder ();
 	string chunk = string.nfill (1024, 'x');
@@ -32,6 +34,7 @@ private void oversized() {
 	text.append_c ('x');
 	reject (text.str);
 }
+
 private void maximum_inventory() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -53,6 +56,7 @@ private void maximum_inventory() {
 		error ("%s", failure.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/metadata18/malformed", malformed);
@@ -60,4 +64,5 @@ int main(string[] args) {
 	Test.add_func ("/metadata18/maximum-inventory-and-depth", maximum_inventory);
 	return Test.run ();
 }
+
 }

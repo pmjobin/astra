@@ -231,4 +231,5 @@ int main(string[] args) {
 	Test.add_func ("/scalar/pipeline/trap-call-order-and-lifetime", trap_order);
 	return Test.run ();
 }
+
 }

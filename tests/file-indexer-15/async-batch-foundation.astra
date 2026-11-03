@@ -6,23 +6,33 @@ namespace IndexFoundation;
 class BatchArgument {
 	readonly string snapshot;
 	private int ordinal;
+
 	init(string text, int key) { this.snapshot = text; this.ordinal = key; async_watch(5); }
+
 	deinit() { async_watch(6); }
+
 	property int key { get { return this.ordinal; } }
+
 	property string text { get { return this.snapshot; } }
 }
+
 class BatchInput {
 	owned BatchArgument[slots] arguments;
+
 	init() { this.arguments = new BatchArgument[slots]; }
+
 	bool append(string text, int key) {
-		if (!this.arguments.reserve(len(this.arguments) + 1)) { return false; }
+		if (!this.arguments.reserve(len(this.arguments) + 1)) return false;
 		var argument = new BatchArgument(text, key);
 		this.arguments.append(move argument);
 		return true;
 	}
+
 	property int count { get { return len(this.arguments); } }
+
 	owned BatchArgument take() { var argument = this.arguments.take(0); return move argument; }
 }
+
 struct BatchSummary {
 	int successful;
 	int errors;

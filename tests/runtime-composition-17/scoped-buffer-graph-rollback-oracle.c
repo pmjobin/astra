@@ -18,12 +18,15 @@ static int live, closed, freed;
 static int failed(unsigned id) {
 	return id != 2 && id != 4;
 }
+
 static void buffers_gone(unsigned id) {
 	for (unsigned member = 0; member < 2; ++member)
 		assert(buffers[id][member] && buffer_retired[id][member] == 1);
 	if (id == 5 || id == 6) assert(buffer_order[id][1] < buffer_order[id][0]);
 }
+
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	void *pointer = __real_calloc(count, size);
 	if (size == 1 || size == 4) {
@@ -39,7 +42,9 @@ void *__wrap_calloc(size_t count, size_t size) {
 	}
 	return pointer;
 }
+
 AstraContext17 *__real_astra_context17_open_scoped(void *, int32_t, int32_t, int32_t);
+
 AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, int32_t kind, int32_t slots) {
 	if (length == 12289) {
 		assert(base && kind == ASTRA_CONTEXT17_POOL && slots == 2 && !leaf_context);
@@ -54,7 +59,9 @@ AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, i
 	assert(context);
 	return context;
 }
+
 void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t selected_tag, uint32_t mode) {
 	if (selected == leaf_context) {
@@ -84,6 +91,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t co
 	live = 1;
 	return pointer;
 }
+
 void scoped_buffer_graph_rollback_event(int event, int identity) {
 	assert(identity > 0 && identity < 100 && !closed && !leaf_closed);
 	if (event == 6) {
@@ -123,7 +131,9 @@ void scoped_buffer_graph_rollback_event(int event, int identity) {
 		++caught[id];
 	}
 }
+
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t selected_tag) {
 	if (!pointer) return __real_astra_context17_release_origin_checked(pointer, selected_tag);
 	if (pointer != cell) {
@@ -156,7 +166,9 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t select
 	++releases;
 	return result;
 }
+
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	if (selected == leaf_context) {
 		assert(!leaf_closed && !leaf_live && !pending_leaf && leaf_allocations == 7 && leaf_releases == 7);
@@ -180,7 +192,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	closed = 1;
 	__real_astra_context17_destroy(selected);
 }
+
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	if (leaf_backing && pointer == leaf_backing) {
 		assert(leaf_closed && !leaf_freed);
@@ -204,7 +218,9 @@ void __wrap_free(void *pointer) {
 retired:
 	__real_free(pointer);
 }
+
 extern int scoped_buffer_graph_rollback_run(void);
+
 int main(void) {
 	int result = scoped_buffer_graph_rollback_run();
 	if (result) return result;

@@ -28,4 +28,5 @@ private void reject(string text, string fragment) {
 	}
 	Test.message ("%s", diagnostic.message);
 }
+
 }

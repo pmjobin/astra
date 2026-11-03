@@ -66,6 +66,7 @@ private SsaProgram model(int variant = -1) throws GLib.Error {
 	functions.add (new SsaFunction (span, span, "f", a, 0, parameters, blocks, block));
 	return new SsaProgram (span, functions, imports, null, null, cleanups, handles);
 }
+
 private void valid() {
 	try {
 		SsaVerifier.verify (model (7));
@@ -77,6 +78,7 @@ private void valid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 0; variant < 7; variant++) {
 		try {
@@ -88,10 +90,12 @@ private void invalid() {
 		GLib.error ("malformed nominal handle model %d accepted", variant);
 	}
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/resource/ssa/standalone-valid", valid);
 	Test.add_func ("/resource/ssa/standalone-reject-nominal-contract", invalid);
 	return Test.run ();
 }
+
 }

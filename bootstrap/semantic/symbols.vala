@@ -15,6 +15,7 @@ public abstract class Symbol : Object {
 		this.name_span = name_span;
 		this.identifier = name ?? name_span.text ();
 	}
+
 }
 
 public class HandleSymbol : Symbol {
@@ -35,6 +36,7 @@ public class HandleSymbol : Symbol {
 		this.header = header;
 		this.ordinal = ordinal;
 	}
+
 	internal HandleSymbol.closure (SourceSpan span, ClosureHandleType type, CForeignCleanupContract cleanup, int ordinal) {
 		base (span, span, type.name);
 		this.semantic_type = type;
@@ -99,9 +101,11 @@ public abstract class NativeInstanceSymbol : Symbol {
 	internal StructFieldSymbol? find_field(string name) {
 		return find_member (name) as StructFieldSymbol;
 	}
+
 	internal MethodSymbol? find_method(string name) {
 		return find_member (name) as MethodSymbol;
 	}
+
 	internal PropertySymbol? find_property(string name) {
 		return find_member (name) as PropertySymbol;
 	}
@@ -114,6 +118,7 @@ public class StructSymbol : NativeInstanceSymbol {
 	internal StructSymbol (SourceSpan span, SourceSpan name_span, int ordinal = 0, string? name = null) {
 		base (span, name_span, new StructType (name ?? name_span.text ()), ordinal, name);
 	}
+
 }
 
 public class ClassSymbol : NativeInstanceSymbol {
@@ -131,6 +136,7 @@ public class ClassSymbol : NativeInstanceSymbol {
 	internal ClassSymbol (SourceSpan span, SourceSpan name_span, int ordinal = 0, string? name = null) {
 		base (span, name_span, new ClassType (name ?? name_span.text ()), ordinal, name);
 	}
+
 	internal ClassSymbol.specialized (SourceSpan span, SourceSpan name_span, ExactGenericClassType type, int ordinal) {
 		base (span, name_span, type, ordinal, type.name);
 	}
@@ -154,6 +160,7 @@ public abstract class FieldSymbol : Symbol {
 		this.semantic_type = type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Historical name retained for the shared concrete native field descriptor.
@@ -162,6 +169,7 @@ public class StructFieldSymbol : FieldSymbol {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool is_private { get; private set; }
 	private WeakRef owner;
 	public NativeInstanceSymbol? containing_type { owned get { return (NativeInstanceSymbol?) owner.get (); } }
@@ -172,6 +180,7 @@ public class StructFieldSymbol : FieldSymbol {
 		this.is_private = is_private;
 		this.owner = WeakRef (containing_type);
 	}
+
 }
 
 public enum CallableDomain {
@@ -195,6 +204,7 @@ public abstract class DirectCallableSymbol : Symbol {
 		this.return_type = return_type;
 		this.parameters = parameters;
 	}
+
 }
 
 public class FunctionSymbol : DirectCallableSymbol {
@@ -204,6 +214,7 @@ public class FunctionSymbol : DirectCallableSymbol {
 	internal void bind_foreign_heap_boundary() {
 		foreign_heap_boundary = true;
 	}
+
 	public uint floating_policy { get; internal set; default = 0; }
 	private uint floating_policy_origin;
 	private bool floating_policy_bound;
@@ -214,13 +225,16 @@ public class FunctionSymbol : DirectCallableSymbol {
 			floating_policy_bound = true;
 		}
 	}
+
 	public bool floating_policy_valid() {
 		return floating_policy == floating_policy_origin && Astra.Semantic.FloatingPointPolicy.valid (floating_policy);
 	}
+
 	public bool nonnull_result { get; private set; default = false; }
 	internal void mark_nonnull_result() {
 		nonnull_result = true;
 	}
+
 	public bool utf8_factory { get; internal set; default = false; }
 	public AsyncBodyContract? async_body { get; internal set; }
 	public bool heap_result { get; internal set; default = false; }
@@ -241,6 +255,7 @@ public class FunctionSymbol : DirectCallableSymbol {
 		this.result_contract = result_contract;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 
 public class CFunctionSymbol : DirectCallableSymbol {
@@ -254,6 +269,7 @@ public class CFunctionSymbol : DirectCallableSymbol {
 		this.abi = ForeignAbi.C;
 		this.metadata = metadata ?? new CForeignMetadata (name_span.text ());
 	}
+
 }
 
 public enum OwnershipKind {
@@ -269,6 +285,7 @@ internal class IterationElementSymbol : Symbol {
 		base (span, span);
 		this.iteration = iteration;
 	}
+
 }
 
 public class LocalSymbol : Symbol {
@@ -277,6 +294,7 @@ public class LocalSymbol : Symbol {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool text_loan { get; internal set; default = false; }
 	public bool catch_borrow { get; internal set; default = false; }
 	public LocalSymbol? enum_inspection_root { get; internal set; }
@@ -318,6 +336,7 @@ public class LocalSymbol : Symbol {
 		this.cleanup_contract = cleanup;
 		assert (cleanup == null || semantic_type.is_ownable_handle_type ());
 	}
+
 }
 
 public class ParameterSymbol : Symbol {
@@ -326,6 +345,7 @@ public class ParameterSymbol : Symbol {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool heap_object { get; internal set; default = false; }
 	public CallerInformationContract? caller_information { get; internal set; }
 	public StructValueContract? struct_value_contract { get; internal set; }
@@ -341,5 +361,6 @@ public class ParameterSymbol : Symbol {
 		this.semantic_type = semantic_type;
 		this.ordinal = ordinal;
 	}
+
 }
 }

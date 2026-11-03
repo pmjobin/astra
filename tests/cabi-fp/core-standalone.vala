@@ -29,6 +29,7 @@ private CoreProgram sample(bool wide, int bad = 0) throws GLib.Error {
 	exports.add (new CoreCExport (span, span, functions[0], "bridge", ForeignAbi.C, 0));
 	return new CoreProgram (span, functions, imports, exports);
 }
+
 private void boundary() {
 	try {
 		for (int width = 0; width < 2; width++) {
@@ -53,9 +54,11 @@ private void boundary() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/cabi-fp/core/independent-import-export-exact-width-lifetime", boundary);
 	return Test.run ();
 }
+
 }

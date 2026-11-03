@@ -97,4 +97,5 @@ int main(string[] args) {
 	Test.add_func ("/f32/semantic/no-conversions-foreign-scalars", diagnostics);
 	return Test.run ();
 }
+
 }

@@ -1,10 +1,13 @@
 class Counter { int value; }
+
 bool same(borrowed Counter a, borrowed Counter b) { return a == b; }
+
 bool different(borrowed Counter a, borrowed Counter b) { return a != b; }
+
 int main() {
 	Counter a = { value = 42 };
 	Counter b = { value = 42 };
-	if (same(a, b) || !different(a, b) || !same(null, null)) { return 1; }
-	if (!same(a, a) || same(a, null) || same(null, b)) { return 2; }
+	if (same(a, b) || !different(a, b) || !same(null, null)) return 1;
+	if (!same(a, a) || same(a, null) || same(null, b)) return 2;
 	return a.value;
 }

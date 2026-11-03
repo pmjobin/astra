@@ -2,6 +2,7 @@
 #include <stdint.h>
 static int32_t created;
 static int32_t retired;
+
 int32_t astra_reconciliation_observe(int32_t operation) {
 	switch (operation) {
 	case 1:

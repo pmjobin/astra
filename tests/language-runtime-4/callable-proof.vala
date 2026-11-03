@@ -26,6 +26,7 @@ private CheckedProgram source() {
 	}
 	return checked.program;
 }
+
 private CheckedFunction checked_named(CheckedProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.symbol.name == name) {
@@ -34,6 +35,7 @@ private CheckedFunction checked_named(CheckedProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private CoreFunction core_named(CoreProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -42,6 +44,7 @@ private CoreFunction core_named(CoreProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private CfgFunction cfg_named(CfgProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -50,6 +53,7 @@ private CfgFunction cfg_named(CfgProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private SsaFunction ssa_named(SsaProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -352,6 +356,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 	}
 	assert (invalid == 0);
 }
+
 private void llvm_contract() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
@@ -448,6 +453,7 @@ private void llvm_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/function-value/checked-core-signature-callee-arguments", checked_and_core);
@@ -457,4 +463,5 @@ public int main(string[] args) {
 	Test.add_func ("/function-value/llvm-code-arguments-convention", llvm_contract);
 	return Test.run ();
 }
+
 }

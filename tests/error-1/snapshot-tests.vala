@@ -12,6 +12,7 @@ namespace Astra.Tests.TextSnapshots {
 private string source() {
 	return "class Label{readonly string text;init(string input){this.text=input;}property string label{get{return this.text;}}}int main(){var first=new Label(\"a\\0é\");var second=new Label(first.label);release first;if(second.label==\"a\\0é\"){return 42;}return 1;}";
 }
+
 private CheckedProgram check(string text) {
 	var parsed = Parser.parse (new SourceFile.from_text ("snapshot", text));
 	assert (parsed.diagnostic == null);
@@ -21,6 +22,7 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private void retained() {
 	try {
 		CheckedProgram? checked = check (source ());
@@ -58,6 +60,7 @@ private void retained() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void field_contract() {
 	try {
 		var core = CoreBuilder.build (check (source ()));
@@ -97,6 +100,7 @@ private void field_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cleanup_contract() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check (source ()))));
@@ -116,6 +120,7 @@ private void cleanup_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void negatives() {
 	foreach (string text in new string[] {
 			"class C{readonly string s;init(){this.s=\"x\";this.s=\"y\";}}",
@@ -138,9 +143,11 @@ private void negatives() {
 		Test.message ("%s", result.diagnostic.message);
 	}
 }
+
 private string loans() {
 	return "class Label{readonly string text;init(string input){this.text=input;}property string label{get{return this.text;}}}int main(){var first=new Label(\"a\");var second=new Label(\"b\");var outer=second.label;{var view=first.label;var copy=view;int length=copy.byte_length;}release first;return outer.byte_length+41;}";
 }
+
 private void loan_authority() {
 	try {
 		CheckedProgram? checked = check (loans ());
@@ -331,6 +338,7 @@ private void loan_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/error-1/snapshot/retained-fields-getter-contract-and-profiles", retained);
@@ -340,4 +348,5 @@ int main(string[] args) {
 	Test.add_func ("/error-1/snapshot/predecessor-dead-exact-loan-authority-and-exits", loan_authority);
 	return Test.run ();
 }
+
 }

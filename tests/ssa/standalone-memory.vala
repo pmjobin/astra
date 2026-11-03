@@ -216,4 +216,5 @@ private void register_memory_tests() {
 	Test.add_func ("/ssa-standalone/memory/malformed", memory_invalid);
 	Test.add_func ("/ssa-standalone/memory/initialization-dominance", memory_dominance);
 }
+
 }

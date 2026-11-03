@@ -3,6 +3,7 @@ struct OpenReading {
 	int value;
 	bool ready;
 }
+
 struct OpenEnvelope<Value> {
 	Value value;
 	int tag;
@@ -11,12 +12,16 @@ struct OpenEnvelope<Value> {
 class OpenPort<Value, Tag> {
 	Value value;
 	Tag tag;
+
 	init(Value value, Tag tag) {
 		this.value = value;
 		this.tag = tag;
 	}
+
 	Value read() { return this.value; }
+
 	void write(Value value) { this.value = value; }
+
 	property Value item {
 		get { return this.value; }
 		set(Value value) { this.value = value; }
@@ -24,12 +29,16 @@ class OpenPort<Value, Tag> {
 }
 
 Value read_open<Value, Tag>(borrowed OpenPort<Value, Tag> port) { return port.read(); }
+
 Value project_open<Value, Tag>(borrowed OpenPort<Value, Tag> port) { return port.value; }
+
 Tag tag_open<Value, Tag>(borrowed OpenPort<Value, Tag> port) { return port.tag; }
+
 Value update_open<Value, Tag>(borrowed OpenPort<Value, Tag> port, Value value) {
 	port.write(value);
 	return port.item;
 }
+
 Value replace_open<Value, Tag>(borrowed OpenPort<Value, Tag> port, Value value) {
 	port.item = value;
 	return port.read();
@@ -39,16 +48,22 @@ Value construct_open<Value, Tag>(Value value, Tag tag) {
 	var port = new OpenPort<Value, Tag>(value, tag);
 	return read_open(port);
 }
+
 Value relay_open<Value, Tag>(Value value, Tag tag) { return construct_open(value, tag); }
+
 owned OpenPort<Value, Tag> make_open<Value, Tag>(Value value, Tag tag) { return OpenPort<Value, Tag>.init(value, tag); }
 
 class OpenShell<Value, Tag> {
 	owned OpenPort<Value, Tag> port;
 	int stamp;
+
 	init(owned OpenPort<Value, Tag> port, int stamp) { this.port = move port; this.stamp = stamp; }
 }
+
 int shell_stamp<Value, Tag>(borrowed OpenShell<Value, Tag> shell) { return shell.stamp; }
+
 Value read_shell<Value, Tag>(borrowed OpenShell<Value, Tag> shell) { return shell.port.read(); }
+
 Value read_envelope<Value, Tag>(borrowed OpenPort<OpenEnvelope<Value>, Tag> port) {
 	OpenEnvelope<Value> envelope = port.read();
 	return envelope.value;
@@ -56,34 +71,34 @@ Value read_envelope<Value, Tag>(borrowed OpenPort<OpenEnvelope<Value>, Tag> port
 
 int main() {
 	var number = new OpenPort<int, bool>(41, true);
-	if (!tag_open(number) || read_open(number) != 41 || project_open(number) != 41) { return 1; }
-	if (update_open(number, 42) != 42 || replace_open(number, 43) != 43) { return 2; }
+	if (!tag_open(number) || read_open(number) != 41 || project_open(number) != 41) return 1;
+	if (update_open(number, 42) != 42 || replace_open(number, 43) != 43) return 2;
 	i64 wide = 9000000001;
 	var wide_port = new OpenPort<i64, int>(wide, 73);
-	if (read_open(wide_port) != wide || tag_open(wide_port) != 73) { return 3; }
+	if (read_open(wide_port) != wide || tag_open(wide_port) != 73) return 3;
 	OpenReading first = {value = 41, ready = false};
 	OpenReading second = {value = 42, ready = true};
 	var records = new OpenPort<OpenReading, i64>(first, wide);
 	OpenReading observed = read_open(records);
-	if (observed.value != 41 || observed.ready || tag_open(records) != wide) { return 4; }
+	if (observed.value != 41 || observed.ready || tag_open(records) != wide) return 4;
 	OpenReading updated = update_open(records, second);
 	OpenReading projected = project_open(records);
-	if (updated.value != 42 || !updated.ready || projected.value != 42 || first.value != 41 || first.ready) { return 5; }
+	if (updated.value != 42 || !updated.ready || projected.value != 42 || first.value != 41 || first.ready) return 5;
 	OpenReading replaced = replace_open(records, first);
-	if (replaced.value != 41 || replaced.ready || second.value != 42 || !second.ready) { return 6; }
+	if (replaced.value != 41 || replaced.ready || second.value != 42 || !second.ready) return 6;
 	OpenReading reconstructed = relay_open(second, true);
-	if (reconstructed.value != 42 || !reconstructed.ready) { return 7; }
+	if (reconstructed.value != 42 || !reconstructed.ready) return 7;
 	var returned = make_open(first, 73);
 	OpenReading from_result = read_open(returned);
-	if (from_result.value != 41 || from_result.ready || tag_open(returned) != 73) { return 8; }
+	if (from_result.value != 41 || from_result.ready || tag_open(returned) != 73) return 8;
 	var child = new OpenPort<OpenReading, int>(first, 73);
 	var shell = new OpenShell<OpenReading, int>(move child, 73);
 	OpenReading nested = read_shell(shell);
-	if (shell_stamp(shell) != 73 || nested.value != 41 || nested.ready) { return 9; }
+	if (shell_stamp(shell) != 73 || nested.value != 41 || nested.ready) return 9;
 	OpenEnvelope<OpenReading> envelope = {value = second, tag = 73};
 	var envelopes = new OpenPort<OpenEnvelope<OpenReading>, bool>(envelope, true);
 	OpenReading unwrapped = read_envelope(envelopes);
 	OpenEnvelope<OpenReading> copied_envelope = read_open(envelopes);
-	if (unwrapped.value != 42 || !unwrapped.ready || envelope.tag != 73 || copied_envelope.value.value != 42 || copied_envelope.tag != 73) { return 10; }
+	if (unwrapped.value != 42 || !unwrapped.ready || envelope.tag != 73 || copied_envelope.value.value != 42 || copied_envelope.tag != 73) return 10;
 	return 0;
 }

@@ -41,9 +41,11 @@ private void model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen/core/parameterized-model-exact-scope-firewall", model);
 	return Test.run ();
 }
+
 }

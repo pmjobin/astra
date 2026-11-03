@@ -1,24 +1,33 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 enum Owner { Empty, Data(owned int[] data) }
+
 enum Packet { Empty, Data(owned int[] data, int marker), Nested(Owner owner, int marker) }
+
 Owner fresh(int count) { return Owner.Data(new int[count]); }
+
 int fail() throws Error { throw new Error("later"); }
+
 int consume(Owner owner, int value) {
 	match(move owner) { case Owner.Data(data): { return len(data) + value; } else: { return 0; } }
 }
+
 int recovered() { try { return fail(); } catch(Error error) { return 40; } }
+
 int main() {
-	try { consume(fresh(3), fail()); } catch(Error error) { if(error.message != "later") { return 81; } }
-	try { consume(fresh(2), consume(fresh(4), fail())); } catch(Error error) { if(error.message != "later") { return 82; } }
-	try { consume(fresh(2), consume(fresh(4), recovered()) + fail()); } catch(Error error) { if(error.message != "later") { return 83; } }
-	try { var packet = Packet.Data(new int[3], fail()); } catch(Error error) { if(error.message != "later") { return 84; } }
-	try { var packet = Packet.Nested(fresh(3), fail()); } catch(Error error) { if(error.message != "later") { return 85; } }
+	try { consume(fresh(3), fail()); } catch(Error error) { if(error.message != "later") return 81; }
+	try { consume(fresh(2), consume(fresh(4), fail())); } catch(Error error) { if(error.message != "later") return 82; }
+	try { consume(fresh(2), consume(fresh(4), recovered()) + fail()); } catch(Error error) { if(error.message != "later") return 83; }
+	try { var packet = Packet.Data(new int[3], fail()); } catch(Error error) { if(error.message != "later") return 84; }
+	try { var packet = Packet.Nested(fresh(3), fail()); } catch(Error error) { if(error.message != "later") return 85; }
 	owned int[] original = new int[2];
-	try { var packet = Packet.Data(move original, fail()); } catch(Error error) { if(len(original) != 2) { return 86; } }
+	try { var packet = Packet.Data(move original, fail()); } catch(Error error) { if(len(original) != 2) return 86; }
 	return consume(fresh(2), recovered());
 }

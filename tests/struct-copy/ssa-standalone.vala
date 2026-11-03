@@ -37,6 +37,7 @@ private SsaProgram sample() throws SsaError {
 	functions.add (new SsaFunction (s, s, "f", types.void_type, 0, parameters, blocks, entry));
 	return new SsaProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		SsaProgram? p = sample ();
@@ -53,6 +54,7 @@ private void positive() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 3; scenario++) {
 		bool rejected = false;
@@ -81,10 +83,12 @@ private void invalid() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-copy/ssa/ordinary-leaf-values-vector-lifetime", positive);
 	Test.add_func ("/struct-copy/ssa/use-before-snapshot-aggregate-value-foreign-place-firewalls", invalid);
 	return Test.run ();
 }
+
 }

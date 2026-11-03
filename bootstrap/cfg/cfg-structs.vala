@@ -23,6 +23,7 @@ public abstract class CfgNativeInstance : CfgNode {
 		this.ordinal = ordinal;
 		this.fields = new GenericArray<CfgStructField> ();
 	}
+
 }
 
 public class CfgStruct : CfgNativeInstance {
@@ -31,6 +32,7 @@ public class CfgStruct : CfgNativeInstance {
 	internal CfgStruct (SourceSpan span, SourceSpan name_span, string name, SemanticType semantic_type, int ordinal = 0) {
 		base (span, name_span, name, semantic_type, ordinal);
 	}
+
 }
 
 public class CfgClass : CfgNativeInstance {
@@ -48,6 +50,7 @@ public class CfgClass : CfgNativeInstance {
 	internal CfgClass (SourceSpan span, SourceSpan name_span, string name, ClassType semantic_type, int ordinal = 0) {
 		base (span, name_span, name, semantic_type, ordinal);
 	}
+
 }
 
 // Shared native field descriptor; the historical name remains compatible.
@@ -56,6 +59,7 @@ public class CfgStructField : CfgNode {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public CfgCleanupContract? owned_cleanup { get; internal set; }
 	public bool is_private { get; private set; }
 	public bool text_snapshot { get; internal set; default = false; }
@@ -78,6 +82,7 @@ public class CfgStructField : CfgNode {
 		this.semantic_type = semantic_type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Function owns projections and bases. Projection -> base is strong and
@@ -89,6 +94,7 @@ public class CfgFieldPlace : CfgPlace {
 	public StructLeafPath storage_path() {
 		return new StructLeafPath (path_ordinals (), semantic_type);
 	}
+
 	private int[] path_ordinals() {
 		var parent = aggregate as CfgFieldPlace;
 		int[]? prefix = parent == null ? null : parent.path_ordinals ();
@@ -100,6 +106,7 @@ public class CfgFieldPlace : CfgPlace {
 		result[depth] = field.ordinal;
 		return result;
 	}
+
 	public CfgLocalPlace? root_local() {
 		CfgPlace root = aggregate;
 		while (root is CfgFieldPlace) {
@@ -113,6 +120,7 @@ public class CfgFieldPlace : CfgPlace {
 		this.aggregate = aggregate;
 		this.field = field;
 	}
+
 }
 
 // Unlike a direct field projection, this place follows a pointer VALUE.
@@ -125,6 +133,7 @@ public class CfgIndirectFieldPlace : CfgPlace {
 		this.pointer = pointer;
 		this.field = field;
 	}
+
 }
 
 // A storage Place following one pointer value. Null must trap before access.
@@ -138,6 +147,7 @@ public class CfgDereferencePlace : CfgPlace {
 		this.pointer = pointer;
 		this.provenance = provenance;
 	}
+
 }
 
 public class CfgAddressOfValue : CfgValue {
@@ -154,5 +164,6 @@ public class CfgAddressOfValue : CfgValue {
 		this.target = target;
 		this.provenance = provenance;
 	}
+
 }
 }

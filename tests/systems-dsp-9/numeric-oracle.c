@@ -8,6 +8,7 @@
 #include <xmmintrin.h>
 
 static uint64_t state = UINT64_C(0x950acd3e617249bf);
+
 static uint64_t next(void) {
 	state ^= state << 13;
 	state ^= state >> 7;
@@ -18,16 +19,19 @@ static uint64_t next(void) {
 #ifdef ORACLE_F64
 extern double filter_pair(double, double, double, double, double, double, int32_t);
 extern double divide_pair(double, double, double, double, int32_t);
+
 static double number(uint64_t bits) {
 	double value;
 	memcpy(&value, &bits, 8);
 	return value;
 }
+
 static uint64_t bits(double value) {
 	uint64_t result;
 	memcpy(&result, &value, 8);
 	return result;
 }
+
 static void same(double observed, double expected) {
 	if (isnan(expected)) {
 		assert(isnan(observed));
@@ -35,6 +39,7 @@ static void same(double observed, double expected) {
 		assert(bits(observed) == bits(expected));
 	}
 }
+
 int32_t f64_oracle(void) {
 	assert((_mm_getcsr() & ((1U << 15) | (1U << 6) | (3U << 13))) == 0);
 	static const uint64_t edges[] = {0, UINT64_C(0x8000000000000000), 1,
@@ -60,16 +65,19 @@ int32_t f64_oracle(void) {
 	puts("f64x2:2048 vectors;8192 exact lanes;NaNs classified");
 	return 0;
 }
+
 #endif
 
 #ifdef ORACLE_INTEGER
 extern int64_t mix_wide(int64_t, int64_t, int32_t, int32_t);
 extern uint64_t mix_unsigned(uint64_t, uint64_t, int32_t, int32_t);
 extern int32_t pcm_mix(int32_t, int32_t);
+
 static int64_t clamp_signed(__int128 value) {
 	return value > INT64_MAX ? INT64_MAX : value < INT64_MIN ? INT64_MIN
 	                                                         : (int64_t)value;
 }
+
 int32_t integer_oracle(void) {
 	static const int64_t edges[] = {INT64_MIN, INT64_MAX, -1, 0, 1, -32768, 32767};
 	for (int i = 0; i < 2048; i++) {
@@ -101,4 +109,5 @@ int32_t integer_oracle(void) {
 	puts("saturation:2048 pairs;signed64,unsigned64,PCM16 exact");
 	return 0;
 }
+
 #endif

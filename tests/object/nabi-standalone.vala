@@ -25,6 +25,7 @@ private NativeAbiProgram sample(int shape, int variant = 0) throws NativeAbiErro
 	}
 	return new NativeAbiProgram (span, version, functions);
 }
+
 private void channels() {
 	try {
 		for (int shape = 0; shape < 5; shape++) {
@@ -40,6 +41,7 @@ private void channels() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 5; variant++) {
 		try {
@@ -51,10 +53,12 @@ private void malformed() {
 		GLib.error ("accepted malformed method ABI %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/object/nabi/existing-receiver-scalar-vector-slice-resource-channels", channels);
 	Test.add_func ("/object/nabi/malformed-receiver-profile-and-identity", malformed);
 	return Test.run ();
 }
+
 }

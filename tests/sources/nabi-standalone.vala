@@ -18,10 +18,12 @@ private void verify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/nabi/independent-program-global-physical-plans", verify);
 	Test.add_func ("/sources/nabi/immutable-generic-private-provenance", Astra.Tests.NativeProvenance.check);
 	return Test.run ();
 }
+
 }

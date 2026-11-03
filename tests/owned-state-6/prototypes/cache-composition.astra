@@ -1,8 +1,14 @@
-owned Utf8Message vacant_message(bool present) { if (present) { var value = new Utf8Message(""); return move value; } return null; }
+owned Utf8Message vacant_message(bool present) { if (present) {
+		var value = new Utf8Message("");
+		return move value;
+	} return null; }
+
 class Card {
 	owned Utf8Message cached;
 	int attempts;
+
 	init() { this.cached = vacant_message(false); this.attempts = 0; }
+
 	lazy property bool ready throws InvalidUtf8 {
 		get {
 			this.attempts = this.attempts + 1;
@@ -12,15 +18,18 @@ class Card {
 			return true;
 		}
 	}
+
 	property borrowed Utf8Message value { get { return this.cached; } }
 }
+
 bool is_ok(Utf8Message message) { return message.text == "ok"; }
+
 int main() {
 	try {
 		var card = new Card();
-		if (!card.ready || !is_ok(card.value) || !card.ready || card.attempts != 1) { return 81; }
+		if (!card.ready || !is_ok(card.value) || !card.ready || card.attempts != 1) return 81;
 		var moved = move card;
-		if (!moved.ready || !is_ok(moved.value) || moved.attempts != 1) { return 82; }
+		if (!moved.ready || !is_ok(moved.value) || moved.attempts != 1) return 82;
 	} catch(InvalidUtf8 error) { return 83; }
 	return 0;
 }

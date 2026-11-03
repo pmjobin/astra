@@ -13,14 +13,17 @@ private void grammar() {
 	assert (((ReturnStatementSyntax) parsed.unit.functions[2].body.statements[0]).expression is NullPointerExpressionSyntax);
 	assert (((LocalDeclarationSyntax) parsed.unit.functions[3].body.statements[0]).owned_keyword != null);
 }
+
 private void restrictions() {
 	foreach (var source in new string[] { "borrowed C f(){return null;}", "owned borrowed C f(){}", "owned C f(){return move c.;}", "owned C f(){return C{x=1};}", "void f(){make().method();}" }) {
 		assert (Parser.parse (new SourceFile.from_text ("invalid", source)).diagnostic != null);
 	}
 }
+
 private void accepted_current_grammar() {
 	assert (Parser.parse (new SourceFile.from_text ("accepted-current-grammar", "owned C f(){return move c.field;}")).diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	accepted_current_grammar ();
@@ -28,4 +31,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-ret/parser/qualifiers-and-deferred-grammar", restrictions);
 	return Test.run ();
 }
+
 }

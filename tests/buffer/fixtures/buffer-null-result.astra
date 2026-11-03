@@ -1,4 +1,9 @@
-class Context { owned f64[] values; init() { this.values = new f64[0]; } }
+class Context { owned f64[] values;
+
+	init() { this.values = new f64[0]; } }
+
 owned f64[] make(int count) { return new f64[count]; }
+
 void replace(borrowed Context context) { context.values = make(mark(3)); }
+
 int main() { replace(null); return 1; }

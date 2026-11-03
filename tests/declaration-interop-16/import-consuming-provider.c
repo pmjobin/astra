@@ -6,37 +6,46 @@
 #ifdef USE_SDK
 #include "imports16.h"
 #else
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 #endif
+
 typedef struct consume_child16_handle {
 	int32_t value;
 	unsigned references;
 } consume_child16_handle;
+
 typedef struct consume_provider16_handle {
 	consume_child16_handle *held;
 	unsigned references;
 } consume_provider16_handle;
+
 static unsigned roots, root_retired, children, child_retired, exceptions, takes, expected_retirement, expected_deferred;
 static int deny;
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (deny > 0 && --deny == 0) {
 		return NULL;
 	}
 	return __real_calloc(count, size);
 }
+
 static void clear(astra_foreign_error *error) {
 	assert(error);
 	error->domain = 0;
 	error->code = 0;
 }
+
 static int32_t fail(astra_foreign_error *error) {
 	error->domain = 16;
 	error->code = -1600;
 	return -1600;
 }
+
 int32_t consume16_arm(int32_t mode) {
 	deny = mode == 5 ? 1 : mode == 6 ? 2
 	                                 : 0;
@@ -44,6 +53,7 @@ int32_t consume16_arm(int32_t mode) {
 	expected_deferred = mode == 9 ? child_retired + 1 : 0;
 	return 0;
 }
+
 int32_t consume16_seen(void) {
 	if (expected_retirement) {
 		assert(child_retired == expected_retirement);
@@ -55,11 +65,13 @@ int32_t consume16_seen(void) {
 	}
 	return 0;
 }
+
 int32_t consume16_error_seen(void) {
 	++exceptions;
 	consume16_seen();
 	return 0;
 }
+
 int32_t consume_child16_create(int32_t value, consume_child16_handle **out, astra_foreign_error *error) {
 	clear(error);
 	*out = malloc(sizeof **out);
@@ -69,7 +81,9 @@ int32_t consume_child16_create(int32_t value, consume_child16_handle **out, astr
 	++children;
 	return 0;
 }
+
 #ifdef CHILD_SHARED
+
 uint32_t consume_child16_release(consume_child16_handle *self) {
 	assert(self && self->references);
 	unsigned n = --self->references;
@@ -80,6 +94,7 @@ uint32_t consume_child16_release(consume_child16_handle *self) {
 	}
 	return n;
 }
+
 static void drop(consume_child16_handle **owner) {
 	consume_child16_handle *self = *owner;
 	*owner = NULL;
@@ -87,7 +102,9 @@ static void drop(consume_child16_handle **owner) {
 		consume_child16_release(self);
 	}
 }
+
 #else
+
 int32_t consume_child16_destroy(consume_child16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner && *owner);
@@ -98,19 +115,23 @@ int32_t consume_child16_destroy(consume_child16_handle **owner, astra_foreign_er
 	free(self);
 	return 0;
 }
+
 static void drop(consume_child16_handle **owner) {
 	if (*owner) {
 		astra_foreign_error error;
 		assert(consume_child16_destroy(owner, &error) == 0);
 	}
 }
+
 #endif
+
 int32_t consume_child16_code(consume_child16_handle *self, int32_t *out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
 	*out = self->value;
 	return 0;
 }
+
 int32_t consume_child16_duplicate(consume_child16_handle *self, consume_child16_handle **out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
@@ -122,6 +143,7 @@ int32_t consume_child16_duplicate(consume_child16_handle *self, consume_child16_
 	return consume_child16_create(self->value, out, error);
 #endif
 }
+
 int32_t consume_provider16_create(consume_provider16_handle **out, astra_foreign_error *error) {
 	clear(error);
 	*out = calloc(1, sizeof **out);
@@ -130,7 +152,9 @@ int32_t consume_provider16_create(consume_provider16_handle **out, astra_foreign
 	++roots;
 	return 0;
 }
+
 #ifdef EXPECT_SHARED
+
 uint32_t consume_provider16_release(consume_provider16_handle *self) {
 	assert(self && self->references);
 	unsigned n = --self->references;
@@ -141,7 +165,9 @@ uint32_t consume_provider16_release(consume_provider16_handle *self) {
 	}
 	return n;
 }
+
 #else
+
 int32_t consume_provider16_destroy(consume_provider16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner && *owner);
@@ -152,7 +178,9 @@ int32_t consume_provider16_destroy(consume_provider16_handle **owner, astra_fore
 	free(self);
 	return 0;
 }
+
 #endif
+
 int32_t consume_provider16_take(consume_provider16_handle *self, consume_child16_handle **input, const uint8_t *seed, int32_t length, uint8_t *output, int32_t capacity, int32_t *count, int32_t mode, int32_t *out, astra_foreign_error *error) {
 	assert(self && input && *input && seed && length == 3 && output && capacity == 4 && count && out);
 	++takes;
@@ -180,6 +208,7 @@ int32_t consume_provider16_take(consume_provider16_handle *self, consume_child16
 	}
 	return 0;
 }
+
 int32_t consume_provider16_relay(consume_provider16_handle *self, consume_child16_handle **input, consume_child16_handle **out, astra_foreign_error *error) {
 	assert(self && input && *input && out);
 	clear(error);
@@ -187,6 +216,7 @@ int32_t consume_provider16_relay(consume_provider16_handle *self, consume_child1
 	*input = NULL;
 	return 0;
 }
+
 int32_t consume_provider16_pair(consume_provider16_handle *self, consume_child16_handle **first, consume_child16_handle **second, int32_t *out, astra_foreign_error *error) {
 	assert(self && first && *first && second && *second && out);
 	clear(error);
@@ -195,19 +225,23 @@ int32_t consume_provider16_pair(consume_provider16_handle *self, consume_child16
 	drop(second);
 	return 0;
 }
+
 int32_t consume_provider16_empty(consume_provider16_handle *self, consume_provider16_handle **out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
 	*out = NULL;
 	return 1;
 }
+
 int32_t consume_provider16_empty_child(consume_provider16_handle *self, consume_child16_handle **out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
 	*out = NULL;
 	return 1;
 }
+
 extern int32_t import_consuming16_run(int32_t mode);
+
 int main(void) {
 	for (int32_t mode = 0; mode < 11; ++mode) {
 		int32_t result = import_consuming16_run(mode);

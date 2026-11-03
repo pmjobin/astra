@@ -42,9 +42,11 @@ internal class LlvmSharedLowering : Object {
 		intrusive_layout = CApi.struct_type_in_context (artifact.context, header, header.length, 0);
 		artifact.class_layouts.add (new LlvmClassLayoutBinding (intrusive_layout, header));
 	}
+
 	private CApi.BasicBlockRef block(string name) {
 		return CApi.append_basic_block_in_context (artifact.context, function, "shared.%d.%s".printf (serial++, name));
 	}
+
 	private CApi.ValueRef address(CApi.ValueRef root, uint member) {
 		var selected = intrusive_mode ? intrusive_layout : layout;
 		uint index = intrusive_mode ? member + 2 : member;
@@ -52,6 +54,7 @@ internal class LlvmSharedLowering : Object {
 		artifact.class_addresses.add (new LlvmClassAddressBinding (result, root, selected, index));
 		return result;
 	}
+
 	private CApi.ValueRef read(CApi.ValueRef root, uint member) {
 		var place = address (root, member);
 		var type = member == 2 ? pointer_type : count_type;
@@ -66,6 +69,7 @@ internal class LlvmSharedLowering : Object {
 		}
 		return result;
 	}
+
 	private void write(CApi.ValueRef root, uint member, CApi.ValueRef value) {
 		var place = address (root, member);
 		var result = CApi.build_store (builder, value, place);
@@ -78,12 +82,15 @@ internal class LlvmSharedLowering : Object {
 			artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, place }, "shared exact field publication"));
 		}
 	}
+
 	private CApi.ValueRef zero() {
 		return CApi.const_null (count_type);
 	}
+
 	private CApi.ValueRef one() {
 		return CApi.const_int (count_type, 1, 0);
 	}
+
 	private CApi.ValueRef equal(CApi.ValueRef left, CApi.ValueRef right, bool unequal = false) throws LlvmError {
 		var predicate = unequal ? CApi.IntPredicate.NE : CApi.IntPredicate.EQ;
 		var result = CApi.build_icmp (builder, predicate, left, right, "shared.equal");
@@ -92,10 +99,12 @@ internal class LlvmSharedLowering : Object {
 		}
 		return result;
 	}
+
 	private void branch(CApi.ValueRef condition, CApi.BasicBlockRef yes, CApi.BasicBlockRef no) {
 		var result = CApi.build_cond_br (builder, condition, yes, no);
 		artifact.class_branches.add (new LlvmClassBranchBinding (result, condition, yes, no));
 	}
+
 	private void guard(CApi.ValueRef invalid, string name, LlvmBlockState state) throws LlvmError {
 		var trap = block (name + ".trap");
 		var valid = block (name + ".valid");
@@ -105,6 +114,7 @@ internal class LlvmSharedLowering : Object {
 		CApi.position_builder_at_end (builder, valid);
 		state.end = valid;
 	}
+
 	private CApi.ValueRef adjust(CApi.ValueRef root, uint member, bool subtract, bool upgrade, LlvmBlockState state) throws LlvmError {
 		var initial = read (root, member);
 		var entry = state.end;
@@ -148,6 +158,7 @@ internal class LlvmSharedLowering : Object {
 		CApi.add_incoming (result, &next, &attempt, 1);
 		return result;
 	}
+
 	internal CApi.ValueRef operation(SharedAction action, CApi.ValueRef operand, LlvmBlockState state, bool intrusive = false, SsaClass? singleton = null) throws LlvmError {
 		intrusive_mode = intrusive;
 		if (action == SharedAction.SINGLETON_SHUTDOWN) {
@@ -224,16 +235,19 @@ internal class LlvmSharedLowering : Object {
 		}
 		return result;
 	}
+
 	internal void release(CApi.ValueRef handle, SsaCleanupContract cleanup, LlvmBlockState state) throws LlvmError {
 		var owner = cleanup.is_object ? cleanup.object_class : cleanup.shared_payload;
 		bool weak = cleanup.shared_type != null && cleanup.shared_type.is_weak;
 		release_payload (handle, owner, weak, state);
 	}
+
 	internal CApi.ValueRef retain_foreign(CApi.ValueRef handle, LlvmBlockState state) throws LlvmError {
 		intrusive_mode = true;
 		scalars.guard_nonnull (handle, "foreign.retain.root", state, true);
 		return adjust (handle, 0, false, false, state);
 	}
+
 	internal CApi.ValueRef release_foreign(CApi.ValueRef handle, SsaClass owner, LlvmBlockState state) throws LlvmError {
 		var result = CApi.build_alloca (builder, count_type, "foreign.remaining.slot");
 		var initial = CApi.build_store (builder, zero (), result);
@@ -243,6 +257,7 @@ internal class LlvmSharedLowering : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (count, CApi.Opcode.LOAD, count_type, new CApi.ValueRef[] { result }, "foreign exact native release count"));
 		return count;
 	}
+
 	internal void release_payload(CApi.ValueRef handle, SsaClass owner, bool weak, LlvmBlockState state, CApi.ValueRef result_slot = (CApi.ValueRef) null) throws LlvmError {
 		intrusive_mode = ((ClassType) owner.semantic_type).intrinsically_shared;
 		var live = block ("release.live");
@@ -299,5 +314,6 @@ internal class LlvmSharedLowering : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 }
 }

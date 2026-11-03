@@ -1,7 +1,18 @@
 [ExceptionRoot]
-class Error { readonly string text; init(string text) { this.text = text; } virtual property string message { get { return this.text; } } }
+class Error { readonly string text;
+
+	init(string text) { this.text = text; }
+
+	virtual property string message { get { return this.text; } } }
+
 extern(C) int foreign_status();
+
 extern(C) int call_adapter();
-void native_operation() throws Error { if(foreign_status() != 0) { throw new Error("mapped by source"); } }
-export(C) int adapter() { try { native_operation(); } catch(Error error) { if(error.message == "mapped by source") { return 42; } return 81; } return 82; }
+
+void native_operation() throws Error { if(foreign_status() != 0) {
+		throw new Error("mapped by source");
+	} }
+
+export(C) int adapter() { try { native_operation(); } catch(Error error) { if(error.message == "mapped by source") return 42; return 81; } return 82; }
+
 int main() { return call_adapter(); }

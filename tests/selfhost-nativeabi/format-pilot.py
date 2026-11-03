@@ -63,7 +63,7 @@ def main():
 		if name == 'else-scope':
 			assert b'}else{' in formatted.read_bytes()
 			assert b'\n\t\tint y=3;' in formatted.read_bytes()
-	# Neither local declarations nor nested controls can become implicit scopes.
+			# Neither local declarations nor nested controls can become implicit scopes.
 	for i, text in enumerate(['int main(){if(true) int x=1;return 0;}',
 		'int main(){if(true) if(false) return 1;else{return 0;}return 0;}']):
 		bad = a.runtime/('bad-'+str(i)+'.astra'); bad.write_text(text+'\n')

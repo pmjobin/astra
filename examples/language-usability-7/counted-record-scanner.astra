@@ -2,12 +2,15 @@
 // A49: count-prefixed byte sequences; zero is empty, 255 ends the scan.
 void print_metric(string label, i64 value) throws InvalidUtf8 {
 	var builder = new Utf8ByteBuilder();
-	if (!append_i64(builder, value)) { throw new InvalidUtf8(); }
+	if (!append_i64(builder, value)) {
+		throw new InvalidUtf8();
+	}
 	var text = builder.snapshot();
 	print(label); println(text.text);
 }
+
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	try {
 		var file = new FileHandle(); file.open(args[1], 0);
 		i64 records = 0;
@@ -17,13 +20,18 @@ int main(string[] args) {
 		i64 empty = 0;
 		for (int record = 0; record < 2147483647; record = record + 1) {
 			int count = file.next_byte();
-			if (count == -1) { break; }
+			if (count == -1) break;
 			bytes = bytes + 1;
-			if (count == 255) { break; }
-			if (count == 0) { empty = empty + 1; continue; }
+			if (count == 255) break;
+			if (count == 0) {
+				empty = empty + 1;
+				continue;
+			}
 			for (int offset = 0; offset < count; offset = offset + 1) {
 				int byte = file.next_byte();
-				if (byte == -1) { throw new Error("truncated sequence"); }
+				if (byte == -1) {
+					throw new Error("truncated sequence");
+				}
 				total = total + (byte as i64);
 				values = values + 1;
 				bytes = bytes + 1;

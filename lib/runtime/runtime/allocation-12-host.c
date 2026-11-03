@@ -16,6 +16,7 @@ void *astra_alloc12_heap_allocate(uint64_t bytes, uint32_t alignment) {
 	size_t rounded = ((size_t)bytes + alignment - 1) & ~((size_t)alignment - 1);
 	return aligned_alloc(alignment, rounded);
 }
+
 void astra_alloc12_heap_release(void *pointer) {
 	free(pointer);
 }

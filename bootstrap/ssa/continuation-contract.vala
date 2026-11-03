@@ -7,6 +7,7 @@ public class ContinuationIdentity : Object {
 public enum ContinuationRole {
 	STEP, CANCEL_DRAIN, DESTROY
 }
+
 public enum ContinuationActionKind {
 	CREATE, INITIALIZE, PUBLISH, MOVE, RETAIN, RELEASE, BEGIN, CALL, END, DESTROY
 }
@@ -29,6 +30,7 @@ public class ContinuationAction : Object {
 	public int capture(int index) {
 		return captures[index];
 	}
+
 	internal ContinuationAction (ContinuationActionKind kind, int owner, int destination = -1, int family = -1, int instance = -1, int witness = -1, int operand = -1, int first_entry = -1, int second_entry = -1, ContinuationRole role = ContinuationRole.STEP, int[]? captures = null) {
 		this.kind = kind;
 		this.owner = owner;
@@ -42,9 +44,11 @@ public class ContinuationAction : Object {
 		this.role = role;
 		this.captures = captures == null ? null : captures.copy ();
 	}
+
 	public ContinuationAction copy() {
 		return new ContinuationAction (kind, owner, destination, family, instance, witness, operand, first_entry, second_entry, role, captures);
 	}
+
 	public bool same_action(ContinuationAction other) {
 		if (kind != other.kind || owner != other.owner || destination != other.destination || family != other.family || instance != other.instance || witness != other.witness || operand != other.operand || first_entry != other.first_entry || second_entry != other.second_entry || role != other.role || capture_count != other.capture_count) {
 			return false;
@@ -56,5 +60,6 @@ public class ContinuationAction : Object {
 		}
 		return true;
 	}
+
 }
 }

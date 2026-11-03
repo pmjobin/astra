@@ -1,40 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void record_store_event(int value);
+
 extern(C) int record_store_probe();
+
 [Allocator(kind="pool", domain="record12.nodes", capacity="512", blocks="8")]
 class Node {
 	int value;
+
 	init(int value) { this.value = value; record_store_event(value); }
+
 	deinit() { record_store_event(0 - this.value); }
 }
+
 struct Pair { owned Node first; owned Node second; }
+
 struct Document { Pair pair; owned Node tail; int tag; }
+
 [Allocator(kind="region", domain="record12.storage", capacity="2048", blocks="16")]
 class RecordStore<T> {
 	owned T[slots] entries;
+
 	init() { this.entries = new T[slots]; }
+
 	bool reserve(int requested) { return this.entries.reserve(requested); }
+
 	void append(owned T value) { this.entries.append(move value); }
+
 	owned T take(int index) { var value = this.entries.take(index); return move value; }
 }
+
 owned Node node(int value) { var result = new Node(value); return move result; }
+
 Document document(int base) {
 	Document result = {pair = {first = node(base), second = node(base + 1)}, tail = node(base + 2), tag = base};
 	return move result;
 }
+
 int main() {
 	{
 		var records = new RecordStore<Document>();
-		if (!records.reserve(1)) { return 81; }
+		if (!records.reserve(1)) return 81;
 		var first = document(1); records.append(move first);
-		if (!records.reserve(3)) { return 82; }
+		if (!records.reserve(3)) return 82;
 		var taken = records.take(0);
 		var head = move taken.pair.first;
 		var second = document(4); records.append(move second);
-		if (head.value != 1 || taken.tag != 1) { return 83; }
+		if (head.value != 1 || taken.tag != 1) return 83;
 		release head;
 		release records;
 	}
-	if (record_store_probe() != 1) { return 84; }
+	if (record_store_probe() != 1) return 84;
 	return 42;
 }

@@ -4,13 +4,16 @@ namespace Astra.Source {
 public enum AsyncProviderKind {
 	VIRTUAL, LINUX_IO_URING, POSIX_THREADED
 }
+
 public class SuspensionLoanIdentity : Object {
 	internal SuspensionLoanIdentity () {
 	}
+
 }
 // Opaque logical contract token. It has no body, frame or stage backlink.
 public class TaskContractIdentity : Object {
 	internal TaskContractIdentity () {
 	}
+
 }
 }

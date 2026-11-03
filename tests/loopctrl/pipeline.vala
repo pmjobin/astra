@@ -15,6 +15,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 
 private HashTable<string, Case> cases;
@@ -357,9 +358,11 @@ private class Probe : Object {
 	internal Probe (Object target) {
 		reference = WeakRef (target);
 	}
+
 	internal void gone() {
 		assert (reference.get () == null);
 	}
+
 }
 
 private void lifetime() throws GLib.Error {
@@ -504,4 +507,5 @@ int main(string[] args) {
 	add ("/loopctrl/lifetime/stage-independence-expiry", lifetime);
 	return Test.run ();
 }
+
 }

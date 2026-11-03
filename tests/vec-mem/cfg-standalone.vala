@@ -127,4 +127,5 @@ int main(string[] args) {
 	Test.add_func ("/vecmem/cfg/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

@@ -6,6 +6,7 @@ namespace Astra.NativeAbi {
 public enum NativeSumRole {
 	SNAPSHOT_READONLY, RESULT_CALLER_STORAGE, OWNED_TRANSFER, OWNED_RESULT_STORAGE
 }
+
 // Nominal identity survives pointer erasure. The completed plan retains no
 // semantic definition, SSA producer, function body, or backend object.
 public class NativeSumType : NativeAbiType {
@@ -17,12 +18,15 @@ public class NativeSumType : NativeAbiType {
 		this.role = role;
 		this.channel = channel;
 	}
+
 	public override string spelling() {
 		return "SUM(%s,%s,%s)".printf (identity.name, channel.spelling (), role == NativeSumRole.SNAPSHOT_READONLY ? "snapshot" : role == NativeSumRole.OWNED_TRANSFER ? "owned-transfer" : role == NativeSumRole.OWNED_RESULT_STORAGE ? "owned-result" : "caller-result");
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		return other is NativeSumType && ((NativeSumType) other).identity == identity && ((NativeSumType) other).role == role && ((NativeSumType) other).channel == channel;
 	}
+
 }
 
 // Exact scalar ownership survives erasure to PTR without retaining semantic
@@ -38,9 +42,11 @@ public class NativeScalarOwner : Object {
 		this.destructor_symbol = cleanup_symbol;
 		this.class_ordinal = class_ordinal;
 	}
+
 	public bool same_owner(NativeScalarOwner? other) {
 		return other != null && type_name == other.type_name && cleanup_symbol == other.cleanup_symbol && class_ordinal == other.class_ordinal;
 	}
+
 }
 
 public class NativeSumField : Object {
@@ -60,6 +66,7 @@ public class NativeSumField : Object {
 		this.scalar_owner = scalar_owner;
 		this.record_value = record_value;
 	}
+
 }
 
 public class NativeSumVariant : Object {
@@ -73,6 +80,7 @@ public class NativeSumVariant : Object {
 			original_fields.add (field);
 		}
 	}
+
 	internal bool matches_fields() {
 		if (fields.length != original_fields.length) {
 			return false;
@@ -97,6 +105,7 @@ public class NativeSumVariant : Object {
 		}
 		return true;
 	}
+
 }
 
 public class NativeSumPlan : Object {
@@ -122,6 +131,7 @@ public class NativeSumPlan : Object {
 			original_variants.add (variant);
 		}
 	}
+
 	internal bool matches_variants() {
 		if (variants.length != original_variants.length) {
 			return false;
@@ -133,6 +143,7 @@ public class NativeSumPlan : Object {
 		}
 		return true;
 	}
+
 }
 
 internal class NativeSumVerifier : Object {
@@ -247,5 +258,6 @@ internal class NativeSumVerifier : Object {
 			}
 		}
 	}
+
 }
 }

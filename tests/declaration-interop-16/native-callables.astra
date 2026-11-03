@@ -1,27 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="callables16_observe")] void observe(i32 value,f64 scale);
+
 [CImport(name="callables16_retire")] void retired();
+
 struct Reading { i32 count; f64 scale; }
-void emit(i32 value,f64 scale,bool enabled) { if(enabled){observe(value,scale);} }
+
+void emit(i32 value,f64 scale,bool enabled) { if(enabled) observe(value,scale); }
+
 void apply(Fn<void,i32,f64,bool> code,i32 value) { code(value,2.5,true); }
+
 void generic_apply<T>(Fn<void,T> code,T value) { code(value); }
+
 void record(Reading reading) { observe(reading.count,reading.scale); }
+
 class State {
 	private int value;
+
 	init(int value){this.value=value;}
+
 	int add(int delta){this.value=this.value+delta;return this.value;}
+
 	deinit(){retired();}
 }
+
 void invoke(borrowed State state,int delta){observe(state.add(delta),3.5);}
+
 void consume(owned State state){observe(state.add(1),4.5);}
+
 void consume_call(Fn<void,owned State> code,owned State state){code(move state);}
+
 void closure_call(borrowed Closure<State,void,int> code){closure_invoke(code,4);}
+
 [ExceptionRoot] class Fault {
-	readonly string text;init(){this.text="void closure failure";}
+	readonly string text;
+
+	init(){this.text="void closure failure";}
+
 	virtual property string message{get{return this.text;}}
 }
-void checked_invoke(borrowed State state,int delta) throws Fault { if(delta<0){var fault=new Fault();throw move fault;}observe(state.add(delta),5.5); }
+
+void checked_invoke(borrowed State state,int delta) throws Fault { if(delta<0){
+		var fault=new Fault();
+		throw move fault;
+	}observe(state.add(delta),5.5); }
+
 void checked_call(borrowed CheckedClosure<State,Fault,void,int> code,int delta) throws Fault {closure_invoke(code,delta);}
+
 export(C) int native_callables16_run(){
 	apply(emit,7);
 	Reading reading={count=9,scale=6.5};generic_apply<Reading>(record,reading);

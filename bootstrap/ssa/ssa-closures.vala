@@ -15,6 +15,7 @@ public class SsaClosureBind : SsaInstruction {
 		this.cleanup = cleanup;
 		this.actor_binding = actor_binding == null ? null : actor_binding.copy ();
 	}
+
 }
 public class SsaClosureCall : SsaInstruction, SsaCallableInvocation {
 	public SsaStructCallResults? struct_result { get; internal set; }
@@ -22,11 +23,13 @@ public class SsaClosureCall : SsaInstruction, SsaCallableInvocation {
 	public SsaCleanupContract? result_cleanup() {
 		return owned_cleanup;
 	}
+
 	private WeakRef success_identity;
 	public SsaClosureCallSuccess? owned_success { owned get { return (SsaClosureCallSuccess?) success_identity.get (); } internal set { success_identity = WeakRef (value); } }
 	public SsaValue? owned_result_value() {
 		return ((ClosureHandleType) callee.semantic_type).throws_type == null ? result : owned_success == null ? null : owned_success.result;
 	}
+
 	private GenericArray<SsaStructBoundaryMove> record_transfers = new GenericArray<SsaStructBoundaryMove> ();
 	public GenericArray<SsaStructBoundaryMove> record_moves { get { return record_transfers; } }
 	private GenericArray<SsaCallableOwnedArgument> argument_transfers = new GenericArray<SsaCallableOwnedArgument> ();
@@ -47,6 +50,7 @@ public class SsaClosureCall : SsaInstruction, SsaCallableInvocation {
 		this.source_owner = source_owner;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 public class SsaClosureCallSuccess : SsaInstruction {
 	public SsaStructCallResults? struct_result { get; internal set; }
@@ -56,6 +60,7 @@ public class SsaClosureCallSuccess : SsaInstruction {
 		this.call = call;
 		call.owned_success = this;
 	}
+
 }
 
 }
@@ -76,5 +81,6 @@ public class SsaActorSend : SsaInstruction {
 		this.sender_owner = sender_owner;
 		this.message_owner = message_owner;
 	}
+
 }
 }

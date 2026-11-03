@@ -1,44 +1,59 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int field_event(int stage, int tag);
+
 extern(C) int field_done();
+
 class Child {
 	int value;
+
 	init(int tag) { this.value = 42; field_event(1, tag); }
+
 	int probe(int tag) { field_event(3, tag); return this.value; }
+
 	deinit() { field_event(2, 0); }
 }
+
 int inspect(Child child, int tag) { return child.probe(tag); }
+
 owned Child acquire(int tag, bool failing) throws Error {
 	var child = new Child(tag);
-	if (failing) { throw new Error("replacement"); }
+	if (failing) {
+		throw new Error("replacement");
+	}
 	return move child;
 }
+
 class Holder {
 	owned Child child;
+
 	init(owned Child child) {
 		this.child = move child;
 		// A caught failure after field commitment must leave the field live.
 		try { var temporary = acquire(2, true); } catch (Error error) { field_event(4, 20); }
 	}
+
 	deinit() { field_event(4, 90); }
 }
+
 int main() {
 	var first = new Child(1); var holder = new Holder(move first);
 	try { holder.child = acquire(3, true); } catch (Error error) {
-		if (error.message != "replacement" || inspect(holder.child, 1) != 42) { return 81; }
+		if (error.message != "replacement" || inspect(holder.child, 1) != 42) return 81;
 	}
 	try { holder.child = acquire(4, false); } catch (Error error) { return 82; }
-	if (inspect(holder.child, 4) != 42) { return 83; }
+	if (inspect(holder.child, 4) != 42) return 83;
 	release holder;
 	// Checked argument abort retains a named incoming owner and the old field.
 	var a = new Child(5); var second = new Holder(move a);
 	var pending = new Child(6);
 	try { replace(second, move pending, fail()); } catch (Error error) {
-		if (inspect(second.child, 5) != 42 || inspect(pending, 6) != 42) { return 84; }
+		if (inspect(second.child, 5) != 42 || inspect(pending, 6) != 42) return 84;
 		release pending;
 	}
 	release second;
 	return field_done();
 }
+
 int fail() throws Error { throw new Error("later argument"); }
+
 void replace(Holder holder, owned Child child, int unused) { holder.child = move child; }

@@ -4,6 +4,7 @@ Kernel kernel_for(int index) {
 	Kernel value = {left=left, right=left + 2, weight=0.5d, shape={gain=sqrt_f64(4.0d), bias=0.0d}};
 	return value;
 }
+
 f64 process(Kernel[] kernels, f64[] samples) {
 	f64 total = 0.0d;
 	int index = 0;
@@ -11,10 +12,14 @@ f64 process(Kernel[] kernels, f64[] samples) {
 		var saved = kernels[index];
 		int point = saved.left;
 		f64 local = 0.0d;
-		while (point < saved.right) { local = local + samples[point]; point = point + 1; }
+		while (point < saved.right) {
+			local = local + samples[point];
+			point = point + 1;
+		}
 		total = total + saved.weight * (saved.shape.gain * local + saved.shape.bias);
 		index = index + 1;
 	}
 	return total;
 }
+
 Kernel select_kernel(Kernel[] kernels, int index) { return kernels[index]; }

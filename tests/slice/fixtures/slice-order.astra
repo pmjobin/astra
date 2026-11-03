@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 int record(int* order, int digit, int result) { *order = *order * 10 + digit; return result; }
+
 int main() {
 	int[4] a = {10, 20, 30, 40};
 	int order = 0;
 	int result = slice(a, record(&order, 1, 1), record(&order, 2, 2))[record(&order, 3, 0)];
-	if (order != 123 || result != 20) { return 1; }
+	if (order != 123 || result != 20) return 1;
 	order = 0;
 	(slice(a, record(&order, 1, 1), record(&order, 2, 2)))[record(&order, 3, 0)] = record(&order, 4, 42);
-	if (order != 1234 || a[1] != 42 || a[0] != 10) { return 2; }
+	if (order != 1234 || a[1] != 42 || a[0] != 10) return 2;
 	return 0;
 }

@@ -41,6 +41,7 @@ private void lifetime() throws GLib.Error {
 		CAbiVerifier.verify (cabi);
 	}
 }
+
 private void promotion() throws GLib.Error {
 	foreach (string name in new string[] {"basic", "nested", "generic-fn", "cap", "multi", "phantom", "dedup"}) {
 		var ssa = build (fixture (name));
@@ -58,6 +59,7 @@ private void promotion() throws GLib.Error {
 	var f64 = build (fixture ("f64"));
 	assert (f64.functions[0].return_type is F64Type && f64.functions[0].storage.length == 0);
 }
+
 private void matrix() throws GLib.Error {
 	var parameterized = CoreBuilder.build (check (fixture ("box-matrix")));
 	var concrete = CoreGenericMonomorphizer.build (parameterized);
@@ -71,6 +73,7 @@ private void matrix() throws GLib.Error {
 	}
 	assert (vectors == 24);
 }
+
 private void members() throws GLib.Error {
 	var parameterized = CoreBuilder.build (check (fixture ("members")));
 	var meter = parameterized.structs[0];
@@ -93,6 +96,7 @@ private void members() throws GLib.Error {
 	assert (found);
 	CoreVerifier.verify_concrete (concrete);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -104,4 +108,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -8,27 +8,32 @@
 typedef struct Native Native;
 typedef struct _RecordQuery16Index Index;
 typedef struct _RecordQuery16Match Match;
+
 typedef struct {
 	int64_t minimum;
 	double ceiling;
 	uint32_t mask;
 	bool lowest;
 } Query;
+
 typedef struct {
 	int64_t code;
 	double score;
 	uint32_t matches;
 	bool found;
 } Answer;
+
 typedef struct {
 	gint64 minimum;
 	gdouble ceiling;
 	guint mask;
 	gboolean lowest;
 } GQuery;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t record_query16_create(Native **, Error *);
 extern int32_t record_query16_search(Native *, Query, Answer *, Error *);
 extern uint32_t record_query16_acquire(Native *);
@@ -36,6 +41,7 @@ extern uint32_t record_query16_release(Native *);
 extern Index *record_query16_index_as_gobject(Native *, GError **);
 extern gboolean record_query16_index_try_find(Index *, GQuery *, Match **, GError **);
 extern uint32_t query16_retired_count(int32_t);
+
 struct State {
 	Native *root;
 	unsigned complete, selected, destroyed;
@@ -43,6 +49,7 @@ struct State {
 	Match *saved;
 	GBytes *description;
 };
+
 static void completed(Index *object, gint requests, gboolean matched, gdouble score, gpointer data) {
 	struct State *s = data;
 	++s->complete;
@@ -61,11 +68,13 @@ static void completed(Index *object, gint requests, gboolean matched, gdouble sc
 	record_query16_release(s->root);
 	g_object_unref(object);
 }
+
 static void destroyed(gpointer data, GClosure *closure) {
 	(void)closure;
 	struct State *s = data;
 	++s->destroyed;
 }
+
 static void selected(Index *object, Match *item, GBytes *description, gpointer data) {
 	struct State *s = data;
 	assert(s->complete == 1 && item && description);
@@ -75,6 +84,7 @@ static void selected(Index *object, Match *item, GBytes *description, gpointer d
 	g_signal_handler_disconnect(object, s->connection);
 	assert(s->destroyed == 0);
 }
+
 int main(void) {
 	Native *root = NULL;
 	Error native = {0};

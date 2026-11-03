@@ -1,47 +1,67 @@
 [CCode(text_abi = "utf8-i32")]
 extern(C) void runtime_input(borrowed string text);
+
 [CCode(text_abi = "utf8-i32")]
 extern(C) void runtime_snapshot(int stage, borrowed string text);
+
 extern(C) void runtime_drop(int rank);
+
 extern(C) int runtime_result();
+
 class Label {
 	readonly string base_text;
+
 	init(string text) { this.base_text = text; }
+
 	virtual property string description { get { return this.base_text; } }
+
 	virtual int kind() { return 1; }
+
 	deinit() { runtime_drop(1); }
 }
+
 class Fancy : Label {
 	readonly string extra;
+
 	init(string base_text, string extra) : base(base_text) { this.extra = extra; }
+
 	override property string description { get { return this.extra; } }
+
 	override int kind() { return 2; }
+
 	deinit() { runtime_drop(2); }
 }
+
 class Deep : Fancy {
 	int payload;
+
 	init(string base_text, string extra, int payload) : base(base_text, extra) { this.payload = payload; }
+
 	override int kind() { return this.payload - 39; }
+
 	deinit() { runtime_drop(3); }
 }
+
 bool borrowed_read(Label label, string expected) { return label.kind() == 3 && label.description == expected; }
+
 int scope(string source, string extra) {
 	runtime_input(extra);
 	var first = new Deep(source, extra, 42);
-	if(!borrowed_read(first, extra)) { return 81; }
+	if(!borrowed_read(first, extra)) return 81;
 	var second = new Label(first.description);
 	{
 		var view = first.description;
 		runtime_snapshot(1, view);
-		if(view != extra || first.description != extra || first.kind() != 3) { return 82; }
+		if(view != extra || first.description != extra || first.kind() != 3) return 82;
 		runtime_snapshot(2, first.description);
 	}
 	release first;
 	runtime_snapshot(3, second.description);
-	if(second.description != extra) { return 83; }
+	if(second.description != extra) return 83;
 	return 42;
 }
+
 int main(string[] args) {
-	if(scope(args[0], args[1]) != 42 || runtime_result() != 1) { return 84; }
+	if(scope(args[0], args[1]) != 42 || runtime_result() != 1) return 84;
 	return 42;
 }

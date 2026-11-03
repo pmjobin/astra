@@ -43,9 +43,11 @@ private void lowering() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-bound/llvm/ordinary-nullable-pointer-no-attributes-and-upstream-release", lowering);
 	return Test.run ();
 }
+
 }

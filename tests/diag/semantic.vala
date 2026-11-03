@@ -17,10 +17,12 @@ private CheckedProgram analyze(string text, string path = "diag.astra") {
 	}
 	return result.program;
 }
+
 private void text_is(CheckedExpression expression, string expected) {
 	assert (expression is CheckedTextExpression);
 	assert (((CheckedTextExpression) expression).payload.equal_content (new TextBytes (expected.data)));
 }
+
 private void capture() {
 	var p = analyze (CHECK + "void test(){\r\n\t/* français 😀 */ check( /* outside */ (1 /* inside */ +\r\n\t2) /* outside */ );\r\n}", "./sub//file.astra");
 	var call = (CheckedCallStatement) p.functions[1].body.statements[0];
@@ -35,6 +37,7 @@ private void capture() {
 	assert (((CheckedTextExpression) call.arguments[0]).payload.hex () == "610062");
 	text_is (call.arguments[1], "\"a\\0b\"");
 }
+
 private void explicit_prefixes() {
 	var p = analyze (CHECK + "void f(string file,int line,string expression){check(1);check(2,file);check(3,file,line);check(4,file,line,expression);}");
 	for (int i = 0; i < 4; i++) {
@@ -62,6 +65,7 @@ private void explicit_prefixes() {
 		}
 	}
 }
+
 private void generics() {
 	var p = analyze ("T id<T>(T x,[CallerArgumentExpression(\"x\")] string expression,[CallerLineNumber] int line){return x;}\nT outer<T>(T x){return id(x);}\nint a(){return id(1);}\nint b(){return id<int>(2);}\nf64 c(){return id(2.0d);}");
 	var outer = p.generic_functions[1];
@@ -85,6 +89,7 @@ private void generics() {
 	duplicate.move (owner, "x", p.span);
 	assert (!duplicate.verify ());
 }
+
 private void forged_contracts() {
 	var source = new SourceFile.from_text ("forged.astra", "function parameter annotation target");
 	var types = new BuiltinTypes ();
@@ -109,6 +114,7 @@ private void forged_contracts() {
 		assert (CallerInformation.validate (symbol, types, defect == 10) != null);
 	}
 }
+
 private void missing_ranges() {
 	var p = analyze (CHECK);
 	var target = p.functions[0].symbol;
@@ -134,6 +140,7 @@ private void missing_ranges() {
 	var invalid = ((CallStatementSyntax) parsed.unit.functions[0].body.statements[0]).call;
 	assert (CallerInformation.complete (invalid, target, p.types, out error) == null && error.message.contains ("not representable"));
 }
+
 private void detached_source() {
 	try {
 		string directory = Environment.get_variable ("DIAG_OUTPUT");
@@ -156,6 +163,7 @@ private void detached_source() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/diag/semantic/exact-owned-source-bytes-crlf", capture);
@@ -166,4 +174,5 @@ int main(string[] args) {
 	Test.add_func ("/diag/semantic/source-changed-and-deleted", detached_source);
 	return Test.run ();
 }
+
 }

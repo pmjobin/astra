@@ -20,6 +20,7 @@ private void own_execute(string name) throws GLib.Error {
 		run.exits (0);
 	}
 }
+
 private void own_distinct_contracts() throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/own/fixtures/owned-resource.vapi") + "[CCode(cname = \"astra_test_resource_create_other\", destroy_function = \"astra_test_resource_destroy_other\")] void* second(int id);");
@@ -30,6 +31,7 @@ private void own_distinct_contracts() throws GLib.Error {
 	new Run ({workspace.executable}).exits (0);
 	workspace.clean_temporaries ();
 }
+
 private void move_execute(string name) throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/own/fixtures/owned-resource.vapi"));
@@ -47,6 +49,7 @@ private void move_execute(string name) throws GLib.Error {
 		run.exits (0);
 	}
 }
+
 private void oborrow_execute(string name) throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/own/fixtures/owned-resource.vapi"));
@@ -60,6 +63,7 @@ private void oborrow_execute(string name) throws GLib.Error {
 	run.silent ();
 	workspace.clean_temporaries ();
 }
+
 private void release_execute(string name) throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/own/fixtures/owned-resource.vapi"));
@@ -77,6 +81,7 @@ private void release_execute(string name) throws GLib.Error {
 	}
 	workspace.clean_temporaries ();
 }
+
 private void rearm_execute(string name) throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/own/fixtures/owned-resource.vapi"));
@@ -94,6 +99,7 @@ private void rearm_execute(string name) throws GLib.Error {
 	}
 	workspace.clean_temporaries ();
 }
+
 private void resource_execute(string name) throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/resource/fixtures/resource-api.vapi"));
@@ -107,6 +113,7 @@ private void resource_execute(string name) throws GLib.Error {
 	run.silent ();
 	workspace.clean_temporaries ();
 }
+
 private void ownbound_execute(string name) throws GLib.Error {
 	var workspace = new VapiWorkspace ();
 	FileUtils.set_contents (workspace.vapi0, read ("tests/resource/fixtures/resource-api.vapi"));
@@ -124,6 +131,7 @@ private void ownbound_execute(string name) throws GLib.Error {
 	run.silent ();
 	workspace.clean_temporaries ();
 }
+
 private void register_ownership() {
 	foreach (string name in new string[] {"consume", "pass", "null", "release", "move", "borrow", "rearm", "multi", "root-order", "nested", "order", "recurse", "mutual", "result", "terminating", "branches", "loop", "shortcircuit", "borrow-move", "trap"}) {
 		add ("/exec/ownbound/" + name, () => ownbound_execute (name));
@@ -148,4 +156,5 @@ private void register_ownership() {
 		add ("/exec/own/" + name, () => own_execute (name));
 	}
 }
+
 }

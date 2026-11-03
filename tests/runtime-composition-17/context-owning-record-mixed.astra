@@ -1,28 +1,39 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void owning_record_item_retired(int identity);
+
 extern(C) int owning_record_finish();
+
 [Allocator(kind="context",context="owned-concurrent")]
 class RecordItem {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	deinit() { owning_record_item_retired(this.identity); }
 }
+
 struct CopyRecord<T> { T number; int marker; }
+
 struct MixedRecord<T,K> where T : Ownable {
 	owned T item;
 	K key;
 	owned int[] samples;
 }
+
 struct WrappedRecord<T> where T : Ownable {
 	MixedRecord<T,CopyRecord<int>> child;
 	int stamp;
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class RecordHost {
 	private owned WrappedRecord<RecordItem> record;
+
 	init(WrappedRecord<RecordItem> record) { this.record = move record; }
+
 	int read() { return this.record.child.key.number + this.record.child.key.marker + this.record.stamp; }
 }
+
 WrappedRecord<RecordItem> create_owned_record(int identity) {
 	var context = custom_allocator(16387, 11);
 	var item = new (context) RecordItem(identity);
@@ -31,18 +42,20 @@ WrappedRecord<RecordItem> create_owned_record(int identity) {
 	WrappedRecord<RecordItem> record = {child = {item = move item, key = {number = 3, marker = 2}, samples = move samples}, stamp = 7};
 	return move record;
 }
+
 int inspect(borrowed MixedRecord<ConcurrentAllocator,int> record) { return record.key + len(record.samples) + record.samples[1]; }
+
 int main() {
 	{
 		var context = concurrent_allocator(2, 65543, 7, 128);
 		WrappedRecord<RecordItem> first = create_owned_record(17);
 		WrappedRecord<RecordItem> second = move first;
 		var host = new (context) RecordHost(move second);
-		if (host.read() != 12) { return 1; }
+		if (host.read() != 12) return 1;
 		var samples = new int[3];
 		samples[1] = 13;
 		MixedRecord<ConcurrentAllocator,int> allocator = {item = custom_allocator(8197, 3), key = 23, samples = move samples};
-		if (inspect(allocator) != 39) { return 2; }
+		if (inspect(allocator) != 39) return 2;
 	}
 	return owning_record_finish();
 }

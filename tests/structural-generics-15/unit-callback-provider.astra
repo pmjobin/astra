@@ -1,39 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace NativeQueries;
 struct QueryResult<T> { T value; int generation; }
+
 class Payload<T> {
 	private T data;
 	private int generation;
 	private owned R retained;
+
 	init(owned R retained, T value, int generation) {
 		this.retained = move retained;
 		this.data = value;
 		this.generation = generation;
 	}
+
 	property T value {
 		get { return this.data; }
 		set(T value) { this.data = value; }
 	}
+
 	property QueryResult<T> snapshot {
 		get {
 			QueryResult<T> result = {value = this.data, generation = this.generation};
 			return result;
 		}
 	}
+
 	deinit() { mark(2200); }
 }
+
 bool same_key(int first, int second) { return first == second; }
+
 QueryResult<int> inspect_payload(borrowed Payload<int> value) { return value.snapshot; }
+
 QueryResult<int> apply_ordinary(borrowed Payload<int> value, Fn<QueryResult<int>, borrowed Payload<int>> callback) {
 	return callback(value);
 }
+
 // The ordinary source control grounds the original closed-unit effect check.
 // Exported promises must still retain the callback input, independent of it.
 int source_control() {
 	var values = new Map<int, Payload<int>>(same_key);
 	var retained = make(241);
 	var value = new Payload<int>(move retained, 40, 7);
-	if (!values.put(1, move value)) { return 1; }
+	if (!values.put(1, move value)) return 1;
 	QueryResult<int> missing = {value = -1, generation = -1};
 	var result = values.lookup<QueryResult<int>>(1, inspect_payload, missing);
 	return result.value - 40;

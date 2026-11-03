@@ -33,20 +33,24 @@ static int32_t place(int32_t bytes, int32_t align, int32_t proposed, int32_t cap
 	}
 	return proposed;
 }
+
 static void returned(int32_t offset, int32_t bytes) {
 	assert(offset >= 0 && bytes > 0);
 	++notifications;
 }
+
 static void aligned_zero(void *pointer, uint64_t bytes, uint32_t alignment) {
 	assert(pointer && (uintptr_t)pointer % alignment == 0);
 	for (uint64_t i = 0; i < bytes; ++i) {
 		assert(((unsigned char *)pointer)[i] == 0);
 	}
 }
+
 static void release(AstraAlloc12Domain *domain, void *pointer, uint64_t tag) {
 	uint64_t token = astra_alloc12_token(domain, pointer, tag);
 	assert(token && astra_alloc12_release(domain, pointer, tag, token));
 }
+
 static void region_probe(void) {
 	unsigned char *first = astra_alloc12_allocate(&region, 1, 24, 64, 11);
 	unsigned char *second = astra_alloc12_allocate(&region, 2, 40, 16, 12);
@@ -83,6 +87,7 @@ static void region_probe(void) {
 	assert(astra_alloc12_reset(&region) && !region.used && !region.live);
 	assert(region.allocations == region.releases && region.peak_live == 16);
 }
+
 static void pool_probe(void) {
 	void *values[4];
 	for (uint64_t i = 0; i < 4; ++i) {
@@ -103,6 +108,7 @@ static void pool_probe(void) {
 	assert(!astra_alloc12_allocate(&pool, 1, 8, 8, 20));
 	assert(pool.error == ASTRA_ALLOC12_GENERATION && !pool.live);
 }
+
 static void custom_probe(void) {
 	custom = (AstraAlloc12Domain){.backing = custom_bytes, .blocks = custom_blocks, .capacity = 4096, .block_capacity = 8, .kind = ASTRA_ALLOC12_CUSTOM, .placement = place, .released = returned};
 	void *first = astra_alloc12_allocate(&custom, 1, 32, 64, 31);
@@ -118,6 +124,7 @@ static void custom_probe(void) {
 	release(&custom, first, 31);
 	assert(notifications == 2 && custom.releases == 2 && !custom.live);
 }
+
 static void heap_and_static_probe(void) {
 	void *first = astra_alloc12_allocate(&heap, 1, 17, 4096, 41);
 	void *second = astra_alloc12_allocate(&heap, 1, 33, 64, 42);
@@ -135,6 +142,7 @@ static void heap_and_static_probe(void) {
 	assert(one.allocations == 1 && one.releases == 1);
 	assert(astra_alloc12_query(&one, 2) == 1 && astra_alloc12_query(&one, 100) == -1);
 }
+
 int main(void) {
 	region_probe();
 	pool_probe();

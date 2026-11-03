@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Sample { f32 x; f32 y; u8 tag; }
+
 f32 sample(bool flag) {
 	Sample s = { x = 1.25, y = -0.5, tag = 255 };
-	if (flag) { s.x = s.x + 1.0; } else { s.y = s.y * 2.0; }
+	if (flag) {
+		s.x = s.x + 1.0;
+	} else {
+		s.y = s.y * 2.0;
+	}
 	int i = 0;
-	while (i < 4) { s.x = s.x + 0.5; i = i + 1; }
+	while (i < 4) {
+		s.x = s.x + 0.5;
+		i = i + 1;
+	}
 	return s.x + s.y;
 }
+
 int main() {
-	if (sample(true) != 3.75 || sample(false) != 2.25) { return 1; }
+	if (sample(true) != 3.75 || sample(false) != 2.25) return 1;
 	return 0;
 }

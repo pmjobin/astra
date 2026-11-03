@@ -65,9 +65,11 @@ private void qualify() {
 	edges.insert (empty, new GenericArray<SemanticType> ());
 	assert (CopyabilityAuthority.of (empty, graph) == Copyability.COPYABLE && !BufferElementTypes.defined_zero (empty, graph));
 }
+
 public int run_semantic(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-elements/semantic/independent-domain-shared-depth64-distinct-zero-and-recovery", qualify);
 	return Test.run ();
 }
+
 }

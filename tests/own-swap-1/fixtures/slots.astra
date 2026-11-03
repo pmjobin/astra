@@ -1,7 +1,9 @@
 struct Kernel { int index; f64 gain; }
+
 class Context {
 	owned Kernel[] state;
 	owned Kernel[] next;
+
 	init() {
 		this.state = new Kernel[2];
 		this.next = new Kernel[3];
@@ -10,41 +12,55 @@ class Context {
 		this.state[0].index = 7;
 		this.next[0].index = 11;
 	}
+
 	void rotate() { swap(this.state, this.next); }
+
 	deinit() { swap(this.state, this.next); }
 }
+
 class Other {
 	owned Kernel[] data;
+
 	init() { this.data = new Kernel[5]; this.data[0].index = 31; }
 }
+
 void alias(borrowed Context a, borrowed Context b) { swap(a.state, b.state); }
+
 owned T[] exchange_result<T>(owned T[] a, owned T[] b) { swap(a, b); return move a; }
+
 int main() {
 	var a = new int[2];
 	var b = new i32[3];
 	a[0] = 7; b[0] = 11;
 	swap(a, b);
-	if (len(a) != 3 || len(b) != 2 || a[0] != 11 || b[0] != 7) { return 1; }
+	if (len(a) != 3 || len(b) != 2 || a[0] != 11 || b[0] != 7) return 1;
 	swap(a, a);
 	var result = exchange_result(move a, move b);
-	if (len(result) != 2 || result[0] != 7) { return 2; }
+	if (len(result) != 2 || result[0] != 7) return 2;
 	var c = Context.init();
 	var saved = c.state[0];
 	c.rotate();
-	if (len(c.state) != 3 || len(c.next) != 2 || c.state[0].index != 11 || saved.index != 7) { return 3; }
+	if (len(c.state) != 3 || len(c.next) != 2 || c.state[0].index != 11 || saved.index != 7) return 3;
 	alias(c, c);
-	if (len(c.state) != 3 || c.state[0].index != 11) { return 4; }
+	if (len(c.state) != 3 || c.state[0].index != 11) return 4;
 	var d = Other.init();
 	swap(c.state, d.data);
-	if (len(c.state) != 5 || len(d.data) != 3 || d.data[0].index != 11 || c.state[0].index != 31) { return 5; }
+	if (len(c.state) != 5 || len(d.data) != 3 || d.data[0].index != 11 || c.state[0].index != 31) return 5;
 	var local = new Kernel[0];
 	swap(local, c.state);
-	if (len(c.state) != 0 || len(local) != 5) { return 6; }
+	if (len(c.state) != 0 || len(local) != 5) return 6;
 	var empty = new Kernel[0];
 	swap(empty, c.state);
 	var i = 0;
-	while (i < 2) { if (i == 0) { swap(local, c.next); } else { swap(c.next, local); } i = i + 1; }
-	if (len(local) != 5 || len(c.next) != 2) { return 7; }
+	while (i < 2) {
+		if (i == 0) {
+			swap(local, c.next);
+		} else {
+			swap(c.next, local);
+		}
+		i = i + 1;
+	}
+	if (len(local) != 5 || len(c.next) != 2) return 7;
 	release local;
 	local = new Kernel[1];
 	swap(local, c.state);

@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class C {
 	int id;
+
 	init(int id) { this.id = id; observe_event(67, id); }
+
 	deinit() { observe_event(68, this.id); }
 }
+
 owned C make(int id) { return C.init(id); }
+
 int main() {
 	observe_begin(0, 1);
 	owned C value = make(30);
 	forward<C>(value, 66);
-	if (value.id != 30) { return 81; }
+	if (value.id != 30) return 81;
 	wrapper<C>(move value);
 	return observe_end();
 }

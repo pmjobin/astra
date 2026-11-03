@@ -34,18 +34,21 @@ extern int32_t astra_export_add(int32_t, int32_t);
 int32_t c_call_astra_add(int32_t a, int32_t b) {
 	return astra_export_add(a, b);
 }
+
 #elif ASTRA_TEST_CEXPORT == 2
 extern void astra_export_record(int32_t);
 
 void c_call_astra_record(int32_t value) {
 	astra_export_record(value);
 }
+
 #elif ASTRA_TEST_CEXPORT == 3
 extern int32_t astra_export_recurse(int32_t);
 
 int32_t c_call_astra_recurse(int32_t value) {
 	return astra_export_recurse(value);
 }
+
 #elif ASTRA_TEST_CEXPORT == 4
 extern int32_t astra_export_roundtrip(void);
 extern int32_t astra_export_order(void);
@@ -60,12 +63,14 @@ int32_t c_call_astra_roundtrip(void) {
 	astra_test_record(4);
 	return result + 39;
 }
+
 #elif ASTRA_TEST_CEXPORT == 5
 extern int32_t astra_export_shortcircuit(int32_t);
 
 int32_t c_call_astra_shortcircuit(int32_t value) {
 	return astra_export_shortcircuit(value);
 }
+
 #elif ASTRA_TEST_CEXPORT == 6
 extern int32_t astra_export_wrap(int32_t);
 extern int32_t astra_export_loop(int32_t);
@@ -77,12 +82,14 @@ int32_t c_call_astra_body(void) {
 	}
 	return astra_export_loop(10) == 18 ? 0 : 2;
 }
+
 #elif ASTRA_TEST_CEXPORT == 7
 extern int32_t astra_export_trap(int32_t);
 
 int32_t c_call_astra_trap(void) {
 	return astra_export_trap(0);
 }
+
 #endif
 
 /* OWN-1 qualification: bounded static foreign resources, never heap storage. */
@@ -93,6 +100,7 @@ static struct {
 	int32_t live;
 	int32_t touches;
 } resource_slots[8];
+
 static int32_t resource_live;
 static int32_t resource_creates;
 static int32_t resource_destroys;
@@ -167,24 +175,31 @@ void astra_test_resource_destroy(void *p) {
 int32_t astra_test_resource_live_count(void) {
 	return resource_live;
 }
+
 int32_t astra_test_resource_create_count(void) {
 	return resource_creates;
 }
+
 int32_t astra_test_resource_destroy_count(void) {
 	return resource_destroys;
 }
+
 int32_t astra_test_resource_destroy_order(void) {
 	return resource_order;
 }
+
 int32_t astra_test_resource_error_count(void) {
 	return resource_errors;
 }
+
 int32_t astra_test_resource_effect_order(void) {
 	return resource_effects;
 }
+
 void astra_test_resource_forbid_cleanup(void) {
 	resource_forbidden = 1;
 }
+
 int32_t astra_test_resource_record_effect(int32_t id) {
 	resource_append(&resource_effects, id);
 	return id;
@@ -193,16 +208,20 @@ int32_t astra_test_resource_record_effect(int32_t id) {
 void *astra_test_resource_create_other(int32_t id) {
 	return astra_test_resource_create(id);
 }
+
 /* RESOURCE-1: distinct imported symbols can share the same static pool. */
 void *astra_test_resource_create_same(int32_t id) {
 	return astra_test_resource_create(id);
 }
+
 void *astra_test_resource_create_a(int32_t id) {
 	return astra_test_resource_create(id);
 }
+
 void *astra_test_resource_create_b(int32_t id) {
 	return astra_test_resource_create(id);
 }
+
 void astra_test_resource_destroy_other(void *p) {
 	resource_append(&resource_effects, 8);
 	astra_test_resource_destroy(p);
@@ -226,10 +245,12 @@ static int resource_index(void *p) {
 int32_t astra_test_resource_is_live(void *p) {
 	return resource_index(p) >= 0;
 }
+
 int32_t astra_test_resource_id(void *p) {
 	int i = resource_index(p);
 	return i < 0 ? 0 : resource_slots[i].id;
 }
+
 int32_t astra_test_resource_touch(void *p) {
 	int i = resource_index(p);
 	if (i < 0) {
@@ -240,15 +261,19 @@ int32_t astra_test_resource_touch(void *p) {
 	resource_append(&resource_effects, 7);
 	return resource_slots[i].id;
 }
+
 int32_t astra_test_resource_touch_count(void) {
 	return resource_touches;
 }
+
 int32_t astra_test_resource_null_count(void) {
 	return resource_nulls;
 }
+
 void *astra_test_resource_raw(void) {
 	return astra_test_resource_create(4);
 }
+
 int32_t astra_test_resource_observe3(int32_t first, void *p, int32_t last) {
 	if (first != 1 || last != 2 || resource_effects != 12 || resource_destroys != 0) {
 		resource_errors++;
@@ -256,9 +281,11 @@ int32_t astra_test_resource_observe3(int32_t first, void *p, int32_t last) {
 	resource_append(&resource_effects, 3);
 	return astra_test_resource_id(p);
 }
+
 void astra_test_resource_raw_destroy(void *p) {
 	astra_test_resource_destroy(p);
 }
+
 int32_t astra_test_resource_inspect_extern(void *p) {
 	return astra_test_resource_is_live(p);
 }

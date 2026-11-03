@@ -1,20 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int slot_identity_probe();
-class Item { int value; init(int value) { this.value = value; } }
+
+class Item { int value;
+
+	init(int value) { this.value = value; } }
+
 [Allocator(kind="region", domain="slot12.shared", capacity="512", blocks="16")]
 class Left {
 	owned Item[slots] entries;
+
 	init() { this.entries = new Item[slots]; }
+
 	bool reserve(int count) { return this.entries.reserve(count); }
 }
+
 [Allocator(kind="region", domain="slot12.shared", capacity="512", blocks="16")]
 class Right {
 	owned Item[slots] entries;
+
 	init() { this.entries = new Item[slots]; }
+
 	bool reserve(int count) { return this.entries.reserve(count); }
 }
+
 int main() {
 	var left = new Left(); var right = new Right();
-	if (!left.reserve(2) || !right.reserve(2) || slot_identity_probe() != 1) { return 81; }
+	if (!left.reserve(2) || !right.reserve(2) || slot_identity_probe() != 1) return 81;
 	return 42;
 }

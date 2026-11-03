@@ -25,6 +25,7 @@ private CheckedProgram source() {
 	}
 	return checked.program;
 }
+
 private void checked_core() {
 	try {
 		var checked = source ();
@@ -67,6 +68,7 @@ private void checked_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_ssa() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (source ()));
@@ -136,6 +138,7 @@ private void cfg_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_cabi() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
@@ -187,6 +190,7 @@ private void native_cabi() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message = null;
 	assert (CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message) == 0);
@@ -194,6 +198,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 		CApi.dispose_message (message);
 	}
 }
+
 private void llvm_rejected(LlvmModuleArtifact artifact, string mutation) {
 	generic_valid (artifact);
 	bool rejected = false;
@@ -205,6 +210,7 @@ private void llvm_rejected(LlvmModuleArtifact artifact, string mutation) {
 	}
 	assert (rejected);
 }
+
 private void llvm() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source ())));
@@ -313,6 +319,7 @@ private void llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/payload/checked-core-owner-protocol", checked_core);
@@ -321,4 +328,5 @@ public int main(string[] args) {
 	Test.add_func ("/payload/llvm-stable-buffer-operand", llvm);
 	return Test.run ();
 }
+
 }

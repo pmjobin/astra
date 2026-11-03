@@ -20,6 +20,7 @@ private CheckedProgram check() {
 	}
 	return result.program;
 }
+
 private void checked_contract() {
 	try {
 		var program = check ();
@@ -39,6 +40,7 @@ private void checked_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_contract() {
 	try {
 		CheckedProgram? source = check ();
@@ -70,6 +72,7 @@ private void core_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		CoreProgram? source = CoreBuilder.build (check ());
@@ -91,6 +94,7 @@ private void cfg_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_contract() {
 	try {
 		CfgProgram? source = CfgBuilder.build (CoreBuilder.build (check ()));
@@ -112,6 +116,7 @@ private void ssa_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_contract() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
@@ -133,6 +138,7 @@ private void native_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void llvm_reject(LlvmModuleArtifact artifact, string reason) {
 	bool rejected = false;
 	try {
@@ -145,6 +151,7 @@ private void llvm_reject(LlvmModuleArtifact artifact, string reason) {
 		GLib.error ("accepted invalid LLVM mutation: %s", reason);
 	}
 }
+
 private void llvm_contract() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
@@ -210,6 +217,7 @@ private void llvm_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public static int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/floating/checked", checked_contract);
@@ -220,4 +228,5 @@ public static int main(string[] args) {
 	Test.add_func ("/floating/llvm-detached", llvm_contract);
 	return Test.run ();
 }
+
 }

@@ -147,6 +147,7 @@ private class GraphEdges : CfgTerminator {
 		}
 		return result;
 	}
+
 }
 
 private bool[] paths(CfgFunction function, int omitted) {
@@ -264,4 +265,5 @@ int main(string[] args) {
 	Test.add_func ("/dominance/finite-graphs", finite_graphs);
 	return Test.run ();
 }
+
 }

@@ -6,14 +6,18 @@
 static unsigned retired[7], seen[6], runs[6], cancelled;
 static int current = -1;
 static AstraAsyncTask *root;
+
 void native_scope_begin(int32_t mode) {
 	if (mode != current + 1 || mode > 5 || root) abort();
 	current = mode;
 }
+
 void native_scope_leaf_retired(int32_t identity) {
 	if (identity != current + 1 || retired[identity]++) abort();
 }
+
 int __real_astra_async_run(AstraAsyncExecutor *, AstraAsyncTask *, void **);
+
 int __wrap_astra_async_run(AstraAsyncExecutor *executor, AstraAsyncTask *task, void **error) {
 	if (current < 0 || current > 5 || current == 2 || runs[current]++ || root) abort();
 	root = task;
@@ -28,7 +32,9 @@ int __wrap_astra_async_run(AstraAsyncExecutor *executor, AstraAsyncTask *task, v
 	}
 	return phase;
 }
+
 int __real_astra_async_delay(AstraAsyncTask *, int64_t);
+
 int __wrap_astra_async_delay(AstraAsyncTask *task, int64_t ticks) {
 	int admitted = __real_astra_async_delay(task, ticks);
 	if (current == 5) {
@@ -37,9 +43,11 @@ int __wrap_astra_async_delay(AstraAsyncTask *task, int64_t ticks) {
 	}
 	return admitted;
 }
+
 void native_scope_outcome(int32_t mode) {
 	if (mode != current || seen[mode]++ || retired[mode + 1] != 1 || runs[mode] != (mode != 2)) abort();
 }
+
 int32_t native_scope_finish(void) {
 	for (int mode = 0; mode < 6; ++mode)
 		if (seen[mode] != 1 || retired[mode + 1] != 1 || runs[mode] != (mode != 2)) abort();
@@ -47,7 +55,9 @@ int32_t native_scope_finish(void) {
 	puts("opaque scoped task: success, cold drop, checked error and joined cancellation retire every input once");
 	return 0;
 }
+
 int32_t native_scope_probe(void);
+
 int main(void) {
 	return native_scope_probe();
 }

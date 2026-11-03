@@ -24,17 +24,21 @@ private CheckedProgram check() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var p = CoreGenericMonomorphizer.build (CoreBuilder.build (check ()));
 	CoreVerifier.verify_concrete (p);
 	return p;
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	return CfgBuilder.build (core ());
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	return SsaBuilder.build (cfg ());
 }
+
 private CoreClass core_bag(CoreProgram p, string argument) {
 	foreach (var c in p.classes) {
 		if (c.generic_instance != null && c.generic_instance.argument.display_name () == argument) {
@@ -43,6 +47,7 @@ private CoreClass core_bag(CoreProgram p, string argument) {
 	}
 	assert_not_reached ();
 }
+
 private CfgClass cfg_bag(CfgProgram p, string argument) {
 	foreach (var c in p.classes) {
 		if (c.generic_instance != null && c.generic_instance.argument.display_name () == argument) {
@@ -51,6 +56,7 @@ private CfgClass cfg_bag(CfgProgram p, string argument) {
 	}
 	assert_not_reached ();
 }
+
 private SsaClass ssa_bag(SsaProgram p, string argument) {
 	foreach (var c in p.classes) {
 		if (c.generic_instance != null && c.generic_instance.argument.display_name () == argument) {
@@ -59,6 +65,7 @@ private SsaClass ssa_bag(SsaProgram p, string argument) {
 	}
 	assert_not_reached ();
 }
+
 private void core_reject(CoreProgram p) {
 	bool failed = false;
 	try {
@@ -69,6 +76,7 @@ private void core_reject(CoreProgram p) {
 	}
 	assert (failed);
 }
+
 private void cfg_reject(CfgProgram p, string diagnostic = "") {
 	bool failed = false;
 	try {
@@ -79,6 +87,7 @@ private void cfg_reject(CfgProgram p, string diagnostic = "") {
 	}
 	assert (failed);
 }
+
 private void ssa_reject(SsaProgram p, string diagnostic = "") {
 	bool failed = false;
 	try {
@@ -89,6 +98,7 @@ private void ssa_reject(SsaProgram p, string diagnostic = "") {
 	}
 	assert (failed);
 }
+
 private void native_reject(NativeAbiProgram p) {
 	bool failed = false;
 	try {
@@ -99,6 +109,7 @@ private void native_reject(NativeAbiProgram p) {
 	}
 	assert (failed);
 }
+
 private void llvm_reject(LlvmModuleArtifact p) {
 	bool failed = false;
 	try {
@@ -167,6 +178,7 @@ private void independent() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void checked_mutations() {
 	try {
 		var p = check ();
@@ -221,6 +233,7 @@ private void checked_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void core_mutations() {
 	try {
 		var p = core ();
@@ -256,6 +269,7 @@ private void core_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void cfg_mutations() {
 	try {
 		var p = cfg ();
@@ -315,6 +329,7 @@ private void cfg_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void ssa_mutations() {
 	try {
 		var p = ssa ();
@@ -374,6 +389,7 @@ private void ssa_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void native_mutations() {
 	try {
 		var s = ssa ();
@@ -426,6 +442,7 @@ private void native_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void llvm_mutations() {
 	try {
 		var s = ssa ();
@@ -554,6 +571,7 @@ private void llvm_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-member-1a/independent-two-instance-stage-models", independent);
@@ -565,4 +583,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-member-1a/actual-llvm-both-transfer-clear-commit-bounds-exact-dtor-restored", llvm_mutations);
 	return Test.run ();
 }
+
 }

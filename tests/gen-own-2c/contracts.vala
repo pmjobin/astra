@@ -16,16 +16,19 @@ private CheckedProgram checked() {
 	assert (result.diagnostic == null);
 	return result.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var result = CoreBuilder.build (checked ());
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private CoreProgram concrete() throws GLib.Error {
 	var result = CoreGenericMonomorphizer.build (core ());
 	CoreVerifier.verify_concrete (result);
 	return result;
 }
+
 private void core_rejects(CoreProgram program, string text) {
 	bool rejected = false;
 	try {
@@ -36,6 +39,7 @@ private void core_rejects(CoreProgram program, string text) {
 	}
 	assert (rejected);
 }
+
 private CoreFunction echo(CoreProgram program, bool heap = false) {
 	foreach (var function in program.generic_functions) {
 		if (function.name == "echo") {
@@ -49,6 +53,7 @@ private CoreFunction echo(CoreProgram program, bool heap = false) {
 	}
 	assert_not_reached ();
 }
+
 private CoreInitialize result_acquire(CoreProgram program, bool heap) {
 	foreach (var statement in program.functions[0].body.statements) {
 		var init = statement as CoreInitialize;
@@ -58,6 +63,7 @@ private CoreInitialize result_acquire(CoreProgram program, bool heap) {
 	}
 	assert_not_reached ();
 }
+
 private void semantic_source() {
 	var parsed = Parser.parse (new SourceFile.from_text ("forged-source", "class C{init(){}}owned T echo<T>(owned T v) where T:Ownable{return move v;}void bad(C alias){var r=echo<C>(move alias);}int main(){return 42;}"));
 	assert (parsed.diagnostic == null);
@@ -65,6 +71,7 @@ private void semantic_source() {
 	assert (result.diagnostic != null && result.diagnostic.message.contains ("nontransferable"));
 	assert (checked () != null);
 }
+
 private void concrete_result_compatibility() throws GLib.Error {
 	// An unrelated plain-copy type parameter does not make a concrete Class
 	// result an owned-T result; preserve its established factory/forwarding ABI.
@@ -80,6 +87,7 @@ private void concrete_result_compatibility() throws GLib.Error {
 	SsaVerifier.verify (ssa);
 	NativeAbiVerifier.verify (NativeAbiBuilder.build (ssa));
 }
+
 private void checked_domain() throws GLib.Error {
 	var program = checked ();
 	LocalSymbol? owner = null;
@@ -94,6 +102,7 @@ private void checked_domain() throws GLib.Error {
 	owner.heap_object = true;
 	CoreVerifier.verify (CoreBuilder.build (program));
 }
+
 private void checked_eligibility() throws GLib.Error {
 	var program = checked ();
 	CheckedGenericFunction? function = null;
@@ -113,6 +122,7 @@ private void checked_eligibility() throws GLib.Error {
 	function.definition.heap_consumer_parameter = ordinal;
 	CoreVerifier.verify (CoreBuilder.build (program));
 }
+
 private void core_return(int mode) throws GLib.Error {
 	var program = core ();
 	var function = echo (program);
@@ -135,6 +145,7 @@ private void core_return(int mode) throws GLib.Error {
 		function.body.statements[site] = original;
 	} CoreVerifier.verify (program);
 }
+
 private void core_entry_acquisition() throws GLib.Error {
 	var program = core ();
 	var function = echo (program);
@@ -144,6 +155,7 @@ private void core_entry_acquisition() throws GLib.Error {
 	function.body.statements.insert (0, original);
 	CoreVerifier.verify (program);
 }
+
 private void core_receiver(bool missing) throws GLib.Error {
 	var program = core ();
 	var init = result_acquire (program, true);
@@ -167,6 +179,7 @@ private void core_receiver(bool missing) throws GLib.Error {
 		call.candidate_storage = original;
 	} CoreVerifier.verify (program);
 }
+
 private void core_actual_domain() throws GLib.Error {
 	var program = core ();
 	var call = (CoreCallValue) result_acquire (program, true).value;
@@ -177,6 +190,7 @@ private void core_actual_domain() throws GLib.Error {
 	call.arguments[0] = original;
 	CoreVerifier.verify (program);
 }
+
 private void concrete_domain(int mode) throws GLib.Error {
 	var program = concrete ();
 	var function = echo (program, true);
@@ -198,12 +212,14 @@ private void concrete_domain(int mode) throws GLib.Error {
 	}
 	CoreVerifier.verify_concrete (program);
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	var result = CfgBuilder.build (concrete ());
 	CfgVerifier.verify (result);
 	assert (CfgFlowChecker.check (result).diagnostic == null);
 	return result;
 }
+
 private CfgFunction cfg_echo(CfgProgram program) {
 	foreach (var function in program.functions) {
 		if (function.heap_result) {
@@ -212,6 +228,7 @@ private CfgFunction cfg_echo(CfgProgram program) {
 	}
 	assert_not_reached ();
 }
+
 private void cfg_rejects(CfgProgram program, string text) {
 	bool rejected = false;
 	try {
@@ -222,6 +239,7 @@ private void cfg_rejects(CfgProgram program, string text) {
 	}
 	assert (rejected);
 }
+
 private void cfg_capture(bool reordered) throws GLib.Error {
 	var program = cfg ();
 	var block = cfg_echo (program).entry;
@@ -257,6 +275,7 @@ private void cfg_capture(bool reordered) throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private void cfg_moved_read() throws GLib.Error {
 	var program = cfg ();
 	var block = cfg_echo (program).entry;
@@ -298,6 +317,7 @@ private void cfg_moved_read() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private void cfg_duplicate_receiver() throws GLib.Error {
 	var program = cfg ();
 	bool tested = false;
@@ -326,11 +346,13 @@ private void cfg_duplicate_receiver() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	var result = SsaBuilder.build (cfg ());
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private SsaFunction ssa_echo(SsaProgram program) {
 	foreach (var function in program.functions) {
 		if (function.heap_result) {
@@ -339,6 +361,7 @@ private SsaFunction ssa_echo(SsaProgram program) {
 	}
 	assert_not_reached ();
 }
+
 private void ssa_rejects(SsaProgram program, string text) {
 	bool rejected = false;
 	try {
@@ -349,6 +372,7 @@ private void ssa_rejects(SsaProgram program, string text) {
 	}
 	assert (rejected);
 }
+
 private void ssa_pointer() throws GLib.Error {
 	var program = ssa ();
 	var function = ssa_echo (program);
@@ -370,6 +394,7 @@ private void ssa_pointer() throws GLib.Error {
 	block.instructions[site] = event;
 	SsaVerifier.verify (program);
 }
+
 private void ssa_missing_capture() throws GLib.Error {
 	var program = ssa ();
 	var block = ssa_echo (program).entry;
@@ -387,6 +412,7 @@ private void ssa_missing_capture() throws GLib.Error {
 	block.instructions.insert (site, original);
 	SsaVerifier.verify (program);
 }
+
 private void ssa_escaped_cleanup(bool duplicate) throws GLib.Error {
 	var program = ssa ();
 	var function = ssa_echo (program);
@@ -434,6 +460,7 @@ private void ssa_escaped_cleanup(bool duplicate) throws GLib.Error {
 	}
 	SsaVerifier.verify (program);
 }
+
 private void ssa_domain() throws GLib.Error {
 	var program = ssa ();
 	var function = ssa_echo (program);
@@ -442,6 +469,7 @@ private void ssa_domain() throws GLib.Error {
 	function.parameters[0].heap_object = true;
 	SsaVerifier.verify (program);
 }
+
 // Author a stage-owned graph with no call edges or predecessor approval.
 // The absent optional source_parameter annotation forces independent pointer
 // and origin reconstruction rather than an annotation-only comparison.
@@ -477,6 +505,7 @@ private SsaProgram standalone(bool wrong = false, SsaClass? existing_class = nul
 	program.cleanups.add (cleanup);
 	return program;
 }
+
 private void ssa_standalone(bool pointer) throws GLib.Error {
 	var program = standalone ();
 	SsaVerifier.verify (program);
@@ -494,6 +523,7 @@ private void ssa_standalone(bool pointer) throws GLib.Error {
 	}
 	SsaVerifier.verify (program);
 }
+
 private void native_result(bool candidate) throws GLib.Error {
 	var source = ssa ();
 	var native = NativeAbiBuilder.build (source);
@@ -540,6 +570,7 @@ private void native_result(bool candidate) throws GLib.Error {
 	NativeAbiVerifier.verify (native);
 	NativeAbiValidator.validate_ssa_calls (source, native, correspondence);
 }
+
 private void native_class() throws GLib.Error {
 	var source = ssa ();
 	var native = NativeAbiBuilder.build (source);
@@ -577,6 +608,7 @@ private void native_class() throws GLib.Error {
 	NativeAbiVerifier.verify (native);
 	NativeAbiValidator.validate_ssa_calls (source, native, correspondence);
 }
+
 private delegate void Check() throws GLib.Error;
 private void run(Check check) {
 	try {
@@ -585,6 +617,7 @@ private void run(Check check) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own-2c/semantic/exact-source-owner", semantic_source);
@@ -660,4 +693,5 @@ int main(string[] args) {
 	});
 	return Test.run ();
 }
+
 }

@@ -16,6 +16,7 @@ public class CfgClassUpcast : CfgValue {
 		this.source_identity = WeakRef (source_class);
 		this.target_identity = WeakRef (target_class);
 	}
+
 }
 
 public class CfgObjectStorage : CfgNode {
@@ -39,6 +40,7 @@ public class CfgObjectStorage : CfgNode {
 		this.ordinal = ordinal;
 		this.region_ordinal = region_ordinal;
 	}
+
 }
 
 // Only complete construction publishes a reference; storage initialization
@@ -49,6 +51,7 @@ public class CfgObjectReferenceValue : CfgValue {
 		base (span, storage.semantic_type);
 		this.storage = storage;
 	}
+
 }
 
 public class CfgObjectFieldPlace : CfgPlace {
@@ -59,6 +62,7 @@ public class CfgObjectFieldPlace : CfgPlace {
 		this.storage = storage;
 		this.field = field;
 	}
+
 }
 
 public class CfgObjectValidateValue : CfgValue {
@@ -68,5 +72,6 @@ public class CfgObjectValidateValue : CfgValue {
 		base (span, result_type);
 		this.reference = reference;
 	}
+
 }
 }

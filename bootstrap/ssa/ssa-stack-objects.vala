@@ -9,22 +9,28 @@ public class SsaStackObjects : Object {
 	private static bool scalar(SemanticType type) {
 		return type.kind == TypeKind.BOOL || type is IntegerType || type is FloatingType || type is VectorType;
 	}
+
 	private static bool numeric_view(SemanticType? type) {
 		return type is SliceType && !(type is ContextBytesType) && scalar (((SliceType) type).element_type);
 	}
+
 	private static bool local_buffer(SsaFunction function, SsaBufferPlace place) {
 		return place.storage != null && function.buffer_storage.find (place.storage) && place.field == null && place.record_projection == null &&
 		       place.storage.record_type == null && numeric_view (place.cleanup.buffer_type);
 	}
+
 	private static bool numeric_pair(SsaBufferPair pair) {
 		return numeric_view (pair.shape.slice_type);
 	}
+
 	private static bool nocapture(SsaFunction? target) {
 		return target != null && target.effect_facts != null && (target.effect_facts.flags & FunctionEffectFacts.RECEIVER_NO_CAPTURE) != 0;
 	}
+
 	internal static bool exact_root(SsaFunction function, SsaObjectStorage root) {
 		return derive_root (function, root, true) != null;
 	}
+
 	private static SsaObjectStorage? derive_root(SsaFunction function, SsaObjectStorage root, bool exact_dispatch = false) {
 		if (function.span.file.native_interface || function.implicit_receiver != null || function.async_body != null || function.enum_slots.length != 0) {
 			return null;
@@ -329,6 +335,7 @@ public class SsaStackObjects : Object {
 		}
 		return (owner.constructor == null || constructed) && cleaned ? root : null;
 	}
+
 	public static SsaFunction? exact_target(SsaClass owner, SsaCallInstruction call) {
 		var target = call.target;
 		if (target == null || target.dispatch_kind == ClassDispatchKind.DIRECT) {
@@ -336,6 +343,7 @@ public class SsaStackObjects : Object {
 		}
 		return target.virtual_slot >= 0 && target.virtual_slot < owner.virtual_entries.length ? owner.virtual_entries[target.virtual_slot] : null;
 	}
+
 	private static bool place(SsaMemoryPlace place, SsaObjectStorage root, HashTable<SsaValue, bool> aliases) {
 		if (place is SsaLocalMemoryPlace) {
 			return scalar (place.semantic_type);
@@ -358,6 +366,7 @@ public class SsaStackObjects : Object {
 		var direct = place as SsaObjectFieldPlace;
 		return direct != null && direct.storage == root;
 	}
+
 	public static void annotate(SsaProgram program) {
 		foreach (var function in program.functions) {
 			foreach (var root in function.object_storage) {
@@ -367,8 +376,10 @@ public class SsaStackObjects : Object {
 			}
 		}
 	}
+
 	public static void verify(SsaProgram program) throws SsaError {
 		SsaStackObjectVerifier.verify (program);
 	}
+
 }
 }

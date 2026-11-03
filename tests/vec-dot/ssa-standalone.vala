@@ -122,4 +122,5 @@ int main(string[] args) {
 	Test.add_func ("/dot/ssa/four-modes-and-malformed-verifier", modes);
 	return Test.run ();
 }
+
 }

@@ -18,6 +18,7 @@ private SsaProgram program(string path = "tests/optimizer-hardening-18/storage.a
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private SsaFunction named(SsaProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -26,6 +27,7 @@ private SsaFunction named(SsaProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private void allocations() {
 	try {
 		var source = program ();
@@ -41,6 +43,7 @@ private void allocations() {
 		error ("%s", failure.message);
 	}
 }
+
 private void mutations() {
 	try {
 		var source = program ();
@@ -117,6 +120,7 @@ private void mutations() {
 		error ("%s", failure.message);
 	}
 }
+
 private void shared_balance() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/shared.astra");
@@ -196,6 +200,7 @@ private void shared_balance() {
 		error ("%s", failure.message);
 	}
 }
+
 private void checked_cleanup() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/checked-storage.astra");
@@ -206,6 +211,7 @@ private void checked_cleanup() {
 		error ("%s", failure.message);
 	}
 }
+
 private void independent_reference_formals() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/reference-storage.astra");
@@ -228,6 +234,7 @@ private void independent_reference_formals() {
 		error ("%s", failure.message);
 	}
 }
+
 private void checked_shared_regions() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/checked-shared.astra");
@@ -272,6 +279,7 @@ private void checked_shared_regions() {
 		error ("%s", failure.message);
 	}
 }
+
 private void formal_effects() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/formals.astra");
@@ -368,6 +376,7 @@ private void formal_effects() {
 		error ("%s", failure.message);
 	}
 }
+
 private void numeric_composition() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/view-storage.astra");
@@ -451,6 +460,7 @@ private void numeric_composition() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exact_receivers() {
 	try {
 		var source = program ("tests/optimizer-hardening-18/dispatch.astra");
@@ -572,6 +582,7 @@ private void exact_receivers() {
 		error ("%s", failure.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/storage18/per-allocation", allocations);
@@ -585,4 +596,5 @@ int main(string[] args) {
 	Test.add_func ("/dispatch18/independent-exact-receivers", exact_receivers);
 	return Test.run ();
 }
+
 }

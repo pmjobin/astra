@@ -28,6 +28,7 @@ private SsaProgram program() throws GLib.Error {
 	SsaVerifier.verify (ssa);
 	return ssa;
 }
+
 private void borrowed_layout() {
 	try {
 		var s = program ();
@@ -54,9 +55,11 @@ private void borrowed_layout() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/application-runtime/borrowed-only-slots-layout-index-restored", borrowed_layout);
 	return Test.run ();
 }
+
 }

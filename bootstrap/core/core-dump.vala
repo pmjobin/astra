@@ -1447,5 +1447,6 @@ public class CoreDump : Object {
 		}
 		throw new CoreError.INVALID_IR ("internal Core dump error: unsupported Core value");
 	}
+
 }
 }

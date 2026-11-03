@@ -10,6 +10,7 @@ struct capture {
 	void *registration;
 	int calls;
 };
+
 static void finalizing(gpointer data, GObject *object) {
 	(void)object;
 	struct capture *capture = data;
@@ -17,6 +18,7 @@ static void finalizing(gpointer data, GObject *object) {
 	assert(astra_retained_revoke(capture->registration) == 0);
 	assert(astra_retained_observe(capture->registration) == 0);
 }
+
 static int32_t receive(void *data, int32_t value) {
 	struct capture *capture = data;
 	capture->calls++;

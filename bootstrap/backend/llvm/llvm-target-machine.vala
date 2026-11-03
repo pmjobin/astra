@@ -8,9 +8,11 @@ internal class LlvmTypeLayout : Object {
 	internal LlvmTypeLayout (CApi.TargetMachineRef machine) {
 		data = CApi.create_target_data_layout (machine);
 	}
+
 	~LlvmTypeLayout () {
 		CApi.dispose_target_data (data);
 	}
+
 }
 
 public class LlvmTargetMachineArtifact : Object {
@@ -26,6 +28,7 @@ public class LlvmTargetMachineArtifact : Object {
 		}
 		return cached.data;
 	}
+
 	public uint pointer_bytes { get { return CApi.pointer_size (data); } }
 	private string host_triple;
 	private string layout;
@@ -342,5 +345,6 @@ public class LlvmTargetMachineArtifact : Object {
 			throw new LlvmError.EMISSION ("error: LLVM object emission failed: %s", diagnostic.strip ());
 		}
 	}
+
 }
 }

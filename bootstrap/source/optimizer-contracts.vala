@@ -5,6 +5,7 @@ public class FloatingPointPermissions : Object {
 	public static bool valid(uint permissions) {
 		return (permissions & ~SUPPORTED) == 0;
 	}
+
 }
 public class FunctionEffectFacts : Object {
 	public const uint RECEIVER_NO_CAPTURE = 1;
@@ -20,16 +21,19 @@ public class FunctionEffectFacts : Object {
 	public uint parameter(int ordinal) {
 		return ordinal >= 0 && ordinal < formals.length ? formals[ordinal] : 0;
 	}
+
 	public FunctionEffectFacts (uint flags, uint[]? parameters = null) {
 		this.flags = flags;
 		original = flags;
 		formals = parameters == null ? new uint[0] : parameters.copy ();
 	}
+
 	public FunctionEffectFacts copy() {
 		var result = new FunctionEffectFacts (original, formals);
 		result.flags = flags;
 		return result;
 	}
+
 	public bool same(FunctionEffectFacts other) {
 		if (flags != other.flags || formals.length != other.formals.length) {
 			return false;
@@ -41,6 +45,7 @@ public class FunctionEffectFacts : Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		foreach (uint formal in formals) {
 			if ((formal & ~3U) != 0) {
@@ -49,11 +54,13 @@ public class FunctionEffectFacts : Object {
 		}
 		return flags == original && (flags & ~15U) == 0 && ((flags & LAZY_READONLY_FACTORY) == 0 || (flags & RECEIVER_NO_CAPTURE) != 0);
 	}
+
 }
 
 public errordomain OptimizerSummaryError {
 	INVALID
 }
+
 // Issued only after typed module binding and native object validation. This
 // detached receipt retains no source, SSA, native plan or implementation body.
 public class NativeOptimizerEvidence : Object {
@@ -70,12 +77,15 @@ public class NativeOptimizerEvidence : Object {
 		checked_object_hash = object_hash;
 		checked_facts = facts.copy ();
 	}
+
 	public FunctionEffectFacts facts() {
 		return checked_facts.copy ();
 	}
+
 	public bool permits(FunctionEffectFacts facts) {
 		return facts.valid () && checked_facts.same (facts);
 	}
+
 }
 public class OptimizerParameterSummary : Object {
 	public int ordinal { get; private set; }
@@ -84,6 +94,7 @@ public class OptimizerParameterSummary : Object {
 		this.ordinal = ordinal;
 		this.facts = facts;
 	}
+
 }
 // Declaration grammar only. Decoding never supplies optimizer authority.
 public class OptimizerSummary : Object {
@@ -94,15 +105,18 @@ public class OptimizerSummary : Object {
 	public OptimizerParameterSummary parameter(uint at) {
 		return parameters[at];
 	}
+
 	public OptimizerSummary (bool memory_none = false) {
 		this.memory_none = memory_none;
 	}
+
 	public void add(int ordinal, uint facts) throws OptimizerSummaryError {
 		if (ordinal < -1 || (facts & ~3U) != 0 || parameters.length != 0 && parameters[parameters.length - 1].ordinal >= ordinal) {
 			throw new OptimizerSummaryError.INVALID ("optimizer rows require sorted unique logical formal ordinals and supported effects");
 		}
 		parameters.add (new OptimizerParameterSummary (ordinal, facts));
 	}
+
 	public string encode() {
 		var text = new StringBuilder (HEADER + "\nmemory|" + (memory_none ? "none" : "unknown"));
 		foreach (var row in parameters) {
@@ -110,6 +124,7 @@ public class OptimizerSummary : Object {
 		}
 		return text.str;
 	}
+
 	public static OptimizerSummary decode(string text) throws OptimizerSummaryError {
 		var lines = text.split ("\n");
 		if (lines.length < 2 || lines[0] != HEADER || (lines[1] != "memory|none" && lines[1] != "memory|unknown")) {
@@ -127,5 +142,6 @@ public class OptimizerSummary : Object {
 		}
 		return result;
 	}
+
 }
 }

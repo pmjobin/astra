@@ -141,4 +141,5 @@ private void register_vapi_metadata() {
 	add ("/exec/vapi-metadata/missing-physical-symbol", metadata_missing_symbol);
 	add ("/exec/vapi-metadata/cli-diagnostics", metadata_cli_errors);
 }
+
 }

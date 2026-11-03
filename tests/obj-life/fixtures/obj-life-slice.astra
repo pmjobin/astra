@@ -1,20 +1,27 @@
 extern(C) int life_record(int code, int value);
+
 class Sum {
 	int total;
 	f32 sample;
+
 	init(borrowed int[] values, borrowed f32<4>[] blocks) {
 		int total = 0;
 		int i = 0;
-		while (i < len(values)) { total = total + values[i]; i = i + 1; }
+		while (i < len(values)) {
+			total = total + values[i];
+			i = i + 1;
+		}
 		this.total = total;
 		this.sample = dot(blocks[0], splat(1.0, 4));
 	}
+
 	deinit() { life_record(this.total, 0); }
 }
+
 int main() {
 	int[3] values = { 10, 20, 12 };
 	f32<4>[1] blocks = { splat(2.0, 4) };
 	Sum sum = Sum.init(slice(values), slice(blocks));
-	if (sum.sample != 8.0) { return 1; }
+	if (sum.sample != 8.0) return 1;
 	return sum.total;
 }

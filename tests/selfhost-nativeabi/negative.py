@@ -51,8 +51,8 @@ def main():
 		(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 		assert r.returncode == expected, (name, r.returncode, r.stderr[-3000:].decode(errors='replace'))
 		return r
-	# This separate, executed baseline provides two genuine owner locations for
-	# the replacement-storage fault. It is not counted in the selected corpus.
+		# This separate, executed baseline provides two genuine owner locations for
+		# the replacement-storage fault. It is not counted in the selected corpus.
 	source = a.runtime/'replacement-two-owners.astra'
 	source.write_text('int main(){owned int[] a=new int[2];owned int[] b=new int[4];a=new int[3];return 0;}\n')
 	obj = a.build/'replacement-two-owners.o'; native = a.build/'replacement-two-owners'; reference = native.with_suffix('.c0')

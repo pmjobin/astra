@@ -2,25 +2,32 @@
 class FieldBox<T> {
 	owned T payload;
 	int revision;
+
 	init(owned T payload, int revision) {
 		this.payload = move payload;
 		this.revision = revision;
 	}
+
 	property borrowed T view { get { return this.payload; } }
+
 	deinit() { mark(this.revision); }
 }
 
 class FieldChild {
 	int code;
 	owned R handle;
+
 	init(int code, owned R handle) { this.code = code; this.handle = move handle; }
+
 	int inspect(int delta) { return this.code + delta; }
+
 	deinit() { mark(100 + id(this.handle)); }
 }
 
 struct FieldStats { int value; i64 stamp; }
 
 int consume_projection(owned FieldBox<FieldBox<FieldChild>> value) { return 0; }
+
 int projected_probe(owned FieldBox<FieldBox<FieldChild>> value) {
 	return value.payload.payload.inspect(0);
 }
@@ -30,18 +37,18 @@ int exercise() {
 	var child = new FieldChild(42, move handle);
 	var inner = new FieldBox<FieldChild>(move child, 10);
 	var outer = new FieldBox<FieldBox<FieldChild>>(move inner, 20);
-	if (outer.payload.payload.code != 42) { return 1; }
-	if (id(outer.payload.payload.handle) != 91) { return 2; }
-	if (outer.payload.payload.inspect(0) != 42) { return 3; }
-	if (outer.view.view.code != 42) { return 4; }
+	if (outer.payload.payload.code != 42) return 1;
+	if (id(outer.payload.payload.handle) != 91) return 2;
+	if (outer.payload.payload.inspect(0) != 42) return 3;
+	if (outer.view.view.code != 42) return 4;
 	FieldStats stats = {value = 43, stamp = 7000000001};
 	var record = new FieldBox<FieldStats>(stats, 30);
-	if (record.payload.value != 43 || record.payload.stamp != 7000000001) { return 5; }
+	if (record.payload.value != 43 || record.payload.stamp != 7000000001) return 5;
 	return 0;
 }
 
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

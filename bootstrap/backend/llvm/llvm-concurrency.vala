@@ -24,6 +24,7 @@ internal class LlvmConcurrencyRuntime : Object {
 		artifact.class_globals.add (new LlvmClassGlobalBinding (value, initializer));
 		return value;
 	}
+
 	internal static CApi.ValueRef call(LlvmModuleArtifact artifact, CApi.BuilderRef builder, string name, CApi.TypeRef result_type, CApi.TypeRef[]? parameters, CApi.ValueRef[]? arguments) throws LlvmError {
 		var signature = CApi.function_type (result_type, parameters, parameters.length, 0);
 		var target = CApi.named_function (artifact.module, name);
@@ -61,5 +62,6 @@ internal class LlvmConcurrencyRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { address }, "immutable concurrency metadata read"));
 		return result;
 	}
+
 }
 }

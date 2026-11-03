@@ -3,9 +3,11 @@
 bool cfg_same_value(CoreNode a, CoreNode b) {
 	return a.kind == b.kind && a.function == b.function && a.source.index == b.source.index && core_span_equal(a.span, b.span) && a.type.index == b.type.index && a.flags == b.flags && a.token.index == b.token.index && a.operation.index == b.operation.index && a.a == b.a && a.b == b.b && a.c == b.c && a.place == b.place && a.symbol.index == b.symbol.index && a.signature.index == b.signature.index && a.target == b.target && a.first == b.first && a.count == b.count;
 }
+
 bool cfg_counts(CfgData d, CoreData core) {
 	return d.function_count == core.function_count && d.function_count == len(d.functions) && d.region_count == core.node_count && d.region_count == len(d.regions) && d.block_count >= 0 && d.block_count <= len(d.blocks) && d.instruction_count >= 0 && d.instruction_count <= len(d.instructions) && d.edge_count >= 0 && d.edge_count <= len(d.edges) && d.predecessor_count >= 0 && d.predecessor_count <= len(d.predecessors) && d.operand_count >= 0 && d.operand_count <= len(d.operands);
 }
+
 // Worklist reachability follows only CFG edges, including both possible polarities.
 owned bool[] cfg_reach(CfgData d) {
 	var seen = new bool[d.block_count];
@@ -13,94 +15,109 @@ owned bool[] cfg_reach(CfgData d) {
 	int head = 0; int tail = 0; int f = 0;
 	while (f < d.function_count) {
 		int entry = d.functions[f].entry;
-		if (entry > 0 && entry <= d.block_count && !seen[entry - 1]) { seen[entry - 1] = true; queue[tail] = entry; tail = tail + 1; }
+		if (entry > 0 && entry <= d.block_count && !seen[entry - 1]) {
+			seen[entry - 1] = true;
+			queue[tail] = entry;
+			tail = tail + 1;
+		}
 		f = f + 1;
 	}
 	while (head < tail) {
 		var b = d.blocks[queue[head] - 1];
 		int p = 1;
 		while (p <= 2) {
-			int target = b.yes; if (p == 2) { target = b.no; }
-			if (target > 0 && target <= d.block_count && !seen[target - 1]) { seen[target - 1] = true; queue[tail] = target; tail = tail + 1; }
+			int target = b.yes; if (p == 2) target = b.no;
+			if (target > 0 && target <= d.block_count && !seen[target - 1]) {
+				seen[target - 1] = true;
+				queue[tail] = target;
+				tail = tail + 1;
+			}
 			p = p + 1;
 		}
 		head = head + 1;
 	}
 	return move seen;
 }
+
 bool cfg_verify_edges(CfgData d) {
-	if (d.predecessor_count != d.edge_count) { return false; }
+	if (d.predecessor_count != d.edge_count) return false;
 	var outgoing = new int[d.block_count * 2];
 	var incoming = new bool[d.edge_count];
 	int e = 0;
 	while (e < d.edge_count) {
 		var edge = d.edges[e];
-		if (edge.source < 1 || edge.source > d.block_count || edge.target < 1 || edge.target > d.block_count || edge.polarity < 1 || edge.polarity > 2) { return false; }
+		if (edge.source < 1 || edge.source > d.block_count || edge.target < 1 || edge.target > d.block_count || edge.polarity < 1 || edge.polarity > 2) return false;
 		var b = d.blocks[edge.source - 1];
-		if (edge.function != b.function || d.blocks[edge.target - 1].function != b.function) { return false; }
-		int target = b.yes; if (edge.polarity == 2) { target = b.no; }
+		if (edge.function != b.function || d.blocks[edge.target - 1].function != b.function) return false;
+		int target = b.yes; if (edge.polarity == 2) target = b.no;
 		int at = (edge.source - 1) * 2 + edge.polarity - 1;
-		if (target != edge.target || outgoing[at] != 0) { return false; }
+		if (target != edge.target || outgoing[at] != 0) return false;
 		outgoing[at] = e + 1;
 		e = e + 1;
 	}
 	int p = 0;
 	while (p < d.predecessor_count) {
 		var pred = d.predecessors[p];
-		if (pred.edge < 1 || pred.edge > d.edge_count || incoming[pred.edge - 1]) { return false; }
+		if (pred.edge < 1 || pred.edge > d.edge_count || incoming[pred.edge - 1]) return false;
 		var edge = d.edges[pred.edge - 1];
-		if (pred.function != edge.function || pred.source != edge.source || pred.target != edge.target) { return false; }
+		if (pred.function != edge.function || pred.source != edge.source || pred.target != edge.target) return false;
 		incoming[pred.edge - 1] = true;
 		p = p + 1;
 	}
 	int i = 0;
 	while (i < d.block_count) {
 		var b = d.blocks[i];
-		if (b.function < 1 || b.function > d.function_count || b.terminators != 1 || b.term < 1 || b.term > 4) { return false; }
-		if (b.term == 1 && (b.yes == 0 || b.no != 0 || b.condition != 0)) { return false; }
-		if (b.term == 2 && (b.yes == 0 || b.no == 0 || b.condition == 0)) { return false; }
-		if ((b.term == 3 || b.term == 4) && (b.yes != 0 || b.no != 0)) { return false; }
-		if (b.term == 4 && b.condition != 0) { return false; }
-		if ((b.yes != 0) != (outgoing[i * 2] != 0) || (b.no != 0) != (outgoing[i * 2 + 1] != 0)) { return false; }
+		if (b.function < 1 || b.function > d.function_count || b.terminators != 1 || b.term < 1 || b.term > 4) return false;
+		if (b.term == 1 && (b.yes == 0 || b.no != 0 || b.condition != 0)) return false;
+		if (b.term == 2 && (b.yes == 0 || b.no == 0 || b.condition == 0)) return false;
+		if ((b.term == 3 || b.term == 4) && (b.yes != 0 || b.no != 0)) return false;
+		if (b.term == 4 && b.condition != 0) return false;
+		if ((b.yes != 0) != (outgoing[i * 2] != 0) || (b.no != 0) != (outgoing[i * 2 + 1] != 0)) return false;
 		i = i + 1;
 	}
 	return true;
 }
+
 class CfgCheck {
 	owned bool[] blocks;
 	owned bool[] instructions;
 	owned bool[] nodes;
 	int work;
+
 	init(int blocks, int instructions, int nodes) {
 		this.blocks = new bool[blocks]; this.instructions = new bool[instructions]; this.nodes = new bool[nodes]; this.work = 0;
 	}
+
 	bool block(CfgData d, int id, int function, int origin, int role, int term, int condition, int yes, int no, bool instruction) {
 		this.work = this.work + 1;
-		if (this.work > 8000000 || id < 1 || id > d.block_count || this.blocks[id - 1]) { return false; }
+		if (this.work > 8000000 || id < 1 || id > d.block_count || this.blocks[id - 1]) return false;
 		var b = d.blocks[id - 1];
-		if (b.function != function || b.origin != origin || b.role != role || b.terminators != 1 || b.term != term || b.condition != condition || b.yes != yes || b.no != no || (b.instruction != 0) != instruction) { return false; }
+		if (b.function != function || b.origin != origin || b.role != role || b.terminators != 1 || b.term != term || b.condition != condition || b.yes != yes || b.no != no || (b.instruction != 0) != instruction) return false;
 		this.blocks[id - 1] = true;
 		return true;
 	}
+
 	bool instruction(CfgData d, CoreData core, int block, int function, int origin, int opcode, int result, int a, int b, int contract, int guarded, int next) {
-		if (!this.block(d, block, function, origin, opcode, 1, 0, next, 0, true)) { return false; }
+		if (!this.block(d, block, function, origin, opcode, 1, 0, next, 0, true)) return false;
 		int id = d.blocks[block - 1].instruction;
-		if (id < 1 || id > d.instruction_count || this.instructions[id - 1]) { return false; }
+		if (id < 1 || id > d.instruction_count || this.instructions[id - 1]) return false;
 		var i = d.instructions[id - 1];
-		if (i.block != block || i.origin != origin || i.opcode != opcode || i.result != result || i.a != a || i.b != b || i.contract != contract || i.guarded != guarded) { return false; }
+		if (i.block != block || i.origin != origin || i.opcode != opcode || i.result != result || i.a != a || i.b != b || i.contract != contract || i.guarded != guarded) return false;
 		if (origin != 0) {
-			if (origin < 1 || origin > core.node_count || !cfg_same_value(i.value, core.nodes[origin - 1])) { return false; }
+			if (origin < 1 || origin > core.node_count || !cfg_same_value(i.value, core.nodes[origin - 1])) return false;
 		} else {
 			var v = i.value;
-			if (v.function != function || v.kind != 0 || v.source.index != 0 || v.span.source.index != 0 || v.span.start != 0 || v.span.end != 0 || v.type.index != 14 || v.flags != 0 || v.token.index != 0 || v.operation.index != 0 || v.a != 0 || v.b != 0 || v.c != 0 || v.place != 0 || v.symbol.index != 0 || v.signature.index != 0 || v.target != 0 || v.first != 0 || v.count != 0) { return false; }
+			if (v.function != function || v.kind != 0 || v.source.index != 0 || v.span.source.index != 0 || v.span.start != 0 || v.span.end != 0 || v.type.index != 14 || v.flags != 0 || v.token.index != 0 || v.operation.index != 0 || v.a != 0 || v.b != 0 || v.c != 0 || v.place != 0 || v.symbol.index != 0 || v.signature.index != 0 || v.target != 0 || v.first != 0 || v.count != 0) return false;
 		}
 		this.instructions[id - 1] = true;
 		return true;
 	}
+
 	int following(CfgData d, int block) {
-		if (block < 1 || block > d.block_count) { return 0; }
+		if (block < 1 || block > d.block_count) return 0;
 		return d.blocks[block - 1].yes;
 	}
+
 	// Consume the ordered scope/leaf obligations from verified Core. Actions are
 	// conditional arm tests; source nullness and joined Flow facts are not arms.
 	bool cleanup(CfgData d, CoreData core, int entry, int next, int function, int origin, SyntaxNodeId source) {
@@ -110,12 +127,12 @@ class CfgCheck {
 			var plan = core.exits[p];
 			if (plan.function == function && plan.source.index == source.index) {
 				int after = this.following(d, current);
-				if (!this.instruction(d, core, current, function, origin, 41, 0, 0, 0, p + 1, 0, after)) { return false; }
+				if (!this.instruction(d, core, current, function, origin, 41, 0, 0, 0, p + 1, 0, after)) return false;
 				current = after;
 				int j = 0;
 				while (j < plan.count) {
 					after = this.following(d, current);
-					if (!this.instruction(d, core, current, function, origin, 40, 0, 0, 0, plan.first + j + 1, 1, after)) { return false; }
+					if (!this.instruction(d, core, current, function, origin, 40, 0, 0, 0, plan.first + j + 1, 1, after)) return false;
 					current = after; j = j + 1;
 				}
 			}
@@ -123,6 +140,7 @@ class CfgCheck {
 		}
 		return current == next;
 	}
+
 	int loans(CfgData d, CoreData core, int entry, int function, int origin, int opcode) {
 		int current = entry;
 		int l = 0;
@@ -130,118 +148,128 @@ class CfgCheck {
 			var loan = core.loans[l];
 			var row = core.nodes[origin - 1];
 			bool applies = loan.function == function && loan.value.index == row.source.index;
-			if (opcode == 43) { applies = loan.function == function && loan.call.index == row.source.index; }
+			if (opcode == 43) applies = loan.function == function && loan.call.index == row.source.index;
 			if (applies) {
 				int after = this.following(d, current);
-				if (!this.instruction(d, core, current, function, origin, opcode, 0, 0, 0, l + 1, 0, after)) { return 0; }
+				if (!this.instruction(d, core, current, function, origin, opcode, 0, 0, 0, l + 1, 0, after)) return 0;
 				current = after;
 			}
 			l = l + 1;
 		}
 		return current;
 	}
+
 	int entry(CfgData d, int id, int fallback) {
-		if (id == 0) { return fallback; }
-		if (id < 1 || id > d.region_count) { return 0; }
+		if (id == 0) return fallback;
+		if (id < 1 || id > d.region_count) return 0;
 		return d.regions[id - 1].entry;
 	}
+
 	bool node(CfgData d, CoreData core, CheckedIndex checked, int id, int next, int break_to, int continue_to, int depth) throws Error {
-		if (id == 0) { return true; }
-		if (depth > 192 || id < 1 || id > core.node_count || this.nodes[id - 1]) { return false; }
+		if (id == 0) return true;
+		if (depth > 192 || id < 1 || id > core.node_count || this.nodes[id - 1]) return false;
 		this.nodes[id - 1] = true;
 		var n = core.nodes[id - 1]; var r = d.regions[id - 1];
 		int f = n.function;
 		if (n.kind == 20) {
-			if (r.one != 0 || r.two != 0 || r.three != 0 || !this.cleanup(d, core, r.operation, next, f, id, n.source)) { return false; }
+			if (r.one != 0 || r.two != 0 || r.three != 0 || !this.cleanup(d, core, r.operation, next, f, id, n.source)) return false;
 			int current = r.entry;
 			int i = 0;
 			while (i < n.count) {
 				int child = core.edges[n.first + i].child;
 				int after = r.operation;
-				if (i + 1 < n.count) { after = this.entry(d, core.edges[n.first + i + 1].child, after); }
-				if (current != this.entry(d, child, after) || !this.node(d, core, checked, child, after, break_to, continue_to, depth + 1)) { return false; }
+				if (i + 1 < n.count) after = this.entry(d, core.edges[n.first + i + 1].child, after);
+				if (current != this.entry(d, child, after) || !this.node(d, core, checked, child, after, break_to, continue_to, depth + 1)) return false;
 				current = after; i = i + 1;
 			}
 			return current == r.operation;
 		}
 		if (n.kind == 23 || n.kind == 24) {
-			if (r.two != 0 || r.three != 0 || r.entry != r.one || r.one != this.entry(d, n.a, r.operation)) { return false; }
+			if (r.two != 0 || r.three != 0 || r.entry != r.one || r.one != this.entry(d, n.a, r.operation)) return false;
 			int yes = this.entry(d, n.b, next); int no = this.entry(d, n.c, next);
-			if (n.kind == 24) { yes = this.entry(d, n.b, r.one); no = next; }
-			if (!this.block(d, r.operation, f, id, n.kind, 2, n.a, yes, no, false) || core.nodes[n.a - 1].type.index != 13 || !this.node(d, core, checked, n.a, r.operation, break_to, continue_to, depth + 1)) { return false; }
-			if (n.kind == 24) { return this.node(d, core, checked, n.b, r.one, next, r.one, depth + 1); }
+			if (n.kind == 24) {
+				yes = this.entry(d, n.b, r.one);
+				no = next;
+			}
+			if (!this.block(d, r.operation, f, id, n.kind, 2, n.a, yes, no, false) || core.nodes[n.a - 1].type.index != 13 || !this.node(d, core, checked, n.a, r.operation, break_to, continue_to, depth + 1)) return false;
+			if (n.kind == 24) return this.node(d, core, checked, n.b, r.one, next, r.one, depth + 1);
 			return this.node(d, core, checked, n.b, next, break_to, continue_to, depth + 1) && this.node(d, core, checked, n.c, next, break_to, continue_to, depth + 1);
 		}
 		if (n.kind == 25 || n.kind == 26 || n.kind == 27) {
-			if (r.two != 0 || r.three != 0 || !this.cleanup(d, core, r.one, r.operation, f, id, n.source)) { return false; }
-			if (n.kind == 27) { return r.entry == this.entry(d, n.a, r.one) && this.block(d, r.operation, f, id, 27, 3, n.a, 0, 0, false) && this.node(d, core, checked, n.a, r.one, break_to, continue_to, depth + 1); }
-			int target = break_to; if (n.kind == 26) { target = continue_to; }
+			if (r.two != 0 || r.three != 0 || !this.cleanup(d, core, r.one, r.operation, f, id, n.source)) return false;
+			if (n.kind == 27) return r.entry == this.entry(d, n.a, r.one) && this.block(d, r.operation, f, id, 27, 3, n.a, 0, 0, false) && this.node(d, core, checked, n.a, r.one, break_to, continue_to, depth + 1);
+			int target = break_to; if (n.kind == 26) target = continue_to;
 			return target != 0 && r.entry == r.one && r.operation == target;
 		}
 		if (n.kind == 7) {
-			if (r.entry != this.entry(d, n.a, r.operation) || r.three != this.entry(d, n.b, r.two)) { return false; }
+			if (r.entry != this.entry(d, n.a, r.operation) || r.three != this.entry(d, n.b, r.two)) return false;
 			int yes = r.three; int no = r.one;
 			var op = checked.bindings.program.arena.token_message(n.operation);
-			if (op.text == "||") { yes = r.one; no = r.three; }
+			if (op.text == "||") {
+				yes = r.one;
+				no = r.three;
+			}
 			return this.block(d, r.operation, f, id, 7, 2, n.a, yes, no, false) && this.instruction(d, core, r.one, f, id, 44, id, n.a, 0, 0, 0, next) && this.instruction(d, core, r.two, f, id, 44, id, n.b, 0, 0, 0, next) && this.node(d, core, checked, n.a, r.operation, break_to, continue_to, depth + 1) && this.node(d, core, checked, n.b, r.two, break_to, continue_to, depth + 1);
 		}
-		if (r.one != 0 || r.two != 0 || r.three != 0 || r.operation < 1 || r.operation > d.block_count) { return false; }
-		int result = 0; if (core_value_kind(n.kind)) { result = id; }
+		if (r.one != 0 || r.two != 0 || r.three != 0 || r.operation < 1 || r.operation > d.block_count) return false;
+		int result = 0; if (core_value_kind(n.kind)) result = id;
 		int tail = this.following(d, r.operation);
-		if (!this.instruction(d, core, r.operation, f, id, n.kind, result, n.a, n.b, 0, 0, tail)) { return false; }
+		if (!this.instruction(d, core, r.operation, f, id, n.kind, result, n.a, n.b, 0, 0, tail)) return false;
 		int after = tail;
-		if (core_value_kind(n.kind)) { after = this.loans(d, core, after, f, id, 42); }
-		if (n.kind == 9) { after = this.loans(d, core, after, f, id, 43); }
-		if (after != next) { return false; }
+		if (core_value_kind(n.kind)) after = this.loans(d, core, after, f, id, 42);
+		if (n.kind == 9) after = this.loans(d, core, after, f, id, 43);
+		if (after != next) return false;
 		// Check evaluation in forward source order; continuations are inferred
 		// from the next operand's verified region, never a builder replay/hash.
 		int current = r.entry;
 		if (n.a != 0) {
 			int target = r.operation;
-			if (n.b != 0) { target = this.entry(d, n.b, target); }
-			if (current != this.entry(d, n.a, target) || !this.node(d, core, checked, n.a, target, break_to, continue_to, depth + 1)) { return false; }
+			if (n.b != 0) target = this.entry(d, n.b, target);
+			if (current != this.entry(d, n.a, target) || !this.node(d, core, checked, n.a, target, break_to, continue_to, depth + 1)) return false;
 			current = target;
 		}
 		if (n.b != 0) {
-			if (current != this.entry(d, n.b, r.operation) || !this.node(d, core, checked, n.b, r.operation, break_to, continue_to, depth + 1)) { return false; }
+			if (current != this.entry(d, n.b, r.operation) || !this.node(d, core, checked, n.b, r.operation, break_to, continue_to, depth + 1)) return false;
 			current = r.operation;
 		}
 		int i = 0;
 		while (i < n.count) {
 			int child = core.edges[n.first + i].child;
 			int target = r.operation;
-			if (i + 1 < n.count) { target = this.entry(d, core.edges[n.first + i + 1].child, target); }
-			if (current != this.entry(d, child, target) || !this.node(d, core, checked, child, target, break_to, continue_to, depth + 1)) { return false; }
+			if (i + 1 < n.count) target = this.entry(d, core.edges[n.first + i + 1].child, target);
+			if (current != this.entry(d, child, target) || !this.node(d, core, checked, child, target, break_to, continue_to, depth + 1)) return false;
 			current = target; i = i + 1;
 		}
 		return current == r.operation;
 	}
 }
+
 bool cfg_declaration_exit(CfgData d, CoreProgram core, int block) {
 	var row = d.blocks[block - 1];
-	if (row.function < 1 || row.function > core.data.function_count || d.functions[row.function - 1].exit != block || row.origin != 0 || row.role != 0 || row.term != 4) { return false; }
+	if (row.function < 1 || row.function > core.data.function_count || d.functions[row.function - 1].exit != block || row.origin != 0 || row.role != 0 || row.term != 4) return false;
 	var function = core.data.functions[row.function - 1];
 	var declaration = core.flow.checked.bindings.symbol(function.symbol);
 	return function.body == 0 && core.flow.checked.bindings.program.arena.get_node_body(declaration.node).index == 0 && core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node) && checked_c_scalar_signature(core.flow.checked, function.symbol);
 }
+
 int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 	int input = core_verify(core);
 	if (input != 0) {
-		int expected = input; if (input == 1) { expected = 4; }
-		if (d.status != expected) { return 1; }
+		int expected = input; if (input == 1) expected = 4;
+		if (d.status != expected) return 1;
 		return expected;
 	}
-	if (!cfg_counts(d, core.data)) { return 1; }
-	if (d.limit < 1 || d.limit > 65536 || d.block_count > d.limit || d.instruction_count > d.limit || d.edge_count > d.limit || d.predecessor_count > d.limit || d.block_count > 8000000 / (core.data.node_count + 1) || d.edge_count > 8000000 / (core.data.node_count + 1)) { return 2; }
-	if (d.status == 2 && (d.block_count == d.limit || d.instruction_count == d.limit || d.edge_count == d.limit || d.predecessor_count == d.limit || d.operand_count == d.limit)) { return 2; }
-	if (d.operand_count > d.limit) { return 2; }
-	if (d.status != 0 || !cfg_verify_edges(d) || !cfg_verify_operands(d, core.data)) { return 1; }
+	if (!cfg_counts(d, core.data)) return 1;
+	if (d.limit < 1 || d.limit > 65536 || d.block_count > d.limit || d.instruction_count > d.limit || d.edge_count > d.limit || d.predecessor_count > d.limit || d.block_count > 8000000 / (core.data.node_count + 1) || d.edge_count > 8000000 / (core.data.node_count + 1)) return 2;
+	if (d.status == 2 && (d.block_count == d.limit || d.instruction_count == d.limit || d.edge_count == d.limit || d.predecessor_count == d.limit || d.operand_count == d.limit)) return 2;
+	if (d.operand_count > d.limit) return 2;
+	if (d.status != 0 || !cfg_verify_edges(d) || !cfg_verify_operands(d, core.data)) return 1;
 	var check = new CfgCheck(d.block_count, d.instruction_count, core.data.node_count);
 	int f = 0;
 	while (f < d.function_count) {
 		var function = d.functions[f]; var authority = core.data.functions[f];
-		int term = 4; if (authority.result.index == 14) { term = 3; }
-		if (!check.block(d, function.exit, f + 1, 0, 0, term, 0, 0, 0, false)) { return 1; }
+		int term = 4; if (authority.result.index == 14) term = 3;
+		if (!check.block(d, function.exit, f + 1, 0, 0, term, 0, 0, 0, false)) return 1;
 		int tail = function.exit;
 		int p = core.data.exit_count - 1;
 		var declaration = core.flow.checked.bindings.symbol(authority.symbol);
@@ -251,47 +279,71 @@ int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 			var plan = core.data.exits[p];
 			if (plan.function == f + 1 && plan.source.index == declaration.node.index) {
 				int i = 0;
-				while (i < d.instruction_count) { if (d.instructions[i].origin == 0 && d.instructions[i].opcode == 41 && d.instructions[i].contract == p + 1) { tail = d.instructions[i].block; } i = i + 1; }
+				while (i < d.instruction_count) {
+					if (d.instructions[i].origin == 0 && d.instructions[i].opcode == 41 && d.instructions[i].contract == p + 1) tail = d.instructions[i].block;
+					i = i + 1;
+				}
 			}
 			p = p - 1;
 		}
-		if (!check.cleanup(d, core.data, tail, function.exit, f + 1, 0, declaration.node) || function.entry != check.entry(d, authority.body, tail) || !check.node(d, core.data, core.flow.checked, authority.body, tail, 0, 0, 0)) { return 1; }
+		if (!check.cleanup(d, core.data, tail, function.exit, f + 1, 0, declaration.node) || function.entry != check.entry(d, authority.body, tail) || !check.node(d, core.data, core.flow.checked, authority.body, tail, 0, 0, 0)) return 1;
 		f = f + 1;
 	}
 	int e = 0;
 	while (e < d.edge_count) {
 		var edge = d.edges[e];
-		if (edge.meaning != cfg_edge_meaning(d, core.data, edge.source, edge.target, edge.polarity)) { return 1; }
+		if (edge.meaning != cfg_edge_meaning(d, core.data, edge.source, edge.target, edge.polarity)) return 1;
 		e = e + 1;
 	}
 	var reachable = cfg_reach(d);
 	int i = 0;
-	while (i < d.block_count) { if (!check.blocks[i] || reachable[i] != d.blocks[i].reachable || (reachable[i] && d.blocks[i].term == 4 && !cfg_declaration_exit(d, core, i + 1))) { return 1; } i = i + 1; }
+	while (i < d.block_count) {
+		if (!check.blocks[i] || reachable[i] != d.blocks[i].reachable || (reachable[i] && d.blocks[i].term == 4 && !cfg_declaration_exit(d, core, i + 1))) return 1;
+		i = i + 1;
+	}
 	i = 0;
-	while (i < d.instruction_count) { if (!check.instructions[i]) { return 1; } i = i + 1; }
+	while (i < d.instruction_count) {
+		if (!check.instructions[i]) return 1;
+		i = i + 1;
+	}
 	i = 0;
-	while (i < core.data.node_count) { if (!check.nodes[i]) { return 1; } i = i + 1; }
+	while (i < core.data.node_count) {
+		if (!check.nodes[i]) return 1;
+		i = i + 1;
+	}
 	return 0;
 }
+
 int cfg_verify(CfgProgram program) throws Error { return cfg_verify_model(program.data, program.core); }
+
 bool cfg_owns(CfgProgram program, borrowed CfgProgram origin, CfgBlockId id) throws Error {
 	return program.same_owner(origin) && cfg_verify(program) == 0 && id.function > 0 && id.function <= program.data.function_count && id.index > 0 && id.index <= program.data.block_count && program.data.blocks[id.index - 1].function == id.function;
 }
+
 CfgBlock cfg_read_block(CfgProgram program, borrowed CfgProgram origin, CfgBlockId id) throws Error {
-	if (!cfg_owns(program, origin, id)) { throw new Error("INVALID_CFG_BLOCK_ID"); }
+	if (!cfg_owns(program, origin, id)) {
+		throw new Error("INVALID_CFG_BLOCK_ID");
+	}
 	return program.data.blocks[id.index - 1];
 }
+
 CfgInstruction cfg_read_instruction(CfgProgram program, borrowed CfgProgram origin, CfgInstructionId id) throws Error {
-	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.data.instruction_count || program.data.instructions[id.index - 1].value.function != id.function) { throw new Error("INVALID_CFG_INSTRUCTION_ID"); }
+	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.data.instruction_count || program.data.instructions[id.index - 1].value.function != id.function) {
+		throw new Error("INVALID_CFG_INSTRUCTION_ID");
+	}
 	return program.data.instructions[id.index - 1];
 }
+
 CorePlace cfg_read_place(CfgProgram program, borrowed CfgProgram origin, CfgPlaceId id) throws Error {
-	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.core.data.place_count || program.core.data.places[id.index - 1].function != id.function) { throw new Error("INVALID_CFG_PLACE_ID"); }
+	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.core.data.place_count || program.core.data.places[id.index - 1].function != id.function) {
+		throw new Error("INVALID_CFG_PLACE_ID");
+	}
 	return program.core.data.places[id.index - 1];
 }
+
 owned SourceSpan cfg_source_span(CfgProgram program, borrowed CfgProgram origin, CfgBlockId id) throws Error {
 	var b = cfg_read_block(program, origin, id);
-	if (b.origin == 0) { return program.core.flow.checked.bindings.program.arena.source_span(program.core.data.functions[id.function - 1].span); }
+	if (b.origin == 0) return program.core.flow.checked.bindings.program.arena.source_span(program.core.data.functions[id.function - 1].span);
 	return program.core.flow.checked.bindings.program.arena.source_span(program.core.data.nodes[b.origin - 1].span);
 }
 
@@ -301,23 +353,23 @@ bool cfg_verify_operands(CfgData d, CoreData core) {
 	int i = 0;
 	while (i < d.operand_count) {
 		var operand = d.operands[i];
-		if (operand.instruction < 1 || operand.instruction > d.instruction_count) { return false; }
+		if (operand.instruction < 1 || operand.instruction > d.instruction_count) return false;
 		var instruction = d.instructions[operand.instruction - 1];
-		if (instruction.opcode != 9 && instruction.opcode != 10) { return false; }
-		if (instruction.origin < 1 || instruction.origin > core.node_count) { return false; }
+		if (instruction.opcode != 9 && instruction.opcode != 10) return false;
+		if (instruction.origin < 1 || instruction.origin > core.node_count) return false;
 		var node = core.nodes[instruction.origin - 1];
-		if (operand.ordinal < 0 || operand.ordinal >= node.count || operand.function != node.function) { return false; }
+		if (operand.ordinal < 0 || operand.ordinal >= node.count || operand.function != node.function) return false;
 		int at = node.first + operand.ordinal;
-		if (seen[at]) { return false; }
+		if (seen[at]) return false;
 		seen[at] = true;
 		var edge = core.edges[at];
-		if (operand.temp != edge.child || operand.label.index != edge.label.index || operand.mode != edge.mode) { return false; }
+		if (operand.temp != edge.child || operand.label.index != edge.label.index || operand.mode != edge.mode) return false;
 		i = i + 1;
 	}
 	i = 0;
 	while (i < core.node_count) {
 		var node = core.nodes[i];
-		if (node.kind == 9 || node.kind == 10) { count = count + node.count; }
+		if (node.kind == 9 || node.kind == 10) count = count + node.count;
 		i = i + 1;
 	}
 	return count == d.operand_count;
@@ -326,39 +378,49 @@ bool cfg_verify_operands(CfgData d, CoreData core) {
 // Pure Core membership, not lowering or a builder certificate. The complete
 // Core tree has already passed its independent verifier before either caller.
 bool cfg_core_contains(CoreData core, int root, int wanted, int depth) {
-	if (root == 0 || depth > 192) { return false; }
-	if (root == wanted) { return true; }
+	if (root == 0 || depth > 192) return false;
+	if (root == wanted) return true;
 	var n = core.nodes[root - 1];
-	if (cfg_core_contains(core, n.a, wanted, depth + 1) || cfg_core_contains(core, n.b, wanted, depth + 1) || cfg_core_contains(core, n.c, wanted, depth + 1)) { return true; }
+	if (cfg_core_contains(core, n.a, wanted, depth + 1) || cfg_core_contains(core, n.b, wanted, depth + 1) || cfg_core_contains(core, n.c, wanted, depth + 1)) return true;
 	int i = 0;
-	while (i < n.count) { if (cfg_core_contains(core, core.edges[n.first + i].child, wanted, depth + 1)) { return true; } i = i + 1; }
+	while (i < n.count) {
+		if (cfg_core_contains(core, core.edges[n.first + i].child, wanted, depth + 1)) return true;
+		i = i + 1;
+	}
 	return false;
 }
+
 // Edge meanings: normal, true, false, loop backedge, break, continue, return.
 // This relation uses only validated Core membership and checked region anchors.
 int cfg_edge_meaning(CfgData d, CoreData core, int source, int target, int polarity) {
 	var b = d.blocks[source - 1];
-	if (b.term == 2) { return polarity + 1; }
+	if (b.term == 2) return polarity + 1;
 	if (b.origin > 0 && b.origin <= core.node_count) {
 		int kind = core.nodes[b.origin - 1].kind;
-		if (kind == 25) { return 5; }
-		if (kind == 26) { return 6; }
-		if (kind == 27) { return 7; }
+		if (kind == 25) return 5;
+		if (kind == 26) return 6;
+		if (kind == 27) return 7;
 		int n = 0;
 		while (n < core.node_count) {
 			var loop = core.nodes[n];
-			if (loop.kind == 24 && loop.function == b.function && d.regions[n].entry == target && cfg_core_contains(core, loop.b, b.origin, 0)) { return 4; }
+			if (loop.kind == 24 && loop.function == b.function && d.regions[n].entry == target && cfg_core_contains(core, loop.b, b.origin, 0)) return 4;
 			n = n + 1;
 		}
 	}
-	if (d.blocks[target - 1].term == 3 && d.blocks[target - 1].origin == 0) { return 7; }
+	if (d.blocks[target - 1].term == 3 && d.blocks[target - 1].origin == 0) return 7;
 	return 1;
 }
+
 CfgEdge cfg_read_edge(CfgProgram program, borrowed CfgProgram origin, CfgEdgeId id) throws Error {
-	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.data.edge_count || program.data.edges[id.index - 1].function != id.function) { throw new Error("INVALID_CFG_EDGE_ID"); }
+	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.data.edge_count || program.data.edges[id.index - 1].function != id.function) {
+		throw new Error("INVALID_CFG_EDGE_ID");
+	}
 	return program.data.edges[id.index - 1];
 }
+
 CoreNode cfg_read_temp(CfgProgram program, borrowed CfgProgram origin, CfgTempId id) throws Error {
-	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.core.data.node_count || program.core.data.nodes[id.index - 1].function != id.function || !core_value_kind(program.core.data.nodes[id.index - 1].kind)) { throw new Error("INVALID_CFG_TEMP_ID"); }
+	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.core.data.node_count || program.core.data.nodes[id.index - 1].function != id.function || !core_value_kind(program.core.data.nodes[id.index - 1].kind)) {
+		throw new Error("INVALID_CFG_TEMP_ID");
+	}
 	return program.core.data.nodes[id.index - 1];
 }

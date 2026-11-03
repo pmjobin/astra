@@ -4,6 +4,7 @@ namespace Astra.Source {
 public errordomain RuntimeLifetimeError {
 	INVALID_GRAPH, UNGROUNDED, LOCAL_ESCAPE
 }
+
 public enum RuntimeScopeOriginKind {
 	LOCAL_CONTEXT, CONTEXT_PARAMETER, OWNER_PARAMETER
 }
@@ -22,6 +23,7 @@ public class RuntimeScopeOrigin : Object {
 	public string exclusion(uint index) {
 		return excluded[index];
 	}
+
 	public RuntimeScopeOrigin.local (int context, int region) {
 		kind = RuntimeScopeOriginKind.LOCAL_CONTEXT;
 		ordinal = context;
@@ -60,6 +62,7 @@ public class RuntimeScopeOrigin : Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		var text = new StringBuilder ("runtime-lifetime/1:%d;%d;%d;%s;%d".printf ((int) kind, ordinal, region, path, descendants ? 1 : 0));
 		foreach (var key in excluded) {
@@ -67,11 +70,13 @@ public class RuntimeScopeOrigin : Object {
 		}
 		return text.str;
 	}
+
 }
 
 private enum RuntimeLifetimeNodeKind {
 	ABSENT, PRODUCT, INPUT, JOIN, PROJECT, REPLACE
 }
+
 private class RuntimeLifetimeNode : Object {
 	internal RuntimeLifetimeNodeKind kind;
 	internal int parameter = -1;
@@ -85,6 +90,7 @@ private class RuntimeLifetimeNode : Object {
 	internal RuntimeLifetimeNode (RuntimeLifetimeNodeKind kind) {
 		this.kind = kind;
 	}
+
 }
 private class RuntimeLifetimeQuery : Object {
 	internal int node;
@@ -108,6 +114,7 @@ private class RuntimeLifetimeQuery : Object {
 		}
 		RuntimeLifetimeEquations.sort_edges (excluded);
 	}
+
 	internal string identity() {
 		var text = new StringBuilder ("%d:%s:%d".printf (node, path, descendants ? 1 : 0));
 		foreach (var key in excluded) {
@@ -115,6 +122,7 @@ private class RuntimeLifetimeQuery : Object {
 		}
 		return text.str;
 	}
+
 }
 
 // Finite equations preserve allocation roots separately from owned fields,
@@ -144,9 +152,11 @@ public class RuntimeLifetimeEquations : Object {
 	internal bool contains(int value) {
 		return value >= 0 && value < nodes.length;
 	}
+
 	public RuntimeLifetimeEquations () {
 		nodes.add (new RuntimeLifetimeNode (RuntimeLifetimeNodeKind.ABSENT));
 	}
+
 	internal static bool has_edge(GenericArray<string> edges, string key) {
 		foreach (var edge in edges) {
 			if (edge == key) {
@@ -155,6 +165,7 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return false;
 	}
+
 	internal static void sort_edges(GenericArray<string> edges) {
 		// Iterative merge sort keeps comparison work O(n log n), including on
 		// GLib versions predating sort_values. Avoid Vala's sort adapter, whose
@@ -185,6 +196,7 @@ public class RuntimeLifetimeEquations : Object {
 			}
 		}
 	}
+
 	public static bool valid_edge(string key) {
 		if (key == "e" || key == "c" || key == "r" || key == "x" || key == "p" || key == "w") {
 			return true;
@@ -204,6 +216,7 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return true;
 	}
+
 	public static bool valid_path(string path) {
 		if (path == "") {
 			return true;
@@ -215,28 +228,35 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return true;
 	}
+
 	private static void require(bool condition, string message) throws RuntimeLifetimeError {
 		if (!condition) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("runtime lifetime graph: %s", message);
 		}
 	}
+
 	private void open() throws RuntimeLifetimeError {
 		require (!sealed, "sealed equations cannot change");
 	}
+
 	private void member(int node) throws RuntimeLifetimeError {
 		require (node >= 0 && node < nodes.length, "operand belongs to another equation inventory");
 	}
+
 	private int append(RuntimeLifetimeNode node) throws RuntimeLifetimeError {
 		open ();
 		nodes.add (node);
 		return (int) nodes.length - 1;
 	}
+
 	public void seal() {
 		sealed = true;
 	}
+
 	public int absent() {
 		return 0;
 	}
+
 	public int product(GenericArray<RuntimeScopeOrigin> roots, HashTable<string, int> fields, GenericArray<int>? root_sources = null) throws RuntimeLifetimeError {
 		var node = new RuntimeLifetimeNode (RuntimeLifetimeNodeKind.PRODUCT);
 		foreach (var origin in roots) {
@@ -256,15 +276,18 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return append (node);
 	}
+
 	public int input(int parameter) throws RuntimeLifetimeError {
 		require (parameter >= -1, "invalid owning input ordinal");
 		var node = new RuntimeLifetimeNode (RuntimeLifetimeNodeKind.INPUT);
 		node.parameter = parameter;
 		return append (node);
 	}
+
 	public int join() throws RuntimeLifetimeError {
 		return append (new RuntimeLifetimeNode (RuntimeLifetimeNodeKind.JOIN));
 	}
+
 	public void alternative(int join, int value) throws RuntimeLifetimeError {
 		open ();
 		member (join);
@@ -274,6 +297,7 @@ public class RuntimeLifetimeEquations : Object {
 			nodes[join].alternatives.add (value);
 		}
 	}
+
 	public int project(int value, string path) throws RuntimeLifetimeError {
 		member (value);
 		require (path != "" && valid_path (path), "projection requires an exact nonempty ownership path");
@@ -283,6 +307,7 @@ public class RuntimeLifetimeEquations : Object {
 		projection_depth = int.max (projection_depth, path.split (".").length);
 		return append (node);
 	}
+
 	public int replace(int value, string edge, int incoming) throws RuntimeLifetimeError {
 		member (value);
 		member (incoming);
@@ -293,6 +318,7 @@ public class RuntimeLifetimeEquations : Object {
 		node.replacement = incoming;
 		return append (node);
 	}
+
 	private RuntimeLifetimeQuery enqueue(HashTable<string, RuntimeLifetimeQuery> seen, GenericArray<RuntimeLifetimeQuery> pending, int node, string path, bool descendants, GenericArray<string>? excluded, RuntimeLifetimeQuery? parent = null) {
 		// A growing projection cycle denotes arbitrarily deep descendants.
 		// Widen to all descendants, preserving safety and finite convergence.
@@ -317,6 +343,7 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return query;
 	}
+
 	public GenericArray<RuntimeScopeOrigin> requirements(int value, string path = "", bool descendants = true, GenericArray<string>? excluded = null) throws RuntimeLifetimeError {
 		member (value);
 		require (sealed && valid_path (path), "query requires sealed equations and a valid ownership path");
@@ -438,6 +465,7 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return result;
 	}
+
 	// Instantiate an opaque function summary into the caller's own equations.
 	// Only reachable result/effect nodes are copied. Local producer anchors
 	// cannot cross this boundary; formal references bind to exact caller inputs.
@@ -453,6 +481,7 @@ public class RuntimeLifetimeEquations : Object {
 		var copied = new HashTable<int, int> (direct_hash, direct_equal);
 		return instantiate_node (result, caller, inputs, contexts, copied);
 	}
+
 	private int instantiate_node(int value, RuntimeLifetimeEquations caller, HashTable<int, int> inputs, HashTable<int, RuntimeScopeOrigin> contexts, HashTable<int, int> copied) throws RuntimeLifetimeError {
 		if (copied.contains (value)) {
 			return copied.lookup (value);
@@ -505,6 +534,7 @@ public class RuntimeLifetimeEquations : Object {
 		caller.alternative (result, materialized);
 		return result;
 	}
+
 	// Wire snapshots contain only integer equations and formal context roots.
 	// Compact traversal starts at the published outputs. Dead local roots may
 	// remain under a replaced/projected edge, but no observable one may escape.
@@ -516,12 +546,14 @@ public class RuntimeLifetimeEquations : Object {
 		sort_edges (result);
 		return result;
 	}
+
 	private static void archive_add(int value, HashTable<int, int> mapping, GenericArray<int> order) {
 		if (!mapping.contains (value)) {
 			mapping.insert (value, (int) order.length);
 			order.add (value);
 		}
 	}
+
 	private static void archive_references(StringBuilder text, GenericArray<int> values, HashTable<int, int> mapping) {
 		for (int i = 0; i < values.length; i++) {
 			if (i != 0) {
@@ -530,6 +562,7 @@ public class RuntimeLifetimeEquations : Object {
 			text.append_printf ("%d", mapping.lookup (values[i]));
 		}
 	}
+
 	public string encode_outputs(GenericArray<int> outputs, out GenericArray<int> rewritten) throws RuntimeLifetimeError {
 		require (sealed && outputs.length != 0, "archive requires sealed equations and exact outputs");
 		var mapping = new HashTable<int, int> (direct_hash, direct_equal);
@@ -621,11 +654,13 @@ public class RuntimeLifetimeEquations : Object {
 		require (text.len <= 8 * 1024 * 1024, "archive exceeds 8 MiB");
 		return text.str;
 	}
+
 	internal static int archive_integer(string text, int minimum = 0, int maximum = int.MAX) throws RuntimeLifetimeError {
 		int64 value;
 		require (int64.try_parse (text, out value) && value >= minimum && value <= maximum && text == value.to_string (), "archive requires canonical bounded integers");
 		return (int) value;
 	}
+
 	public void validate_formals(bool receiver, bool[] owners, bool[] contexts) throws RuntimeLifetimeError {
 		require (sealed && owners.length == contexts.length, "formal authority requires sealed equations and exact signature roles");
 		foreach (var node in nodes) {
@@ -638,6 +673,7 @@ public class RuntimeLifetimeEquations : Object {
 			}
 		}
 	}
+
 	private static GenericArray<int> archive_list(string text, int maximum) throws RuntimeLifetimeError {
 		var values = new GenericArray<int> ();
 		if (text != "") {
@@ -647,6 +683,7 @@ public class RuntimeLifetimeEquations : Object {
 		}
 		return values;
 	}
+
 	public static RuntimeLifetimeEquations decode(string text) throws RuntimeLifetimeError {
 		require (text.length <= 8 * 1024 * 1024, "archive exceeds 8 MiB");
 		var lines = text.split ("\n");
@@ -697,6 +734,7 @@ public class RuntimeLifetimeEquations : Object {
 		result.seal ();
 		return result;
 	}
+
 }
 
 // Function-local lexical storage authority. Stage adapters reconstruct this
@@ -714,19 +752,23 @@ public class RuntimeLifetimeRegions : Object {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("runtime lifetime regions: %s", message);
 		}
 	}
+
 	public int add_region(int parent) throws RuntimeLifetimeError {
 		require (!sealed && (parents.length == 0 ? parent == -1 : parent >= 0 && parent < parents.length), "regions require one root and exact prior parents");
 		parents.add (parent);
 		return (int) parents.length - 1;
 	}
+
 	public void context(int local, int region) throws RuntimeLifetimeError {
 		require (!sealed && local >= 0 && region >= 0 && region < parents.length && !contexts.contains (local), "context requires its unique exact lexical declaration");
 		contexts.insert (local, region);
 	}
+
 	public void owner(int local, int region) throws RuntimeLifetimeError {
 		require (!sealed && local >= 0 && region >= 0 && region < parents.length && !storage.contains (local), "owner requires its unique actual storage cleanup extent");
 		storage.insert (local, region);
 	}
+
 	public void input(int ordinal, bool allocator = false) throws RuntimeLifetimeError {
 		require (!sealed && ordinal >= (allocator ? 0 : -1) && !context_inputs.contains (ordinal) && !owner_inputs.contains (ordinal), "input requires one exact context or owner signature role");
 		if (allocator) {
@@ -737,9 +779,11 @@ public class RuntimeLifetimeRegions : Object {
 			owner_inputs.insert (ordinal, true);
 		}
 	}
+
 	public void seal() {
 		sealed = true;
 	}
+
 	private bool outlives(int source, int destination) {
 		for (int region = destination; region >= 0; region = parents[region]) {
 			if (source == region) {
@@ -748,6 +792,7 @@ public class RuntimeLifetimeRegions : Object {
 		}
 		return false;
 	}
+
 	public void validate(RuntimeLifetimeEquations equations, int value, int destination) throws RuntimeLifetimeError {
 		require (sealed && storage.contains (destination), "lifetime check requires sealed authority and exact destination storage");
 		foreach (var origin in equations.requirements (value)) {
@@ -767,6 +812,7 @@ public class RuntimeLifetimeRegions : Object {
 			}
 		}
 	}
+
 }
 
 // Temporary stage-local state. Bindings name compiler slots using primitive
@@ -782,6 +828,7 @@ public class RuntimeLifetimeState : Object {
 		}
 		return result;
 	}
+
 }
 public class RuntimeLifetimeException : Object {
 	public RuntimeLifetimeState state { get; private set; }
@@ -792,6 +839,7 @@ public class RuntimeLifetimeException : Object {
 		this.value = value;
 		this.site = site;
 	}
+
 }
 private class RuntimeLifetimeLoop : Object {
 	internal RuntimeLifetimeState header;
@@ -800,6 +848,7 @@ private class RuntimeLifetimeLoop : Object {
 	internal RuntimeLifetimeLoop (RuntimeLifetimeState header) {
 		this.header = header;
 	}
+
 }
 public class RuntimeLifetimeFlow : Object {
 	public RuntimeLifetimeEquations equations { get; private set; default = new RuntimeLifetimeEquations (); }
@@ -811,18 +860,22 @@ public class RuntimeLifetimeFlow : Object {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("runtime lifetime flow: %s", message);
 		}
 	}
+
 	public int read(int binding) throws RuntimeLifetimeError {
 		require (state.bindings.contains (binding), "read requires its declared graph binding");
 		return state.bindings.lookup (binding);
 	}
+
 	public void declare(int binding, int value) throws RuntimeLifetimeError {
 		require (!state.bindings.contains (binding) && equations.contains (value), "declaration requires a fresh slot and exact graph value");
 		state.bindings.insert (binding, value);
 	}
+
 	public void write(int binding, int value) throws RuntimeLifetimeError {
 		require (state.bindings.contains (binding) && equations.contains (value), "write requires its current declared slot and exact graph value");
 		state.bindings.insert (binding, value);
 	}
+
 	public RuntimeLifetimeState project(RuntimeLifetimeState scope, RuntimeLifetimeState incoming) throws RuntimeLifetimeError {
 		var result = scope.snapshot ();
 		result.reachable = incoming.reachable;
@@ -832,6 +885,7 @@ public class RuntimeLifetimeFlow : Object {
 		}
 		return result;
 	}
+
 	public void merge(RuntimeLifetimeState scope, RuntimeLifetimeState left, RuntimeLifetimeState right) throws RuntimeLifetimeError {
 		if (!left.reachable) {
 			state = project (scope, right);
@@ -856,6 +910,7 @@ public class RuntimeLifetimeFlow : Object {
 		}
 		state = merged;
 	}
+
 	public void begin_loop() throws RuntimeLifetimeError {
 		var header = state.snapshot ();
 		foreach (int key in state.bindings.get_keys ()) {
@@ -866,6 +921,7 @@ public class RuntimeLifetimeFlow : Object {
 		loops.add (new RuntimeLifetimeLoop (header));
 		state = header.snapshot ();
 	}
+
 	public void jump(bool exiting) throws RuntimeLifetimeError {
 		require (loops.length != 0, "loop jump requires an active exact target");
 		if (state.reachable) {
@@ -879,6 +935,7 @@ public class RuntimeLifetimeFlow : Object {
 		}
 		state.reachable = false;
 	}
+
 	public void begin_step() throws RuntimeLifetimeError {
 		require (loops.length != 0, "loop step requires an active exact target");
 		var loop = loops[loops.length - 1];
@@ -887,6 +944,7 @@ public class RuntimeLifetimeFlow : Object {
 		}
 		loop.continues = new GenericArray<RuntimeLifetimeState> ();
 	}
+
 	public void end_loop() throws RuntimeLifetimeError {
 		begin_step ();
 		var loop = loops[loops.length - 1];
@@ -902,20 +960,24 @@ public class RuntimeLifetimeFlow : Object {
 			merge (loop.header, state, incoming);
 		}
 	}
+
 	public void begin_try() {
 		protected_states.add (new GenericArray<RuntimeLifetimeException> ());
 	}
+
 	public void exception(int value, int site) throws RuntimeLifetimeError {
 		require (equations.contains (value) && site >= 0, "exception requires its exact graph value and call/throw site");
 		if (state.reachable && protected_states.length != 0) {
 			protected_states[protected_states.length - 1].add (new RuntimeLifetimeException (state, value, site));
 		}
 	}
+
 	public GenericArray<RuntimeLifetimeException> end_try() throws RuntimeLifetimeError {
 		require (protected_states.length != 0, "exception region is absent");
 		var result = protected_states[protected_states.length - 1];
 		protected_states.remove_index (protected_states.length - 1);
 		return result;
 	}
+
 }
 }

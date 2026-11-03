@@ -1,16 +1,21 @@
 extern(C) int life_record(int code, int value);
+
 T identity<T>(T value) { return value; }
+
 T observe<T>(T value) { life_record(86,0); return identity<T>(value); }
+
 T recurse<T>(int count, owned Resource resource, T value) {
-	if (count == 0) { return observe<T>(value); }
+	if (count == 0) return observe<T>(value);
 	return recurse<T>(count - 1,move resource,value);
 }
+
 T consume_resource<T>(owned Resource resource, T value) { return recurse<T>(3,move resource,value); }
+
 int main() {
 	owned Resource resource = create_resource(82);
 	int result = consume_resource<int>(move resource,42);
 	owned Resource second = create_resource(83);
 	f64 value = consume_resource<f64>(move second,1.25);
-	if (value == 1.25) { return result; }
+	if (value == 1.25) return result;
 	return 1;
 }

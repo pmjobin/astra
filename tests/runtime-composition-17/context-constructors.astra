@@ -1,127 +1,177 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int context_ctor_event(int value);
+
 extern(C) int context_ctor_begin(int family, int mode);
+
 extern(C) int context_ctor_end();
+
 extern(C) int context_ctor_finish();
+
 [ExceptionRoot] class ContextFault {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
+
 	deinit() { context_ctor_event(200); }
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class ConstructorItem {
 	private int value;
+
 	init(int value) { this.value = value; }
+
 	int code() { return this.value; }
+
 	deinit() { context_ctor_event(this.value); }
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class ContextSession {
 	private owned ConstructorItem first;
 	private owned ConstructorItem second;
 	readonly string label;
 	private owned u8[] bytes;
+
 	init(owned ConstructorItem first, owned ConstructorItem second, int mode) throws ContextFault {
-		if (mode == 1) { throw new ContextFault("before fields"); }
+		if (mode == 1) {
+			throw new ContextFault("before fields");
+		}
 		this.second = move second;
-		if (mode == 2) { throw new ContextFault("one field"); }
+		if (mode == 2) {
+			throw new ContextFault("one field");
+		}
 		this.first = move first;
-		if (mode == 3) { throw new ContextFault("actual initialization order"); }
+		if (mode == 3) {
+			throw new ContextFault("actual initialization order");
+		}
 		this.label = "owned\0é";
-		if (mode == 4) { throw new ContextFault("after text snapshot"); }
+		if (mode == 4) {
+			throw new ContextFault("after text snapshot");
+		}
 		var bytes = new u8[7]; bytes[0] = 11;
-		if (mode == 5) { throw new ContextFault("local buffer"); }
+		if (mode == 5) {
+			throw new ContextFault("local buffer");
+		}
 		this.bytes = move bytes;
-		if (mode == 6) { throw new ContextFault("owned buffer field"); }
+		if (mode == 6) {
+			throw new ContextFault("owned buffer field");
+		}
 	}
+
 	int total() { return this.first.code() + this.second.code() + len(this.bytes) + this.label.byte_length; }
+
 	deinit() { context_ctor_event(100); }
 }
+
 struct ContextPacket { owned ConstructorItem payload; int marker; }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class ContextEnvelope<T> {
 	private owned T data;
+
 	init(owned T data) { this.data = move data; }
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class ContextExtras {
 	private owned ContextEnvelope<ContextPacket> record;
 	private owned ConstructorItem[slots] children;
+
 	init(borrowed ConcurrentAllocator context, int mode) throws ContextFault {
-		if (mode == 1) { throw new ContextFault("empty record and slots"); }
+		if (mode == 1) {
+			throw new ContextFault("empty record and slots");
+		}
 		var item = new (context) ConstructorItem(3);
 		ContextPacket packet = {payload = move item, marker = 7};
 		var record = new (context) ContextEnvelope<ContextPacket>(move packet);
 		this.record = move record;
-		if (mode == 2) { throw new ContextFault("owning record in closed generic Class"); }
+		if (mode == 2) {
+			throw new ContextFault("owning record in closed generic Class");
+		}
 		this.children = new ConstructorItem[slots];
-		if (!this.children.reserve(3)) { throw new ContextFault("slot reservation"); }
+		if (!this.children.reserve(3)) {
+			throw new ContextFault("slot reservation");
+		}
 		var child = new (context) ConstructorItem(4);
 		this.children.append(move child);
-		if (mode == 3) { throw new ContextFault("owned slots"); }
+		if (mode == 3) {
+			throw new ContextFault("owned slots");
+		}
 	}
+
 	deinit() { context_ctor_event(101); }
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class ContextScalar {
 	private int value;
+
 	init(int mode) throws ContextFault {
-		if (mode != 0) { throw new ContextFault("admitted checked scalar initialization"); }
+		if (mode != 0) {
+			throw new ContextFault("admitted checked scalar initialization");
+		}
 		this.value = 17;
 	}
+
 	deinit() { context_ctor_event(102); }
 }
+
 int checked_allocation() {
 	var context = concurrent_allocator(2, 512, 1, 64);
-	if (context == null) { return 1; }
+	if (context == null) return 1;
 	try {
 		var first = try_new (context) ContextScalar(0);
-		if (first == null) { return 2; }
+		if (first == null) return 2;
 		var refused = try_new (context) ContextScalar(1);
-		if (refused != null) { return 3; }
+		if (refused != null) return 3;
 		release first;
 	} catch(ContextFault error) { return 4; }
 	bool caught = false;
 	try { var failed = try_new (context) ContextScalar(1); return 5; }
 	catch(ContextFault error) { caught = true; }
-	if (!caught || concurrent_allocator_query(context, 1) != 0) { return 6; }
-	try { var recovered = try_new (context) ContextScalar(0); if (recovered == null) { return 7; } }
+	if (!caught || concurrent_allocator_query(context, 1) != 0) return 6;
+	try { var recovered = try_new (context) ContextScalar(0); if (recovered == null) return 7; }
 	catch(ContextFault error) { return 8; }
-	if (concurrent_allocator_query(context, 1) != 0) { return 9; }
+	if (concurrent_allocator_query(context, 1) != 0) return 9;
 	return 0;
 }
+
 int session(borrowed ConcurrentAllocator context, int mode) {
 	try {
 		var first = new (context) ConstructorItem(1);
 		var second = new (context) ConstructorItem(2);
 		var session = new (context) ContextSession(move first, move second, mode);
 		return session.total();
-	} catch(ContextFault error) { if (error.message.byte_length == 0) { return -1; } return -17; }
+	} catch(ContextFault error) { if (error.message.byte_length == 0) return -1; return -17; }
 }
+
 int extras(borrowed ConcurrentAllocator context, int mode) {
 	try { var value = new (context) ContextExtras(context, mode); return 0; }
-	catch(ContextFault error) { if (error.message.byte_length == 0) { return -1; } return -17; }
+	catch(ContextFault error) { if (error.message.byte_length == 0) return -1; return -17; }
 }
+
 int main() {
 	var context = custom_allocator(65537, 31);
-	if (context == null) { return 1; }
+	if (context == null) return 1;
 	for (int mode = 0; mode < 7; mode = mode + 1) {
 		context_ctor_begin(0, mode);
 		int result = session(context, mode);
-		int expected = -17; if (mode == 0) { expected = 18; }
-		if (result != expected || concurrent_allocator_query(context, 1) != 0) { return 2; }
+		int expected = -17; if (mode == 0) expected = 18;
+		if (result != expected || concurrent_allocator_query(context, 1) != 0) return 2;
 		context_ctor_end();
 	}
 	for (int mode = 0; mode < 4; mode = mode + 1) {
 		context_ctor_begin(1, mode);
 		int result = extras(context, mode);
-		int expected = -17; if (mode == 0) { expected = 0; }
-		if (result != expected || concurrent_allocator_query(context, 1) != 0) { return 3; }
+		int expected = -17; if (mode == 0) expected = 0;
+		if (result != expected || concurrent_allocator_query(context, 1) != 0) return 3;
 		context_ctor_end();
 	}
 	context_ctor_begin(2, 0);
-	if (checked_allocation() != 0) { return 4; }
+	if (checked_allocation() != 0) return 4;
 	context_ctor_end();
 	return context_ctor_finish();
 }

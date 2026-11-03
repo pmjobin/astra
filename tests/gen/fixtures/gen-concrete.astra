@@ -1,14 +1,26 @@
 T identity<T>(T value) {
 	return value;
 }
-class C { int raw; init(int v) { this.raw=v; } }
+
+class C { int raw;
+
+	init(int v) { this.raw=v; } }
+
 T concrete<T>(T x) {
 	int[4] data={1,2,3,4}; int[] view=slice(data);
 	int raw=1; int* p=&raw; *p=2; data[0]=raw; view[1]=data[0];
 	C c=C.init(view[1]); int y=c.raw;
 	i16<8> v=splat(2,8); i16<8> w=insert(v,0,3); int z=w[0] as int;
-	int i=0; while(i<3) { i=i+1; if(i==1){continue;} if(i==2){break;} }
-	if(y==z || i==2) { T copy=identity<T>(x); return copy; }
+	int i=0; while(i<3) {
+		i=i+1;
+		if(i==1) continue;
+		if(i==2) break;
+	}
+	if(y==z || i==2) {
+		T copy=identity<T>(x);
+		return copy;
+	}
 	return x;
 }
+
 int main(){return concrete<int>(42);}

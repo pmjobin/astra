@@ -1,40 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void storage18_retire(int value);
+
 extern(C) void storage18_begin();
+
 class Local18 {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { storage18_retire(this.value); }
+
 	int read() { return this.value; }
+
 	int helper(int branch) {
-		if (branch == 0) { return this.read(); }
+		if (branch == 0) return this.read();
 		return this.read() + 1;
 	}
 }
+
 int independent18(int input) {
 	owned Local18 first = new Local18(input);
 	owned Local18 second = new Local18(input + 10);
-	if (input == 0) { return first.helper(0) + second.read(); }
+	if (input == 0) return first.helper(0) + second.read();
 	return first.helper(1) + second.read();
 }
+
 owned Local18 mixed18(int input) {
 	owned Local18 escaping = new Local18(input + 20);
 	owned Local18 local = new Local18(input);
-	if (local.helper(0) != input) { return move escaping; }
+	if (local.helper(0) != input) return move escaping;
 	return move escaping;
 }
+
 owned Local18 relay18(owned Local18 input) { return move input; }
+
 int beside_call18(int input) {
 	owned Local18 escaping = new Local18(input + 30);
 	owned Local18 local = new Local18(input);
 	owned Local18 returned = relay18(move escaping);
 	return local.helper(0) + returned.read();
 }
+
 int main() {
 	storage18_begin();
-	if (independent18(0) != 10) { return 1; }
-	if (independent18(3) != 17) { return 2; }
-	if (beside_call18(9) != 48) { return 3; }
+	if (independent18(0) != 10) return 1;
+	if (independent18(3) != 17) return 2;
+	if (beside_call18(9) != 48) return 3;
 	owned Local18 result = mixed18(7);
 	return result.read() - 27;
 }

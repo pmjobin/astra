@@ -1,27 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Log { int value; }
+
 i8 scalar(borrowed Resource r, Log* log) { resource_touch(r); log->value = log->value * 10 + 1; return -1; }
+
 i8<8> vector(borrowed Resource r, Log* log) { resource_touch(r); log->value = log->value * 10 + 2; return splat(-2,8); }
+
 i16 consume(owned Resource r, i16 x, u16<8> v, Log* log) {
 	resource_touch(r);
 	log->value = log->value * 10 + 3;
-	if (x != -1 || !all(v == splat(65534 as u16,8))) { return 1; }
+	if (x != -1 || !all(v == splat(65534 as u16,8))) return 1;
 	return 0;
 }
+
 i8 nested(owned Resource r, Log* log) { log->value = 9; return 7; }
-i16 combine(int previous, i16 next) { if (previous != 123 || next != 7) { return 1; } return 0; }
+
+i16 combine(int previous, i16 next) { if (previous != 123 || next != 7) return 1; return 0; }
+
 int scenario(Log* log) {
 	owned Resource a = create_resource(1);
 	owned Resource b = create_resource(2);
-	if (consume(move a,scalar(b,log) as i16,vector(b,log) as u16<8>,log) != 0) { return 1; }
-	if (log->value != 123) { return 2; }
-	if (combine(log->value,nested(move b,log) as i16) != 0 || log->value != 9) { return 3; }
+	if (consume(move a,scalar(b,log) as i16,vector(b,log) as u16<8>,log) != 0) return 1;
+	if (log->value != 123) return 2;
+	if (combine(log->value,nested(move b,log) as i16) != 0 || log->value != 9) return 3;
 	return 0;
 }
+
 int main() {
 	resource_reset();
 	Log log = {value = 0};
-	if (scenario(&log) != 0) { return 1; }
-	if (resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 3) { return 2; }
+	if (scenario(&log) != 0) return 1;
+	if (resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 3) return 2;
 	return 0;
 }

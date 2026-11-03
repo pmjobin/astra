@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct RoutedPacket { owned OtherLease guard; owned Utf8Message label; owned int[] weights; int code; }
+
 enum RoutedEvent {
 	Handle(owned Lease value, int tag),
 	Text(owned Utf8Message value),
 	Packet(RoutedPacket value),
 	Empty
 }
+
 RoutedEvent parse_route(string command) throws Error {
-	if (command == "fail") { throw new Error("router checked failure"); }
-	if (command == "empty") { return RoutedEvent.Empty(); }
-	if (command.byte_length < 2) { throw new Error("router command"); }
+	if (command == "fail") {
+		throw new Error("router checked failure");
+	}
+	if (command == "empty") return RoutedEvent.Empty();
+	if (command.byte_length < 2) {
+		throw new Error("router command");
+	}
 	var prefix = text_segment(command, 0, 2);
 	var payload = text_segment(command, 2, command.byte_length - 2);
 	if (prefix.text == "T:") {
@@ -17,7 +23,9 @@ RoutedEvent parse_route(string command) throws Error {
 		return RoutedEvent.Text(move message);
 	}
 	int code = parse_int(payload.text);
-	if (code < 1 || code > 80) { throw new Error("router range"); }
+	if (code < 1 || code > 80) {
+		throw new Error("router range");
+	}
 	if (prefix.text == "L:") {
 		var lease = open_lease(code);
 		return RoutedEvent.Handle(move lease, code * 2);
@@ -27,12 +35,16 @@ RoutedEvent parse_route(string command) throws Error {
 		var label = new Utf8Message(command);
 		var weights = new int[3];
 		int index = 0;
-		while (index < 3) { weights[index] = code + index; index = index + 1; }
+		while (index < 3) {
+			weights[index] = code + index;
+			index = index + 1;
+		}
 		RoutedPacket packet = {guard = move guard, label = move label, weights = move weights, code = code};
 		return RoutedEvent.Packet(move packet);
 	}
 	throw new Error("router command");
 }
+
 int dispatch_route(RoutedEvent value) {
 	match (move value) {
 		case RoutedEvent.Handle(lease, tag): { return lease_id(lease) + tag; }
@@ -48,6 +60,7 @@ int dispatch_route(RoutedEvent value) {
 		case RoutedEvent.Empty(): { return 0; }
 	}
 }
+
 void run_router(string input) throws Error {
 	var commands = text_split_owned(input, "|");
 	var pending = RoutedEvent.Empty();
@@ -65,14 +78,17 @@ void run_router(string input) throws Error {
 			var next = parse_route(command.text);
 			pending = move next;
 		}
-		catch(Error error) { if (!println(error.message)) { throw new Error("router output"); } event(700); }
+		catch(Error error) { if (!println(error.message)) {
+				throw new Error("router output");
+			} event(700); }
 	}
 	int final = dispatch_route(move pending);
 	number(final);
 	number(total + final);
 }
+
 int main(string[] args) {
-	if (len(args) != 2) { return 81; }
+	if (len(args) != 2) return 81;
 	try { run_router(args[1]); }
 	catch(Error error) { return 82; }
 	number(live_leases());

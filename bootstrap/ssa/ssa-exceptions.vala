@@ -11,6 +11,7 @@ public class SsaConstructorUnwindField : Object {
 		this.cleanup = cleanup;
 		this.shape = shape;
 	}
+
 }
 public class SsaConstructorAbort : SsaInstruction {
 	public SsaReceiver receiver { get; private set; }
@@ -20,6 +21,7 @@ public class SsaConstructorAbort : SsaInstruction {
 		base (span, null, -1);
 		this.receiver = receiver;
 	}
+
 }
 internal class SsaExceptionDisposition : Object {
 	internal SsaNode effect;
@@ -28,6 +30,7 @@ internal class SsaExceptionDisposition : Object {
 		this.effect = effect;
 		this.value = value;
 	}
+
 }
 public class SsaExceptionHandler : Object {
 	private WeakRef dispatch_identity;
@@ -45,10 +48,12 @@ public class SsaExceptionHandler : Object {
 		this.selection = selection;
 		this.borrow = borrow;
 	}
+
 }
 public enum SsaHeapOwnerAction {
 	ACQUIRE, MOVE, RETURN, RELEASE, END, READ
 }
+
 public class SsaHeapOwner : Object {
 	public Astra.Text.TextLoanExtent? text_extent { get; internal set; }
 	public SsaStructField? record_field { get; internal set; }
@@ -67,6 +72,7 @@ public class SsaHeapOwner : Object {
 		this.source_ordinal = source_ordinal;
 		this.cleanup = cleanup;
 	}
+
 }
 public class SsaHeapOwnerEvent : SsaInstruction {
 	public SsaHeapOwner? owner { get; private set; }
@@ -80,6 +86,7 @@ public class SsaHeapOwnerEvent : SsaInstruction {
 		this.value = value;
 		this.effect = effect;
 	}
+
 }
 public class SsaRecordAcquire : SsaInstruction {
 	public StructLeafPath? path { get; private set; }
@@ -97,6 +104,7 @@ public class SsaRecordAcquire : SsaInstruction {
 		this.pointer = pointer;
 		this.fields = fields;
 	}
+
 }
 public class SsaRecordMove : SsaInstruction {
 	public StructLeafPath? path { get; private set; }
@@ -114,6 +122,7 @@ public class SsaRecordMove : SsaInstruction {
 		this.pointer = pointer;
 		this.fields = fields;
 	}
+
 }
 public class SsaRecordTake : SsaInstruction {
 	public SsaHeapOwner source { get; private set; }
@@ -132,6 +141,7 @@ public class SsaRecordTake : SsaInstruction {
 		this.fields = new GenericArray<SsaValue> ();
 		fields.add (pointer);
 	}
+
 }
 public class SsaRecordReplace : SsaInstruction {
 	public SsaHeapOwner owner { get; private set; }
@@ -155,6 +165,7 @@ public class SsaRecordReplace : SsaInstruction {
 		fields.add (old_value);
 		retirement.record_replacement = this;
 	}
+
 }
 private class RecordPointerFacts : Object {
 	internal GenericArray<SsaValue> values = new GenericArray<SsaValue> ();
@@ -167,6 +178,7 @@ private class RecordPointerFacts : Object {
 		}
 		return result;
 	}
+
 	internal bool include(RecordPointerFacts incoming) {
 		bool changed = false;
 		if (incoming.disarmed && !disarmed) {
@@ -181,6 +193,7 @@ private class RecordPointerFacts : Object {
 		}
 		return changed;
 	}
+
 }
 internal class SsaHeapOwnerFlow : Object {
 	private static void verify_enum_effect(SsaHeapOwnerEvent event, SsaBlock block) throws SsaError {
@@ -192,6 +205,7 @@ internal class SsaHeapOwnerFlow : Object {
 			throw new SsaError.INVALID_SSA ("enum scalar responsibility lost its exact original acquisition, loan or committed source");
 		}
 	}
+
 	// Reconstruct the allocation-neutral incoming scalar-owner boundary from
 	// this stage's signature. Checked effects/results keep their older proof.
 	internal static bool local_input(SsaFunction function) {
@@ -216,6 +230,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return inputs == 1;
 	}
+
 	private static bool persistent(SsaFunction function, SsaCleanupContract cleanup) {
 		foreach (var owner in function.heap_owners) {
 			if (owner.cleanup == cleanup) {
@@ -224,6 +239,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return cleanup.shared_type != null || cleanup.closure_type != null || cleanup.is_heap_object || (function.async_body != null && !cleanup.is_object && !cleanup.is_buffer);
 	}
+
 	internal static GenericArray<SsaEdge> pointer_edges(SsaBlock block) {
 		var result = new GenericArray<SsaEdge> ();
 		if (block.terminator is SsaBranch) {
@@ -250,6 +266,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return result;
 	}
+
 	private static GenericArray<SsaBlock> owner_successors(SsaFunction function, SsaBlock block) {
 		// Enum dispatch is control flow for every owner, including contexts
 		// and ordinary Classes in functions without a local owning record.
@@ -259,6 +276,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return result;
 	}
+
 	private static bool exact_record_pointer(SsaValue value, RecordPointerFacts expected, SsaFunction function, int owner, RecordPointerFacts[,] exits, HashTable<SsaValue, bool> active) {
 		if (expected.disarmed && expected.values.length == 0 && value is SsaNullPointerConstant) {
 			return true;
@@ -319,6 +337,7 @@ internal class SsaHeapOwnerFlow : Object {
 		active.remove (value);
 		return found && valid;
 	}
+
 	// Pointer evidence supplements the existing owner-event authority. Exact
 	// heap Class returns also retain the current pointer of their source owner.
 	private static void verify_record_pointers(SsaFunction function) throws SsaError {
@@ -478,6 +497,7 @@ internal class SsaHeapOwnerFlow : Object {
 			} while (changed);
 		}
 	}
+
 	private static int parameter_ordinal(SsaFunction function, int physical) {
 		int logical = physical;
 		foreach (var group in function.struct_parameters) {
@@ -492,6 +512,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return logical;
 	}
+
 	internal static HashTable<SsaHeapOwner, int> parameter_owners(SsaFunction function) {
 		var result = new HashTable<SsaHeapOwner, int> (direct_hash, direct_equal);
 		var seen = new HashTable<SsaFunctionParameter, bool> (direct_hash, direct_equal);
@@ -517,6 +538,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return result;
 	}
+
 	private static int callable_read_count(SsaCallableInvocation invocation, SsaHeapOwner owner, SsaValue value) {
 		int count = 0;
 		foreach (var loan in invocation.borrowed_arguments) {
@@ -872,6 +894,7 @@ internal class SsaHeapOwnerFlow : Object {
 		}
 		return facts;
 	}
+
 }
 internal class SsaExceptionBounds : Object {
 	internal GenericArray<ClassType> types = new GenericArray<ClassType> ();
@@ -884,6 +907,7 @@ internal class SsaExceptionBounds : Object {
 		types.add (type);
 		return true;
 	}
+
 	internal bool include(SsaExceptionBounds? other) {
 		bool changed = false;
 		if (other != null) {
@@ -893,6 +917,7 @@ internal class SsaExceptionBounds : Object {
 		}
 		return changed;
 	}
+
 }
 
 public class SsaOwnedArgumentReservation : SsaInstruction {
@@ -907,6 +932,7 @@ public class SsaOwnedArgumentReservation : SsaInstruction {
 		this.pair = pair;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 public class SsaOwnedArgumentAbort : SsaInstruction {
 	public SsaOwnedArgumentReservation reservation { get; private set; }
@@ -914,6 +940,7 @@ public class SsaOwnedArgumentAbort : SsaInstruction {
 		base (span, null, -1);
 		this.reservation = reservation;
 	}
+
 }
 public class SsaExceptionTransfer : SsaInstruction {
 	public SsaValue source { get; private set; }
@@ -925,6 +952,7 @@ public class SsaExceptionTransfer : SsaInstruction {
 		this.disarmed = disarmed;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 public class SsaExceptionStamp : SsaInstruction {
 	public SsaValue exception { get; private set; }
@@ -932,6 +960,7 @@ public class SsaExceptionStamp : SsaInstruction {
 		base (span, null, -1);
 		this.exception = exception;
 	}
+
 }
 public class SsaExceptionMatch : SsaInstruction {
 	public SsaValue exception { get; private set; }
@@ -941,6 +970,7 @@ public class SsaExceptionMatch : SsaInstruction {
 		this.exception = exception;
 		this.match_type = match_type;
 	}
+
 }
 public class SsaCatchBorrow : SsaInstruction {
 	public SsaValue exception { get; private set; }
@@ -948,11 +978,13 @@ public class SsaCatchBorrow : SsaInstruction {
 		base (span, caught_type, ordinal);
 		this.exception = exception;
 	}
+
 }
 public class SsaExceptionReturn : SsaReturn {
 	internal SsaExceptionReturn (SourceSpan span, SsaValue exception) {
 		base (span, exception);
 	}
+
 }
 public class SsaExceptionUnreachable : SsaTerminator {
 	public SsaValue exception { get; private set; }
@@ -960,6 +992,7 @@ public class SsaExceptionUnreachable : SsaTerminator {
 		base (span);
 		this.exception = exception;
 	}
+
 }
 public class SsaGroupCallSuccess : SsaInstruction {
 	private WeakRef invocation;
@@ -968,6 +1001,7 @@ public class SsaGroupCallSuccess : SsaInstruction {
 		base (span, null, -1);
 		invocation = WeakRef (call);
 	}
+
 }
 public class SsaCallSuccess : SsaInstruction {
 	public SsaCallInstruction call { get; private set; }
@@ -975,6 +1009,7 @@ public class SsaCallSuccess : SsaInstruction {
 		base (span, call.result.semantic_type, ordinal);
 		this.call = call;
 	}
+
 }
 public class SsaForeignReturn : SsaFunctionEnd {
 	public ForeignImportBinding binding { get; internal set; }
@@ -990,6 +1025,7 @@ public class SsaForeignReturn : SsaFunctionEnd {
 			}
 		}
 	}
+
 }
 public class SsaForeignSignalReturn : SsaFunctionEnd {
 	public ForeignSignalBinding binding { get; internal set; }
@@ -997,6 +1033,7 @@ public class SsaForeignSignalReturn : SsaFunctionEnd {
 		base (span);
 		this.binding = binding;
 	}
+
 }
 
 }

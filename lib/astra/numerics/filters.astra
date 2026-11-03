@@ -11,11 +11,13 @@ struct Biquad64 {
 	f64 a2;
 	f64 z1;
 	f64 z2;
+
 	f64 process(f64 sample) {
 		f64 result = this.b0*sample + this.z1;
 		this.z1 = (this.b1*sample - this.a1*result) + this.z2;
 		this.z2 = this.b2*sample - this.a2*result;
 		return result;
 	}
+
 	void reset() { this.z1 = 0.0; this.z2 = 0.0; }
 }

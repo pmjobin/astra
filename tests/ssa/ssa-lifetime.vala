@@ -94,4 +94,5 @@ private void lifetime() {
 		GLib.error ("SSA lifetime regression failed: %s", error.message);
 	}
 }
+
 }

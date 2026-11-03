@@ -54,6 +54,7 @@ private CoreProgram sample(int variant = 0) {
 	p.classes.add (d);
 	return p;
 }
+
 private void valid() {
 	try {
 		foreach (int mode in new int[] { 0, 20, 21, 22 }) {
@@ -68,6 +69,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed() {
 	for (int v = 1; v <= 7; v++) {
 		try {
@@ -79,10 +81,12 @@ private void malformed() {
 		GLib.error ("accepted malformed Core result %d", v);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/core/fresh-null-and-parameter-without-upstream", valid);
 	Test.add_func ("/obj-ret/core/reject-contract-provenance-constructor-and-storage-corruption", malformed);
 	return Test.run ();
 }
+
 }

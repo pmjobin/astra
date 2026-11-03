@@ -3,22 +3,34 @@
 class ImageJob18 {
 	private owned ContextBytes<ConcurrentAllocator> bytes;
 	private int lane;
+
 	init(owned ContextBytes<ConcurrentAllocator> bytes, int lane) { this.bytes = move bytes; this.lane = lane; }
+
 	int run() throws Error {
 		image2_scope_enter(this.lane); int count = 0;
 		try {
-			if (!image2_weak_control(this.lane)) { throw new Error("image weak control"); }
-			if (this.lane % 2 == 0) { var policy = new ImageGreenPolicy18(); count = image2_rows(this.bytes, this.lane, policy); }
-			else { var policy = new ImageRedPolicy18(); count = image2_rows(this.bytes, this.lane, policy); }
+			if (!image2_weak_control(this.lane)) {
+				throw new Error("image weak control");
+			}
+			if (this.lane % 2 == 0) {
+				var policy = new ImageGreenPolicy18();
+				count = image2_rows(this.bytes, this.lane, policy);
+			}
+			else {
+				var policy = new ImageRedPolicy18();
+				count = image2_rows(this.bytes, this.lane, policy);
+			}
 		} catch (Error error) { image2_scope_leave(this.lane); throw; }
 		image2_scope_leave(this.lane); return count;
 	}
 }
+
 owned ImageJob18 image2_job(borrowed ConcurrentAllocator context, int lane) {
 	var bytes = new(context)u8[image2_size()];
-	for (int index = 0; index < len(bytes); index = index + 1) { bytes[index] = image2_byte(index) as u8; }
+	for (int index = 0; index < len(bytes); index = index + 1) bytes[index] = image2_byte(index) as u8;
 	var job = new(context)ImageJob18(move bytes, lane); return move job;
 }
+
 int image2_merge() throws Error {
 	image2_scope_enter(4); int count = 0;
 	try { count = image2_components(); } catch (Error error) { image2_scope_leave(4); throw; }

@@ -12,9 +12,11 @@ namespace Astra.Tests.LinuxFrames {
 private string support(string provider = " provider \"linux-io-uring\"", string name = "LinuxExecutor") {
 	return "[ExceptionRoot] class Error { readonly string text; init(string value){this.text=value;} virtual property string message {get{return this.text;}} } class AsyncError:Error {init(string value):base(value){}} enum RunStatus{Completed,Cancelled} async runtime " + name + " throws AsyncError returns RunStatus" + provider + ";";
 }
+
 private string body() {
 	return "async void worker(int ticks,u32 unsigned_ticks) throws Error {await delay_ms(ticks);await delay_ms(unsigned_ticks);} int main(){return 42;}";
 }
+
 private SsaProgram build(string text) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("linux-frames.astra", text));
 	assert (parsed.diagnostic == null);
@@ -24,6 +26,7 @@ private SsaProgram build(string text) throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message = null;
 	assert (CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message) == 0);
@@ -31,12 +34,14 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 		CApi.dispose_message (message);
 	}
 }
+
 private void rejects(string text, string message) {
 	var parsed = Parser.parse (new SourceFile.from_text ("linux-rejected.astra", text));
 	assert (parsed.diagnostic == null);
 	var checked = SemanticAnalyzer.analyze (parsed.unit);
 	assert (checked.diagnostic != null && checked.diagnostic.message.contains (message));
 }
+
 private void provider_selection() {
 	try {
 		var program = build (support (" provider \"linux-io-uring\"", "Renamed") + body () + "int provider(){return 1;}");
@@ -51,6 +56,7 @@ private void provider_selection() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_provider_correspondence() {
 	try {
 		var source = build (support () + body ());
@@ -106,6 +112,7 @@ private void native_provider_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void llvm_correspondence() {
 	try {
 		SsaProgram? source = build (support () + body ());
@@ -219,6 +226,7 @@ private void llvm_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public static int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/linux-async/provider-selection-and-units", provider_selection);
@@ -226,4 +234,5 @@ public static int main(string[] args) {
 	Test.add_func ("/linux-async/LLVM-duration-resumption-target-correspondence", llvm_correspondence);
 	return Test.run ();
 }
+
 }

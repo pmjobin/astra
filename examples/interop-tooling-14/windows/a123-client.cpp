@@ -2,12 +2,14 @@
 #include "sdk-oracle.hpp"
 #include "allocation-oracle.hpp"
 extern "C" int32_t a123_reconcile(void *);
+
 static DWORD WINAPI other_thread(void *unknown) {
 	CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED) == S_OK);
 	CHECK(a123_reconcile(unknown) == static_cast<int32_t>(RPC_E_WRONG_THREAD));
 	CoUninitialize();
 	return 0;
 }
+
 int main(int argc, char **argv) {
 	CHECK(argc == 2 && CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED) == S_OK);
 	HMODULE module = LoadLibraryA(argv[1]);

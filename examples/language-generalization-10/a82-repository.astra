@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Depot10;
 void run_depot(int seed, int count, int quantity) throws Error {
-	if (seed < 1 || seed > 20 || count < 3 || count > 6 || quantity < 1 || quantity > 5) { throw new Error("depot range"); }
+	if (seed < 1 || seed > 20 || count < 3 || count > 6 || quantity < 1 || quantity > 5) {
+		throw new Error("depot range");
+	}
 	var opened = open_depot(seed, count, quantity);
 	var depot = transfer_depot(move opened);
 	bool grown = depot.reserve(count + 9);
@@ -22,11 +24,12 @@ void run_depot(int seed, int count, int quantity) throws Error {
 	}
 	number(total);
 }
+
 int main(string[] args) {
-	if (len(args) != 4) { return 81; }
+	if (len(args) != 4) return 81;
 	int result = 0;
 	try { run_depot(parse_int(args[1]), parse_int(args[2]), parse_int(args[3])); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
 	return result;
 }

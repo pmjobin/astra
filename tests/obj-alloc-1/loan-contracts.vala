@@ -47,9 +47,11 @@ private void moved_into_loan_scope(string source, int function_ordinal, bool ret
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void conversion(string result_type, string result, string conversion_type) {
 	moved_into_loan_scope (result_type + " consume(owned Label label){return " + result + ";}int main(){var first=new Label(\"x\");{var view=first.text;}var number=consume(move first) as " + conversion_type + ";return 42;}", 1, false);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-alloc-1/loan/numeric-conversion", () => { conversion ("int", "0", "f64");
@@ -64,4 +66,5 @@ int main(string[] args) {
 	});
 	return Test.run ();
 }
+
 }

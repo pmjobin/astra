@@ -1,19 +1,20 @@
 // A43: two distinct cleanup contracts, whole moves and a null first owner.
 struct Event { int tag; owned R payload; owned Other log; }
+
 int main() {
 	{
 		Event event = {tag=42, payload=make(1), log=make_other(2)};
 		Event second = {log=make_other(4), tag=7, payload=make(3)};
 		var moved = move event;
-		if (moved.tag != 42 || second.tag != 7 || live() != 4) { return 71; }
+		if (moved.tag != 42 || second.tag != 7 || live() != 4) return 71;
 	}
-	if (live() != 0) { return 72; }
+	if (live() != 0) return 72;
 	{
 		Event event = {payload=make(0), log=make_other(5), tag=9};
 		var moved = move event;
-		if (moved.tag != 9 || live() != 1) { return 73; }
+		if (moved.tag != 9 || live() != 1) return 73;
 	}
-	if (live() != 0) { return 74; }
+	if (live() != 0) return 74;
 	mark(43);
 	return 0;
 }

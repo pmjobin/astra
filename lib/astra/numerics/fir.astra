@@ -8,6 +8,7 @@ class Fir64 {
 	owned f64[] coefficients;
 	owned f64[] history;
 	int position;
+
 	init(f64[] taps) {
 		this.coefficients = new f64[len(taps)];
 		this.history = new f64[len(taps)];
@@ -16,24 +17,27 @@ class Fir64 {
 			this.coefficients[i] = taps[i]; this.history[i] = 0.0;
 		}
 	}
+
 	int taps() { return len(this.coefficients); }
+
 	void reset() {
-		for (int i = 0; i < len(this.history); i = i + 1) { this.history[i] = 0.0; }
+		for (int i = 0; i < len(this.history); i = i + 1) this.history[i] = 0.0;
 		this.position = 0;
 	}
+
 	f64 process(f64 sample) {
 		int count = len(this.history);
-		if (count == 0) { return 0.0; }
+		if (count == 0) return 0.0;
 		this.history[this.position] = sample;
 		f64 result = 0.0;
 		int cursor = this.position;
 		for (int i = 0; i < count; i = i + 1) {
 			result = result + this.coefficients[i]*this.history[cursor];
 			cursor = cursor - 1;
-			if (cursor < 0) { cursor = count - 1; }
+			if (cursor < 0) cursor = count - 1;
 		}
 		this.position = this.position + 1;
-		if (this.position == count) { this.position = 0; }
+		if (this.position == count) this.position = 0;
 		return result;
 	}
 }
@@ -43,7 +47,7 @@ class Fir64 {
 f64 fir_at(f64[] input, f64[] taps, int index) {
 	f64 result = 0.0;
 	for (int tap = 0; tap < len(taps); tap = tap + 1) {
-		if (tap <= index) { result = result + taps[tap]*input[index-tap]; }
+		if (tap <= index) result = result + taps[tap]*input[index-tap];
 	}
 	return result;
 }

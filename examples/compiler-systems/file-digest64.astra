@@ -12,8 +12,9 @@ int digest_file(string input, string destination) throws Error {
 	require_text(append_u64(builder, hash)); require_text(append_text(builder, "\n"));
 	var report = builder.snapshot(); write_text_file(destination, report.text); return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try { return digest_file(args[1], args[2]); }
 	catch (FileError error) { println_stderr("file I/O"); return 2; }
 	catch (Error error) { return 3; }

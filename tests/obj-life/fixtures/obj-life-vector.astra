@@ -1,17 +1,21 @@
 extern(C) int life_record(int code, int value);
+
 class Signal {
 	int value;
 	f32 gain;
+
 	init(i16<8> a, i16<8> b, f32* scalar) {
 		i16<8> v = sat_add(a, splat(1, 8));
 		this.value = 10 + dot_wrap(v, b, i32);
 		this.gain = *scalar * 2.0;
 	}
+
 	deinit() { life_record(this.value, 0); }
 }
+
 int main() {
 	f32 scalar = 1.25;
 	Signal s = Signal.init(splat(1, 8), splat(2, 8), &scalar);
-	if (s.gain != 2.5) { return 1; }
+	if (s.gain != 2.5) return 1;
 	return s.value;
 }

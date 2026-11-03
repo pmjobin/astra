@@ -13,6 +13,7 @@ public class SsaSuspensionLoan : Object {
 		this.storage = storage;
 		this.view = view;
 	}
+
 }
 
 public class SsaTaskOwner : Object {
@@ -21,9 +22,11 @@ public class SsaTaskOwner : Object {
 		assert (original_acquisition == null);
 		original_acquisition = acquisition;
 	}
+
 	internal bool matches_acquisition(SsaTaskAcquire acquisition) {
 		return original_acquisition == acquisition && acquisition.owner_ordinal == source_ordinal && acquisition.source.semantic_type == contract;
 	}
+
 	public int source_ordinal { get; private set; }
 	public TaskType contract { get; private set; }
 	public Astra.Text.TextLoanExtent? text_extent { get; private set; }
@@ -35,6 +38,7 @@ public class SsaTaskOwner : Object {
 			retain_acquisition (acquisition);
 		}
 	}
+
 }
 public class SsaTaskAcquire : SsaInstruction {
 	public SsaValue source { get; private set; }
@@ -44,6 +48,7 @@ public class SsaTaskAcquire : SsaInstruction {
 		this.source = source;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 private class TaskPointerFacts : Object {
 	internal bool absent = true;
@@ -56,6 +61,7 @@ private class TaskPointerFacts : Object {
 		}
 		return result;
 	}
+
 	internal bool include(TaskPointerFacts incoming) {
 		bool changed = false;
 		if (incoming.absent && !absent) {
@@ -70,6 +76,7 @@ private class TaskPointerFacts : Object {
 		}
 		return changed;
 	}
+
 }
 internal class SsaTaskFlow : Object {
 	private static bool exact_pointer(SsaValue value, TaskPointerFacts expected, SsaFunction function, int owner, TaskPointerFacts[,] exits, HashTable<SsaValue, bool> active) {
@@ -116,6 +123,7 @@ internal class SsaTaskFlow : Object {
 		active.remove (value);
 		return found && valid;
 	}
+
 	private static void verify_pointers(SsaFunction function) throws SsaError {
 		int count = function.task_owners.length;
 		TaskPointerFacts[,] entries = new TaskPointerFacts[function.blocks.length, count];
@@ -181,6 +189,7 @@ internal class SsaTaskFlow : Object {
 			} while (changed);
 		}
 	}
+
 	internal static void verify(SsaFunction function) throws SsaError {
 		int count = function.task_owners.length;
 		var producers = new HashTable<SsaValue, SsaInstruction> (direct_hash, direct_equal);
@@ -342,6 +351,7 @@ internal class SsaTaskFlow : Object {
 		}
 		verify_pointers (function);
 	}
+
 }
 public class SsaTaskCreate : SsaCallInstruction {
 	public bool checked_admission { get; private set; }
@@ -363,6 +373,7 @@ public class SsaTaskCreate : SsaCallInstruction {
 		}
 		return true;
 	}
+
 	internal int direct_wait_position(SsaBlock block, int position) {
 		for (int i = position + 1; i < block.instructions.length; i++) {
 			var wait = block.instructions[i] as SsaTaskWait;
@@ -407,6 +418,7 @@ public class SsaTaskCreate : SsaCallInstruction {
 		}
 		return -1;
 	}
+
 	internal SsaTaskCreate (SourceSpan span, TaskType type, int ordinal, SsaFunction target, GenericArray<SsaValue> arguments, SsaValue? allocation_context = null, SsaHeapOwner? context_owner = null, bool checked_admission = false) {
 		base (span, type, ordinal, target, arguments);
 		this.checked_admission = checked_admission;
@@ -416,6 +428,7 @@ public class SsaTaskCreate : SsaCallInstruction {
 			captures.add (argument);
 		}
 	}
+
 }
 public class SsaFrameInputRestore : SsaInstruction {
 	private WeakRef invocation;
@@ -428,6 +441,7 @@ public class SsaFrameInputRestore : SsaInstruction {
 		this.argument = argument;
 		this.owner = owner;
 	}
+
 }
 public class SsaFrameBufferRestore : SsaInstruction {
 	private WeakRef invocation;
@@ -440,6 +454,7 @@ public class SsaFrameBufferRestore : SsaInstruction {
 		this.argument = argument;
 		pair = new SsaBufferPair.results (span, argument.pair.shape, ordinal);
 	}
+
 }
 public abstract class SsaRecordAdmissionRestore : SsaInstruction {
 	public SsaStructBoundaryMove original { get; private set; }
@@ -457,12 +472,14 @@ public abstract class SsaRecordAdmissionRestore : SsaInstruction {
 		}
 		return false;
 	}
+
 	public abstract SsaValue admission_value();
 	protected SsaRecordAdmissionRestore (SourceSpan span, SsaStructBoundaryMove original, SsaStructCallResults results) {
 		base (span, null, -1);
 		this.original = original;
 		this.results = results;
 	}
+
 }
 public class SsaFrameRecordRestore : SsaRecordAdmissionRestore {
 	private WeakRef invocation;
@@ -470,10 +487,12 @@ public class SsaFrameRecordRestore : SsaRecordAdmissionRestore {
 	public override SsaValue admission_value() {
 		return creation.result;
 	}
+
 	internal SsaFrameRecordRestore (SourceSpan span, SsaTaskCreate creation, SsaStructBoundaryMove original, SsaStructCallResults results) {
 		base (span, original, results);
 		invocation = WeakRef (creation);
 	}
+
 }
 public class SsaTaskMove : SsaInstruction {
 	public SsaValue source { get; private set; }
@@ -483,11 +502,13 @@ public class SsaTaskMove : SsaInstruction {
 		this.source = source;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 public class SsaTaskAbsent : SsaValue {
 	internal SsaTaskAbsent (SourceSpan span, TaskType type) {
 		base (span, type);
 	}
+
 }
 public class SsaTaskEnd : SsaInstruction {
 	public SsaValue source { get; private set; }
@@ -497,6 +518,7 @@ public class SsaTaskEnd : SsaInstruction {
 		this.source = source;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 public class SsaAsyncDelay : SsaInstruction {
 	public bool payload { get; private set; }
@@ -510,6 +532,7 @@ public class SsaAsyncDelay : SsaInstruction {
 		this.payload = payload;
 		this.source_owner = source_owner;
 	}
+
 }
 public class SsaTaskWait : SsaInstruction {
 	public SsaValue? bridge_executor { get; private set; }
@@ -527,6 +550,7 @@ public class SsaTaskWait : SsaInstruction {
 		this.child = child;
 		this.discard = discard;
 	}
+
 }
 public class SsaTaskSuccess : SsaInstruction {
 	public SsaBufferPair? buffer_result { get; private set; }
@@ -540,6 +564,7 @@ public class SsaTaskSuccess : SsaInstruction {
 		this.operation = operation;
 		success_type = result;
 	}
+
 	internal SsaTaskSuccess.for_buffer (SourceSpan span, SsaTaskWait operation, SsaCleanupContract cleanup, int ordinal) {
 		base (span, null, -1);
 		this.operation = operation;
@@ -566,6 +591,7 @@ private class SsaFrameCatchIdentity : Object {
 	internal SsaFrameCatchIdentity (SsaFrameCatchEvent event) {
 		identity = WeakRef (event);
 	}
+
 	internal SsaFrameCatchEvent? event {
 		owned get {
 			return (SsaFrameCatchEvent?) identity.get ();
@@ -578,6 +604,7 @@ public class SsaFrameCatchOwner : Object {
 		assert (event.owner == this && !matches_event (event));
 		original_events.add (new SsaFrameCatchIdentity (event));
 	}
+
 	internal bool matches_event(SsaFrameCatchEvent event) {
 		foreach (var original in original_events) {
 			if (original.event == event) {
@@ -586,6 +613,7 @@ public class SsaFrameCatchOwner : Object {
 		}
 		return false;
 	}
+
 	internal void verify_events(SsaFunction function) throws SsaError {
 		foreach (var original in original_events) {
 			var expected = original.event;
@@ -602,6 +630,7 @@ public class SsaFrameCatchOwner : Object {
 			}
 		}
 	}
+
 	public int cleanup_position { get; private set; }
 	public int ordinal { get; private set; }
 	public int source_ordinal { get; private set; }
@@ -612,6 +641,7 @@ public class SsaFrameCatchOwner : Object {
 		this.source_ordinal = source_ordinal;
 		semantic_type = type;
 	}
+
 }
 public class SsaFrameCatchEvent : SsaInstruction {
 	public SsaFrameCatchOwner owner { get; private set; }
@@ -621,6 +651,7 @@ public class SsaFrameCatchEvent : SsaInstruction {
 		this.owner = owner;
 		this.source = source;
 	}
+
 }
 
 public class SsaTaskBorrow : SsaInstruction {
@@ -631,6 +662,7 @@ public class SsaTaskBorrow : SsaInstruction {
 		this.source = source;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 public class SsaAsyncOperation : SsaInstruction {
 	public AsyncOperationContract contract { get; private set; }
@@ -652,6 +684,7 @@ public class SsaAsyncOperation : SsaInstruction {
 			exception = new SsaInstructionResult (span, error_root, exception_ordinal);
 		}
 	}
+
 }
 public class SsaTaskStarted : SsaInstruction {
 	public int owner_ordinal { get; private set; }
@@ -661,6 +694,7 @@ public class SsaTaskStarted : SsaInstruction {
 		this.owner_ordinal = owner_ordinal;
 		this.operation = operation;
 	}
+
 }
 
 public class SsaExecutorEnd : SsaInstruction {
@@ -669,6 +703,7 @@ public class SsaExecutorEnd : SsaInstruction {
 		base (span, null, -1);
 		this.source = source;
 	}
+
 }
 
 public class SsaAsyncRunStatus : SsaInstruction {
@@ -679,6 +714,7 @@ public class SsaAsyncRunStatus : SsaInstruction {
 		this.operation = operation;
 		this.destination = destination;
 	}
+
 }
 
 }

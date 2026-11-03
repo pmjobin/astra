@@ -140,4 +140,5 @@ public int main(string[] args) {
 	Test.add_func ("/native-interface/exact-slot-and-abstract-metadata", slot_identity);
 	return Test.run ();
 }
+
 }

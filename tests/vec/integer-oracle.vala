@@ -97,4 +97,5 @@ int main() {
 	stdout.printf ("\treturn 0;\n}\n// oracle shapes=%d vectors=%u lane_checks=%d\n", shapes, calls.length, lane_checks);
 	return 0;
 }
+
 }

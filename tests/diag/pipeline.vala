@@ -20,6 +20,7 @@ private CheckedProgram check() {
 	assert (result.diagnostic == null);
 	return result.program;
 }
+
 private void lifetimes() {
 	try {
 		SourceFile? file = new SourceFile.from_text ("diag.astra", SOURCE);
@@ -83,6 +84,7 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void forged_checked() {
 	for (int defect = 0; defect < 4; defect++) {
 		var checked = check ();
@@ -110,6 +112,7 @@ private void forged_checked() {
 		assert (rejected);
 	}
 }
+
 private void repeated() {
 	for (int i = 0; i < 96; i++) {
 		try {
@@ -129,6 +132,7 @@ private void repeated() {
 		}
 	}
 }
+
 #if DIAG_LLVM
 private int emit(string[] args) throws GLib.Error {
 	var files = new GenericArray<SourceFile> ();
@@ -175,6 +179,7 @@ private int emit(string[] args) throws GLib.Error {
 	FileUtils.set_contents (args[2], artifact.dump ());
 	return 0;
 }
+
 #endif
 int main(string[] args) {
 #if DIAG_LLVM
@@ -193,4 +198,5 @@ int main(string[] args) {
 	Test.add_func ("/diag/pipeline/repeated-capture-reclamation", repeated);
 	return Test.run ();
 }
+
 }

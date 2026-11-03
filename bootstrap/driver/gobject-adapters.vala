@@ -186,5 +186,6 @@ static void @P@_init(@T@ *self) {
 		}
 		return declared + text.str;
 	}
+
 }
 }

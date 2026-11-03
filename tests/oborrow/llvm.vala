@@ -10,6 +10,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void physical() throws GLib.Error {
 	string source = "int native(borrowed void* p) { return inspect(p); } void f() { owned void* h = create(1); native(h); inspect(h); }";
 	string dump = lower (build (source)).dump ();
@@ -24,6 +25,7 @@ private void physical() throws GLib.Error {
 	assert (lower (build (raw, "int inspect(void* p);")).dump () == lower (build (raw.replace ("void* p", "borrowed void* p"), "int inspect(borrowed void* p);")).dump ());
 	assert (lower (build ("extern(C) int inspect(borrowed void* p); " + raw, "")).dump () == lower (build (raw, "int inspect(borrowed void* p);")).dump ());
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (BASIC);
 	NativeAbiProgram? nabi = NativeAbiBuilder.build (ssa);
@@ -42,6 +44,7 @@ private void lifetime() throws GLib.Error {
 	target.emit_object (artifact, path);
 	assert (FileUtils.unlink (path) == 0);
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -54,4 +57,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -1,45 +1,68 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int dispatch_input();
+
 extern(C) void dispatch_probe(int stage, int value);
+
 extern(C) void dispatch_drop(int rank);
+
 extern(C) int dispatch_finish();
 
 interface Measure {
 	int read(int value);
+
 	int tag(int value);
 }
+
 class Add : Measure {
 	private int offset;
+
 	init(int offset) : base() { this.offset = offset; }
+
 	override int read(int value) { return this.offset + value; }
+
 	override int tag(int value) { return value + 100; }
+
 	deinit() { dispatch_drop(1); }
 }
+
 class Multiply : Measure {
 	private int factor;
+
 	init(int factor) : base() { this.factor = factor; }
+
 	override int read(int value) { return this.factor * value; }
+
 	override int tag(int value) { return value + 200; }
+
 	deinit() { dispatch_drop(2); }
 }
+
 class DerivedAdd : Add {
 	init(int offset) : base(offset) {}
+
 	override int read(int value) { return value + 12; }
+
 	deinit() { dispatch_drop(3); }
 }
+
 class Plain {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	int read() { return this.value; }
 }
+
 int select_measure(Measure first, Measure second, int seed) {
-	if(seed % 2 == 0) { return first.read(seed) + first.tag(1); }
+	if(seed % 2 == 0) return first.read(seed) + first.tag(1);
 	return second.read(seed) + second.tag(1);
 }
+
 int read(Measure receiver, int seed) { return receiver.read(seed); }
+
 int main() {
 	var plain = Plain.init(42);
-	if(plain.read() != 42) { return 90; }
+	if(plain.read() != 42) return 90;
 	int seed = dispatch_input();
 	{
 		var first = new Add(7);

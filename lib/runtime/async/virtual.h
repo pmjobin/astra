@@ -9,6 +9,7 @@ typedef struct AstraAsyncTask AstraAsyncTask;
 typedef struct AstraAsyncExecutor AstraAsyncExecutor;
 typedef void (*AstraAsyncResume)(AstraAsyncTask *task);
 typedef void (*AstraAsyncDestroy)(AstraAsyncTask *task, int discard);
+
 /* Optional frame backing. The compiler supplies the descriptor from its checked
  * allocator contract; default task clients introduce no allocator dependency.
  * Callbacks execute outside scheduler synchronization, cannot unwind, and must
@@ -28,12 +29,14 @@ enum AstraAsyncPhase { ASTRA_ASYNC_NEW,
 	                   ASTRA_ASYNC_SUCCESS,
 	                   ASTRA_ASYNC_EXCEPTION,
 	                   ASTRA_ASYNC_CANCELLED };
+
 enum AstraAsyncAdmission { ASTRA_ASYNC_ADMITTED,
 	                       ASTRA_ASYNC_CLOSED,
 	                       ASTRA_ASYNC_CAPACITY,
 	                       ASTRA_ASYNC_ASSOCIATION,
 	                       ASTRA_ASYNC_ROOT,
 	                       ASTRA_ASYNC_CANCELLED_COLD };
+
 typedef struct AstraAsyncToken {
 	uint32_t slot;
 	uint64_t generation;

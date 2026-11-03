@@ -6,7 +6,9 @@ struct Pair {
 
 class Snapshot<T> {
 	private T payload;
+
 	init(T value) { this.payload = value; }
+
 	property T value {
 		get { return this.payload; }
 		set(T next) { this.payload = next; }
@@ -20,6 +22,6 @@ int main() {
 	var prior = snapshot.value;
 	snapshot.value = second;
 	var current = snapshot.value;
-	if (prior.count != 41 || current.stamp != 7000000002) { return 1; }
+	if (prior.count != 41 || current.stamp != 7000000002) return 1;
 	return current.count - 42;
 }

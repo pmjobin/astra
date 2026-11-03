@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-class C { int value; init(int n) { this.value = n; } void draw(borrowed C other, borrowed R handle, borrowed f64[] values) { other.value = this.value + id(handle); values[0] = 4.0; } }
-struct S { int value; void inspect(borrowed C other, borrowed R handle) { other.value = this.value + id(handle); } }
+class C { int value;
+
+	init(int n) { this.value = n; }
+
+	void draw(borrowed C other, borrowed R handle, borrowed f64[] values) { other.value = this.value + id(handle); values[0] = 4.0; } }
+
+struct S { int value;
+
+	void inspect(borrowed C other, borrowed R handle) { other.value = this.value + id(handle); } }
+
 int main() {
 	var handle = resource(1); var first = C.init(2); var second = C.init(3); var values = new f64[1];
 	first.draw(second, handle, values);
-	if (second.value != 3 || values[0] != 4.0) { return 1; }
+	if (second.value != 3 || values[0] != 4.0) return 1;
 	S s = { value = 4 }; s.inspect(second, handle);
-	if (second.value != 5 || id(handle) != 1) { return 2; }
+	if (second.value != 5 || id(handle) != 1) return 2;
 	return 0;
 }

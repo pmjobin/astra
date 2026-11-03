@@ -21,6 +21,7 @@ public class CfgSliceFromArrayValue : CfgValue {
 		this.count = count;
 		this.provenance = provenance;
 	}
+
 }
 
 public class CfgSliceLengthValue : CfgValue {
@@ -30,6 +31,7 @@ public class CfgSliceLengthValue : CfgValue {
 		base (span, type);
 		this.slice = slice;
 	}
+
 }
 
 public class CfgSliceElementPlace : CfgPlace {
@@ -46,6 +48,7 @@ public class CfgSliceElementPlace : CfgPlace {
 		this.index = index;
 		this.provenance = provenance;
 	}
+
 }
 
 // The result is validated for this exact captured view, including its length.
@@ -56,5 +59,6 @@ public class CfgSliceBoundsCheck : CfgEvaluateInstruction {
 		base (span, index, result);
 		this.slice = slice;
 	}
+
 }
 }

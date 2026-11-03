@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="a128_created")] int created(int seed);
+
 [CImport(name="a128_closed")] int closed(int checksum, int events);
+
 [CExport(name="astra128_publisher",property="value")]
 [Shared]
 [GObjectExport(type="Astra128Publisher",namespace="Astra128",version="1.0")]
 class Publisher {
 	private int checksum;
 	private int events;
+
 	init(int seed) { this.checksum = seed; this.events = 0; created(seed); }
+
 	property int value {
 		get { return this.checksum; }
 		set(int event) {
@@ -17,5 +21,6 @@ class Publisher {
 			}
 		}
 	}
+
 	deinit() { closed(this.checksum, this.events); }
 }

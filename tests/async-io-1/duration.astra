@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int duration_input();
+
 extern(C) void duration_observed(int stage);
+
 async void durations() throws Error {
 	await delay_ms(duration_input() as u32);
 	await delay_ms(0 as u32);
 	try { await delay_ms(-1); duration_observed(80); }
 	catch (AsyncError error) { duration_observed(1); }
 }
+
 export(C) int run_program() {
 	try { var executor = LinuxExecutor.open(1); var status = executor.run(durations()); return 42; }
 	catch (Error error) { return 81; }
 }
+
 int main() { return run_program(); }

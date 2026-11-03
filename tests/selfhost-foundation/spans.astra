@@ -9,6 +9,7 @@ owned SourceBuffer fixture() throws Error {
 	var result = source_buffer("./same//file.astra", move bytes, false);
 	return move result;
 }
+
 owned SourceSpan retained_cover() throws Error {
 	var source = fixture();
 	var duplicate = fixture();
@@ -35,6 +36,7 @@ owned SourceSpan retained_cover() throws Error {
 	assert_that(result.start == 0 && result.end == 5 && result.same_source(first));
 	return move result;
 }
+
 int main() {
 	try {
 		var covered = retained_cover();

@@ -32,6 +32,7 @@ public class CoreForeignApi : Object {
 		}
 		return null;
 	}
+
 	public static ForeignValueType? record(CoreProgram? program,SemanticType type) {
 		if (program == null) {
 			return null;
@@ -68,6 +69,7 @@ public class CoreForeignApi : Object {
 		}
 		return ForeignApiTypes.record (type,names,fields);
 	}
+
 	public static bool valid(CoreClass owner,CoreProgram? program = null) {
 		var policy = owner.foreign_export;
 		var api = policy == null ? null : policy.declared_api;
@@ -142,5 +144,6 @@ public class CoreForeignApi : Object {
 		}
 		return true;
 	}
+
 }
 }

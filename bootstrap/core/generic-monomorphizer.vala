@@ -29,6 +29,7 @@ public class CoreGenericMonomorphizer : Object {
 			throw new CoreError.INVALID_IR ("generic materialization limit exceeded: type-expression depth %d while requesting %s", GenericResourceLimits.TYPE_DEPTH, context);
 		}
 	}
+
 	private void reserve_instance(Object identity, string context) throws CoreError {
 		if (counted_instances.contains (identity)) {
 			return;
@@ -86,6 +87,7 @@ public class CoreGenericMonomorphizer : Object {
 		result_projection.project (function, arguments);
 		return CoreGenericResultOrigins.projected_locals (function, result_projection, substitution);
 	}
+
 	internal CoreGenericMonomorphizer (CoreProgram program) throws CoreError {
 		this.program = program;
 		result_origins = CoreGenericResultOrigins.derive (program);
@@ -758,6 +760,7 @@ public class CoreGenericMonomorphizer : Object {
 		}
 		return function;
 	}
+
 }
 
 // Exhaustive semantic Core cloning. Every instance-local identity is mapped;
@@ -784,6 +787,7 @@ private class CoreInstanceCloner : Object {
 		}
 		return result;
 	}
+
 	private HashTable<CoreIterationContract, CoreIterationContract> iterations = new HashTable<CoreIterationContract, CoreIterationContract> (direct_hash, direct_equal);
 	private CoreIterationContract? iteration(CoreIterationContract? source) throws CoreError {
 		if (source == null) {
@@ -796,6 +800,7 @@ private class CoreInstanceCloner : Object {
 		}
 		return result;
 	}
+
 	private HashTable<CorePlace, HashTable<CoreStructField, CoreFieldPlace>> projections = new HashTable<CorePlace, HashTable<CoreStructField, CoreFieldPlace>> (direct_hash, direct_equal);
 
 	internal CoreInstanceCloner (CoreGenericMonomorphizer pass, CoreFunction source, CoreFunction target, TypeSubstitution substitution) {
@@ -880,9 +885,11 @@ private class CoreInstanceCloner : Object {
 	private SemanticType type(SemanticType original) throws CoreError {
 		return pass.concrete_type (original, substitution, target.generic_instance == null ? (Object) target : target.generic_instance);
 	}
+
 	private CoreCleanupContract? contract(CoreCleanupContract? original) throws CoreError {
 		return pass.concrete_contract (original, substitution);
 	}
+
 	private HashTable<CoreOwnedLocal, GenericResultOrigins>? local_origins;
 	private CoreCleanupContract? owner_contract(CoreOwnedLocal owner) throws CoreError {
 		var incoming = owner.place.incoming_parameter;
@@ -1698,6 +1705,7 @@ private class CoreInstanceCloner : Object {
 		}
 		return result;
 	}
+
 	private CoreValue value_without_text_intent(CoreValue original, CoreParameter? boundary = null) throws CoreError {
 		if (original is CoreTaskCreate) {
 			var creation = (CoreTaskCreate) original;
@@ -2002,5 +2010,6 @@ private class CoreInstanceCloner : Object {
 		}
 		throw new CoreError.INVALID_IR ("unsupported value '%s' in Core monomorphization of '%s'".printf (original.get_type ().name (), source.name));
 	}
+
 }
 }

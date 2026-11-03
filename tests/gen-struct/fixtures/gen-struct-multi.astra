@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Triple<A,B,C> { A first; B second; C third; }
+
 struct Pair<T,U> { T first; U second; }
+
 struct Swap<T,U> { Pair<U,T> pair; }
+
 struct Mixed<T> { Pair<T,int> pair; }
+
 int main() {
 	Triple<int,f64,bool> t = { first = 42, second = 3.5, third = true };
 	Swap<int,f64> s = { pair = { first = t.second, second = t.first } };
 	Mixed<f64> m = { pair = { first = s.pair.first, second = s.pair.second } };
-	if (m.pair.first != 3.5 || m.pair.second != 42 || !t.third) { return 1; }
+	if (m.pair.first != 3.5 || m.pair.second != 42 || !t.third) return 1;
 	return 0;
 }

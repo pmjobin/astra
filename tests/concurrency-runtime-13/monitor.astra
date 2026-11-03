@@ -1,30 +1,39 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int thread_oracle_arrive(int expected);
+
 extern(C) int thread_oracle_destroy();
+
 extern(C) int thread_oracle_finish(int expected);
 
 [Monitor]
 class Ledger {
 	private int balance;
+
 	init() { this.balance = 0; }
+
 	void increment(int value) { this.balance = this.balance + value; }
+
 	void credit(int value) { this.increment(value); }
+
 	int read() { return this.balance; }
 }
 
 class Work {
 	owned Shared<Ledger> ledger;
+
 	init(owned Shared<Ledger> ledger) { this.ledger = move ledger; }
+
 	deinit() { thread_oracle_destroy(); }
 }
 
 int credit(borrowed Ledger ledger, int amount) { ledger.credit(amount); return 0; }
+
 int read(borrowed Ledger ledger) { return ledger.read(); }
 
 int run(borrowed Work work, int count) {
 	var ledger = shared_clone(work.ledger);
 	thread_oracle_arrive(4);
-	for (int i = 0; i < count; i = i + 1) { credit(shared_borrow(ledger), 1); }
+	for (int i = 0; i < count; i = i + 1) credit(shared_borrow(ledger), 1);
 	return count;
 }
 
@@ -43,15 +52,15 @@ int main() {
 	var t1 = thread_bind(move e1, run);
 	var t2 = thread_bind(move e2, run);
 	var t3 = thread_bind(move e3, run);
-	if (thread_start(t0, 2000) != 0) { return 81; }
-	if (thread_start(t1, 2000) != 0) { return 82; }
-	if (thread_start(t2, 2000) != 0) { return 83; }
-	if (thread_start(t3, 2000) != 0) { return 84; }
-	if (thread_join(t0) != 2000) { return 85; }
-	if (thread_join(t1) != 2000) { return 86; }
-	if (thread_join(t2) != 2000) { return 87; }
-	if (thread_join(t3) != 2000) { return 88; }
-	if (read(shared_borrow(ledger)) != 8000) { return 89; }
+	if (thread_start(t0, 2000) != 0) return 81;
+	if (thread_start(t1, 2000) != 0) return 82;
+	if (thread_start(t2, 2000) != 0) return 83;
+	if (thread_start(t3, 2000) != 0) return 84;
+	if (thread_join(t0) != 2000) return 85;
+	if (thread_join(t1) != 2000) return 86;
+	if (thread_join(t2) != 2000) return 87;
+	if (thread_join(t3) != 2000) return 88;
+	if (read(shared_borrow(ledger)) != 8000) return 89;
 	release t0;
 	release t1;
 	release t2;

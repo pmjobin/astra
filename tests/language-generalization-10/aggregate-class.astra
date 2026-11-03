@@ -2,32 +2,42 @@
 class Item {
 	owned R resource;
 	int code;
+
 	init(int code) {
 		this.resource = make(code);
 		this.code = code;
 	}
+
 	deinit() { mark(200 + this.code); }
 }
+
 struct OnlyClass {
 	owned Item child;
 }
+
 struct Mixed {
 	owned Item child;
 	owned Other resource;
 	int tag;
 }
+
 struct NestedMixed {
 	Mixed first;
 	Mixed second;
 }
+
 owned Item create(int code) {
 	var item = new Item(code);
 	return move item;
 }
+
 int stage(bool fail) throws Error {
-	if (fail) { throw new Error("prefix"); }
+	if (fail) {
+		throw new Error("prefix");
+	}
 	return 7;
 }
+
 void exercise(bool fail) {
 	try {
 		NestedMixed document = {
@@ -40,6 +50,7 @@ void exercise(bool fail) {
 		mark(900);
 	}
 }
+
 int main() {
 	{
 		var item = new Item(5);

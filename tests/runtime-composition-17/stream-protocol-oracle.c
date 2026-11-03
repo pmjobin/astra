@@ -20,6 +20,7 @@ typedef struct Allocation {
 	void *pointer;
 	uint64_t tag, bytes;
 } Allocation;
+
 static Allocation allocations[512];
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned allocated, released, active_allocations, peak_allocations, worker_count;
@@ -49,6 +50,7 @@ static int inventory(const char *path) {
 	assert(closedir(directory) == 0);
 	return count;
 }
+
 static void wait_gone(long identity) {
 	char path[128];
 	assert(snprintf(path, sizeof(path), "/proc/self/task/%ld", identity) > 0);
@@ -61,6 +63,7 @@ static void wait_gone(long identity) {
 	}
 	assert(errno == ENOENT);
 }
+
 static void wait_threads(void) {
 	struct timespec began, now, delay = {.tv_nsec = 1000000};
 	assert(clock_gettime(CLOCK_MONOTONIC, &began) == 0);
@@ -88,11 +91,14 @@ static void wait_threads(void) {
 		assert(nanosleep(&delay, NULL) == 0);
 	}
 }
+
 static void *calibrate(void *value) {
 	atomic_store(&calibrated, syscall(SYS_gettid));
 	return value;
 }
+
 extern void __real_stream_prepare(void);
+
 void __wrap_stream_prepare(void) {
 	const char *mode = getenv("M17_STREAM_MODE");
 	profile = mode && strcmp(mode, "cancel") == 0 ? 1 : mode && strcmp(mode, "success") != 0 ? 2
@@ -108,7 +114,9 @@ void __wrap_stream_prepare(void) {
 	baseline_threads = inventory("/proc/self/task");
 	__real_stream_prepare();
 }
+
 extern void __real_stream_event(int, int, int);
+
 void __wrap_stream_event(int kind, int sequence, int value) {
 	assert(sequence >= 0 && sequence < 64);
 	if (kind == 7) {
@@ -155,7 +163,9 @@ void __wrap_stream_event(int kind, int sequence, int value) {
 	}
 	__real_stream_event(kind, sequence, value);
 }
+
 extern int __real_astra_net_read(int, unsigned char *, int, int, int);
+
 int __wrap_astra_net_read(int fd, unsigned char *bytes, int length, int offset, int count) {
 	assert(syscall(SYS_gettid) == owner && length >= 0 && offset >= 0 && count >= 0 && offset <= length && count <= length - offset);
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -171,7 +181,9 @@ int __wrap_astra_net_read(int fd, unsigned char *bytes, int length, int offset, 
 	}
 	return result;
 }
+
 extern void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count, uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	void *pointer = __real_astra_context17_allocate_mode(context, count, size, alignment, tag, mode);
 	assert(pointer && mode == 2 && count > 0 && size > 0 && count <= UINT64_MAX / size);
@@ -195,7 +207,9 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t cou
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return pointer;
 }
+
 extern int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	unsigned slot = 0;
@@ -212,7 +226,9 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	assert(result == 1);
 	return result;
 }
+
 extern void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	AstraContext17Snapshot state;
 	assert(astra_context17_snapshot(context, &state) == ASTRA_CONTEXT17_OK);
@@ -223,7 +239,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	__real_astra_context17_destroy(context);
 }
+
 extern AstraAsyncTask *__real_astra_async_new_allocated(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *, const AstraAsyncFrameAllocator *, void *);
+
 AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	assert(context && allocator && allocator->abi == ASTRA_ASYNC_TASK_ABI && allocator->threading == 2);
 	AstraAsyncTask *task = __real_astra_async_new_allocated(size, alignment, resume, destroy, parent, allocator, context);
@@ -231,10 +249,12 @@ AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, 
 	atomic_fetch_add(&frames, 1);
 	return task;
 }
+
 void astra_payload_test_submitted(void) {
 	assert(syscall(SYS_gettid) == owner);
 	atomic_fetch_add(&io_submitted, 1);
 }
+
 void astra_payload_test_completed(uint64_t target, uint64_t cancel, int result, int cancel_result, int cancel_seen) {
 	assert(syscall(SYS_gettid) == owner && target && cancel && target != cancel);
 	assert(profile == 0 ? !cancel_seen && result > 0 : result >= 0 || result == -ECANCELED);
@@ -250,16 +270,21 @@ void astra_payload_test_completed(uint64_t target, uint64_t cancel, int result, 
 		assert(fflush(stdout) == 0);
 	}
 }
+
 void astra_payload_test_closed(void) {
 	assert(atomic_fetch_add(&payload_closed, 1) == 0);
 }
+
 extern void __real_astra_async_worker_pool_close(AstraAsyncExecutor *);
+
 void __wrap_astra_async_worker_pool_close(AstraAsyncExecutor *pool) {
 	assert(syscall(SYS_gettid) == owner);
 	__real_astra_async_worker_pool_close(pool);
 	assert(atomic_fetch_add(&pool_joined, 1) == 0);
 }
+
 extern int __real_stream_stop_requested(void);
+
 int __wrap_stream_stop_requested(void) {
 	int result = __real_stream_stop_requested();
 	if (result && atomic_load(&active) != 0) {
@@ -267,7 +292,9 @@ int __wrap_stream_stop_requested(void) {
 	}
 	return result;
 }
+
 extern int __real_stream_finish(int);
+
 int __wrap_stream_finish(int result) {
 	fprintf(stderr, "stream observed: result=%d active=%u peak=%u workers=%ld,%ld network=%u io=%u allocations=%u/%u contexts=%u frames=%u\n", result, atomic_load(&active), atomic_load(&peak_active), workers[0], workers[1], atomic_load(&network_overlap), atomic_load(&io_overlap), allocated, released, contexts, atomic_load(&frames));
 	assert(result == (profile == 0 ? 0 : profile == 1 ? 130

@@ -1,20 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair<T,U> { T first; U second; }
+
 struct Box<T> { T value; }
+
 struct Bundle<T> { Pair<T,T> pair; int tag; }
+
 struct Tagged<T> { int value; }
+
 struct PairControl { int first; f64 second; }
+
 struct VectorControl { i16<8> value; }
+
 struct InnerControl { f64 first; f64 second; }
+
 struct BundleControl { InnerControl pair; int tag; }
+
 int pair(Pair<int,f64>* p) { return p->first; }
+
 int pair_control(PairControl* p) { return p->first; }
+
 i16<8> vector(Box<i16<8>>* p) { return p->value; }
+
 i16<8> vector_control(VectorControl* p) { return p->value; }
+
 f64 bundle(Bundle<f64>* p) { return p->pair.second; }
+
 f64 bundle_control(BundleControl* p) { return p->pair.second; }
+
 int signed_tag(Tagged<i8>* p) { return p->value; }
+
 int unsigned_tag(Tagged<u8>* p) { return p->value; }
+
 int main() {
 	Pair<int,f64> a = { first = 42, second = 3.5 };
 	PairControl b = { first = 42, second = 3.5 };
@@ -25,6 +41,6 @@ int main() {
 	BundleControl f = { pair = { first = 1.0, second = 2.0 }, tag = 7 };
 	Tagged<i8> g = { value = 1 };
 	Tagged<u8> h = { value = 2 };
-	if (pair(&a) != pair_control(&b) || !all(vector(&c) == vector_control(&d)) || bundle(&e) != bundle_control(&f) || signed_tag(&g) != 1 || unsigned_tag(&h) != 2) { return 1; }
+	if (pair(&a) != pair_control(&b) || !all(vector(&c) == vector_control(&d)) || bundle(&e) != bundle_control(&f) || signed_tag(&g) != 1 || unsigned_tag(&h) != 2) return 1;
 	return 0;
 }

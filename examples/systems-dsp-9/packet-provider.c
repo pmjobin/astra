@@ -36,10 +36,12 @@ void astra_packet_resource_close(void *pointer) {
 int32_t packet_live(void) {
 	return active;
 }
+
 int32_t packet_audit(int32_t expected) {
 	assert(active == expected && opened - closed == active);
 	return 0;
 }
+
 int32_t packet_finish(int32_t expected_opened) {
 	assert(!active && opened == expected_opened && closed == expected_opened);
 	printf("packets:%d closed:%d\n", opened, closed);

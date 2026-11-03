@@ -2,13 +2,18 @@
 class ExchangeOwner {
 	owned Kernel[] state;
 	owned Kernel[] next;
+
 	init() { this.state = initial_state(); this.next = initial_next(); }
+
 	void rotate() { swap(this.state, this.next); }
 }
+
 class CopyControl {
 	owned Kernel[] state;
 	owned Kernel[] next;
+
 	init() { this.state = initial_state(); this.next = initial_next(); }
+
 	void rotate() {
 		// Different lengths need independent element copies in this control.
 		var previous = clone_array(this.state);

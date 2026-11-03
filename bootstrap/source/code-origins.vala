@@ -18,6 +18,7 @@ public class CodeInputSet : Object {
 		}
 		return true;
 	}
+
 	public static bool contains(string text, int ordinal) {
 		foreach (string word in text.split (",")) {
 			if (word == ordinal.to_string ()) {
@@ -26,6 +27,7 @@ public class CodeInputSet : Object {
 		}
 		return false;
 	}
+
 	public static string encode(CodeEffectSummary summary, GenericArray<int> positions) {
 		var result = new StringBuilder ();
 		for (int p = 0; p < positions.length; p++) {
@@ -39,6 +41,7 @@ public class CodeInputSet : Object {
 		}
 		return result.str;
 	}
+
 	public static CodeEffectSummary decode(bool eligible, string text, int parameter_count, GenericArray<int> positions) {
 		var result = new CodeEffectSummary (parameter_count);
 		result.eligible = eligible;
@@ -53,6 +56,7 @@ public class CodeInputSet : Object {
 		}
 		return result;
 	}
+
 }
 
 public class CodeEffectSummary : Object {
@@ -61,13 +65,16 @@ public class CodeEffectSummary : Object {
 	public CodeEffectSummary (int count) {
 		inputs = new bool[count];
 	}
+
 	public bool requires_input(int ordinal) {
 		return ordinal >= 0 && ordinal < inputs.length && inputs[ordinal];
 	}
+
 	internal void require_input(int ordinal) {
 		assert (ordinal >= 0 && ordinal < inputs.length);
 		inputs[ordinal] = true;
 	}
+
 	private bool same(CodeEffectSummary other) {
 		if (eligible != other.eligible || inputs.length != other.inputs.length) {
 			return false;
@@ -79,9 +86,11 @@ public class CodeEffectSummary : Object {
 		}
 		return true;
 	}
+
 	internal bool matches(CodeEffectSummary other) {
 		return same (other);
 	}
+
 }
 
 public delegate CodeOriginFrontier? CodeEffectFrontier(Object value, GenericArray<Object> formals);
@@ -101,6 +110,7 @@ private class CodeEffectFunction : Object {
 		this.imported_readonly = imported_readonly;
 		this.imported_requirements = imported_requirements;
 	}
+
 }
 
 private class CodeEffectCall : Object {
@@ -114,6 +124,7 @@ private class CodeEffectCall : Object {
 		this.arguments = arguments;
 		this.protected_call = protected_call;
 	}
+
 }
 
 // Each IR independently supplies its own identities, effects and value flow.
@@ -128,6 +139,7 @@ public class CodeEffectAnalysis : Object {
 	public CodeEffectAnalysis (owned CodeEffectFrontier frontier) {
 		this.frontier = (owned) frontier;
 	}
+
 	public void add_function(Object identity, GenericArray<Object> parameters, GenericArray<Object> formals,
 		CodeEffectSummary? imported_readonly = null, CodeEffectSummary? imported_requirements = null) {
 		assert (!definitions.contains (identity));
@@ -137,6 +149,7 @@ public class CodeEffectAnalysis : Object {
 		readonly_facts.insert (identity, imported_readonly ?? new CodeEffectSummary ((int) parameters.length));
 		required_facts.insert (identity, imported_requirements ?? new CodeEffectSummary ((int) parameters.length));
 	}
+
 	public void add_call(Object scope, Object target, GenericArray<Object> arguments, bool protected_call = false) {
 		var sites = calls.lookup (scope);
 		if (sites == null) {
@@ -145,12 +158,15 @@ public class CodeEffectAnalysis : Object {
 		}
 		sites.add (new CodeEffectCall (scope, target, arguments, protected_call));
 	}
+
 	public CodeEffectSummary? readonly_summary(Object function) {
 		return readonly_facts.lookup (function);
 	}
+
 	public CodeEffectSummary? required_summary(Object function) {
 		return required_facts.lookup (function);
 	}
+
 	public bool code(Object value, Object scope, CodeEffectSummary result, GenericArray<Object>? arguments = null) {
 		var owner = definitions.lookup (scope);
 		if (owner == null) {
@@ -192,6 +208,7 @@ public class CodeEffectAnalysis : Object {
 		}
 		return true;
 	}
+
 	public bool call(Object target, GenericArray<Object> arguments, Object scope, CodeEffectSummary result) {
 		var definition = definitions.lookup (target);
 		var known = readonly_facts.lookup (target);
@@ -205,6 +222,7 @@ public class CodeEffectAnalysis : Object {
 		}
 		return true;
 	}
+
 	public void infer_readonly(CodeEffectProbe probe) {
 		bool changed = false;
 		do {
@@ -222,6 +240,7 @@ public class CodeEffectAnalysis : Object {
 			}
 		} while (changed);
 	}
+
 	public void infer_requirements() {
 		bool changed = false;
 		do {
@@ -260,6 +279,7 @@ public class CodeEffectAnalysis : Object {
 			}
 		} while (changed);
 	}
+
 }
 
 public class CodeOriginFrontier : Object {
@@ -290,6 +310,7 @@ public class CodeOrigins : Object {
 		}
 		return found;
 	}
+
 	public void address(Object value, Object target) {
 		var origin = node (value);
 		if (origin.address != target) {
@@ -297,6 +318,7 @@ public class CodeOrigins : Object {
 			revision++;
 		}
 	}
+
 	public void unknown(Object value) {
 		var origin = node (value);
 		if (!origin.unknown) {
@@ -304,6 +326,7 @@ public class CodeOrigins : Object {
 			revision++;
 		}
 	}
+
 	public void copy(Object value, Object input) {
 		var destination = node (value);
 		if (!destination.inputs.find (input)) {
@@ -311,23 +334,27 @@ public class CodeOrigins : Object {
 			revision++;
 		}
 	}
+
 	// A definition with no callers contributes no actual code value. Opaque
 	// entry points are separately marked unknown by the containing IR.
 	public void parameter(Object value) {
 		node (value).parameter = true;
 	}
+
 	public void storage(Object value) {
 		storage_nodes.insert (value, true);
 		if (opaque_storage) {
 			unknown (value);
 		}
 	}
+
 	public void escape_storage() {
 		opaque_storage = true;
 		foreach (var value in storage_nodes.get_keys ()) {
 			unknown (value);
 		}
 	}
+
 	private GenericArray<Object>? collect(Object value, bool require_complete) {
 		var result = new GenericArray<Object> ();
 		var pending = new GenericArray<Object> ();
@@ -359,14 +386,17 @@ public class CodeOrigins : Object {
 		// A cycle without a grounded address does not prove a code target.
 		return result.length == 0 ? null : result;
 	}
+
 	public GenericArray<Object>? targets(Object value) {
 		return collect (value, true);
 	}
+
 	// Incomplete candidates only build conservative flow equations. They are
 	// never authority for accepting a call or proving effects.
 	public GenericArray<Object>? candidates(Object value) {
 		return collect (value, false);
 	}
+
 	public GenericArray<Object> addressed_targets() {
 		var result = new GenericArray<Object> ();
 		foreach (var origin in nodes.get_values ()) {
@@ -420,5 +450,6 @@ public class CodeOrigins : Object {
 		}
 		return result.targets.length == 0 && result.parameters.length == 0 ? null : result;
 	}
+
 }
 }

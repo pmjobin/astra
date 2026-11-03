@@ -5,6 +5,7 @@
 #include <string.h>
 extern void *__libc_calloc(size_t count, size_t size);
 extern void __libc_free(void *pointer);
+
 struct allocation {
 	void *pointer;
 	size_t bytes;
@@ -24,6 +25,7 @@ static int failed;
 static int prior_calls;
 static int prior_releases;
 #ifndef ERROR_MEMORY_ONLY
+
 void *calloc(size_t count, size_t size) {
 	void *pointer = __libc_calloc(count, size);
 	if (pointer != NULL && used < 256 && (size == 0 || count <= SIZE_MAX / size)) {
@@ -32,6 +34,7 @@ void *calloc(size_t count, size_t size) {
 	calls++;
 	return pointer;
 }
+
 void free(void *pointer) {
 	if (pointer != NULL) {
 		for (int i = 0; i < used; i++) {
@@ -43,10 +46,13 @@ void free(void *pointer) {
 	}
 	__libc_free(pointer);
 }
+
 #endif
+
 void error_record_drop(int value) {
 	drops = drops * 10 + value;
 }
+
 void error_observe(int stage) {
 #ifdef ERROR_MEMORY_ONLY
 	if (stage != observed + 1) {
@@ -97,6 +103,7 @@ void error_observe(int stage) {
 	prior_releases = releases;
 	observed = stage;
 }
+
 int error_observer_result(void) {
 #ifdef ERROR_MEMORY_ONLY
 	fprintf(stdout, "memory-control stages=%d drops=%d\n", observed, drops);

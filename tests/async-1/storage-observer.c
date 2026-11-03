@@ -3,14 +3,17 @@
 #include <assert.h>
 #include <stdio.h>
 static unsigned entries[9];
+
 void storage_event(int stage, int value) {
 	static const int expected[] = {0, 40, 42, 39, 39, 5, 5, 3};
 	assert(stage > 0 && stage < 8 && value == expected[stage]);
 	entries[stage]++;
 }
+
 extern int storage_host(void);
 extern int storage_cold(void);
 extern AstraAsyncTask *test_factory_2(AstraAsyncTask *parent);
+
 static void cancel_source(void) {
 	AstraAsyncExecutor *executor = astra_async_open(1);
 	AstraAsyncTask *root = test_factory_2(NULL);
@@ -28,6 +31,7 @@ static void cancel_source(void) {
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 int main(void) {
 	for (unsigned cycle = 0; cycle < 16; cycle++) {
 		assert(storage_host() == 42);

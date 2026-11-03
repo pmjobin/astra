@@ -151,4 +151,5 @@ int main(string[] args) {
 	Test.add_func ("/slice/cfg/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

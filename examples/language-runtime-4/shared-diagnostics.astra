@@ -1,19 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int shared_app_event(int stage, int value);
+
 interface Diagnostic { int score(int severity); }
+
 class BaseDiagnostic : Diagnostic {
 	private int bias;
+
 	init(int bias) : base() { this.bias=bias; shared_app_event(1,bias); }
+
 	override int score(int severity) { return this.bias + severity; }
+
 	deinit() { shared_app_event(2,this.bias); }
 }
+
 class FileDiagnostic : BaseDiagnostic {
 	init(int bias) : base(bias) { shared_app_event(3,bias); }
+
 	override int score(int severity) { return severity * 10 + 7; }
+
 	deinit() { shared_app_event(4,0); }
 }
+
 int dispatch(borrowed Diagnostic diagnostic,int severity) { return diagnostic.score(severity); }
+
 int inspect(borrowed FileDiagnostic diagnostic,int severity) { return dispatch(diagnostic,severity); }
+
 int main() {
 	var diagnostic=new FileDiagnostic(9);
 	var queue=shared_acquire(move diagnostic);

@@ -29,6 +29,7 @@ private CfgProgram short_program(bool is_and = true) throws CfgError {
 	functions.add (f);
 	return new CfgProgram (span, functions);
 }
+
 private void short_model() {
 	try {
 		foreach (bool is_and in new bool[] {true, false}) {
@@ -48,6 +49,7 @@ private void short_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void short_invalid() {
 	try {
 		for (int variant = 0; variant < 9; variant++) {
@@ -106,6 +108,7 @@ private void short_invalid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void crossing_values() {
 	try {
 		// Earlier eager results may cross a complete expression region. A
@@ -135,6 +138,7 @@ private void crossing_values() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cyclic_availability() {
 	try {
 		for (int variant = 0; variant < 4; variant++) {
@@ -167,10 +171,12 @@ private void cyclic_availability() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void register_shortcircuit_tests() {
 	Test.add_func ("/cfg-standalone/shortcircuit/model-lifetime", short_model);
 	Test.add_func ("/cfg-standalone/shortcircuit/malformed-temporaries", short_invalid);
 	Test.add_func ("/cfg-standalone/shortcircuit/cross-block-availability", crossing_values);
 	Test.add_func ("/cfg-standalone/shortcircuit/cyclic-definition-availability", cyclic_availability);
 }
+
 }

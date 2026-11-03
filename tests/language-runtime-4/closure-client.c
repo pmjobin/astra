@@ -2,6 +2,7 @@
 #include <stdio.h>
 extern int closure_client_apply(int bias, int input);
 static int state;
+
 int closure_client_event(int tag) {
 	if (tag == 1 && state == 0)
 		state = 1;
@@ -11,6 +12,7 @@ int closure_client_event(int tag) {
 		state = -100;
 	return state;
 }
+
 int main(void) {
 	int sum = 0;
 	for (int i = 0; i < 200; ++i) {

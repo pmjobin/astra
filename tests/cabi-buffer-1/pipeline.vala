@@ -21,6 +21,7 @@ private SsaProgram build(string declaration) throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private void correspondence() {
 	try {
 		string prefix = "[CCode(buffer_abi=\"u8-i32\")] extern(C) ";
@@ -42,6 +43,7 @@ private void correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void lifetime_and_physical_mutation() {
 	try {
 		SsaProgram? source = build ("[CCode(buffer_abi=\"u8-i32\")] extern(C) int sink(borrowed u8[] bytes,int tail);int forward(u8[] bytes){return sink(bytes,7);}");
@@ -76,10 +78,12 @@ private void lifetime_and_physical_mutation() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/cabi-buffer/source-plan-exact-correspondence", correspondence);
 	Test.add_func ("/cabi-buffer/lifetime-and-physical-pair-mutation", lifetime_and_physical_mutation);
 	return Test.run ();
 }
+
 }

@@ -1,20 +1,27 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 class ParseError : Error {
 	init(string text) : base(text) {}
 }
+
 int parse(bool fail) throws Error {
-	if (fail) { throw new ParseError("parse\0é"); }
+	if (fail) {
+		throw new ParseError("parse\0é");
+	}
 	return 40;
 }
+
 int main() {
 	int value = 0;
 	try { value = parse(false); parse(true); } catch (Error error) {
-		if (error.message == "parse\0é" && error.message == "parse\0é") { return value + 2; }
+		if (error.message == "parse\0é" && error.message == "parse\0é") return value + 2;
 		return 81;
 	}
 	return 82;

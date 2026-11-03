@@ -2,21 +2,26 @@
 class Second : NativeProtocols.Score {
 	private int factor;
 	private int bias;
+
 	init(int factor, int bias) : base() {
 		this.factor = factor;
 		this.bias = bias;
 	}
+
 	override int apply(int input) { return this.factor * input + this.bias; }
+
 	deinit() { mark(1802); }
 }
+
 int exercise_protocols() {
 	var first = ProtocolMiddle.create(40);
 	var second = new Second(2, 70);
 	var information = first.information;
-	if (information.marker != 1 || information.bias != 40) { return 1; }
-	if (ProtocolMiddle.evaluate(false, first, second, 2) != 42) { return 2; }
-	if (ProtocolMiddle.evaluate(true, first, second, 2) != 74) { return 3; }
-	if (NativeProtocols.dispatch(first, 3) != 43 || NativeProtocols.dispatch(second, 3) != 76) { return 4; }
+	if (information.marker != 1 || information.bias != 40) return 1;
+	if (ProtocolMiddle.evaluate(false, first, second, 2) != 42) return 2;
+	if (ProtocolMiddle.evaluate(true, first, second, 2) != 74) return 3;
+	if (NativeProtocols.dispatch(first, 3) != 43 || NativeProtocols.dispatch(second, 3) != 76) return 4;
 	return 0;
 }
+
 int main() { return exercise_protocols(); }

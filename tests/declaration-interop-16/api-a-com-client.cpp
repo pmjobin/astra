@@ -11,10 +11,12 @@ inline constexpr IID service_iid = {0xe576d00a, 0x1616, 0x4b93, {0x8c, 0x71, 0x6
 #include "sdk.hpp"
 #include "api-com-types.h"
 #else
+
 struct Statistics {
 	double score;
 	std::uint64_t revision, processed;
 };
+
 struct Oracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE get_revision(LONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE get_enabled(BOOL *) = 0;
@@ -25,14 +27,17 @@ struct Oracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE snapshot(BYTE **, LONG *) = 0;
 };
 struct Native;
+
 struct Configuration {
 	std::int32_t mask;
 	bool rotate;
 	double weight;
 };
+
 struct Error {
 	std::int32_t domain, code;
 };
+
 static_assert(sizeof(Configuration) == 16 && sizeof(Statistics) == 24, "independent Windows POD oracle");
 extern "C" std::int32_t byte_service16_create(Configuration, Native **, Error *);
 extern "C" std::uint32_t byte_service16_release(Native *);
@@ -40,11 +45,13 @@ extern "C" HRESULT byte_service16_as_com(Native *, IUnknown **);
 #endif
 extern "C" std::int32_t byte_service16_com_import(void *);
 extern "C" std::uint32_t byte16_retired_count(std::int32_t);
+
 static DWORD WINAPI wrong_thread(void *data) {
 	auto view = static_cast<Oracle *>(data);
 	LONG revision = 99;
 	return view->get_revision(&revision) == RPC_E_WRONG_THREAD && revision == 0 ? 0 : 1;
 }
+
 int main() {
 	assert(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
 	Configuration configuration{85, true, 2.5};

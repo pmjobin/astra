@@ -1,15 +1,19 @@
 class State {
 	int calls;
-	property bool ready { get { this.calls = this.calls + 1; return true; } set(bool next) { if (next) { this.calls = 0; } } }
+
+	property bool ready { get { this.calls = this.calls + 1; return true; } set(bool next) { if (next) this.calls = 0; } }
 }
+
 int main() {
 	State s = { calls = 10 };
 	s.ready = true;
 	bool skipped = false && s.ready;
 	bool skipped_or = true || s.ready;
-	if (skipped || !skipped_or || s.calls != 0) { return 1; }
+	if (skipped || !skipped_or || s.calls != 0) return 1;
 	bool eager = false & s.ready;
-	if (eager || s.calls != 1) { return 2; }
-	if (true && s.ready) { if (s.calls != 2) { return 3; } }
+	if (eager || s.calls != 1) return 2;
+	if (true && s.ready) {
+		if (s.calls != 2) return 3;
+	}
 	return 42;
 }

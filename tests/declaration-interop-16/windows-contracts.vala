@@ -20,6 +20,7 @@ private void refused(string label, owned Check action) throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 private const string SOURCE = "struct Packet{i64 code;f64 weight;bool enabled;}"
     + "[CExport(name=\"winproof16\",profile=\"declarations-v1\",bool_abi=\"c99\")]class Service{[Foreign]init(){}"
     + "[Foreign]Packet relay(Packet input){return input;}[Foreign]f32 half(f32 input){return input*0.5;}"
@@ -46,6 +47,7 @@ private LlvmModuleArtifact artifact(string source, string target, bool checked_g
 	assert (prior.get () == null);
 	return result;
 }
+
 private void target_and_layout() {
 	try {
 		var windows = new LlvmTargetMachineArtifact (0, LlvmTargetMachineArtifact.WINDOWS_INTEROP);
@@ -93,6 +95,7 @@ private void target_and_layout() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_descriptor_visibility() {
 	try {
 		foreach (bool imported in new bool[] { false, true }) {
@@ -129,6 +132,7 @@ private void native_descriptor_visibility() {
 		error ("%s", failure.message);
 	}
 }
+
 private void legacy_remains_bounded() {
 	try {
 		string plain = "f64 half(f64 input){return input*0.5;}";
@@ -143,6 +147,7 @@ private void legacy_remains_bounded() {
 		error ("%s", failure.message);
 	}
 }
+
 public static int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/declared-windows/native-unit-descriptor-image-visibility", native_descriptor_visibility);
@@ -150,4 +155,5 @@ public static int main(string[] args) {
 	Test.add_func ("/declared-windows/explicit-profile-preserves-legacy-refusals", legacy_remains_bounded);
 	return Test.run ();
 }
+
 }

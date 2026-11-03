@@ -2,9 +2,16 @@
 namespace ImportChannel16;
 [ExceptionRoot]class Fault {
 	readonly string text;private int domain;private int status;
+
 	init(int domain,int status){this.domain=domain;this.status=status;this.text="opaque import failure";}
+
 	virtual property string message{get{return this.text;}}
-	int code(){return this.status;}int space(){return this.domain;}
+
+	int code(){return this.status;}
+
+	int space(){return this.domain;}
 }
+
 owned Fault foreign_fault(int domain,int status){var result=new Fault(domain,status);return move result;}
+
 int inspect(borrowed UnitCProvider first,borrowed UnitGProvider second,int input)throws Fault{return first.sum(input)*3+second.sum(input)*5;}

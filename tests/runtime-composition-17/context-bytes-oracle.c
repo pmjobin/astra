@@ -17,21 +17,27 @@ static unsigned refused;
 static pthread_t home;
 static _Atomic unsigned workers;
 extern int context_bytes_worker_run(void);
+
 int main(void) {
 	home = pthread_self();
 	return context_bytes_worker_run();
 }
+
 void context_bytes_worker_observed(int checksum) {
 	assert(!pthread_equal(home, pthread_self()) && checksum == 17);
 	assert(atomic_fetch_add(&workers, 1) < 2);
 }
+
 #elif defined(CONTEXT_BYTES_FAILURE)
 extern int context_bytes_failure_run(void);
+
 int main(void) {
 	return context_bytes_failure_run();
 }
+
 #else
 extern int context_bytes_run(void);
+
 int main(void) {
 	int result = context_bytes_run();
 #ifdef CONTEXT_BYTES_EMPTY
@@ -40,10 +46,12 @@ int main(void) {
 #endif
 	return result;
 }
+
 #endif
 extern void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t,
                                                   uint64_t, uint32_t, uint64_t, uint32_t);
 extern int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	assert(acquired < 2 && count == (acquired ? 23U : 19U));
@@ -79,6 +87,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t cou
 	tags[acquired++] = tag;
 	return payload;
 }
+
 int __wrap_astra_context17_release_origin_checked(void *payload, uint64_t tag) {
 	unsigned slot = 0;
 	while (slot < acquired && payloads[slot] != payload) {
@@ -95,12 +104,15 @@ int __wrap_astra_context17_release_origin_checked(void *payload, uint64_t tag) {
 	++released;
 	return result;
 }
+
 void context_bytes_zero_failed(void) {
 	abort();
 }
+
 void context_bytes_envelope_retired(void) {
 	assert(envelopes++ == 0);
 }
+
 int context_bytes_finish(void) {
 #ifdef CONTEXT_BYTES_FAILURE
 	assert(acquired == 2 && released == 2 && envelopes == 0 && refused == 1);
@@ -120,6 +132,7 @@ int context_bytes_finish(void) {
 #endif
 	return 0;
 }
+
 AstraContext17 *context_bytes_failure_allocator(int64_t capacity, int32_t slots,
                                                 int32_t fail_at) {
 	if (capacity <= 0 || slots <= 0 || fail_at <= 0) {

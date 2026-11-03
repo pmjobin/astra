@@ -12,6 +12,7 @@ public class CheckedSuspensionLoan : Object {
 		this.storage = storage;
 		this.view = view;
 	}
+
 }
 
 public class CheckedTaskCreate : CheckedExpression {
@@ -28,6 +29,7 @@ public class CheckedTaskCreate : CheckedExpression {
 		callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 public class CheckedStructAwait : CheckedStructProducer {
 	public CheckedTaskAwait operation { get; private set; }
@@ -35,6 +37,7 @@ public class CheckedStructAwait : CheckedStructProducer {
 		base (operation.span, operation.semantic_type, mode == StructValueMode.COPY_VALUE ? Copyability.COPYABLE : Copyability.NOT_COPYABLE, mode);
 		this.operation = operation;
 	}
+
 }
 public class CheckedEnumAwait : CheckedEnumProducer {
 	public CheckedTaskAwait operation { get; private set; }
@@ -42,6 +45,7 @@ public class CheckedEnumAwait : CheckedEnumProducer {
 		base (operation.span, definition);
 		this.operation = operation;
 	}
+
 }
 public class CheckedTaskMove : CheckedExpression {
 	public LocalSymbol source { get; private set; }
@@ -49,6 +53,7 @@ public class CheckedTaskMove : CheckedExpression {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 public class CheckedAsyncDelay : CheckedStatement {
 	public bool payload { get; private set; }
@@ -60,6 +65,7 @@ public class CheckedAsyncDelay : CheckedStatement {
 		this.ticks = ticks;
 		this.payload = payload;
 	}
+
 }
 public class CheckedTaskAwait : CheckedExpression {
 	public CheckedExpression? bridge_executor { get; private set; }
@@ -73,6 +79,7 @@ public class CheckedTaskAwait : CheckedExpression {
 		this.child = child;
 		this.discard = discard;
 	}
+
 }
 public class CheckedTaskAwaitStatement : CheckedStatement {
 	public CheckedTaskAwait operation { get; private set; }
@@ -80,6 +87,7 @@ public class CheckedTaskAwaitStatement : CheckedStatement {
 		base (span);
 		this.operation = operation;
 	}
+
 }
 
 public class CheckedTaskBorrow : CheckedExpression {
@@ -88,6 +96,7 @@ public class CheckedTaskBorrow : CheckedExpression {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 public class CheckedExecutorBorrow : CheckedExpression {
 	public LocalSymbol source { get; private set; }
@@ -95,6 +104,7 @@ public class CheckedExecutorBorrow : CheckedExpression {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 public class CheckedAsyncOperation : CheckedExpression {
 	public AsyncOperationContract contract { get; private set; }
@@ -108,6 +118,7 @@ public class CheckedAsyncOperation : CheckedExpression {
 		this.task = task;
 		this.argument = argument;
 	}
+
 }
 public class CheckedAsyncOperationStatement : CheckedStatement {
 	public CheckedAsyncOperation operation { get; private set; }
@@ -115,6 +126,7 @@ public class CheckedAsyncOperationStatement : CheckedStatement {
 		base (span);
 		this.operation = operation;
 	}
+
 }
 public class CheckedAsyncRun : CheckedEnumProducer {
 	public CheckedAsyncOperation operation { get; private set; }
@@ -122,6 +134,7 @@ public class CheckedAsyncRun : CheckedEnumProducer {
 		base (span, definition);
 		this.operation = operation;
 	}
+
 }
 
 }

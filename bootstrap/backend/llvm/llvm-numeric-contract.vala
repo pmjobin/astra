@@ -22,6 +22,7 @@ internal class LlvmSaturationBinding : Object {
 			throw new LlvmError.VERIFICATION ("saturation lost its exact signed operation, lane type or operands");
 		}
 	}
+
 }
 
 internal class LlvmFloatingStep : Object {
@@ -60,6 +61,7 @@ internal class LlvmFloatingStep : Object {
 			flags = CApi.get_fast_math_flags (instruction);
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		if (operation == CApi.Opcode.CALL && CApi.instruction_call_conv (instruction) != call_convention) {
 			throw new LlvmError.VERIFICATION ("derived instruction lost its original call convention");
@@ -73,6 +75,7 @@ internal class LlvmFloatingStep : Object {
 			}
 		}
 	}
+
 }
 
 internal class LlvmFloatingDomain : Object {
@@ -82,6 +85,7 @@ internal class LlvmFloatingDomain : Object {
 			step.verify ();
 		}
 	}
+
 }
 
 internal class LlvmFloatingPermission : Object {
@@ -95,6 +99,7 @@ internal class LlvmFloatingPermission : Object {
 		this.domain = domain;
 		operation = new LlvmFloatingStep (instruction);
 	}
+
 	internal void verify() throws LlvmError {
 		operation.verify ();
 		if ((permissions & 6) != 0 && domain == null) {
@@ -107,6 +112,7 @@ internal class LlvmFloatingPermission : Object {
 			throw new LlvmError.VERIFICATION ("floating instruction lost its exact admitted permissions");
 		}
 	}
+
 }
 
 internal class LlvmStrictFloating : Object {
@@ -131,5 +137,6 @@ internal class LlvmStrictFloating : Object {
 			}
 		}
 	}
+
 }
 }

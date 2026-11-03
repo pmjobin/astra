@@ -3,10 +3,12 @@ void third<T>(owned T value, int id) where T: Ownable {
 	own_mark(84, id);
 	outer<T>(id, move value);
 }
+
 void fourth<T>(owned T value, int id) where T: Ownable {
 	own_mark(85, id);
 	third<T>(move value, id);
 }
+
 int main() {
 	var value = new Counter(45, 1);
 	fourth<Counter>(move value, 45);

@@ -4,21 +4,25 @@ class SyntaxProgram {
 	SyntaxListId units;
 	SyntaxSpan error_span;
 	SyntaxTextId error_message;
+
 	init(owned SyntaxArena arena, SyntaxListId units, SyntaxSpan error_span, SyntaxTextId error_message) {
 		this.arena = move arena;
 		this.units = units;
 		this.error_span = error_span;
 		this.error_message = error_message;
 	}
+
 	bool failed() {
 		return this.error_message.index != 0;
 	}
+
 	SyntaxSpan span() {
 		assert_that(!this.failed() && this.arena.list_count(this.units) > 0);
 		var first = this.arena.node_at(this.units, 0);
 		var header = this.arena.header(first);
 		return header.span;
 	}
+
 	SyntaxListId foreign_classes() {
 		var result = this.arena.new_list(syntax_kind_code(SyntaxKind.ClassDeclarationSyntax()));
 		int i = 0;
@@ -34,6 +38,7 @@ class SyntaxProgram {
 		}
 		return result;
 	}
+
 	SyntaxListId declarations(SyntaxKind kind) {
 		assert_that(kind == SyntaxKind.FunctionDeclarationSyntax() || kind == SyntaxKind.StructDeclarationSyntax() || kind == SyntaxKind.ClassDeclarationSyntax() || kind == SyntaxKind.ComImportSyntax() || kind == SyntaxKind.AsyncRuntimeSyntax() || kind == SyntaxKind.EnumDeclarationSyntax() || kind == SyntaxKind.ConstantDeclarationSyntax());
 		var result = this.arena.new_list(syntax_kind_code(kind));
@@ -71,6 +76,7 @@ class SyntaxProgram {
 		}
 		return result;
 	}
+
 	SyntaxListId native_instances(bool include_generic) {
 		var result = this.arena.new_list(syntax_kind_code(SyntaxKind.NativeInstanceDeclarationSyntax()));
 		var structures = this.declarations(SyntaxKind.StructDeclarationSyntax());
@@ -96,6 +102,7 @@ class SyntaxProgram {
 		return result;
 	}
 }
+
 owned SyntaxProgram syntax_program(owned SourceSet sources) throws Error {
 	var arena = new SyntaxArena(move sources);
 	var units = arena.new_list(syntax_kind_code(SyntaxKind.CompilationUnitSyntax()));

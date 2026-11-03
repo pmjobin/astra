@@ -60,7 +60,7 @@ def main():
 		(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 		assert r.returncode == expected, (name, r.returncode, r.stderr[-2000:])
 		return r
-	# An empty buffer has no allocation, but retires the preceding owner.
+		# An empty buffer has no allocation, but retires the preceding owner.
 	source = frozen('zero-replace.astra', 'int main(){owned int[] value=new int[2];value=new int[0];value=new int[3];return 0;}\n')
 	obj = a.build/'zero-replace.o'; native = a.build/'zero-replace'; c0 = native.with_suffix('.c0')
 	run([a.component, '--emit-obj', a.mode, obj, source], 'zero-native-emit')
@@ -71,7 +71,7 @@ def main():
 		run([exe], 'zero-'+label)
 		r = run(['valgrind', '--default-suppressions=no', '--trace-malloc=yes', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', exe], 'zero-memory-'+label)
 		memories[label] = memory(r.stderr, [('A', 2), ('F', 2), ('A', 3), ('F', 3)])
-	# C0 rejects self-move replacement; preserve rejection, without emitting.
+		# C0 rejects self-move replacement; preserve rejection, without emitting.
 	self_move = frozen('self-move.astra', 'int main(){owned int[] value=new int[2];value=move value;return 0;}\n')
 	r = run([a.compiler, '--check', self_move], 'self-move-C0', 1)
 	assert b'self-move replacement is unsupported' in r.stderr

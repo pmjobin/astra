@@ -65,9 +65,11 @@ private void optimizer_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/compiler-systems/optimizer/proof-clone-error-target", optimizer_contract);
 	return Test.run ();
 }
+
 }

@@ -12,5 +12,6 @@ public class CfgRetainedOperation : CfgValue {
 		this.callee = callee;
 		this.arguments = arguments;
 	}
+
 }
 }

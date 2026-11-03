@@ -14,6 +14,7 @@ internal class LlvmAsyncRuntime : Object {
 		i64 = CApi.int_type_in_context (artifact.context, 64);
 		nothing = CApi.void_type_in_context (artifact.context);
 	}
+
 	internal void trap(CApi.BuilderRef builder) {
 		uint identity = CApi.lookup_intrinsic_id ("llvm.trap", 9);
 		var target = CApi.get_intrinsic_declaration (artifact.module, identity, null, 0);
@@ -21,6 +22,7 @@ internal class LlvmAsyncRuntime : Object {
 		CApi.build_call (builder, signature, target, null, 0, "");
 		CApi.build_unreachable (builder);
 	}
+
 	internal CApi.ValueRef call(CApi.BuilderRef builder, string symbol, CApi.TypeRef result, CApi.TypeRef[] parameters, CApi.ValueRef[] arguments, string name = "") throws LlvmError {
 		var signature = CApi.function_type (result, parameters, parameters.length, 0);
 		var target = CApi.named_function (artifact.module, symbol);
@@ -43,6 +45,7 @@ internal class LlvmAsyncRuntime : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (instruction, target, signature, arguments, CApi.CallConv.C, "exact nominated native task protocol operation"));
 		return instruction;
 	}
+
 }
 internal class LlvmAsyncFieldAccess : Object {
 	private CApi.ValueRef address;
@@ -55,11 +58,13 @@ internal class LlvmAsyncFieldAccess : Object {
 		this.frame = frame;
 		this.index = index;
 	}
+
 	internal void verify() throws LlvmError {
 		if (CApi.opcode (address) != CApi.Opcode.GEP || CApi.operand_count (address) != 3 || (void*) CApi.operand (address, 0) != (void*) backing || CApi.const_int_zext (CApi.operand (address, 1)) != 0 || CApi.const_int_zext (CApi.operand (address, 2)) != index || (void*) CApi.gep_source_type (address) != (void*) frame) {
 			throw new LlvmError.VERIFICATION ("async frame address lost exact allocation/type/field association");
 		}
 	}
+
 }
 internal class LlvmAsyncEffectOrder : Object {
 	private CApi.BasicBlockRef block;
@@ -82,6 +87,7 @@ internal class LlvmAsyncEffectOrder : Object {
 			edges[e] = (void*) CApi.successor (terminator, e);
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		int n = 0;
 		for (var i = CApi.first_instruction (block); (void*) i != null; i = CApi.next_instruction (i)) {
@@ -102,6 +108,7 @@ internal class LlvmAsyncEffectOrder : Object {
 			}
 		}
 	}
+
 }
 // Copied physical suspension authority for a complete coroutine lifetime
 // graph. No source/SSA node survives the exact native state association.
@@ -123,6 +130,7 @@ internal class LlvmAsyncContinuation : Object {
 		}
 		return new LlvmClassCallBinding (call, CApi.called_value (call), CApi.called_function_type (call), arguments, CApi.CallConv.C, label);
 	}
+
 	internal LlvmAsyncContinuation (CApi.ValueRef setter, CApi.ValueRef operation, CApi.ValueRef returned, CApi.BasicBlockRef continuation, CApi.BasicBlockRef refused, CApi.ValueRef task, uint pc, bool waiting) {
 		this.setter = setter;
 		this.operation = operation;
@@ -135,21 +143,27 @@ internal class LlvmAsyncContinuation : Object {
 		set_call = copied_call (setter, "coroutine saved PC");
 		operation_call = copied_call (operation, "coroutine accepted suspension");
 	}
+
 	internal CApi.ValueRef saved_pc() {
 		return setter;
 	}
+
 	internal CApi.ValueRef admission() {
 		return operation;
 	}
+
 	internal CApi.ValueRef suspension_return() {
 		return returned;
 	}
+
 	internal CApi.BasicBlockRef next_state() {
 		return continuation;
 	}
+
 	internal uint state() {
 		return pc;
 	}
+
 	internal void verify(CApi.ValueRef resume, CApi.BasicBlockRef expected) throws LlvmError {
 		set_call.verify ();
 		operation_call.verify ();
@@ -199,12 +213,14 @@ internal class LlvmAsyncContinuation : Object {
 			throw new LlvmError.VERIFICATION ("coroutine suspended return gained an unadmitted predecessor");
 		}
 	}
+
 }
 internal class LlvmAsyncOwnerWrite : Object {
 	internal CApi.ValueRef instruction;
 	internal LlvmAsyncOwnerWrite (CApi.ValueRef instruction) {
 		this.instruction = instruction;
 	}
+
 }
 // Copied typed future success mapping. This is shape authority only: the
 // capture admission also requires publication/observation debt verification
@@ -218,12 +234,15 @@ internal class LlvmAsyncRecordResult : Object {
 	internal bool empty_field(uint field) {
 		return captures[field] == -2;
 	}
+
 	internal int capture(uint field) {
 		return captures[field];
 	}
+
 	internal CApi.TypeRef result_type() {
 		return carrier;
 	}
+
 	internal CApi.ValueRef publication_value(CApi.ValueRef store, uint field) throws LlvmError {
 		if (field >= field_count || CApi.opcode (store) != CApi.Opcode.STORE || CApi.operand_count (store) != 2 || CApi.get_volatile (store) != 0 || CApi.get_ordering (store) != 0 || (void*) CApi.type_of (CApi.operand (store, 0)) != (void*) carrier) {
 			throw new LlvmError.VERIFICATION ("scoped result publication lost its complete typed payload");
@@ -260,6 +279,7 @@ internal class LlvmAsyncRecordResult : Object {
 			throw new LlvmError.VERIFICATION ("scoped result publication lacks its exact complete aggregate origin");
 		} return selected;
 	}
+
 	internal bool publication_chain(CApi.ValueRef insertion, CApi.ValueRef store) throws LlvmError {
 		if (field_count == 1 || CApi.opcode (insertion) != CApi.Opcode.INSERT_VALUE || (void*) CApi.type_of (insertion) != (void*) carrier) {
 			return false;
@@ -282,6 +302,7 @@ internal class LlvmAsyncRecordResult : Object {
 		}
 		return found;
 	}
+
 	internal void verify(LlvmScopedOwnedInputs inputs) throws LlvmError {
 		inputs.verify_signature ();
 		if (field_count == 0 || owner_count + empty_count == 0 || (field_count == 1 ? CApi.type_kind (result_type ()) != CApi.TypeKind.POINTER : CApi.type_kind (result_type ()) != CApi.TypeKind.STRUCT || CApi.count_struct_element_types (result_type ()) != field_count)) {
@@ -310,6 +331,7 @@ internal class LlvmAsyncRecordResult : Object {
 			throw new LlvmError.VERIFICATION ("scoped task result lost its complete retained owner inventory");
 		}
 	}
+
 	private LlvmAsyncRecordResult (CApi.TypeRef carrier, int fields) {
 		this.carrier = carrier;
 		captures = new int[fields];
@@ -317,6 +339,7 @@ internal class LlvmAsyncRecordResult : Object {
 			captures[f] = -1;
 		}
 	}
+
 	internal static LlvmAsyncRecordResult? from_native(LlvmModuleArtifact artifact, NativeFunction source, NativeAbiProgram program, LlvmScopedOwnedInputs inputs) throws LlvmError {
 		var signature = source.signature;
 		var record = signature.struct_result;
@@ -430,6 +453,7 @@ internal class LlvmAsyncRecordResult : Object {
 			throw new LlvmError.INVALID_INPUT ("scoped task result lifetime shape: %s", failure.message);
 		}
 	}
+
 }
 // This record retains a detached plan and LLVM identities, never SSA nodes.
 internal class LlvmAsyncFrameBinding : Object {
@@ -471,6 +495,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 
 	}
+
 	// Resolve only a concrete frame field on this coroutine's exact runtime
 	// data pointer. Resume and destroy refer to the same retained allocation.
 	internal int lifetime_field(CApi.ValueRef address) {
@@ -489,6 +514,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		uint64 field = CApi.const_int_zext (CApi.operand (address, 2));
 		return field < CApi.count_struct_element_types (frame_type) ? (int) field : -1;
 	}
+
 	internal int captured_owner(int position) {
 		for (uint o = 0; o < plan.owner_count; o++) {
 			if (plan.owner (o).capture_first_leaf == position) {
@@ -497,6 +523,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 		return -1;
 	}
+
 	internal NativeAsyncFramePlan plan;
 	internal CApi.TypeRef frame_type;
 	internal CApi.TypeRef resume_type;
@@ -511,6 +538,7 @@ internal class LlvmAsyncFrameBinding : Object {
 	internal LlvmAsyncContinuation continuation(uint ordinal) {
 		return continuations[ordinal];
 	}
+
 	private CApi.BasicBlockRef cancel_pending;
 	private CApi.ValueRef original_resume;
 	private CApi.ValueRef original_destroy;
@@ -522,6 +550,7 @@ internal class LlvmAsyncFrameBinding : Object {
 	internal CApi.ValueRef drained_children() {
 		return cancel_admission;
 	}
+
 	private GenericArray<LlvmAsyncEffectOrder> effects = new GenericArray<LlvmAsyncEffectOrder> ();
 	internal void seal_effects() throws LlvmError {
 		if (effects.length != 0) {
@@ -543,6 +572,7 @@ internal class LlvmAsyncFrameBinding : Object {
 			}
 		}
 	}
+
 	internal CApi.ValueRef task;
 	internal CApi.BasicBlockRef cancel_entry;
 	private CApi.ValueRef backing;
@@ -550,6 +580,7 @@ internal class LlvmAsyncFrameBinding : Object {
 	internal CApi.ValueRef dispatcher() {
 		return dispatch;
 	}
+
 	private CApi.ValueRef pc_read;
 	private CApi.BasicBlockRef fallback;
 	private CApi.BasicBlockRef[] resume_blocks;
@@ -559,6 +590,7 @@ internal class LlvmAsyncFrameBinding : Object {
 	internal CApi.ValueRef owner_write(uint ordinal) {
 		return owner_writes[ordinal].instruction;
 	}
+
 	private LlvmAsyncRuntime runtime;
 	private weak LlvmModuleArtifact artifact;
 	internal static CApi.TypeRef factory_signature(LlvmTypeMapper types, NativeSignature signature) throws LlvmError {
@@ -571,6 +603,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 		return CApi.function_type (types.scalar (NativeScalarType.PTR), parameters, parameters.length, 0);
 	}
+
 	internal LlvmAsyncFrameBinding (LlvmModuleArtifact artifact, LlvmTypeMapper types, NativeAsyncFramePlan plan, NativeSignature signature, CApi.TypeRef[] storage_types, LlvmSumRegistry? sums, string? module_symbol = null) throws LlvmError {
 		this.artifact = artifact;
 		this.plan = plan;
@@ -632,6 +665,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		build_factory (types, signature, sums, checked_factory, true);
 		resume_blocks = new CApi.BasicBlockRef[plan.state_count];
 	}
+
 	private void build_factory(LlvmTypeMapper types, NativeSignature signature, LlvmSumRegistry? sums, CApi.ValueRef target_factory, bool checked_admission) throws LlvmError {
 		int capture_count = (int) signature.parameters.length;
 		var builder = CApi.create_builder_in_context (artifact.context);
@@ -761,6 +795,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		accesses.add (new LlvmAsyncFieldAccess (address, base_pointer, frame_type, index));
 		return address;
 	}
+
 	private uint definition_field(int ordinal) throws LlvmError {
 		for (uint f = 0; f < plan.field_count; f++) {
 			if (plan.field (f).definition == ordinal) {
@@ -769,9 +804,11 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 		throw new LlvmError.LOWERING ("async value has no exact persistent frame field");
 	}
+
 	internal CApi.ValueRef debug_environment() {
 		return backing;
 	}
+
 	internal uint debug_value_index(int ordinal) {
 		for (uint f = 0; f < plan.field_count; f++) {
 			if (plan.field (f).definition == ordinal) {
@@ -780,67 +817,84 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 		return uint.MAX;
 	}
+
 	internal CApi.ValueRef read(CApi.BuilderRef builder, int ordinal, CApi.TypeRef type) throws LlvmError {
 		var address = field_address (builder, backing, definition_field (ordinal));
 		var loaded = CApi.build_load (builder, type, address, "task.value.%d".printf (ordinal));
 		artifact.class_values.add (new LlvmClassValueBinding (loaded, CApi.Opcode.LOAD, type, new CApi.ValueRef[] { address }, "persistent source definition read"));
 		return loaded;
 	}
+
 	internal void write(CApi.BuilderRef builder, int ordinal, CApi.ValueRef value) throws LlvmError {
 		var address = field_address (builder, backing, definition_field (ordinal));
 		var stored = CApi.build_store (builder, value, address);
 		artifact.class_values.add (new LlvmClassValueBinding (stored, CApi.Opcode.STORE, runtime.nothing, new CApi.ValueRef[] { value, address }, "persistent source definition publication"));
 	}
+
 	internal CApi.ValueRef environment(CApi.BuilderRef builder, CApi.ValueRef task) throws LlvmError {
 		return runtime.call (builder, "astra_async_data", runtime.pointer, new CApi.TypeRef[] { runtime.pointer }, new CApi.ValueRef[] { task }, "task.frame");
 	}
+
 	internal CApi.ValueRef object_read(CApi.BuilderRef builder, uint ordinal) {
 		var address = field_address (builder, backing, 1 + plan.field_count + ordinal);
 		var loaded = CApi.build_load (builder, runtime.pointer, address, "frame.object");
 		artifact.class_values.add (new LlvmClassValueBinding (loaded, CApi.Opcode.LOAD, runtime.pointer, new CApi.ValueRef[] { address }, "persistent exact heap object"));
 		return loaded;
 	}
+
 	internal void object_write(CApi.BuilderRef builder, uint ordinal, CApi.ValueRef pointer) {
 		var address = field_address (builder, backing, 1 + plan.field_count + ordinal);
 		var stored = CApi.build_store (builder, pointer, address);
 		artifact.class_values.add (new LlvmClassValueBinding (stored, CApi.Opcode.STORE, runtime.nothing, new CApi.ValueRef[] { pointer, address }, "persistent exact heap allocation association"));
 	}
+
 	internal uint owner_field(uint ordinal) {
 		return 1 + plan.field_count + plan.object_count + ordinal * 2;
 	}
+
 	internal uint buffer_field(uint ordinal) {
 		return 1 + plan.field_count + plan.object_count + plan.owner_count * 2 + ordinal;
 	}
+
 	internal uint result_live_field() {
 		return enum_field (plan.enum_count);
 	}
+
 	internal CApi.ValueRef result_address(CApi.BuilderRef builder) {
 		return field_address (builder, backing, 0);
 	}
+
 	internal void result_initialized(CApi.BuilderRef builder) {
 		var live = CApi.const_int (CApi.int1_type_in_context (artifact.context), 1, 0);
 		var address = field_address (builder, backing, result_live_field ());
 		var stored = CApi.build_store (builder, live, address);
 		artifact.class_values.add (new LlvmClassValueBinding (stored, CApi.Opcode.STORE, runtime.nothing, new CApi.ValueRef[] { live, address }, "exact initialized task success payload before publication"));
 	}
+
 	internal uint enum_field(uint ordinal) {
 		return storage_field (plan.storage_count) + ordinal * 2;
 	}
+
 	internal CApi.ValueRef enum_address(CApi.BuilderRef builder, uint ordinal) {
 		return field_address (builder, backing, enum_field (ordinal));
 	}
+
 	internal CApi.ValueRef enum_flag(CApi.BuilderRef builder, uint ordinal) {
 		return field_address (builder, backing, enum_field (ordinal) + 1);
 	}
+
 	internal uint storage_field(uint ordinal) {
 		return buffer_field (plan.buffer_count) + ordinal;
 	}
+
 	internal CApi.ValueRef storage_address(CApi.BuilderRef builder, uint ordinal) {
 		return field_address (builder, backing, storage_field (ordinal));
 	}
+
 	internal CApi.ValueRef buffer_address(CApi.BuilderRef builder, uint ordinal) {
 		return field_address (builder, backing, buffer_field (ordinal));
 	}
+
 	internal void owner_update(CApi.BuilderRef builder, uint ordinal, CApi.ValueRef pointer, bool acquire) {
 		var address = field_address (builder, backing, owner_field (ordinal));
 		var selected = acquire ? pointer : CApi.const_null (runtime.pointer);
@@ -852,6 +906,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		var published = CApi.build_store (builder, live, flag);
 		artifact.class_values.add (new LlvmClassValueBinding (published, CApi.Opcode.STORE, runtime.nothing, new CApi.ValueRef[] { live, flag }, "exact initialized frame owner liveness"));
 	}
+
 	internal CApi.BasicBlockRef enter_wait(CApi.BuilderRef builder, CApi.ValueRef child, bool discard, int block, int position, out CApi.BasicBlockRef failure, bool payload = false, CApi.ValueRef bridge = (CApi.ValueRef) null) throws LlvmError {
 		uint selected = 0;
 		for (uint s = 1; s < plan.state_count; s++) {
@@ -882,10 +937,12 @@ internal class LlvmAsyncFrameBinding : Object {
 		continuations.add (new LlvmAsyncContinuation (setter, admitted, returned, resume_blocks[selected], failure, task, selected, true));
 		return resume_blocks[selected];
 	}
+
 	internal void raise(CApi.BuilderRef builder, CApi.ValueRef exception) throws LlvmError {
 		complete (builder, 6, exception);
 		CApi.build_ret_void (builder);
 	}
+
 	internal void begin(CApi.BuilderRef builder, CApi.BasicBlockRef entry, CApi.BasicBlockRef initial) throws LlvmError {
 		task = CApi.get_param (resume, 0);
 		CApi.position_builder_at_end (builder, entry);
@@ -927,6 +984,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		CApi.position_builder_at_end (builder, fallback);
 		runtime.trap (builder);
 	}
+
 	internal CApi.BasicBlockRef suspend(CApi.BuilderRef builder, CApi.ValueRef ticks, bool signed_ticks, int block, int position, out CApi.BasicBlockRef failure, bool payload = false) throws LlvmError {
 		uint selected = 0;
 		for (uint s = 1; s < plan.state_count; s++) {
@@ -1004,6 +1062,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		continuations.add (new LlvmAsyncContinuation (setter, admitted, returned, resume_blocks[selected], failure, task, selected, false));
 		return resume_blocks[selected];
 	}
+
 	internal CApi.ValueRef delay_result(CApi.BuilderRef builder, int block, int position) throws LlvmError {
 		uint selected = 0;
 		for (uint s = 1; s < plan.state_count; s++) {
@@ -1017,6 +1076,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 		return runtime.call (builder, "astra_async_linux_delay_result", runtime.i32, new CApi.TypeRef[] { runtime.pointer, runtime.i32 }, new CApi.ValueRef[] { task, CApi.const_int (runtime.i32, selected, 0) }, "delay.completion.status");
 	}
+
 	private void complete(CApi.BuilderRef builder, int phase, CApi.ValueRef exception) throws LlvmError {
 		CApi.TypeRef[] parameters = {
 			runtime.pointer, runtime.i32, runtime.pointer
@@ -1026,6 +1086,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		};
 		runtime.call (builder, "astra_async_complete", runtime.nothing, parameters, arguments);
 	}
+
 	internal void succeed(CApi.BuilderRef builder, CApi.ValueRef result) throws LlvmError {
 		if ((void*) result != null) {
 			var address = result_address (builder);
@@ -1036,12 +1097,14 @@ internal class LlvmAsyncFrameBinding : Object {
 		complete (builder, 5, CApi.const_null (runtime.pointer));
 		CApi.build_ret_void (builder);
 	}
+
 	internal CApi.BasicBlockRef[] lifetime_entries() throws LlvmError {
 		verify_continuations ();
 		return new CApi.BasicBlockRef[] {
 				   original_resume_entry, original_destroy_entry
 		};
 	}
+
 	internal CApi.BasicBlockRef[] lifetime_successors(CApi.BasicBlockRef block) throws LlvmError {
 		verify_continuations ();
 		var function = CApi.block_parent (block);
@@ -1072,6 +1135,7 @@ internal class LlvmAsyncFrameBinding : Object {
 		}
 		return result;
 	}
+
 	internal void verify_continuations() throws LlvmError {
 		if (effects.length == 0 || (void*) resume != (void*) original_resume || (void*) destroy != (void*) original_destroy || (void*) task != (void*) original_task || (void*) CApi.first_block (resume) != (void*) original_resume_entry || (void*) CApi.first_block (destroy) != (void*) original_destroy_entry || (void*) cancel_entry != (void*) original_cancel) {
 			throw new LlvmError.VERIFICATION ("immutable coroutine identity, entry or cancellation route changed");
@@ -1124,6 +1188,7 @@ internal class LlvmAsyncFrameBinding : Object {
 			}
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		var entries = lifetime_entries ();
 		if (lifetime_successors (entries[0]).length != 2) {
@@ -1170,5 +1235,6 @@ internal class LlvmAsyncFrameBinding : Object {
 			access.verify ();
 		}
 	}
+
 }
 }

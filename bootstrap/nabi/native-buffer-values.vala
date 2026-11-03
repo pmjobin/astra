@@ -29,6 +29,7 @@ public class NativeScopedBackingPlan : Object {
 		}
 		return text.str;
 	}
+
 	internal NativeScopedBackingPlan (int block, int position, int result, int context, int owner, int backing, int storage, int pointer, int length, int region, string name, string kind, string slots, GenericArray<int> retirements) {
 		block_ordinal = block;
 		this.position = position;
@@ -48,6 +49,7 @@ public class NativeScopedBackingPlan : Object {
 		}
 		origin = identity ();
 	}
+
 	public bool valid() {
 		if (origin != identity () || block_ordinal < 0 || position < 1 || result_ordinal < 0 || backing_ordinal < 0 || context_ordinal <= backing_ordinal || owner_ordinal < 0 || storage_ordinal < 0 || base_ordinal < 0 || length_ordinal != base_ordinal + 1 || region_ordinal < 0 || !Astra.Source.AllocationPolicy.identifier (handle_name, true) || kind_identity == "invalid" || slots_identity == "invalid" || retirements.length == 0 || retirements.length % 2 != 0) {
 			return false;
@@ -59,6 +61,7 @@ public class NativeScopedBackingPlan : Object {
 		}
 		return true;
 	}
+
 }
 // Physical boundary metadata only. Unlike NativeSliceType, this complete
 // pair transfers unique responsibility for static buffer deallocation.
@@ -69,6 +72,7 @@ public class NativeBufferValuePlan : Object {
 	public string element_spelling() {
 		return (record_element == null ? element_type.spelling () : record_element.spelling ()) + (context_origin == null ? "" : ";origin=" + context_origin.spelling ());
 	}
+
 	internal NativeBufferValuePlan.for_record (NativeRecordElement element) {
 		this.record_element = element;
 	}
@@ -79,6 +83,7 @@ public class NativeBufferValuePlan : Object {
 		this.element_type = element_type;
 		this.context_origin = context_origin;
 	}
+
 }
 public class NativeBufferParameterPlan : Object {
 	public int source_ordinal { get; private set; }
@@ -89,5 +94,6 @@ public class NativeBufferParameterPlan : Object {
 		this.first_leaf = first_leaf;
 		this.value_plan = value_plan;
 	}
+
 }
 }

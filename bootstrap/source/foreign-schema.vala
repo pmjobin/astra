@@ -4,18 +4,23 @@ public enum ForeignValueKind {
 	VOID, I32, U32, I64, U64, F32, F64, BOOL,
 	BYTES, TEXT, RECORD, NATIVE_OBJECT, COM_OBJECT, GOBJECT, CALLBACK;
 }
+
 public enum ForeignDirection {
 	IN, OUT, INOUT
 }
+
 public enum ForeignTransfer {
 	COPY, BORROW, OWN
 }
+
 public enum ForeignMemberKind {
 	CONSTRUCTOR, METHOD, GETTER, SETTER, SIGNAL
 }
+
 public enum ForeignLifetime{
 	UNIQUE,SHARED
 }
+
 public enum ForeignTextEncoding{
 	NONE,BYTES,UTF8_COUNTED,UTF8_NUL
 }
@@ -31,15 +36,19 @@ public class ForeignRecordField: Object {
 		name_identifier = name;
 		this.kind = kind;
 	}
+
 	public bool valid() {
 		return ForeignClassPolicy.identifier (name) && kind >= ForeignValueKind.I32 && kind <= ForeignValueKind.BOOL;
 	}
+
 	public bool equal(ForeignRecordField other) {
 		return name == other.name && kind == other.kind;
 	}
+
 	public string identity() {
 		return "%d:%s:%u;".printf (name.length,name,(uint) kind);
 	}
+
 }
 
 public class ForeignValueType: Object {
@@ -53,6 +62,7 @@ public class ForeignValueType: Object {
 	public ForeignRecordField field(uint index) {
 		return fields[index];
 	}
+
 	public uint callback_parameter_count { get { return callback_parameters.length; } }
 	public ForeignValueType callback_parameter(uint index) {
 		return callback_parameters[index];
@@ -75,12 +85,15 @@ public class ForeignValueType: Object {
 			}
 		}
 	}
+
 	public bool scalar() {
 		return kind >= ForeignValueKind.I32 && kind <= ForeignValueKind.BOOL;
 	}
+
 	public bool object_handle() {
 		return kind >= ForeignValueKind.NATIVE_OBJECT && kind <= ForeignValueKind.GOBJECT;
 	}
+
 	public bool valid(int remaining = 32) {
 		if (kind < ForeignValueKind.VOID || kind > ForeignValueKind.CALLBACK || remaining <= 0) {
 			return false;
@@ -113,6 +126,7 @@ public class ForeignValueType: Object {
 		}
 		return true;
 	}
+
 	public bool equal(ForeignValueType other) {
 		if (kind != other.kind || nominal_origin != other.nominal_origin || fields.length != other.fields.length || callback_parameters.length != other.callback_parameters.length || (callback_result == null) != (other.callback_result == null)) {
 			return false;
@@ -129,6 +143,7 @@ public class ForeignValueType: Object {
 		}
 		return callback_result == null || callback_result.equal (other.callback_result);
 	}
+
 	public string identity() {
 		var text = new StringBuilder ("%u:%d:%s:%u:".printf ((uint) kind,nominal_origin.length,nominal_origin,fields.length));
 		foreach (var field in fields) {
@@ -141,6 +156,7 @@ public class ForeignValueType: Object {
 		text.append (callback_result == null ? "-;" : callback_result.identity ());
 		return text.str;
 	}
+
 }
 
 // Windows COM storage is separate from both native storage and C99 storage.
@@ -150,15 +166,18 @@ public class ForeignComRecordLayout: Object {
 	public ForeignComRecordLayout (ForeignValueType type) {
 		value_type = type;
 	}
+
 	public static uint scalar_size(ForeignValueKind kind) {
 		if (kind == ForeignValueKind.I64 || kind == ForeignValueKind.U64 || kind == ForeignValueKind.F64) {
 			return 8;
 		}
 		return kind >= ForeignValueKind.I32 && kind <= ForeignValueKind.BOOL ? 4 : 0;
 	}
+
 	public bool valid() {
 		return value_type.kind == ForeignValueKind.RECORD && value_type.valid ();
 	}
+
 	public uint alignment {
 		get {
 			uint result = 1;
@@ -185,6 +204,7 @@ public class ForeignComRecordLayout: Object {
 		}
 		return uint.MAX;
 	}
+
 	public uint size {
 		get {
 			if (!valid ()) {
@@ -203,6 +223,7 @@ public class ForeignComRecordLayout: Object {
 		}
 		return text.str;
 	}
+
 }
 
 // GLib boxed layout is a separate physical plan from COM and C99.
@@ -211,15 +232,18 @@ public class ForeignGObjectRecordLayout: Object {
 	public ForeignGObjectRecordLayout (ForeignValueType type) {
 		value_type = type;
 	}
+
 	public static uint scalar_size(ForeignValueKind kind) {
 		if (kind == ForeignValueKind.I64 || kind == ForeignValueKind.U64 || kind == ForeignValueKind.F64) {
 			return 8;
 		}
 		return kind >= ForeignValueKind.I32 && kind <= ForeignValueKind.BOOL ? 4 : 0;
 	}
+
 	public bool valid() {
 		return value_type.kind == ForeignValueKind.RECORD && value_type.valid ();
 	}
+
 	public uint alignment {
 		get {
 			uint result = 1;
@@ -246,6 +270,7 @@ public class ForeignGObjectRecordLayout: Object {
 		}
 		return uint.MAX;
 	}
+
 	public uint size {
 		get {
 			if (!valid ()) {
@@ -264,6 +289,7 @@ public class ForeignGObjectRecordLayout: Object {
 		}
 		return text.str;
 	}
+
 }
 
 public class ForeignChannel: Object {
@@ -313,6 +339,7 @@ public class ForeignChannel: Object {
 		this.by_reference = by_reference;
 		this.intrinsic_context = intrinsic_context;
 	}
+
 	public bool valid() {
 		if (!ForeignClassPolicy.identifier (name) || !value_type.valid () || direction < ForeignDirection.IN || direction > ForeignDirection.INOUT || transfer < ForeignTransfer.COPY || transfer > ForeignTransfer.OWN) {
 			return false;
@@ -362,15 +389,19 @@ public class ForeignChannel: Object {
 		}
 		return value_type.object_handle () && !(native_nonnull && nullable) && closure_index == -1 && destroy_index == -1 && (transfer == ForeignTransfer.BORROW ? call_scoped : !call_scoped);
 	}
+
 	public bool equal(ForeignChannel other) {
 		return name == other.name && same_transport (other);
 	}
+
 	public bool same_transport(ForeignChannel other,bool exact_release = true,bool exact_value = true) {
 		return (!exact_value || value_type.equal (other.value_type)) && direction == other.direction && transfer == other.transfer && nullable == other.nullable && encoding == other.encoding && length_index == other.length_index && capacity_index == other.capacity_index && produced_index == other.produced_index && (!exact_release || release_symbol == other.release_symbol) && call_scoped == other.call_scoped && closure_index == other.closure_index && destroy_index == other.destroy_index && intrinsic_length == other.intrinsic_length && produced_by_result == other.produced_by_result && native_nonnull == other.native_nonnull && by_reference == other.by_reference && intrinsic_context == other.intrinsic_context;
 	}
+
 	public string identity() {
 		return "%d:%s:%s:%u:%u:%d:%u:%d:%d:%d:%d:%s:%d:%d:%d:%d:%d:%d:%d;".printf (name.length,name,value_type.identity (),(uint) direction,(uint) transfer,(int) nullable,(uint) encoding,length_index,capacity_index,produced_index,release_symbol.length,release_symbol,(int) call_scoped,closure_index,destroy_index,(int) intrinsic_length,(int) produced_by_result,(int) native_nonnull,(int) by_reference) + (intrinsic_context ? "context=intrinsic;" : "");
 	}
+
 }
 
 public class ForeignErrorCase: Object {
@@ -381,12 +412,15 @@ public class ForeignErrorCase: Object {
 		identifier = native_origin;
 		this.status = status;
 	}
+
 	public string c_identifier() {
 		return native_origin.contains (".") ? "qualified_" + Checksum.compute_for_string (ChecksumType.SHA256,native_origin) : native_origin;
 	}
+
 	public string identity() {
 		return "%d:%s:%d;".printf (native_origin.length,native_origin,status);
 	}
+
 }
 public class ForeignErrorMap: Object {
 	public int32 domain { get; private set; }
@@ -395,12 +429,14 @@ public class ForeignErrorMap: Object {
 	public ForeignErrorCase at(uint index) {
 		return cases[index];
 	}
+
 	public ForeignErrorMap (int32 domain,GenericArray<ForeignErrorCase> cases) {
 		this.domain = domain;
 		foreach (var entry in cases) {
 			this.cases.add (entry);
 		}
 	}
+
 	public bool valid(string bound) {
 		if (domain <= 0 || cases.length == 0 || cases.length > 256 || cases[cases.length - 1].native_origin != bound) {
 			return false;
@@ -416,6 +452,7 @@ public class ForeignErrorMap: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		var text = new StringBuilder ("%d:%u:".printf (domain,cases.length));
 		foreach (var entry in cases) {
@@ -423,6 +460,7 @@ public class ForeignErrorMap: Object {
 		}
 		return text.str;
 	}
+
 }
 public class ForeignMemberContract: Object {
 	public ForeignMemberKind kind { get; private set; }
@@ -442,6 +480,7 @@ public class ForeignMemberContract: Object {
 	public ForeignChannel parameter(uint index) {
 		return parameters[index];
 	}
+
 	public ForeignMemberContract (ForeignMemberKind kind,string name,string native_key,
 	                              GenericArray<ForeignChannel> parameters,ForeignChannel result,string error_origin = "",uint personalities = ForeignClassPolicy.C,int native_member_ordinal = -1,ForeignErrorMap? error_map = null,int32 null_status = 0) {
 		this.kind = kind;
@@ -457,9 +496,11 @@ public class ForeignMemberContract: Object {
 			this.parameters.add (parameter);
 		}
 	}
+
 	private bool count(int index,ForeignDirection direction) {
 		return index >= 0 && index < parameters.length && parameters[index].value_type.kind == ForeignValueKind.I32 && parameters[index].direction == direction && parameters[index].transfer == ForeignTransfer.COPY && parameters[index].by_reference == (direction == ForeignDirection.OUT);
 	}
+
 	private bool links(ForeignChannel channel,int ordinal) {
 		if (channel.produced_by_result && (result.value_type.kind != ForeignValueKind.I32 || result.transfer != ForeignTransfer.COPY || ordinal < 0)) {
 			return false;
@@ -481,6 +522,7 @@ public class ForeignMemberContract: Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		if (error_origin == "" ? error_map != null : error_map == null || !error_map.valid (error_origin)) {
 			return false;
@@ -513,6 +555,7 @@ public class ForeignMemberContract: Object {
 		}
 		return true;
 	}
+
 	public bool equal(ForeignMemberContract other) {
 		if (kind != other.kind || name != other.name || native_key != other.native_key || native_member_ordinal != other.native_member_ordinal || !result.equal (other.result) || error_origin != other.error_origin || (error_map == null ? other.error_map != null : other.error_map == null || error_map.identity () != other.error_map.identity ()) || null_status != other.null_status || personalities != other.personalities || parameters.length != other.parameters.length) {
 			return false;
@@ -524,6 +567,7 @@ public class ForeignMemberContract: Object {
 		}
 		return true;
 	}
+
 	public bool same_signature(ForeignMemberContract other) {
 		if (kind != other.kind || !result.same_transport (other.result) || error_origin != other.error_origin || (error_map == null ? other.error_map != null : other.error_map == null || error_map.identity () != other.error_map.identity ()) || null_status != other.null_status || parameters.length != other.parameters.length) {
 			return false;
@@ -535,6 +579,7 @@ public class ForeignMemberContract: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		var text = new StringBuilder ("%u:%d:%s:%d:%s:%d:%u:%d:%s:%u:".printf ((uint) kind,name.length,name,native_key.length,native_key,native_member_ordinal,personalities,error_origin.length,error_origin,parameters.length));
 		foreach (var parameter in parameters) {
@@ -544,6 +589,7 @@ public class ForeignMemberContract: Object {
 		text.append_printf ("%d:%s",null_status,error_map == null ? "-" : error_map.identity ());
 		return text.str;
 	}
+
 }
 
 public class ForeignApiContract: Object {
@@ -560,6 +606,7 @@ public class ForeignApiContract: Object {
 	public ForeignMemberContract member(uint index) {
 		return members[index];
 	}
+
 	public ForeignApiContract (string native_origin,string prefix,ForeignLifetime lifetime,
 	                           uint declared_personalities,GenericArray<ForeignMemberContract> members,int personality_selection = -1) {
 		this.personality_selection = personality_selection;
@@ -571,6 +618,7 @@ public class ForeignApiContract: Object {
 			this.members.add (member);
 		}
 	}
+
 	public bool valid() {
 		if (native_origin == "" || !ForeignClassPolicy.identifier (prefix) || prefix.has_prefix ("astra_") || lifetime < ForeignLifetime.UNIQUE || lifetime > ForeignLifetime.SHARED || declared_personalities == 0 || (declared_personalities & ~7U) != 0 || personality_selection < -1 || personality_selection > 7 || members.length > 4096) {
 			return false;
@@ -601,6 +649,7 @@ public class ForeignApiContract: Object {
 		}
 		return true;
 	}
+
 	public bool equal(ForeignApiContract other) {
 		if (native_origin != other.native_origin || prefix != other.prefix || lifetime != other.lifetime || declared_personalities != other.declared_personalities || personality_selection != other.personality_selection || members.length != other.members.length) {
 			return false;
@@ -612,6 +661,7 @@ public class ForeignApiContract: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		var text = new StringBuilder ("declarations-v1;%d:%s:%d:%s:%u:%u:%u:".printf (native_origin.length,native_origin,prefix.length,prefix,(uint) lifetime,declared_personalities,members.length));
 		if (personality_selection >= 0) {
@@ -622,6 +672,7 @@ public class ForeignApiContract: Object {
 		}
 		return text.str;
 	}
+
 }
 // One declared COM protocol, independent of an imported owner or an exported
 // native Class. IUnknown is the implicit root; inherited requirements retain
@@ -648,12 +699,15 @@ public class ForeignComInterface: Object {
 	public uint slot(uint requirement) {
 		return 3 + requirement;
 	}
+
 	public ForeignMemberContract requirement(uint index) {
 		return index < inherited_count? parent.requirement(index) : declared_members[index - inherited_count];
 	}
+
 	public string native_name(uint index) {
 		return index < inherited_count? parent.native_name(index) : declared_native_names[index - inherited_count];
 	}
+
 	public ForeignComInterface (string name,string prefix,string iid,GenericArray<ForeignMemberContract> members,string[] native_names,ForeignComInterface? parent = null) {
 		name_identifier = name;
 		prefix_identifier = prefix;
@@ -664,6 +718,7 @@ public class ForeignComInterface: Object {
 			declared_members.add (member);
 		}
 	}
+
 	public bool valid(uint remaining = 32) {
 		if (remaining == 0 || !ForeignClassPolicy.identifier (name) || !ForeignClassPolicy.identifier (prefix) || prefix.has_prefix ("astra_") || !ComExportContract.guid (iid) || declared_members.length != declared_native_names.length || declared_members.length > 4096 || parent != null && !parent.valid (remaining - 1)) {
 			return false;
@@ -686,6 +741,7 @@ public class ForeignComInterface: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		var text = new StringBuilder ("COMImport;declarations-v1;windows-x64;IUnknown=0,1,2;BOOL32;HRESULT32;%d:%s;%d:%s;%s;%s;%u:".printf (name.length,name,prefix.length,prefix,iid,parent == null ? "IUnknown" : parent.identity (),own_count));
 		for (uint index = 0; index < own_count; index++) {
@@ -693,6 +749,7 @@ public class ForeignComInterface: Object {
 		}
 		return text.str;
 	}
+
 }
 // An export resolves each protocol requirement once to a selected native
 // member. Detached stages retain exact member keys rather than repeating a
@@ -704,19 +761,23 @@ public class ForeignComExportBinding: Object {
 	public uint target(uint index) {
 		return targets[index];
 	}
+
 	public ForeignComExportBinding (ForeignComInterface protocol,ForeignApiContract api,uint[] targets) {
 		this.protocol = protocol;
 		this.api = api;
 		this.targets = targets.copy ();
 	}
+
 	public static bool native_view(ForeignChannel native_channel,ForeignChannel required) {
 		return native_channel.value_type.kind == ForeignValueKind.NATIVE_OBJECT && required.value_type.kind == ForeignValueKind.COM_OBJECT;
 	}
+
 	private static bool channel_matches(ForeignChannel native_channel,ForeignChannel required) {
 		bool projection = native_view (native_channel,required);
 		bool sequence = required.value_type.kind == ForeignValueKind.BYTES || required.value_type.kind == ForeignValueKind.TEXT;
 		return native_channel.same_transport (required,!projection && !sequence,!projection);
 	}
+
 	public static bool signature_matches(ForeignMemberContract native_member,ForeignMemberContract requirement) {
 		if (native_member.kind != requirement.kind || native_member.parameter_count != requirement.parameter_count || native_member.null_status != requirement.null_status || native_member.error_origin != "" && (native_member.error_origin != requirement.error_origin || native_member.error_map == null || requirement.error_map == null || native_member.error_map.identity () != requirement.error_map.identity ())) {
 			return false;
@@ -731,6 +792,7 @@ public class ForeignComExportBinding: Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		if (!protocol.valid () || !api.valid () || api.lifetime != ForeignLifetime.SHARED || targets.length != protocol.requirement_count) {
 			return false;
@@ -742,6 +804,7 @@ public class ForeignComExportBinding: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		var text = new StringBuilder (protocol.identity ());
 		for (uint r = 0; r < targets.length; r++) {
@@ -749,6 +812,7 @@ public class ForeignComExportBinding: Object {
 		}
 		return text.str;
 	}
+
 }
 // Explicit SDK boxed names belong to the imported physical contract. Native
 // nominal identity and scalar fields remain in ForeignValueType.
@@ -764,6 +828,7 @@ public class ForeignGObjectRecordBinding: Object {
 		type_identifier = name;
 		symbol_identifier = prefix;
 	}
+
 	public bool valid() {
 		if (native_origin.length == 0 || native_origin.length > 4096 || !ForeignClassPolicy.identifier (type_name) || type_name.length == 0 || type_name[0] < 'A' || type_name[0] > 'Z' || !ForeignClassPolicy.identifier (symbol_prefix)) {
 			return false;
@@ -776,9 +841,11 @@ public class ForeignGObjectRecordBinding: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		return "%d:%s;%d:%s;%d:%s;".printf (native_origin.length,native_origin,type_name.length,type_name,symbol_prefix.length,symbol_prefix);
 	}
+
 }
 public class ForeignGObjectImport: Object {
 	private string type_identifier;
@@ -810,6 +877,7 @@ public class ForeignGObjectImport: Object {
 		symbol_identifier = symbol_prefix;
 		header_identifier = header;
 	}
+
 	public ForeignGObjectRecordBinding? record(ForeignValueType type) {
 		if (type.kind != ForeignValueKind.RECORD) {
 			return null;
@@ -821,6 +889,7 @@ public class ForeignGObjectImport: Object {
 		}
 		return null;
 	}
+
 	public bool records_valid(ForeignApiContract api) {
 		for (uint m = 0; m < api.member_count; m++) {
 			var member = api.member (m);
@@ -833,6 +902,7 @@ public class ForeignGObjectImport: Object {
 		}
 		return true;
 	}
+
 	public bool valid() {
 		if (record_identifier.length > 65536 || records.length > 1024 || record_identifier != "" && (record_identifier.has_prefix ("|") || record_identifier.has_suffix ("|") || record_identifier.contains ("||"))) {
 			return false;
@@ -860,12 +930,15 @@ public class ForeignGObjectImport: Object {
 		}
 		return true;
 	}
+
 	public string identity() {
 		return "GObjectImport;declarations-v1;linux-x64;checked-out;gboolean32;GError;constructing;GType-is-a;nonfloating;owned-reference;%d:%s;%d:%s;%d:%s;%d:%s;%d:%s;".printf (type_name.length,type_name,namespace_name.length,namespace_name,version.length,version,symbol_prefix.length,symbol_prefix,header.length,header) + "%d:%s;".printf (record_identifier.length,record_identifier);
 	}
+
 	public bool equal(ForeignGObjectImport other) {
 		return type_name == other.type_name && namespace_name == other.namespace_name && version == other.version && symbol_prefix == other.symbol_prefix && header == other.header && record_identifier == other.record_identifier;
 	}
+
 }
 // Declaration-derived imported roots keep the provider's own lifetime.
 // The native carrier is the exact opaque provider handle, with no proxy RC.
@@ -879,9 +952,11 @@ public class ForeignImportContract: Object {
 	public string native_name(uint member) {
 		return native_names[member];
 	}
+
 	public string factory(uint member) {
 		return factories[member];
 	}
+
 	public ForeignImportContract (ForeignApiContract api,string[] factories,string[] native_names,ForeignComInterface? com = null,ForeignGObjectImport? gobject = null) {
 		this.gobject = gobject;
 		this.api = api;
@@ -889,6 +964,7 @@ public class ForeignImportContract: Object {
 		this.native_names = native_names.copy ();
 		this.com = com;
 	}
+
 	public static string root_identity(string name,string prefix,ForeignLifetime lifetime,string com_iid = "",ForeignGObjectImport? gobject = null,int personality_selection = -1) {
 		string selection = personality_selection < 0 ? "" : ";selected=%d".printf (personality_selection);
 		if (gobject != null) {
@@ -896,9 +972,11 @@ public class ForeignImportContract: Object {
 		}
 		return (com_iid == "" ? "CImport;declarations-v1;%s;%s;%u".printf (name,prefix,(uint) lifetime) : "COMImport;declarations-v1;%s;%s;%s".printf (name,prefix,com_iid.ascii_down ())) + selection;
 	}
+
 	public string identity() {
 		return root_identity (api.native_origin,api.prefix,api.lifetime,com == null ? "" : com.iid,gobject,api.personality_selection);
 	}
+
 	public string declaration_identity() {
 		var text = new StringBuilder (api.identity ());
 		if (com != null) {
@@ -912,6 +990,7 @@ public class ForeignImportContract: Object {
 		}
 		return text.str;
 	}
+
 	public bool equal(ForeignImportContract other) {
 		if (!api.equal (other.api) || (gobject == null ? other.gobject != null : other.gobject == null || !gobject.equal (other.gobject)) || (com == null ? other.com != null : other.com == null || com.identity () != other.com.identity ()) || factories.length != other.factories.length || native_names.length != other.native_names.length) {
 			return false;
@@ -923,6 +1002,7 @@ public class ForeignImportContract: Object {
 		}
 		return true;
 	}
+
 	public static bool distinct(GenericArray<ForeignImportContract> roots) {
 		var names = new HashTable<string,bool> (str_hash,str_equal);
 		var prefixes = new HashTable<string,bool> (str_hash,str_equal);
@@ -952,9 +1032,11 @@ public class ForeignImportContract: Object {
 		}
 		return true;
 	}
+
 	public string cleanup_symbol() {
 		return "astra_foreign16_import_cleanup_" + api.prefix;
 	}
+
 	public bool valid() {
 		if (!api.valid () || api.declared_personalities != (gobject != null ? ForeignClassPolicy.GOBJECT : com == null ? ForeignClassPolicy.C : ForeignClassPolicy.COM) || factories.length != api.member_count || native_names.length != api.member_count) {
 			return false;
@@ -996,9 +1078,11 @@ public class ForeignImportContract: Object {
 		}
 		return com == null || requirement == com.requirement_count;
 	}
+
 	public static bool matches(ForeignImportContract? contract,string identity,string name,string cleanup) {
 		return contract != null && contract.valid () && contract.identity () == identity && contract.api.native_origin == name && contract.cleanup_symbol () == cleanup;
 	}
+
 }
 public class ForeignImportBinding: Object {
 	public ForeignImportContract root { get; private set; }
@@ -1008,12 +1092,15 @@ public class ForeignImportBinding: Object {
 		this.root = root;
 		this.member_index = member_index;
 	}
+
 	public bool valid() {
 		return root.valid () && member_index < root.api.member_count && member.valid ();
 	}
+
 	public string identity() {
 		return root.api.identity () + (root.com == null ? "" : ";protocol=" + root.com.identity ()) + ";import-member=" + member_index.to_string () + ";factory=" + root.factory (member_index) + ";native=" + root.native_name (member_index);
 	}
+
 }
 public class ForeignSignalBinding: Object {
 	public ForeignClassPolicy root { get; private set; }
@@ -1023,15 +1110,19 @@ public class ForeignSignalBinding: Object {
 		this.root = root.copy ();
 		member_index = index;
 	}
+
 	public bool valid() {
 		return root.valid () && root.declared_api != null && root.declared_api.lifetime == ForeignLifetime.SHARED && root.gobject != null && root.gobject.declarations && member_index < root.declared_api.member_count && member.kind == ForeignMemberKind.SIGNAL && member.personalities == ForeignClassPolicy.GOBJECT && member.valid ();
 	}
+
 	public string identity() {
 		return root.identity () + ";signal=" + member_index.to_string ();
 	}
+
 	public string symbol() {
 		return "astra_foreign16_signal_" + root.prefix + "_" + member_index.to_string ();
 	}
+
 }
 
 }

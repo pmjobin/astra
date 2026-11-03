@@ -39,9 +39,11 @@ private void boundary() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-struct/cfg/materialized-only-malformed-model-firewall-lifetime", boundary);
 	return Test.run ();
 }
+
 }

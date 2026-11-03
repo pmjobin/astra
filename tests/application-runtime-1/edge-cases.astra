@@ -2,29 +2,31 @@
 bool bad_integer(string text) {
 	try { int value = parse_int(text); return false; } catch (IntegerParseError error) { return true; }
 }
+
 bool bad_segment(string text, int start, int count) {
 	try { var message = text_segment(text, start, count); return false; } catch (Error error) { return true; }
 }
+
 int main() {
 	try {
-		if (!bad_integer("") || !bad_integer("-") || !bad_integer("+1") || !bad_integer(" 1") || !bad_integer("1 ") || !bad_integer("1\0") || !bad_integer("１２")) { return 1; }
-		if (!bad_integer("2147483648") || !bad_integer("-2147483649") || !bad_integer("9999999999999999999999999")) { return 2; }
-		if (parse_int("0001") != 1 || parse_int("-0001") != -1) { return 3; }
-		if (!bad_segment("café", -1, 1) || !bad_segment("café", 0, -1) || !bad_segment("café", 6, 0) || !bad_segment("café", 1, 2147483647)) { return 4; }
-		if (!bad_segment("café", 4, 0) || !bad_segment("café", 3, 1) || !bad_segment("🖤", 0, 3)) { return 5; }
-		var empty = text_segment("café", 5, 0); if (empty.text != "") { return 6; }
-		var copied = text_segment("a\0🖤é", 1, 8); if (copied.text != "\0🖤é") { return 7; }
-		if (text_find("a\0🖤a", "🖤", 0) != 2 || !text_contains("a\0b", "\0") || text_find("", "x", 0) != -1) { return 8; }
+		if (!bad_integer("") || !bad_integer("-") || !bad_integer("+1") || !bad_integer(" 1") || !bad_integer("1 ") || !bad_integer("1\0") || !bad_integer("１２")) return 1;
+		if (!bad_integer("2147483648") || !bad_integer("-2147483649") || !bad_integer("9999999999999999999999999")) return 2;
+		if (parse_int("0001") != 1 || parse_int("-0001") != -1) return 3;
+		if (!bad_segment("café", -1, 1) || !bad_segment("café", 0, -1) || !bad_segment("café", 6, 0) || !bad_segment("café", 1, 2147483647)) return 4;
+		if (!bad_segment("café", 4, 0) || !bad_segment("café", 3, 1) || !bad_segment("🖤", 0, 3)) return 5;
+		var empty = text_segment("café", 5, 0); if (empty.text != "") return 6;
+		var copied = text_segment("a\0🖤é", 1, 8); if (copied.text != "\0🖤é") return 7;
+		if (text_find("a\0🖤a", "🖤", 0) != 2 || !text_contains("a\0b", "\0") || text_find("", "x", 0) != -1) return 8;
 		try { int x = text_find("", "", 1); return 9; } catch (TextRangeError error) {}
 		try { int x = text_byte("", 0); return 10; } catch (TextRangeError error) {}
 		var fields = new Bag<Utf8Message>();
-		if (text_split("a", "", fields) || fields.count() != 0 || !text_split("|a||", "|", fields) || fields.count() != 4) { return 11; }
+		if (text_split("a", "", fields) || fields.count() != 0 || !text_split("|a||", "|", fields) || fields.count() != 4) return 11;
 		u8[2] malformed = {195, 40};
 		try { var invalid = utf8_message(slice(malformed)); return 12; } catch (InvalidUtf8 error) {}
 		var bytes = new u8[1]; bytes[0] = 255; var binary = new FileBytes(move bytes);
 		try { var invalid = binary.decode(); return 13; } catch (InvalidUtf8 error) {}
-		if (binary.byte_at(0) != 255) { return 14; }
-		try { int x = binary.byte_at(-1); return 15; } catch (FileError error) { if (error.operation != 6) { return 16; } }
+		if (binary.byte_at(0) != 255) return 14;
+		try { int x = binary.byte_at(-1); return 15; } catch (FileError error) { if (error.operation != 6) return 16; }
 		return 0;
 	} catch (Error error) { return 20; }
 }

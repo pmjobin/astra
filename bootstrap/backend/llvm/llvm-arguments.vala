@@ -9,6 +9,7 @@ internal class LlvmArguments : Object {
 			throw new LlvmError.TARGET ("native text-slice layout and hosted arguments are not qualified for target '%s'", triple);
 		}
 	}
+
 	internal static void emit(LlvmModuleArtifact artifact) throws LlvmError {
 		if (artifact.entry_kind != NativeEntryKind.TEXT_ARGUMENTS || artifact.text_slice_layout == null || !artifact.text_slice_layout.qualified ()) {
 			throw new LlvmError.INVALID_INPUT ("hosted arguments require a verified entry plan and target descriptor layout");
@@ -69,5 +70,6 @@ internal class LlvmArguments : Object {
 		CApi.build_ret (builder, result);
 		CApi.dispose_builder (builder);
 	}
+
 }
 }

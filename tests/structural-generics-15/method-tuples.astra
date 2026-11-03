@@ -7,13 +7,18 @@ struct Pair {
 class Box<T, Tag> {
 	owned T payload;
 	Tag label;
+
 	init(owned T value, Tag label) {
 		this.payload = move value;
 		this.label = label;
 	}
+
 	U choose_value<U, V>(U first, V ignored) { return first; }
+
 	V combine<U, V>(U ignored, V second) { return second; }
+
 	W third<U, V, W>(U first, V second, W last) { return last; }
+
 	int phantom<U, V>() { return 7; }
 }
 
@@ -25,8 +30,8 @@ int main() {
 	bool chosen = box.choose_value<bool, int>(true, 7);
 	Pair copied = box.combine<int, Pair>(0, pair);
 	i64 last = box.third<int, bool, i64>(3, false, 9000000000);
-	if (first != 42 || second != 8 || !chosen) { return 1; }
-	if (copied.code != 17 || copied.total != last) { return 2; }
-	if (box.phantom<int, Pair>() != box.phantom<int, bool>()) { return 3; }
+	if (first != 42 || second != 8 || !chosen) return 1;
+	if (copied.code != 17 || copied.total != last) return 2;
+	if (box.phantom<int, Pair>() != box.phantom<int, bool>()) return 3;
 	return box.payload - 42;
 }

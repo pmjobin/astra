@@ -20,9 +20,11 @@ public class BufferValueShape : Object {
 		this.base_type = base_type;
 		this.length_type = length_type;
 	}
+
 	public bool is_valid(CopyabilityFields? fields = null) {
 		return BufferElementTypes.supports (slice_type.element_type, fields) && base_type.is_void_pointer () && length_type.kind == TypeKind.INT;
 	}
+
 }
 // Signature-derived evidence owns only immutable lexical type tokens. Both
 // semantic checking and parameterized Core validate the same obligations.
@@ -32,15 +34,19 @@ public class GenericSliceObligations : Object {
 	public void require(TypeParameterType parameter, GenericElementRequirements requirements = GenericElementRequirements.BUFFER) {
 		elements.insert (parameter, requirements);
 	}
+
 	public bool contains(TypeParameterType parameter) {
 		return elements.contains (parameter);
 	}
+
 	public GenericElementRequirements requirements(TypeParameterType parameter) {
 		return elements.lookup (parameter);
 	}
+
 	public bool establishes(TypeParameterType parameter, GenericElementRequirements required) {
 		return (requirements (parameter) & required) == required;
 	}
+
 	public static bool accepts(SemanticType type, CopyabilityFields? fields = null, CopyabilityPremise? premise = null) {
 		if (type is TypeParameterType) {
 			return ((TypeParameterType) type).transport_mode == GenericTransportMode.PLAIN_COPY && premise != null && premise ((TypeParameterType) type);
@@ -49,6 +55,7 @@ public class GenericSliceObligations : Object {
 		// destruction checks are independent of copying; no allocation occurs.
 		return GenericArgumentTypes.supports (type, fields) && BufferElementTypes.supports (type, fields);
 	}
+
 }
 
 // Independent structural questions, not generic-argument capability aliases.
@@ -58,18 +65,23 @@ public class BufferElementTypes : Object {
 	public static bool candidate(SemanticType type) {
 		return !type.is_parameterized () && (leaf_storage (type) || type.is_struct_storage ());
 	}
+
 	private static bool leaf_storage(SemanticType type) {
 		return type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL || type.is_void_pointer () || (type is VectorType && VectorType.supports (((VectorType) type).element_type, ((VectorType) type).lane_count));
 	}
+
 	public static bool fixed_storage(SemanticType type, CopyabilityFields? fields = null) {
 		return problem (type, fields, ElementRequirement.STORAGE) == null;
 	}
+
 	public static bool trivial_destruction(SemanticType type, CopyabilityFields? fields = null) {
 		return problem (type, fields, ElementRequirement.DESTRUCTION) == null;
 	}
+
 	public static bool defined_zero(SemanticType type, CopyabilityFields? fields = null) {
 		return problem (type, fields, ElementRequirement.ZERO) == null;
 	}
+
 	public static bool supports(SemanticType type, CopyabilityFields? fields = null) {
 		if (type.is_parameterized () || !fixed_storage (type, fields) || !trivial_destruction (type, fields) || !defined_zero (type, fields)) {
 			return false;
@@ -80,12 +92,15 @@ public class BufferElementTypes : Object {
 	private enum ElementRequirement {
 		STORAGE, DESTRUCTION, ZERO
 	}
+
 	private static string? problem(SemanticType type, CopyabilityFields? fields, ElementRequirement requirement) {
 		return visit (type, fields, requirement, new HashTable<SemanticType, bool> (direct_hash, direct_equal), "");
 	}
+
 	public static string? invalid_field(SemanticType type, CopyabilityFields fields) {
 		return problem (type, fields, ElementRequirement.STORAGE);
 	}
+
 	private static string? visit(SemanticType type, CopyabilityFields? fields, ElementRequirement requirement, HashTable<SemanticType, bool> visited, string path) {
 		if (leaf_storage (type)) {
 			// These are separate obligations. In this bounded domain each leaf
@@ -115,5 +130,6 @@ public class BufferElementTypes : Object {
 		visited.insert (type, true);
 		return null;
 	}
+
 }
 }

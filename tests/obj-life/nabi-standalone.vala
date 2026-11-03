@@ -27,6 +27,7 @@ private NativeAbiProgram sample(int shape = 0, int variant = 0) throws NativeAbi
 	}
 	return new NativeAbiProgram (s, version, functions);
 }
+
 private void channels() {
 	try {
 		for (int shape = 0; shape < 5; shape++) {
@@ -44,6 +45,7 @@ private void channels() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int i = 1; i <= 7; i++) {
 		try {
@@ -55,10 +57,12 @@ private void invalid() {
 		GLib.error ("accepted malformed lifecycle NABI %d", i);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/nabi/void-receiver-scalar-vector-slice-resource", channels);
 	Test.add_func ("/obj-life/nabi/reject-wrong-receiver-result-profile-and-identity", invalid);
 	return Test.run ();
 }
+
 }

@@ -21,6 +21,7 @@ public class SsaMethod : SsaFunction {
 		this.method_ordinal = method_ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 // Implicit immutable input; absent from the explicit source parameter array.
@@ -30,5 +31,6 @@ public class SsaReceiver : SsaDefinition {
 	internal SsaReceiver (SourceSpan span, ReceiverType contract, int ordinal) {
 		base (span, contract, ordinal);
 	}
+
 }
 }

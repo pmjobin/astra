@@ -12,21 +12,25 @@
 #else
 typedef struct Index Index;
 typedef struct Match Match;
+
 typedef struct {
 	int64_t minimum;
 	double ceiling;
 	uint32_t mask;
 	bool lowest;
 } Query;
+
 typedef struct {
 	int64_t code;
 	double score;
 	uint32_t matches;
 	bool found;
 } Answer;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 _Static_assert(sizeof(Query) == 24 && offsetof(Query, lowest) == 20 && sizeof(Answer) == 24 && offsetof(Answer, found) == 20, "independent query/answer POD layout");
 extern int32_t record_query16_create(Index **, Error *);
 extern int32_t record_query16_search(Index *, Query, Answer *, Error *);
@@ -52,11 +56,13 @@ extern uint32_t record_match16_release(Match *);
 #define A_FOUND(value) ((value).found)
 #endif
 extern uint32_t query16_retired_count(int32_t);
+
 static void requests(Index *root, int expected) {
 	int32_t actual = -1;
 	Error error = {0};
 	assert(record_query16_get_requests(root, &actual, &error) == 0 && actual == expected);
 }
+
 int main(void) {
 	Index *root = NULL;
 	Error error = {0};

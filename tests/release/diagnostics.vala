@@ -21,6 +21,7 @@ private void flow_invalid(string statements, string message, string operand, int
 		assert (error.message.contains (message));
 	}
 }
+
 private void register_diagnostics() {
 	string[] syntax = {
 		"release(a);", "release create(1);", "release a == null;", "release a.field;", "release a->field;", "release;", "release a", "a = release a;", "return release a;", "use(release a);", "owned void* b = release a;", "int x = release a;", "if (release a) { return; }"
@@ -75,4 +76,5 @@ private void register_diagnostics() {
 	add ("/release/break-join", () => flow_invalid ("while (c) { release a; break; } inspect(a);", MIXED + " and cannot be borrowed", "a"));
 	add ("/release/constant-condition-policy", () => flow_invalid ("if (true) { release a; } release a;", MIXED + " and cannot be released", "release a;"));
 }
+
 }

@@ -1,30 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class ReadStore {
 	private owned ReadLibrary.Payload<int>[slots] values;
+
 	init() { this.values = new ReadLibrary.Payload<int>[slots]; }
+
 	bool add(owned ReadLibrary.Payload<int> value) {
-		if (!this.values.reserve(2)) { return false; }
+		if (!this.values.reserve(2)) return false;
 		this.values.append(move value);
 		return true;
 	}
+
 	int inspect(borrowed ReadLibrary.Payload<int> value) { return ReadMiddle.inspect(value); }
+
 	int read(int index) { return this.inspect(this.values[index]); }
 }
+
 int exercise_readonly() {
 	var store = new ReadStore();
 	var first_resource = make(231);
 	var first = new ReadLibrary.Payload<int>(move first_resource, 40, 7);
 	var second_resource = make(232);
 	var second = new ReadLibrary.Payload<int>(move second_resource, 50, 9);
-	if (!store.add(move first) || !store.add(move second)) { return 1; }
-	if (store.read(0) != 87 || store.read(1) != 109 || store.read(0) != 87) { return 2; }
+	if (!store.add(move first) || !store.add(move second)) return 1;
+	if (store.read(0) != 87 || store.read(1) != 109 || store.read(0) != 87) return 2;
 	var independent_resource = make(233);
 	var independent = new ReadLibrary.Payload<int>(move independent_resource, 3, 2);
-	if (ReadMiddle.mutate(independent) != 99 || ReadMiddle.inspect(independent) != 200) { return 3; }
+	if (ReadMiddle.mutate(independent) != 99 || ReadMiddle.inspect(independent) != 200) return 3;
 	return 0;
 }
+
 int main() {
 	int result = exercise_readonly();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

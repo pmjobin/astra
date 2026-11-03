@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CCode (text_abi = "utf8-i32")]
 extern(C) int astra_host_text_byte(borrowed string text, int index);
+
 extern(C) int app_created();
+
 extern(C) int app_destroyed();
+
 extern(C) int app_last_destroyed();
 
 bool report_text(Utf8ByteBuilder report, string text) {
@@ -10,18 +13,25 @@ bool report_text(Utf8ByteBuilder report, string text) {
 	int at = 0;
 	while (at < text.byte_length) {
 		byte[0] = astra_host_text_byte(text, at) as u8;
-		if (!report.append_bytes(slice(byte))) { return false; }
+		if (!report.append_bytes(slice(byte))) return false;
 		at = at + 1;
 	}
 	return true;
 }
+
 void report_value(Utf8ByteBuilder report, string key, int value) throws Error {
-	if (!report_text(report, key) || !append_int(report, value) || !report_text(report, "\n")) { throw new Error("report capacity"); }
+	if (!report_text(report, key) || !append_int(report, value) || !report_text(report, "\n")) {
+		throw new Error("report capacity");
+	}
 }
+
 void show_report(Utf8ByteBuilder report) throws Error {
 	var text = report.snapshot();
-	if (!print(text.text)) { throw new Error("report output"); }
+	if (!print(text.text)) {
+		throw new Error("report output");
+	}
 }
+
 owned Utf8Message report_snapshot(borrowed Utf8ByteBuilder report) throws Error {
 	var text = report.snapshot();
 	return move text;

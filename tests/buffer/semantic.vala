@@ -11,6 +11,7 @@ private SemanticResult analyze(string source) {
 	}
 	return SemanticAnalyzer.analyze(parsed.unit);
 }
+
 private void eligible() {
 	var t = new BuiltinTypes();
 	foreach (var type in new SemanticType[] {t.bool_type, t.i8_type, t.u8_type, t.i16_type, t.u16_type, t.int_type, t.u32_type, t.f32_type, t.f64_type, t.raw_pointer_type}) {
@@ -33,6 +34,7 @@ private void eligible() {
 		assert(!BufferElementTypes.supports(type));
 	}
 }
+
 private void identity() {
 	var result = analyze("void use(f64[] values){} owned f64[] make(int n){return new f64[n];} void f(){owned f64[] a=make(3);use(a);owned f64[] b=move a;a=new f64[4];}");
 	assert(result.diagnostic == null);
@@ -43,6 +45,7 @@ private void identity() {
 	assert(program.functions[2].locals[0].semantic_type == canonical && program.functions[2].locals[0].is_buffer_owner);
 	assert(!SemanticDump.format(program).contains("calloc"));
 }
+
 private void invalid() {
 	assert(analyze("struct S{int x;}void f(){owned S[] a=new S[2];}").diagnostic == null);
 	foreach (string source in new string[] {
@@ -71,6 +74,7 @@ private void invalid() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/semantic/structural-element-authority", eligible);
@@ -78,4 +82,5 @@ int main(string[] args) {
 	Test.add_func("/buffer/semantic/rejected-elements-and-owner-consumers", invalid);
 	return Test.run();
 }
+
 }

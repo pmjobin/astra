@@ -36,6 +36,7 @@ private void identity() throws GLib.Error {
 	assert (ssa.c_functions[0].owned_cleanup == ssa.handles[0].cleanup && ssa.c_functions[2].owned_cleanup == ssa.handles[1].cleanup);
 	assert (ssa.functions[0].storage.length == 0);
 }
+
 private void physical() throws GLib.Error {
 	var ssa = build ("Resource empty(Resource r) { return null; } int use(borrowed Resource r) { return inspect(r); }" + BASIC);
 	var nabi = NativeAbiBuilder.build (ssa);
@@ -50,12 +51,14 @@ private void physical() throws GLib.Error {
 	assert (cabi.functions[0].owned_cleanup == cabi.functions[2].owned_cleanup);
 	assert (cabi.functions[7].signature.parameters[0].pointer_contract == PointerParameterContract.BORROWED_NOESCAPE);
 }
+
 private void native_differential() throws GLib.Error {
 	var resource = build ("Resource empty(Resource r) { return null; }", TYPES);
 	var pointer = build ("void* empty(borrowed void* r) { return null; }", "");
 	assert (NativeAbiDump.format (NativeAbiBuilder.build (resource)) == NativeAbiDump.format (NativeAbiBuilder.build (pointer)));
 	assert (resource.functions[0].return_type is HandleType && pointer.functions[0].return_type is RawPointerType);
 }
+
 private void cross_file(bool reversed) throws GLib.Error {
 	var types = VapiParser.parse (new SourceFile.from_text ("types.vapi", TYPES));
 	var api = VapiParser.parse (new SourceFile.from_text ("api.vapi", API));
@@ -79,6 +82,7 @@ private void cross_file(bool reversed) throws GLib.Error {
 	assert (SemanticDump.format (result.program) == SemanticDump.format (check (BASIC)));
 	assert (result.program.handles[0].ordinal == 0 && result.program.handles[1].ordinal == 1);
 }
+
 private void extern_equivalence() throws GLib.Error {
 	string body = "int f() { owned Resource r = create(1); return inspect(r); }";
 	var vapi = check (body, TYPES + "owned Resource create(int id); int inspect(borrowed Resource r);");
@@ -88,6 +92,7 @@ private void extern_equivalence() throws GLib.Error {
 	var right = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (source)));
 	assert (CAbiDump.format (CAbiBuilder.build (left, NativeAbiBuilder.build (left))) == CAbiDump.format (CAbiBuilder.build (right, NativeAbiBuilder.build (right))));
 }
+
 private void null_phi() throws GLib.Error {
 	var ssa = build ("Resource f(bool c) { Resource q = null; if (c) { q = raw(); } return q; }");
 	var type = ssa.handles[0].semantic_type;
@@ -101,6 +106,7 @@ private void null_phi() throws GLib.Error {
 	assert (count == 1 && ssa.functions[0].storage.length == 0);
 	assert (SsaDump.format (ssa).contains ("null : Resource"));
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -120,4 +126,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -13,4 +13,5 @@ internal EnumDefinition definition(BuiltinTypes types, SourceSpan span) {
 	variants.add (new EnumVariant (new EnumVariantIdentity (type.identity, "Empty", 1), span, new GenericArray<EnumField> ()));
 	return new EnumDefinition (type, span, variants, types.i32_type);
 }
+
 }

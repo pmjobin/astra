@@ -7,12 +7,14 @@ internal class EnumOrdinals : Object {
 	internal int at(int index) {
 		return items[index];
 	}
+
 	internal void add(int value) {
 		if (length == items.length) {
 			items.resize (items.length * 2);
 		}
 		items[length++] = value;
 	}
+
 }
 // A verifier builds these events from its own ordered instructions. No producer
 // supplies initialization facts; the fixed point derives them from actual edges.
@@ -41,6 +43,7 @@ internal class EnumFlowFacts : Object {
 			initialized[i] = initial;
 		}
 	}
+
 }
 
 public class EnumInitializationProof : Object {
@@ -160,6 +163,7 @@ public class EnumInitializationProof : Object {
 			}
 		}
 	}
+
 	// A captured carrier has physical bytes before commitment, but obtains
 	// ownership only from the commit's acquisition event. Derive definite
 	// authority on every incoming edge, separately from byte initialization.
@@ -232,6 +236,7 @@ public class EnumInitializationProof : Object {
 			}
 		}
 	}
+
 	private static void verify_lifetimes(int slots, int entry, GenericArray<EnumFlowBlock> blocks, bool[] owners, bool[] reachable) throws EnumContractError {
 		if (owners.length != slots) {
 			throw new EnumContractError.INVALID_GRAPH ("enum owner inventory length mismatch");

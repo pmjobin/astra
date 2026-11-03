@@ -20,6 +20,7 @@ private class DescriptorMember : Object {
 		this.type_name = type_name;
 		position = symbol.name_span.start;
 	}
+
 }
 private class DescriptorType : Object {
 	internal string name;
@@ -36,6 +37,7 @@ private class DescriptorFields : Object {
 	internal DescriptorFields (CheckedProgram program) {
 		this.program = program;
 	}
+
 	internal GenericArray<SemanticType>? lookup(SemanticType type) {
 		foreach (var record in program.structs) {
 			if (record.semantic_type != type) {
@@ -54,12 +56,14 @@ private class DescriptorFields : Object {
 		}
 		return null;
 	}
+
 }
 public class NativeDescriptors : Object {
 	public const int VERSION = 1;
 	private static string quoted(string text) {
 		return "\"" + text.replace ("\\", "\\\\").replace ("\"", "\\\"").replace ("\n", "\\n").replace ("\r", "\\r").replace ("\t", "\\t") + "\"";
 	}
+
 	private static bool identifier(string text) {
 		if (text.length == 0 || text.length > 64) {
 			return false;
@@ -72,6 +76,7 @@ public class NativeDescriptors : Object {
 		}
 		return true;
 	}
+
 	private static int identity(string text) {
 		uint hash = 2166136261u;
 		for (int i = 0; i < text.length; i++) {
@@ -80,6 +85,7 @@ public class NativeDescriptors : Object {
 		int result = (int) (hash & 0x7fffffffu);
 		return result == 0 ? 1 : result;
 	}
+
 	private static bool factory(NativeInstanceSymbol owner, MethodSymbol method) {
 		foreach (var property in owner.properties) {
 			if (property.factory == method) {
@@ -88,10 +94,12 @@ public class NativeDescriptors : Object {
 		}
 		return false;
 	}
+
 	private static bool copied_record(CheckedProgram program, SemanticType type) {
 		var fields = new DescriptorFields (program);
 		return CopyabilityAuthority.value_copy (type, fields.lookup) == Copyability.COPYABLE;
 	}
+
 	private static string signature(MethodSymbol method) {
 		var text = new StringBuilder (method.result_contract == ResultOwnershipContract.OWNED_TRANSFER ? "owned " : "");
 		if (method.async_body != null) {
@@ -123,6 +131,7 @@ public class NativeDescriptors : Object {
 		}
 		return text.str;
 	}
+
 	private static DescriptorType snapshot(CheckedProgram program, NativeInstanceSymbol owner, string alias, string module) throws NativeDescriptorError {
 		if (owner.semantic_type.is_parameterized () || owner.semantic_type is ExactGenericClassType) {
 			throw new NativeDescriptorError.INVALID ("descriptor selection currently requires a nongeneric native Class, record or interface");
@@ -185,6 +194,7 @@ public class NativeDescriptors : Object {
 		}
 		return type;
 	}
+
 	private static void type_queries(StringBuilder text, GenericArray<DescriptorType> types) {
 		foreach (string query in new string[] {"name", "kind", "member_count"}) {
 			text.append_printf ("%s type_%s(TypeDescriptor descriptor) throws Error {\n\tvalidate_type(descriptor);\n", query == "member_count" ? "int" : "string", query);
@@ -194,6 +204,7 @@ public class NativeDescriptors : Object {
 			text.append ("\tthrow new Error(\"unknown native type descriptor\");\n}\n");
 		}
 	}
+
 	private static void member_queries(StringBuilder text, GenericArray<DescriptorType> types) {
 		text.append ("MemberDescriptor member(TypeDescriptor owner, int ordinal) throws Error {\n\tint count = type_member_count(owner);\n\tif (ordinal < 0 || ordinal >= count) { throw new Error(\"native member index out of bounds\"); }\n\tMemberDescriptor result = {owner = owner, ordinal = ordinal};\n\treturn result;\n}\n");
 		text.append ("void validate_member(MemberDescriptor descriptor) throws Error {\n\tint count = type_member_count(descriptor.owner);\n\tif (descriptor.ordinal < 0 || descriptor.ordinal >= count) { throw new Error(\"native member index out of bounds\"); }\n}\n");
@@ -210,6 +221,7 @@ public class NativeDescriptors : Object {
 			text.append ("\tthrow new Error(\"unknown native member descriptor\");\n}\n");
 		}
 	}
+
 	private static void readers(StringBuilder text, GenericArray<DescriptorType> types) {
 		foreach (var type in types) {
 			if (!type.readable) {
@@ -234,6 +246,7 @@ public class NativeDescriptors : Object {
 			}
 		}
 	}
+
 	public static string generate(CheckedProgram program, string module, string[] nominations) throws NativeDescriptorError {
 		if (!identifier (module) || nominations.length == 0 || nominations.length > 32) {
 			throw new NativeDescriptorError.INVALID ("requires one identifier module and 1..32 explicit type selections");
@@ -357,6 +370,7 @@ public class NativeDescriptors : Object {
 		}
 		return text.str;
 	}
+
 	public static void write(string path, string source) throws NativeDescriptorError {
 		try {
 			FileUtils.set_contents (path, source);
@@ -364,5 +378,6 @@ public class NativeDescriptors : Object {
 			throw new NativeDescriptorError.OUTPUT ("cannot write descriptor source '%s': %s", path, error.message);
 		}
 	}
+
 }
 }

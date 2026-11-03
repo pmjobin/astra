@@ -103,4 +103,5 @@ private void type_layout_contexts() throws GLib.Error {
 	assert (CApi.abi_size_of_type (second_data, b) == 24);
 	// The target survives both queried contexts; it owns no cached Type*.
 }
+
 }

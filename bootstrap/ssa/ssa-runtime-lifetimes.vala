@@ -14,6 +14,7 @@ private class SsaRuntimeStorage : Object {
 		this.destination = destination;
 		this.path = path;
 	}
+
 }
 private class SsaRuntimeBound : Object {
 	internal int value;
@@ -22,6 +23,7 @@ private class SsaRuntimeBound : Object {
 		this.value = value;
 		this.destination = destination;
 	}
+
 }
 private class SsaRuntimeContextEnd : Object {
 	internal int context;
@@ -36,6 +38,7 @@ private class SsaRuntimeContextEnd : Object {
 			}
 		}
 	}
+
 }
 // Reconstruct from definitions, physical edges, ordered memory effects and
 // exact owner events. No Source, Core or CFG summaries enter this authority.
@@ -51,6 +54,7 @@ public class SsaRuntimeLifetimes : Object {
 		}
 		return analysis.summaries;
 	}
+
 	public static void verify(SsaProgram program, GenericArray<SsaFunction>? required = null) throws SsaError {
 		var summaries = analyze (program);
 		if (required != null) {
@@ -62,6 +66,7 @@ public class SsaRuntimeLifetimes : Object {
 			}
 		}
 	}
+
 	private static void physical_roles(SsaFunction function, out bool[] owners, out bool[] contexts, out bool[] mutable_owners) {
 		owners = new bool[function.parameters.length];
 		contexts = new bool[function.parameters.length];
@@ -87,6 +92,7 @@ public class SsaRuntimeLifetimes : Object {
 			mutable_owners[p] = !owns && graph && !contexts[p];
 		}
 	}
+
 	internal static RuntimeLifetimeSummary import_summary(SsaFunction function, RuntimeLifetimeSummary archived) throws RuntimeLifetimeError {
 		if (!archived.logical_coordinates) {
 			return archived;
@@ -104,6 +110,7 @@ public class SsaRuntimeLifetimes : Object {
 		physical_roles (function, out owners, out contexts, out mutable_owners);
 		return layout.to_physical (archived, function.implicit_receiver != null, owners, contexts, mutable_owners);
 	}
+
 	public static string export_summary(SsaFunction function, string descriptor) throws RuntimeLifetimeError {
 		var positions = new GenericArray<int> ();
 		var ordinals = new GenericArray<int> ();
@@ -120,6 +127,7 @@ public class SsaRuntimeLifetimes : Object {
 		summary.validate_formals (function.implicit_receiver != null, owners, contexts, mutable_owners);
 		return layout.to_logical (summary, function.implicit_receiver != null, owners, contexts, mutable_owners).encode ();
 	}
+
 	internal RuntimeLifetimeSummary? summary(SsaFunction? function) throws SsaError {
 		if (function == null || visiting.contains (function) || !program.functions.find (function)) {
 			return null;
@@ -158,6 +166,7 @@ public class SsaRuntimeLifetimes : Object {
 		summaries.insert (function, result);
 		return result;
 	}
+
 }
 private class SsaRuntimeLifetimeBody : Object {
 	private SsaRuntimeLifetimes analysis;
@@ -231,14 +240,17 @@ private class SsaRuntimeLifetimeBody : Object {
 			scoped_allocation |= scoped_type (local.semantic_type);
 		}
 	}
+
 	private void unsupported_node(string reason) {
 		if (unsupported == "") {
 			unsupported = reason;
 		}
 	}
+
 	private static int parameter_binding(int parameter) {
 		return -parameter - 2;
 	}
+
 	private int parameter_index(SsaFunctionParameter parameter) {
 		for (int i = 0; i < function.parameters.length; i++) {
 			if (function.parameters[i] == parameter) {
@@ -248,14 +260,17 @@ private class SsaRuntimeLifetimeBody : Object {
 		unsupported_node ("SSA parameter is outside its actual signature");
 		return -2;
 	}
+
 	private static bool graph_input(SemanticType type) {
 		return !(type is HandleType && ((HandleType) type).context_mode != "") && (type is ClassType || type is ReceiverType || type is HandleType || type.is_struct_storage () || type is TaskType);
 	}
+
 	private int slot() {
 		int result = next_slot++;
 		slots.add (result);
 		return result;
 	}
+
 	private int region_id(TextLoanExtent? extent) throws RuntimeLifetimeError {
 		if (extent == null) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA lifetime requires actual lexical cleanup extents");
@@ -266,6 +281,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return region_ids.lookup (extent);
 	}
+
 	private void owner_extent(int ordinal, TextLoanExtent? extent) throws RuntimeLifetimeError {
 		if (ordinal < 0 || extent == null) {
 			unsupported_node ("SSA owner lacks its actual cleanup extent");
@@ -280,9 +296,11 @@ private class SsaRuntimeLifetimeBody : Object {
 		extents.insert (ordinal, extent);
 		regions.owner (ordinal, region_id (extent));
 	}
+
 	private SsaInstruction? definition(SsaValue? value) {
 		return value == null ? null : definitions.lookup (value);
 	}
+
 	private SsaNativeInstance? instance(SemanticType type) {
 		if (type is ReceiverType) {
 			type = ((ReceiverType) type).instance_type;
@@ -294,9 +312,11 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private bool scoped_type(SemanticType type) {
 		return RuntimeScopeTypes.contains (type, expand_scoped_type);
 	}
+
 	private bool expand_scoped_type(SemanticType type, GenericArray<SemanticType> following) {
 		var owner = instance (type);
 		if (owner != null) {
@@ -325,6 +345,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private int product(SemanticType type, RuntimeScopeOrigin? anchor = null) throws RuntimeLifetimeError {
 		var roots = new GenericArray<RuntimeScopeOrigin> ();
 		if (anchor != null) {
@@ -342,15 +363,18 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return graph.product (roots, fields);
 	}
+
 	private SsaRuntimeStorage object_storage(SsaObjectStorage storage) {
 		return new SsaRuntimeStorage (objects.lookup (storage), storage.cleanup_rank);
 	}
+
 	private SsaRuntimeStorage? field(SsaRuntimeStorage? storage, int ordinal) {
 		if (storage != null) {
 			storage.path += (storage.path == "" ? "" : ".") + "f%d".printf (ordinal);
 		}
 		return storage;
 	}
+
 	private SsaRuntimeStorage? reference(SsaValue? value, HashTable<SsaValue, bool>? seen = null) {
 		if (value == null) {
 			return null;
@@ -429,6 +453,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private SsaRuntimeStorage? place(SsaMemoryPlace source) {
 		if (source is SsaLocalMemoryPlace) {
 			var storage = ((SsaLocalMemoryPlace) source).storage;
@@ -450,6 +475,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		unsupported_node ("SSA memory effect requires its exact ownership projection");
 		return null;
 	}
+
 	private int read(SsaRuntimeStorage? storage) throws RuntimeLifetimeError {
 		if (storage == null || !state.bindings.contains (storage.binding)) {
 			unsupported_node ("SSA pointer requires exact live storage");
@@ -458,6 +484,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		int value = state.bindings.lookup (storage.binding);
 		return storage.path == "" ? value : graph.project (value, storage.path);
 	}
+
 	private int replace_path(int root, string path, int incoming) throws RuntimeLifetimeError {
 		int dot = path.index_of_char ('.');
 		if (dot < 0) {
@@ -466,6 +493,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		string head = path.substring (0, dot);
 		return graph.replace (root, head, replace_path (graph.project (root, head), path.substring (dot + 1), incoming));
 	}
+
 	private void write(SsaRuntimeStorage? storage, int incoming, bool effect = true) throws RuntimeLifetimeError {
 		if (storage == null) {
 			unsupported_node ("SSA store requires its exact destination in " + function.name + " at " + (current_instruction == null ? "missing instruction" : current_instruction.get_type ().name ()));
@@ -486,6 +514,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			stores.add (new RuntimeLifetimeStore (storage.destination == -1 ? -1 : -storage.destination - 2, incoming));
 		}
 	}
+
 	private GenericArray<SemanticType>? record_fields(SemanticType type) {
 		var record = instance (type) as SsaStruct;
 		if (record == null) {
@@ -497,6 +526,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private void record_shape(StructValueShape shape) throws RuntimeLifetimeError {
 		try {
 			shape.verify (record_fields);
@@ -504,6 +534,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA record lifetime shape: %s", failure.message);
 		}
 	}
+
 	private SsaStructField? record_field(SsaStruct record, StructLeafPath path) {
 		SsaStructField? field = null;
 		SemanticType type = record.semantic_type;
@@ -518,6 +549,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return type == path.semantic_type ? field : null;
 	}
+
 	private void buffer_parameters() throws RuntimeLifetimeError, SsaError {
 		if (function.buffer_parameters.length == 0) {
 			return;
@@ -567,6 +599,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		SsaBufferMemoryFlow.verify (function);
 	}
+
 	private SsaRuntimeStorage? buffer_place(SsaBufferPlace source) {
 		if (source.storage != null && buffers.contains (source.storage)) {
 			return new SsaRuntimeStorage (buffers.lookup (source.storage), source.storage.owner_ordinal);
@@ -577,6 +610,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		unsupported_node ("SSA buffer lifetime requires an exact local or receiver field pair");
 		return null;
 	}
+
 	private void buffer_pair(SsaBufferPair pair, SsaInstruction source) throws RuntimeLifetimeError {
 		if (values.contains (pair.base_value) || values.contains (pair.length_value)) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA buffer lifetime repeats a physical pair definition");
@@ -587,6 +621,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		definitions.insert (pair.base_value, source);
 		definitions.insert (pair.length_value, source);
 	}
+
 	private int buffer_value(SsaBufferPair pair) throws RuntimeLifetimeError {
 		if (pair.is_empty) {
 			return graph.absent ();
@@ -596,6 +631,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return value (pair.base_value);
 	}
+
 	private void consume_buffer(SsaBufferPair pair, SsaCleanupContract cleanup, SsaNode site) throws RuntimeLifetimeError {
 		if (cleanup.buffer_shape != pair.shape || !cleanup.is_buffer || pair.base_value.semantic_type != pair.shape.base_type || pair.length_value.semantic_type != pair.shape.length_type) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA buffer lifetime changed its exact complete pair type or cleanup");
@@ -609,6 +645,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		buffer_consumptions.insert (pair, site);
 	}
+
 	private void buffer_arguments(SsaCallInstruction call) throws RuntimeLifetimeError {
 		if (call.target == null || call.buffer_arguments.length != call.target.buffer_parameters.length) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA buffer call lost its complete original argument groups");
@@ -621,6 +658,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			consume_buffer (argument.pair, argument.parameter.cleanup, call);
 		}
 	}
+
 	private void buffer_restore(SsaFallibleBufferRestore restored) throws RuntimeLifetimeError, SsaError {
 		var call = restored.call;
 		var argument = restored.argument;
@@ -654,6 +692,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		graph.alternative (incoming, buffer_value (argument.pair));
 		publish_buffer (restored.pair, incoming);
 	}
+
 	private void frame_buffer_restore(SsaFrameBufferRestore restored) throws RuntimeLifetimeError, SsaError {
 		var call = restored.creation;
 		var argument = restored.argument;
@@ -685,10 +724,12 @@ private class SsaRuntimeLifetimeBody : Object {
 		graph.alternative (incoming, buffer_value (argument.pair));
 		publish_buffer (restored.pair, incoming);
 	}
+
 	private void publish_buffer(SsaBufferPair pair, int incoming) throws RuntimeLifetimeError {
 		publish (pair.base_value, incoming);
 		publish (pair.length_value, graph.absent ());
 	}
+
 	private bool record_parameter_owned(int ordinal) {
 		foreach (var group in function.struct_parameters) {
 			if (group.shape.mode == StructValueMode.MOVE_VALUE && ordinal >= group.first_leaf && ordinal < group.first_leaf + group.shape.leaves.length) {
@@ -698,6 +739,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool parameter_prefix(SsaInstruction instruction) {
 		if (instruction is SsaStructBoundaryAcquire) {
 			var acquired = (SsaStructBoundaryAcquire) instruction;
@@ -717,6 +759,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		var initialized = instruction as SsaInitializeInstruction;
 		return initialized != null && initialized.value is SsaFunctionParameter && function.parameters.find ((SsaFunctionParameter) initialized.value);
 	}
+
 	private void record_parameters() throws RuntimeLifetimeError {
 		var occupied = new HashTable<int, bool> (direct_hash, direct_equal);
 		foreach (var group in function.struct_parameters) {
@@ -767,6 +810,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void record_boundary(SsaStructBoundary boundary) throws RuntimeLifetimeError, SsaError {
 		record_shape (boundary.shape);
 		if (boundary.projection != null) {
@@ -829,6 +873,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			record_events.insert (event, true);
 		}
 	}
+
 	private void record_pairs(StructValueShape shape, GenericArray<SsaValue> leaves, GenericArray<SsaBufferPair> pairs) throws RuntimeLifetimeError {
 		record_shape (shape);
 		if (leaves.length != shape.leaves.length) {
@@ -856,6 +901,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA buffered record repeats or invents a field pair");
 		}
 	}
+
 	private void record_buffer_boundary(SsaStructBoundary boundary, SsaBlock block, int position) throws RuntimeLifetimeError, SsaError {
 		record_pairs (boundary.shape, boundary.leaves, boundary.buffer_pairs);
 		if (boundary.buffers.length != boundary.buffer_pairs.length) {
@@ -882,6 +928,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			SsaBufferMemoryFlow.verify (function);
 		}
 	}
+
 	private void record_restored_buffers(SsaRecordAdmissionRestore restored) throws RuntimeLifetimeError {
 		var moved = restored.original;
 		var acquired = restored.acquisition;
@@ -895,6 +942,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private int record_value(StructValueShape shape, GenericArray<SsaValue> leaves) throws RuntimeLifetimeError {
 		record_shape (shape);
 		if (shape.leaves.length != leaves.length) {
@@ -922,6 +970,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private int record_result(SsaStructReturn result, SsaBlock block) throws RuntimeLifetimeError {
 		if (result.shape != function.struct_result || result.shape.semantic_type != function.return_type || result.shape.leaves.length != result.leaves.length) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("SSA record result lost its exact declared shape or leaf group");
@@ -965,10 +1014,12 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return value;
 	}
+
 	private int record_component(int incoming, StructLeafPath leaf) throws RuntimeLifetimeError {
 		var component = leaf as StructBufferLeafPath;
 		return component != null && component.component == 1 ? graph.absent () : graph.project (incoming, record_path (leaf));
 	}
+
 	private string record_path(StructLeafPath leaf) {
 		var path = new StringBuilder ();
 		for (int depth = 0; depth < leaf.depth; depth++) {
@@ -979,6 +1030,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return path.str;
 	}
+
 	private void record_call(SsaCallInstruction call, SsaBlock block) throws RuntimeLifetimeError {
 		var group = call.struct_result;
 		if (group == null) {
@@ -1035,6 +1087,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private SsaBlock? record_site(SsaInstruction source, out int position) throws RuntimeLifetimeError {
 		SsaBlock? site = null;
 		position = -1;
@@ -1051,6 +1104,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return site;
 	}
+
 	private bool admission_effect(SsaInstruction instruction, SsaLifecycleCallInstruction call) {
 		if (instruction is SsaFallibleInputRestore) {
 			return call.input_restores.find ((SsaFallibleInputRestore) instruction);
@@ -1081,6 +1135,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private bool frame_restore_effect(SsaInstruction instruction, SsaTaskCreate creation) {
 		if (instruction is SsaFrameInputRestore) {
 			return creation.input_restores.find ((SsaFrameInputRestore) instruction);
@@ -1111,6 +1166,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private void frame_record_restore(SsaFrameRecordRestore restored) throws RuntimeLifetimeError {
 		var call = restored.creation;
 		var moved = restored.original;
@@ -1187,6 +1243,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			publish (group.leaves[l], incoming);
 		}
 	}
+
 	private void record_restore(SsaFallibleRecordRestore restored) throws RuntimeLifetimeError {
 		var call = restored.call;
 		var moved = restored.original;
@@ -1266,6 +1323,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			publish (group.leaves[l], incoming);
 		}
 	}
+
 	private void task_record(SsaTaskSuccess success, SsaBlock publication) throws RuntimeLifetimeError {
 		var group = success.struct_result;
 		var wait = success.operation;
@@ -1302,6 +1360,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void record_consumption(SsaStructResultConsume consumed) throws RuntimeLifetimeError {
 		if (record_restores.contains (consumed.results)) {
 			var restored = record_restores.lookup (consumed.results);
@@ -1339,6 +1398,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		record_consumptions.insert (consumed.results, consumed);
 	}
+
 	private void record_acquisition(SsaStructBoundaryAcquire acquired) throws RuntimeLifetimeError {
 		if (acquired.parameter != null) {
 			if (!function.struct_parameters.find (acquired.parameter) || acquired.results != null || acquired.record_move != null || acquired.projection != null) {
@@ -1365,6 +1425,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private SsaStruct record_owner(SsaHeapOwner owner, StructLeafPath? path, int rank, SsaValue pointer, GenericArray<SsaValue> fields) throws RuntimeLifetimeError {
 		var record = owner.record_type;
 		if (!function.heap_owners.find (owner) || record == null || instance (record.semantic_type) != record || path == null || owner.record_path == null || !path.same_path (owner.record_path) || rank != owner.record_rank || owner.text_extent == null || owner.record_field != record_field (record, path) || owner.record_field == null || owner.record_field.owned_cleanup != owner.cleanup || fields.length != 1 || fields[0] != pointer || pointer.semantic_type != path.semantic_type) {
@@ -1372,6 +1433,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return record;
 	}
+
 	private void record_acquire(SsaRecordAcquire acquired) throws RuntimeLifetimeError {
 		var owner = acquired.owner;
 		var path = acquired.path;
@@ -1437,6 +1499,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void record_move(SsaRecordMove moved) throws RuntimeLifetimeError {
 		var source = moved.source;
 		var target = moved.destination;
@@ -1555,6 +1618,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return graph.absent ();
 	}
+
 	private void publish(SsaValue? result, int incoming) throws RuntimeLifetimeError {
 		if (result != null) {
 			if (!values.contains (result)) {
@@ -1563,6 +1627,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			graph.alternative (values.lookup (result), incoming);
 		}
 	}
+
 	private RuntimeScopeOrigin? context_origin(SsaValue? value, SsaHeapOwner? exact_owner = null) throws RuntimeLifetimeError {
 		if (value == null || !value.semantic_type.is_scoped_allocator ()) {
 			return null;
@@ -1591,6 +1656,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeScopeOrigin.local (owner.source_ordinal, region_id (owner.text_extent));
 	}
+
 	private void task_error(SsaValue result, int incoming) throws RuntimeLifetimeError {
 		publish (result, incoming);
 		if (!private_errors.contains (result)) {
@@ -1598,6 +1664,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		state.bindings.insert (private_errors.lookup (result), incoming);
 	}
+
 	private int task_create(SsaTaskCreate call) throws RuntimeLifetimeError, SsaError {
 		buffer_arguments (call);
 		if (call.checked_admission) {
@@ -1670,11 +1737,13 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return task;
 	}
+
 	private void empty_enum(SsaEnumSlot slot) {
 		if (slot.definition.value_fields ().length != 0) {
 			unsupported_node ("SSA enum lifetime requires its exact payload operation");
 		}
 	}
+
 	private int invoke(SsaFunction? target, GenericArray<SsaValue> arguments, SsaValue? receiver, GenericArray<SsaOwnedArgument>? owned_arguments = null, int constructed = -1, SsaValue? exception_result = null) throws RuntimeLifetimeError, SsaError {
 		var inputs = new HashTable<int, int> (direct_hash, direct_equal);
 		var anchors = new HashTable<int, RuntimeScopeOrigin> (direct_hash, direct_equal);
@@ -1755,17 +1824,20 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private void consume(SsaValue value) {
 		if (pending.contains (value)) {
 			state.bindings.insert (pending.lookup (value), graph.absent ());
 			recent_moves.remove (value);
 		}
 	}
+
 	private void ordinary_buffer(SsaCleanupContract cleanup) {
 		if (cleanup.buffer_type is ContextBytesType || cleanup.buffer_shape == null || scoped_type (cleanup.buffer_type.element_type)) {
 			unsupported_node ("SSA context buffer needs its complete backing obligation graph");
 		}
 	}
+
 	private void conditional_state(RuntimeLifetimeState refused) throws RuntimeLifetimeError {
 		foreach (int key in refused.bindings.get_keys ()) {
 			if (!state.bindings.contains (key)) {
@@ -1780,6 +1852,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void instruction(SsaInstruction source) throws RuntimeLifetimeError, SsaError {
 		current_instruction = source;
 		if (source is SsaTaskCreate) {
@@ -2205,6 +2278,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			publish (source.result, graph.absent ());
 		}
 	}
+
 	private GenericArray<SsaEdge> edges(SsaTerminator source) {
 		var result = new GenericArray<SsaEdge> ();
 		if (source is SsaBranch) {
@@ -2224,6 +2298,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private GenericArray<SsaBlock> blocks() {
 		var result = new GenericArray<SsaBlock> ();
 		result.add (function.entry);
@@ -2236,6 +2311,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private void inventory(GenericArray<SsaBlock> reachable) throws RuntimeLifetimeError {
 		foreach (var owner in function.heap_owners) {
 			if (slot () != owner.ordinal) {
@@ -2460,6 +2536,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void private_use(SsaValue value, SsaNode? use) {
 		if (use == null || !private_errors.contains (value)) {
 			return;
@@ -2474,6 +2551,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			uses.add (use);
 		}
 	}
+
 	private bool invalidated_private_use(SsaBlock start, int after, int binding, SsaNode use) {
 		var pending = new GenericArray<SsaBlock> ();
 		var seen = new HashTable<SsaBlock, bool> (direct_hash, direct_equal);
@@ -2525,6 +2603,7 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private void verify_private_uses(GenericArray<SsaBlock> blocks) throws RuntimeLifetimeError {
 		foreach (var block in blocks) {
 			for (int i = 0; i < block.instructions.length; i++) {
@@ -2545,6 +2624,7 @@ private class SsaRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private RuntimeLifetimeState edge_state(SsaBlock block, SsaEdge edge) throws RuntimeLifetimeError {
 		var result = outputs.lookup (block).snapshot ();
 		var branch = block.terminator as SsaConditionalBranch;
@@ -2600,16 +2680,19 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private void exit() throws RuntimeLifetimeError {
 		exit_count++;
 		foreach (int binding in exits.get_keys ()) {
 			graph.alternative (exits.lookup (binding), state.bindings.lookup (binding));
 		}
 	}
+
 	internal RuntimeLifetimeSummary incomplete(string reason) {
 		graph.seal ();
 		return new RuntimeLifetimeSummary (graph, graph.absent (), new HashTable<int, int> (direct_hash, direct_equal), new GenericArray<RuntimeLifetimeStore> (), reason);
 	}
+
 	internal RuntimeLifetimeSummary analyze() throws RuntimeLifetimeError, SsaError {
 		record_parameters ();
 		buffer_parameters ();
@@ -2825,5 +2908,6 @@ private class SsaRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeLifetimeSummary (graph, returned, updates, stores, unsupported, function.throws_type == null ? -1 : exceptional_result);
 	}
+
 }
 }

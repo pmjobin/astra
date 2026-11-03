@@ -4,12 +4,14 @@ void expand(borrowed i8<16>[] blocks, borrowed i16<8>[] wide, int i) {
 	wide[0] = widen_low(blocks[i],i16);
 	wide[1] = widen_high(blocks[i],i16);
 }
+
 void pack(borrowed i16<8>[] wide, borrowed i8<16>[] blocks, int i) {
 	wide[0] = sat_sub(wide[0],splat(300,8));
 	wide[1] = sat_add(wide[1],splat(300,8));
 	blocks[i] = pack_sat(wide[0],wide[1],i8);
 	blocks[i] = interleave_low(blocks[i],splat(1,16));
 }
+
 bool check(int i) {
 	i8<16> low = splat(-128,16);
 	i8<16> high = splat(127,16);
@@ -17,12 +19,13 @@ bool check(int i) {
 	i16<8> zero = splat(0,8);
 	i16<8>[2] wide = {zero,zero};
 	expand(slice(blocks),slice(wide),i);
-	if (!all(blocks[i] == splat(-1,16)) || !all(wide[0] == splat(-1,8)) || !all(wide[1] == splat(-1,8))) { return false; }
+	if (!all(blocks[i] == splat(-1,16)) || !all(wide[0] == splat(-1,8)) || !all(wide[1] == splat(-1,8))) return false;
 	pack(slice(wide),slice(blocks),i);
-	if (blocks[i][0] != -128 || blocks[i][1] != 1 || blocks[i][14] != -128 || blocks[i][15] != 1) { return false; }
+	if (blocks[i][0] != -128 || blocks[i][1] != 1 || blocks[i][14] != -128 || blocks[i][15] != 1) return false;
 	return all(wide[0] == splat(-301,8)) && all(wide[1] == splat(299,8));
 }
+
 int main() {
-	if (!check(0) || !check(1)) { return 1; }
+	if (!check(0) || !check(1)) return 1;
 	return 0;
 }

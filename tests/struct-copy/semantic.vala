@@ -10,6 +10,7 @@ private SemanticResult analyze(string text) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private CheckedProgram check(string text) {
 	var result = analyze (text);
 	if (result.diagnostic != null) {
@@ -17,12 +18,14 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private void reject(string text, string message) {
 	var result = analyze (text);
 	if (result.diagnostic == null || !result.diagnostic.message.contains (message)) {
 		GLib.error ("expected %s, found %s", message, result.diagnostic == null ? "accepted" : result.diagnostic.message);
 	}
 }
+
 private void authority() {
 	var types = new BuiltinTypes ();
 	int count = 0;
@@ -69,6 +72,7 @@ private void authority() {
 	assert (CopyabilityAuthority.of (outer, graph) == Copyability.NOT_COPYABLE);
 	assert (CopyabilityAuthority.of (new StructType ("Missing"), graph) == Copyability.NOT_COPYABLE);
 }
+
 private void contexts() {
 	var program = check ("struct I{int x;}struct O{I a;I b;}void f(){O a={a={x=1},b={x=2}};O b=a;I c=b.a;b.b=c;b.a=b.b;O* p=&b;*p=a;O d=*p;*p=*p;}");
 	var body = program.functions[0].body;
@@ -85,6 +89,7 @@ private void contexts() {
 	var g = (CheckedStructCopy)generic.functions[0].body.statements[1];
 	assert (g.semantic_type == generic.functions[0].locals[0].semantic_type && !g.semantic_type.is_parameterized ());
 }
+
 private void negatives() {
 	string ordinary = "struct A{int x;}struct B{int x;}";
 	reject (ordinary + "void f(){A a={x=1};B b=a;}", "exact nominal type 'B', found 'A'");
@@ -107,6 +112,7 @@ private void negatives() {
 		reject ("T f<T>(T x) where T:" + capability + " {return x;}", "unknown generic capability");
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-copy/semantic/one-recursive-authority-24-vectors-negative-cycle", authority);
@@ -114,4 +120,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-copy/semantic/nominality-storage-generic-abi-exclusions", negatives);
 	return Test.run ();
 }
+
 }

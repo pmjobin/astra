@@ -1,61 +1,102 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="ctor16_retired")] int retired(int kind);
+
 [ExceptionRoot] class Fault {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
+
 	deinit() { retired(200); }
 }
+
 [CExport(name="ctor16",profile="declarations-v1")]
 class Session {
 	private owned Item first;
 	private owned Item second;
 	readonly string label;
 	private owned u8[] bytes;
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	init(owned Item first, owned Item second, int mode) throws Fault {
-		if (mode == 1) { throw new Fault("before fields"); }
+		if (mode == 1) {
+			throw new Fault("before fields");
+		}
 		this.second = move second;
-		if (mode == 2) { throw new Fault("one field"); }
+		if (mode == 2) {
+			throw new Fault("one field");
+		}
 		this.first = move first;
-		if (mode == 3) { throw new Fault("reverse actual initialization order"); }
+		if (mode == 3) {
+			throw new Fault("reverse actual initialization order");
+		}
 		this.label = "owned\0é";
-		if (mode == 4) { throw new Fault("after snapshot"); }
+		if (mode == 4) {
+			throw new Fault("after snapshot");
+		}
 		var bytes = new u8[3]; bytes[0] = 11;
-		if (mode == 5) { throw new Fault("local buffer before transfer"); }
+		if (mode == 5) {
+			throw new Fault("local buffer before transfer");
+		}
 		this.bytes = move bytes;
-		if (mode == 6) { throw new Fault("after buffer transfer"); }
+		if (mode == 6) {
+			throw new Fault("after buffer transfer");
+		}
 	}
+
 	[Foreign] int total() { return this.first.code() + this.second.code() + len(this.bytes) + this.label.byte_length; }
+
 	deinit() { retired(100); }
 }
+
 [CExport(name="ctor_item16",profile="declarations-v1")]
 class Item {
 	private int value;
+
 	[Foreign] init(int value) { this.value = value; }
+
 	[Foreign] int code() { return this.value; }
+
 	deinit() { retired(this.value); }
 }
+
 struct Packet { owned Item payload; int marker; }
+
 [CExport(name="ctor_extra16",profile="declarations-v1")]
 class Extras {
 	private owned Packet record;
 	private owned Item[slots] children;
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	init(int mode) throws Fault {
-		if (mode == 1) { throw new Fault("empty record/slots"); }
+		if (mode == 1) {
+			throw new Fault("empty record/slots");
+		}
 		var item = new Item(3); Packet record = {payload = move item, marker = 7}; this.record = move record;
-		if (mode == 2) { throw new Fault("owned record"); }
+		if (mode == 2) {
+			throw new Fault("owned record");
+		}
 		this.children = new Item[slots];
-		if (!this.children.reserve(1)) { throw new Fault("slots reserve"); }
+		if (!this.children.reserve(1)) {
+			throw new Fault("slots reserve");
+		}
 		var child = new Item(4); this.children.append(move child);
-		if (mode == 3) { throw new Fault("slots payload"); }
-		if (mode == 4) { throw new Fault("uninitialized owned lazy cache"); }
+		if (mode == 3) {
+			throw new Fault("slots payload");
+		}
+		if (mode == 4) {
+			throw new Fault("uninitialized owned lazy cache");
+		}
 	}
+
 	[Foreign] int cached_code() { return this.cached.code(); }
+
 	lazy property owned Item cached { get { var item = new Item(5); return move item; } }
+
 	deinit() { retired(101); }
 }
+
 export(C) int native_constructor_probe(int mode) {
 	try {
 		var first = new Item(1); var second = new Item(2);
@@ -63,6 +104,7 @@ export(C) int native_constructor_probe(int mode) {
 		return session.total();
 	} catch(Fault error) { return -1600; }
 }
+
 export(C) int native_constructor_lexical_probe(int mode) {
 	try {
 		var first = new Item(1); var second = new Item(2);

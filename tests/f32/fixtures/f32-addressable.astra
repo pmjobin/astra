@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct VecLike { f32 x; f32 y; }
+
 void mutate(VecLike* p) { p->x = p->x / 2.0; p->y = -p->y; }
+
 int main() {
 	VecLike v = { x = 1.1754943508222875e-38, y = 0.0 };
 	mutate(&v);
-	if (v.x == 0.0 || v.x != 5.8774717541114375e-39 || 1.0 / v.y != -1e100) { return 1; }
+	if (v.x == 0.0 || v.x != 5.8774717541114375e-39 || 1.0 / v.y != -1e100) return 1;
 	v.x = v.x + v.x;
-	if (v.x != 1.1754943508222875e-38) { return 2; }
+	if (v.x != 1.1754943508222875e-38) return 2;
 	return 0;
 }

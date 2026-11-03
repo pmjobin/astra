@@ -26,6 +26,7 @@ private CheckedProgram check(string name) throws GLib.Error {
 	}
 	return result.program;
 }
+
 private SsaProgram build(string name) throws GLib.Error {
 	CheckedProgram? checked = check(name);
 	var checked_function = WeakRef(checked.functions[0]);
@@ -47,4 +48,5 @@ private SsaProgram build(string name) throws GLib.Error {
 	SsaVerifier.verify(ssa);
 	return ssa;
 }
+
 }

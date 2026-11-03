@@ -1,13 +1,19 @@
 class Context {
 	owned f64[] values;
+
 	init() { this.values = new f64[1]; }
+
 	deinit() { mark(99); }
 }
+
 void mixed(int before, f64[] view, owned int[] first, int after, owned R resource, owned Context context, owned f64[] last) {
-	if (before != 10 || after != 20 || len(first) != 2 || len(last) != 3 || id(resource) != 1 || len(context.values) != 1) { int invalid = 1 / mark(0); }
+	if (before != 10 || after != 20 || len(first) != 2 || len(last) != 3 || id(resource) != 1 || len(context.values) != 1) {
+		int invalid = 1 / mark(0);
+	}
 	view[3] = 9.0;
 	mark(50);
 }
+
 int main() {
 	owned f64[] view = new f64[4];
 	owned int[] first = new int[2];
@@ -15,6 +21,6 @@ int main() {
 	owned R resource = resource(1);
 	owned Context context = Context.init();
 	mixed(mark(10), view, move first, mark(20), move resource, move context, move last);
-	if (view[3] != 9.0) { return 1; }
+	if (view[3] != 9.0) return 1;
 	return 0;
 }

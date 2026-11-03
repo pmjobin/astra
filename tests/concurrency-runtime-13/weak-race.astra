@@ -1,34 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int race_worker_ready();
+
 extern(C) int race_parent_ready();
+
 extern(C) int race_parent_release();
+
 extern(C) int race_destroy(int value);
+
 extern(C) int race_finish();
 
 [Shared, Monitor]
 class Tile {
 	private int pixel;
+
 	init(int pixel) { this.pixel = pixel; }
+
 	int read() { return this.pixel; }
+
 	deinit() { race_destroy(this.pixel); }
 }
 
 class Observer {
 	owned Weak<Tile> weak;
+
 	init(owned Weak<Tile> weak) { this.weak = move weak; }
 }
 
 int run(borrowed Observer observer, int iterations) {
 	var weak = weak_clone(observer.weak);
 	var initial = weak_upgrade(weak);
-	if (initial == null) { return -81; }
+	if (initial == null) return -81;
 	race_worker_ready();
 	release initial;
 	int upgrades = 0;
 	for (int i = 0; i < iterations; i = i + 1) {
 		var strong = weak_upgrade(weak);
 		if (strong != null) {
-			if (strong.read() != 17) { return -82; }
+			if (strong.read() != 17) return -82;
 			upgrades = upgrades + 1;
 		}
 	}
@@ -50,19 +58,19 @@ int main() {
 	var t1 = thread_bind(move e1, run);
 	var t2 = thread_bind(move e2, run);
 	var t3 = thread_bind(move e3, run);
-	if (thread_start(t0, 4000) != 0) { return 81; }
-	if (thread_start(t1, 4000) != 0) { return 82; }
-	if (thread_start(t2, 4000) != 0) { return 83; }
-	if (thread_start(t3, 4000) != 0) { return 84; }
+	if (thread_start(t0, 4000) != 0) return 81;
+	if (thread_start(t1, 4000) != 0) return 82;
+	if (thread_start(t2, 4000) != 0) return 83;
+	if (thread_start(t3, 4000) != 0) return 84;
 	race_parent_ready();
 	release tile;
 	race_parent_release();
-	if (thread_join(t0) < 0) { return 85; }
-	if (thread_join(t1) < 0) { return 86; }
-	if (thread_join(t2) < 0) { return 87; }
-	if (thread_join(t3) < 0) { return 88; }
+	if (thread_join(t0) < 0) return 85;
+	if (thread_join(t1) < 0) return 86;
+	if (thread_join(t2) < 0) return 87;
+	if (thread_join(t3) < 0) return 88;
 	var expired = weak_upgrade(weak);
-	if (expired != null) { return 89; }
+	if (expired != null) return 89;
 	release t0;
 	release t1;
 	release t2;

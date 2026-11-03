@@ -18,6 +18,7 @@ private CoreProgram core(string source = SOURCE) throws GLib.Error {
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private void rejected(CoreProgram program, string text) {
 	bool failed = false;
 	try {
@@ -30,6 +31,7 @@ private void rejected(CoreProgram program, string text) {
 	}
 	assert (failed);
 }
+
 private void interval(bool nested) throws GLib.Error {
 	var program = core ();
 	var body = program.generic_functions[2].body;
@@ -49,6 +51,7 @@ private void interval(bool nested) throws GLib.Error {
 	}
 	CoreVerifier.verify (program);
 }
+
 private void boundary() throws GLib.Error {
 	var program = core ();
 	var call = (CoreGenericCallStatement) program.generic_functions[2].body.statements[1];
@@ -59,6 +62,7 @@ private void boundary() throws GLib.Error {
 	call.arguments[0] = original;
 	CoreVerifier.verify (program);
 }
+
 private void escape() throws GLib.Error {
 	var program = core ();
 	var function = program.generic_functions[0];
@@ -68,6 +72,7 @@ private void escape() throws GLib.Error {
 	function.body.statements[0] = original;
 	CoreVerifier.verify (program);
 }
+
 private void acquire() throws GLib.Error {
 	var program = core ();
 	var function = program.generic_functions[0];
@@ -86,6 +91,7 @@ private void acquire() throws GLib.Error {
 	program.cleanups.remove_index (program.cleanups.length - 1);
 	CoreVerifier.verify (program);
 }
+
 private void signature() throws GLib.Error {
 	var program = core ();
 	var function = program.generic_functions[0];
@@ -94,6 +100,7 @@ private void signature() throws GLib.Error {
 	function.parameters.remove_index (function.parameters.length - 1);
 	CoreVerifier.verify (program);
 }
+
 private void concrete_flow() throws GLib.Error {
 	var cfg = CfgBuilder.build (CoreGenericMonomorphizer.build (core ()));
 	CfgVerifier.verify (cfg);
@@ -136,6 +143,7 @@ private void concrete_flow() throws GLib.Error {
 	}
 	assert (tested);
 }
+
 private void nominal() throws GLib.Error {
 	var program = core ("class C{init(){}}class D{init(){}}void borrow<T>(borrowed T v) where T:Ownable{}int main(){owned C c=C.init();owned D d=D.init();borrow<C>(c);borrow<D>(d);return 42;}");
 	var ssa = SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (program)));
@@ -195,6 +203,7 @@ private void nominal() throws GLib.Error {
 	signature.parameters[0] = channel;
 	NativeAbiValidator.validate_ssa_calls (ssa, native, correspondence);
 }
+
 private void async_context() throws GLib.Error {
 	var program = core ("[ExceptionRoot]class Error{readonly string text;init(string s){this.text=s;}virtual property string message{get{return this.text;}}}class AsyncError:Error{init(string s):base(s){}}enum RunStatus{Completed,Cancelled}async runtime VirtualExecutor throws AsyncError returns RunStatus;class C{init(){}}int borrow<T>(borrowed T v,int n) where T:Ownable{return n;}async int work(){return 0;}int main(){return 42;}");
 	var function = program.functions[0];
@@ -210,6 +219,7 @@ private void async_context() throws GLib.Error {
 	function.body.statements.remove_index (0);
 	CoreVerifier.verify (program);
 }
+
 private delegate void Check() throws GLib.Error;
 private void run(Check check) {
 	try {
@@ -218,6 +228,7 @@ private void run(Check check) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-borrow-1/core/owner-read-after-move", () => { run (() => { interval (false);
@@ -242,4 +253,5 @@ int main(string[] args) {
 	});
 	return Test.run ();
 }
+
 }

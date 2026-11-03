@@ -30,6 +30,7 @@ public class SsaProperty : SsaNode {
 		this.ordinal = ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class SsaLazyObserve : SsaInstruction {
@@ -39,6 +40,7 @@ public class SsaLazyObserve : SsaInstruction {
 		base (span, property_member.semantic_type, ordinal);
 		this.property_identity = WeakRef (property_member);
 	}
+
 }
 public class SsaLazyDrop : SsaInstruction {
 	private WeakRef property_identity;
@@ -47,6 +49,7 @@ public class SsaLazyDrop : SsaInstruction {
 		base (span, null, -1);
 		this.property_identity = WeakRef (property_member);
 	}
+
 }
 
 public abstract class SsaPropertyAccessor : SsaFunction {
@@ -59,17 +62,20 @@ public abstract class SsaPropertyAccessor : SsaFunction {
 		this.parent = WeakRef (property_member);
 		this.receiver = receiver;
 	}
+
 }
 
 public class SsaPropertyGetter : SsaPropertyAccessor {
 	internal SsaPropertyGetter (SourceSpan span, SourceSpan name_span, string name, SsaProperty property_member, SsaReceiver receiver, SemanticType return_type, int ordinal, GenericArray<SsaFunctionParameter> parameters, GenericArray<SsaBlock> blocks, SsaBlock entry, SsaCleanupContract? owned_cleanup = null) {
 		base (span, name_span, name, property_member, receiver, return_type, ordinal, parameters, blocks, entry, owned_cleanup);
 	}
+
 }
 
 public class SsaPropertySetter : SsaPropertyAccessor {
 	internal SsaPropertySetter (SourceSpan span, SourceSpan name_span, string name, SsaProperty property_member, SsaReceiver receiver, SemanticType return_type, int ordinal, GenericArray<SsaFunctionParameter> parameters, GenericArray<SsaBlock> blocks, SsaBlock entry) {
 		base (span, name_span, name, property_member, receiver, return_type, ordinal, parameters, blocks, entry);
 	}
+
 }
 }

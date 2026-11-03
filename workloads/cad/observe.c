@@ -11,6 +11,7 @@ typedef struct {
 	void *pointer;
 	uint64_t bytes;
 } Allocation;
+
 static Allocation live[64];
 static uint64_t allocations, releases, allocated_bytes, live_bytes, peak_bytes, live_count, peak_count, gets, sets, errors;
 static uint64_t arguments_created, argument_copies, argument_bytes, arguments_released, sequence, last_numeric_release, argument_release;

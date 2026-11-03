@@ -8,12 +8,15 @@ internal class LlvmContinuationProjection : Object {
 	private static bool index(CApi.ValueRef value, uint expected) {
 		return (void*) CApi.is_constant_int (value) != null && CApi.const_int_zext (value) == expected;
 	}
+
 	private static bool root(CApi.ValueRef address, CApi.TypeRef carrier, CApi.ValueRef descriptor) {
 		return (void*) CApi.is_instruction (address) != null && CApi.opcode (address) == CApi.Opcode.GEP && CApi.operand_count (address) >= 3 && (void*) CApi.gep_source_type (address) == (void*) carrier && (void*) CApi.operand (address, 0) == (void*) descriptor && index (CApi.operand (address, 1), 0);
 	}
+
 	internal static bool field(CApi.ValueRef address, CApi.TypeRef carrier, CApi.ValueRef descriptor, uint slot) {
 		return root (address, carrier, descriptor) && CApi.operand_count (address) == 3 && index (CApi.operand (address, 2), slot);
 	}
+
 	internal static bool path(CApi.ValueRef address, CApi.TypeRef storage, CApi.ValueRef environment, string path) {
 		var parts = path.split (".");
 		if (!root (address, storage, environment) || CApi.operand_count (address) != parts.length + 2) {
@@ -26,6 +29,7 @@ internal class LlvmContinuationProjection : Object {
 		}
 		return true;
 	}
+
 }
 
 // Expected allocation and stores are captured during lowering, never inferred
@@ -46,6 +50,7 @@ internal class LlvmContinuationEnvironmentBinding : Object {
 	internal CApi.ValueRef ready() {
 		return family.environment == null ? zero_store : environment_store;
 	}
+
 	internal LlvmContinuationEnvironmentBinding (NativeContinuationRegionPlan region, int creation, CApi.ValueRef descriptor, CApi.TypeRef carrier, CApi.ValueRef zero_store) {
 		this.region = region;
 		this.creation = creation;
@@ -53,6 +58,7 @@ internal class LlvmContinuationEnvironmentBinding : Object {
 		this.carrier = carrier;
 		this.zero_store = zero_store;
 	}
+
 	internal void verify() throws LlvmError {
 		try {
 			region.verify ();
@@ -83,6 +89,7 @@ internal class LlvmContinuationEnvironmentBinding : Object {
 			}
 		}
 	}
+
 }
 
 internal class LlvmContinuationPublicationBinding : Object {
@@ -110,6 +117,7 @@ internal class LlvmContinuationPublicationBinding : Object {
 		this.stores = stores;
 		this.origin = origin;
 	}
+
 	internal void verify() throws LlvmError {
 		if (origin.family != plan || (void*) origin.descriptor != (void*) descriptor || (void*) origin.carrier != (void*) carrier) {
 			throw new LlvmError.VERIFICATION ("continuation publication belongs to a different environment owner");
@@ -128,6 +136,7 @@ internal class LlvmContinuationPublicationBinding : Object {
 			throw new LlvmError.VERIFICATION ("continuation publication calling convention mismatch");
 		}
 	}
+
 }
 
 internal class LlvmContinuationMoveBinding : Object {
@@ -145,11 +154,13 @@ internal class LlvmContinuationMoveBinding : Object {
 		this.disarm = disarm;
 		this.carrier = carrier;
 	}
+
 	internal void verify() throws LlvmError {
 		if (CApi.opcode (snapshot) != CApi.Opcode.LOAD || (void*) CApi.type_of (snapshot) != (void*) carrier || (void*) CApi.operand (snapshot, 0) != (void*) source || CApi.opcode (store) != CApi.Opcode.STORE || (void*) CApi.operand (store, 0) != (void*) snapshot || (void*) CApi.operand (store, 1) != (void*) destination || CApi.opcode (disarm) != CApi.Opcode.STORE || (void*) CApi.operand (disarm, 0) != (void*) CApi.const_null (carrier) || (void*) CApi.operand (disarm, 1) != (void*) source || (void*) CApi.next_instruction (snapshot) != (void*) store || (void*) CApi.next_instruction (store) != (void*) disarm) {
 			throw new LlvmError.VERIFICATION ("continuation move requires one complete snapshot/store/source disarm");
 		}
 	}
+
 }
 
 internal class LlvmContinuationCallBinding : Object {
@@ -177,6 +188,7 @@ internal class LlvmContinuationCallBinding : Object {
 		this.environment_address = environment_address;
 		this.carrier = carrier;
 	}
+
 	internal void verify() throws LlvmError {
 		try {
 			plan.verify ();
@@ -191,6 +203,7 @@ internal class LlvmContinuationCallBinding : Object {
 			throw new LlvmError.VERIFICATION ("continuation physical descriptor role/environment mismatch");
 		}
 	}
+
 }
 
 private class LlvmContinuationFamilyBinding : Object {
@@ -205,6 +218,7 @@ private class LlvmContinuationFamilyBinding : Object {
 		this.plan = plan;
 		this.entries = new CApi.ValueRef[plan.entries.length];
 	}
+
 }
 
 internal class LlvmContinuationLowering : Object {
@@ -219,6 +233,7 @@ internal class LlvmContinuationLowering : Object {
 		pointer = CApi.pointer_type_in_context (artifact.context, 0);
 		integer = CApi.int32_type_in_context (artifact.context);
 	}
+
 	private CApi.TypeRef storage_type(NativeRecordElement record) throws LlvmError {
 		var fields = new CApi.TypeRef[record.fields.length];
 		for (int i = 0; i < fields.length; i++) {
@@ -226,6 +241,7 @@ internal class LlvmContinuationLowering : Object {
 		}
 		return CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 	}
+
 	private CApi.ValueRef leaf_address(CApi.BuilderRef builder, CApi.TypeRef storage, CApi.ValueRef environment, string path) {
 		var parts = path.split (".");
 		var indices = new CApi.ValueRef[parts.length + 1];
@@ -235,12 +251,14 @@ internal class LlvmContinuationLowering : Object {
 		}
 		return CApi.build_gep (builder, storage, environment, indices, indices.length, "continuation.state.address");
 	}
+
 	private CApi.ValueRef declare_entry(string symbol, CApi.TypeRef signature) {
 		var entry = CApi.add_function (artifact.module, symbol, signature);
 		CApi.set_linkage (entry, CApi.Linkage.INTERNAL);
 		CApi.set_function_call_conv (entry, LlvmLowering.CALL_CONVENTION);
 		return entry;
 	}
+
 	private LlvmContinuationFamilyBinding bind_family(NativeContinuationFamily plan, GenericArray<LlvmFunctionBinding> functions) throws LlvmError, NativeAbiError {
 		var binding = new LlvmContinuationFamilyBinding (plan);
 		CApi.TypeRef[] parameters = {
@@ -310,6 +328,7 @@ internal class LlvmContinuationLowering : Object {
 		}
 		return binding;
 	}
+
 	internal CApi.ValueRef lower(NativeContinuationRegionPlan plan, CApi.ValueRef[] operands, GenericArray<LlvmFunctionBinding> functions, CApi.BuilderRef builder, LlvmBufferAllocation allocator, LlvmBlockState state) throws LlvmError, NativeAbiError {
 		plan.verify ();
 		carrier = storage_type (plan.descriptor_storage);
@@ -415,5 +434,6 @@ internal class LlvmContinuationLowering : Object {
 		}
 		return result;
 	}
+
 }
 }

@@ -11,6 +11,7 @@ public class ConstantEvaluator : Object {
 	public ConstantEvaluator (string context) {
 		this.context = context;
 	}
+
 	private ConstantValue? fail(CheckedExpression expression, string message) {
 		diagnostic = new Diagnostic (expression.span, message + " in " + context);
 		return null;
@@ -189,5 +190,6 @@ public class ConstantEvaluator : Object {
 		}
 		return fail (expression, "unsupported constant expression");
 	}
+
 }
 }

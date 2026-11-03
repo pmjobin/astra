@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 static int32_t active;
+
 void *nonnull_acquire(int32_t value) {
 	if (!value) return NULL;
 	int32_t *cell = malloc(sizeof *cell);
@@ -12,6 +13,7 @@ void *nonnull_acquire(int32_t value) {
 	}
 	return cell;
 }
+
 void nonnull_release(void *value) {
 	if (value) {
 		assert(active > 0);
@@ -19,10 +21,12 @@ void nonnull_release(void *value) {
 		free(value);
 	}
 }
+
 int32_t nonnull_id(void *value) {
 	assert(value);
 	return *(int32_t *)value;
 }
+
 int32_t nonnull_live(void) {
 	return active;
 }

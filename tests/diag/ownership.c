@@ -31,11 +31,13 @@ void diag_snapshot_free(void *pointer) {
 
 void *__real_calloc(size_t count, size_t size);
 void __real_free(void *pointer);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	assert(snapshot != NULL);
 	mark('B');
 	return __real_calloc(count, size);
 }
+
 void __wrap_free(void *pointer) {
 	if (pointer != NULL) {
 		if (snapshot != NULL) {
@@ -51,11 +53,13 @@ void *diag_acquire(void) {
 	mark('R');
 	return &resource;
 }
+
 void diag_release(void *pointer) {
 	assert(snapshot != NULL && pointer == &resource && resource == 1);
 	resource = 0;
 	mark('r');
 }
+
 int32_t diag_mark(int32_t event) {
 	assert(snapshot != NULL);
 	if (event == 'C') {
@@ -71,6 +75,7 @@ int32_t diag_mark(int32_t event) {
 }
 
 _Noreturn void __real_astra_diag_assert_fail_v0(const unsigned char *file, int32_t file_length, int32_t line, const unsigned char *expression, int32_t expression_length, const unsigned char *message, int32_t message_length);
+
 _Noreturn void __wrap_astra_diag_assert_fail_v0(const unsigned char *file, int32_t file_length, int32_t line, const unsigned char *expression, int32_t expression_length, const unsigned char *message, int32_t message_length) {
 	assert(snapshot != NULL && resource == 1 && state == 1 && message_length > 0);
 	uintptr_t base = (uintptr_t)snapshot, start = (uintptr_t)message;

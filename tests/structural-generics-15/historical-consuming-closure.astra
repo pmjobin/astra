@@ -1,1 +1,17 @@
-class ClosureInput{int code;init(){this.code=42;}}class ClosureOtherInput{init(){}}class ClosureEnv{init(){}}int observe_closure(borrowed ClosureEnv environment,borrowed ClosureInput input,int tag){return input.code+tag;}int consume_input(owned ClosureInput input){return 0;}int consume_closure(owned Closure<ClosureEnv,int,borrowed ClosureInput,int> code){return 0;}int consuming_code(borrowed ClosureEnv environment,owned ClosureInput input,int tag){return tag;}int main(){var environment=new ClosureEnv();var code=closure_bind(move environment,consuming_code);return 0;}
+class ClosureInput{int code;
+
+	init(){this.code=42;}}
+
+class ClosureOtherInput{init(){}}
+
+class ClosureEnv{init(){}}
+
+int observe_closure(borrowed ClosureEnv environment,borrowed ClosureInput input,int tag){return input.code+tag;}
+
+int consume_input(owned ClosureInput input){return 0;}
+
+int consume_closure(owned Closure<ClosureEnv,int,borrowed ClosureInput,int> code){return 0;}
+
+int consuming_code(borrowed ClosureEnv environment,owned ClosureInput input,int tag){return tag;}
+
+int main(){var environment=new ClosureEnv();var code=closure_bind(move environment,consuming_code);return 0;}

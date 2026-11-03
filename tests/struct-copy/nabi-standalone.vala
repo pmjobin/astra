@@ -17,9 +17,11 @@ private void pointer() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-copy/nabi/existing-ptr-profile", pointer);
 	return Test.run ();
 }
+
 }

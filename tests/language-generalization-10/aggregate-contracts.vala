@@ -33,6 +33,7 @@ private CheckedProgram sample(bool mixed = false, bool buffers = false, bool par
 	}
 	return result.program;
 }
+
 private void reject_core(CoreProgram program) {
 	bool rejected = false;
 	try {
@@ -43,6 +44,7 @@ private void reject_core(CoreProgram program) {
 	}
 	assert (rejected);
 }
+
 private void reject_cfg(CfgProgram program) {
 	bool rejected = false;
 	try {
@@ -53,6 +55,7 @@ private void reject_cfg(CfgProgram program) {
 	}
 	assert (rejected);
 }
+
 private void reject_ssa(SsaProgram program) {
 	bool rejected = false;
 	try {
@@ -63,6 +66,7 @@ private void reject_ssa(SsaProgram program) {
 	}
 	assert (rejected);
 }
+
 private void reject_native(NativeAbiProgram program) {
 	bool rejected = false;
 	try {
@@ -73,6 +77,7 @@ private void reject_native(NativeAbiProgram program) {
 	}
 	assert (rejected);
 }
+
 private void checked_core() {
 	try {
 		var checked = sample ();
@@ -104,6 +109,7 @@ private void checked_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_paths() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -144,6 +150,7 @@ private void cfg_paths() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_paths() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample ())));
@@ -171,6 +178,7 @@ private void ssa_paths() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_paths() {
 	try {
 		var native = NativeAbiBuilder.build (SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample ()))));
@@ -195,6 +203,7 @@ private void native_paths() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void independent_llvm() {
 	try {
 		CheckedProgram? checked = sample ();
@@ -252,6 +261,7 @@ private void independent_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void class_paths() {
 	try {
 		CheckedProgram? checked = sample (true);
@@ -302,9 +312,11 @@ private void class_paths() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private SsaProgram buffer_model() throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample (false, true))));
 }
+
 private void buffer_paths() {
 	try {
 		var program = buffer_model ();
@@ -340,6 +352,7 @@ private void buffer_paths() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void buffer_pairs_and_exits() {
 	try {
 		var program = buffer_model ();
@@ -396,6 +409,7 @@ private void buffer_pairs_and_exits() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void buffer_native_llvm() {
 	try {
 		SsaProgram? ssa = buffer_model ();
@@ -460,6 +474,7 @@ private void buffer_native_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void partial_core() {
 	try {
 		var checked = sample (false, false, true);
@@ -504,6 +519,7 @@ private void partial_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void partial_cfg() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample (false, false, true)));
@@ -535,6 +551,7 @@ private void partial_cfg() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void partial_ssa() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample (false, false, true))));
@@ -584,6 +601,7 @@ private void partial_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void partial_native_llvm() {
 	try {
 		CheckedProgram? checked = sample (false, false, true);
@@ -642,6 +660,7 @@ private void partial_native_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_core_cfg() {
 	try {
 		var core = CoreBuilder.build (sample (false, false, false, true));
@@ -691,6 +710,7 @@ private void transport_core_cfg() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_ssa() {
 	try {
 		var ssa = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample (false, false, false, true))));
@@ -721,6 +741,7 @@ private void transport_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_commit_order() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (sample (false, false, false, true)));
@@ -813,6 +834,7 @@ private void transport_commit_order() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_parameter_order() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (sample (false, false, false, true)));
@@ -907,6 +929,7 @@ private void transport_parameter_order() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_native_llvm() {
 	try {
 		CheckedProgram? checked = sample (false, false, false, true);
@@ -1021,6 +1044,7 @@ private void transport_native_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_buffer_pairs() {
 	try {
 		var checked = sample (false, false, false, false, true);
@@ -1171,6 +1195,7 @@ private void transport_buffer_retirement() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transport_buffer_native_llvm() {
 	try {
 		CheckedProgram? checked = sample (false, false, false, false, true);
@@ -1266,6 +1291,7 @@ private void transport_buffer_native_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/recursive-ownership/checked-core-paths", checked_core);
@@ -1291,4 +1317,5 @@ public int main(string[] args) {
 	Test.add_func ("/recursive-ownership/transport-buffer-retirement", transport_buffer_retirement);
 	return Test.run ();
 }
+
 }

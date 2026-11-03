@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Bag { int tag; owned R r; }
+
 int main() {
 	int round=0;
 	while (round < 2) {
@@ -8,18 +9,20 @@ int main() {
 		try {
 			if (round == 1) {
 				var moved = move bag;
-				if (moved.tag != 42) { return 81; }
+				if (moved.tag != 42) return 81;
 				checked(true, 280);
-			} else { checked(false, 290); }
+			} else {
+				checked(false, 290);
+			}
 		} catch (Error error) {
-			if (live() != 0 || error.message != "checked\0é") { return 82; }
+			if (live() != 0 || error.message != "checked\0é") return 82;
 			mark(281);
 		}
 		// A conditional move stays invalid for reads at this join. Only the
 		// existing automatic cleanup may retire its live-or-moved root.
-		if (record_errors() != 0) { return 83; }
+		if (record_errors() != 0) return 83;
 		mark(291);
 	}
-	if (live() != 0) { return 84; }
+	if (live() != 0) return 84;
 	return 42;
 }

@@ -76,5 +76,6 @@ public class VapiNormalizer : Object {
 		}
 		return declarations;
 	}
+
 }
 }

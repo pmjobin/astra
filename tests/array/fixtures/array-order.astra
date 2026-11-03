@@ -1,28 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 int record(int* log, int x) { *log = *log * 10 + x; return x; }
+
 int index(int* log) { record(log, 5); return 2; }
+
 int value(int* log) { record(log, 6); return 99; }
-int choose(bool condition) { if (condition) { return 42; } return 1; }
+
+int choose(bool condition) { if (condition) return 42; return 1; }
+
 int crossing(int i) {
 	int[2] a = {1, 2};
 	a[i] = choose(i >= 0 && a[0] > 0);
 	return a[i];
 }
+
 int main() {
-	if (crossing(1) != 42) { return 5; }
+	if (crossing(1) != 42) return 5;
 	int log = 0;
 	int[4] a = {record(&log, 1), record(&log, 2), record(&log, 3), record(&log, 4)};
-	if (log != 1234) { return 1; }
+	if (log != 1234) return 1;
 	log = 0;
 	int read = a[index(&log)];
-	if (log != 5 || read != 3) { return 2; }
+	if (log != 5 || read != 3) return 2;
 	log = 0;
 	a[index(&log)] = value(&log);
-	if (log != 56 || a[2] != 99) { return 3; }
+	if (log != 56 || a[2] != 99) return 3;
 	// Capture element zero before a later initializer mutates its source.
 	log = 7;
 	int[2] captured = {log, record(&log, 8)};
-	if (captured[0] != 7 || captured[1] != 8 || log != 78) { return 4; }
+	if (captured[0] != 7 || captured[1] != 8 || log != 78) return 4;
 	return 0;
 }

@@ -3,56 +3,75 @@ class ClassCargo<A,B> {
 	private A code;
 	private B enabled;
 	owned R retained;
+
 	init(A code, B enabled, owned R retained) {
 		this.code = code;
 		this.enabled = enabled;
 		this.retained = move retained;
 	}
+
 	property A value { get { return this.code; } }
+
 	property B ready { get { return this.enabled; } }
+
 	deinit() { mark(710); }
 }
+
 class ClassEnvironment<T> {
 	private T shift;
+
 	init(T shift) { this.shift = shift; }
+
 	property T amount { get { return this.shift; } }
+
 	deinit() { mark(720); }
 }
+
 int inspect_class(borrowed ClassCargo<int,bool> value) { return value.value; }
+
 int retire_class(owned ClassCargo<int,bool> value, int extra) {
-	if (!value.ready) { return 0; }
+	if (!value.ready) return 0;
 	return value.value + extra;
 }
+
 int class_marker() throws Error { mark(711); throw new Error("class argument retry"); }
+
 int uninvoked_class_forwarder(Fn<int,owned ClassCargo<int,bool>,int> code, owned ClassCargo<int,bool> value) {
 	return code(move value, 3);
 }
+
 int forward_class(Fn<int,owned ClassCargo<int,bool>,int> code, owned ClassCargo<int,bool> value) {
 	return code(move value, 2);
 }
+
 int plain_class(borrowed ClassEnvironment<int> environment, owned ClassCargo<int,bool> value) {
 	return environment.amount + value.value;
 }
+
 int checked_class(borrowed ClassEnvironment<int> environment, owned ClassCargo<int,bool> value, bool fail) throws Error {
-	if (fail) { mark(713); throw new Error("consumed class"); }
+	if (fail) {
+		mark(713);
+		throw new Error("consumed class");
+	}
 	return environment.amount + value.value;
 }
+
 int exercise_classes() {
 	var retained = make(251);
 	var value = new ClassCargo<int,bool>(40, true, move retained);
 	Fn<int,borrowed ClassCargo<int,bool>> observe = inspect_class;
-	if (observe(value) != 40) { return 1; }
+	if (observe(value) != 40) return 1;
 	Fn<int,owned ClassCargo<int,bool>,int> code = retire_class;
-	if (forward_class(code, move value) != 42) { return 2; }
+	if (forward_class(code, move value) != 42) return 2;
 	var pending_retained = make(252);
 	var pending = new ClassCargo<int,bool>(40, true, move pending_retained);
 	try { code(move pending, class_marker()); return 3; } catch (Error error) { mark(712); }
-	if (observe(pending) != 40 || code(move pending, 2) != 42) { return 4; }
+	if (observe(pending) != 40 || code(move pending, 2) != 42) return 4;
 	var environment = new ClassEnvironment<int>(2);
 	owned Closure<ClassEnvironment<int>,int,owned ClassCargo<int,bool>> plain = closure_bind(move environment, plain_class);
 	var plain_retained = make(253);
 	var plain_value = new ClassCargo<int,bool>(40, true, move plain_retained);
-	if (closure_invoke(plain, move plain_value) != 42) { return 5; }
+	if (closure_invoke(plain, move plain_value) != 42) return 5;
 	var checked_environment = new ClassEnvironment<int>(3);
 	owned CheckedClosure<ClassEnvironment<int>,Error,int,owned ClassCargo<int,bool>,bool> checked = checked_closure_bind(move checked_environment, checked_class);
 	var rejected_retained = make(254);
@@ -60,11 +79,12 @@ int exercise_classes() {
 	try { closure_invoke(checked, move rejected, true); return 6; } catch (Error error) { mark(714); }
 	var retried_retained = make(255);
 	var retried = new ClassCargo<int,bool>(40, true, move retried_retained);
-	try { if (closure_invoke(checked, move retried, false) != 43) { return 7; } } catch (Error error) { return 8; }
+	try { if (closure_invoke(checked, move retried, false) != 43) return 7; } catch (Error error) { return 8; }
 	return 0;
 }
+
 int main() {
 	int result = exercise_classes();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

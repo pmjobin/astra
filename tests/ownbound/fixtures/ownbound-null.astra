@@ -2,18 +2,21 @@
 void consume(owned Resource r) {
 	return;
 }
+
 owned Resource empty() {
 	return null;
 }
+
 void scenario() {
 	consume(null);
 	owned Resource r = empty();
 	consume(move r);
 }
+
 int main() {
 	resource_reset();
 	scenario();
-	if (resource_create_count() != 0 || resource_destroy_count() != 0 || resource_destroy_order() != 0 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 0) { return 1; }
-	if (resource_effect_order() != 0) { return 2; }
+	if (resource_create_count() != 0 || resource_destroy_count() != 0 || resource_destroy_order() != 0 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 0) return 1;
+	if (resource_effect_order() != 0) return 2;
 	return 0;
 }

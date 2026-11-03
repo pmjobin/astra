@@ -15,6 +15,7 @@ namespace Astra.Tests.TextPipeline {
 private SourceFile source_file(CheckedProgram program) {
 	return program.span.file;
 }
+
 private void lifetime() {
 	try {
 		var files = new GenericArray<SourceFile> ();
@@ -77,9 +78,11 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text/stage-lifetime-firewall", lifetime);
 	return Test.run ();
 }
+
 }

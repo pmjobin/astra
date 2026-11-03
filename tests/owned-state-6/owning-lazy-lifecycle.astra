@@ -1,57 +1,76 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void state_event(int kind, int tag);
+
 class LifecycleItem {
 	int tag;
+
 	init(int tag) { this.tag = tag; state_event(7, tag); }
+
 	deinit() { state_event(9, this.tag); }
 }
+
 int lifecycle_tag(LifecycleItem item) { return item.tag; }
+
 class LifecycleBase {
 	int tag;
+
 	init(int tag) { this.tag = tag; }
+
 	lazy property owned LifecycleItem content {
 		get { var item = new LifecycleItem(this.tag); return move item; }
 	}
+
 	deinit() { state_event(8, this.tag); }
 }
+
 class LifecycleDerived : LifecycleBase {
 	init(int tag) : base(tag) {}
+
 	lazy property owned LifecycleItem extra {
 		get { var item = new LifecycleItem(this.tag + 1); return move item; }
 	}
+
 	deinit() { state_event(8, this.tag + 100); }
 }
+
 class LifecycleLate {
 	int tag;
+
 	init(int tag) { this.tag = tag; }
+
 	lazy property owned LifecycleItem content {
 		get { var item = new LifecycleItem(this.tag); return move item; }
 	}
+
 	lazy property owned LifecycleItem extra {
 		get { var item = new LifecycleItem(this.tag + 1); return move item; }
 	}
+
 	deinit() {
-		if (lifecycle_tag(this.content) != this.tag || lifecycle_tag(this.content) != this.tag) { state_event(99, 0); }
-		if (lifecycle_tag(this.extra) != this.tag + 1) { state_event(99, 1); }
+		if (lifecycle_tag(this.content) != this.tag || lifecycle_tag(this.content) != this.tag) state_event(99, 0);
+		if (lifecycle_tag(this.extra) != this.tag + 1) state_event(99, 1);
 		state_event(8, this.tag);
 	}
 }
+
 int lifecycle_base_tag(LifecycleBase value) { return lifecycle_tag(value.content); }
+
 int lifecycle_early() { var value = new LifecycleBase(30); return lifecycle_base_tag(value); }
+
 int main() {
 	{
 		var value = new LifecycleDerived(5);
-		if (lifecycle_base_tag(value) != 5 || lifecycle_tag(value.extra) != 6) { return 71; }
+		if (lifecycle_base_tag(value) != 5 || lifecycle_tag(value.extra) != 6) return 71;
 		var moved = move value;
-		if (lifecycle_base_tag(moved) != 5 || lifecycle_tag(moved.extra) != 6) { return 72; }
+		if (lifecycle_base_tag(moved) != 5 || lifecycle_tag(moved.extra) != 6) return 72;
 	}
 	{ var unused = new LifecycleDerived(8); }
 	{ var late = new LifecycleLate(12); }
 	try {
 		var value = new LifecycleBase(20);
-		if (lifecycle_base_tag(value) != 20) { return 73; }
+		if (lifecycle_base_tag(value) != 20) return 73;
 		throw new Error("after cache publication");
 	} catch(Error error) { state_event(6, 1); }
-	if (lifecycle_early() != 30) { return 74; }
+	if (lifecycle_early() != 30) return 74;
 	return 0;
 }

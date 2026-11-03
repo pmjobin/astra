@@ -10,6 +10,7 @@ typedef struct ObservedAllocation {
 	unsigned announcements;
 	unsigned live;
 } ObservedAllocation;
+
 static ObservedAllocation allocations[4096];
 static unsigned allocation_count;
 static unsigned frees;
@@ -28,6 +29,7 @@ void *__wrap_calloc(size_t count, size_t size) {
 	}
 	return pointer;
 }
+
 static ObservedAllocation *live_allocation(void *pointer) {
 	for (unsigned n = allocation_count; n != 0; n--) {
 		if (allocations[n - 1].pointer == pointer && allocations[n - 1].live) {
@@ -36,6 +38,7 @@ static ObservedAllocation *live_allocation(void *pointer) {
 	}
 	return NULL;
 }
+
 void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exception) {
 	if (phase == ASTRA_ASYNC_EXCEPTION) {
 		assert(exception != NULL);
@@ -49,6 +52,7 @@ void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exceptio
 	}
 	__real_astra_async_complete(task, phase, exception);
 }
+
 void __wrap_free(void *pointer) {
 	ObservedAllocation *origin = live_allocation(pointer);
 	if (origin != NULL) {
@@ -58,6 +62,7 @@ void __wrap_free(void *pointer) {
 	}
 	__real_free(pointer);
 }
+
 int main(void) {
 	int result = source_observer_main();
 	assert(result == 0 && exception_publications > 16 && original_transfers >= 2);

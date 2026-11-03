@@ -16,16 +16,20 @@ typedef struct State {
 	AstraAsyncTask *child;
 	AstraAsyncTask *second;
 } State;
+
 static int destroyed;
 static int entries;
 static int exception_identity;
+
 static void dispose(AstraAsyncTask *task, int discard) {
 	State *state = astra_async_data(task);
 	state->destroyed++;
 	state->discard = discard;
 	destroyed++;
 }
+
 static AstraAsyncTask *create(AstraAsyncTask *parent, int mode);
+
 static void resume(AstraAsyncTask *task) {
 	State *state = astra_async_data(task);
 	state->entries++;
@@ -72,11 +76,13 @@ static void resume(AstraAsyncTask *task) {
 	}
 	astra_async_complete(task, state->mode == 2 ? ASTRA_ASYNC_EXCEPTION : ASTRA_ASYNC_SUCCESS, state->mode == 2 ? &exception_identity : NULL);
 }
+
 static AstraAsyncTask *create(AstraAsyncTask *parent, int mode) {
 	AstraAsyncTask *task = astra_async_new(sizeof(State), _Alignof(State), resume, dispose, parent);
 	*(State *)astra_async_data(task) = (State){.mode = mode};
 	return task;
 }
+
 static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int expected) {
 	assert(astra_async_phase(root) == expected);
 	astra_async_begin_shutdown(executor);
@@ -86,6 +92,7 @@ static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int expec
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 static void cold_and_admission(void) {
 	int before = entries;
 	AstraAsyncTask *task = create(NULL, 0);
@@ -100,6 +107,7 @@ static void cold_and_admission(void) {
 	astra_async_close(executor);
 	assert(astra_async_open(0) == NULL);
 }
+
 static void nested_and_manual_time(void) {
 	AstraAsyncExecutor *executor = astra_async_open(2);
 	AstraAsyncTask *root = create(NULL, 1);
@@ -116,6 +124,7 @@ static void nested_and_manual_time(void) {
 	assert(astra_async_pump(executor, 2) == 2 && state->value == 42 && state->entries == 3);
 	finish(executor, root, ASTRA_ASYNC_SUCCESS);
 }
+
 static void retention_and_stale_tokens(void) {
 	AstraAsyncExecutor *executor = astra_async_open(1);
 	AstraAsyncTask *root = create(NULL, 2);
@@ -149,6 +158,7 @@ static void retention_and_stale_tokens(void) {
 	assert(astra_async_pump(executor, 1) == 1);
 	finish(executor, root, ASTRA_ASYNC_CANCELLED);
 }
+
 static void cancellation_and_capacity(void) {
 	AstraAsyncExecutor *executor = astra_async_open(2);
 	AstraAsyncTask *root = create(NULL, 1);
@@ -210,6 +220,7 @@ static void exact_association(void) {
 	astra_async_close(second);
 	puts("exact executor association passed; start refusals preserve owners; five fatal guards precede invalidation");
 }
+
 static void immediate_coalesced_wakes(void) {
 	AstraAsyncExecutor *executor = astra_async_open(1);
 	AstraAsyncTask *root = create(NULL, 5);
@@ -224,6 +235,7 @@ static void immediate_coalesced_wakes(void) {
 	finish(executor, root, ASTRA_ASYNC_SUCCESS);
 	puts("registration, zero delay, wake during resumption and coalesced pressure passed with exactly two body turns");
 }
+
 static void generation_exhaustion(void) {
 	AstraAsyncExecutor *executor = astra_async_open(2);
 	AstraAsyncTask *root = create(NULL, 3);
@@ -244,6 +256,7 @@ static void generation_exhaustion(void) {
 	finish(executor, root, ASTRA_ASYNC_SUCCESS);
 	puts("token generation final admission and exhaustion passed without wrap or stale access");
 }
+
 static void staged_parent_cancellation(void) {
 	AstraAsyncExecutor *executor = astra_async_open(40);
 	AstraAsyncTask *root = create(NULL, 4);
@@ -286,6 +299,7 @@ static void staged_parent_cancellation(void) {
 	finish(executor, root, ASTRA_ASYNC_SUCCESS);
 	puts("staged parent-only cancellation passed: 34 descendants, two actual retained backings and useful unrelated completion");
 }
+
 int main(void) {
 	cold_and_admission();
 	nested_and_manual_time();

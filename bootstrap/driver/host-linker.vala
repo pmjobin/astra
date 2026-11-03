@@ -26,9 +26,11 @@ public class LinkInput : Object {
 		}
 		return true;
 	}
+
 	public string argument(string directory) {
 		return library ? "-l" + value : Path.is_absolute (value) ? value : Path.build_filename (directory, value);
 	}
+
 }
 
 public class HostLinker : Object {
@@ -66,5 +68,6 @@ public class HostLinker : Object {
 			throw new ExecutionError.LINK ("astrac: error: host linker '%s' failed (%s)%s%s", argv[0], termination, detail == "" ? "" : ":\n", detail);
 		}
 	}
+
 }
 }

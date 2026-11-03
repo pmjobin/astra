@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 void ssa_synthetic_block(CfgData cfg, int yes, int no) {
 	int term = 3; int condition = 0;
-	if (yes != 0) { term = 1; } if (no != 0) { term = 2; condition = 1; }
+	if (yes != 0) term = 1; if (no != 0) {
+		term = 2;
+		condition = 1;
+	}
 	int added = cfg_block(cfg, 1, 0, 0, term, condition, yes, no);
 }
+
 void ssa_synthetic_edges(CfgData cfg) {
 	int b = 0;
 	while (b < cfg.block_count) {
 		int p = 1;
 		while (p <= 2) {
-			int target = cfg.blocks[b].yes; if (p == 2) { target = cfg.blocks[b].no; }
+			int target = cfg.blocks[b].yes; if (p == 2) target = cfg.blocks[b].no;
 			if (target != 0) {
 				CfgEdge edge = {function = 1, source = b + 1, target = target, polarity = p, meaning = 1}; int id = cfg_add_edge(cfg, edge);
 				CfgPredecessor pred = {function = 1, source = b + 1, target = target, edge = id}; int added = cfg_add_predecessor(cfg, pred);
@@ -20,6 +24,7 @@ void ssa_synthetic_edges(CfgData cfg) {
 	}
 	CfgFunction function = {entry = 1, exit = cfg.block_count}; cfg.functions[0] = function;
 }
+
 // A legal parallel-edge value fragment, checked separately from source-backed
 // complete programs. Both edges must occur even though they share a source.
 void ssa_parallel_arguments(CfgData cfg) {
@@ -35,25 +40,62 @@ void ssa_parallel_arguments(CfgData cfg) {
 	assert_that(!check.arguments(d, cfg, graph, incoming, budget)); d.arguments[1] = saved;
 	assert_that(check.arguments(d, cfg, graph, incoming, budget));
 }
+
 void ssa_graph_tests() throws Error {
 	var out = new Utf8ByteBuilder(); int shape = 0;
 	while (shape < 7) {
 		var cfg = new CfgData(1, 0, 65536);
-		if (shape == 0) { ssa_synthetic_block(cfg, 0, 0); }
-		if (shape == 1) { ssa_synthetic_block(cfg, 2, 3); ssa_synthetic_block(cfg, 4, 0); ssa_synthetic_block(cfg, 4, 0); ssa_synthetic_block(cfg, 0, 0); }
-		if (shape == 2) { ssa_synthetic_block(cfg, 2, 2); ssa_synthetic_block(cfg, 0, 0); }
-		if (shape == 3) { ssa_synthetic_block(cfg, 2, 0); ssa_synthetic_block(cfg, 4, 0); ssa_synthetic_block(cfg, 4, 0); ssa_synthetic_block(cfg, 0, 0); }
-		if (shape == 4) { ssa_synthetic_block(cfg, 2, 0); ssa_synthetic_block(cfg, 3, 4); ssa_synthetic_block(cfg, 2, 0); ssa_synthetic_block(cfg, 0, 0); }
-		if (shape == 5) { ssa_synthetic_block(cfg, 2, 3); ssa_synthetic_block(cfg, 4, 0); ssa_synthetic_block(cfg, 4, 5); ssa_synthetic_block(cfg, 5, 0); ssa_synthetic_block(cfg, 0, 0); }
-		if (shape == 6) { ssa_synthetic_block(cfg, 2, 3); ssa_synthetic_block(cfg, 3, 4); ssa_synthetic_block(cfg, 2, 4); ssa_synthetic_block(cfg, 0, 0); }
+		if (shape == 0) ssa_synthetic_block(cfg, 0, 0);
+		if (shape == 1) {
+			ssa_synthetic_block(cfg, 2, 3);
+			ssa_synthetic_block(cfg, 4, 0);
+			ssa_synthetic_block(cfg, 4, 0);
+			ssa_synthetic_block(cfg, 0, 0);
+		}
+		if (shape == 2) {
+			ssa_synthetic_block(cfg, 2, 2);
+			ssa_synthetic_block(cfg, 0, 0);
+		}
+		if (shape == 3) {
+			ssa_synthetic_block(cfg, 2, 0);
+			ssa_synthetic_block(cfg, 4, 0);
+			ssa_synthetic_block(cfg, 4, 0);
+			ssa_synthetic_block(cfg, 0, 0);
+		}
+		if (shape == 4) {
+			ssa_synthetic_block(cfg, 2, 0);
+			ssa_synthetic_block(cfg, 3, 4);
+			ssa_synthetic_block(cfg, 2, 0);
+			ssa_synthetic_block(cfg, 0, 0);
+		}
+		if (shape == 5) {
+			ssa_synthetic_block(cfg, 2, 3);
+			ssa_synthetic_block(cfg, 4, 0);
+			ssa_synthetic_block(cfg, 4, 5);
+			ssa_synthetic_block(cfg, 5, 0);
+			ssa_synthetic_block(cfg, 0, 0);
+		}
+		if (shape == 6) {
+			ssa_synthetic_block(cfg, 2, 3);
+			ssa_synthetic_block(cfg, 3, 4);
+			ssa_synthetic_block(cfg, 2, 4);
+			ssa_synthetic_block(cfg, 0, 0);
+		}
 		ssa_synthetic_edges(cfg); assert_that(ssa_graph_input(cfg));
-		if (shape == 2) { ssa_parallel_arguments(cfg); }
+		if (shape == 2) ssa_parallel_arguments(cfg);
 		var budget = new SsaBudget(8000000); var built = ssa_analyze(cfg, budget);
 		var independent_budget = new SsaBudget(8000000); var checked = ssa_independent_graph(cfg, independent_budget);
 		assert_that(built.status == 0 && checked.status == 0);
 		source_append_text(out, "SYNTH"); flow_number(out, shape); flow_number(out, cfg.block_count); source_append_text(out, "\n");
 		int e = 0;
-		while (e < cfg.edge_count) { source_append_text(out, "EDGE"); flow_number(out, e + 1); flow_number(out, cfg.edges[e].source); flow_number(out, cfg.edges[e].target); source_append_text(out, "\n"); e = e + 1; }
+		while (e < cfg.edge_count) {
+			source_append_text(out, "EDGE");
+			flow_number(out, e + 1);
+			flow_number(out, cfg.edges[e].source);
+			flow_number(out, cfg.edges[e].target);
+			source_append_text(out, "\n");
+			e = e + 1;
+		}
 		int b = 0;
 		while (b < cfg.block_count) {
 			assert_that(built.parent[b] == checked.parent[b] && built.reachable[b] == checked.reachable[b]);
@@ -62,8 +104,18 @@ void ssa_graph_tests() throws Error {
 		int at = 0;
 		while (at < cfg.block_count * cfg.block_count) {
 			assert_that(built.dominates[at] == checked.dominates[at] && built.frontier[at] == checked.frontier[at]);
-			if (built.dominates[at]) { source_append_text(out, "DOM"); flow_number(out, at / cfg.block_count + 1); flow_number(out, at % cfg.block_count + 1); source_append_text(out, "\n"); }
-			if (built.frontier[at]) { source_append_text(out, "FRONTIER"); flow_number(out, at / cfg.block_count + 1); flow_number(out, at % cfg.block_count + 1); source_append_text(out, "\n"); }
+			if (built.dominates[at]) {
+				source_append_text(out, "DOM");
+				flow_number(out, at / cfg.block_count + 1);
+				flow_number(out, at % cfg.block_count + 1);
+				source_append_text(out, "\n");
+			}
+			if (built.frontier[at]) {
+				source_append_text(out, "FRONTIER");
+				flow_number(out, at / cfg.block_count + 1);
+				flow_number(out, at % cfg.block_count + 1);
+				source_append_text(out, "\n");
+			}
 			at = at + 1;
 		}
 		var tiny = new SsaBudget(1); var exhausted = ssa_analyze(cfg, tiny); assert_that(exhausted.status == 2);

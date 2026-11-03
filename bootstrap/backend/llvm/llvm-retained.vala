@@ -17,6 +17,7 @@ internal class LlvmRetainedHelperBinding : Object {
 		this.symbol = symbol;
 		sequence = new LlvmSumSequence (value, true);
 	}
+
 	internal void verify() throws LlvmError {
 		size_t length;
 		unowned string name = CApi.value_name (value, out length);
@@ -25,6 +26,7 @@ internal class LlvmRetainedHelperBinding : Object {
 		}
 		sequence.verify ();
 	}
+
 }
 internal class LlvmRetainedLowering : Object {
 	private LlvmModuleArtifact artifact;
@@ -50,22 +52,26 @@ internal class LlvmRetainedLowering : Object {
 		layout = CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 		artifact.class_layouts.add (new LlvmClassLayoutBinding (layout, fields));
 	}
+
 	private CApi.ValueRef address(CApi.BuilderRef active, CApi.ValueRef root, uint member) {
 		var result = CApi.build_struct_gep (active, layout, root, member, "retained.member");
 		artifact.class_addresses.add (new LlvmClassAddressBinding (result, root, layout, member));
 		return result;
 	}
+
 	private CApi.ValueRef read(CApi.BuilderRef active, CApi.ValueRef root, uint member) {
 		var place = address (active, root, member);
 		var result = CApi.build_load (active, pointer_type, place, "retained.read");
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, pointer_type, new CApi.ValueRef[] { place }, "private retained attachment read"));
 		return result;
 	}
+
 	private void write(CApi.ValueRef root, uint member, CApi.ValueRef value) {
 		var place = address (builder, root, member);
 		var result = CApi.build_store (builder, value, place);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, place }, "private retained attachment publication"));
 	}
+
 	private CApi.ValueRef declaration(string symbol, CApi.TypeRef type) throws LlvmError {
 		var target = CApi.named_function (artifact.module, symbol);
 		var registered = (void*) artifact.retained_runtime_symbols.lookup (symbol);
@@ -84,6 +90,7 @@ internal class LlvmRetainedLowering : Object {
 		}
 		return target;
 	}
+
 	private CApi.ValueRef helper(string symbol, CApi.TypeRef type, uint convention) throws LlvmError {
 		var target = CApi.named_function (artifact.module, symbol);
 		var registered = (void*) artifact.retained_helpers.lookup (symbol);
@@ -107,6 +114,7 @@ internal class LlvmRetainedLowering : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (result, callee, type, arguments, CApi.CallConv.C, "finite retained C provider lifecycle operation"));
 		return result;
 	}
+
 	private CApi.ValueRef compare(CApi.ValueRef left, CApi.ValueRef right) throws LlvmError {
 		var result = CApi.build_icmp (builder, CApi.IntPredicate.EQ, left, right, "retained.equal");
 		if ((void*) CApi.is_instruction (result) != null) {
@@ -114,13 +122,16 @@ internal class LlvmRetainedLowering : Object {
 		}
 		return result;
 	}
+
 	private CApi.BasicBlockRef block(string name) {
 		return CApi.append_basic_block_in_context (artifact.context, function, "retained.%d.%s".printf (serial++, name));
 	}
+
 	private void branch(CApi.ValueRef condition, CApi.BasicBlockRef yes, CApi.BasicBlockRef no) {
 		var result = CApi.build_cond_br (builder, condition, yes, no);
 		artifact.class_branches.add (new LlvmClassBranchBinding (result, condition, yes, no));
 	}
+
 	private CApi.ValueRef thunk() throws LlvmError {
 		var parameters = new CApi.TypeRef[] {
 			pointer_type, integer_type
@@ -150,6 +161,7 @@ internal class LlvmRetainedLowering : Object {
 		artifact.retained_bindings.add (new LlvmRetainedHelperBinding (value, type, CApi.CallConv.C, "astra.retained.i32.thunk"));
 		return value;
 	}
+
 	private CApi.ValueRef signal_identity(Astra.Source.ForeignValueType signature) throws LlvmError {
 		string identity = signature.identity ();
 		string name = "astra.retained.signal.signature." + Checksum.compute_for_string (ChecksumType.SHA256, identity);
@@ -175,6 +187,7 @@ internal class LlvmRetainedLowering : Object {
 		artifact.callback_views.insert (name, (void*) global);
 		return global;
 	}
+
 	private CApi.ValueRef signal_thunk(Astra.Source.ForeignValueType signature) throws LlvmError {
 		if (!signature.valid () || signature.kind != Astra.Source.ForeignValueKind.CALLBACK || signature.callback_result.kind != Astra.Source.ForeignValueKind.VOID) {
 			throw new LlvmError.LOWERING ("retained signal requires its normalized void callback descriptor");
@@ -217,6 +230,7 @@ internal class LlvmRetainedLowering : Object {
 		artifact.retained_bindings.add (new LlvmRetainedHelperBinding (value, type, CApi.CallConv.C, name));
 		return value;
 	}
+
 	private CApi.ValueRef retire_thunk(bool threaded, bool signal = false) throws LlvmError {
 		string helper_name = signal ? "astra.retained.signal.retire" : threaded ? "astra.thread.retire" : "astra.retained.retire";
 		string provider_name = signal ? "astra_gobject16_signal_retire" : threaded ? "astra_thread_retire" : "astra_retained_retire";
@@ -246,6 +260,7 @@ internal class LlvmRetainedLowering : Object {
 		artifact.retained_bindings.add (new LlvmRetainedHelperBinding (value, type, LlvmLowering.CALL_CONVENTION, helper_name));
 		return value;
 	}
+
 	internal CApi.ValueRef operation(RetainedAction action, CApi.ValueRef carrier, CApi.ValueRef argument, LlvmBlockState state, NativeClosureHandleType? handle = null) throws LlvmError {
 		var signal_callback = handle == null ? null : NativeRetainedPlan.signal_callback (handle);
 		bool signal = RetainedContracts.signal (action);
@@ -282,5 +297,6 @@ internal class LlvmRetainedLowering : Object {
 		CApi.add_incoming (result, &status, &fresh_end, 1);
 		return result;
 	}
+
 }
 }

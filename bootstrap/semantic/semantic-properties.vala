@@ -24,6 +24,7 @@ public class PropertySymbol : Symbol {
 		this.ordinal = ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 // Siblings of methods, sharing the existing native callable implementation.
@@ -37,12 +38,14 @@ public abstract class PropertyAccessorSymbol : FunctionSymbol {
 		this.parent = WeakRef (property_symbol);
 		this.receiver = new ReceiverSymbol (span, name_span, property_symbol.declaring_type.receiver_type);
 	}
+
 }
 
 public class PropertyGetterSymbol : PropertyAccessorSymbol {
 	internal PropertyGetterSymbol (SourceSpan span, SourceSpan name_span, PropertySymbol property_symbol) {
 		base (span, name_span, property_symbol, property_symbol.semantic_type, new GenericArray<ParameterSymbol> (), CallableDomain.PROPERTY_GETTER);
 	}
+
 }
 
 public class PropertySetterSymbol : PropertyAccessorSymbol {
@@ -50,6 +53,7 @@ public class PropertySetterSymbol : PropertyAccessorSymbol {
 		base (span, name_span, property_symbol, void_type, new GenericArray<ParameterSymbol> (), CallableDomain.PROPERTY_SETTER);
 		parameters.add (parameter);
 	}
+
 }
 
 public class CheckedProperty : CheckedNode {
@@ -62,6 +66,7 @@ public class CheckedProperty : CheckedNode {
 		this.getter = getter;
 		this.setter = setter;
 	}
+
 }
 
 public class CheckedPropertyAccessor : CheckedFunction {
@@ -69,6 +74,7 @@ public class CheckedPropertyAccessor : CheckedFunction {
 	internal CheckedPropertyAccessor (PropertyAccessorSymbol accessor, GenericArray<LocalSymbol> locals, CheckedBlockStatement body) {
 		base (accessor, locals, body);
 	}
+
 }
 
 // The public observation channel has receiver provenance. Its separate
@@ -79,6 +85,7 @@ public class CheckedLazyObserve : CheckedExpression {
 		base (span, property_symbol.semantic_type);
 		this.property_symbol = property_symbol;
 	}
+
 }
 
 public class CheckedPropertyGetExpression : CheckedCallExpression {
@@ -87,6 +94,7 @@ public class CheckedPropertyGetExpression : CheckedCallExpression {
 	internal CheckedPropertyGetExpression (SourceSpan span, PropertySymbol property_symbol, CheckedExpression receiver) {
 		base (span, property_symbol.getter, new GenericArray<CheckedExpression> (), receiver);
 	}
+
 }
 
 public class CheckedPropertySetStatement : CheckedCallStatement {
@@ -96,5 +104,6 @@ public class CheckedPropertySetStatement : CheckedCallStatement {
 		base (span, property_symbol.setter, new GenericArray<CheckedExpression> (), receiver);
 		arguments.add (value);
 	}
+
 }
 }

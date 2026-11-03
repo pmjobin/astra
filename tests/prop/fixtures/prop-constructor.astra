@@ -1,8 +1,15 @@
 class Counter {
 	int raw;
+
 	property int value { get { return this.raw; } }
+
 	init(borrowed Counter source) {
-		if (source != null) { this.raw = source.value; } else { this.raw = 42; }
+		if (source != null) {
+			this.raw = source.value;
+		} else {
+			this.raw = 42;
+		}
 	}
 }
+
 int main() { Counter a = Counter.init(null); Counter b = Counter.init(a); return b.value; }

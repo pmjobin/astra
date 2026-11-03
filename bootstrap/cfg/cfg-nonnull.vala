@@ -17,20 +17,24 @@ internal class CfgNonNull : Object {
 	private void fail(SourceSpan span, string reason) throws CfgError {
 		throw new CfgError.INVALID_CFG ("%s", new Diagnostic (span, "CFG nonnull " + reason).format ());
 	}
+
 	private void require(bool proven, SourceSpan span) throws CfgError {
 		if (validating && state.reachable && !proven) {
 			fail (span, "contract requires a current non-null proof");
 		}
 	}
+
 	private void remember(Object? key) {
 		if (key != null && !universe.find (key)) {
 			universe.add (key);
 		}
 	}
+
 	private bool required(CfgPlace slot) {
 		var local = slot as CfgLocalPlace;
 		return (local != null && (local.requires_nonnull || (local.incoming_parameter != null && local.incoming_parameter.requires_nonnull))) || (slot is CfgIndirectFieldPlace && ((CfgIndirectFieldPlace) slot).field.requires_nonnull);
 	}
+
 	public static void verify(CfgProgram program) throws CfgError {
 		foreach (var instance in program.native_instances ()) {
 			foreach (var field in instance.fields) {
@@ -99,6 +103,7 @@ internal class CfgNonNull : Object {
 			proof.run ();
 		}
 	}
+
 	private Object? backing(CfgValue value) {
 		if (value is CfgReceiverValue) {
 			return ((CfgReceiverValue) value).receiver;
@@ -124,6 +129,7 @@ internal class CfgNonNull : Object {
 		}
 		return state.backing (value);
 	}
+
 	private Object? property_key(CfgCallInstruction call) {
 		var getter = call.target as CfgPropertyGetter;
 		if (getter == null || call.receiver == null || !getter.property_member.is_borrowed || getter.property_member.is_lazy) {
@@ -131,6 +137,7 @@ internal class CfgNonNull : Object {
 		}
 		return projections.key (backing (call.receiver), getter.property_member);
 	}
+
 	private bool known(CfgValue value) {
 		if (value is CfgNullPointerValue) {
 			return false;
@@ -159,6 +166,7 @@ internal class CfgNonNull : Object {
 		}
 		return state.knows (value);
 	}
+
 	private CfgValue expanded(CfgValue value) {
 		var seen = new HashTable<CfgValue, bool> (direct_hash, direct_equal);
 		while (value is CfgEvaluatedValue && definitions.contains ((CfgEvaluatedValue) value) && !seen.contains (value)) {
@@ -167,6 +175,7 @@ internal class CfgNonNull : Object {
 		}
 		return value;
 	}
+
 	private void refine(CfgValue input, bool truth) {
 		state.assume (input, truth);
 		var condition = expanded (input);
@@ -196,6 +205,7 @@ internal class CfgNonNull : Object {
 			}
 		}
 	}
+
 	private NonNullFacts edge(CfgBlock source, CfgBlock target) {
 		state = outputs.lookup (source).copy ();
 		var branch = source.terminator as CfgConditionalBranch;
@@ -204,6 +214,7 @@ internal class CfgNonNull : Object {
 		}
 		return state;
 	}
+
 	private NonNullFacts incoming(CfgBlock target) {
 		if (!reachable.is_reachable (target)) {
 			var dead = new NonNullFacts ();
@@ -228,6 +239,7 @@ internal class CfgNonNull : Object {
 		}
 		return merged;
 	}
+
 	private void bind_boolean(Object target, CfgValue value, NonNullFacts before) {
 		var after = state;
 		state = before.copy ();
@@ -239,6 +251,7 @@ internal class CfgNonNull : Object {
 		state = after;
 		state.boolean (target, yes, no);
 	}
+
 	private void store(CfgPlace target, CfgValue value, SourceSpan span) throws CfgError {
 		bool proven = known (value);
 		if (required (target)) {
@@ -251,6 +264,7 @@ internal class CfgNonNull : Object {
 			bind_boolean (target, value, before);
 		}
 	}
+
 	private void instruction(CfgInstruction node) throws CfgError {
 		if (!state.reachable) {
 			return;
@@ -409,6 +423,7 @@ internal class CfgNonNull : Object {
 			fail (node.span, "proof excludes an unsupported effect shape in this definition (%s)".printf (node.get_type ().name ()));
 		}
 	}
+
 	private void transfer(CfgBlock block) throws CfgError {
 		foreach (var node in block.instructions) {
 			instruction (node);
@@ -418,6 +433,7 @@ internal class CfgNonNull : Object {
 			require (returned.value != null && known (returned.value), returned.span);
 		}
 	}
+
 	private void run() throws CfgError {
 		reachable = CfgReachability.analyze (function);
 		foreach (var parameter in function.parameters) {
@@ -477,5 +493,6 @@ internal class CfgNonNull : Object {
 			transfer (block);
 		}
 	}
+
 }
 }

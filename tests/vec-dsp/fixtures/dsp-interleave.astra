@@ -7,15 +7,15 @@ int main(){
 	u8<8> high=interleave_high(a,b);
 	u8<8> el={0,10,1,11,2,12,3,13};
 	u8<8> eh={4,14,5,15,6,16,7,17};
-	if(!all(low==el) || !all(high==eh)){return 1;}
+	if(!all(low==el) || !all(high==eh)) return 1;
 	bool<8> ma={true,false,false,true,true,false,true,false};
 	bool<8> mb={false,true,true,false,false,true,false,true};
 	bool<8> ml=interleave_low(ma,mb);
 	bool<8> mh=interleave_high(ma,mb);
 	bool<8> eml={true,false,false,true,false,true,true,false};
 	bool<8> emh={true,false,false,true,true,false,false,true};
-	if(!all(ml==eml) || !all(mh==emh) || !any(ml) || all(mh) || !ml[0]){return 2;}
+	if(!all(ml==eml) || !all(mh==emh) || !any(ml) || all(mh) || !ml[0]) return 2;
 	low=shuffle(low,7,6,5,4,3,2,1,0);
-	if(low[0]!=13 || low[7]!=0){return 3;}
+	if(low[0]!=13 || low[7]!=0) return 3;
 	return 0;
 }

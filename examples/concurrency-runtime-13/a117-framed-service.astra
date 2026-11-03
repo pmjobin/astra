@@ -122,7 +122,9 @@ async int serve_connection(owned TcpSocket socket, int seed) throws Error {
 	var message = utf8_message(label);
 	label[1] = 120;
 	release label;
-	if (message.text != "\0é" || message.text.byte_length != 3) { throw new Error("UTF-8 snapshot changed"); }
+	if (message.text != "\0é" || message.text.byte_length != 3) {
+		throw new Error("UTF-8 snapshot changed");
+	}
 	int sent = 0;
 
 	while (sent < len(bytes)) {

@@ -13,10 +13,12 @@ typedef struct Work {
 	unsigned char value;
 	pthread_barrier_t *start, *held, *retire;
 } Work;
+
 static void meet(pthread_barrier_t *barrier) {
 	int result = pthread_barrier_wait(barrier);
 	assert(result == 0 || result == PTHREAD_BARRIER_SERIAL_THREAD);
 }
+
 static void *exercise(void *opaque) {
 	Work *work = opaque;
 	meet(work->start);
@@ -35,6 +37,7 @@ static void *exercise(void *opaque) {
 	}
 	return NULL;
 }
+
 int main(void) {
 	AstraContext17 *first = sequence_custom_allocator(1025, 4, 101);
 	AstraContext17 *second = sequence_custom_allocator(4099, 4, 103);

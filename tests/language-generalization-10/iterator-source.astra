@@ -4,17 +4,23 @@ extern(C) void usability_event(int value);
 class Sequence {
 	owned int[] state;
 	int failure;
+
 	init(int count, int failure) {
 		this.state = new int[2];
 		this.state[0] = -1;
 		this.state[1] = count;
 		this.failure = failure;
 	}
+
 	bool advance() throws Error {
 		this.state[0] = this.state[0] + 1;
-		if (this.state[0] == this.failure) { throw new Error("sequence failure"); }
+		if (this.state[0] == this.failure) {
+			throw new Error("sequence failure");
+		}
 		return this.state[0] < this.state[1];
 	}
+
 	int current() { return this.state[0] * 2 + 1; }
+
 	deinit() { usability_event(-300 - this.state[1]); }
 }

@@ -41,6 +41,7 @@ private CfgProgram sample(int variant) throws CfgError {
 	}
 	return program;
 }
+
 private void independent() {
 	for (int variant = 0; variant <= 10; variant++) {
 		try {
@@ -54,9 +55,11 @@ private void independent() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text-io/cfg/independent-contracts", independent);
 	return Test.run ();
 }
+
 }

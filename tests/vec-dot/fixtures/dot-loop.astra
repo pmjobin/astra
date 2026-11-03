@@ -3,24 +3,37 @@
 u8 integer_loop(int count,u8 initial,u8<16> a,u8<16> b){
 	u8 c=initial;
 	int i=0;
-	while(i<count){c=mac_wrap(c,a,b);i=i+1;}
+	while(i<count){
+		c=mac_wrap(c,a,b);
+		i=i+1;
+	}
 	return c;
 }
+
 f32 float_loop(int count,f32 initial,f32<4> a,f32<4> b){
 	f32 c=initial;
 	int i=0;
-	while(i<count){c=mac(c,a,b);i=i+1;}
+	while(i<count){
+		c=mac(c,a,b);
+		i=i+1;
+	}
 	return c;
 }
+
 i32 branch(bool take,i16<8> a,i16<8> b){
 	i32 c=0;
-	if(take){c=dot_wrap(a,b,i32);}else{c=mac_wrap(7,a,b);}
+	if(take){
+		c=dot_wrap(a,b,i32);
+	}else{
+		c=mac_wrap(7,a,b);
+	}
 	return c;
 }
+
 int main(){
-	if(integer_loop(100,250,splat(255,16),splat(255,16))!=58){return 1;}
+	if(integer_loop(100,250,splat(255,16),splat(255,16))!=58) return 1;
 	f32<4> a={16777216.0,1.0,-16777216.0,1.0};
-	if(float_loop(9,0.0,a,splat(1.0,4))!=1.0){return 2;}
-	if(branch(true,splat(2,8),splat(3,8))!=48 || branch(false,splat(2,8),splat(3,8))!=55){return 3;}
+	if(float_loop(9,0.0,a,splat(1.0,4))!=1.0) return 2;
+	if(branch(true,splat(2,8),splat(3,8))!=48 || branch(false,splat(2,8),splat(3,8))!=55) return 3;
 	return 0;
 }

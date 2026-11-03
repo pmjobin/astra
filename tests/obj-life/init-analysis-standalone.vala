@@ -20,9 +20,11 @@ private void lattice() {
 	join = FieldInitializationState.join (left, right);
 	assert (!join.reachable && join.is_definite (0) && join.is_definite (1));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/init-analysis/definite-possible-join-and-unreachable", lattice);
 	return Test.run ();
 }
+
 }

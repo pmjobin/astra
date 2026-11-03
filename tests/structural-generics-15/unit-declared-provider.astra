@@ -37,22 +37,29 @@ class PairBox<A, B> {
 	private A first;
 	private B second;
 	private int generation;
+
 	init(A first, B second) {
 		this.first = first;
 		this.second = second;
 		this.generation = 1;
 	}
+
 	A read() {
-		if (this.generation > 0) { return this.first; }
+		if (this.generation > 0) return this.first;
 		return this.first;
 	}
+
 	B other() { return this.second; }
+
 	property A value { get { return this.first; } }
+
 	property B alternative { get { return this.second; } }
+
 	property int version {
 		get { return this.generation; }
 		set(int value) { this.generation = value; }
 	}
+
 	int advance(int amount) {
 		this.generation = this.generation + amount;
 		return this.generation;
@@ -72,7 +79,9 @@ owned PairBox<Stats, int> record(int value) {
 
 class Leaf {
 	private int value;
+
 	init(int value) { this.value = value; }
+
 	int read() { return this.value; }
 }
 
@@ -85,11 +94,14 @@ struct Carrier {
 class OwnerBox<T> {
 	private owned T payload;
 	private int tag;
+
 	init(owned T payload, int tag) {
 		this.payload = move payload;
 		this.tag = tag;
 	}
+
 	int tagged() { return this.tag; }
+
 	property borrowed T view { get { return this.payload; } }
 }
 

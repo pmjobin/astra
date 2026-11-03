@@ -1,60 +1,71 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 void write_i8(i8* p, i8 value) { *p = value; }
+
 i8 read_i8(i8* p) { return *p; }
+
 void write_u8(u8* p, u8 value) { *p = value; }
+
 u8 read_u8(u8* p) { return *p; }
+
 void write_i16(i16* p, i16 value) { *p = value; }
+
 i16 read_i16(i16* p) { return *p; }
+
 void write_u16(u16* p, u16 value) { *p = value; }
+
 u16 read_u16(u16* p) { return *p; }
+
 void write_int(int* p, int value) { *p = value; }
+
 int read_int(int* p) { return *p; }
+
 void write_u32(u32* p, u32 value) { *p = value; }
+
 u32 read_u32(u32* p) { return *p; }
 
 int main() {
 	i8 i8_value = 0;
 	i8* i8_pointer = &i8_value;
 	write_i8(i8_pointer, -128);
-	if (i8_value != -128 || read_i8(i8_pointer) != -128) { return 1; }
+	if (i8_value != -128 || read_i8(i8_pointer) != -128) return 1;
 	i8_value = -128;
-	if (*i8_pointer != -128) { return 2; }
-	if (*i8_pointer >= 0) { return 3; }
+	if (*i8_pointer != -128) return 2;
+	if (*i8_pointer >= 0) return 3;
 	u8 u8_value = 0;
 	u8* u8_pointer = &u8_value;
 	write_u8(u8_pointer, 255);
-	if (u8_value != 255 || read_u8(u8_pointer) != 255) { return 1; }
+	if (u8_value != 255 || read_u8(u8_pointer) != 255) return 1;
 	u8_value = 255;
-	if (*u8_pointer != 255) { return 2; }
-	if (*u8_pointer <= 0) { return 3; }
+	if (*u8_pointer != 255) return 2;
+	if (*u8_pointer <= 0) return 3;
 	i16 i16_value = 0;
 	i16* i16_pointer = &i16_value;
 	write_i16(i16_pointer, -32768);
-	if (i16_value != -32768 || read_i16(i16_pointer) != -32768) { return 1; }
+	if (i16_value != -32768 || read_i16(i16_pointer) != -32768) return 1;
 	i16_value = -32768;
-	if (*i16_pointer != -32768) { return 2; }
-	if (*i16_pointer >= 0) { return 3; }
+	if (*i16_pointer != -32768) return 2;
+	if (*i16_pointer >= 0) return 3;
 	u16 u16_value = 0;
 	u16* u16_pointer = &u16_value;
 	write_u16(u16_pointer, 65535);
-	if (u16_value != 65535 || read_u16(u16_pointer) != 65535) { return 1; }
+	if (u16_value != 65535 || read_u16(u16_pointer) != 65535) return 1;
 	u16_value = 65535;
-	if (*u16_pointer != 65535) { return 2; }
-	if (*u16_pointer <= 0) { return 3; }
+	if (*u16_pointer != 65535) return 2;
+	if (*u16_pointer <= 0) return 3;
 	int int_value = 0;
 	int* int_pointer = &int_value;
 	write_int(int_pointer, -2147483648);
-	if (int_value != -2147483648 || read_int(int_pointer) != -2147483648) { return 1; }
+	if (int_value != -2147483648 || read_int(int_pointer) != -2147483648) return 1;
 	int_value = -2147483648;
-	if (*int_pointer != -2147483648) { return 2; }
-	if (*int_pointer >= 0) { return 3; }
+	if (*int_pointer != -2147483648) return 2;
+	if (*int_pointer >= 0) return 3;
 	u32 u32_value = 0;
 	u32* u32_pointer = &u32_value;
 	write_u32(u32_pointer, 4294967295);
-	if (u32_value != 4294967295 || read_u32(u32_pointer) != 4294967295) { return 1; }
+	if (u32_value != 4294967295 || read_u32(u32_pointer) != 4294967295) return 1;
 	u32_value = 4294967295;
-	if (*u32_pointer != 4294967295) { return 2; }
-	if (*u32_pointer <= 0) { return 3; }
+	if (*u32_pointer != 4294967295) return 2;
+	if (*u32_pointer <= 0) return 3;
 	return 0;
 }

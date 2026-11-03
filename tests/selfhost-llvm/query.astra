@@ -1,24 +1,67 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int main(string[] args) {
-	if (len(args) < 2) { println_stderr("LLVM_INVALID_COMMAND"); return 2; }
-	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa") { return llvm_ssa_cli(args); }
-	if (len(args) < 5) { println_stderr("LLVM_INVALID_COMMAND"); return 2; }
+	if (len(args) < 2) {
+		println_stderr("LLVM_INVALID_COMMAND");
+		return 2;
+	}
+	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa") return llvm_ssa_cli(args);
+	if (len(args) < 5) {
+		println_stderr("LLVM_INVALID_COMMAND");
+		return 2;
+	}
 	try {
 		int optimization = 0;
-		if (args[2] == "O2") { optimization = 2; } else { if (args[2] != "O0") { throw new Error("LLVM_TARGET_UNAVAILABLE"); } }
+		if (args[2] == "O2") {
+			optimization = 2;
+		} else {
+			if (args[2] != "O0") {
+				throw new Error("LLVM_TARGET_UNAVAILABLE");
+			}
+		}
 		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
 		var checked = checked_build_nativeabi(move bindings, 0); var flow = flow_index(move checked, 8192, 1000000);
-		if (args[1] == "--nativeabi-admit") { var observation = flow_observation(flow); print(observation.text); return flow_status(flow); }
+		if (args[1] == "--nativeabi-admit") {
+			var observation = flow_observation(flow);
+			print(observation.text);
+			return flow_status(flow);
+		}
 		var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var program = ssa_lower(move cfg, 65536, 8000000);
 		var profile = new LlvmProfile(optimization, 8000000, 16777216);
-		if (args[1] == "--nativeabi-ssa") { if (ssa_verify(program) != 0) { throw new Error("LLVM_INVALID_UPSTREAM: native ABI SSA"); } var projection = ssa_projection(program); print(projection.text); return 0; }
-		if (args[1] == "--mutate-llvm") { llvm_mutations(program, profile, args[3]); return 0; }
-		if (args[1] == "--nativeabi-mutations") { nativeabi_mutations(program, profile, args[3]); return 0; }
-		if (args[1] == "--llvm-limits") { llvm_limits(program, args[3]); return 0; }
+		if (args[1] == "--nativeabi-ssa") {
+			if (ssa_verify(program) != 0) {
+				throw new Error("LLVM_INVALID_UPSTREAM: native ABI SSA");
+			}
+			var projection = ssa_projection(program);
+			print(projection.text);
+			return 0;
+		}
+		if (args[1] == "--mutate-llvm") {
+			llvm_mutations(program, profile, args[3]);
+			return 0;
+		}
+		if (args[1] == "--nativeabi-mutations") {
+			nativeabi_mutations(program, profile, args[3]);
+			return 0;
+		}
+		if (args[1] == "--llvm-limits") {
+			llvm_limits(program, args[3]);
+			return 0;
+		}
 		var module = llvm_lower(program, program, profile);
-		if (args[1] == "--abi-plan") { assert_that(module.audit(program) == 0); module.abi_snapshot(); println(""); return 0; }
-		if (args[1] == "--llvm-lifecycle") { llvm_lifecycle(module, program, profile, args, args[3]); return 0; }
-		if (args[1] == "--llvm-raw") { module.raw(program, args[3]); return 0; }
+		if (args[1] == "--abi-plan") {
+			assert_that(module.audit(program) == 0);
+			module.abi_snapshot();
+			println("");
+			return 0;
+		}
+		if (args[1] == "--llvm-lifecycle") {
+			llvm_lifecycle(module, program, profile, args, args[3]);
+			return 0;
+		}
+		if (args[1] == "--llvm-raw") {
+			module.raw(program, args[3]);
+			return 0;
+		}
 		module.write(program, program, profile, args[3], args[1] == "--emit-obj");
 		return 0;
 	} catch (Error error) { println_stderr(error.message); return 2; }
@@ -58,17 +101,19 @@ void llvm_mutations(SsaProgram program, LlvmProfile profile, string path) throws
 		category = category + 1;
 	}
 }
+
 void llvm_limits(SsaProgram program, string path) throws Error {
 	int i = 0;
 	while (i < 5) {
 		int work = 8000000; int output = 16777216; int level = 0;
-		if (i == 0) { work = 0; } if (i == 1) { work = 1; } if (i == 2) { output = 0; } if (i == 3) { output = 1; } if (i == 4) { level = 1; }
+		if (i == 0) work = 0; if (i == 1) work = 1; if (i == 2) output = 0; if (i == 3) output = 1; if (i == 4) level = 1;
 		var profile = new LlvmProfile(level, work, output); bool rejected = false;
 		try { var module = llvm_lower(program, program, profile); module.write(program, program, profile, path, true); } catch (Error error) { rejected = true; }
 		assert_that(rejected); i = i + 1;
 	}
 	println("LLVM_LIMITS_REJECTED");
 }
+
 void llvm_lifecycle(LlvmArtifact module, SsaProgram program, LlvmProfile profile, string[] args, string path) throws Error {
 	var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
 	var checked = checked_build_nativeabi(move bindings, 0); var flow = flow_index(move checked, 8192, 1000000);

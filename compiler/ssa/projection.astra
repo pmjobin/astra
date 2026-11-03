@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-int ssa_bit(bool value) { if (value) { return 1; } return 0; }
+int ssa_bit(bool value) { if (value) return 1; return 0; }
+
 // Shared serializer of complete tables, not a verifier. Test snapshots include
 // unused backing rows too; public output always validates before entering here.
 void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Error {
@@ -16,17 +17,19 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 	flow_number(out, d.work_limit);
 	flow_number(out, d.status);
 	flow_number(out, d.graph.count); flow_number(out, d.graph.status); source_append_text(out, "\n");
-	int functions_count = d.function_count; if (complete) { functions_count = len(d.functions); }
+	int functions_count = d.function_count; if (complete) functions_count = len(d.functions);
 	source_append_text(out, "SSA_SIZE_FUNCTION"); flow_number(out, functions_count); source_append_text(out, "\n");
 	int functions_i = 0;
 	while (functions_i < functions_count) {
 		var row = d.functions[functions_i]; source_append_text(out, "SSA_FUNCTION"); flow_number(out, functions_i + 1);
 		flow_number(out, row.entry);
 		flow_number(out, row.exit);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); functions_i = functions_i + 1;
 	}
-	int blocks_count = d.block_count; if (complete) { blocks_count = len(d.blocks); }
+	int blocks_count = d.block_count; if (complete) blocks_count = len(d.blocks);
 	source_append_text(out, "SSA_SIZE_BLOCK"); flow_number(out, blocks_count); source_append_text(out, "\n");
 	int blocks_i = 0;
 	while (blocks_i < blocks_count) {
@@ -42,10 +45,12 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.origin.yes);
 		flow_number(out, row.origin.no);
 		flow_number(out, ssa_bit(row.origin.reachable));
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); blocks_i = blocks_i + 1;
 	}
-	int instructions_count = d.instruction_count; if (complete) { instructions_count = len(d.instructions); }
+	int instructions_count = d.instruction_count; if (complete) instructions_count = len(d.instructions);
 	source_append_text(out, "SSA_SIZE_INST"); flow_number(out, instructions_count); source_append_text(out, "\n");
 	int instructions_i = 0;
 	while (instructions_i < instructions_count) {
@@ -81,10 +86,12 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.origin.value.target);
 		flow_number(out, row.origin.value.first);
 		flow_number(out, row.origin.value.count);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); instructions_i = instructions_i + 1;
 	}
-	int edges_count = d.edge_count; if (complete) { edges_count = len(d.edges); }
+	int edges_count = d.edge_count; if (complete) edges_count = len(d.edges);
 	source_append_text(out, "SSA_SIZE_EDGE"); flow_number(out, edges_count); source_append_text(out, "\n");
 	int edges_i = 0;
 	while (edges_i < edges_count) {
@@ -94,10 +101,12 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.origin.target);
 		flow_number(out, row.origin.polarity);
 		flow_number(out, row.origin.meaning);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); edges_i = edges_i + 1;
 	}
-	int values_count = d.value_count; if (complete) { values_count = len(d.values); }
+	int values_count = d.value_count; if (complete) values_count = len(d.values);
 	source_append_text(out, "SSA_SIZE_VALUE"); flow_number(out, values_count); source_append_text(out, "\n");
 	int values_i = 0;
 	while (values_i < values_count) {
@@ -110,10 +119,12 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.place);
 		flow_number(out, row.type.index);
 		flow_number(out, row.flags);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); values_i = values_i + 1;
 	}
-	int variables_count = d.variable_count; if (complete) { variables_count = len(d.variables); }
+	int variables_count = d.variable_count; if (complete) variables_count = len(d.variables);
 	source_append_text(out, "SSA_SIZE_VAR"); flow_number(out, variables_count); source_append_text(out, "\n");
 	int variables_i = 0;
 	while (variables_i < variables_count) {
@@ -123,10 +134,12 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.origin);
 		flow_number(out, row.type.index);
 		flow_number(out, row.parameter);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); variables_i = variables_i + 1;
 	}
-	int uses_count = d.use_count; if (complete) { uses_count = len(d.uses); }
+	int uses_count = d.use_count; if (complete) uses_count = len(d.uses);
 	source_append_text(out, "SSA_SIZE_USE"); flow_number(out, uses_count); source_append_text(out, "\n");
 	int uses_i = 0;
 	while (uses_i < uses_count) {
@@ -140,10 +153,12 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.label.index);
 		flow_number(out, row.mode);
 		flow_number(out, row.value);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); uses_i = uses_i + 1;
 	}
-	int arguments_count = d.argument_count; if (complete) { arguments_count = len(d.arguments); }
+	int arguments_count = d.argument_count; if (complete) arguments_count = len(d.arguments);
 	source_append_text(out, "SSA_SIZE_ARG"); flow_number(out, arguments_count); source_append_text(out, "\n");
 	int arguments_i = 0;
 	while (arguments_i < arguments_count) {
@@ -152,26 +167,55 @@ void ssa_write_tables(SsaData d, Utf8ByteBuilder out, bool complete) throws Erro
 		flow_number(out, row.phi);
 		flow_number(out, row.edge);
 		flow_number(out, row.value);
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		source_append_text(out, "\n"); arguments_i = arguments_i + 1;
 	}
 	int b = 0;
-	while (b < len(d.graph.parent)) { source_append_text(out, "SSA_DOM_BLOCK"); flow_number(out, b + 1); flow_number(out, d.graph.parent[b]); flow_number(out, ssa_bit(d.graph.reachable[b])); source_append_text(out, "\n"); b = b + 1; }
+	while (b < len(d.graph.parent)) {
+		source_append_text(out, "SSA_DOM_BLOCK");
+		flow_number(out, b + 1);
+		flow_number(out, d.graph.parent[b]);
+		flow_number(out, ssa_bit(d.graph.reachable[b]));
+		source_append_text(out, "\n");
+		b = b + 1;
+	}
 	int at = 0;
 	while (at < len(d.graph.dominates)) {
-		if (d.graph.dominates[at]) { source_append_text(out, "SSA_DOM"); flow_number(out, at / d.block_count + 1); flow_number(out, at % d.block_count + 1); source_append_text(out, "\n"); }
-		if (d.graph.frontier[at]) { source_append_text(out, "SSA_FRONTIER"); flow_number(out, at / d.block_count + 1); flow_number(out, at % d.block_count + 1); source_append_text(out, "\n"); }
-		if (out.byte_count() > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+		if (d.graph.dominates[at]) {
+			source_append_text(out, "SSA_DOM");
+			flow_number(out, at / d.block_count + 1);
+			flow_number(out, at % d.block_count + 1);
+			source_append_text(out, "\n");
+		}
+		if (d.graph.frontier[at]) {
+			source_append_text(out, "SSA_FRONTIER");
+			flow_number(out, at / d.block_count + 1);
+			flow_number(out, at % d.block_count + 1);
+			source_append_text(out, "\n");
+		}
+		if (out.byte_count() > 16777216) {
+			throw new Error("SSA_RESOURCE_EXHAUSTED");
+		}
 		at = at + 1;
 	}
 }
+
 owned Utf8Message ssa_projection_bounded(SsaProgram program, int byte_limit) throws Error {
-	if (ssa_verify(program) != 0) { throw new Error("INVALID_SSA"); }
-	if (byte_limit < 1 || byte_limit > 16777216) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+	if (ssa_verify(program) != 0) {
+		throw new Error("INVALID_SSA");
+	}
+	if (byte_limit < 1 || byte_limit > 16777216) {
+		throw new Error("SSA_RESOURCE_EXHAUSTED");
+	}
 	var out = new Utf8ByteBuilder(); source_append_text(out, "astra-ssa/1\n");
 	var authority = cfg_projection(program.cfg); source_append_text(out, authority.text);
 	ssa_write_tables(program.data, out, false); var walk = ssa_walk(program); ssa_write_walk(walk, out);
-	if (out.byte_count() > byte_limit) { throw new Error("SSA_RESOURCE_EXHAUSTED"); }
+	if (out.byte_count() > byte_limit) {
+		throw new Error("SSA_RESOURCE_EXHAUSTED");
+	}
 	return out.snapshot();
 }
+
 owned Utf8Message ssa_projection(SsaProgram program) throws Error { return ssa_projection_bounded(program, 16777216); }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 f64<2> load_pair(f64<2>* input) { return *input; }
+
 void save_pair(f64<2>* output, f64<2> value) { *output = value; }
+
 export(C) f64 filter_pair(f64 a0, f64 a1, f64 g0, f64 g1, f64 b0, f64 b1, int lane) {
 	f64<2> input = {a0, a1};
 	f64<2> gain = {g0, g1};
@@ -8,15 +10,18 @@ export(C) f64 filter_pair(f64 a0, f64 a1, f64 g0, f64 g1, f64 b0, f64 b1, int la
 	f64<2> output = {0.0, 0.0};
 	f64<2> product = load_pair(&input) * gain;
 	save_pair(&output, product + bias);
-	if (lane == 0) { return output[0]; }
+	if (lane == 0) return output[0];
 	return output[1];
 }
+
 export(C) f64 divide_pair(f64 a0, f64 a1, f64 b0, f64 b1, int lane) {
 	f64<2> numerator = {a0, a1};
 	f64<2> denominator = {b0, b1};
 	f64<2> result = numerator / denominator;
-	if (lane == 0) { return result[0]; }
+	if (lane == 0) return result[0];
 	return result[1];
 }
+
 extern(C) int f64_oracle();
+
 int main() { return f64_oracle(); }

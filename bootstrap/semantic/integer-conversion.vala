@@ -17,5 +17,6 @@ public class IntegerConversion : Object {
 		var to = destination as VectorType;
 		return from != null && to != null && from.element_type is IntegerType && to.element_type is IntegerType && from.lane_count == to.lane_count && VectorType.supports (from.element_type, from.lane_count) && VectorType.supports (to.element_type, to.lane_count);
 	}
+
 }
 }

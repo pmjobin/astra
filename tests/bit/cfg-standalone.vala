@@ -104,4 +104,5 @@ int main(string[] args) {
 	Test.add_func ("/bit/cfg/scalar-vector-mask-and-malformed", matrix);
 	return Test.run ();
 }
+
 }

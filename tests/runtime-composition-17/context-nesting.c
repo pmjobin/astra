@@ -6,6 +6,7 @@
 
 static _Atomic int disposed;
 static const uint64_t tag = UINT64_C(0x6e65737465643137);
+
 static AstraContext17 *custom(uint64_t capacity, uint64_t slots, TestContextProvider **provider) {
 	*provider = test_context_provider(capacity, &disposed);
 	AstraContext17 *context = astra_context17_custom(&test_context_contract, *provider, capacity, slots, ASTRA_CONTEXT17_CONCURRENT);
@@ -13,20 +14,24 @@ static AstraContext17 *custom(uint64_t capacity, uint64_t slots, TestContextProv
 	(*provider)->context = context;
 	return context;
 }
+
 static void check(AstraContext17 *context, uint64_t anchors, uint64_t live) {
 	AstraContext17Snapshot state;
 	assert(astra_context17_snapshot(context, &state) == ASTRA_CONTEXT17_OK);
 	assert(state.anchors == anchors && state.live == live);
 }
+
 typedef struct Release {
 	AstraContext17 *context;
 	AstraContext17Token token;
 } Release;
+
 static void *retire(void *opaque) {
 	Release *owner = opaque;
 	assert(astra_context17_release(owner->context, &owner->token) == ASTRA_CONTEXT17_OK);
 	return NULL;
 }
+
 int main(void) {
 	assert(!astra_context17_nested(NULL, ASTRA_CONTEXT17_REGION, 4099, 7, 64));
 	_Alignas(64) unsigned char backing[8192];

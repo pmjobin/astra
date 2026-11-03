@@ -1,40 +1,58 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Numerics;
 [CImport(name="a132_ready")] int ready(int tcp_port, int udp_port);
+
 [CImport(name="a132_event")] int event(int phase, int kind, int value);
+
 [CImport(name="a132_finish")] int finish(int status, int count, int total);
 
 [Shared,Monitor]
 class Metrics {
 	private int samples;
 	private int total;
+
 	init() { this.samples = 0; this.total = 0; event(1, 100, 0); }
+
 	void add(int value) { this.samples = this.samples + 1; this.total = this.total + value; }
+
 	int count() { return this.samples; }
+
 	int sum() { return this.total; }
+
 	deinit() { event(0, 100, this.samples); }
 }
+
 [Allocator(kind="region",domain="a132.readings",capacity="8192",blocks="16")]
 [Align(bytes="64")]
 class Reading {
 	int value;
+
 	init(int value) { this.value = value; event(1, 1, value); }
+
 	deinit() { event(0, 1, this.value); }
 }
+
 int reading_value(borrowed Reading reading) { return reading.value; }
+
 i16 decode(u8[] bytes, int index) {
 	int value = (bytes[index * 2] as int) | ((bytes[index * 2 + 1] as int) << 8);
-	if (value >= 32768) { value = value - 65536; }
+	if (value >= 32768) value = value - 65536;
 	return value as i16;
 }
+
 // All region owners retire within this synchronous call on one worker.
 // The async frame retains only ordinary heap buffers and the Shared monitor.
 void mix(u8[] tcp, u8[] udp, u8[] reply, borrowed Metrics metrics) throws Error {
 	var left = new i16[8]; var right = new i16[8]; var output = new i16[8];
-	for (int i = 0; i < 8; i = i + 1) { left[i] = decode(tcp, i); right[i] = decode(udp, i); }
+	for (int i = 0; i < 8; i = i + 1) {
+		left[i] = decode(tcp, i);
+		right[i] = decode(udp, i);
+	}
 	store_i16x8(output, 0, pcm_mix8(load_i16x8(left, 0), load_i16x8(right, 0)));
 	var readings = new Bag<Reading>();
-	if (!readings.reserve(8)) { throw new Error("record capacity"); }
+	if (!readings.reserve(8)) {
+		throw new Error("record capacity");
+	}
 	for (int i = 0; i < 8; i = i + 1) {
 		var reading = new Reading(output[i] as int); readings.append(move reading);
 	}
@@ -46,35 +64,60 @@ void mix(u8[] tcp, u8[] udp, u8[] reply, borrowed Metrics metrics) throws Error 
 		reply[i * 2 + 1] = ((bits >> 8) & 255) as u8;
 	}
 }
+
 async void exchange(owned TcpSocket listener, owned UdpSocket udp, owned Metrics metrics) throws Error {
 	var socket = new TcpSocket();
 	int started = astra_net_milliseconds();
-	while (!listener.accept_into(socket)) { network_deadline(started, 10000); await delay_ticks(1); }
+	while (!listener.accept_into(socket)) {
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+	}
 	listener.close();
 	var tcp_bytes = new u8[16]; var udp_bytes = new u8[16]; var reply = new u8[16];
 	int used = 0;
 	while (used < 16) {
 		int progress = socket.try_read(tcp_bytes, used, 16 - used);
-		if (progress == 0) { throw new Error("truncated PCM stream"); }
-		if (progress > 0) { used = used + progress; }
-		else { network_deadline(started, 10000); await delay_ticks(1); }
+		if (progress == 0) {
+			throw new Error("truncated PCM stream");
+		}
+		if (progress > 0) {
+			used = used + progress;
+		}
+		else {
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+		}
 	}
 	while (true) {
 		int count = udp.try_receive(udp_bytes, 0, 16);
-		if (count >= 0) { if (count != 16) { throw new Error("invalid PCM datagram extent"); } break; }
+		if (count >= 0) {
+			if (count != 16) {
+				throw new Error("invalid PCM datagram extent");
+			}
+			break;
+		}
 		network_deadline(started, 10000); await delay_ticks(1);
 	}
 	mix(tcp_bytes, udp_bytes, reply, metrics);
 	used = 0;
 	while (used < 16) {
 		int progress = socket.try_write(reply, used, 16 - used);
-		if (progress > 0) { used = used + progress; }
-		else { network_deadline(started, 10000); await delay_ticks(1); }
+		if (progress > 0) {
+			used = used + progress;
+		}
+		else {
+			network_deadline(started, 10000);
+			await delay_ticks(1);
+		}
 	}
 	int destination = udp.peer_port;
-	while (udp.try_send(destination, reply, 0, 16) < 0) { network_deadline(started, 10000); await delay_ticks(1); }
+	while (udp.try_send(destination, reply, 0, 16) < 0) {
+		network_deadline(started, 10000);
+		await delay_ticks(1);
+	}
 	socket.half_close(); socket.close(); udp.close();
 }
+
 int main() {
 	var metrics = new Metrics();
 	int status = 0;

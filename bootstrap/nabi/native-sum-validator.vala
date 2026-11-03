@@ -75,5 +75,6 @@ internal class NativeSumValidator : Object {
 			}
 		}
 	}
+
 }
 }

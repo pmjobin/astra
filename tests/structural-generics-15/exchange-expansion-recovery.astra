@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct ExchangeBox<T> { T value; }
+
 T exchange_identity<T>(T input) { return input; }
+
 void exchange_original<T>(owned T[] first, owned T[] second, T value) {
 	swap(first, second);
 	T saved = exchange_identity(value);
 }
+
 struct ExchangeResult<T> { T value; bool sizes; }
+
 ExchangeResult<T> checked_exchange<T>(owned T[] first, owned T[] second, T value) {
 	swap(first, second);
 	T saved = exchange_identity(value);
 	ExchangeResult<T> result = {value = saved, sizes = len(first) == 3 && len(second) == 2};
 	return result;
 }
+
 struct ExchangeRecord { int code; bool enabled; }
+
 int main() {
 	var original_first = new int[2];
 	var original_second = new int[3];
@@ -20,11 +26,11 @@ int main() {
 	var first = new int[2];
 	var second = new int[3];
 	var scalar = checked_exchange(move first, move second, 42);
-	if (!scalar.sizes || scalar.value != 42) { return 1; }
+	if (!scalar.sizes || scalar.value != 42) return 1;
 	var record_first = new ExchangeRecord[2];
 	var record_second = new ExchangeRecord[3];
 	ExchangeRecord value = {code = 47, enabled = true};
 	var record = checked_exchange(move record_first, move record_second, value);
-	if (!record.sizes || record.value.code != 47 || !record.value.enabled) { return 2; }
+	if (!record.sizes || record.value.code != 47 || !record.value.enabled) return 2;
 	return 0;
 }

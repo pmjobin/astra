@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void unicode_number(int value);
+
 void reject_unicode(u8[] bytes) {
 	try { var invalid = utf8_message(bytes); unicode_number(-1); }
 	catch(InvalidUtf8 error) { unicode_number(len(bytes)); }
 }
+
 bool show_unicode(Utf8Message value) { return println(value.text); }
+
 int main() {
 	try {
 		u8[14] bytes = {65, 0, 206, 187, 240, 159, 153, 130, 101, 204, 129, 124, 52, 50};
 		var original = utf8_message(slice(bytes, 0, len(bytes)));
-		if (!println(original.text)) { return 81; }
+		if (!println(original.text)) return 81;
 		unicode_number(original.text.byte_length);
 		unicode_number(text_scalar_count(original.text));
 		unicode_number(text_scalar_at(original.text, 1));
@@ -18,18 +21,18 @@ int main() {
 		unicode_number(text_scalar_at(original.text, 5));
 		unicode_number(text_find(original.text, "|", 0));
 		var embedded = text_scalar_segment(original.text, 1, 3);
-		if (!println(embedded.text)) { return 82; }
+		if (!println(embedded.text)) return 82;
 		var fields = text_split_owned(original.text, "\0");
-		foreach (var field in fields) { if (!show_unicode(field)) { return 83; } }
+		foreach (var field in fields) { if (!show_unicode(field)) return 83; }
 		var wide_fields = text_split_owned(original.text, "🙂");
-		foreach (var field in wide_fields) { if (!show_unicode(field)) { return 93; } }
+		foreach (var field in wide_fields) { if (!show_unicode(field)) return 93; }
 		try { var invalid = text_segment(original.text, 3, 1); return 84; }
 		catch(TextRangeError error) { unicode_number(1); }
 		try { var invalid = text_segment(original.text, 4, 3); return 85; }
 		catch(TextRangeError error) { unicode_number(2); }
 		try { int invalid = parse_int(embedded.text); return 86; }
 		catch(IntegerParseError error) { unicode_number(3); }
-		if (!println(original.text)) { return 87; }
+		if (!println(original.text)) return 87;
 		var builder = new Utf8ByteBuilder();
 		u8[2] prefix = {240, 159};
 		require_text(builder.append_bytes(slice(prefix, 0, len(prefix))));
@@ -42,7 +45,7 @@ int main() {
 		unicode_number(text_scalar_at(stable.text, 0));
 		require_text(append_text(builder, "A"));
 		var changed = builder.snapshot();
-		if (!println(stable.text) || !println(changed.text)) { return 89; }
+		if (!println(stable.text) || !println(changed.text)) return 89;
 		u8[2] overlong = {192, 128};
 		u8[3] surrogate = {237, 160, 128};
 		u8[4] outside = {244, 144, 128, 128};
@@ -58,7 +61,7 @@ int main() {
 		unicode_number(text_scalar_at(valid.text, 0));
 		var empty = text_scalar_segment(valid.text, 1, 0);
 		unicode_number(empty.text.byte_length);
-		if (original.text.byte_length != 14 || embedded.text.byte_length != 7 || fields.count() != 2 || builder.byte_count() != 5) { return 90; }
+		if (original.text.byte_length != 14 || embedded.text.byte_length != 7 || fields.count() != 2 || builder.byte_count() != 5) return 90;
 	}
 	catch(Error error) { return 91; }
 	return 0;

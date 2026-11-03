@@ -12,6 +12,7 @@ public abstract class CheckedEnumProducer : CheckedNode {
 		instance = new EnumInstanceIdentity ();
 		this.definition = definition;
 	}
+
 }
 
 public class CheckedEnumSnapshot : CheckedEnumProducer {
@@ -22,6 +23,7 @@ public class CheckedEnumSnapshot : CheckedEnumProducer {
 		this.source = source;
 		this.mode = mode;
 	}
+
 }
 
 public class CheckedEnumFieldValue : CheckedNode {
@@ -36,6 +38,7 @@ public class CheckedEnumFieldValue : CheckedNode {
 		this.record = record;
 		this.sum = sum;
 	}
+
 }
 
 public class CheckedEnumConstruct : CheckedEnumProducer {
@@ -50,6 +53,7 @@ public class CheckedEnumConstruct : CheckedEnumProducer {
 			input_contract.add (new CheckedEnumFieldValue (input.span, input.field, input.scalar, input.record, input.sum));
 		}
 	}
+
 	public bool matches_inputs() {
 		if (fields.length != input_contract.length) {
 			return false;
@@ -63,6 +67,7 @@ public class CheckedEnumConstruct : CheckedEnumProducer {
 		}
 		return true;
 	}
+
 }
 
 public class CheckedEnumCallResult : CheckedEnumProducer {
@@ -77,6 +82,7 @@ public class CheckedEnumCallResult : CheckedEnumProducer {
 		this.arguments = arguments;
 		this.receiver = receiver;
 	}
+
 }
 
 public class CheckedEnumArgument : CheckedExpression {
@@ -87,6 +93,7 @@ public class CheckedEnumArgument : CheckedExpression {
 		this.parameter = parameter;
 		this.producer = producer;
 	}
+
 }
 
 public class CheckedEnumStore : CheckedStatement {
@@ -99,6 +106,7 @@ public class CheckedEnumStore : CheckedStatement {
 		this.producer = producer;
 		this.initializes_destination = initializes_destination;
 	}
+
 }
 
 public class CheckedEnumReturn : CheckedStatement {
@@ -107,6 +115,7 @@ public class CheckedEnumReturn : CheckedStatement {
 		base (span);
 		this.producer = producer;
 	}
+
 }
 
 public class CheckedEnumBinding : CheckedNode {
@@ -119,6 +128,7 @@ public class CheckedEnumBinding : CheckedNode {
 		this.field = field;
 		this.destination = destination;
 	}
+
 }
 
 public class CheckedEnumArm : CheckedNode {
@@ -135,6 +145,7 @@ public class CheckedEnumArm : CheckedNode {
 			binding_contract.add (new CheckedEnumBinding (binding.span, binding.field, binding.destination, binding.contract.instance));
 		}
 	}
+
 	public bool matches_bindings() {
 		if (bindings.length != binding_contract.length) {
 			return false;
@@ -148,6 +159,7 @@ public class CheckedEnumArm : CheckedNode {
 		}
 		return true;
 	}
+
 }
 
 public class CheckedEnumMatch : CheckedStatement {
@@ -158,6 +170,7 @@ public class CheckedEnumMatch : CheckedStatement {
 		this.scrutinee = scrutinee;
 		this.arms = arms;
 	}
+
 }
 
 public class CheckedEnumEquality : CheckedExpression {
@@ -170,5 +183,6 @@ public class CheckedEnumEquality : CheckedExpression {
 		this.right = right;
 		this.unequal = unequal;
 	}
+
 }
 }

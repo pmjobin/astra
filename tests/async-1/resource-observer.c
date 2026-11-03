@@ -8,9 +8,11 @@ typedef struct Resource {
 	unsigned identity;
 	int value;
 } Resource;
+
 static Resource *live[1024];
 static unsigned opened, closed, entries[13];
 static int close_values[1024];
+
 Resource *open_resource(int value) {
 	assert(opened < 1024);
 	Resource *resource = calloc(1, sizeof(*resource));
@@ -20,16 +22,19 @@ Resource *open_resource(int value) {
 	live[opened++] = resource;
 	return resource;
 }
+
 int read_resource(Resource *resource) {
 	assert(resource && resource->identity < opened && live[resource->identity] == resource);
 	return resource->value;
 }
+
 void close_resource(Resource *resource) {
 	assert(resource && resource->identity < opened && live[resource->identity] == resource);
 	live[resource->identity] = NULL;
 	close_values[closed++] = resource->value;
 	free(resource);
 }
+
 void resource_event(int stage, int value) {
 	assert(stage >= 1 && stage <= 12 && stage != 4);
 	int expected = stage == 8 ? 92 : stage == 11            ? 10
@@ -42,6 +47,7 @@ void resource_event(int stage, int value) {
 	assert(value == expected);
 	entries[stage]++;
 }
+
 extern int resource_cold(void);
 extern int resource_abort(void);
 extern int resource_host(void);
@@ -53,6 +59,7 @@ extern int resource_nested_abort(void);
 extern int mixed_replace_host(void);
 extern AstraAsyncTask *test_factory_13(AstraAsyncTask *parent);
 extern AstraAsyncTask *test_factory_2(AstraAsyncTask *parent);
+
 static void cancel_source(void) {
 	AstraAsyncExecutor *executor = astra_async_open(1);
 	AstraAsyncTask *root = test_factory_2(NULL);
@@ -70,6 +77,7 @@ static void cancel_source(void) {
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 static void cancel_composed(int handler) {
 	AstraAsyncExecutor *executor = astra_async_open(3);
 	AstraAsyncTask *root = test_factory_13(NULL);
@@ -96,6 +104,7 @@ static void cancel_composed(int handler) {
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 int main(void) {
 	for (unsigned cycle = 0; cycle < 16; cycle++) {
 		assert(resource_cold() == 42);

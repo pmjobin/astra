@@ -7,19 +7,23 @@
 #include "callbacks16.h"
 #else
 typedef struct callbacks16_handle callbacks16_handle;
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 extern int32_t callbacks16_create(int32_t, callbacks16_handle **, astra_foreign_error *);
 extern int32_t callbacks16_transform(callbacks16_handle *, int32_t, int64_t (*)(void *, int32_t, uint32_t, int64_t, uint64_t, float, double, bool), void *, bool, int64_t *, astra_foreign_error *);
 extern int32_t callbacks16_notify(callbacks16_handle *, void (*)(void *, int32_t), void *, int32_t, astra_foreign_error *);
 extern int32_t callbacks16_choose(callbacks16_handle *, bool, bool (*)(void *, bool), void *, bool *, astra_foreign_error *);
 extern int32_t callbacks16_checked(callbacks16_handle *, int32_t (*)(void *, int32_t), void *, int32_t, int32_t *, astra_foreign_error *);
+
 typedef struct RECORD_READING {
 	int64_t total;
 	double scale;
 	int32_t count;
 } RECORD_READING;
+
 extern int32_t callbacks16_aggregate(callbacks16_handle *, RECORD_READING, int64_t (*)(void *, int64_t), void *, int64_t *, astra_foreign_error *);
 extern int32_t callbacks16_optional(callbacks16_handle *, void (*)(void *, int32_t), void *, int32_t, astra_foreign_error *);
 extern int32_t callbacks16_read(callbacks16_handle *, int32_t *, astra_foreign_error *);
@@ -29,20 +33,24 @@ extern uint32_t callbacks16_release(callbacks16_handle *);
 extern int32_t callbacks16_destroy(callbacks16_handle **, astra_foreign_error *);
 #endif
 #endif
+
 typedef struct callback_data {
 	unsigned wide, notified, chosen, checked;
 	int32_t expected, extra;
 	callbacks16_handle *root;
 } callback_data;
+
 static void cleared(astra_foreign_error error) {
 	assert(error.domain == 0 && error.code == 0);
 }
+
 static int64_t transform(void *opaque, int32_t a, uint32_t b, int64_t c, uint64_t d, float e, double f, bool g) {
 	callback_data *data = opaque;
 	assert(data && a == data->expected && b == UINT32_C(4000000000) && c == INT64_C(-5000000000) && d == UINT64_C(9223372036854775809) && e == 1.25f && f == 2.5 && g);
 	++data->wide;
 	return c + data->extra;
 }
+
 static void notify(void *opaque, int32_t value) {
 	callback_data *data = opaque;
 	assert(data && value == data->expected);
@@ -55,23 +63,27 @@ static void notify(void *opaque, int32_t value) {
 	assert(error.domain == 0 && error.code == (int32_t)UINT32_C(0x80010001));
 #endif
 }
+
 static bool choose(void *opaque, bool input) {
 	callback_data *data = opaque;
 	assert(data);
 	++data->chosen;
 	return !input;
 }
+
 static int64_t aggregate(void *opaque, int64_t input) {
 	callback_data *data = opaque;
 	assert(data && input == 42);
 	return input + data->extra;
 }
+
 static int32_t checked(void *opaque, int32_t input) {
 	callback_data *data = opaque;
 	assert(data);
 	++data->checked;
 	return input < 0 ? -1 : input + data->extra;
 }
+
 int main(void) {
 	callbacks16_handle *root = NULL;
 	astra_foreign_error error = {99, 99};

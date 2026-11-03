@@ -12,6 +12,7 @@ public class NativeAsyncFrameBuilder : Object {
 		}
 		return null;
 	}
+
 	private static NativeAbiType field_type(SemanticType type) throws NativeAbiError {
 		if (type is ClassType || type is ReceiverType) {
 			return new NativeScalarAbiType (NativeScalarType.PTR);
@@ -27,6 +28,7 @@ public class NativeAsyncFrameBuilder : Object {
 		}
 		return NativeTypeMapper.map_type (type);
 	}
+
 	private static void add(GenericArray<NativeAsyncField> fields, SsaDefinition value, int block, int position) throws NativeAbiError {
 		foreach (var field in fields) {
 			if (field.definition == value.ordinal) {
@@ -35,6 +37,7 @@ public class NativeAsyncFrameBuilder : Object {
 		}
 		fields.add (new NativeAsyncField (value.ordinal, block, position, field_type (value.semantic_type)));
 	}
+
 	public static NativeAsyncFramePlan build(SsaFunction source, SsaProgram program) throws NativeAbiError {
 		if (source.async_body != null && (source.async_body.declaration.file != source.span.file || source.async_body.declaration.start != source.span.start || source.async_body.declaration.end != source.span.end)) {
 			throw new NativeAbiError.INVALID_SSA ("async body lost exact original declaration identity");
@@ -371,9 +374,11 @@ public class NativeAsyncFrameBuilder : Object {
 		plan.verify ();
 		return plan;
 	}
+
 	private static bool same_leaf(NativeAbiType? a, NativeAbiType? b) {
 		return (a == null) == (b == null) && (a == null || a.same_type (b));
 	}
+
 	private static bool same_record(NativeRecordElement? a, NativeRecordElement? b) {
 		if ((a == null) != (b == null)) {
 			return false;
@@ -391,6 +396,7 @@ public class NativeAsyncFrameBuilder : Object {
 		}
 		return true;
 	}
+
 	public static void validate(NativeAsyncFramePlan plan, SsaFunction source, SsaProgram program) throws NativeAbiError {
 		plan.verify ();
 		var expected = build (source, program);
@@ -503,5 +509,6 @@ public class NativeAsyncFrameBuilder : Object {
 			}
 		}
 	}
+
 }
 }

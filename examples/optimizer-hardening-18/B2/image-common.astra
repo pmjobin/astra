@@ -3,63 +3,104 @@ using ImageSpan18;
 using ImageRules18;
 [CCode(text_abi="utf8-i32")]
 extern(C) int image2_prepare(borrowed string input, borrowed string output);
+
 extern(C) int image2_size();
+
 extern(C) int image2_byte(int index);
+
 extern(C) int image2_workers();
+
 extern(C) void image2_abort();
+
 extern(C) void image2_scope_enter(int lane);
+
 extern(C) void image2_scope_leave(int lane);
+
 extern(C) void image2_dimensions(int width, int height, int threshold);
+
 extern(C) int image2_width();
+
 extern(C) int image2_height();
+
 extern(C) void image2_pixel(int index, int mask, int score4);
+
 extern(C) int image2_mask(int index);
+
 extern(C) int image2_score4(int index);
+
 extern(C) void image2_policy(int row, int mode);
+
 extern(C) void image2_audit(int row, int count, i64 sum);
+
 extern(C) void image2_label(int index, int label);
+
 extern(C) void image2_component(int label, int area, int min_x, int min_y, int max_x, int max_y, i64 sum);
+
 extern(C) void image2_weak_checked(int lane);
+
 extern(C) int image2_context_done(borrowed ConcurrentAllocator context, int identity);
+
 extern(C) int image2_finish(int components, int foreground);
 
 struct ImageHeader18 { int width; int height; int threshold; }
+
 struct ImageParent18 { int parent; }
+
 struct ImageAudit18 { int row; int count; i64 sum; }
+
 struct ImageComponent18 { int area; int min_x; int min_y; int max_x; int max_y; i64 sum; }
+
 class ImageAuditOwner18 {
 	private int row;
 	private int count;
 	private i64 sum;
+
 	init(int row, int count, i64 sum) { this.row = row; this.count = count; this.sum = sum; }
+
 	ImageAudit18 read() { ImageAudit18 result = {row = this.row, count = this.count, sum = this.sum}; return result; }
+
 	deinit() { image2_retire(this.row, 4); }
 }
+
 class ImageComponentOwner18 {
 	private ImageComponent18 value;
+
 	init(ImageComponent18 value) { this.value = value; }
+
 	ImageComponent18 read() { return this.value; }
 }
+
 class ImageColorOwner18 {
 	int tag;
+
 	init(int tag) { this.tag = tag; }
+
 	deinit() { image2_retire(this.tag, 3); }
 }
+
 interface ImagePolicy18 { int mode(int row); }
+
 class ImageGreenPolicy18 : ImagePolicy18 {
 	init() : base() {}
+
 	override int mode(int row) { return 0; }
 }
+
 class ImageRedPolicy18 : ImagePolicy18 {
 	init() : base() {}
+
 	override int mode(int row) { return 1; }
 }
+
 int image2_read_i32(borrowed ContextBytes<ConcurrentAllocator> bytes, int offset) {
 	return (bytes[offset] as int) + (bytes[offset + 1] as int) * 256 +
 	(bytes[offset + 2] as int) * 65536 + (bytes[offset + 3] as int) * 16777216;
 }
+
 ImageHeader18 image2_header(borrowed ContextBytes<ConcurrentAllocator> bytes) throws Error {
-	if (len(bytes) < 16) { throw new Error("image header extent"); }
+	if (len(bytes) < 16) {
+		throw new Error("image header extent");
+	}
 	int width = image2_read_i32(bytes, 4);
 	int height = image2_read_i32(bytes, 8);
 	int threshold = image2_read_i32(bytes, 12);
@@ -67,22 +108,28 @@ ImageHeader18 image2_header(borrowed ContextBytes<ConcurrentAllocator> bytes) th
 		threshold < 0 || threshold > 255 || (width == 0 && height != 0) || (height == 0 && width != 0)) {
 		throw new Error("image header values");
 	}
-	if (len(bytes) != 16 + width * height * 3) { throw new Error("image RGB extent"); }
+	if (len(bytes) != 16 + width * height * 3) {
+		throw new Error("image RGB extent");
+	}
 	ImageHeader18 result = {width = width, height = height, threshold = threshold}; return result;
 }
+
 bool image2_weak_control(int lane) {
 	var owner = new ImageColorOwner18(-lane - 1);
 	var strong = shared_acquire(move owner);
 	var observer = shared_downgrade(strong);
 	var retained = shared_clone(strong);
 	release strong;
-	var live = weak_upgrade(observer); if (live == null) { return false; }
+	var live = weak_upgrade(observer); if (live == null) return false;
 	release live; release retained;
-	var expired = weak_upgrade(observer); if (expired != null) { return false; }
+	var expired = weak_upgrade(observer); if (expired != null) return false;
 	release observer; image2_weak_checked(lane); return true;
 }
+
 bool image2_equal(int first, int second) { return first == second; }
+
 ImageComponent18 image2_read_component(borrowed ImageComponentOwner18 owner) { return owner.read(); }
+
 ImageComponent18 image2_empty_component() {
 	ImageComponent18 value = {area = 0, min_x = 257, min_y = 129, max_x = 0, max_y = 0, sum = 0}; return value;
 }

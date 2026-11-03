@@ -23,12 +23,15 @@ static void *acquire(int32_t id, int domain) {
 	active[id] = value;
 	return value;
 }
+
 void *of_make(int32_t id) {
 	return acquire(id, 0);
 }
+
 void *of_make_other(int32_t id) {
 	return acquire(id, 1);
 }
+
 static void retire(void *pointer, int domain) {
 	struct resource *value = pointer;
 	assert(value && value->domain == domain && active[value->id] == value);
@@ -36,20 +39,25 @@ static void retire(void *pointer, int domain) {
 	active[value->id] = NULL;
 	free(value);
 }
+
 void of_release(void *value) {
 	retire(value, 0);
 }
+
 void of_release_other(void *value) {
 	retire(value, 1);
 }
+
 int32_t of_id(void *pointer) {
 	struct resource *value = pointer;
 	assert(value && active[value->id] == value);
 	return value->id;
 }
+
 int32_t of_other_id(void *pointer) {
 	return of_id(pointer);
 }
+
 int32_t of_live(void) {
 	int32_t result = 0;
 	for (int i = 0; i < 256; i++) {
@@ -57,6 +65,7 @@ int32_t of_live(void) {
 	}
 	return result;
 }
+
 int32_t of_mark(int32_t code) {
 	printf("D%d\n", code);
 	return code;

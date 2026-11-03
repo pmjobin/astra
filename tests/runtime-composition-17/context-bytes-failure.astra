@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 void reject_byte_allocation(owned ContextBytes<ConcurrentAllocator> previous) throws Error {
-	if (inspect_bytes(previous) != 36) { throw new Error("lost refused byte input"); }
+	if (inspect_bytes(previous) != 36) {
+		throw new Error("lost refused byte input");
+	}
 	throw new Error("context byte exhaustion");
 }
+
 void close_byte_context(owned ConcurrentAllocator context) {}
+
 export(C) int context_bytes_failure_run() {
 	var context = context_bytes_failure_allocator(32771, 11, 1);
-	if (context == null) { return 1; }
+	if (context == null) return 1;
 	owned ContextBytes<ConcurrentAllocator> previous = make_context_bytes(19);
 	bool caught = false;
 	try { var refused = new (context) u8[23] else reject_byte_allocation(move previous); return 2; }
-	catch (Error error) { if (error.message != "context byte exhaustion") { return 3; } caught = true; }
-	if (!caught || concurrent_allocator_query(context, 1) != 0) { return 4; }
+	catch (Error error) { if (error.message != "context byte exhaustion") return 3; caught = true; }
+	if (!caught || concurrent_allocator_query(context, 1) != 0) return 4;
 	var recovered = new (context) u8[23];
-	if (len(recovered) != 23 || recovered[3] != 0) { return 5; }
+	if (len(recovered) != 23 || recovered[3] != 0) return 5;
 	recovered[3] = 17;
 	close_byte_context(move context);
 	// End the final buffer lease before the independent finish.

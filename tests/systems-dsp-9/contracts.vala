@@ -22,6 +22,7 @@ private CheckedProgram check(string source = PROGRAM) {
 	}
 	return result.program;
 }
+
 private void core_reject(CoreProgram program) {
 	bool rejected = false;
 	try {
@@ -32,6 +33,7 @@ private void core_reject(CoreProgram program) {
 	}
 	assert (rejected);
 }
+
 private void cfg_reject(CfgProgram program) {
 	bool rejected = false;
 	try {
@@ -42,6 +44,7 @@ private void cfg_reject(CfgProgram program) {
 	}
 	assert (rejected);
 }
+
 private void ssa_reject(SsaProgram program) {
 	bool rejected = false;
 	try {
@@ -52,6 +55,7 @@ private void ssa_reject(SsaProgram program) {
 	}
 	assert (rejected);
 }
+
 private void llvm_reject(LlvmModuleArtifact artifact) {
 	bool rejected = false;
 	try {
@@ -62,6 +66,7 @@ private void llvm_reject(LlvmModuleArtifact artifact) {
 	}
 	assert (rejected);
 }
+
 private LlvmModuleArtifact fresh_artifact() throws GLib.Error {
 	var source = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
 	var native = NativeAbiBuilder.build (source);
@@ -88,6 +93,7 @@ private void checked_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_contract() {
 	try {
 		var program = CoreBuilder.build (check ());
@@ -105,6 +111,7 @@ private void core_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (check ()));
@@ -137,6 +144,7 @@ private void cfg_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_contract() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
@@ -166,6 +174,7 @@ private void ssa_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_contract() {
 	try {
 		var program = NativeAbiBuilder.build (SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ()))));
@@ -186,6 +195,7 @@ private void native_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void physical_contract() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
@@ -279,6 +289,7 @@ private void physical_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram arena_checked() throws GLib.Error {
 	var text = new StringBuilder ();
 	foreach (string path in new string[] { "lib/astra/base/errors.astra", "lib/astra/memory/byte-arena.astra", "lib/astra/memory/packet-arena.astra" }) {
@@ -298,6 +309,7 @@ private CheckedProgram arena_checked() throws GLib.Error {
 	}
 	return result.program;
 }
+
 private void arena_contract() {
 	try {
 		var core = CoreBuilder.build (arena_checked ());
@@ -405,6 +417,7 @@ private void arena_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/systems-dsp/checked-volatile-contract", checked_contract);
@@ -416,4 +429,5 @@ int main(string[] args) {
 	Test.add_func ("/systems-dsp/live-arena-ownership", arena_contract);
 	return Test.run ();
 }
+
 }

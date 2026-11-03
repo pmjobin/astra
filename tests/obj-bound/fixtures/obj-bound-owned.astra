@@ -1,29 +1,35 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	deinit() { life_record(this.value, 0); }
 }
+
 int effect() {
-	if (resource_live() != 1) { return 100; }
+	if (resource_live() != 1) return 100;
 	return life_record(69, 42);
 }
+
 int process(borrowed Counter c, owned Resource resource, int later) {
-	if (resource_id(resource) != 82) { return 1; }
+	if (resource_id(resource) != 82) return 1;
 	c.value = later;
 	return life_record(73, c.value);
 }
+
 owned Resource relay(borrowed Counter c, owned Resource resource) {
 	c.value = c.value + 1;
 	return move resource;
 }
+
 int main() {
 	Counter c = { value = 0 };
 	owned Resource resource = create_resource(82);
-	if (process(c, move resource, effect()) != 42 || resource_live() != 0) { return 1; }
+	if (process(c, move resource, effect()) != 42 || resource_live() != 0) return 1;
 	{
 		owned Resource second = create_resource(70);
 		owned Resource result = relay(c, move second);
-		if (resource_id(result) != 70 || c.value != 43) { return 2; }
+		if (resource_id(result) != 70 || c.value != 43) return 2;
 	}
 	c.value = c.value - 1;
 	return c.value;

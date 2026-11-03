@@ -1,23 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 interface IntTransform { int invoke(int value); }
+
 class Plus : IntTransform {
 	int amount;
+
 	init(int amount) : base() { this.amount = amount; }
+
 	override int invoke(int value) { return value + this.amount; }
 }
+
 class Times : IntTransform {
 	int amount;
+
 	init(int amount) : base() { this.amount = amount; }
+
 	override int invoke(int value) { return value * this.amount; }
 }
+
 int choose(bool add, borrowed IntTransform left, borrowed IntTransform right, int value) {
-	if (add) { return left(value); }
+	if (add) return left(value);
 	return right(value);
 }
+
 int main() {
 	Plus add = Plus.init(7);
 	Times multiply = Times.init(3);
-	if (choose(true, add, multiply, 10) != 17) { return 81; }
-	if (choose(false, add, multiply, 10) != 30) { return 82; }
+	if (choose(true, add, multiply, 10) != 17) return 81;
+	if (choose(false, add, multiply, 10) != 30) return 82;
 	return 0;
 }

@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Image {
 	int value;
+
 	init(int n) { this.value = n; }
+
 	deinit() { mark(this.value); }
 }
+
 owned Image make_image(int n) { return Image.init(n); }
+
 owned Image relay(owned Image value) { return move value; }
+
 int inspect(owned Image source) {
 	var image = relay(move source);
 	image.value = 9;
-	if (image.value == 9) { return 0; }
+	if (image.value == 9) return 0;
 	return 1;
 }
+
 int main() {
 	var image = make_image(7);
 	return inspect(move image);

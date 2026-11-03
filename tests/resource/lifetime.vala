@@ -51,7 +51,9 @@ private void stages() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	CAbiVerifier.verify (cabi);
 }
+
 private void register_lifetime() {
 	add ("/resource/lifetime/all-stages", stages);
 }
+
 }

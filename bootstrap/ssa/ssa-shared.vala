@@ -16,5 +16,6 @@ public class SsaSharedOperation : SsaInstruction {
 		this.borrower = borrower;
 		this.source_owner = source_owner;
 	}
+
 }
 }

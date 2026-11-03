@@ -9,6 +9,7 @@ private class NonNullSplit : Object {
 		this.yes = yes;
 		this.no = no;
 	}
+
 }
 private class NonNullLoop : Object {
 	internal CheckedLoopTarget target;
@@ -17,6 +18,7 @@ private class NonNullLoop : Object {
 	internal NonNullLoop (CheckedLoopTarget target) {
 		this.target = target;
 	}
+
 }
 // Source diagnostics only. Core and downstream passes must reconstruct their
 // own facts from their own nodes before these contracts can be admitted.
@@ -32,6 +34,7 @@ internal class SemanticNonNull : Object {
 			diagnostic = new Diagnostic (span, message);
 		}
 	}
+
 	private void write(Object slot, bool proven) {
 		projections.invalidate (state);
 		state.assign (slot, proven);
@@ -39,14 +42,17 @@ internal class SemanticNonNull : Object {
 			writes.add (slot);
 		}
 	}
+
 	private bool required(Object slot) {
 		return (slot is LocalSymbol && (((LocalSymbol) slot).requires_nonnull || (((LocalSymbol) slot).incoming_parameter != null && ((LocalSymbol) slot).incoming_parameter.requires_nonnull))) || (slot is ParameterSymbol && ((ParameterSymbol) slot).requires_nonnull);
 	}
+
 	private void require(bool proven, SourceSpan span) {
 		if (state.reachable && !proven) {
 			fail (span, "nonnull contract requires a current non-null proof; use an explicit null branch or a proven nonnull result");
 		}
 	}
+
 	public static Diagnostic? check(CheckedProgram program, GenericArray<FunctionSymbol> selected) {
 		foreach (var instance in program.native_instances ()) {
 			foreach (var field in instance.fields) {
@@ -115,6 +121,7 @@ internal class SemanticNonNull : Object {
 		}
 		return null;
 	}
+
 	private Object? receiver_key(CheckedExpression? expression) {
 		if (expression == null) {
 			return null;
@@ -133,6 +140,7 @@ internal class SemanticNonNull : Object {
 		}
 		return key (expression);
 	}
+
 	private Object? property_key(DirectCallableSymbol? target, CheckedExpression? receiver) {
 		var getter = target as PropertyGetterSymbol;
 		if (getter == null || !getter.property_symbol.is_borrowed || getter.property_symbol.is_lazy) {
@@ -140,6 +148,7 @@ internal class SemanticNonNull : Object {
 		}
 		return projections.key (receiver_key (receiver), getter.property_symbol);
 	}
+
 	private Object? key(CheckedExpression expression) {
 		if (expression is CheckedCallExpression) {
 			var call = (CheckedCallExpression) expression;
@@ -162,6 +171,7 @@ internal class SemanticNonNull : Object {
 		}
 		return null;
 	}
+
 	private NonNullSplit condition(CheckedExpression expression) {
 		if (expression is CheckedShortCircuitExpression) {
 			var conditional = (CheckedShortCircuitExpression) expression;
@@ -191,6 +201,7 @@ internal class SemanticNonNull : Object {
 		}
 		return new NonNullSplit (yes, no);
 	}
+
 	private bool call(DirectCallableSymbol? target, CheckedExpression? receiver, GenericArray<CheckedExpression> arguments, SourceSpan span) {
 		if (receiver != null) {
 			value (receiver);
@@ -212,6 +223,7 @@ internal class SemanticNonNull : Object {
 		}
 		return proven;
 	}
+
 	private void place(CheckedPlace storage) {
 		if (storage is CheckedLocalPlace) {
 			return;
@@ -239,6 +251,7 @@ internal class SemanticNonNull : Object {
 		}
 		fail (storage.span, "nonnull proof does not admit uncertain indirect storage in this definition");
 	}
+
 	private void projected_producer(CheckedStructProducer source) {
 		if (source is CheckedStructInvocationResult) {
 			value (((CheckedStructInvocationResult) source).invocation);
@@ -417,6 +430,7 @@ internal class SemanticNonNull : Object {
 		fail (expression.span, "nonnull proof requires a supported synchronous value/effect shape");
 		return false;
 	}
+
 	private void loop(CheckedWhile loop) {
 		var entry = state.copy ();
 		var header = entry.copy ();
@@ -448,6 +462,7 @@ internal class SemanticNonNull : Object {
 			fail (loop.span, "nonnull loop proof did not converge within its bounded fact domain");
 		}
 	}
+
 	private void statement(CheckedStatement node) {
 		if (!state.reachable || diagnostic != null) {
 			return;
@@ -638,5 +653,6 @@ internal class SemanticNonNull : Object {
 		}
 		fail (node.span, "nonnull proof requires a supported synchronous statement/effect shape");
 	}
+
 }
 }

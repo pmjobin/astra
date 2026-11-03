@@ -30,11 +30,13 @@ static void *observed_allocate(void *context, size_t size, size_t alignment) {
 		refusals++;
 	return pointer;
 }
+
 static void observed_release(void *context, void *pointer) {
 	assert(astra_context17_origin(pointer, UINT64_C(0x6173747261667231)) == context);
 	release_frame(context, pointer);
 	releases++;
 }
+
 static const AstraAsyncFrameAllocator *observe(const AstraAsyncFrameAllocator *allocator) {
 	assert(allocator && allocator->abi == 17 && allocator->threading == FRAME_THREADING);
 	if (!allocate_frame) {
@@ -48,23 +50,30 @@ static const AstraAsyncFrameAllocator *observe(const AstraAsyncFrameAllocator *a
 	attempts++;
 	return &observed;
 }
+
 AstraAsyncTask *__real_astra_async_new_allocated(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *, const AstraAsyncFrameAllocator *, void *);
+
 AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	AstraAsyncTask *task = __real_astra_async_new_allocated(size, alignment, resume, destroy, parent, observe(allocator), context);
 	assert(task && astra_context17_origin(astra_async_data(task), UINT64_C(0x6173747261667231)) == context);
 	return task;
 }
+
 AstraAsyncTask *__real_astra_async_try_new_allocated(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *, const AstraAsyncFrameAllocator *, void *);
+
 AstraAsyncTask *__wrap_astra_async_try_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	AstraAsyncTask *task = __real_astra_async_try_new_allocated(size, alignment, resume, destroy, parent, observe(allocator), context);
 	assert(!task || astra_context17_origin(astra_async_data(task), UINT64_C(0x6173747261667231)) == context);
 	return task;
 }
+
 void borrowed_frame_guard_retired(int identity) {
 	assert(identity == 1 || identity == 3 || identity == 4);
 	assert(++guards[identity] <= (identity == 1 ? 2u : 1u));
 }
+
 void __real_astra_async_host_cancel(AstraAsyncExecutor *, AstraAsyncTask *);
+
 void __wrap_astra_async_host_cancel(AstraAsyncExecutor *executor, AstraAsyncTask *task) {
 	assert(astra_async_phase(task) == ASTRA_ASYNC_WAITING);
 	assert(astra_context17_origin(astra_async_data(task), UINT64_C(0x6173747261667231)) == contexts[0]);
@@ -73,6 +82,7 @@ void __wrap_astra_async_host_cancel(AstraAsyncExecutor *executor, AstraAsyncTask
 	AstraContext17Snapshot state;
 	assert(astra_context17_snapshot(contexts[0], &state) == 0 && state.live == 1);
 }
+
 int borrowed_frames_finish(void) {
 	assert(contexts[0] && contexts[1] && contexts[0] != contexts[1]);
 	assert(attempts == 7 && allocations == 6 && releases == 6 && refusals == 1 && cancellations == 1);
@@ -80,6 +90,7 @@ int borrowed_frames_finish(void) {
 	puts("borrowed frame contexts: 2 instances, 6 actual frames, joined error, suspended cancel, cold drops and 1 refusal");
 	return 0;
 }
+
 int borrowed_frames_finish_empty_error(void) {
 	assert(contexts[0] && !contexts[1]);
 	assert(attempts == 3 && allocations == 2 && releases == 2 && refusals == 1 && !cancellations);
@@ -88,7 +99,9 @@ int borrowed_frames_finish_empty_error(void) {
 	puts("scoped empty error: refused admission and checked success retain exact backing ownership");
 	return 0;
 }
+
 int run_borrowed_frame_contexts(void);
+
 int main(void) {
 	return run_borrowed_frame_contexts();
 }

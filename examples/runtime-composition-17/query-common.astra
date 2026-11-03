@@ -1,14 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Error : QueryModel.Fault { init(string message) : base(message) {} }
+
 class RuntimeError : Error { init(string message) : base(message) {} }
+
 class QueryRuntimeError : Error { init(string message) : base(message) {} }
+
 enum QueryPhase { Completed, Cancelled }
+
 async runtime QueryIo throws QueryRuntimeError returns QueryPhase provider "linux-io-uring-composed";
 extern(C) int query_stop_requested();
+
 extern(C) int query_queue_capacity();
+
 extern(C) int query_cache_capacity();
+
 extern(C) int query_worker_count();
+
 extern(C) int query_quota();
+
 extern(C) int query_file_extent();
+
 extern(C) void query_ready(int tcp, int udp);
+
 extern(C) int query_provider_disposed(int identity);

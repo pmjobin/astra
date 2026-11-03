@@ -45,6 +45,7 @@ private void lifetime() throws GLib.Error {
 	CAbiVerifier.verify (cabi);
 	assert (nabi.functions[1].signature.receiver.scalar_type == NativeScalarType.PTR);
 }
+
 private void storage() throws GLib.Error {
 	var p = build (read ("mutate"));
 	assert (p.functions[0].storage.length == 1 && p.functions[0].storage[0].name == "c" && p.functions[0].storage[0].source_local_ordinal == 1);
@@ -67,6 +68,7 @@ private void storage() throws GLib.Error {
 		SsaVerifier.verify (build (read (name)));
 	}
 }
+
 private void profiles() throws GLib.Error {
 	foreach (string type in new string[] {"int", "u8", "f32", "i16<8>"}) {
 		var p = build ("struct S{int x;%s f(%s n){return n;}}".printf (type, type));
@@ -87,6 +89,7 @@ private void profiles() throws GLib.Error {
 		}
 	}
 }
+
 private void order() throws GLib.Error {
 	var cfg = CfgBuilder.build (CoreBuilder.build (check ("struct S{int x;void consume(owned Resource r,int n,borrowed int[] s){this.x=n+s[0];}} int later(){return 2;} void f(owned Resource r){S object={x=0};int[1] a={1};object.consume(move r,later(),slice(a));}")));
 	var events = new StringBuilder ();
@@ -115,6 +118,7 @@ private void order() throws GLib.Error {
 	cfg = CfgBuilder.build (CoreBuilder.build (check ("struct S{int x;void f(owned Resource r,int n){}} int inspect(borrowed Resource r){return 1;} void bad(owned Resource r){S s={x=0};s.f(move r,inspect(r));}")));
 	assert (CfgFlowChecker.check (cfg).diagnostic.message.contains ("moved owned value 'r'"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -126,4 +130,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

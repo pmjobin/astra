@@ -2,19 +2,23 @@
 // Builder analysis: descending predecessor intersection. Independent verifier
 // below uses path exclusion, never this routine or its cached answer.
 bool ssa_graph_input(CfgData cfg) {
-	if (cfg.function_count < 0 || cfg.function_count > len(cfg.functions) || cfg.block_count < 0 || cfg.block_count > len(cfg.blocks) || cfg.edge_count < 0 || cfg.edge_count > len(cfg.edges) || cfg.predecessor_count < 0 || cfg.predecessor_count > len(cfg.predecessors)) { return false; }
+	if (cfg.function_count < 0 || cfg.function_count > len(cfg.functions) || cfg.block_count < 0 || cfg.block_count > len(cfg.blocks) || cfg.edge_count < 0 || cfg.edge_count > len(cfg.edges) || cfg.predecessor_count < 0 || cfg.predecessor_count > len(cfg.predecessors)) return false;
 	int f = 0;
 	while (f < cfg.function_count) {
 		var row = cfg.functions[f];
-		if (row.entry < 1 || row.entry > cfg.block_count || row.exit < 1 || row.exit > cfg.block_count || cfg.blocks[row.entry - 1].function != f + 1 || cfg.blocks[row.exit - 1].function != f + 1) { return false; }
+		if (row.entry < 1 || row.entry > cfg.block_count || row.exit < 1 || row.exit > cfg.block_count || cfg.blocks[row.entry - 1].function != f + 1 || cfg.blocks[row.exit - 1].function != f + 1) return false;
 		f = f + 1;
 	}
 	return cfg_verify_edges(cfg);
 }
+
 owned SsaGraph ssa_analyze(CfgData cfg, SsaBudget budget) {
 	var graph = new SsaGraph(cfg.block_count);
-	if (graph.status != 0) { return move graph; }
-	if (!ssa_graph_input(cfg)) { graph.status = 1; return move graph; }
+	if (graph.status != 0) return move graph;
+	if (!ssa_graph_input(cfg)) {
+		graph.status = 1;
+		return move graph;
+	}
 	var reachable = cfg_reach(cfg); swap(graph.reachable, reachable);
 	var incoming = new SsaIncoming(cfg);
 	int n = cfg.block_count; int b = 0;
@@ -38,11 +42,14 @@ owned SsaGraph ssa_analyze(CfgData cfg, SsaBudget budget) {
 						holds = true; int e = incoming.first[b];
 						while (e >= 0 && holds && budget.take(1)) {
 							var edge = cfg.edges[e];
-							if (edge.target == b + 1 && graph.reachable[edge.source - 1] && !graph.dominates[d * n + edge.source - 1]) { holds = false; }
+							if (edge.target == b + 1 && graph.reachable[edge.source - 1] && !graph.dominates[d * n + edge.source - 1]) holds = false;
 							e = incoming.next[e];
 						}
 					}
-					if (holds != graph.dominates[d * n + b]) { graph.dominates[d * n + b] = holds; changed = true; }
+					if (holds != graph.dominates[d * n + b]) {
+						graph.dominates[d * n + b] = holds;
+						changed = true;
+					}
 					d = d + 1;
 				}
 			}
@@ -51,11 +58,21 @@ owned SsaGraph ssa_analyze(CfgData cfg, SsaBudget budget) {
 	}
 	// The strict dominator with greatest depth is the immediate dominator.
 	var depth = new int[n]; int d = 0;
-	while (d < n && budget.take(n)) { b = 0; while (b < n) { if (graph.dominates[b * n + d]) { depth[d] = depth[d] + 1; } b = b + 1; } d = d + 1; }
+	while (d < n && budget.take(n)) {
+		b = 0;
+		while (b < n) {
+			if (graph.dominates[b * n + d]) depth[d] = depth[d] + 1;
+			b = b + 1;
+		}
+		d = d + 1;
+	}
 	b = 0;
 	while (b < n && budget.take(n)) {
 		int best = 0; d = 0;
-		while (d < n) { if (d != b && graph.dominates[d * n + b] && (best == 0 || depth[d] > depth[best - 1])) { best = d + 1; } d = d + 1; }
+		while (d < n) {
+			if (d != b && graph.dominates[d * n + b] && (best == 0 || depth[d] > depth[best - 1])) best = d + 1;
+			d = d + 1;
+		}
 		graph.parent[b] = best; b = b + 1;
 	}
 	// Frontier definition retains individual edges, including parallel edges.
@@ -64,41 +81,54 @@ owned SsaGraph ssa_analyze(CfgData cfg, SsaBudget budget) {
 		int e = 0;
 		while (e < cfg.edge_count && budget.take(1)) {
 			var edge = cfg.edges[e];
-			if (graph.reachable[edge.source - 1] && graph.dominates[d * n + edge.source - 1] && (d + 1 == edge.target || !graph.dominates[d * n + edge.target - 1])) { graph.frontier[d * n + edge.target - 1] = true; }
+			if (graph.reachable[edge.source - 1] && graph.dominates[d * n + edge.source - 1] && (d + 1 == edge.target || !graph.dominates[d * n + edge.target - 1])) graph.frontier[d * n + edge.target - 1] = true;
 			e = e + 1;
 		}
 		d = d + 1;
 	}
-	if (budget.exhausted) { graph.status = 2; }
+	if (budget.exhausted) graph.status = 2;
 	return move graph;
 }
+
 // Independent, bounded entry worklist with one candidate vertex removed.
 owned bool[] ssa_paths_avoiding(CfgData cfg, int avoid, SsaBudget budget) {
 	var seen = new bool[cfg.block_count]; var queue = new int[cfg.block_count];
 	int head = 0; int tail = 0; int f = 0;
 	while (f < cfg.function_count) {
 		int entry = cfg.functions[f].entry;
-		if (entry != avoid && !seen[entry - 1]) { seen[entry - 1] = true; queue[tail] = entry; tail = tail + 1; }
+		if (entry != avoid && !seen[entry - 1]) {
+			seen[entry - 1] = true;
+			queue[tail] = entry;
+			tail = tail + 1;
+		}
 		f = f + 1;
 	}
 	while (head < tail && budget.take(1)) {
 		var b = cfg.blocks[queue[head] - 1]; int p = 0;
 		while (p < 2) {
-			int target = b.yes; if (p == 1) { target = b.no; }
-			if (target != 0 && target != avoid && !seen[target - 1]) { seen[target - 1] = true; queue[tail] = target; tail = tail + 1; }
+			int target = b.yes; if (p == 1) target = b.no;
+			if (target != 0 && target != avoid && !seen[target - 1]) {
+				seen[target - 1] = true;
+				queue[tail] = target;
+				tail = tail + 1;
+			}
 			p = p + 1;
 		}
 		head = head + 1;
 	}
 	return move seen;
 }
+
 owned SsaGraph ssa_independent_graph(CfgData cfg, SsaBudget budget) {
-	var graph = new SsaGraph(cfg.block_count); if (graph.status != 0) { return move graph; }
+	var graph = new SsaGraph(cfg.block_count); if (graph.status != 0) return move graph;
 	var live = ssa_paths_avoiding(cfg, 0, budget); swap(graph.reachable, live);
 	int n = cfg.block_count; int d = 0;
 	while (d < n && !budget.exhausted) {
 		var without = ssa_paths_avoiding(cfg, d + 1, budget); int b = 0;
-		while (b < n && budget.take(1)) { graph.dominates[d * n + b] = graph.reachable[b] && graph.reachable[d] && cfg.blocks[d].function == cfg.blocks[b].function && !without[b]; b = b + 1; }
+		while (b < n && budget.take(1)) {
+			graph.dominates[d * n + b] = graph.reachable[b] && graph.reachable[d] && cfg.blocks[d].function == cfg.blocks[b].function && !without[b];
+			b = b + 1;
+		}
 		d = d + 1;
 	}
 	int b = 0;
@@ -107,7 +137,7 @@ owned SsaGraph ssa_independent_graph(CfgData cfg, SsaBudget budget) {
 		while (d < n && budget.take(1)) {
 			if (d != b && graph.dominates[d * n + b]) {
 				int previous = graph.parent[b];
-				if (previous == 0 || graph.dominates[(previous - 1) * n + d]) { graph.parent[b] = d + 1; }
+				if (previous == 0 || graph.dominates[(previous - 1) * n + d]) graph.parent[b] = d + 1;
 			}
 			d = d + 1;
 		}
@@ -123,6 +153,6 @@ owned SsaGraph ssa_independent_graph(CfgData cfg, SsaBudget budget) {
 		}
 		e = e + 1;
 	}
-	if (budget.exhausted) { graph.status = 2; }
+	if (budget.exhausted) graph.status = 2;
 	return move graph;
 }

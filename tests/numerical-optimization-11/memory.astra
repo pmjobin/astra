@@ -1,41 +1,60 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Numerics;
 extern(C) f64 fp_input(int i);
+
 extern(C) f32 fp_input32(int i);
+
 extern(C) int fp_copy_check(int i,f64 value);
+
 extern(C) int fp_copy_check32(int i,f32 value);
+
 extern(C) int fp_dot_check(f64 a0,f64 a1,f64 b0,f64 b1,f64 value);
+
 f64 dot64(f64<2> a,f64<2> b){return dot(a,b);}
+
 f64 mac64(f64 initial,f64<2> a,f64<2> b){return mac(initial,a,b);}
+
 [FloatingPoint(contract="on")]
 f64 permitted_dot(f64<2> a,f64<2> b){return dot(a,b);}
+
 int main(){
 	owned f32[] input=new f32[64];owned f32[] output=new f32[64];
 	owned f64[] wide=new f64[64];owned f64[] copied=new f64[64];
-	for(int i=0;i<64;i=i+1){input[i]=fp_input32(i);wide[i]=fp_input(i);}
-	for(int i=0;i<=60;i=i+1){store_f32x4(output,i,load_f32x4(input,i));}
-	for(int i=0;i<=62;i=i+1){store_f64x2(copied,i,load_f64x2(wide,i));}
-	for(int i=0;i<64;i=i+1){if(fp_copy_check32(i,output[i])!=0){return 1;}if(fp_copy_check(i,copied[i])!=0){return 2;}}
-	for(int i=0;i<64;i=i+4){store_aligned_f32x4(output,i,load_aligned_f32x4(input,i));}
-	for(int i=0;i<64;i=i+2){store_aligned_f64x2(copied,i,load_aligned_f64x2(wide,i));}
-	for(int i=0;i<64;i=i+1){if(fp_copy_check32(i,output[i])!=0){return 3;}if(fp_copy_check(i,copied[i])!=0){return 4;}}
+	for(int i=0;i<64;i=i+1){
+		input[i]=fp_input32(i);
+		wide[i]=fp_input(i);
+	}
+	for(int i=0;i<=60;i=i+1) store_f32x4(output,i,load_f32x4(input,i));
+	for(int i=0;i<=62;i=i+1) store_f64x2(copied,i,load_f64x2(wide,i));
+	for(int i=0;i<64;i=i+1){
+		if(fp_copy_check32(i,output[i])!=0) return 1;
+		if(fp_copy_check(i,copied[i])!=0) return 2;
+	}
+	for(int i=0;i<64;i=i+4) store_aligned_f32x4(output,i,load_aligned_f32x4(input,i));
+	for(int i=0;i<64;i=i+2) store_aligned_f64x2(copied,i,load_aligned_f64x2(wide,i));
+	for(int i=0;i<64;i=i+1){
+		if(fp_copy_check32(i,output[i])!=0) return 3;
+		if(fp_copy_check(i,copied[i])!=0) return 4;
+	}
 	store_f32x4(input,1,load_f32x4(input,0));
-	for(int i=1;i<=4;i=i+1){if(fp_copy_check32(i-1,input[i])!=0){return 5;}}
+	for(int i=1;i<=4;i=i+1){
+		if(fp_copy_check32(i-1,input[i])!=0) return 5;
+	}
 	for(int i=0;i<16;i=i+1){
 		f64<2> a={fp_input(i),fp_input(i+1)};f64<2> b={fp_input(i+2),fp_input(i+3)};
-		if(fp_dot_check(a[0],a[1],b[0],b[1],dot64(a,b))!=0){return 6;}
+		if(fp_dot_check(a[0],a[1],b[0],b[1],dot64(a,b))!=0) return 6;
 	}
 	f64<2> a={1.25,2.5};f64<2> b={2.0,4.0};
-	if(mac64(0.5,a,b)!=13.0){return 7;}
-	if(permitted_dot(a,b)!=12.5){return 8;}
+	if(mac64(0.5,a,b)!=13.0) return 7;
+	if(permitted_dot(a,b)!=12.5) return 8;
 	f32<2> narrow=narrow_f64x2(a);f64<2> widen=widen_f32x2(narrow);
-	if(!all(widen==a)){return 9;}
+	if(!all(widen==a)) return 9;
 	f32<4> integral={1.5f,-2.5f,0.0f,1024.0f};i32<4> converted=checked_i32x4(integral);
-	i32<4> wanted={1,-2,0,1024};if(!all(converted==wanted)){return 10;}
+	i32<4> wanted={1,-2,0,1024};if(!all(converted==wanted)) return 10;
 	f64<2> zeroes={fp_input(1),fp_input(0)};
-	if(fp_copy_check(1,min_f64x2(zeroes))!=0 || fp_copy_check(1,max_f64x2(zeroes))!=0){return 11;}
+	if(fp_copy_check(1,min_f64x2(zeroes))!=0 || fp_copy_check(1,max_f64x2(zeroes))!=0) return 11;
 	f64<2> nan_first={fp_input(8),1.0};
-	if(fp_copy_check(8,min_f64x2(nan_first))!=0 || fp_copy_check(8,max_f64x2(nan_first))!=0){return 12;}
-	if(sum_f64x2(a)!=3.75){return 13;}
+	if(fp_copy_check(8,min_f64x2(nan_first))!=0 || fp_copy_check(8,max_f64x2(nan_first))!=0) return 12;
+	if(sum_f64x2(a)!=3.75) return 13;
 	return 0;
 }

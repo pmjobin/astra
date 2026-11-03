@@ -1,32 +1,41 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class ParameterChild {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	deinit() { mark(this.code); }
 }
+
 struct ParameterOwners { owned ParameterChild first; owned ParameterChild second; }
+
 struct ParameterStats { int count; i64 total; }
+
 struct ParameterPack { ParameterOwners children; ParameterStats stats; }
 
 int read_parameter(borrowed ParameterPack value) {
 	ParameterStats copied = value.stats;
-	if (copied.total != 9000000001) { return 0; }
+	if (copied.total != 9000000001) return 0;
 	return copied.count;
 }
+
 int forward_parameter(borrowed ParameterPack value) { return read_parameter(value); }
+
 int tagged_parameter(borrowed ParameterPack value, int tag) { return value.stats.count + tag; }
+
 int read_two_parameters(borrowed ParameterPack left, borrowed ParameterPack right) {
 	return forward_parameter(left) + forward_parameter(right);
 }
+
 int consume_parameter(ParameterPack value) { return value.stats.count; }
 
 int main() {
 	var first = new ParameterChild(191);
 	var second = new ParameterChild(192);
 	ParameterPack pack = {children = {first = move first, second = move second}, stats = {count = 42, total = 9000000001}};
-	if (read_parameter(pack) != 42 || read_two_parameters(pack, pack) != 84) { return 1; }
-	if (tagged_parameter(pack, 0) != 42) { return 3; }
+	if (read_parameter(pack) != 42 || read_two_parameters(pack, pack) != 84) return 1;
+	if (tagged_parameter(pack, 0) != 42) return 3;
 	var moved = move pack;
-	if (forward_parameter(moved) != 42) { return 2; }
+	if (forward_parameter(moved) != 42) return 2;
 	return consume_parameter(move moved) - 42;
 }

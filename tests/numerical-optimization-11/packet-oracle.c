@@ -12,6 +12,7 @@ static FILE *output;
 // Host-only measurement adapter, linked explicitly by this recipe. It does
 // not change Astra's allocator policy; the off/on executables use the same C.
 #ifndef ASTRA_SANITIZER_OBSERVER
+
 void *calloc(size_t count, size_t size) {
 	if (size && count > SIZE_MAX / size) return NULL;
 	void *memory = malloc(count * size);
@@ -19,6 +20,7 @@ void *calloc(size_t count, size_t size) {
 	allocations++;
 	return memory;
 }
+
 #endif
 
 static double reference_sample(int sequence) {

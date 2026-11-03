@@ -5,32 +5,32 @@ int inspect_carrier(borrowed DeclaredUnits.Carrier value) {
 
 int main() {
 	var number = DeclaredUnits.number(40);
-	if (number.read() != 42 || !number.other() || number.advance(4) != 5) { return 1; }
+	if (number.read() != 42 || !number.other() || number.advance(4) != 5) return 1;
 	var record = DeclaredUnits.record(19);
 	var forwarded = DeclaredMiddle.advance(move record, 6);
 	var stats = forwarded.read();
 	i64 expected = 9000000001;
-	if (stats.count != 19 || stats.wide != expected || !stats.ready) { return 2; }
-	if (forwarded.other() != 24 || forwarded.advance(0) != 7) { return 3; }
+	if (stats.count != 19 || stats.wide != expected || !stats.ready) return 2;
+	if (forwarded.other() != 24 || forwarded.advance(0) != 7) return 3;
 	var native = DeclaredMiddle.native_owner(11);
 	var nested = DeclaredMiddle.nested_owner(12);
 	var owning_record = DeclaredMiddle.record_owner(13);
-	if (native.tagged() != 21 || nested.tagged() != 32 || owning_record.tagged() != 43) { return 4; }
+	if (native.tagged() != 21 || nested.tagged() != 32 || owning_record.tagged() != 43) return 4;
 	var leaf = new DeclaredUnits.Leaf(44);
 	var relayed = DeclaredMiddle.relay_leaf(move leaf);
-	if (relayed.read() != 44) { return 5; }
-	if (number.value != 42 || !number.alternative || number.version != 5) { return 6; }
+	if (relayed.read() != 44) return 5;
+	if (number.value != 42 || !number.alternative || number.version != 5) return 6;
 	number.version = 18;
-	if (number.version != 18 || number.advance(1) != 19) { return 7; }
+	if (number.version != 18 || number.advance(1) != 19) return 7;
 	var copied = forwarded.value;
-	if (copied.count != 19 || copied.wide != expected || !copied.ready || forwarded.alternative != 24) { return 8; }
-	if (native.view.read() != 11 || nested.view.value.count != 12) { return 9; }
-	if (inspect_carrier(owning_record.view) != 29) { return 10; }
+	if (copied.count != 19 || copied.wide != expected || !copied.ready || forwarded.alternative != 24) return 8;
+	if (native.view.read() != 11 || nested.view.value.count != 12) return 9;
+	if (inspect_carrier(owning_record.view) != 29) return 10;
 	var coupled = DeclaredMiddle.relay_coupled(DeclaredUnits.coupled(17));
-	if (!coupled.ready || coupled.first.count != 17 || coupled.first.wide != expected || coupled.second != 67) { return 11; }
+	if (!coupled.ready || coupled.first.count != 17 || coupled.first.wide != expected || coupled.second != 67) return 11;
 	var nested_record = DeclaredMiddle.relay_nested(DeclaredUnits.nested_coupled(23));
-	if (!nested_record.ready || !nested_record.second || !nested_record.first.ready || nested_record.first.first.count != 23 || nested_record.first.second != 73) { return 12; }
+	if (!nested_record.ready || !nested_record.second || !nested_record.first.ready || nested_record.first.first.count != 23 || nested_record.first.second != 73) return 12;
 	var boxed = DeclaredUnits.boxed_coupled(31);
-	if (DeclaredMiddle.inspect_boxed(boxed) != 113) { return 13; }
+	if (DeclaredMiddle.inspect_boxed(boxed) != 113) return 13;
 	return 0;
 }

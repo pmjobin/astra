@@ -102,4 +102,5 @@ private void register_lifetime_tests() {
 	Test.add_func ("/nabi/lifetime/scalar-types", () => lifetime ("tests/nabi/fixtures/signatures.astra", {-1, -1, -1}));
 	Test.add_func ("/nabi/lifetime/bool-and-void-calls", () => lifetime ("tests/nabi/fixtures/bool-transport.astra", {-1, -1, 0}));
 }
+
 }

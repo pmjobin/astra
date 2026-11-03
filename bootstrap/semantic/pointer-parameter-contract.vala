@@ -11,9 +11,11 @@ public enum ResultOwnershipContract {
 	public bool is_valid() {
 		return this == UNMANAGED || this == OWNED_TRANSFER || this == STATIC_TEXT || this == RECEIVER_TEXT || this == RECEIVER_BORROW;
 	}
+
 	public string dump_suffix() {
 		return this == RECEIVER_BORROW ? " (contract receiver-borrow)" : this == STATIC_TEXT ? " (contract static-text)" : this == OWNED_TRANSFER ? " (contract owned-transfer)" : "";
 	}
+
 }
 
 // Behavioral callable contract shared by native and foreign declarations.
@@ -33,5 +35,7 @@ public enum PointerParameterContract {
 		}
 		return this == BORROWED_NOESCAPE ? " (contract borrowed-noescape)" : "";
 	}
+
 }
+
 }

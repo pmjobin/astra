@@ -2,61 +2,79 @@
 class ProducedChild {
 	private owned R guard;
 	private int number;
+
 	init(owned R guard, int number) {
 		this.guard = move guard;
 		this.number = number;
 	}
+
 	int read() { return id(this.guard) + this.number; }
+
 	deinit() { mark(2000 + this.number); }
 }
+
 struct HeapProducer {
 	int stamp;
+
 	owned ProducedChild produce(owned R guard, int number) {
 		var result = new ProducedChild(move guard, number + this.stamp);
 		return move result;
 	}
 }
+
 struct CallerProducer {
 	int stamp;
+
 	owned ProducedChild produce(owned R guard, int number) {
 		return ProducedChild.init(move guard, number + this.stamp);
 	}
 }
+
 class ProductionHost<Producer> {
 	private Producer producer;
+
 	init(Producer producer) { this.producer = producer; }
+
 	owned ProducedChild produce(owned R guard, int number) {
 		Producer local = this.producer;
 		return local.produce(move guard, number);
 	}
 }
+
 owned ProducedChild relay<Producer>(borrowed ProductionHost<Producer> host, owned R guard, int number) {
 	return host.produce(move guard, number);
 }
+
 owned ProducedChild nested<Producer>(borrowed ProductionHost<Producer> host, owned R guard, int number) {
 	return relay<Producer>(host, move guard, number);
 }
+
 owned ProducedChild alternative<Producer>(borrowed ProductionHost<Producer> host, owned R guard, int number, bool use_host) {
-	if (use_host) { return relay<Producer>(host, move guard, number); }
+	if (use_host) return relay<Producer>(host, move guard, number);
 	var result = new ProducedChild(move guard, number);
 	return move result;
 }
+
 owned ProducedChild allocate(owned R guard, int number) {
 	var result = new ProducedChild(move guard, number);
 	return move result;
 }
+
 owned ProducedChild allocate_marker<Marker>(owned R guard, int number) {
 	var result = new ProducedChild(move guard, number);
 	return move result;
 }
+
 owned ProducedChild alternative_generic<Producer>(borrowed ProductionHost<Producer> host, owned R guard, int number, bool use_host) {
-	if (use_host) { return relay<Producer>(host, move guard, number); }
+	if (use_host) return relay<Producer>(host, move guard, number);
 	return allocate_marker<bool>(move guard, number);
 }
+
 owned ProducedChild alternative_plain<Producer>(borrowed ProductionHost<Producer> host, owned R guard, int number, bool use_host) {
-	if (use_host) { return relay<Producer>(host, move guard, number); }
+	if (use_host) return relay<Producer>(host, move guard, number);
 	return allocate(move guard, number);
 }
+
 int exercise() {
 	HeapProducer heap = {stamp = 1};
 	CallerProducer caller = {stamp = 2};
@@ -65,43 +83,44 @@ int exercise() {
 	{
 		var guard = make(231);
 		var result = nested<HeapProducer>(heap_host, move guard, 2);
-		if (result.read() != 234) { return 1; }
+		if (result.read() != 234) return 1;
 	}
 	{
 		var guard = make(232);
 		var result = nested<CallerProducer>(caller_host, move guard, 2);
-		if (result.read() != 236) { return 2; }
+		if (result.read() != 236) return 2;
 	}
 	{
 		var guard = make(233);
 		var result = alternative<HeapProducer>(heap_host, move guard, 4, true);
-		if (result.read() != 238) { return 3; }
+		if (result.read() != 238) return 3;
 	}
 	{
 		var guard = make(234);
 		var result = alternative<HeapProducer>(heap_host, move guard, 6, false);
-		if (result.read() != 240) { return 4; }
+		if (result.read() != 240) return 4;
 	}
 	{
 		var guard = make(235);
 		var result = alternative_generic<HeapProducer>(heap_host, move guard, 7, true);
-		if (result.read() != 243) { return 5; }
+		if (result.read() != 243) return 5;
 	}
 	{
 		var guard = make(236);
 		var result = alternative_generic<HeapProducer>(heap_host, move guard, 8, false);
-		if (result.read() != 244) { return 6; }
+		if (result.read() != 244) return 6;
 	}
 	{
 		var guard = make(237);
 		var result = alternative_plain<HeapProducer>(heap_host, move guard, 9, true);
-		if (result.read() != 247) { return 7; }
+		if (result.read() != 247) return 7;
 	}
 	{
 		var guard = make(238);
 		var result = alternative_plain<HeapProducer>(heap_host, move guard, 10, false);
-		if (result.read() != 248) { return 8; }
+		if (result.read() != 248) return 8;
 	}
 	return live();
 }
+
 int main() { return exercise(); }

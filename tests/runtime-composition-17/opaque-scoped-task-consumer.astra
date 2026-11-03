@@ -1,38 +1,53 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void native_scope_begin(int mode);
+
 extern(C) void native_scope_outcome(int mode);
+
 extern(C) int native_scope_finish();
+
 enum NativeScopePhase { Completed, Cancelled }
+
 async runtime NativeScopeTasks throws OpaqueScope.Fault returns NativeScopePhase;
 async void native_scope_parent(owned OpaqueScope.Leaf input, int mode) throws OpaqueScope.Fault {
 	int value = await OpaqueScope.read(move input, mode);
-	if (value != mode + 1) { throw new OpaqueScope.Fault("value"); }
+	if (value != mode + 1) {
+		throw new OpaqueScope.Fault("value");
+	}
 }
+
 int native_scope_case(int mode) {
 	owned u8[] backing = new u8[16381];
 	var context = scoped_allocator<ScopedAllocator>(backing, 1, 8);
 	native_scope_begin(mode);
 	var input = OpaqueScope.make(context, mode + 1);
-	if (mode == 2) { var child = OpaqueScope.read(move input, mode); }
+	if (mode == 2) {
+		var child = OpaqueScope.read(move input, mode);
+	}
 	else {
 		try {
 			var executor = NativeScopeTasks.open(8);
 			var pending = native_scope_parent(move input, mode);
-			if (mode == 1) { executor.cancel(pending); }
-			if (mode == 4) { executor.begin_shutdown(); }
+			if (mode == 1) executor.cancel(pending);
+			if (mode == 4) executor.begin_shutdown();
 			var status = executor.run(move pending);
-			if (mode == 1 || mode == 5) { match (status) { case NativeScopePhase.Cancelled(): {} else: { return 2; } } }
-			else { if (mode != 0) { return 3; } match (status) { case NativeScopePhase.Completed(): {} else: { return 4; } } }
-		} catch (OpaqueScope.Fault error) { if (mode != 3 && mode != 4) { return 5; } }
+			if (mode == 1 || mode == 5) {
+				match (status) { case NativeScopePhase.Cancelled(): {} else: { return 2; } }
+			}
+			else {
+				if (mode != 0) return 3;
+				match (status) { case NativeScopePhase.Completed(): {} else: { return 4; } }
+			}
+		} catch (OpaqueScope.Fault error) { if (mode != 3 && mode != 4) return 5; }
 	}
-	if (scoped_allocator_query(context, 1) != 0) { return 6; }
+	if (scoped_allocator_query(context, 1) != 0) return 6;
 	native_scope_outcome(mode);
 	return 0;
 }
+
 export(C) int native_scope_probe() {
 	for (int mode = 0; mode < 6; mode = mode + 1) {
 		int result = native_scope_case(mode);
-		if (result != 0) { return result; }
+		if (result != 0) return result;
 	}
 	return native_scope_finish();
 }

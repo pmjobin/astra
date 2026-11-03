@@ -16,9 +16,11 @@ private SourceFile read_source(string path) throws FileError {
 	FileUtils.get_data(path, out bytes);
 	return new SourceFile(path, (owned) bytes);
 }
+
 private void save(string directory, string stage, string data) throws FileError {
 	FileUtils.set_contents(Path.build_filename(directory, stage), data);
 }
+
 private int collect(string[] args) throws GLib.Error {
 	assert(args.length >= 3);
 	string directory = args[1];
@@ -89,6 +91,7 @@ private int collect(string[] args) throws GLib.Error {
 	save(directory, "llvm", llvm.dump());
 	return 0;
 }
+
 int main(string[] args) {
 	try {
 		return collect(args);

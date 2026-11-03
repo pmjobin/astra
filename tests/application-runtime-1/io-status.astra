@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Same copy orchestration, but exposes checked category/status and caller path.
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try { var bytes = read_file(args[1]); bytes.write(args[2]); return 0; }
 	catch (FileError error) {
 		try {
 			var b = new Utf8ByteBuilder();
 			require_text(append_int(b, error.operation)); require_text(append_text(b, ":"));
 			require_text(append_int(b, error.status));
-			var message = b.snapshot(); if (!println(message.text)) { return 74; }
+			var message = b.snapshot(); if (!println(message.text)) return 74;
 			return 2;
 		} catch (Error failure) { return 75; }
 	}

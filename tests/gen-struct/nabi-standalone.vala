@@ -17,9 +17,11 @@ private void pointer() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-struct/nabi/ordinary-ptr-one-channel-v1", pointer);
 	return Test.run ();
 }
+
 }

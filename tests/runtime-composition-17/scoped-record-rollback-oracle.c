@@ -14,6 +14,7 @@ static int live, closed, freed;
 static int failed(unsigned id) {
 	return id != 2 && id != 4;
 }
+
 static void children_retired(unsigned id) {
 	for (unsigned member = 1; member <= 3; ++member)
 		assert(child_entered[id * 10 + member] == 1 && child_retired[id * 10 + member] == 1);
@@ -22,6 +23,7 @@ static void children_retired(unsigned id) {
 }
 
 AstraContext17 *__real_astra_context17_open_scoped(void *, int32_t, int32_t, int32_t);
+
 AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, int32_t kind, int32_t slots) {
 	assert(base && length == 8197 && kind == ASTRA_CONTEXT17_POOL && slots == 1 && !context);
 	backing = base;
@@ -29,7 +31,9 @@ AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, i
 	assert(context);
 	return context;
 }
+
 void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t selected_tag, uint32_t mode) {
 	assert(selected == context && !closed && count == 1 && size == 40 && alignment == 8 && selected_tag && mode == 3);
@@ -49,6 +53,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t co
 	live = 1;
 	return pointer;
 }
+
 void scoped_record_rollback_event(int event, int identity) {
 	assert(identity > 0 && !closed);
 	unsigned id = (unsigned)identity;
@@ -90,7 +95,9 @@ void scoped_record_rollback_event(int event, int identity) {
 		++caught[id];
 	}
 }
+
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t selected_tag) {
 	if (!pointer) return __real_astra_context17_release_origin_checked(pointer, selected_tag);
 	assert(pointer == cell && selected_tag == tag && live && allocations == releases + 1 && !closed);
@@ -106,7 +113,9 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t select
 	++releases;
 	return result;
 }
+
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	assert(selected == context && !closed && !live && allocations == 6 && releases == 6 && refusals == 1);
 	for (unsigned id = 1; id <= 6; ++id) {
@@ -121,7 +130,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	closed = 1;
 	__real_astra_context17_destroy(selected);
 }
+
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	if (backing && pointer == backing) {
 		assert(closed && !freed);
@@ -129,7 +140,9 @@ void __wrap_free(void *pointer) {
 	}
 	__real_free(pointer);
 }
+
 extern int scoped_record_rollback_run(void);
+
 int main(void) {
 	int result = scoped_record_rollback_run();
 	if (result) return result;

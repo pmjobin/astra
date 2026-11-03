@@ -7,12 +7,15 @@ public class GenericBorrowTypes : Object {
 	public static bool symbolic(SemanticType? type) {
 		return type is TypeParameterType && ((TypeParameterType) type).transport_mode == GenericTransportMode.OWNABLE;
 	}
+
 	public static bool accepts(SemanticType type) {
 		return symbolic (type) || type is HandleType || type is ClassType;
 	}
+
 	public static bool scalar(SemanticType type) {
 		return type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL;
 	}
+
 }
 
 public class GenericCapabilityAuthority : Object {
@@ -42,6 +45,7 @@ public class GenericCapabilityAuthority : Object {
 			return type.is_void_pointer () ? GenericCapabilityDomain.RAW_POINTER.capabilities () : 0;
 		}
 	}
+
 	public static bool satisfies(SemanticType type, GenericCapabilityIdentity capability) {
 		if (!capability.valid ()) {
 			return false;
@@ -49,6 +53,7 @@ public class GenericCapabilityAuthority : Object {
 		var parameter = type as TypeParameterType;
 		return parameter != null ? parameter.explicit_capabilities.contains(capability) : (capabilities_of (type) & capability.bit ()) != 0;
 	}
+
 }
 
 }

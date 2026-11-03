@@ -40,6 +40,7 @@ private void exact_universe() {
 	var same = (CheckedGenericCall) ((CheckedReturnStatement) aliases.functions[0].body.statements[0]).expression;
 	assert (same.type_arguments[0] == aliases.types.int_type && same.type_arguments[0] == aliases.types.i32_type);
 }
+
 private void literals() {
 	var p = check (IDENTITY + "void f(){var a=identity(1);var b=identity(1.25);var c=identity(1.25f);var d=identity(1.0000000000000002d);var e=identity(null);var f=identity(1 as f64);var g=identity(true);}");
 	SemanticType[] expected = {
@@ -53,6 +54,7 @@ private void literals() {
 		}
 	}
 }
+
 private void symbolic() {
 	var p = check (IDENTITY + "T outer<T>(T x){return identity(x);}B pair<A,B>(A a,B b){return second(a,b);}V second<U,V>(U a,V b){return b;}");
 	var inner = p.generic_functions[0].definition.type_parameters[0];
@@ -81,6 +83,7 @@ private void symbolic() {
 		}
 	}
 }
+
 private void ownership_proofs() {
 	var p = fixture ("outer-owned");
 	var span = p.generic_functions[0].symbol.span;
@@ -112,11 +115,13 @@ private void ownership_proofs() {
 	// via check_move would incorrectly produce a duplicate move here.
 	check ("owned T relay<T>(owned T x) where T : Ownable{return move x;}owned T outer<T>(owned T x) where T : Ownable{return relay(move x);}");
 }
+
 private void equivalence() {
 	foreach (string name in fixtures ()) {
 		assert (SemanticDump.format (fixture (name)) == SemanticDump.format (fixture (name, false)));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-infer/semantic/complete-canonical-universe", exact_universe);
@@ -126,4 +131,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-infer/semantic/explicit-inferred-equivalence", equivalence);
 	return Test.run ();
 }
+
 }

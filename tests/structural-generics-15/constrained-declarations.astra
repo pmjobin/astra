@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class FirstValue {
 	int code;
+
 	init(int code) { this.code = code; }
 }
 
 class SecondValue {
 	int code;
 	i64 stamp;
+
 	init(int code) { this.code = code; this.stamp = 7000000001; }
 }
 
@@ -17,25 +19,35 @@ class BoundedPair<L, R, Tag> where L : ExactHeapClass where R : ExactHeapClass {
 	private owned R second;
 	private Tag tag;
 	private int calls;
+
 	init(owned L first, owned R second, Tag tag) {
 		this.first = move first;
 		this.second = move second;
 		this.tag = tag;
 		this.calls = 0;
 	}
+
 	property borrowed L left { get { return this.first; } }
+
 	property borrowed R right { get { return this.second; } }
+
 	property Tag marker { get { return this.tag; } }
+
 	int advance(int seed) {
 		int result = seed;
 		int index = 0;
-		while (index < 2) { result = result + 1; index = index + 1; }
+		while (index < 2) {
+			result = result + 1;
+			index = index + 1;
+		}
 		return result;
 	}
+
 	int adjust<U>(int seed, U ignored) where L : ExactHeapClass {
 		this.calls = this.calls + 1;
 		return this.advance(seed);
 	}
+
 	int constrained<U>() where U : ExactHeapClass { return 7; }
 }
 
@@ -44,7 +56,7 @@ int main() {
 	var second = new SecondValue(47);
 	var pair = new BoundedPair<FirstValue, SecondValue, bool>(move first, move second, true);
 	var witness = new EmptyWitness<FirstValue>();
-	if (pair.left.code != 42 || pair.right.code != 47 || pair.right.stamp != 7000000001) { return 1; }
-	if (!pair.marker || pair.adjust<bool>(40, true) != 42) { return 2; }
+	if (pair.left.code != 42 || pair.right.code != 47 || pair.right.stamp != 7000000001) return 1;
+	if (!pair.marker || pair.adjust<bool>(40, true) != 42) return 2;
 	return pair.constrained<SecondValue>() - 7;
 }

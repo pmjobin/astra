@@ -1,25 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void usability_event(int value);
+
 class Token {
 	int tag;
+
 	init(int tag) { this.tag = tag; usability_event(tag); }
+
 	deinit() { usability_event(0 - this.tag); }
 }
+
 bool condition(int mode) throws Error {
-	if (mode == 0) { throw new Error("condition"); }
+	if (mode == 0) {
+		throw new Error("condition");
+	}
 	return true;
 }
+
 void step(int mode) throws Error {
 	usability_event(30);
-	if (mode == 2) { throw new Error("step"); }
+	if (mode == 2) {
+		throw new Error("step");
+	}
 }
+
 void run(int mode) throws Error {
 	for (var outer = Token.init(1); condition(mode); step(mode)) {
 		var inner = Token.init(2);
-		if (mode == 1) { throw new Error("body"); }
+		if (mode == 1) {
+			throw new Error("body");
+		}
 		continue;
 	}
 }
+
 int main() {
 	for (int mode = 0; mode < 3; mode = mode + 1) {
 		try { run(mode); return 1; }

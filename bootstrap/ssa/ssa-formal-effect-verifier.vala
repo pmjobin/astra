@@ -14,6 +14,7 @@ internal class SsaFormalEffectObligation : Object {
 		this.required = required;
 		this.factory = factory;
 	}
+
 }
 
 // This consumer does not call effect inference or rebuild its fixed point.
@@ -26,14 +27,17 @@ public class SsaFormalEffectVerifier : Object {
 	private SsaFormalEffectVerifier (SsaProgram program) {
 		this.program = program;
 	}
+
 	private static void require(bool condition, string message) throws SsaError {
 		if (!condition) {
 			throw new SsaError.INVALID_SSA ("formal effect consumer: " + message);
 		}
 	}
+
 	private static bool scalar(SemanticType type) {
 		return type.kind == TypeKind.BOOL || type is IntegerType || type is FloatingType || type is VectorType;
 	}
+
 	private void enqueue(SsaFunction function, int ordinal, uint required, bool factory = false) throws SsaError {
 		require (function.ordinal >= 0 && function.ordinal < program.functions.length && program.functions[function.ordinal] == function,
 			"callee has no exact current program identity");
@@ -69,6 +73,7 @@ public class SsaFormalEffectVerifier : Object {
 		visited.insert (key, true);
 		pending.add (new SsaFormalEffectObligation (function, ordinal, required, factory));
 	}
+
 	private void domain(SsaFunction function) throws SsaError {
 		require (function.async_body == null && function.throws_type == null && !function.utf8_factory && function.owned_cleanup == null &&
 			function.object_storage.length == 0 && function.heap_owners.length == 0 && function.buffer_storage.length == 0 && function.enum_slots.length == 0 &&
@@ -116,6 +121,7 @@ public class SsaFormalEffectVerifier : Object {
 			}
 		}
 	}
+
 	private static SsaValue? origin(SsaFunction function, SsaValue value, HashTable<SsaValue, SsaInstruction> definitions) throws SsaError {
 		var path = new HashTable<SsaValue, bool> (direct_hash, direct_equal);
 		while (true) {
@@ -134,6 +140,7 @@ public class SsaFormalEffectVerifier : Object {
 			}
 		}
 	}
+
 	private static bool pure_scalar(SsaInstruction instruction, bool memory_none) {
 		if (instruction.result != null && !scalar (instruction.result.semantic_type)) {
 			return false;
@@ -163,6 +170,7 @@ public class SsaFormalEffectVerifier : Object {
 		       instruction is SsaVectorSplatInstruction || instruction is SsaVectorExtractInstruction || instruction is SsaVectorInsertInstruction ||
 		       instruction is SsaVectorShuffleInstruction || instruction is SsaVectorSelectInstruction || instruction is SsaVectorConstructInstruction || instruction is SsaVectorReductionInstruction;
 	}
+
 	private void body(SsaFormalEffectObligation proof) throws SsaError {
 		var function = proof.function;
 		if (function.native_declaration != null || function.span.file.native_interface || function.module_import_symbol != null) {
@@ -262,6 +270,7 @@ public class SsaFormalEffectVerifier : Object {
 			}
 		}
 	}
+
 	public static void verify(SsaProgram program) throws SsaError {
 		var consumer = new SsaFormalEffectVerifier (program);
 		foreach (var function in program.functions) {
@@ -289,5 +298,6 @@ public class SsaFormalEffectVerifier : Object {
 			consumer.body (consumer.pending[p]);
 		}
 	}
+
 }
 }

@@ -6,11 +6,13 @@
 extern int32_t byte16_roundtrip_run(void);
 extern uint32_t byte16_retired_count(int32_t);
 static unsigned notes;
+
 int32_t byte16_roundtrip_note(int32_t value) {
 	assert((notes == 0 && value == 1) || (notes == 1 && value == 101));
 	++notes;
 	return 0;
 }
+
 int main(void) {
 	int32_t result = byte16_roundtrip_run();
 	if (result) {

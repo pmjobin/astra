@@ -8,6 +8,7 @@
 typedef struct Native Native;
 typedef struct _OrbitTable16Directory Directory;
 typedef struct _OrbitTable16Row Row;
+
 typedef struct {
 	float boost;
 	double ceiling;
@@ -16,6 +17,7 @@ typedef struct {
 	uint32_t mask;
 	bool lowest;
 } Probe;
+
 typedef struct {
 	float score;
 	int64_t code;
@@ -23,6 +25,7 @@ typedef struct {
 	bool found;
 	uint64_t visited;
 } Selection;
+
 typedef struct {
 	gfloat boost;
 	gdouble ceiling;
@@ -31,9 +34,11 @@ typedef struct {
 	guint mask;
 	gboolean lowest;
 } GProbe;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t orbit16_create(Native **, Error *);
 extern int32_t orbit16_scan(Native *, Probe, Selection *, Error *);
 extern uint32_t orbit16_acquire(Native *);
@@ -41,6 +46,7 @@ extern uint32_t orbit16_release(Native *);
 extern Directory *orbit_table16_directory_as_gobject(Native *, GError **);
 extern gboolean orbit_table16_directory_try_entry_for(Directory *, GProbe *, Row **, GError **);
 extern uint32_t orbit16_retired_count(int32_t);
+
 struct State {
 	Native *root;
 	unsigned complete, selected, destroyed;
@@ -48,6 +54,7 @@ struct State {
 	Row *saved;
 	GBytes *description;
 };
+
 static void completed(Directory *object, gint requests, gboolean matched, gfloat score, gpointer data) {
 	struct State *s = data;
 	++s->complete;
@@ -66,11 +73,13 @@ static void completed(Directory *object, gint requests, gboolean matched, gfloat
 	orbit16_release(s->root);
 	g_object_unref(object);
 }
+
 static void destroyed(gpointer data, GClosure *closure) {
 	(void)closure;
 	struct State *s = data;
 	++s->destroyed;
 }
+
 static void selected(Directory *object, Row *item, GBytes *description, gpointer data) {
 	struct State *s = data;
 	assert(s->complete == 1 && item && description);
@@ -80,6 +89,7 @@ static void selected(Directory *object, Row *item, GBytes *description, gpointer
 	g_signal_handler_disconnect(object, s->connection);
 	assert(s->destroyed == 0);
 }
+
 int main(void) {
 	Native *root = NULL;
 	Error native = {0};

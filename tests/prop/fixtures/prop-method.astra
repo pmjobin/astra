@@ -1,24 +1,30 @@
 class Sample {
 	int field;
+
 	property int computed {
 		get { return this.read() + 1; }
 		set(int next) { this.write(next - 1); }
 	}
+
 	int composed() { return this.computed; }
+
 	property int other {
 		get { return this.computed; }
 		set(int next) { this.computed = next; }
 	}
+
 	int read() { return this.field; }
+
 	void write(int next) { this.field = next; }
 }
+
 int main() {
 	Sample s = { field = 0 };
 	s.field = 5;
-	if (s.computed != 6) { return 1; }
+	if (s.computed != 6) return 1;
 	s.computed = 5;
-	if (s.field != 4) { return 2; }
+	if (s.field != 4) return 2;
 	s.other = 42;
-	if (s.composed() != 42) { return 3; }
+	if (s.composed() != 42) return 3;
 	return s.other;
 }

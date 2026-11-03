@@ -10,6 +10,7 @@ static unsigned acquired, released, modes;
 extern void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t,
                                                   uint64_t, uint32_t, uint64_t, uint32_t);
 extern int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	static const uint64_t lengths[] = {17, 19, 23};
@@ -30,6 +31,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t cou
 	modes |= 1U << mode;
 	return payload;
 }
+
 int __wrap_astra_context17_release_origin_checked(void *payload, uint64_t tag) {
 	unsigned index = 0;
 	while (index < acquired && payloads[index] != payload) {
@@ -45,12 +47,15 @@ int __wrap_astra_context17_release_origin_checked(void *payload, uint64_t tag) {
 	++released;
 	return result;
 }
+
 int buffer_domains_finish(void) {
 	assert(acquired == 3 && released == 3 && modes == 7);
 	puts("generic buffer domains: three allocator modes, borrowed views and exact closed-origin releases");
 	return 0;
 }
+
 extern int buffer_domains_run(void);
+
 int main(void) {
 	return buffer_domains_run();
 }

@@ -1,32 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int image2_parent(borrowed Vector<ImageParent18> parents, int index) { return parents.entries[index].parent; }
+
 void image2_set_parent(borrowed Vector<ImageParent18> parents, int index, int parent) {
 	ImageParent18 value = {parent = parent}; parents.replace(index, value);
 }
+
 int image2_find(borrowed Vector<ImageParent18> parents, int index) {
 	int root = index;
-	while (image2_parent(parents, root) != root) { root = image2_parent(parents, root); }
+	while (image2_parent(parents, root) != root) root = image2_parent(parents, root);
 	int current = index;
 	while (image2_parent(parents, current) != current) {
 		int next = image2_parent(parents, current); image2_set_parent(parents, current, root); current = next;
 	}
 	return root;
 }
+
 void image2_union(borrowed Vector<ImageParent18> parents, int first, int second) {
 	int a = image2_find(parents, first); int b = image2_find(parents, second);
-	if (a < b) { image2_set_parent(parents, b, a); } else { if (b < a) { image2_set_parent(parents, a, b); } }
+	if (a < b) {
+		image2_set_parent(parents, b, a);
+	} else {
+		if (b < a) image2_set_parent(parents, a, b);
+	}
 }
+
 int image2_components() throws Error {
 	int width = image2_width(); int height = image2_height(); int pixels = width * height;
 	var parents = new Vector<ImageParent18>(pixels + 1);
 	for (int index = 0; index <= pixels; index = index + 1) {
-		ImageParent18 value = {parent = index}; if (!parents.append(value)) { throw new Error("image disjoint set reserve"); }
+		ImageParent18 value = {parent = index}; if (!parents.append(value)) {
+			throw new Error("image disjoint set reserve");
+		}
 	}
 	for (int index = 0; index < pixels; index = index + 1) {
 		if (image2_mask(index) != 0) {
 			int x = index % width; int y = index / width;
-			if (x > 0 && image2_mask(index - 1) != 0) { image2_union(parents, index + 1, index); }
-			if (y > 0 && image2_mask(index - width) != 0) { image2_union(parents, index + 1, index - width + 1); }
+			if (x > 0 && image2_mask(index - 1) != 0) image2_union(parents, index + 1, index);
+			if (y > 0 && image2_mask(index - width) != 0) image2_union(parents, index + 1, index - width + 1);
 		}
 	}
 	var components = new Map<int, ImageComponentOwner18>(image2_equal);
@@ -37,10 +47,12 @@ int image2_components() throws Error {
 			ImageComponent18 value = components.lookup<ImageComponent18>(label, image2_read_component, image2_empty_component());
 			int x = index % width; int y = index / width;
 			value.area = value.area + 1; value.sum = value.sum + (image2_score4(index) as i64);
-			if (x < value.min_x) { value.min_x = x; } if (x > value.max_x) { value.max_x = x; }
-			if (y < value.min_y) { value.min_y = y; } if (y > value.max_y) { value.max_y = y; }
+			if (x < value.min_x) value.min_x = x; if (x > value.max_x) value.max_x = x;
+			if (y < value.min_y) value.min_y = y; if (y > value.max_y) value.max_y = y;
 			var owner = new ImageComponentOwner18(value);
-			if (!components.put(label, move owner)) { throw new Error("image component reserve"); }
+			if (!components.put(label, move owner)) {
+				throw new Error("image component reserve");
+			}
 		}
 		image2_label(index, label);
 	}

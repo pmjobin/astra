@@ -20,6 +20,7 @@ static int (*real_wait)(pthread_cond_t *, pthread_mutex_t *);
 static int (*real_timedwait)(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
 static int (*real_broadcast)(pthread_cond_t *);
 static _Atomic uint64_t locks, lock_ns, slow_locks, waits, timed_waits, timeouts, broadcasts;
+
 /* Samples match an actual condition address and a broadcast timestamp inside
  * the wait interval. They include mutex reacquisition and observer overhead;
  * spurious returns and concurrent broadcasts prevent a causal wake guarantee. */
@@ -27,6 +28,7 @@ typedef struct {
 	_Atomic uintptr_t condition;
 	_Atomic uint64_t broadcast_ns;
 } WakeSlot;
+
 static WakeSlot wake_slots[64];
 static _Atomic uint64_t wake_samples, wake_ns, wake_max_ns, wake_slots_full;
 
@@ -61,6 +63,7 @@ static WakeSlot *wake_slot(pthread_cond_t *condition) {
 	atomic_fetch_add(&wake_slots_full, 1);
 	return NULL;
 }
+
 static void observed_return(pthread_cond_t *condition, uint64_t began, int result) {
 	uint64_t ended = nanoseconds();
 	if (result) {

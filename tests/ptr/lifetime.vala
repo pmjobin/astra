@@ -69,4 +69,5 @@ private void lifetime() throws GLib.Error {
 private void register_lifetime() {
 	add ("/ptr/frontend-core-cfg-ssa-abi-lifetime", lifetime);
 }
+
 }

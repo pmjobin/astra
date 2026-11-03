@@ -23,6 +23,7 @@ private void valid(string id, owned Check check) throws GLib.Error {
 	check ();
 	Test.message ("R1 %s control PASS", id);
 }
+
 private void invalid(string id, string diagnostic, owned Check check) throws GLib.Error {
 	try {
 		check ();
@@ -34,6 +35,7 @@ private void invalid(string id, string diagnostic, owned Check check) throws GLi
 	Test.message ("R1 %s BASELINE_ACCEPTED_INVALID_MODEL", id);
 	assert (Environment.get_variable ("ASTRA_ENUM_R1_BASELINE") == "1");
 }
+
 private CoreProgram core(string text) throws GLib.Error {
 	ParseResult? parsed = Parser.parse (new SourceFile.from_text ("enum-own-r1.astra", text));
 	assert (parsed.diagnostic == null);
@@ -49,6 +51,7 @@ private CoreProgram core(string text) throws GLib.Error {
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private CfgProgram cfg(string text) throws GLib.Error {
 	CoreProgram? input = core (text);
 	var upstream = WeakRef (input.functions[0]);
@@ -58,6 +61,7 @@ private CfgProgram cfg(string text) throws GLib.Error {
 	CfgVerifier.verify (result);
 	return result;
 }
+
 private SsaProgram ssa(string text) throws GLib.Error {
 	CfgProgram? input = cfg (text);
 	var upstream = WeakRef (input.functions[0]);
@@ -67,6 +71,7 @@ private SsaProgram ssa(string text) throws GLib.Error {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void field_bindings() {
 	try {
 		var program = cfg (PAIRS);
@@ -131,6 +136,7 @@ private void field_bindings() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void complete_pairs() {
 	try {
 		foreach (var text in new string[] { PAIRS, PAIRS.replace ("new int[3]", "new int[2]"), PAIRS.replace ("new int[2]", "new int[0]") }) {
@@ -181,6 +187,7 @@ private void complete_pairs() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void masks() {
 	try {
 		var program = cfg (IGNORED);
@@ -238,6 +245,7 @@ private void masks() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_pairs() {
 	try {
 		SsaProgram? source = ssa (IGNORED);
@@ -262,6 +270,7 @@ private void native_pairs() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_premises() {
 	try {
 		var program = core ("enum Fault{Invalid} enum ArrayResult<T,E>{Success(owned T[] value),Error(E error)} ArrayResult<T,E> relay<T,E>(ArrayResult<T,E> input){return move input;} int main(){var a=relay<int,Fault>(ArrayResult<int,Fault>.Success(new int[2]));match(move a){else:{return 0;}}}");
@@ -308,6 +317,7 @@ private void generic_premises() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_channels() {
 	try {
 		var source = ssa ("enum A{Ready(owned int[] data),Empty} enum B{Ready(owned int[] data),Empty} A fa(A input){return move input;} B fb(B input){return move input;} int main(){var a=fa(A.Ready(new int[2]));var b=fb(B.Ready(new int[3]));match(move a){else:{}}match(move b){else:{return 0;}}}");
@@ -344,6 +354,7 @@ private void native_channels() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ordinary(LlvmModuleArtifact artifact) {
 	char* message;
 	int failed = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -356,6 +367,7 @@ private void ordinary(LlvmModuleArtifact artifact) {
 	}
 	Test.message ("R1 ordinary LLVM PASS");
 }
+
 private LlvmModuleArtifact artifact(string text) throws GLib.Error {
 	SsaProgram? input = ssa (text);
 	NativeAbiProgram? native = NativeAbiBuilder.build (input);
@@ -373,6 +385,7 @@ private LlvmModuleArtifact artifact(string text) throws GLib.Error {
 	result.verify ();
 	return result;
 }
+
 private void physical_relations() {
 	try {
 		var module = artifact (PAIRS);
@@ -445,6 +458,7 @@ private void physical_relations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void captures() {
 	try {
 		var program = cfg (CAPTURE);
@@ -509,6 +523,7 @@ private void captures() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void structured() {
 	try {
 		foreach (var text in new string[] { BRANCH, LOOP }) {
@@ -565,6 +580,7 @@ private void structured() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void nested_inspections() {
 	try {
 		const string text = "enum Inner{Ready(owned int[] data),Empty} enum Outer{Child(Inner value),Empty} int main(){var a=Outer.Child(Inner.Ready(new int[2]));match(a){case Outer.Child(child):{match(child){case Inner.Ready(view):{if(len(view)!=2){return 1;}}else:{return 2;}}match(child){case Inner.Ready(view):{return len(view)-2;}else:{return 3;}}}else:{return 4;}}}";
@@ -599,6 +615,7 @@ private void nested_inspections() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 internal void register() {
 	Test.add_func ("/enum-own/r1/field-bindings", field_bindings);
 	Test.add_func ("/enum-own/r1/complete-pairs", complete_pairs);
@@ -611,4 +628,5 @@ internal void register() {
 	Test.add_func ("/enum-own/r1/structured-cleanup", structured);
 	Test.add_func ("/enum-own/r1/nested-inspection-extents", nested_inspections);
 }
+
 }

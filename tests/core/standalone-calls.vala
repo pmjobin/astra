@@ -134,4 +134,5 @@ private void register_call_tests() {
 	Test.add_func ("/core-standalone/calls/model-and-recursive-lifetime", calls_model_and_lifetime);
 	Test.add_func ("/core-standalone/calls/invalid-models", invalid_calls);
 }
+
 }

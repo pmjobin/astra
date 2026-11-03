@@ -5,6 +5,7 @@
 struct resource {
 	int id;
 };
+
 static void *slots[512];
 static int ids[512];
 static int count;
@@ -22,6 +23,7 @@ void record_error(int stage, int tag) {
 		abort();
 	}
 }
+
 int record_errors(void) {
 	return errors;
 }
@@ -45,6 +47,7 @@ void *of_make(int id) {
 	printf("A%d ", id);
 	return value;
 }
+
 void of_release(void *value) {
 	if (!value) {
 		return;
@@ -64,9 +67,11 @@ void of_release(void *value) {
 	/* Check identity before dereferencing: the doubled-cleanup control aborts. */
 	abort();
 }
+
 int of_live(void) {
 	return active;
 }
+
 int of_mark(int code) {
 	printf("M%d ", code);
 	return code;

@@ -49,6 +49,7 @@ private void recovery() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private SsaProgram build() throws GLib.Error {
 	string source;
 	FileUtils.get_contents ("tests/own-swap-1/fixtures/slots.astra", out source);
@@ -92,4 +93,5 @@ private SsaProgram build() throws GLib.Error {
 	SsaVerifier.verify (ssa);
 	return ssa;
 }
+
 }

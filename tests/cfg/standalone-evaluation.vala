@@ -85,4 +85,5 @@ private void register_evaluation_tests() {
 	Test.add_func ("/cfg-standalone/evaluation/model-and-lifetime", independent_evaluation);
 	Test.add_func ("/cfg-standalone/evaluation/malformed", malformed_evaluation);
 }
+
 }

@@ -11,6 +11,7 @@ public class SyntaxProgramResult : Object {
 		this.program = program;
 		this.diagnostic = diagnostic;
 	}
+
 }
 
 // Each unit is an independently parsed tree. Declaration arrays are views of
@@ -99,5 +100,6 @@ public class SyntaxProgram : Object {
 			GLib.error ("validated source set: %s", error.message);
 		}
 	}
+
 }
 }

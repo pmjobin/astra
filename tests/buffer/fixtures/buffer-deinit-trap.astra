@@ -1,6 +1,9 @@
 class Context {
 	owned f64[] values;
+
 	init() { this.values = new f64[3]; }
+
 	deinit() { this.values = new f64[5]; int invalid = 1 / mark(0); }
 }
+
 int main() { owned Context context = Context.init(); return 0; }

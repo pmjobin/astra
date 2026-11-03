@@ -36,6 +36,7 @@ void *__wrap_calloc(size_t number, size_t size) {
 }
 
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	for (int i = 0; i < 128; i++) {
 		if (pointer && mappings[i].base == pointer) {
@@ -51,6 +52,7 @@ void __wrap_free(void *pointer) {
 int mapped_count(void) {
 	return count;
 }
+
 void mapping_watch(void) {
 	const char *descriptor = getenv("ASTRA_WATCH_FD");
 	if (descriptor) {
@@ -61,6 +63,7 @@ void mapping_watch(void) {
 		raise(SIGSTOP);
 	}
 }
+
 int mapping_audit(int expected) {
 	if (watching) {
 		raise(SIGSTOP);

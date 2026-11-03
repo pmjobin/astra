@@ -1,56 +1,92 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="errors16_retired")] int retired(int kind);
+
 [CImport(name="errors16_drop_receiver")] int drop_receiver();
+
 [ExceptionRoot]
 class Fault {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
+
 	deinit() { retired(1); }
 }
+
 class BadInput : Fault { init(string text) : base(text) {} }
+
 class PrivateBadInput : BadInput { init(string text) : base(text) {} }
+
 class OtherFault : Fault { init(string text) : base(text) {} }
+
 void check(int mode) throws Fault {
-	if (mode == 1) { throw new Fault("base\0é"); }
-	if (mode == 2) { throw new BadInput("bad"); }
-	if (mode == 3) { throw new PrivateBadInput("private"); }
-	if (mode == 4) { throw new OtherFault("other"); }
+	if (mode == 1) {
+		throw new Fault("base\0é");
+	}
+	if (mode == 2) {
+		throw new BadInput("bad");
+	}
+	if (mode == 3) {
+		throw new PrivateBadInput("private");
+	}
+	if (mode == 4) {
+		throw new OtherFault("other");
+	}
 }
+
 struct Row16 { f64 ratio; u64 marker; bool ready; }
+
 [CExport(name="errors16",profile="declarations-v1",bool_abi="c99")]
 class Service {
 	private int state;
+
 	[Foreign] init(int state) { this.state = state; }
+
 	[Foreign] owned Item last() { drop_receiver(); var item = new Item(75); return move item; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	int read(int mode) throws Fault { check(mode); return this.state; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	f64 score(int mode) throws Fault { check(mode); return 42.5; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	Row16 row(int mode) throws Fault { check(mode); Row16 result = {ratio = 42.5, marker = 9223372036854775809, ready = true}; return result; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	void update(int value, int mode) throws Fault { check(mode); this.state = value; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	int take(owned Item input, int mode) throws Fault { check(mode); return input.code(); }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	owned Item build(int mode) throws Fault { var item = new Item(71); check(mode); return move item; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600",null_status="1")]
 	[ForeignChannel(parameter="result",nullable="true")]
-	owned Item find(bool present, int mode) throws Fault { check(mode); if (!present) { return null; } var item = new Item(73); return move item; }
+	owned Item find(bool present, int mode) throws Fault { check(mode); if (!present) return null; var item = new Item(73); return move item; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	[ForeignChannel(parameter="output",direction="out",produced="result")]
-	int fill(borrowed u8[] output, int mode) throws Fault { if (len(output) > 0) { output[0] = 66; } check(mode); if (len(output) > 0) { return 1; } return 0; }
+	int fill(borrowed u8[] output, int mode) throws Fault { if (len(output) > 0) output[0] = 66; check(mode); if (len(output) > 0) return 1; return 0; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	owned u8[] bytes(int mode) throws Fault { var data = new u8[3]; data[0] = 21; data[1] = 22; data[2] = 23; check(mode); return move data; }
+
 	[Foreign(error_domain="16",errors="BadInput=-1601,Fault=-1600")]
 	string text(int mode) throws Fault { check(mode); return "hi\0é"; }
+
 	deinit() { retired(3); }
 }
+
 [CExport(name="error_item16",profile="declarations-v1")]
 class Item {
 	private int value;
+
 	[Foreign] init(int value) { this.value = value; }
+
 	[Foreign] int code() { return this.value; }
+
 	deinit() { retired(2); }
 }

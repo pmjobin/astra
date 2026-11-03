@@ -18,11 +18,13 @@ struct CRecord {
 	int8_t negative;
 	int16_t narrow;
 };
+
 struct Capture {
 	int64_t total;
 	int32_t invocations;
 	int32_t bias;
 };
+
 #define OFFSET(type, field, value) _Static_assert(offsetof(struct type, field) == value, #type "." #field)
 _Static_assert(sizeof(struct CRecord) == 72 && _Alignof(struct CRecord) == 8, "CRecord layout");
 _Static_assert(sizeof(struct Capture) == 16 && _Alignof(struct Capture) == 8, "Capture layout");
@@ -57,6 +59,7 @@ static void expected_record(struct CRecord *p, int32_t seed) {
 	p->negative = -127;
 	p->narrow = -12345;
 }
+
 int32_t produce_record(struct CRecord *p, int32_t seed) {
 	if (!p || p->tag != 7 || p->signed_value != INT64_MIN || p->small != UINT16_MAX ||
 	    p->wide != UINT64_MAX || p->count != 123456 || p->delta != -17 || p->measure != 2.5 ||
@@ -64,18 +67,23 @@ int32_t produce_record(struct CRecord *p, int32_t seed) {
 	expected_record(p, seed);
 	return 0;
 }
+
 int32_t verify_record(struct CRecord *p, int32_t seed) {
 	struct CRecord expected;
 	expected_record(&expected, seed);
 	return memcmp(p, &expected, sizeof expected) == 0 ? 0 : 12;
 }
+
 static int32_t calls;
+
 void clear_callback_calls(void) {
 	calls = 0;
 }
+
 int32_t callback_calls(void) {
 	return calls;
 }
+
 int32_t invoke_sync(int32_t (*callback)(void *, int32_t), struct Capture *context, int32_t input) {
 	if (!callback || !context) return -1;
 	++calls;
@@ -85,12 +93,16 @@ int32_t invoke_sync(int32_t (*callback)(void *, int32_t), struct Capture *contex
 	}
 	return context->invocations;
 }
+
 int32_t invoke_noncapturing(int32_t (*callback)(void *, int32_t), struct Capture *context, int32_t input) {
 	return callback(context, input) + callback(context, input + 1);
 }
+
 #ifdef CABI_LAYOUT_MAIN
+
 int main(void) {
 	printf("CRecord=72/8 offsets=0,8,16,24,32,40,48,56,60,64,68,70 Capture=16/8 offsets=0,8,12\n");
 	return 0;
 }
+
 #endif

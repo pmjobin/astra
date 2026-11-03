@@ -52,6 +52,7 @@ private CfgProgram model(int variant = -1) throws GLib.Error {
 	functions.add (new CfgFunction (span, span, "f", a, 0, parameters, new GenericArray<CfgLocalPlace> (), blocks, block));
 	return new CfgProgram (span, functions, imports, null, null, cleanups, handles);
 }
+
 private void valid() {
 	try {
 		var program = model ();
@@ -62,6 +63,7 @@ private void valid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 0; variant < 6; variant++) {
 		try {
@@ -73,10 +75,12 @@ private void invalid() {
 		GLib.error ("malformed nominal handle model %d accepted", variant);
 	}
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/resource/cfg/standalone-valid", valid);
 	Test.add_func ("/resource/cfg/standalone-reject-nominal-contract", invalid);
 	return Test.run ();
 }
+
 }

@@ -67,4 +67,5 @@ private void conditional_model() {
 		GLib.error ("Unexpected standalone conditional failure: %s", error.message);
 	}
 }
+
 }

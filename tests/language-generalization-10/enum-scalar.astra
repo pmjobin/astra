@@ -2,21 +2,30 @@
 class Item {
 	owned Other resource;
 	int code;
+
 	init(int code) { this.resource = make_other(code); this.code = code; }
+
 	deinit() { mark(200 + this.code); }
 }
+
 enum Payload {
 	Resource(owned R value, int tag),
 	Other(owned Other value),
 	Object(owned Item value),
 	Empty
 }
+
 enum Envelope { Nested(Payload value), Empty }
+
 enum Pending { Ready(owned R resource, owned Item child, int tag), Empty }
+
 int tail(bool failure) throws Error {
-	if (failure) { throw new Error("enum payload"); }
+	if (failure) {
+		throw new Error("enum payload");
+	}
 	return 1;
 }
+
 void staged(bool failure) {
 	owned R resource = make(10);
 	var child = new Item(11);
@@ -30,6 +39,7 @@ void staged(bool failure) {
 		mark(900 + id(resource) + child.code);
 	}
 }
+
 int consume(Payload value) {
 	match (move value) {
 		case Payload.Resource(resource, tag): { mark(id(resource) + tag); }
@@ -39,13 +49,16 @@ int consume(Payload value) {
 	}
 	return 0;
 }
+
 Payload relay(Payload value) { return move value; }
+
 owned Item extract(Payload value) {
 	match (move value) {
 		case Payload.Object(child): { return move child; }
 		else: { var fallback = new Item(23); return move fallback; }
 	}
 }
+
 int main() {
 	owned R first = make(1);
 	var state = Payload.Resource(move first, 7);

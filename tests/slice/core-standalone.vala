@@ -138,4 +138,5 @@ int main(string[] args) {
 	Test.add_func ("/slice/core/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

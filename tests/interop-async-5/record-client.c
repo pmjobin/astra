@@ -8,6 +8,7 @@ _Static_assert(sizeof(struct RecordFloats) == 16 && _Alignof(struct RecordFloats
 _Static_assert(sizeof(struct RecordMixed) == 16 && _Alignof(struct RecordMixed) == 8 && offsetof(struct RecordMixed, mean) == 8, "mixed layout");
 _Static_assert(sizeof(struct RecordStack) == 24 && _Alignof(struct RecordStack) == 8 && offsetof(struct RecordStack, total) == 8 && offsetof(struct RecordStack, tag) == 16, "stack layout");
 _Static_assert(sizeof(struct RecordPadded) == 16 && _Alignof(struct RecordPadded) == 8 && offsetof(struct RecordPadded, wide) == 8, "padded float/double layout");
+
 int main(void) {
 	uint64_t hash = 0;
 	for (int64_t n = -127; n <= 128; n++) {

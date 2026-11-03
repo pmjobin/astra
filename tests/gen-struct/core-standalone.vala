@@ -27,6 +27,7 @@ private void model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int scenario = 0; scenario < 8; scenario++) {
 		var program = sample ();
@@ -65,10 +66,12 @@ private void malformed() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-struct/core/parameterized-model-exact-origins", model);
 	Test.add_func ("/gen-struct/core/malformed-scope-origin-initializer-boundaries", malformed);
 	return Test.run ();
 }
+
 }

@@ -1,20 +1,27 @@
 class Context {
 	owned f64[] samples;
+
 	init(int count) { this.samples = new f64[count]; }
+
 	int size() { return len(this.samples); }
 }
+
 owned T relay<T>(owned T value) where T : Ownable { return move value; }
+
 void dispose<T>(owned T value) where T : Ownable {}
+
 owned T again<T>(int depth, owned T value) where T : Ownable {
-	if (depth == 0) { return move value; }
+	if (depth == 0) return move value;
 	return again<T>(depth - 1, move value);
 }
+
 owned Context factory() { return Context.init(9); }
+
 int main() {
 	owned Context value = factory();
 	owned Context moved = relay<Context>(move value);
 	owned Context final = again<Context>(3, move moved);
-	if (final.size() != 9) { return 1; }
+	if (final.size() != 9) return 1;
 	dispose<Context>(move final);
 	return 0;
 }

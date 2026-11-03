@@ -14,16 +14,19 @@ public class NativeStructLeafChannel : Object {
 		this.storage_identifier = storage_path ?? field_path;
 		this.buffer_component = buffer_component;
 	}
+
 }
 
 public enum NativeStructResultCarrier {
 	SINGLE_LEAF, LEAF_AGGREGATE
 }
+
 public enum NativeStructValueMode {
 	COPY_VALUE, MOVE_VALUE, BORROW_VALUE;
 	internal bool matches_storage(NativeStructValuePlan plan) {
 		return this == plan.mode || this == BORROW_VALUE && plan.mode == MOVE_VALUE;
 	}
+
 }
 
 // Physical plan with a copied exact source declaration identity. It is neither
@@ -38,6 +41,7 @@ public class NativeStructValuePlan : Object {
 		foreign_record = record;
 		foreign_record_bound = true;
 	}
+
 	public NativeRecordDeclarationPlan? declaration { get; internal set; }
 	public NativeStructValueMode mode { get; private set; }
 	public GenericArray<NativeRecordResource> ownership { get; private set; }
@@ -58,6 +62,7 @@ public class NativeStructValuePlan : Object {
 		this.ownership = ownership ?? new GenericArray<NativeRecordResource> ();
 		this.ownership_field_count = this.ownership.length;
 	}
+
 }
 
 public class NativeStructParameterPlan : Object {
@@ -71,6 +76,7 @@ public class NativeStructParameterPlan : Object {
 		this.value_plan = value_plan;
 		this.mode = mode ?? value_plan.mode;
 	}
+
 }
 
 // Copied declaration facts survive independently of the SSA getter body.
@@ -83,5 +89,6 @@ public class NativeRecordObservation : Object {
 		field_ordinal = field;
 		this.value_plan = value_plan;
 	}
+
 }
 }

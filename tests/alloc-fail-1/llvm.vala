@@ -36,6 +36,7 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 // Existing internal target-layout seam, never a source element admission.
 private LlvmModuleArtifact physical(string mode) throws LlvmError {
 	var artifact = new LlvmModuleArtifact ();
@@ -64,6 +65,7 @@ private LlvmModuleArtifact physical(string mode) throws LlvmError {
 	artifact.verify ();
 	return artifact;
 }
+
 int main(string[] args) {
 	if (args.length == 3 && args[1] == "--physical") {
 		try {
@@ -78,4 +80,5 @@ int main(string[] args) {
 	Test.add_func ("/alloc-fail/llvm/lifetimes-attributes-and-fatal-fallback", lifetime);
 	return Test.run ();
 }
+
 }

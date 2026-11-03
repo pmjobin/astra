@@ -9,14 +9,18 @@
 
 /* Independent declarations deliberately do not include the generated SDK. */
 typedef struct Native Native;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 static unsigned destroyed, callbacks;
+
 int32_t personality16_retired(void) {
 	++destroyed;
 	return 0;
 }
+
 extern int32_t personality16_native_run(void);
 #ifndef NATIVE_ONLY
 extern int32_t personality16_native_create(int32_t, bool, double, Native **, Error *);
@@ -25,23 +29,28 @@ extern int32_t personality16_native_set_count(Native *, int32_t, Error *);
 extern int32_t personality16_native_evaluate(Native *, double, double *, Error *);
 extern int32_t personality16_native_visit(Native *, bool, bool (*)(void *, bool), void *, bool *, Error *);
 extern uint32_t personality16_native_release(Native *);
+
 static bool invert(void *data, bool input) {
 	assert(data == &callbacks);
 	++callbacks;
 	return !input;
 }
+
 #ifdef WITH_GOBJECT
 typedef struct _Personality16Facet Facet;
 extern Facet *personality16_facet_as_gobject(Native *, GError **);
 extern gboolean personality16_facet_try_evaluate(Facet *, gdouble, gdouble *, GError **);
 extern gboolean personality16_facet_try_visit(Facet *, gboolean, gboolean (*)(gpointer, gboolean), gpointer, gboolean *, GError **);
+
 static gboolean go_invert(gpointer data, gboolean input) {
 	assert(data == &callbacks);
 	++callbacks;
 	return !input;
 }
+
 #endif
 #endif
+
 int main(void) {
 	assert(personality16_native_run() == 0 && destroyed == 1);
 #ifndef NATIVE_ONLY

@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int lexical_drop(int value);
+
 class Box {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { lexical_drop(this.value); }
 }
+
 owned Box make_lexical() { return Box.init(40); }
+
 owned Box make_heap() { var result = new Box(77); return move result; }
+
 void consume_lexical(owned Box value) { value.value = value.value + 2; }
+
 int main() {
 	{
 		Box value = Box.init(40);
@@ -16,7 +23,7 @@ int main() {
 		alias.value = alias.value + 1;
 		owned Box result = make_lexical();
 		var allocated = make_heap();
-		if (allocated == alias || allocated == result || allocated.value != 77) { return 81; }
+		if (allocated == alias || allocated == result || allocated.value != 77) return 81;
 		var moved = move allocated;
 		release moved;
 		consume_lexical(move result);

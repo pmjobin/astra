@@ -10,6 +10,7 @@ private SourceSpan span(string text) {
 	var file = new SourceFile.from_text ("boundary-input", text);
 	return SourceSpan (file, 0, file.length);
 }
+
 private SemanticResult analyze(string text) {
 	var handles = new GenericArray<ForeignHandleInput> ();
 	handles.add (new ForeignHandleInput (span ("Resource"), span ("Resource"), new CForeignCleanupContract ("destroy")));
@@ -18,6 +19,7 @@ private SemanticResult analyze(string text) {
 	assert (parsed.diagnostic == null);
 	return SemanticAnalyzer.analyze (parsed.unit, null, handles);
 }
+
 private void exact() {
 	var result = analyze ("owned Resource pass(owned Resource r) { return move r; } void f() { owned Resource r = pass(null); pass(move r); }");
 	assert (result.diagnostic.message.contains ("ownership responsibility"));
@@ -32,6 +34,7 @@ private void exact() {
 	assert (function.body.statements[0] is CheckedOwnershipReturn);
 	assert (SemanticDump.format (result.program).contains ("owned-transfer-argument"));
 }
+
 private void invalid() {
 	foreach (string type in new string[] {"void*", "int", "bool", "Pair", "Pair*"}) {
 		assert (analyze ("struct Pair { int n; } owned " + type + " f() { return null; }").diagnostic.message.contains ("nominal handle"));
@@ -41,10 +44,12 @@ private void invalid() {
 	assert (analyze ("void consume(owned Resource r) { } void f(borrowed Resource r) { consume(r); }").diagnostic.message.contains ("carry no transferable responsibility"));
 	assert (analyze ("owned Resource f(owned Resource r) { return r; }").diagnostic.message.contains ("return move owner"));
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/ownbound/semantic/standalone-contracts", exact);
 	Test.add_func ("/ownbound/semantic/standalone-rejections", invalid);
 	return Test.run ();
 }
+
 }

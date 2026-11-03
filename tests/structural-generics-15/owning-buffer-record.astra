@@ -12,14 +12,17 @@ struct Envelope {
 class Box<T> {
 	owned T payload;
 	int revision;
+
 	init(owned T value) {
 		this.payload = move value;
 		this.revision = 1;
 	}
+
 	void replace(owned T value) {
 		this.payload = move value;
 		this.revision = this.revision + 1;
 	}
+
 	deinit() { mark(100 + this.revision); }
 }
 
@@ -34,12 +37,12 @@ int exercise() {
 	replacement[0] = 84;
 	Envelope next = {contents = {handle = move second, samples = move replacement}, stamp = 84};
 	box.replace(move next);
-	if (box.payload.stamp != 84) { return 1; }
+	if (box.payload.stamp != 84) return 1;
 	return box.revision - 2;
 }
 
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair { int x; f64 y; }
+
 Pair make() { Pair p = { x = 7, y = 3.5 }; return p; }
+
 Pair identity(Pair value) { return value; }
+
 Pair forward() { return identity(make()); }
+
 Pair again() { return forward(); }
-int consume(Pair value) { if (value.x != 7 || value.y != 3.5) { return 1; } return 0; }
-int main() { Pair a = again(); a = forward(); if (a.x != 7) { return 2; } return consume(identity(again())); }
+
+int consume(Pair value) { if (value.x != 7 || value.y != 3.5) return 1; return 0; }
+
+int main() { Pair a = again(); a = forward(); if (a.x != 7) return 2; return consume(identity(again())); }

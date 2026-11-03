@@ -1,25 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class DiagnosticParseError : Error { init() : base("diagnostic record") {} }
+
 int transform(string input_path, string output_path) throws Error {
 	var bytes = read_file(input_path);
 	var source = bytes.decode();
 	var text = source.text;
 	var messages = new Bag<Utf8Message>();
-	if (!messages.reserve(2)) { return 70; }
+	if (!messages.reserve(2)) return 70;
 	int start = 0; int line_number = 1;
 	while (start < text.byte_length) {
 		int end = text_find(text, "\n", start);
-		if (end < 0) { end = text.byte_length; }
+		if (end < 0) end = text.byte_length;
 		int count = end - start;
-		if (count > 0 && text_byte(text, end - 1) == 13) { count = count - 1; }
+		if (count > 0 && text_byte(text, end - 1) == 13) count = count - 1;
 		if (count > 0) {
 			var line = text_segment(text, start, count);
 			int first = text_find(line.text, "|", 0);
-			if (first < 0) { throw new DiagnosticParseError(); }
+			if (first < 0) {
+				throw new DiagnosticParseError();
+			}
 			int second = text_find(line.text, "|", first + 1);
-			if (second < 0) { throw new DiagnosticParseError(); }
+			if (second < 0) {
+				throw new DiagnosticParseError();
+			}
 			var severity = text_segment(line.text, 0, first);
-			if (severity.text != "info" && severity.text != "warning" && severity.text != "error") { throw new DiagnosticParseError(); }
+			if (severity.text != "info" && severity.text != "warning" && severity.text != "error") {
+				throw new DiagnosticParseError();
+			}
 			var code_text = text_segment(line.text, first + 1, second - first - 1);
 			int code = parse_int(code_text.text);
 			var payload = text_segment(line.text, second + 1, count - second - 1);
@@ -29,29 +36,43 @@ int transform(string input_path, string output_path) throws Error {
 			require_text(append_int(builder, code)); require_text(append_text(builder, "] "));
 			require_text(append_text(builder, payload.text));
 			var message = builder.snapshot();
-			if (messages.count() == 2 && !messages.reserve(3)) { return 70; }
+			if (messages.count() == 2 && !messages.reserve(3)) return 70;
 			if (messages.count() == messages.capacity()) {
 				int capacity = messages.capacity();
-				if (capacity == 2147483647) { throw new TextCapacityError(); }
-				if (capacity > 1073741823) { capacity = 2147483647; } else { capacity = capacity * 2; }
-				if (!messages.reserve(capacity)) { throw new TextCapacityError(); }
+				if (capacity == 2147483647) {
+					throw new TextCapacityError();
+				}
+				if (capacity > 1073741823) {
+					capacity = 2147483647;
+				} else {
+					capacity = capacity * 2;
+				}
+				if (!messages.reserve(capacity)) {
+					throw new TextCapacityError();
+				}
 			}
 			messages.append(move message);
 		}
-		if (end == text.byte_length) { break; }
+		if (end == text.byte_length) break;
 		start = end + 1;
-		if (line_number == 2147483647) { throw new TextCapacityError(); }
+		if (line_number == 2147483647) {
+			throw new TextCapacityError();
+		}
 		line_number = line_number + 1;
 	}
 	var output = new Utf8ByteBuilder();
 	int i = 0;
-	while (i < messages.count()) { require_text(render_message(messages.entries[i], output)); i = i + 1; }
+	while (i < messages.count()) {
+		require_text(render_message(messages.entries[i], output));
+		i = i + 1;
+	}
 	var rendered = output.snapshot();
 	write_text_file(output_path, rendered.text);
 	return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try { return transform(args[1], args[2]); }
 	catch (FileError error) { println_stderr("file I/O"); return 2; }
 	catch (Error error) { println_stderr("invalid diagnostic input"); return 3; }

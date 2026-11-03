@@ -52,4 +52,5 @@ private void field_origins() {
 private void register_field_origin_tests() {
 	Test.add_func ("/ssa-standalone/scalar-field-debug-origins", field_origins);
 }
+
 }

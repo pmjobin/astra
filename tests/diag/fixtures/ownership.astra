@@ -3,12 +3,14 @@ extern(C) int diag_mark(int event);
 
 class State {
 	owned int[] data;
+
 	init(string[] args) { this.data = new int[len(args)]; diag_mark(67); }
+
 	deinit() { diag_mark(99); }
 }
 
 void consume<T>(owned T value, [CallerArgumentExpression("value")] string expression) where T:Ownable {
-	if (expression != "move moving") { diag_mark(63); }
+	if (expression != "move moving") diag_mark(63);
 	diag_mark(85);
 }
 

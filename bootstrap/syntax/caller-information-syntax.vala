@@ -12,5 +12,6 @@ public class CallerInformationSyntax : SyntaxNode {
 		this.name = name;
 		this.target = target;
 	}
+
 }
 }

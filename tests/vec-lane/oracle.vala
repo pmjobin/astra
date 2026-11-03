@@ -8,6 +8,7 @@ private class BoolLane : Object {
 	internal BoolLane (bool value) {
 		this.value = value;
 	}
+
 }
 
 // Test-only ordered scalar values. These operations never compute scalar
@@ -20,10 +21,12 @@ private class VectorValue : Object {
 			lanes.add (lane);
 		}
 	}
+
 	internal Object extract(int index) {
 		assert (index >= 0 && index < count);
 		return lanes[index];
 	}
+
 	internal static VectorValue splat(Object value, int count) {
 		var lanes = new GenericArray<Object> ();
 		for (int i = 0; i < count; i++) {
@@ -31,6 +34,7 @@ private class VectorValue : Object {
 		}
 		return new VectorValue (lanes);
 	}
+
 	internal VectorValue insert(int index, Object replacement) {
 		assert (index >= 0 && index < count);
 		var lanes = new GenericArray<Object> ();
@@ -39,6 +43,7 @@ private class VectorValue : Object {
 		}
 		return new VectorValue (lanes);
 	}
+
 	internal VectorValue shuffle(int[] selectors) {
 		assert (selectors.length == count);
 		var lanes = new GenericArray<Object> ();
@@ -47,6 +52,7 @@ private class VectorValue : Object {
 		}
 		return new VectorValue (lanes);
 	}
+
 	internal static VectorValue select(VectorValue mask, VectorValue a, VectorValue b) {
 		assert (mask.count == a.count && a.count == b.count);
 		var lanes = new GenericArray<Object> ();
@@ -55,6 +61,7 @@ private class VectorValue : Object {
 		}
 		return new VectorValue (lanes);
 	}
+
 }
 
 private HashTable<Object, string> spellings;
@@ -234,4 +241,5 @@ int main() {
 	stdout.printf ("\treturn 0;\n}\n// oracle shapes=%d cases=%u lane_checks=%d identity_checks=%d\n", shapes, calls.length, lane_checks, identity_checks);
 	return 0;
 }
+
 }

@@ -15,9 +15,13 @@
 #endif
 
 #ifdef TELEMETRY_EXTRA_AUDIT
+
 enum { AUDITS = 4 };
+
 #else
+
 enum { AUDITS = 3 };
+
 #endif
 
 typedef struct {
@@ -27,6 +31,7 @@ typedef struct {
 	uint64_t started, elapsed;
 	double energy, maximum_error;
 } Window;
+
 static Window *windows;
 static double *expected, *actual;
 static _Atomic unsigned char *seen;
@@ -46,6 +51,7 @@ void *calloc(size_t count, size_t size) {
 	if (active >= 0 && windows) windows[active].allocations++;
 	return result;
 }
+
 static int setting(const char *name, int fallback, int minimum, int maximum) {
 	const char *text = getenv(name);
 	if (!text) return fallback;
@@ -54,16 +60,19 @@ static int setting(const char *name, int fallback, int minimum, int maximum) {
 	if (*end || value < minimum || value > maximum) abort();
 	return (int)value;
 }
+
 static uint64_t now(void) {
 	struct timespec value;
 	if (clock_gettime(CLOCK_MONOTONIC, &value)) abort();
 	return (uint64_t)value.tv_sec * UINT64_C(1000000000) + (uint64_t)value.tv_nsec;
 }
+
 static uint64_t bits(double value) {
 	uint64_t result;
 	memcpy(&result, &value, sizeof result);
 	return result;
 }
+
 static int equal_value(Window *window, double value, double reference_value) {
 	double error = value - reference_value;
 	if (error < 0) error = -error;
@@ -74,6 +83,7 @@ static int equal_value(Window *window, double value, double reference_value) {
 	return bits(value) == bits(reference_value);
 #endif
 }
+
 double telemetry18_input(int index) {
 	uint32_t value = (uint32_t)index ^ (uint32_t)seed * UINT32_C(0x9e3779b9);
 	value ^= value >> 16;
@@ -83,6 +93,7 @@ double telemetry18_input(int index) {
 	value ^= value >> 16;
 	return ((int)(value & 65535) - 32768) / 32768.0;
 }
+
 static void reference(int sequence, int start, int count) {
 	Window *window = &windows[sequence];
 	window->count = count;
@@ -109,6 +120,7 @@ static void reference(int sequence, int start, int count) {
 	}
 	window->energy = energy;
 }
+
 void telemetry18_prepare(void) {
 	if (windows) abort();
 #ifdef TELEMETRY_IO
@@ -134,22 +146,29 @@ void telemetry18_prepare(void) {
 		reference(sequence, start, count);
 	}
 }
+
 int telemetry18_samples(void) {
 	return samples;
 }
+
 int telemetry18_window_size(void) {
 	return window_size;
 }
+
 int telemetry18_workers(void) {
 	return setting("ASTRA_TELEMETRY_WORKERS", 2, 1, 4);
 }
+
 int telemetry18_granularity(void) {
 	return setting("ASTRA_TELEMETRY_GRANULARITY", 1, 1, 256);
 }
+
 int telemetry18_idle_ticks(void) {
 	return setting("ASTRA_TELEMETRY_IDLE_TICKS", 0, 0, 1000);
 }
+
 #if defined(TELEMETRY_WORKERS) || defined(TELEMETRY_IO)
+
 int telemetry18_context_observe(AstraContext17 *context, int identity, int64_t capacity, int slots) {
 	AstraContext17Snapshot state;
 	if (astra_context17_snapshot(context, &state) || state.live || state.live_bytes || state.reserved_bytes || state.allocations != state.releases ||
@@ -159,12 +178,14 @@ int telemetry18_context_observe(AstraContext17 *context, int identity, int64_t c
 	       identity, state.instance, state.kind, capacity, slots, state.peak_bytes, state.live, state.reserved_bytes, state.allocations, state.releases, state.anchors);
 	return 0;
 }
+
 #endif
 #ifdef TELEMETRY_WORKERS
 static pthread_mutex_t job_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t job_ready = PTHREAD_COND_INITIALIZER;
 static pthread_t job_threads[4];
 static int job_seen[4], jobs_entered, jobs_left, busy, maximum_busy;
+
 void telemetry18_job_enter(int lane) {
 	if (lane < 0 || lane >= 4 || pthread_mutex_lock(&job_lock)) abort();
 	if (job_seen[lane]) abort();
@@ -184,6 +205,7 @@ void telemetry18_job_enter(int lane) {
 	}
 	if (pthread_mutex_unlock(&job_lock)) abort();
 }
+
 void telemetry18_job_leave(int lane) {
 	if (lane < 0 || lane >= 4 || pthread_mutex_lock(&job_lock) || job_seen[lane] != 1 || !pthread_equal(job_threads[lane], pthread_self())) abort();
 	job_seen[lane] = 2;
@@ -191,8 +213,10 @@ void telemetry18_job_leave(int lane) {
 	busy--;
 	if (pthread_mutex_unlock(&job_lock)) abort();
 }
+
 #endif
 #ifdef TELEMETRY_IO
+
 int telemetry18_create_input(const unsigned char *path, int length) {
 	if (length < 1 || length > 4096 || memchr(path, 0, (size_t)length)) return 1;
 	char *name = malloc((size_t)length + 1);
@@ -214,6 +238,7 @@ int telemetry18_create_input(const unsigned char *path, int length) {
 	if (fclose(file)) success = 0;
 	return success ? 0 : 1;
 }
+
 void telemetry18_io_worker(int sequence) {
 	if (sequence < 0 || sequence >= window_count || pthread_mutex_lock(&io_lock)) abort();
 	pthread_t current = pthread_self();
@@ -229,17 +254,21 @@ void telemetry18_io_worker(int sequence) {
 	io_jobs++;
 	if (pthread_mutex_unlock(&io_lock)) abort();
 }
+
 #endif
+
 void telemetry18_begin_window(int sequence) {
 	if (active != -1 || sequence < 0 || sequence >= window_count || atomic_exchange(&windows[sequence].entered, 1)) abort();
 	active = sequence;
 	windows[sequence].started = now();
 }
+
 void telemetry18_end_window(int sequence) {
 	if (active != sequence) abort();
 	windows[sequence].elapsed = now() - windows[sequence].started;
 	active = -1;
 }
+
 void telemetry18_retire(int sequence, int kind) {
 	if (sequence < 0 || sequence >= window_count) abort();
 	Window *window = &windows[sequence];
@@ -249,16 +278,19 @@ void telemetry18_retire(int sequence, int kind) {
 	else
 		atomic_store(&bad, 1);
 }
+
 void telemetry18_shared_retire(int sequence, int kind) {
 	if (sequence < 0 || sequence >= window_count || kind < 0 || kind > 1) abort();
 	windows[sequence].shared_retired[kind]++;
 }
+
 int telemetry18_shared_result(int sequence, double value) {
 	if (sequence < 0 || sequence >= window_count) return 1;
 	double expected_value = (sequence % 17) + (sequence % 2 ? 3.5 : 3.0);
 	if (windows[sequence].shared_result++ || bits(value) != bits(expected_value)) return 1;
 	return 0;
 }
+
 int telemetry18_emit(int index, double value) {
 	if (index < 0 || index >= samples) return 1;
 	if (atomic_exchange(&seen[index], 1)) return 1;
@@ -268,6 +300,7 @@ int telemetry18_emit(int index, double value) {
 	fprintf(stderr, "sample=%d actual=%016" PRIx64 " expected=%016" PRIx64 "\n", index, bits(value), bits(expected[index]));
 	return 1;
 }
+
 int telemetry18_summary(int sequence, int count, double energy, int failed) {
 	if (sequence < 0 || sequence >= window_count) return 1;
 	Window *window = &windows[sequence];
@@ -276,6 +309,7 @@ int telemetry18_summary(int sequence, int count, double energy, int failed) {
 	        sequence, count, window->count, failed, window->failed, bits(energy), bits(window->energy));
 	return 1;
 }
+
 int telemetry18_finish(void) {
 	unsigned long allocations = 0;
 	uint64_t elapsed = 0;

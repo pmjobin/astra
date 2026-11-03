@@ -1,11 +1,20 @@
 class Counter { int value; }
+
 void set(borrowed Counter c, borrowed Counter other, bool choose) {
 	Counter local = c;
-	if (choose) { local = other; } else { local = c; }
+	if (choose) {
+		local = other;
+	} else {
+		local = c;
+	}
 	int i = 0;
-	while (i < 2) { local = c; i = i + 1; }
+	while (i < 2) {
+		local = c;
+		i = i + 1;
+	}
 	local.value = 42;
 }
+
 int main() {
 	Counter c = { value = 1 };
 	set(c, null, false);

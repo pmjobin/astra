@@ -15,6 +15,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 
 private HashTable<string, Case> cases;
@@ -51,4 +52,5 @@ private CheckedProgram check(string text) {
 private SsaProgram build(string text) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check (text))));
 }
+
 }

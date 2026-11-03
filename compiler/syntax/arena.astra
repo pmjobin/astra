@@ -187,6 +187,7 @@ class SyntaxArena {
 	private int while_statement_used;
 	private owned WithStatementSyntaxData[] with_statement_data;
 	private int with_statement_used;
+
 	init(owned SourceSet sources) {
 		this.sources = move sources;
 		var generated_sources = new Vector<SourceEntry>(0);
@@ -379,16 +380,19 @@ class SyntaxArena {
 		this.with_statement_data = new WithStatementSyntaxData[0];
 		this.with_statement_used = 0;
 	}
+
 	property int node_count {
 		get {
 			return this.used - 1;
 		}
 	}
+
 	property int source_count {
 		get {
 			return this.sources.count;
 		}
 	}
+
 	owned shared SourceBuffer source(SyntaxSourceId id) {
 		if (id.index > 0) {
 			var result = this.sources.source(id.index - 1);
@@ -400,6 +404,7 @@ class SyntaxArena {
 		var result = selection.take();
 		return move result;
 	}
+
 	SyntaxSourceId add_generated_source(owned shared SourceBuffer source) {
 		assert_that(this.generated_sources.count() < 2147483647);
 		if (this.generated_sources.count() == this.generated_sources.capacity()) {
@@ -410,6 +415,7 @@ class SyntaxArena {
 		SyntaxSourceId result = {index = -this.generated_sources.count()};
 		return result;
 	}
+
 	bool valid_span(SyntaxSpan span) {
 		if (span.source.index > 0) {
 			return this.sources.valid_span(span.source.index - 1, span.start, span.end);
@@ -419,32 +425,39 @@ class SyntaxArena {
 		}
 		return source_entry_valid_span(this.generated_sources.entries[-span.source.index - 1], span.start, span.end);
 	}
+
 	owned SourceSpan source_span(SyntaxSpan span) {
 		assert_that(this.valid_span(span));
 		var source = this.source(span.source);
 		var result = new SourceSpan(move source, span.start, span.end);
 		return move result;
 	}
+
 	SyntaxHeader header(SyntaxNodeId id) {
 		assert_that(id.index > 0 && id.index < this.used);
 		return this.headers[id.index];
 	}
+
 	SyntaxKind kind(SyntaxNodeId id) {
 		var header = this.header(id);
 		return syntax_kind_from_code(header.kind_code);
 	}
+
 	void check_node(SyntaxNodeId id, SyntaxKind expected) {
 		if (id.index == 0) {
 			return;
 		}
 		assert_that(syntax_kind_accepts(this.kind(id), expected));
 	}
+
 	void check_token(SyntaxTokenId id) {
 		assert_that(id.index >= 0 && id.index <= this.tokens.count());
 	}
+
 	void check_text(SyntaxTextId id) {
 		assert_that(id.index >= 0 && id.index <= this.texts.count());
 	}
+
 	void check_list(SyntaxListId id, int expected) {
 		assert_that(id.index >= 0 && id.index <= this.lists.count());
 		if (id.index == 0) {
@@ -452,6 +465,7 @@ class SyntaxArena {
 		}
 		assert_that(syntax_list_element(this.lists.entries[id.index - 1]) == expected);
 	}
+
 	SyntaxNodeId add_header(SyntaxKind kind, int slot, SyntaxSpan span, int depth) {
 		assert_that(this.valid_span(span) && depth >= 0 && this.used < 2147483647);
 		if (this.used == len(this.headers)) {
@@ -471,6 +485,7 @@ class SyntaxArena {
 		this.used = this.used + 1;
 		return result;
 	}
+
 	SyntaxTokenId add_token(SyntaxSourceId source, owned Token token) {
 		SyntaxSpan span = {source = source, start = token.span.start, end = token.span.end};
 		var backing = this.source_span(span);
@@ -493,26 +508,31 @@ class SyntaxArena {
 		SyntaxTokenId result = {index = this.tokens.count()};
 		return result;
 	}
+
 	TokenKind token_kind(SyntaxTokenId id) {
 		assert_that(id.index > 0);
 		this.check_token(id);
 		return token_kind_from_code(syntax_token_code(this.tokens.entries[id.index - 1]));
 	}
+
 	bool token_is(SyntaxTokenId id, string text) {
 		assert_that(id.index > 0);
 		this.check_token(id);
 		return syntax_token_spelling_is(this.tokens.entries[id.index - 1], text);
 	}
+
 	void write_token(SyntaxTokenId id, Utf8ByteBuilder output) {
 		assert_that(id.index > 0);
 		this.check_token(id);
 		syntax_token_write_spelling(this.tokens.entries[id.index - 1], output);
 	}
+
 	void write_payload(SyntaxTokenId id, Utf8ByteBuilder output) {
 		assert_that(id.index > 0);
 		this.check_token(id);
 		syntax_token_write_payload(this.tokens.entries[id.index - 1], output);
 	}
+
 	SyntaxTextId add_text(owned Utf8Message text) {
 		assert_that(this.texts.count() < 2147483647);
 		if (this.texts.count() == this.texts.capacity()) {
@@ -522,12 +542,14 @@ class SyntaxArena {
 		SyntaxTextId result = {index = this.texts.count()};
 		return result;
 	}
+
 	void write_text(SyntaxTextId id, Utf8ByteBuilder output) {
 		this.check_text(id);
 		if (id.index != 0) {
 			syntax_text_write(this.texts.entries[id.index - 1], output);
 		}
 	}
+
 	SyntaxListId new_list(int element_code) {
 		assert_that(element_code == -1 || (element_code > 0 && element_code <= 93));
 		assert_that(this.lists.count() < 2147483647);
@@ -539,6 +561,7 @@ class SyntaxArena {
 		SyntaxListId result = {index = this.lists.count()};
 		return result;
 	}
+
 	int list_count(SyntaxListId id) {
 		if (id.index == 0) {
 			return 0;
@@ -546,6 +569,7 @@ class SyntaxArena {
 		assert_that(id.index > 0 && id.index <= this.lists.count());
 		return syntax_list_count(this.lists.entries[id.index - 1]);
 	}
+
 	void append_node(SyntaxListId list, SyntaxNodeId node) {
 		assert_that(list.index > 0 && list.index <= this.lists.count() && node.index > 0);
 		int expected = syntax_list_element(this.lists.entries[list.index - 1]);
@@ -553,28 +577,33 @@ class SyntaxArena {
 		this.check_node(node, syntax_kind_from_code(expected));
 		syntax_list_append(this.lists.entries[list.index - 1], node.index);
 	}
+
 	void append_token(SyntaxListId list, SyntaxTokenId token) {
 		this.check_list(list, -1);
 		assert_that(list.index > 0 && token.index > 0);
 		this.check_token(token);
 		syntax_list_append(this.lists.entries[list.index - 1], token.index);
 	}
+
 	SyntaxNodeId node_at(SyntaxListId list, int index) {
 		assert_that(list.index > 0 && list.index <= this.lists.count());
 		assert_that(syntax_list_element(this.lists.entries[list.index - 1]) > 0);
 		SyntaxNodeId result = {index = syntax_list_at(this.lists.entries[list.index - 1], index)};
 		return result;
 	}
+
 	SyntaxTokenId token_at(SyntaxListId list, int index) {
 		this.check_list(list, -1);
 		assert_that(list.index > 0);
 		SyntaxTokenId result = {index = syntax_list_at(this.lists.entries[list.index - 1], index)};
 		return result;
 	}
+
 	void validate_address_of_expression(AddressOfExpressionSyntaxData data) {
 		this.check_token(data.f_ampersand);
 		this.check_token(data.f_identifier);
 	}
+
 	SyntaxNodeId add_address_of_expression(AddressOfExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_address_of_expression(data);
 		assert_that(this.address_of_expression_used < 2147483647);
@@ -592,20 +621,24 @@ class SyntaxArena {
 		this.address_of_expression_used = this.address_of_expression_used + 1;
 		return result;
 	}
+
 	AddressOfExpressionSyntaxData address_of_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AddressOfExpressionSyntax()));
 		return this.address_of_expression_data[header.slot];
 	}
+
 	void replace_address_of_expression(SyntaxNodeId id, AddressOfExpressionSyntaxData data) {
 		this.validate_address_of_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AddressOfExpressionSyntax()));
 		this.address_of_expression_data[header.slot] = data;
 	}
+
 	void validate_array_initializer(ArrayInitializerSyntaxData data) {
 		this.check_list(data.f_elements, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 	}
+
 	SyntaxNodeId add_array_initializer(ArrayInitializerSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_array_initializer(data);
 		assert_that(this.array_initializer_used < 2147483647);
@@ -623,20 +656,24 @@ class SyntaxArena {
 		this.array_initializer_used = this.array_initializer_used + 1;
 		return result;
 	}
+
 	ArrayInitializerSyntaxData array_initializer(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ArrayInitializerSyntax()));
 		return this.array_initializer_data[header.slot];
 	}
+
 	void replace_array_initializer(SyntaxNodeId id, ArrayInitializerSyntaxData data) {
 		this.validate_array_initializer(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ArrayInitializerSyntax()));
 		this.array_initializer_data[header.slot] = data;
 	}
+
 	void validate_array_struct_initializer(ArrayStructInitializerSyntaxData data) {
 		this.check_node(data.f_initializer, SyntaxKind.StructInitializerSyntax());
 	}
+
 	SyntaxNodeId add_array_struct_initializer(ArrayStructInitializerSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_array_struct_initializer(data);
 		assert_that(this.array_struct_initializer_used < 2147483647);
@@ -654,17 +691,20 @@ class SyntaxArena {
 		this.array_struct_initializer_used = this.array_struct_initializer_used + 1;
 		return result;
 	}
+
 	ArrayStructInitializerSyntaxData array_struct_initializer(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ArrayStructInitializerSyntax()));
 		return this.array_struct_initializer_data[header.slot];
 	}
+
 	void replace_array_struct_initializer(SyntaxNodeId id, ArrayStructInitializerSyntaxData data) {
 		this.validate_array_struct_initializer(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ArrayStructInitializerSyntax()));
 		this.array_struct_initializer_data[header.slot] = data;
 	}
+
 	void validate_array_type(ArrayTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -672,6 +712,7 @@ class SyntaxArena {
 		this.check_node(data.f_element_type, SyntaxKind.TypeNameSyntax());
 		this.check_node(data.f_extent, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_array_type(ArrayTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_array_type(data);
 		assert_that(this.array_type_used < 2147483647);
@@ -689,23 +730,27 @@ class SyntaxArena {
 		this.array_type_used = this.array_type_used + 1;
 		return result;
 	}
+
 	ArrayTypeSyntaxData array_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ArrayTypeSyntax()));
 		return this.array_type_data[header.slot];
 	}
+
 	void replace_array_type(SyntaxNodeId id, ArrayTypeSyntaxData data) {
 		this.validate_array_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ArrayTypeSyntax()));
 		this.array_type_data[header.slot] = data;
 	}
+
 	void validate_assignment_statement(AssignmentStatementSyntaxData data) {
 		this.check_token(data.f_name);
 		this.check_token(data.f_equals_token);
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_assignment_statement(AssignmentStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_assignment_statement(data);
 		assert_that(this.assignment_statement_used < 2147483647);
@@ -723,23 +768,27 @@ class SyntaxArena {
 		this.assignment_statement_used = this.assignment_statement_used + 1;
 		return result;
 	}
+
 	AssignmentStatementSyntaxData assignment_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AssignmentStatementSyntax()));
 		return this.assignment_statement_data[header.slot];
 	}
+
 	void replace_assignment_statement(SyntaxNodeId id, AssignmentStatementSyntaxData data) {
 		this.validate_assignment_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AssignmentStatementSyntax()));
 		this.assignment_statement_data[header.slot] = data;
 	}
+
 	void validate_async_runtime(AsyncRuntimeSyntaxData data) {
 		this.check_token(data.f_provider);
 		this.check_token(data.f_name);
 		this.check_node(data.f_error, SyntaxKind.TypeNameSyntax());
 		this.check_node(data.f_status, SyntaxKind.TypeNameSyntax());
 	}
+
 	SyntaxNodeId add_async_runtime(AsyncRuntimeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_async_runtime(data);
 		assert_that(this.async_runtime_used < 2147483647);
@@ -757,21 +806,25 @@ class SyntaxArena {
 		this.async_runtime_used = this.async_runtime_used + 1;
 		return result;
 	}
+
 	AsyncRuntimeSyntaxData async_runtime(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AsyncRuntimeSyntax()));
 		return this.async_runtime_data[header.slot];
 	}
+
 	void replace_async_runtime(SyntaxNodeId id, AsyncRuntimeSyntaxData data) {
 		this.validate_async_runtime(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AsyncRuntimeSyntax()));
 		this.async_runtime_data[header.slot] = data;
 	}
+
 	void validate_await_expression(AwaitExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_operation, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_await_expression(AwaitExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_await_expression(data);
 		assert_that(this.await_expression_used < 2147483647);
@@ -789,20 +842,24 @@ class SyntaxArena {
 		this.await_expression_used = this.await_expression_used + 1;
 		return result;
 	}
+
 	AwaitExpressionSyntaxData await_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AwaitExpressionSyntax()));
 		return this.await_expression_data[header.slot];
 	}
+
 	void replace_await_expression(SyntaxNodeId id, AwaitExpressionSyntaxData data) {
 		this.validate_await_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AwaitExpressionSyntax()));
 		this.await_expression_data[header.slot] = data;
 	}
+
 	void validate_await_statement(AwaitStatementSyntaxData data) {
 		this.check_node(data.f_expression, SyntaxKind.AwaitExpressionSyntax());
 	}
+
 	SyntaxNodeId add_await_statement(AwaitStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_await_statement(data);
 		assert_that(this.await_statement_used < 2147483647);
@@ -820,22 +877,26 @@ class SyntaxArena {
 		this.await_statement_used = this.await_statement_used + 1;
 		return result;
 	}
+
 	AwaitStatementSyntaxData await_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AwaitStatementSyntax()));
 		return this.await_statement_data[header.slot];
 	}
+
 	void replace_await_statement(SyntaxNodeId id, AwaitStatementSyntaxData data) {
 		this.validate_await_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.AwaitStatementSyntax()));
 		this.await_statement_data[header.slot] = data;
 	}
+
 	void validate_binary_expression(BinaryExpressionSyntaxData data) {
 		this.check_node(data.f_left, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_operator_token);
 		this.check_node(data.f_right, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_binary_expression(BinaryExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_binary_expression(data);
 		assert_that(this.binary_expression_used < 2147483647);
@@ -853,22 +914,26 @@ class SyntaxArena {
 		this.binary_expression_used = this.binary_expression_used + 1;
 		return result;
 	}
+
 	BinaryExpressionSyntaxData binary_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BinaryExpressionSyntax()));
 		return this.binary_expression_data[header.slot];
 	}
+
 	void replace_binary_expression(SyntaxNodeId id, BinaryExpressionSyntaxData data) {
 		this.validate_binary_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BinaryExpressionSyntax()));
 		this.binary_expression_data[header.slot] = data;
 	}
+
 	void validate_block_statement(BlockStatementSyntaxData data) {
 		this.check_token(data.f_open_brace);
 		this.check_list(data.f_statements, syntax_kind_code(SyntaxKind.StatementSyntax()));
 		this.check_token(data.f_close_brace);
 	}
+
 	SyntaxNodeId add_block_statement(BlockStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_block_statement(data);
 		assert_that(this.block_statement_used < 2147483647);
@@ -886,20 +951,24 @@ class SyntaxArena {
 		this.block_statement_used = this.block_statement_used + 1;
 		return result;
 	}
+
 	BlockStatementSyntaxData block_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BlockStatementSyntax()));
 		return this.block_statement_data[header.slot];
 	}
+
 	void replace_block_statement(SyntaxNodeId id, BlockStatementSyntaxData data) {
 		this.validate_block_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BlockStatementSyntax()));
 		this.block_statement_data[header.slot] = data;
 	}
+
 	void validate_boolean_literal_expression(BooleanLiteralExpressionSyntaxData data) {
 		this.check_token(data.f_literal);
 	}
+
 	SyntaxNodeId add_boolean_literal_expression(BooleanLiteralExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_boolean_literal_expression(data);
 		assert_that(this.boolean_literal_expression_used < 2147483647);
@@ -917,21 +986,25 @@ class SyntaxArena {
 		this.boolean_literal_expression_used = this.boolean_literal_expression_used + 1;
 		return result;
 	}
+
 	BooleanLiteralExpressionSyntaxData boolean_literal_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BooleanLiteralExpressionSyntax()));
 		return this.boolean_literal_expression_data[header.slot];
 	}
+
 	void replace_boolean_literal_expression(SyntaxNodeId id, BooleanLiteralExpressionSyntaxData data) {
 		this.validate_boolean_literal_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BooleanLiteralExpressionSyntax()));
 		this.boolean_literal_expression_data[header.slot] = data;
 	}
+
 	void validate_break_statement(BreakStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_break_statement(BreakStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_break_statement(data);
 		assert_that(this.break_statement_used < 2147483647);
@@ -949,23 +1022,27 @@ class SyntaxArena {
 		this.break_statement_used = this.break_statement_used + 1;
 		return result;
 	}
+
 	BreakStatementSyntaxData break_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BreakStatementSyntax()));
 		return this.break_statement_data[header.slot];
 	}
+
 	void replace_break_statement(SyntaxNodeId id, BreakStatementSyntaxData data) {
 		this.validate_break_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BreakStatementSyntax()));
 		this.break_statement_data[header.slot] = data;
 	}
+
 	void validate_buffer_allocation(BufferAllocationSyntaxData data) {
 		this.check_node(data.f_allocation_context, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_element_type, SyntaxKind.TypeNameSyntax());
 		this.check_node(data.f_count, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_failure_call, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_buffer_allocation(BufferAllocationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_buffer_allocation(data);
 		assert_that(this.buffer_allocation_used < 2147483647);
@@ -983,22 +1060,26 @@ class SyntaxArena {
 		this.buffer_allocation_used = this.buffer_allocation_used + 1;
 		return result;
 	}
+
 	BufferAllocationSyntaxData buffer_allocation(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BufferAllocationSyntax()));
 		return this.buffer_allocation_data[header.slot];
 	}
+
 	void replace_buffer_allocation(SyntaxNodeId id, BufferAllocationSyntaxData data) {
 		this.validate_buffer_allocation(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.BufferAllocationSyntax()));
 		this.buffer_allocation_data[header.slot] = data;
 	}
+
 	void validate_c_code_entry(CCodeEntrySyntaxData data) {
 		this.check_token(data.f_key);
 		this.check_token(data.f_value);
 		this.check_text(data.f_decoded_value);
 	}
+
 	SyntaxNodeId add_c_code_entry(CCodeEntrySyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_c_code_entry(data);
 		assert_that(this.c_code_entry_used < 2147483647);
@@ -1016,17 +1097,20 @@ class SyntaxArena {
 		this.c_code_entry_used = this.c_code_entry_used + 1;
 		return result;
 	}
+
 	CCodeEntrySyntaxData c_code_entry(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CCodeEntrySyntax()));
 		return this.c_code_entry_data[header.slot];
 	}
+
 	void replace_c_code_entry(SyntaxNodeId id, CCodeEntrySyntaxData data) {
 		this.validate_c_code_entry(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CCodeEntrySyntax()));
 		this.c_code_entry_data[header.slot] = data;
 	}
+
 	void validate_call_expression(CallExpressionSyntaxData data) {
 		this.check_list(data.f_qualifier_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 		this.check_list(data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
@@ -1039,6 +1123,7 @@ class SyntaxArena {
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_call_expression(CallExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_call_expression(data);
 		assert_that(this.call_expression_used < 2147483647);
@@ -1056,21 +1141,25 @@ class SyntaxArena {
 		this.call_expression_used = this.call_expression_used + 1;
 		return result;
 	}
+
 	CallExpressionSyntaxData call_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallExpressionSyntax()));
 		return this.call_expression_data[header.slot];
 	}
+
 	void replace_call_expression(SyntaxNodeId id, CallExpressionSyntaxData data) {
 		this.validate_call_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallExpressionSyntax()));
 		this.call_expression_data[header.slot] = data;
 	}
+
 	void validate_call_statement(CallStatementSyntaxData data) {
 		this.check_node(data.f_call, SyntaxKind.CallExpressionSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_call_statement(CallStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_call_statement(data);
 		assert_that(this.call_statement_used < 2147483647);
@@ -1088,17 +1177,20 @@ class SyntaxArena {
 		this.call_statement_used = this.call_statement_used + 1;
 		return result;
 	}
+
 	CallStatementSyntaxData call_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallStatementSyntax()));
 		return this.call_statement_data[header.slot];
 	}
+
 	void replace_call_statement(SyntaxNodeId id, CallStatementSyntaxData data) {
 		this.validate_call_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallStatementSyntax()));
 		this.call_statement_data[header.slot] = data;
 	}
+
 	void validate_callable_channel_type(CallableChannelTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -1106,6 +1198,7 @@ class SyntaxArena {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_underlying, SyntaxKind.TypeNameSyntax());
 	}
+
 	SyntaxNodeId add_callable_channel_type(CallableChannelTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_callable_channel_type(data);
 		assert_that(this.callable_channel_type_used < 2147483647);
@@ -1123,21 +1216,25 @@ class SyntaxArena {
 		this.callable_channel_type_used = this.callable_channel_type_used + 1;
 		return result;
 	}
+
 	CallableChannelTypeSyntaxData callable_channel_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallableChannelTypeSyntax()));
 		return this.callable_channel_type_data[header.slot];
 	}
+
 	void replace_callable_channel_type(SyntaxNodeId id, CallableChannelTypeSyntaxData data) {
 		this.validate_callable_channel_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallableChannelTypeSyntax()));
 		this.callable_channel_type_data[header.slot] = data;
 	}
+
 	void validate_caller_information(CallerInformationSyntaxData data) {
 		this.check_token(data.f_name);
 		this.check_token(data.f_target);
 	}
+
 	SyntaxNodeId add_caller_information(CallerInformationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_caller_information(data);
 		assert_that(this.caller_information_used < 2147483647);
@@ -1155,22 +1252,26 @@ class SyntaxArena {
 		this.caller_information_used = this.caller_information_used + 1;
 		return result;
 	}
+
 	CallerInformationSyntaxData caller_information(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallerInformationSyntax()));
 		return this.caller_information_data[header.slot];
 	}
+
 	void replace_caller_information(SyntaxNodeId id, CallerInformationSyntaxData data) {
 		this.validate_caller_information(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CallerInformationSyntax()));
 		this.caller_information_data[header.slot] = data;
 	}
+
 	void validate_catch_clause(CatchClauseSyntaxData data) {
 		this.check_node(data.f_class_name, SyntaxKind.TypeNameSyntax());
 		this.check_token(data.f_binding);
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_catch_clause(CatchClauseSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_catch_clause(data);
 		assert_that(this.catch_clause_used < 2147483647);
@@ -1188,17 +1289,20 @@ class SyntaxArena {
 		this.catch_clause_used = this.catch_clause_used + 1;
 		return result;
 	}
+
 	CatchClauseSyntaxData catch_clause(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CatchClauseSyntax()));
 		return this.catch_clause_data[header.slot];
 	}
+
 	void replace_catch_clause(SyntaxNodeId id, CatchClauseSyntaxData data) {
 		this.validate_catch_clause(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CatchClauseSyntax()));
 		this.catch_clause_data[header.slot] = data;
 	}
+
 	void validate_class_declaration(ClassDeclarationSyntaxData data) {
 		assert_that(data.f_concurrency_policy.kinds >= 0 && data.f_concurrency_policy.kinds <= 31 && data.f_concurrency_policy.admitted >= 0 && data.f_concurrency_policy.admitted <= 31);
 		this.check_list(data.f_allocator, syntax_kind_code(SyntaxKind.CCodeEntrySyntax()));
@@ -1220,6 +1324,7 @@ class SyntaxArena {
 		this.check_node(data.f_parent_class, SyntaxKind.TypeNameSyntax());
 		this.check_token(data.f_exception_root);
 	}
+
 	SyntaxNodeId add_class_declaration(ClassDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_class_declaration(data);
 		assert_that(this.class_declaration_used < 2147483647);
@@ -1237,22 +1342,26 @@ class SyntaxArena {
 		this.class_declaration_used = this.class_declaration_used + 1;
 		return result;
 	}
+
 	ClassDeclarationSyntaxData class_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ClassDeclarationSyntax()));
 		return this.class_declaration_data[header.slot];
 	}
+
 	void replace_class_declaration(SyntaxNodeId id, ClassDeclarationSyntaxData data) {
 		this.validate_class_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ClassDeclarationSyntax()));
 		this.class_declaration_data[header.slot] = data;
 	}
+
 	void validate_com_import(ComImportSyntaxData data) {
 		this.check_node(data.f_declaration, SyntaxKind.ClassDeclarationSyntax());
 		this.check_token(data.f_name);
 		this.check_node(data.f_policy, SyntaxKind.ForeignPolicySyntax());
 	}
+
 	SyntaxNodeId add_com_import(ComImportSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_com_import(data);
 		assert_that(this.com_import_used < 2147483647);
@@ -1270,21 +1379,25 @@ class SyntaxArena {
 		this.com_import_used = this.com_import_used + 1;
 		return result;
 	}
+
 	ComImportSyntaxData com_import(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ComImportSyntax()));
 		return this.com_import_data[header.slot];
 	}
+
 	void replace_com_import(SyntaxNodeId id, ComImportSyntaxData data) {
 		this.validate_com_import(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ComImportSyntax()));
 		this.com_import_data[header.slot] = data;
 	}
+
 	void validate_comparison_chain(ComparisonChainSyntaxData data) {
 		this.check_list(data.f_operands, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 		this.check_list(data.f_operators, -1);
 	}
+
 	SyntaxNodeId add_comparison_chain(ComparisonChainSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_comparison_chain(data);
 		assert_that(this.comparison_chain_used < 2147483647);
@@ -1302,17 +1415,20 @@ class SyntaxArena {
 		this.comparison_chain_used = this.comparison_chain_used + 1;
 		return result;
 	}
+
 	ComparisonChainSyntaxData comparison_chain(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ComparisonChainSyntax()));
 		return this.comparison_chain_data[header.slot];
 	}
+
 	void replace_comparison_chain(SyntaxNodeId id, ComparisonChainSyntaxData data) {
 		this.validate_comparison_chain(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ComparisonChainSyntax()));
 		this.comparison_chain_data[header.slot] = data;
 	}
+
 	void validate_compilation_unit(CompilationUnitSyntaxData data) {
 		this.check_list(data.f_c_classes, syntax_kind_code(SyntaxKind.ClassDeclarationSyntax()));
 		this.check_list(data.f_com_interfaces, syntax_kind_code(SyntaxKind.ComImportSyntax()));
@@ -1327,6 +1443,7 @@ class SyntaxArena {
 		this.check_list(data.f_structs, syntax_kind_code(SyntaxKind.StructDeclarationSyntax()));
 		this.check_token(data.f_end_of_file);
 	}
+
 	SyntaxNodeId add_compilation_unit(CompilationUnitSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_compilation_unit(data);
 		assert_that(this.compilation_unit_used < 2147483647);
@@ -1344,22 +1461,26 @@ class SyntaxArena {
 		this.compilation_unit_used = this.compilation_unit_used + 1;
 		return result;
 	}
+
 	CompilationUnitSyntaxData compilation_unit(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CompilationUnitSyntax()));
 		return this.compilation_unit_data[header.slot];
 	}
+
 	void replace_compilation_unit(SyntaxNodeId id, CompilationUnitSyntaxData data) {
 		this.validate_compilation_unit(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.CompilationUnitSyntax()));
 		this.compilation_unit_data[header.slot] = data;
 	}
+
 	void validate_constant_declaration(ConstantDeclarationSyntaxData data) {
 		this.check_node(data.f_type_name, SyntaxKind.TypeNameSyntax());
 		this.check_token(data.f_name);
 		this.check_node(data.f_initializer, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_constant_declaration(ConstantDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_constant_declaration(data);
 		assert_that(this.constant_declaration_used < 2147483647);
@@ -1377,17 +1498,20 @@ class SyntaxArena {
 		this.constant_declaration_used = this.constant_declaration_used + 1;
 		return result;
 	}
+
 	ConstantDeclarationSyntaxData constant_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ConstantDeclarationSyntax()));
 		return this.constant_declaration_data[header.slot];
 	}
+
 	void replace_constant_declaration(SyntaxNodeId id, ConstantDeclarationSyntaxData data) {
 		this.validate_constant_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ConstantDeclarationSyntax()));
 		this.constant_declaration_data[header.slot] = data;
 	}
+
 	void validate_constructor_initializer(ConstructorInitializerSyntaxData data) {
 		this.check_list(data.f_qualifier_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 		this.check_list(data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
@@ -1400,6 +1524,7 @@ class SyntaxArena {
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_constructor_initializer(ConstructorInitializerSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_constructor_initializer(data);
 		assert_that(this.constructor_initializer_used < 2147483647);
@@ -1417,21 +1542,25 @@ class SyntaxArena {
 		this.constructor_initializer_used = this.constructor_initializer_used + 1;
 		return result;
 	}
+
 	ConstructorInitializerSyntaxData constructor_initializer(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ConstructorInitializerSyntax()));
 		return this.constructor_initializer_data[header.slot];
 	}
+
 	void replace_constructor_initializer(SyntaxNodeId id, ConstructorInitializerSyntaxData data) {
 		this.validate_constructor_initializer(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ConstructorInitializerSyntax()));
 		this.constructor_initializer_data[header.slot] = data;
 	}
+
 	void validate_continue_statement(ContinueStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_continue_statement(ContinueStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_continue_statement(data);
 		assert_that(this.continue_statement_used < 2147483647);
@@ -1449,22 +1578,26 @@ class SyntaxArena {
 		this.continue_statement_used = this.continue_statement_used + 1;
 		return result;
 	}
+
 	ContinueStatementSyntaxData continue_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ContinueStatementSyntax()));
 		return this.continue_statement_data[header.slot];
 	}
+
 	void replace_continue_statement(SyntaxNodeId id, ContinueStatementSyntaxData data) {
 		this.validate_continue_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ContinueStatementSyntax()));
 		this.continue_statement_data[header.slot] = data;
 	}
+
 	void validate_conversion_expression(ConversionExpressionSyntaxData data) {
 		this.check_node(data.f_operand, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_destination, SyntaxKind.TypeNameSyntax());
 	}
+
 	SyntaxNodeId add_conversion_expression(ConversionExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_conversion_expression(data);
 		assert_that(this.conversion_expression_used < 2147483647);
@@ -1482,21 +1615,25 @@ class SyntaxArena {
 		this.conversion_expression_used = this.conversion_expression_used + 1;
 		return result;
 	}
+
 	ConversionExpressionSyntaxData conversion_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ConversionExpressionSyntax()));
 		return this.conversion_expression_data[header.slot];
 	}
+
 	void replace_conversion_expression(SyntaxNodeId id, ConversionExpressionSyntaxData data) {
 		this.validate_conversion_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ConversionExpressionSyntax()));
 		this.conversion_expression_data[header.slot] = data;
 	}
+
 	void validate_dereference_assignment(DereferenceAssignmentSyntaxData data) {
 		this.check_node(data.f_target, SyntaxKind.DereferenceExpressionSyntax());
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_dereference_assignment(DereferenceAssignmentSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_dereference_assignment(data);
 		assert_that(this.dereference_assignment_used < 2147483647);
@@ -1514,21 +1651,25 @@ class SyntaxArena {
 		this.dereference_assignment_used = this.dereference_assignment_used + 1;
 		return result;
 	}
+
 	DereferenceAssignmentSyntaxData dereference_assignment(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.DereferenceAssignmentSyntax()));
 		return this.dereference_assignment_data[header.slot];
 	}
+
 	void replace_dereference_assignment(SyntaxNodeId id, DereferenceAssignmentSyntaxData data) {
 		this.validate_dereference_assignment(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.DereferenceAssignmentSyntax()));
 		this.dereference_assignment_data[header.slot] = data;
 	}
+
 	void validate_dereference_expression(DereferenceExpressionSyntaxData data) {
 		this.check_token(data.f_star);
 		this.check_node(data.f_pointer, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_dereference_expression(DereferenceExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_dereference_expression(data);
 		assert_that(this.dereference_expression_used < 2147483647);
@@ -1546,17 +1687,20 @@ class SyntaxArena {
 		this.dereference_expression_used = this.dereference_expression_used + 1;
 		return result;
 	}
+
 	DereferenceExpressionSyntaxData dereference_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.DereferenceExpressionSyntax()));
 		return this.dereference_expression_data[header.slot];
 	}
+
 	void replace_dereference_expression(SyntaxNodeId id, DereferenceExpressionSyntaxData data) {
 		this.validate_dereference_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.DereferenceExpressionSyntax()));
 		this.dereference_expression_data[header.slot] = data;
 	}
+
 	void validate_dsp_expression(DspExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_open_paren);
@@ -1566,6 +1710,7 @@ class SyntaxArena {
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_dsp_expression(DspExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_dsp_expression(data);
 		assert_that(this.dsp_expression_used < 2147483647);
@@ -1583,17 +1728,20 @@ class SyntaxArena {
 		this.dsp_expression_used = this.dsp_expression_used + 1;
 		return result;
 	}
+
 	DspExpressionSyntaxData dsp_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.DspExpressionSyntax()));
 		return this.dsp_expression_data[header.slot];
 	}
+
 	void replace_dsp_expression(SyntaxNodeId id, DspExpressionSyntaxData data) {
 		this.validate_dsp_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.DspExpressionSyntax()));
 		this.dsp_expression_data[header.slot] = data;
 	}
+
 	void validate_enum_arm(EnumArmSyntaxData data) {
 		this.check_list(data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 		this.check_token(data.f_qualifier);
@@ -1601,6 +1749,7 @@ class SyntaxArena {
 		this.check_list(data.f_bindings, syntax_kind_code(SyntaxKind.EnumBindingSyntax()));
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_enum_arm(EnumArmSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_enum_arm(data);
 		assert_that(this.enum_arm_used < 2147483647);
@@ -1618,21 +1767,25 @@ class SyntaxArena {
 		this.enum_arm_used = this.enum_arm_used + 1;
 		return result;
 	}
+
 	EnumArmSyntaxData enum_arm(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumArmSyntax()));
 		return this.enum_arm_data[header.slot];
 	}
+
 	void replace_enum_arm(SyntaxNodeId id, EnumArmSyntaxData data) {
 		this.validate_enum_arm(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumArmSyntax()));
 		this.enum_arm_data[header.slot] = data;
 	}
+
 	void validate_enum_binding(EnumBindingSyntaxData data) {
 		this.check_token(data.f_field);
 		this.check_token(data.f_binding);
 	}
+
 	SyntaxNodeId add_enum_binding(EnumBindingSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_enum_binding(data);
 		assert_that(this.enum_binding_used < 2147483647);
@@ -1650,22 +1803,26 @@ class SyntaxArena {
 		this.enum_binding_used = this.enum_binding_used + 1;
 		return result;
 	}
+
 	EnumBindingSyntaxData enum_binding(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumBindingSyntax()));
 		return this.enum_binding_data[header.slot];
 	}
+
 	void replace_enum_binding(SyntaxNodeId id, EnumBindingSyntaxData data) {
 		this.validate_enum_binding(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumBindingSyntax()));
 		this.enum_binding_data[header.slot] = data;
 	}
+
 	void validate_enum_declaration(EnumDeclarationSyntaxData data) {
 		this.check_list(data.f_type_parameters, -1);
 		this.check_token(data.f_name);
 		this.check_list(data.f_variants, syntax_kind_code(SyntaxKind.EnumVariantSyntax()));
 	}
+
 	SyntaxNodeId add_enum_declaration(EnumDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_enum_declaration(data);
 		assert_that(this.enum_declaration_used < 2147483647);
@@ -1683,22 +1840,26 @@ class SyntaxArena {
 		this.enum_declaration_used = this.enum_declaration_used + 1;
 		return result;
 	}
+
 	EnumDeclarationSyntaxData enum_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumDeclarationSyntax()));
 		return this.enum_declaration_data[header.slot];
 	}
+
 	void replace_enum_declaration(SyntaxNodeId id, EnumDeclarationSyntaxData data) {
 		this.validate_enum_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumDeclarationSyntax()));
 		this.enum_declaration_data[header.slot] = data;
 	}
+
 	void validate_enum_payload(EnumPayloadSyntaxData data) {
 		this.check_token(data.f_owned_keyword);
 		this.check_node(data.f_type_name, SyntaxKind.TypeNameSyntax());
 		this.check_token(data.f_name);
 	}
+
 	SyntaxNodeId add_enum_payload(EnumPayloadSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_enum_payload(data);
 		assert_that(this.enum_payload_used < 2147483647);
@@ -1716,21 +1877,25 @@ class SyntaxArena {
 		this.enum_payload_used = this.enum_payload_used + 1;
 		return result;
 	}
+
 	EnumPayloadSyntaxData enum_payload(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumPayloadSyntax()));
 		return this.enum_payload_data[header.slot];
 	}
+
 	void replace_enum_payload(SyntaxNodeId id, EnumPayloadSyntaxData data) {
 		this.validate_enum_payload(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumPayloadSyntax()));
 		this.enum_payload_data[header.slot] = data;
 	}
+
 	void validate_enum_variant(EnumVariantSyntaxData data) {
 		this.check_token(data.f_name);
 		this.check_list(data.f_fields, syntax_kind_code(SyntaxKind.EnumPayloadSyntax()));
 	}
+
 	SyntaxNodeId add_enum_variant(EnumVariantSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_enum_variant(data);
 		assert_that(this.enum_variant_used < 2147483647);
@@ -1748,23 +1913,27 @@ class SyntaxArena {
 		this.enum_variant_used = this.enum_variant_used + 1;
 		return result;
 	}
+
 	EnumVariantSyntaxData enum_variant(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumVariantSyntax()));
 		return this.enum_variant_data[header.slot];
 	}
+
 	void replace_enum_variant(SyntaxNodeId id, EnumVariantSyntaxData data) {
 		this.validate_enum_variant(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.EnumVariantSyntax()));
 		this.enum_variant_data[header.slot] = data;
 	}
+
 	void validate_field_access_expression(FieldAccessExpressionSyntaxData data) {
 		this.check_token(data.f_identifier);
 		this.check_token(data.f_dot);
 		this.check_token(data.f_field_name);
 		this.check_node(data.f_aggregate, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_field_access_expression(FieldAccessExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_field_access_expression(data);
 		assert_that(this.field_access_expression_used < 2147483647);
@@ -1782,23 +1951,27 @@ class SyntaxArena {
 		this.field_access_expression_used = this.field_access_expression_used + 1;
 		return result;
 	}
+
 	FieldAccessExpressionSyntaxData field_access_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FieldAccessExpressionSyntax()));
 		return this.field_access_expression_data[header.slot];
 	}
+
 	void replace_field_access_expression(SyntaxNodeId id, FieldAccessExpressionSyntaxData data) {
 		this.validate_field_access_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FieldAccessExpressionSyntax()));
 		this.field_access_expression_data[header.slot] = data;
 	}
+
 	void validate_field_assignment_statement(FieldAssignmentStatementSyntaxData data) {
 		this.check_node(data.f_target, SyntaxKind.FieldAccessExpressionSyntax());
 		this.check_token(data.f_equals_token);
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_field_assignment_statement(FieldAssignmentStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_field_assignment_statement(data);
 		assert_that(this.field_assignment_statement_used < 2147483647);
@@ -1816,23 +1989,27 @@ class SyntaxArena {
 		this.field_assignment_statement_used = this.field_assignment_statement_used + 1;
 		return result;
 	}
+
 	FieldAssignmentStatementSyntaxData field_assignment_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FieldAssignmentStatementSyntax()));
 		return this.field_assignment_statement_data[header.slot];
 	}
+
 	void replace_field_assignment_statement(SyntaxNodeId id, FieldAssignmentStatementSyntaxData data) {
 		this.validate_field_assignment_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FieldAssignmentStatementSyntax()));
 		this.field_assignment_statement_data[header.slot] = data;
 	}
+
 	void validate_field_initializer(FieldInitializerSyntaxData data) {
 		this.check_token(data.f_name);
 		this.check_token(data.f_equals_token);
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_initializer, SyntaxKind.StructInitializerSyntax());
 	}
+
 	SyntaxNodeId add_field_initializer(FieldInitializerSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_field_initializer(data);
 		assert_that(this.field_initializer_used < 2147483647);
@@ -1850,20 +2027,24 @@ class SyntaxArena {
 		this.field_initializer_used = this.field_initializer_used + 1;
 		return result;
 	}
+
 	FieldInitializerSyntaxData field_initializer(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FieldInitializerSyntax()));
 		return this.field_initializer_data[header.slot];
 	}
+
 	void replace_field_initializer(SyntaxNodeId id, FieldInitializerSyntaxData data) {
 		this.validate_field_initializer(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FieldInitializerSyntax()));
 		this.field_initializer_data[header.slot] = data;
 	}
+
 	void validate_float_literal_expression(FloatLiteralExpressionSyntaxData data) {
 		this.check_token(data.f_literal);
 	}
+
 	SyntaxNodeId add_float_literal_expression(FloatLiteralExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_float_literal_expression(data);
 		assert_that(this.float_literal_expression_used < 2147483647);
@@ -1881,17 +2062,20 @@ class SyntaxArena {
 		this.float_literal_expression_used = this.float_literal_expression_used + 1;
 		return result;
 	}
+
 	FloatLiteralExpressionSyntaxData float_literal_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FloatLiteralExpressionSyntax()));
 		return this.float_literal_expression_data[header.slot];
 	}
+
 	void replace_float_literal_expression(SyntaxNodeId id, FloatLiteralExpressionSyntaxData data) {
 		this.validate_float_literal_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FloatLiteralExpressionSyntax()));
 		this.float_literal_expression_data[header.slot] = data;
 	}
+
 	void validate_for_statement(ForStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_initializer, SyntaxKind.StatementSyntax());
@@ -1899,6 +2083,7 @@ class SyntaxArena {
 		this.check_node(data.f_step, SyntaxKind.StatementSyntax());
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_for_statement(ForStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_for_statement(data);
 		assert_that(this.for_statement_used < 2147483647);
@@ -1916,23 +2101,27 @@ class SyntaxArena {
 		this.for_statement_used = this.for_statement_used + 1;
 		return result;
 	}
+
 	ForStatementSyntaxData for_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ForStatementSyntax()));
 		return this.for_statement_data[header.slot];
 	}
+
 	void replace_for_statement(SyntaxNodeId id, ForStatementSyntaxData data) {
 		this.validate_for_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ForStatementSyntax()));
 		this.for_statement_data[header.slot] = data;
 	}
+
 	void validate_foreach_statement(ForeachStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_binding);
 		this.check_node(data.f_collection, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_foreach_statement(ForeachStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_foreach_statement(data);
 		assert_that(this.foreach_statement_used < 2147483647);
@@ -1950,22 +2139,26 @@ class SyntaxArena {
 		this.foreach_statement_used = this.foreach_statement_used + 1;
 		return result;
 	}
+
 	ForeachStatementSyntaxData foreach_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ForeachStatementSyntax()));
 		return this.foreach_statement_data[header.slot];
 	}
+
 	void replace_foreach_statement(SyntaxNodeId id, ForeachStatementSyntaxData data) {
 		this.validate_foreach_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ForeachStatementSyntax()));
 		this.foreach_statement_data[header.slot] = data;
 	}
+
 	void validate_foreign_policy(ForeignPolicySyntaxData data) {
 		assert_that(data.f_kind >= 0 && data.f_kind <= 33);
 		this.check_token(data.f_name);
 		this.check_list(data.f_entries, syntax_kind_code(SyntaxKind.CCodeEntrySyntax()));
 	}
+
 	SyntaxNodeId add_foreign_policy(ForeignPolicySyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_foreign_policy(data);
 		assert_that(this.foreign_policy_used < 2147483647);
@@ -1983,17 +2176,20 @@ class SyntaxArena {
 		this.foreign_policy_used = this.foreign_policy_used + 1;
 		return result;
 	}
+
 	ForeignPolicySyntaxData foreign_policy(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ForeignPolicySyntax()));
 		return this.foreign_policy_data[header.slot];
 	}
+
 	void replace_foreign_policy(SyntaxNodeId id, ForeignPolicySyntaxData data) {
 		this.validate_foreign_policy(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ForeignPolicySyntax()));
 		this.foreign_policy_data[header.slot] = data;
 	}
+
 	void validate_function_declaration(FunctionDeclarationSyntaxData data) {
 		this.check_node(data.f_foreign_policy, SyntaxKind.ForeignPolicySyntax());
 		this.check_token(data.f_async_keyword);
@@ -2016,6 +2212,7 @@ class SyntaxArena {
 		this.check_token(data.f_abi_identifier);
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_function_declaration(FunctionDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_function_declaration(data);
 		assert_that(this.function_declaration_used < 2147483647);
@@ -2033,23 +2230,27 @@ class SyntaxArena {
 		this.function_declaration_used = this.function_declaration_used + 1;
 		return result;
 	}
+
 	FunctionDeclarationSyntaxData function_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FunctionDeclarationSyntax()));
 		return this.function_declaration_data[header.slot];
 	}
+
 	void replace_function_declaration(SyntaxNodeId id, FunctionDeclarationSyntaxData data) {
 		this.validate_function_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.FunctionDeclarationSyntax()));
 		this.function_declaration_data[header.slot] = data;
 	}
+
 	void validate_generic_type_application(GenericTypeApplicationSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
 		this.check_list(data.f_stars, -1);
 		this.check_list(data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 	}
+
 	SyntaxNodeId add_generic_type_application(GenericTypeApplicationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_generic_type_application(data);
 		assert_that(this.generic_type_application_used < 2147483647);
@@ -2067,22 +2268,26 @@ class SyntaxArena {
 		this.generic_type_application_used = this.generic_type_application_used + 1;
 		return result;
 	}
+
 	GenericTypeApplicationSyntaxData generic_type_application(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.GenericTypeApplicationSyntax()));
 		return this.generic_type_application_data[header.slot];
 	}
+
 	void replace_generic_type_application(SyntaxNodeId id, GenericTypeApplicationSyntaxData data) {
 		this.validate_generic_type_application(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.GenericTypeApplicationSyntax()));
 		this.generic_type_application_data[header.slot] = data;
 	}
+
 	void validate_heap_object_construction(HeapObjectConstructionSyntaxData data) {
 		this.check_node(data.f_allocation_context, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_class_name, SyntaxKind.TypeNameSyntax());
 		this.check_list(data.f_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 	}
+
 	SyntaxNodeId add_heap_object_construction(HeapObjectConstructionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_heap_object_construction(data);
 		assert_that(this.heap_object_construction_used < 2147483647);
@@ -2100,17 +2305,20 @@ class SyntaxArena {
 		this.heap_object_construction_used = this.heap_object_construction_used + 1;
 		return result;
 	}
+
 	HeapObjectConstructionSyntaxData heap_object_construction(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.HeapObjectConstructionSyntax()));
 		return this.heap_object_construction_data[header.slot];
 	}
+
 	void replace_heap_object_construction(SyntaxNodeId id, HeapObjectConstructionSyntaxData data) {
 		this.validate_heap_object_construction(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.HeapObjectConstructionSyntax()));
 		this.heap_object_construction_data[header.slot] = data;
 	}
+
 	void validate_if_statement(IfStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_open_paren);
@@ -2120,6 +2328,7 @@ class SyntaxArena {
 		this.check_token(data.f_else_keyword);
 		this.check_node(data.f_else_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_if_statement(IfStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_if_statement(data);
 		assert_that(this.if_statement_used < 2147483647);
@@ -2137,22 +2346,26 @@ class SyntaxArena {
 		this.if_statement_used = this.if_statement_used + 1;
 		return result;
 	}
+
 	IfStatementSyntaxData if_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IfStatementSyntax()));
 		return this.if_statement_data[header.slot];
 	}
+
 	void replace_if_statement(SyntaxNodeId id, IfStatementSyntaxData data) {
 		this.validate_if_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IfStatementSyntax()));
 		this.if_statement_data[header.slot] = data;
 	}
+
 	void validate_index_expression(IndexExpressionSyntaxData data) {
 		this.check_node(data.f_container, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_subscript, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_close);
 	}
+
 	SyntaxNodeId add_index_expression(IndexExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_index_expression(data);
 		assert_that(this.index_expression_used < 2147483647);
@@ -2170,21 +2383,25 @@ class SyntaxArena {
 		this.index_expression_used = this.index_expression_used + 1;
 		return result;
 	}
+
 	IndexExpressionSyntaxData index_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IndexExpressionSyntax()));
 		return this.index_expression_data[header.slot];
 	}
+
 	void replace_index_expression(SyntaxNodeId id, IndexExpressionSyntaxData data) {
 		this.validate_index_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IndexExpressionSyntax()));
 		this.index_expression_data[header.slot] = data;
 	}
+
 	void validate_indexed_assignment(IndexedAssignmentSyntaxData data) {
 		this.check_node(data.f_target, SyntaxKind.IndexExpressionSyntax());
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_indexed_assignment(IndexedAssignmentSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_indexed_assignment(data);
 		assert_that(this.indexed_assignment_used < 2147483647);
@@ -2202,17 +2419,20 @@ class SyntaxArena {
 		this.indexed_assignment_used = this.indexed_assignment_used + 1;
 		return result;
 	}
+
 	IndexedAssignmentSyntaxData indexed_assignment(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IndexedAssignmentSyntax()));
 		return this.indexed_assignment_data[header.slot];
 	}
+
 	void replace_indexed_assignment(SyntaxNodeId id, IndexedAssignmentSyntaxData data) {
 		this.validate_indexed_assignment(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IndexedAssignmentSyntax()));
 		this.indexed_assignment_data[header.slot] = data;
 	}
+
 	void validate_inferred_local_declaration(InferredLocalDeclarationSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_name);
@@ -2220,6 +2440,7 @@ class SyntaxArena {
 		this.check_node(data.f_initializer, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_inferred_local_declaration(InferredLocalDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_inferred_local_declaration(data);
 		assert_that(this.inferred_local_declaration_used < 2147483647);
@@ -2237,20 +2458,24 @@ class SyntaxArena {
 		this.inferred_local_declaration_used = this.inferred_local_declaration_used + 1;
 		return result;
 	}
+
 	InferredLocalDeclarationSyntaxData inferred_local_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.InferredLocalDeclarationSyntax()));
 		return this.inferred_local_declaration_data[header.slot];
 	}
+
 	void replace_inferred_local_declaration(SyntaxNodeId id, InferredLocalDeclarationSyntaxData data) {
 		this.validate_inferred_local_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.InferredLocalDeclarationSyntax()));
 		this.inferred_local_declaration_data[header.slot] = data;
 	}
+
 	void validate_integer_literal_expression(IntegerLiteralExpressionSyntaxData data) {
 		this.check_token(data.f_literal);
 	}
+
 	SyntaxNodeId add_integer_literal_expression(IntegerLiteralExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_integer_literal_expression(data);
 		assert_that(this.integer_literal_expression_used < 2147483647);
@@ -2268,17 +2493,20 @@ class SyntaxArena {
 		this.integer_literal_expression_used = this.integer_literal_expression_used + 1;
 		return result;
 	}
+
 	IntegerLiteralExpressionSyntaxData integer_literal_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IntegerLiteralExpressionSyntax()));
 		return this.integer_literal_expression_data[header.slot];
 	}
+
 	void replace_integer_literal_expression(SyntaxNodeId id, IntegerLiteralExpressionSyntaxData data) {
 		this.validate_integer_literal_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.IntegerLiteralExpressionSyntax()));
 		this.integer_literal_expression_data[header.slot] = data;
 	}
+
 	void validate_lifecycle_declaration(LifecycleDeclarationSyntaxData data) {
 		this.check_node(data.f_foreign_policy, SyntaxKind.ForeignPolicySyntax());
 		this.check_token(data.f_async_keyword);
@@ -2302,6 +2530,7 @@ class SyntaxArena {
 		this.check_token(data.f_semicolon);
 		this.check_list(data.f_base_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 	}
+
 	SyntaxNodeId add_lifecycle_declaration(LifecycleDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_lifecycle_declaration(data);
 		assert_that(this.lifecycle_declaration_used < 2147483647);
@@ -2319,17 +2548,20 @@ class SyntaxArena {
 		this.lifecycle_declaration_used = this.lifecycle_declaration_used + 1;
 		return result;
 	}
+
 	LifecycleDeclarationSyntaxData lifecycle_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LifecycleDeclarationSyntax()));
 		return this.lifecycle_declaration_data[header.slot];
 	}
+
 	void replace_lifecycle_declaration(SyntaxNodeId id, LifecycleDeclarationSyntaxData data) {
 		this.validate_lifecycle_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LifecycleDeclarationSyntax()));
 		this.lifecycle_declaration_data[header.slot] = data;
 	}
+
 	void validate_local_declaration(LocalDeclarationSyntaxData data) {
 		this.check_token(data.f_owned_keyword);
 		this.check_node(data.f_type_name, SyntaxKind.TypeNameSyntax());
@@ -2338,6 +2570,7 @@ class SyntaxArena {
 		this.check_node(data.f_initializer, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_local_declaration(LocalDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_local_declaration(data);
 		assert_that(this.local_declaration_used < 2147483647);
@@ -2355,21 +2588,25 @@ class SyntaxArena {
 		this.local_declaration_used = this.local_declaration_used + 1;
 		return result;
 	}
+
 	LocalDeclarationSyntaxData local_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LocalDeclarationSyntax()));
 		return this.local_declaration_data[header.slot];
 	}
+
 	void replace_local_declaration(SyntaxNodeId id, LocalDeclarationSyntaxData data) {
 		this.validate_local_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LocalDeclarationSyntax()));
 		this.local_declaration_data[header.slot] = data;
 	}
+
 	void validate_match_statement(MatchStatementSyntaxData data) {
 		this.check_node(data.f_scrutinee, SyntaxKind.ExpressionSyntax());
 		this.check_list(data.f_arms, syntax_kind_code(SyntaxKind.EnumArmSyntax()));
 	}
+
 	SyntaxNodeId add_match_statement(MatchStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_match_statement(data);
 		assert_that(this.match_statement_used < 2147483647);
@@ -2387,22 +2624,26 @@ class SyntaxArena {
 		this.match_statement_used = this.match_statement_used + 1;
 		return result;
 	}
+
 	MatchStatementSyntaxData match_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.MatchStatementSyntax()));
 		return this.match_statement_data[header.slot];
 	}
+
 	void replace_match_statement(SyntaxNodeId id, MatchStatementSyntaxData data) {
 		this.validate_match_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.MatchStatementSyntax()));
 		this.match_statement_data[header.slot] = data;
 	}
+
 	void validate_move_expression(MoveExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_source);
 		this.check_list(data.f_fields, -1);
 	}
+
 	SyntaxNodeId add_move_expression(MoveExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_move_expression(data);
 		assert_that(this.move_expression_used < 2147483647);
@@ -2420,20 +2661,24 @@ class SyntaxArena {
 		this.move_expression_used = this.move_expression_used + 1;
 		return result;
 	}
+
 	MoveExpressionSyntaxData move_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.MoveExpressionSyntax()));
 		return this.move_expression_data[header.slot];
 	}
+
 	void replace_move_expression(SyntaxNodeId id, MoveExpressionSyntaxData data) {
 		this.validate_move_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.MoveExpressionSyntax()));
 		this.move_expression_data[header.slot] = data;
 	}
+
 	void validate_name_expression(NameExpressionSyntaxData data) {
 		this.check_token(data.f_identifier);
 	}
+
 	SyntaxNodeId add_name_expression(NameExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_name_expression(data);
 		assert_that(this.name_expression_used < 2147483647);
@@ -2451,17 +2696,20 @@ class SyntaxArena {
 		this.name_expression_used = this.name_expression_used + 1;
 		return result;
 	}
+
 	NameExpressionSyntaxData name_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.NameExpressionSyntax()));
 		return this.name_expression_data[header.slot];
 	}
+
 	void replace_name_expression(SyntaxNodeId id, NameExpressionSyntaxData data) {
 		this.validate_name_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.NameExpressionSyntax()));
 		this.name_expression_data[header.slot] = data;
 	}
+
 	void validate_non_null_type(NonNullTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -2469,6 +2717,7 @@ class SyntaxArena {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_underlying, SyntaxKind.TypeNameSyntax());
 	}
+
 	SyntaxNodeId add_non_null_type(NonNullTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_non_null_type(data);
 		assert_that(this.non_null_type_used < 2147483647);
@@ -2486,20 +2735,24 @@ class SyntaxArena {
 		this.non_null_type_used = this.non_null_type_used + 1;
 		return result;
 	}
+
 	NonNullTypeSyntaxData non_null_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.NonNullTypeSyntax()));
 		return this.non_null_type_data[header.slot];
 	}
+
 	void replace_non_null_type(SyntaxNodeId id, NonNullTypeSyntaxData data) {
 		this.validate_non_null_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.NonNullTypeSyntax()));
 		this.non_null_type_data[header.slot] = data;
 	}
+
 	void validate_null_pointer_expression(NullPointerExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 	}
+
 	SyntaxNodeId add_null_pointer_expression(NullPointerExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_null_pointer_expression(data);
 		assert_that(this.null_pointer_expression_used < 2147483647);
@@ -2517,17 +2770,20 @@ class SyntaxArena {
 		this.null_pointer_expression_used = this.null_pointer_expression_used + 1;
 		return result;
 	}
+
 	NullPointerExpressionSyntaxData null_pointer_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.NullPointerExpressionSyntax()));
 		return this.null_pointer_expression_data[header.slot];
 	}
+
 	void replace_null_pointer_expression(SyntaxNodeId id, NullPointerExpressionSyntaxData data) {
 		this.validate_null_pointer_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.NullPointerExpressionSyntax()));
 		this.null_pointer_expression_data[header.slot] = data;
 	}
+
 	void validate_owner_slots_type(OwnerSlotsTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -2536,6 +2792,7 @@ class SyntaxArena {
 		this.check_token(data.f_marker);
 		this.check_token(data.f_close);
 	}
+
 	SyntaxNodeId add_owner_slots_type(OwnerSlotsTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_owner_slots_type(data);
 		assert_that(this.owner_slots_type_used < 2147483647);
@@ -2553,17 +2810,20 @@ class SyntaxArena {
 		this.owner_slots_type_used = this.owner_slots_type_used + 1;
 		return result;
 	}
+
 	OwnerSlotsTypeSyntaxData owner_slots_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.OwnerSlotsTypeSyntax()));
 		return this.owner_slots_type_data[header.slot];
 	}
+
 	void replace_owner_slots_type(SyntaxNodeId id, OwnerSlotsTypeSyntaxData data) {
 		this.validate_owner_slots_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.OwnerSlotsTypeSyntax()));
 		this.owner_slots_type_data[header.slot] = data;
 	}
+
 	void validate_parameter(ParameterSyntaxData data) {
 		this.check_node(data.f_caller_information, SyntaxKind.CallerInformationSyntax());
 		this.check_node(data.f_type_name, SyntaxKind.TypeNameSyntax());
@@ -2571,6 +2831,7 @@ class SyntaxArena {
 		this.check_token(data.f_borrowed_keyword);
 		this.check_token(data.f_owned_keyword);
 	}
+
 	SyntaxNodeId add_parameter(ParameterSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_parameter(data);
 		assert_that(this.parameter_used < 2147483647);
@@ -2588,22 +2849,26 @@ class SyntaxArena {
 		this.parameter_used = this.parameter_used + 1;
 		return result;
 	}
+
 	ParameterSyntaxData parameter(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ParameterSyntax()));
 		return this.parameter_data[header.slot];
 	}
+
 	void replace_parameter(SyntaxNodeId id, ParameterSyntaxData data) {
 		this.validate_parameter(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ParameterSyntax()));
 		this.parameter_data[header.slot] = data;
 	}
+
 	void validate_parenthesized_expression(ParenthesizedExpressionSyntaxData data) {
 		this.check_token(data.f_open_paren);
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_parenthesized_expression(ParenthesizedExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_parenthesized_expression(data);
 		assert_that(this.parenthesized_expression_used < 2147483647);
@@ -2621,17 +2886,20 @@ class SyntaxArena {
 		this.parenthesized_expression_used = this.parenthesized_expression_used + 1;
 		return result;
 	}
+
 	ParenthesizedExpressionSyntaxData parenthesized_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ParenthesizedExpressionSyntax()));
 		return this.parenthesized_expression_data[header.slot];
 	}
+
 	void replace_parenthesized_expression(SyntaxNodeId id, ParenthesizedExpressionSyntaxData data) {
 		this.validate_parenthesized_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ParenthesizedExpressionSyntax()));
 		this.parenthesized_expression_data[header.slot] = data;
 	}
+
 	void validate_pointer_type(PointerTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -2639,6 +2907,7 @@ class SyntaxArena {
 		this.check_node(data.f_pointee, SyntaxKind.TypeNameSyntax());
 		this.check_token(data.f_star);
 	}
+
 	SyntaxNodeId add_pointer_type(PointerTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_pointer_type(data);
 		assert_that(this.pointer_type_used < 2147483647);
@@ -2656,21 +2925,25 @@ class SyntaxArena {
 		this.pointer_type_used = this.pointer_type_used + 1;
 		return result;
 	}
+
 	PointerTypeSyntaxData pointer_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PointerTypeSyntax()));
 		return this.pointer_type_data[header.slot];
 	}
+
 	void replace_pointer_type(SyntaxNodeId id, PointerTypeSyntaxData data) {
 		this.validate_pointer_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PointerTypeSyntax()));
 		this.pointer_type_data[header.slot] = data;
 	}
+
 	void validate_prefix_expression(PrefixExpressionSyntaxData data) {
 		this.check_token(data.f_operator_token);
 		this.check_node(data.f_operand, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_prefix_expression(PrefixExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_prefix_expression(data);
 		assert_that(this.prefix_expression_used < 2147483647);
@@ -2688,22 +2961,26 @@ class SyntaxArena {
 		this.prefix_expression_used = this.prefix_expression_used + 1;
 		return result;
 	}
+
 	PrefixExpressionSyntaxData prefix_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PrefixExpressionSyntax()));
 		return this.prefix_expression_data[header.slot];
 	}
+
 	void replace_prefix_expression(SyntaxNodeId id, PrefixExpressionSyntaxData data) {
 		this.validate_prefix_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PrefixExpressionSyntax()));
 		this.prefix_expression_data[header.slot] = data;
 	}
+
 	void validate_property_accessor(PropertyAccessorSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_parameter, SyntaxKind.ParameterSyntax());
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_property_accessor(PropertyAccessorSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_property_accessor(data);
 		assert_that(this.property_accessor_used < 2147483647);
@@ -2721,17 +2998,20 @@ class SyntaxArena {
 		this.property_accessor_used = this.property_accessor_used + 1;
 		return result;
 	}
+
 	PropertyAccessorSyntaxData property_accessor(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PropertyAccessorSyntax()));
 		return this.property_accessor_data[header.slot];
 	}
+
 	void replace_property_accessor(SyntaxNodeId id, PropertyAccessorSyntaxData data) {
 		this.validate_property_accessor(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PropertyAccessorSyntax()));
 		this.property_accessor_data[header.slot] = data;
 	}
+
 	void validate_property_declaration(PropertyDeclarationSyntaxData data) {
 		this.check_token(data.f_owned_keyword);
 		this.check_node(data.f_factory_syntax, SyntaxKind.FunctionDeclarationSyntax());
@@ -2744,6 +3024,7 @@ class SyntaxArena {
 		this.check_node(data.f_getter, SyntaxKind.PropertyAccessorSyntax());
 		this.check_node(data.f_setter, SyntaxKind.PropertyAccessorSyntax());
 	}
+
 	SyntaxNodeId add_property_declaration(PropertyDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_property_declaration(data);
 		assert_that(this.property_declaration_used < 2147483647);
@@ -2761,22 +3042,26 @@ class SyntaxArena {
 		this.property_declaration_used = this.property_declaration_used + 1;
 		return result;
 	}
+
 	PropertyDeclarationSyntaxData property_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PropertyDeclarationSyntax()));
 		return this.property_declaration_data[header.slot];
 	}
+
 	void replace_property_declaration(SyntaxNodeId id, PropertyDeclarationSyntaxData data) {
 		this.validate_property_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.PropertyDeclarationSyntax()));
 		this.property_declaration_data[header.slot] = data;
 	}
+
 	void validate_release_statement(ReleaseStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_owner);
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_release_statement(ReleaseStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_release_statement(data);
 		assert_that(this.release_statement_used < 2147483647);
@@ -2794,22 +3079,26 @@ class SyntaxArena {
 		this.release_statement_used = this.release_statement_used + 1;
 		return result;
 	}
+
 	ReleaseStatementSyntaxData release_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ReleaseStatementSyntax()));
 		return this.release_statement_data[header.slot];
 	}
+
 	void replace_release_statement(SyntaxNodeId id, ReleaseStatementSyntaxData data) {
 		this.validate_release_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ReleaseStatementSyntax()));
 		this.release_statement_data[header.slot] = data;
 	}
+
 	void validate_return_statement(ReturnStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_return_statement(ReturnStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_return_statement(data);
 		assert_that(this.return_statement_used < 2147483647);
@@ -2827,17 +3116,20 @@ class SyntaxArena {
 		this.return_statement_used = this.return_statement_used + 1;
 		return result;
 	}
+
 	ReturnStatementSyntaxData return_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ReturnStatementSyntax()));
 		return this.return_statement_data[header.slot];
 	}
+
 	void replace_return_statement(SyntaxNodeId id, ReturnStatementSyntaxData data) {
 		this.validate_return_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ReturnStatementSyntax()));
 		this.return_statement_data[header.slot] = data;
 	}
+
 	void validate_shared_type(SharedTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -2845,6 +3137,7 @@ class SyntaxArena {
 		this.check_token(data.f_keyword);
 		this.check_node(data.f_payload, SyntaxKind.TypeNameSyntax());
 	}
+
 	SyntaxNodeId add_shared_type(SharedTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_shared_type(data);
 		assert_that(this.shared_type_used < 2147483647);
@@ -2862,22 +3155,26 @@ class SyntaxArena {
 		this.shared_type_used = this.shared_type_used + 1;
 		return result;
 	}
+
 	SharedTypeSyntaxData shared_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.SharedTypeSyntax()));
 		return this.shared_type_data[header.slot];
 	}
+
 	void replace_shared_type(SyntaxNodeId id, SharedTypeSyntaxData data) {
 		this.validate_shared_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.SharedTypeSyntax()));
 		this.shared_type_data[header.slot] = data;
 	}
+
 	void validate_short_circuit_expression(ShortCircuitExpressionSyntaxData data) {
 		this.check_node(data.f_left, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_operator_token);
 		this.check_node(data.f_right, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_short_circuit_expression(ShortCircuitExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_short_circuit_expression(data);
 		assert_that(this.short_circuit_expression_used < 2147483647);
@@ -2895,23 +3192,27 @@ class SyntaxArena {
 		this.short_circuit_expression_used = this.short_circuit_expression_used + 1;
 		return result;
 	}
+
 	ShortCircuitExpressionSyntaxData short_circuit_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ShortCircuitExpressionSyntax()));
 		return this.short_circuit_expression_data[header.slot];
 	}
+
 	void replace_short_circuit_expression(SyntaxNodeId id, ShortCircuitExpressionSyntaxData data) {
 		this.validate_short_circuit_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ShortCircuitExpressionSyntax()));
 		this.short_circuit_expression_data[header.slot] = data;
 	}
+
 	void validate_slice_type(SliceTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
 		this.check_list(data.f_stars, -1);
 		this.check_node(data.f_element_type, SyntaxKind.TypeNameSyntax());
 	}
+
 	SyntaxNodeId add_slice_type(SliceTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_slice_type(data);
 		assert_that(this.slice_type_used < 2147483647);
@@ -2929,17 +3230,20 @@ class SyntaxArena {
 		this.slice_type_used = this.slice_type_used + 1;
 		return result;
 	}
+
 	SliceTypeSyntaxData slice_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.SliceTypeSyntax()));
 		return this.slice_type_data[header.slot];
 	}
+
 	void replace_slice_type(SyntaxNodeId id, SliceTypeSyntaxData data) {
 		this.validate_slice_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.SliceTypeSyntax()));
 		this.slice_type_data[header.slot] = data;
 	}
+
 	void validate_struct_declaration(StructDeclarationSyntaxData data) {
 		assert_that(data.f_concurrency_policy.kinds >= 0 && data.f_concurrency_policy.kinds <= 31 && data.f_concurrency_policy.admitted >= 0 && data.f_concurrency_policy.admitted <= 31);
 		this.check_list(data.f_allocator, syntax_kind_code(SyntaxKind.CCodeEntrySyntax()));
@@ -2955,6 +3259,7 @@ class SyntaxArena {
 		this.check_list(data.f_where_clauses, syntax_kind_code(SyntaxKind.WhereClauseSyntax()));
 		this.check_list(data.f_type_parameters, -1);
 	}
+
 	SyntaxNodeId add_struct_declaration(StructDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_struct_declaration(data);
 		assert_that(this.struct_declaration_used < 2147483647);
@@ -2972,17 +3277,20 @@ class SyntaxArena {
 		this.struct_declaration_used = this.struct_declaration_used + 1;
 		return result;
 	}
+
 	StructDeclarationSyntaxData struct_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructDeclarationSyntax()));
 		return this.struct_declaration_data[header.slot];
 	}
+
 	void replace_struct_declaration(SyntaxNodeId id, StructDeclarationSyntaxData data) {
 		this.validate_struct_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructDeclarationSyntax()));
 		this.struct_declaration_data[header.slot] = data;
 	}
+
 	void validate_struct_field_declaration(StructFieldDeclarationSyntaxData data) {
 		this.check_token(data.f_private_keyword);
 		this.check_token(data.f_readonly_keyword);
@@ -2991,6 +3299,7 @@ class SyntaxArena {
 		this.check_token(data.f_name);
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_struct_field_declaration(StructFieldDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_struct_field_declaration(data);
 		assert_that(this.struct_field_declaration_used < 2147483647);
@@ -3008,23 +3317,27 @@ class SyntaxArena {
 		this.struct_field_declaration_used = this.struct_field_declaration_used + 1;
 		return result;
 	}
+
 	StructFieldDeclarationSyntaxData struct_field_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructFieldDeclarationSyntax()));
 		return this.struct_field_declaration_data[header.slot];
 	}
+
 	void replace_struct_field_declaration(SyntaxNodeId id, StructFieldDeclarationSyntaxData data) {
 		this.validate_struct_field_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructFieldDeclarationSyntax()));
 		this.struct_field_declaration_data[header.slot] = data;
 	}
+
 	void validate_struct_initializer(StructInitializerSyntaxData data) {
 		this.check_token(data.f_open_brace);
 		this.check_list(data.f_fields, syntax_kind_code(SyntaxKind.FieldInitializerSyntax()));
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_brace);
 	}
+
 	SyntaxNodeId add_struct_initializer(StructInitializerSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_struct_initializer(data);
 		assert_that(this.struct_initializer_used < 2147483647);
@@ -3042,17 +3355,20 @@ class SyntaxArena {
 		this.struct_initializer_used = this.struct_initializer_used + 1;
 		return result;
 	}
+
 	StructInitializerSyntaxData struct_initializer(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructInitializerSyntax()));
 		return this.struct_initializer_data[header.slot];
 	}
+
 	void replace_struct_initializer(SyntaxNodeId id, StructInitializerSyntaxData data) {
 		this.validate_struct_initializer(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructInitializerSyntax()));
 		this.struct_initializer_data[header.slot] = data;
 	}
+
 	void validate_struct_local_declaration(StructLocalDeclarationSyntaxData data) {
 		this.check_token(data.f_owned_keyword);
 		this.check_node(data.f_type_name, SyntaxKind.TypeNameSyntax());
@@ -3061,6 +3377,7 @@ class SyntaxArena {
 		this.check_node(data.f_initializer, SyntaxKind.StructInitializerSyntax());
 		this.check_token(data.f_semicolon);
 	}
+
 	SyntaxNodeId add_struct_local_declaration(StructLocalDeclarationSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_struct_local_declaration(data);
 		assert_that(this.struct_local_declaration_used < 2147483647);
@@ -3078,21 +3395,25 @@ class SyntaxArena {
 		this.struct_local_declaration_used = this.struct_local_declaration_used + 1;
 		return result;
 	}
+
 	StructLocalDeclarationSyntaxData struct_local_declaration(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructLocalDeclarationSyntax()));
 		return this.struct_local_declaration_data[header.slot];
 	}
+
 	void replace_struct_local_declaration(SyntaxNodeId id, StructLocalDeclarationSyntaxData data) {
 		this.validate_struct_local_declaration(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.StructLocalDeclarationSyntax()));
 		this.struct_local_declaration_data[header.slot] = data;
 	}
+
 	void validate_swap_statement(SwapStatementSyntaxData data) {
 		this.check_node(data.f_left, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_right, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_swap_statement(SwapStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_swap_statement(data);
 		assert_that(this.swap_statement_used < 2147483647);
@@ -3110,20 +3431,24 @@ class SyntaxArena {
 		this.swap_statement_used = this.swap_statement_used + 1;
 		return result;
 	}
+
 	SwapStatementSyntaxData swap_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.SwapStatementSyntax()));
 		return this.swap_statement_data[header.slot];
 	}
+
 	void replace_swap_statement(SyntaxNodeId id, SwapStatementSyntaxData data) {
 		this.validate_swap_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.SwapStatementSyntax()));
 		this.swap_statement_data[header.slot] = data;
 	}
+
 	void validate_text_literal_expression(TextLiteralExpressionSyntaxData data) {
 		this.check_token(data.f_token);
 	}
+
 	SyntaxNodeId add_text_literal_expression(TextLiteralExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_text_literal_expression(data);
 		assert_that(this.text_literal_expression_used < 2147483647);
@@ -3141,21 +3466,25 @@ class SyntaxArena {
 		this.text_literal_expression_used = this.text_literal_expression_used + 1;
 		return result;
 	}
+
 	TextLiteralExpressionSyntaxData text_literal_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TextLiteralExpressionSyntax()));
 		return this.text_literal_expression_data[header.slot];
 	}
+
 	void replace_text_literal_expression(SyntaxNodeId id, TextLiteralExpressionSyntaxData data) {
 		this.validate_text_literal_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TextLiteralExpressionSyntax()));
 		this.text_literal_expression_data[header.slot] = data;
 	}
+
 	void validate_text_member_expression(TextMemberExpressionSyntaxData data) {
 		this.check_node(data.f_receiver, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_member);
 	}
+
 	SyntaxNodeId add_text_member_expression(TextMemberExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_text_member_expression(data);
 		assert_that(this.text_member_expression_used < 2147483647);
@@ -3173,20 +3502,24 @@ class SyntaxArena {
 		this.text_member_expression_used = this.text_member_expression_used + 1;
 		return result;
 	}
+
 	TextMemberExpressionSyntaxData text_member_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TextMemberExpressionSyntax()));
 		return this.text_member_expression_data[header.slot];
 	}
+
 	void replace_text_member_expression(SyntaxNodeId id, TextMemberExpressionSyntaxData data) {
 		this.validate_text_member_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TextMemberExpressionSyntax()));
 		this.text_member_expression_data[header.slot] = data;
 	}
+
 	void validate_throw_statement(ThrowStatementSyntaxData data) {
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
 	}
+
 	SyntaxNodeId add_throw_statement(ThrowStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_throw_statement(data);
 		assert_that(this.throw_statement_used < 2147483647);
@@ -3204,21 +3537,25 @@ class SyntaxArena {
 		this.throw_statement_used = this.throw_statement_used + 1;
 		return result;
 	}
+
 	ThrowStatementSyntaxData throw_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ThrowStatementSyntax()));
 		return this.throw_statement_data[header.slot];
 	}
+
 	void replace_throw_statement(SyntaxNodeId id, ThrowStatementSyntaxData data) {
 		this.validate_throw_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.ThrowStatementSyntax()));
 		this.throw_statement_data[header.slot] = data;
 	}
+
 	void validate_try_statement(TryStatementSyntaxData data) {
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 		this.check_list(data.f_catches, syntax_kind_code(SyntaxKind.CatchClauseSyntax()));
 	}
+
 	SyntaxNodeId add_try_statement(TryStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_try_statement(data);
 		assert_that(this.try_statement_used < 2147483647);
@@ -3236,22 +3573,26 @@ class SyntaxArena {
 		this.try_statement_used = this.try_statement_used + 1;
 		return result;
 	}
+
 	TryStatementSyntaxData try_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TryStatementSyntax()));
 		return this.try_statement_data[header.slot];
 	}
+
 	void replace_try_statement(SyntaxNodeId id, TryStatementSyntaxData data) {
 		this.validate_try_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TryStatementSyntax()));
 		this.try_statement_data[header.slot] = data;
 	}
+
 	void validate_type_name(TypeNameSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
 		this.check_list(data.f_stars, -1);
 	}
+
 	SyntaxNodeId add_type_name(TypeNameSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_type_name(data);
 		assert_that(this.type_name_used < 2147483647);
@@ -3269,20 +3610,24 @@ class SyntaxArena {
 		this.type_name_used = this.type_name_used + 1;
 		return result;
 	}
+
 	TypeNameSyntaxData type_name(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 		return this.type_name_data[header.slot];
 	}
+
 	void replace_type_name(SyntaxNodeId id, TypeNameSyntaxData data) {
 		this.validate_type_name(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 		this.type_name_data[header.slot] = data;
 	}
+
 	void validate_utf8_factory_expression(Utf8FactoryExpressionSyntaxData data) {
 		this.check_token(data.f_input);
 	}
+
 	SyntaxNodeId add_utf8_factory_expression(Utf8FactoryExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_utf8_factory_expression(data);
 		assert_that(this.utf8_factory_expression_used < 2147483647);
@@ -3300,17 +3645,20 @@ class SyntaxArena {
 		this.utf8_factory_expression_used = this.utf8_factory_expression_used + 1;
 		return result;
 	}
+
 	Utf8FactoryExpressionSyntaxData utf8_factory_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.Utf8FactoryExpressionSyntax()));
 		return this.utf8_factory_expression_data[header.slot];
 	}
+
 	void replace_utf8_factory_expression(SyntaxNodeId id, Utf8FactoryExpressionSyntaxData data) {
 		this.validate_utf8_factory_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.Utf8FactoryExpressionSyntax()));
 		this.utf8_factory_expression_data[header.slot] = data;
 	}
+
 	void validate_vector_dot_expression(VectorDotExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_open_paren);
@@ -3319,6 +3667,7 @@ class SyntaxArena {
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_vector_dot_expression(VectorDotExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_vector_dot_expression(data);
 		assert_that(this.vector_dot_expression_used < 2147483647);
@@ -3336,17 +3685,20 @@ class SyntaxArena {
 		this.vector_dot_expression_used = this.vector_dot_expression_used + 1;
 		return result;
 	}
+
 	VectorDotExpressionSyntaxData vector_dot_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorDotExpressionSyntax()));
 		return this.vector_dot_expression_data[header.slot];
 	}
+
 	void replace_vector_dot_expression(SyntaxNodeId id, VectorDotExpressionSyntaxData data) {
 		this.validate_vector_dot_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorDotExpressionSyntax()));
 		this.vector_dot_expression_data[header.slot] = data;
 	}
+
 	void validate_vector_extract_expression(VectorExtractExpressionSyntaxData data) {
 		this.check_node(data.f_container, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_subscript, SyntaxKind.ExpressionSyntax());
@@ -3356,6 +3708,7 @@ class SyntaxArena {
 		this.check_token(data.f_index);
 		this.check_token(data.f_close_bracket);
 	}
+
 	SyntaxNodeId add_vector_extract_expression(VectorExtractExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_vector_extract_expression(data);
 		assert_that(this.vector_extract_expression_used < 2147483647);
@@ -3373,23 +3726,27 @@ class SyntaxArena {
 		this.vector_extract_expression_used = this.vector_extract_expression_used + 1;
 		return result;
 	}
+
 	VectorExtractExpressionSyntaxData vector_extract_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorExtractExpressionSyntax()));
 		return this.vector_extract_expression_data[header.slot];
 	}
+
 	void replace_vector_extract_expression(SyntaxNodeId id, VectorExtractExpressionSyntaxData data) {
 		this.validate_vector_extract_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorExtractExpressionSyntax()));
 		this.vector_extract_expression_data[header.slot] = data;
 	}
+
 	void validate_vector_initializer(VectorInitializerSyntaxData data) {
 		this.check_token(data.f_open_brace);
 		this.check_list(data.f_lanes, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_brace);
 	}
+
 	SyntaxNodeId add_vector_initializer(VectorInitializerSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_vector_initializer(data);
 		assert_that(this.vector_initializer_used < 2147483647);
@@ -3407,17 +3764,20 @@ class SyntaxArena {
 		this.vector_initializer_used = this.vector_initializer_used + 1;
 		return result;
 	}
+
 	VectorInitializerSyntaxData vector_initializer(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorInitializerSyntax()));
 		return this.vector_initializer_data[header.slot];
 	}
+
 	void replace_vector_initializer(SyntaxNodeId id, VectorInitializerSyntaxData data) {
 		this.validate_vector_initializer(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorInitializerSyntax()));
 		this.vector_initializer_data[header.slot] = data;
 	}
+
 	void validate_vector_primitive_expression(VectorPrimitiveExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_open_paren);
@@ -3426,6 +3786,7 @@ class SyntaxArena {
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_vector_primitive_expression(VectorPrimitiveExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_vector_primitive_expression(data);
 		assert_that(this.vector_primitive_expression_used < 2147483647);
@@ -3443,23 +3804,27 @@ class SyntaxArena {
 		this.vector_primitive_expression_used = this.vector_primitive_expression_used + 1;
 		return result;
 	}
+
 	VectorPrimitiveExpressionSyntaxData vector_primitive_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorPrimitiveExpressionSyntax()));
 		return this.vector_primitive_expression_data[header.slot];
 	}
+
 	void replace_vector_primitive_expression(SyntaxNodeId id, VectorPrimitiveExpressionSyntaxData data) {
 		this.validate_vector_primitive_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorPrimitiveExpressionSyntax()));
 		this.vector_primitive_expression_data[header.slot] = data;
 	}
+
 	void validate_vector_reduction_expression(VectorReductionExpressionSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_open_paren);
 		this.check_node(data.f_operand, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_close_paren);
 	}
+
 	SyntaxNodeId add_vector_reduction_expression(VectorReductionExpressionSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_vector_reduction_expression(data);
 		assert_that(this.vector_reduction_expression_used < 2147483647);
@@ -3477,17 +3842,20 @@ class SyntaxArena {
 		this.vector_reduction_expression_used = this.vector_reduction_expression_used + 1;
 		return result;
 	}
+
 	VectorReductionExpressionSyntaxData vector_reduction_expression(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorReductionExpressionSyntax()));
 		return this.vector_reduction_expression_data[header.slot];
 	}
+
 	void replace_vector_reduction_expression(SyntaxNodeId id, VectorReductionExpressionSyntaxData data) {
 		this.validate_vector_reduction_expression(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorReductionExpressionSyntax()));
 		this.vector_reduction_expression_data[header.slot] = data;
 	}
+
 	void validate_vector_type(VectorTypeSyntaxData data) {
 		this.check_token(data.f_namespace_qualifier);
 		this.check_token(data.f_identifier);
@@ -3497,6 +3865,7 @@ class SyntaxArena {
 		this.check_token(data.f_lane_count);
 		this.check_token(data.f_close_angle);
 	}
+
 	SyntaxNodeId add_vector_type(VectorTypeSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_vector_type(data);
 		assert_that(this.vector_type_used < 2147483647);
@@ -3514,17 +3883,20 @@ class SyntaxArena {
 		this.vector_type_used = this.vector_type_used + 1;
 		return result;
 	}
+
 	VectorTypeSyntaxData vector_type(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorTypeSyntax()));
 		return this.vector_type_data[header.slot];
 	}
+
 	void replace_vector_type(SyntaxNodeId id, VectorTypeSyntaxData data) {
 		this.validate_vector_type(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.VectorTypeSyntax()));
 		this.vector_type_data[header.slot] = data;
 	}
+
 	void validate_where_clause(WhereClauseSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_type_parameter);
@@ -3532,6 +3904,7 @@ class SyntaxArena {
 		this.check_list(data.f_capabilities, -1);
 		this.check_list(data.f_commas, -1);
 	}
+
 	SyntaxNodeId add_where_clause(WhereClauseSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_where_clause(data);
 		assert_that(this.where_clause_used < 2147483647);
@@ -3549,17 +3922,20 @@ class SyntaxArena {
 		this.where_clause_used = this.where_clause_used + 1;
 		return result;
 	}
+
 	WhereClauseSyntaxData where_clause(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.WhereClauseSyntax()));
 		return this.where_clause_data[header.slot];
 	}
+
 	void replace_where_clause(SyntaxNodeId id, WhereClauseSyntaxData data) {
 		this.validate_where_clause(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.WhereClauseSyntax()));
 		this.where_clause_data[header.slot] = data;
 	}
+
 	void validate_while_statement(WhileStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_open_paren);
@@ -3567,6 +3943,7 @@ class SyntaxArena {
 		this.check_token(data.f_close_paren);
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_while_statement(WhileStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_while_statement(data);
 		assert_that(this.while_statement_used < 2147483647);
@@ -3584,23 +3961,27 @@ class SyntaxArena {
 		this.while_statement_used = this.while_statement_used + 1;
 		return result;
 	}
+
 	WhileStatementSyntaxData while_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.WhileStatementSyntax()));
 		return this.while_statement_data[header.slot];
 	}
+
 	void replace_while_statement(SyntaxNodeId id, WhileStatementSyntaxData data) {
 		this.validate_while_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.WhileStatementSyntax()));
 		this.while_statement_data[header.slot] = data;
 	}
+
 	void validate_with_statement(WithStatementSyntaxData data) {
 		this.check_token(data.f_keyword);
 		this.check_token(data.f_receiver);
 		this.check_node(data.f_initializer, SyntaxKind.InferredLocalDeclarationSyntax());
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
 	}
+
 	SyntaxNodeId add_with_statement(WithStatementSyntaxData data, SyntaxSpan span, int depth) {
 		this.validate_with_statement(data);
 		assert_that(this.with_statement_used < 2147483647);
@@ -3618,17 +3999,20 @@ class SyntaxArena {
 		this.with_statement_used = this.with_statement_used + 1;
 		return result;
 	}
+
 	WithStatementSyntaxData with_statement(SyntaxNodeId id) {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.WithStatementSyntax()));
 		return this.with_statement_data[header.slot];
 	}
+
 	void replace_with_statement(SyntaxNodeId id, WithStatementSyntaxData data) {
 		this.validate_with_statement(data);
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.WithStatementSyntax()));
 		this.with_statement_data[header.slot] = data;
 	}
+
 	SyntaxTokenId get_token_abi_identifier(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -3643,6 +4027,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_abi_identifier(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -3659,6 +4044,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_aggregate(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
@@ -3669,6 +4055,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_aggregate(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
@@ -3679,6 +4066,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_alignment(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -3693,6 +4081,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_alignment(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -3709,6 +4098,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_allocation_context(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BufferAllocationSyntax()) {
@@ -3723,6 +4113,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_allocation_context(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BufferAllocationSyntax()) {
@@ -3739,6 +4130,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_allocator(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -3753,6 +4145,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_allocator(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -3769,6 +4162,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_ampersand(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
@@ -3779,6 +4173,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_ampersand(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
@@ -3789,6 +4184,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_arguments(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -3807,6 +4203,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_arguments(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -3829,6 +4226,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_arms(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
@@ -3839,6 +4237,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_arms(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
@@ -3849,6 +4248,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_async_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -3863,6 +4263,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_async_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -3879,6 +4280,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_async_runtimes(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -3889,6 +4291,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_async_runtimes(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -3899,6 +4302,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_base_arguments(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
@@ -3909,6 +4313,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_base_arguments(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
@@ -3919,6 +4324,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_binding(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
@@ -3937,6 +4343,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_binding(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
@@ -3959,6 +4366,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_bindings(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumArmSyntax()) {
@@ -3969,6 +4377,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_bindings(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumArmSyntax()) {
@@ -3979,6 +4388,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_body(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
@@ -4025,6 +4435,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_body(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
@@ -4089,6 +4500,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_borrowed_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ParameterSyntax()) {
@@ -4099,6 +4511,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_borrowed_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ParameterSyntax()) {
@@ -4109,6 +4522,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_c_classes(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4119,6 +4533,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_c_classes(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4129,6 +4544,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_call(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallStatementSyntax()) {
@@ -4139,6 +4555,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_call(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallStatementSyntax()) {
@@ -4149,6 +4566,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_caller_information(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ParameterSyntax()) {
@@ -4159,6 +4577,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_caller_information(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ParameterSyntax()) {
@@ -4169,6 +4588,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_capabilities(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
@@ -4179,6 +4599,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_capabilities(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
@@ -4189,6 +4610,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_catches(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TryStatementSyntax()) {
@@ -4199,6 +4621,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_catches(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TryStatementSyntax()) {
@@ -4209,6 +4632,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_ccode(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -4223,6 +4647,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_ccode(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -4239,6 +4664,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_class_name(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
@@ -4253,6 +4679,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_class_name(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
@@ -4269,6 +4696,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_classes(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4279,6 +4707,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_classes(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4289,6 +4718,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_close(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IndexExpressionSyntax()) {
@@ -4307,6 +4737,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_close(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IndexExpressionSyntax()) {
@@ -4329,6 +4760,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_close_angle(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorTypeSyntax()) {
@@ -4339,6 +4771,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_close_angle(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorTypeSyntax()) {
@@ -4349,6 +4782,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_close_brace(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BlockStatementSyntax()) {
@@ -4375,6 +4809,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_close_brace(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BlockStatementSyntax()) {
@@ -4409,6 +4844,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_close_bracket(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -4419,6 +4855,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_close_bracket(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -4429,6 +4866,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_close_paren(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -4479,6 +4917,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_close_paren(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -4549,6 +4988,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_collection(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForeachStatementSyntax()) {
@@ -4559,6 +4999,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_collection(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForeachStatementSyntax()) {
@@ -4569,6 +5010,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_colon(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
@@ -4579,6 +5021,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_colon(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
@@ -4589,6 +5032,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_com_export(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -4599,6 +5043,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_com_export(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -4609,6 +5054,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_com_interfaces(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4619,6 +5065,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_com_interfaces(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4629,6 +5076,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_commas(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -4675,6 +5123,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_commas(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -4739,6 +5188,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxConcurrency get_concurrency_concurrency_policy(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -4753,6 +5203,7 @@ class SyntaxArena {
 		SyntaxConcurrency absent = {present = false, kinds = 0, admitted = 0};
 		return absent;
 	}
+
 	void set_concurrency_concurrency_policy(SyntaxNodeId id, SyntaxConcurrency value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -4769,6 +5220,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_condition(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForStatementSyntax()) {
@@ -4787,6 +5239,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_condition(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForStatementSyntax()) {
@@ -4809,6 +5262,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_constants(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4819,6 +5273,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_constants(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -4829,6 +5284,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_container(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IndexExpressionSyntax()) {
@@ -4843,6 +5299,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_container(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IndexExpressionSyntax()) {
@@ -4859,6 +5316,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_count(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BufferAllocationSyntax()) {
@@ -4869,6 +5327,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_count(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BufferAllocationSyntax()) {
@@ -4879,6 +5338,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_declaration(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComImportSyntax()) {
@@ -4889,6 +5349,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_declaration(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComImportSyntax()) {
@@ -4899,6 +5360,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTextId get_text_decoded_value(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CCodeEntrySyntax()) {
@@ -4909,6 +5371,7 @@ class SyntaxArena {
 		SyntaxTextId absent = {index = 0};
 		return absent;
 	}
+
 	void set_text_decoded_value(SyntaxNodeId id, SyntaxTextId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CCodeEntrySyntax()) {
@@ -4919,6 +5382,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_destination(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ConversionExpressionSyntax()) {
@@ -4937,6 +5401,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_destination(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ConversionExpressionSyntax()) {
@@ -4959,6 +5424,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	int get_int_dispatch(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -4977,6 +5443,7 @@ class SyntaxArena {
 		int absent = 0;
 		return absent;
 	}
+
 	void set_int_dispatch(SyntaxNodeId id, int value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -4999,6 +5466,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_dot(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
@@ -5009,6 +5477,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_dot(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
@@ -5019,6 +5488,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_element(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
@@ -5029,6 +5499,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_element(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
@@ -5039,6 +5510,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_element_type(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -5061,6 +5533,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_element_type(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -5089,6 +5562,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_elements(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayInitializerSyntax()) {
@@ -5099,6 +5573,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_elements(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayInitializerSyntax()) {
@@ -5109,6 +5584,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_else_body(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IfStatementSyntax()) {
@@ -5119,6 +5595,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_else_body(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IfStatementSyntax()) {
@@ -5129,6 +5606,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_else_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IfStatementSyntax()) {
@@ -5139,6 +5617,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_else_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IfStatementSyntax()) {
@@ -5149,6 +5628,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_end_of_file(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -5159,6 +5639,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_end_of_file(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -5169,6 +5650,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_entries(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForeignPolicySyntax()) {
@@ -5179,6 +5661,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_entries(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForeignPolicySyntax()) {
@@ -5189,6 +5672,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_enums(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -5199,6 +5683,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_enums(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -5209,6 +5694,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_equals_token(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -5239,6 +5725,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_equals_token(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -5279,6 +5766,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_error(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
@@ -5289,6 +5777,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_error(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
@@ -5299,6 +5788,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_exact_heap_class(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5309,6 +5799,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_exact_heap_class(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5319,6 +5810,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_exception_root(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5329,6 +5821,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_exception_root(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5339,6 +5832,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_export_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5353,6 +5847,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_export_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5369,6 +5864,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_expression(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -5411,6 +5907,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_expression(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -5469,6 +5966,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_extent(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -5479,6 +5977,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_extent(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -5489,6 +5988,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_extern_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5503,6 +6003,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_extern_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5519,6 +6020,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_factory_syntax(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -5529,6 +6031,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_factory_syntax(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -5539,6 +6042,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_failure_call(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BufferAllocationSyntax()) {
@@ -5549,6 +6053,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_failure_call(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BufferAllocationSyntax()) {
@@ -5559,6 +6064,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_fallible(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
@@ -5569,6 +6075,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_fallible(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
@@ -5579,6 +6086,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_field(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumBindingSyntax()) {
@@ -5589,6 +6097,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_field(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumBindingSyntax()) {
@@ -5599,6 +6108,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_field_name(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
@@ -5609,6 +6119,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_field_name(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
@@ -5619,6 +6130,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_fields(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5645,6 +6157,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_fields(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5679,6 +6192,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_first(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DspExpressionSyntax()) {
@@ -5689,6 +6203,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_first(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DspExpressionSyntax()) {
@@ -5699,6 +6214,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_floating_point(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5713,6 +6229,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_floating_point(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5729,6 +6246,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_foreign_export(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5739,6 +6257,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_foreign_export(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5749,6 +6268,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_foreign_import(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5759,6 +6279,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_foreign_import(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5769,6 +6290,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_foreign_policy(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5783,6 +6305,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_foreign_policy(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -5799,6 +6322,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_functions(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -5809,6 +6333,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_functions(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -5819,6 +6344,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_getter(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -5829,6 +6355,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_getter(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -5839,6 +6366,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_gobject_export(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5849,6 +6377,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_gobject_export(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -5859,6 +6388,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_identifier(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
@@ -5925,6 +6455,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_identifier(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
@@ -6019,6 +6550,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_imports(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -6029,6 +6561,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_imports(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -6039,6 +6572,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_index(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -6049,6 +6583,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_index(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -6059,6 +6594,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_indices(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorPrimitiveExpressionSyntax()) {
@@ -6069,6 +6605,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_indices(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorPrimitiveExpressionSyntax()) {
@@ -6079,6 +6616,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_initializer(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayStructInitializerSyntax()) {
@@ -6117,6 +6655,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_initializer(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayStructInitializerSyntax()) {
@@ -6169,6 +6708,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_input(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
@@ -6179,6 +6719,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_input(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
@@ -6189,6 +6730,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_is_borrowed(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -6199,6 +6741,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_is_borrowed(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -6209,6 +6752,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_is_interface(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -6219,6 +6763,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_is_interface(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -6229,6 +6774,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_is_signal(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -6243,6 +6789,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_is_signal(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -6259,6 +6806,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_key(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CCodeEntrySyntax()) {
@@ -6269,6 +6817,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_key(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CCodeEntrySyntax()) {
@@ -6279,6 +6828,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AwaitExpressionSyntax()) {
@@ -6389,6 +6939,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AwaitExpressionSyntax()) {
@@ -6549,6 +7100,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	int get_int_kind(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForeignPolicySyntax()) {
@@ -6559,6 +7111,7 @@ class SyntaxArena {
 		int absent = 0;
 		return absent;
 	}
+
 	void set_int_kind(SyntaxNodeId id, int value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForeignPolicySyntax()) {
@@ -6569,6 +7122,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_lane_count(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorTypeSyntax()) {
@@ -6579,6 +7133,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_lane_count(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorTypeSyntax()) {
@@ -6589,6 +7144,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_lanes(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorInitializerSyntax()) {
@@ -6599,6 +7155,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_lanes(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorInitializerSyntax()) {
@@ -6609,6 +7166,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_lazy_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -6619,6 +7177,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_lazy_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -6629,6 +7188,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_left(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
@@ -6647,6 +7207,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_left(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
@@ -6669,6 +7230,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_literal(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
@@ -6687,6 +7249,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_literal(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
@@ -6709,6 +7272,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_marker(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
@@ -6719,6 +7283,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_marker(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
@@ -6729,6 +7294,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_member(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
@@ -6739,6 +7305,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_member(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
@@ -6749,6 +7316,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_member_operator(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -6763,6 +7331,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_member_operator(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -6779,6 +7348,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_members(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -6793,6 +7363,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_members(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -6809,6 +7380,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_methods(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -6823,6 +7395,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_methods(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -6839,6 +7412,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_name(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -6925,6 +7499,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_name(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -7049,6 +7624,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_namespace_name(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -7059,6 +7635,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_namespace_name(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -7069,6 +7646,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_namespace_qualifier(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -7115,6 +7693,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_namespace_qualifier(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -7179,6 +7758,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_open_angle(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorTypeSyntax()) {
@@ -7189,6 +7769,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_open_angle(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorTypeSyntax()) {
@@ -7199,6 +7780,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_open_brace(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BlockStatementSyntax()) {
@@ -7225,6 +7807,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_open_brace(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BlockStatementSyntax()) {
@@ -7259,6 +7842,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_open_bracket(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -7269,6 +7853,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_open_bracket(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -7279,6 +7864,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_open_paren(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -7329,6 +7915,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_open_paren(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -7399,6 +7986,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_operand(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ConversionExpressionSyntax()) {
@@ -7417,6 +8005,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_operand(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ConversionExpressionSyntax()) {
@@ -7439,6 +8028,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_operands(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComparisonChainSyntax()) {
@@ -7457,6 +8047,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_operands(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComparisonChainSyntax()) {
@@ -7479,6 +8070,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_operation(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AwaitExpressionSyntax()) {
@@ -7489,6 +8081,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_operation(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AwaitExpressionSyntax()) {
@@ -7499,6 +8092,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_operator_token(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
@@ -7517,6 +8111,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_operator_token(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
@@ -7539,6 +8134,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_operators(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComparisonChainSyntax()) {
@@ -7549,6 +8145,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_operators(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComparisonChainSyntax()) {
@@ -7559,6 +8156,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_owned_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumPayloadSyntax()) {
@@ -7597,6 +8195,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_owned_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumPayloadSyntax()) {
@@ -7649,6 +8248,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_owner(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ReleaseStatementSyntax()) {
@@ -7659,6 +8259,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_owner(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ReleaseStatementSyntax()) {
@@ -7669,6 +8270,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_parameter(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyAccessorSyntax()) {
@@ -7679,6 +8281,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_parameter(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyAccessorSyntax()) {
@@ -7689,6 +8292,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_parameters(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -7703,6 +8307,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_parameters(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -7719,6 +8324,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_parent_class(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -7729,6 +8335,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_parent_class(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -7739,6 +8346,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_payload(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.SharedTypeSyntax()) {
@@ -7749,6 +8357,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_payload(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.SharedTypeSyntax()) {
@@ -7759,6 +8368,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_pointee(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PointerTypeSyntax()) {
@@ -7769,6 +8379,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_pointee(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PointerTypeSyntax()) {
@@ -7779,6 +8390,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_pointer(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DereferenceExpressionSyntax()) {
@@ -7789,6 +8401,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_pointer(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DereferenceExpressionSyntax()) {
@@ -7799,6 +8412,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_policy(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComImportSyntax()) {
@@ -7809,6 +8423,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_policy(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ComImportSyntax()) {
@@ -7819,6 +8434,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_private_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
@@ -7829,6 +8445,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_private_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
@@ -7839,6 +8456,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_provider(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
@@ -7849,6 +8467,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_provider(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
@@ -7859,6 +8478,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_qualifier(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumArmSyntax()) {
@@ -7869,6 +8489,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_qualifier(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumArmSyntax()) {
@@ -7879,6 +8500,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_qualifier_arguments(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -7893,6 +8515,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_qualifier_arguments(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -7909,6 +8532,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_readonly_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
@@ -7919,6 +8543,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_readonly_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
@@ -7929,6 +8554,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_receiver(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
@@ -7939,6 +8565,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_receiver(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
@@ -7949,6 +8576,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_receiver(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -7967,6 +8595,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_receiver(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -7989,6 +8618,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_receiver_place(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -8003,6 +8633,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_receiver_place(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -8019,6 +8650,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_representation(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -8033,6 +8665,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_representation(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -8049,6 +8682,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_return_type(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -8063,6 +8697,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_return_type(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -8079,6 +8714,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_right(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
@@ -8097,6 +8733,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_right(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BinaryExpressionSyntax()) {
@@ -8119,6 +8756,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_scrutinee(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
@@ -8129,6 +8767,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_scrutinee(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
@@ -8139,6 +8778,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_second(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DspExpressionSyntax()) {
@@ -8149,6 +8789,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_second(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DspExpressionSyntax()) {
@@ -8159,6 +8800,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_semicolon(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -8217,6 +8859,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_semicolon(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
@@ -8299,6 +8942,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_setter(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -8309,6 +8953,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_setter(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -8319,6 +8964,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_signal_emission(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -8333,6 +8979,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_signal_emission(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -8349,6 +8996,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_source(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.MoveExpressionSyntax()) {
@@ -8359,6 +9007,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_source(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.MoveExpressionSyntax()) {
@@ -8369,6 +9018,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_star(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DereferenceExpressionSyntax()) {
@@ -8383,6 +9033,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_star(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DereferenceExpressionSyntax()) {
@@ -8399,6 +9050,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_stars(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -8445,6 +9097,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_stars(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ArrayTypeSyntax()) {
@@ -8509,6 +9162,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_statements(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BlockStatementSyntax()) {
@@ -8519,6 +9173,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_statements(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.BlockStatementSyntax()) {
@@ -8529,6 +9184,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_status(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
@@ -8539,6 +9195,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_status(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.AsyncRuntimeSyntax()) {
@@ -8549,6 +9206,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_step(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForStatementSyntax()) {
@@ -8559,6 +9217,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_step(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ForStatementSyntax()) {
@@ -8569,6 +9228,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_structs(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -8579,6 +9239,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_structs(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -8589,6 +9250,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_subscript(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IndexExpressionSyntax()) {
@@ -8603,6 +9265,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_subscript(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IndexExpressionSyntax()) {
@@ -8619,6 +9282,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_target(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DereferenceAssignmentSyntax()) {
@@ -8637,6 +9301,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_target(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.DereferenceAssignmentSyntax()) {
@@ -8659,6 +9324,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_target(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallerInformationSyntax()) {
@@ -8669,6 +9335,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_target(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallerInformationSyntax()) {
@@ -8679,6 +9346,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_then_body(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IfStatementSyntax()) {
@@ -8689,6 +9357,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_then_body(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.IfStatementSyntax()) {
@@ -8699,6 +9368,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_throws_class(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -8717,6 +9387,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_throws_class(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -8739,6 +9410,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_token(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) {
@@ -8749,6 +9421,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_token(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) {
@@ -8759,6 +9432,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_type_applications(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -8769,6 +9443,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_type_applications(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
@@ -8779,6 +9454,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_type_arguments(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -8801,6 +9477,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_type_arguments(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
@@ -8829,6 +9506,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_type_name(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
@@ -8863,6 +9541,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_type_name(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ConstantDeclarationSyntax()) {
@@ -8909,6 +9588,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_type_parameter(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
@@ -8919,6 +9599,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_type_parameter(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.WhereClauseSyntax()) {
@@ -8929,6 +9610,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_type_parameters(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -8955,6 +9637,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_type_parameters(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -8989,6 +9672,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_underlying(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallableChannelTypeSyntax()) {
@@ -9003,6 +9687,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_underlying(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CallableChannelTypeSyntax()) {
@@ -9019,6 +9704,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_utf8_factory(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -9033,6 +9719,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_utf8_factory(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.FunctionDeclarationSyntax()) {
@@ -9049,6 +9736,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	bool get_bool_validates(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
@@ -9059,6 +9747,7 @@ class SyntaxArena {
 		bool absent = false;
 		return absent;
 	}
+
 	void set_bool_validates(SyntaxNodeId id, bool value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
@@ -9069,6 +9758,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_value(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CCodeEntrySyntax()) {
@@ -9079,6 +9769,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_value(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.CCodeEntrySyntax()) {
@@ -9089,6 +9780,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxTokenId get_token_variant(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumArmSyntax()) {
@@ -9099,6 +9791,7 @@ class SyntaxArena {
 		SyntaxTokenId absent = {index = 0};
 		return absent;
 	}
+
 	void set_token_variant(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumArmSyntax()) {
@@ -9109,6 +9802,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_variants(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumDeclarationSyntax()) {
@@ -9119,6 +9813,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_variants(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.EnumDeclarationSyntax()) {
@@ -9129,6 +9824,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId get_node_vector(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -9139,6 +9835,7 @@ class SyntaxArena {
 		SyntaxNodeId absent = {index = 0};
 		return absent;
 	}
+
 	void set_node_vector(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.VectorExtractExpressionSyntax()) {
@@ -9149,6 +9846,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxListId get_list_where_clauses(SyntaxNodeId id) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -9171,6 +9869,7 @@ class SyntaxArena {
 		SyntaxListId absent = {index = 0};
 		return absent;
 	}
+
 	void set_list_where_clauses(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
 		if (kind == SyntaxKind.ClassDeclarationSyntax()) {
@@ -9199,6 +9898,7 @@ class SyntaxArena {
 		}
 		assert_that(false);
 	}
+
 	SyntaxNodeId try_kind(SyntaxNodeId id, SyntaxKind expected) {
 		if (id.index != 0 && syntax_kind_accepts(this.kind(id), expected)) {
 			return id;
@@ -9206,24 +9906,28 @@ class SyntaxArena {
 		SyntaxNodeId none = {index = 0};
 		return none;
 	}
+
 	SyntaxSpan token_span(SyntaxTokenId id) {
 		assert_that(id.index > 0);
 		this.check_token(id);
 		SyntaxSourceId source = {index = this.token_sources[id.index - 1]};
 		return syntax_span(source, syntax_token_start(this.tokens.entries[id.index - 1]), syntax_token_end(this.tokens.entries[id.index - 1]));
 	}
+
 	owned Utf8Message token_message(SyntaxTokenId id) throws Error {
 		var output = new Utf8ByteBuilder();
 		this.write_token(id, output);
 		var result = output.snapshot();
 		return move result;
 	}
+
 	owned Utf8Message text_message(SyntaxTextId id) throws Error {
 		var output = new Utf8ByteBuilder();
 		this.write_text(id, output);
 		var result = output.snapshot();
 		return move result;
 	}
+
 	SyntaxTokenId source_token(TokenKind kind, SyntaxSpan span) throws Error {
 		var backing = this.source_span(span);
 		var bytes = backing.bytes();
@@ -9232,11 +9936,13 @@ class SyntaxArena {
 		var token = new Token(kind, move backing, false, move spelling, move empty);
 		return this.add_token(span.source, move token);
 	}
+
 	SyntaxTokenId generated_token(TokenKind kind, SyntaxSpan span, string spelling) throws Error {
 		var backing = this.source_span(span);
 		var token = generated_token(kind, move backing, spelling);
 		return this.add_token(span.source, move token);
 	}
+
 	SyntaxSourceId add_source_text(string path, string text, bool native_interface) throws Error {
 		var bytes = new u8[text.byte_length];
 		int i = 0;
@@ -9248,14 +9954,17 @@ class SyntaxArena {
 		var shared = shared_acquire(move buffer);
 		return this.add_generated_source(move shared);
 	}
+
 	int source_length(SyntaxSourceId id) {
 		var source = this.source(id);
 		return syntax_length(shared_borrow(source));
 	}
+
 	bool source_native_interface(SyntaxSourceId id) {
 		var source = this.source(id);
 		return syntax_source_native_interface(shared_borrow(source));
 	}
+
 	void replace_node_at(SyntaxListId list, int index, SyntaxNodeId node) {
 		assert_that(list.index > 0 && list.index <= this.lists.count() && node.index > 0);
 		int expected = syntax_list_element(this.lists.entries[list.index - 1]);
@@ -9263,10 +9972,12 @@ class SyntaxArena {
 		this.check_node(node, syntax_kind_from_code(expected));
 		syntax_list_replace(this.lists.entries[list.index - 1], index, node.index);
 	}
+
 	SyntaxCheckpoint checkpoint() {
 		SyntaxCheckpoint result = {used = this.used, address_of_expression_used = this.address_of_expression_used, array_initializer_used = this.array_initializer_used, array_struct_initializer_used = this.array_struct_initializer_used, array_type_used = this.array_type_used, assignment_statement_used = this.assignment_statement_used, async_runtime_used = this.async_runtime_used, await_expression_used = this.await_expression_used, await_statement_used = this.await_statement_used, binary_expression_used = this.binary_expression_used, block_statement_used = this.block_statement_used, boolean_literal_expression_used = this.boolean_literal_expression_used, break_statement_used = this.break_statement_used, buffer_allocation_used = this.buffer_allocation_used, c_code_entry_used = this.c_code_entry_used, call_expression_used = this.call_expression_used, call_statement_used = this.call_statement_used, callable_channel_type_used = this.callable_channel_type_used, caller_information_used = this.caller_information_used, catch_clause_used = this.catch_clause_used, class_declaration_used = this.class_declaration_used, com_import_used = this.com_import_used, comparison_chain_used = this.comparison_chain_used, compilation_unit_used = this.compilation_unit_used, constant_declaration_used = this.constant_declaration_used, constructor_initializer_used = this.constructor_initializer_used, continue_statement_used = this.continue_statement_used, conversion_expression_used = this.conversion_expression_used, dereference_assignment_used = this.dereference_assignment_used, dereference_expression_used = this.dereference_expression_used, dsp_expression_used = this.dsp_expression_used, enum_arm_used = this.enum_arm_used, enum_binding_used = this.enum_binding_used, enum_declaration_used = this.enum_declaration_used, enum_payload_used = this.enum_payload_used, enum_variant_used = this.enum_variant_used, field_access_expression_used = this.field_access_expression_used, field_assignment_statement_used = this.field_assignment_statement_used, field_initializer_used = this.field_initializer_used, float_literal_expression_used = this.float_literal_expression_used, for_statement_used = this.for_statement_used, foreach_statement_used = this.foreach_statement_used, foreign_policy_used = this.foreign_policy_used, function_declaration_used = this.function_declaration_used, generic_type_application_used = this.generic_type_application_used, heap_object_construction_used = this.heap_object_construction_used, if_statement_used = this.if_statement_used, index_expression_used = this.index_expression_used, indexed_assignment_used = this.indexed_assignment_used, inferred_local_declaration_used = this.inferred_local_declaration_used, integer_literal_expression_used = this.integer_literal_expression_used, lifecycle_declaration_used = this.lifecycle_declaration_used, local_declaration_used = this.local_declaration_used, match_statement_used = this.match_statement_used, move_expression_used = this.move_expression_used, name_expression_used = this.name_expression_used, non_null_type_used = this.non_null_type_used, null_pointer_expression_used = this.null_pointer_expression_used, owner_slots_type_used = this.owner_slots_type_used, parameter_used = this.parameter_used, parenthesized_expression_used = this.parenthesized_expression_used, pointer_type_used = this.pointer_type_used, prefix_expression_used = this.prefix_expression_used, property_accessor_used = this.property_accessor_used, property_declaration_used = this.property_declaration_used, release_statement_used = this.release_statement_used, return_statement_used = this.return_statement_used, shared_type_used = this.shared_type_used, short_circuit_expression_used = this.short_circuit_expression_used, slice_type_used = this.slice_type_used, struct_declaration_used = this.struct_declaration_used, struct_field_declaration_used = this.struct_field_declaration_used, struct_initializer_used = this.struct_initializer_used, struct_local_declaration_used = this.struct_local_declaration_used, swap_statement_used = this.swap_statement_used, text_literal_expression_used = this.text_literal_expression_used, text_member_expression_used = this.text_member_expression_used, throw_statement_used = this.throw_statement_used, try_statement_used = this.try_statement_used, type_name_used = this.type_name_used, utf8_factory_expression_used = this.utf8_factory_expression_used, vector_dot_expression_used = this.vector_dot_expression_used, vector_extract_expression_used = this.vector_extract_expression_used, vector_initializer_used = this.vector_initializer_used, vector_primitive_expression_used = this.vector_primitive_expression_used, vector_reduction_expression_used = this.vector_reduction_expression_used, vector_type_used = this.vector_type_used, where_clause_used = this.where_clause_used, while_statement_used = this.while_statement_used, with_statement_used = this.with_statement_used, tokens = this.tokens.count(), texts = this.texts.count(), lists = this.lists.count(), generated_sources = this.generated_sources.count()};
 		return result;
 	}
+
 	void rewind(SyntaxCheckpoint checkpoint) {
 		assert_that(checkpoint.used <= this.used);
 		this.used = checkpoint.used;
@@ -9461,6 +10172,7 @@ class SyntaxArena {
 			var retired = this.generated_sources.take(this.generated_sources.count() - 1);
 		}
 	}
+
 	owned Utf8Message type_message(SyntaxNodeId type) throws Error {
 		this.check_node(type, SyntaxKind.TypeNameSyntax());
 		assert_that(type.index > 0);
@@ -9591,11 +10303,13 @@ class SyntaxArena {
 		var result = output.snapshot();
 		return move result;
 	}
+
 	int payload_length(SyntaxTokenId token) {
 		assert_that(token.index > 0);
 		this.check_token(token);
 		return syntax_token_payload_length(this.tokens.entries[token.index - 1]);
 	}
+
 	owned Utf8Message payload_hex(SyntaxTokenId token) throws Error {
 		assert_that(token.index > 0);
 		this.check_token(token);
@@ -9604,22 +10318,27 @@ class SyntaxArena {
 		var result = output.snapshot();
 		return move result;
 	}
+
 	bool computed_is_async(SyntaxNodeId node) {
 		var token = this.get_token_async_keyword(node);
 		return token.index != 0;
 	}
+
 	bool computed_is_lazy(SyntaxNodeId node) {
 		var token = this.get_token_lazy_keyword(node);
 		return token.index != 0;
 	}
+
 	bool computed_is_constructor(SyntaxNodeId node) {
 		var name = this.get_token_name(node);
 		return this.token_is(name, "init");
 	}
+
 	bool computed_is_rethrow(SyntaxNodeId node) {
 		var expression = this.get_node_expression(node);
 		return expression.index == 0;
 	}
+
 	bool computed_is_c_import(SyntaxNodeId node) {
 		var introducer = this.get_token_extern_keyword(node);
 		if (introducer.index != 0) {
@@ -9632,6 +10351,7 @@ class SyntaxArena {
 		int code = this.get_int_kind(policy);
 		return code == syntax_policy_lookup("CImport") || code == syntax_policy_lookup("GObjectImport");
 	}
+
 	bool computed_is_c_export(SyntaxNodeId node) {
 		var introducer = this.get_token_export_keyword(node);
 		if (introducer.index != 0) {
@@ -9643,21 +10363,30 @@ class SyntaxArena {
 		}
 		return this.get_int_kind(policy) == syntax_policy_lookup("CExport");
 	}
+
 	property int generated_source_count {
 		get {
 			return this.generated_sources.count();
 		}
 	}
+
 	SyntaxPolicy policy(SyntaxNodeId node) {
 		return syntax_policy_from_code(this.get_int_kind(node));
 	}
+
 	SyntaxDispatch dispatch(SyntaxNodeId node) {
 		return syntax_dispatch_from_code(this.get_int_dispatch(node));
 	}
+
 	SyntaxNodeId get_node_foreign_member(SyntaxNodeId id) { var header = this.header(id); return header.foreign_member; }
+
 	void set_node_foreign_member(SyntaxNodeId id, SyntaxNodeId value) { this.check_node(value, SyntaxKind.ForeignPolicySyntax()); assert_that(id.index > 0 && id.index < this.used); this.headers[id.index].foreign_member = value; }
+
 	bool get_bool_module_internal(SyntaxNodeId id) { var header = this.header(id); return header.module_internal; }
+
 	void set_bool_module_internal(SyntaxNodeId id, bool value) { assert_that(id.index > 0 && id.index < this.used); this.headers[id.index].module_internal = value; }
+
 	SyntaxListId get_list_foreign_channels(SyntaxNodeId id) { var header = this.header(id); return header.foreign_channels; }
+
 	void set_list_foreign_channels(SyntaxNodeId id, SyntaxListId value) { this.check_list(value, syntax_kind_code(SyntaxKind.ForeignPolicySyntax())); assert_that(id.index > 0 && id.index < this.used); this.headers[id.index].foreign_channels = value; }
 }

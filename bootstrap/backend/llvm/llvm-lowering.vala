@@ -24,6 +24,7 @@ internal class LlvmFunctionBinding : Object {
 		this.type = type;
 		this.value = value;
 	}
+
 }
 
 public class LlvmLowering : Object {
@@ -535,5 +536,6 @@ public class LlvmLowering : Object {
 			throw new LlvmError.INVALID_INPUT ("internal LLVM input error: C external symbol '%s' conflicts with a native implementation", symbol);
 		}
 	}
+
 }
 }

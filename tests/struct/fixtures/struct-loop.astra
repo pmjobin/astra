@@ -6,7 +6,7 @@ int count(int n) {
 		c.value = c.value + 1;
 		c.flip = !c.flip;
 	}
-	if (c.flip) { return c.value * 10 + 1; }
+	if (c.flip) return c.value * 10 + 1;
 	return c.value * 10;
 }
 
@@ -18,16 +18,16 @@ int transfers(int n) {
 		c.value = c.value + 1;
 		c.flip = !c.flip;
 		body.value = body.value + 1;
-		if (body.value == 2) { continue; }
-		if (body.value == 5) { break; }
+		if (body.value == 2) continue;
+		if (body.value == 5) break;
 		sum = sum + body.value;
 	}
-	if (c.flip) { return sum * 100 + c.value * 10 + 1; }
+	if (c.flip) return sum * 100 + c.value * 10 + 1;
 	return sum * 100 + c.value * 10;
 }
 
 int main() {
-	if (count(0) != 0 || count(1) != 11 || count(10) != 100 || count(11) != 111) { return 1; }
-	if (transfers(0) != 0 || transfers(1) != 111 || transfers(20) != 851) { return 2; }
+	if (count(0) != 0 || count(1) != 11 || count(10) != 100 || count(11) != 111) return 1;
+	if (transfers(0) != 0 || transfers(1) != 111 || transfers(20) != 851) return 2;
 	return 0;
 }

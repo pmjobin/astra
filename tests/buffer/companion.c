@@ -7,14 +7,17 @@
 
 void *__real_calloc(size_t count, size_t size);
 void __real_free(void *pointer);
+
 static struct {
 	void *pointer;
 	int alive;
 } allocations[4096];
+
 static struct {
 	int32_t id;
 	int alive;
 } resources[256];
+
 static int next_id;
 static int fail_allocation;
 static int marker;
@@ -36,6 +39,7 @@ void *__wrap_calloc(size_t count, size_t size) {
 	fflush(stdout);
 	return pointer;
 }
+
 void __wrap_free(void *pointer) {
 	assert(pointer);
 	for (int i = next_id; i > 0; i--) {
@@ -50,6 +54,7 @@ void __wrap_free(void *pointer) {
 	}
 	assert(!"free of a nonlive or untracked buffer");
 }
+
 void *bb_resource(int32_t id) {
 	assert(id > 0 && id < 256 && !resources[id].alive);
 	resources[id].id = id;
@@ -58,6 +63,7 @@ void *bb_resource(int32_t id) {
 	fflush(stdout);
 	return &resources[id];
 }
+
 int32_t bb_id(void *pointer) {
 	for (int i = 1; i < 256; i++) {
 		if (pointer == &resources[i]) {
@@ -68,17 +74,20 @@ int32_t bb_id(void *pointer) {
 	assert(!"invalid resource");
 	return 0;
 }
+
 void bb_release(void *pointer) {
 	int id = bb_id(pointer);
 	resources[id].alive = 0;
 	printf("R-%d\n", id);
 	fflush(stdout);
 }
+
 int32_t bb_mark(int32_t value) {
 	printf("M%d\n", value);
 	fflush(stdout);
 	return value;
 }
+
 int32_t bb_live(void) {
 	int count = 0;
 	for (int i = 1; i <= next_id; i++) {
@@ -86,22 +95,27 @@ int32_t bb_live(void) {
 	}
 	return count;
 }
+
 void bb_fail_next(void) {
 	fail_allocation = 1;
 }
+
 void *bb_pointer(void) {
 	return &marker;
 }
+
 int32_t bb_f32_zero(float value) {
 	uint32_t bits;
 	memcpy(&bits, &value, sizeof bits);
 	return bits == 0;
 }
+
 int32_t bb_f64_zero(double value) {
 	uint64_t bits;
 	memcpy(&bits, &value, sizeof bits);
 	return bits == 0;
 }
+
 __attribute__((destructor)) static void verify_final_owners(void) {
 	for (int i = 1; i <= next_id; i++) {
 		assert(!allocations[i].alive);

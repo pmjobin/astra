@@ -159,4 +159,5 @@ int main(string[] args) {
 	Test.add_func ("/vecmem/semantic/deferrals-and-exact-store-types", diagnostics);
 	return Test.run ();
 }
+
 }

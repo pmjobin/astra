@@ -57,4 +57,5 @@ int main(string[] args) {
 	Test.add_func ("/slice-bound/nabi/old-profiles-components-results-and-ordinals", malformed);
 	return Test.run ();
 }
+
 }

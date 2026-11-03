@@ -2,9 +2,11 @@
 #include "allocation-12.h"
 #include <stdio.h>
 extern AstraAlloc12Domain BAG_DOMAIN, DIAGNOSTIC_DOMAIN;
+
 void bag_event(int32_t value) {
 	printf("%d,", value);
 }
+
 int32_t bag_probe(int32_t phase) {
 	AstraAlloc12Domain *d = &BAG_DOMAIN;
 	if (phase == 1) {

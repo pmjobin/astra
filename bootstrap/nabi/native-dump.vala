@@ -245,5 +245,6 @@ public class NativeAbiDump : Object {
 		line (2, ")");
 		line (1, ")");
 	}
+
 }
 }

@@ -3,18 +3,18 @@
 int main() {
 	i16<4> v = {1,2,3,4};
 	i16<4>* p = &v;
-	if ((*p)[2] != 3) { return 1; }
+	if ((*p)[2] != 3) return 1;
 	*p = insert(*p,3,42);
 	i16<4> expected = {1,2,3,42};
-	if (!all(v == expected)) { return 2; }
+	if (!all(v == expected)) return 2;
 	*p = shuffle(*p,3,2,1,0);
 	i16<4> reversed = {42,3,2,1};
-	if (!all(v == reversed)) { return 3; }
+	if (!all(v == reversed)) return 3;
 	bool<4> mask = {true,false,true,false};
 	*p = select(mask,*p,expected);
 	i16<4> selected = {42,2,2,42};
-	if (!all(v == selected)) { return 4; }
+	if (!all(v == selected)) return 4;
 	*p = splat(9,4);
-	if (!all(v == splat(9,4))) { return 5; }
+	if (!all(v == splat(9,4))) return 5;
 	return 0;
 }

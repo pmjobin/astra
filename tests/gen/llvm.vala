@@ -9,6 +9,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void emission() throws GLib.Error {
 	var valid = build (read ("identity"));
 	var nabi = NativeAbiBuilder.build (valid);
@@ -46,6 +47,7 @@ private void emission() throws GLib.Error {
 	string recursive = lower (build (read ("recursive"))).dump ();
 	assert (recursive.contains ("call fastcc double") && recursive.contains ("define internal fastcc double"));
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (read ("property"));
 	var witness = WeakRef (ssa.functions[ssa.functions.length - 1]);
@@ -61,6 +63,7 @@ private void lifetime() throws GLib.Error {
 	FileUtils.unlink (directory + "/gen.o");
 	DirUtils.remove (directory);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -70,4 +73,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

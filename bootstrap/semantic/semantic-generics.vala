@@ -12,6 +12,7 @@ public class GenericCapabilitySymbol : Object {
 	internal GenericCapabilitySymbol (GenericCapabilityIdentity identity) {
 		this.identity = identity;
 	}
+
 }
 
 public class GenericCapabilityNamespace : Object {
@@ -22,9 +23,11 @@ public class GenericCapabilityNamespace : Object {
 			names.insert (symbol.name, symbol);
 		}
 	}
+
 	public GenericCapabilitySymbol? resolve(string name) {
 		return names.lookup (name);
 	}
+
 }
 
 public class GenericCapabilityRequirement : Object {
@@ -37,6 +40,7 @@ public class GenericCapabilityRequirement : Object {
 		this.capability = capability;
 		this.span = span;
 	}
+
 }
 
 public class CheckedGenericCapabilityOperation : CheckedExpression {
@@ -53,6 +57,7 @@ public class CheckedGenericCapabilityOperation : CheckedExpression {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 public class TypeParameterSymbol : Symbol {
@@ -65,6 +70,7 @@ public class TypeParameterSymbol : Symbol {
 		this.ordinal = ordinal;
 		this.semantic_type = new TypeParameterType (name, capabilities);
 	}
+
 }
 
 public class GenericFunctionSymbol : FunctionSymbol {
@@ -77,6 +83,7 @@ public class GenericFunctionSymbol : FunctionSymbol {
 		base (span, name_span, result, parameters, contract, cleanup, CallableDomain.NATIVE, name);
 		this.type_parameters = type_parameters;
 	}
+
 }
 
 internal delegate FunctionSymbol? GenericOriginTarget(CallExpressionSyntax call, HashTable<string, SemanticType> locals, TypeSubstitution? substitution);
@@ -94,6 +101,7 @@ internal class SourceResultOriginRequest : Object {
 		this.arguments = arguments;
 		this.substitution = substitution;
 	}
+
 }
 
 // Source derives a symbolic equation before any concrete caller is checked.
@@ -131,6 +139,7 @@ internal class GenericSourceResultOrigins : Object {
 			}
 		}
 	}
+
 	private GenericResultOrigins expression(ExpressionSyntax? syntax) {
 		if (syntax == null || syntax is NullPointerExpressionSyntax) {
 			return new GenericResultOrigins ();
@@ -186,6 +195,7 @@ internal class GenericSourceResultOrigins : Object {
 		}
 		return new GenericResultOrigins (GenericResultOrigins.UNKNOWN);
 	}
+
 	private void statement(StatementSyntax syntax) {
 		if (syntax is BlockStatementSyntax) {
 			var declared_names = new GenericArray<string> ();
@@ -296,10 +306,12 @@ internal class GenericSourceResultOrigins : Object {
 			}
 		}
 	}
+
 	internal GenericResultOrigins derive(BlockStatementSyntax body) {
 		statement (body);
 		return result;
 	}
+
 }
 
 public class CheckedGenericFunction : CheckedFunction {
@@ -308,6 +320,7 @@ public class CheckedGenericFunction : CheckedFunction {
 	internal CheckedGenericFunction (GenericFunctionSymbol symbol, GenericArray<LocalSymbol> locals, CheckedBlockStatement body) {
 		base (symbol, locals, body);
 	}
+
 }
 
 public class CheckedGenericCall : CheckedCallExpression {
@@ -321,6 +334,7 @@ public class CheckedGenericCall : CheckedCallExpression {
 			this.target_requirements.add (requirement);
 		}
 	}
+
 }
 
 public class CheckedGenericCallStatement : CheckedCallStatement {
@@ -334,5 +348,6 @@ public class CheckedGenericCallStatement : CheckedCallStatement {
 			this.target_requirements.add (requirement);
 		}
 	}
+
 }
 }

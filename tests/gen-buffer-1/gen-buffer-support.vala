@@ -54,4 +54,5 @@ private CoreProgram sample() {
 	program.generic_functions.add (factory);
 	return program;
 }
+
 }

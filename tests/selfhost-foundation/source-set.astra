@@ -6,6 +6,7 @@ owned shared SourceBuffer set_test_source(string path, int value) throws Error {
 	var shared = shared_acquire(move unique);
 	return move shared;
 }
+
 void set_test_add(Vector<SourceEntry> entries, owned shared SourceBuffer source) {
 	if (entries.count() == entries.capacity()) {
 		assert_that(entries.reserve(entries.count() * 2 + 1));
@@ -13,6 +14,7 @@ void set_test_add(Vector<SourceEntry> entries, owned shared SourceBuffer source)
 	var entry = new SourceEntry(move source);
 	assert_that(entries.append(move entry));
 }
+
 void set_test_scale(int count) throws Error {
 	assert_that(count > 0 && count <= 65536);
 	var entries = new Vector<SourceEntry>(count);
@@ -39,6 +41,7 @@ void set_test_scale(int count) throws Error {
 	}
 	println("SOURCE_SET_SCALE_OK");
 }
+
 int main(string[] args) {
 	try {
 		if (len(args) == 3 && args[1] == "--scale") {

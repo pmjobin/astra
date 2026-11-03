@@ -223,4 +223,5 @@ private void register_driver() {
 	add ("/exec/cli/target-unsupported", () => cli_error ({"--target", "some-target", "one.astra"}, "astrac: unsupported target 'some-target'; supported selections are"));
 	add ("/exec/cli/run-unsupported", () => cli_error ({"--run", "one.astra"}));
 }
+
 }

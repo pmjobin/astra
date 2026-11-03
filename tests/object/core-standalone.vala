@@ -127,4 +127,5 @@ int main(string[] args) {
 	Test.add_func ("/object/core/exact-class-null-identity-comparison", identity);
 	return Test.run ();
 }
+
 }

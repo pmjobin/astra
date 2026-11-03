@@ -1,5 +1,7 @@
 extern(C) int args_mark(int event);
+
 extern(C) int args_index();
+
 [CCode(text_abi = "utf8-i32")]
 extern(C) int args_observe(borrowed string text);
 
@@ -10,16 +12,19 @@ struct Pair {
 
 class State {
 	owned int[] data;
+
 	init(string[] values) {
 		this.data = new int[len(values)];
 		args_mark(20);
 	}
+
 	int size() { return len(this.data); }
+
 	deinit() { args_mark(40); }
 }
 
 int mixed(int tag, string[] values, Pair pair, f32<2> vector, owned int[] buffer, State state, int index) {
-	if (tag != pair.first || pair.second != 2.5d || vector[0] != 1.0 || len(buffer) != state.size()) { return 80; }
+	if (tag != pair.first || pair.second != 2.5d || vector[0] != 1.0 || len(buffer) != state.size()) return 80;
 	var text = values[index];
 	args_observe(text);
 	return text.byte_length;
@@ -34,17 +39,20 @@ int main(string[] args) {
 	Pair pair = {first = 7, second = 2.5d};
 	f32<2> vector = {1.0, 2.0};
 	var n = mixed(7, args, pair, vector, move buffer, state, index);
-	if (false && args[index] == "unused") { return 81; }
-	if (true || args[index] == "unused") { args_mark(30); }
+	if (false && args[index] == "unused") return 81;
+	if (true || args[index] == "unused") args_mark(30);
 	var i = 0;
 	while (i < len(args)) {
 		var value = args[i];
-		if (i == index && args[i] != args[index]) { return 83; }
-		if (i != index || args[i] == args[index]) { args_mark(60); }
-		if ((i == index && value.byte_length != n) || (i as u8) as int != i) { return 82; }
+		if (i == index && args[i] != args[index]) return 83;
+		if (i != index || args[i] == args[index]) args_mark(60);
+		if ((i == index && value.byte_length != n) || (i as u8) as int != i) return 82;
 		i = i + 1;
 	}
 	assert_code(n >= 0, 75);
-	if (!println(args[index])) { args_mark(50); return 1; }
+	if (!println(args[index])) {
+		args_mark(50);
+		return 1;
+	}
 	return 0;
 }

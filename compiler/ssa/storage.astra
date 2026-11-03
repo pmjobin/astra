@@ -1,67 +1,101 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int ssa_add_value(SsaData data, SsaValue row) {
-	if (!data.room(data.value_count)) { return 0; }
+	if (!data.room(data.value_count)) return 0;
 	if (data.value_count == len(data.values)) {
 		var grown = new SsaValue[syntax_grown_capacity(len(data.values), data.value_count + 1)];
-		int i = 0; while (i < data.value_count) { grown[i] = data.values[i]; i = i + 1; }
+		int i = 0; while (i < data.value_count) {
+			grown[i] = data.values[i];
+			i = i + 1;
+		}
 		swap(data.values, grown);
 	}
 	data.values[data.value_count] = row; data.value_count = data.value_count + 1; return data.value_count;
 }
+
 int ssa_add_variable(SsaData data, SsaVariable row) {
-	if (!data.room(data.variable_count)) { return 0; }
+	if (!data.room(data.variable_count)) return 0;
 	if (data.variable_count == len(data.variables)) {
 		var grown = new SsaVariable[syntax_grown_capacity(len(data.variables), data.variable_count + 1)];
-		int i = 0; while (i < data.variable_count) { grown[i] = data.variables[i]; i = i + 1; }
+		int i = 0; while (i < data.variable_count) {
+			grown[i] = data.variables[i];
+			i = i + 1;
+		}
 		swap(data.variables, grown);
 	}
 	data.variables[data.variable_count] = row; data.variable_count = data.variable_count + 1; return data.variable_count;
 }
+
 int ssa_add_use(SsaData data, SsaUse row) {
-	if (!data.room(data.use_count)) { return 0; }
+	if (!data.room(data.use_count)) return 0;
 	if (data.use_count == len(data.uses)) {
 		var grown = new SsaUse[syntax_grown_capacity(len(data.uses), data.use_count + 1)];
-		int i = 0; while (i < data.use_count) { grown[i] = data.uses[i]; i = i + 1; }
+		int i = 0; while (i < data.use_count) {
+			grown[i] = data.uses[i];
+			i = i + 1;
+		}
 		swap(data.uses, grown);
 	}
 	data.uses[data.use_count] = row; data.use_count = data.use_count + 1; return data.use_count;
 }
+
 int ssa_add_argument(SsaData data, SsaArgument row) {
-	if (!data.room(data.argument_count)) { return 0; }
+	if (!data.room(data.argument_count)) return 0;
 	if (data.argument_count == len(data.arguments)) {
 		var grown = new SsaArgument[syntax_grown_capacity(len(data.arguments), data.argument_count + 1)];
-		int i = 0; while (i < data.argument_count) { grown[i] = data.arguments[i]; i = i + 1; }
+		int i = 0; while (i < data.argument_count) {
+			grown[i] = data.arguments[i];
+			i = i + 1;
+		}
 		swap(data.arguments, grown);
 	}
 	data.arguments[data.argument_count] = row; data.argument_count = data.argument_count + 1; return data.argument_count;
 }
+
 int ssa_variable_for(SsaData data, int kind, int origin) {
-	int i = 0; while (i < data.variable_count) { if (data.variables[i].kind == kind && data.variables[i].origin == origin) { return i + 1; } i = i + 1; } return 0;
+	int i = 0; while (i < data.variable_count) {
+		if (data.variables[i].kind == kind && data.variables[i].origin == origin) return i + 1;
+		i = i + 1;
+	} return 0;
 }
+
 int ssa_temp_value(SsaData data, int temp) {
-	int i = 0; while (i < data.instruction_count) { if (data.instructions[i].origin.result == temp && temp != 0) { return data.instructions[i].result; } i = i + 1; } return 0;
+	int i = 0; while (i < data.instruction_count) {
+		if (data.instructions[i].origin.result == temp && temp != 0) return data.instructions[i].result;
+		i = i + 1;
+	} return 0;
 }
+
 bool ssa_scalar(TypeId type, int flags) { return type.index >= 1 && type.index <= 13 && flags == 0; }
+
 // A sufficient local proof, deliberately conservative. No address operation,
 // move, borrow, field observer, cleanup or indirect call can expose this place.
 bool ssa_promotable(CoreData core, CfgData cfg, int place) {
 	var p = core.places[place - 1];
-	if (!ssa_scalar(p.type, p.flags) || p.parent != 0 || !p.leaf) { return false; }
+	if (!ssa_scalar(p.type, p.flags) || p.parent != 0 || !p.leaf) return false;
 	int i = 0;
 	while (i < cfg.instruction_count) {
 		var row = cfg.instructions[i];
-		if (row.value.place == place && (row.opcode != 3 && row.opcode != 21 && row.opcode != 22)) { return false; }
-		if (row.opcode == 3 && row.value.place == place && row.value.flags != 0) { return false; }
+		if (row.value.place == place && (row.opcode != 3 && row.opcode != 21 && row.opcode != 22)) return false;
+		if (row.opcode == 3 && row.value.place == place && row.value.flags != 0) return false;
 		i = i + 1;
 	}
 	i = 0;
-	while (i < core.place_count) { if (core.places[i].parent == place) { return false; } i = i + 1; }
+	while (i < core.place_count) {
+		if (core.places[i].parent == place) return false;
+		i = i + 1;
+	}
 	return true;
 }
+
 void ssa_set_status(SsaData data, int status) { data.status = status; }
+
 void ssa_set_graph(SsaData data, owned SsaGraph graph) { data.graph = move graph; }
+
 // Charge conservative bounded scan work before unmetered arena setup loops.
 bool ssa_reserve_work(SsaBudget budget, int count, int width) {
-	if (count < 0 || width < 1 || count > budget.remaining / width) { budget.exhausted = true; return false; }
+	if (count < 0 || width < 1 || count > budget.remaining / width) {
+		budget.exhausted = true;
+		return false;
+	}
 	return budget.take(count * width);
 }

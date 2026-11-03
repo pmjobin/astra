@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Plain<T> { T value; }
+
 struct Inner { int value; }
+
 struct Outer { Inner inner; bool ready; }
+
 struct Bag { int tag; owned R resource; }
+
 T identity<T>(T value) { return value; }
+
 int main() {
 	Plain<int> plain={value=21}; var copy=plain; copy.value=identity<int>(copy.value)*2;
 	Outer outer={inner={value=21}, ready=true}; var nested=outer; nested.inner.value=42;
 	{
 		Bag bag={tag=copy.value, resource=make(6)};
 		var moved=move bag;
-		if (moved.tag != 42 || plain.value != 21 || outer.inner.value != 21 || nested.inner.value != 42) { return 81; }
+		if (moved.tag != 42 || plain.value != 21 || outer.inner.value != 21 || nested.inner.value != 42) return 81;
 		mark(60);
 	}
-	if (live() != 0) { return 82; }
+	if (live() != 0) return 82;
 	return 42;
 }

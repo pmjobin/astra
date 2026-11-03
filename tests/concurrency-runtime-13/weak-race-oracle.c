@@ -12,6 +12,7 @@ static int arrived;
 static int released;
 static int destroyed;
 static int expected_workers = 4, schedule_seed;
+
 int32_t race_prepare(int32_t workers, int32_t seed) {
 	assert(workers >= 2 && workers <= 8 && arrived == 0);
 	expected_workers = workers;

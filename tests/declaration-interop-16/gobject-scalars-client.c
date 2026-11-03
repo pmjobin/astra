@@ -8,9 +8,11 @@
 #include <stddef.h>
 typedef struct _Astra16Session Astra16Session;
 typedef struct go16_native_handle NativeHandle;
+
 typedef struct {
 	int32_t domain, code;
 } NativeError;
+
 // Independent GLib and C declarations; the emitted SDK does not define this oracle.
 extern GType astra16_session_get_type(void);
 extern Astra16Session *astra16_session_new(gint, gboolean, gdouble, GError **);
@@ -32,15 +34,18 @@ extern gboolean astra16_session_try_maybe_visit(Astra16Session *, gboolean, Flag
 extern gboolean astra16_session_try_deliver(Astra16Session *, gdouble, SinkCallback, gpointer, GError **);
 extern gboolean astra16_session_try_eval_refs(Astra16Session *, gint64, gdouble *, guint *, gboolean, gint64 *, GError **);
 static guint callback_calls;
+
 static gboolean flag_callback(gpointer data, gboolean input) {
 	assert(data == &callback_calls && input == TRUE);
 	++callback_calls;
 	return 7;
 }
+
 static void sink_callback(gpointer data, gdouble input) {
 	assert(data == &callback_calls && input == 1.25);
 	++callback_calls;
 }
+
 static void callbacks_and_refs(Astra16Session *object) {
 	GError *error = NULL;
 	gboolean result = FALSE;
@@ -68,6 +73,7 @@ extern gboolean astra16_session_try_counted_text(Astra16Session *, GBytes **, GE
 extern gboolean astra16_session_try_terminated_length(Astra16Session *, gchar *, gint *, GError **);
 extern gboolean astra16_session_try_terminated(Astra16Session *, gchar **, GError **);
 extern gboolean astra16_session_try_forbidden_nul(Astra16Session *, gchar **, GError **);
+
 static void payloads(Astra16Session *object) {
 	GError *error = NULL;
 	const guint8 data[] = {1, 0, 254};
@@ -114,8 +120,10 @@ typedef struct {
 	guint64 stamp;
 	gfloat weight;
 } IndependentSample;
+
 _Static_assert(sizeof(IndependentSample) == 40 && _Alignof(IndependentSample) == 8 && offsetof(IndependentSample, enabled) == 16 && offsetof(IndependentSample, mask) == 20 && offsetof(IndependentSample, stamp) == 24 && offsetof(IndependentSample, weight) == 32, "independent GLib BOOL32 POD oracle");
 extern gboolean astra16_session_try_adjust(Astra16Session *, IndependentSample *, IndependentSample **, GError **);
+
 static void records(Astra16Session *object) {
 	IndependentSample input = {2, 3.5, 7, 4000000000u, UINT64_C(9000000001), 1.25f}, *result = NULL;
 	GError *error = NULL;
@@ -137,11 +145,14 @@ extern gboolean astra16_session_try_lookup(Astra16Session *, gboolean, Astra16It
 extern gboolean astra16_session_try_optional(Astra16Session *, Astra16Item *, gint *, GError **);
 extern gboolean astra16_session_try_watched(Astra16Session *, Astra16Item *, void (*)(gpointer), gpointer, gint *, GError **);
 extern int32_t go16_item_destroyed_count(void);
+
 static void release_argument(gpointer value) {
 	g_object_unref(value);
 	assert(go16_item_destroyed_count() == 0);
 }
+
 extern gboolean astra16_session_try_read_current(Astra16Session *, gint *, GError **);
+
 static void objects(Astra16Session *object) {
 	GError *error = NULL;
 	gint current_value = 0;
@@ -178,14 +189,18 @@ static void objects(Astra16Session *object) {
 	g_object_unref(item);
 	assert(go16_item_destroyed_count() == 2);
 }
+
 static unsigned notices;
+
 static void notified(GObject *object, GParamSpec *spec, gpointer data) {
 	assert(object && spec && data == &notices);
 	++notices;
 }
+
 struct ThreadProbe {
 	Astra16Session *object;
 };
+
 static gpointer wrong_thread(gpointer opaque) {
 	struct ThreadProbe *probe = opaque;
 	GError *error = NULL;
@@ -194,6 +209,7 @@ static gpointer wrong_thread(gpointer opaque) {
 	g_error_free(error);
 	return NULL;
 }
+
 int main(void) {
 	GError *error = NULL;
 	Astra16Session *object = astra16_session_new(7, 7, 1.5, &error);

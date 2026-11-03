@@ -12,12 +12,15 @@ public class AstraF32Value : BinaryFloatValue {
 	public new AstraF32Value positive() {
 		return this;
 	}
+
 	public new AstraF32Value negated() {
 		return new AstraF32Value.from_bits ((uint32) base.negated ().exact_bits);
 	}
+
 	public new static AstraF32Value? from_decimal(string spelling) {
 		var value = BinaryFloatValue.from_decimal (BinaryFloatFormat.BINARY32, spelling);
 		return value == null ? null : new AstraF32Value.from_bits ((uint32) value.exact_bits);
 	}
+
 }
 }

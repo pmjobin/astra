@@ -130,4 +130,5 @@ private void register_standalone_exports() {
 	Test.add_func ("/cabi-standalone/exports/ownership", standalone_export_ownership);
 	Test.add_func ("/cabi-standalone/exports/pointer-profile", standalone_pointer_exports);
 }
+
 }

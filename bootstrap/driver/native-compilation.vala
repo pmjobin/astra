@@ -19,5 +19,6 @@ public class NativeCompilation : Object {
 			output.link_and_commit (null, null, link_inputs);
 		}
 	}
+
 }
 }

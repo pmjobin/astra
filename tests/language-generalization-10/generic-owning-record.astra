@@ -3,17 +3,24 @@ class Entry {
 	int value;
 	owned R resource;
 	owned int[] bytes;
+
 	init(int value, owned R resource) {
 		this.value = value;
 		this.resource = move resource;
 		this.bytes = new int[2];
 	}
+
 	deinit() { mark(100 + this.value); }
 }
+
 struct Inner { owned R head; owned Entry item; owned int[] data; int code; }
+
 struct Packet { Inner body; owned Other tail; int tag; }
+
 struct Only { owned R resource; }
+
 int code(Entry value) { return value.value; }
+
 Packet produce(int tag) {
 	var head = make(tag);
 	var resource = make(tag + 10);
@@ -24,6 +31,7 @@ Packet produce(int tag) {
 	Packet packet = {body = {head = move head, item = move child, data = move data, code = tag + 40}, tail = move tail, tag = tag};
 	return move packet;
 }
+
 int exercise() {
 	var values = new Vector<Packet>(0);
 	var first = produce(1);
@@ -36,11 +44,11 @@ int exercise() {
 	var result = values.take(1);
 	var numbers = move result.body.data;
 	var child = move result.body.item;
-	if (result.tag != 2 || numbers[0] != 32 || code(child) != 2) { return 81; }
+	if (result.tag != 2 || numbers[0] != 32 || code(child) != 2) return 81;
 	mark(result.body.code);
 	var replacement = produce(4);
 	values.replace(0, move replacement);
-	if (values.count() != 2 || values.capacity() != 9) { return 82; }
+	if (values.count() != 2 || values.capacity() != 9) return 82;
 	var extracted = values.take(0);
 	mark(extracted.tag);
 	var empty = new Vector<Packet>(0);
@@ -58,8 +66,9 @@ int exercise() {
 	var taken_zero = zeroes.take(0);
 	return 0;
 }
+
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

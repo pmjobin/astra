@@ -2,16 +2,21 @@
 CheckedLibrary.Reply<int> inspect_closure(
 	borrowed ClosureLibrary.Environment<int> environment,
 	CheckedLibrary.Reply<int> input, bool fail) throws CheckedLibrary.Error {
-	if (fail) { mark(1702); throw new CheckedLibrary.Failure("callback failure"); }
+	if (fail) {
+		mark(1702);
+		throw new CheckedLibrary.Failure("callback failure");
+	}
 	CheckedLibrary.Reply<int> result = {value = environment.value + input.value, ready = input.ready};
 	return result;
 }
+
 CheckedLibrary.Reply<int> inspect_record_environment(
 	borrowed ClosureLibrary.Environment<CheckedLibrary.Reply<int>> environment,
 	CheckedLibrary.Reply<int> input) {
 	CheckedLibrary.Reply<int> result = {value = environment.value.value + input.value, ready = input.ready};
 	return result;
 }
+
 int exercise_closures() {
 	var retained = make(201);
 	var environment = new ClosureLibrary.Environment<int>(2, move retained);
@@ -21,15 +26,15 @@ int exercise_closures() {
 	CheckedLibrary.Reply<int> input = {value = 40, ready = true};
 	try {
 		var first = ClosureLibrary.invoke(code, input, false);
-		if (first.value != 42 || !first.ready) { return 1; }
+		if (first.value != 42 || !first.ready) return 1;
 		var failing = ClosureLibrary.invoke(code, input, true);
 		return 2;
 	} catch (CheckedLibrary.Failure error) {
-		if (error.message.byte_length != 16) { return 3; }
+		if (error.message.byte_length != 16) return 3;
 	} catch (CheckedLibrary.Error error) { return 4; }
 	try {
 		var retry = ClosureLibrary.invoke(code, input, false);
-		if (retry.value != 42 || !retry.ready) { return 5; }
+		if (retry.value != 42 || !retry.ready) return 5;
 	} catch (CheckedLibrary.Error error) { return 6; }
 	var once_retained = make(202);
 	var once_environment = new ClosureLibrary.Environment<int>(3, move once_retained);
@@ -38,7 +43,7 @@ int exercise_closures() {
 	checked_closure_bind(move once_environment, inspect_closure);
 	try {
 		var consumed = ClosureLibrary.consume(move once, input, false);
-		if (consumed.value != 43 || live() != 1) { return 7; }
+		if (consumed.value != 43 || live() != 1) return 7;
 	} catch (CheckedLibrary.Error error) { return 8; }
 	var failing_retained = make(203);
 	var failing_environment = new ClosureLibrary.Environment<int>(4, move failing_retained);
@@ -49,7 +54,7 @@ int exercise_closures() {
 		var failed = ClosureLibrary.consume(move failing_code, input, true);
 		return 9;
 	} catch (CheckedLibrary.Failure error) {
-		if (live() != 1) { return 10; }
+		if (live() != 1) return 10;
 	} catch (CheckedLibrary.Error error) { return 11; }
 	var record_retained = make(204);
 	CheckedLibrary.Reply<int> seed = {value = 5, ready = true};
@@ -57,11 +62,12 @@ int exercise_closures() {
 	owned Closure<ClosureLibrary.Environment<CheckedLibrary.Reply<int>>, CheckedLibrary.Reply<int>,
 	CheckedLibrary.Reply<int>> ordinary = closure_bind(move record_environment, inspect_record_environment);
 	var observed = ClosureLibrary.observe(ordinary, input);
-	if (observed.value != 45 || !observed.ready || live() != 2) { return 12; }
+	if (observed.value != 45 || !observed.ready || live() != 2) return 12;
 	return 0;
 }
+
 int main() {
 	int result = exercise_closures();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

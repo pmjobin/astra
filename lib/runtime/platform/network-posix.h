@@ -11,6 +11,7 @@ typedef struct AstraNetEndpoint {
 	int32_t port;
 	uint32_t scope;
 } AstraNetEndpoint;
+
 typedef struct AstraNetPacket {
 	AstraNetEndpoint peer;
 	int32_t message_length;

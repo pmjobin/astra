@@ -1,56 +1,68 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void scoped_task_retired(int identity);
+
 extern(C) int scoped_task_finish();
 
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedTaskInput {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	deinit() { scoped_task_retired(this.identity); }
 }
+
 async void scoped_task_idle(owned ScopedTaskInput input) {}
+
 async void scoped_task_delay(owned ScopedTaskInput input, int fail) throws Error {
 	await delay_ticks(1);
-	if (fail != 0) { throw new Error("scoped captured error"); }
+	if (fail != 0) {
+		throw new Error("scoped captured error");
+	}
 }
+
 async void scoped_task_parent(owned ScopedTaskInput input, int fail) throws Error {
 	var child = scoped_task_delay(move input, fail);
 	await move child;
 	await delay_ticks(1);
 }
+
 int scoped_capture_cold(borrowed ScopedAllocator objects) {
 	{
 		var input = new (objects) ScopedTaskInput(1);
 		var task = scoped_task_idle(move input);
-		if (scoped_allocator_query(objects, 1) != 1) { return 1; }
+		if (scoped_allocator_query(objects, 1) != 1) return 1;
 	}
-	if (scoped_allocator_query(objects, 1) != 0) { return 2; }
+	if (scoped_allocator_query(objects, 1) != 0) return 2;
 	return 0;
 }
+
 int scoped_capture_run(borrowed ScopedAllocator objects) {
 	try {
 		var input = new (objects) ScopedTaskInput(2);
 		var executor = VirtualExecutor.open(8);
 		var task = scoped_task_delay(move input, 0);
-		if (scoped_allocator_query(objects, 1) != 1) { return 1; }
+		if (scoped_allocator_query(objects, 1) != 1) return 1;
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 2; } }
 	} catch (Error error) { return 3; }
-	if (scoped_allocator_query(objects, 1) != 0) { return 4; }
+	if (scoped_allocator_query(objects, 1) != 0) return 4;
 	return 0;
 }
+
 int scoped_capture_nested(borrowed ScopedAllocator objects) {
 	try {
 		var input = new (objects) ScopedTaskInput(3);
 		var executor = VirtualExecutor.open(8);
 		var task = scoped_task_parent(move input, 0);
-		if (scoped_allocator_query(objects, 1) != 1) { return 1; }
+		if (scoped_allocator_query(objects, 1) != 1) return 1;
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 2; } }
 	} catch (Error error) { return 3; }
-	if (scoped_allocator_query(objects, 1) != 0) { return 4; }
+	if (scoped_allocator_query(objects, 1) != 0) return 4;
 	return 0;
 }
+
 int scoped_capture_error(borrowed ScopedAllocator objects) {
 	bool caught = false;
 	try {
@@ -59,9 +71,10 @@ int scoped_capture_error(borrowed ScopedAllocator objects) {
 		var task = scoped_task_parent(move input, 1);
 		var status = executor.run(move task);
 	} catch (Error error) { caught = true; }
-	if (!caught || scoped_allocator_query(objects, 1) != 0) { return 1; }
+	if (!caught || scoped_allocator_query(objects, 1) != 0) return 1;
 	return 0;
 }
+
 int scoped_capture_cancel(borrowed ScopedAllocator objects) {
 	try {
 		var input = new (objects) ScopedTaskInput(5);
@@ -73,24 +86,25 @@ int scoped_capture_cancel(borrowed ScopedAllocator objects) {
 		executor.cancel(task);
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Cancelled(): {} else: { return 2; } }
-		if (!retained) { return 1; }
+		if (!retained) return 1;
 	} catch (Error error) { return 3; }
-	if (scoped_allocator_query(objects, 1) != 0) { return 4; }
+	if (scoped_allocator_query(objects, 1) != 0) return 4;
 	return 0;
 }
+
 export(C) int scoped_task_captures_run() {
 	owned u8[] backing = new u8[16381];
 	var objects = scoped_allocator<ScopedAllocator>(backing, 1, 1);
-	if (objects == null) { return 1; }
+	if (objects == null) return 1;
 	int cold = scoped_capture_cold(objects);
-	if (cold != 0) { return 10 + cold; }
+	if (cold != 0) return 10 + cold;
 	int run = scoped_capture_run(objects);
-	if (run != 0) { return 20 + run; }
+	if (run != 0) return 20 + run;
 	int nested = scoped_capture_nested(objects);
-	if (nested != 0) { return 30 + nested; }
-	if (scoped_capture_error(objects) != 0) { return 40; }
+	if (nested != 0) return 30 + nested;
+	if (scoped_capture_error(objects) != 0) return 40;
 	int cancelled = scoped_capture_cancel(objects);
-	if (cancelled != 0) { return 50 + cancelled; }
-	if (scoped_allocator_query(objects, 4) != 5 || scoped_allocator_query(objects, 5) != 5) { return 60; }
+	if (cancelled != 0) return 50 + cancelled;
+	if (scoped_allocator_query(objects, 4) != 5 || scoped_allocator_query(objects, 5) != 5) return 60;
 	return scoped_task_finish();
 }

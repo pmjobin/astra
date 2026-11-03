@@ -11,17 +11,20 @@
 inline constexpr IID query_iid = {0x473dc7e9, 0x41d6, 0x4768, {0xbd, 0xa4, 0xcc, 0x48, 0x39, 0x6a, 0xf3, 0x01}};
 inline constexpr IID detail_iid = {0x473dc7e9, 0x41d6, 0x4768, {0xbd, 0xa4, 0xcc, 0x48, 0x39, 0x6a, 0xf3, 0x02}};
 using callback = BOOL(STDMETHODCALLTYPE *)(void *, BOOL);
+
 struct QueryOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE transform(LONGLONG, DOUBLE, BOOL, LONGLONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE get_gain(DOUBLE *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE set_gain(DOUBLE) = 0;
 	virtual HRESULT STDMETHODCALLTYPE choose(BOOL, callback, void *, BOOL *) = 0;
 };
+
 struct DetailOracle : QueryOracle {
 	virtual HRESULT STDMETHODCALLTYPE stamp(ULONGLONG, ULONGLONG *) = 0;
 };
 
 inline constexpr IID typed_iid = {0x473dc7e9, 0x41d6, 0x4768, {0xbd, 0xa4, 0xcc, 0x48, 0x39, 0x6a, 0xf3, 0x03}};
+
 struct SampleOracle {
 	BOOL enabled, marked;
 	LONG count;
@@ -31,7 +34,9 @@ struct SampleOracle {
 	ULONG flags;
 	LONGLONG offset;
 };
+
 static_assert(sizeof(SampleOracle) == 48 && alignof(SampleOracle) == 8 && offsetof(SampleOracle, marked) == 4 && offsetof(SampleOracle, count) == 8 && offsetof(SampleOracle, scale) == 16 && offsetof(SampleOracle, offset) == 40, "independent exported COM POD layout");
+
 struct TypedOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE amend(SampleOracle, DOUBLE, LONG, SampleOracle *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE snapshot(const BYTE *, LONG, BYTE *, LONG, LONG *, LONG, BYTE **, LONG *) = 0;
@@ -40,18 +45,24 @@ struct TypedOracle : IUnknown {
 };
 
 inline constexpr IID proxy_iid = {0x473dc7e9, 0x41d6, 0x4768, {0xbd, 0xa4, 0xcc, 0x48, 0x39, 0x6a, 0xf3, 0x04}};
+
 struct ProxyOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE observe(QueryOracle *, LONGLONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE relay(QueryOracle **, QueryOracle **) = 0;
 };
+
 static unsigned provider_made, provider_retired, provider_pins, provider_unpins, provider_calls;
+
 class IndependentQuery final : public QueryOracle {
 	LONG references = 1;
+
 	~IndependentQuery() { ++provider_retired; }
 
   public:
 	IndependentQuery() { ++provider_made; }
+
 	LONG count() const { return references; }
+
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) noexcept override {
 		if (!out) return E_POINTER;
 		*out = nullptr;
@@ -60,28 +71,35 @@ class IndependentQuery final : public QueryOracle {
 		AddRef();
 		return S_OK;
 	}
+
 	ULONG STDMETHODCALLTYPE AddRef() noexcept override {
 		++provider_pins;
 		return static_cast<ULONG>(InterlockedIncrement(&references));
 	}
+
 	ULONG STDMETHODCALLTYPE Release() noexcept override {
 		++provider_unpins;
 		LONG value = InterlockedDecrement(&references);
 		if (!value) delete this;
 		return static_cast<ULONG>(value);
 	}
+
 	HRESULT STDMETHODCALLTYPE transform(LONGLONG, DOUBLE, BOOL, LONGLONG *) noexcept override { return E_NOTIMPL; }
+
 	HRESULT STDMETHODCALLTYPE get_gain(DOUBLE *out) noexcept override {
 		assert(out);
 		++provider_calls;
 		*out = 3.5;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE set_gain(DOUBLE) noexcept override { return E_NOTIMPL; }
+
 	HRESULT STDMETHODCALLTYPE choose(BOOL, callback, void *, BOOL *) noexcept override { return E_NOTIMPL; }
 };
 
 inline constexpr IID roots_iid = {0x473dc7e9, 0x41d6, 0x4768, {0xbd, 0xa4, 0xcc, 0x48, 0x39, 0x6a, 0xf3, 0x05}};
+
 struct RootsOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE read(QueryOracle *, DOUBLE *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE duplicate(QueryOracle *, QueryOracle **) = 0;
@@ -89,32 +107,39 @@ struct RootsOracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE lookup(BOOL, QueryOracle *, QueryOracle **) = 0;
 };
 struct native_handle;
+
 struct native_error {
 	std::int32_t domain, code;
 };
+
 extern "C" std::int32_t nativequery16_create(double, native_handle **, native_error *);
 extern "C" std::int32_t nativequery16_get_gain(native_handle *, double *, native_error *);
 extern "C" std::uint32_t nativequery16_release(native_handle *);
 extern "C" HRESULT nativequery16_as_com(native_handle *, IUnknown **);
 static unsigned destroyed, operations, callbacks;
+
 extern "C" std::int32_t comexport16_retired(void) {
 	++destroyed;
 	return 0;
 }
+
 extern "C" std::int32_t comexport16_operation(void) {
 	++operations;
 	return 0;
 }
+
 static BOOL STDMETHODCALLTYPE invert(void *data, BOOL input) {
 	assert(data && input == TRUE);
 	++callbacks;
 	return 0;
 }
+
 struct ThreadProbe {
 	QueryOracle *query;
 	HRESULT status;
 	LONGLONG output;
 };
+
 static DWORD WINAPI wrong_thread(void *opaque) {
 	auto probe = static_cast<ThreadProbe *>(opaque);
 	HRESULT status = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -199,11 +224,13 @@ static void native_class_payloads(IUnknown *unknown, QueryOracle *query) {
 	assert(provider_made == 2 && provider_retired == 2 && provider_pins + 2 == provider_unpins);
 	roots->Release();
 }
+
 static BOOL STDMETHODCALLTYPE release_last(void *opaque, BOOL input) {
 	assert(input == TRUE);
 	static_cast<QueryOracle *>(opaque)->Release();
 	return TRUE;
 }
+
 int main() {
 	assert(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
 	native_handle *root = nullptr;

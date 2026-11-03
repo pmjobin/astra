@@ -7,34 +7,44 @@ f32<4> load_f32x4_scalar(f32[] input, int offset) {
 	f32<4> value = {input[offset], input[offset+1], input[offset+2], input[offset+3]};
 	return value;
 }
+
 f32<4> load_f32x4(f32[] input, int offset) { return load_vector(input,offset,4,1); }
+
 f32<4> load_aligned_f32x4(f32[] input, int offset) { return load_vector(input,offset,4,16); }
 
 void store_f32x4_scalar(f32[] output, int offset, f32<4> value) {
 	output[offset] = value[0]; output[offset+1] = value[1];
 	output[offset+2] = value[2]; output[offset+3] = value[3];
 }
+
 void store_f32x4(f32[] output, int offset, f32<4> value) { store_vector(output,offset,value,1); }
+
 void store_aligned_f32x4(f32[] output, int offset, f32<4> value) { store_vector(output,offset,value,16); }
 
 f64<2> load_f64x2_scalar(f64[] input, int offset) {
 	f64<2> value = {input[offset], input[offset+1]};
 	return value;
 }
+
 f64<2> load_f64x2(f64[] input, int offset) { return load_vector(input,offset,2,1); }
+
 f64<2> load_aligned_f64x2(f64[] input, int offset) { return load_vector(input,offset,2,16); }
 
 void store_f64x2_scalar(f64[] output, int offset, f64<2> value) {
 	output[offset] = value[0]; output[offset+1] = value[1];
 }
+
 void store_f64x2(f64[] output, int offset, f64<2> value) { store_vector(output,offset,value,1); }
+
 void store_aligned_f64x2(f64[] output, int offset, f64<2> value) { store_vector(output,offset,value,16); }
 
 i16<8> load_i16x8_scalar(i16[] input, int offset) {
 	i16<8> value = {input[offset],input[offset+1],input[offset+2],input[offset+3],input[offset+4],input[offset+5],input[offset+6],input[offset+7]};
 	return value;
 }
+
 i16<8> load_i16x8(i16[] input, int offset) { return load_vector(input,offset,8,1); }
+
 i16<8> load_aligned_i16x8(i16[] input, int offset) { return load_vector(input,offset,8,16); }
 
 void store_i16x8_scalar(i16[] output, int offset, i16<8> value) {
@@ -43,28 +53,37 @@ void store_i16x8_scalar(i16[] output, int offset, i16<8> value) {
 	output[offset+4] = value[4]; output[offset+5] = value[5];
 	output[offset+6] = value[6]; output[offset+7] = value[7];
 }
+
 void store_i16x8(i16[] output, int offset, i16<8> value) { store_vector(output,offset,value,1); }
+
 void store_aligned_i16x8(i16[] output, int offset, i16<8> value) { store_vector(output,offset,value,16); }
 
 f64 sum_f64x2(f64<2> input) { return (0.0 + input[0]) + input[1]; }
+
 f32 sum_f32x4(f32<4> input) { return ((0.0f + input[0]) + input[1]) + input[2] + input[3]; }
+
 bool<4> unordered_f32x4(f32<4> a, f32<4> b) { return (a != a) | (b != b); }
+
 bool<2> unordered_f64x2(f64<2> a, f64<2> b) { return (a != a) | (b != b); }
 
 f32<2> narrow_f64x2(f64<2> value) {
 	f32<2> result={value[0] as f32,value[1] as f32}; return result;
 }
+
 f64<2> widen_f32x2(f32<2> value) {
 	f64<2> result={value[0] as f64,value[1] as f64}; return result;
 }
+
 i32<4> checked_i32x4(f32<4> value) {
 	i32<4> result={value[0] as i32,value[1] as i32,value[2] as i32,value[3] as i32}; return result;
 }
+
 f64 min_f64x2(f64<2> value) {
-	if(value[0]!=value[0]){return value[0];}if(value[1]!=value[1]){return value[1];}
-	if(value[1]<value[0]){return value[1];}return value[0];
+	if(value[0]!=value[0]) return value[0];if(value[1]!=value[1]) return value[1];
+	if(value[1]<value[0]) return value[1];return value[0];
 }
+
 f64 max_f64x2(f64<2> value) {
-	if(value[0]!=value[0]){return value[0];}if(value[1]!=value[1]){return value[1];}
-	if(value[1]>value[0]){return value[1];}return value[0];
+	if(value[0]!=value[0]) return value[0];if(value[1]!=value[1]) return value[1];
+	if(value[1]>value[0]) return value[1];return value[0];
 }

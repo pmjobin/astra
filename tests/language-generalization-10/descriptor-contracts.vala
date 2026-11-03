@@ -23,6 +23,7 @@ private CheckedProgram check(string? metadata = null) throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private void independent_snapshot() {
 	try {
 		CheckedProgram? original = check ();
@@ -44,9 +45,11 @@ private void independent_snapshot() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/descriptors/snapshot-releases-predecessor", independent_snapshot);
 	return Test.run ();
 }
+
 }

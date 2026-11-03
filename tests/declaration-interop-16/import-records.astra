@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct MixedSample { int count; f64 scale; bool enabled; u64 stamp; f32 weight; }
+
 struct PackedScalars { int left; u32 right; f32 bias; bool select_first; i64 wide; }
+
 struct Duo<T> { T first; int second; }
+
 struct Single { f64 value; }
+
 [ExceptionRoot] class Fault {
 	readonly string text; private int status;
+
 	init(int status) { this.status=status; this.text="foreign record failure"; }
+
 	virtual property string message { get { return this.text; } }
+
 	int code() { return this.status; }
 }
+
 owned Fault foreign_fault(int domain,int status) { var fault=new Fault(status); return move fault; }
+
 [CImport(name="pod_provider16",profile="declarations-v1",lifetime="unique",threading="constructing",bool_abi="c99")]
 class Provider {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
@@ -32,16 +41,16 @@ export(C) int import_records16_run() {
 		var provider=Provider.init(seed,4);
 		PackedScalars offsets={left=5,right=4000000000,bias=2.0,select_first=true,wide=-5000000000};int calls=-1;
 		var result=provider.adjust(seed,0.5,offsets,&calls,0);
-		if(result.count!=15 || result.scale!=4.5 || result.enabled || result.stamp!=seed.stamp || result.weight!=3.25 || calls!=8){return 1;}
-		try{var ignored=provider.adjust(seed,1.0,offsets,&calls,1);return 2;}catch(Fault fault){if(fault.code()!=-1600 || calls!=0){return 3;}}
-		Duo<f64> input={first=1.5,second=7};var pair=provider.pair(input,8);if(pair.first!=3.5 || pair.second!=15){return 4;}
-		Single one={value=3.5};var single=provider.one(one);if(single.value!=5.5){return 5;}
+		if(result.count!=15 || result.scale!=4.5 || result.enabled || result.stamp!=seed.stamp || result.weight!=3.25 || calls!=8) return 1;
+		try{var ignored=provider.adjust(seed,1.0,offsets,&calls,1);return 2;}catch(Fault fault){if(fault.code()!=-1600 || calls!=0) return 3;}
+		Duo<f64> input={first=1.5,second=7};var pair=provider.pair(input,8);if(pair.first!=3.5 || pair.second!=15) return 4;
+		Single one={value=3.5};var single=provider.one(one);if(single.value!=5.5) return 5;
 		u8[3] bytes={10,11,12};u8[4] output={77,77,77,77};int count=-1;
 		var snapshot=provider.snapshot(seed,slice(bytes),slice(output),&count,0);
-		if(len(snapshot)!=3 || snapshot[0]!=13 || snapshot[2]!=15 || output[0]!=31 || output[1]!=32 || output[2]!=77 || count!=2){return 6;}
+		if(len(snapshot)!=3 || snapshot[0]!=13 || snapshot[2]!=15 || output[0]!=31 || output[1]!=32 || output[2]!=77 || count!=2) return 6;
 		output[0]=77;output[1]=77;
-		try{var ignored=provider.snapshot(seed,slice(bytes),slice(output),&count,1);return 7;}catch(Fault fault){if(fault.code()!=-1600 || count!=0 || output[0]!=77 || output[1]!=77){return 8;}}
-		try{var ignored=provider.snapshot(seed,slice(bytes),slice(output),&count,2);return 9;}catch(Fault fault){if(fault.code()!=-2147418113 || count!=0 || output[0]!=77 || output[1]!=77){return 10;}}
+		try{var ignored=provider.snapshot(seed,slice(bytes),slice(output),&count,1);return 7;}catch(Fault fault){if(fault.code()!=-1600 || count!=0 || output[0]!=77 || output[1]!=77) return 8;}
+		try{var ignored=provider.snapshot(seed,slice(bytes),slice(output),&count,2);return 9;}catch(Fault fault){if(fault.code()!=-2147418113 || count!=0 || output[0]!=77 || output[1]!=77) return 10;}
 	} catch(Fault fault){return 90;}
 	return 0;
 }

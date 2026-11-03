@@ -15,6 +15,7 @@ private CheckedExpression atom(BuiltinTypes types, SourceSpan span, string name,
 	}
 	return new CheckedBooleanExpression (span, type, pattern == 0 ? BooleanLiteral.FALSE : BooleanLiteral.TRUE);
 }
+
 int main() {
 	var types = new BuiltinTypes ();
 	var span = SourceSpan (new SourceFile.from_text ("oracle", "x"), 0, 1);
@@ -64,4 +65,5 @@ int main() {
 	}
 	return 0;
 }
+
 }

@@ -20,12 +20,14 @@ private void contracts() {
 	assert (argument.parameter.pointer_contract == PointerParameterContract.OWNED_TRANSFER && argument.parameter.semantic_type.is_nullable_pointer_value ());
 	assert (SemanticDump.format (p).contains ("(domain object) (class #0) (storage #0)"));
 }
+
 private void uses() {
 	check ("class C{int x;init(int n){this.x=n;}void add(int n){this.x=this.x+n;}}void inspect(borrowed C c){c.x=c.x+1;}void sink(owned C c){if(c!=null){inspect(c);c.add(1);}}void f(){owned C c=C.init(40);inspect(c);c.x=c.x+1;c.add(1);sink(move c);sink(null);}");
 	check ("class C{int x;}void f(){C c={x=1};C alias=c;c=null;alias.x=42;alias=null;}");
 	check ("class C{}void sink(owned C c){}void forward(owned C c){sink(move c);}");
 	check ("class C{}class D{init(owned C source){}void f(owned C other){}}struct S{int marker;void f(owned C other){}}");
 }
+
 private void restrictions() {
 	reject ("class C{owned C field;}", "requires an explicit constructor and definite initialization");
 	reject ("class C{int x;}void f(){owned C a={x=1};owned C c=move a.x;}", "moving ownership out of an owned field");
@@ -50,11 +52,13 @@ private void restrictions() {
 		reject ("class C{}" + boundary, "unsupported at C boundaries");
 	}
 }
+
 private void receivers() {
 	reject ("class C{void f(owned C c){}}void g(){owned C c={};c.f(move c);}", "method receiver cannot consume the same");
 	reject ("class C{void f(int n){}}int sink(owned C c){return 1;}void g(){owned C c={};c.f(sink(move c));}", "method receiver cannot consume the same");
 	check ("class C{void f(owned C c){}}void g(){owned C a={};owned C b={};a.f(move b);}");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/semantic/exact-binding-storage-cleanup-and-generic-move", contracts);
@@ -63,4 +67,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-own/semantic/receiver-consumption-direct-and-nested", receivers);
 	return Test.run ();
 }
+
 }

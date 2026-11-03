@@ -161,5 +161,6 @@ public class VapiLexer : Object {
 		}
 		return new VapiToken (kind, SourceSpan (source, start, offset));
 	}
+
 }
 }

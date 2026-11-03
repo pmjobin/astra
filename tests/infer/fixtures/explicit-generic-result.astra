@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 T identity<T>(T value) { return value; }
+
 int main() {
 	f64 value = identity<f64>(1.0000000000000002d);
 	int count = identity<i32>(7);
 	bool<4> mask = identity<bool<4>>(splat(true,4));
-	if (value != 1.0d && count == 7 && all(mask)) { return 0; }
+	if (value != 1.0d && count == 7 && all(mask)) return 0;
 	return 1;
 }

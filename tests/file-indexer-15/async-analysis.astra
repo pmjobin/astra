@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace IndexAnalysis;
 enum AsyncStatus { Completed, Cancelled }
+
 async runtime VirtualExecutor throws IndexFoundation.AsyncError returns AsyncStatus;
 
 // Every capture is an independent owner. No caller-backed path, interface loan
@@ -18,15 +19,19 @@ async IndexFoundation.Summary process_async(owned IndexFoundation.Store store,
 			var rejected = process(store, 1, path.text, policy, generation, false, sink, true);
 			throw new IndexFoundation.IndexError("sink did not reject");
 		} catch (IndexFoundation.SinkFailure error) {
-			if (store.contains(1)) { throw new IndexFoundation.IndexError("failed sink published a result"); }
+			if (store.contains(1)) {
+				throw new IndexFoundation.IndexError("failed sink published a result");
+			}
 		}
 	}
 	var result = process(store, 1, path.text, policy, generation, false, sink, false);
 	int offset = 0;
 	while (true) {
 		int byte = store.report_byte(1, offset);
-		if (byte < 0) { break; }
-		if (!IndexFoundation.write_byte(byte)) { throw new IndexFoundation.IndexError("output"); }
+		if (byte < 0) break;
+		if (!IndexFoundation.write_byte(byte)) {
+			throw new IndexFoundation.IndexError("output");
+		}
 		offset = offset + 1;
 	}
 	return result;

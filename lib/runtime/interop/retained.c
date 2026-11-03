@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
+
 /* A token is a monotonically unique opaque integer, never a context address.
  * No public operation dereferences the supplied token, including stale tokens.
  * The finite GNU LP64 domain refuses exhaustion rather than reusing identity. */
@@ -20,18 +21,21 @@ struct registration {
 static struct registration *slots[64];
 static uintptr_t next_identity = 1;
 static const struct astra_retained_provider *event_provider;
+
 int32_t astra_retained_install_provider(const struct astra_retained_provider *provider) {
 	if (!provider || provider->version != 1 || !provider->open || !provider->stop || !provider->observe || !provider->close) return -1;
 	if (event_provider && event_provider != provider) return -1;
 	event_provider = provider;
 	return 1;
 }
+
 static struct registration *lookup(void *token) {
 	uintptr_t identity = (uintptr_t)token;
 	for (size_t i = 0; i < 64; ++i)
 		if (slots[i] && slots[i]->identity == identity) return slots[i];
 	return NULL;
 }
+
 void *astra_retained_register(astra_retained_callback callback, void *context, int32_t mode) {
 	if (!callback || !context || mode < 0 || (mode != 0 && !event_provider) || next_identity == UINTPTR_MAX) return NULL;
 	size_t i = 0;
@@ -54,6 +58,7 @@ void *astra_retained_register(astra_retained_callback callback, void *context, i
 	slots[i] = owner;
 	return (void *)owner->identity;
 }
+
 int32_t astra_retained_dispatch(void *token, int32_t value) {
 	struct registration *owner = lookup(token);
 	if (!owner) return -3;
@@ -63,6 +68,7 @@ int32_t astra_retained_dispatch(void *token, int32_t value) {
 	owner->active = 0;
 	return result;
 }
+
 int32_t astra_retained_revoke(void *token) {
 	struct registration *owner = lookup(token);
 	if (!owner) return -3;
@@ -71,6 +77,7 @@ int32_t astra_retained_revoke(void *token) {
 	if (owner->provider && owner->provider->stop(owner->provider_data) != 1) return 0;
 	return 1;
 }
+
 int32_t astra_retained_observe(void *token) {
 	struct registration *owner = lookup(token);
 	if (!owner) return -3;
@@ -79,6 +86,7 @@ int32_t astra_retained_observe(void *token) {
 	owner->observed = 1;
 	return 1;
 }
+
 int32_t astra_retained_retire(void *token) {
 	struct registration *owner = lookup(token);
 	if (!owner || owner->active || owner->closing) return 0;

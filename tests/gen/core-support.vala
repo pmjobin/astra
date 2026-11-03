@@ -6,6 +6,7 @@ namespace Astra.Tests.GenCore {
 private SourceSpan span() {
 	return SourceSpan (new SourceFile.from_text ("generic", "x"), 0, 1);
 }
+
 private CoreGenericFunction definition(SourceSpan s, string name, int ordinal) {
 	var t = new TypeParameterType ("T");
 	var tp = new GenericArray<CoreTypeParameter> ();
@@ -21,6 +22,7 @@ private CoreGenericFunction definition(SourceSpan s, string name, int ordinal) {
 	body.statements.add (new CoreReturn (s, new CoreLoadValue (s, local)));
 	return new CoreGenericFunction (s, s, name, t, parameters, locals, body, null, tp, ordinal);
 }
+
 private CoreValue constant(SourceSpan s, SemanticType t) {
 	if (t is IntegerType) {
 		return new CoreIntegerValue.typed (s, t, AstraIntegerValue.from_int64 ((IntegerType) t, 42));
@@ -40,6 +42,7 @@ private CoreValue constant(SourceSpan s, SemanticType t) {
 	}
 	return new CoreNullPointerValue (s, t);
 }
+
 private CoreGenericCall call(SourceSpan s, CoreGenericFunction definition, SemanticType t, CoreValue value) {
 	var types = new GenericArray<SemanticType> ();
 	types.add (t);
@@ -47,6 +50,7 @@ private CoreGenericCall call(SourceSpan s, CoreGenericFunction definition, Seman
 	values.add (value);
 	return new CoreGenericCall (s, t, definition, types, values);
 }
+
 private CoreProgram sample(int recursion = 0, bool unused = false) {
 	var s = span ();
 	var types = new BuiltinTypes ();
@@ -76,4 +80,5 @@ private CoreProgram sample(int recursion = 0, bool unused = false) {
 	root_body.statements.add (new CoreReturn (s, null));
 	return result;
 }
+
 }

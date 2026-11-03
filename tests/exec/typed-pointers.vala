@@ -86,4 +86,5 @@ private void register_typed_pointers() {
 	}
 	add ("/exec/tptr/object-linkage-lifetime", tptr_object_lifetime);
 }
+
 }

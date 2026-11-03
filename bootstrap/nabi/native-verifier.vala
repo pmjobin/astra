@@ -6,6 +6,7 @@ public class NativeAbiVerifier : Object {
 	private static bool callback_scalar(NativeScalarType type) {
 		return type == NativeScalarType.I32 || type == NativeScalarType.U32 || type == NativeScalarType.I64 || type == NativeScalarType.U64 || type == NativeScalarType.F32 || type == NativeScalarType.F64 || type == NativeScalarType.B1;
 	}
+
 	private static bool send_leaf(NativeAbiType? type, NativeAbiProgram program, HashTable<int, bool> seen, bool mailbox_graph = false, bool affinity_only = false) {
 		var bytes = type as NativeContextSliceType;
 		if (bytes != null) {
@@ -55,6 +56,7 @@ public class NativeAbiVerifier : Object {
 		var scalar = type as NativeScalarAbiType;
 		return scalar != null && (affinity_only || scalar.scalar_type != NativeScalarType.PTR) || type is NativeVectorType || type is NativeTextType;
 	}
+
 	private static bool send_record(NativeStructValuePlan record, NativeAbiProgram program, HashTable<int, bool> seen, bool mailbox_graph = false, bool affinity_only = false) {
 		foreach (var leaf in record.leaves) {
 			bool covered = false;
@@ -79,6 +81,7 @@ public class NativeAbiVerifier : Object {
 		}
 		return true;
 	}
+
 	private static bool send_class(int ordinal, NativeAbiProgram program, HashTable<int, bool> seen, bool mailbox_graph = false, bool affinity_only = false) {
 		if (ordinal < 0 || ordinal >= program.classes.length) {
 			return false;
@@ -158,9 +161,11 @@ public class NativeAbiVerifier : Object {
 		}
 		return true;
 	}
+
 	private static void fail(string path, string message) throws NativeAbiError {
 		throw new NativeAbiError.INVALID_ABI ("internal native ABI verification error at %s: %s", path, message);
 	}
+
 	private static void verify_record_cleanup(NativeRecordResource field, NativeAbiProgram program) throws NativeAbiError {
 		if (field.type_name == "" || field.depth == 0) {
 			fail ("record cleanup", "requires a nonempty exact nominal leaf path and type");
@@ -1978,5 +1983,6 @@ public class NativeAbiVerifier : Object {
 			}
 		}
 	}
+
 }
 }

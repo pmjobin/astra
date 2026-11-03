@@ -80,4 +80,5 @@ int main(string[] args) {
 	Test.add_func ("/slice-bound/ssa/malformed-contracts-types-and-provenance", malformed);
 	return Test.run ();
 }
+
 }

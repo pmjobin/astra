@@ -11,10 +11,12 @@ public class SharedHandleType : HandleType {
 		this.payload_type = payload_type;
 		this.is_weak = is_weak;
 	}
+
 }
 public enum SharedAction {
 	ACQUIRE, CLONE, DOWNGRADE, WEAK_CLONE, UPGRADE, BORROW, SINGLETON_SHUTDOWN
 }
+
 public class SharedContracts : Object {
 	public static bool matches(SharedAction action, SemanticType input, SemanticType output) {
 		if (input is ClosureHandleType && ((ClosureHandleType) input).actor) {
@@ -58,5 +60,6 @@ public class SharedContracts : Object {
 			return false;
 		}
 	}
+
 }
 }

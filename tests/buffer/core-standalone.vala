@@ -21,6 +21,7 @@ private CoreProgram sample(int variant = 0) {
 	functions.add(function);
 	return new CoreProgram(span, functions, null, null, null, cleanups);
 }
+
 private void positive() {
 	try {
 		CoreProgram? program = sample();
@@ -34,6 +35,7 @@ private void positive() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void negative() {
 	for (int variant = 1; variant <= 6; variant++) {
 		try {
@@ -45,6 +47,7 @@ private void negative() {
 		GLib.error("accepted malformed Core buffer %d", variant);
 	}
 }
+
 private CoreProgram local_flow(int variant = 0) {
 	var t = new BuiltinTypes();
 	var s = SourceSpan(new SourceFile.from_text("buffer-core-owner", "x"), 0, 1);
@@ -83,6 +86,7 @@ private CoreProgram local_flow(int variant = 0) {
 	functions.add(function);
 	return new CoreProgram(s, functions, null, null, null, cleanups);
 }
+
 private void ownership() {
 	try {
 		CoreVerifier.verify(local_flow());
@@ -99,6 +103,7 @@ private void ownership() {
 		GLib.error("accepted malformed Core owner %d", variant);
 	}
 }
+
 private CoreProgram fields(int variant = 0) {
 	var t = new BuiltinTypes();
 	var s = SourceSpan(new SourceFile.from_text("buffer-core-fields", "C"), 0, 1);
@@ -145,6 +150,7 @@ private CoreProgram fields(int variant = 0) {
 	program.classes.add(c);
 	return program;
 }
+
 private void field_cleanup() {
 	try {
 		CoreVerifier.verify(fields());
@@ -161,6 +167,7 @@ private void field_cleanup() {
 		GLib.error("accepted malformed Core buffer field %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/core/independent-neutral-allocation-owner-result", positive);
@@ -169,4 +176,5 @@ int main(string[] args) {
 	Test.add_func("/buffer/core/independent-field-initialization-and-cleanup", field_cleanup);
 	return Test.run();
 }
+
 }

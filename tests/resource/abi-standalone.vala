@@ -23,9 +23,11 @@ private void mapping() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/resource/abi/standalone-semantic-to-ptr", mapping);
 	return Test.run ();
 }
+
 }

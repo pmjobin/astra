@@ -72,6 +72,7 @@ private SsaProgram model(int mutation) throws SsaError {
 	program.enums.add (definition);
 	return program;
 }
+
 private void positive() {
 	try {
 		SsaProgram? program = model (0);
@@ -84,6 +85,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int mutation = 1; mutation <= 8; mutation++) {
 		try {
@@ -172,10 +174,12 @@ private void malformed() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum/ssa/independent-model-lifetime", positive);
 	Test.add_func ("/enum/ssa/correspondence-coverage-initialization", malformed);
 	return Test.run ();
 }
+
 }

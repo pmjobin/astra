@@ -86,5 +86,6 @@ public class CfgObjectLifecycleFlow : Object {
 			} while (changed);
 		}
 	}
+
 }
 }

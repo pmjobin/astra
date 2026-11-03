@@ -13,6 +13,7 @@ private void semantic_invalid(string source, string message, string declarations
 		GLib.error ("expected '%s', got '%s' for %s", message, result.diagnostic == null ? "success" : result.diagnostic.message, source);
 	}
 }
+
 private void flow_case(string statements, string? message) throws GLib.Error {
 	var control = cfg ("void f(bool c) { owned void* h = create(1); " + statements + " }");
 	var result = CfgFlowChecker.check (control);
@@ -29,6 +30,7 @@ private void flow_case(string statements, string? message) throws GLib.Error {
 		}
 	}
 }
+
 private void register_diagnostics() {
 	foreach (string source in new string[] {"borrowed void* f() {}", "void f() { borrowed void* p = null; }", "struct Holder { borrowed void* p; }", "extern(C) borrowed void* f();", "void f(borrowed borrowed void* p) {}"}) {
 		add ("/oborrow/grammar/" + source, () => {
@@ -78,4 +80,5 @@ private void register_diagnostics() {
 			build ("int inner(borrowed void* p) { return inspect(p); } int outer(borrowed void* p, void* q) { if (p == q || p != null) { return inner((p)); } return inspect(null); } void f(void* p) { outer(p, null); inspect(raw()); }");
 		});
 }
+
 }

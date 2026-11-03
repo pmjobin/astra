@@ -18,15 +18,19 @@ public enum OwnershipState {
 	public bool definitely_owned() {
 		return this == OWNED;
 	}
+
 	public bool definitely_moved() {
 		return this == MOVED;
 	}
+
 	public bool definitely_released() {
 		return this == RELEASED;
 	}
+
 	public bool may_own() {
 		return (this & OWNED) != 0;
 	}
+
 	public bool definitely_disarmed() {
 		return !may_own ();
 	}
@@ -57,6 +61,7 @@ public enum OwnershipState {
 		names.append ("}");
 		return names.str;
 	}
+
 }
 
 }

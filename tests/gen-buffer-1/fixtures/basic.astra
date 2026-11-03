@@ -1,25 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Kernel { int index; f64 gain; }
+
 struct Box<T> { T value; }
 
 owned T[] make_array<T>(int count) { return new T[count]; }
+
 owned T[] relay_array<T>(owned T[] values) { return move values; }
+
 owned T[] forward_array<T>(owned T[] values) { return relay_array(move values); }
+
 owned T[] choose_array<T>(owned T[] values, int count, bool fresh) {
-	if (fresh) { return new T[count]; }
+	if (fresh) return new T[count];
 	return forward_array(move values);
 }
+
 owned T[] recur_array<T>(owned T[] values, int depth) {
-	if (depth > 0) { return other_array(move values, depth - 1); }
+	if (depth > 0) return other_array(move values, depth - 1);
 	return move values;
 }
+
 owned T[] other_array<T>(owned T[] values, int depth) { return recur_array(move values, depth); }
+
 T scratch<T>(T[] source) {
 	owned T[] local = new T[len(source)];
 	local[0] = source[0];
 	T saved = local[0];
 	return saved;
 }
+
 owned T[] rearm_array<T>(owned T[] values) {
 	values = clone_array(values);
 	values = relay_array(move values);
@@ -29,27 +37,33 @@ owned T[] rearm_array<T>(owned T[] values) {
 	values = move local;
 	return move values;
 }
+
 void scopes<T>(T[] source, int count) {
 	owned T[] outer = clone_array(source);
 	var index = 0;
 	while (index < count) {
 		owned T[] inner = clone_array(outer);
 		index = index + 1;
-		if (index == 1) { continue; }
-		if (index == 2) { break; }
+		if (index == 1) continue;
+		if (index == 2) break;
 	}
 	release outer;
 	outer = new T[0];
 }
+
 class Owner {
 	owned Kernel[] values;
+
 	init(Kernel[] source) { this.values = clone_array(source); }
+
 	void replace() { this.values = clone_array(this.values); }
+
 	deinit() { this.values = clone_array(this.values); }
 }
+
 int main() {
 	var kernels = make_array<Kernel>(2);
-	if (kernels[0].index != 0 || kernels[1].gain != 0.0d) { return 1; }
+	if (kernels[0].index != 0 || kernels[1].gain != 0.0d) return 1;
 	Kernel prototype = { index = 17, gain = 2.0d };
 	fill(kernels, prototype);
 	var copied = clone_array(kernels);
@@ -58,27 +72,27 @@ int main() {
 	var owner = Owner.init(kernels);
 	owner.replace();
 	kernels[0].index = 99;
-	if (copied[0].index != 17 || seeded[7].index != 17 || saved.index != 17) { return 2; }
+	if (copied[0].index != 17 || seeded[7].index != 17 || saved.index != 17) return 2;
 	release kernels;
 	copied[1].index = 31;
-	if (seeded[1].index != 17 || owner.values[0].index != 17) { return 3; }
+	if (seeded[1].index != 17 || owner.values[0].index != 17) return 3;
 	var forwarded = relay_array(move copied);
-	if (len(forwarded) != 2 || forwarded[1].index != 31) { return 4; }
+	if (len(forwarded) != 2 || forwarded[1].index != 31) return 4;
 	forwarded = clone_array(forwarded);
 	forwarded = recur_array(move forwarded, 4);
 	scopes(forwarded, 4);
 	forwarded = choose_array(move forwarded, 3, false);
 	forwarded = choose_array(move forwarded, 3, true);
-	if (len(forwarded) != 3 || forwarded[2].index != 0) { return 8; }
+	if (len(forwarded) != 3 || forwarded[2].index != 0) return 8;
 	forwarded = rearm_array(move forwarded);
-	if (len(forwarded) != 1 || forwarded[0].index != 0) { return 5; }
+	if (len(forwarded) != 1 || forwarded[0].index != 0) return 5;
 	Box<Kernel> box = { value = prototype };
 	var boxes = filled_array(2, box);
 	var cloned_boxes = clone_array(boxes);
-	if (cloned_boxes[1].value.index != 17) { return 6; }
+	if (cloned_boxes[1].value.index != 17) return 6;
 	var empty = make_array<f64>(0);
 	empty = clone_array(empty);
 	empty = relay_array(move empty);
-	if (len(empty) != 0) { return 7; }
+	if (len(empty) != 0) return 7;
 	return 0;
 }

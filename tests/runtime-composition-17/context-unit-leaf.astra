@@ -1,20 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace ContextLeaf;
 extern(C) void context_unit_retired(int value);
+
 [Allocator(kind="context",context="owned-concurrent")]
 class Entry {
 	private int value;
+
 	init(int value) { this.value = value; }
+
 	int read() { return this.value; }
+
 	deinit() { context_unit_retired(this.value); }
 }
+
 public owned Entry create(borrowed ConcurrentAllocator context, int value) {
 	var entry = new (context) Entry(value);
 	return move entry;
 }
+
 class Keeper {
 	private owned ConcurrentAllocator context;
+
 	init(owned ConcurrentAllocator context) { this.context = move context; }
+
 	owned Entry make(int value) {
 		var entry = create(this.context, value);
 		return move entry;

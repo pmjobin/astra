@@ -1,21 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 owned nonnull R checked_acquire(int number) throws Error {
 	owned R result = acquire(number);
-	if (result == null) { throw new Error("no Resource"); }
+	if (result == null) {
+		throw new Error("no Resource");
+	}
 	return move result;
 }
+
 int inspect_resource(borrowed nonnull R value) { return id(value); }
+
 int consume_resource(owned nonnull R value) { return inspect_resource(value); }
+
 int main() {
 	try {
 		{
 			owned nonnull R value = checked_acquire(7);
-			if (inspect_resource(value) != 7) { return 1; }
-			if (consume_resource(move value) != 7) { return 2; }
+			if (inspect_resource(value) != 7) return 1;
+			if (consume_resource(move value) != 7) return 2;
 		}
-		if (live() != 0) { return 3; }
+		if (live() != 0) return 3;
 		try { owned nonnull R absent = checked_acquire(0); return 4; }
-		catch (Error failure) { if (live() != 0) { return 5; } }
+		catch (Error failure) { if (live() != 0) return 5; }
 		return 0;
 	} catch (Error failure) { return 6; }
 }

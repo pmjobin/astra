@@ -22,15 +22,19 @@ static int setting(const char *name, int maximum) {
 	if (*end || value < 0 || value > maximum) abort();
 	return (int)value;
 }
+
 int view18_count(void) {
 	return setting("VIEW18_COUNT", 8);
 }
+
 int view18_overlap(void) {
 	return setting("VIEW18_OVERLAP", 1);
 }
+
 int view18_short(void) {
 	return setting("VIEW18_SHORT", 1);
 }
+
 sample_t view18_input(int index) {
 #ifdef VIEW18_FLOAT32
 	static const sample_bits_t patterns[] = {
@@ -58,15 +62,18 @@ sample_t view18_input(int index) {
 	memcpy(&value, &bits, sizeof value);
 	return value;
 }
+
 static uint64_t bits(sample_t value) {
 	sample_bits_t result;
 	memcpy(&result, &value, sizeof result);
 	return result;
 }
+
 static sample_t product(sample_t input, sample_t factor) {
 	volatile sample_t result = input * factor;
 	return result;
 }
+
 int view18_check(int index, sample_t value) {
 	sample_t expected;
 	if (index >= 100) {

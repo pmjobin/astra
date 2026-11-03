@@ -19,6 +19,7 @@ private SsaFunction function(SsaProgram program, string name) {
 	}
 	error ("missing SSA function %s", name);
 }
+
 private RuntimeLifetimeSummary summary(SsaProgram program, string name) throws SsaError {
 	var facts = SsaRuntimeLifetimes.analyze (program);
 	var result = facts.lookup (function (program, name));
@@ -28,6 +29,7 @@ private RuntimeLifetimeSummary summary(SsaProgram program, string name) throws S
 	}
 	return result;
 }
+
 private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string path = "") {
 	foreach (var origin in origins) {
 		if (origin.kind == RuntimeScopeOriginKind.OWNER_PARAMETER && origin.ordinal == parameter && origin.path == path) {
@@ -36,6 +38,7 @@ private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string
 	}
 	return false;
 }
+
 private SsaProgram build(string text, string? heap_boundary = null) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("lifetime-ssa.astra", text));
 	assert (parsed.diagnostic == null);
@@ -81,6 +84,7 @@ private SsaProgram build(string text, string? heap_boundary = null) throws GLib.
 	SsaVerifier.verify (ssa);
 	return ssa;
 }
+
 private void constructor_and_versions() {
 	try {
 		SsaProgram? ssa = build (CLASSES + "owned Box wrap(owned Leaf input){var box=new Box(move input);return move box;}owned Box forward(owned Leaf input){var result=wrap(move input);return move result;}void compare(borrowed Box box,owned Leaf incoming,int count){bool ignored=0<count<box.change(move incoming);}void loop(borrowed Box box,owned Leaf incoming,int count){while(count>0){box.put(move incoming);break;}}int main(){return 0;}");
@@ -102,6 +106,7 @@ private void constructor_and_versions() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_declaration() {
 	try {
 		var client = Parser.parse (new SourceFile.from_text ("lifetime-ssa-client.astra", "int main(){return opaque();}"));
@@ -128,6 +133,7 @@ private void native_declaration() {
 		error ("%s", failure.message);
 	}
 }
+
 private void admission_inventory() {
 	try {
 		var ssa = build (CLASSES + "struct Packet{owned Leaf item;int code;}[Allocator(kind=\"context\",context=\"owned-concurrent\")]class Holder{Packet packet;init(Packet packet){this.packet=move packet;}}int main(){var context=context_open();var leaf=new Leaf(7);Packet packet={item=move leaf,code=9};var result=try_new(context) Holder(move packet);return 0;}");
@@ -148,6 +154,7 @@ private void admission_inventory() {
 		error ("%s", failure.message);
 	}
 }
+
 private SsaFunction replace_entry(SsaProgram program, SsaFunction original, SsaTerminator terminator, SemanticType? result_type = null, SsaCleanupContract? result_cleanup = null) throws SsaError {
 	assert (original.blocks.length == 1);
 	var entry = new SsaBlock (original.entry.span, 0, original.entry.source_ordinal);
@@ -175,6 +182,7 @@ private SsaFunction replace_entry(SsaProgram program, SsaFunction original, SsaT
 	program.functions[original.ordinal] = result;
 	return result;
 }
+
 // Isolate the SSA lifetime component after genuine Source/Core/CFG/SSA
 // lowering. Public scoped-derived admission remains guarded elsewhere.
 private SsaObjectStorage inject_scoped_leaf(SsaProgram program, SsaFunction target) throws SsaError {
@@ -268,6 +276,7 @@ private SsaObjectStorage inject_scoped_leaf(SsaProgram program, SsaFunction targ
 	}
 	error ("SSA fixture lost empty producer");
 }
+
 private void refused(SsaProgram program, string diagnostic) {
 	bool rejected = false;
 	try {
@@ -279,6 +288,7 @@ private void refused(SsaProgram program, string diagnostic) {
 	}
 	assert (rejected);
 }
+
 private void scoped_retirement() {
 	try {
 		for (int mode = 0; mode < 3; mode++) {
@@ -316,6 +326,7 @@ private void scoped_retirement() {
 		error ("%s", failure.message);
 	}
 }
+
 private void return_leaf(SsaProgram program, SsaFunction target) throws SsaError {
 	SsaHeapOwner? owner = null;
 	SsaValue? pointer = null;
@@ -344,6 +355,7 @@ private void return_leaf(SsaProgram program, SsaFunction target) throws SsaError
 	}
 	error ("SSA fixture lost leaf retirement");
 }
+
 private void scoped_formal() {
 	try {
 		var ssa = build (SCOPED + "int exercise(borrowed Scoped context){var leaf=empty();return 0;}int main(){return 0;}");
@@ -357,6 +369,7 @@ private void scoped_formal() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_local_result() {
 	try {
 		var ssa = build (SCOPED + "int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=empty();return 0;}int main(){return 0;}");
@@ -368,6 +381,7 @@ private void scoped_local_result() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_pending_handoff() {
 	try {
 		foreach (bool reordered in new bool[] { false, true }) {
@@ -404,6 +418,7 @@ private void scoped_pending_handoff() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_storage_extent() {
 	try {
 		var ssa = build (SCOPED + "int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=empty();return 0;}int main(){return 0;}");
@@ -415,6 +430,7 @@ private void scoped_storage_extent() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_receiver_store() {
 	try {
 		string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}void put(owned ScopedLeaf child){this.child=move child;}}";
@@ -432,6 +448,7 @@ private void scoped_receiver_store() {
 		error ("%s", failure.message);
 	}
 }
+
 private void move_leaf(SsaFunction target) {
 	SsaHeapOwner? leaf = null;
 	SsaHeapOwner? other = null;
@@ -473,6 +490,7 @@ private void move_leaf(SsaFunction target) {
 		}
 	}
 }
+
 private void scoped_owner_move() {
 	try {
 		foreach (bool reordered in new bool[] { false, true }) {
@@ -509,6 +527,7 @@ private void scoped_owner_move() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_contract_roles() {
 	try {
 		for (int mode = 0; mode < 4; mode++) {
@@ -550,6 +569,7 @@ private void native_contract_roles() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_composite_coordinate_version() {
 	try {
 		for (int mode = 0; mode < 3; mode++) {
@@ -603,6 +623,7 @@ private void native_composite_coordinate_version() {
 		error ("%s", failure.message);
 	}
 }
+
 private void foreign_scalar_contracts() {
 	try {
 		var ssa = build ("int observe(borrowed Scoped context){scalar_observe(7);return scalar_foreign(query(context,7));}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);return observe(context);}int factory(){var context=context_open();return 0;}int main(){return 0;}");
@@ -627,6 +648,7 @@ private void foreign_scalar_contracts() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_carrier_signature() {
 	try {
 		var program = build (SCOPED.replace ("init(){}", "int code;init(){this.code=7;}int read(){int value=this.code;return value;}") + "class Inner{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}class Host{private owned Inner child;init(owned Inner child){this.child=move child;}}extern(C) void* opaque_ptr();void opaque(){opaque_ptr();}void probe(borrowed Host box){}int main(){return 0;}");
@@ -648,6 +670,7 @@ private void scoped_carrier_signature() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owned_factory_roles() {
 	try {
 		var program = build (SCOPED + "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}int probe(borrowed Host host){var context=context_open();return 0;}int main(){return 0;}");
@@ -680,6 +703,7 @@ private void owned_factory_roles() {
 		error ("%s", failure.message);
 	}
 }
+
 private void fallible_owner_inputs() {
 	try {
 		var program = build (SCOPED + "[Allocator(kind=\"context\",context=\"owned-concurrent\")]class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}owned ScopedLeaf refuse(borrowed Context context,owned ScopedLeaf input){var host=try_new(context)Host(move input);if(host==null){return move input;}return null;}int main(){return 0;}");
@@ -706,6 +730,7 @@ private void fallible_owner_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exceptional_results() {
 	try {
 		string fault = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}";
@@ -855,7 +880,6 @@ private void exceptional_results() {
 	}
 }
 
-
 private void checked_constructor_rollback() {
 	try {
 		string declarations = "[ExceptionRoot]class Fault{init(){}virtual property string message{get{return \"failed\";}}}[Allocator(kind=\"context\",context=\"scoped-affine\")]class Item{private int code;init(int code)throws Fault{this.code=code;if(code<0){throw new Fault();}}int read(){return this.code;}}";
@@ -994,6 +1018,7 @@ private void owned_record_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_buffer_admission() {
 	try {
 		for (int mode = 0; mode <= 7; mode++) {
@@ -1044,6 +1069,7 @@ private void scoped_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_buffer_fields() {
 	try {
 		for (int mode = 0; mode <= 8; mode++) {
@@ -1148,6 +1174,7 @@ private void cold_task_contract() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_scoped_capture() {
 	try {
 		foreach (bool early in new bool[] { false, true }) {
@@ -1198,6 +1225,7 @@ private void cold_task_scoped_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_joined_capture() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}async void joined(owned Captured input) throws TaskError{var child=consume(move input);await move child;await delay_ticks(1);}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();try{var executor=Tasks.open(8);var pending=joined(move input);var status=executor.run(move pending);match(status){case TaskStatus.Completed():{}else:{return 2;}}}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -1210,6 +1238,7 @@ private void cold_task_joined_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_admission_refusal() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}owned Captured refused(borrowed Context frames,owned Captured input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}return null;}int main(){return 0;}");
@@ -1240,6 +1269,7 @@ private void cold_task_admission_refusal() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_admission() {
 	try {
 		for (int mode = 0; mode <= 10; mode++) {
@@ -1305,6 +1335,7 @@ private void cold_task_record_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_buffer_admission() {
 	try {
 		for (int mode = 0; mode <= 9; mode++) {
@@ -1368,6 +1399,7 @@ private void cold_task_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_admission() {
 	try {
 		for (int mode = 0; mode <= 12; mode++) {
@@ -1445,6 +1477,7 @@ private void cold_task_record_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_deferred_error() {
 	try {
 		var program = build ("[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}[ExceptionRoot]class DeferredError{private owned Captured child;init(string message){this.child=empty();}void put(owned Captured input){this.child=move input;}virtual property string message{get{return \"deferred\";}}}enum DeferredStatus{Completed,Cancelled}async runtime DeferredTasks throws DeferredError returns DeferredStatus;async void fail(owned Captured input)throws DeferredError{var error=new DeferredError(\"deferred\");error.put(move input);throw move error;}int main(){return 0;}");
@@ -1457,6 +1490,7 @@ private void cold_task_deferred_error() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_observation() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Packet{owned Captured child;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -1516,6 +1550,7 @@ private void cold_task_record_observation() {
 		error ("%s", failure.message);
 	}
 }
+
 private void enum_owner_continuity() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void child(owned Captured input){}int exercise(){owned u8[] backing=new u8[8197];var context=scoped_allocator<Scoped>(backing,1,1);try{var input=new(context)Captured();var executor=Tasks.open(8);var pending=child(move input);var status=executor.run(move pending);match(status){case TaskStatus.Completed():{}else:{return 2;}}}catch(TaskError error){return 3;}return query(context,1);}int main(){return 0;}");
@@ -1581,6 +1616,7 @@ private void enum_owner_continuity() {
 		error ("%s", failure.message);
 	}
 }
+
 private void suspended_private_catch() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}async void child(owned Captured input)throws TaskError{await delay_ticks(1);}async void caught(owned Captured input)throws TaskError{try{var pending=child(move input);await move pending;}catch(TaskError error){await delay_ticks(1);throw;}}int main(){return 0;}");
@@ -1614,6 +1650,7 @@ private void suspended_private_catch() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_observation() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,data={left=new u8[7],right=new u8[9]},marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -1623,6 +1660,7 @@ private void cold_task_record_buffer_observation() {
 		error ("%s", failure.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/runtime-lifetime-ssa/enum-owner-continuity", enum_owner_continuity);
@@ -1660,4 +1698,5 @@ public int main(string[] args) {
 	Test.add_func ("/runtime-lifetime-ssa/foreign-scalar-and-allocator-borrow", foreign_scalar_contracts);
 	return Test.run ();
 }
+
 }

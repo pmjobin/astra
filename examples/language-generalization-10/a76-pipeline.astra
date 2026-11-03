@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pulse { int index; int value; }
+
 class PulseGenerator {
 	owned Lease lease;
 	owned int[] state;
 	int limit;
 	int fail_at;
 	int seed;
+
 	init(int seed, int limit, int fail_at) {
 		this.lease = open_lease(seed);
 		this.state = new int[2];
@@ -15,30 +17,39 @@ class PulseGenerator {
 		this.fail_at = fail_at;
 		this.seed = seed;
 	}
+
 	bool advance() throws Error {
 		this.state[0] = this.state[0] + 1;
-		if (this.state[0] >= this.limit) { return false; }
-		if (this.state[0] == this.fail_at) { throw new Error("generator step"); }
+		if (this.state[0] >= this.limit) return false;
+		if (this.state[0] == this.fail_at) {
+			throw new Error("generator step");
+		}
 		this.state[1] = (this.state[1] * 7 + 3) % 97;
 		return true;
 	}
+
 	Pulse current() {
 		Pulse result = {index = this.state[0], value = this.state[1]};
 		return result;
 	}
+
 	int position() { return this.state[0]; }
+
 	deinit() { event(3000 + this.seed); }
 }
+
 void run_pipeline(int seed, int count, int fail_at) throws Error {
-	if (seed < 1 || seed > 40 || count < 0 || count > 10 || fail_at < -1 || fail_at > 10) { throw new Error("pipeline range"); }
+	if (seed < 1 || seed > 40 || count < 0 || count > 10 || fail_at < -1 || fail_at > 10) {
+		throw new Error("pipeline range");
+	}
 	var generator = new PulseGenerator(seed, count, fail_at);
 	var samples = new Vector<Pulse>(0);
 	foreach (var pulse in generator) {
-		if (pulse.value % 3 == 0) { continue; }
+		if (pulse.value % 3 == 0) continue;
 		var saved = pulse;
 		saved.value = saved.value + seed;
 		bool stored = samples.append(saved);
-		if (samples.count() == 3) { break; }
+		if (samples.count() == 3) break;
 	}
 	int[3] weights = {1, 2, 3};
 	var view = slice(weights, 1, 2);
@@ -54,17 +65,18 @@ void run_pipeline(int seed, int count, int fail_at) throws Error {
 	number(generator.position());
 	int tail = 0;
 	foreach (var pulse in generator) {
-		if (pulse.index % 2 == 0) { continue; }
+		if (pulse.index % 2 == 0) continue;
 		tail = tail + pulse.value;
 	}
 	number(tail);
 }
+
 int main(string[] args) {
-	if (len(args) != 4) { return 81; }
+	if (len(args) != 4) return 81;
 	int result = 0;
 	try { run_pipeline(parse_int(args[1]), parse_int(args[2]), parse_int(args[3])); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
-	if (live_leases() != 0) { return 83; }
+	if (live_leases() != 0) return 83;
 	return result;
 }

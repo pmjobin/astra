@@ -22,6 +22,7 @@ private CAbiProgram sample(CAbiProfile profile, CAbiScalarType scalar, int shape
 	}
 	return new CAbiProgram (span, profile, imports, exports);
 }
+
 private void channels() {
 	try {
 		foreach (var scalar in new CAbiScalarType[] {CAbiScalarType.F32, CAbiScalarType.F64}) {
@@ -41,6 +42,7 @@ private void channels() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	foreach (var scalar in new CAbiScalarType[] {CAbiScalarType.F32, CAbiScalarType.F64}) {
 		foreach (var profile in new CAbiProfile[] {CAbiProfile.SCALAR_V0, CAbiProfile.SCALAR_PTR_V1}) {
@@ -67,10 +69,12 @@ private void malformed() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/cabi-fp/standalone/import-export-channels-void-zero-multiple-mixed-lifetime", channels);
 	Test.add_func ("/cabi-fp/standalone/frozen-profiles-and-malformed-contracts", malformed);
 	return Test.run ();
 }
+
 }

@@ -30,6 +30,7 @@ private CAbiProgram owned_program(int variant = -1) throws CAbiError {
 	}
 	return new CAbiProgram (span, profile, imports, exports, cleanups);
 }
+
 private void owned_model() {
 	try {
 		CAbiProgram? program = owned_program ();
@@ -47,6 +48,7 @@ private void owned_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void owned_invalid() {
 	for (int variant = 0; variant < 10; variant++) {
 		try {
@@ -58,6 +60,7 @@ private void owned_invalid() {
 		GLib.error ("malformed physical cleanup %d accepted", variant);
 	}
 }
+
 private CAbiProgram oborrow_program(int variant = -1) throws CAbiError {
 	var file = new SourceFile.from_text ("borrowed-contract", "borrowed void* p");
 	var span = SourceSpan (file, 0, file.length);
@@ -69,6 +72,7 @@ private CAbiProgram oborrow_program(int variant = -1) throws CAbiError {
 	imports.add (new CAbiFunction (span, span, "inspect", 0, signature, new CForeignMetadata ("inspect")));
 	return new CAbiProgram (span, profile, imports);
 }
+
 private void oborrow_model() {
 	try {
 		CAbiProgram? program = oborrow_program ();
@@ -81,6 +85,7 @@ private void oborrow_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void oborrow_invalid() {
 	for (int i = 0; i < 3; i++) {
 		try {
@@ -92,10 +97,12 @@ private void oborrow_invalid() {
 		GLib.error ("malformed borrowed CABI %d accepted", i);
 	}
 }
+
 private void register_owned_tests() {
 	Test.add_func ("/cabi-standalone/oborrow/model-lifetime", oborrow_model);
 	Test.add_func ("/cabi-standalone/oborrow/malformed", oborrow_invalid);
 	Test.add_func ("/cabi-standalone/ownership/model-lifetime", owned_model);
 	Test.add_func ("/cabi-standalone/ownership/malformed", owned_invalid);
 }
+
 }

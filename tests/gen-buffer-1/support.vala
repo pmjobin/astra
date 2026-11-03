@@ -12,6 +12,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -23,6 +24,7 @@ private void add(string path, owned TestBody body) {
 								 }
 	});
 }
+
 private string fixture(string name) throws FileError {
 	string library;
 	string text;
@@ -32,6 +34,7 @@ private string fixture(string name) throws FileError {
 	FileUtils.get_contents ("lib/astra/base/buffers.astra", out buffers);
 	return library + buffers + text;
 }
+
 private CheckedProgram check(string text) {
 	var parsed = Parser.parse (new SourceFile.from_text ("generic-buffer.astra", text));
 	if (parsed.diagnostic != null) {
@@ -43,7 +46,9 @@ private CheckedProgram check(string text) {
 	}
 	return checked.program;
 }
+
 private SsaProgram build(string text) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (text)))));
 }
+
 }

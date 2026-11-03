@@ -53,6 +53,7 @@ private CoreProgram sample(int variant = 0) {
 	functions.add (function);
 	return new CoreProgram (s, functions, null, null, structures);
 }
+
 private void qualify() {
 	try {
 		CoreProgram? program = sample ();
@@ -75,9 +76,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 public int run_core(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-elements/core/independent-complete-entry-order-and-malformed-storage", qualify);
 	return Test.run ();
 }
+
 }

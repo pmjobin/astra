@@ -17,6 +17,7 @@ private SemanticResult check(string declaration, bool vapi) {
 	}
 	return SemanticAnalyzer.analyze (source.unit, inputs);
 }
+
 private void equivalent() {
 	string metadata = "[CCode (text_abi=\"utf8-i32\",cname=\"unfamiliar_reader\",cheader_filename=\"opaque\\\\path\\\".h\")] ";
 	var source = check (metadata + "extern(C) int inspect(int tag, borrowed string a, f32 scale, borrowed string b, f64 wide, void* token);", false);
@@ -35,6 +36,7 @@ private void equivalent() {
 	var copy = function.metadata.copy_with_owned_result ();
 	assert (copy != function.metadata && copy.text_abi == function.metadata.text_abi && copy.header_at (0).name == "opaque\\path\".h");
 }
+
 private void metadata_negatives() {
 	string[] entries = {
 		"text_abi=\"utf8-i32\",text_abi=\"utf8-i32\"", "text_abi=\"utf8-i32\",text_abi=\"other\"", "text_abi=\"\"", "text_abi=\"utf8-i32\\0\"", "text_abi=\"utf8-\\u0069332\"", "text_abi=1", "unknown=\"x\""
@@ -45,10 +47,12 @@ private void metadata_negatives() {
 	}
 	assert (VapiParser.parse (new SourceFile.from_text ("bad.vapi", "[CCode(text_abi=\"utf8-i32\",destroy_function=\"free\")] handle H;")).diagnostic != null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text-io/frontend/source-vapi-authority", equivalent);
 	Test.add_func ("/text-io/frontend/metadata-rejection", metadata_negatives);
 	return Test.run ();
 }
+
 }

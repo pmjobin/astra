@@ -9,6 +9,7 @@ private void grammar() {
 		assert (LinkInput.valid_library_name (name) == (name == "m" || name == "a_b-1.2"));
 	}
 }
+
 private void order() {
 	try {
 		LinkInput[] inputs = {
@@ -29,6 +30,7 @@ private void order() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	recorder = args[1];
 	record_path = args[2];
@@ -37,4 +39,5 @@ int main(string[] args) {
 	Test.add_func ("/baselib/link-library/interleaved-order-repetitions-shell-free", order);
 	return Test.run ();
 }
+
 }

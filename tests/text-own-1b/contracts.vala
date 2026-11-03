@@ -27,17 +27,21 @@ private CheckedProgram check() throws GLib.Error {
 	}
 	return result.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var p = CoreGenericMonomorphizer.build (CoreBuilder.build (check ()));
 	CoreVerifier.verify_concrete (p);
 	return p;
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	return CfgBuilder.build (core ());
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	return SsaBuilder.build (cfg ());
 }
+
 private void checked_and_core() {
 	try {
 		var p = check ();
@@ -101,6 +105,7 @@ private void checked_and_core() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void cfg_mutation() {
 	try {
 		var p = cfg ();
@@ -150,6 +155,7 @@ private void cfg_mutation() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void ssa_mutation() {
 	try {
 		var p = ssa ();
@@ -204,6 +210,7 @@ private void ssa_mutation() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void native_mutations() {
 	try {
 		var s = ssa ();
@@ -255,6 +262,7 @@ private void native_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void llvm_mutations() {
 	try {
 		var s = ssa ();
@@ -359,6 +367,7 @@ private void llvm_mutations() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void independent() {
 	try {
 		CheckedProgram? checked = check ();
@@ -389,6 +398,7 @@ private void independent() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text-own-1b/checked-core-private-access-restored", checked_and_core);
@@ -399,4 +409,5 @@ int main(string[] args) {
 	Test.add_func ("/text-own-1b/stages-retire-predecessor-graphs", independent);
 	return Test.run ();
 }
+
 }

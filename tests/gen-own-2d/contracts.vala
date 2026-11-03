@@ -18,16 +18,19 @@ private CheckedProgram checked() {
 	}
 	return result.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var result = CoreBuilder.build (checked ());
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private CoreProgram concrete() throws GLib.Error {
 	var result = CoreGenericMonomorphizer.build (core ());
 	CoreVerifier.verify_concrete (result);
 	return result;
 }
+
 private CoreFunction stage(CoreProgram program, bool heap = false) {
 	foreach (var function in program.generic_functions) {
 		if (function.name == "stage") {
@@ -41,6 +44,7 @@ private CoreFunction stage(CoreProgram program, bool heap = false) {
 	}
 	assert_not_reached ();
 }
+
 private void core_rejects(CoreProgram program) {
 	bool rejected = false;
 	try {
@@ -51,6 +55,7 @@ private void core_rejects(CoreProgram program) {
 	}
 	assert (rejected);
 }
+
 private void checked_mutation(int mode) throws GLib.Error {
 	var source = checked ();
 	CheckedGenericFunction? function = null;
@@ -81,6 +86,7 @@ private void checked_mutation(int mode) throws GLib.Error {
 	local.heap_object = false;
 	CoreVerifier.verify (CoreBuilder.build (source));
 }
+
 private void core_mutation(int mode, bool specialized = false, bool heap = false) throws GLib.Error {
 	var program = specialized ? concrete () : core ();
 	var function = stage (program, heap);
@@ -113,12 +119,14 @@ private void core_mutation(int mode, bool specialized = false, bool heap = false
 	}
 	CoreVerifier.verify (program);
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	var result = CfgBuilder.build (concrete ());
 	CfgVerifier.verify (result);
 	assert (CfgFlowChecker.check (result).diagnostic == null);
 	return result;
 }
+
 private void core_type() throws GLib.Error {
 	var program = core ();
 	var function = stage (program);
@@ -137,6 +145,7 @@ private void core_type() throws GLib.Error {
 	program.cleanups.remove_index (program.cleanups.length - 1);
 	CoreVerifier.verify (program);
 }
+
 private void core_producer() throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("forged-local-producer", SOURCE + "owned T echo<T>(owned T v) where T:Ownable{return move v;}"));
 	assert (parsed.diagnostic == null);
@@ -162,6 +171,7 @@ private void core_producer() throws GLib.Error {
 	function.body.statements[1] = original;
 	CoreVerifier.verify (program);
 }
+
 private void resource_rearm() throws GLib.Error {
 	var program = core ();
 	var span = program.span;
@@ -203,6 +213,7 @@ private void resource_rearm() throws GLib.Error {
 	function.body.statements.remove_index (2);
 	CoreVerifier.verify_concrete (concrete);
 }
+
 private void buffer_compatibility() throws GLib.Error {
 	string slices;
 	string buffers;
@@ -227,6 +238,7 @@ private void buffer_compatibility() throws GLib.Error {
 	SsaVerifier.verify (ssa);
 	NativeAbiVerifier.verify (NativeAbiBuilder.build (ssa));
 }
+
 private CfgFunction cfg_stage(CfgProgram program, bool heap) {
 	foreach (var function in program.functions) {
 		if (function.parameters.length != 2 || function.parameters[0].heap_object != heap) {
@@ -240,6 +252,7 @@ private CfgFunction cfg_stage(CfgProgram program, bool heap) {
 	}
 	assert_not_reached ();
 }
+
 private void cfg_rejects(CfgProgram program) {
 	bool rejected = false;
 	try {
@@ -255,6 +268,7 @@ private void cfg_rejects(CfgProgram program) {
 	}
 	assert (rejected);
 }
+
 private void cfg_mutation(int mode, bool heap) throws GLib.Error {
 	var program = cfg ();
 	var function = cfg_stage (program, heap);
@@ -291,11 +305,13 @@ private void cfg_mutation(int mode, bool heap) throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	var result = SsaBuilder.build (cfg ());
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void ssa_rejects(SsaProgram program) {
 	bool rejected = false;
 	try {
@@ -306,6 +322,7 @@ private void ssa_rejects(SsaProgram program) {
 	}
 	assert (rejected);
 }
+
 // This graph has no Checked, Core, CFG or generic-instance annotation.
 // Independently exercise original pointer transfer in all three domains.
 private SsaProgram standalone(int domain) throws GLib.Error {
@@ -362,6 +379,7 @@ private SsaProgram standalone(int domain) throws GLib.Error {
 	SsaVerifier.verify (program);
 	return program;
 }
+
 private void ssa_mutation(int domain, int mode) throws GLib.Error {
 	var program = standalone (domain);
 	var function = program.functions[0];
@@ -394,6 +412,7 @@ private void ssa_mutation(int domain, int mode) throws GLib.Error {
 	}
 	SsaVerifier.verify (program);
 }
+
 private void native_mutation(bool heap, bool wrong_class) throws GLib.Error {
 	var source = ssa ();
 	var native = NativeAbiBuilder.build (source);
@@ -423,6 +442,7 @@ private void native_mutation(bool heap, bool wrong_class) throws GLib.Error {
 	NativeAbiVerifier.verify (native);
 	NativeAbiValidator.validate_ssa_calls (source, native, map);
 }
+
 private delegate void Check() throws GLib.Error;
 private void run(Check check) {
 	try {
@@ -431,6 +451,7 @@ private void run(Check check) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own-2d/checked/wrong-source", () => { run (() => { checked_mutation (0);
@@ -566,4 +587,5 @@ int main(string[] args) {
 	});
 	return Test.run ();
 }
+
 }

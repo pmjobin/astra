@@ -41,6 +41,7 @@ private void widths() throws GLib.Error {
 	var constant = lower (build (read ("basic"))).dump ();
 	assert (!constant.contains ("llvm.trap") && !constant.contains ("bounds"));
 }
+
 private void audit_alignment(LlvmModuleArtifact artifact) {
 	var layout = MemoryCApi.module_data_layout (artifact.module);
 	for (var function = CApi.first_function (artifact.module); (void*) function != null; function = CApi.next_function (function)) {
@@ -127,4 +128,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

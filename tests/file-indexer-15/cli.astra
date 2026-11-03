@@ -2,31 +2,38 @@
 class LaterPolicy : IndexFoundation.IdentifierPolicy {
 	private int upper_start;
 	private int upper_end;
+
 	init() : base() { this.upper_start = 65; this.upper_end = 90; }
+
 	override int classify(int byte) {
-		if (byte >= this.upper_start && byte <= this.upper_end) { return 1; }
-		if (byte >= 97 && byte <= 122 || byte == 95) { return 1; }
-		if (byte >= 48 && byte <= 57) { return 2; }
+		if (byte >= this.upper_start && byte <= this.upper_end) return 1;
+		if (byte >= 97 && byte <= 122 || byte == 95) return 1;
+		if (byte >= 48 && byte <= 57) return 2;
 		return 0;
 	}
 }
+
 IndexFoundation.Receipt record_sink(borrowed IndexFoundation.SinkState<int> environment,
 	IndexFoundation.Summary input, bool reject) throws IndexFoundation.Error {
 	environment.attempt();
-	if (reject) { throw new IndexFoundation.SinkFailure(); }
+	if (reject) {
+		throw new IndexFoundation.SinkFailure();
+	}
 	environment.accept();
 	IndexFoundation.Receipt result = {sequence = environment.count, attempts = environment.attempts,
 		bytes = input.bytes, marker = environment.label};
 	return result;
 }
+
 IndexFoundation.Summary select_analysis(borrowed IndexFoundation.Store store, int key,
 	string path, bool alternate, borrowed IndexFoundation.IdentifierPolicy first,
 	borrowed IndexFoundation.IdentifierPolicy second, int generation, bool replace,
 	borrowed CheckedClosure<IndexFoundation.SinkState<int>, IndexFoundation.Error,
 	IndexFoundation.Receipt, IndexFoundation.Summary, bool> sink, bool reject) throws IndexFoundation.Error {
-	if (alternate) { return IndexAnalysis.process(store, key, path, second, generation, replace, sink, reject); }
+	if (alternate) return IndexAnalysis.process(store, key, path, second, generation, replace, sink, reject);
 	return IndexAnalysis.process(store, key, path, first, generation, replace, sink, reject);
 }
+
 IndexFoundation.Summary run_file(borrowed IndexFoundation.Store store, int key,
 	string path, bool alternate, borrowed IndexFoundation.IdentifierPolicy first,
 	borrowed IndexFoundation.IdentifierPolicy second, int generation, bool replace,
@@ -37,19 +44,24 @@ IndexFoundation.Summary run_file(borrowed IndexFoundation.Store store, int key,
 			var rejected = select_analysis(store, key, path, alternate, first, second, generation, replace, sink, true);
 			throw new IndexFoundation.IndexError("sink did not reject");
 		} catch (IndexFoundation.SinkFailure error) {
-			if (store.contains(key)) { throw new IndexFoundation.IndexError("failed sink published a result"); }
+			if (store.contains(key)) {
+				throw new IndexFoundation.IndexError("failed sink published a result");
+			}
 		}
 	}
 	var summary = select_analysis(store, key, path, alternate, first, second, generation, replace, sink, false);
 	int offset = 0;
 	while (true) {
 		int byte = store.report_byte(key, offset);
-		if (byte < 0) { break; }
-		if (!IndexFoundation.write_byte(byte)) { throw new IndexFoundation.IndexError("output"); }
+		if (byte < 0) break;
+		if (!IndexFoundation.write_byte(byte)) {
+			throw new IndexFoundation.IndexError("output");
+		}
 		offset = offset + 1;
 	}
 	return summary;
 }
+
 void write_error(string path, string category) throws IndexFoundation.Error {
 	var output = new IndexFoundation.Utf8ByteBuilder();
 	IndexFoundation.require_text(IndexFoundation.append_text(output, "error\t"));
@@ -58,8 +70,11 @@ void write_error(string path, string category) throws IndexFoundation.Error {
 	IndexFoundation.require_text(IndexFoundation.append_text(output, category));
 	IndexAnalysis.append_byte(output, 10);
 	var message = output.snapshot();
-	if (!IndexFoundation.print(message.text)) { throw new IndexFoundation.IndexError("output"); }
+	if (!IndexFoundation.print(message.text)) {
+		throw new IndexFoundation.IndexError("output");
+	}
 }
+
 int main(string[] args) {
 	var first = new IndexAnalysis.AsciiPolicy();
 	var second = new LaterPolicy();
@@ -78,18 +93,36 @@ int main(string[] args) {
 	int errors = 0;
 	int total_bytes = 0;
 	int total_occurrences = 0;
-	if (!IndexFoundation.print("astra-index\t1\n")) { return 3; }
+	if (!IndexFoundation.print("astra-index\t1\n")) return 3;
 	try {
 		for (int index = 1; index < len(args); index = index + 1) {
 			var path = args[index];
-			if (path == "--policy=alternate") { alternate = true; continue; }
-			if (path == "--refresh") { replace = true; continue; }
-			if (path == "--evict-last") { evict = true; continue; }
-			if (path == "--cache-stats") { cache_stats = true; continue; }
-			if (path == "--retry-sink") { retry = true; continue; }
+			if (path == "--policy=alternate") {
+				alternate = true;
+				continue;
+			}
+			if (path == "--refresh") {
+				replace = true;
+				continue;
+			}
+			if (path == "--evict-last") {
+				evict = true;
+				continue;
+			}
+			if (path == "--cache-stats") {
+				cache_stats = true;
+				continue;
+			}
+			if (path == "--retry-sink") {
+				retry = true;
+				continue;
+			}
 			int key = index;
 			for (int previous = 1; previous < index; previous = previous + 1) {
-				if (args[previous] == path) { key = previous; break; }
+				if (args[previous] == path) {
+					key = previous;
+					break;
+				}
 			}
 			try {
 				var summary = run_file(store, key, path, alternate, first, second, index, replace, sink, retry);
@@ -104,7 +137,9 @@ int main(string[] args) {
 				errors = errors + 1;
 				write_error(path, "read");
 			} catch (IndexFoundation.IndexError error) {
-				if (error.message != "embedded-nul") { throw; }
+				if (error.message != "embedded-nul") {
+					throw;
+				}
 				errors = errors + 1;
 				write_error(path, "embedded-nul");
 			}
@@ -112,7 +147,7 @@ int main(string[] args) {
 		if (evict && last_key >= 0) {
 			int before = store.count;
 			var removed = store.remove(last_key);
-			if (removed == null || removed.view.summary.bytes < 0 || store.count != before - 1) { return 6; }
+			if (removed == null || removed.view.summary.bytes < 0 || store.count != before - 1) return 6;
 		}
 		if (cache_stats) {
 			var diagnostics = new IndexFoundation.Utf8ByteBuilder();
@@ -133,7 +168,7 @@ int main(string[] args) {
 		IndexAnalysis.append_number(output, total_occurrences);
 		IndexAnalysis.append_byte(output, 10);
 		var message = output.snapshot();
-		if (!IndexFoundation.print(message.text)) { return 3; }
+		if (!IndexFoundation.print(message.text)) return 3;
 	} catch (IndexFoundation.Error error) {
 		IndexFoundation.println_stderr(error.message);
 		return 4;

@@ -8,6 +8,7 @@ public class SsaBaseLifecycleCall : SsaCallInstruction {
 	internal SsaBaseLifecycleCall (SourceSpan span, SsaLifecycle target, GenericArray<SsaValue> arguments, SsaValue receiver) {
 		base (span, null, -1, target, arguments, receiver);
 	}
+
 }
 
 // Exact stage-owned lifecycle identity, independent of upstream symbols.
@@ -22,18 +23,21 @@ public abstract class SsaLifecycle : SsaFunction {
 		this.receiver = receiver;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class SsaConstructor : SsaLifecycle {
 	internal SsaConstructor (SourceSpan span, SourceSpan name_span, SsaClass owner, SsaReceiver receiver, int member_ordinal, SemanticType void_type, int ordinal, GenericArray<SsaFunctionParameter> parameters, GenericArray<SsaBlock> blocks, SsaBlock entry) {
 		base (span, name_span, "init", owner, receiver, member_ordinal, void_type, ordinal, parameters, blocks, entry);
 	}
+
 }
 
 public class SsaDestructor : SsaLifecycle {
 	internal SsaDestructor (SourceSpan span, SourceSpan name_span, SsaClass owner, SsaReceiver receiver, int member_ordinal, SemanticType void_type, int ordinal, GenericArray<SsaFunctionParameter> parameters, GenericArray<SsaBlock> blocks, SsaBlock entry) {
 		base (span, name_span, "deinit", owner, receiver, member_ordinal, void_type, ordinal, parameters, blocks, entry);
 	}
+
 }
 
 public class SsaStorageReceiverInstruction : SsaInstruction {
@@ -46,6 +50,7 @@ public class SsaStorageReceiverInstruction : SsaInstruction {
 		this.allocation_context = allocation_context;
 		this.context_owner = context_owner;
 	}
+
 }
 
 public class SsaLifecycleCallInstruction : SsaCallInstruction {
@@ -58,6 +63,7 @@ public class SsaLifecycleCallInstruction : SsaCallInstruction {
 		base (span, null, -1, target, arguments, receiver);
 		this.storage = storage;
 	}
+
 }
 
 // A fallible constructor consumes the captured input only after admission.
@@ -74,6 +80,7 @@ public class SsaFallibleInputRestore : SsaInstruction {
 		this.argument = argument;
 		this.owner = owner;
 	}
+
 }
 public class SsaFallibleBufferRestore : SsaInstruction {
 	private WeakRef invocation;
@@ -86,6 +93,7 @@ public class SsaFallibleBufferRestore : SsaInstruction {
 		this.argument = argument;
 		pair = new SsaBufferPair.results (span, argument.pair.shape, ordinal);
 	}
+
 }
 public class SsaFallibleRecordRestore : SsaRecordAdmissionRestore {
 	private WeakRef invocation;
@@ -93,10 +101,12 @@ public class SsaFallibleRecordRestore : SsaRecordAdmissionRestore {
 	public override SsaValue admission_value() {
 		return call.receiver;
 	}
+
 	internal SsaFallibleRecordRestore (SourceSpan span, SsaLifecycleCallInstruction call, SsaStructBoundaryMove original, SsaStructCallResults results) {
 		base (span, original, results);
 		invocation = WeakRef (call);
 	}
+
 }
 
 }

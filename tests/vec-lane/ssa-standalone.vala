@@ -92,4 +92,5 @@ int main(string[] args) {
 	Test.add_func ("/vec-lane/ssa/standalone-values-and-verifier", values);
 	return Test.run ();
 }
+
 }

@@ -11,6 +11,7 @@ private class CoreRuntimeStorage : Object {
 		this.binding = binding;
 		this.path = path;
 	}
+
 }
 private class CoreRuntimeObligation : Object {
 	internal int value;
@@ -19,6 +20,7 @@ private class CoreRuntimeObligation : Object {
 		this.value = value;
 		this.destination = destination;
 	}
+
 }
 // Reconstruct from Core nodes. No CheckedFunction summary is consulted or
 // retained; callers can keep a neutral result after the entire Core is freed.
@@ -34,6 +36,7 @@ public class CoreRuntimeLifetimes : Object {
 		}
 		return analysis.summaries;
 	}
+
 	public static void verify(CoreProgram program, GenericArray<CoreFunction>? required = null) throws CoreError {
 		var summaries = analyze (program);
 		if (required != null) {
@@ -45,6 +48,7 @@ public class CoreRuntimeLifetimes : Object {
 			}
 		}
 	}
+
 	internal RuntimeLifetimeSummary? summary(CoreFunction? function) throws CoreError {
 		if (function == null || visiting.contains (function) || !program.functions.find (function) && !(function is CoreGenericFunction && program.generic_functions.find ((CoreGenericFunction) function))) {
 			return null;
@@ -82,6 +86,7 @@ public class CoreRuntimeLifetimes : Object {
 		summaries.insert (function, result);
 		return result;
 	}
+
 }
 private class CoreRuntimeLifetimeBody : Object {
 	private CoreRuntimeLifetimes analysis;
@@ -107,12 +112,14 @@ private class CoreRuntimeLifetimeBody : Object {
 	private static bool scoped_class(CoreClass? owner) {
 		return owner != null && owner.allocation_policy != null && owner.allocation_policy.kind == AllocationKind.CONTEXT && owner.allocation_policy.context_mode == "scoped-affine";
 	}
+
 	private static bool scoped_value(CoreValue? value) {
 		if (value is CoreOwnedObjectResultConstruction) {
 			return scoped_class (((CoreOwnedObjectResultConstruction) value).storage.object_class);
 		}
 		return value is CoreOwnedBufferAllocate && ((CoreOwnedBufferAllocate) value).allocation_context != null && ((CoreOwnedBufferAllocate) value).allocation_context.semantic_type.is_scoped_allocator ();
 	}
+
 	private static bool scoped_block(CoreBlock block) {
 		foreach (var source in block.statements) {
 			if (source is CoreConstructorObjectInitialization && scoped_class (((CoreConstructorObjectInitialization) source).storage.object_class) || source is CoreInitialize && scoped_value (((CoreInitialize) source).value) || source is CoreOwnershipReturn && scoped_value (((CoreOwnershipReturn) source).producer) || source is CoreStructAcquire && scoped_value (((CoreStructAcquire) source).producer) || source is CoreOwnedFieldTransfer && scoped_value (((CoreOwnedFieldTransfer) source).producer)) {
@@ -142,6 +149,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	internal CoreRuntimeLifetimeBody (CoreRuntimeLifetimes analysis, CoreProgram program, CoreFunction function) {
 		this.analysis = analysis;
 		this.program = program;
@@ -155,18 +163,22 @@ private class CoreRuntimeLifetimeBody : Object {
 			scoped_construction |= scoped_type (local.semantic_type);
 		}
 	}
+
 	private RuntimeLifetimeEquations graph { get { return flow.equations; } }
 	private void unsupported_node(string reason) {
 		if (unsupported == "") {
 			unsupported = reason;
 		}
 	}
+
 	private static int parameter_binding(int parameter) {
 		return -parameter - 2;
 	}
+
 	private static bool graph_input(SemanticType type) {
 		return !(type is HandleType && ((HandleType) type).context_mode != "") && (type is ClassType || type is ReceiverType || type is HandleType || type.is_struct_storage () || type is TypeParameterType || type is TaskType);
 	}
+
 	private int region_id(TextLoanExtent? extent) throws RuntimeLifetimeError {
 		if (extent == null) {
 			throw new RuntimeLifetimeError.INVALID_GRAPH ("Core lifetime requires actual lexical cleanup extents");
@@ -177,6 +189,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return region_ids.lookup (extent);
 	}
+
 	private CoreNativeInstance? instance(SemanticType type) {
 		if (type is ReceiverType) {
 			type = ((ReceiverType) type).instance_type;
@@ -193,9 +206,11 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private bool scoped_type(SemanticType type) {
 		return RuntimeScopeTypes.contains (type, expand_scoped_type);
 	}
+
 	private bool expand_scoped_type(SemanticType type, GenericArray<SemanticType> following) {
 		var owner = instance (type);
 		if (owner != null) {
@@ -230,6 +245,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private int product(SemanticType type, CoreValue? context = null) throws RuntimeLifetimeError {
 		var roots = new GenericArray<RuntimeScopeOrigin> ();
 		var origin = context_origin (context);
@@ -250,6 +266,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return graph.product (roots, fields);
 	}
+
 	private int allocation(CoreClass owner, CoreValue? context) throws RuntimeLifetimeError {
 		var policy = owner.allocation_policy;
 		HandleType? handle = null;
@@ -261,6 +278,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return product (owner.semantic_type, context);
 	}
+
 	private RuntimeScopeOrigin? context_origin(CoreValue? value) throws RuntimeLifetimeError {
 		if (value == null || !value.semantic_type.is_scoped_allocator ()) {
 			return null;
@@ -280,6 +298,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeScopeOrigin.local (local.ordinal, region_id (local.text_extent));
 	}
+
 	private CoreRuntimeStorage? reference(CoreValue? value) {
 		if (value is CoreStructProjectionValue) {
 			var projected = (CoreStructProjectionValue) value;
@@ -323,6 +342,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private CoreRuntimeStorage? producer_reference(CoreStructProducer producer) {
 		if (producer is CoreStructSnapshot) {
 			return place (((CoreStructSnapshot) producer).source);
@@ -340,12 +360,14 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return null;
 	}
+
 	private CoreRuntimeStorage? field(CoreRuntimeStorage? root, int ordinal) {
 		if (root != null) {
 			root.path += (root.path == "" ? "" : ".") + "f%d".printf (ordinal);
 		}
 		return root;
 	}
+
 	private CoreRuntimeStorage? place(CorePlace? place) {
 		if (place is CoreLocalPlace) {
 			return new CoreRuntimeStorage (((CoreLocalPlace) place).ordinal);
@@ -359,6 +381,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		unsupported_node ("Core indirect/indexed storage needs an exact ownership path");
 		return null;
 	}
+
 	private int read(CoreRuntimeStorage? storage) throws RuntimeLifetimeError {
 		if (storage == null) {
 			unsupported_node ("Core read has no exact owning storage");
@@ -367,6 +390,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		int value = flow.read (storage.binding);
 		return storage.path == "" ? value : graph.project (value, storage.path);
 	}
+
 	private int replace_path(int root, string path, int incoming) throws RuntimeLifetimeError {
 		int dot = path.index_of_char ('.');
 		if (dot < 0) {
@@ -375,6 +399,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		string head = path.substring (0, dot);
 		return graph.replace (root, head, replace_path (graph.project (root, head), path.substring (dot + 1), incoming));
 	}
+
 	private void write(CoreRuntimeStorage? storage, int incoming, bool effect = true) throws RuntimeLifetimeError {
 		if (storage == null) {
 			unsupported_node ("Core write has no exact owning storage");
@@ -388,6 +413,7 @@ private class CoreRuntimeLifetimeBody : Object {
 			stores.add (new RuntimeLifetimeStore (storage.binding == -1 ? -1 : -storage.binding - 2, incoming));
 		}
 	}
+
 	private int take(CoreOwnedLocal? source, CoreValue? produced = null) throws RuntimeLifetimeError, CoreError {
 		if (source == null) {
 			return value (produced);
@@ -396,6 +422,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		flow.write (source.place.ordinal, graph.absent ());
 		return incoming;
 	}
+
 	private int foreign_call(CoreCFunction? target, GenericArray<CoreValue> arguments) throws RuntimeLifetimeError, CoreError {
 		foreach (var argument in arguments) {
 			value (argument);
@@ -412,6 +439,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return graph.absent ();
 	}
+
 	private int invoke(CoreFunction? target, GenericArray<CoreValue> arguments, CoreValue? receiver, int constructed = -1) throws RuntimeLifetimeError, CoreError {
 		var inputs = new HashTable<int, int> (direct_hash, direct_equal);
 		var anchors = new HashTable<int, RuntimeScopeOrigin> (direct_hash, direct_equal);
@@ -499,6 +527,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return result;
 	}
+
 	private int task_create(CoreTaskCreate creation) throws RuntimeLifetimeError, CoreError {
 		var inputs = new HashTable<int, int> (direct_hash, direct_equal);
 		var anchors = new HashTable<int, RuntimeScopeOrigin> (direct_hash, direct_equal);
@@ -543,6 +572,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return graph.product (roots, fields);
 	}
+
 	private int task_await(CoreTaskAwait operation) throws RuntimeLifetimeError, CoreError {
 		value (operation.bridge_executor);
 		int task = value (operation.child);
@@ -556,6 +586,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		exception (graph.project (task, "f1"), type.exception_bound ?? type.runtime.error_type);
 		return graph.project (task, "f0");
 	}
+
 	private int async_operation(CoreAsyncOperation operation) throws RuntimeLifetimeError, CoreError {
 		value (operation.executor);
 		value (operation.argument);
@@ -567,6 +598,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return graph.absent ();
 	}
+
 	private int enum_value(CoreEnumProducer producer) throws RuntimeLifetimeError, CoreError {
 		if (producer is CoreAsyncRun) {
 			return async_operation (((CoreAsyncRun) producer).operation);
@@ -577,6 +609,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		unsupported_node ("Core enum lifetime requires its exact copied/owning operation");
 		return graph.absent ();
 	}
+
 	private static string path(StructLeafPath path) {
 		var result = new StringBuilder ();
 		for (int i = 0; i < path.depth; i++) {
@@ -587,6 +620,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return result.str;
 	}
+
 	private int producer(CoreStructProducer source) throws RuntimeLifetimeError, CoreError {
 		if (source is CoreStructAwait) {
 			return task_await (((CoreStructAwait) source).operation);
@@ -614,6 +648,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		unsupported_node ("Core record producer requires its exact lifetime operation");
 		return graph.absent ();
 	}
+
 	private int value(CoreValue? source) throws RuntimeLifetimeError, CoreError {
 		if (source == null) {
 			return graph.absent ();
@@ -735,6 +770,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		unsupported_node ("Core value requires its exact lifetime operation: " + source.get_type ().name ());
 		return graph.absent ();
 	}
+
 	private void exit() throws RuntimeLifetimeError {
 		if (flow.state.reachable) {
 			exit_count++;
@@ -743,6 +779,7 @@ private class CoreRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void block(CoreBlock block) throws RuntimeLifetimeError, CoreError {
 		foreach (var child in block.statements) {
 			statement (child);
@@ -753,11 +790,13 @@ private class CoreRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	private void exception(int value, ClassType type) throws RuntimeLifetimeError {
 		int site = (int) exception_types.size ();
 		exception_types.insert (site, type);
 		flow.exception (value, site);
 	}
+
 	private bool exception_subtype(ClassType type, ClassType bound) throws RuntimeLifetimeError {
 		var owner = instance (type) as CoreClass;
 		var target = instance (bound) as CoreClass;
@@ -777,6 +816,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return false;
 	}
+
 	private void guarded(CoreTry source) throws RuntimeLifetimeError, CoreError {
 		var entry = flow.state.snapshot ();
 		flow.begin_try ();
@@ -841,6 +881,7 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		flow.state = normal;
 	}
+
 	private void statement(CoreStatement source) throws RuntimeLifetimeError, CoreError {
 		if (!flow.state.reachable) {
 			return;
@@ -1019,6 +1060,7 @@ private class CoreRuntimeLifetimeBody : Object {
 			unsupported_node ("Core statement requires its exact lifetime operation: " + source.get_type ().name ());
 		}
 	}
+
 	private void inventory(CoreBlock block) throws RuntimeLifetimeError {
 		if (block.text_extent != null) {
 			region_id (block.text_extent);
@@ -1064,10 +1106,12 @@ private class CoreRuntimeLifetimeBody : Object {
 			}
 		}
 	}
+
 	internal RuntimeLifetimeSummary incomplete(string reason) {
 		graph.seal ();
 		return new RuntimeLifetimeSummary (graph, graph.absent (), new HashTable<int, int> (direct_hash, direct_equal), new GenericArray<RuntimeLifetimeStore> (), reason);
 	}
+
 	internal RuntimeLifetimeSummary analyze() throws RuntimeLifetimeError, CoreError {
 		inventory (function.body);
 		returned = graph.join ();
@@ -1206,5 +1250,6 @@ private class CoreRuntimeLifetimeBody : Object {
 		}
 		return new RuntimeLifetimeSummary (graph, returned, updates, stores, unsupported, function.throws_type == null ? -1 : exceptional_result);
 	}
+
 }
 }

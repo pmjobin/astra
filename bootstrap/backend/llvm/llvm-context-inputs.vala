@@ -20,6 +20,7 @@ internal class LlvmScopedFreshResult : Object {
 	internal uint dependency_position(int index) {
 		return dependencies[index];
 	}
+
 	internal bool accepts_dependency(CApi.ValueRef value) {
 		for (int d = 0; d < dependencies.length; d++) {
 			if ((void*) value == (void*) CApi.get_param (function, dependencies[d])) {
@@ -28,6 +29,7 @@ internal class LlvmScopedFreshResult : Object {
 		}
 		return false;
 	}
+
 	private LlvmSumSequence? body;
 	private LlvmNativeModuleBinding? imported_body;
 	internal static int context_parameter(NativeFunction source, GenericArray<NativeClassPlan> classes) throws LlvmError {
@@ -78,6 +80,7 @@ internal class LlvmScopedFreshResult : Object {
 			throw new LlvmError.INVALID_INPUT ("fresh scoped result lifetime: %s", failure.message);
 		}
 	}
+
 	internal static LlvmScopedFreshResult? from_native(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.TypeRef type, NativeFunction source, GenericArray<NativeClassPlan> classes, LlvmStructRegistry structs) throws LlvmError {
 		int position = context_parameter (source, classes);
 		if (position < 0) {
@@ -114,11 +117,13 @@ internal class LlvmScopedFreshResult : Object {
 		}
 		return result;
 	}
+
 	internal void verify_signature() throws LlvmError {
 		if ((void*) CApi.global_value_type (function) != (void*) type || CApi.count_params (function) != parameters || context_position >= parameters || (void*) CApi.get_param (function, context_position) != (void*) context || CApi.function_call_conv (function) != LlvmLowering.CALL_CONVENTION) {
 			throw new LlvmError.VERIFICATION ("fresh scoped result lost its exact physical signature/context");
 		}
 	}
+
 	internal void attach_import(LlvmNativeModuleBinding binding) throws LlvmError {
 		if (body != null || imported_body != null || CApi.count_basic_blocks (function) != 0) {
 			throw new LlvmError.LOWERING ("scoped native declaration requires its original external body role");
@@ -126,6 +131,7 @@ internal class LlvmScopedFreshResult : Object {
 		binding.verify ();
 		imported_body = binding;
 	}
+
 	internal void seal() throws LlvmError {
 		if (imported_body != null) {
 			verify ();
@@ -137,6 +143,7 @@ internal class LlvmScopedFreshResult : Object {
 		verify_signature ();
 		body = new LlvmSumSequence (function, true);
 	}
+
 	internal void verify() throws LlvmError {
 		verify_signature ();
 		if (imported_body != null) {
@@ -148,16 +155,19 @@ internal class LlvmScopedFreshResult : Object {
 		}
 		body.verify ();
 	}
+
 	internal void verify_call(CApi.ValueRef call) throws LlvmError {
 		verify ();
 		if ((void*) CApi.called_value (call) != (void*) function || (void*) CApi.called_function_type (call) != (void*) type || CApi.argument_count (call) != parameters || CApi.instruction_call_conv (call) != LlvmLowering.CALL_CONVENTION) {
 			throw new LlvmError.VERIFICATION ("fresh scoped result call lost its exact ABI/context position");
 		}
 	}
+
 	internal bool matches(CApi.ValueRef actual_context, CApi.ValueRef actual_tag, CApi.ValueRef count, CApi.ValueRef actual_size, CApi.ValueRef actual_alignment) throws LlvmError {
 		verify_signature ();
 		return (void*) actual_context == (void*) context && (void*) actual_tag == (void*) tag && (void*) actual_size == (void*) size && (void*) actual_alignment == (void*) alignment && (void*) CApi.is_constant_int (count) != null && CApi.const_int_zext (count) == 1;
 	}
+
 }
 // Physical borrowed-input authority copied from verified native types. No
 // native/SSA node survives; a separate body seal protects admitted lowering.
@@ -174,6 +184,7 @@ internal class LlvmScopedContextInputs : Object {
 		this.type = type;
 		parameter_count = CApi.count_params (function);
 	}
+
 	internal static LlvmScopedContextInputs? from_native(CApi.ValueRef function, CApi.TypeRef type, NativeFunction source, GenericArray<NativeClassPlan> classes) throws LlvmError {
 		var signature = source.signature;
 		if (signature.receiver != null || signature.object_result != null || signature.sum_result != null || signature.buffer_result != null) {
@@ -280,13 +291,16 @@ internal class LlvmScopedContextInputs : Object {
 		}
 		return result;
 	}
+
 	internal bool contains(CApi.ValueRef value) {
 		return values.find ((void*) value);
 	}
+
 	internal uint count { get { return values.length; } }
 	internal CApi.ValueRef parameter(int index) {
 		return (CApi.ValueRef) values[index];
 	}
+
 	internal void verify_signature() throws LlvmError {
 		if ((void*) CApi.global_value_type (function) != (void*) type || CApi.count_params (function) != parameter_count || CApi.function_call_conv (function) != LlvmLowering.CALL_CONVENTION) {
 			throw new LlvmError.VERIFICATION ("scoped context input lost its original physical signature");
@@ -297,6 +311,7 @@ internal class LlvmScopedContextInputs : Object {
 			}
 		}
 	}
+
 	internal void attach_import(LlvmNativeModuleBinding binding) throws LlvmError {
 		if (body != null || imported_body != null || CApi.count_basic_blocks (function) != 0) {
 			throw new LlvmError.LOWERING ("scoped native declaration requires its original external body role");
@@ -304,6 +319,7 @@ internal class LlvmScopedContextInputs : Object {
 		binding.verify ();
 		imported_body = binding;
 	}
+
 	internal void seal() throws LlvmError {
 		if (imported_body != null) {
 			verify ();
@@ -315,6 +331,7 @@ internal class LlvmScopedContextInputs : Object {
 		verify_signature ();
 		body = new LlvmSumSequence (function, true);
 	}
+
 	internal void verify() throws LlvmError {
 		verify_signature ();
 		if (imported_body != null) {
@@ -326,6 +343,7 @@ internal class LlvmScopedContextInputs : Object {
 		}
 		body.verify ();
 	}
+
 	internal bool accepts(CApi.ValueRef call, uint position) throws LlvmError {
 		if (!positions.find ((int) position)) {
 			return false;
@@ -336,6 +354,7 @@ internal class LlvmScopedContextInputs : Object {
 		}
 		return true;
 	}
+
 	internal void verify_use(CApi.ValueRef instruction, HashTable<void*, LlvmScopedContextInputs>? callees = null, HashTable<void*, LlvmScopedTaskFrame>? task_frames = null) throws LlvmError {
 		for (uint i = 0; i < CApi.operand_count (instruction); i++) {
 			if (!contains (CApi.operand (instruction, i))) {
@@ -372,5 +391,6 @@ internal class LlvmScopedContextInputs : Object {
 			verify ();
 		}
 	}
+
 }
 }

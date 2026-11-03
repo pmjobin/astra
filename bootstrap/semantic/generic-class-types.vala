@@ -6,9 +6,11 @@ public class GenericClassTypes : Object {
 	public static bool general(SemanticType? type) {
 		return type is ExactGenericClassType && ((ExactGenericClassType) type).definition.general_bodies;
 	}
+
 	public static bool borrowed_context(SemanticType type, PointerParameterContract contract) {
 		return contract == PointerParameterContract.BORROWED_NOESCAPE && general (type);
 	}
+
 }
 
 // Shared declaration/substitution correspondence. Stage verifiers supply
@@ -35,6 +37,7 @@ public class GenericClassDeclaredShape : Object {
 	public static bool type(GenericTypePattern pattern, SemanticType actual, ExactClassGenericInstance key, TypeArgumentVector? method_arguments = null, CopyabilityFields? fields = null) {
 		return arguments (pattern, actual, key.arguments, method_arguments, fields);
 	}
+
 	public static bool arguments(GenericTypePattern pattern, SemanticType actual, TypeArgumentVector class_arguments, TypeArgumentVector? method_arguments = null, CopyabilityFields? fields = null) {
 		switch (pattern.kind) {
 		case GenericTypePatternKind.PARAMETER:
@@ -127,6 +130,7 @@ public class GenericClassDeclaredShape : Object {
 		}
 		return true;
 	}
+
 }
 public class ClassMethodInstance : Object {
 	public ExactClassGenericInstance class_instance { get; private set; }
@@ -137,6 +141,7 @@ public class ClassMethodInstance : Object {
 	internal ClassMethodInstance (ExactClassGenericInstance owner, int member, SemanticType argument) {
 		this.application (owner, member, new TypeArgumentVector.single (argument));
 	}
+
 	internal ClassMethodInstance.application (ExactClassGenericInstance owner, int member, TypeArgumentVector arguments) {
 		this.class_instance = owner.copy ();
 		this.member = member;
@@ -145,9 +150,11 @@ public class ClassMethodInstance : Object {
 	public ClassMethodInstance copy(TypeArgumentVector? arguments = null) {
 		return new ClassMethodInstance.application (class_instance, member, arguments ?? this.arguments);
 	}
+
 	public bool valid(ExactClassGenericInstance owner) {
 		return arguments.closed () && valid_application (owner);
 	}
+
 	public bool valid_application(ExactClassGenericInstance owner) {
 		if (!owner.definition.general_bodies || class_instance.definition != owner.definition || class_instance.instance_type != owner.instance_type || !class_instance.arguments.matches (owner.arguments) || member < 0 || member >= owner.definition.generic_method_count) {
 			return false;
@@ -159,6 +166,7 @@ public class ClassMethodInstance : Object {
 		var declaration = structure.find_member (owner.definition.generic_method_name (member));
 		return declaration != null && declaration.type_parameter_count == arguments.length;
 	}
+
 }
 public class ExactGenericClassType : ClassType {
 	public ExactClassDefinitionIdentity definition { get; private set; }
@@ -167,6 +175,7 @@ public class ExactGenericClassType : ClassType {
 	internal ExactGenericClassType (ExactClassDefinitionIdentity definition, SemanticType argument) {
 		this.application (definition, new TypeArgumentVector.single (argument));
 	}
+
 	internal ExactGenericClassType.application (ExactClassDefinitionIdentity definition, TypeArgumentVector arguments) {
 		base (definition.name + arguments.display_suffix ());
 		this.definition = definition;
@@ -175,15 +184,19 @@ public class ExactGenericClassType : ClassType {
 	public override bool is_parameterized() {
 		return !arguments.closed ();
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return substitution.class_type (this);
 	}
+
 	public override string? generic_definition_name() {
 		return definition.name;
 	}
+
 	public override TypeArgumentVector? generic_arguments() {
 		return arguments;
 	}
+
 }
 
 // Each compiler stage copies this immutable provenance into its own class
@@ -196,6 +209,7 @@ public class ExactClassGenericInstance : Object {
 	internal ExactClassGenericInstance (ExactClassDefinitionIdentity definition, SemanticType argument, ExactGenericClassType type) {
 		this.application (definition, new TypeArgumentVector.single (argument), type);
 	}
+
 	internal ExactClassGenericInstance.application (ExactClassDefinitionIdentity definition, TypeArgumentVector arguments, ExactGenericClassType type) {
 		this.definition = definition;
 		this.arguments = arguments;
@@ -204,6 +218,7 @@ public class ExactClassGenericInstance : Object {
 	public ExactClassGenericInstance copy() {
 		return new ExactClassGenericInstance.application (definition, arguments, instance_type);
 	}
+
 	public bool valid(SemanticType type) {
 		if (!definition.valid () || type != instance_type || instance_type.definition != definition || !instance_type.arguments.matches (arguments) || !arguments.closed () || arguments.length != definition.parameter_count) {
 			return false;
@@ -218,19 +233,23 @@ public class ExactClassGenericInstance : Object {
 		}
 		return (!(argument is ExactGenericClassType) || definition.general_bodies && GenericClassTypes.general (argument)) && (argument is ClassType || definition.general_bodies && (argument.get_type () == typeof (HandleType) || argument is StructType));
 	}
+
 }
 
 public class ExactClassGenericShape : Object {
 	public static bool property(ExactClassGenericInstance key, int ordinal, string name, SemanticType result) {
 		return key.definition.general_bodies && ordinal >= 0 && ordinal < key.definition.property_count && key.definition.property_name (ordinal) == name && role (key.definition.property_result (ordinal), result, key);
 	}
+
 	public static bool field(ExactClassGenericInstance key, SemanticType type, string name) {
 		var slots = type as OwnerSlotsType;
 		return slots != null && slots.element == key.argument && name == key.definition.field_name;
 	}
+
 	private static bool role(GenericClassValueRole role, SemanticType type, ExactClassGenericInstance key, SemanticType? method_argument = null) {
 		return role == GenericClassValueRole.METHOD_ARGUMENT ? type == method_argument : role == GenericClassValueRole.ARGUMENT ? type == key.argument : role == GenericClassValueRole.VOID ? type.kind == TypeKind.VOID : role == GenericClassValueRole.BOOL ? type.kind == TypeKind.BOOL : role == GenericClassValueRole.INT && type.kind == TypeKind.INT;
 	}
+
 	public static bool signature(ExactClassGenericInstance key, ExactClassOperation op, SemanticType result, GenericArray<SemanticType> types, GenericArray<PointerParameterContract> contracts, bool heap, int member = -1, ClassMethodInstance? method = null) {
 		if (types.length != contracts.length) {
 			return false;
@@ -269,5 +288,6 @@ public class ExactClassGenericShape : Object {
 		}
 		return (op == ExactClassOperation.COUNT || op == ExactClassOperation.CAPACITY) && result.kind == TypeKind.INT && types.length == 0;
 	}
+
 }
 }

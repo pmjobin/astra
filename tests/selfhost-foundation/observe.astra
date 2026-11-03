@@ -5,7 +5,10 @@ owned SourceSpan observe(string input, string logical_path) throws Error {
 	var file = read_file(input);
 	var bytes = new u8[file.byte_count()];
 	int i = 0;
-	while (i < len(bytes)) { bytes[i] = file.byte_at(i) as u8; i = i + 1; }
+	while (i < len(bytes)) {
+		bytes[i] = file.byte_at(i) as u8;
+		i = i + 1;
+	}
 	var source = source_buffer(logical_path, move bytes, false);
 	var output = new Utf8ByteBuilder();
 	source.append_path(output);
@@ -14,7 +17,7 @@ owned SourceSpan observe(string input, string logical_path) throws Error {
 	int error = source.encoding_error();
 	number(output, error);
 	source_append_text(output, "\n");
-	if (error >= 0) { source_append_text(output, source.encoding_message(error)); }
+	if (error >= 0) source_append_text(output, source.encoding_message(error));
 	source_append_text(output, "\n");
 	i = 0;
 	while (i <= source.length) {
@@ -26,7 +29,10 @@ owned SourceSpan observe(string input, string logical_path) throws Error {
 	}
 	var copy = source.copy_range(0, source.length);
 	i = 0;
-	while (i < len(copy)) { number(output, copy[i] as int); i = i + 1; }
+	while (i < len(copy)) {
+		number(output, copy[i] as int);
+		i = i + 1;
+	}
 	source_append_text(output, "\n");
 	int refused = 0;
 	try { var invalid = source.locate(-1); number(output, invalid.line); } catch (SourceBoundsError caught) { refused = refused + 1; }
@@ -37,7 +43,10 @@ owned SourceSpan observe(string input, string logical_path) throws Error {
 	print(text.text);
 	int start = error;
 	int end = error + 1;
-	if (error < 0) { start = source.length; end = source.length; }
+	if (error < 0) {
+		start = source.length;
+		end = source.length;
+	}
 	shared SourceBuffer root = shared_acquire(move source);
 	var retained = shared_clone(root);
 	var span = new SourceSpan(move retained, start, end);
@@ -45,7 +54,7 @@ owned SourceSpan observe(string input, string logical_path) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) != 3) { return 2; }
+	if (len(args) != 3) return 2;
 	try {
 		// The creator's file, byte buffer, path builder and strong root are gone.
 		var span = observe(args[1], args[2]);

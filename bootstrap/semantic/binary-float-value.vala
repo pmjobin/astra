@@ -24,9 +24,11 @@ public class BinaryFloatValue : Object {
 	public BinaryFloatValue positive() {
 		return this;
 	}
+
 	public BinaryFloatValue negated() {
 		return new BinaryFloatValue.from_bits (format, exact_bits ^ format.sign_mask ());
 	}
+
 	public string to_string() {
 		return format == BinaryFloatFormat.BINARY32 ? "0x%08x".printf ((uint32) exact_bits) : ("0x%016" + uint64.FORMAT_MODIFIER + "x").printf (exact_bits);
 	}
@@ -108,6 +110,7 @@ public class BinaryFloatValue : Object {
 		}
 		return new BinaryFloatValue.from_bits (destination, sign_bits | magnitude);
 	}
+
 }
 
 // Every supported midpoint has a terminating decimal coefficient with at
@@ -276,5 +279,6 @@ private class BinaryFloatDecimal : Object {
 		}
 		return sticky ? 1 : 0;
 	}
+
 }
 }

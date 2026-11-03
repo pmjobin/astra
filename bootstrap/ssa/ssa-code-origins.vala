@@ -130,11 +130,13 @@ internal class SsaCodeOrigins : Object {
 			}
 		} while (prior != graph.revision);
 	}
+
 	private void opaque_type(SemanticType type) {
 		if (type.kind != TypeKind.VOID && !FunctionValueType.scalar (type) && !(type is HandleType) && !(type is StringType)) {
 			graph.escape_storage ();
 		}
 	}
+
 	private void record(StructValueShape shape, GenericArray<SsaValue> leaves) {
 		for (int i = 0; i < int.min ((int) shape.leaves.length, (int) leaves.length); i++) {
 			if (!(leaves[i].semantic_type is FunctionValueType)) {
@@ -164,6 +166,7 @@ internal class SsaCodeOrigins : Object {
 			}
 		}
 	}
+
 	private Object? place(SsaMemoryPlace storage) {
 		if (storage is SsaLocalMemoryPlace) {
 			return ((SsaLocalMemoryPlace) storage).storage;
@@ -173,6 +176,7 @@ internal class SsaCodeOrigins : Object {
 		}
 		return null;
 	}
+
 	private void value(SsaValue operand) {
 		var address = operand as SsaFunctionAddress;
 		if (address != null) {
@@ -183,6 +187,7 @@ internal class SsaCodeOrigins : Object {
 			}
 		}
 	}
+
 	private void store(SsaMemoryPlace destination, SsaValue operand) {
 		value (operand);
 		var target = place (destination);
@@ -190,6 +195,7 @@ internal class SsaCodeOrigins : Object {
 			graph.copy (target, operand);
 		}
 	}
+
 	private void call(SsaFunction? target, GenericArray<SsaValue> arguments) {
 		for (int i = 0; i < arguments.length; i++) {
 			value (arguments[i]);
@@ -198,6 +204,7 @@ internal class SsaCodeOrigins : Object {
 			}
 		}
 	}
+
 	private static GenericArray<SsaEdge> edges(SsaTerminator terminator) {
 		var result = new GenericArray<SsaEdge> ();
 		if (terminator is SsaBranch) {
@@ -219,6 +226,7 @@ internal class SsaCodeOrigins : Object {
 		}
 		return result;
 	}
+
 	internal Astra.Code.CodeOriginFrontier? effect_frontier (SsaValue operand, GenericArray<Object> formals) {
 		value (operand);
 		return graph.frontier (operand, formals);
@@ -249,5 +257,6 @@ internal class SsaCodeOrigins : Object {
 		}
 		return result;
 	}
+
 }
 }

@@ -22,9 +22,11 @@ private void unchanged() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/nabi/existing-pointer-channels-only", unchanged);
 	return Test.run ();
 }
+
 }

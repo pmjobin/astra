@@ -13,6 +13,7 @@ public class CoreUtf8FactoryValue : CoreValue {
 		this.input = input;
 		this.validates = validates;
 	}
+
 }
 internal class CoreUtf8FactoryAuthority : Object {
 	private static void require(bool valid) throws CoreError {
@@ -20,6 +21,7 @@ internal class CoreUtf8FactoryAuthority : Object {
 			throw new CoreError.INVALID_IR ("UTF-8 factory lost exact validation/copy/owner/error authority");
 		}
 	}
+
 	private static void snapshot_constructor(CoreClass owner) throws CoreError {
 		var ctor = owner.constructor;
 		require (ctor != null && ctor.parameters.length == 1 && ctor.parameters[0].semantic_type is StringType && ctor.body.statements.length == 1 && ctor.locals.length == 0);
@@ -29,6 +31,7 @@ internal class CoreUtf8FactoryAuthority : Object {
 		var receiver = place == null ? null : place.pointer as CoreReceiverValue;
 		require (place != null && place.field == owner.fields[0] && input != null && input.parameter == ctor.parameters[0] && receiver != null && receiver.receiver == ctor.receiver);
 	}
+
 	internal static HashTable<CoreUtf8FactoryValue, CoreFunction> authorize(CoreProgram program) throws CoreError {
 		var allowed = new HashTable<CoreUtf8FactoryValue, CoreFunction> (direct_hash, direct_equal);
 		int count = 0;
@@ -86,6 +89,7 @@ internal class CoreUtf8FactoryAuthority : Object {
 		}
 		return allowed;
 	}
+
 }
 
 public class CoreTextValue : CoreValue {
@@ -94,6 +98,7 @@ public class CoreTextValue : CoreValue {
 		base (span, type);
 		this.payload = payload;
 	}
+
 }
 public class CoreTextLengthValue : CoreValue {
 	public CoreValue receiver { get; private set; }
@@ -101,6 +106,7 @@ public class CoreTextLengthValue : CoreValue {
 		base (span, type);
 		this.receiver = receiver;
 	}
+
 }
 
 private class CoreStoredText : Object {
@@ -110,6 +116,7 @@ private class CoreStoredText : Object {
 		this.value = value;
 		this.destination = destination;
 	}
+
 }
 private class CoreTextInvalidation : Object {
 	internal Object owner;
@@ -117,6 +124,7 @@ private class CoreTextInvalidation : Object {
 	internal CoreTextInvalidation (Object owner) {
 		this.owner = owner;
 	}
+
 }
 internal class CoreTextOrigins : Object {
 	private TextOriginFlow flow = new TextOriginFlow ();
@@ -146,6 +154,7 @@ internal class CoreTextOrigins : Object {
 		}
 		return null;
 	}
+
 	private void invalidate(Object owner) {
 		if (!flow.state.reachable) {
 			return;
@@ -156,6 +165,7 @@ internal class CoreTextOrigins : Object {
 		}
 		invalidations.add (event);
 	}
+
 	private void protected_group(CoreTry guarded) throws CoreError {
 		var entry = flow.state.snapshot ();
 		flow.begin_try ();
@@ -188,6 +198,7 @@ internal class CoreTextOrigins : Object {
 		}
 		flow.state = merged;
 	}
+
 	private void value(CoreValue expression) {
 		if (expression is CoreSlotsValue && ((CoreSlotsValue) expression).operand != null) {
 			value (((CoreSlotsValue) expression).operand);
@@ -277,6 +288,7 @@ internal class CoreTextOrigins : Object {
 			flow.read (((CoreLoadValue) expression).source, expression);
 		}
 	}
+
 	private void block(CoreBlock body) throws CoreError {
 		var declared = new GenericArray<CorePlace> ();
 		foreach (var source in body.statements) {
@@ -415,6 +427,7 @@ internal class CoreTextOrigins : Object {
 			flow.state.bindings.remove (local);
 		}
 	}
+
 	internal static void verify(CoreProgram program) throws CoreError {
 		var proof = new CoreTextOrigins ();
 		foreach (var function in program.all_definitions ()) {
@@ -464,5 +477,6 @@ internal class CoreTextOrigins : Object {
 			}
 		}
 	}
+
 }
 }

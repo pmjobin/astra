@@ -2,9 +2,11 @@
 namespace CallbackTransport;
 
 Fn<int,owned R,NativeCallbacks.Input<int,bool>,borrowed Other> callback() { return NativeCallbacks.callback(); }
+
 int apply(Fn<int,owned R,NativeCallbacks.Input<int,bool>,borrowed Other> code, owned R value, NativeCallbacks.Input<int,bool> pair, borrowed Other side) {
 	return NativeCallbacks.invoke(code, move value, pair, side);
 }
+
 int direct(Fn<int,owned R,NativeCallbacks.Input<int,bool>,borrowed Other> code, owned R value, NativeCallbacks.Input<int,bool> pair, borrowed Other side) {
 	return code(move value, pair, side);
 }

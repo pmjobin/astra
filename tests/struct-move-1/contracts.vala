@@ -12,6 +12,7 @@ private SourceSpan span(string text) {
 	var file = new SourceFile.from_text ("record-contract", text);
 	return SourceSpan (file, 0, file.length);
 }
+
 private CoreProgram core(bool incoming = false, bool borrowed = false) throws GLib.Error {
 	var inputs = new GenericArray<ForeignHandleInput> ();
 	inputs.add (new ForeignHandleInput (span ("R"), span ("R"), new CForeignCleanupContract ("release_r")));
@@ -39,6 +40,7 @@ private CoreProgram core(bool incoming = false, bool borrowed = false) throws GL
 	CoreVerifier.verify (program);
 	return program;
 }
+
 private void core_copy() {
 	try {
 		var program = core ();
@@ -65,6 +67,7 @@ private void core_copy() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_wrong_cleanup() {
 	try {
 		var program = core ();
@@ -85,6 +88,7 @@ private void core_wrong_cleanup() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_missing_cleanup() {
 	try {
 		var program = CfgBuilder.build (core ());
@@ -116,6 +120,7 @@ private void cfg_missing_cleanup() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_missing_cleanup() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -151,6 +156,7 @@ private void ssa_missing_cleanup() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_missing_move() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -181,6 +187,7 @@ private void ssa_missing_move() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_duplicate_owner() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -214,6 +221,7 @@ private void ssa_duplicate_owner() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_null_retirement() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -251,6 +259,7 @@ private void ssa_null_retirement() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_unretired_input() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core (true)));
@@ -288,6 +297,7 @@ private void ssa_unretired_input() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_borrowed_input() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core (true, true)));
@@ -320,6 +330,7 @@ private void ssa_borrowed_input() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CoreProgram checked_core() throws GLib.Error {
 	var inputs = new GenericArray<ForeignHandleInput> ();
 	inputs.add (new ForeignHandleInput (span ("R"), span ("R"), new CForeignCleanupContract ("release_r")));
@@ -338,6 +349,7 @@ private CoreProgram checked_core() throws GLib.Error {
 	CoreVerifier.verify (program);
 	return program;
 }
+
 private void core_checked_initializer() {
 	try {
 		var program = checked_core ();
@@ -383,6 +395,7 @@ private void core_checked_initializer() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_checked_mutation(string mutation) {
 	try {
 		var program = CfgBuilder.build (checked_core ());
@@ -449,6 +462,7 @@ private void cfg_checked_mutation(string mutation) {
 		GLib.error ("%s (%s)", error.message, mutation);
 	}
 }
+
 private void ssa_checked_mutation(string mutation) {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (checked_core ()));
@@ -511,6 +525,7 @@ private void ssa_checked_mutation(string mutation) {
 		GLib.error ("%s (%s)", error.message, mutation);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-move-1/core/derived-policy-rejects-forged-copy", core_copy);
@@ -533,4 +548,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-move-1/ssa/exceptional-moved-pointer", () => ssa_checked_mutation ("moved-pointer"));
 	return Test.run ();
 }
+
 }

@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 extern int64_t surge4_event_checksum(int32_t, int32_t, int32_t);
+
 int main(void) {
 	for (int mode = 0; mode < 2; ++mode) {
 		for (int first = -17; first <= 17; ++first) {

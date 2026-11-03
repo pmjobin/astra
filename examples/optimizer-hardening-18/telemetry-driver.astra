@@ -1,30 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void telemetry18_prepare();
+
 extern(C) int telemetry18_samples();
+
 extern(C) int telemetry18_window_size();
+
 extern(C) f64 telemetry18_input(int index);
+
 extern(C) int telemetry18_emit(int index, f64 value);
+
 extern(C) int telemetry18_finish();
 
 bool telemetry18_transform(Vector<WindowSummary18> reports, f64[] input, f64[] output, int start, int count, int sequence) {
 	f64 energy = 0.0;
 	bool failed = false;
 	telemetry18_begin_window(sequence);
-	if (!telemetry18_lifetimes(sequence)) { return false; }
+	if (!telemetry18_lifetimes(sequence)) return false;
 	try { energy = telemetry18_window(input, output, count, sequence); }
 	catch (WindowFailure18 failure) {
-		if (failure.sequence != sequence) { return false; }
+		if (failure.sequence != sequence) return false;
 		failed = true;
 	}
 	telemetry18_end_window(sequence);
 	if (!failed) {
-		for (int index = 0; index < count; index = index + 1) { if (telemetry18_emit(start + index, output[index]) != 0) { return false; } }
+		for (int index = 0; index < count; index = index + 1) {
+			if (telemetry18_emit(start + index, output[index]) != 0) return false;
+		}
 	}
 	return telemetry18_save(reports, sequence, count, energy, failed);
 }
+
 bool telemetry18_frame(Vector<WindowSummary18> reports, int start, int count, int sequence) {
 	owned f64[] input = new f64[count];
 	owned f64[] output = new f64[count];
-	for (int index = 0; index < count; index = index + 1) { input[index] = telemetry18_input(start + index); }
+	for (int index = 0; index < count; index = index + 1) input[index] = telemetry18_input(start + index);
 	return telemetry18_transform(reports, input, output, start, count, sequence);
 }

@@ -1,25 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void scoped_error_retired(int identity);
+
 extern(C) void scoped_error_begin(int mode);
+
 extern(C) void scoped_error_published(int identity);
+
 extern(C) void scoped_error_checked(int identity, int published);
+
 extern(C) int scoped_error_finish();
+
 extern(C) int scoped_error_is_published();
+
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedErrorLeaf {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int read() { return this.identity; }
+
 	deinit() { scoped_error_retired(this.identity); }
 }
+
 [ExceptionRoot]
 class ScopedFault {
 	private owned ScopedErrorLeaf child;
+
 	init(owned ScopedErrorLeaf child) { this.child = move child; }
+
 	virtual property string message { get { return "scoped payload"; } }
 }
+
 class AdmissionFault : ScopedFault { init(string message) : base(null) {} }
+
 enum ErrorRunStatus { Completed, Cancelled }
+
 async runtime ErrorTasks throws AdmissionFault returns ErrorRunStatus;
 async void scoped_error_fail(owned ScopedErrorLeaf input) throws ScopedFault {
 	int identity = input.read();
@@ -27,16 +42,20 @@ async void scoped_error_fail(owned ScopedErrorLeaf input) throws ScopedFault {
 	scoped_error_published(identity);
 	throw move error;
 }
+
 async void scoped_error_dispose(owned ScopedErrorLeaf input, int mode) throws ScopedFault {
 	var child = scoped_error_fail(move input);
-	if (mode == 0) { return; }
+	if (mode == 0) return;
 	start(child);
 	if (mode != 2) {
-		try { while (scoped_error_is_published() == 0) { await delay_ticks(1); } }
+		try { while (scoped_error_is_published() == 0) {
+				await delay_ticks(1);
+			} }
 		catch (ScopedFault error) { await cancel_and_join(move child); throw; }
 	}
 	await cancel_and_join(move child);
 }
+
 int scoped_error_case(borrowed ScopedAllocator context, int mode) {
 	scoped_error_begin(mode);
 	try {
@@ -46,17 +65,22 @@ int scoped_error_case(borrowed ScopedAllocator context, int mode) {
 		var status = executor.run(move pending);
 		match (status) { case ErrorRunStatus.Completed(): {} else: { return 1; } }
 	} catch(ScopedFault error) { return 2; }
-	if (scoped_allocator_query(context, 1) != 0) { return 3; }
-	if (mode == 1) { scoped_error_checked(mode + 1, 1); }
-	else { scoped_error_checked(mode + 1, 0); }
+	if (scoped_allocator_query(context, 1) != 0) return 3;
+	if (mode == 1) {
+		scoped_error_checked(mode + 1, 1);
+	}
+	else {
+		scoped_error_checked(mode + 1, 0);
+	}
 	return 0;
 }
+
 export(C) int scoped_error_probe() {
 	owned u8[] backing = new u8[16381];
 	var context = scoped_allocator<ScopedAllocator>(backing, 1, 4);
 	for (int mode = 0; mode < 3; mode = mode + 1) {
 		int result = scoped_error_case(context, mode);
-		if (result != 0) { return result + mode * 10; }
+		if (result != 0) return result + mode * 10;
 	}
 	return scoped_error_finish();
 }

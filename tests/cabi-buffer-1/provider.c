@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+
 int main(void) {
 	unsigned char data[8] = {7, 7, 7, 7, 7, 7, 7, 7};
 	assert(astra_file_read_buffer(-1, data, 8, 0, 8) == -EBADF);

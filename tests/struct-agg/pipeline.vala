@@ -36,6 +36,7 @@ private void lifetime() throws GLib.Error {
 		CAbiVerifier.verify (cabi);
 	}
 }
+
 private void promotion() throws GLib.Error {
 	var scalar = build (fixture ("scalarize"));
 	assert (scalar.structs.length == 0);
@@ -66,6 +67,7 @@ private void promotion() throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (pointer);
 	assert (nabi.abi_version == NativeAbiVersion.SCALAR_PTR_V1 && nabi.functions[0].signature.physical_parameter_count == 2);
 }
+
 private void checked_owner_firewall() throws GLib.Error {
 	var checked = check (fixture ("basic"));
 	var body = checked.functions[0].body;
@@ -80,6 +82,7 @@ private void checked_owner_firewall() throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -90,4 +93,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

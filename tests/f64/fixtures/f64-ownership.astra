@@ -1,19 +1,27 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	f64 value;
-	init(owned Resource r, f64 value) { this.value = value; if (resource_id(r) != 80) { life_record(88, 0); } life_record(67, 0); }
-	deinit() { if (this.value != 42.25) { life_record(88, 0); } life_record(68, 0); }
+
+	init(owned Resource r, f64 value) { this.value = value; if (resource_id(r) != 80) life_record(88, 0); life_record(67, 0); }
+
+	deinit() { if (this.value != 42.25) life_record(88, 0); life_record(68, 0); }
 }
+
 f64 argument(f64 x) { life_record(65, 0); return x + 0.25; }
+
 owned Counter make(owned Resource input, f64 value) {
 	owned Resource local = create_resource(81);
 	return Counter.init(move input, argument(value));
 }
+
 f32 argument32(f32 x) { life_record(66, 0); return x; }
+
 f64 consume(owned Counter c, f64 x) { return c.value + x; }
+
 int main() {
 	owned Resource r = create_resource(80);
 	owned Counter c = make(move r, 42.0);
-	if (consume(move c, argument32(0.5) as f64) != 42.75 || resource_live() != 0) { return 1; }
+	if (consume(move c, argument32(0.5) as f64) != 42.75 || resource_live() != 0) return 1;
 	return 0;
 }

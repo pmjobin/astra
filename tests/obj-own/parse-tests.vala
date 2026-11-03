@@ -16,6 +16,7 @@ private void grammar() {
 		assert (Parser.parse (new SourceFile.from_text ("deferred", text)).diagnostic == null);
 	}
 }
+
 private void malformed() {
 	foreach (var text in new string[] { "void f(owned borrowed C c){}", "void f(borrowed owned C c){}", "void f(){owned C c;}", "void f(){owned C c=C.init(1)+1;}", "void f(){owned C c=move a.;}" }) {
 		assert (Parser.parse (new SourceFile.from_text ("invalid", text)).diagnostic != null);
@@ -23,9 +24,11 @@ private void malformed() {
 	// OWN-FIELD-1 retains the qualifier; exact ClassType eligibility rejects semantically.
 	assert (Parser.parse (new SourceFile.from_text ("field", "class C{owned C field;}")).diagnostic == null);
 }
+
 private void accepted_current_grammar() {
 	assert (Parser.parse (new SourceFile.from_text ("accepted-current-grammar", "void f(){owned C c=move a.x;}")).diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	accepted_current_grammar ();
@@ -33,4 +36,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-own/parser/invalid-qualifiers-and-construction", malformed);
 	return Test.run ();
 }
+
 }

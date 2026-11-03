@@ -25,6 +25,7 @@ class BindingIndex {
 	int error_message;
 	// A deterministic failure checkpoint exercises partially constructed owners.
 	int stop_after;
+
 	init(owned SyntaxProgram program, int stop_after) {
 		this.program = move program;
 		var names = new BindingNames();
@@ -51,21 +52,26 @@ class BindingIndex {
 		this.error_message = 0;
 		this.stop_after = stop_after;
 	}
+
 	bool failed() {
 		return this.error_message != 0;
 	}
+
 	BindingSymbol symbol(SymbolId id) {
 		assert_that(id.index > 0 && id.index <= this.symbol_count);
 		return this.symbols[id.index - 1];
 	}
+
 	BindingScope scope(ScopeId id) {
 		assert_that(id.index > 0 && id.index <= this.scope_count);
 		return this.scopes[id.index - 1];
 	}
+
 	BindingReference reference(int index) {
 		assert_that(index > 0 && index <= this.reference_count);
 		return this.references[index - 1];
 	}
+
 	// The checked layer may complete only the original deferred edge. It must
 	// supply the exact receiver declaration for member/initializer selections.
 	// Keep its source/token/node/scope and maintain the existing reverse lists.
@@ -75,13 +81,13 @@ class BindingIndex {
 		}
 		var edge = this.reference(number);
 		var symbol = this.symbol(target);
-		if (edge.state_code != 5 || edge.target.index != 0) { return false; }
+		if (edge.state_code != 5 || edge.target.index != 0) return false;
 		if (edge.reason == 1 || edge.reason == 3) {
-			if (symbol.owner.index != receiver.index || receiver.index == 0 || symbol.kind != 6) { return false; }
+			if (symbol.owner.index != receiver.index || receiver.index == 0 || symbol.kind != 6) return false;
 		} else {
-			if (edge.reason != 7 || target.index != edge.alternative.index || (symbol.kind != 8 && symbol.kind != 7)) { return false; }
+			if (edge.reason != 7 || target.index != edge.alternative.index || (symbol.kind != 8 && symbol.kind != 7)) return false;
 		}
-		if (!this.accessible(target, edge.scope)) { return false; }
+		if (!this.accessible(target, edge.scope)) return false;
 		edge.state_code = 1;
 		edge.reason = 0;
 		edge.target = target;
@@ -91,16 +97,19 @@ class BindingIndex {
 		this.references[number - 1] = edge;
 		return true;
 	}
+
 	ScopeId scope_for_node(SyntaxNodeId node) {
 		assert_that(node.index > 0 && node.index < len(this.node_scopes));
 		return this.node_scopes[node.index];
 	}
+
 	void fail(SyntaxSpan span, string message) throws Error {
 		if (!this.failed()) {
 			this.error_span = span;
 			this.error_message = this.names.intern(message);
 		}
 	}
+
 	void duplicate(SyntaxSpan span, string message, SymbolId previous) throws Error {
 		var old = this.symbol(previous);
 		var output = new Utf8ByteBuilder();
@@ -119,6 +128,7 @@ class BindingIndex {
 		var text = output.snapshot();
 		this.fail(span, text.text);
 	}
+
 	ScopeId new_scope(ScopeId parent, SymbolId owner, SyntaxNodeId node, SyntaxNodeId unit, int kind, int namespace_name) {
 		if (this.scope_count == len(this.scopes)) {
 			var replacement = new BindingScope[syntax_grown_capacity(len(this.scopes), this.scope_count + 1)];
@@ -139,10 +149,12 @@ class BindingIndex {
 		};
 		return result;
 	}
+
 	ScopeId child_scope(ScopeId parent, SymbolId owner, SyntaxNodeId node, int kind) {
 		var outer = this.scope(parent);
 		return this.new_scope(parent, owner, node, outer.unit, kind, outer.namespace_name);
 	}
+
 	SymbolId declaration(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
 		SymbolId absent = {
 			index = 0
@@ -337,6 +349,7 @@ class BindingIndex {
 		}
 		return result;
 	}
+
 	SymbolId lexical(ScopeId scope, string name, int domain) throws Error {
 		var current = scope;
 		while (current.index != 0) {
@@ -359,6 +372,7 @@ class BindingIndex {
 		};
 		return absent;
 	}
+
 	SymbolId lexical_at(ScopeId scope, string name, int domain, SyntaxSpan origin) throws Error {
 		var current = scope;
 		while (current.index != 0) {
@@ -385,6 +399,7 @@ class BindingIndex {
 		};
 		return absent;
 	}
+
 	SymbolId root_constant(string name) throws Error {
 		SymbolId absent = {
 			index = 0
@@ -408,12 +423,14 @@ class BindingIndex {
 		}
 		return absent;
 	}
+
 	bool accessible(SymbolId symbol, ScopeId scope) {
 		var value = this.symbol(symbol);
 		var declaration = this.scope(value.scope);
 		var use = this.scope(scope);
 		return !value.restricted || declaration.namespace_name == use.namespace_name;
 	}
+
 	bool function_type(SyntaxNodeId type, ScopeId scope) throws Error {
 		if (type.index == 0 || this.program.arena.kind(type) != SyntaxKind.GenericTypeApplicationSyntax()) {
 			return false;
@@ -433,6 +450,7 @@ class BindingIndex {
 		var selected = this.resolve(this.unit_scope(context.unit), type, token, name.text, 1);
 		return selected.state_code == 6;
 	}
+
 	int callee_category(SymbolId local, ScopeId scope) throws Error {
 		var symbol = this.symbol(local);
 		var kind = this.program.arena.kind(symbol.node);
@@ -446,6 +464,7 @@ class BindingIndex {
 		}
 		return 0;
 	}
+
 	BindingReference resolve(ScopeId scope, SyntaxNodeId node, SyntaxTokenId token, string name, int requested_domain) throws Error {
 		int domain = requested_domain;
 		if (domain == 5) {
@@ -581,6 +600,7 @@ class BindingIndex {
 		}
 		return result;
 	}
+
 	void add_reference(BindingReference record) {
 		assert_that(record.state_code >= 1 && record.state_code <= 6);
 		assert_that(record.state_code != 5 || (record.reason >= 1 && record.reason <= 7 && record.target.index == 0));
@@ -603,6 +623,7 @@ class BindingIndex {
 		this.references[this.reference_count] = next;
 		this.reference_count = this.reference_count + 1;
 	}
+
 	void bind(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, int domain, string name, int reason, bool whole_span) throws Error {
 		if (token.index == 0 || this.failed()) {
 			return;
@@ -666,6 +687,7 @@ class BindingIndex {
 		var message = output.snapshot();
 		this.fail(result.span, message.text);
 	}
+
 	void bind_token(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, int domain, int reason) throws Error {
 		if (token.index == 0) {
 			return;
@@ -673,6 +695,7 @@ class BindingIndex {
 		var name = this.program.arena.token_message(token);
 		this.bind(node, token, scope, domain, name.text, reason, false);
 	}
+
 	void push(SyntaxNodeId node, ScopeId scope, int action) {
 		if (node.index == 0) {
 			return;
@@ -692,6 +715,7 @@ class BindingIndex {
 		this.work[this.work_count] = record;
 		this.work_count = this.work_count + 1;
 	}
+
 	void push_list(SyntaxListId list, ScopeId scope) {
 		int i = this.program.arena.list_count(list);
 		while (i > 0) {
@@ -699,6 +723,7 @@ class BindingIndex {
 			this.push(this.program.arena.node_at(list, i), scope, 0);
 		}
 	}
+
 	owned Utf8Message canonical_name(ScopeId scope, SymbolId owner, bool global, string name) throws Error {
 		if (owner.index != 0 && !global) {
 			var parent = this.symbol(owner);
@@ -711,10 +736,12 @@ class BindingIndex {
 		var result = binding_qualified(space.text, name);
 		return move result;
 	}
+
 	ScopeId unit_scope(SyntaxNodeId unit) {
 		var header = this.program.arena.header(unit);
 		return this.unit_scopes[header.span.source.index];
 	}
+
 	SymbolId header_declaration(SyntaxNodeId node, SyntaxTokenId token, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
 		var result = this.declaration(node, token, scope, owner, kind, domain, global);
 		// Headers provide forward lookup. Duplicate headers never mint an ID;
@@ -729,6 +756,7 @@ class BindingIndex {
 		}
 		return result;
 	}
+
 	void deferred_body(SyntaxNodeId body, ScopeId scope, int priority) {
 		if (body.index == 0) {
 			return;
@@ -748,6 +776,7 @@ class BindingIndex {
 		this.bodies[this.body_count] = work;
 		this.body_count = this.body_count + 1;
 	}
+
 	void callable_body(SyntaxNodeId body, ScopeId scope) {
 		var context = this.scope(scope);
 		var owner = this.symbol(context.owner);
@@ -763,6 +792,7 @@ class BindingIndex {
 		}
 		this.deferred_body(body, scope, priority);
 	}
+
 	void lifecycle_arguments(SyntaxListId list, ScopeId scope) {
 		int i = 0;
 		while (i < this.program.arena.list_count(list)) {
@@ -770,6 +800,7 @@ class BindingIndex {
 			i = i + 1;
 		}
 	}
+
 	void collect_list(SyntaxListId list, ScopeId scope, SymbolId owner, int kind, int domain, bool global) throws Error {
 		int i = 0;
 		while (i < this.program.arena.list_count(list) && !this.failed()) {
@@ -778,6 +809,7 @@ class BindingIndex {
 			i = i + 1;
 		}
 	}
+
 	void collect() throws Error {
 		ScopeId absent_scope = {
 			index = 0
@@ -908,6 +940,7 @@ class BindingIndex {
 			part = part + 1;
 		}
 	}
+
 	void generics(SyntaxNodeId node, ScopeId scope, SymbolId owner) throws Error {
 		var list = this.program.arena.get_list_type_parameters(node);
 		int i = 0;
@@ -947,6 +980,7 @@ class BindingIndex {
 			i = i + 1;
 		}
 	}
+
 	void bind_type(SyntaxNodeId node, ScopeId scope) throws Error {
 		var token = this.program.arena.get_token_identifier(node);
 		var qualifier = this.program.arena.get_token_namespace_qualifier(node);
@@ -964,6 +998,7 @@ class BindingIndex {
 		var name = binding_type_name(this.program.arena, node);
 		this.bind(node, token, scope, 1, name.text, 0, false);
 	}
+
 	bool namespace_token(SyntaxTokenId token) throws Error {
 		if (token.index == 0) {
 			return false;
@@ -972,6 +1007,7 @@ class BindingIndex {
 		var key = binding_key(0, 3, name.text);
 		return this.names.get(key.text) != 0;
 	}
+
 	void bind_selection(SyntaxNodeId node, SyntaxTokenId receiver, SyntaxTokenId member, ScopeId scope, bool whole_span, bool aggregate) throws Error {
 		bool qualified = false;
 		if (!aggregate && receiver.index != 0) {
@@ -1015,6 +1051,7 @@ class BindingIndex {
 			this.bind_token(node, member, scope, 4, 1);
 		}
 	}
+
 	void member_duplicate(SyntaxSpan span, string name, int kind, SymbolId owner, SymbolId previous) throws Error {
 		var parent = this.symbol(owner);
 		var owner_name = this.names.text(parent.canonical);
@@ -1082,6 +1119,7 @@ class BindingIndex {
 		var message = output.snapshot();
 		this.fail(span, message.text);
 	}
+
 	void caller_information(SyntaxNodeId node, ScopeId scope) throws Error {
 		var target = this.program.arena.get_token_target(node);
 		if (target.index == 0) {
@@ -1106,6 +1144,7 @@ class BindingIndex {
 		}
 		this.add_reference(reference);
 	}
+
 	void where_subject(SyntaxNodeId node, ScopeId scope) throws Error {
 		var token = this.program.arena.get_token_type_parameter(node);
 		var name = this.program.arena.token_message(token);
@@ -1142,6 +1181,7 @@ class BindingIndex {
 			}
 		}
 	}
+
 	void where_subjects(SyntaxNodeId owner, ScopeId scope) throws Error {
 		if (this.program.arena.kind(owner) == SyntaxKind.EnumDeclarationSyntax()) {
 			return;
@@ -1156,6 +1196,7 @@ class BindingIndex {
 			i = i + 1;
 		}
 	}
+
 	void constructor_selection(SyntaxNodeId node, ScopeId scope) throws Error {
 		var receiver = this.program.arena.get_token_receiver(node);
 		var member = this.program.arena.get_token_identifier(node);
@@ -1187,6 +1228,7 @@ class BindingIndex {
 		}
 		this.bind_token(node, member, scope, 4, 1);
 	}
+
 	void contextual_count(SyntaxNodeId node, ScopeId scope) throws Error {
 		var target = this.program.arena.get_node_target(node);
 		var value = this.program.arena.get_node_expression(node);
@@ -1239,6 +1281,7 @@ class BindingIndex {
 			owner = symbol.owner;
 		}
 	}
+
 	void schedule_count(SyntaxNodeId node, ScopeId scope) throws Error {
 		var count = this.program.arena.get_node_count(node);
 		if (this.slot_counts[count.index]) {
@@ -1247,6 +1290,7 @@ class BindingIndex {
 			this.push(count, scope, 0);
 		}
 	}
+
 	void visit(SyntaxNodeId node, ScopeId inherited, int action) throws Error {
 		var kind = this.program.arena.kind(node);
 		var scope = inherited;
@@ -1276,7 +1320,9 @@ class BindingIndex {
 				var text = output.snapshot(); this.duplicate(this.program.arena.token_span(token), text.text, previous.target);
 				return;
 			}
-			if (action == 5) { var declared = this.declaration(node, token, scope, owner, 2, 2, false); }
+			if (action == 5) {
+				var declared = this.declaration(node, token, scope, owner, 2, 2, false);
+			}
 			return;
 		}
 		if (action == 4) {
@@ -1519,6 +1565,7 @@ class BindingIndex {
 			this.schedule_children(node, scope);
 		}
 	}
+
 	void drain_work() throws Error {
 		while (this.work_count > 0 && !this.failed()) {
 			this.work_count = this.work_count - 1;
@@ -1526,6 +1573,7 @@ class BindingIndex {
 			this.visit(next.node, next.scope, next.action);
 		}
 	}
+
 	SyntaxListId phase_roots(SyntaxNodeId unit, int phase) {
 		if (phase == 0) {
 			return this.program.arena.get_list_c_classes(unit);
@@ -1551,6 +1599,7 @@ class BindingIndex {
 		assert_that(phase == 8);
 		return this.program.arena.get_list_async_runtimes(unit);
 	}
+
 	void root_phase(int phase) throws Error {
 		int i = this.program.arena.list_count(this.program.units);
 		while (i > 0 && !this.failed()) {
@@ -1560,6 +1609,7 @@ class BindingIndex {
 		}
 		this.drain_work();
 	}
+
 	void push_members(SyntaxNodeId type) {
 		var scope = this.node_scopes[type.index];
 		var list = this.program.arena.get_list_members(type);
@@ -1572,6 +1622,7 @@ class BindingIndex {
 			}
 		}
 	}
+
 	void member_phase(bool foreign) throws Error {
 		if (foreign) {
 			int i = this.program.arena.list_count(this.program.units);
@@ -1604,6 +1655,7 @@ class BindingIndex {
 		}
 		this.drain_work();
 	}
+
 	void parameter_values(SyntaxNodeId parameter, ScopeId scope) throws Error {
 		if (parameter.index == 0) {
 			return;
@@ -1621,6 +1673,7 @@ class BindingIndex {
 			this.fail(this.program.arena.token_span(token), message.text);
 		}
 	}
+
 	void body_values(ScopeId scope) throws Error {
 		var context = this.scope(scope);
 		var kind = this.program.arena.kind(context.node);
@@ -1635,6 +1688,7 @@ class BindingIndex {
 			}
 		}
 	}
+
 	void constant_header_errors() {
 		int i = 0;
 		while (i < this.program.arena.list_count(this.program.units) && !this.failed()) {
@@ -1652,6 +1706,7 @@ class BindingIndex {
 			i = i + 1;
 		}
 	}
+
 	void run() throws Error {
 		if (this.program.failed()) {
 			var message = this.program.arena.text_message(this.program.error_message);
@@ -1708,6 +1763,7 @@ class BindingIndex {
 			priority = priority + 1;
 		}
 	}
+
 	int visits(int kind_code) {
 		int result = 0;
 		int i = 1;
@@ -1724,6 +1780,7 @@ class BindingIndex {
 		}
 		return result;
 	}
+
 	int reference_at(SyntaxSourceId source, int offset) {
 		// Query returns the narrowest token/span containing this byte.
 		int result = 0;
@@ -1739,6 +1796,7 @@ class BindingIndex {
 		}
 		return result;
 	}
+
 	// BEGIN GENERATED CHILD SCHEDULING
 	// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 	// Generated by generate-walk.py from the syntax schema; no text scanning.
@@ -2066,6 +2124,7 @@ class BindingIndex {
 	}
 	// END GENERATED CHILD SCHEDULING
 }
+
 owned BindingIndex binding_index(owned SyntaxProgram program, int stop_after) throws Error {
 	var result = new BindingIndex(move program, stop_after);
 	result.run();

@@ -14,5 +14,6 @@ public class SliceTypeSyntax : TypeNameSyntax {
 	public override string spelling() {
 		return element_type.spelling () + "[]";
 	}
+
 }
 }

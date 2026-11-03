@@ -1,49 +1,61 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CCode(text_abi="utf8-i32")]
 extern(C) int telemetry18_create_input(borrowed string path);
+
 extern(C) int telemetry18_workers();
+
 enum TelemetryIoPhase18 { Completed, Cancelled }
+
 async runtime TelemetryIo18 throws Error returns TelemetryIoPhase18 provider "linux-io-uring-composed";
 
 async void telemetry18_stream(owned LinuxPayload reader, owned WorkerPool pool, owned ConcurrentAllocator context, owned ConcurrentAllocator frames) throws Error {
 	int idle = telemetry18_idle_ticks();
-	if (idle > 0) { await delay_ms(idle); }
+	if (idle > 0) {
+		await delay_ms(idle);
+	}
 	int samples = telemetry18_samples();
 	int window = telemetry18_window_size();
 	int windows = (samples + window - 1) / window + 1;
 	for (int sequence = 0; sequence < windows; sequence = sequence + 1) {
 		int start = sequence * window;
 		int count = samples - start;
-		if (count < 0) { count = 0; }
-		if (count > window) { count = window; }
+		if (count < 0) count = 0;
+		if (count > window) count = window;
 		int received = 0;
 		while (received < count * 2) {
 			payload_configure(reader, received, count * 2 - received, (start as i64) * 2 + (received as i64));
 			await payload_io(reader);
 			int amount = astra_linux_payload_count(reader);
-			if (amount <= 0 || amount > count * 2 - received) { throw new Error("telemetry input progress"); }
+			if (amount <= 0 || amount > count * 2 - received) {
+				throw new Error("telemetry input progress");
+			}
 			received = received + amount;
 		}
 		var bytes = new(context)u8[count * 2];
-		for (int index = 0; index < count * 2; index = index + 1) { bytes[index] = payload_byte(reader, index) as u8; }
+		for (int index = 0; index < count * 2; index = index + 1) bytes[index] = payload_byte(reader, index) as u8;
 		var job = new(context)TelemetryIoJob18(move bytes, start, count, sequence);
 		int result = await pool.submit(task_in(frames, TelemetryCPU18.calculate(move job)));
-		if (result != 0) { throw new Error("telemetry worker result"); }
+		if (result != 0) {
+			throw new Error("telemetry worker result");
+		}
 	}
 	payload_finish(reader);
-	if (!telemetry18_context_retired(context, 1) || !telemetry18_context_retired(frames, 2)) { throw new Error("telemetry stream retirement"); }
+	if (!telemetry18_context_retired(context, 1) || !telemetry18_context_retired(frames, 2)) {
+		throw new Error("telemetry stream retirement");
+	}
 }
+
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	telemetry18_prepare();
-	if (telemetry18_create_input(args[1]) != 0) { return 1; }
+	if (telemetry18_create_input(args[1]) != 0) return 1;
 	var context = concurrent_allocator(1, 262144, 32, 64);
 	var frames = concurrent_allocator(2, 262144, 32, 64);
-	if (context == null || frames == null) { return 2; }
+	if (context == null || frames == null) return 2;
 	try {
 		var reader = payload_open(args[1], telemetry18_window_size() * 2, 0);
 		var pool = worker_pool(telemetry18_workers());
-		if (pool == null) { return 3; }
+		if (pool == null) return 3;
 		var executor = TelemetryIo18.open(8);
 		var status = executor.run(telemetry18_stream(move reader, move pool, move context, move frames));
 		match (status) { case TelemetryIoPhase18.Completed(): {} else: { return 4; } }

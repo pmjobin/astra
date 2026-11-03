@@ -12,6 +12,7 @@ private CfgProgram lower() throws CoreError, CfgError {
 	CfgVerifier.verify (cfg);
 	return cfg;
 }
+
 private void qualify() {
 	try {
 		var program = lower ();
@@ -65,9 +66,11 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-slice/cfg/independent-source-and-complete-parameter-producer-contracts", qualify);
 	return Test.run ();
 }
+
 }

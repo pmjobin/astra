@@ -14,36 +14,44 @@ static const uint64_t cases[] = {
     UINT64_C(0x3feffffffc000000), UINT64_C(0x7fefffffffffffff),
     UINT64_C(0x3fd5555555555555), UINT64_C(0x4008000000000000),
     UINT64_C(0x3ff0000000000001), UINT64_C(0x7ff0000000000001)};
+
 static double edge(int32_t i) {
 	double x;
 	uint64_t b = cases[(uint32_t)i % 16];
 	memcpy(&x, &b, 8);
 	return x;
 }
+
 double fp_input(int32_t i) {
 	return edge(i);
 }
+
 float fp_input32(int32_t i) {
 	if ((uint32_t)i % 16 == 9) return 1.0001220703125f;
 	if ((uint32_t)i % 16 == 10) return 0.9998779296875f;
 	return (float)edge(i);
 }
+
 static int fused_observations;
+
 struct statistics {
 	uint64_t count, nonfinite, max_ulp, zero_reference_differences;
 	double max_absolute, max_relative;
 };
 static struct statistics statistics[2][5];
+
 static uint64_t ordered64(double value) {
 	uint64_t bits;
 	memcpy(&bits, &value, 8);
 	return bits >> 63 ? ~bits : bits | UINT64_C(0x8000000000000000);
 }
+
 static uint32_t ordered32(float value) {
 	uint32_t bits;
 	memcpy(&bits, &value, 4);
 	return bits >> 31 ? ~bits : bits | UINT32_C(0x80000000);
 }
+
 static void record(int width, int mode, double expected, double value) {
 	struct statistics *s = &statistics[width][mode];
 	s->count++;
@@ -62,18 +70,21 @@ static void record(int width, int mode, double expected, double value) {
 	} else if (value != 0)
 		s->zero_reference_differences++;
 }
+
 static int same(double a, double b) {
 	uint64_t x, y;
 	memcpy(&x, &a, 8);
 	memcpy(&y, &b, 8);
 	return (isnan(a) && isnan(b)) || x == y;
 }
+
 static int same32(float a, float b) {
 	uint32_t x, y;
 	memcpy(&x, &a, 4);
 	memcpy(&y, &b, 4);
 	return (isnan(a) && isnan(b)) || x == y;
 }
+
 int32_t fp_observe(int32_t mode, int32_t i, double a, double b, double c, double value) {
 	volatile double product = a * b;
 	volatile double sum = a + b;
@@ -91,6 +102,7 @@ int32_t fp_observe(int32_t mode, int32_t i, double a, double b, double c, double
 	if (ok) record(1, mode, reference, value);
 	return ok ? 0 : 1;
 }
+
 int32_t fp_observe32(int32_t mode, int32_t i, float a, float b, float c, float value) {
 	volatile float product = a * b;
 	volatile float sum = a + b;
@@ -108,6 +120,7 @@ int32_t fp_observe32(int32_t mode, int32_t i, float a, float b, float c, float v
 	if (ok) record(0, mode, reference, value);
 	return ok ? 0 : 1;
 }
+
 int32_t fp_finished(int32_t count) {
 	const char *path = getenv("ASTRA_FP_METRICS");
 	if (path) {
@@ -127,6 +140,7 @@ int32_t fp_finished(int32_t count) {
 	printf("floating-oracle:%d observations\n", count);
 	return 0;
 }
+
 int32_t fp_require_fused(int32_t minimum) {
 	if (fused_observations < minimum) {
 		fprintf(stderr, "no fused numerical difference observed\n");
@@ -135,6 +149,7 @@ int32_t fp_require_fused(int32_t minimum) {
 	puts("fused-contraction-observed");
 	return 0;
 }
+
 int32_t fp_copy_check(int32_t index, double value) {
 	double expected = edge(index);
 	uint64_t a, b;
@@ -142,6 +157,7 @@ int32_t fp_copy_check(int32_t index, double value) {
 	memcpy(&b, &value, 8);
 	return a == b ? 0 : 1;
 }
+
 int32_t fp_copy_check32(int32_t index, float value) {
 	float expected = fp_input32(index);
 	uint32_t a, b;
@@ -149,6 +165,7 @@ int32_t fp_copy_check32(int32_t index, float value) {
 	memcpy(&b, &value, 4);
 	return a == b ? 0 : 1;
 }
+
 int32_t fp_dot_check(double a0, double a1, double b0, double b1, double value) {
 	volatile double first = a0 * b0;
 	volatile double second = a1 * b1;

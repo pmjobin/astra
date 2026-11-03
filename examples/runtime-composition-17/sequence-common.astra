@@ -1,14 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Error : SequenceModel.Fault { init(string message) : base(message) {} }
+
 class RuntimeError : Error { init(string message) : base(message) {} }
+
 class SequenceRuntimeError : Error { init(string message) : base(message) {} }
+
 enum SequencePhase { Completed, Cancelled }
+
 async runtime SequenceIo throws SequenceRuntimeError returns SequencePhase provider "linux-io-uring-composed";
 extern(C) int sequence_stop_requested();
+
 extern(C) int sequence_queue_capacity();
+
 extern(C) int sequence_cache_capacity();
+
 extern(C) int sequence_worker_count();
+
 extern(C) int sequence_quota();
+
 extern(C) int sequence_file_extent();
+
 extern(C) void sequence_ready(int tcp, int udp);
+
 extern(C) int sequence_provider_disposed(int identity);

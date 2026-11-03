@@ -1,23 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct S { int x; int y; }
+
 class C {
 	owned S[] records;
+
 	init() { this.records = new S[2]; this.records[0].x = 7; this.records[0].y = 11; }
+
 	int replace() { this.records = new S[3]; return 1; }
 }
+
 int consume(S value, owned C container) { container.replace(); return value.x + value.y; }
+
 int inspect(S value, int ignored) { return value.x + value.y; }
+
 int mutate_copy(S value, S[] original) { S local = value; local.x = 99; original[0].y = 101; return value.y; }
+
 int main() {
 	owned C first = C.init();
-	if (inspect(first.records[0], first.replace()) != 18) { return 1; }
+	if (inspect(first.records[0], first.replace()) != 18) return 1;
 	owned C second = C.init();
-	if (consume(second.records[0], move second) != 18) { return 2; }
+	if (consume(second.records[0], move second) != 18) return 2;
 	var a = new S[2]; a[0].x = 7; a[0].y = 11;
-	if (mutate_copy(a[0], a) != 11 || a[0].x != 7 || a[0].y != 101) { return 3; }
+	if (mutate_copy(a[0], a) != 11 || a[0].x != 7 || a[0].y != 101) return 3;
 	S local = {x=3,y=5}; S* pointer = &local;
 	a[0] = *pointer; *pointer = a[0]; a[1] = local;
 	var saved = a[1]; release a;
-	if (saved.x != 3 || saved.y != 5) { return 4; }
+	if (saved.x != 3 || saved.y != 5) return 4;
 	return 0;
 }

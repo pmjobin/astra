@@ -1141,5 +1141,6 @@ public class SemanticDump : Object {
 		}
 		assert_not_reached ();
 	}
+
 }
 }

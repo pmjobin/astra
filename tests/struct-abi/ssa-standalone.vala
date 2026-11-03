@@ -53,6 +53,7 @@ private SsaProgram sample() throws GLib.Error {
 	}
 	return new SsaProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		SsaProgram? p = sample ();
@@ -74,6 +75,7 @@ private void positive() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 11; scenario++) {
 		bool rejected = false;
@@ -130,10 +132,12 @@ private void invalid() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-abi/ssa/independent-leaf-definitions-grouped-call-forwarding", positive);
 	Test.add_func ("/struct-abi/ssa/aggregate-value-phi-incomplete-order-use-firewalls", invalid);
 	return Test.run ();
 }
+
 }

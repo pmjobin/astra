@@ -9,12 +9,14 @@
 static double history[17], z1[2], z2[2], max_absolute;
 static int position, observed, failed, relaxed;
 static FILE *output;
+
 double stream_sample(int index) {
 	uint32_t bits = (uint32_t)index * UINT32_C(1664525) + UINT32_C(1013904223);
 	if (index % 8191 == 0) return index % 2 ? -0.0 : 0.0;
 	if (index % 4093 == 0) return DBL_TRUE_MIN;
 	return (double)((int)(bits >> 16) - 32768) / 32768.0;
 }
+
 int stream_mode(void) {
 	relaxed = getenv("ASTRA_NUMERICAL_RELAXED") && atoi(getenv("ASTRA_NUMERICAL_RELAXED"));
 	const char *path = getenv("ASTRA_NUMERICAL_OUTPUT");
@@ -24,6 +26,7 @@ int stream_mode(void) {
 	}
 	return relaxed;
 }
+
 static double biquad(double x, int stage) {
 	double b0 = stage == 0 ? 0.125 : 0.25;
 	double b1 = stage == 0 ? 0.25 : 0.125;
@@ -32,6 +35,7 @@ static double biquad(double x, int stage) {
 	z2[stage] = 0.125 * x - 0.25 * value;
 	return value;
 }
+
 int stream_observe(int index, double value) {
 	if (index == 96000) {
 		memset(history, 0, sizeof history);
@@ -58,6 +62,7 @@ int stream_observe(int index, double value) {
 	observed++;
 	return failed;
 }
+
 int stream_finish(int count) {
 	if (output && fclose(output)) failed = 1;
 	if (count != observed) failed = 1;

@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Numerics;
 extern(C) f64 numerical_sample(int i);
+
 extern(C) int numerical_observe(int i,f64 value);
+
 extern(C) int numerical_finish(int wanted);
+
 int main(){
 	f64[17] taps={0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
-	for(int i=0;i<17;i=i+1){taps[i]=((i%5-2) as f64)/64.0;}
+	for(int i=0;i<17;i=i+1) taps[i]=((i%5-2) as f64)/64.0;
 	owned Fir64 filter=new Fir64(slice(taps));int at=0;int block=0;
 	while(at<48000){
-		int end=at+(block*17%127+1);if(end>48000){end=48000;}
+		int end=at+(block*17%127+1);if(end>48000) end=48000;
 		while(at<end){
-			if(at==24000){filter.reset();}
+			if(at==24000) filter.reset();
 			f64 result=filter.process(numerical_sample(at));
-			if(numerical_observe(at,result)!=0){return 1;}at=at+1;
+			if(numerical_observe(at,result)!=0) return 1;at=at+1;
 		}
 		block=block+1;
 	}
-	owned Fir64 empty=new Fir64(slice(taps,0,0));if(empty.process(1.0)!=0.0){return 2;}
+	owned Fir64 empty=new Fir64(slice(taps,0,0));if(empty.process(1.0)!=0.0) return 2;
 	return numerical_finish(48000);
 }

@@ -29,6 +29,7 @@ private CoreGenericFunction generic(SourceSpan span, string name, int ordinal, b
 	function.owned_locals.add (owner);
 	return function;
 }
+
 private CoreProgram sample(bool resource = false, bool drop = false, bool unused = false) {
 	var span = SourceSpan (new SourceFile.from_text ("ownership", "T"), 0, 1);
 	var types = new BuiltinTypes ();

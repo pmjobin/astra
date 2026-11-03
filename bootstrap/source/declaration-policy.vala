@@ -85,6 +85,7 @@ public class DeclarationPolicyRegistry : Object {
 			return DeclarationPolicyId.INVALID;
 		}
 	}
+
 	public static string spelling(DeclarationPolicyId kind) {
 		foreach (string name in names ()) {
 			if (lookup (name) == kind) {
@@ -93,17 +94,21 @@ public class DeclarationPolicyRegistry : Object {
 		}
 		return "<unknown>";
 	}
+
 	public static string[] names() {
 		return {
 				   "Shared", "Monitor", "Singleton", "ThreadBound", "Actor", "Allocator", "Align", "Repr", "ExceptionRoot", "CCode", "FloatingPoint", "Utf8MessageFactory", "CallerFilePath", "CallerLineNumber", "CallerArgumentExpression", "CImport", "CExport", "COMImport", "COMExport", "GObjectImport", "GObjectExport", "Reflect", "Pure", "Lazy", "NoEscape", "MustUse", "Derive", "Deprecated", "Tracked", "Observable", "Memoized", "Foreign", "ForeignChannel"
 		};
 	}
+
 	public static bool available(DeclarationPolicyId kind) {
 		return kind >= DeclarationPolicyId.SHARED && kind <= DeclarationPolicyId.GOBJECT_EXPORT || kind == DeclarationPolicyId.FOREIGN || kind == DeclarationPolicyId.FOREIGN_CHANNEL;
 	}
+
 	public static bool storage(DeclarationPolicyId kind) {
 		return kind == DeclarationPolicyId.ALLOCATOR || kind == DeclarationPolicyId.ALIGN || kind == DeclarationPolicyId.REPR;
 	}
+
 	public static string placement(DeclarationPolicyId kind) {
 		switch (kind) {
 		case DeclarationPolicyId.SHARED:
@@ -148,6 +153,7 @@ public class DeclarationPolicyRegistry : Object {
 			return "unavailable attribute; requires its own implementation contract";
 		}
 	}
+
 	public static string arguments(DeclarationPolicyId kind) {
 		switch (kind) {
 		case DeclarationPolicyId.ALLOCATOR:
@@ -178,6 +184,7 @@ public class DeclarationPolicyRegistry : Object {
 			return available (kind) ? "none" : "unavailable";
 		}
 	}
+
 	public static string format() {
 		var output = new StringBuilder ("astra-policy-registry/%u\nID\tNAME\tSTATUS\tPLACEMENT\tARGUMENTS\n".printf (VERSION));
 		foreach (string name in names ()) {
@@ -186,5 +193,6 @@ public class DeclarationPolicyRegistry : Object {
 		}
 		return output.str;
 	}
+
 }
 }

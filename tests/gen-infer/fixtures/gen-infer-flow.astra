@@ -1,13 +1,23 @@
 class Context {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { mark(this.value); }
 }
+
 bool consume<T>(owned T value) where T : Ownable {return true;}
+
 U keep<T,U>(owned T value,U a,U b) where T : Ownable {return a;}
+
 T same<T>(T a,T b){return a;}
+
 void conditional<T>(bool take,owned T value) where T : Ownable {bool taken=same(take && consume(move value),false);}
+
 void interleave<T>(owned T a,owned T b) where T : Ownable {bool result=keep(move a,consume(move b),false);}
+
 U number<T,U>(owned T owner,U value) where T : Ownable{return value;}
+
 void numeric<T>(owned T a,owned T b) where T : Ownable{var result=number(move a,1.0d)+(1.0+number(move b,2.0d));}
+
 int main(){var a=resource(1);conditional(true,move a);var b=Context.init(9);conditional(false,move b);var c=resource(2);var d=resource(3);interleave(move c,move d);var e=resource(4);var f=resource(5);numeric(move e,move f);return 0;}

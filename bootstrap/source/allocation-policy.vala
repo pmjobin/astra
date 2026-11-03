@@ -20,6 +20,7 @@ public enum AllocationKind {
 			return INVALID;
 		}
 	}
+
 	public string spelling() {
 		switch (this) {
 		case HEAP:
@@ -38,6 +39,7 @@ public enum AllocationKind {
 			return "invalid";
 		}
 	}
+
 }
 
 // Primitive declaration authority only: no symbols, types, pointers or IR
@@ -72,6 +74,7 @@ public class AllocationPolicy : Object {
 		admitted_identity = Checksum.compute_for_string (ChecksumType.SHA256, canonical (true));
 		admitted_domain_identity = Checksum.compute_for_string (ChecksumType.SHA256, canonical (false));
 	}
+
 	private AllocationPolicy.snapshot (AllocationPolicy source) {
 		kind = source.kind;
 		domain_name = source.domain;
@@ -87,21 +90,27 @@ public class AllocationPolicy : Object {
 	public AllocationPolicy copy() {
 		return new AllocationPolicy.snapshot (this);
 	}
+
 	public bool checked_initialization() {
 		return valid () && kind == AllocationKind.CONTEXT;
 	}
+
 	public string dump() {
 		return "(allocation-policy %s domain=\"%s\" capacity=%u blocks=%u alignment=%u identity=%s)".printf (kind.spelling (), domain.escape (), capacity, blocks, alignment, identity);
 	}
+
 	public static bool reserved_symbol(string name) {
 		return name.has_prefix ("astra_alloc12_") || name == "astra_context17_allocate_mode" || name == "astra_context17_release_origin_checked" || name == "astra_context17_origin" || name == "astra_context17_frame_descriptor" || name == "astra_context17_open_scoped";
 	}
+
 	public static bool valid_context_mode(string mode) {
 		return mode == "owned-affine" || mode == "owned-transfer" || mode == "owned-concurrent" || mode == "scoped-affine";
 	}
+
 	private string canonical(bool include_alignment) {
 		return "allocation/1;%d;%d:%s;%u;%u;%u;%s;%s".printf ((int) kind, domain.length, domain, capacity, blocks, include_alignment ? alignment : 0, allocate_hook ?? "", release_hook ?? "") + (kind == AllocationKind.CONTEXT ? ";runtime-contexts/1;" + context_mode : "");
 	}
+
 	public static bool identifier(string name, bool dotted = false) {
 		if (name.length == 0 || name.length > 128) {
 			return false;
@@ -114,9 +123,11 @@ public class AllocationPolicy : Object {
 		}
 		return true;
 	}
+
 	public static bool power_of_two(uint value) {
 		return value > 0 && (value & (value - 1)) == 0;
 	}
+
 	public bool valid() {
 		if (Checksum.compute_for_string (ChecksumType.SHA256, canonical (true)) != admitted_identity || !identifier (domain, true) || !power_of_two (alignment) || alignment > 4096 || kind < AllocationKind.HEAP || kind >= AllocationKind.INVALID) {
 			return false;
@@ -141,9 +152,11 @@ public class AllocationPolicy : Object {
 		}
 		return kind == AllocationKind.CUSTOM ? allocate_hook != null && release_hook != null && allocate_hook != release_hook && identifier (allocate_hook) && identifier (release_hook) : allocate_hook == null && release_hook == null;
 	}
+
 	public static bool matches(AllocationPolicy? policy, string identity) {
 		return policy == null ? identity == "" : policy.valid () && policy.identity == identity;
 	}
+
 }
 
 public class AllocationDomains : Object {
@@ -165,6 +178,7 @@ public class AllocationDomains : Object {
 		domains.insert (policy.domain, policy.domain_identity);
 		return true;
 	}
+
 }
 // Lexical backing authority contains only stable local/region identities.
 // Each IR binds these identities to its own storage and cleanup facts.
@@ -178,11 +192,14 @@ public class ScopedBackingLoan : Object {
 		backing_ordinal = backing;
 		region_ordinal = region;
 	}
+
 	public bool valid() {
 		return backing_ordinal >= 0 && context_ordinal > backing_ordinal && region_ordinal >= 0;
 	}
+
 	public string identity() {
 		return "scoped-backing/1:context=%d;backing=%d;region=%d;owned-u8-buffer;exclusive-until-context-drop".printf (context_ordinal, backing_ordinal, region_ordinal);
 	}
+
 }
 }

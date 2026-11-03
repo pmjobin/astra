@@ -7,12 +7,13 @@ f32<4> process(u8 mode, borrowed f32<4>[] blocks, f32<4> gain, borrowed int[] co
 	}
 	return blocks[0];
 }
+
 int main() {
 	f32<4> one = splat(1.0,4);
 	f32<4>[2] blocks = {one,one};
 	int[1] counts = {0};
 	int n = 0;
 	f32<4> value = process(255,slice(blocks),splat(2.0,4),slice(counts),&n,true);
-	if (!all(value == splat(2.0,4)) || !all(blocks[0] == value) || counts[0] != 2 || n != 1) { return 1; }
+	if (!all(value == splat(2.0,4)) || !all(blocks[0] == value) || counts[0] != 2 || n != 1) return 1;
 	return 0;
 }

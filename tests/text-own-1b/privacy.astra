@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // `private` remains an identifier outside its field-modifier position.
 int private(int value) { return value; }
-class Names { int private; init() { this.private = 7; } }
-class Child : Vault { init() : base(9) {} int through_base() { return this.value; } }
+
+class Names { int private;
+
+	init() { this.private = 7; } }
+
+class Child : Vault { init() : base(9) {}
+
+	int through_base() { return this.value; } }
+
 int inspect(Vault value) { return value.open; }
+
 int main() {
 	var first = new Vault(3); var second = new Vault(5);
-	if (first.read_other(second) != 5 || first.value != 3 || first.byte_value() != 97 || !first.label_is_valid()) { return 81; }
+	if (first.read_other(second) != 5 || first.value != 3 || first.byte_value() != 97 || !first.label_is_valid()) return 81;
 	first.value = 4; first.open = 8;
-	if (first.value != 4 || inspect(first) != 8) { return 82; }
+	if (first.value != 4 || inspect(first) != 8) return 82;
 	var child = new Child(); var names = new Names();
-	if (child.through_base() != 9 || private(names.private) != 7) { return 83; }
+	if (child.through_base() != 9 || private(names.private) != 7) return 83;
 	return 0;
 }

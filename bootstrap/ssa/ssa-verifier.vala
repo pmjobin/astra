@@ -137,6 +137,7 @@ internal class SsaDeclaredClassAuthority : Object {
 			}
 		}
 	}
+
 }
 
 private class DefinitionSite : Object {
@@ -149,6 +150,7 @@ private class DefinitionSite : Object {
 		this.block = block;
 		this.position = position;
 	}
+
 }
 
 // This verifier depends only on SSA nodes and shared semantic authorities.
@@ -481,6 +483,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private HashTable<SsaUtf8FactoryInstruction, SsaFunction> utf8_instructions;
 	private void verify_text_exits(SsaFunction function) throws SsaError {
 		foreach (var block in function.blocks) {
@@ -507,9 +510,11 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private SsaValue owned_call_value(SsaCallInstruction call) {
 		return call.owned_success == null ? call.result : call.owned_success.result;
 	}
+
 	private SsaValue transfer_root(SsaValue value) {
 		var upcast = class_upcasts.lookup (value);
 		if (upcast != null) {
@@ -524,6 +529,7 @@ public class SsaVerifier : Object {
 		var frame_restore = site == null || site.block == null || site.position < 0 ? null : site.block.instructions[site.position] as SsaFrameInputRestore;
 		return frame_restore == null ? value : transfer_root (frame_restore.argument.value);
 	}
+
 	private void verify_class_hierarchy(SsaProgram program) throws SsaError {
 		var classes = new HashTable<SsaClass, bool> (direct_hash, direct_equal);
 		foreach (var owner in program.classes) {
@@ -815,7 +821,6 @@ public class SsaVerifier : Object {
 		}
 	}
 
-
 	private void verify_interface_readonly(SsaMethod method) throws SsaError {
 		if (method.native_declaration != null) {
 			verify_native_declaration (method, "native interface implementation");
@@ -948,6 +953,7 @@ public class SsaVerifier : Object {
 		}
 		return value;
 	}
+
 	private void verify_text_loans(SsaFunction function) throws SsaError {
 		verify_text_exits (function);
 		function.verify_text_uses ();
@@ -1044,6 +1050,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private void verify_text_returns() throws SsaError {
 		foreach (var view in text_views.get_keys ()) {
 			if (!text_origins.is_bounded (view)) {
@@ -1056,6 +1063,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private HashTable<SsaValue, SsaEnumSlot> enum_views = new HashTable<SsaValue, SsaEnumSlot> (direct_hash, direct_equal);
 	private HashTable<SsaBufferPair, SsaNode> buffer_consumers = new HashTable<SsaBufferPair, SsaNode> (direct_hash, direct_equal);
 	private HashTable<SsaValue, SsaBufferReadInstruction> buffer_views = new HashTable<SsaValue, SsaBufferReadInstruction> (direct_hash, direct_equal);
@@ -1085,9 +1093,11 @@ public class SsaVerifier : Object {
 		var cleanup = index < 0 ? null : block.instructions[index--] as SsaCleanupInstruction;
 		return cleanup;
 	}
+
 	private bool guarded_success(SsaCallInstruction call, SsaBlock consumer) {
 		return guarded_effect_success (call.exception_result, consumer);
 	}
+
 	private bool guarded_effect_success(SsaDefinition? exception, SsaBlock consumer) {
 		if (exception == null) {
 			return false;
@@ -1104,6 +1114,7 @@ public class SsaVerifier : Object {
 		}
 		return dominance[branch.true_edge.target.ordinal, consumer.ordinal] && !dominance[branch.false_edge.target.ordinal, consumer.ordinal];
 	}
+
 	private bool guarded_catch(SsaCatchBorrow caught, SsaFunction function, SsaBlock consumer) {
 		foreach (var block in function.blocks) {
 			var branch = block.terminator as SsaConditionalBranch;
@@ -1119,6 +1130,7 @@ public class SsaVerifier : Object {
 		}
 		return false;
 	}
+
 	private void verify_resource_epilogues(SsaFunction function) throws SsaError {
 		var destructor = function as SsaDestructor;
 		if (destructor == null) {
@@ -1496,6 +1508,7 @@ public class SsaVerifier : Object {
 			fail (path, "owner slots lost exact bounded heap Class cleanup");
 		}
 	}
+
 	private void verify_slots_place(SsaIndirectFieldPlace store, SsaFunction function, SsaBlock block, int position, bool read, string path) throws SsaError {
 		if (function.async_body != null) {
 			fail (path, "owner slots require synchronous code");
@@ -1506,6 +1519,7 @@ public class SsaVerifier : Object {
 			fail (path, "owner-slot read before initialization");
 		}
 	}
+
 	private GenericArray<SemanticType>? slot_edges(SemanticType type) {
 		var edges = child_edges (type);
 		var parent = type as ClassType;
@@ -1521,12 +1535,14 @@ public class SsaVerifier : Object {
 		}
 		return edges;
 	}
+
 	private bool slot_alias(SemanticType candidate, SemanticType backing) {
 		if (candidate is ReceiverType) {
 			candidate = ((ReceiverType) candidate).instance_type;
 		}
 		return OwnedChildComposition.may_invalidate (candidate, backing, slot_edges);
 	}
+
 	private SsaScopedInspection scoped_inspections;
 	private bool slots_invalidates(SsaInstruction instruction, SemanticType backing, bool readonly_receiver = false) {
 		var effect = instruction as SsaSlotsEffect;
@@ -1563,6 +1579,7 @@ public class SsaVerifier : Object {
 		}
 		return false;
 	}
+
 	private bool slots_reaches(SsaBlock start, SsaBlock target) {
 		var pending = new GenericArray<SsaBlock> ();
 		var seen = new HashTable<SsaBlock, bool> (direct_hash, direct_equal);
@@ -1582,6 +1599,7 @@ public class SsaVerifier : Object {
 		}
 		return false;
 	}
+
 	private void verify_slots_loans(SsaFunction function) throws SsaError {
 		foreach (var origin in function.blocks) {
 			for (int i = 0; i < origin.instructions.length; i++) {
@@ -3434,6 +3452,7 @@ public class SsaVerifier : Object {
 		}
 		return value;
 	}
+
 	private SsaExceptionBounds filtered_exception_bounds(SsaValue value, SsaBlock at, SsaFunction function, HashTable<SsaValue, SsaExceptionBounds> bounds) {
 		var result = new SsaExceptionBounds ();
 		result.include (bounds.lookup (value));
@@ -3469,6 +3488,7 @@ public class SsaVerifier : Object {
 		}
 		return result;
 	}
+
 	private void verify_exception_bounds(SsaFunction function) throws SsaError {
 		var bounds = new HashTable<SsaValue, SsaExceptionBounds> (direct_hash, direct_equal);
 		foreach (var parameter in function.parameters) {
@@ -4253,6 +4273,7 @@ public class SsaVerifier : Object {
 		var field = loaded == null ? null : loaded.source as SsaIndirectFieldPlace;
 		return field != null && field.field.owned_cleanup != null;
 	}
+
 	private void verify_value(SsaValue value, SsaFunction function, SsaBlock block, int position, string path, bool noescape_use = false, bool receiver_use = false, bool struct_consumption = false, bool buffer_component = false, bool enum_view_use = false) throws SsaError {
 		var shared_definition = value as SsaDefinition;
 		var shared_site = shared_definition == null ? null : definitions.lookup (shared_definition);
@@ -6005,6 +6026,7 @@ public class SsaVerifier : Object {
 		}
 		record_producers.insert (event.value, true);
 	}
+
 	private SsaStructField? record_leaf(SemanticType type, owned StructLeafPath path) {
 		path = path.storage_path ();
 		SsaStructField? field = null;
@@ -6019,6 +6041,7 @@ public class SsaVerifier : Object {
 		}
 		return field != null && field.semantic_type == path.semantic_type ? field : null;
 	}
+
 	private GenericArray<StructLeafPath> record_owning_paths(SsaStruct record) throws SsaError {
 		var result = new GenericArray<StructLeafPath> ();
 		try {
@@ -6033,6 +6056,7 @@ public class SsaVerifier : Object {
 		}
 		return result;
 	}
+
 	private void verify_record_group(SsaStruct record, int source_ordinal, SsaFunction function, string path) throws SsaError {
 		if (structs.lookup (record.semantic_type) != record || source_ordinal < 0 || record.methods.length != 0 || record.properties.length != 0) {
 			fail (path, "record group requires exact promoted local storage and complete field authority");
@@ -6066,6 +6090,7 @@ public class SsaVerifier : Object {
 			fail (path, "record local omitted a recursive ownership obligation");
 		}
 	}
+
 	private void verify_record_fields(SsaHeapOwner owner, SsaValue pointer, GenericArray<SsaValue> values, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		var record = owner.record_type;
 		var field = owner.record_field;
@@ -6082,6 +6107,7 @@ public class SsaVerifier : Object {
 		}
 		verify_value (pointer, function, block, position, path);
 	}
+
 	private void verify_record_marker(SsaInstruction instruction, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		var acquire = instruction as SsaRecordAcquire;
 		var move = instruction as SsaRecordMove;
@@ -6144,6 +6170,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private void verify_record_boundary(SsaStructBoundary boundary, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		var projected = boundary.projection == null ? null : record_leaf (boundary.record_type.semantic_type, boundary.projection);
 		var value_type = boundary.projection == null ? boundary.record_type.semantic_type : projected == null ? null : projected.semantic_type;
@@ -6379,6 +6406,7 @@ public class SsaVerifier : Object {
 			fail (path, "record field take lost its original path, pointer, cleanup or unique scalar destination disposition");
 		}
 	}
+
 	private void verify_record_replace(SsaRecordReplace replace, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		verify_record_fields (replace.owner, replace.old_value, replace.fields, function, block, position, path);
 		if (replace.path == null || !replace.path.same_path (replace.owner.record_path) || replace.rank != replace.owner.record_rank || replace.incoming.semantic_type != replace.old_value.semantic_type) {
@@ -6413,6 +6441,7 @@ public class SsaVerifier : Object {
 			fail (path, "record replacement must acquire incoming ownership, retire exactly the old field, then publish the new owner");
 		}
 	}
+
 	private void verify_constructor_abort(SsaConstructorAbort abort, SsaFunction function, string path) throws SsaError {
 		var constructor = function as SsaConstructor;
 		var owner = constructor == null ? null : constructor.declaring_class;
@@ -6454,6 +6483,7 @@ public class SsaVerifier : Object {
 			fail (path, "constructor abort changed lazy-cache inventory");
 		}
 	}
+
 	private bool fallible_restore_effect(SsaInstruction instruction, SsaLifecycleCallInstruction call) {
 		if (instruction is SsaFallibleInputRestore) {
 			return call.input_restores.find ((SsaFallibleInputRestore) instruction);
@@ -6484,6 +6514,7 @@ public class SsaVerifier : Object {
 		}
 		return false;
 	}
+
 	private bool frame_restore_effect(SsaInstruction instruction, SsaTaskCreate creation) {
 		if (instruction is SsaFrameInputRestore) {
 			return creation.input_restores.find ((SsaFrameInputRestore) instruction);
@@ -6514,6 +6545,7 @@ public class SsaVerifier : Object {
 		}
 		return false;
 	}
+
 	private void verify_record_restore_group(SsaRecordAdmissionRestore restored, SsaCallInstruction consumer, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		var moved = restored.original;
 		var group = restored.results;
@@ -6538,6 +6570,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private void verify_frame_record_restore(SsaFrameRecordRestore restored, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		var creation = restored.creation;
 		var site = creation == null ? null : buffer_sites.lookup (creation);
@@ -6551,6 +6584,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private void verify_fallible_record_restore(SsaFallibleRecordRestore restored, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		var call = restored.call;
 		var site = call == null ? null : buffer_sites.lookup (call);
@@ -6565,6 +6599,7 @@ public class SsaVerifier : Object {
 			}
 		}
 	}
+
 	private void verify_instruction(SsaInstruction instruction, SsaFunction function, SsaBlock block, int position, string path) throws SsaError {
 		if (instruction is SsaScopedAllocator) {
 			var scoped = (SsaScopedAllocator) instruction;
@@ -8864,5 +8899,6 @@ public class SsaVerifier : Object {
 			fail (path, "return value type does not match function return type");
 		}
 	}
+
 }
 }

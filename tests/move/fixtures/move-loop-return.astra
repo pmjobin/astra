@@ -9,15 +9,16 @@ int scoped(bool condition) {
 			return 0;
 		}
 	}
-	if (a == null) { return 1; }
+	if (a == null) return 1;
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped(true) != 0) { return 1; }
-	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	if (scoped(true) != 0) return 1;
+	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 2;
 	resource_reset();
-	if (scoped(false) != 0) { return 1; }
-	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	if (scoped(false) != 0) return 1;
+	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 2;
 	return 0;
 }

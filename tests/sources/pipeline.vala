@@ -46,9 +46,11 @@ private void lifetimes() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/pipeline/independent-verification-after-every-predecessor-dies", lifetimes);
 	return Test.run ();
 }
+
 }

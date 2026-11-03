@@ -1,27 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 f32<4> read(f32<4>* p) { return *p; }
+
 void write(f32<4>* p, f32<4> value) { *p = value; }
+
 f32 nan_value(f32 zero) { return zero / zero; }
+
 f32 infinity(f32 zero) { return 1.0 / zero; }
+
 int main() {
 	f32<4> v = {0.0,-0.0,1.401298464324817070923729583289916131280e-45,3.5};
 	f32<4>* p = &v;
 	f32<4> loaded = read(p);
 	write(p,loaded);
-	if (1.0 / v[0] <= 0.0 || 1.0 / v[1] >= 0.0 || v[2] == 0.0 || v[3] != 3.5) { return 1; }
+	if (1.0 / v[0] <= 0.0 || 1.0 / v[1] >= 0.0 || v[2] == 0.0 || v[3] != 3.5) return 1;
 	v = insert(v,0,-0.0);
-	if (1.0 / (*p)[0] >= 0.0) { return 2; }
+	if (1.0 / (*p)[0] >= 0.0) return 2;
 	f32 nan = nan_value(0.0);
 	f32 inf = infinity(0.0);
 	f32<4> special = {nan,inf,-inf,-0.0};
 	write(p,special);
 	loaded = read(p);
-	if (loaded[0] == loaded[0] || loaded[1] != inf || loaded[2] != -inf || 1.0 / loaded[3] >= 0.0) { return 3; }
+	if (loaded[0] == loaded[0] || loaded[1] != inf || loaded[2] != -inf || 1.0 / loaded[3] >= 0.0) return 3;
 	f32<2> small = {1.401298464324817070923729583289916131280e-45,-0.0};
 	f32<2>* q = &small;
 	f32<2> copied = *q;
 	*q = copied;
-	if (small[0] == 0.0 || 1.0 / small[1] >= 0.0) { return 4; }
+	if (small[0] == 0.0 || 1.0 / small[1] >= 0.0) return 4;
 	return 0;
 }

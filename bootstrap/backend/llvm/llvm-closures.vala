@@ -33,25 +33,30 @@ internal class LlvmClosureLowering : Object {
 		layout = CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 		artifact.class_layouts.add (new LlvmClassLayoutBinding (layout, fields));
 	}
+
 	private CApi.BasicBlockRef block(string name) {
 		return CApi.append_basic_block_in_context (artifact.context, function, "closure.%d.%s".printf (serial++, name));
 	}
+
 	private CApi.ValueRef address(CApi.ValueRef carrier, uint member) {
 		var result = CApi.build_struct_gep (builder, layout, carrier, member, "closure.member");
 		artifact.class_addresses.add (new LlvmClassAddressBinding (result, carrier, layout, member));
 		return result;
 	}
+
 	private CApi.ValueRef read(CApi.ValueRef carrier, uint member) {
 		var place = address (carrier, member);
 		var result = CApi.build_load (builder, pointer_type, place, "closure.read");
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, pointer_type, new CApi.ValueRef[] { place }, "typed closure carrier read"));
 		return result;
 	}
+
 	private void write(CApi.ValueRef carrier, uint member, CApi.ValueRef value) {
 		var place = address (carrier, member);
 		var result = CApi.build_store (builder, value, place);
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { value, place }, "typed closure carrier publication"));
 	}
+
 	private CApi.ValueRef is_null(CApi.ValueRef value) throws LlvmError {
 		var empty = CApi.const_null (pointer_type);
 		var result = CApi.build_icmp (builder, CApi.IntPredicate.EQ, value, empty, "closure.null");
@@ -60,10 +65,12 @@ internal class LlvmClosureLowering : Object {
 		}
 		return result;
 	}
+
 	private void branch(CApi.ValueRef condition, CApi.BasicBlockRef yes, CApi.BasicBlockRef no) {
 		var result = CApi.build_cond_br (builder, condition, yes, no);
 		artifact.class_branches.add (new LlvmClassBranchBinding (result, condition, yes, no));
 	}
+
 	private CApi.ValueRef actor_drop(SsaClass owner) throws LlvmError {
 		string name = "astra.actor.drop." + owner.name;
 		var prior = (void*) artifact.retained_helpers.lookup (name);
@@ -93,6 +100,7 @@ internal class LlvmClosureLowering : Object {
 		artifact.concurrency_guards.add (new LlvmSumSequence (value, true));
 		return value;
 	}
+
 	private CApi.ValueRef actor_bits(CApi.BuilderRef active, CApi.ValueRef value, SemanticType type, bool encode) throws LlvmError {
 		uint width = (type is IntegerType) ? ((IntegerType) type).bit_width : type.kind == TypeKind.BOOL ? 1 : type.kind == TypeKind.F32 ? 32 : 64;
 		var bits_type = CApi.int_type_in_context (artifact.context, width);
@@ -121,6 +129,7 @@ internal class LlvmClosureLowering : Object {
 		}
 		return value;
 	}
+
 	private CApi.ValueRef actor_dispatch(SsaClosureBind closure) throws LlvmError {
 		var target = functions.lookup (closure.target);
 		var signature = (ClosureHandleType) closure.result.semantic_type;
@@ -156,6 +165,7 @@ internal class LlvmClosureLowering : Object {
 		artifact.concurrency_guards.add (new LlvmSumSequence (value, true));
 		return value;
 	}
+
 	private CApi.ValueRef bind_actor(SsaClosureBind closure, CApi.ValueRef environment, LlvmBlockState state) throws LlvmError {
 		var signature = (ClosureHandleType) closure.result.semantic_type;
 		var spec = closure.actor_binding;
@@ -176,6 +186,7 @@ internal class LlvmClosureLowering : Object {
 		scalars.guard_nonnull (result, "actor.admission", state, true);
 		return result;
 	}
+
 	internal CApi.ValueRef bind(SsaClosureBind closure, CApi.ValueRef environment, LlvmBlockState state) throws LlvmError {
 		if (((ClosureHandleType) closure.result.semantic_type).actor) {
 			return bind_actor (closure, environment, state);
@@ -199,6 +210,7 @@ internal class LlvmClosureLowering : Object {
 		write (carrier, 2, destructor == null ? CApi.const_null (pointer_type) : destructor.value);
 		return carrier;
 	}
+
 	internal CApi.ValueRef actor_operation(SsaActorSend send, CApi.ValueRef sender, CApi.ValueRef message, LlvmBlockState state) throws LlvmError {
 		var i32 = types.scalar (NativeScalarType.I32);
 		var signature = (ClosureHandleType) send.sender.semantic_type;
@@ -221,6 +233,7 @@ internal class LlvmClosureLowering : Object {
 		}
 		return LlvmConcurrencyRuntime.call (artifact, builder, "astra_actor_send", i32, new CApi.TypeRef[] { pointer_type, pointer_type, wide, pointer_type }, new CApi.ValueRef[] { sender, payload, scalar, drop });
 	}
+
 	internal CApi.ValueRef invoke(SsaClosureCall call, CApi.ValueRef carrier, CApi.ValueRef[] scalar_arguments, LlvmBlockState state, CApi.ValueRef success_slot) throws LlvmError, NativeAbiError {
 		var signature = (ClosureHandleType) call.callee.semantic_type;
 		scalars.guard_nonnull (carrier, "closure.invoke", state, true);
@@ -250,6 +263,7 @@ internal class LlvmClosureLowering : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (result, code, type, arguments, LlvmLowering.CALL_CONVENTION, "typed borrowed closure environment invocation"));
 		return result;
 	}
+
 	internal void release(CApi.ValueRef carrier, SsaCleanupContract cleanup, LlvmBlockState state) throws LlvmError {
 		if (cleanup.closure_type != null && cleanup.closure_type.actor) {
 			LlvmConcurrencyRuntime.call (artifact, builder, "astra_actor_release", CApi.void_type_in_context (artifact.context), new CApi.TypeRef[] { pointer_type }, new CApi.ValueRef[] { carrier });
@@ -327,5 +341,6 @@ internal class LlvmClosureLowering : Object {
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}
+
 }
 }

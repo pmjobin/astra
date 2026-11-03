@@ -19,6 +19,7 @@ public class GenericStructSymbol : Symbol {
 		this.ordinal = ordinal;
 		nominal_identity = new RecordDefinitionIdentity (this.name, imported_applications);
 	}
+
 	public GenericStructFieldSymbol? find_field(string name) {
 		foreach (var field in fields) {
 			if (field.name == name) {
@@ -27,6 +28,7 @@ public class GenericStructSymbol : Symbol {
 		}
 		return null;
 	}
+
 	public GenericStructApplicationType application(GenericArray<SemanticType> arguments) {
 		foreach (var prior in applications) {
 			if (prior.matches (arguments)) {
@@ -37,6 +39,7 @@ public class GenericStructSymbol : Symbol {
 		applications.add (result);
 		return result;
 	}
+
 	public TypeSubstitution substitution(GenericArray<SemanticType> arguments) {
 		assert (arguments.length == type_parameters.length);
 		var result = new TypeSubstitution ();
@@ -45,6 +48,7 @@ public class GenericStructSymbol : Symbol {
 		}
 		return result;
 	}
+
 }
 public class OwnedRecordInstantiation : Object {
 	private WeakRef definition;
@@ -54,6 +58,7 @@ public class OwnedRecordInstantiation : Object {
 		definition = WeakRef (origin);
 		this.arguments = new TypeArgumentVector (arguments);
 	}
+
 }
 
 public class GenericStructFieldSymbol : FieldSymbol {
@@ -64,6 +69,7 @@ public class GenericStructFieldSymbol : FieldSymbol {
 		base (span, name_span, type, ordinal);
 		this.owner = WeakRef (definition);
 	}
+
 }
 
 public class GenericStructApplicationType : SemanticType {
@@ -81,9 +87,11 @@ public class GenericStructApplicationType : SemanticType {
 		}
 		bind_logical_identity (definition.nominal_identity.application (arguments));
 	}
+
 	public bool matches(GenericArray<SemanticType> arguments) {
 		return TypeArgumentVector.same_values (type_arguments, arguments);
 	}
+
 	public override bool is_parameterized() {
 		foreach (var argument in type_arguments) {
 			if (argument.is_parameterized ()) {
@@ -92,12 +100,15 @@ public class GenericStructApplicationType : SemanticType {
 		}
 		return false;
 	}
+
 	public override string? generic_definition_name() {
 		return identifier;
 	}
+
 	public override TypeArgumentVector? generic_arguments() {
 		return new TypeArgumentVector (type_arguments);
 	}
+
 	public override string display_name() {
 		var result = new StringBuilder (identifier + "<");
 		for (int i = 0; i < type_arguments.length; i++) {
@@ -109,13 +120,16 @@ public class GenericStructApplicationType : SemanticType {
 		result.append (">");
 		return result.str;
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return definition.application (substitution.apply_arguments (type_arguments));
 	}
+
 	public SemanticType field_type(GenericStructFieldSymbol field) {
 		assert (field.definition == definition);
 		return definition.substitution (type_arguments).apply (field.semantic_type);
 	}
+
 }
 
 public class CheckedGenericStruct : CheckedNode {
@@ -126,6 +140,7 @@ public class CheckedGenericStruct : CheckedNode {
 		base (definition.span);
 		this.definition = definition;
 	}
+
 }
 
 // Temporary projection in the same recursive Place tree. Its exact origin is
@@ -140,5 +155,6 @@ public class CheckedGenericStructFieldPlace : CheckedPlace {
 		this.application = (GenericStructApplicationType) aggregate.semantic_type;
 		this.field = field;
 	}
+
 }
 }

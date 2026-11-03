@@ -2,16 +2,19 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
 int mark(int x) {
 	putchar('0' + x);
 	fflush(stdout);
 	return x;
 }
+
 int bits32(float x) {
 	int32_t bits;
 	memcpy(&bits, &x, sizeof bits);
 	return bits;
 }
+
 int high64(double x) {
 	uint64_t bits;
 	memcpy(&bits, &x, sizeof bits);
@@ -20,6 +23,7 @@ int high64(double x) {
 	memcpy(&result, &word, sizeof result);
 	return result;
 }
+
 int low64(double x) {
 	uint64_t bits;
 	memcpy(&bits, &x, sizeof bits);

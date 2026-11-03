@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) f32 c_echo32(f32 value);
+
 extern(C) f64 c_echo(f64 value);
+
 extern(C) int c_finish(int index, f32 small, f64 precise, void* token);
+
 extern(C) int c_chain_mixed(int index, f32 small, f64 precise, void* token);
+
 extern(C) void* c_token();
+
 extern(C) f32 c_pattern32(int index);
+
 extern(C) f64 c_pattern(int index);
+
 extern(C) int c_count();
+
 export(C) int astra_mixed(int index, f32 small, f64 precise, void* token) { return c_finish(index, c_echo32(small), c_echo(precise), token); }
+
 int main() {
 	int i = 0;
 	while (i < c_count()) {
-		if (c_chain_mixed(i, c_pattern32(i), c_pattern(i), c_token()) != 0) { return 1; }
+		if (c_chain_mixed(i, c_pattern32(i), c_pattern(i), c_token()) != 0) return 1;
 		i = i + 1;
 	}
 	return 0;

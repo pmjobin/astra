@@ -4,15 +4,24 @@ namespace QueryModel;
 [ExceptionRoot]
 class Fault {
 	readonly string text;
+
 	init(string message) { this.text = message; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 struct Interval { int offset; int count; }
+
 struct Pair { Interval first; Interval second; }
+
 struct Quantiles { int minimum; int lower; int median; int upper; int maximum; }
+
 struct Moments { int count; int sum; int energy; int cross_distance; }
+
 struct Distribution { Pair ranges; Quantiles order; Moments totals; }
+
 struct Box<T> { T value; int generation; }
+
 struct Reply<T> { Box<T> payload; int identity; int cached; }
 
 [Shared,Monitor]
@@ -20,26 +29,43 @@ struct Reply<T> { Box<T> payload; int identity; int cached; }
 class Entry {
 	private Distribution value;
 	private owned ContextBytes<ConcurrentAllocator> histogram;
+
 	init(Distribution value, owned ContextBytes<ConcurrentAllocator> histogram) {
 		this.value = value; this.histogram = move histogram; query_event(6, value.ranges.first.offset, value.totals.count);
 	}
+
 	bool matches(int first, int first_count, int second, int second_count) {
 		return this.value.ranges.first.offset == first && this.value.ranges.first.count == first_count && this.value.ranges.second.offset == second && this.value.ranges.second.count == second_count;
 	}
+
 	int first_offset() { return this.value.ranges.first.offset; }
+
 	int first_count() { return this.value.ranges.first.count; }
+
 	int second_offset() { return this.value.ranges.second.offset; }
+
 	int second_count() { return this.value.ranges.second.count; }
+
 	int minimum() { return this.value.order.minimum; }
+
 	int lower() { return this.value.order.lower; }
+
 	int median() { return this.value.order.median; }
+
 	int upper() { return this.value.order.upper; }
+
 	int maximum() { return this.value.order.maximum; }
+
 	int count() { return this.value.totals.count; }
+
 	int sum() { return this.value.totals.sum; }
+
 	int energy() { return this.value.totals.energy; }
+
 	int cross_distance() { return this.value.totals.cross_distance; }
+
 	int frequency(int value) { return (this.histogram[value * 2] as int) + (this.histogram[value * 2 + 1] as int) * 256; }
+
 	deinit() { query_event(7, this.value.ranges.first.offset, this.value.totals.count); }
 }
 
@@ -48,15 +74,23 @@ class Entry {
 class Block {
 	private Pair ranges;
 	private owned ContextBytes<ConcurrentAllocator> bytes;
+
 	init(Pair ranges, owned ContextBytes<ConcurrentAllocator> bytes) { this.ranges = ranges; this.bytes = move bytes; }
+
 	void set_byte(int index, int value) { this.bytes[index] = value as u8; }
+
 	owned Entry analyze(borrowed ConcurrentAllocator results, int identity, int mode) throws Fault {
-		if (mode == 1) { query_event(9, identity, 1); throw new Fault("requested paired analysis refusal"); }
+		if (mode == 1) {
+			query_event(9, identity, 1);
+			throw new Fault("requested paired analysis refusal");
+		}
 		int count = this.ranges.first.count + this.ranges.second.count;
-		if (this.ranges.first.count <= 0 || this.ranges.second.count <= 0 || len(this.bytes) != count) { throw new Fault("paired block extent"); }
+		if (this.ranges.first.count <= 0 || this.ranges.second.count <= 0 || len(this.bytes) != count) {
+			throw new Fault("paired block extent");
+		}
 		query_event(2, identity, count);
 		var histogram = new(results)u8[512];
-		for (int i = 0; i < 512; i = i + 1) { histogram[i] = 0; }
+		for (int i = 0; i < 512; i = i + 1) histogram[i] = 0;
 		int sum = 0; int energy = 0;
 		for (int i = 0; i < count; i = i + 1) {
 			int value = this.bytes[i] as int; sum = sum + value; energy = energy + value * value;
@@ -66,18 +100,21 @@ class Block {
 		int cross_distance = 0;
 		for (int left = 0; left < this.ranges.first.count; left = left + 1) {
 			for (int right = this.ranges.first.count; right < count; right = right + 1) {
-				int distance = (this.bytes[left] as int) - (this.bytes[right] as int); if (distance < 0) { distance = 0 - distance; }
+				int distance = (this.bytes[left] as int) - (this.bytes[right] as int); if (distance < 0) distance = 0 - distance;
 				cross_distance = (cross_distance + distance) % 65521;
 			}
 		}
 		int minimum = -1; int maximum = 0; int lower = -1; int median = -1; int upper = -1; int seen = 0;
 		for (int value = 0; value < 256; value = value + 1) {
 			int bin = (histogram[value * 2] as int) + (histogram[value * 2 + 1] as int) * 256;
-			if (bin > 0) { if (minimum < 0) { minimum = value; } maximum = value; }
+			if (bin > 0) {
+				if (minimum < 0) minimum = value;
+				maximum = value;
+			}
 			seen = seen + bin;
-			if (lower < 0 && seen > (count - 1) / 4) { lower = value; }
-			if (median < 0 && seen > (count - 1) / 2) { median = value; }
-			if (upper < 0 && seen > ((count - 1) * 3) / 4) { upper = value; }
+			if (lower < 0 && seen > (count - 1) / 4) lower = value;
+			if (median < 0 && seen > (count - 1) / 2) median = value;
+			if (upper < 0 && seen > ((count - 1) * 3) / 4) upper = value;
 		}
 		Distribution distribution = {ranges = this.ranges, order = {minimum = minimum, lower = lower, median = median, upper = upper, maximum = maximum}, totals = {count = count, sum = sum, energy = energy, cross_distance = cross_distance}};
 		var entry = new(results) Entry(distribution, move histogram); query_event(3, identity, cross_distance); return move entry;
@@ -93,20 +130,33 @@ class Ticket {
 	private owned Block block;
 	private owned Entry result;
 	private int status;
+
 	init(int identity, int mode, Pair ranges, owned Block block) {
 		this.identity = identity; this.mode = mode; this.ranges = ranges; this.block = move block; this.result = empty_entry(); this.status = 0; query_event(0, identity, ranges.first.count + ranges.second.count);
 	}
+
 	int id() { return this.identity; }
+
 	int operation() { return this.mode; }
+
 	int first_offset() { return this.ranges.first.offset; }
+
 	int first_count() { return this.ranges.first.count; }
+
 	int second_offset() { return this.ranges.second.offset; }
+
 	int second_count() { return this.ranges.second.count; }
+
 	owned Block payload() { var result = shared_clone(this.block); return move result; }
+
 	int state() { return this.status; }
+
 	void finish(owned Entry result) { this.result = move result; this.status = 1; }
+
 	void refuse() { this.status = 2; }
+
 	owned Entry outcome() { var result = shared_clone(this.result); return move result; }
+
 	deinit() { query_event(1, this.identity, this.status); }
 }
 
@@ -116,11 +166,16 @@ class Queue {
 	private owned Ticket[slots] entries;
 	private int capacity;
 	private bool admitted;
+
 	init(int capacity) { this.entries = new Ticket[slots]; this.capacity = capacity; this.admitted = this.entries.reserve(capacity); }
+
 	bool ready() { return this.admitted; }
+
 	bool available() { return len(this.entries) < this.capacity; }
-	bool offer(owned Ticket ticket) { if (len(this.entries) >= this.capacity) { return false; } this.entries.append(move ticket); query_event(8, len(this.entries), this.capacity); return true; }
-	owned Ticket pop() { if (len(this.entries) == 0) { return null; } var result = this.entries.take(0); return move result; }
+
+	bool offer(owned Ticket ticket) { if (len(this.entries) >= this.capacity) return false; this.entries.append(move ticket); query_event(8, len(this.entries), this.capacity); return true; }
+
+	owned Ticket pop() { if (len(this.entries) == 0) return null; var result = this.entries.take(0); return move result; }
 }
 
 [Shared,Monitor]
@@ -134,39 +189,67 @@ class Cache {
 	private int rejected;
 	private bool failed;
 	private bool admitted;
+
 	init(int capacity) { this.entries = new Entry[slots]; this.capacity = capacity; this.admitted = this.entries.reserve(capacity); this.hits = 0; this.misses = 0; this.clients = 0; this.rejected = 0; this.failed = false; }
+
 	bool ready() { return this.admitted; }
-	owned Entry take() { if (len(this.entries) == 0) { return null; } var result = this.entries.take(0); return move result; }
-	void store(owned Entry entry) { if (len(this.entries) == this.capacity) { var retired = this.entries.take(0); } this.entries.append(move entry); }
+
+	owned Entry take() { if (len(this.entries) == 0) return null; var result = this.entries.take(0); return move result; }
+
+	void store(owned Entry entry) { if (len(this.entries) == this.capacity) {
+			var retired = this.entries.take(0);
+		} this.entries.append(move entry); }
+
 	void hit() { this.hits = this.hits + 1; }
+
 	void miss() { this.misses = this.misses + 1; }
+
 	void rejection() { this.rejected = this.rejected + 1; }
+
 	int hit_count() { return this.hits; }
+
 	int miss_count() { return this.misses; }
+
 	int count() { return len(this.entries); }
+
 	int rejections() { return this.rejected; }
+
 	void client_done() { this.clients = this.clients + 1; }
+
 	int completed_clients() { return this.clients; }
+
 	void fail() { this.failed = true; }
+
 	bool stopped() { return this.failed; }
 }
 
 owned Entry empty_entry() { return null; }
+
 owned Ticket clone_ticket(borrowed Ticket value) { var result = shared_clone(value); return move result; }
+
 owned Queue clone_queue(borrowed Queue value) { var result = shared_clone(value); return move result; }
+
 owned Cache clone_cache(borrowed Cache value) { var result = shared_clone(value); return move result; }
+
 owned Entry clone_entry(borrowed Entry value) { var result = shared_clone(value); return move result; }
+
 owned Entry lookup(borrowed Cache cache, Pair ranges) {
 	int candidates = cache.count();
 	for (int i = 0; i < candidates; i = i + 1) {
 		var entry = cache.take();
 		if (entry != null) {
-			if (entry.matches(ranges.first.offset, ranges.first.count, ranges.second.offset, ranges.second.count)) { var result = shared_clone(entry); cache.store(move entry); cache.hit(); return move result; }
+			if (entry.matches(ranges.first.offset, ranges.first.count, ranges.second.offset, ranges.second.count)) {
+				var result = shared_clone(entry);
+				cache.store(move entry);
+				cache.hit();
+				return move result;
+			}
 			cache.store(move entry);
 		}
 	}
 	cache.miss(); return null;
 }
+
 Reply<Distribution> reply(borrowed Entry entry, int identity, int cached) {
 	Distribution value = {ranges = {first = {offset = entry.first_offset(), count = entry.first_count()}, second = {offset = entry.second_offset(), count = entry.second_count()}}, order = {minimum = entry.minimum(), lower = entry.lower(), median = entry.median(), upper = entry.upper(), maximum = entry.maximum()}, totals = {count = entry.count(), sum = entry.sum(), energy = entry.energy(), cross_distance = entry.cross_distance()}};
 	Reply<Distribution> result = {payload = {value = value, generation = 2}, identity = identity, cached = cached}; return result;

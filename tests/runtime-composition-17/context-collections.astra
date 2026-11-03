@@ -2,46 +2,53 @@
 [Allocator(kind="context",context="owned-concurrent")]
 class ContextItem {
 	private int number;
+
 	init(int value) { this.number = value; }
+
 	int read() { return this.number; }
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class ContextEnvironment {
 	private owned ContextItem item;
+
 	init(owned ContextItem item) { this.item = move item; }
+
 	int apply(int input) { return this.item.read() + input; }
 }
+
 int context_apply(borrowed ContextEnvironment environment, int input) { return environment.apply(input); }
+
 int main() {
 	var first = concurrent_allocator(2, 4099, 3, 64);
 	var second = concurrent_allocator(1, 16387, 17, 128);
-	if (first == null || second == null) { return 1; }
+	if (first == null || second == null) return 1;
 	{
 		var bag = new (first) ContextBag<ContextItem>();
-		if (!bag.reserve(3)) { return 2; }
+		if (!bag.reserve(3)) return 2;
 		var a = new (second) ContextItem(41);
 		var b = new (second) ContextItem(43);
 		var c = new (second) ContextItem(47);
 		bag.append(move a); bag.append(move b); bag.append(move c);
-		if (concurrent_allocator_query(first, 1) != 2 || concurrent_allocator_query(second, 1) != 3) { return 3; }
-		if (!bag.reserve(7)) { return 4; }
-		if (bag.reserve(4097) || bag.capacity() != 7 || bag.count() != 3) { return 5; }
+		if (concurrent_allocator_query(first, 1) != 2 || concurrent_allocator_query(second, 1) != 3) return 3;
+		if (!bag.reserve(7)) return 4;
+		if (bag.reserve(4097) || bag.capacity() != 7 || bag.count() != 3) return 5;
 		var taken = bag.take(1);
-		if (taken.read() != 43 || bag.count() != 2) { return 6; }
+		if (taken.read() != 43 || bag.count() != 2) return 6;
 		bag.append(move taken);
 		var end = bag.take(2);
-		if (end.read() != 43) { return 7; }
-		if (concurrent_allocator_query(first, 4) != 3 || concurrent_allocator_query(first, 5) != 1) { return 8; }
+		if (end.read() != 43) return 7;
+		if (concurrent_allocator_query(first, 4) != 3 || concurrent_allocator_query(first, 5) != 1) return 8;
 	}
-	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) { return 9; }
+	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) return 9;
 	{
 		var item = new (second) ContextItem(53);
 		var environment = new (first) ContextEnvironment(move item);
 		var function = closure_bind(move environment, context_apply);
-		if (concurrent_allocator_query(first, 1) != 2 || concurrent_allocator_query(second, 1) != 1) { return 10; }
-		if (closure_invoke(function, 11) != 64) { return 11; }
+		if (concurrent_allocator_query(first, 1) != 2 || concurrent_allocator_query(second, 1) != 1) return 10;
+		if (closure_invoke(function, 11) != 64) return 11;
 	}
-	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) { return 12; }
-	if (concurrent_allocator_query(first, 4) != concurrent_allocator_query(first, 5) || concurrent_allocator_query(second, 4) != concurrent_allocator_query(second, 5)) { return 13; }
+	if (concurrent_allocator_query(first, 1) != 0 || concurrent_allocator_query(second, 1) != 0) return 12;
+	if (concurrent_allocator_query(first, 4) != concurrent_allocator_query(first, 5) || concurrent_allocator_query(second, 4) != concurrent_allocator_query(second, 5)) return 13;
 	return 0;
 }

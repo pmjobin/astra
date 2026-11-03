@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Kernel { int index; f64 gain; }
+
 struct Box<T> { T value; }
+
 class ArrayOwner {
 	owned Kernel[] kernels;
+
 	init(Kernel[] source) { this.kernels = clone_array(source); }
+
 	void replace() { this.kernels = clone_array(this.kernels); }
+
 	deinit() { this.kernels = clone_array(this.kernels); }
 }

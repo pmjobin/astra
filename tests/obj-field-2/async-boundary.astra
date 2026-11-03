@@ -1,27 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int field_event(int stage, int tag);
+
 extern(C) int field_done();
+
 class Child {
 	int value;
+
 	init(int tag) { this.value = 42; field_event(1, tag); }
+
 	int probe(int tag) { field_event(3, tag); return this.value; }
+
 	deinit() { field_event(2, 0); }
 }
+
 class Parent {
 	owned Child child;
+
 	init(owned Child child) { this.child = move child; }
+
 	deinit() { field_event(4, 90); }
 }
+
 int inspect(Child child, int tag) { return child.probe(tag); }
+
 async void held(int tag) throws Error {
 	var child = new Child(tag);
 	var parent = new Parent(move child);
-	if (inspect(parent.child, tag) != 42) { throw new Error("child"); }
+	if (inspect(parent.child, tag) != 42) {
+		throw new Error("child");
+	}
 	var moved = move parent;
 	await delay_ticks(10);
-	if (inspect(moved.child, tag) != 42) { throw new Error("moved child"); }
+	if (inspect(moved.child, tag) != 42) {
+		throw new Error("moved child");
+	}
 	release moved;
 }
+
 async void application() throws Error {
 	await held(1);
 	var child = held(2);
@@ -31,6 +46,7 @@ async void application() throws Error {
 	cancel(child);
 	await cancel_and_join(move child);
 }
+
 int main() {
 	try {
 		var executor = VirtualExecutor.open(3);

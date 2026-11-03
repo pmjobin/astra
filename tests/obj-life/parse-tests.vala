@@ -16,6 +16,7 @@ private void grammar() {
 	var dump = SyntaxDump.format (result.unit);
 	assert (dump.contains ("constructor-initializer") && dump.contains ("(constructor") && dump.contains ("(destructor"));
 }
+
 private void restricted() {
 	foreach (var body in new string[] { "C c=C.init()+1;", "delete c;" }) {
 		assert (Parser.parse (new SourceFile.from_text ("invalid", "int main(){" + body + "}")).diagnostic != null);
@@ -35,10 +36,12 @@ private void restricted() {
 	// Lifecycle names and new are contextual, not new global keywords.
 	assert (Parser.parse (new SourceFile.from_text ("free", "int init(){return 1;}int deinit(){return 2;}int new(){return 3;}")).diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/parser/lifecycle-and-dedicated-construction", grammar);
 	Test.add_func ("/obj-life/parser/restricted-construction-and-malformed-members", restricted);
 	return Test.run ();
 }
+
 }

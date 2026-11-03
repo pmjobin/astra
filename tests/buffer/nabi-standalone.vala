@@ -24,6 +24,7 @@ private NativeAbiProgram sample(int variant = 0) throws NativeAbiError {
 	functions.add(function);
 	return new NativeAbiProgram(span, profile, functions);
 }
+
 private void positive() {
 	try {
 		var program = sample();
@@ -34,6 +35,7 @@ private void positive() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void negative() {
 	for (int variant = 1; variant <= 7; variant++) {
 		try {
@@ -45,10 +47,12 @@ private void negative() {
 		GLib.error("accepted malformed NABI buffer %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/nabi/independent-owned-pairs-mixed-with-slice-and-scalar", positive);
 	Test.add_func("/buffer/nabi/reject-old-profiles-partial-groups-and-result-collapse", negative);
 	return Test.run();
 }
+
 }

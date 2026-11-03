@@ -14,10 +14,12 @@ internal class ForeignParameterAdmission : Object {
 		this.records = (owned) records;
 		this.roots = (owned) roots;
 	}
+
 	private bool fail(SourceSpan span, string message) {
 		diagnostic = new Diagnostic (span, message);
 		return false;
 	}
+
 	public static int parameter_index(FunctionSymbol function, string name) {
 		for (int p = 0; p < function.parameters.length; p++) {
 			if (function.parameters[p].name == name) {
@@ -26,6 +28,7 @@ internal class ForeignParameterAdmission : Object {
 		}
 		return -1;
 	}
+
 	public ForeignChannel? parameter_channel(FunctionSymbol function, ParameterSymbol parameter, SyntaxNode source, ForeignPolicySyntax? annotation) {
 		if (parameter.semantic_type is CallbackType) {
 			var value = ForeignApiTypes.callback (parameter.semantic_type);
@@ -166,6 +169,7 @@ internal class ForeignParameterAdmission : Object {
 		}
 		return channel;
 	}
+
 }
 internal class ForeignApiAdmission : Object {
 	private Diagnostic? diagnostic;
@@ -185,6 +189,7 @@ internal class ForeignApiAdmission : Object {
 		this.declarations = declarations;
 		this.imported_roots = (owned) imported_roots;
 	}
+
 	private bool native_root(SemanticType type, out string prefix, out bool shared, out ForeignValueKind kind) {
 		prefix = "";
 		shared = false;
@@ -211,6 +216,7 @@ internal class ForeignApiAdmission : Object {
 		}
 		return false;
 	}
+
 	internal static ForeignValueType? record_for(SemanticType type, GenericArray<NativeInstanceSymbol> instances) {
 		var names = new GenericArray<string> ();
 		var fields = new GenericArray<SemanticType> ();
@@ -244,9 +250,11 @@ internal class ForeignApiAdmission : Object {
 		}
 		return ForeignApiTypes.record (type, names, fields);
 	}
+
 	private ForeignValueType? record(SemanticType type) {
 		return record_for (type, instances);
 	}
+
 	public static bool selected(ClassDeclarationSyntax? syntax) {
 		if (syntax != null && syntax.foreign_export != null) {
 			foreach (var entry in syntax.foreign_export.entries) {
@@ -257,10 +265,12 @@ internal class ForeignApiAdmission : Object {
 		}
 		return false;
 	}
+
 	private bool fail(SourceSpan span, string message) {
 		diagnostic = new Diagnostic (span, message);
 		return false;
 	}
+
 	public static ForeignChannel? reference_channel(ParameterSymbol parameter, ForeignPolicySyntax? annotation, out Diagnostic? diagnostic) {
 		diagnostic = null;
 		var value = ForeignApiTypes.scalar_pointee (parameter.semantic_type);
@@ -289,6 +299,7 @@ internal class ForeignApiAdmission : Object {
 		}
 		return new ForeignChannel (parameter.name, value, direction, ForeignTransfer.COPY, false, ForeignTextEncoding.NONE, -1, -1, -1, "", true, -1, -1, false, false, false, true);
 	}
+
 	private ForeignChannel? parameter_channel(FunctionSymbol function, ParameterSymbol parameter, SyntaxNode source, ForeignPolicySyntax? annotation) {
 		var normalizer = new ForeignParameterAdmission (record, native_root);
 		var result = normalizer.parameter_channel (function, parameter, source, annotation);
@@ -297,6 +308,7 @@ internal class ForeignApiAdmission : Object {
 		}
 		return result;
 	}
+
 	private bool callable(FunctionSymbol function, ForeignMemberKind kind, int ordinal, string name, SyntaxNode source) {
 		var span = source.span;
 		if (function.async_body != null) {
@@ -432,6 +444,7 @@ internal class ForeignApiAdmission : Object {
 		function.bind_foreign_heap_boundary ();
 		return true;
 	}
+
 	private bool collect(ClassDeclarationSyntax syntax) {
 		for (int ordinal = 0; ordinal < syntax.members.length; ordinal++) {
 			var source = syntax.members[ordinal];
@@ -504,6 +517,7 @@ internal class ForeignApiAdmission : Object {
 		}
 		return true;
 	}
+
 	public static ForeignClassPolicy? admit(ClassSymbol owner,ClassDeclarationSyntax syntax,GenericArray<NativeInstanceSymbol> instances,GenericArray<NativeInstanceDeclarationSyntax> declarations,out Diagnostic? diagnostic,owned ForeignRootLookup? imported_roots = null,GenericArray<ForeignComInterface>? com_protocols = null,int foreign_selection = -1) {
 		diagnostic = null;
 		if (syntax.com_export != null && syntax.gobject_export != null && foreign_selection < 0) {
@@ -663,5 +677,6 @@ internal class ForeignApiAdmission : Object {
 		}
 		return policy;
 	}
+
 }
 }

@@ -20,6 +20,7 @@ public class SsaScopedAllocator : SsaInstruction {
 		this.kind = kind;
 		this.slots = slots;
 	}
+
 }
 public class SsaSlotsRecordTransfer : SsaInstruction {
 	public SsaStructBoundaryMove? record_move { get; internal set; }
@@ -34,6 +35,7 @@ public class SsaSlotsRecordTransfer : SsaInstruction {
 		this.shape = shape;
 		this.leaves = leaves;
 	}
+
 }
 public class SsaSlotsRecordRead : SsaInstruction {
 	public SsaIndirectFieldPlace store { get; private set; }
@@ -47,6 +49,7 @@ public class SsaSlotsRecordRead : SsaInstruction {
 		this.remove = remove;
 		this.results = results;
 	}
+
 }
 public class SsaBufferSlotCaptureInstruction : SsaInstruction {
 	public SsaBufferPlace place { get; private set; }
@@ -54,6 +57,7 @@ public class SsaBufferSlotCaptureInstruction : SsaInstruction {
 		base (span, null, -1);
 		this.place = place;
 	}
+
 }
 
 // Indivisible language effect, not hardware atomicity. Internal snapshots
@@ -68,6 +72,7 @@ public class SsaBufferExchangeInstruction : SsaInstruction {
 		this.left_capture = left;
 		this.right_capture = right;
 	}
+
 }
 
 // Bounded grouping metadata, never an Astra SSA Value. The two leaves have
@@ -82,6 +87,7 @@ public class SsaBufferPair : SsaNode {
 		this.base_value = base_value;
 		this.length_value = length_value;
 	}
+
 	internal SsaBufferPair.results (SourceSpan span, BufferValueShape shape, int first_ordinal) {
 		this(span, shape, new SsaInstructionResult (span, shape.base_type, first_ordinal), new SsaInstructionResult (span, shape.length_type, first_ordinal + 1));
 	}
@@ -107,6 +113,7 @@ public class SsaBufferStorage : SsaNode {
 		this.ordinal = ordinal;
 		this.owner_ordinal = owner_ordinal;
 	}
+
 }
 public class SsaBufferPlace : SsaNode {
 	public StructLeafPath? record_path { get; private set; }
@@ -123,6 +130,7 @@ public class SsaBufferPlace : SsaNode {
 		this.record_path = storage == null ? null : storage.record_path;
 		this.record_rank = storage == null ? -1 : storage.record_rank;
 	}
+
 	internal SsaBufferPlace.projection (SourceSpan span, SsaCleanupContract cleanup, SsaFieldPlace field) {
 		base (span);
 		this.cleanup = cleanup;
@@ -141,6 +149,7 @@ public class SsaBufferParameter : SsaNode {
 		this.cleanup = cleanup;
 		this.pair = pair;
 	}
+
 }
 public class SsaBufferArgument : SsaNode {
 	public SsaBufferParameter parameter { get; private set; }
@@ -152,6 +161,7 @@ public class SsaBufferArgument : SsaNode {
 		this.pair = pair;
 		this.disarm = disarm;
 	}
+
 }
 // The region names one ordinary call and its enforced fatal continuation.
 // Targets are weak stage-local identities; no upstream model is retained.
@@ -167,6 +177,7 @@ public class SsaAllocationFailure : SsaNode {
 		native_callee = WeakRef (target);
 		foreign_callee = WeakRef (c_target);
 	}
+
 }
 public class SsaAllocationFailureTrap : SsaTerminator {
 	public SsaAllocationFailure failure { get; private set; }
@@ -174,6 +185,7 @@ public class SsaAllocationFailureTrap : SsaTerminator {
 		base (span);
 		this.failure = failure;
 	}
+
 }
 public class SsaBufferAllocationBranch : SsaTerminator {
 	public SsaBufferAllocateInstruction allocation { get; private set; }
@@ -185,6 +197,7 @@ public class SsaBufferAllocationBranch : SsaTerminator {
 		this.success_edge = success;
 		this.failure_edge = failure;
 	}
+
 }
 public class SsaBufferAllocateInstruction : SsaInstruction {
 	public SsaHeapOwner? context_owner { get; private set; }
@@ -202,6 +215,7 @@ public class SsaBufferAllocateInstruction : SsaInstruction {
 		this.context_owner = context_owner;
 		this.pair = new SsaBufferPair.results (span, cleanup.buffer_shape, first_ordinal);
 	}
+
 }
 public class SsaBufferReadInstruction : SsaInstruction {
 	public SsaBufferPlace place { get; private set; }
@@ -211,6 +225,7 @@ public class SsaBufferReadInstruction : SsaInstruction {
 		this.place = place;
 		this.pair = new SsaBufferPair.results (span, place.cleanup.buffer_shape, first_ordinal);
 	}
+
 }
 public class SsaBufferWriteInstruction : SsaInstruction {
 	public SsaStructBoundary? record_boundary { get; internal set; }
@@ -225,6 +240,7 @@ public class SsaBufferWriteInstruction : SsaInstruction {
 		this.place = place;
 		this.pair = pair;
 	}
+
 }
 public class SsaBufferDeallocateInstruction : SsaInstruction {
 	public SsaBufferPair pair { get; private set; }
@@ -234,6 +250,7 @@ public class SsaBufferDeallocateInstruction : SsaInstruction {
 		this.pair = pair;
 		this.cleanup = cleanup;
 	}
+
 }
 public class SsaBufferBorrowInstruction : SsaInstruction {
 	public SsaBufferPair pair { get; private set; }
@@ -244,6 +261,7 @@ public class SsaBufferBorrowInstruction : SsaInstruction {
 		base (span, view_type ?? pair.shape.slice_type, ordinal);
 		this.pair = pair;
 	}
+
 	internal SsaBufferBorrowInstruction.for_record (SourceSpan span, SsaBufferPair pair, SsaStructCallResults group, int ordinal) {
 		this(span, pair, ordinal);
 		record_source = group;
@@ -262,6 +280,7 @@ public class SsaBufferReturn : SsaReturn {
 		this.pair = pair;
 		this.cleanup = cleanup;
 	}
+
 }
 
 // Independent closed-region proof: only allocator-null enters this DAG,
@@ -272,6 +291,7 @@ internal class SsaAllocationFailureVerifier : Object {
 			throw new SsaError.INVALID_SSA ("allocation failure region: %s", message);
 		}
 	}
+
 	private static SsaBlock? normal_success(SsaBlock block) {
 		if (block.instructions.length < 2) {
 			return null;
@@ -284,6 +304,7 @@ internal class SsaAllocationFailureVerifier : Object {
 		}
 		return branch.true_edge.target;
 	}
+
 	internal static void verify(SsaFunction function) throws SsaError {
 		bool present = false;
 		foreach (var block in function.blocks) {
@@ -441,6 +462,7 @@ internal class SsaAllocationFailureVerifier : Object {
 			}
 		}
 	}
+
 }
 }
 
@@ -448,6 +470,7 @@ namespace Astra.Ssa {
 public enum SsaSlotsAction {
 	INITIALIZE, APPEND, DROP, REPLACE
 }
+
 // One exclusive field-resident descriptor group, never copyable SSA leaves.
 public class SsaSlotsEffect : SsaInstruction {
 	public SsaValue? index { get; internal set; }
@@ -462,6 +485,7 @@ public class SsaSlotsEffect : SsaInstruction {
 		this.incoming = incoming;
 		this.owner = owner;
 	}
+
 }
 public class SsaSlotsValueInstruction : SsaInstruction {
 	public bool readonly_required { get; internal set; }
@@ -469,6 +493,7 @@ public class SsaSlotsValueInstruction : SsaInstruction {
 	internal bool readonly_context_valid() {
 		return readonly_required == original_readonly_required;
 	}
+
 	public SsaHeapOwner? owner { get; internal set; }
 	public OwnerSlotsAction action { get; private set; }
 	public SsaIndirectFieldPlace store { get; private set; }
@@ -482,5 +507,6 @@ public class SsaSlotsValueInstruction : SsaInstruction {
 		this.borrower = borrower;
 		this.readonly_required = original_readonly_required = readonly_required;
 	}
+
 }
 }

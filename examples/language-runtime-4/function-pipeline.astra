@@ -8,15 +8,17 @@ void pipeline_number(string label, i64 value) throws Error {
 	require_text(append_text(builder, label));
 	require_text(append_i64(builder, value));
 	var text = builder.snapshot();
-	if (!println(text.text)) { throw new Error("pipeline output"); }
+	if (!println(text.text)) {
+		throw new Error("pipeline output");
+	}
 }
 
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	try {
 		int mode = parse_int(args[1]);
 		int count = parse_int(args[2]);
-		if (mode < 0 || mode > 1 || count < 0 || count > 10000) { return 64; }
+		if (mode < 0 || mode > 1 || count < 0 || count > 10000) return 64;
 		Fn<int,int> selected = select_price(mode);
 		Fn<int,int> copied = selected;
 		Fn<int,int> price = forward_price(copied);

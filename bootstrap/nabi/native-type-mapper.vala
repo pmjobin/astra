@@ -13,10 +13,12 @@ public class NativeTypeMapper : Object {
 		var mapped = map_type (type);
 		return mapped as NativeContextSliceType;
 	}
+
 	public static NativeStructValueMode record_mode(StructValueMode mode) {
 		return mode == StructValueMode.COPY_VALUE ? NativeStructValueMode.COPY_VALUE :
 		       mode == StructValueMode.MOVE_VALUE ? NativeStructValueMode.MOVE_VALUE : NativeStructValueMode.BORROW_VALUE;
 	}
+
 	public static GenericArray<NativeStructLeafChannel> map_record_leaves(StructValueShape shape) throws NativeAbiError {
 		var leaves = new GenericArray<NativeStructLeafChannel> ();
 		foreach (var leaf in shape.leaves) {
@@ -47,6 +49,7 @@ public class NativeTypeMapper : Object {
 		}
 		return result;
 	}
+
 	public static NativeSharedHandleType map_shared_operation(SemanticType type) throws NativeAbiError {
 		if (type is ClosureHandleType && ((ClosureHandleType) type).actor) {
 			return new NativeSharedHandleType (((ClosureHandleType) type).environment_type.name, false, false, (NativeClosureHandleType) map_type (type));
@@ -60,6 +63,7 @@ public class NativeTypeMapper : Object {
 		}
 		return mapped;
 	}
+
 	public static NativeAbiType map_parameter(SemanticType type, PointerParameterContract contract, NativeRecordElement? record = null, bool record_class_leaf = false) throws NativeAbiError {
 		if (type is EnumType) {
 			if (contract != PointerParameterContract.UNMANAGED) {
@@ -333,5 +337,6 @@ public class NativeTypeMapper : Object {
 		}
 		return type.kind == TypeKind.VOID ? null : new NativeResult.typed (map_type (type));
 	}
+
 }
 }

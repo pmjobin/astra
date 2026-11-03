@@ -5,19 +5,24 @@
 #include <new>
 static constexpr IID VALUE = {0x849ad154, 0x8d1e, 0x4c63, {0x9e, 0xa2, 0x14, 0x32, 0x9b, 0x02, 0x20, 0x01}};
 static constexpr IID SCALE = {0x849ad154, 0x8d1e, 0x4c63, {0x9e, 0xa2, 0x14, 0x32, 0x9b, 0x02, 0x20, 0x02}};
+
 struct Value : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE Get(LONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE Set(LONG) = 0;
 };
+
 struct Scaling : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE Scale(LONG, LONG *) = 0;
 };
+
 static LONG counters[8];
 static LONG mode;
+
 class Producer final : public Value, public Scaling {
 	LONG owners = 1;
 	LONG value = 40;
 	DWORD thread = GetCurrentThreadId();
+
 	~Producer() { InterlockedIncrement(&counters[1]); }
 
   public:
@@ -25,6 +30,7 @@ class Producer final : public Value, public Scaling {
 		InterlockedIncrement(&counters[0]);
 		InterlockedIncrement(&counters[2]);
 	}
+
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override {
 		InterlockedIncrement(&counters[3]);
 		if (!out) return E_POINTER;
@@ -41,10 +47,12 @@ class Producer final : public Value, public Scaling {
 		return mode == 1 ? E_NOINTERFACE : mode == 3 ? S_FALSE
 		                                             : S_OK;
 	}
+
 	ULONG STDMETHODCALLTYPE AddRef() override {
 		InterlockedIncrement(&counters[2]);
 		return static_cast<ULONG>(InterlockedIncrement(&owners));
 	}
+
 	ULONG STDMETHODCALLTYPE Release() override {
 		LONG remaining = InterlockedDecrement(&owners);
 		InterlockedDecrement(&counters[2]);
@@ -52,6 +60,7 @@ class Producer final : public Value, public Scaling {
 		if (!remaining) delete this;
 		return static_cast<ULONG>(remaining);
 	}
+
 	HRESULT STDMETHODCALLTYPE Get(LONG *out) override {
 		InterlockedIncrement(&counters[4]);
 		if (!out) return E_POINTER;
@@ -64,12 +73,14 @@ class Producer final : public Value, public Scaling {
 		*out = value;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE Set(LONG input) override {
 		InterlockedIncrement(&counters[5]);
 		if (GetCurrentThreadId() != thread) return RPC_E_WRONG_THREAD;
 		value = input;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE Scale(LONG factor, LONG *out) override {
 		InterlockedIncrement(&counters[6]);
 		if (!out) return E_POINTER;
@@ -84,15 +95,18 @@ class Producer final : public Value, public Scaling {
 		return factor == 0 ? S_FALSE : S_OK;
 	}
 };
+
 extern "C" __declspec(dllexport) HRESULT producer_create(IUnknown **out) {
 	if (!out) return E_POINTER;
 	auto result = new (std::nothrow) Producer();
 	*out = result ? static_cast<Value *>(result) : nullptr;
 	return *out ? S_OK : E_OUTOFMEMORY;
 }
+
 extern "C" __declspec(dllexport) LONG producer_stats(LONG index) {
 	return index >= 0 && index < 8 ? InterlockedCompareExchange(&counters[index], 0, 0) : -1;
 }
+
 extern "C" __declspec(dllexport) void producer_mode(LONG value) {
 	mode = value;
 }

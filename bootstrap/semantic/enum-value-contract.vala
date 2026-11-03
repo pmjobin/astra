@@ -22,6 +22,7 @@ public class EnumField : Object {
 		this.owns_child = owns_child;
 		this.owns_record = owns_record;
 	}
+
 }
 
 public class EnumVariant : Object {
@@ -32,6 +33,7 @@ public class EnumVariant : Object {
 	public EnumField field(uint ordinal) {
 		return payload[ordinal];
 	}
+
 	public EnumField? find_field(string name) {
 		foreach (var field in payload) {
 			if (field.identity.name == name) {
@@ -40,6 +42,7 @@ public class EnumVariant : Object {
 		}
 		return null;
 	}
+
 	internal EnumVariant (EnumVariantIdentity identity, SourceSpan span, GenericArray<EnumField> fields) {
 		this.identity = identity;
 		this.span = span;
@@ -48,6 +51,7 @@ public class EnumVariant : Object {
 			payload.add (field);
 		}
 	}
+
 }
 
 // Frozen all-variant schema; private arrays cannot be mutated by retained users.
@@ -70,6 +74,7 @@ public class EnumDefinition : Object {
 	public EnumVariant variant(uint ordinal) {
 		return alternatives[ordinal];
 	}
+
 	public EnumVariant? find_variant(string name) {
 		foreach (var variant in alternatives) {
 			if (variant.identity.name == name) {
@@ -78,6 +83,7 @@ public class EnumDefinition : Object {
 		}
 		return null;
 	}
+
 	public GenericArray<SemanticType> value_fields() {
 		var fields = new GenericArray<SemanticType> ();
 		foreach (var variant in alternatives) {
@@ -87,6 +93,7 @@ public class EnumDefinition : Object {
 		}
 		return fields;
 	}
+
 	public EnumDefinition application(EnumType type, TypeSubstitution substitution) {
 		assert (semantic_type.origin == type.origin);
 		var variants = new GenericArray<EnumVariant> ();
@@ -101,6 +108,7 @@ public class EnumDefinition : Object {
 		}
 		return new EnumDefinition (type, span, variants, tag_type);
 	}
+
 	internal EnumDefinition (EnumType semantic_type, SourceSpan span, GenericArray<EnumVariant> variants, IntegerType tag_type) {
 		this.tag_type = tag_type;
 		this.semantic_type = semantic_type;
@@ -110,6 +118,7 @@ public class EnumDefinition : Object {
 			alternatives.add (variant);
 		}
 	}
+
 }
 
 public delegate EnumDefinition? EnumDefinitions(EnumType type);
@@ -122,6 +131,7 @@ public class EnumValueAuthority : Object {
 	public static bool owns(EnumDefinition definition, EnumDefinitions definitions) {
 		return owns_graph (definition, definitions, new HashTable<EnumType, bool> (direct_hash, direct_equal));
 	}
+
 	private static bool owns_graph(EnumDefinition definition, EnumDefinitions definitions, HashTable<EnumType, bool> seen) {
 		if (seen.contains (definition.semantic_type)) {
 			return false;
@@ -237,5 +247,6 @@ public class EnumValueAuthority : Object {
 		}
 		visited.insert (type, true);
 	}
+
 }
 }

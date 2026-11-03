@@ -14,10 +14,12 @@ typedef struct ContextBlock {
 	uint64_t bytes, raw_bytes;
 	uint32_t alignment;
 } ContextBlock;
+
 typedef struct ContextHeader {
 	AstraContext17 *context;
 	AstraContext17Token token;
 } ContextHeader;
+
 struct AstraContext17 {
 	pthread_mutex_t lock;
 	pthread_t home;
@@ -38,6 +40,7 @@ static _Atomic uint64_t next_instance = 1;
 static int alignment_valid(uint32_t alignment) {
 	return alignment && alignment <= 4096 && !(alignment & (alignment - 1));
 }
+
 static int enter(AstraContext17 *context, int mutate) {
 	if (!context) return ASTRA_CONTEXT17_INVALID;
 	int status = pthread_mutex_lock(&context->lock);
@@ -50,10 +53,12 @@ static int enter(AstraContext17 *context, int mutate) {
 	}
 	return ASTRA_CONTEXT17_OK;
 }
+
 static int leave(AstraContext17 *context, int status) {
 	if (pthread_mutex_unlock(&context->lock)) abort();
 	return status;
 }
+
 static void dispose(AstraContext17 *context) {
 	if (context->stats.live || context->stats.anchors) abort();
 	if (context->stats.kind == ASTRA_CONTEXT17_CUSTOM) context->provider.dispose(context->provider_state);
@@ -67,6 +72,7 @@ static void dispose(AstraContext17 *context) {
 	 * ancestor. Final parent release can recursively retire owned ancestry. */
 	if (parent && astra_context17_release(parent, &backing)) abort();
 }
+
 static AstraContext17 *create(uint32_t kind, uint64_t capacity, uint64_t slots, uint32_t threading) {
 	if (kind > ASTRA_CONTEXT17_CUSTOM || threading > ASTRA_CONTEXT17_CONCURRENT ||
 	    !slots || slots > SIZE_MAX / sizeof(ContextBlock) || capacity > SIZE_MAX ||
@@ -122,6 +128,7 @@ AstraContext17 *astra_context17_owned(uint32_t kind, uint64_t capacity,
 	}
 	return context;
 }
+
 AstraContext17 *astra_context17_borrowed(void *backing, uint64_t capacity,
                                          uint64_t slots, uint32_t kind) {
 	if (!backing || (kind != ASTRA_CONTEXT17_REGION && kind != ASTRA_CONTEXT17_POOL) ||
@@ -133,6 +140,7 @@ AstraContext17 *astra_context17_borrowed(void *backing, uint64_t capacity,
 	}
 	return context;
 }
+
 AstraContext17 *astra_context17_custom(const AstraContext17Provider *provider,
                                        void *state, uint64_t capacity, uint64_t slots, uint32_t threading) {
 	if (!provider || provider->abi != ASTRA_CONTEXT17_ABI || provider->size != sizeof(*provider) ||
@@ -145,6 +153,7 @@ AstraContext17 *astra_context17_custom(const AstraContext17Provider *provider,
 	}
 	return context;
 }
+
 AstraContext17 *astra_context17_nested(AstraContext17 *parent, uint32_t kind,
                                        uint64_t capacity, uint64_t slots, uint32_t alignment) {
 	if (!alignment_valid(alignment) || !capacity ||
@@ -169,6 +178,7 @@ AstraContext17 *astra_context17_nested(AstraContext17 *parent, uint32_t kind,
 	child->ancestry_depth = depth + 1;
 	return child;
 }
+
 int astra_context17_retain(AstraContext17 *context) {
 	int status = enter(context, 1);
 	if (status) return status;
@@ -178,6 +188,7 @@ int astra_context17_retain(AstraContext17 *context) {
 	++context->stats.anchors;
 	return leave(context, ASTRA_CONTEXT17_OK);
 }
+
 int astra_context17_drop(AstraContext17 *context) {
 	int status = enter(context, 1);
 	if (status) return status;
@@ -190,12 +201,14 @@ int astra_context17_drop(AstraContext17 *context) {
 	if (final) dispose(context);
 	return ASTRA_CONTEXT17_OK;
 }
+
 int astra_context17_close(AstraContext17 *context) {
 	int status = enter(context, 1);
 	if (status) return status;
 	context->stats.closed = 1;
 	return leave(context, context->stats.live ? ASTRA_CONTEXT17_LIVE : ASTRA_CONTEXT17_OK);
 }
+
 int astra_context17_reset(AstraContext17 *context) {
 	int status = enter(context, 1);
 	if (status) return status;
@@ -204,6 +217,7 @@ int astra_context17_reset(AstraContext17 *context) {
 	context->used = 0;
 	return leave(context, ASTRA_CONTEXT17_OK);
 }
+
 int astra_context17_transfer(AstraContext17 *context) {
 	int status = enter(context, 0);
 	if (status) return status;
@@ -213,6 +227,7 @@ int astra_context17_transfer(AstraContext17 *context) {
 	context->home = pthread_self();
 	return leave(context, ASTRA_CONTEXT17_OK);
 }
+
 int astra_context17_snapshot(AstraContext17 *context, AstraContext17Snapshot *out) {
 	if (!out) return ASTRA_CONTEXT17_INVALID;
 	int status = enter(context, 0);
@@ -333,17 +348,20 @@ int astra_context17_release(AstraContext17 *context, const AstraContext17Token *
 	if (final) dispose(context);
 	return ASTRA_CONTEXT17_OK;
 }
+
 void *astra_context17_allocate(AstraContext17 *context, uint64_t count,
                                uint64_t extent, uint32_t alignment, uint64_t tag) {
 	AstraContext17Token token;
 	return astra_context17_acquire(context, count, extent, alignment, tag, &token) ? NULL : token.pointer;
 }
+
 int astra_context17_release_origin(void *pointer, uint64_t tag) {
 	if (!pointer) return ASTRA_CONTEXT17_OK;
 	ContextHeader *header = (ContextHeader *)((unsigned char *)pointer - sizeof(ContextHeader));
 	if (header->token.pointer != pointer || header->token.tag != tag) return ASTRA_CONTEXT17_ORIGIN;
 	return astra_context17_release(header->context, &header->token);
 }
+
 void *astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
                                     uint64_t extent, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	AstraContext17Snapshot state;
@@ -351,9 +369,11 @@ void *astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
 	    (mode == 3 ? !state.borrowed || state.threading != ASTRA_CONTEXT17_AFFINE : state.borrowed || state.threading != mode)) return NULL;
 	return astra_context17_allocate(context, count, extent, alignment, tag);
 }
+
 int astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	return astra_context17_release_origin(pointer, tag) == ASTRA_CONTEXT17_OK;
 }
+
 AstraContext17 *astra_context17_origin(void *pointer, uint64_t tag) {
 	if (!pointer) return NULL;
 	ContextHeader *header = (ContextHeader *)((unsigned char *)pointer - sizeof(ContextHeader));
@@ -369,30 +389,38 @@ AstraContext17 *astra_context17_origin(void *pointer, uint64_t tag) {
 	/* Caller retains the owner allocation throughout this noescape borrow. */
 	return valid ? context : NULL;
 }
+
 void astra_context17_destroy(AstraContext17 *context) {
 	if (context && astra_context17_drop(context) != ASTRA_CONTEXT17_OK) abort();
 }
+
 static AstraContext17 *open_mode(int32_t kind, int64_t capacity, int32_t slots, int32_t alignment, uint32_t threading) {
 	if (kind < 0 || capacity < 0 || slots <= 0 || alignment <= 0) return NULL;
 	return astra_context17_owned((uint32_t)kind, (uint64_t)capacity, (uint64_t)slots, (uint32_t)alignment, threading);
 }
+
 AstraContext17 *astra_context17_open_concurrent(int32_t kind, int64_t capacity, int32_t slots, int32_t alignment) {
 	return open_mode(kind, capacity, slots, alignment, ASTRA_CONTEXT17_CONCURRENT);
 }
+
 AstraContext17 *astra_context17_open_affine(int32_t kind, int64_t capacity, int32_t slots, int32_t alignment) {
 	return open_mode(kind, capacity, slots, alignment, ASTRA_CONTEXT17_AFFINE);
 }
+
 AstraContext17 *astra_context17_open_transfer(int32_t kind, int64_t capacity, int32_t slots, int32_t alignment) {
 	return open_mode(kind, capacity, slots, alignment, ASTRA_CONTEXT17_TRANSFER);
 }
+
 AstraContext17 *astra_context17_open_scoped(void *backing, int32_t capacity, int32_t kind, int32_t slots) {
 	if (capacity <= 0 || kind < 0 || slots <= 0) return NULL;
 	return astra_context17_borrowed(backing, (uint64_t)capacity, (uint64_t)slots, (uint32_t)kind);
 }
+
 AstraContext17 *astra_context17_open_nested(AstraContext17 *parent, int32_t kind, int64_t capacity, int32_t slots, int32_t alignment) {
 	if (kind < 0 || capacity <= 0 || slots <= 0 || alignment <= 0) return NULL;
 	return astra_context17_nested(parent, (uint32_t)kind, (uint64_t)capacity, (uint64_t)slots, (uint32_t)alignment);
 }
+
 int64_t astra_context17_query(AstraContext17 *context, int32_t query) {
 	AstraContext17Snapshot state;
 	if (astra_context17_snapshot(context, &state)) return -1;
@@ -421,9 +449,11 @@ int64_t astra_context17_query(AstraContext17 *context, int32_t query) {
 	}
 	return result <= INT64_MAX ? (int64_t)result : -1;
 }
+
 int64_t astra_context17_query_affine(AstraContext17 *context, int32_t query) {
 	return astra_context17_query(context, query);
 }
+
 int64_t astra_context17_query_scoped(AstraContext17 *context, int32_t query) {
 	if (query < 6) return astra_context17_query(context, query);
 	AstraContext17Snapshot state;
@@ -437,21 +467,27 @@ int64_t astra_context17_query_scoped(AstraContext17 *context, int32_t query) {
 /* One explicit lease is the actual frame allocation. The public task core
  * depends only on the descriptor protocol, never on this optional provider. */
 #define FRAME_TAG UINT64_C(0x6173747261667231)
+
 static void *frame_affine(void *context, size_t size, size_t alignment) {
 	return astra_context17_allocate_mode(context, 1, size, (uint32_t)alignment, FRAME_TAG, ASTRA_CONTEXT17_AFFINE);
 }
+
 static void *frame_transfer(void *context, size_t size, size_t alignment) {
 	return astra_context17_allocate_mode(context, 1, size, (uint32_t)alignment, FRAME_TAG, ASTRA_CONTEXT17_TRANSFER);
 }
+
 static void *frame_concurrent(void *context, size_t size, size_t alignment) {
 	return astra_context17_allocate_mode(context, 1, size, (uint32_t)alignment, FRAME_TAG, ASTRA_CONTEXT17_CONCURRENT);
 }
+
 static void *frame_scoped(void *context, size_t size, size_t alignment) {
 	return astra_context17_allocate_mode(context, 1, size, (uint32_t)alignment, FRAME_TAG, 3);
 }
+
 static void frame_release(void *context, void *pointer) {
 	if (astra_context17_origin(pointer, FRAME_TAG) != context || astra_context17_release_origin(pointer, FRAME_TAG)) abort();
 }
+
 const AstraAsyncFrameAllocator *astra_context17_frame_descriptor(uint32_t mode) {
 	static const AstraAsyncFrameAllocator descriptors[] = {
 	    {ASTRA_ASYNC_TASK_ABI, sizeof(AstraAsyncFrameAllocator), ASTRA_CONTEXT17_AFFINE, 0, frame_affine, frame_release},

@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Composite10;
 class BeforeGenericUnit { init() {} }
+
 struct BeforeGenericRecord { int ignored; }
+
 extern(C) int unit_event(int stage, int value);
+
 int main() {
 	var earlier = new BeforeGenericUnit();
 	{
 		var original = archive(1);
 		var values = forward_archive(move original);
-		if (archive_count(values) != 3) { return 81; }
+		if (archive_count(values) != 3) return 81;
 		bool grown = values.reserve(9);
 		var taken = values.take(1);
-		if (consume(move taken, 7) != 122) { return 82; }
+		if (consume(move taken, 7) != 122) return 82;
 		var replacement = create(20);
 		values.replace(0, move replacement);
 		var extra = create(30);
 		bool stored = values.append(move extra);
-		if (values.count() != 3) { return 83; }
+		if (values.count() != 3) return 83;
 		var next = values.take(1);
 		unit_event(4, consume(move next, 1));
 	}

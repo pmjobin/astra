@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct I { f32 small; f64 large; }
+
 struct O { I left; I right; }
+
 void copy(O* d, O* s) { *d = *s; }
+
 f64 transport(f64 x) {
 	O a = { left = { small = 1.5, large = x }, right = { small = 0.0, large = 0.0 } };
 	O b = a;
@@ -9,4 +12,5 @@ f64 transport(f64 x) {
 	copy(&a,&b);
 	return a.right.large;
 }
-int main() { if (transport(3.5) != 3.5) { return 1; } return 0; }
+
+int main() { if (transport(3.5) != 3.5) return 1; return 0; }

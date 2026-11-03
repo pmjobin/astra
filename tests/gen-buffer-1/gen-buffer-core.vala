@@ -120,9 +120,11 @@ private void qualify() {
 		}
 	}
 }
+
 public int run_core(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-buffer/core/independent-premises-owners-producers-and-lifetimes", qualify);
 	return Test.run ();
 }
+
 }

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct S { int x; f64 y; }
+
 void alias(S* a, S* b) { *a = *b; a->x = a->x + 1; *b = *a; }
+
 int main() {
 	S a = { x = 41, y = 3.5 };
 	S* p = &a;
 	S* q = p;
 	alias(p,q);
-	if (a.x != 42 || p->x != q->x || a.y != 3.5) { return 1; }
+	if (a.x != 42 || p->x != q->x || a.y != 3.5) return 1;
 	return 0;
 }

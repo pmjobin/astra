@@ -9,6 +9,7 @@ internal class SsaLifetimeSnapshot : Object {
 			states[i] = incoming[i];
 		}
 	}
+
 	internal SsaLifetimeSnapshot.buffers (OwnershipState[] incoming) {
 		states = new int[incoming.length];
 		for (int i = 0; i < incoming.length; i++) {
@@ -18,6 +19,7 @@ internal class SsaLifetimeSnapshot : Object {
 	internal int state(int ordinal) {
 		return states[ordinal];
 	}
+
 }
 
 // Ordering consumes snapshots of the existing lifetime authorities. It does
@@ -41,16 +43,19 @@ internal class SsaLifetimeFacts : Object {
 			}
 		}
 	}
+
 	internal void capture(SsaInstruction instruction, int[] state) {
 		if (enabled) {
 			before.insert (instruction, new SsaLifetimeSnapshot (state));
 		}
 	}
+
 	internal void capture_buffers(SsaInstruction instruction, OwnershipState[] state) {
 		if (enabled) {
 			before.insert (instruction, new SsaLifetimeSnapshot.buffers (state));
 		}
 	}
+
 }
 
 // Independent verification of concrete owner slots. These are compiler path
@@ -202,6 +207,7 @@ public class SsaBufferMemoryFlow : Object {
 			throw new SsaError.INVALID_SSA ("buffer borrow/transfer requires a definitely live captured owner");
 		}
 	}
+
 }
 
 // Combine the existing scalar and complete-buffer lifetime snapshots. A
@@ -212,6 +218,7 @@ internal class SsaScopedBackingFlow : Object {
 			throw new SsaError.INVALID_SSA ("scoped backing: %s", message);
 		}
 	}
+
 	internal static void verify(SsaFunction function, SsaLifetimeFacts scalars, SsaLifetimeFacts buffers) throws SsaError {
 		var contexts = new HashTable<SsaHeapOwner, SsaScopedAllocator> (direct_hash, direct_equal);
 		var reads = new HashTable<SsaBufferPair, SsaBufferStorage> (direct_hash, direct_equal);
@@ -255,18 +262,22 @@ internal class SsaScopedBackingFlow : Object {
 			}
 		}
 	}
+
 }
 
 internal class SsaRecordRetirementFlow : Object {
 	private static SsaStruct? record_type(Object owner) {
 		return (owner is SsaHeapOwner) ? ((SsaHeapOwner) owner).record_type : ((SsaBufferStorage) owner).record_type;
 	}
+
 	private static int root(Object owner) {
 		return (owner is SsaHeapOwner) ? ((SsaHeapOwner) owner).source_ordinal : ((SsaBufferStorage) owner).record_source_ordinal;
 	}
+
 	private static int rank(Object owner) {
 		return (owner is SsaHeapOwner) ? ((SsaHeapOwner) owner).record_rank : ((SsaBufferStorage) owner).record_rank;
 	}
+
 	private static int state(SsaInstruction instruction, Object owner, SsaLifetimeFacts scalars, SsaLifetimeFacts buffers) {
 		var snapshot = ((owner is SsaHeapOwner) ? scalars : buffers).before.lookup (instruction);
 		if (snapshot == null) {
@@ -274,6 +285,7 @@ internal class SsaRecordRetirementFlow : Object {
 		}
 		return snapshot.state ((owner is SsaHeapOwner) ? ((SsaHeapOwner) owner).ordinal : ((SsaBufferStorage) owner).ordinal);
 	}
+
 	internal static void verify(SsaFunction function, SsaLifetimeFacts scalars, SsaLifetimeFacts buffers) throws SsaError {
 		if (!buffers.enabled) {
 			return;
@@ -352,5 +364,6 @@ internal class SsaRecordRetirementFlow : Object {
 			}
 		}
 	}
+
 }
 }

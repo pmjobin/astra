@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int shared_app_event(int stage, int value);
+
 class Subject {
 	int sequence;
+
 	init(int sequence) { this.sequence=sequence; shared_app_event(1,sequence); }
+
 	deinit() { shared_app_event(2,this.sequence); }
 }
+
 int sequence(borrowed Subject subject) { return subject.sequence; }
+
 int notify(borrowed Weak<Subject> subscription, int offset) {
 	var live=weak_upgrade(subscription);
-	if (live == null) { return -1; }
+	if (live == null) return -1;
 	return sequence(shared_borrow(live)) + offset;
 }
+
 int main() {
 	var subject=new Subject(42);
 	var owner=shared_acquire(move subject);

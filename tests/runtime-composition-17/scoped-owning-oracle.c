@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 static unsigned born[11], retired[11], parent_born[5], parent_retired[5];
+
 static struct {
 	void *base;
 	int32_t length;
@@ -11,15 +12,18 @@ static struct {
 	unsigned allocations, releases;
 	int closed, freed;
 } backing[3];
+
 static struct {
 	void *pointer;
 	uint64_t tag;
 	unsigned context;
 	int live;
 } allocation[5];
+
 static unsigned allocations, refusals;
 
 AstraContext17 *__real_astra_context17_open_scoped(void *, int32_t, int32_t, int32_t);
+
 AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, int32_t kind, int32_t slots) {
 	unsigned identity = length == 8197 ? 1 : 2;
 	assert(base && length == (identity == 1 ? 8197 : 12289) && !backing[identity].base);
@@ -42,6 +46,7 @@ AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, i
 }
 
 void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	unsigned identity = context == backing[1].context ? 1 : 2;
@@ -92,6 +97,7 @@ void scoped_owning_event(int kind, int identity) {
 }
 
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	for (unsigned identity = 1; identity <= allocations; ++identity) {
 		if (!allocation[identity].live || allocation[identity].pointer != pointer) continue;
@@ -109,6 +115,7 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 }
 
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	unsigned identity = context == backing[1].context ? 1 : 2;
 	assert(context == backing[identity].context && !backing[identity].closed);
@@ -121,6 +128,7 @@ void __wrap_astra_context17_destroy(AstraContext17 *context) {
 }
 
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	for (unsigned identity = 1; identity < 3; ++identity) {
 		if (!backing[identity].base || backing[identity].base != pointer) continue;
@@ -131,6 +139,7 @@ void __wrap_free(void *pointer) {
 }
 
 extern int scoped_owning_run(void);
+
 int main(void) {
 	int result = scoped_owning_run();
 	if (result) return result;

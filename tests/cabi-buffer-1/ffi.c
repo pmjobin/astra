@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 _Static_assert(sizeof(void *) == 8 && sizeof(int32_t) == 4 && sizeof(size_t) == 8, "qualified GNU LP64 ABI");
+
 int32_t inspect_bytes(int32_t tag, unsigned char *bytes, int32_t length, int32_t expected) {
 	assert(length == expected && length >= 0);
 	if (tag == 0) {
@@ -19,6 +20,7 @@ int32_t inspect_bytes(int32_t tag, unsigned char *bytes, int32_t length, int32_t
 	bytes[1] = 42;
 	return tag;
 }
+
 int32_t two_views(unsigned char *a, int32_t alen, int32_t middle, unsigned char *b, int32_t blen) {
 	assert(a && b && alen == 2 && blen == 2 && middle == 77);
 	assert(a[0] == 42 && b[0] == 42 && a[1] == 128 && b[1] == 128);
@@ -26,6 +28,7 @@ int32_t two_views(unsigned char *a, int32_t alen, int32_t middle, unsigned char 
 	assert(b[0] == 91);
 	return 0;
 }
+
 uint64_t mixed_views(int64_t first, const unsigned char *text, int32_t text_length,
                      unsigned char *bytes, int32_t byte_length, uint64_t last) {
 	assert(first == INT64_MIN && last == UINT64_MAX);

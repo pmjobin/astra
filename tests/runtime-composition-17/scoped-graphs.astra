@@ -1,73 +1,93 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void scoped_graph_constructed(int identity);
+
 extern(C) void scoped_class_retired(int identity);
+
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedLeaf {
 	private int identity;
 	private int value;
+
 	init(int identity,int value){this.identity=identity;this.value=value;scoped_graph_constructed(identity);}
+
 	int read(){return this.value;}
+
 	deinit(){scoped_class_retired(this.identity);}
 }
+
 int inspect(borrowed ScopedLeaf input){return input.read();}
+
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedHost {
 	private int identity;
 	private owned ScopedLeaf left;
 	private owned ScopedLeaf right;
+
 	init(int identity,owned ScopedLeaf left,owned ScopedLeaf right){this.identity=identity;this.left=move left;this.right=move right;scoped_graph_constructed(identity);}
+
 	int read(){return inspect(this.left)+this.right.read();}
+
 	deinit(){scoped_class_retired(this.identity);}
 }
+
 [Allocator(kind="context",context="scoped-affine")]
 class ScopedBox<T> where T:Ownable {
 	private int identity;
 	private owned T left;
 	private owned T right;
+
 	init(int identity,owned T left,owned T right){this.identity=identity;this.left=move left;this.right=move right;scoped_graph_constructed(identity);}
+
 	int marker(){return this.identity;}
+
 	deinit(){scoped_class_retired(this.identity);}
 }
+
 owned ScopedHost relay_host(owned ScopedHost input){return move input;}
+
 owned ScopedBox<ScopedLeaf> relay_box(owned ScopedBox<ScopedLeaf> input){return move input;}
+
 int consume_host(owned ScopedHost input){return input.read();}
+
 int consume_box(owned ScopedBox<ScopedLeaf> input){return input.marker();}
+
 int discard_host(owned ScopedHost input){return 0;}
+
 export(C) int scoped_graphs_run(){
 	owned u8[] first_backing=new u8[8197];
 	owned u8[] second_backing=new u8[12289];
 	{
 		var first=scoped_allocator<ScopedAllocator>(first_backing,1,7);
 		var second=scoped_allocator<ScopedAllocator>(second_backing,2,1);
-		if(first==null||second==null){return 1;}
+		if(first==null||second==null) return 1;
 		{
 			var left=new(first)ScopedLeaf(1,17);
 			var right=new(first)ScopedLeaf(2,23);
 			var original=new(second)ScopedHost(3,move left,move right);
 			var host=relay_host(move original);
-			if(host.read()!=40){return 2;}
+			if(host.read()!=40) return 2;
 			var retained=new(first)ScopedLeaf(4,31);
 			var refused=try_new(second)ScopedHost(99,move retained,null);
 			int discarded=discard_host(move refused);
-			if(discarded!=0||retained.read()!=31){return 3;}
+			if(discarded!=0||retained.read()!=31) return 3;
 			release retained;
-			if(scoped_allocator_query(first,1)!=2||scoped_allocator_query(second,1)!=1){return 4;}
-			if(consume_host(move host)!=40){return 11;}
-			if(scoped_allocator_query(first,1)!=0||scoped_allocator_query(second,1)!=0){return 12;}
+			if(scoped_allocator_query(first,1)!=2||scoped_allocator_query(second,1)!=1) return 4;
+			if(consume_host(move host)!=40) return 11;
+			if(scoped_allocator_query(first,1)!=0||scoped_allocator_query(second,1)!=0) return 12;
 		}
-		if(scoped_allocator_query(first,1)!=0||scoped_allocator_query(second,1)!=0){return 5;}
+		if(scoped_allocator_query(first,1)!=0||scoped_allocator_query(second,1)!=0) return 5;
 		{
 			var left=new(first)ScopedLeaf(5,37);
 			var right=new(first)ScopedLeaf(6,41);
 			var reused=try_new(second)ScopedBox<ScopedLeaf>(7,move left,move right);
-			if(reused==null){return 6;}
+			if(reused==null) return 6;
 			var delivered=relay_box(move reused);
-			if(delivered.marker()!=7){return 10;}
-			if(consume_box(move delivered)!=7){return 13;}
+			if(delivered.marker()!=7) return 10;
+			if(consume_box(move delivered)!=7) return 13;
 		}
-		if(scoped_allocator_query(first,4)!=5||scoped_allocator_query(first,5)!=5){return 7;}
-		if(scoped_allocator_query(second,4)!=2||scoped_allocator_query(second,5)!=2){return 8;}
+		if(scoped_allocator_query(first,4)!=5||scoped_allocator_query(first,5)!=5) return 7;
+		if(scoped_allocator_query(second,4)!=2||scoped_allocator_query(second,5)!=2) return 8;
 	}
-	if(len(first_backing)!=8197||len(second_backing)!=12289){return 9;}
+	if(len(first_backing)!=8197||len(second_backing)!=12289) return 9;
 	return 0;
 }

@@ -208,4 +208,5 @@ private void register_call_tests() {
 			((SsaBranch) s.ends[2]).edge.arguments[0] = call.result;
 		});
 }
+
 }

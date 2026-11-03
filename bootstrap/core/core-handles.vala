@@ -27,5 +27,6 @@ public class CoreHandle : CoreNode {
 		this.ordinal = ordinal;
 		this.context_contract = context_mode;
 	}
+
 }
 }

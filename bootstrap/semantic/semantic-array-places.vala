@@ -11,6 +11,7 @@ public class CheckedArrayRecordEntry : CheckedNode {
 		this.initializer = initializer;
 		this.producer = producer;
 	}
+
 	internal CheckedArrayRecordEntry.named (CheckedStructInitializer initializer) {
 		this(initializer.span, initializer, null);
 	}
@@ -33,6 +34,7 @@ public class CheckedArrayLocalDeclaration : CheckedStatement {
 		this.local = local;
 		this.elements = elements;
 	}
+
 }
 
 public class CheckedArrayElementPlace : CheckedPlace {
@@ -49,5 +51,6 @@ public class CheckedArrayElementPlace : CheckedPlace {
 		this.index = index;
 		this.provenance = new DataPointerProvenance (DataPointerOrigin.LOCAL, local.ordinal, local.lexical_region.ordinal);
 	}
+
 }
 }

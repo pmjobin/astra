@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair { int x; f64 y; }
-class Counter { int value; init(int value) { this.value = value; } deinit() {} }
+
+class Counter { int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() {} }
+
 Pair modify(Pair value, Pair* source, borrowed int[] numbers, f64 scale) {
 	source->x = source->x + numbers[0];
 	Pair local = value;
 	local.y = local.y * scale;
 	return local;
 }
+
 Pair owned_mix(Pair value, owned Counter owner, Pair other) {
 	Pair result = value;
 	result.x = result.x + owner.value + other.x;
 	return result;
 }
+
 owned Counter object_result(Pair value) { return Counter.init(value.x); }
+
 int main() {
 	Pair a = { x = 7, y = 3.5 };
 	int[2] values = { 2, 3 };
 	Pair b = modify(a,&a,slice(values),2.0);
 	owned Counter c = object_result(b);
 	Pair d = owned_mix(b,move c,a);
-	if (a.x != 9 || b.x != 7 || b.y != 7.0 || d.x != 23) { return 1; }
+	if (a.x != 9 || b.x != 7 || b.y != 7.0 || d.x != 23) return 1;
 	return 0;
 }

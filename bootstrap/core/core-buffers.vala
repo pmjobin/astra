@@ -18,6 +18,7 @@ public class CoreScopedAllocator : CoreValue {
 		this.slots = slots;
 		this.cleanup = cleanup;
 	}
+
 }
 public class CoreSlotsRecordTransfer : CoreStatement {
 	public CoreIndirectFieldPlace store { get; private set; }
@@ -29,6 +30,7 @@ public class CoreSlotsRecordTransfer : CoreStatement {
 		this.index = index;
 		this.value = value;
 	}
+
 }
 public class CoreSlotsRecordRead : CoreStructProducer {
 	public CoreIndirectFieldPlace store { get; private set; }
@@ -40,6 +42,7 @@ public class CoreSlotsRecordRead : CoreStructProducer {
 		this.index = index;
 		this.remove = remove;
 	}
+
 }
 // A bounded owner slot proof; not a mutable reference or an owned value.
 public class CoreBufferOwnerSlot : CoreNode {
@@ -52,6 +55,7 @@ public class CoreBufferOwnerSlot : CoreNode {
 		this.owner = owner;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public class CoreOwnedBufferExchange : CoreStatement {
@@ -62,6 +66,7 @@ public class CoreOwnedBufferExchange : CoreStatement {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 public class CoreOwnedBufferAllocate : CoreValue {
@@ -77,6 +82,7 @@ public class CoreOwnedBufferAllocate : CoreValue {
 		this.failure_call = failure_call;
 		this.allocation_context = allocation_context;
 	}
+
 }
 
 public class CoreOwnedBufferBorrow : CoreValue {
@@ -87,6 +93,7 @@ public class CoreOwnedBufferBorrow : CoreValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 }
 
@@ -97,6 +104,7 @@ public class CoreSlotsInitialize : CoreStatement {
 		base (span);
 		this.store = store;
 	}
+
 }
 public class CoreSlotsTake : CoreValue {
 	public CoreIndirectFieldPlace store { get; private set; }
@@ -106,6 +114,7 @@ public class CoreSlotsTake : CoreValue {
 		this.store = store;
 		this.index = index;
 	}
+
 }
 public class CoreSlotsReplace : CoreStatement {
 	public CoreIndirectFieldPlace store { get; private set; }
@@ -117,6 +126,7 @@ public class CoreSlotsReplace : CoreStatement {
 		this.index = index;
 		this.incoming = incoming;
 	}
+
 }
 public class CoreSlotsAppend : CoreStatement {
 	public CoreIndirectFieldPlace store { get; private set; }
@@ -126,6 +136,7 @@ public class CoreSlotsAppend : CoreStatement {
 		this.store = store;
 		this.incoming = incoming;
 	}
+
 }
 public class CoreSlotsValue : CoreValue {
 	public bool has_iteration { get; private set; }
@@ -143,5 +154,6 @@ public class CoreSlotsValue : CoreValue {
 		this.iteration = iteration;
 		this.has_iteration = iteration != null;
 	}
+
 }
 }

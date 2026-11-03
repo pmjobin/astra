@@ -21,21 +21,25 @@ private CheckedProgram check() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	var p = CoreBuilder.build (check ());
 	CoreVerifier.verify (p);
 	return p;
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	var p = CfgBuilder.build (core ());
 	CfgVerifier.verify (p);
 	return p;
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	var p = SsaBuilder.build (cfg ());
 	SsaVerifier.verify (p);
 	return p;
 }
+
 private void core_reject(CoreProgram p) {
 	bool rejected = false;
 	try {
@@ -46,6 +50,7 @@ private void core_reject(CoreProgram p) {
 	}
 	assert (rejected);
 }
+
 private void cfg_reject(CfgProgram p) {
 	bool rejected = false;
 	try {
@@ -56,6 +61,7 @@ private void cfg_reject(CfgProgram p) {
 	}
 	assert (rejected);
 }
+
 private void ssa_reject(SsaProgram p) {
 	bool rejected = false;
 	try {
@@ -66,6 +72,7 @@ private void ssa_reject(SsaProgram p) {
 	}
 	assert (rejected);
 }
+
 private void independent() {
 	try {
 		CheckedProgram? checked = check ();
@@ -96,6 +103,7 @@ private void independent() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void checked_origin() {
 	try {
 		var p = check ();
@@ -124,6 +132,7 @@ private void checked_origin() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void core_authorities() {
 	try {
 		var p = core ();
@@ -161,6 +170,7 @@ private void core_authorities() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void cfg_acquisition() {
 	try {
 		var p = cfg ();
@@ -191,6 +201,7 @@ private void cfg_acquisition() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void ssa_dispositions() {
 	try {
 		var p = ssa ();
@@ -232,6 +243,7 @@ private void ssa_dispositions() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void native_result() {
 	try {
 		var p = ssa ();
@@ -285,6 +297,7 @@ private void native_result() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void llvm_effects() {
 	try {
 		var p = ssa ();
@@ -345,6 +358,7 @@ private void llvm_effects() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	register_records ();
@@ -358,4 +372,5 @@ int main(string[] args) {
 	Test.add_func ("/owned-state-6/llvm-bounds-vacated-slot-replacement", llvm_effects);
 	return Test.run ();
 }
+
 }

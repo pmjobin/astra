@@ -9,12 +9,14 @@ public class ActorBindingSpec : Object {
 	public void alter_name(string value) {
 		label = value;
 	}
+
 	private int admitted_capacity;
 	private string admitted_name;
 	public ActorBindingSpec (int capacity, string name) {
 		this.capacity = admitted_capacity = capacity;
 		this.label = admitted_name = name;
 	}
+
 	public bool valid() {
 		if (capacity != admitted_capacity || name != admitted_name || capacity < 1 || capacity > 1024 || name.length < 1 || name.length > 15) {
 			return false;
@@ -26,15 +28,18 @@ public class ActorBindingSpec : Object {
 		}
 		return true;
 	}
+
 	public string dump() {
 		return "fifo=%d executor=\"%s\"".printf (capacity, name.escape ());
 	}
+
 	public ActorBindingSpec copy() {
 		var result = new ActorBindingSpec (admitted_capacity, admitted_name);
 		result.capacity = capacity;
 		result.label = label;
 		return result;
 	}
+
 }
 
 public enum ActorAction {
@@ -61,6 +66,7 @@ public enum ConcurrencyKind {
 			return NONE;
 		}
 	}
+
 }
 
 // Primitive, stage-neutral declaration evidence, independent of AST/symbols.
@@ -79,19 +85,24 @@ public class ConcurrencyPolicy : Object {
 		this.kinds = kinds;
 		admitted = kinds;
 	}
+
 	public bool valid() {
 		return kinds == admitted && kinds != ConcurrencyKind.NONE && ((uint) kinds & ~31u) == 0 && !(actor && monitor);
 	}
+
 	public ConcurrencyPolicy copy() {
 		var result = new ConcurrencyPolicy (admitted);
 		result.kinds = kinds;
 		return result;
 	}
+
 	public static bool matches(ConcurrencyPolicy? policy, uint identity) {
 		return policy == null ? identity == 0 : policy.valid () && policy.identity == identity;
 	}
+
 	public string dump() {
 		return "(concurrency-policy identity=%u shared=%s monitor=%s singleton=%s thread-bound=%s actor=%s)".printf (identity, shared.to_string (), monitor.to_string (), singleton.to_string (), thread_bound.to_string (), actor.to_string ());
 	}
+
 }
 }

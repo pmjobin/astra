@@ -66,4 +66,5 @@ int main(string[] args) {
 	Test.add_func ("/infer/parser/required-targetless-initializer", malformed);
 	return Test.run ();
 }
+
 }

@@ -122,4 +122,5 @@ int main(string[] args) {
 	Test.add_func ("/array/cfg/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

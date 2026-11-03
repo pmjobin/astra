@@ -1,11 +1,15 @@
 class Context {
 	owned f64[] values;
+
 	init() { this.values = new f64[3]; }
+
 	void replace() { this.values = new f64[5]; this.values[4] = 9.0; }
 }
+
 int inspect(borrowed Context first, borrowed Context second) {
 	first.replace();
-	if (len(second.values) != 5 || second.values[4] != 9.0) { return 1; }
+	if (len(second.values) != 5 || second.values[4] != 9.0) return 1;
 	return 0;
 }
+
 int main() { owned Context context = Context.init(); return inspect(context, context); }

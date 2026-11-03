@@ -72,4 +72,5 @@ private void register_branch_syntax_tests() {
 	register_expression ("eager-and", "true & false", "(binary \"&\" (bool true) (bool false))");
 	register_expression ("eager-or", "true | false", "(binary \"|\" (bool true) (bool false))");
 }
+
 }

@@ -49,6 +49,7 @@ private SsaProgram sample(string leaf = "int", bool pointer = false, bool duplic
 	functions.add (function);
 	return new SsaProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		foreach (string leaf in new string[] {"int", "f64", "vector"}) {
@@ -60,6 +61,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	foreach (bool owner in new bool[] {false, true}) {
 		bool rejected = false;
@@ -95,10 +97,12 @@ private void invalid() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-agg/ssa/recursive-addresses-sibling-identity-vector-f64", positive);
 	Test.add_func ("/struct-agg/ssa/duplicate-owner-firewalls", invalid);
 	return Test.run ();
 }
+
 }

@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Lab { f64 l; f64 a; f64 b; }
+
 Lab transform(Lab input) { Lab result = { l = input.l * 2.0d, a = input.a, b = input.b }; return result; }
+
 f64 score(int width, int count, Lab input) {
 	var weights = new f64[count];
 	var fw = width as f64;
 	var epsilon = 1.0000000000000002d;
 	var lab = transform(input);
 	var i = 0;
-	while (i < count) { weights[i] = lab.l * fw + epsilon; i = i + 1; }
+	while (i < count) {
+		weights[i] = lab.l * fw + epsilon;
+		i = i + 1;
+	}
 	return weights[0];
 }
+
 int main() {
 	Lab input = { l = 2.0d, a = 3.0d, b = 4.0d };
 	var result = score(10, 3, input);
-	if (result == 41.0d) { return 0; }
+	if (result == 41.0d) return 0;
 	return 1;
 }

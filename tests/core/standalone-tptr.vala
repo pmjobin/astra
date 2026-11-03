@@ -87,4 +87,5 @@ private void register_tptr_tests() {
 	Test.add_func ("/core-standalone/tptr/model-lifetime", tptr_model);
 	Test.add_func ("/core-standalone/tptr/malformed", tptr_invalid);
 }
+
 }

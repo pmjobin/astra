@@ -8,6 +8,7 @@ private SemanticResult check(string source) {
 	assert (parsed.diagnostic == null);
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private void reject(string source, string message) {
 	var result = check (source);
 	if (result.diagnostic == null || !result.diagnostic.message.contains (message)) {
@@ -15,6 +16,7 @@ private void reject(string source, string message) {
 	}
 	assert (result.program == null);
 }
+
 private void identities() {
 	var result = check ("bool same<T>(T a,T b) where T : Eq {return a==b;} bool outer<T,U>(T a,T b,U c) where U : Numeric where T : Ordered, Eq {return same<T>(a,b);}");
 	assert (result.diagnostic == null);
@@ -39,6 +41,7 @@ private void identities() {
 		reject ("T f<T>(T a) where T : " + name + " {return a;}", "unknown generic capability");
 	}
 }
+
 private void operators() {
 	for (int i = 0; i <= (int) GenericOperationKind.SHIFT_RIGHT; i++) {
 		var kind = (GenericOperationKind) i;
@@ -59,6 +62,7 @@ private void operators() {
 	reject ("bool f<T>(T a,T b) where T : Numeric {return a<b;}", "requires explicit capability 'Ordered'");
 	reject ("bool f<T>(T a,T b) where T : Numeric {return a==b;}", "requires explicit capability 'Eq'");
 }
+
 private void forwarding() {
 	string inner = "bool inner<T>(T a,T b) where T : Eq {return a==b;}";
 	foreach (string constraint in new string[] {"", "where T : Ordered", "where T : Numeric"}) {
@@ -70,6 +74,7 @@ private void forwarding() {
 	assert (check ("T a<T>(int n,T x,T y) where T : Ordered {if(n==0){return x;}return b<T>(n-1,x,y);}T b<T>(int n,T x,T y) where T : Ordered {if(x<y){return y;}return a<T>(n,x,y);}").diagnostic == null);
 	reject ("T a<T>(T x) where T : Eq {return b<T>(x);}T b<T>(T x) where T : Ordered {return a<T>(x);}", "does not satisfy capability");
 }
+
 private void contextual_results() {
 	assert (check ("T id<T>(T x){return x;}bool root(){return id<u32>(4294967295)==4294967295 && 1.0==id<f64>(1.0);}").diagnostic == null);
 	for (int outer = 0; outer < 5; outer++) {
@@ -79,6 +84,7 @@ private void contextual_results() {
 		}
 	}
 }
+
 private void matrices() {
 	var types = new BuiltinTypes ();
 	foreach (string name in new string[] {"i8", "u8", "i16", "u16", "int", "i32", "u32", "f32", "f64", "bool", "void*"}) {
@@ -111,6 +117,7 @@ private void matrices() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-cap/semantic/identities-namespace-provenance", identities);
@@ -120,4 +127,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-cap/semantic/complete-matrix-intersections-vectors", matrices);
 	return Test.run ();
 }
+
 }

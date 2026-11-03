@@ -58,7 +58,7 @@ def main():
 				global_changes.append(dict(path=path, before_sha256=old['sha256'], after_sha256=sha(path),
 					critical_settings='unchanged', action='read only; external change retained'))
 			continue
-		# These are repository-local config/hooks, not changing user-global data.
+			# These are repository-local config/hooks, not changing user-global data.
 		assert sha(path) == old['sha256'] and stat.S_IMODE(Path(path).stat().st_mode) == old['mode']
 	assert sha(initial['c0']['path']) == initial['c0']['sha256']
 	base = initial['repository']['head']

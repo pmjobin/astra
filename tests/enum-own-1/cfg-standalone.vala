@@ -32,6 +32,7 @@ private CfgProgram model(BuiltinTypes? supplied = null) throws CfgError {
 	program.enums.add (definition);
 	return program;
 }
+
 private void contracts() {
 	try {
 		CfgProgram? program = model ();
@@ -153,6 +154,7 @@ private void contracts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void nonnull_authority() {
 	try {
 		for (int mutation = 0; mutation < 4; mutation++) {
@@ -198,10 +200,12 @@ private void nonnull_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum-own/cfg/independent-empty-owner-mutations", contracts);
 	Test.add_func ("/enum-own/cfg/reject-forged-nonnull-authority", nonnull_authority);
 	return Test.run ();
 }
+
 }

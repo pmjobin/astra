@@ -1,25 +1,25 @@
 // A47: stable extraction, incoming-first replacement, growth and independent drop.
 int main() {
 	var bag = new Bag<Diagnostic>();
-	if (!bag.reserve(3)) { return 81; }
+	if (!bag.reserve(3)) return 81;
 	var first = diagnostic(1, "first"); var middle = diagnostic(2, "é\0middle"); var last = diagnostic(3, "last");
 	bag.append(move first); bag.append(move middle); bag.append(move last);
 	var taken = bag.take(1);
-	if (bag.count() != 2 || !diagnostic_is(taken, 2, "é\0middle") || !diagnostic_at(bag, 0, 1, "first") || !diagnostic_at(bag, 1, 3, "last")) { return 82; }
+	if (bag.count() != 2 || !diagnostic_is(taken, 2, "é\0middle") || !diagnostic_at(bag, 0, 1, "first") || !diagnostic_at(bag, 1, 3, "last")) return 82;
 	var replacement = diagnostic(4, "edited"); bag.replace(0, move replacement);
-	if (!bag.reserve(5)) { return 83; }
+	if (!bag.reserve(5)) return 83;
 	var added = diagnostic(5, "added"); bag.append(move added);
-	if (bag.count() != 3 || bag.capacity() != 5 || !diagnostic_at(bag, 0, 4, "edited") || !diagnostic_at(bag, 1, 3, "last") || !diagnostic_at(bag, 2, 5, "added")) { return 84; }
+	if (bag.count() != 3 || bag.capacity() != 5 || !diagnostic_at(bag, 0, 4, "edited") || !diagnostic_at(bag, 1, 3, "last") || !diagnostic_at(bag, 2, 5, "added")) return 84;
 	try {
 		u8[1] invalid = {255}; var rejected = utf8_message(slice(invalid));
 		taken.content = move rejected; return 86;
 	} catch(InvalidUtf8 error) {}
-	if (!diagnostic_is(taken, 2, "é\0middle")) { return 87; }
+	if (!diagnostic_is(taken, 2, "é\0middle")) return 87;
 	var edited_text = new Utf8Message("taken-edited"); taken.content = move edited_text;
-	if (!diagnostic_is(taken, 2, "taken-edited")) { return 88; }
+	if (!diagnostic_is(taken, 2, "taken-edited")) return 88;
 	release taken;
 	var head = bag.take(0); var tail = bag.take(1); var only = bag.take(0);
-	if (bag.count() != 0 || !diagnostic_is(head, 4, "edited") || !diagnostic_is(tail, 5, "added") || !diagnostic_is(only, 3, "last")) { return 85; }
+	if (bag.count() != 0 || !diagnostic_is(head, 4, "edited") || !diagnostic_is(tail, 5, "added") || !diagnostic_is(only, 3, "last")) return 85;
 	var returned = move head; bag.append(move returned);
 	println("A47 order 4,3,5; first/middle/last extracted; append reused slot");
 	return 0;

@@ -6,6 +6,7 @@ namespace Astra.Tests.GenStructCore {
 private SourceSpan span() {
 	return SourceSpan (new SourceFile.from_text ("generic-struct", "x"), 0, 1);
 }
+
 private GenericArray<SemanticType> arguments(SemanticType first, SemanticType? second = null) {
 	var result = new GenericArray<SemanticType> ();
 	result.add (first);
@@ -14,6 +15,7 @@ private GenericArray<SemanticType> arguments(SemanticType first, SemanticType? s
 	}
 	return result;
 }
+
 private CoreGenericStruct definition(string name, int arity, int ordinal) {
 	var s = span ();
 	var parameters = new GenericArray<CoreTypeParameter> ();
@@ -22,13 +24,16 @@ private CoreGenericStruct definition(string name, int arity, int ordinal) {
 	}
 	return new CoreGenericStruct (s, s, name, parameters, ordinal);
 }
+
 private void field(CoreGenericStruct owner, string name, SemanticType type) {
 	owner.fields.add (new CoreGenericStructField (owner.span, owner.name_span, name, owner, type, owner.fields.length));
 }
+
 private CoreFunction root(BuiltinTypes types) {
 	var s = span ();
 	return new CoreFunction (s, s, "root", types.void_type, new GenericArray<CoreParameter> (), new GenericArray<CoreLocalPlace> (), new CoreBlock (s, new GenericArray<CoreStatement> ()));
 }
+
 private CoreValue constant(SemanticType type) {
 	var s = span ();
 	if (type is IntegerType) {
@@ -49,6 +54,7 @@ private CoreValue constant(SemanticType type) {
 	}
 	return new CoreNullPointerValue (s, type);
 }
+
 private CoreProgram sample(bool addressed = false, bool unused = false) {
 	var types = new BuiltinTypes ();
 	var s = span ();
@@ -116,4 +122,5 @@ private CoreProgram sample(bool addressed = false, bool unused = false) {
 	root.body.statements.add (new CoreReturn (s, null));
 	return program;
 }
+
 }

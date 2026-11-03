@@ -17,5 +17,6 @@ public class Diagnostic : Object {
 		span.file.locate (span.start, out line, out column);
 		return "%s:%d:%d: error: %s".printf (span.file.path, line, column, message);
 	}
+
 }
 }

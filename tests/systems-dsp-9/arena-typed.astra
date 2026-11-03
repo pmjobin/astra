@@ -4,17 +4,17 @@ int main() {
 		var arena = byte_arena(32, 4);
 		int first = arena.allocate(1, 1);
 		int second = arena.allocate(16, 8);
-		if (arena.offset(second) != 8) { return 1; }
+		if (arena.offset(second) != 8) return 1;
 		arena.write_u32_le(second, 0, 16909060);
-		if (arena.read(second, 0) != 4 || arena.read(second, 3) != 1) { return 2; }
+		if (arena.read(second, 0) != 4 || arena.read(second, 3) != 1) return 2;
 		u64 maximum = 18446744073709551615;
 		arena.write_u64_le(second, 8, maximum);
-		if (arena.read_u32_le(second, 0) != 16909060 || arena.read_u64_le(second, 8) != maximum) { return 3; }
+		if (arena.read_u32_le(second, 0) != 16909060 || arena.read_u64_le(second, 8) != maximum) return 3;
 		try { arena.write_u32_le(second, 1, 99); return 4; } catch(ArenaError error) {}
 		try { arena.write_u64_le(second, 2147483640, 0); return 5; } catch(ArenaError error) {}
 		try { arena.write_u32_le(first, 0, 0); return 6; } catch(ArenaError error) {}
 		try { arena.typed_slot(second, 0, 0); return 7; } catch(ArenaError error) {}
-		if (arena.read_u32_le(second, 0) != 16909060 || arena.read_u64_le(second, 8) != maximum) { return 8; }
+		if (arena.read_u32_le(second, 0) != 16909060 || arena.read_u64_le(second, 8) != maximum) return 8;
 		arena.release_last(second);
 		try { u64 expired = arena.read_u64_le(second, 8); return 9; } catch(ArenaError error) {}
 		arena.release_last(first);

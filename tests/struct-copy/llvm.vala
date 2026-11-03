@@ -32,6 +32,7 @@ private void physical() throws GLib.Error {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -40,4 +41,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

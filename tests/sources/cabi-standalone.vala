@@ -19,9 +19,11 @@ private void verify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/cabi/independent-program-global-foreign-plans", verify);
 	return Test.run ();
 }
+
 }

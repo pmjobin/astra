@@ -91,5 +91,6 @@ public class AstraIntValue : Object {
 	public int compare(AstraIntValue other) {
 		return value.compare (other.value);
 	}
+
 }
 }

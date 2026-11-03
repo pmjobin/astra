@@ -38,22 +38,28 @@ internal class ComDeclared : Object {
 			throw new ForeignAdapterError.INVALID ("typed COM channel bridge is not implemented for this declared value kind");
 		}
 	}
+
 	private static string callback_name(string prefix, ForeignValueType type) {
 		return prefix + "_com_callback_" + Checksum.compute_for_string (ChecksumType.SHA256, type.identity ());
 	}
+
 	private static string record_name(ForeignValueType type) {
 		return "astra_com_record_" + Checksum.compute_for_string (ChecksumType.SHA256, new ForeignComRecordLayout (type).identity ());
 	}
+
 	private static string interface_alias(string name) {
 		return "astra_com_interface_" + Checksum.compute_for_string (ChecksumType.SHA256, name);
 	}
+
 	private static string native_root_key(ForeignClassPolicy policy) {
 		return Checksum.compute_for_string (ChecksumType.SHA256, "astra-native-COM-root-v1;" + policy.identity ());
 	}
+
 	private static string native_root_iid(ForeignClassPolicy policy) {
 		string key = native_root_key (policy);
 		return key.substring (0, 8) + "-" + key.substring (8, 4) + "-" + key.substring (12, 4) + "-" + key.substring (16, 4) + "-" + key.substring (20, 12);
 	}
+
 	private static ForeignClassPolicy native_root_policy(CheckedProgram program, ForeignChannel channel) throws ForeignAdapterError {
 		foreach (var owner in program.classes) {
 			var policy = owner.foreign_export;
@@ -63,12 +69,14 @@ internal class ComDeclared : Object {
 		}
 		throw new ForeignAdapterError.INVALID ("COM native Class channel lost its exact Shared root and interface projection");
 	}
+
 	private static string converted(ForeignValueType type, string expression, bool to_com) throws ForeignAdapterError {
 		if (type.kind == ForeignValueKind.RECORD) {
 			return record_name (type) + (to_com ? "_from_c(" : "_to_c(") + expression + ")";
 		}
 		return type.kind == ForeignValueKind.BOOL ? (to_com ? "(" + expression + " ? TRUE : FALSE)" : "(" + expression + " != FALSE)") : "static_cast<" + (to_com ? physical (type, "") : ForeignAdapters.declared_type (type, "")) + ">(" + expression + ")";
 	}
+
 	private static void record(StringBuilder text, ForeignValueType type, HashTable<string, bool> seen, bool implementation) throws ForeignAdapterError {
 		if (type.kind != ForeignValueKind.RECORD) {
 			return;
@@ -102,6 +110,7 @@ internal class ComDeclared : Object {
 			text.append ("return result; }\n");
 		}
 	}
+
 	private static string failure_domain(ForeignMemberContract member) {
 		string result = "0";
 		if (member.error_map == null) {
@@ -112,9 +121,11 @@ internal class ComDeclared : Object {
 		}
 		return result;
 	}
+
 	private static void fail_return(StringBuilder text, ForeignImportContract root, ForeignMemberContract member, string expression) {
 		text.append_printf ("{ HRESULT failure_code = %s; return %s_com_report(failure_code, error, %s); }\n", expression, root.api.prefix, failure_domain (member).replace ("status", "failure_code"));
 	}
+
 	private static void signature(StringBuilder text, ForeignComInterface protocol, ForeignMemberContract member, bool definition = false) throws ForeignAdapterError {
 		text.append_printf ("virtual HRESULT STDMETHODCALLTYPE %s(", member.name);
 		bool comma = false;
@@ -139,6 +150,7 @@ internal class ComDeclared : Object {
 		}
 		text.append (definition ? ") noexcept override {\n" : ") = 0;\n");
 	}
+
 	private static void callbacks(StringBuilder text, ForeignImportContract root, bool implementation) throws ForeignAdapterError {
 		string prefix = root.api.prefix;
 		var seen = new HashTable<string, bool> (str_hash, str_equal);
@@ -176,6 +188,7 @@ internal class ComDeclared : Object {
 			}
 		}
 	}
+
 	private static void acquire(StringBuilder text, ForeignImportContract root, ForeignMemberContract member, HashTable<string, string> roots) throws ForeignAdapterError {
 		string p = root.api.prefix;
 		text.append ("extern \"C\" ");
@@ -193,6 +206,7 @@ internal class ComDeclared : Object {
 		fail_return (text, root, member, "E_OUTOFMEMORY");
 		text.append ("\t}\n\t*result = owner; return 0;\n}\n");
 	}
+
 	private static void import_method(StringBuilder text, ForeignImportContract root, ForeignMemberContract member, HashTable<string, string> roots) throws ForeignAdapterError {
 		string p = root.api.prefix;
 		text.append ("extern \"C\" ");
@@ -363,6 +377,7 @@ internal class ComDeclared : Object {
 		}
 		text.append ("\treturn 0;\n}\n");
 	}
+
 	private static void export_callbacks(StringBuilder text, ForeignComInterface protocol) throws ForeignAdapterError {
 		var seen = new HashTable<string, bool> (str_hash, str_equal);
 		for (uint m = 0; m < protocol.requirement_count; m++) {
@@ -391,6 +406,7 @@ internal class ComDeclared : Object {
 			}
 		}
 	}
+
 	private static void export_method(StringBuilder text, CheckedProgram program, ForeignClassPolicy policy, ForeignComExportBinding binding, uint requirement, HashTable<string, string> roots) throws ForeignAdapterError {
 		var member = binding.protocol.requirement (requirement);
 		var target = policy.declared_api.member (binding.target (requirement));
@@ -571,6 +587,7 @@ internal class ComDeclared : Object {
 		}
 		text.append ("return status;\n}\n");
 	}
+
 	internal static string generate_exports(CheckedProgram program, bool implementation) throws ForeignAdapterError {
 		var text = new StringBuilder ();
 		var roots = ForeignAdapters.root_prefixes (program);
@@ -651,6 +668,7 @@ internal class ComDeclared : Object {
 		}
 		return text.str;
 	}
+
 	internal static string generate_imports(CheckedProgram program, bool implementation) throws ForeignAdapterError {
 		var protocols = new GenericArray<ForeignImportContract> ();
 		var identities = new StringBuilder ();
@@ -784,5 +802,6 @@ extern "C" void *@P@_root_identity(@P@_handle *self) {
 		text.append ("\n#endif\n");
 		return text.str;
 	}
+
 }
 }

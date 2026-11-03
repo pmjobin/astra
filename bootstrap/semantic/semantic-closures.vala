@@ -10,6 +10,7 @@ public class CheckedCallbackParameterView : CheckedExpression {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 public class CheckedClosureBind : CheckedExpression {
 	public ActorBindingSpec? actor_binding { get; private set; }
@@ -24,12 +25,14 @@ public class CheckedClosureBind : CheckedExpression {
 		this.cleanup = cleanup;
 		this.actor_binding = actor_binding == null ? null : actor_binding.copy ();
 	}
+
 }
 public class CheckedClosureCall : CheckedExpression, CheckedInvocation {
 	public OwnedValueProducer? owned_producer { get; internal set; }
 	public OwnedValueProducer? result_producer() {
 		return owned_producer;
 	}
+
 	public GenericArray<ParameterSymbol> channel_parameters { get; private set; default = new GenericArray<ParameterSymbol> (); }
 	public CheckedExpression callee { get; private set; }
 	public GenericArray<CheckedExpression> arguments { get; private set; }
@@ -38,6 +41,7 @@ public class CheckedClosureCall : CheckedExpression, CheckedInvocation {
 		this.callee = callee;
 		this.arguments = arguments;
 	}
+
 }
 }
 namespace Astra.Semantic {
@@ -55,5 +59,6 @@ public class CheckedActorSend : CheckedStatement {
 		this.message = message;
 		this.error_type = error_type;
 	}
+
 }
 }

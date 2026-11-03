@@ -99,4 +99,5 @@ int main(string[] args) {
 	Test.add_func ("/vec/core/standalone-values-operators-reductions-addressability-17-rejections", values);
 	return Test.run ();
 }
+
 }

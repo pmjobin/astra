@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="consume16_arm")] int arm(int mode);
+
 [CImport(name="consume16_seen")] int seen();
+
 [CImport(name="consume16_error_seen")] int error_seen();
+
 [ExceptionRoot] class Fault {
 	readonly string text; private int status;
+
 	init(int status){error_seen();this.status=status;this.text="consuming import failure";}
+
 	virtual property string message{get{return this.text;}}
+
 	int code(){return this.status;}
 }
+
 owned Fault foreign_fault(int domain,int status){var fault=new Fault(status);return move fault;}
+
 [CImport(name="consume_provider16",profile="declarations-v1",lifetime="unique",threading="constructing")]
 class Provider {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
@@ -44,26 +52,35 @@ export(C) int import_consuming16_run(int mode){
 		if(mode==8){
 			var child=provider.empty_child();
 			try{int ignored=provider.take(move child,slice(seed),slice(output),&count,0);return ignored;}
-			catch(Fault fault){if(fault.code()!=-2147467261 || count!=-1){return 1;}}
+			catch(Fault fault){if(fault.code()!=-2147467261 || count!=-1) return 1;}
 		}else{
 			var child=Child.init(20);arm(mode);
 			try{
 				int result=0;
-				if(mode==7){result=empty.take(move child,slice(seed),slice(output),&count,0);}
-				else{if(mode==10){int* missing=null;result=provider.take(move child,slice(seed),slice(output),missing,0);}
-					else{int actual=mode;if(mode>=5 && mode!=9){actual=0;}result=provider.take(move child,slice(seed),slice(output),&count,actual);}}
-				if(mode!=0 && mode!=3 && mode!=9){return 2;}
-				if(result!=26 || count!=2 || output[0]!=31 || output[1]!=32 || output[2]!=77){return 3;}
+				if(mode==7){
+					result=empty.take(move child,slice(seed),slice(output),&count,0);
+				}
+				else{if(mode==10){
+						int* missing=null;
+						result=provider.take(move child,slice(seed),slice(output),missing,0);
+					}
+					else{
+						int actual=mode;
+						if(mode>=5 && mode!=9) actual=0;
+						result=provider.take(move child,slice(seed),slice(output),&count,actual);
+					}}
+				if(mode!=0 && mode!=3 && mode!=9) return 2;
+				if(result!=26 || count!=2 || output[0]!=31 || output[1]!=32 || output[2]!=77) return 3;
 			}catch(Fault fault){
-				int expected=-1600;if(mode==4){expected=-2147418113;}if(mode==5 || mode==6){expected=-2147024882;}if(mode==7 || mode==10){expected=-2147467261;}
-				if(mode==0 || mode==3 || mode==9 || fault.code()!=expected || output[0]!=77 || output[1]!=77){return 4;}
-				int empty_count=0;if(mode==7 || mode==10){empty_count=-1;}if(count!=empty_count){return 5;}
+				int expected=-1600;if(mode==4) expected=-2147418113;if(mode==5 || mode==6) expected=-2147024882;if(mode==7 || mode==10) expected=-2147467261;
+				if(mode==0 || mode==3 || mode==9 || fault.code()!=expected || output[0]!=77 || output[1]!=77) return 4;
+				int empty_count=0;if(mode==7 || mode==10) empty_count=-1;if(count!=empty_count) return 5;
 			}
 			seen();
 		}
 		if(mode==0){
-			var original=Child.init(23);var returned=provider.relay(move original);if(returned.code()!=23){return 6;}
-			var first=Child.init(30);var second=first.duplicate();if(provider.pair(move first,move second)!=60){return 7;}
+			var original=Child.init(23);var returned=provider.relay(move original);if(returned.code()!=23) return 6;
+			var first=Child.init(30);var second=first.duplicate();if(provider.pair(move first,move second)!=60) return 7;
 		}
 	}catch(Fault fault){return 90;}
 	return 0;

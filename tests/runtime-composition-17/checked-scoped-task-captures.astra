@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void checked_scope_begin(int kind);
+
 extern(C) void checked_scope_retired(int identity);
+
 extern(C) int checked_scope_finish();
 
 [Allocator(kind="context",context="scoped-affine")]
 class CheckedScopedInput {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int id() { return this.identity; }
+
 	deinit() { checked_scope_retired(this.identity); }
 }
+
 async void checked_scope_idle(owned CheckedScopedInput input) {}
+
 async void checked_scope_delay(owned CheckedScopedInput input) throws Error { await delay_ticks(1); }
 
 int checked_scope_attempt(borrowed ScopedAllocator objects) {
@@ -20,26 +27,27 @@ int checked_scope_attempt(borrowed ScopedAllocator objects) {
 		bool refused = false;
 		try { var unexpected = checked_task_in(objects, checked_scope_idle(move input)); }
 		catch (Error error) { refused = true; }
-		if (!refused || input == null || input.id() != 1) { return 1; }
-		if (scoped_allocator_query(objects, 1) != 2) { return 2; }
+		if (!refused || input == null || input.id() != 1) return 1;
+		if (scoped_allocator_query(objects, 1) != 2) return 2;
 	}
 	try {
 		var executor = VirtualExecutor.open(8);
 		var task = checked_task_in(objects, checked_scope_delay(move input));
-		if (input != null || scoped_allocator_query(objects, 1) != 2) { return 3; }
+		if (input != null || scoped_allocator_query(objects, 1) != 2) return 3;
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 4; } }
 	} catch (Error error) { return 5; }
-	if (scoped_allocator_query(objects, 1) != 0) { return 6; }
-	if (scoped_allocator_query(objects, 4) != 3 || scoped_allocator_query(objects, 5) != 3) { return 7; }
+	if (scoped_allocator_query(objects, 1) != 0) return 6;
+	if (scoped_allocator_query(objects, 4) != 3 || scoped_allocator_query(objects, 5) != 3) return 7;
 	return 0;
 }
+
 export(C) int checked_scope_run(int kind) {
 	checked_scope_begin(kind);
 	owned u8[] backing = new u8[16381];
 	var objects = scoped_allocator<ScopedAllocator>(backing, kind, 2);
-	if (objects == null) { return 1; }
+	if (objects == null) return 1;
 	int result = checked_scope_attempt(objects);
-	if (result != 0) { return 10 + result; }
+	if (result != 0) return 10 + result;
 	return checked_scope_finish();
 }

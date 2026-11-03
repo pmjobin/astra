@@ -1,26 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Item {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() {}
 }
+
 bool inspect(Item item, int expected) { return item.value == expected; }
+
 class Items {
 	owned Item[slots] entries;
+
 	init() { this.entries = new Item[slots]; }
+
 	bool reserve(int count) { return this.entries.reserve(count); }
+
 	void append(owned Item item) { this.entries.append(move item); }
+
 	int count() { return len(this.entries); }
+
 	int capacity() { return this.entries.capacity; }
+
 	bool check(int index, int expected) { return inspect(this.entries[index], expected); }
 }
+
 int main() {
 	var bag = new Items();
-	if (bag.count() != 0 || bag.capacity() != 0 || !bag.reserve(2)) { return 81; }
+	if (bag.count() != 0 || bag.capacity() != 0 || !bag.reserve(2)) return 81;
 	var first = new Item(10); var second = new Item(20);
 	bag.append(move first); bag.append(move second);
-	if (!bag.reserve(3) || bag.count() != 2 || bag.capacity() != 3) { return 82; }
+	if (!bag.reserve(3) || bag.count() != 2 || bag.capacity() != 3) return 82;
 	var third = new Item(30); bag.append(move third);
-	if (!bag.check(0, 10) || !bag.check(1, 20) || !bag.check(2, 30)) { return 83; }
+	if (!bag.check(0, 10) || !bag.check(1, 20) || !bag.check(2, 30)) return 83;
 	return 0;
 }

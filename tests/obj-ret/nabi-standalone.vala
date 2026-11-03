@@ -19,6 +19,7 @@ private NativeAbiProgram sample(NativeAbiVersion version, bool wrong_result = fa
 	functions.add (new NativeFunction (span, span, "f", 0, new NativeSignature (version, parameters, new NativeResult (wrong_result ? NativeScalarType.I32 : NativeScalarType.PTR), null, new NativeOwnedObjectResultPlan ()), NativeLinkage.NATIVE_INTERNAL));
 	return new NativeAbiProgram (span, version, functions);
 }
+
 private void valid() {
 	try {
 		foreach (var version in new NativeAbiVersion[] { NativeAbiVersion.SCALAR_PTR_V1, NativeAbiVersion.SCALAR_INT_V2, NativeAbiVersion.SCALAR_FP_V3, NativeAbiVersion.VECTOR_V4, NativeAbiVersion.SLICE_V5 }) {
@@ -34,6 +35,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void wrong_shape() {
 	try {
 		NativeAbiVerifier.verify (sample (NativeAbiVersion.SCALAR_PTR_V1, true));
@@ -42,6 +44,7 @@ private void wrong_shape() {
 	}
 	GLib.error ("object result plan cannot carry an I32 result");
 }
+
 private void invalid() {
 	try {
 		NativeAbiVerifier.verify (sample (NativeAbiVersion.SCALAR_V0));
@@ -50,6 +53,7 @@ private void invalid() {
 	}
 	GLib.error ("v0 cannot carry PTR parameters");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/nabi/independent-pointer-channels-v1-through-v5", valid);
@@ -57,4 +61,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-ret/nabi/reject-wrong-result-shape", wrong_shape);
 	return Test.run ();
 }
+
 }

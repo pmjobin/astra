@@ -7,6 +7,7 @@ static size_t allocations;
 static size_t disposals;
 static int fail_allocation;
 static char *change_during_allocation;
+
 static void *capture_malloc(size_t bytes) {
 	if (change_during_allocation != NULL) {
 		strcpy(change_during_allocation, "changed-longer-than-planned");
@@ -20,11 +21,13 @@ static void *capture_malloc(size_t bytes) {
 	}
 	return result;
 }
+
 static void capture_free(void *pointer) {
 	assert(pointer != NULL);
 	disposals++;
 	free(pointer);
 }
+
 #define malloc capture_malloc
 #define free capture_free
 #include "../../lib/runtime/platform/args-posix.c"

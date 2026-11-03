@@ -15,16 +15,19 @@ private void grammar() {
 	assert (result.diagnostic == null);
 	assert (SyntaxDump.format (result.unit).contains ("borrowed"));
 }
+
 private void malformed() {
 	foreach (var parameter in new string[] { "borrowed borrowed C c", "owned borrowed C c", "borrowed owned C c", "borrowed C", "C borrowed c", "borrowed c", "borrowed" }) {
 		assert (Parser.parse (new SourceFile.from_text ("invalid", "void f(" + parameter + "){}")).diagnostic != null);
 	}
 	assert (Parser.parse (new SourceFile.from_text ("invalid", "borrowed C f(){return null;}")).diagnostic != null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-bound/parser/shared-qualifiers-and-callables", grammar);
 	Test.add_func ("/obj-bound/parser/malformed-qualifiers-and-borrowed-result", malformed);
 	return Test.run ();
 }
+
 }

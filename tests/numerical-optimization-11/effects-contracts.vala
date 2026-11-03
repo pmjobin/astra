@@ -38,6 +38,7 @@ private SsaProgram program(bool imported = false) throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private SsaFunction named(SsaProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name || (function is SsaPropertyGetter && ((SsaPropertyGetter) function).property_member.name == name)) {
@@ -46,6 +47,7 @@ private SsaFunction named(SsaProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private void ssa_facts() {
 	try {
 		var source = program ();
@@ -94,6 +96,7 @@ private void ssa_facts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_facts() {
 	try {
 		SsaProgram? source = program ();
@@ -127,6 +130,7 @@ private void native_facts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void reject(LlvmModuleArtifact artifact) {
 	bool rejected = false;
 	try {
@@ -137,6 +141,7 @@ private void reject(LlvmModuleArtifact artifact) {
 	}
 	assert (rejected);
 }
+
 private SsaProgram stack_program() throws GLib.Error {
 	var syntax = Parser.parse (new SourceFile.from_text ("stack-proof", "extern(C) void observe(int x); class Packet {int x;init(int x){this.x=x;}deinit(){observe(this.x);}int read(){return this.x;}} int process(int x){owned Packet packet=new Packet(x);if(x==0){return packet.read();}return packet.read()+1;}"));
 	assert (syntax.diagnostic == null);
@@ -144,6 +149,7 @@ private SsaProgram stack_program() throws GLib.Error {
 	assert (checked.diagnostic == null);
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private void stack_facts() {
 	try {
 		SsaProgram? source = stack_program ();
@@ -193,6 +199,7 @@ private void stack_facts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void stack_llvm() {
 	try {
 		SsaProgram? source = stack_program ();
@@ -218,6 +225,7 @@ private void stack_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private SsaProgram application(string path) throws GLib.Error {
 	string text;
 	FileUtils.get_contents (path, out text);
@@ -227,6 +235,7 @@ private SsaProgram application(string path) throws GLib.Error {
 	assert (checked.diagnostic == null);
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private void lazy_factory() {
 	try {
 		var source = application ("examples/numerical-optimization-11/a94-metadata.astra");
@@ -278,6 +287,7 @@ private void lazy_factory() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void dispatch_and_shared() {
 	try {
 		SsaProgram? source = application ("examples/numerical-optimization-11/a95-pipeline.astra");
@@ -372,6 +382,7 @@ private void dispatch_and_shared() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void llvm_facts() {
 	try {
 		SsaProgram? source = program ();
@@ -431,6 +442,7 @@ private void llvm_facts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public static int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/effects/ssa-body-and-interface", ssa_facts);
@@ -442,4 +454,5 @@ public static int main(string[] args) {
 	Test.add_func ("/optimizer/dispatch-shared-detached", dispatch_and_shared);
 	return Test.run ();
 }
+
 }

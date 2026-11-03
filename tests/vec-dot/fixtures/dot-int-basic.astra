@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 i16 bytes(i8<4> a,i8<4> b){return dot_wrap(a,b,i16);}
+
 u16 unsigned_bytes(u8<2> a,u8<2> b){return dot_wrap(a,b,u16);}
+
 i32 words(i16<2> a,i16<2> b){return dot_wrap(a,b,i32);}
+
 u32 unsigned_words(u16<2> a,u16<2> b){return dot_wrap(a,b,u32);}
+
 int main(){
 	i8<4> a={-128,127,-128,0};
 	i8<4> b={-128,127,127,0};
-	if(bytes(a,b)!=16257){return 1;}
-	if(unsigned_bytes(splat(255,2),splat(255,2))!=64514){return 2;}
+	if(bytes(a,b)!=16257) return 1;
+	if(unsigned_bytes(splat(255,2),splat(255,2))!=64514) return 2;
 	i16<2> c={-32768,32767};
 	i16<2> d={-32768,-32768};
-	if(words(c,d)!=32768){return 3;}
+	if(words(c,d)!=32768) return 3;
 	u16<2> e={65535,0};
-	if(unsigned_words(e,e)!=4294836225){return 4;}
+	if(unsigned_words(e,e)!=4294836225) return 4;
 	return 0;
 }

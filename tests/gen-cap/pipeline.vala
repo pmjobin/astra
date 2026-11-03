@@ -59,6 +59,7 @@ private void lifetime() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	CAbiVerifier.verify (cabi);
 }
+
 private void integrations() throws GLib.Error {
 	foreach (string name in new string[] {"eq", "ordered", "numeric", "bitwise", "shift", "multi", "forward", "recursive", "property", "owned", "object-owned"}) {
 		SsaVerifier.verify (build (read (name)));
@@ -89,6 +90,7 @@ private void integrations() throws GLib.Error {
 	}
 	assert (outer == 1 && phantom == 2 && bytes == 2);
 }
+
 private void profiles() throws GLib.Error {
 	foreach (string type in new string[] {"int", "i8", "u32", "f32", "f64", "void*", "bool"}) {
 		var ssa = build ("bool same<T>(T a,T b) where T : Eq {return a==b;}bool root(" + type + " a," + type + " b){return same<" + type + ">(a,b);}");
@@ -123,6 +125,7 @@ private void profiles() throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -133,4 +136,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

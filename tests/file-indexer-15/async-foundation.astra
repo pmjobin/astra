@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace IndexFoundation;
 class AsyncError : Error { init(string message) : base(message) {} }
+
 extern(C) int astra_index_async_observe(int operation);
+
 int async_watch(int operation) { return astra_index_async_observe(operation); }
 
 // A borrowed interface is sampled before suspension into an independently
@@ -9,9 +11,11 @@ int async_watch(int operation) { return astra_index_async_observe(operation); }
 // every category used by the producer; no interface loan crosses the await.
 class ClassificationTable : IdentifierPolicy {
 	private owned int[] categories;
+
 	init(owned int[] categories) : base() { this.categories = move categories; }
+
 	override int classify(int byte) {
-		if (byte < 0 || byte > 255) { return 0; }
+		if (byte < 0 || byte > 255) return 0;
 		return this.categories[byte];
 	}
 }

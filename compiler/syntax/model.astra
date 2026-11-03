@@ -4,28 +4,35 @@
 struct SyntaxNodeId {
 	int index;
 }
+
 struct SyntaxTokenId {
 	int index;
 }
+
 struct SyntaxListId {
 	int index;
 }
+
 struct SyntaxTextId {
 	int index;
 }
+
 struct SyntaxSourceId {
 	int index;
 }
+
 struct SyntaxSpan {
 	SyntaxSourceId source;
 	int start;
 	int end;
 }
+
 struct SyntaxConcurrency {
 	bool present;
 	int kinds;
 	int admitted;
 }
+
 struct SyntaxHeader {
 	SyntaxNodeId foreign_member;
 	bool module_internal;
@@ -35,6 +42,7 @@ struct SyntaxHeader {
 	SyntaxSpan span;
 	int depth;
 }
+
 enum SyntaxKind {
 	AddressOfExpressionSyntax,
 	ArrayInitializerSyntax,
@@ -130,6 +138,7 @@ enum SyntaxKind {
 	WhileStatementSyntax,
 	WithStatementSyntax,
 }
+
 int syntax_kind_code(SyntaxKind kind) {
 	match (kind) {
 		case SyntaxKind.AddressOfExpressionSyntax(): {
@@ -413,6 +422,7 @@ int syntax_kind_code(SyntaxKind kind) {
 		}
 	}
 }
+
 SyntaxKind syntax_kind_from_code(int code) {
 	if (code == 1) {
 		return SyntaxKind.AddressOfExpressionSyntax();
@@ -696,6 +706,7 @@ SyntaxKind syntax_kind_from_code(int code) {
 	assert_that(false);
 	return SyntaxKind.AddressOfExpressionSyntax();
 }
+
 bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
 	if (actual == expected) {
 		return true;
@@ -982,16 +993,20 @@ bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
 		}
 	}
 }
+
 struct AddressOfExpressionSyntaxData {
 	SyntaxTokenId f_ampersand;
 	SyntaxTokenId f_identifier;
 }
+
 struct ArrayInitializerSyntaxData {
 	SyntaxListId f_elements;
 }
+
 struct ArrayStructInitializerSyntaxData {
 	SyntaxNodeId f_initializer;
 }
+
 struct ArrayTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -999,53 +1014,64 @@ struct ArrayTypeSyntaxData {
 	SyntaxNodeId f_element_type;
 	SyntaxNodeId f_extent;
 }
+
 struct AssignmentStatementSyntaxData {
 	SyntaxTokenId f_name;
 	SyntaxTokenId f_equals_token;
 	SyntaxNodeId f_expression;
 	SyntaxTokenId f_semicolon;
 }
+
 struct AsyncRuntimeSyntaxData {
 	SyntaxTokenId f_provider;
 	SyntaxTokenId f_name;
 	SyntaxNodeId f_error;
 	SyntaxNodeId f_status;
 }
+
 struct AwaitExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_operation;
 }
+
 struct AwaitStatementSyntaxData {
 	SyntaxNodeId f_expression;
 }
+
 struct BinaryExpressionSyntaxData {
 	SyntaxNodeId f_left;
 	SyntaxTokenId f_operator_token;
 	SyntaxNodeId f_right;
 }
+
 struct BlockStatementSyntaxData {
 	SyntaxTokenId f_open_brace;
 	SyntaxListId f_statements;
 	SyntaxTokenId f_close_brace;
 }
+
 struct BooleanLiteralExpressionSyntaxData {
 	SyntaxTokenId f_literal;
 }
+
 struct BreakStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_semicolon;
 }
+
 struct BufferAllocationSyntaxData {
 	SyntaxNodeId f_allocation_context;
 	SyntaxNodeId f_element_type;
 	SyntaxNodeId f_count;
 	SyntaxNodeId f_failure_call;
 }
+
 struct CCodeEntrySyntaxData {
 	SyntaxTokenId f_key;
 	SyntaxTokenId f_value;
 	SyntaxTextId f_decoded_value;
 }
+
 struct CallExpressionSyntaxData {
 	bool f_signal_emission;
 	SyntaxListId f_qualifier_arguments;
@@ -1059,10 +1085,12 @@ struct CallExpressionSyntaxData {
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_paren;
 }
+
 struct CallStatementSyntaxData {
 	SyntaxNodeId f_call;
 	SyntaxTokenId f_semicolon;
 }
+
 struct CallableChannelTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -1070,15 +1098,18 @@ struct CallableChannelTypeSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_underlying;
 }
+
 struct CallerInformationSyntaxData {
 	SyntaxTokenId f_name;
 	SyntaxTokenId f_target;
 }
+
 struct CatchClauseSyntaxData {
 	SyntaxNodeId f_class_name;
 	SyntaxTokenId f_binding;
 	SyntaxNodeId f_body;
 }
+
 struct ClassDeclarationSyntaxData {
 	SyntaxConcurrency f_concurrency_policy;
 	SyntaxListId f_allocator;
@@ -1102,15 +1133,18 @@ struct ClassDeclarationSyntaxData {
 	SyntaxNodeId f_parent_class;
 	SyntaxTokenId f_exception_root;
 }
+
 struct ComImportSyntaxData {
 	SyntaxNodeId f_declaration;
 	SyntaxTokenId f_name;
 	SyntaxNodeId f_policy;
 }
+
 struct ComparisonChainSyntaxData {
 	SyntaxListId f_operands;
 	SyntaxListId f_operators;
 }
+
 struct CompilationUnitSyntaxData {
 	SyntaxListId f_c_classes;
 	SyntaxListId f_com_interfaces;
@@ -1125,11 +1159,13 @@ struct CompilationUnitSyntaxData {
 	SyntaxListId f_structs;
 	SyntaxTokenId f_end_of_file;
 }
+
 struct ConstantDeclarationSyntaxData {
 	SyntaxNodeId f_type_name;
 	SyntaxTokenId f_name;
 	SyntaxNodeId f_initializer;
 }
+
 struct ConstructorInitializerSyntaxData {
 	bool f_signal_emission;
 	SyntaxListId f_qualifier_arguments;
@@ -1143,23 +1179,28 @@ struct ConstructorInitializerSyntaxData {
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_paren;
 }
+
 struct ContinueStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_semicolon;
 }
+
 struct ConversionExpressionSyntaxData {
 	SyntaxNodeId f_operand;
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_destination;
 }
+
 struct DereferenceAssignmentSyntaxData {
 	SyntaxNodeId f_target;
 	SyntaxNodeId f_expression;
 }
+
 struct DereferenceExpressionSyntaxData {
 	SyntaxTokenId f_star;
 	SyntaxNodeId f_pointer;
 }
+
 struct DspExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_open_paren;
@@ -1169,6 +1210,7 @@ struct DspExpressionSyntaxData {
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_paren;
 }
+
 struct EnumArmSyntaxData {
 	SyntaxListId f_type_arguments;
 	SyntaxTokenId f_qualifier;
@@ -1176,45 +1218,54 @@ struct EnumArmSyntaxData {
 	SyntaxListId f_bindings;
 	SyntaxNodeId f_body;
 }
+
 struct EnumBindingSyntaxData {
 	SyntaxTokenId f_field;
 	SyntaxTokenId f_binding;
 }
+
 struct EnumDeclarationSyntaxData {
 	SyntaxListId f_type_parameters;
 	SyntaxTokenId f_name;
 	SyntaxListId f_variants;
 }
+
 struct EnumPayloadSyntaxData {
 	SyntaxTokenId f_owned_keyword;
 	SyntaxNodeId f_type_name;
 	SyntaxTokenId f_name;
 }
+
 struct EnumVariantSyntaxData {
 	SyntaxTokenId f_name;
 	SyntaxListId f_fields;
 }
+
 struct FieldAccessExpressionSyntaxData {
 	SyntaxTokenId f_identifier;
 	SyntaxTokenId f_dot;
 	SyntaxTokenId f_field_name;
 	SyntaxNodeId f_aggregate;
 }
+
 struct FieldAssignmentStatementSyntaxData {
 	SyntaxNodeId f_target;
 	SyntaxTokenId f_equals_token;
 	SyntaxNodeId f_expression;
 	SyntaxTokenId f_semicolon;
 }
+
 struct FieldInitializerSyntaxData {
 	SyntaxTokenId f_name;
 	SyntaxTokenId f_equals_token;
 	SyntaxNodeId f_expression;
 	SyntaxNodeId f_initializer;
 }
+
 struct FloatLiteralExpressionSyntaxData {
 	SyntaxTokenId f_literal;
 }
+
 struct ForStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_initializer;
@@ -1222,17 +1273,20 @@ struct ForStatementSyntaxData {
 	SyntaxNodeId f_step;
 	SyntaxNodeId f_body;
 }
+
 struct ForeachStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_binding;
 	SyntaxNodeId f_collection;
 	SyntaxNodeId f_body;
 }
+
 struct ForeignPolicySyntaxData {
 	int f_kind;
 	SyntaxTokenId f_name;
 	SyntaxListId f_entries;
 }
+
 struct FunctionDeclarationSyntaxData {
 	bool f_is_signal;
 	SyntaxNodeId f_foreign_policy;
@@ -1257,18 +1311,21 @@ struct FunctionDeclarationSyntaxData {
 	SyntaxTokenId f_abi_identifier;
 	SyntaxTokenId f_semicolon;
 }
+
 struct GenericTypeApplicationSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
 	SyntaxListId f_stars;
 	SyntaxListId f_type_arguments;
 }
+
 struct HeapObjectConstructionSyntaxData {
 	SyntaxNodeId f_allocation_context;
 	bool f_fallible;
 	SyntaxNodeId f_class_name;
 	SyntaxListId f_arguments;
 }
+
 struct IfStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_open_paren;
@@ -1278,15 +1335,18 @@ struct IfStatementSyntaxData {
 	SyntaxTokenId f_else_keyword;
 	SyntaxNodeId f_else_body;
 }
+
 struct IndexExpressionSyntaxData {
 	SyntaxNodeId f_container;
 	SyntaxNodeId f_subscript;
 	SyntaxTokenId f_close;
 }
+
 struct IndexedAssignmentSyntaxData {
 	SyntaxNodeId f_target;
 	SyntaxNodeId f_expression;
 }
+
 struct InferredLocalDeclarationSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_name;
@@ -1294,9 +1354,11 @@ struct InferredLocalDeclarationSyntaxData {
 	SyntaxNodeId f_initializer;
 	SyntaxTokenId f_semicolon;
 }
+
 struct IntegerLiteralExpressionSyntaxData {
 	SyntaxTokenId f_literal;
 }
+
 struct LifecycleDeclarationSyntaxData {
 	bool f_is_signal;
 	SyntaxNodeId f_foreign_policy;
@@ -1322,6 +1384,7 @@ struct LifecycleDeclarationSyntaxData {
 	SyntaxTokenId f_semicolon;
 	SyntaxListId f_base_arguments;
 }
+
 struct LocalDeclarationSyntaxData {
 	SyntaxTokenId f_owned_keyword;
 	SyntaxNodeId f_type_name;
@@ -1330,18 +1393,22 @@ struct LocalDeclarationSyntaxData {
 	SyntaxNodeId f_initializer;
 	SyntaxTokenId f_semicolon;
 }
+
 struct MatchStatementSyntaxData {
 	SyntaxNodeId f_scrutinee;
 	SyntaxListId f_arms;
 }
+
 struct MoveExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_source;
 	SyntaxListId f_fields;
 }
+
 struct NameExpressionSyntaxData {
 	SyntaxTokenId f_identifier;
 }
+
 struct NonNullTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -1349,9 +1416,11 @@ struct NonNullTypeSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_underlying;
 }
+
 struct NullPointerExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 }
+
 struct OwnerSlotsTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -1360,6 +1429,7 @@ struct OwnerSlotsTypeSyntaxData {
 	SyntaxTokenId f_marker;
 	SyntaxTokenId f_close;
 }
+
 struct ParameterSyntaxData {
 	SyntaxNodeId f_caller_information;
 	SyntaxNodeId f_type_name;
@@ -1367,11 +1437,13 @@ struct ParameterSyntaxData {
 	SyntaxTokenId f_borrowed_keyword;
 	SyntaxTokenId f_owned_keyword;
 }
+
 struct ParenthesizedExpressionSyntaxData {
 	SyntaxTokenId f_open_paren;
 	SyntaxNodeId f_expression;
 	SyntaxTokenId f_close_paren;
 }
+
 struct PointerTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -1379,15 +1451,18 @@ struct PointerTypeSyntaxData {
 	SyntaxNodeId f_pointee;
 	SyntaxTokenId f_star;
 }
+
 struct PrefixExpressionSyntaxData {
 	SyntaxTokenId f_operator_token;
 	SyntaxNodeId f_operand;
 }
+
 struct PropertyAccessorSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_parameter;
 	SyntaxNodeId f_body;
 }
+
 struct PropertyDeclarationSyntaxData {
 	SyntaxTokenId f_owned_keyword;
 	SyntaxNodeId f_factory_syntax;
@@ -1401,16 +1476,19 @@ struct PropertyDeclarationSyntaxData {
 	SyntaxNodeId f_getter;
 	SyntaxNodeId f_setter;
 }
+
 struct ReleaseStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_owner;
 	SyntaxTokenId f_semicolon;
 }
+
 struct ReturnStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_expression;
 	SyntaxTokenId f_semicolon;
 }
+
 struct SharedTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -1418,17 +1496,20 @@ struct SharedTypeSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxNodeId f_payload;
 }
+
 struct ShortCircuitExpressionSyntaxData {
 	SyntaxNodeId f_left;
 	SyntaxTokenId f_operator_token;
 	SyntaxNodeId f_right;
 }
+
 struct SliceTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
 	SyntaxListId f_stars;
 	SyntaxNodeId f_element_type;
 }
+
 struct StructDeclarationSyntaxData {
 	SyntaxConcurrency f_concurrency_policy;
 	SyntaxListId f_allocator;
@@ -1444,6 +1525,7 @@ struct StructDeclarationSyntaxData {
 	SyntaxListId f_where_clauses;
 	SyntaxListId f_type_parameters;
 }
+
 struct StructFieldDeclarationSyntaxData {
 	SyntaxTokenId f_private_keyword;
 	SyntaxTokenId f_readonly_keyword;
@@ -1452,12 +1534,14 @@ struct StructFieldDeclarationSyntaxData {
 	SyntaxTokenId f_name;
 	SyntaxTokenId f_semicolon;
 }
+
 struct StructInitializerSyntaxData {
 	SyntaxTokenId f_open_brace;
 	SyntaxListId f_fields;
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_brace;
 }
+
 struct StructLocalDeclarationSyntaxData {
 	SyntaxTokenId f_owned_keyword;
 	SyntaxNodeId f_type_name;
@@ -1466,33 +1550,41 @@ struct StructLocalDeclarationSyntaxData {
 	SyntaxNodeId f_initializer;
 	SyntaxTokenId f_semicolon;
 }
+
 struct SwapStatementSyntaxData {
 	SyntaxNodeId f_left;
 	SyntaxNodeId f_right;
 }
+
 struct TextLiteralExpressionSyntaxData {
 	SyntaxTokenId f_token;
 }
+
 struct TextMemberExpressionSyntaxData {
 	SyntaxNodeId f_receiver;
 	SyntaxTokenId f_member;
 }
+
 struct ThrowStatementSyntaxData {
 	SyntaxNodeId f_expression;
 }
+
 struct TryStatementSyntaxData {
 	SyntaxNodeId f_body;
 	SyntaxListId f_catches;
 }
+
 struct TypeNameSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
 	SyntaxListId f_stars;
 }
+
 struct Utf8FactoryExpressionSyntaxData {
 	bool f_validates;
 	SyntaxTokenId f_input;
 }
+
 struct VectorDotExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_open_paren;
@@ -1501,6 +1593,7 @@ struct VectorDotExpressionSyntaxData {
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_paren;
 }
+
 struct VectorExtractExpressionSyntaxData {
 	SyntaxNodeId f_container;
 	SyntaxNodeId f_subscript;
@@ -1510,12 +1603,14 @@ struct VectorExtractExpressionSyntaxData {
 	SyntaxTokenId f_index;
 	SyntaxTokenId f_close_bracket;
 }
+
 struct VectorInitializerSyntaxData {
 	SyntaxTokenId f_open_brace;
 	SyntaxListId f_lanes;
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_brace;
 }
+
 struct VectorPrimitiveExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_open_paren;
@@ -1524,12 +1619,14 @@ struct VectorPrimitiveExpressionSyntaxData {
 	SyntaxListId f_commas;
 	SyntaxTokenId f_close_paren;
 }
+
 struct VectorReductionExpressionSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_open_paren;
 	SyntaxNodeId f_operand;
 	SyntaxTokenId f_close_paren;
 }
+
 struct VectorTypeSyntaxData {
 	SyntaxTokenId f_namespace_qualifier;
 	SyntaxTokenId f_identifier;
@@ -1539,6 +1636,7 @@ struct VectorTypeSyntaxData {
 	SyntaxTokenId f_lane_count;
 	SyntaxTokenId f_close_angle;
 }
+
 struct WhereClauseSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_type_parameter;
@@ -1546,6 +1644,7 @@ struct WhereClauseSyntaxData {
 	SyntaxListId f_capabilities;
 	SyntaxListId f_commas;
 }
+
 struct WhileStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_open_paren;
@@ -1553,6 +1652,7 @@ struct WhileStatementSyntaxData {
 	SyntaxTokenId f_close_paren;
 	SyntaxNodeId f_body;
 }
+
 struct WithStatementSyntaxData {
 	SyntaxTokenId f_keyword;
 	SyntaxTokenId f_receiver;

@@ -43,6 +43,7 @@ private void stages() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void cleanups() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (check (read ("order"))));
@@ -71,6 +72,7 @@ private void cleanups() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void argument_commit() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (check ("class C{int x;init(owned Resource r,int n,borrowed int[] s){this.x=n+s[0];}}int later(){return 2;}void f(owned Resource r){int[1] a={1};C c=C.init(move r,later(),slice(a));}")));
@@ -101,6 +103,7 @@ private void argument_commit() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void channels() {
 	try {
 		foreach (var name in new string[] { "init", "init-branch", "vector", "slice", "owned", "owned-argument-trap" }) {
@@ -122,6 +125,7 @@ private void channels() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/pipeline/lifecycle-identities-survive-upstream-release", stages);
@@ -130,4 +134,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-life/pipeline/argument-capture-commit-before-construction-publication", argument_commit);
 	return Test.run ();
 }
+
 }

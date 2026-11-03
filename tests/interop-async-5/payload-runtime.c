@@ -20,14 +20,17 @@ typedef struct Frame {
 	int count;
 	int turns;
 } Frame;
+
 static unsigned destroys;
 static int skip_guards;
+
 static void destroy(AstraAsyncTask *task, int discard) {
 	(void)discard;
 	Frame *f = astra_async_data(task);
 	astra_linux_payload_close(f->payload);
 	destroys++;
 }
+
 static void resume(AstraAsyncTask *task) {
 	Frame *f = astra_async_data(task);
 	f->turns++;
@@ -44,22 +47,26 @@ static void resume(AstraAsyncTask *task) {
 	f->count = astra_linux_payload_count(f->payload);
 	astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 static AstraAsyncTask *start(AstraAsyncExecutor *executor, AstraLinuxPayload *payload) {
 	AstraAsyncTask *task = astra_async_new(sizeof(Frame), _Alignof(Frame), resume, destroy, NULL);
 	*(Frame *)astra_async_data(task) = (Frame){.payload = payload};
 	assert(astra_async_start(executor, task, NULL) == ASTRA_ASYNC_ADMITTED);
 	return task;
 }
+
 static AstraLinuxPayload *open_payload(const char *path, int capacity, int writing) {
 	AstraLinuxPayload *p = astra_linux_payload_open((const unsigned char *)path, (int)strlen(path), capacity, writing);
 	assert(p);
 	return p;
 }
+
 static AstraAsyncLinuxSnapshot record(AstraAsyncExecutor *executor) {
 	AstraAsyncLinuxSnapshot s;
 	assert(astra_async_linux_test_record(executor, 0, &s));
 	return s;
 }
+
 static void guarded(AstraLinuxPayload *payload, int closing) {
 	/* Expected-fatal children inherit live owners. Memory tools run the full
      * terminating parent path separately, without these intentional exits. */
@@ -78,6 +85,7 @@ static void guarded(AstraLinuxPayload *payload, int closing) {
 	assert(waitpid(child, &status, 0) == child);
 	assert(WIFEXITED(status) && WEXITSTATUS(status) == 121);
 }
+
 static int drain(AstraAsyncExecutor *executor, AstraAsyncTask *task) {
 	while (astra_async_phase(task) < ASTRA_ASYNC_SUCCESS) {
 		astra_async_linux_wait(executor);
@@ -85,6 +93,7 @@ static int drain(AstraAsyncExecutor *executor, AstraAsyncTask *task) {
 	}
 	return astra_async_phase(task);
 }
+
 static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *task, int phase) {
 	astra_async_begin_shutdown(executor);
 	assert(astra_async_shutdown_complete(executor));
@@ -92,6 +101,7 @@ static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *task, int phase
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 static unsigned fds(void) {
 	DIR *d = opendir("/proc/self/fd");
 	assert(d);
@@ -101,6 +111,7 @@ static unsigned fds(void) {
 	closedir(d);
 	return count;
 }
+
 static void write_fixture(const char *path, int size) {
 	FILE *f = fopen(path, "wb");
 	assert(f);
@@ -108,6 +119,7 @@ static void write_fixture(const char *path, int size) {
 		assert(fputc((i * 37) & 255, f) != EOF);
 	assert(fclose(f) == 0);
 }
+
 static void reads(void) {
 	for (int size = 0; size <= 4097; size = size == 0 ? 1 : size == 1 ? 4097
 	                                                                  : 4098) {
@@ -140,6 +152,7 @@ static void reads(void) {
 		}
 	}
 }
+
 static void writes_and_errors(void) {
 	struct rlimit saved;
 	assert(getrlimit(RLIMIT_FSIZE, &saved) == 0);
@@ -178,6 +191,7 @@ static void writes_and_errors(void) {
 	printf("real invalid-fd target=%llu result=%d checked_status=%d\n", (unsigned long long)record(e).target, record(e).target_result, f->status);
 	finish(e, t, ASTRA_ASYNC_SUCCESS);
 }
+
 static void cancellations(void) {
 	write_fixture("cancel.bin", 8192);
 	for (int when = 0; when < 4; when++) {
@@ -225,6 +239,7 @@ static void cancellations(void) {
 	finish(e, t, ASTRA_ASYNC_CANCELLED);
 	assert(close(writer) == 0 && unlink("cancel-fifo") == 0);
 }
+
 static void mutation_protocol(void) {
 	AstraLinuxPayload *p = open_payload("cancel.bin", 8, 0);
 	AstraAsyncExecutor *e = astra_async_linux_open(1);
@@ -251,6 +266,7 @@ static void mutation_protocol(void) {
 	finish(e, t, ASTRA_ASYNC_CANCELLED);
 	puts("injected protocol controls PASS (separate from real kernel evidence)");
 }
+
 int main(int argc, char **argv) {
 	skip_guards = argc == 2 && strcmp(argv[1], "--memory") == 0;
 	alarm(30);

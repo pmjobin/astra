@@ -123,4 +123,5 @@ private void register_metadata() {
 	add ("/vapi/metadata/physical-duplicates-cabi-boundary", metadata_physical_duplicates);
 	add ("/vapi/metadata/import-order", metadata_ordering);
 }
+
 }

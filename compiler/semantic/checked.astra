@@ -27,6 +27,7 @@ class CheckedIndex {
 	int current_result_flags;
 	int pending_contract_message;
 	SyntaxSpan pending_contract_span;
+
 	init(owned BindingIndex bindings, int stop_after) {
 		this.bindings = move bindings;
 		var types = new TypeTable(65536);
@@ -84,15 +85,18 @@ class CheckedIndex {
 			i = i + 1;
 		}
 	}
+
 	bool failed() {
 		return this.error_message != 0 || (this.bindings.failed() && !this.inspect_prefix);
 	}
+
 	void fail(SyntaxSpan span, string message) throws Error {
 		if (!this.failed()) {
 			this.error_span = span;
 			this.error_message = this.bindings.names.intern(message);
 		}
 	}
+
 	TypeId record(SyntaxNodeId node, TypeId type, int flags) throws Error {
 		if (node.index != 0) {
 			var use = this.uses[node.index];
@@ -108,23 +112,28 @@ class CheckedIndex {
 		}
 		return type;
 	}
+
 	TypeId defer(SyntaxNodeId node, int reason) {
 		var use = this.uses[node.index];
 		use.deferred = reason;
 		this.uses[node.index] = use;
 		return no_type();
 	}
+
 	bool owns(borrowed CheckedIndex origin, SignatureId id) {
 		return this.types.same_owner(origin.types) && this.complete && !this.failed() && id.index > 0 && id.index <= this.signature_count;
 	}
+
 	CheckedSignature signature(borrowed CheckedIndex origin, SignatureId id) {
 		assert_that(this.owns(origin, id));
 		return this.signatures[id.index - 1];
 	}
+
 	CheckedTypeUse type_use(borrowed CheckedIndex origin, SyntaxNodeId node) {
 		assert_that(this.types.same_owner(origin.types) && this.complete && !this.failed() && node.index > 0 && node.index < len(this.uses));
 		return this.uses[node.index];
 	}
+
 	void add_signature(SymbolId symbol, TypeId callable, TypeId error, int flags, int dispatch) {
 		if (this.signature_count == len(this.signatures)) {
 			var grown = new CheckedSignature[syntax_grown_capacity(len(this.signatures), this.signature_count + 1)];
@@ -145,8 +154,9 @@ class CheckedIndex {
 		};
 		this.symbol_signatures[symbol.index] = id;
 	}
+
 	bool validate() {
-		if (this.native_abi && !this.semantic_admission) { return false; }
+		if (this.native_abi && !this.semantic_admission) return false;
 		if (!this.complete || this.failed() || !this.types.valid()) {
 			return false;
 		}
@@ -220,6 +230,7 @@ class CheckedIndex {
 		return true;
 	}
 }
+
 int checked_kind(CheckedIndex index, TypeId type) {
 	if (type.index == 0) {
 		return 0;
@@ -227,6 +238,7 @@ int checked_kind(CheckedIndex index, TypeId type) {
 	var row = index.types.descriptor(index.types, type);
 	return row.kind;
 }
+
 int checked_flags(borrowed SyntaxArena arena, SyntaxNodeId node) {
 	int flags = 0;
 	if (arena.get_token_owned_keyword(node).index != 0) {
@@ -248,6 +260,7 @@ int checked_flags(borrowed SyntaxArena arena, SyntaxNodeId node) {
 	}
 	return flags;
 }
+
 SymbolId checked_target(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) {
 	int i = index.node_references[node.index];
 	while (i != 0) {
@@ -259,6 +272,7 @@ SymbolId checked_target(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId tok
 	}
 	return type_symbol(0);
 }
+
 void checked_name(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int depth) throws Error {
 	if (type.index == 0) {
 		source_append_text(output, "<deferred>");
@@ -346,12 +360,14 @@ void checked_name(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int d
 		source_append_text(output, ">");
 	}
 }
+
 owned Utf8Message checked_type_name(CheckedIndex index, TypeId type) throws Error {
 	var output = new Utf8ByteBuilder();
 	checked_name(index, type, output, 0);
 	var result = output.snapshot();
 	return move result;
 }
+
 void checked_mismatch(CheckedIndex index, SyntaxSpan span, TypeId expected, TypeId actual, string context) throws Error {
 	if (expected.index == 0 || actual.index == 0 || expected.index == actual.index) {
 		return;

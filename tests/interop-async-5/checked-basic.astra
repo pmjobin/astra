@@ -1,42 +1,58 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int checked_event(int kind, int id);
+
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 class TransformError : Error { init() : base("checked-transform") {} }
+
 class CheckedChild {
 	int id;
+
 	init(int id) { this.id = id; checked_event(1, id); }
+
 	deinit() { checked_event(2, this.id); }
 }
+
 class CheckedEnvironment {
 	int bias;
 	private owned CheckedChild child;
+
 	init(owned CheckedChild child) { this.child = move child; this.bias = 40; }
+
 	deinit() { checked_event(3, this.bias); }
 }
+
 int checked_code(borrowed CheckedEnvironment env, int value) throws TransformError {
 	var temporary = new CheckedChild(20);
-	if (value < 0) { throw new TransformError(); }
+	if (value < 0) {
+		throw new TransformError();
+	}
 	return env.bias + value;
 }
+
 int checked_borrow(borrowed CheckedClosure<CheckedEnvironment,TransformError,int,int> f, int value) throws TransformError { return closure_invoke(f, value); }
+
 int checked_owned(owned CheckedClosure<CheckedEnvironment,TransformError,int,int> f) throws TransformError { return closure_invoke(f, -1); }
+
 int main() {
 	var child = new CheckedChild(10);
 	var env = new CheckedEnvironment(move child);
-	try { if (checked_code(env, 2) != 42) { return 80; } } catch (Error error) { return 81; }
+	try { if (checked_code(env, 2) != 42) return 80; } catch (Error error) { return 81; }
 	var f = checked_closure_bind(move env, checked_code);
 	try {
-		if (checked_borrow(f, 2) != 42) { return 82; }
+		if (checked_borrow(f, 2) != 42) return 82;
 		try { checked_borrow(f, -1); return 83; }
-		catch (TransformError error) { if (error.message != "checked-transform") { return 84; } checked_event(4, 1); }
-		if (closure_invoke(f, 3) != 43) { return 85; }
+		catch (TransformError error) { if (error.message != "checked-transform") return 84; checked_event(4, 1); }
+		if (closure_invoke(f, 3) != 43) return 85;
 		checked_owned(move f);
 		return 86;
-	} catch (Error error) { if (error.message != "checked-transform") { return 87; } checked_event(4, 2); }
+	} catch (Error error) { if (error.message != "checked-transform") return 87; checked_event(4, 2); }
 	return 0;
 }

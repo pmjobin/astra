@@ -17,6 +17,7 @@ typedef struct {
 	int site;
 	unsigned long id;
 } Allocation;
+
 static Allocation live[64];
 static void *argument_snapshot;
 static void *(*next_malloc)(size_t);

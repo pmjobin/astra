@@ -3,6 +3,7 @@ namespace Transform14;
 using Record14;
 
 class RecordError : Error { init() : base("expected 0|, 1| or 2| record") {} }
+
 // Coalesce consecutive equal diagnostics, preserve counted UTF-8 (including NUL),
 // and produce severity totals. Files and records own all their backing storage.
 public int transform(string input_path, string output_path) throws Error {
@@ -14,32 +15,36 @@ public int transform(string input_path, string output_path) throws Error {
 	int start = 0;
 	while (start < text.byte_length) {
 		int end = text_find(text, "\n", start);
-		if (end < 0) { end = text.byte_length; }
+		if (end < 0) end = text.byte_length;
 		int length = end - start;
-		if (length > 0 && text_byte(text, end - 1) == 13) { length = length - 1; }
+		if (length > 0 && text_byte(text, end - 1) == 13) length = length - 1;
 		if (length > 0) {
 			int level = text_byte(text, start) - 48;
-			if (length < 2 || level < 0 || level > 2 || text_byte(text, start + 1) != 124) { throw new RecordError(); }
+			if (length < 2 || level < 0 || level > 2 || text_byte(text, start + 1) != 124) {
+				throw new RecordError();
+			}
 			var payload = text_segment(text, start + 2, length - 2);
 			counts[level] = counts[level] + 1;
 			bool merged = false;
 			int last = runs.count() - 1;
-			if (last >= 0) { merged = join(runs.entries[last], level, payload); }
+			if (last >= 0) merged = join(runs.entries[last], level, payload);
 			if (!merged) {
 				if (runs.count() == runs.capacity()) {
 					int capacity = runs.capacity() * 2;
-					if (capacity == 0) { capacity = 1; }
-					if (!runs.reserve(capacity)) { throw new TextCapacityError(); }
+					if (capacity == 0) capacity = 1;
+					if (!runs.reserve(capacity)) {
+						throw new TextCapacityError();
+					}
 				}
 				var run = new Run(level, move payload);
 				runs.append(move run);
 			}
 		}
-		if (end == text.byte_length) { break; }
+		if (end == text.byte_length) break;
 		start = end + 1;
 	}
 	var output = new Utf8ByteBuilder();
-	for (int i = 0; i < runs.count(); i = i + 1) { require_text(render_run(output, runs.entries[i])); }
+	for (int i = 0; i < runs.count(); i = i + 1) require_text(render_run(output, runs.entries[i]));
 	require_text(append_text(output, "counts"));
 	for (int level = 0; level < 3; level = level + 1) {
 		require_text(append_text(output, " ")); require_text(append_int(output, counts[level]));

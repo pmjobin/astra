@@ -1,20 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int se_mark(int n);
+
 extern(C) int se_count(int n);
+
 extern(C) f32 se_f32(int n);
+
 extern(C) f64 se_f64(int n);
+
 extern(C) int se_check32(f32 value, int n);
+
 extern(C) int se_check64(f64 value, int n);
+
 extern(C) void* se_pointer();
+
 struct Leaf { bool<4> mask; void* address; f32 small; f64 large; i16<8> vector; }
-struct Record { u8 start; Leaf left; Leaf right; u8 end; void initialize() { se_mark(900); } }
+
+struct Record { u8 start; Leaf left; Leaf right; u8 end;
+
+	void initialize() { se_mark(900); } }
+
 int main() {
 	int n = se_count(3); var records = new Record[n];
-	if (any(records[n - 1].left.mask) || records[n - 1].left.address != null || se_check32(records[n - 1].left.small, 0) != 1 || se_check64(records[n - 1].right.large, 0) != 1 || any(records[n - 1].right.vector != splat(0,8))) { return 1; }
+	if (any(records[n - 1].left.mask) || records[n - 1].left.address != null || se_check32(records[n - 1].left.small, 0) != 1 || se_check64(records[n - 1].right.large, 0) != 1 || any(records[n - 1].right.vector != splat(0,8))) return 1;
 	records[n - 1].left.mask = splat(true,4); records[n - 1].left.address = se_pointer(); records[n - 1].left.small = se_f32(10); records[n - 1].left.large = se_f64(1); records[n - 1].left.vector = splat(123,8);
 	var saved = records[n - 1].left;
 	records[0].right = saved; records[n - 1].left = records[0].right;
 	var copy = records[n - 1]; records[0] = copy; release records;
-	if (!all(copy.left.mask) || copy.left.address != se_pointer() || se_check32(copy.left.small, 10) != 1 || se_check64(copy.left.large, 1) != 1 || !all(copy.left.vector == splat(123,8))) { return 2; }
+	if (!all(copy.left.mask) || copy.left.address != se_pointer() || se_check32(copy.left.small, 10) != 1 || se_check64(copy.left.large, 1) != 1 || !all(copy.left.vector == splat(123,8))) return 2;
 	return 0;
 }

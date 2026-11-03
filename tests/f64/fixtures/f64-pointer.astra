@@ -1,15 +1,16 @@
 void modify(f64* p, f64* alias) { *p = *p + 0.25; *alias = *alias * 2.0; }
+
 int main() {
 	f64 x = 1.25;
 	f64* p = &x;
 	f64* alias = p;
 	x = x + 0.25;
-	if (*p != 1.5) { return 1; }
+	if (*p != 1.5) return 1;
 	modify(p, alias);
-	if (x != 3.5 || *alias != x) { return 2; }
+	if (x != 3.5 || *alias != x) return 2;
 	*p = -0.0;
-	if (1.0 / x != -1e309) { return 3; }
+	if (1.0 / x != -1e309) return 3;
 	*p = 4.9406564584124654e-324;
-	if (x == 0.0) { return 4; }
+	if (x == 0.0) return 4;
 	return 0;
 }

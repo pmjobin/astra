@@ -11,6 +11,7 @@ internal class LlvmVectorMemoryBinding : Object {
 		this.operation = operation;
 		this.alignment = alignment;
 	}
+
 	internal void verify() throws LlvmError {
 		foreach (var step in proof) {
 			step.verify ();
@@ -19,6 +20,7 @@ internal class LlvmVectorMemoryBinding : Object {
 			throw new LlvmError.VERIFICATION ("vector memory lost its checked alignment or operation");
 		}
 	}
+
 }
 
 internal class LlvmVectorMemory : Object {
@@ -88,5 +90,6 @@ internal class LlvmVectorMemory : Object {
 		artifact.vector_memory.add (binding);
 		return result;
 	}
+
 }
 }

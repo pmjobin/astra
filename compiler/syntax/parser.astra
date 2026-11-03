@@ -12,6 +12,7 @@ class SyntaxParser {
 	int block_depth;
 	int type_depth;
 	bool allocation_element;
+
 	init(SyntaxArena arena, SyntaxSourceId source, owned Lexer lexer, owned Utf8Message empty, owned Utf8Message prefix) {
 		this.lexer = move lexer;
 		this.source = source;
@@ -27,6 +28,7 @@ class SyntaxParser {
 		this.type_depth = 0;
 		this.allocation_element = false;
 	}
+
 	// A failed scan has no token. Preserve its authoritative diagnostic when
 	// reference error paths inspect a nullable cursor after that failure.
 	TokenKind token_kind(SyntaxArena arena, SyntaxTokenId token) {
@@ -36,6 +38,7 @@ class SyntaxParser {
 		}
 		return arena.token_kind(token);
 	}
+
 	SyntaxSpan token_span(SyntaxArena arena, SyntaxTokenId token) {
 		if (token.index == 0) {
 			assert_that(this.error_message.text.byte_length != 0);
@@ -43,6 +46,7 @@ class SyntaxParser {
 		}
 		return arena.token_span(token);
 	}
+
 	owned SyntaxParser fork(SyntaxArena arena) throws Error {
 		var scanner = this.lexer.fork();
 		var empty = syntax_text("");
@@ -53,11 +57,13 @@ class SyntaxParser {
 		result.second_lookahead = this.second_lookahead;
 		return move result;
 	}
+
 	void lexer_error() throws Error {
 		this.error_span = syntax_span(this.source, this.lexer.error_start, this.lexer.error_end);
 		var message = syntax_text(this.lexer.error_message.text);
 		this.error_message = move message;
 	}
+
 	SyntaxTokenId scan(SyntaxArena arena) throws Error {
 		var token = this.lexer.next_token();
 		if (this.lexer.failed) {
@@ -67,6 +73,7 @@ class SyntaxParser {
 		}
 		return arena.add_token(this.source, move token);
 	}
+
 	bool advance(SyntaxArena arena) throws Error {
 		if (this.lookahead.index != 0) {
 			this.current = this.lookahead;
@@ -78,12 +85,14 @@ class SyntaxParser {
 		this.second_lookahead = none;
 		return this.current.index != 0;
 	}
+
 	bool next_is(SyntaxArena arena, TokenKind kind) throws Error {
 		if (this.lookahead.index == 0) {
 			this.lookahead = this.scan(arena);
 		}
 		return this.lookahead.index != 0 && this.token_kind(arena, this.lookahead) == kind;
 	}
+
 	bool following_is(SyntaxArena arena, TokenKind kind) throws Error {
 		if (this.lookahead.index == 0) {
 			this.lookahead = this.scan(arena);
@@ -96,6 +105,7 @@ class SyntaxParser {
 		}
 		return this.second_lookahead.index != 0 && this.token_kind(arena, this.second_lookahead) == kind;
 	}
+
 	bool next_begins_expression(SyntaxArena arena) throws Error {
 		if (this.lookahead.index == 0) {
 			this.lookahead = this.scan(arena);
@@ -106,6 +116,7 @@ class SyntaxParser {
 		var kind = this.token_kind(arena, this.lookahead);
 		return kind == TokenKind.THIS() || kind == TokenKind.SLICE() || kind == TokenKind.LEN() || kind == TokenKind.IDENTIFIER() || kind == TokenKind.INTEGER() || kind == TokenKind.FLOAT() || kind == TokenKind.TRUE() || kind == TokenKind.FALSE() || kind == TokenKind.NULL() || kind == TokenKind.OPEN_PAREN() || kind == TokenKind.PLUS() || kind == TokenKind.MINUS() || kind == TokenKind.BANG() || kind == TokenKind.AMPERSAND() || kind == TokenKind.ALL() || kind == TokenKind.ANY() || kind == TokenKind.SPLAT() || kind == TokenKind.INSERT() || kind == TokenKind.SHUFFLE() || kind == TokenKind.SELECT();
 	}
+
 	void fail(SyntaxArena arena, SyntaxSpan span, string message) throws Error {
 		if (this.error_message.text.byte_length == 0) {
 			this.error_span = span;
@@ -113,6 +124,7 @@ class SyntaxParser {
 			this.error_message = move copy;
 		}
 	}
+
 	SyntaxTokenId expect(SyntaxArena arena, TokenKind kind, string message) throws Error {
 		SyntaxTokenId none = {index = 0};
 		if (this.token_kind(arena, this.current) != kind) {
@@ -138,6 +150,7 @@ class SyntaxParser {
 		}
 		return token;
 	}
+
 	SyntaxTokenId type_close(SyntaxArena arena, string message) throws Error {
 		if (this.token_kind(arena, this.current) != TokenKind.SHIFT_RIGHT()) {
 			return this.expect(arena, TokenKind.GREATER(), message);
@@ -147,6 +160,7 @@ class SyntaxParser {
 		this.current = arena.source_token(TokenKind.GREATER(), syntax_span(span.source, span.start + 1, span.end));
 		return first;
 	}
+
 	SyntaxListId parse_type_parameters(SyntaxArena arena) throws Error {
 		if ((!this.advance(arena))) {
 			SyntaxListId tmp_1 = {index = 0};
@@ -183,6 +197,7 @@ class SyntaxParser {
 		}
 		return tmp_7;
 	}
+
 	SyntaxListId parse_type_arguments(SyntaxArena arena, int arg_channel_start) throws Error {
 		if ((this.expect(arena, TokenKind.LESS(), "expected '<' before type arguments").index == 0)) {
 			SyntaxListId tmp_1 = {index = 0};
@@ -254,6 +269,7 @@ class SyntaxParser {
 		}
 		return tmp_15;
 	}
+
 	bool begins_generic_call(SyntaxArena arena) throws Error {
 		var checkpoint = arena.checkpoint();
 		if ((this.token_kind(arena, this.current) != TokenKind.LESS())) {
@@ -270,6 +286,7 @@ class SyntaxParser {
 		arena.rewind(checkpoint);
 		return tmp_4;
 	}
+
 	bool begins_enum_application(SyntaxArena arena) throws Error {
 		var checkpoint = arena.checkpoint();
 		if ((this.token_kind(arena, this.current) != TokenKind.LESS())) {
@@ -286,6 +303,7 @@ class SyntaxParser {
 		arena.rewind(checkpoint);
 		return tmp_4;
 	}
+
 	SyntaxNodeId parse_applied_enum_call(SyntaxArena arena, SyntaxTokenId arg_qualifier, int arg_recursion_depth) throws Error {
 		var param_qualifier = arg_qualifier;
 		var v_arguments_1 = this.parse_type_arguments(arena, (-1));
@@ -313,6 +331,7 @@ class SyntaxParser {
 		}
 		return v_call_8;
 	}
+
 	SyntaxNodeId parse_unit(SyntaxArena arena) throws Error {
 		SyntaxTokenId v_namespace_name_1 = {index = 0};
 		var v_imports_2 = arena.new_list(-1);
@@ -1227,6 +1246,7 @@ class SyntaxParser {
 		}
 		return v_unit_246;
 	}
+
 	SyntaxNodeId parse_enum(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.ENUM(), "expected 'enum'");
 		SyntaxTokenId tmp_2 = {index = 0};
@@ -1352,6 +1372,7 @@ class SyntaxParser {
 		arena.set_list_type_parameters(v_declaration_32, v_parameters_6);
 		return v_declaration_32;
 	}
+
 	SyntaxNodeId parse_match(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.MATCH(), "expected 'match'");
 		var tmp_2 = (v_keyword_1.index == 0);
@@ -1496,6 +1517,7 @@ class SyntaxParser {
 		}
 		return tmp_37;
 	}
+
 	SyntaxListId parse_where_clauses(SyntaxArena arena, bool arg_permitted) throws Error {
 		var v_clauses_1 = arena.new_list(syntax_kind_code(SyntaxKind.WhereClauseSyntax()));
 		while (true) {
@@ -1606,6 +1628,7 @@ class SyntaxParser {
 		}
 		return v_clauses_1;
 	}
+
 	SyntaxNodeId parse_native_instance(SyntaxArena arena, bool arg_interface_contract, bool arg_foreign_declaration, bool arg_foreign_interface) throws Error {
 		var v_keyword_1 = this.expect(arena, this.token_kind(arena, this.current), "expected native type declaration");
 		var tmp_2 = arg_interface_contract;
@@ -2367,6 +2390,7 @@ class SyntaxParser {
 		arena.set_list_where_clauses(v_structure_226, v_class_clauses_16);
 		return v_structure_226;
 	}
+
 	SyntaxNodeId parse_property(SyntaxArena arena, bool arg_foreign_declaration) throws Error {
 		var v_keyword_1 = this.current;
 		if ((!this.advance(arena))) {
@@ -2649,6 +2673,7 @@ class SyntaxParser {
 		arena.set_node_throws_class(v_property_80, v_throws_class_11);
 		return v_property_80;
 	}
+
 	SyntaxNodeId parse_vector_initializer(SyntaxArena arena, SyntaxTokenId arg_open, bool arg_array) throws Error {
 		var param_open = arg_open;
 		var v_lanes_1 = arena.new_list(syntax_kind_code(SyntaxKind.ExpressionSyntax()));
@@ -2722,6 +2747,7 @@ class SyntaxParser {
 		}
 		return tmp_17;
 	}
+
 	SyntaxNodeId parse_struct_initializer(SyntaxArena arena, SyntaxTokenId arg_open) throws Error {
 		SyntaxNodeId none = {index = 0};
 		if (arg_open.index == 0) {
@@ -2828,6 +2854,7 @@ class SyntaxParser {
 		}
 		return none;
 	}
+
 	SyntaxNodeId parse_field_access(SyntaxArena arena, SyntaxTokenId arg_identifier, int arg_recursion_depth) throws Error {
 		var param_identifier = arg_identifier;
 		var v_dot_1 = this.expect(arena, this.token_kind(arena, this.current), "expected field access operator");
@@ -2886,6 +2913,7 @@ class SyntaxParser {
 		}
 		return v_field_11;
 	}
+
 	bool begins_qualified_local(SyntaxArena arena, SyntaxTokenId arg_first) throws Error {
 		var param_first = arg_first;
 		var checkpoint = arena.checkpoint();
@@ -2903,6 +2931,7 @@ class SyntaxParser {
 		arena.rewind(checkpoint);
 		return tmp_4;
 	}
+
 	SyntaxNodeId parse_type(SyntaxArena arena, string arg_message, bool arg_conversion) throws Error {
 		if ((this.token_kind(arena, this.current) == TokenKind.NONNULL())) {
 			var v_keyword_1 = this.current;
@@ -2950,6 +2979,7 @@ class SyntaxParser {
 		this.type_depth = (this.type_depth - 1);
 		return v_type_12;
 	}
+
 	SyntaxNodeId parse_type_suffix(SyntaxArena arena, SyntaxTokenId arg_initial_identifier, bool arg_conversion) throws Error {
 		var param_initial_identifier = arg_initial_identifier;
 		var tmp_1 = arena.token_message(param_initial_identifier);
@@ -3153,6 +3183,7 @@ class SyntaxParser {
 		}
 		return tmp_49;
 	}
+
 	bool foreign_class_ahead(SyntaxArena arena) throws Error {
 		var checkpoint = arena.checkpoint();
 		var v_probe_1 = this.fork(arena);
@@ -3189,6 +3220,7 @@ class SyntaxParser {
 		arena.rewind(checkpoint);
 		return tmp_6;
 	}
+
 	SyntaxListId parse_ccode(SyntaxArena arena, int arg_policy, bool arg_object_policy) throws Error {
 		if ((this.expect(arena, TokenKind.OPEN_BRACKET(), "expected '[' before CCode").index == 0)) {
 			SyntaxListId tmp_1 = {index = 0};
@@ -3699,6 +3731,7 @@ class SyntaxParser {
 		}
 		return v_entries_6;
 	}
+
 	SyntaxNodeId parse_function(SyntaxArena arena) throws Error {
 		SyntaxListId v_ccode_1 = {index = 0};
 		SyntaxListId v_floating_point_2 = {index = 0};
@@ -3925,6 +3958,7 @@ class SyntaxParser {
 		}
 		return v_function_64;
 	}
+
 	SyntaxNodeId parse_caller_information(SyntaxArena arena) throws Error {
 		var v_open_1 = this.expect(arena, TokenKind.OPEN_BRACKET(), "expected '[' before caller information");
 		SyntaxTokenId tmp_2 = {index = 0};
@@ -3980,6 +4014,7 @@ class SyntaxParser {
 		}
 		return syntax_make_CallerInformationSyntax(arena, syntax_cover(this.token_span(arena, v_open_1), this.token_span(arena, v_close_15)), v_name_3, v_target_5);
 	}
+
 	SyntaxNodeId parse_function_tail(SyntaxArena arena, SyntaxNodeId arg_return_type, SyntaxTokenId arg_name, SyntaxTokenId arg_owned_keyword, SyntaxTokenId arg_extern_keyword, SyntaxTokenId arg_export_keyword, SyntaxTokenId arg_abi_identifier, SyntaxTokenId arg_async_keyword, bool arg_utf8_factory, bool arg_interface_requirement, SyntaxNodeId arg_foreign_policy, bool arg_foreign_declaration) throws Error {
 		var param_return_type = arg_return_type;
 		var param_name = arg_name;
@@ -4366,6 +4401,7 @@ class SyntaxParser {
 		arena.set_list_where_clauses(v_function_108, v_clauses_76);
 		return v_function_108;
 	}
+
 	SyntaxNodeId parse_block(SyntaxArena arena, string arg_context) throws Error {
 		if ((this.block_depth >= 256)) {
 			this.fail(arena, this.token_span(arena, this.current), "block nesting limit of 256 exceeded");
@@ -4423,6 +4459,7 @@ class SyntaxParser {
 		}
 		return tmp_18;
 	}
+
 	SyntaxNodeId parse_indexed_member_statement(SyntaxArena arena, SyntaxNodeId arg_receiver) throws Error {
 		var param_receiver = arg_receiver;
 		while (true) {
@@ -4480,6 +4517,7 @@ class SyntaxParser {
 		}
 		return tmp_16;
 	}
+
 	SyntaxNodeId parse_try(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.current;
 		if ((!this.advance(arena))) {
@@ -4539,6 +4577,7 @@ class SyntaxParser {
 		}
 		return syntax_make_TryStatementSyntax(arena, v_keyword_1, v_body_3, v_catches_5);
 	}
+
 	SyntaxNodeId parse_statement(SyntaxArena arena) throws Error {
 		var tmp_1 = (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER());
 		if (tmp_1) {
@@ -4987,6 +5026,7 @@ class SyntaxParser {
 		}
 		return tmp_121;
 	}
+
 	SyntaxNodeId parse_indexed_assignment(SyntaxArena arena, SyntaxNodeId arg_target) throws Error {
 		var param_target = arg_target;
 		if ((this.token_kind(arena, this.current) == TokenKind.DOT())) {
@@ -5010,6 +5050,7 @@ class SyntaxParser {
 		}
 		return tmp_5;
 	}
+
 	SyntaxNodeId parse_array_suffix(SyntaxArena arena, SyntaxNodeId arg_element, bool arg_conversion) throws Error {
 		var param_element = arg_element;
 		var tmp_1 = arg_conversion;
@@ -5084,6 +5125,7 @@ class SyntaxParser {
 		}
 		return syntax_make_ArrayTypeSyntax_expression(arena, param_element, v_length_14, v_close_16);
 	}
+
 	SyntaxNodeId parse_index(SyntaxArena arena, SyntaxNodeId arg_container, int arg_depth) throws Error {
 		var param_container = arg_container;
 		var v_open_1 = this.current;
@@ -5111,6 +5153,7 @@ class SyntaxParser {
 		}
 		return arena.try_kind(this.bounded(arena, tmp_8, this.token_span(arena, v_open_1)), SyntaxKind.IndexExpressionSyntax());
 	}
+
 	SyntaxNodeId parse_constant(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.current;
 		if ((!this.advance(arena))) {
@@ -5192,6 +5235,7 @@ class SyntaxParser {
 		}
 		return tmp_20;
 	}
+
 	SyntaxNodeId parse_inferred_local(SyntaxArena arena, bool arg_with_header) throws Error {
 		var v_keyword_1 = this.current;
 		if ((!this.advance(arena))) {
@@ -5264,6 +5308,7 @@ class SyntaxParser {
 		}
 		return tmp_19;
 	}
+
 	SyntaxNodeId parse_local_declaration(SyntaxArena arena, SyntaxNodeId arg_local_type, SyntaxTokenId arg_owned_keyword) throws Error {
 		var param_local_type = arg_local_type;
 		var param_owned_keyword = arg_owned_keyword;
@@ -5416,10 +5461,11 @@ class SyntaxParser {
 		}
 		return tmp_47;
 	}
+
 	SyntaxNodeId parse_control_body(SyntaxArena arena, string context) throws Error {
-		if (this.token_kind(arena, this.current) == TokenKind.OPEN_BRACE()) { return this.parse_block(arena, context); }
+		if (this.token_kind(arena, this.current) == TokenKind.OPEN_BRACE()) return this.parse_block(arena, context);
 		var statement = this.parse_statement(arena);
-		if (statement.index == 0) { return statement; }
+		if (statement.index == 0) return statement;
 		var kind = arena.kind(statement);
 		if (kind != SyntaxKind.ReturnStatementSyntax() && kind != SyntaxKind.BreakStatementSyntax() && kind != SyntaxKind.ContinueStatementSyntax() && kind != SyntaxKind.AssignmentStatementSyntax() && kind != SyntaxKind.FieldAssignmentStatementSyntax() && kind != SyntaxKind.IndexedAssignmentSyntax() && kind != SyntaxKind.DereferenceAssignmentSyntax() && kind != SyntaxKind.CallStatementSyntax()) {
 			this.fail(arena, arena.header(statement).span, "unbraced control body requires one simple statement; declarations and nested controls require braces");
@@ -5434,6 +5480,7 @@ class SyntaxParser {
 		var statements = arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax())); arena.append_node(statements, statement);
 		return syntax_make_BlockStatementSyntax(arena, open, statements, close);
 	}
+
 	SyntaxNodeId parse_if(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.IF(), "expected 'if'");
 		if ((v_keyword_1.index == 0)) {
@@ -5476,6 +5523,7 @@ class SyntaxParser {
 		}
 		return syntax_make_IfStatementSyntax(arena, v_keyword_1, v_open_3, v_condition_5, v_close_7, v_then_body_9, v_else_keyword_11, v_else_body_12);
 	}
+
 	SyntaxNodeId parse_for_step(SyntaxArena arena) throws Error {
 		var v_target_1 = this.parse_expression(arena, 0, 0);
 		if ((v_target_1.index == 0)) {
@@ -5526,6 +5574,7 @@ class SyntaxParser {
 		SyntaxNodeId tmp_14 = {index = 0};
 		return tmp_14;
 	}
+
 	SyntaxNodeId parse_with(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.current;
 		var tmp_2 = (!this.advance(arena));
@@ -5564,6 +5613,7 @@ class SyntaxParser {
 		}
 		return tmp_10;
 	}
+
 	SyntaxNodeId parse_foreach(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.current;
 		var tmp_2 = (!this.advance(arena));
@@ -5612,6 +5662,7 @@ class SyntaxParser {
 		}
 		return tmp_15;
 	}
+
 	SyntaxNodeId parse_for(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.current;
 		var tmp_2 = (!this.advance(arena));
@@ -5729,6 +5780,7 @@ class SyntaxParser {
 		}
 		return tmp_29;
 	}
+
 	SyntaxNodeId parse_while(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.WHILE(), "expected 'while'");
 		if ((v_keyword_1.index == 0)) {
@@ -5758,6 +5810,7 @@ class SyntaxParser {
 		}
 		return tmp_10;
 	}
+
 	SyntaxNodeId parse_return(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.RETURN(), "expected 'return' statement");
 		if ((v_keyword_1.index == 0)) {
@@ -5786,6 +5839,7 @@ class SyntaxParser {
 		}
 		return tmp_7;
 	}
+
 	int infix_binding_power(SyntaxArena arena, TokenKind arg_kind) throws Error {
 		var tmp_1 = arg_kind;
 		if (tmp_1 == TokenKind.AS()) {
@@ -5834,6 +5888,7 @@ class SyntaxParser {
 			}
 		}
 	}
+
 	SyntaxNodeId bounded(SyntaxArena arena, SyntaxNodeId arg_expression, SyntaxSpan arg_marker) throws Error {
 		var param_expression = arg_expression;
 		var param_marker = arg_marker;
@@ -5844,6 +5899,7 @@ class SyntaxParser {
 		}
 		return param_expression;
 	}
+
 	SyntaxNodeId parse_expression(SyntaxArena arena, int arg_minimum_power, int arg_recursion_depth) throws Error {
 		if ((arg_recursion_depth >= 256)) {
 			this.fail(arena, this.token_span(arena, this.current), "expression nesting limit of 256 exceeded");
@@ -6050,6 +6106,7 @@ class SyntaxParser {
 		}
 		return v_left_2;
 	}
+
 	bool indexed_member_root(SyntaxArena arena, SyntaxNodeId arg_syntax) throws Error {
 		var param_syntax = arg_syntax;
 		while (true) {
@@ -6064,6 +6121,7 @@ class SyntaxParser {
 		}
 		return (param_syntax.index != 0 && syntax_kind_accepts(arena.kind(param_syntax), SyntaxKind.IndexExpressionSyntax()));
 	}
+
 	SyntaxNodeId parse_call(SyntaxArena arena, SyntaxTokenId arg_identifier, int arg_recursion_depth, SyntaxTokenId arg_receiver, SyntaxTokenId arg_member_operator, bool arg_construction, SyntaxNodeId arg_receiver_place) throws Error {
 		var param_identifier = arg_identifier;
 		var param_receiver = arg_receiver;
@@ -6158,6 +6216,7 @@ class SyntaxParser {
 		arena.set_list_type_arguments(v_call_22, v_type_arguments_8);
 		return arena.try_kind(this.bounded(arena, v_call_22, this.token_span(arena, param_identifier)), SyntaxKind.CallExpressionSyntax());
 	}
+
 	SyntaxNodeId parse_owned_initializer(SyntaxArena arena, bool arg_argument, bool arg_field_initializer) throws Error {
 		if ((this.token_kind(arena, this.current) != TokenKind.MOVE())) {
 			return this.parse_expression(arena, 0, 0);
@@ -6242,6 +6301,7 @@ class SyntaxParser {
 		}
 		return syntax_make_MoveExpressionSyntax(arena, v_keyword_1, v_source_5, v_fields_7);
 	}
+
 	SyntaxNodeId parse_vector_dot(SyntaxArena arena, int arg_recursion_depth) throws Error {
 		var v_keyword_1 = this.current;
 		var tmp_2 = (this.token_kind(arena, v_keyword_1) == TokenKind.MAC_WRAP());
@@ -6330,6 +6390,7 @@ class SyntaxParser {
 		}
 		return tmp_25;
 	}
+
 	SyntaxNodeId parse_dsp(SyntaxArena arena, int arg_recursion_depth) throws Error {
 		var v_keyword_1 = this.current;
 		var tmp_2 = (this.token_kind(arena, v_keyword_1) == TokenKind.WIDEN_LOW());
@@ -6410,6 +6471,7 @@ class SyntaxParser {
 		}
 		return tmp_23;
 	}
+
 	SyntaxNodeId parse_vector_primitive(SyntaxArena arena, int arg_recursion_depth) throws Error {
 		var v_keyword_1 = this.current;
 		if ((!this.advance(arena))) {
@@ -6535,6 +6597,7 @@ class SyntaxParser {
 		}
 		return this.bounded(arena, syntax_make_VectorPrimitiveExpressionSyntax(arena, v_keyword_1, v_open_3, v_operands_7, v_indices_8, v_commas_9, v_close_28), this.token_span(arena, v_keyword_1));
 	}
+
 	bool context_allocation_prefix(SyntaxArena arena) throws Error {
 		var checkpoint = arena.checkpoint();
 		if ((!this.next_is(arena, TokenKind.OPEN_PAREN()))) {
@@ -6593,6 +6656,7 @@ class SyntaxParser {
 		arena.rewind(checkpoint);
 		return tmp_14;
 	}
+
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
 		var v_token_1 = this.current;
 		if ((this.token_kind(arena, v_token_1) == TokenKind.AWAIT())) {

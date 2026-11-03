@@ -44,9 +44,11 @@ private void specialize() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-cap/monomorphizer/all-operators-all-admitted-scalars-lifetime-determinism-invalid-unused", specialize);
 	return Test.run ();
 }
+
 }

@@ -6,18 +6,20 @@ void clear(borrowed i16[] values) {
 		i = i + 1;
 	}
 }
+
 int overlap(borrowed int[] first, borrowed int[] second) {
 	int[] local = first;
 	local[2] = 40;
 	second[0] = second[0] + 2;
 	return first[2];
 }
+
 int main() {
 	int[6] a = {1,2,3,4,5,6};
 	int[] s = slice(a,0,4);
-	if (overlap(s,slice(a,2,4)) != 42 || len(s) != 4 || s[2] != 42 || a[2] != 42) { return 1; }
+	if (overlap(s,slice(a,2,4)) != 42 || len(s) != 4 || s[2] != 42 || a[2] != 42) return 1;
 	i16[2] b = {1,2};
 	clear(slice(b));
-	if (b[0] != 0 || b[1] != 0) { return 2; }
+	if (b[0] != 0 || b[1] != 0) return 2;
 	return 0;
 }

@@ -4,26 +4,36 @@ struct CachedPacket {
 	owned int[] samples;
 	int tag;
 }
+
 int packet_count(Vector<CachedPacket> values) { return values.count(); }
+
 bool same_packets(Vector<CachedPacket> first, Vector<CachedPacket> second) { return first == second; }
+
 class ChildOwner {
 	owned Vector<CachedPacket> values;
+
 	init(owned Vector<CachedPacket> values) { this.values = move values; }
+
 	property borrowed Vector<CachedPacket> view { get { return this.values; } }
 }
+
 class CountSource {
 	init() {}
+
 	virtual property int size { get { return -1; } }
 }
+
 class CachedSource : CountSource {
 	int tag;
 	int attempts;
 	bool fail_first;
+
 	init(int tag, bool fail_first) : base() {
 		this.tag = tag;
 		this.attempts = 0;
 		this.fail_first = fail_first;
 	}
+
 	lazy property owned Vector<CachedPacket> packets throws Error {
 		get {
 			this.attempts = this.attempts + 1;
@@ -34,28 +44,35 @@ class CachedSource : CountSource {
 			samples[1] = this.tag + 1;
 			CachedPacket packet = {handle = move handle, samples = move samples, tag = this.tag};
 			bool stored = values.append(move packet);
-			if (this.fail_first && this.attempts == 1) { throw new Error("retry cache"); }
+			if (this.fail_first && this.attempts == 1) {
+				throw new Error("retry cache");
+			}
 			return move values;
 		}
 	}
+
 	int measure() {
 		try { return packet_count(this.packets); }
 		catch(Error error) { return 0; }
 	}
+
 	override property int size { get { return this.measure(); } }
+
 	deinit() { mark(100 + this.tag); }
 }
+
 int dynamic_size(CountSource source) { return source.size; }
+
 int main() {
 	{
 		var first = new CachedSource(1, true);
 		var second = new CachedSource(2, false);
-		if (dynamic_size(first) != 0 || first.attempts != 1) { return 71; }
-		if (dynamic_size(second) != 1 || dynamic_size(first) != 1) { return 72; }
-		if (dynamic_size(first) != 1 || dynamic_size(second) != 1 || first.attempts != 2 || second.attempts != 1) { return 73; }
-		try { if (!same_packets(first.packets, first.packets) || same_packets(first.packets, second.packets)) { return 76; } } catch(Error error) { return 77; }
+		if (dynamic_size(first) != 0 || first.attempts != 1) return 71;
+		if (dynamic_size(second) != 1 || dynamic_size(first) != 1) return 72;
+		if (dynamic_size(first) != 1 || dynamic_size(second) != 1 || first.attempts != 2 || second.attempts != 1) return 73;
+		try { if (!same_packets(first.packets, first.packets) || same_packets(first.packets, second.packets)) return 76; } catch(Error error) { return 77; }
 		var moved = move first;
-		if (dynamic_size(moved) != 1 || moved.attempts != 2) { return 74; }
+		if (dynamic_size(moved) != 1 || moved.attempts != 2) return 74;
 	}
 	{
 		var values = new Vector<CachedPacket>(0);
@@ -64,7 +81,7 @@ int main() {
 		CachedPacket packet = {handle = move handle, samples = move samples, tag = 3};
 		bool stored = values.append(move packet);
 		var child = new ChildOwner(move values);
-		if (packet_count(child.view) != 1) { return 75; }
+		if (packet_count(child.view) != 1) return 75;
 	}
 	return 0;
 }

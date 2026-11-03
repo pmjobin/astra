@@ -5,9 +5,9 @@ int main() {
 	assert_code(samples.size() == TITLE.byte_length, 742);
 	assert_code(samples.first() == 0.0d, 743);
 	assert_code(label == SAME_TITLE && "a\0b" != "a\0c", 744);
-	if (!announce(label)) { return 1; }
-	if (!emit_tag(3)) { return 1; }
-	if (!print_stderr("status\0ok")) { return 1; }
+	if (!announce(label)) return 1;
+	if (!emit_tag(3)) return 1;
+	if (!print_stderr("status\0ok")) return 1;
 	assert_code(label == TITLE, 745);
 	return 0;
 }

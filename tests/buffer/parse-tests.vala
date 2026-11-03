@@ -20,6 +20,7 @@ private void positive() {
 		assert(result.unit != null);
 	}
 }
+
 private void negative() {
 	foreach (string source in new string[] {
 			"void f(){f64 owned[] a=new f64[3];}",
@@ -33,10 +34,12 @@ private void negative() {
 		assert(Parser.parse(new SourceFile.from_text("buffer-invalid", source)).diagnostic != null);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/parser/owned-bindings-parameters-results-fields-and-new", positive);
 	Test.add_func("/buffer/parser/malformed-placement-and-allocation", negative);
 	return Test.run();
 }
+
 }

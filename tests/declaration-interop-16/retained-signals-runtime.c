@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 typedef void (*Callback)(void *, int32_t, bool, double);
+
 typedef struct {
 	GObject *object;
 	void *token;
@@ -11,12 +12,15 @@ typedef struct {
 	unsigned calls;
 	gboolean active;
 } Context;
+
 static unsigned retired;
+
 static void finalized(gpointer data, GObject *object) {
 	(void)data;
 	(void)object;
 	++retired;
 }
+
 static void receive(void *data, int32_t value, bool committed, double weight) {
 	Context *c = data;
 	assert(value == 37 && committed && weight == 2.5 && !c->active);
@@ -28,6 +32,7 @@ static void receive(void *data, int32_t value, bool committed, double weight) {
 	assert(astra_gobject16_signal_retire(c->token) == 0 && retired == 0);
 	c->active = FALSE;
 }
+
 static void marshal(GClosure *closure, GValue *result, guint count, const GValue *values, gpointer hint, gpointer extra) {
 	(void)result;
 	(void)hint;
@@ -42,14 +47,17 @@ static void marshal(GClosure *closure, GValue *result, guint count, const GValue
 	callback(astra_gobject16_signal_context(connection), g_value_get_int(&values[1]), g_value_get_boolean(&values[2]) != FALSE, g_value_get_double(&values[3]));
 	astra_gobject16_signal_leave(connection);
 }
+
 typedef struct {
 	void *source, *token;
 } Worker;
+
 static gpointer wrong_thread(gpointer data) {
 	Worker *w = data;
 	assert(astra_gobject16_signal_mode(w->source) == -1 && astra_gobject16_signal_revoke(w->token) == -3 && astra_gobject16_signal_observe(w->token) == -3);
 	return NULL;
 }
+
 int main(void) {
 	Context c = {0};
 	c.object = g_object_new(G_TYPE_OBJECT, NULL);

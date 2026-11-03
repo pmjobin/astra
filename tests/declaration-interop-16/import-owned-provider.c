@@ -7,46 +7,57 @@
 #ifdef USE_SDK
 #include "imports16.h"
 #else
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 #endif
+
 typedef struct owned_provider16_handle {
 	unsigned references;
 } owned_provider16_handle;
+
 /* Payload address deliberately differs from the allocator's address. */
 typedef struct payload {
 	uint64_t magic;
 	size_t extent;
 	unsigned char bytes[];
 } payload;
+
 static unsigned roots, root_retired, allocations, releases, release_calls, exceptions, calls;
 static int deny;
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (deny > 0 && --deny == 0) {
 		return NULL;
 	}
 	return __real_calloc(count, size);
 }
+
 int32_t owned16_exception_retired(void) {
 	++exceptions;
 	return 0;
 }
+
 int32_t owned16_error_seen(void) {
 	assert(allocations == releases);
 	return 0;
 }
+
 static void clear(astra_foreign_error *error) {
 	assert(error);
 	error->domain = 0;
 	error->code = 0;
 }
+
 static int32_t fail(astra_foreign_error *error) {
 	error->domain = 16;
 	error->code = -1600;
 	return -1600;
 }
+
 static unsigned char *make(const unsigned char *input, size_t count) {
 	payload *p = malloc(sizeof *p + count + 1);
 	assert(p);
@@ -59,6 +70,7 @@ static unsigned char *make(const unsigned char *input, size_t count) {
 	++allocations;
 	return p->bytes;
 }
+
 static int32_t retire(unsigned char **owner, int32_t *length, astra_foreign_error *error) {
 	assert(owner && length);
 	clear(error);
@@ -75,15 +87,18 @@ static int32_t retire(unsigned char **owner, int32_t *length, astra_foreign_erro
 	*length = 0;
 	return 0;
 }
+
 int32_t owned_provider16_bytes_release(uint8_t **owner, int32_t *length, astra_foreign_error *error) {
 	return retire(owner, length, error);
 }
+
 int32_t owned_provider16_text_release(char **owner, int32_t *length, astra_foreign_error *error) {
 	unsigned char *p = (unsigned char *)*owner;
 	int32_t status = retire(&p, length, error);
 	*owner = (char *)p;
 	return status;
 }
+
 int32_t owned_provider16_create(owned_provider16_handle **out, astra_foreign_error *error) {
 	clear(error);
 	*out = malloc(sizeof **out);
@@ -92,7 +107,9 @@ int32_t owned_provider16_create(owned_provider16_handle **out, astra_foreign_err
 	++roots;
 	return 0;
 }
+
 #ifdef EXPECT_SHARED
+
 uint32_t owned_provider16_release(owned_provider16_handle *self) {
 	if (!self) {
 		return 0;
@@ -104,7 +121,9 @@ uint32_t owned_provider16_release(owned_provider16_handle *self) {
 	}
 	return n;
 }
+
 #else
+
 int32_t owned_provider16_destroy(owned_provider16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner && *owner);
@@ -113,7 +132,9 @@ int32_t owned_provider16_destroy(owned_provider16_handle **owner, astra_foreign_
 	*owner = NULL;
 	return 0;
 }
+
 #endif
+
 int32_t owned_provider16_bytes(owned_provider16_handle *self, int32_t mode, const uint8_t *input, int32_t length, uint8_t *output, int32_t capacity, int32_t *count, uint8_t **out, int32_t *out_length, astra_foreign_error *error) {
 	assert(self && input && length == 3 && input[0] == 1 && output && capacity == 4 && count && out && out_length);
 	++calls;
@@ -148,6 +169,7 @@ int32_t owned_provider16_bytes(owned_provider16_handle *self, int32_t mode, cons
 	}
 	return 0;
 }
+
 int32_t owned_provider16_counted(owned_provider16_handle *self, int32_t mode, char **out, int32_t *length, astra_foreign_error *error) {
 	assert(self && out && length);
 	clear(error);
@@ -174,6 +196,7 @@ int32_t owned_provider16_counted(owned_provider16_handle *self, int32_t mode, ch
 	}
 	return 0;
 }
+
 int32_t owned_provider16_nul(owned_provider16_handle *self, int32_t mode, char **out, int32_t *length, astra_foreign_error *error) {
 	assert(self && out && length);
 	clear(error);
@@ -191,7 +214,9 @@ int32_t owned_provider16_nul(owned_provider16_handle *self, int32_t mode, char *
 	}
 	return 0;
 }
+
 extern int32_t import_owned16_run(int32_t mode);
+
 int main(void) {
 	for (int32_t mode = 0; mode < 11; ++mode) {
 		deny = mode == 9 ? 1 : mode == 10 ? 2

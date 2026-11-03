@@ -41,6 +41,7 @@ int32_t astra_file_open(const unsigned char *path, int32_t length, int32_t mode)
 	free(name);
 	return fd < 0 ? -error : fd;
 }
+
 /* One bounded transfer per call. Astra owns all full-file storage and loops. */
 int32_t astra_file_read_byte(int32_t fd) {
 	unsigned char byte;
@@ -53,6 +54,7 @@ int32_t astra_file_read_byte(int32_t fd) {
 	}
 	return count < 0 ? -1 - errno : byte;
 }
+
 int32_t astra_file_write_byte(int32_t fd, int32_t byte) {
 	if (byte < 0 || byte > 255) {
 		return -EINVAL;
@@ -65,9 +67,11 @@ int32_t astra_file_write_byte(int32_t fd, int32_t byte) {
 	return count == 1 ? 0 : count == 0 ? -EIO
 	                                   : -errno;
 }
+
 static int valid_range(const unsigned char *data, int32_t length, int32_t offset, int32_t count) {
 	return length >= 0 && offset >= 0 && count >= 0 && offset <= length && count <= length - offset && (!length || data);
 }
+
 int32_t astra_file_read_buffer(int32_t fd, unsigned char *data, int32_t length, int32_t offset, int32_t count) {
 	if (!valid_range(data, length, offset, count)) {
 		return -EINVAL;
@@ -82,6 +86,7 @@ int32_t astra_file_read_buffer(int32_t fd, unsigned char *data, int32_t length, 
 	} while (progress < 0 && errno == EINTR);
 	return progress < 0 ? -errno : (int32_t)progress;
 }
+
 int32_t astra_file_write_buffer(int32_t fd, const unsigned char *data, int32_t length, int32_t offset, int32_t count) {
 	if (!valid_range(data, length, offset, count)) {
 		return -EINVAL;
@@ -97,9 +102,11 @@ int32_t astra_file_write_buffer(int32_t fd, const unsigned char *data, int32_t l
 	return progress < 0 ? -errno : progress == 0 ? -EIO
 	                                             : (int32_t)progress;
 }
+
 int32_t astra_file_write_text(int32_t fd, const unsigned char *data, int32_t length, int32_t offset, int32_t count) {
 	return astra_file_write_buffer(fd, data, length, offset, count);
 }
+
 int32_t astra_file_flush(int32_t fd) {
 	int result;
 	do {
@@ -107,6 +114,7 @@ int32_t astra_file_flush(int32_t fd) {
 	} while (result < 0 && errno == EINTR);
 	return result < 0 ? -errno : 0;
 }
+
 int32_t astra_file_close(int32_t fd) {
 	/* Linux releases the fd even on EINTR; retry could close a reused fd. */
 	return close(fd) < 0 ? -errno : 0;

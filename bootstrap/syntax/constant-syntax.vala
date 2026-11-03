@@ -15,5 +15,6 @@ public class ConstantDeclarationSyntax : StatementSyntax {
 		this.name = name;
 		this.initializer = initializer;
 	}
+
 }
 }

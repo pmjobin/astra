@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void endpoint_server_prepare();
+
 extern(C) int endpoint_server_mode();
+
 extern(C) void endpoint_server_ready(int tcp, int udp);
+
 extern(C) void endpoint_server_observed(int first, int second, int third);
+
 extern(C) int endpoint_server_finish(int result);
 
 int serve_endpoint(string address, int family) throws SocketError {
@@ -14,26 +18,32 @@ int serve_endpoint(string address, int family) throws SocketError {
 	var udp = new UdpSocket();
 	udp.open_at(binding);
 	NetworkEndpoint local = listener.local_address();
-	if (local.family != family || local.port <= 0 || udp.local_address().port <= 0) { return 1; }
+	if (local.family != family || local.port <= 0 || udp.local_address().port <= 0) return 1;
 	endpoint_server_ready(local.port, udp.local_address().port);
 	var context = concurrent_allocator(1, 262147, 17, 128);
-	if (context == null) { return 2; }
+	if (context == null) return 2;
 	var socket = new TcpSocket();
 	NetworkEndpoint peer = binding;
 	int started = astra_net_milliseconds();
-	while (!listener.accept_from(socket, &peer)) { network_deadline(started, 8000); }
-	if (peer.family != family || peer.port <= 0 || !network_endpoint_equal(socket.peer_address(), peer) || !network_endpoint_equal(socket.local_address(), local)) { return 3; }
+	while (!listener.accept_from(socket, &peer)) network_deadline(started, 8000);
+	if (peer.family != family || peer.port <= 0 || !network_endpoint_equal(socket.peer_address(), peer) || !network_endpoint_equal(socket.local_address(), local)) return 3;
 	if (mode == 4) {
 		socket.send_capacity(1024);
 		var bytes = new(context)u8[65507];
-		for (int i = 0; i < len(bytes); i = i + 1) { bytes[i] = ((i * 19 + i / 37) % 256) as u8; }
+		for (int i = 0; i < len(bytes); i = i + 1) bytes[i] = ((i * 19 + i / 37) % 256) as u8;
 		int sent = 0; int blocked = 0; int partial = 0;
 		while (sent < 1048577) {
 			int offset = sent % len(bytes); int count = len(bytes) - offset;
-			if (count > 1048577 - sent) { count = 1048577 - sent; }
+			if (count > 1048577 - sent) count = 1048577 - sent;
 			int progress = socket.try_write(bytes, offset, count);
-			if (progress > 0) { if (progress < count) { partial = partial + 1; } sent = sent + progress; }
-			else { blocked = blocked + 1; network_deadline(started, 8000); }
+			if (progress > 0) {
+				if (progress < count) partial = partial + 1;
+				sent = sent + progress;
+			}
+			else {
+				blocked = blocked + 1;
+				network_deadline(started, 8000);
+			}
 		}
 		socket.half_close();
 		endpoint_server_observed(sent, blocked, partial);
@@ -44,72 +54,106 @@ int serve_endpoint(string address, int family) throws SocketError {
 	try {
 		while (received < 4) {
 			int progress = socket.try_read(header, received, 4 - received);
-			if (progress > 0) { received = received + progress; }
+			if (progress > 0) {
+				received = received + progress;
+			}
 			else {
-				if (progress == 0) { if (mode != 1 || received != 2) { return 4; } endpoint_server_observed(received, 0, 0); return 0; }
-				if (mode == 2) { network_deadline(started, 120); }
-				else { network_deadline(started, 8000); }
+				if (progress == 0) {
+					if (mode != 1 || received != 2) return 4;
+					endpoint_server_observed(received, 0, 0);
+					return 0;
+				}
+				if (mode == 2) {
+					network_deadline(started, 120);
+				}
+				else {
+					network_deadline(started, 8000);
+				}
 			}
 		}
 	} catch (SocketError error) {
-		if (mode == 2 && error.code == -110) { endpoint_server_observed(network_elapsed(started), error.code, 0); return 0; }
+		if (mode == 2 && error.code == -110) {
+			endpoint_server_observed(network_elapsed(started), error.code, 0);
+			return 0;
+		}
 		if (mode == 3 && error.code == -104) {
 			try { int unexpected = socket.try_write(header, 0, 1); return 13; }
-			catch (SocketError write_error) { if (write_error.code != -32) { throw; } endpoint_server_observed(received, error.code, write_error.code); return 0; }
+			catch (SocketError write_error) { if (write_error.code != -32) {
+					throw;
+				} endpoint_server_observed(received, error.code, write_error.code); return 0; }
 		}
 		throw;
 	}
-	if (mode != 0) { return 5; }
+	if (mode != 0) return 5;
 	int length = (header[0] as int) + (header[1] as int) * 256 + (header[2] as int) * 65536;
-	if (header[3] != 0 || length != 8193 || length > 65507) { return 6; }
+	if (header[3] != 0 || length != 8193 || length > 65507) return 6;
 	var bytes = new(context)u8[length];
 	received = 0;
 	while (received < length) {
 		int progress = socket.try_read(bytes, received, length - received);
-		if (progress > 0) { received = received + progress; }
-		else { if (progress == 0) { return 7; } network_deadline(started, 8000); }
+		if (progress > 0) {
+			received = received + progress;
+		}
+		else {
+			if (progress == 0) return 7;
+			network_deadline(started, 8000);
+		}
 	}
-	for (int i = 0; i < length; i = i + 1) { if (bytes[i] != ((i * 19 + i / 37) % 256) as u8) { return 8; } }
+	for (int i = 0; i < length; i = i + 1) {
+		if (bytes[i] != ((i * 19 + i / 37) % 256) as u8) return 8;
+	}
 	int sent = 0;
 	while (sent < length) {
-		int count = length - sent; if (count > 113) { count = 113; }
+		int count = length - sent; if (count > 113) count = 113;
 		int progress = socket.try_write(bytes, sent, count);
-		if (progress > 0) { sent = sent + progress; } else { network_deadline(started, 8000); }
+		if (progress > 0) {
+			sent = sent + progress;
+		} else {
+			network_deadline(started, 8000);
+		}
 	}
 	socket.half_close();
 	while (true) {
 		int progress = socket.try_read(header, 0, 1);
-		if (progress == 0) { break; }
-		if (progress > 0) { return 9; }
+		if (progress == 0) break;
+		if (progress > 0) return 9;
 		network_deadline(started, 8000);
 	}
-	int maximum_packet = 65507; if (family == 6) { maximum_packet = 65527; }
+	int maximum_packet = 65507; if (family == 6) maximum_packet = 65527;
 	var packet_bytes = new(context)u8[maximum_packet];
 	for (int packet = 0; packet < 4; packet = packet + 1) {
 		int expected = 4097;
-		if (packet == 0) { expected = 0; }
-		if (packet == 2) { expected = maximum_packet; }
-		int capacity = expected; if (packet == 3) { capacity = 19; }
+		if (packet == 0) expected = 0;
+		if (packet == 2) expected = maximum_packet;
+		int capacity = expected; if (packet == 3) capacity = 19;
 		bool complete = false;
 		while (!complete) {
 			try {
 				NetworkDatagram datagram = udp.receive_from(packet_bytes, 0, capacity);
 				peer.port = datagram.peer.port;
-				if (datagram.count != capacity || datagram.message_length != expected || datagram.truncated != (packet == 3) || !network_endpoint_equal(datagram.peer, peer)) { return 10; }
-				for (int i = 0; i < capacity; i = i + 1) { if (packet_bytes[i] != ((i * 19 + i / 37) % 256) as u8) { return 11; } }
+				if (datagram.count != capacity || datagram.message_length != expected || datagram.truncated != (packet == 3) || !network_endpoint_equal(datagram.peer, peer)) return 10;
+				for (int i = 0; i < capacity; i = i + 1) {
+					if (packet_bytes[i] != ((i * 19 + i / 37) % 256) as u8) return 11;
+				}
 				int progress = udp.send_to(datagram.peer, packet_bytes, 0, capacity);
-				while (progress == NetAgain || progress == NetInterrupted) { network_deadline(started, 8000); progress = udp.send_to(datagram.peer, packet_bytes, 0, capacity); }
-				if (progress != capacity) { return 12; }
+				while (progress == NetAgain || progress == NetInterrupted) {
+					network_deadline(started, 8000);
+					progress = udp.send_to(datagram.peer, packet_bytes, 0, capacity);
+				}
+				if (progress != capacity) return 12;
 				complete = true;
-			} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) { throw; } network_deadline(started, 8000); }
+			} catch (SocketError error) { if (error.code != NetAgain && error.code != NetInterrupted) {
+					throw;
+				} network_deadline(started, 8000); }
 		}
 	}
 	endpoint_server_observed(received, 4, maximum_packet);
 	return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
-	int family = 6; if (args[2] == "4") { family = 4; }
+	if (len(args) != 3) return 64;
+	int family = 6; if (args[2] == "4") family = 4;
 	endpoint_server_prepare();
 	int result = 0;
 	try { result = serve_endpoint(args[1], family); }

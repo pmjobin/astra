@@ -15,6 +15,7 @@ public class NativeRecordField : Object {
 		this.leaf = leaf;
 		this.record = record;
 	}
+
 }
 
 public class NativeRecordElement : Object {
@@ -33,9 +34,11 @@ public class NativeRecordElement : Object {
 		this.structural_zero = structural_zero;
 		this.trivial_destruction = trivial_destruction;
 	}
+
 	public string spelling() {
 		return "RECORD#%d(%s)".printf (struct_ordinal, struct_name);
 	}
+
 }
 
 public class NativeRecordSliceType : NativeSliceType {
@@ -48,13 +51,16 @@ public class NativeRecordSliceType : NativeSliceType {
 		this.access = access;
 		this.borrowed_noescape = borrowed_noescape;
 	}
+
 	public override string spelling() {
 		return "RECORD_SLICE(PTR,I32; %s) read-write borrowed-noescape".printf (element.spelling ());
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var record = other as NativeRecordSliceType;
 		return record != null && record.element == element && record.access == access && record.borrowed_noescape == borrowed_noescape && record.base_type == base_type && record.length_type == length_type;
 	}
+
 }
 
 public class NativeRecordFieldLayout : Object {
@@ -68,6 +74,7 @@ public class NativeRecordFieldLayout : Object {
 		this.size = size;
 		this.alignment = alignment;
 	}
+
 }
 
 // An explicitly selected target witness. No host size enters semantic identity.
@@ -84,9 +91,11 @@ public class NativeRecordLayout : Object {
 		this.alignment = alignment;
 		this.fields = fields;
 	}
+
 	public bool fits_count(uint64 count) {
 		return stride != 0 && stride <= MAX_EXTENT && count <= MAX_EXTENT / stride;
 	}
+
 	public void verify_x86_64() throws NativeAbiError {
 		var expected = x86_64 (element);
 		if (stride != expected.stride || alignment != expected.alignment || fields.length != expected.fields.length) {
@@ -188,5 +197,6 @@ public class NativeRecordLayout : Object {
 		cache.insert (element, result);
 		return result;
 	}
+
 }
 }

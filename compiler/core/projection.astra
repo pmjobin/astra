@@ -13,15 +13,28 @@ void core_projection_nodes(CoreData core, CheckedIndex checked, Utf8ByteBuilder 
 		source_append_text(output, " "); binding_write_span(checked.bindings, row.span, output); source_append_text(output, "\n");
 		if (row.token.index != 0 || row.operation.index != 0) {
 			source_append_text(output, "PAYLOAD"); flow_number(output, i + 1); source_append_text(output, " ");
-			if (row.token.index != 0) { var text = checked.bindings.program.arena.token_message(row.token); syntax_write_hex(output, text.text); } else { source_append_text(output, "-"); }
+			if (row.token.index != 0) {
+				var text = checked.bindings.program.arena.token_message(row.token);
+				syntax_write_hex(output, text.text);
+			} else {
+				source_append_text(output, "-");
+			}
 			source_append_text(output, " ");
-			if (row.operation.index != 0) { var text = checked.bindings.program.arena.token_message(row.operation); syntax_write_hex(output, text.text); } else { source_append_text(output, "-"); }
+			if (row.operation.index != 0) {
+				var text = checked.bindings.program.arena.token_message(row.operation);
+				syntax_write_hex(output, text.text);
+			} else {
+				source_append_text(output, "-");
+			}
 			source_append_text(output, "\n");
 		}
-		if (output.byte_count() > 16777216) { throw new Error("CORE_RESOURCE_EXHAUSTED"); }
+		if (output.byte_count() > 16777216) {
+			throw new Error("CORE_RESOURCE_EXHAUSTED");
+		}
 		i = i + 1;
 	}
 }
+
 void core_projection_tables(CoreData core, CheckedIndex checked, Utf8ByteBuilder output) throws Error {
 	int i = 0;
 	while (i < core.function_count) {
@@ -34,8 +47,8 @@ void core_projection_tables(CoreData core, CheckedIndex checked, Utf8ByteBuilder
 	while (i < core.place_count) {
 		var p = core.places[i];
 		source_append_text(output, "PLACE"); flow_number(output, i + 1); flow_number(output, p.function); flow_number(output, p.root); flow_number(output, p.parent); flow_number(output, p.symbol.index); flow_number(output, p.type.index); flow_number(output, p.flags); flow_number(output, p.region); flow_number(output, p.slot); flow_number(output, p.field);
-		int parameter = 0; if (p.parameter) { parameter = 1; } flow_number(output, parameter);
-		int leaf = 0; if (p.leaf) { leaf = 1; } flow_number(output, leaf); source_append_text(output, "\n");
+		int parameter = 0; if (p.parameter) parameter = 1; flow_number(output, parameter);
+		int leaf = 0; if (p.leaf) leaf = 1; flow_number(output, leaf); source_append_text(output, "\n");
 		i = i + 1;
 	}
 	i = 0;
@@ -63,8 +76,11 @@ void core_projection_tables(CoreData core, CheckedIndex checked, Utf8ByteBuilder
 		i = i + 1;
 	}
 }
+
 owned Utf8Message core_projection(CoreProgram program) throws Error {
-	if (core_verify(program) != 0) { throw new Error("INVALID_CORE"); }
+	if (core_verify(program) != 0) {
+		throw new Error("INVALID_CORE");
+	}
 	var walk = core_walk(program);
 	var output = new Utf8ByteBuilder();
 	source_append_text(output, "astra-core/1\n");
@@ -86,9 +102,12 @@ owned Utf8Message core_projection(CoreProgram program) throws Error {
 		i = i + 1;
 	}
 	source_append_text(output, "WALK"); flow_number(output, walk.count); flow_number(output, walk.values); flow_number(output, walk.loads); flow_number(output, walk.stores); flow_number(output, walk.calls); flow_number(output, walk.branches); flow_number(output, walk.loops); flow_number(output, walk.records); flow_number(output, walk.moves); flow_number(output, walk.leaves); source_append_text(output, "\n");
-	if (output.byte_count() > 16777216) { throw new Error("CORE_RESOURCE_EXHAUSTED"); }
+	if (output.byte_count() > 16777216) {
+		throw new Error("CORE_RESOURCE_EXHAUSTED");
+	}
 	return output.snapshot();
 }
+
 void core_projection_authority(CheckedIndex checked, Utf8ByteBuilder output) throws Error {
 	int i = 1;
 	while (i <= checked.bindings.program.arena.source_count) {
@@ -119,6 +138,7 @@ void core_projection_authority(CheckedIndex checked, Utf8ByteBuilder output) thr
 		i = i + 1;
 	}
 }
+
 void core_projection_proofs(CheckedIndex checked, int[] proofs, Utf8ByteBuilder output) throws Error {
 	int i = 1;
 	while (i < len(proofs)) {
@@ -129,26 +149,31 @@ void core_projection_proofs(CheckedIndex checked, int[] proofs, Utf8ByteBuilder 
 		i = i + 1;
 	}
 }
+
 SyntaxSpan core_flow_failure_span(borrowed FlowGraph graph, CheckedIndex checked) {
-	if (graph.error != 0) { return graph.error_span; }
-	if (graph.obligation_count > 0) { return checked.bindings.program.arena.header(graph.obligations[0].node).span; }
+	if (graph.error != 0) return graph.error_span;
+	if (graph.obligation_count > 0) return checked.bindings.program.arena.header(graph.obligations[0].node).span;
 	return syntax_empty_span();
 }
+
 owned Utf8Message core_failure_message(CoreProgram program, int status) throws Error {
 	var output = new Utf8ByteBuilder();
-	if (status == 1) { source_append_text(output, "INVALID_CORE"); }
-	if (status == 2) { source_append_text(output, "CORE_RESOURCE_EXHAUSTED"); }
-	if (status == 3) { source_append_text(output, "CORE_DEFERRED"); }
-	if (status == 4) { source_append_text(output, "INVALID_CHECKED_INPUT"); }
+	if (status == 1) source_append_text(output, "INVALID_CORE");
+	if (status == 2) source_append_text(output, "CORE_RESOURCE_EXHAUSTED");
+	if (status == 3) source_append_text(output, "CORE_DEFERRED");
+	if (status == 4) source_append_text(output, "INVALID_CHECKED_INPUT");
 	var span = program.data.error_span;
-	if (span.source.index == 0) { span = program.flow.checked.error_span; }
-	if (span.source.index == 0) { span = program.flow.checked.bindings.error_span; }
+	if (span.source.index == 0) span = program.flow.checked.error_span;
+	if (span.source.index == 0) span = program.flow.checked.bindings.error_span;
 	int i = 0;
 	while (span.source.index == 0 && i < program.flow.graphs.count()) {
 		span = core_flow_failure_span(program.flow.graphs.entries[i], program.flow.checked);
 		i = i + 1;
 	}
-	if (span.source.index == 0 && !program.flow.checked.bindings.program.failed()) { span = program.flow.checked.bindings.program.span(); }
-	if (span.source.index != 0 && program.flow.checked.bindings.program.arena.valid_span(span)) { source_append_text(output, "\nLOCATION "); binding_write_span(program.flow.checked.bindings, span, output); }
+	if (span.source.index == 0 && !program.flow.checked.bindings.program.failed()) span = program.flow.checked.bindings.program.span();
+	if (span.source.index != 0 && program.flow.checked.bindings.program.arena.valid_span(span)) {
+		source_append_text(output, "\nLOCATION ");
+		binding_write_span(program.flow.checked.bindings, span, output);
+	}
 	return output.snapshot();
 }

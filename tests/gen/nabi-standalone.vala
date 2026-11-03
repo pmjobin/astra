@@ -26,9 +26,11 @@ private void concrete() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen/nabi/concrete-instance-existing-channel-universe", concrete);
 	return Test.run ();
 }
+
 }

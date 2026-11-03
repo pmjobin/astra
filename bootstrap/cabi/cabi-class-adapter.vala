@@ -9,6 +9,7 @@ public class CAbiForeignSignal : Object {
 		this.binding = new ForeignSignalBinding (binding.root, binding.member_index);
 		this.native_function = native_function;
 	}
+
 	public bool valid(CAbiProgram program) {
 		if (!binding.valid () || native_function < 0) {
 			return false;
@@ -25,12 +26,14 @@ public class CAbiForeignSignal : Object {
 		}
 		return matches == 1;
 	}
+
 }
 public enum CAbiClassRole {
 	CREATE, ACQUIRE, RELEASE, GET, SET, ROOT_IDENTITY,
 	WEAK, WEAK_CLONE, WEAK_UPGRADE, WEAK_RELEASE,
 	CHECK_THREAD, PERSONALITY, ATTACH;
 }
+
 // A finite opaque-pointer protocol, independent of the native Class layout.
 // Roles carry ownership effects; pointer width alone never grants ownership.
 public class CAbiClassAdapter : Object {
@@ -52,9 +55,11 @@ public class CAbiClassAdapter : Object {
 	public int member_target(uint index) {
 		return declared_targets[index];
 	}
+
 	public static bool byte_sequence(ForeignValueKind kind) {
 		return kind == ForeignValueKind.BYTES || kind == ForeignValueKind.TEXT;
 	}
+
 	public static bool record_forwarder(ForeignMemberContract member) {
 		if (member.result.value_type.kind == ForeignValueKind.RECORD) {
 			return true;
@@ -66,15 +71,19 @@ public class CAbiClassAdapter : Object {
 		}
 		return false;
 	}
+
 	public static string member_symbol(ForeignApiContract api, ForeignMemberContract member, bool canonical = false) {
 		return (canonical && record_forwarder (member) ? "astra_foreign16_" : "") + api.prefix + "_" + member.name;
 	}
+
 	public static string record_name(ForeignValueType type) {
 		return "astra_record_" + Checksum.compute_for_string (ChecksumType.SHA256, type.identity ());
 	}
+
 	public static string record_field_name(ForeignRecordField field, uint ordinal) {
 		return "astra_field_%u_%s".printf (ordinal, field.name);
 	}
+
 	public static uint field_size(ForeignValueKind kind) {
 		switch (kind) {
 		case ForeignValueKind.BOOL:
@@ -91,6 +100,7 @@ public class CAbiClassAdapter : Object {
 			return 0;
 		}
 	}
+
 	public static uint record_alignment(ForeignValueType type) {
 		uint alignment = 1;
 		for (uint f = 0; f < type.field_count; f++) {
@@ -98,6 +108,7 @@ public class CAbiClassAdapter : Object {
 		}
 		return alignment;
 	}
+
 	public static uint record_offset(ForeignValueType type, uint field) {
 		uint position = 0;
 		for (uint f = 0; f <= field; f++) {
@@ -113,20 +124,25 @@ public class CAbiClassAdapter : Object {
 		}
 		return uint.MAX;
 	}
+
 	public static uint record_size(ForeignValueType type) {
 		uint alignment = record_alignment (type);
 		uint end = record_offset (type, type.field_count - 1) + field_size (type.field (type.field_count - 1).kind);
 		return (end + alignment - 1) / alignment * alignment;
 	}
+
 	public static uint declared_width(ForeignChannel channel) {
 		return byte_sequence (channel.value_type.kind) && channel.intrinsic_length || channel.value_type.kind == ForeignValueKind.CALLBACK && channel.intrinsic_context ? 2 : 1;
 	}
+
 	public static string callback_name(string prefix, ForeignValueType type) {
 		return prefix + "_callback_" + Checksum.compute_for_string (ChecksumType.SHA256, type.identity ());
 	}
+
 	public static string native_projection_symbol(ForeignClassPolicy policy) {
 		return "astra_foreign16_" + policy.prefix + "_native_project";
 	}
+
 	public static uint declared_argument(ForeignMemberContract member, uint index) {
 		uint offset = member.kind == ForeignMemberKind.CONSTRUCTOR ? 0 : 1;
 		for (uint p = 0; p < index; p++) {
@@ -134,16 +150,20 @@ public class CAbiClassAdapter : Object {
 		}
 		return offset;
 	}
+
 	public static uint declared_result(ForeignMemberContract member) {
 		return declared_argument (member, member.parameter_count);
 	}
+
 	public static uint declared_result_width(ForeignMemberContract member) {
 		return member.result.value_type.kind == ForeignValueKind.VOID ? 0 : byte_sequence (member.result.value_type.kind) ? 2 : 1;
 	}
+
 	public static uint declared_count(ForeignMemberContract member, uint parameter) {
 		var channel = member.parameter (parameter);
 		return channel.intrinsic_length ? declared_argument (member, parameter) + 1 : declared_argument (member, (uint) (channel.direction == ForeignDirection.IN ? channel.length_index : channel.capacity_index));
 	}
+
 	public CAbiProgram? owner { owned get { return (CAbiProgram?) program.get (); } }
 	internal CAbiClassAdapter (ForeignClassPolicy policy, SourceSpan span, int ordinal, int native_class, int constructor, int getter, int setter, int[]? declared_targets = null) {
 		this.policy = policy.copy ();
@@ -158,6 +178,7 @@ public class CAbiClassAdapter : Object {
 			this.declared_targets = declared_targets.copy ();
 		}
 	}
+
 	internal void claim_owner(CAbiProgram owner) throws CAbiError {
 		if (claimed) {
 			throw new CAbiError.INVALID_ABI ("opaque Class adapter cannot be shared between programs");
@@ -165,6 +186,7 @@ public class CAbiClassAdapter : Object {
 		claimed = true;
 		program = WeakRef (owner);
 	}
+
 	public bool valid() {
 		if (policy == null || !policy.valid () || policy.identity () != identity || native_class < 0 || native_class != original_class || constructor != original_constructor || getter != original_getter || setter != original_setter) {
 			return false;
@@ -182,6 +204,7 @@ public class CAbiClassAdapter : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<string> declared_symbols() {
 		var names = new GenericArray<string> ();
 		var api = policy.declared_api;
@@ -224,11 +247,13 @@ public class CAbiClassAdapter : Object {
 		}
 		return names;
 	}
+
 	public static CAbiClassRole[] roles() {
 		return {
 				   CAbiClassRole.CREATE, CAbiClassRole.ACQUIRE, CAbiClassRole.RELEASE, CAbiClassRole.GET, CAbiClassRole.SET, CAbiClassRole.ROOT_IDENTITY, CAbiClassRole.WEAK, CAbiClassRole.WEAK_CLONE, CAbiClassRole.WEAK_UPGRADE, CAbiClassRole.WEAK_RELEASE, CAbiClassRole.CHECK_THREAD, CAbiClassRole.PERSONALITY, CAbiClassRole.ATTACH
 		};
 	}
+
 	public static string suffix(CAbiClassRole role) {
 		switch (role) {
 		case CAbiClassRole.CREATE: return "create";
@@ -258,21 +283,27 @@ public class CAbiClassAdapter : Object {
 			return "<invalid>";
 		}
 	}
+
 	public string symbol(CAbiClassRole role) {
 		return (role >= CAbiClassRole.CHECK_THREAD ? "astra_foreign14_" : "") + policy.prefix + "_" + suffix (role);
 	}
+
 	public static bool returns_void(CAbiClassRole role) {
 		return role == CAbiClassRole.WEAK_RELEASE;
 	}
+
 	public static CAbiScalarType result(CAbiClassRole role) {
 		return role == CAbiClassRole.CREATE || role == CAbiClassRole.ROOT_IDENTITY || role == CAbiClassRole.WEAK || role == CAbiClassRole.WEAK_CLONE || role == CAbiClassRole.WEAK_UPGRADE || role == CAbiClassRole.PERSONALITY ? CAbiScalarType.PTR : CAbiScalarType.I32;
 	}
+
 	public static int parameter_count(CAbiClassRole role) {
 		return role == CAbiClassRole.ATTACH ? 3 : role == CAbiClassRole.GET || role == CAbiClassRole.SET ? 2 : 1;
 	}
+
 	public static CAbiScalarType parameter(CAbiClassRole role, int index) {
 		return role == CAbiClassRole.CREATE || (role == CAbiClassRole.SET && index == 1) ? CAbiScalarType.I32 : CAbiScalarType.PTR;
 	}
+
 	public static string lifetime(CAbiClassRole role) {
 		switch (role) {
 		case CAbiClassRole.CREATE:
@@ -298,6 +329,7 @@ public class CAbiClassAdapter : Object {
 			return "borrowed root; explicit constructing-thread personality access";
 		}
 	}
+
 }
 public class CAbiForeignImport : Object {
 	public ForeignImportBinding binding { get; private set; }
@@ -327,6 +359,7 @@ public class CAbiForeignImport : Object {
 		}
 		parameters.add (CAbiScalarType.PTR);
 	}
+
 	public static CAbiScalarType scalar(ForeignValueKind kind) {
 		switch (kind) {
 		case ForeignValueKind.I32:
@@ -346,9 +379,11 @@ public class CAbiForeignImport : Object {
 			return CAbiScalarType.PTR;
 		}
 	}
+
 	public string symbol() {
 		return (CAbiClassAdapter.record_forwarder (binding.member) ? "astra_foreign16_import_" : "") + binding.root.api.prefix + "_" + binding.member.name;
 	}
+
 	public bool valid() {
 		if (!binding.valid () || native_function < 0 || error_factory < 0 || native_function != declared_function || error_factory != declared_factory) {
 			return false;
@@ -364,6 +399,7 @@ public class CAbiForeignImport : Object {
 		}
 		return true;
 	}
+
 }
 
 }

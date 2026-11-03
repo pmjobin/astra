@@ -21,6 +21,7 @@ public class NativeContinuationBuilder : Object {
 		}
 		throw new NativeAbiError.INVALID_SSA ("continuation requires exact state record membership");
 	}
+
 	public static NativeContinuationRegionPlan build(SsaProgram source, NativeAbiProgram native, int function, int block, int position) throws NativeAbiError {
 		if (function < 0 || function >= source.functions.length || block < 0 || block >= source.functions[function].blocks.length || position < 0 || position >= source.functions[function].blocks[block].instructions.length) {
 			throw new NativeAbiError.INVALID_SSA ("continuation region has stale executable membership");
@@ -74,6 +75,7 @@ public class NativeContinuationBuilder : Object {
 		plan.verify ();
 		return plan;
 	}
+
 	private static bool same_record(NativeRecordElement a, NativeRecordElement b) {
 		if (a.struct_ordinal != b.struct_ordinal || a.fields.length != b.fields.length || a.natural_layout != b.natural_layout || a.structural_zero != b.structural_zero || a.trivial_destruction != b.trivial_destruction) {
 			return false;
@@ -87,6 +89,7 @@ public class NativeContinuationBuilder : Object {
 		}
 		return true;
 	}
+
 	public static void validate(NativeContinuationRegionPlan plan, SsaProgram source, NativeAbiProgram native, int function, int block, int position) throws NativeAbiError {
 		plan.verify ();
 		var expected = build (source, native, function, block, position);
@@ -118,5 +121,6 @@ public class NativeContinuationBuilder : Object {
 			throw new NativeAbiError.INCOMPATIBLE_CALL ("continuation plan belongs to a different code/environment/operation region");
 		}
 	}
+
 }
 }

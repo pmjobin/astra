@@ -4,14 +4,16 @@ void early_relay<T>(owned T value, int id) where T: Ownable {
 	loan<T>(value, id);
 	late_sink<T>(move value, id);
 }
+
 int main() {
 	var heap = new Counter(20, 1);
 	owned Counter lexical = Counter.init(10, 0);
 	early_relay<Counter>(move heap, 20);
-	if (loan(lexical, 10) != 10) { return 81; }
+	if (loan(lexical, 10) != 10) return 81;
 	early_relay(move lexical, 10);
 	return own_finish();
 }
+
 void late_sink<T>(owned T value, int id) where T: Ownable {
 	own_mark(75, id);
 	loan<T>(value, id);

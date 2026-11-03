@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void observe(int kind, int value, int bound);
+
 struct Packet<T> { T value; }
+
 struct Point { int number; }
+
 Packet<Point> make_packet(int number) { Packet<Point> result = {value = {number = number}}; return result; }
-class Item { int number; init(int number) { this.number = number; } }
+
+class Item { int number;
+
+	init(int number) { this.number = number; } }
+
 [Shared,Monitor]
 [Allocator(kind="context",context="owned-concurrent")]
 class Store {
 	private owned Item[slots] items;
 	private bool admitted;
+
 	init(int capacity) { this.items = new Item[slots]; this.admitted = this.items.reserve(capacity); }
+
 	void publish(owned Item item) { this.items.append(move item); observe(0, len(this.items), 0); }
 }

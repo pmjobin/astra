@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="foreign16_retired")] int retired(int kind);
+
 [ExceptionRoot] class Fault {
 	readonly string text;
+
 	init(){this.text="native foreign-handle failure";}
+
 	virtual property string message{get{return this.text;}}
+
 	deinit(){retired(1);}
 }
+
 owned Fault foreign_fault(int domain,int status){var fault=new Fault();return move fault;}
+
 [CImport(name="foreign_item16",profile="declarations-v1",lifetime="unique",threading="constructing")]
 class Item {
 	[Foreign(error_factory="foreign_fault",error_domain="16",errors="Fault=-1600")]
@@ -15,33 +21,52 @@ class Item {
 	int code() throws Fault;
 }
 int read_item(borrowed Item input) throws Fault{return input.code();}
+
 [CExport(name="foreign_container16",profile="declarations-v1")]
 class Container {
 	private owned Item seed;
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
-	init(owned Item seed,int mode) throws Fault{this.seed=move seed;if(mode!=0){var fault=new Fault();throw move fault;}}
+	init(owned Item seed,int mode) throws Fault{this.seed=move seed;if(mode!=0){
+			var fault=new Fault();
+			throw move fault;
+		}}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	int stored() throws Fault{return read_item(this.seed);}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	int observe(borrowed Item input,int extra) throws Fault{return read_item(input)+extra;}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	[ForeignChannel(parameter="input",nullable="true")]
-	int optional(borrowed Item input) throws Fault{if(input==null){return -1;}return read_item(input);}
+	int optional(borrowed Item input) throws Fault{if(input==null) return -1;return read_item(input);}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
-	int burn(owned Item input,borrowed Item view,int mode) throws Fault{int value=read_item(input);release input;if(mode!=0){var fault=new Fault();throw move fault;}return value+read_item(view);}
+	int burn(owned Item input,borrowed Item view,int mode) throws Fault{int value=read_item(input);release input;if(mode!=0){
+			var fault=new Fault();
+			throw move fault;
+		}return value+read_item(view);}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	owned Item relay(owned Item input) throws Fault{return move input;}
+
 	[Foreign(error_domain="16",errors="Fault=-1600")]
 	[ForeignChannel(parameter="output",direction="out",produced="count")]
 	[ForeignChannel(parameter="count",direction="out")]
 	owned Item produce(borrowed u8[] output,borrowed int* count,int mode) throws Fault{
 		var item=Item.init(40+mode);output[0]=11;output[1]=12;*count=2;
-		if(mode==1){*count=len(output)+1;}
-		if(mode==2){var fault=new Fault();throw move fault;}
+		if(mode==1) *count=len(output)+1;
+		if(mode==2){
+			var fault=new Fault();
+			throw move fault;
+		}
 		return move item;
 	}
+
 	[Foreign(error_domain="16",errors="Fault=-1600",null_status="1")]
 	[ForeignChannel(parameter="result",nullable="true")]
 	owned Item absent() throws Fault{return null;}
+
 	deinit(){retired(2);}
 }

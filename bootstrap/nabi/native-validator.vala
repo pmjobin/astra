@@ -14,6 +14,7 @@ internal class NativeAbiValidator : Object {
 		var constant = value as SsaIntegerConstant;
 		return definition != null ? "ssa=%d".printf (definition.ordinal) : constant != null ? "int=%s".printf (constant.value.bits.to_string ()) : "invalid";
 	}
+
 	private static void validate_callable_record_result(SsaStructCallResults? group, NativeStructValuePlan? plan) throws NativeAbiError {
 		if (group == null ? plan != null : plan == null || group.shape.semantic_type.display_name () != plan.struct_name || NativeAbiBuilder.record_mode (group.shape.mode) != plan.mode) {
 			fail ("native callable record result", "complete result group differs from its native declaration");
@@ -1217,5 +1218,6 @@ internal class NativeAbiValidator : Object {
 		}
 		return native_function;
 	}
+
 }
 }

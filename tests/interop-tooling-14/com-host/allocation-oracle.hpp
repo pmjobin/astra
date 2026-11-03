@@ -8,6 +8,7 @@ static unsigned allocation_live;
 static unsigned allocation_total;
 static unsigned allocation_retired;
 static void *allocation_slots[512];
+
 void *operator new(size_t bytes, const std::nothrow_t &) noexcept {
 	if (allocation_fail_after && --allocation_fail_after == 0) return nullptr;
 	void *result = std::malloc(bytes);
@@ -22,6 +23,7 @@ void *operator new(size_t bytes, const std::nothrow_t &) noexcept {
 	}
 	std::abort();
 }
+
 void operator delete(void *value) noexcept {
 	for (void *&slot : allocation_slots) {
 		if (slot == value && value) {
@@ -33,6 +35,7 @@ void operator delete(void *value) noexcept {
 	}
 	std::free(value);
 }
+
 void operator delete(void *value, size_t) noexcept {
 	::operator delete(value);
 }

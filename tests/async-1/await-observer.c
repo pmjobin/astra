@@ -19,6 +19,7 @@ extern int host_sibling_error(void);
 extern int host_discard_outcomes(void);
 extern int host_parent_only(void);
 static int counts[24];
+
 void observed(int stage, int value) {
 	assert(stage > 0 && stage < 24);
 	assert(value == (stage == 1 ? 22 : 42));
@@ -27,6 +28,7 @@ void observed(int stage, int value) {
 	}
 	counts[stage]++;
 }
+
 static void drive(AstraAsyncExecutor *executor, AstraAsyncTask *root, int stop_at_catch) {
 	for (unsigned turn = 0; astra_async_phase(root) < ASTRA_ASYNC_SUCCESS; turn++) {
 		assert(turn < 80);
@@ -37,6 +39,7 @@ static void drive(AstraAsyncExecutor *executor, AstraAsyncTask *root, int stop_a
 		astra_async_advance_next(executor);
 	}
 }
+
 static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int expected) {
 	assert(astra_async_phase(root) == expected);
 	astra_async_begin_shutdown(executor);
@@ -45,6 +48,7 @@ static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int expec
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 int main(void) {
 	for (unsigned cycle = 0; cycle < 16; cycle++) {
 		for (unsigned n = 0; n < 24; n++) {

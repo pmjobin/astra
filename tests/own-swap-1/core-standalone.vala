@@ -37,6 +37,7 @@ private CoreProgram model(int variant = 0) {
 	functions.add (function);
 	return new CoreProgram (s, functions, null, null, null, cleanups);
 }
+
 private void positive() {
 	try {
 		for (int variant = -2; variant <= 0; variant++) {
@@ -50,6 +51,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void negative() {
 	string[] reasons = {
 		"identity mismatch", "cleanup authority", "identity mismatch", "cleanup authority", "initializ", "RELEASED", "RELEASED"
@@ -65,10 +67,12 @@ private void negative() {
 		GLib.error ("accepted malformed exchange Core variant %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-swap/core/independent-live-empty-self", positive);
 	Test.add_func ("/own-swap/core/stale-universe-owner-cleanup-dead", negative);
 	return Test.run ();
 }
+
 }

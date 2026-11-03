@@ -44,6 +44,7 @@ public class ClosureHandleType : HandleType, CallableSignature {
 	public PointerParameterContract parameter_contract(int ordinal) {
 		return parameter_contracts[ordinal];
 	}
+
 	public GenericArray<StructBoundaryGroup> record_parameters { get; private set; default = new GenericArray<StructBoundaryGroup> (); }
 	internal void complete_records(CopyabilityFields fields) throws StructLeafError {
 		if (parameter_contracts.length != parameter_types.length) {
@@ -54,6 +55,7 @@ public class ClosureHandleType : HandleType, CallableSignature {
 			result_shape = CallableRecordGroups.complete_result (result_type, fields);
 		}
 	}
+
 	public void verify_records(GenericArray<StructBoundaryGroup> groups, CopyabilityFields fields, int source_offset = 0, int physical_offset = 0) throws StructLeafError {
 		if (parameter_contracts.length != parameter_types.length) {
 			throw new StructLeafError.INVALID_FIELDS ("closure signature lost its complete parameter channel contracts");
@@ -61,12 +63,15 @@ public class ClosureHandleType : HandleType, CallableSignature {
 		CallableRecordGroups.verify (this, groups, fields, source_offset, physical_offset);
 		CallableRecordGroups.verify_result (result_type, result_shape, fields);
 	}
+
 	public GenericArray<SemanticType> physical_parameters() {
 		return CallableRecordGroups.physical_parameters (this, record_parameters);
 	}
+
 	public GenericArray<PointerParameterContract> physical_contracts() {
 		return CallableRecordGroups.physical_contracts (this, record_parameters);
 	}
+
 	public bool has_owner_channels() {
 		for (int p = 0; p < parameter_contracts.length; p++) {
 			if (parameter_contracts[p] != PointerParameterContract.UNMANAGED) {
@@ -75,6 +80,7 @@ public class ClosureHandleType : HandleType, CallableSignature {
 		}
 		return false;
 	}
+
 	public override bool is_parameterized() {
 		if (environment_type.is_parameterized () || result_type.is_parameterized ()) {
 			return true;
@@ -86,9 +92,11 @@ public class ClosureHandleType : HandleType, CallableSignature {
 		}
 		return false;
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return substitution.closure (this);
 	}
+
 	internal ClosureHandleType (ClassType environment, SemanticType result, GenericArray<SemanticType> parameters, ClassType? throws_type = null, bool threaded = false, bool actor = false, GenericArray<PointerParameterContract>? contracts = null, ResultOwnershipContract result_contract = ResultOwnershipContract.UNMANAGED) {
 		base (actor ? "ActorSender<" + environment.display_name () + "," + (parameters.length == 1 ? parameters[0].display_name () : "invalid") + ">" : (threaded ? "Thread" : "") + signature_name (environment, result, parameters, throws_type, contracts, result_contract));
 		result_ownership = result_contract;
@@ -102,6 +110,7 @@ public class ClosureHandleType : HandleType, CallableSignature {
 			parameter_contracts.add (contracts == null ? PointerParameterContract.UNMANAGED : contracts[p]);
 		}
 	}
+
 	private static string signature_name(ClassType environment, SemanticType result, GenericArray<SemanticType> parameters, ClassType? throws_type, GenericArray<PointerParameterContract>? contracts, ResultOwnershipContract result_contract) {
 		string name = (throws_type == null ? "Closure<" : "CheckedClosure<") + environment.display_name () + "," + (throws_type == null ? "" : throws_type.display_name () + ",") + (result_contract == ResultOwnershipContract.OWNED_TRANSFER ? "owned " : "") + result.display_name ();
 		for (int p = 0; p < parameters.length; p++) {
@@ -109,9 +118,11 @@ public class ClosureHandleType : HandleType, CallableSignature {
 		}
 		return name + ">";
 	}
+
 	public static bool supports_environment(ClassType environment, bool threaded = false) {
 		return !environment.is_interface && (!(environment is ExactGenericClassType) || !threaded && GenericClassTypes.general (environment));
 	}
+
 	public bool supported() {
 		if (actor) {
 			return !threaded && throws_type == null && environment_type.concurrency_policy_identity == 16 && !environment_type.is_interface && !(environment_type is ExactGenericClassType) && result_type.kind == TypeKind.INT && parameter_types.length == 1 && (FunctionValueType.scalar (parameter_types[0]) || parameter_types[0] is ClassType && !((ClassType) parameter_types[0]).is_interface && !(parameter_types[0] is ExactGenericClassType));
@@ -134,5 +145,6 @@ public class ClosureHandleType : HandleType, CallableSignature {
 		}
 		return true;
 	}
+
 }
 }

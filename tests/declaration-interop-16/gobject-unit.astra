@@ -1,15 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace SharedUnit16;
 [CImport(name="gobjectunit16_retired")]int retired();
-[ExceptionRoot]class Fault{readonly string text;init(){this.text="shared opaque failure";}virtual property string message{get{return this.text;}}}
+
+[ExceptionRoot]class Fault{readonly string text;
+
+	init(){this.text="shared opaque failure";}
+
+	virtual property string message{get{return this.text;}}}
+
 [Shared][CExport(name="gobjectunit16",profile="declarations-v1",bool_abi="c99")]
 [GObjectExport(type="Opaque16Session",namespace="Opaque16",version="1.0",profile="declarations-v1")]
 class Session{
 	[Foreign]init(int count,f64 factor){this.raw=count;this.factor=factor;}
+
 	private int raw;private f64 factor;
+
 	[Foreign]property int count{get{return this.raw;}set(int input){this.raw=input;}}
-	[Foreign(error_domain="16",errors="SharedUnit16.Fault=-1600")]f64 evaluate(f64 input)throws Fault{if(input<0.0){var fault=new Fault();throw move fault;}return input*this.factor+this.raw as f64;}
-	[Foreign]owned u8[] snapshot(borrowed u8[] input){var result=new u8[len(input)];int i=0;while(i<len(input)){result[i]=(input[i] as int ^ 85) as u8;i=i+1;}return move result;}
+
+	[Foreign(error_domain="16",errors="SharedUnit16.Fault=-1600")]f64 evaluate(f64 input)throws Fault{if(input<0.0){
+			var fault=new Fault();
+			throw move fault;
+		}return input*this.factor+this.raw as f64;}
+
+	[Foreign]owned u8[] snapshot(borrowed u8[] input){var result=new u8[len(input)];int i=0;while(i<len(input)){
+			result[i]=(input[i] as int ^ 85) as u8;
+			i=i+1;
+		}return move result;}
+
 	[Foreign]bool visit(bool input,borrowed Callback<bool,bool> callback){return callback(input);}
+
 	deinit(){retired();}
 }

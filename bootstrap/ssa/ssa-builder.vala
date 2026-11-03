@@ -24,6 +24,7 @@ public class SsaBuilder : Object {
 		block.instructions.add (cast);
 		return cast.result;
 	}
+
 	private HashTable<CfgEnumSlot, SsaEnumSlot> enum_slots = new HashTable<CfgEnumSlot, SsaEnumSlot> (direct_hash, direct_equal);
 	private HashTable<CfgEnumBufferCapture, SsaBufferPair> enum_buffers = new HashTable<CfgEnumBufferCapture, SsaBufferPair> (direct_hash, direct_equal);
 	private HashTable<CfgEnumBufferCapture, SsaEnumBufferCapture> enum_buffer_captures = new HashTable<CfgEnumBufferCapture, SsaEnumBufferCapture> (direct_hash, direct_equal);
@@ -1442,6 +1443,7 @@ public class SsaBuilder : Object {
 		}
 		return new SsaTextLoanBind (input.span, loan, value, new Astra.Text.TextLoanIntent (owners));
 	}
+
 	// Keep the instruction-lowering frame out of the recursive dominator walk.
 	// Large inherited slice matrices otherwise retain every lowering temporary
 	// at each dominator depth, exhausting the ordinary native stack.
@@ -1464,6 +1466,7 @@ public class SsaBuilder : Object {
 		owner.retain_event (event);
 		block.instructions.add (event);
 	}
+
 	private bool persistent_owner(CfgCleanupContract cleanup) {
 		if (cleanup.record_type != null) {
 			return true;
@@ -1579,6 +1582,7 @@ public class SsaBuilder : Object {
 		block.instructions.add (use);
 		callees.lookup (function).retain_nonnull_use (use);
 	}
+
 	private int[] rename_block(CfgBlock source) throws SsaError {
 		var block = blocks.lookup (source);
 		var depths = new int[places.length];
@@ -2841,6 +2845,7 @@ public class SsaBuilder : Object {
 		}
 		return results;
 	}
+
 	private void acquire_restored_record(Astra.Source.SourceSpan span, SsaRecordAdmissionRestore restored, CfgStructBoundaryMove original, CfgBlock source) throws SsaError {
 		var moved = restored.original;
 		var results = restored.results;
@@ -2875,6 +2880,7 @@ public class SsaBuilder : Object {
 			write.record_boundary = acquired;
 		}
 	}
+
 	private void lower_c_call(CfgCCallInstruction call, CfgBlock source) throws SsaError {
 		var target = call.target == null ? null : c_callees.lookup (call.target);
 		if (target == null) {
@@ -3466,5 +3472,6 @@ public class SsaBuilder : Object {
 		blocks.lookup (source).instructions.add (instruction);
 		return instruction.result;
 	}
+
 }
 }

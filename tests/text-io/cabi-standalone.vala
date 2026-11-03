@@ -33,6 +33,7 @@ private CAbiProgram sample(int variant) throws CAbiError {
 	}
 	return new CAbiProgram (span, CAbiProfile.TEXT_VIEW_V3, functions, exports);
 }
+
 private void independent() {
 	for (int variant = 0; variant <= 16; variant++) {
 		try {
@@ -48,9 +49,11 @@ private void independent() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text-io/cabi/independent-groups", independent);
 	return Test.run ();
 }
+
 }

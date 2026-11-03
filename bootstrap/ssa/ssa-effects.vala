@@ -10,6 +10,7 @@ public class SsaEffectAnalysis : Object {
 	private static bool scalar(SemanticType type) {
 		return type.kind == TypeKind.BOOL || type is IntegerType || type is FloatingType || type is VectorType;
 	}
+
 	private static bool receiver_domain(SsaProgram program, SsaFunction function) {
 		if (function.implicit_receiver == null) {
 			return true;
@@ -61,6 +62,7 @@ public class SsaEffectAnalysis : Object {
 	private static FunctionEffectFacts empty(SsaFunction function) {
 		return new FunctionEffectFacts (0, new uint[function.parameters.length]);
 	}
+
 	private static FunctionEffectFacts derive(SsaProgram program, SsaFunction function, HashTable<SsaFunction, FunctionEffectFacts> known) {
 		if (function.span.file.native_interface || function.module_import_symbol != null) {
 			return function.checked_native_effects () ?? empty (function);
@@ -276,12 +278,14 @@ public class SsaEffectAnalysis : Object {
 		}
 		return known;
 	}
+
 	public static void annotate(SsaProgram program) {
 		var known = infer (program);
 		foreach (var function in program.functions) {
 			function.effect_facts = known.lookup (function).copy ();
 		}
 	}
+
 	public static void verify(SsaProgram program) throws SsaError {
 		var known = infer (program);
 		foreach (var function in program.functions) {
@@ -354,9 +358,11 @@ public class SsaReadonlyInference : Object {
 		}
 		effects.infer_readonly (probe_readonly);
 	}
+
 	private bool probe_readonly(Object function, CodeEffectSummary result) {
 		return new SsaScopedInspection (program, false).infer ((SsaFunction) function, this, result);
 	}
+
 	// Vala shares closure storage within one method. Keep this long-lived
 	// frontier separate from probes that capture the analysis or its owner.
 	private static CodeEffectAnalysis create_effect_analysis(SsaCodeOrigins origins) {
@@ -370,6 +376,7 @@ public class SsaReadonlyInference : Object {
 		}
 		return result;
 	}
+
 	public static GenericArray<int> code_inputs(SsaFunction function) {
 		var result = new GenericArray<int> ();
 		for (int p = 0; p < function.parameters.length; p++) {
@@ -386,6 +393,7 @@ public class SsaReadonlyInference : Object {
 		}
 		return result;
 	}
+
 	private static bool first_order(FunctionValueType signature) {
 		foreach (var type in signature.physical_parameters ()) {
 			if (type is FunctionValueType) {
@@ -394,21 +402,27 @@ public class SsaReadonlyInference : Object {
 		}
 		return true;
 	}
+
 	public CodeEffectSummary? summary(SsaFunction function) {
 		return effects.readonly_summary (function);
 	}
+
 	internal bool code(SsaValue value, SsaFunction scope, CodeEffectSummary result, GenericArray<SsaValue>? arguments = null) {
 		return effects.code (value, scope, result, arguments == null ? null : objects (arguments));
 	}
+
 	internal bool call(SsaFunction? target, GenericArray<SsaValue> arguments, SsaFunction scope, CodeEffectSummary result) {
 		return target != null && effects.call (target, objects (arguments), scope, result);
 	}
+
 	internal void infer_requirements() {
 		effects.infer_requirements ();
 	}
+
 	internal CodeEffectSummary? requirements(SsaFunction function) {
 		return effects.required_summary (function);
 	}
+
 	internal static void verify_imported(SsaProgram program) throws SsaError {
 		bool needed = false;
 		foreach (var function in program.functions) {
@@ -427,6 +441,7 @@ public class SsaReadonlyInference : Object {
 			}
 		}
 	}
+
 }
 
 // Mandatory validity requirements remain distinct from readonly eligibility.
@@ -436,9 +451,11 @@ public class SsaCallbackPreconditions : Object {
 		facts = readonly_facts;
 		facts.infer_requirements ();
 	}
+
 	public CodeEffectSummary? summary(SsaFunction function) {
 		return facts.requirements (function);
 	}
+
 }
 
 // A loan protection proof, separate from optimizer memory attributes. Scalar
@@ -455,9 +472,11 @@ public class SsaScopedInspection : Object {
 		this.program = program;
 		this.allow_code_targets = allow_code_targets;
 	}
+
 	private void reject(string reason) throws SsaError {
 		throw new SsaError.INVALID_SSA ("readonly scoped inspector " + reason);
 	}
+
 	private GenericArray<SemanticType>? fields(SemanticType type) {
 		foreach (var record in program.structs) {
 			if (record.semantic_type != type) {
@@ -474,6 +493,7 @@ public class SsaScopedInspection : Object {
 		}
 		return null;
 	}
+
 	private bool copied(SemanticType type) {
 		if (FunctionValueType.scalar (type) || type is FunctionValueType || type is StringType) {
 			return true;
@@ -492,21 +512,25 @@ public class SsaScopedInspection : Object {
 		}
 		return true;
 	}
+
 	public bool copied_result(SemanticType type) {
 		return type.kind == TypeKind.VOID || FunctionValueType.scalar (type) || type.is_struct_storage () && copied (type);
 	}
+
 	private bool local(SsaMemoryPlace place) {
 		while (place is SsaFieldPlace && ((SsaFieldPlace) place).aggregate != null) {
 			place = ((SsaFieldPlace) place).aggregate;
 		}
 		return place is SsaLocalMemoryPlace || place is SsaDirectFieldPlace;
 	}
+
 	internal bool infer(SsaFunction target, SsaReadonlyInference inference, CodeEffectSummary result) {
 		this.inference = inference;
 		inference_scope = target;
 		inference_result = result;
 		return is_readonly (target);
 	}
+
 	public bool is_readonly(SsaFunction target) {
 		try {
 			verify (target);
@@ -643,5 +667,6 @@ public class SsaScopedInspection : Object {
 			}
 		}
 	}
+
 }
 }

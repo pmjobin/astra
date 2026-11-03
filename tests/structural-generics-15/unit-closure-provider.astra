@@ -4,13 +4,17 @@ namespace ClosureLibrary;
 class Environment<T> {
 	private T seed;
 	private owned R retained;
+
 	init(T seed, owned R retained) {
 		this.seed = seed;
 		this.retained = move retained;
 	}
+
 	property T value { get { return this.seed; } }
+
 	deinit() { mark(1700); }
 }
+
 CheckedLibrary.Reply<int> invoke(
 	borrowed CheckedClosure<Environment<int>, CheckedLibrary.Error,
 	CheckedLibrary.Reply<int>, CheckedLibrary.Reply<int>, bool> code,
@@ -18,6 +22,7 @@ CheckedLibrary.Reply<int> invoke(
 	mark(1701);
 	return closure_invoke(code, input, fail);
 }
+
 CheckedLibrary.Reply<int> consume(
 	owned CheckedClosure<Environment<int>, CheckedLibrary.Error,
 	CheckedLibrary.Reply<int>, CheckedLibrary.Reply<int>, bool> code,
@@ -25,6 +30,7 @@ CheckedLibrary.Reply<int> consume(
 	mark(1703);
 	return closure_invoke(code, input, fail);
 }
+
 CheckedLibrary.Reply<int> observe(
 	borrowed Closure<Environment<CheckedLibrary.Reply<int>>, CheckedLibrary.Reply<int>,
 	CheckedLibrary.Reply<int>> code, CheckedLibrary.Reply<int> input) {

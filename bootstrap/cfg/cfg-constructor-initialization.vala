@@ -17,6 +17,7 @@ public class CfgConstructorInitialization : Object {
 		}
 		return part == "" || !(place is CfgIndirectFieldPlace) || !(place.semantic_type is StructType) ? null : (CfgIndirectFieldPlace) place;
 	}
+
 	public FieldInitializationState at_entry(CfgBlock block) {
 		var state = entries.lookup (block);
 		if (state != null) {
@@ -26,6 +27,7 @@ public class CfgConstructorInitialization : Object {
 		unreachable.reachable = false;
 		return unreachable;
 	}
+
 	internal static GenericArray<CfgBlock> successors(CfgBlock block) {
 		var conditional = block.terminator as CfgConditionalBranch;
 		var literal = conditional == null ? null : conditional.condition as CfgBooleanValue;
@@ -36,6 +38,7 @@ public class CfgConstructorInitialization : Object {
 		}
 		return block.terminator.successors ();
 	}
+
 	public CfgConstructorInitialization (CfgConstructor function, CopyabilityFields fields) throws CfgError {
 		count = (int) function.declaring_class.fields.length + (function.declaring_class.parent_class == null ? 0 : 1);
 		entries.insert (function.entry, new FieldInitializationState (count));
@@ -91,5 +94,6 @@ public class CfgConstructorInitialization : Object {
 			}
 		}
 	}
+
 }
 }

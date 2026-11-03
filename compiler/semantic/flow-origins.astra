@@ -5,6 +5,7 @@
 bool flow_class_type(CheckedIndex checked, TypeId type) {
 	return checked_kind(checked, type) == 31 && flow_simple_class(checked, type);
 }
+
 int flow_class_value(CheckedIndex checked, int[] origins, SyntaxNodeId value) {
 	var node = flow_unwrap(checked, value);
 	if (node.index == 0) {
@@ -44,6 +45,7 @@ int flow_class_value(CheckedIndex checked, int[] origins, SyntaxNodeId value) {
 	}
 	return 8;
 }
+
 bool flow_origin_merge(int[] origins, SymbolId symbol, int value) {
 	if (symbol.index <= 0 || symbol.index >= len(origins)) {
 		return false;
@@ -55,6 +57,7 @@ bool flow_origin_merge(int[] origins, SymbolId symbol, int value) {
 	origins[symbol.index] = joined;
 	return true;
 }
+
 owned int[] flow_class_origins(CheckedIndex checked) {
 	var origins = new int[checked.bindings.symbol_count + 1];
 	bool needed = false;
@@ -127,6 +130,7 @@ owned int[] flow_class_origins(CheckedIndex checked) {
 	}
 	return move origins;
 }
+
 bool flow_count_admitted(CheckedIndex checked, SyntaxNodeId value) {
 	var node = flow_unwrap(checked, value);
 	var kind = checked.bindings.program.arena.kind(node);

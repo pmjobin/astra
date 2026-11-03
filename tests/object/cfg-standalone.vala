@@ -159,4 +159,5 @@ int main(string[] args) {
 	Test.add_func ("/object/cfg/storage-requires-live-stage-class", missing_storage_class);
 	return Test.run ();
 }
+
 }

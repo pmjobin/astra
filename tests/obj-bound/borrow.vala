@@ -20,6 +20,7 @@ private void authority() {
 	var inner = (CheckedBlockStatement) body.statements[4];
 	assert (proof.outlives (inner.region) && !inner.region.outlives (body.region));
 }
+
 private void caller() {
 	var p = check ("class C{int x;deinit(){}}void f(borrowed C c){c.x=42;}int main(){C c={x=1};C alias=c;f(c);c=null;return alias.x;}");
 	var body = p.functions[1].body;
@@ -30,12 +31,14 @@ private void caller() {
 	assert (BorrowProvenance.for_expression (argument).region == construction.storage.lexical_region);
 	check ("class C{}void f(borrowed C c,int n){C local=c;if(n>0){f(local,n-1);}}void g(){{C c={};f(c,3);}}");
 }
+
 private void escape() {
 	reject ("class C{}void f(borrowed C c){C outer=c;{C inner=c;outer=inner;}}", "shorter lexical lifetime");
 	reject ("class C{}void f(borrowed C c){C outer=c;{C inner={};outer=inner;}}", "shorter lexical lifetime");
 	reject ("class C{}C f(borrowed C c){C local=c;return local;}", "object-reference results are unsupported");
 	check ("class C{}void f(borrowed C c){C outer=null;outer=c;{C inner=outer;inner=null;}}");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-bound/borrow/function-region-copy-forward-and-null-authority", authority);
@@ -43,4 +46,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-bound/borrow/conservative-copy-and-result-escape-rejection", escape);
 	return Test.run ();
 }
+
 }

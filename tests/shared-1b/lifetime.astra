@@ -1,43 +1,55 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int shared_event(int kind, int value);
+
 extern(C) int shared_finish();
+
 class Payload {
 	int value;
+
 	init(int value) { this.value = value; shared_event(1, value); }
+
 	deinit() { shared_event(2, this.value); }
 }
+
 class Other {
 	i64 value;
+
 	init(i64 value) { this.value = value; shared_event(3, 0); }
+
 	deinit() { shared_event(4, 0); }
 }
+
 int read(borrowed Payload value) { return value.value; }
+
 i64 read_other(borrowed Other value) { return value.value; }
+
 owned Shared<Payload> pass(owned Shared<Payload> value) { return move value; }
+
 export(C) int shared_run() {
 	var unique = new Payload(17);
 	var first = shared_acquire(move unique);
 	var second = shared_clone(first);
 	var observer = shared_downgrade(first);
 	var observer2 = weak_clone(observer);
-	if (read(shared_borrow(first)) != 17) { return 81; }
+	if (read(shared_borrow(first)) != 17) return 81;
 	var moved = pass(move second);
 	release first;
 	var upgraded = weak_upgrade(observer);
-	if (upgraded == null) { return 82; }
-	if (read(shared_borrow(upgraded)) != 17) { return 83; }
+	if (upgraded == null) return 82;
+	if (read(shared_borrow(upgraded)) != 17) return 83;
 	release moved;
 	shared_event(5, 1);
 	release upgraded;
 	shared_event(5, 2);
 	var expired = weak_upgrade(observer);
-	if (expired != null) { return 84; }
+	if (expired != null) return 84;
 	release observer;
 	release observer2;
 	var other_unique = new Other(4294967300);
 	var other = shared_acquire(move other_unique);
-	if (read_other(shared_borrow(other)) != 4294967300) { return 85; }
+	if (read_other(shared_borrow(other)) != 4294967300) return 85;
 	release other;
 	return shared_finish();
 }
+
 int main() { return shared_run(); }

@@ -15,13 +15,17 @@ static unsigned turns, destroys;
 static int deny_setup;
 static int deny_probe;
 extern int __real_io_uring_queue_init_params(unsigned entries, struct io_uring *ring, struct io_uring_params *params);
+
 int __wrap_io_uring_queue_init_params(unsigned entries, struct io_uring *ring, struct io_uring_params *params) {
 	return deny_setup ? -EPERM : __real_io_uring_queue_init_params(entries, ring, params);
 }
+
 extern int __real_io_uring_register_probe(struct io_uring *ring, struct io_uring_probe *probe, unsigned count);
+
 int __wrap_io_uring_register_probe(struct io_uring *ring, struct io_uring_probe *probe, unsigned count) {
 	return deny_probe ? -EACCES : __real_io_uring_register_probe(ring, probe, count);
 }
+
 static unsigned fds(void) {
 	DIR *directory = opendir("/proc/self/fd");
 	assert(directory != NULL);
@@ -35,6 +39,7 @@ static unsigned fds(void) {
 	closedir(directory);
 	return count;
 }
+
 static unsigned ring_maps(void) {
 	FILE *stream = fopen("/proc/self/maps", "r");
 	assert(stream != NULL);
@@ -48,11 +53,13 @@ static unsigned ring_maps(void) {
 	fclose(stream);
 	return count;
 }
+
 static void destroy(AstraAsyncTask *task, int discard) {
 	(void)task;
 	(void)discard;
 	destroys++;
 }
+
 static void resume(AstraAsyncTask *task) {
 	turns++;
 	if (astra_async_cancel_requested(task)) {
@@ -69,11 +76,13 @@ static void resume(AstraAsyncTask *task) {
 	assert(astra_async_linux_delay_result(task, 1) == 0);
 	astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 static AstraAsyncTask *root(AstraAsyncExecutor *executor) {
 	AstraAsyncTask *task = astra_async_new(1, 1, resume, destroy, NULL);
 	assert(astra_async_start(executor, task, NULL) == ASTRA_ASYNC_ADMITTED);
 	return task;
 }
+
 static void retire(AstraAsyncExecutor *executor, AstraAsyncTask *task, int phase) {
 	astra_async_begin_shutdown(executor);
 	assert(astra_async_shutdown_complete(executor));
@@ -81,6 +90,7 @@ static void retire(AstraAsyncExecutor *executor, AstraAsyncTask *task, int phase
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 int main(void) {
 	alarm(15);
 	unsigned baseline_fds = fds(), baseline_maps = ring_maps();

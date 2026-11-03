@@ -18,6 +18,7 @@ public class CfgScopedAllocator : CfgValue {
 		this.slots = slots;
 		this.cleanup = cleanup;
 	}
+
 }
 public class CfgSlotsRecordTransfer : CfgInstruction {
 	public CfgStructBoundaryMove? record_move { get; internal set; }
@@ -32,6 +33,7 @@ public class CfgSlotsRecordTransfer : CfgInstruction {
 		this.shape = shape;
 		this.leaves = leaves;
 	}
+
 }
 public class CfgSlotsRecordRead : CfgInstruction {
 	public CfgIndirectFieldPlace store { get; private set; }
@@ -45,6 +47,7 @@ public class CfgSlotsRecordRead : CfgInstruction {
 		this.remove = remove;
 		this.results = results;
 	}
+
 }
 // A checked destination, not a payload borrow or an extra owner. Each capture
 // belongs to exactly one exchange and protects storage until that exchange.
@@ -56,6 +59,7 @@ public class CfgBufferSlotCapture : CfgInstruction {
 		this.place = place;
 		this.cleanup = cleanup;
 	}
+
 }
 
 // Both destinations precede this indivisible language effect. Complete
@@ -71,6 +75,7 @@ public class CfgBufferExchange : CfgInstruction {
 		this.left_capture = left;
 		this.right_capture = right;
 	}
+
 }
 
 // One exact pair of concrete memory components. Every owner operation takes
@@ -85,6 +90,7 @@ public class CfgBufferOwnerGroup : CfgNode {
 		this.base_place = new CfgBufferComponentPlace (span, shape.base_type, 0);
 		this.length_place = new CfgBufferComponentPlace (span, shape.length_type, 1);
 	}
+
 }
 public class CfgBufferComponentPlace : CfgPlace {
 	public int component { get; private set; }
@@ -92,6 +98,7 @@ public class CfgBufferComponentPlace : CfgPlace {
 		base (span, type);
 		this.component = component;
 	}
+
 }
 // Bounded producer token plus PTR/I32 definitions. The token is consumed by
 // one ownership action and never becomes an aggregate SSA value.
@@ -107,6 +114,7 @@ public class CfgBufferResults : CfgNode {
 		this.base_value = new CfgCallResultValue (span, shape.base_type);
 		this.length_value = new CfgCallResultValue (span, shape.length_type);
 	}
+
 }
 // The region names one ordinary call and its enforced fatal continuation.
 // Targets are weak stage-local identities; no upstream model is retained.
@@ -122,6 +130,7 @@ public class CfgAllocationFailure : CfgNode {
 		native_callee = WeakRef (target);
 		foreign_callee = WeakRef (c_target);
 	}
+
 }
 public class CfgAllocationFailureTrap : CfgTerminator {
 	public CfgAllocationFailure failure { get; private set; }
@@ -129,9 +138,11 @@ public class CfgAllocationFailureTrap : CfgTerminator {
 		base (span);
 		this.failure = failure;
 	}
+
 	public override GenericArray<CfgBlock> successors() {
 		return new GenericArray<CfgBlock> ();
 	}
+
 }
 public class CfgBufferAllocationBranch : CfgTerminator {
 	public CfgBufferAllocate allocation { get; private set; }
@@ -145,6 +156,7 @@ public class CfgBufferAllocationBranch : CfgTerminator {
 		this.success = WeakRef (success);
 		this.failure = WeakRef (failure);
 	}
+
 	public override GenericArray<CfgBlock> successors() {
 		var result = new GenericArray<CfgBlock> ();
 		if (success_target != null) {
@@ -155,6 +167,7 @@ public class CfgBufferAllocationBranch : CfgTerminator {
 		}
 		return result;
 	}
+
 }
 public class CfgBufferAllocate : CfgInstruction {
 	public CfgValue? allocation_context { get; private set; }
@@ -170,11 +183,13 @@ public class CfgBufferAllocate : CfgInstruction {
 		this.allocation_context = allocation_context;
 		this.results = new CfgBufferResults (span, cleanup.buffer_shape, new CfgCallResultValue (span, cleanup.buffer_type));
 	}
+
 }
 public class CfgBufferBorrowValue : CfgOwnedBorrowValue {
 	internal CfgBufferBorrowValue (SourceSpan span, CfgLocalPlace source, CfgParameter? parameter) {
 		base (span, source, parameter);
 	}
+
 }
 
 // Independent closed-region proof: only allocator-null enters this DAG,
@@ -185,6 +200,7 @@ internal class CfgAllocationFailureVerifier : Object {
 			throw new CfgError.INVALID_CFG ("allocation failure region: %s", message);
 		}
 	}
+
 	// Exception edges use the ordinary checked exception channel. Only the
 	// exact null result continues toward the fallback trap; the nonnull edge
 	// leaves this allocation's normal failure-action region.
@@ -200,6 +216,7 @@ internal class CfgAllocationFailureVerifier : Object {
 		}
 		return branch.true_target;
 	}
+
 	internal static void verify(CfgFunction function) throws CfgError {
 		bool present = false;
 		foreach (var block in function.blocks) {
@@ -364,6 +381,7 @@ internal class CfgAllocationFailureVerifier : Object {
 			}
 		}
 	}
+
 }
 }
 
@@ -374,6 +392,7 @@ public class CfgSlotsInitialize : CfgInstruction {
 		base (span);
 		this.store = store;
 	}
+
 }
 public class CfgSlotsReplace : CfgInstruction {
 	public CfgIndirectFieldPlace store { get; private set; }
@@ -385,6 +404,7 @@ public class CfgSlotsReplace : CfgInstruction {
 		this.index = index;
 		this.incoming = incoming;
 	}
+
 }
 public class CfgSlotsAppend : CfgInstruction {
 	public CfgIndirectFieldPlace store { get; private set; }
@@ -394,6 +414,7 @@ public class CfgSlotsAppend : CfgInstruction {
 		this.store = store;
 		this.incoming = incoming;
 	}
+
 }
 public class CfgSlotsDrop : CfgInstruction {
 	public CfgIndirectFieldPlace store { get; private set; }
@@ -401,6 +422,7 @@ public class CfgSlotsDrop : CfgInstruction {
 		base (span);
 		this.store = store;
 	}
+
 }
 public class CfgSlotsValue : CfgValue {
 	public CfgIndirectFieldPlace store { get; private set; }
@@ -412,6 +434,7 @@ public class CfgSlotsValue : CfgValue {
 		this.action = action;
 		this.operand = operand;
 	}
+
 }
 public class CfgSlotsLoan : CfgEvaluatedValue {
 	public bool readonly_required { get; internal set; }
@@ -419,6 +442,7 @@ public class CfgSlotsLoan : CfgEvaluatedValue {
 	internal bool readonly_context_valid() {
 		return readonly_required == original_readonly_required;
 	}
+
 	public CfgIndirectFieldPlace store { get; private set; }
 	public CfgValue index { get; private set; }
 	public CfgParameter borrower { get; private set; }
@@ -429,6 +453,7 @@ public class CfgSlotsLoan : CfgEvaluatedValue {
 		this.borrower = borrower;
 		this.readonly_required = original_readonly_required = readonly_required;
 	}
+
 }
 public class CfgSlotsBorrow : CfgInstruction {
 	public CfgSlotsLoan result { get; private set; }
@@ -436,5 +461,6 @@ public class CfgSlotsBorrow : CfgInstruction {
 		base (span);
 		this.result = result;
 	}
+
 }
 }

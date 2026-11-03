@@ -10,9 +10,11 @@ internal class LlvmForeignSignalBinding : Object {
 	internal LlvmForeignSignalBinding (CApi.ValueRef function) {
 		sequence = new LlvmSumSequence (function, true);
 	}
+
 	internal void verify() throws LlvmError {
 		sequence.verify ();
 	}
+
 }
 internal class LlvmForeignSignals : Object {
 	internal static void lower(LlvmModuleArtifact artifact, LlvmTypeMapper types, NativeForeignSignalPlan plan, LlvmFunctionBinding native, LlvmStructRegistry structs, NativeAbiProgram program, Astra.Ssa.SsaClass owner) throws LlvmError {
@@ -51,6 +53,7 @@ internal class LlvmForeignSignals : Object {
 		artifact.foreign_signals.add (new LlvmForeignSignalBinding (native.value));
 		artifact.class_functions.add (new LlvmClassFunctionBinding (native.value, native.type));
 	}
+
 }
 // Mechanical status/out -> native checked-call conversion. The provider
 // owns the opaque object; no native layout or second reference count exists.
@@ -73,12 +76,14 @@ internal class LlvmForeignImports : Object {
 		artifact.c_imports.add (binding);
 		return binding;
 	}
+
 	private static CApi.ValueRef call(CApi.BuilderRef builder, LlvmCFunctionBinding binding, CApi.ValueRef[] arguments, string name) {
 		var result = CApi.build_call (builder, binding.type, binding.value, arguments, arguments.length, name);
 		CApi.set_instruction_call_conv (result, CApi.CallConv.C);
 		binding.record_call (result, arguments);
 		return result;
 	}
+
 	internal static void trap(LlvmModuleArtifact artifact, CApi.BuilderRef builder) {
 		CApi.TypeRef[] parameters = {};
 		CApi.ValueRef[] arguments = {};
@@ -90,12 +95,14 @@ internal class LlvmForeignImports : Object {
 		CApi.build_call (builder, signature, function, arguments, 0, "");
 		CApi.build_unreachable (builder);
 	}
+
 	private static CApi.TypeRef error_type(LlvmModuleArtifact artifact) {
 		CApi.TypeRef[] fields = {
 			CApi.int32_type_in_context (artifact.context), CApi.int32_type_in_context (artifact.context)
 		};
 		return CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 	}
+
 	internal static LlvmSumSequence cleanup(LlvmModuleArtifact artifact, LlvmTypeMapper types, ForeignImportContract root, CApi.ValueRef function) throws LlvmError {
 		var pointer = types.scalar (NativeScalarType.PTR);
 		var i32 = types.scalar (NativeScalarType.I32);
@@ -142,6 +149,7 @@ internal class LlvmForeignImports : Object {
 		CApi.dispose_builder (builder);
 		return new LlvmSumSequence (function, true);
 	}
+
 	internal static void lower(LlvmModuleArtifact artifact, LlvmTypeMapper types, LlvmTextLowering text, SourceSpan span, CAbiForeignImport physical, LlvmFunctionBinding native, LlvmFunctionBinding factory, LlvmCFunctionBinding? cleanup, LlvmCFunctionBinding?[] parameter_cleanups) throws LlvmError {
 		if (!physical.valid () || native.signature.exception_plan == null) {
 			throw new LlvmError.LOWERING ("CImport lost checked physical/native authority");
@@ -357,6 +365,7 @@ internal class LlvmForeignImports : Object {
 		artifact.foreign_imports.add (new LlvmSumSequence (native.value, true));
 		artifact.class_functions.add (new LlvmClassFunctionBinding (native.value, native.type));
 	}
+
 	internal static void emit_error(LlvmModuleArtifact artifact, CApi.BuilderRef builder, LlvmFunctionBinding native, LlvmFunctionBinding factory, CApi.ValueRef domain, CApi.ValueRef status) throws LlvmError {
 		CApi.ValueRef[] arguments = {
 			domain, status
@@ -372,6 +381,7 @@ internal class LlvmForeignImports : Object {
 		CApi.position_builder_at_end (builder, ready);
 		CApi.build_ret (builder, error);
 	}
+
 }
 
 // Construction-local bounded data staging. Only initialized prefixes publish.
@@ -392,6 +402,7 @@ internal class LlvmImportBuffers : Object {
 		provisional_cleanup = cleanup;
 		provisional_slot = slot;
 	}
+
 	private CApi.ValueRef[] allocations = null;
 	private CApi.ValueRef[] scratch;
 	private CApi.ValueRef[] counts;
@@ -423,12 +434,15 @@ internal class LlvmImportBuffers : Object {
 		i32 = types.scalar (NativeScalarType.I32);
 		wide = types.scalar (NativeScalarType.U64);
 	}
+
 	private CApi.ValueRef number(uint32 value) {
 		return CApi.const_int (i32, value, 0);
 	}
+
 	private CApi.ValueRef compare(CApi.IntPredicate predicate, CApi.ValueRef left, CApi.ValueRef right, string name) {
 		return CApi.build_icmp (builder, predicate, left, right, name);
 	}
+
 	private void refuse(CApi.ValueRef condition, uint32 status) throws LlvmError {
 		var failed = CApi.append_basic_block_in_context (artifact.context, native.value, "import.data.refused");
 		var valid = CApi.append_basic_block_in_context (artifact.context, native.value, "import.data.valid");
@@ -442,12 +456,14 @@ internal class LlvmImportBuffers : Object {
 		LlvmForeignImports.emit_error (artifact, builder, native, factory, number(0), number(status));
 		CApi.position_builder_at_end (builder, valid);
 	}
+
 	private CApi.ValueRef invoke(LlvmCFunctionBinding function, CApi.ValueRef[] arguments, string name) {
 		var result = CApi.build_call (builder, function.type, function.value, arguments, arguments.length, name);
 		CApi.set_instruction_call_conv (result, CApi.CallConv.C);
 		function.record_call (result, arguments);
 		return result;
 	}
+
 	internal void cleanup() throws LlvmError {
 		cleanup_owners ();
 		if (allocations.length == 0) {
@@ -458,6 +474,7 @@ internal class LlvmImportBuffers : Object {
 			invoke (release, new CApi.ValueRef[] {allocations[p]}, "");
 		}
 	}
+
 	internal void prepare_owners(CApi.ValueRef[] arguments, LlvmCFunctionBinding?[] cleanups) throws LlvmError {
 		if (cleanups.length != member.parameter_count) {
 			throw new LlvmError.LOWERING ("CImport owned input lost exact cleanup inventory");
@@ -479,9 +496,11 @@ internal class LlvmImportBuffers : Object {
 			arguments[CAbiClassAdapter.declared_argument (member, p)] = slot;
 		}
 	}
+
 	internal void bind_references(CApi.ValueRef[] values) {
 		references = values;
 	}
+
 	internal void cleanup_owners() throws LlvmError {
 		for (int p = owned_slots.length - 1; p >= 0; p--) {
 			if (owned_cleanups[p] == null) {
@@ -492,6 +511,7 @@ internal class LlvmImportBuffers : Object {
 			invoke (owned_cleanups[p], new CApi.ValueRef[] { value }, "");
 		}
 	}
+
 	private void copy(CApi.ValueRef destination, CApi.ValueRef source, CApi.ValueRef length) {
 		uint id = CApi.lookup_intrinsic_id("llvm.memcpy", 11);
 		CApi.TypeRef[] overloads = {
@@ -506,6 +526,7 @@ internal class LlvmImportBuffers : Object {
 		CApi.set_instruction_call_conv(call, CApi.CallConv.C);
 		artifact.class_calls.add(new LlvmClassCallBinding(call, function, signature, arguments, CApi.CallConv.C, "import exact initialized byte prefix"));
 	}
+
 	internal void prepare(CApi.ValueRef[] arguments) throws LlvmError {
 		for (uint p = 0; p < member.parameter_count; p++) {
 			var channel = member.parameter(p);
@@ -543,6 +564,7 @@ internal class LlvmImportBuffers : Object {
 			}
 		}
 	}
+
 	internal void prepare_result(CApi.ValueRef[] arguments, CApi.ValueRef success) {
 		if (!CAbiClassAdapter.byte_sequence (member.result.value_type.kind)) {
 			return;
@@ -557,6 +579,7 @@ internal class LlvmImportBuffers : Object {
 		arguments[position] = result_data;
 		arguments[position + 1] = result_length;
 	}
+
 	internal void retire_result() throws LlvmError {
 		if (!owned_result) {
 			return;
@@ -582,6 +605,7 @@ internal class LlvmImportBuffers : Object {
 		LlvmForeignImports.trap (artifact, builder);
 		CApi.position_builder_at_end (builder, retired);
 	}
+
 	internal void convert_result() throws LlvmError {
 		if (!owned_result) {
 			return;
@@ -618,6 +642,7 @@ internal class LlvmImportBuffers : Object {
 		value = CApi.build_insert_value (builder, value, length, 1, "import.result.native.buffer");
 		CApi.build_store (builder, value, result_success);
 	}
+
 	internal void validate(CApi.ValueRef success) throws LlvmError {
 		for (uint p = 0; p < member.parameter_count; p++) {
 			var channel = member.parameter(p);
@@ -629,6 +654,7 @@ internal class LlvmImportBuffers : Object {
 			refuse(CApi.build_or(builder, compare(CApi.IntPredicate.SLT, count, number(0), "import.produced.negative"), compare(CApi.IntPredicate.SGT, count, counts[p], "import.produced.excess"), "import.produced.invalid"), 0x8000ffffU);
 		}
 	}
+
 	internal void publish() {
 		for (uint p = 0; p < member.parameter_count; p++) {
 			var channel = member.parameter(p);
@@ -637,6 +663,7 @@ internal class LlvmImportBuffers : Object {
 			}
 		}
 	}
+
 }
 
 }

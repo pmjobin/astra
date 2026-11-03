@@ -261,4 +261,5 @@ public int main(string[] args) {
 	Test.add_func ("/source-debug/closure-async-physical-layout-restored-graphs-released", capture_frame_geometry);
 	return Test.run ();
 }
+
 }

@@ -19,6 +19,7 @@ typedef struct Allocation {
 	void *pointer;
 	uint64_t tag, bytes;
 } Allocation;
+
 static Allocation allocations[256];
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned acquired, released, live, peak_live, worker_count, contexts;
@@ -27,6 +28,7 @@ static long owner, workers[6];
 static int baseline_fds, baseline_threads, profile;
 static _Atomic long warmup_identity;
 static _Atomic unsigned active, peak_active, submitted, completed, closed, joined, frames, signal_in_worker, io_gate;
+
 static int inventory(const char *path) {
 	DIR *directory = opendir(path);
 	assert(directory);
@@ -40,12 +42,15 @@ static int inventory(const char *path) {
 	assert(closedir(directory) == 0);
 	return count;
 }
+
 extern int __real_sequence_prepare(const unsigned char *, int);
 extern int sequence_stop_requested(void);
+
 static void *warmup(void *value) {
 	atomic_store(&warmup_identity, syscall(SYS_gettid));
 	return value;
 }
+
 int __wrap_sequence_prepare(const unsigned char *path, int length) {
 	pthread_t thread;
 	assert(pthread_create(&thread, NULL, warmup, NULL) == 0 && pthread_join(thread, NULL) == 0);
@@ -68,6 +73,7 @@ int __wrap_sequence_prepare(const unsigned char *path, int length) {
 	                                                                           : 0;
 	return __real_sequence_prepare(path, length);
 }
+
 static void gate(const char *name) {
 	printf("{\"gate\":\"%s\"}\n", name);
 	assert(fflush(stdout) == 0);
@@ -80,7 +86,9 @@ static void gate(const char *name) {
 		}
 	}
 }
+
 extern void __real_sequence_event(int, int, int);
+
 void __wrap_sequence_event(int kind, int identity, int value) {
 	if (kind == 2) {
 		long worker = syscall(SYS_gettid);
@@ -109,7 +117,9 @@ void __wrap_sequence_event(int kind, int identity, int value) {
 	}
 	__real_sequence_event(kind, identity, value);
 }
+
 extern void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t count, uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	void *pointer = __real_astra_context17_allocate_mode(context, count, size, alignment, tag, mode);
 	assert(pointer && count && size && count <= UINT64_MAX / size && mode <= 3 && astra_context17_origin(pointer, tag) == context);
@@ -135,7 +145,9 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *context, uint64_t cou
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return pointer;
 }
+
 extern int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	unsigned i = 0;
@@ -152,7 +164,9 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	assert(result == 1);
 	return result;
 }
+
 extern void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	AstraContext17Snapshot state;
 	assert(astra_context17_snapshot(context, &state) == ASTRA_CONTEXT17_OK && state.anchors == 1);
@@ -161,7 +175,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	__real_astra_context17_destroy(context);
 }
+
 extern AstraAsyncTask *__real_astra_async_new_allocated(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *, const AstraAsyncFrameAllocator *, void *);
+
 AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	assert(context && allocator && allocator->abi == ASTRA_ASYNC_TASK_ABI && allocator->threading == 2);
 	AstraAsyncTask *task = __real_astra_async_new_allocated(size, alignment, resume, destroy, parent, allocator, context);
@@ -169,10 +185,12 @@ AstraAsyncTask *__wrap_astra_async_new_allocated(size_t size, size_t alignment, 
 	atomic_fetch_add(&frames, 1);
 	return task;
 }
+
 void astra_payload_test_submitted(void) {
 	assert(syscall(SYS_gettid) == owner);
 	atomic_fetch_add(&submitted, 1);
 }
+
 void astra_payload_test_completed(uint64_t target, uint64_t cancel, int result, int cancel_result, int cancel_seen) {
 	assert(syscall(SYS_gettid) == owner && target && cancel && target != cancel);
 	assert(result >= 0 || result == -ECANCELED || (profile == 3 && result == -EBADF));
@@ -181,10 +199,13 @@ void astra_payload_test_completed(uint64_t target, uint64_t cancel, int result, 
 	}
 	atomic_fetch_add(&completed, 1);
 }
+
 void astra_payload_test_closed(void) {
 	assert(atomic_fetch_add(&closed, 1) == 0);
 }
+
 extern int __real_astra_async_linux_payload(AstraAsyncTask *, AstraLinuxPayload *);
+
 int __wrap_astra_async_linux_payload(AstraAsyncTask *task, AstraLinuxPayload *payload) {
 	if (profile == 3 && atomic_load(&submitted) == 0) {
 		astra_linux_payload_test_bad_fd(payload);
@@ -196,13 +217,17 @@ int __wrap_astra_async_linux_payload(AstraAsyncTask *task, AstraLinuxPayload *pa
 	}
 	return result;
 }
+
 extern void __real_astra_async_worker_pool_close(AstraAsyncExecutor *);
+
 void __wrap_astra_async_worker_pool_close(AstraAsyncExecutor *pool) {
 	assert(syscall(SYS_gettid) == owner);
 	__real_astra_async_worker_pool_close(pool);
 	assert(atomic_fetch_add(&joined, 1) == 0);
 }
+
 extern int __real_sequence_finish(int);
+
 int __wrap_sequence_finish(int result) {
 	assert(result == (profile == 0 ? 0 : profile <= 2 ? 130
 	                                                  : 1));

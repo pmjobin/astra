@@ -8,5 +8,6 @@ public class ConstructorContracts : Object {
 	public static bool admitted(ForeignClassPolicy? foreign, AllocationPolicy? allocation, int ordinal, ClassType? error) {
 		return error != null && (allocation != null && allocation.checked_initialization () || ForeignApiTypes.checked_constructor (foreign, ordinal, error));
 	}
+
 }
 }

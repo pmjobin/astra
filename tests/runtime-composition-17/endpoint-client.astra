@@ -8,63 +8,81 @@ int exchange(string address, int family) throws SocketError {
 	tcp.open_family(family);
 	int connected = tcp.connect_to(remote);
 	while (connected == NetAgain || connected == NetInterrupted) {
-		if (tcp.ready(true) == 1) { tcp.connected(); break; }
+		if (tcp.ready(true) == 1) {
+			tcp.connected();
+			break;
+		}
 		network_deadline(started, 8000);
 	}
-	if (!network_endpoint_equal(tcp.peer_address(), remote)) { return 31; }
+	if (!network_endpoint_equal(tcp.peer_address(), remote)) return 31;
 	NetworkEndpoint local = tcp.local_address();
-	if (local.family != family || local.port <= 0) { return 32; }
+	if (local.family != family || local.port <= 0) return 32;
 	var bytes = new u8[8193];
-	for (int i = 0; i < len(bytes); i = i + 1) { bytes[i] = ((i * 19 + i / 37) % 256) as u8; }
+	for (int i = 0; i < len(bytes); i = i + 1) bytes[i] = ((i * 19 + i / 37) % 256) as u8;
 	int sent = 0;
 	while (sent < len(bytes)) {
 		int count = len(bytes) - sent;
-		if (count > 127) { count = 127; }
+		if (count > 127) count = 127;
 		int progress = tcp.try_write(bytes, sent, count);
-		if (progress > 0) { sent = sent + progress; }
-		else { network_deadline(started, 8000); }
+		if (progress > 0) {
+			sent = sent + progress;
+		}
+		else {
+			network_deadline(started, 8000);
+		}
 	}
 	tcp.half_close();
 	var reply = new u8[len(bytes)];
 	int received = 0;
 	while (received < len(reply)) {
 		int progress = tcp.try_read(reply, received, len(reply) - received);
-		if (progress > 0) { received = received + progress; }
-		else { if (progress == 0) { return 33; } network_deadline(started, 8000); }
+		if (progress > 0) {
+			received = received + progress;
+		}
+		else {
+			if (progress == 0) return 33;
+			network_deadline(started, 8000);
+		}
 	}
-	for (int i = 0; i < len(bytes); i = i + 1) { if (reply[i] != bytes[i]) { return 34; } }
+	for (int i = 0; i < len(bytes); i = i + 1) {
+		if (reply[i] != bytes[i]) return 34;
+	}
 	while (true) {
 		int progress = tcp.try_read(reply, 0, 1);
-		if (progress == 0) { break; }
-		if (progress > 0) { return 35; }
+		if (progress == 0) break;
+		if (progress > 0) return 35;
 		network_deadline(started, 8000);
 	}
 	tcp.close();
 	NetworkEndpoint binding = network_endpoint("0.0.0.0", 4, 0, 0);
-	if (family == 6) { binding = network_endpoint("::", 6, 0, 0); }
+	if (family == 6) binding = network_endpoint("::", 6, 0, 0);
 	var udp = new UdpSocket();
 	udp.open_at(binding);
 	remote.port = endpoint_test_port(1);
 	for (int packet = 0; packet < 3; packet = packet + 1) {
 		int count = 4097;
-		if (packet == 0) { count = 0; }
+		if (packet == 0) count = 0;
 		int progress = udp.send_to(remote, bytes, 0, count);
 		while (progress == NetAgain || progress == NetInterrupted) {
 			network_deadline(started, 8000);
 			progress = udp.send_to(remote, bytes, 0, count);
 		}
-		if (progress != count) { return 36; }
+		if (progress != count) return 36;
 		int capacity = count;
-		if (packet == 2) { capacity = 19; }
+		if (packet == 2) capacity = 19;
 		bool complete = false;
 		while (!complete) {
 			try {
 				NetworkDatagram result = udp.receive_from(reply, 0, capacity);
-				if (result.count != capacity || result.message_length != count || result.truncated != (packet == 2) || !network_endpoint_equal(result.peer, remote)) { return 37; }
-				for (int i = 0; i < result.count; i = i + 1) { if (bytes[i] != reply[i]) { return 38; } }
+				if (result.count != capacity || result.message_length != count || result.truncated != (packet == 2) || !network_endpoint_equal(result.peer, remote)) return 37;
+				for (int i = 0; i < result.count; i = i + 1) {
+					if (bytes[i] != reply[i]) return 38;
+				}
 				complete = true;
 			} catch (SocketError error) {
-				if (error.code != NetAgain && error.code != NetInterrupted) { throw; }
+				if (error.code != NetAgain && error.code != NetInterrupted) {
+					throw;
+				}
 				network_deadline(started, 8000);
 			}
 		}
@@ -72,10 +90,11 @@ int exchange(string address, int family) throws SocketError {
 	udp.close();
 	return 0;
 }
+
 int main(string[] args) {
-	if (len(args) != 3) { return 64; }
+	if (len(args) != 3) return 64;
 	int family = 6;
-	if (args[2] == "4") { family = 4; }
+	if (args[2] == "4") family = 4;
 	try { return exchange(args[1], family); }
 	catch (SocketError error) { return 80; }
 }

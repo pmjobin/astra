@@ -18,6 +18,7 @@ public class CAbiBuilder : Object {
 		}
 		throw new CAbiError.INVALID_TYPE ("C callback requires an exact concrete native function");
 	}
+
 	internal static CAbiRecordPlan record_plan(SsaProgram program, SemanticType type) throws CAbiError {
 		if (!(type is StructType) && (!(type is TypedPointerType) || !(((TypedPointerType) type).pointee is StructType))) {
 			throw new CAbiError.INVALID_TYPE ("C record requires an exact native Struct*");
@@ -53,9 +54,11 @@ public class CAbiBuilder : Object {
 		}
 		return new CAbiRecordPlan (declaration.name, fields, (offset + alignment - 1) / alignment * alignment, alignment, type is StructType, projection);
 	}
+
 	internal static CAbiResult? result_plan(SsaProgram source, SemanticType type, Astra.Foreign.CBoolAbi bool_abi = Astra.Foreign.CBoolAbi.NONE) throws CAbiError {
 		return type.is_struct_storage () ? new CAbiResult.record_value (record_plan (source, type)) : CAbiTypeMapper.map_result (type, bool_abi);
 	}
+
 	private static Astra.Source.ForeignValueType retained_signal_signature(SemanticType type) throws CAbiError {
 		try {
 			var handle = NativeTypeMapper.map_type (type) as NativeClosureHandleType;
@@ -68,9 +71,11 @@ public class CAbiBuilder : Object {
 			throw new CAbiError.INVALID_NATIVE_ABI ("typed retained signal: %s", failure.message);
 		}
 	}
+
 	private static bool wide_type(SemanticType type) {
 		return type.kind == TypeKind.I64 || type.kind == TypeKind.U64 || type.kind == TypeKind.ISIZE || type.kind == TypeKind.USIZE;
 	}
+
 	public static CAbiProgram build(SsaProgram source, NativeAbiProgram nabi) throws CAbiError {
 		try {
 			SsaVerifier.verify (source);
@@ -345,5 +350,6 @@ public class CAbiBuilder : Object {
 		CAbiValidator.validate_exports (source, nabi, result, native_targets);
 		return result;
 	}
+
 }
 }

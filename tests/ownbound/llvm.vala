@@ -10,6 +10,7 @@ private LlvmModuleArtifact lower(SsaProgram ssa) throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	return LlvmLowering.lower (ssa, nabi, CAbiBuilder.build (ssa, nabi));
 }
+
 private void physical() throws GLib.Error {
 	string dump = lower (build (BASIC)).dump ();
 	assert (dump.contains ("define internal fastcc ptr @astra.fn.0(ptr %p0)"));
@@ -19,6 +20,7 @@ private void physical() throws GLib.Error {
 		assert (!dump.contains (forbidden));
 	}
 }
+
 private void lifetime() throws GLib.Error {
 	SsaProgram? ssa = build (BASIC);
 	NativeAbiProgram? nabi = NativeAbiBuilder.build (ssa);
@@ -39,6 +41,7 @@ private void lifetime() throws GLib.Error {
 	target.emit_object (artifact, path);
 	assert (FileUtils.test (path, FileTest.IS_REGULAR) && FileUtils.unlink (path) == 0);
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -51,4 +54,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

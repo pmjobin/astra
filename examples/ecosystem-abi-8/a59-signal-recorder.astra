@@ -2,41 +2,46 @@
 class Recorder {
 	private owned Counter source;
 	private owned Shared<RecordLog> log;
+
 	init(owned Counter source, owned Shared<RecordLog> log) { this.source = move source; this.log = move log; }
+
 	deinit() { println("recorder closed"); }
+
 	int receive(int value) {
 		var log = shared_clone(this.log);
-		if (!log_event(shared_borrow(log), "event=", value)) { return -5; }
+		if (!log_event(shared_borrow(log), "event=", value)) return -5;
 		if (value == 3) {
 			int nested = counter_emit(this.source, 99);
-			if (!log_event(shared_borrow(log), "nested=", nested)) { return -5; }
+			if (!log_event(shared_borrow(log), "nested=", nested)) return -5;
 		}
 		return value * 2;
 	}
 }
+
 int record_signal(borrowed Recorder recorder, int value) { return recorder.receive(value); }
+
 int main() {
 	try {
 		{
 			owned Counter object = counter_new(0);
 			owned SignalSource source = signal_source(object, "changed");
-			if (object == null || source == null) { return 1; }
+			if (object == null || source == null) return 1;
 			var log = new RecordLog();
 			var log_owner = shared_acquire(move log);
 			var capture_log = shared_clone(log_owner);
 			owned Counter capture = counter_ref(object);
 			var recorder = new Recorder(move capture, move capture_log);
 			var handler = closure_bind(move recorder, record_signal);
-			if (retained_register(handler, signal_mode(source)) != 0) { return 2; }
-			if (counter_emit(object, 3) != 6 || counter_emit(object, 5) != 10) { return 3; }
-			if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 4; }
+			if (retained_register(handler, signal_mode(source)) != 0) return 2;
+			if (counter_emit(object, 3) != 6 || counter_emit(object, 5) != 10) return 3;
+			if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) return 4;
 			println("disconnected");
 			release handler;
-			if (counter_emit(object, 7) != 0 || signal_connections() != 0) { return 5; }
+			if (counter_emit(object, 7) != 0 || signal_connections() != 0) return 5;
 			var text = log_snapshot(shared_borrow(log_owner));
 			print(text.text);
 		}
-		if (counter_finalized() != 1 || foreign_live() != 0) { return 6; }
+		if (counter_finalized() != 1 || foreign_live() != 0) return 6;
 		println("foreign finalized=1");
 		return 0;
 	} catch (Error error) { println_stderr(error.message); return 70; }

@@ -43,6 +43,7 @@ private CheckedProgram checked(string text, string? heap_boundary = null) {
 	}
 	return result.program;
 }
+
 private CoreProgram build(string text, string? heap_boundary = null) throws CoreError {
 	CheckedProgram? source = checked (text, heap_boundary);
 	var weak = WeakRef (source.functions[0]);
@@ -63,6 +64,7 @@ private CoreFunction function(CoreProgram program, string name) {
 	}
 	error ("missing Core function %s", name);
 }
+
 private RuntimeLifetimeSummary summary(CoreProgram program, string name) throws CoreError {
 	var facts = CoreRuntimeLifetimes.analyze (program);
 	var result = facts.lookup (function (program, name));
@@ -72,6 +74,7 @@ private RuntimeLifetimeSummary summary(CoreProgram program, string name) throws 
 	}
 	return result;
 }
+
 private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string path = "") {
 	foreach (var origin in origins) {
 		if (origin.kind == RuntimeScopeOriginKind.OWNER_PARAMETER && origin.ordinal == parameter && origin.path == path) {
@@ -80,6 +83,7 @@ private bool has(GenericArray<RuntimeScopeOrigin> origins, int parameter, string
 	}
 	return false;
 }
+
 private void independent_constructors() {
 	try {
 		CoreProgram? core = build (LEAF + HOLDER + "owned Holder wrap(owned Leaf input){var box=new Holder(move input);return move box;}owned Holder forward(owned Leaf input){var result=wrap(move input);return move result;}int main(){return 0;}");
@@ -96,6 +100,7 @@ private void independent_constructors() {
 		error ("%s", failure.message);
 	}
 }
+
 private void records_and_control() {
 	try {
 		var core = build (LEAF + HOLDER + "struct Record{owned Leaf child;int marker;}Record packet(owned Leaf input){Record value={child=move input,marker=7};return move value;}void replace_loop(borrowed Holder box,owned Leaf incoming,int count){while(count>0){box.put(move incoming);break;}}void compare(borrowed Holder box,owned Leaf incoming,int count){bool ignored=0<count<box.change(move incoming);}int main(){return 0;}");
@@ -112,6 +117,7 @@ private void records_and_control() {
 		error ("%s", failure.message);
 	}
 }
+
 private void opaque_native() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("lifetime-core-client.astra", "int caller(){return opaque();}int main(){return caller();}"));
@@ -139,6 +145,7 @@ private void opaque_native() {
 		error ("%s", failure.message);
 	}
 }
+
 private CoreOwnedLocal inject(CoreBlock block, CoreLocalPlace context, CoreFunction function) {
 	for (int i = 0; i < block.statements.length; i++) {
 		var initial = block.statements[i] as CoreInitialize;
@@ -161,6 +168,7 @@ private CoreOwnedLocal inject(CoreBlock block, CoreLocalPlace context, CoreFunct
 	}
 	error ("Core fixture lost leaf initialization");
 }
+
 private void scoped_result() {
 	try {
 		foreach (bool escaping in new bool[] { false, true }) {
@@ -194,6 +202,7 @@ private void scoped_result() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_receiver() {
 	try {
 		string host = "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}void put(owned ScopedLeaf child){this.child=move child;}}";
@@ -233,6 +242,7 @@ private void scoped_receiver() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_formal() {
 	try {
 		var core = build (SCOPED + "owned ScopedLeaf build(borrowed Scoped context){var leaf=empty();return null;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=build(context);return 0;}int main(){return 0;}");
@@ -259,6 +269,7 @@ private void scoped_formal() {
 		error ("%s", failure.message);
 	}
 }
+
 private void incomplete_scoped_proof() {
 	try {
 		var core = build (SCOPED + "int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=empty();return 0;}int main(){return 0;}");
@@ -301,6 +312,7 @@ private void incomplete_scoped_proof() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_carrier_signature() {
 	try {
 		var program = build (SCOPED.replace ("init(){}", "int code;init(){this.code=7;}int read(){int value=this.code;return value;}") + "class Inner{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}class Host{private owned Inner child;init(owned Inner child){this.child=move child;}}extern(C) void* opaque_ptr();void opaque(){opaque_ptr();}void probe(borrowed Host box){}int main(){return 0;}");
@@ -322,6 +334,7 @@ private void scoped_carrier_signature() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owned_factory_roles() {
 	try {
 		var program = build (SCOPED + "class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}int probe(borrowed Host host){var context=context_open();return 0;}int main(){return 0;}");
@@ -354,6 +367,7 @@ private void owned_factory_roles() {
 		error ("%s", failure.message);
 	}
 }
+
 private void fallible_owner_inputs() {
 	try {
 		var program = build (SCOPED + "[Allocator(kind=\"context\",context=\"owned-concurrent\")]class Host{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}owned ScopedLeaf refuse(borrowed Context context,owned ScopedLeaf input){var host=try_new(context)Host(move input);if(host==null){return move input;}return null;}int main(){return 0;}");
@@ -364,6 +378,7 @@ private void fallible_owner_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exceptional_results() {
 	try {
 		string fault = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}";
@@ -517,6 +532,7 @@ private void cold_task_contract() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_scoped_capture() {
 	try {
 		var core = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();var pending=consume(move input);return 0;}int main(){return exercise();}");
@@ -529,6 +545,7 @@ private void cold_task_scoped_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_joined_capture() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}async void joined(owned Captured input) throws TaskError{var child=consume(move input);await move child;await delay_ticks(1);}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();try{var executor=Tasks.open(8);var pending=joined(move input);var status=executor.run(move pending);match(status){case TaskStatus.Completed():{}else:{return 2;}}}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -541,6 +558,7 @@ private void cold_task_joined_capture() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_admission_refusal() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}async void consume(owned Captured input){}owned Captured refused(borrowed Context frames,owned Captured input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}return null;}int main(){return 0;}");
@@ -550,6 +568,7 @@ private void cold_task_admission_refusal() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_admission() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}struct Packet{owned Captured child;int marker;}async void consume(Packet input){}Packet refused(borrowed Context frames,Packet input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}Packet vacant={child=empty(),marker=0};return move vacant;}int main(){return 0;}");
@@ -559,6 +578,7 @@ private void cold_task_record_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_buffer_admission() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}async void consume(owned Captured item,owned u8[] bytes){}owned Captured refused(borrowed Context frames,owned Captured item,owned u8[] bytes){try{var pending=checked_task_in(frames,consume(move item,move bytes));}catch(TaskError error){return move item;}return null;}int main(){return 0;}");
@@ -568,6 +588,7 @@ private void cold_task_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_admission() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async void consume(Packet input){}Packet refused(borrowed Context frames,Packet input){try{var pending=checked_task_in(frames,consume(move input));}catch(TaskError error){return move input;}Packet vacant={child=empty(),data={left=new u8[0],right=new u8[0]},marker=0};return move vacant;}int main(){return 0;}");
@@ -577,6 +598,7 @@ private void cold_task_record_buffer_admission() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_deferred_error() {
 	try {
 		var program = build ("[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}owned Captured empty(){return null;}[ExceptionRoot]class DeferredError{private owned Captured child;init(string message){this.child=empty();}void put(owned Captured input){this.child=move input;}virtual property string message{get{return \"deferred\";}}}enum DeferredStatus{Completed,Cancelled}async runtime DeferredTasks throws DeferredError returns DeferredStatus;async void fail(owned Captured input)throws DeferredError{var error=new DeferredError(\"deferred\");error.put(move input);throw move error;}int main(){return 0;}");
@@ -589,6 +611,7 @@ private void cold_task_deferred_error() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_observation() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Packet{owned Captured child;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -598,6 +621,7 @@ private void cold_task_record_observation() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cold_task_record_buffer_observation() {
 	try {
 		var program = build (TASK_RUNTIME + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}struct Storage{owned u8[] left;owned u8[] right;}struct Packet{owned Captured child;Storage data;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws TaskError{var pending=deliver(move input);var result=await move pending;}int exercise(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var input=new(context)Captured();Packet packet={child=move input,data={left=new u8[7],right=new u8[9]},marker=17};try{var executor=Tasks.open(8);var root=collect(move packet);var status=executor.run(move root);}catch(TaskError error){return 1;}return 0;}int main(){return exercise();}");
@@ -607,6 +631,7 @@ private void cold_task_record_buffer_observation() {
 		error ("%s", failure.message);
 	}
 }
+
 private void generic_slots_call_roles() {
 	try {
 		string text;
@@ -639,6 +664,7 @@ private void generic_slots_call_roles() {
 		error ("%s", failure.message);
 	}
 }
+
 private void generic_buffer_domains() {
 	try {
 		var program = build ("struct Box<T>{T value;}Box<int> box(int n){Box<int> result={value=n};return result;}int main(){var context=context_open();if(context==null){return 1;}var selected=new(context)u8[17];var ordinary=new u8[19];selected[0]=3;ordinary[0]=4;var result=box(7);return result.value+(selected[0] as int)+(ordinary[0] as int);}");
@@ -676,6 +702,7 @@ private void generic_buffer_domains() {
 		error ("%s", failure.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/runtime-lifetime-core/generic-buffer-domains", generic_buffer_domains);
@@ -703,4 +730,5 @@ public int main(string[] args) {
 	Test.add_func ("/runtime-lifetime-core/incomplete-scoped-proof", incomplete_scoped_proof);
 	return Test.run ();
 }
+
 }

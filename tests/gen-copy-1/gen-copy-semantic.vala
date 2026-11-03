@@ -5,9 +5,11 @@ private class Application : SemanticType {
 	public Application () {
 		base (TypeKind.GENERIC_STRUCT_APPLICATION);
 	}
+
 	public override bool is_parameterized() {
 		return true;
 	}
+
 }
 private void proof() {
 	var types = new BuiltinTypes ();
@@ -100,9 +102,11 @@ private void proof() {
 		assert (!GenericCapabilityAuthority.satisfies (record, capability));
 	}
 }
+
 public int run_semantic(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-copy/semantic/shared-exact-concrete-symbolic-proof-and-exclusions", proof);
 	return Test.run ();
 }
+
 }

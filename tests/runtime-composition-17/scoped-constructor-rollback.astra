@@ -4,8 +4,11 @@ extern(C) void scoped_rollback_event(int event, int identity);
 [ExceptionRoot]
 class ConstructionFault {
 	private int identity;
+
 	init(int identity) { this.identity = identity; scoped_rollback_event(2, identity); }
+
 	virtual property string message { get { return "scoped construction failed"; } }
+
 	deinit() { scoped_rollback_event(3, this.identity); }
 }
 
@@ -13,13 +16,18 @@ class ConstructionFault {
 class CheckedScopedItem {
 	private int identity;
 	private int number;
+
 	init(int identity, int number) throws ConstructionFault {
 		this.identity = identity;
 		this.number = number;
 		scoped_rollback_event(1, identity);
-		if (number < 0) { throw new ConstructionFault(identity); }
+		if (number < 0) {
+			throw new ConstructionFault(identity);
+		}
 	}
+
 	int read() { return this.number; }
+
 	deinit() { scoped_rollback_event(4, this.identity); }
 }
 
@@ -27,37 +35,37 @@ export(C) int scoped_constructor_rollback_run() {
 	owned u8[] backing = new u8[8197];
 	{
 		var context = scoped_allocator<ScopedAllocator>(backing, 2, 1);
-		if (context == null) { return 1; }
+		if (context == null) return 1;
 		try { var failed = new(context)CheckedScopedItem(1, -1); return 2; }
 		catch (ConstructionFault error) {
-			if (scoped_allocator_query(context, 1) != 0) { return 3; }
+			if (scoped_allocator_query(context, 1) != 0) return 3;
 			scoped_rollback_event(5, 1);
 		}
 		try {
 			var first = new(context)CheckedScopedItem(2, 23);
-			if (first.read() != 23) { return 4; }
+			if (first.read() != 23) return 4;
 			var refused = try_new(context)CheckedScopedItem(99, -1);
-			if (refused != null || first.read() != 23 || scoped_allocator_query(context, 1) != 1) { return 5; }
+			if (refused != null || first.read() != 23 || scoped_allocator_query(context, 1) != 1) return 5;
 		} catch (ConstructionFault error) { return 6; }
 		try { var failed = try_new(context)CheckedScopedItem(3, -1); return 7; }
 		catch (ConstructionFault error) {
-			if (scoped_allocator_query(context, 1) != 0) { return 8; }
+			if (scoped_allocator_query(context, 1) != 0) return 8;
 			scoped_rollback_event(5, 3);
 		}
 		try {
 			var second = try_new(context)CheckedScopedItem(4, 37);
-			if (second == null || second.read() != 37) { return 9; }
+			if (second == null || second.read() != 37) return 9;
 		} catch (ConstructionFault error) { return 10; }
 		int identity = 5;
 		while (identity < 7) {
 			try { var failed = new(context)CheckedScopedItem(identity, -1); return 11; }
 			catch (ConstructionFault error) {
-				if (scoped_allocator_query(context, 1) != 0) { return 12; }
+				if (scoped_allocator_query(context, 1) != 0) return 12;
 				scoped_rollback_event(5, identity);
 			}
 			identity = identity + 1;
 		}
-		if (scoped_allocator_query(context, 4) != 6 || scoped_allocator_query(context, 5) != 6) { return 13; }
+		if (scoped_allocator_query(context, 4) != 6 || scoped_allocator_query(context, 5) != 6) return 13;
 	}
 	return len(backing) - 8197;
 }

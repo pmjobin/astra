@@ -2,17 +2,24 @@
 extern(C) void usability_event(int value);
 
 struct Pair { int left; int right; }
+
 class RecordSequence {
 	int index;
 	int limit;
 	int failure;
+
 	init(int limit, int failure) { this.index = -1; this.limit = limit; this.failure = failure; }
+
 	bool advance() { this.index = this.index + 1; return this.index < this.limit; }
+
 	Pair current() throws Error {
-		if (this.index == this.failure) { throw new Error("current failure"); }
+		if (this.index == this.failure) {
+			throw new Error("current failure");
+		}
 		Pair value = {left = this.index, right = this.index * this.index};
 		return value;
 	}
+
 	deinit() { usability_event(-100 - this.limit); }
 }
 

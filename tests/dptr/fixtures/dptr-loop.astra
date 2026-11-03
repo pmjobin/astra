@@ -2,10 +2,17 @@
 
 int branch(int* p, bool condition) {
 	int result = 0;
-	if (condition) { *p = 7; result = *p; }
-	else { *p = 9; result = *p; }
+	if (condition) {
+		*p = 7;
+		result = *p;
+	}
+	else {
+		*p = 9;
+		result = *p;
+	}
 	return result;
 }
+
 int loop(int* p, int n) {
 	int i = 0;
 	int result = 0;
@@ -19,6 +26,7 @@ int loop(int* p, int n) {
 	}
 	return result;
 }
+
 int main() {
 	int x = 0;
 	int* p = &x;
@@ -28,13 +36,21 @@ int main() {
 		*p = *p + 2;
 		i = i + 1;
 	}
-	if (x != 30 || loop(p, 12) != 42 || x != 42) { return 1; }
-	if (branch(p, true) != 7 || x != 7) { return 2; }
-	if (branch(p, false) != 9 || x != 9) { return 3; }
-	if (*p > 0) { *p = 11; } else { x = 13; }
-	if (x != 11) { return 4; }
-	if (*p < 0) { *p = 17; } else { x = 19; }
-	if (*p != 19) { return 5; }
-	if (loop(null, 3) != 0) { return 6; }
+	if (x != 30 || loop(p, 12) != 42 || x != 42) return 1;
+	if (branch(p, true) != 7 || x != 7) return 2;
+	if (branch(p, false) != 9 || x != 9) return 3;
+	if (*p > 0) {
+		*p = 11;
+	} else {
+		x = 13;
+	}
+	if (x != 11) return 4;
+	if (*p < 0) {
+		*p = 17;
+	} else {
+		x = 19;
+	}
+	if (*p != 19) return 5;
+	if (loop(null, 3) != 0) return 6;
 	return 0;
 }

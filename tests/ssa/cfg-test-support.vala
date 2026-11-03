@@ -20,4 +20,5 @@ private CfgProgram cfg_ok(string text) {
 		GLib.error ("Unexpected CFG test setup failure: %s", error.message);
 	}
 }
+
 }

@@ -1,17 +1,21 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int n) { this.value = n; life_record(65 + n, 0); }
+
 	deinit() { life_record(49 + this.value, 0); }
 }
+
 int main() {
 	int i = 0;
 	while (i < 4) {
 		Counter c = Counter.init(i);
 		life_record(97 + c.value, 0);
 		i = i + 1;
-		if (i == 2) { continue; }
-		if (i == 3) { break; }
+		if (i == 2) continue;
+		if (i == 3) break;
 	}
 	life_record(90, 0);
 	return 42;

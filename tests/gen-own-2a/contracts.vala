@@ -18,6 +18,7 @@ private CoreProgram core() throws GLib.Error {
 	CoreVerifier.verify (result);
 	return result;
 }
+
 private void rejects(CoreProgram program, string text) {
 	bool failed = false;
 	try {
@@ -30,6 +31,7 @@ private void rejects(CoreProgram program, string text) {
 	}
 	assert (failed);
 }
+
 private void symbolic_domain() throws GLib.Error {
 	var program = core ();
 	var parameter = program.generic_functions[0].parameters[0];
@@ -38,6 +40,7 @@ private void symbolic_domain() throws GLib.Error {
 	parameter.heap_object = false;
 	CoreVerifier.verify (program);
 }
+
 private void source_contract() throws GLib.Error {
 	var program = core ();
 	CoreGenericCallStatement? call = null;
@@ -60,6 +63,7 @@ private void source_contract() throws GLib.Error {
 	call.arguments[0] = original;
 	CoreVerifier.verify (program);
 }
+
 private void forwarding() throws GLib.Error {
 	var program = core ();
 	var function = program.generic_functions[0];
@@ -74,6 +78,7 @@ private void forwarding() throws GLib.Error {
 	function.body.statements.remove_index (1);
 	CoreVerifier.verify (program);
 }
+
 private void instance_key() throws GLib.Error {
 	var program = CoreGenericMonomorphizer.build (core ());
 	CoreVerifier.verify_concrete (program);
@@ -97,12 +102,14 @@ private void instance_key() throws GLib.Error {
 	heap.parameters[0].heap_object = true;
 	CoreVerifier.verify_concrete (program);
 }
+
 private CfgProgram cfg() throws GLib.Error {
 	var result = CfgBuilder.build (CoreGenericMonomorphizer.build (core ()));
 	CfgVerifier.verify (result);
 	assert (CfgFlowChecker.check (result).diagnostic == null);
 	return result;
 }
+
 private void cfg_domain() throws GLib.Error {
 	var program = cfg ();
 	CfgParameter? parameter = null;
@@ -124,6 +131,7 @@ private void cfg_domain() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private void double_acquire() throws GLib.Error {
 	var program = cfg ();
 	CfgBlock? entry = null;
@@ -147,11 +155,13 @@ private void double_acquire() throws GLib.Error {
 	CfgVerifier.verify (program);
 	assert (CfgFlowChecker.check (program).diagnostic == null);
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	var result = SsaBuilder.build (cfg ());
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void ssa_cleanup(bool duplicate) throws GLib.Error {
 	var program = ssa ();
 	SsaCleanupContract? lexical = null;
@@ -220,6 +230,7 @@ private void ssa_cleanup(bool duplicate) throws GLib.Error {
 	}
 	assert (tested);
 }
+
 private void native_domain() throws GLib.Error {
 	var source = ssa ();
 	var program = NativeAbiBuilder.build (source);
@@ -247,6 +258,7 @@ private void native_domain() throws GLib.Error {
 	NativeAbiVerifier.verify (program);
 	NativeAbiValidator.validate_ssa_calls (source, program, correspondence);
 }
+
 private delegate void Check() throws GLib.Error;
 private void run(Check check) {
 	try {
@@ -255,6 +267,7 @@ private void run(Check check) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own-2a/core/allocation-neutral-definition", () => { run (symbolic_domain);
@@ -279,4 +292,5 @@ int main(string[] args) {
 	});
 	return Test.run ();
 }
+
 }

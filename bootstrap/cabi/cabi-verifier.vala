@@ -58,6 +58,7 @@ public class CAbiVerifier : Object {
 			fail ("record", "record extent/alignment differs from natural LP64 scalar layout");
 		}
 	}
+
 	private static void fail(string path, string message) throws CAbiError {
 		throw new CAbiError.INVALID_ABI ("internal C ABI verification error at %s: %s", path, message);
 	}
@@ -437,5 +438,6 @@ public class CAbiVerifier : Object {
 			}
 		}
 	}
+
 }
 }

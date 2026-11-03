@@ -10,12 +10,14 @@ private SemanticResult check(string text) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private void reject(string text, string diagnostic) {
 	var result = check (text);
 	if (result.diagnostic == null || !result.diagnostic.message.contains (diagnostic)) {
 		GLib.error ("expected %s: %s", diagnostic, result.diagnostic == null ? "accepted invalid generic" : result.diagnostic.format ());
 	}
 }
+
 private void identity() {
 	var result = check ("T id<T>(T x){T y=x;y=x;return y;}T other<T>(T x){return id<T>(x);}int main(){return id<int>(id<i32>(42));}");
 	assert (result.diagnostic == null && result.program.generic_functions.length == 2 && result.program.functions.length == 1);
@@ -30,6 +32,7 @@ private void identity() {
 	assert (root.type_arguments[0] == ((CheckedGenericCall) root.arguments[0]).type_arguments[0]);
 	assert (SemanticDump.format (result.program).contains ("checked-once GEN1_PLAIN_COPY"));
 }
+
 private void scope() {
 	reject ("T f<T,T>(T a){return a;}", "duplicate type parameter");
 	reject ("int f<int>(){return 1;}", "builtin type name");
@@ -40,6 +43,7 @@ private void scope() {
 		reject (prefix + "T f<T>(T x){return x;}", "duplicate function");
 	}
 }
+
 private void arguments() {
 	assert (check ("T id<T>(T x){return x;}int main(){return id(42);}").diagnostic == null);
 	reject ("T id<T,U>(T x,U y){return x;}int main(){return id<int>(42,1);}", "expects 2 type arguments, provided 1");
@@ -57,6 +61,7 @@ private void arguments() {
 	reject ("T id<T>(owned T x){return x;}", "owned T requires explicit capability Ownable");
 	reject ("T id<T>(borrowed T x){return x;}", "borrowed T requires explicit capability Ownable");
 }
+
 private void capability() {
 	reject ("T mix<T,U>(T a,U b){T c=b;return c;}int main(){return mix<int,int>(1,2);}", "type");
 	reject ("T mix<T,U>(T a,U b){return b;}", "type");
@@ -73,6 +78,7 @@ private void capability() {
 	reject ("T bad<T>(T x){T y=null;return y;}", "null cannot be contextualized");
 	reject ("T bad<T>(T x){T y=x;void* p=&y;return y;}", "address-of");
 }
+
 private void matrix() {
 	var types = new BuiltinTypes ();
 	foreach (string name in new string[] {"bool", "i8", "u8", "i16", "u16", "int", "i32", "u32", "f32", "f64", "void*"}) {
@@ -90,6 +96,7 @@ private void matrix() {
 	assert (result.diagnostic == null && result.program.generic_functions.length == 3);
 	assert (((CheckedReturnStatement) result.program.functions[0].body.statements[0]).expression.semantic_type is F64Type);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen/semantic/exact-identity-substitution", identity);
@@ -99,4 +106,5 @@ int main(string[] args) {
 	Test.add_func ("/gen/semantic/matrix-reordering", matrix);
 	return Test.run ();
 }
+
 }

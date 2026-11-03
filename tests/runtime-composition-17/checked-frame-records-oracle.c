@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 static AstraContext17 *tokens[4];
 static _Atomic int closed[4];
+
 void checked_record_token(AstraContext17 *token, int identity) {
 	assert(token && identity >= 1 && identity <= 4);
 	int index = identity - 1;
@@ -12,7 +13,9 @@ void checked_record_token(AstraContext17 *token, int identity) {
 	assert(!tokens[index]);
 	tokens[index] = token;
 }
+
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	for (int i = 3; i >= 0; --i) {
 		if (!context || context != tokens[i] || atomic_load(&closed[i])) {
@@ -23,7 +26,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	}
 	__real_astra_context17_destroy(context);
 }
+
 int __real_checked_frame_finish(void);
+
 int __wrap_checked_frame_finish(void) {
 	for (int i = 0; i < 4; ++i) {
 		assert(tokens[i] && atomic_load(&closed[i]) == 1);

@@ -22,6 +22,7 @@ public class NativeContinuationEnvironment : Object {
 		this.buffer = buffer;
 		this.stable = stable;
 	}
+
 }
 
 public class NativeContinuationEntry : Object {
@@ -39,6 +40,7 @@ public class NativeContinuationEntry : Object {
 		this.body_signature = signature;
 		this.convention = convention;
 	}
+
 }
 
 public class NativeContinuationFamily : Object {
@@ -54,6 +56,7 @@ public class NativeContinuationFamily : Object {
 		this.destroy = destroy;
 		this.repeat_step = repeat_step;
 	}
+
 }
 
 private class NativeContinuationUse : Object {
@@ -69,6 +72,7 @@ private class NativeContinuationUse : Object {
 		this.instance = instance;
 		this.phase = phase;
 	}
+
 }
 
 // Complete independently retained region plan. No SSA/function/body graph.
@@ -98,14 +102,17 @@ public class NativeContinuationRegionPlan : Object {
 		}
 		descriptor_storage = new NativeRecordElement (-1, "generated continuation descriptor", fields);
 	}
+
 	private static void check(bool condition, string reason) throws NativeAbiError {
 		if (!condition) {
 			throw new NativeAbiError.INVALID_ABI ("internal continuation plan: %s", reason);
 		}
 	}
+
 	private bool operand_is(int index, NativeScalarType type) {
 		return index >= 0 && index < operands.length && operands[index].same_type (new NativeScalarAbiType (type));
 	}
+
 	private static void walk(NativeRecordElement record, string prefix, GenericArray<NativeStructLeafChannel> leaves) {
 		foreach (var field in record.fields) {
 			string path = prefix + "." + field.ordinal.to_string ();
@@ -116,6 +123,7 @@ public class NativeContinuationRegionPlan : Object {
 			}
 		}
 	}
+
 	private static void verify_environment(NativeContinuationEnvironment env) throws NativeAbiError {
 		check (env.stable && env.storage.fields.length == (env.buffer == null ? 1 : 3), "stable concrete environment layout required");
 		NativeRecordLayout.x86_64 (env.storage).verify_x86_64 ();
@@ -136,6 +144,7 @@ public class NativeContinuationRegionPlan : Object {
 			check (env.buffer.transfers_ownership && env.buffer.record_element == null && env.buffer.element_type != null && env.buffer.element_type.same_type (new NativeScalarAbiType (NativeScalarType.I32)) && fields[1].leaf != null && fields[2].leaf != null && fields[1].leaf.same_type (new NativeScalarAbiType (NativeScalarType.PTR)) && fields[2].leaf.same_type (new NativeScalarAbiType (NativeScalarType.I32)), "missing concrete buffer destruction authority");
 		}
 	}
+
 	private static void verify_entry(NativeContinuationEntry entry, NativeContinuationEnvironment? env, bool destroy) throws NativeAbiError {
 		check (entry.convention == NativeContinuationConvention.GENERATED_FAST, "calling convention mismatch");
 		check (entry.environment == (env == null ? null : env.identity), "wrong operation environment association");
@@ -165,6 +174,7 @@ public class NativeContinuationRegionPlan : Object {
 			}
 		}
 	}
+
 	public void verify() throws NativeAbiError {
 		check (descriptor_storage.fields.length == 4 && descriptor_storage.natural_layout && descriptor_storage.trivial_destruction && descriptor_storage.structural_zero, "invalid descriptor storage contract");
 		string[] roles = {
@@ -292,5 +302,6 @@ public class NativeContinuationRegionPlan : Object {
 		}
 		check (result && obligations.size () == 0, "unretired region/result");
 	}
+
 }
 }

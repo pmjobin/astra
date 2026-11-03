@@ -57,6 +57,7 @@ private CoreProgram sample(bool addressed = false, bool pointer = false) {
 	functions.add (function);
 	return new CoreProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		foreach (bool addressed in new bool[] {false, true}) {
@@ -78,6 +79,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 6; scenario++) {
 		var program = sample ();
@@ -113,6 +115,7 @@ private void invalid() {
 		assert (rejected);
 	}
 }
+
 private void initializer_firewalls() {
 	for (int scenario = 0; scenario < 5; scenario++) {
 		var program = sample ();
@@ -143,6 +146,7 @@ private void initializer_firewalls() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-agg/core/recursive-places-vector-f64-lifetime", positive);
@@ -150,4 +154,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-agg/core/recursive-initializer-firewalls", initializer_firewalls);
 	return Test.run ();
 }
+
 }

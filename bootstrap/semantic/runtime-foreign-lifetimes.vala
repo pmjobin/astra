@@ -9,6 +9,7 @@ public class RuntimeForeignLifetimes : Object {
 	public static bool scalar(SemanticType type) {
 		return type is IntegerType || type is FloatingType || type.kind == TypeKind.BOOL;
 	}
+
 	public static bool result(SemanticType type, string? cleanup = null) {
 		if (cleanup == null) {
 			return type.kind == TypeKind.VOID || scalar (type);
@@ -16,6 +17,7 @@ public class RuntimeForeignLifetimes : Object {
 		var context = type as HandleType;
 		return context != null && AllocationPolicy.valid_context_mode (context.context_mode) && context.context_mode != "scoped-affine" && context.context_cleanup != "" && cleanup == context.context_cleanup;
 	}
+
 	public static bool input(SemanticType type, PointerParameterContract contract, bool factory = false) {
 		if (scalar (type)) {
 			return contract == PointerParameterContract.UNMANAGED;
@@ -28,5 +30,6 @@ public class RuntimeForeignLifetimes : Object {
 		var context = type as HandleType;
 		return context != null && AllocationPolicy.valid_context_mode (context.context_mode) && context.context_cleanup != "" && contract == PointerParameterContract.BORROWED_NOESCAPE;
 	}
+
 }
 }

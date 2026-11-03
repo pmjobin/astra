@@ -8,9 +8,11 @@
 static void *snapshot;
 static int owner;
 static int uses;
+
 static void record(char event) {
 	assert(write(2, &event, 1) == 1);
 }
+
 void *args_snapshot_alloc(size_t size) {
 #ifdef FAIL_SNAPSHOT
 	(void)size;
@@ -24,19 +26,23 @@ void *args_snapshot_alloc(size_t size) {
 	return snapshot;
 #endif
 }
+
 void args_snapshot_free(void *pointer) {
 	assert(pointer == snapshot && snapshot != NULL);
 	record('D');
 	snapshot = NULL;
 	free(pointer);
 }
+
 void *__real_calloc(size_t count, size_t size);
 void __real_free(void *pointer);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	assert(snapshot != NULL);
 	record('B');
 	return __real_calloc(count, size);
 }
+
 void __wrap_free(void *pointer) {
 	if (pointer != NULL) {
 		if (snapshot != NULL) {
@@ -45,17 +51,20 @@ void __wrap_free(void *pointer) {
 		__real_free(pointer);
 	}
 }
+
 void *args_resource_acquire(void) {
 	assert(snapshot != NULL);
 	record('R');
 	owner = 1;
 	return &owner;
 }
+
 void args_resource_destroy(void *resource) {
 	assert(resource == &owner && owner == 1 && snapshot != NULL);
 	owner = 0;
 	record('r');
 }
+
 int args_mark(int event) {
 	assert(snapshot != NULL);
 	if (event == 60) {
@@ -68,6 +77,7 @@ int args_mark(int event) {
 	                                       : '?');
 	return event;
 }
+
 int args_index(void) {
 	record('I');
 #ifdef TRAP_INDEX
@@ -76,6 +86,7 @@ int args_index(void) {
 	return 1;
 #endif
 }
+
 int args_observe(const unsigned char *text, int32_t length) {
 	assert(snapshot != NULL && owner == 1 && uses++ == 0 && length == 3 && memcmp(text, "a\xc3\xa9", 3) == 0);
 	record('U');

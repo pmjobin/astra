@@ -6,6 +6,7 @@ public enum StructValueMode {
 	public string spelling() {
 		return this == COPY_VALUE ? "COPY_VALUE" : this == MOVE_VALUE ? "MOVE_VALUE" : "BORROW_VALUE";
 	}
+
 }
 
 // Stage-independent nominal boundary contract, never a pointer or SSA value.
@@ -17,6 +18,7 @@ public class StructValueContract : Object {
 		this.semantic_type = semantic_type;
 		this.mode = mode;
 	}
+
 }
 
 public errordomain StructLeafError {
@@ -29,6 +31,7 @@ public class StructLeafPath : Object {
 	public int field_ordinal(int index) {
 		return ordinals[index];
 	}
+
 	public SemanticType semantic_type { get; private set; }
 	public bool same_path(StructLeafPath other) {
 		if (semantic_type != other.semantic_type || depth != other.depth) {
@@ -41,6 +44,7 @@ public class StructLeafPath : Object {
 		}
 		return true;
 	}
+
 	internal StructLeafPath (int[] ordinals, SemanticType semantic_type) {
 		this.ordinals = new int[ordinals.length];
 		for (int i = 0; i < ordinals.length; i++) {
@@ -48,9 +52,11 @@ public class StructLeafPath : Object {
 		}
 		this.semantic_type = semantic_type;
 	}
+
 	public virtual StructLeafPath storage_path() {
 		return this;
 	}
+
 	public virtual string spelling() {
 		var result = new StringBuilder ();
 		foreach (int ordinal in ordinals) {
@@ -61,6 +67,7 @@ public class StructLeafPath : Object {
 		}
 		return result.str;
 	}
+
 }
 
 // A physical component retains its complete logical buffer field identity.
@@ -78,12 +85,15 @@ public class StructBufferLeafPath : StructLeafPath {
 		this.buffer_shape = shape;
 		this.component = component;
 	}
+
 	public override StructLeafPath storage_path() {
 		return original;
 	}
+
 	public override string spelling() {
 		return original.spelling () + (component == 0 ? "@base" : "@length");
 	}
+
 }
 
 public delegate BufferValueShape? StructBufferShapes(SliceType type);
@@ -150,6 +160,7 @@ public class StructLeafOrder : Object {
 		}
 		active.remove (type);
 	}
+
 }
 
 // Concrete boundary shape may outlive all stage graphs. It groups leaf
@@ -165,6 +176,7 @@ public class StructValueShape : Object {
 		this.mode = mode;
 		this.physical_buffers = physical_buffers;
 	}
+
 	public StructValueShape flatten_buffers(StructBufferShapes shapes) throws StructLeafError {
 		if (physical_buffers) {
 			return this;
@@ -186,6 +198,7 @@ public class StructValueShape : Object {
 		}
 		return changed ? new StructValueShape (semantic_type, result, mode, true) : this;
 	}
+
 	public void verify(CopyabilityFields fields) throws StructLeafError {
 		bool copyable = CopyabilityAuthority.of (semantic_type, fields) == Copyability.COPYABLE;
 		if (mode == StructValueMode.BORROW_VALUE ? copyable : mode != (copyable ? StructValueMode.COPY_VALUE : StructValueMode.MOVE_VALUE)) {
@@ -210,6 +223,7 @@ public class StructValueShape : Object {
 			throw new StructLeafError.INVALID_FIELDS ("struct boundary leaf count mismatch");
 		}
 	}
+
 }
 
 // Source argument/parameter grouping over a contiguous range of concrete leaves.
@@ -222,9 +236,11 @@ public class StructBoundaryGroup : Object {
 		this.first_leaf = first_leaf;
 		this.shape = shape;
 	}
+
 }
 
 public enum StructResultUseKind {
 	INITIALIZE, ASSIGN, ARGUMENT, RETURN, ENUM_PAYLOAD, CONTAINER_ELEMENT, OBSERVE
 }
+
 }

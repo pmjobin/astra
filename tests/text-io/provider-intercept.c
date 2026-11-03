@@ -11,6 +11,7 @@
 static int events[32], event_count, calls;
 static size_t counts[32], emitted_count;
 static unsigned char emitted[64];
+
 ssize_t intercepted_write(int fd, const void *bytes, size_t count) {
 	assert(fd == 1 || fd == 2);
 	assert(count > 0 && calls < 32);
@@ -29,6 +30,7 @@ ssize_t intercepted_write(int fd, const void *bytes, size_t count) {
 	emitted_count += progress;
 	return (ssize_t)progress;
 }
+
 int main(int argc, char **argv) {
 	assert(argc >= 5 && argc <= 36);
 	static const unsigned char payload[] = {'a', 0, 'b', '%', 'n'};

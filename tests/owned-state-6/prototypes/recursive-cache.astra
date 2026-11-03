@@ -1,8 +1,12 @@
 // Valid source composition; recursive evaluation of the same cache is fatal.
 class RecursiveCard {
 	private owned Utf8Message cache;
+
 	init() { this.cache = vacant_message(false); }
-	lazy property bool ready { get { if (this.ready) { return true; } return false; } }
+
+	lazy property bool ready { get { if (this.ready) return true; return false; } }
+
 	property borrowed Utf8Message content { get { return this.cache; } }
 }
-int main() { var card = new RecursiveCard(); if (card.ready) { return 81; } return 82; }
+
+int main() { var card = new RecursiveCard(); if (card.ready) return 81; return 82; }

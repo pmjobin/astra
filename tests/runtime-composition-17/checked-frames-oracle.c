@@ -15,10 +15,13 @@ static int attempts, refused, accepted;
 static long home;
 static _Atomic long observed;
 extern int run_checked_frames(void);
+
 int main(void) {
 	return run_checked_frames();
 }
+
 void *__real_calloc(size_t, size_t);
+
 void *__wrap_calloc(size_t count, size_t size) {
 	if (atomic_exchange(&fail_header, 0)) {
 		errno = ENOMEM;
@@ -26,12 +29,15 @@ void *__wrap_calloc(size_t count, size_t size) {
 	}
 	return __real_calloc(count, size);
 }
+
 void checked_frame_header_failure(void) {
 	assert(!atomic_load(&fail_header));
 	home = syscall(SYS_gettid);
 	atomic_store(&fail_header, 1);
 }
+
 AstraAsyncTask *__real_astra_async_try_new_allocated(size_t, size_t, AstraAsyncResume, AstraAsyncDestroy, AstraAsyncTask *, const AstraAsyncFrameAllocator *, void *);
+
 AstraAsyncTask *__wrap_astra_async_try_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	assert(allocator && context);
 	++attempts;
@@ -43,6 +49,7 @@ AstraAsyncTask *__wrap_astra_async_try_new_allocated(size_t size, size_t alignme
 	}
 	return task;
 }
+
 void checked_frame_event(int kind, int identity) {
 	assert(identity > 0 && identity < 5);
 	if (kind == 1) {
@@ -54,6 +61,7 @@ void checked_frame_event(int kind, int identity) {
 		atomic_fetch_add(&retired[identity], 1);
 	}
 }
+
 int checked_frame_finish(void) {
 	assert(attempts == 7 && refused == 3 && accepted == 4 && !atomic_load(&fail_header));
 	for (int i = 1; i < 5; ++i) {

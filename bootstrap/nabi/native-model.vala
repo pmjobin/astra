@@ -67,6 +67,7 @@ public enum NativeAbiVersion {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 // Physical call channels only. B1 does not specify addressable bool storage.
@@ -116,6 +117,7 @@ public enum NativeScalarType {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 // Compiler-owned channel types, independent of semantic/LLVM objects.
@@ -130,12 +132,15 @@ public class NativeScalarAbiType : NativeAbiType {
 	internal NativeScalarAbiType (NativeScalarType scalar_type) {
 		this.scalar_type = scalar_type;
 	}
+
 	public override string spelling() {
 		return scalar_type.spelling ();
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		return other is NativeScalarAbiType && !(other is NativeFunctionPointerType) && !(other is NativeSharedHandleType) && !(other is NativeClosureHandleType) && !(other is NativeContextHandleType) && ((NativeScalarAbiType) other).scalar_type == scalar_type;
 	}
+
 }
 
 public class NativeContextHandleType : NativeScalarAbiType {
@@ -151,16 +156,20 @@ public class NativeContextHandleType : NativeScalarAbiType {
 		lifetime_threading = mode;
 		release_symbol = cleanup;
 	}
+
 	public bool valid() {
 		return scalar_type == NativeScalarType.PTR && Astra.Source.AllocationPolicy.identifier (name, true) && Astra.Source.AllocationPolicy.valid_context_mode (mode) && Astra.Source.AllocationPolicy.identifier (cleanup);
 	}
+
 	public override string spelling() {
 		return "CONTEXT(runtime-contexts/1;%s;%s;%s)".printf (name, mode, cleanup);
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var context = other as NativeContextHandleType;
 		return context != null && valid () && context.valid () && context.name == name && context.mode == mode && context.cleanup == cleanup;
 	}
+
 }
 
 public class NativeVectorType : NativeAbiType {
@@ -175,9 +184,11 @@ public class NativeVectorType : NativeAbiType {
 	public override string spelling() {
 		return "VECTOR(%s,%d)".printf (element.spelling (), lanes);
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		return other is NativeVectorType && ((NativeVectorType) other).element == element && ((NativeVectorType) other).lanes == lanes;
 	}
+
 }
 public class NativeVectorMemoryPlan : Object {
 	public NativeVectorType vector_type { get; private set; }
@@ -190,14 +201,17 @@ public class NativeVectorMemoryPlan : Object {
 		origin_alignment = alignment;
 		this.store = store;
 	}
+
 	public NativeVectorMemoryPlan copy() {
 		var result = new NativeVectorMemoryPlan (vector_type, origin_alignment, store);
 		result.alignment = alignment;
 		return result;
 	}
+
 	public bool valid() {
 		return alignment == origin_alignment && alignment > 0 && alignment <= 16 && (alignment & (alignment - 1)) == 0;
 	}
+
 }
 
 // One parameter group. These components have no element or lifetime metadata.
@@ -221,9 +235,11 @@ public class NativeSliceType : NativeAbiType {
 	public override string spelling() {
 		return "SLICE(%s,%s)".printf (base_type.spelling (), length_type.spelling ());
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		return other is NativeSliceType && !(other is NativeTextSliceType) && !(other is NativeRecordSliceType) && !(other is NativeContextSliceType) && ((NativeSliceType) other).base_type == base_type && ((NativeSliceType) other).length_type == length_type;
 	}
+
 }
 public class NativeContextSliceType : NativeSliceType {
 	public NativeContextHandleType allocator { get; private set; }
@@ -232,16 +248,20 @@ public class NativeContextSliceType : NativeSliceType {
 		base ();
 		this.allocator = new NativeContextHandleType (allocator.name, allocator.mode, allocator.cleanup);
 	}
+
 	public bool valid() {
 		return allocator.valid () && allocator.mode != "scoped-affine" && base_type == NativeScalarType.PTR && length_type == NativeScalarType.I32;
 	}
+
 	public override string spelling() {
 		return "CONTEXT-BYTES(runtime-contexts/1;%s;release=astra_context17_release_origin_checked;role=buffer;PTR,I32)".printf (allocator.spelling ());
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var bytes = other as NativeContextSliceType;
 		return bytes != null && valid () && bytes.valid () && allocator.same_type (bytes.allocator);
 	}
+
 }
 
 public enum NativeLinkage {
@@ -258,6 +278,7 @@ public class NativeObjectOriginPlan : Object {
 		this.identifier = class_name;
 		this.heap = heap;
 	}
+
 }
 public class NativeParameter : Object {
 	public ForeignComInterface? com_unknown_borrow { get; private set; }
@@ -267,6 +288,7 @@ public class NativeParameter : Object {
 		}
 		com_unknown_borrow = protocol;
 	}
+
 	public NativeScalarAbiType? scalar_pointee { get; private set; }
 	public bool requires_nonnull { get; private set; }
 	public int generic_owner_class { get; private set; default = -1; }
@@ -283,6 +305,7 @@ public class NativeParameter : Object {
 		generic_owner_origin = definition;
 		generic_owner_heap = object_origin.heap;
 	}
+
 	public NativeScalarOwner? resource { get; private set; }
 	public bool owns_resource { get; private set; }
 	internal void bind_resource(NativeScalarOwner resource, bool owned) throws NativeAbiError {
@@ -292,6 +315,7 @@ public class NativeParameter : Object {
 		this.resource = resource;
 		owns_resource = owned;
 	}
+
 	private int borrowed_class_identity = -1;
 	public int borrowed_class_ordinal { get { return borrowed_class_identity; } }
 	// Exact generic Class borrow identity is compile-time metadata only.
@@ -306,9 +330,11 @@ public class NativeParameter : Object {
 		generic_borrow_class = ordinal;
 		generic_borrow_origin = origin;
 	}
+
 	internal bool generic_borrow_matches() {
 		return generic_borrow_class == declared_generic_borrow_class;
 	}
+
 	public NativeObjectOriginPlan? object_origin { get; internal set; }
 	public int ordinal { get; private set; }
 	public NativeAbiType abi_type { get; private set; }
@@ -369,6 +395,7 @@ public class NativeOwnedObjectResultPlan : Object {
 	public NativeObjectOriginPlan? object_origin { get; private set; }
 	public NativeOwnedObjectResultPlan () {
 	}
+
 	internal NativeOwnedObjectResultPlan.typed (NativeObjectOriginPlan origin) {
 		object_origin = origin;
 	}
@@ -387,6 +414,7 @@ public class NativeExceptionPlan : Object {
 		this.root_ordinal = root_ordinal;
 		this.root_identifier = root_name;
 	}
+
 }
 public class NativeSignature : Object {
 	public bool nonnull_result { get; private set; }
@@ -406,6 +434,7 @@ public class NativeSignature : Object {
 		}
 		return true;
 	}
+
 	public int generic_owner_result_class { get; private set; default = -1; }
 	public ExactClassDefinitionIdentity? generic_owner_result_origin { get; private set; }
 	public bool generic_owner_result_heap { get; private set; }
@@ -417,6 +446,7 @@ public class NativeSignature : Object {
 		generic_owner_result_origin = definition;
 		generic_owner_result_heap = heap;
 	}
+
 	public NativeScalarOwner? resource_result { get; private set; }
 	internal void bind_resource_result(NativeScalarOwner resource) throws NativeAbiError {
 		if (resource_result != null || resource.class_ordinal != -1 || resource.type_name == "" || resource.cleanup_symbol == "") {
@@ -424,6 +454,7 @@ public class NativeSignature : Object {
 		}
 		resource_result = resource;
 	}
+
 	private bool struct_transport_bound;
 	private NativeStructValuePlan? declared_struct_result;
 	private NativeStructValueMode declared_struct_result_mode;
@@ -440,6 +471,7 @@ public class NativeSignature : Object {
 			declared_struct_parameters.add (parameter);
 		}
 	}
+
 	internal bool matches_struct_transport() {
 		if (!struct_transport_bound || struct_result != declared_struct_result || struct_result_mode != declared_struct_result_mode || struct_parameters.length != declared_struct_parameters.length) {
 			return false;
@@ -451,6 +483,7 @@ public class NativeSignature : Object {
 		}
 		return true;
 	}
+
 	public NativeObjectOriginPlan? heap_result { get; internal set; }
 	public NativeExceptionPlan? exception_plan { get; internal set; }
 	public NativeSumType? sum_result { get; internal set; }
@@ -467,6 +500,7 @@ public class NativeSignature : Object {
 			declared_buffer_parameters.add (parameter);
 		}
 	}
+
 	internal bool matches_buffer_transport() {
 		if (!buffer_transport_bound) {
 			return buffer_result == null && buffer_parameters.length == 0;
@@ -481,6 +515,7 @@ public class NativeSignature : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeStructParameterPlan> struct_parameters { get; private set; default = new GenericArray<NativeStructParameterPlan> (); }
 	public NativeStructValuePlan? struct_result { get; internal set; }
 	public NativeStructValueMode struct_result_mode { get; internal set; default = NativeStructValueMode.COPY_VALUE; }
@@ -513,6 +548,7 @@ public class NativeSignature : Object {
 		}
 		this.result = result;
 	}
+
 }
 
 // Independent physical identity with copied debug names and provenance.
@@ -532,6 +568,7 @@ public class NativeRecordResource : Object {
 	public int path_ordinal(int index) {
 		return ordinals[index];
 	}
+
 	public string field_path {
 		owned get {
 			var text = new StringBuilder ();
@@ -552,6 +589,7 @@ public class NativeRecordResource : Object {
 		}
 		return depth == other.depth ? 0 : depth < other.depth ? -1 : 1;
 	}
+
 	public bool same_cleanup(NativeRecordResource other) {
 		if (cleanup_symbol != other.cleanup_symbol || cleanup_class_ordinal != other.cleanup_class_ordinal || (buffer_cleanup == null) != (other.buffer_cleanup == null)) {
 			return false;
@@ -567,6 +605,7 @@ public class NativeRecordResource : Object {
 		}
 		return buffer_cleanup.element_type != null && other.buffer_cleanup.element_type != null && buffer_cleanup.element_type.same_type (other.buffer_cleanup.element_type);
 	}
+
 	private string type_identifier;
 	private string cleanup_identifier;
 	public string type_name { get { return type_identifier; } }
@@ -580,6 +619,7 @@ public class NativeRecordResource : Object {
 		this.type_identifier = type_name;
 		this.cleanup_identifier = cleanup_symbol;
 	}
+
 	internal NativeRecordResource.projected (int[] path, string type_name, string cleanup_symbol, int acquisition_rank = -1, int cleanup_class_ordinal = -1, NativeBufferValuePlan? buffer_cleanup = null) {
 		this.buffer_cleanup = buffer_cleanup;
 		this.cleanup_class_ordinal = cleanup_class_ordinal;
@@ -608,6 +648,7 @@ public class NativeRecordDeclarationPlan : Object {
 		}
 		this.field_count = this.fields.length;
 	}
+
 }
 public class NativeRecordOwnerPlan : Object {
 	public NativeRecordDeclarationPlan? declaration { get; internal set; }
@@ -620,6 +661,7 @@ public class NativeRecordOwnerPlan : Object {
 		this.source_ordinal = source_ordinal;
 		this.record_identifier = record_name;
 	}
+
 }
 public class NativeAllocationInput : Object {
 	public int parameter_ordinal { get; internal set; }
@@ -634,6 +676,7 @@ public class NativeAllocationInput : Object {
 	internal string identity() {
 		return "%d/%d/%d/%d/%d:%s/%d:%s".printf (parameter_ordinal, source_ordinal, class_ordinal, heap ? 1 : 0, resource_name.length, resource_name, cleanup_symbol.length, cleanup_symbol);
 	}
+
 	internal NativeAllocationInput (int parameter, int source, int owner, bool heap, string resource, string cleanup) {
 		parameter_ordinal = parameter;
 		source_ordinal = source;
@@ -643,9 +686,11 @@ public class NativeAllocationInput : Object {
 		cleanup_symbol = cleanup;
 		origin = identity ();
 	}
+
 	public bool valid() {
 		return origin == identity () && parameter_ordinal >= 0 && source_ordinal >= -1 && (class_ordinal >= 0 ? resource_name == "" && cleanup_symbol == "" : class_ordinal == -1 && !heap && resource_name != "" && cleanup_symbol != "");
 	}
+
 }
 public class NativeAllocationSite : Object {
 	public int storage_ordinal { get; internal set; }
@@ -670,6 +715,7 @@ public class NativeAllocationSite : Object {
 		}
 		return text.str;
 	}
+
 	internal NativeAllocationSite (int storage, int owner, int constructor, bool heap, bool fallible, GenericArray<NativeAllocationInput>? inputs = null, GenericArray<NativeFrameBufferInput>? buffers = null, GenericArray<NativeFrameRecordInput>? records = null) {
 		storage_ordinal = storage;
 		class_ordinal = owner;
@@ -693,6 +739,7 @@ public class NativeAllocationSite : Object {
 		}
 		origin = identity ();
 	}
+
 	public bool valid() {
 		foreach (var input in inputs) {
 			if (!input.valid ()) {
@@ -711,6 +758,7 @@ public class NativeAllocationSite : Object {
 		}
 		return origin == identity () && storage_ordinal >= 0 && class_ordinal >= 0 && constructor_ordinal >= 0;
 	}
+
 }
 public class NativeFrameBufferInput : Object {
 	public int first_leaf { get; internal set; }
@@ -720,15 +768,18 @@ public class NativeFrameBufferInput : Object {
 	internal string identity() {
 		return "%d/%d/%s".printf (first_leaf, source_ordinal, value_plan.element_spelling ());
 	}
+
 	internal NativeFrameBufferInput (int first, int source, NativeBufferValuePlan plan) {
 		first_leaf = first;
 		source_ordinal = source;
 		value_plan = plan;
 		origin = identity ();
 	}
+
 	public bool valid() {
 		return origin == identity () && first_leaf >= 0 && source_ordinal >= 0 && value_plan.transfers_ownership && value_plan.base_type == NativeScalarType.PTR && value_plan.length_type == NativeScalarType.I32;
 	}
+
 }
 public class NativeFrameRecordInput : Object {
 	public int first_leaf { get; internal set; }
@@ -738,15 +789,18 @@ public class NativeFrameRecordInput : Object {
 	internal string identity() {
 		return "%d/%d/%s".printf (first_leaf, source_ordinal, NativeAsyncFramePlan.record_identity (value_plan));
 	}
+
 	internal NativeFrameRecordInput (int first, int source, NativeStructValuePlan plan) {
 		first_leaf = first;
 		source_ordinal = source;
 		value_plan = plan;
 		origin = identity ();
 	}
+
 	public bool valid() {
 		return origin == identity () && first_leaf >= 0 && source_ordinal >= 0 && value_plan.mode == NativeStructValueMode.MOVE_VALUE && value_plan.ownership.length != 0;
 	}
+
 }
 public class NativeFrameAdmissionSite : Object {
 	public int block_ordinal { get; internal set; }
@@ -773,6 +827,7 @@ public class NativeFrameAdmissionSite : Object {
 		}
 		return text.str;
 	}
+
 	internal NativeFrameAdmissionSite (int block, int position, int task, int factory, int exception, string mode, GenericArray<NativeAllocationInput> inputs, GenericArray<NativeFrameBufferInput> buffers, GenericArray<NativeFrameRecordInput>? records = null) {
 		block_ordinal = block;
 		this.position = position;
@@ -793,6 +848,7 @@ public class NativeFrameAdmissionSite : Object {
 		}
 		origin = identity ();
 	}
+
 	public bool valid() {
 		foreach (var input in inputs) {
 			if (!input.valid ()) {
@@ -811,6 +867,7 @@ public class NativeFrameAdmissionSite : Object {
 		}
 		return origin == identity () && block_ordinal >= 0 && position >= 0 && task_ordinal >= 0 && factory_ordinal >= 0 && exception_ordinal >= 0 && (context_mode == "owned-concurrent" || context_mode == "owned-affine" || context_mode == "owned-transfer" || context_mode == "scoped-affine");
 	}
+
 }
 public class NativeFunction : Object {
 	public NativeForeignSignalPlan? foreign_signal { get; internal set; }
@@ -840,6 +897,7 @@ public class NativeFunction : Object {
 		callback_input_count = original_callback_input_count = input_count;
 		callback_contract_supported = original_callback_contract_supported = supported;
 	}
+
 	internal bool scoped_readonly_valid() {
 		// A newly constructed physical model promises no readonly behavior or
 		// supported callback contract. A producer may bind checked facts once;
@@ -871,6 +929,7 @@ public class NativeFunction : Object {
 		runtime_lifetimes = lifetime_origin = descriptor;
 		lifetime_bound = true;
 	}
+
 	internal bool runtime_lifetimes_valid() {
 		if (runtime_lifetimes != lifetime_origin) {
 			return false;
@@ -881,6 +940,7 @@ public class NativeFunction : Object {
 			return false;
 		}
 	}
+
 	public NativeAsyncCallablePlan? async_callable { get; internal set; }
 	private NativeAsyncCallablePlan? async_origin;
 	internal void bind_async_callable(NativeAsyncCallablePlan plan) throws NativeAbiError {
@@ -889,6 +949,7 @@ public class NativeFunction : Object {
 		}
 		async_callable = async_origin = plan;
 	}
+
 	internal bool async_callable_valid() {
 		return async_callable == async_origin && (async_callable == null || async_callable.matches (signature));
 	}
@@ -904,6 +965,7 @@ public class NativeFunction : Object {
 		scoped_backings.add (plan);
 		scoped_backing_origin.add (plan);
 	}
+
 	internal bool scoped_backings_valid() {
 		if (scoped_backings.length != scoped_backing_origin.length) {
 			return false;
@@ -915,6 +977,7 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	private GenericArray<NativeAllocationSite> allocation_origin = new GenericArray<NativeAllocationSite> ();
 	public void bind_allocation_site(NativeAllocationSite site) throws NativeAbiError {
 		optimizer_admission ();
@@ -924,6 +987,7 @@ public class NativeFunction : Object {
 		allocation_sites.add (site);
 		allocation_origin.add (site);
 	}
+
 	internal bool allocation_sites_valid() {
 		if (allocation_sites.length != allocation_origin.length) {
 			return false;
@@ -935,6 +999,7 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeFrameAdmissionSite> frame_admissions { get; private set; default = new GenericArray<NativeFrameAdmissionSite> (); }
 	private GenericArray<NativeFrameAdmissionSite> frame_admission_origin = new GenericArray<NativeFrameAdmissionSite> ();
 	public void bind_frame_admission(NativeFrameAdmissionSite site) throws NativeAbiError {
@@ -945,6 +1010,7 @@ public class NativeFunction : Object {
 		frame_admissions.add (site);
 		frame_admission_origin.add (site);
 	}
+
 	internal bool frame_admissions_valid() {
 		if (frame_admissions.length != frame_admission_origin.length) {
 			return false;
@@ -956,12 +1022,14 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	public FunctionEffectFacts? effect_facts { get; internal set; }
 	private FunctionEffectFacts? effect_origin;
 	private NativeOptimizerEvidence? imported_effect_evidence;
 	internal bool imported_effects_valid() {
 		return effect_facts == null || effect_facts.flags == 0 && no_parameter_effects () || imported_effect_evidence != null && imported_effect_evidence.permits (effect_facts);
 	}
+
 	private bool no_parameter_effects() {
 		for (int p = 0; p < effect_facts.parameter_count; p++) {
 			if (effect_facts.parameter (p) != 0) {
@@ -970,6 +1038,7 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	private bool optimizer_facts_sealed;
 	private bool effects_bound;
 	private void optimizer_admission() throws NativeAbiError {
@@ -977,9 +1046,11 @@ public class NativeFunction : Object {
 			throw new NativeAbiError.INVALID_ABI ("optimizer facts are sealed after native construction");
 		}
 	}
+
 	public void seal_optimizer_facts() {
 		optimizer_facts_sealed = true;
 	}
+
 	public GenericArray<int> stack_objects { get; private set; default = new GenericArray<int> (); }
 	private GenericArray<int> stack_origin = new GenericArray<int> ();
 	public GenericArray<int> exact_calls { get; private set; default = new GenericArray<int> (); }
@@ -991,6 +1062,7 @@ public class NativeFunction : Object {
 		shared_elisions.add (ordinal);
 		shared_origin.add (ordinal);
 	}
+
 	internal bool shared_elisions_valid() {
 		if (shared_elisions.length != shared_origin.length) {
 			return false;
@@ -1002,6 +1074,7 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	public void bind_exact_call(int block, int instruction, int target) throws NativeAbiError {
 		optimizer_admission ();
 		exact_calls.add (block);
@@ -1011,6 +1084,7 @@ public class NativeFunction : Object {
 		exact_origin.add (instruction);
 		exact_origin.add (target);
 	}
+
 	internal bool exact_calls_valid() {
 		if (exact_calls.length != exact_origin.length) {
 			return false;
@@ -1022,11 +1096,13 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	public void bind_stack_object(int ordinal) throws NativeAbiError {
 		optimizer_admission ();
 		stack_objects.add (ordinal);
 		stack_origin.add (ordinal);
 	}
+
 	internal bool stack_objects_valid() {
 		if (stack_objects.length != stack_origin.length) {
 			return false;
@@ -1038,6 +1114,7 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	public void bind_effects(FunctionEffectFacts? facts, NativeOptimizerEvidence? imported = null) throws NativeAbiError {
 		optimizer_admission ();
 		if (effects_bound) {
@@ -1051,9 +1128,11 @@ public class NativeFunction : Object {
 			throw new NativeAbiError.INVALID_ABI ("imported effects differ from checked native object evidence");
 		}
 	}
+
 	internal bool effects_valid() {
 		return (effect_facts == null) == (effect_origin == null) && (effect_facts == null || (effect_facts.valid () && effect_facts.same (effect_origin)));
 	}
+
 	public GenericArray<NativeVectorMemoryPlan> vector_memory { get; private set; default = new GenericArray<NativeVectorMemoryPlan> (); }
 	private GenericArray<NativeVectorMemoryPlan> vector_memory_origin = new GenericArray<NativeVectorMemoryPlan> ();
 	public void bind_vector_memory(NativeVectorMemoryPlan contract) throws NativeAbiError {
@@ -1061,6 +1140,7 @@ public class NativeFunction : Object {
 		vector_memory.add (contract.copy ());
 		vector_memory_origin.add (contract.copy ());
 	}
+
 	internal bool vector_memory_valid() {
 		if (vector_memory.length != vector_memory_origin.length) {
 			return false;
@@ -1074,6 +1154,7 @@ public class NativeFunction : Object {
 		}
 		return true;
 	}
+
 	public uint floating_policy { get; internal set; default = 0; }
 	private uint floating_policy_origin;
 	private bool floating_policy_bound;
@@ -1084,13 +1165,16 @@ public class NativeFunction : Object {
 			floating_policy_bound = true;
 		}
 	}
+
 	public bool floating_policy_valid() {
 		return floating_policy == floating_policy_origin && FloatingPointPermissions.valid (floating_policy);
 	}
+
 	private NativeGenericMethodInstance? generic_method_binding_origin;
 	internal bool generic_method_matches() {
 		return generic_method_instance == null ? generic_method_binding_origin == null : generic_method_binding_origin != null && generic_method_binding_origin.same_arguments (generic_method_instance);
 	}
+
 	public NativeGenericMethodInstance? generic_method_instance { get; internal set; }
 	public ExactClassDefinitionIdentity? generic_method_origin { get; private set; }
 	public int generic_method_member_origin { get; private set; default = -1; }
@@ -1103,6 +1187,7 @@ public class NativeFunction : Object {
 		generic_method_member_origin = instance.member;
 		generic_method_binding_origin = instance;
 	}
+
 	public GenericArray<NativeRecordOwnerPlan> record_owners { get; private set; default = new GenericArray<NativeRecordOwnerPlan> (); }
 	public bool receiver_borrow { get; internal set; default = false; }
 	public NativeRecordObservation? record_observation { get; internal set; }
@@ -1113,9 +1198,11 @@ public class NativeFunction : Object {
 		}
 		record_observation = declared_record_observation = observation;
 	}
+
 	internal bool matches_record_observation() {
 		return record_observation == declared_record_observation;
 	}
+
 	public int virtual_slot { get; internal set; default = -1; }
 	public bool utf8_factory { get; internal set; default = false; }
 	public NativeLazyCache? lazy_cache { get; internal set; }
@@ -1155,6 +1242,7 @@ public class NativeFunction : Object {
 		}
 		containing_program.set (program);
 	}
+
 }
 
 public class NativeAbiProgram : Object {
@@ -1164,6 +1252,7 @@ public class NativeAbiProgram : Object {
 		callback_views.add (plan);
 		callback_view_origins.add (plan);
 	}
+
 	internal bool callback_views_valid() {
 		if (callback_views.length != callback_view_origins.length) {
 			return false;
@@ -1175,12 +1264,14 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<string> c_bool_policies { get; private set; default = new GenericArray<string> (); }
 	private GenericArray<string> c_bool_origins = new GenericArray<string> ();
 	internal void bind_c_bool_policy(string identity) {
 		c_bool_policies.add (identity);
 		c_bool_origins.add (identity);
 	}
+
 	internal bool c_bool_policies_valid() {
 		if (c_bool_policies.length != c_bool_origins.length) {
 			return false;
@@ -1192,6 +1283,7 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<string> gobject_imports { get; private set; default = new GenericArray<string> (); }
 	private GenericArray<string> gobject_origins = new GenericArray<string> ();
 	internal void bind_gobject_import(int ordinal, string policy_identity) {
@@ -1199,6 +1291,7 @@ public class NativeAbiProgram : Object {
 		gobject_imports.add (identity);
 		gobject_origins.add (identity);
 	}
+
 	internal bool gobject_imports_valid() {
 		if (gobject_imports.length != gobject_origins.length) {
 			return false;
@@ -1210,12 +1303,14 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<ForeignImportContract> class_imports { get; private set; default = new GenericArray<ForeignImportContract> (); }
 	private GenericArray<ForeignImportContract> class_import_origins = new GenericArray<ForeignImportContract> ();
 	internal void bind_class_import(ForeignImportContract contract) {
 		class_imports.add (contract);
 		class_import_origins.add (contract);
 	}
+
 	internal bool class_imports_valid() {
 		if (class_imports.length != class_import_origins.length) {
 			return false;
@@ -1227,12 +1322,14 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<ComImportContract> com_imports { get; private set; default = new GenericArray<ComImportContract> (); }
 	private GenericArray<string> com_origins = new GenericArray<string> ();
 	internal void bind_com_import(ComImportContract contract) {
 		com_imports.add (contract.copy ());
 		com_origins.add (contract.identity ());
 	}
+
 	internal bool com_imports_valid() {
 		if (com_imports.length != com_origins.length) {
 			return false;
@@ -1244,6 +1341,7 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<PodRepresentation> pod_layouts { get; private set; default = new GenericArray<PodRepresentation> (); }
 	private GenericArray<PodRepresentation> pod_origins = new GenericArray<PodRepresentation> ();
 	public void bind_pod_layout(PodRepresentation policy) {
@@ -1251,6 +1349,7 @@ public class NativeAbiProgram : Object {
 		pod_layouts.add (copy);
 		pod_origins.add (copy);
 	}
+
 	internal bool pod_layouts_valid() {
 		if (pod_layouts.length != pod_origins.length) {
 			return false;
@@ -1262,6 +1361,7 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeActorPlan> actor_operations { get; private set; default = new GenericArray<NativeActorPlan> (); }
 	public GenericArray<NativeRetainedPlan> retained_operations { get; private set; default = new GenericArray<NativeRetainedPlan> (); }
 	private GenericArray<NativeRetainedPlan> retained_origins = new GenericArray<NativeRetainedPlan> ();
@@ -1269,6 +1369,7 @@ public class NativeAbiProgram : Object {
 		retained_operations.add (plan);
 		retained_origins.add (plan);
 	}
+
 	internal bool retained_operations_valid() {
 		if (retained_operations.length != retained_origins.length) {
 			return false;
@@ -1280,12 +1381,14 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeRecordApplicationPlan> record_applications { get; private set; default = new GenericArray<NativeRecordApplicationPlan> (); }
 	private GenericArray<NativeRecordApplicationPlan> record_application_origins = new GenericArray<NativeRecordApplicationPlan> ();
 	internal void bind_record_application(NativeRecordApplicationPlan plan) {
 		record_applications.add (plan);
 		record_application_origins.add (plan);
 	}
+
 	internal bool record_applications_valid() {
 		if (record_applications.length != record_application_origins.length) {
 			return false;
@@ -1297,6 +1400,7 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeClosurePlan> closures { get; private set; default = new GenericArray<NativeClosurePlan> (); }
 	public GenericArray<NativeSharedOperationPlan> shared_operations { get; private set; default = new GenericArray<NativeSharedOperationPlan> (); }
 	public GenericArray<NativeScalarOwner> callable_resources { get; private set; default = new GenericArray<NativeScalarOwner> (); }
@@ -1305,6 +1409,7 @@ public class NativeAbiProgram : Object {
 		callable_resources.add (resource);
 		callable_resource_origins.add (resource);
 	}
+
 	internal bool callable_resources_valid() {
 		if (callable_resources.length != callable_resource_origins.length) {
 			return false;
@@ -1316,6 +1421,7 @@ public class NativeAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeFunctionValuePlan> function_values { get; private set; default = new GenericArray<NativeFunctionValuePlan> (); }
 	public uint interface_count { get; internal set; default = 0; }
 	public GenericArray<NativePrivateFieldAccess> private_accesses { get; private set; default = new GenericArray<NativePrivateFieldAccess> (); }
@@ -1349,6 +1455,7 @@ public class NativeAbiProgram : Object {
 			functions[i].claim_owner (this);
 		}
 	}
+
 }
 }
 
@@ -1367,6 +1474,7 @@ public class NativeCallableRecordParameter : Object {
 		this.identifier = record_name;
 		this.leaves = leaves;
 	}
+
 	internal NativeCallableRecordParameter copy() {
 		var copied = new GenericArray<NativeStructLeafChannel> ();
 		foreach (var leaf in leaves) {
@@ -1374,6 +1482,7 @@ public class NativeCallableRecordParameter : Object {
 		}
 		return new NativeCallableRecordParameter (source_ordinal, first_leaf, record_name, copied, mode);
 	}
+
 	public bool same_type(NativeCallableRecordParameter other) {
 		if (source_ordinal != other.source_ordinal || first_leaf != other.first_leaf || record_name != other.record_name || mode != other.mode || leaves.length != other.leaves.length) {
 			return false;
@@ -1385,6 +1494,7 @@ public class NativeCallableRecordParameter : Object {
 		}
 		return true;
 	}
+
 }
 public class NativeCallableBorrowChannel : Object {
 	public int ordinal {
@@ -1402,9 +1512,11 @@ public class NativeCallableBorrowChannel : Object {
 		this.identifier = type_name;
 		this.is_class = is_class;
 	}
+
 	public bool same_channel(NativeCallableBorrowChannel other) {
 		return ordinal == other.ordinal && type_name == other.type_name && is_class == other.is_class;
 	}
+
 }
 public class NativeCallableOwnedChannel : Object {
 	public int ordinal { get; private set; }
@@ -1416,9 +1528,11 @@ public class NativeCallableOwnedChannel : Object {
 		identifier = type_name;
 		this.is_class = is_class;
 	}
+
 	public bool same_channel(NativeCallableOwnedChannel other) {
 		return ordinal == other.ordinal && type_name == other.type_name && is_class == other.is_class;
 	}
+
 }
 public class NativeCallableOwnedArgument : Object {
 	public int ordinal { get; private set; }
@@ -1433,9 +1547,11 @@ public class NativeCallableOwnedArgument : Object {
 		this.null_argument = null_argument;
 		this.committed_null = committed_null;
 	}
+
 	public bool same_transfer(NativeCallableOwnedArgument other) {
 		return ordinal == other.ordinal && resource.same_owner (other.resource) && source_ordinal == other.source_ordinal && null_argument == other.null_argument && committed_null == other.committed_null;
 	}
+
 }
 public class NativeCallableRecordResult : Object {
 	private string identifier;
@@ -1447,6 +1563,7 @@ public class NativeCallableRecordResult : Object {
 		this.leaves = leaves;
 		this.mode = mode;
 	}
+
 	internal NativeCallableRecordResult copy() {
 		var copied = new GenericArray<NativeStructLeafChannel> ();
 		foreach (var leaf in leaves) {
@@ -1454,6 +1571,7 @@ public class NativeCallableRecordResult : Object {
 		}
 		return new NativeCallableRecordResult (record_name, copied, mode);
 	}
+
 	public bool matches(string name, NativeStructValueMode mode, GenericArray<NativeStructLeafChannel> other) {
 		if (record_name != name || this.mode != mode || leaves.length != other.length) {
 			return false;
@@ -1465,9 +1583,11 @@ public class NativeCallableRecordResult : Object {
 		}
 		return true;
 	}
+
 	public bool same_type(NativeCallableRecordResult other) {
 		return matches (other.record_name, other.mode, other.leaves);
 	}
+
 }
 public class NativeFunctionPointerType : NativeScalarAbiType {
 	private GenericArray<NativeCallableRecordParameter> declared_record_parameters = new GenericArray<NativeCallableRecordParameter> ();
@@ -1484,6 +1604,7 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 		}
 		return true;
 	}
+
 	internal bool record_parameter_leaves_valid() {
 		if (!record_parameter_modes_valid ()) {
 			return false;
@@ -1495,11 +1616,13 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 		}
 		return true;
 	}
+
 	public NativeCallableRecordResult? record_result { get; private set; }
 	private NativeCallableRecordResult? declared_record_result;
 	internal bool record_result_valid() {
 		return record_result == null ? declared_record_result == null : declared_record_result != null && record_result.same_type (declared_record_result);
 	}
+
 	public NativeCallableOwnedChannel? owned_result { get; private set; }
 	private NativeCallableOwnedChannel? declared_owned_result;
 	public GenericArray<NativeCallableOwnedChannel> owned_parameters { get; private set; }
@@ -1518,6 +1641,7 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeCallableBorrowChannel> borrowed_parameters {
 		get;
 		private set;
@@ -1531,6 +1655,7 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 	public NativeScalarType? result_scalar() {
 		return scalar_result;
 	}
+
 	public GenericArray<NativeAbiType> parameter_types {
 		get;
 		private set;
@@ -1554,6 +1679,7 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 			declared_owned_parameters.add (channel);
 		}
 	}
+
 	public override string spelling() {
 		string name = "native-code<" + (void_result ? "void" : record_result == null ? scalar_result.spelling () : "record=" + record_result.record_name + ":" + record_result.mode.to_string ());
 		if (record_result != null) {
@@ -1584,6 +1710,7 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 		}
 		return name + ">";
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var signature = other as NativeFunctionPointerType;
 		if (signature == null || (record_result == null ? signature.record_result != null : signature.record_result == null || !record_result.same_type (signature.record_result))) {
@@ -1614,6 +1741,7 @@ public class NativeFunctionPointerType : NativeScalarAbiType {
 		}
 		return true;
 	}
+
 }
 }
 
@@ -1637,9 +1765,11 @@ public class NativeCallbackViewPlan : Object {
 		this.callback = callback;
 		original = identity ();
 	}
+
 	public string identity() {
 		return "%d/%d/%d/%d;%s;%s".printf (caller, block, instruction, argument, closure.spelling (), callback.spelling ());
 	}
+
 	public bool valid() {
 		if (caller < 0 || block < 0 || instruction < 0 || argument < 0 || identity () != original || closure.actor || closure.threaded || closure.checked_error != null || closure.environment == "" || !callback.call_scoped || callback.carrier_fields != 2 || closure.signature.void_result != callback.void_result || closure.signature.result_scalar () != callback.result_scalar () || closure.signature.parameter_types.length != callback.parameter_types.length || closure.signature.borrowed_parameters.length != 0 || closure.signature.owned_parameters.length != 0 || closure.signature.record_parameters.length != 0 || closure.signature.owned_result != null || closure.signature.record_result != null) {
 			return false;
@@ -1651,6 +1781,7 @@ public class NativeCallbackViewPlan : Object {
 		}
 		return true;
 	}
+
 }
 public class NativeCallbackType : NativeFunctionPointerType {
 	public uint carrier_fields { get { return 2; } }
@@ -1658,9 +1789,11 @@ public class NativeCallbackType : NativeFunctionPointerType {
 	internal NativeCallbackType (NativeScalarType? result, GenericArray<NativeAbiType> parameters, bool void_result) {
 		base (result, parameters, null, null, null, null, null, void_result);
 	}
+
 	public override string spelling() {
 		return "borrowed-callback-view<code,context;" + base.spelling () + ">";
 	}
+
 }
 public class NativeFunctionValuePlan : Object {
 	public NativeStructValuePlan? record_result { get; private set; }
@@ -1688,6 +1821,7 @@ public class NativeFunctionValuePlan : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeCallableBorrowChannel> borrowed_arguments {
 		get;
 		private set;
@@ -1727,6 +1861,7 @@ public class NativeFunctionValuePlan : Object {
 			declared_owned_arguments.add (transfer);
 		}
 	}
+
 }
 }
 
@@ -1744,13 +1879,16 @@ public class NativeSharedHandleType : NativeScalarAbiType {
 		this.payload_name = payload;
 		this.is_weak = is_weak;
 	}
+
 	public override string spelling() {
 		return (is_weak ? "weak-control<" : "strong-control<") + payload + ">";
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var handle = other as NativeSharedHandleType;
 		return handle != null && (actor_sender == null ? handle.actor_sender == null : handle.actor_sender != null && handle.actor_sender.same_type (actor_sender)) && handle.intrusive == intrusive && handle.payload == payload && handle.is_weak == is_weak;
 	}
+
 }
 public class NativeSharedOperationPlan : Object {
 	public int caller { get; private set; }
@@ -1765,6 +1903,7 @@ public class NativeSharedOperationPlan : Object {
 		this.action = action;
 		this.handle = handle;
 	}
+
 }
 }
 
@@ -1788,16 +1927,19 @@ public class NativeClosureHandleType : NativeScalarAbiType {
 		this.signature = signature;
 		this.checked_error_identifier = checked_error;
 	}
+
 	public override string spelling() {
 		if (actor) {
 			return "actor-sender<" + environment + "," + (actor_message ?? signature.parameter_types[0].spelling ()) + ">";
 		}
 		return (checked_error == null ? (threaded ? "owned-thread<" : "owned-closure<") : "checked-owned-closure<" + checked_error + ",") + environment + "," + signature.spelling () + ">";
 	}
+
 	public override bool same_type(NativeAbiType other) {
 		var closure = other as NativeClosureHandleType;
 		return closure != null && closure.actor == actor && closure.actor_message == actor_message && closure.threaded == threaded && closure.environment == environment && closure.checked_error == checked_error && closure.signature.same_type (signature);
 	}
+
 }
 public class NativeClosurePlan : Object {
 	public NativeStructValuePlan? record_result { get; private set; }
@@ -1825,6 +1967,7 @@ public class NativeClosurePlan : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<NativeCallableRecordParameter> record_arguments { get; private set; }
 	public GenericArray<NativeCallableBorrowChannel> borrowed_arguments {
 		get;
@@ -1881,6 +2024,7 @@ public class NativeClosurePlan : Object {
 		this.target = target;
 		this.destructor = destructor;
 	}
+
 }
 }
 
@@ -1932,6 +2076,7 @@ public class NativeRetainedPlan : Object {
 		}
 		return !handle.signature.void_result && handle.signature.result_scalar () == NativeScalarType.I32 && handle.signature.parameter_types.length == 1 && handle.signature.parameter_types[0].same_type (new NativeScalarAbiType (NativeScalarType.I32));
 	}
+
 	internal NativeRetainedPlan (int caller, int block, int instruction, int action, NativeClosureHandleType handle) {
 		this.caller = caller;
 		this.block = block;
@@ -1940,6 +2085,7 @@ public class NativeRetainedPlan : Object {
 		this.handle = handle;
 		original_signature = handle.spelling ();
 	}
+
 }
 }
 
@@ -1959,5 +2105,6 @@ public class NativeActorPlan : Object {
 		this.sender = sender;
 		this.error_class = error_class;
 	}
+
 }
 }

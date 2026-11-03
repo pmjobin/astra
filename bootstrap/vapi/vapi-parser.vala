@@ -12,6 +12,7 @@ public class VapiParseResult : Object {
 		this.file = file;
 		this.diagnostic = diagnostic;
 	}
+
 }
 
 public class VapiParser : Object {
@@ -252,5 +253,6 @@ public class VapiParser : Object {
 		var semicolon = expect (VapiTokenKind.SEMICOLON, "expected ';' after VAPI function declaration");
 		return semicolon == null ? null : new VapiFunctionDeclarationSyntax (result, name, parameters, semicolon, metadata, owned_keyword);
 	}
+
 }
 }

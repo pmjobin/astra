@@ -15,6 +15,7 @@ namespace Astra.Tests.TextIoPipeline {
 private SourceFile source_file(CheckedProgram program) {
 	return program.span.file;
 }
+
 private void lifetime() {
 	try {
 		var files = new GenericArray<SourceFile> ();
@@ -90,6 +91,7 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private SsaProgram declared(string text) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("correspondence.astra", text));
 	assert (parsed.diagnostic == null);
@@ -97,6 +99,7 @@ private SsaProgram declared(string text) throws GLib.Error {
 	assert (checked.diagnostic == null);
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private void correspondence() {
 	try {
 		string prefix = "[CCode(text_abi=\"utf8-i32\")] extern(C) ";
@@ -139,10 +142,12 @@ private void correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text-io/stage-lifetime-firewall", lifetime);
 	Test.add_func ("/text-io/exact-source-plan-correspondence", correspondence);
 	return Test.run ();
 }
+
 }

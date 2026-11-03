@@ -28,9 +28,11 @@ private CheckedProgram sample(bool record = false, bool buffers = false) throws 
 	}
 	return result.program;
 }
+
 private SsaProgram ssa_sample(bool record = false, bool buffers = false) throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (sample (record, buffers))));
 }
+
 private void core_capture() {
 	try {
 		var program = CoreBuilder.build (sample ());
@@ -72,6 +74,7 @@ private void core_capture() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_reservations() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -117,6 +120,7 @@ private void cfg_reservations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_responsibility() {
 	try {
 		var program = ssa_sample ();
@@ -164,6 +168,7 @@ private void ssa_responsibility() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void independent_native() {
 	try {
 		SsaProgram? source = ssa_sample ();
@@ -214,6 +219,7 @@ private void independent_native() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private LlvmModuleArtifact artifact(bool record = false) throws GLib.Error {
 	SsaProgram? source = ssa_sample (record);
 	var predecessor = WeakRef (source.functions[0]);
@@ -230,6 +236,7 @@ private LlvmModuleArtifact artifact(bool record = false) throws GLib.Error {
 	result.verify ();
 	return result;
 }
+
 private void ordinary(LlvmModuleArtifact module) {
 	char* message;
 	int failed = CApi.verify_module (module.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -240,6 +247,7 @@ private void ordinary(LlvmModuleArtifact module) {
 		CApi.dispose_message (message);
 	}
 }
+
 private void independent_llvm() {
 	try {
 		var module = artifact ();
@@ -289,6 +297,7 @@ private void independent_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_core() {
 	try {
 		var program = CoreBuilder.build (sample (true));
@@ -332,6 +341,7 @@ private void record_core() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_cfg() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample (true)));
@@ -368,6 +378,7 @@ private void record_cfg() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_ssa() {
 	try {
 		var program = ssa_sample (true);
@@ -423,6 +434,7 @@ private void record_ssa() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void consuming_disposition() {
 	try {
 		int tested = 0;
@@ -479,6 +491,7 @@ private void consuming_disposition() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_native() {
 	try {
 		SsaProgram? source = ssa_sample (true);
@@ -544,6 +557,7 @@ private void record_native() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_llvm() {
 	try {
 		var module = artifact (true);
@@ -591,6 +605,7 @@ private void record_llvm() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum-scalar/core-named-owner-authority", core_capture);
@@ -606,4 +621,5 @@ int main(string[] args) {
 	Test.add_func ("/enum-record/independent-llvm-record-paths", record_llvm);
 	return Test.run ();
 }
+
 }

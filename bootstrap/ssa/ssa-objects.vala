@@ -17,6 +17,7 @@ public class SsaClassUpcast : SsaInstruction {
 		this.source_identity = WeakRef (source_class);
 		this.target_identity = WeakRef (target_class);
 	}
+
 }
 
 // Storage is not an SsaValue and has no reference-local backlink.
@@ -42,6 +43,7 @@ public class SsaObjectStorage : SsaNode {
 		this.ordinal = ordinal;
 		this.region_ordinal = region_ordinal;
 	}
+
 }
 
 public class SsaObjectFieldPlace : SsaFieldPlace {
@@ -50,6 +52,7 @@ public class SsaObjectFieldPlace : SsaFieldPlace {
 		base (span, field);
 		this.storage = storage;
 	}
+
 }
 
 public class SsaObjectReferenceInstruction : SsaInstruction {
@@ -60,6 +63,7 @@ public class SsaObjectReferenceInstruction : SsaInstruction {
 		this.storage = storage;
 		this.provenance = new DataPointerProvenance (DataPointerOrigin.OBJECT_STORAGE, storage.ordinal, storage.region_ordinal);
 	}
+
 }
 
 // The guard executes at this instruction, before subsequent argument/RHS
@@ -71,5 +75,6 @@ public class SsaObjectValidateInstruction : SsaInstruction {
 		base (span, result_type, ordinal);
 		this.reference = reference;
 	}
+
 }
 }

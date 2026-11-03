@@ -14,6 +14,7 @@ private CheckedProgram sample(string body) {
 	}
 	return checked.program;
 }
+
 private CheckedFunction function(CheckedProgram program, string name) {
 	foreach (var definition in program.functions) {
 		if (definition.symbol.name == name) {
@@ -22,11 +23,13 @@ private CheckedFunction function(CheckedProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private Diagnostic? proof(CheckedProgram program) {
 	var selected = new GenericArray<FunctionSymbol> ();
 	selected.add (function (program, "f").symbol);
 	return SemanticNonNull.check (program, selected);
 }
+
 private void branch_refinement() {
 	foreach (string body in new string[] {
 			"if(input!=null){return use(input);}return 0;",
@@ -41,6 +44,7 @@ private void branch_refinement() {
 		assert (proof (program) == null);
 	}
 }
+
 private void reject_unproven() {
 	foreach (string body in new string[] {
 			"return use(input);",
@@ -55,6 +59,7 @@ private void reject_unproven() {
 		assert (rejected != null && rejected.message.contains ("current non-null proof") && rejected.span.file.path == "nonnull-proof.astra");
 	}
 }
+
 private void stale_capture() {
 	var slot = new Object ();
 	var captured = new Object ();
@@ -69,6 +74,7 @@ private void stale_capture() {
 	assert (state.knows (captured) && !state.knows (slot));
 	assert (!NonNullFacts.join (current, state).knows (slot));
 }
+
 private void checked_argument() {
 	var program = sample ("if(input!=null){return use(input);}return 0;");
 	function (program, "use").symbol.parameters[0].mark_nonnull ();
@@ -81,6 +87,7 @@ private void checked_argument() {
 	call.arguments[0] = argument;
 	assert (proof (program) == null);
 }
+
 private void nullable_defaults() {
 	var program = sample ("return use(input);");
 	foreach (var definition in program.functions) {
@@ -91,6 +98,7 @@ private void nullable_defaults() {
 	}
 	assert (proof (program) == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/nonnull-source/branch-and-short-circuit", branch_refinement);
@@ -100,4 +108,5 @@ int main(string[] args) {
 	Test.add_func ("/nonnull-source/nullable-defaults", nullable_defaults);
 	return Test.run ();
 }
+
 }

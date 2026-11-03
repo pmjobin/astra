@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int tcp_oracle_start();
+
 extern(C) int tcp_oracle_finish();
 
 async int client(owned TcpSocket socket, int port, int id) throws Error {
@@ -7,7 +8,10 @@ async int client(owned TcpSocket socket, int port, int id) throws Error {
 	socket.send_capacity(512);
 	int connecting = socket.connect(port);
 	while (connecting == NetAgain || connecting == NetInterrupted) {
-		if (socket.ready(true) == 1) { socket.connected(); break; }
+		if (socket.ready(true) == 1) {
+			socket.connected();
+			break;
+		}
 		network_deadline(started, 10000);
 		await delay_ticks(1);
 	}
@@ -15,15 +19,19 @@ async int client(owned TcpSocket socket, int port, int id) throws Error {
 	for (int frame = 0; frame < 4; frame = frame + 1) {
 		int base = frame * 65540;
 		wire[base] = 0; wire[base + 1] = 1; wire[base + 2] = 0; wire[base + 3] = 0;
-		for (int i = 0; i < 65536; i = i + 1) { wire[base + 4 + i] = ((frame * 65536 + i) % 251) as u8; }
+		for (int i = 0; i < 65536; i = i + 1) wire[base + 4 + i] = ((frame * 65536 + i) % 251) as u8;
 	}
 	wire[4] = id as u8; wire[5] = 0; wire[6] = 195; wire[7] = 169;
 	int sent = 0;
 	while (sent < len(wire)) {
 		int progress = socket.try_write(wire, sent, len(wire) - sent);
-		if (progress > 0) { sent = sent + progress; }
+		if (progress > 0) {
+			sent = sent + progress;
+		}
 		else {
-			if (progress == 0) { throw new SocketError(-32); }
+			if (progress == 0) {
+				throw new SocketError(-32);
+			}
 			network_deadline(started, 10000); await delay_ticks(1);
 		}
 	}
@@ -31,19 +39,29 @@ async int client(owned TcpSocket socket, int port, int id) throws Error {
 	var reply = new u8[len(wire)];
 	int used = 0;
 	while (used < len(reply)) {
-		int count = len(reply) - used; if (count > 37) { count = 37; }
+		int count = len(reply) - used; if (count > 37) count = 37;
 		int progress = socket.try_read(reply, used, count);
-		if (progress > 0) { used = used + progress; }
+		if (progress > 0) {
+			used = used + progress;
+		}
 		else {
-			if (progress == 0) { throw new SocketError(-104); }
+			if (progress == 0) {
+				throw new SocketError(-104);
+			}
 			network_deadline(started, 10000); await delay_ticks(1);
 		}
 	}
-	for (int i = 0; i < len(reply); i = i + 1) { if (wire[i] != reply[i]) { throw new Error("TCP byte corruption"); } }
+	for (int i = 0; i < len(reply); i = i + 1) {
+		if (wire[i] != reply[i]) {
+			throw new Error("TCP byte corruption");
+		}
+	}
 	while (true) {
 		int progress = socket.try_read(reply, 0, 1);
-		if (progress == 0) { break; }
-		if (progress > 0) { throw new Error("TCP trailing bytes"); }
+		if (progress == 0) break;
+		if (progress > 0) {
+			throw new Error("TCP trailing bytes");
+		}
 		network_deadline(started, 10000); await delay_ticks(1);
 	}
 	return id;
@@ -53,9 +71,13 @@ async void clients(int port) throws Error {
 	var sa = new TcpSocket(); sa.open(); var a = client(move sa, port, 1);
 	var sb = new TcpSocket(); sb.open(); var b = client(move sb, port, 2);
 	start(a);
-	try { if (await move b != 2) { throw new Error("client b"); } }
+	try { if (await move b != 2) {
+			throw new Error("client b");
+		} }
 	catch (Error error) { await cancel_and_join(move a); throw; }
-	if (await move a != 1) { throw new Error("client a"); }
+	if (await move a != 1) {
+		throw new Error("client a");
+	}
 }
 
 export(C) int run_tcp() {

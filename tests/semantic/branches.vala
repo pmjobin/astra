@@ -111,4 +111,5 @@ private void register_branch_semantic_tests() {
 	branch_semantic_error ("branch-parameter-assignment", "void f(bool c){if(c){c = false;}}", "assignment to parameter 'c' is not supported");
 	branch_semantic_error ("unreachable-still-checked", "int f(bool c){return 1;if(c){return missing;}}", "unknown name 'missing'");
 }
+
 }

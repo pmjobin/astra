@@ -1,29 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) f64 fp_input(int i);
+
 extern(C) f32 fp_input32(int i);
+
 extern(C) int fp_observe(int mode,int i,f64 a,f64 b,f64 c,f64 value);
+
 extern(C) int fp_observe32(int mode,int i,f32 a,f32 b,f32 c,f32 value);
+
 extern(C) int fp_finished(int count);
+
 f64 strict64(f64 a,f64 b,f64 c){return a*b+c;}
+
 f32 strict32(f32 a,f32 b,f32 c){return a*b+c;}
+
 [FloatingPoint(contract="on")]
 f64 mixed64(f64 a,f64 b,f64 c){return strict64(a,b,c);}
+
 [FloatingPoint(contract="on")]
 f32 mixed32(f32 a,f32 b,f32 c){return strict32(a,b,c);}
+
 [FloatingPoint(contract="on")]
 f64 fused64(f64 a,f64 b,f64 c){return a*b+c;}
+
 [FloatingPoint(contract="on")]
 f32 fused32(f32 a,f32 b,f32 c){return a*b+c;}
+
 int main(){
 	f64 a=fp_input(9);f64 b=fp_input(10);
-	if(fp_observe(0,0,a,b,-1.0,mixed64(a,b,-1.0))!=0){return 1;}
+	if(fp_observe(0,0,a,b,-1.0,mixed64(a,b,-1.0))!=0) return 1;
 	f32 x=fp_input32(9);f32 y=fp_input32(10);
-	if(fp_observe32(0,0,x,y,-1.0f,mixed32(x,y,-1.0f))!=0){return 2;}
+	if(fp_observe32(0,0,x,y,-1.0f,mixed32(x,y,-1.0f))!=0) return 2;
 	// Fresh external inputs keep the relaxed expression independent of the
 	// earlier strict expression. Reusing a strict result would also be legal.
 	f64 c=fp_input(9);f64 d=fp_input(10);
-	if(fp_observe(1,0,c,d,-1.0,fused64(c,d,-1.0))!=0){return 3;}
+	if(fp_observe(1,0,c,d,-1.0,fused64(c,d,-1.0))!=0) return 3;
 	f32 z=fp_input32(9);f32 w=fp_input32(10);
-	if(fp_observe32(1,0,z,w,-1.0f,fused32(z,w,-1.0f))!=0){return 4;}
+	if(fp_observe32(1,0,z,w,-1.0f,fused32(z,w,-1.0f))!=0) return 4;
 	return fp_finished(4);
 }

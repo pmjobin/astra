@@ -60,6 +60,7 @@ static void wait_short(void) {
 	int status = pthread_cond_timedwait(&runtime_changed, &runtime_lock, &deadline);
 	ASTRA_ASYNC_REQUIRE(status == 0 || status == ETIMEDOUT);
 }
+
 static int wait_publication(AstraAsyncExecutor *executor) {
 	if (executor->bridges == 0) return 0;
 	/* A newly advanced virtual timer is already ready. Release the metadata

@@ -49,6 +49,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	program.classes.add (c);
 	return program;
 }
+
 private void valid() {
 	try {
 		SsaProgram? program = sample ();
@@ -61,6 +62,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 1; variant <= 2; variant++) {
 		try {
@@ -71,10 +73,12 @@ private void invalid() {
 		GLib.error ("accepted missing or reordered destructor cleanup %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/ssa/standalone-concrete-handles-memory-and-direct-cleanup", valid);
 	Test.add_func ("/own-field/ssa/missing-or-reordered-concrete-cleanup", invalid);
 	return Test.run ();
 }
+
 }

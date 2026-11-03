@@ -16,5 +16,6 @@ public class CheckedSharedOperation : CheckedExpression {
 		this.cleanup = cleanup;
 		this.borrower = borrower;
 	}
+
 }
 }

@@ -24,6 +24,7 @@ internal class LlvmDebugFrameField : Object {
 		offset = CApi.offset_of_element (data, frame, index);
 		extent = CApi.abi_size_of_type (data, CApi.struct_type_at_index (frame, index));
 	}
+
 	internal uint64 byte_offset { get { return offset; } }
 	internal uint64 byte_size { get { return extent; } }
 	internal void verify() throws LlvmError {
@@ -39,6 +40,7 @@ internal class LlvmDebugFrameField : Object {
 			throw new LlvmError.VERIFICATION ("debug async parameter lost its persistent field offset");
 		}
 	}
+
 }
 // Independent physical/debug correspondence; no Source/SSA object retained.
 internal class LlvmDebugRecord : Object {
@@ -67,6 +69,7 @@ internal class LlvmDebugRecord : Object {
 			fields.add ((void*) CApi.struct_type_at_index (storage, i));
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		// Reject type-body changes before consulting LLVM's cached layouts;
 		// an invalid mutation must not poison a restored type's layout cache.
@@ -92,6 +95,7 @@ internal class LlvmDebugRecord : Object {
 			}
 		}
 	}
+
 }
 // Copied source coordinates and borrowed LLVM identities; no upstream IR graph.
 internal class LlvmDebugScope : Object {
@@ -109,6 +113,7 @@ internal class LlvmDebugScope : Object {
 		this.filename = filename;
 		this.directory = directory;
 	}
+
 }
 
 internal class LlvmDebugInfo : Object {
@@ -451,5 +456,6 @@ internal class LlvmDebugInfo : Object {
 			binding.sealed = true;
 		}
 	}
+
 }
 }

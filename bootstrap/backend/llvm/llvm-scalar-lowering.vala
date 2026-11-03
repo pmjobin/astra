@@ -386,5 +386,6 @@ internal class LlvmScalarLowering : Object {
 		state.end = continuation;
 		return result;
 	}
+
 }
 }

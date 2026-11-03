@@ -2,18 +2,28 @@
 class LocalCache {
 	int input;
 	int calls;
+
 	init(int input) { this.input = input; this.calls = 0; }
+
 	lazy property int value { get { this.calls = this.calls + 1; return this.input; } }
 }
+
 async void worker() throws Error {
 	var heap = new LocalCache(42);
-	if (heap.value != 42) { throw new Error("cold cache"); }
+	if (heap.value != 42) {
+		throw new Error("cold cache");
+	}
 	await delay_ticks(1);
 	heap.input = 81;
-	if (heap.value != 42 || heap.calls != 1) { throw new Error("lost Ready cache on suspension"); }
+	if (heap.value != 42 || heap.calls != 1) {
+		throw new Error("lost Ready cache on suspension");
+	}
 	await delay_ticks(1);
-	if (heap.value != 42 || heap.calls != 1) { throw new Error("reevaluated Ready cache"); }
+	if (heap.value != 42 || heap.calls != 1) {
+		throw new Error("reevaluated Ready cache");
+	}
 }
+
 int main() {
 	try { var executor = VirtualExecutor.open(3); var status = executor.run(worker()); match (status) { case RunStatus.Completed(): { return 42; } else: { return 81; } } } catch (Error error) { return 82; }
 }

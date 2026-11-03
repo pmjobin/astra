@@ -10,6 +10,7 @@ private class CoreNonNullSplit : Object {
 		this.yes = yes;
 		this.no = no;
 	}
+
 }
 private class CoreNonNullLoop : Object {
 	internal CoreLoopTarget target;
@@ -18,6 +19,7 @@ private class CoreNonNullLoop : Object {
 	internal CoreNonNullLoop (CoreLoopTarget target) {
 		this.target = target;
 	}
+
 }
 // Independent reconstruction over Core identities; no checked-model facts
 // or predecessor nodes are retained by this proof.
@@ -33,6 +35,7 @@ internal class CoreNonNull : Object {
 			diagnostic = new Diagnostic (span, message);
 		}
 	}
+
 	private void write(Object slot, bool proven) {
 		projections.invalidate (state);
 		state.assign (slot, proven);
@@ -40,14 +43,17 @@ internal class CoreNonNull : Object {
 			writes.add (slot);
 		}
 	}
+
 	private bool required(Object slot) {
 		return (slot is CoreLocalPlace && (((CoreLocalPlace) slot).requires_nonnull || (((CoreLocalPlace) slot).incoming_parameter != null && ((CoreLocalPlace) slot).incoming_parameter.requires_nonnull))) || (slot is CoreParameter && ((CoreParameter) slot).requires_nonnull);
 	}
+
 	private void require(bool proven, SourceSpan span) {
 		if (state.reachable && !proven) {
 			fail (span, "nonnull contract requires a current non-null proof; use an explicit null branch or a proven nonnull result");
 		}
 	}
+
 	public static Diagnostic? check(CoreProgram program, GenericArray<CoreFunction> selected) {
 		foreach (var instance in program.native_instances ()) {
 			foreach (var field in instance.fields) {
@@ -111,6 +117,7 @@ internal class CoreNonNull : Object {
 		}
 		return null;
 	}
+
 	private Object? receiver_key(CoreValue? expression) {
 		if (expression == null) {
 			return null;
@@ -132,6 +139,7 @@ internal class CoreNonNull : Object {
 		}
 		return key (expression);
 	}
+
 	private Object? property_key(CoreFunction? target, CoreValue? receiver) {
 		var getter = target as CorePropertyGetter;
 		if (getter == null || !getter.property_member.is_borrowed || getter.property_member.is_lazy) {
@@ -139,6 +147,7 @@ internal class CoreNonNull : Object {
 		}
 		return projections.key (receiver_key (receiver), getter.property_member);
 	}
+
 	private Object? key(CoreValue expression) {
 		if (expression is CoreCallValue) {
 			var call = (CoreCallValue) expression;
@@ -161,6 +170,7 @@ internal class CoreNonNull : Object {
 		}
 		return null;
 	}
+
 	private CoreNonNullSplit condition(CoreValue expression) {
 		if (expression is CoreShortCircuitValue) {
 			var conditional = (CoreShortCircuitValue) expression;
@@ -190,6 +200,7 @@ internal class CoreNonNull : Object {
 		}
 		return new CoreNonNullSplit (yes, no);
 	}
+
 	private bool call(CoreFunction? target, CoreValue? receiver, GenericArray<CoreValue> arguments, SourceSpan span) {
 		if (receiver != null) {
 			value (receiver);
@@ -211,6 +222,7 @@ internal class CoreNonNull : Object {
 		}
 		return proven;
 	}
+
 	private void place(CorePlace storage) {
 		if (storage is CoreLocalPlace) {
 			return;
@@ -234,11 +246,13 @@ internal class CoreNonNull : Object {
 		}
 		fail (storage.span, "Core nonnull proof excludes uncertain indirect storage in this definition");
 	}
+
 	private bool consume(CoreOwnedLocal owner) {
 		bool proven = state.knows (owner.place);
 		write (owner.place, false);
 		return proven;
 	}
+
 	private void projected_producer(CoreStructProducer source) {
 		if (source is CoreStructBorrowSnapshot) {
 			place (((CoreStructBorrowSnapshot) source).source);
@@ -447,6 +461,7 @@ internal class CoreNonNull : Object {
 		fail (expression.span, "nonnull proof requires a supported synchronous value/effect shape");
 		return false;
 	}
+
 	private void loop(CoreWhile loop) {
 		var entry = state.copy ();
 		var header = entry.copy ();
@@ -478,12 +493,14 @@ internal class CoreNonNull : Object {
 			fail (loop.span, "nonnull loop proof did not converge within its bounded fact domain");
 		}
 	}
+
 	private void block(CoreBlock body) {
 		foreach (var node in body.statements) {
 			statement (node);
 		}
 		projections.invalidate (state);
 	}
+
 	private void statement(CoreStatement node) {
 		if (!state.reachable || diagnostic != null) {
 			return;
@@ -685,5 +702,6 @@ internal class CoreNonNull : Object {
 		}
 		fail (node.span, "Core nonnull proof requires a supported synchronous statement/effect shape");
 	}
+
 }
 }

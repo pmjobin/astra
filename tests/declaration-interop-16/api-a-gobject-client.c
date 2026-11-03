@@ -8,18 +8,22 @@
 typedef struct Native Native;
 typedef struct _ByteService16Session Session;
 typedef struct _ByteService16Token Token;
+
 typedef struct {
 	int32_t mask;
 	bool rotate;
 	double weight;
 } Configuration;
+
 typedef struct {
 	double score;
 	uint64_t revision, processed;
 } Statistics;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t byte_service16_create(Configuration, Native **, Error *);
 extern int32_t byte_service16_statistics(Native *, Statistics *, Error *);
 extern uint32_t byte_service16_acquire(Native *);
@@ -28,6 +32,7 @@ extern Session *byte_service16_session_as_gobject(Native *, GError **);
 extern gboolean byte_service16_session_try_process(Session *, GBytes *, guint8 **, gint *, gint *, GError **);
 extern gboolean byte_service16_session_try_snapshot(Session *, GBytes **, GError **);
 extern uint32_t byte16_retired_count(int32_t);
+
 struct State {
 	Native *root;
 	gulong handler;
@@ -35,6 +40,7 @@ struct State {
 	Token *token;
 	GBytes *label;
 };
+
 static void processed(Session *object, gint revision, gboolean committed, gdouble weight, gpointer data) {
 	struct State *s = data;
 	assert(revision == 1 && committed && weight == 2.5);
@@ -47,11 +53,13 @@ static void processed(Session *object, gint revision, gboolean committed, gdoubl
 	byte_service16_release(s->root);
 	g_object_unref(object);
 }
+
 static void destroyed(gpointer data, GClosure *closure) {
 	(void)closure;
 	struct State *s = data;
 	++s->destroyed;
 }
+
 static void payload(Session *object, Token *token, GBytes *label, gpointer data) {
 	struct State *s = data;
 	assert(token && label && s->processed == 1);
@@ -61,6 +69,7 @@ static void payload(Session *object, Token *token, GBytes *label, gpointer data)
 	g_signal_handler_disconnect(object, s->handler);
 	assert(s->destroyed == 0);
 }
+
 int main(void) {
 	Native *root = NULL;
 	Error native = {0};

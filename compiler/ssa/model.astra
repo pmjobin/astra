@@ -1,20 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Append-only IDs require the retained program and function owner at every read.
 struct SsaFunctionId { int index; }
+
 struct SsaBlockId { int function; int index; }
+
 struct SsaInstructionId { int function; int index; }
+
 struct SsaValueId { int function; int index; }
+
 struct SsaPhiId { int function; int index; }
+
 struct SsaEdgeId { int function; int index; }
+
 struct SsaUseId { int function; int index; }
+
 struct SsaPlaceId { int function; int index; }
+
 struct SsaFunction { int entry; int exit; }
+
 struct SsaBlock { CfgBlock origin; int condition; }
+
 // The exact retained operation is authoritative for literals, source, types,
 // places, call contracts, deferred moves, loan endpoints and conditional cleanup.
 // Promoted scalar stores become copy definitions; other memory stays explicit.
 struct SsaInstruction { CfgInstruction origin; int result; int variable; bool promoted; bool noalias; }
+
 struct SsaEdge { CfgEdge origin; }
+
 // kind 1 instruction result, 2 entry parameter, 3 block parameter.
 // variable is a scalar place/short-circuit slot, never an owning handle.
 struct SsaValue {
@@ -27,31 +39,51 @@ struct SsaValue {
 	TypeId type;
 	int flags;
 }
+
 // Variable kind 1 short-circuit temporary, 2 proven promotable scalar place.
 struct SsaVariable { int function; int kind; int origin; TypeId type; int parameter; }
+
 // Use kinds 1/2 operands a/b, 3 ordered argument, 4 promoted load, 5 terminator.
 // source names the retained CFG temp (or place for kind 4).
 struct SsaUse { int function; int block; int instruction; int kind; int ordinal; int source; SymbolId label; int mode; int value; }
+
 struct SsaArgument { int function; int phi; int edge; int value; }
+
 class SsaBudget {
 	int remaining;
 	bool exhausted;
+
 	init(int limit) { this.remaining = limit; this.exhausted = limit < 1 || limit > 8000000; }
+
 	bool take(int count) {
-		if (this.exhausted || count < 0 || count > this.remaining) { this.exhausted = true; return false; }
+		if (this.exhausted || count < 0 || count > this.remaining) {
+			this.exhausted = true;
+			return false;
+		}
 		this.remaining = this.remaining - count; return true;
 	}
 }
+
 class SsaIncoming {
 	owned int[] first;
 	owned int[] next;
+
 	init(CfgData cfg) {
 		this.first = new int[cfg.block_count]; this.next = new int[cfg.edge_count];
-		int b = 0; while (b < cfg.block_count) { this.first[b] = -1; b = b + 1; }
+		int b = 0; while (b < cfg.block_count) {
+			this.first[b] = -1;
+			b = b + 1;
+		}
 		int e = cfg.edge_count - 1;
-		while (e >= 0) { int target = cfg.edges[e].target - 1; this.next[e] = this.first[target]; this.first[target] = e; e = e - 1; }
+		while (e >= 0) {
+			int target = cfg.edges[e].target - 1;
+			this.next[e] = this.first[target];
+			this.first[target] = e;
+			e = e - 1;
+		}
 	}
 }
+
 class SsaGraph {
 	int count;
 	owned bool[] reachable;
@@ -59,14 +91,20 @@ class SsaGraph {
 	owned bool[] frontier;
 	owned int[] parent;
 	int status;
+
 	init(int count) {
 		this.count = count;
 		int cells = 0; int status = 0;
-		if (count < 0 || count > 1024) { status = 2; } else { cells = count * count; }
-		int size = count; if (status != 0) { size = 0; }
+		if (count < 0 || count > 1024) {
+			status = 2;
+		} else {
+			cells = count * count;
+		}
+		int size = count; if (status != 0) size = 0;
 		this.reachable = new bool[size]; this.dominates = new bool[cells]; this.frontier = new bool[cells]; this.parent = new int[size]; this.status = status;
 	}
 }
+
 class SsaData {
 	owned shared TypeOwner identity;
 	owned SsaFunction[] functions;
@@ -89,6 +127,7 @@ class SsaData {
 	int limit;
 	int work_limit;
 	int status;
+
 	init(int functions, int blocks, int instructions, int edges, int limit, int work_limit) {
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
 		this.functions = new SsaFunction[functions]; this.blocks = new SsaBlock[blocks]; this.instructions = new SsaInstruction[instructions]; this.edges = new SsaEdge[edges];
@@ -98,18 +137,25 @@ class SsaData {
 		this.value_count = 0; this.variable_count = 0; this.use_count = 0; this.argument_count = 0;
 		this.limit = limit; this.work_limit = work_limit; this.status = 0;
 	}
+
 	bool room(int count) {
-		if (this.status != 0) { return false; }
-		if (this.limit < 1 || this.limit > 65536 || count >= this.limit) { this.status = 2; return false; }
+		if (this.status != 0) return false;
+		if (this.limit < 1 || this.limit > 65536 || count >= this.limit) {
+			this.status = 2;
+			return false;
+		}
 		return true;
 	}
 }
+
 class SsaProgram {
 	owned CfgProgram cfg;
 	owned SsaData data;
+
 	init(owned CfgProgram cfg, int functions, int blocks, int instructions, int edges, int limit, int work_limit) {
 		this.cfg = move cfg;
 		var data = new SsaData(functions, blocks, instructions, edges, limit, work_limit); this.data = move data;
 	}
+
 	bool same_owner(borrowed SsaProgram origin) { return type_owner_same(this.data.identity, origin.data.identity) && this.cfg.same_owner(origin.cfg); }
 }

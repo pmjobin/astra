@@ -13,6 +13,7 @@ private SemanticResult check(string text) {
 	var bindings = VapiParser.parse (new SourceFile.from_text ("ownership.vapi", "[CCode(destroy_function = \"release\")] handle Resource; [CCode(destroy_function = \"release\")] handle Token;"));
 	return SemanticAnalyzer.analyze (parsed.unit, VapiNormalizer.normalize (bindings.file), VapiNormalizer.normalize_handles (bindings.file));
 }
+
 private CheckedProgram accept(string text) {
 	var result = check (text);
 	if (result.diagnostic != null) {
@@ -20,6 +21,7 @@ private CheckedProgram accept(string text) {
 	}
 	return result.program;
 }
+
 private void reject(string text, string diagnostic) {
 	var result = check (text);
 	if (result.diagnostic == null || !result.diagnostic.message.contains (diagnostic)) {
@@ -27,6 +29,7 @@ private void reject(string text, string diagnostic) {
 	}
 	assert (result.program == null);
 }
+
 private void contracts() {
 	var p = accept (DROP + "owned T relay<T>(owned T value) where T : Ownable {return move value;} U keep<T,U>(owned T owner,U value) where T : Ownable {return value;}");
 	var drop = p.generic_functions[0];
@@ -50,6 +53,7 @@ private void contracts() {
 	}
 	accept ("int Ownable(){return 1;} void f<Ownable>(owned Ownable v) where Ownable : Ownable {}");
 }
+
 private void matrices() {
 	var types = new BuiltinTypes ();
 	foreach (string name in new string[] {"bool", "i8", "u8", "i16", "u16", "int", "u32", "f32", "f64", "void*", "int*", "int[]", "int[4]"}) {
@@ -78,6 +82,7 @@ private void matrices() {
 	reject ("struct Box<U>{U value;} int tag<T>() where T : Ownable {return 1;} int main(){return tag<Box<int>>();}", "does not satisfy capability 'Ownable'");
 	reject ("class Counter {} T id<T>(T v){return v;} int main(){id<Counter>(null);return 0;}", "GEN1_PLAIN_COPY");
 }
+
 private void positions() {
 	reject ("void bad<T>(owned T v){}", "owned T requires explicit capability Ownable");
 	reject ("owned T bad<T>(){return null;}", "owned T requires explicit capability Ownable");
@@ -102,6 +107,7 @@ private void positions() {
 		assert (check ("bool bad<T>(owned T v) where T : Ownable {return " + expression + ";}").diagnostic != null);
 	}
 }
+
 private void flow() {
 	reject (DROP + "void bad<T>(bool b,owned T v) where T : Ownable {drop<T>(move v); drop<T>(move v);}", "use of moved owned value");
 	foreach (string body in new string[] {"if (b) {drop<T>(move v);} drop<T>(move v);", "while (b) {drop<T>(move v);}", "while (true) {drop<T>(move v); continue;}"}) {
@@ -116,6 +122,7 @@ private void flow() {
 	}
 	reject ("owned T bad<T>(owned T v) where T : Ownable {}", "every normal return path");
 }
+
 private void forwarding() {
 	accept (DROP + "void outer<T>(owned T v) where T : Ownable {drop<T>(move v);}");
 	accept ("owned T relay<T>(owned T v) where T : Ownable {return move v;} owned T outer<T>(owned T v) where T : Ownable {return relay<T>(move v);}");
@@ -125,6 +132,7 @@ private void forwarding() {
 	reject ("int tag<U>() {return 1;} int bad<T>() where T : Ownable {return tag<T>();}", "GEN1_PLAIN_COPY");
 	reject (DROP + "owned T relay<T>(owned T v) where T : Ownable {return move v;} void bad<T>(owned T v) where T : Ownable {drop<T>(relay<T>(move v));}", "requires explicit 'move owner'");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own/semantic/identity-contract-transport-old-stability", contracts);
@@ -134,4 +142,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-own/semantic/exact-forwarding-no-temporaries", forwarding);
 	return Test.run ();
 }
+
 }

@@ -8,25 +8,30 @@ async owned int[] captured(owned int[] values) throws Error {
 	observed(3, values[0] + values[1]);
 	return move values;
 }
+
 async int peer() throws Error {
 	observed(2, 42);
 	await delay_ms(1);
 	return 42;
 }
+
 async void faulty() throws Error {
 	await delay_ms(1);
 	throw new DecodeError("original\0é");
 }
+
 async int local_view(int[] values) throws Error {
 	await delay_ms(1);
 	values[0] = values[0] + 2;
 	await delay_ms(1);
 	return values[0] + values[1];
 }
+
 async Pair copied(Pair value) throws Error {
 	await delay_ms(0);
 	return value;
 }
+
 async OwnedValues owning(OwnedValues value) throws Error {
 	await delay_ms(1);
 	return move value;

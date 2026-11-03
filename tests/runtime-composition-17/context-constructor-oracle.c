@@ -3,6 +3,7 @@
 #include <stdio.h>
 static int family, mode, count, phases, active;
 static int events[4];
+
 int context_ctor_begin(int selected_family, int selected_mode) {
 	assert(!active && selected_family >= 0 && selected_family <= 2);
 	family = selected_family;
@@ -11,11 +12,13 @@ int context_ctor_begin(int selected_family, int selected_mode) {
 	active = 1;
 	return 0;
 }
+
 int context_ctor_event(int value) {
 	assert(active && count < 4);
 	events[count++] = value;
 	return 0;
 }
+
 int context_ctor_end(void) {
 	assert(active);
 	active = 0;
@@ -44,6 +47,7 @@ int context_ctor_end(void) {
 	}
 	return 0;
 }
+
 int context_ctor_finish(void) {
 	assert(!active && phases == 12);
 	puts("context constructors: twelve success/failure paths, exact input and initialized-prefix retirement");

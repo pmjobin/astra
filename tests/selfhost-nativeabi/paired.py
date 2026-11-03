@@ -65,9 +65,9 @@ def main():
 		assert old[key] == new[key]
 	a.output.write_text(json.dumps(dict(status='PASS', programs=39, cases=rows,
 		checks=['exact native/C0 ABI plans, raw/optimized IR, objects, executables and memory',
-			'exact original 80 status/IR rows and Core22/CFG26/SSA30 mutation receipts',
-			'exact original21/new17 mutations plus separate numeric guard mutation',
-			'exact numeric, owner and C-boundary controls'],
+		'exact original 80 status/IR rows and Core22/CFG26/SSA30 mutation receipts',
+		'exact original21/new17 mutations plus separate numeric guard mutation',
+		'exact numeric, owner and C-boundary controls'],
 		before_qualification_sha256=sha(a.before/'result.json'), after_qualification_sha256=sha(a.after/'result.json')), indent=2)+'\n')
 	print('PASS: 39 exact source/ABI/IR/object/executable comparisons and all independent negative receipts')
 

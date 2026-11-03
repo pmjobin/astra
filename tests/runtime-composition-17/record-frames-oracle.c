@@ -15,10 +15,12 @@ static _Atomic long worker;
 static AstraContext17 *data_context[8], *state_context[8];
 static _Atomic int anchor_closed[8], state_closed[8], bytes_released[8], item_released[8];
 extern int run_record_frames(void);
+
 int main(void) {
 	home = syscall(SYS_gettid);
 	return run_record_frames();
 }
+
 void record_frame_event(int kind, int identity) {
 	assert(identity >= 17 && identity <= 24);
 	int index = identity - 17;
@@ -37,6 +39,7 @@ void record_frame_event(int kind, int identity) {
 		returning_record = identity;
 	}
 }
+
 void record_frame_bind(AstraContext17 *context, int identity, int kind) {
 	assert(identity >= 17 && identity <= 24 && context);
 	int index = identity - 17;
@@ -50,7 +53,9 @@ void record_frame_bind(AstraContext17 *context, int identity, int kind) {
 		state_context[index] = context;
 	}
 }
+
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	if (context) {
 		for (int i = 0; i < 8; ++i) {
@@ -67,7 +72,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	}
 	__real_astra_context17_destroy(context);
 }
+
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	if (pointer) {
 		AstraContext17 *context = astra_context17_origin(pointer, tag);
@@ -88,7 +95,9 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	}
 	return __real_astra_context17_release_origin_checked(pointer, tag);
 }
+
 void __real_astra_async_complete(AstraAsyncTask *, int, void *);
+
 void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exception) {
 	int identity = returning_record;
 	returning_record = 0;
@@ -100,9 +109,11 @@ void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exceptio
 		atomic_store(&published[identity - 23], 1);
 	}
 }
+
 int record_frame_published(void) {
 	return atomic_load(&published[1]);
 }
+
 int record_frame_pending(void) {
 	if (!atomic_load(&pending)) {
 		struct timespec delay = {0, 1000000};
@@ -110,6 +121,7 @@ int record_frame_pending(void) {
 	}
 	return atomic_load(&pending);
 }
+
 int record_frame_finish(void) {
 	int count = 6;
 #ifdef M17_RECORD_RESULTS

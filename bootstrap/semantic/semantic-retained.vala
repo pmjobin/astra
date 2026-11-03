@@ -12,5 +12,6 @@ public class CheckedRetainedOperation : CheckedExpression {
 		this.callee = callee;
 		this.arguments = arguments;
 	}
+
 }
 }

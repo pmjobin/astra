@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair { int x; f64 y; }
+
 struct Outer { Pair left; Pair right; }
+
 Pair local_result() { Pair local = { x = 7, y = 3.5 }; return local; }
+
 Pair field_result(Outer value) { return value.right; }
+
 Pair pointer_result(Pair* value) { return *value; }
+
 Pair copy_then_mutate(Pair* value) { Pair result = *value; value->x = 99; value->y = 9.5; return result; }
+
 int main() {
 	Outer outer = { left = { x = 1, y = 1.5 }, right = { x = 7, y = 3.5 } };
 	Pair a = local_result();
@@ -15,6 +21,6 @@ int main() {
 	outer.left = local_result();
 	Pair* destination = &c;
 	*destination = pointer_result(&a);
-	if (a.x != 7 || b.x != 7 || c.x != 7 || d.x != 7 || d.y != 3.5 || source.x != 99 || destination->y != 3.5) { return 1; }
+	if (a.x != 7 || b.x != 7 || c.x != 7 || d.x != 7 || d.y != 3.5 || source.x != 99 || destination->y != 3.5) return 1;
 	return 0;
 }

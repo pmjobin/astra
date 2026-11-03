@@ -5,12 +5,12 @@ int main() {
 	try {
 		var message = utf8_message(bytes);
 		bytes[0] = 0;
-		if (message.text != "café" || message.text.byte_length != 5) { return 81; }
-		{ var view = message.text; if (view != "café") { return 82; } }
+		if (message.text != "café" || message.text.byte_length != 5) return 81;
+		{ var view = message.text; if (view != "café") return 82; }
 		release message;
 		bytes[0] = 255;
 		try { var bad = utf8_message(bytes); } catch (InvalidUtf8 error) {
-			if (error.message == "invalid UTF-8") { return 42; }
+			if (error.message == "invalid UTF-8") return 42;
 		}
 	} catch (Error error) { return 83; }
 	return 84;

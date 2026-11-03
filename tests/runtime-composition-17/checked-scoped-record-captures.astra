@@ -1,19 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void checked_scope_begin(int kind);
+
 extern(C) void checked_scope_retired(int identity);
+
 extern(C) int checked_scope_finish();
 
 [Allocator(kind="context",context="scoped-affine")]
 class CheckedScopedInput {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int id() { return this.identity; }
+
 	deinit() { checked_scope_retired(this.identity); }
 }
+
 struct CheckedScopedPacket { owned CheckedScopedInput first; owned CheckedScopedInput second; int marker; }
+
 async void checked_scope_idle(owned CheckedScopedInput input) {}
+
 async void checked_record_idle(CheckedScopedPacket input) {}
+
 async void checked_record_delay(CheckedScopedPacket input) throws Error { await delay_ticks(1); }
+
 int checked_record_id(borrowed CheckedScopedPacket input) { return input.first.id() + input.second.id() + input.marker; }
 
 int checked_record_attempt(borrowed ScopedAllocator objects) {
@@ -25,26 +35,27 @@ int checked_record_attempt(borrowed ScopedAllocator objects) {
 		bool refused = false;
 		try { var unexpected = checked_task_in(objects, checked_record_idle(move input)); }
 		catch (Error error) { refused = true; }
-		if (!refused || checked_record_id(input) != 20) { return 1; }
-		if (scoped_allocator_query(objects, 1) != 3) { return 2; }
+		if (!refused || checked_record_id(input) != 20) return 1;
+		if (scoped_allocator_query(objects, 1) != 3) return 2;
 	}
 	try {
 		var executor = VirtualExecutor.open(8);
 		var task = checked_task_in(objects, checked_record_delay(move input));
-		if (scoped_allocator_query(objects, 1) != 3) { return 3; }
+		if (scoped_allocator_query(objects, 1) != 3) return 3;
 		var status = executor.run(move task);
 		match (status) { case RunStatus.Completed(): {} else: { return 4; } }
 	} catch (Error error) { return 5; }
-	if (scoped_allocator_query(objects, 1) != 0) { return 6; }
-	if (scoped_allocator_query(objects, 4) != 4 || scoped_allocator_query(objects, 5) != 4) { return 7; }
+	if (scoped_allocator_query(objects, 1) != 0) return 6;
+	if (scoped_allocator_query(objects, 4) != 4 || scoped_allocator_query(objects, 5) != 4) return 7;
 	return 0;
 }
+
 export(C) int checked_scope_run(int kind) {
 	checked_scope_begin(kind);
 	owned u8[] backing = new u8[16381];
 	var objects = scoped_allocator<ScopedAllocator>(backing, kind, 3);
-	if (objects == null) { return 1; }
+	if (objects == null) return 1;
 	int result = checked_record_attempt(objects);
-	if (result != 0) { return 10 + result; }
+	if (result != 0) return 10 + result;
 	return checked_scope_finish();
 }

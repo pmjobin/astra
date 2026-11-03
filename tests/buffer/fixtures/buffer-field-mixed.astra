@@ -3,12 +3,15 @@ class Context {
 	owned f64[] buffer_b;
 	owned R resource_c;
 	owned int[] buffer_d;
+
 	init() {
 		this.resource_a = resource(1);
 		this.buffer_b = new f64[2];
 		this.resource_c = resource(3);
 		this.buffer_d = new int[4];
 	}
+
 	deinit() { mark(len(this.buffer_b)); mark(len(this.buffer_d)); }
 }
+
 int main() { owned Context context = Context.init(); return 0; }

@@ -96,6 +96,7 @@ private void model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 16; variant++) {
 		try {
@@ -107,10 +108,12 @@ private void malformed() {
 		GLib.error ("accepted malformed method variant %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/method/cfg/independent-receiver-fields-calls-recursion-signatures-lifetime", model);
 	Test.add_func ("/method/cfg/malformed-identity-receiver-storage-and-call-contracts", malformed);
 	return Test.run ();
 }
+
 }

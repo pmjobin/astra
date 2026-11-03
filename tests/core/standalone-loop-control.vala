@@ -104,4 +104,5 @@ private void register_loop_control_tests() {
 	Test.add_func ("/core-standalone/loopctrl/identities-lifetime-expiry", control_lifetime);
 	Test.add_func ("/core-standalone/loopctrl/invalid-targets", invalid_control_targets);
 }
+
 }

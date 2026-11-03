@@ -9,6 +9,7 @@ internal class GenericClassMethodRequest : Object {
 		this.header = header;
 		this.caller = caller;
 	}
+
 }
 // Source demand edges close declaration dependencies before the checked
 // graph is detached. No executable source body crosses into Core.
@@ -21,6 +22,7 @@ internal class GenericClassFunctionRequest : Object {
 		this.caller = caller;
 		this.arguments = arguments;
 	}
+
 }
 
 internal delegate string GenericNominalName(SourceSpan span, string name);
@@ -42,6 +44,7 @@ internal class ExactClassTemplate : Object {
 		open_applications.add (result);
 		return result;
 	}
+
 	internal ExactClassTemplate (ClassDeclarationSyntax syntax, ExactClassDefinitionIdentity identity) {
 		this.syntax = syntax;
 		this.identity = identity;
@@ -51,6 +54,7 @@ internal class ExactClassTemplate : Object {
 		}
 		parameter = parameters[0];
 	}
+
 	internal ClassSymbol? find_arguments(TypeArgumentVector arguments) {
 		foreach (var instance in instances) {
 			if (instance.generic_instance.arguments.matches (arguments)) {
@@ -256,5 +260,6 @@ internal class ExactClassTemplate : Object {
 		GenericNominalName identity = (span, name) => name;
 		return check_declared (syntax, out diagnostic, canonical_name, identity);
 	}
+
 }
 }

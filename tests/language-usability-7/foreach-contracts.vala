@@ -19,6 +19,7 @@ private CheckedProgram sample() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CheckedFunction checked_scan(CheckedProgram program) {
 	foreach (var function in program.functions) {
 		if (function.symbol.name == "scan") {
@@ -27,6 +28,7 @@ private CheckedFunction checked_scan(CheckedProgram program) {
 	}
 	assert_not_reached ();
 }
+
 private CoreFunction core_function(CoreProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -35,6 +37,7 @@ private CoreFunction core_function(CoreProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private void core_reject(CoreProgram program) {
 	bool rejected = false;
 	try {
@@ -45,6 +48,7 @@ private void core_reject(CoreProgram program) {
 	}
 	assert (rejected);
 }
+
 private void checked_authority() {
 	try {
 		var program = sample ();
@@ -78,6 +82,7 @@ private void checked_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_authority() {
 	try {
 		var program = CoreBuilder.build (sample ());
@@ -107,6 +112,7 @@ private void core_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void readonly_body() {
 	try {
 		var program = CoreBuilder.build (sample ());
@@ -122,6 +128,7 @@ private void readonly_body() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_loan() {
 	try {
 		var program = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -152,6 +159,7 @@ private void cfg_loan() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_loan() {
 	try {
 		var graph = CfgBuilder.build (CoreBuilder.build (sample ()));
@@ -186,6 +194,7 @@ private void ssa_loan() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/foreach/checked-authority", checked_authority);
@@ -195,4 +204,5 @@ int main(string[] args) {
 	Test.add_func ("/foreach/ssa-borrower", ssa_loan);
 	return Test.run ();
 }
+
 }

@@ -37,6 +37,7 @@ private void lifetime() throws GLib.Error {
 		CAbiVerifier.verify (cabi);
 	}
 }
+
 private void snapshots() throws GLib.Error {
 	var checked = check (fixture ("pointer"));
 	var core = CoreGenericMonomorphizer.build (CoreBuilder.build (checked));
@@ -66,6 +67,7 @@ private void snapshots() throws GLib.Error {
 	var nabi = NativeAbiBuilder.build (ssa);
 	assert (nabi.functions[0].signature.physical_parameter_count == 2 && nabi.abi_version == NativeAbiVersion.SCALAR_PTR_V1);
 }
+
 private void promotion() throws GLib.Error {
 	foreach (string name in new string[] {"basic", "assign", "nested", "deep", "scalarize"}) {
 		var ssa = build (fixture (name));
@@ -91,6 +93,7 @@ private void promotion() throws GLib.Error {
 		}
 	}
 }
+
 private void checked_firewall() throws GLib.Error {
 	for (int scenario = 0; scenario < 3; scenario++) {
 		var checked = check (fixture ("basic"));
@@ -106,6 +109,7 @@ private void checked_firewall() throws GLib.Error {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -117,4 +121,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

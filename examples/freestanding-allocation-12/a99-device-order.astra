@@ -2,25 +2,25 @@
 using Pc;
 
 export(C) int astra_entry(int index, int initialized, int zeroed) {
-	if (index != 0) { return 0; }
-	if (initialized != 324508639 || zeroed != 0) { return 33; }
+	if (index != 0) return 0;
+	if (initialized != 324508639 || zeroed != 0) return 33;
 	int written = write_liveness(305419896);
 	int first = read_liveness();
-	if (written != 305419896 || first != -305419897) { return 49; }
+	if (written != 305419896 || first != -305419897) return 49;
 	write_liveness(16909060);
 	int second = read_liveness();
-	if (second != -16909061) { return 50; }
+	if (second != -16909061) return 50;
 	store_release(10);
 	int before = add_seq_cst(7);
 	int after = load_acquire();
-	if (before != 10 || after != 17) { return 51; }
+	if (before != 10 || after != 17) return 51;
 	store_relaxed(100);
-	if (add_relaxed(3) != 100 || load_relaxed() != 103) { return 54; }
+	if (add_relaxed(3) != 100 || load_relaxed() != 103) return 54;
 	store_seq_cst(42);
-	if (add_acq_rel(9) != 42 || load_seq_cst() != 51) { return 55; }
+	if (add_acq_rel(9) != 42 || load_seq_cst() != 51) return 55;
 	// Atomic word addition has explicit modulo-2^32 machine semantics.
 	store_relaxed(2147483647);
-	if (add_relaxed(1) != 2147483647 || load_relaxed() != -2147483648) { return 56; }
+	if (add_relaxed(1) != 2147483647 || load_relaxed() != -2147483648) return 56;
 	write_byte(69);
 	write_byte(68);
 	write_byte(85);

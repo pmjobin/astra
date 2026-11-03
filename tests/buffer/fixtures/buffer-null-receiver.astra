@@ -1,3 +1,7 @@
-class Context { owned f64[] values; init() { this.values = new f64[3]; } }
+class Context { owned f64[] values;
+
+	init() { this.values = new f64[3]; } }
+
 void replace(borrowed Context context, owned f64[] replacement) { context.values = move replacement; }
+
 int main() { owned f64[] values = new f64[5]; replace(null, move values); return 1; }

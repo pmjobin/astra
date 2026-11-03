@@ -36,6 +36,7 @@ private NativeAbiProgram sample(int variant = -1) throws NativeAbiError {
 	}
 	return program;
 }
+
 private void qualify() {
 	try {
 		NativeAbiProgram? program = sample ();
@@ -58,9 +59,11 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int run_nabi(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-copy/nabi/independent-owned-physical-shapes-and-forgeries", qualify);
 	return Test.run ();
 }
+
 }

@@ -30,6 +30,7 @@ private void scalars() {
 	}
 	assert (checked == 1112064);
 }
+
 private void immutable() {
 	uint8[] input = {
 		'a', 0, 'b'
@@ -48,6 +49,7 @@ private void immutable() {
 	assert (!new TextBytes ({0xe0, 0xa0}).valid ());
 	assert (new TextBytes ({0xef, 0xbb, 0xbf, 0xef, 0xbf, 0xbf}).valid ());
 }
+
 private void origins() {
 	var graph = new TextOrigins ();
 	var literal = new Object ();
@@ -63,6 +65,7 @@ private void origins() {
 	graph.copy (join, new Object ());
 	assert (!graph.is_static (join));
 }
+
 private void spans_and_escapes() {
 	string spelling = "\"é\\\"\\\\\\n\\r\\t\\0after\"";
 	var file = new SourceFile.from_text ("escapes.astra", " \r\n" + spelling + " next");
@@ -74,6 +77,7 @@ private void spans_and_escapes() {
 	assert (name.kind == TokenKind.IDENTIFIER && name.spelling () == "next" && name.span.start == 4 + spelling.length);
 	assert (lexer.next_token ().kind == TokenKind.EOF && lexer.diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/text/decoder/all-unicode-scalars", scalars);
@@ -82,4 +86,5 @@ int main(string[] args) {
 	Test.add_func ("/text/decoder/spans-and-short-escapes", spans_and_escapes);
 	return Test.run ();
 }
+
 }

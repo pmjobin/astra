@@ -1,8 +1,23 @@
-struct S { int x; void scale(int n) { this.x = this.x * n; } }
+struct S { int x;
+
+	void scale(int n) { this.x = this.x * n; } }
+
 struct O { S inner; }
+
 int take(owned S[] a) { return 1; }
+
 S produce(owned S[] a) { S v = {x = 1}; return v; }
+
 void borrow_and_take(S[] a, owned S[] b) {}
-class C { owned O[] records; init() { this.records = new O[2]; } int replace() { this.records = new O[3]; return 1; } }
-S make(){S a={x=1};return a;}int f(){return make().x;}
+
+class C { owned O[] records;
+
+	init() { this.records = new O[2]; }
+
+	int replace() { this.records = new O[3]; return 1; } }
+
+S make(){S a={x=1};return a;}
+
+int f(){return make().x;}
+
 int main(){return f();}

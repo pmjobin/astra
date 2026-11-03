@@ -21,6 +21,7 @@ public class CfgMethod : CfgFunction {
 		this.method_ordinal = method_ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class CfgReceiver : CfgNode {
@@ -30,6 +31,7 @@ public class CfgReceiver : CfgNode {
 		base (span);
 		this.contract = contract;
 	}
+
 }
 
 public class CfgReceiverValue : CfgValue {
@@ -39,5 +41,6 @@ public class CfgReceiverValue : CfgValue {
 		base (span, receiver.contract);
 		this.receiver = receiver;
 	}
+
 }
 }

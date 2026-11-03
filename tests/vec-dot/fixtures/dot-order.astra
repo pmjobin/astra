@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 struct Log {int value;}
+
 i32 accumulator(Log* log){log->value=log->value*10+1;return 5;}
+
 i8<4> bytes(Log* log,int id){log->value=log->value*10+id;return splat(2,4);}
+
 f32 faccumulator(Log* log){log->value=log->value*10+1;return 5.0;}
+
 f32<4> floats(Log* log,int id){log->value=log->value*10+id;return splat(2.0,4);}
+
 int main(){
 	Log log={value=0};
-	if(dot_wrap(bytes(&log,2),bytes(&log,3),i32)!=16 || log.value!=23){return 1;}
+	if(dot_wrap(bytes(&log,2),bytes(&log,3),i32)!=16 || log.value!=23) return 1;
 	log.value=0;
-	if(mac_wrap(accumulator(&log),bytes(&log,2),bytes(&log,3))!=21 || log.value!=123){return 2;}
+	if(mac_wrap(accumulator(&log),bytes(&log,2),bytes(&log,3))!=21 || log.value!=123) return 2;
 	log.value=0;
-	if(dot(floats(&log,2),floats(&log,3))!=16.0 || log.value!=23){return 3;}
+	if(dot(floats(&log,2),floats(&log,3))!=16.0 || log.value!=23) return 3;
 	log.value=0;
-	if(mac(faccumulator(&log),floats(&log,2),floats(&log,3))!=21.0 || log.value!=123){return 4;}
+	if(mac(faccumulator(&log),floats(&log,2),floats(&log,3))!=21.0 || log.value!=123) return 4;
 	return 0;
 }

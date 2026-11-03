@@ -71,4 +71,5 @@ private void register_call_syntax_tests() {
 	// METHOD-1 adds member-call syntax; receiver validity is checked semantically.
 	register_program ("call-member-callee", "int f(){object.method();}", 1);
 }
+
 }

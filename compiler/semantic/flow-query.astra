@@ -36,12 +36,13 @@ string flow_error_name(int code) {
 	if (code == 12) {
 		return "INVALID_REARM";
 	}
-	if (code == 14) { return "NONNULL_REQUIRED"; }
-	if (code == 15) { return "FIELD_INCOMPLETE"; }
-	if (code == 16) { return "FIELD_REPEATED"; }
-	if (code == 17) { return "FIELD_UNINITIALIZED"; }
+	if (code == 14) return "NONNULL_REQUIRED";
+	if (code == 15) return "FIELD_INCOMPLETE";
+	if (code == 16) return "FIELD_REPEATED";
+	if (code == 17) return "FIELD_UNINITIALIZED";
 	return "BAD_GRAPH";
 }
+
 string flow_deferred_name(int code) {
 	if (code == 1) {
 		return "FOREIGN_CALL";
@@ -94,13 +95,15 @@ string flow_deferred_name(int code) {
 	if (code == 17) {
 		return "TEXT_LIFETIME_POLICY";
 	}
-	if (code == 18) { return "MEMBER_POLICY"; }
+	if (code == 18) return "MEMBER_POLICY";
 	return "SYNTAX_FAMILY";
 }
+
 void flow_number(Utf8ByteBuilder output, int value) throws Error {
 	source_append_text(output, " ");
 	append_int(output, value);
 }
+
 int flow_status(FlowIndex index) {
 	if (index.checked.failed()) {
 		return 1;
@@ -127,6 +130,7 @@ int flow_status(FlowIndex index) {
 	}
 	return status;
 }
+
 void flow_write_graph(CheckedIndex checked, FlowGraph graph, Utf8ByteBuilder output) throws Error {
 	source_append_text(output, "G");
 	flow_number(output, graph.ordinal);
@@ -144,7 +148,7 @@ void flow_write_graph(CheckedIndex checked, FlowGraph graph, Utf8ByteBuilder out
 		binding_write_span(checked.bindings, graph.error_span, output);
 		source_append_text(output, "\n");
 	}
-	if (graph.semantic_flow) { flowsem_write_graph(graph, checked, output); }
+	if (graph.semantic_flow) flowsem_write_graph(graph, checked, output);
 	int i = 0;
 	while (i < graph.obligation_count) {
 		var obligation = graph.obligations[i];
@@ -235,13 +239,24 @@ void flow_write_graph(CheckedIndex checked, FlowGraph graph, Utf8ByteBuilder out
 		i = i + 1;
 	}
 }
+
 owned Utf8Message flow_observation(FlowIndex index) throws Error {
-	if (index.checked.semantic_admission && index.complete && !index.checked.failed() && !admit_verify_index(index)) { throw new Error("unverified semantic admission observation"); }
+	if (index.checked.semantic_admission && index.complete && !index.checked.failed() && !admit_verify_index(index)) {
+		throw new Error("unverified semantic admission observation");
+	}
 	var output = new Utf8ByteBuilder();
-	if (index.checked.native_abi) { source_append_text(output, "astra-flow/4\nSTATUS"); } else {
-	if (index.checked.semantic_admission) { source_append_text(output, "astra-flow/3\nSTATUS"); } else {
-		if (index.checked.semantic_flow) { source_append_text(output, "astra-flow/2\nSTATUS"); } else { source_append_text(output, "astra-flow/1\nSTATUS"); }
-	} }
+	if (index.checked.native_abi) {
+		source_append_text(output, "astra-flow/4\nSTATUS");
+	} else {
+		if (index.checked.semantic_admission) {
+			source_append_text(output, "astra-flow/3\nSTATUS");
+		} else {
+			if (index.checked.semantic_flow) {
+				source_append_text(output, "astra-flow/2\nSTATUS");
+			} else {
+				source_append_text(output, "astra-flow/1\nSTATUS");
+			}
+		} }
 	flow_number(output, flow_status(index));
 	flow_number(output, index.unmodeled);
 	source_append_text(output, "\n");
@@ -318,7 +333,7 @@ owned Utf8Message flow_observation(FlowIndex index) throws Error {
 bool flow_write_graph_observation(CheckedIndex checked, borrowed FlowGraph graph, Utf8ByteBuilder output) {
 	try {
 		flow_write_graph(checked, graph, output);
-		if (checked.semantic_admission) { admit_write_graph(graph, checked, output); }
+		if (checked.semantic_admission) admit_write_graph(graph, checked, output);
 		return true;
 	} catch (Error error) {
 		return false;

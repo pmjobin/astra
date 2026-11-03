@@ -28,34 +28,43 @@ private class ScopedLlvmFixture : Object {
 		}
 		return CApi.add_function (module, name, type);
 	}
+
 	private CApi.ValueRef call(CApi.ValueRef target, CApi.ValueRef[] arguments, string name = "") {
 		var result = CApi.build_call (builder, CApi.global_value_type (target), target, arguments, arguments.length, name);
 		CApi.set_instruction_call_conv (result, CApi.CallConv.C);
 		return result;
 	}
+
 	private CApi.BasicBlockRef block(string name) {
 		return CApi.append_basic_block_in_context (context, function, name);
 	}
+
 	private void at(CApi.BasicBlockRef block) {
 		CApi.position_builder_at_end (builder, block);
 	}
+
 	private CApi.ValueRef allocate(int mode) {
 		return call (allocation_function, new CApi.ValueRef[] { mode == 16 ? CApi.const_null (pointer) : loan, CApi.const_int (size, 1, 0), CApi.const_int (size, mode == 26 ? 4 : 37, 0), CApi.const_int (word, mode == 26 ? 4 : 8, 0), tag, CApi.const_int (word, mode == 15 ? 2 : 3, 0) }, "allocation");
 	}
+
 	private void release(CApi.ValueRef owner, bool wrong = false) {
 		call (release_function, new CApi.ValueRef[] { owner, wrong ? CApi.const_int (size, 78, 0) : tag }, "retired");
 	}
+
 	private void destroy() {
 		call (destroy_function, new CApi.ValueRef[] { loan });
 	}
+
 	private void finish() {
 		destroy ();
 		CApi.build_ret (builder, CApi.const_int (word, 0, 0));
 	}
+
 	private CApi.ValueRef address(CApi.ValueRef owner) {
 		var zero = CApi.const_int (word, 0, 0);
 		return CApi.build_gep (builder, word, owner, &zero, 1, "field");
 	}
+
 	internal ScopedLlvmFixture (int mode, LlvmModuleArtifact? artifact = null) {
 		borrowed_module = artifact != null;
 		context = artifact == null ? CApi.context_create() : artifact.context;
@@ -516,6 +525,7 @@ private class ScopedLlvmFixture : Object {
 		}
 		finish ();
 	}
+
 	internal void verify_ir() {
 		char* message;
 		int failed = CApi.verify_module (module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -527,12 +537,14 @@ private class ScopedLlvmFixture : Object {
 			error ("invalid LLVM fixture: %s", detail);
 		}
 	}
+
 	internal void remove_function() {
 		CApi.dispose_builder (builder);
 		builder = (CApi.BuilderRef) null;
 		CApi.delete_function (function);
 		function = (CApi.ValueRef) null;
 	}
+
 	~ScopedLlvmFixture () {
 		if ((void*) builder != null) {
 			CApi.dispose_builder (builder);
@@ -542,6 +554,7 @@ private class ScopedLlvmFixture : Object {
 			CApi.context_dispose (context);
 		}
 	}
+
 }
 internal class LlvmLifetimeTests : Object {
 	internal static void record_lifecycle(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef constructor, CApi.ValueRef destructor) throws GLib.Error {
@@ -593,6 +606,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		artifact.verify_scoped_allocations ();
 	}
+
 	internal static void record_child_paths(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef constructor, CApi.ValueRef destructor) throws GLib.Error {
 		artifact.verify ();
 		CApi.delete_function (caller);
@@ -634,6 +648,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		artifact.verify_scoped_allocations ();
 	}
+
 	internal static void buffer_storage(LlvmModuleArtifact artifact, CApi.ValueRef constructor, CApi.ValueRef destructor, bool aggregate_required) throws GLib.Error {
 		artifact.verify ();
 		int accesses = 0, aggregates = 0;
@@ -758,6 +773,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		artifact.verify_scoped_allocations ();
 	}
+
 	internal static void constructor_stack(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef constructor, int capacity, bool heap_children = false) throws GLib.Error {
 		artifact.verify ();
 		// Remove the only caller. Callee mutations below must be rejected by
@@ -874,6 +890,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify_scoped_allocations ();
 	}
+
 	internal static void constructor_graph_cleanup(LlvmModuleArtifact artifact, CApi.ValueRef constructor, CApi.ValueRef destructor, CApi.ValueRef touch, bool heap_children = false) throws GLib.Error {
 		// constructor_stack removed the only caller. These replacements keep
 		// valid LLVM and a real neutral borrowed callee, but lose graph cleanup.
@@ -945,6 +962,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify_scoped_allocations ();
 	}
+
 	internal static void constructor_prefix_unwind(LlvmModuleArtifact artifact, CApi.ValueRef constructor) throws GLib.Error {
 		artifact.verify ();
 		int releases = 0, fields = 0;
@@ -973,6 +991,7 @@ internal class LlvmLifetimeTests : Object {
 		assert (releases >= 2 && fields >= 2);
 		artifact.verify ();
 	}
+
 	internal static void constructor_rollback(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef constructor, bool field_receiver = false) throws GLib.Error {
 		artifact.verify ();
 		for (var block = CApi.first_block (constructor); (void*) block != null; block = CApi.next_block (block)) {
@@ -1092,6 +1111,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void graph_consumer(LlvmModuleArtifact artifact, CApi.ValueRef consumer, CApi.ValueRef touch) throws GLib.Error {
 		artifact.verify ();
 		var destructor = CApi.named_function (artifact.module, "astra.dtor.1");
@@ -1186,6 +1206,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void graph_consumer_caller(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef consumer) throws GLib.Error {
 		artifact.verify ();
 		var allocations = new GenericArray<void*> ();
@@ -1281,6 +1302,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void nullable_owned_arguments(LlvmModuleArtifact artifact, CApi.ValueRef target) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_owned_inputs (target));
@@ -1347,6 +1369,7 @@ internal class LlvmLifetimeTests : Object {
 		fixture.remove_function ();
 		artifact.verify ();
 	}
+
 	internal static void fresh_graph_results(LlvmModuleArtifact artifact, CApi.ValueRef target, CApi.ValueRef caller, CApi.ValueRef destructor) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_fresh_result (target));
@@ -1426,6 +1449,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void fresh_results(LlvmModuleArtifact artifact, CApi.ValueRef target) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_fresh_result (target) && artifact.has_scoped_context_inputs (target));
@@ -1515,6 +1539,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	private static void fresh_result_callers(LlvmModuleArtifact artifact, CApi.ValueRef target, CApi.ValueRef tag, CApi.BuilderRef builder) throws GLib.Error {
 		var pointer = CApi.pointer_type_in_context (artifact.context, 0);
 		var word = CApi.int32_type_in_context (artifact.context);
@@ -1587,6 +1612,7 @@ internal class LlvmLifetimeTests : Object {
 		artifact.verify_scoped_allocations ();
 		CApi.delete_function (caller);
 	}
+
 	internal static void fresh_construction(LlvmModuleArtifact artifact, CApi.ValueRef function) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef allocation = (CApi.ValueRef) null;
@@ -1635,6 +1661,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		artifact.verify ();
 	}
+
 	internal static void owning_receiver(LlvmModuleArtifact artifact, CApi.ValueRef constructor, CApi.ValueRef destructor) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_owned_inputs (constructor) && artifact.has_scoped_owned_inputs (destructor));
@@ -1691,6 +1718,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		CApi.dispose_builder (builder);
 	}
+
 	internal static void graph_forwarding(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef relay) throws GLib.Error {
 		artifact.verify ();
 		var pointer = CApi.pointer_type_in_context (artifact.context, 0);
@@ -1788,6 +1816,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void child_graph(LlvmModuleArtifact artifact, CApi.ValueRef function, bool checked) throws GLib.Error {
 		artifact.verify ();
 		var constructor = CApi.named_function (artifact.module, "astra.ctor.1");
@@ -1902,6 +1931,7 @@ internal class LlvmLifetimeTests : Object {
 		artifact.verify ();
 		CApi.dispose_builder (builder);
 	}
+
 	internal static void receiver_origins(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		var target = CApi.named_function (artifact.module, "astra.class.method.0.0");
@@ -2027,6 +2057,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.delete_global (global);
 		artifact.verify ();
 	}
+
 	internal static void record_result_loans(LlvmModuleArtifact artifact, CApi.ValueRef target, bool checked, bool with_context) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_owned_inputs (target) && artifact.has_scoped_class_loans (target));
@@ -2173,6 +2204,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.delete_function (function);
 		artifact.verify ();
 	}
+
 	private static void checked_record_allocations(LlvmModuleArtifact artifact, CApi.ValueRef target, CApi.TypeRef tuple, CApi.ValueRef fault_destructor) throws GLib.Error {
 		var pointer = CApi.pointer_type_in_context (artifact.context, 0);
 		var word = CApi.int32_type_in_context (artifact.context);
@@ -2361,6 +2393,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.delete_function (function);
 		artifact.verify ();
 	}
+
 	internal static void checked_record_result(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef target, CApi.ValueRef fault_destructor = (CApi.ValueRef) null) throws GLib.Error {
 		artifact.verify ();
 		var builder = CApi.create_builder_in_context (artifact.context);
@@ -2503,6 +2536,7 @@ internal class LlvmLifetimeTests : Object {
 		artifact.verify ();
 		checked_record_allocations (artifact, target, CApi.type_of (tuple), fault_destructor);
 	}
+
 	private static void record_result_context(LlvmModuleArtifact artifact, CApi.ValueRef target) throws GLib.Error {
 		var context = CApi.get_param (target, CApi.count_params (target) - 1);
 		var builder = CApi.create_builder_in_context (artifact.context);
@@ -2539,6 +2573,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	private static CApi.ValueRef record_call(CApi.BuilderRef builder, CApi.ValueRef target, CApi.ValueRef first, CApi.ValueRef second, CApi.ValueRef context = (CApi.ValueRef) null) {
 		CApi.ValueRef[] arguments = {
 			first, second
@@ -2553,6 +2588,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.set_instruction_call_conv (call, LlvmLowering.CALL_CONVENTION);
 		return call;
 	}
+
 	internal static void record_results(LlvmModuleArtifact artifact, CApi.ValueRef target, bool with_context = false) throws GLib.Error {
 		assert ((void*) target != null && artifact.has_scoped_owned_inputs (target));
 		assert (artifact.has_scoped_context_inputs (target) == with_context);
@@ -2796,6 +2832,7 @@ internal class LlvmLifetimeTests : Object {
 			artifact.verify ();
 		}
 	}
+
 	internal static void null_outputs(LlvmModuleArtifact artifact, CApi.ValueRef empty, CApi.ValueRef conditional) throws GLib.Error {
 		artifact.verify ();
 		var forged = CApi.add_global (artifact.module, CApi.int_type_in_context (artifact.context, 8), "invalid.null.scope.result");
@@ -2824,6 +2861,7 @@ internal class LlvmLifetimeTests : Object {
 		assert (returns == 3);
 		artifact.verify ();
 	}
+
 	internal static void mixed_records(LlvmModuleArtifact artifact, CApi.ValueRef callee, uint second_position, bool reversed, bool with_context) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_owned_inputs (callee) && artifact.has_scoped_class_loans (callee));
@@ -2963,6 +3001,7 @@ internal class LlvmLifetimeTests : Object {
 		fixture.remove_function ();
 		artifact.verify ();
 	}
+
 	internal static void record_context(LlvmModuleArtifact artifact, CApi.ValueRef callee, uint second_position, bool borrowed) throws GLib.Error {
 		artifact.verify ();
 		assert (CApi.count_params (callee) == 4 && artifact.has_scoped_context_inputs (callee));
@@ -3128,6 +3167,7 @@ internal class LlvmLifetimeTests : Object {
 		fixture.remove_function ();
 		artifact.verify ();
 	}
+
 	internal static void record_borrows(LlvmModuleArtifact artifact, CApi.ValueRef callee, uint second_position) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_class_loans (callee) && !artifact.has_scoped_owned_inputs (callee) && CApi.count_params (callee) == 3);
@@ -3321,6 +3361,7 @@ internal class LlvmLifetimeTests : Object {
 		fixture.remove_function ();
 		artifact.verify ();
 	}
+
 	internal static void record_inputs(LlvmModuleArtifact artifact, CApi.ValueRef callee, uint second_position) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_owned_inputs (callee) && CApi.count_params (callee) == 3);
@@ -3458,6 +3499,7 @@ internal class LlvmLifetimeTests : Object {
 		fixture.remove_function ();
 		artifact.verify ();
 	}
+
 	internal static void scalar_field_loan(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.ValueRef caller, bool child) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.has_scoped_class_loans (function));
@@ -3603,6 +3645,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void exception_repeat(LlvmModuleArtifact artifact, CApi.ValueRef callee, CApi.ValueRef destructor, CApi.ValueRef tag) throws GLib.Error {
 		artifact.verify ();
 		var pointer = CApi.pointer_type_in_context (artifact.context, 0);
@@ -3707,6 +3750,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.delete_function (function);
 		artifact.verify ();
 	}
+
 	internal static void exception_empty(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.ValueRef callee, uint retained_position, uint empty_position, bool consumed, bool success) throws GLib.Error {
 		artifact.verify ();
 		var retained = CApi.get_param (function, retained_position);
@@ -3754,6 +3798,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		artifact.verify ();
 	}
+
 	internal static void exception_success(LlvmModuleArtifact artifact, CApi.ValueRef function, uint input_position) throws GLib.Error {
 		artifact.verify ();
 		var input = CApi.get_param (function, input_position);
@@ -3815,6 +3860,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void exception_forward(LlvmModuleArtifact artifact, CApi.ValueRef function, uint input_position = 0) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef returned = (CApi.ValueRef) null;
@@ -3858,6 +3904,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void exception_null_handles(LlvmModuleArtifact artifact, CApi.ValueRef function) throws GLib.Error {
 		artifact.verify ();
 		var input = CApi.get_param (function, 0);
@@ -3891,6 +3938,7 @@ internal class LlvmLifetimeTests : Object {
 		artifact.verify ();
 		Test.message ("conditional input PHIs: %u", count);
 	}
+
 	internal static void exception_catch(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.ValueRef callee, bool generation, CApi.ValueRef constructor = (CApi.ValueRef) null, bool require_alias = true) throws GLib.Error {
 		artifact.verify ();
 		var destructors = new GenericArray<void*> ();
@@ -4034,6 +4082,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		Test.message ("catch cleanup sites: %u destructors, %u backing releases", destructors.length, frees.length);
 	}
+
 	private static void exception_generation(LlvmModuleArtifact artifact, CApi.ValueRef callee, CApi.ValueRef tag) throws GLib.Error {
 		for (int mode = 0; mode < 2; mode++) {
 			var pointer = CApi.pointer_type_in_context (artifact.context, 0);
@@ -4101,6 +4150,7 @@ internal class LlvmLifetimeTests : Object {
 			artifact.verify ();
 		}
 	}
+
 	internal static void exception_caller(LlvmModuleArtifact artifact, CApi.ValueRef caller, CApi.ValueRef callee, uint input_position, CApi.ValueRef constructor, bool multiple = false) throws GLib.Error {
 		artifact.verify ();
 		var input = CApi.get_param (caller, input_position);
@@ -4243,6 +4293,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void exception_payload(LlvmModuleArtifact artifact, CApi.ValueRef function, uint input_position) throws GLib.Error {
 		artifact.verify ();
 		var input = CApi.get_param (function, input_position);
@@ -4365,6 +4416,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void exception_fields(LlvmModuleArtifact artifact, CApi.ValueRef constructor, CApi.ValueRef destructor) throws GLib.Error {
 		artifact.verify ();
 		var pointer = CApi.pointer_type_in_context (artifact.context, 0);
@@ -4430,6 +4482,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	private static void valid_ir(CApi.ModuleRef module) {
 		char* message;
 		int failed = CApi.verify_module (module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -4441,6 +4494,7 @@ internal class LlvmLifetimeTests : Object {
 			error ("invalid LLVM control: %s", detail);
 		}
 	}
+
 	internal static void owner_storage() {
 		for (int mode = 32; mode <= 52; mode++) {
 			var fixture = new ScopedLlvmFixture (mode);
@@ -4455,6 +4509,7 @@ internal class LlvmLifetimeTests : Object {
 			assert (rejected == (mode >= 37 && mode != 51));
 		}
 	}
+
 	internal static void field_effects(LlvmModuleArtifact artifact) throws GLib.Error {
 		var constructor = CApi.named_function (artifact.module, "astra.ctor.1");
 		var destructor = CApi.named_function (artifact.module, "astra.dtor.1");
@@ -4601,6 +4656,7 @@ internal class LlvmLifetimeTests : Object {
 		refusal_text (() => artifact.verify_scoped_allocations (), "exact original owner load", "owning sum effect changed", "sum storage lost exact producer/store/call/read publication order or predecessor block");
 		CApi.dispose_builder (builder);
 	}
+
 	internal static void field_loans(LlvmModuleArtifact artifact, bool prescribed = false) throws GLib.Error {
 		var constructor = CApi.named_function (artifact.module, "astra.ctor.1");
 		var destructor = CApi.named_function (artifact.module, "astra.dtor.1");
@@ -4738,6 +4794,7 @@ internal class LlvmLifetimeTests : Object {
 			artifact.verify ();
 		}
 	}
+
 	internal static void heap_fields(LlvmModuleArtifact artifact, bool contextual = false, bool fallible = false) throws GLib.Error {
 		artifact.verify ();
 		var function = CApi.named_function (artifact.module, "astra.fn.0");
@@ -4983,6 +5040,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void fallible_input(LlvmModuleArtifact artifact, string constructor_name = "astra.ctor.1", uint child_position = 1, uint input_parameter = 1) throws GLib.Error {
 		var function = CApi.named_function (artifact.module, "astra.fn.1");
 		assert (artifact.has_scoped_owned_inputs (function));
@@ -5082,6 +5140,7 @@ internal class LlvmLifetimeTests : Object {
 		valid_ir (artifact.module);
 		artifact.verify ();
 	}
+
 	internal static void checked_heap_result(LlvmModuleArtifact artifact, CApi.ValueRef function, uint input_position = 1) throws GLib.Error {
 		assert (artifact.has_scoped_owned_inputs (function));
 		valid_ir (artifact.module);
@@ -5184,6 +5243,7 @@ internal class LlvmLifetimeTests : Object {
 		valid_ir (artifact.module);
 		artifact.verify ();
 	}
+
 	internal static void checked_heap_caller(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.ValueRef target, uint input_position = 1, bool exceptional_payload = false) throws GLib.Error {
 		valid_ir (artifact.module);
 		artifact.verify_scoped_allocations ();
@@ -5277,6 +5337,7 @@ internal class LlvmLifetimeTests : Object {
 		valid_ir (artifact.module);
 		artifact.verify ();
 	}
+
 	internal static void class_loan(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.ValueRef relay, CApi.ValueRef lender, int ordinal) throws GLib.Error {
 		assert (artifact.has_scoped_class_loans (function) && artifact.has_scoped_class_loans (relay));
 		valid_ir (artifact.module);
@@ -5415,6 +5476,7 @@ internal class LlvmLifetimeTests : Object {
 		valid_ir (artifact.module);
 		artifact.verify ();
 	}
+
 	internal static void checked_context(LlvmModuleArtifact artifact, CApi.ValueRef target, CApi.ValueRef relay, bool owned, uint context_position = 1, bool exceptional_payload = false) throws GLib.Error {
 		assert (artifact.has_scoped_context_inputs (target) && artifact.has_scoped_context_inputs (relay));
 		if (owned) {
@@ -5488,6 +5550,7 @@ internal class LlvmLifetimeTests : Object {
 		valid_ir (artifact.module);
 		artifact.verify ();
 	}
+
 	internal static void checked_input(LlvmModuleArtifact artifact, CApi.ValueRef function, uint input_position = 0) throws GLib.Error {
 		assert (artifact.has_scoped_owned_inputs (function));
 		valid_ir (artifact.module);
@@ -5553,6 +5616,7 @@ internal class LlvmLifetimeTests : Object {
 		valid_ir (artifact.module);
 		artifact.verify ();
 	}
+
 	internal static void multiple_heap_fields(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		var function = CApi.named_function (artifact.module, "astra.fn.0");
@@ -5628,6 +5692,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	private static CApi.ValueRef declaration(LlvmModuleArtifact artifact, string name, CApi.TypeRef result, CApi.TypeRef[] parameters) {
 		var type = CApi.function_type (result, parameters, parameters.length, 0);
 		var target = CApi.named_function (artifact.module, name);
@@ -5637,6 +5702,7 @@ internal class LlvmLifetimeTests : Object {
 		assert ((void*) CApi.global_value_type (target) == (void*) type);
 		return target;
 	}
+
 	internal static void short_circuit_owners() {
 		for (int mode = 53; mode <= 57; mode++) {
 			var fixture = new ScopedLlvmFixture (mode);
@@ -5651,6 +5717,7 @@ internal class LlvmLifetimeTests : Object {
 			assert (rejected == (mode != 53));
 		}
 	}
+
 	private static void replace_uses(CApi.ValueRef original, CApi.ValueRef replacement) {
 		var users = new GenericArray<void*> ();
 		for (var use = CApi.first_use (original); (void*) use != null; use = CApi.next_use (use)) {
@@ -5665,6 +5732,7 @@ internal class LlvmLifetimeTests : Object {
 			}
 		}
 	}
+
 	private static void heap_catch_slots(LlvmModuleArtifact artifact, CApi.ValueRef function, CApi.ValueRef choice, CApi.ValueRef peek, CApi.ValueRef cleanup) throws GLib.Error {
 		var builder = CApi.create_builder_in_context (artifact.context);
 		var pointer = CApi.type_of (choice);
@@ -5756,6 +5824,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void heap_catch_choices(LlvmModuleArtifact artifact, CApi.ValueRef function) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef choice = (CApi.ValueRef) null;
@@ -5901,6 +5970,7 @@ internal class LlvmLifetimeTests : Object {
 		artifact.verify ();
 		heap_catch_slots (artifact, function, choice, peek, cleanup);
 	}
+
 	internal static void imported_scoped_tasks(LlvmModuleArtifact artifact, LlvmAsyncFrameBinding frame, CApi.ValueRef host, CApi.ValueRef factory, CApi.ValueRef make, CApi.ValueRef destructor) throws GLib.Error {
 		artifact.verify ();
 		assert (CApi.count_basic_blocks (factory) == 0 && CApi.count_basic_blocks (make) == 0 && CApi.count_basic_blocks (destructor) == 0);
@@ -6057,6 +6127,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void await_scoped_errors(LlvmModuleArtifact artifact, LlvmAsyncFrameBinding frame) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef acquisition = (CApi.ValueRef) null;
@@ -6183,6 +6254,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void same_nominal_errors(LlvmModuleArtifact artifact, LlvmAsyncFrameBinding frame) throws GLib.Error {
 		artifact.verify ();
 		var constructor = artifact.class_constructor (1);
@@ -6287,6 +6359,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.set_operand (end, 0, zero);
 		artifact.verify ();
 	}
+
 	internal static void host_scoped_errors(LlvmModuleArtifact artifact, CApi.ValueRef function) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef call = (CApi.ValueRef) null;
@@ -6402,6 +6475,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void mixed_error_choices(LlvmModuleArtifact artifact, CApi.ValueRef function) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef choice = (CApi.ValueRef) null;
@@ -6536,6 +6610,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void mutating_scoped_fields(LlvmModuleArtifact artifact, CApi.ValueRef caller, bool empty) throws GLib.Error {
 		artifact.verify ();
 		var mutation = CApi.named_function (artifact.module, "astra.class.method.1.0");
@@ -6628,6 +6703,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void imported_scoped_errors(LlvmModuleArtifact artifact, CApi.ValueRef constructor, CApi.ValueRef destructor) throws GLib.Error {
 		artifact.verify ();
 		var builder = CApi.create_builder_in_context (artifact.context);
@@ -6668,6 +6744,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void empty_deferred_errors(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -6765,6 +6842,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void deferred_error_publication(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -6886,6 +6964,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.set_operand (empty_base, 1, empty);
 		artifact.verify ();
 	}
+
 	internal static void pure_empty_result(LlvmModuleArtifact artifact, bool captures, bool single) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -6937,6 +7016,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		artifact.verify ();
 	}
+
 	internal static void empty_result_access(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -6963,6 +7043,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void result_callers(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 2);
@@ -7052,6 +7133,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void result_publication(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -7155,6 +7237,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void checked_captures(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -7253,6 +7336,7 @@ internal class LlvmLifetimeTests : Object {
 		artifact.verify_scoped_allocations ();
 		artifact.verify ();
 	}
+
 	internal static void nested_captures(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 2);
@@ -7299,6 +7383,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void captured_task_callers(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		assert (artifact.async_frames.length == 1);
@@ -7399,6 +7484,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void coroutine_captures(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		var frame = artifact.async_frames[0];
@@ -7448,6 +7534,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void coroutine_continuations(LlvmModuleArtifact artifact) throws GLib.Error {
 		artifact.verify ();
 		uint count = 0;
@@ -7610,6 +7697,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void emitted_task_frames(LlvmModuleArtifact artifact, CApi.ValueRef helper) throws GLib.Error {
 		artifact.verify ();
 		CApi.ValueRef descriptor = (CApi.ValueRef) null;
@@ -7710,6 +7798,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.dispose_builder (builder);
 		artifact.verify ();
 	}
+
 	internal static void scoped_task_frames() {
 		for (int mode = 58; mode <= 80; mode++) {
 			var fixture = new ScopedLlvmFixture (mode);
@@ -7724,6 +7813,7 @@ internal class LlvmLifetimeTests : Object {
 			assert (rejected == !(mode == 58 || mode == 59 || mode == 69 || mode == 70 || mode == 71 || mode == 75));
 		}
 	}
+
 	internal static void local_allocations() {
 		for (int mode = 0; mode <= 31; mode++) {
 			if (mode == 26) {
@@ -7741,6 +7831,7 @@ internal class LlvmLifetimeTests : Object {
 			assert (rejected == (mode >= 5 && mode != 27 && mode != 28 && mode != 31));
 		}
 	}
+
 	internal static void artifact(LlvmModuleArtifact artifact) {
 		assert (artifact.scoped_backings.length > 0);
 		var binding = artifact.scoped_backings[0];
@@ -7873,6 +7964,7 @@ internal class LlvmLifetimeTests : Object {
 			error ("%s", failure.message);
 		}
 	}
+
 	internal static void native_borrow(LlvmModuleArtifact artifact) {
 		var fixture = new ScopedLlvmFixture (26, artifact);
 		fixture.verify_ir ();
@@ -7928,6 +8020,7 @@ internal class LlvmLifetimeTests : Object {
 			error ("%s", failure.message);
 		}
 	}
+
 	internal static void forwarded_owner(LlvmModuleArtifact artifact, CApi.ValueRef target) {
 		assert ((void*) target != null && CApi.count_params (target) == 2);
 		var fixture = new ScopedLlvmFixture (4, artifact);
@@ -8104,6 +8197,7 @@ internal class LlvmLifetimeTests : Object {
 			error ("%s", failure.message);
 		}
 	}
+
 	internal static void owned_inputs(LlvmModuleArtifact artifact) {
 		CApi.ValueRef target = (CApi.ValueRef) null;
 		for (var function = CApi.first_function (artifact.module); (void*) function != null; function = CApi.next_function (function)) {
@@ -8284,6 +8378,7 @@ internal class LlvmLifetimeTests : Object {
 			error ("%s", failure.message);
 		}
 	}
+
 	internal static void context_inputs(LlvmModuleArtifact artifact) {
 		CApi.ValueRef target = (CApi.ValueRef) null;
 		for (var function = CApi.first_function (artifact.module); (void*) function != null; function = CApi.next_function (function)) {
@@ -8423,5 +8518,6 @@ internal class LlvmLifetimeTests : Object {
 			error ("%s", failure.message);
 		}
 	}
+
 }
 }

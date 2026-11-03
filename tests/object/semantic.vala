@@ -125,4 +125,5 @@ int main(string[] args) {
 	Test.add_func ("/object/semantic/handle-collisions-fields-and-normalized-foreign-boundaries", foreign_boundaries);
 	return Test.run ();
 }
+
 }

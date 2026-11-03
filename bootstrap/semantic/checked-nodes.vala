@@ -10,6 +10,7 @@ public abstract class CheckedNode : Object {
 	protected CheckedNode (SourceSpan span) {
 		this.span = span;
 	}
+
 }
 
 // Attached foreign boundary only. The program owns the native target;
@@ -40,6 +41,7 @@ public class CExportSymbol : CheckedNode {
 		this.ordinal = ordinal;
 		this.record_abi = record_abi;
 	}
+
 }
 
 public class CheckedProgram : CheckedNode {
@@ -59,6 +61,7 @@ public class CheckedProgram : CheckedNode {
 		}
 		return result;
 	}
+
 	public GenericArray<CheckedProperty> properties { get; private set; default = new GenericArray<CheckedProperty> (); }
 	public GenericArray<ClassSymbol> classes { get; private set; default = new GenericArray<ClassSymbol> (); }
 	public GenericArray<ClassSymbol> class_applications { get; private set; default = new GenericArray<ClassSymbol> (); }
@@ -91,6 +94,7 @@ public class CheckedProgram : CheckedNode {
 		this.c_functions = c_functions ?? new GenericArray<CFunctionSymbol> ();
 		this.c_exports = c_exports ?? new GenericArray<CExportSymbol> ();
 	}
+
 }
 
 public class CheckedFunction : CheckedNode {
@@ -102,6 +106,7 @@ public class CheckedFunction : CheckedNode {
 		locals = new GenericArray<LocalSymbol> ();
 		body = new CheckedBlockStatement (body.span, new GenericArray<CheckedStatement> (), new LexicalRegion (null, 0));
 	}
+
 	public FunctionSymbol symbol { get; private set; }
 	public GenericArray<LocalSymbol> locals { get; private set; }
 	public CheckedBlockStatement body { get; private set; }
@@ -112,12 +117,14 @@ public class CheckedFunction : CheckedNode {
 		this.locals = locals;
 		this.body = body;
 	}
+
 }
 
 public abstract class CheckedStatement : CheckedNode {
 	protected CheckedStatement (SourceSpan span) {
 		base (span);
 	}
+
 }
 
 public class CheckedBlockStatement : CheckedStatement {
@@ -129,6 +136,7 @@ public class CheckedBlockStatement : CheckedStatement {
 		this.statements = statements;
 		this.region = region;
 	}
+
 }
 
 public class CheckedWithContract : CheckedNode {
@@ -137,6 +145,7 @@ public class CheckedWithContract : CheckedNode {
 		base (span);
 		this.source = source;
 	}
+
 }
 public class CheckedWithScope : CheckedBlockStatement {
 	public CheckedWithContract contract { get; internal set; }
@@ -146,6 +155,7 @@ public class CheckedWithScope : CheckedBlockStatement {
 		this.contract = contract;
 		this.source = contract.source;
 	}
+
 }
 public class CheckedWithReference : CheckedExpression {
 	public CheckedWithContract contract { get; internal set; }
@@ -153,6 +163,7 @@ public class CheckedWithReference : CheckedExpression {
 		base (span, contract.source.semantic_type);
 		this.contract = contract;
 	}
+
 }
 
 public class CheckedIf : CheckedStatement {
@@ -166,6 +177,7 @@ public class CheckedIf : CheckedStatement {
 		this.then_body = then_body;
 		this.else_body = else_body;
 	}
+
 }
 
 // Identity is the object, not its function-local display ordinal. The while
@@ -177,6 +189,7 @@ public class CheckedLoopTarget : CheckedNode {
 		base (span);
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CheckedWhile : CheckedStatement {
@@ -202,6 +215,7 @@ public class CheckedWhile : CheckedStatement {
 		this.sequence = sequence;
 		this.has_sequence = sequence != null;
 	}
+
 }
 
 public class CheckedSequenceIteration : CheckedNode {
@@ -221,6 +235,7 @@ public class CheckedSequenceIteration : CheckedNode {
 		this.index = index;
 		this.binding = binding;
 	}
+
 	internal CheckedSequenceIteration.iterator (SourceSpan span, CheckedLoopTarget target, CheckedExpression source, LocalSymbol binding, MethodSymbol advance, MethodSymbol current) {
 		base (span);
 		this.is_iterator = true;
@@ -244,6 +259,7 @@ public class CheckedIterationContract : CheckedNode {
 		this.index = index;
 		this.binding = binding;
 	}
+
 }
 
 public class CheckedBreak : CheckedStatement {
@@ -254,6 +270,7 @@ public class CheckedBreak : CheckedStatement {
 		base (span);
 		this.loop_target = WeakRef (target);
 	}
+
 }
 
 public class CheckedContinue : CheckedStatement {
@@ -264,6 +281,7 @@ public class CheckedContinue : CheckedStatement {
 		base (span);
 		this.loop_target = WeakRef (target);
 	}
+
 }
 
 public class CheckedOwnershipReturn : CheckedStatement {
@@ -282,6 +300,7 @@ public class CheckedOwnershipReturn : CheckedStatement {
 		this.object_owner = object_owner;
 		this.producer = producer;
 	}
+
 }
 
 public class CheckedOwnedArgument : CheckedExpression {
@@ -305,6 +324,7 @@ public class CheckedOwnedArgument : CheckedExpression {
 		this.cleanup = cleanup;
 		this.transfer = transfer;
 	}
+
 }
 
 public enum OwnedProducerKind {
@@ -328,6 +348,7 @@ public class OwnedValueProducer : Object {
 		this.semantic_type = semantic_type;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public class CheckedForeignReturn : CheckedStatement {
@@ -338,6 +359,7 @@ public class CheckedForeignReturn : CheckedStatement {
 		this.binding = binding;
 		this.factory = factory;
 	}
+
 }
 public class CheckedForeignSignalReturn : CheckedStatement {
 	public ForeignSignalBinding binding { get; private set; }
@@ -345,6 +367,7 @@ public class CheckedForeignSignalReturn : CheckedStatement {
 		base (span);
 		this.binding = binding;
 	}
+
 }
 public class CheckedReturnStatement : CheckedStatement {
 	public CheckedExpression? expression { get; private set; }
@@ -353,6 +376,7 @@ public class CheckedReturnStatement : CheckedStatement {
 		base (span);
 		this.expression = expression;
 	}
+
 }
 
 // Dedicated storage copy context, never an expression or ownership transfer.
@@ -370,6 +394,7 @@ public class CheckedStructCopy : CheckedStatement {
 		this.copyability = copyability;
 		this.initializes_destination = initializes_destination;
 	}
+
 }
 
 // Initializer syntax targets exact storage; it is never an expression Value.
@@ -381,6 +406,7 @@ public class CheckedStructInitializer : CheckedNode {
 		this.semantic_type = semantic_type;
 		this.fields = fields;
 	}
+
 }
 
 public class CheckedFieldInitializer : CheckedNode {
@@ -405,6 +431,7 @@ public class CheckedFieldInitializer : CheckedNode {
 		this.field = field;
 		this.expression = expression;
 	}
+
 }
 
 public class CheckedStructMove : CheckedStatement {
@@ -415,6 +442,7 @@ public class CheckedStructMove : CheckedStatement {
 		this.source = source;
 		this.destination = destination;
 	}
+
 }
 public class CheckedRecordTake : CheckedStatement {
 	public LocalSymbol source { get; private set; }
@@ -426,6 +454,7 @@ public class CheckedRecordTake : CheckedStatement {
 		this.field = field;
 		this.destination = destination;
 	}
+
 }
 public class CheckedRecordReplace : CheckedStatement {
 	public LocalSymbol owner { get; private set; }
@@ -437,6 +466,7 @@ public class CheckedRecordReplace : CheckedStatement {
 		this.field = field;
 		this.incoming = incoming;
 	}
+
 }
 
 public class CheckedStructLocalDeclaration : CheckedStatement {
@@ -449,6 +479,7 @@ public class CheckedStructLocalDeclaration : CheckedStatement {
 		this.local = local;
 		this.initializers = initializers;
 	}
+
 }
 
 public class CheckedFieldAssignment : CheckedStatement {
@@ -462,6 +493,7 @@ public class CheckedFieldAssignment : CheckedStatement {
 		this.field = field;
 		this.expression = expression;
 	}
+
 }
 
 public class CheckedLocalDeclaration : CheckedStatement {
@@ -474,6 +506,7 @@ public class CheckedLocalDeclaration : CheckedStatement {
 		this.initializer = initializer;
 		assert (local.is_buffer_owner || local.object_owner != null || local.semantic_type.is_text_slice () || !local.semantic_type.is_lexically_borrowed_value () || BorrowProvenance.for_expression (initializer).outlives (local.lexical_region));
 	}
+
 }
 
 public class CheckedOwnedLocalDeclaration : CheckedLocalDeclaration {
@@ -490,6 +523,7 @@ public class CheckedOwnedLocalDeclaration : CheckedLocalDeclaration {
 		    && producer.kind == OwnedProducerKind.NATIVE_OWNED_CALL && initializer.ownership_kind == OwnershipKind.OWNED;
 		assert (generic_producer || (local.heap_object && initializer is CheckedSharedOperation && local.semantic_type is ClassType && ((ClassType) local.semantic_type).intrinsically_shared && initializer.semantic_type == local.semantic_type) || (initializer is CheckedSlotsTake && local.heap_object && local.object_owner == ((CheckedSlotsTake) initializer).element && local.semantic_type == initializer.semantic_type) || (local.generic_owner_source != null && local.is_generic_owner && initializer is CheckedOwnershipMove && ((CheckedOwnershipMove) initializer).source == local.generic_owner_source && initializer.semantic_type == local.semantic_type) || (local.heap_object && initializer is CheckedOwnershipMove && ((CheckedOwnershipMove) initializer).source.heap_object && ((CheckedOwnershipMove) initializer).object_owner == local.object_owner && initializer.semantic_type == local.semantic_type) || (local.is_buffer_owner && initializer.owns_buffer && initializer.semantic_type == local.semantic_type) || (local.object_owner != null && initializer is CheckedInvocation && ((CheckedInvocation) initializer).result_producer () != null && ((CheckedInvocation) initializer).result_producer ().object_owner == local.object_owner) || (local.semantic_type.is_ownable_handle_type () && local.cleanup != null && local.cleanup == initializer.owned_cleanup && (initializer is CheckedInvocation || initializer is CheckedOwnershipMove || initializer is CheckedSharedOperation || initializer is CheckedClosureBind || initializer is CheckedScopedAllocator || initializer is CheckedSlotsTake)));
 	}
+
 }
 
 // Exact temporary argument adaptation, never an ordinary owned-local read.
@@ -502,6 +536,7 @@ public class CheckedOwnedBorrowValue : CheckedExpression {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 
 // Assignment into an existing lexical slot, never a read or a fresh local.
@@ -517,6 +552,7 @@ public class CheckedOwnershipRearmAssignment : CheckedStatement {
 		this.incoming = producer;
 		assert (owner.semantic_type.is_ownable_handle_type () && owner.cleanup != null && producer.owned_cleanup == owner.cleanup && producer.semantic_type == owner.semantic_type);
 	}
+
 }
 
 public class CheckedOwnershipRelease : CheckedStatement {
@@ -528,6 +564,7 @@ public class CheckedOwnershipRelease : CheckedStatement {
 		this.owner = owner;
 		assert (owner.heap_object || owner.is_buffer_owner || (owner.cleanup != null && owner.semantic_type.is_ownable_handle_type ()));
 	}
+
 }
 
 public class CheckedOwnershipMove : CheckedExpression {
@@ -541,6 +578,7 @@ public class CheckedOwnershipMove : CheckedExpression {
 		this.source = source;
 		assert (source.is_owned && (source.semantic_type.is_ownable_handle_type () || source.object_owner != null || source.is_generic_owner || source.is_buffer_owner));
 	}
+
 }
 
 // CheckedProgram owns native functions/symbols and imported C symbols. Calls never own
@@ -551,6 +589,7 @@ public class CheckedValueStatement : CheckedStatement {
 		base (span);
 		this.value = value;
 	}
+
 }
 
 public class CheckedCallStatement : CheckedStatement {
@@ -566,6 +605,7 @@ public class CheckedCallStatement : CheckedStatement {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class CheckedAssignment : CheckedStatement {
@@ -578,6 +618,7 @@ public class CheckedAssignment : CheckedStatement {
 		this.expression = expression;
 		assert (target.semantic_type.is_text_slice () || !target.semantic_type.is_lexically_borrowed_value () || BorrowProvenance.for_expression (expression).outlives (target.lexical_region));
 	}
+
 }
 
 public abstract class CheckedExpression : CheckedNode {
@@ -645,12 +686,14 @@ public abstract class CheckedExpression : CheckedNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 public class CheckedCallExpression : CheckedExpression, CheckedInvocation {
 	public OwnedValueProducer? result_producer() {
 		return owned_producer;
 	}
+
 	public LexicalObjectStorageSymbol? candidate_storage { get; internal set; }
 	public ResultObjectStorageSymbol? result_storage { get; internal set; }
 	public CheckedExpression? receiver { get; private set; }
@@ -675,12 +718,14 @@ public class CheckedCallExpression : CheckedExpression, CheckedInvocation {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class CheckedNullPointerExpression : CheckedExpression {
 	internal CheckedNullPointerExpression (SourceSpan span, SemanticType semantic_type) {
 		base (span, semantic_type);
 	}
+
 }
 
 public class CheckedBooleanExpression : CheckedExpression {
@@ -690,6 +735,7 @@ public class CheckedBooleanExpression : CheckedExpression {
 		base (span, semantic_type);
 		this.literal = literal;
 	}
+
 }
 
 public class CheckedVectorDotExpression : CheckedExpression {
@@ -708,6 +754,7 @@ public class CheckedVectorDotExpression : CheckedExpression {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 public class CheckedDspExpression : CheckedExpression {
@@ -726,6 +773,7 @@ public class CheckedDspExpression : CheckedExpression {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 // Direction owns the invalid-count trap contract; width and count type
@@ -742,6 +790,7 @@ public class CheckedIntegerShiftExpression : CheckedExpression {
 		this.operand = operand;
 		this.count = count;
 	}
+
 }
 
 public class CheckedNumericConversionExpression : CheckedExpression {
@@ -758,6 +807,7 @@ public class CheckedNumericConversionExpression : CheckedExpression {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CheckedFloatConversionExpression : CheckedExpression {
@@ -772,6 +822,7 @@ public class CheckedFloatConversionExpression : CheckedExpression {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CheckedIntegerConversionExpression : CheckedExpression {
@@ -784,6 +835,7 @@ public class CheckedIntegerConversionExpression : CheckedExpression {
 		this.source_type = source_type;
 		this.operand = operand;
 	}
+
 }
 
 public class CheckedVectorSplatExpression : CheckedExpression {
@@ -797,6 +849,7 @@ public class CheckedVectorSplatExpression : CheckedExpression {
 		this.lane_count = lane_count;
 		this.lane_count_span = lane_count_span;
 	}
+
 }
 
 public class CheckedVectorExtractExpression : CheckedExpression {
@@ -808,6 +861,7 @@ public class CheckedVectorExtractExpression : CheckedExpression {
 		this.vector = vector;
 		this.index = index.copy ();
 	}
+
 }
 
 public class CheckedVectorInsertExpression : CheckedExpression {
@@ -821,6 +875,7 @@ public class CheckedVectorInsertExpression : CheckedExpression {
 		this.index = index.copy ();
 		this.replacement = replacement;
 	}
+
 }
 
 public class CheckedVectorShuffleExpression : CheckedExpression {
@@ -832,6 +887,7 @@ public class CheckedVectorShuffleExpression : CheckedExpression {
 		this.vector = vector;
 		this.selectors = selectors.copy ();
 	}
+
 }
 
 public class CheckedVectorMemoryExpression : CheckedExpression {
@@ -846,6 +902,7 @@ public class CheckedVectorMemoryExpression : CheckedExpression {
 		this.offset = offset;
 		this.stored = stored;
 	}
+
 }
 
 public class CheckedVectorMemoryStatement : CheckedStatement {
@@ -854,6 +911,7 @@ public class CheckedVectorMemoryStatement : CheckedStatement {
 		base (span);
 		this.operation = operation;
 	}
+
 }
 
 public class CheckedVectorSelectExpression : CheckedExpression {
@@ -867,6 +925,7 @@ public class CheckedVectorSelectExpression : CheckedExpression {
 		this.true_value = true_value;
 		this.false_value = false_value;
 	}
+
 }
 
 public class CheckedVectorConstructExpression : CheckedExpression {
@@ -876,6 +935,7 @@ public class CheckedVectorConstructExpression : CheckedExpression {
 		base (span, semantic_type);
 		this.lanes = lanes;
 	}
+
 }
 
 public class CheckedVectorReductionExpression : CheckedExpression {
@@ -887,6 +947,7 @@ public class CheckedVectorReductionExpression : CheckedExpression {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CheckedFloatExpression : CheckedExpression {
@@ -896,6 +957,7 @@ public class CheckedFloatExpression : CheckedExpression {
 		base (span, semantic_type);
 		this.value = value;
 	}
+
 }
 
 public class CheckedIntegerExpression : CheckedExpression {
@@ -919,6 +981,7 @@ public class CheckedParameterReferenceExpression : CheckedExpression {
 		base (span, parameter.semantic_type);
 		this.parameter = parameter;
 	}
+
 }
 
 public class CheckedFieldReferenceExpression : CheckedExpression {
@@ -930,6 +993,7 @@ public class CheckedFieldReferenceExpression : CheckedExpression {
 		this.local = local;
 		this.field = field;
 	}
+
 }
 
 public class CheckedLocalReferenceExpression : CheckedExpression {
@@ -939,6 +1003,7 @@ public class CheckedLocalReferenceExpression : CheckedExpression {
 		base (span, local.semantic_type);
 		this.local = local;
 	}
+
 }
 
 public class CheckedPrefixExpression : CheckedExpression {
@@ -950,6 +1015,7 @@ public class CheckedPrefixExpression : CheckedExpression {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 // Evaluates left first and right only on the required path.
@@ -964,6 +1030,7 @@ public class CheckedShortCircuitExpression : CheckedExpression {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 public class CheckedComparisonChain : CheckedExpression {
@@ -976,6 +1043,7 @@ public class CheckedComparisonChain : CheckedExpression {
 		this.operators = operators;
 		this.operand_count = operands.length;
 	}
+
 }
 
 public class CheckedBinaryExpression : CheckedExpression {
@@ -989,6 +1057,7 @@ public class CheckedBinaryExpression : CheckedExpression {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 // Dereference denotes storage independently of its load/store context.
@@ -999,6 +1068,7 @@ public abstract class CheckedPlace : CheckedNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 public class CheckedLocalPlace : CheckedPlace {
@@ -1007,6 +1077,7 @@ public class CheckedLocalPlace : CheckedPlace {
 		base (span, local.semantic_type);
 		this.local = local;
 	}
+
 }
 
 // One recursive projection; exact base and field identities define storage.
@@ -1018,6 +1089,7 @@ public class CheckedFieldPlace : CheckedPlace {
 		this.aggregate = aggregate;
 		this.field = field;
 	}
+
 	public StructLeafPath storage_path() {
 		var fields = new GenericArray<CheckedFieldPlace> ();
 		CheckedPlace place = this;
@@ -1035,6 +1107,7 @@ public class CheckedFieldPlace : CheckedPlace {
 		}
 		return new StructLeafPath (ordinals, semantic_type);
 	}
+
 }
 
 public class CheckedDereferencePlace : CheckedPlace {
@@ -1047,6 +1120,7 @@ public class CheckedDereferencePlace : CheckedPlace {
 		this.pointer = pointer;
 		this.provenance = BorrowProvenance.for_expression (pointer);
 	}
+
 }
 
 public class CheckedLoadExpression : CheckedExpression {
@@ -1060,6 +1134,7 @@ public class CheckedLoadExpression : CheckedExpression {
 		volatile_enabled = access != null;
 		this.source = source;
 	}
+
 }
 
 public class CheckedStore : CheckedStatement {
@@ -1075,6 +1150,7 @@ public class CheckedStore : CheckedStatement {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 public class CheckedAddressOfExpression : CheckedExpression {
@@ -1084,6 +1160,7 @@ public class CheckedAddressOfExpression : CheckedExpression {
 		base (span, semantic_type);
 		this.local = local;
 	}
+
 }
 
 public class CheckedIndirectFieldReference : CheckedExpression {
@@ -1096,6 +1173,7 @@ public class CheckedIndirectFieldReference : CheckedExpression {
 		this.pointer = pointer;
 		this.field = field;
 	}
+
 }
 
 public class CheckedIndirectFieldAssignment : CheckedStatement {
@@ -1109,6 +1187,7 @@ public class CheckedIndirectFieldAssignment : CheckedStatement {
 		this.field = field;
 		this.expression = expression;
 	}
+
 }
 }
 
@@ -1120,12 +1199,14 @@ public class CheckedFunctionAddress : CheckedExpression {
 		base (span, type);
 		callee = WeakRef (target);
 	}
+
 }
 public class CheckedFunctionValueCall : CheckedExpression, CheckedInvocation {
 	public OwnedValueProducer? owned_producer { get; internal set; }
 	public OwnedValueProducer? result_producer() {
 		return owned_producer;
 	}
+
 	// Call-owned channel declarations; these are never function inputs or bodies.
 	public GenericArray<ParameterSymbol> channel_parameters { get; private set; default = new GenericArray<ParameterSymbol> (); }
 	public CheckedExpression callee { get; private set; }
@@ -1135,5 +1216,6 @@ public class CheckedFunctionValueCall : CheckedExpression, CheckedInvocation {
 		this.callee = callee;
 		this.arguments = arguments;
 	}
+
 }
 }

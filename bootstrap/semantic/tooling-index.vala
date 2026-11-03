@@ -32,9 +32,11 @@ public class ToolingIndex : Object {
 		var span = symbol.name_span;
 		return "%s#%d:%d".printf (span.file.path, span.start, span.end);
 	}
+
 	private static string location(SourceSpan span) {
 		return "\"file\":%s,\"start\":%d,\"end\":%d".printf (quote (span.file.path), span.start, span.end);
 	}
+
 	public void reference(SourceSpan span, Symbol? symbol) {
 		if (symbol == null) {
 			return;
@@ -45,6 +47,7 @@ public class ToolingIndex : Object {
 			references.add (row);
 		}
 	}
+
 	public void expression(ExpressionSyntax syntax, CheckedExpression value) {
 		if (syntax is ParenthesizedExpressionSyntax) {
 			return;
@@ -76,6 +79,7 @@ public class ToolingIndex : Object {
 			}
 		}
 	}
+
 	private static string array_text(GenericArray<string> values) {
 		var result = new StringBuilder ("[");
 		foreach (string value in values) {
@@ -87,9 +91,11 @@ public class ToolingIndex : Object {
 		result.append_c (']');
 		return result.str;
 	}
+
 	public static string diagnostic_json(Diagnostic diagnostic) {
 		return "{\"format\":\"astra-tooling/1\",\"symbols\":[],\"references\":[],\"diagnostics\":[{%s,\"message\":%s}]}\n".printf (location (diagnostic.span), quote (diagnostic.message));
 	}
+
 	private void declaration(Symbol symbol, string kind, string detail, SourceSpan? scope = null) {
 		string key = identity (symbol);
 		if (declared.contains (key)) {
@@ -100,6 +106,7 @@ public class ToolingIndex : Object {
 		symbols.add ("{%s,\"id\":%s,\"name\":%s,\"kind\":%s,\"detail\":%s%s}".printf (
 			location (symbol.name_span), quote (key), quote (symbol.name), quote (kind), quote (detail), extent));
 	}
+
 	private static string class_policy(ClassSymbol owner) {
 		var result = new StringBuilder ("class " + owner.name + "; ");
 		var policy = owner.concurrency_policy;
@@ -140,6 +147,7 @@ public class ToolingIndex : Object {
 		}
 		return result.str;
 	}
+
 	private static string struct_policy(StructSymbol structure) {
 		string result = "struct " + structure.name + "; derived value/cleanup semantics";
 		if (structure.representation != null) {
@@ -147,6 +155,7 @@ public class ToolingIndex : Object {
 		}
 		return result;
 	}
+
 	private static string signature(DirectCallableSymbol function) {
 		var result = new StringBuilder (function.return_type.display_name () + " " + function.name + "(");
 		foreach (var p in function.parameters) {
@@ -176,6 +185,7 @@ public class ToolingIndex : Object {
 		}
 		return result.str;
 	}
+
 	public string format(CheckedProgram program, bool explanation = false) {
 		foreach (var instance in program.native_instances ()) {
 			declaration (instance, (instance is ClassSymbol) ? "class" : "struct", (instance is ClassSymbol) ? class_policy ((ClassSymbol) instance) : struct_policy ((StructSymbol) instance));
@@ -230,5 +240,6 @@ public class ToolingIndex : Object {
 		}
 		return "{\"format\":\"astra-tooling/1\",\"symbols\":%s,\"references\":%s,\"diagnostics\":[]}\n".printf (array_text (symbols), array_text (references));
 	}
+
 }
 }

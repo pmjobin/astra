@@ -1,32 +1,43 @@
 class Context {
 	owned R resource;
 	int count;
+
 	init(owned R resource) { this.resource = move resource; this.count = 0; }
+
 	void replace(owned R incoming) { this.resource = move incoming; }
+
 	int get() { return id(this.resource); }
 }
+
 void dispose<T>(owned T value) where T : Ownable {}
+
 owned T relay<T>(owned T value) where T : Ownable { return move value; }
+
 int inspect<T>(T unused, borrowed Context value) { return id(value.resource); }
+
 void replace<T>(T unused, borrowed Context value, owned R incoming) { value.resource = move incoming; }
+
 owned T recurse<T>(int depth, owned T value) where T : Ownable {
-	if (depth == 0) { return move value; }
+	if (depth == 0) return move value;
 	return recurse<T>(depth - 1, move value);
 }
+
 owned Context factory() { owned R r = make(1); return Context.init(move r); }
+
 owned Context forward(owned Context value) { return move value; }
+
 int main() {
 	owned Context a = factory();
-	if (inspect<int>(0, a) != 1) { return 5; }
+	if (inspect<int>(0, a) != 1) return 5;
 	owned Context b = forward(move a);
 	owned Context c = relay<Context>(move b);
 	owned Context d = recurse<Context>(7, move c);
-	if (d.get() != 1 || live() != 1) { return 1; }
-	if (inspect<int>(0, d) != 1) { return 3; }
+	if (d.get() != 1 || live() != 1) return 1;
+	if (inspect<int>(0, d) != 1) return 3;
 	owned R replacement = make(2);
 	replace<int>(0, d, move replacement);
-	if (inspect<int>(0, d) != 2 || live() != 1) { return 4; }
+	if (inspect<int>(0, d) != 2 || live() != 1) return 4;
 	dispose<Context>(move d);
-	if (live() != 0) { return 2; }
+	if (live() != 0) return 2;
 	return 42;
 }

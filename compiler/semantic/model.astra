@@ -3,15 +3,19 @@
 struct SymbolId {
 	int index;
 }
+
 struct ScopeId {
 	int index;
 }
+
 enum BindingState {
 	Bound, Unknown, Ambiguous, Inaccessible, Deferred, Builtin
 }
+
 enum BindingDomain {
 	Type, Value, Namespace, Member
 }
+
 struct BindingSymbol {
 	SyntaxNodeId node;
 	SyntaxTokenId token;
@@ -25,6 +29,7 @@ struct BindingSymbol {
 	bool restricted;
 	int first_reference;
 }
+
 struct BindingScope {
 	ScopeId parent;
 	SymbolId owner;
@@ -33,6 +38,7 @@ struct BindingScope {
 	int kind;
 	int namespace_name;
 }
+
 struct BindingReference {
 	SyntaxNodeId node;
 	SyntaxTokenId token;
@@ -45,11 +51,13 @@ struct BindingReference {
 	int domain;
 	int next_reference;
 }
+
 struct BindingWork {
 	SyntaxNodeId node;
 	ScopeId scope;
 	int action;
 }
+
 BindingState binding_state(int code) {
 	if (code == 1) {
 		return BindingState.Bound();
@@ -69,6 +77,7 @@ BindingState binding_state(int code) {
 	assert_that(code == 6);
 	return BindingState.Builtin();
 }
+
 int binding_domain_code(BindingDomain domain) {
 	if (domain == BindingDomain.Type()) {
 		return 1;
@@ -102,6 +111,7 @@ enum BindingSymbolKind {
 	Payload,
 	Accessor,
 }
+
 BindingSymbolKind binding_symbol_kind(BindingSymbol symbol) {
 	if (symbol.kind == 1) {
 		return BindingSymbolKind.Function();
@@ -160,6 +170,7 @@ BindingSymbolKind binding_symbol_kind(BindingSymbol symbol) {
 	assert_that(false);
 	return BindingSymbolKind.Function();
 }
+
 BindingDomain binding_domain(int code) {
 	if (code == 1) {
 		return BindingDomain.Type();

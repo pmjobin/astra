@@ -179,4 +179,5 @@ private void register_control_tests() {
 	add ("/llvm/calls/debug-names", debug_names);
 	add ("/llvm/calls/void-discarded-condition", call_forms);
 }
+
 }

@@ -1,5 +1,9 @@
 extern(C) int life_record(int code, int value);
+
 class Empty { deinit() { life_record(69, 0); } }
-void inspect(borrowed Empty a, borrowed Empty b) { if (a != b) { life_record(88, 0); } }
+
+void inspect(borrowed Empty a, borrowed Empty b) { if (a != b) life_record(88, 0); }
+
 void consume(owned Empty owner) {}
+
 int main() { owned Empty e = {}; inspect(e, e); consume(move e); return 42; }

@@ -12,6 +12,7 @@ namespace Astra.Tests.LazyProperties {
 private string errors() {
 	return "[ExceptionRoot]class Error{readonly string text;init(string s){this.text=s;}virtual property string message{get{return this.text;}}}class DecodeError:Error{init():base(\"decode\"){}}class OtherError:Error{init():base(\"other\"){}}";
 }
+
 private SemanticResult check(string body) {
 	var parsed = Parser.parse (new SourceFile.from_text ("lazy-contract", body));
 	if (parsed.diagnostic != null) {
@@ -19,6 +20,7 @@ private SemanticResult check(string body) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private SsaProgram build(string body) throws GLib.Error {
 	var checked = check (body);
 	if (checked.diagnostic != null) {
@@ -26,9 +28,11 @@ private SsaProgram build(string body) throws GLib.Error {
 	}
 	return SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked.program)));
 }
+
 private string sample() {
 	return errors () + "class Sample{int input;init(int n){this.input=n;}lazy property int first throws DecodeError{get{if(this.input<0){throw new DecodeError();}return this.input;}}lazy property int second throws DecodeError{get{return this.input+1;}}property int ordinary throws DecodeError{get{return this.input;}}}class Same{int input;init(int n){this.input=n;}lazy property int first throws DecodeError{get{return this.input+2;}}}int main(){var a=new Sample(42);var b=new Sample(40);var c=new Same(40);try{return a.first+b.second-c.first;}catch(Error e){return 1;}}";
 }
+
 private void source_scope() {
 	// Approved symbolic generic declaration; demanded int, cache/lifetime and
 	// bool return-mismatch controls live in structural-generics-15.
@@ -58,6 +62,7 @@ private void source_scope() {
 		assert (parsed.diagnostic != null || SemanticAnalyzer.analyze (parsed.unit).diagnostic != null);
 	}
 }
+
 private void checked_effects() {
 	string property = "class C{init(){}lazy property int value throws DecodeError{get{throw new DecodeError();}}property int ordinary throws DecodeError{get{return 42;}}}";
 	foreach (string body in new string[] { "int main(){var c=new C();return c.value;}", "int main(){var c=new C();try{return c.value;}catch(OtherError e){return 1;}}", "int main(){var c=new C();try{var warm=c.value;}catch(Error e){}return c.value;}", "int f() throws OtherError{var c=new C();return c.value;}", "int main(){var c=new C();return c.ordinary;}" }) {
@@ -75,6 +80,7 @@ private void checked_effects() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void reservation_effects() {
 	string prefix = errors () + "enum Packet{Data(owned int[] data)}int consume(owned int[] data,int n){return len(data)+n;}int ordinary() throws Error{throw new Error(\"ordinary\");}class C{init(){}lazy property int value throws Error{get{throw new Error(\"lazy\");}}}";
 	try {
@@ -88,6 +94,7 @@ private void reservation_effects() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void projections_and_release() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("projection", sample ()));
@@ -120,6 +127,7 @@ private void projections_and_release() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void bounded_stage_controls() {
 	try {
 		var checked = check ("struct S{int marker;property int value{get{return 1;}}}int main(){return 42;}");
@@ -161,6 +169,7 @@ private void bounded_stage_controls() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void native_rejected(SsaProgram ssa, NativeAbiProgram native, CAbiProgram foreign) throws GLib.Error {
 	NativeAbiVerifier.verify (native);
 	bool rejected = false;
@@ -172,6 +181,7 @@ private void native_rejected(SsaProgram ssa, NativeAbiProgram native, CAbiProgra
 	}
 	assert (rejected);
 }
+
 private void native_correspondence() {
 	try {
 		var ssa = build (sample ());
@@ -246,6 +256,7 @@ private void native_correspondence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void generic_valid(LlvmModuleArtifact artifact) {
 	char* message;
 	int result = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -257,6 +268,7 @@ private void generic_valid(LlvmModuleArtifact artifact) {
 	}
 	assert (result == 0);
 }
+
 private void physical_rejected(LlvmModuleArtifact artifact) {
 	generic_valid (artifact);
 	bool rejected = false;
@@ -268,6 +280,7 @@ private void physical_rejected(LlvmModuleArtifact artifact) {
 	}
 	assert (rejected);
 }
+
 private bool lazy_function(CApi.ValueRef instruction) {
 	if ((void*) CApi.is_instruction (instruction) == null) {
 		return false;
@@ -276,6 +289,7 @@ private bool lazy_function(CApi.ValueRef instruction) {
 	unowned string name = CApi.value_name (CApi.block_parent (CApi.instruction_parent (instruction)), out length);
 	return name == "astra.propget.class.3.0" || name == "astra.propget.class.3.1";
 }
+
 private void physical_associations() {
 	try {
 		var ssa = build (sample ());
@@ -422,6 +436,7 @@ private void physical_associations() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void physical_sequence() {
 	try {
 		var ssa = build (sample ());
@@ -532,6 +547,7 @@ private void physical_sequence() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/lazy-1/source/context-and-bounded-scope", source_scope);
@@ -544,4 +560,5 @@ int main(string[] args) {
 	Test.add_func ("/lazy-1/proof/generic-valid-missing-and-reordered-transitions", physical_sequence);
 	return Test.run ();
 }
+
 }

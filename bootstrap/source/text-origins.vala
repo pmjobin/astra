@@ -9,11 +9,13 @@ public class TextLoanIntent : Object {
 	public Object owner(uint ordinal) {
 		return owners[ordinal];
 	}
+
 	public TextLoanIntent (GenericArray<Object> owners) {
 		foreach (var owner in owners) {
 			this.owners.add (owner);
 		}
 	}
+
 	public bool matches(GenericArray<Object> actual) {
 		if (owners.length != actual.length) {
 			return false;
@@ -25,6 +27,7 @@ public class TextLoanIntent : Object {
 		}
 		return true;
 	}
+
 }
 // Immutable lexical authority with no backlink to a compiler model.
 public class TextLoanExtent : Object {
@@ -34,6 +37,7 @@ public class TextLoanExtent : Object {
 		this.parent = parent;
 		this.ordinal = ordinal;
 	}
+
 	public bool outlives(TextLoanExtent destination) {
 		for (TextLoanExtent? current = destination; current != null; current = current.parent) {
 			if (current == this) {
@@ -42,6 +46,7 @@ public class TextLoanExtent : Object {
 		}
 		return false;
 	}
+
 }
 private class TextOriginNode : Object {
 	internal bool static_leaf;
@@ -60,11 +65,13 @@ public class TextOrigins : Object {
 		node.static_leaf = true;
 		nodes.insert (value, node);
 	}
+
 	public void borrowed(Object value) {
 		var node = new TextOriginNode ();
 		node.borrowed_leaf = true;
 		nodes.insert (value, node);
 	}
+
 	public void receiver_borrow(Object value, Object? owner = null) {
 		var node = new TextOriginNode ();
 		node.borrowed_leaf = true;
@@ -72,6 +79,7 @@ public class TextOrigins : Object {
 		node.receiver_owner = owner;
 		nodes.insert (value, node);
 	}
+
 	// A join retains all backing requirements. An unassociated receiver leaf
 	// remains an unknown identity and can never justify a stored local loan.
 	public GenericArray<Object> receiver_owners(Object root) {
@@ -101,6 +109,7 @@ public class TextOrigins : Object {
 		}
 		return result;
 	}
+
 	public bool has_receiver_borrow(Object root) {
 		var seen = new HashTable<Object, bool> (direct_hash, direct_equal);
 		var pending = new GenericArray<Object> ();
@@ -124,6 +133,7 @@ public class TextOrigins : Object {
 		}
 		return false;
 	}
+
 	public void copy(Object value, Object input) {
 		var node = nodes.lookup (value);
 		if (node == null) {
@@ -132,12 +142,15 @@ public class TextOrigins : Object {
 		}
 		node.inputs.add (input);
 	}
+
 	public bool is_static(Object root) {
 		return prove (root, false);
 	}
+
 	public bool is_bounded(Object root) {
 		return prove (root, true);
 	}
+
 	private bool prove(Object root, bool allow_borrowed) {
 		var visited = new HashTable<Object, bool> (direct_hash, direct_equal);
 		var pending = new GenericArray<Object> ();
@@ -188,6 +201,7 @@ public class TextOrigins : Object {
 		}
 		return grounded.size () == visited.size ();
 	}
+
 }
 
 public class TextOriginState : Object {
@@ -201,6 +215,7 @@ public class TextOriginState : Object {
 		}
 		return result;
 	}
+
 }
 public class TextOriginException : Object {
 	public TextOriginState state;
@@ -209,6 +224,7 @@ public class TextOriginException : Object {
 		this.state = state;
 		this.effect = effect;
 	}
+
 }
 public class TextOriginLoop : Object {
 	public TextOriginState header;
@@ -217,6 +233,7 @@ public class TextOriginLoop : Object {
 	public TextOriginLoop (TextOriginState header) {
 		this.header = header;
 	}
+
 }
 // Per-write versions preserve descriptor copying: a read captures the current
 // origin, never the mutable binding. Structured loops form finite equations
@@ -229,17 +246,20 @@ public class TextOriginFlow : Object {
 	public void begin_try() {
 		protected_states.add (new GenericArray<TextOriginException> ());
 	}
+
 	public GenericArray<TextOriginException> end_try() {
 		var result = protected_states[protected_states.length - 1];
 		protected_states.remove_index (protected_states.length - 1);
 		return result;
 	}
+
 	public void exception(Object effect, TextOriginState? incoming = null) {
 		var snapshot = incoming ?? state;
 		if (snapshot.reachable && protected_states.length != 0) {
 			protected_states[protected_states.length - 1].add (new TextOriginException (snapshot.snapshot (), effect));
 		}
 	}
+
 	public TextOriginState project(TextOriginState scope, TextOriginState incoming) {
 		var result = scope.snapshot ();
 		result.reachable = incoming.reachable;
@@ -248,12 +268,15 @@ public class TextOriginFlow : Object {
 		}
 		return result;
 	}
+
 	public void read(Object binding, Object value) {
 		origins.copy (value, state.bindings.lookup (binding) ?? new Object ());
 	}
+
 	public void write(Object binding, Object value) {
 		state.bindings.insert (binding, value);
 	}
+
 	public void merge(TextOriginState scope, owned TextOriginState left, owned TextOriginState right) {
 		if (!left.reachable) {
 			state = right.snapshot ();
@@ -278,6 +301,7 @@ public class TextOriginFlow : Object {
 			}
 		}
 	}
+
 	public void begin_loop() {
 		var header = new TextOriginState ();
 		header.reachable = state.reachable;
@@ -289,6 +313,7 @@ public class TextOriginFlow : Object {
 		loops.add (new TextOriginLoop (header));
 		state = header.snapshot ();
 	}
+
 	private void backedge(TextOriginLoop loop) {
 		if (state.reachable) {
 			foreach (var key in loop.header.bindings.get_keys ()) {
@@ -297,6 +322,7 @@ public class TextOriginFlow : Object {
 			}
 		}
 	}
+
 	public void jump(bool is_break) {
 		if (loops.length != 0 && state.reachable) {
 			var loop = loops[loops.length - 1];
@@ -308,6 +334,7 @@ public class TextOriginFlow : Object {
 		}
 		state.reachable = false;
 	}
+
 	public void begin_step() {
 		var loop = loops[loops.length - 1];
 		foreach (var continued in loop.continues) {
@@ -315,6 +342,7 @@ public class TextOriginFlow : Object {
 		}
 		loop.continues = new GenericArray<TextOriginState> ();
 	}
+
 	public void end_loop() {
 		begin_step ();
 		var loop = loops[loops.length - 1];
@@ -325,5 +353,6 @@ public class TextOriginFlow : Object {
 			merge (loop.header, state, exit);
 		}
 	}
+
 }
 }

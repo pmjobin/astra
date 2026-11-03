@@ -1,11 +1,14 @@
 T identity<T>(T value) {
 	return value;
 }
+
 T inner<T>(T x) { return identity<T>(x); }
+
 T outer<T>(T x) { return inner<T>(x); }
+
 int main() {
 	f64 y = outer<f64>(1.25);
 	void* p = outer<void*>(null);
-	if (y == 1.25 && p == null) { return outer<int>(42); }
+	if (y == 1.25 && p == null) return outer<int>(42);
 	return 1;
 }

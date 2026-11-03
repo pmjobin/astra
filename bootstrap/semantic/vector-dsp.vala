@@ -16,9 +16,11 @@ public enum DspPrimitiveKind {
 	public bool is_saturation() {
 		return this == SAT_ADD || this == SAT_SUB;
 	}
+
 	public bool is_widen() {
 		return this == WIDEN_LOW || this == WIDEN_HIGH;
 	}
+
 	public bool is_pack() {
 		return this == PACK_WRAP || this == PACK_SAT;
 	}
@@ -97,5 +99,7 @@ public enum DspPrimitiveKind {
 		}
 		return null;
 	}
+
 }
+
 }

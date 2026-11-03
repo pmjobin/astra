@@ -46,4 +46,5 @@ private void register_local_syntax_tests() {
 	register_error ("assignment-expression-target", "int f(){x + y = 2;}", 10, 1, "expected '=' after assignment target");
 	register_error ("compound-assignment", "int f(){x += 1;}", 10, 1, "expected '=' after assignment target");
 }
+
 }

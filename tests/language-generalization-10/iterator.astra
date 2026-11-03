@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Entry {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { usability_event(0 - this.value); }
 }
+
 int inspect(Entry entry) { return entry.value; }
+
 int first(Sequence sequence) throws Error {
 	foreach (var value in sequence) {
 		var entry = new Entry(value);
@@ -18,11 +22,11 @@ int main() {
 		var sequence = new Sequence(5, -1);
 		var bag = new Bag<Entry>();
 		foreach (var value in sequence) {
-			if (value == 3) { continue; }
-			if (!bag.reserve(bag.count() + 1)) { return 3; }
+			if (value == 3) continue;
+			if (!bag.reserve(bag.count() + 1)) return 3;
 			var entry = new Entry(value);
 			bag.append(move entry);
-			if (value == 7) { break; }
+			if (value == 7) break;
 		}
 		int[2] weights = {2, 4};
 		var view = slice(weights);

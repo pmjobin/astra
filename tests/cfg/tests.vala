@@ -19,6 +19,7 @@ private class TestCase : Object {
 	public void run() {
 		action ();
 	}
+
 }
 
 private HashTable<string, TestCase> cases;
@@ -636,4 +637,5 @@ int main(string[] args) {
 	cases = null;
 	return result;
 }
+
 }

@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 struct Log {int value;}
+
 i8 value(Log* log){log->value=log->value*10+1;return -3;}
+
 u32 count(Log* log){log->value=log->value*10+2;return 1;}
+
 i8<16> vector(Log* log){log->value=log->value*10+1;return splat(-3 as i8,16);}
+
 i8 scalar(i8 x,u32 c){return x>>c;}
+
 int main(){
 	Log log={value=0};
 	i8 result=value(&log)>>count(&log);
-	if(result!=-2 || log.value!=12){return 1;}
+	if(result!=-2 || log.value!=12) return 1;
 	log.value=0;
 	i8<16> shifted=vector(&log)>>count(&log);
-	if(!all(shifted==splat(-2 as i8,16)) || log.value!=12){return 2;}
-	if(scalar(-128,7)!=-1 || scalar(127,0)!=127){return 3;}
+	if(!all(shifted==splat(-2 as i8,16)) || log.value!=12) return 2;
+	if(scalar(-128,7)!=-1 || scalar(127,0)!=127) return 3;
 	return 0;
 }

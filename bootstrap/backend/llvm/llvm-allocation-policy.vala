@@ -17,21 +17,26 @@ internal class LlvmScopedBackingBinding : Object {
 		storage_ordinal = storage_origin = storage;
 		expected_retirements = ends;
 	}
+
 	internal void acquire(CApi.ValueRef call) throws LlvmError {
 		if ((void*) factory != null) {
 			throw new LlvmError.LOWERING ("scoped backing has competing emitted factories");
 		}
 		factory = call;
 	}
+
 	internal CApi.ValueRef actual_factory() {
 		return factory;
 	}
+
 	internal void retire(CApi.ValueRef call) {
 		retirements.add ((void*) call);
 	}
+
 	internal void access(CApi.ValueRef instruction) {
 		accesses.add ((void*) instruction);
 	}
+
 	private bool uses_context(CApi.ValueRef instruction) {
 		for (uint i = 0; i < CApi.operand_count (instruction); i++) {
 			if ((void*) CApi.operand (instruction, i) == (void*) factory) {
@@ -40,6 +45,7 @@ internal class LlvmScopedBackingBinding : Object {
 		}
 		return false;
 	}
+
 	internal void verify() throws LlvmError {
 		if (storage_ordinal != storage_origin) {
 			throw new LlvmError.VERIFICATION ("scoped backing lost its original storage identity");
@@ -121,6 +127,7 @@ internal class LlvmScopedBackingBinding : Object {
 			} while (changed);
 		}
 	}
+
 }
 internal class LlvmPodLayoutBinding : Object {
 	private PodRepresentation policy;
@@ -135,6 +142,7 @@ internal class LlvmPodLayoutBinding : Object {
 			fields[i] = type == "f32" ? CApi.float_type_in_context (context) : type == "f64" ? CApi.double_type_in_context (context) : CApi.int_type_in_context (context, PodRepresentation.width (type) * 8);
 		}
 	}
+
 	internal void verify(CApi.TargetDataRef data) throws LlvmError {
 		if (!policy.valid () || CApi.pointer_size (data) != 8 || CApi.is_packed_struct (layout) != 0 || CApi.count_struct_element_types (layout) != fields.length || CApi.abi_size_of_type (data, layout) != policy.size () || CApi.abi_alignment_of_type (data, layout) != policy.alignment ()) {
 			throw new LlvmError.VERIFICATION ("Repr(C) lost its admitted natural LP64 size, padding or alignment");
@@ -145,6 +153,7 @@ internal class LlvmPodLayoutBinding : Object {
 			}
 		}
 	}
+
 }
 internal class LlvmPolicyGlobalBinding : Object {
 	internal CApi.ValueRef value;
@@ -157,11 +166,13 @@ internal class LlvmPolicyGlobalBinding : Object {
 		this.initializer = initializer;
 		this.alignment = alignment;
 	}
+
 	internal void verify() throws LlvmError {
 		if ((void*) CApi.global_value_type (value) != (void*) type || (void*) CApi.get_initializer (value) != (void*) initializer || CApi.get_alignment (value) != alignment || CApi.is_global_constant (value) != 0 || CApi.get_linkage (value) != CApi.Linkage.LINK_ONCE_ODR) {
 			throw new LlvmError.VERIFICATION ("allocation domain lost its exact backing/table/callback/layout initializer");
 		}
 	}
+
 }
 
 internal class LlvmPolicyAllocation : Object {
@@ -175,9 +186,11 @@ internal class LlvmPolicyAllocation : Object {
 		size = CApi.int_type_in_context (artifact.context, 64);
 		word = CApi.int32_type_in_context (artifact.context);
 	}
+
 	private CApi.ValueRef integer(uint64 value) {
 		return CApi.const_int (size, value, 0);
 	}
+
 	internal CApi.ValueRef open_scoped(CApi.BuilderRef builder, CApi.ValueRef backing, CApi.ValueRef length, CApi.ValueRef kind, CApi.ValueRef slots) throws LlvmError {
 		CApi.TypeRef[] parameters = {
 			pointer, word, word, word
@@ -192,9 +205,11 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, type, arguments, CApi.CallConv.C, "exact complete exclusively loaned byte backing and scoped affine context"));
 		return call;
 	}
+
 	private CApi.ValueRef number(uint value) {
 		return CApi.const_int (word, value, 0);
 	}
+
 	private CApi.ValueRef global(string name, CApi.TypeRef type, CApi.ValueRef initializer, uint alignment) throws LlvmError {
 		if ((void*) CApi.named_global (artifact.module, name) != null || (void*) CApi.named_function (artifact.module, name) != null) {
 			throw new LlvmError.LOWERING ("allocation global collides with an existing symbol");
@@ -206,6 +221,7 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.allocation_globals.add (new LlvmPolicyGlobalBinding (value, type, initializer, alignment));
 		return value;
 	}
+
 	internal CApi.ValueRef declaration(string name, CApi.TypeRef type) throws LlvmError {
 		var value = CApi.named_function (artifact.module, name);
 		if ((void*) value == null) {
@@ -219,6 +235,7 @@ internal class LlvmPolicyAllocation : Object {
 		CApi.add_attribute (value, uint.MAX, CApi.create_enum_attribute (artifact.context, CApi.enum_attribute_kind ("nobuiltin", 9), 0));
 		return value;
 	}
+
 	private CApi.ValueRef callback(string name, bool allocation) throws LlvmError {
 		var parameters = allocation ? new CApi.TypeRef[] {
 			word, word, word, word
@@ -232,6 +249,7 @@ internal class LlvmPolicyAllocation : Object {
 		}
 		return value;
 	}
+
 	internal CApi.ValueRef domain(AllocationPolicy policy) throws LlvmError {
 		if (!policy.valid ()) {
 			throw new LlvmError.LOWERING ("invalid original allocation policy");
@@ -290,6 +308,7 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.requires_policy_runtime = true;
 		return value;
 	}
+
 	internal CApi.ValueRef tag(string class_name, string role) throws LlvmError {
 		string canonical = class_name + "/" + role;
 		string digest = Checksum.compute_for_string (ChecksumType.SHA256, canonical).substring (0, 16);
@@ -308,6 +327,7 @@ internal class LlvmPolicyAllocation : Object {
 		}
 		return integer (result == 0 ? 1 : result);
 	}
+
 	internal CApi.ValueRef frame_descriptor(CApi.BuilderRef builder, string mode) throws LlvmError {
 		if (mode != "owned-affine" && mode != "owned-transfer" && mode != "owned-concurrent" && mode != "scoped-affine") {
 			throw new LlvmError.LOWERING ("task frame lost exact backing capability");
@@ -325,6 +345,7 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, type, arguments, CApi.CallConv.C, "exact checked task frame allocator version and capability"));
 		return call;
 	}
+
 	internal CApi.ValueRef origin(CApi.BuilderRef builder, CApi.ValueRef owner, string class_name) throws LlvmError {
 		CApi.TypeRef[] parameters = {
 			pointer, size
@@ -339,6 +360,7 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, type, arguments, CApi.CallConv.C, "borrow original allocation context while receiver owner remains live"));
 		return call;
 	}
+
 	internal CApi.ValueRef allocate(CApi.BuilderRef builder, AllocationPolicy policy, string class_name, string role, CApi.ValueRef count, CApi.TypeRef element, string name, bool object, CApi.ValueRef context = (CApi.ValueRef) null) throws LlvmError {
 		if (class_name == "" || (role != "object" && role != "slots" && role != "closure" && role != "buffer")) {
 			throw new LlvmError.LOWERING ("allocation request lost its closed type and storage role");
@@ -376,6 +398,7 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, type, arguments, CApi.CallConv.C, "typed allocation domain/extent/alignment/admission"));
 		return call;
 	}
+
 	internal CApi.ValueRef release(CApi.BuilderRef builder, AllocationPolicy policy, string class_name, string role, CApi.ValueRef value, string name) throws LlvmError {
 		if (class_name == "" || (role != "object" && role != "slots" && role != "closure" && role != "buffer")) {
 			throw new LlvmError.LOWERING ("allocation release lost its closed type and storage role");
@@ -407,5 +430,6 @@ internal class LlvmPolicyAllocation : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (call, target, type, arguments, CApi.CallConv.C, "original allocation domain and exact type/release authority"));
 		return call;
 	}
+
 }
 }

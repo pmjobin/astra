@@ -30,6 +30,7 @@ private void dedup() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void recursion() {
 	try {
 		for (int mode = 1; mode <= 2; mode++) {
@@ -50,10 +51,12 @@ private void recursion() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen/monomorphizer/canonical-dedup-fresh-identities-lifetime-determinism-unused", dedup);
 	Test.add_func ("/gen/monomorphizer/registered-placeholder-direct-mutual", recursion);
 	return Test.run ();
 }
+
 }

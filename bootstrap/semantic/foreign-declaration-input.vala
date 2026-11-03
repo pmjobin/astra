@@ -19,6 +19,7 @@ public class ForeignHandleInput : Object {
 		this.header = header;
 		this.context_contract = context_mode;
 	}
+
 }
 
 // Declaration input only: spans own spelling/provenance, never syntax trees.
@@ -47,6 +48,7 @@ public class ForeignDeclarationInput : Object {
 		this.return_type_spelling = return_type_name ?? return_type_span.text ();
 		this.parameters = parameters;
 	}
+
 }
 
 public class ForeignParameterInput : Object {
@@ -67,5 +69,6 @@ public class ForeignParameterInput : Object {
 		this.type_span = type_span;
 		this.type_spelling = type_name ?? type_span.text ();
 	}
+
 }
 }

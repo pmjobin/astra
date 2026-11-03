@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int c_int_effect(int step);
+
 extern(C) f32 c_f32_effect(int step);
+
 extern(C) f64 c_f64_effect(int step);
+
 extern(C) void* c_ptr_effect(int step);
+
 extern(C) int c_trace();
+
 extern(C) int c_order(int tag, f32 small, f64 value, void* token, int tail);
+
 int main() {
-	if (c_order(c_int_effect(1), c_f32_effect(2), c_f64_effect(3), c_ptr_effect(4), c_int_effect(5)) != 0) { return 1; }
-	if (c_trace() != 12345) { return 2; }
+	if (c_order(c_int_effect(1), c_f32_effect(2), c_f64_effect(3), c_ptr_effect(4), c_int_effect(5)) != 0) return 1;
+	if (c_trace() != 12345) return 2;
 	return 0;
 }

@@ -3,22 +3,28 @@ namespace ProtocolMiddle;
 
 class First : NativeProtocols.Score {
 	private int bias;
+
 	init(int bias) : base() { this.bias = bias; }
+
 	override int apply(int input) { return this.bias + input; }
+
 	property NativeProtocols.Information<int> information {
 		get {
 			NativeProtocols.Information<int> result = {marker = 1, bias = this.bias};
 			return result;
 		}
 	}
+
 	deinit() { mark(1801); }
 }
+
 owned First create(int bias) {
 	var result = new First(bias);
 	return move result;
 }
+
 int evaluate(bool second, borrowed NativeProtocols.Score first,
 	borrowed NativeProtocols.Score other, int input) {
-	if (second) { return NativeProtocols.dispatch(other, input); }
+	if (second) return NativeProtocols.dispatch(other, input);
 	return NativeProtocols.dispatch(first, input);
 }

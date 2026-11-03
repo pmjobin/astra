@@ -16,10 +16,10 @@ int main() {
 			i64<2> clipped = sat_add(total, increment);
 			var status = new u32[1];
 			volatile_store(status[0], clipped[0] as u32);
-			if (volatile_load(status[0]) != 42 || accumulated[0] != 42.0 || accumulated[1] != -10.5) { return 70; }
-			if (clipped[1] != total[1]) { return 71; }
+			if (volatile_load(status[0]) != 42 || accumulated[0] != 42.0 || accumulated[1] != -10.5) return 70;
+			if (clipped[1] != total[1]) return 71;
 			arena.drop_last(id);
-			if (packet_live() != 0 || arena.count() != 0) { return 72; }
+			if (packet_live() != 0 || arena.count() != 0) return 72;
 		}
 	} catch(ArenaError error) { return 73; }
 	return packet_finish(1);

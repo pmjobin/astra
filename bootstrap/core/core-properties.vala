@@ -30,6 +30,7 @@ public class CoreProperty : CoreNode {
 		this.ordinal = ordinal;
 		this.member_ordinal = member_ordinal;
 	}
+
 }
 
 public class CoreLazyObserve : CoreValue {
@@ -39,6 +40,7 @@ public class CoreLazyObserve : CoreValue {
 		base (span, property_member.semantic_type);
 		this.property_identity = WeakRef (property_member);
 	}
+
 }
 
 public abstract class CorePropertyAccessor : CoreFunction {
@@ -51,17 +53,20 @@ public abstract class CorePropertyAccessor : CoreFunction {
 		this.parent = WeakRef (property_member);
 		this.receiver = receiver;
 	}
+
 }
 
 public class CorePropertyGetter : CorePropertyAccessor {
 	internal CorePropertyGetter (SourceSpan span, SourceSpan name_span, string name, CoreProperty property_member, CoreReceiver receiver, SemanticType return_type, GenericArray<CoreParameter> parameters, GenericArray<CoreLocalPlace> locals, CoreBlock body, CoreCleanupContract? owned_cleanup = null) {
 		base (span, name_span, name, property_member, receiver, return_type, parameters, locals, body, owned_cleanup);
 	}
+
 }
 
 public class CorePropertySetter : CorePropertyAccessor {
 	internal CorePropertySetter (SourceSpan span, SourceSpan name_span, string name, CoreProperty property_member, CoreReceiver receiver, SemanticType return_type, GenericArray<CoreParameter> parameters, GenericArray<CoreLocalPlace> locals, CoreBlock body) {
 		base (span, name_span, name, property_member, receiver, return_type, parameters, locals, body);
 	}
+
 }
 }

@@ -14,6 +14,7 @@
 static int baseline, reservation = -1, descriptors[128], count, restored, reservations;
 static unsigned contexts;
 static struct rlimit original;
+
 static int inventory(void) {
 	DIR *directory = opendir("/proc/self/fd");
 	assert(directory);
@@ -27,9 +28,11 @@ static int inventory(void) {
 	assert(closedir(directory) == 0);
 	return result;
 }
+
 void endpoint_errors_prepare(void) {
 	baseline = inventory();
 }
+
 int endpoint_refusal_port(int family) {
 	assert(reservation == -1 && (family == 4 || family == 6));
 	reservation = socket(family == 4 ? AF_INET : AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -48,10 +51,12 @@ int endpoint_refusal_port(int family) {
 	assert(getsockname(reservation, (struct sockaddr *)&address, &length) == 0);
 	return ntohs(address.sin6_port);
 }
+
 void endpoint_refusal_close(void) {
 	assert(reservation >= 0 && close(reservation) == 0);
 	reservation = -1;
 }
+
 void endpoint_exhaust_descriptors(void) {
 	assert(count == 0 && getrlimit(RLIMIT_NOFILE, &original) == 0);
 	struct rlimit limit = original;
@@ -69,19 +74,23 @@ void endpoint_exhaust_descriptors(void) {
 	}
 	assert(count > 0 && count < 128);
 }
+
 void endpoint_restore_descriptors(void) {
 	assert(restored++ == 0 && setrlimit(RLIMIT_NOFILE, &original) == 0);
 	while (count > 0) {
 		assert(close(descriptors[--count]) == 0);
 	}
 }
+
 extern void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *context) {
 	AstraContext17Snapshot state;
 	assert(context && astra_context17_snapshot(context, &state) == ASTRA_CONTEXT17_OK);
 	assert(state.live == 0 && state.anchors == 1 && contexts++ == 0);
 	__real_astra_context17_destroy(context);
 }
+
 int endpoint_errors_finish(int result) {
 	if (result != 0) {
 		fprintf(stderr, "endpoint errors source result %d\n", result);

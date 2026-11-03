@@ -1,42 +1,50 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class CopiedProperty<T> {
 	private T payload;
+
 	init(T value) { this.payload = value; }
+
 	property T value { get { return this.payload; } }
 }
 
 class BorrowedProperty<T> {
 	private owned T payload;
+
 	init(owned T value) { this.payload = move value; }
+
 	property borrowed T value { get { return this.payload; } }
 }
 
 struct PropertyResult { int code; i64 stamp; }
+
 class PropertyResultChild {
 	int code;
 	owned R handle;
+
 	init(int code, owned R handle) { this.code = code; this.handle = move handle; }
+
 	deinit() { mark(this.code); }
 }
 
 int child_code(borrowed PropertyResultChild child) { return child.code; }
+
 int child_handle(borrowed PropertyResultChild child) { return id(child.handle); }
 
 int exercise() {
 	PropertyResult record = {code = 42, stamp = 7000000001};
 	var copied = new CopiedProperty<PropertyResult>(record);
 	var result = copied.value;
-	if (result.code != 42 || result.stamp != 7000000001 || record.code != 42) { return 1; }
+	if (result.code != 42 || result.stamp != 7000000001 || record.code != 42) return 1;
 	var handle = make(4);
 	var child = new PropertyResultChild(44, move handle);
 	var owner = new BorrowedProperty<PropertyResultChild>(move child);
-	if (child_code(owner.value) != 44 || child_handle(owner.value) != 4) { return 2; }
-	if (child_code(owner.value) != 44) { return 3; }
+	if (child_code(owner.value) != 44 || child_handle(owner.value) != 4) return 2;
+	if (child_code(owner.value) != 44) return 3;
 	return 0;
 }
 
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

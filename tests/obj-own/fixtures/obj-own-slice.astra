@@ -1,19 +1,28 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { life_record(this.value, 0); }
+
 	void add(int n) { this.value = this.value + n; }
 }
+
 int consume(owned Counter c, borrowed int[] values) {
 	int i = 0;
-	while (i < len(values)) { c.value = c.value + values[i]; i = i + 1; }
+	while (i < len(values)) {
+		c.value = c.value + values[i];
+		i = i + 1;
+	}
 	values[0] = c.value;
 	return c.value;
 }
+
 int main() {
 	owned Counter c = Counter.init(1);
 	int[3] values = { 10, 20, 11 };
-	if (consume(move c, slice(values)) != 42 || values[0] != 42) { return 1; }
+	if (consume(move c, slice(values)) != 42 || values[0] != 42) return 1;
 	return 42;
 }

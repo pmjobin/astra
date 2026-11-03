@@ -1,20 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Bag { owned R resource; int tag; bool ready; f64 weight; }
+
 int inspect(bool early) {
 	int resource_id=1;
-	if (early) { resource_id=2; }
+	if (early) resource_id=2;
 	Bag bag = {tag=21, ready=true, weight=1.5, resource=make(resource_id)};
 	var moved = move bag;
 	Bag final = move moved;
 	final.tag = final.tag * 2;
-	if (final.tag != 42 || !final.ready || final.weight != 1.5) { return 81; }
-	if (early) { mark(22); return 42; }
+	if (final.tag != 42 || !final.ready || final.weight != 1.5) return 81;
+	if (early) {
+		mark(22);
+		return 42;
+	}
 	mark(11);
 	return 42;
 }
+
 int main() {
-	if (inspect(false) != 42 || live() != 0) { return 82; }
-	if (inspect(true) != 42 || live() != 0) { return 83; }
+	if (inspect(false) != 42 || live() != 0) return 82;
+	if (inspect(true) != 42 || live() != 0) return 83;
 	mark(90);
 	return 42;
 }

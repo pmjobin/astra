@@ -100,4 +100,5 @@ int main(string[] args) {
 	Test.add_func ("/vec/ssa/standalone-whole-vector-mask-loop-13-rejections", loops);
 	return Test.run ();
 }
+
 }

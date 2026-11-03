@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) f64 metadata_sample(int sequence);
+
 extern(C) int metadata_observe(int block,f64 value);
+
 extern(C) int metadata_finish(int count);
 
 class BlockMetadata11 {
 	f64 energy;
+
 	init(f64 energy){this.energy=energy;}
+
 	lazy property f64 attenuation { get { return 1.0/(1.0+this.energy*0.125); } }
+
 	property f64 bias { get { return this.energy/256.0; } }
 }
 
@@ -20,8 +25,11 @@ f64 block_metadata(f64 energy){
 int main(){
 	for(int block=0;block<375;block=block+1){
 		f64 energy=0.0;
-		for(int lane=0;lane<128;lane=lane+1){f64 sample=metadata_sample(block*128+lane);energy=energy+sample*sample;}
-		if(metadata_observe(block,block_metadata(energy))!=0){return 1;}
+		for(int lane=0;lane<128;lane=lane+1){
+			f64 sample=metadata_sample(block*128+lane);
+			energy=energy+sample*sample;
+		}
+		if(metadata_observe(block,block_metadata(energy))!=0) return 1;
 	}
 	return metadata_finish(375);
 }

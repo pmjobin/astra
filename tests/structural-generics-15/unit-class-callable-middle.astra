@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace ClassCallbackTransport;
 Fn<int,owned NativeClassCallbacks.Cargo<int,bool>,int> callback() { return NativeClassCallbacks.callback(); }
+
 int apply(Fn<int,owned NativeClassCallbacks.Cargo<int,bool>,int> code, owned NativeClassCallbacks.Cargo<int,bool> value, int extra) {
 	return NativeClassCallbacks.invoke(code, move value, extra);
 }
+
 int direct(Fn<int,owned NativeClassCallbacks.Cargo<int,bool>,int> code, owned NativeClassCallbacks.Cargo<int,bool> value, int extra) {
 	return code(move value, extra);
 }

@@ -57,6 +57,7 @@ private CfgProgram model(int variant = 0) throws CfgError {
 	functions.add (function);
 	return new CfgProgram (s, functions, null, null, null, cleanups);
 }
+
 private void verify(CfgProgram program) throws CfgError {
 	CfgVerifier.verify (program);
 	var flow = CfgFlowChecker.check (program);
@@ -64,6 +65,7 @@ private void verify(CfgProgram program) throws CfgError {
 		throw new CfgError.INVALID_CFG ("%s", flow.diagnostic.message);
 	}
 }
+
 private void positive() {
 	try {
 		for (int variant = -2; variant <= 0; variant++) {
@@ -77,6 +79,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void negative() {
 	string[] reasons = {
 		"each slot capture", "precede and dominate", "precede and dominate", "program-owned buffer cleanup", "function", "released", "invalidated before exchange", "orphan", "one exchange operand"
@@ -92,10 +95,12 @@ private void negative() {
 		GLib.error ("accepted malformed exchange CFG variant %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-swap/cfg/independent-live-empty-self", positive);
 	Test.add_func ("/own-swap/cfg/capture-membership-order-cleanup-liveness", negative);
 	return Test.run ();
 }
+
 }

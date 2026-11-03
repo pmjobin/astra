@@ -90,4 +90,5 @@ int main(string[] args) {
 	Test.add_func ("/bit/integer/wider-and-count-domain", wider);
 	return Test.run ();
 }
+
 }

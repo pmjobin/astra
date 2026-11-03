@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Base {
 	int id;
+
 	init(int id) { this.id = id; observe_event(67, id); }
+
 	deinit() { observe_event(68, this.id); }
 }
+
 class Child: Base {
 	init(int id): base(id) {}
+
 	deinit() { observe_event(100, this.id); }
 }
+
 int main() {
 	observe_begin(0, 2);
 	var value = new Child(40);
 	forward<Child>(value, 66);
-	if (value.id != 40) { return 81; }
+	if (value.id != 40) return 81;
 	release value;
 	return observe_end();
 }

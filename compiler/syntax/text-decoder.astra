@@ -6,6 +6,7 @@ class TextLiteralDecoder {
 	int error_start;
 	int error_end;
 	owned Utf8Message error_message;
+
 	init(owned shared SourceBuffer source, int offset, owned Utf8Message empty) {
 		this.source = move source;
 		this.offset = offset;
@@ -13,12 +14,14 @@ class TextLiteralDecoder {
 		this.error_end = 0;
 		this.error_message = move empty;
 	}
+
 	void fail(int start, int end, string message) throws Error {
 		this.error_start = start;
 		this.error_end = end;
 		var text = syntax_text(message);
 		this.error_message = move text;
 	}
+
 	owned Utf8Message decode(int start) throws Error {
 		var output = new Utf8ByteBuilder();
 		var backing = shared_clone(this.source);
@@ -26,40 +29,51 @@ class TextLiteralDecoder {
 		while (this.offset < length) {
 			int value = syntax_byte(shared_borrow(backing), this.offset);
 			this.offset = this.offset + 1;
-			if (value == 34) { var result = output.snapshot(); return move result; }
+			if (value == 34) {
+				var result = output.snapshot();
+				return move result;
+			}
 			if (value == 10 || value == 13 || value == 0) {
 				this.fail(start, this.offset, "physical newline or NUL in string literal");
 				break;
 			}
 			if (value == 92) {
-				if (this.offset == length) { break; }
+				if (this.offset == length) break;
 				int escape = syntax_byte(shared_borrow(backing), this.offset);
 				this.offset = this.offset + 1;
 				if (escape == 117 || escape == 85) {
 					int digits = 4;
-					if (escape == 85) { digits = 8; }
+					if (escape == 85) digits = 8;
 					u32 scalar = 0;
 					int n = 0;
 					while (n < digits) {
-						if (this.offset == length) { this.fail(start, this.offset, "incomplete Unicode escape"); break; }
+						if (this.offset == length) {
+							this.fail(start, this.offset, "incomplete Unicode escape");
+							break;
+						}
 						int digit = syntax_byte(shared_borrow(backing), this.offset);
 						this.offset = this.offset + 1;
 						int hex = -1;
-						if (digit >= 48 && digit <= 57) { hex = digit - 48; }
-						if (digit >= 97 && digit <= 102) { hex = digit - 97 + 10; }
-						if (digit >= 65 && digit <= 70) { hex = digit - 65 + 10; }
-						if (hex < 0) { this.fail(this.offset - 1, this.offset, "Unicode escape requires exactly hexadecimal digits"); break; }
+						if (digit >= 48 && digit <= 57) hex = digit - 48;
+						if (digit >= 97 && digit <= 102) hex = digit - 97 + 10;
+						if (digit >= 65 && digit <= 70) hex = digit - 65 + 10;
+						if (hex < 0) {
+							this.fail(this.offset - 1, this.offset, "Unicode escape requires exactly hexadecimal digits");
+							break;
+						}
 						scalar = (scalar << 4) | (hex as u32);
 						n = n + 1;
 					}
-					if (this.error_message.text != "") { break; }
+					if (this.error_message.text != "") break;
 					if (scalar > 1114111 || (scalar >= 55296 && scalar <= 57343)) {
 						this.fail(start, this.offset, "Unicode escape must denote one Unicode scalar; surrogates and values above U+10FFFF are invalid");
 						break;
 					}
 					u8[4] encoded = {0, 0, 0, 0};
 					int count = 1;
-					if (scalar < 128) { encoded[0] = scalar as u8; }
+					if (scalar < 128) {
+						encoded[0] = scalar as u8;
+					}
 					else {
 						if (scalar < 2048) {
 							count = 2;
@@ -80,20 +94,37 @@ class TextLiteralDecoder {
 						}
 					}
 					int j = 0;
-					while (j < count) { u8[1] byte = {encoded[j]}; assert_that(output.append_bytes(slice(byte))); j = j + 1; }
+					while (j < count) {
+						u8[1] byte = {encoded[j]};
+						assert_that(output.append_bytes(slice(byte)));
+						j = j + 1;
+					}
 					continue;
 				}
 				value = escape;
-				if (escape == 110) { value = 10; }
-				else { if (escape == 114) { value = 13; }
-					else { if (escape == 116) { value = 9; }
-						else { if (escape == 48) { value = 0; }
-							else { if (escape != 34 && escape != 92) { this.fail(this.offset - 2, this.offset, "unknown string escape"); break; } } } } }
+				if (escape == 110) {
+					value = 10;
+				}
+				else { if (escape == 114) {
+						value = 13;
+					}
+					else { if (escape == 116) {
+							value = 9;
+						}
+						else { if (escape == 48) {
+								value = 0;
+							}
+							else {
+								if (escape != 34 && escape != 92) {
+									this.fail(this.offset - 2, this.offset, "unknown string escape");
+									break;
+								}
+							} } } }
 			}
 			u8[1] byte = {value as u8};
 			assert_that(output.append_bytes(slice(byte)));
 		}
-		if (this.error_message.text == "") { this.fail(start, this.offset, "unterminated string literal"); }
+		if (this.error_message.text == "") this.fail(start, this.offset, "unterminated string literal");
 		var empty = syntax_text("");
 		return move empty;
 	}

@@ -25,6 +25,7 @@ internal class CAbiValidator : Object {
 		}
 		return true;
 	}
+
 	private static void fail(string path, string message) throws CAbiError {
 		throw new CAbiError.INCOMPATIBLE_CALL ("internal C ABI compatibility error at %s: %s", path, message);
 	}
@@ -361,5 +362,6 @@ internal class CAbiValidator : Object {
 
 		return c_function;
 	}
+
 }
 }

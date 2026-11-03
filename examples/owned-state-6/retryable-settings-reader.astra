@@ -1,22 +1,22 @@
 // A42: real file failure/retry through one checked owning-lazy property.
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	try {
 		var invalid = new u8[1]; invalid[0] = 255; write_file(args[1], invalid);
 		var reader = new SettingsReader(args[1], 101);
-		try { if (reader.content != null) { return 81; } } catch(Error error) { if (reader.attempts != 1) { return 81; } println("invalid record; retry"); }
+		try { if (reader.content != null) return 81; } catch(Error error) { if (reader.attempts != 1) return 81; println("invalid record; retry"); }
 		write_text_file(args[1], "settings=é\0ok");
-		if (reader.content == null || !message_equals(reader.content, "settings=é\0ok") || reader.attempts != 2) { return 82; }
-		if (reader.probe != 1) { return 87; }
+		if (reader.content == null || !message_equals(reader.content, "settings=é\0ok") || reader.attempts != 2) return 82;
+		if (reader.probe != 1) return 87;
 		try { int unused = reader.probe; return 88; } catch(Error error) {}
-		if (reader.probe != 3 || reader.probes != 3) { return 89; }
+		if (reader.probe != 3 || reader.probes != 3) return 89;
 		write_file(args[1], invalid);
-		if (reader.content == null || reader.attempts != 2 || !message_equals(reader.content, "settings=é\0ok")) { return 83; }
+		if (reader.content == null || reader.attempts != 2 || !message_equals(reader.content, "settings=é\0ok")) return 83;
 		var other = new SettingsReader(args[1], 102);
-		try { if (other.content != null) { return 84; } } catch(Error error) {}
+		try { if (other.content != null) return 84; } catch(Error error) {}
 		write_text_file(args[1], "other");
-		if (other.content == null || !message_equals(other.content, "other")) { return 85; }
-		if (reader.shares_cache(other)) { return 85; }
+		if (other.content == null || !message_equals(other.content, "other")) return 85;
+		if (reader.shares_cache(other)) return 85;
 		println("A42 two attempts; warm read skipped changed file");
 	} catch(Error error) { return 86; }
 	return 0;

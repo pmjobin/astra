@@ -1,17 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int retained_app_event(int stage, int value);
+
 class RegistrationFailure : Error { init() : base("registration refused") {} }
+
 class FailureCapture {
 	int identity;
+
 	init(int identity) { this.identity=identity; retained_app_event(41,identity); }
+
 	deinit() { retained_app_event(43,this.identity); }
 }
+
 int failure_code(borrowed FailureCapture capture,int value) { return capture.identity+value; }
+
 void publish_failure(owned Closure<FailureCapture,int,int> handler) throws RegistrationFailure {
 	retained_app_event(42,1);
-	if(retained_register(handler,1)!=0) { throw new RegistrationFailure(); }
+	if(retained_register(handler,1)!=0) {
+		throw new RegistrationFailure();
+	}
 }
+
 owned Closure<FailureCapture,int,int> transfer_registration(owned Closure<FailureCapture,int,int> handler) { return move handler; }
+
 int main() {
 	var capture=new FailureCapture(7);
 	var handler=closure_bind(move capture,failure_code);
@@ -19,9 +29,9 @@ int main() {
 	catch(RegistrationFailure error) { retained_app_event(44,1); }
 	var live_capture=new FailureCapture(9);
 	var live=closure_bind(move live_capture,failure_code);
-	if(retained_register(live,0)!=0) { return 2; }
+	if(retained_register(live,0)!=0) return 2;
 	var moved=transfer_registration(move live);
-	if(retained_dispatch(moved,3)!=12) { return 3; }
+	if(retained_dispatch(moved,3)!=12) return 3;
 	retained_app_event(45,12);
 	// Registered owner cleanup revokes and observes before capture destruction.
 	return 0;

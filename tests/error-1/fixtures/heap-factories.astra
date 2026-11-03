@@ -1,58 +1,87 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
-class Detail : Error { init(string text) : base(text) {} override property string message { get { return this.text; } } }
+
+class Detail : Error { init(string text) : base(text) {}
+
+	override property string message { get { return this.text; } } }
+
 class Label {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string description { get { return this.text; } }
+
 	virtual int kind() { return 1; }
 }
+
 class Fancy : Label {
 	readonly string extra;
+
 	init(string text, string extra) : base(text) { this.extra = extra; }
+
 	override property string description { get { return this.extra; } }
+
 	override int kind() { return 2; }
 }
+
 class FinalLabel : Fancy {
 	int payload;
+
 	init(string text, string extra, int payload) : base(text, extra) { this.payload = payload; }
+
 	override int kind() { return 3; }
 }
+
 owned Label make(bool failing) throws Error {
 	var fresh = new FinalLabel("base", "factory\0é", 42);
-	if(failing) { throw new Error("factory failure"); }
+	if(failing) {
+		throw new Error("factory failure");
+	}
 	return move fresh;
 }
+
 owned Label forward(owned Label label, bool failing) throws Error {
-	if(failing) { throw new Error(label.description); }
+	if(failing) {
+		throw new Error(label.description);
+	}
 	return move label;
 }
+
 owned Label forwarded_factory(bool failing) throws Error { return make(failing); }
-owned Label recursive_forward(owned Label label, int remaining) throws Error { if(remaining > 0) { return recursive_forward(move label, remaining - 1); } return move label; }
-int consume(owned Label label) { var view = label.description; if(view == "factory\0é" && label.kind() == 3) { return 42; } return 81; }
+
+owned Label recursive_forward(owned Label label, int remaining) throws Error { if(remaining > 0) return recursive_forward(move label, remaining - 1); return move label; }
+
+int consume(owned Label label) { var view = label.description; if(view == "factory\0é" && label.kind() == 3) return 42; return 81; }
+
 bool read(Label label) { return label.description == "factory\0é" && label.kind() == 3; }
-owned Error nullable_error(bool empty) { if(empty) { return null; } var error = new Detail("nullable"); return move error; }
+
+owned Error nullable_error(bool empty) { if(empty) return null; var error = new Detail("nullable"); return move error; }
+
 owned Error error_factory() { var error = new Detail("returned error"); return move error; }
+
 int main() {
 	var empty = nullable_error(true);
-	if(empty != null) { return 89; }
+	if(empty != null) return 89;
 	release empty;
-	try { var present = nullable_error(false); throw move present; } catch(Detail error) { if(error.message != "nullable") { return 90; } } catch(Error error) { return 91; }
-	try { var ignored = make(true); } catch(Error error) { if(error.message != "factory failure") { return 82; } }
+	try { var present = nullable_error(false); throw move present; } catch(Detail error) { if(error.message != "nullable") return 90; } catch(Error error) { return 91; }
+	try { var ignored = make(true); } catch(Error error) { if(error.message != "factory failure") return 82; }
 	try {
 		owned Label first = forwarded_factory(false);
-		if(!read(first)) { return 83; }
+		if(!read(first)) return 83;
 		var second = forward(move first, false);
 		var last = recursive_forward(move second, 2);
-		if(consume(move last) != 42) { return 84; }
+		if(consume(move last) != 42) return 84;
 		var third = make(false);
-		try { var ignored = forward(move third, true); } catch(Error error) { var view = error.message; if(view != "factory\0é") { return 85; } }
+		try { var ignored = forward(move third, true); } catch(Error error) { var view = error.message; if(view != "factory\0é") return 85; }
 		var error = error_factory();
 		throw move error;
-	} catch(Detail error) { var view = error.message; if(view == "returned error") { return 42; } return 86; } catch(Error error) { return 87; }
+	} catch(Detail error) { var view = error.message; if(view == "returned error") return 42; return 86; } catch(Error error) { return 87; }
 	return 88;
 }

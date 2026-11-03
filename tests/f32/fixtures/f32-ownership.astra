@@ -1,20 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-f32 gain(borrowed Resource r) { if (resource_touch_count() != 0) { return 0.0; } resource_touch(r); return 1.5; }
-u8 mode(borrowed Resource r) { if (resource_touch_count() != 1) { return 0; } resource_touch(r); return 250; }
+f32 gain(borrowed Resource r) { if (resource_touch_count() != 0) return 0.0; resource_touch(r); return 1.5; }
+
+u8 mode(borrowed Resource r) { if (resource_touch_count() != 1) return 0; resource_touch(r); return 250; }
+
 f32 process(owned Resource r, f32 gain_value, u8 mode_value) {
-	if (resource_touch_count() != 2 || resource_destroy_count() != 0 || mode_value != 250) { return 0.0; }
+	if (resource_touch_count() != 2 || resource_destroy_count() != 0 || mode_value != 250) return 0.0;
 	f32 local = gain_value * 2.0;
 	resource_touch(r);
 	return local;
 }
+
 f32 scenario() {
 	owned Resource a = create_resource(1);
 	owned Resource b = create_resource(2);
 	return process(move a, gain(b), mode(b));
 }
+
 int main() {
 	resource_reset();
-	if (scenario() != 3.0) { return 1; }
-	if (resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 3) { return 2; }
+	if (scenario() != 3.0) return 1;
+	if (resource_destroy_count() != 2 || resource_destroy_order() != 12 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 3) return 2;
 	return 0;
 }

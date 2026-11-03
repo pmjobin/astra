@@ -4,26 +4,31 @@ class Pipeline {
 	private owned Counter source;
 	private owned Ticket ticket;
 	private owned Shared<RecordLog> log;
+
 	init(owned Counter source, owned Ticket ticket, owned Shared<RecordLog> log) {
 		this.source = move source;
 		this.ticket = move ticket;
 		this.log = move log;
 	}
+
 	deinit() { println("pipeline closed"); }
+
 	int receive(int value) {
 		var log = shared_clone(this.log);
 		int mapped = double_value(value) + ticket_code(this.ticket);
-		if (!log_event(shared_borrow(log), "mapped=", mapped)) { return -5; }
+		if (!log_event(shared_borrow(log), "mapped=", mapped)) return -5;
 		return mapped;
 	}
 }
+
 int pipeline_signal(borrowed Pipeline pipeline, int value) { return pipeline.receive(value); }
+
 int main() {
 	try {
 		{
 			owned Counter object = counter_new(0);
 			owned SignalSource source = signal_source(object, "changed");
-			if (object == null || source == null) { return 1; }
+			if (object == null || source == null) return 1;
 			var log = new RecordLog();
 			var log_owner = shared_acquire(move log);
 			var capture_log = shared_clone(log_owner);
@@ -31,15 +36,15 @@ int main() {
 			var ticket = create_ticket(40);
 			var pipeline = new Pipeline(move capture, move ticket, move capture_log);
 			var handler = closure_bind(move pipeline, pipeline_signal);
-			if (retained_register(handler, signal_mode(source)) != 0) { return 2; }
-			if (counter_emit(object, 3) != 46 || counter_emit(object, 5) != 50) { return 3; }
-			if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 4; }
+			if (retained_register(handler, signal_mode(source)) != 0) return 2;
+			if (counter_emit(object, 3) != 46 || counter_emit(object, 5) != 50) return 3;
+			if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) return 4;
 			release handler;
-			if (counter_emit(object, 7) != 0 || app_destroyed() != 1 || app_last_destroyed() != 40) { return 5; }
+			if (counter_emit(object, 7) != 0 || app_destroyed() != 1 || app_last_destroyed() != 40) return 5;
 			var text = log_snapshot(shared_borrow(log_owner));
 			print(text.text);
 		}
-		if (counter_finalized() != 1 || signal_connections() != 0 || foreign_live() != 0) { return 6; }
+		if (counter_finalized() != 1 || signal_connections() != 0 || foreign_live() != 0) return 6;
 		println("ticket released=1\nforeign finalized=1");
 		return 0;
 	} catch (Error error) { println_stderr(error.message); return 70; }

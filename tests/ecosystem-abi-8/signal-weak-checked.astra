@@ -1,34 +1,50 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int signal_trace(int stage, int value);
+
 class SignalState {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { signal_trace(6, this.value); }
 }
+
 int checked_event(borrowed SignalState state, int value) throws Error {
-	if (value < 0) { throw new Error("event refused"); }
+	if (value < 0) {
+		throw new Error("event refused");
+	}
 	return state.value + value;
 }
+
 int signal_anchor_value(borrowed SignalState state) { return state.value; }
+
 class SignalWeakEnvironment {
 	private owned Weak<SignalState> state;
 	private owned Shared<SignalState> anchor;
+
 	init(owned Weak<SignalState> state, owned Shared<SignalState> anchor) { this.state = move state; this.anchor = move anchor; }
+
 	deinit() { signal_trace(8, 0); }
+
 	int receive(int value) {
 		var anchor = shared_clone(this.anchor);
 		var owner = weak_upgrade(this.state);
-		if (owner == null) { signal_trace(7, value); return -4; }
+		if (owner == null) {
+			signal_trace(7, value);
+			return -4;
+		}
 		try { return checked_event(shared_borrow(owner), value) + signal_anchor_value(shared_borrow(anchor)); }
 		catch (Error failure) { signal_trace(5, value); return -1; }
 	}
 }
+
 int weak_event(borrowed SignalWeakEnvironment environment, int value) { return environment.receive(value); }
+
 int main() {
 	{
 		owned Counter object = counter_new(1);
 		owned SignalSource source = signal_source(object, "changed");
-		if (object == null || source == null) { return 1; }
+		if (object == null || source == null) return 1;
 		var state = new SignalState(40);
 		var owner = shared_acquire(move state);
 		var weak = shared_downgrade(owner);
@@ -36,13 +52,13 @@ int main() {
 		var anchor_owner = shared_acquire(move anchor);
 		var environment = new SignalWeakEnvironment(move weak, move anchor_owner);
 		var handler = closure_bind(move environment, weak_event);
-		if (retained_register(handler, signal_mode(source)) != 0) { return 2; }
-		if (counter_emit(object, 3) != 143 || counter_emit(object, -1) != -1) { return 3; }
+		if (retained_register(handler, signal_mode(source)) != 0) return 2;
+		if (counter_emit(object, 3) != 143 || counter_emit(object, -1) != -1) return 3;
 		release owner;
-		if (counter_emit(object, 4) != -4) { return 4; }
-		if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) { return 5; }
+		if (counter_emit(object, 4) != -4) return 4;
+		if (retained_revoke(handler) != 1 || retained_observe(handler) != 1) return 5;
 		release handler;
 	}
-	if (counter_finalized() != 1 || signal_connections() != 0 || foreign_live() != 0) { return 6; }
+	if (counter_finalized() != 1 || signal_connections() != 0 || foreign_live() != 0) return 6;
 	return 0;
 }

@@ -83,6 +83,7 @@ public class GenericTypePattern : Object {
 		}
 		return false;
 	}
+
 }
 
 public class GenericFieldPattern : Object {
@@ -100,11 +101,13 @@ public class GenericFieldPattern : Object {
 		this.private_field = private_field;
 		this.readonly_field = readonly_field;
 	}
+
 }
 
 public enum GenericMemberPatternKind {
 	CONSTRUCTOR, DESTRUCTOR, METHOD, GETTER, SETTER
 }
+
 public enum GenericValueMode {
 	VALUE, BORROWED, OWNED
 }
@@ -120,6 +123,7 @@ public class GenericTypeConstraint : Object {
 		this.capabilities = capabilities;
 		this.exact_heap_class = exact_heap_class;
 	}
+
 	public bool valid(int class_parameters, int method_parameters) {
 		if (parameter < 0 || parameter >= (method_parameter ? method_parameters : class_parameters)) {
 			return false;
@@ -143,6 +147,7 @@ public class GenericTypeConstraint : Object {
 		}
 		return true;
 	}
+
 }
 
 public class GenericMemberPattern : Object {
@@ -162,10 +167,12 @@ public class GenericMemberPattern : Object {
 	public unowned GenericTypeConstraint constraint(int index) {
 		return constraints[index];
 	}
+
 	public int parameter_count { get { return parameters.length; } }
 	public unowned GenericTypePattern parameter_type(int ordinal) {
 		return parameters[ordinal];
 	}
+
 	public GenericValueMode parameter_mode(int ordinal) {
 		return modes[ordinal];
 	}
@@ -215,6 +222,7 @@ public class GenericMemberPattern : Object {
 		}
 		return true;
 	}
+
 }
 
 public class GenericPropertyPattern : Object {
@@ -230,6 +238,7 @@ public class GenericPropertyPattern : Object {
 		this.setter = setter;
 		this.lazy_property = lazy_property;
 	}
+
 }
 
 // Immutable declaration structure, with no syntax/body/stage backlinks.
@@ -243,18 +252,22 @@ public class GenericClassStructure : Object {
 	public unowned GenericTypeConstraint constraint(int index) {
 		return constraints[index];
 	}
+
 	public int field_count { get { return fields.length; } }
 	public int member_count { get { return members.length; } }
 	public int property_count { get { return properties.length; } }
 	public unowned GenericFieldPattern field(int ordinal) {
 		return fields[ordinal];
 	}
+
 	public unowned GenericMemberPattern member(int ordinal) {
 		return members[ordinal];
 	}
+
 	public unowned GenericPropertyPattern property(int ordinal) {
 		return properties[ordinal];
 	}
+
 	public GenericMemberPattern? find_member(string name) {
 		foreach (var member in members) {
 			if (member.name == name) {
@@ -308,5 +321,6 @@ public class GenericClassStructure : Object {
 		}
 		return true;
 	}
+
 }
 }

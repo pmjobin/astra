@@ -18,6 +18,7 @@ private CfgProgram sample(string body) throws GLib.Error {
 	CfgVerifier.verify (program);
 	return program;
 }
+
 private CfgFunction function(CfgProgram program, string name) {
 	foreach (var definition in program.functions) {
 		if (definition.name == name) {
@@ -26,6 +27,7 @@ private CfgFunction function(CfgProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private void rejected(CfgProgram program) {
 	bool failed = false;
 	try {
@@ -36,6 +38,7 @@ private void rejected(CfgProgram program) {
 	}
 	assert (failed);
 }
+
 private void branch_refinement() {
 	try {
 		foreach (string body in new string[] {
@@ -55,6 +58,7 @@ private void branch_refinement() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void reject_unproven() {
 	try {
 		foreach (string body in new string[] {
@@ -71,6 +75,7 @@ private void reject_unproven() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void argument_restore() {
 	try {
 		var program = sample ("if(input!=null){return use(input);}return 0;");
@@ -95,6 +100,7 @@ private void argument_restore() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void branch_restore() {
 	try {
 		var program = sample ("if(input!=null){return use(input);}return 0;");
@@ -124,6 +130,7 @@ private void branch_restore() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void promised_result() {
 	try {
 		var program = sample ("var input_owner=new C();return use(input_owner);");
@@ -142,6 +149,7 @@ private void promised_result() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/nonnull-cfg/branch-short-circuit-loop", branch_refinement);
@@ -151,4 +159,5 @@ int main(string[] args) {
 	Test.add_func ("/nonnull-cfg/result-contract-shape", promised_result);
 	return Test.run ();
 }
+
 }

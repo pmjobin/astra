@@ -3,15 +3,21 @@ extern(C) void usability_event(int value);
 
 class Cursor {
 	int position;
+
 	init() { this.position = 0; usability_event(100); }
+
 	bool next() { usability_event(200 + this.position); return this.position < 4; }
+
 	void step() { usability_event(300 + this.position); this.position = this.position + 1; }
+
 	deinit() { usability_event(400 + this.position); }
 }
 
 class Token {
 	int value;
+
 	init(int value) { this.value = value; usability_event(10 + value); }
+
 	deinit() { usability_event(20 + this.value); }
 }
 
@@ -26,20 +32,20 @@ int early_return() {
 int main() {
 	for (var cursor = Cursor.init(); cursor.next(); cursor.step()) {
 		var token = Token.init(cursor.position);
-		if (cursor.position == 1) { continue; }
-		if (cursor.position == 2) { break; }
+		if (cursor.position == 1) continue;
+		if (cursor.position == 2) break;
 		usability_event(500 + cursor.position);
 	}
 	int total = 0;
 	for (int i = 0; i < 3; i = i + 1) {
 		for (int j = 0; j < 4; j = j + 1) {
-			if (j == 1) { continue; }
-			if (j == 3) { break; }
+			if (j == 1) continue;
+			if (j == 3) break;
 			total = total + i + j;
 		}
 	}
-	for (; false;) { return 1; }
-	for (;;) { break; }
-	if (total != 12 || early_return() != 7) { return 2; }
+	for (; false;) return 1;
+	for (;;) break;
+	if (total != 12 || early_return() != 7) return 2;
 	return 0;
 }

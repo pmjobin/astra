@@ -21,6 +21,7 @@ private void contract() {
 	assert (((CheckedCallStatement) p.functions[1].body.statements[2]).arguments[0] is CheckedNullPointerExpression);
 	assert (SemanticDump.format (p).contains ("(contract borrowed-noescape)"));
 }
+
 private void callables() {
 	var p = check ("class C{int x;init(borrowed C source){if(source==null){this.x=0;}else{this.x=source.x;}}int f(borrowed C other){if(other==null){return this.x;}other.x=this.x;return other.x;}}struct S{int marker;int f(borrowed C other){return other.x;}}");
 	assert (p.classes[0].constructor.parameters[0].pointer_contract == PointerParameterContract.BORROWED_NOESCAPE);
@@ -31,6 +32,7 @@ private void callables() {
 	reject ("class C{}void f(borrowed C c){c=null;}", "assignment to parameter 'c' is not supported");
 	reject ("class C{deinit(){}}void f(borrowed C c){c.deinit();}", "destructor deinit cannot be invoked explicitly");
 }
+
 private void exact_types() {
 	reject ("class A{}class B{}void f(borrowed A a){}void g(borrowed B b){f(b);}", "expects type 'A', provided 'B'");
 	reject ("class A{}class B{}bool f(borrowed A a,borrowed B b){return a==b;}", "matching non-void operands");
@@ -41,6 +43,7 @@ private void exact_types() {
 	reject ("class C{}void f(borrowed C c){}void g(){f(42);}", "expects type 'C', provided 'int'");
 	reject ("class C{}void f(C* c){}", "ClassType*");
 }
+
 private void boundaries() {
 	assert (check ("class C{}void f(C c){}").functions[0].symbol.parameters[0].pointer_contract == PointerParameterContract.BORROWED_NOESCAPE);
 	assert (check ("class C{}void f(owned C c){}").functions[0].symbol.parameters[0].pointer_contract == PointerParameterContract.OWNED_TRANSFER);
@@ -57,6 +60,7 @@ private void boundaries() {
 	reject ("class C{}void raw(void* p){}void f(borrowed C c){C local=c;raw(local);}", "expects type 'void*', provided 'C'");
 	reject ("class C{}void f(borrowed C c){C local=c;C* slot=&local;}", "ClassType*");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-bound/semantic/exact-contract-null-fields-method-and-call-binding", contract);
@@ -65,4 +69,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-bound/semantic/no-owned-results-foreign-or-aggregate-escape", boundaries);
 	return Test.run ();
 }
+
 }

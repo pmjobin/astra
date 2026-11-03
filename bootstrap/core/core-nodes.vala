@@ -16,6 +16,7 @@ public abstract class CoreNode : Object {
 	protected CoreNode (SourceSpan span) {
 		this.span = span;
 	}
+
 }
 
 // Attached foreign boundary only. The program owns the native target;
@@ -45,6 +46,7 @@ public class CoreCExport : CoreNode {
 		this.ordinal = ordinal;
 		this.record_abi = record_abi;
 	}
+
 }
 
 // Stage-owned responsibility with foreign cleanup or exact native class
@@ -109,6 +111,7 @@ public class CoreCleanupContract : Object {
 		this.symbol_span = symbol_span;
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CoreProgram : CoreNode {
@@ -129,6 +132,7 @@ public class CoreProgram : CoreNode {
 		}
 		return result;
 	}
+
 	public GenericArray<CoreClass> classes { get; private set; default = new GenericArray<CoreClass> (); }
 	public GenericArray<CoreClass> class_applications { get; private set; default = new GenericArray<CoreClass> (); }
 	public GenericArray<CoreMethod> method_applications { get; private set; default = new GenericArray<CoreMethod> (); }
@@ -160,6 +164,7 @@ public class CoreProgram : CoreNode {
 		this.structs = structs ?? new GenericArray<CoreStruct> ();
 		this.c_exports = c_exports ?? new GenericArray<CoreCExport> ();
 	}
+
 }
 
 // Independent foreign declaration identity, without a body or native ABI data.
@@ -194,6 +199,7 @@ public class CoreCFunction : CoreNode {
 		}
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CoreFunction : CoreNode {
@@ -205,9 +211,11 @@ public class CoreFunction : CoreNode {
 		}
 		native_declaration = native_declaration_origin = declaration;
 	}
+
 	internal bool native_declaration_valid() {
 		return native_declaration == native_declaration_origin;
 	}
+
 	public uint floating_policy { get; internal set; default = 0; }
 	private uint floating_policy_origin;
 	private bool floating_policy_bound;
@@ -218,13 +226,16 @@ public class CoreFunction : CoreNode {
 			floating_policy_bound = true;
 		}
 	}
+
 	public bool floating_policy_valid() {
 		return floating_policy == floating_policy_origin && Astra.Semantic.FloatingPointPolicy.valid (floating_policy);
 	}
+
 	public bool nonnull_result { get; private set; default = false; }
 	internal void mark_nonnull_result() {
 		nonnull_result = true;
 	}
+
 	public bool utf8_factory { get; internal set; default = false; }
 	public AsyncBodyContract? async_body { get; internal set; }
 	public bool heap_result { get; internal set; default = false; }
@@ -263,6 +274,7 @@ public class CoreFunction : CoreNode {
 		this.locals = locals;
 		this.body = body;
 	}
+
 }
 
 // Containment in exactly one function's parameter array defines ownership.
@@ -272,6 +284,7 @@ public class CoreParameter : CoreNode {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool heap_object { get; internal set; default = false; }
 	public StructValueContract? struct_value_contract { get; internal set; }
 	public PointerParameterContract pointer_contract { get; private set; }
@@ -292,6 +305,7 @@ public class CoreParameter : CoreNode {
 		this.semantic_type = semantic_type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Storage authority, independent of values and any physical realization.
@@ -315,6 +329,7 @@ public abstract class CorePlace : CoreNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 // Containment in exactly one function's locals array defines ownership.
@@ -323,6 +338,7 @@ public class CoreLocalPlace : CorePlace {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public Astra.Text.TextLoanExtent? text_extent { get; internal set; }
 	public bool text_loan { get; internal set; default = false; }
 	public CoreParameter? incoming_parameter { get; private set; }
@@ -340,6 +356,7 @@ public class CoreLocalPlace : CorePlace {
 		this.identifier = name;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // A structured, ordered container, with no control-flow identity or edges.
@@ -351,12 +368,14 @@ public class CoreBlock : CoreNode {
 		base (span);
 		this.statements = statements;
 	}
+
 }
 
 public abstract class CoreStatement : CoreNode {
 	protected CoreStatement (SourceSpan span) {
 		base (span);
 	}
+
 }
 
 // A source lexical block uses the same scope/cleanup authority as if/while bodies.
@@ -367,6 +386,7 @@ public class CoreScope : CoreStatement {
 		base (span);
 		this.body = body;
 	}
+
 }
 public class CoreWithContract : CoreNode {
 	public CoreLocalPlace source { get; private set; }
@@ -376,6 +396,7 @@ public class CoreWithContract : CoreNode {
 		this.source = source;
 		this.receiver_type = receiver_type;
 	}
+
 }
 public class CoreWithScope : CoreScope {
 	public CoreWithContract contract { get; internal set; }
@@ -385,6 +406,7 @@ public class CoreWithScope : CoreScope {
 		this.contract = contract;
 		this.source = contract.source;
 	}
+
 }
 public class CoreWithReference : CoreValue {
 	public CoreWithContract contract { get; internal set; }
@@ -392,6 +414,7 @@ public class CoreWithReference : CoreValue {
 		base (span, contract.source.semantic_type);
 		this.contract = contract;
 	}
+
 }
 
 public class CoreIf : CoreStatement {
@@ -405,6 +428,7 @@ public class CoreIf : CoreStatement {
 		this.then_block = then_block;
 		this.else_block = else_block;
 	}
+
 }
 
 // Core-owned structured target identity, independent of checked nodes and
@@ -416,6 +440,7 @@ public class CoreLoopTarget : CoreNode {
 		base (span);
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CoreWhile : CoreStatement {
@@ -441,6 +466,7 @@ public class CoreWhile : CoreStatement {
 		this.sequence = sequence;
 		this.has_sequence = sequence != null;
 	}
+
 }
 
 public class CoreSequenceIteration : CoreNode {
@@ -460,6 +486,7 @@ public class CoreSequenceIteration : CoreNode {
 		this.index = index;
 		this.binding = binding;
 	}
+
 	internal CoreSequenceIteration.iterator (SourceSpan span, CoreLoopTarget target, CoreValue source, CoreLocalPlace binding, CoreMethod advance, CoreMethod current) {
 		base (span);
 		this.is_iterator = true;
@@ -483,6 +510,7 @@ public class CoreIterationContract : CoreNode {
 		this.index = index;
 		this.binding = binding;
 	}
+
 }
 
 public class CoreBreak : CoreStatement {
@@ -493,6 +521,7 @@ public class CoreBreak : CoreStatement {
 		base (span);
 		this.loop_target = WeakRef (target);
 	}
+
 }
 
 public class CoreContinue : CoreStatement {
@@ -503,6 +532,7 @@ public class CoreContinue : CoreStatement {
 		base (span);
 		this.loop_target = WeakRef (target);
 	}
+
 }
 
 // Programs own functions. Weak call targets prevent recursive ownership
@@ -513,6 +543,7 @@ public class CoreValueStatement : CoreStatement {
 		base (span);
 		this.value = value;
 	}
+
 }
 
 public class CoreCallStatement : CoreStatement {
@@ -527,6 +558,7 @@ public class CoreCallStatement : CoreStatement {
 		this.receiver = receiver;
 		this.arguments = arguments;
 	}
+
 }
 
 // Conservatively effectful C boundary; only the program owns the target.
@@ -540,6 +572,7 @@ public class CoreCCallStatement : CoreStatement {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class CoreReturn : CoreStatement {
@@ -549,6 +582,7 @@ public class CoreReturn : CoreStatement {
 		base (span);
 		this.value = value;
 	}
+
 }
 
 // Responsibility is separate from ordinary scalar Place identity. The
@@ -568,6 +602,7 @@ public class CoreOwnedLocal : CoreNode {
 		this.cleanup = cleanup;
 		this.lexical_scope = WeakRef (scope);
 	}
+
 }
 
 // Transfer retains responsibility and exact identities until CFG flow validation.
@@ -582,6 +617,7 @@ public class CoreOwnershipTransfer : CoreStatement {
 		this.destination = destination;
 		this.cleanup = cleanup;
 	}
+
 }
 
 // A fresh result in an existing slot; scope, contract and cleanup rank stay fixed.
@@ -603,6 +639,7 @@ public class CoreOwnershipRearm : CoreStatement {
 		this.producer = producer;
 		this.cleanup = cleanup;
 	}
+
 }
 
 // Explicit discharge, separate from compiler-generated lexical cleanup.
@@ -615,12 +652,14 @@ public class CoreOwnershipRelease : CoreStatement {
 		this.owner = owner;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public class CoreAcquireParameter : CoreInitialize {
 	internal CoreAcquireParameter (SourceSpan span, CoreOwnedLocal owner, CoreParameter parameter) {
 		base (span, owner.place, new CoreParameterValue (span, parameter), owner);
 	}
+
 }
 
 public class CoreOwnedArgumentValue : CoreValue {
@@ -636,6 +675,7 @@ public class CoreOwnedArgumentValue : CoreValue {
 		this.cleanup = cleanup;
 		this.source = source;
 	}
+
 }
 
 public class CoreOwnershipReturn : CoreStatement {
@@ -653,6 +693,7 @@ public class CoreOwnershipReturn : CoreStatement {
 		this.producer = producer;
 		this.provenance = provenance;
 	}
+
 }
 
 public class CoreInitialize : CoreStatement {
@@ -667,6 +708,7 @@ public class CoreInitialize : CoreStatement {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 public class CoreStore : CoreStatement {
@@ -682,6 +724,7 @@ public class CoreStore : CoreStatement {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 public abstract class CoreValue : CoreNode {
@@ -692,6 +735,7 @@ public abstract class CoreValue : CoreNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 public class CoreCallValue : CoreValue {
@@ -708,6 +752,7 @@ public class CoreCallValue : CoreValue {
 		this.receiver = receiver;
 		this.arguments = arguments;
 	}
+
 }
 
 // Conservatively effectful C boundary; only the program owns the target.
@@ -721,12 +766,14 @@ public class CoreCCallValue : CoreValue {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class CoreNullPointerValue : CoreValue {
 	internal CoreNullPointerValue (SourceSpan span, SemanticType semantic_type) {
 		base (span, semantic_type);
 	}
+
 }
 
 public class CoreBooleanValue : CoreValue {
@@ -736,6 +783,7 @@ public class CoreBooleanValue : CoreValue {
 		base (span, semantic_type);
 		this.literal = literal;
 	}
+
 }
 
 public class CoreVectorDotValue : CoreValue {
@@ -754,6 +802,7 @@ public class CoreVectorDotValue : CoreValue {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 public class CoreDspValue : CoreValue {
@@ -772,6 +821,7 @@ public class CoreDspValue : CoreValue {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 // Direction owns the invalid-count trap contract; width and count type
@@ -788,6 +838,7 @@ public class CoreIntegerShiftValue : CoreValue {
 		this.operand = operand;
 		this.count = count;
 	}
+
 }
 
 public class CoreNumericConversionValue : CoreValue {
@@ -804,6 +855,7 @@ public class CoreNumericConversionValue : CoreValue {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CoreFloatConversionValue : CoreValue {
@@ -818,6 +870,7 @@ public class CoreFloatConversionValue : CoreValue {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CoreIntegerConversionValue : CoreValue {
@@ -830,6 +883,7 @@ public class CoreIntegerConversionValue : CoreValue {
 		this.source_type = source_type;
 		this.operand = operand;
 	}
+
 }
 
 public class CoreVectorSplatValue : CoreValue {
@@ -843,6 +897,7 @@ public class CoreVectorSplatValue : CoreValue {
 		this.lane_count = lane_count;
 		this.lane_count_span = lane_count_span;
 	}
+
 }
 
 public class CoreVectorExtractValue : CoreValue {
@@ -854,6 +909,7 @@ public class CoreVectorExtractValue : CoreValue {
 		this.vector = vector;
 		this.index = index.copy ();
 	}
+
 }
 
 public class CoreVectorInsertValue : CoreValue {
@@ -867,6 +923,7 @@ public class CoreVectorInsertValue : CoreValue {
 		this.index = index.copy ();
 		this.replacement = replacement;
 	}
+
 }
 
 public class CoreVectorShuffleValue : CoreValue {
@@ -878,6 +935,7 @@ public class CoreVectorShuffleValue : CoreValue {
 		this.vector = vector;
 		this.selectors = selectors.copy ();
 	}
+
 }
 
 public class CoreVectorMemoryValue : CoreValue {
@@ -892,6 +950,7 @@ public class CoreVectorMemoryValue : CoreValue {
 		this.offset = offset;
 		this.stored = stored;
 	}
+
 }
 
 public class CoreVectorMemoryStatement : CoreStatement {
@@ -900,6 +959,7 @@ public class CoreVectorMemoryStatement : CoreStatement {
 		base (span);
 		this.operation = operation;
 	}
+
 }
 
 public class CoreVectorSelectValue : CoreValue {
@@ -913,6 +973,7 @@ public class CoreVectorSelectValue : CoreValue {
 		this.true_value = true_value;
 		this.false_value = false_value;
 	}
+
 }
 
 public class CoreVectorConstructValue : CoreValue {
@@ -922,6 +983,7 @@ public class CoreVectorConstructValue : CoreValue {
 		base (span, semantic_type);
 		this.lanes = lanes;
 	}
+
 }
 
 public class CoreVectorReductionValue : CoreValue {
@@ -933,6 +995,7 @@ public class CoreVectorReductionValue : CoreValue {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CoreFloatValue : CoreValue {
@@ -942,6 +1005,7 @@ public class CoreFloatValue : CoreValue {
 		base (span, semantic_type);
 		this.value = value;
 	}
+
 }
 
 public class CoreIntegerValue : CoreValue {
@@ -965,6 +1029,7 @@ public class CoreParameterValue : CoreValue {
 		base (span, parameter.semantic_type);
 		this.parameter = parameter;
 	}
+
 }
 
 public class CoreOwnedBorrowValue : CoreValue {
@@ -976,6 +1041,7 @@ public class CoreOwnedBorrowValue : CoreValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 
 public class CoreLoadValue : CoreValue {
@@ -989,6 +1055,7 @@ public class CoreLoadValue : CoreValue {
 		volatile_enabled = access != null;
 		this.source = source;
 	}
+
 }
 
 public class CorePrefixValue : CoreValue {
@@ -1000,6 +1067,7 @@ public class CorePrefixValue : CoreValue {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 // Evaluates left first and right only on the required path.
@@ -1014,6 +1082,7 @@ public class CoreShortCircuitValue : CoreValue {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 
 public class CoreComparisonChain : CoreValue {
@@ -1026,6 +1095,7 @@ public class CoreComparisonChain : CoreValue {
 		this.operators = operators;
 		this.operand_count = operands.length;
 	}
+
 }
 
 public class CoreBinaryValue : CoreValue {
@@ -1039,6 +1109,7 @@ public class CoreBinaryValue : CoreValue {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 }
 
@@ -1050,6 +1121,7 @@ public class CoreFunctionAddress : CoreValue {
 		base (span, type);
 		callee = WeakRef (target);
 	}
+
 }
 public interface CoreInvocation : Object {
 	public abstract CoreCleanupContract? result_cleanup();
@@ -1060,6 +1132,7 @@ public class CoreFunctionValueCall : CoreValue, CoreInvocation {
 	public CoreCleanupContract? result_cleanup() {
 		return owned_cleanup;
 	}
+
 	// Call-owned channel declarations; these are never function inputs or bodies.
 	public GenericArray<CoreParameter> channel_parameters { get; private set; default = new GenericArray<CoreParameter> (); }
 	public CoreValue callee { get; private set; }
@@ -1070,5 +1143,6 @@ public class CoreFunctionValueCall : CoreValue, CoreInvocation {
 		this.arguments = arguments;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 }

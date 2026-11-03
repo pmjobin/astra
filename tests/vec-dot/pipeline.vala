@@ -15,9 +15,11 @@ private class LifetimeWitness : Object {
 	internal LifetimeWitness (Object value) {
 		reference = WeakRef (value);
 	}
+
 	internal bool gone() {
 		return reference.get () == null;
 	}
+
 }
 
 private const string STRAIGHT = "u16 f(i8<16> a,i8<16> b){return dot_wrap(a,b,u16);} i32 g(i32 c,u8<16> a,u8<16> b){return mac_wrap(c,a,b);} f32 h(f32<4> a,f32<4> b){return dot(a,b);} f32 i(f32 c,f32<2> a,f32<2> b){return mac(c,a,b);}";
@@ -141,4 +143,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

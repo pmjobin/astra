@@ -3,121 +3,171 @@
 // its scheduling, operand resolver or type constructor. LLVM's verifier follows.
 int llvm_check_use(SsaData data, int instruction, int kind, int ordinal, SsaBudget budget) {
 	int u = 0;
-	while (u < data.use_count && budget.take(1)) { var use = data.uses[u]; if (use.instruction == instruction && use.kind == kind && use.ordinal == ordinal) { return use.value; } u = u + 1; }
+	while (u < data.use_count && budget.take(1)) {
+		var use = data.uses[u];
+		if (use.instruction == instruction && use.kind == kind && use.ordinal == ordinal) return use.value;
+		u = u + 1;
+	}
 	return 0;
 }
+
 void* llvm_check_borrow(SsaData data, void*[] places, int id, SsaBudget budget) {
 	int steps = 0; int current = id;
 	while (current > 0 && steps < 192 && budget.take(1)) {
-		var value = data.values[current - 1]; if (value.kind != 1 || value.instruction == 0) { return null; }
+		var value = data.values[current - 1]; if (value.kind != 1 || value.instruction == 0) return null;
 		var operation = data.instructions[value.instruction - 1].origin;
-		if (operation.opcode == 3 && operation.value.place > 0) { return places[operation.value.place - 1]; }
-		if (operation.opcode != 12) { return null; }
+		if (operation.opcode == 3 && operation.value.place > 0) return places[operation.value.place - 1];
+		if (operation.opcode != 12) return null;
 		current = llvm_check_use(data, value.instruction, 1, 0, budget); steps = steps + 1;
 	}
 	return null;
 }
+
 bool llvm_check_operand(void* actual, void*[] values, int expected) {
 	return expected > 0 && expected <= len(values) && actual == values[expected - 1];
 }
+
 int llvm_check_opcode(string op) {
-	if (op == "+") { return 8; } if (op == "-") { return 10; } if (op == "*") { return 12; }
-	if (op == "&") { return 23; } if (op == "|") { return 24; } if (op == "^") { return 25; }
+	if (op == "+") return 8; if (op == "-") return 10; if (op == "*") return 12;
+	if (op == "&") return 23; if (op == "|") return 24; if (op == "^") return 25;
 	return 0;
 }
+
 int llvm_check_predicate(string op, int kind) {
-	if (op == "==") { return 32; } if (op == "!=") { return 33; }
-	if (type_signed(kind)) { if (op == ">") { return 38; } if (op == ">=") { return 39; } if (op == "<") { return 40; } if (op == "<=") { return 41; } }
-	else { if (op == ">") { return 34; } if (op == ">=") { return 35; } if (op == "<") { return 36; } if (op == "<=") { return 37; } }
+	if (op == "==") return 32; if (op == "!=") return 33;
+	if (type_signed(kind)) {
+		if (op == ">") return 38;
+		if (op == ">=") return 39;
+		if (op == "<") return 40;
+		if (op == "<=") return 41;
+	}
+	else {
+		if (op == ">") return 34;
+		if (op == ">=") return 35;
+		if (op == "<") return 36;
+		if (op == "<=") return 37;
+	}
 	return 0;
 }
-u64 llvm_check_mask(int width) { if (width == 64) { return 18446744073709551615; } return (1 as u64 << width) - 1; }
+
+u64 llvm_check_mask(int width) { if (width == 64) return 18446744073709551615; return (1 as u64 << width) - 1; }
+
 bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBudget budget) throws Error {
 	int kind = checked_kind(checked, node.type);
 	if (kind == 11 || kind == 12) {
-		if (LLVMIsAConstantFP(value) == null) { return false; }
+		if (LLVMIsAConstantFP(value) == null) return false;
 		var source = checked.bindings.program.arena.token_message(node.token);
 		int count = source.text.byte_length; int last = astra_host_text_byte(source.text, count - 1);
-		if (last == 100 || last == 68 || last == 102 || last == 70) { count = count - 1; }
+		if (last == 100 || last == 68 || last == 102 || last == 70) count = count - 1;
 		var context = LLVMGetTypeContext(LLVMTypeOf(value));
-		void* physical = LLVMFloatTypeInContext(context); if (kind == 12) { physical = LLVMDoubleTypeInContext(context); }
+		void* physical = LLVMFloatTypeInContext(context); if (kind == 12) physical = LLVMDoubleTypeInContext(context);
 		var expected = llvm13_real(physical, source.text, count);
 		if (node.kind == 2) {
 			var sign = checked.bindings.program.arena.token_message(node.operation);
-			if (sign.text == "-") { expected = LLVMConstReal(physical, -llvm13_real_value(expected)); }
-			else { if (sign.text != "+") { return false; } }
+			if (sign.text == "-") {
+				expected = LLVMConstReal(physical, -llvm13_real_value(expected));
+			}
+			else {
+				if (sign.text != "+") return false;
+			}
 		}
 		return expected != null && value == expected && budget.take(count);
 	}
-	if (LLVMIsAConstantInt(value) == null) { return false; }
+	if (LLVMIsAConstantInt(value) == null) return false;
 	var text = checked.bindings.program.arena.token_message(node.token); u64 bits = 0;
-	if (node.type.index == 13) { if (text.text == "true") { bits = 1; } }
+	if (node.type.index == 13) {
+		if (text.text == "true") bits = 1;
+	}
 	else {
-		int i = 0; while (i < text.text.byte_length && budget.take(1)) { bits = bits * 10 + (astra_host_text_byte(text.text, i) - 48) as u64; i = i + 1; }
-		if (node.kind == 2) { var sign = checked.bindings.program.arena.token_message(node.operation); if (sign.text == "-") { bits = 0 as u64 - bits; } else { if (sign.text == "~") { bits = 18446744073709551615 - bits; } else { if (sign.text != "+") { return false; } } } }
+		int i = 0; while (i < text.text.byte_length && budget.take(1)) {
+			bits = bits * 10 + (astra_host_text_byte(text.text, i) - 48) as u64;
+			i = i + 1;
+		}
+		if (node.kind == 2) {
+			var sign = checked.bindings.program.arena.token_message(node.operation);
+			if (sign.text == "-") {
+				bits = 0 as u64 - bits;
+			} else {
+				if (sign.text == "~") {
+					bits = 18446744073709551615 - bits;
+				} else {
+					if (sign.text != "+") return false;
+				}
+			}
+		}
 		bits = bits & llvm_check_mask(type_width(node.type.index));
 	}
 	return LLVMConstIntGetZExtValue(value) == bits && !budget.exhausted;
 }
+
 bool llvm_check_fp_binary(string op, int kind, void* result, void* left, void* right) {
 	int code = 0; int predicate = 0;
-	if (op == "+") { code = 9; } if (op == "-") { code = 11; }
-	if (op == "*") { code = 13; } if (op == "/") { code = 16; }
-	if (op == "==") { predicate = 1; } if (op == "!=") { predicate = 14; }
-	if (op == ">") { predicate = 2; } if (op == ">=") { predicate = 3; }
-	if (op == "<") { predicate = 4; } if (op == "<=") { predicate = 5; }
+	if (op == "+") code = 9; if (op == "-") code = 11;
+	if (op == "*") code = 13; if (op == "/") code = 16;
+	if (op == "==") predicate = 1; if (op == "!=") predicate = 14;
+	if (op == ">") predicate = 2; if (op == ">=") predicate = 3;
+	if (op == "<") predicate = 4; if (op == "<=") predicate = 5;
 	if (LLVMIsAInstruction(result) != null) {
-		if (predicate != 0) { return LLVMGetInstructionOpcode(result) == 43 && LLVMGetFCmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right; }
+		if (predicate != 0) return LLVMGetInstructionOpcode(result) == 43 && LLVMGetFCmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
 		return code != 0 && LLVMGetInstructionOpcode(result) == code && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
 	}
-	if (LLVMIsAConstantFP(left) == null || LLVMIsAConstantFP(right) == null) { return false; }
+	if (LLVMIsAConstantFP(left) == null || LLVMIsAConstantFP(right) == null) return false;
 	// This independent evaluator uses C0's strict scalar operations, not the
 	// emitter's instruction builder. Narrow operands/results in the f32 domain.
 	f64 a = llvm13_real_value(left); f64 b = llvm13_real_value(right);
 	if (predicate != 0) {
 		bool answer = false;
-		if (op == "==") { answer = a == b; } if (op == "!=") { answer = a != b; }
-		if (op == ">") { answer = a > b; } if (op == ">=") { answer = a >= b; }
-		if (op == "<") { answer = a < b; } if (op == "<=") { answer = a <= b; }
-		u64 expected = 0; if (answer) { expected = 1; }
+		if (op == "==") answer = a == b; if (op == "!=") answer = a != b;
+		if (op == ">") answer = a > b; if (op == ">=") answer = a >= b;
+		if (op == "<") answer = a < b; if (op == "<=") answer = a <= b;
+		u64 expected = 0; if (answer) expected = 1;
 		return LLVMIsAConstantInt(result) != null && LLVMConstIntGetZExtValue(result) == expected;
 	}
-	if (code == 0 || LLVMIsAConstantFP(result) == null) { return false; }
+	if (code == 0 || LLVMIsAConstantFP(result) == null) return false;
 	f64 expected = 0.0d;
 	if (kind == 11) {
 		f32 x = a as f32; f32 y = b as f32; f32 value = 0.0f;
-		if (op == "+") { value = x + y; } if (op == "-") { value = x - y; }
-		if (op == "*") { value = x * y; } if (op == "/") { value = x / y; }
+		if (op == "+") value = x + y; if (op == "-") value = x - y;
+		if (op == "*") value = x * y; if (op == "/") value = x / y;
 		expected = value as f64;
 	} else {
-		if (op == "+") { expected = a + b; } if (op == "-") { expected = a - b; }
-		if (op == "*") { expected = a * b; } if (op == "/") { expected = a / b; }
+		if (op == "+") expected = a + b; if (op == "-") expected = a - b;
+		if (op == "*") expected = a * b; if (op == "/") expected = a / b;
 	}
-	if (expected != expected) { f64 actual = llvm13_real_value(result); return actual != actual; }
+	if (expected != expected) {
+		f64 actual = llvm13_real_value(result);
+		return actual != actual;
+	}
 	return result == LLVMConstReal(LLVMTypeOf(result), expected);
 }
+
 bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* left, void* right) throws Error {
 	var text = checked.bindings.program.arena.token_message(node.operation); var op = text.text;
 	var left_node = checked.bindings.program.arena.get_node_left(node.source); var left_use = checked.uses[left_node.index]; int kind = checked_kind(checked, left_use.type);
-	if (kind == 11 || kind == 12) { return llvm_check_fp_binary(op, kind, result, left, right); }
+	if (kind == 11 || kind == 12) return llvm_check_fp_binary(op, kind, result, left, right);
 	int opcode = llvm_check_opcode(op); int predicate = llvm_check_predicate(op, kind);
 	if (LLVMIsAInstruction(result) != null && (opcode != 0 || predicate != 0)) {
-		if (predicate != 0) { return LLVMGetInstructionOpcode(result) == 42 && LLVMGetICmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right; }
+		if (predicate != 0) return LLVMGetInstructionOpcode(result) == 42 && LLVMGetICmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
 		return LLVMGetInstructionOpcode(result) == opcode && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
 	}
 	if (LLVMIsAConstantInt(result) != null && LLVMIsAConstantInt(left) != null && LLVMIsAConstantInt(right) != null && (opcode != 0 || predicate != 0)) {
 		u64 a = LLVMConstIntGetZExtValue(left); u64 b = LLVMConstIntGetZExtValue(right); u64 expected = 0;
-		if (op == "+") { expected = a + b; } if (op == "-") { expected = a - b; } if (op == "*") { expected = a * b; }
-		if (op == "&") { expected = a & b; } if (op == "|") { expected = a | b; } if (op == "^") { expected = a ^ b; }
+		if (op == "+") expected = a + b; if (op == "-") expected = a - b; if (op == "*") expected = a * b;
+		if (op == "&") expected = a & b; if (op == "|") expected = a | b; if (op == "^") expected = a ^ b;
 		if (predicate != 0) {
 			bool less = a < b;
-			if (type_signed(kind)) { u64 sign = 1 as u64 << (type_width(kind) - 1); if ((a & sign) != (b & sign)) { less = (a & sign) != 0; } }
+			if (type_signed(kind)) {
+				u64 sign = 1 as u64 << (type_width(kind) - 1);
+				if ((a & sign) != (b & sign)) less = (a & sign) != 0;
+			}
 			bool answer = false;
-			if (op == "==") { answer = a == b; } if (op == "!=") { answer = a != b; }
-			if (op == "<") { answer = less; } if (op == "<=") { answer = less || a == b; }
-			if (op == ">") { answer = !less && a != b; } if (op == ">=") { answer = !less; }
-			if (answer) { expected = 1; }
-		} else { expected = expected & llvm_check_mask(type_width(kind)); }
+			if (op == "==") answer = a == b; if (op == "!=") answer = a != b;
+			if (op == "<") answer = less; if (op == "<=") answer = less || a == b;
+			if (op == ">") answer = !less && a != b; if (op == ">=") answer = !less;
+			if (answer) expected = 1;
+		} else {
+			expected = expected & llvm_check_mask(type_width(kind));
+		}
 		return LLVMConstIntGetZExtValue(result) == expected;
 	}
 	// Guarded division/shift recipes have several machine instructions. Their
@@ -125,6 +175,7 @@ bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* 
 	// guard inspection cover arithmetic domain/fatal behavior, not this shortcut.
 	return op == "/" || op == "%" || op == "<<" || op == ">>";
 }
+
 bool llvm_check_live_instruction(void* function, void* expected, SsaBudget budget) {
 	// Compare identities before dereferencing a retained instruction. A mutant
 	// may have erased it; a stale pointer is never queried through LLVM.
@@ -132,49 +183,53 @@ bool llvm_check_live_instruction(void* function, void* expected, SsaBudget budge
 	while (block != null && budget.take(1)) {
 		void* instruction = LLVMGetFirstInstruction(block);
 		while (instruction != null && budget.take(1)) {
-			if (instruction == expected) { return true; }
+			if (instruction == expected) return true;
 			instruction = LLVMGetNextInstruction(instruction);
 		}
 		block = LLVMGetNextBasicBlock(block);
 	}
 	return false;
 }
+
 bool llvm_check_attributes(void* value, int parameters, int call) {
-	if (parameters < 0 || parameters > 512) { return false; }
+	if (parameters < 0 || parameters > 512) return false;
 	int index = -1;
 	while (index <= parameters) {
-		if (llvm13_attribute(value, index, call, "noalias") != 0 || llvm13_attribute(value, index, call, "nocapture") != 0 || llvm13_attribute(value, index, call, "nonnull") != 0 || llvm13_attribute(value, index, call, "dereferenceable") != 0 || llvm13_attribute(value, index, call, "align") != 0 || llvm13_attribute(value, index, call, "sret") != 0 || llvm13_attribute(value, index, call, "byval") != 0 || llvm13_attribute(value, index, call, "signext") != 0 || llvm13_attribute(value, index, call, "zeroext") != 0 || llvm13_attribute(value, index, call, "readonly") != 0 || llvm13_attribute(value, index, call, "readnone") != 0 || llvm13_attribute(value, index, call, "memory") != 0) { return false; }
+		if (llvm13_attribute(value, index, call, "noalias") != 0 || llvm13_attribute(value, index, call, "nocapture") != 0 || llvm13_attribute(value, index, call, "nonnull") != 0 || llvm13_attribute(value, index, call, "dereferenceable") != 0 || llvm13_attribute(value, index, call, "align") != 0 || llvm13_attribute(value, index, call, "sret") != 0 || llvm13_attribute(value, index, call, "byval") != 0 || llvm13_attribute(value, index, call, "signext") != 0 || llvm13_attribute(value, index, call, "zeroext") != 0 || llvm13_attribute(value, index, call, "readonly") != 0 || llvm13_attribute(value, index, call, "readnone") != 0 || llvm13_attribute(value, index, call, "memory") != 0) return false;
 		index = index + 1;
 	}
 	return true;
 }
+
 bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] blocks, void*[] places, void*[] armed, void*[] calls, void*[] guards) {
-	if (len(calls) != program.data.instruction_count || len(guards) != len(calls)) { return false; }
+	if (len(calls) != program.data.instruction_count || len(guards) != len(calls)) return false;
 	var budget = new SsaBudget(8000000); int required = 0; int i = 0;
 	while (i < program.data.instruction_count && budget.take(1)) {
 		var source = program.data.instructions[i]; var row = source.origin; int place = 0;
-		if (row.opcode == 40) { place = program.cfg.core.data.cleanups[row.contract - 1].place; }
+		if (row.opcode == 40) place = program.cfg.core.data.cleanups[row.contract - 1].place;
 		if (row.opcode == 22 && !source.promoted && row.value.place > 0) {
 			var target = program.cfg.core.data.places[row.value.place - 1];
-			if ((target.flags & 4) != 0 && checked_kind(program.cfg.core.flow.checked, target.type) == 22) { place = row.value.place; }
+			if ((target.flags & 4) != 0 && checked_kind(program.cfg.core.flow.checked, target.type) == 22) place = row.value.place;
 		}
-		if (!program.data.graph.reachable[row.block - 1]) { place = 0; }
-		if (place == 0) { if (calls[i] != null || guards[i] != null) { return false; } }
+		if (!program.data.graph.reachable[row.block - 1]) place = 0;
+		if (place == 0) {
+			if (calls[i] != null || guards[i] != null) return false;
+		}
 		else {
 			required = required + 1; int p = place - 1; var call = calls[i]; var guard = guards[i]; var function = functions[row.value.function - 1];
-			if (p < 0 || p >= len(armed) || armed[p] == null || call == null || guard == null || !llvm_check_live_instruction(function, call, budget) || !llvm_check_live_instruction(function, guard, budget)) { return false; }
-			if (LLVMGetInstructionOpcode(call) != 45 || LLVMGetNumArgOperands(call) != 1 || LLVMGetInstructionCallConv(call) != 0 || llvm13_named(LLVMGetCalledValue(call), "free") != 1) { return false; }
-			if (LLVMGetInstructionOpcode(guard) != 2 || LLVMGetNumSuccessors(guard) != 2 || LLVMGetInstructionParent(guard) != blocks[row.block - 1]) { return false; }
+			if (p < 0 || p >= len(armed) || armed[p] == null || call == null || guard == null || !llvm_check_live_instruction(function, call, budget) || !llvm_check_live_instruction(function, guard, budget)) return false;
+			if (LLVMGetInstructionOpcode(call) != 45 || LLVMGetNumArgOperands(call) != 1 || LLVMGetInstructionCallConv(call) != 0 || llvm13_named(LLVMGetCalledValue(call), "free") != 1) return false;
+			if (LLVMGetInstructionOpcode(guard) != 2 || LLVMGetNumSuccessors(guard) != 2 || LLVMGetInstructionParent(guard) != blocks[row.block - 1]) return false;
 			var condition = LLVMGetOperand(guard, 0);
-			if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 27 || LLVMGetOperand(condition, 0) != armed[p] || LLVMGetInstructionParent(condition) != blocks[row.block - 1]) { return false; }
+			if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 27 || LLVMGetOperand(condition, 0) != armed[p] || LLVMGetInstructionParent(condition) != blocks[row.block - 1]) return false;
 			var releasing = LLVMGetInstructionParent(call); var next = LLVMGetSuccessor(guard, 1);
-			if (LLVMGetSuccessor(guard, 0) != releasing || LLVMGetBasicBlockParent(releasing) != function || LLVMGetBasicBlockParent(next) != function) { return false; }
+			if (LLVMGetSuccessor(guard, 0) != releasing || LLVMGetBasicBlockParent(releasing) != function || LLVMGetBasicBlockParent(next) != function) return false;
 			var load = LLVMGetFirstInstruction(releasing); var pointer = LLVMGetArgOperand(call, 0);
-			if (load == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[p] || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 53 || llvm13_index(pointer, 0, 0) != 1 || LLVMGetOperand(pointer, 0) != load || LLVMGetNextInstruction(load) != pointer || LLVMGetNextInstruction(pointer) != call) { return false; }
+			if (load == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[p] || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 53 || llvm13_index(pointer, 0, 0) != 1 || LLVMGetOperand(pointer, 0) != load || LLVMGetNextInstruction(load) != pointer || LLVMGetNextInstruction(pointer) != call) return false;
 			var disarm = LLVMGetNextInstruction(call);
-			if (disarm == null || LLVMGetInstructionOpcode(disarm) != 28 || LLVMGetOperand(disarm, 1) != armed[p] || LLVMIsAConstantInt(LLVMGetOperand(disarm, 0)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(disarm, 0)) != 0) { return false; }
+			if (disarm == null || LLVMGetInstructionOpcode(disarm) != 28 || LLVMGetOperand(disarm, 1) != armed[p] || LLVMIsAConstantInt(LLVMGetOperand(disarm, 0)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(disarm, 0)) != 0) return false;
 			var jump = LLVMGetNextInstruction(disarm);
-			if (jump == null || LLVMGetBasicBlockTerminator(releasing) != jump || LLVMGetInstructionOpcode(jump) != 2 || LLVMGetNumSuccessors(jump) != 1 || LLVMGetSuccessor(jump, 0) != next) { return false; }
+			if (jump == null || LLVMGetBasicBlockTerminator(releasing) != jump || LLVMGetInstructionOpcode(jump) != 2 || LLVMGetNumSuccessors(jump) != 1 || LLVMGetSuccessor(jump, 0) != next) return false;
 		}
 		i = i + 1;
 	}
@@ -184,7 +239,7 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 		while (block != null && budget.take(1)) {
 			void* instruction = LLVMGetFirstInstruction(block);
 			while (instruction != null && budget.take(1)) {
-				if (LLVMGetInstructionOpcode(instruction) == 45 && llvm13_named(LLVMGetCalledValue(instruction), "free") == 1) { observed = observed + 1; }
+				if (LLVMGetInstructionOpcode(instruction) == 45 && llvm13_named(LLVMGetCalledValue(instruction), "free") == 1) observed = observed + 1;
 				instruction = LLVMGetNextInstruction(instruction);
 			}
 			block = LLVMGetNextBasicBlock(block);
@@ -193,6 +248,7 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 	}
 	return observed == required && !budget.exhausted;
 }
+
 bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wrappers, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] effects, int limit) throws Error {
 	var budget = new SsaBudget(limit);
 	int f = 0;
@@ -200,37 +256,50 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 		var original = program.cfg.core.data.functions[f]; var declaration = program.cfg.core.flow.checked.bindings.symbol(original.symbol);
 		bool imported = program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node); bool exported = program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node);
 		int previous = 0; while (previous < f && budget.take(1)) {
-			if (functions[f] == functions[previous] || (wrappers[f] != null && (wrappers[f] == functions[previous] || wrappers[f] == wrappers[previous])) || (wrappers[previous] != null && functions[f] == wrappers[previous])) { return false; }
+			if (functions[f] == functions[previous] || (wrappers[f] != null && (wrappers[f] == functions[previous] || wrappers[f] == wrappers[previous])) || (wrappers[previous] != null && functions[f] == wrappers[previous])) return false;
 			previous = previous + 1;
 		}
-		if (!llvm_check_attributes(functions[f], LLVMCountParams(functions[f]), 0)) { return false; }
+		if (!llvm_check_attributes(functions[f], LLVMCountParams(functions[f]), 0)) return false;
 		if (imported || exported) {
-			if (!checked_c_scalar_signature(program.cfg.core.flow.checked, original.symbol)) { return false; }
+			if (!checked_c_scalar_signature(program.cfg.core.flow.checked, original.symbol)) return false;
 			var name = program.cfg.core.flow.checked.bindings.names.text(declaration.name);
-			void* physical = functions[f]; if (exported) { physical = wrappers[f]; }
-			if (physical == null || LLVMGetLinkage(physical) != 0 || LLVMGetFunctionCallConv(physical) != 0 || llvm13_named(physical, name.text) != 1 || LLVMGlobalGetValueType(physical) != signatures[f]) { return false; }
-			if (!llvm_check_attributes(physical, LLVMCountParams(physical), 0)) { return false; }
-			if (imported) { if (LLVMGetFirstBasicBlock(physical) != null || wrappers[f] != null) { return false; } f = f + 1; continue; }
+			void* physical = functions[f]; if (exported) physical = wrappers[f];
+			if (physical == null || LLVMGetLinkage(physical) != 0 || LLVMGetFunctionCallConv(physical) != 0 || llvm13_named(physical, name.text) != 1 || LLVMGlobalGetValueType(physical) != signatures[f]) return false;
+			if (!llvm_check_attributes(physical, LLVMCountParams(physical), 0)) return false;
+			if (imported) {
+				if (LLVMGetFirstBasicBlock(physical) != null || wrappers[f] != null) return false;
+				f = f + 1;
+				continue;
+			}
 			var block = LLVMGetFirstBasicBlock(physical);
-			if (block == null || LLVMGetNextBasicBlock(block) != null || physical == functions[f]) { return false; }
+			if (block == null || LLVMGetNextBasicBlock(block) != null || physical == functions[f]) return false;
 			var call = LLVMGetFirstInstruction(block); var end = LLVMGetBasicBlockTerminator(block);
 			var signature = program.cfg.core.flow.checked.signatures[original.signature.index - 1]; int count = program.cfg.core.flow.checked.types.row(signature.callable).count - 1;
-			if (call == null || LLVMGetInstructionOpcode(call) != 45 || LLVMGetCalledValue(call) != functions[f] || LLVMGetInstructionCallConv(call) != 0 || LLVMGetNumArgOperands(call) != count || LLVMGetNextInstruction(call) != end || end == null || LLVMGetInstructionOpcode(end) != 1) { return false; }
-			if (!llvm_check_attributes(call, count, 1)) { return false; }
-			if (LLVMCanValueUseFastMathFlags(call) != 0 && LLVMGetFastMathFlags(call) != 0) { return false; }
-			int p = 0; while (p < count && budget.take(1)) { if (LLVMGetArgOperand(call, p) != LLVMGetParam(physical, p)) { return false; } p = p + 1; }
-			if (original.result.index == 14) { if (LLVMGetNumOperands(end) != 0) { return false; } } else { if (LLVMGetNumOperands(end) != 1 || LLVMGetOperand(end, 0) != call) { return false; } }
-		} else { if (wrappers[f] != null) { return false; } }
-		if (LLVMGetEntryBasicBlock(functions[f]) != blocks[program.data.functions[f].entry - 1] || LLVMGlobalGetValueType(functions[f]) != signatures[f]) { return false; }
+			if (call == null || LLVMGetInstructionOpcode(call) != 45 || LLVMGetCalledValue(call) != functions[f] || LLVMGetInstructionCallConv(call) != 0 || LLVMGetNumArgOperands(call) != count || LLVMGetNextInstruction(call) != end || end == null || LLVMGetInstructionOpcode(end) != 1) return false;
+			if (!llvm_check_attributes(call, count, 1)) return false;
+			if (LLVMCanValueUseFastMathFlags(call) != 0 && LLVMGetFastMathFlags(call) != 0) return false;
+			int p = 0; while (p < count && budget.take(1)) {
+				if (LLVMGetArgOperand(call, p) != LLVMGetParam(physical, p)) return false;
+				p = p + 1;
+			}
+			if (original.result.index == 14) {
+				if (LLVMGetNumOperands(end) != 0) return false;
+			} else {
+				if (LLVMGetNumOperands(end) != 1 || LLVMGetOperand(end, 0) != call) return false;
+			}
+		} else {
+			if (wrappers[f] != null) return false;
+		}
+		if (LLVMGetEntryBasicBlock(functions[f]) != blocks[program.data.functions[f].entry - 1] || LLVMGlobalGetValueType(functions[f]) != signatures[f]) return false;
 		void* block = LLVMGetFirstBasicBlock(functions[f]);
 		while (block != null && budget.take(1)) {
 			void* instruction = LLVMGetFirstInstruction(block);
 			while (instruction != null && budget.take(1)) {
-				if (LLVMCanValueUseFastMathFlags(instruction) != 0 && LLVMGetFastMathFlags(instruction) != 0) { return false; }
+				if (LLVMCanValueUseFastMathFlags(instruction) != 0 && LLVMGetFastMathFlags(instruction) != 0) return false;
 				if (LLVMGetInstructionOpcode(instruction) == 45) {
-					if (!llvm_check_attributes(instruction, LLVMGetNumArgOperands(instruction), 1)) { return false; }
+					if (!llvm_check_attributes(instruction, LLVMGetNumArgOperands(instruction), 1)) return false;
 					var callee = LLVMGetCalledValue(instruction);
-					if (llvm13_named(callee, "llvm.trap") != 1 && !llvm_check_attributes(callee, LLVMCountParams(callee), 0)) { return false; }
+					if (llvm13_named(callee, "llvm.trap") != 1 && !llvm_check_attributes(callee, LLVMCountParams(callee), 0)) return false;
 				}
 				instruction = LLVMGetNextInstruction(instruction);
 			}
@@ -242,26 +311,35 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 	while (b < program.data.block_count && budget.take(1)) {
 		var block = program.data.blocks[b].origin;
 		if (program.data.graph.reachable[b] && !llvm_imported(program, block.function)) {
-			if (blocks[b] == null || ends[b] == null || LLVMGetBasicBlockParent(blocks[b]) != functions[block.function - 1] || LLVMGetBasicBlockParent(ends[b]) != functions[block.function - 1]) { return false; }
-			var term = LLVMGetBasicBlockTerminator(ends[b]); if (term == null) { return false; }
+			if (blocks[b] == null || ends[b] == null || LLVMGetBasicBlockParent(blocks[b]) != functions[block.function - 1] || LLVMGetBasicBlockParent(ends[b]) != functions[block.function - 1]) return false;
+			var term = LLVMGetBasicBlockTerminator(ends[b]); if (term == null) return false;
 			if (block.term == 3) {
 				int expected = 0; int u = 0;
-				while (u < program.data.use_count && budget.take(1)) { var use = program.data.uses[u]; if (use.block == b + 1 && use.kind == 5) { expected = use.value; } u = u + 1; }
-				if (LLVMGetInstructionOpcode(term) != 1 || LLVMGetNumOperands(term) != 0 && expected == 0) { return false; }
-				if (expected != 0 && !llvm_check_operand(LLVMGetOperand(term, 0), values, expected)) { return false; }
+				while (u < program.data.use_count && budget.take(1)) {
+					var use = program.data.uses[u];
+					if (use.block == b + 1 && use.kind == 5) expected = use.value;
+					u = u + 1;
+				}
+				if (LLVMGetInstructionOpcode(term) != 1 || LLVMGetNumOperands(term) != 0 && expected == 0) return false;
+				if (expected != 0 && !llvm_check_operand(LLVMGetOperand(term, 0), values, expected)) return false;
 			} else {
-				if (block.term == 4) { if (LLVMGetInstructionOpcode(term) != 7) { return false; } }
+				if (block.term == 4) {
+					if (LLVMGetInstructionOpcode(term) != 7) return false;
+				}
 				else {
-					if (LLVMGetInstructionOpcode(term) != 2 || LLVMGetNumSuccessors(term) != block.term) { return false; }
-					if (block.term == 2) { int expected = program.data.blocks[b].condition; if (!llvm_check_operand(LLVMGetOperand(term, 0), values, expected)) { return false; } }
+					if (LLVMGetInstructionOpcode(term) != 2 || LLVMGetNumSuccessors(term) != block.term) return false;
+					if (block.term == 2) {
+						int expected = program.data.blocks[b].condition;
+						if (!llvm_check_operand(LLVMGetOperand(term, 0), values, expected)) return false;
+					}
 					int e = 0;
 					while (e < program.data.edge_count && budget.take(1)) {
 						var edge = program.data.edges[e].origin;
 						if (edge.source == b + 1) {
-							int index = 0; if (edge.polarity == 2) { index = 1; }
-							if (LLVMGetSuccessor(term, index) != edges[e]) { return false; }
+							int index = 0; if (edge.polarity == 2) index = 1;
+							if (LLVMGetSuccessor(term, index) != edges[e]) return false;
 							var jump = LLVMGetBasicBlockTerminator(edges[e]);
-							if (jump == null || LLVMGetNumSuccessors(jump) != 1 || LLVMGetSuccessor(jump, 0) != blocks[edge.target - 1]) { return false; }
+							if (jump == null || LLVMGetNumSuccessors(jump) != 1 || LLVMGetSuccessor(jump, 0) != blocks[edge.target - 1]) return false;
 						}
 						e = e + 1;
 					}
@@ -275,14 +353,17 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 		var source = program.cfg.core.data.places[place];
 		if (source.parent != 0) {
 			var pointer = places[place];
-			if (pointer == null || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 29 || LLVMGEPGetNoWrapFlags(pointer) != 0 || LLVMGetNumOperands(pointer) != 3 || LLVMGetOperand(pointer, 0) != places[source.parent - 1]) { return false; }
+			if (pointer == null || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 29 || LLVMGEPGetNoWrapFlags(pointer) != 0 || LLVMGetNumOperands(pointer) != 3 || LLVMGetOperand(pointer, 0) != places[source.parent - 1]) return false;
 			var parent = program.cfg.core.data.places[source.parent - 1]; var type = program.cfg.core.flow.checked.types.row(parent.type); int symbol = 1; int ordinal = 0; int expected = -1;
 			while (symbol <= program.cfg.core.flow.checked.bindings.symbol_count && budget.take(1)) {
 				var field = program.cfg.core.flow.checked.bindings.symbol(type_symbol(symbol));
-				if (field.kind == 6 && field.owner.index == type.nominal.index) { if (symbol == source.symbol.index) { expected = ordinal; } ordinal = ordinal + 1; }
+				if (field.kind == 6 && field.owner.index == type.nominal.index) {
+					if (symbol == source.symbol.index) expected = ordinal;
+					ordinal = ordinal + 1;
+				}
 				symbol = symbol + 1;
 			}
-			if (expected < 0 || LLVMGetGEPSourceElementType(pointer) != types[parent.type.index] || LLVMIsAConstantInt(LLVMGetOperand(pointer, 1)) == null || LLVMIsAConstantInt(LLVMGetOperand(pointer, 2)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(pointer, 1)) != 0 || LLVMConstIntGetZExtValue(LLVMGetOperand(pointer, 2)) != expected as u64 || LLVMGetBasicBlockParent(LLVMGetInstructionParent(pointer)) != functions[source.function - 1]) { return false; }
+			if (expected < 0 || LLVMGetGEPSourceElementType(pointer) != types[parent.type.index] || LLVMIsAConstantInt(LLVMGetOperand(pointer, 1)) == null || LLVMIsAConstantInt(LLVMGetOperand(pointer, 2)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(pointer, 1)) != 0 || LLVMConstIntGetZExtValue(LLVMGetOperand(pointer, 2)) != expected as u64 || LLVMGetBasicBlockParent(LLVMGetInstructionParent(pointer)) != functions[source.function - 1]) return false;
 		}
 		place = place + 1;
 	}
@@ -290,24 +371,31 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 	while (v < program.data.value_count && budget.take(1)) {
 		var row = program.data.values[v];
 		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.function)) {
-			var actual = values[v]; if (actual == null) { return false; }
+			var actual = values[v]; if (actual == null) return false;
 			var expected_type = types[row.type.index];
-			if ((row.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.type) == 30) { expected_type = LLVMPointerTypeInContext(LLVMGetTypeContext(expected_type), 0); }
-			if (LLVMTypeOf(actual) != expected_type) { return false; }
+			if ((row.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.type) == 30) expected_type = LLVMPointerTypeInContext(LLVMGetTypeContext(expected_type), 0);
+			if (LLVMTypeOf(actual) != expected_type) return false;
 			if (row.kind == 2) {
 				var source = program.cfg.core.data.functions[row.function - 1]; int ordinal = 0; int parameter_place = source.place_first;
-				while (parameter_place < row.place - 1 && budget.take(1)) { var candidate = program.cfg.core.data.places[parameter_place]; if (candidate.parameter && candidate.parent == 0) { ordinal = ordinal + 1; } parameter_place = parameter_place + 1; }
-				if (LLVMGetParam(functions[row.function - 1], ordinal) != actual) { return false; }
+				while (parameter_place < row.place - 1 && budget.take(1)) {
+					var candidate = program.cfg.core.data.places[parameter_place];
+					if (candidate.parameter && candidate.parent == 0) ordinal = ordinal + 1;
+					parameter_place = parameter_place + 1;
+				}
+				if (LLVMGetParam(functions[row.function - 1], ordinal) != actual) return false;
 			}
 			if (row.kind == 3) {
-				if (LLVMIsAInstruction(actual) == null || LLVMGetInstructionOpcode(actual) != 44 || LLVMGetInstructionParent(actual) != blocks[row.block - 1]) { return false; }
+				if (LLVMIsAInstruction(actual) == null || LLVMGetInstructionOpcode(actual) != 44 || LLVMGetInstructionParent(actual) != blocks[row.block - 1]) return false;
 				int count = 0; int a = 0;
 				while (a < program.data.argument_count && budget.take(1)) {
 					var arg = program.data.arguments[a];
-					if (arg.phi == v + 1 && arg.value != 0) { if (count >= LLVMCountIncoming(actual) || LLVMGetIncomingValue(actual, count) != values[arg.value - 1] || LLVMGetIncomingBlock(actual, count) != edges[arg.edge - 1]) { return false; } count = count + 1; }
+					if (arg.phi == v + 1 && arg.value != 0) {
+						if (count >= LLVMCountIncoming(actual) || LLVMGetIncomingValue(actual, count) != values[arg.value - 1] || LLVMGetIncomingBlock(actual, count) != edges[arg.edge - 1]) return false;
+						count = count + 1;
+					}
 					a = a + 1;
 				}
-				if (count != LLVMCountIncoming(actual)) { return false; }
+				if (count != LLVMCountIncoming(actual)) return false;
 			}
 		}
 		v = v + 1;
@@ -316,25 +404,34 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 	while (i < program.data.instruction_count && budget.take(1)) {
 		var instruction = program.data.instructions[i]; var row = instruction.origin; int op = row.opcode;
 		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.value.function)) {
-			void* result = null; if (instruction.result > 0) { result = values[instruction.result - 1]; }
-			if ((op == 1 || op == 2) && !llvm_check_literal(program.cfg.core.flow.checked, row.value, result, budget)) { return false; }
-			if (op == 3 && instruction.promoted) { int use = llvm_check_use(program.data, i + 1, 4, 0, budget); if (!llvm_check_operand(result, values, use)) { return false; } }
-			if ((op == 3 && !instruction.promoted || op == 4) && !((row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30)) { if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) { return false; } }
+			void* result = null; if (instruction.result > 0) result = values[instruction.result - 1];
+			if ((op == 1 || op == 2) && !llvm_check_literal(program.cfg.core.flow.checked, row.value, result, budget)) return false;
+			if (op == 3 && instruction.promoted) {
+				int use = llvm_check_use(program.data, i + 1, 4, 0, budget);
+				if (!llvm_check_operand(result, values, use)) return false;
+			}
+			if ((op == 3 && !instruction.promoted || op == 4) && !((row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30)) {
+				if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) return false;
+			}
 			if (op == 6) {
 				int a = llvm_check_use(program.data, i + 1, 1, 0, budget); int z = llvm_check_use(program.data, i + 1, 2, 0, budget);
-				if (a < 1 || z < 1 || !llvm_check_binary(program.cfg.core.flow.checked, row.value, result, values[a - 1], values[z - 1])) { return false; }
+				if (a < 1 || z < 1 || !llvm_check_binary(program.cfg.core.flow.checked, row.value, result, values[a - 1], values[z - 1])) return false;
 			}
 			if (op == 5 && (checked_kind(program.cfg.core.flow.checked, row.value.type) == 11 || checked_kind(program.cfg.core.flow.checked, row.value.type) == 12)) {
-				int use = llvm_check_use(program.data, i + 1, 1, 0, budget); if (use < 1) { return false; } var value = values[use - 1];
+				int use = llvm_check_use(program.data, i + 1, 1, 0, budget); if (use < 1) return false; var value = values[use - 1];
 				var operation = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.value.operation);
-				if (operation.text == "+") { if (result != value) { return false; } }
+				if (operation.text == "+") {
+					if (result != value) return false;
+				}
 				else {
-					if (operation.text != "-") { return false; }
-					if (LLVMIsAInstruction(result) != null) { if (LLVMGetInstructionOpcode(result) != 66 || LLVMGetOperand(result, 0) != value) { return false; } }
+					if (operation.text != "-") return false;
+					if (LLVMIsAInstruction(result) != null) {
+						if (LLVMGetInstructionOpcode(result) != 66 || LLVMGetOperand(result, 0) != value) return false;
+					}
 					else {
-						if (LLVMIsAConstantFP(result) == null || LLVMIsAConstantFP(value) == null) { return false; }
+						if (LLVMIsAConstantFP(result) == null || LLVMIsAConstantFP(value) == null) return false;
 						int width = type_width(checked_kind(program.cfg.core.flow.checked, row.value.type)); var bits = LLVMIntTypeInContext(LLVMGetTypeContext(LLVMTypeOf(value)), width);
-						if (LLVMConstIntGetZExtValue(LLVMConstBitCast(result, bits)) != (LLVMConstIntGetZExtValue(LLVMConstBitCast(value, bits)) ^ (1 as u64 << (width - 1)))) { return false; }
+						if (LLVMConstIntGetZExtValue(LLVMConstBitCast(result, bits)) != (LLVMConstIntGetZExtValue(LLVMConstBitCast(value, bits)) ^ (1 as u64 << (width - 1)))) return false;
 					}
 				}
 			}
@@ -342,34 +439,47 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 				var operand = program.cfg.core.flow.checked.bindings.program.arena.get_node_operand(row.value.source);
 				int from = checked_kind(program.cfg.core.flow.checked, program.cfg.core.flow.checked.uses[operand.index].type); int to = checked_kind(program.cfg.core.flow.checked, row.value.type);
 				if ((from == 11 || from == 12) && (to == 11 || to == 12)) {
-					int use = llvm_check_use(program.data, i + 1, 1, 0, budget); if (use < 1) { return false; }
+					int use = llvm_check_use(program.data, i + 1, 1, 0, budget); if (use < 1) return false;
 					var value = values[use - 1];
-					if (from == to) { if (result != value) { return false; } }
+					if (from == to) {
+						if (result != value) return false;
+					}
 					else {
 						if (LLVMIsAInstruction(result) != null) {
-							int code = 37; if (to == 12) { code = 38; }
-							if (LLVMGetInstructionOpcode(result) != code || LLVMGetOperand(result, 0) != value) { return false; }
+							int code = 37; if (to == 12) code = 38;
+							if (LLVMGetInstructionOpcode(result) != code || LLVMGetOperand(result, 0) != value) return false;
 						} else {
-							if (LLVMIsAConstantFP(value) == null || LLVMIsAConstantFP(result) == null) { return false; }
-							if (result != LLVMConstReal(LLVMTypeOf(result), llvm13_real_value(value))) { return false; }
+							if (LLVMIsAConstantFP(value) == null || LLVMIsAConstantFP(result) == null) return false;
+							if (result != LLVMConstReal(LLVMTypeOf(result), llvm13_real_value(value))) return false;
 						}
 					}
 				}
 			}
-			if (op == 12 || op == 44 || op == 21 || op == 22) { int a = llvm_check_use(program.data, i + 1, 1, 0, budget); if (!llvm_check_operand(result, values, a) && instruction.result != 0) { return false; } }
+			if (op == 12 || op == 44 || op == 21 || op == 22) {
+				int a = llvm_check_use(program.data, i + 1, 1, 0, budget);
+				if (!llvm_check_operand(result, values, a) && instruction.result != 0) return false;
+			}
 			if ((op == 21 || op == 22) && !instruction.promoted) {
 				var store = effects[i]; int a = llvm_check_use(program.data, i + 1, 1, 0, budget);
-				var destination = program.cfg.core.data.places[row.value.place - 1]; int observation = 0; if ((destination.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, destination.type, 0)) { observation = 1; }
-				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != places[row.value.place - 1] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) { return false; }
+				var destination = program.cfg.core.data.places[row.value.place - 1]; int observation = 0; if ((destination.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, destination.type, 0)) observation = 1;
+				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != places[row.value.place - 1] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) return false;
 			}
 			if (op == 9) {
-				int target = -1; int c = 0; while (c < program.data.function_count && budget.take(1)) { if (program.cfg.core.data.functions[c].symbol.index == row.value.symbol.index) { target = c; } c = c + 1; }
-				if (target < 0 || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || LLVMGetCalledValue(result) != functions[target] || LLVMGetNumArgOperands(result) != row.value.count || LLVMGetInstructionCallConv(result) != 0) { return false; }
+				int target = -1; int c = 0; while (c < program.data.function_count && budget.take(1)) {
+					if (program.cfg.core.data.functions[c].symbol.index == row.value.symbol.index) target = c;
+					c = c + 1;
+				}
+				if (target < 0 || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || LLVMGetCalledValue(result) != functions[target] || LLVMGetNumArgOperands(result) != row.value.count || LLVMGetInstructionCallConv(result) != 0) return false;
 				int a = 0; var signature = program.cfg.core.flow.checked.signatures[row.value.signature.index - 1];
 				while (a < row.value.count && budget.take(1)) {
 					int use = llvm_check_use(program.data, i + 1, 3, a, budget); var parameter = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, a + 1);
-					if ((parameter.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, parameter.type) == 30) { var pointer = llvm_check_borrow(program.data, places, use, budget); if (pointer == null || LLVMGetArgOperand(result, a) != pointer) { return false; } }
-					else { if (!llvm_check_operand(LLVMGetArgOperand(result, a), values, use)) { return false; } }
+					if ((parameter.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, parameter.type) == 30) {
+						var pointer = llvm_check_borrow(program.data, places, use, budget);
+						if (pointer == null || LLVMGetArgOperand(result, a) != pointer) return false;
+					}
+					else {
+						if (!llvm_check_operand(LLVMGetArgOperand(result, a), values, use)) return false;
+					}
 					a = a + 1;
 				}
 			}

@@ -6,13 +6,13 @@ int main() {
 		int offsets = arena.allocate(3, 8);
 		arena.write(offsets, 0, 0); arena.write(offsets, 1, 1); arena.write(offsets, 2, 3);
 		int byte_offset = arena.read(offsets, 1) as int;
-		if (arena.read(text, byte_offset) != 195 || arena.read(text, byte_offset + 1) != 169 || arena.read(text, 3) != 0) { return 81; }
+		if (arena.read(text, byte_offset) != 195 || arena.read(text, byte_offset + 1) != 169 || arena.read(text, 3) != 0) return 81;
 		try { arena.read(text, 4); return 82; } catch(ArenaError error) {}
 		try { arena.release_last(text); return 83; } catch(ArenaError error) {}
 		arena.release_last(offsets);
 		int newer = arena.allocate(3, 8);
 		try { arena.read(offsets, 0); return 84; } catch(ArenaError error) {}
-		if (arena.read(newer, 0) != 0 || arena.length(text) != 4) { return 85; }
+		if (arena.read(newer, 0) != 0 || arena.length(text) != 4) return 85;
 		arena.release_last(newer); arena.release_last(text);
 		println("A46 UTF-8 starts 0,1,3; expired index rejected");
 	} catch(ArenaError error) { return 86; }

@@ -5,13 +5,21 @@ struct ArenaPacket {
 	u32 tag;
 	u32 payload;
 }
+
 owned PacketResource empty_packet_resource() { return null; }
+
 int packet_storage_count(ByteArena storage) { return storage.count(); }
+
 int packet_storage_occupied(ByteArena storage) { return storage.occupied(); }
+
 int packet_storage_allocate(ByteArena storage) throws ArenaError { return storage.allocate(8, 4); }
+
 int packet_storage_offset(ByteArena storage, int id) throws ArenaError { return storage.offset(id); }
+
 u32 packet_storage_read(ByteArena storage, int id, int at) throws ArenaError { return storage.read_u32_le(id, at); }
+
 void packet_storage_write(ByteArena storage, int id, int at, u32 value) throws ArenaError { storage.write_u32_le(id, at, value); }
+
 void packet_storage_release(ByteArena storage, int id) throws ArenaError { storage.release_last(id); }
 
 class PacketArena {
@@ -20,6 +28,7 @@ class PacketArena {
 	private owned PacketResource second;
 	private int first_id;
 	private int second_id;
+
 	init(int capacity) {
 		var storage = new ByteArena(capacity, 2);
 		this.storage = move storage;
@@ -28,17 +37,26 @@ class PacketArena {
 		this.first_id = 0;
 		this.second_id = 0;
 	}
+
 	int count() { return packet_storage_count(this.storage); }
+
 	int occupied() { return packet_storage_occupied(this.storage); }
+
 	void put_u32(int id, int at, u32 value) throws ArenaError {
 		packet_storage_write(this.storage, id, at, value);
 	}
+
 	u32 get_u32(int id, int at) throws ArenaError {
 		return packet_storage_read(this.storage, id, at);
 	}
+
 	int append(ArenaPacket packet, owned PacketResource resource) throws ArenaError {
-		if (resource == null) { throw new ArenaError("packet resource must be nonnull"); }
-		if (this.first_id != 0 && this.second_id != 0) { throw new ArenaError("typed arena slot capacity exhausted"); }
+		if (resource == null) {
+			throw new ArenaError("packet resource must be nonnull");
+		}
+		if (this.first_id != 0 && this.second_id != 0) {
+			throw new ArenaError("typed arena slot capacity exhausted");
+		}
 		int id = packet_storage_allocate(this.storage);
 		// The new allocation is exactly eight bytes. All writes below are in range.
 		this.put_u32(id, 0, packet.tag);
@@ -52,26 +70,43 @@ class PacketArena {
 		}
 		return id;
 	}
+
 	ArenaPacket read(int id) throws ArenaError {
-		if (id == 0 || (id != this.first_id && id != this.second_id)) { throw new ArenaError("expired typed arena record"); }
+		if (id == 0 || (id != this.first_id && id != this.second_id)) {
+			throw new ArenaError("expired typed arena record");
+		}
 		ArenaPacket result = {tag=this.get_u32(id, 0), payload=this.get_u32(id, 4)};
 		return result;
 	}
+
 	int offset(int id) throws ArenaError {
-		if (id == 0 || (id != this.first_id && id != this.second_id)) { throw new ArenaError("expired typed arena record"); }
+		if (id == 0 || (id != this.first_id && id != this.second_id)) {
+			throw new ArenaError("expired typed arena record");
+		}
 		return packet_storage_offset(this.storage, id);
 	}
+
 	void drop_last(int id) throws ArenaError {
-		if (id == 0 || (id != this.first_id && id != this.second_id)) { throw new ArenaError("expired typed arena record"); }
+		if (id == 0 || (id != this.first_id && id != this.second_id)) {
+			throw new ArenaError("expired typed arena record");
+		}
 		// Validate LIFO before retiring ownership. Failure leaves the live slot intact.
 		packet_storage_release(this.storage, id);
-		if (id == this.second_id) { this.second = empty_packet_resource(); this.second_id = 0; }
-		else { this.first = empty_packet_resource(); this.first_id = 0; }
+		if (id == this.second_id) {
+			this.second = empty_packet_resource();
+			this.second_id = 0;
+		}
+		else {
+			this.first = empty_packet_resource();
+			this.first_id = 0;
+		}
 	}
 }
 
 owned PacketArena packet_arena(int capacity) throws ArenaError {
-	if (capacity < 0) { throw new ArenaError("negative typed arena capacity"); }
+	if (capacity < 0) {
+		throw new ArenaError("negative typed arena capacity");
+	}
 	var result = new PacketArena(capacity);
 	return move result;
 }

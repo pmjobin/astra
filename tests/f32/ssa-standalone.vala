@@ -68,4 +68,5 @@ int main(string[] args) {
 	Test.add_func ("/f32/ssa/standalone-loop-parameters-constants", loops);
 	return Test.run ();
 }
+
 }

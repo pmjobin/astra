@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class PromisedValue {
 	int code;
+
 	init(int code) { this.code = code; }
 }
+
 owned nonnull PromisedValue make_promised(int code) {
 	owned nonnull PromisedValue result = new PromisedValue(code);
 	return move result;
 }
+
 int read_promised(nonnull PromisedValue value) { return value.code; }
+
 int main() {
 	var value = make_promised(42);
 	return read_promised(value) - 42;

@@ -155,4 +155,5 @@ int main(string[] args) {
 	Test.add_func ("/iconv/semantic/unsupported-domains-and-shapes", unsupported);
 	return Test.run ();
 }
+
 }

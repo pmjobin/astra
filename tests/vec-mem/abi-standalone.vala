@@ -60,4 +60,5 @@ int main(string[] args) {
 	Test.add_func ("/vecmem/abi/standalone-existing-profiles", profiles);
 	return Test.run ();
 }
+
 }

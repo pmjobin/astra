@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 i16 step(i16 c,i8<4> a,i8<4> b){return mac_wrap(c,a,b);}
+
 u16 ustep(u16 c,i8<4> a,i8<4> b){return mac_wrap(c,a,b);}
+
 int main(){
 	i8<4> a=splat(-1,4);
 	i8<4> b=splat(1,4);
-	if(step(0,a,b)!=dot_wrap(a,b,i16)){return 1;}
-	if(step(-32768,a,b)!=32764){return 2;}
-	if(ustep(2,a,b)!=65534){return 3;}
-	if(ustep(65535,a,b)!=65531){return 4;}
+	if(step(0,a,b)!=dot_wrap(a,b,i16)) return 1;
+	if(step(-32768,a,b)!=32764) return 2;
+	if(ustep(2,a,b)!=65534) return 3;
+	if(ustep(65535,a,b)!=65531) return 4;
 	return 0;
 }

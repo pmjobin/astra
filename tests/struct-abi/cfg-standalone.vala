@@ -62,6 +62,7 @@ private CfgProgram sample() throws GLib.Error {
 	}
 	return new CfgProgram (s, functions, null, null, structures);
 }
+
 private void positive() {
 	try {
 		CfgProgram? p = sample ();
@@ -78,6 +79,7 @@ private void positive() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int scenario = 0; scenario < 11; scenario++) {
 		bool rejected = false;
@@ -131,10 +133,12 @@ private void invalid() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-abi/cfg/independent-parameters-local-leaves-snapshots-results", positive);
 	Test.add_func ("/struct-abi/cfg/unresolved-contract-order-acquisition-mutation-firewalls", invalid);
 	return Test.run ();
 }
+
 }

@@ -25,6 +25,7 @@ private void refused(string label, owned Check check) throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 private CheckedProgram source(bool com = false) {
 	string attributes = com ? "[COMExport(value_iid=\"849ad154-8d1e-4c63-9ea2-14329b022001\",scale_iid=\"849ad154-8d1e-4c63-9ea2-14329b022002\",threading=\"constructing\")]" : "";
 	var parsed = Parser.parse (new SourceFile.from_text ("foreign-class-proof.astra", attributes + SOURCE));
@@ -33,6 +34,7 @@ private CheckedProgram source(bool com = false) {
 	assert (checked.diagnostic == null);
 	return checked.program;
 }
+
 private void stage_authority() {
 	try {
 		CheckedProgram? checked = source ();
@@ -99,6 +101,7 @@ private void stage_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ordinary(LlvmModuleArtifact module) {
 	char* message;
 	int status = CApi.verify_module (module.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -110,6 +113,7 @@ private void ordinary(LlvmModuleArtifact module) {
 		error ("ordinary LLVM control failed: %s", diagnostic);
 	}
 }
+
 private void com_authority() {
 	try {
 		var checked = source (true);
@@ -156,6 +160,7 @@ private void com_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scalar_pointer_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("c-pointer-proof.astra", "[CImport(pointer_abi=\"i32-noescape\")]int update(int mode,borrowed int* value);int main(){int value=2;return update(0,&value);}"));
@@ -195,6 +200,7 @@ private void scalar_pointer_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void imported_com_authority() {
 	try {
 		ParseResult? parsed = Parser.parse (new SourceFile.from_text ("com-import-proof.astra", "[COMImport(name=\"imported14\",iid=\"849ad154-8d1e-4c63-9ea2-14329b022001\",view=\"value\",threading=\"constructing\")]interface Imported;int exercise(void* input){int status=0;owned Imported value=imported14_acquire(input,&status);if(value==null){return status;}owned Imported copy=imported14_clone(value,&status);int out=0;return imported14_get(copy,&out);}"));
@@ -260,6 +266,7 @@ private void imported_com_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void gobject_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("gobject-proof.astra", "[GObjectExport(type=\"Proof14Cell\",namespace=\"Proof14\",version=\"1.0\")]" + SOURCE.replace ("proof14", "proof14_cell")));
@@ -311,6 +318,7 @@ private void gobject_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void gobject_import_origin() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("gobject-import-proof.astra", "[GObjectImport(name=\"read14\",header=\"bridge.h\",pointer_abi=\"i32-noescape\")]int read(borrowed int* value);int main(){int value=0;return read(&value);}"));
@@ -356,6 +364,7 @@ private void gobject_import_origin() {
 		error ("%s", failure.message);
 	}
 }
+
 private void union_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("c-union-proof.astra", "[Repr(layout=\"C-tagged-union\",members=\"integer:i64,bits:u64\",active=\"integer\",tag=\"1\")]struct Packet{i64 tag;i64 integer;}[CImport(name=\"packet14\",record_abi=\"value-lp64\")]Packet receive(Packet value);[CExport(name=\"out_packet14\",record_abi=\"value-lp64\")]Packet send(Packet value){return receive(value);}"));
@@ -447,6 +456,7 @@ private void union_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void physical_authority() {
 	try {
 		var checked = source ();
@@ -507,6 +517,7 @@ private void physical_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void c_bool_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("c-bool-proof.astra", "[CImport(name=\"bool14\",bool_abi=\"c99\")]bool receive(bool value);[CExport(name=\"bool14_out\",bool_abi=\"c99\")]bool send(bool value){return receive(value);}"));
@@ -597,6 +608,7 @@ private void c_bool_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/foreign-class/stage-authority-and-graph-release", stage_authority);
@@ -610,4 +622,5 @@ int main(string[] args) {
 	Test.add_func ("/foreign-class/c99-bool-policy-zeroext-target-restored-graphs", c_bool_authority);
 	return Test.run ();
 }
+
 }

@@ -10,6 +10,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 
 private HashTable<string, Case> cases;
@@ -38,14 +39,17 @@ private class Run : Object {
 	internal Run (string[] argv, string? directory = null, string[]? environment = null) throws SpawnError {
 		Process.spawn_sync (directory, argv, environment, (SpawnFlags) 0, null, out output, out errors, out status);
 	}
+
 	internal void exits(int expected) {
 		if (!Process.if_exited (status) || Process.exit_status (status) != expected) {
 			GLib.error ("expected exit %d, wait status %d; stdout: %s; stderr: %s", expected, status, output, errors);
 		}
 	}
+
 	internal void silent() {
 		assert (output == "" && errors == "");
 	}
+
 }
 
 private class Workspace : Object {
@@ -97,6 +101,7 @@ private class Workspace : Object {
 		DirUtils.remove (temporary);
 		assert (DirUtils.remove (directory) == 0);
 	}
+
 }
 
 private void execute(string text, int expected = 0, bool trap = false) throws GLib.Error {
@@ -139,4 +144,5 @@ int main(string[] args) {
 	register_ownership ();
 	return Test.run ();
 }
+
 }

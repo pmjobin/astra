@@ -13,6 +13,7 @@ private void refused(owned Check action) {
 	}
 	assert (rejected);
 }
+
 private int allocation(RuntimeLifetimeEquations graph, int context = -1, int region = -1, string? field = null, int child = 0) throws GLib.Error {
 	var roots = new GenericArray<RuntimeScopeOrigin> ();
 	if (context >= 0) {
@@ -24,6 +25,7 @@ private int allocation(RuntimeLifetimeEquations graph, int context = -1, int reg
 	}
 	return graph.product (roots, fields);
 }
+
 private bool contains(GenericArray<RuntimeScopeOrigin> origins, int context) {
 	foreach (var origin in origins) {
 		if (origin.kind == RuntimeScopeOriginKind.LOCAL_CONTEXT && origin.ordinal == context) {
@@ -32,6 +34,7 @@ private bool contains(GenericArray<RuntimeScopeOrigin> origins, int context) {
 	}
 	return false;
 }
+
 private void independent_origins() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -56,6 +59,7 @@ private void independent_origins() {
 		error ("%s", failure.message);
 	}
 }
+
 private void nested_products() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -75,6 +79,7 @@ private void nested_products() {
 		error ("%s", failure.message);
 	}
 }
+
 private void opaque_substitution() {
 	try {
 		var producer = new RuntimeLifetimeEquations ();
@@ -105,6 +110,7 @@ private void opaque_substitution() {
 		error ("%s", failure.message);
 	}
 }
+
 private void replacement_summary() {
 	try {
 		var producer = new RuntimeLifetimeEquations ();
@@ -138,6 +144,7 @@ private void replacement_summary() {
 		error ("%s", failure.message);
 	}
 }
+
 private void recursive_backedges() {
 	try {
 		RuntimeLifetimeEquations? graph = new RuntimeLifetimeEquations ();
@@ -157,6 +164,7 @@ private void recursive_backedges() {
 		error ("%s", failure.message);
 	}
 }
+
 private void original_allocation_root() {
 	try {
 		var producer = new RuntimeLifetimeEquations ();
@@ -195,6 +203,7 @@ private void original_allocation_root() {
 		error ("%s", failure.message);
 	}
 }
+
 private void recursive_projection() {
 	try {
 		var producer = new RuntimeLifetimeEquations ();
@@ -226,6 +235,7 @@ private void recursive_projection() {
 		error ("%s", failure.message);
 	}
 }
+
 private void escape_and_grounding() {
 	try {
 		var producer = new RuntimeLifetimeEquations ();
@@ -247,6 +257,7 @@ private void escape_and_grounding() {
 		error ("%s", failure.message);
 	}
 }
+
 private void malformed_and_sealed() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -271,6 +282,7 @@ private void malformed_and_sealed() {
 		error ("%s", failure.message);
 	}
 }
+
 private void actual_storage_extent() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -324,6 +336,7 @@ private void actual_storage_extent() {
 		error ("%s", failure.message);
 	}
 }
+
 private void structured_flow_versions() {
 	try {
 		var flow = new RuntimeLifetimeFlow ();
@@ -365,6 +378,7 @@ private void structured_flow_versions() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exception_state_versions() {
 	try {
 		RuntimeLifetimeFlow? flow = new RuntimeLifetimeFlow ();
@@ -395,6 +409,7 @@ private void exception_state_versions() {
 		error ("%s", failure.message);
 	}
 }
+
 private void frozen_summary_inventory() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -423,6 +438,7 @@ private void frozen_summary_inventory() {
 		error ("%s", failure.message);
 	}
 }
+
 private void archived_summary() {
 	try {
 		RuntimeLifetimeEquations? graph = new RuntimeLifetimeEquations ();
@@ -472,6 +488,7 @@ private void archived_summary() {
 		error ("%s", failure.message);
 	}
 }
+
 private void archived_mutants() {
 	try {
 		string valid = "runtime-lifetime-summary/1\nr|1\n--\nruntime-lifetime-equations/1\na\ni|0\n";
@@ -485,6 +502,7 @@ private void archived_mutants() {
 		error ("%s", failure.message);
 	}
 }
+
 private void retired_local_summary() {
 	try {
 		var producer = new RuntimeLifetimeEquations ();
@@ -514,6 +532,7 @@ private void retired_local_summary() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exceptional_summary() {
 	try {
 		RuntimeLifetimeEquations? graph = new RuntimeLifetimeEquations ();
@@ -565,6 +584,7 @@ private void coordinate_origin(RuntimeLifetimeSummary summary, string field, Run
 	var roots = summary.equations.requirements (summary.result, field);
 	assert (roots.length == 1 && roots[0].kind == kind && roots[0].ordinal == ordinal && roots[0].path == path);
 }
+
 private void native_coordinates() {
 	try {
 		var indices = new GenericArray<int> ();
@@ -647,6 +667,7 @@ private void native_coordinates() {
 		error ("%s", failure.message);
 	}
 }
+
 private void empty_query_identity() {
 	try {
 		RuntimeLifetimeEquations? graph = new RuntimeLifetimeEquations ();
@@ -706,6 +727,7 @@ private void empty_query_identity() {
 		error ("%s", failure.message);
 	}
 }
+
 private void repeated_empty_products() {
 	try {
 		var graph = new RuntimeLifetimeEquations ();
@@ -734,6 +756,7 @@ private void repeated_empty_products() {
 		error ("%s", failure.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/runtime-lifetimes/empty-query-exact-identity-guards", empty_query_identity);
@@ -758,4 +781,5 @@ public int main(string[] args) {
 	Test.add_func ("/runtime-lifetimes/retired-local-hidden-by-replacement-projection", retired_local_summary);
 	return Test.run ();
 }
+
 }

@@ -4,39 +4,47 @@ struct SyntaxTypeTask {
 	SyntaxNodeId node;
 	SyntaxTokenId token;
 }
+
 class SyntaxTypeWalk {
 	private owned SyntaxTypeTask[] tasks;
 	private int used;
+
 	init() {
 		this.tasks = new SyntaxTypeTask[0];
 		this.used = 0;
 	}
+
 	property int count {
 		get {
 			return this.used;
 		}
 	}
+
 	void node(SyntaxNodeId node) {
 		SyntaxTokenId token = {index = 0};
 		SyntaxTypeTask task = {phase = 0, node = node, token = token};
 		this.push(task);
 	}
+
 	void text(int phase) {
 		SyntaxNodeId node = {index = 0};
 		SyntaxTokenId token = {index = 0};
 		SyntaxTypeTask task = {phase = phase, node = node, token = token};
 		this.push(task);
 	}
+
 	void token(SyntaxTokenId token) {
 		SyntaxNodeId node = {index = 0};
 		SyntaxTypeTask task = {phase = 10, node = node, token = token};
 		this.push(task);
 	}
+
 	void raw(SyntaxNodeId node) {
 		SyntaxTokenId token = {index = 0};
 		SyntaxTypeTask task = {phase = 11, node = node, token = token};
 		this.push(task);
 	}
+
 	void push(SyntaxTypeTask task) {
 		assert_that(this.used < 2147483647);
 		if (this.used == len(this.tasks)) {
@@ -51,6 +59,7 @@ class SyntaxTypeWalk {
 		this.tasks[this.used] = task;
 		this.used = this.used + 1;
 	}
+
 	SyntaxTypeTask pop() {
 		assert_that(this.used > 0);
 		this.used = this.used - 1;

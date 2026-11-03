@@ -1,61 +1,78 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class CallableLoanChild {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	int read() { return this.code; }
+
 	deinit() { mark(this.code); }
 }
+
 class CallableLoanHolder<T> {
 	private T tag;
 	private Fn<int,borrowed CallableLoanChild,int> callback;
+
 	init(T tag, Fn<int,borrowed CallableLoanChild,int> callback) { this.tag = tag; this.callback = callback; }
+
 	int invoke(borrowed CallableLoanChild value) {
 		Fn<int,borrowed CallableLoanChild,int> code = this.callback;
 		return code(value, 1);
 	}
+
 	property T stamp { get { return this.tag; } }
 }
+
 int inspect_callable_child(borrowed CallableLoanChild value, int extra) { return value.read() + extra; }
+
 int inspect_callable_resource(borrowed R value) { return id(value); }
+
 int inspect_callable_other(borrowed Other value) { return other_id(value); }
+
 Fn<int,borrowed CallableLoanChild,int> choose_callable_child() { return inspect_callable_child; }
+
 int forward_callable_child(Fn<int,borrowed CallableLoanChild,int> code, borrowed CallableLoanChild value) {
 	return code(value, 3);
 }
+
 int forward_callable_resource(Fn<int,borrowed R> code, borrowed R value) { return code(value); }
+
 struct CallableLoanPair { owned CallableLoanChild child; owned R resource; }
+
 int read_callable_pair(Fn<int,borrowed CallableLoanChild,int> code, Fn<int,borrowed R> resource, borrowed CallableLoanPair value) {
 	return code(value.child, resource(value.resource));
 }
+
 int exercise_callable_loans() {
 	var child = new CallableLoanChild(19);
 	var extra = new CallableLoanChild(23);
 	Fn<int,borrowed CallableLoanChild,int> code = choose_callable_child();
-	if (code(child, 4) != 23 || code(extra, 4) != 27 || forward_callable_child(code, child) != 22) { return 1; }
+	if (code(child, 4) != 23 || code(extra, 4) != 27 || forward_callable_child(code, child) != 22) return 1;
 	var callback = new CallableLoanHolder<int>(42, code);
-	if (callback.invoke(child) != 20 || callback.stamp != 42) { return 7; }
+	if (callback.invoke(child) != 20 || callback.stamp != 42) return 7;
 	owned CallableLoanChild lexical = CallableLoanChild.init(29);
-	if (code(lexical, 1) != 30) { return 8; }
+	if (code(lexical, 1) != 30) return 8;
 	var first = make(211);
 	var second = make_other(212);
 	Fn<int,borrowed R> read_first = inspect_callable_resource;
 	Fn<int,borrowed Other> read_second = inspect_callable_other;
-	if (read_first(first) != 211 || forward_callable_resource(read_first, first) != 211 || read_second(second) != 212) { return 2; }
+	if (read_first(first) != 211 || forward_callable_resource(read_first, first) != 211 || read_second(second) != 212) return 2;
 	var first_box = new Box<R>(move first);
 	var second_box = new Box<Other>(move second);
 	var child_box = new Box<CallableLoanChild>(move child);
-	if (read_first(first_box.view) != 211 || read_second(second_box.view) != 212 || code(child_box.view, 5) != 24) { return 3; }
-	if (code(child_box.view, read_first(first_box.view)) != 230 || live() != 2) { return 4; }
+	if (read_first(first_box.view) != 211 || read_second(second_box.view) != 212 || code(child_box.view, 5) != 24) return 3;
+	if (code(child_box.view, read_first(first_box.view)) != 230 || live() != 2) return 4;
 	var pair_child = new CallableLoanChild(31);
 	var pair_resource = make(213);
 	CallableLoanPair pair = {child = move pair_child, resource = move pair_resource};
-	if (read_callable_pair(code, read_first, pair) != 244) { return 5; }
+	if (read_callable_pair(code, read_first, pair) != 244) return 5;
 	var pair_box = new Box<CallableLoanPair>(move pair);
-	if (code(pair_box.view.child, read_first(pair_box.view.resource)) != 244 || read_callable_pair(code, read_first, pair_box.view) != 244) { return 6; }
+	if (code(pair_box.view.child, read_first(pair_box.view.resource)) != 244 || read_callable_pair(code, read_first, pair_box.view) != 244) return 6;
 	return 0;
 }
+
 int main() {
 	int result = exercise_callable_loans();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

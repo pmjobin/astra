@@ -119,5 +119,6 @@ public class Token : Object {
 	public string spelling() {
 		return generated_spelling ?? span.text ();
 	}
+
 }
 }

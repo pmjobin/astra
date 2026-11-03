@@ -114,4 +114,5 @@ int main(string[] args) {
 	Test.add_func ("/dot/core/four-modes-and-malformed-verifier", modes);
 	return Test.run ();
 }
+
 }

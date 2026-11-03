@@ -18,11 +18,13 @@ static AstraAsyncToken slow_token;
 static uint64_t first_id;
 static unsigned kernel_waits;
 static uint64_t kernel_wait_ns;
+
 static uint64_t clock_ns(void) {
 	struct timespec ts;
 	assert(clock_gettime(CLOCK_MONOTONIC, &ts) == 0);
 	return (uint64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
+
 extern void *__real_malloc(size_t bytes);
 extern void *__real_calloc(size_t count, size_t bytes);
 extern void __real_free(void *pointer);
@@ -31,6 +33,7 @@ extern int __real_astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milli
 extern int __real_astra_async_release_wait(AstraAsyncTask *parent, int transfer);
 extern void __real_astra_async_complete(AstraAsyncTask *task, int phase, void *exception);
 extern int __real_io_uring_submit_and_wait(struct io_uring *ring, unsigned wait_nr);
+
 int __wrap_io_uring_submit_and_wait(struct io_uring *ring, unsigned wait_nr) {
 	assert(wait_nr == 1);
 	uint64_t started = clock_ns();
@@ -39,9 +42,11 @@ int __wrap_io_uring_submit_and_wait(struct io_uring *ring, unsigned wait_nr) {
 	kernel_waits++;
 	return result;
 }
+
 void *__wrap_malloc(size_t bytes) {
 	return __real_malloc(bytes);
 }
+
 void *__wrap_calloc(size_t count, size_t bytes) {
 	void *pointer = __real_calloc(count, bytes);
 	if (count == 17 && bytes == sizeof(int)) {
@@ -51,6 +56,7 @@ void *__wrap_calloc(size_t count, size_t bytes) {
 	}
 	return pointer;
 }
+
 void __wrap_free(void *pointer) {
 	if (pointer != NULL && pointer == slow_frame && !slow_retired) {
 		assert(slow_joined && waits == 2);
@@ -65,6 +71,7 @@ void __wrap_free(void *pointer) {
 	}
 	__real_free(pointer);
 }
+
 AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent) {
 	AstraAsyncTask *task = __real_astra_async_new(size, alignment, resume, destroy, parent);
 	if (parent == NULL) {
@@ -78,6 +85,7 @@ AstraAsyncTask *__wrap_astra_async_new(size_t size, size_t alignment, AstraAsync
 	}
 	return task;
 }
+
 int __wrap_astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds) {
 	uint64_t entered = clock_ns();
 	int result = __real_astra_async_linux_delay_ms(task, milliseconds);
@@ -108,17 +116,20 @@ int __wrap_astra_async_linux_delay_ms(AstraAsyncTask *task, int64_t milliseconds
 	}
 	return result;
 }
+
 void __wrap_astra_async_complete(AstraAsyncTask *task, int phase, void *exception) {
 	if (task == slow_task && !slow_retired) {
 		typedef struct Buffer {
 			int *base;
 			int32_t count;
 		} Buffer;
+
 		Buffer *result = astra_async_data(task);
 		assert(phase == ASTRA_ASYNC_SUCCESS && exception == NULL && waits == 2 && result->base == allocation && result->count == 17 && allocation_live && result->base[0] == 40 && result->base[1] == 2);
 	}
 	__real_astra_async_complete(task, phase, exception);
 }
+
 int __wrap_astra_async_release_wait(AstraAsyncTask *parent, int transfer) {
 	if (astra_async_waited(parent) == slow_task && !slow_retired) {
 		assert(transfer && events[3] == 1);
@@ -126,7 +137,9 @@ int __wrap_astra_async_release_wait(AstraAsyncTask *parent, int transfer) {
 	}
 	return __real_astra_async_release_wait(parent, transfer);
 }
+
 #endif
+
 void observed(int stage, int value) {
 	assert(stage >= 1 && stage <= 9 && value == (stage == 1 ? 39 : 42));
 	assert(events[stage]++ == 0);
@@ -144,6 +157,7 @@ void observed(int stage, int value) {
 	}
 #endif
 }
+
 __attribute__((destructor)) static void verify(void) {
 	for (unsigned i = 1; i <= 7; i++) {
 		assert(events[i] == 1);

@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int admission_event(int kind, int id);
+
 extern(C) int admission_finish();
+
 [ExceptionRoot] class AdmissionFault {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 class AdmissionChild {
 	private int id;
+
 	init(int id) { this.id = id; }
+
 	int identity() { return this.id; }
+
 	deinit() { admission_event(2, this.id); }
 }
+
 struct AdmissionRecord<T> where T : Ownable {
 	owned T child;
 	owned AdmissionToken token;
@@ -19,46 +28,69 @@ struct AdmissionRecord<T> where T : Ownable {
 	owned ContextBytes<ConcurrentAllocator> bytes;
 	int marker;
 }
+
 struct AdmissionEnvelope<T> where T : Ownable {
 	AdmissionRecord<T> body;
 	int stamp;
 }
+
 AdmissionEnvelope<AdmissionChild> admission_record(borrowed ConcurrentAllocator objects, int identity) {
 	var child = new AdmissionChild(identity); var token = admission_token(identity);
 	var plain = new u8[17]; plain[0] = 37; var bytes = new(objects)u8[23]; bytes[0] = 41;
 	AdmissionEnvelope<AdmissionChild> record = {body={child=move child,token=move token,plain=move plain,bytes=move bytes,marker=identity},stamp=7};
 	return move record;
 }
+
 int admission_record_probe(borrowed AdmissionEnvelope<AdmissionChild> record, bool empty, int identity) {
-	if (record.body.marker != identity || record.stamp != 7) { return 1; }
-	if (empty) { if (record.body.child != null || record.body.token != null || len(record.body.plain) != 0 || len(record.body.bytes) != 0) { return 2; } return 0; }
-	if (record.body.child == null || record.body.token == null || len(record.body.plain) != 17 || record.body.plain[0] != (37 as u8) || len(record.body.bytes) != 23 || record.body.bytes[0] != (41 as u8)) { return 3; }
-	if (admission_token_identity(record.body.token) != identity) { return 4; }
+	if (record.body.marker != identity || record.stamp != 7) return 1;
+	if (empty) {
+		if (record.body.child != null || record.body.token != null || len(record.body.plain) != 0 || len(record.body.bytes) != 0) return 2;
+		return 0;
+	}
+	if (record.body.child == null || record.body.token == null || len(record.body.plain) != 17 || record.body.plain[0] != (37 as u8) || len(record.body.bytes) != 23 || record.body.bytes[0] != (41 as u8)) return 3;
+	if (admission_token_identity(record.body.token) != identity) return 4;
 	return record.body.child.identity() - identity;
 }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class AdmissionOwner {
 	private owned AdmissionEnvelope<AdmissionChild> record;
 	private owned u8[] tail;
+
 	init(AdmissionEnvelope<AdmissionChild> record, owned u8[] tail, int identity, int failure) throws AdmissionFault {
 		admission_event(1, identity);
-		if (admission_record_probe(record, false, identity) != 0 || len(tail) != 19 || tail[0] != (43 as u8)) { throw new AdmissionFault("record inputs"); }
-		if (failure == 1) { throw new AdmissionFault("before fields"); }
+		if (admission_record_probe(record, false, identity) != 0 || len(tail) != 19 || tail[0] != (43 as u8)) {
+			throw new AdmissionFault("record inputs");
+		}
+		if (failure == 1) {
+			throw new AdmissionFault("before fields");
+		}
 		this.record = move record;
-		if (failure == 2) { throw new AdmissionFault("record field"); }
+		if (failure == 2) {
+			throw new AdmissionFault("record field");
+		}
 		this.tail = move tail;
-		if (failure == 3) { throw new AdmissionFault("complete fields"); }
+		if (failure == 3) {
+			throw new AdmissionFault("complete fields");
+		}
 	}
+
 	int identity() { return this.record.body.marker; }
+
 	deinit() { admission_event(3, this.record.body.marker); }
 }
+
 struct AdmissionCopyTag { int code; u8 suffix; }
+
 [Allocator(kind="context",context="owned-concurrent")]
 class AdmissionCopyOwner {
 	private AdmissionCopyTag tag;
+
 	init(AdmissionCopyTag tag) { this.tag = tag; }
+
 	int identity() { return this.tag.code + (this.tag.suffix as int); }
 }
+
 int main() {
 	var context = concurrent_allocator(2, 1024, 1, 64);
 	var objects = concurrent_allocator(1, 16387, 13, 128);
@@ -66,14 +98,14 @@ int main() {
 	var first_tail = new u8[19]; first_tail[0] = 43;
 	try {
 		var first = try_new(context) AdmissionOwner(move first_record, move first_tail, 1, 0);
-		if (first == null || first.identity() != 1 || admission_record_probe(first_record, true, 1) != 0 || len(first_tail) != 0) { return 1; }
+		if (first == null || first.identity() != 1 || admission_record_probe(first_record, true, 1) != 0 || len(first_tail) != 0) return 1;
 		AdmissionEnvelope<AdmissionChild> pending = admission_record(objects, 2);
 		var pending_tail = new u8[19]; pending_tail[0] = 43;
 		var refused = try_new(context) AdmissionOwner(move pending, move pending_tail, 2, 3);
-		if (refused != null || admission_record_probe(pending, false, 2) != 0 || len(pending_tail) != 19 || pending_tail[0] != (43 as u8)) { return 2; }
+		if (refused != null || admission_record_probe(pending, false, 2) != 0 || len(pending_tail) != 19 || pending_tail[0] != (43 as u8)) return 2;
 		release first;
 		var recovered = try_new(context) AdmissionOwner(move pending, move pending_tail, 2, 0);
-		if (recovered == null || recovered.identity() != 2 || admission_record_probe(pending, true, 2) != 0 || len(pending_tail) != 0) { return 3; }
+		if (recovered == null || recovered.identity() != 2 || admission_record_probe(pending, true, 2) != 0 || len(pending_tail) != 0) return 3;
 		release recovered;
 	} catch (AdmissionFault error) { return 4; }
 	for (int mode = 1; mode < 4; mode = mode + 1) {
@@ -82,15 +114,15 @@ int main() {
 		bool caught = false;
 		try { var failed = try_new(context) AdmissionOwner(move record, move tail, mode + 2, mode); return 5; }
 		catch (AdmissionFault error) { caught = true; }
-		if (!caught || admission_record_probe(record, true, mode + 2) != 0 || len(tail) != 0 || concurrent_allocator_query(context, 1) != 0 || concurrent_allocator_query(objects, 1) != 0) { return 6; }
+		if (!caught || admission_record_probe(record, true, mode + 2) != 0 || len(tail) != 0 || concurrent_allocator_query(context, 1) != 0 || concurrent_allocator_query(objects, 1) != 0) return 6;
 	}
 	var extra = new AdmissionChild(6); release extra;
 	AdmissionCopyTag tag = {code=17,suffix=3};
 	var copied = try_new(context) AdmissionCopyOwner(tag);
-	if (copied == null || copied.identity() != 20 || tag.code != 17) { return 8; }
+	if (copied == null || copied.identity() != 20 || tag.code != 17) return 8;
 	var refused_copy = try_new(context) AdmissionCopyOwner(tag);
-	if (refused_copy != null || tag.code != 17 || tag.suffix != (3 as u8)) { return 9; }
+	if (refused_copy != null || tag.code != 17 || tag.suffix != (3 as u8)) return 9;
 	release copied;
-	if (concurrent_allocator_query(context, 1) != 0 || concurrent_allocator_query(objects, 1) != 0) { return 7; }
+	if (concurrent_allocator_query(context, 1) != 0 || concurrent_allocator_query(objects, 1) != 0) return 7;
 	return admission_finish();
 }

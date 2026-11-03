@@ -4,14 +4,15 @@ int scoped() {
 	owned void* b = second(2);
 	release a;
 	release b;
-	if (resource_effect_order() != 182) { return 1; }
+	if (resource_effect_order() != 182) return 1;
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped() != 0) { return 1; }
-	if (resource_create_count() != 2 || resource_destroy_count() != 2) { return 2; }
-	if (resource_destroy_order() != 12 || resource_effect_order() != 182) { return 3; }
-	if (resource_live_count() != 0 || resource_error_count() != 0) { return 4; }
+	if (scoped() != 0) return 1;
+	if (resource_create_count() != 2 || resource_destroy_count() != 2) return 2;
+	if (resource_destroy_order() != 12 || resource_effect_order() != 182) return 3;
+	if (resource_live_count() != 0 || resource_error_count() != 0) return 4;
 	return 0;
 }

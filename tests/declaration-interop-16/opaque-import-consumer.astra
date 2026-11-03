@@ -2,10 +2,10 @@
 export(C) int opaque_import16_run(){
 	try{
 		var first=UnitCProvider.init(7);var second=UnitGProvider.init(11);
-		if(ImportChannel16.inspect(first,second,2)!=92){return 1;}
-		try{var ignored=ImportChannel16.inspect(first,second,-1);return 2;}catch(ImportChannel16.Fault fault){if(fault.message.byte_length!=21 || fault.code()!=-1600 || fault.space()!=16){return 3;}}
-		try{var ignored=second.sum(-1);return 5;}catch(ImportChannel16.Fault fault){if(fault.code()!=-1600 || fault.space()!=16){return 6;}}
-		if(ImportChannel16.inspect(first,second,4)!=108){return 4;}
+		if(ImportChannel16.inspect(first,second,2)!=92) return 1;
+		try{var ignored=ImportChannel16.inspect(first,second,-1);return 2;}catch(ImportChannel16.Fault fault){if(fault.message.byte_length!=21 || fault.code()!=-1600 || fault.space()!=16) return 3;}
+		try{var ignored=second.sum(-1);return 5;}catch(ImportChannel16.Fault fault){if(fault.code()!=-1600 || fault.space()!=16) return 6;}
+		if(ImportChannel16.inspect(first,second,4)!=108) return 4;
 	}catch(ImportChannel16.Fault fault){return 90;}
 	return 0;
 }

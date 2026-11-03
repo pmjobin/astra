@@ -16,6 +16,7 @@ public class CoreGenericStructIdentity : CoreNode {
 		this.ordinal = ordinal;
 		nominal_identity = nominal ?? new RecordDefinitionIdentity (name);
 	}
+
 }
 
 public class CoreGenericStructFieldIdentity : CoreNode {
@@ -29,6 +30,7 @@ public class CoreGenericStructFieldIdentity : CoreNode {
 		this.identifier = name;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // No CoreNativeInstance inheritance, concrete semantic type, receiver or layout.
@@ -45,6 +47,7 @@ public class CoreGenericStruct : CoreNode {
 		this.identity = new CoreGenericStructIdentity (span, name, ordinal, nominal);
 		this.type_parameters = parameters;
 	}
+
 	public CoreGenericStructApplicationType application(GenericArray<SemanticType> arguments) {
 		foreach (var prior in applications) {
 			if (prior.matches (arguments)) {
@@ -55,6 +58,7 @@ public class CoreGenericStruct : CoreNode {
 		applications.add (result);
 		return result;
 	}
+
 	public TypeSubstitution substitution(GenericArray<SemanticType> arguments) {
 		assert (arguments.length == type_parameters.length);
 		var result = new TypeSubstitution ();
@@ -63,6 +67,7 @@ public class CoreGenericStruct : CoreNode {
 		}
 		return result;
 	}
+
 }
 
 public class CoreGenericStructField : CoreNode {
@@ -80,6 +85,7 @@ public class CoreGenericStructField : CoreNode {
 		this.identity = new CoreGenericStructFieldIdentity (span, definition.identity, name, ordinal);
 		this.semantic_type = type;
 	}
+
 }
 
 public class CoreGenericStructApplicationType : SemanticType {
@@ -97,9 +103,11 @@ public class CoreGenericStructApplicationType : SemanticType {
 		}
 		bind_logical_identity (definition.identity.nominal_identity.application (arguments));
 	}
+
 	public bool matches(GenericArray<SemanticType> arguments) {
 		return TypeArgumentVector.same_values (type_arguments, arguments);
 	}
+
 	public override bool is_parameterized() {
 		foreach (var argument in type_arguments) {
 			if (argument.is_parameterized ()) {
@@ -108,22 +116,28 @@ public class CoreGenericStructApplicationType : SemanticType {
 		}
 		return false;
 	}
+
 	public override string? generic_definition_name() {
 		return origin.name;
 	}
+
 	public override TypeArgumentVector? generic_arguments() {
 		return new TypeArgumentVector (type_arguments);
 	}
+
 	public override string display_name() {
 		return GenericStructInstance.application_name (origin, type_arguments);
 	}
+
 	internal override SemanticType substitute(TypeSubstitution substitution) {
 		return definition.application (substitution.apply_arguments (type_arguments));
 	}
+
 	public SemanticType field_type(CoreGenericStructField field) {
 		assert (field.definition == definition);
 		return definition.substitution (type_arguments).apply (field.semantic_type);
 	}
+
 }
 
 public class CoreGenericStructFieldPlace : CoreStorageFieldPlace {
@@ -134,6 +148,7 @@ public class CoreGenericStructFieldPlace : CoreStorageFieldPlace {
 		this.application = (CoreGenericStructApplicationType) aggregate.semantic_type;
 		this.field = field;
 	}
+
 }
 
 public enum GenericStructInstanceState {
@@ -149,6 +164,7 @@ public class GenericStructRequester : Object {
 		this.caller = WeakRef (identity);
 		this.identifier = label;
 	}
+
 }
 
 public class GenericStructInstance : Object {
@@ -174,16 +190,20 @@ public class GenericStructInstance : Object {
 			canonical_arguments.add (argument);
 		}
 	}
+
 	internal void attach(CoreStruct value) {
 		structure = WeakRef (value);
 	}
+
 	internal void map_field(CoreGenericStructField origin, CoreStructField field) {
 		assert (!fields.contains (origin.identity));
 		fields.insert (origin.identity, field);
 	}
+
 	public CoreStructField? field_for(CoreGenericStructField origin) {
 		return fields.lookup (origin.identity);
 	}
+
 	public bool has_canonical_key() {
 		if (type_arguments.length != canonical_arguments.length) {
 			return false;
@@ -195,6 +215,7 @@ public class GenericStructInstance : Object {
 		}
 		return true;
 	}
+
 	public bool matches(CoreGenericStructIdentity origin, GenericArray<SemanticType> arguments) {
 		if (!has_canonical_key () || this.origin != origin || arguments.length != type_arguments.length) {
 			return false;
@@ -206,12 +227,15 @@ public class GenericStructInstance : Object {
 		}
 		return true;
 	}
+
 	public string symbol_name() {
 		return "astra.gen.struct.%d.%d".printf (origin.ordinal, ordinal);
 	}
+
 	public string display_name() {
 		return application_name (origin, type_arguments);
 	}
+
 	internal static string application_name(CoreGenericStructIdentity origin, GenericArray<SemanticType> arguments) {
 		var result = new StringBuilder (origin.name + "<");
 		for (int i = 0; i < arguments.length; i++) {
@@ -223,5 +247,6 @@ public class GenericStructInstance : Object {
 		result.append (">");
 		return result.str;
 	}
+
 }
 }

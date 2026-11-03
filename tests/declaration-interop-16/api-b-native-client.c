@@ -4,6 +4,7 @@
 #include <stdio.h>
 extern int32_t record_query16_native_run(void);
 extern uint32_t query16_retired_count(int32_t);
+
 int main(void) {
 	int32_t result = record_query16_native_run();
 	if (result) {

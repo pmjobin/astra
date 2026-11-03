@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="callback_views16_seen")]void seen(i32 value);
+
 i64 transform(i32 signed32,u32 unsigned32,i64 signed64,u64 unsigned64,f32 single,f64 precise,bool enabled){
-	if(signed32!=7 || unsigned32!=4000000000 || signed64!=-5000000000 || unsigned64!=9223372036854775809 || single!=1.25 || precise!=2.5 || !enabled){return -1;}
+	if(signed32!=7 || unsigned32!=4000000000 || signed64!=-5000000000 || unsigned64!=9223372036854775809 || single!=1.25 || precise!=2.5 || !enabled) return -1;
 	return signed64+11;
 }
+
 i64 apply(borrowed Callback<i64,i32,u32,i64,u64,f32,f64,bool> code){return code(7,4000000000,-5000000000,9223372036854775809,1.25,2.5,true);}
+
 i64 forward(borrowed Callback<i64,i32,u32,i64,u64,f32,f64,bool> code){return apply(code);}
+
 void notify(int value){seen(value);}
+
 void fire(borrowed Callback<void,i32> code){code(19);}
+
 bool choose(bool input){return !input;}
+
 bool flip(borrowed Callback<bool,bool> code){return code(false);}
-export(C) int callback_views16_run(){if(forward(transform)!=-4999999989 || !flip(choose)){return 1;}fire(notify);return 0;}
+
+export(C) int callback_views16_run(){if(forward(transform)!=-4999999989 || !flip(choose)) return 1;fire(notify);return 0;}

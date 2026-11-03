@@ -48,6 +48,7 @@ public class CfgForeignApi : Object {
 		}
 		return position == function.entry.instructions.length;
 	}
+
 	public static CfgFunction? target(CfgClass owner, ForeignMemberContract member) {
 		if (member.native_member_ordinal < 0) {
 			return null;
@@ -75,6 +76,7 @@ public class CfgForeignApi : Object {
 		}
 		return null;
 	}
+
 	public static ForeignValueType? record(CfgProgram? program,SemanticType type) {
 		if (program == null) {
 			return null;
@@ -99,6 +101,7 @@ public class CfgForeignApi : Object {
 		}
 		return ForeignApiTypes.record (type,names,fields);
 	}
+
 	public static bool valid(CfgClass owner,CfgProgram? program = null) {
 		var policy = owner.foreign_export;
 		var api = policy == null ? null : policy.declared_api;
@@ -178,5 +181,6 @@ public class CfgForeignApi : Object {
 		}
 		return true;
 	}
+
 }
 }

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 owned f64[] make_samples(int n) { return new f64[n]; }
+
 void consume(owned f64[] values) { mark(len(values)); }
+
 int main() {
 	var count = 3;
 	var samples = new f64[count];
 	samples[0] = 1.0000000000000002d;
-	if (samples[0] == 1.0d || samples[2] != 0.0d) { return 1; }
+	if (samples[0] == 1.0d || samples[2] != 0.0d) return 1;
 	samples = make_samples(4);
 	var returned = make_samples(2);
 	consume(move returned);

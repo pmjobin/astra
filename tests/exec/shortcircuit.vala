@@ -5,6 +5,7 @@ private const string LOGICAL_HELPERS = "bool false_value(){return false;}bool tr
 private void logical_case(string name, string expression, bool expected, bool trap = false) {
 	add ("/exec/shortcircuit/" + name, () => execute (LOGICAL_HELPERS + "int main(){if((" + expression + ") != " + (expected ? "true" : "false") + "){return 1;}return 0;}", 0, trap));
 }
+
 private void logical_truth_table(bool is_and) throws GLib.Error {
 	string source = "bool f(bool a,bool b){return a " + (is_and ? "&&" : "||") + " b;}int main(){";
 	for (int a = 0; a < 2; a++) {
@@ -15,6 +16,7 @@ private void logical_truth_table(bool is_and) throws GLib.Error {
 	}
 	execute (source + "return 0;}");
 }
+
 private void logical_loops() throws GLib.Error {
 	execute (read ("tests/shortcircuit/fixtures/loop-short.astra") + """
 int main() {
@@ -25,6 +27,7 @@ int main() {
 }
 """);
 }
+
 private void logical_arguments() throws GLib.Error {
 	execute (LOGICAL_HELPERS + """
 bool consume(bool a, bool b) { return a == b; }
@@ -43,6 +46,7 @@ int main() {
 }
 """);
 }
+
 private void register_shortcircuit() {
 	add ("/exec/shortcircuit/and-truth-table", () => logical_truth_table (true));
 	add ("/exec/shortcircuit/or-truth-table", () => logical_truth_table (false));
@@ -70,4 +74,5 @@ private void register_shortcircuit() {
 	add ("/exec/shortcircuit/continue-fresh-rhs-traps", () => execute ("int main(){int i = 0;while(i < 4 && 8 / (3 - i) > 0){i = i + 1;continue;}return 9;}", 0, true));
 	add ("/exec/shortcircuit/native-artifact-lifetime", () => lifetime (read ("tests/shortcircuit/fixtures/loop-short.astra") + "int main(){return continue_count(10) - 5;}"));
 }
+
 }

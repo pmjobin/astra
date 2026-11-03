@@ -709,5 +709,6 @@ public class SyntaxDump : Object {
 		}
 		assert_not_reached ();
 	}
+
 }
 }

@@ -6,22 +6,27 @@ struct byte_buffer {
 	unsigned char *base;
 	int32_t capacity;
 };
+
 struct byte_builder {
 	struct byte_buffer backing;
 	int32_t used;
 };
+
 _Static_assert(sizeof(struct byte_builder) == 24 && offsetof(struct byte_builder, used) == 16,
                "qualified native builder field layout");
+
 static struct {
 	struct byte_builder *object;
 	void *last;
 	int dropped;
 } builders[16];
+
 static struct frame {
 	int kind, index, used, capacity, count;
 	unsigned char *base, *input;
 	unsigned char bytes[256], fragment[256];
 } frames[32];
+
 static unsigned char snapshots[128][256];
 static int builder_count, builder_drops, growths, depth, saved_messages;
 
@@ -36,6 +41,7 @@ static int live(void *pointer) {
 	}
 	return 0;
 }
+
 static int builder_index(struct byte_builder *object) {
 	for (int i = builder_count - 1; i >= 0; i--) {
 		if (builders[i].object == object && !builders[i].dropped) {
@@ -44,6 +50,7 @@ static int builder_index(struct byte_builder *object) {
 	}
 	_Exit(98);
 }
+
 static void stable_messages(void) {
 	for (int i = 0; i < count; i++) {
 		if (i >= saved_messages) {
@@ -59,6 +66,7 @@ static void stable_messages(void) {
 		}
 	}
 }
+
 void builder_obs_init(struct byte_builder *object) {
 	if (!builder_count) {
 		require(setvbuf(stdout, NULL, _IONBF, 0) == 0);
@@ -68,6 +76,7 @@ void builder_obs_init(struct byte_builder *object) {
 	builders[builder_count++].object = object;
 	printf("builder-init %d\n", builder_count);
 }
+
 void builder_obs_begin(int kind, struct byte_builder *object, unsigned char *input_bytes, int32_t n) {
 	require(depth < 32 && object->used >= 0 && object->used <= object->backing.capacity && object->used <= 256);
 	stable_messages();
@@ -91,6 +100,7 @@ void builder_obs_begin(int kind, struct byte_builder *object, unsigned char *inp
 		}
 	}
 }
+
 void builder_obs_leave(int kind, struct byte_builder *object, int success) {
 	require(depth > 0);
 	struct frame *frame = &frames[--depth];
@@ -126,6 +136,7 @@ void builder_obs_leave(int kind, struct byte_builder *object, int success) {
 	builders[frame->index].last = object->backing.base;
 	stable_messages();
 }
+
 void builder_obs_message(void) {
 	require(count > 0 && depth > 0 && frames[depth - 1].kind == 3);
 	struct frame *frame = &frames[depth - 1];
@@ -140,6 +151,7 @@ void builder_obs_message(void) {
 	stable_messages();
 	printf("builder-message %d bytes=%d\n", count, messages[i].length);
 }
+
 void builder_obs_drop(struct byte_builder *object) {
 	stable_messages();
 	int index = builder_index(object);
@@ -149,6 +161,7 @@ void builder_obs_drop(struct byte_builder *object) {
 	builder_drops++;
 	printf("builder-drop %d used=%d\n", index + 1, object->used);
 }
+
 __attribute__((destructor(101))) static void builder_finish(void) {
 	require(depth == 0 && builder_count == builder_drops);
 	for (int i = 0; i < builder_count; i++) {

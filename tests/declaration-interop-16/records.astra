@@ -1,15 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct MixedSample { int count; f64 scale; bool enabled; u64 stamp; f32 weight; }
+
 struct PackedScalars { int left; u32 right; f32 bias; bool select_first; }
+
 struct Duo<T> { T first; int second; }
+
 struct Single { f64 value; }
+
 [CImport(name="record16_retired")] int retired(int value);
+
 [CExport(name="record16", profile="declarations-v1", bool_abi="c99")]
 class RecordService {
 	private f64 factor;
 	private int calls;
+
 	[Foreign]
 	init(MixedSample seed, int offset) { this.factor = seed.scale; this.calls = seed.count + offset; }
+
 	[Foreign]
 	MixedSample adjust(MixedSample input, f64 delta, PackedScalars offsets) {
 		MixedSample result = {count = input.count + offsets.left + this.calls,
@@ -18,11 +25,15 @@ class RecordService {
 		this.calls = this.calls + 1;
 		return result;
 	}
+
 	[Foreign]
 	Duo<f64> pair(Duo<f64> input, int extra) { Duo<f64> result = {first = input.first + this.factor, second = input.second + extra}; return result; }
+
 	[Foreign]
 	Single one(Single input) { Single result = {value = input.value + this.factor}; return result; }
+
 	[Foreign]
 	property int processed { get { return this.calls; } }
+
 	deinit() { retired(this.calls); }
 }

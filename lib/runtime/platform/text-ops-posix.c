@@ -6,6 +6,7 @@
 #error "text-ops-posix is qualified only for GNU Linux x86-64 LP64"
 #endif
 _Static_assert(CHAR_BIT == 8 && sizeof(int32_t) == 4, "counted octet ABI");
+
 /* Read-only, noescape; byte bounds use the authentic utf8-i32 descriptor. */
 int32_t astra_host_text_byte(const unsigned char *data, int32_t length, int32_t index) {
 	if (length < 0 || index < 0 || index >= length || data == NULL) {

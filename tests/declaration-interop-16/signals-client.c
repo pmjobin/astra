@@ -6,9 +6,11 @@
 #include <string.h>
 typedef struct Native Native;
 typedef struct _Events16Session Session;
+
 typedef struct {
 	int32_t domain, code;
 } Error;
+
 extern int32_t signals16_create(int32_t, Native **, Error *);
 extern int32_t signals16_update(Native *, int32_t, Error *);
 extern int32_t signals16_choose_item(Native *, int32_t, Error *);
@@ -17,6 +19,7 @@ extern uint32_t signals16_release(Native *);
 extern unsigned signals16_retired_count(void);
 extern unsigned signals16_item_retired_count(void);
 extern Session *events16_session_as_gobject(Native *, GError **);
+
 typedef struct {
 	Native *root;
 	Session *object;
@@ -24,15 +27,18 @@ typedef struct {
 	unsigned calls, destroys;
 	gboolean active;
 } Observer;
+
 typedef struct {
 	gboolean valid;
 	gdouble weight;
 	gint64 revision;
 } Sample;
+
 static GBytes *retained_text, *retained_payload;
 static Sample *retained_record;
 static GType record_type;
 static GObject *retained_item;
+
 static void selected(Session *self, GObject *item, gpointer data) {
 	Observer *o = data;
 	assert(self == o->object && item);
@@ -41,6 +47,7 @@ static void selected(Session *self, GObject *item, gpointer data) {
 	assert(code == 37 && signals16_item_retired_count() == 0);
 	retained_item = g_object_ref(item);
 }
+
 static void described(Session *self, GBytes *text, GBytes *payload, const Sample *record, gpointer data) {
 	Observer *o = data;
 	assert(self == o->object && record->valid == TRUE && record->weight == 3.5 && record->revision == 29);
@@ -53,12 +60,14 @@ static void described(Session *self, GBytes *text, GBytes *payload, const Sample
 	retained_payload = g_bytes_ref(payload);
 	retained_record = g_boxed_copy(record_type, record);
 }
+
 static void destroy(gpointer data, GClosure *closure) {
 	Observer *o = data;
 	(void)closure;
 	assert(!o->active);
 	++o->destroys;
 }
+
 static void updated(Session *self, gint count, gboolean committed, gdouble weight, gpointer data) {
 	Observer *o = data;
 	assert(self == o->object && count == 19 && committed && weight == 2.5);
@@ -76,6 +85,7 @@ static void updated(Session *self, gint count, gboolean committed, gdouble weigh
 	assert(signals16_retired_count() == 0);
 	o->active = FALSE;
 }
+
 int main(void) {
 	Error native = {0, 0};
 	GError *error = NULL;

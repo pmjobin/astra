@@ -43,6 +43,7 @@ private CoreProgram owned_program(int variant = -1) {
 	functions.add (function);
 	return new CoreProgram (span, functions, imports, null, null, cleanups);
 }
+
 private void owned_model() {
 	try {
 		CoreProgram? program = owned_program ();
@@ -58,6 +59,7 @@ private void owned_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void owned_invalid() {
 	for (int variant = 0; variant < 11; variant++) {
 		try {
@@ -69,6 +71,7 @@ private void owned_invalid() {
 		GLib.error ("malformed owner %d accepted", variant);
 	}
 }
+
 private CoreProgram move_program(int variant = -1) {
 	var program = owned_program ();
 	var function = program.functions[0];
@@ -90,6 +93,7 @@ private CoreProgram move_program(int variant = -1) {
 	}
 	return program;
 }
+
 private void move_model() {
 	try {
 		CoreProgram? program = move_program ();
@@ -102,6 +106,7 @@ private void move_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void move_invalid() {
 	for (int variant = 0; variant < 8; variant++) {
 		try {
@@ -113,6 +118,7 @@ private void move_invalid() {
 		GLib.error ("malformed move %d accepted", variant);
 	}
 }
+
 private CoreProgram oborrow_program(int variant = -1) {
 	var program = owned_program ();
 	var function = program.functions[0];
@@ -154,6 +160,7 @@ private CoreProgram oborrow_program(int variant = -1) {
 	function.body.statements.insert (variant == 7 ? 0 : 1, use);
 	return program;
 }
+
 private void oborrow_model() {
 	try {
 		CoreProgram? program = oborrow_program ();
@@ -167,6 +174,7 @@ private void oborrow_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void oborrow_invalid() {
 	for (int i = 0; i < 8; i++) {
 		try {
@@ -178,6 +186,7 @@ private void oborrow_invalid() {
 		GLib.error ("malformed borrow %d accepted", i);
 	}
 }
+
 private CoreProgram release_program(int variant = -1) {
 	var program = owned_program (variant == 4 ? 4 : -1);
 	var function = program.functions[0];
@@ -199,6 +208,7 @@ private CoreProgram release_program(int variant = -1) {
 	function.body.statements.insert (variant == 2 ? 0 : 1, new CoreOwnershipRelease (program.span, owner, cleanup));
 	return program;
 }
+
 private void release_model() {
 	try {
 		CoreProgram? program = release_program ();
@@ -212,6 +222,7 @@ private void release_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void release_invalid() {
 	for (int i = 0; i < 6; i++) {
 		try {
@@ -223,6 +234,7 @@ private void release_invalid() {
 		GLib.error ("malformed release %d accepted", i);
 	}
 }
+
 private CoreProgram rearm_program(int variant = -1) {
 	var program = owned_program ();
 	var function = program.functions[0];
@@ -255,6 +267,7 @@ private CoreProgram rearm_program(int variant = -1) {
 	function.body.statements.insert (variant == 2 ? 0 : 2, new CoreOwnershipRearm (span, owner, call, cleanup));
 	return program;
 }
+
 private void rearm_model() {
 	try {
 		CoreProgram? program = rearm_program ();
@@ -268,6 +281,7 @@ private void rearm_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void rearm_invalid() {
 	for (int i = 0; i < 7; i++) {
 		try {
@@ -279,6 +293,7 @@ private void rearm_invalid() {
 		GLib.error ("malformed rearm %d accepted", i);
 	}
 }
+
 private void register_owned_tests() {
 	Test.add_func ("/core-standalone/rearm/model-contract-lifetime", rearm_model);
 	Test.add_func ("/core-standalone/rearm/malformed", rearm_invalid);
@@ -291,4 +306,5 @@ private void register_owned_tests() {
 	Test.add_func ("/core-standalone/ownership/model-lifetime", owned_model);
 	Test.add_func ("/core-standalone/ownership/malformed", owned_invalid);
 }
+
 }

@@ -126,5 +126,6 @@ public class CfgDominance : Object {
 		}
 		return result;
 	}
+
 }
 }

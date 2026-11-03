@@ -46,6 +46,7 @@ private CoreProgram sample(int variant = 0) throws CoreError {
 	program.classes.add (other);
 	return program;
 }
+
 private void valid() {
 	try {
 		CoreProgram? program = sample ();
@@ -61,6 +62,7 @@ private void valid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 7; variant++) {
 		try {
@@ -72,10 +74,12 @@ private void malformed() {
 		GLib.error ("accepted malformed object boundary variant %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-bound/core/independent-parameter-null-field-method-and-stage-lifetime", valid);
 	Test.add_func ("/obj-bound/core/malformed-contract-type-result-call-and-guard", malformed);
 	return Test.run ();
 }
+
 }

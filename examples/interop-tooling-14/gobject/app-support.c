@@ -9,6 +9,7 @@
 APP_SUPPORT(a126)
 APP_SUPPORT(a127)
 APP_SUPPORT(a128)
+
 int32_t a127_text_event(int32_t delta) {
 	a127_counts[4] += delta;
 	if (delta == 1) ++a127_counts[5];

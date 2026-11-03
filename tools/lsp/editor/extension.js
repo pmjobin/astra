@@ -36,6 +36,7 @@ class Client {
 		                 });
 		this.ready.catch(error => this.output.appendLine(error.message));
 	}
+
 	fail(error) {
 		for (const [id, entry] of this.pending) {
 			clearTimeout(entry.timer);
@@ -44,11 +45,14 @@ class Client {
 		}
 		this.output.appendLine(error.message);
 	}
+
 	write(message) {
 		const bytes = Buffer.from(JSON.stringify({jsonrpc : '2.0', ...message}), 'utf8');
 		this.process.stdin.write(Buffer.concat([ Buffer.from(`Content-Length: ${bytes.length}\r\n\r\n`, 'ascii'), bytes ]));
 	}
+
 	notify(method, params) { this.write({method, params}); }
+
 	request(method, params, token) {
 		const id = this.nextId++;
 		return new Promise((resolve, reject) => {
@@ -61,6 +65,7 @@ class Client {
 			this.write({id, method, params});
 		});
 	}
+
 	receive(data) {
 		this.buffer = Buffer.concat([ this.buffer, data ]);
 		while (true) {
@@ -105,10 +110,12 @@ class Client {
 				this.output.appendLine(message.params.message);
 		}
 	}
+
 	async call(method, document, position, extra, token) {
 		await this.ready;
 		return this.request(method, {textDocument : {uri : document.uri.toString()}, ...(position ? {position} : {}), ...extra}, token);
 	}
+
 	async open(document) {
 		if (document.languageId !== 'astra' || document.uri.scheme !== 'file') return;
 		if (this.opened.has(document.uri.toString())) return;
@@ -116,6 +123,7 @@ class Client {
 		await this.ready;
 		this.notify('textDocument/didOpen', {textDocument : {uri : document.uri.toString(), languageId : 'astra', version : document.version, text : document.getText()}});
 	}
+
 	async stop() {
 		try {
 			await this.request('shutdown', {});
@@ -130,6 +138,7 @@ class Client {
 function range(value) {
 	return new vscode.Range(value.start.line, value.start.character, value.end.line, value.end.character);
 }
+
 function locations(values) {
 	return (values ?? []).map(value => new vscode.Location(vscode.Uri.parse(value.uri), range(value.range)));
 }
@@ -176,6 +185,7 @@ async function activate(context) {
 async function deactivate() {
 	if (client) await client.stop();
 }
+
 module.exports = {
 	activate,
 	deactivate

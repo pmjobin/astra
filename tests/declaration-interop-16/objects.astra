@@ -1,38 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="objects16_retired")] int retired(int value);
+
 [CImport(name="objects16_observe")] int observe(int value);
 
 // The service precedes Item to exercise forward nominal root declarations.
 [CExport(name="service16", profile="declarations-v1", bool_abi="c99")]
 class ObjectService {
 	private int base;
+
 	[Foreign]
 	init(int base) { this.base = base; }
+
 	[Foreign]
 	owned Item create_item(int code) { var item = new Item(code + this.base); return move item; }
+
 	[Foreign]
 	[ForeignChannel(parameter="result", nullable="true")]
-	owned Item maybe(bool present, int code) { if (!present) { return null; } var item = new Item(code + this.base); return move item; }
+	owned Item maybe(bool present, int code) { if (!present) return null; var item = new Item(code + this.base); return move item; }
+
 	[Foreign]
 	int inspect(borrowed Item input) { return input.code(); }
+
 	[Foreign]
 	int required(borrowed nonnull Item input) { return input.code(); }
+
 	[Foreign]
 	[ForeignChannel(parameter="input", nullable="true")]
-	int optional(borrowed Item input) { if (input == null) { return -99; } return input.code(); }
+	int optional(borrowed Item input) { if (input == null) return -99; return input.code(); }
+
 	[Foreign]
 	int watched(borrowed Item input) { int value = input.code(); observe(value); return input.code(); }
+
 	// SHARED-ONLY-MEMBERS
 	deinit() { retired(-1); }
 }
+
 [CExport(name="item16", profile="declarations-v1")]
 class Item {
 	private int value;
+
 	[Foreign]
 	init(int value) { this.value = value; }
+
 	[Foreign]
 	int code() { return this.value; }
+
 	[Foreign]
 	void update(int value) { this.value = value; }
+
 	deinit() { retired(this.value); }
 }

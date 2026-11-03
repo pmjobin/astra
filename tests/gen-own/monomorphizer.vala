@@ -54,9 +54,11 @@ private void specialize() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own/monomorphizer/resource-class-nodeinit-forward-lifetime-invalid-unused", specialize);
 	return Test.run ();
 }
+
 }

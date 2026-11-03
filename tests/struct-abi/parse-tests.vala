@@ -8,15 +8,18 @@ private void forms() {
 		assert (p.diagnostic == null && SyntaxDump.format (p.unit).length > 0);
 	}
 }
+
 private void bounded() {
 	foreach (string source in new string[] {"Pair f(){return {x=1};}", "Pair f(Pair){}"}) {
 		assert (Parser.parse (new SourceFile.from_text ("invalid.astra", source)).diagnostic != null);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-abi/parser/boundaries-and-four-call-consumers", forms);
 	Test.add_func ("/struct-abi/parser/no-arbitrary-literals-or-unnamed-parameters", bounded);
 	return Test.run ();
 }
+
 }

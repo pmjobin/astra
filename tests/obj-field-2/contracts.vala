@@ -15,6 +15,7 @@ private CoreProgram core() throws GLib.Error {
 	assert (checked.diagnostic == null);
 	return CoreBuilder.build (checked.program);
 }
+
 private void wrong_cleanup() {
 	try {
 		var program = core ();
@@ -49,6 +50,7 @@ private void wrong_cleanup() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void missing_retirement() {
 	try {
 		var program = CfgBuilder.build (core ());
@@ -81,6 +83,7 @@ private void missing_retirement() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void borrowed_store() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -112,6 +115,7 @@ private void borrowed_store() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void transfer_during_text_loan(bool producer) {
 	try {
 		string source = "class Label{readonly string text;init(string text){this.text=text;}}owned Label pass(owned Label c){return move c;}class Holder{owned Label child;init(){var c=new Label(\"x\");{var view=c.text;}this.child=" + (producer ? "pass(move c)" : "move c") + ";}}int main(){return 42;}";
@@ -150,6 +154,7 @@ private void transfer_during_text_loan(bool producer) {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void missing_ssa_retirement() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (core ()));
@@ -191,6 +196,7 @@ private void missing_ssa_retirement() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CoreProgram loan_core() throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("child-stage-loan-control", "class Label{readonly string text;init(string text){this.text=text;}}class Holder{owned Label child;init(){var c=new Label(\"x\");{var view=c.text;}this.child=move c;}}int main(){return 42;}"));
 	assert (parsed.diagnostic == null);
@@ -198,6 +204,7 @@ private CoreProgram loan_core() throws GLib.Error {
 	assert (checked.diagnostic == null);
 	return CoreBuilder.build (checked.program);
 }
+
 private void cfg_transfer_loan() {
 	try {
 		var program = CfgBuilder.build (loan_core ());
@@ -239,6 +246,7 @@ private void cfg_transfer_loan() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_transfer_loan() {
 	try {
 		var program = SsaBuilder.build (CfgBuilder.build (loan_core ()));
@@ -276,6 +284,7 @@ private void ssa_transfer_loan() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-field-2/core/lexical-cleanup-cannot-own-heap-field", wrong_cleanup);
@@ -290,4 +299,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-field-2/ssa/child-transfer-text-loan", ssa_transfer_loan);
 	return Test.run ();
 }
+
 }

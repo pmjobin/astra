@@ -124,4 +124,5 @@ int main(string[] args) {
 	Test.add_func ("/array/ssa/standalone-malformed", malformed);
 	return Test.run ();
 }
+
 }

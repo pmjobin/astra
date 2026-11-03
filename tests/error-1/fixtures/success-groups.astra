@@ -1,30 +1,47 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string text) { this.text = text; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 struct Record { int value; i16<4> vector; }
+
 enum Value { Empty, Number(int value) }
+
 enum Owner { Empty, Values(owned int[] values) }
-void gate(bool fail) throws Error { if (fail) { throw new Error("failed"); } }
+
+void gate(bool fail) throws Error { if (fail) {
+		throw new Error("failed");
+	} }
+
 int scalar(bool fail) throws Error { gate(fail); return 42; }
+
 i16<4> vector(bool fail) throws Error { gate(fail); return splat(42, 4); }
+
 string text(bool fail) throws Error { gate(fail); return "success\0é"; }
+
 Record record(bool fail) throws Error { gate(fail); Record result = { value = 42, vector = splat(42, 4) }; return result; }
+
 Value value(bool fail) throws Error { gate(fail); return Value.Number(42); }
+
 owned int[] array(bool fail) throws Error { gate(fail); owned int[] result = new int[2]; result[0] = 42; return move result; }
+
 owned Record[] records(bool fail) throws Error { gate(fail); owned Record[] result = new Record[2]; result[0].value = 42; return move result; }
+
 Owner owner(bool fail) throws Error { gate(fail); return Owner.Values(new int[2]); }
+
 int main() {
 	try {
 		gate(false);
-		if (scalar(false) != 42 || vector(false)[3] != 42 || text(false) != "success\0é") { return 81; }
-		Record r = record(false); if (r.value != 42 || r.vector[3] != 42) { return 82; }
-		var v = value(false); match(v) { case Value.Number(n): { if(n != 42) { return 83; } } else: { return 84; } }
-		owned int[] a = array(false); if(a[0] != 42) { return 85; }
-		owned Record[] b = records(false); if(b[0].value != 42) { return 86; }
-		var o = owner(false); match(o) { case Owner.Values(data): { if(len(data) != 2) { return 87; } } else: { return 88; } }
+		if (scalar(false) != 42 || vector(false)[3] != 42 || text(false) != "success\0é") return 81;
+		Record r = record(false); if (r.value != 42 || r.vector[3] != 42) return 82;
+		var v = value(false); match(v) { case Value.Number(n): { if(n != 42) return 83; } else: { return 84; } }
+		owned int[] a = array(false); if(a[0] != 42) return 85;
+		owned Record[] b = records(false); if(b[0].value != 42) return 86;
+		var o = owner(false); match(o) { case Owner.Values(data): { if(len(data) != 2) return 87; } else: { return 88; } }
 		array(false); records(false); owner(false);
 	} catch(Error error) { return 89; }
 	int caught = 0;
@@ -37,5 +54,5 @@ int main() {
 	try { array(true); } catch(Error error) { caught = caught + 1; }
 	try { records(true); } catch(Error error) { caught = caught + 1; }
 	try { owner(true); } catch(Error error) { caught = caught + 1; }
-	if(caught == 9) { return 42; } return 90;
+	if(caught == 9) return 42; return 90;
 }

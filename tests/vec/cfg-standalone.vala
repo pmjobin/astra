@@ -147,4 +147,5 @@ int main(string[] args) {
 	Test.add_func ("/vec/cfg/standalone-branch-whole-vector-merge", branch_merge);
 	return Test.run ();
 }
+
 }

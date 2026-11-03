@@ -1,26 +1,53 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace QueryCore16;
 [CImport(name="query16_retired")]int retired(int kind);
+
 void observe_retirement(int kind){retired(kind);}
-[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}deinit(){retired(4);}}
+
+[ExceptionRoot]class Fault{readonly string text;
+
+	init(string text){this.text=text;}
+
+	virtual property string message{get{return this.text;}}
+
+	deinit(){retired(4);}}
+
 struct Query{i64 minimum;f64 ceiling;u32 mask;bool lowest;}
+
 struct Answer<T>{i64 code;T score;u32 matches;bool found;}
+
 class Engine {
 	init(){}
+
 	Answer<f64> evaluate(Query query,f64 bias)throws Fault{
-		if(query.minimum<0 || !(query.ceiling>=0.0 && query.ceiling<=1.7976931348623157e308) || !(bias>=-1000000.0 && bias<=1000000.0)){throw new Fault("invalid record query");}
+		if(query.minimum<0 || !(query.ceiling>=0.0 && query.ceiling<=1.7976931348623157e308) || !(bias>=-1000000.0 && bias<=1000000.0)){
+			throw new Fault("invalid record query");
+		}
 		Answer<f64> result={code=0,score=0.0,matches=0,found=false};int index=0;
 		while(index<3){
 			i64 code=17;f64 weight=2.25;u32 bit=1;
-			if(index==1){code=31;weight=5.5;bit=2;}if(index==2){code=59;weight=1.75;bit=4;}
+			if(index==1){
+				code=31;
+				weight=5.5;
+				bit=2;
+			}if(index==2){
+				code=59;
+				weight=1.75;
+				bit=4;
+			}
 			f64 score=weight+bias;
 			if((query.mask&bit)!=0 && code>=query.minimum && score<=query.ceiling){
 				result.matches=result.matches+1;
-				if(!result.found || (query.lowest && score<result.score) || (!query.lowest && score>result.score) || (score==result.score && code<result.code)){result.code=code;result.score=score;result.found=true;}
+				if(!result.found || (query.lowest && score<result.score) || (!query.lowest && score>result.score) || (score==result.score && code<result.code)){
+					result.code=code;
+					result.score=score;
+					result.found=true;
+				}
 			}
 			index=index+1;
 		}
 		return result;
 	}
+
 	deinit(){retired(1);}
 }

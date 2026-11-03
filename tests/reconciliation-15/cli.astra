@@ -2,29 +2,37 @@
 Reconcile.Receipt audit_change(borrowed Reconcile.AuditContext<int> environment,
 	Reconcile.Proposal proposal, bool reject) throws Reconcile.Error {
 	environment.attempt();
-	if (reject) { throw new Reconcile.AuditFailure(environment.accepted, environment.attempts); }
+	if (reject) {
+		throw new Reconcile.AuditFailure(environment.accepted, environment.attempts);
+	}
 	environment.accept();
 	Reconcile.Receipt receipt = {sequence = environment.accepted, attempts = environment.attempts, value = proposal.value, marker = environment.tag};
 	return receipt;
 }
+
 void number(borrowed Reconcile.Utf8ByteBuilder output, int value) throws Reconcile.Error {
 	Reconcile.require_text(Reconcile.append_text(output, "\t"));
 	Reconcile.require_text(Reconcile.append_int(output, value));
 }
+
 void emit(borrowed Reconcile.Utf8ByteBuilder output) throws Reconcile.Error {
 	u8[1] newline = {10};
 	Reconcile.require_text(output.append_bytes(slice(newline, 0, 1)));
 	var message = output.snapshot();
-	if (!Reconcile.print(message.text)) { throw new Reconcile.Error("output"); }
+	if (!Reconcile.print(message.text)) {
+		throw new Reconcile.Error("output");
+	}
 }
+
 string outcome(int status) {
-	if (status == 0) { return "accepted"; }
-	if (status == 1) { return "unknown"; }
-	if (status == 2) { return "stale"; }
-	if (status == 3) { return "overdraw"; }
-	if (status == 4) { return "overflow"; }
+	if (status == 0) return "accepted";
+	if (status == 1) return "unknown";
+	if (status == 2) return "stale";
+	if (status == 3) return "overdraw";
+	if (status == 4) return "overflow";
 	return "audit-error";
 }
+
 void decision(int index, Reconcile.Change change, int status, Reconcile.StockSnapshot stock,
 	int accepted, int attempts) throws Reconcile.Error {
 	var output = new Reconcile.Utf8ByteBuilder();
@@ -39,15 +47,17 @@ void decision(int index, Reconcile.Change change, int status, Reconcile.StockSna
 	number(output, stock.value.quantity);
 	number(output, stock.revision);
 	int value = -1;
-	if (status != 1) { value = stock.value.quantity * stock.value.cost; }
+	if (status != 1) value = stock.value.quantity * stock.value.cost;
 	number(output, value);
 	number(output, accepted);
 	number(output, attempts);
 	emit(output);
 }
+
 bool before_key(Reconcile.StockKey left, Reconcile.StockKey right) {
 	return left.warehouse < right.warehouse || left.warehouse == right.warehouse && left.sku < right.sku;
 }
+
 void final_stocks(borrowed Reconcile.StockList stocks) throws Reconcile.Error {
 	Reconcile.StockKey previous = {warehouse = 0, sku = 0};
 	Reconcile.StockValue zero = {quantity = 0, cost = 0};
@@ -57,10 +67,15 @@ void final_stocks(borrowed Reconcile.StockList stocks) throws Reconcile.Error {
 		Reconcile.StockSnapshot selected = {key = previous, value = zero, revision = 0};
 		for (int index = 0; index < stocks.count; index = index + 1) {
 			var candidate = stocks.at(index);
-			if (have_previous && !before_key(previous, candidate.key)) { continue; }
-			if (!found || before_key(candidate.key, selected.key)) { selected = candidate; found = true; }
+			if (have_previous && !before_key(previous, candidate.key)) continue;
+			if (!found || before_key(candidate.key, selected.key)) {
+				selected = candidate;
+				found = true;
+			}
 		}
-		if (!found) { throw new Reconcile.Error("final inventory ordering"); }
+		if (!found) {
+			throw new Reconcile.Error("final inventory ordering");
+		}
 		var output = new Reconcile.Utf8ByteBuilder();
 		Reconcile.require_text(Reconcile.append_text(output, "stock"));
 		number(output, selected.key.warehouse);
@@ -74,16 +89,17 @@ void final_stocks(borrowed Reconcile.StockList stocks) throws Reconcile.Error {
 		have_previous = true;
 	}
 }
+
 int execute(string[] args) throws Reconcile.Error {
-	if (len(args) < 2) { return 2; }
+	if (len(args) < 2) return 2;
 	int count = Reconcile.parse_int(args[1]);
-	if (count < 0 || count > (len(args) - 2) / 4) { return 2; }
+	if (count < 0 || count > (len(args) - 2) / 4) return 2;
 	int boundary = 2 + count * 4;
-	if ((len(args) - boundary) % 5 != 0) { return 2; }
+	if ((len(args) - boundary) % 5 != 0) return 2;
 	var values = new int[len(args)];
-	for (int index = 2; index < len(args); index = index + 1) { values[index] = Reconcile.parse_int(args[index]); }
+	for (int index = 2; index < len(args); index = index + 1) values[index] = Reconcile.parse_int(args[index]);
 	for (int offset = boundary; offset < len(args); offset = offset + 5) {
-		if (values[offset + 4] != 0 && values[offset + 4] != 1) { return 2; }
+		if (values[offset + 4] != 0 && values[offset + 4] != 1) return 2;
 	}
 	var stocks = new Reconcile.StockList();
 	for (int offset = 2; offset < boundary; offset = offset + 4) {
@@ -94,13 +110,17 @@ int execute(string[] args) throws Reconcile.Error {
 		}
 		var context = new Reconcile.InventoryContext<int>(key.sku);
 		var inventory = new Reconcile.Inventory<Reconcile.StockKey, Reconcile.StockValue, Reconcile.InventoryContext<int>>(key, value, move context);
-		if (!stocks.append(move inventory)) { throw new Reconcile.Error("capacity"); }
+		if (!stocks.append(move inventory)) {
+			throw new Reconcile.Error("capacity");
+		}
 	}
 	var environment = new Reconcile.AuditContext<int>(7);
 	owned CheckedClosure<Reconcile.AuditContext<int>, Reconcile.Error, Reconcile.Receipt,
 	Reconcile.Proposal, bool> audit = checked_closure_bind(move environment, audit_change);
 	Reconcile.Receipt previous = {sequence = 0, attempts = 0, value = 0, marker = 7};
-	if (!Reconcile.print("astra-reconcile\t1\n")) { throw new Reconcile.Error("output"); }
+	if (!Reconcile.print("astra-reconcile\t1\n")) {
+		throw new Reconcile.Error("output");
+	}
 	int changes = 0;
 	for (int offset = boundary; offset < len(args); offset = offset + 5) {
 		changes = changes + 1;
@@ -122,11 +142,15 @@ int execute(string[] args) throws Reconcile.Error {
 				status = 5;
 			}
 			catch (Reconcile.Error error) {
-				if (!stocks.append(move inventory)) { throw new Reconcile.Error("capacity"); }
+				if (!stocks.append(move inventory)) {
+					throw new Reconcile.Error("capacity");
+				}
 				throw;
 			}
 			var state = Reconcile.inspect(inventory);
-			if (!stocks.append(move inventory)) { throw new Reconcile.Error("capacity"); }
+			if (!stocks.append(move inventory)) {
+				throw new Reconcile.Error("capacity");
+			}
 			decision(changes, change, status, state, previous.sequence, previous.attempts);
 		} catch (Reconcile.UnknownKey error) {
 			Reconcile.StockValue absent = {quantity = -1, cost = 0};
@@ -143,12 +167,13 @@ int execute(string[] args) throws Reconcile.Error {
 	emit(output);
 	return 0;
 }
+
 int main(string[] args) {
 	int result = 4;
 	try { result = execute(args); }
 	catch (Reconcile.IntegerParseError error) { result = 2; }
 	catch (Reconcile.InputError error) { result = 2; }
 	catch (Reconcile.Error error) { Reconcile.println_stderr(error.message); }
-	if (Reconcile.reconciliation_observe(3) != 0 || Reconcile.reconciliation_observe(4) != Reconcile.reconciliation_observe(5)) { return 9; }
+	if (Reconcile.reconciliation_observe(3) != 0 || Reconcile.reconciliation_observe(4) != Reconcile.reconciliation_observe(5)) return 9;
 	return result;
 }

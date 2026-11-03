@@ -3,14 +3,17 @@ extern(C) int test_mark(int value);
 class Witness {
 	owned Resource resource;
 	owned f64[] values;
+
 	init(owned Resource resource) {
 		this.resource = move resource;
 		this.values = new f64[2];
 	}
+
 	deinit() { test_mark(8); }
 }
 
 owned Witness make(owned Resource resource) { return Witness.init(move resource); }
+
 owned T relay<T>(owned T value) where T : Ownable { return move value; }
 
 int main() {

@@ -1,22 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Point { int x; int y; }
+
 class Entry {
 	int value;
 	owned R resource;
 	owned int[] bytes;
+
 	init(int value, owned R resource) {
 		this.value = value;
 		this.resource = move resource;
 		this.bytes = new int[2];
 	}
+
 	deinit() { usability_event(0 - this.value); }
 }
+
 int inspect(Entry entry) { return entry.value; }
+
 bool present(R value) { return value != null; }
+
 int first(Vector<Point> values) {
 	foreach (var point in values) { return point.x; }
 	return 0;
 }
+
 Point detached() {
 	var values = new Vector<Point>(0);
 	Point original = {x = 17, y = 19};
@@ -25,15 +32,16 @@ Point detached() {
 	Point empty = {x = 0, y = 0};
 	return empty;
 }
+
 int exercise() {
 	var standalone = detached();
-	if (standalone.x != 17 || standalone.y != 19) { return 5; }
+	if (standalone.x != 17 || standalone.y != 19) return 5;
 	var points = new Vector<Point>(0);
 	try {
 		var sequence = new Sequence(4, -1);
 		foreach (var value in sequence) {
 			Point point = {x = value, y = value + 1};
-			if (!points.append(point)) { return 1; }
+			if (!points.append(point)) return 1;
 		}
 	}
 	catch (Error error) { return 2; }
@@ -41,15 +49,15 @@ int exercise() {
 	var view = slice(weights);
 	int sum = 0;
 	foreach (var point in points) {
-		if (point.x == 3) { continue; }
+		if (point.x == 3) continue;
 		foreach (var weight in view) { sum = sum + point.x * weight; }
 		point.x = 99;
-		if (point.y == 8) { break; }
+		if (point.y == 8) break;
 	}
 	usability_event(sum);
 	usability_event(first(points));
 	var copy = points.entries[0];
-	if (copy.x != 1) { return 3; }
+	if (copy.x != 1) return 3;
 	var empty = new Vector<Point>(0);
 	foreach (var point in empty) { return 4; }
 	try {
@@ -74,13 +82,14 @@ int exercise() {
 	bool b = resources.append(move absent);
 	int count = 0;
 	foreach (var handle in resources) {
-		if (present(handle)) { count = count + 1; }
+		if (present(handle)) count = count + 1;
 	}
 	usability_event(count);
 	return 0;
 }
+
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

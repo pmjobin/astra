@@ -1,41 +1,58 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct DiagnosticLine { owned Utf8Message text; int line; int severity; int scalars; }
+
 struct DiagnosticSummary { int line; int severity; int scalars; int bytes; }
+
 enum DiagnosticEvent { Line(DiagnosticLine value), Blank(int line) }
+
 class DiagnosticArchive<T> {
 	owned T[slots] rows;
+
 	init() { this.rows = new T[slots]; }
+
 	property int size { get { return len(this.rows); } }
+
 	property bool empty { get { return len(this.rows) == 0; } }
+
 	bool append(owned T value) {
 		if (len(this.rows) == this.rows.capacity) {
-			if (!this.rows.reserve(len(this.rows) + 4)) { return false; }
+			if (!this.rows.reserve(len(this.rows) + 4)) return false;
 		}
 		this.rows.append(move value);
 		return true;
 	}
+
 	owned T take(int index) { var value = this.rows.take(index); return move value; }
 }
+
 DiagnosticEvent parse_diagnostic(string text, int line) throws Error {
-	if (text.byte_length == 0) { return DiagnosticEvent.Blank(line); }
-	if (text_find(text, ":", 0) != 1) { throw new Error("diagnostic prefix"); }
+	if (text.byte_length == 0) return DiagnosticEvent.Blank(line);
+	if (text_find(text, ":", 0) != 1) {
+		throw new Error("diagnostic prefix");
+	}
 	var prefix = text_segment(text, 0, 1);
 	int severity = 0;
-	if (prefix.text == "E") { severity = 3; }
-	if (prefix.text == "W") { severity = 2; }
-	if (prefix.text == "I") { severity = 1; }
-	if (severity == 0) { throw new Error("diagnostic prefix"); }
+	if (prefix.text == "E") severity = 3;
+	if (prefix.text == "W") severity = 2;
+	if (prefix.text == "I") severity = 1;
+	if (severity == 0) {
+		throw new Error("diagnostic prefix");
+	}
 	var body = text_segment(text, 2, text.byte_length - 2);
 	int scalars = text_scalar_count(body.text);
 	DiagnosticLine value = {text = move body, line = line, severity = severity, scalars = scalars};
 	return DiagnosticEvent.Line(move value);
 }
+
 void collect_diagnostic(DiagnosticArchive<DiagnosticLine> archive, Vector<DiagnosticSummary> summaries, DiagnosticLine row) throws Error {
 	var text = move row.text;
 	DiagnosticSummary summary = {line = row.line, severity = row.severity, scalars = row.scalars, bytes = text.text.byte_length};
 	DiagnosticLine stored = {text = move text, line = row.line, severity = row.severity, scalars = row.scalars};
-	if (!archive.append(move stored) || !summaries.append(summary)) { throw new Error("diagnostic capacity"); }
+	if (!archive.append(move stored) || !summaries.append(summary)) {
+		throw new Error("diagnostic capacity");
+	}
 }
+
 void render_diagnostic(Utf8ByteBuilder output, DiagnosticLine row) throws Error {
 	var text = move row.text;
 	require_text(append_int(output, row.line));
@@ -49,6 +66,7 @@ void render_diagnostic(Utf8ByteBuilder output, DiagnosticLine row) throws Error 
 	require_text(append_text(output, text.text));
 	require_text(append_text(output, "\n"));
 }
+
 void aggregate_file(string path) throws Error {
 	var guard = open_lease(83);
 	var bytes = read_file(path);
@@ -89,14 +107,17 @@ void aggregate_file(string path) throws Error {
 	require_text(append_text(output, " scalars="));
 	require_text(append_int(output, total_scalars));
 	var report = output.snapshot();
-	if (!println(report.text)) { throw new Error("diagnostic output"); }
+	if (!println(report.text)) {
+		throw new Error("diagnostic output");
+	}
 }
+
 int main(string[] args) {
-	if (len(args) != 2) { return 81; }
+	if (len(args) != 2) return 81;
 	int result = 0;
 	try { aggregate_file(args[1]); }
-	catch(Error error) { if (!println(error.message)) { return 82; } result = 2; }
+	catch(Error error) { if (!println(error.message)) return 82; result = 2; }
 	number(live_leases());
-	if (live_leases() != 0) { return 83; }
+	if (live_leases() != 0) return 83;
 	return result;
 }

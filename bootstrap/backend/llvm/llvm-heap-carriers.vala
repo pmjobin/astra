@@ -20,6 +20,7 @@ internal class LlvmScopedDescriptorAuthority : Object {
 			cleanup = new LlvmNativeModuleBinding (destroy, CApi.global_value_type (destroy), CApi.value_name (destroy, out length), true);
 		}
 	}
+
 	internal void verify() throws LlvmError {
 		global.verify ();
 		if (imported) {
@@ -29,6 +30,7 @@ internal class LlvmScopedDescriptorAuthority : Object {
 			cleanup.verify ();
 		}
 	}
+
 }
 // Exact native descriptor identity is copied after descriptors are emitted.
 // The owning field graph and the dispatch header have separate proof duties.
@@ -43,6 +45,7 @@ internal class LlvmScopedExceptionShape : Object {
 	internal CApi.ValueRef destructor_target() {
 		return destructor;
 	}
+
 	internal LlvmScopedExceptionShape (CApi.TypeRef layout, LlvmScopedDescriptorAuthority? authority) throws LlvmError {
 		if (authority == null) {
 			throw new LlvmError.LOWERING ("scoped exception requires its exact immutable native descriptor");
@@ -75,11 +78,13 @@ internal class LlvmScopedExceptionShape : Object {
 		uint64 field = CApi.const_int_zext (CApi.operand (address, 2));
 		return field < 2 ? (int) field : -1;
 	}
+
 	internal void verify(CApi.ValueRef root, CApi.ValueRef publication) throws LlvmError {
 		var roots = new GenericArray<void*> ();
 		roots.add ((void*) root);
 		verify_roots (roots, publication);
 	}
+
 	internal void verify_roots(GenericArray<void*> roots, CApi.ValueRef publication) throws LlvmError {
 		verify_descriptor ();
 		CApi.ValueRef initialized = (CApi.ValueRef) null;
@@ -107,12 +112,14 @@ internal class LlvmScopedExceptionShape : Object {
 			throw new LlvmError.VERIFICATION ("scoped exception descriptor must be initialized before publication (function=%s, publication=%s, opcode=%d, initialized=%d)", CApi.value_name (CApi.block_parent (CApi.instruction_parent (publication)), out length), CApi.value_name (publication, out length), (int) CApi.opcode (publication), (void*) initialized == null ? 0 : 1);
 		}
 	}
+
 	internal void verify_descriptor() throws LlvmError {
 		if (CApi.is_global_constant (descriptor) != 1 || (void*) CApi.get_initializer (descriptor) != (void*) initializer) {
 			throw new LlvmError.VERIFICATION ("scoped exception lost its immutable native descriptor");
 		}
 		authority.verify ();
 	}
+
 	internal void verify_empty_parent(LlvmScopedExceptionShape parent) throws LlvmError {
 		verify_descriptor ();
 		parent.verify_descriptor ();
@@ -123,12 +130,15 @@ internal class LlvmScopedExceptionShape : Object {
 			throw new LlvmError.VERIFICATION ("empty inherited error lost its exact zero-offset base layout and descriptor");
 		}
 	}
+
 	internal bool same(LlvmScopedExceptionShape other) {
 		return (void*) layout == (void*) other.layout && (void*) descriptor == (void*) other.descriptor;
 	}
+
 	private static bool ordinary_pointer_load(CApi.ValueRef value) {
 		return (void*) CApi.is_instruction (value) != null && CApi.opcode (value) == CApi.Opcode.LOAD && CApi.type_kind (CApi.type_of (value)) == CApi.TypeKind.POINTER && CApi.get_volatile (value) == 0 && CApi.get_ordering (value) == 0;
 	}
+
 	internal bool destructor_value(CApi.ValueRef value, CApi.ValueRef root) {
 		if (!ordinary_pointer_load (value)) {
 			return false;
@@ -140,6 +150,7 @@ internal class LlvmScopedExceptionShape : Object {
 		var owner = CApi.operand (address, 0);
 		return ordinary_pointer_load (owner) && member (CApi.operand (owner, 0), root) == 0;
 	}
+
 	internal bool destructor_call(CApi.ValueRef call, CApi.ValueRef root) throws LlvmError {
 		if (!destructor_value (CApi.called_value (call), root)) {
 			return false;
@@ -150,6 +161,7 @@ internal class LlvmScopedExceptionShape : Object {
 		}
 		return true;
 	}
+
 	internal void verify_inherited(CApi.ValueRef root) throws LlvmError {
 		verify_descriptor ();
 		for (var use = CApi.first_use (root); (void*) use != null; use = CApi.next_use (use)) {
@@ -165,6 +177,7 @@ internal class LlvmScopedExceptionShape : Object {
 			}
 		}
 	}
+
 }
 // Reconstruct Class backing from actual IR and the independently
 // copied native field layout. No predecessor graph or allocation marker survives.
@@ -191,9 +204,11 @@ internal class LlvmScopedHeapCarrier : Object {
 		result.returned_error = true;
 		return result;
 	}
+
 	private static bool number(CApi.ValueRef value, uint64 expected) {
 		return (void*) CApi.is_constant_int (value) != null && CApi.const_int_zext (value) == expected;
 	}
+
 	internal static bool named_call(CApi.ValueRef value, string name) {
 		if ((void*) CApi.is_instruction (value) == null || CApi.opcode (value) != CApi.Opcode.CALL || (void*) CApi.is_function (CApi.called_value (value)) == null) {
 			return false;
@@ -201,6 +216,7 @@ internal class LlvmScopedHeapCarrier : Object {
 		size_t length;
 		return CApi.value_name (CApi.called_value (value), out length) == name;
 	}
+
 	internal static bool free_call(CApi.ValueRef call) throws LlvmError {
 		if (!named_call (call, "free")) {
 			return false;
@@ -216,6 +232,7 @@ internal class LlvmScopedHeapCarrier : Object {
 		}
 		return true;
 	}
+
 	internal bool release_call(CApi.ValueRef call) throws LlvmError {
 		if (!contextual) {
 			return free_call (call);
@@ -234,6 +251,7 @@ internal class LlvmScopedHeapCarrier : Object {
 		}
 		return true;
 	}
+
 	private static bool sole_predecessor(CApi.ValueRef function, CApi.BasicBlockRef target, CApi.BasicBlockRef expected) {
 		uint count = 0;
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
@@ -249,6 +267,7 @@ internal class LlvmScopedHeapCarrier : Object {
 		}
 		return count == 1;
 	}
+
 	internal static LlvmScopedHeapCarrier? recognize(CApi.ValueRef root, LlvmScopedFieldContract fields) throws LlvmError {
 		var layout = fields.layout;
 		bool contextual = !fields.default_backing;
@@ -330,5 +349,6 @@ internal class LlvmScopedHeapCarrier : Object {
 		result.empty_base_shape = fields.empty_base_shape;
 		return result;
 	}
+
 }
 }

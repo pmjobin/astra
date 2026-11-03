@@ -17,12 +17,14 @@ private string[] fixture_names() {
 			   "consume", "pass", "null", "release", "move", "borrow", "rearm", "multi", "root-order", "nested", "order", "recurse", "mutual", "result", "terminating", "branches", "loop", "shortcircuit", "borrow-move", "trap"
 	};
 }
+
 private delegate void TestBody() throws GLib.Error;
 private class Case : Object {
 	internal TestBody body;
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -35,11 +37,13 @@ private void add(string path, owned TestBody body) {
 			}
 		});
 }
+
 private string read(string name) throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/ownbound/fixtures/ownbound-" + name, out text);
 	return text;
 }
+
 private SemanticResult analyze(string text, string declarations = TYPES + API) {
 	var parsed = Parser.parse (new SourceFile.from_text ("ownbound.astra", text));
 	if (parsed.diagnostic != null) {
@@ -51,6 +55,7 @@ private SemanticResult analyze(string text, string declarations = TYPES + API) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit, VapiNormalizer.normalize (vapi.file), VapiNormalizer.normalize_handles (vapi.file));
 }
+
 private CheckedProgram check(string text, string declarations = TYPES + API) {
 	var result = analyze (text, declarations);
 	if (result.diagnostic != null) {
@@ -58,12 +63,15 @@ private CheckedProgram check(string text, string declarations = TYPES + API) {
 	}
 	return result.program;
 }
+
 private CfgProgram cfg(string text, string declarations = TYPES + API) throws GLib.Error {
 	return CfgBuilder.build (CoreBuilder.build (check (text, declarations)));
 }
+
 private SsaProgram build(string text, string declarations = TYPES + API) throws GLib.Error {
 	return SsaBuilder.build (cfg (text, declarations));
 }
+
 private string fixture_declarations(string name) throws FileError {
 	string api;
 	string types;
@@ -71,4 +79,5 @@ private string fixture_declarations(string name) throws FileError {
 	FileUtils.get_contents ("tests/resource/fixtures/resource-types.vapi", out types);
 	return api + types + read ("extra.vapi");
 }
+
 }

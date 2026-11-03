@@ -27,4 +27,5 @@ private void reject(string text, string fragment) {
 		GLib.error ("expected '%s', found %s", fragment, diagnostic == null ? "success" : diagnostic.format ());
 	}
 }
+
 }

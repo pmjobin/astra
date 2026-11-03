@@ -4,16 +4,26 @@ namespace SequenceModel;
 [ExceptionRoot]
 class Fault {
 	readonly string text;
+
 	init(string message) { this.text = message; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 struct Interval { int offset; int count; }
+
 struct Triple { Interval first; Interval second; Interval third; }
+
 struct Scores { int left; int right; }
+
 struct Moments { int count; int sum; int energy; }
+
 struct Alignment { Triple ranges; Scores scores; Moments totals; }
+
 struct Layer<T> { T value; int ordinal; }
+
 struct Box<T> { Layer<T> inner; int generation; }
+
 struct Reply<T> { Box<T> payload; int identity; int cached; }
 
 [Shared,Monitor]
@@ -21,25 +31,41 @@ struct Reply<T> { Box<T> payload; int identity; int cached; }
 class Entry {
 	private Alignment value;
 	private owned ContextBytes<ConcurrentAllocator> profile;
+
 	init(Alignment value, owned ContextBytes<ConcurrentAllocator> profile) {
 		this.value = value; this.profile = move profile; sequence_event(6, value.ranges.first.offset, value.totals.count);
 	}
+
 	bool matches(int first, int first_count, int second, int second_count, int third, int third_count) {
 		return this.value.ranges.first.offset == first && this.value.ranges.first.count == first_count && this.value.ranges.second.offset == second && this.value.ranges.second.count == second_count && this.value.ranges.third.offset == third && this.value.ranges.third.count == third_count;
 	}
+
 	int first_offset() { return this.value.ranges.first.offset; }
+
 	int first_count() { return this.value.ranges.first.count; }
+
 	int second_offset() { return this.value.ranges.second.offset; }
+
 	int second_count() { return this.value.ranges.second.count; }
+
 	int third_offset() { return this.value.ranges.third.offset; }
+
 	int third_count() { return this.value.ranges.third.count; }
+
 	int left_score() { return this.value.scores.left; }
+
 	int right_score() { return this.value.scores.right; }
+
 	int count() { return this.value.totals.count; }
+
 	int sum() { return this.value.totals.sum; }
+
 	int energy() { return this.value.totals.energy; }
+
 	int left_at(int index) { return (this.profile[index * 2] as int) + (this.profile[index * 2 + 1] as int) * 256; }
+
 	int right_at(int index) { int offset = (this.value.ranges.first.count + 1 + index) * 2; return (this.profile[offset] as int) + (this.profile[offset + 1] as int) * 256; }
+
 	deinit() { sequence_event(7, this.value.ranges.first.offset, this.value.totals.count); }
 }
 
@@ -48,23 +74,38 @@ class Entry {
 class Block {
 	private Triple ranges;
 	private owned ContextBytes<ConcurrentAllocator> bytes;
+
 	init(Triple ranges, owned ContextBytes<ConcurrentAllocator> bytes) { this.ranges = ranges; this.bytes = move bytes; }
+
 	void set_byte(int index, int value) { this.bytes[index] = value as u8; }
+
 	owned Entry analyze(borrowed ConcurrentAllocator results, int identity, int mode) throws Fault {
-		if (mode == 1) { sequence_event(9, identity, 1); throw new Fault("requested sequence analysis refusal"); }
+		if (mode == 1) {
+			sequence_event(9, identity, 1);
+			throw new Fault("requested sequence analysis refusal");
+		}
 		int count = this.ranges.first.count + this.ranges.second.count + this.ranges.third.count;
-		if (this.ranges.first.count <= 0 || this.ranges.second.count <= 0 || this.ranges.third.count <= 0 || len(this.bytes) != count) { throw new Fault("sequence block extent"); }
+		if (this.ranges.first.count <= 0 || this.ranges.second.count <= 0 || this.ranges.third.count <= 0 || len(this.bytes) != count) {
+			throw new Fault("sequence block extent");
+		}
 		sequence_event(2, identity, count);
 		int width = this.ranges.first.count + 1;
 		var profile = new(results)u8[width * 4];
-		for (int i = 0; i < width * 4; i = i + 1) { profile[i] = 0; }
+		for (int i = 0; i < width * 4; i = i + 1) profile[i] = 0;
 		int sum = 0; int energy = 0;
-		for (int i = 0; i < count; i = i + 1) { int value = this.bytes[i] as int; sum = sum + value; energy = energy + value * value; }
+		for (int i = 0; i < count; i = i + 1) {
+			int value = this.bytes[i] as int;
+			sum = sum + value;
+			energy = energy + value * value;
+		}
 		// Each retained row is an in-place LCS dynamic-programming frontier.
 		// The independent oracle uses bit-parallel set arithmetic instead.
 		for (int part = 0; part < 2; part = part + 1) {
 			int start = this.ranges.first.count; int length = this.ranges.second.count;
-			if (part == 1) { start = start + this.ranges.second.count; length = this.ranges.third.count; }
+			if (part == 1) {
+				start = start + this.ranges.second.count;
+				length = this.ranges.third.count;
+			}
 			int base = part * width * 2;
 			for (int row = 0; row < length; row = row + 1) {
 				int diagonal = 0;
@@ -72,8 +113,8 @@ class Block {
 					int offset = base + column * 2;
 					int above = (profile[offset] as int) + (profile[offset + 1] as int) * 256;
 					int left = (profile[offset - 2] as int) + (profile[offset - 1] as int) * 256;
-					int value = above; if (left > value) { value = left; }
-					if (this.bytes[column - 1] == this.bytes[start + row]) { value = diagonal + 1; }
+					int value = above; if (left > value) value = left;
+					if (this.bytes[column - 1] == this.bytes[start + row]) value = diagonal + 1;
 					profile[offset] = (value % 256) as u8; profile[offset + 1] = (value / 256) as u8;
 					diagonal = above;
 				}
@@ -96,22 +137,37 @@ class Ticket {
 	private owned Block block;
 	private owned Entry result;
 	private int status;
+
 	init(int identity, int mode, Triple ranges, owned Block block) {
 		this.identity = identity; this.mode = mode; this.ranges = ranges; this.block = move block; this.result = empty_entry(); this.status = 0; sequence_event(0, identity, ranges.first.count + ranges.second.count + ranges.third.count);
 	}
+
 	int id() { return this.identity; }
+
 	int operation() { return this.mode; }
+
 	int first_offset() { return this.ranges.first.offset; }
+
 	int first_count() { return this.ranges.first.count; }
+
 	int second_offset() { return this.ranges.second.offset; }
+
 	int second_count() { return this.ranges.second.count; }
+
 	int third_offset() { return this.ranges.third.offset; }
+
 	int third_count() { return this.ranges.third.count; }
+
 	owned Block payload() { var result = shared_clone(this.block); return move result; }
+
 	int state() { return this.status; }
+
 	void finish(owned Entry result) { this.result = move result; this.status = 1; }
+
 	void refuse() { this.status = 2; }
+
 	owned Entry outcome() { var result = shared_clone(this.result); return move result; }
+
 	deinit() { sequence_event(1, this.identity, this.status); }
 }
 
@@ -121,11 +177,16 @@ class Queue {
 	private owned Ticket[slots] entries;
 	private int capacity;
 	private bool admitted;
+
 	init(int capacity) { this.entries = new Ticket[slots]; this.capacity = capacity; this.admitted = this.entries.reserve(capacity); }
+
 	bool ready() { return this.admitted; }
+
 	bool available() { return len(this.entries) < this.capacity; }
-	bool offer(owned Ticket ticket) { if (len(this.entries) >= this.capacity) { return false; } this.entries.append(move ticket); sequence_event(8, len(this.entries), this.capacity); return true; }
-	owned Ticket pop() { if (len(this.entries) == 0) { return null; } var result = this.entries.take(0); return move result; }
+
+	bool offer(owned Ticket ticket) { if (len(this.entries) >= this.capacity) return false; this.entries.append(move ticket); sequence_event(8, len(this.entries), this.capacity); return true; }
+
+	owned Ticket pop() { if (len(this.entries) == 0) return null; var result = this.entries.take(0); return move result; }
 }
 
 [Shared,Monitor]
@@ -139,39 +200,67 @@ class Cache {
 	private int rejected;
 	private bool failed;
 	private bool admitted;
+
 	init(int capacity) { this.entries = new Entry[slots]; this.capacity = capacity; this.admitted = this.entries.reserve(capacity); this.hits = 0; this.misses = 0; this.clients = 0; this.rejected = 0; this.failed = false; }
+
 	bool ready() { return this.admitted; }
-	owned Entry take() { if (len(this.entries) == 0) { return null; } var result = this.entries.take(0); return move result; }
-	void store(owned Entry entry) { if (len(this.entries) == this.capacity) { var retired = this.entries.take(0); } this.entries.append(move entry); }
+
+	owned Entry take() { if (len(this.entries) == 0) return null; var result = this.entries.take(0); return move result; }
+
+	void store(owned Entry entry) { if (len(this.entries) == this.capacity) {
+			var retired = this.entries.take(0);
+		} this.entries.append(move entry); }
+
 	void hit() { this.hits = this.hits + 1; }
+
 	void miss() { this.misses = this.misses + 1; }
+
 	void rejection() { this.rejected = this.rejected + 1; }
+
 	int hit_count() { return this.hits; }
+
 	int miss_count() { return this.misses; }
+
 	int count() { return len(this.entries); }
+
 	int rejections() { return this.rejected; }
+
 	void client_done() { this.clients = this.clients + 1; }
+
 	int completed_clients() { return this.clients; }
+
 	void fail() { this.failed = true; }
+
 	bool stopped() { return this.failed; }
 }
 
 owned Entry empty_entry() { return null; }
+
 owned Ticket clone_ticket(borrowed Ticket value) { var result = shared_clone(value); return move result; }
+
 owned Queue clone_queue(borrowed Queue value) { var result = shared_clone(value); return move result; }
+
 owned Cache clone_cache(borrowed Cache value) { var result = shared_clone(value); return move result; }
+
 owned Entry clone_entry(borrowed Entry value) { var result = shared_clone(value); return move result; }
+
 owned Entry lookup(borrowed Cache cache, Triple ranges) {
 	int candidates = cache.count();
 	for (int i = 0; i < candidates; i = i + 1) {
 		var entry = cache.take();
 		if (entry != null) {
-			if (entry.matches(ranges.first.offset, ranges.first.count, ranges.second.offset, ranges.second.count, ranges.third.offset, ranges.third.count)) { var result = shared_clone(entry); cache.store(move entry); cache.hit(); return move result; }
+			if (entry.matches(ranges.first.offset, ranges.first.count, ranges.second.offset, ranges.second.count, ranges.third.offset, ranges.third.count)) {
+				var result = shared_clone(entry);
+				cache.store(move entry);
+				cache.hit();
+				return move result;
+			}
 			cache.store(move entry);
 		}
 	}
 	cache.miss(); return null;
 }
+
 Reply<Alignment> reply(borrowed Entry entry, int identity, int cached) {
 	Alignment value = {ranges = {first = {offset = entry.first_offset(), count = entry.first_count()}, second = {offset = entry.second_offset(), count = entry.second_count()}, third = {offset = entry.third_offset(), count = entry.third_count()}}, scores = {left = entry.left_score(), right = entry.right_score()}, totals = {count = entry.count(), sum = entry.sum(), energy = entry.energy()}};
 	Reply<Alignment> result = {payload = {inner = {value = value, ordinal = 3}, generation = 3}, identity = identity, cached = cached}; return result;

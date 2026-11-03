@@ -40,7 +40,9 @@ private void stages() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	CAbiVerifier.verify (cabi);
 }
+
 private void register_lifetime() {
 	add ("/ownbound/lifetime/stage-boundaries", stages);
 }
+
 }

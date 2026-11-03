@@ -3,7 +3,7 @@ int main() {
 		try { var bad = byte_arena(-1, 1); return 81; } catch(ArenaError error) {}
 		try { var bad = byte_arena(1, -1); return 82; } catch(ArenaError error) {}
 		var zero = byte_arena(0, 1); int empty = zero.allocate(0, 16);
-		if (zero.length(empty) != 0 || zero.occupied() != 0 || zero.offset(empty) != 0) { return 83; }
+		if (zero.length(empty) != 0 || zero.occupied() != 0 || zero.offset(empty) != 0) return 83;
 		try { zero.allocate(0, 1); return 84; } catch(ArenaError error) {}
 		try { zero.read(empty, 0); return 85; } catch(ArenaError error) {}
 		zero.release_last(empty);
@@ -11,11 +11,11 @@ int main() {
 		try { no_slots.allocate(1, 1); return 86; } catch(ArenaError error) {}
 		var arena = byte_arena(17, 3); int first = arena.allocate(3, 1);
 		arena.write(first, 0, 255); int last = arena.allocate(1, 16);
-		if (arena.offset(last) != 16 || arena.occupied() != 17 || arena.count() != 2) { return 87; }
+		if (arena.offset(last) != 16 || arena.occupied() != 17 || arena.count() != 2) return 87;
 		int round = 0;
 		while (round < 3) {
 			try { arena.allocate(2147483647, 16); return 88; } catch(ArenaError error) {}
-			if (arena.read(first, 0) != 255 || arena.occupied() != 17 || arena.count() != 2) { return 89; }
+			if (arena.read(first, 0) != 255 || arena.occupied() != 17 || arena.count() != 2) return 89;
 			round = round + 1;
 		}
 		try { arena.allocate(-1, 1); return 90; } catch(ArenaError error) {}
@@ -24,12 +24,12 @@ int main() {
 		try { arena.write(first, -1, 0); return 93; } catch(ArenaError error) {}
 		try { arena.release_last(first); return 94; } catch(ArenaError error) {}
 		arena.release_last(last);
-		if (arena.occupied() != 3) { return 95; }
+		if (arena.occupied() != 3) return 95;
 		try { arena.offset(last); return 96; } catch(ArenaError error) {}
 		int replacement = arena.allocate(1, 16);
-		if (replacement == last || arena.read(replacement, 0) != 0) { return 97; }
+		if (replacement == last || arena.read(replacement, 0) != 0) return 97;
 		arena.release_last(replacement); arena.release_last(first);
-		if (arena.count() != 0 || arena.occupied() != 0) { return 98; }
+		if (arena.count() != 0 || arena.occupied() != 0) return 98;
 	} catch(ArenaError error) { return 99; }
 	return 0;
 }

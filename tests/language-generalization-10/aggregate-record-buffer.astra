@@ -3,10 +3,12 @@ struct Sample {
 	int value;
 	int flag;
 }
+
 struct RecordOwner {
 	owned Sample[] samples;
 	owned u8[] bytes;
 }
+
 owned Sample[] produce() {
 	var samples = new Sample[2];
 	samples[0].value = 19;
@@ -14,6 +16,7 @@ owned Sample[] produce() {
 	mark(samples[0].value + samples[1].flag);
 	return move samples;
 }
+
 int main() {
 	{
 		RecordOwner owner = {samples = produce(), bytes = new u8[0]};

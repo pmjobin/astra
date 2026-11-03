@@ -32,6 +32,7 @@ public class SsaForeignApi : Object {
 		}
 		return null;
 	}
+
 	public static ForeignValueType? record(SsaProgram? program,SemanticType type) {
 		if (program == null) {
 			return null;
@@ -56,6 +57,7 @@ public class SsaForeignApi : Object {
 		}
 		return ForeignApiTypes.record (type,names,fields);
 	}
+
 	public static bool valid(SsaClass owner,SsaProgram? program = null) {
 		var policy = owner.foreign_export;
 		var api = policy == null ? null : policy.declared_api;
@@ -135,5 +137,6 @@ public class SsaForeignApi : Object {
 		}
 		return true;
 	}
+
 }
 }

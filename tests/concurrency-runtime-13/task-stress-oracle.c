@@ -13,6 +13,7 @@ static int shutdown_released;
 static pthread_t parent, threads[8], first[256];
 static int visits[256];
 static _Atomic int acquired[256], destroyed[256], caught[256], pending[256];
+
 int32_t task_stress_prepare(int32_t count, int32_t batches) {
 	assert(count >= 2 && count <= 8 && batches > 0 && batches * count < 250);
 	workers = count;
@@ -20,15 +21,18 @@ int32_t task_stress_prepare(int32_t count, int32_t batches) {
 	parent = pthread_self();
 	return 0;
 }
+
 int32_t task_stress_acquire(int32_t id) {
 	assert(id > 0 && id < 256 && atomic_fetch_add(&acquired[id], 1) == 0);
 	return 0;
 }
+
 int32_t task_stress_destroy(int32_t id) {
 	assert(id > 0 && id < 256 && atomic_load(&acquired[id]) == 1);
 	assert(atomic_fetch_add(&destroyed[id], 1) == 0);
 	return 0;
 }
+
 int32_t task_stress_step(int32_t id, int32_t phase) {
 	assert(id > 0 && id <= workers * rounds && phase >= 0 && phase <= 1);
 	assert(!pthread_equal(parent, pthread_self()));
@@ -57,11 +61,13 @@ int32_t task_stress_step(int32_t id, int32_t phase) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t task_stress_caught(int32_t id) {
 	assert(id > 0 && id <= workers * rounds && id % 3 == 0);
 	assert(atomic_load(&destroyed[id]) == 1 && atomic_fetch_add(&caught[id], 1) == 0);
 	return 0;
 }
+
 int32_t task_stress_pending(int32_t id) {
 	assert(id > workers * rounds && id < 256 && atomic_fetch_add(&pending[id], 1) == 0);
 	if (id == workers * rounds + 3) {
@@ -74,6 +80,7 @@ int32_t task_stress_pending(int32_t id) {
 	}
 	return 0;
 }
+
 int32_t task_stress_shutdown_released(void) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	shutdown_released = 1;
@@ -81,10 +88,12 @@ int32_t task_stress_shutdown_released(void) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t task_stress_ready(int32_t id) {
 	assert(id > 0 && id < 256);
 	return atomic_load(&pending[id]);
 }
+
 int32_t task_stress_finish(int32_t count) {
 	assert(count == workers * rounds + 3 && identities == workers && generation == rounds);
 	for (int id = 1; id <= count; ++id) {

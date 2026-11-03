@@ -12,6 +12,7 @@ public abstract class CoreStructProducer : CoreNode {
 		base (span);
 		this.contract = new StructValueContract (type, mode);
 	}
+
 }
 
 public class CoreStructMoveProducer : CoreStructProducer {
@@ -20,6 +21,7 @@ public class CoreStructMoveProducer : CoreStructProducer {
 		base (span, source.place.semantic_type, StructValueMode.MOVE_VALUE);
 		this.source = source;
 	}
+
 }
 
 public class CoreStructSnapshot : CoreStructProducer {
@@ -28,6 +30,7 @@ public class CoreStructSnapshot : CoreStructProducer {
 		base (span, source.semantic_type);
 		this.source = source;
 	}
+
 }
 
 // Borrowing observes exact storage without acquiring its owner leaves.
@@ -38,6 +41,7 @@ public class CoreStructBorrowSnapshot : CoreStructProducer {
 		base (span, source.semantic_type, StructValueMode.BORROW_VALUE);
 		this.source = source;
 	}
+
 }
 
 public class CoreStructProjectionValue : CoreValue {
@@ -48,6 +52,7 @@ public class CoreStructProjectionValue : CoreValue {
 		this.source = source;
 		this.path = path;
 	}
+
 }
 
 public class CoreStructProjectionProducer : CoreStructProducer {
@@ -58,6 +63,7 @@ public class CoreStructProjectionProducer : CoreStructProducer {
 		this.source = source;
 		this.path = path;
 	}
+
 }
 
 public class CoreCStructCallResult : CoreStructProducer {
@@ -69,6 +75,7 @@ public class CoreCStructCallResult : CoreStructProducer {
 		this.callee = WeakRef (target);
 		this.arguments = arguments;
 	}
+
 }
 
 public class CoreStructInvocationResult : CoreStructProducer {
@@ -77,6 +84,7 @@ public class CoreStructInvocationResult : CoreStructProducer {
 		base (invocation.span, invocation.semantic_type, mode);
 		this.invocation = invocation;
 	}
+
 }
 
 public class CoreStructCallResult : CoreStructProducer {
@@ -92,6 +100,7 @@ public class CoreStructCallResult : CoreStructProducer {
 		this.receiver = receiver;
 		this.type_arguments = type_arguments;
 	}
+
 }
 
 // Only verify_call accepts this adapter; verify_value rejects it everywhere else.
@@ -103,6 +112,7 @@ public class CoreStructArgument : CoreValue {
 		this.parameter = parameter;
 		this.producer = producer;
 	}
+
 }
 
 public class CoreStructResultStore : CoreStatement {
@@ -115,6 +125,7 @@ public class CoreStructResultStore : CoreStatement {
 		this.producer = producer;
 		this.initializes_destination = initializes_destination;
 	}
+
 }
 
 public class CoreStructReturn : CoreStatement {
@@ -123,6 +134,7 @@ public class CoreStructReturn : CoreStatement {
 		base (span);
 		this.producer = producer;
 	}
+
 }
 
 public class CoreAcquireStructParameter : CoreStatement {
@@ -133,5 +145,6 @@ public class CoreAcquireStructParameter : CoreStatement {
 		this.destination = destination;
 		this.parameter = parameter;
 	}
+
 }
 }

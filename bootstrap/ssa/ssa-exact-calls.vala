@@ -16,6 +16,7 @@ internal class SsaReceiverOrigins : Object {
 		}
 		return changed;
 	}
+
 }
 public class SsaExactCalls : Object {
 	private static SsaReceiverOrigins value(HashTable<SsaValue, SsaReceiverOrigins> origins, SsaValue? value) {
@@ -27,6 +28,7 @@ public class SsaExactCalls : Object {
 		unknown.unknown = true;
 		return unknown;
 	}
+
 	// Producer: propagate finite sets of lexical allocation identities forward.
 	// A merge keeps exact type authority only if every origin has that class.
 	private static HashTable<SsaValue, SsaReceiverOrigins> derive(SsaFunction function) {
@@ -84,6 +86,7 @@ public class SsaExactCalls : Object {
 		} while (changed);
 		return origins;
 	}
+
 	public static void annotate(SsaProgram program) {
 		foreach (var function in program.functions) {
 			if (function.object_storage.length == 0) {
@@ -129,11 +132,13 @@ public class SsaExactCalls : Object {
 			}
 		}
 	}
+
 	private static void require(bool condition, string message) throws SsaError {
 		if (!condition) {
 			throw new SsaError.INVALID_SSA ("exact receiver consumer: " + message);
 		}
 	}
+
 	private static SsaFunction? implementation(SsaClass owner, int slot) throws SsaError {
 		var seen = new HashTable<SsaClass, bool> (direct_hash, direct_equal);
 		for (SsaClass? current = owner; current != null; current = current.parent_class) {
@@ -162,6 +167,7 @@ public class SsaExactCalls : Object {
 		}
 		return null;
 	}
+
 	// Consumer: start at the actual receiver and traverse definitions and
 	// incoming CFG arguments backwards. No producer origin set is consulted.
 	private static GenericArray<SsaObjectStorage> roots(SsaFunction function, SsaValue receiver,
@@ -203,6 +209,7 @@ public class SsaExactCalls : Object {
 		require (result.length != 0, "receiver cycle has no concrete allocation origin");
 		return result;
 	}
+
 	public static void verify(SsaProgram program) throws SsaError {
 		foreach (var function in program.functions) {
 			bool needed = false;
@@ -269,5 +276,6 @@ public class SsaExactCalls : Object {
 			}
 		}
 	}
+
 }
 }

@@ -12,14 +12,17 @@ public class OwnedRecordDefinitionContract : Object {
 	public bool owned_parameter(int position) {
 		return owners[position];
 	}
+
 	public GenericFieldPattern field(int position) {
 		return fields[position];
 	}
+
 	internal OwnedRecordDefinitionContract (RecordDefinitionIdentity nominal, bool[] owners, GenericFieldPattern[] fields) {
 		this.nominal = nominal;
 		this.owners = owners.copy ();
 		this.fields = fields.copy ();
 	}
+
 }
 public class OwnedRecordApplicationContract : Object {
 	public OwnedRecordDefinitionContract definition { get; private set; }
@@ -28,6 +31,7 @@ public class OwnedRecordApplicationContract : Object {
 		this.definition = definition;
 		this.arguments = new TypeArgumentVector (arguments);
 	}
+
 	public bool valid(SemanticType type, GenericArray<SemanticType> stage_arguments, CopyabilityFields fields) {
 		if (arguments.length != definition.parameter_count || stage_arguments.length != arguments.length || type.logical_identity != definition.nominal.application (arguments.copy_values ())) {
 			return false;
@@ -47,6 +51,7 @@ public class OwnedRecordApplicationContract : Object {
 		}
 		return true;
 	}
+
 	public bool field(int position, string name, SemanticType type, bool owned, bool private_field, CopyabilityFields fields) {
 		if (position < 0 || position >= definition.field_count) {
 			return false;
@@ -54,5 +59,6 @@ public class OwnedRecordApplicationContract : Object {
 		var declared = definition.field (position);
 		return name == declared.name && private_field == declared.private_field && owned == declared.owned_field && !declared.readonly_field && GenericClassDeclaredShape.arguments (declared.value_type, type, arguments, null, fields);
 	}
+
 }
 }

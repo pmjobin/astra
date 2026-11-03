@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class HelperItem {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	deinit() { mark(this.code); }
 }
 
@@ -24,17 +26,17 @@ void consume_collection(owned Bag<HelperItem> values) {
 
 int main() {
 	var values = create_collection();
-	if (!values.reserve(2)) { return 1; }
+	if (!values.reserve(2)) return 1;
 	var first = new HelperItem(10);
 	values.append(move first);
 	var second = new HelperItem(20);
 	values.append(move second);
 	var replacement = new HelperItem(30);
 	values.replace(0, move replacement);
-	if (collection_size<bool>(values, true) != 2 || collection_size<int>(values, 42) != 2) { return 2; }
-	if (!inspect_item(values.entries[0], 30) || collection_pointer(values) != null) { return 3; }
+	if (collection_size<bool>(values, true) != 2 || collection_size<int>(values, 42) != 2) return 2;
+	if (!inspect_item(values.entries[0], 30) || collection_pointer(values) != null) return 3;
 	var extracted = values.take(1);
-	if (extracted.code != 20) { return 4; }
+	if (extracted.code != 20) return 4;
 	release extracted;
 	consume_collection(move values);
 	return live();

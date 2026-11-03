@@ -1,29 +1,47 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Record { int tag; f64 weight; }
+
 owned Record[] make(int count) { return new Record[count]; }
+
 owned Record[] relay(owned Record[] values) { return move values; }
+
 Record inspect(Record[] values) { return values[0]; }
+
 int take(Record value, owned Record[] values) { values[0].tag = 77; return value.tag; }
+
 void replace(owned Record[] values) { values = make(3); values[2].tag = 99; }
+
 class Context {
 	owned Record[] records;
 	owned f64[] scratch;
+
 	init(int count) { this.records = make(count); this.scratch = new f64[count]; }
+
 	void set() { this.records[0].tag = 7; this.records[0].weight = 0.5d; }
+
 	Record get() { return this.records[0]; }
+
 	void replace(int count) { this.records = make(count); }
-	deinit() { if (len(this.records) > 0) { var saved = this.records[0]; this.records = make(saved.tag + 1); } }
+
+	deinit() { if (len(this.records) > 0) {
+			var saved = this.records[0];
+			this.records = make(saved.tag + 1);
+		} }
 }
+
 owned Context create(int count) { return Context.init(count); }
+
 owned Context forward(owned Context context) { return move context; }
+
 owned T generic_relay<T>(owned T value) where T : Ownable { return move value; }
+
 int main() {
 	var first = make(2);
 	first[0].tag = 9;
 	var saved = inspect(first);
 	first = make(1);
 	first[0] = saved;
-	if (take(first[0], move first) != 9) { return 1; }
+	if (take(first[0], move first) != 9) return 1;
 	first = make(0);
 	first = make(3);
 	var second = relay(move first);
@@ -37,6 +55,6 @@ int main() {
 	owned Context moved = forward(move context);
 	owned Context again = generic_relay(move moved);
 	again.replace(1);
-	if (prior.tag != 7 || prior.weight != 0.5d) { return 2; }
+	if (prior.tag != 7 || prior.weight != 0.5d) return 2;
 	return 0;
 }

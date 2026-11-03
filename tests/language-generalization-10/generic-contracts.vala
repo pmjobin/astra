@@ -24,9 +24,11 @@ private CheckedProgram check() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CoreProgram core() throws GLib.Error {
 	return CoreGenericMonomorphizer.build (CoreBuilder.build (check ()));
 }
+
 private CheckedProgram resource_sample() throws GLib.Error {
 	string source, template, api;
 	FileUtils.get_contents ("tests/language-generalization-10/generic-resource.astra", out source);
@@ -41,6 +43,7 @@ private CheckedProgram resource_sample() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private CheckedProgram record_sample(bool storage_only = false) throws GLib.Error {
 	string source, template;
 	FileUtils.get_contents ("tests/language-generalization-10/generic-record.astra", out source);
@@ -57,6 +60,7 @@ private CheckedProgram record_sample(bool storage_only = false) throws GLib.Erro
 	}
 	return checked.program;
 }
+
 private CoreClass core_depot(CoreProgram program, string argument) {
 	foreach (var owner in program.classes) {
 		if (owner.generic_instance != null && owner.generic_instance.argument.display_name () == argument) {
@@ -65,6 +69,7 @@ private CoreClass core_depot(CoreProgram program, string argument) {
 	}
 	assert_not_reached ();
 }
+
 private CfgClass cfg_depot(CfgProgram program, string argument) {
 	foreach (var owner in program.classes) {
 		if (owner.generic_instance != null && owner.generic_instance.argument.display_name () == argument) {
@@ -73,6 +78,7 @@ private CfgClass cfg_depot(CfgProgram program, string argument) {
 	}
 	assert_not_reached ();
 }
+
 private SsaClass ssa_depot(SsaProgram program, string argument) {
 	foreach (var owner in program.classes) {
 		if (owner.generic_instance != null && owner.generic_instance.argument.display_name () == argument) {
@@ -81,6 +87,7 @@ private SsaClass ssa_depot(SsaProgram program, string argument) {
 	}
 	assert_not_reached ();
 }
+
 private void independent() {
 	try {
 		CheckedProgram? checked = check ();
@@ -115,6 +122,7 @@ private void independent() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void concrete_keys() {
 	try {
 		var p = core ();
@@ -205,6 +213,7 @@ private void concrete_keys() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void resource_authority() {
 	try {
 		CheckedProgram? checked = resource_sample ();
@@ -387,6 +396,7 @@ private void resource_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_authority() {
 	try {
 		CheckedProgram? checked = record_sample ();
@@ -577,6 +587,7 @@ private void record_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram method_sample() throws GLib.Error {
 	string source, api;
 	FileUtils.get_contents ("tests/language-generalization-10/generic-method.astra", out source);
@@ -590,6 +601,7 @@ private CheckedProgram method_sample() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private void method_authority() {
 	try {
 		CheckedProgram? checked = method_sample ();
@@ -771,6 +783,7 @@ private void method_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram owning_sample() throws GLib.Error {
 	string source, template, errors, api;
 	FileUtils.get_contents ("tests/language-generalization-10/generic-owning-record.astra", out source);
@@ -786,6 +799,7 @@ private CheckedProgram owning_sample() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private void owning_record_authority() {
 	try {
 		CheckedProgram? checked = owning_sample ();
@@ -991,6 +1005,7 @@ private void owning_record_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram owner_sample() throws GLib.Error {
 	string source, template, errors, api;
 	FileUtils.get_contents ("tests/language-generalization-10/generic-owner.astra", out source);
@@ -1006,6 +1021,7 @@ private CheckedProgram owner_sample() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private void owner_boundaries() {
 	try {
 		CheckedProgram? checked = owner_sample ();
@@ -1146,6 +1162,7 @@ private void owner_boundaries() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void slot_record_cycles() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("slot-record-graph.astra", "class Leaf{init(){}}struct Packet{owned Leaf child;}class Root{owned Packet[slots] entries;init(){this.entries=new Packet[slots];}}int main(){var root=new Root();return 0;}"));
@@ -1241,6 +1258,7 @@ private void slot_record_cycles() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void nested_authority() {
 	try {
 		string source, template, api;
@@ -1320,6 +1338,7 @@ private void nested_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram cache_sample(bool asynchronous = false) throws GLib.Error {
 	string source, template, errors, api;
 	FileUtils.get_contents (asynchronous ? "tests/language-generalization-10/generic-cache-async.astra" : "tests/language-generalization-10/generic-cache.astra", out source);
@@ -1340,6 +1359,7 @@ private CheckedProgram cache_sample(bool asynchronous = false) throws GLib.Error
 	}
 	return checked.program;
 }
+
 private void cache_channels() {
 	try {
 		CheckedProgram? checked = cache_sample ();
@@ -1521,6 +1541,7 @@ private void cache_channels() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cache_suspension_owner() {
 	try {
 		CheckedProgram? checked = cache_sample (true);
@@ -1605,6 +1626,7 @@ private void cache_suspension_owner() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void general_nonnull() {
 	try {
 		string source, template;
@@ -1721,6 +1743,7 @@ private void general_nonnull() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void projection_invalidation() {
 	try {
 		string source, template, errors, runtime;
@@ -1863,6 +1886,7 @@ private void projection_invalidation() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private CheckedProgram property_sample() throws GLib.Error {
 	string source, api;
 	FileUtils.get_contents ("tests/language-generalization-10/generic-property.astra", out source);
@@ -1876,6 +1900,7 @@ private CheckedProgram property_sample() throws GLib.Error {
 	}
 	return checked.program;
 }
+
 private void generic_properties() {
 	try {
 		CheckedProgram? checked = property_sample ();
@@ -2015,6 +2040,7 @@ private void generic_properties() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/generic-bodies/property-schema-receiver-targets-native-llvm-restored", generic_properties);
@@ -2033,4 +2059,5 @@ int main(string[] args) {
 	Test.add_func ("/generic-bodies/record-complete-groups-layout-native-llvm-restored", record_authority);
 	return Test.run ();
 }
+
 }

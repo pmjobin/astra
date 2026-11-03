@@ -1,41 +1,56 @@
 [ExceptionRoot]
 class Error {
 	readonly string text;
+
 	init(string message) { this.text = message; }
+
 	virtual property string message { get { return this.text; } }
+
 	deinit() { record_drop(1); }
 }
+
 class RuntimeError : Error {
 	init(string message) : base(message) {}
+
 	deinit() { record_drop(2); }
 }
+
 class DecodeError : RuntimeError {
 	int payload;
+
 	init(string message, int payload) : base(message) { this.payload = payload; }
+
 	deinit() { record_drop(3); }
 }
+
 class DeepDecodeError : DecodeError {
 	init(string message, int payload) : base(message, payload) {}
+
 	deinit() { record_drop(4); }
 }
+
 void leaf() throws DecodeError { throw new DeepDecodeError("rethrow\0é", 42); }
+
 void first() throws DecodeError {
 	try { leaf(); } catch (Error error) {
 		observe(1);
-		if (error.message != "rethrow\0é") { record_drop(9); }
+		if (error.message != "rethrow\0é") record_drop(9);
 		observe(2);
 		throw;
 	}
 }
+
 void second() throws RuntimeError {
 	try { first(); } catch (RuntimeError error) { observe(3); throw; }
 }
+
 int scope() {
 	try { second(); } catch (DecodeError error) { observe(4); return error.payload; } catch (RuntimeError error) { return 81; } catch (Error error) { return 82; }
 	return 83;
 }
+
 int main() {
 	int result = scope();
-	if (result != 42 || observer_result() != 1) { return 84; }
+	if (result != 42 || observer_result() != 1) return 84;
 	return 42;
 }

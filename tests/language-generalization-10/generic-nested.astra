@@ -2,13 +2,20 @@
 class Entry {
 	int value;
 	owned R resource;
+
 	init(int value, owned R resource) { this.value = value; this.resource = move resource; }
+
 	deinit() { mark(100 + this.value); }
 }
+
 struct Pair { int left; int right; }
+
 struct Packet { owned R resource; owned int[] values; int tag; }
+
 int count_entries(Vector<Entry> values) { return values.count(); }
+
 int count_pairs(Vector<Pair> values) { return values.count(); }
+
 owned Vector<Entry> create(int value) {
 	var values = new Vector<Entry>(0);
 	var resource = make(value);
@@ -16,6 +23,7 @@ owned Vector<Entry> create(int value) {
 	bool added = values.append(move entry);
 	return move values;
 }
+
 int exercise() {
 	var groups = new Vector<Vector<Entry>>(0);
 	var first = create(1);
@@ -37,7 +45,7 @@ int exercise() {
 	foreach (var group in nested_pairs) { mark(count_pairs(group)); }
 	var recovered = nested_pairs.take(0);
 	var snapshot = recovered.take(0);
-	if (snapshot.left != 7 || snapshot.right != 11) { return 81; }
+	if (snapshot.left != 7 || snapshot.right != 11) return 81;
 	var packets = new Vector<Packet>(0);
 	var resource = make(4);
 	var values = new int[2];
@@ -50,4 +58,5 @@ int exercise() {
 	mark(result.tag);
 	return 0;
 }
-int main() { int result = exercise(); if (result != 0) { return result; } return live(); }
+
+int main() { int result = exercise(); if (result != 0) return result; return live(); }

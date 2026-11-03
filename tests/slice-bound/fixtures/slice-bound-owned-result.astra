@@ -3,23 +3,26 @@ owned Resource pass(borrowed int[] s, owned Resource r) {
 	s[0] = s[0] + resource_id(r);
 	return move r;
 }
+
 owned Resource forward(owned Resource r, borrowed int[] s) {
 	owned Resource result = pass(s,move r);
 	return move result;
 }
+
 bool scenario() {
 	int[2] a = {10,20};
 	int[] s = slice(a);
 	owned Resource first = create_resource(4);
 	owned Resource result = forward(move first,s);
-	if (resource_id(result) != 4 || len(s) != 2 || s[0] != 14 || a[0] != 14 || resource_destroy_count() != 0) { return false; }
+	if (resource_id(result) != 4 || len(s) != 2 || s[0] != 14 || a[0] != 14 || resource_destroy_count() != 0) return false;
 	first = create_resource(5);
 	owned Resource second = pass(slice(a,1,1),move first);
 	return resource_id(second) == 5 && a[1] == 25 && resource_live_count() == 2;
 }
+
 int main() {
 	resource_reset();
-	if (!scenario()) { return 1; }
-	if (resource_create_count() != 2 || resource_destroy_count() != 2 || resource_destroy_order() != 54 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	if (!scenario()) return 1;
+	if (resource_create_count() != 2 || resource_destroy_count() != 2 || resource_destroy_order() != 54 || resource_live_count() != 0 || resource_error_count() != 0) return 2;
 	return 0;
 }

@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 u8 small(u8<16> a,u8<16> b){return dot_wrap(a,b,u8);}
+
 i32 same(i32<4> a,i32<4> b){return dot_wrap(a,b,i32);}
+
 u32 usame(u32<4> a,u32<4> b){return dot_wrap(a,b,u32);}
+
 int main(){
-	if(small(splat(255,16),splat(255,16))!=16){return 1;}
+	if(small(splat(255,16),splat(255,16))!=16) return 1;
 	i32<4> a={-2147483648,2147483647,-1,0};
 	i32<4> b={-1,2,-2147483648,0};
-	if(same(a,b)!=-2){return 2;}
+	if(same(a,b)!=-2) return 2;
 	u32<4> c={4294967295,2147483648,4294967294,1};
 	u32<4> d={4294967295,2,4294967295,4294967295};
-	if(usame(c,d)!=2){return 3;}
+	if(usame(c,d)!=2) return 3;
 	return 0;
 }

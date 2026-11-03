@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class LexicalBagItem {
 	int value;
+
 	init(int value) { this.value = value; mark(500 + value); }
+
 	deinit() { mark(400 + this.value); }
 }
 
@@ -11,14 +13,14 @@ bool inspect_lexical_item(borrowed LexicalBagItem item, int value) {
 
 int main() {
 	owned Bag<LexicalBagItem> bag = Bag<LexicalBagItem>.init();
-	if (!bag.reserve(2)) { return 1; }
+	if (!bag.reserve(2)) return 1;
 	var first = new LexicalBagItem(1);
 	bag.append(move first);
 	var replacement = new LexicalBagItem(2);
 	bag.replace(0, move replacement);
-	if (bag.count() != 1 || !inspect_lexical_item(bag.entries[0], 2)) { return 2; }
+	if (bag.count() != 1 || !inspect_lexical_item(bag.entries[0], 2)) return 2;
 	var extracted = bag.take(0);
-	if (extracted == null || extracted.value != 2 || bag.count() != 0) { return 3; }
+	if (extracted == null || extracted.value != 2 || bag.count() != 0) return 3;
 	release extracted;
 	var final_item = new LexicalBagItem(3);
 	bag.append(move final_item);

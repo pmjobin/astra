@@ -1,23 +1,32 @@
 struct Counter {
 	int value;
+
 	int record(int id) { this.value = this.value * 10 + id; return id; }
+
 	int pair(int a, int b) { this.value = this.value * 10 + 3; return a + b; }
+
 	bool test() { this.value = this.value + 1; return true; }
+
 	void add(int n) { this.value = this.value + n; }
 }
+
 int main() {
 	Counter c = { value = 0 };
-	if (c.pair(c.record(1), c.record(2)) != 3 || c.value != 123) { return 1; }
+	if (c.pair(c.record(1), c.record(2)) != 3 || c.value != 123) return 1;
 	c.value = 0;
 	bool a = false && c.test();
 	bool b = true || c.test();
-	if (a || !b || c.value != 0) { return 2; }
+	if (a || !b || c.value != 0) return 2;
 	a = false & c.test();
 	b = true | c.test();
-	if (a || !b || c.value != 2) { return 3; }
+	if (a || !b || c.value != 2) return 3;
 	int i = 0;
 	while (i < 4) {
-		if (i == 2) { c.value = c.value + 10; } else { c.add(10); }
+		if (i == 2) {
+			c.value = c.value + 10;
+		} else {
+			c.add(10);
+		}
 		i = i + 1;
 	}
 	return c.value;

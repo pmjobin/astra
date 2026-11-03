@@ -2,19 +2,23 @@
 int resource_stage<T>(owned T incoming, bool send, bool early) where T: Ownable {
 	owned T current = move incoming;
 	leaf<T>(current, 66);
-	if (early) { return 1; }
-	if (send) { dispose<T>(move current); return 2; }
+	if (early) return 1;
+	if (send) {
+		dispose<T>(move current);
+		return 2;
+	}
 	return 3;
 }
+
 int main() {
 	observe_begin(3, 0);
 	owned R early = create_r(1);
 	owned R sent = create_r(2);
 	owned S retained = create_s(3);
-	if (resource_stage(move early, false, true) != 1) { return 81; }
-	if (resource_stage<R>(move sent, true, false) != 2) { return 81; }
-	if (resource_stage<S>(move retained, false, false) != 3) { return 81; }
+	if (resource_stage(move early, false, true) != 1) return 81;
+	if (resource_stage<R>(move sent, true, false) != 2) return 81;
+	if (resource_stage<S>(move retained, false, false) != 3) return 81;
 	owned R empty = create_r(0);
-	if (resource_stage<R>(move empty, true, false) != 2) { return 81; }
+	if (resource_stage<R>(move empty, true, false) != 2) return 81;
 	return observe_end();
 }

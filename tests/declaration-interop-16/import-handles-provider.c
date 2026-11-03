@@ -6,28 +6,36 @@
 #ifdef USE_SDK
 #include "imports16.h"
 #else
+
 typedef struct astra_foreign_error {
 	int32_t domain, code;
 } astra_foreign_error;
+
 #endif
+
 typedef struct handle_provider16_handle {
 	int32_t value;
 	unsigned references;
 } handle_provider16_handle;
+
 typedef struct child_provider16_handle {
 	int32_t value;
 } child_provider16_handle;
+
 static unsigned roots, root_retired, children, child_retired, exceptions, expected_retirement, acquires;
+
 static void clear(astra_foreign_error *error) {
 	assert(error);
 	error->domain = 0;
 	error->code = 0;
 }
+
 static int32_t fail(astra_foreign_error *error) {
 	error->domain = 16;
 	error->code = -1600;
 	return -1600;
 }
+
 int32_t handles16_error_seen(void) {
 	++exceptions;
 	if (expected_retirement) {
@@ -36,6 +44,7 @@ int32_t handles16_error_seen(void) {
 	}
 	return 0;
 }
+
 int32_t handle_provider16_create(int32_t value, handle_provider16_handle **out, astra_foreign_error *error) {
 	clear(error);
 	*out = calloc(1, sizeof **out);
@@ -45,7 +54,9 @@ int32_t handle_provider16_create(int32_t value, handle_provider16_handle **out, 
 	++roots;
 	return 0;
 }
+
 #ifdef EXPECT_SHARED
+
 uint32_t handle_provider16_release(handle_provider16_handle *self) {
 	assert(self && self->references);
 	unsigned n = --self->references;
@@ -55,7 +66,9 @@ uint32_t handle_provider16_release(handle_provider16_handle *self) {
 	}
 	return n;
 }
+
 #else
+
 int32_t handle_provider16_destroy(handle_provider16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner && *owner);
@@ -64,7 +77,9 @@ int32_t handle_provider16_destroy(handle_provider16_handle **owner, astra_foreig
 	*owner = NULL;
 	return 0;
 }
+
 #endif
+
 int32_t child_provider16_create(int32_t value, child_provider16_handle **out, astra_foreign_error *error) {
 	clear(error);
 	*out = malloc(sizeof **out);
@@ -73,6 +88,7 @@ int32_t child_provider16_create(int32_t value, child_provider16_handle **out, as
 	++children;
 	return 0;
 }
+
 int32_t child_provider16_destroy(child_provider16_handle **owner, astra_foreign_error *error) {
 	clear(error);
 	assert(owner && *owner);
@@ -82,24 +98,28 @@ int32_t child_provider16_destroy(child_provider16_handle **owner, astra_foreign_
 	*owner = NULL;
 	return 0;
 }
+
 int32_t child_provider16_code(child_provider16_handle *self, int32_t *out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
 	*out = self->value;
 	return 0;
 }
+
 int32_t handle_provider16_combine(handle_provider16_handle *self, child_provider16_handle *input, int32_t extra, int32_t *out, astra_foreign_error *error) {
 	assert(self && input && out);
 	clear(error);
 	*out = self->value + input->value + extra;
 	return 0;
 }
+
 int32_t handle_provider16_optional(handle_provider16_handle *self, child_provider16_handle *input, int32_t *out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
 	*out = self->value + (input ? input->value : 0);
 	return 0;
 }
+
 int32_t handle_provider16_make(handle_provider16_handle *self, int32_t mode, uint8_t *output, int32_t capacity, int32_t *count, child_provider16_handle **out, astra_foreign_error *error) {
 	assert(self && output && capacity == 3 && count && out);
 	clear(error);
@@ -122,6 +142,7 @@ int32_t handle_provider16_make(handle_provider16_handle *self, int32_t mode, uin
 	}
 	return 0;
 }
+
 int32_t handle_provider16_lookup(handle_provider16_handle *self, int32_t mode, child_provider16_handle **out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
@@ -139,6 +160,7 @@ int32_t handle_provider16_lookup(handle_provider16_handle *self, int32_t mode, c
 	}
 	return 0;
 }
+
 int32_t handle_provider16_duplicate(handle_provider16_handle *self, handle_provider16_handle **out, astra_foreign_error *error) {
 	assert(self && out);
 	clear(error);
@@ -151,7 +173,9 @@ int32_t handle_provider16_duplicate(handle_provider16_handle *self, handle_provi
 	return handle_provider16_create(self->value, out, error);
 #endif
 }
+
 extern int32_t import_handles16_run(void);
+
 int main(void) {
 	int32_t result = import_handles16_run();
 	if (result) {

@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void checked_frame_header_failure();
+
 extern(C) void checked_frame_event(int kind, int identity);
+
 extern(C) int checked_frame_finish();
+
 [Allocator(kind="context",context="owned-concurrent")]
 class CheckedFrameCargo {
 	private int identity;
+
 	init(int identity) { this.identity = identity; }
+
 	int id() { return this.identity; }
+
 	deinit() { checked_frame_event(2, this.identity); }
 }
+
 struct CheckedFrameCapture<T> where T : Ownable {
 	owned T cargo;
 	owned ConcurrentAllocator token;
@@ -16,10 +23,12 @@ struct CheckedFrameCapture<T> where T : Ownable {
 	owned u8[] plain;
 	int marker;
 }
+
 struct CheckedFrameEnvelope<T> where T : Ownable {
 	CheckedFrameCapture<T> child;
 	int stamp;
 }
+
 CheckedFrameEnvelope<CheckedFrameCargo> checked_frame_record(borrowed ConcurrentAllocator objects, int identity) {
 	var cargo = new(objects) CheckedFrameCargo(identity);
 	var token = concurrent_allocator(1, 1024, 3, 64);
@@ -29,52 +38,69 @@ CheckedFrameEnvelope<CheckedFrameCargo> checked_frame_record(borrowed Concurrent
 	CheckedFrameEnvelope<CheckedFrameCargo> record = {child={cargo=move cargo,token=move token,bytes=move bytes,plain=move plain,marker=identity},stamp=7};
 	return move record;
 }
+
 int checked_record_probe(borrowed CheckedFrameEnvelope<CheckedFrameCargo> record, bool empty, int identity) {
-	if (record.child.marker != identity || record.stamp != 7) { return 1; }
-	if (empty) { if (record.child.cargo != null || record.child.token != null || len(record.child.plain) != 0 || len(record.child.bytes) != 0) { return 2; } return 0; }
-	if (record.child.cargo == null || record.child.token == null || len(record.child.plain) != 17 || record.child.plain[0] != (37 as u8) || len(record.child.bytes) != 23 || record.child.bytes[0] != (41 as u8)) { return 3; }
+	if (record.child.marker != identity || record.stamp != 7) return 1;
+	if (empty) {
+		if (record.child.cargo != null || record.child.token != null || len(record.child.plain) != 0 || len(record.child.bytes) != 0) return 2;
+		return 0;
+	}
+	if (record.child.cargo == null || record.child.token == null || len(record.child.plain) != 17 || record.child.plain[0] != (37 as u8) || len(record.child.bytes) != 23 || record.child.bytes[0] != (41 as u8)) return 3;
 	return record.child.cargo.id() - identity;
 }
+
 async void checked_frame_empty() {}
+
 async void checked_frame_consume(CheckedFrameEnvelope<CheckedFrameCargo> record) throws Error {
-	if (checked_record_probe(record, false, record.child.marker) != 0) { throw new Error("lost admitted record capture"); }
+	if (checked_record_probe(record, false, record.child.marker) != 0) {
+		throw new Error("lost admitted record capture");
+	}
 	checked_frame_event(1, record.child.marker);
-	if (record.child.marker == 3) { throw new Error("original task body failure"); }
+	if (record.child.marker == 3) {
+		throw new Error("original task body failure");
+	}
 }
+
 async void checked_frame_parent(owned ConcurrentAllocator frames, CheckedFrameEnvelope<CheckedFrameCargo> record) throws Error {
 	{
 		var blocker = task_in(frames, checked_frame_empty());
 		bool caught = false;
 		try { var refused = checked_task_in(frames, checked_frame_consume(move record)); }
 		catch (Error error) { caught = true; }
-		if (!caught || checked_record_probe(record, false, 4) != 0) { throw new Error("async refusal lost original record"); }
+		if (!caught || checked_record_probe(record, false, 4) != 0) {
+			throw new Error("async refusal lost original record");
+		}
 	}
 	await delay_ticks(1);
 	var child = checked_task_in(frames, checked_frame_consume(move record));
-	if (checked_record_probe(record, true, 4) != 0) { await cancel_and_join(move child); throw new Error("async admission did not empty record fields"); }
+	if (checked_record_probe(record, true, 4) != 0) {
+		await cancel_and_join(move child);
+		throw new Error("async admission did not empty record fields");
+	}
 	await move child;
 }
+
 export(C) int run_checked_frames() {
 	var frames = concurrent_allocator(2, 16384, 1, 64);
 	var objects = concurrent_allocator(1, 16384, 7, 64);
-	if (frames == null || objects == null) { return 1; }
+	if (frames == null || objects == null) return 1;
 	CheckedFrameEnvelope<CheckedFrameCargo> record = checked_frame_record(objects, 1);
 	{
 		var blocker = task_in(frames, checked_frame_empty());
 		bool caught = false;
 		try { var refused = checked_task_in(frames, checked_frame_consume(move record)); }
 		catch (Error error) { caught = true; }
-		if (!caught || checked_record_probe(record, false, 1) != 0 || concurrent_allocator_query(frames, 1) != 1) { return 2; }
+		if (!caught || checked_record_probe(record, false, 1) != 0 || concurrent_allocator_query(frames, 1) != 1) return 2;
 	}
 	checked_frame_header_failure();
 	bool caught = false;
 	try { var refused = checked_task_in(frames, checked_frame_consume(move record)); }
 	catch (Error error) { caught = true; }
-	if (!caught || checked_record_probe(record, false, 1) != 0 || concurrent_allocator_query(frames, 1) != 0) { return 4; }
+	if (!caught || checked_record_probe(record, false, 1) != 0 || concurrent_allocator_query(frames, 1) != 0) return 4;
 	try {
 		var executor = ThreadedExecutor.open(2);
 		var admitted = checked_task_in(frames, checked_frame_consume(move record));
-		if (checked_record_probe(record, true, 1) != 0) { return 5; }
+		if (checked_record_probe(record, true, 1) != 0) return 5;
 		var status = executor.run(move admitted);
 		match (status) { case ThreadedStatus.Completed(): {} else: { return 6; } }
 	} catch (Error error) { return 7; }
@@ -82,14 +108,14 @@ export(C) int run_checked_frames() {
 		CheckedFrameEnvelope<CheckedFrameCargo> dropped = checked_frame_record(objects, 2);
 		try { var cold = checked_task_in(frames, checked_frame_consume(move dropped)); }
 		catch (Error error) { return 8; }
-		if (checked_record_probe(dropped, true, 2) != 0) { return 9; }
+		if (checked_record_probe(dropped, true, 2) != 0) return 9;
 	}
 	{
 		CheckedFrameEnvelope<CheckedFrameCargo> failing = checked_frame_record(objects, 3);
 		bool failed = false;
 		try { var executor = ThreadedExecutor.open(2); var task = checked_task_in(frames, checked_frame_consume(move failing)); var status = executor.run(move task); }
 		catch (Error error) { failed = true; }
-		if (!failed || checked_record_probe(failing, true, 3) != 0) { return 10; }
+		if (!failed || checked_record_probe(failing, true, 3) != 0) return 10;
 	}
 	{
 		CheckedFrameEnvelope<CheckedFrameCargo> nested = checked_frame_record(objects, 4);
@@ -97,6 +123,6 @@ export(C) int run_checked_frames() {
 		try { var executor = ThreadedExecutor.open(2); var status = executor.run(checked_frame_parent(move selected, move nested)); }
 		catch (Error error) { return 13; }
 	}
-	if (concurrent_allocator_query(frames, 1) != 0 || concurrent_allocator_query(objects, 1) != 0) { return 11; }
+	if (concurrent_allocator_query(frames, 1) != 0 || concurrent_allocator_query(objects, 1) != 0) return 11;
 	return checked_frame_finish();
 }

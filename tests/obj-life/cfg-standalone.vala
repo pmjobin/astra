@@ -81,6 +81,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	program.classes.add (c);
 	return program;
 }
+
 private void valid() {
 	try {
 		CfgProgram? p = sample ();
@@ -95,6 +96,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int i = 1; i <= 13; i++) {
 		try {
@@ -106,10 +108,12 @@ private void invalid() {
 		GLib.error ("accepted malformed lifecycle Cfg %d", i);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/cfg/independent-lifecycle-initialization-and-cleanup", valid);
 	Test.add_func ("/obj-life/cfg/reject-uninitialized-double-premature-and-missing-cleanup", invalid);
 	return Test.run ();
 }
+
 }

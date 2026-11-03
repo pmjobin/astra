@@ -12,15 +12,18 @@ enum { UNKNOWN,
 	   FORMAL,
 	   STACK,
 	   SAVED };
+
 typedef struct {
 	unsigned kind, width;
 	int64_t offset;
 } Value;
+
 typedef struct {
 	int64_t offset;
 	unsigned size;
 	Value value;
 } Slot;
+
 typedef struct {
 	Value reg[16], xmm[16];
 	Slot slots[128];
@@ -30,26 +33,31 @@ typedef struct {
 	const unsigned *offsets, *sizes;
 	int fields;
 } State;
+
 typedef struct {
 	bool memory;
 	unsigned reg, base;
 	int64_t displacement;
 } Operand;
+
 typedef struct {
 	const uint8_t *bytes;
 	size_t length, at;
 	unsigned rex;
 	bool operand16;
 } Decode;
+
 typedef struct {
 	size_t at;
 	const char *symbol;
 } CallSite;
+
 typedef struct {
 	size_t offset, size;
 	unsigned index, calls;
 	CallSite sites[128];
 } Code;
+
 typedef struct {
 	const uint8_t *object;
 	size_t length;
@@ -66,12 +74,14 @@ typedef struct {
 static bool range(size_t length, uint64_t offset, uint64_t size) {
 	return offset <= length && size <= length - offset;
 }
+
 static uint64_t number(const uint8_t *p, unsigned bytes) {
 	uint64_t value = 0;
 	for (unsigned i = 0; i < bytes; i++)
 		value |= (uint64_t)p[i] << (8 * i);
 	return value;
 }
+
 static bool elf_section(const uint8_t *data, size_t length, unsigned index, const uint8_t **section) {
 	uint64_t table = number(data + 40, 8);
 	unsigned count = (unsigned)number(data + 60, 2);
@@ -79,6 +89,7 @@ static bool elf_section(const uint8_t *data, size_t length, unsigned index, cons
 	*section = data + table + (uint64_t)index * 64;
 	return true;
 }
+
 static const char *relocated_symbol(const uint8_t *data, size_t length, unsigned table_index, uint64_t index) {
 	const uint8_t *table, *strings;
 	if (!elf_section(data, length, table_index, &table) || number(table + 4, 4) != 2 || number(table + 56, 8) != 24) return NULL;
@@ -89,6 +100,7 @@ static const char *relocated_symbol(const uint8_t *data, size_t length, unsigned
 	if (!range(length, str_offset, str_size) || name >= str_size || !memchr(data + str_offset + name, 0, (size_t)(str_size - name))) return NULL;
 	return (const char *)data + str_offset + name;
 }
+
 static bool function_code(const uint8_t *data, size_t length, const char *name, Code *code) {
 	if (length < 64 || memcmp(data, "\177ELF\2\1\1", 7) ||
 	    number(data + 16, 2) != 1 || number(data + 18, 2) != 62 ||
@@ -192,6 +204,7 @@ static bool take(Decode *d, unsigned width, uint64_t *value) {
 	d->at += width;
 	return true;
 }
+
 static bool modrm(Decode *d, Operand *rm, unsigned *reg) {
 	uint64_t raw;
 	if (!take(d, 1, &raw)) return false;
@@ -219,23 +232,28 @@ static bool modrm(Decode *d, Operand *rm, unsigned *reg) {
 	}
 	return true;
 }
+
 static bool scalar(Value value, unsigned width) {
 	return value.kind == SCALAR && value.width >= width;
 }
+
 static Value scalar_value(unsigned width) {
 	return (Value){SCALAR, width, 0};
 }
+
 static bool field(State *s, int64_t offset, unsigned width) {
 	if (offset < 0) return false;
 	for (int f = 0; f < s->fields; f++)
 		if ((uint64_t)offset == s->offsets[f] && width == s->sizes[f]) return true;
 	return false;
 }
+
 static bool private_address(State *s, int64_t at, unsigned size) {
 	/* SysV's 128-byte red zone is private between calls. The call checker
 	 * invalidates it; return addresses/incoming arguments are never private. */
 	return s->reg[4].kind == STACK && at >= s->reg[4].offset - 128 && at < 0 && size <= (uint64_t)(-at);
 }
+
 static bool stack_store(State *s, int64_t at, unsigned width, Value value) {
 	if (!private_address(s, at, width)) return false;
 	for (unsigned i = 0; i < s->count;) {
@@ -249,6 +267,7 @@ static bool stack_store(State *s, int64_t at, unsigned width, Value value) {
 	s->slots[s->count++] = (Slot){at, width, value};
 	return true;
 }
+
 static bool load(State *s, Operand op, unsigned width, bool vector, Value *result) {
 	if (!op.memory) {
 		Value value = vector ? s->xmm[op.reg] : s->reg[op.reg];
@@ -274,6 +293,7 @@ static bool load(State *s, Operand op, unsigned width, bool vector, Value *resul
 	}
 	return false;
 }
+
 static bool store(State *s, Operand op, unsigned width, bool vector, Value value) {
 	if (!op.memory) {
 		if (vector) {
@@ -299,6 +319,7 @@ static bool store(State *s, Operand op, unsigned width, bool vector, Value value
 	if (base.kind != STACK) return false;
 	return stack_store(s, at, width, value);
 }
+
 static Operand reg_operand(unsigned reg) {
 	return (Operand){false, reg, 0, 0};
 }
@@ -362,6 +383,7 @@ static bool preserved(State *state) {
 	}
 	return true;
 }
+
 static bool type_valid(unsigned type) {
 	return type == 1 || type == 2 || type == 4 || type == 8 || type == 16 || type == 17 || type == 32;
 }

@@ -26,6 +26,7 @@ private CoreProgram source() throws GLib.Error {
 	}
 	return CoreBuilder.build (checked.program);
 }
+
 private CoreFunction core_named(CoreProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -34,6 +35,7 @@ private CoreFunction core_named(CoreProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private CfgFunction cfg_named(CfgProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -42,6 +44,7 @@ private CfgFunction cfg_named(CfgProgram program, string name) {
 	}
 	assert_not_reached ();
 }
+
 private SsaFunction ssa_named(SsaProgram program, string name) {
 	foreach (var function in program.functions) {
 		if (function.name == name) {
@@ -275,9 +278,11 @@ private void authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/borrowed-property/authority-backing-loan-interval-native-llvm", authority);
 	return Test.run ();
 }
+
 }

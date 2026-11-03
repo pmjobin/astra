@@ -65,9 +65,11 @@ private void lifetime() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/const/stage-lifetime-firewall", lifetime);
 	return Test.run ();
 }
+
 }

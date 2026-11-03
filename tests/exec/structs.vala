@@ -81,4 +81,5 @@ private void register_structs() {
 	add ("/exec/structs/later-initializer-trap", () => struct_execute ("struct-trap", true));
 	add ("/exec/structs/object-linkage-lifetime", struct_object_lifetime);
 }
+
 }

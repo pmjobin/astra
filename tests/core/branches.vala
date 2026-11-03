@@ -138,4 +138,5 @@ private void register_branch_core_tests() {
 			expect_invalid (program, "function #0/statement #0/else", "block identity occurs more than once in structured Core");
 		});
 }
+
 }

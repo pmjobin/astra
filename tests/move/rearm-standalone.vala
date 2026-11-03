@@ -8,6 +8,7 @@ private void rearm(Fixture fixture, int block, int owner) {
 	fixture.function.blocks[block].instructions.add (new CfgCCallInstruction (fixture.span, fixture.producer, new GenericArray<CfgValue> (), result));
 	fixture.function.blocks[block].instructions.add (new CfgOwnershipRearmInstruction (fixture.span, fixture.function.locals[owner], result, fixture.cleanup));
 }
+
 private void rearm_states(OwnershipState expected) throws GLib.Error {
 	var fixture = new Fixture (4, 7);
 	fixture.acquire (0, 0);
@@ -54,6 +55,7 @@ private void rearm_states(OwnershipState expected) throws GLib.Error {
 		assert (flow.diagnostic.message == (expected.definitely_owned () ? "owned value 'a' still owns a resource; release or move it before reassignment" : "owned value 'a' may still own a resource on another control-flow path"));
 	}
 }
+
 private void rearm_loop(string discharge) throws GLib.Error {
 	var fixture = new Fixture (discharge == "move" ? 2 : 1, 4);
 	fixture.acquire (0, 0);
@@ -80,6 +82,7 @@ private void rearm_loop(string discharge) throws GLib.Error {
 		assert (flow.diagnostic.message.contains ("may still own a resource"));
 	}
 }
+
 private void rearm_out_of_scope() throws GLib.Error {
 	var fixture = new Fixture (1, 1);
 	fixture.acquire (0, 0);
@@ -94,6 +97,7 @@ private void rearm_out_of_scope() throws GLib.Error {
 		assert (error.message.contains ("rearm outside its lexical lifetime"));
 	}
 }
+
 private void register_rearm() {
 	for (int mask = 1; mask < 8; mask++) {
 		var state = (OwnershipState) mask;
@@ -104,4 +108,5 @@ private void register_rearm() {
 	}
 	add ("rearm/out-of-scope", rearm_out_of_scope);
 }
+
 }

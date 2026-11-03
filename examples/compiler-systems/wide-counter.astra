@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // FNV-style runtime counter: modulo-2^64 xor/multiply, independent signed sum.
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	try {
 		int rounds = parse_int(args[1]);
-		if (rounds < 0 || rounds > 10000) { return 64; }
+		if (rounds < 0 || rounds > 10000) return 64;
 		u64 total = 14695981039346656037;
 		i64 signed_total = -9223372036854775808;
 		int at = 0;
@@ -16,7 +16,7 @@ int main(string[] args) {
 		u64 maximum = 18446744073709551615;
 		u64 wrapped = maximum + (rounds as u64);
 		i64 minimum = -9223372036854775808;
-		if (minimum / -1 != minimum || minimum % -1 != 0 || maximum >> 63 != 1) { return 3; }
+		if (minimum / -1 != minimum || minimum % -1 != 0 || maximum >> 63 != 1) return 3;
 		usize size_count = rounds as usize;
 		var builder = new Utf8ByteBuilder();
 		require_text(append_text(builder, "rounds=")); require_text(append_u64(builder, size_count as u64));
@@ -28,7 +28,7 @@ int main(string[] args) {
 		require_text(append_text(builder, "\nmin=")); require_text(append_i64(builder, minimum));
 		require_text(append_text(builder, "\nmax=")); require_text(append_u64(builder, maximum));
 		var report = builder.snapshot();
-		if (!println(report.text)) { return 2; }
+		if (!println(report.text)) return 2;
 		return 0;
 	} catch (Error error) { return 2; }
 }

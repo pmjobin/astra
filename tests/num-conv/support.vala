@@ -46,4 +46,5 @@ private SsaProgram build(string name) throws GLib.Error {
 	SsaVerifier.verify (ssa);
 	return ssa;
 }
+
 }

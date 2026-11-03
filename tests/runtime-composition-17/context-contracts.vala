@@ -35,11 +35,13 @@ private void refusal_text(owned Check action, string fragment, string? alternati
 	}
 	assert (rejected);
 }
+
 private const string SCOPED_API = "[CCode(destroy_function=\"astra_context17_destroy\",context=\"scoped-affine\")]handle Scoped;[CCode(cname=\"astra_context17_query_scoped\")]i64 query(borrowed Scoped context,int key);";
 private const string SCOPED_PROGRAM = "int main(){owned u8[] backing=new u8[8197];{var context=scoped_allocator<Scoped>(backing,1,7);if(context==null){return 1;}if(query(context,7)!=1){return 2;}}return len(backing)-8197;}";
 private SsaProgram scoped_ssa() throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (SCOPED_PROGRAM, SCOPED_API)))));
 }
+
 private void scoped_backing_stages() {
 	try {
 		CheckedProgram? checked = check (SCOPED_PROGRAM, SCOPED_API);
@@ -216,6 +218,7 @@ private void scoped_backing_stages() {
 		error ("%s", failure.message);
 	}
 }
+
 private void refused(owned Check action) throws GLib.Error {
 	bool rejected = false;
 	try {
@@ -226,6 +229,7 @@ private void refused(owned Check action) throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 private CheckedProgram check(string source = PROGRAM, string api = API, string? heap_boundary = null) {
 	var parsed = Parser.parse (new SourceFile.from_text ("context-contract.astra", source));
 	assert (parsed.diagnostic == null);
@@ -257,9 +261,11 @@ private CheckedProgram check(string source = PROGRAM, string api = API, string? 
 	}
 	return analyzed.program;
 }
+
 private CoreProgram concrete() throws GLib.Error {
 	return CoreGenericMonomorphizer.build (CoreBuilder.build (check ()));
 }
+
 private void checked_policy() {
 	try {
 		var program = check ();
@@ -279,6 +285,7 @@ private void checked_policy() {
 		error ("%s", failure.message);
 	}
 }
+
 private void core_policy_and_unwind() {
 	try {
 		CheckedProgram? source = check ();
@@ -312,6 +319,7 @@ private void core_policy_and_unwind() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cfg_unwind() {
 	try {
 		CoreProgram? source = concrete ();
@@ -343,6 +351,7 @@ private void cfg_unwind() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ssa_unwind() {
 	try {
 		CfgProgram? source = CfgBuilder.build (concrete ());
@@ -375,9 +384,11 @@ private void ssa_unwind() {
 		error ("%s", failure.message);
 	}
 }
+
 private SsaProgram ssa() throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (concrete ()));
 }
+
 private const string FRAME_PROGRAM = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}"
     + "enum Status{Completed,Cancelled}async runtime Exec throws Fault returns Status provider \"virtual-composed\";"
     + "class Leaf{int value;init(int value){this.value=value;}}async void child(owned Leaf input,owned Context resource){}"
@@ -385,6 +396,7 @@ private const string FRAME_PROGRAM = "[ExceptionRoot]class Fault{readonly string
 private CoreProgram frame_core() throws GLib.Error {
 	return CoreGenericMonomorphizer.build (CoreBuilder.build (check (FRAME_PROGRAM)));
 }
+
 private SsaProgram fallible_buffer_ssa() throws GLib.Error {
 	string text = PROGRAM.substring (0, PROGRAM.index_of ("[Allocator"))
 	    + "[Allocator(kind=\"context\",context=\"owned-concurrent\")]class BufferBox{owned Leaf child;owned u8[] plain;owned ContextBytes<Context> bytes;init(owned Leaf child,owned u8[] plain,owned ContextBytes<Context> bytes,int mode)throws Fault{this.child=move child;this.plain=move plain;if(mode!=0){throw new Fault(\"partial\");}this.bytes=move bytes;}}"
@@ -397,6 +409,7 @@ private SsaProgram fallible_buffer_ssa() throws GLib.Error {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private SsaProgram fallible_record_ssa() throws GLib.Error {
 	string text = PROGRAM.substring (0, PROGRAM.index_of ("[Allocator"))
 	    + "struct Packet{owned Leaf child;owned Context state;owned u8[] plain;owned ContextBytes<Context> bytes;int marker;}"
@@ -436,6 +449,7 @@ private SsaProgram fallible_record_ssa() throws GLib.Error {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void fallible_records() {
 	try {
 		var program = fallible_record_ssa ();
@@ -525,6 +539,7 @@ private void fallible_records() {
 		error ("%s", failure.message);
 	}
 }
+
 private void fallible_buffers() {
 	try {
 		var program = fallible_buffer_ssa ();
@@ -616,9 +631,11 @@ private void fallible_buffers() {
 		error ("%s", failure.message);
 	}
 }
+
 private SsaProgram frame_ssa() throws GLib.Error {
 	return SsaBuilder.build (CfgBuilder.build (frame_core ()));
 }
+
 private const string RECORD_FRAME_PROGRAM = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}"
     + "enum Status{Completed,Cancelled}async runtime Exec throws Fault returns Status provider \"virtual-composed\";"
     + "class Leaf{int value;init(int value){this.value=value;}}struct Packet{owned Leaf item;owned Context state;owned u8[] bytes;}"
@@ -627,9 +644,11 @@ private const string RECORD_FRAME_PROGRAM = "[ExceptionRoot]class Fault{readonly
 private CfgProgram record_frame_cfg() throws GLib.Error {
 	return CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (RECORD_FRAME_PROGRAM))));
 }
+
 private SsaProgram record_frame_ssa() throws GLib.Error {
 	return SsaBuilder.build (record_frame_cfg ());
 }
+
 private SsaProgram checked_record_frame_ssa() throws GLib.Error {
 	string text = RECORD_FRAME_PROGRAM.replace ("var task=child(move packet);", "var context=context_open();var task=checked_task_in(context,child(move packet));");
 	CfgProgram? cfg = CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (text))));
@@ -640,6 +659,7 @@ private SsaProgram checked_record_frame_ssa() throws GLib.Error {
 	SsaVerifier.verify (result);
 	return result;
 }
+
 private void checked_record_frames() {
 	try {
 		var program = checked_record_frame_ssa ();
@@ -729,6 +749,7 @@ private void checked_record_frames() {
 		error ("%s", failure.message);
 	}
 }
+
 private SsaProgram record_result_ssa() throws GLib.Error {
 	string text = RECORD_FRAME_PROGRAM.substring (0, RECORD_FRAME_PROGRAM.index_of ("async void child"))
 	    + "async Packet produced()throws Fault{var item=new Leaf(17);var state=context_open();var bytes=new u8[9];Packet packet={item=move item,state=move state,bytes=move bytes};await delay_ticks(1);return move packet;}"
@@ -740,6 +761,7 @@ private SsaProgram record_result_ssa() throws GLib.Error {
 	assert (upstream.get () == null);
 	return result;
 }
+
 private void owning_record_task_results() {
 	try {
 		var program = record_result_ssa ();
@@ -813,6 +835,7 @@ private void owning_record_task_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owning_record_frames() {
 	try {
 		var cfg = record_frame_cfg ();
@@ -919,6 +942,7 @@ private void owning_record_frames() {
 		error ("%s", failure.message);
 	}
 }
+
 private SsaProgram buffer_frame_ssa() throws GLib.Error {
 	string source = FRAME_PROGRAM.replace ("owned Context resource)", "owned Context resource,owned u8[] plain,owned ContextBytes<Context> bytes)")
 	    .replace ("var resource=context_open();", "var resource=context_open();var plain=new u8[7];var bytes=new(context)u8[9];")
@@ -935,6 +959,7 @@ private SsaProgram buffer_frame_ssa() throws GLib.Error {
 	assert (upstream.get () == null);
 	return result;
 }
+
 private void checked_frame_buffers() {
 	try {
 		var program = buffer_frame_ssa ();
@@ -1024,6 +1049,7 @@ private void checked_frame_buffers() {
 		error ("%s", failure.message);
 	}
 }
+
 private void checked_frame_stages() {
 	try {
 		var core = frame_core ();
@@ -1147,6 +1173,7 @@ private void checked_frame_stages() {
 		error ("%s", failure.message);
 	}
 }
+
 private void fallible_input_stages() {
 	try {
 		var core = concrete ();
@@ -1258,6 +1285,7 @@ private void fallible_input_stages() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_unwind() {
 	try {
 		SsaProgram? source = ssa ();
@@ -1282,6 +1310,7 @@ private void native_unwind() {
 		error ("%s", failure.message);
 	}
 }
+
 private LlvmModuleArtifact artifact() throws GLib.Error {
 	SsaProgram? source = ssa ();
 	var upstream = WeakRef (source.classes[0]);
@@ -1296,6 +1325,7 @@ private LlvmModuleArtifact artifact() throws GLib.Error {
 	result.verify ();
 	return result;
 }
+
 private void llvm_origin() {
 	try {
 		var program = artifact ();
@@ -1328,6 +1358,7 @@ private void llvm_origin() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_refusal_join() {
 	try {
 		var program = artifact ();
@@ -1359,6 +1390,7 @@ private void llvm_refusal_join() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ssa_task_pointer_join() {
 	try {
 		string text = "[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}"
@@ -1442,6 +1474,7 @@ private void ssa_task_pointer_join() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owning_record_stages() {
 	try {
 		string text = "class Payload{init(){}}struct Record<T>where T:Ownable{owned T payload;int marker;}"
@@ -1530,6 +1563,7 @@ private void owning_record_stages() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owning_record_mixed_stages() {
 	try {
 		string text = "struct Copied<A>{A number;}struct Mixed<T,K>where T:Ownable{owned T payload;K copied;owned int[] samples;}"
@@ -1584,6 +1618,7 @@ private void owning_record_mixed_stages() {
 		error ("%s", failure.message);
 	}
 }
+
 private void context_byte_stages() {
 	try {
 		CheckedProgram? checked = check ("owned ContextBytes<Context> produce(){var context=context_open();var bytes=new(context)u8[7];return move bytes;}int main(){var bytes=produce();return len(bytes)-7;}");
@@ -1669,6 +1704,7 @@ private void context_byte_stages() {
 		error ("%s", failure.message);
 	}
 }
+
 private void worker_byte_group() {
 	try {
 		var checked = check ("[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}enum Status{Completed,Cancelled}async runtime Executor throws Fault returns Status provider \"posix-threaded\";async owned ContextBytes<Context> work(owned ContextBytes<Context> bytes)throws Fault{await delay_ticks(1);return move bytes;}int main(){return 0;}");
@@ -1695,6 +1731,7 @@ private void worker_byte_group() {
 		error ("%s", failure.message);
 	}
 }
+
 private void throwing_byte_failure() {
 	try {
 		CheckedProgram? checked = check ("[ExceptionRoot]class Fault{readonly string text;init(string text){this.text=text;}virtual property string message{get{return this.text;}}}void reject(owned ContextBytes<Context> bytes)throws Fault{throw new Fault(\"exhausted\");}int run(borrowed Context context){var previous=new(context)u8[7];try{var bytes=new(context)u8[9]else reject(move previous);return 1;}catch(Fault error){return 0;}}int main(){var context=context_open();return run(context);}");
@@ -1759,6 +1796,7 @@ private void throwing_byte_failure() {
 		error ("%s", failure.message);
 	}
 }
+
 private void context_byte_view() {
 	try {
 		CheckedProgram? checked = check ("int inspect(u8[] bytes){return len(bytes);}int main(){var context=context_open();var bytes=new(context)u8[7];return inspect(bytes)-7;}");
@@ -1827,6 +1865,7 @@ private void context_byte_view() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_lifetime_summary() {
 	try {
 		string text = "class Child{int code;init(int code){this.code=code;}}class Holder{private owned Child child;init(owned Child child){this.child=move child;}}owned Holder wrap(owned Child child){var result=new Holder(move child);return move result;}int main(){return 0;}";
@@ -1858,6 +1897,7 @@ private void native_lifetime_summary() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_controller_uses() {
 	try {
 		for (int mode = 0; mode < 5; mode++) {
@@ -1938,6 +1978,7 @@ private void llvm_scoped_controller_uses() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_allocation_artifact() {
 	try {
 		SsaProgram? source = scoped_ssa ();
@@ -1955,6 +1996,7 @@ private void llvm_scoped_allocation_artifact() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_native_borrow() {
 	try {
 		string observer = "class Observer{int code;init(int value){this.code=value;}int read(){return this.code;}}";
@@ -1973,6 +2015,7 @@ private void llvm_scoped_native_borrow() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_allocator_parameters() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (SCOPED_PROGRAM + "int observe(borrowed Scoped context){return 0;}", SCOPED_API)))));
@@ -2020,6 +2063,7 @@ private void native_allocator_parameters() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_context_inputs() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (SCOPED_PROGRAM + "int observe(borrowed Scoped context){return 0;}", SCOPED_API)))));
@@ -2037,6 +2081,7 @@ private void llvm_scoped_context_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_owned_inputs() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}int consume(owned ScopedLeaf first,owned ScopedLeaf second){return 7;}", SCOPED_API, "consume")))));
@@ -2054,6 +2099,7 @@ private void llvm_scoped_owned_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_forwarded_owner() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreGenericMonomorphizer.build (CoreBuilder.build (check (SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}owned ScopedLeaf forward(int marker,owned ScopedLeaf input){return move input;}", SCOPED_API, "forward")))));
@@ -2079,6 +2125,7 @@ private void llvm_scoped_forwarded_owner() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_field_effects() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}class Host{int marker;private owned ScopedLeaf left;private owned ScopedLeaf right;init(int marker,owned ScopedLeaf left,owned ScopedLeaf right){this.marker=marker;this.left=move left;this.right=move right;}}int field_control(){var host=new Host(9,null,null);return 0;}";
@@ -2097,6 +2144,7 @@ private void llvm_scoped_field_effects() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_field_loans() {
 	try {
 		string text = SCOPED_PROGRAM.replace ("if(query(context,7)!=1){return 2;}", "var source_host=new Host(9,null,null);if(query(context,7)!=1){return 2;}") + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}class Host{int marker;private owned ScopedLeaf left;private owned ScopedLeaf right;init(int marker,owned ScopedLeaf left,owned ScopedLeaf right){this.marker=marker;this.left=move left;this.right=move right;}}int field_control(){var host=new Host(9,null,null);return 0;}";
@@ -2115,6 +2163,7 @@ private void llvm_scoped_field_loans() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_field_policy() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}[Allocator(kind=\"context\",context=\"owned-concurrent\")]class Host{int marker;private owned ScopedLeaf left;private owned ScopedLeaf right;init(int marker,owned ScopedLeaf left,owned ScopedLeaf right){this.marker=marker;this.left=move left;this.right=move right;}}";
@@ -2133,6 +2182,7 @@ private void llvm_scoped_field_policy() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_heap_fields() {
 	try {
 		string text = SCOPED_PROGRAM.replace ("if(query(context,7)!=1){return 2;}", "var source_host=new Host(9,null,null);if(query(context,7)!=1){return 2;}") + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}class Host{int marker;private owned ScopedLeaf left;private owned ScopedLeaf right;init(int marker,owned ScopedLeaf left,owned ScopedLeaf right){this.marker=marker;this.left=move left;this.right=move right;}int read(){return this.marker;}void clear(){this.left=empty();}}owned ScopedLeaf empty(){return null;}class Other{int marker;private owned ScopedLeaf left;private owned ScopedLeaf right;init(int marker,owned ScopedLeaf left,owned ScopedLeaf right){this.marker=marker;this.left=move left;this.right=move right;}int read(){return this.marker;}}";
@@ -2151,6 +2201,7 @@ private void llvm_scoped_heap_fields() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scoped_context_heap_fields(bool factory, bool fallible = false, bool multiple = false) {
 	try {
 		foreach (var mode in new string[] { "owned-affine", "owned-transfer", "owned-concurrent" }) {
@@ -2178,18 +2229,23 @@ private void scoped_context_heap_fields(bool factory, bool fallible = false, boo
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_context_heap_fields() {
 	scoped_context_heap_fields (false);
 }
+
 private void llvm_context_factory_heap_fields() {
 	scoped_context_heap_fields (true);
 }
+
 private void llvm_fallible_context_heap_fields() {
 	scoped_context_heap_fields (true, true);
 }
+
 private void llvm_multiple_context_heap_fields() {
 	scoped_context_heap_fields (true, true, true);
 }
+
 private void llvm_checked_heap_result() {
 	try {
 		foreach (int profile in new int[] { 0, 1, 2, 3 }) {
@@ -2252,6 +2308,7 @@ private void llvm_checked_heap_result() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_error_payload() {
 	try {
 		for (int profile = 0; profile < 4; profile++) {
@@ -2289,6 +2346,7 @@ private void llvm_scoped_error_payload() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_field_layout() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}[ExceptionRoot]class Fault{int code;private owned ScopedLeaf child;init(int code,owned ScopedLeaf child){this.code=code;this.child=move child;}virtual property string message{get{return \"owned\";}}}";
@@ -2317,6 +2375,7 @@ private void llvm_exception_field_layout() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_caller_transport() {
 	try {
 		for (int profile = 0; profile < 6; profile++) {
@@ -2369,6 +2428,7 @@ private void llvm_exception_caller_transport() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_missing_formal_authority() {
 	try {
 		foreach (bool context in new bool[] { false, true }) {
@@ -2390,6 +2450,7 @@ private void llvm_missing_formal_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_catch_retirement() {
 	try {
 		for (int profile = 0; profile < 4; profile++) {
@@ -2429,6 +2490,7 @@ private void llvm_exception_catch_retirement() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_checked_context_input() {
 	try {
 		foreach (bool owned in new bool[] { false, true }) {
@@ -2460,6 +2522,7 @@ private void llvm_checked_context_input() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_composition() {
 	try {
 		for (int profile = 0; profile < 3; profile++) {
@@ -2513,6 +2576,7 @@ private void llvm_exception_composition() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_context_companion() {
 	try {
 		for (int profile = 0; profile < 3; profile++) {
@@ -2557,6 +2621,7 @@ private void llvm_exception_context_companion() {
 		error ("%s", failure.message);
 	}
 }
+
 private void exception_context_roles(CApi.ValueRef target, NativeFunction original, GenericArray<NativeClassPlan> classes) throws GLib.Error {
 	for (int mode = 0; mode < 9; mode++) {
 		var graph = new RuntimeLifetimeEquations ();
@@ -2589,6 +2654,7 @@ private void exception_context_roles(CApi.ValueRef target, NativeFunction origin
 		}
 	}
 }
+
 private void llvm_exception_success_output() {
 	try {
 		for (int profile = 0; profile < 4; profile++) {
@@ -2640,6 +2706,7 @@ private void llvm_exception_success_output() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_null_payload() {
 	try {
 		for (int profile = 0; profile < 4; profile++) {
@@ -2679,6 +2746,7 @@ private void llvm_exception_null_payload() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_exception_repeated_retirement() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{int number;init(){this.number=7;}deinit(){}}[ExceptionRoot]class Fault{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}virtual property string message{get{return \"owned\";}}}void raise(owned ScopedLeaf input,int mode)throws Fault{if(mode!=0){throw new Fault(move input);}}";
@@ -2711,6 +2779,7 @@ private void llvm_exception_repeated_retirement() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_borrowed_scalar_fields() {
 	try {
 		foreach (bool child in new bool[] { false, true }) {
@@ -2747,6 +2816,7 @@ private void llvm_borrowed_scalar_fields() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_checked_scoped_input() {
 	try {
 		foreach (string result in new string[] { "void", "int", "i64", "bool" }) {
@@ -2777,6 +2847,7 @@ private void llvm_checked_scoped_input() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_fallible_scoped_input() {
 	try {
 		foreach (string mode in new string[] { "owned-affine", "owned-transfer", "owned-concurrent" }) {
@@ -2843,6 +2914,7 @@ private void llvm_mixed_scoped_input() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_graph_inventory() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}class Plain{int number;init(int number){this.number=number;}}class Middle{private owned Plain child;init(owned Plain child){this.child=move child;}}class Hidden{private owned ScopedLeaf child;init(owned ScopedLeaf child){this.child=move child;}}class Outer{private owned Hidden child;init(owned Hidden child){this.child=move child;}}";
@@ -2860,6 +2932,7 @@ private void llvm_scoped_graph_inventory() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_nested_formal_authority() {
 	try {
 		foreach (bool scoped in new bool[] { false, true }) {
@@ -2927,6 +3000,7 @@ private void llvm_nested_formal_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cfg_record_inputs() {
 	try {
 		foreach (bool scoped in new bool[] { false, true }) {
@@ -2967,6 +3041,7 @@ private void cfg_record_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cfg_record_input_controls(CfgProgram cfg) throws GLib.Error {
 	foreach (var function in cfg.functions) {
 		foreach (var group in function.struct_parameters) {
@@ -3024,6 +3099,7 @@ private void cfg_record_input_controls(CfgProgram cfg) throws GLib.Error {
 	}
 	CfgVerifier.verify (cfg);
 }
+
 private void ssa_record_inputs() {
 	try {
 		foreach (bool scoped in new bool[] { true, false }) {
@@ -3090,6 +3166,7 @@ private void ssa_record_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ssa_record_input_controls(SsaProgram source) throws GLib.Error {
 	foreach (var function in source.functions) {
 		foreach (var group in function.struct_parameters) {
@@ -3168,6 +3245,7 @@ private void ssa_record_input_controls(SsaProgram source) throws GLib.Error {
 	}
 	SsaVerifier.verify (source);
 }
+
 private void native_record_scope_inventory(NativeAbiProgram program, NativeFunction target, bool scoped) throws GLib.Error {
 	// Discovery controls inspect copied type graphs; they do not admit these
 	// detached signatures as executable native units or ownership contracts.
@@ -3207,6 +3285,7 @@ private void native_record_scope_inventory(NativeAbiProgram program, NativeFunct
 		assert (LlvmScopedOwnedInputs.required (target.signature, program));
 	}
 }
+
 private void llvm_record_owned_inputs() {
 	try {
 		for (int shape = 0; shape < 3; shape++) {
@@ -3235,6 +3314,7 @@ private void llvm_record_owned_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_record_borrowed_inputs() {
 	try {
 		for (int shape = 0; shape < 3; shape++) {
@@ -3266,6 +3346,7 @@ private void llvm_record_borrowed_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_record_borrow_coverage() throws GLib.Error {
 	string prefix = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}struct Packet{owned ScopedLeaf left;owned ScopedLeaf right;int marker;}";
 	string copied = prefix + "struct Copied{i64 count;int offset;}int observe(borrowed Packet input,Copied copied){return input.marker+copied.offset;}";
@@ -3290,6 +3371,7 @@ private void llvm_record_borrow_coverage() throws GLib.Error {
 		}, "complete emitted ABI authority");
 	}
 }
+
 private void llvm_record_context_inputs() {
 	try {
 		foreach (bool borrowed in new bool[] { false, true }) {
@@ -3323,6 +3405,7 @@ private void llvm_record_context_inputs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_record_context_coverage() throws GLib.Error {
 	string prefix = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}struct Packet{owned ScopedLeaf left;owned ScopedLeaf right;int marker;}";
 	foreach (bool borrowed in new bool[] { false, true }) {
@@ -3425,6 +3508,7 @@ private void ssa_record_creation() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ssa_record_creation_controls(SsaProgram program, bool factory) throws GLib.Error {
 	int count = 0;
 	foreach (var function in program.functions) {
@@ -3844,17 +3928,21 @@ private void cfg_record_producers() {
 		error ("%s", failure.message);
 	}
 }
+
 private void cfg_checked_record_producers() {
 	checked_record_producers_profile (false);
 }
+
 private void ssa_checked_record_producers() {
 	checked_record_producers_profile (true);
 }
+
 private void llvm_checked_record_error_payload() {
 	for (int payload = 1; payload <= 2; payload++) {
 		checked_record_producers_profile (true, payload);
 	}
 }
+
 private void checked_record_error_roots(RuntimeLifetimeSummary summary, int shape, int payload) throws GLib.Error {
 	if (payload == 0) {
 		return;
@@ -3870,6 +3958,7 @@ private void checked_record_error_roots(RuntimeLifetimeSummary summary, int shap
 		}
 	}
 }
+
 private void checked_record_producers_profile(bool ssa_profile, int error_payload = 0) {
 	try {
 		for (int shape = 0; shape < 4; shape++) {
@@ -3917,6 +4006,7 @@ private void checked_record_producers_profile(bool ssa_profile, int error_payloa
 		error ("%s", failure.message);
 	}
 }
+
 private void cfg_checked_record_controls(CfgProgram program) throws GLib.Error {
 	int sites = 0;
 	foreach (var function in program.functions) {
@@ -3984,6 +4074,7 @@ private void cfg_checked_record_controls(CfgProgram program) throws GLib.Error {
 	}
 	assert (sites == 1);
 }
+
 private void ssa_checked_record_profile(CfgProgram cfg, int shape, int error_payload) throws GLib.Error {
 	SsaProgram? source = SsaBuilder.build (cfg);
 	var effects = SsaRuntimeLifetimes.analyze (source);
@@ -4033,6 +4124,7 @@ private void ssa_checked_record_profile(CfgProgram cfg, int shape, int error_pay
 		LlvmLifetimeTests.checked_heap_caller (artifact, caller, CApi.named_function (artifact.module, "astra.fn.%d".printf (create)), 2, error_payload != 0);
 	}
 }
+
 private void ssa_checked_record_controls(SsaProgram program) throws GLib.Error {
 	int sites = 0;
 	foreach (var function in program.functions) {
@@ -4100,6 +4192,7 @@ private void ssa_checked_record_controls(SsaProgram program) throws GLib.Error {
 	}
 	assert (sites == 1);
 }
+
 private void cfg_record_producer_controls(CfgProgram program) throws GLib.Error {
 	int count = 0;
 	foreach (var function in program.functions) {
@@ -4164,6 +4257,7 @@ private void cfg_record_producer_controls(CfgProgram program) throws GLib.Error 
 	}
 	assert (count == 1);
 }
+
 private void ssa_record_producers() {
 	try {
 		for (int shape = 0; shape < 3; shape++) {
@@ -4199,6 +4293,7 @@ private void ssa_record_producers() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ssa_record_producer_controls(SsaProgram program) throws GLib.Error {
 	int count = 0;
 	foreach (var function in program.functions) {
@@ -4390,9 +4485,11 @@ private void llvm_single_record_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_multi_record_results() {
 	llvm_multi_record_results_profile (false);
 }
+
 private void llvm_class_loan_origins() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{int number;init(int number){this.number=number;}int read(){return this.number;}}int inspect(borrowed ScopedLeaf view){return view.read();}int relay(borrowed ScopedLeaf view){return inspect(view);}int consume(owned ScopedLeaf input){return inspect(input);}";
@@ -4423,6 +4520,7 @@ private void llvm_class_loan_origins() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_receiver_origins() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{int number;init(int number){this.number=number;}int read(){return this.number;}}int inspect(borrowed ScopedLeaf view){return view.read();}";
@@ -4441,6 +4539,7 @@ private void llvm_receiver_origins() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_empty_carriers() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{init(){}}class Plain{private int value;init(int value){this.value=value;}int read(){return this.value;}}[Allocator(kind=\"context\",context=\"owned-concurrent\")]class Host{private owned ScopedLeaf scoped;private owned Plain plain;init(owned ScopedLeaf scoped,owned Plain plain){this.scoped=move scoped;this.plain=move plain;}int read(){return this.plain.read();}}int exercise(borrowed Context parent){var plain=new Plain(7);var host=try_new(parent)Host(null,move plain);if(host==null){return plain.read();}return host.read();}";
@@ -4467,6 +4566,7 @@ private void llvm_empty_carriers() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_fresh_scoped_construction() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{int number;init(int number){this.number=number;}int read(){return this.number;}}int local(){owned u8[] backing=new u8[4097];var context=scoped_allocator<Scoped>(backing,1,7);var leaf=new(context)ScopedLeaf(17);return leaf.read();}int borrowed_context(borrowed Scoped context){var leaf=try_new(context)ScopedLeaf(19);if(leaf==null){return 0;}return leaf.read();}";
@@ -4495,6 +4595,7 @@ private void llvm_fresh_scoped_construction() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_fresh_scoped_results() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4522,6 +4623,7 @@ private void llvm_fresh_scoped_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_owning_receiver() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4550,6 +4652,7 @@ private void llvm_scoped_owning_receiver() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_fresh_graph_results() {
 	try {
 		foreach (bool record in new bool[] { false, true }) {
@@ -4582,6 +4685,7 @@ private void llvm_fresh_graph_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_fresh_owning_results() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4609,6 +4713,7 @@ private void llvm_fresh_owning_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_child_graphs() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4636,6 +4741,7 @@ private void llvm_scoped_child_graphs() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_graph_forwarding() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4669,6 +4775,7 @@ private void llvm_scoped_graph_forwarding() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_nullable_owned_arguments() {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Leaf{private int number;init(int number){this.number=number;}}int consume(owned Leaf input){return 0;}";
@@ -4694,6 +4801,7 @@ private void llvm_nullable_owned_arguments() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_child_constructor_rollback() {
 	try {
 		for (int profile = 0; profile < 3; profile++) {
@@ -4728,6 +4836,7 @@ private void llvm_scoped_child_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_deep_constructor_rollback() {
 	try {
 		for (int profile = 0; profile < 3; profile++) {
@@ -4767,6 +4876,7 @@ private void llvm_scoped_deep_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_record_constructor_rollback() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4805,6 +4915,7 @@ private void llvm_scoped_record_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void check_scoped_record_child_paths(bool checked) {
 	try {
 		string text = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Leaf{private int marker;init(int marker){this.marker=marker;}}struct Packet{owned Leaf left;owned Leaf right;int marker;}[Allocator(kind=\"context\",context=\"scoped-affine\")]class Host{private Packet packet;init(Packet packet,int mode)throws Fault{if(mode==1){throw new Fault();}this.packet=move packet;if(mode==2){throw new Fault();}}int read(){return this.packet.marker;}}[ExceptionRoot]class Fault{init(){}virtual property string message{get{return \"failed\";}}}int consume(Packet input){return input.marker;}owned Host relay(owned Host input){return move input;}int exercise(){owned u8[] backing=new u8[8197];owned u8[] children=new u8[12289];var context=scoped_allocator<Scoped>(backing,1,7);var child_context=scoped_allocator<Scoped>(children,2,1);var left=new(child_context)Leaf(17);var right=new(child_context)Leaf(23);Packet input={left=move left,right=move right,marker=37};try{var initial=" + (checked ? "try_new" : "new") + "(context)Host(move input,0);" + (checked ? "if(initial==null){return consume(move input);}" : "") + "var host=relay(move initial);return host.read();}catch(Fault error){return 1;}}";
@@ -4830,12 +4941,15 @@ private void check_scoped_record_child_paths(bool checked) {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_record_child_paths() {
 	check_scoped_record_child_paths (false);
 }
+
 private void llvm_checked_record_child_paths() {
 	check_scoped_record_child_paths (true);
 }
+
 private void llvm_scoped_buffer_graph_forwarding() {
 	try {
 		foreach (bool heap in new bool[] { false, true }) {
@@ -4876,6 +4990,7 @@ private void llvm_scoped_buffer_graph_forwarding() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_buffer_constructor_rollback() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4913,6 +5028,7 @@ private void llvm_scoped_buffer_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_heap_constructor_rollback() {
 	try {
 		for (int profile = 0; profile < 3; profile++) {
@@ -4952,6 +5068,7 @@ private void llvm_scoped_heap_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_owned_constructor_rollback() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -4995,6 +5112,7 @@ private void llvm_scoped_owned_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_constructor_rollback() {
 	try {
 		foreach (bool checked in new bool[] { false, true }) {
@@ -5022,6 +5140,7 @@ private void llvm_scoped_constructor_rollback() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_graph_consumption() {
 	try {
 		for (int profile = 0; profile < 4; profile++) {
@@ -5066,6 +5185,7 @@ private void llvm_scoped_graph_consumption() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_record_result_loans() {
 	try {
 		for (int shape = 0; shape < 3; shape++) {
@@ -5101,6 +5221,7 @@ private void llvm_record_result_loans() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_borrowed_graph_discovery() {
 	try {
 		string prefix = SCOPED_PROGRAM + "[Allocator(kind=\"context\",context=\"scoped-affine\")]class ScopedLeaf{int number;init(int number){this.number=number;}int read(){return this.number;}}struct Copied{int marker;}";
@@ -5146,6 +5267,7 @@ private void llvm_borrowed_graph_discovery() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_checked_single_record_results() {
 	try {
 		for (int shape = 0; shape < 4; shape++) {
@@ -5182,9 +5304,11 @@ private void llvm_checked_single_record_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_multi_record_context_results() {
 	llvm_multi_record_results_profile (true);
 }
+
 private void record_result_context_dependencies(LlvmModuleArtifact artifact, NativeFunction original, GenericArray<NativeClassPlan> classes) throws GLib.Error {
 	var target = CApi.named_function (artifact.module, "astra.fn.%d".printf (original.ordinal));
 	assert (LlvmScopedContextInputs.from_native (target, CApi.global_value_type (target), original, classes) != null);
@@ -5201,6 +5325,7 @@ private void record_result_context_dependencies(LlvmModuleArtifact artifact, Nat
 		assert (LlvmScopedContextInputs.from_native (target, CApi.global_value_type (target), changed, classes) == null);
 	}
 }
+
 private void llvm_multi_record_results_profile(bool with_context) {
 	try {
 		for (int shape = 0; shape < 4; shape++) {
@@ -5356,6 +5481,7 @@ private void native_cold_task_summary_roles() {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_scoped_task_result_shapes() {
 	try {
 		for (int profile = 0; profile < 4; profile++) {
@@ -5443,6 +5569,7 @@ private void native_scoped_task_result_shapes() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_task_result_publication() {
 	try {
 		string text = "[ExceptionRoot]class ResultError{init(string message){}virtual property string message{get{return \"result\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws ResultError returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}struct Packet{owned Captured first;owned Captured second;int marker;}async Packet deliver(Packet input){return move input;}int main(){return 0;}";
@@ -5461,6 +5588,7 @@ private void llvm_scoped_task_result_publication() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_task_result_callers() {
 	try {
 		string text = "[ExceptionRoot]class ResultError{init(string message){}virtual property string message{get{return \"result\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws ResultError returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}struct Packet{owned Captured first;owned Captured second;int marker;}async Packet deliver(Packet input){return move input;}async void collect(Packet input)throws ResultError{var pending=deliver(move input);var result=await move pending;await delay_ticks(1);}int main(){return 0;}";
@@ -5479,6 +5607,7 @@ private void llvm_scoped_task_result_callers() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_empty_task_result() {
 	try {
 		string text = "[ExceptionRoot]class ResultError{init(string message){}virtual property string message{get{return \"result\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws ResultError returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}owned Captured vacant(){return null;}struct Packet{owned Captured child;int marker;}async Packet deliver(Packet input,int mode){if(mode==0){Packet empty={child=vacant(),marker=17};return move empty;}return move input;}int main(){return 0;}";
@@ -5497,6 +5626,7 @@ private void llvm_scoped_empty_task_result() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_host_scoped_errors() {
 	try {
 		string text;
@@ -5524,6 +5654,7 @@ private void llvm_host_scoped_errors() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_same_nominal_host_errors() {
 	try {
 		string text;
@@ -5552,6 +5683,7 @@ private void llvm_same_nominal_host_errors() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_mixed_error_choices() {
 	try {
 		string text;
@@ -5579,6 +5711,7 @@ private void llvm_mixed_error_choices() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_heap_catch_choices() {
 	try {
 		string text;
@@ -5606,12 +5739,15 @@ private void llvm_heap_catch_choices() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_mutating_scoped_fields() {
 	mutating_scoped_fields_case (false);
 }
+
 private void llvm_empty_mutating_scoped_fields() {
 	mutating_scoped_fields_case (true);
 }
+
 private void mutating_scoped_fields_case(bool empty) {
 	try {
 		string text;
@@ -5643,12 +5779,15 @@ private void mutating_scoped_fields_case(bool empty) {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_empty_deferred_scoped_errors() {
 	empty_deferred_scoped_errors (false);
 }
+
 private void llvm_exported_empty_deferred_scoped_errors() {
 	empty_deferred_scoped_errors (true);
 }
+
 private void empty_deferred_scoped_errors(bool exported) {
 	try {
 		string text = "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}[ExceptionRoot]class Fault{private owned Captured child;init(owned Captured input){this.child=move input;}virtual property string message{get{return \"deferred\";}}}class AdmissionFault:Fault{init(string message):base(null){}}enum Phase{Completed,Cancelled}async runtime Tasks throws AdmissionFault returns Phase;async void fail(owned Captured input)throws Fault{await delay_ticks(1);var error=new Fault(move input);throw move error;}int main(){return 0;}";
@@ -5680,6 +5819,7 @@ private void empty_deferred_scoped_errors(bool exported) {
 		error ("%s", failure.message);
 	}
 }
+
 private void native_cold_capture_transfers() {
 	try {
 		string text = "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{init(){}}[ExceptionRoot]class Fault{init(string message){}virtual property string message{get{return \"frame\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws Fault returns Phase;struct Packet{owned Captured child;int marker;}async Packet relay(Packet input,int mode)throws Fault{await delay_ticks(1);return move input;}void inspect(borrowed Packet input){}async void parent(owned Captured input,int mode)throws Fault{Packet packet={child=move input,marker=17};var child=relay(move packet,mode);var result=await move child;inspect(result);}int main(){return 0;}";
@@ -5751,6 +5891,7 @@ private void native_cold_capture_transfers() {
 		error ("%s", failure.message);
 	}
 }
+
 private CheckedProgram imported_scope_program(string producer, string consumer, HashTable<string, string> contracts, HashTable<string, string> symbols, bool imported) throws GLib.Error {
 	var source = new SourceFile.from_text ("opaque-producer.astra", producer, imported);
 	var parsed = Parser.parse (source);
@@ -5773,6 +5914,7 @@ private CheckedProgram imported_scope_program(string producer, string consumer, 
 	}
 	return analyzed.program;
 }
+
 private void llvm_imported_scoped_tasks() {
 	try {
 		string producer;
@@ -5855,6 +5997,7 @@ private void llvm_imported_scoped_tasks() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_imported_scoped_errors() {
 	try {
 		string producer;
@@ -5961,6 +6104,7 @@ private void llvm_imported_scoped_errors() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_await_scoped_errors() {
 	try {
 		string text;
@@ -5995,6 +6139,7 @@ private void llvm_await_scoped_errors() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_deferred_scoped_error_publication() {
 	try {
 		string text = "[Allocator(kind=\"context\",context=\"scoped-affine\")]class Captured{private int marker;init(){this.marker=17;}}[ExceptionRoot]class Fault{private owned Captured child;init(owned Captured input){this.child=move input;}virtual property string message{get{return \"deferred\";}}}class AdmissionFault:Fault{init(string message):base(null){}}enum Phase{Completed,Cancelled}async runtime Tasks throws AdmissionFault returns Phase;async void fail(owned Captured input)throws Fault{var error=new Fault(move input);throw move error;}int main(){return 0;}";
@@ -6013,6 +6158,7 @@ private void llvm_deferred_scoped_error_publication() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_pure_empty_task_results() {
 	try {
 		for (int profile = 0; profile < 3; profile++) {
@@ -6036,6 +6182,7 @@ private void llvm_pure_empty_task_results() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_checked_scoped_captures() {
 	try {
 		string text = "[ExceptionRoot]class FrameFault{init(string message){}virtual property string message{get{return \"frame\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws FrameFault returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Capture{private int marker;init(){this.marker=17;}}async void child(owned Capture input){}int helper(borrowed Scoped objects){var input=new(objects)Capture();try{var executor=Tasks.open(8);var pending=checked_task_in(objects,child(move input));var status=executor.run(move pending);}catch(FrameFault error){}return 0;}int main(){owned u8[] backing=new u8[8197];var objects=scoped_allocator<Scoped>(backing,1,2);return helper(objects);}";
@@ -6054,6 +6201,7 @@ private void llvm_checked_scoped_captures() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_nested_scoped_captures() {
 	try {
 		string text = "[ExceptionRoot]class CaptureError{init(string message){}virtual property string message{get{return \"capture\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws CaptureError returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Capture{private int marker;init(){this.marker=17;}}async void child(owned Capture input)throws CaptureError{await delay_ticks(1);}async void parent(owned Capture input)throws CaptureError{var task=child(move input);await move task;await delay_ticks(1);}int main(){return 0;}";
@@ -6072,6 +6220,7 @@ private void llvm_nested_scoped_captures() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_emitted_scoped_captured_tasks() {
 	try {
 		string text = "[ExceptionRoot]class CaptureError{init(string message){}virtual property string message{get{return \"capture\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws CaptureError returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Capture{private int marker;init(){this.marker=17;}}async void child(owned Capture input){}int main(){owned u8[] backing=new u8[8197];var context=scoped_allocator<Scoped>(backing,1,1);var input=new(context)Capture();try{var executor=Tasks.open(8);var task=child(move input);var status=executor.run(move task);}catch(CaptureError error){return 1;}return 0;}";
@@ -6090,6 +6239,7 @@ private void llvm_emitted_scoped_captured_tasks() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_scoped_coroutine_captures() {
 	try {
 		string text = "[ExceptionRoot]class CaptureError{init(string message){}virtual property string message{get{return \"capture\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws CaptureError returns Phase;[Allocator(kind=\"context\",context=\"scoped-affine\")]class Capture{private int marker;init(){this.marker=17;}}async void child(owned Capture input)throws CaptureError{await delay_ticks(1);}int main(){return 0;}";
@@ -6109,6 +6259,7 @@ private void llvm_scoped_coroutine_captures() {
 		error ("%s", failure.message);
 	}
 }
+
 private void llvm_coroutine_continuations() {
 	try {
 		string text = "[ExceptionRoot]class ContinuationError{init(string message){}virtual property string message{get{return \"continuation\";}}}enum Phase{Completed,Cancelled}async runtime Tasks throws ContinuationError returns Phase;class Capture{private int marker;init(){this.marker=17;}}async int child(owned Capture input)throws ContinuationError{await delay_ticks(1);return 17;}async void root(owned Capture input)throws ContinuationError{var pending=child(move input);int result=await move pending;await delay_ticks(2);}int main(){return 0;}";
@@ -6127,6 +6278,7 @@ private void llvm_coroutine_continuations() {
 		error ("%s", failure.message);
 	}
 }
+
 private void emitted_scoped_task_frames() {
 	try {
 		string text = "[ExceptionRoot]class FrameError{init(string message){}virtual property string message{get{return \"frame\";}}}enum FrameStatus{Completed,Cancelled}async runtime Frames throws FrameError returns FrameStatus;async void child()throws FrameError{await delay_ticks(1);}int helper(borrowed Scoped frames){try{var executor=Frames.open(8);var task=checked_task_in(frames,child());var status=executor.run(move task);match(status){case FrameStatus.Completed():{}else:{return 2;}}}catch(FrameError error){return 1;}return 0;}int main(){owned u8[] backing=new u8[8197];var frames=scoped_allocator<Scoped>(backing,1,1);return helper(frames);}";
@@ -6152,6 +6304,7 @@ private void emitted_scoped_task_frames() {
 		error ("%s", failure.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/context/llvm-same-nominal-errors", llvm_same_nominal_host_errors);
@@ -6287,4 +6440,5 @@ public int main(string[] args) {
 	Test.add_func ("/context/llvm-detached-scoped-forwarded-owner", llvm_scoped_forwarded_owner);
 	return Test.run ();
 }
+
 }

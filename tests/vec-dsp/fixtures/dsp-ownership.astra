@@ -1,27 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 struct Log { int value; }
+
 i16<8> make(borrowed Resource r,Log* log,int id){resource_touch(r);log->value=log->value*10+id;return splat(300,8);}
+
 u8<16> consume(owned Resource r,u8<16> v,int x,Log* log){
 	resource_touch(r);
 	log->value=log->value*10+3;
-	if(x!=13){return splat(0,16);}
+	if(x!=13) return splat(0,16);
 	return sat_sub(v,splat(1,16));
 }
+
 int nested(owned Resource r,Log* log){log->value=9;return 7;}
+
 int scenario(Log* log){
 	owned Resource a=create_resource(1);
 	owned Resource b=create_resource(2);
 	u8<16> v=consume(move a,pack_sat(make(b,log,1),make(b,log,2),u8),sat_add(log->value,1),log);
-	if(!all(v==splat(254 as u8,16)) || log->value!=123){return 1;}
+	if(!all(v==splat(254 as u8,16)) || log->value!=123) return 1;
 	int result=sat_add(log->value,nested(move b,log));
-	if(result!=130 || log->value!=9){return 2;}
+	if(result!=130 || log->value!=9) return 2;
 	return 0;
 }
+
 int main(){
 	resource_reset();
 	Log log={value=0};
-	if(scenario(&log)!=0){return 1;}
-	if(resource_destroy_count()!=2 || resource_destroy_order()!=12 || resource_live_count()!=0 || resource_error_count()!=0 || resource_touch_count()!=3){return 2;}
+	if(scenario(&log)!=0) return 1;
+	if(resource_destroy_count()!=2 || resource_destroy_order()!=12 || resource_live_count()!=0 || resource_error_count()!=0 || resource_touch_count()!=3) return 2;
 	return 0;
 }

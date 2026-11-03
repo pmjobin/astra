@@ -137,6 +137,7 @@ static void retire_begin(AstraAsyncTask *task) {
 	if (task->executor) ++task->executor->retiring;
 	unlock_runtime();
 }
+
 static void retire_end(AstraAsyncTask *task) {
 	lock_runtime();
 	if (task->executor) {
@@ -148,12 +149,14 @@ static void retire_end(AstraAsyncTask *task) {
 static int terminal(const AstraAsyncTask *task) {
 	return task->phase >= ASTRA_ASYNC_SUCCESS;
 }
+
 static AstraAsyncRegistration *registration(AstraAsyncTask *task) {
 	ASTRA_ASYNC_REQUIRE(task->executor != NULL && task->token.slot < task->executor->capacity);
 	AstraAsyncRegistration *entry = &task->executor->registrations[task->token.slot];
 	ASTRA_ASYNC_REQUIRE(entry->task == task && entry->generation == task->token.generation);
 	return entry;
 }
+
 static int quiescent(AstraAsyncTask *task) {
 	if (task->threaded_busy) {
 		return 0;
@@ -190,6 +193,7 @@ static void unlink_parent(AstraAsyncTask *task) {
 static void notify(AstraAsyncExecutor *executor) {
 	if (executor->notify) executor->notify(executor->notify_state);
 }
+
 static void schedule(AstraAsyncTask *task) {
 	if (task->executor != NULL && !terminal(task)) {
 		registration(task)->ready = 1;
@@ -264,11 +268,13 @@ static AstraAsyncExecutor *core_open(uint32_t capacity) {
 static AstraAsyncTask *core_new(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent) {
 	return core_new_allocated(size, alignment, resume, destroy, parent, NULL, NULL);
 }
+
 static AstraAsyncTask *core_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	AstraAsyncTask *task = core_try_new_allocated(size, alignment, resume, destroy, parent, allocator, context);
 	ASTRA_ASYNC_REQUIRE(task != NULL);
 	return task;
 }
+
 static AstraAsyncTask *core_try_new_allocated(size_t size, size_t alignment, AstraAsyncResume resume, AstraAsyncDestroy destroy, AstraAsyncTask *parent, const AstraAsyncFrameAllocator *allocator, void *context) {
 	if (!resume || !destroy || !alignment || (alignment & (alignment - 1)) != 0) return NULL;
 	if (allocator == NULL ? context != NULL : context == NULL || allocator->abi != ASTRA_ASYNC_TASK_ABI || allocator->size != sizeof(*allocator) || allocator->threading > 2 || allocator->reserved != 0 || !allocator->allocate || !allocator->release) return NULL;
@@ -315,26 +321,33 @@ static AstraAsyncTask *core_try_new_allocated(size_t size, size_t alignment, Ast
 static void *core_data(AstraAsyncTask *task) {
 	return task->data;
 }
+
 static uint32_t core_pc(AstraAsyncTask *task) {
 	return task->pc;
 }
+
 static void core_set_pc(AstraAsyncTask *task, uint32_t pc) {
 	ASTRA_ASYNC_REQUIRE(!terminal(task));
 	task->pc = pc;
 }
+
 static int core_phase(AstraAsyncTask *task) {
 	return task->phase;
 }
+
 static int core_cancel_requested(AstraAsyncTask *task) {
 	return task->cancellation;
 }
+
 static AstraAsyncExecutor *core_executor(AstraAsyncTask *task) {
 	return task->executor;
 }
+
 static void *core_exception(AstraAsyncTask *task) {
 	ASTRA_ASYNC_REQUIRE(terminal(task));
 	return task->exception;
 }
+
 static void *core_discarded_exception(AstraAsyncTask *task, int discard) {
 	return !discard && task->phase == ASTRA_ASYNC_EXCEPTION ? NULL : task->exception;
 }
@@ -342,6 +355,7 @@ static void *core_discarded_exception(AstraAsyncTask *task, int discard) {
 static int core_start(AstraAsyncExecutor *executor, AstraAsyncTask *task, AstraAsyncTask *parent) {
 	return core_enroll(executor, task, parent, 0);
 }
+
 static int core_enroll(AstraAsyncExecutor *executor, AstraAsyncTask *task, AstraAsyncTask *parent, int bridge) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && task != NULL);
 	if (executor->closing || executor->closed) {
@@ -408,6 +422,7 @@ static int core_enroll(AstraAsyncExecutor *executor, AstraAsyncTask *task, Astra
 static int same_token(AstraAsyncToken a, AstraAsyncToken b) {
 	return a.slot == b.slot && a.generation == b.generation && a.executor == b.executor;
 }
+
 static int core_bridge_start(AstraAsyncExecutor *target, AstraAsyncTask *child, AstraAsyncTask *parent) {
 	ASTRA_ASYNC_REQUIRE(target && child && parent && parent->executor && parent->phase == ASTRA_ASYNC_RUNNING && child->parent == parent);
 	if (!target->threaded || parent->executor->threaded || parent->executor == target || parent->cancellation || parent->executor->closing) return ASTRA_ASYNC_ASSOCIATION;
@@ -488,6 +503,7 @@ static int core_delay(AstraAsyncTask *task, int64_t ticks) {
 static int core_wait(AstraAsyncTask *parent, AstraAsyncTask *child, int discard) {
 	return core_wait_impl(parent, child, discard, 0);
 }
+
 static int core_wait_impl(AstraAsyncTask *parent, AstraAsyncTask *child, int discard, int bridge) {
 	ASTRA_ASYNC_REQUIRE(parent != NULL && child != NULL && parent->executor != NULL && parent->waiting == NULL && child->parent == parent && !child->observation_acquired);
 	child->observation_acquired = 1;
@@ -529,6 +545,7 @@ static AstraAsyncTask *core_waited(AstraAsyncTask *parent) {
 	ASTRA_ASYNC_REQUIRE(parent->waiting != NULL && terminal(parent->waiting) && quiescent(parent->waiting));
 	return parent->waiting;
 }
+
 static int core_release_wait(AstraAsyncTask *parent, int transfer) {
 	AstraAsyncTask *child = core_waited(parent);
 	int phase = child->phase;
@@ -641,6 +658,7 @@ static int core_advance_next(AstraAsyncExecutor *executor) {
 	}
 	return found && core_advance(executor, deadline - executor->ticks);
 }
+
 static void core_begin_shutdown(AstraAsyncExecutor *executor) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && !executor->closed && !executor->pumping);
 	executor->closing = 1;
@@ -648,6 +666,7 @@ static void core_begin_shutdown(AstraAsyncExecutor *executor) {
 		if (executor->registrations[i].task) core_cancel(executor->registrations[i].task);
 	}
 }
+
 static int core_shutdown_complete(AstraAsyncExecutor *executor) {
 	if (!executor->closing || executor->retiring || executor->bridges) {
 		return 0;
@@ -660,6 +679,7 @@ static int core_shutdown_complete(AstraAsyncExecutor *executor) {
 	}
 	return 1;
 }
+
 static int core_finish_shutdown(AstraAsyncExecutor *executor) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && !executor->pumping);
 	if (executor->closed) {
@@ -671,6 +691,7 @@ static int core_finish_shutdown(AstraAsyncExecutor *executor) {
 	executor->closed = 1;
 	return 1;
 }
+
 static int core_observe_root(AstraAsyncExecutor *executor, AstraAsyncTask *root, int transfer) {
 	ASTRA_ASYNC_REQUIRE(executor->root == root && root->parent == NULL && !root->observation_acquired && terminal(root) && quiescent(root));
 	root->observation_acquired = 1;
@@ -680,6 +701,7 @@ static int core_observe_root(AstraAsyncExecutor *executor, AstraAsyncTask *root,
 	retire(root, transfer);
 	return phase;
 }
+
 static void core_close(AstraAsyncExecutor *executor) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && !executor->pumping && executor->associated == 0 && executor->retiring == 0 && executor->bridges == 0 && (!executor->root_admitted || executor->root_observed));
 	if (executor->provider != NULL) {
@@ -690,10 +712,12 @@ static void core_close(AstraAsyncExecutor *executor) {
 	free(executor->registrations);
 	free(executor);
 }
+
 static void core_host_cancel(AstraAsyncExecutor *executor, AstraAsyncTask *task) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && task != NULL && (task->executor == NULL || task->executor == executor));
 	core_cancel(task);
 }
+
 static int core_run(AstraAsyncExecutor *executor, AstraAsyncTask *root, void **exception) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && root != NULL && exception != NULL && !executor->pumping && root->parent == NULL && (root->executor == NULL || root->executor == executor));
 	*exception = NULL;
@@ -743,10 +767,12 @@ static int core_run(AstraAsyncExecutor *executor, AstraAsyncTask *root, void **e
 	ASTRA_ASYNC_REQUIRE(core_finish_shutdown(executor));
 	return phase;
 }
+
 static AstraAsyncToken core_token(AstraAsyncTask *task) {
 	ASTRA_ASYNC_REQUIRE(task->executor != NULL);
 	return task->token;
 }
+
 static int core_wake(AstraAsyncExecutor *executor, AstraAsyncToken token) {
 	if (token.executor != executor->identity || token.slot >= executor->capacity) {
 		return 0;
@@ -758,6 +784,7 @@ static int core_wake(AstraAsyncExecutor *executor, AstraAsyncToken token) {
 	entry->ready = 1;
 	return 1;
 }
+
 static int core_retain(AstraAsyncTask *task, const void *backing) {
 	ASTRA_ASYNC_REQUIRE(task->executor != NULL && !terminal(task) && backing != NULL);
 	AstraAsyncRegistration *entry = registration(task);
@@ -768,6 +795,7 @@ static int core_retain(AstraAsyncTask *task, const void *backing) {
 	entry->retained = 1;
 	return 1;
 }
+
 static int core_observe_release(AstraAsyncExecutor *executor, AstraAsyncToken token) {
 	if (token.executor != executor->identity || token.slot >= executor->capacity) {
 		return 0;
@@ -785,6 +813,7 @@ static int core_observe_release(AstraAsyncExecutor *executor, AstraAsyncToken to
 	}
 	return 1;
 }
+
 static int core_provider_read(AstraAsyncExecutor *executor, AstraAsyncToken token) {
 	if (token.executor != executor->identity || token.slot >= executor->capacity) {
 		return -1;
@@ -797,10 +826,12 @@ static int core_provider_read(AstraAsyncExecutor *executor, AstraAsyncToken toke
 }
 
 #ifdef ASTRA_ASYNC_TEST_PROTOCOL
+
 static void core_test_generation(AstraAsyncExecutor *executor, uint32_t slot, uint64_t generation) {
 	ASTRA_ASYNC_REQUIRE(executor && slot < executor->capacity && !executor->pumping && executor->registrations[slot].task == NULL);
 	executor->registrations[slot].generation = generation;
 }
+
 #endif
 
 static AstraAsyncExecutor *core_provider_open(uint32_t capacity, const AstraAsyncProvider *provider, void *state) {
@@ -812,10 +843,12 @@ static AstraAsyncExecutor *core_provider_open(uint32_t capacity, const AstraAsyn
 	}
 	return executor;
 }
+
 static void *core_provider_state(AstraAsyncExecutor *executor, const AstraAsyncProvider *provider) {
 	ASTRA_ASYNC_REQUIRE(executor != NULL && executor->provider == provider);
 	return executor->provider_state;
 }
+
 static int core_provider_ready(AstraAsyncExecutor *executor) {
 	for (uint32_t i = 0; i < executor->capacity; i++) {
 		if (executor->registrations[i].ready) {
@@ -824,6 +857,7 @@ static int core_provider_ready(AstraAsyncExecutor *executor) {
 	}
 	return 0;
 }
+
 static int core_provider_suspend(AstraAsyncTask *task, const void *record) {
 	ASTRA_ASYNC_REQUIRE(task->executor != NULL && task->executor->provider != NULL && task->phase == ASTRA_ASYNC_RUNNING);
 	AstraAsyncRegistration *entry = registration(task);
@@ -836,6 +870,7 @@ static int core_provider_suspend(AstraAsyncTask *task, const void *record) {
 	task->phase = ASTRA_ASYNC_WAITING;
 	return 1;
 }
+
 static int core_provider_complete(AstraAsyncExecutor *executor, AstraAsyncToken token, uint32_t pc, int error) {
 	if (executor->provider == NULL || token.executor != executor->identity || token.slot >= executor->capacity) {
 		return 0;
@@ -851,6 +886,7 @@ static int core_provider_complete(AstraAsyncExecutor *executor, AstraAsyncToken 
 	core_wake(executor, token);
 	return 1;
 }
+
 static int core_provider_result(AstraAsyncTask *task, uint32_t pc) {
 	AstraAsyncRegistration *entry = registration(task);
 	ASTRA_ASYNC_REQUIRE(task->executor->provider != NULL && !entry->external && entry->retained == 0 && entry->external_result && entry->external_pc == pc && task->pc == pc);

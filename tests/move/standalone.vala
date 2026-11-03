@@ -46,6 +46,7 @@ private class Fixture : Object {
 		program.handles.add (new CfgHandle (span, span, (HandleType) owner_type, cleanup, null, 0));
 #endif
 	}
+
 	internal void borrow(int block, int owner, int position = -1) {
 		CfgCFunction? inspector = program.c_functions.length > 1 ? program.c_functions[1] : null;
 		if (inspector == null) {
@@ -64,30 +65,38 @@ private class Fixture : Object {
 		instructions.insert (index, new CfgOwnedBorrowInstruction (span, value));
 		instructions.insert (index + 1, new CfgCCallInstruction (span, inspector, arguments, null));
 	}
+
 	internal void acquire(int block, int owner) {
 		var result = new CfgCallResultValue (span, owner_type);
 		function.blocks[block].instructions.add (new CfgCCallInstruction (span, producer, new GenericArray<CfgValue> (), result));
 		function.blocks[block].instructions.add (new CfgInitialize (span, function.locals[owner], result, function.locals[owner]));
 	}
+
 	internal void move(int block, int source, int destination) {
 		function.blocks[block].instructions.add (new CfgOwnershipTransferInstruction (span, function.locals[source], function.locals[destination], cleanup));
 	}
+
 	internal void clean(int block, int owner) {
 		function.blocks[block].instructions.add (new CfgCleanupInstruction (span, new CfgLoadValue (span, function.locals[owner]), cleanup));
 	}
+
 	internal void branch(int block, int destination) throws CfgError {
 		function.blocks[block].complete (span, new CfgBranch (span, function.blocks[destination]));
 	}
+
 	internal void split(int block, int yes, int no) throws CfgError {
 		function.blocks[block].complete (span, new CfgConditionalBranch (span, new CfgBooleanValue (span, types.bool_type, BooleanLiteral.TRUE), function.blocks[yes], function.blocks[no]));
 	}
+
 	internal void finish(int block) throws CfgError {
 		function.blocks[block].complete (span, new CfgReturn (span, null));
 	}
+
 	internal OwnershipFlowResult analyze() throws CfgError {
 		CfgVerifier.verify (program);
 		return OwnershipFlow.analyze (function);
 	}
+
 }
 private Fixture straight() throws CfgError {
 	var fixture = new Fixture (2, 2);
@@ -99,6 +108,7 @@ private Fixture straight() throws CfgError {
 	fixture.finish (1);
 	return fixture;
 }
+
 private Fixture diamond(string mode) throws CfgError {
 	var fixture = new Fixture (mode == "both" ? 3 : 2, mode == "unreachable" ? 5 : 4);
 	fixture.acquire (0, 0);
@@ -127,6 +137,7 @@ private Fixture diamond(string mode) throws CfgError {
 	fixture.finish (3);
 	return fixture;
 }
+
 private Fixture loop(string mode) throws CfgError {
 	var fixture = new Fixture (2, 4);
 	if (mode != "fresh") {
@@ -153,6 +164,7 @@ private Fixture loop(string mode) throws CfgError {
 	fixture.finish (3);
 	return fixture;
 }
+
 private void lattice() throws GLib.Error {
 	OwnershipState[] states = {
 		OwnershipState.OWNED, OwnershipState.MOVED, OwnershipState.join (OwnershipState.OWNED, OwnershipState.MOVED)
@@ -163,6 +175,7 @@ private void lattice() throws GLib.Error {
 		}
 	}
 }
+
 private void linear() throws GLib.Error {
 	var fixture = straight ();
 	var result = fixture.analyze ();
@@ -171,6 +184,7 @@ private void linear() throws GLib.Error {
 	assert (result.entry_state (fixture.function.blocks[1], fixture.function.locals[1]) == OwnershipState.OWNED);
 	assert (result.dump ().contains ("owner #0 a = MOVED"));
 }
+
 private void join(string mode) throws GLib.Error {
 	var fixture = diamond (mode);
 	var result = fixture.analyze ();
@@ -182,6 +196,7 @@ private void join(string mode) throws GLib.Error {
 		assert (!result.dump ().contains ("block #4"));
 	}
 }
+
 private void cycle(string mode) throws GLib.Error {
 	var fixture = loop (mode);
 	var result = fixture.analyze ();
@@ -199,6 +214,7 @@ private void cycle(string mode) throws GLib.Error {
 		assert (result.entry_state (fixture.function.blocks[1], fixture.function.locals[0]) == null);
 	}
 }
+
 private void malformed(int variant) throws GLib.Error {
 	var fixture = straight ();
 	var function = fixture.function;
@@ -252,6 +268,7 @@ private void malformed(int variant) throws GLib.Error {
 	}
 	GLib.error ("malformed fixture %d accepted", variant);
 }
+
 private void malformed_scope_join() throws GLib.Error {
 	var fixture = diamond ("diamond");
 	fixture.clean (1, 0);
@@ -263,6 +280,7 @@ private void malformed_scope_join() throws GLib.Error {
 	}
 	assert_not_reached ();
 }
+
 private void malformed_rearm() throws GLib.Error {
 	var fixture = loop ("fresh");
 	fixture.function.blocks[2].instructions.remove_index (4);
@@ -274,6 +292,7 @@ private void malformed_rearm() throws GLib.Error {
 	}
 	assert_not_reached ();
 }
+
 private void lifetime() throws GLib.Error {
 	Fixture? fixture = straight ();
 	var block = WeakRef (fixture.function.blocks[1]);
@@ -285,12 +304,14 @@ private void lifetime() throws GLib.Error {
 	result = null;
 	assert (block.get () == null && owner.get () == null && operation.get () == null);
 }
+
 private delegate void Body() throws GLib.Error;
 private class Case : Object {
 	internal Body body;
 	internal Case (owned Body body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string name, owned Body body) {
@@ -303,6 +324,7 @@ private void add(string name, owned Body body) {
 								 }
 	});
 }
+
 private void borrow_state(string mode) throws GLib.Error {
 	var fixture = mode == "maybe" || mode == "terminating" ? diamond (mode == "maybe" ? "diamond" : "terminating") : straight ();
 	fixture.borrow (mode == "maybe" || mode == "terminating" ? 3 : 1, mode == "destination" ? 1 : 0, 0);
@@ -313,6 +335,7 @@ private void borrow_state(string mode) throws GLib.Error {
 		assert (result.diagnostic == null);
 	}
 }
+
 private void borrow_loop(bool moving) throws GLib.Error {
 	if (moving) {
 		var fixture = loop ("backedge");
@@ -334,6 +357,7 @@ private void borrow_loop(bool moving) throws GLib.Error {
 	assert (result.diagnostic == null && result.entry_state (fixture.function.blocks[1], fixture.function.locals[0]) == OwnershipState.OWNED);
 	assert (result.iterations <= 2 * fixture.function.blocks.length);
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -363,4 +387,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

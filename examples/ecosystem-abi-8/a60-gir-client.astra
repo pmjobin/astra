@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int main() {
 	try {
-		if (gir_contract_valid() != 1) { return 1; }
+		if (gir_contract_valid() != 1) return 1;
 		owned AstraFixtureCounter object = AstraFixtureCounter_new(10);
-		if (object == null || AstraFixtureCounter_write(object, 23) != 1 || AstraFixtureCounter_property_label_set(object, "GIR café") != 1) { return 2; }
+		if (object == null || AstraFixtureCounter_write(object, 23) != 1 || AstraFixtureCounter_property_label_set(object, "GIR café") != 1) return 2;
 		owned GirUtf8 label = AstraFixtureCounter_label_copy(object);
-		if (label == null) { return 3; }
+		if (label == null) return 3;
 		int length = gir_text_length(label);
-		if (length < 0) { return 4; }
+		if (length < 0) return 4;
 		var bytes = new u8[length];
 		int at = 0;
-		while (at < length) { bytes[at] = gir_text_byte(label, at) as u8; at = at + 1; }
+		while (at < length) {
+			bytes[at] = gir_text_byte(label, at) as u8;
+			at = at + 1;
+		}
 		var name = utf8_message(bytes);
 		var report = new Utf8ByteBuilder();
-		if (!report_text(report, "AstraFixture 1.0 / GObject 2.0\nlabel=") || !report_text(report, name.text) || !report_text(report, "\n")) { return 5; }
+		if (!report_text(report, "AstraFixture 1.0 / GObject 2.0\nlabel=") || !report_text(report, name.text) || !report_text(report, "\n")) return 5;
 		report_value(report, "value=", AstraFixtureCounter_property_value_get(object));
 		var text = report.snapshot();
 		write_text_file("gir-report.txt", text.text);

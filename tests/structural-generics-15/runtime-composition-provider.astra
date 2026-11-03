@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace TaskProducer;
 enum ProducerStatus { Completed, Cancelled }
+
 async runtime ProducerExecutor throws AsyncError returns ProducerStatus;
 
 struct Reply<T> { T value; int generation; }
+
 async Reply<int> compute(int value, bool fail) throws Error {
 	await delay_ticks(3);
-	if (fail) { throw new Error("producer failure"); }
+	if (fail) {
+		throw new Error("producer failure");
+	}
 	Reply<int> result = {value = value + 2, generation = 7};
 	return result;
 }

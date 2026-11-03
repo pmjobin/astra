@@ -35,5 +35,6 @@ public class VapiToken : Object {
 	public string spelling() {
 		return span.text ();
 	}
+
 }
 }

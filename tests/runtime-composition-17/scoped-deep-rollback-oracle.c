@@ -10,32 +10,39 @@ static struct {
 	unsigned allocations, releases;
 	int closed, freed;
 } backing[4];
+
 static struct {
 	void *pointer;
 	uint64_t tag;
 	unsigned context, identity, entered, retired, order;
 	int live;
 } allocation[35];
+
 static struct {
 	unsigned leaf, leaf_retired, node, node_retired;
 } child[1000];
+
 static unsigned allocations, refusals, clock_tick, errors[7], caught[7], error_retired[7];
 
 static int failed(unsigned identity) {
 	return identity != 2 && identity != 4;
 }
+
 static unsigned find(unsigned context, unsigned identity) {
 	for (unsigned i = 1; i <= allocations; ++i)
 		if (allocation[i].context == context && allocation[i].identity == identity) return i;
 	assert(0);
 	return 0;
 }
+
 static void children_retired(unsigned identity) {
 	unsigned left = find(2, identity * 10 + 1), right = find(2, identity * 10 + 2);
 	assert(!allocation[left].live && !allocation[right].live && allocation[left].retired == 1 && allocation[right].retired == 1);
 	if (identity == 5 || identity == 6) assert(allocation[right].order < allocation[left].order);
 }
+
 AstraContext17 *__real_astra_context17_open_scoped(void *, int32_t, int32_t, int32_t);
+
 AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, int32_t kind, int32_t slots) {
 	unsigned context = length == 8197 ? 1 : length == 12289 ? 2
 	                                                        : 3;
@@ -50,7 +57,9 @@ AstraContext17 *__wrap_astra_context17_open_scoped(void *base, int32_t length, i
 	assert(astra_context17_snapshot(backing[context].context, &state) == ASTRA_CONTEXT17_OK && state.borrowed && !state.live);
 	return backing[context].context;
 }
+
 void *__real_astra_context17_allocate_mode(AstraContext17 *, uint64_t, uint64_t, uint32_t, uint64_t, uint32_t);
+
 void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t count,
                                            uint64_t size, uint32_t alignment, uint64_t tag, uint32_t mode) {
 	unsigned context = selected == backing[1].context ? 1 : selected == backing[2].context ? 2
@@ -85,6 +94,7 @@ void *__wrap_astra_context17_allocate_mode(AstraContext17 *selected, uint64_t co
 	++backing[context].allocations;
 	return pointer;
 }
+
 void scoped_deep_rollback_event(int event, int identity) {
 	assert(identity > 0);
 	unsigned id = (unsigned)identity;
@@ -143,7 +153,9 @@ void scoped_deep_rollback_event(int event, int identity) {
 		++caught[id];
 	}
 }
+
 int __real_astra_context17_release_origin_checked(void *, uint64_t);
+
 int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	if (!pointer) return __real_astra_context17_release_origin_checked(pointer, tag);
 	unsigned record = 0;
@@ -175,7 +187,9 @@ int __wrap_astra_context17_release_origin_checked(void *pointer, uint64_t tag) {
 	++backing[context].releases;
 	return result;
 }
+
 void __real_astra_context17_destroy(AstraContext17 *);
+
 void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	unsigned context = selected == backing[1].context ? 1 : selected == backing[2].context ? 2
 	                                                                                       : 3;
@@ -188,7 +202,9 @@ void __wrap_astra_context17_destroy(AstraContext17 *selected) {
 	backing[context].closed = 1;
 	__real_astra_context17_destroy(selected);
 }
+
 void __real_free(void *);
+
 void __wrap_free(void *pointer) {
 	for (unsigned context = 1; context <= 3; ++context)
 		if (backing[context].base && pointer == backing[context].base) {
@@ -197,7 +213,9 @@ void __wrap_free(void *pointer) {
 		}
 	__real_free(pointer);
 }
+
 extern int scoped_deep_rollback_run(void);
+
 int main(void) {
 	int result = scoped_deep_rollback_run();
 	if (result) return result;

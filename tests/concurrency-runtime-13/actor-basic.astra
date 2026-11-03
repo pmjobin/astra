@@ -1,31 +1,49 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int astra_actor_cancelled();
+
 extern(C) int actor_test_cooperative(int flag);
+
 extern(C) int actor_test_handle(int id);
+
 extern(C) int actor_test_message_drop(int id);
+
 extern(C) int actor_test_receiver_drop();
+
 extern(C) int actor_test_wait();
+
 extern(C) int actor_test_continue();
+
 extern(C) int actor_test_rejected(int id);
+
 extern(C) int actor_test_finish();
+
 class Message {
 	private int id;
+
 	init(int id) { this.id = id; }
+
 	int value() { return this.id; }
+
 	deinit() { actor_test_message_drop(this.id); }
 }
+
 [Actor]
 class Inbox {
 	private int count;
+
 	init() { this.count = 0; }
+
 	int receive(int id) { this.count = this.count + 1; return actor_test_handle(id); }
+
 	deinit() { actor_test_receiver_drop(); }
 }
+
 int handle(borrowed Inbox receiver, owned Message message) {
 	int result = receiver.receive(message.value());
 	actor_test_cooperative(astra_actor_cancelled());
 	return result;
 }
+
 int main() {
 	try {
 		var receiver = new Inbox();
@@ -36,12 +54,12 @@ int main() {
 		var second = new Message(1); actor_send(sender, move second);
 		var third = new Message(2); actor_send(sender, move third);
 		try { var full = new Message(3); actor_send(sender, move full); return 71; }
-		catch (Error error) { if (actor_test_rejected(3) != 0) { return 72; } }
+		catch (Error error) { if (actor_test_rejected(3) != 0) return 72; }
 		actor_cancel(sender);
-		if (actor_test_rejected(1) != 0 || actor_test_rejected(2) != 0) { return 73; }
+		if (actor_test_rejected(1) != 0 || actor_test_rejected(2) != 0) return 73;
 		release peer; actor_test_continue(); actor_shutdown(sender);
 		try { var closed = new Message(4); actor_send(sender, move closed); return 74; }
-		catch (Error error) { if (actor_test_rejected(4) != 0) { return 75; } }
+		catch (Error error) { if (actor_test_rejected(4) != 0) return 75; }
 		release sender;
 	} catch (Error error) { return 76; }
 	return actor_test_finish();

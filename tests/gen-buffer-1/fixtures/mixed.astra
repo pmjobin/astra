@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int se_mark(int value);
+
 struct Kernel { int index; f64 gain; }
+
 class Token {
 	init() { se_mark(70); }
+
 	deinit() { se_mark(71); }
 }
+
 owned T[] mixed<T,U,V>(V snapshot, owned U companion, T[] source, owned T[] incoming, T value) where U : Ownable {
 	owned T[] local = clone_array(source);
 	Token token = Token.init();
@@ -12,19 +16,21 @@ owned T[] mixed<T,U,V>(V snapshot, owned U companion, T[] source, owned T[] inco
 	incoming = clone_array(incoming);
 	return move local;
 }
+
 owned T[] forward<T,U,V>(owned U companion, owned T[] incoming, T[] source, T value, V snapshot) where U : Ownable {
 	return mixed(snapshot, move companion, source, move incoming, value);
 }
+
 int main() {
 	Kernel value = {index=17,gain=2.0d};
 	var source = filled_array(2, value);
 	var incoming = clone_array(source);
 	var resource_owner = resource(1);
 	var result = forward(move resource_owner, move incoming, source, value, value);
-	if (result[0].index != 17 || source[0].index != 17) { return 1; }
+	if (result[0].index != 17 || source[0].index != 17) return 1;
 	var companion = Token.init();
 	var next = clone_array(result);
 	var final_result = forward(move companion, move next, result, value, value);
-	if (final_result[1].index != 17) { return 2; }
+	if (final_result[1].index != 17) return 2;
 	return 0;
 }

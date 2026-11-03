@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 export(C)int byte_service16_com_import(void* unknown){try{
-		var session=IByteService16.init(unknown);if(session.revision!=1 || !session.enabled || session.weight!=2.5){return 1;}
-		u8[3] input={3,0,254};u8[4] output={77,77,77,77};if(session.process(slice(input),slice(output))!=3 || output[0]!=172 || output[1]!=170 || output[2]!=87 || output[3]!=77){return 2;}
-		var statistics=session.statistics();if(statistics.revision!=2 || statistics.processed!=6 || statistics.score!=2145.0){return 3;}
-		var snapshot=session.snapshot();if(len(snapshot)!=3 || snapshot[0]!=172 || snapshot[1]!=170 || snapshot[2]!=87){return 4;}
+		var session=IByteService16.init(unknown);if(session.revision!=1 || !session.enabled || session.weight!=2.5) return 1;
+		u8[3] input={3,0,254};u8[4] output={77,77,77,77};if(session.process(slice(input),slice(output))!=3 || output[0]!=172 || output[1]!=170 || output[2]!=87 || output[3]!=77) return 2;
+		var statistics=session.statistics();if(statistics.revision!=2 || statistics.processed!=6 || statistics.score!=2145.0) return 3;
+		var snapshot=session.snapshot();if(len(snapshot)!=3 || snapshot[0]!=172 || snapshot[1]!=170 || snapshot[2]!=87) return 4;
 		session.enabled=false;try{var ignored=session.process(slice(input),slice(output));return 5;}catch(Byte16.Fault fault){}
-		session.enabled=true;if(session.revision!=2){return 6;}
+		session.enabled=true;if(session.revision!=2) return 6;
 	}catch(Byte16.Fault fault){return 90;}return 0;}

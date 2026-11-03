@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Shipment { u8 tag; i64 total; usize count; }
+
 [CCode(record_abi="natural-lp64")]
 extern(C) int surge_record_apply(borrowed Shipment* record, int price);
+
 export(C) i64 surge_shipment_total(int price, int count) {
-	if (price < 0 || count < 0 || price > 1000 || count > 1000) { return -1; }
+	if (price < 0 || count < 0 || price > 1000 || count > 1000) return -1;
 	Shipment record = {tag=17, total=12345678901, count=count as usize};
-	if (surge_record_apply(&record, price) != 0 || record.tag != 18) { return -2; }
+	if (surge_record_apply(&record, price) != 0 || record.tag != 18) return -2;
 	return record.total;
 }

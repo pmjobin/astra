@@ -11,6 +11,7 @@ private SemanticResult analyze(string text) {
 	}
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private CheckedProgram check(string text) {
 	var result = analyze (text);
 	if (result.diagnostic != null) {
@@ -18,12 +19,14 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private void reject(string text, string diagnostic) {
 	var result = analyze (text);
 	if (result.diagnostic == null || !result.diagnostic.message.contains (diagnostic)) {
 		GLib.error ("expected %s, found %s", diagnostic, result.diagnostic == null ? "accepted" : result.diagnostic.message);
 	}
 }
+
 private void identity() {
 	var program = check ("struct Box<T>{T value;}struct Tagged<T>{int value;}struct B<T>{T value;}void f(){Box<int> a={value=1};Box<i32> b={value=2};Box<i8> c={value=3};Box<u8> d={value=4};Tagged<i8> e={value=5};Tagged<u8> f={value=6};B<int> g={value=7};Box<int>* p=&a;Box<i32>* q=&b;Box<i8>* s=&c;Box<u8>* u=&d;}");
 	assert (program.structs.length == 0 && program.generic_structs.length == 3);
@@ -39,6 +42,7 @@ private void identity() {
 	var application = (GenericStructApplicationType) locals[0].semantic_type;
 	assert (application.definition == box.definition && application.type_arguments[0] == program.types.int_type && application.field_type (box.fields[0]) == program.types.int_type);
 }
+
 private void fields() {
 	var program = check ("struct Meta{int tag;f64 scale;}struct Pair<T,U>{T first;U second;}struct Bundle<T>{Pair<T,T> pair;Meta meta;i16<8> samples;bool<4> mask;void* opaque;}T first<T,U>(T a,U b){Pair<T,U> p={first=a,second=b};return p.first;}int f(){Bundle<f64> b={pair={first=1.0,second=2.0},meta={tag=7,scale=0.5},samples=splat(1,8),mask=splat(true,4),opaque=null};return b.meta.tag;}");
 	var pair = program.generic_structs[0];
@@ -52,6 +56,7 @@ private void fields() {
 	assert (initializer.field == bundle.fields[0] && initializer.initializer.fields[0].field == pair.fields[0]);
 	assert (SemanticDump.format (program).contains ("generic-field-place") && SemanticDump.format (program).contains ("storage-initializer"));
 }
+
 private void matrix() {
 	var types = new BuiltinTypes ();
 	int count = 0;
@@ -73,6 +78,7 @@ private void matrix() {
 	}
 	assert (count == 34);
 }
+
 private void negatives() {
 	string declarations = "struct Box<T>{T value;}struct Pair<T,U>{T first;U second;}struct S{int value;}class C{}";
 	foreach (string argument in new string[] {"void", "C", "int[]", "int[2]", "int*", "S*", "Pair<int,int>*"}) {
@@ -116,6 +122,7 @@ private void negatives() {
 	reject (declarations + "void f(){Pair<int,f64> p={first=1,first=2,second=3.5};}", "duplicate initializer");
 	reject (declarations + "void f(){Pair<int,f64> p={first=1,missing=2};}", "unknown initializer field 'missing' in struct 'Pair<int,f64>'");
 }
+
 private void resources() {
 	var file = new SourceFile.from_text ("foreign-input", "Resource");
 	var span = SourceSpan (file, 0, file.length);
@@ -129,6 +136,7 @@ private void resources() {
 		assert (result.diagnostic.message.contains ("GEN1_PLAIN_COPY") || result.diagnostic.message.contains ("unsupported generic struct field") || result.diagnostic.message.contains ("conflicting generic struct"));
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-struct/semantic/exact-identities-nominality-phantom-pointers", identity);
@@ -138,4 +146,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-struct/semantic/resource-argument-field-and-namespace-rejection", resources);
 	return Test.run ();
 }
+
 }

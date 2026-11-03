@@ -424,6 +424,7 @@ internal class CfgEnumVerifier : Object {
 		var slice = place as CfgSliceElementPlace;
 		return views.contains (place) || (slice != null && (captured_views.contains (slice.slice) || (slice.slice is CfgLoadValue && views.contains (((CfgLoadValue) slice.slice).source))));
 	}
+
 	private void verify_function(CfgFunction input) throws EnumContractError {
 		views.remove_all ();
 		captured_views.remove_all ();
@@ -927,5 +928,6 @@ internal class CfgEnumVerifier : Object {
 		}
 		EnumInitializationProof.verify ((int) function.enum_slots.length, function.entry.ordinal, blocks, owners, roots, loans);
 	}
+
 }
 }

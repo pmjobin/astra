@@ -2,24 +2,24 @@
 // Boot calls this source function for each serial byte; it supplies no text.
 export(C) int astra_entry(int index, int initialized, int zeroed) {
 	if (initialized != 324508639 || zeroed != 0) {
-		if (index == 0) { return 33; }
+		if (index == 0) return 33;
 		return 0;
 	}
-	if (index == 0) { return 65; }
-	if (index == 1) { return 83; }
-	if (index == 2) { return 84; }
-	if (index == 3) { return 82; }
-	if (index == 4) { return 65; }
-	if (index == 5) { return 49; }
-	if (index == 6) { return 50; }
-	if (index == 7) { return 58; }
+	if (index == 0) return 65;
+	if (index == 1) return 83;
+	if (index == 2) return 84;
+	if (index == 3) return 82;
+	if (index == 4) return 65;
+	if (index == 5) return 49;
+	if (index == 6) return 50;
+	if (index == 7) return 58;
 	int checksum = 0;
 	for (int sample = 1; sample <= 6; sample = sample + 1) {
 		checksum = checksum + sample * 2;
 	}
-	if (index == 8) { return 48 + checksum / 100; }
-	if (index == 9) { return 48 + checksum / 10 % 10; }
-	if (index == 10) { return 48 + checksum % 10; }
-	if (index == 11) { return 10; }
+	if (index == 8) return 48 + checksum / 100;
+	if (index == 9) return 48 + checksum / 10 % 10;
+	if (index == 10) return 48 + checksum % 10;
+	if (index == 11) return 10;
 	return 0;
 }

@@ -9,14 +9,19 @@ int<4> cycle(int<4> input, int count, bool choose) {
 	}
 	bool<4> mask = splat(false, 4);
 	int<4> other = splat(99, 4);
-	if (choose) { mask = splat(true, 4); } else { other = insert(other, 3, 100); }
+	if (choose) {
+		mask = splat(true, 4);
+	} else {
+		other = insert(other, 3, 100);
+	}
 	return select(mask, v, other);
 }
+
 int main() {
 	int<4> v = {10, 20, 30, 40};
 	int<4> expected = {11, 21, 31, 41};
-	if (!all(cycle(v, 4, true) == expected)) { return 1; }
+	if (!all(cycle(v, 4, true) == expected)) return 1;
 	int<4> other = {99, 99, 99, 100};
-	if (!all(cycle(v, 4, false) == other)) { return 2; }
+	if (!all(cycle(v, 4, false) == other)) return 2;
 	return 0;
 }

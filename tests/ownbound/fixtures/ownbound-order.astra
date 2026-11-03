@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 void consume(int first, owned Resource r, int last) {
-	if (first != 1 || last != 2 || resource_effect_order() != 12 || resource_destroy_count() != 0) { record(9); }
+	if (first != 1 || last != 2 || resource_effect_order() != 12 || resource_destroy_count() != 0) record(9);
 	record(3);
 }
+
 void scenario() {
 	owned Resource r = create_resource(4);
 	consume(record(1), move r, record(2));
 }
+
 int main() {
 	resource_reset();
 	scenario();
-	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 4 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 0) { return 1; }
-	if (resource_effect_order() != 1234) { return 2; }
+	if (resource_create_count() != 1 || resource_destroy_count() != 1 || resource_destroy_order() != 4 || resource_live_count() != 0 || resource_error_count() != 0 || resource_touch_count() != 0) return 1;
+	if (resource_effect_order() != 1234) return 2;
 	return 0;
 }

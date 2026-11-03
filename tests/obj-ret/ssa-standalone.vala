@@ -50,6 +50,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	p.classes.add (d);
 	return p;
 }
+
 private void valid() {
 	try {
 		foreach (int mode in new int[] { 0, 20, 22 }) {
@@ -64,6 +65,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void malformed() {
 	for (int v = 1; v <= 7; v++) {
 		try {
@@ -75,6 +77,7 @@ private void malformed() {
 		GLib.error ("accepted malformed Ssa result %d", v);
 	}
 }
+
 private SsaProgram acquisitions(bool shared) throws SsaError {
 	var p = sample ();
 	var span = p.span;
@@ -103,6 +106,7 @@ private SsaProgram acquisitions(bool shared) throws SsaError {
 	p.functions.add (caller);
 	return p;
 }
+
 private void candidate_identity() {
 	try {
 		SsaVerifier.verify (acquisitions (false));
@@ -117,6 +121,7 @@ private void candidate_identity() {
 	}
 	GLib.error ("accepted two live acquisitions sharing one candidate");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/ssa/fresh-null-and-input-lifetime-without-upstream", valid);
@@ -124,4 +129,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-ret/ssa/candidate-storage-identity", candidate_identity);
 	return Test.run ();
 }
+
 }

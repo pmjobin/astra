@@ -14,11 +14,13 @@ static void require(int good) {
 		_Exit(99);
 	}
 }
+
 static uint64_t monotonic_ns(void) {
 	struct timespec ts;
 	require(clock_gettime(CLOCK_MONOTONIC, &ts) == 0);
 	return (uint64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
+
 static void timeout(struct io_uring *ring, uint64_t ns, uint64_t id) {
 	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 	require(sqe != NULL);
@@ -28,6 +30,7 @@ static void timeout(struct io_uring *ring, uint64_t ns, uint64_t id) {
 	require(sqe->len == 1 && sqe->off == 0 && sqe->timeout_flags == IORING_TIMEOUT_IMMEDIATE_ARG);
 	require(io_uring_submit(ring) == 1);
 }
+
 static struct io_uring_cqe observe(struct io_uring *ring) {
 	struct io_uring_cqe *cqe;
 	require(io_uring_wait_cqe(ring, &cqe) == 0);
@@ -36,6 +39,7 @@ static struct io_uring_cqe observe(struct io_uring *ring) {
 	io_uring_cqe_seen(ring, cqe);
 	return result;
 }
+
 int main(void) {
 	alarm(10); /* Probe ceiling; never teardown unknown in-flight work. */
 	setbuf(stdout, NULL);

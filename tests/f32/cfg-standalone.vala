@@ -62,4 +62,5 @@ int main(string[] args) {
 	Test.add_func ("/f32/cfg/standalone-constants-places-exactness", constants_places);
 	return Test.run ();
 }
+
 }

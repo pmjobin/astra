@@ -22,6 +22,7 @@ private CheckedProgram check() {
 	}
 	return result.program;
 }
+
 private void checked_contract() {
 	try {
 		var source = check ();
@@ -41,6 +42,7 @@ private void checked_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void core_contract() {
 	try {
 		CheckedProgram? source = check ();
@@ -64,6 +66,7 @@ private void core_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cfg_contract() {
 	try {
 		CoreProgram? source = CoreBuilder.build (check ());
@@ -87,6 +90,7 @@ private void cfg_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void ssa_contract() {
 	try {
 		CfgProgram? source = CfgBuilder.build (CoreBuilder.build (check ()));
@@ -110,6 +114,7 @@ private void ssa_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cabi_contract() {
 	try {
 		SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
@@ -135,6 +140,7 @@ private void cabi_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private LlvmModuleArtifact artifact() throws GLib.Error {
 	SsaProgram? source = SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (check ())));
 	var upstream = WeakRef (source.c_functions[0]);
@@ -148,6 +154,7 @@ private LlvmModuleArtifact artifact() throws GLib.Error {
 	result.runtime_profile = new LlvmRuntimeProfile (LlvmTargetMachineArtifact.PC_BARE_METAL);
 	return result;
 }
+
 private void llvm_reject(LlvmModuleArtifact result) {
 	bool rejected = false;
 	try {
@@ -158,6 +165,7 @@ private void llvm_reject(LlvmModuleArtifact result) {
 	}
 	assert (rejected);
 }
+
 private void llvm_contract() {
 	try {
 		var result = artifact ();
@@ -190,6 +198,7 @@ private void llvm_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void target_contract() {
 	try {
 		var result = artifact ();
@@ -220,6 +229,7 @@ private void target_contract() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/pc-device/checked", checked_contract);
@@ -231,4 +241,5 @@ public int main(string[] args) {
 	Test.add_func ("/pc-device/target", target_contract);
 	return Test.run ();
 }
+
 }

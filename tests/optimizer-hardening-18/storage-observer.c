@@ -7,6 +7,7 @@
 
 static unsigned long allocations;
 static unsigned retired;
+
 void *calloc(size_t count, size_t size) {
 	if (size && count > SIZE_MAX / size) return NULL;
 	void *memory = malloc(count * size);
@@ -14,18 +15,22 @@ void *calloc(size_t count, size_t size) {
 	allocations++;
 	return memory;
 }
+
 static void finish(void) {
 	printf("allocations=%lu retired=%u\n", allocations, retired);
 }
+
 void storage18_begin(void) {
 	if (atexit(finish)) abort();
 	allocations = 0;
 	retired = 0;
 }
+
 void storage18_retire(int value) {
 	printf("retire=%d\n", value);
 	retired++;
 }
+
 void storage18_caught(void) {
 	puts("caught");
 }

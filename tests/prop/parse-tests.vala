@@ -20,6 +20,7 @@ private void declarations() {
 	parsed = null;
 	assert (witness.get () == null);
 }
+
 private void malformed() {
 	foreach (string declaration in new string[] {
 			"property int p{set(int n){}get{}}", "property int p{}", "property int p{set(int next){}}", "property int p{get{}get{}}", "property int p{get{}set(int n){}set(int n){}}",
@@ -43,9 +44,11 @@ private void malformed() {
 	// eligibility is still rejected by the semantic property tests.
 	assert (Parser.parse (new SourceFile.from_text ("property-index", "class C{property int p{get{return 1;}}}void f(){C c={};c.p[0]=1;}")).diagnostic == null);
 }
+
 private void accepted_current_grammar() {
 	assert (Parser.parse (new SourceFile.from_text ("accepted-current-grammar", "class C{property owned C p{get{}}}")).diagnostic == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	accepted_current_grammar ();
@@ -53,4 +56,5 @@ int main(string[] args) {
 	Test.add_func ("/prop/parser/malformed-and-deferred-grammar", malformed);
 	return Test.run ();
 }
+
 }

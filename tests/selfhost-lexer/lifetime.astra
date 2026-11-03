@@ -3,11 +3,15 @@ owned shared SourceBuffer lifetime_source() throws Error {
 	u8[14] literal = {47, 42, 120, 42, 47, 32, 34, 97, 92, 48, 98, 34, 32, 122};
 	var bytes = new u8[14];
 	int i = 0;
-	while (i < 14) { bytes[i] = literal[i]; i = i + 1; }
+	while (i < 14) {
+		bytes[i] = literal[i];
+		i = i + 1;
+	}
 	var source = source_buffer("lifetime", move bytes, false);
 	shared SourceBuffer result = shared_acquire(move source);
 	return move result;
 }
+
 owned Token survivor() throws Error {
 	var source = lifetime_source();
 	var scan = lexer(move source);
@@ -24,6 +28,7 @@ owned Token survivor() throws Error {
 	assert_that(eof.kind() == TokenKind.EOF());
 	return move token;
 }
+
 owned SourceSpan trivia_survivor() throws Error {
 	var source = lifetime_source();
 	var scan = lexer(move source);
@@ -32,6 +37,7 @@ owned SourceSpan trivia_survivor() throws Error {
 	assert_that(result.same_source(token.span));
 	return move result;
 }
+
 void lifetime_checks() throws Error {
 	var token = survivor();
 	assert_that(token.spelling.text == "\"a\\0b\"");
@@ -48,7 +54,10 @@ void lifetime_checks() throws Error {
 	var original = generated.span.bytes(); assert_that(len(original) == 6);
 	u8[3] invalid = {120, 32, 64};
 	var data = new u8[3]; int i = 0;
-	while (i < 3) { data[i] = invalid[i]; i = i + 1; }
+	while (i < 3) {
+		data[i] = invalid[i];
+		i = i + 1;
+	}
 	var bad = source_buffer("bad", move data, false);
 	shared SourceBuffer root = shared_acquire(move bad);
 	var scanner = lexer(move root);

@@ -43,6 +43,7 @@ internal class LlvmCallbackCBoolBinding : Object {
 		}
 		artifact.requires_c_bool |= requires_c_bool;
 	}
+
 	internal void verify() throws LlvmError {
 		foreach (uint index in indices) {
 			var attribute = is_call ? CApi.call_enum_attribute (call, index, CApi.enum_attribute_kind ("zeroext", 7)) : CApi.enum_attribute (call, index, CApi.enum_attribute_kind ("zeroext", 7));
@@ -51,6 +52,7 @@ internal class LlvmCallbackCBoolBinding : Object {
 			}
 		}
 	}
+
 }
 // Native Callback values point at a call-scoped {native code, opaque context}
 // view. Foreign adapters construct their own checked views of this same type.
@@ -69,6 +71,7 @@ internal class LlvmCallbackRuntime : Object {
 		layout = CApi.struct_type_in_context (artifact.context, fields, fields.length, 0);
 		artifact.class_layouts.add (new LlvmClassLayoutBinding (layout, fields));
 	}
+
 	private CApi.TypeRef code_type(CallbackType signature) throws LlvmError, NativeAbiError {
 		var parameters = new CApi.TypeRef[signature.parameter_types.length + 1];
 		parameters[0] = pointer;
@@ -77,6 +80,7 @@ internal class LlvmCallbackRuntime : Object {
 		}
 		return CApi.function_type (types.callable_result_type (signature), parameters, parameters.length, 0);
 	}
+
 	private CApi.ValueRef read(CApi.BuilderRef builder, CApi.ValueRef carrier, uint member) {
 		var address = CApi.build_struct_gep (builder, layout, carrier, member, "callback.member");
 		artifact.class_addresses.add (new LlvmClassAddressBinding (address, carrier, layout, member));
@@ -87,6 +91,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.LOAD, pointer, operands, "exact callback code/context component"));
 		return result;
 	}
+
 	private CApi.ValueRef write(CApi.BuilderRef builder, CApi.ValueRef carrier, uint member, CApi.ValueRef value) {
 		var address = CApi.build_struct_gep (builder, layout, carrier, member, "callback.member");
 		artifact.class_addresses.add (new LlvmClassAddressBinding (address, carrier, layout, member));
@@ -97,6 +102,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.STORE, CApi.void_type_in_context (artifact.context), operands, "exact callback code/context publication"));
 		return result;
 	}
+
 	private CApi.TypeRef foreign_code_type(ForeignValueType signature) throws LlvmError {
 		var parameters = new CApi.TypeRef[signature.callback_parameter_count + 1];
 		parameters[0] = pointer;
@@ -106,6 +112,7 @@ internal class LlvmCallbackRuntime : Object {
 		var result = signature.callback_result.kind == ForeignValueKind.VOID ? CApi.void_type_in_context (artifact.context) : types.scalar (NativeForeignApi.scalar (signature.callback_result.kind));
 		return CApi.function_type (result, parameters, parameters.length, 0);
 	}
+
 	private CApi.ValueRef from_c_thunk(ForeignValueType signature) throws LlvmError {
 		string name = "astra.callback.from.c." + Checksum.compute_for_string (ChecksumType.SHA256, signature.identity ());
 		var prior = (void*) artifact.retained_helpers.lookup (name);
@@ -142,6 +149,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.concurrency_guards.add (new LlvmSumSequence (thunk, true));
 		return thunk;
 	}
+
 	internal CApi.ValueRef from_c(CApi.BuilderRef builder, ForeignValueType signature, CApi.ValueRef code, CApi.ValueRef data, bool nullable) throws LlvmError {
 		var context = CApi.build_alloca (builder, layout, "callback.c.context");
 		write (builder, context, 0, code);
@@ -164,6 +172,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.SELECT, pointer, selected, "nullable callback view"));
 		return result;
 	}
+
 	internal CApi.ValueRef to_c(CApi.BuilderRef builder, ForeignValueType signature, CApi.ValueRef view, bool nullable) throws LlvmError {
 		string name = "astra.callback.to.c." + Checksum.compute_for_string (ChecksumType.SHA256, signature.identity ());
 		var prior = (void*) artifact.retained_helpers.lookup (name);
@@ -215,6 +224,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.SELECT, pointer, selected, "nullable C callback thunk"));
 		return result;
 	}
+
 	internal CApi.ValueRef address(CallbackType signature, LlvmFunctionBinding target, int ordinal) throws LlvmError, NativeAbiError {
 		string name = "astra.callback.address.%d.%s".printf (ordinal, Checksum.compute_for_string (ChecksumType.SHA256, signature.nominal_name ()));
 		var prior = (void*) artifact.callback_views.lookup (name);
@@ -256,6 +266,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.callback_views.insert (name, (void*) view);
 		return view;
 	}
+
 	internal CApi.ValueRef from_closure(CApi.BuilderRef builder, CallbackType signature, CApi.ValueRef source) throws LlvmError {
 		CApi.TypeRef[] fields = {
 			pointer, pointer, pointer, pointer, pointer
@@ -288,6 +299,7 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.class_values.add (new LlvmClassValueBinding (result, CApi.Opcode.SELECT, pointer, new CApi.ValueRef[] { empty, CApi.const_null (pointer), view }, "captured callback exact scoped view"));
 		return result;
 	}
+
 	internal CApi.ValueRef invoke(CApi.BuilderRef builder, CallbackType signature, CApi.ValueRef carrier, CApi.ValueRef[] incoming) throws LlvmError, NativeAbiError {
 		var code = read (builder, carrier, 0);
 		var context = read (builder, carrier, 1);
@@ -302,5 +314,6 @@ internal class LlvmCallbackRuntime : Object {
 		artifact.class_calls.add (new LlvmClassCallBinding (result, code, type, arguments, LlvmLowering.CALL_CONVENTION, "typed native callback code/context invocation"));
 		return result;
 	}
+
 }
 }

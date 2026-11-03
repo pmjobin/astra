@@ -233,4 +233,5 @@ private void register_division_tests() {
 	add ("/llvm/division/actual-phi-predecessor", division_phi);
 	add ("/llvm/division/unsafe-negative-control", unsafe_control);
 }
+
 }

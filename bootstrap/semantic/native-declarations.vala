@@ -36,6 +36,7 @@ public class NativeDeclarationIdentity : Object {
 		lifetime_text = lifetime_contract;
 		declared_task_inventory = task_inventory;
 	}
+
 }
 
 public class NativeLifetimeLayout : Object {
@@ -103,6 +104,7 @@ public class NativeLifetimeLayout : Object {
 		}
 		return new Astra.Source.RuntimeLifetimeLayout (logical, paths, lengths, count);
 	}
+
 }
 
 public class NativeDeclarationSignature : Object {
@@ -167,6 +169,7 @@ public class NativeDeclarationSignature : Object {
 			same_type (original.result_type, body.success_type) && original.result_contract == body.success_mode &&
 			same_type (original.error_type, body.exception_bound));
 	}
+
 	public Astra.Source.RuntimeLifetimeSummary? runtime_lifetime_summary () throws Astra.Source.RuntimeLifetimeError {
 		var logical = logical_signature ?? this;
 		if (identity.task_inventory >= 0 && identity.task_inventory != (logical.async_callable ? 1 : 0)) {
@@ -265,6 +268,7 @@ public class NativeDeclarationSignature : Object {
 		}
 		return logical.result_record_mode < 0 ? result == null : result != null && same_type (result.semantic_type, logical.result_type) && (int) result.mode == logical.result_record_mode;
 	}
+
 	public bool matches_buffers(GenericArray<int> ordinals, GenericArray<SemanticType> types) {
 		var logical = logical_signature ?? this;
 		if (ordinals.length != types.length) {
@@ -304,5 +308,6 @@ public class NativeDeclarationSignature : Object {
 		}
 		return true;
 	}
+
 }
 }

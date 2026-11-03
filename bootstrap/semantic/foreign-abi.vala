@@ -51,9 +51,11 @@ public class ComImportTypes : Object {
 		}
 		return true;
 	}
+
 }
 // Foreign declaration contract; never native semantic type authority.
 public enum ForeignAbi {
 	C
 }
+
 }

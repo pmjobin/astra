@@ -22,6 +22,7 @@ private CheckedProgram check(string source) {
 	assert (body.get () == null);
 	return result.program;
 }
+
 private SsaProgram build(string name) throws GLib.Error {
 	string source;
 	FileUtils.get_contents ("tests/struct-elem-1/fixtures/" + name + ".astra", out source);
@@ -50,4 +51,5 @@ private SsaProgram build(string name) throws GLib.Error {
 	SsaVerifier.verify (ssa);
 	return ssa;
 }
+
 }

@@ -37,6 +37,7 @@ private void qualify(string name) {
 		GLib.error("%s: %s", name, error.message);
 	}
 }
+
 private void fixtures() {
 	foreach (string name in new string[] {"param-move", "release", "mixed-call", "empty-field", "basic", "zero", "move", "replace", "borrow", "param", "result", "forward", "field", "field-mixed", "field-move", "deinit", "object-result", "generic-owner", "vector", "integer", "scalars", "cad", "resource-replace", "rearm", "alias", "replace-trap", "field-trap", "deinit-trap", "null-receiver"}) {
 		Test.message("fixture %s", name);
@@ -72,9 +73,11 @@ private void fixtures() {
 		GLib.error("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/buffer/pipeline/stage-lifetime-fixtures", fixtures);
 	return Test.run();
 }
+
 }

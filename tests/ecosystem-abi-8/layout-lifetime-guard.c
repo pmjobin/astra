@@ -20,6 +20,7 @@ static struct {
 	LLVMTargetDataRef data;
 	LLVMContextRef context;
 } caches[512];
+
 static unsigned queries, released, contexts;
 
 static void track(LLVMTargetDataRef data, LLVMTypeRef type) {

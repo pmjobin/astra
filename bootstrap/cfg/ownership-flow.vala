@@ -13,6 +13,7 @@ private class OwnershipEnvironment : Object {
 	internal CfgPendingOwnedArgument? reservation(CfgLocalPlace owner) {
 		return pending.lookup (owner);
 	}
+
 	internal void reserve(CfgLocalPlace owner, CfgPendingOwnedArgument? transfer) {
 		if (transfer == null) {
 			pending.remove (owner);
@@ -20,6 +21,7 @@ private class OwnershipEnvironment : Object {
 			pending.insert (owner, transfer);
 		}
 	}
+
 	private HashTable<CfgLocalPlace, uint> facts = new HashTable<CfgLocalPlace, uint> (direct_hash, direct_equal);
 
 	internal uint get_fact(CfgLocalPlace owner) {
@@ -60,6 +62,7 @@ private class OwnershipEnvironment : Object {
 		}
 		return true;
 	}
+
 }
 
 // A derived snapshot. No graph node points back here, and SSA retains none
@@ -85,6 +88,7 @@ public class OwnershipFlowResult : Object {
 		}
 		scoped_states_before.insert (instruction, snapshot);
 	}
+
 	// Exact instruction position after convergence. Null includes absent or
 	// inconsistent lexical lifetime; it never supplies a live-context proof.
 	public OwnershipState? scoped_state_before(CfgInstruction instruction, CfgLocalPlace context) {
@@ -95,6 +99,7 @@ public class OwnershipFlowResult : Object {
 		uint fact = snapshot.lookup (context);
 		return (fact & OwnershipEnvironment.OUT_OF_SCOPE) != 0 ? null : (OwnershipState?) fact;
 	}
+
 	internal HashTable<CfgLocalPlace, int> parameter_ordinals = new HashTable<CfgLocalPlace, int> (direct_hash, direct_equal);
 	internal GenericArray<CfgBlock> blocks;
 	internal HashTable<CfgBlock, OwnershipEnvironment> entries = new HashTable<CfgBlock, OwnershipEnvironment> (direct_hash, direct_equal);
@@ -123,6 +128,7 @@ public class OwnershipFlowResult : Object {
 		}
 		return text.str;
 	}
+
 }
 
 public class OwnershipFlow : Object {
@@ -987,6 +993,7 @@ public class OwnershipFlow : Object {
 			}
 		}
 	}
+
 }
 }
 
@@ -997,6 +1004,7 @@ internal class CfgRecordObligations : Object {
 	private static void reject(string reason = "lost initialized prefix, exact move or once-only rollback/cleanup") throws CfgError {
 		throw new CfgError.INVALID_CFG ("record field obligations: %s", reason);
 	}
+
 	internal static void verify(CfgFunction function) throws CfgError {
 		var fields = new GenericArray<CfgFieldPlace> ();
 		var borrowed = new HashTable<CfgLocalPlace, bool> (direct_hash, direct_equal);
@@ -1222,5 +1230,6 @@ internal class CfgRecordObligations : Object {
 			} while (changed);
 		}
 	}
+
 }
 }

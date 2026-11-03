@@ -39,9 +39,11 @@ private void lowering() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/llvm/original-storage-transfer-cleanup-and-stage-lifetime", lowering);
 	return Test.run ();
 }
+
 }

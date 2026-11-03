@@ -1,17 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace GenericConsumeTransport;
 internal int apply<T>(Fn<int, owned T, int> code, owned T value, int extra) where T:Ownable { return code(move value, extra); }
+
 internal int relay<T>(owned T value, int extra, Fn<int, owned T, int> code) where T:Ownable { return apply<T>(code, move value, extra); }
+
 owned NativeGenericConsume.Cargo<int, bool> create(int ticket) {
 	var result = NativeGenericConsume.create(ticket);
 	return move result;
 }
+
 Fn<int, owned NativeGenericConsume.Cargo<int, bool>, int> callback() { return NativeGenericConsume.callback(); }
+
 Fn<int, owned R, int> resource_callback() { return NativeGenericConsume.resource_callback(); }
+
 int invoke(Fn<int, owned NativeGenericConsume.Cargo<int, bool>, int> code, owned NativeGenericConsume.Cargo<int, bool> value, int extra) {
 	return relay<NativeGenericConsume.Cargo<int, bool>>(move value, extra, code);
 }
+
 int invoke_resource(Fn<int, owned R, int> code, owned R value, int extra) { return relay<R>(move value, extra, code); }
+
 int producer_invoke(owned NativeGenericConsume.Cargo<int, bool> value) {
 	Fn<int, owned NativeGenericConsume.Cargo<int, bool>, int> code = NativeGenericConsume.callback();
 	return NativeGenericConsume.invoke(code, move value, 2);

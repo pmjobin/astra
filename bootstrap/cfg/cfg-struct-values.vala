@@ -10,6 +10,7 @@ public class CfgStructBorrowResultArgument : StructBoundaryGroup {
 		base (source_ordinal, first_leaf, shape);
 		this.results = results;
 	}
+
 }
 
 public class CfgStructBorrowArgument : StructBoundaryGroup {
@@ -18,6 +19,7 @@ public class CfgStructBorrowArgument : StructBoundaryGroup {
 		base (source_ordinal, first_leaf, shape);
 		this.source = source;
 	}
+
 }
 
 // Bind an incoming complete tuple as an observation. Unlike an acquisition,
@@ -32,6 +34,7 @@ public class CfgStructParameterBorrow : CfgInstruction {
 		this.parameter = parameter;
 		this.leaves = leaves;
 	}
+
 }
 
 // A complete inline record field changes responsibility as one language
@@ -52,6 +55,7 @@ public class CfgRecordFieldCommit : CfgInstruction {
 		this.initializes = initializes;
 		this.results = results;
 	}
+
 }
 
 public class CfgRecordFieldDrop : CfgInstruction {
@@ -62,6 +66,7 @@ public class CfgRecordFieldDrop : CfgInstruction {
 		this.source = source;
 		this.shape = shape;
 	}
+
 }
 
 public class CfgRecordBufferCapture : CfgEvaluateInstruction {
@@ -70,6 +75,7 @@ public class CfgRecordBufferCapture : CfgEvaluateInstruction {
 		base (span, new CfgLoadValue (span, field), result);
 		this.field = field;
 	}
+
 }
 // A complete record boundary acquires every declaration leaf atomically.
 // Parameter and result identities are checked independently in CFG.
@@ -89,6 +95,7 @@ public class CfgStructBoundaryAcquire : CfgInstruction {
 		}
 		return ancestor == target;
 	}
+
 	internal CfgStructBoundaryAcquire (SourceSpan span, CfgLocalPlace destination, StructValueShape shape, GenericArray<CfgValue> leaves, StructBoundaryGroup? parameter = null, CfgStructCallResults? results = null, CfgFieldPlace? projection = null) {
 		base (span);
 		this.destination = destination;
@@ -98,6 +105,7 @@ public class CfgStructBoundaryAcquire : CfgInstruction {
 		this.results = results;
 		this.projection = projection;
 	}
+
 }
 
 public class CfgStructBoundaryMove : CfgInstruction {
@@ -114,6 +122,7 @@ public class CfgStructBoundaryMove : CfgInstruction {
 		this.leaves = leaves;
 		this.use_kind = use_kind;
 	}
+
 }
 // One call owns N ordinary leaf definitions. This group is never a CfgValue.
 public class CfgStructInvoke : CfgInstruction {
@@ -126,6 +135,7 @@ public class CfgStructInvoke : CfgInstruction {
 		this.results = results;
 		this.checked_call = checked_call;
 	}
+
 }
 
 public class CfgStructCallResults : CfgNode {
@@ -138,6 +148,7 @@ public class CfgStructCallResults : CfgNode {
 			leaves.add (new CfgCallResultValue (span, leaf.semantic_type));
 		}
 	}
+
 }
 // A nonowning Slice descriptor selected from one complete borrowed record.
 public class CfgRecordBufferView : CfgValue {
@@ -148,6 +159,7 @@ public class CfgRecordBufferView : CfgValue {
 		this.group = group;
 		this.source = source;
 	}
+
 }
 public class CfgRecordParameterBufferView : CfgValue {
 	public CfgFieldPlace field { get; private set; }
@@ -159,6 +171,7 @@ public class CfgRecordParameterBufferView : CfgValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 
 // Complete bounded consumption, including copies that later promote away.
@@ -173,6 +186,7 @@ public class CfgStructResultConsume : CfgInstruction {
 		this.use_kind = use_kind;
 		this.destination = destination;
 	}
+
 }
 
 public class CfgStructReturn : CfgReturn {
@@ -184,5 +198,6 @@ public class CfgStructReturn : CfgReturn {
 		this.shape = shape;
 		this.leaves = leaves;
 	}
+
 }
 }

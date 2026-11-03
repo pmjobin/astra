@@ -47,6 +47,7 @@ public enum CAbiProfile {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 // Exact signed I32 plus explicitly admitted I64/U64 channels, qualified
@@ -84,20 +85,25 @@ public enum CAbiScalarType {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 public enum CAbiTextRole {
 	IMPORT_PARAMETER
 }
+
 public enum CAbiTextComponentRole {
 	DATA, BYTE_LENGTH
 }
+
 public enum CAbiBufferRole {
 	IMPORT_PARAMETER
 }
+
 public enum CAbiBufferComponentRole {
 	DATA, BYTE_LENGTH
 }
+
 public enum CAbiBufferAccess {
 	READ_WRITE
 }
@@ -115,6 +121,7 @@ public class CAbiRecordField : Object {
 		this.scalar_identifier = scalar_name;
 		this.offset = offset;
 	}
+
 	public uint bytes {
 		get {
 			switch (scalar_name) {
@@ -148,6 +155,7 @@ public class CAbiRecordPlan : Object {
 	internal bool projection_valid() {
 		return union_projection == null ? projection_identity == "" : union_projection.is_union && union_projection.valid () && union_projection.identity == projection_identity;
 	}
+
 	public bool by_value { get; private set; }
 	public bool memory { get { return by_value && size > 16; } }
 	public int channel_count { get { return memory ? 1 : (int) fields.length; } }
@@ -165,6 +173,7 @@ public class CAbiRecordPlan : Object {
 		this.size = size;
 		this.alignment = alignment;
 	}
+
 }
 
 public class CAbiCallbackPlan : Object {
@@ -175,6 +184,7 @@ public class CAbiCallbackPlan : Object {
 		this.native_function_ordinal = native_function_ordinal;
 		this.target_identifier = target_name;
 	}
+
 }
 
 public class CAbiBufferComponent : Object {
@@ -188,6 +198,7 @@ public class CAbiBufferComponent : Object {
 		this.physical_ordinal = physical_ordinal;
 		this.logical_ordinal = logical_ordinal;
 	}
+
 }
 
 // Physical buffer authority is independent of native slice plans and holds
@@ -209,6 +220,7 @@ public class CAbiBufferParameterPlan : Object {
 		this.element_bytes = element_bytes;
 		this.alignment = alignment;
 	}
+
 }
 
 // A component is a channel of one logical text group, never a free-standing
@@ -224,6 +236,7 @@ public class CAbiTextComponent : Object {
 		this.physical_ordinal = physical_ordinal;
 		this.logical_ordinal = logical_ordinal;
 	}
+
 }
 
 // Entirely CABI-owned. No NativeTextType, semantic type, callee or SSA graph.
@@ -238,6 +251,7 @@ public class CAbiTextParameterPlan : Object {
 		this.contract = contract;
 		this.components = components;
 	}
+
 }
 
 public class CAbiParameter : Object {
@@ -300,6 +314,7 @@ public class CAbiResult : Object {
 	internal CAbiResult (CAbiScalarType scalar_type) {
 		this.scalar_type = scalar_type;
 	}
+
 }
 
 // Logical parameters retain their grouping. Scalar results remain direct;
@@ -396,6 +411,7 @@ public class CAbiSignature : Object {
 		this.parameters = parameters;
 		this.result = result;
 	}
+
 }
 
 // Imported physical identity with copied debug names and provenance.
@@ -429,6 +445,7 @@ public class CAbiFunction : Object {
 		}
 		containing_program.set (program);
 	}
+
 }
 
 // A wrapper contract, never an imported callable or an upstream function.
@@ -459,6 +476,7 @@ public class CAbiExport : Object {
 		}
 		containing_program.set (program);
 	}
+
 }
 
 // Compiler-generated physical C cleanup authority, never a source import.
@@ -484,6 +502,7 @@ public class CAbiCleanupFunction : Object {
 		}
 		containing_program.set (program);
 	}
+
 }
 
 public class CAbiProgram : Object {
@@ -493,6 +512,7 @@ public class CAbiProgram : Object {
 		foreign_signals.add (signal);
 		signal_origins.add (signal);
 	}
+
 	internal bool foreign_signals_valid() {
 		if (foreign_signals.length != signal_origins.length) {
 			return false;
@@ -504,12 +524,14 @@ public class CAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<Astra.NativeAbi.NativeCallbackViewPlan> callback_views { get; private set; default = new GenericArray<Astra.NativeAbi.NativeCallbackViewPlan> (); }
 	private GenericArray<Astra.NativeAbi.NativeCallbackViewPlan> callback_view_origins = new GenericArray<Astra.NativeAbi.NativeCallbackViewPlan> ();
 	internal void bind_callback_view(Astra.NativeAbi.NativeCallbackViewPlan plan) {
 		callback_views.add (plan);
 		callback_view_origins.add (plan);
 	}
+
 	internal bool callback_views_valid() {
 		if (callback_views.length != callback_view_origins.length) {
 			return false;
@@ -531,6 +553,7 @@ public class CAbiProgram : Object {
 		retained_operations.add (plan);
 		retained_origins.add (plan);
 	}
+
 	internal bool retained_operations_valid() {
 		if (retained_operations.length != retained_origins.length) {
 			return false;
@@ -542,6 +565,7 @@ public class CAbiProgram : Object {
 		}
 		return true;
 	}
+
 	public GenericArray<CAbiCleanupFunction> cleanups { get; private set; }
 	public SourceSpan span { get; private set; }
 	public CAbiProfile profile { get; private set; }
@@ -569,6 +593,7 @@ public class CAbiProgram : Object {
 			functions[i].claim_owner (this);
 		}
 	}
+
 }
 }
 
@@ -601,6 +626,7 @@ public class CAbiRetainedPlan : Object {
 			}
 		}
 	}
+
 	public bool valid_signature() {
 		if (action >= 7 && action <= 9) {
 			if (signal_callback == null || !signal_callback.valid () || signal_callback.identity () != signal_identity || signal_callback.kind != Astra.Source.ForeignValueKind.CALLBACK || signal_callback.callback_result.kind != Astra.Source.ForeignValueKind.VOID || signal_callback.callback_parameter_count > 4 || !callback_void || callback_parameters.length != signal_callback.callback_parameter_count + 1 || callback_parameters[0] != CAbiScalarType.PTR) {
@@ -616,5 +642,6 @@ public class CAbiRetainedPlan : Object {
 		}
 		return !callback_void && signal_callback == null && signal_identity == "" && callback_result == CAbiScalarType.I32 && callback_parameters.length == 2 && callback_parameters[0] == CAbiScalarType.PTR && callback_parameters[1] == CAbiScalarType.I32;
 	}
+
 }
 }

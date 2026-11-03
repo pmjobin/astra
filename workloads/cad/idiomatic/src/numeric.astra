@@ -1,40 +1,70 @@
 // Numerical primitives and color transforms. No algorithm computation lives in C.
 extern(C) f64 cad_exp(f64 x);
+
 extern(C) f64 cad_log(f64 x);
+
 extern(C) f64 cad_sqrt(f64 x);
+
 extern(C) f64 cad_pow(f64 x, f64 y);
+
 extern(C) f64 cad_number(int x);
+
 extern(C) int cad_integer(f64 x);
+
 extern(C) void cad_fail(int code, f64 value);
 
 struct Vec2 { f64 x; f64 y; }
+
 struct Lab { f64 l; f64 a; f64 b; }
+
 struct Rgb { f64 r; f64 g; f64 b; }
+
 struct SymMat2 { f64 xx; f64 xy; f64 yy; }
 
-f64 absolute(f64 x) { if (x < 0.0) { return -x; } return x; }
-f64 maximum(f64 a, f64 b) { if (a > b) { return a; } return b; }
-f64 minimum(f64 a, f64 b) { if (a < b) { return a; } return b; }
+f64 absolute(f64 x) { if (x < 0.0) return -x; return x; }
+
+f64 maximum(f64 a, f64 b) { if (a > b) return a; return b; }
+
+f64 minimum(f64 a, f64 b) { if (a < b) return a; return b; }
+
 f64 clamp(f64 x, f64 lo, f64 hi) { return minimum(maximum(x, lo), hi); }
+
 bool finite(f64 x) { return x == x && absolute(x) <= 1.7976931348623157e308; }
+
 bool close(f64 a, f64 b, f64 tolerance) { return finite(a) && finite(b) && absolute(a - b) <= tolerance; }
-void require(bool condition, int code, f64 value) { if (!condition) { cad_fail(code, value); } }
-int int_min(int a, int b) { if (a < b) { return a; } return b; }
-int int_max(int a, int b) { if (a > b) { return a; } return b; }
-int floor_int(f64 x) { int n = cad_integer(x); if (cad_number(n) > x) { return n - 1; } return n; }
-int ceil_int(f64 x) { int n = cad_integer(x); if (cad_number(n) < x) { return n + 1; } return n; }
-int floor_ratio(int a, int b) { int n = a / b; if (a < 0 && a % b != 0) { return n - 1; } return n; }
-int ceil_ratio(int a, int b) { int n = a / b; if (a > 0 && a % b != 0) { return n + 1; } return n; }
+
+void require(bool condition, int code, f64 value) { if (!condition) cad_fail(code, value); }
+
+int int_min(int a, int b) { if (a < b) return a; return b; }
+
+int int_max(int a, int b) { if (a > b) return a; return b; }
+
+int floor_int(f64 x) { int n = cad_integer(x); if (cad_number(n) > x) return n - 1; return n; }
+
+int ceil_int(f64 x) { int n = cad_integer(x); if (cad_number(n) < x) return n + 1; return n; }
+
+int floor_ratio(int a, int b) { int n = a / b; if (a < 0 && a % b != 0) return n - 1; return n; }
+
+int ceil_ratio(int a, int b) { int n = a / b; if (a > 0 && a % b != 0) return n + 1; return n; }
 
 Vec2 vec_add(Vec2 a, Vec2 b) { Vec2 out = {x=0.0,y=0.0}; out.x = a.x + b.x; out.y = a.y + b.y;  return out; }
+
 Vec2 vec_sub(Vec2 a, Vec2 b) { Vec2 out = {x=0.0,y=0.0}; out.x = a.x - b.x; out.y = a.y - b.y;  return out; }
+
 Vec2 vec_scale(Vec2 a, f64 scale) { Vec2 out = {x=0.0,y=0.0}; out.x = a.x * scale; out.y = a.y * scale;  return out; }
+
 f64 vec_dot(Vec2 a, Vec2 b) { return a.x * b.x + a.y * b.y; }
+
 f64 vec_length_squared(Vec2 a) { return vec_dot(a, a); }
+
 Vec2 box_clamp(Vec2 incoming, Vec2 center, Vec2 radius) { Vec2 value = incoming; value.x = clamp(value.x, center.x - radius.x, center.x + radius.x); value.y = clamp(value.y, center.y - radius.y, center.y + radius.y);  return value; }
+
 Lab lab_sub(Lab a, Lab b) { Lab out = {l=0.0,a=0.0,b=0.0}; out.l = a.l - b.l; out.a = a.a - b.a; out.b = a.b - b.b;  return out; }
+
 f64 lab_distance_squared(Lab a, Lab b) { f64 l = a.l - b.l; f64 c = a.a - b.a; f64 d = a.b - b.b; return l * l + c * c + d * d; }
+
 f64 determinant(SymMat2 a) { return a.xx * a.yy - a.xy * a.xy; }
+
 SymMat2 inverse(SymMat2 a) { SymMat2 out = {xx=0.0,xy=0.0,yy=0.0};
 	f64 det = determinant(a);
 	require(finite(det) && det > 0.0, 10, det);
@@ -44,6 +74,7 @@ SymMat2 inverse(SymMat2 a) { SymMat2 out = {xx=0.0,xy=0.0,yy=0.0};
 	out.xx = xx; out.xy = xy; out.yy = yy;
 	return out;
 }
+
 f64 quadratic(SymMat2 a, f64 x, f64 y) { return a.xx * x * x + 2.0 * a.xy * x * y + a.yy * y * y; }
 
 SymMat2 constrain_covariance(SymMat2 incoming) { SymMat2 a = incoming;
@@ -52,7 +83,12 @@ SymMat2 constrain_covariance(SymMat2 incoming) { SymMat2 a = incoming;
 	// is needed. Degenerate isotropic input reconstructs isotropically.
 	require(finite(a.xx) && finite(a.xy) && finite(a.yy), 11, a.xx);
 	f64 scale = maximum(maximum(absolute(a.xx), absolute(a.yy)), absolute(a.xy));
-	if (scale == 0.0) { a.xx = 0.05; a.xy = 0.0; a.yy = 0.05; return a; }
+	if (scale == 0.0) {
+		a.xx = 0.05;
+		a.xy = 0.0;
+		a.yy = 0.05;
+		return a;
+	}
 	f64 aa = a.xx / scale;
 	f64 dd = a.yy / scale;
 	f64 bb = a.xy / scale;
@@ -63,7 +99,12 @@ SymMat2 constrain_covariance(SymMat2 incoming) { SymMat2 a = incoming;
 	f64 low = clamp((half - radius) * scale, 0.05, 0.1);
 	f64 midpoint = 0.5 * (high + low);
 	f64 spread = 0.5 * (high - low);
-	if (radius == 0.0) { a.xx = midpoint; a.xy = 0.0; a.yy = midpoint; return a; }
+	if (radius == 0.0) {
+		a.xx = midpoint;
+		a.xy = 0.0;
+		a.yy = midpoint;
+		return a;
+	}
 	a.xx = midpoint + spread * (difference / radius);
 	a.xy = spread * (bb / radius);
 	a.yy = midpoint - spread * (difference / radius);
@@ -71,10 +112,14 @@ SymMat2 constrain_covariance(SymMat2 incoming) { SymMat2 a = incoming;
 	return a;
 }
 
-f64 srgb_linear(f64 x) { if (x <= 0.04045) { return x / 12.92; } return cad_pow((x + 0.055) / 1.055, 2.4); }
-f64 linear_srgb(f64 x) { if (x <= 0.0031308) { return 12.92 * x; } return 1.055 * cad_pow(x, 1.0 / 2.4) - 0.055; }
-f64 lab_f(f64 t) { if (t > 216.0 / 24389.0) { return cad_pow(t, 1.0 / 3.0); } return t * (24389.0 / 27.0) / 116.0 + 16.0 / 116.0; }
-f64 lab_inverse(f64 t) { if (t > 6.0 / 29.0) { return t * t * t; } return (t - 16.0 / 116.0) * 116.0 * (27.0 / 24389.0); }
+f64 srgb_linear(f64 x) { if (x <= 0.04045) return x / 12.92; return cad_pow((x + 0.055) / 1.055, 2.4); }
+
+f64 linear_srgb(f64 x) { if (x <= 0.0031308) return 12.92 * x; return 1.055 * cad_pow(x, 1.0 / 2.4) - 0.055; }
+
+f64 lab_f(f64 t) { if (t > 216.0 / 24389.0) return cad_pow(t, 1.0 / 3.0); return t * (24389.0 / 27.0) / 116.0 + 16.0 / 116.0; }
+
+f64 lab_inverse(f64 t) { if (t > 6.0 / 29.0) return t * t * t; return (t - 16.0 / 116.0) * 116.0 * (27.0 / 24389.0); }
+
 Lab rgb_to_lab(f64 r, f64 g, f64 b) { Lab out = {l=0.0,a=0.0,b=0.0};
 	f64 rr = srgb_linear(r / 255.0);
 	f64 gg = srgb_linear(g / 255.0);
@@ -88,6 +133,7 @@ Lab rgb_to_lab(f64 r, f64 g, f64 b) { Lab out = {l=0.0,a=0.0,b=0.0};
 	out.b = 2.0 * (y - z) + 0.5;
 	return out;
 }
+
 Rgb lab_to_rgb(Lab color) { Rgb out = {r=0.0,g=0.0,b=0.0};
 	f64 fy = (100.0 * color.l + 16.0) / 116.0;
 	f64 x = 0.95047 * lab_inverse(fy + (color.a - 0.5) / 5.0);

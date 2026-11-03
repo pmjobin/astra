@@ -1,33 +1,50 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class PropertyValues<T> {
 	owned T[slots] entries;
+
 	property int size { get { return len(this.entries); } }
+
 	init() { this.entries = new T[slots]; }
+
 	property bool empty { get { return len(this.entries) == 0; } }
+
 	bool append(owned T value) {
 		if (len(this.entries) == this.entries.capacity) {
-			if (!this.entries.reserve(len(this.entries) + 2)) { return false; }
+			if (!this.entries.reserve(len(this.entries) + 2)) return false;
 		}
 		this.entries.append(move value);
 		return true;
 	}
+
 	property int room { get { return this.entries.capacity - len(this.entries); } }
+
 	owned T take(int index) { var value = this.entries.take(index); return move value; }
+
 	U echo<U>(U value) { return value; }
 }
+
 struct PropertyPoint { int x; int y; }
+
 struct PropertyPacket { owned R handle; owned int[] samples; int code; }
+
 class PropertyEntry {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	deinit() { mark(100 + this.code); }
 }
+
 int property_size(PropertyValues<PropertyEntry> values) { return values.size; }
+
 void exercise_properties() {
 	var points = new PropertyValues<PropertyPoint>();
 	var entries = new PropertyValues<PropertyEntry>();
 	var packets = new PropertyValues<PropertyPacket>();
-	if (!points.empty || !entries.empty || !packets.empty || points.size != 0) { mark(901); return; }
+	if (!points.empty || !entries.empty || !packets.empty || points.size != 0) {
+		mark(901);
+		return;
+	}
 	int index = 0;
 	while (index < 5) {
 		PropertyPoint point = {x = index, y = index + 10};
@@ -41,7 +58,10 @@ void exercise_properties() {
 		bool stored_packet = packets.append(move packet);
 		index = index + 1;
 	}
-	if (points.empty || entries.empty || packets.empty || points.size != 5 || property_size(entries) != 5 || packets.size != 5) { mark(902); return; }
+	if (points.empty || entries.empty || packets.empty || points.size != 5 || property_size(entries) != 5 || packets.size != 5) {
+		mark(902);
+		return;
+	}
 	mark(points.size + entries.size + packets.size);
 	mark(points.room + entries.room + packets.room);
 	PropertyPoint value = {x = 31, y = 37};
@@ -56,4 +76,5 @@ void exercise_properties() {
 	owned PropertyValues<PropertyEntry> moved = move entries;
 	mark(property_size(moved));
 }
+
 int main() { exercise_properties(); return live(); }

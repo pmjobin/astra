@@ -116,4 +116,5 @@ int main() {
 	add ("/exec/loop/wrapping-differential", loop_recurrence);
 	add ("/exec/loop/native-artifact-lifetime", () => lifetime (read ("tests/loop/fixtures/nested-loop.astra") + "int main(){if(nested_count(3, 4) != 12){return 1;}return 0;}"));
 }
+
 }

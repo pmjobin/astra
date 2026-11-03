@@ -2,16 +2,19 @@
 extern(C) void usability_event(int value);
 
 struct Point { int x; int y; }
+
 class Token {
 	int id;
+
 	init(int id) { this.id = id; usability_event(id); }
+
 	deinit() { usability_event(0 - this.id); }
 }
 
 int sum(borrowed int[] values) {
 	int result = 0;
 	foreach (var value in values) {
-		if (value == 4) { continue; }
+		if (value == 4) continue;
 		result = result + value;
 	}
 	return result;
@@ -28,7 +31,9 @@ int first(borrowed int[] values) {
 void checked(borrowed int[] values) throws Error {
 	foreach (var value in values) {
 		var token = new Token(200 + value);
-		if (value == 4) { throw new Error("iteration stop"); }
+		if (value == 4) {
+			throw new Error("iteration stop");
+		}
 	}
 }
 
@@ -36,9 +41,9 @@ int main() {
 	int[3] values = {2, 4, 6};
 	int total = 0;
 	foreach (var value in values) {
-		if (value == 4) { continue; }
+		if (value == 4) continue;
 		total = total + value;
-		if (value == 6) { break; }
+		if (value == 6) break;
 	}
 	usability_event(total);
 	var view = slice(values, 1, 2);
@@ -56,9 +61,9 @@ int main() {
 		usability_event(point.x + point.y);
 		point.x = 0;
 	}
-	if (points[0].x != 99 || points[1].x != 7) { return 2; }
+	if (points[0].x != 99 || points[1].x != 7) return 2;
 	var numbers = new int[3];
-	for (int i = 0; i < 3; i = i + 1) { numbers[i] = i + 1; }
+	for (int i = 0; i < 3; i = i + 1) numbers[i] = i + 1;
 	total = 0;
 	foreach (var left in numbers) {
 		foreach (var right in values) { total = total + left * right; }

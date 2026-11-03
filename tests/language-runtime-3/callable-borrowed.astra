@@ -4,18 +4,22 @@ extern(C) int callable_event(int stage, int tag);
 class Bias {
 	int value;
 	int calls;
+
 	init(int value) { this.value = value; this.calls = 0; callable_event(1, value); }
+
 	int invoke(int input) { this.calls = this.calls + 1; return this.value + input; }
+
 	deinit() { callable_event(2, this.calls); }
 }
 
 int twice(borrowed Bias function, int input) { return function(input) + function(input + 1); }
+
 int forward(borrowed Bias function, int input) { return twice(function, input); }
 
 int main() {
 	Bias function = Bias.init(10);
-	if (forward(function, 5) != 31 || function.calls != 2) { return 81; }
+	if (forward(function, 5) != 31 || function.calls != 2) return 81;
 	function.value = 20;
-	if (function(2) != 22 || function.calls != 3) { return 82; }
+	if (function(2) != 22 || function.calls != 3) return 82;
 	return 0;
 }

@@ -5,69 +5,94 @@ class Diagnostic {
 	int code;
 	int offset;
 	readonly string text;
+
 	init(int severity, int code, int offset, string message) {
 		this.severity = severity; this.code = code; this.offset = offset;
 		this.text = message;
 	}
+
 	property string message { get { return this.text; } }
+
 	deinit() {
-		if (this.code == 100) { println("drop E100"); }
-		else { println("drop W200"); }
+		if (this.code == 100) {
+			println("drop E100");
+		}
+		else {
+			println("drop W200");
+		}
 	}
 }
+
 bool render_diagnostic(Diagnostic entry) {
 	var view = entry.message;
-	if (entry.severity == 2) { return print("error: ") && println(view); }
+	if (entry.severity == 2) return print("error: ") && println(view);
 	return print("warning: ") && println(view);
 }
+
 bool inspect_pair(Diagnostic first, Diagnostic second, string expected) {
 	return first != second && first.severity == 2 && first.code == 100 && first.offset == 10
 	&& second.severity == 1 && second.code == 200 && second.offset == 20
 	&& first.message == expected && second.message == expected
 	&& first.message.byte_length == expected.byte_length;
 }
+
 owned Diagnostic empty_slot() { return null; }
+
 class BoundedDiagnostics {
 	int count;
 	owned Diagnostic first;
 	owned Diagnostic second;
+
 	init() {
 		this.count = 0;
 		this.first = empty_slot(); this.second = empty_slot();
 	}
+
 	// Even false consumes entry and drops it. This is not a try-push API.
 	bool append_or_drop(owned Diagnostic entry) {
-		if (this.count == 0) { this.first = move entry; this.count = 1; return true; }
-		if (this.count == 1) { this.second = move entry; this.count = 2; return true; }
+		if (this.count == 0) {
+			this.first = move entry;
+			this.count = 1;
+			return true;
+		}
+		if (this.count == 1) {
+			this.second = move entry;
+			this.count = 2;
+			return true;
+		}
 		return false;
 	}
+
 	bool has_room() { return this.count < 2; }
+
 	bool render() {
 		var index = 0;
 		while (index < this.count) {
 			if (index == 0) {
-				if (!render_diagnostic(this.first)) { return false; }
+				if (!render_diagnostic(this.first)) return false;
 			} else {
-				if (!render_diagnostic(this.second)) { return false; }
+				if (!render_diagnostic(this.second)) return false;
 			}
 			index = index + 1;
 		}
 		return true;
 	}
+
 	deinit() { println("drop bag"); }
 }
+
 int main(string[] args) {
 	var bag = new BoundedDiagnostics();
 	if (len(args) == 1) {
-		if (bag.count != 0 || !bag.has_room() || !bag.render()) { return 81; }
-		if (!println("empty")) { return 82; }
+		if (bag.count != 0 || !bag.has_room() || !bag.render()) return 81;
+		if (!println("empty")) return 82;
 		return 0;
 	}
 	var first = new Diagnostic(2, 100, 10, args[1]);
 	var second = new Diagnostic(1, 200, 20, first.message);
-	if (!bag.append_or_drop(move first) || !bag.append_or_drop(move second)) { return 83; }
-	if (bag.count != 2 || bag.has_room() || !inspect_pair(bag.first, bag.second, args[1])) { return 84; }
-	if (len(args) > 2) { return 0; } // Early normal exit still retires both owners.
-	if (!bag.render() || !println("full: capacity 2")) { return 89; }
+	if (!bag.append_or_drop(move first) || !bag.append_or_drop(move second)) return 83;
+	if (bag.count != 2 || bag.has_room() || !inspect_pair(bag.first, bag.second, args[1])) return 84;
+	if (len(args) > 2) return 0; // Early normal exit still retires both owners.
+	if (!bag.render() || !println("full: capacity 2")) return 89;
 	return 0;
 }

@@ -1,69 +1,82 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct CodeObservation { int value; int route; }
+
 class CodeItem {
 	int value;
+
 	init(int value) { this.value = value; }
 }
+
 CodeObservation inspect_code(borrowed CodeItem item) {
 	CodeObservation result = {value = item.value, route = 1};
 	return result;
 }
+
 CodeObservation inspect_other_code(borrowed CodeItem item) {
 	CodeObservation result = {value = item.value, route = 2};
 	return result;
 }
+
 CodeObservation change_unobserved_code(borrowed CodeItem item) {
 	item.value = 99;
 	CodeObservation result = {value = item.value, route = 3};
 	return result;
 }
+
 class CodeStore<Label> {
 	owned CodeItem[slots] values;
 	private Label label;
 	private Fn<CodeObservation, borrowed CodeItem> callback;
+
 	init(Label label, Fn<CodeObservation, borrowed CodeItem> callback) {
 		this.values = new CodeItem[slots];
 		this.label = label;
 		this.callback = callback;
 	}
+
 	CodeObservation inspect(borrowed CodeItem item, Fn<CodeObservation, borrowed CodeItem> callback) {
 		Fn<CodeObservation, borrowed CodeItem> local = callback;
 		return local(item);
 	}
+
 	CodeObservation query(int index) {
 		Fn<CodeObservation, borrowed CodeItem> local = this.callback;
 		return this.inspect(this.values[index], local);
 	}
+
 	void set_callback(Fn<CodeObservation, borrowed CodeItem> callback) {
 		this.callback = callback;
 	}
+
 	int replace_callback(Fn<CodeObservation, borrowed CodeItem> callback) {
 		this.callback = callback;
 		return 0;
 	}
+
 	CodeObservation choose(int index, bool alternate) {
 		Fn<CodeObservation, borrowed CodeItem> local = inspect_code;
-		if (alternate) { local = inspect_other_code; }
+		if (alternate) local = inspect_other_code;
 		return this.inspect(this.values[index], local);
 	}
 }
+
 int main() {
 	var integers = new CodeStore<int>(7, inspect_code);
-	if (!integers.values.reserve(1)) { return 1; }
+	if (!integers.values.reserve(1)) return 1;
 	var first = new CodeItem(41);
 	integers.values.append(move first);
 	var ordinary = integers.query(0);
 	var alternate = integers.choose(0, true);
 	var original = integers.choose(0, false);
-	if (ordinary.value != 41 || ordinary.route != 1 || alternate.route != 2 || original.route != 1) { return 2; }
+	if (ordinary.value != 41 || ordinary.route != 1 || alternate.route != 2 || original.route != 1) return 2;
 	var doubles = new CodeStore<f64>(2.5d, inspect_other_code);
-	if (!doubles.values.reserve(1)) { return 3; }
+	if (!doubles.values.reserve(1)) return 3;
 	var second = new CodeItem(42);
 	doubles.values.append(move second);
 	var independent = doubles.query(0);
 	int installed = integers.replace_callback(inspect_code);
 	i64 converted = integers.replace_callback(inspect_code) as i64;
-	if (installed != 0 || converted != 0) { return 5; }
-	if (independent.value != 42 || independent.route != 2 || integers.query(0).route != 1) { return 4; }
+	if (installed != 0 || converted != 0) return 5;
+	if (independent.value != 42 || independent.route != 2 || integers.query(0).route != 1) return 4;
 	return 0;
 }

@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int main(string[] args) {
-	if (len(args) != 2) { return 64; }
+	if (len(args) != 2) return 64;
 	try {
 		u8[3] bytes = {0, 255, 128};
 		write_file(args[1], slice(bytes));
-		if (bytes[0] != 0 || bytes[1] != 255 || bytes[2] != 128) { return 1; }
+		if (bytes[0] != 0 || bytes[1] != 255 || bytes[2] != 128) return 1;
 		var loaded = read_file(args[1]);
-		if (loaded.byte_count() != 3 || loaded.byte_at(0) != 0 || loaded.byte_at(1) != 255 || loaded.byte_at(2) != 128) { return 2; }
+		if (loaded.byte_count() != 3 || loaded.byte_at(0) != 0 || loaded.byte_at(1) != 255 || loaded.byte_at(2) != 128) return 2;
 		var handle = new FileHandle();
 		handle.open(args[1], 0);
-		try { handle.open(args[1], 1); return 3; } catch (FileError e) { if (e.operation != 1 || e.status != -16) { return 4; } }
+		try { handle.open(args[1], 1); return 3; } catch (FileError e) { if (e.operation != 1 || e.status != -16) return 4; }
 		handle.close(); handle.close();
-		try { int x = handle.next_byte(); return 5; } catch (FileError e) { if (e.operation != 2 || e.status != -9) { return 6; } }
-		try { handle.put_byte(256); return 7; } catch (FileError e) { if (e.operation != 3 || e.status != -22) { return 8; } }
-		try { handle.flush(); return 9; } catch (FileError e) { if (e.operation != 4 || e.status != -9) { return 10; } }
+		try { int x = handle.next_byte(); return 5; } catch (FileError e) { if (e.operation != 2 || e.status != -9) return 6; }
+		try { handle.put_byte(256); return 7; } catch (FileError e) { if (e.operation != 3 || e.status != -22) return 8; }
+		try { handle.flush(); return 9; } catch (FileError e) { if (e.operation != 4 || e.status != -9) return 10; }
 		return 0;
 	} catch (Error e) { return 20; }
 }

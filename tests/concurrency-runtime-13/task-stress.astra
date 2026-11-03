@@ -1,18 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int task_stress_prepare(int workers, int rounds);
+
 extern(C) int task_stress_acquire(int id);
+
 extern(C) int task_stress_destroy(int id);
+
 extern(C) int task_stress_step(int id, int phase);
+
 extern(C) int task_stress_caught(int id);
+
 extern(C) int task_stress_pending(int id);
+
 extern(C) int task_stress_ready(int id);
+
 extern(C) int task_stress_shutdown_released();
+
 extern(C) int task_stress_finish(int count);
 
 class Work {
 	private int id;
+
 	init(int id) { this.id = id; task_stress_acquire(id); }
+
 	int read() { return this.id; }
+
 	deinit() { task_stress_destroy(this.id); }
 }
 
@@ -21,7 +32,9 @@ async int calculate(owned Work work, int seed) throws Error {
 	task_stress_step(id, 0);
 	await delay_ticks(1 + (id + seed) % 3);
 	task_stress_step(id, 1);
-	if (id % 3 == 0) { throw new Error("checked batch failure"); }
+	if (id % 3 == 0) {
+		throw new Error("checked batch failure");
+	}
 	return id * 17 + seed;
 }
 

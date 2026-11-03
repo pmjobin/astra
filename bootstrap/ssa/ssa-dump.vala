@@ -256,6 +256,7 @@ public class SsaDump : Object {
 	private string buffer_pair(SsaBufferPair pair) {
 		return "(PTR " + value (pair.base_value) + " I32 " + value (pair.length_value) + ")";
 	}
+
 	private string buffer_place(SsaBufferPlace target) {
 		return target.record_projection != null ? "(record-buffer-observation " + place (target.record_projection) + ")" : target.storage == null ? place(target.field) : "(buffer-storage #%d owner #%d)".printf (target.storage.ordinal, target.storage.owner_ordinal);
 	}
@@ -1158,5 +1159,6 @@ public class SsaDump : Object {
 		}
 		line (1, ")");
 	}
+
 }
 }

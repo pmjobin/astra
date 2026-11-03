@@ -21,6 +21,7 @@ private void refused(string label, owned Check action) throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 private void stage_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-proof.astra",
@@ -106,6 +107,7 @@ private void stage_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void byte_channel_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-bytes-proof.astra",
@@ -162,6 +164,7 @@ private void byte_channel_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owned_sequence_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-owned-proof.astra",
@@ -225,6 +228,7 @@ private void owned_sequence_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void record_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-record-proof.astra",
@@ -313,6 +317,7 @@ private void record_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void object_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-object-proof.astra",
@@ -396,6 +401,7 @@ private void object_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void owner_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-owner-proof.astra",
@@ -463,6 +469,7 @@ private void owner_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void error_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-error-proof.astra",
@@ -520,6 +527,7 @@ private void error_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void scalar_reference_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-scalar-pointer-proof.astra",
@@ -589,6 +597,7 @@ private void scalar_reference_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void constructor_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-constructor-proof.astra",
@@ -691,6 +700,7 @@ private void constructor_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-proof.astra",
@@ -840,6 +850,7 @@ private void import_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_reference_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-reference-proof.astra",
@@ -911,6 +922,7 @@ private void import_reference_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_counted_bindings() {
 	try {
 		var parsed = Parser.parse(new SourceFile.from_text("declared-import-counted-proof.astra",
@@ -1016,6 +1028,7 @@ private void import_counted_bindings() {
 		error("%s", failure.message);
 	}
 }
+
 private void import_owned_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-owned-proof.astra",
@@ -1138,6 +1151,7 @@ private void import_owned_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_record_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-record-proof.astra",
@@ -1256,6 +1270,7 @@ private void import_record_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_handle_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-handle-proof.astra",
@@ -1359,6 +1374,7 @@ private void import_handle_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_consuming_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-consuming-proof.astra",
@@ -1472,6 +1488,7 @@ private void import_consuming_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void foreign_handle_exports() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-export-resource-proof.astra",
@@ -1581,6 +1598,7 @@ private void foreign_handle_exports() {
 		error ("%s", failure.message);
 	}
 }
+
 private void import_property_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-import-property-proof.astra",
@@ -1682,6 +1700,7 @@ private void import_property_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void void_callable_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("native-void-callable-proof.astra",
@@ -1767,6 +1786,7 @@ private void void_callable_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void callback_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("typed-callback-proof.astra",
@@ -1942,6 +1962,7 @@ private void callback_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void ordinary_callback_module(LlvmModuleArtifact artifact) {
 	char* message;
 	int status = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -1952,6 +1973,7 @@ private void ordinary_callback_module(LlvmModuleArtifact artifact) {
 		CApi.dispose_message (message);
 	}
 }
+
 private ForeignImportContract forged_com_parent(ForeignImportContract original) {
 	var parent = original.com.parent;
 	var parent_members = new GenericArray<ForeignMemberContract> ();
@@ -1975,6 +1997,7 @@ private ForeignImportContract forged_com_parent(ForeignImportContract original) 
 	assert (result.valid () && !result.equal (original));
 	return result;
 }
+
 private void com_import_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("typed-com-detached-proof.astra",
@@ -2071,6 +2094,7 @@ private void com_import_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private ForeignClassPolicy rebound_com_export(ForeignClassPolicy original) {
 	var binding = original.com_binding (0);
 	uint[] targets = {
@@ -2082,6 +2106,7 @@ private ForeignClassPolicy rebound_com_export(ForeignClassPolicy original) {
 	assert (changed.valid () && changed.identity () != original.identity ());
 	return changed;
 }
+
 private void com_export_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("typed-com-export-proof.astra",
@@ -2169,6 +2194,7 @@ private void com_export_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void com_native_root_bindings() {
 	try {
 		string start = "[ExceptionRoot]class Fault{readonly string text;init(){this.text=\"COM\";}virtual property string message{get{return this.text;}}}owned Fault fault(int domain,int status){var result=new Fault();return move result;}";
@@ -2240,11 +2266,13 @@ private void com_native_root_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private ForeignClassPolicy duplicate_gobject_type(ForeignClassPolicy original, GObjectExportContract other) {
 	var changed = new ForeignClassPolicy.declared (original.declared_api, null, new GObjectExportContract (other.type_name, other.namespace_name, other.version, true));
 	assert (changed.valid () && changed.identity () != original.identity ());
 	return changed;
 }
+
 private void gobject_declaration_bindings() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("declared-gobject-detached-proof.astra",
@@ -2309,6 +2337,7 @@ private void gobject_declaration_bindings() {
 		error ("%s", failure.message);
 	}
 }
+
 private void gobject_object_roots() {
 	try {
 		string root = "[Shared][CExport(name=\"goitemproof16\",profile=\"declarations-v1\")]";
@@ -2377,6 +2406,7 @@ private void gobject_object_roots() {
 		error ("%s", failure.message);
 	}
 }
+
 private ForeignImportContract forged_gobject_import(ForeignImportContract original, bool boxed) {
 	string[] names = {}, factories = {};
 	for (uint m = 0; m < original.api.member_count; m++) {
@@ -2388,12 +2418,15 @@ private ForeignImportContract forged_gobject_import(ForeignImportContract origin
 	assert (changed.valid () && !changed.equal (original));
 	return changed;
 }
+
 private void gobject_import_bindings() {
 	gobject_import_bindings_case (false);
 }
+
 private void gobject_import_record_bindings() {
 	gobject_import_bindings_case (true);
 }
+
 private void gobject_import_bindings_case(bool boxed) {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("typed-gobject-import-proof.astra", "struct Sample{bool flag;f64 value;}[ExceptionRoot]class Fault{readonly string text;init(){this.text=\"GLib\";}virtual property string message{get{return this.text;}}}owned Fault fault(int domain,int status){var result=new Fault();return move result;}[GObjectImport(records=\"Sample=ExternalSample:external_sample\",name=\"gotypeproof16\",type=\"ExternalObject\",namespace=\"ForeignApi\",version=\"3.2\",symbol_prefix=\"external_object\",header=\"external.h\",threading=\"constructing\",profile=\"declarations-v1\")]class External{[Foreign(error_factory=\"fault\",error_domain=\"16\",errors=\"Fault=-1600\")]init(int seed,bool active)throws Fault;[Foreign(error_factory=\"fault\",error_domain=\"16\",errors=\"Fault=-1600\")]Sample fold(Sample input)throws Fault;}"));
@@ -2446,6 +2479,7 @@ private void gobject_import_bindings_case(bool boxed) {
 		error ("%s", failure.message);
 	}
 }
+
 private void personality_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("personality-proof.astra", "[CExport(name=\"personalityproof16\",profile=\"declarations-v1\")]class Cell{[Foreign]init(){}[Foreign]int evaluate(int input){return input+7;}}"));
@@ -2511,6 +2545,7 @@ private void personality_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void captured_callback_views() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("captured-callback-proof.astra", "class Environment{int bias;init(int bias){this.bias=bias;}}int code(borrowed Environment environment,int value){return environment.bias+value;}int apply(borrowed Callback<int,int> callback){return callback(5);}int forward(borrowed Closure<Environment,int,int> closure){return apply(closure);}int run(){var environment=new Environment(7);var closure=closure_bind(move environment,code);return forward(closure)+apply(closure);}"));
@@ -2630,6 +2665,7 @@ private void captured_callback_views() {
 		error ("%s", failure.message);
 	}
 }
+
 private void signal_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("signal-proof.astra", "[Shared][CExport(name=\"signalproof16\",profile=\"declarations-v1\",bool_abi=\"c99\")][GObjectExport(type=\"ProofEvents\",namespace=\"Proof\",version=\"2.0\",profile=\"declarations-v1\")]class Session{[Foreign]init(){}[Foreign]signal void first(bool input);[Foreign]signal void second(bool input);[Foreign]void update(){emit first(true);}}"));
@@ -2717,6 +2753,7 @@ private void signal_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void typed_retained_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("typed-retained-proof.astra", "class Environment{init(){}}int register_event(borrowed Closure<Environment,void,bool,f64> callback){return retained_signal_register(callback,1);}int stop_event(borrowed Closure<Environment,void,bool,f64> callback){return retained_signal_revoke(callback);}"));
@@ -2792,6 +2829,7 @@ private void typed_retained_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 private void gobject_carrier_authority() {
 	try {
 		var parsed = Parser.parse (new SourceFile.from_text ("carrier-proof.astra", "[ExceptionRoot]class Fault{readonly string text;init(){this.text=\"GLib\";}virtual property string message{get{return this.text;}}}owned Fault fault(int domain,int status){var result=new Fault();return move result;}[GObjectImport(name=\"carrier16\",type=\"ExternalObject\",namespace=\"ForeignApi\",version=\"3.2\",symbol_prefix=\"external_object\",header=\"external.h\",threading=\"constructing\",profile=\"declarations-v1\")]class External{[Foreign(error_factory=\"fault\",error_domain=\"16\",errors=\"Fault=-1600\")]init(int seed)throws Fault;}"));
@@ -2843,6 +2881,7 @@ private void gobject_carrier_authority() {
 		error ("%s", failure.message);
 	}
 }
+
 public static int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/declared-foreign/gobject-nominal-native-carrier-bridge-authority", gobject_carrier_authority);
@@ -2879,4 +2918,5 @@ public static int main(string[] args) {
 	Test.add_func ("/declared-foreign/native-void-callable-effect-and-result-channel-mutations", void_callable_bindings);
 	return Test.run ();
 }
+
 }

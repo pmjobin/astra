@@ -22,6 +22,7 @@ private void double_move(CoreProgram program, bool conditional = false) {
 	}
 	caller.body.statements.add (returned);
 }
+
 private void valid() {
 	try {
 		foreach (bool resource in new bool[] {false, true}) {
@@ -35,6 +36,7 @@ private void valid() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 0; variant < 7; variant++) {
 		var p = sample (false, false, true);
@@ -71,6 +73,7 @@ private void invalid() {
 		GLib.error ("accepted forged generic ownership %d", variant);
 	}
 }
+
 private void exact_loop_targets() {
 	foreach (bool continued in new bool[] {false, true}) {
 		foreach (bool moved in new bool[] {false, true}) {
@@ -109,6 +112,7 @@ private void exact_loop_targets() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-own/core/exact-parameterized-contracts", valid);
@@ -116,4 +120,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-own/core/exact-enclosing-loop-target-state", exact_loop_targets);
 	return Test.run ();
 }
+
 }

@@ -19,6 +19,7 @@
 static int32_t failure(void) {
 	return errno == EWOULDBLOCK ? -EAGAIN : -errno;
 }
+
 static int endpoint(struct sockaddr_in *address, int32_t port, int allow_zero) {
 	if (port < (allow_zero ? 0 : 1) || port > 65535) return -EINVAL;
 	memset(address, 0, sizeof(*address));
@@ -27,10 +28,12 @@ static int endpoint(struct sockaddr_in *address, int32_t port, int allow_zero) {
 	address->sin_port = htons((uint16_t)port);
 	return 0;
 }
+
 static int buffer(uint8_t *bytes, int32_t length, int32_t offset, int32_t count) {
 	return length >= 0 && offset >= 0 && count >= 0 && offset <= length &&
 	       count <= length - offset && (count == 0 || bytes != NULL);
 }
+
 static int32_t progress(ssize_t result) {
 	return result < 0 ? failure() : (int32_t)result;
 }
@@ -39,12 +42,14 @@ int32_t astra_net_socket(int32_t datagram) {
 	if (datagram != 0 && datagram != 1) return -EINVAL;
 	return progress(socket(AF_INET, (datagram ? SOCK_DGRAM : SOCK_STREAM) | SOCK_NONBLOCK | SOCK_CLOEXEC, 0));
 }
+
 int32_t astra_net_bind(int32_t fd, int32_t port) {
 	struct sockaddr_in address;
 	int result = endpoint(&address, port, 1);
 	if (result < 0) return result;
 	return progress(bind(fd, (struct sockaddr *)&address, sizeof(address)));
 }
+
 int32_t astra_net_port(int32_t fd) {
 	struct sockaddr_in address;
 	socklen_t length = sizeof(address);
@@ -52,10 +57,12 @@ int32_t astra_net_port(int32_t fd) {
 	if (length != sizeof(address) || address.sin_family != AF_INET) return -EAFNOSUPPORT;
 	return ntohs(address.sin_port);
 }
+
 int32_t astra_net_listen(int32_t fd, int32_t backlog) {
 	if (backlog < 1 || backlog > 128) return -EINVAL;
 	return progress(listen(fd, backlog));
 }
+
 int32_t astra_net_connect(int32_t fd, int32_t port) {
 	struct sockaddr_in address;
 	int result = endpoint(&address, port, 0);
@@ -64,6 +71,7 @@ int32_t astra_net_connect(int32_t fd, int32_t port) {
 	if (errno == EINPROGRESS || errno == EALREADY) return -EAGAIN;
 	return failure();
 }
+
 int32_t astra_net_ready(int32_t fd, int32_t write_ready) {
 	struct pollfd event = {.fd = fd, .events = write_ready ? POLLOUT : POLLIN};
 	int result = poll(&event, 1, 0);
@@ -71,23 +79,28 @@ int32_t astra_net_ready(int32_t fd, int32_t write_ready) {
 	if (event.revents & POLLNVAL) return -EBADF;
 	return result ? 1 : 0; /* HUP/ERR are readiness: the next operation gives EOF/error. */
 }
+
 int32_t astra_net_connected(int32_t fd) {
 	int error = 0;
 	socklen_t length = sizeof(error);
 	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) < 0) return failure();
 	return error == 0 ? 0 : -error;
 }
+
 int32_t astra_net_accept(int32_t fd) {
 	return progress(accept4(fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC));
 }
+
 int32_t astra_net_read(int32_t fd, uint8_t *bytes, int32_t length, int32_t offset, int32_t count) {
 	if (!buffer(bytes, length, offset, count)) return -EINVAL;
 	return progress(recv(fd, count ? bytes + offset : NULL, (size_t)count, MSG_DONTWAIT));
 }
+
 int32_t astra_net_write(int32_t fd, uint8_t *bytes, int32_t length, int32_t offset, int32_t count) {
 	if (!buffer(bytes, length, offset, count)) return -EINVAL;
 	return progress(send(fd, count ? bytes + offset : NULL, (size_t)count, MSG_DONTWAIT | MSG_NOSIGNAL));
 }
+
 int32_t astra_net_udp_send(int32_t fd, int32_t port, uint8_t *bytes, int32_t length, int32_t offset, int32_t count) {
 	struct sockaddr_in address;
 	int result = endpoint(&address, port, 0);
@@ -96,6 +109,7 @@ int32_t astra_net_udp_send(int32_t fd, int32_t port, uint8_t *bytes, int32_t len
 	return progress(sendto(fd, count ? bytes + offset : NULL, (size_t)count,
 	                       MSG_DONTWAIT | MSG_NOSIGNAL, (struct sockaddr *)&address, sizeof(address)));
 }
+
 /* One datagram is consumed. An oversized packet returns -EMSGSIZE and never
  * presents its truncated bytes as a complete message. An empty packet is 0. */
 int64_t astra_net_udp_receive(int32_t fd, uint8_t *bytes, int32_t length, int32_t offset, int32_t count) {
@@ -109,17 +123,21 @@ int64_t astra_net_udp_receive(int32_t fd, uint8_t *bytes, int32_t length, int32_
 	if (message.msg_namelen != sizeof(peer) || peer.sin_family != AF_INET || ntohl(peer.sin_addr.s_addr) != INADDR_LOOPBACK) return -EAFNOSUPPORT;
 	return ((int64_t)result << 16) | ntohs(peer.sin_port);
 }
+
 int32_t astra_net_send_buffer(int32_t fd, int32_t capacity) {
 	if (capacity < 512 || capacity > 65536) return -EINVAL;
 	int value = capacity;
 	return progress(setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)));
 }
+
 int32_t astra_net_shutdown_write(int32_t fd) {
 	return progress(shutdown(fd, SHUT_WR));
 }
+
 int32_t astra_net_close(int32_t fd) {
 	return progress(close(fd));
 }
+
 int32_t astra_net_milliseconds(void) {
 	struct timespec now;
 	if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) return failure();
@@ -137,6 +155,7 @@ static int native_family(int32_t family) {
 	return family == 4 ? AF_INET : family == 6 ? AF_INET6
 	                                           : -1;
 }
+
 static int valid_endpoint(const AstraNetEndpoint *value, int allow_zero) {
 	if (!value || native_family(value->family) < 0) return -EAFNOSUPPORT;
 	if (value->port < (allow_zero ? 0 : 1) || value->port > 65535) return -EINVAL;
@@ -147,6 +166,7 @@ static int valid_endpoint(const AstraNetEndpoint *value, int allow_zero) {
 	}
 	return 0;
 }
+
 static int socket_address(const AstraNetEndpoint *value, int allow_zero,
                           struct sockaddr_storage *storage, socklen_t *length) {
 	int status = valid_endpoint(value, allow_zero);
@@ -168,6 +188,7 @@ static int socket_address(const AstraNetEndpoint *value, int allow_zero,
 	}
 	return 0;
 }
+
 static int source_address(const struct sockaddr_storage *storage,
                           socklen_t length, AstraNetEndpoint *output) {
 	AstraNetEndpoint result = {0};

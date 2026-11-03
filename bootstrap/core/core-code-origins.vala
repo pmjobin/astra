@@ -14,6 +14,7 @@ internal class CoreEffectCall : Object {
 		this.arguments = arguments;
 		this.protected_call = protected_call;
 	}
+
 }
 
 // Reconstruct code-value flow from Core identities, never Source summaries.
@@ -85,11 +86,13 @@ internal class CoreCodeOrigins : Object {
 			}
 		} while (prior != graph.revision);
 	}
+
 	private void opaque_type(SemanticType type) {
 		if (type.kind != TypeKind.VOID && !FunctionValueType.scalar (type) && !(type is HandleType) && !(type is StringType)) {
 			graph.escape_storage ();
 		}
 	}
+
 	private Object? place(CorePlace storage) {
 		if (storage is CoreLocalPlace) {
 			return storage;
@@ -110,6 +113,7 @@ internal class CoreCodeOrigins : Object {
 		}
 		return null;
 	}
+
 	private void call(CoreFunction? target, GenericArray<CoreValue> arguments, CoreValue? receiver) {
 		bool protected_call = receiver != null && call_context.overlaps (receiver.semantic_type);
 		foreach (var argument in arguments) {
@@ -128,6 +132,7 @@ internal class CoreCodeOrigins : Object {
 			}
 		}
 	}
+
 	private void value(CoreValue expression) {
 		if (expression is CoreOwnedArgumentValue) {
 			var owned = (CoreOwnedArgumentValue) expression;
@@ -265,6 +270,7 @@ internal class CoreCodeOrigins : Object {
 			graph.unknown (expression);
 		}
 	}
+
 	private void producer(CoreStructProducer source) {
 		if (source is CoreStructAwait) {
 			value (((CoreStructAwait) source).operation);
@@ -277,6 +283,7 @@ internal class CoreCodeOrigins : Object {
 			call (invoked.target, invoked.arguments, invoked.receiver);
 		}
 	}
+
 	private void statements(GenericArray<CoreStatement> items, CoreFunction function) {
 		foreach (var statement in items) {
 			if (statement is CoreValueStatement) {
@@ -385,9 +392,11 @@ internal class CoreCodeOrigins : Object {
 			}
 		}
 	}
+
 	private void block(CoreBlock body, CoreFunction function) {
 		statements (body.statements, function);
 	}
+
 	internal Astra.Code.CodeOriginFrontier? effect_frontier (Object expression, GenericArray<Object> formals) {
 		if (!(expression is CoreValue)) {
 			return null;
@@ -425,5 +434,6 @@ internal class CoreCodeOrigins : Object {
 		}
 		return result;
 	}
+
 }
 }

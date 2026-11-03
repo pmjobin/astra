@@ -1,51 +1,67 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // A36: actual C aggregate parameters/results, native leaves remain private.
 struct RecordInts { i64 first; i64 second; }
+
 struct RecordFloats { f64 first; f64 second; }
+
 struct RecordMixed { i64 count; f64 mean; }
+
 struct RecordStack { i64 count; f64 total; i64 tag; }
+
 struct RecordPadded { f32 narrow; f64 wide; }
+
 [CCode(record_abi="value-lp64")]
 extern(C) RecordInts c_record_ints(RecordInts value);
+
 [CCode(record_abi="value-lp64")]
 extern(C) RecordFloats c_record_floats(RecordFloats value);
+
 [CCode(record_abi="value-lp64")]
 extern(C) RecordMixed c_record_mixed(RecordMixed value);
+
 [CCode(record_abi="value-lp64")]
 extern(C) RecordStack c_record_stack(RecordStack value);
+
 [CCode(record_abi="value-lp64")]
 extern(C) RecordPadded c_record_padded(RecordPadded value);
+
 extern(C) int c_record_report(i64 hash);
+
 [CCode(record_abi="value-lp64")]
 export(C) RecordInts astra_record_ints(RecordInts value) {
 	RecordInts from_c = c_record_ints(value);
 	RecordInts result = {first=from_c.first + 9, second=from_c.second - 4};
 	return result;
 }
+
 [CCode(record_abi="value-lp64")]
 export(C) RecordFloats astra_record_floats(RecordFloats value) {
 	RecordFloats from_c = c_record_floats(value);
 	RecordFloats result = {first=from_c.first * 2.0, second=from_c.second + 0.5};
 	return result;
 }
+
 [CCode(record_abi="value-lp64")]
 export(C) RecordMixed astra_record_mixed(RecordMixed value) {
 	RecordMixed from_c = c_record_mixed(value);
 	RecordMixed result = {count=from_c.count + 11, mean=from_c.mean * 2.0};
 	return result;
 }
+
 [CCode(record_abi="value-lp64")]
 export(C) RecordStack astra_record_stack(RecordStack value) {
 	RecordStack from_c = c_record_stack(value);
 	RecordStack result = {count=from_c.count * 2, total=from_c.total + 0.25, tag=from_c.tag - 5};
 	return result;
 }
+
 [CCode(record_abi="value-lp64")]
 export(C) RecordPadded astra_record_padded(RecordPadded value) {
 	RecordPadded from_c = c_record_padded(value);
 	RecordPadded result = {narrow=from_c.narrow + 0.5f, wide=from_c.wide * 2.0};
 	return result;
 }
+
 int main() {
 	RecordInts ints = {first=7, second=-3};
 	RecordFloats floats = {first=1.5, second=-2.0};
@@ -57,7 +73,7 @@ int main() {
 	RecordMixed m = astra_record_mixed(mixed);
 	RecordStack s = astra_record_stack(stack);
 	RecordPadded p = astra_record_padded(padded);
-	if (i.first != 31 || i.second != -21 || f.first != 5.5 || f.second != -3.5 || m.count != 17 || m.mean != 7.5 || s.count != 10 || s.total != 4.75 || s.tag != 7 || p.narrow != 3.0f || p.wide != 14.0) { return 90; }
+	if (i.first != 31 || i.second != -21 || f.first != 5.5 || f.second != -3.5 || m.count != 17 || m.mean != 7.5 || s.count != 10 || s.total != 4.75 || s.tag != 7 || p.narrow != 3.0f || p.wide != 14.0) return 90;
 	i64 hash = i.first * 3 + i.second * 5 + (f.first as i64) * 7 + (f.second as i64) * 11 + m.count * 13 + (m.mean as i64) * 17 + s.count * 19 + (s.total as i64) * 23 + s.tag * 29 + (p.narrow as i64) * 31 + (p.wide as i64) * 37;
 	return c_record_report(hash);
 }

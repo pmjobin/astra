@@ -45,6 +45,7 @@ private LlvmModuleArtifact artifact() throws GLib.Error {
 	result.verify ();
 	return result;
 }
+
 private void ordinary_llvm_accepts(LlvmModuleArtifact artifact) {
 	char* message;
 	int failed = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -57,6 +58,7 @@ private void ordinary_llvm_accepts(LlvmModuleArtifact artifact) {
 	}
 	Test.message ("ordinary LLVM accepted structurally valid mutation: %s", text);
 }
+
 private void positive() {
 	try {
 		var result = artifact ();
@@ -74,6 +76,7 @@ private void positive() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int mutation = 0; mutation < 16; mutation++) {
 		try {
@@ -255,6 +258,7 @@ private void malformed() {
 		}
 	}
 }
+
 // Review tests to insert inside Astra.Tests.EnumLlvm in the expendable baseline.
 // PROPOSED: not compiled with Vala or run against Astra in the reviewer container.
 // Reuses artifact() and ordinary_llvm_accepts() from tests/enum-1/llvm.vala.
@@ -379,24 +383,31 @@ private void review_sum_boundary(int mutation) {
 		GLib.error ("review setup or positive-control error: %s", error.message);
 	}
 }
+
 private void review_clear_zero() {
 	review_sum_boundary (0);
 }
+
 private void review_clear_extent() {
 	review_sum_boundary (1);
 }
+
 private void review_clear_fill() {
 	review_sum_boundary (2);
 }
+
 private void review_clear_destination() {
 	review_sum_boundary (3);
 }
+
 private void review_copy_callee() {
 	review_sum_boundary (4);
 }
+
 private void review_call_convention() {
 	review_sum_boundary (5);
 }
+
 private void review_callee_convention() {
 	review_sum_boundary (6);
 }
@@ -462,24 +473,31 @@ private void review_companion(int mutation) {
 		GLib.error ("companion setup or control error: %s", error.message);
 	}
 }
+
 private void review_clear_callee() {
 	review_companion (0);
 }
+
 private void review_clear_volatile() {
 	review_companion (1);
 }
+
 private void review_clear_alignment() {
 	review_companion (2);
 }
+
 private void review_copy_volatile() {
 	review_companion (3);
 }
+
 private void review_copy_source_alignment() {
 	review_companion (4);
 }
+
 private void review_call_both_conventions() {
 	review_companion (5);
 }
+
 private void review_copy_destination_alignment() {
 	review_companion (6);
 }
@@ -504,4 +522,5 @@ int main(string[] args) {
 	Test.add_func ("/enum/review/copy-destination-alignment", review_copy_destination_alignment);
 	return Test.run ();
 }
+
 }

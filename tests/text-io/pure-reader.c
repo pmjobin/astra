@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception */
 #include <stdint.h>
 #include <stddef.h>
+
 int32_t bounded_sum(const unsigned char *text, int32_t length) {
 	if (length == 0) {
 		return text == NULL ? 0 : -1;

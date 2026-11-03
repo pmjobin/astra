@@ -1,16 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Compiler-managed owning lazy factories with separate borrowed observation.
 extern(C) void state_event(int kind, int tag);
+
 owned Utf8Message vacant_message(bool present) {
-	if (present) { var message = new Utf8Message(""); return move message; }
+	if (present) {
+		var message = new Utf8Message("");
+		return move message;
+	}
 	return null;
 }
+
 bool message_equals(Utf8Message message, string expected) { return message.text == expected; }
+
 bool same_message(Utf8Message first, Utf8Message second) { return first == second; }
+
 class DiagnosticCard {
 	private int code;
 	int attempts;
+
 	init(int code) { this.code = code; this.attempts = 0; }
+
 	lazy property owned Utf8Message content throws InvalidUtf8 {
 		get {
 			this.attempts = this.attempts + 1;
@@ -20,43 +29,63 @@ class DiagnosticCard {
 			return move message;
 		}
 	}
+
 	bool shares_cache(DiagnosticCard other) throws InvalidUtf8 { return same_message(this.content, other.content); }
+
 	deinit() { state_event(2, this.code); }
 }
+
 class SettingsReader {
 	int probes;
 	private readonly string path;
 	private int tag;
 	int attempts;
+
 	init(string path, int tag) { this.path = path; this.tag = tag; this.attempts = 0; this.probes = 0; }
+
 	lazy property owned Utf8Message content throws Error {
 		get {
 			this.attempts = this.attempts + 1; state_event(3, this.tag);
 			var input = read_file(this.path);
-			if (input.byte_count() == 0) { throw new Error("empty record"); }
+			if (input.byte_count() == 0) {
+				throw new Error("empty record");
+			}
 			var message = input.decode();
 			state_event(1, this.tag);
 			return move message;
 		}
 	}
+
 	property int probe throws Error {
-		get { this.probes = this.probes + 1; if (this.probes == 2) { throw new Error("probe retry"); } return this.probes; }
+		get { this.probes = this.probes + 1; if (this.probes == 2) {
+				throw new Error("probe retry");
+			} return this.probes; }
 	}
+
 	bool shares_cache(SettingsReader other) throws Error { return same_message(this.content, other.content); }
+
 	deinit() { state_event(2, this.tag); }
 }
+
 class Diagnostic {
 	int tag;
 	private owned Utf8Message message;
+
 	init(int tag, owned Utf8Message message) { this.tag = tag; this.message = move message; state_event(4, tag); }
+
 	property borrowed Utf8Message content { get { return this.message; } set(owned Utf8Message value) { this.message = move value; } }
+
 	deinit() { state_event(5, this.tag); }
 }
+
 owned Diagnostic diagnostic(int tag, string text) {
 	var message = new Utf8Message(text); var value = new Diagnostic(tag, move message); return move value;
 }
+
 bool diagnostic_is(Diagnostic value, int tag, string text) { return value.tag == tag && message_equals(value.content, text); }
+
 bool diagnostic_at(Bag<Diagnostic> bag, int index, int tag, string text) { return diagnostic_is(bag.entries[index], tag, text); }
+
 bool message_at(Bag<Utf8Message> bag, int index, string text) { return message_equals(bag.entries[index], text); }
 
 owned Utf8Message clone_message(Utf8Message source) { var message = new Utf8Message(source.text); return move message; }

@@ -19,6 +19,7 @@ public class CoreOwnedFieldTransfer : CoreStatement {
 		this.producer = producer;
 		this.initializes = initializes;
 	}
+
 }
 
 public class CoreOwnedFieldBorrow : CoreValue {
@@ -29,6 +30,7 @@ public class CoreOwnedFieldBorrow : CoreValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 
 // Destructor epilogue actions run only after normal user-body completion.
@@ -44,5 +46,6 @@ public class CoreOwnedFieldCleanup : CoreNode {
 		this.field = field;
 		this.cleanup = cleanup;
 	}
+
 }
 }

@@ -86,4 +86,5 @@ private void register_diagnostics() {
 		add ("/borrow/diagnostic/" + invalid[i, 0], () => reject (source, expected, marker));
 	}
 }
+
 }

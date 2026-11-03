@@ -12,6 +12,7 @@ private SsaEdge bool_edge(SsaBlock block, SsaValue? value = null) {
 	}
 	return new SsaEdge (block, arguments);
 }
+
 private void boolean_join() {
 	try {
 		var file = new SourceFile.from_text ("ssa-bool-join", "boolean join");
@@ -42,7 +43,9 @@ private void boolean_join() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void register_shortcircuit_tests() {
 	Test.add_func ("/ssa-standalone/boolean-branch-join", boolean_join);
 }
+
 }

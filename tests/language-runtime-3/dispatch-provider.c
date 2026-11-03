@@ -10,10 +10,12 @@ static int seed, stage, bad, drops, selected;
 #ifndef DISPATCH_MEMORY_ONLY
 static int allocated, released;
 static void *first_identity;
+
 static struct {
 	void *pointer;
 	int live;
 } allocation[16];
+
 void *calloc(size_t count, size_t size) {
 	void *pointer = __libc_calloc(count, size);
 	if (allocated < 16) {
@@ -23,6 +25,7 @@ void *calloc(size_t count, size_t size) {
 	allocated++;
 	return pointer;
 }
+
 void free(void *pointer) {
 	for (int i = 0; i < allocated && i < 16; i++) {
 		if (allocation[i].pointer == pointer && allocation[i].live) {
@@ -33,12 +36,15 @@ void free(void *pointer) {
 	}
 	__libc_free(pointer);
 }
+
 #endif
+
 int32_t dispatch_input(void) {
 	const char *input = getenv("ASTRA_DISPATCH_SEED");
 	seed = input == NULL ? 4 : atoi(input);
 	return seed;
 }
+
 void dispatch_probe(int32_t current, int32_t value) {
 	if (current != ++stage) {
 		bad = 1;
@@ -60,9 +66,11 @@ void dispatch_probe(int32_t current, int32_t value) {
 	}
 #endif
 }
+
 void dispatch_drop(int32_t rank) {
 	drops = drops * 10 + rank;
 }
+
 int32_t dispatch_finish(void) {
 	int valid = !bad && stage == 4 && drops == 3121;
 #ifndef DISPATCH_MEMORY_ONLY

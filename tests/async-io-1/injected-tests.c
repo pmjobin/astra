@@ -12,12 +12,15 @@ typedef struct Frame {
 	int turns;
 	int result;
 } Frame;
+
 static unsigned destroyed;
+
 static void destroy(AstraAsyncTask *task, int discard) {
 	(void)task;
 	(void)discard;
 	destroyed++;
 }
+
 static void resume(AstraAsyncTask *task) {
 	Frame *frame = astra_async_data(task);
 	frame->turns++;
@@ -38,24 +41,28 @@ static void resume(AstraAsyncTask *task) {
 	frame->result = astra_async_linux_delay_result(task, 1);
 	astra_async_complete(task, ASTRA_ASYNC_SUCCESS, NULL);
 }
+
 static AstraAsyncExecutor *executor(void) {
 	AstraAsyncExecutor *ex = astra_async_linux_open(2);
 	assert(ex != NULL);
 	astra_async_linux_test_fake(ex);
 	return ex;
 }
+
 static AstraAsyncTask *root(AstraAsyncExecutor *ex) {
 	AstraAsyncTask *task = astra_async_new(sizeof(Frame), _Alignof(Frame), resume, destroy, NULL);
 	*(Frame *)astra_async_data(task) = (Frame){0};
 	assert(astra_async_start(ex, task, NULL) == ASTRA_ASYNC_ADMITTED);
 	return task;
 }
+
 static AstraAsyncLinuxSnapshot snapshot(AstraAsyncExecutor *ex) {
 	AstraAsyncLinuxSnapshot out;
 	assert(astra_async_linux_test_snapshot(ex, 0, &out));
 	assert(out.target != out.cancel && out.generation == 1 && out.pc == 1);
 	return out;
 }
+
 static void close_root(AstraAsyncExecutor *ex, AstraAsyncTask *task, int outcome) {
 	assert(astra_async_phase(task) == outcome);
 	astra_async_begin_shutdown(ex);
@@ -65,6 +72,7 @@ static void close_root(AstraAsyncExecutor *ex, AstraAsyncTask *task, int outcome
 	assert(astra_async_finish_shutdown(ex));
 	astra_async_close(ex);
 }
+
 static void orders(void) {
 	const int cancel_results[] = {0, -ENOENT, -EALREADY};
 	const int target_results[] = {-ETIME, -ECANCELED};
@@ -111,6 +119,7 @@ static void orders(void) {
 		}
 	}
 }
+
 static void identity_and_faults(void) {
 	AstraAsyncExecutor *first = executor(), *second = executor();
 	AstraAsyncTask *a = root(first), *b = root(second);
@@ -144,6 +153,7 @@ static void identity_and_faults(void) {
 	assert(((Frame *)astra_async_data(a))->result == 0 && astra_async_linux_last_failure().operation == ASTRA_LINUX_IDS);
 	close_root(first, a, ASTRA_ASYNC_SUCCESS);
 }
+
 static void partial_submission(void) {
 	AstraAsyncExecutor *ex = executor();
 	AstraAsyncTask *parent = root(ex);
@@ -185,6 +195,7 @@ static void partial_submission(void) {
 	astra_async_pump(ex, 4);
 	close_root(ex, parent, ASTRA_ASYNC_CANCELLED);
 }
+
 int main(void) {
 	alarm(15);
 	orders();

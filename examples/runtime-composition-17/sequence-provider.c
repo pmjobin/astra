@@ -12,14 +12,17 @@
 enum { ARENA_ALIGNMENT = 4096,
 	   GUARD_BYTES = 32,
 	   GUARD_VALUE = 0xb7 };
+
 typedef struct Extent {
 	uint64_t offset, bytes, span;
 	uint32_t alignment;
 } Extent;
+
 typedef struct Counts {
 	int identity;
 	uint64_t capacity, slots, count, live, peak, allocations, releases, refusals, reused;
 } Counts;
+
 typedef struct Arena {
 	pthread_mutex_t lock;
 	unsigned char *backing;
@@ -27,10 +30,12 @@ typedef struct Arena {
 	Counts stats;
 	uint64_t high_water;
 } Arena;
+
 typedef struct Finished {
 	Counts stats;
 	struct Finished *next;
 } Finished;
+
 static pthread_mutex_t report_lock = PTHREAD_MUTEX_INITIALIZER;
 static Finished *finished;
 static uint64_t opened;
@@ -89,6 +94,7 @@ exhausted:
 	assert(pthread_mutex_unlock(&arena->lock) == 0);
 	return ASTRA_CONTEXT17_EXHAUSTED;
 }
+
 static void release(void *opaque, void *pointer, uint64_t bytes, uint32_t alignment) {
 	Arena *arena = opaque;
 	assert(pthread_mutex_lock(&arena->lock) == 0);
@@ -109,6 +115,7 @@ static void release(void *opaque, void *pointer, uint64_t bytes, uint32_t alignm
 	arena->stats.live -= value.span;
 	assert(pthread_mutex_unlock(&arena->lock) == 0);
 }
+
 static void dispose(void *opaque) {
 	Arena *arena = opaque;
 	assert(pthread_mutex_lock(&arena->lock) == 0);
@@ -125,8 +132,10 @@ static void dispose(void *opaque) {
 	finished = report;
 	assert(pthread_mutex_unlock(&report_lock) == 0);
 }
+
 static const AstraContext17Provider contract = {
     ASTRA_CONTEXT17_ABI, sizeof(AstraContext17Provider), ASTRA_CONTEXT17_CONCURRENT, 0, allocate, release, dispose};
+
 AstraContext17 *sequence_custom_allocator(int64_t capacity, int32_t slots, int32_t identity) {
 	if (capacity <= 0 || slots <= 0 || (uint64_t)capacity > SIZE_MAX || (uint64_t)slots > SIZE_MAX / sizeof(Extent)) {
 		return NULL;
@@ -163,6 +172,7 @@ AstraContext17 *sequence_custom_allocator(int64_t capacity, int32_t slots, int32
 	assert(pthread_mutex_unlock(&report_lock) == 0);
 	return context;
 }
+
 int sequence_provider_disposed(int32_t identity) {
 	int count = 0;
 	assert(pthread_mutex_lock(&report_lock) == 0);
@@ -174,6 +184,7 @@ int sequence_provider_disposed(int32_t identity) {
 	assert(pthread_mutex_unlock(&report_lock) == 0);
 	return count;
 }
+
 int sequence_provider_finish(void) {
 	assert(pthread_mutex_lock(&report_lock) == 0);
 	uint64_t count = 0;

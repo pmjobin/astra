@@ -8,22 +8,26 @@ extern AstraAsyncTask *test_factory_0(int seed, AstraAsyncTask *parent);
 extern AstraAsyncTask *test_factory_1(AstraAsyncTask *parent);
 extern AstraAsyncTask *test_factory_2(AstraAsyncTask *parent);
 extern AstraAsyncTask *test_factory_3(AstraAsyncTask *parent);
+
 typedef struct Buffer {
 	int *base;
 	int32_t length;
 } Buffer;
+
 extern AstraAsyncTask *test_factory_5(AstraAsyncTask *parent);
 extern int cold_captures(void);
 extern int capture_abort(void);
 extern int fresh_captures(void);
 extern int fresh_abort(void);
 static unsigned counts[7];
+
 void buffered(int stage, int value) {
 	assert(stage >= 1 && stage <= 6);
 	assert(value == (stage == 1 ? 123 : stage == 2 ? 41
 	                                               : 42));
 	counts[stage]++;
 }
+
 static void drive(AstraAsyncExecutor *executor, AstraAsyncTask *task) {
 	for (unsigned turn = 0; astra_async_phase(task) < ASTRA_ASYNC_SUCCESS; turn++) {
 		assert(turn < 40);
@@ -31,6 +35,7 @@ static void drive(AstraAsyncExecutor *executor, AstraAsyncTask *task) {
 		astra_async_advance_next(executor);
 	}
 }
+
 static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int phase) {
 	assert(astra_async_phase(root) == phase);
 	astra_async_begin_shutdown(executor);
@@ -39,6 +44,7 @@ static void finish(AstraAsyncExecutor *executor, AstraAsyncTask *root, int phase
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 static void source_owned_await(void) {
 	AstraAsyncExecutor *executor = astra_async_open(2);
 	AstraAsyncTask *root = test_factory_1(NULL);
@@ -71,6 +77,7 @@ static void source_owned_await(void) {
 	assert(astra_async_finish_shutdown(executor));
 	astra_async_close(executor);
 }
+
 static void result_outlives_frame(void) {
 	AstraAsyncExecutor *executor = astra_async_open(2);
 	AstraAsyncTask *root = test_factory_3(NULL);
@@ -91,6 +98,7 @@ static void result_outlives_frame(void) {
 	drive(executor, root);
 	finish(executor, root, ASTRA_ASYNC_SUCCESS);
 }
+
 int main(void) {
 	for (unsigned cycle = 0; cycle < 16; cycle++) {
 		source_owned_await();

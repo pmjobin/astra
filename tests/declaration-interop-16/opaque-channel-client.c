@@ -5,6 +5,7 @@
 extern int32_t opaque_channel16_run(void);
 extern int32_t go16_destroyed_count(void);
 extern int32_t go16_item_destroyed_count(void);
+
 int main(void) {
 	int32_t result = opaque_channel16_run();
 	if (result) {

@@ -9,15 +9,19 @@
 #define SCOPED_RESULT_SINGLE 0
 #endif
 static unsigned seen[17], observations, ready;
+
 void scoped_result_ready(int32_t mode) {
 	if (mode == 4 && ready++) abort();
 }
+
 int32_t scoped_result_is_ready(void) {
 	return (int32_t)ready;
 }
+
 void scoped_result_retired(int32_t identity) {
 	if (identity < 1 || identity > 16 || seen[identity]++) abort();
 }
+
 void scoped_result_observed(int32_t first, int32_t second, int32_t marker) {
 	if (marker != 17) abort();
 	if (observations == 0) {
@@ -33,6 +37,7 @@ void scoped_result_observed(int32_t first, int32_t second, int32_t marker) {
 		abort();
 	observations++;
 }
+
 int32_t scoped_result_finish(void) {
 	for (unsigned i = 1; i <= 16; i++)
 		if (seen[i] != 1) abort();
@@ -40,7 +45,9 @@ int32_t scoped_result_finish(void) {
 	puts("scoped results: exact observed owners, error, cancellation and cold discard");
 	return 0;
 }
+
 int32_t scoped_result_probe(void);
+
 int main(void) {
 	return scoped_result_probe();
 }

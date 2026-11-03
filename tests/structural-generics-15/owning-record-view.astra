@@ -1,24 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class ViewChild {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	int read() { return this.code; }
+
 	deinit() { mark(this.code); }
 }
+
 struct ViewStats { int count; i64 total; }
+
 struct ViewOwners { owned ViewChild left; owned ViewChild right; }
+
 struct ViewEnvelope { ViewOwners owners; ViewStats stats; }
 
 class ViewBox<T> {
 	private owned T payload;
 	int revision;
+
 	init(owned T payload) { this.payload = move payload; this.revision = 1; }
+
 	property borrowed T view { get { return this.payload; } }
+
 	void replace(owned T payload) { this.payload = move payload; this.revision = this.revision + 1; }
+
 	deinit() { mark(800 + this.revision); }
 }
+
 int inspect_view(borrowed ViewChild child, int extra) { return child.code + extra; }
+
 int inspect_two_views(borrowed ViewChild left, borrowed ViewChild right) { return left.code + right.code; }
+
 int finish_view(int count, owned ViewBox<ViewEnvelope> box) { return count; }
 
 int main() {
@@ -26,17 +39,17 @@ int main() {
 	var right = new ViewChild(23);
 	ViewEnvelope payload = {owners = {left = move left, right = move right}, stats = {count = 42, total = 9000000001}};
 	var box = new ViewBox<ViewEnvelope>(move payload);
-	if (box.view.owners.left.code != 19 || box.view.owners.right.read() != 23) { return 1; }
-	if (inspect_view(box.view.owners.left, mark(9)) != 28) { return 2; }
-	if (inspect_two_views(box.view.owners.left, box.view.owners.right) != 42) { return 5; }
+	if (box.view.owners.left.code != 19 || box.view.owners.right.read() != 23) return 1;
+	if (inspect_view(box.view.owners.left, mark(9)) != 28) return 2;
+	if (inspect_two_views(box.view.owners.left, box.view.owners.right) != 42) return 5;
 	ViewStats copied = box.view.stats;
 	int captured = box.view.stats.count;
 	var next_left = new ViewChild(37);
 	var next_right = new ViewChild(47);
 	ViewEnvelope next = {owners = {left = move next_left, right = move next_right}, stats = {count = 84, total = 9000000002}};
 	box.replace(move next);
-	if (copied.count != 42 || copied.total != 9000000001 || captured != 42) { return 3; }
-	if (box.view.stats.count != 84 || inspect_view(box.view.owners.right, 0) != 47) { return 4; }
-	if (box.revision != 2) { return 6; }
+	if (copied.count != 42 || copied.total != 9000000001 || captured != 42) return 3;
+	if (box.view.stats.count != 84 || inspect_view(box.view.owners.right, 0) != 47) return 4;
+	if (box.revision != 2) return 6;
 	return finish_view(box.view.stats.count, move box) - 84;
 }

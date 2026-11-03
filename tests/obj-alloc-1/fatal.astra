@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int alloc_fatal_event(int code);
+
 class Box {
 	init() { alloc_fatal_event(73); }
+
 	deinit() { alloc_fatal_event(68); }
 }
+
 int main() { var value = new Box(); return 42; }

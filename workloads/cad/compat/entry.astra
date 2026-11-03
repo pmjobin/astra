@@ -2,14 +2,17 @@
 // The argument provider owns its UTF-8 snapshot until main returns.
 // This adapter owns terminated copies until the numerical entry returns.
 extern(C) void* cad_arguments_new(int count);
+
 [CCode (text_abi = "utf8-i32")]
 extern(C) int cad_arguments_copy(void* arguments, int index, borrowed string text);
+
 extern(C) void* cad_arguments_values(void* arguments);
+
 extern(C) void cad_arguments_free(void* arguments);
 
 int main(string[] args) {
 	void* arguments = cad_arguments_new(len(args));
-	if (arguments == null) { return 1; }
+	if (arguments == null) return 1;
 	int index = 0;
 	while (index < len(args)) {
 		if (cad_arguments_copy(arguments, index, args[index]) != 0) {

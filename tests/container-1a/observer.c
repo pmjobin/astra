@@ -13,29 +13,35 @@ struct Slots {
 	void **base;
 	int32_t length, capacity;
 };
+
 struct Message {
 	const unsigned char *bytes;
 	int32_t length;
 };
+
 struct Diagnostic {
 	int32_t tag;
 	struct Message *message;
 };
+
 _Static_assert(sizeof(struct Slots) == 16 && offsetof(struct Slots, length) == 8 && offsetof(struct Slots, capacity) == 12, "qualified owner-slot layout");
 _Static_assert(sizeof(struct Diagnostic) == 16 && offsetof(struct Diagnostic, message) == 8, "exact diagnostic layout");
 _Static_assert(sizeof(struct Message) == 16 && offsetof(struct Message, length) == 8, "exact snapshot layout");
+
 enum Role { OTHER,
 	        BAG,
 	        BACKING,
 	        DIAGNOSTIC,
 	        MESSAGE,
 	        PAYLOAD };
+
 struct Allocation {
 	void *pointer;
 	size_t count, stride;
 	enum Role role;
 	bool live, retiring;
 };
+
 struct Element {
 	struct Diagnostic *pointer;
 	struct Message *message;
@@ -45,6 +51,7 @@ struct Element {
 	int bag, state;
 	bool freed;
 };
+
 struct Bag {
 	struct Slots *pointer;
 	void **backing;
@@ -63,6 +70,7 @@ void __real_free(void *);
 static void flush(void) {
 	fflush(stdout);
 }
+
 static int allocation(void *pointer) {
 	if (!pointer) return 0;
 	for (int i = allocation_count; i > 0; --i)
@@ -70,24 +78,28 @@ static int allocation(void *pointer) {
 	assert(!"pointer is not an actual live allocation");
 	return 0;
 }
+
 static int element(struct Diagnostic *pointer) {
 	for (int i = element_count; i > 0; --i)
 		if (elements[i].pointer == pointer && !elements[i].freed) return i;
 	assert(!"unknown diagnostic identity");
 	return 0;
 }
+
 static int bag(struct Slots *pointer) {
 	for (int i = bag_count; i > 0; --i)
 		if (bags[i].pointer == pointer && !bags[i].dropped) return i;
 	assert(!"unknown collection identity");
 	return 0;
 }
+
 static void role(void *pointer, enum Role role_value) {
 	if (!pointer) return;
 	int id = allocation(pointer);
 	assert(allocations[id].role == OTHER);
 	allocations[id].role = role_value;
 }
+
 static void stable(int id) {
 	struct Element *entry = &elements[id];
 	assert(!entry->freed && allocation(entry->pointer) && allocation(entry->message));
@@ -98,6 +110,7 @@ static void stable(int id) {
 		assert(!memcmp(entry->bytes, entry->snapshot, (size_t)entry->length));
 	}
 }
+
 static void *record(void *pointer, size_t count, size_t stride, char kind) {
 	assert(pointer && allocation_count + 1 < 512);
 	int id = ++allocation_count;
@@ -106,9 +119,11 @@ static void *record(void *pointer, size_t count, size_t stride, char kind) {
 	flush();
 	return pointer;
 }
+
 void *__wrap_malloc(size_t bytes) {
 	return record(__real_malloc(bytes), 1, bytes, 'M');
 }
+
 void *__wrap_calloc(size_t count, size_t stride) {
 	if (count == 3 && stride == sizeof(void *) && getenv("SLOTS_FAIL_GROW")) {
 		puts("OOM growth");
@@ -117,6 +132,7 @@ void *__wrap_calloc(size_t count, size_t stride) {
 	}
 	return record(__real_calloc(count, stride), count, stride, 'C');
 }
+
 void __wrap_free(void *pointer) {
 	if (!pointer) {
 		__real_free(pointer);
@@ -157,6 +173,7 @@ void __wrap_free(void *pointer) {
 	flush();
 	__real_free(pointer);
 }
+
 void slot_obs_born(struct Diagnostic *pointer, int32_t tag, struct Message *message) {
 	assert(element_count + 1 < 32 && pointer->tag == tag && pointer->message == message);
 	assert(message->length >= 0 && message->length < 64);
@@ -170,6 +187,7 @@ void slot_obs_born(struct Diagnostic *pointer, int32_t tag, struct Message *mess
 	printf("I%d tag=%d object=%d message=%d bytes=%d\n", id, tag, allocation(pointer), allocation(message), allocation((void *)message->bytes));
 	flush();
 }
+
 void slot_obs_init(struct Slots *pointer) {
 	assert(bag_count + 1 < 16 && !pointer->base && !pointer->length && !pointer->capacity);
 	int id = ++bag_count;
@@ -178,6 +196,7 @@ void slot_obs_init(struct Slots *pointer) {
 	printf("B%d object=%d\n", id, allocation(pointer));
 	flush();
 }
+
 void slot_obs_commit(struct Slots *pointer, void **old, void **replacement, int32_t length, int32_t capacity) {
 	int b = bag(pointer);
 	struct Bag *state = &bags[b];
@@ -200,6 +219,7 @@ void slot_obs_commit(struct Slots *pointer, void **old, void **replacement, int3
 	state->backing = replacement;
 	state->capacity = capacity;
 }
+
 void slot_obs_append(struct Slots *pointer, struct Diagnostic *incoming) {
 	int b = bag(pointer), e = element(incoming);
 	struct Bag *state = &bags[b];
@@ -213,6 +233,7 @@ void slot_obs_append(struct Slots *pointer, struct Diagnostic *incoming) {
 	printf("P%d index=%d element=%d\n", b, state->length - 1, e);
 	flush();
 }
+
 void slot_obs_borrow(struct Slots *pointer, int32_t index, struct Diagnostic *entry) {
 	int b = bag(pointer);
 	struct Bag *state = &bags[b];
@@ -222,6 +243,7 @@ void slot_obs_borrow(struct Slots *pointer, int32_t index, struct Diagnostic *en
 	printf("V%d index=%d element=%d\n", b, index, element(entry));
 	flush();
 }
+
 void slot_obs_drop_begin(struct Slots *pointer) {
 	int b = bag(pointer);
 	struct Bag *state = &bags[b];
@@ -232,6 +254,7 @@ void slot_obs_drop_begin(struct Slots *pointer) {
 	printf("D%d len=%d\n", b, state->length);
 	flush();
 }
+
 void slot_obs_retire(struct Slots *pointer, int32_t index, struct Diagnostic *entry) {
 	int b = bag(pointer), e = element(entry);
 	struct Bag *state = &bags[b];
@@ -243,6 +266,7 @@ void slot_obs_retire(struct Slots *pointer, int32_t index, struct Diagnostic *en
 	printf("R%d index=%d element=%d\n", b, index, e);
 	flush();
 }
+
 void slot_obs_dying(struct Diagnostic *pointer) {
 	int e = element(pointer);
 	stable(e);
@@ -251,6 +275,7 @@ void slot_obs_dying(struct Diagnostic *pointer) {
 	printf("E%d tag=%d\n", e, elements[e].tag);
 	flush();
 }
+
 void slot_obs_drop_done(struct Slots *pointer) {
 	int b = bag(pointer);
 	struct Bag *state = &bags[b];
@@ -265,6 +290,7 @@ void slot_obs_drop_done(struct Slots *pointer) {
 	printf("Z%d\n", b);
 	flush();
 }
+
 void slot_obs_done(void) {
 	for (int i = 1; i <= allocation_count; ++i)
 		assert(!allocations[i].live);

@@ -11,7 +11,9 @@ struct Envelope {
 
 class Box<T> {
 	owned T payload;
+
 	init(owned T value) { this.payload = move value; }
+
 	deinit() { mark(100); }
 }
 
@@ -30,7 +32,7 @@ int exercise() {
 		Envelope broken = {contents = produce(61), stamp = failing()};
 		return 1;
 	} catch (Error error) {
-		if (live() != 0) { return 2; }
+		if (live() != 0) return 2;
 		mark(61);
 	}
 	Contents contents = produce(62);
@@ -41,6 +43,6 @@ int exercise() {
 
 int main() {
 	int result = exercise();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

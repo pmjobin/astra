@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class BorrowedRecordChild {
 	private int ticket;
+
 	init(int ticket) { this.ticket = ticket; }
+
 	int amount() { return this.ticket; }
+
 	deinit() { mark(this.ticket); }
 }
+
 struct BorrowedRecordLeaves {
 	owned BorrowedRecordChild child;
 	owned R retained;
@@ -13,28 +17,41 @@ struct BorrowedRecordLeaves {
 	owned i64[] wide;
 	Fn<int,int> adjust;
 }
+
 struct BorrowedRecordPacket { int ticket; BorrowedRecordLeaves leaves; }
+
 class BorrowedRecordEnvironment<A,B> {
 	private A seed;
 	private B enabled;
 	private owned R retained;
+
 	init(A seed, B enabled, owned R retained) { this.seed = seed; this.enabled = enabled; this.retained = move retained; }
+
 	property A amount { get { return this.seed; } }
+
 	property B ready { get { return this.enabled; } }
+
 	deinit() { mark(930); }
 }
+
 struct BorrowedRecordCode { Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> inspect; }
+
 class BorrowedRecordDirectory<T> {
 	private T tag;
 	private Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> code;
+
 	init(T tag, Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> code) { this.tag = tag; this.code = code; }
+
 	property T marker { get { return this.tag; } }
+
 	int inspect(borrowed BorrowedRecordPacket value, borrowed R token) {
 		Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> code = this.code;
 		return code(value, token, 3);
 	}
 }
+
 int adjust_borrowed_record(int value) { return value + 1; }
+
 BorrowedRecordPacket produce_borrowed_record(int ticket) {
 	var child = new BorrowedRecordChild(ticket);
 	var retained = make(ticket);
@@ -48,47 +65,57 @@ BorrowedRecordPacket produce_borrowed_record(int ticket) {
 	BorrowedRecordPacket result = {ticket = ticket, leaves = move leaves};
 	return move result;
 }
+
 int inspect_borrowed_record(borrowed BorrowedRecordPacket value, borrowed R token, int extra) {
 	i64 expected = 9000000001;
-	if (value.leaves.child.amount() != value.ticket || id(value.leaves.retained) != value.ticket || other_id(value.leaves.extra) != value.ticket + 1) { return 0; }
-	if (len(value.leaves.samples) != 2 || len(value.leaves.wide) != 3 || value.leaves.wide[0] != expected) { return 0; }
+	if (value.leaves.child.amount() != value.ticket || id(value.leaves.retained) != value.ticket || other_id(value.leaves.extra) != value.ticket + 1) return 0;
+	if (len(value.leaves.samples) != 2 || len(value.leaves.wide) != 3 || value.leaves.wide[0] != expected) return 0;
 	Fn<int,int> adjust = value.leaves.adjust;
 	return adjust(value.ticket) + value.leaves.samples[0] + id(token) + extra;
 }
+
 Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> borrowed_record_factory() { return inspect_borrowed_record; }
+
 int forward_borrowed_record(Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> code, borrowed BorrowedRecordPacket value, borrowed R token) { return code(value, token, 3); }
+
 int inspect_borrowed_record_closure(borrowed BorrowedRecordEnvironment<int,bool> environment, borrowed BorrowedRecordPacket value, borrowed R token) {
-	if (!environment.ready) { return 0; }
+	if (!environment.ready) return 0;
 	return inspect_borrowed_record(value, token, environment.amount);
 }
+
 int inspect_checked_borrowed_record(borrowed BorrowedRecordEnvironment<int,bool> environment, borrowed BorrowedRecordPacket value, borrowed R token, bool fail) throws Error {
-	if (fail) { mark(931); throw new Error("borrowed record retry"); }
+	if (fail) {
+		mark(931);
+		throw new Error("borrowed record retry");
+	}
 	return inspect_borrowed_record(value, token, environment.amount);
 }
+
 int exercise_borrowed_records() {
 	BorrowedRecordPacket first = produce_borrowed_record(201);
 	BorrowedRecordPacket second = produce_borrowed_record(211);
 	var token = make(203);
 	BorrowedRecordCode stored = {inspect = borrowed_record_factory()};
 	Fn<int,borrowed BorrowedRecordPacket,borrowed R,int> code = stored.inspect;
-	if (code(first, token, 3) != 415 || code(second, token, 3) != 425) { return 1; }
-	if (forward_borrowed_record(code, first, token) != 415) { return 2; }
+	if (code(first, token, 3) != 415 || code(second, token, 3) != 425) return 1;
+	if (forward_borrowed_record(code, first, token) != 415) return 2;
 	var directory = new BorrowedRecordDirectory<int>(42, code);
-	if (directory.marker != 42 || directory.inspect(second, token) != 425) { return 3; }
+	if (directory.marker != 42 || directory.inspect(second, token) != 425) return 3;
 	var box = new Box<BorrowedRecordPacket>(move first);
-	if (code(box.view, token, 3) != 415 || forward_borrowed_record(code, box.view, token) != 415) { return 4; }
+	if (code(box.view, token, 3) != 415 || forward_borrowed_record(code, box.view, token) != 415) return 4;
 	var retained = make(204);
 	var environment = new BorrowedRecordEnvironment<int,bool>(11, true, move retained);
 	owned Closure<BorrowedRecordEnvironment<int,bool>,int,borrowed BorrowedRecordPacket,borrowed R> plain = closure_bind(move environment, inspect_borrowed_record_closure);
-	if (closure_invoke(plain, box.view, token) != 423 || closure_invoke(plain, second, token) != 433) { return 5; }
+	if (closure_invoke(plain, box.view, token) != 423 || closure_invoke(plain, second, token) != 433) return 5;
 	var checked_retained = make(205);
 	var checked_environment = new BorrowedRecordEnvironment<int,bool>(13, true, move checked_retained);
 	owned CheckedClosure<BorrowedRecordEnvironment<int,bool>,Error,int,borrowed BorrowedRecordPacket,borrowed R,bool> checked = checked_closure_bind(move checked_environment, inspect_checked_borrowed_record);
 	try { closure_invoke(checked, box.view, token, true); return 6; }
 	catch (Error error) { mark(932); }
-	try { if (closure_invoke(checked, box.view, token, false) != 425) { return 7; } }
+	try { if (closure_invoke(checked, box.view, token, false) != 425) return 7; }
 	catch (Error error) { return 8; }
-	if (code(second, token, 3) != 425 || code(box.view, token, 3) != 415 || live() != 7) { return 9; }
+	if (code(second, token, 3) != 425 || code(box.view, token, 3) != 415 || live() != 7) return 9;
 	return 0;
 }
-int main() { int result = exercise_borrowed_records(); if (result != 0) { return result; } return live(); }
+
+int main() { int result = exercise_borrowed_records(); if (result != 0) return result; return live(); }

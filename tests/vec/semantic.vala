@@ -198,4 +198,5 @@ int main(string[] args) {
 	Test.add_func ("/vec/semantic/grammar-deferrals", grammar);
 	return Test.run ();
 }
+
 }

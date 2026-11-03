@@ -49,6 +49,7 @@ private void model() throws GLib.Error {
 	assert (cabi.cleanups[0].signature.parameters[0].pointer_contract == PointerParameterContract.UNMANAGED);
 	assert (CAbiDump.format (cabi).contains ("(parameter #0 PTR (contract borrowed-noescape))"));
 }
+
 private void differential() throws GLib.Error {
 	string body = "int wrapper(borrowed void* p) { return inspect(p); }";
 	var source = check ("extern(C) int inspect(borrowed void* p); " + body, "");
@@ -69,6 +70,7 @@ private void differential() throws GLib.Error {
 	var borrowed = NativeAbiBuilder.build (build (raw.replace ("void* p", "borrowed void* p"), ""));
 	assert (NativeAbiDump.format (unmanaged) == NativeAbiDump.format (borrowed));
 }
+
 private void order() throws GLib.Error {
 	var control = cfg ("void f() { owned void* h = create(1); observe3(record(1), h, record(2)); }");
 	var instructions = control.functions[0].entry.instructions;
@@ -81,6 +83,7 @@ private void order() throws GLib.Error {
 	// A later short-circuit argument creates blocks after the borrow event.
 	build ("void native(borrowed void* p, bool b) {} void f(bool c) { owned void* h = create(1); native(h, c && inspect(h) == 1); }");
 }
+
 private void lifetime() throws GLib.Error {
 	VapiParseResult? syntax = VapiParser.parse (new SourceFile.from_text ("borrowed.vapi", VAPI));
 	var syntax_ref = WeakRef (syntax.file.functions[1].parameters[0]);
@@ -117,6 +120,7 @@ private void lifetime() throws GLib.Error {
 	CAbiVerifier.verify (cabi);
 	assert (cabi.functions[1].signature.parameters[0].span.text () == "borrowed void* p");
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -135,4 +139,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

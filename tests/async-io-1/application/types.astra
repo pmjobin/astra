@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void observed(int stage, int value);
+
 class DecodeError : Error {
 	init(string message) : base(message) {}
+
 	deinit() { observed(9, 42); }
 }
+
 struct Pair {
 	int left;
 	int right;
 }
+
 enum OwnedValues {
 	Some(owned int[] values),
 	None

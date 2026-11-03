@@ -44,7 +44,7 @@ def main():
 			text = path.read_text(errors='replace')
 			if 'Maximum resident set size (kbytes):' not in text:
 				continue
-			# Separate .time logs take precedence over mirrored stderr reports.
+				# Separate .time logs take precedence over mirrored stderr reports.
 			if path.suffix == '.stderr' and path.with_suffix('.time').exists():
 				continue
 			def number(pattern):
@@ -70,10 +70,10 @@ def main():
 		system_seconds=sum(x['system_seconds'] or 0 for x in timed.values()),
 		largest_process_rss_kib=max((x['max_rss_kib'] or 0 for x in timed.values()), default=0),
 		limits=['Monotonic command intervals measure active commands, not total human/session elapsed time.',
-			'Unplaced seconds lack monotonic boundaries and are excluded from overlap union.',
-			'RSS is largest individual measured process, not simultaneous campaign peak.',
-			'Task receipts include failed attempts and development trials; historical predecessor logs are not fresh costs.',
-			'API token usage and dollar charges are not exposed to this session.'])
+		'Unplaced seconds lack monotonic boundaries and are excluded from overlap union.',
+		'RSS is largest individual measured process, not simultaneous campaign peak.',
+		'Task receipts include failed attempts and development trials; historical predecessor logs are not fresh costs.',
+		'API token usage and dollar charges are not exposed to this session.'])
 	a.output.write_text(json.dumps(result, indent=2)+'\n')
 	print(len(commands), 'measured command intervals;', len(timed), 'CPU/RSS receipts')
 

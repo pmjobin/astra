@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int scoped(bool c) {
 	owned void* h = create_resource(1);
-	while (c) { release h; break; }
-	if (c && resource_destroy_count() != 1) { return 1; }
-	if (!c && resource_destroy_count() != 0) { return 2; }
+	while (c) {
+		release h;
+		break;
+	}
+	if (c && resource_destroy_count() != 1) return 1;
+	if (!c && resource_destroy_count() != 0) return 2;
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped(true) != 0 || resource_create_count() != 1 || resource_destroy_count() != 1 || resource_effect_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 1; }
+	if (scoped(true) != 0 || resource_create_count() != 1 || resource_destroy_count() != 1 || resource_effect_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 1;
 	resource_reset();
-	if (scoped(false) != 0 || resource_create_count() != 1 || resource_destroy_count() != 1 || resource_effect_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) { return 2; }
+	if (scoped(false) != 0 || resource_create_count() != 1 || resource_destroy_count() != 1 || resource_effect_order() != 1 || resource_live_count() != 0 || resource_error_count() != 0) return 2;
 	return 0;
 }

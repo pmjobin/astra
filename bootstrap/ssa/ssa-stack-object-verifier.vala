@@ -29,31 +29,38 @@ internal class SsaStackObjectVerifier : Object {
 			}
 		}
 	}
+
 	private static void require(bool condition, string reason) throws SsaError {
 		if (!condition) {
 			throw new SsaError.INVALID_SSA ("stack object checker: " + reason);
 		}
 	}
+
 	private static bool scalar(SemanticType type) {
 		return type.kind == TypeKind.BOOL || type is IntegerType || type is FloatingType || type is VectorType;
 	}
+
 	private static bool view(SemanticType? type) {
 		var slice = type as SliceType;
 		return slice != null && !(slice is ContextBytesType) && scalar (slice.element_type);
 	}
+
 	private void pair(SsaBufferPair pair) throws SsaError {
 		require (view (pair.shape.slice_type) && pair.base_value.semantic_type == pair.shape.base_type &&
 			pair.length_value.semantic_type == pair.shape.length_type && !rooted (pair.base_value), "buffer pair exposes a Class root");
 	}
+
 	private void buffer_place(SsaBufferPlace place) throws SsaError {
 		require (place.field == null && place.record_projection == null && place.storage != null &&
 			function.buffer_storage.find (place.storage) && place.storage.record_type == null &&
 			view (place.cleanup.buffer_type), "buffer place is not separate numeric local storage");
 	}
+
 	private static bool no_capture(SsaFunction? target) {
 		return target != null && target.effect_facts != null &&
 			   (target.effect_facts.flags & FunctionEffectFacts.RECEIVER_NO_CAPTURE) != 0;
 	}
+
 	private bool rooted(SsaValue? value) throws SsaError {
 		if (value == null) {
 			return false;
@@ -102,6 +109,7 @@ internal class SsaStackObjectVerifier : Object {
 		origins.insert (value, result);
 		return result;
 	}
+
 	private SsaFunction? target(SsaCallInstruction call) {
 		var declared = call.target;
 		if (!exact || declared == null || declared.dispatch_kind == ClassDispatchKind.DIRECT) {
@@ -110,6 +118,7 @@ internal class SsaStackObjectVerifier : Object {
 		int slot = declared.virtual_slot;
 		return slot >= 0 && slot < root.object_class.virtual_entries.length ? root.object_class.virtual_entries[slot] : null;
 	}
+
 	private bool local_place(SsaMemoryPlace place) throws SsaError {
 		if (place is SsaLocalMemoryPlace) {
 			return scalar (place.semantic_type);
@@ -133,6 +142,7 @@ internal class SsaStackObjectVerifier : Object {
 		var indirect = place as SsaIndirectFieldPlace;
 		return indirect != null && rooted (indirect.pointer);
 	}
+
 	private void domain() throws SsaError {
 		var owner = root.object_class;
 		require (function.object_storage.find (root) && root.heap_allocated && !root.fallible && !root.result_candidate,
@@ -174,6 +184,7 @@ internal class SsaStackObjectVerifier : Object {
 		}
 		require (!lazy || owner.destructor == null && !exact, "observable lazy destruction or dispatch");
 	}
+
 	private void uses() throws SsaError {
 		foreach (var block in function.blocks) {
 			foreach (var parameter in block.parameters) {
@@ -357,6 +368,7 @@ internal class SsaStackObjectVerifier : Object {
 			}
 		}
 	}
+
 	private void lifetime() throws SsaError {
 		var incoming = new HashTable<SsaBlock, int> (direct_hash, direct_equal);
 		var pending = new GenericArray<SsaBlock> ();
@@ -396,6 +408,7 @@ internal class SsaStackObjectVerifier : Object {
 			}
 		}
 	}
+
 	internal static void verify(SsaProgram program) throws SsaError {
 		foreach (var function in program.functions) {
 			var seen = new HashTable<SsaObjectStorage, bool> (direct_hash, direct_equal);
@@ -409,11 +422,13 @@ internal class SsaStackObjectVerifier : Object {
 			}
 		}
 	}
+
 	internal static void verify_exact_root(SsaFunction function, SsaObjectStorage root) throws SsaError {
 		var checker = new SsaStackObjectVerifier (function, root, true);
 		checker.domain ();
 		checker.uses ();
 		checker.lifetime ();
 	}
+
 }
 }

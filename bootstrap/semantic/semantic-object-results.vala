@@ -10,6 +10,7 @@ public class ResultObjectStorageSymbol : Object {
 	internal ResultObjectStorageSymbol (ClassSymbol object_class) {
 		this.class_identity = WeakRef (object_class);
 	}
+
 }
 
 public class CheckedOwnedObjectResultConstruction : CheckedExpression {
@@ -23,5 +24,6 @@ public class CheckedOwnedObjectResultConstruction : CheckedExpression {
 		this.constructor = constructor;
 		this.arguments = arguments;
 	}
+
 }
 }

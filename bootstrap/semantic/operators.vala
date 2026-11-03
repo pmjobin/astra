@@ -40,6 +40,7 @@ public enum PrefixOperator {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 // Control-flow semantics, deliberately separate from eager binary operators.
@@ -61,6 +62,7 @@ public enum ShortCircuitOperator {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 public enum VectorReductionOperator {
@@ -82,6 +84,7 @@ public enum VectorReductionOperator {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 // A separate ordinal/count domain, never a same-type binary operation.
@@ -102,6 +105,7 @@ public enum IntegerShiftKind {
 	public string operation_name(SemanticType value_type) {
 		return this == LEFT ? "shift-left" : element_type (value_type).is_signed ? "shift-right-arithmetic" : "shift-right-logical";
 	}
+
 }
 
 public enum BinaryOperator {
@@ -196,6 +200,7 @@ public enum BinaryOperator {
 			assert_not_reached ();
 		}
 	}
+
 }
 
 public enum GenericOperationKind {
@@ -203,12 +208,15 @@ public enum GenericOperationKind {
 	public bool valid() {
 		return this >= EQ && this <= SHIFT_RIGHT;
 	}
+
 	public bool is_comparison() {
 		return this >= EQ && this <= GE;
 	}
+
 	public bool is_shift() {
 		return this == SHIFT_LEFT || this == SHIFT_RIGHT;
 	}
+
 	public GenericCapabilityIdentity capability() {
 		if (this <= NE) {
 			return GenericCapabilityIdentity.EQ;
@@ -224,6 +232,7 @@ public enum GenericOperationKind {
 		}
 		return GenericCapabilityIdentity.SHIFT;
 	}
+
 	public static GenericOperationKind? from_binary(BinaryOperator kind) {
 		switch (kind) {
 		case BinaryOperator.EQUAL: return EQ;
@@ -255,6 +264,7 @@ public enum GenericOperationKind {
 			return null;
 		}
 	}
+
 	public BinaryOperator binary_operator() {
 		switch (this) {
 		case EQ:
@@ -287,15 +297,18 @@ public enum GenericOperationKind {
 			assert_not_reached ();
 		}
 	}
+
 	public string spelling() {
 		return this == BIT_NOT ? "~" : this == SHIFT_LEFT ? "<<" : this == SHIFT_RIGHT ? ">>" : binary_operator ().spelling ();
 	}
+
 	public string operation_name() {
 		string[] names = {
 			"eq", "ne", "lt", "le", "gt", "ge", "add", "sub", "mul", "div", "bit-and", "bit-or", "bit-xor", "bit-not", "shift-left", "shift-right"
 		};
 		return valid () ? names[(int) this] : "invalid-operation";
 	}
+
 	public bool accepts(TypeParameterType parameter, SemanticType left, SemanticType? right, SemanticType result) {
 		if (!valid () || left != parameter || !GenericCapabilityAuthority.satisfies (parameter, capability ())) {
 			return false;
@@ -305,5 +318,7 @@ public enum GenericOperationKind {
 		}
 		return this == BIT_NOT ? right == null : is_shift () ? right is IntegerType : right == parameter;
 	}
+
 }
+
 }

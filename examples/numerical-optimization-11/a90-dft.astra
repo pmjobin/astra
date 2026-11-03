@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 using Numerics;
 extern(C) f64 numerical_sample(int i);
+
 extern(C) f64 numerical_twiddle(int part,int index);
+
 extern(C) int numerical_mode();
+
 extern(C) int numerical_observe(int i,f64 value);
+
 extern(C) int numerical_finish(int wanted);
+
 [FloatingPoint(contract="on")]
 f64 relaxed_real(f64 a,f64 b,f64 c,f64 d){return a*c-b*d;}
+
 [FloatingPoint(contract="on")]
 f64 relaxed_imag(f64 a,f64 b,f64 c,f64 d){return a*d+b*c;}
+
 int main(){
 	int mode=numerical_mode();
 	for(int block=0;block<32;block=block+1){
@@ -18,11 +25,14 @@ int main(){
 				Complex64 value={real=numerical_sample(block*64+n),imag=0.0};
 				Complex64 twiddle={real=numerical_twiddle(0,k*n),imag=numerical_twiddle(1,k*n)};
 				Complex64 product=value.multiply(twiddle);
-				if(mode==1){product.real=relaxed_real(value.real,value.imag,twiddle.real,twiddle.imag);product.imag=relaxed_imag(value.real,value.imag,twiddle.real,twiddle.imag);}
+				if(mode==1){
+					product.real=relaxed_real(value.real,value.imag,twiddle.real,twiddle.imag);
+					product.imag=relaxed_imag(value.real,value.imag,twiddle.real,twiddle.imag);
+				}
 				sum=sum.add(product);
 			}
-			if(numerical_observe(block*128+2*k,sum.real)!=0){return 1;}
-			if(numerical_observe(block*128+2*k+1,sum.imag)!=0){return 2;}
+			if(numerical_observe(block*128+2*k,sum.real)!=0) return 1;
+			if(numerical_observe(block*128+2*k+1,sum.imag)!=0) return 2;
 		}
 	}
 	return numerical_finish(4096);

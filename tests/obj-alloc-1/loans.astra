@@ -1,38 +1,46 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Label {
 	readonly string text;
+
 	init(string text) { this.text = text; }
 }
+
 class Child : Label { init(string text) : base(text) {} }
+
 int read(Label label) { var view = label.text; var copy = view; return copy.byte_length; }
+
 bool choose_view(Label first, Label second, bool selected) {
 	var view = first.text;
-	if (selected) { view = second.text; }
+	if (selected) view = second.text;
 	var copy = view;
 	int count = 0;
-	while (count < 2) { copy = view; count = count + 1; }
-	if (selected) { return copy == "other"; }
+	while (count < 2) {
+		copy = view;
+		count = count + 1;
+	}
+	if (selected) return copy == "other";
 	return copy == "hé";
 }
+
 int main() {
 	var first = new Child("hé");
 	var second = new Label("other");
 	{
 		var view = first.text;
 		var copy = view;
-		if (copy != "hé" || read(first) != 3) { return 81; }
-		if (!choose_view(first, second, false) || !choose_view(first, second, true)) { return 83; }
+		if (copy != "hé" || read(first) != 3) return 81;
+		if (!choose_view(first, second, false) || !choose_view(first, second, true)) return 83;
 		// A new snapshot copies the bytes; it has its own receiver loan root.
 		var independent = new Label(copy);
 		var independent_view = independent.text;
-		if (independent_view != copy) { return 84; }
+		if (independent_view != copy) return 84;
 		var length = copy.byte_length as f64;
-		if (length != 3.0d) { return 85; }
+		if (length != 3.0d) return 85;
 	}
 	var next = move first;
 	{
 		var view = next.text;
-		if (view != "hé") { return 82; }
+		if (view != "hé") return 82;
 	}
 	release next;
 	return 42;

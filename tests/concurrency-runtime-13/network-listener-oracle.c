@@ -16,6 +16,7 @@ extern int32_t net_oracle_lifetimes(int32_t expected);
 static pthread_t peers[8];
 static pthread_barrier_t connected;
 static int port, clients, seed, guard;
+
 static void ready(int fd, short events) {
 	struct pollfd pollfd = {.fd = fd, .events = events};
 	int result;
@@ -24,6 +25,7 @@ static void ready(int fd, short events) {
 	} while (result < 0 && errno == EINTR);
 	assert(result == 1 && !(pollfd.revents & POLLNVAL));
 }
+
 static void *exchange(void *opaque) {
 	int id = (int)(uintptr_t)opaque;
 	int socket_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
@@ -86,6 +88,7 @@ static void *exchange(void *opaque) {
 	assert(close(socket_fd) == 0);
 	return NULL;
 }
+
 int32_t listener_oracle_start(int32_t endpoint, int32_t count, int32_t schedule) {
 	assert(endpoint > 0 && endpoint <= 65535 && count >= 2 && count <= 8);
 	port = endpoint;
@@ -96,6 +99,7 @@ int32_t listener_oracle_start(int32_t endpoint, int32_t count, int32_t schedule)
 		assert(pthread_create(&peers[i], NULL, exchange, (void *)(uintptr_t)(i + 1)) == 0);
 	return 0;
 }
+
 int32_t listener_oracle_guard(void) {
 	guard = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	assert(guard >= 0);
@@ -105,10 +109,12 @@ int32_t listener_oracle_guard(void) {
 	assert(getsockname(guard, (struct sockaddr *)&address, &length) == 0);
 	return ntohs(address.sin_port);
 }
+
 int32_t listener_oracle_guard_close(void) {
 	assert(close(guard) == 0);
 	return 0;
 }
+
 int32_t listener_oracle_finish(int32_t expected) {
 	assert(expected == clients);
 	for (int i = 0; i < clients; ++i)

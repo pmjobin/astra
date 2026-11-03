@@ -21,5 +21,7 @@ public struct SourceSpan {
 	public string text() {
 		return file.slice (start, end);
 	}
+
 }
+
 }

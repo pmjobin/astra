@@ -33,6 +33,7 @@ private CfgProgram sample(bool wide, int bad = 0) throws GLib.Error {
 	exports.add (new CfgCExport (span, span, functions[0], "bridge", ForeignAbi.C, 0));
 	return new CfgProgram (span, functions, imports, exports);
 }
+
 private void boundary() {
 	try {
 		for (int width = 0; width < 2; width++) {
@@ -57,9 +58,11 @@ private void boundary() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/cabi-fp/cfg/independent-import-export-exact-width-lifetime", boundary);
 	return Test.run ();
 }
+
 }

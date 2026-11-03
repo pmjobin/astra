@@ -8,20 +8,25 @@ static char trace[1024];
 static size_t length;
 static int destructors, pointer_checks;
 static void *identity[16];
+
 static void event(char code, int tag) {
 	int written = tag < 0 ? snprintf(trace + length, sizeof trace - length, "%c ", code)
 	                      : snprintf(trace + length, sizeof trace - length, "%c%d ", code, tag);
 	assert(written > 0 && (size_t)written < sizeof trace - length);
 	length += (size_t)written;
 }
+
 #ifndef ALLOC_MEMORY_ONLY
 extern void *__libc_calloc(size_t count, size_t size);
 extern void __libc_free(void *pointer);
+
 static struct {
 	void *pointer;
 	int tag, live;
 } allocations[128];
+
 static int used;
+
 void *calloc(size_t count, size_t size) {
 	void *pointer = __libc_calloc(count, size);
 	assert(pointer != NULL && used < 128);
@@ -31,6 +36,7 @@ void *calloc(size_t count, size_t size) {
 	event('A', -1);
 	return pointer;
 }
+
 void free(void *pointer) {
 	if (pointer == NULL) {
 		return;
@@ -51,7 +57,9 @@ void free(void *pointer) {
 	event('F', allocations[found].tag);
 	__libc_free(pointer);
 }
+
 #endif
+
 int32_t alloc_event(int32_t tag, int32_t stage) {
 	if (stage == 1) {
 #ifndef ALLOC_MEMORY_ONLY
@@ -69,6 +77,7 @@ int32_t alloc_event(int32_t tag, int32_t stage) {
 	}
 	return 0;
 }
+
 // Called only by the independently compiled test IR at the real probe entry.
 void alloc_pointer(void *pointer, int32_t tag) {
 	assert(tag > 0 && tag < 16 && pointer != NULL);
@@ -90,6 +99,7 @@ void alloc_pointer(void *pointer, int32_t tag) {
 #endif
 	pointer_checks++;
 }
+
 int32_t alloc_ok(void) {
 #ifndef ALLOC_MEMORY_ONLY
 	for (int i = 0; i < used; i++) {

@@ -5,6 +5,7 @@
 extern AstraAlloc12Domain CUSTOM_DOMAIN, HEAP_DOMAIN, STATIC_DOMAIN;
 static int last_destructor;
 static int valid = 1;
+
 void policy_event(int32_t stage, int32_t value) {
 	printf("%d:%d,", stage, value);
 	if (stage == 11) {
@@ -17,6 +18,7 @@ void policy_event(int32_t stage, int32_t value) {
 		valid = 0;
 	}
 }
+
 int32_t policy_probe(int32_t phase) {
 	AstraAlloc12Domain *c = &CUSTOM_DOMAIN, *h = &HEAP_DOMAIN, *s = &STATIC_DOMAIN;
 	if (!valid) {

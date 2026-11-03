@@ -55,6 +55,7 @@ private CoreProgram sample(int variant = 0) {
 	result.generic_functions.add (factory);
 	return result;
 }
+
 private void qualify() {
 	try {
 		CoreProgram? symbolic = sample ();
@@ -95,9 +96,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/alloc-fail/core/independent-call-remapping-lifetimes-and-keys", qualify);
 	return Test.run ();
 }
+
 }

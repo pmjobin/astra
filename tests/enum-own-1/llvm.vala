@@ -46,6 +46,7 @@ private LlvmModuleArtifact artifact() throws GLib.Error {
 	result.verify ();
 	return result;
 }
+
 private void ordinary(LlvmModuleArtifact artifact) {
 	char* message;
 	int failed = CApi.verify_module (artifact.module, CApi.VerifierFailureAction.RETURN_STATUS, out message);
@@ -57,6 +58,7 @@ private void ordinary(LlvmModuleArtifact artifact) {
 		GLib.error ("ordinary LLVM fixture failure: %s", text);
 	}
 }
+
 private void physical() {
 	for (int mutation = 0; mutation < 5; mutation++) {
 		try {
@@ -135,10 +137,12 @@ private void physical() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum-own/llvm/stage-release-ordinary-valid-mutations-restoration", physical);
 	Astra.Tests.OwningVerification.register ();
 	return Test.run ();
 }
+
 }

@@ -5,6 +5,7 @@ namespace Astra.Tests.GenCapParser {
 private ParseResult parse(string source) {
 	return Parser.parse (new SourceFile.from_text ("capability.astra", source));
 }
+
 private void clauses() {
 	var result = parse ("T choose<T,U>(T a,T b,U token) where U : Eq where T : Ordered, Numeric {return a;}");
 	assert (result.diagnostic == null);
@@ -14,6 +15,7 @@ private void clauses() {
 	assert (SyntaxDump.format (result.unit).contains ("(where T Ordered Numeric)"));
 	assert (parse ("int where(int Eq){return Eq;}").diagnostic == null);
 }
+
 private void malformed() {
 	foreach (string clause in new string[] {"where", "where : Eq", "where T Eq", "where T :", "where T : Eq,", "where T : Eq Ordered", "where T : Eq where T : Ordered", "where T : Eq, Eq"}) {
 		assert (parse ("T f<T>(T a) " + clause + " {return a;}").diagnostic != null);
@@ -24,10 +26,12 @@ private void malformed() {
 	assert (duplicate.diagnostic.message.contains ("duplicate where clause"));
 	assert (parse ("T f<T>(T a) where T : Eq, Eq {return a;}").diagnostic.message.contains ("duplicate capability"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-cap/parser/ordered-clauses-contextual-keyword", clauses);
 	Test.add_func ("/gen-cap/parser/malformed-duplicate-deferred", malformed);
 	return Test.run ();
 }
+
 }

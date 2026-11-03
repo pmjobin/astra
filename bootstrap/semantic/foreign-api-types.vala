@@ -18,20 +18,25 @@ public class ForeignRootCatalog : Object {
 			roots.insert (type, policy.declared_api);
 		}
 	}
+
 	public void add_imported(SemanticType type, ForeignImportContract? contract) {
 		if (contract != null) {
 			imported.insert (type, contract);
 		}
 	}
+
 	public ForeignImportContract? lookup_imported(SemanticType type) {
 		return imported.lookup (type);
 	}
+
 	public ForeignApiContract? lookup(SemanticType type) {
 		return roots.lookup (type);
 	}
+
 	public ClassType? lookup_class(string name) {
 		return classes.lookup (name);
 	}
+
 }
 // Verification-local catalog reconstructed from the owning stage's fields.
 // Never stored in a foreign artifact or used as a source admission cache.
@@ -44,6 +49,7 @@ public class ForeignRecordCatalog : Object {
 			values.add (value);
 		}
 	}
+
 	public ForeignValueType? lookup(SemanticType type) {
 		for (uint t = 0; t < types.length; t++) {
 			if (types[t] == type) {
@@ -52,6 +58,7 @@ public class ForeignRecordCatalog : Object {
 		}
 		return null;
 	}
+
 }
 public class ForeignApiTypes : Object {
 	public static ForeignValueType? record(SemanticType type, GenericArray<string> names, GenericArray<SemanticType> types) {
@@ -69,6 +76,7 @@ public class ForeignApiTypes : Object {
 		var result = new ForeignValueType (ForeignValueKind.RECORD, type.nominal_name (), fields);
 		return result.valid () ? result : null;
 	}
+
 	public static bool uses_bool(ForeignValueType type) {
 		if (type.kind == ForeignValueKind.BOOL) {
 			return true;
@@ -90,6 +98,7 @@ public class ForeignApiTypes : Object {
 		}
 		return false;
 	}
+
 	// Reconstruct logical copied record parameters from this stage's exact
 	// leaf groups. Width-compatible tuples without an actual group refuse.
 	public static bool projected_parameters(ForeignMemberContract member, GenericArray<SemanticType> actual,
@@ -145,6 +154,7 @@ public class ForeignApiTypes : Object {
 		}
 		return cursor == actual.length && used == groups.length;
 	}
+
 	public static bool projected_facts(ForeignMemberContract member, bool[] actual_heap, bool[] actual_nonnull, out bool[] heap, out bool[] nonnull) {
 		heap = new bool[member.parameter_count];
 		nonnull = new bool[member.parameter_count];
@@ -159,6 +169,7 @@ public class ForeignApiTypes : Object {
 		}
 		return cursor == actual_heap.length && cursor == actual_nonnull.length;
 	}
+
 	public static ForeignValueType? copied(SemanticType type, ForeignRecordLookup? records = null) {
 		ForeignValueKind kind;
 		switch (type.kind) {
@@ -182,9 +193,11 @@ public class ForeignApiTypes : Object {
 		}
 		return new ForeignValueType (kind);
 	}
+
 	public static string member_key(string owner, ForeignMemberKind kind, int ordinal) {
 		return "%d:%s:%u:%d".printf (owner.length, owner, (uint) kind, ordinal);
 	}
+
 	public static bool checked_constructor(ForeignClassPolicy? policy, int ordinal, ClassType? error) {
 		var api = policy == null ? null : policy.declared_api;
 		if (api == null || error == null) {
@@ -198,13 +211,16 @@ public class ForeignApiTypes : Object {
 		}
 		return false;
 	}
+
 	public static bool copied_channel(ForeignChannel channel, SemanticType type, ForeignDirection direction, ForeignRecordLookup? records = null) {
 		var actual = copied (type, records);
 		return actual != null && channel.valid () && !channel.by_reference && channel.direction == direction && channel.transfer == ForeignTransfer.COPY && channel.value_type.equal (actual);
 	}
+
 	public static bool byte_view(SemanticType type) {
 		return type is SliceType && ((SliceType) type).element_type.kind == TypeKind.U8 && !((SliceType) type).deep_borrow;
 	}
+
 	public static ForeignValueType? callback(SemanticType type) {
 		var signature = type as CallbackType;
 		if (signature == null || !signature.supported () || signature.is_parameterized ()) {
@@ -224,11 +240,13 @@ public class ForeignApiTypes : Object {
 		}
 		return new ForeignValueType (ForeignValueKind.CALLBACK, "", null, parameters, result);
 	}
+
 	public static ForeignValueType? scalar_pointee(SemanticType type) {
 		var pointer = type as TypedPointerType;
 		var value = pointer == null ? null : copied (pointer.pointee);
 		return value != null && value.scalar () ? value : null;
 	}
+
 	public static bool parameter(ForeignChannel channel, SemanticType type, PointerParameterContract contract, ForeignRecordLookup? records = null, ForeignObjectLookup? objects = null, bool heap = false, bool nonnull = false, ForeignImportLookup? imported = null) {
 		if (channel.value_type.kind == ForeignValueKind.CALLBACK) {
 			var value = callback (type);
@@ -259,6 +277,7 @@ public class ForeignApiTypes : Object {
 		}
 		return contract == PointerParameterContract.UNMANAGED && copied_channel (channel, type, ForeignDirection.IN, records);
 	}
+
 	public static bool errors(ForeignMemberContract member, ClassType? bound, ForeignClassLookup? classes) {
 		if (bound == null) {
 			return member.error_origin == "" && member.error_map == null;
@@ -281,6 +300,7 @@ public class ForeignApiTypes : Object {
 		}
 		return true;
 	}
+
 	public static bool owned_property(ForeignClassPolicy? policy, int ordinal) {
 		if (policy == null || policy.declared_api == null) {
 			return false;
@@ -294,6 +314,7 @@ public class ForeignApiTypes : Object {
 		}
 		return false;
 	}
+
 	public static bool callable(ForeignApiContract api, ForeignMemberContract member,
 		SemanticType result, GenericArray<SemanticType> parameters, GenericArray<PointerParameterContract> contracts,
 		ClassType? error, bool asynchronous, ResultOwnershipContract result_contract, ForeignRecordLookup? records = null, ForeignObjectLookup? objects = null,
@@ -325,6 +346,7 @@ public class ForeignApiTypes : Object {
 		}
 		return result_contract == ResultOwnershipContract.UNMANAGED && copied_channel (member.result, result, ForeignDirection.OUT, records);
 	}
+
 }
 public class ForeignImportTypes : Object {
 	public static bool handle(ForeignChannel channel, SemanticType type, ForeignImportLookup? roots, bool owns, string cleanup = "", bool result = false, bool nonnull = false) {
@@ -332,6 +354,7 @@ public class ForeignImportTypes : Object {
 		var root = roots == null ? null : roots (type);
 		return handle != null && root != null && root.valid () && handle.foreign_policy_identity == root.identity () && handle.name == root.api.native_origin && channel.valid () && channel.value_type.kind == root.object_kind && channel.value_type.nominal_origin == root.api.native_origin && channel.native_nonnull == nonnull && channel.transfer == (owns ? ForeignTransfer.OWN : ForeignTransfer.BORROW) && channel.call_scoped == !owns && channel.direction == (result ? ForeignDirection.OUT : ForeignDirection.IN) && (owns ? (!result || cleanup == root.cleanup_symbol ()) && channel.release_symbol == root.api.prefix + (root.api.lifetime == ForeignLifetime.SHARED ? "_release" : "_destroy") : channel.release_symbol == "");
 	}
+
 	public static bool signature(ForeignImportBinding binding, string name, SemanticType result, ResultOwnershipContract ownership, string cleanup, ClassType? error, GenericArray<SemanticType> supplied_parameters, GenericArray<PointerParameterContract> supplied_contracts, ForeignRecordLookup? records = null, GenericArray<StructBoundaryGroup>? groups = null, ForeignImportLookup? roots = null) {
 		var parameters = supplied_parameters;
 		var contracts = supplied_contracts;
@@ -386,9 +409,11 @@ public class ForeignImportTypes : Object {
 		}
 		return ownership == ResultOwnershipContract.UNMANAGED && cleanup == "" && ForeignApiTypes.copied_channel (member.result, result, ForeignDirection.OUT, records);
 	}
+
 	public static bool factory(ForeignImportBinding binding, string name, SemanticType result, ClassType? error, bool owns, bool heap, ClassType? factory_error, GenericArray<SemanticType> parameters, GenericArray<PointerParameterContract> contracts) {
 		return binding.valid () && name == binding.root.factory (binding.member_index) && result == error && owns && heap && factory_error == null && parameters.length == 2 && contracts.length == 2 && parameters[0].kind == TypeKind.INT && parameters[1].kind == TypeKind.INT && contracts[0] == PointerParameterContract.UNMANAGED && contracts[1] == PointerParameterContract.UNMANAGED;
 	}
+
 }
 
 }

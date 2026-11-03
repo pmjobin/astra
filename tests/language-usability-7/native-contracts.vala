@@ -174,4 +174,5 @@ int main(string[] args) {
 	Test.add_func ("/usability/numeric/independent-llvm-calls", llvm_calls);
 	return Test.run ();
 }
+
 }

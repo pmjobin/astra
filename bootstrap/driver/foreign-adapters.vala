@@ -7,6 +7,7 @@ namespace Astra.Driver {
 public errordomain ForeignAdapterError {
 	INVALID
 }
+
 public class ForeignAdapters : Object {
 	internal static string declared_type(ForeignValueType type, string prefix, HashTable<string, string>? roots = null) throws ForeignAdapterError {
 		switch (type.kind) {
@@ -47,6 +48,7 @@ public class ForeignAdapters : Object {
 			throw new ForeignAdapterError.INVALID ("declared foreign header requires a completed physical channel plan");
 		}
 	}
+
 	private static void declared_header(StringBuilder text, ForeignApiContract api, HashTable<string, string> roots) throws ForeignAdapterError {
 		bool internal_root = (api.active_personalities & ForeignClassPolicy.C) == 0;
 		if (internal_root) {
@@ -122,6 +124,7 @@ public class ForeignAdapters : Object {
 			text.append ("#endif\n");
 		}
 	}
+
 	internal static void declared_signature(StringBuilder text, ForeignApiContract api, ForeignMemberContract member, bool canonical, HashTable<string, string> roots, bool importing = false) throws ForeignAdapterError {
 		string p = api.prefix;
 		text.append_printf ("int32_t %s(", importing ? "astra_foreign16_import_" + p + "_" + member.name : CAbiClassAdapter.member_symbol (api, member, canonical));
@@ -170,6 +173,7 @@ public class ForeignAdapters : Object {
 		}
 		text.append ("astra_foreign_error *error)");
 	}
+
 	private static void record_header(StringBuilder text, ForeignValueType type, HashTable<string, string> seen) throws ForeignAdapterError {
 		if (type.kind != ForeignValueKind.RECORD) {
 			return;
@@ -200,6 +204,7 @@ public class ForeignAdapters : Object {
 			text.append (assertion == cpp ? "#else\n" : "#endif\n");
 		}
 	}
+
 	internal static HashTable<string, string> root_prefixes(CheckedProgram program) {
 		var roots = new HashTable<string, string> (str_hash, str_equal);
 		foreach (var owner in program.classes) {
@@ -215,6 +220,7 @@ public class ForeignAdapters : Object {
 		}
 		return roots;
 	}
+
 	public static string source(CheckedProgram program) throws ForeignAdapterError {
 		var roots = root_prefixes (program);
 		var text = new StringBuilder ("#define ASTRA_FOREIGN16_INTERNAL\n" + header (program));
@@ -317,6 +323,7 @@ public class ForeignAdapters : Object {
 		text.append ("#ifdef __cplusplus\n}\n#endif\n");
 		return text.str;
 	}
+
 	public static string header(CheckedProgram program) throws ForeignAdapterError {
 		var identities = new StringBuilder ();
 		foreach (var handle in program.handles) {
@@ -405,5 +412,6 @@ public class ForeignAdapters : Object {
 		text.append ("\n#ifdef __cplusplus\n}\n#endif\n#endif\n");
 		return text.str;
 	}
+
 }
 }

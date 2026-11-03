@@ -33,9 +33,11 @@ private void contracts() {
 	flow.origins.copy (mixed, element);
 	assert (!flow.origins.is_static (mixed) && flow.origins.is_bounded (mixed));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/args/semantic/identity-access-deep-snapshots", contracts);
 	return Test.run ();
 }
+
 }

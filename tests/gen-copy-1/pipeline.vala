@@ -66,6 +66,7 @@ private void lifetime() throws GLib.Error {
 		CAbiVerifier.verify (cabi);
 	}
 }
+
 private void correspondence() throws GLib.Error {
 	string source = "struct A{int x;}struct B{int x;}T id<T>(T x){return x;}A fa(A a){return id(a);}B fb(B b){return id(b);}";
 	var ssa = build (source);
@@ -101,6 +102,7 @@ private void correspondence() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	NativeAbiValidator.validate_ssa_calls (ssa, nabi, map);
 }
+
 private void forged() throws GLib.Error {
 	string source = "struct S{int x;}struct Box<T>{T value;}T id<T>(T x){return x;}int main(){S s={x=42};Box<S> b={value=id(s)};return b.value.x;}";
 	for (int variant = 0; variant < 5; variant++) {
@@ -168,6 +170,7 @@ private void forged() throws GLib.Error {
 	}
 	assert (rejected);
 }
+
 private CoreProgram recovery_program(string source) throws GLib.Error {
 	var parsed = Parser.parse (new SourceFile.from_text ("generic-copy-recovery.astra", source));
 	assert (parsed.diagnostic == null);
@@ -194,6 +197,7 @@ private CoreProgram recovery_program(string source) throws GLib.Error {
 	CoreVerifier.verify (program);
 	return program;
 }
+
 private void recovery() throws GLib.Error {
 	foreach (string source in new string[] {"struct Box<T>{T value;}T grow<T>(T input){Box<T> box={value=input};Box<T> copy=grow(box);return input;}int root(){return grow(1);}", "struct Cycle<T>{Cycle<T> value;}void root(Cycle<int>* pointer){}"}) {
 		for (int repeat = 0; repeat < 2; repeat++) {
@@ -213,6 +217,7 @@ private void recovery() throws GLib.Error {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -224,4 +229,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

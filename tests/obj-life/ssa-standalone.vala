@@ -80,6 +80,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	program.classes.add (c);
 	return program;
 }
+
 private void valid() {
 	try {
 		SsaProgram? p = sample ();
@@ -94,6 +95,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int i = 1; i <= 12; i++) {
 		try {
@@ -105,10 +107,12 @@ private void invalid() {
 		GLib.error ("accepted malformed lifecycle Ssa %d", i);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/ssa/independent-lifecycle-initialization-and-cleanup", valid);
 	Test.add_func ("/obj-life/ssa/reject-uninitialized-double-premature-and-missing-cleanup", invalid);
 	return Test.run ();
 }
+
 }

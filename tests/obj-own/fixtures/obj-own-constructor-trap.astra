@@ -1,15 +1,23 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { life_record(this.value, 0); }
+
 	void add(int n) { this.value = this.value + n; }
 }
+
 int zero() { return 0; }
+
 class Destination {
 	int value;
+
 	init(owned Counter source) { life_record(84, 0); this.value = source.value / zero(); }
 }
+
 int main() {
 	owned Counter c = Counter.init(42);
 	owned Destination d = Destination.init(move c);

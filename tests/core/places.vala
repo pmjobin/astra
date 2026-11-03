@@ -242,4 +242,5 @@ private void register_place_core_tests() {
 			});
 	}
 }
+
 }

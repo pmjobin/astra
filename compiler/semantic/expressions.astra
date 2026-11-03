@@ -32,6 +32,7 @@ TypeId checked_context(CheckedIndex index, SyntaxNodeId node, int depth) throws 
 	}
 	return no_type();
 }
+
 TypeId checked_integer_literal(CheckedIndex index, SyntaxNodeId literal, SyntaxSpan span, TypeId expected, bool negative) throws Error {
 	var type = expected;
 	if (!type_integer(checked_kind(index, type))) {
@@ -83,6 +84,7 @@ TypeId checked_integer_literal(CheckedIndex index, SyntaxNodeId literal, SyntaxS
 	}
 	return type;
 }
+
 TypeId checked_substitute(CheckedIndex index, TypeId type, TypeId application, int depth) {
 	if (type.index == 0 || application.index == 0 || depth > 128) {
 		return type;
@@ -122,6 +124,7 @@ TypeId checked_substitute(CheckedIndex index, TypeId type, TypeId application, i
 	}
 	return index.types.intern(row.kind, row.nominal, row.extent, args);
 }
+
 SymbolId checked_member(CheckedIndex index, TypeId receiver, SyntaxTokenId token) throws Error {
 	if (receiver.index == 0) {
 		return type_symbol(0);
@@ -148,6 +151,7 @@ SymbolId checked_member(CheckedIndex index, TypeId receiver, SyntaxTokenId token
 	}
 	return type_symbol(0);
 }
+
 void checked_complete_member(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token, SymbolId member) {
 	var symbol = index.bindings.symbol(member);
 	int i = index.node_references[node.index];
@@ -159,6 +163,7 @@ void checked_complete_member(CheckedIndex index, SyntaxNodeId node, SyntaxTokenI
 		i = index.reference_next[i];
 	}
 }
+
 TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	var field = index.bindings.program.arena.get_token_field_name(node);
 	var existing = checked_target(index, node, field);
@@ -203,6 +208,7 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	checked_complete_member(index, node, field, selected);
 	return checked_substitute(index, index.symbol_types[selected.index], receiver, 0);
 }
+
 TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	if (node.index == 0 || index.failed()) {
 		return no_type();
@@ -226,6 +232,7 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 	var type = checked_expression_inner(index, node, expected, depth);
 	return index.record(node, type, index.uses[node.index].flags);
 }
+
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
 	if (index.flow_adapters && checked_flow_admits(kind)) {
@@ -272,7 +279,7 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
 		if (target.index == 0) {
 			var receiver = checked_this_type(index, node, index.bindings.program.arena.get_token_identifier(node));
-			if (receiver.index != 0) { return receiver; }
+			if (receiver.index != 0) return receiver;
 			return index.defer(node, 13);
 		}
 		var symbol = index.bindings.symbol(target);
@@ -389,6 +396,7 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
 	return index.defer(node, 100 + syntax_kind_code(kind));
 }
+
 TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var left_node = index.bindings.program.arena.get_node_left(node);
 	var right_node = index.bindings.program.arena.get_node_right(node);
@@ -478,6 +486,7 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 	}
 	return left;
 }
+
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	if (index.flow_adapters && checked_flow_intrinsic(index, node)) {
 		return checked_flow_length(index, node, depth);
@@ -582,6 +591,7 @@ bool checked_payload_free_enum(CheckedIndex index, TypeId type) {
 	}
 	return true;
 }
+
 bool checked_field_accessible(CheckedIndex index, SyntaxNodeId node, SymbolId field) {
 	var symbol = index.bindings.symbol(field);
 	if ((index.symbol_flags[field.index] & 256) == 0) {
@@ -621,7 +631,7 @@ int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) thr
 			var target = checked_target(index, source, index.bindings.program.arena.get_token_identifier(source));
 			if (target.index != 0) {
 				var declaration = index.bindings.symbol(target);
-				if (declaration.kind == 7 || declaration.kind == 8) { promised = checked_flow_declared_nonnull(index, target); }
+				if (declaration.kind == 7 || declaration.kind == 8) promised = checked_flow_declared_nonnull(index, target);
 			}
 		}
 	}
@@ -642,7 +652,7 @@ int checked_contract(CheckedIndex index, SyntaxNodeId expression, int flags) thr
 	if ((flags & 6) != 0) {
 		// A record has both completeness and responsibility obligations. Keep
 		// its original aggregate use; the containing declaration records 19.
-		if (index.semantic_flow && index.bindings.program.arena.kind(expression) == SyntaxKind.StructInitializerSyntax() && index.uses[expression.index].deferred == 20) { return 19; }
+		if (index.semantic_flow && index.bindings.program.arena.kind(expression) == SyntaxKind.StructInitializerSyntax() && index.uses[expression.index].deferred == 20) return 19;
 		var ignored = index.defer(expression, 19);
 		return 19;
 	}

@@ -1,18 +1,33 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	deinit() { life_record(this.code, 0); }
 }
+
 void dispose<T>(owned T value) where T : Ownable {}
+
 owned T relay<T>(owned T value) where T : Ownable { return move value; }
+
 owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+
 void once<T>(owned T value) where T : Ownable {
-	while (true) { dispose<T>(move value); break; }
+	while (true) {
+		dispose<T>(move value);
+		break;
+	}
 }
+
 void conditional_loop<T>(bool take, owned T value) where T : Ownable {
-	while (take) { dispose<T>(move value); return; }
+	while (take) {
+		dispose<T>(move value);
+		return;
+	}
 }
+
 int main() {
 	owned Resource a = create_resource(65); once<Resource>(move a);
 	owned Counter b = Counter.init(66); conditional_loop<Counter>(false, move b);

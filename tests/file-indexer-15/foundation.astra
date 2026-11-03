@@ -8,6 +8,7 @@ struct Summary {
 	int occurrences;
 	int distinct;
 }
+
 struct Word {
 	int offset;
 	int length;
@@ -15,35 +16,50 @@ struct Word {
 	int line;
 	int column;
 }
+
 struct SourceText {
 	owned Box<FileBytes> bytes;
 	owned Utf8Message decoded;
 }
+
 struct SourceEnvelope {
 	SourceText content;
 	int generation;
 }
+
 interface IdentifierPolicy {
 	// 1 starts/continues an identifier; 2 only continues; 0 delimits.
 	int classify(int byte);
 }
+
 class IndexError : Error {
 	init(string message) : base(message) {}
 }
+
 struct Receipt { int sequence; int attempts; int bytes; int marker; }
+
 class SinkFailure : Error { init() : base("sink rejected proposal") {} }
+
 class SinkState<Tag> {
 	private Tag marker;
 	private int accepted;
 	private int attempted;
+
 	init(Tag marker) { this.marker = marker; this.accepted = 0; this.attempted = 0; }
+
 	property Tag label { get { return this.marker; } }
+
 	property int count { get { return this.accepted; } }
+
 	property int attempts { get { return this.attempted; } }
+
 	void attempt() { this.attempted = this.attempted + 1; }
+
 	void accept() { this.accepted = this.accepted + 1; }
 }
+
 bool same_number(int first, int second) { return first == second; }
+
 int head_value(borrowed Box<int> value) { return value.view; }
 
 // The same declared Box stores an inline primitive, copied result, nested
@@ -61,6 +77,7 @@ class Document {
 	private owned int[] next;
 	private int used;
 	private owned u8[] report;
+
 	init(owned Box<SourceEnvelope> source) {
 		int generation = source.view.generation;
 		Summary empty = {bytes = 0, scalars = 0, lines = 0, occurrences = 0, distinct = 0};
@@ -80,18 +97,24 @@ class Document {
 		this.used = 0;
 		this.report = new u8[0];
 	}
+
 	property Summary summary { get { return this.result.view; } }
+
 	property int revision { get { return this.generation.view; } }
+
 	int byte_count() { return this.source.view.content.bytes.view.byte_count(); }
+
 	int byte_at(int offset) throws FileError {
 		return this.source.view.content.bytes.view.byte_at(offset);
 	}
+
 	void finish(Summary result) {
 		var replacement = new Box<Summary>(result);
 		this.result = move replacement;
 	}
+
 	bool reserve(int capacity) {
-		if (capacity <= len(this.offsets)) { return true; }
+		if (capacity <= len(this.offsets)) return true;
 		var offsets = new int[capacity];
 		var lengths = new int[capacity];
 		var frequencies = new int[capacity];
@@ -114,21 +137,34 @@ class Document {
 		swap(this.next, next);
 		return true;
 	}
+
 	int head(int hash) { return this.buckets.lookup<int>(hash, head_value, -1); }
+
 	int following(int index) { return this.next[index]; }
+
 	Word word(int index) {
 		Word result = {offset = this.offsets[index], length = this.lengths[index],
 			frequency = this.frequencies[index], line = this.lines[index], column = this.columns[index]};
 		return result;
 	}
+
 	void increment(int index) { this.frequencies[index] = this.frequencies[index] + 1; }
+
 	void add_word(int hash, Word word) throws IndexError {
 		if (this.used == len(this.offsets)) {
 			int capacity = len(this.offsets);
-			if (capacity > 1073741823) { throw new IndexError("word capacity"); }
-			if (capacity == 0) { capacity = 2; }
-			else { capacity = capacity * 2; }
-			if (!this.reserve(capacity)) { throw new IndexError("word allocation"); }
+			if (capacity > 1073741823) {
+				throw new IndexError("word capacity");
+			}
+			if (capacity == 0) {
+				capacity = 2;
+			}
+			else {
+				capacity = capacity * 2;
+			}
+			if (!this.reserve(capacity)) {
+				throw new IndexError("word allocation");
+			}
 		}
 		int index = this.used;
 		int previous = this.head(hash);
@@ -139,45 +175,65 @@ class Document {
 		this.columns[index] = word.column;
 		this.next[index] = previous;
 		var head = new Box<int>(index);
-		if (!this.buckets.put(hash, move head)) { throw new IndexError("word map allocation"); }
+		if (!this.buckets.put(hash, move head)) {
+			throw new IndexError("word map allocation");
+		}
 		this.used = this.used + 1;
 	}
+
 	int word_count() { return this.used; }
+
 	void set_report(owned u8[] report) { this.report = move report; }
+
 	int report_byte(int offset) {
-		if (offset < 0 || offset >= len(this.report)) { return -1; }
+		if (offset < 0 || offset >= len(this.report)) return -1;
 		return this.report[offset] as int;
 	}
 }
+
 Summary document_summary(borrowed Document value) { return value.summary; }
+
 int document_report_byte(borrowed Document value, int offset) { return value.report_byte(offset); }
+
 bool write_byte(int value) { return astra_file_write_byte(1, value) == 0; }
 
 class Store {
 	private owned Cache<int, Document> documents;
 	private int accepted;
 	private int attempted;
+
 	init() {
 		var documents = new Cache<int, Document>(same_number);
 		this.documents = move documents;
 		this.accepted = 0;
 		this.attempted = 0;
 	}
+
 	property int count { get { return this.documents.count; } }
+
 	property int hits { get { return this.documents.hit_count; } }
+
 	property int revision { get { return this.documents.revision; } }
+
 	property int receipts { get { return this.accepted; } }
+
 	property int sink_attempts { get { return this.attempted; } }
+
 	void note_receipt(Receipt value) { this.accepted = value.sequence; this.attempted = value.attempts; }
+
 	bool contains(int key) { return this.documents.contains(key); }
+
 	bool remember(int key, owned Document document) { return this.documents.put(key, move document); }
+
 	Summary summary(int key) {
 		Summary missing = {bytes = -1, scalars = -1, lines = -1, occurrences = -1, distinct = -1};
 		return this.documents.lookup<Summary>(key, document_summary, missing);
 	}
+
 	int report_byte(int key, int offset) {
 		return this.documents.lookup_with<int, int>(key, offset, document_report_byte, -1);
 	}
+
 	owned MapEntry<int, Document> remove(int key) {
 		var entry = this.documents.remove(key);
 		return move entry;

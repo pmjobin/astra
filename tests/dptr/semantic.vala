@@ -155,4 +155,5 @@ int main(string[] args) {
 	Test.add_func ("/dptr/semantic/unsupported-operations", diagnostics);
 	return Test.run ();
 }
+
 }

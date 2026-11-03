@@ -1,71 +1,116 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) void cancellation_prepare();
+
 extern(C) int cancellation_rounds();
+
 extern(C) void cancellation_begin(int mode);
+
 extern(C) int cancellation_entered();
+
 extern(C) int cancellation_queued();
+
 extern(C) int cancellation_queue_cancelled();
+
 extern(C) int cancellation_admission_refused();
+
 extern(C) void cancellation_release_full_queue();
+
 extern(C) void cancellation_release_queue();
+
 extern(C) void cancellation_abort_queue();
+
 extern(C) int cancellation_bridge_finished();
+
 extern(C) void cancellation_bridge_returned();
+
 extern(C) void cancellation_joined();
+
 extern(C) void cancellation_case_finished();
+
 extern(C) int cancellation_finish();
+
 void close_cancellation_anchor(owned ConcurrentAllocator context) {}
+
 async void cancellation_bridge(owned WorkerPool pool, int mode) throws Error {
 	var context = custom_allocator(65543, 17);
-	if (context == null) { throw new Error("cancellation context admission"); }
+	if (context == null) {
+		throw new Error("cancellation context admission");
+	}
 	owned int[] input = new int[37];
-	for (int i = 0; i < 37; i = i + 1) { input[i] = (i * 23 + 41) % 251; }
+	for (int i = 0; i < 37; i = i + 1) input[i] = (i * 23 + 41) % 251;
 	var guard = new (context) CPU.CancellationGuard(move input);
 	var task = task_in(context, CPU.cancellation_work(move guard, mode));
 	// The admitted object and actual frame retain their backing after this
 	// closes the final handle. There is no ambient allocator selection.
 	close_cancellation_anchor(move context);
 	if (mode == 5) {
-		if (request_worker_pool_shutdown(pool) != 1) { throw new Error("closed pool shutdown request"); }
+		if (request_worker_pool_shutdown(pool) != 1) {
+			throw new Error("closed pool shutdown request");
+		}
 	}
-	if (mode == 0) { await pool.cancel_and_join(move task); }
+	if (mode == 0) {
+		await pool.cancel_and_join(move task);
+	}
 	else {
 		try { int result = await pool.submit(move task); }
 		catch (Error error) {
 			if (mode == 5 || mode == 8) {
-				if (error.message != "virtual task admission refused") { throw; }
-				if (mode == 8) { while (true) { await WAIT_ONE; } }
+				if (error.message != "virtual task admission refused") {
+					throw;
+				}
+				if (mode == 8) {
+					while (true) {
+						await WAIT_ONE;
+					}
+				}
 			} else {
-				if (mode != 3 || error.message != "published cancellation-matrix error") { throw; }
+				if (mode != 3 || error.message != "published cancellation-matrix error") {
+					throw;
+				}
 			}
 			cancellation_bridge_returned();
 			return;
 		}
-		if (mode == 3) { throw new Error("lost cancellation-matrix checked error"); }
-		if (mode == 5) { throw new Error("lost closed-pool admission error"); }
-		if (mode == 8) { throw new Error("lost full-pool admission error"); }
+		if (mode == 3) {
+			throw new Error("lost cancellation-matrix checked error");
+		}
+		if (mode == 5) {
+			throw new Error("lost closed-pool admission error");
+		}
+		if (mode == 8) {
+			throw new Error("lost full-pool admission error");
+		}
 	}
 	cancellation_bridge_returned();
 }
+
 async void cancellation_root(owned WorkerPool pool, int mode) throws Error {
 	var bridge = cancellation_bridge(move pool, mode);
 	start(bridge);
 	try {
 		if (mode == 1) {
-			while (cancellation_entered() == 0) { await WAIT_ONE; }
+			while (cancellation_entered() == 0) {
+				await WAIT_ONE;
+			}
 		} else {
 			if (mode == 8) {
-				while (cancellation_admission_refused() == 0) { await WAIT_ONE; }
+				while (cancellation_admission_refused() == 0) {
+					await WAIT_ONE;
+				}
 			} else {
 				if (mode == 4) {
-					while (cancellation_queued() == 0) { await WAIT_ONE; }
+					while (cancellation_queued() == 0) {
+						await WAIT_ONE;
+					}
 				} else {
-					while (cancellation_bridge_finished() == 0) { await WAIT_ONE; }
+					while (cancellation_bridge_finished() == 0) {
+						await WAIT_ONE;
+					}
 				}
 			}
 		}
 	} catch (Error error) {
-		if (mode == 4 || mode == 8) { cancellation_abort_queue(); }
+		if (mode == 4 || mode == 8) cancellation_abort_queue();
 		await cancel_and_join(move bridge);
 		throw;
 	}
@@ -73,10 +118,12 @@ async void cancellation_root(owned WorkerPool pool, int mode) throws Error {
 	// actual native resume. Other modes cancel only after publication.
 	cancel(bridge);
 	cancel(bridge);
-	if (mode == 8) { cancellation_release_full_queue(); }
+	if (mode == 8) cancellation_release_full_queue();
 	if (mode == 4) {
 		try {
-			while (cancellation_queue_cancelled() == 0) { await WAIT_ONE; }
+			while (cancellation_queue_cancelled() == 0) {
+				await WAIT_ONE;
+			}
 			cancellation_release_queue();
 		} catch (Error error) {
 			cancellation_abort_queue();
@@ -87,34 +134,36 @@ async void cancellation_root(owned WorkerPool pool, int mode) throws Error {
 	await cancel_and_join(move bridge);
 	cancellation_joined();
 }
+
 int cancellation_start_failure(int mode) throws Error {
 	var context = custom_allocator(65543, 17);
-	if (context == null) { return 1; }
+	if (context == null) return 1;
 	owned int[] input = new int[37];
-	for (int i = 0; i < 37; i = i + 1) { input[i] = (i * 23 + 41) % 251; }
+	for (int i = 0; i < 37; i = i + 1) input[i] = (i * 23 + 41) % 251;
 	var guard = new (context) CPU.CancellationGuard(move input);
 	var task = task_in(context, CPU.cancellation_work(move guard, mode));
 	// The admitted object and actual frame retain their backing after this
 	// closes the final handle. There is no ambient allocator selection.
 	close_cancellation_anchor(move context);
 	var pool = worker_pool(2);
-	if (pool != null) { return 4; }
+	if (pool != null) return 4;
 	return 0;
 }
+
 export(C) int run_cancellation_matrix() {
 	cancellation_prepare();
 	for (int round = 0; round < cancellation_rounds(); round = round + 1) {
 		for (int mode = 0; mode < 9; mode = mode + 1) {
 			cancellation_begin(mode);
 			if (mode == 6 || mode == 7) {
-				try { if (cancellation_start_failure(mode) != 0) { return 5; } }
+				try { if (cancellation_start_failure(mode) != 0) return 5; }
 				catch (Error error) { return 6; }
 			} else {
 				try {
 					int workers = 2;
-					if (mode == 4 || mode == 8) { workers = 1; }
+					if (mode == 4 || mode == 8) workers = 1;
 					var pool = worker_pool(workers);
-					if (pool == null) { return 1; }
+					if (pool == null) return 1;
 					var executor = CancellationService.open(8);
 					var status = executor.run(cancellation_root(move pool, mode));
 					match (status) { case CancellationStatus.Completed(): {} else: { return 2; } }
@@ -125,4 +174,5 @@ export(C) int run_cancellation_matrix() {
 	}
 	return cancellation_finish();
 }
+
 int main() { return run_cancellation_matrix(); }

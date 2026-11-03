@@ -3,21 +3,28 @@ namespace ScopedFactory;
 [Allocator(kind="context",context="scoped-affine")]
 class UnitLeaf {
 	private int value;
+
 	init(int value){this.value=value;}
 }
+
 struct UnitPacket { owned UnitLeaf child; int tag; }
+
 [Allocator(kind="context",context="scoped-affine")]
 class UnitHost {
 	private UnitPacket packet;
+
 	init(UnitPacket packet){this.packet=move packet;}
+
 	int read(){return this.packet.tag;}
 }
+
 owned UnitHost make(borrowed ScopedAllocator parent,borrowed ScopedAllocator children,int number){
 	var child=new(children)UnitLeaf(number);
 	UnitPacket packet={child=move child,tag=number};
 	var host=new(parent)UnitHost(move packet);
 	return move host;
 }
+
 owned UnitHost try_make(borrowed ScopedAllocator parent,borrowed ScopedAllocator children,int number){
 	var child=new(children)UnitLeaf(number);
 	UnitPacket packet={child=move child,tag=number};

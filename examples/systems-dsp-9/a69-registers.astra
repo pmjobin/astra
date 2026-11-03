@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int mapped_count();
+
 extern(C) int mapping_audit(int expected);
+
 extern(C) void mapping_watch();
+
 int main() {
 	{
 		var words = new u32[4];
 		var wide = new u64[2];
-		if (mapped_count() != 2) { return 69; }
+		if (mapped_count() != 2) return 69;
 		mapping_watch();
 		volatile_store(words[0], 1);
 		volatile_store(words[0], 2);
@@ -17,9 +20,9 @@ int main() {
 		u64 third = volatile_load(wide[0]);
 		volatile_store(wide[1], third + 2);
 		u64 expected = 4294967299;
-		if (first != 2 || second != 7 || volatile_load(wide[1]) != expected) { return 70; }
-		if (mapping_audit(2) != 0) { return 71; }
+		if (first != 2 || second != 7 || volatile_load(wide[1]) != expected) return 70;
+		if (mapping_audit(2) != 0) return 71;
 	}
-	if (mapped_count() != 0) { return 72; }
+	if (mapped_count() != 0) return 72;
 	return 0;
 }

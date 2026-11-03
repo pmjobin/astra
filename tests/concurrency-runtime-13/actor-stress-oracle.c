@@ -11,6 +11,7 @@
 
 enum { MAX_WORKERS = 8,
 	   MAX_TICKETS = 131072 };
+
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static int workers, messages, seed, arrived, received, receiver_drops;
@@ -29,6 +30,7 @@ int32_t actor_stress_prepare(int32_t count, int32_t length, int32_t schedule) {
 		last[i] = -1;
 	return 0;
 }
+
 int32_t actor_stress_arrive(int32_t id) {
 	assert(id >= 0 && id < workers && !pthread_equal(parent, pthread_self()));
 	assert(pthread_mutex_lock(&lock) == 0);
@@ -42,22 +44,26 @@ int32_t actor_stress_arrive(int32_t id) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_stress_pause(int32_t sequence) {
 	struct timespec delay = {.tv_nsec = 1000 * (1 + (sequence + seed) % 31)};
 	assert(nanosleep(&delay, NULL) == 0);
 	return 0;
 }
+
 int32_t actor_stress_ticket(void) {
 	int ticket = atomic_fetch_add(&tickets, 1);
 	assert(ticket >= 0 && ticket < MAX_TICKETS);
 	return ticket;
 }
+
 int32_t actor_stress_drop(int32_t ticket) {
 	assert(ticket >= 0 && ticket < atomic_load(&tickets));
 	assert(atomic_fetch_add(&drops[ticket], 1) == 0);
 	atomic_fetch_add(&dropped, 1);
 	return 0;
 }
+
 int32_t actor_stress_observe(int32_t id, int32_t sequence, int32_t ticket) {
 	assert(atomic_fetch_add(&active, 1) == 0);
 	char name[16];
@@ -82,6 +88,7 @@ int32_t actor_stress_observe(int32_t id, int32_t sequence, int32_t ticket) {
 	assert(atomic_fetch_sub(&active, 1) == 1);
 	return 0;
 }
+
 int32_t actor_stress_wait(void) {
 	assert(pthread_mutex_lock(&lock) == 0);
 	while (received != workers * messages)
@@ -89,15 +96,18 @@ int32_t actor_stress_wait(void) {
 	assert(pthread_mutex_unlock(&lock) == 0);
 	return 0;
 }
+
 int32_t actor_stress_receiver(void) {
 	assert(atomic_load(&active) == 0 && receiver_drops++ == 0);
 	assert(received == workers * messages);
 	return 0;
 }
+
 int32_t actor_stress_producer(void) {
 	atomic_fetch_add(&producer_drops, 1);
 	return 0;
 }
+
 int32_t actor_stress_finish(void) {
 	assert(receiver_drops == 1 && atomic_load(&producer_drops) == workers);
 	assert(atomic_load(&active) == 0 && atomic_load(&dropped) == atomic_load(&tickets));

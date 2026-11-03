@@ -7,11 +7,14 @@ struct AsyncResources {
 class TaskInput<T> {
 	private owned T payload;
 	private int code;
+
 	init(owned T payload, int code) {
 		this.payload = move payload;
 		this.code = code;
 	}
+
 	int value() { return this.code; }
+
 	deinit() { mark(100 + this.code); }
 }
 
@@ -24,11 +27,17 @@ owned TaskInput<AsyncResources> create_input(int first_code) {
 }
 
 async void analyze_input(owned TaskInput<AsyncResources> input, bool fail) throws Error {
-	if (input.value() != 42) { throw new Error("before suspension"); }
+	if (input.value() != 42) {
+		throw new Error("before suspension");
+	}
 	mark(10);
 	await delay_ticks(5);
-	if (input.value() != 42) { throw new Error("after suspension"); }
-	if (fail) { throw new Error("captured task failure"); }
+	if (input.value() != 42) {
+		throw new Error("after suspension");
+	}
+	if (fail) {
+		throw new Error("captured task failure");
+	}
 	mark(20);
 }
 
@@ -36,7 +45,7 @@ int cold_cancel() throws Error {
 	var executor = VirtualExecutor.open(2);
 	var input = create_input(101);
 	var task = analyze_input(move input, false);
-	if (live() != 2) { return 1; }
+	if (live() != 2) return 1;
 	executor.cancel(task);
 	var status = executor.run(move task);
 	match(status) { case RunStatus.Cancelled(): {} else: { return 2; } }
@@ -50,10 +59,14 @@ int suspended_cancel() throws Error {
 	executor.start(task);
 	try {
 		executor.pump(1);
-		if (live() != 2) { throw new Error("cancel capture before deadline"); }
+		if (live() != 2) {
+			throw new Error("cancel capture before deadline");
+		}
 		executor.advance(4);
 		executor.pump(1);
-		if (live() != 2) { throw new Error("cancel capture retained until deadline"); }
+		if (live() != 2) {
+			throw new Error("cancel capture retained until deadline");
+		}
 	} catch (Error error) {
 		executor.cancel(task);
 		var status = executor.run(move task);
@@ -72,7 +85,9 @@ int completed() throws Error {
 	executor.start(task);
 	try {
 		executor.pump(1);
-		if (live() != 2) { throw new Error("completion capture before deadline"); }
+		if (live() != 2) {
+			throw new Error("completion capture before deadline");
+		}
 		executor.advance(5);
 		executor.pump(1);
 	} catch (Error error) {
@@ -92,7 +107,9 @@ int failed() throws Error {
 	executor.start(task);
 	try {
 		executor.pump(1);
-		if (live() != 2) { throw new Error("exception capture before deadline"); }
+		if (live() != 2) {
+			throw new Error("exception capture before deadline");
+		}
 		executor.advance(5);
 		executor.pump(1);
 	} catch (Error error) {
@@ -104,14 +121,14 @@ int failed() throws Error {
 		var status = executor.run(move task);
 		return 9;
 	} catch (Error error) {
-		if (error.message != "captured task failure") { return 10; }
+		if (error.message != "captured task failure") return 10;
 	}
 	return live();
 }
 
 int main() {
 	try {
-		if (cold_cancel() != 0 || suspended_cancel() != 0 || completed() != 0 || failed() != 0) { return 11; }
+		if (cold_cancel() != 0 || suspended_cancel() != 0 || completed() != 0 || failed() != 0) return 11;
 	} catch (Error error) { return 12; }
 	return live();
 }

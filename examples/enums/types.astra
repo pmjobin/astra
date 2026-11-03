@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Header { int version; int size; }
+
 enum DecodeError { BadMagic, UnsupportedVersion(int actual), TooShort(int actual), }
+
 enum LoadError { Decode(DecodeError error), Missing, }
+
 enum HeaderResult { Ready(Header header), Failed(LoadError error), }

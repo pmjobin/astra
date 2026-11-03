@@ -1,34 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 bool same_callback_key(int first, int second) { return first == second; }
+
 NativeQueries.QueryResult<int> client_observation(borrowed NativeQueries.Payload<int> value) {
 	return value.snapshot;
 }
+
 NativeQueries.QueryResult<int> client_mutation(borrowed NativeQueries.Payload<int> value) {
 	value.value = 99;
 	return value.snapshot;
 }
+
 int exercise_callback_contract() {
 	var values = new NativeQueries.Map<int, NativeQueries.Payload<int>>(same_callback_key);
 	var retained = make(241);
 	var value = new NativeQueries.Payload<int>(move retained, 40, 7);
-	if (!values.put(1, move value)) { return 1; }
+	if (!values.put(1, move value)) return 1;
 	var first = CallbackMiddle.lookup(values, 1, client_observation);
 	var missing = CallbackMiddle.lookup(values, 2, client_observation);
-	if (first.value != 40 || first.generation != 7 || missing.value != -1) { return 2; }
+	if (first.value != 40 || first.generation != 7 || missing.value != -1) return 2;
 	var retained_other = make(242);
 	var independent = new NativeQueries.Payload<int>(move retained_other, 3, 8);
 	with (independent) {
 		var observed = NativeQueries.apply_ordinary(independent, client_observation);
-		if (observed.value != 3 || observed.generation != 8) { return 5; }
+		if (observed.value != 3 || observed.generation != 8) return 5;
 	}
 	var changed = NativeQueries.apply_ordinary(independent, client_mutation);
-	if (changed.value != 99 || changed.generation != 8) { return 3; }
+	if (changed.value != 99 || changed.generation != 8) return 3;
 	var again = CallbackMiddle.lookup(values, 1, client_observation);
-	if (again.value != 40 || first.value != 40 || values.count != 1) { return 4; }
+	if (again.value != 40 || first.value != 40 || values.count != 1) return 4;
 	return 0;
 }
+
 int main() {
 	int result = exercise_callback_contract();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

@@ -15,6 +15,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 
 private HashTable<string, Case> cases;
@@ -70,4 +71,5 @@ private SsaProgram build(string text, string[] declarations, bool vapi = true) t
 	assert (CfgFlowChecker.check (cfg).diagnostic == null);
 	return SsaBuilder.build (cfg);
 }
+
 }

@@ -2,8 +2,14 @@
 int main(string[] args) {
 	if (len(args) > 1) {
 		int count = 67108864;
-		if (args[1] == "default") { var ordinary = new Record[count]; return 91; }
-		if (args[1] == "returning") { var reported = reporting_array<Record>(count); return 92; }
+		if (args[1] == "default") {
+			var ordinary = new Record[count];
+			return 91;
+		}
+		if (args[1] == "returning") {
+			var reported = reporting_array<Record>(count);
+			return 92;
+		}
 		var fatal = make_array<Record>(count, 41);
 		return 93;
 	}
@@ -11,10 +17,10 @@ int main(string[] args) {
 	var first = make_array<Record>(2, 41);
 	var second = make_array<Record>(2, 42);
 	var empty = reporting_array<Record>(0);
-	if (ordinary[0].index != 0 || first[1].weight != 0.0d || len(empty) != 0) { return 1; }
+	if (ordinary[0].index != 0 || first[1].weight != 0.0d || len(empty) != 0) return 1;
 	first[0].index = 17;
 	var saved = first[0];
 	first[0].index = 31;
-	if (saved.index != 17 || second[0].index != 0) { return 2; }
+	if (saved.index != 17 || second[0].index != 0) return 2;
 	return 0;
 }

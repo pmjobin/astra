@@ -31,6 +31,7 @@ private void combined() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void keys() {
 	try {
 		var types = new BuiltinTypes ();
@@ -62,6 +63,7 @@ private void keys() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void cycles() {
 	for (int scenario = 0; scenario < 4; scenario++) {
 		var types = new BuiltinTypes ();
@@ -105,6 +107,7 @@ private void cycles() {
 		}
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-struct/materializer/combined-functions-structs-lifetimes-fixed-point", combined);
@@ -112,4 +115,5 @@ int main(string[] args) {
 	Test.add_func ("/gen-struct/materializer/direct-mutual-permuted-collapse-cycle-states", cycles);
 	return Test.run ();
 }
+
 }

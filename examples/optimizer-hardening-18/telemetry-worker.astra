@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 extern(C) int telemetry18_workers();
+
 extern(C) int telemetry18_granularity();
+
 extern(C) void telemetry18_job_enter(int lane);
+
 extern(C) void telemetry18_job_leave(int lane);
 
 [Allocator(kind="context",context="owned-concurrent")]
@@ -10,11 +13,13 @@ class TelemetryJob18 {
 	int lanes;
 	int granularity;
 	owned Vector<WindowSummary18> reports;
+
 	init(int lane, int lanes, int granularity) {
 		this.lane = lane; this.lanes = lanes; this.granularity = granularity;
 		var reports = new Vector<WindowSummary18>(16);
 		this.reports = move reports;
 	}
+
 	int run() {
 		telemetry18_job_enter(this.lane);
 		int samples = telemetry18_samples();
@@ -22,13 +27,16 @@ class TelemetryJob18 {
 		int windows = (samples + window - 1) / window + 1;
 		for (int first = this.lane * this.granularity; first < windows; first = first + this.lanes * this.granularity) {
 			int end = first + this.granularity;
-			if (end > windows) { end = windows; }
+			if (end > windows) end = windows;
 			for (int sequence = first; sequence < end; sequence = sequence + 1) {
 				int start = sequence * window;
 				int count = samples - start;
-				if (count < 0) { count = 0; }
-				if (count > window) { count = window; }
-				if (!telemetry18_frame(this.reports, start, count, sequence)) { telemetry18_job_leave(this.lane); return 1; }
+				if (count < 0) count = 0;
+				if (count > window) count = window;
+				if (!telemetry18_frame(this.reports, start, count, sequence)) {
+					telemetry18_job_leave(this.lane);
+					return 1;
+				}
 			}
 		}
 		int result = telemetry18_drain(this.reports);
@@ -36,15 +44,19 @@ class TelemetryJob18 {
 		return result;
 	}
 }
+
 owned TelemetryJob18 telemetry18_job(borrowed ConcurrentAllocator context, int lane, int lanes, int granularity) {
 	var job = new(context)TelemetryJob18(lane, lanes, granularity);
 	return move job;
 }
+
 async int telemetry18_calculate(owned TelemetryJob18 job) { return job.run(); }
 
 async void telemetry18_execute(owned ConcurrentAllocator context, owned ConcurrentAllocator frames, int granularity) throws Error {
 	int idle = telemetry18_idle_ticks();
-	if (idle > 0) { await delay_ticks(idle); }
+	if (idle > 0) {
+		await delay_ticks(idle);
+	}
 	var first = task_in(frames, telemetry18_calculate(telemetry18_job(context, 0, 4, granularity)));
 	var second = task_in(frames, telemetry18_calculate(telemetry18_job(context, 1, 4, granularity)));
 	var third = task_in(frames, telemetry18_calculate(telemetry18_job(context, 2, 4, granularity)));
@@ -62,5 +74,7 @@ async void telemetry18_execute(owned ConcurrentAllocator context, owned Concurre
 	try { result = result + await move third; }
 	catch (Error error) { await cancel_and_join(move fourth); throw; }
 	result = result + await move fourth;
-	if (result != 0 || !telemetry18_context_retired(context, 1) || !telemetry18_context_retired(frames, 2)) { throw new Error("telemetry job/frame retirement"); }
+	if (result != 0 || !telemetry18_context_retired(context, 1) || !telemetry18_context_retired(frames, 2)) {
+		throw new Error("telemetry job/frame retirement");
+	}
 }

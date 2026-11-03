@@ -10,15 +10,18 @@ private class Witness : Object {
 	public Witness (Object object) {
 		reference = WeakRef (object);
 	}
+
 	public new Object? get() {
 		return reference.get ();
 	}
+
 }
 private string[] fixtures() {
 	return {
 			   "simple", "recursion", "structs", "objects", "generics", "ownership", "cad", "foreign", "partition"
 	};
 }
+
 private CheckedProgram fixture(string name, out GenericArray<Witness> source_refs) throws GLib.Error {
 	var files = new GenericArray<SourceFile> ();
 	var directory = Dir.open ("tests/sources/fixtures/" + name);
@@ -70,4 +73,5 @@ private CheckedProgram fixture(string name, out GenericArray<Witness> source_ref
 	}
 	return result.program;
 }
+
 }

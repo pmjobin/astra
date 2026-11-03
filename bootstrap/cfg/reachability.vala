@@ -15,6 +15,7 @@ public class CfgReachabilityResult : Object {
 	public bool is_reachable(CfgBlock block) {
 		return reachable.contains (block);
 	}
+
 }
 
 public class CfgReachability : Object {
@@ -33,5 +34,6 @@ public class CfgReachability : Object {
 		}
 		return result;
 	}
+
 }
 }

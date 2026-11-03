@@ -47,6 +47,7 @@ private void lifetime() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	CAbiVerifier.verify (cabi);
 }
+
 private void abi() throws GLib.Error {
 	var core = concrete (read ("relay"));
 	var ssa = SsaBuilder.build (CfgBuilder.build (core));
@@ -68,6 +69,7 @@ private void abi() throws GLib.Error {
 	}
 	assert (relays == 2 && nabi.abi_version == NativeAbiVersion.SCALAR_PTR_V1);
 }
+
 private void integrations() throws GLib.Error {
 	foreach (string name in new string[] {"drop-resource", "drop-object", "conditional", "null", "class-nodeinit", "multi", "property", "struct", "loop", "order", "left-to-right", "short-circuit", "trap"}) {
 		SsaVerifier.verify (build (read (name)));
@@ -100,6 +102,7 @@ private void integrations() throws GLib.Error {
 	}
 	assert (observed == 1);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -110,4 +113,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

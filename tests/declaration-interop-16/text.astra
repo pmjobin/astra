@@ -1,37 +1,49 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 [CImport(name="text16_retired")] int retired(int value);
+
 [CExport(name="text16", profile="declarations-v1")]
 class TextService {
 	private int tag;
 	private int calls;
 	private readonly string initial;
+
 	[Foreign]
 	init(int tag, string initial) { this.tag = tag; this.initial = initial; this.calls = 0; }
+
 	[Foreign]
 	[ForeignChannel(parameter="first", nullable="true")]
 	[ForeignChannel(parameter="second", nullable="true")]
 	int measure(string first, string second) {
 		this.calls = this.calls + 1; return first.byte_length + second.byte_length + this.tag;
 	}
+
 	[Foreign]
 	property string label { get { return this.initial; } }
+
 	[Foreign]
 	string constant() { return "hé\0llo"; }
+
 	[Foreign]
 	string empty() { return ""; }
+
 	[Foreign]
 	[ForeignChannel(parameter="input", encoding="utf8-nul", nullable="true")]
 	int terminated_length(string input, int extra) { return input.byte_length + extra; }
+
 	[Foreign]
 	[ForeignChannel(parameter="result", encoding="utf8-nul")]
 	string terminated() { return "café"; }
+
 	[Foreign]
 	[ForeignChannel(parameter="result", encoding="utf8-nul")]
 	string forbidden_nul() { return "a\0b"; }
+
 	[Foreign]
 	[ForeignChannel(parameter="result", encoding="utf8-nul")]
 	string terminated_empty() { return ""; }
+
 	[Foreign]
 	property int processed { get { return this.calls; } }
+
 	deinit() { retired(this.tag); }
 }

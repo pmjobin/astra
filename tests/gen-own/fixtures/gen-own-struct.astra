@@ -1,20 +1,29 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int code;
+
 	init(int code) { this.code = code; }
+
 	deinit() { life_record(this.code, 0); }
 }
+
 void dispose<T>(owned T value) where T : Ownable {}
+
 owned T relay<T>(owned T value) where T : Ownable { return move value; }
+
 owned T forward<T>(owned T value) where T : Ownable { return relay<T>(move value); }
+
 struct Box<U> { U value; }
+
 U boxed<T,U>(owned T owner, U value) where T : Ownable {
 	Box<U> local = {value = value};
 	Box<int> concrete = {value = 42};
-	if (concrete.value == 42) { return local.value; } return value;
+	if (concrete.value == 42) return local.value; return value;
 }
+
 int main() {
 	owned Counter a = Counter.init(65); int result = boxed<Counter,int>(move a, 42);
 	owned Resource b = create_resource(66); f64 second = boxed<Resource,f64>(move b, 1.25);
-	if (second != 1.25) { return 1; } return result;
+	if (second != 1.25) return 1; return result;
 }

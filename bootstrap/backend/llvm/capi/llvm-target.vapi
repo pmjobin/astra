@@ -99,9 +99,11 @@ public static ModuleRef clone_module(ModuleRef module);
 [SimpleType]
 [CCode (cname = "LLVMPassBuilderOptionsRef", has_type_id = false, cheader_filename = "llvm-c/Transforms/PassBuilder.h")]
 public struct PassBuilderOptionsRef {}
+
 [SimpleType]
 [CCode (cname = "LLVMErrorRef", has_type_id = false, cheader_filename = "llvm-c/Error.h")]
 public struct ErrorRef {}
+
 [CCode (cname = "LLVMCreatePassBuilderOptions", cheader_filename = "llvm-c/Transforms/PassBuilder.h")]
 public static PassBuilderOptionsRef create_pass_builder_options();
 [CCode (cname = "LLVMPassBuilderOptionsSetVerifyEach", cheader_filename = "llvm-c/Transforms/PassBuilder.h")]

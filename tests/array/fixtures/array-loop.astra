@@ -11,18 +11,26 @@ int traverse(int limit) {
 	}
 	return sum;
 }
+
 int branch(bool c, int i) {
 	int[4] a = {1, 2, 3, 4};
 	int x = 0;
-	if (c) { a[i] = 42; x = a[i]; } else { x = a[i] + 1; }
+	if (c) {
+		a[i] = 42;
+		x = a[i];
+	} else {
+		x = a[i] + 1;
+	}
 	return x;
 }
+
 bool guarded(int i) {
 	int[4] a = {1, 2, 3, 4};
 	return i >= 0 && i < 4 && a[i] > 0;
 }
+
 int main() {
-	if (traverse(4) != 20 || branch(true, 2) != 42 || branch(false, 2) != 4) { return 1; }
-	if (guarded(-1) || guarded(4) || !guarded(3)) { return 2; }
+	if (traverse(4) != 20 || branch(true, 2) != 42 || branch(false, 2) != 4) return 1;
+	if (guarded(-1) || guarded(4) || !guarded(3)) return 2;
 	return 0;
 }

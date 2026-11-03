@@ -28,6 +28,7 @@ private void composition() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void independent_errors() {
 	try {
 		var files = new GenericArray<SourceFile> ();
@@ -40,6 +41,7 @@ private void independent_errors() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void paths() {
 	assert (SourceFile.normalize_path ("./sub//./file.astra") == "sub/file.astra");
 	assert (SourceFile.normalize_path ("sub/../file.astra") == "sub/../file.astra");
@@ -51,6 +53,7 @@ private void paths() {
 	}
 	GLib.error ("accepted duplicate source input");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/sources/parser/independent-units-and-byte-spans", composition);
@@ -58,4 +61,5 @@ int main(string[] args) {
 	Test.add_func ("/sources/parser/normalized-duplicate-input", paths);
 	return Test.run ();
 }
+
 }

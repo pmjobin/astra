@@ -4,13 +4,20 @@ namespace Range;
 [ExceptionRoot]
 class Fault {
 	readonly string text;
+
 	init(string message) { this.text = message; }
+
 	virtual property string message { get { return this.text; } }
 }
+
 struct Span { int offset; int count; }
+
 struct Bounds { int minimum; int maximum; }
+
 struct Moments { int sum; int energy; int correlation; }
+
 struct Statistics { Span span; Bounds bounds; Moments moments; }
+
 struct Reply<T> { int identity; int cached; T value; }
 
 void validate(Span span, int extent) throws Fault {
@@ -23,15 +30,25 @@ void validate(Span span, int extent) throws Fault {
 [Allocator(kind="context",context="owned-concurrent")]
 class Entry {
 	private Statistics value;
+
 	init(Statistics value) { this.value = value; range_event(6, value.span.offset, value.span.count); }
+
 	int offset() { return this.value.span.offset; }
+
 	int count() { return this.value.span.count; }
+
 	int minimum() { return this.value.bounds.minimum; }
+
 	int maximum() { return this.value.bounds.maximum; }
+
 	int sum() { return this.value.moments.sum; }
+
 	int energy() { return this.value.moments.energy; }
+
 	int correlation() { return this.value.moments.correlation; }
+
 	bool matches(int offset, int count) { return this.value.span.offset == offset && this.value.span.count == count; }
+
 	deinit() { range_event(7, this.value.span.offset, this.value.span.count); }
 }
 
@@ -40,16 +57,23 @@ class Entry {
 class Block {
 	private Span span;
 	private owned ContextBytes<ConcurrentAllocator> bytes;
+
 	init(Span span, owned ContextBytes<ConcurrentAllocator> bytes) { this.span = span; this.bytes = move bytes; }
+
 	void set_byte(int index, int value) { this.bytes[index] = value as u8; }
+
 	owned Entry analyze(borrowed ConcurrentAllocator results, int identity, int mode) throws Fault {
-		if (mode == 1) { throw new Fault("requested query analysis refusal"); }
-		if (len(this.bytes) != this.span.count || this.span.count <= 0) { throw new Fault("query block extent"); }
+		if (mode == 1) {
+			throw new Fault("requested query analysis refusal");
+		}
+		if (len(this.bytes) != this.span.count || this.span.count <= 0) {
+			throw new Fault("query block extent");
+		}
 		range_event(2, identity, this.span.count);
 		int low = 255; int high = 0; int sum = 0; int energy = 0; int correlation = 0;
 		for (int i = 0; i < len(this.bytes); i = i + 1) {
 			int value = this.bytes[i] as int;
-			if (value < low) { low = value; } if (value > high) { high = value; }
+			if (value < low) low = value; if (value > high) high = value;
 			sum = sum + value; energy = energy + value * value;
 		}
 		for (int lag = 1; lag < len(this.bytes) && lag <= 511; lag = lag + 1) {
@@ -73,19 +97,30 @@ class Ticket {
 	private owned Block block;
 	private owned Entry result;
 	private int status;
+
 	init(int identity, int mode, Span span, owned Block block) {
 		this.identity = identity; this.mode = mode; this.span = span; this.block = move block; this.result = empty_entry(); this.status = 0;
 		range_event(0, identity, span.count);
 	}
+
 	int id() { return this.identity; }
+
 	int operation() { return this.mode; }
+
 	int offset() { return this.span.offset; }
+
 	int count() { return this.span.count; }
+
 	owned Block payload() { var result = shared_clone(this.block); return move result; }
+
 	int state() { return this.status; }
+
 	void finish(owned Entry result) { this.result = move result; this.status = 1; }
+
 	void refuse() { this.status = 2; }
+
 	owned Entry outcome() { var result = shared_clone(this.result); return move result; }
+
 	deinit() { range_event(1, this.identity, this.status); }
 }
 
@@ -95,14 +130,19 @@ class Queue {
 	private owned Ticket[slots] entries;
 	private int capacity;
 	private bool admitted;
+
 	init(int capacity) { this.entries = new Ticket[slots]; this.capacity = capacity; this.admitted = this.entries.reserve(capacity); }
+
 	bool ready() { return this.admitted; }
+
 	bool available() { return len(this.entries) < this.capacity; }
+
 	bool offer(owned Ticket ticket) {
-		if (len(this.entries) >= this.capacity) { return false; }
+		if (len(this.entries) >= this.capacity) return false;
 		this.entries.append(move ticket); range_event(8, len(this.entries), this.capacity); return true;
 	}
-	owned Ticket pop() { if (len(this.entries) == 0) { return null; } var result = this.entries.take(0); return move result; }
+
+	owned Ticket pop() { if (len(this.entries) == 0) return null; var result = this.entries.take(0); return move result; }
 }
 
 [Shared,Monitor]
@@ -115,30 +155,46 @@ class Cache {
 	private int clients;
 	private bool failed;
 	private bool admitted;
+
 	init(int capacity) {
 		this.entries = new Entry[slots]; this.capacity = capacity; this.admitted = this.entries.reserve(capacity);
 		this.hits = 0; this.misses = 0; this.clients = 0; this.failed = false;
 	}
+
 	bool ready() { return this.admitted; }
-	owned Entry take() { if (len(this.entries) == 0) { return null; } var result = this.entries.take(0); return move result; }
+
+	owned Entry take() { if (len(this.entries) == 0) return null; var result = this.entries.take(0); return move result; }
+
 	void record_hit() { this.hits = this.hits + 1; }
+
 	void record_miss() { this.misses = this.misses + 1; }
 
 	void store(owned Entry entry) {
-		if (len(this.entries) == this.capacity) { var retired = this.entries.take(0); }
+		if (len(this.entries) == this.capacity) {
+			var retired = this.entries.take(0);
+		}
 		this.entries.append(move entry);
 	}
+
 	int hit_count() { return this.hits; }
+
 	int miss_count() { return this.misses; }
+
 	int count() { return len(this.entries); }
+
 	void client_done() { this.clients = this.clients + 1; }
+
 	int completed_clients() { return this.clients; }
+
 	void fail() { this.failed = true; }
+
 	bool stopped() { return this.failed; }
 }
 
 owned Ticket clone_ticket(borrowed Ticket source) { var result = shared_clone(source); return move result; }
+
 owned Queue clone_queue(borrowed Queue source) { var result = shared_clone(source); return move result; }
+
 owned Cache clone_cache(borrowed Cache source) { var result = shared_clone(source); return move result; }
 
 // Inspect an owned candidate outside either object's monitor. A concurrent
@@ -148,12 +204,18 @@ owned Entry lookup(borrowed Cache cache, Span span) {
 	for (int i = 0; i < candidates; i = i + 1) {
 		var candidate = cache.take();
 		if (candidate != null) {
-			if (candidate.matches(span.offset, span.count)) { var result = shared_clone(candidate); cache.store(move candidate); cache.record_hit(); return move result; }
+			if (candidate.matches(span.offset, span.count)) {
+				var result = shared_clone(candidate);
+				cache.store(move candidate);
+				cache.record_hit();
+				return move result;
+			}
 			cache.store(move candidate);
 		}
 	}
 	cache.record_miss(); return null;
 }
+
 Reply<Statistics> answer(borrowed Ticket ticket, int cached) {
 	var entry = ticket.outcome();
 	Reply<Statistics> reply = {identity = ticket.id(), cached = cached, value = snapshot(entry)}; return reply;

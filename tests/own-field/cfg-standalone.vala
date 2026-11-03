@@ -72,6 +72,7 @@ private CfgProgram sample(int variant = 0) throws CfgError {
 	program.classes.add (c);
 	return program;
 }
+
 private void valid() {
 	try {
 		CfgProgram? program = sample ();
@@ -85,6 +86,7 @@ private void valid() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void invalid() {
 	for (int variant = 1; variant <= 5; variant++) {
 		try {
@@ -96,10 +98,12 @@ private void invalid() {
 		GLib.error ("accepted malformed Resource CFG %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/own-field/cfg/concrete-capture-cleanup-store-and-destruction", valid);
 	Test.add_func ("/own-field/cfg/reject-reordered-duplicated-and-missing-actions", invalid);
 	return Test.run ();
 }
+
 }

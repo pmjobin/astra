@@ -18,29 +18,35 @@ static pthread_cond_t changed = PTHREAD_COND_INITIALIZER;
 static int entered, proceed, received;
 static _Atomic int executing, receiver_drops, message_drops[5];
 static void *sender;
+
 struct receiver {
 	int last[8];
 };
+
 struct message {
 	int id;
 };
+
 static void drop_receiver(void *opaque) {
 	assert(atomic_load(&executing) == 0);
 	atomic_fetch_add(&receiver_drops, 1);
 	free(opaque);
 }
+
 static void drop_message(void *opaque) {
 	struct message *message = opaque;
 	assert(message && message->id >= 0 && message->id < 5);
 	assert(atomic_fetch_add(&message_drops[message->id], 1) == 0);
 	free(message);
 }
+
 static void *message(int id) {
 	struct message *result = malloc(sizeof(*result));
 	assert(result);
 	result->id = id;
 	return result;
 }
+
 static void blocked_handler(void *receiver, void *opaque, uint64_t scalar) {
 	(void)receiver;
 	(void)scalar;
@@ -60,6 +66,7 @@ static void blocked_handler(void *receiver, void *opaque, uint64_t scalar) {
 	drop_message(opaque);
 	assert(atomic_fetch_sub(&executing, 1) == 1);
 }
+
 static void scalar_handler(void *opaque, void *message, uint64_t scalar) {
 	assert(!message && atomic_fetch_add(&executing, 1) == 0);
 	char name[16];
@@ -74,10 +81,12 @@ static void scalar_handler(void *opaque, void *message, uint64_t scalar) {
 	assert(pthread_mutex_unlock(&gate) == 0);
 	assert(atomic_fetch_sub(&executing, 1) == 1);
 }
+
 struct producer {
 	void *sender;
 	int id;
 };
+
 static void *produce(void *opaque) {
 	struct producer *producer = opaque;
 	for (int i = 0; i < 100; ++i) {
@@ -94,6 +103,7 @@ static void *produce(void *opaque) {
 	astra_actor_release(producer->sender);
 	return NULL;
 }
+
 int main(void) {
 	alarm(20);
 	sender = astra_actor_open(blocked_handler, calloc(1, sizeof(struct receiver)), drop_receiver, drop_message, 2, "actor-test", 10);

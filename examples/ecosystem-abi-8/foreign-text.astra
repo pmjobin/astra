@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 owned Utf8Message copy_foreign(borrowed ForeignUtf8 text) throws Error {
 	int length = foreign_text_length(text);
-	if (length < 0) { throw new Error("invalid foreign snapshot"); }
+	if (length < 0) {
+		throw new Error("invalid foreign snapshot");
+	}
 	var bytes = new u8[length];
 	int at = 0;
-	while (at < length) { bytes[at] = foreign_text_byte(text, at) as u8; at = at + 1; }
+	while (at < length) {
+		bytes[at] = foreign_text_byte(text, at) as u8;
+		at = at + 1;
+	}
 	var result = utf8_message(bytes);
 	return move result;
 }
+
 void drop_counter(owned Counter object) {}

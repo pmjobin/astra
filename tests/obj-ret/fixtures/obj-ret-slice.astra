@@ -1,11 +1,19 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; life_record(67, 0); }
-	deinit() { if (this.value != 42) { life_record(88, 0); } life_record(68, 0); }
+
+	deinit() { if (this.value != 42) life_record(88, 0); life_record(68, 0); }
+
 	void add(int n) { this.value = this.value + n; }
+
 	owned Counter copy() { return Counter.init(this.value); }
 }
+
 owned Counter make(borrowed int[] values) { return Counter.init(values[0] + values[1]); }
+
 owned Counter outer(borrowed int[] values) { return make(values); }
+
 int main() { int[2] values = { 20, 22 }; owned Counter c = outer(slice(values)); return c.value; }

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+
 struct _Provider16Ledger {
 	GObject parent_instance;
 	gint seed;
@@ -13,19 +14,24 @@ struct _Provider16Ledger {
 };
 G_DEFINE_FINAL_TYPE(Provider16Ledger, provider16_ledger, G_TYPE_OBJECT)
 static guint destroyed, errors, item_destroyed, record_retired, callback_environments;
+
 int32_t gi16_callback_environment_retired(void) {
 	return (int32_t)++callback_environments;
 }
+
 static void provider16_ledger_finalize(GObject *object) {
 	++destroyed;
 	G_OBJECT_CLASS(provider16_ledger_parent_class)->finalize(object);
 }
+
 static void provider16_ledger_class_init(Provider16LedgerClass *klass) {
 	G_OBJECT_CLASS(klass)->finalize = provider16_ledger_finalize;
 }
+
 static void provider16_ledger_init(Provider16Ledger *self) {
 	(void)self;
 }
+
 Provider16Ledger *provider16_ledger_new(gint seed, gboolean active, gdouble gain, GError **error) {
 	if (seed == -2) return NULL;
 	if (seed == -4) return (Provider16Ledger *)g_object_new(G_TYPE_OBJECT, NULL);
@@ -39,27 +45,32 @@ Provider16Ledger *provider16_ledger_new(gint seed, gboolean active, gdouble gain
 	value->gain = gain;
 	return value;
 }
+
 gboolean provider16_ledger_try_fold(Provider16Ledger *self, gint64 input, guint mask, gfloat weight, guint64 stamp, gint64 *result, GError **error) {
 	(void)error;
 	*result = input + mask + (gint64)weight + (gint64)stamp + self->seed;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_get_gain(Provider16Ledger *self, gdouble *result, GError **error) {
 	(void)error;
 	*result = self->gain;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_set_gain(Provider16Ledger *self, gdouble value, GError **error) {
 	(void)error;
 	self->gain = value;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_choose(Provider16Ledger *self, gboolean input, gboolean *result, GError **error) {
 	(void)error;
 	assert(input == TRUE || input == FALSE);
 	*result = self->active && input ? 7 : FALSE;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_evaluate(Provider16Ledger *self, gdouble input, gdouble *result, GError **error) {
 	*result = 999;
 	if (input < 0) {
@@ -69,6 +80,7 @@ gboolean provider16_ledger_try_evaluate(Provider16Ledger *self, gdouble input, g
 	*result = input * self->gain;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_refs(Provider16Ledger *self, gint64 input, gdouble *scale, guint *count, gboolean fail, gint64 *result, GError **error) {
 	(void)self;
 	*result = input + 5;
@@ -80,11 +92,14 @@ gboolean provider16_ledger_try_refs(Provider16Ledger *self, gint64 input, gdoubl
 	}
 	return TRUE;
 }
+
 static guint deliveries;
+
 void gi16_receive_double(double input) {
 	assert(input == 1.25);
 	++deliveries;
 }
+
 gboolean provider16_ledger_try_visit(Provider16Ledger *self, gboolean input, Provider16FlagCallback callback, gpointer data, gboolean *result, GError **error) {
 	(void)self;
 	(void)error;
@@ -93,27 +108,33 @@ gboolean provider16_ledger_try_visit(Provider16Ledger *self, gboolean input, Pro
 	*result = value ? 7 : FALSE;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_optional_visit(Provider16Ledger *self, gboolean input, Provider16FlagCallback callback, gpointer data, gboolean *result, GError **error) {
 	if (callback) return provider16_ledger_try_visit(self, input, callback, data, result, error);
 	*result = input;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_deliver(Provider16Ledger *self, gdouble input, Provider16SinkCallback callback, gpointer data, GError **error) {
 	(void)self;
 	(void)error;
 	callback(data, input);
 	return TRUE;
 }
+
 static guint byte_retirements;
+
 static void retired_bytes(gpointer value) {
 	++byte_retirements;
 	g_free(value);
 }
+
 static GBytes *owned_bytes(const guint8 *data, gsize count) {
 	guint8 *copy = g_malloc(count ? count : 1);
 	if (count) memcpy(copy, data, count);
 	return g_bytes_new_with_free_func(copy, count, retired_bytes, copy);
 }
+
 gboolean provider16_ledger_try_digest(Provider16Ledger *self, GBytes *input, gint *result, GError **error) {
 	(void)self;
 	(void)error;
@@ -124,6 +145,7 @@ gboolean provider16_ledger_try_digest(Provider16Ledger *self, GBytes *input, gin
 		*result += data[i];
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_snapshot(Provider16Ledger *self, GBytes *input, gint mode, GBytes **result, GError **error) {
 	(void)self;
 	gsize count = 0;
@@ -142,6 +164,7 @@ gboolean provider16_ledger_try_snapshot(Provider16Ledger *self, GBytes *input, g
 	}
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_text(Provider16Ledger *self, gint mode, GBytes **result, GError **error) {
 	(void)self;
 	(void)error;
@@ -149,6 +172,7 @@ gboolean provider16_ledger_try_text(Provider16Ledger *self, gint mode, GBytes **
 	*result = owned_bytes(mode ? bad : good, mode ? 1 : 4);
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_measure(Provider16Ledger *self, gchar *terminated, GBytes *counted, gint *result, GError **error) {
 	(void)self;
 	(void)error;
@@ -156,6 +180,7 @@ gboolean provider16_ledger_try_measure(Provider16Ledger *self, gchar *terminated
 	*result = (gint)strlen(terminated) + (gint)g_bytes_get_size(counted);
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_transform(Provider16Ledger *self, GBytes *input, guint8 **output, gint *capacity, gint mode, gint *result, GError **error) {
 	(void)self;
 	gsize count = 0;
@@ -182,6 +207,7 @@ gboolean provider16_ledger_try_transform(Provider16Ledger *self, GBytes *input, 
 	*result = (gint)count;
 	return TRUE;
 }
+
 int32_t gi16_exception_retired(void) {
 	return (int32_t)++errors;
 }
@@ -198,6 +224,7 @@ extern int32_t gi16_consumer_create(NativeConsumer **, ForeignError *);
 extern int32_t gi16_consumer_inspect(NativeConsumer *, ImportedHandle *, int64_t *, ForeignError *);
 extern int32_t gi16_consumer_destroy(NativeConsumer **, ForeignError *);
 static ImportedHandle *active_owner;
+
 int32_t gi16_release_current(void) {
 	assert(active_owner);
 	go16_import_release(active_owner);
@@ -205,6 +232,7 @@ int32_t gi16_release_current(void) {
 	assert(destroyed == 3);
 	return 0;
 }
+
 static gpointer wrong_context(gpointer data) {
 	NativeConsumer *consumer = NULL;
 	ForeignError error = {0, 0};
@@ -214,7 +242,9 @@ static gpointer wrong_context(gpointer data) {
 	assert(!gi16_consumer_destroy(&consumer, &error));
 	return NULL;
 }
+
 extern int32_t gi16_run(void);
+
 static void foreign_object_exports(void) {
 	GError *error = NULL;
 	Bridge16Facade *facade = bridge16_facade_new(7, &error);
@@ -250,6 +280,7 @@ static void foreign_object_exports(void) {
 	assert(item_destroyed == before + 5);
 	g_object_unref(facade);
 }
+
 int main(void) {
 	assert(gi16_run() == 0);
 	assert(destroyed == 3 && errors == 19 && record_retired == 3 && callback_environments == 1 && deliveries == 1 && byte_retirements == 4 && item_destroyed == 5);
@@ -279,6 +310,7 @@ gboolean provider16_ledger_try_terminated(Provider16Ledger *self, gchar **result
 	*result = g_strdup("café");
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_terminated_empty(Provider16Ledger *self, gchar **result, GError **error) {
 	(void)self;
 	(void)error;
@@ -295,27 +327,33 @@ struct _Provider16Item {
 	gint code;
 };
 G_DEFINE_FINAL_TYPE(Provider16Item, provider16_item, G_TYPE_OBJECT)
+
 static void provider16_item_finalize(GObject *object) {
 	++item_destroyed;
 	G_OBJECT_CLASS(provider16_item_parent_class)->finalize(object);
 }
+
 static void provider16_item_class_init(Provider16ItemClass *klass) {
 	G_OBJECT_CLASS(klass)->finalize = provider16_item_finalize;
 }
+
 static void provider16_item_init(Provider16Item *self) {
 	(void)self;
 }
+
 Provider16Item *provider16_item_new(gint code, GError **error) {
 	(void)error;
 	Provider16Item *result = g_object_new(provider16_item_get_type(), NULL);
 	result->code = code;
 	return result;
 }
+
 gboolean provider16_item_try_code(Provider16Item *self, gint *result, GError **error) {
 	(void)error;
 	*result = self->code;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_make(Provider16Ledger *self, gint mode, Provider16Item **result, GError **error) {
 	(void)self;
 	if (mode == 2) {
@@ -333,22 +371,26 @@ gboolean provider16_ledger_try_make(Provider16Ledger *self, gint mode, Provider1
 	}
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_inspect(Provider16Ledger *self, Provider16Item *input, gint *result, GError **error) {
 	(void)self;
 	return provider16_item_try_code(input, result, error);
 }
+
 gboolean provider16_ledger_try_duplicate(Provider16Ledger *self, Provider16Item *input, Provider16Item **result, GError **error) {
 	(void)self;
 	(void)error;
 	*result = g_object_ref(input);
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_lookup(Provider16Ledger *self, gboolean present, Provider16Item *input, Provider16Item **result, GError **error) {
 	(void)self;
 	(void)error;
 	*result = present ? g_object_ref(input) : NULL;
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_take(Provider16Ledger *self, Provider16Item *input, gint mode, gint *result, GError **error) {
 	(void)self;
 	*result = input->code;
@@ -363,19 +405,23 @@ gboolean provider16_ledger_try_take(Provider16Ledger *self, Provider16Item *inpu
 Provider16Sample *provider16_sample_copy(const Provider16Sample *value) {
 	return g_memdup2(value, sizeof *value);
 }
+
 void provider16_sample_free(Provider16Sample *value) {
 	++record_retired;
 	g_free(value);
 }
 G_DEFINE_BOXED_TYPE(Provider16Sample, provider16_sample, provider16_sample_copy, provider16_sample_free)
+
 Provider16Pair *provider16_pair_copy(const Provider16Pair *value) {
 	return g_memdup2(value, sizeof *value);
 }
+
 void provider16_pair_free(Provider16Pair *value) {
 	++record_retired;
 	g_free(value);
 }
 G_DEFINE_BOXED_TYPE(Provider16Pair, provider16_pair, provider16_pair_copy, provider16_pair_free)
+
 gboolean provider16_ledger_try_adjust(Provider16Ledger *self, Provider16Sample *input, gint mode, Provider16Sample **result, GError **error) {
 	assert(input->astra_field_2_enabled == TRUE);
 	if (mode == 2) {
@@ -394,6 +440,7 @@ gboolean provider16_ledger_try_adjust(Provider16Ledger *self, Provider16Sample *
 	}
 	return TRUE;
 }
+
 gboolean provider16_ledger_try_pair(Provider16Ledger *self, Provider16Pair *input, Provider16Pair **result, GError **error) {
 	(void)error;
 	*result = provider16_pair_copy(input);

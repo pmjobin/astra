@@ -4,44 +4,66 @@ void relay<T>(owned T value, int id) where T: Ownable {
 	loan<T>(value, id);
 	consume<T>(move value, id);
 }
+
 void outer<T>(int id, owned T value) where T: Ownable {
 	own_mark(79, id);
 	relay(move value, id);
 }
+
 void inferred<T>(owned T value, int id) where T: Ownable {
 	own_mark(82, id);
 	consume(move value, id);
 }
+
 void maybe<T>(owned T value, int id, bool send) where T: Ownable {
 	own_mark(81, id);
-	if (send) { consume<T>(move value, id); }
+	if (send) consume<T>(move value, id);
 }
+
 int final<T>(owned T value, int id) where T: Ownable {
 	own_mark(75, id);
 	loan<T>(value, id);
 	return id;
 }
+
 int stop<T>(owned T value, int id, bool early) where T: Ownable {
 	own_mark(82, id);
-	if (early) { return id; }
+	if (early) return id;
 	return final<T>(move value, id);
 }
+
 int sink_int<T>(owned T value, int id) where T: Ownable { own_mark(75, id); return id; }
+
 int relay_int<T>(int id, owned T value) where T: Ownable { own_mark(82, id); return sink_int(move value, id); }
+
 bool sink_bool<T>(owned T value, bool flag) where T: Ownable { own_mark(75, 84); return flag; }
+
 bool relay_bool<T>(owned T value, bool flag) where T: Ownable { own_mark(82, 84); return sink_bool<T>(move value, flag); }
+
 u16 sink_u16<T>(owned T value, u16 id) where T: Ownable { own_mark(75, id as int); return id; }
+
 u16 relay_u16<T>(owned T value, u16 id) where T: Ownable { own_mark(82, id as int); return sink_u16(move value, id); }
+
 f32 sink_f32<T>(owned T value, f32 x) where T: Ownable { own_mark(75, 86); return x; }
+
 f32 relay_f32<T>(owned T value, f32 x) where T: Ownable { own_mark(82, 86); return sink_f32<T>(move value, x); }
+
 f64 sink_f64<T>(owned T value, f64 y) where T: Ownable { own_mark(75, 87); return y; }
+
 f64 relay_f64<T>(owned T value, f64 y) where T: Ownable { own_mark(82, 87); return sink_f64(move value, y); }
-void dead<T>(owned T value, int id) where T: Ownable { if (false) { relay<T>(move value, id); } }
+
+void dead<T>(owned T value, int id) where T: Ownable { if (false) relay<T>(move value, id); }
+
 void recur<T>(owned T value, int depth) where T: Ownable {
 	own_mark(82, 89);
-	if (depth > 0) { recur<T>(move value, depth - 1); }
-	else { consume<T>(move value, 89); }
+	if (depth > 0) {
+		recur<T>(move value, depth - 1);
+	}
+	else {
+		consume<T>(move value, 89);
+	}
 }
+
 void trapping<T>(owned T value, int id) where T: Ownable {
 	own_mark(82, id);
 	consume<T>(move value, id / (id - id));

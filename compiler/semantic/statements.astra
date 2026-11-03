@@ -3,7 +3,7 @@ TypeId checked_constant(CheckedIndex index, SymbolId id, int depth) throws Error
 	if (index.symbol_types[id.index].index != 0) {
 		return index.symbol_types[id.index];
 	}
-	if (id.index == 0) { return no_type(); }
+	if (id.index == 0) return no_type();
 	var symbol = index.bindings.symbol(id);
 	var node = symbol.node;
 	if (depth > 256 || index.checking[node.index]) {
@@ -24,12 +24,14 @@ TypeId checked_constant(CheckedIndex index, SymbolId id, int depth) throws Error
 	index.checking[node.index] = false;
 	return expected;
 }
+
 void checked_condition(CheckedIndex index, SyntaxNodeId expression, int depth) throws Error {
 	var actual = checked_expression(index, expression, no_type(), depth + 1);
 	if (actual.index != 0 && actual.index != 13) {
 		index.fail(index.bindings.program.arena.header(expression).span, "condition must have type 'bool'");
 	}
 }
+
 void checked_initializer(CheckedIndex index, SyntaxNodeId node, TypeId type, int depth) throws Error {
 	var fields = index.bindings.program.arena.get_list_fields(node);
 	int i = 0;
@@ -56,7 +58,9 @@ void checked_initializer(CheckedIndex index, SyntaxNodeId node, TypeId type, int
 			var actual = checked_expression(index, expression, expected, depth + 1);
 			checked_mismatch(index, index.bindings.program.arena.header(expression).span, expected, actual, "field initializer");
 			int contract = checked_contract(index, expression, index.symbol_flags[target.index]);
-			if (contract != 0) { var ignored = index.defer(field, contract); }
+			if (contract != 0) {
+				var ignored = index.defer(field, contract);
+			}
 		}
 		var recorded = index.record(field, expected, index.symbol_flags[target.index]);
 		i = i + 1;
@@ -66,11 +70,12 @@ void checked_initializer(CheckedIndex index, SyntaxNodeId node, TypeId type, int
 	var deferred = index.defer(node, 20);
 	var recorded = index.record(node, type, 0);
 }
+
 void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int depth) throws Error {
 	if (node.index == 0 || index.failed() || checked_past_binding_error(index, node)) {
 		return;
 	}
-	if (index.flow_adapters && checked_flow_statement(index, node, depth)) { return; }
+	if (index.flow_adapters && checked_flow_statement(index, node, depth)) return;
 	var kind = index.bindings.program.arena.kind(node);
 	if (depth > 256) {
 		index.fail(index.bindings.program.arena.header(node).span, "checked statement depth exceeds 256");
@@ -112,7 +117,7 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			if (kind != SyntaxKind.InferredLocalDeclarationSyntax()) {
 				var type_node = index.bindings.program.arena.get_node_type_name(node);
 				var type = checked_resolve(index, type_node, 1, 0);
-				if (type.index == 14) { index.fail(index.bindings.program.arena.header(type_node).span, "local type cannot be void"); }
+				if (type.index == 14) index.fail(index.bindings.program.arena.header(type_node).span, "local type cannot be void");
 			}
 			var ignored = index.defer(node, 15); return;
 		}
@@ -139,7 +144,9 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			}
 		}
 		int contract = checked_contract(index, initializer, index.symbol_flags[id.index]);
-		if (contract != 0) { var ignored = index.defer(node, contract); }
+		if (contract != 0) {
+			var ignored = index.defer(node, contract);
+		}
 		index.symbol_types[id.index] = expected;
 		if (kind == SyntaxKind.InferredLocalDeclarationSyntax() && expected.index != 0) {
 			index.symbol_flags[id.index] = index.uses[initializer.index].flags;
@@ -155,19 +162,21 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			if (target.index != 0) {
 				expected = index.symbol_types[target.index];
 				expected_flags = index.symbol_flags[target.index];
-				if (index.semantic_flow && !checked_flow_declared_nonnull(index, target)) { expected_flags = expected_flags & ~1; }
+				if (index.semantic_flow && !checked_flow_declared_nonnull(index, target)) expected_flags = expected_flags & ~1;
 			}
 		} else {
 			var field_node = index.bindings.program.arena.get_node_target(node);
 			expected = checked_field(index, field_node, depth + 1);
 			var field = checked_target(index, field_node, index.bindings.program.arena.get_token_field_name(field_node));
-			if (field.index != 0) { expected_flags = index.symbol_flags[field.index]; }
+			if (field.index != 0) expected_flags = index.symbol_flags[field.index];
 		}
 		var expression = index.bindings.program.arena.get_node_expression(node);
 		var actual = checked_expression(index, expression, expected, depth + 1);
 		checked_mismatch(index, index.bindings.program.arena.header(expression).span, expected, actual, "assignment value");
 		int contract = checked_contract(index, expression, expected_flags);
-		if (contract != 0) { var ignored = index.defer(node, contract); }
+		if (contract != 0) {
+			var ignored = index.defer(node, contract);
+		}
 		var recorded = index.record(node, expected, 0);
 		return;
 	}
@@ -184,7 +193,9 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			} else {
 				checked_mismatch(index, index.bindings.program.arena.header(expression).span, result, actual, "return value");
 				int contract = checked_contract(index, expression, index.current_result_flags);
-				if (contract != 0) { var ignored = index.defer(node, contract); }
+				if (contract != 0) {
+					var ignored = index.defer(node, contract);
+				}
 			}
 		}
 		return;
@@ -205,15 +216,19 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
 	var ignored = index.defer(node, 100 + syntax_kind_code(kind));
 }
+
 owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow) throws Error {
 	return checked_build_admission(move bindings, stop_after, flow_adapters, semantic_flow, false);
 }
+
 owned CheckedIndex checked_build_admission(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission) throws Error {
 	return checked_build_profile(move bindings, stop_after, flow_adapters, semantic_flow, admission, false);
 }
+
 owned CheckedIndex checked_build_nativeabi(owned BindingIndex bindings, int stop_after) throws Error {
 	return checked_build_profile(move bindings, stop_after, true, true, true, true);
 }
+
 owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
 	result.flow_adapters = flow_adapters;
@@ -263,16 +278,23 @@ owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_a
 		var type = result.types.argument(result.types, signature.callable, 0);
 		result.current_result_flags = type.flags;
 		checked_statement(result, body, type.type, 0);
-		if (result.semantic_flow && symbol.kind == 12) { var obligation = result.defer(symbol.node, 20); }
+		if (result.semantic_flow && symbol.kind == 12) {
+			var obligation = result.defer(symbol.node, 20);
+		}
 		i = i + 1;
 	}
 	if (result.inspect_prefix) {
 		result.inspect_prefix = false;
 	}
-	if (!result.failed() && result.pending_contract_message != 0) { var message = result.bindings.names.text(result.pending_contract_message); result.stage = 4; result.fail(result.pending_contract_span, message.text); }
+	if (!result.failed() && result.pending_contract_message != 0) {
+		var message = result.bindings.names.text(result.pending_contract_message);
+		result.stage = 4;
+		result.fail(result.pending_contract_span, message.text);
+	}
 	result.complete = !result.failed();
 	return move result;
 }
+
 bool checked_past_binding_error(CheckedIndex index, SyntaxNodeId node) {
 	if (!index.inspect_prefix || node.index == 0) {
 		return false;

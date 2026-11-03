@@ -8,6 +8,7 @@ string hex(string text) {
 	}
 	return result.str;
 }
+
 void observe(SourceSet sources) {
 	var parsed = SyntaxProgram.parse(sources);
 	if (parsed.diagnostic != null) {
@@ -17,6 +18,7 @@ void observe(SourceSet sources) {
 	}
 	stdout.printf("OK\n%sAST\n%sEND\n", SyntaxDump.format_program(parsed.program), new AstOracle().format(parsed.program));
 }
+
 int main(string[] args) {
 	try {
 		if (args.length > 1 && args[1] == "--program") {

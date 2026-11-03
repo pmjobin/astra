@@ -30,6 +30,7 @@ private CheckedProgram source() {
 	}
 	return checked.program;
 }
+
 private void authority() {
 	try {
 		var checked = source();
@@ -365,6 +366,7 @@ private void authority() {
 		GLib.error("%s", error.message);
 	}
 }
+
 private void identity_authority() {
 	try {
 		var core = CoreBuilder.build(source());
@@ -404,10 +406,12 @@ private void identity_authority() {
 		GLib.error("%s", error.message);
 	}
 }
+
 public int main(string[] args) {
 	Test.init(ref args);
 	Test.add_func("/shared/exact-native-lifetime-authority", authority);
 	Test.add_func("/shared/borrowed-payload-identity-authority", identity_authority);
 	return Test.run();
 }
+
 }

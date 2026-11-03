@@ -8,6 +8,7 @@ private SemanticResult analyze(string source) {
 	assert (parsed.diagnostic == null);
 	return SemanticAnalyzer.analyze (parsed.unit);
 }
+
 private void positive() {
 	var result = analyze ("struct I { int x; f64 gain; } struct O { I inner; } int f(){O o={inner={x=1,gain=0.5}};o.inner.x=42;return o.inner.x;}");
 	assert (result.diagnostic == null);
@@ -22,6 +23,7 @@ private void positive() {
 	assert (((CheckedFieldPlace) field.aggregate).field == program.structs[1].fields[0]);
 	assert (SemanticDump.format (program).contains ("I::x") && SemanticDump.format (program).contains ("storage-initializer"));
 }
+
 private void policy() {
 	var types = new BuiltinTypes ();
 	foreach (string name in new string[] {"int", "i8", "u8", "i16", "u16", "u32", "f32", "f64", "bool", "void*"}) {
@@ -43,6 +45,7 @@ private void policy() {
 		assert (analyze ("struct I{int x;}class C{}struct S{" + type + " value;}").diagnostic != null);
 	}
 }
+
 private void invalid() {
 	string prefix = "struct I{int x;int y;}struct O{I inner;}int f(){";
 	string[,] cases = {
@@ -83,6 +86,7 @@ private void invalid() {
 	assert (lane.diagnostic == null);
 	assert (SemanticAnalyzer.analyze (lane.unit).diagnostic.message.contains ("vector lanes are not assignment targets"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-agg/semantic/exact-recursive-places-initializers", positive);
@@ -90,4 +94,5 @@ int main(string[] args) {
 	Test.add_func ("/struct-agg/semantic/recursive-diagnostics-copies-cycles-lanes", invalid);
 	return Test.run ();
 }
+
 }

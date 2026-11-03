@@ -25,6 +25,7 @@ private SsaProgram model(BuiltinTypes? supplied = null) throws SsaError {
 	program.enums.add (definition);
 	return program;
 }
+
 private void contracts() {
 	try {
 		SsaProgram? program = model ();
@@ -146,6 +147,7 @@ private void contracts() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void metadata_authority() {
 	try {
 		for (int mutation = 0; mutation < 6; mutation++) {
@@ -200,6 +202,7 @@ private void metadata_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void record_buffer_authority() {
 	try {
 		var types = new BuiltinTypes ();
@@ -272,6 +275,7 @@ private void record_buffer_authority() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/enum-own/ssa/independent-empty-owner-mutations", contracts);
@@ -279,4 +283,5 @@ int main(string[] args) {
 	Test.add_func ("/enum-own/ssa/independent-record-buffer-boundary", record_buffer_authority);
 	return Test.run ();
 }
+
 }

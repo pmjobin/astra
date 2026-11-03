@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int consumer_inspect(borrowed NativeRecordLoans.Packet value, borrowed R token, int extra) {
-	if (value.contents.child.ticket != value.ticket || id(value.contents.retained) != value.ticket || other_id(value.contents.extra) != value.ticket + 1 || len(value.contents.samples) != 2 || value.contents.samples[0] != value.ticket) { return 0; }
+	if (value.contents.child.ticket != value.ticket || id(value.contents.retained) != value.ticket || other_id(value.contents.extra) != value.ticket + 1 || len(value.contents.samples) != 2 || value.contents.samples[0] != value.ticket) return 0;
 	return value.ticket + id(token) + extra;
 }
+
 int exercise() {
 	NativeRecordLoans.Packet first = NativeRecordLoans.packet(221);
 	NativeRecordLoans.Packet second = NativeRecordLoans.packet(231);
 	var token = make(223);
 	Fn<int,borrowed NativeRecordLoans.Packet,borrowed R,int> code = RecordLoanTransport.callback();
-	if (code(first, token, 1) != 445 || RecordLoanTransport.apply(code, first, token, 2) != 446) { return 1; }
-	if (RecordLoanTransport.apply(consumer_inspect, second, token, 3) != 457 || code(first, token, 1) != 445) { return 2; }
-	if (consumer_inspect(second, token, 3) != 457 || live() != 5) { return 3; }
+	if (code(first, token, 1) != 445 || RecordLoanTransport.apply(code, first, token, 2) != 446) return 1;
+	if (RecordLoanTransport.apply(consumer_inspect, second, token, 3) != 457 || code(first, token, 1) != 445) return 2;
+	if (consumer_inspect(second, token, 3) != 457 || live() != 5) return 3;
 	return 0;
 }
-int main() { int result = exercise(); if (result != 0) { return result; } return live(); }
+
+int main() { int result = exercise(); if (result != 0) return result; return live(); }

@@ -218,4 +218,5 @@ private void register_diagnostics() {
 			assert (parsed.diagnostic != null && parsed.file == null);
 		});
 }
+
 }

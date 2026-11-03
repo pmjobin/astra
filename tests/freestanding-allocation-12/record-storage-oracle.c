@@ -2,9 +2,11 @@
 #include "allocation-12.h"
 #include <stdio.h>
 extern AstraAlloc12Domain NODE_DOMAIN, RECORD_DOMAIN;
+
 void record_store_event(int32_t value) {
 	printf("%d,", value);
 }
+
 int32_t record_store_probe(void) {
 	AstraAlloc12Domain *n = &NODE_DOMAIN, *r = &RECORD_DOMAIN;
 	putchar('\n');

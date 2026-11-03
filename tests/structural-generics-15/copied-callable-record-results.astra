@@ -5,83 +5,107 @@ struct CopiedResultLeaf {
 	bool ready;
 	Fn<int,int> adjust;
 }
+
 struct CopiedResult<A,B> { A data; B extra; }
+
 struct CopiedResultCode { Fn<CopiedResult<CopiedResultLeaf,int>,int> create; }
+
 struct SingleResult { bool ready; }
+
 class CopiedResultDirectory<T> {
 	private T marker;
 	private Fn<CopiedResult<CopiedResultLeaf,int>,int> create;
+
 	init(T marker, Fn<CopiedResult<CopiedResultLeaf,int>,int> create) { this.marker = marker; this.create = create; }
+
 	property T tag { get { return this.marker; } }
+
 	CopiedResult<CopiedResultLeaf,int> produce(int value) {
 		Fn<CopiedResult<CopiedResultLeaf,int>,int> code = this.create;
 		return code(value);
 	}
 }
+
 class CopiedResultEnvironment<T> {
 	private T seed;
 	private owned R retained;
+
 	init(T seed, owned R retained) { this.seed = seed; this.retained = move retained; }
+
 	property T amount { get { return this.seed; } }
+
 	deinit() { mark(880); }
 }
+
 int adjust_result(int value) { return value + 1; }
+
 CopiedResult<CopiedResultLeaf,int> make_copied_result(int value) {
 	i64 wide = 9000000001;
 	CopiedResultLeaf data = {value = value, wide = wide, ready = true, adjust = adjust_result};
 	CopiedResult<CopiedResultLeaf,int> result = {data = data, extra = value + 10};
 	return result;
 }
+
 SingleResult make_single_result(bool ready) { SingleResult result = {ready = ready}; return result; }
+
 Fn<CopiedResult<CopiedResultLeaf,int>,int> copied_result_factory() { return make_copied_result; }
+
 CopiedResult<CopiedResultLeaf,int> forward_copied_result(Fn<CopiedResult<CopiedResultLeaf,int>,int> code, int value) { return code(value); }
+
 int inspect_copied_result(CopiedResult<CopiedResultLeaf,int> result) {
 	i64 wide = 9000000001;
-	if (!result.data.ready || result.data.wide != wide) { return 0; }
+	if (!result.data.ready || result.data.wide != wide) return 0;
 	Fn<int,int> adjust = result.data.adjust;
 	return adjust(result.data.value) + result.extra;
 }
+
 CopiedResult<CopiedResultLeaf,int> closure_copied_result(borrowed CopiedResultEnvironment<int> environment, int value) {
 	return make_copied_result(environment.amount + value);
 }
+
 CopiedResult<CopiedResultLeaf,int> checked_copied_result(borrowed CopiedResultEnvironment<int> environment, bool fail) throws Error {
-	if (fail) { mark(881); throw new Error("copied record result retry"); }
+	if (fail) {
+		mark(881);
+		throw new Error("copied record result retry");
+	}
 	return make_copied_result(environment.amount);
 }
+
 int exercise_copied_results() {
 	CopiedResultCode stored = {create = copied_result_factory()};
 	Fn<CopiedResult<CopiedResultLeaf,int>,int> code = stored.create;
 	CopiedResult<CopiedResultLeaf,int> first = code(7);
 	CopiedResult<CopiedResultLeaf,int> second = forward_copied_result(code, 8);
-	if (inspect_copied_result(first) != 25 || inspect_copied_result(second) != 27) { return 1; }
-	if (code(9).data.value != 9 || inspect_copied_result(code(10)) != 31) { return 2; }
+	if (inspect_copied_result(first) != 25 || inspect_copied_result(second) != 27) return 1;
+	if (code(9).data.value != 9 || inspect_copied_result(code(10)) != 31) return 2;
 	var directory = new CopiedResultDirectory<int>(42, code);
 	CopiedResult<CopiedResultLeaf,int> indexed = directory.produce(11);
-	if (directory.tag != 42 || inspect_copied_result(indexed) != 33) { return 10; }
+	if (directory.tag != 42 || inspect_copied_result(indexed) != 33) return 10;
 	Fn<SingleResult,bool> single = make_single_result;
 	SingleResult yes = single(true);
-	if (!yes.ready || single(false).ready) { return 3; }
+	if (!yes.ready || single(false).ready) return 3;
 	var retained = make(161);
 	var environment = new CopiedResultEnvironment<int>(20, move retained);
 	owned Closure<CopiedResultEnvironment<int>,CopiedResult<CopiedResultLeaf,int>,int> plain = closure_bind(move environment, closure_copied_result);
 	CopiedResult<CopiedResultLeaf,int> plain_first = closure_invoke(plain, 1);
 	CopiedResult<CopiedResultLeaf,int> plain_second = closure_invoke(plain, 2);
-	if (inspect_copied_result(plain_first) != 53 || inspect_copied_result(plain_second) != 55) { return 4; }
+	if (inspect_copied_result(plain_first) != 53 || inspect_copied_result(plain_second) != 55) return 4;
 	var checked_retained = make(162);
 	var checked_environment = new CopiedResultEnvironment<int>(30, move checked_retained);
 	owned CheckedClosure<CopiedResultEnvironment<int>,Error,CopiedResult<CopiedResultLeaf,int>,bool> checked = checked_closure_bind(move checked_environment, checked_copied_result);
 	try { first = closure_invoke(checked, true); return 5; }
 	catch (Error error) { mark(882); }
-	if (inspect_copied_result(first) != 25) { return 6; }
+	if (inspect_copied_result(first) != 25) return 6;
 	try {
 		first = closure_invoke(checked, false);
-		if (inspect_copied_result(first) != 71) { return 7; }
+		if (inspect_copied_result(first) != 71) return 7;
 	} catch (Error error) { return 8; }
-	if (inspect_copied_result(second) != 27 || inspect_copied_result(plain_first) != 53) { return 9; }
+	if (inspect_copied_result(second) != 27 || inspect_copied_result(plain_first) != 53) return 9;
 	return 0;
 }
+
 int main() {
 	int result = exercise_copied_results();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

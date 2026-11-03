@@ -10,6 +10,7 @@ int dispatch18_input(int index) {
 	if (text && (*end || seed < -100 || seed > 100)) abort();
 	return (int)seed + index * 17 - 31;
 }
+
 int dispatch18_check(int index, int value) {
 	int input = dispatch18_input(index), first = index % 2 == 0;
 	int pair = 2 * input + 20;

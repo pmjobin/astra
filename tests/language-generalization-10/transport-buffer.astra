@@ -2,50 +2,76 @@
 class Item {
 	owned Other resource;
 	int code;
+
 	init(int code) { this.resource = make_other(code); this.code = code; }
+
 	deinit() { mark(200 + this.code); }
 }
+
 struct Point { int x; int y; }
+
 struct Data { owned int[] numbers; owned R resource; owned Item child; int tag; }
+
 struct Document { Data first; owned u8[] bytes; }
+
 struct OnlyBuffers { owned Point[] points; owned u8[] bytes; }
+
 Document create(int code, int count) {
 	var numbers = new int[count];
-	if (count != 0) { numbers[0] = code; }
+	if (count != 0) numbers[0] = code;
 	var child = new Item(code + 1);
 	Document value = {bytes = new u8[5], first = {resource = make(code), child = move child, numbers = move numbers, tag = 7}};
 	return move value;
 }
+
 Document forward(int before, Document value, owned int[] extra, int after) throws Error {
 	mark(before + after + len(extra));
-	if (after == 99) { throw new Error("forward"); }
+	if (after == 99) {
+		throw new Error("forward");
+	}
 	return move value;
 }
+
 int consume(Document value, int last) {
 	var numbers = move value.first.numbers;
-	if (len(numbers) != 0) { mark(numbers[0] + len(numbers) + value.first.tag + last); }
-	else { mark(700 + last); }
+	if (len(numbers) != 0) {
+		mark(numbers[0] + len(numbers) + value.first.tag + last);
+	}
+	else {
+		mark(700 + last);
+	}
 	return 0;
 }
+
 void retirement(Document value, owned Item extra) { mark(extra.code); }
+
 int argument(bool failure) throws Error {
-	if (failure) { throw new Error("argument"); }
+	if (failure) {
+		throw new Error("argument");
+	}
 	return 2;
 }
+
 int last_argument(int failure) throws Error {
-	if (failure == 2) { return 99; }
+	if (failure == 2) return 99;
 	return argument(failure == 1);
 }
+
 Document factory() { return create(30, 0); }
+
 OnlyBuffers buffers(int count) {
 	OnlyBuffers result = {bytes = new u8[count], points = new Point[count]};
 	return move result;
 }
+
 OnlyBuffers buffer_relay(OnlyBuffers value) { return move value; }
+
 class Service {
 	init() {}
+
 	Document relay(Document value) { return move value; }
 }
+
 void exercise(int failure) {
 	try {
 		var original = create(10 * failure + 1, 3);
@@ -56,6 +82,7 @@ void exercise(int failure) {
 		consume(move forwarded, 3);
 	} catch (Error error) { mark(900 + failure); }
 }
+
 int main() {
 	exercise(0);
 	exercise(1);

@@ -13,14 +13,17 @@ public class VectorMemoryContract : Object {
 		this.alignment = alignment;
 		original_alignment = alignment;
 	}
+
 	public VectorMemoryContract copy() {
 		var result = new VectorMemoryContract (vector_type, original_alignment, store);
 		result.alignment = alignment;
 		return result;
 	}
+
 	public bool valid() {
 		return alignment == original_alignment && alignment > 0 && alignment <= 16 && (alignment & (alignment - 1)) == 0 && !vector_type.is_mask && VectorType.supports (vector_type.element_type, vector_type.lane_count);
 	}
+
 	public string? type_error(SemanticType view, SemanticType offset, SemanticType? stored, SemanticType result) {
 		var slice = view as SliceType;
 		var integer = offset as IntegerType;
@@ -29,5 +32,6 @@ public class VectorMemoryContract : Object {
 		}
 		return null;
 	}
+
 }
 }

@@ -4,6 +4,7 @@ namespace Astra.Source {
 public class EnumInstanceIdentity : Object {
 	internal EnumInstanceIdentity () {
 	}
+
 }
 public class EnumBindingIdentity : Object {
 	public EnumInstanceIdentity instance { get; private set; }
@@ -14,6 +15,7 @@ public class EnumBindingIdentity : Object {
 		this.local_ordinal = local_ordinal;
 		this.instance = instance;
 	}
+
 }
 // Immutable identity tokens have no declaration, stage, type or layout backlink.
 public class EnumIdentity : Object {
@@ -22,6 +24,7 @@ public class EnumIdentity : Object {
 	internal EnumIdentity (string name) {
 		this.identifier = name;
 	}
+
 }
 
 public class EnumVariantIdentity : Object {
@@ -34,6 +37,7 @@ public class EnumVariantIdentity : Object {
 		this.identifier = name;
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class EnumFieldIdentity : Object {
@@ -46,5 +50,6 @@ public class EnumFieldIdentity : Object {
 		this.identifier = name;
 		this.ordinal = ordinal;
 	}
+
 }
 }

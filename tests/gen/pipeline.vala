@@ -43,6 +43,7 @@ private void lifetime() throws GLib.Error {
 	NativeAbiVerifier.verify (nabi);
 	CAbiVerifier.verify (cabi);
 }
+
 private void member_identity() throws GLib.Error {
 	var parameterized = CoreBuilder.build (check (read ("property")));
 	var property = parameterized.classes[0].properties[0];
@@ -68,6 +69,7 @@ private void member_identity() throws GLib.Error {
 	}
 	assert (count == 2);
 }
+
 private void inventory() throws GLib.Error {
 	var parameterized = CoreBuilder.build (check (read ("dedup")));
 	assert (parameterized.generic_functions.length == 3);
@@ -97,6 +99,7 @@ private void inventory() throws GLib.Error {
 	assert (identities == 8 && phantoms == 2 && ints == 1);
 	assert (CoreDump.format (concrete) == CoreDump.format (core (read ("dedup"))));
 }
+
 private void profiles() throws GLib.Error {
 	string declaration = "T identity<T>(T x){return x;}";
 	foreach (string type in new string[] {"int", "i8", "f32", "f64", "void*", "i16<8>"}) {
@@ -129,6 +132,7 @@ private void profiles() throws GLib.Error {
 	var mixed = build ("T mix<T>(borrowed Resource r,f32 f,void* p,i16<8> v,T x){return x;}f64 root(borrowed Resource r,f32 f,void* p,i16<8> v,f64 x){return mix<f64>(r,f,p,v,x);}");
 	assert (NativeAbiBuilder.build (mixed).abi_version == NativeAbiVersion.FP64_V6);
 }
+
 private void flow() throws GLib.Error {
 	SsaVerifier.verify (build ("class C{int raw;init(int x){this.raw=x;}}owned C make<T>(T ignored){return C.init(42);}int main(){owned C c=make<f64>(1.25);return c.raw;}"));
 	foreach (string fixture in new string[] {"choose", "loop", "chain", "recursive", "mutual", "cross", "property", "owned", "object-owned", "concrete"}) {
@@ -154,6 +158,7 @@ private void flow() throws GLib.Error {
 		assert (floating > 0 && vectors > 0);
 	}
 }
+
 private void firewalls() throws GLib.Error {
 	bool rejected = false;
 	try {
@@ -183,6 +188,7 @@ private void firewalls() throws GLib.Error {
 	var checked = SemanticAnalyzer.analyze (parsed.unit, Astra.Vapi.VapiNormalizer.normalize (vapi.file), Astra.Vapi.VapiNormalizer.normalize_handles (vapi.file));
 	assert (checked.diagnostic != null && checked.diagnostic.message.contains ("GEN-1 type argument 'Resource'"));
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -196,4 +202,5 @@ int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

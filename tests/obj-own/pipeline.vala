@@ -51,6 +51,7 @@ private void lifetime() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void flow() {
 	try {
 		string prefix = "class C{int x;void touch(){}}void sink(owned C c){}void inspect(borrowed C c){}";
@@ -73,6 +74,7 @@ private void flow() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void borrowing() {
 	try {
 		build (read ("borrow-alias"));
@@ -95,6 +97,7 @@ private void borrowing() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void commit() {
 	try {
 		var cfg = CfgBuilder.build (CoreBuilder.build (check (read ("precall-trap"))));
@@ -153,6 +156,7 @@ private void commit() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 private void profiles() {
 	try {
 		foreach (var name in new string[] { "consume", "multiple", "resource", "slice", "vector", "method", "constructor", "no-deinit", "empty" }) {
@@ -173,6 +177,7 @@ private void profiles() {
 		GLib.error ("%s", e.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-own/pipeline/stage-lifetime-exact-storage-and-contract", lifetime);
@@ -182,4 +187,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-own/nabi/existing-ptr-vector-slice-and-resource-contracts", profiles);
 	return Test.run ();
 }
+
 }

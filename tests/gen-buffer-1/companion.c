@@ -11,12 +11,15 @@ int32_t gb_word(int32_t index) {
 int32_t gb_generation(void) {
 	return next_owner;
 }
+
 void gb_unchanged(int32_t generation) {
 	assert(generation == next_owner);
 }
+
 void gb_zero(int32_t value) {
 	assert(value == 0);
 }
+
 void gb_check_word(int32_t value, int32_t index) {
 	assert(value == gb_word(index));
 }

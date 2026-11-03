@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pair { int x; }
+
 int scoped() {
 	Pair pair = { x = 0 };
 	Pair* p = &pair;
@@ -7,15 +8,16 @@ int scoped() {
 	p->x = record_effect(2);
 	release h;
 	int x = p->x;
-	if (x != 2) { return 1; }
+	if (x != 2) return 1;
 	record_effect(3);
 	return 0;
 }
+
 int main() {
 	resource_reset();
-	if (scoped() != 0) { return 1; }
-	if (resource_create_count() != 1 || resource_destroy_count() != 1) { return 2; }
-	if (resource_destroy_order() != 1 || resource_effect_order() != 213) { return 3; }
-	if (resource_live_count() != 0 || resource_error_count() != 0) { return 4; }
+	if (scoped() != 0) return 1;
+	if (resource_create_count() != 1 || resource_destroy_count() != 1) return 2;
+	if (resource_destroy_order() != 1 || resource_effect_order() != 213) return 3;
+	if (resource_live_count() != 0 || resource_error_count() != 0) return 4;
 	return 0;
 }

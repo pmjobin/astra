@@ -4,6 +4,7 @@
 #define astra_retained_retire astra_retained_real_retire
 #include "../../lib/runtime/interop/retained.c"
 #undef astra_retained_retire
+
 int32_t astra_retained_retire(void *token) {
 	(void)token;
 	return astra_retained_observe((void *)999999) == 1;

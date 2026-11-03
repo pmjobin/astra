@@ -40,6 +40,7 @@ private SsaProgram sample(int variant = 0) throws SsaError {
 	functions.add (new SsaFunction (s, s, "f", t.int_type, 0, parameters, blocks, block));
 	return new SsaProgram (s, functions, null, null, structures);
 }
+
 private void qualify() {
 	try {
 		SsaProgram? program = sample ();
@@ -62,9 +63,11 @@ private void qualify() {
 		assert (rejected);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/struct-elements/ssa/independent-indexed-root-bounds-and-malformed-models", qualify);
 	return Test.run ();
 }
+
 }

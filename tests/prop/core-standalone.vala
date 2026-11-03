@@ -71,6 +71,7 @@ private void model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void malformed() {
 	for (int variant = 1; variant <= 16; variant++) {
 		try {
@@ -82,10 +83,12 @@ private void malformed() {
 		GLib.error ("accepted malformed property variant %d", variant);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/prop/core/exact-property-accessors-calls-types-recursion-lifetime", model);
 	Test.add_func ("/prop/core/malformed-owner-member-receiver-value-and-call", malformed);
 	return Test.run ();
 }
+
 }

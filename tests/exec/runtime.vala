@@ -71,4 +71,5 @@ int main() {
 	add ("/exec/runtime/choose-call", () => execute (read ("tests/call/fixtures/choose-call.astra") + "int main() { if (choose_call(true, 7, 9) != 8) { return 1; } if (choose_call(false, 7, 9) != 10) { return 2; } return 0; }"));
 	add ("/exec/runtime/division-ssa", () => execute (read ("tests/llvm/fixtures/division-phi.astra") + "int main() { if (split_join(true, -7, 3) != -2) { return 1; } if (split_join(false, -7, 3) != -1) { return 2; } if (split_join(true, -2147483648, -1) != -2147483648) { return 3; } return 0; }"));
 }
+
 }

@@ -14,6 +14,7 @@ private class Case : Object {
 	internal Case (owned TestBody body) {
 		this.body = (owned) body;
 	}
+
 }
 private HashTable<string, Case> cases;
 private void add(string path, owned TestBody body) {
@@ -26,16 +27,19 @@ private void add(string path, owned TestBody body) {
 			}
 		});
 }
+
 private string fixture(string name) throws FileError {
 	string text;
 	FileUtils.get_contents ("tests/shortcircuit/fixtures/" + name + ".astra", out text);
 	return text;
 }
+
 private CompilationUnitSyntax parse(string text) {
 	var result = Parser.parse (new SourceFile.from_text ("short.astra", text));
 	assert (result.diagnostic == null);
 	return result.unit;
 }
+
 private CheckedProgram check(string text) {
 	var result = SemanticAnalyzer.analyze (parse (text));
 	if (result.diagnostic != null) {
@@ -43,12 +47,14 @@ private CheckedProgram check(string text) {
 	}
 	return result.program;
 }
+
 private CfgProgram graph(string text) throws GLib.Error {
 	var result = CfgBuilder.build (CoreBuilder.build (check (text)));
 	assert (CfgFlowChecker.check (result).diagnostic == null);
 	assert (CfgDump.format (result) == CfgDump.format (result));
 	return result;
 }
+
 private SsaProgram promote(CfgProgram cfg) throws GLib.Error {
 	var result = SsaBuilder.build (cfg);
 	SsaVerifier.verify (result);
@@ -59,9 +65,11 @@ private SsaProgram promote(CfgProgram cfg) throws GLib.Error {
 	}
 	return result;
 }
+
 private ExpressionSyntax expression(string text) {
 	return ((ReturnStatementSyntax) parse ("bool f(){return " + text + ";}").functions[0].body.statements[0]).expression;
 }
+
 private void tokens() {
 	var lexer = new Lexer (new SourceFile.from_text ("tokens", "&&||!!= &&&"));
 	foreach (var kind in new TokenKind[] {TokenKind.AMPERSAND_AMPERSAND, TokenKind.PIPE_PIPE, TokenKind.BANG, TokenKind.BANG_EQUAL, TokenKind.AMPERSAND_AMPERSAND}) {
@@ -74,6 +82,7 @@ private void tokens() {
 		assert (Parser.parse (new SourceFile.from_text ("invalid", "bool f(){return true " + text + " false;}")).diagnostic != null);
 	}
 }
+
 private void precedence() {
 	var root = (ShortCircuitExpressionSyntax) expression ("a || b && c");
 	assert (root.operator_token.kind == TokenKind.PIPE_PIPE && root.left is NameExpressionSyntax);
@@ -101,6 +110,7 @@ private void precedence() {
 		assert ((result.unit == null) != (result.diagnostic == null));
 	}
 }
+
 private void semantics() {
 	foreach (string op in new string[] {"&&", "||"}) {
 		var program = check ("bool f(bool a,bool b){return a " + op + " b;}");
@@ -114,6 +124,7 @@ private void semantics() {
 		}
 	}
 }
+
 private void static_rhs() {
 	foreach (string text in new string[] {"false && missing()", "true || missing()", "false && (2147483648 == 0)", "true || (2147483648 == 0)"}) {
 		var result = SemanticAnalyzer.analyze (parse ("bool f(){return " + text + ";}"));
@@ -122,6 +133,7 @@ private void static_rhs() {
 	}
 	check ("bool f(){return false && ((1 / 0) == 0);}");
 }
+
 private void simple(bool is_and) throws GLib.Error {
 	string name = is_and ? "logical-and" : "logical-or";
 	var checked_program = check (fixture (name));
@@ -161,6 +173,7 @@ private void simple(bool is_and) throws GLib.Error {
 		assert (sf.blocks[i].instructions.length == 0);
 	}
 }
+
 private void nested() throws GLib.Error {
 	var cfg = graph (fixture ("nested-short"));
 	var ssa = promote (cfg);
@@ -184,6 +197,7 @@ private void nested() throws GLib.Error {
 	var inner = (CoreShortCircuitValue) ((CoreReturn) core.functions[2].body.statements[0]).value;
 	assert (inner.left is CoreParameterValue && ((CoreShortCircuitValue) inner.right).operator_kind == ShortCircuitOperator.OR);
 }
+
 private void calls() throws GLib.Error {
 	var cfg = graph (fixture ("call-short"));
 	for (int i = 3; i <= 4; i++) {
@@ -206,6 +220,7 @@ private void calls() throws GLib.Error {
 	assert (((CfgCallInstruction) trapping[3].instructions[0]).arguments[0] == ((CfgEvaluateInstruction) trapping[0].instructions[0]).result);
 	promote (cfg);
 }
+
 private void loops() throws GLib.Error {
 	var cfg = graph (fixture ("loop-short"));
 	var ssa = promote (cfg);
@@ -236,6 +251,7 @@ private void loops() throws GLib.Error {
 	assert (exit.parameters.length == 1 && exit.parameters[0].origin_kind == SsaPromotionOrigin.SOURCE_LOCAL);
 	assert (((SsaReturn) exit.terminator).value == exit.parameters[0]);
 }
+
 private void contexts() throws GLib.Error {
 	var cfg = graph (fixture ("contexts-short"));
 	var f = cfg.functions[1];
@@ -249,6 +265,7 @@ private void contexts() throws GLib.Error {
 	// Disconnected tails still preserve and verify expression control flow.
 	promote (graph ("bool p(){return true;}bool f(bool a){return a;bool x = p() == (a && p());while(a || p()){continue;}return x;}"));
 }
+
 private void unavailable_temporary() throws GLib.Error {
 	var cfg = graph (fixture ("loop-short"));
 	var f = cfg.functions[0];
@@ -265,6 +282,7 @@ private void unavailable_temporary() throws GLib.Error {
 	}
 	GLib.error ("SSA fabricated an incoming temporary value");
 }
+
 private void promotion_identity() throws GLib.Error {
 	var cfg = graph (fixture ("logical-and"));
 	var f = cfg.functions[0];
@@ -291,14 +309,17 @@ private void promotion_identity() throws GLib.Error {
 	assert (right_args[0] == ssa.parameters[0] && right_args[1] == ssa.parameters[1] && right_args[2] == ssa.parameters[0]);
 	assert (((SsaReturn) ssa.blocks[3].terminator).value == ps[1]);
 }
+
 private class Probe : Object {
 	private WeakRef reference;
 	internal Probe (Object value) {
 		reference = WeakRef (value);
 	}
+
 	internal void gone() {
 		assert (reference.get () == null);
 	}
+
 }
 private void lifetime() throws GLib.Error {
 	CompilationUnitSyntax? syntax = parse (fixture ("loop-short"));
@@ -354,6 +375,7 @@ private void lifetime() throws GLib.Error {
 	}
 	assert (edge.target == null);
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -372,4 +394,5 @@ int main(string[] args) {
 	add ("/shortcircuit/cyclic-stage-lifetime", lifetime);
 	return Test.run ();
 }
+
 }

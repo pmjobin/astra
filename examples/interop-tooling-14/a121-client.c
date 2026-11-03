@@ -5,12 +5,14 @@
 #include <stdlib.h>
 
 static int closed;
+
 int32_t a121_quota_closed(int32_t capacity, int32_t used) {
 	if ((closed == 0 && (capacity != 100 || used != 5)) ||
 	    (closed == 1 && (capacity != 23 || used != 4))) abort();
 	++closed;
 	return 0;
 }
+
 extern int32_t a121_native_work(void);
 
 int main(void) {

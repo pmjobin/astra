@@ -40,6 +40,7 @@ private void model() throws GLib.Error {
 	assert (NativeAbiDump.format (NativeAbiBuilder.build (ssa)) == NativeAbiDump.format (NativeAbiBuilder.build (baseline)));
 	assert (CAbiDump.format (CAbiBuilder.build (ssa, NativeAbiBuilder.build (ssa))) == CAbiDump.format (CAbiBuilder.build (baseline, NativeAbiBuilder.build (baseline))));
 }
+
 private void conditional(int id) throws GLib.Error {
 	var control = cfg ("void f(bool c) { owned void* a = create(%d); if (c) { release a; } }".printf (id));
 	var function = control.functions[0];
@@ -53,6 +54,7 @@ private void conditional(int id) throws GLib.Error {
 	assert (split.false_edge.arguments[0] == ssa.functions[0].entry.instructions[0].result);
 	assert (((SsaBranch) ssa.functions[0].blocks[1].terminator).edge.arguments[0] is SsaNullPointerConstant);
 }
+
 private void state_at_join(string body, int block, OwnershipState expected) throws GLib.Error {
 	var control = cfg ("void f(bool c) { owned void* a = create(1); " + body + " }");
 	var function = control.functions[0];
@@ -61,6 +63,7 @@ private void state_at_join(string body, int block, OwnershipState expected) thro
 	assert (flow.dump () == OwnershipFlow.analyze (function).dump () && flow.iterations <= 4 * function.blocks.length);
 	SsaVerifier.verify (SsaBuilder.build (control));
 }
+
 private void three_way() throws GLib.Error {
 	var control = cfg (THREE_WAY);
 	var flow = OwnershipFlow.analyze (control.functions[0]);
@@ -83,6 +86,7 @@ private void three_way() throws GLib.Error {
 	}
 	assert (null_inputs == 2 && function.storage.length == 0);
 }
+
 private void move_borrow() throws GLib.Error {
 	var ssa = build ("void f() { owned void* a = create(1); inspect(a); owned void* b = move a; inspect(b); release b; }");
 	var instructions = ssa.functions[0].entry.instructions;
@@ -95,6 +99,7 @@ private void move_borrow() throws GLib.Error {
 		assert (((SsaCleanupInstruction) instructions[i]).value is SsaNullPointerConstant);
 	}
 }
+
 private void bindings() throws GLib.Error {
 	var checked = check ("void f() { owned void* a = create(1); if (true) { owned void* b = create(2); release b; } else { owned void* b = create(3); release b; } inspect(a); release a; }");
 	var inner = ((CheckedIf) checked.functions[0].body.statements[1]).then_body;
@@ -104,6 +109,7 @@ private void bindings() throws GLib.Error {
 	assert (((CheckedOwnershipRelease) checked.functions[0].body.statements[3]).owner == checked.functions[0].locals[0]);
 	SsaVerifier.verify (SsaBuilder.build (CfgBuilder.build (CoreBuilder.build (checked))));
 }
+
 private int main(string[] args) {
 	Test.init (ref args);
 	cases = new HashTable<string, Case> (str_hash, str_equal);
@@ -134,4 +140,5 @@ private int main(string[] args) {
 	cases.remove_all ();
 	return result;
 }
+
 }

@@ -14,5 +14,6 @@ public class CfgSharedOperation : CfgValue {
 		this.cleanup = cleanup;
 		this.borrower = borrower;
 	}
+
 }
 }

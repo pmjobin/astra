@@ -24,6 +24,7 @@ private NativeAbiProgram sample(int variant = 0) throws NativeAbiError {
 	}
 	return program;
 }
+
 private void qualify() {
 	try {
 		NativeAbiProgram? program = sample ();
@@ -47,9 +48,11 @@ private void qualify() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 public int run_nabi(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-buffer/nabi/independent-owned-group-layout-and-lifetimes", qualify);
 	return Test.run ();
 }
+
 }

@@ -4,9 +4,11 @@ struct ResourcePair {
 	owned Other second;
 	int tag;
 }
+
 struct Branch {
 	ResourcePair payload;
 }
+
 struct Document {
 	Branch left;
 	Branch right;
@@ -15,7 +17,9 @@ struct Document {
 
 int stage(int failure, int step) throws Error {
 	mark(100 + step);
-	if (failure == step) { throw new Error("prefix"); }
+	if (failure == step) {
+		throw new Error("prefix");
+	}
 	return step;
 }
 
@@ -64,8 +68,8 @@ int main() {
 	for (int i = 0; i < 3; i = i + 1) {
 		Branch branch = {payload = {first = make(20 + i), second = make_other(30 + i), tag = i}};
 		var moved = move branch;
-		if (moved.payload.tag == 0) { continue; }
-		if (moved.payload.tag == 1) { break; }
+		if (moved.payload.tag == 0) continue;
+		if (moved.payload.tag == 1) break;
 	}
 	return total + live();
 }

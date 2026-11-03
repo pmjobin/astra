@@ -7,6 +7,7 @@
 #include <cstdio>
 inline constexpr IID opaque_iid = {0x1d665f00, 0x16ab, 0x4a63, {0xb3, 0xfc, 0x80, 0x26, 0x26, 0x01, 0x66, 0x01}};
 using Callback = BOOL(STDMETHODCALLTYPE *)(void *, BOOL);
+
 struct Oracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE get_count(LONG *) = 0;
 	virtual HRESULT STDMETHODCALLTYPE set_count(LONG) = 0;
@@ -15,9 +16,11 @@ struct Oracle : IUnknown {
 	virtual HRESULT STDMETHODCALLTYPE visit(BOOL, Callback, void *, BOOL *) = 0;
 };
 struct Native;
+
 struct Error {
 	std::int32_t domain, code;
 };
+
 extern "C" std::int32_t opaquecom16_native_run(void);
 extern "C" std::int32_t opaquecom16_import_run(void *);
 extern "C" std::int32_t opaquecom16_create(std::int32_t, double, Native **, Error *);
@@ -25,27 +28,33 @@ extern "C" std::int32_t opaquecom16_get_count(Native *, std::int32_t *, Error *)
 extern "C" std::uint32_t opaquecom16_release(Native *);
 extern "C" HRESULT opaquecom16_as_com(Native *, IUnknown **);
 static unsigned native_retired, provider_retired, callbacks, task_frees;
+
 extern "C" std::int32_t opaquecom16_retired(void) {
 	++native_retired;
 	return 0;
 }
+
 extern "C" void opaquecom16_task_free(void *pointer) {
 	assert(pointer);
 	++task_frees;
 	CoTaskMemFree(pointer);
 }
+
 static BOOL STDMETHODCALLTYPE invert(void *data, BOOL input) {
 	assert(data == &callbacks);
 	++callbacks;
 	return !input;
 }
+
 class Provider final : public Oracle {
 	LONG references = 1;
 	LONG count = 7;
+
 	~Provider() { ++provider_retired; }
 
   public:
 	LONG refs() const { return references; }
+
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) noexcept override {
 		if (!out) return E_POINTER;
 		*out = nullptr;
@@ -54,21 +63,26 @@ class Provider final : public Oracle {
 		AddRef();
 		return S_OK;
 	}
+
 	ULONG STDMETHODCALLTYPE AddRef() noexcept override { return static_cast<ULONG>(InterlockedIncrement(&references)); }
+
 	ULONG STDMETHODCALLTYPE Release() noexcept override {
 		LONG value = InterlockedDecrement(&references);
 		if (!value) delete this;
 		return static_cast<ULONG>(value);
 	}
+
 	HRESULT STDMETHODCALLTYPE get_count(LONG *out) noexcept override {
 		if (!out) return E_POINTER;
 		*out = count;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE set_count(LONG value) noexcept override {
 		count = value;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE evaluate(DOUBLE value, DOUBLE *out) noexcept override {
 		if (!out) return E_POINTER;
 		*out = 0;
@@ -76,6 +90,7 @@ class Provider final : public Oracle {
 		*out = value * 2.5 + count;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE snapshot(const BYTE *input, LONG length, BYTE **out, LONG *size) noexcept override {
 		if (!out || !size) return E_POINTER;
 		*out = nullptr;
@@ -89,12 +104,14 @@ class Provider final : public Oracle {
 		*size = length;
 		return S_OK;
 	}
+
 	HRESULT STDMETHODCALLTYPE visit(BOOL value, Callback code, void *data, BOOL *out) noexcept override {
 		if (!out || !code) return E_POINTER;
 		*out = !!code(data, !!value);
 		return S_OK;
 	}
 };
+
 int main() {
 	assert(SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
 	assert(opaquecom16_native_run() == 0 && native_retired == 1);

@@ -23,6 +23,7 @@ private void contracts() {
 	assert (declaration.local.object_provenance == ObjectResultProvenance.CALLEE_LOCAL_STORAGE);
 	assert (SemanticDump.format (p).contains ("storage-mode caller-provided"));
 }
+
 private void escapes() {
 	reject ("class C{int field;}owned C f(borrowed C c){return move c.field;}", "moving ownership out of an owned field");
 	string c = "class C{init(){}}";
@@ -34,6 +35,7 @@ private void escapes() {
 	reject ("class C{owned C f(){return this;}}", "fixed and borrowed references");
 	reject (c + "owned C make(){return C.init();}owned C f(){owned C c=make();return move c;}", "callee-local owned ObjectStorage cannot escape");
 }
+
 private void contexts() {
 	string c = "class C{init(){}}owned C make(){return C.init();}";
 	reject (c + "void use(borrowed C c){}void f(){use(C.init());}", "only permitted as a fresh class local initializer or direct owned object return");
@@ -49,6 +51,7 @@ private void contexts() {
 		reject (c + "void f(){owned C c=C.init();owned C other=" + initializer + ";}", "requires fresh object construction");
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-ret/semantic/exact-contract-producer-and-storage", contracts);
@@ -56,4 +59,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-ret/semantic/result-only-construction-and-no-temporaries", contexts);
 	return Test.run ();
 }
+
 }

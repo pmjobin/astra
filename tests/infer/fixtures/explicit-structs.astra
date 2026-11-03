@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Lab { f64 l; f64 a; }
+
 struct Pixel { Lab lab; int id; }
+
 Lab transform(Lab input) { Lab output = { l = input.l + 1.0d, a = input.a }; return output; }
+
 Pixel make(Lab input) { Pixel output = { lab = { l = input.l, a = input.a }, id = 7 }; return output; }
+
 int main() {
 	Lab input = { l = 2.0d, a = 3.0d };
 	Lab lab = transform(input);
@@ -12,6 +16,6 @@ int main() {
 	Lab* address = &lab;
 	Lab pointed = *address;
 	copy.lab.l = 8.0d;
-	if (lab.l == 3.0d && nested.l == 3.0d && pixel.lab.l == 3.0d && copy.lab.l == 8.0d && pointed.a == 3.0d) { return 0; }
+	if (lab.l == 3.0d && nested.l == 3.0d && pixel.lab.l == 3.0d && copy.lab.l == 8.0d && pointed.a == 3.0d) return 0;
 	return 1;
 }

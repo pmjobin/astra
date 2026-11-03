@@ -5,6 +5,7 @@
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
+
 __attribute__((constructor)) static void establish_numeric_locale(void) {
 	const char *requested = getenv("ASTRA_TEST_NUMERIC_LOCALE");
 	if (!requested) return;

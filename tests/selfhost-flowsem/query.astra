@@ -54,6 +54,7 @@ int main(string[] args) {
 		return 2;
 	}
 }
+
 void flow_query(FlowIndex index, string path, int offset, bool loan) throws Error {
 	int width = 2147483647;
 	FlowBlockId block = {
@@ -117,6 +118,7 @@ void flow_query(FlowIndex index, string path, int offset, bool loan) throws Erro
 	var text = output.snapshot();
 	print(text.text);
 }
+
 void flow_mutate(FlowIndex index, string mode) throws Error {
 	var before = syntax_program_dump(index.checked.bindings.program);
 	bool changed = false;
@@ -176,6 +178,7 @@ void flow_mutate(FlowIndex index, string mode) throws Error {
 	assert_that(changed && before.text == after.text);
 	println("MUTANT_REJECTED");
 }
+
 owned FlowIndex flow_text(string source, int limit, int steps) throws Error {
 	var program = parser_text_program(source);
 	var bindings = binding_index(move program, 0);
@@ -183,6 +186,7 @@ owned FlowIndex flow_text(string source, int limit, int steps) throws Error {
 	var result = flow_index(move checked, limit, steps);
 	return move result;
 }
+
 void flow_lifetime() throws Error {
 	string source = "void f(owned int[] x){release x;}void g(owned int[] x){release x;}";
 	var one = flow_text(source, 8192, 1000000);
@@ -240,6 +244,7 @@ void flow_lifetime() throws Error {
 	}
 	println("FLOW_LIFETIME_OK");
 }
+
 void flowsem_mutations(FlowIndex index) throws Error {
 	var before = syntax_program_dump(index.checked.bindings.program);
 	var seen = new bool[14];
@@ -328,7 +333,7 @@ void flowsem_mutations(FlowIndex index) throws Error {
 		if (graph.complete && len(graph.field_facts) > 0 && !seen[11]) {
 			int original = graph.field_facts[0];
 			graph.field_facts[0] = 1;
-			if (original == 1) { graph.field_facts[0] = 16; }
+			if (original == 1) graph.field_facts[0] = 16;
 			assert_that(!flowsem_verify_solution(graph, index.checked, index.class_origins));
 			graph.field_facts[0] = original;
 			seen[11] = true;
@@ -387,6 +392,7 @@ void flowsem_mutations(FlowIndex index) throws Error {
 	var text = output.snapshot();
 	print(text.text);
 }
+
 void flowsem_lifetime() throws Error {
 	string source = "struct Pair{int a;int b;}void f(){Pair x={a=1,b=2};}void g(){Pair x={a=3,b=4};}";
 	var one = flow_text(source, 8192, 1000000);
@@ -415,6 +421,7 @@ void flowsem_lifetime() throws Error {
 	}
 	println("FLOWSEM_LIFETIME_OK");
 }
+
 void admission_mutations(FlowIndex index) throws Error {
 	assert_that(admit_verify_index(index));
 	var seen = new bool[18];
@@ -451,17 +458,53 @@ void admission_mutations(FlowIndex index) throws Error {
 				var changed = original;
 				bool applies = false;
 				if (original.operation == 22) {
-					if (m == 0) { changed.field = original.field % graph.field_count + 1; applies = true; }
-					if (m == 1) { changed.source_field = original.source_field % graph.field_count + 1; applies = true; }
-					if (m == 2) { changed.producer = flow_node(original.node.index); applies = changed.producer.index != original.producer.index; }
-					if (m == 3) { changed.operation = 23; changed.source_field = 0; applies = true; }
-					if (m == 4) { changed.operation = 1; changed.field = 0; changed.source_field = 0; changed.producer = flow_no_node(); applies = true; }
+					if (m == 0) {
+						changed.field = original.field % graph.field_count + 1;
+						applies = true;
+					}
+					if (m == 1) {
+						changed.source_field = original.source_field % graph.field_count + 1;
+						applies = true;
+					}
+					if (m == 2) {
+						changed.producer = flow_node(original.node.index);
+						applies = changed.producer.index != original.producer.index;
+					}
+					if (m == 3) {
+						changed.operation = 23;
+						changed.source_field = 0;
+						applies = true;
+					}
+					if (m == 4) {
+						changed.operation = 1;
+						changed.field = 0;
+						changed.source_field = 0;
+						changed.producer = flow_no_node();
+						applies = true;
+					}
 				}
-				if (m == 5 && original.operation == 13) { changed.operation = 4; changed.call = 0; applies = true; }
-				if (m == 6 && original.operation == 8) { changed.operation = 1; changed.call = 0; applies = true; }
-				if (m == 7 && original.operation == 7) { changed.loan = 0; applies = true; }
-				if (m == 8 && original.operation == 23) { changed.producer = original.node; applies = changed.producer.index != original.producer.index; }
-				if (m == 9 && original.operation == 22) { changed.span.start = changed.span.start + 1; applies = true; }
+				if (m == 5 && original.operation == 13) {
+					changed.operation = 4;
+					changed.call = 0;
+					applies = true;
+				}
+				if (m == 6 && original.operation == 8) {
+					changed.operation = 1;
+					changed.call = 0;
+					applies = true;
+				}
+				if (m == 7 && original.operation == 7) {
+					changed.loan = 0;
+					applies = true;
+				}
+				if (m == 8 && original.operation == 23) {
+					changed.producer = original.node;
+					applies = changed.producer.index != original.producer.index;
+				}
+				if (m == 9 && original.operation == 22) {
+					changed.span.start = changed.span.start + 1;
+					applies = true;
+				}
 				if (applies && !seen[m]) {
 					graph.events[i] = changed;
 					assert_that(!flow_verify(graph, index.checked, index.class_origins));
@@ -477,9 +520,12 @@ void admission_mutations(FlowIndex index) throws Error {
 			int m = 10;
 			while (m <= 12) {
 				var changed = original;
-				if (m == 10) { changed.root = original.root % (graph.slot_count + 1); if (changed.root == original.root) { changed.root = graph.slot_count + 1; } }
-				if (m == 11) { changed.parent = graph.field_count; }
-				if (m == 12) { changed.type = type_id(13); }
+				if (m == 10) {
+					changed.root = original.root % (graph.slot_count + 1);
+					if (changed.root == original.root) changed.root = graph.slot_count + 1;
+				}
+				if (m == 11) changed.parent = graph.field_count;
+				if (m == 12) changed.type = type_id(13);
 				if (!seen[m]) {
 					graph.fields[0] = changed;
 					assert_that(!flow_verify(graph, index.checked, index.class_origins));
@@ -509,8 +555,11 @@ void admission_mutations(FlowIndex index) throws Error {
 			i = 0;
 			while (i < graph.count) {
 				var changed = graph.events[i];
-				if (changed.operation == 14) { changed.operation = 1; }
-				if (changed.operation == 10) { changed.next = graph.exit; changed.other = graph.exit; }
+				if (changed.operation == 14) changed.operation = 1;
+				if (changed.operation == 10) {
+					changed.next = graph.exit;
+					changed.other = graph.exit;
+				}
 				graph.events[i] = changed;
 				i = i + 1;
 			}

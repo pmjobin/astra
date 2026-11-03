@@ -29,6 +29,7 @@ private class ForeignWorkspace : Workspace {
 		FileUtils.unlink (object0);
 		FileUtils.unlink (object1);
 	}
+
 }
 
 private void c_execute(string name) throws GLib.Error {
@@ -166,4 +167,5 @@ private void register_c_imports() {
 	add ("/exec/cabi/objects-with-dump", () => cli_error ({"--dump-cabi", "file.astra", "--link-object", "file.o"}));
 	add ("/exec/cabi/objects-without-source", () => cli_error ({"--link-object", "file.o"}));
 }
+
 }

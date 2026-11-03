@@ -24,6 +24,7 @@ private void foreign_lifetime() throws GLib.Error {
 	assert (input_cleanup_ref.get () == null && result.diagnostic == null);
 	assert (result.program.c_functions[0].metadata.owned_result.cleanup.external_symbol == "resource_destroy_impl");
 }
+
 private void stages() throws GLib.Error {
 	CheckedProgram? checked = check (BASIC);
 	var checked_ref = WeakRef (checked);
@@ -72,8 +73,10 @@ private void stages() throws GLib.Error {
 	cabi = null;
 	assert (physical_ref.get () == null && source_ref.get () == null);
 }
+
 private void register_lifetime() {
 	add ("/release/lifetime/foreign", foreign_lifetime);
 	add ("/release/lifetime/stages", stages);
 }
+
 }

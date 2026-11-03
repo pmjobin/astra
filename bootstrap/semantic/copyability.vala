@@ -62,5 +62,6 @@ public class CopyabilityAuthority : Object {
 		visited.insert (type, true);
 		return Copyability.COPYABLE;
 	}
+
 }
 }

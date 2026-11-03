@@ -27,6 +27,7 @@ public class CfgArrayInitialize : CfgInstruction {
 		this.storage = storage;
 		this.elements = elements;
 	}
+
 }
 
 public class CfgArrayElementPlace : CfgPlace {
@@ -43,6 +44,7 @@ public class CfgArrayElementPlace : CfgPlace {
 		this.index = index;
 		this.provenance = provenance;
 	}
+
 }
 
 // Ordered, potentially trapping evaluation. The result carries validated
@@ -54,5 +56,6 @@ public class CfgArrayBoundsCheck : CfgEvaluateInstruction {
 		base (span, index, result);
 		this.storage = storage;
 	}
+
 }
 }

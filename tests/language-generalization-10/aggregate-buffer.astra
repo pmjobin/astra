@@ -2,41 +2,52 @@
 class Item {
 	owned R resource;
 	int code;
+
 	init(int code) {
 		this.resource = make(code);
 		this.code = code;
 	}
+
 	deinit() { mark(200 + this.code); }
 }
+
 struct Cell {
 	owned int[] data;
 	owned Other resource;
 	owned Item child;
 	int tag;
 }
+
 struct Document {
 	Cell first;
 	Cell second;
 }
+
 struct OnlyBuffers {
 	owned int[] numbers;
 	owned u8[] bytes;
 }
+
 int stage(int failure, int step) throws Error {
 	mark(100 + step);
-	if (failure == step) { throw new Error("prefix"); }
+	if (failure == step) {
+		throw new Error("prefix");
+	}
 	return step;
 }
+
 owned int[] numbers(int count) {
 	var values = new int[count];
 	values[0] = count;
 	mark(300 + values[0]);
 	return move values;
 }
+
 owned Item child(int code) {
 	var result = new Item(code);
 	return move result;
 }
+
 int exercise(int failure) {
 	try {
 		Document document = {
@@ -60,6 +71,7 @@ int exercise(int failure) {
 	}
 	return live();
 }
+
 int main() {
 	{
 		var values = new int[3];
@@ -73,8 +85,8 @@ int main() {
 	for (int i = 0; i < 3; i = i + 1) {
 		OnlyBuffers only = {numbers = new int[i], bytes = new u8[2]};
 		var moved = move only;
-		if (i == 0) { continue; }
-		if (i == 1) { break; }
+		if (i == 0) continue;
+		if (i == 1) break;
 	}
 	return total + live();
 }

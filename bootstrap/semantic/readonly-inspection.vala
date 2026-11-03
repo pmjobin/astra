@@ -82,6 +82,7 @@ internal class ReadonlyInspection : Object {
 		effects.infer_requirements ();
 		return effects;
 	}
+
 	// Vala shares closure storage within one method. Keep this long-lived
 	// frontier separate from probes that capture the analysis or its owner.
 	private static CodeEffectAnalysis create_effect_analysis(ReadonlyCodeOrigins origins) {
@@ -95,11 +96,13 @@ internal class ReadonlyInspection : Object {
 		}
 		return result;
 	}
+
 	public void require(FunctionSymbol function) {
 		if (!requests.find (function)) {
 			requests.add (function);
 		}
 	}
+
 	public Diagnostic? validate(CheckedProgram program, owned CopyabilityFields fields) {
 		this.fields = (owned) fields;
 		if (requests.length != 0) {
@@ -138,11 +141,13 @@ internal class ReadonlyInspection : Object {
 		code_origins = null;
 		return diagnostic;
 	}
+
 	private void reject(SourceSpan span, string reason) {
 		if (diagnostic == null) {
 			diagnostic = new Diagnostic (span, "readonly scoped inspector " + reason);
 		}
 	}
+
 	internal static bool copied_result(SemanticType type, CopyabilityFields fields) {
 		if (type.kind == TypeKind.VOID || FunctionValueType.scalar (type)) {
 			return true;
@@ -161,6 +166,7 @@ internal class ReadonlyInspection : Object {
 		}
 		return true;
 	}
+
 	private bool copied(SemanticType type) {
 		if (type is FunctionValueType || FunctionValueType.scalar (type) || type is StringType) {
 			return true;
@@ -179,6 +185,7 @@ internal class ReadonlyInspection : Object {
 		}
 		return true;
 	}
+
 	private void inspect(FunctionSymbol function, SourceSpan span) {
 		if (inference != null && function is LifecycleSymbol) {
 			reject (span, "cannot perform lifecycle work while inspecting");
@@ -212,6 +219,7 @@ internal class ReadonlyInspection : Object {
 		visited.insert (function, true);
 		block (definition.body);
 	}
+
 	private void call(DirectCallableSymbol? target, CheckedExpression? receiver, GenericArray<CheckedExpression> arguments, SourceSpan span) {
 		if (receiver != null) {
 			value (receiver);
@@ -238,6 +246,7 @@ internal class ReadonlyInspection : Object {
 			reject (span, "requires an exact native or scalar/text foreign call");
 		}
 	}
+
 	private void place(CheckedPlace storage) {
 		if (storage is CheckedLocalPlace) {
 			return;
@@ -262,6 +271,7 @@ internal class ReadonlyInspection : Object {
 		}
 		reject (storage.span, "requires direct object or local reads");
 	}
+
 	private void value(CheckedExpression expression) {
 		if (diagnostic != null) {
 			return;
@@ -395,6 +405,7 @@ internal class ReadonlyInspection : Object {
 		}
 		reject (expression.span, "requires scalar/text observations and bounded native calls");
 	}
+
 	private void producer(CheckedStructProducer source) {
 		if (source is CheckedStructInvocationResult) {
 			value (((CheckedStructInvocationResult) source).invocation);
@@ -432,6 +443,7 @@ internal class ReadonlyInspection : Object {
 		}
 		reject (source.span, "record observation requires a bounded snapshot or native call");
 	}
+
 	private bool writable(CheckedPlace place) {
 		while (place is CheckedFieldPlace) {
 			place = ((CheckedFieldPlace) place).aggregate;
@@ -443,6 +455,7 @@ internal class ReadonlyInspection : Object {
 		var parameter = local.local.incoming_parameter;
 		return parameter == null || parameter.struct_value_contract == null || parameter.struct_value_contract.mode != StructValueMode.BORROW_VALUE;
 	}
+
 	private void initializers(GenericArray<CheckedFieldInitializer> fields) {
 		foreach (var field in fields) {
 			if (field.initializer != null) {
@@ -454,6 +467,7 @@ internal class ReadonlyInspection : Object {
 			}
 		}
 	}
+
 	private void block(CheckedBlockStatement body) {
 		foreach (var statement in body.statements) {
 			if (diagnostic != null) {
@@ -528,5 +542,6 @@ internal class ReadonlyInspection : Object {
 			}
 		}
 	}
+
 }
 }

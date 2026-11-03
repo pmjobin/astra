@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 class Samples {
 	owned f64[] values;
+
 	init(string label) {
 		assert_code(label.byte_length > 0, 741);
 		this.values = new f64[label.byte_length];
 	}
+
 	int size() { return len(this.values); }
+
 	f64 first() { return this.values[0]; }
+
 	deinit() {
-		if (!println_stderr("released")) { return; }
+		if (!println_stderr("released")) return;
 	}
 }

@@ -2,72 +2,87 @@
 class ResultMethods<Label> {
 	Label label;
 	int calls;
+
 	init(Label label) { this.label = label; this.calls = 0; }
+
 	owned Value relay<Value>(owned Value value) { this.calls = this.calls + 1; return move value; }
+
 	owned Value replace<Value>(owned Value old, owned Value next) { this.calls = this.calls + 1; return move next; }
+
 	owned Value checked<Value>(owned Value value, bool fail) throws Error {
 		this.calls = this.calls + 1;
-		if (fail) { throw new Error("owned method result"); }
+		if (fail) {
+			throw new Error("owned method result");
+		}
 		return move value;
 	}
 }
+
 owned Value forward_result<Label, Value>(borrowed ResultMethods<Label> host, owned Value value) where Value : Ownable {
 	return host.relay<Value>(move value);
 }
+
 owned Value relay_result<Value, Label>(owned Value value, borrowed ResultMethods<Label> host) where Value : Ownable {
 	return forward_result(host, move value);
 }
+
 owned Value replace_result<Label, Value>(borrowed ResultMethods<Label> host, owned Value old, owned Value next) where Value : Ownable {
 	return host.replace<Value>(move old, move next);
 }
+
 owned Value checked_result<Label, Value>(borrowed ResultMethods<Label> host, owned Value value, bool fail) throws Error where Value : Ownable {
 	return host.checked<Value>(move value, fail);
 }
+
 owned Value prepared_result<Label, Value>(borrowed ResultMethods<Label> host, owned Value value, int marker) where Value : Ownable {
 	return host.relay<Value>(move value);
 }
+
 int fail_result_argument() throws Error { mark(903); throw new Error("later result argument"); }
+
 int checked_results(borrowed ResultMethods<bool> host) {
 	int baseline = live();
 	var failing = make(217);
 	try { var unexpected = checked_result(host, move failing, true); return 1; }
 	catch (Error error) { mark(905); }
-	if (live() != baseline) { return 2; }
+	if (live() != baseline) return 2;
 	var retry = make(218);
 	try {
 		var result = checked_result(host, move retry, false);
-		if (id(result) != 218 || live() != baseline + 1) { return 3; }
+		if (id(result) != 218 || live() != baseline + 1) return 3;
 	} catch (Error error) { return 4; }
-	if (live() != baseline) { return 5; }
+	if (live() != baseline) return 5;
 	return 0;
 }
+
 int exercise_results() {
 	var host = new ResultMethods<bool>(true);
 	var first = make(211);
 	var one = forward_result(host, move first);
-	if (id(one) != 211 || live() != 1) { return 1; }
+	if (id(one) != 211 || live() != 1) return 1;
 	var other = make_other(212);
 	var two = relay_result(move other, host);
-	if (other_id(two) != 212 || live() != 2) { return 2; }
+	if (other_id(two) != 212 || live() != 2) return 2;
 	var old = make(213);
 	var next = make(214);
 	var three = replace_result(host, move old, move next);
-	if (id(three) != 214 || live() != 3) { return 3; }
+	if (id(three) != 214 || live() != 3) return 3;
 	i64 label = 9000000001;
 	var second_host = new ResultMethods<i64>(label);
 	var second = make(215);
 	var four = forward_result(second_host, move second);
-	if (id(four) != 215 || second_host.label != label || second_host.calls != 1) { return 4; }
+	if (id(four) != 215 || second_host.label != label || second_host.calls != 1) return 4;
 	var pending = make(216);
 	try { var unexpected = prepared_result(host, move pending, fail_result_argument()); return 5; }
 	catch (Error error) { mark(904); }
-	if (id(pending) != 216 || live() != 5 || host.calls != 3) { return 6; }
+	if (id(pending) != 216 || live() != 5 || host.calls != 3) return 6;
 	var five = prepared_result(host, move pending, 0);
-	if (id(five) != 216 || live() != 5 || checked_results(host) != 0 || host.calls != 6) { return 7; }
+	if (id(five) != 216 || live() != 5 || checked_results(host) != 0 || host.calls != 6) return 7;
 	return 0;
 }
+
 int main() {
 	int result = exercise_results();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

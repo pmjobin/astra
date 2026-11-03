@@ -3,14 +3,18 @@ int integer_dot(borrowed i16<8>[] a, borrowed i16<8>[] b, int initial) {
 	int result = dot_wrap(a[0],b[0],int);
 	return result + mac_wrap(initial,a[0],b[0]);
 }
+
 f32 ordered(borrowed f32<4>[] a, borrowed f32<4>[] b) { return dot(a[0],b[0]); }
+
 f32 accumulate(f32 initial, borrowed f32<4>[] a, borrowed f32<4>[] b) { return mac(initial,a[0],b[0]); }
+
 void copy(borrowed f32<4>[] dst, borrowed f32<4>[] src) { dst[0] = src[0]; }
+
 int main() {
 	i16<8> two = splat(2,8);
 	i16<8> minimum = splat(-32768,8);
 	i16<8>[2] ints = {two,minimum};
-	if (integer_dot(slice(ints,0,1),slice(ints,0,1),3) != 67 || integer_dot(slice(ints,1,1),slice(ints,1,1),7) != 7) { return 1; }
+	if (integer_dot(slice(ints,0,1),slice(ints,0,1),3) != 67 || integer_dot(slice(ints,1,1),slice(ints,1,1),7) != 7) return 1;
 	f32 inf = 1e100;
 	f32 nan = 0.0/0.0;
 	f32<4> ordered_values = {16777216.0,1.0,-16777216.0,1.0};
@@ -21,13 +25,13 @@ int main() {
 	f32<4>[4] values = {ordered_values,negative_zero,specials,infinities};
 	f32<4>[1] weights = {ones};
 	f32<4>[1] copied = {ones};
-	if (ordered(slice(values,0,1),slice(weights)) != 1.0) { return 2; }
-	if (1.0/ordered(slice(values,1,1),slice(weights)) != inf || 1.0/accumulate(-0.0,slice(values,1,1),slice(weights)) != -inf) { return 3; }
+	if (ordered(slice(values,0,1),slice(weights)) != 1.0) return 2;
+	if (1.0/ordered(slice(values,1,1),slice(weights)) != inf || 1.0/accumulate(-0.0,slice(values,1,1),slice(weights)) != -inf) return 3;
 	copy(slice(copied),slice(values,2,1));
-	if (1.0/copied[0][0] != -inf || copied[0][1] == copied[0][1] || copied[0][2] != specials[2] || copied[0][3] != specials[3]) { return 4; }
+	if (1.0/copied[0][0] != -inf || copied[0][1] == copied[0][1] || copied[0][2] != specials[2] || copied[0][3] != specials[3]) return 4;
 	f32 result = ordered(slice(values,3,1),slice(weights));
-	if (result == result) { return 5; }
+	if (result == result) return 5;
 	result = accumulate(3.0,slice(values,2,1),slice(weights));
-	if (result == result) { return 6; }
+	if (result == result) return 6;
 	return 0;
 }

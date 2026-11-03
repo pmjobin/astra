@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 namespace ByteService16;
 owned Byte16.Fault foreign_fault(int domain,int status){var result=new Byte16.Fault("foreign service failure");return move result;}
+
 [Shared][CExport(name="byte_service16",profile="declarations-v1",bool_abi="c99")]
 [COMExport(interfaces="IByteService16",threading="constructing",profile="declarations-v1")]
 [GObjectExport(type="ByteService16Session",namespace="ByteService16",version="2.1",profile="declarations-v1")]
@@ -8,39 +9,58 @@ class Session {
 	private owned Byte16.Session processor;
 	private owned Token token;
 	private bool active;private f64 factor;
+
 	[Foreign(error_domain="16",errors="Byte16.Fault=-1610")]
 	init(Byte16.Configuration configuration)throws Byte16.Fault {
 		var processor=new Byte16.Session(configuration);this.processor=move processor;
 		var token=new Token(0);this.token=move token;this.active=true;this.factor=configuration.weight;
 	}
+
 	[Foreign]property int revision{get{var value=this.processor.statistics();return value.revision as int;}}
+
 	[Foreign]property bool enabled{get{return this.active;}set(bool value){this.active=value;}}
+
 	[Foreign]property f64 weight{get{return this.factor;}}
+
 	[Foreign(personalities="c,gobject")][ForeignChannel(parameter="result",encoding="utf8-nul")]
 	property string label{get{return "Byte transform é";}}
+
 	[Foreign(personalities="c,gobject")][ForeignChannel(parameter="result",nullable="true")]
-	property owned Token current{get{var statistics=this.processor.statistics();if(statistics.revision==0){return null;}var result=clone_token(this.token);return move result;}}
+	property owned Token current{get{var statistics=this.processor.statistics();if(statistics.revision==0) return null;var result=clone_token(this.token);return move result;}}
+
 	[Foreign(error_domain="16",errors="Byte16.Fault=-1610")]
 	[ForeignChannel(parameter="input",nullable="true")]
 	[ForeignChannel(parameter="output",direction="out",nullable="true",produced="result")]
 	int process(borrowed u8[] input,borrowed u8[] output)throws Byte16.Fault {
-		if(!this.active){throw new Byte16.Fault("service disabled");}
+		if(!this.active){
+			throw new Byte16.Fault("service disabled");
+		}
 		int produced=this.processor.process(input,output);int revision=this.revision;this.token.update(revision);
 		emit processed(revision,true,this.factor);var token=clone_token(this.token);emit snapshot_ready(token,"Byte transform é");return produced;
 	}
+
 	[Foreign]Byte16.Statistics<f64> statistics(){return this.processor.statistics();}
+
 	[Foreign]owned u8[] snapshot(){var result=this.processor.snapshot();return move result;}
+
 	[Foreign]signal void processed(int revision,bool committed,f64 weight);
+
 	[Foreign]signal void snapshot_ready(borrowed Token token,string label);
+
 	deinit(){Byte16.observe_retirement(3);}
 }
+
 [Shared][CExport(name="byte_token16",profile="declarations-v1")]
 [GObjectExport(type="ByteService16Token",namespace="ByteService16",version="2.1",profile="declarations-v1")]
 class Token {
 	private int code;
+
 	[Foreign]init(int code){this.code=code;}
+
 	[Foreign]property int revision{get{return this.code;}}
+
 	void update(int code){this.code=code;}
+
 	deinit(){Byte16.observe_retirement(4);}
 }
 

@@ -12,6 +12,7 @@ internal class ReadonlyEffectCall : Object {
 		this.arguments = arguments;
 		this.protected_call = protected_call;
 	}
+
 }
 // Reconstruct code-value flow from checked definitions. The analysis is
 // temporary and does not substitute a function name for an effect proof.
@@ -72,6 +73,7 @@ internal class ReadonlyCodeOrigins : Object {
 			}
 		} while (prior != graph.revision);
 	}
+
 	private void definition(CheckedFunction function) {
 		current_scope = function.symbol;
 		foreach (var parameter in function.symbol.parameters) {
@@ -92,11 +94,13 @@ internal class ReadonlyCodeOrigins : Object {
 		}
 		block (function.body, function.symbol);
 	}
+
 	private void opaque_type(SemanticType type) {
 		if (type.kind != TypeKind.VOID && !FunctionValueType.scalar (type) && !(type is HandleType) && !(type is StringType)) {
 			graph.escape_storage ();
 		}
 	}
+
 	private Object? place(CheckedPlace storage) {
 		if (storage is CheckedLocalPlace) {
 			return ((CheckedLocalPlace) storage).local;
@@ -120,6 +124,7 @@ internal class ReadonlyCodeOrigins : Object {
 		}
 		return null;
 	}
+
 	private void call(DirectCallableSymbol? target, GenericArray<CheckedExpression> arguments, CheckedExpression? receiver) {
 		bool protected_call = receiver != null && call_context.overlaps (receiver.semantic_type);
 		foreach (var argument in arguments) {
@@ -146,6 +151,7 @@ internal class ReadonlyCodeOrigins : Object {
 			}
 		}
 	}
+
 	private void value(CheckedExpression expression) {
 		if (expression is CheckedOwnedArgument) {
 			var owned = (CheckedOwnedArgument) expression;
@@ -275,6 +281,7 @@ internal class ReadonlyCodeOrigins : Object {
 			graph.unknown (expression);
 		}
 	}
+
 	private void producer(CheckedStructProducer source) {
 		if (source is CheckedStructAwait) {
 			value (((CheckedStructAwait) source).operation);
@@ -287,6 +294,7 @@ internal class ReadonlyCodeOrigins : Object {
 			call (invoked.target, invoked.arguments, invoked.receiver);
 		}
 	}
+
 	private void initializers(GenericArray<CheckedFieldInitializer> fields) {
 		foreach (var field in fields) {
 			if (field.initializer != null) {
@@ -299,6 +307,7 @@ internal class ReadonlyCodeOrigins : Object {
 			}
 		}
 	}
+
 	private void block(CheckedBlockStatement body, FunctionSymbol function) {
 		foreach (var statement in body.statements) {
 			if (statement is CheckedValueStatement) {
@@ -397,6 +406,7 @@ internal class ReadonlyCodeOrigins : Object {
 			}
 		}
 	}
+
 	internal Astra.Code.CodeOriginFrontier? effect_frontier (Object expression, GenericArray<Object> formals) {
 		if (!(expression is CheckedExpression)) {
 			return null;
@@ -417,6 +427,7 @@ internal class ReadonlyCodeOrigins : Object {
 			effects.add_call (site.scope, site.target, arguments, protected_call);
 		}
 	}
+
 	internal GenericArray<FunctionSymbol>? targets(CheckedExpression expression) {
 		value (expression);
 		var found = graph.targets (expression);
@@ -433,5 +444,6 @@ internal class ReadonlyCodeOrigins : Object {
 		}
 		return result;
 	}
+
 }
 }

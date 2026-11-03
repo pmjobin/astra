@@ -15,6 +15,7 @@ private CheckedProgram check(string source) {
 	}
 	return checked.program;
 }
+
 private void reject(string source, string fragment) {
 	var parsed = Parser.parse (new SourceFile.from_text ("invalid", source));
 	var diagnostic = parsed.diagnostic;
@@ -25,6 +26,7 @@ private void reject(string source, string fragment) {
 		GLib.error ("expected %s; found %s", fragment, diagnostic == null ? "success" : diagnostic.message);
 	}
 }
+
 private void identities() {
 	CheckedProgram? p = check ("class C{int x;init(int n){this.x=n;}deinit(){this.x=this.x+1;this.log();}void log(){}}int main(){C c=C.init(42);C a=c;c=null;a.x=43;return 42;}");
 	var c = p.classes[0];
@@ -44,6 +46,7 @@ private void identities() {
 	p = null;
 	assert (witness.get () == null);
 }
+
 private void declarations() {
 	reject ("class C{init(){}init(int n){}}", "duplicate lifecycle");
 	reject ("class C{deinit(){}deinit(){}}", "duplicate lifecycle");
@@ -68,6 +71,7 @@ private void declarations() {
 	check ("struct S{int x;int init(){return this.x;}void deinit(){this.x=42;}}int main(){S s={x=1};s.deinit();int x=s.init();return x;}");
 	check ("int new(){return 42;}int main(){return new();}");
 }
+
 private void definite_initialization() {
 	string head = "class C{int x;int y;init(bool b){";
 	reject (head + "this.x=1;}}", "field 'y' is not definitely initialized");
@@ -89,10 +93,12 @@ private void definite_initialization() {
 	check (head + "while(true){}this.x=1;this.x=2;}}");
 	check (head + "bool unused=false && this.x==0;this.x=1;this.y=2;}}");
 }
+
 private void lifetime() {
 	reject ("class C{init(){}deinit(){}}int main(){C outer=null;{C inner=C.init();outer=inner;}return 42;}", "shorter lexical lifetime");
 	check ("class C{init(){}deinit(){}}int main(){C outer=C.init();{C inner=outer;outer=null;}return 42;}");
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/obj-life/semantic/symbols-receivers-storage-and-lifetime", identities);
@@ -101,4 +107,5 @@ int main(string[] args) {
 	Test.add_func ("/obj-life/semantic/reference-provenance-regression", lifetime);
 	return Test.run ();
 }
+
 }

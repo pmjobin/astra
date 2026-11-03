@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct NativeReading { int count; f64 total; }
+
 [Repr(layout="C")]
 [Align(bytes="8")]
 struct WireReading {
@@ -10,12 +11,14 @@ struct WireReading {
 	f64 total;
 	u32 flags;
 }
+
 [CCode(record_abi="natural-lp64")]
 extern(C) int layout_oracle(borrowed WireReading* reading);
+
 int main() {
 	NativeReading native = {count = 6, total = 42.0};
 	WireReading wire = {tag = 7, timestamp = 4294967300, gain = 1.25, count = 6, total = native.total, flags = 2147483649};
-	if (native.count != 6 || layout_oracle(&wire) != 1) { return 81; }
-	if (wire.count != 12 || wire.total != 84.0 || wire.timestamp != 4294967301 || wire.tag != 9) { return 82; }
+	if (native.count != 6 || layout_oracle(&wire) != 1) return 81;
+	if (wire.count != 12 || wire.total != 84.0 || wire.timestamp != 4294967301 || wire.tag != 9) return 82;
 	return 42;
 }

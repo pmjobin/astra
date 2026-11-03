@@ -1,13 +1,19 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { life_record(this.value, 0); }
+
 	void add(int n) { this.value = this.value + n; }
 }
+
 int consume(owned Counter c, i16<8> values) {
 	i16<8> factors = splat(2, 8);
 	c.value = dot_wrap(values, factors, i32) + 10;
 	return c.value;
 }
+
 int main() { owned Counter c = Counter.init(0); return consume(move c, splat(2, 8)); }

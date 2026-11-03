@@ -16,5 +16,6 @@ public class CoreSharedOperation : CoreValue {
 		this.cleanup = cleanup;
 		this.borrower = borrower;
 	}
+
 }
 }

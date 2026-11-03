@@ -1,11 +1,17 @@
 extern(C) int life_record(int code, int value);
+
 class Counter {
 	int value;
+
 	init(int value) { this.value = value; }
+
 	deinit() { life_record(this.value, 0); }
+
 	void add(int n) { this.value = this.value + n; }
 }
+
 void consume(owned Counter a, owned Counter b) { a.add(1); b.add(1); }
+
 int main() {
 	owned Counter a = Counter.init(64);
 	owned Counter b = Counter.init(65);

@@ -32,9 +32,11 @@ private void lowering() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 int main(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/num-conv/llvm/exact-opcodes-guards-stage-lifetime", lowering);
 	return Test.run ();
 }
+
 }

@@ -39,6 +39,7 @@ private CfgProgram owned_program(int variant = -1) {
 	functions.add (new CfgFunction (span, span, "f", types.void_type, 0, new GenericArray<CfgParameter> (), locals, blocks, block));
 	return new CfgProgram (span, functions, imports, null, null, cleanups);
 }
+
 private void owned_model() {
 	try {
 		CfgProgram? program = owned_program ();
@@ -52,6 +53,7 @@ private void owned_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void owned_invalid() {
 	for (int variant = 0; variant < 7; variant++) {
 		try {
@@ -63,6 +65,7 @@ private void owned_invalid() {
 		GLib.error ("malformed cleanup %d accepted", variant);
 	}
 }
+
 private CfgProgram move_program(int variant = -1) {
 	var program = owned_program ();
 	var function = program.functions[0];
@@ -84,6 +87,7 @@ private CfgProgram move_program(int variant = -1) {
 	}
 	return program;
 }
+
 private void move_model() {
 	try {
 		CfgProgram? program = move_program ();
@@ -98,6 +102,7 @@ private void move_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void move_invalid() {
 	for (int variant = 0; variant < 6; variant++) {
 		try {
@@ -109,6 +114,7 @@ private void move_invalid() {
 		GLib.error ("malformed move %d accepted", variant);
 	}
 }
+
 private CfgProgram oborrow_program(int variant = -1) {
 	var program = move_program ();
 	var function = program.functions[0];
@@ -152,6 +158,7 @@ private CfgProgram oborrow_program(int variant = -1) {
 	}
 	return program;
 }
+
 private void oborrow_model() {
 	try {
 		CfgProgram? program = oborrow_program ();
@@ -165,6 +172,7 @@ private void oborrow_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void oborrow_invalid() {
 	for (int i = 0; i < 8; i++) {
 		try {
@@ -176,6 +184,7 @@ private void oborrow_invalid() {
 		GLib.error ("malformed borrow %d accepted", i);
 	}
 }
+
 private CfgProgram release_program(int variant = -1) {
 	var program = move_program ();
 	var function = program.functions[0];
@@ -205,6 +214,7 @@ private CfgProgram release_program(int variant = -1) {
 	}
 	return program;
 }
+
 private void release_model() {
 	try {
 		CfgProgram? program = release_program ();
@@ -220,6 +230,7 @@ private void release_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void release_invalid() {
 	for (int i = 0; i < 6; i++) {
 		try {
@@ -231,6 +242,7 @@ private void release_invalid() {
 		GLib.error ("malformed release %d accepted", i);
 	}
 }
+
 private CfgProgram rearm_program(int variant = -1) {
 	var program = move_program ();
 	var function = program.functions[0];
@@ -288,6 +300,7 @@ private CfgProgram rearm_program(int variant = -1) {
 	}
 	return program;
 }
+
 private void rearm_model() {
 	try {
 		CfgProgram? program = rearm_program ();
@@ -304,6 +317,7 @@ private void rearm_model() {
 		GLib.error ("%s", error.message);
 	}
 }
+
 private void rearm_invalid() {
 	for (int i = 0; i < 13; i++) {
 		try {
@@ -315,6 +329,7 @@ private void rearm_invalid() {
 		GLib.error ("malformed rearm %d accepted", i);
 	}
 }
+
 private void register_owned_tests() {
 	Test.add_func ("/cfg-standalone/rearm/model-contract-lifetime", rearm_model);
 	Test.add_func ("/cfg-standalone/rearm/malformed", rearm_invalid);
@@ -327,4 +342,5 @@ private void register_owned_tests() {
 	Test.add_func ("/cfg-standalone/ownership/model-order-lifetime", owned_model);
 	Test.add_func ("/cfg-standalone/ownership/malformed", owned_invalid);
 }
+
 }

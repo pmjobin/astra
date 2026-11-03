@@ -16,6 +16,7 @@ public abstract class CfgNode : Object {
 	protected CfgNode (SourceSpan span) {
 		this.span = span;
 	}
+
 }
 
 // Attached foreign boundary only. The program owns the native target;
@@ -45,6 +46,7 @@ public class CfgCExport : CfgNode {
 		this.ordinal = ordinal;
 		this.record_abi = record_abi;
 	}
+
 }
 
 // Stage-owned responsibility with foreign cleanup or exact native class
@@ -98,6 +100,7 @@ public class CfgCleanupContract : Object {
 		this.symbol_span = symbol_span;
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CfgProgram : CfgNode {
@@ -133,6 +136,7 @@ public class CfgProgram : CfgNode {
 		this.structs = structs ?? new GenericArray<CfgStruct> ();
 		this.c_exports = c_exports ?? new GenericArray<CfgCExport> ();
 	}
+
 }
 
 // Independent foreign declaration identity, without a body or native ABI data.
@@ -167,6 +171,7 @@ public class CfgCFunction : CfgNode {
 		}
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CfgFunction : CfgNode {
@@ -178,14 +183,17 @@ public class CfgFunction : CfgNode {
 		}
 		native_declaration = native_declaration_origin = declaration;
 	}
+
 	internal bool native_declaration_valid() {
 		return native_declaration == native_declaration_origin;
 	}
+
 	internal bool declaration_only() {
 		return native_declaration != null && native_declaration_valid () && name_span.file.native_interface &&
 		       blocks.length == 1 && blocks[0] == entry && entry.instructions.length == 0 &&
 		       entry.terminator is CfgNativeDeclaration && locals.length == 0 && field_places.length == 0 && object_storage.length == 0;
 	}
+
 	private GenericArray<CfgEvaluateInstruction> vector_effects = new GenericArray<CfgEvaluateInstruction> ();
 	private GenericArray<CfgBlock> vector_blocks = new GenericArray<CfgBlock> ();
 	private GenericArray<int> vector_positions = new GenericArray<int> ();
@@ -194,6 +202,7 @@ public class CfgFunction : CfgNode {
 		vector_blocks.add (block);
 		vector_positions.add ((int) block.instructions.length - 1);
 	}
+
 	internal void verify_vector_memory() throws CfgError {
 		for (int i = 0; i < vector_effects.length; i++) {
 			var block = vector_blocks[i];
@@ -225,13 +234,16 @@ public class CfgFunction : CfgNode {
 			floating_policy_bound = true;
 		}
 	}
+
 	public bool floating_policy_valid() {
 		return floating_policy == floating_policy_origin && Astra.Semantic.FloatingPointPolicy.valid (floating_policy);
 	}
+
 	public bool nonnull_result { get; private set; default = false; }
 	internal void mark_nonnull_result() {
 		nonnull_result = true;
 	}
+
 	public bool utf8_factory { get; internal set; default = false; }
 	public AsyncBodyContract? async_body { get; internal set; }
 	public GenericArray<CfgExceptionHandler> handlers { get; private set; default = new GenericArray<CfgExceptionHandler> (); }
@@ -274,6 +286,7 @@ public class CfgFunction : CfgNode {
 		this.blocks = blocks;
 		this.entry = entry;
 	}
+
 }
 
 // Array containment defines declaration ownership, without parent cycles.
@@ -282,6 +295,7 @@ public class CfgParameter : CfgNode {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public bool heap_object { get; internal set; default = false; }
 	public PointerParameterContract pointer_contract { get; private set; }
 	public string name { get { return identifier; } }
@@ -298,6 +312,7 @@ public class CfgParameter : CfgNode {
 		this.semantic_type = semantic_type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 public abstract class CfgPlace : CfgNode {
@@ -326,6 +341,7 @@ public abstract class CfgPlace : CfgNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 // CFG-owned storage authority; neither a Core identity nor a value.
@@ -334,6 +350,7 @@ public class CfgLocalPlace : CfgPlace {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public GenericArray<StructLeafPath> record_order { get; private set; default = new GenericArray<StructLeafPath> (); }
 	public Astra.Text.TextLoanExtent? text_extent { get; internal set; }
 	public bool text_loan { get; internal set; default = false; }
@@ -360,6 +377,7 @@ public class CfgLocalPlace : CfgPlace {
 		this.identifier = name;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Function-owned normalization storage. No source name, LocalSymbol, or
@@ -371,6 +389,7 @@ public class CfgTemporaryPlace : CfgPlace {
 		base (span, semantic_type);
 		this.ordinal = ordinal;
 	}
+
 }
 
 public class CfgBlock : CfgNode {
@@ -409,6 +428,7 @@ public class CfgBlock : CfgNode {
 		this.span = span;
 		this.completed_terminator = terminator;
 	}
+
 }
 
 // Consumes the immediately preceding owned C-call result exactly once.
@@ -430,6 +450,7 @@ public class CfgOwnershipRearmInstruction : CfgInstruction {
 		this.value = value;
 		this.cleanup = cleanup;
 	}
+
 }
 
 // Instructions execute in array order, then the separate terminator runs.
@@ -443,6 +464,7 @@ public class CfgOwnershipReleaseInstruction : CfgInstruction {
 		this.owner = owner;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public class CfgCleanupInstruction : CfgInstruction {
@@ -456,12 +478,14 @@ public class CfgCleanupInstruction : CfgInstruction {
 		this.value = value;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public abstract class CfgInstruction : CfgNode {
 	protected CfgInstruction (SourceSpan span) {
 		base (span);
 	}
+
 }
 
 // Calls are conservatively effectful, ordered instructions, never successors.
@@ -472,9 +496,11 @@ public class CfgCallInstruction : CfgInstruction {
 		readonly_required = required;
 		original_readonly_required = required;
 	}
+
 	internal bool readonly_context_valid() {
 		return readonly_required == original_readonly_required;
 	}
+
 	public GenericArray<CfgStructBoundaryMove> record_moves { get; private set; default = new GenericArray<CfgStructBoundaryMove> (); }
 	public CfgEvaluatedValue? exception_result { get; internal set; }
 	public CfgEvaluatedValue? success_result { get; internal set; }
@@ -485,6 +511,7 @@ public class CfgCallInstruction : CfgInstruction {
 		enum_result = slot;
 		original_enum_result = slot;
 	}
+
 	internal bool matches_enum_channels() {
 		if (enum_result != original_enum_result || arguments.length != original_enum_arguments.length) {
 			return false;
@@ -496,6 +523,7 @@ public class CfgCallInstruction : CfgInstruction {
 		}
 		return true;
 	}
+
 	public CfgBufferResults? buffer_result { get; internal set; }
 	public GenericArray<StructBoundaryGroup> struct_arguments { get; private set; default = new GenericArray<StructBoundaryGroup> (); }
 	public CfgStructCallResults? struct_result { get; internal set; }
@@ -517,6 +545,7 @@ public class CfgCallInstruction : CfgInstruction {
 		}
 		this.result = result;
 	}
+
 }
 
 // Conservatively effectful C boundary; only the program owns the target.
@@ -534,6 +563,7 @@ public class CfgCCallInstruction : CfgInstruction {
 		this.arguments = arguments;
 		this.result = result;
 	}
+
 }
 
 // Evaluate a potentially trapping tree at this exact instruction position,
@@ -548,6 +578,7 @@ public class CfgEvaluateInstruction : CfgInstruction {
 		this.value = value;
 		this.result = result;
 	}
+
 }
 
 // Operands are evaluated in order before this pure, whole-value primitive.
@@ -555,12 +586,14 @@ public class CfgVectorDotInstruction : CfgEvaluateInstruction {
 	internal CfgVectorDotInstruction (SourceSpan span, VectorDotKind dot_kind, SemanticType source_type, SemanticType destination_type, CfgValue? accumulator, CfgValue first, CfgValue second) {
 		base (span, new CfgVectorDotValue (span, dot_kind, source_type, destination_type, accumulator, first, second), new CfgEvaluatedValue (span, destination_type));
 	}
+
 }
 
 public class CfgDspInstruction : CfgEvaluateInstruction {
 	internal CfgDspInstruction (SourceSpan span, DspPrimitiveKind primitive_kind, SemanticType source_type, SemanticType destination_type, CfgValue first, CfgValue? second, IntegerType? destination_element = null) {
 		base (span, new CfgDspValue (span, primitive_kind, source_type, destination_type, first, second, destination_element), new CfgEvaluatedValue (span, destination_type));
 	}
+
 }
 
 // One ordered, potentially trapping scalar/vector operation after both
@@ -569,6 +602,7 @@ public class CfgIntegerShiftInstruction : CfgEvaluateInstruction {
 	internal CfgIntegerShiftInstruction (SourceSpan span, SemanticType semantic_type, IntegerShiftKind shift_kind, CfgValue operand, CfgValue count) {
 		base (span, new CfgIntegerShiftValue (span, semantic_type, shift_kind, operand, count), new CfgEvaluatedValue (span, semantic_type));
 	}
+
 }
 
 // The result is the same scalar value, with proof of the exact destination
@@ -582,12 +616,14 @@ public class CfgNumericGuard : CfgEvaluateInstruction {
 		this.destination_type = destination_type;
 		this.policy = policy;
 	}
+
 }
 
 public class CfgNumericConversionInstruction : CfgEvaluateInstruction {
 	internal CfgNumericConversionInstruction (SourceSpan span, SemanticType source_type, SemanticType destination_type, NumericConversionKind conversion_kind, CfgValue operand, NumericConversionPolicy policy) {
 		base (span, new CfgNumericConversionValue (span, source_type, destination_type, conversion_kind, operand, policy), new CfgEvaluatedValue (span, destination_type));
 	}
+
 }
 
 // Evaluate the sole operand before the pure conversion; no Place or transfer.
@@ -595,12 +631,14 @@ public class CfgFloatConversionInstruction : CfgEvaluateInstruction {
 	internal CfgFloatConversionInstruction (SourceSpan span, SemanticType source_type, SemanticType destination_type, FloatConversionKind conversion_kind, CfgValue operand) {
 		base (span, new CfgFloatConversionValue (span, source_type, destination_type, conversion_kind, operand), new CfgEvaluatedValue (span, destination_type));
 	}
+
 }
 
 public class CfgIntegerConversionInstruction : CfgEvaluateInstruction {
 	internal CfgIntegerConversionInstruction (SourceSpan span, SemanticType source_type, SemanticType destination_type, CfgValue operand) {
 		base (span, new CfgIntegerConversionValue (span, source_type, destination_type, operand), new CfgEvaluatedValue (span, destination_type));
 	}
+
 }
 
 // Ordered pointer exposure; responsibility is validated without a transition.
@@ -608,42 +646,49 @@ public class CfgVectorSplatInstruction : CfgEvaluateInstruction {
 	internal CfgVectorSplatInstruction (SourceSpan span, SemanticType type, CfgValue operand, int lane_count, SourceSpan lane_count_span) {
 		base (span, new CfgVectorSplatValue (span, type, operand, lane_count, lane_count_span), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgVectorExtractInstruction : CfgEvaluateInstruction {
 	internal CfgVectorExtractInstruction (SourceSpan span, SemanticType type, CfgValue vector, VectorLaneIndex index) {
 		base (span, new CfgVectorExtractValue (span, type, vector, index), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgVectorInsertInstruction : CfgEvaluateInstruction {
 	internal CfgVectorInsertInstruction (SourceSpan span, SemanticType type, CfgValue vector, VectorLaneIndex index, CfgValue replacement) {
 		base (span, new CfgVectorInsertValue (span, type, vector, index, replacement), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgVectorShuffleInstruction : CfgEvaluateInstruction {
 	internal CfgVectorShuffleInstruction (SourceSpan span, SemanticType type, CfgValue vector, VectorLaneSelectors selectors) {
 		base (span, new CfgVectorShuffleValue (span, type, vector, selectors), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgVectorSelectInstruction : CfgEvaluateInstruction {
 	internal CfgVectorSelectInstruction (SourceSpan span, SemanticType type, CfgValue mask, CfgValue true_value, CfgValue false_value) {
 		base (span, new CfgVectorSelectValue (span, type, mask, true_value, false_value), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgVectorConstructInstruction : CfgEvaluateInstruction {
 	internal CfgVectorConstructInstruction (SourceSpan span, SemanticType type, GenericArray<CfgValue> lanes) {
 		base (span, new CfgVectorConstructValue (span, type, lanes), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgVectorReductionInstruction : CfgEvaluateInstruction {
 	internal CfgVectorReductionInstruction (SourceSpan span, SemanticType type, VectorReductionOperator op, CfgValue operand) {
 		base (span, new CfgVectorReductionValue (span, type, op, operand), new CfgEvaluatedValue (span, type));
 	}
+
 }
 
 public class CfgOwnedBorrowInstruction : CfgInstruction {
@@ -653,6 +698,7 @@ public class CfgOwnedBorrowInstruction : CfgInstruction {
 		base (span);
 		this.result = result;
 	}
+
 }
 
 // Concrete Resource acquisition into memory. Capturing a named owner also
@@ -665,6 +711,7 @@ public class CfgResourceCapture : CfgEvaluateInstruction {
 		this.source = source;
 		this.cleanup = cleanup;
 	}
+
 }
 public class CfgRecordTake : CfgInstruction {
 	public CfgLocalPlace source { get; private set; }
@@ -676,6 +723,7 @@ public class CfgRecordTake : CfgInstruction {
 		this.field = field;
 		this.destination = destination;
 	}
+
 }
 public class CfgRecordReplace : CfgInstruction {
 	public CfgLocalPlace owner { get; private set; }
@@ -689,6 +737,7 @@ public class CfgRecordReplace : CfgInstruction {
 		this.source = source;
 		this.incoming = incoming;
 	}
+
 }
 
 public class CfgOwnershipTransferInstruction : CfgInstruction {
@@ -702,12 +751,14 @@ public class CfgOwnershipTransferInstruction : CfgInstruction {
 		this.destination = destination;
 		this.cleanup = cleanup;
 	}
+
 }
 
 public class CfgAcquireParameter : CfgInitialize {
 	internal CfgAcquireParameter (SourceSpan span, CfgLocalPlace owner, CfgParameter parameter) {
 		base (span, owner, new CfgParameterValue (span, parameter), owner);
 	}
+
 }
 
 // Compiler-only pending responsibility: capture is semantic MOVE, commit
@@ -728,6 +779,7 @@ public class CfgPendingOwnedArgument : CfgEvaluatedValue {
 		this.cleanup = cleanup;
 		this.source = source;
 	}
+
 }
 
 public class CfgOwnedArgumentCapture : CfgInstruction {
@@ -737,6 +789,7 @@ public class CfgOwnedArgumentCapture : CfgInstruction {
 		base (span);
 		this.transfer = transfer;
 	}
+
 }
 
 public class CfgOwnedCallTransferCommit : CfgInstruction {
@@ -749,6 +802,7 @@ public class CfgOwnedCallTransferCommit : CfgInstruction {
 		this.invocation = WeakRef (call);
 		this.transfers = transfers;
 	}
+
 }
 
 public class CfgOwnedReturnValue : CfgEvaluatedValue {
@@ -764,6 +818,7 @@ public class CfgOwnedReturnValue : CfgEvaluatedValue {
 		this.producer = producer;
 		this.provenance = provenance;
 	}
+
 }
 
 public class CfgOwnershipReturnInstruction : CfgInstruction {
@@ -773,12 +828,14 @@ public class CfgOwnershipReturnInstruction : CfgInstruction {
 		base (span);
 		this.result = result;
 	}
+
 }
 
 public class CfgOwnershipReturn : CfgReturn {
 	internal CfgOwnershipReturn (SourceSpan span, CfgOwnedReturnValue value) {
 		base (span, value);
 	}
+
 }
 
 public class CfgInitialize : CfgInstruction {
@@ -792,6 +849,7 @@ public class CfgInitialize : CfgInstruction {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 // Validate a captured memory Place without loading a value or writing storage.
@@ -801,6 +859,7 @@ public class CfgValidatePlace : CfgInstruction {
 		base (span);
 		this.place = place;
 	}
+
 }
 
 public class CfgStore : CfgInstruction {
@@ -816,6 +875,7 @@ public class CfgStore : CfgInstruction {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 public abstract class CfgTerminator : CfgNode {
@@ -847,6 +907,7 @@ public class CfgBranch : CfgTerminator {
 		}
 		return result;
 	}
+
 }
 
 public class CfgConditionalBranch : CfgTerminator {
@@ -875,6 +936,7 @@ public class CfgConditionalBranch : CfgTerminator {
 		}
 		return result;
 	}
+
 }
 
 public class CfgReturn : CfgTerminator {
@@ -888,6 +950,7 @@ public class CfgReturn : CfgTerminator {
 	public override GenericArray<CfgBlock> successors() {
 		return new GenericArray<CfgBlock> ();
 	}
+
 }
 
 // Reaching the structured body's end; legality belongs to flow checking.
@@ -900,12 +963,14 @@ public class CfgFunctionEnd : CfgTerminator {
 	public override GenericArray<CfgBlock> successors() {
 		return new GenericArray<CfgBlock> ();
 	}
+
 }
 
 public class CfgNativeDeclaration : CfgFunctionEnd {
 	internal CfgNativeDeclaration (SourceSpan span) {
 		base (span);
 	}
+
 }
 
 public abstract class CfgValue : CfgNode {
@@ -916,6 +981,7 @@ public abstract class CfgValue : CfgNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 // The defining call owns its result. Uses retain this value identity, which
@@ -924,18 +990,21 @@ public class CfgCallResultValue : CfgValue {
 	internal CfgCallResultValue (SourceSpan span, SemanticType semantic_type) {
 		base (span, semantic_type);
 	}
+
 }
 
 public class CfgEvaluatedValue : CfgValue {
 	internal CfgEvaluatedValue (SourceSpan span, SemanticType semantic_type) {
 		base (span, semantic_type);
 	}
+
 }
 
 public class CfgNullPointerValue : CfgValue {
 	internal CfgNullPointerValue (SourceSpan span, SemanticType semantic_type) {
 		base (span, semantic_type);
 	}
+
 }
 
 public class CfgBooleanValue : CfgValue {
@@ -945,6 +1014,7 @@ public class CfgBooleanValue : CfgValue {
 		base (span, semantic_type);
 		this.literal = literal;
 	}
+
 }
 
 public class CfgVectorDotValue : CfgValue {
@@ -963,6 +1033,7 @@ public class CfgVectorDotValue : CfgValue {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 public class CfgDspValue : CfgValue {
@@ -981,6 +1052,7 @@ public class CfgDspValue : CfgValue {
 		this.first = first;
 		this.second = second;
 	}
+
 }
 
 // Direction owns the invalid-count trap contract; width and count type
@@ -997,6 +1069,7 @@ public class CfgIntegerShiftValue : CfgValue {
 		this.operand = operand;
 		this.count = count;
 	}
+
 }
 
 public class CfgNumericConversionValue : CfgValue {
@@ -1013,6 +1086,7 @@ public class CfgNumericConversionValue : CfgValue {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CfgFloatConversionValue : CfgValue {
@@ -1027,6 +1101,7 @@ public class CfgFloatConversionValue : CfgValue {
 		this.conversion_kind = conversion_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CfgIntegerConversionValue : CfgValue {
@@ -1039,6 +1114,7 @@ public class CfgIntegerConversionValue : CfgValue {
 		this.source_type = source_type;
 		this.operand = operand;
 	}
+
 }
 
 public class CfgVectorSplatValue : CfgValue {
@@ -1052,6 +1128,7 @@ public class CfgVectorSplatValue : CfgValue {
 		this.lane_count = lane_count;
 		this.lane_count_span = lane_count_span;
 	}
+
 }
 
 public class CfgVectorExtractValue : CfgValue {
@@ -1063,6 +1140,7 @@ public class CfgVectorExtractValue : CfgValue {
 		this.vector = vector;
 		this.index = index.copy ();
 	}
+
 }
 
 public class CfgVectorInsertValue : CfgValue {
@@ -1076,6 +1154,7 @@ public class CfgVectorInsertValue : CfgValue {
 		this.index = index.copy ();
 		this.replacement = replacement;
 	}
+
 }
 
 public class CfgVectorShuffleValue : CfgValue {
@@ -1087,6 +1166,7 @@ public class CfgVectorShuffleValue : CfgValue {
 		this.vector = vector;
 		this.selectors = selectors.copy ();
 	}
+
 }
 
 public class CfgVectorMemoryValue : CfgValue {
@@ -1101,6 +1181,7 @@ public class CfgVectorMemoryValue : CfgValue {
 		this.offset = offset;
 		this.stored = stored;
 	}
+
 }
 
 public class CfgVectorSelectValue : CfgValue {
@@ -1114,6 +1195,7 @@ public class CfgVectorSelectValue : CfgValue {
 		this.true_value = true_value;
 		this.false_value = false_value;
 	}
+
 }
 
 public class CfgVectorConstructValue : CfgValue {
@@ -1123,6 +1205,7 @@ public class CfgVectorConstructValue : CfgValue {
 		base (span, semantic_type);
 		this.lanes = lanes;
 	}
+
 }
 
 public class CfgVectorReductionValue : CfgValue {
@@ -1134,6 +1217,7 @@ public class CfgVectorReductionValue : CfgValue {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CfgFloatValue : CfgValue {
@@ -1143,6 +1227,7 @@ public class CfgFloatValue : CfgValue {
 		base (span, semantic_type);
 		this.value = value;
 	}
+
 }
 
 public class CfgIntegerValue : CfgValue {
@@ -1166,6 +1251,7 @@ public class CfgParameterValue : CfgValue {
 		base (span, parameter.semantic_type);
 		this.parameter = parameter;
 	}
+
 }
 
 public class CfgOwnedBorrowValue : CfgValue {
@@ -1177,6 +1263,7 @@ public class CfgOwnedBorrowValue : CfgValue {
 		this.source = source;
 		this.parameter = parameter;
 	}
+
 }
 
 public class CfgLoadValue : CfgValue {
@@ -1190,6 +1277,7 @@ public class CfgLoadValue : CfgValue {
 		volatile_enabled = access != null;
 		this.source = source;
 	}
+
 }
 
 public class CfgPrefixValue : CfgValue {
@@ -1201,6 +1289,7 @@ public class CfgPrefixValue : CfgValue {
 		this.operator_kind = operator_kind;
 		this.operand = operand;
 	}
+
 }
 
 public class CfgBinaryValue : CfgValue {
@@ -1214,6 +1303,7 @@ public class CfgBinaryValue : CfgValue {
 		this.left = left;
 		this.right = right;
 	}
+
 }
 }
 
@@ -1225,6 +1315,7 @@ public class CfgFunctionAddress : CfgValue {
 		base (span, type);
 		callee = WeakRef (target);
 	}
+
 }
 public interface CfgInvocation : Object {
 	public abstract CfgCleanupContract? result_cleanup();
@@ -1235,6 +1326,7 @@ public class CfgFunctionValueCall : CfgValue, CfgInvocation {
 	public CfgCleanupContract? result_cleanup() {
 		return owned_cleanup;
 	}
+
 	public GenericArray<CfgStructBoundaryMove> record_moves { get; private set; default = new GenericArray<CfgStructBoundaryMove> (); }
 	// Call-owned channel declarations; these are never function inputs or bodies.
 	public GenericArray<CfgParameter> channel_parameters { get; private set; default = new GenericArray<CfgParameter> (); }
@@ -1247,5 +1339,6 @@ public class CfgFunctionValueCall : CfgValue, CfgInvocation {
 		this.arguments = arguments;
 		this.owned_cleanup = owned_cleanup;
 	}
+
 }
 }

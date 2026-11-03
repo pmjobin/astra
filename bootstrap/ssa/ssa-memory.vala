@@ -14,6 +14,7 @@ public class SsaPrivateFieldAccess : Object {
 		field_ordinal = field;
 		function_ordinal = function;
 	}
+
 }
 
 // SSA owns descriptors only for retained typed pointers/addressable storage.
@@ -36,6 +37,7 @@ public abstract class SsaNativeInstance : SsaNode {
 		this.ordinal = ordinal;
 		this.fields = new GenericArray<SsaStructField> ();
 	}
+
 }
 
 public class SsaStruct : SsaNativeInstance {
@@ -44,6 +46,7 @@ public class SsaStruct : SsaNativeInstance {
 	internal SsaStruct (SourceSpan span, SourceSpan name_span, string name, SemanticType semantic_type, int ordinal = 0) {
 		base (span, name_span, name, semantic_type, ordinal);
 	}
+
 }
 
 public class SsaClass : SsaNativeInstance {
@@ -61,6 +64,7 @@ public class SsaClass : SsaNativeInstance {
 	internal SsaClass (SourceSpan span, SourceSpan name_span, string name, ClassType semantic_type, int ordinal = 0) {
 		base (span, name_span, name, semantic_type, ordinal);
 	}
+
 }
 
 // Shared native field descriptor; the historical name remains compatible.
@@ -74,6 +78,7 @@ public class SsaStructField : SsaNode {
 	internal void mark_nonnull() {
 		requires_nonnull = true;
 	}
+
 	public SsaCleanupContract? owned_cleanup { get; internal set; }
 	public bool is_private { get; private set; }
 	public bool text_snapshot { get; internal set; default = false; }
@@ -96,6 +101,7 @@ public class SsaStructField : SsaNode {
 		this.semantic_type = semantic_type;
 		this.ordinal = ordinal;
 	}
+
 }
 
 // Storage object, never an SSA value. Function owns storage; storage owns its
@@ -118,6 +124,7 @@ public class SsaAddressableLocal : SsaNode {
 		this.ordinal = ordinal;
 		this.source_local_ordinal = source_local_ordinal;
 	}
+
 }
 
 public abstract class SsaMemoryPlace : SsaNode {
@@ -175,6 +182,7 @@ public abstract class SsaMemoryPlace : SsaNode {
 		base (span);
 		this.semantic_type = semantic_type;
 	}
+
 }
 
 public class SsaLocalMemoryPlace : SsaMemoryPlace {
@@ -184,6 +192,7 @@ public class SsaLocalMemoryPlace : SsaMemoryPlace {
 		base (span, storage.semantic_type);
 		this.storage = storage;
 	}
+
 }
 
 public class SsaDereferencePlace : SsaMemoryPlace {
@@ -196,6 +205,7 @@ public class SsaDereferencePlace : SsaMemoryPlace {
 		this.pointer = pointer;
 		this.provenance = provenance;
 	}
+
 }
 
 public class SsaFieldPlace : SsaMemoryPlace {
@@ -212,6 +222,7 @@ public class SsaFieldPlace : SsaMemoryPlace {
 		base (span, field.semantic_type);
 		this.field = field;
 	}
+
 }
 
 public class SsaDirectFieldPlace : SsaFieldPlace {
@@ -221,6 +232,7 @@ public class SsaDirectFieldPlace : SsaFieldPlace {
 		base (span, field);
 		this.storage = storage;
 	}
+
 }
 
 // A result has no instruction backlink, so retaining this pointer value
@@ -232,6 +244,7 @@ public class SsaIndirectFieldPlace : SsaFieldPlace {
 		base (span, field);
 		this.pointer = pointer;
 	}
+
 }
 
 public class SsaAddressOfInstruction : SsaInstruction {
@@ -248,6 +261,7 @@ public class SsaAddressOfInstruction : SsaInstruction {
 		this.target = target;
 		this.provenance = provenance;
 	}
+
 }
 
 // Instruction array order is memory/call/trap order. No memory SSA tokens,
@@ -261,6 +275,7 @@ public class SsaInitializeInstruction : SsaInstruction {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 public class SsaValidatePlaceInstruction : SsaInstruction {
@@ -269,6 +284,7 @@ public class SsaValidatePlaceInstruction : SsaInstruction {
 		base (span, null, -1);
 		this.place = place;
 	}
+
 }
 
 public class SsaStoreInstruction : SsaInstruction {
@@ -284,6 +300,7 @@ public class SsaStoreInstruction : SsaInstruction {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 
 public class SsaLoadInstruction : SsaInstruction {
@@ -297,5 +314,6 @@ public class SsaLoadInstruction : SsaInstruction {
 		volatile_enabled = access != null;
 		this.source = source;
 	}
+
 }
 }

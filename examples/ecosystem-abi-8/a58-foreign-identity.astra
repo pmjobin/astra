@@ -1,26 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int identity_view(borrowed Counter object) { return counter_identity(object); }
+
 int main() {
 	try {
 		{
 			owned Counter original = counter_new(17);
 			owned CounterWeak weak = counter_weak(original);
-			if (original == null || weak == null) { return 1; }
+			if (original == null || weak == null) return 1;
 			{
 				owned Counter retained = counter_ref(original);
-				if (retained == null || identity_view(original) != identity_view(retained)) { return 2; }
+				if (retained == null || identity_view(original) != identity_view(retained)) return 2;
 				var report = new Utf8ByteBuilder();
 				report_value(report, "same=", counter_same(original, retained));
 				drop_counter(move original);
 				report_value(report, "retained-value=", counter_get(retained));
-				if (counter_finalized() != 0) { return 3; }
+				if (counter_finalized() != 0) return 3;
 				show_report(report);
 			}
 			owned Counter expired = counter_upgrade(weak);
-			if (expired != null || counter_disposed() != 1 || counter_finalized() != 1) { return 4; }
+			if (expired != null || counter_disposed() != 1 || counter_finalized() != 1) return 4;
 			println("weak=expired\ndisposed=1");
 		}
-		if (foreign_live() != 0) { return 5; }
+		if (foreign_live() != 0) return 5;
 		return 0;
 	} catch (Error error) { println_stderr(error.message); return 70; }
 }

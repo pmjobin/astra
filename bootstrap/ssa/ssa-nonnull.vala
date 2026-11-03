@@ -19,6 +19,7 @@ internal class SsaNonNull : Object {
 			throw new SsaError.INVALID_SSA ("%s: SSA nonnull contract requires a current non-null proof", span.file.path);
 		}
 	}
+
 	public static void verify(SsaProgram program) throws SsaError {
 		foreach (var instance in program.native_instances ()) {
 			foreach (var field in instance.fields) {
@@ -79,6 +80,7 @@ internal class SsaNonNull : Object {
 			proof.run ();
 		}
 	}
+
 	private Object receiver_key(SsaValue value) {
 		var definition = definitions.lookup (value);
 		if (definition is SsaObjectReferenceInstruction) {
@@ -92,6 +94,7 @@ internal class SsaNonNull : Object {
 		}
 		return value;
 	}
+
 	private Object? property_key(SsaCallInstruction call) {
 		var getter = call.target as SsaPropertyGetter;
 		if (getter == null || call.receiver == null || !getter.property_member.is_borrowed || getter.property_member.is_lazy) {
@@ -99,9 +102,11 @@ internal class SsaNonNull : Object {
 		}
 		return projections.key (receiver_key (call.receiver), getter.property_member);
 	}
+
 	private bool known(SsaValue value) {
 		return !(value is SsaNullPointerConstant) && (value is SsaFunctionAddress || value is SsaReceiver || state.knows (value));
 	}
+
 	private void refine(SsaValue value, bool truth) {
 		state.assume (value, truth);
 		if (value is SsaBooleanConstant) {
@@ -124,6 +129,7 @@ internal class SsaNonNull : Object {
 			state.refine (pointer);
 		}
 	}
+
 	private NonNullFacts assuming(NonNullFacts before, SsaValue value, bool truth) {
 		var saved = state;
 		state = before.copy ();
@@ -132,6 +138,7 @@ internal class SsaNonNull : Object {
 		state = saved;
 		return result;
 	}
+
 	private void kill_definitions(NonNullFacts facts, SsaBlock target) {
 		// A loop executes the same static definitions again. Facts about the
 		// previous iteration cannot authorize this iteration's phi/result.
@@ -144,6 +151,7 @@ internal class SsaNonNull : Object {
 			}
 		}
 	}
+
 	private NonNullFacts edge(SsaBlock source, SsaEdge edge, bool? truth = null) {
 		var prior = outputs.lookup (source).copy ();
 		var branch = source.terminator as SsaConditionalBranch;
@@ -185,6 +193,7 @@ internal class SsaNonNull : Object {
 		}
 		return result;
 	}
+
 	private NonNullFacts incoming(SsaBlock target) {
 		if (target == function.entry) {
 			var entry = new NonNullFacts ();
@@ -235,6 +244,7 @@ internal class SsaNonNull : Object {
 		}
 		return result;
 	}
+
 	private bool invalidates_projection(SsaInstruction node) {
 		if (node is SsaCallInstruction) {
 			return property_key ((SsaCallInstruction) node) == null;
@@ -245,6 +255,7 @@ internal class SsaNonNull : Object {
 		return node is SsaActorSend || node is SsaClosureBind || node is SsaClosureCall || node is SsaRetainedOperation || node is SsaSharedOperation || node is SsaCCallInstruction || node is SsaFunctionValueCall ||
 		       node is SsaStoreInstruction || node is SsaInitializeInstruction || node is SsaAsyncDelay;
 	}
+
 	private void instruction(SsaInstruction node) throws SsaError {
 		if (!state.reachable) {
 			return;
@@ -293,6 +304,7 @@ internal class SsaNonNull : Object {
 			state.boolean (node.result, assuming (before, node.result, true), assuming (before, node.result, false));
 		}
 	}
+
 	private void transfer(SsaBlock block) throws SsaError {
 		foreach (var node in block.instructions) {
 			instruction (node);
@@ -302,6 +314,7 @@ internal class SsaNonNull : Object {
 			require (returned.value != null && known (returned.value), returned.span);
 		}
 	}
+
 	private void run() throws SsaError {
 		var pending = new GenericArray<SsaBlock> ();
 		pending.add (function.entry);
@@ -357,5 +370,6 @@ internal class SsaNonNull : Object {
 			transfer (block);
 		}
 	}
+
 }
 }

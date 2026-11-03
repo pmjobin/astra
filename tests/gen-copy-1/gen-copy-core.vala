@@ -142,9 +142,11 @@ private void qualify() {
 		}
 	}
 }
+
 public int run_core(string[] args) {
 	Test.init (ref args);
 	Test.add_func ("/gen-copy/core/standalone-materialization-lifetimes-malformed-proofs-and-producers", qualify);
 	return Test.run ();
 }
+
 }

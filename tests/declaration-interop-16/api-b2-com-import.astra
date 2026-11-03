@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 export(C)int catalog16_import_provider(void* unknown){try{
 		var query=ILensQuery16.init(unknown);var metadata=ILensMetadata16.init(unknown);
-		if(metadata.requests!=0 || !metadata.enabled || metadata.bias!=0.0){return 1;}
+		if(metadata.requests!=0 || !metadata.enabled || metadata.bias!=0.0) return 1;
 		metadata.bias=1.0;LensCore16.Query input={ceiling=12.0,minimum=4,cap=0,mask=7,lowest=true};
-		var answer=query.lookup(input);if(answer.code!=1004 || answer.score!=7.0 || answer.matches!=2 || !answer.found || answer.visited!=9){return 2;}
-		var item=query.resolve(input);if(item==null || item.code!=1004 || item.score!=7.0 || metadata.requests!=2){return 3;}
-		input.mask=0;var missing=query.resolve(input);if(missing!=null || metadata.requests!=3){return 4;}
+		var answer=query.lookup(input);if(answer.code!=1004 || answer.score!=7.0 || answer.matches!=2 || !answer.found || answer.visited!=9) return 2;
+		var item=query.resolve(input);if(item==null || item.code!=1004 || item.score!=7.0 || metadata.requests!=2) return 3;
+		input.mask=0;var missing=query.resolve(input);if(missing!=null || metadata.requests!=3) return 4;
 		metadata.enabled=false;try{var ignored=query.lookup(input);return 5;}catch(LensCore16.Fault fault){}
-		metadata.enabled=true;if(metadata.requests!=3){return 6;}
-		release query;release metadata;if(item.code!=1004 || item.score!=7.0){return 7;}
+		metadata.enabled=true;if(metadata.requests!=3) return 6;
+		release query;release metadata;if(item.code!=1004 || item.score!=7.0) return 7;
 	}catch(LensCore16.Fault fault){return 90;}return 0;}

@@ -1,28 +1,39 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct ResultSeed<A,B> { A value; B ready; }
+
 struct ResultCode { Fn<owned R,int> create; }
+
 struct ResultOwner { owned R value; }
+
 class ResultEnvironment<T> {
 	private T seed;
 	private owned Other retained;
+
 	init(T seed, owned Other retained) { this.seed = seed; this.retained = move retained; }
+
 	property T state { get { return this.seed; } }
+
 	deinit() { mark(810); }
 }
+
 owned R create_result(int tag) {
 	var value = make(tag);
 	return move value;
 }
+
 owned Other create_other_result(int tag) {
 	var value = make_other(tag);
 	return move value;
 }
+
 owned R nullable_result(bool present) {
-	if (!present) { return null; }
+	if (!present) return null;
 	var value = make(213);
 	return move value;
 }
+
 Fn<owned R,int> result_factory() { return create_result; }
+
 int exercise_result_replacements() {
 	Fn<owned R,int> code = result_factory();
 	owned R first = code(219);
@@ -35,28 +46,31 @@ int exercise_result_replacements() {
 	var last = code(223);
 	last = move extracted;
 	last = code(224);
-	if (id(last) != 224) { return 9; }
+	if (id(last) != 224) return 9;
 	return 0;
 }
+
 int exercise_result_functions() {
 	ResultCode stored = {create = result_factory()};
 	Fn<owned R,int> code = stored.create;
 	var first = code(211);
 	Fn<owned Other,int> other_code = create_other_result;
 	var second = other_code(212);
-	if (id(first) != 211 || other_id(second) != 212) { return 1; }
+	if (id(first) != 211 || other_id(second) != 212) return 1;
 	Fn<owned R,bool> nullable = nullable_result;
 	var missing = nullable(false);
-	if (missing != null) { return 2; }
+	if (missing != null) return 2;
 	var present = nullable(true);
-	if (id(present) != 213) { return 3; }
+	if (id(present) != 213) return 3;
 	return 0;
 }
+
 owned R plain_result(borrowed ResultEnvironment<ResultSeed<int,bool>> environment, int tag) {
 	ResultSeed<int,bool> seed = environment.state;
 	var value = make(tag + seed.value);
 	return move value;
 }
+
 owned R checked_result(borrowed ResultEnvironment<ResultSeed<int,bool>> environment, bool fail) throws Error {
 	ResultSeed<int,bool> seed = environment.state;
 	if (fail) {
@@ -67,13 +81,14 @@ owned R checked_result(borrowed ResultEnvironment<ResultSeed<int,bool>> environm
 	var value = make(217 + seed.value);
 	return move value;
 }
+
 int exercise_result_closures() {
 	ResultSeed<int,bool> seed = {value = 0, ready = true};
 	var retained = make_other(214);
 	var environment = new ResultEnvironment<ResultSeed<int,bool>>(seed, move retained);
 	owned Closure<ResultEnvironment<ResultSeed<int,bool>>,owned R,int> plain = closure_bind(move environment, plain_result);
 	var first = closure_invoke(plain, 215);
-	if (id(first) != 215) { return 4; }
+	if (id(first) != 215) return 4;
 	var checked_retained = make_other(218);
 	var checked_environment = new ResultEnvironment<ResultSeed<int,bool>>(seed, move checked_retained);
 	owned CheckedClosure<ResultEnvironment<ResultSeed<int,bool>>,Error,owned R,bool> checked = checked_closure_bind(move checked_environment, checked_result);
@@ -85,19 +100,20 @@ int exercise_result_closures() {
 		first = closure_invoke(checked, true);
 		return 10;
 	} catch (Error error) { mark(813); }
-	if (id(first) != 215) { return 11; }
+	if (id(first) != 215) return 11;
 	try {
 		var accepted = closure_invoke(checked, false);
-		if (id(accepted) != 217) { return 6; }
+		if (id(accepted) != 217) return 6;
 	} catch (Error error) { return 7; }
 	return 0;
 }
+
 int main() {
 	int result = exercise_result_functions();
-	if (result != 0 || live() != 0) { return 8; }
+	if (result != 0 || live() != 0) return 8;
 	result = exercise_result_replacements();
-	if (result != 0 || live() != 0) { return 12; }
+	if (result != 0 || live() != 0) return 12;
 	result = exercise_result_closures();
-	if (result != 0) { return result; }
+	if (result != 0) return result;
 	return live();
 }

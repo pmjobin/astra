@@ -66,4 +66,5 @@ private void register_loop_tests() {
 	Test.add_func ("/core-standalone/loop/structure-lifetime", structured_loop);
 	Test.add_func ("/core-standalone/loop/invalid-models", invalid_structured_loops);
 }
+
 }

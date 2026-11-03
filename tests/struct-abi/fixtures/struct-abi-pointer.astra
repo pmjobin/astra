@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 struct Pointer { void* value; int tag; }
+
 Pointer identity(Pointer value) { return value; }
+
 Pointer indirect(Pointer* value) { return *value; }
+
 void store(Pointer* target, Pointer value) { *target = identity(value); }
-int main() { Pointer a = { value = null, tag = 7 }; Pointer b = identity(a); store(&a,b); Pointer c = indirect(&a); if (a.value != null || b.value != null || c.tag != 7) { return 1; } return 0; }
+
+int main() { Pointer a = { value = null, tag = 7 }; Pointer b = identity(a); store(&a,b); Pointer c = indirect(&a); if (a.value != null || b.value != null || c.tag != 7) return 1; return 0; }

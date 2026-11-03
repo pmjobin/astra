@@ -11,6 +11,7 @@ enum AstraAlloc12Kind {
 	ASTRA_ALLOC12_STATIC,
 	ASTRA_ALLOC12_CUSTOM
 };
+
 enum AstraAlloc12Error {
 	ASTRA_ALLOC12_OK,
 	ASTRA_ALLOC12_INVALID,
@@ -23,14 +24,17 @@ enum AstraAlloc12Error {
 	ASTRA_ALLOC12_GENERATION,
 	ASTRA_ALLOC12_OOM
 };
+
 typedef struct AstraAlloc12Block {
 	uint64_t offset, bytes, generation, tag;
 	uint32_t live;
 } AstraAlloc12Block;
+
 typedef int32_t (*AstraAlloc12Placement)(int32_t, int32_t, int32_t, int32_t);
 typedef void (*AstraAlloc12Released)(int32_t, int32_t);
 typedef void *(*AstraAlloc12HeapAllocate)(uint64_t, uint32_t);
 typedef void (*AstraAlloc12HeapRelease)(void *);
+
 typedef struct AstraAlloc12Domain {
 	unsigned char *backing;
 	AstraAlloc12Block *blocks;

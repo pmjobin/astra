@@ -7,6 +7,7 @@ public class CheckedBaseLifecycleCall : CheckedCallStatement {
 	internal CheckedBaseLifecycleCall (SourceSpan span, LifecycleSymbol target, GenericArray<CheckedExpression> arguments, CheckedExpression receiver) {
 		base (span, target, arguments, receiver);
 	}
+
 }
 
 // Sibling of MethodSymbol: lifecycle identities never enter method lookup.
@@ -22,18 +23,21 @@ public abstract class LifecycleSymbol : FunctionSymbol {
 		this.member_ordinal = member_ordinal;
 		this.receiver = new ReceiverSymbol (span, name_span, kind == CallableDomain.CONSTRUCTOR ? new ReceiverType (owner.semantic_type, ReceiverMode.INITIALIZING) : owner.receiver_type);
 	}
+
 }
 
 public class ConstructorSymbol : LifecycleSymbol {
 	internal ConstructorSymbol (SourceSpan span, SourceSpan name_span, ClassSymbol owner, SemanticType void_type, GenericArray<ParameterSymbol> parameters, int member_ordinal) {
 		base (span, name_span, owner, void_type, parameters, CallableDomain.CONSTRUCTOR, member_ordinal);
 	}
+
 }
 
 public class DestructorSymbol : LifecycleSymbol {
 	internal DestructorSymbol (SourceSpan span, SourceSpan name_span, ClassSymbol owner, SemanticType void_type, int member_ordinal) {
 		base (span, name_span, owner, void_type, new GenericArray<ParameterSymbol> (), CallableDomain.DESTRUCTOR, member_ordinal);
 	}
+
 }
 
 public class CheckedConstructor : CheckedFunction {
@@ -43,6 +47,7 @@ public class CheckedConstructor : CheckedFunction {
 		base (symbol, locals, body);
 		this.initialization = initialization.copy ();
 	}
+
 }
 
 public class CheckedDestructor : CheckedFunction {
@@ -50,6 +55,7 @@ public class CheckedDestructor : CheckedFunction {
 	internal CheckedDestructor (DestructorSymbol symbol, GenericArray<LocalSymbol> locals, CheckedBlockStatement body) {
 		base (symbol, locals, body);
 	}
+
 }
 
 public class CheckedConstructorObjectInitialization : CheckedObjectConstruction {
@@ -62,6 +68,7 @@ public class CheckedConstructorObjectInitialization : CheckedObjectConstruction 
 		this.arguments = arguments;
 		this.allocation_context = allocation_context;
 	}
+
 }
 
 public class CheckedFieldInitialize : CheckedStatement {
@@ -72,5 +79,6 @@ public class CheckedFieldInitialize : CheckedStatement {
 		this.target = target;
 		this.value = value;
 	}
+
 }
 }
