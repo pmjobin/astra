@@ -58,6 +58,8 @@ struct FlowEvent {
 	int output;
 	int null_kind;
 	int field;
+	int source_field;
+	SyntaxNodeId producer;
 	SyntaxNodeId predicate;
 	bool required;
 }
@@ -388,7 +390,7 @@ class FlowIndex {
 }
 FlowEvent flow_event(CheckedIndex checked, SyntaxNodeId node, int operation, int slot, int region, int next) {
 	FlowEvent result = {
-		operation = operation, node = node, span = checked.bindings.program.arena.header(node).span, slot = slot, loan = 0, region = region, call = 0, next = next, other = 0, loop_head = 0, input = 0, output = 0, null_kind = 0, field = 0, predicate = flow_no_node(), required = false
+		operation = operation, node = node, span = checked.bindings.program.arena.header(node).span, slot = slot, loan = 0, region = region, call = 0, next = next, other = 0, loop_head = 0, input = 0, output = 0, null_kind = 0, field = 0, source_field = 0, producer = flow_no_node(), predicate = flow_no_node(), required = false
 	};
 	return result;
 }

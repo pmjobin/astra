@@ -206,9 +206,13 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	var ignored = index.defer(node, 100 + syntax_kind_code(kind));
 }
 owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow) throws Error {
+	return checked_build_admission(move bindings, stop_after, flow_adapters, semantic_flow, false);
+}
+owned CheckedIndex checked_build_admission(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
 	result.flow_adapters = flow_adapters;
 	result.semantic_flow = semantic_flow;
+	result.semantic_admission = admission && semantic_flow;
 	if (result.bindings.failed()) {
 		int r = 1;
 		while (r <= result.bindings.reference_count) {

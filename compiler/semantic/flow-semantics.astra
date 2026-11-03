@@ -20,6 +20,7 @@ bool flowsem_record_shape(CheckedIndex checked, TypeId type, int depth) {
 	while (i < checked.bindings.program.arena.list_count(fields)) {
 		var field_node = checked.bindings.program.arena.node_at(fields, i);
 		var field = checked.node_symbols[field_node.index];
+		if (checked.semantic_admission && field.index > 0 && (checked.symbol_flags[field.index] & 128) != 0) { return false; }
 		if (field.index == 0 || (checked.symbol_flags[field.index] & 7) != flowsem_source_flags(checked, field_node) || (checked.symbol_flags[field.index] & 1) != 0 || !flowsem_field_type(checked, checked.symbol_types[field.index], checked.symbol_flags[field.index], depth + 1)) { return false; }
 		i = i + 1;
 	}
@@ -47,6 +48,7 @@ bool flowsem_class_shape(CheckedIndex checked, TypeId type) {
 		var field_node = checked.bindings.program.arena.node_at(fields, i);
 		var field = checked.node_symbols[field_node.index];
 		if (field.index == 0 || (checked.symbol_flags[field.index] & 7) != flowsem_source_flags(checked, field_node) || checked_kind(checked, checked.symbol_types[field.index]) == 30 || !flowsem_field_type(checked, checked.symbol_types[field.index], checked.symbol_flags[field.index], 0)) { return false; }
+		if (checked.semantic_admission && (checked.symbol_flags[field.index] & 128) != 0) { return false; }
 		i = i + 1;
 	}
 	var members = checked.bindings.program.arena.get_list_members(node);
@@ -193,13 +195,18 @@ int flowsem_initializer(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 		if (nested.index != 0) {
 			head = flowsem_initializer(graph, checked, origins, nested, root, field, region, head, depth + 1);
 		} else {
+			var value = checked.bindings.program.arena.get_node_expression(init);
+			if (checked.semantic_admission && !graph.fields[field - 1].leaf) {
+				head = admit_record_value(graph, checked, origins, init, value, root, field, region, head, depth + 1);
+				i = i - 1;
+				continue;
+			}
 			// A whole nested value needs an explicit leaf-copy transition. Never
 			// treat its parent as a scalar leaf or fabricate child completion.
 			if (!graph.fields[field - 1].leaf) {
 				graph.defer(init, 6);
 				return head;
 			}
-			var value = checked.bindings.program.arena.get_node_expression(init);
 			var event = flow_event(checked, init, 20, root, region, head);
 			event.field = field;
 			event.input = flowsem_null_cell(graph, checked, value);
@@ -225,6 +232,10 @@ int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 	}
 	var destination = graph.fields[field - 1];
 	var value = checked.bindings.program.arena.get_node_expression(node);
+	if (checked.semantic_admission && !destination.leaf && destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 30) {
+		if (graph.slots[destination.root - 1].parameter || (destination.flags & 128) != 0) { graph.defer(node, 6); return next; }
+		return admit_record_value(graph, checked, origins, node, value, destination.root, field, region, next, depth + 1);
+	}
 	// Only the constructor owns a Class's incomplete receiver. Detached record
 	// copies never become that receiver, and owning-record extraction is deferred.
 	if ((destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 31) || ((destination.flags & 4) != 0 && destination.root > 0) || (destination.flags & 128) != 0 && destination.root > 0 || !destination.leaf) {
@@ -277,8 +288,9 @@ int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] o
 }
 // Null state cells contain possibilities, not declaration promises. Field cells
 // use the existing responsibility bits, independently of whole-root ownership.
-void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] owners, int[] nulls, int[] fields, bool validate) {
+void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] owners, int[] reservations, bool[] loans, int[] nulls, int[] fields, bool validate) {
 	int operation = event.operation;
+	if (checked.semantic_admission) { admit_simulate(graph, checked, event, owners, reservations, loans, fields, validate); }
 	int incoming = event.null_kind;
 	if (event.input > 0) { incoming = nulls[event.input - 1]; }
 	if (incoming == 0) { incoming = 3; }
@@ -290,7 +302,7 @@ void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent 
 			nulls[event.slot - 1] = 3;
 			if ((slot.flags & 1) != 0 && flow_simple_class(checked, slot.type)) { nulls[event.slot - 1] = 2; }
 		}
-		if (checked.bindings.program.arena.kind(event.node) != SyntaxKind.StructLocalDeclarationSyntax()) {
+		if (checked.bindings.program.arena.kind(event.node) != SyntaxKind.StructLocalDeclarationSyntax() && (!checked.semantic_admission || slot.parameter || checked_kind(checked, slot.type) != 30)) {
 			int i = 0;
 			while (i < graph.field_count) {
 				if (graph.fields[i].root == event.slot && graph.fields[i].leaf) { fields[i] = 1; }
@@ -300,7 +312,7 @@ void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent 
 	}
 	if ((operation == 3 || operation == 4 || operation == 13) && event.slot > 0 && (checked_kind(checked, graph.slots[event.slot - 1].type) == 30 || checked_kind(checked, graph.slots[event.slot - 1].type) == 31)) {
 		flowsem_require_complete(graph, event, fields, event.slot, 0, validate);
-		if (operation != 3) {
+		if (operation != 3 && (!checked.semantic_admission || operation != 13)) {
 			int i = 0;
 			while (i < graph.field_count) {
 				if (graph.fields[i].root == event.slot && graph.fields[i].leaf) { fields[i] = 2; }
@@ -323,7 +335,7 @@ void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent 
 	if (operation == 19) {
 		var field = graph.fields[event.field - 1];
 		if (validate) {
-			if (event.slot > 0) { flow_require(graph, event, owners[event.slot - 1], 0, false); }
+			if (event.slot > 0) { flow_require(graph, event, owners[event.slot - 1], reservations[event.slot - 1], false); }
 			if (flow_field_summary(graph, fields, 0, event.field) != 1) { graph.fail(17, event.span); }
 		}
 		if (event.output > 0) {
@@ -551,6 +563,10 @@ int flowsem_source_flags(CheckedIndex checked, SyntaxNodeId node) {
 	var type = checked.bindings.program.arena.get_node_type_name(node);
 	if (type.index != 0 && checked.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax()) {
 		flags = flags | 1;
+	}
+	if (checked.semantic_admission && checked.bindings.program.arena.kind(node) == SyntaxKind.ParameterSyntax() && (flags & 2) == 0) {
+		var symbol = checked.node_symbols[node.index];
+		if (symbol.index > 0 && checked_record_owned(checked, checked.symbol_types[symbol.index], 0)) { flags = flags | 4; }
 	}
 	return flags;
 }

@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int record_mark(int value);
+extern(C) int record_trace();
+extern(C) int record_count();
+class Child {
+	int id;
+	init(int id) { this.id = id; }
+	deinit() { int observed = record_mark(this.id); }
+}
+struct Owners {
+	owned Child left;
+	owned Child right;
+	int tag;
+}
+Owners transfer(Owners input) { return move input; }
+int consume(Owners input) { return input.tag; }
+int exercise() {
+	var left = new Child(1);
+	var right = new Child(2);
+	Owners owners = {left = move left, right = move right, tag = 42};
+	var result = transfer(move owners);
+	return consume(move result);
+}
+int main() {
+	int value = exercise();
+	if (value != 42 || record_count() != 2 || record_trace() != 21) { return 1; }
+	return 0;
+}

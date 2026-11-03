@@ -338,6 +338,7 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 	if (type.index != 0) {
 		flags = flags | index.uses[type.index].flags;
 	}
+	if (index.semantic_admission && symbol.kind == 7 && checked_record_owned(index, resolved, 0) && (flags & 2) == 0) { flags = flags | 4; }
 	index.symbol_flags[index.node_symbols[symbol.node.index].index] = flags;
 	if ((flags & 6) != 0 && (type_numeric(checked_kind(index, resolved)) || resolved.index == 13)) {
 		index.fail(index.bindings.program.arena.header(symbol.node).span, "owned/borrowed declaration requires an admitted reference or symbolic ownership contract");
@@ -406,6 +407,7 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	if (return_node.index != 0) {
 		flags = flags | index.uses[return_node.index].flags;
 	}
+	if (index.semantic_admission && checked_record_owned(index, result, 0)) { flags = flags | 4; }
 	if ((flags & 4) != 0 && (type_numeric(checked_kind(index, result)) || result.index == 13 || result.index == 14 || result.index == 16)) {
 		index.fail(index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_owned_keyword(node)), "owned result requires an exact nominal ownership contract");
 		return;

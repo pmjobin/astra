@@ -29,7 +29,7 @@ int main(string[] args) {
 		}
 		var program = binding_load_program(args, start);
 		var bindings = binding_index(move program, 0);
-		var checked = checked_build(move bindings, 0, true, args[1] != "--compat");
+		var checked = checked_build_admission(move bindings, 0, true, args[1] != "--compat", args[1] == "--admit" || args[1] == "--mutate-admission");
 		var index = flow_index(move checked, limit, steps);
 		if (args[1] == "--mutate-backedge" || args[1] == "--mutate-owner" || args[1] == "--mutate-loan-end" || args[1] == "--mutate-span" || args[1] == "--mutate-function" || args[1] == "--mutate-ordinal") {
 			flow_mutate(index, args[1]);
@@ -37,6 +37,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--mutate-semantic") {
 			flowsem_mutations(index);
+			return 0;
+		}
+		if (args[1] == "--mutate-admission") {
+			admission_mutations(index);
 			return 0;
 		}
 		var observation = flow_observation(index);
@@ -410,4 +414,123 @@ void flowsem_lifetime() throws Error {
 		repeat = repeat + 1;
 	}
 	println("FLOWSEM_LIFETIME_OK");
+}
+void admission_mutations(FlowIndex index) throws Error {
+	assert_that(admit_verify_index(index));
+	var seen = new bool[18];
+	if (index.checked.signature_count > 0) {
+		var prior = index.checked.signatures[0];
+		var changed = prior;
+		changed.flags = changed.flags ^ 64;
+		index.checked.signatures[0] = changed;
+		assert_that(!admit_verify_index(index));
+		index.checked.signatures[0] = prior;
+		seen[16] = true;
+		changed = prior;
+		changed.dispatch = changed.dispatch + 1;
+		index.checked.signatures[0] = changed;
+		assert_that(!admit_verify_index(index));
+		index.checked.signatures[0] = prior;
+		seen[17] = true;
+	}
+	if (len(index.proofs) > 1) {
+		int prior = index.proofs[1];
+		index.proofs[1] = 1 - prior;
+		assert_that(!admit_verify_index(index));
+		index.proofs[1] = prior;
+		seen[14] = true;
+	}
+	while (index.graphs.count() > 0) {
+		var graph = index.graphs.take(index.graphs.count() - 1);
+		assert_that(flow_verify(graph, index.checked, index.class_origins));
+		int i = 0;
+		while (i < graph.count) {
+			var original = graph.events[i];
+			int m = 0;
+			while (m < 10) {
+				var changed = original;
+				bool applies = false;
+				if (original.operation == 22) {
+					if (m == 0) { changed.field = original.field % graph.field_count + 1; applies = true; }
+					if (m == 1) { changed.source_field = original.source_field % graph.field_count + 1; applies = true; }
+					if (m == 2) { changed.producer = flow_node(original.node.index); applies = changed.producer.index != original.producer.index; }
+					if (m == 3) { changed.operation = 23; changed.source_field = 0; applies = true; }
+					if (m == 4) { changed.operation = 1; changed.field = 0; changed.source_field = 0; changed.producer = flow_no_node(); applies = true; }
+				}
+				if (m == 5 && original.operation == 13) { changed.operation = 4; changed.call = 0; applies = true; }
+				if (m == 6 && original.operation == 8) { changed.operation = 1; changed.call = 0; applies = true; }
+				if (m == 7 && original.operation == 7) { changed.loan = 0; applies = true; }
+				if (m == 8 && original.operation == 23) { changed.producer = original.node; applies = changed.producer.index != original.producer.index; }
+				if (m == 9 && original.operation == 22) { changed.span.start = changed.span.start + 1; applies = true; }
+				if (applies && !seen[m]) {
+					graph.events[i] = changed;
+					assert_that(!flow_verify(graph, index.checked, index.class_origins));
+					graph.events[i] = original;
+					seen[m] = true;
+				}
+				m = m + 1;
+			}
+			i = i + 1;
+		}
+		if (graph.field_count > 1) {
+			var original = graph.fields[0];
+			int m = 10;
+			while (m <= 12) {
+				var changed = original;
+				if (m == 10) { changed.root = original.root % (graph.slot_count + 1); if (changed.root == original.root) { changed.root = graph.slot_count + 1; } }
+				if (m == 11) { changed.parent = graph.field_count; }
+				if (m == 12) { changed.type = type_id(13); }
+				if (!seen[m]) {
+					graph.fields[0] = changed;
+					assert_that(!flow_verify(graph, index.checked, index.class_origins));
+					graph.fields[0] = original;
+					seen[m] = true;
+				}
+				m = m + 1;
+			}
+		}
+		i = 0;
+		while (i < graph.slot_count && !seen[13]) {
+			var original = graph.slots[i];
+			if (original.parameter && original.owner) {
+				var changed = original;
+				changed.owner = false;
+				graph.slots[i] = changed;
+				assert_that(!flow_verify(graph, index.checked, index.class_origins));
+				graph.slots[i] = original;
+				seen[13] = true;
+			}
+			i = i + 1;
+		}
+		if (graph.obligation_count > 0 && !seen[15]) {
+			// A complete forged-purity overlay also changes valid CFG successors.
+			// Rejection must come from source reconstruction, after valid parsing.
+			graph.obligation_count = 0;
+			i = 0;
+			while (i < graph.count) {
+				var changed = graph.events[i];
+				if (changed.operation == 14) { changed.operation = 1; }
+				if (changed.operation == 10) { changed.next = graph.exit; changed.other = graph.exit; }
+				graph.events[i] = changed;
+				i = i + 1;
+			}
+			assert_that(!flow_verify(graph, index.checked, index.class_origins));
+			seen[15] = true;
+		}
+	}
+	int count = 0;
+	int i = 0;
+	while (i < len(seen)) {
+		if (seen[i]) {
+			var row = new Utf8ByteBuilder();
+			source_append_text(row, "ADMISSION_MUTATION");
+			flow_number(row, i);
+			source_append_text(row, "\n");
+			var text = row.snapshot();
+			print(text.text);
+			count = count + 1;
+		}
+		i = i + 1;
+	}
+	assert_that(count > 0);
 }
