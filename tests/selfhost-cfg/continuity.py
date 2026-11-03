@@ -17,6 +17,7 @@ def main():
 	p = argparse.ArgumentParser()
 	for key in ('predecessor', 'runtime'):
 		p.add_argument('--'+key, type=Path, required=True)
+	p.add_argument('--auxiliary-only', action='store_true')
 	a = p.parse_args()
 	a.runtime.mkdir(parents=True, exist_ok=True)
 	inventories = [*(a.predecessor/'continuity-replay').glob('*/commands.json'), a.predecessor/'ownflow-regression/commands.json', a.predecessor/'semadmit-original-paths/commands.json']
@@ -39,20 +40,29 @@ def main():
 				assert all(sha(path) == h for path,h in x['identity']['sources'].items())
 				assert all(sha(path) == h for path,h in x['identity']['tools'].items())
 				products[str(exe)] = dict(sha256=sha(exe), identity_sha256=sha(identity))
-			if any(x.endswith('.astra') and not Path(x).exists() for x in argv):
-				assert all(not x.endswith('.astra') or Path(x).exists() or '/runtime/native-current/coreir9/' in x for x in argv)
-				continue
+			mapped = {}
+			for arg in argv:
+				if arg.endswith('.astra') and not Path(arg).exists():
+					assert '/runtime/native-current/coreir9/' in arg
+					actual = str(a.predecessor/arg.split('/runtime/native-current/coreir9/', 1)[1])
+					assert Path(actual).is_file()
+					mapped[arg] = actual
+			if a.auxiliary_only != bool(mapped): continue
+			actual_argv = [mapped.get(arg, arg) for arg in argv]
 			start = time.monotonic()
-			r = subprocess.run(argv, capture_output=True)
+			r = subprocess.run(actual_argv, capture_output=True)
 			name = item.get('name', str(index))
 			previous = inventory.parent/(name+'.stdout')
 			expected_hash = item.get('stdout_sha256', sha(previous) if previous.exists() else None)
 			assert expected_hash is not None
-			actual_hash = hashlib.sha256(r.stdout).hexdigest()
+			normalized = r.stdout
+			for original, actual in mapped.items():
+				normalized = normalized.replace(actual.encode(), original.encode()).replace(actual.encode().hex().encode(), original.encode().hex().encode())
+			actual_hash = hashlib.sha256(normalized).hexdigest()
 			assert r.returncode == item['exit'] and actual_hash == expected_hash, (group, name, r.returncode)
 			(leaf/(name+'.stdout')).write_bytes(r.stdout)
 			(leaf/(name+'.stderr')).write_bytes(r.stderr)
-			observations.append(dict(group=group, name=name, argv=argv, exit=r.returncode, stdout_sha256=actual_hash, monotonic_start=start, monotonic_end=time.monotonic()))
+			observations.append(dict(group=group, name=name, argv=actual_argv, historical_argv=argv, path_normalization=mapped, exit=r.returncode, normalized_stdout_sha256=actual_hash, stdout_sha256=hashlib.sha256(r.stdout).hexdigest(), monotonic_start=start, monotonic_end=time.monotonic()))
 			count += 1
 		print(group, count, 'exact observations', flush=True)
 		(a.runtime/'observations.json').write_text(json.dumps(observations, indent=2)+'\n')

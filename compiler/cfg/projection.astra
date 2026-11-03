@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Full validation precedes every observable row. Internal format, not a file ABI.
 owned Utf8Message cfg_projection(CfgProgram program) throws Error {
+	return cfg_projection_bounded(program, 16777216);
+}
+owned Utf8Message cfg_projection_bounded(CfgProgram program, int byte_limit) throws Error {
 	if (cfg_verify(program) != 0) { throw new Error("INVALID_CFG"); }
+	if (byte_limit < 1 || byte_limit > 16777216) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
 	var walk = cfg_walk(program);
 	var out = new Utf8ByteBuilder(); source_append_text(out, "astra-cfg/1\n");
 	core_projection_authority(program.core.flow.checked, out);
 	core_projection_proofs(program.core.flow.checked, program.core.flow.proofs, out);
 	core_projection_tables(program.core.data, program.core.flow.checked, out);
 	core_projection_nodes(program.core.data, program.core.flow.checked, out);
+	if (out.byte_count() > byte_limit) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
 	int f = 0;
 	while (f < program.data.function_count) {
 		var row = program.data.functions[f]; source_append_text(out, "CFG_FUNCTION"); flow_number(out, f + 1); flow_number(out, row.entry); flow_number(out, row.exit); source_append_text(out, "\n"); f = f + 1;
@@ -26,7 +31,7 @@ owned Utf8Message cfg_projection(CfgProgram program) throws Error {
 		var span = value.span;
 		if (row.origin == 0) { span = program.core.data.functions[value.function - 1].span; }
 		source_append_text(out, " "); binding_write_span(program.core.flow.checked.bindings, span, out); source_append_text(out, "\n");
-		if (out.byte_count() > 16777216) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
+		if (out.byte_count() > byte_limit) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
 		i = i + 1;
 	}
 	i = 0;
@@ -54,6 +59,6 @@ owned Utf8Message cfg_projection(CfgProgram program) throws Error {
 		i = i + 1;
 	}
 	cfg_write_walk(walk, out);
-	if (out.byte_count() > 16777216) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
+	if (out.byte_count() > byte_limit) { throw new Error("CFG_RESOURCE_EXHAUSTED"); }
 	return out.snapshot();
 }

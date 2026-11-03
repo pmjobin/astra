@@ -21,7 +21,8 @@ skipped path copies the left operand, the evaluated path copies the right.
 Branch conditions and consumers read only the selected path's definition.
 Literal payloads, operator tokens, nominal types, callee symbols/signatures,
 parameter modes and authoritative place parent trees retain exact Core identity.
-The Core `EDGE` argument/field lists remain ordered evaluation-use contracts.
+CFG `ARG` rows retain ordered argument/field temporary uses, labels and modes;
+Core `EDGE` rows remain their independent authority.
 
 Calls evaluate arguments left to right. A move with a call target reserves a
 transfer until that call commits; an immediate move transfers at its evaluation.
@@ -58,7 +59,8 @@ machine execution. Independent C0 executions remain reference evidence only.
 
 Limits bound each arena to 65,536 entries, structural recursion to 192,
 verification work to 8,000,000 and projection bytes to 16 MiB. Exhaustion emits no
-partial public CFG. Status 1 is `INVALID_CFG`, 2 `CFG_RESOURCE_EXHAUSTED`, 3
+partial public CFG. `--cfg-output-limit N` lowers only the output budget for
+exact-boundary tests; the normal cap remains 16 MiB. Status 1 is `INVALID_CFG`, 2 `CFG_RESOURCE_EXHAUSTED`, 3
 `CFG_DEFERRED`, 4 `INVALID_VERIFIED_CORE`; original Core/admission queries retain
 their prior contracts. Whole compiler source and unknown effect policies remain
 deferred. There is no SSA, LLVM emission, new machine backend or Stage-1 claim.

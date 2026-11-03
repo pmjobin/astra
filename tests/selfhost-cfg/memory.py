@@ -16,6 +16,7 @@ def main():
 	p = argparse.ArgumentParser()
 	for key in ('build', 'runtime', 'frozen', 'reference'):
 		p.add_argument('--'+key, type=Path, required=True)
+	p.add_argument('--mode', action='append')
 	a = p.parse_args()
 	resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 	a.runtime.mkdir(parents=True, exist_ok=False)
@@ -31,7 +32,7 @@ def main():
 		if memory:
 			assert b'ERROR SUMMARY: 0 errors' in r.stderr and not re.search(rb'(?:definitely|indirectly|possibly) lost: [1-9]', r.stderr)
 		return r
-	for mode in ('O0', 'O2'):
+	for mode in a.mode or ('O0', 'O2'):
 		exe = a.build/('astra-cfg-'+mode)
 		for case, command in [('nested-owner-leaves', '--cfg'), ('owner-loop-exits', '--cfg-walk'), ('short-skip', '--mutate-cfg'), ('nested-owner-leaves', '--mutate-cfg'), ('existing-deep', '--cfg-retain'), ('channel-overlap', '--cfg'), ('unknown-call', '--cfg')]:
 			run([*FLAGS, exe, command, *items[case]['paths']], case+'-'+command[2:]+'-'+mode, items[case]['core_status'], True)
