@@ -71,3 +71,38 @@ SSA-11 can consume the function/block/edge identities, non-SSA result slots,
 explicit place writes and conditional owner/loan transitions. It must establish
 dominance, typed def-use, phi/block parameters and owner-token joins independently;
 no address-exposed place is implicitly promotable here.
+
+## CFG-10 qualification
+
+The final native source closure is committed at
+`219a9057c180a51b48f5c02e6840d9550178cbef`. Exact-product receipts also check that
+closure against the final tree. O0/O2 preserve all 47 Core outcomes (23 verified,
+12 rejected, 12 deferred), admit 14 new control witnesses plus the exact historical
+break witness, and reject 26 distinct produced-CFG mutations per profile. Paired
+case and mutation outputs are byte-identical. Independent worklists check
+reachable temporary definitions and uses, while C0 executions remain the runtime
+oracle. Every mutant restores its complete live tables and blocks public output.
+
+Unsuppressed Valgrind covers normal queries/walks, mutations, invalid/deferred
+inputs, limits, retained spans and every typed cross-owner read. Source-authored
+C0 allocation traces confirm argument order and reverse cleanup on taken break,
+continue, early return and nested record-leaf paths. The inherited destructor
+fixture still observes count 2/order 21. Fatal controls and deliberately infinite
+C0 execution are separate from ordinary leak/unwinding qualification. Exact byte
+budgets, edge exhaustion, a real Core-positive verification-work exhaustion,
+malformed/overflowing limits and forged success on deferred/invalid input fail
+closed. The deep-source control rejects at the inherited checked-input boundary,
+not at CFG validation; it is not counted as a CFG mutation.
+
+The original Core 22 mutations and SEMADMIT 82 closures/nine new proofs remain
+intact. Fresh exact-product observations retain FLOWSEM 50/paired facts, OWNFlow
+93, Typecore 121 and Binder 85. Source/span/path, lexer, parser/oracle and current
+LLVM layout-cache lifetime regressions pass. All 446 protected files and the
+read-only donor are preserved. The complete current 65-source compiler/library
+input remains deferred with zero whole-program proofs and no Core/CFG output.
+
+Final cold builds took 428.98 s / 1,320,208 KiB (O0) and 739.88 s / 1,328,464 KiB
+(O2), with overlapping intervals. Warm exact reuse has a separate receipt. Earlier
+checks, the synthetic-exit projection-span trap and repair, auxiliary replay/trace
+setup failures, and the deliberately interrupted pre-API O2 build remain in the
+private evidence. These costs are not a size/speed comparison or a Stage-1 result.
