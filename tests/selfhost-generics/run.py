@@ -14,6 +14,7 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'tests/selfhost-llvm'))
 from oracle import memory, inspect
+from layout import check as check_layout
 
 
 def sha(path):
@@ -63,8 +64,9 @@ def main():
 			products['C0-'+suffix].write_bytes(run([a.compiler, command, *sources], name+'-C0-'+suffix).stdout)
 		for stage, key in [('--llvm-raw', 'raw'), ('--llvm-ir', 'ir'), ('--emit-obj', 'object')]:
 			run([a.component, stage, a.mode, products[key], *sources], name+'-'+key)
+		layout = check_layout(name, abi, products['C0-nabi'].read_bytes())
 		text = products['raw'].read_text(); inspect(products['raw'].read_bytes(), ssa)
-		assert 'astra.g.' in text and not re.search(r'\b(?:noalias|nonnull|nocapture|readonly|fast|contract|undef|poison)\b', text)
+		assert (b'SIGNATURE Fn<' not in plans or 'astra.g.' in text) and not re.search(r'\b(?:noalias|nonnull|nocapture|readonly|fast|contract|undef|poison)\b', text)
 		run(['llvm-as', products['raw'], '-o', product.with_suffix('.bc')], name+'-llvm-as')
 		run(['opt', '-passes=verify', '-disable-output', products['ir']], name+'-verify')
 		header = run(['readelf', '-h', products['object']], name+'-ELF').stdout
@@ -82,10 +84,13 @@ def main():
 			v = run(['valgrind', '--default-suppressions=no', '--trace-malloc=yes', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', executable], name+'-memory-'+label)
 			assert v.stdout == actual.stdout
 			memories[label] = memory(v.stderr)
-		if name.startswith('owner-'):
+		if name.startswith(('owner-', 'method-')) or name == 'control':
 			assert memories['native']['observed_trace'] == memories['C0']['observed_trace']
 			assert memories['native']['observed_trace']
-		results.append(dict(**item, mode=a.mode, result='PASS', component_sha256=sha(a.component), c0_sha256=sha(a.compiler), instances_sha256=hashlib.sha256(plans).hexdigest(), ssa_sha256=hashlib.sha256(ssa).hexdigest(), admission_sha256=hashlib.sha256(admission).hexdigest(), memory=memories, products={k:dict(path=str(v), bytes=v.stat().st_size, sha256=sha(v)) for k, v in products.items()}))
+			for observed in memories.values():
+				trace = observed['observed_trace']
+				assert sum(size for action, size in trace if action == 'A') == sum(size for action, size in trace if action == 'F')
+		results.append(dict(item, mode=a.mode, result='PASS', component_sha256=sha(a.component), c0_sha256=sha(a.compiler), instances_sha256=hashlib.sha256(plans).hexdigest(), ssa_sha256=hashlib.sha256(ssa).hexdigest(), admission_sha256=hashlib.sha256(admission).hexdigest(), memory=memories, layout=layout, products={k:dict(path=str(v), bytes=v.stat().st_size, sha256=sha(v)) for k, v in products.items()}))
 		(a.runtime/'results.json').write_text(json.dumps(results, indent=2)+'\n')
 		print(name, a.mode, 'PASS', flush=True)
 	if not a.case:

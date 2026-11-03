@@ -1,7 +1,8 @@
 # GENERICS-14 bounded private Class receiver proposal
 
-Status: proposed; owner approval required by the GENERICS-14 handoff's
-"no new ABI policy without approval" constraint. This is not qualification.
+Status: approved in the native session by the owner's explicit response,
+"Approve the bounded private receiver ABI". The original proposal identity and
+approval are retained in the task runtime. Approval is not qualification.
 NATIVEABI-13-R1 explicitly records receiver/hidden-result channels as absent.
 
 The frozen `method-concrete` and `method-outer` programs both pass current C0

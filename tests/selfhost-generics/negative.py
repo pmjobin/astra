@@ -21,7 +21,8 @@ CASES = {
 	'move-after-use': ('owned T[] relay<T>(owned T[] x) { return move x; } int main() { var a=new int[3]; var b=relay<int>(move a); return len(a); }', 'moved'),
 	'duplicate-owner': ('owned T[] relay<T>(owned T[] x) { owned T[] y=x; return move y; } int main() { var a=new int[3]; var b=relay<int>(move a); return 0; }', 'move'),
 	'borrow-consume': ('int inspect<T>(T[] x,owned T[] y) { return len(x); } int main() { var a=new int[3]; return inspect<int>(a,move a); }', 'borrow'),
-	'borrow-escape': ('T[] escape<T>(T[] x) { return x; } int main() { var a=new int[3]; var b=escape<int>(a); return len(b); }', 'borrow'),
+	'borrow-escape': ('T[] escape<T>(T[] x) { return x; } int main() { var a=new int[3]; var b=escape<int>(a); return len(b); }', 'lifetime'),
+	'class-owner-copy': ('class Echo<T> { init() {} T echo(T value) { return value; } } int main() { var a=new Echo<int>(); owned Echo<int> b=a; return b.echo(1)-1; }', 'fresh object'),
 	'wrong-receiver': ('class A<T> { init() {} T echo(T value) { return value; } } class B<T> { init() {} } int main() { var b=new B<int>(); return b.echo(1); }', 'method'),
 }
 

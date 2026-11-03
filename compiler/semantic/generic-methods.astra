@@ -3,7 +3,10 @@
 bool generic_empty_class(CheckedIndex index, TypeId type) {
 	if (checked_kind(index, type) != 31) return false;
 	var row = index.types.row(type);
-	return generic_instance_for(index, row.nominal) > 0 && flow_empty_class(index, type);
+	int ordinal = generic_instance_for(index, row.nominal);
+	if (ordinal == 0) return false;
+	var plan = index.instances[ordinal - 1]; var declaration = index.bindings.symbol(plan.origin);
+	return declaration.kind == 4 && generic_class_source(index, plan.origin) && generic_check_node(index, plan, declaration.node);
 }
 
 SyntaxListId checked_call_arguments(CheckedIndex index, SyntaxNodeId node) {
@@ -93,7 +96,7 @@ bool generic_parameters_verified(CheckedIndex index, GenericInstance plan, Synta
 		var symbol = index.node_symbols[hidden.index];
 		if (symbol.index == 0 || index.symbol_types[symbol.index].index != plan.enclosing.index || index.symbol_flags[symbol.index] != 2 || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(hidden), "_astra_receiver") || index.bindings.program.arena.get_token_owned_keyword(hidden).index != 0 || index.bindings.program.arena.get_token_borrowed_keyword(hidden).index == 0) return false;
 		var type_node = index.bindings.program.arena.get_node_type_name(hidden);
-		if (index.uses[type_node.index].type.index != plan.enclosing.index || index.bindings.program.arena.token_kind(index.bindings.program.arena.get_token_borrowed_keyword(hidden)) != TokenKind.BORROWED()) return false;
+		if (index.uses[type_node.index].type.index != plan.enclosing.index || index.bindings.program.arena.token_kind(index.bindings.program.arena.get_token_borrowed_keyword(hidden)) != TokenKind.BORROWED() || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_borrowed_keyword(hidden), "borrowed")) return false;
 		var declaration = index.bindings.symbol(symbol);
 		if (declaration.kind != 7 || declaration.owner.index != plan.concrete.index) return false;
 	}

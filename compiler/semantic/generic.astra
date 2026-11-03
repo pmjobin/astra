@@ -252,6 +252,10 @@ GenericInstance generic_copy_bindings(CheckedIndex index, GenericInstance input)
 SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeEdge[] arguments, SyntaxSpan span) throws Error {
 	var declaration = index.bindings.symbol(origin);
 	int count = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node));
+	if ((index.symbol_flags[origin.index] & (8 | 16 | 32 | 64)) != 0) {
+		index.fail(span, "DEFERRED: generic foreign, async, signal or throwing ABI policy");
+		return type_symbol(0);
+	}
 	if (count != len(arguments) || (count == 0 && enclosing.index == 0)) {
 		index.fail(span, "generic specialization arity mismatch");
 		return type_symbol(0);
@@ -272,6 +276,10 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 	}
 	int i = 0;
 	while (i < len(arguments)) {
+		if (checked_record_owned(index, arguments[i].type, 0)) {
+			index.fail(span, "DEFERRED: generic owning-record type argument capability policy");
+			return type_symbol(0);
+		}
 		if (arguments[i].flags != 0 || !generic_closed(index, arguments[i].type, 0)) {
 			index.fail(span, "DEFERRED: generic specialization requires closed unqualified type arguments");
 			return type_symbol(0);

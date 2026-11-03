@@ -98,6 +98,8 @@ void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, in
 					row.alignment = 8;
 				}
 				else { if (source.kind == 22) {
+						var element = checked.types.argument(checked.types, type, 0);
+						native_abi_layout(plan, checked, element.type, depth + 1, budget);
 						row.size = 16;
 						row.alignment = 8;
 						row.count = 2;

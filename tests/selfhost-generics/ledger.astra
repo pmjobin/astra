@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Observation only: works with both the original and current semantic APIs.
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1);
+		int originals = source.arena.node_count;
+		var bindings = binding_index(move source, 0);
+		var checked = checked_build_nativeabi(move bindings, 0);
+		var flow = flow_index(move checked, 8192, 1000000);
+		var observation = flow_observation(flow);
+		print(observation.text);
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "astra-source-ledger/1\n");
+		int s = 1;
+		while (s <= flow.checked.bindings.program.arena.source_count) {
+			SyntaxSourceId id = {index = s};
+			var backing = flow.checked.bindings.program.arena.source(id);
+			var path = source_path(shared_borrow(backing));
+			if (path.text.byte_length > 0 && astra_host_text_byte(path.text, 0) == 60) {
+				var bytes = source_bytes(shared_borrow(backing), 0, ledger_source_length(shared_borrow(backing)));
+				source_append_text(output, "SOURCE "); syntax_write_hex(output, path.text);
+				int b = 0;
+				while (b < len(bytes)) {
+					flow_number(output, bytes[b] as int);
+					b = b + 1;
+				}
+				source_append_text(output, "\n");
+			}
+			s = s + 1;
+		}
+		int i = 1;
+		while (i <= flow.checked.bindings.symbol_count) {
+			var symbol = flow.checked.bindings.symbol(type_symbol(i));
+			var name = flow.checked.bindings.names.text(symbol.name);
+			source_append_text(output, "DECL");
+			flow_number(output, i); flow_number(output, symbol.kind);
+			flow_number(output, symbol.node.index); flow_number(output, symbol.owner.index);
+			source_append_text(output, " "); syntax_write_hex(output, name.text);
+			source_append_text(output, " ");
+			binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(symbol.node).span, output);
+			source_append_text(output, "\n");
+			i = i + 1;
+		}
+		i = 1;
+		while (i <= originals) {
+			SyntaxNodeId node = {index = i};
+			var scope = flow.checked.bindings.scope_for_node(node);
+			int function = 0; int remaining = flow.checked.bindings.scope_count + 1;
+			while (scope.index != 0 && remaining > 0 && function == 0) {
+				var row = flow.checked.bindings.scope(scope);
+				if (row.owner.index != 0) {
+					var owner = flow.checked.bindings.symbol(row.owner);
+					if (owner.kind == 1 || owner.kind == 11 || owner.kind == 12 || owner.kind == 18) function = row.owner.index;
+				}
+				scope = row.parent; remaining = remaining - 1;
+			}
+			var use = flow.checked.uses[i];
+			source_append_text(output, "NODE"); flow_number(output, i);
+			flow_number(output, syntax_kind_code(flow.checked.bindings.program.arena.kind(node)));
+			flow_number(output, function); flow_number(output, use.type.index);
+			flow_number(output, use.flags); flow_number(output, use.deferred);
+			source_append_text(output, " ");
+			binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(node).span, output);
+			source_append_text(output, "\n"); i = i + 1;
+		}
+		var text = output.snapshot(); print(text.text);
+		return flow_status(flow);
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}
+
+int ledger_source_length(borrowed SourceBuffer source) { return source.length; }

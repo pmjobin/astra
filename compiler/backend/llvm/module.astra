@@ -738,6 +738,11 @@ class LlvmModule {
 			}
 			throw new Error("LLVM_DEFERRED: direct callee");
 		}
+		if (op == 14) {
+			var buffer_type = this.type(program.cfg.core.flow.checked, program.cfg.core.data.places[row.place - 1].type, 0);
+			var buffer = LLVMBuildLoad2(this.builder, buffer_type, this.places[row.place - 1], this.empty);
+			return LLVMBuildExtractValue(this.builder, buffer, 1, this.empty);
+		}
 		if (op == 13) {
 			if (!generic_empty_class(program.cfg.core.flow.checked, row.type)) {
 				throw new Error("LLVM_DEFERRED: native Class allocation");
@@ -970,6 +975,25 @@ class LlvmModule {
 			throw new Error("LLVM_INVALID_IR: fault input");
 		}
 		if (native_abi_fault(this.abi, category)) return true;
+		if (category == 44) {
+			int i = 0;
+			while (i < len(this.values)) {
+				var value = this.values[i];
+				if (value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 53 && llvm13_index(value, 0, 1) == 1) {
+					var aggregate = LLVMGetOperand(value, 0);
+					if (LLVMIsAInstruction(aggregate) != null && LLVMGetInstructionOpcode(aggregate) == 53 && llvm13_index(aggregate, 0, 0) == 1) {
+						var pointer = LLVMGetOperand(aggregate, 1);
+						if (LLVMIsAInstruction(pointer) != null && LLVMGetInstructionOpcode(pointer) == 44 && LLVMCountIncoming(pointer) == 2) {
+							var allocation = LLVMGetIncomingValue(pointer, 1);
+							if (LLVMIsAInstruction(allocation) != null && LLVMGetInstructionOpcode(allocation) == 45 && llvm13_named(LLVMGetCalledValue(allocation), "calloc") == 1) {
+								var width = LLVMGetArgOperand(allocation, 1); LLVMSetOperand(allocation, 1, LLVMConstInt(LLVMTypeOf(width), 0, 0)); return true;
+							}
+						}
+					}
+				}
+				i = i + 1;
+			}
+		}
 		if (category == 41) {
 			int i = 0;
 			while (i < len(this.values)) {
@@ -1274,7 +1298,16 @@ class LlvmModule {
 		var plan = native_abi_plan(program, this.optimization); this.abi = move plan;
 		this.open(); this.declarations(program); this.storage(program); this.body(program); this.foreign_wrappers(program);
 		if (!this.check(program)) {
-			throw new Error("LLVM_INVALID_IR: source correspondence");
+			if (!native_abi_verify(this.abi, program, this.optimization, this.layout, this.types, this.functions)) {
+				throw new Error("LLVM_INVALID_IR: ABI correspondence");
+			}
+			if (!llvm_check_retirements(program, this.functions, this.blocks, this.places, this.armed, this.retirements, this.retirement_guards)) {
+				throw new Error("LLVM_INVALID_IR: retirement correspondence");
+			}
+			if (!llvm_check_numeric(program, this.functions, this.blocks, this.ends, this.values, this.numeric_guards)) {
+				throw new Error("LLVM_INVALID_IR: numeric correspondence");
+			}
+			throw new Error("LLVM_INVALID_IR: instruction correspondence");
 		}
 		if (llvm12_verify(this.module) != 0) {
 			throw new Error("LLVM_INVALID_IR");

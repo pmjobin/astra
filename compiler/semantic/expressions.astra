@@ -344,6 +344,7 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 		if (code == 0) {
 			return index.defer(node, 15);
 		}
+		if (index.native_abi && index.generic_definition && code == 33 && operation.text == "~" && checked_parameter_capability(index, type, "Bitwise")) return type;
 		bool valid = (operation.text == "!" && code == 13) || (operation.text == "~" && type_integer(code)) || (operation.text == "+" && type_numeric(code)) || (operation.text == "-" && (type_signed(code) || code == 11 || code == 12));
 		if (!valid) {
 			index.fail(span, "unary operator is incompatible with its exact operand type");
@@ -436,6 +437,16 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 			return no_type();
 		}
 		return type_id(13);
+	}
+	if (index.native_abi && index.generic_definition && (code == 33 || other == 33)) {
+		bool exact = code == 33 && (shift && type_integer(other) || !shift && left.index == right.index);
+		bool capability = equality && checked_parameter_capability(index, left, "Eq") || comparison && !equality && checked_parameter_capability(index, left, "Ordered") || bitwise && checked_parameter_capability(index, left, "Bitwise") || shift && checked_parameter_capability(index, left, "Shift") || (op.text == "+" || op.text == "-" || op.text == "*" || op.text == "/") && checked_parameter_capability(index, left, "Numeric");
+		if (!exact || !capability) {
+			index.fail(index.bindings.program.arena.token_span(token), "generic operation requires exact parameter operands and its explicit capability");
+			return no_type();
+		}
+		if (comparison) return type_id(13);
+		return left;
 	}
 	bool valid = false;
 	if (shift) {

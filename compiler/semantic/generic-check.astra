@@ -47,6 +47,19 @@ bool generic_verify(CheckedIndex index) {
 	int ordinal = 0;
 	while (ordinal < index.instance_count) {
 		if (!generic_plan_bounds(index, index.instances[ordinal])) return false;
+		int previous = 0;
+		while (previous < ordinal) {
+			var first = index.instances[previous]; var current = index.instances[ordinal];
+			if (first.concrete.index == current.concrete.index) return false;
+			bool same = first.origin.index == current.origin.index && first.enclosing.index == current.enclosing.index && first.argument_count == current.argument_count;
+			int argument = 0;
+			while (same && argument < first.argument_count) {
+				var a = index.generic_arguments[first.arguments + argument]; var b = index.generic_arguments[current.arguments + argument];
+				same = a.type.index == b.type.index && a.flags == b.flags; argument = argument + 1;
+			}
+			if (same) return false;
+			previous = previous + 1;
+		}
 		var plan_origin = generic_origin(index.instances[ordinal]);
 		var concrete = generic_declaration(index.instances[ordinal]);
 		if (plan_origin.index < 1 || plan_origin.index > index.generic_symbols || concrete.index <= index.generic_symbols || concrete.index > index.bindings.symbol_count || generic_state(index.instances[ordinal]) != 2) return false;
@@ -117,9 +130,9 @@ bool generic_capability_verified(CheckedIndex index, TypeId argument, SyntaxToke
 	int kind = checked_kind(index, argument);
 	if (index.bindings.program.arena.token_is(capability, "Numeric") || index.bindings.program.arena.token_is(capability, "Ordered")) return type_numeric(kind);
 	if (index.bindings.program.arena.token_is(capability, "Eq")) return type_numeric(kind) || kind == 13 || kind == 16;
-	if (index.bindings.program.arena.token_is(capability, "Bitwise")) return type_integer(kind) || kind == 13;
+	if (index.bindings.program.arena.token_is(capability, "Bitwise")) return type_integer(kind);
 	if (index.bindings.program.arena.token_is(capability, "Shift")) return type_integer(kind);
-	if (index.bindings.program.arena.token_is(capability, "Ownable") || index.bindings.program.arena.token_is(capability, "ExactHeapClass")) return kind == 31;
+	if (index.bindings.program.arena.token_is(capability, "Ownable")) return kind == 31;
 	return false;
 }
 

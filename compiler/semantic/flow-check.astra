@@ -74,7 +74,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 			if (loan.call.index <= 0 || loan.call.index > checked.bindings.program.arena.node_count || (checked.bindings.program.arena.kind(loan.call) != SyntaxKind.CallExpressionSyntax() && !(checked.semantic_flow && checked.bindings.program.arena.kind(loan.call) == SyntaxKind.HeapObjectConstructionSyntax()))) {
 				return false;
 			}
-			var args = checked.bindings.program.arena.get_list_arguments(loan.call);
+			var args = checked_call_arguments(checked, loan.call);
 			int a = 0;
 			bool exact = false;
 			while (a < checked.bindings.program.arena.list_count(args)) {

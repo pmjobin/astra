@@ -519,11 +519,13 @@ bool checked_capability(CheckedIndex index, TypeId type, string capability) thro
 		return type_numeric(kind) || kind == 13 || kind == 16;
 	}
 	if (capability == "Bitwise") {
-		return type_integer(kind) || kind == 13;
+		return type_integer(kind) || (!index.native_abi && kind == 13);
 	}
 	if (capability == "Shift") {
 		return type_integer(kind);
 	}
+	if (index.native_abi && capability == "Ownable") return kind == 31;
+	if (index.native_abi && capability == "ExactHeapClass") return false;
 	if (capability == "Ownable" || capability == "ExactHeapClass") {
 		return kind == 31 || kind == 27 || kind == 28 || kind == 29 || kind == 35 || kind == 34;
 	}

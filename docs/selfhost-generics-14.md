@@ -51,10 +51,14 @@ cases and an unchanged multisource provider/consumer program.
 
 The first standalone Astra consumer freshly admits typed specialization and
 Flow for eleven programs. The two method programs are explicitly deferred in
-that older development product. The receiver-enabled source passes C0's full
-check; fresh native LLVM tool builds and actual native qualification are still
-in progress. No new executable has yet been counted toward G4 at this checkpoint.
-Nineteen independent typed/binder/owner/receiver/Flow model forgeries and five
+that older development product. The receiver-enabled v2 native tools built at
+both O0 and O2. Nine new programs passed actual O0 LLVM/ELF/C0/memory checks in
+retained development runs. The method cases exposed a missing construction
+commit identity in Flow; the early owner case exposed a missing floating buffer
+element layout in the ABI plan. Both are corrected in source, with a new
+independent buffer stride check. Fresh tool builds and final qualification
+remain in progress.
+Nineteen independent typed/binder/owner/receiver/Flow model forgeries and six
 additional physical ABI/receiver/allocation/cleanup faults have authored test
 consumers; they require actual successful controls and rejection receipts.
 
@@ -67,9 +71,13 @@ a reaching definition in a loop condition in the verifier implementation;
 materializing that descriptor before the loop retains the same checks and
 passes C0. No C0 verifier or ownership restriction was relaxed.
 
-The guarded formatter applied only to 36 task-owned eligible paths, changing
-12. There was no repeat of the historical formatting campaign. Full read-only
-format checking, current protection verification, original 1,044-proof replay,
+The guarded formatter applies only to task-owned eligible paths. There was no
+repeat of the historical formatting campaign. A full read-only check passed
+4,659 sources with zero changes; later touched paths have separate guards.
+The whole-source consumer emitted 174,297 original nodes against the initial
+source set. Its first decoder failed on 23 synthetic Utf8MessageFactory nodes;
+the consumer now exposes their actual source backing for complete provenance.
+Final style/protection verification, original 1,044-proof replay,
 final O0/O2 execution/memory/mutation closure, exact costs and publication remain
 mandatory. The runtime receipts, rather than this checkpoint, govern outcomes.
 

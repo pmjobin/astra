@@ -4,7 +4,7 @@ int main(string[] args) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
 	}
-	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa" && args[1] != "--generic-plan" && args[1] != "--generic-mutations" && args[1] != "--generic-native-mutations") return llvm_ssa_cli(args);
+	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa" && args[1] != "--generic-plan" && args[1] != "--generic-mutations" && args[1] != "--generic-native-mutations" && args[1] != "--nativeabi-core" && args[1] != "--nativeabi-cfg") return llvm_ssa_cli(args);
 	if (len(args) < 5) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
@@ -32,7 +32,27 @@ int main(string[] args) {
 			print(observation.text);
 			return flow_status(flow);
 		}
-		var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var program = ssa_lower(move cfg, 65536, 8000000);
+		var core = core_lower(move flow, 65536);
+		if (args[1] == "--nativeabi-core") {
+			var text = core_projection(core);
+			print(text.text);
+			return 0;
+		}
+		if (core_verify(core) != 0) {
+			var stage = llvm_name("LLVM_INVALID_UPSTREAM: Core ", core.data.status);
+			throw new Error(stage.text);
+		}
+		var cfg = cfg_lower(move core, 65536);
+		if (args[1] == "--nativeabi-cfg") {
+			var text = cfg_projection(cfg);
+			print(text.text);
+			return 0;
+		}
+		if (cfg_verify(cfg) != 0) {
+			var stage = llvm_name("LLVM_INVALID_UPSTREAM: CFG ", cfg.data.status);
+			throw new Error(stage.text);
+		}
+		var program = ssa_lower(move cfg, 65536, 8000000);
 		var profile = new LlvmProfile(optimization, 8000000, 16777216);
 		if (args[1] == "--nativeabi-ssa") {
 			if (ssa_verify(program) != 0) {
@@ -139,7 +159,7 @@ void llvm_lifecycle(LlvmArtifact module, SsaProgram program, LlvmProfile profile
 
 void generic_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
 	var upstream = ssa_test_snapshot(program.data); int category = 39;
-	while (category < 44) {
+	while (category < 45) {
 		var baseline = llvm_lower(program, program, profile); assert_that(baseline.audit(program) == 0);
 		var mutant = llvm_lower(program, program, profile); assert_that(mutant.fault(category));
 		int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);

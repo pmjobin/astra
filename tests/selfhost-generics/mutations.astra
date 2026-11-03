@@ -49,7 +49,15 @@ void generic_mutations(FlowIndex flow) throws Error {
 			if (category == 0) changed.origin = owner_plan.origin;
 			if (category == 1) changed.concrete = owner_plan.concrete;
 			if (category == 3) changed.enclosing = no_type();
-			if (category == 4) changed.enclosing = type_id(13);
+			if (category == 4) {
+				int other = 0;
+				while (other < flow.checked.instance_count) {
+					var candidate = flow.checked.instances[other]; var declaration = flow.checked.bindings.symbol(candidate.origin);
+					if (declaration.kind == 4 && flow.checked.symbol_types[candidate.concrete.index].index != old.enclosing.index) changed.enclosing = flow.checked.symbol_types[candidate.concrete.index];
+					other = other + 1;
+				}
+				assert_that(changed.enclosing.index != old.enclosing.index);
+			}
 			if (category == 17) changed.state = 1;
 			flow.checked.instances[ordinal] = changed; stage = generic_mutation_stage(flow); flow.checked.instances[ordinal] = old;
 		}

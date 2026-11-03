@@ -9,7 +9,7 @@ bool core_counts(CoreData core) {
 	return core.limit > 0 && core.limit <= 65536 && core.function_count >= 0 && core.function_count <= len(core.functions) && core.node_count >= 0 && core.node_count <= len(core.nodes) && core.place_count >= 0 && core.place_count <= len(core.places) && core.edge_count >= 0 && core.edge_count <= len(core.edges) && core.exit_count >= 0 && core.exit_count <= len(core.exits) && core.cleanup_count >= 0 && core.cleanup_count <= len(core.cleanups) && core.loan_count >= 0 && core.loan_count <= len(core.loans);
 }
 
-bool core_value_kind(int kind) { return kind >= 1 && kind <= 13; }
+bool core_value_kind(int kind) { return kind >= 1 && kind <= 14; }
 
 // Find an authoritative place from Binder identity, not name equality.
 int core_symbol_place(CoreData core, int function, SymbolId symbol) {
@@ -121,7 +121,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 	if (row.type.index != expected_type.index || row.flags != expected_flags || !checked.types.owns(checked.types, row.type)) return false;
 	// Each kind checks its complete schema, including unused metadata. This also
 	// rejects a plausible value substituted into a writable-place channel.
-	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.place != 0) return false;
+	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.kind != 14 && row.place != 0) return false;
 	if (row.kind != 9 && (row.symbol.index != 0 || row.signature.index != 0)) return false;
 	if (row.kind != 4 && row.kind != 9 && row.kind != 25 && row.kind != 26 && row.target != 0) return false;
 	if (row.kind != 1 && row.kind != 2 && row.token.index != 0) return false;
@@ -196,6 +196,13 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 			i = i + 1;
 		}
 		return true;
+	}
+	if (row.kind == 14) {
+		if (kind != SyntaxKind.CallExpressionSyntax() || !checked_flow_intrinsic(checked, source) || row.type.index != 1 || row.flags != 0 || row.a != 0 || row.place < 1 || row.place > core.place_count || !flow_buffer_type(checked, core.places[row.place - 1].type)) return false;
+		var arguments = checked_call_arguments(checked, source);
+		if (checked.bindings.program.arena.list_count(arguments) != 1) return false;
+		var argument = flow_unwrap(checked, checked.bindings.program.arena.node_at(arguments, 0));
+		return core_source_place(core, checked, function, argument, 0) == row.place;
 	}
 	if (row.kind == 13) {
 		return kind == SyntaxKind.HeapObjectConstructionSyntax() && row.a == 0 && generic_empty_class(checked, row.type) && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(source)) == 0 && checked.bindings.program.arena.get_node_allocation_context(source).index == 0 && !checked.bindings.program.arena.get_bool_fallible(source);

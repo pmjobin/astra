@@ -254,6 +254,27 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 	return observed == required && !budget.exhausted;
 }
 
+bool llvm_check_buffer(CheckedIndex checked, CoreNode node, void* result, void* count) {
+	if (result == null || count == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 53 || llvm13_index(result, 0, 1) != 1 || LLVMGetOperand(result, 1) != count) return false;
+	var aggregate = LLVMGetOperand(result, 0);
+	if (LLVMIsAInstruction(aggregate) == null || LLVMGetInstructionOpcode(aggregate) != 53 || llvm13_index(aggregate, 0, 0) != 1 || LLVMIsNull(LLVMGetOperand(aggregate, 0)) == 0) return false;
+	var pointer = LLVMGetOperand(aggregate, 1);
+	if (LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 44 || LLVMCountIncoming(pointer) != 2 || LLVMIsNull(LLVMGetIncomingValue(pointer, 0)) == 0) return false;
+	var allocation = LLVMGetIncomingValue(pointer, 1);
+	if (LLVMIsAInstruction(allocation) == null || LLVMGetInstructionOpcode(allocation) != 45 || llvm13_named(LLVMGetCalledValue(allocation), "calloc") != 1 || LLVMGetNumArgOperands(allocation) != 2) return false;
+	var shape = checked.types.row(node.type);
+	if (shape.kind != 22 || shape.count != 1) return false;
+	var element = checked.types.argument(checked.types, node.type, 0);
+	int kind = checked_kind(checked, element.type);
+	if (!type_numeric(kind) && kind != 13) return false;
+	int size = type_width(kind) / 8; if (kind == 13) size = 1;
+	var width = LLVMGetArgOperand(allocation, 1);
+	if (LLVMIsAConstantInt(width) == null || LLVMConstIntGetZExtValue(width) != size as u64) return false;
+	var amount = LLVMGetArgOperand(allocation, 0);
+	if (LLVMIsAConstantInt(count) != null) return LLVMIsAConstantInt(amount) != null && LLVMConstIntGetZExtValue(amount) == LLVMConstIntGetZExtValue(count);
+	return LLVMIsAInstruction(amount) != null && LLVMGetInstructionOpcode(amount) == 31 && LLVMGetOperand(amount, 0) == count;
+}
+
 bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wrappers, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] effects, int limit) throws Error {
 	var budget = new SsaBudget(limit);
 	int f = 0;
@@ -410,6 +431,10 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 		var instruction = program.data.instructions[i]; var row = instruction.origin; int op = row.opcode;
 		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.value.function)) {
 			void* result = null; if (instruction.result > 0) result = values[instruction.result - 1];
+			if (op == 11) {
+				int count = llvm_check_use(program.data, i + 1, 1, 0, budget);
+				if (count < 1 || !llvm_check_buffer(program.cfg.core.flow.checked, row.value, result, values[count - 1])) return false;
+			}
 			if ((op == 1 || op == 2) && !llvm_check_literal(program.cfg.core.flow.checked, row.value, result, budget)) return false;
 			if (op == 3 && instruction.promoted) {
 				int use = llvm_check_use(program.data, i + 1, 4, 0, budget);
@@ -417,6 +442,11 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 			}
 			if ((op == 3 && !instruction.promoted || op == 4) && !((row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30)) {
 				if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) return false;
+			}
+			if (op == 14) {
+				if (row.value.place < 1 || row.value.place > len(places) || !flow_buffer_type(program.cfg.core.flow.checked, program.cfg.core.data.places[row.value.place - 1].type) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 53 || llvm13_index(result, 0, 1) != 1) return false;
+				var load = LLVMGetOperand(result, 0);
+				if (LLVMIsAInstruction(load) == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[row.value.place - 1] || LLVMGetInstructionParent(load) != LLVMGetInstructionParent(result)) return false;
 			}
 			if (op == 13) {
 				if (!generic_empty_class(program.cfg.core.flow.checked, row.value.type) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || llvm13_named(LLVMGetCalledValue(result), "calloc") != 1 || LLVMGetNumArgOperands(result) != 2) return false;

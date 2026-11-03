@@ -108,6 +108,17 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 	var kind = checked.bindings.program.arena.kind(row.source);
 	SyntaxListId list = {index = 0};
 	SyntaxListId params = {index = 0};
+	if (kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, row.source)) {
+		var arguments = checked_call_arguments(checked, row.source);
+		if (checked.bindings.program.arena.list_count(arguments) != 1) {
+			core.status = 3;
+			return row;
+		}
+		var argument = flow_unwrap(checked, checked.bindings.program.arena.node_at(arguments, 0));
+		row.kind = 14; row.place = core_lower_place(core, checked, graph, function, argument);
+		if (row.place == 0 || !flow_buffer_type(checked, core.places[row.place - 1].type)) core.status = 3;
+		return row;
+	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		row.kind = 9;
 		row.symbol = checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source));
