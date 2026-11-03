@@ -23,6 +23,7 @@ def main():
 	run('build.py', '--compiler', a.compiler, '--build', a.build, '--runtime', leaf/'build')
 	run('freeze.py', '--compiler', a.compiler, '--core', a.build, '--core2', a.build, '--core-prefix', 'astra-cfg-', '--runtime', leaf/'frozen', '--build', a.build/'reference')
 	run('reference.py', '--compiler', a.compiler, '--build', a.build/'order-reference', '--runtime', leaf/'order-reference', '--frozen', leaf/'frozen')
+	run('runtime_order.py', '--compiler', a.compiler, '--build', a.build/'runtime-order', '--runtime', leaf/'runtime-order', '--frozen', leaf/'frozen')
 	run('run.py', '--build', a.build, '--runtime', leaf/'runs', '--frozen', leaf/'frozen')
 	run('bounds.py', '--compiler', a.compiler, '--build', a.build, '--runtime', leaf/'bounds', '--frozen', leaf/'frozen')
 	run('memory.py', '--build', a.build, '--runtime', leaf/'memory', '--frozen', leaf/'frozen', '--reference', a.build/'reference')
