@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 int main(string[] args) {
 	if (len(args) < 2) { println_stderr("LLVM_INVALID_COMMAND"); return 2; }
-	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle") { return llvm_ssa_cli(args); }
+	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan") { return llvm_ssa_cli(args); }
 	if (len(args) < 5) { println_stderr("LLVM_INVALID_COMMAND"); return 2; }
 	try {
 		int optimization = 0;
@@ -11,13 +11,32 @@ int main(string[] args) {
 		var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var program = ssa_lower(move cfg, 65536, 8000000);
 		var profile = new LlvmProfile(optimization, 8000000, 16777216);
 		if (args[1] == "--mutate-llvm") { llvm_mutations(program, profile, args[3]); return 0; }
+		if (args[1] == "--nativeabi-mutations") { nativeabi_mutations(program, profile, args[3]); return 0; }
 		if (args[1] == "--llvm-limits") { llvm_limits(program, args[3]); return 0; }
 		var module = llvm_lower(program, program, profile);
+		if (args[1] == "--abi-plan") { assert_that(module.audit(program) == 0); module.abi_snapshot(); println(""); return 0; }
 		if (args[1] == "--llvm-lifecycle") { llvm_lifecycle(module, program, profile, args, args[3]); return 0; }
 		if (args[1] == "--llvm-raw") { module.raw(program, args[3]); return 0; }
 		module.write(program, program, profile, args[3], args[1] == "--emit-obj");
 		return 0;
 	} catch (Error error) { println_stderr(error.message); return 2; }
+}
+
+void nativeabi_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 21;
+	while (category < 38) {
+		var baseline = llvm_lower(program, program, profile); assert_that(baseline.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile);
+		if (mutant.fault(category)) {
+			int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+			bool rejected = false; try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+			var prefix = llvm_name("NATIVEABI_MUTATION ", category); print(prefix.text); var number = llvm_name(" ", stage); print(number.text); print(" ");
+			baseline.abi_snapshot(); print(" "); baseline.snapshot(); print(" "); mutant.abi_snapshot(); print(" "); mutant.snapshot(); print(" ");
+			mutant.close(); var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0); restored.abi_snapshot(); print(" "); restored.snapshot(); println("");
+			var after = ssa_test_snapshot(program.data); assert_that(after.text == upstream.text && ssa_verify(program) == 0);
+		}
+		category = category + 1;
+	}
 }
 
 void llvm_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {

@@ -71,7 +71,8 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	if (parameter && code == 15) {
 		graph.defer(declaration.node, 17);
 	}
-	if (parameter && (flags & 2) != 0 && code == 20) {
+	var callable_declaration = checked.bindings.symbol(graph.function);
+	if (parameter && (flags & 2) != 0 && code == 20 && !(checked_c_scalar_signature(checked, graph.function) && checked.bindings.program.arena.computed_is_c_import(callable_declaration.node))) {
 		graph.defer(declaration.node, 13);
 	}
 	if ((flags & 1) != 0 && (!checked.semantic_flow || !flow_simple_class(checked, type))) {

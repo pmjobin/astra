@@ -70,7 +70,7 @@ def main():
 		assert b'ELF64' in elf and b'Advanced Micro Devices X86-64' in elf and b'REL (Relocatable file)' in elf
 		run(['nm', '-a', products['object']], name+'-symbols')
 		run(['objdump', '-dr', products['object']], name+'-disassembly')
-		companion = a.frozen/(name+'.c'); links = []
+		companion = source.with_suffix('.c'); links = []
 		if companion.exists():
 			obj = a.build/(name+'-gcc.o')
 			run(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-include', ROOT/'tests/selfhost-nativeabi/target.h', '-c', companion, '-o', obj], name+'-C-compile')
@@ -79,7 +79,7 @@ def main():
 		run(['gcc', products['object'], *links, '-o', product], name+'-link')
 		actual = run([product], name+'-execute', item['expected_exit'])
 		assert actual.stdout.decode() == item['expected_stdout'] and actual.stderr.decode() == item['expected_stderr']
-		if name in {'c-export-fp', 'c-mixed-pointer'}:
+		if name in {'c-export-fp', 'c-mixed-pointer', 'c-export-i32-edges', 'c-borrowed-noescape'}:
 			obj = product.with_suffix('.c0.o')
 			run([a.compiler, '-'+a.mode, '-c', source, '-o', obj], name+'-C0-object')
 			run(['gcc', obj, *links, '-o', products['reference']], name+'-C0-link')

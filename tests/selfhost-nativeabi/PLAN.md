@@ -53,3 +53,16 @@ The three import-bearing additions pass source admission but stop at Core's
 existing nonempty-body invariant. Their failed receipts are retained. This is
 an intermediate implementation checkpoint, with O2, imports, independent new
 faults, source-formatting equivalence and final publication still outstanding.
+
+The next source closure passes the original 24 at both profiles, and ten
+additions at O2 (including separate C I32 edge calls). Its independent negative
+pilot exposed a missing strict-FP check on an export wrapper; this failed trial
+is retained. C imports now pass Core but expose CFG's executable fallthrough
+rule on declaration-only records. Both require explicit refinement checks.
+The borrowed-noescape declaration is a trusted foreign assertion, independently
+witnessed with static C storage; it never grants LLVM capture/alias attributes.
+
+Three tracked test inputs referenced by the inherited 1044-query proof ledger
+are explicitly protected before the broad format pass: nested/deep struct-copy
+fixtures and the destructor witness. This preserves all original 446 exclusions
+and adds three source-bound exclusions, without omitting implementation code.

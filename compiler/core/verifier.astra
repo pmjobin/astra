@@ -314,7 +314,9 @@ int core_verify_model(CoreData core, FlowIndex flow) {
 		if (!core_verify_places(core, flow.checked, flow.graphs.entries[i], i + 1, first_place) || !core_verify_responsibility(core, flow.checked, flow.graphs.entries[i], i + 1, cursors)) { return 1; }
 		first_place = first_place + f.place_count;
 		var body = flow.checked.bindings.program.arena.get_node_body(declaration.node);
-		if (!core_verify_tree(core, flow.checked, flow.proofs, f.body, body, i + 1, 0, 0, 0, seen, seen_edges)) { return 1; }
+		if (body.index == 0) {
+			if (f.body != 0 || !flow.checked.bindings.program.arena.computed_is_c_import(declaration.node) || !checked_c_scalar_signature(flow.checked, sig.declaration)) { return 1; }
+		} else { if (!core_verify_tree(core, flow.checked, flow.proofs, f.body, body, i + 1, 0, 0, 0, seen, seen_edges)) { return 1; } }
 		i = i + 1;
 	}
 	if (first_place != core.place_count || cursors[0] != core.exit_count || cursors[1] != core.cleanup_count || cursors[2] != core.loan_count) { return 1; }

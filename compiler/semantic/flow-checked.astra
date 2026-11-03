@@ -9,7 +9,9 @@ bool checked_c_scalar_type(CheckedIndex index, TypeId type, bool result) {
 	return pointee.flags == 0 && checked_kind(index, pointee.type) == 14;
 }
 // Opt-in admission of existing explicit C0 scalar C semantics. Metadata,
-// owned/borrowed channels, callbacks and aggregate C ABI remain deferred.
+// owned channels, borrowed C exports, callbacks and aggregate C ABI defer.
+// Imported borrowed void* is a trusted noescape assertion, not an LLVM alias
+// or capture premise and not a proof of the foreign implementation.
 bool checked_c_scalar_signature(CheckedIndex index, SymbolId symbol) {
 	if (!index.semantic_admission || symbol.index < 1 || symbol.index > index.bindings.symbol_count || index.symbol_signatures[symbol.index].index < 1) { return false; }
 	var declaration = index.bindings.symbol(symbol);
@@ -26,7 +28,8 @@ bool checked_c_scalar_signature(CheckedIndex index, SymbolId symbol) {
 	int i = 0;
 	while (i < shape.count) {
 		var channel = index.types.argument(index.types, signature.callable, i);
-		if (channel.flags != 0 || !checked_c_scalar_type(index, channel.type, i == 0)) { return false; }
+		bool noescape = imported && i > 0 && channel.flags == 2 && checked_kind(index, channel.type) == 20;
+		if ((channel.flags != 0 && !noescape) || !checked_c_scalar_type(index, channel.type, i == 0)) { return false; }
 		i = i + 1;
 	}
 	return imported == (index.bindings.program.arena.get_node_body(node).index == 0);

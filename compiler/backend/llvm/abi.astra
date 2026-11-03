@@ -54,7 +54,7 @@ class NativeAbiPlan {
 int native_abi_representation(CheckedIndex checked, TypeEdge edge, bool foreign) {
 	int kind = checked_kind(checked, edge.type);
 	if (foreign) {
-		if (edge.flags != 0) { return -1; }
+		if (edge.flags != 0 && !(edge.flags == 2 && kind == 20)) { return -1; }
 		if (kind == 1) { return 1; } if (kind == 11) { return 2; }
 		if (kind == 12) { return 3; } if (kind == 20) { return 4; }
 		if (kind == 14) { return 0; } return -1;
@@ -194,4 +194,40 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 		f = f + 1;
 	}
 	return cursor == len(plan.channels) && !budget.exhausted;
+}
+bool native_abi_fault(NativeAbiPlan plan, int category) {
+	if (category == 21 && len(plan.functions) > 0) { var row = plan.functions[0]; row.linkage = row.linkage ^ 1; plan.functions[0] = row; return true; }
+	int i = 0;
+	if (category == 22) {
+		while (i < len(plan.channels)) { var row = plan.channels[i]; if (row.representation == 2 || row.representation == 3) { row.representation = 1; plan.channels[i] = row; return true; } i = i + 1; }
+	}
+	if (category == 25) {
+		while (i < len(plan.fields)) { var row = plan.fields[i]; if (row.owner != 0) { row.offset = row.offset + 1; plan.fields[i] = row; return true; } i = i + 1; }
+	}
+	if (category == 32) {
+		while (i < len(plan.functions)) { var row = plan.functions[i]; if (plan.channels[row.first].representation == 6) { row.result_convention = 2; row.hidden_result = 0; plan.functions[i] = row; return true; } i = i + 1; }
+	}
+	return false;
+}
+owned Utf8Message native_abi_snapshot(NativeAbiPlan plan) throws Error {
+	var out = new Utf8ByteBuilder(); source_append_text(out, "astra-nativeabi/1");
+	flow_number(out, plan.optimization); flow_number(out, plan.pointer_size); int active = 0; if (plan.active) { active = 1; } flow_number(out, active); source_append_text(out, "\n");
+	int i = 0;
+	while (i < len(plan.functions)) {
+		var row = plan.functions[i]; source_append_text(out, "FUNCTION");
+		flow_number(out, row.ordinal); flow_number(out, row.symbol); flow_number(out, row.signature); flow_number(out, row.linkage); flow_number(out, row.convention); flow_number(out, row.result_convention); flow_number(out, row.receiver); flow_number(out, row.hidden_result); flow_number(out, row.first); flow_number(out, row.count); flow_number(out, row.span.source.index); flow_number(out, row.span.start); flow_number(out, row.span.end); source_append_text(out, "\n"); i = i + 1;
+	}
+	i = 0;
+	while (i < len(plan.channels)) {
+		var row = plan.channels[i]; source_append_text(out, "CHANNEL"); flow_number(out, row.function); flow_number(out, row.ordinal); flow_number(out, row.semantic); flow_number(out, row.ownership); flow_number(out, row.representation); source_append_text(out, "\n"); i = i + 1;
+	}
+	i = 0;
+	while (i < len(plan.types)) {
+		var row = plan.types[i]; if (row.complete) { source_append_text(out, "TYPE"); flow_number(out, row.semantic); flow_number(out, row.kind); flow_number(out, row.size); flow_number(out, row.alignment); flow_number(out, row.count); source_append_text(out, "\n"); } i = i + 1;
+	}
+	i = 0;
+	while (i < len(plan.fields)) {
+		var row = plan.fields[i]; if (row.owner != 0) { source_append_text(out, "FIELD"); flow_number(out, row.owner); flow_number(out, row.ordinal); flow_number(out, row.symbol); flow_number(out, row.semantic); flow_number(out, row.offset); source_append_text(out, "\n"); } i = i + 1;
+	}
+	return out.snapshot();
 }

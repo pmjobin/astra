@@ -10,6 +10,8 @@ CASES = {
 	'c-import-fp': ('c', 'extern(C) f32 c_float(f32 x);extern(C) f64 c_double(f64 x);int main(){if(c_float(1.25f)!=2.5f||c_double(-3.5d)!=-1.75d){return 1;}return 0;}'),
 	'c-export-fp': ('c', 'f64 identity(f64 x){return x;}export(C) f32 astra_float(f32 x){return x;}export(C) f64 astra_double(f64 x){return identity(x);}'),
 	'c-mixed-pointer': ('c', 'extern(C) int c_channels(int tag,f32 small,f64 precise,void* token);export(C) void* astra_pointer(void* token){return token;}export(C) int astra_channels(int tag,f32 small,f64 precise,void* token){return c_channels(tag,small,precise,token);}'),
+	'c-export-i32-edges': ('c', 'export(C) int astra_step(int x){if(x<0){return x+1;}return x-1;}'),
+	'c-borrowed-noescape': ('c', 'extern(C) int c_observe(borrowed void* token);export(C) int astra_observe(void* token){return c_observe(token);}'),
 	'aggregate-nested-fp': ('memory', 'struct Inner{f64 value;int tag;}struct Outer{int head;Inner inner;f32 tail;}f64 sum(Outer value){return value.inner.value+value.tail as f64;}int main(){Outer value={head=7,inner={value=1.25d,tag=9},tail=2.5f};if(sum(value)!=3.75d||value.inner.tag!=9){return 1;}return 0;}'),
 	'aggregate-borrow-fp': ('memory', 'struct Pair{f32 small;f64 precise;}f64 read(borrowed Pair value){return value.precise;}int main(){Pair value={small=1.5f,precise=2.25d};Pair copy=value;copy.precise=3.5d;if(read(value)!=2.25d||read(copy)!=3.5d){return 1;}return 0;}'),
 	'owner-buffer-replace': ('memory', 'int main(){owned int[] value=new int[2];value=new int[3];return 0;}'),
@@ -44,5 +46,18 @@ extern void *astra_pointer(void *);
 extern int32_t astra_channels(int32_t,float,double,void *);
 int32_t c_channels(int32_t tag,float small,double precise,void *token){return tag==-7&&small==1.25f&&precise==-3.5&&token==&storage?0:1;}
 int main(void){if(astra_pointer(&storage)!=&storage||astra_pointer(0)!=0)return 2;return astra_channels(-7,1.25f,-3.5,&storage);}
+''',
+	'c-export-i32-edges': '''#include <stdint.h>
+extern int32_t astra_step(int32_t);
+int main(void){return astra_step(INT32_MIN)!=INT32_MIN+1||astra_step(INT32_MAX)!=INT32_MAX-1||astra_step(0)!=-1;}
+''',
+	# The declaration's noescape assertion is trusted. This particular C
+	# witness keeps static storage alive and does not retain its argument;
+	# compiling it is not a compiler proof of arbitrary foreign behavior.
+	'c-borrowed-noescape': '''#include <stdint.h>
+static int storage=42;
+extern int32_t astra_observe(void *);
+int32_t c_observe(void *token){return token==&storage&&storage==42?0:1;}
+int main(void){return astra_observe(&storage);}
 ''',
 }

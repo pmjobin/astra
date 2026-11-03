@@ -42,6 +42,24 @@ int32_t llvm13_named(LLVMValueRef value, const char *p, int32_t n) {
 	const char *actual = LLVMGetValueName2(value, &length);
 	return length == (size_t)n && !memcmp(actual, p, length);
 }
+int32_t llvm13_index(LLVMValueRef instruction, int32_t ordinal, int32_t expected) {
+	if (ordinal < 0 || expected < 0 || (unsigned)ordinal >= LLVMGetNumIndices(instruction)) return 0;
+	return LLVMGetIndices(instruction)[ordinal] == (unsigned)expected;
+}
+int32_t llvm13_attribute(LLVMValueRef value, int32_t index, int32_t call, const char *p, int32_t n) {
+	if (!value || !p || n < 1 || n > 128 || index < -1 || index > 512) return 1;
+	unsigned kind = LLVMGetEnumAttributeKindForName(p, (size_t)n);
+	if (!kind) return 0;
+	LLVMAttributeRef attribute = call ? LLVMGetCallSiteEnumAttribute(value, (LLVMAttributeIndex)index, kind) : LLVMGetEnumAttributeAtIndex(value, (LLVMAttributeIndex)index, kind);
+	return attribute != NULL;
+}
+void llvm13_rename(LLVMValueRef value, const char *p, int32_t n) {
+	if (value && p && n > 0 && n <= 4096) LLVMSetValueName2(value, p, (size_t)n);
+}
+void llvm13_false_align(LLVMContextRef context, LLVMValueRef function, int32_t parameter) {
+	unsigned kind = LLVMGetEnumAttributeKindForName("align", 5);
+	LLVMAddAttributeAtIndex(function, (LLVMAttributeIndex)(parameter + 1), LLVMCreateEnumAttribute(context, kind, 64));
+}
 LLVMValueRef llvm12_function(LLVMModuleRef m, LLVMTypeRef t, const char *p, int32_t n) {
 	char *name = text_copy(p, n);
 	if (!name) return NULL;
