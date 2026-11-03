@@ -115,10 +115,20 @@ def main():
 	include(out/'summary.json', 'summary.json')
 	index = [dict(path=name, bytes=path.stat().st_size, sha256=sha(path.read_bytes())) for name, path in sorted(payload.items())]
 	archive = out/'raw-evidence.tar.xz'
-	with tarfile.open(archive, 'w:xz', preset=6) as tar:
+	# Duplicate paths retain their full identity in index.json. Tar hard links
+	# store their exact common bytes once, without dropping observations.
+	stored = {}
+	with tarfile.open(archive, 'w:xz', preset=9) as tar:
 		for name, path in sorted(payload.items()):
 			info = tarfile.TarInfo(name); info.size = path.stat().st_size; info.mode = 0o644; info.mtime = 0
-			with path.open('rb') as stream: tar.addfile(info, stream)
+			key = (info.size, sha(path.read_bytes()))
+			if key in stored:
+				assert path.read_bytes() == payload[stored[key]].read_bytes()
+				info.type = tarfile.LNKTYPE; info.linkname = stored[key]; info.size = 0
+				tar.addfile(info)
+			else:
+				stored[key] = name
+				with path.open('rb') as stream: tar.addfile(info, stream)
 		raw = (json.dumps(index, separators=(',', ':'))+'\n').encode(); info = tarfile.TarInfo('index.json'); info.size = len(raw); info.mode = 0o644; tar.addfile(info, io.BytesIO(raw))
 	with tarfile.open(archive, 'r:xz') as tar:
 		assert len(tar.getmembers()) == len(index)+1
