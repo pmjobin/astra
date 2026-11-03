@@ -124,6 +124,27 @@ observed memory errors/lost bytes are zero; the 39 selected programs and owner
 traces pass under unsuppressed Valgrind. The final report must retain the failed
 trial and independent C reproducers and state this instrumentation boundary.
 
+The qualified broad pass is now isolated in commit
+`7e63276e091069644dd8a042792ccb7f3f11e6fd`: 3033 changed paths, 4638 classified,
+6143 safe brace pairs removed, no protected changes. Both pre-commit clean check
+and second apply reported zero changes. The formatted bootstrap was rebuilt
+freshly; the actual compiler SHA-256 is
+`908f8db9e524cf94b7651f36e9bf0ff32c98ef64cb7eacd737c3b5f680064b45`, with
+405 public formatter checks, the expanded grammar/ownership pilot and 66 exact
+paired compiler observations. Its actual pin is committed separately.
+
+Final O0 and O2 components and six query products were rebuilt from formatted
+source. Each complete closure passes all39 selected sources, original21/new18
+backend categories, Core22/CFG26/SSA30, normal owner controls and distinct fatal
+controls. Pairing is byte-exact for source/ABI/IR/object/executable and negative
+receipts; all1044 original proof observations replay exactly. A separately added
+native-scope helper proves actual native parser/SSA/ABI and cleanup equivalence
+on frozen formatted variants. The complete final check covers4639 files with
+zero changes and451 protected sources. Source/code results are ready for the
+unchanged installed native publisher; only its actual completion establishes
+the canonical report identity. See `docs/selfhost-nativeabi-13.md` for the
+bounded contract, costs, grammar exceptions and explicit instrumentation limit.
+
 The machine-readable migration receipt includes each classified path's hashes,
 modes, line/byte counts, blank-line changes, safe Astra brace-pair deletions,
 call-interior exceptions and actual engine/policy/tool identities. The 39-input
