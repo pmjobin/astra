@@ -86,8 +86,7 @@ struct CoreLoan {
 	int begin;
 	int end;
 }
-class CoreProgram {
-	owned FlowIndex flow;
+class CoreData {
 	owned shared TypeOwner identity;
 	owned CoreFunction[] functions;
 	owned CoreNode[] nodes;
@@ -106,8 +105,7 @@ class CoreProgram {
 	int limit;
 	int status;
 	SyntaxSpan error_span;
-	init(owned FlowIndex flow, int limit) {
-		this.flow = move flow;
+	init(int limit) {
 		var owner = new TypeOwner();
 		var identity = shared_acquire(move owner);
 		this.identity = move identity;
@@ -137,7 +135,18 @@ class CoreProgram {
 		}
 		return true;
 	}
+}
+// Semantic authority and mutable construction tables are sibling owners. The
+// borrowed Astra API forbids aliasing a container with its owned child.
+class CoreProgram {
+	owned FlowIndex flow;
+	owned CoreData data;
+	init(owned FlowIndex flow, int limit) {
+		this.flow = move flow;
+		var data = new CoreData(limit);
+		this.data = move data;
+	}
 	bool same_owner(borrowed CoreProgram origin) {
-		return type_owner_same(this.identity, origin.identity) && this.flow.same_owner(origin.flow);
+		return type_owner_same(this.data.identity, origin.data.identity) && this.flow.same_owner(origin.flow);
 	}
 }
