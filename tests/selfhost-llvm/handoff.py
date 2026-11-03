@@ -93,9 +93,19 @@ def main():
 			regular(path,'additional-literals/'+mode+'/'+path.name)
 	summary.update(proof_observations=1044,preservation=preservation,compiled_source_commit=subprocess.check_output(['git','log','-1','--format=%H','--','compiler/backend/llvm/capi.astra','compiler/backend/llvm/module.astra','compiler/backend/llvm/check.astra','compiler/backend/llvm/capi.c'],cwd=ROOT,text=True).strip(),head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip(),initial_private_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),limitations=['24 distinct executed programs per profile; other positives have IR verification only.','No Stage 1, full compiler, general foreign ABI or additional target qualification.','No pre-known IR/object/executable byte hashes: independent semantic/structural expectations plus actual artifact hashes.','Historical and concurrent external global Codex config byte changes are recorded; critical model/reasoning/sandbox/approval settings and project/skill pins match.'])
 	out = a.runtime/'report-evidence'; out.mkdir(exist_ok=True)
+	attachments = [out/'qualification.json',out/'raw-index.json']
 	(out/'qualification.json').write_text(json.dumps(summary,indent=2)+'\n')
 	index = {name:dict(bytes=len(data),sha256=sha(data)) for name,data in payload.items()}
-	(out/'raw-index.json').write_text(json.dumps(index,indent=2)+'\n')
+	# Keep the complete raw-member inventory within the installed publisher's
+	# per-attachment bound, without dropping receipts or shortening identities.
+	parts = []
+	items = list(index.items())
+	for i,start in enumerate(range(0,len(items),1000)):
+		part = out/('raw-index-'+str(i).zfill(3)+'.json')
+		part.write_text(json.dumps(dict(items[start:start+1000]),indent=2)+'\n')
+		attachments.append(part)
+		parts.append(dict(path=part.name,bytes=part.stat().st_size,sha256=sha(part.read_bytes()),members=len(items[start:start+1000])))
+	(out/'raw-index.json').write_text(json.dumps(dict(format='astra-evidence-raw-index/1',members=len(index),parts=parts),indent=2)+'\n')
 	archive = a.runtime/'handoff'; archive.mkdir(exist_ok=True)
 	path = archive/'raw-evidence.tar.xz'
 	with tarfile.open(path,'w:xz',preset=3) as tar:
@@ -105,8 +115,10 @@ def main():
 	(out/'qualification.json').write_text(json.dumps(summary,indent=2)+'\n')
 	for i,start in enumerate(range(0,len(data),900000)):
 		chunk = data[start:start+900000]
-		(out/('raw-part-'+str(i).zfill(3)+'.json')).write_text(json.dumps(dict(format='astra-evidence-base64-chunk/1',archive_sha256=sha(data),offset=start,bytes=len(chunk),sha256=sha(chunk),base64=base64.b64encode(chunk).decode()),separators=(',',':'))+'\n')
-	files = [dict(path=p.name,bytes=p.stat().st_size,sha256=sha(p.read_bytes())) for p in sorted(out.iterdir()) if p.is_file() and p.name != 'evidence-index.json']
+		part = out/('raw-part-'+str(i).zfill(3)+'.json')
+		part.write_text(json.dumps(dict(format='astra-evidence-base64-chunk/1',archive_sha256=sha(data),offset=start,bytes=len(chunk),sha256=sha(chunk),base64=base64.b64encode(chunk).decode()),separators=(',',':'))+'\n')
+		attachments.append(part)
+	files = [dict(path=p.name,bytes=p.stat().st_size,sha256=sha(p.read_bytes())) for p in sorted(attachments)]
 	assert all(x['bytes'] <= 2*1024*1024 for x in files)
 	(out/'evidence-index.json').write_text(json.dumps(dict(format='pm-next-evidence/1',files=files),indent=2)+'\n')
 	print('prepared',len(files),'hashed evidence attachments;',len(data),'compressed raw bytes; installed publisher still required')
