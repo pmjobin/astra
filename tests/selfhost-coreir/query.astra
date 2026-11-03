@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		if (len(args) < 3) { println_stderr("usage: astra-core --core|--verify-core FILE... | --core-limit N FILE..."); return 2; }
+		int start = 2;
+		int limit = 65536;
+		if (args[1] == "--core-limit") { start = 3; limit = binding_decimal(args[2]); }
+		if (args[1] != "--core" && args[1] != "--verify-core" && args[1] != "--core-limit" && args[1] != "--mutate-core" && args[1] != "--admit" && args[1] != "--retain" && args[1] != "--cross-owner") { println_stderr("INVALID_CORE_COMMAND"); return 2; }
+		var source = binding_load_program(args, start);
+		var bindings = binding_index(move source, 0);
+		var checked = checked_build_admission(move bindings, 0, true, true, true);
+		var flow = flow_index(move checked, 8192, 1000000);
+		if (args[1] == "--admit") { var observation = flow_observation(flow); print(observation.text); return flow_status(flow); }
+		var program = core_lower(move flow, limit);
+		int status = core_verify(program);
+		if (status != 0) {
+			var message = core_failure_message(program, status); println_stderr(message.text);
+			return status;
+		}
+		if (args[1] == "--retain") {
+			var span = core_retained_span(move program);
+			var path = span.path();
+			var bytes = span.bytes();
+			var text = new Utf8ByteBuilder();
+			source_append_text(text, "CORE_RETAINED "); syntax_write_hex(text, path.text); flow_number(text, span.start); flow_number(text, span.end); flow_number(text, len(bytes)); source_append_text(text, "\n");
+			var message = text.snapshot(); print(message.text); return 0;
+		}
+		if (args[1] == "--cross-owner") { core_cross_owner(program, args, start); println("CORE_CROSS_OWNER_REJECTED"); return 0; }
+		if (args[1] == "--mutate-core") { var mutations = core_mutations(program); print(mutations.text); return 0; }
+		var projection = core_projection(program);
+		print(projection.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}
+
+owned SourceSpan core_retained_span(owned CoreProgram program) throws Error {
+	if (program.data.function_count == 0) { throw new Error("INVALID_CORE_ID"); }
+	CoreId id = {function = 1, index = program.data.functions[0].body};
+	return core_source_span(program, program, id);
+}
+void core_cross_owner(CoreProgram program, string[] args, int start) throws Error {
+	var source = binding_load_program(args, start);
+	var bindings = binding_index(move source, 0);
+	var checked = checked_build_admission(move bindings, 0, true, true, true);
+	var flow = flow_index(move checked, 8192, 1000000);
+	var other = core_lower(move flow, 65536);
+	assert_that(core_verify(other) == 0 && program.data.function_count > 0);
+	CoreId id = {function = 1, index = program.data.functions[0].body};
+	assert_that(core_owns(program, program, id) && !core_owns(program, other, id));
+	var a = core_source_span(program, program, id);
+	var b = core_source_span(other, other, id);
+	assert_that(!a.same_source(b));
+	id.function = 0;
+	assert_that(!core_owns(program, program, id));
+}

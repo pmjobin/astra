@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent adversarial edits to a real, already verified produced model.
+// Every test restores exact rows, verifies the restoration and records entry
+// into core_verify_model. No changed source text or parser failure is counted.
+bool core_mutation(CoreData core, FlowIndex flow, int mutation, Utf8ByteBuilder output) throws Error {
+	assert_that(core_verify_model(core, flow) == 0);
+	int at = -1;
+	int other = -1;
+	int table = 0;
+	int i = 0;
+	while (i < core.node_count && at < 0) {
+		var row = core.nodes[i];
+		if (mutation == 0 && row.kind == 3 && row.type.index == 1) { at = i; }
+		if (mutation == 1) { at = i; }
+		if (mutation == 2 && row.kind == 3) {
+			int p = 0;
+			while (p < core.place_count && at < 0) {
+				if (core.places[p].parent == 0 && core.places[p].function == row.function && core.places[p].type.index == row.type.index && p + 1 != row.place && !core.places[p].leaf) { at = i; other = p + 1; }
+				p = p + 1;
+			}
+		}
+		if (mutation == 4 && row.kind == 21 && row.a > 0 && row.a <= core.place_count && row.a != row.place) { at = i; }
+		if (mutation == 5 && row.kind == 9) {
+			int f = 0;
+			while (f < core.function_count && at < 0) {
+				if (f + 1 != row.target && core.functions[f].result.index == row.type.index) { at = i; other = f + 1; }
+				f = f + 1;
+			}
+		}
+		if ((mutation == 6 || mutation == 21) && row.kind == 9) {
+			int e = 0;
+			while (e < row.count && at < 0) {
+				if ((core.edges[row.first + e].mode & 2) != 0) { at = row.first + e; table = 1; }
+				e = e + 1;
+			}
+		}
+		if (mutation == 7 && row.kind == 9 && row.count >= 2) { at = row.first; other = row.first + 1; table = 1; }
+		if (mutation == 8 && row.kind == 7) { at = i; }
+		if (mutation == 13 && row.kind == 23 && row.b != 0) { at = i; }
+		if (mutation == 14) { at = i; }
+		if (mutation == 15 && row.kind == 6) { at = i; }
+		if (mutation == 17 && row.kind == 4) { at = i; }
+		if (mutation == 19 && (row.kind == 25 || row.kind == 26)) { at = i; }
+		i = i + 1;
+	}
+	if (mutation == 3 || mutation == 20) {
+		i = 0;
+		while (i < core.place_count && at < 0) {
+			var p = core.places[i];
+			if ((mutation == 3 && p.parent != 0 && p.parent != p.root) || (mutation == 20 && p.field > 0)) { at = i; table = 2; }
+			i = i + 1;
+		}
+	}
+	if (mutation == 9) {
+		i = 0;
+		while (i < core.exit_count && at < 0) { if (core.exits[i].count > 0) { at = i; table = 3; } i = i + 1; }
+	}
+	if (mutation == 10 || mutation == 18) {
+		i = 0;
+		while (i < core.exit_count && at < 0) { if (core.exits[i].count >= 2) { at = core.exits[i].first; other = at + 1; table = 4; } i = i + 1; }
+	}
+	if (mutation == 11 && core.loan_count > 0) { at = 0; table = 5; }
+	if (mutation == 12) { at = 0; table = 6; }
+	if (mutation == 16) { at = 0; table = 7; }
+	if (at < 0) { return false; }
+	int result = 0;
+	if (table == 0) {
+		var saved = core.nodes[at];
+		var row = saved;
+		if (mutation == 0) { row.type = type_id(6); }
+		if (mutation == 1) { row.function = row.function + 1; }
+		if (mutation == 2) { row.place = other; }
+		if (mutation == 4) { row.place = row.a; }
+		if (mutation == 5) { row.target = other; row.symbol = core.functions[other - 1].symbol; row.signature = core.functions[other - 1].signature; }
+		if (mutation == 8) { row.kind = 6; }
+		if (mutation == 13) { if (row.c != 0) { row.b = row.c; } else { row.b = row.a; } }
+		if (mutation == 14) { row.span.start = row.span.start + 1; }
+		if (mutation == 15) { row.a = at + 1; }
+		if (mutation == 17) { row.kind = 3; row.target = 0; }
+		if (mutation == 19) { row.target = row.a; }
+		core.nodes[at] = row;
+		result = core_verify_model(core, flow);
+		core.nodes[at] = saved;
+	}
+	if (table == 1) {
+		var saved = core.edges[at];
+		var row = saved;
+		if (mutation == 6) { row.mode = (row.mode & ~2) | 4; }
+		if (mutation == 21) { row.mode = row.mode | 8; }
+		if (mutation == 7) {
+			var saved_other = core.edges[other];
+			var row_other = saved_other;
+			row.child = saved_other.child;
+			row_other.child = saved.child;
+			core.edges[other] = row_other;
+			core.edges[at] = row;
+			result = core_verify_model(core, flow);
+			core.edges[other] = saved_other;
+		} else { core.edges[at] = row; result = core_verify_model(core, flow); }
+		core.edges[at] = saved;
+	}
+	if (table == 2) {
+		var saved = core.places[at];
+		var row = saved;
+		if (mutation == 3) { row.parent = row.root; }
+		if (mutation == 20) { row.flags = row.flags | 128; }
+		core.places[at] = row;
+		result = core_verify_model(core, flow);
+		core.places[at] = saved;
+	}
+	if (table == 3) {
+		var saved = core.exits[at];
+		var row = saved;
+		row.count = row.count - 1;
+		core.exits[at] = row;
+		result = core_verify_model(core, flow);
+		core.exits[at] = saved;
+	}
+	if (table == 4) {
+		var saved = core.cleanups[at];
+		var saved_other = core.cleanups[other];
+		core.cleanups[other] = saved;
+		if (mutation == 18) { core.cleanups[at] = saved_other; }
+		result = core_verify_model(core, flow);
+		core.cleanups[at] = saved;
+		core.cleanups[other] = saved_other;
+	}
+	if (table == 5) {
+		var saved = core.loans[at];
+		var row = saved;
+		row.end = row.begin;
+		core.loans[at] = row;
+		result = core_verify_model(core, flow);
+		core.loans[at] = saved;
+	}
+	if (table == 6) {
+		flow.semantic_proved = false;
+		result = core_verify_model(core, flow);
+		flow.semantic_proved = true;
+	}
+	if (table == 7) {
+		int saved = core.limit;
+		core.limit = 1;
+		result = core_verify_model(core, flow);
+		core.limit = saved;
+	}
+	int expected = 1;
+	if (mutation == 12) { expected = 4; }
+	if (mutation == 16) { expected = 2; }
+	assert_that(result == expected && core_verify_model(core, flow) == 0);
+	source_append_text(output, "CORE_MUTATION"); flow_number(output, mutation); flow_number(output, table); flow_number(output, at); flow_number(output, result); source_append_text(output, "\n");
+	return true;
+}
+owned Utf8Message core_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0);
+	var output = new Utf8ByteBuilder();
+	int mutation = 0;
+	while (mutation < 22) {
+		bool reached = core_mutation(program.data, program.flow, mutation, output);
+		mutation = mutation + 1;
+	}
+	assert_that(core_verify(program) == 0);
+	return output.snapshot();
+}

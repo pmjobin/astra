@@ -124,7 +124,9 @@ class CoreData {
 		this.cleanup_count = 0;
 		this.loan_count = 0;
 		this.limit = limit;
-		this.status = 0;
+		int status = 0;
+		if (limit < 1 || limit > 65536) { status = 2; }
+		this.status = status;
 		this.error_span = syntax_empty_span();
 	}
 	bool room(int count) {

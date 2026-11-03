@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Bounded append-only arenas; only construction and adversarial tests mutate.
+int core_add_node(CoreData core, CoreNode row) {
+	if (!core.room(core.node_count)) { return 0; }
+	if (core.node_count == len(core.nodes)) {
+		var grown = new CoreNode[syntax_grown_capacity(len(core.nodes), core.node_count + 1)];
+		int i = 0;
+		while (i < core.node_count) { grown[i] = core.nodes[i]; i = i + 1; }
+		swap(core.nodes, grown);
+	}
+	core.nodes[core.node_count] = row;
+	core.node_count = core.node_count + 1;
+	return core.node_count;
+}
+int core_add_place(CoreData core, CorePlace row) {
+	if (!core.room(core.place_count)) { return 0; }
+	if (core.place_count == len(core.places)) {
+		var grown = new CorePlace[syntax_grown_capacity(len(core.places), core.place_count + 1)];
+		int i = 0;
+		while (i < core.place_count) { grown[i] = core.places[i]; i = i + 1; }
+		swap(core.places, grown);
+	}
+	core.places[core.place_count] = row;
+	core.place_count = core.place_count + 1;
+	return core.place_count;
+}
+int core_add_edge(CoreData core, CoreEdge row) {
+	if (!core.room(core.edge_count)) { return 0; }
+	if (core.edge_count == len(core.edges)) {
+		var grown = new CoreEdge[syntax_grown_capacity(len(core.edges), core.edge_count + 1)];
+		int i = 0;
+		while (i < core.edge_count) { grown[i] = core.edges[i]; i = i + 1; }
+		swap(core.edges, grown);
+	}
+	core.edges[core.edge_count] = row;
+	core.edge_count = core.edge_count + 1;
+	return core.edge_count;
+}
+int core_add_function(CoreData core, CoreFunction row) {
+	if (!core.room(core.function_count)) { return 0; }
+	if (core.function_count == len(core.functions)) {
+		var grown = new CoreFunction[syntax_grown_capacity(len(core.functions), core.function_count + 1)];
+		int i = 0;
+		while (i < core.function_count) { grown[i] = core.functions[i]; i = i + 1; }
+		swap(core.functions, grown);
+	}
+	core.functions[core.function_count] = row;
+	core.function_count = core.function_count + 1;
+	return core.function_count;
+}
+int core_add_exit(CoreData core, CoreExit row) {
+	if (!core.room(core.exit_count)) { return 0; }
+	if (core.exit_count == len(core.exits)) {
+		var grown = new CoreExit[syntax_grown_capacity(len(core.exits), core.exit_count + 1)];
+		int i = 0;
+		while (i < core.exit_count) { grown[i] = core.exits[i]; i = i + 1; }
+		swap(core.exits, grown);
+	}
+	core.exits[core.exit_count] = row;
+	core.exit_count = core.exit_count + 1;
+	return core.exit_count;
+}
+int core_add_cleanup(CoreData core, CoreCleanup row) {
+	if (!core.room(core.cleanup_count)) { return 0; }
+	if (core.cleanup_count == len(core.cleanups)) {
+		var grown = new CoreCleanup[syntax_grown_capacity(len(core.cleanups), core.cleanup_count + 1)];
+		int i = 0;
+		while (i < core.cleanup_count) { grown[i] = core.cleanups[i]; i = i + 1; }
+		swap(core.cleanups, grown);
+	}
+	core.cleanups[core.cleanup_count] = row;
+	core.cleanup_count = core.cleanup_count + 1;
+	return core.cleanup_count;
+}
+int core_add_loan(CoreData core, CoreLoan row) {
+	if (!core.room(core.loan_count)) { return 0; }
+	if (core.loan_count == len(core.loans)) {
+		var grown = new CoreLoan[syntax_grown_capacity(len(core.loans), core.loan_count + 1)];
+		int i = 0;
+		while (i < core.loan_count) { grown[i] = core.loans[i]; i = i + 1; }
+		swap(core.loans, grown);
+	}
+	core.loans[core.loan_count] = row;
+	core.loan_count = core.loan_count + 1;
+	return core.loan_count;
+}

@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Structural projection is a consumer, never a parser or verifier authority.
+void core_projection_nodes(CoreData core, CheckedIndex checked, Utf8ByteBuilder output) throws Error {
+	int i = 0;
+	while (i < core.node_count) {
+		var row = core.nodes[i];
+		source_append_text(output, "NODE");
+		flow_number(output, i + 1); flow_number(output, row.kind); flow_number(output, row.function);
+		flow_number(output, row.source.index); flow_number(output, row.type.index); flow_number(output, row.flags);
+		flow_number(output, row.a); flow_number(output, row.b); flow_number(output, row.c); flow_number(output, row.place);
+		flow_number(output, row.symbol.index); flow_number(output, row.signature.index); flow_number(output, row.target);
+		flow_number(output, row.first); flow_number(output, row.count);
+		source_append_text(output, " "); binding_write_span(checked.bindings, row.span, output); source_append_text(output, "\n");
+		if (row.token.index != 0 || row.operation.index != 0) {
+			source_append_text(output, "PAYLOAD"); flow_number(output, i + 1); source_append_text(output, " ");
+			if (row.token.index != 0) { var text = checked.bindings.program.arena.token_message(row.token); syntax_write_hex(output, text.text); } else { source_append_text(output, "-"); }
+			source_append_text(output, " ");
+			if (row.operation.index != 0) { var text = checked.bindings.program.arena.token_message(row.operation); syntax_write_hex(output, text.text); } else { source_append_text(output, "-"); }
+			source_append_text(output, "\n");
+		}
+		if (output.byte_count() > 16777216) { throw new Error("CORE_RESOURCE_EXHAUSTED"); }
+		i = i + 1;
+	}
+}
+void core_projection_tables(CoreData core, CheckedIndex checked, Utf8ByteBuilder output) throws Error {
+	int i = 0;
+	while (i < core.function_count) {
+		var f = core.functions[i];
+		source_append_text(output, "FUNCTION"); flow_number(output, i + 1); flow_number(output, f.symbol.index); flow_number(output, f.signature.index); flow_number(output, f.result.index); flow_number(output, f.flags); flow_number(output, f.body); flow_number(output, f.place_first); flow_number(output, f.place_count);
+		source_append_text(output, " "); binding_write_span(checked.bindings, f.span, output); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < core.place_count) {
+		var p = core.places[i];
+		source_append_text(output, "PLACE"); flow_number(output, i + 1); flow_number(output, p.function); flow_number(output, p.root); flow_number(output, p.parent); flow_number(output, p.symbol.index); flow_number(output, p.type.index); flow_number(output, p.flags); flow_number(output, p.region); flow_number(output, p.slot); flow_number(output, p.field);
+		int parameter = 0; if (p.parameter) { parameter = 1; } flow_number(output, parameter);
+		int leaf = 0; if (p.leaf) { leaf = 1; } flow_number(output, leaf); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < core.edge_count) {
+		var edge = core.edges[i];
+		source_append_text(output, "EDGE"); flow_number(output, i); flow_number(output, edge.child); flow_number(output, edge.label.index); flow_number(output, edge.mode); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < core.exit_count) {
+		var e = core.exits[i];
+		source_append_text(output, "EXIT"); flow_number(output, i); flow_number(output, e.function); flow_number(output, e.source.index); flow_number(output, e.region); flow_number(output, e.witness); flow_number(output, e.first); flow_number(output, e.count); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < core.cleanup_count) {
+		var c = core.cleanups[i];
+		source_append_text(output, "CLEANUP"); flow_number(output, i); flow_number(output, c.place); flow_number(output, c.owner); flow_number(output, c.type.index); flow_number(output, c.state); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < core.loan_count) {
+		var l = core.loans[i];
+		source_append_text(output, "LOAN"); flow_number(output, i); flow_number(output, l.function); flow_number(output, l.source); flow_number(output, l.value.index); flow_number(output, l.call.index); flow_number(output, l.region); flow_number(output, l.begin); flow_number(output, l.end); source_append_text(output, "\n");
+		i = i + 1;
+	}
+}
+owned Utf8Message core_projection(CoreProgram program) throws Error {
+	if (core_verify(program) != 0) { throw new Error("INVALID_CORE"); }
+	var walk = core_walk(program);
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "astra-core/1\n");
+	core_projection_authority(program.flow.checked, output);
+	core_projection_proofs(program.flow.checked, program.flow.proofs, output);
+	core_projection_tables(program.data, program.flow.checked, output);
+	core_projection_nodes(program.data, program.flow.checked, output);
+	int i = 1;
+	while (i <= program.flow.checked.types.count) {
+		var id = type_id(i);
+		var t = program.flow.checked.types.descriptor(program.flow.checked.types, id);
+		source_append_text(output, "TYPE"); flow_number(output, i); flow_number(output, t.kind); flow_number(output, t.nominal.index); flow_number(output, t.extent); flow_number(output, t.count); source_append_text(output, "\n");
+		int a = 0;
+		while (a < t.count) {
+			var edge = program.flow.checked.types.argument(program.flow.checked.types, id, a);
+			source_append_text(output, "TYPEARG"); flow_number(output, i); flow_number(output, a); flow_number(output, edge.type.index); flow_number(output, edge.flags); source_append_text(output, "\n");
+			a = a + 1;
+		}
+		i = i + 1;
+	}
+	source_append_text(output, "WALK"); flow_number(output, walk.count); flow_number(output, walk.values); flow_number(output, walk.loads); flow_number(output, walk.stores); flow_number(output, walk.calls); flow_number(output, walk.branches); flow_number(output, walk.loops); flow_number(output, walk.records); flow_number(output, walk.moves); flow_number(output, walk.leaves); source_append_text(output, "\n");
+	if (output.byte_count() > 16777216) { throw new Error("CORE_RESOURCE_EXHAUSTED"); }
+	return output.snapshot();
+}
+void core_projection_authority(CheckedIndex checked, Utf8ByteBuilder output) throws Error {
+	int i = 1;
+	while (i <= checked.bindings.program.arena.source_count) {
+		SyntaxSourceId source = {index = i};
+		SyntaxSpan span = {source = source, start = 0, end = checked.bindings.program.arena.source_length(source)};
+		source_append_text(output, "SOURCE"); flow_number(output, i); source_append_text(output, " "); binding_write_span(checked.bindings, span, output); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 1;
+	while (i <= checked.bindings.symbol_count) {
+		var symbol = checked.bindings.symbol(type_symbol(i));
+		var name = checked.bindings.names.text(symbol.canonical);
+		source_append_text(output, "DECL"); flow_number(output, i); flow_number(output, symbol.kind); flow_number(output, symbol.owner.index); flow_number(output, checked.symbol_types[i].index); flow_number(output, checked.symbol_flags[i]); flow_number(output, symbol.node.index); source_append_text(output, " "); syntax_write_hex(output, name.text); source_append_text(output, " "); binding_write_span(checked.bindings, symbol.span, output); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 0;
+	while (i < checked.signature_count) {
+		var signature = checked.signatures[i];
+		source_append_text(output, "SIGNATURE"); flow_number(output, i + 1); flow_number(output, signature.declaration.index); flow_number(output, signature.callable.index); flow_number(output, signature.flags); flow_number(output, signature.dispatch); flow_number(output, signature.error.index); source_append_text(output, "\n");
+		i = i + 1;
+	}
+	i = 1;
+	while (i < len(checked.uses)) {
+		var use = checked.uses[i];
+		if (use.type.index != 0) {
+			source_append_text(output, "CHECKED"); flow_number(output, i); flow_number(output, use.type.index); flow_number(output, use.flags); flow_number(output, use.deferred); source_append_text(output, " "); binding_write_span(checked.bindings, use.span, output); source_append_text(output, "\n");
+		}
+		i = i + 1;
+	}
+}
+void core_projection_proofs(CheckedIndex checked, int[] proofs, Utf8ByteBuilder output) throws Error {
+	int i = 1;
+	while (i < len(proofs)) {
+		var use = checked.uses[i];
+		if (use.deferred != 0 && use.type.index != 0) {
+			source_append_text(output, "PROOF"); flow_number(output, i); flow_number(output, use.deferred); flow_number(output, proofs[i]); source_append_text(output, " "); binding_write_span(checked.bindings, use.span, output); source_append_text(output, "\n");
+		}
+		i = i + 1;
+	}
+}
+SyntaxSpan core_flow_failure_span(borrowed FlowGraph graph, CheckedIndex checked) {
+	if (graph.error != 0) { return graph.error_span; }
+	if (graph.obligation_count > 0) { return checked.bindings.program.arena.header(graph.obligations[0].node).span; }
+	return syntax_empty_span();
+}
+owned Utf8Message core_failure_message(CoreProgram program, int status) throws Error {
+	var output = new Utf8ByteBuilder();
+	if (status == 1) { source_append_text(output, "INVALID_CORE"); }
+	if (status == 2) { source_append_text(output, "CORE_RESOURCE_EXHAUSTED"); }
+	if (status == 3) { source_append_text(output, "CORE_DEFERRED"); }
+	if (status == 4) { source_append_text(output, "INVALID_CHECKED_INPUT"); }
+	var span = program.data.error_span;
+	if (span.source.index == 0) { span = program.flow.checked.error_span; }
+	if (span.source.index == 0) { span = program.flow.checked.bindings.error_span; }
+	int i = 0;
+	while (span.source.index == 0 && i < program.flow.graphs.count()) {
+		span = core_flow_failure_span(program.flow.graphs.entries[i], program.flow.checked);
+		i = i + 1;
+	}
+	if (span.source.index == 0 && !program.flow.checked.bindings.program.failed()) { span = program.flow.checked.bindings.program.span(); }
+	if (span.source.index != 0 && program.flow.checked.bindings.program.arena.valid_span(span)) { source_append_text(output, "\nLOCATION "); binding_write_span(program.flow.checked.bindings, span, output); }
+	return output.snapshot();
+}

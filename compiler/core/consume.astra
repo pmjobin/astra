@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A distinct downstream consumer. No syntax traversal, FlowEvents or lowerer.
+class CoreWalk {
+	owned bool[] visited;
+	int values;
+	int loads;
+	int stores;
+	int calls;
+	int branches;
+	int loops;
+	int records;
+	int moves;
+	int leaves;
+	int count;
+	init(int nodes) {
+		this.visited = new bool[nodes];
+		this.values = 0; this.loads = 0; this.stores = 0; this.calls = 0;
+		this.branches = 0; this.loops = 0; this.records = 0; this.moves = 0;
+		this.leaves = 0; this.count = 0;
+	}
+	bool walk(CoreData core, int id, int depth) {
+		if (id == 0) { return true; }
+		if (depth > 192 || id < 1 || id > core.node_count || this.visited[id - 1]) { return false; }
+		this.visited[id - 1] = true;
+		this.count = this.count + 1;
+		var row = core.nodes[id - 1];
+		if (core_value_kind(row.kind)) { this.values = this.values + 1; }
+		if (row.kind == 3 || row.kind == 4) {
+			if (row.place < 1 || row.place > core.place_count || core.places[row.place - 1].type.index != row.type.index) { return false; }
+			this.loads = this.loads + 1;
+			if (row.kind == 4) { this.moves = this.moves + 1; }
+			int p = 0;
+			while (p < core.place_count) {
+				if (core.places[p].leaf && core_place_under(core, p + 1, row.place)) { this.leaves = this.leaves + 1; }
+				p = p + 1;
+			}
+		}
+		if (row.kind == 21 || row.kind == 22) {
+			if (row.a < 1 || core.nodes[row.a - 1].type.index != core.places[row.place - 1].type.index) { return false; }
+			this.stores = this.stores + 1;
+		}
+		if (row.kind == 9) { this.calls = this.calls + 1; }
+		if (row.kind == 7 || row.kind == 23) { this.branches = this.branches + 1; }
+		if (row.kind == 24) { this.loops = this.loops + 1; }
+		if (row.kind == 10) { this.records = this.records + 1; }
+		if (!this.walk(core, row.a, depth + 1) || !this.walk(core, row.b, depth + 1) || !this.walk(core, row.c, depth + 1)) { return false; }
+		int i = 0;
+		while (i < row.count) {
+			if (!this.walk(core, core.edges[row.first + i].child, depth + 1)) { return false; }
+			i = i + 1;
+		}
+		return true;
+	}
+}
+bool core_place_under(CoreData core, int child, int parent) {
+	int remaining = core.place_count;
+	int current = child;
+	while (current > 0 && current <= core.place_count && remaining > 0) {
+		if (current == parent) { return true; }
+		current = core.places[current - 1].parent;
+		remaining = remaining - 1;
+	}
+	return false;
+}
+owned CoreWalk core_walk(CoreProgram program) throws Error {
+	if (core_verify(program) != 0) { throw new Error("INVALID_CORE"); }
+	var walk = new CoreWalk(program.data.node_count);
+	int i = 0;
+	while (i < program.data.function_count) {
+		if (!walk.walk(program.data, program.data.functions[i].body, 0)) { throw new Error("INVALID_CORE_CONSUMER"); }
+		i = i + 1;
+	}
+	if (walk.count != program.data.node_count) { throw new Error("INVALID_CORE_CONSUMER"); }
+	return move walk;
+}

@@ -51,8 +51,8 @@ int core_source_place(CoreData core, CheckedIndex checked, int function, SyntaxN
 	if (depth > 64 || node.index <= 0 || node.index >= len(checked.uses)) { return 0; }
 	var kind = checked.bindings.program.arena.kind(node);
 	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
-		var token = checked.bindings.program.arena.get_token_identifier(node);
-		if (kind == SyntaxKind.MoveExpressionSyntax()) { token = checked.bindings.program.arena.get_token_source(node); }
+		SyntaxTokenId token = {index = 0};
+		if (kind == SyntaxKind.MoveExpressionSyntax()) { token = checked.bindings.program.arena.get_token_source(node); } else { token = checked.bindings.program.arena.get_token_identifier(node); }
 		return core_symbol_place(core, function, checked_target(checked, node, token));
 	}
 	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) { return 0; }
