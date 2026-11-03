@@ -9,3 +9,7 @@ def additional():
 	yield dict(name='wrong-return', source='int f(){return true;}', status=4)
 	yield dict(name='bad-field', source='struct Pair{int x;}int main(){Pair p={x=1};return p.y;}', status=4)
 	yield dict(name='unknown-call', source='int f(Fn<int,int> code,int x){return code(x);}', status=3)
+
+	yield dict(name='source-order', source='struct Packet{owned int[] data;int tag;}int left(Packet p){return p.tag;}int right(int n){return 1/n;}int pair(int a,int b){return a*10+b;}int main(){Packet p={data=new int[2],tag=4};return pair(left(move p),right(1))-41;}', status=0, exit=0)
+	yield dict(name='source-order-trap', source='struct Packet{owned int[] data;int tag;}int left(Packet p){return p.tag;}int right(int n){return 1/n;}int pair(int a,int b){return a*10+b;}int main(){Packet p={data=new int[2],tag=4};return pair(left(move p),right(0));}', status=0, exit=132, fatal_signal=4)
+	yield dict(name='short-circuit-trap', source='bool die(int n){return 1/n>0;}int main(){if(false&&die(0)){return 1;}if(true||die(0)){return 0;}return 2;}', status=0, exit=0)

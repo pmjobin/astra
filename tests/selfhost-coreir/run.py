@@ -41,6 +41,11 @@ def structural(rows, c0, name):
 	operations = Counter((payload[n[0]], names[n[4]]) for n in nodes.values() if n[1] in (6, 7))
 	oracle_operations = Counter(re.findall(r'\((?:binary|short-circuit) ([^ ]+) : ([^\s)]+)', c0))
 	assert operations == oracle_operations, (name, operations, oracle_operations)
+	declarations = {int(r[0]): bytes.fromhex(r[6]).decode() for r in rows.get('DECL', [])}
+	callees = Counter(declarations[n[10]] for n in nodes.values() if n[1] == 9)
+	assert callees == Counter(re.findall(r'\(call "([^"]+)"', c0)), (name, 'callee identities', callees)
+	assert kinds[4] == len(re.findall(r'\(record-move-value ', c0)), (name, 'owned record transfer count')
+
 
 	places = {int(r[0]): list(map(int, r)) for r in rows.get('PLACE', [])}
 	assert all(int(f[5]) in nodes for f in functions)
@@ -148,6 +153,10 @@ def main():
 				item = next(x for x in items if x['name'] == name)
 				r = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', exe, '--core', *item['paths']], name+'-memory-'+mode, item['status'])
 				assert b'ERROR SUMMARY: 0 errors' in r.stderr and not re.search(rb'(?:definitely|indirectly|possibly) lost: [1-9]', r.stderr)
+			for name in ('equal-paths', 'nested-channel', 'scalar-control'):
+				item = next(x for x in items if x['name'] == name)
+				mutants = run(['valgrind', '--default-suppressions=no', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', exe, '--mutate-core', *item['paths']], name+'-mutation-memory-'+mode, 0)
+				assert b'ERROR SUMMARY: 0 errors' in mutants.stderr
 			item = next(x for x in items if x['name'] == 'existing-nested')
 			retained = run([exe, '--retain', *item['paths']], 'retained-'+mode, 0)
 			assert retained.stdout.startswith(b'CORE_RETAINED ')

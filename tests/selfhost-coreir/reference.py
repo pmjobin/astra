@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import resource
 import subprocess
 import sys
 import time
@@ -20,6 +21,7 @@ def main():
 	for name in ('compiler', 'build', 'runtime', 'baseline', 'additional'):
 		p.add_argument('--'+name, type=Path, required=True)
 	a = p.parse_args()
+	resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 	a.runtime.mkdir(parents=True, exist_ok=False)
 	a.build.mkdir(parents=True, exist_ok=True)
 	subprocess.run([sys.executable, '-B', ROOT/'tests/selfhost-semadmit/reference.py', '--compiler', a.compiler, '--build', a.build/'semadmit', '--runtime', a.runtime/'semadmit', '--baseline', a.baseline], check=True)
@@ -40,6 +42,7 @@ def main():
 				commands.append(dict(name=name, argv=list(map(str, argv)), exit=r.returncode, seconds=time.monotonic()-t))
 				(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 				assert r.returncode == expected, (name, r.returncode, r.stderr.decode())
+				if item.get('fatal_signal') and stage != 'compile': assert 'Command terminated by signal '+str(item['fatal_signal']) in (a.runtime/(name+'.time')).read_text()
 				if stage == 'memory': assert b'ERROR SUMMARY: 0 errors' in r.stderr and not re.search(rb'(?:definitely|indirectly|possibly) lost: [1-9]', r.stderr)
 
 
