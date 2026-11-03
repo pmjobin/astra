@@ -54,9 +54,9 @@ class NativeAbiPlan {
 int native_abi_representation(CheckedIndex checked, TypeEdge edge, bool foreign) {
 	int kind = checked_kind(checked, edge.type);
 	if (foreign) {
-		if (edge.flags != 0 && !(edge.flags == 2 && kind == 20)) { return -1; }
+		if (edge.flags != 0 && !(edge.flags == 2 && (kind == 16 || kind == 20))) { return -1; }
 		if (kind == 1) { return 1; } if (kind == 11) { return 2; }
-		if (kind == 12) { return 3; } if (kind == 20) { return 4; }
+		if (kind == 12) { return 3; } if ((kind == 16 || kind == 20)) { return 4; }
 		if (kind == 14) { return 0; } return -1;
 	}
 	if ((edge.flags & 2) != 0) { if (kind == 30) { return 5; } return -1; }
@@ -71,7 +71,7 @@ void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, in
 	if (type_integer(source.kind)) { row.size = type_width(source.kind) / 8; row.alignment = row.size; }
 	else { if (source.kind == 13) { row.size = 1; }
 	else { if (source.kind == 11) { row.size = 4; row.alignment = 4; }
-	else { if (source.kind == 12 || source.kind == 20) { row.size = 8; row.alignment = 8; }
+	else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20)) { row.size = 8; row.alignment = 8; }
 	else { if (source.kind == 22) { row.size = 16; row.alignment = 8; row.count = 2; }
 	else { if (source.kind == 30) {
 		int symbol = 1;
@@ -145,7 +145,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 			if (!row.complete || row.semantic != t || row.kind != source.kind || row.alignment < 1) { return false; }
 			if (source.kind != 14 && (LLVMABISizeOfType(layout, actual) != row.size as u64 || LLVMABIAlignmentOfType(layout, actual) != row.alignment)) { return false; }
 			if (type_integer(source.kind) || source.kind == 13) { int width = type_width(source.kind); if (source.kind == 13) { width = 1; } if (LLVMGetTypeKind(actual) != 8 || LLVMGetIntTypeWidth(actual) != width) { return false; } }
-			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || source.kind == 20 && LLVMGetTypeKind(actual) != 12) { return false; }
+			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || (source.kind == 16 || source.kind == 20) && LLVMGetTypeKind(actual) != 12) { return false; }
 			if (source.kind == 22) {
 				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) != 32 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8) { return false; }
 			}
@@ -183,7 +183,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 			int kind = checked_kind(program.cfg.core.flow.checked, edge.type); int expected = 7;
 			if (linkage != 0) {
 				if (!checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) { return false; }
-				expected = -1; if (kind == 1) { expected = 1; } if (kind == 11) { expected = 2; } if (kind == 12) { expected = 3; } if (kind == 20) { expected = 4; } if (p == 0 && kind == 14) { expected = 0; }
+				expected = -1; if (kind == 1) { expected = 1; } if (kind == 11) { expected = 2; } if (kind == 12) { expected = 3; } if ((kind == 16 || kind == 20)) { expected = 4; } if (p == 0 && kind == 14) { expected = 0; }
 			} else { if (kind == 14) { expected = 0; } else { if ((edge.flags & 2) != 0) { expected = 5; } else { if (kind == 22 || kind == 30) { expected = 6; } } } }
 			if (expected < 0 || channel.representation != expected) { return false; }
 			void* physical = LLVMGetReturnType(LLVMGlobalGetValueType(functions[f])); if (p > 0) { physical = LLVMTypeOf(LLVMGetParam(functions[f], p - 1)); }

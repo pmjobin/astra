@@ -217,6 +217,13 @@ class CfgCheck {
 		return current == r.operation;
 	}
 }
+bool cfg_declaration_exit(CfgData d, CoreProgram core, int block) {
+	var row = d.blocks[block - 1];
+	if (row.function < 1 || row.function > core.data.function_count || d.functions[row.function - 1].exit != block || row.origin != 0 || row.role != 0 || row.term != 4) { return false; }
+	var function = core.data.functions[row.function - 1];
+	var declaration = core.flow.checked.bindings.symbol(function.symbol);
+	return function.body == 0 && core.flow.checked.bindings.program.arena.get_node_body(declaration.node).index == 0 && core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node) && checked_c_scalar_signature(core.flow.checked, function.symbol);
+}
 int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 	int input = core_verify(core);
 	if (input != 0) {
@@ -259,7 +266,7 @@ int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 	}
 	var reachable = cfg_reach(d);
 	int i = 0;
-	while (i < d.block_count) { if (!check.blocks[i] || reachable[i] != d.blocks[i].reachable || (reachable[i] && d.blocks[i].term == 4)) { return 1; } i = i + 1; }
+	while (i < d.block_count) { if (!check.blocks[i] || reachable[i] != d.blocks[i].reachable || (reachable[i] && d.blocks[i].term == 4 && !cfg_declaration_exit(d, core, i + 1))) { return 1; } i = i + 1; }
 	i = 0;
 	while (i < d.instruction_count) { if (!check.instructions[i]) { return 1; } i = i + 1; }
 	i = 0;

@@ -54,9 +54,9 @@ def main():
 		source = Path(item['source_path']); assert sha(source) == item['source_sha256']
 		product = a.build/(name+'-'+a.mode)
 		products = dict(raw=product.with_suffix('.raw.ll'), ir=product.with_suffix('.ll'), object=product.with_suffix('.o'), executable=product, reference=product.with_suffix('.c0'))
-		admission = run([a.component, '--admit', source], name+'-admit').stdout
-		assert admission.startswith(b'astra-flow/3\nSTATUS 0 0\n')
-		ssa = run([a.component, '--ssa', source], name+'-ssa').stdout
+		admission = run([a.component, '--nativeabi-admit', a.mode, a.runtime/'unused', source], name+'-admit').stdout
+		assert admission.startswith(b'astra-flow/4\nSTATUS 0 0\n')
+		ssa = run([a.component, '--nativeabi-ssa', a.mode, a.runtime/'unused', source], name+'-ssa').stdout
 		for command, key in [('--llvm-raw', 'raw'), ('--llvm-ir', 'ir'), ('--emit-obj', 'object')]:
 			run([a.component, command, a.mode, products[key], source], name+'-'+key)
 		text = products['raw'].read_text()

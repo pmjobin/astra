@@ -757,7 +757,7 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 		graph.defer(symbol.node, 5);
 	}
 	if (checked.semantic_flow && !checked.semantic_admission && checked_record_owned(checked, result.type, 0)) { graph.defer(symbol.node, 4); }
-	if (flow_borrow_type(checked, result.type) && (result.flags & 4) == 0 && !(checked_c_scalar_signature(checked, function) && checked_kind(checked, result.type) == 20)) {
+	if (flow_borrow_type(checked, result.type) && (result.flags & 4) == 0 && !(checked_c_scalar_signature(checked, function) && (checked_kind(checked, result.type) == 16 || checked_kind(checked, result.type) == 20))) {
 		graph.defer(symbol.node, 4);
 	}
 	if (checked_kind(checked, result.type) == 31 && (result.flags & 4) != 0 && (class_origins[function.index] == 0 || (class_origins[function.index] & 12) != 0)) {

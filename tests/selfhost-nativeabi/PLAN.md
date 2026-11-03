@@ -66,3 +66,25 @@ Three tracked test inputs referenced by the inherited 1044-query proof ledger
 are explicitly protected before the broad format pass: nested/deep struct-copy
 fixtures and the destructor witness. This preserves all original 446 exclusions
 and adds three source-bound exclusions, without omitting implementation code.
+
+The revised declaration-only CFG exception now admits scalar C imports at both
+profiles; seven additions freshly executed at each profile before the pointer
+case exposed canonical `void*` kind 16 versus constructed pointer kind 20.
+That failure is preserved. The next closure handles both representations without
+admitting typed foreign pointers. Native ABI admission has its own opt-in
+profile and flow observation version 4; original query consumers keep their
+inherited observations and deferred cases byte-exact. C0 explicitly rejects
+self-move replacement, which remains a rejection control.
+
+The all-lane C/C++/Vala execution pilot passes with an exact C++ RAII trace and
+narrow, source-derived C assertion coordinate mappings. Its first trial caught
+`assert` expression stringification changing under ordinary C spacing. C/C++
+call and declaration interiors now remain byte-exact, since an included header
+can define lowercase function-like macros. This conservative exception is
+counted in the per-file formatting ledger; scope braces stay exact.
+
+The machine-readable migration receipt includes each classified path's hashes,
+modes, line/byte counts, blank-line changes, safe Astra brace-pair deletions,
+call-interior exceptions and actual engine/policy/tool identities. The 39-input
+selection is 24 original + 14 additions + unchanged `existing-nested`; edge and
+fatal controls do not inflate it. Fresh before/after closure remains mandatory.

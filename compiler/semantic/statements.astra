@@ -209,10 +209,17 @@ owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bo
 	return checked_build_admission(move bindings, stop_after, flow_adapters, semantic_flow, false);
 }
 owned CheckedIndex checked_build_admission(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission) throws Error {
+	return checked_build_profile(move bindings, stop_after, flow_adapters, semantic_flow, admission, false);
+}
+owned CheckedIndex checked_build_nativeabi(owned BindingIndex bindings, int stop_after) throws Error {
+	return checked_build_profile(move bindings, stop_after, true, true, true, true);
+}
+owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
 	result.flow_adapters = flow_adapters;
 	result.semantic_flow = semantic_flow;
 	result.semantic_admission = admission && semantic_flow;
+	result.native_abi = native_abi && result.semantic_admission;
 	if (result.bindings.failed()) {
 		int r = 1;
 		while (r <= result.bindings.reference_count) {

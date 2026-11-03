@@ -213,6 +213,7 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 			var signature = program.cfg.core.flow.checked.signatures[original.signature.index - 1]; int count = program.cfg.core.flow.checked.types.row(signature.callable).count - 1;
 			if (call == null || LLVMGetInstructionOpcode(call) != 45 || LLVMGetCalledValue(call) != functions[f] || LLVMGetInstructionCallConv(call) != 0 || LLVMGetNumArgOperands(call) != count || LLVMGetNextInstruction(call) != end || end == null || LLVMGetInstructionOpcode(end) != 1) { return false; }
 			if (!llvm_check_attributes(call, count, 1)) { return false; }
+			if (LLVMCanValueUseFastMathFlags(call) != 0 && LLVMGetFastMathFlags(call) != 0) { return false; }
 			int p = 0; while (p < count && budget.take(1)) { if (LLVMGetArgOperand(call, p) != LLVMGetParam(physical, p)) { return false; } p = p + 1; }
 			if (original.result.index == 14) { if (LLVMGetNumOperands(end) != 0) { return false; } } else { if (LLVMGetNumOperands(end) != 1 || LLVMGetOperand(end, 0) != call) { return false; } }
 		} else { if (wrappers[f] != null) { return false; } }
@@ -314,7 +315,7 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 			void* result = null; if (instruction.result > 0) { result = values[instruction.result - 1]; }
 			if ((op == 1 || op == 2) && !llvm_check_literal(program.cfg.core.flow.checked, row.value, result, budget)) { return false; }
 			if (op == 3 && instruction.promoted) { int use = llvm_check_use(program.data, i + 1, 4, 0, budget); if (!llvm_check_operand(result, values, use)) { return false; } }
-			if ((op == 3 && !instruction.promoted || op == 4) && (row.value.flags & 2) == 0) { if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) { return false; } }
+			if ((op == 3 && !instruction.promoted || op == 4) && !((row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30)) { if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) { return false; } }
 			if (op == 6) {
 				int a = llvm_check_use(program.data, i + 1, 1, 0, budget); int z = llvm_check_use(program.data, i + 1, 2, 0, budget);
 				if (a < 1 || z < 1 || !llvm_check_binary(program.cfg.core.flow.checked, row.value, result, values[a - 1], values[z - 1])) { return false; }

@@ -238,9 +238,10 @@ void flow_write_graph(CheckedIndex checked, FlowGraph graph, Utf8ByteBuilder out
 owned Utf8Message flow_observation(FlowIndex index) throws Error {
 	if (index.checked.semantic_admission && index.complete && !index.checked.failed() && !admit_verify_index(index)) { throw new Error("unverified semantic admission observation"); }
 	var output = new Utf8ByteBuilder();
+	if (index.checked.native_abi) { source_append_text(output, "astra-flow/4\nSTATUS"); } else {
 	if (index.checked.semantic_admission) { source_append_text(output, "astra-flow/3\nSTATUS"); } else {
 		if (index.checked.semantic_flow) { source_append_text(output, "astra-flow/2\nSTATUS"); } else { source_append_text(output, "astra-flow/1\nSTATUS"); }
-	}
+	} }
 	flow_number(output, flow_status(index));
 	flow_number(output, index.unmodeled);
 	source_append_text(output, "\n");

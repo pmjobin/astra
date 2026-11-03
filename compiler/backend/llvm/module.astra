@@ -109,6 +109,7 @@ class LlvmModule {
 		if (row.kind == 14) { result = LLVMVoidTypeInContext(this.context); }
 		if (row.kind == 11) { result = LLVMFloatTypeInContext(this.context); }
 		if (row.kind == 12) { result = LLVMDoubleTypeInContext(this.context); }
+		if (row.kind == 16) { result = LLVMPointerTypeInContext(this.context, 0); }
 		if (row.kind == 20) {
 			var pointee = checked.types.argument(checked.types, id, 0);
 			if (checked_kind(checked, pointee.type) != 14 || pointee.flags != 0) { throw new Error("LLVM_DEFERRED: typed pointer"); }
@@ -184,7 +185,7 @@ class LlvmModule {
 			while (p < count) {
 				var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, checked.callable, p + 1);
 				parameters[p] = this.type(program.cfg.core.flow.checked, edge.type, 0);
-				if ((edge.flags & 2) != 0 && !(llvm_imported(program, f + 1) && checked_kind(program.cfg.core.flow.checked, edge.type) == 20)) {
+				if ((edge.flags & 2) != 0 && !(llvm_imported(program, f + 1) && (checked_kind(program.cfg.core.flow.checked, edge.type) == 16 || checked_kind(program.cfg.core.flow.checked, edge.type) == 20))) {
 					if (checked_kind(program.cfg.core.flow.checked, edge.type) != 30) { throw new Error("LLVM_DEFERRED: borrowed ABI"); }
 					parameters[p] = LLVMPointerTypeInContext(this.context, 0);
 				}
@@ -434,7 +435,7 @@ class LlvmModule {
 				return aggregate;
 			}
 			int f = 0;
-			while (f < program.data.function_count) { this.take(1); if (program.cfg.core.data.functions[f].symbol.index == row.symbol.index && program.cfg.core.data.functions[f].signature.index == row.signature.index) { var signature = program.cfg.core.flow.checked.signatures[row.signature.index - 1]; a = 0; while (a < row.count) { var parameter = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, a + 1); if ((parameter.flags & 2) != 0 && !(llvm_imported(program, f + 1) && checked_kind(program.cfg.core.flow.checked, parameter.type) == 20)) { args[a] = this.borrow_argument(program.data, index, a); } a = a + 1; } var raw_args = this.handle_args(args, 0); return LLVMBuildCall2(this.builder, this.signatures[f], this.functions[f], raw_args, row.count, this.empty); } f = f + 1; }
+			while (f < program.data.function_count) { this.take(1); if (program.cfg.core.data.functions[f].symbol.index == row.symbol.index && program.cfg.core.data.functions[f].signature.index == row.signature.index) { var signature = program.cfg.core.flow.checked.signatures[row.signature.index - 1]; a = 0; while (a < row.count) { var parameter = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, a + 1); if ((parameter.flags & 2) != 0 && !(llvm_imported(program, f + 1) && (checked_kind(program.cfg.core.flow.checked, parameter.type) == 16 || checked_kind(program.cfg.core.flow.checked, parameter.type) == 20))) { args[a] = this.borrow_argument(program.data, index, a); } a = a + 1; } var raw_args = this.handle_args(args, 0); return LLVMBuildCall2(this.builder, this.signatures[f], this.functions[f], raw_args, row.count, this.empty); } f = f + 1; }
 			throw new Error("LLVM_DEFERRED: direct callee");
 		}
 		if (op == 11) {
