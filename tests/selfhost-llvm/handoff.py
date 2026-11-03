@@ -76,6 +76,21 @@ def main():
 			continue
 		if path.suffix in {'.json','.stdout','.stderr','.time','.log','.astra'}:
 			regular(path,'runtime/'+rel.as_posix())
+	failed_artifacts = {
+		'implicit-GEP-flags.raw.ll':a.build/'applications-O0/ordered-owned-arguments-O0.raw.ll',
+		'owner-loop-elided.raw.ll':a.build/'v4-applications-O2/owner-loop-exits-O2.raw.ll',
+		'owner-loop-elided.optimized.ll':a.build/'v4-applications-O2/owner-loop-exits-O2.ll',
+		'literal-before-fix.o':a.build/'literal-preflight/old-emitter.o',
+		'literal-before-fix.native':a.build/'literal-preflight/old-emitter',
+		'literal-independent-C0.native':a.build/'literal-preflight/C0-reference',
+	}
+	for name,path in failed_artifacts.items():
+		regular(path,'failures/'+name)
+	for mode in ('O0','O2'):
+		literal = json.loads((a.runtime/(a.receipt_prefix+'literals-'+mode)/'result.json').read_text())
+		for name,digest in literal['artifacts'].items():
+			path = Path(name); assert sha(path.read_bytes()) == digest
+			regular(path,'additional-literals/'+mode+'/'+path.name)
 	summary.update(proof_observations=1044,preservation=preservation,compiled_source_commit=subprocess.check_output(['git','log','-1','--format=%H','--','compiler/backend/llvm/capi.astra','compiler/backend/llvm/module.astra','compiler/backend/llvm/check.astra','compiler/backend/llvm/capi.c'],cwd=ROOT,text=True).strip(),head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip(),initial_private_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),limitations=['24 distinct executed programs per profile; other positives have IR verification only.','No Stage 1, full compiler, general foreign ABI or additional target qualification.','No pre-known IR/object/executable byte hashes: independent semantic/structural expectations plus actual artifact hashes.','Historical and concurrent external global Codex config byte changes are recorded; critical model/reasoning/sandbox/approval settings and project/skill pins match.'])
 	out = a.runtime/'report-evidence'; out.mkdir(exist_ok=True)
 	(out/'qualification.json').write_text(json.dumps(summary,indent=2)+'\n')

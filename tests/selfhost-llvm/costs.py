@@ -21,6 +21,10 @@ def timed(text):
 		match = re.search(pattern,text)
 		if match:
 			result[key] = float(match[1]) if key != 'peak_rss_kib' else int(match[1])
+	wall = re.search(r'Elapsed \(wall clock\) time \(h:mm:ss or m:ss\): ([\d:.]+)',text)
+	if wall:
+		parts = list(map(float,wall[1].split(':')))
+		result['wall_seconds'] = sum(value*60**i for i,value in enumerate(reversed(parts)))
 	return result
 
 
@@ -49,7 +53,8 @@ def main():
 	reuse = []
 	for path in sorted(a.runtime.glob('warm-*/build-*/*-exact-reuse.json')):
 		reuse.append(dict(path=str(path),**json.loads(path.read_text())))
-	result = dict(build_attempts=rows,build_command_sum_seconds=sum(x['seconds'] for x in rows),build_overlap_union_seconds=union((x['start'],x['end']) for x in rows),command_groups=command_groups,warm_exact_reuse=reuse,limitations=['Peak RSS is per command; it is not a sum of concurrent peaks.','Intervals cover measured commands, not model reasoning or approval wait.','API token usage and currency cost were not exposed by this session.','SSA-11 timing numbers remain historical and are not a claimed LLVM speedup.'])
+	warm_measurements = {path.stem:timed(path.read_text()) for path in sorted(a.runtime.glob('warm-*.time'))}
+	result = dict(warm_measurements=warm_measurements,build_attempts=rows,build_command_sum_seconds=sum(x['seconds'] for x in rows),build_overlap_union_seconds=union((x['start'],x['end']) for x in rows),command_groups=command_groups,warm_exact_reuse=reuse,limitations=['Peak RSS is per command; it is not a sum of concurrent peaks.','Intervals cover measured commands, not model reasoning or approval wait.','API token usage and currency cost were not exposed by this session.','SSA-11 timing numbers remain historical and are not a claimed LLVM speedup.'])
 	(a.runtime/'costs.json').write_text(json.dumps(result,indent=2)+'\n')
 	print(len(rows),'measured build/check attempts;',len(reuse),'exact warm reuse receipts')
 
