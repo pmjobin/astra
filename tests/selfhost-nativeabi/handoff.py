@@ -6,6 +6,7 @@ import base64
 import hashlib
 import io
 import json
+import lzma
 from pathlib import Path
 import shutil
 import subprocess
@@ -151,6 +152,11 @@ def main():
 	out = a.runtime/'report-evidence'; out.mkdir(exist_ok=True)
 	attachments = []
 	def attach(name, data):
+		if (name.startswith('format-map-') or name.startswith('raw-index-')) and not name.endswith('index.json'):
+			raw = json.dumps(data, separators=(',', ':')).encode()
+			encoded = base64.b85encode(lzma.compress(raw, preset=9)).decode()
+			assert lzma.decompress(base64.b85decode(encoded)) == raw
+			data = dict(format='astra-json-lzma-base85/1', bytes=len(raw), sha256=sha(raw), base85=encoded)
 		path = out/name; path.write_text(json.dumps(data, indent=2)+'\n'); attachments.append(path)
 	map_parts = []
 	for index, start in enumerate(range(0, len(complete_map), 800)):
@@ -158,22 +164,25 @@ def main():
 		attach(name, complete_map[start:start+800]); map_parts.append(name)
 	attach('format-map-index.json', dict(format='astra-full-format-map/1', before=mechanical['before'], after=mechanical['commit'],
 		rows=len(complete_map), mechanical_scope_rows=len(formatting['rows']), changed=formatting['changed'], parts=map_parts,
+		part_encoding='astra-json-lzma-base85/1: json.loads(lzma.decompress(base64.b85decode(part["base85"]))); verify bytes/SHA-256',
 		engine=formatting['configs'], tools=formatting['tools']))
 	index = {name: dict(bytes=len(data), sha256=sha(data)) for name, data in payload.items()}
 	index_parts = []
 	items = list(index.items())
 	for number, start in enumerate(range(0, len(items), 1000)):
 		name = 'raw-index-'+str(number).zfill(3)+'.json'; attach(name, dict(items[start:start+1000])); index_parts.append(name)
-	attach('raw-index.json', dict(format='astra-evidence-raw-index/1', members=len(index), parts=index_parts))
+	attach('raw-index.json', dict(format='astra-evidence-raw-index/1', members=len(index), parts=index_parts,
+		part_encoding='astra-json-lzma-base85/1; decode and verify each part before merging the logical file index'))
 	archive = a.runtime/'handoff/raw-evidence.tar.xz'; archive.parent.mkdir(exist_ok=True)
 	with tarfile.open(archive, 'w:xz', preset=9) as tar:
 		for name, data in sorted(payload.items()):
 			info = tarfile.TarInfo(name); info.size = len(data); info.mode = 0o644; tar.addfile(info, io.BytesIO(data))
 	data = archive.read_bytes()
-	for number, start in enumerate(range(0, len(data), 900000)):
-		chunk = data[start:start+900000]
-		attach('raw-part-'+str(number).zfill(3)+'.json', dict(format='astra-evidence-base64-chunk/1',
-			archive_sha256=sha(data), offset=start, bytes=len(chunk), sha256=sha(chunk), base64=base64.b64encode(chunk).decode()))
+	for number, start in enumerate(range(0, len(data), 1200000)):
+		chunk = data[start:start+1200000]
+		encoded = base64.b85encode(chunk).decode(); assert base64.b85decode(encoded) == chunk
+		attach('raw-part-'+str(number).zfill(3)+'.json', dict(format='astra-evidence-base85-chunk/1',
+			archive_sha256=sha(data), offset=start, bytes=len(chunk), sha256=sha(chunk), base85=encoded))
 	attach('qualification.json', dict(format='astra-nativeabi13-r1-qualification/1', status='PASS',
 		head=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip(),
 		tree=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD^{tree}'], text=True).strip(),
@@ -181,6 +190,7 @@ def main():
 		formatting_commit=mechanical, full_task_patch_sha256=index['patches/full-task.patch']['sha256'],
 		mechanical_patch_sha256=index['patches/mechanical-format.patch']['sha256'],
 		raw_archive=dict(bytes=len(data), sha256=sha(data), members=len(payload)),
+		transport='Raw archive uses independently hashed Base85 chunks; complete file/map index parts use verified LZMA+Base85. No logical files or artifact bytes are omitted.',
 		private_initial_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),
 		instrumentation_observations={mode: read(a.runtime/(a.after_prefix+mode)/'numeric/result.json')['instrumented'] for mode in ('O0', 'O2')},
 		named_deferrals=['Valgrind numerical conformance for the independently reproduced wide-u64-to-f32 conversion discrepancy; native host expectations remain exact.',
