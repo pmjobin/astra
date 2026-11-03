@@ -84,13 +84,30 @@ def main():
 			v = run(['valgrind', '--default-suppressions=no', '--trace-malloc=yes', '--error-exitcode=97', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=definite,indirect,possible', executable], name+'-memory-'+label)
 			assert v.stdout == actual.stdout
 			memories[label] = memory(v.stderr)
-		if name.startswith(('owner-', 'method-')) or name == 'control':
+		memory_contract = dict(kind='unsuppressed-memory-health')
+		if name.startswith('owner-'):
 			assert memories['native']['observed_trace'] == memories['C0']['observed_trace']
 			assert memories['native']['observed_trace']
+			memory_contract = dict(kind='exact-independent-owner-trace')
+		if name.startswith('method-') or name == 'control':
+			# C0 O2 may erase an unobserved empty Class. Astra's approved private
+			# ABI requires its real allocation even when the receiver is unused.
+			count = 2 if name == 'control' else 1
+			native_class = [event for event in memories['native']['observed_trace'] if event[1] == 1]
+			c0_class = [event for event in memories['C0']['observed_trace'] if event[1] == 1]
+			assert native_class.count(['A', 1]) == native_class.count(['F', 1]) == count
+			elided = c0_class != native_class
+			assert not elided or a.mode == 'O2' and c0_class == []
+			assert [event for event in memories['native']['observed_trace'] if event[1] != 1] == [event for event in memories['C0']['observed_trace'] if event[1] != 1]
+			products['C0-main-disassembly'] = a.runtime/(name+'-C0-main-disassembly.stdout')
+			machine = run(['objdump', '-dr', '--disassemble=main', products['reference']], name+'-C0-main-disassembly').stdout
+			if elided and name != 'control': assert b'calloc' not in machine and b'free' not in machine
+			memory_contract = dict(kind='approved-real-Class-allocation', native_allocations=count, native_once_only_frees=count, C0_O2_empty_Class_elided=elided, C0_class_trace=c0_class, native_class_trace=native_class, buffer_trace_exact=True, limit='C0 optimization may erase unobserved empty Classes; this does not erase the required real Astra object or change either raw memory result.')
+		if name.startswith(('owner-', 'method-')) or name == 'control':
 			for observed in memories.values():
 				trace = observed['observed_trace']
 				assert sum(size for action, size in trace if action == 'A') == sum(size for action, size in trace if action == 'F')
-		results.append(dict(item, mode=a.mode, result='PASS', component_sha256=sha(a.component), c0_sha256=sha(a.compiler), instances_sha256=hashlib.sha256(plans).hexdigest(), ssa_sha256=hashlib.sha256(ssa).hexdigest(), admission_sha256=hashlib.sha256(admission).hexdigest(), memory=memories, layout=layout, products={k:dict(path=str(v), bytes=v.stat().st_size, sha256=sha(v)) for k, v in products.items()}))
+		results.append(dict(item, mode=a.mode, result='PASS', component_sha256=sha(a.component), c0_sha256=sha(a.compiler), instances_sha256=hashlib.sha256(plans).hexdigest(), ssa_sha256=hashlib.sha256(ssa).hexdigest(), admission_sha256=hashlib.sha256(admission).hexdigest(), memory=memories, memory_contract=memory_contract, layout=layout, products={k:dict(path=str(v), bytes=v.stat().st_size, sha256=sha(v)) for k, v in products.items()}))
 		(a.runtime/'results.json').write_text(json.dumps(results, indent=2)+'\n')
 		print(name, a.mode, 'PASS', flush=True)
 	if not a.case:
