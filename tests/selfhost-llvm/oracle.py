@@ -22,7 +22,7 @@ def inspect(ir, projection):
 	blocks = {}
 	for match in re.finditer(r'^([A-Za-z_][\w.]*):[^\n]*\n(.*?)(?=^[A-Za-z_][\w.]*:|^})', text, re.M | re.S):
 		blocks[match[1]] = match[2]
-	live = {x[0] for x in rows['SSA_BLOCK'] if x[12]}
+	live = {x[0] for x in rows['SSA_BLOCK'] if x[11]}
 	assert {int(x[1:]) for x in blocks if re.fullmatch(r'b\d+', x)} == live
 	edges = 0
 	for _, _, source, target, _, _ in rows['SSA_EDGE']:
@@ -39,7 +39,7 @@ def inspect(ir, projection):
 	for value in rows['SSA_VALUE']:
 		if value[2] != 3 or value[3] not in live:
 			continue
-		incoming = [x[3] for x in rows['SSA_ARG'] if x[1] == value[0] and x[3]]
+		incoming = [x[4] for x in rows['SSA_ARG'] if x[2] == value[0] and x[4]]
 		assert incoming
 	return dict(source_blocks=len(live), exact_edges=edges, source_phis=phis, guard_blocks=len(blocks)-len(live)-edges, no_unproved_flags=True)
 

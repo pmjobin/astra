@@ -5,7 +5,7 @@
 shared identity. Output requests require the original retained program again;
 identical source bytes from another owner do not qualify. Context, builder,
 module, target machine, target data, handle vectors, type maps and integrity seal
-belong to one `LlvmModule`. `close` is idempotent and makes output impossible.
+belong to one internal `LlvmModule`. The returned `LlvmArtifact` owns that implementation in a private field and exposes no raw references. C0 supports private fields but not private methods or throwing ordinary constructors; invalid direct implementation construction is inert, and build rechecks proof/owner/state before opening LLVM resources. `close` is idempotent and makes output impossible.
 Target data dies before context types. No raw handles are returned by this API.
 
 The qualified profile is LLVM 22.1.8, GNU/Linux x86-64, host data layout, PIC,

@@ -54,6 +54,13 @@ def main():
 			run([a.component,command,a.mode,artifact,source],item['name']+command)
 			assert not artifact.exists()
 	assert killed == set(range(20)),sorted(set(range(20))-killed)
+	item = items[0]
+	sentinel = a.runtime/'existing-destination.sentinel'
+	sentinel.write_bytes(b'pre-existing private output identity\n')
+	run([a.component,'--llvm-limits',a.mode,sentinel,item['source_path']],'preserve-existing-destination')
+	assert sentinel.read_bytes() == b'pre-existing private output identity\n'
+	r = run([a.component,'--emit-obj',a.mode,a.runtime/'missing-parent/output.o',item['source_path']],'output-failure',2)
+	assert b'LLVM_OUTPUT_FAILURE' in r.stderr and not (a.runtime/'missing-parent').exists()
 	mapping = []
 	for item in json.loads((a.frozen/'predecessor.json').read_text()):
 		artifact = a.runtime/(item['name']+'.forbidden.o')
@@ -67,19 +74,32 @@ def main():
 			r = subprocess.run(list(map(str,[a.component,'--llvm-raw',a.mode,artifact,*item['paths']])),capture_output=True,timeout=60)
 			(a.runtime/(item['name']+'-matrix.stdout')).write_bytes(r.stdout); (a.runtime/(item['name']+'-matrix.stderr')).write_bytes(r.stderr)
 			if r.returncode == 0:
-				assert artifact.exists(); artifact.unlink(); status = 'LLVM_SUPPORTED'
+				assert artifact.exists(); artifact.unlink(); status = 'LLVM_IR_VERIFIED'
 			else:
 				assert r.returncode == 2 and b'LLVM_DEFERRED' in r.stderr and not artifact.exists(),(item['name'],r.returncode,r.stderr)
 				status = 'LLVM_DEFERRED'
-		mapping.append(dict(name=item['name'],source_sha256=item['sha256'],ssa_status=item['core_status'],llvm_status=status,diagnostic=r.stderr.decode()))
+		used_types = []
+		if item['core_status'] == 0:
+			rows = {}
+			for line in upstream.stdout.decode().splitlines():
+				x = line.split()
+				if x and x[0] in {'SSA_VALUE','PLACE','FUNCTION'}:
+					rows.setdefault(x[0],[]).append(x[1:])
+			active = {int(x[7]) for x in rows.get('SSA_VALUE',[])} | {int(x[6]) for x in rows.get('PLACE',[])} | {int(x[3]) for x in rows.get('FUNCTION',[])}
+			used_types = sorted(active)
+		mapping.append(dict(active_type_ids=used_types,name=item['name'],source_sha256=item['sha256'],ssa_status=item['core_status'],llvm_status=status,diagnostic=r.stderr.decode()))
 		# Real unsuppressed LLVM lifecycle/error-path runs, separate from fatal apps.
 	memory_rows = []
-	for name,command in [('ssa-diamond','--llvm-lifecycle'),('ssa-argument-order','--llvm-limits')]:
+	for name,command in [('ssa-diamond','--llvm-lifecycle'),('ssa-argument-order','--llvm-limits'),('ssa-borrow-end','--emit-obj'),('numeric-conversions','--mutate-llvm')]:
 		item = next(x for x in items if x['name'] == name)
 		artifact = a.runtime/(name+'.memory-forbidden.o')
 		r = run(['valgrind','--default-suppressions=no','--error-exitcode=97','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=definite,indirect,possible',a.component,command,a.mode,artifact,item['source_path']],name+'-lifecycle-memory',timeout=180)
-		memory_rows.append(dict(name=name,command=command,result=memory(r.stderr)))
-	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS',mode=a.mode,categories=20,mutations=mutations,mapping=mapping,outcomes=dict(Counter(x['llvm_status'] for x in mapping)),memory=memory_rows),indent=2)+'\n')
+		memory_rows.append(dict(name=name,command=command,result=memory(r.stderr),product_sha256=sha(artifact) if artifact.exists() else None))
+		if command == '--emit-obj':
+			assert artifact.is_file()
+		else:
+			assert not artifact.exists()
+	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS',mode=a.mode,component_sha256=sha(a.component),categories=20,mutations=mutations,mapping=mapping,outcomes=dict(Counter(x['llvm_status'] for x in mapping)),memory=memory_rows),indent=2)+'\n')
 	print(a.mode,'20 backend categories rejected; 80 upstream statuses retained',flush=True)
 
 

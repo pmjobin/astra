@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Build the LLVM component with the established exact-product recipe."""
 import argparse
+import ctypes
 import importlib.util
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 import subprocess
@@ -62,6 +64,12 @@ def main():
 	if not shim.exists() or old != dict(inputs=identity, sha256=core.base.sha(shim)):
 		capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', ROOT/'compiler/backend/llvm/capi.c', '-o', shim], 'llvm-capi')
 		cache.write_text(json.dumps(dict(inputs=identity, sha256=core.base.sha(shim)), indent=2)+'\n')
+	defined = set(re.findall(r'\b(llvm12_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
+	library = ctypes.CDLL(str(libdir/'libLLVM-22.so'))
+	imports = re.findall(r'extern\(C\) (?:void\*|u64|int|void) (\w+)\(', (ROOT/'compiler/backend/llvm/capi.astra').read_text())
+	missing = [name for name in imports if name not in defined and not hasattr(library, name)]
+	assert not missing, ('missing qualified LLVM C ABI symbols', missing)
+	(attempt/'llvm-symbols.json').write_text(json.dumps(dict(library=core.base.sha(libdir/'libLLVM-22.so'), imports=imports, shim_symbols=sorted(defined)), indent=2)+'\n')
 	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=sources(), product_prefix='astra-llvm-', link_objects=[shim], link_libraries=['LLVM-22'], link_inputs=[libdir/'libLLVM-22.so', *map(Path, deps), Path(__file__), ROOT/'tests/selfhost-typecore/build.py', ROOT/'tests/selfhost-coreir/build.py'])
 	(attempt/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 

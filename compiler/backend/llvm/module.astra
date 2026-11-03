@@ -35,14 +35,23 @@ class LlvmModule {
 	private int output_limit;
 	private int remaining;
 	private bool complete;
+	private bool disposed;
+	private bool input_valid;
 	init(SsaProgram program, LlvmProfile profile) {
+		// C0 constructors cannot throw. Invalid direct construction is inert and
+		// allocates empty tables; the supported factory reports the exact stage.
+		bool valid = false;
+		try { valid = profile.valid() && ssa_verify(program) == 0 && program.data.block_count <= 1024 && program.data.value_count <= 65536 && program.cfg.core.data.place_count <= 65536; } catch (Error error) { valid = false; }
+		int functions = 0; int blocks = 0; int edges = 0; int values = 0; int places = 0; int instructions = 0; int types = 0;
+		if (valid) { functions = program.data.function_count; blocks = program.data.block_count; edges = program.data.edge_count; values = program.data.value_count; places = program.cfg.core.data.place_count; instructions = program.data.instruction_count; types = program.cfg.core.flow.checked.types.count + 1; }
+		this.input_valid = valid;
 		var identity = shared_clone(program.data.identity); this.source_owner = move identity;
 		this.context = null; this.module = null; this.builder = null; this.machine = null; this.layout = null;
-		this.seal = null; this.effects = new void*[program.data.instruction_count]; this.handles = null; this.empty = llvm12_empty(); this.optimization = profile.optimization; this.output_limit = profile.output; this.remaining = profile.work; this.complete = false;
-		this.types = new void*[program.cfg.core.flow.checked.types.count + 1];
-		this.functions = new void*[program.data.function_count]; this.signatures = new void*[program.data.function_count];
-		this.blocks = new void*[program.data.block_count]; this.ends = new void*[program.data.block_count]; this.edges = new void*[program.data.edge_count];
-		this.values = new void*[program.data.value_count]; this.places = new void*[program.cfg.core.data.place_count]; this.armed = new void*[program.cfg.core.data.place_count];
+		this.seal = null; this.effects = new void*[instructions]; this.handles = null; this.empty = llvm12_empty(); this.optimization = profile.optimization; this.output_limit = profile.output; this.remaining = profile.work; this.complete = false; this.disposed = false;
+		this.types = new void*[types];
+		this.functions = new void*[functions]; this.signatures = new void*[functions];
+		this.blocks = new void*[blocks]; this.ends = new void*[blocks]; this.edges = new void*[edges];
+		this.values = new void*[values]; this.places = new void*[places]; this.armed = new void*[places];
 	}
 	void* handle_args(void*[] values, int offset) throws Error {
 		if (len(values) > 512 || (offset != 0 && offset != 512)) { throw new Error("LLVM_RESOURCE_EXHAUSTED: handle vector"); }
@@ -63,7 +72,7 @@ class LlvmModule {
 		LLVMSetModuleDataLayout(this.module, this.layout);
 	}
 	void close() {
-		this.complete = false;
+		this.complete = false; this.disposed = true;
 		if (this.seal != null) { LLVMDisposeMessage(this.seal); this.seal = null; }
 		if (this.handles != null) { llvm12_handles_dispose(this.handles); this.handles = null; }
 		if (this.layout != null) { LLVMDisposeTargetData(this.layout); this.layout = null; }
@@ -466,7 +475,7 @@ class LlvmModule {
 					int op = LLVMGetInstructionOpcode(instruction);
 					if (category == 0 && op == 44 && LLVMCountIncoming(instruction) > 1) { var old = LLVMGetIncomingValue(instruction, 0); var other = LLVMGetIncomingValue(instruction, 1); if (old != other) { LLVMSetOperand(instruction, 0, other); return true; } }
 					if (category == 1 && op == 44 && LLVMCountIncoming(instruction) > 1) { var args = new void*[1]; args[0] = LLVMGetIncomingValue(instruction, 0); var source = new void*[1]; source[0] = LLVMGetIncomingBlock(instruction, 1); var raw_args = this.handle_args(args, 0); var raw_sources = this.handle_args(source, 512); LLVMAddIncoming(instruction, raw_args, raw_sources, 1); return true; }
-					if (category == 2 && op == 42) { int predicate = LLVMGetICmpPredicate(instruction); LLVMSetICmpPredicate(instruction, predicate ^ 1); return true; }
+					if (category == 2 && op == 42) { int predicate = LLVMGetICmpPredicate(instruction); LLVMPositionBuilderBefore(this.builder, instruction); var replacement = LLVMBuildICmp(this.builder, predicate ^ 1, LLVMGetOperand(instruction, 0), LLVMGetOperand(instruction, 1), this.empty); LLVMReplaceAllUsesWith(instruction, replacement); return true; }
 					if (category == 3 && op == 32) { LLVMPositionBuilderBefore(this.builder, instruction); var replacement = LLVMBuildZExt(this.builder, LLVMGetOperand(instruction, 0), LLVMTypeOf(instruction), this.empty); LLVMReplaceAllUsesWith(instruction, replacement); return true; }
 					if (category == 4 && (op == 8 || op == 10 || op == 12)) { var operand = LLVMGetOperand(instruction, 1); var replacement = LLVMConstInt(LLVMTypeOf(operand), 73, 0); if (operand != replacement) { LLVMSetOperand(instruction, 1, replacement); return true; } }
 					if (category == 5 && op == 8) { LLVMSetNSW(instruction, 1); return true; }
@@ -493,6 +502,8 @@ class LlvmModule {
 	}
 	void snapshot() throws Error { if (this.module == null) { throw new Error("LLVM_INVALID_IR: disposed snapshot"); } llvm12_print_hex(this.module); }
 	void build(SsaProgram program) throws Error {
+		if (!this.input_valid || this.disposed || this.context != null || this.module != null || this.complete) { throw new Error("LLVM_INVALID_IR: module state"); }
+		if (!type_owner_same(this.source_owner, program.data.identity) || ssa_verify(program) != 0) { throw new Error("LLVM_INVALID_UPSTREAM: build owner"); }
 		this.open(); this.declarations(program); this.storage(program); this.body(program);
 		if (!this.check(program)) { throw new Error("LLVM_INVALID_IR: source correspondence"); }
 		if (llvm12_verify(this.module) != 0) { throw new Error("LLVM_INVALID_IR"); }
@@ -501,9 +512,20 @@ class LlvmModule {
 		this.complete = true;
 	}
 }
-owned LlvmModule llvm_lower(SsaProgram program, borrowed SsaProgram origin, LlvmProfile profile) throws Error {
+// The supported artifact interface never returns an implementation object or
+// raw LLVM reference. C0 currently permits privacy on fields only.
+class LlvmArtifact {
+	private owned LlvmModule implementation;
+	init(owned LlvmModule implementation) { this.implementation = move implementation; }
+	void write(SsaProgram program, borrowed SsaProgram origin, LlvmProfile profile, string path, bool object) throws Error { this.implementation.write(program, origin, profile, path, object); }
+	void raw(SsaProgram program, string path) throws Error { this.implementation.raw(program, path); }
+	void close() { this.implementation.close(); }
+	bool fault(int category) throws Error { return this.implementation.fault(category); }
+	void snapshot() throws Error { this.implementation.snapshot(); }
+}
+owned LlvmArtifact llvm_lower(SsaProgram program, borrowed SsaProgram origin, LlvmProfile profile) throws Error {
 	if (!profile.valid()) { throw new Error("LLVM_RESOURCE_EXHAUSTED: profile"); }
 	if (!program.same_owner(origin) || ssa_verify(program) != 0) { throw new Error("LLVM_INVALID_UPSTREAM"); }
 	if (program.data.block_count > 1024 || program.data.value_count > 65536 || program.cfg.core.data.place_count > 65536) { throw new Error("LLVM_RESOURCE_EXHAUSTED: tables"); }
-	var module = new LlvmModule(program, profile); module.build(program); return move module;
+	var module = new LlvmModule(program, profile); module.build(program); var artifact = new LlvmArtifact(move module); return move artifact;
 }

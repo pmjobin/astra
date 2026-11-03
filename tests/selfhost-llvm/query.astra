@@ -48,7 +48,7 @@ void llvm_limits(SsaProgram program, string path) throws Error {
 	}
 	println("LLVM_LIMITS_REJECTED");
 }
-void llvm_lifecycle(LlvmModule module, SsaProgram program, LlvmProfile profile, string[] args, string path) throws Error {
+void llvm_lifecycle(LlvmArtifact module, SsaProgram program, LlvmProfile profile, string[] args, string path) throws Error {
 	var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
 	var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
 	var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var other = ssa_lower(move cfg, 65536, 8000000);

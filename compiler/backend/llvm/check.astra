@@ -74,7 +74,7 @@ bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* 
 bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] effects, int limit) throws Error {
 	var budget = new SsaBudget(limit);
 	int f = 0;
-	while (f < program.data.function_count && budget.take(1)) { if (LLVMGetEntryBasicBlock(functions[f]) != blocks[program.data.functions[f].entry - 1]) { return false; } f = f + 1; }
+	while (f < program.data.function_count && budget.take(1)) { if (LLVMGetEntryBasicBlock(functions[f]) != blocks[program.data.functions[f].entry - 1] || LLVMGlobalGetValueType(functions[f]) != signatures[f]) { return false; } f = f + 1; }
 	int b = 0;
 	while (b < program.data.block_count && budget.take(1)) {
 		var block = program.data.blocks[b].origin;
@@ -90,6 +90,7 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 				if (block.term == 4) { if (LLVMGetInstructionOpcode(term) != 7) { return false; } }
 				else {
 					if (LLVMGetInstructionOpcode(term) != 2 || LLVMGetNumSuccessors(term) != block.term) { return false; }
+					if (block.term == 2) { int expected = program.data.blocks[b].condition; if (!llvm_check_operand(LLVMGetOperand(term, 0), values, expected)) { return false; } }
 					int e = 0;
 					while (e < program.data.edge_count && budget.take(1)) {
 						var edge = program.data.edges[e].origin;
@@ -114,6 +115,11 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 			var expected_type = types[row.type.index];
 			if ((row.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.type) == 30) { expected_type = LLVMPointerTypeInContext(LLVMGetTypeContext(expected_type), 0); }
 			if (LLVMTypeOf(actual) != expected_type) { return false; }
+			if (row.kind == 2) {
+				var source = program.cfg.core.data.functions[row.function - 1]; int ordinal = 0; int place = source.place_first;
+				while (place < row.place - 1 && budget.take(1)) { var candidate = program.cfg.core.data.places[place]; if (candidate.parameter && candidate.parent == 0) { ordinal = ordinal + 1; } place = place + 1; }
+				if (LLVMGetParam(functions[row.function - 1], ordinal) != actual) { return false; }
+			}
 			if (row.kind == 3) {
 				if (LLVMIsAInstruction(actual) == null || LLVMGetInstructionOpcode(actual) != 44 || LLVMGetInstructionParent(actual) != blocks[row.block - 1]) { return false; }
 				int count = 0; int a = 0;
