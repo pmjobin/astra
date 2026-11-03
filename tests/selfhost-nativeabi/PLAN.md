@@ -30,7 +30,17 @@ Preflight found C boundaries deferred before SSA, admitted buffer replacement
 deferred by LLVM, and owning-record reassignment rejected by C0. That last
 case remains outside the executable selection. The current parser also rejects
 the user's edited unbraced model. Any required admission or grammar extension
-needs the separately recorded owner decision; formatting must not bypass it.
+has the separately recorded owner approval. The owner approved both bounded
+semantic admission and restricted single-statement parsing on 3 November 2026.
+Neither approval permits new ownership or floating-point language semantics.
+
+The public version-2 formatter pilot passes 405 checks over 74 existing source
+files. A separate paired original/new pilot compares normalized syntax trees,
+O0/O2 executions and exact unsuppressed Valgrind cleanup traces, including
+continue/break paths, with declaration/nested-control refusal tests. Both user
+model variants converge to identical formatted bytes. Initial pilot failures
+and rebuild costs remain in runtime receipts. This is formatter qualification;
+the broad formatting pass and the native ABI campaign remain outstanding.
 
 G0–G10 and F0–F5 remain mandatory. Full eligible-source formatting must follow
 a qualified syntax/AST/lifetime pilot and remain in its own mechanical commit.

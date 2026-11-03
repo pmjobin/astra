@@ -171,6 +171,30 @@ def guard(lane, before, after, name, tools):
 		if [t[0] for t in scan(before, True)] != [t[0] for t in scan(after, True)]:
 			raise ValueError('JavaScript tokens/regex/template/comment payload changed')
 		run([tools['node'], '--check'], after)
+	elif lane == 'astra':
+		# Only parser-approved braces may disappear. Every other token and
+		# every comment/literal/directive remains byte-exact. The independent
+		# syntax dump retains normalized lexical scopes for implicit bodies.
+		old = [t[0] for t in scan(before)]
+		new = [t[0] for t in scan(after)]
+		index = 0
+		removed = []
+		for token in old:
+			if index < len(new) and token == new[index]:
+				index += 1
+			elif token in ('{', '}'):
+				removed.append(token)
+			else:
+				raise ValueError('Astra unapproved token/comment/literal/directive change')
+		if index != len(new) or removed.count('{') != removed.count('}'):
+			raise ValueError('Astra unbalanced or inserted syntax change')
+		with tempfile.TemporaryDirectory(prefix='astra-ast-guard-') as scratch:
+			path = Path(scratch)/'source.astra'
+			path.write_bytes(before)
+			original = run([tools['astrac'], '--dump-syntax', path])
+			path.write_bytes(after)
+			if original != run([tools['astrac'], '--dump-syntax', path]):
+				raise ValueError('Astra normalized AST or lexical scope changed')
 	else:
 		compare(before, after)
 

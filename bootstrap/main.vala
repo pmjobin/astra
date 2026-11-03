@@ -424,7 +424,7 @@ private int format_file(string[] args) {
 		return 0;
 	}
 	if (args.length == 3 && args[2] == "--help") {
-		stdout.printf ("Usage: astrac --format [--check | --in-place | -o NEW_FILE] FILE\nDefault: formatted source to stdout. Existing output files require --in-place.\nVersion 1 normalizes indentation to hard TABs and preserves intra-line layout.\n");
+		stdout.printf ("Usage: astrac --format [--check | --in-place | -o NEW_FILE] FILE\nDefault: formatted source to stdout. Existing output files require --in-place.\nVersion 2 uses hard TABs, separates declarations and compacts parser-proven simple control bodies.\n");
 		return 0;
 	}
 	for (int i = 2; i < args.length; i++) {

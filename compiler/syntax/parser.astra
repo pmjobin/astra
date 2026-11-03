@@ -5416,6 +5416,24 @@ class SyntaxParser {
 		}
 		return tmp_47;
 	}
+	SyntaxNodeId parse_control_body(SyntaxArena arena, string context) throws Error {
+		if (this.token_kind(arena, this.current) == TokenKind.OPEN_BRACE()) { return this.parse_block(arena, context); }
+		var statement = this.parse_statement(arena);
+		if (statement.index == 0) { return statement; }
+		var kind = arena.kind(statement);
+		if (kind != SyntaxKind.ReturnStatementSyntax() && kind != SyntaxKind.BreakStatementSyntax() && kind != SyntaxKind.ContinueStatementSyntax() && kind != SyntaxKind.AssignmentStatementSyntax() && kind != SyntaxKind.FieldAssignmentStatementSyntax() && kind != SyntaxKind.IndexedAssignmentSyntax() && kind != SyntaxKind.DereferenceAssignmentSyntax() && kind != SyntaxKind.CallStatementSyntax()) {
+			this.fail(arena, arena.header(statement).span, "unbraced control body requires one simple statement; declarations and nested controls require braces");
+			SyntaxNodeId none = {index = 0}; return none;
+		}
+		var span = arena.header(statement).span;
+		var begin_span = arena.source_span(syntax_span(span.source, span.start, span.start));
+		var end_span = arena.source_span(syntax_span(span.source, span.end, span.end));
+		var open_token = generated_token(TokenKind.OPEN_BRACE(), move begin_span, "{");
+		var close_token = generated_token(TokenKind.CLOSE_BRACE(), move end_span, "}");
+		var open = arena.add_token(this.source, move open_token); var close = arena.add_token(this.source, move close_token);
+		var statements = arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax())); arena.append_node(statements, statement);
+		return syntax_make_BlockStatementSyntax(arena, open, statements, close);
+	}
 	SyntaxNodeId parse_if(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.IF(), "expected 'if'");
 		if ((v_keyword_1.index == 0)) {
@@ -5437,7 +5455,7 @@ class SyntaxParser {
 			SyntaxNodeId tmp_8 = {index = 0};
 			return tmp_8;
 		}
-		var v_then_body_9 = this.parse_block(arena, "if body");
+		var v_then_body_9 = this.parse_control_body(arena, "if body");
 		if ((v_then_body_9.index == 0)) {
 			SyntaxNodeId tmp_10 = {index = 0};
 			return tmp_10;
@@ -5703,7 +5721,7 @@ class SyntaxParser {
 			SyntaxNodeId tmp_27 = {index = 0};
 			return tmp_27;
 		}
-		var v_body_28 = this.parse_block(arena, "for body");
+		var v_body_28 = this.parse_control_body(arena, "for body");
 		SyntaxNodeId tmp_29 = {index = 0};
 		if ((v_body_28.index == 0)) {
 		} else {
@@ -5732,7 +5750,7 @@ class SyntaxParser {
 			SyntaxNodeId tmp_8 = {index = 0};
 			return tmp_8;
 		}
-		var v_body_9 = this.parse_block(arena, "while body");
+		var v_body_9 = this.parse_control_body(arena, "while body");
 		SyntaxNodeId tmp_10 = {index = 0};
 		if ((v_body_9.index == 0)) {
 		} else {

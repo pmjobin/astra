@@ -8,7 +8,7 @@ import stat
 import tempfile
 import unittest
 
-from lanes import python_format, python_guard, meson_format, meson_guard, stable_format, run
+from lanes import python_format, python_guard, meson_format, meson_guard, stable_format, run, guard
 from lexical import compare, attach_clauses, expand_accessors
 from preprocess import compare_preprocessed
 from source import read_source, publish, safe_parent, ROOT, qualified_tools, receipt_path
@@ -22,6 +22,16 @@ class Guards(unittest.TestCase):
 		self.assertIn(b'} finally', after)
 		compare(before, after)
 		self.assertEqual(after, attach_clauses(after))
+
+	def test_real_astra_scopes_and_mutations(self):
+		tools, unused = qualified_tools({'astra'})
+		before = b'struct A { int x; }\n// next\nstruct B { int y; }\nint f(int x) { if (x > 0) { return x; } return 0; }\n'
+		after = stable_format('astra', before, 'unit.astra', ROOT, tools)
+		self.assertIn(b'}\n\n// next\nstruct B', after)
+		self.assertIn(b'if (x > 0) return x;', after)
+		for mutant in (after.replace(b'return 0;', b'return 1;'), after.replace(b'// next', b'// wrong')):
+			with self.assertRaises(ValueError):
+				guard('astra', before, mutant, 'unit.astra', tools)
 
 	def test_clause_comments_and_literals(self):
 		before = b'void f() { try {} // remain\ncatch (Error e) { string s = "} finally"; } /* stay */\nfinally {} }'

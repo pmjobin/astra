@@ -2459,6 +2459,28 @@ public class Parser : Object {
 		return semicolon == null ? null : new LocalDeclarationSyntax (local_type, name, equals_token, initializer, semicolon, owned_keyword);
 	}
 
+	// An unbraced control body still creates exactly one lexical Block node.
+	// Declarations and nested controls require explicit braces, preventing
+	// declaration lifetime changes and dangling-else reassociation.
+	private BlockStatementSyntax? parse_control_body(string context) {
+		if (current.kind == TokenKind.OPEN_BRACE) {
+			return parse_block (context);
+		}
+		var statement = parse_statement ();
+		if (statement == null) {
+			return null;
+		}
+		if (!(statement is ReturnStatementSyntax || statement is BreakStatementSyntax || statement is ContinueStatementSyntax || statement is AssignmentStatementSyntax || statement is FieldAssignmentStatementSyntax || statement is IndexedAssignmentSyntax || statement is DereferenceAssignmentSyntax || statement is CallStatementSyntax)) {
+			fail (statement.span, "unbraced control body requires one simple statement; declarations and nested controls require braces");
+			return null;
+		}
+		var statements = new GenericArray<StatementSyntax> ();
+		statements.add (statement);
+		var open = new Token.generated (TokenKind.OPEN_BRACE, SourceSpan (source, statement.span.start, statement.span.start), "{");
+		var close = new Token.generated (TokenKind.CLOSE_BRACE, SourceSpan (source, statement.span.end, statement.span.end), "}");
+		return new BlockStatementSyntax (open, statements, close);
+	}
+
 	private IfStatementSyntax? parse_if() {
 		var keyword = expect (TokenKind.IF, "expected 'if'");
 		if (keyword == null) {
@@ -2476,7 +2498,7 @@ public class Parser : Object {
 		if (close == null) {
 			return null;
 		}
-		var then_body = parse_block ("if body");
+		var then_body = parse_control_body ("if body");
 		if (then_body == null) {
 			return null;
 		}
@@ -2616,7 +2638,7 @@ public class Parser : Object {
 		if (expect (TokenKind.CLOSE_PAREN, "expected ')' after for step") == null) {
 			return null;
 		}
-		var body = parse_block ("for body");
+		var body = parse_control_body ("for body");
 		return body == null ? null : new ForStatementSyntax (keyword, initializer, condition, step, body);
 	}
 
@@ -2637,7 +2659,7 @@ public class Parser : Object {
 		if (close == null) {
 			return null;
 		}
-		var body = parse_block ("while body");
+		var body = parse_control_body ("while body");
 		return body == null ? null : new WhileStatementSyntax (keyword, open, condition, close, body);
 	}
 

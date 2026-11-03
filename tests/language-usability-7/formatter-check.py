@@ -31,7 +31,7 @@ def main(compiler_path, output_path):
 		(out/'checks.json').write_text(json.dumps(receipt, indent=2)+'\n')
 		assert valid, (rows[-1], p.stdout)
 		return p.stdout
-	run([compiler, '--format', '--version'], stdout=b'astrac format 1\n')
+	run([compiler, '--format', '--version'], stdout=b'astrac format 2\n')
 	inputs = sorted(set([
 		*ROOT.glob('lib/astra/**/*.astra'),
 		*ROOT.glob('examples/owned-state-6/*.astra'),

@@ -7,6 +7,13 @@ Keep independent operations and nontrivial bodies on separate lines. There is
 no column limit and no forced call/prototype wrapping. Preserve identifiers,
 types, ownership, parentheses, imports, directives, literal and comment bytes.
 
+Use one physically empty separator after completed type/function definitions
+and between methods, before any comment introducing the next declaration. Keep
+field groups together. Same-line simple `if`/`for`/`while` bodies omit braces
+only when the actual parser proves an equivalent scoped block. Declarations,
+nested controls and scope-sensitive bodies keep multiline braces. Bound `else`,
+`catch` and `finally` clauses stay attached. Blank lines contain no TABs/spaces.
+
 Run from any directory:
 
 ```sh
@@ -62,8 +69,13 @@ INDENT/DEDENT structure and ASTs with type comments. Meson uses its installed
 lexer/parser with an indentation-only adapter and independent AST/token checks;
 its general formatter rewrites commas/layout even without a practical width cap.
 Shell uses shfmt with tabs and an AST comparison retaining comments and heredocs.
-Astra uses the public baseline `astrac --format`, an indentation-only formatter
-that preserves line count/intra-line layout and checks its own lexer/parser.
+Astra uses public `astrac --format` version 2. Its actual parser selects
+declaration boundaries and restricted single-statement controls, preserving
+implicit lexical scopes. Separate token/comment checks allow only those brace
+deletions, and normalized parser dumps must agree. The external guard repeats
+the dump comparison. Semantic, ABI and lifetime regressions remain separate
+qualification obligations. Unproven patterns retain their braces. Vala and C/C++
+retain token-exact transformations; their tools do not remove RAII/scope braces.
 
 `format/scope.json` classifies every tracked source candidate. Update it explicitly
 when adding/removing code. Do not include untracked work. Golden companions,
