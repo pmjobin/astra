@@ -107,7 +107,7 @@ owned Utf8Message cfg_test_snapshot(CfgData d) throws Error {
 	int edges_i = 0;
 	while (edges_i < d.edge_count) {
 		var row = d.edges[edges_i];
-		flow_number(out, row.function); flow_number(out, row.source); flow_number(out, row.target); flow_number(out, row.polarity);
+		flow_number(out, row.function); flow_number(out, row.source); flow_number(out, row.target); flow_number(out, row.polarity); flow_number(out, row.meaning);
 		edges_i = edges_i + 1;
 	}
 	int predecessors_i = 0;
@@ -141,6 +141,7 @@ void cfg_test_target(CfgData d, int block, int polarity, int target) {
 }
 bool cfg_test_apply(CfgData d, CoreData core, int mutation) {
 	if (mutation == 1 && d.predecessor_count > 0) { var p = d.predecessors[0]; p.target = d.block_count + 1; d.predecessors[0] = p; return true; }
+	if (mutation == 25 && d.edge_count > 0) { var edge = d.edges[0]; edge.meaning = 99; d.edges[0] = edge; return true; }
 	if (mutation == 19) { d.status = 3; return true; }
 	if (mutation == 20) { d.limit = 1; return true; }
 	if (mutation == 21) { var b = d.blocks[0]; b.reachable = true; int added = cfg_add_block(d, b); return added > 0; }
@@ -204,7 +205,7 @@ owned Utf8Message cfg_mutations(CfgProgram program) throws Error {
 	assert_that(cfg_verify(program) == 0);
 	var out = new Utf8ByteBuilder();
 	int mutation = 0;
-	while (mutation < 25) {
+	while (mutation < 26) {
 		var backup = new CfgBackup(program.data);
 		var before = cfg_test_snapshot(program.data);
 		if (cfg_test_apply(program.data, program.core.data, mutation)) {

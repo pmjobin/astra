@@ -127,7 +127,8 @@ int cfg_lower_node(CfgData data, CoreData core, CheckedIndex checked, int id, in
 	data.regions[id - 1] = region;
 	return head;
 }
-void cfg_finish_edges(CfgData data) {
+void cfg_finish_edges(CfgData data, CoreData core) {
+	if (data.block_count > 8000000 / (core.node_count + 1)) { data.status = 2; return; }
 	int i = 0;
 	while (i < data.block_count && data.status == 0) {
 		var b = data.blocks[i];
@@ -136,7 +137,7 @@ void cfg_finish_edges(CfgData data) {
 			int target = b.yes;
 			if (p == 2) { target = b.no; }
 			if (target != 0) {
-				CfgEdge edge = {function = b.function, source = i + 1, target = target, polarity = p};
+				CfgEdge edge = {function = b.function, source = i + 1, target = target, polarity = p, meaning = cfg_edge_meaning(data, core, i + 1, target, p)};
 				int e = cfg_add_edge(data, edge);
 				CfgPredecessor pred = {function = b.function, edge = e, source = i + 1, target = target};
 				int added = cfg_add_predecessor(data, pred);
@@ -168,7 +169,7 @@ owned CfgProgram cfg_lower(owned CoreProgram core, int limit) throws Error {
 		program.data.functions[f] = row;
 		f = f + 1;
 	}
-	if (program.data.status == 0) { cfg_finish_edges(program.data); }
+	if (program.data.status == 0) { cfg_finish_edges(program.data, program.core.data); }
 	if (program.data.status == 0) { int verified = cfg_verify(program); cfg_set_status(program.data, verified); }
 	return move program;
 }

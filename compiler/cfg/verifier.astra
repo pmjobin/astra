@@ -225,10 +225,10 @@ int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 		return expected;
 	}
 	if (!cfg_counts(d, core.data)) { return 1; }
-	if (d.limit < 1 || d.limit > 65536 || d.block_count > d.limit || d.instruction_count > d.limit || d.edge_count > d.limit || d.predecessor_count > d.limit || d.block_count > 8000000 / (core.data.node_count + 1)) { return 2; }
+	if (d.limit < 1 || d.limit > 65536 || d.block_count > d.limit || d.instruction_count > d.limit || d.edge_count > d.limit || d.predecessor_count > d.limit || d.block_count > 8000000 / (core.data.node_count + 1) || d.edge_count > 8000000 / (core.data.node_count + 1)) { return 2; }
 	if (d.status == 2 && (d.block_count == d.limit || d.instruction_count == d.limit || d.edge_count == d.limit || d.predecessor_count == d.limit || d.operand_count == d.limit)) { return 2; }
 	if (d.operand_count > d.limit) { return 2; }
-	if (d.status != 0 || d.block_count == 0 || !cfg_verify_edges(d) || !cfg_verify_operands(d, core.data)) { return 1; }
+	if (d.status != 0 || !cfg_verify_edges(d) || !cfg_verify_operands(d, core.data)) { return 1; }
 	var check = new CfgCheck(d.block_count, d.instruction_count, core.data.node_count);
 	int f = 0;
 	while (f < d.function_count) {
@@ -251,6 +251,12 @@ int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 		if (!check.cleanup(d, core.data, tail, function.exit, f + 1, 0, declaration.node) || function.entry != check.entry(d, authority.body, tail) || !check.node(d, core.data, core.flow.checked, authority.body, tail, 0, 0, 0)) { return 1; }
 		f = f + 1;
 	}
+	int e = 0;
+	while (e < d.edge_count) {
+		var edge = d.edges[e];
+		if (edge.meaning != cfg_edge_meaning(d, core.data, edge.source, edge.target, edge.polarity)) { return 1; }
+		e = e + 1;
+	}
 	var reachable = cfg_reach(d);
 	int i = 0;
 	while (i < d.block_count) { if (!check.blocks[i] || reachable[i] != d.blocks[i].reachable || (reachable[i] && d.blocks[i].term == 4)) { return 1; } i = i + 1; }
@@ -261,22 +267,22 @@ int cfg_verify_model(CfgData d, CoreProgram core) throws Error {
 	return 0;
 }
 int cfg_verify(CfgProgram program) throws Error { return cfg_verify_model(program.data, program.core); }
-bool cfg_owns(CfgProgram program, borrowed CfgProgram origin, CfgId id) throws Error {
+bool cfg_owns(CfgProgram program, borrowed CfgProgram origin, CfgBlockId id) throws Error {
 	return program.same_owner(origin) && cfg_verify(program) == 0 && id.function > 0 && id.function <= program.data.function_count && id.index > 0 && id.index <= program.data.block_count && program.data.blocks[id.index - 1].function == id.function;
 }
-CfgBlock cfg_read_block(CfgProgram program, borrowed CfgProgram origin, CfgId id) throws Error {
+CfgBlock cfg_read_block(CfgProgram program, borrowed CfgProgram origin, CfgBlockId id) throws Error {
 	if (!cfg_owns(program, origin, id)) { throw new Error("INVALID_CFG_BLOCK_ID"); }
 	return program.data.blocks[id.index - 1];
 }
-CfgInstruction cfg_read_instruction(CfgProgram program, borrowed CfgProgram origin, CfgId id) throws Error {
+CfgInstruction cfg_read_instruction(CfgProgram program, borrowed CfgProgram origin, CfgInstructionId id) throws Error {
 	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.data.instruction_count || program.data.instructions[id.index - 1].value.function != id.function) { throw new Error("INVALID_CFG_INSTRUCTION_ID"); }
 	return program.data.instructions[id.index - 1];
 }
-CorePlace cfg_read_place(CfgProgram program, borrowed CfgProgram origin, CfgId id) throws Error {
+CorePlace cfg_read_place(CfgProgram program, borrowed CfgProgram origin, CfgPlaceId id) throws Error {
 	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.core.data.place_count || program.core.data.places[id.index - 1].function != id.function) { throw new Error("INVALID_CFG_PLACE_ID"); }
 	return program.core.data.places[id.index - 1];
 }
-owned SourceSpan cfg_source_span(CfgProgram program, borrowed CfgProgram origin, CfgId id) throws Error {
+owned SourceSpan cfg_source_span(CfgProgram program, borrowed CfgProgram origin, CfgBlockId id) throws Error {
 	var b = cfg_read_block(program, origin, id);
 	if (b.origin == 0) { return program.core.flow.checked.bindings.program.arena.source_span(program.core.data.functions[id.function - 1].span); }
 	return program.core.flow.checked.bindings.program.arena.source_span(program.core.data.nodes[b.origin - 1].span);
@@ -308,4 +314,44 @@ bool cfg_verify_operands(CfgData d, CoreData core) {
 		i = i + 1;
 	}
 	return count == d.operand_count;
+}
+
+// Pure Core membership, not lowering or a builder certificate. The complete
+// Core tree has already passed its independent verifier before either caller.
+bool cfg_core_contains(CoreData core, int root, int wanted, int depth) {
+	if (root == 0 || depth > 192) { return false; }
+	if (root == wanted) { return true; }
+	var n = core.nodes[root - 1];
+	if (cfg_core_contains(core, n.a, wanted, depth + 1) || cfg_core_contains(core, n.b, wanted, depth + 1) || cfg_core_contains(core, n.c, wanted, depth + 1)) { return true; }
+	int i = 0;
+	while (i < n.count) { if (cfg_core_contains(core, core.edges[n.first + i].child, wanted, depth + 1)) { return true; } i = i + 1; }
+	return false;
+}
+// Edge meanings: normal, true, false, loop backedge, break, continue, return.
+// This relation uses only validated Core membership and checked region anchors.
+int cfg_edge_meaning(CfgData d, CoreData core, int source, int target, int polarity) {
+	var b = d.blocks[source - 1];
+	if (b.term == 2) { return polarity + 1; }
+	if (b.origin > 0 && b.origin <= core.node_count) {
+		int kind = core.nodes[b.origin - 1].kind;
+		if (kind == 25) { return 5; }
+		if (kind == 26) { return 6; }
+		if (kind == 27) { return 7; }
+		int n = 0;
+		while (n < core.node_count) {
+			var loop = core.nodes[n];
+			if (loop.kind == 24 && loop.function == b.function && d.regions[n].entry == target && cfg_core_contains(core, loop.b, b.origin, 0)) { return 4; }
+			n = n + 1;
+		}
+	}
+	if (d.blocks[target - 1].term == 3 && d.blocks[target - 1].origin == 0) { return 7; }
+	return 1;
+}
+CfgEdge cfg_read_edge(CfgProgram program, borrowed CfgProgram origin, CfgEdgeId id) throws Error {
+	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.data.edge_count || program.data.edges[id.index - 1].function != id.function) { throw new Error("INVALID_CFG_EDGE_ID"); }
+	return program.data.edges[id.index - 1];
+}
+CoreNode cfg_read_temp(CfgProgram program, borrowed CfgProgram origin, CfgTempId id) throws Error {
+	if (!program.same_owner(origin) || cfg_verify(program) != 0 || id.function < 1 || id.function > program.data.function_count || id.index < 1 || id.index > program.core.data.node_count || program.core.data.nodes[id.index - 1].function != id.function || !core_value_kind(program.core.data.nodes[id.index - 1].kind)) { throw new Error("INVALID_CFG_TEMP_ID"); }
+	return program.core.data.nodes[id.index - 1];
 }

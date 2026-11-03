@@ -16,7 +16,7 @@ import subprocess
 import time
 
 
-MUTATIONS = ['true-false-swap', 'dangling-predecessor', 'duplicate-terminator', 'wrong-loop-exit', 'wrong-function-owner', 'dropped-return', 'short-circuit-polarity', 'eager-rhs', 'argument-order', 'callee-identity', 'value-as-place', 'move-as-copy-double-owner', 'omitted-cleanup', 'duplicate-cleanup-cycle', 'cleanup-order', 'wrong-cleanup-edge', 'early-loan-end', 'source-span', 'undefined-temporary', 'forged-status', 'resource-limit', 'orphan-reachable-block', 'wrong-load-type', 'late-loan-end', 'unconditional-cleanup']
+MUTATIONS = ['true-false-swap', 'dangling-predecessor', 'duplicate-terminator', 'wrong-loop-exit', 'wrong-function-owner', 'dropped-return', 'short-circuit-polarity', 'eager-rhs', 'argument-order', 'callee-identity', 'value-as-place', 'move-as-copy-double-owner', 'omitted-cleanup', 'duplicate-cleanup-cycle', 'cleanup-order', 'wrong-cleanup-edge', 'early-loan-end', 'source-span', 'undefined-temporary', 'forged-status', 'resource-limit', 'orphan-reachable-block', 'wrong-load-type', 'late-loan-end', 'unconditional-cleanup', 'forged-edge-meaning']
 
 
 def sha(data):
@@ -47,9 +47,14 @@ def inspect(data, frozen, facts):
 	functions = {int(x[0]): list(map(int, x)) for x in r['CFG_FUNCTION']}
 	parents = {b: set() for b in blocks}
 	for e in edges:
-		_, f, src, dst, polarity = e
+		_, f, src, dst, polarity, meaning = e
+		assert 1 <= meaning <= 7
+		if blocks[src][6] == 2: assert meaning == polarity + 1
 		assert blocks[src][1] == blocks[dst][1] == f
 		assert blocks[src][7 + polarity] == dst
+		if blocks[src][2] in nodes:
+			kind = nodes[blocks[src][2]][1]
+			if kind in (25, 26, 27) and blocks[src][6] == 1: assert meaning == kind - 20
 		parents[dst].add(src)
 	live = set()
 	pending = [x[1] for x in functions.values()]

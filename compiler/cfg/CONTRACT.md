@@ -5,12 +5,14 @@ verified `astra-core/1` and future SSA. `CfgProgram` retains Core and its comple
 source/type/semantic authority. CFG storage and Core are sibling owners. Every
 public block, instruction, place, span, graph query and projection checks the
 originating program, function and the complete model. Arena ordinals are not
-portable identities. Append-only construction has no deletion/reuse generation.
+portable identities. Public block/instruction/place/temporary/edge handles are
+distinct types; each requires the retained program and its function owner. Append-only construction has no deletion/reuse generation.
 
 This first form uses one ordered instruction per basic block. It deliberately
 leaves block fusion to a later transformation. Each block has one jump, boolean
 split, return or unreachable normal-exit terminator. Successor and predecessor
-rows are reciprocal and independently checked. Reachability means structural
+rows are reciprocal and independently checked. Edge meanings identify normal,
+true, false, loop backedge, break, continue and return transitions. Reachability means structural
 reachability from a function entry, including both possible branch polarities;
 it does not claim a constant condition is dynamically taken.
 

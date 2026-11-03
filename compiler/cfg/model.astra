@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Append-only stage IDs require both the retained program and function owner.
-struct CfgId { int function; int index; }
+struct CfgBlockId { int function; int index; }
+struct CfgInstructionId { int function; int index; }
+struct CfgPlaceId { int function; int index; }
+struct CfgTempId { int function; int index; }
+struct CfgEdgeId { int function; int index; }
 struct CfgFunction { int entry; int exit; }
 // One ordered instruction per block is the initial (deliberately unfused) form.
 // Terminators: 1 jump, 2 bool split, 3 return, 4 unreachable normal exit.
@@ -31,7 +35,7 @@ struct CfgInstruction {
 	int guarded;
 }
 struct CfgOperand { int function; int instruction; int ordinal; int temp; SymbolId label; int mode; }
-struct CfgEdge { int function; int source; int target; int polarity; }
+struct CfgEdge { int function; int source; int target; int polarity; int meaning; }
 struct CfgPredecessor { int function; int edge; int source; int target; }
 // These are checked region anchors, never certificates of correctness.
 struct CfgRegion { int entry; int operation; int one; int two; int three; }

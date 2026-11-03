@@ -24,7 +24,7 @@ int main(string[] args) {
 		var program = cfg_lower(move core, limit);
 		if (args[1] == "--cfg-forge-input") {
 			int original = cfg_verify(program);
-			assert_that(original == 3 || original == 4);
+			if (original != 3 && original != 4) { println_stderr("INVALID_CFG_MUTATION_INPUT"); return 2; }
 			cfg_set_status(program.data, 0);
 			assert_that(cfg_verify(program) == 1);
 			bool blocked = false;
@@ -52,14 +52,20 @@ int main(string[] args) {
 	} catch (Error error) { println_stderr(error.message); return 2; }
 }
 owned SourceSpan cfg_retained_span(owned CfgProgram program) throws Error {
-	CfgId id = {function = 1, index = program.data.functions[0].entry}; return cfg_source_span(program, program, id);
+	if (program.data.function_count == 0) { throw new Error("INVALID_CFG_BLOCK_ID"); }
+	CfgBlockId id = {function = 1, index = program.data.functions[0].entry}; return cfg_source_span(program, program, id);
 }
 void cfg_cross_owner(CfgProgram program, string[] args, int start) throws Error {
 	var source = binding_load_program(args, start); var bindings = binding_index(move source, 0);
 	var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
 	var core = core_lower(move flow, 65536); var other = cfg_lower(move core, 65536);
-	CfgId id = {function = 1, index = program.data.functions[0].entry};
+	if (program.data.function_count == 0) {
+		CfgBlockId empty = {function = 1, index = 1};
+		assert_that(!cfg_owns(program, program, empty) && !cfg_owns(program, other, empty)); return;
+	}
+	CfgBlockId id = {function = 1, index = program.data.functions[0].entry};
 	assert_that(cfg_owns(program, program, id) && !cfg_owns(program, other, id));
+	cfg_cross_typed_ids(program, other);
 	id.function = 0; assert_that(!cfg_owns(program, program, id));
 	id.function = 1; id.index = program.data.block_count + 1; assert_that(!cfg_owns(program, program, id));
 }
@@ -75,4 +81,40 @@ int cfg_limit_decimal(string value) {
 		i = i + 1;
 	}
 	return result;
+}
+
+void cfg_cross_typed_ids(CfgProgram program, borrowed CfgProgram other) throws Error {
+	if (program.data.instruction_count > 0) {
+		CfgInstructionId id = {function = program.data.instructions[0].value.function, index = 1};
+		var row = cfg_read_instruction(program, program, id);
+		bool rejected = false;
+		try { var crossed = cfg_read_instruction(program, other, id); } catch (Error error) { rejected = true; }
+		assert_that(rejected && row.block > 0);
+	}
+	if (program.core.data.place_count > 0) {
+		CfgPlaceId id = {function = program.core.data.places[0].function, index = 1};
+		var row = cfg_read_place(program, program, id);
+		bool rejected = false;
+		try { var crossed = cfg_read_place(program, other, id); } catch (Error error) { rejected = true; }
+		assert_that(rejected && row.type.index > 0);
+	}
+	if (program.data.edge_count > 0) {
+		CfgEdgeId id = {function = program.data.edges[0].function, index = 1};
+		var row = cfg_read_edge(program, program, id);
+		bool rejected = false;
+		try { var crossed = cfg_read_edge(program, other, id); } catch (Error error) { rejected = true; }
+		assert_that(rejected && row.target > 0);
+	}
+	int n = 0;
+	while (n < program.core.data.node_count) {
+		if (core_value_kind(program.core.data.nodes[n].kind)) {
+			CfgTempId id = {function = program.core.data.nodes[n].function, index = n + 1};
+			var row = cfg_read_temp(program, program, id);
+			bool rejected = false;
+			try { var crossed = cfg_read_temp(program, other, id); } catch (Error error) { rejected = true; }
+			assert_that(rejected && row.type.index > 0);
+			return;
+		}
+		n = n + 1;
+	}
 }
