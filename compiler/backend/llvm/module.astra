@@ -168,7 +168,7 @@ class LlvmModule {
 			}
 			var result = this.type(program.cfg.core.flow.checked, row.result, 0);
 			var raw_parameters = this.handle_args(parameters, 0); var signature = LLVMFunctionType(result, raw_parameters, count, 0); this.signatures[f] = signature;
-			var declaration = program.cfg.core.flow.checked.bindings.symbol(row.symbol); var spelling = program.cfg.core.flow.checked.bindings.program.arena.token_message(declaration.token);
+			var declaration = program.cfg.core.flow.checked.bindings.symbol(row.symbol); var spelling = program.cfg.core.flow.checked.bindings.names.text(declaration.name);
 			var name = llvm_name("astra.f", f + 1);
 			if (spelling.text == "main") {
 				if (count != 0 || row.result.index != 1) { throw new Error("LLVM_DEFERRED: main ABI"); }
@@ -316,7 +316,7 @@ class LlvmModule {
 				if (!type_integer(checked_kind(program.cfg.core.flow.checked, row.type))) { throw new Error("LLVM_DEFERRED: literal"); }
 				int i = 0;
 				while (i < text.text.byte_length) { this.take(1); int digit = astra_host_text_byte(text.text, i) - 48; if (digit < 0 || digit > 9) { throw new Error("LLVM_INVALID_IR: literal bits"); } bits = bits * 10 + digit as u64; i = i + 1; }
-				if (op == 2) { var sign = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.operation); if (sign.text == "-") { bits = 0 as u64 - bits; } }
+				if (op == 2) { var sign = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.operation); if (sign.text == "-") { bits = 0 as u64 - bits; } else { if (sign.text == "~") { bits = bits ^ 18446744073709551615; } else { if (sign.text != "+") { throw new Error("LLVM_DEFERRED: integer literal prefix"); } } } }
 			}
 			return LLVMConstInt(type, bits, 0);
 		}

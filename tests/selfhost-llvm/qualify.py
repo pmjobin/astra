@@ -27,6 +27,7 @@ def main():
 		run(HERE/'build.py','--compiler',a.compiler,'--build',a.build,'--runtime',attempt/'build','--mode',mode)
 		component = a.build/('astra-llvm-'+mode)
 		run(HERE/'run.py','--component',component,'--compiler',a.compiler,'--build',a.build/'applications','--runtime',attempt/('runs-'+mode),'--frozen',attempt/'frozen','--mode',mode)
+		run(HERE/'literals.py','--component',component,'--compiler',a.compiler,'--build',a.build/'literals','--runtime',attempt/('literals-'+mode),'--mode',mode)
 		run(HERE/'fatal.py','--component',component,'--compiler',a.compiler,'--build',a.build/'fatal','--runtime',attempt/('fatal-'+mode),'--frozen',attempt/'frozen','--mode',mode)
 		run(HERE/'negative.py','--component',component,'--runtime',attempt/('negative-'+mode),'--frozen',attempt/'frozen','--mode',mode)
 		run(ROOT/'tests/selfhost-ssa/run.py','--build',a.build,'--runtime',attempt/('continuity-'+mode),'--frozen',a.predecessor,'--mode',mode,'--product-prefix','astra-llvm-')

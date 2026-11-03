@@ -6,6 +6,7 @@ from collections import Counter
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -56,6 +57,9 @@ def main():
 		product = a.build/(name+'-'+a.mode)
 		paths = dict(raw=product.with_suffix('.raw.ll'), ir=product.with_suffix('.ll'), object=product.with_suffix('.o'), executable=product, reference=product.with_suffix('.c0'))
 		ssa = run([a.component,'--ssa',source], name+'-ssa').stdout
+		admission = run([a.component,'--admit',source], name+'-admission').stdout
+		proofs = [line.decode() for line in admission.splitlines() if line.startswith(b'PROOF ')]
+		assert admission.startswith(b'astra-flow/3\nSTATUS 0 0\n'), (name, 'semantic admission failed')
 		for stage, key in [('--llvm-raw','raw'),('--llvm-ir','ir'),('--emit-obj','object')]:
 			run([a.component,stage,a.mode,paths[key],source], name+'-'+key)
 		facts = inspect(paths['raw'].read_bytes(), ssa)
@@ -70,6 +74,8 @@ def main():
 		run(['objdump','-dr',paths['object']], name+'-disassembly')
 		link = ['gcc', paths['object'], '-o', product]
 		run(link, name+'-link')
+		libraries = run(['ldd',product],name+'-runtime-libraries').stdout.decode()
+		runtime = {str(Path(word).resolve()):sha(Path(word).resolve()) for word in libraries.split() if word.startswith('/') and Path(word).is_file()}
 		actual = run([product], name+'-execute', item['expected_exit'])
 		assert actual.stdout.decode() == item['expected_stdout'] and actual.stderr.decode() == item['expected_stderr']
 		run([a.compiler,'-'+a.mode,source,'-o',paths['reference']], name+'-c0-compile')
@@ -81,12 +87,16 @@ def main():
 			assert v.stdout == actual.stdout
 			memories[label] = memory(v.stderr, item['expected_trace'])
 		assert memories['native']['observed_trace'] == memories['C0']['observed_trace']
-		results.append(dict(**item, mode=a.mode, component_sha256=sha(a.component), c0_sha256=sha(a.compiler), ssa_sha256=hashlib.sha256(ssa).hexdigest(), products={k:dict(path=str(v),sha256=sha(v),bytes=v.stat().st_size) for k,v in paths.items()}, facts=facts, memory=memories, link=list(map(str,link)), result='PASS'))
+		raw_text = paths['raw'].read_text()
+		target = re.search(r'target triple = "([^"]+)"',raw_text)[1]
+		layout = re.search(r'target datalayout = "([^"]+)"',raw_text)[1]
+		function_spans = [line.decode() for line in ssa.splitlines() if line.startswith(b'FUNCTION ')]
+		results.append(dict(**item, source_span=dict(start=0,end=source.stat().st_size), semantic_proofs=proofs, semantic_proof_scope='Discharged adapter PROOF rows; already primitive-admitted uses need no adapter proof', admission_sha256=hashlib.sha256(admission).hexdigest(), function_spans=function_spans, target=target, layout=layout, ABI='astra-llvm-private/1-x86_64-host', LLVM='22.1.8', runtime=runtime, expected_artifact_bytes=None, expected_artifact_policy='independent structural and semantic expectations; no pre-known binary hash', verifier='LLVMVerifyModule plus external llvm-as and opt', mode=a.mode, component_sha256=sha(a.component), c0_sha256=sha(a.compiler), ssa_sha256=hashlib.sha256(ssa).hexdigest(), products={k:dict(path=str(v),sha256=sha(v),bytes=v.stat().st_size) for k,v in paths.items()}, facts=facts, memory=memories, link=list(map(str,link)), result='PASS'))
 		(a.runtime/'results.json').write_text(json.dumps(results,indent=2)+'\n')
 		print(name,a.mode,'PASS',flush=True)
 	if not a.case:
 		assert len(results) == 24 and Counter(x['category'] for x in results) == dict(numeric=6,branch=4,loop=4,call=4,ownership=4,extra=2)
-	(a.runtime/'result.json').write_text(json.dumps(dict(status='DEVELOPMENT' if a.development else 'PASS', executions=len(results), mode=a.mode, cases=results),indent=2)+'\n')
+	(a.runtime/'result.json').write_text(json.dumps(dict(runner_sha256=sha(__file__),oracle_sha256=sha(Path(__file__).with_name('oracle.py')),status='DEVELOPMENT' if a.development else 'PASS', executions=len(results), mode=a.mode, cases=results),indent=2)+'\n')
 
 
 if __name__ == '__main__':

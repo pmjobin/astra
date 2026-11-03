@@ -37,6 +37,9 @@ def main():
 			continue
 		row = dict(receipt=str(path),exit=d['exit'],seconds=d['monotonic_end']-d['monotonic_start'],start=d['monotonic_start'],end=d['monotonic_end'],**timed(path.with_suffix('.stderr').read_text()))
 		row['kind'] = 'check' if '--dump-cfg' in d['argv'] or '--check' in d['argv'] else 'native-build'
+		row['accepted_identity'] = (path.parent/'products.json').is_file()
+		row['classification'] = 'CHECK_COMPLETE' if row['kind'] == 'check' and d['exit'] == 0 else 'ACCEPTED_BUILD' if row['accepted_identity'] and d['exit'] == 0 else 'FAILED_OR_UNQUALIFIED'
+		row['process_exit_is_not_qualification'] = True
 		rows.append(row)
 	command_groups = []
 	for path in sorted(a.runtime.glob('*/commands.json')):

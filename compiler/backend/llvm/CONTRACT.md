@@ -35,7 +35,7 @@ poison substitute. Definitions are scheduled by available typed operands; all
 PHIs exist before ordinary instruction emission. Final branch/return terms and
 incoming arguments are installed only after definition mapping completes.
 
-Integer arithmetic wraps without nsw/nuw. Signedness governs predicates,
+Integer arithmetic wraps without nsw/nuw. Core opcode 2 retains both signed and complemented integer literals; the exact +, - or ~ token governs its bits and other prefixes defer. Signedness governs predicates,
 extensions and division. Casts preserve mathematical low bits, signed widening
 fills ones and unsigned widening fills zeros. Division by zero traps; signed
 MIN/-1 yields MIN and remainder zero. A selected safe divisor prevents constant

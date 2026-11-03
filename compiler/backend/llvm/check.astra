@@ -38,7 +38,7 @@ bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBud
 	if (node.type.index == 13) { if (text.text == "true") { bits = 1; } }
 	else {
 		int i = 0; while (i < text.text.byte_length && budget.take(1)) { bits = bits * 10 + (astra_host_text_byte(text.text, i) - 48) as u64; i = i + 1; }
-		if (node.kind == 2) { var sign = checked.bindings.program.arena.token_message(node.operation); if (sign.text == "-") { bits = 0 as u64 - bits; } }
+		if (node.kind == 2) { var sign = checked.bindings.program.arena.token_message(node.operation); if (sign.text == "-") { bits = 0 as u64 - bits; } else { if (sign.text == "~") { bits = 18446744073709551615 - bits; } else { if (sign.text != "+") { return false; } } } }
 		bits = bits & llvm_check_mask(type_width(node.type.index));
 	}
 	return LLVMConstIntGetZExtValue(value) == bits && !budget.exhausted;

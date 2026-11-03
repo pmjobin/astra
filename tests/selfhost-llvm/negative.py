@@ -31,7 +31,7 @@ def main():
 		(a.runtime/(name+'.stdout')).write_bytes(r.stdout); (a.runtime/(name+'.stderr')).write_bytes(r.stderr)
 		commands.append(dict(argv=list(map(str,argv)),exit=r.returncode,monotonic_start=start,monotonic_end=time.monotonic(),stdout_sha256=hashlib.sha256(r.stdout).hexdigest(),stderr_sha256=hashlib.sha256(r.stderr).hexdigest()))
 		(a.runtime/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')
-		assert r.returncode == expected,(name,r.returncode,r.stderr[-1500:])
+		assert r.returncode in (expected if isinstance(expected,tuple) else (expected,)),(name,r.returncode,r.stderr[-1500:])
 		return r
 	items = json.loads((a.frozen/'selection.json').read_text())
 	selection = {'ssa-diamond','ssa-counter','numeric-conversions','numeric-wrapping','ssa-field-memory','ssa-argument-order'}
@@ -71,8 +71,7 @@ def main():
 			status = 'SSA_DEFERRED' if item['core_status'] == 3 else 'SSA_INVALID'
 		else:
 			# Positives are enumerated even if outside the frozen execution pool.
-			r = subprocess.run(list(map(str,[a.component,'--llvm-raw',a.mode,artifact,*item['paths']])),capture_output=True,timeout=60)
-			(a.runtime/(item['name']+'-matrix.stdout')).write_bytes(r.stdout); (a.runtime/(item['name']+'-matrix.stderr')).write_bytes(r.stderr)
+			r = run([a.component,'--llvm-raw',a.mode,artifact,*item['paths']],item['name']+'-matrix',(0,2))
 			if r.returncode == 0:
 				assert artifact.exists(); artifact.unlink(); status = 'LLVM_IR_VERIFIED'
 			else:
@@ -87,7 +86,8 @@ def main():
 					rows.setdefault(x[0],[]).append(x[1:])
 			active = {int(x[7]) for x in rows.get('SSA_VALUE',[])} | {int(x[6]) for x in rows.get('PLACE',[])} | {int(x[3]) for x in rows.get('FUNCTION',[])}
 			used_types = sorted(active)
-		mapping.append(dict(active_type_ids=used_types,name=item['name'],source_sha256=item['sha256'],ssa_status=item['core_status'],llvm_status=status,diagnostic=r.stderr.decode()))
+		unmapped_builtins = {str(i):name for i,name in [(11,'f32'),(12,'f64'),(15,'string'),(16,'void*')] if i in used_types}
+		mapping.append(dict(unmapped_builtin_types=unmapped_builtins,active_type_ids=used_types,name=item['name'],source_sha256=item['sha256'],ssa_status=item['core_status'],llvm_status=status,diagnostic=r.stderr.decode()))
 		# Real unsuppressed LLVM lifecycle/error-path runs, separate from fatal apps.
 	memory_rows = []
 	for name,command in [('ssa-diamond','--llvm-lifecycle'),('ssa-argument-order','--llvm-limits'),('ssa-borrow-end','--emit-obj'),('numeric-conversions','--mutate-llvm')]:
