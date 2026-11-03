@@ -45,7 +45,7 @@ operations, special policies, foreign/indirect calls, generic/async/exception
 scope and nonprimitive buffer elements defer. Owning replacement is explicitly
 deferred rather than leaking an old owner. Other upstream deferrals persist.
 
-Storage roots and nominal field pointers stay explicit. Each owned buffer leaf
+Storage roots and nominal field pointers stay explicit. Owning initialization and parameter stores are volatile implementation storage: the required allocation/cleanup observations must survive the standard LLVM O2 pipeline. This restricts optimization, grants no alias/overflow premise and introduces no source-level atomic or volatile API. The separate checker verifies the owning-store marker. Each owned buffer leaf
 has a separate armed bit initialized at function entry. Transfers disarm source
 leaves; initialization arms destination leaves. Exact CFG cleanup blocks branch
 on that bit, free only on the taken path and disarm. Scope exit and loan markers

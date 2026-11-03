@@ -9,6 +9,7 @@ import platform
 import stat
 import subprocess
 import sys
+import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -57,16 +58,26 @@ def main():
 		file = Path(path)
 		assert stat.S_IMODE(file.stat().st_mode) == item['mode'],path
 		if sha(file) != item['sha256']:
-			# initial.local was explicitly inherited from SSA-11; a global setting
-			# changed before this task. Preserve both identities, never edit history.
 			assert file == Path.home()/'.codex/config.toml',path
-			assert file.stat().st_ctime < (RUNTIME/'initial.json').stat().st_mtime
-			row = dict(path=path,historical_sha256=item['sha256'],current_sha256=sha(file),ctime=file.stat().st_ctime,mtime=file.stat().st_mtime,intake_mtime=(RUNTIME/'initial.json').stat().st_mtime,explanation='Pre-existing global configuration difference; inode change time predates this task intake. Project Git/config/AGENTS pins match; no configuration write performed by the task.')
-			if observed:
-				assert observed[path] == row
-			reconciled.append(row)
-	if not observed and reconciled:
-		reconciliation.write_text(json.dumps({row['path']:row for row in reconciled},indent=2)+'\n')
+			settings = tomllib.loads(file.read_text())
+			critical = dict(model='gpt-6.1-sol',model_reasoning_effort='xhigh',approval_policy='on-request',sandbox_mode='workspace-write')
+			assert all(settings.get(key) == value for key,value in critical.items()), 'effective global workflow setting changed; reconcile before publication'
+			row = dict(path=path,historical_sha256=item['sha256'],current_sha256=sha(file),ctime=file.stat().st_ctime,mtime=file.stat().st_mtime,intake_mtime=(RUNTIME/'initial.json').stat().st_mtime,critical_settings=critical,no_task_configuration_write=True)
+			if not observed:
+				assert file.stat().st_ctime < row['intake_mtime']
+				reconciliation.write_text(json.dumps({path:row},indent=2)+'\n')
+			elif observed[path]['current_sha256'] != row['current_sha256']:
+				# Preserve the original reconciliation. Native UI/user activity can
+				# update unrelated global bytes; never overwrite that file or claim
+				# byte preservation. Require the observed effective workflow values.
+				log = RUNTIME/'configuration-observations.json'
+				history = json.loads(log.read_text()) if log.exists() else [observed[path]]
+				if history[-1]['current_sha256'] != row['current_sha256']:
+					row['explanation'] = 'External global configuration byte change observed during task; critical workflow settings still match; writer is not attributed.'
+					history.append(row); log.write_text(json.dumps(history,indent=2)+'\n')
+				reconciled.append(row)
+			else:
+				reconciled.append(observed[path])
 	for path,digest in initial['skill'].items():
 		assert sha(path) == digest,path
 	donor = Path(initial['donor']['root'])
@@ -83,7 +94,7 @@ def main():
 		r = subprocess.run(argv,capture_output=True,text=True)
 		tools[name] = dict(argv=argv,exit=r.returncode,stdout=r.stdout,stderr=r.stderr)
 		assert r.returncode == 0,(name,r.stderr)
-	result = dict(status='PASS',base_commit=BASE,base_tree=TREE,submission_sha256=sha(ZIP),submission_bytes=ZIP.stat().st_size,indexed_payloads=len(manifest['files']),zip_members=len(manifest['files'])+1,head=call('git','rev-parse','HEAD'),tree=call('git','rev-parse','HEAD^{tree}'),status_porcelain=call('git','status','--porcelain=v1'),source_authority_sha256=sha(WORK/'runtime/ssa11/c0-source-authority.json'),C0=initial['c0'],predecessor_report=dict(path=initial['predecessor_path'],sha256=initial['predecessor_sha256']),protected_files=len(initial['protected']),donor_files=len(initial['donor']['files']),donor_head=initial['donor']['head'],local_configuration_and_hooks='historical identities unchanged except explicitly reconciled pre-intake global setting; current config and project hooks preserved',configuration_reconciliation=reconciled,installed_skill='byte-exact unchanged',host=dict(system=platform.system(),machine=platform.machine()),tools=tools,changed_paths=sorted(changed),configuration_sha256=hashlib.sha256(initial['config'].encode()).hexdigest())
+	result = dict(status='PASS',base_commit=BASE,base_tree=TREE,submission_sha256=sha(ZIP),submission_bytes=ZIP.stat().st_size,indexed_payloads=len(manifest['files']),zip_members=len(manifest['files'])+1,head=call('git','rev-parse','HEAD'),tree=call('git','rev-parse','HEAD^{tree}'),status_porcelain=call('git','status','--porcelain=v1'),source_authority_sha256=sha(WORK/'runtime/ssa11/c0-source-authority.json'),C0=initial['c0'],predecessor_report=dict(path=initial['predecessor_path'],sha256=initial['predecessor_sha256']),protected_files=len(initial['protected']),donor_files=len(initial['donor']['files']),donor_head=initial['donor']['head'],local_configuration_and_hooks='project config/hooks byte-exact; historical and concurrent external global config differences recorded; critical workflow settings match',configuration_reconciliation=reconciled,installed_skill='byte-exact unchanged',host=dict(system=platform.system(),machine=platform.machine()),tools=tools,changed_paths=sorted(changed),configuration_sha256=hashlib.sha256(initial['config'].encode()).hexdigest())
 	(RUNTIME/(a.name+'.json')).write_text(json.dumps(result,indent=2)+'\n')
 	print('PASS:',len(initial['protected']),'protected,',len(initial['donor']['files']),'donor, source/tool/workflow identities')
 

@@ -205,7 +205,7 @@ class LlvmModule {
 					if (place.parameter && (place.flags & 2) != 0) { this.places[p] = LLVMGetParam(this.functions[f], parameter); } else { this.places[p] = LLVMBuildAlloca(this.builder, type, this.empty); }
 					if (place.parameter) {
 						var value = LLVMGetParam(this.functions[f], parameter);
-						if ((place.flags & 2) == 0) { var ignored = LLVMBuildStore(this.builder, value, this.places[p]); }
+						if ((place.flags & 2) == 0) { var ignored = LLVMBuildStore(this.builder, value, this.places[p]); if ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0)) { LLVMSetVolatile(ignored, 1); } }
 						int v = 0; while (v < program.data.value_count) { this.take(1); var row = program.data.values[v]; if (row.kind == 2 && row.place == p + 1) { this.values[v] = value; } v = v + 1; }
 						parameter = parameter + 1;
 					}
@@ -380,7 +380,7 @@ class LlvmModule {
 			if (!ssa.promoted) {
 				var place = program.cfg.core.data.places[row.place - 1];
 				if (op == 22 && ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0))) { throw new Error("LLVM_DEFERRED: owning replacement"); }
-				var ignored = LLVMBuildStore(this.builder, value, this.places[row.place - 1]); this.effects[index - 1] = ignored; this.arm(program.cfg.core.data, row.place, true);
+				var ignored = LLVMBuildStore(this.builder, value, this.places[row.place - 1]); if ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0)) { LLVMSetVolatile(ignored, 1); } this.effects[index - 1] = ignored; this.arm(program.cfg.core.data, row.place, true);
 			}
 			return value;
 		}
@@ -473,6 +473,7 @@ class LlvmModule {
 				void* instruction = LLVMGetFirstInstruction(block);
 				while (instruction != null) {
 					int op = LLVMGetInstructionOpcode(instruction);
+					if (category == 20 && op == 28 && LLVMGetVolatile(instruction) != 0) { LLVMSetVolatile(instruction, 0); return true; }
 					if (category == 0 && op == 44 && LLVMCountIncoming(instruction) > 1) { var old = LLVMGetIncomingValue(instruction, 0); var other = LLVMGetIncomingValue(instruction, 1); if (old != other) { LLVMSetOperand(instruction, 0, other); return true; } }
 					if (category == 1 && op == 44 && LLVMCountIncoming(instruction) > 1) { var args = new void*[1]; args[0] = LLVMGetIncomingValue(instruction, 0); var source = new void*[1]; source[0] = LLVMGetIncomingBlock(instruction, 1); var raw_args = this.handle_args(args, 0); var raw_sources = this.handle_args(source, 512); LLVMAddIncoming(instruction, raw_args, raw_sources, 1); return true; }
 					if (category == 2 && op == 42) { int predicate = LLVMGetICmpPredicate(instruction); LLVMPositionBuilderBefore(this.builder, instruction); var replacement = LLVMBuildICmp(this.builder, predicate ^ 1, LLVMGetOperand(instruction, 0), LLVMGetOperand(instruction, 1), this.empty); LLVMReplaceAllUsesWith(instruction, replacement); return true; }

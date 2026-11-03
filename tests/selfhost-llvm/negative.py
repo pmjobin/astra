@@ -10,7 +10,7 @@ import subprocess
 import time
 from oracle import memory
 
-MUTATIONS = ['wrong-phi-value','extra-wrong-phi-edge','wrong-predicate','wrong-extension','wrong-constant-operand','unproved-nsw','unproved-nuw','unproved-inbounds','reversed-branch','wrong-return-value','swapped-call-arguments','wrong-return-ABI','false-noalias','omitted-cleanup','duplicate-cleanup','wrong-cleanup-pointer','wrong-load-place','wrong-target','wrong-layout','forged-verification-success']
+MUTATIONS = ['wrong-phi-value','extra-wrong-phi-edge','wrong-predicate','wrong-extension','wrong-constant-operand','unproved-nsw','unproved-nuw','unproved-inbounds','reversed-branch','wrong-return-value','swapped-call-arguments','wrong-return-ABI','false-noalias','omitted-cleanup','duplicate-cleanup','wrong-cleanup-pointer','wrong-load-place','wrong-target','wrong-layout','forged-verification-success','dropped-owner-observation']
 
 
 def sha(path):
@@ -53,7 +53,7 @@ def main():
 		for command in ('--llvm-limits','--llvm-lifecycle'):
 			run([a.component,command,a.mode,artifact,source],item['name']+command)
 			assert not artifact.exists()
-	assert killed == set(range(20)),sorted(set(range(20))-killed)
+	assert killed == set(range(21)),sorted(set(range(21))-killed)
 	item = items[0]
 	sentinel = a.runtime/'existing-destination.sentinel'
 	sentinel.write_bytes(b'pre-existing private output identity\n')
@@ -99,8 +99,8 @@ def main():
 			assert artifact.is_file()
 		else:
 			assert not artifact.exists()
-	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS',mode=a.mode,component_sha256=sha(a.component),categories=20,mutations=mutations,mapping=mapping,outcomes=dict(Counter(x['llvm_status'] for x in mapping)),memory=memory_rows),indent=2)+'\n')
-	print(a.mode,'20 backend categories rejected; 80 upstream statuses retained',flush=True)
+	(a.runtime/'result.json').write_text(json.dumps(dict(status='PASS',mode=a.mode,component_sha256=sha(a.component),categories=21,mutations=mutations,mapping=mapping,outcomes=dict(Counter(x['llvm_status'] for x in mapping)),memory=memory_rows),indent=2)+'\n')
+	print(a.mode,'21 backend categories rejected; 80 upstream statuses retained',flush=True)
 
 
 if __name__ == '__main__':

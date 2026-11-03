@@ -153,7 +153,8 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 			if (op == 12 || op == 44 || op == 21 || op == 22) { int a = llvm_check_use(program.data, i + 1, 1, 0, budget); if (!llvm_check_operand(result, values, a) && instruction.result != 0) { return false; } }
 			if ((op == 21 || op == 22) && !instruction.promoted) {
 				var store = effects[i]; int a = llvm_check_use(program.data, i + 1, 1, 0, budget);
-				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetOperand(store, 1) != places[row.value.place - 1] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) { return false; }
+				var destination = program.cfg.core.data.places[row.value.place - 1]; int observation = 0; if ((destination.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, destination.type, 0)) { observation = 1; }
+				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != places[row.value.place - 1] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) { return false; }
 			}
 			if (op == 9) {
 				int target = -1; int c = 0; while (c < program.data.function_count && budget.take(1)) { if (program.cfg.core.data.functions[c].symbol.index == row.value.symbol.index) { target = c; } c = c + 1; }

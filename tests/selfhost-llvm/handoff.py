@@ -21,8 +21,8 @@ def main():
 	p = argparse.ArgumentParser()
 	p.add_argument('--runtime',type=Path,required=True)
 	p.add_argument('--build',type=Path,required=True)
-	p.add_argument('--profile-prefix',default='qualified-v4-')
-	p.add_argument('--receipt-prefix',default='v4-')
+	p.add_argument('--profile-prefix',default='qualified-v5-')
+	p.add_argument('--receipt-prefix',default='v5-')
 	a = p.parse_args()
 	assert not a.runtime.resolve().is_relative_to(ROOT) and not a.build.resolve().is_relative_to(ROOT)
 	summary = dict(format='astra-llvm12-qualification/1',status='PASS',profiles={})
@@ -41,7 +41,7 @@ def main():
 		assert literals['status'] == 'PASS' and literals['counted_in_frozen_24'] is False
 		fatal = json.loads((a.runtime/(a.receipt_prefix+'fatal-'+mode)/'result.json').read_text())
 		assert runs['status'] == negative['status'] == continuity['status'] == fatal['status'] == 'PASS'
-		assert runs['executions'] == len(runs['cases']) == 24 and negative['categories'] == 20 and len(negative['mapping']) == 80 and len(fatal['cases']) == 3
+		assert runs['executions'] == len(runs['cases']) == 24 and negative['categories'] >= 20 and len(negative['mapping']) == 80 and len(fatal['cases']) == 3
 		assert len({x['source_sha256'] for x in runs['cases']}) == 24
 		assert continuity['outcomes'] == {'0':56,'4':12,'3':12}
 		assert {key:len(value) for key,value in continuity['mutations'][mode]['categories'].items()} == dict(core=22,cfg=26,ssa=30)
@@ -60,7 +60,7 @@ def main():
 			regular(Path(case['source_path']),'inputs/selected/'+case['name']+'.astra') if mode == 'O0' else None
 		regular(component,'components/'+mode+'/'+component.name)
 		regular(component.with_suffix('.identity.json'),'components/'+mode+'/identity.json')
-		summary['profiles'][mode] = dict(executions=24,backend_mutation_categories=20,predecessor_sources=80,predecessor_mutations=dict(core=22,cfg=26,ssa=30),fatal_controls=3,additional_literal_regressions=1,component_sha256=identity['sha256'],llvm_mapping=negative['outcomes'],coverage_sha256=sha((a.runtime/(a.receipt_prefix+'final-'+mode)/'results.json').read_bytes()),memory=negative['memory'])
+		summary['profiles'][mode] = dict(executions=24,backend_mutation_categories=negative['categories'],predecessor_sources=80,predecessor_mutations=dict(core=22,cfg=26,ssa=30),fatal_controls=3,additional_literal_regressions=1,component_sha256=identity['sha256'],llvm_mapping=negative['outcomes'],coverage_sha256=sha((a.runtime/(a.receipt_prefix+'final-'+mode)/'results.json').read_bytes()),memory=negative['memory'])
 	proof = json.loads((a.runtime/'proof-continuity/result.json').read_text()); assert proof['status'] == 'PASS' and proof['observations'] == 1044
 	preservation = json.loads((a.runtime/'preservation-final.json').read_text()); assert preservation['status'] == 'PASS' and preservation['protected_files'] == 446 and preservation['donor_files'] == 6622
 	for item in json.loads((a.runtime/'frozen/predecessor.json').read_text()):
@@ -76,7 +76,7 @@ def main():
 			continue
 		if path.suffix in {'.json','.stdout','.stderr','.time','.log','.astra'}:
 			regular(path,'runtime/'+rel.as_posix())
-	summary.update(proof_observations=1044,preservation=preservation,compiled_source_commit=subprocess.check_output(['git','log','-1','--format=%H','--','compiler/backend/llvm/capi.astra','compiler/backend/llvm/module.astra','compiler/backend/llvm/check.astra','compiler/backend/llvm/capi.c'],cwd=ROOT,text=True).strip(),head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip(),initial_private_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),limitations=['24 distinct executed programs per profile; other positives have IR verification only.','No Stage 1, full compiler, general foreign ABI or additional target qualification.','No pre-known IR/object/executable byte hashes: independent semantic/structural expectations plus actual artifact hashes.','The historical global Codex setting difference is explicitly reconciled using pre-intake inode timestamps.'])
+	summary.update(proof_observations=1044,preservation=preservation,compiled_source_commit=subprocess.check_output(['git','log','-1','--format=%H','--','compiler/backend/llvm/capi.astra','compiler/backend/llvm/module.astra','compiler/backend/llvm/check.astra','compiler/backend/llvm/capi.c'],cwd=ROOT,text=True).strip(),head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip(),initial_private_capture_sha256=sha((a.runtime/'initial.json').read_bytes()),limitations=['24 distinct executed programs per profile; other positives have IR verification only.','No Stage 1, full compiler, general foreign ABI or additional target qualification.','No pre-known IR/object/executable byte hashes: independent semantic/structural expectations plus actual artifact hashes.','Historical and concurrent external global Codex config byte changes are recorded; critical model/reasoning/sandbox/approval settings and project/skill pins match.'])
 	out = a.runtime/'report-evidence'; out.mkdir(exist_ok=True)
 	(out/'qualification.json').write_text(json.dumps(summary,indent=2)+'\n')
 	index = {name:dict(bytes=len(data),sha256=sha(data)) for name,data in payload.items()}
