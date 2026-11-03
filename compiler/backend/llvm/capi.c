@@ -28,6 +28,20 @@ static char *text_copy(const char *p, int32_t n) {
 	}
 	return out;
 }
+LLVMValueRef llvm13_real(LLVMTypeRef type, const char *p, int32_t n, int32_t count) {
+	if (!p || count < 1 || count > n || n > 4096 || memchr(p, 0, (size_t)n)) return NULL;
+	return LLVMConstRealOfStringAndSize(type, p, (unsigned)count);
+}
+double llvm13_real_value(LLVMValueRef value) {
+	LLVMBool loses = 0;
+	return LLVMConstRealGetDouble(value, &loses);
+}
+int32_t llvm13_named(LLVMValueRef value, const char *p, int32_t n) {
+	if (!value || !p || n < 1 || n > 4096) return 0;
+	size_t length = 0;
+	const char *actual = LLVMGetValueName2(value, &length);
+	return length == (size_t)n && !memcmp(actual, p, length);
+}
 LLVMValueRef llvm12_function(LLVMModuleRef m, LLVMTypeRef t, const char *p, int32_t n) {
 	char *name = text_copy(p, n);
 	if (!name) return NULL;

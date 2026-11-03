@@ -45,3 +45,11 @@ the broad formatting pass and the native ABI campaign remain outstanding.
 G0–G10 and F0–F5 remain mandatory. Full eligible-source formatting must follow
 a qualified syntax/AST/lifetime pilot and remain in its own mechanical commit.
 No build, partial execution set, or subset of gates constitutes milestone PASS.
+
+The initial O0 component freshly passes all original 24 executions plus nine
+additions, with independent C0 comparisons and unsuppressed normal Valgrind.
+The C export bit witness also links and executes with both GCC and Clang.
+The three import-bearing additions pass source admission but stop at Core's
+existing nonempty-body invariant. Their failed receipts are retained. This is
+an intermediate implementation checkpoint, with O2, imports, independent new
+faults, source-formatting equivalence and final publication still outstanding.

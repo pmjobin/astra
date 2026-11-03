@@ -1,6 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // General checked-use adapters, enabled only by the ownership consumer.
 // Types/qualifiers are evidence, never an ownership/constructor safety proof.
+bool checked_c_scalar_type(CheckedIndex index, TypeId type, bool result) {
+	int kind = checked_kind(index, type);
+	if (kind == 1 || kind == 11 || kind == 12 || (result && kind == 14)) { return true; }
+	if (kind != 20) { return false; }
+	var pointee = index.types.argument(index.types, type, 0);
+	return pointee.flags == 0 && checked_kind(index, pointee.type) == 14;
+}
+// Opt-in admission of existing explicit C0 scalar C semantics. Metadata,
+// owned/borrowed channels, callbacks and aggregate C ABI remain deferred.
+bool checked_c_scalar_signature(CheckedIndex index, SymbolId symbol) {
+	if (!index.semantic_admission || symbol.index < 1 || symbol.index > index.bindings.symbol_count || index.symbol_signatures[symbol.index].index < 1) { return false; }
+	var declaration = index.bindings.symbol(symbol);
+	if (declaration.kind != 1 || index.bindings.program.arena.kind(declaration.node) != SyntaxKind.FunctionDeclarationSyntax()) { return false; }
+	var node = declaration.node;
+	bool imported = index.bindings.program.arena.get_token_extern_keyword(node).index != 0;
+	bool exported = index.bindings.program.arena.get_token_export_keyword(node).index != 0;
+	if (imported == exported || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_abi_identifier(node), "C")) { return false; }
+	if (index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(node)) != 0) { return false; }
+	var signature = index.signatures[index.symbol_signatures[symbol.index].index - 1];
+	if (signature.flags != 16 || signature.dispatch != 0 || signature.error.index != 0) { return false; }
+	var shape = index.types.row(signature.callable);
+	if (shape.count < 1 || shape.count > 257) { return false; }
+	int i = 0;
+	while (i < shape.count) {
+		var channel = index.types.argument(index.types, signature.callable, i);
+		if (channel.flags != 0 || !checked_c_scalar_type(index, channel.type, i == 0)) { return false; }
+		i = i + 1;
+	}
+	return imported == (index.bindings.program.arena.get_node_body(node).index == 0);
+}
 bool checked_flow_index_kind(SyntaxKind kind) {
 	return kind == SyntaxKind.IndexExpressionSyntax() || kind == SyntaxKind.VectorExtractExpressionSyntax();
 }

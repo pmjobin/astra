@@ -500,7 +500,7 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 		checked_deferred_children(index, node, 17, depth + 1);
 		return index.defer(node, 17);
 	}
-	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0) {
+	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target)) {
 		checked_deferred_children(index, node, 17, depth + 1);
 		return index.defer(node, 17);
 	}

@@ -151,7 +151,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		var args = checked.bindings.program.arena.get_list_arguments(source);
 		var callee_declaration = checked.bindings.symbol(callee);
 		var params = checked.bindings.program.arena.get_list_parameters(callee_declaration.node);
-		if (sig.dispatch != 0 || (sig.flags & (8 | 16 | 32 | 64)) != 0 || row.count != checked.bindings.program.arena.list_count(args)) { return false; }
+		if (sig.dispatch != 0 || ((sig.flags & (8 | 16 | 32 | 64)) != 0 && !checked_c_scalar_signature(checked, callee)) || row.count != checked.bindings.program.arena.list_count(args)) { return false; }
 		int i = 0;
 		while (i < row.count) {
 			var param = checked.types.argument(checked.types, sig.callable, i + 1);

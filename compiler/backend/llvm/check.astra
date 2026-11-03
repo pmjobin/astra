@@ -33,6 +33,22 @@ int llvm_check_predicate(string op, int kind) {
 }
 u64 llvm_check_mask(int width) { if (width == 64) { return 18446744073709551615; } return (1 as u64 << width) - 1; }
 bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBudget budget) throws Error {
+	int kind = checked_kind(checked, node.type);
+	if (kind == 11 || kind == 12) {
+		if (LLVMIsAConstantFP(value) == null) { return false; }
+		var source = checked.bindings.program.arena.token_message(node.token);
+		int count = source.text.byte_length; int last = astra_host_text_byte(source.text, count - 1);
+		if (last == 100 || last == 68 || last == 102 || last == 70) { count = count - 1; }
+		var context = LLVMGetTypeContext(LLVMTypeOf(value));
+		void* physical = LLVMFloatTypeInContext(context); if (kind == 12) { physical = LLVMDoubleTypeInContext(context); }
+		var expected = llvm13_real(physical, source.text, count);
+		if (node.kind == 2) {
+			var sign = checked.bindings.program.arena.token_message(node.operation);
+			if (sign.text == "-") { expected = LLVMConstReal(physical, -llvm13_real_value(expected)); }
+			else { if (sign.text != "+") { return false; } }
+		}
+		return expected != null && value == expected && budget.take(count);
+	}
 	if (LLVMIsAConstantInt(value) == null) { return false; }
 	var text = checked.bindings.program.arena.token_message(node.token); u64 bits = 0;
 	if (node.type.index == 13) { if (text.text == "true") { bits = 1; } }
@@ -43,9 +59,47 @@ bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBud
 	}
 	return LLVMConstIntGetZExtValue(value) == bits && !budget.exhausted;
 }
+bool llvm_check_fp_binary(string op, int kind, void* result, void* left, void* right) {
+	int code = 0; int predicate = 0;
+	if (op == "+") { code = 9; } if (op == "-") { code = 11; }
+	if (op == "*") { code = 13; } if (op == "/") { code = 16; }
+	if (op == "==") { predicate = 1; } if (op == "!=") { predicate = 14; }
+	if (op == ">") { predicate = 2; } if (op == ">=") { predicate = 3; }
+	if (op == "<") { predicate = 4; } if (op == "<=") { predicate = 5; }
+	if (LLVMIsAInstruction(result) != null) {
+		if (predicate != 0) { return LLVMGetInstructionOpcode(result) == 43 && LLVMGetFCmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right; }
+		return code != 0 && LLVMGetInstructionOpcode(result) == code && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
+	}
+	if (LLVMIsAConstantFP(left) == null || LLVMIsAConstantFP(right) == null) { return false; }
+	// This independent evaluator uses C0's strict scalar operations, not the
+	// emitter's instruction builder. Narrow operands/results in the f32 domain.
+	f64 a = llvm13_real_value(left); f64 b = llvm13_real_value(right);
+	if (predicate != 0) {
+		bool answer = false;
+		if (op == "==") { answer = a == b; } if (op == "!=") { answer = a != b; }
+		if (op == ">") { answer = a > b; } if (op == ">=") { answer = a >= b; }
+		if (op == "<") { answer = a < b; } if (op == "<=") { answer = a <= b; }
+		u64 expected = 0; if (answer) { expected = 1; }
+		return LLVMIsAConstantInt(result) != null && LLVMConstIntGetZExtValue(result) == expected;
+	}
+	if (code == 0 || LLVMIsAConstantFP(result) == null) { return false; }
+	f64 expected = 0.0d;
+	if (kind == 11) {
+		f32 x = a as f32; f32 y = b as f32; f32 value = 0.0f;
+		if (op == "+") { value = x + y; } if (op == "-") { value = x - y; }
+		if (op == "*") { value = x * y; } if (op == "/") { value = x / y; }
+		expected = value as f64;
+	} else {
+		if (op == "+") { expected = a + b; } if (op == "-") { expected = a - b; }
+		if (op == "*") { expected = a * b; } if (op == "/") { expected = a / b; }
+	}
+	if (expected != expected) { f64 actual = llvm13_real_value(result); return actual != actual; }
+	return result == LLVMConstReal(LLVMTypeOf(result), expected);
+}
 bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* left, void* right) throws Error {
 	var text = checked.bindings.program.arena.token_message(node.operation); var op = text.text;
 	var left_node = checked.bindings.program.arena.get_node_left(node.source); var left_use = checked.uses[left_node.index]; int kind = checked_kind(checked, left_use.type);
+	if (kind == 11 || kind == 12) { return llvm_check_fp_binary(op, kind, result, left, right); }
 	int opcode = llvm_check_opcode(op); int predicate = llvm_check_predicate(op, kind);
 	if (LLVMIsAInstruction(result) != null && (opcode != 0 || predicate != 0)) {
 		if (predicate != 0) { return LLVMGetInstructionOpcode(result) == 42 && LLVMGetICmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right; }
@@ -71,14 +125,42 @@ bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* 
 	// guard inspection cover arithmetic domain/fatal behavior, not this shortcut.
 	return op == "/" || op == "%" || op == "<<" || op == ">>";
 }
-bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] effects, int limit) throws Error {
+bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wrappers, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] effects, int limit) throws Error {
 	var budget = new SsaBudget(limit);
 	int f = 0;
-	while (f < program.data.function_count && budget.take(1)) { if (LLVMGetEntryBasicBlock(functions[f]) != blocks[program.data.functions[f].entry - 1] || LLVMGlobalGetValueType(functions[f]) != signatures[f]) { return false; } f = f + 1; }
+	while (f < program.data.function_count && budget.take(1)) {
+		var original = program.cfg.core.data.functions[f]; var declaration = program.cfg.core.flow.checked.bindings.symbol(original.symbol);
+		bool imported = program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(declaration.node); bool exported = program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node);
+		if (imported || exported) {
+			if (!checked_c_scalar_signature(program.cfg.core.flow.checked, original.symbol)) { return false; }
+			var name = program.cfg.core.flow.checked.bindings.names.text(declaration.name);
+			void* physical = functions[f]; if (exported) { physical = wrappers[f]; }
+			if (physical == null || LLVMGetLinkage(physical) != 0 || LLVMGetFunctionCallConv(physical) != 0 || llvm13_named(physical, name.text) != 1 || LLVMGlobalGetValueType(physical) != signatures[f]) { return false; }
+			if (imported) { if (LLVMGetFirstBasicBlock(physical) != null || wrappers[f] != null) { return false; } f = f + 1; continue; }
+			var block = LLVMGetFirstBasicBlock(physical);
+			if (block == null || LLVMGetNextBasicBlock(block) != null || physical == functions[f]) { return false; }
+			var call = LLVMGetFirstInstruction(block); var end = LLVMGetBasicBlockTerminator(block);
+			var signature = program.cfg.core.flow.checked.signatures[original.signature.index - 1]; int count = program.cfg.core.flow.checked.types.row(signature.callable).count - 1;
+			if (call == null || LLVMGetInstructionOpcode(call) != 45 || LLVMGetCalledValue(call) != functions[f] || LLVMGetInstructionCallConv(call) != 0 || LLVMGetNumArgOperands(call) != count || LLVMGetNextInstruction(call) != end || end == null || LLVMGetInstructionOpcode(end) != 1) { return false; }
+			int p = 0; while (p < count && budget.take(1)) { if (LLVMGetArgOperand(call, p) != LLVMGetParam(physical, p)) { return false; } p = p + 1; }
+			if (original.result.index == 14) { if (LLVMGetNumOperands(end) != 0) { return false; } } else { if (LLVMGetNumOperands(end) != 1 || LLVMGetOperand(end, 0) != call) { return false; } }
+		} else { if (wrappers[f] != null) { return false; } }
+		if (LLVMGetEntryBasicBlock(functions[f]) != blocks[program.data.functions[f].entry - 1] || LLVMGlobalGetValueType(functions[f]) != signatures[f]) { return false; }
+		void* block = LLVMGetFirstBasicBlock(functions[f]);
+		while (block != null && budget.take(1)) {
+			void* instruction = LLVMGetFirstInstruction(block);
+			while (instruction != null && budget.take(1)) {
+				if (LLVMCanValueUseFastMathFlags(instruction) != 0 && LLVMGetFastMathFlags(instruction) != 0) { return false; }
+				instruction = LLVMGetNextInstruction(instruction);
+			}
+			block = LLVMGetNextBasicBlock(block);
+		}
+		f = f + 1;
+	}
 	int b = 0;
 	while (b < program.data.block_count && budget.take(1)) {
 		var block = program.data.blocks[b].origin;
-		if (program.data.graph.reachable[b]) {
+		if (program.data.graph.reachable[b] && !llvm_imported(program, block.function)) {
 			if (blocks[b] == null || ends[b] == null || LLVMGetBasicBlockParent(blocks[b]) != functions[block.function - 1] || LLVMGetBasicBlockParent(ends[b]) != functions[block.function - 1]) { return false; }
 			var term = LLVMGetBasicBlockTerminator(ends[b]); if (term == null) { return false; }
 			if (block.term == 3) {
@@ -115,7 +197,7 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 	int v = 0;
 	while (v < program.data.value_count && budget.take(1)) {
 		var row = program.data.values[v];
-		if (program.data.graph.reachable[row.block - 1]) {
+		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.function)) {
 			var actual = values[v]; if (actual == null) { return false; }
 			var expected_type = types[row.type.index];
 			if ((row.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.type) == 30) { expected_type = LLVMPointerTypeInContext(LLVMGetTypeContext(expected_type), 0); }
@@ -141,7 +223,7 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 	int i = 0;
 	while (i < program.data.instruction_count && budget.take(1)) {
 		var instruction = program.data.instructions[i]; var row = instruction.origin; int op = row.opcode;
-		if (program.data.graph.reachable[row.block - 1]) {
+		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.value.function)) {
 			void* result = null; if (instruction.result > 0) { result = values[instruction.result - 1]; }
 			if ((op == 1 || op == 2) && !llvm_check_literal(program.cfg.core.flow.checked, row.value, result, budget)) { return false; }
 			if (op == 3 && instruction.promoted) { int use = llvm_check_use(program.data, i + 1, 4, 0, budget); if (!llvm_check_operand(result, values, use)) { return false; } }
@@ -149,6 +231,24 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 			if (op == 6) {
 				int a = llvm_check_use(program.data, i + 1, 1, 0, budget); int z = llvm_check_use(program.data, i + 1, 2, 0, budget);
 				if (a < 1 || z < 1 || !llvm_check_binary(program.cfg.core.flow.checked, row.value, result, values[a - 1], values[z - 1])) { return false; }
+			}
+			if (op == 8) {
+				var operand = program.cfg.core.flow.checked.bindings.program.arena.get_node_operand(row.value.source);
+				int from = checked_kind(program.cfg.core.flow.checked, program.cfg.core.flow.checked.uses[operand.index].type); int to = checked_kind(program.cfg.core.flow.checked, row.value.type);
+				if ((from == 11 || from == 12) && (to == 11 || to == 12)) {
+					int use = llvm_check_use(program.data, i + 1, 1, 0, budget); if (use < 1) { return false; }
+					var value = values[use - 1];
+					if (from == to) { if (result != value) { return false; } }
+					else {
+						if (LLVMIsAInstruction(result) != null) {
+							int code = 37; if (to == 12) { code = 38; }
+							if (LLVMGetInstructionOpcode(result) != code || LLVMGetOperand(result, 0) != value) { return false; }
+						} else {
+							if (LLVMIsAConstantFP(value) == null || LLVMIsAConstantFP(result) == null) { return false; }
+							if (result != LLVMConstReal(LLVMTypeOf(result), llvm13_real_value(value))) { return false; }
+						}
+					}
+				}
 			}
 			if (op == 12 || op == 44 || op == 21 || op == 22) { int a = llvm_check_use(program.data, i + 1, 1, 0, budget); if (!llvm_check_operand(result, values, a) && instruction.result != 0) { return false; } }
 			if ((op == 21 || op == 22) && !instruction.promoted) {

@@ -217,7 +217,7 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 	if (symbol.kind != 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0) {
 		reason = 5;
 	}
-	if ((signature.flags & 16) != 0) {
+	if ((signature.flags & 16) != 0 && !checked_c_scalar_signature(checked, target)) {
 		reason = 1;
 	}
 	if ((signature.flags & (8 | 32 | 64)) != 0 || signature.dispatch != 0) {
@@ -749,20 +749,20 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 	if (checked.bindings.program.arena.get_node_foreign_member(symbol.node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(symbol.node)) != 0 || checked.bindings.program.arena.get_bool_utf8_factory(symbol.node) || checked.bindings.program.arena.get_node_foreign_policy(symbol.node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(symbol.node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(symbol.node)) != 0) {
 		graph.defer(symbol.node, 6);
 	}
-	if (!admitted_function || (signature.flags & (8 | 16 | 32 | 64)) != 0 || signature.dispatch != 0) {
+	if (!admitted_function || ((signature.flags & (8 | 16 | 32 | 64)) != 0 && !checked_c_scalar_signature(checked, function)) || signature.dispatch != 0) {
 		graph.defer(symbol.node, 6);
 	}
 	if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0) {
 		graph.defer(symbol.node, 5);
 	}
 	if (checked.semantic_flow && !checked.semantic_admission && checked_record_owned(checked, result.type, 0)) { graph.defer(symbol.node, 4); }
-	if (flow_borrow_type(checked, result.type) && (result.flags & 4) == 0) {
+	if (flow_borrow_type(checked, result.type) && (result.flags & 4) == 0 && !(checked_c_scalar_signature(checked, function) && checked_kind(checked, result.type) == 20)) {
 		graph.defer(symbol.node, 4);
 	}
 	if (checked_kind(checked, result.type) == 31 && (result.flags & 4) != 0 && (class_origins[function.index] == 0 || (class_origins[function.index] & 12) != 0)) {
 		graph.defer(symbol.node, 12);
 	}
-	if (checked_kind(checked, result.type) != 14 && flow_normal_reachable(graph)) {
+	if (checked_kind(checked, result.type) != 14 && flow_normal_reachable(graph) && !(checked_c_scalar_signature(checked, function) && checked.bindings.program.arena.computed_is_c_import(symbol.node))) {
 		graph.defer(symbol.node, 16);
 	}
 	return move graph;

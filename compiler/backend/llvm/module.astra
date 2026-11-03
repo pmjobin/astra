@@ -9,6 +9,14 @@ class LlvmProfile {
 owned Utf8Message llvm_name(string prefix, int index) throws Error {
 	var out = new Utf8ByteBuilder(); source_append_text(out, prefix); append_int(out, index); return out.snapshot();
 }
+bool llvm_imported(SsaProgram program, int function) {
+	var symbol = program.cfg.core.flow.checked.bindings.symbol(program.cfg.core.data.functions[function - 1].symbol);
+	return program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_import(symbol.node);
+}
+bool llvm_exported(SsaProgram program, int function) {
+	var symbol = program.cfg.core.flow.checked.bindings.symbol(program.cfg.core.data.functions[function - 1].symbol);
+	return program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(symbol.node);
+}
 // Raw LLVM handles never escape this owner. The retained SSA must be supplied
 // again at output, including exact instance identity, not just identical bytes.
 class LlvmModule {
@@ -24,6 +32,7 @@ class LlvmModule {
 	private owned void*[] effects;
 	private owned void*[] types;
 	private owned void*[] functions;
+	private owned void*[] wrappers;
 	private owned void*[] signatures;
 	private owned void*[] blocks;
 	private owned void*[] ends;
@@ -31,6 +40,7 @@ class LlvmModule {
 	private owned void*[] values;
 	private owned void*[] places;
 	private owned void*[] armed;
+	private owned NativeAbiPlan abi;
 	private int optimization;
 	private int output_limit;
 	private int remaining;
@@ -49,9 +59,10 @@ class LlvmModule {
 		this.context = null; this.module = null; this.builder = null; this.machine = null; this.layout = null;
 		this.seal = null; this.effects = new void*[instructions]; this.handles = null; this.empty = llvm12_empty(); this.optimization = profile.optimization; this.output_limit = profile.output; this.remaining = profile.work; this.complete = false; this.disposed = false;
 		this.types = new void*[types];
-		this.functions = new void*[functions]; this.signatures = new void*[functions];
+		this.functions = new void*[functions]; this.wrappers = new void*[functions]; this.signatures = new void*[functions];
 		this.blocks = new void*[blocks]; this.ends = new void*[blocks]; this.edges = new void*[edges];
 		this.values = new void*[values]; this.places = new void*[places]; this.armed = new void*[places];
+		var empty_plan = new NativeAbiPlan(0, 0, 0, 0, profile.optimization); this.abi = move empty_plan;
 	}
 	void* handle_args(void*[] values, int offset) throws Error {
 		if (len(values) > 512 || (offset != 0 && offset != 512)) { throw new Error("LLVM_RESOURCE_EXHAUSTED: handle vector"); }
@@ -73,6 +84,7 @@ class LlvmModule {
 	}
 	void close() {
 		this.complete = false; this.disposed = true;
+		this.abi.close();
 		if (this.seal != null) { LLVMDisposeMessage(this.seal); this.seal = null; }
 		if (this.handles != null) { llvm12_handles_dispose(this.handles); this.handles = null; }
 		if (this.layout != null) { LLVMDisposeTargetData(this.layout); this.layout = null; }
@@ -90,6 +102,13 @@ class LlvmModule {
 		if (type_integer(row.kind)) { result = LLVMIntTypeInContext(this.context, type_width(row.kind)); }
 		if (row.kind == 13) { result = LLVMIntTypeInContext(this.context, 1); }
 		if (row.kind == 14) { result = LLVMVoidTypeInContext(this.context); }
+		if (row.kind == 11) { result = LLVMFloatTypeInContext(this.context); }
+		if (row.kind == 12) { result = LLVMDoubleTypeInContext(this.context); }
+		if (row.kind == 20) {
+			var pointee = checked.types.argument(checked.types, id, 0);
+			if (checked_kind(checked, pointee.type) != 14 || pointee.flags != 0) { throw new Error("LLVM_DEFERRED: typed pointer"); }
+			result = LLVMPointerTypeInContext(this.context, 0);
+		}
 		if (row.kind == 22) {
 			var element = checked.types.argument(checked.types, id, 0);
 			if (!type_integer(checked_kind(checked, element.type)) && element.type.index != 13) { throw new Error("LLVM_DEFERRED: buffer element"); }
@@ -170,26 +189,34 @@ class LlvmModule {
 			var raw_parameters = this.handle_args(parameters, 0); var signature = LLVMFunctionType(result, raw_parameters, count, 0); this.signatures[f] = signature;
 			var declaration = program.cfg.core.flow.checked.bindings.symbol(row.symbol); var spelling = program.cfg.core.flow.checked.bindings.names.text(declaration.name);
 			var name = llvm_name("astra.f", f + 1);
-			if (spelling.text == "main") {
+			bool foreign = llvm_imported(program, f + 1) || llvm_exported(program, f + 1);
+			if (foreign && (!checked_c_scalar_signature(program.cfg.core.flow.checked, row.symbol) || spelling.text == "main" || spelling.text == "calloc" || spelling.text == "free")) { throw new Error("LLVM_DEFERRED: foreign signature or reserved symbol"); }
+			if (llvm_imported(program, f + 1)) {
+				this.functions[f] = llvm12_function(this.module, this.signatures[f], spelling.text);
+			} else { if (spelling.text == "main") {
 				if (count != 0 || row.result.index != 1) { throw new Error("LLVM_DEFERRED: main ABI"); }
 				this.functions[f] = llvm12_function(this.module, this.signatures[f], "main");
-			} else { this.functions[f] = llvm12_function(this.module, this.signatures[f], name.text); LLVMSetLinkage(this.functions[f], 8); }
+			} else { this.functions[f] = llvm12_function(this.module, this.signatures[f], name.text); LLVMSetLinkage(this.functions[f], 8); } }
 			if (this.functions[f] == null) { throw new Error("LLVM_RESOURCE_EXHAUSTED: function"); }
-			llvm12_noinline(this.context, this.functions[f]);
+			if (!llvm_imported(program, f + 1)) { llvm12_noinline(this.context, this.functions[f]); }
+			if (llvm_exported(program, f + 1)) {
+				this.wrappers[f] = llvm12_function(this.module, this.signatures[f], spelling.text);
+				if (this.wrappers[f] == null || this.wrappers[f] == this.functions[f]) { throw new Error("LLVM_INVALID_IR: C wrapper identity"); }
+			}
 			f = f + 1;
 		}
 		f = 0;
-		while (f < program.data.function_count) { int entry = program.data.functions[f].entry; var name = llvm_name("b", entry); this.blocks[entry - 1] = llvm12_block(this.context, this.functions[f], name.text); f = f + 1; }
+		while (f < program.data.function_count) { if (!llvm_imported(program, f + 1)) { int entry = program.data.functions[f].entry; var name = llvm_name("b", entry); this.blocks[entry - 1] = llvm12_block(this.context, this.functions[f], name.text); } f = f + 1; }
 		int b = 0;
 		while (b < program.data.block_count) {
 			this.take(1); var row = program.data.blocks[b].origin;
-			if (program.data.graph.reachable[b] && this.blocks[b] == null) { var name = llvm_name("b", b + 1); this.blocks[b] = llvm12_block(this.context, this.functions[row.function - 1], name.text); }
+			if (program.data.graph.reachable[b] && !llvm_imported(program, row.function) && this.blocks[b] == null) { var name = llvm_name("b", b + 1); this.blocks[b] = llvm12_block(this.context, this.functions[row.function - 1], name.text); }
 			b = b + 1;
 		}
 		int e = 0;
 		while (e < program.data.edge_count) {
 			this.take(1); var edge = program.data.edges[e].origin;
-			if (program.data.graph.reachable[edge.source - 1]) { var name = llvm_name("e", e + 1); this.edges[e] = llvm12_block(this.context, this.functions[edge.function - 1], name.text); LLVMPositionBuilderAtEnd(this.builder, this.edges[e]); var ignored = LLVMBuildBr(this.builder, this.blocks[edge.target - 1]); }
+			if (program.data.graph.reachable[edge.source - 1] && !llvm_imported(program, edge.function)) { var name = llvm_name("e", e + 1); this.edges[e] = llvm12_block(this.context, this.functions[edge.function - 1], name.text); LLVMPositionBuilderAtEnd(this.builder, this.edges[e]); var ignored = LLVMBuildBr(this.builder, this.blocks[edge.target - 1]); }
 			e = e + 1;
 		}
 	}
@@ -197,6 +224,7 @@ class LlvmModule {
 		int f = 0;
 		while (f < program.data.function_count) {
 			var function = program.cfg.core.data.functions[f]; int entry = program.data.functions[f].entry;
+			if (llvm_imported(program, f + 1)) { f = f + 1; continue; }
 			LLVMPositionBuilderAtEnd(this.builder, this.blocks[entry - 1]);
 			int p = function.place_first; int parameter = 0;
 			while (p < function.place_first + function.place_count) {
@@ -226,7 +254,7 @@ class LlvmModule {
 		int v = 0;
 		while (v < program.data.value_count) {
 			this.take(1); var row = program.data.values[v];
-			if (row.kind == 3 && program.data.graph.reachable[row.block - 1]) { LLVMPositionBuilderAtEnd(this.builder, this.blocks[row.block - 1]); var physical = this.type(program.cfg.core.flow.checked, row.type, 0); var phi = LLVMBuildPhi(this.builder, physical, this.empty); this.values[v] = phi; }
+			if (row.kind == 3 && program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.function)) { LLVMPositionBuilderAtEnd(this.builder, this.blocks[row.block - 1]); var physical = this.type(program.cfg.core.flow.checked, row.type, 0); var phi = LLVMBuildPhi(this.builder, physical, this.empty); this.values[v] = phi; }
 			v = v + 1;
 		}
 	}
@@ -246,6 +274,19 @@ class LlvmModule {
 	void* binary(CheckedIndex checked, CoreNode row, void* a, void* b, void* function) throws Error {
 		var text = checked.bindings.program.arena.token_message(row.operation); var op = text.text;
 		var left_node = checked.bindings.program.arena.get_node_left(row.source); var left_use = checked.uses[left_node.index]; int kind = checked_kind(checked, left_use.type);
+		if (kind == 11 || kind == 12) {
+			if (op == "+") { return LLVMBuildFAdd(this.builder, a, b, this.empty); }
+			if (op == "-") { return LLVMBuildFSub(this.builder, a, b, this.empty); }
+			if (op == "*") { return LLVMBuildFMul(this.builder, a, b, this.empty); }
+			if (op == "/") { return LLVMBuildFDiv(this.builder, a, b, this.empty); }
+			if (op == "%") { return LLVMBuildFRem(this.builder, a, b, this.empty); }
+			int predicate = 0;
+			if (op == "==") { predicate = 1; } if (op == "!=") { predicate = 14; }
+			if (op == ">") { predicate = 2; } if (op == ">=") { predicate = 3; }
+			if (op == "<") { predicate = 4; } if (op == "<=") { predicate = 5; }
+			if (predicate == 0) { throw new Error("LLVM_DEFERRED: floating operator"); }
+			return LLVMBuildFCmp(this.builder, predicate, a, b, this.empty);
+		}
 		if (!type_integer(kind) && kind != 13) { throw new Error("LLVM_DEFERRED: binary type"); }
 		if (op == "+") { return LLVMBuildAdd(this.builder, a, b, this.empty); }
 		if (op == "-") { return LLVMBuildSub(this.builder, a, b, this.empty); }
@@ -305,11 +346,35 @@ class LlvmModule {
 		}
 		throw new Error("LLVM_DEFERRED: borrow source place");
 	}
+	void retire_buffer(SsaProgram program, int place, void* function) throws Error {
+		int p = place - 1;
+		if (p < 0 || p >= len(this.armed) || this.armed[p] == null || checked_kind(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type) != 22) { throw new Error("LLVM_DEFERRED: cleanup representation"); }
+		var live = LLVMBuildLoad2(this.builder, LLVMIntTypeInContext(this.context, 1), this.armed[p], this.empty);
+		var releasing = llvm12_block(this.context, function, "release"); var next = llvm12_block(this.context, function, "released"); var split = LLVMBuildCondBr(this.builder, live, releasing, next);
+		LLVMPositionBuilderAtEnd(this.builder, releasing);
+		var buffer_type = this.type(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type, 0); var buffer = LLVMBuildLoad2(this.builder, buffer_type, this.places[p], this.empty); var pointer = LLVMBuildExtractValue(this.builder, buffer, 0, this.empty);
+		var parameters = new void*[1]; parameters[0] = LLVMPointerTypeInContext(this.context, 0); var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), this.handle_args(parameters, 0), 1, 0); var callee = llvm12_function(this.module, signature, "free");
+		var args = new void*[1]; args[0] = pointer; var call = LLVMBuildCall2(this.builder, signature, callee, this.handle_args(args, 0), 1, this.empty); llvm12_nobuiltin(this.context, call);
+		this.arm(program.cfg.core.data, place, false); var jump = LLVMBuildBr(this.builder, next); LLVMPositionBuilderAtEnd(this.builder, next);
+	}
 	void* instruction(SsaProgram program, int index) throws Error {
 		this.take(1); var ssa = program.data.instructions[index - 1]; var input = ssa.origin; var row = input.value; int op = input.opcode;
 		var type = this.type(program.cfg.core.flow.checked, row.type, 0); var function = this.functions[row.function - 1];
 		if (op == 1 || op == 2) {
 			var text = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.token);
+			int kind = checked_kind(program.cfg.core.flow.checked, row.type);
+			if (kind == 11 || kind == 12) {
+				int count = text.text.byte_length; int last = astra_host_text_byte(text.text, count - 1);
+				if (last == 100 || last == 68 || last == 102 || last == 70) { count = count - 1; }
+				var value = llvm13_real(type, text.text, count);
+				if (value == null) { throw new Error("LLVM_INVALID_IR: floating literal"); }
+				if (op == 2) {
+					var sign = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.operation);
+					if (sign.text == "-") { value = LLVMBuildFNeg(this.builder, value, this.empty); }
+					else { if (sign.text != "+") { throw new Error("LLVM_DEFERRED: floating prefix"); } }
+				}
+				return value;
+			}
 			u64 bits = 0;
 			if (row.type.index == 13) { if (text.text == "true") { bits = 1; } }
 			else {
@@ -331,6 +396,8 @@ class LlvmModule {
 		if (op == 5) {
 			var value = this.use(program.data, index, 1, 0); var text = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.operation);
 			if (text.text == "+") { return value; }
+			int kind = checked_kind(program.cfg.core.flow.checked, row.type);
+			if (text.text == "-" && (kind == 11 || kind == 12)) { return LLVMBuildFNeg(this.builder, value, this.empty); }
 			if (text.text == "-") { return LLVMBuildSub(this.builder, LLVMConstNull(type), value, this.empty); }
 			if (text.text == "!" || text.text == "~") { return LLVMBuildXor(this.builder, value, LLVMConstInt(type, 18446744073709551615, 0), this.empty); }
 			throw new Error("LLVM_DEFERRED: unary");
@@ -340,6 +407,11 @@ class LlvmModule {
 			var value = this.use(program.data, index, 1, 0);
 			var operand = program.cfg.core.flow.checked.bindings.program.arena.get_node_operand(row.source);
 			int from = checked_kind(program.cfg.core.flow.checked, program.cfg.core.flow.checked.uses[operand.index].type); int to = checked_kind(program.cfg.core.flow.checked, row.type);
+			if ((from == 11 || from == 12) && (to == 11 || to == 12)) {
+				if (from == to) { return value; }
+				if (to == 12) { return LLVMBuildFPExt(this.builder, value, type, this.empty); }
+				return LLVMBuildFPTrunc(this.builder, value, type, this.empty);
+			}
 			if (!type_integer(from) || !type_integer(to)) { throw new Error("LLVM_DEFERRED: conversion"); }
 			if (type_width(from) == type_width(to)) { return value; }
 			if (type_width(from) > type_width(to)) { return LLVMBuildTrunc(this.builder, value, type, this.empty); }
@@ -379,21 +451,18 @@ class LlvmModule {
 			var value = this.use(program.data, index, 1, 0);
 			if (!ssa.promoted) {
 				var place = program.cfg.core.data.places[row.place - 1];
-				if (op == 22 && ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0))) { throw new Error("LLVM_DEFERRED: owning replacement"); }
+				if (op == 22 && ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0))) {
+					if (checked_kind(program.cfg.core.flow.checked, place.type) != 22) { throw new Error("LLVM_DEFERRED: owning record replacement"); }
+					// The complete RHS (including allocation and transfer) already
+					// executed. A self move has disarmed this exact old owner.
+					this.retire_buffer(program, row.place, function);
+				}
 				var ignored = LLVMBuildStore(this.builder, value, this.places[row.place - 1]); if ((place.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, place.type, 0)) { LLVMSetVolatile(ignored, 1); } this.effects[index - 1] = ignored; this.arm(program.cfg.core.data, row.place, true);
 			}
 			return value;
 		}
 		if (op == 40) {
-			var cleanup = program.cfg.core.data.cleanups[input.contract - 1]; int p = cleanup.place - 1;
-			if (p < 0 || p >= len(this.armed) || this.armed[p] == null) { throw new Error("LLVM_DEFERRED: cleanup representation"); }
-			var live = LLVMBuildLoad2(this.builder, LLVMIntTypeInContext(this.context, 1), this.armed[p], this.empty);
-			var releasing = llvm12_block(this.context, function, "release"); var next = llvm12_block(this.context, function, "released"); var split = LLVMBuildCondBr(this.builder, live, releasing, next);
-			LLVMPositionBuilderAtEnd(this.builder, releasing);
-			var buffer_type = this.type(program.cfg.core.flow.checked, cleanup.type, 0); var buffer = LLVMBuildLoad2(this.builder, buffer_type, this.places[p], this.empty); var pointer = LLVMBuildExtractValue(this.builder, buffer, 0, this.empty);
-			var parameters = new void*[1]; parameters[0] = LLVMPointerTypeInContext(this.context, 0); var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), this.handle_args(parameters, 0), 1, 0); var callee = llvm12_function(this.module, signature, "free");
-			var args = new void*[1]; args[0] = pointer; var call = LLVMBuildCall2(this.builder, signature, callee, this.handle_args(args, 0), 1, this.empty); llvm12_nobuiltin(this.context, call);
-			this.arm(program.cfg.core.data, cleanup.place, false); var jump = LLVMBuildBr(this.builder, next); LLVMPositionBuilderAtEnd(this.builder, next);
+			var cleanup = program.cfg.core.data.cleanups[input.contract - 1]; this.retire_buffer(program, cleanup.place, function);
 			return null;
 		}
 		if (op == 28 || op == 41 || op == 42 || op == 43) { return null; }
@@ -406,12 +475,12 @@ class LlvmModule {
 	}
 	void body(SsaProgram program) throws Error {
 		var done = new bool[program.data.block_count]; int remaining = 0; int b = 0;
-		while (b < program.data.block_count) { if (program.data.graph.reachable[b]) { remaining = remaining + 1; } b = b + 1; }
+		while (b < program.data.block_count) { if (program.data.graph.reachable[b] && !llvm_imported(program, program.data.blocks[b].origin.function)) { remaining = remaining + 1; } b = b + 1; }
 		while (remaining > 0) {
 			int progress = 0; b = 0;
 			while (b < program.data.block_count) {
 				this.take(1); var row = program.data.blocks[b].origin;
-				if (program.data.graph.reachable[b] && !done[b] && this.ready(program.data, row.instruction)) {
+				if (program.data.graph.reachable[b] && !llvm_imported(program, row.function) && !done[b] && this.ready(program.data, row.instruction)) {
 					LLVMPositionBuilderAtEnd(this.builder, this.blocks[b]);
 					if (row.instruction != 0) { var value = this.instruction(program, row.instruction); int result = program.data.instructions[row.instruction - 1].result; if (result != 0) { if (value == null) { throw new Error("LLVM_INVALID_IR: definition"); } this.values[result - 1] = value; } }
 					this.ends[b] = LLVMGetInsertBlock(this.builder); done[b] = true; remaining = remaining - 1; progress = progress + 1;
@@ -423,7 +492,7 @@ class LlvmModule {
 		b = 0;
 		while (b < program.data.block_count) {
 			this.take(1); var row = program.data.blocks[b].origin;
-			if (program.data.graph.reachable[b]) {
+			if (program.data.graph.reachable[b] && !llvm_imported(program, row.function)) {
 				LLVMPositionBuilderAtEnd(this.builder, this.ends[b]);
 				if (row.term == 3) { var value = this.condition(program.data, b + 1); if (value == null) { var end = LLVMBuildRetVoid(this.builder); } else { var end = LLVMBuildRet(this.builder, value); } }
 				else {
@@ -449,8 +518,23 @@ class LlvmModule {
 			a = a + 1;
 		}
 	}
+	void foreign_wrappers(SsaProgram program) throws Error {
+		int f = 0;
+		while (f < program.data.function_count) {
+			if (this.wrappers[f] != null) {
+				var entry = llvm12_block(this.context, this.wrappers[f], "c.entry"); LLVMPositionBuilderAtEnd(this.builder, entry);
+				var source = program.cfg.core.data.functions[f]; var signature = program.cfg.core.flow.checked.signatures[source.signature.index - 1];
+				int count = program.cfg.core.flow.checked.types.row(signature.callable).count - 1;
+				var args = new void*[count]; int p = 0;
+				while (p < count) { this.take(1); args[p] = LLVMGetParam(this.wrappers[f], p); p = p + 1; }
+				var call = LLVMBuildCall2(this.builder, this.signatures[f], this.functions[f], this.handle_args(args, 0), count, this.empty);
+				if (source.result.index == 14) { var end = LLVMBuildRetVoid(this.builder); } else { var end = LLVMBuildRet(this.builder, call); }
+			}
+			f = f + 1;
+		}
+	}
 	bool check(SsaProgram program) throws Error {
-		return llvm_check(program, this.types, this.functions, this.signatures, this.blocks, this.ends, this.edges, this.values, this.places, this.effects, 8000000);
+		return native_abi_verify(this.abi, program, this.optimization, this.layout, this.types, this.functions) && llvm_check(program, this.types, this.functions, this.wrappers, this.signatures, this.blocks, this.ends, this.edges, this.values, this.places, this.effects, 8000000);
 	}
 	void raw(SsaProgram program, string path) throws Error {
 		if (!this.complete || this.module == null || !type_owner_same(this.source_owner, program.data.identity) || ssa_verify(program) != 0 || llvm12_matches(this.module, this.seal) != 1 || !this.check(program) || llvm12_verify(this.module) != 0) { throw new Error("LLVM_INVALID_IR: raw"); }
@@ -505,7 +589,8 @@ class LlvmModule {
 	void build(SsaProgram program) throws Error {
 		if (!this.input_valid || this.disposed || this.context != null || this.module != null || this.complete) { throw new Error("LLVM_INVALID_IR: module state"); }
 		if (!type_owner_same(this.source_owner, program.data.identity) || ssa_verify(program) != 0) { throw new Error("LLVM_INVALID_UPSTREAM: build owner"); }
-		this.open(); this.declarations(program); this.storage(program); this.body(program);
+		var plan = native_abi_plan(program, this.optimization); this.abi = move plan;
+		this.open(); this.declarations(program); this.storage(program); this.body(program); this.foreign_wrappers(program);
 		if (!this.check(program)) { throw new Error("LLVM_INVALID_IR: source correspondence"); }
 		if (llvm12_verify(this.module) != 0) { throw new Error("LLVM_INVALID_IR"); }
 		this.seal = llvm12_seal(this.module, this.output_limit);

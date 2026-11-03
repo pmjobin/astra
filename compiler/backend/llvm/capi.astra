@@ -132,3 +132,34 @@ extern(C) int LLVMGEPGetNoWrapFlags(void* instruction);
 
 extern(C) void LLVMSetVolatile(void* instruction, int value);
 extern(C) int LLVMGetVolatile(void* instruction);
+
+extern(C) void* LLVMFloatTypeInContext(void* context);
+extern(C) void* LLVMDoubleTypeInContext(void* context);
+extern(C) void* LLVMConstReal(void* type, f64 value);
+extern(C) void* LLVMIsAConstantFP(void* value);
+extern(C) void* LLVMBuildFNeg(void* builder, void* value, void* name);
+extern(C) void* LLVMBuildFAdd(void* builder, void* a, void* b, void* name);
+extern(C) void* LLVMBuildFSub(void* builder, void* a, void* b, void* name);
+extern(C) void* LLVMBuildFMul(void* builder, void* a, void* b, void* name);
+extern(C) void* LLVMBuildFDiv(void* builder, void* a, void* b, void* name);
+extern(C) void* LLVMBuildFRem(void* builder, void* a, void* b, void* name);
+extern(C) void* LLVMBuildFCmp(void* builder, int predicate, void* a, void* b, void* name);
+extern(C) int LLVMGetFCmpPredicate(void* value);
+extern(C) void* LLVMBuildFPExt(void* builder, void* value, void* type, void* name);
+extern(C) void* LLVMBuildFPTrunc(void* builder, void* value, void* type, void* name);
+extern(C) int LLVMCanValueUseFastMathFlags(void* instruction);
+extern(C) int LLVMGetFastMathFlags(void* instruction);
+[CCode(text_abi="utf8-i32")]
+extern(C) void* llvm13_real(void* type, borrowed string text, int count);
+extern(C) f64 llvm13_real_value(void* value);
+extern(C) int LLVMGetFunctionCallConv(void* function);
+extern(C) int LLVMGetLinkage(void* function);
+[CCode(text_abi="utf8-i32")]
+extern(C) int llvm13_named(void* value, borrowed string name);
+extern(C) int LLVMABIAlignmentOfType(void* layout, void* type);
+extern(C) u64 LLVMOffsetOfElement(void* layout, void* type, int field);
+extern(C) int LLVMIsPackedStruct(void* type);
+extern(C) int LLVMCountStructElementTypes(void* type);
+extern(C) void* LLVMStructGetTypeAtIndex(void* type, int index);
+extern(C) void* LLVMGetReturnType(void* signature);
+extern(C) int LLVMCountParams(void* function);
