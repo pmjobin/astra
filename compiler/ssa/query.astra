@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Public queries return copies and validate the whole retained model each time.
+void ssa_query_owner(SsaProgram program, borrowed SsaProgram origin, int function) throws Error {
+	if (!program.same_owner(origin) || ssa_verify(program) != 0 || function < 1 || function > program.data.function_count) { throw new Error("INVALID_SSA_OWNER"); }
+}
+SsaFunction ssa_read_function(SsaProgram program, borrowed SsaProgram origin, SsaFunctionId id) throws Error {
+	ssa_query_owner(program, origin, id.index); return program.data.functions[id.index - 1];
+}
+SsaBlock ssa_read_block(SsaProgram program, borrowed SsaProgram origin, SsaBlockId id) throws Error {
+	ssa_query_owner(program, origin, id.function);
+	if (id.index < 1 || id.index > program.data.block_count || program.data.blocks[id.index - 1].origin.function != id.function) { throw new Error("INVALID_SSA_BLOCK_ID"); }
+	return program.data.blocks[id.index - 1];
+}
+SsaInstruction ssa_read_instruction(SsaProgram program, borrowed SsaProgram origin, SsaInstructionId id) throws Error {
+	ssa_query_owner(program, origin, id.function);
+	if (id.index < 1 || id.index > program.data.instruction_count || program.data.instructions[id.index - 1].origin.value.function != id.function) { throw new Error("INVALID_SSA_INSTRUCTION_ID"); }
+	return program.data.instructions[id.index - 1];
+}
+SsaValue ssa_read_value(SsaProgram program, borrowed SsaProgram origin, SsaValueId id) throws Error {
+	ssa_query_owner(program, origin, id.function);
+	if (id.index < 1 || id.index > program.data.value_count || program.data.values[id.index - 1].function != id.function) { throw new Error("INVALID_SSA_VALUE_ID"); }
+	return program.data.values[id.index - 1];
+}
+SsaValue ssa_read_phi(SsaProgram program, borrowed SsaProgram origin, SsaPhiId id) throws Error {
+	SsaValueId value = {function = id.function, index = id.index}; var row = ssa_read_value(program, origin, value);
+	if (row.kind != 3) { throw new Error("INVALID_SSA_PHI_ID"); } return row;
+}
+SsaEdge ssa_read_edge(SsaProgram program, borrowed SsaProgram origin, SsaEdgeId id) throws Error {
+	ssa_query_owner(program, origin, id.function);
+	if (id.index < 1 || id.index > program.data.edge_count || program.data.edges[id.index - 1].origin.function != id.function) { throw new Error("INVALID_SSA_EDGE_ID"); }
+	return program.data.edges[id.index - 1];
+}
+SsaUse ssa_read_use(SsaProgram program, borrowed SsaProgram origin, SsaUseId id) throws Error {
+	ssa_query_owner(program, origin, id.function);
+	if (id.index < 1 || id.index > program.data.use_count || program.data.uses[id.index - 1].function != id.function) { throw new Error("INVALID_SSA_USE_ID"); } return program.data.uses[id.index - 1];
+}
+CorePlace ssa_read_place(SsaProgram program, borrowed SsaProgram origin, SsaPlaceId id) throws Error {
+	ssa_query_owner(program, origin, id.function);
+	if (id.index < 1 || id.index > program.cfg.core.data.place_count || program.cfg.core.data.places[id.index - 1].function != id.function) { throw new Error("INVALID_SSA_PLACE_ID"); } return program.cfg.core.data.places[id.index - 1];
+}
+SsaBlockId ssa_immediate_dominator(SsaProgram program, borrowed SsaProgram origin, SsaBlockId id) throws Error {
+	var row = ssa_read_block(program, origin, id); SsaBlockId answer = {function = id.function, index = program.data.graph.parent[id.index - 1]}; return answer;
+}
+bool ssa_in_frontier(SsaProgram program, borrowed SsaProgram origin, SsaBlockId definition, SsaBlockId target) throws Error {
+	var first = ssa_read_block(program, origin, definition); var second = ssa_read_block(program, origin, target);
+	if (definition.function != target.function) { throw new Error("INVALID_SSA_FUNCTION"); }
+	return program.data.graph.frontier[(definition.index - 1) * program.data.block_count + target.index - 1];
+}
+SsaValueId ssa_phi_input(SsaProgram program, borrowed SsaProgram origin, SsaPhiId id, SsaEdgeId edge) throws Error {
+	var phi = ssa_read_phi(program, origin, id); var incoming = ssa_read_edge(program, origin, edge);
+	if (id.function != edge.function || incoming.origin.target != phi.block) { throw new Error("INVALID_SSA_PHI_EDGE"); }
+	int a = 0;
+	while (a < program.data.argument_count) { var arg = program.data.arguments[a]; if (arg.phi == id.index && arg.edge == edge.index) { SsaValueId answer = {function = id.function, index = arg.value}; return answer; } a = a + 1; }
+	throw new Error("INVALID_SSA_PHI_EDGE");
+}
+// Counts both ordinary and incoming-edge uses; exact-edge enumeration is above.
+int ssa_def_use_count(SsaProgram program, borrowed SsaProgram origin, SsaValueId id) throws Error {
+	var value = ssa_read_value(program, origin, id); int count = 0; int i = 0;
+	while (i < program.data.use_count) { if (program.data.uses[i].value == id.index) { count = count + 1; } i = i + 1; }
+	i = 0; while (i < program.data.argument_count) { if (program.data.arguments[i].value == id.index) { count = count + 1; } i = i + 1; } return count;
+}
+SsaUseId ssa_def_use_at(SsaProgram program, borrowed SsaProgram origin, SsaValueId id, int ordinal) throws Error {
+	var value = ssa_read_value(program, origin, id); int i = 0; int seen = 0;
+	while (i < program.data.use_count) {
+		if (program.data.uses[i].value == id.index) { if (seen == ordinal) { SsaUseId result = {function = id.function, index = i + 1}; return result; } seen = seen + 1; } i = i + 1;
+	}
+	throw new Error("INVALID_SSA_USE_ORDINAL");
+}
+owned SourceSpan ssa_source_span(SsaProgram program, borrowed SsaProgram origin, SsaInstructionId id) throws Error {
+	var row = ssa_read_instruction(program, origin, id); var span = row.origin.value.span;
+	if (row.origin.origin == 0) { span = program.cfg.core.data.functions[id.function - 1].span; }
+	return program.cfg.core.flow.checked.bindings.program.arena.source_span(span);
+}

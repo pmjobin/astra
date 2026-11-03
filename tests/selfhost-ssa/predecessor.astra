@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int ssa_predecessor_cli(string[] args) {
+	try {
+		if (len(args) < 3) { println_stderr("usage: astra-cfg --cfg|--verify-cfg|--cfg-walk FILE... | --cfg-limit N FILE..."); return 2; }
+		int start = 2; int limit = 65536; int output_limit = 16777216;
+		if (args[1] == "--cfg-limit" || args[1] == "--cfg-output-limit") {
+			if (len(args) < 4) { return 2; }
+			start = 3;
+			if (args[1] == "--cfg-limit") { limit = cfg_limit_decimal(args[2]); } else { output_limit = cfg_limit_decimal(args[2]); }
+		}
+		if (args[1] != "--cfg" && args[1] != "--verify-cfg" && args[1] != "--cfg-walk" && args[1] != "--cfg-limit" && args[1] != "--cfg-output-limit" && args[1] != "--mutate-cfg" && args[1] != "--cfg-retain" && args[1] != "--cfg-cross-owner" && args[1] != "--cfg-forge-input" && args[1] != "--core" && args[1] != "--mutate-core" && args[1] != "--admit") { println_stderr("INVALID_CFG_COMMAND"); return 2; }
+		var source = binding_load_program(args, start);
+		var bindings = binding_index(move source, 0);
+		var checked = checked_build_admission(move bindings, 0, true, true, true);
+		var flow = flow_index(move checked, 8192, 1000000);
+		if (args[1] == "--admit") { var observation = flow_observation(flow); print(observation.text); return flow_status(flow); }
+		var core = core_lower(move flow, 65536);
+		if (args[1] == "--core" || args[1] == "--mutate-core") {
+			int status = core_verify(core);
+			if (status != 0) { var message = core_failure_message(core, status); println_stderr(message.text); return status; }
+			if (args[1] == "--mutate-core") { var text = core_mutations(core); print(text.text); return 0; }
+			var text = core_projection(core); print(text.text); return 0;
+		}
+		var program = cfg_lower(move core, limit);
+		if (args[1] == "--cfg-forge-input") {
+			int original = cfg_verify(program);
+			if (original != 3 && original != 4) { println_stderr("INVALID_CFG_MUTATION_INPUT"); return 2; }
+			cfg_set_status(program.data, 0);
+			assert_that(cfg_verify(program) == 1);
+			bool blocked = false;
+			try { var forbidden = cfg_projection(program); } catch (Error error) { blocked = true; }
+			assert_that(blocked);
+			cfg_set_status(program.data, original);
+			assert_that(cfg_verify(program) == original);
+			println("CFG_FORGED_INPUT_REJECTED"); return 0;
+		}
+		int status = cfg_verify(program);
+		if (status != 0) {
+			if (status == 1) { println_stderr("INVALID_CFG"); }
+			if (status == 2) { println_stderr("CFG_RESOURCE_EXHAUSTED"); }
+			if (status == 3) { println_stderr("CFG_DEFERRED"); }
+			if (status == 4) { println_stderr("INVALID_VERIFIED_CORE"); }
+			var cause = core_failure_message(program.core, core_verify(program.core));
+			println_stderr(cause.text);
+			return status;
+		}
+		if (args[1] == "--cfg-walk") { var walk = cfg_walk(program); var out = new Utf8ByteBuilder(); cfg_write_walk(walk, out); var text = out.snapshot(); print(text.text); return 0; }
+		if (args[1] == "--cfg-retain") { var span = cfg_retained_span(move program); var bytes = span.bytes(); var path = span.path(); println(path.text); return 0; }
+		if (args[1] == "--cfg-cross-owner") { cfg_cross_owner(program, args, start); println("CFG_CROSS_OWNER_REJECTED"); return 0; }
+		if (args[1] == "--mutate-cfg") { var mutations = cfg_mutations(program); print(mutations.text); return 0; }
+		var projection = cfg_projection_bounded(program, output_limit); print(projection.text); return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}
+owned SourceSpan cfg_retained_span(owned CfgProgram program) throws Error {
+	if (program.data.function_count == 0) { throw new Error("INVALID_CFG_BLOCK_ID"); }
+	CfgBlockId id = {function = 1, index = program.data.functions[0].entry}; return cfg_source_span(program, program, id);
+}
+void cfg_cross_owner(CfgProgram program, string[] args, int start) throws Error {
+	var source = binding_load_program(args, start); var bindings = binding_index(move source, 0);
+	var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
+	var core = core_lower(move flow, 65536); var other = cfg_lower(move core, 65536);
+	if (program.data.function_count == 0) {
+		CfgBlockId empty = {function = 1, index = 1};
+		assert_that(!cfg_owns(program, program, empty) && !cfg_owns(program, other, empty)); return;
+	}
+	CfgBlockId id = {function = 1, index = program.data.functions[0].entry};
+	assert_that(cfg_owns(program, program, id) && !cfg_owns(program, other, id));
+	cfg_cross_typed_ids(program, other);
+	id.function = 0; assert_that(!cfg_owns(program, program, id));
+	id.function = 1; id.index = program.data.block_count + 1; assert_that(!cfg_owns(program, program, id));
+}
+
+// User-provided budgets fail closed on spelling/overflow; never assert/trap.
+int cfg_limit_decimal(string value) {
+	int result = 0;
+	int i = 0;
+	while (i < value.byte_length) {
+		int byte = astra_host_text_byte(value, i);
+		if (byte < 48 || byte > 57 || result > (2147483647 - (byte - 48)) / 10) { return 0; }
+		result = result * 10 + byte - 48;
+		i = i + 1;
+	}
+	return result;
+}
+
+void cfg_cross_typed_ids(CfgProgram program, borrowed CfgProgram other) throws Error {
+	if (program.data.instruction_count > 0) {
+		CfgInstructionId id = {function = program.data.instructions[0].value.function, index = 1};
+		var row = cfg_read_instruction(program, program, id);
+		bool rejected = false;
+		try { var crossed = cfg_read_instruction(program, other, id); } catch (Error error) { rejected = true; }
+		assert_that(rejected && row.block > 0);
+	}
+	if (program.core.data.place_count > 0) {
+		CfgPlaceId id = {function = program.core.data.places[0].function, index = 1};
+		var row = cfg_read_place(program, program, id);
+		bool rejected = false;
+		try { var crossed = cfg_read_place(program, other, id); } catch (Error error) { rejected = true; }
+		assert_that(rejected && row.type.index > 0);
+	}
+	if (program.data.edge_count > 0) {
+		CfgEdgeId id = {function = program.data.edges[0].function, index = 1};
+		var row = cfg_read_edge(program, program, id);
+		bool rejected = false;
+		try { var crossed = cfg_read_edge(program, other, id); } catch (Error error) { rejected = true; }
+		assert_that(rejected && row.target > 0);
+	}
+	int n = 0;
+	while (n < program.core.data.node_count) {
+		if (core_value_kind(program.core.data.nodes[n].kind)) {
+			CfgTempId id = {function = program.core.data.nodes[n].function, index = n + 1};
+			var row = cfg_read_temp(program, program, id);
+			bool rejected = false;
+			try { var crossed = cfg_read_temp(program, other, id); } catch (Error error) { rejected = true; }
+			assert_that(rejected && row.type.index > 0);
+			return;
+		}
+		n = n + 1;
+	}
+}

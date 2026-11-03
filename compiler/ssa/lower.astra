@@ -1,0 +1,218 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Construction consumes only independently verified retained CFG tables.
+class SsaRename {
+	int blocks;
+	int variables;
+	owned int[] writes;
+	owned int[] phis;
+	owned int[] outgoing;
+	owned bool[] live;
+	init(int blocks, int variables) {
+		this.blocks = blocks; this.variables = variables;
+		this.writes = new int[blocks * variables]; this.phis = new int[blocks * variables]; this.outgoing = new int[blocks * variables]; this.live = new bool[blocks * variables];
+	}
+}
+void ssa_seed_variables(SsaData data, CfgData cfg, CoreData core) {
+	int p = 0;
+	while (p < core.place_count && data.status == 0) {
+		var place = core.places[p];
+		if (ssa_promotable(core, cfg, p + 1)) {
+			SsaVariable row = {function = place.function, kind = 2, origin = p + 1, type = place.type, parameter = 0}; int added = ssa_add_variable(data, row);
+		}
+		p = p + 1;
+	}
+	int t = 0;
+	while (t < core.node_count && data.status == 0) {
+		var node = core.nodes[t];
+		if (node.kind == 7) { SsaVariable row = {function = node.function, kind = 1, origin = t + 1, type = node.type, parameter = 0}; int added = ssa_add_variable(data, row); }
+		t = t + 1;
+	}
+	// Parameters are definitions even when their storage cannot be promoted.
+	p = 0;
+	while (p < core.place_count && data.status == 0) {
+		var place = core.places[p];
+		if (place.parameter && place.parent == 0) {
+			int variable = ssa_variable_for(data, 2, p + 1);
+			SsaValue value = {function = place.function, kind = 2, block = cfg.functions[place.function - 1].entry, instruction = 0, variable = variable, place = p + 1, type = place.type, flags = place.flags};
+			int id = ssa_add_value(data, value);
+			if (variable != 0) { var v = data.variables[variable - 1]; v.parameter = id; data.variables[variable - 1] = v; }
+		}
+		p = p + 1;
+	}
+}
+void ssa_seed_instructions(SsaData data, CfgData cfg, SsaRename rename) {
+	int i = 0;
+	while (i < cfg.instruction_count && data.status == 0) {
+		var input = cfg.instructions[i]; int variable = 0;
+		if (input.opcode == 44) { variable = ssa_variable_for(data, 1, input.result); }
+		if (input.opcode == 21 || input.opcode == 22) { variable = ssa_variable_for(data, 2, input.value.place); }
+		bool promoted = variable != 0 && input.opcode != 44;
+		if (input.opcode == 3 && ssa_variable_for(data, 2, input.value.place) != 0) { promoted = true; }
+		SsaInstruction row = {origin = input, result = 0, variable = variable, promoted = promoted, noalias = false};
+		if (input.result != 0 || variable != 0) {
+			SsaValue value = {function = input.value.function, kind = 1, block = input.block, instruction = i + 1, variable = variable, place = 0, type = input.value.type, flags = input.value.flags};
+			if (variable != 0) { value.type = data.variables[variable - 1].type; value.flags = 0; }
+			row.result = ssa_add_value(data, value);
+			if (variable != 0) { rename.writes[(variable - 1) * data.block_count + input.block - 1] = row.result; }
+		}
+		data.instructions[i] = row; i = i + 1;
+	}
+}
+void ssa_build_use(SsaData data, int function, int block, int instruction, int kind, int ordinal, int source, SymbolId label, int mode) {
+	if (source == 0) { return; }
+	SsaUse row = {function = function, block = block, instruction = instruction, kind = kind, ordinal = ordinal, source = source, label = label, mode = mode, value = 0}; int added = ssa_add_use(data, row);
+}
+void ssa_seed_uses(SsaData data, CfgData cfg) {
+	int b = 0;
+	while (b < cfg.block_count && data.status == 0) {
+		var block = cfg.blocks[b];
+		if (block.instruction != 0) {
+			var row = cfg.instructions[block.instruction - 1];
+			if (row.opcode < 40 || row.opcode == 44) {
+				ssa_build_use(data, block.function, b + 1, block.instruction, 1, 0, row.a, type_symbol(0), 0);
+				ssa_build_use(data, block.function, b + 1, block.instruction, 2, 0, row.b, type_symbol(0), 0);
+			}
+			if (row.opcode == 3 && ssa_variable_for(data, 2, row.value.place) != 0) { ssa_build_use(data, block.function, b + 1, block.instruction, 4, 0, row.value.place, type_symbol(0), 0); }
+			if (row.opcode == 9 || row.opcode == 10) {
+				int a = 0;
+				while (a < row.value.count && data.status == 0) {
+					var edge = cfg.operands[0]; int e = 0; bool found = false;
+					while (e < cfg.operand_count && !found) { if (cfg.operands[e].instruction == block.instruction && cfg.operands[e].ordinal == a) { edge = cfg.operands[e]; found = true; } e = e + 1; }
+					if (!found) { data.status = 1; return; }
+					ssa_build_use(data, block.function, b + 1, block.instruction, 3, a, edge.temp, edge.label, edge.mode); a = a + 1;
+				}
+			}
+		}
+		ssa_build_use(data, block.function, b + 1, 0, 5, 0, block.condition, type_symbol(0), 0);
+		b = b + 1;
+	}
+}
+int ssa_use_variable(SsaData data, SsaUse use) {
+	int kind = 1; if (use.kind == 4) { kind = 2; }
+	return ssa_variable_for(data, kind, use.source);
+}
+void ssa_live_joins(SsaData data, CfgData cfg, SsaRename rename, SsaBudget budget) {
+	int u = 0;
+	while (u < data.use_count && budget.take(1)) {
+		var use = data.uses[u]; int variable = ssa_use_variable(data, use);
+		if (variable != 0 && data.graph.reachable[use.block - 1]) { rename.live[(variable - 1) * data.block_count + use.block - 1] = true; }
+		u = u + 1;
+	}
+	bool changed = true;
+	while (changed && !budget.exhausted) {
+		changed = false; int v = 0;
+		while (v < data.variable_count && !budget.exhausted) {
+			int e = 0;
+			while (e < cfg.edge_count && budget.take(1)) {
+				var edge = cfg.edges[e]; int at = v * data.block_count + edge.source - 1;
+				if (data.graph.reachable[edge.source - 1] && rename.live[v * data.block_count + edge.target - 1] && rename.writes[at] == 0 && !rename.live[at]) { rename.live[at] = true; changed = true; }
+				e = e + 1;
+			}
+			v = v + 1;
+		}
+	}
+	var incoming = new int[data.block_count]; int e = 0;
+	while (e < cfg.edge_count) { var edge = cfg.edges[e]; if (data.graph.reachable[edge.source - 1]) { incoming[edge.target - 1] = incoming[edge.target - 1] + 1; } e = e + 1; }
+	int v = 0;
+	while (v < data.variable_count && !budget.exhausted && data.status == 0) {
+		var variable = data.variables[v]; int b = 0;
+		while (b < data.block_count && budget.take(1) && data.status == 0) {
+			if (incoming[b] > 1 && rename.live[v * data.block_count + b] && cfg.blocks[b].function == variable.function && b + 1 != cfg.functions[variable.function - 1].entry) {
+				SsaValue phi = {function = variable.function, kind = 3, block = b + 1, instruction = 0, variable = v + 1, place = 0, type = variable.type, flags = 0};
+				rename.phis[v * data.block_count + b] = ssa_add_value(data, phi);
+			}
+			b = b + 1;
+		}
+		v = v + 1;
+	}
+}
+int ssa_before(SsaData data, CfgData cfg, SsaRename rename, SsaIncoming incoming, int variable, int block) {
+	int at = (variable - 1) * data.block_count + block - 1;
+	if (rename.phis[at] != 0) { return rename.phis[at]; }
+	var v = data.variables[variable - 1];
+	if (block == cfg.functions[v.function - 1].entry) { return v.parameter; }
+	int e = incoming.first[block - 1]; int value = 0;
+	while (e >= 0) {
+		var edge = cfg.edges[e];
+		if (data.graph.reachable[edge.source - 1]) {
+			int next = rename.outgoing[(variable - 1) * data.block_count + edge.source - 1];
+			if (value != 0 && next != 0 && value != next) { return 0; }
+			if (next != 0) { value = next; }
+		}
+		e = incoming.next[e];
+	}
+	return value;
+}
+void ssa_rename(SsaData data, CfgData cfg, SsaRename rename, SsaBudget budget) {
+	var incoming = new SsaIncoming(cfg);
+	int cells = data.block_count * data.variable_count; int at = 0;
+	while (at < cells) { rename.outgoing[at] = rename.writes[at]; at = at + 1; }
+	bool changed = true;
+	while (changed && !budget.exhausted) {
+		changed = false; int v = 0;
+		while (v < data.variable_count && !budget.exhausted) {
+			int b = 0;
+			while (b < data.block_count && budget.take(1)) {
+				at = v * data.block_count + b;
+				if (rename.writes[at] == 0 && rename.live[at]) {
+					int value = ssa_before(data, cfg, rename, incoming, v + 1, b + 1);
+					if (value != rename.outgoing[at]) { rename.outgoing[at] = value; changed = true; }
+				}
+				b = b + 1;
+			}
+			v = v + 1;
+		}
+	}
+	int u = 0;
+	while (u < data.use_count && budget.take(1)) {
+		var use = data.uses[u];
+		if (data.graph.reachable[use.block - 1]) {
+			int variable = ssa_use_variable(data, use);
+			if (variable != 0) { use.value = ssa_before(data, cfg, rename, incoming, variable, use.block); } else { use.value = ssa_temp_value(data, use.source); }
+			if (use.value == 0) { data.status = 1; return; }
+		}
+		data.uses[u] = use;
+		if (use.kind == 5) { var b = data.blocks[use.block - 1]; b.condition = use.value; data.blocks[use.block - 1] = b; }
+		u = u + 1;
+	}
+	int p = 0;
+	while (p < data.value_count && !budget.exhausted && data.status == 0) {
+		var phi = data.values[p];
+		if (phi.kind == 3) {
+			int e = incoming.first[phi.block - 1];
+			while (e >= 0 && budget.take(1) && data.status == 0) {
+				var edge = cfg.edges[e]; int value = 0;
+				if (data.graph.reachable[edge.source - 1]) { value = rename.outgoing[(phi.variable - 1) * data.block_count + edge.source - 1]; if (value == 0) { data.status = 1; return; } }
+				SsaArgument arg = {function = phi.function, phi = p + 1, edge = e + 1, value = value}; int added = ssa_add_argument(data, arg);
+				e = incoming.next[e];
+			}
+		}
+		p = p + 1;
+	}
+}
+owned SsaProgram ssa_lower(owned CfgProgram cfg, int limit, int work_limit) throws Error {
+	int input = cfg_verify(cfg); int functions = 0; int blocks = 0; int instructions = 0; int edges = 0;
+	if (input == 0) { functions = cfg.data.function_count; blocks = cfg.data.block_count; instructions = cfg.data.instruction_count; edges = cfg.data.edge_count; }
+	var program = new SsaProgram(move cfg, functions, blocks, instructions, edges, limit, work_limit);
+	if (input != 0) { int status = 4; if (input == 3) { status = 3; } ssa_set_status(program.data, status); return move program; }
+	if (limit < 1 || limit > 65536 || functions > limit || blocks > limit || instructions > limit || edges > limit || blocks > 1024 || work_limit < 1 || work_limit > 8000000) { ssa_set_status(program.data, 2); return move program; }
+	var budget = new SsaBudget(work_limit);
+	if (!budget.take(functions + blocks + instructions + edges + program.cfg.core.data.node_count) || !ssa_reserve_work(budget, program.cfg.core.data.place_count, instructions + program.cfg.core.data.place_count + program.cfg.core.data.node_count + 1)) { ssa_set_status(program.data, 2); return move program; }
+	var graph = ssa_analyze(program.cfg.data, budget); ssa_set_graph(program.data, move graph);
+	if (program.data.graph.status != 0) { ssa_set_status(program.data, 2); return move program; }
+	int f = 0; while (f < functions) { var c = program.cfg.data.functions[f]; SsaFunction row = {entry = c.entry, exit = c.exit}; program.data.functions[f] = row; f = f + 1; }
+	int b = 0; while (b < blocks) { SsaBlock row = {origin = program.cfg.data.blocks[b], condition = 0}; program.data.blocks[b] = row; b = b + 1; }
+	int e = 0; while (e < edges) { SsaEdge row = {origin = program.cfg.data.edges[e]}; program.data.edges[e] = row; e = e + 1; }
+	ssa_seed_variables(program.data, program.cfg.data, program.cfg.core.data);
+	if (program.data.status != 0) { return move program; }
+	if (blocks != 0 && program.data.variable_count > 1048576 / blocks) { ssa_set_status(program.data, 2); return move program; }
+	var rename = new SsaRename(blocks, program.data.variable_count);
+	if (!ssa_reserve_work(budget, instructions, 2 * program.data.variable_count + 1) || !ssa_reserve_work(budget, program.cfg.data.operand_count, program.cfg.data.operand_count + 1) || !ssa_reserve_work(budget, blocks, program.data.variable_count + 1)) { ssa_set_status(program.data, 2); return move program; }
+	ssa_seed_instructions(program.data, program.cfg.data, rename); ssa_seed_uses(program.data, program.cfg.data);
+	if (program.data.status != 0) { return move program; }
+	if (!ssa_reserve_work(budget, program.data.use_count, 2 * program.data.variable_count + instructions + 1)) { ssa_set_status(program.data, 2); return move program; }
+	ssa_live_joins(program.data, program.cfg.data, rename, budget); ssa_rename(program.data, program.cfg.data, rename, budget);
+	if (budget.exhausted) { ssa_set_status(program.data, 2); }
+	if (program.data.status == 0) { int status = ssa_verify(program); ssa_set_status(program.data, status); }
+	return move program;
+}

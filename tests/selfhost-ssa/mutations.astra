@@ -1,0 +1,215 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Full backing-table copies, including unused capacity. Restore before reuse.
+class SsaBackup {
+	owned SsaFunction[] functions;
+	owned SsaBlock[] blocks;
+	owned SsaInstruction[] instructions;
+	owned SsaEdge[] edges;
+	owned SsaValue[] values;
+	owned SsaVariable[] variables;
+	owned SsaUse[] uses;
+	owned SsaArgument[] arguments;
+	int function_count;
+	int block_count;
+	int instruction_count;
+	int edge_count;
+	int value_count;
+	int variable_count;
+	int use_count;
+	int argument_count;
+	int limit;
+	int work_limit;
+	int status;
+	owned bool[] reachable;
+	owned bool[] dominates;
+	owned bool[] frontier;
+	owned int[] parent;
+	int graph_count;
+	int graph_status;
+	init(SsaData d) {
+		this.functions = new SsaFunction[len(d.functions)]; int functions_i = 0; while (functions_i < len(d.functions)) { this.functions[functions_i] = d.functions[functions_i]; functions_i = functions_i + 1; }
+		this.blocks = new SsaBlock[len(d.blocks)]; int blocks_i = 0; while (blocks_i < len(d.blocks)) { this.blocks[blocks_i] = d.blocks[blocks_i]; blocks_i = blocks_i + 1; }
+		this.instructions = new SsaInstruction[len(d.instructions)]; int instructions_i = 0; while (instructions_i < len(d.instructions)) { this.instructions[instructions_i] = d.instructions[instructions_i]; instructions_i = instructions_i + 1; }
+		this.edges = new SsaEdge[len(d.edges)]; int edges_i = 0; while (edges_i < len(d.edges)) { this.edges[edges_i] = d.edges[edges_i]; edges_i = edges_i + 1; }
+		this.values = new SsaValue[len(d.values)]; int values_i = 0; while (values_i < len(d.values)) { this.values[values_i] = d.values[values_i]; values_i = values_i + 1; }
+		this.variables = new SsaVariable[len(d.variables)]; int variables_i = 0; while (variables_i < len(d.variables)) { this.variables[variables_i] = d.variables[variables_i]; variables_i = variables_i + 1; }
+		this.uses = new SsaUse[len(d.uses)]; int uses_i = 0; while (uses_i < len(d.uses)) { this.uses[uses_i] = d.uses[uses_i]; uses_i = uses_i + 1; }
+		this.arguments = new SsaArgument[len(d.arguments)]; int arguments_i = 0; while (arguments_i < len(d.arguments)) { this.arguments[arguments_i] = d.arguments[arguments_i]; arguments_i = arguments_i + 1; }
+		this.function_count = d.function_count;
+		this.block_count = d.block_count;
+		this.instruction_count = d.instruction_count;
+		this.edge_count = d.edge_count;
+		this.value_count = d.value_count;
+		this.variable_count = d.variable_count;
+		this.use_count = d.use_count;
+		this.argument_count = d.argument_count;
+		this.limit = d.limit;
+		this.work_limit = d.work_limit;
+		this.status = d.status;
+		this.reachable = new bool[len(d.graph.reachable)]; int reachable_i = 0; while (reachable_i < len(d.graph.reachable)) { this.reachable[reachable_i] = d.graph.reachable[reachable_i]; reachable_i = reachable_i + 1; }
+		this.dominates = new bool[len(d.graph.dominates)]; int dominates_i = 0; while (dominates_i < len(d.graph.dominates)) { this.dominates[dominates_i] = d.graph.dominates[dominates_i]; dominates_i = dominates_i + 1; }
+		this.frontier = new bool[len(d.graph.frontier)]; int frontier_i = 0; while (frontier_i < len(d.graph.frontier)) { this.frontier[frontier_i] = d.graph.frontier[frontier_i]; frontier_i = frontier_i + 1; }
+		this.parent = new int[len(d.graph.parent)]; int parent_i = 0; while (parent_i < len(d.graph.parent)) { this.parent[parent_i] = d.graph.parent[parent_i]; parent_i = parent_i + 1; }
+		this.graph_count = d.graph.count; this.graph_status = d.graph.status;
+	}
+}
+void ssa_restore_graph(SsaGraph g, SsaBackup backup) {
+	swap(g.reachable, backup.reachable);
+	swap(g.dominates, backup.dominates);
+	swap(g.frontier, backup.frontier);
+	swap(g.parent, backup.parent);
+	g.count = backup.graph_count; g.status = backup.graph_status;
+}
+void ssa_test_restore(SsaData d, SsaBackup backup) {
+	swap(d.functions, backup.functions);
+	swap(d.blocks, backup.blocks);
+	swap(d.instructions, backup.instructions);
+	swap(d.edges, backup.edges);
+	swap(d.values, backup.values);
+	swap(d.variables, backup.variables);
+	swap(d.uses, backup.uses);
+	swap(d.arguments, backup.arguments);
+	d.function_count = backup.function_count;
+	d.block_count = backup.block_count;
+	d.instruction_count = backup.instruction_count;
+	d.edge_count = backup.edge_count;
+	d.value_count = backup.value_count;
+	d.variable_count = backup.variable_count;
+	d.use_count = backup.use_count;
+	d.argument_count = backup.argument_count;
+	d.limit = backup.limit;
+	d.work_limit = backup.work_limit;
+	d.status = backup.status;
+	ssa_restore_graph(d.graph, backup);
+}
+owned Utf8Message ssa_test_snapshot(SsaData d) throws Error { var out = new Utf8ByteBuilder(); ssa_write_tables(d, out, true); return out.snapshot(); }
+bool ssa_test_apply(SsaData d, CoreData core, int mutation) {
+	if (mutation == 1 && d.argument_count > 0) { d.argument_count = d.argument_count - 1; return true; }
+	if (mutation == 2 && d.argument_count > 0) { int added = ssa_add_argument(d, d.arguments[0]); return added != 0; }
+	if (mutation == 3 && d.value_count > 1) { d.values[1] = d.values[0]; return true; }
+	if (mutation == 10 && d.block_count > 0) { int b = 0; while (b < d.block_count) { if (d.graph.reachable[b]) { ssa_test_parent(d.graph, b, b + 1); return true; } b = b + 1; } }
+	if (mutation == 11 && d.block_count > 0) { ssa_test_frontier(d.graph); return true; }
+	if (mutation == 22) { d.work_limit = 1; return true; }
+	int a = 0;
+	while (a < d.argument_count) {
+		var arg = d.arguments[a]; var phi = d.values[arg.phi - 1];
+		if (mutation == 0 || mutation == 4) {
+			int other = 0;
+			while (other < d.argument_count) {
+				var alternative = d.arguments[other];
+				if (alternative.phi == arg.phi && alternative.edge != arg.edge && alternative.value != 0 && arg.value != 0 && alternative.value != arg.value) {
+					if (mutation == 0) { arg.value = alternative.value; } else { arg.edge = alternative.edge; }
+					d.arguments[a] = arg; return true;
+				}
+				other = other + 1;
+			}
+		}
+		if (mutation == 5 && arg.value != 0) {
+			int v = 0;
+			while (v < d.value_count) { var foreign = d.values[v]; if (foreign.function != phi.function && foreign.type.index == phi.type.index && foreign.flags == phi.flags) { arg.value = v + 1; d.arguments[a] = arg; return true; } v = v + 1; }
+		}
+		if (mutation == 12 && d.graph.dominates[(phi.block - 1) * d.block_count + d.edges[arg.edge - 1].origin.source - 1]) {
+			int i = a; while (i + 1 < d.argument_count) { d.arguments[i] = d.arguments[i + 1]; i = i + 1; } d.argument_count = d.argument_count - 1; return true;
+		}
+		a = a + 1;
+	}
+	int u = 0;
+	while (u < d.use_count) {
+		var use = d.uses[u];
+		if (use.value != 0) {
+			var old = d.values[use.value - 1];
+			if (mutation == 7 && use.instruction != 0) {
+				int result = d.instructions[use.instruction - 1].result;
+				if (result != 0 && d.values[result - 1].type.index == old.type.index && d.values[result - 1].flags == old.flags) { use.value = result; d.uses[u] = use; return true; }
+			}
+			if (mutation == 8 || (mutation == 9 && use.kind == 4)) {
+				int v = 0;
+				while (v < d.value_count) {
+					var candidate = d.values[v];
+					if (v + 1 != use.value && candidate.function == use.function && candidate.type.index == old.type.index && candidate.flags == old.flags && d.graph.reachable[candidate.block - 1]) {
+						bool dom = d.graph.dominates[(candidate.block - 1) * d.block_count + use.block - 1];
+						if ((mutation == 8 && !dom) || (mutation == 9 && dom && candidate.variable == old.variable && candidate.variable != 0 && candidate.block != use.block)) { use.value = v + 1; d.uses[u] = use; return true; }
+					}
+					v = v + 1;
+				}
+			}
+			if (mutation == 15 && use.kind == 3 && use.ordinal == 0) {
+				int other = u + 1;
+				while (other < d.use_count) {
+					var second = d.uses[other];
+					if (second.instruction == use.instruction && second.kind == 3 && second.ordinal == 1 && second.source != use.source) { int source = use.source; int value = use.value; use.source = second.source; use.value = second.value; second.source = source; second.value = value; d.uses[u] = use; d.uses[other] = second; return true; } other = other + 1;
+				}
+			}
+			if (mutation == 20) { use.value = 0; d.uses[u] = use; d.status = 0; return true; }
+		}
+		u = u + 1;
+	}
+	int v = 0;
+	while (v < d.value_count) {
+		var value = d.values[v];
+		if (mutation == 6) { value.type = type_id(13); if (d.values[v].type.index == 13) { value.type = type_id(1); } d.values[v] = value; return true; }
+		if (mutation == 18) { value.block = value.block + 1; d.values[v] = value; return true; }
+		if (mutation == 28 && value.kind == 3) {
+			int p = 0;
+			while (p < core.place_count) { var place = core.places[p]; if (place.function == value.function && (place.flags & 4) != 0) { value.type = place.type; value.flags = place.flags; d.values[v] = value; return true; } p = p + 1; }
+		}
+		if (mutation == 29 && value.kind == 2 && d.function_count > 1) { value.function = value.function % d.function_count + 1; d.values[v] = value; return true; }
+		v = v + 1;
+	}
+	int i = 0;
+	while (i < d.instruction_count) {
+		var row = d.instructions[i]; var origin = row.origin; var payload = origin.value;
+		if (mutation == 13 && origin.opcode == 4) { origin.opcode = 3; payload.kind = 3; payload.target = 0; origin.value = payload; row.origin = origin; d.instructions[i] = row; return true; }
+		if (mutation == 14 && origin.opcode == 43) {
+			int j = 0;
+			while (j < d.instruction_count) { if (d.instructions[j].origin.opcode == 40 && d.instructions[j].origin.value.function == payload.function) { var second = d.instructions[j]; var second_origin = second.origin; int block = origin.block; origin.block = second_origin.block; second_origin.block = block; row.origin = origin; second.origin = second_origin; d.instructions[i] = row; d.instructions[j] = second; return true; } j = j + 1; }
+		}
+		if (mutation == 16 && origin.opcode == 40) { origin.opcode = 41; origin.contract = 0; row.origin = origin; d.instructions[i] = row; return true; }
+		if (mutation == 17 && origin.opcode == 41) {
+			int j = 0;
+			while (j < d.instruction_count) { if (d.instructions[j].origin.opcode == 40 && d.instructions[j].origin.value.function == payload.function) { var extra = d.instructions[j]; var extra_origin = extra.origin; extra_origin.block = origin.block; extra.origin = extra_origin; d.instructions[i] = extra; return true; } j = j + 1; }
+		}
+		if (mutation == 19 && origin.origin != 0) { var span = payload.span; span.start = span.start + 1; payload.span = span; origin.value = payload; row.origin = origin; d.instructions[i] = row; return true; }
+		if (mutation == 21 && (origin.opcode == 3 || origin.opcode == 9)) { row.noalias = true; d.instructions[i] = row; return true; }
+		if (mutation == 23 && origin.opcode == 40) {
+			int j = 0;
+			while (j < core.cleanup_count) { if (j + 1 != origin.contract && core.cleanups[j].owner != core.cleanups[origin.contract - 1].owner) { origin.contract = j + 1; row.origin = origin; d.instructions[i] = row; return true; } j = j + 1; }
+		}
+		if (mutation == 24 && payload.place != 0) {
+			int p = 0;
+			while (p < core.place_count) { var place = core.places[p]; if (p + 1 != payload.place && place.function == payload.function && place.type.index == core.places[payload.place - 1].type.index) { payload.place = p + 1; origin.value = payload; row.origin = origin; d.instructions[i] = row; return true; } p = p + 1; }
+		}
+		if (mutation == 25 && payload.token.index != 0) { payload.token.index = payload.token.index + 1; origin.value = payload; row.origin = origin; d.instructions[i] = row; return true; }
+		if (mutation == 26 && origin.opcode == 9) {
+			int j = i + 1;
+			while (j < d.instruction_count) { var other = d.instructions[j]; if (other.origin.opcode == 9 && other.origin.value.function == payload.function) { var second = other.origin; int block = origin.block; origin.block = second.block; second.block = block; row.origin = second; other.origin = origin; d.instructions[i] = row; d.instructions[j] = other; return true; } j = j + 1; }
+		}
+		if (mutation == 27 && origin.opcode == 44) {
+			int j = 0;
+			while (j < d.instruction_count) { var other = d.instructions[j].origin; if (other.opcode == 44 && other.result == origin.result && other.a != origin.a) { origin.a = other.a; row.origin = origin; d.instructions[i] = row; return true; } j = j + 1; }
+		}
+		i = i + 1;
+	}
+	return false;
+}
+void ssa_test_parent(SsaGraph g, int block, int parent) { g.parent[block] = parent; }
+void ssa_test_frontier(SsaGraph g) { g.frontier[0] = !g.frontier[0]; }
+owned Utf8Message ssa_mutations(SsaProgram program) throws Error {
+	assert_that(ssa_verify(program) == 0 && cfg_verify(program.cfg) == 0);
+	var out = new Utf8ByteBuilder(); int mutation = 0;
+	while (mutation < 30) {
+		var backup = new SsaBackup(program.data); var before = ssa_test_snapshot(program.data); var upstream = cfg_test_snapshot(program.cfg.data);
+		if (ssa_test_apply(program.data, program.cfg.core.data, mutation)) {
+			assert_that(cfg_verify(program.cfg) == 0); int rejected = ssa_verify(program); assert_that(rejected == 1 || rejected == 2);
+			var after = ssa_test_snapshot(program.data); bool blocked = false;
+			try { var forbidden = ssa_projection(program); } catch (Error error) { blocked = true; } assert_that(blocked);
+			ssa_test_restore(program.data, backup); assert_that(ssa_verify(program) == 0 && cfg_verify(program.cfg) == 0);
+			var restored = ssa_test_snapshot(program.data); var upstream_after = cfg_test_snapshot(program.cfg.data);
+			assert_that(before.text == restored.text && before.text != after.text && upstream.text == upstream_after.text);
+			source_append_text(out, "SSA_MUTATION"); flow_number(out, mutation); flow_number(out, rejected);
+			source_append_text(out, " "); syntax_write_hex(out, before.text); source_append_text(out, " "); syntax_write_hex(out, after.text); source_append_text(out, " "); syntax_write_hex(out, restored.text); source_append_text(out, "\n");
+		}
+		mutation = mutation + 1;
+	}
+	return out.snapshot();
+}

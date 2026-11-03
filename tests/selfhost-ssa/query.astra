@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	if (len(args) < 2) { println_stderr("INVALID_SSA_COMMAND"); return 2; }
+	if (args[1] != "--ssa" && args[1] != "--ssa-walk" && args[1] != "--ssa-limit" && args[1] != "--ssa-work-limit" && args[1] != "--ssa-output-limit" && args[1] != "--ssa-retain" && args[1] != "--ssa-cross-owner" && args[1] != "--ssa-forge-input" && args[1] != "--mutate-ssa" && args[1] != "--ssa-graphs") { return ssa_predecessor_cli(args); }
+	try {
+		if (args[1] == "--ssa-graphs") { ssa_graph_tests(); return 0; }
+		int start = 2; int limit = 65536; int work_limit = 8000000; int output_limit = 16777216;
+		if (args[1] == "--ssa-limit" || args[1] == "--ssa-work-limit" || args[1] == "--ssa-output-limit") {
+			if (len(args) < 4) { println_stderr("SSA_RESOURCE_EXHAUSTED"); return 2; }
+			start = 3; int parsed = cfg_limit_decimal(args[2]);
+			if (args[1] == "--ssa-limit") { limit = parsed; } else { if (args[1] == "--ssa-work-limit") { work_limit = parsed; } else { output_limit = parsed; } }
+		}
+		if (len(args) <= start) { println_stderr("INVALID_SSA_COMMAND"); return 2; }
+		var source = binding_load_program(args, start); var bindings = binding_index(move source, 0);
+		var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
+		var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var program = ssa_lower(move cfg, limit, work_limit);
+		if (args[1] == "--ssa-forge-input") {
+			int original = ssa_verify(program); if (original != 3 && original != 4) { throw new Error("INVALID_SSA_MUTATION_INPUT"); }
+			ssa_test_status(program.data, 0); assert_that(ssa_verify(program) == 1); bool blocked = false;
+			try { var forbidden = ssa_projection(program); } catch (Error error) { blocked = true; }
+			assert_that(blocked); ssa_test_status(program.data, original); assert_that(ssa_verify(program) == original); println("SSA_FORGED_INPUT_REJECTED"); return 0;
+		}
+		int status = ssa_verify(program);
+		if (status != 0) {
+			if (status == 1) { println_stderr("INVALID_SSA"); }
+			if (status == 2) { println_stderr("SSA_RESOURCE_EXHAUSTED"); }
+			if (status == 3) { println_stderr("SSA_DEFERRED"); }
+			if (status == 4) { println_stderr("INVALID_VERIFIED_CFG"); }
+			return status;
+		}
+		if (args[1] == "--mutate-ssa") { var result = ssa_mutations(program); print(result.text); return 0; }
+		if (args[1] == "--ssa-walk") { var walk = ssa_walk(program); var out = new Utf8ByteBuilder(); ssa_write_walk(walk, out); var text = out.snapshot(); print(text.text); return 0; }
+		if (args[1] == "--ssa-retain") { var span = ssa_test_retained(move program); var bytes = span.bytes(); var path = span.path(); println(path.text); return 0; }
+		if (args[1] == "--ssa-cross-owner") { ssa_test_cross(program, args, start); println("SSA_CROSS_OWNER_REJECTED"); return 0; }
+		var projection = ssa_projection_bounded(program, output_limit); print(projection.text); return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}
+void ssa_test_status(SsaData data, int status) { data.status = status; }
+owned SourceSpan ssa_test_retained(owned SsaProgram program) throws Error {
+	if (program.data.instruction_count == 0) { throw new Error("INVALID_SSA_INSTRUCTION_ID"); }
+	SsaInstructionId id = {function = program.data.instructions[0].origin.value.function, index = 1}; return ssa_source_span(program, program, id);
+}
+void ssa_test_cross(SsaProgram program, string[] args, int start) throws Error {
+	var source = binding_load_program(args, start); var bindings = binding_index(move source, 0);
+	var checked = checked_build_admission(move bindings, 0, true, true, true); var flow = flow_index(move checked, 8192, 1000000);
+	var core = core_lower(move flow, 65536); var cfg = cfg_lower(move core, 65536); var other = ssa_lower(move cfg, 65536, 8000000);
+	if (program.data.function_count == 0) { return; }
+	SsaFunctionId f = {index = 1}; bool blocked = false;
+	try { var crossed = ssa_read_function(program, other, f); } catch (Error error) { blocked = true; } assert_that(blocked);
+	SsaBlockId b = {function = 1, index = program.data.functions[0].entry}; var valid_block = ssa_read_block(program, program, b); blocked = false;
+	try { var crossed = ssa_read_block(program, other, b); } catch (Error error) { blocked = true; } assert_that(blocked);
+	var parent = ssa_immediate_dominator(program, program, b); assert_that(parent.index == program.data.graph.parent[b.index - 1]);
+	bool frontier = ssa_in_frontier(program, program, b, b); assert_that(frontier == program.data.graph.frontier[(b.index - 1) * program.data.block_count + b.index - 1]);
+	blocked = false; try { var crossed = ssa_immediate_dominator(program, other, b); } catch (Error error) { blocked = true; } assert_that(blocked);
+	blocked = false; try { bool crossed = ssa_in_frontier(program, other, b, b); } catch (Error error) { blocked = true; } assert_that(blocked);
+	if (program.data.instruction_count > 0) {
+		SsaInstructionId id = {function = program.data.instructions[0].origin.value.function, index = 1}; var valid = ssa_read_instruction(program, program, id); bool rejected = false;
+		try { var crossed = ssa_read_instruction(program, other, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = 0; rejected = false; try { var invalid = ssa_read_instruction(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = program.data.instructions[0].origin.value.function; id.index = program.data.instruction_count + 1; rejected = false;
+		try { var invalid = ssa_read_instruction(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.index = 1; rejected = false; try { var crossed = ssa_source_span(program, other, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+	}
+	if (program.data.value_count > 0) {
+		SsaValueId id = {function = program.data.values[0].function, index = 1}; var valid = ssa_read_value(program, program, id); bool rejected = false;
+		try { var crossed = ssa_read_value(program, other, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = 0; rejected = false; try { var invalid = ssa_read_value(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = program.data.values[0].function; id.index = program.data.value_count + 1; rejected = false;
+		try { var invalid = ssa_read_value(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+	}
+	if (program.data.edge_count > 0) {
+		SsaEdgeId id = {function = program.data.edges[0].origin.function, index = 1}; var valid = ssa_read_edge(program, program, id); bool rejected = false;
+		try { var crossed = ssa_read_edge(program, other, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = 0; rejected = false; try { var invalid = ssa_read_edge(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = program.data.edges[0].origin.function; id.index = program.data.edge_count + 1; rejected = false;
+		try { var invalid = ssa_read_edge(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+	}
+	if (program.data.use_count > 0) {
+		SsaUseId id = {function = program.data.uses[0].function, index = 1}; var valid = ssa_read_use(program, program, id); bool rejected = false;
+		try { var crossed = ssa_read_use(program, other, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = 0; rejected = false; try { var invalid = ssa_read_use(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+		id.function = program.data.uses[0].function; id.index = program.data.use_count + 1; rejected = false;
+		try { var invalid = ssa_read_use(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+	}
+	if (program.cfg.core.data.place_count > 0) {
+		SsaPlaceId id = {function = program.cfg.core.data.places[0].function, index = 1}; var valid = ssa_read_place(program, program, id); bool rejected = false;
+		try { var crossed = ssa_read_place(program, other, id); } catch (Error error) { rejected = true; } assert_that(rejected);
+	}
+	int v = 0;
+	while (v < program.data.value_count) {
+		var value = program.data.values[v];
+		SsaValueId id = {function = value.function, index = v + 1}; int count = ssa_def_use_count(program, program, id);
+		var walk = ssa_walk(program); assert_that(count == walk.references[v]);
+		int ordinary = 0; int u = 0;
+		while (u < program.data.use_count) {
+			if (program.data.uses[u].value == v + 1) { var use_id = ssa_def_use_at(program, program, id, ordinary); var use = ssa_read_use(program, program, use_id); assert_that(use.value == v + 1 && use_id.index == u + 1); ordinary = ordinary + 1; }
+			u = u + 1;
+		}
+		if (program.data.function_count > 1) { id.function = value.function % program.data.function_count + 1; bool rejected = false; try { var invalid = ssa_read_value(program, program, id); } catch (Error error) { rejected = true; } assert_that(rejected); }
+		if (value.kind == 3) {
+			SsaPhiId phi = {function = value.function, index = v + 1}; bool rejected = false;
+			try { var crossed = ssa_read_phi(program, other, phi); } catch (Error error) { rejected = true; } assert_that(rejected);
+			int a = 0;
+			while (a < program.data.argument_count) {
+				var arg = program.data.arguments[a];
+				if (arg.phi == v + 1) { SsaEdgeId edge = {function = value.function, index = arg.edge}; var incoming = ssa_phi_input(program, program, phi, edge); assert_that(incoming.index == arg.value); bool crossed_edge = false; try { var crossed = ssa_phi_input(program, other, phi, edge); } catch (Error error) { crossed_edge = true; } assert_that(crossed_edge); }
+				a = a + 1;
+			}
+		}
+		v = v + 1;
+	}
+}

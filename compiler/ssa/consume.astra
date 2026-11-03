@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A separate downstream consumer of verified SSA, without CFG/Core/Flow/syntax
+// reconstruction. Counts references, including exact incoming-edge uses.
+class SsaWalk {
+	int reachable;
+	int definitions;
+	int live_values;
+	int uses;
+	int phis;
+	int edge_arguments;
+	int loop_arguments;
+	owned int[] references;
+	init(int values) {
+		this.reachable = 0; this.definitions = 0; this.live_values = 0; this.uses = 0; this.phis = 0; this.edge_arguments = 0; this.loop_arguments = 0; this.references = new int[values];
+	}
+	void inspect(SsaData d) {
+		int u = 0;
+		while (u < d.use_count) { var use = d.uses[u]; if (use.value != 0) { this.references[use.value - 1] = this.references[use.value - 1] + 1; this.uses = this.uses + 1; } u = u + 1; }
+		int a = 0;
+		while (a < d.argument_count) {
+			var arg = d.arguments[a];
+			if (arg.value != 0) {
+				this.references[arg.value - 1] = this.references[arg.value - 1] + 1; this.edge_arguments = this.edge_arguments + 1;
+				var edge = d.edges[arg.edge - 1].origin; var phi = d.values[arg.phi - 1];
+				if (d.graph.dominates[(phi.block - 1) * d.block_count + edge.source - 1]) { this.loop_arguments = this.loop_arguments + 1; }
+			}
+			a = a + 1;
+		}
+		int v = 0;
+		while (v < d.value_count) {
+			var value = d.values[v];
+			if (d.graph.reachable[value.block - 1]) { this.definitions = this.definitions + 1; if (this.references[v] > 0) { this.live_values = this.live_values + 1; } if (value.kind == 3) { this.phis = this.phis + 1; } }
+			v = v + 1;
+		}
+		int b = 0; while (b < d.block_count) { if (d.graph.reachable[b]) { this.reachable = this.reachable + 1; } b = b + 1; }
+	}
+}
+owned SsaWalk ssa_walk(SsaProgram program) throws Error {
+	if (ssa_verify(program) != 0) { throw new Error("INVALID_SSA"); }
+	var walk = new SsaWalk(program.data.value_count); walk.inspect(program.data); return move walk;
+}
+void ssa_write_walk(SsaWalk walk, Utf8ByteBuilder out) throws Error {
+	source_append_text(out, "SSA_WALK"); flow_number(out, walk.reachable); flow_number(out, walk.definitions); flow_number(out, walk.live_values); flow_number(out, walk.uses); flow_number(out, walk.phis); flow_number(out, walk.edge_arguments); flow_number(out, walk.loop_arguments); source_append_text(out, "\n");
+	int v = 0; while (v < len(walk.references)) { source_append_text(out, "DEF_USE"); flow_number(out, v + 1); flow_number(out, walk.references[v]); source_append_text(out, "\n"); v = v + 1; }
+}
