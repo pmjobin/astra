@@ -50,7 +50,7 @@ has a separate armed bit initialized at function entry. Transfers disarm source
 leaves; initialization arms destination leaves. Exact CFG cleanup blocks branch
 on that bit, free only on the taken path and disarm. Scope exit and loan markers
 retain upstream order and proofs. These are ownership states, not copyable PHIs
-or a noalias assertion. Struct GEPs explicitly clear LLVM's default inbounds flag.
+or a noalias assertion. Struct GEPs explicitly clear LLVM 22's entire default no-wrap flag set (inbounds, nusw and nuw), and the independent Astra checker verifies zero GEP flags.
 
 The separate read-only `check.astra` compares source literals, types, entry/block
 and exact-edge terms, PHI values, promoted copies, loads/stores, basic arithmetic

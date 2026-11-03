@@ -107,6 +107,11 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 		}
 		b = b + 1;
 	}
+	int place = 0;
+	while (place < program.cfg.core.data.place_count && budget.take(1)) {
+		if (program.cfg.core.data.places[place].parent != 0) { var pointer = places[place]; if (pointer == null || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 29 || LLVMGEPGetNoWrapFlags(pointer) != 0) { return false; } }
+		place = place + 1;
+	}
 	int v = 0;
 	while (v < program.data.value_count && budget.take(1)) {
 		var row = program.data.values[v];
@@ -116,8 +121,8 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] si
 			if ((row.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.type) == 30) { expected_type = LLVMPointerTypeInContext(LLVMGetTypeContext(expected_type), 0); }
 			if (LLVMTypeOf(actual) != expected_type) { return false; }
 			if (row.kind == 2) {
-				var source = program.cfg.core.data.functions[row.function - 1]; int ordinal = 0; int place = source.place_first;
-				while (place < row.place - 1 && budget.take(1)) { var candidate = program.cfg.core.data.places[place]; if (candidate.parameter && candidate.parent == 0) { ordinal = ordinal + 1; } place = place + 1; }
+				var source = program.cfg.core.data.functions[row.function - 1]; int ordinal = 0; int parameter_place = source.place_first;
+				while (parameter_place < row.place - 1 && budget.take(1)) { var candidate = program.cfg.core.data.places[parameter_place]; if (candidate.parameter && candidate.parent == 0) { ordinal = ordinal + 1; } parameter_place = parameter_place + 1; }
 				if (LLVMGetParam(functions[row.function - 1], ordinal) != actual) { return false; }
 			}
 			if (row.kind == 3) {

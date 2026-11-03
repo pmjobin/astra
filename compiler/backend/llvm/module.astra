@@ -211,7 +211,7 @@ class LlvmModule {
 					}
 				} else {
 					var parent = program.cfg.core.data.places[place.parent - 1]; int field = this.field_index(program.cfg.core.flow.checked, parent.type, place.symbol);
-					var parent_type = this.type(program.cfg.core.flow.checked, parent.type, 0); var pointer = LLVMBuildStructGEP2(this.builder, parent_type, this.places[place.parent - 1], field, this.empty); LLVMSetIsInBounds(pointer, 0); this.places[p] = pointer;
+					var parent_type = this.type(program.cfg.core.flow.checked, parent.type, 0); var pointer = LLVMBuildStructGEP2(this.builder, parent_type, this.places[place.parent - 1], field, this.empty); LLVMGEPSetNoWrapFlags(pointer, 0); this.places[p] = pointer;
 				}
 				if (place.leaf && (place.flags & 4) != 0) {
 					if (checked_kind(program.cfg.core.flow.checked, place.type) != 22) { throw new Error("LLVM_DEFERRED: cleanup type"); }
