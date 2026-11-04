@@ -116,7 +116,7 @@ def main():
 			for row in rows:
 				for source in row['sources']: files['historical/programs/'+source['sha256']+'/'+Path(source['path']).name] = Path(source['path'])
 	archive = a.output/'genclass16-evidence.tar.xz'; started = time.monotonic(); model['storage_format'] = 'astra-line-chunk/1'
-	with tarfile.open(archive, 'w:xz', preset=6) as tar:
+	with tarfile.open(archive, 'w:xz', preset=9) as tar:
 		writer = ChunkWriter(tar)
 		for name in sorted(set(files)|set(blobs)):
 			path = files.get(name); raw = blobs.get(name); digest = sha(path) if path else hashlib.sha256(raw).hexdigest(); mode = path.stat().st_mode & 0o777 if path else 0o644
