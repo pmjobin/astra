@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import sys
+sys.dont_write_bytecode = True
 from corpus import CASES, FLOW_TYPES
 from environment import audit
 
