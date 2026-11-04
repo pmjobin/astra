@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#if LLVM_VERSION_MAJOR != 22
-#error LLVM 22 required
+#if LLVM_VERSION_MAJOR != 23
+#error LLVM 23 required
 #endif
 _Static_assert(sizeof(void *) == 8, "qualified x86-64 pointers required");
 

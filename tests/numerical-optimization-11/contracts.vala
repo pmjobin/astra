@@ -182,7 +182,7 @@ private void llvm_contract() {
 			break;
 		}
 		foreach (var step in domain.steps) {
-			if (CApi.opcode (step.instruction) != CApi.Opcode.BR) {
+			if (CApi.opcode (step.instruction) != CApi.Opcode.COND_BR) {
 				continue;
 			}
 			var condition = CApi.operand (step.instruction, 0);

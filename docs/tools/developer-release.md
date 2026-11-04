@@ -2,11 +2,11 @@
 
 Astra is a stage-0 Vala compiler producing native LLVM objects. The selected
 binary distribution is GNU/Linux x86-64 and requires its manifest's system
-libraries, including LLVM 22 and GLib/GObject. These compiler dependencies do
+libraries, including LLVM 23 and GLib/GObject. These compiler dependencies do
 not become dependencies of every generated program. Python runs the package
 tool and language server. A host C toolchain links hosted executables and
 explicit provider objects. The source distribution additionally requires
-upstream valac, Meson/Ninja, C11 headers and LLVM 22 development files.
+upstream valac, Meson/Ninja, C11 headers and LLVM 23 development files.
 
 This checkout produces development distributions. The old RC1/RC2 campaign
 promoter is retired; the inherited version banner is not a fresh release verdict.

@@ -60,7 +60,9 @@ C/C++ use clang-format with no width limit, sorting, comment reflow, brace edits
 qualifier sorting or literal splitting. Directives are temporarily shielded with
 formatter control comments that are removed before the guard; original source
 directives are retained byte-exact. Source-observable line/stringizing sites are
-protected. JavaScript uses the same tool plus exact template/regex/token checks
+protected. LLVM 23 enum continuation alignment receives lexical TAB indentation
+without changing visual columns or tokens; declaration alignment keeps spaces.
+JavaScript uses the same tool plus exact template/regex/token checks
 and Node's actual parser. This is a conservative lexer, not a universal JS parser.
 
 Python uses a bounded indentation-only adapter driven by tokenize, preserving

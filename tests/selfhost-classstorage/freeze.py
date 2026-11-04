@@ -40,8 +40,9 @@ def main():
 	p = argparse.ArgumentParser()
 	for key in ('compiler', 'runtime', 'build', 'before-O0', 'before-O2'):
 		p.add_argument('--'+key, type=Path, required=True)
+	p.add_argument('--compiler-sha256', default=C0_SHA, help='Explicit qualified oracle identity for a newly rebuilt toolchain')
 	a = p.parse_args()
-	assert sha(a.compiler) == C0_SHA
+	assert sha(a.compiler) == a.compiler_sha256
 	assert all(not x.resolve().is_relative_to(ROOT) for x in (a.runtime, a.build))
 	a.runtime.mkdir(parents=True, exist_ok=False); a.build.mkdir(parents=True, exist_ok=True)
 	commands, rows = [], []
@@ -72,7 +73,7 @@ def main():
 	inputs.append(('unchanged-owner-relay', [ROOT/'tests/gen-own/fixtures/gen-own-class-nodeinit.astra'], 42))
 	proposed = [dict(name=name, sources=[dict(path=str(x), sha256=sha(x), bytes=x.stat().st_size) for x in sources], expected_exit=expected, disposition='PROPOSED_NOT_C0_QUALIFIED') for name, sources, expected in inputs]
 	(a.runtime/'proposed.json').write_text(json.dumps(proposed, indent=2)+'\n')
-	preflight = audit(a.compiler, [a.before_O0, a.before_O2])
+	preflight = audit(a.compiler, [a.before_O0, a.before_O2], a.compiler_sha256)
 	(a.runtime/'environment.json').write_text(json.dumps(preflight, indent=2)+'\n')
 	if preflight['status'] != 'READY':
 		print('ENVIRONMENT_BLOCKED: proposals retained; no C0 or native admission claimed')
@@ -81,7 +82,7 @@ def main():
 		parse = run([a.compiler, '--parse', *sources], name+'-parse')
 		check = run([a.compiler, '--check', *sources], name+'-check')
 		assert parse.returncode in (0, 1) and check.returncode in (0, 1), 'tool failure is not a source disposition'
-		row = dict(name=name, sources=[dict(path=str(x), sha256=sha(x), bytes=x.stat().st_size) for x in sources], parse_exit=parse.returncode, check_exit=check.returncode, c0_sha256=C0_SHA, expected_exit=expected, profiles={})
+		row = dict(name=name, sources=[dict(path=str(x), sha256=sha(x), bytes=x.stat().st_size) for x in sources], parse_exit=parse.returncode, check_exit=check.returncode, c0_sha256=a.compiler_sha256, expected_exit=expected, profiles={})
 		for mode in ('O0', 'O2'):
 			observed = {}; component = getattr(a, 'before_'+mode)
 			identity = json.loads(component.with_suffix('.identity.json').read_text())

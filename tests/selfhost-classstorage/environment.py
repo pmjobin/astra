@@ -26,7 +26,7 @@ def command(argv):
 		return dict(argv=list(map(str, argv)), error=str(error), monotonic_start=start, monotonic_end=time.monotonic())
 
 
-def audit(compiler, components):
+def audit(compiler, components, compiler_sha256=C0_SHA):
 	rows, blockers = [], []
 	for path in [compiler, *components]:
 		row = dict(path=str(path), present=path.is_file())
@@ -34,8 +34,8 @@ def audit(compiler, components):
 			blockers.append('missing product: '+str(path)); rows.append(row); continue
 		row['sha256'] = sha(path)
 		if path == compiler:
-			row['expected_sha256'] = C0_SHA
-			if row['sha256'] != C0_SHA: blockers.append('C0 binary identity mismatch')
+			row['expected_sha256'] = compiler_sha256
+			if row['sha256'] != compiler_sha256: blockers.append('C0 binary identity mismatch')
 		else:
 			sidecar = path.with_suffix('.identity.json')
 			if not sidecar.is_file():
@@ -56,23 +56,24 @@ def audit(compiler, components):
 		if row['startup'].get('exit') == 127 or 'error' in row['startup']: blockers.append('product cannot start: '+str(path))
 		rows.append(row)
 	llvm = command(['llvm-config', '--version'])
-	if llvm.get('stdout', '').strip() != '22.1.8': blockers.append('qualified LLVM 22.1.8 unavailable through llvm-config')
+	if llvm.get('stdout', '').strip() != '23.1.4': blockers.append('qualified LLVM 23.1.4 unavailable through llvm-config')
 	pins = json.loads((ROOT/'format/toolchain.json').read_text()); format_tools = {}
 	for name, pin in pins.items():
 		path = compiler if name == 'astrac' else shutil.which(pin['command'])
 		actual = sha(path) if path and Path(path).is_file() else None
 		format_tools[name] = dict(path=str(path) if path else None, expected_sha256=pin['sha256'], actual_sha256=actual, matches=actual == pin['sha256'])
-	return dict(status='ENVIRONMENT_BLOCKED' if blockers else 'READY', qualified_llvm='22.1.8', llvm=llvm, products=rows, blockers=blockers, formatter_tools=format_tools, limitation='Existing binary hashes and source facts do not qualify changed runtime libraries. A loader failure is neither a semantic rejection nor a native execution.')
+	return dict(status='ENVIRONMENT_BLOCKED' if blockers else 'READY', qualified_llvm='23.1.4', llvm=llvm, products=rows, blockers=blockers, formatter_tools=format_tools, limitation='Existing binary hashes and source facts do not qualify changed runtime libraries. A loader failure is neither a semantic rejection nor a native execution.')
 
 
 def main():
 	p = argparse.ArgumentParser()
 	p.add_argument('--compiler', type=Path, required=True)
+	p.add_argument('--compiler-sha256', default=C0_SHA, help='Explicit qualified oracle identity; default preserves the historical GENERICS-14 role')
 	p.add_argument('--component', type=Path, action='append', required=True)
 	p.add_argument('--output', type=Path, required=True)
 	a = p.parse_args()
 	assert not a.output.resolve().is_relative_to(ROOT)
-	result = audit(a.compiler, a.component)
+	result = audit(a.compiler, a.component, a.compiler_sha256)
 	with a.output.open('x') as out: out.write(json.dumps(result, indent=2)+'\n')
 	print(result['status']+': '+ '; '.join(result['blockers']))
 	return 0 if result['status'] == 'READY' else 2

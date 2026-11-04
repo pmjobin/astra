@@ -78,7 +78,7 @@ private void c_shortcircuit_paths() throws GLib.Error {
 		assert (foreign_calls.length == 1);
 		var call_block = CApi.instruction_parent (foreign_calls[0]);
 		bool found = false;
-		foreach (var branch in operations (fs[f], CApi.Opcode.BR)) {
+		foreach (var branch in operations (fs[f], CApi.Opcode.COND_BR)) {
 			if (CApi.successor_count (branch) == 2 && (void*) CApi.condition (branch) == (void*) CApi.get_param (fs[f], 0)) {
 				assert ((void*) CApi.successor (branch, f == 0 ? 0 : 1) == (void*) call_block);
 				assert ((void*) CApi.successor (branch, f == 0 ? 1 : 0) != (void*) call_block);

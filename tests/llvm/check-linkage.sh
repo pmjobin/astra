@@ -9,9 +9,9 @@ if [ "$#" -ne 5 ]; then
 fi
 
 case "$("$4" --version)" in
-	22.*) ;;
+	23.*) ;;
 	*)
-		printf 'Expected qualified LLVM 22\n' >&2
+		printf 'Expected qualified LLVM 23\n' >&2
 		exit 1
 		;;
 esac

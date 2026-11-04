@@ -78,7 +78,7 @@ private void physical() {
 							changed = instruction;
 							break;
 						}
-						if (mutation == 1 && CApi.opcode (instruction) == CApi.Opcode.BR && CApi.operand_count (instruction) == 3) {
+						if (mutation == 1 && CApi.opcode (instruction) == CApi.Opcode.COND_BR && CApi.operand_count (instruction) == 3) {
 							changed = instruction;
 							break;
 						}

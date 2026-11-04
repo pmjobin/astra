@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import resource
 import subprocess
 import sys
@@ -46,6 +47,7 @@ def main():
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	p.add_argument('--inputs', type=Path, required=True)
+	p.add_argument('--compiler-sha256', default='30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de', help='Explicit qualified independent oracle identity; historical default is unchanged')
 	a = p.parse_args()
 	assert all(not path.resolve().is_relative_to(ROOT) for path in (a.runtime, a.build))
 	a.runtime.mkdir(parents=True, exist_ok=False); a.build.mkdir(parents=True, exist_ok=True)
@@ -54,7 +56,7 @@ def main():
 	identity = json.loads(a.component.with_suffix('.identity.json').read_text())
 	assert sha(a.component) == identity['sha256']
 	assert all(sha(path) == digest for path, digest in identity['identity']['sources'].items())
-	assert sha(a.compiler) == '30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de'
+	assert re.fullmatch(r'[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
 	commands, results, instrumented = [], [], []
 	def run(argv, name, expected=0):
 		start = time.monotonic()

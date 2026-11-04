@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-// Mechanical declarations from the qualified LLVM 22 Target/TargetMachine C API.
+// Mechanical declarations from the qualified LLVM 23 Target/TargetMachine C API.
 [CCode (cheader_filename = "llvm-c/Target.h,llvm-c/TargetMachine.h")]
 namespace Astra.Backend.LLVM.CApi {
 [SimpleType]

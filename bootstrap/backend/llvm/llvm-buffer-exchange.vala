@@ -239,7 +239,7 @@ internal class LlvmBufferExchangeOrder : Object {
 			return;
 		}
 		var guard = binding.guard;
-		if ((void*) guard == null || (void*) CApi.is_instruction (guard) == null || CApi.opcode (guard) != CApi.Opcode.BR || CApi.successor_count (guard) != 2) {
+		if ((void*) guard == null || (void*) CApi.is_instruction (guard) == null || CApi.opcode (guard) != CApi.Opcode.COND_BR || CApi.successor_count (guard) != 2) {
 			throw new LlvmError.VERIFICATION ("exchange receiver requires its exact physical null guard");
 		}
 		var condition = CApi.condition (guard);

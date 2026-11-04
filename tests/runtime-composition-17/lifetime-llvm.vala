@@ -1016,12 +1016,12 @@ internal class LlvmLifetimeTests : Object {
 		}
 		assert ((void*) call != null);
 		var branch = CApi.block_terminator (CApi.instruction_parent (call));
-		assert (CApi.opcode (branch) == CApi.Opcode.BR && CApi.successor_count (branch) == 2);
+		assert (CApi.opcode (branch) == CApi.Opcode.COND_BR && CApi.successor_count (branch) == 2);
 		var condition = CApi.operand (branch, 0);
 		assert (CApi.opcode (condition) == CApi.Opcode.ICMP && (void*) CApi.operand (condition, 0) == (void*) call);
 		var failure = CApi.successor (branch, 1);
 		var retirement = CApi.block_terminator (failure);
-		assert (CApi.opcode (retirement) == CApi.Opcode.BR && CApi.successor_count (retirement) == 2);
+		assert (CApi.opcode (retirement) == CApi.Opcode.COND_BR && CApi.successor_count (retirement) == 2);
 		failure = CApi.successor (retirement, 1);
 		CApi.ValueRef release = (CApi.ValueRef) null;
 		for (var instruction = CApi.first_instruction (failure); (void*) instruction != null; instruction = CApi.next_instruction (instruction)) {
@@ -2495,7 +2495,7 @@ internal class LlvmLifetimeTests : Object {
 				}
 				if (CApi.opcode (instruction) == CApi.Opcode.ICMP && ((void*) CApi.operand (instruction, 0) == (void*) call || (void*) CApi.operand (instruction, 1) == (void*) call)) {
 					var branch = CApi.block_terminator (block);
-					if (CApi.opcode (branch) == CApi.Opcode.BR && (void*) CApi.operand (branch, 0) == (void*) instruction) {
+					if (CApi.opcode (branch) == CApi.Opcode.COND_BR && (void*) CApi.operand (branch, 0) == (void*) instruction) {
 						guard = branch;
 					}
 				}
@@ -4022,7 +4022,7 @@ internal class LlvmLifetimeTests : Object {
 				}
 				for (var test = CApi.first_use (comparison); (void*) test != null; test = CApi.next_use (test)) {
 					var user = CApi.user (test);
-					if (CApi.opcode (user) == CApi.Opcode.BR) {
+					if (CApi.opcode (user) == CApi.Opcode.COND_BR) {
 						branch = user;
 					}
 				}
@@ -4175,7 +4175,7 @@ internal class LlvmLifetimeTests : Object {
 			}
 			for (var test = CApi.first_use (comparison); (void*) test != null; test = CApi.next_use (test)) {
 				var user = CApi.user (test);
-				if (CApi.opcode (user) == CApi.Opcode.BR && CApi.successor_count (user) == 2) {
+				if (CApi.opcode (user) == CApi.Opcode.COND_BR && CApi.successor_count (user) == 2) {
 					branch = user;
 				}
 			}
@@ -4527,7 +4527,7 @@ internal class LlvmLifetimeTests : Object {
 		}
 		for (var block = CApi.first_block (destructor); (void*) block != null; block = CApi.next_block (block)) {
 			var end = CApi.block_terminator (block);
-			if (CApi.opcode (end) == CApi.Opcode.BR && CApi.successor_count (end) == 2 && CApi.opcode (CApi.operand (end, 0)) == CApi.Opcode.ICMP && CApi.type_kind (CApi.type_of (CApi.operand (CApi.operand (end, 0), 0))) == CApi.TypeKind.POINTER) {
+			if (CApi.opcode (end) == CApi.Opcode.COND_BR && CApi.successor_count (end) == 2 && CApi.opcode (CApi.operand (end, 0)) == CApi.Opcode.ICMP && CApi.type_kind (CApi.type_of (CApi.operand (CApi.operand (end, 0), 0))) == CApi.TypeKind.POINTER) {
 				branches.add ((void*) end);
 			}
 			for (var instruction = CApi.first_instruction (block); (void*) instruction != null; instruction = CApi.next_instruction (instruction)) {
@@ -4889,7 +4889,7 @@ internal class LlvmLifetimeTests : Object {
 		CApi.ValueRef guard = (CApi.ValueRef) null;
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
 			var end = CApi.block_terminator (block);
-			if (CApi.opcode (end) == CApi.Opcode.BR && CApi.successor_count (end) == 2 && (void*) CApi.successor (end, 1) == (void*) (fallible ? CApi.instruction_parent (constructed) : CApi.incoming_block (root, live))) {
+			if (CApi.opcode (end) == CApi.Opcode.COND_BR && CApi.successor_count (end) == 2 && (void*) CApi.successor (end, 1) == (void*) (fallible ? CApi.instruction_parent (constructed) : CApi.incoming_block (root, live))) {
 				guard = end;
 			}
 			for (var instruction = CApi.first_instruction (block); (void*) instruction != null; instruction = CApi.next_instruction (instruction)) {
@@ -5266,7 +5266,7 @@ internal class LlvmLifetimeTests : Object {
 					assert ((void*) loaded == null);
 					loaded = instruction;
 				}
-				if (CApi.opcode (instruction) == CApi.Opcode.BR && CApi.successor_count (instruction) == 2) {
+				if (CApi.opcode (instruction) == CApi.Opcode.COND_BR && CApi.successor_count (instruction) == 2) {
 					var condition = CApi.operand (instruction, 0);
 					if ((void*) CApi.is_instruction (condition) != null && CApi.opcode (condition) == CApi.Opcode.ICMP && ((void*) CApi.operand (condition, 0) == (void*) call || (void*) CApi.operand (condition, 1) == (void*) call)) {
 						guard = instruction;
@@ -5913,7 +5913,7 @@ internal class LlvmLifetimeTests : Object {
 					continue;
 				}
 				var branch = CApi.block_terminator (CApi.instruction_parent (test));
-				if (CApi.opcode (branch) == CApi.Opcode.BR && CApi.successor_count (branch) == 2 && (void*) CApi.operand (branch, 0) == (void*) test) {
+				if (CApi.opcode (branch) == CApi.Opcode.COND_BR && CApi.successor_count (branch) == 2 && (void*) CApi.operand (branch, 0) == (void*) test) {
 					uint position = CApi.predicate (test) == CApi.IntPredicate.EQ ? 0U : 1U;
 					guards.add ((void*) branch);
 					successors.add ((void*) CApi.successor (branch, position));
@@ -8323,7 +8323,7 @@ internal class LlvmLifetimeTests : Object {
 		assert (rejected);
 		CApi.set_instruction_call_conv (transferred, LlvmLowering.CALL_CONVENTION);
 		var branch = CApi.block_terminator (CApi.first_block (target));
-		assert (CApi.opcode (branch) == CApi.Opcode.BR && CApi.successor_count (branch) == 2);
+		assert (CApi.opcode (branch) == CApi.Opcode.COND_BR && CApi.successor_count (branch) == 2);
 		var condition = CApi.operand (branch, 0);
 		assert (CApi.opcode (condition) == CApi.Opcode.ICMP && (CApi.predicate (condition) == CApi.IntPredicate.EQ || CApi.predicate (condition) == CApi.IntPredicate.NE));
 		CApi.set_operand (branch, 0, CApi.const_int (CApi.type_of (condition), CApi.predicate (condition) == CApi.IntPredicate.EQ ? 1 : 0, 0));

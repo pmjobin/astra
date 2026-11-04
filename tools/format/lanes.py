@@ -134,6 +134,7 @@ def format_once(lane, data, name, root, tools):
 		result = run([tools['clang-format'], '--style=file:' + str(root/'format/clang-format.yaml'), '--assume-filename=' + name], data)
 		if lane != 'javascript':
 			result = re.sub(rb'(?m)^[ \t]*// clang-format (?:off|on): ASTRA_DIRECTIVE_GUARD\n', b'', result)
+			result = enum_indentation(result)
 			result = preserve_call_interiors(original, result)
 		return result
 	if lane == 'meson':
@@ -146,6 +147,40 @@ def format_once(lane, data, name, root, tools):
 			path.write_bytes(data)
 			return run([tools['astrac'], '--format', path])
 	raise ValueError('unqualified language lane ' + lane)
+
+
+def enum_indentation(data):
+	# Clang 23 classifies inline enum continuations as alignment only. Retain
+	# one tab per lexical indentation level, with spaces for alignment, as in
+	# the qualified Clang 22 profile. Visual columns and tokens stay exact.
+	text = data.decode('utf-8')
+	stack, changes = [], []
+	pending = None
+	for token, start, end in scan(data):
+		line = text.rfind('\n', 0, start) + 1
+		prefix = text[line:start]
+		if token == 'enum':
+			leading = re.match(r'[ \t]*', prefix)[0]
+			pending = len(leading.expandtabs(4)) + 4
+		elif token == '{':
+			stack.append(pending)
+			pending = None
+		elif token == '}':
+			if stack:
+				stack.pop()
+			pending = None
+		elif token in (';', '(', '='):
+			pending = None
+		elif stack and stack[-1] is not None and prefix and not prefix.strip() and (token[0].isalpha() or token[0] == '_'):
+			columns = len(prefix.expandtabs(4))
+			indent = stack[-1]
+			if columns >= indent:
+				replacement = '\t' * (indent // 4) + ' ' * (columns - indent)
+				if replacement != prefix:
+					changes.append((line, start, replacement))
+	for start, end, replacement in reversed(changes):
+		text = text[:start] + replacement + text[end:]
+	return text.encode('utf-8')
 
 
 def shield_directives(data):

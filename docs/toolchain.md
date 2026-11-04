@@ -7,7 +7,7 @@ not a self-hosted full compiler. Use explicit source and output paths.
 ## Dependencies and build
 
 The hosted development profile uses system Vala, Meson 1.11+, Ninja, a C11 compiler,
-GLib/GObject and LLVM 22 development files. The LLVM boundary uses the selected
+GLib/GObject and LLVM 23 development files (currently qualified with 23.1.4). The LLVM boundary uses the selected
 `llvm-config` and the narrow C API; discovery and linkage checks are authored in
 `bootstrap/backend/llvm/meson.build`. Python drives integration tests. LLVM command
 line tools, GCC/Clang, ELF inspection tools and Valgrind are used by their respective
@@ -117,3 +117,7 @@ Keep code, portable recipes and concise maintained documentation in Git. Store
 build products under the project's external `build/` area and detailed receipts
 under its `runtime/` area. [Git recovery](history/active-tree.md) identifies retired
 milestone reports; those old qualifications do not qualify a new checkout.
+
+The [LLVM 23 migration](llvm-23-migration.md) records the current products,
+focused validation and formatter requalification. Earlier LLVM 22 binaries and
+reports retain their original source/tool identities.

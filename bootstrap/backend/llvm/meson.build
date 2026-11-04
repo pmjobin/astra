@@ -3,16 +3,16 @@
 # Meson's LLVM dependency requires C++; this project uses only the C API.
 llvm_config = find_program('llvm-config')
 llvm_version = run_command(llvm_config, '--version', check: true).stdout().strip()
-if llvm_version.split('.')[0] != '22'
-	error('ASTRA-EXEC-1 requires system LLVM major 22; llvm-config reports ' + llvm_version)
+if llvm_version.split('.')[0] != '23'
+	error('ASTRA-EXEC-1 requires system LLVM major 23; llvm-config reports ' + llvm_version)
 endif
 
 llvm_cflags = run_command(llvm_config, '--cflags', check: true).stdout().strip().split()
 llvm_ldflags = run_command(llvm_config, '--link-shared', '--ldflags', '--libs', '--system-libs', 'core', 'analysis', 'native', check: true).stdout().strip().split()
 llvm_dependency = declare_dependency(compile_args: llvm_cflags, link_args: llvm_ldflags)
 
-if not meson.get_compiler('c').links(files('capi/check.c'), dependencies: llvm_dependency, name: 'LLVM 22 C API headers and linkage')
-	error('The selected system LLVM must provide matching LLVM 22 headers and the required Core/Analysis/Target/TargetMachine C API. See meson-logs/meson-log.txt.')
+if not meson.get_compiler('c').links(files('capi/check.c'), dependencies: llvm_dependency, name: 'LLVM 23 C API headers and linkage')
+	error('The selected system LLVM must provide matching LLVM 23 headers and the required Core/Analysis/Target/TargetMachine C API. See meson-logs/meson-log.txt.')
 endif
 
 llvm_smoke_sources = files('smoke.vala', 'capi/llvm.vapi')

@@ -8,13 +8,23 @@ import stat
 import tempfile
 import unittest
 
-from lanes import python_format, python_guard, meson_format, meson_guard, stable_format, run, guard
+from lanes import python_format, python_guard, meson_format, meson_guard, stable_format, run, guard, enum_indentation
 from lexical import compare, attach_clauses, expand_accessors
 from preprocess import compare_preprocessed
 from source import read_source, publish, safe_parent, ROOT, qualified_tools, receipt_path
 
 
 class Guards(unittest.TestCase):
+	def test_enum_continuation_tabs(self):
+		before = b'enum Role { FIRST,\n            SECOND = 2,\n            THIRD };\nvoid work() {\n\tenum Inner { ONE,\n                 TWO };\n}\nconst char *text = "enum Fake { SAME, OTHER }";\n'
+		after = enum_indentation(before)
+		self.assertIn(b'\n\t        SECOND', after)
+		self.assertIn(b'\n\t\t         TWO', after)
+		self.assertEqual(before.expandtabs(4), after.expandtabs(4))
+		self.assertEqual(after, enum_indentation(after))
+		compare(before, after)
+		self.assertIn(b'"enum Fake { SAME, OTHER }"', after)
+
 	def test_vala_whitespace_and_clauses(self):
 		before = b'void f() { try { g(); }\ncatch (Error e) { g(); }\nfinally { g(); } }\n'
 		after = attach_clauses(before)

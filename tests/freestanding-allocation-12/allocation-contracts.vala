@@ -245,7 +245,7 @@ private void llvm_contract() {
 		bool changed = false;
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
 			var branch = CApi.block_terminator (block);
-			if ((void*) branch != null && CApi.opcode (branch) == CApi.Opcode.BR && CApi.operand_count (branch) == 3) {
+			if ((void*) branch != null && CApi.opcode (branch) == CApi.Opcode.COND_BR && CApi.operand_count (branch) == 3) {
 				var original = CApi.operand (branch, 0);
 				CApi.set_operand (branch, 0, CApi.const_int (CApi.type_of (original), 1, 0));
 				reject_llvm (program);

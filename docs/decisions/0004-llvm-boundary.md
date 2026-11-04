@@ -1,6 +1,8 @@
 # ADR 0004: Narrow LLVM C API backend boundary
 
-Status: accepted in ASTRA-CHARTER-1.
+Status: accepted in ASTRA-CHARTER-1. The founding LLVM 22 qualification
+remains historical; current version selection is superseded by
+[ADR 0169](0169-llvm-23-migration.md).
 
 ## Decision
 

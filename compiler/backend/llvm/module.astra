@@ -1,4 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// LLVM 23 requires canonical input bits, including negative/all-ones values.
+// This is a physical C API boundary; source semantics select every input.
+void* llvm_integer_constant(void* type, u64 bits, int extend) {
+	int width = LLVMGetIntTypeWidth(type);
+	u64 canonical = bits;
+	if (width < 64) canonical = bits & ((1 as u64 << width) - 1);
+	return LLVMConstInt(type, canonical, extend);
+}
+
 class LlvmProfile {
 	int optimization;
 	int work;
@@ -272,7 +281,7 @@ class LlvmModule {
 				ancestor = core.places[ancestor - 1].parent;
 			}
 			if (ancestor == place && this.armed[p] != null) {
-				var ignored = LLVMBuildStore(this.builder, LLVMConstInt(LLVMIntTypeInContext(this.context, 1), bit, 0), this.armed[p]);
+				var ignored = LLVMBuildStore(this.builder, llvm_integer_constant(LLVMIntTypeInContext(this.context, 1), bit, 0), this.armed[p]);
 			} p = p + 1;
 		}
 	}
@@ -436,7 +445,7 @@ class LlvmModule {
 					}
 					this.armed[p] = LLVMBuildAlloca(this.builder, LLVMIntTypeInContext(this.context, 1), this.empty);
 					var root = program.cfg.core.data.places[place.root - 1]; u64 live = 0; if (root.parameter && (root.flags & 2) == 0) live = 1;
-					var ignored = LLVMBuildStore(this.builder, LLVMConstInt(LLVMIntTypeInContext(this.context, 1), live, 0), this.armed[p]);
+					var ignored = LLVMBuildStore(this.builder, llvm_integer_constant(LLVMIntTypeInContext(this.context, 1), live, 0), this.armed[p]);
 				}
 				p = p + 1;
 			}
@@ -520,13 +529,13 @@ class LlvmModule {
 		if (op == "/" || op == "%") {
 			var iszero = LLVMBuildICmp(this.builder, 32, b, zero, this.empty); this.guard(iszero, function);
 			void* overflow = LLVMConstNull(LLVMIntTypeInContext(this.context, 1));
-			var minimum = LLVMConstInt(physical, 1 as u64 << (type_width(kind) - 1), 0);
+			var minimum = llvm_integer_constant(physical, 1 as u64 << (type_width(kind) - 1), 0);
 			if (type_signed(kind)) {
-				var ismin = LLVMBuildICmp(this.builder, 32, a, minimum, this.empty); var isminus = LLVMBuildICmp(this.builder, 32, b, LLVMConstInt(physical, 18446744073709551615, 0), this.empty);
+				var ismin = LLVMBuildICmp(this.builder, 32, a, minimum, this.empty); var isminus = LLVMBuildICmp(this.builder, 32, b, llvm_integer_constant(physical, 18446744073709551615, 0), this.empty);
 				overflow = LLVMBuildAnd(this.builder, ismin, isminus, this.empty);
 			}
 			// Safe divisor even under constant folding and on the dead guard edge.
-			var unsafe = LLVMBuildOr(this.builder, iszero, overflow, this.empty); var divisor = LLVMBuildSelect(this.builder, unsafe, LLVMConstInt(physical, 1, 0), b, this.empty);
+			var unsafe = LLVMBuildOr(this.builder, iszero, overflow, this.empty); var divisor = LLVMBuildSelect(this.builder, unsafe, llvm_integer_constant(physical, 1, 0), b, this.empty);
 			void* result = null;
 			if (type_signed(kind)) {
 				if (op == "/") {
@@ -547,7 +556,7 @@ class LlvmModule {
 		}
 		if (op == "<<" || op == ">>") {
 			var right_node = checked.bindings.program.arena.get_node_right(row.source); int count_kind = checked_kind(checked, checked.uses[right_node.index].type);
-			var count_type = LLVMTypeOf(b); var bad = LLVMBuildICmp(this.builder, 35, b, LLVMConstInt(count_type, type_width(kind) as u64, 0), this.empty);
+			var count_type = LLVMTypeOf(b); var bad = LLVMBuildICmp(this.builder, 35, b, llvm_integer_constant(count_type, type_width(kind) as u64, 0), this.empty);
 			if (type_signed(count_kind)) {
 				var negative = LLVMBuildICmp(this.builder, 40, b, LLVMConstNull(count_type), this.empty);
 				bad = LLVMBuildOr(this.builder, bad, negative, this.empty);
@@ -663,7 +672,7 @@ class LlvmModule {
 					}
 				}
 			}
-			return LLVMConstInt(type, bits, 0);
+			return llvm_integer_constant(type, bits, 0);
 		}
 		if (op == 3 || op == 4) {
 			if (ssa.promoted) return this.use(program.data, index, 4, 0);
@@ -681,7 +690,7 @@ class LlvmModule {
 			int kind = checked_kind(program.cfg.core.flow.checked, row.type);
 			if (text.text == "-" && (kind == 11 || kind == 12)) return LLVMBuildFNeg(this.builder, value, this.empty);
 			if (text.text == "-") return LLVMBuildSub(this.builder, LLVMConstNull(type), value, this.empty);
-			if (text.text == "!" || text.text == "~") return LLVMBuildXor(this.builder, value, LLVMConstInt(type, 18446744073709551615, 0), this.empty);
+			if (text.text == "!" || text.text == "~") return LLVMBuildXor(this.builder, value, llvm_integer_constant(type, 18446744073709551615, 0), this.empty);
 			throw new Error("LLVM_DEFERRED: unary");
 		}
 		if (op == 6) {
@@ -750,7 +759,7 @@ class LlvmModule {
 			var word = LLVMIntTypeInContext(this.context, 64); var pointer = LLVMPointerTypeInContext(this.context, 0);
 			var parameters = new void*[2]; parameters[0] = word; parameters[1] = word;
 			var signature = LLVMFunctionType(pointer, this.handle_args(parameters, 0), 2, 0); var callee = llvm12_function(this.module, signature, "calloc");
-			var args = new void*[2]; args[0] = LLVMConstInt(word, 1, 0); args[1] = LLVMConstInt(word, 1, 0);
+			var args = new void*[2]; args[0] = llvm_integer_constant(word, 1, 0); args[1] = llvm_integer_constant(word, 1, 0);
 			var allocation = LLVMBuildCall2(this.builder, signature, callee, this.handle_args(args, 0), 2, this.empty); llvm12_nobuiltin(this.context, allocation);
 			var failed = LLVMBuildICmp(this.builder, 32, allocation, LLVMConstNull(pointer), this.empty); this.guard(failed, function);
 			return allocation;
@@ -766,7 +775,7 @@ class LlvmModule {
 			if (size < 1 || size > 8) {
 				throw new Error("LLVM_DEFERRED: element layout");
 			}
-			var args = new void*[2]; args[0] = LLVMBuildZExt(this.builder, count, word, this.empty); args[1] = LLVMConstInt(word, size, 0);
+			var args = new void*[2]; args[0] = LLVMBuildZExt(this.builder, count, word, this.empty); args[1] = llvm_integer_constant(word, size, 0);
 			var allocation = LLVMBuildCall2(this.builder, signature, callee, this.handle_args(args, 0), 2, this.empty); llvm12_nobuiltin(this.context, allocation);
 			var failed = LLVMBuildICmp(this.builder, 32, allocation, LLVMConstNull(pointer), this.empty); this.guard(failed, function);
 			var success = LLVMGetInsertBlock(this.builder); var jump = LLVMBuildBr(this.builder, joined); LLVMPositionBuilderAtEnd(this.builder, joined);
@@ -986,7 +995,7 @@ class LlvmModule {
 						if (LLVMIsAInstruction(pointer) != null && LLVMGetInstructionOpcode(pointer) == 44 && LLVMCountIncoming(pointer) == 2) {
 							var allocation = LLVMGetIncomingValue(pointer, 1);
 							if (LLVMIsAInstruction(allocation) != null && LLVMGetInstructionOpcode(allocation) == 45 && llvm13_named(LLVMGetCalledValue(allocation), "calloc") == 1) {
-								var width = LLVMGetArgOperand(allocation, 1); LLVMSetOperand(allocation, 1, LLVMConstInt(LLVMTypeOf(width), 0, 0)); return true;
+								var width = LLVMGetArgOperand(allocation, 1); LLVMSetOperand(allocation, 1, llvm_integer_constant(LLVMTypeOf(width), 0, 0)); return true;
 							}
 						}
 					}
@@ -999,7 +1008,7 @@ class LlvmModule {
 			while (i < len(this.values)) {
 				var value = this.values[i];
 				if (value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 45 && llvm13_named(LLVMGetCalledValue(value), "calloc") == 1 && LLVMGetTypeKind(LLVMTypeOf(value)) == 12) {
-					var width = LLVMGetArgOperand(value, 1); LLVMSetOperand(value, 1, LLVMConstInt(LLVMTypeOf(width), 2, 0)); return true;
+					var width = LLVMGetArgOperand(value, 1); LLVMSetOperand(value, 1, llvm_integer_constant(LLVMTypeOf(width), 2, 0)); return true;
 				}
 				i = i + 1;
 			}
@@ -1032,7 +1041,7 @@ class LlvmModule {
 			while (i < len(this.retirements)) {
 				var call = this.retirements[i];
 				if (call != null && LLVMGetInstructionOpcode(LLVMGetArgOperand(call, 0)) == 27) {
-					LLVMSetOperand(this.retirement_guards[i], 0, LLVMConstInt(LLVMIntTypeInContext(this.context, 1), 0, 0)); return true;
+					LLVMSetOperand(this.retirement_guards[i], 0, llvm_integer_constant(LLVMIntTypeInContext(this.context, 1), 0, 0)); return true;
 				}
 				i = i + 1;
 			}
@@ -1045,7 +1054,7 @@ class LlvmModule {
 			int i = 0; while (i < len(this.numeric_guards)) {
 				var branch = this.numeric_guards[i];
 				if (branch != null && LLVMIsAInstruction(LLVMGetOperand(branch, 0)) != null) {
-					LLVMSetOperand(branch, 0, LLVMConstInt(LLVMIntTypeInContext(this.context, 1), 0, 0));
+					LLVMSetOperand(branch, 0, llvm_integer_constant(LLVMIntTypeInContext(this.context, 1), 0, 0));
 					return true;
 				}
 				i = i + 1;
@@ -1063,7 +1072,7 @@ class LlvmModule {
 					}
 					if (category == 35) {
 						var store = LLVMGetNextInstruction(call);
-						LLVMSetOperand(store, 0, LLVMConstInt(LLVMTypeOf(LLVMGetOperand(store, 0)), 1, 0));
+						LLVMSetOperand(store, 0, llvm_integer_constant(LLVMTypeOf(LLVMGetOperand(store, 0)), 1, 0));
 						return true;
 					}
 					var pointer = LLVMGetArgOperand(call, 0); var load = LLVMGetOperand(pointer, 0); var function = LLVMGetBasicBlockParent(LLVMGetInstructionParent(call)); int p = 0;
@@ -1157,7 +1166,7 @@ class LlvmModule {
 						u64 index = LLVMConstIntGetZExtValue(LLVMGetOperand(instruction, 2));
 						u64 replacement = 0;
 						if (index == 0) replacement = 1;
-						LLVMSetOperand(instruction, 2, LLVMConstInt(LLVMTypeOf(LLVMGetOperand(instruction, 2)), replacement, 0));
+						LLVMSetOperand(instruction, 2, llvm_integer_constant(LLVMTypeOf(LLVMGetOperand(instruction, 2)), replacement, 0));
 						return true;
 					}
 					if (category == 34 && op == 43) {
@@ -1205,7 +1214,7 @@ class LlvmModule {
 					}
 					if (category == 4 && (op == 8 || op == 10 || op == 12)) {
 						var operand = LLVMGetOperand(instruction, 1);
-						var replacement = LLVMConstInt(LLVMTypeOf(operand), 73, 0);
+						var replacement = llvm_integer_constant(LLVMTypeOf(operand), 73, 0);
 						if (operand != replacement) {
 							LLVMSetOperand(instruction, 1, replacement);
 							return true;
@@ -1223,7 +1232,7 @@ class LlvmModule {
 						LLVMSetIsInBounds(instruction, 1);
 						return true;
 					}
-					if (category == 8 && op == 2 && LLVMGetNumSuccessors(instruction) == 2) {
+					if (category == 8 && op == 71 && LLVMGetNumSuccessors(instruction) == 2) {
 						var yes = LLVMGetSuccessor(instruction, 0);
 						var no = LLVMGetSuccessor(instruction, 1);
 						LLVMSetSuccessor(instruction, 0, no);
@@ -1233,7 +1242,7 @@ class LlvmModule {
 					if (category == 9 && op == 1 && LLVMGetNumOperands(instruction) == 1 && LLVMIsAConstantInt(LLVMGetOperand(instruction, 0)) == null) {
 						var original = LLVMGetOperand(instruction, 0);
 						if (LLVMGetTypeKind(LLVMTypeOf(original)) == 8) {
-							LLVMSetOperand(instruction, 0, LLVMConstInt(LLVMTypeOf(original), 1, 0));
+							LLVMSetOperand(instruction, 0, llvm_integer_constant(LLVMTypeOf(original), 1, 0));
 							return true;
 						}
 					}
@@ -1247,7 +1256,7 @@ class LlvmModule {
 						}
 					}
 					if (category == 11 && op == 1 && LLVMGetNumOperands(instruction) == 1 && LLVMGetTypeKind(LLVMTypeOf(LLVMGetOperand(instruction, 0))) == 8) {
-						LLVMSetOperand(instruction, 0, LLVMConstInt(LLVMIntTypeInContext(this.context, 128), 1, 0));
+						LLVMSetOperand(instruction, 0, llvm_integer_constant(LLVMIntTypeInContext(this.context, 128), 1, 0));
 						return true;
 					}
 					if (category == 12 && op == 45 && LLVMGetNumArgOperands(instruction) > 0) {

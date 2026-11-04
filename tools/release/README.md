@@ -15,7 +15,7 @@ python3 tools/release/developer-build.py \
 Omit `--liburing-prefix` for the default profile without the optional Linux
 provider. Matching installed dependencies must already exist; this recipe does
 not install packages or download code. Required build tools are Python 3.12+,
-upstream valac, a C11 compiler, Meson/Ninja, GLib/GObject and LLVM 22. Installed
+upstream valac, a C11 compiler, Meson/Ninja, GLib/GObject and LLVM 23. Installed
 compiler dependencies remain explicit system libraries; provider selection is
 optional for generated programs.
 

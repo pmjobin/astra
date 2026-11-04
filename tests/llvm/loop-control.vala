@@ -129,7 +129,7 @@ private void control_nested_calls() throws GLib.Error {
 		assert ((void*) CApi.called_value (calls[0]) == (void*) fs[0] && (void*) CApi.called_value (calls[1]) == (void*) fs[0]);
 		assert ((void*) CApi.operand (calls[1], 0) == (void*) calls[0] && (void*) CApi.next_instruction (calls[0]) == (void*) calls[1]);
 		var branch = CApi.next_instruction (calls[1]);
-		assert (CApi.opcode (branch) == CApi.Opcode.BR && (void*) CApi.successor (branch, 0) == (void*) blocks (fs[i])[i == 1 ? 3 : 1]);
+		assert (CApi.opcode (branch) == CApi.Opcode.UNCOND_BR && (void*) CApi.successor (branch, 0) == (void*) blocks (fs[i])[i == 1 ? 3 : 1]);
 		control_phi_predecessors (fs[i]);
 	}
 }

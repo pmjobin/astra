@@ -3,7 +3,7 @@
 llvm_tests = executable('astra-llvm-tests', ['pipeline.vala', 'control.vala', 'division.vala', 'lifetime.vala', 'loops.vala', 'loop-control.vala', 'shortcircuit.vala', 'c-imports.vala', 'c-exports.vala', '../../bootstrap/backend/llvm/capi/llvm-test.vapi'], dependencies: llvm_backend_dependency, vala_args: frontend_vala_args, c_args: frontend_c_args)
 test('llvm-backend', llvm_tests, args: ['--tap'], protocol: 'tap', workdir: meson.project_source_root())
 
-# LLVM 22 printer goldens describe this backend realization, not a symbol ABI.
+# Retained LLVM 22 printer goldens describe this backend realization, not a symbol ABI.
 llvm_fixture_directory = meson.current_source_dir() / 'fixtures'
 llvm_fixtures = {
 	'constants': llvm_fixture_directory / 'constants.astra',
@@ -46,3 +46,6 @@ test('llvm-empty-int', cli_check, args: [astrac, '--dump-llvm', 'empty-int.astra
 test('llvm-missing-file', cli_check, args: [astrac, '--dump-llvm', 'nonexistent.astra', '-', 'missing-file.stderr', '1'], workdir: fixture_directory)
 test('llvm-missing-argument', astrac, args: ['--dump-llvm'], expected_exitcode: 2)
 test('llvm-duplicate-source', astrac, args: ['--dump-llvm', 'first.astra', './first.astra'], expected_exitcode: 2)
+
+llvm_branch_api = executable('astra-llvm-branch-api', 'branch-api.c', dependencies: llvm_dependency)
+test('llvm-branch-api', llvm_branch_api)

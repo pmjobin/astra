@@ -48,9 +48,14 @@ def main():
 		if a.check and name.startswith('ownflow-'): raise SystemExit(0)
 		return r.stdout
 	version = subprocess.check_output(['llvm-config', '--version'], text=True).strip()
-	assert version == '22.1.8', version
+	assert version == '23.1.4', version
 	flags = subprocess.check_output(['llvm-config', '--cflags'], text=True).split()
-	libdir = Path(subprocess.check_output(['llvm-config', '--libdir'], text=True).strip())
+	libraries = subprocess.check_output(['llvm-config', '--link-shared', '--libfiles', 'core', 'analysis', 'native'], text=True).split()
+	assert len(libraries) == 1, libraries
+	library_path = Path(libraries[0]).resolve(strict=True)
+	link_flags = subprocess.check_output(['llvm-config', '--link-shared', '--libs', 'core', 'analysis', 'native'], text=True).split()
+	assert len(link_flags) == 1 and link_flags[0].startswith('-l'), link_flags
+	library_name = link_flags[0][2:]
 	shim = a.build/'llvm-capi.o'
 	deps = subprocess.check_output(['gcc', *flags, '-M', ROOT/'compiler/backend/llvm/capi.c'], text=True).replace('\\\n', ' ').split(':', 1)[1].split()
 	gcc = Path(shutil.which('gcc')).resolve()
@@ -65,12 +70,12 @@ def main():
 		capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', ROOT/'compiler/backend/llvm/capi.c', '-o', shim], 'llvm-capi')
 		cache.write_text(json.dumps(dict(inputs=identity, sha256=core.base.sha(shim)), indent=2)+'\n')
 	defined = set(re.findall(r'\b(llvm(?:12|13)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
-	library = ctypes.CDLL(str(libdir/'libLLVM-22.so'))
+	library = ctypes.CDLL(str(library_path))
 	imports = re.findall(r'extern\(C\) (?:void\*|u64|int|void|f32|f64) (\w+)\(', (ROOT/'compiler/backend/llvm/capi.astra').read_text())
 	missing = [name for name in imports if name not in defined and not hasattr(library, name)]
 	assert not missing, ('missing qualified LLVM C ABI symbols', missing)
-	(attempt/'llvm-symbols.json').write_text(json.dumps(dict(library=core.base.sha(libdir/'libLLVM-22.so'), imports=imports, shim_symbols=sorted(defined)), indent=2)+'\n')
-	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=sources(), product_prefix='astra-llvm-', link_objects=[shim], link_libraries=['LLVM-22'], link_inputs=[libdir/'libLLVM-22.so', *map(Path, deps), Path(__file__), ROOT/'tests/selfhost-typecore/build.py', ROOT/'tests/selfhost-coreir/build.py'])
+	(attempt/'llvm-symbols.json').write_text(json.dumps(dict(library=core.base.sha(library_path), imports=imports, shim_symbols=sorted(defined)), indent=2)+'\n')
+	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=sources(), product_prefix='astra-llvm-', link_objects=[shim], link_libraries=[library_name], link_inputs=[library_path, *map(Path, deps), Path(__file__), ROOT/'tests/selfhost-typecore/build.py', ROOT/'tests/selfhost-coreir/build.py'])
 	(attempt/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 
 

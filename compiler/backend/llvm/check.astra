@@ -219,7 +219,7 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 			required = required + 1; int p = place - 1; var call = calls[i]; var guard = guards[i]; var function = functions[row.value.function - 1];
 			if (p < 0 || p >= len(armed) || armed[p] == null || call == null || guard == null || !llvm_check_live_instruction(function, call, budget) || !llvm_check_live_instruction(function, guard, budget)) return false;
 			if (LLVMGetInstructionOpcode(call) != 45 || LLVMGetNumArgOperands(call) != 1 || LLVMGetInstructionCallConv(call) != 0 || llvm13_named(LLVMGetCalledValue(call), "free") != 1) return false;
-			if (LLVMGetInstructionOpcode(guard) != 2 || LLVMGetNumSuccessors(guard) != 2 || LLVMGetInstructionParent(guard) != blocks[row.block - 1]) return false;
+			if (LLVMGetInstructionOpcode(guard) != 71 || LLVMGetNumSuccessors(guard) != 2 || LLVMGetInstructionParent(guard) != blocks[row.block - 1]) return false;
 			var condition = LLVMGetOperand(guard, 0);
 			if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 27 || LLVMGetOperand(condition, 0) != armed[p] || LLVMGetInstructionParent(condition) != blocks[row.block - 1]) return false;
 			var releasing = LLVMGetInstructionParent(call); var next = LLVMGetSuccessor(guard, 1);
@@ -234,7 +234,7 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 			var disarm = LLVMGetNextInstruction(call);
 			if (disarm == null || LLVMGetInstructionOpcode(disarm) != 28 || LLVMGetOperand(disarm, 1) != armed[p] || LLVMIsAConstantInt(LLVMGetOperand(disarm, 0)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(disarm, 0)) != 0) return false;
 			var jump = LLVMGetNextInstruction(disarm);
-			if (jump == null || LLVMGetBasicBlockTerminator(releasing) != jump || LLVMGetInstructionOpcode(jump) != 2 || LLVMGetNumSuccessors(jump) != 1 || LLVMGetSuccessor(jump, 0) != next) return false;
+			if (jump == null || LLVMGetBasicBlockTerminator(releasing) != jump || LLVMGetInstructionOpcode(jump) != 70 || LLVMGetNumSuccessors(jump) != 1 || LLVMGetSuccessor(jump, 0) != next) return false;
 		}
 		i = i + 1;
 	}
@@ -353,7 +353,8 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 					if (LLVMGetInstructionOpcode(term) != 7) return false;
 				}
 				else {
-					if (LLVMGetInstructionOpcode(term) != 2 || LLVMGetNumSuccessors(term) != block.term) return false;
+					int opcode = 70; if (block.term == 2) opcode = 71;
+					if (LLVMGetInstructionOpcode(term) != opcode || LLVMGetNumSuccessors(term) != block.term) return false;
 					if (block.term == 2) {
 						int expected = program.data.blocks[b].condition;
 						if (!llvm_check_operand(LLVMGetOperand(term, 0), values, expected)) return false;
@@ -459,7 +460,7 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 				var condition = LLVMGetNextInstruction(result);
 				if (condition == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 32 || LLVMGetOperand(condition, 0) != result || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0) return false;
 				var branch = LLVMGetNextInstruction(condition);
-				if (branch == null || LLVMGetInstructionOpcode(branch) != 2 || LLVMGetCondition(branch) != condition || LLVMGetNumSuccessors(branch) != 2 || LLVMGetSuccessor(branch, 1) != ends[row.block - 1]) return false;
+				if (branch == null || LLVMGetInstructionOpcode(branch) != 71 || LLVMGetCondition(branch) != condition || LLVMGetNumSuccessors(branch) != 2 || LLVMGetSuccessor(branch, 1) != ends[row.block - 1]) return false;
 				var trap = LLVMGetSuccessor(branch, 0); var call = LLVMGetFirstInstruction(trap); var end = LLVMGetBasicBlockTerminator(trap);
 				if (call == null || llvm13_named(LLVMGetCalledValue(call), "llvm.trap") != 1 || LLVMGetInstructionOpcode(end) != 7 || LLVMGetNextInstruction(call) != end) return false;
 			}

@@ -181,7 +181,7 @@ internal class LlvmLazyProperties : Object {
 		state.end = call;
 		classes.release_owned (builder, function, allocator, cached_owner, cached, state, name);
 		var finished = CApi.build_br (builder, done);
-		artifact.class_values.add (new LlvmClassValueBinding (finished, CApi.Opcode.BR, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { CApi.operand (finished, 0) }, "owned lazy retirement continuation"));
+		artifact.class_values.add (new LlvmClassValueBinding (finished, CApi.Opcode.UNCOND_BR, CApi.void_type_in_context (artifact.context), new CApi.ValueRef[] { CApi.operand (finished, 0) }, "owned lazy retirement continuation"));
 		CApi.position_builder_at_end (builder, done);
 		state.end = done;
 	}

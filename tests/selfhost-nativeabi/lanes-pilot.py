@@ -45,6 +45,7 @@ def main():
 		'astra-backend': ('astra', 'compiler/backend/llvm/module.astra'),
 		'vala-large': ('vala', 'bootstrap/semantic/analyzer.vala'),
 		'C-shim': ('c', 'compiler/backend/llvm/capi.c'),
+		'C-enum': ('c', 'bootstrap/backend/llvm/capi/native-proof.c'),
 		'cpp-provider': ('cpp', 'tests/interop-tooling-14/com-import/provider.cpp'),
 		'python': ('python', 'tests/selfhost-nativeabi/run.py'),
 		'meson': ('meson', 'meson.build'),

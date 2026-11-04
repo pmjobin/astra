@@ -815,7 +815,7 @@ private void owning_record_task_results() {
 		for (var function = CApi.first_function (artifact.module); (void*) function != null; function = CApi.next_function (function)) {
 			for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
 				var branch = CApi.block_terminator (block);
-				if (CApi.opcode (branch) != CApi.Opcode.BR || CApi.successor_count (branch) != 2) {
+				if (CApi.opcode (branch) != CApi.Opcode.COND_BR || CApi.successor_count (branch) != 2) {
 					continue;
 				}
 				var condition = CApi.operand (branch, 0);

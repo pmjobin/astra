@@ -9,8 +9,8 @@
 #include <llvm-c/Transforms/PassBuilder.h>
 #include <llvm/Config/llvm-config.h>
 
-#if LLVM_VERSION_MAJOR != 22
-#error "ASTRA-PTR-1 requires LLVM 22 headers"
+#if LLVM_VERSION_MAJOR != 23
+#error "ASTRA-PTR-1 requires LLVM 23 headers"
 #endif
 
 int main(void) {

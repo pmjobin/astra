@@ -27,13 +27,14 @@ def main():
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	p.add_argument('--case', action='append')
+	p.add_argument('--compiler-sha256', default='908f8db9e524cf94b7651f36e9bf0ff32c98ef64cb7eacd737c3b5f680064b45', help='Explicit qualified independent oracle identity; historical default is unchanged')
 	a = p.parse_args()
 	assert all(not x.resolve().is_relative_to(ROOT) for x in (a.build, a.runtime))
 	a.build.mkdir(parents=True, exist_ok=True); a.runtime.mkdir(parents=True, exist_ok=False)
 	identity = json.loads(a.component.with_suffix('.identity.json').read_text())
 	assert sha(a.component) == identity['sha256']
 	assert all(sha(path) == digest for path, digest in identity['identity']['sources'].items())
-	assert sha(a.compiler) == '908f8db9e524cf94b7651f36e9bf0ff32c98ef64cb7eacd737c3b5f680064b45'
+	assert re.fullmatch(r'[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
 	commands, results = [], []
 	def run(argv, name, expected=0):
 		start = time.monotonic()

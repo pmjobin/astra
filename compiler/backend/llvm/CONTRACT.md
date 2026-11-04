@@ -8,7 +8,7 @@ module, target machine, target data, handle vectors, type maps and integrity sea
 belong to one internal `LlvmModule`. The returned `LlvmArtifact` owns that implementation in a private field and exposes no raw references. C0 supports private fields but not private methods or throwing ordinary constructors; invalid direct implementation construction is inert, and build rechecks proof/owner/state before opening LLVM resources. `close` is idempotent and makes output impossible.
 Target data dies before context types. No raw handles are returned by this API.
 
-The qualified profile is LLVM 22.1.8, GNU/Linux x86-64, host data layout, PIC,
+The current qualified profile is LLVM 23.1.4, GNU/Linux x86-64, host data layout, PIC,
 O0 or O2. All same-module application functions originate in Astra lowering;
 only libc calloc/free and LLVM's trap intrinsic are external. No C source or C0
 application object is generated or called. C0 builds the component itself and
@@ -50,7 +50,7 @@ has a separate armed bit initialized at function entry. Transfers disarm source
 leaves; initialization arms destination leaves. Exact CFG cleanup blocks branch
 on that bit, free only on the taken path and disarm. Scope exit and loan markers
 retain upstream order and proofs. These are ownership states, not copyable PHIs
-or a noalias assertion. Struct GEPs explicitly clear LLVM 22's entire default no-wrap flag set (inbounds, nusw and nuw), and the independent Astra checker verifies zero GEP flags.
+or a noalias assertion. Struct GEPs explicitly clear LLVM's entire default no-wrap flag set (inbounds, nusw and nuw), and the independent Astra checker verifies zero GEP flags.
 
 The separate read-only `check.astra` compares source literals, types, entry/block
 and exact-edge terms, PHI values, promoted copies, loads/stores, basic arithmetic
@@ -83,3 +83,8 @@ handle and never turn a fault into authorized output.
 No Stage 1, full compiler, broad language/backend or other target qualification.
 The former 73-source compiler closure and its zero whole-program proofs remain
 historical and deferred. See the focused test plan and source-bound results.
+
+LLVM 23 uses separate conditional/unconditional branch opcodes and successor-ordered
+conditional block operands. The independent checker validates each opcode and the
+original exact-edge polarity. Historical LLVM 22 receipts remain historical; see
+[ADR 0169](../../../docs/decisions/0169-llvm-23-migration.md).

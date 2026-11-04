@@ -211,7 +211,7 @@ internal class LlvmScopedCapturedTask : Object {
 		}
 		if (checked_admission) {
 			admission = CApi.block_terminator (CApi.instruction_parent (original));
-			if (CApi.opcode (admission) != CApi.Opcode.BR || CApi.successor_count (admission) != 2) {
+			if (CApi.opcode (admission) != CApi.Opcode.COND_BR || CApi.successor_count (admission) != 2) {
 				throw new LlvmError.LOWERING ("checked scoped capture lost its immediate admission branch");
 			}
 			refused = CApi.successor (admission, 0);
@@ -245,7 +245,7 @@ internal class LlvmScopedCapturedTask : Object {
 		} else {
 			frame.verify_captured_factory (checked_admission);
 		} if (checked_admission) {
-			if (CApi.opcode (admission) != CApi.Opcode.BR || CApi.successor_count (admission) != 2 || (void*) CApi.block_terminator (CApi.instruction_parent (original)) != (void*) admission || (void*) CApi.successor (admission, 0) != (void*) refused || (void*) CApi.successor (admission, 1) != (void*) accepted) {
+			if (CApi.opcode (admission) != CApi.Opcode.COND_BR || CApi.successor_count (admission) != 2 || (void*) CApi.block_terminator (CApi.instruction_parent (original)) != (void*) admission || (void*) CApi.successor (admission, 0) != (void*) refused || (void*) CApi.successor (admission, 1) != (void*) accepted) {
 				throw new LlvmError.VERIFICATION ("checked scoped capture lost its original refusal/admission edges");
 			}
 			var condition = CApi.operand (admission, 0);
@@ -4247,7 +4247,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 	}
 
 	private void held_edge(CApi.ValueRef end, uint successor, uint[] state, bool strict) throws LlvmError {
-		if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
+		if (CApi.opcode (end) != CApi.Opcode.COND_BR || CApi.successor_count (end) != 2) {
 			return;
 		}
 		foreach (var task in held_tasks) {
@@ -4583,7 +4583,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 	}
 
 	private void deferred_edge(CApi.ValueRef end, uint successor, uint[] state) throws LlvmError {
-		if (deferred_error == null || CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
+		if (deferred_error == null || CApi.opcode (end) != CApi.Opcode.COND_BR || CApi.successor_count (end) != 2) {
 			return;
 		}
 		var test = CApi.operand (end, 0);
@@ -5453,7 +5453,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 	}
 
 	private bool checked_edge(CApi.ValueRef end, uint successor, uint[] state) {
-		if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
+		if (CApi.opcode (end) != CApi.Opcode.COND_BR || CApi.successor_count (end) != 2) {
 			return true;
 		}
 		var condition = CApi.operand (end, 0);
@@ -5554,7 +5554,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 	}
 
 	private bool error_edge(CApi.ValueRef end, uint successor, uint[] state) {
-		if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
+		if (CApi.opcode (end) != CApi.Opcode.COND_BR || CApi.successor_count (end) != 2) {
 			return true;
 		}
 		var condition = CApi.operand (end, 0);
@@ -6050,7 +6050,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 	}
 
 	private void constructor_error_edge(CApi.ValueRef end, uint successor, uint[] state, bool strict) throws LlvmError {
-		if (consuming == null || CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2) {
+		if (consuming == null || CApi.opcode (end) != CApi.Opcode.COND_BR || CApi.successor_count (end) != 2) {
 			return;
 		}
 		var condition = CApi.operand (end, 0);
@@ -6613,7 +6613,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 								if (constructor_stack != null && !constructor_stack.edge (end, s, state, stack_offset)) {
 									continue;
 								}
-								if (CApi.opcode (end) == CApi.Opcode.BR && CApi.successor_count (end) == 2) {
+								if (CApi.opcode (end) == CApi.Opcode.COND_BR && CApi.successor_count (end) == 2) {
 									var condition = CApi.operand (end, 0);
 									int known = known_condition (condition, state);
 									if (known >= 0 && (known == 1) != (s == 0)) {
@@ -6623,7 +6623,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 								uint[] edge = state.copy ();
 								storage.select_state (edge, heap_choice_offset, storage_offset);
 								deferred_edge (end, s, edge);
-								if (coroutine != null && CApi.opcode (end) == CApi.Opcode.BR && CApi.successor_count (end) == 2) {
+								if (coroutine != null && CApi.opcode (end) == CApi.Opcode.COND_BR && CApi.successor_count (end) == 2) {
 									var condition = CApi.operand (end, 0);
 									if ((void*) CApi.is_instruction (condition) != null && CApi.opcode (condition) == CApi.Opcode.LOAD) {
 										int flag = frame_field (CApi.operand (condition, 0));
@@ -6640,7 +6640,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 										}
 									}
 								}
-								if (result_shape != null && (void*) CApi.block_parent (block) == (void*) coroutine.destroy && CApi.opcode (end) == CApi.Opcode.BR && CApi.successor_count (end) == 2) {
+								if (result_shape != null && (void*) CApi.block_parent (block) == (void*) coroutine.destroy && CApi.opcode (end) == CApi.Opcode.COND_BR && CApi.successor_count (end) == 2) {
 									var condition = CApi.operand (end, 0);
 									if ((void*) CApi.is_instruction (condition) != null && CApi.opcode (condition) == CApi.Opcode.AND && state[result_live_offset] == 2) {
 										for (uint term = 0; term < 2; term++) {
@@ -6657,7 +6657,7 @@ internal class LlvmScopedAllocationVerifier : Object {
 								child_phase_edge (end, s, edge, pass == 1);
 								held_edge (end, s, edge, pass == 1);
 								constructor_error_edge (end, s, edge, pass == 1);
-								if (CApi.opcode (end) == CApi.Opcode.BR && CApi.successor_count (end) == 2) {
+								if (CApi.opcode (end) == CApi.Opcode.COND_BR && CApi.successor_count (end) == 2) {
 									var condition = CApi.operand (end, 0);
 									if ((void*) CApi.is_instruction (condition) != null && CApi.opcode (condition) == CApi.Opcode.ICMP && (CApi.predicate (condition) == CApi.IntPredicate.EQ || CApi.predicate (condition) == CApi.IntPredicate.NE)) {
 										var left = CApi.operand (condition, 0);

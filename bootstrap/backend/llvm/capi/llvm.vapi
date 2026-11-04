@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-// Mechanical declarations of only the public LLVM 22 C APIs used by this backend.
+// Mechanical declarations of only the public LLVM 23 C APIs used by this backend.
 // These opaque references are backend implementation details, not Astra types.
 [CCode (cheader_filename = "llvm-c/Core.h,llvm-c/Analysis.h")]
 namespace Astra.Backend.LLVM.CApi {
@@ -175,8 +175,10 @@ public enum Opcode {
 	RET,
 	[CCode (cname = "LLVMSwitch")]
 	SWITCH,
-	[CCode (cname = "LLVMBr")]
-	BR,
+	[CCode (cname = "LLVMUncondBr")]
+	UNCOND_BR,
+	[CCode (cname = "LLVMCondBr")]
+	COND_BR,
 	[CCode (cname = "LLVMUnreachable")]
 	UNREACHABLE,
 	[CCode (cname = "LLVMAdd")]

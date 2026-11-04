@@ -200,7 +200,7 @@ internal class LlvmClassBranchBinding : Object {
 	}
 
 	internal void verify() throws LlvmError {
-		if (CApi.opcode (instruction) != CApi.Opcode.BR || CApi.successor_count (instruction) != 2 || (void*) CApi.operand (instruction, 0) != (void*) condition || (void*) CApi.successor (instruction, 0) != (void*) matched || (void*) CApi.successor (instruction, 1) != (void*) next) {
+		if (CApi.opcode (instruction) != CApi.Opcode.COND_BR || CApi.successor_count (instruction) != 2 || (void*) CApi.operand (instruction, 0) != (void*) condition || (void*) CApi.successor (instruction, 0) != (void*) matched || (void*) CApi.successor (instruction, 1) != (void*) next) {
 			throw new LlvmError.VERIFICATION ("class handler lost exact guarded condition and source-ordered target association");
 		}
 	}

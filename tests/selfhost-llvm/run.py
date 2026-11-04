@@ -24,6 +24,7 @@ def main():
 	p.add_argument('--mode', choices=('O0','O2'), required=True)
 	p.add_argument('--case', action='append')
 	p.add_argument('--development', action='store_true')
+	p.add_argument('--compiler-sha256', default='30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de', help='Explicit qualified independent oracle identity; historical default is unchanged')
 	a = p.parse_args()
 	a.runtime.mkdir(parents=True, exist_ok=False)
 	a.build.mkdir(parents=True, exist_ok=True)
@@ -31,7 +32,7 @@ def main():
 		identity = json.loads(a.component.with_suffix('.identity.json').read_text())
 		assert sha(a.component) == identity['sha256']
 		assert all(sha(path) == h for path, h in identity['identity']['sources'].items())
-	assert sha(a.compiler) == '30865ad8a9d1652b63ad882f1e29031c76ac13204212f822b44235cb07df10de'
+	assert re.fullmatch(r'[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
 	commands = []
 	results = []
 	def run(argv, name, expected=0, timeout=60):
@@ -97,7 +98,7 @@ def main():
 		target = re.search(r'target triple = "([^"]+)"',raw_text)[1]
 		layout = re.search(r'target datalayout = "([^"]+)"',raw_text)[1]
 		function_spans = [line.decode() for line in ssa.splitlines() if line.startswith(b'FUNCTION ')]
-		results.append(dict(**item, source_span=dict(start=0,end=source.stat().st_size), semantic_proofs=proofs, semantic_proof_scope='Discharged adapter PROOF rows; already primitive-admitted uses need no adapter proof', admission_sha256=hashlib.sha256(admission).hexdigest(), function_spans=function_spans, target=target, layout=layout, ABI='astra-llvm-private/1-x86_64-host', LLVM='22.1.8', runtime=runtime, expected_artifact_bytes=None, expected_artifact_policy='independent structural and semantic expectations; no pre-known binary hash', verifier='LLVMVerifyModule plus external llvm-as and opt', mode=a.mode, component_sha256=sha(a.component), c0_sha256=sha(a.compiler), ssa_sha256=hashlib.sha256(ssa).hexdigest(), products={k:dict(path=str(v),sha256=sha(v),bytes=v.stat().st_size) for k,v in paths.items()}, facts=facts, memory=memories, link=list(map(str,link)), result='PASS'))
+		results.append(dict(**item, source_span=dict(start=0,end=source.stat().st_size), semantic_proofs=proofs, semantic_proof_scope='Discharged adapter PROOF rows; already primitive-admitted uses need no adapter proof', admission_sha256=hashlib.sha256(admission).hexdigest(), function_spans=function_spans, target=target, layout=layout, ABI='astra-llvm-private/1-x86_64-host', LLVM='23.1.4', runtime=runtime, expected_artifact_bytes=None, expected_artifact_policy='independent structural and semantic expectations; no pre-known binary hash', verifier='LLVMVerifyModule plus external llvm-as and opt', mode=a.mode, component_sha256=sha(a.component), c0_sha256=sha(a.compiler), ssa_sha256=hashlib.sha256(ssa).hexdigest(), products={k:dict(path=str(v),sha256=sha(v),bytes=v.stat().st_size) for k,v in paths.items()}, facts=facts, memory=memories, link=list(map(str,link)), result='PASS'))
 		(a.runtime/'results.json').write_text(json.dumps(results,indent=2)+'\n')
 		print(name,a.mode,'PASS',flush=True)
 	if not a.case:

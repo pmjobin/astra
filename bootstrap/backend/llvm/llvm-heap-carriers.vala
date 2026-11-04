@@ -286,7 +286,7 @@ internal class LlvmScopedHeapCarrier : Object {
 		var joined = CApi.instruction_parent (root);
 		var function = CApi.block_parent (joined);
 		var absent = CApi.block_terminator (CApi.incoming_block (root, empty));
-		if ((void*) CApi.is_constant_pointer_null (CApi.incoming_value (root, empty)) == null || !named_call (allocation, contextual ? "astra_context17_allocate_mode" : "calloc") || CApi.opcode (absent) != CApi.Opcode.BR || CApi.successor_count (absent) != 2 || !number (CApi.operand (absent, 0), 0) || (void*) CApi.successor (absent, 0) != (void*) joined) {
+		if ((void*) CApi.is_constant_pointer_null (CApi.incoming_value (root, empty)) == null || !named_call (allocation, contextual ? "astra_context17_allocate_mode" : "calloc") || CApi.opcode (absent) != CApi.Opcode.COND_BR || CApi.successor_count (absent) != 2 || !number (CApi.operand (absent, 0), 0) || (void*) CApi.successor (absent, 0) != (void*) joined) {
 			throw new LlvmError.VERIFICATION ("heap carrier lost its prescribed allocation and unreachable empty edge");
 		}
 		var context = CApi.type_context (layout);
@@ -311,12 +311,12 @@ internal class LlvmScopedHeapCarrier : Object {
 		var successful = CApi.incoming_block (root, live);
 		var success_end = CApi.block_terminator (successful);
 		CApi.ValueRef comparison = (CApi.ValueRef) null;
-		if (CApi.opcode (success_end) != CApi.Opcode.BR || CApi.successor_count (success_end) != 1 || (void*) CApi.successor (success_end, 0) != (void*) joined) {
+		if (CApi.opcode (success_end) != CApi.Opcode.UNCOND_BR || CApi.successor_count (success_end) != 1 || (void*) CApi.successor (success_end, 0) != (void*) joined) {
 			throw new LlvmError.VERIFICATION ("heap carrier lost its backing publication edge");
 		}
 		for (var block = CApi.first_block (function); (void*) block != null; block = CApi.next_block (block)) {
 			var end = CApi.block_terminator (block);
-			if (CApi.opcode (end) != CApi.Opcode.BR || CApi.successor_count (end) != 2 || (void*) CApi.successor (end, 1) != (void*) successful) {
+			if (CApi.opcode (end) != CApi.Opcode.COND_BR || CApi.successor_count (end) != 2 || (void*) CApi.successor (end, 1) != (void*) successful) {
 				continue;
 			}
 			var condition = CApi.operand (end, 0);

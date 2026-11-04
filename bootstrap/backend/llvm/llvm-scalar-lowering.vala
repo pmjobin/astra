@@ -280,7 +280,7 @@ internal class LlvmScalarLowering : Object {
 	internal void emit_trap() throws LlvmError {
 		uint trap_id = CApi.lookup_intrinsic_id ("llvm.trap", 9);
 		if (trap_id == 0) {
-			throw new LlvmError.LOWERING ("internal LLVM lowering error: LLVM 22 trap intrinsic is unavailable");
+			throw new LlvmError.LOWERING ("internal LLVM lowering error: trap intrinsic is unavailable");
 		}
 		var trap_function = CApi.get_intrinsic_declaration (artifact.module, trap_id, null, 0);
 		var trap_type = CApi.intrinsic_get_type (artifact.context, trap_id, null, 0);
