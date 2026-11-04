@@ -2,10 +2,12 @@
 // Observation only: works with both the original and current semantic APIs.
 int main(string[] args) {
 	try {
-		var source = binding_load_program(args, 1);
+		bool class_storage = len(args) > 1 && args[1] == "--class-storage";
+		int first = 1; if (class_storage) first = 2;
+		var source = binding_load_program(args, first);
 		int originals = source.arena.node_count;
 		var bindings = binding_index(move source, 0);
-		var checked = checked_build_nativeabi(move bindings, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, class_storage);
 		var flow = flow_index(move checked, 8192, 1000000);
 		var observation = flow_observation(flow);
 		print(observation.text);

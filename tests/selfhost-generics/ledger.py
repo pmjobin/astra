@@ -25,6 +25,8 @@ def main():
 		p.add_argument('--'+name, type=Path, required=True)
 	p.add_argument('--phase', choices=('before', 'after'), required=True)
 	p.add_argument('--target-root', type=Path, help='Observe an exact retained source snapshot with the current consumer')
+	p.add_argument('--implementation-root', type=Path, help='Compile an exact retained implementation snapshot for a before/after comparison')
+	p.add_argument('--class-storage', action='store_true', help='Observe the explicitly authorized private Class-storage profile')
 	a = p.parse_args()
 	assert all(not x.resolve().is_relative_to(ROOT) for x in (a.build, a.runtime))
 	a.runtime.mkdir(parents=True, exist_ok=False)
@@ -38,7 +40,7 @@ def main():
 		for path in paths:
 			out = root/path; out.parent.mkdir(parents=True, exist_ok=True)
 			out.write_bytes(subprocess.check_output(['git', 'show', INITIAL+':'+path], cwd=ROOT))
-	base.ROOT = root
+	base.ROOT = a.implementation_root.resolve() if a.implementation_root else root
 	commands = []
 	def capture(argv, name, details=None):
 		if argv is None:
@@ -58,7 +60,8 @@ def main():
 	inputs = [*sorted((target_root/'compiler').rglob('*.astra')), *[target_root/f'lib/astra/{name}.astra' for name in base.LIBRARIES]]
 	identities = {str(path): dict(relative=str(path.relative_to(target_root)), bytes=path.stat().st_size, sha256=sha(path)) for path in inputs}
 	(a.runtime/'inputs.json').write_text(json.dumps(identities, indent=2)+'\n')
-	data = capture(['/usr/bin/time', '-v', a.build/'astra-ledger-O0', *inputs], 'whole-compiler')
+	profile = ['--class-storage'] if a.class_storage else []
+	data = capture(['/usr/bin/time', '-v', a.build/'astra-ledger-O0', *profile, *inputs], 'whole-compiler')
 	assert all(sha(path) == value['sha256'] for path, value in identities.items())
 	decls, nodes, flow = {}, [], []
 	for line in data.decode().splitlines():

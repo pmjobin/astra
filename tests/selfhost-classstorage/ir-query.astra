@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// LLVM-free consumer of the public, independently verified IR boundaries.
+int main(string[] args) {
+	if (len(args) < 3 || args[1] != "--core" && args[1] != "--cfg" && args[1] != "--ssa") return 2;
+	try {
+		var source = binding_load_program(args, 2); var bindings = binding_index(move source, 0);
+		var checked = checked_build_classstorage(move bindings, 0); var flow = flow_index(move checked, 8192, 1000000);
+		if (flow_status(flow) != 0 || !admit_verify_index(flow)) {
+			var observation = flow_observation(flow); print(observation.text); return 1;
+		}
+		var storage = class_storage_plan(flow.checked);
+		if (!class_storage_verify(storage, flow.checked)) return 1;
+		var core = core_lower(move flow, 65536);
+		if (args[1] == "--core" || core_verify(core) != 0) {
+			var text = core_projection(core); print(text.text); return core_verify(core);
+		}
+		var cfg = cfg_lower(move core, 65536);
+		if (args[1] == "--cfg" || cfg_verify(cfg) != 0) {
+			var text = cfg_projection(cfg); print(text.text); return cfg_verify(cfg);
+		}
+		var ssa = ssa_lower(move cfg, 65536, 8000000);
+		var text = ssa_projection(ssa); print(text.text); return ssa_verify(ssa);
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

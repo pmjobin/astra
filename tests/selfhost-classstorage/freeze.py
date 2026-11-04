@@ -10,7 +10,7 @@ import subprocess
 import time
 import sys
 sys.dont_write_bytecode = True
-from corpus import CASES, FLOW_TYPES
+from corpus import CASES, FLOW_TYPES, UNCHANGED_HEAP_CASES
 from environment import audit
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -61,7 +61,7 @@ def main():
 			path = a.runtime/(name+'-'+str(i)+'.astra'); path.write_text(text+'\n'); sources.append(path)
 		inputs.append((name, sources, 0))
 	pieces, provenance = [], []
-	for file, markers in [('compiler/semantic/model.astra', ['struct SymbolId {']), ('compiler/syntax/model.astra', ['struct SyntaxNodeId {', 'struct SyntaxSourceId {', 'struct SyntaxSpan {']), ('compiler/syntax/arena-support.astra', ['SyntaxSpan syntax_empty_span() {']), ('compiler/semantic/flow-model.astra', ['struct '+name+' {' for name in FLOW_TYPES])]:
+	for file, markers in [('compiler/semantic/model.astra', ['struct SymbolId {']), ('compiler/semantic/types.astra', ['struct TypeId {']), ('compiler/syntax/model.astra', ['struct SyntaxNodeId {', 'struct SyntaxSourceId {', 'struct SyntaxSpan {']), ('compiler/syntax/arena-support.astra', ['SyntaxSpan syntax_empty_span() {']), ('compiler/semantic/flow-model.astra', ['struct '+name+' {' for name in FLOW_TYPES])]:
 		for marker in markers:
 			text, identity = extract(ROOT/file, marker); pieces.append(text); provenance.append(identity)
 	text, identity = extract(ROOT/'compiler/semantic/flow-model.astra', 'class FlowGraph {', '\n\tvoid fail(')
@@ -71,6 +71,11 @@ def main():
 	(a.runtime/'flowgraph-slices.json').write_text(json.dumps(provenance, indent=2)+'\n')
 	inputs.append(('flowgraph-bag', [path, ROOT/'lib/astra/collections/bag.astra'], 0))
 	inputs.append(('unchanged-owner-relay', [ROOT/'tests/gen-own/fixtures/gen-own-class-nodeinit.astra'], 42))
+	# The .init witness above is retained as caller-backed storage evidence; it
+	# is not a native heap-profile success premise. These unchanged witnesses
+	# exercise actual heap construction and the original collection constraint.
+	for name, files, expected in UNCHANGED_HEAP_CASES:
+		inputs.append((name, [ROOT/path for path in files], expected))
 	proposed = [dict(name=name, sources=[dict(path=str(x), sha256=sha(x), bytes=x.stat().st_size) for x in sources], expected_exit=expected, disposition='PROPOSED_NOT_C0_QUALIFIED') for name, sources, expected in inputs]
 	(a.runtime/'proposed.json').write_text(json.dumps(proposed, indent=2)+'\n')
 	preflight = audit(a.compiler, [a.before_O0, a.before_O2], a.compiler_sha256)

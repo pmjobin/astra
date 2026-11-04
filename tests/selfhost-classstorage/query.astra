@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A separately compiled source/type/layout consumer, independent of LLVM.
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1);
+		var bindings = binding_index(move source, 0);
+		var checked = checked_build_classstorage(move bindings, 0);
+		var flow = flow_index(move checked, 8192, 1000000);
+		var observation = flow_observation(flow); print(observation.text);
+		if (!flow.checked.validate() || !generic_verify(flow.checked)) return 1;
+		var plan = class_storage_plan(flow.checked);
+		if (!class_storage_verify(plan, flow.checked)) return 2;
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "astra-class-storage/1\n");
+		int t = 1;
+		while (t < len(plan.types)) {
+			var row = plan.types[t];
+			if (row.state == 2) {
+				source_append_text(output, "LAYOUT");
+				flow_number(output, t); flow_number(output, row.nominal); flow_number(output, row.kind);
+				flow_number(output, row.size); flow_number(output, row.alignment);
+				flow_number(output, row.fields); flow_number(output, row.payload_size); flow_number(output, row.payload_alignment);
+				source_append_text(output, "\n");
+			}
+			t = t + 1;
+		}
+		int s = 1;
+		while (s < len(plan.fields)) {
+			var row = plan.fields[s];
+			if (row.symbol != 0) {
+				source_append_text(output, "STORAGE_FIELD");
+				flow_number(output, row.owner); flow_number(output, row.symbol); flow_number(output, row.ordinal);
+				flow_number(output, row.semantic); flow_number(output, row.flags); flow_number(output, row.offset);
+				source_append_text(output, "\n");
+			}
+			s = s + 1;
+		}
+		var text = output.snapshot(); print(text.text);
+		// Type/layout observations never turn a deferred owner graph into PASS.
+		return flow_status(flow);
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

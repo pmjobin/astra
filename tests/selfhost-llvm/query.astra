@@ -1,10 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The new private profile is selected explicitly. Existing native-ABI commands
+// retain their original admission and hidden borrowed-receiver contract.
+string llvm_class_command(string command) {
+	if (command == "--classstorage-admit") return "--nativeabi-admit";
+	if (command == "--classstorage-core") return "--nativeabi-core";
+	if (command == "--classstorage-cfg") return "--nativeabi-cfg";
+	if (command == "--classstorage-ssa") return "--nativeabi-ssa";
+	if (command == "--classstorage-abi-plan") return "--abi-plan";
+	if (command == "--classstorage-generic-plan") return "--generic-plan";
+	if (command == "--classstorage-llvm-ir") return "--llvm-ir";
+	if (command == "--classstorage-emit-obj") return "--emit-obj";
+	if (command == "--classstorage-llvm-raw") return "--llvm-raw";
+	if (command == "--classstorage-model-mutations") return "--storage-model-mutations";
+	if (command == "--classstorage-native-mutations") return "--storage-native-mutations";
+	return "";
+}
+
 int main(string[] args) {
 	if (len(args) < 2) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
 	}
-	if (args[1] != "--llvm-ir" && args[1] != "--emit-obj" && args[1] != "--llvm-raw" && args[1] != "--mutate-llvm" && args[1] != "--llvm-limits" && args[1] != "--llvm-lifecycle" && args[1] != "--nativeabi-mutations" && args[1] != "--abi-plan" && args[1] != "--nativeabi-admit" && args[1] != "--nativeabi-ssa" && args[1] != "--generic-plan" && args[1] != "--generic-mutations" && args[1] != "--generic-native-mutations" && args[1] != "--nativeabi-core" && args[1] != "--nativeabi-cfg") return llvm_ssa_cli(args);
+	var mapped = llvm_class_command(args[1]); var command = args[1];
+	if (mapped != "") command = mapped;
+	if (command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations") return llvm_ssa_cli(args);
 	if (len(args) < 5) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
@@ -19,21 +38,25 @@ int main(string[] args) {
 			}
 		}
 		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
-		var checked = checked_build_nativeabi(move bindings, 0); var flow = flow_index(move checked, 8192, 1000000);
-		if (args[1] == "--generic-mutations") {
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, command != args[1]); var flow = flow_index(move checked, 8192, 1000000);
+		if (command == "--storage-model-mutations") {
+			class_storage_model_mutations(flow);
+			return 0;
+		}
+		if (command == "--generic-mutations") {
 			generic_mutations(flow);
 			return 0;
 		}
-		if (args[1] == "--generic-plan") {
+		if (command == "--generic-plan") {
 			var observation = generic_observation(flow.checked); print(observation.text); return flow_status(flow);
 		}
-		if (args[1] == "--nativeabi-admit") {
+		if (command == "--nativeabi-admit") {
 			var observation = flow_observation(flow);
 			print(observation.text);
 			return flow_status(flow);
 		}
 		var core = core_lower(move flow, 65536);
-		if (args[1] == "--nativeabi-core") {
+		if (command == "--nativeabi-core") {
 			var text = core_projection(core);
 			print(text.text);
 			return 0;
@@ -43,7 +66,7 @@ int main(string[] args) {
 			throw new Error(stage.text);
 		}
 		var cfg = cfg_lower(move core, 65536);
-		if (args[1] == "--nativeabi-cfg") {
+		if (command == "--nativeabi-cfg") {
 			var text = cfg_projection(cfg);
 			print(text.text);
 			return 0;
@@ -54,7 +77,7 @@ int main(string[] args) {
 		}
 		var program = ssa_lower(move cfg, 65536, 8000000);
 		var profile = new LlvmProfile(optimization, 8000000, 16777216);
-		if (args[1] == "--nativeabi-ssa") {
+		if (command == "--nativeabi-ssa") {
 			if (ssa_verify(program) != 0) {
 				throw new Error("LLVM_INVALID_UPSTREAM: native ABI SSA");
 			}
@@ -62,38 +85,43 @@ int main(string[] args) {
 			print(projection.text);
 			return 0;
 		}
-		if (args[1] == "--generic-native-mutations") {
+		if (command == "--generic-native-mutations") {
 			generic_native_mutations(program, profile, args[3]);
 			return 0;
 		}
-		if (args[1] == "--mutate-llvm") {
+		if (command == "--storage-native-mutations") {
+			class_storage_native_mutations(program, profile, args[3]);
+			return 0;
+		}
+		if (command == "--mutate-llvm") {
 			llvm_mutations(program, profile, args[3]);
 			return 0;
 		}
-		if (args[1] == "--nativeabi-mutations") {
+		if (command == "--nativeabi-mutations") {
 			nativeabi_mutations(program, profile, args[3]);
 			return 0;
 		}
-		if (args[1] == "--llvm-limits") {
+		if (command == "--llvm-limits") {
 			llvm_limits(program, args[3]);
 			return 0;
 		}
 		var module = llvm_lower(program, program, profile);
-		if (args[1] == "--abi-plan") {
+		if (command == "--abi-plan") {
 			assert_that(module.audit(program) == 0);
 			module.abi_snapshot();
+			if (command != args[1]) module.storage_snapshot(program);
 			println("");
 			return 0;
 		}
-		if (args[1] == "--llvm-lifecycle") {
+		if (command == "--llvm-lifecycle") {
 			llvm_lifecycle(module, program, profile, args, args[3]);
 			return 0;
 		}
-		if (args[1] == "--llvm-raw") {
+		if (command == "--llvm-raw") {
 			module.raw(program, args[3]);
 			return 0;
 		}
-		module.write(program, program, profile, args[3], args[1] == "--emit-obj");
+		module.write(program, program, profile, args[3], command == "--emit-obj");
 		return 0;
 	} catch (Error error) { println_stderr(error.message); return 2; }
 }
