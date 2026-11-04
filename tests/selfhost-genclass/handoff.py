@@ -28,6 +28,7 @@ def main():
 	p = argparse.ArgumentParser()
 	for name in ('runtime', 'build', 'qualification', 'historical', 'output'):
 		p.add_argument('--'+name, type=Path, required=True)
+	p.add_argument('--development-supplement', type=Path, help='Preserved comprehensive archive; current acceptance evidence remains embedded')
 	a = p.parse_args()
 	assert a.output.resolve().is_relative_to(a.runtime.resolve())
 	assert subprocess.check_output(['git', 'status', '--porcelain=v1', '--untracked-files=all']) == b''
@@ -54,13 +55,24 @@ def main():
 	assert read(a.runtime/'preservation-v1.json')['status'] == 'PASS'
 	a.output.mkdir(parents=True, exist_ok=False)
 	model = dict(format='astra-genclass-handoff/1', final_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), final_tree=subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip(), profiles=profiles, omissions=[], files=[])
+	if a.development_supplement:
+		model['optional_development_supplement'] = dict(path=str(a.development_supplement), bytes=a.development_supplement.stat().st_size, sha256=sha(a.development_supplement), purpose='Additional superseded development products and observations; all current acceptance gates, required source cohorts and reused proof observations are embedded in this archive.')
 	files, blobs = {}, {}
+	current_runtime = {'intake', 'predecessor-report-identity', 'frozen-v1', 'frozen-supplemental-v1', 'source-v10', 'source-v12', 'ledger-before', 'ledger-final-original', 'ledger-final-LLVM23-base', 'ledger-final-Class15-current', 'ledger-final-live-committed', 'qualification-final', 'native-v9-O0', 'native-v9-O2', 'warm-v9-O0', 'warm-v9-O2'}
+	current_build = {'native-v9-O0', 'native-v9-O2', 'ledger-v10', 'qualification-final', 'frozen-v1', 'frozen-supplemental-v1'}
 	def collect(root, prefix):
 		for path in sorted(root.rglob('*')):
 			if path.is_dir(): continue
 			assert path.is_file() and not path.is_symlink(), str(path)
 			if path.is_relative_to(a.output): continue
 			relative = path.relative_to(root); name = prefix+'/'+str(relative)
+			if prefix == 'task-runtime' and len(relative.parts) > 1 and relative.parts[0].startswith('handoff'): continue
+			development = prefix == 'task-runtime' and len(relative.parts) > 1 and relative.parts[0] not in current_runtime
+			keep_failure = path.suffix in {'.stderr', '.time', '.json', '.astra'} or path.suffix == '.stdout' and path.stat().st_size <= 65536
+			old_build = prefix == 'task-build' and relative.parts[0] not in current_build and not path.name.endswith('.identity.json')
+			if a.development_supplement and (development and not keep_failure or old_build):
+				model['omissions'].append(dict(path=name, bytes=path.stat().st_size, sha256=sha(path), reason='Superseded development artifact preserved in the named optional supplement and its original leaf; current acceptance data are embedded.'))
+				continue
 			redundant_ledger = prefix == 'task-runtime' and path.name == 'ledger.json' and (relative.parts[0].startswith('ledger-after-') or relative.parts[0] == 'ledger-final-live')
 			old_product = prefix == 'task-build' and path.name.startswith(('astra-llvm-', 'astra-class-storage-')) and path.suffix == '' and not relative.parts[0].startswith('native-v9-')
 			if redundant_ledger or old_product:
@@ -76,7 +88,9 @@ def main():
 	inputs = read(proof/'inputs.json')
 	for product in read(a.runtime/'proof-reuse-product-reconciled.json')['products']:
 		path = Path(product['path']); sidecar = path.with_suffix('.identity.json')
-		files['historical/proof-products/'+path.parent.name+'/'+path.name] = path
+		if a.development_supplement:
+			model['omissions'].append(dict(path=str(path), bytes=path.stat().st_size, sha256=sha(path), reason='Audited historical proof tool; full source/flag/dependency sidecars and raw observations are embedded. Original executable also remains in the optional supplement and its original build leaf.'))
+		else: files['historical/proof-products/'+path.parent.name+'/'+path.name] = path
 		files['historical/proof-products/'+path.parent.name+'/'+sidecar.name] = sidecar
 		inputs.update(read(sidecar)['identity']['sources'])
 	for path, expected in sorted(inputs.items()):
