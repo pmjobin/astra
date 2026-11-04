@@ -11,6 +11,8 @@ import sys
 import tarfile
 import time
 
+from transport import ChunkWriter
+
 ROOT = Path(__file__).resolve().parents[2]
 BASE = 'd18ad0d5afa8896bb1389813a8601febf913a9c6'
 GATES = ('new', 'inherited', 'Class', 'mutations', 'negative', 'focused', 'continuity', 'layout', 'retirement', 'failure')
@@ -67,11 +69,12 @@ def main():
 			if path.is_relative_to(a.output): continue
 			relative = path.relative_to(root); name = prefix+'/'+str(relative)
 			if prefix == 'task-runtime' and len(relative.parts) > 1 and relative.parts[0].startswith('handoff'): continue
+			if prefix == 'task-runtime' and relative.parts[0] == 'transport-pilot' and relative != Path('transport-pilot/result.json'): continue
 			development = prefix == 'task-runtime' and len(relative.parts) > 1 and relative.parts[0] not in current_runtime
 			keep_failure = path.suffix in {'.stderr', '.time', '.json', '.astra'} or path.suffix == '.stdout' and path.stat().st_size <= 65536
 			old_build = prefix == 'task-build' and relative.parts[0] not in current_build and not path.name.endswith('.identity.json')
 			if a.development_supplement and (development and not keep_failure or old_build):
-				model['omissions'].append(dict(path=name, bytes=path.stat().st_size, sha256=sha(path), reason='Superseded development artifact preserved in the named optional supplement and its original leaf; current acceptance data are embedded.'))
+				model['omissions'].append(dict(path=name, bytes=path.stat().st_size, sha256=sha(path), reason='Superseded development artifact remains in its original leaf; the named optional supplement preserves earlier development data. Current acceptance data are embedded.'))
 				continue
 			redundant_ledger = prefix == 'task-runtime' and path.name == 'ledger.json' and (relative.parts[0].startswith('ledger-after-') or relative.parts[0] == 'ledger-final-live')
 			old_product = prefix == 'task-build' and path.name.startswith(('astra-llvm-', 'astra-class-storage-')) and path.suffix == '' and not relative.parts[0].startswith('native-v9-')
@@ -112,21 +115,12 @@ def main():
 			if family == 'inherited': rows = rows['profiles'][mode]
 			for row in rows:
 				for source in row['sources']: files['historical/programs/'+source['sha256']+'/'+Path(source['path']).name] = Path(source['path'])
-	archive = a.output/'genclass16-evidence.tar.xz'; started = time.monotonic(); seen = {}
+	archive = a.output/'genclass16-evidence.tar.xz'; started = time.monotonic(); model['storage_format'] = 'astra-line-chunk/1'
 	with tarfile.open(archive, 'w:xz', preset=6) as tar:
+		writer = ChunkWriter(tar)
 		for name in sorted(set(files)|set(blobs)):
-			path = files.get(name); raw = blobs.get(name); digest = sha(path) if path else hashlib.sha256(raw).hexdigest(); size = path.stat().st_size if path else len(raw)
-			entry = tarfile.TarInfo(name); entry.mode = path.stat().st_mode & 0o777 if path else 0o644
-			key = (digest, entry.mode)
-			if key in seen:
-				entry.type = tarfile.LNKTYPE; entry.linkname = seen[key]; tar.addfile(entry)
-			else:
-				entry.size = size
-				if path:
-					with path.open('rb') as stream: tar.addfile(entry, stream)
-				else: tar.addfile(entry, io.BytesIO(raw))
-				seen[key] = name
-			model['files'].append(dict(archive_path=name, bytes=size, mode=entry.mode, sha256=digest))
+			path = files.get(name); raw = blobs.get(name); digest = sha(path) if path else hashlib.sha256(raw).hexdigest(); mode = path.stat().st_mode & 0o777 if path else 0o644
+			model['files'].append(writer.add(name, path, raw, mode, digest))
 		index = (json.dumps(model, indent=2)+'\n').encode(); entry = tarfile.TarInfo('ARCHIVE-INDEX.json'); entry.size = len(index); entry.mode = 0o644; tar.addfile(entry, io.BytesIO(index))
 	model.update(archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), packaging_seconds=time.monotonic()-started)
 	(a.output/'handoff.json').write_text(json.dumps(model, indent=2)+'\n')
