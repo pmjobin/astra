@@ -612,6 +612,8 @@ bool flowsem_field_available(borrowed FlowGraph graph, CheckedIndex checked, int
 int flowsem_source_flags(CheckedIndex checked, SyntaxNodeId node) {
 	int flags = checked_flags(checked.bindings.program.arena, node) & 7;
 	var type = checked.bindings.program.arena.get_node_type_name(node);
+	var binding = checked.node_symbols[node.index];
+	if (binding.index > 0 && generic_record_channel(checked, type, checked.symbol_types[binding.index])) flags = flags & ~4;
 	if (type.index != 0 && checked.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax()) {
 		flags = flags | 1;
 	}

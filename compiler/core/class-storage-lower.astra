@@ -78,7 +78,10 @@ CoreNode core_lower_class(CoreData core, CheckedIndex checked, borrowed FlowGrap
 			var parameter = checked.bindings.program.arena.node_at(parameters, i + 1); edge.label = checked.node_symbols[parameter.index];
 			var signature = checked.signatures[row.signature.index - 1]; edge.mode = checked.types.argument(checked.types, signature.callable, i + 2).flags;
 		} else {
-			if (row.target == 2 || row.target == 4 && i == 1) edge.mode = 4;
+			if (row.target == 2 || row.target == 4 && i == 1) {
+				var element = checked.types.argument(checked.types, core.places[row.place - 1].type, 0);
+				if (checked_kind(checked, element.type) != 30) edge.mode = 4;
+			}
 		}
 		edge.child = core_lower_tree(core, checked, graph, checked.bindings.program.arena.node_at(arguments, i), function, loop, id, depth + 1);
 		core.edges[row.first + i] = edge; i = i + 1;

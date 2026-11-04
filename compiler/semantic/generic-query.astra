@@ -4,6 +4,24 @@ void generic_write_origin(CheckedIndex index, SymbolId symbol, Utf8ByteBuilder o
 	var declaration = index.bindings.symbol(symbol);
 	binding_write_span(index.bindings, declaration.span, output);
 	source_append_text(output, ":"); append_int(output, declaration.kind);
+	// The private storage ABI binds exact declaration bytes as well as the
+	// nominal path/span. A same-path replacement cannot reuse a stale symbol.
+	// Encoding is lossless, avoiding a new hash/runtime dependency or collisions.
+	if (index.class_storage) {
+		var canonical = index.bindings.names.text(declaration.canonical);
+		source_append_text(output, ":nominal:"); syntax_write_hex(output, canonical.text);
+		var header = index.bindings.program.arena.header(declaration.node);
+		var backing = index.bindings.program.arena.source_span(header.span);
+		var bytes = backing.bytes(); source_append_text(output, ":source:");
+		int i = 0;
+		while (i < len(bytes)) {
+			u8[2] encoded = {0, 0}; int value = bytes[i] as int;
+			encoded[0] = astra_host_text_byte("0123456789abcdef", value / 16) as u8;
+			encoded[1] = astra_host_text_byte("0123456789abcdef", value % 16) as u8;
+			output.append_bytes(slice(encoded)); i = i + 1;
+		}
+		source_append_text(output, ":end-source");
+	}
 }
 
 void generic_write_type(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int depth) throws Error {
@@ -47,6 +65,9 @@ void generic_write_key(CheckedIndex index, SymbolId symbol, Utf8ByteBuilder outp
 
 owned Utf8Message generic_backend_name(CheckedIndex index, SymbolId symbol, string target, string layout) throws Error {
 	var key = new Utf8ByteBuilder(); generic_write_key(index, symbol, key, 0);
+	if (index.class_storage) {
+		source_append_text(key, ":channels:"); generic_write_type(index, index.symbol_types[symbol.index], key, 0);
+	}
 	source_append_text(key, ":abi13:"); source_append_text(key, target); source_append_text(key, ":"); source_append_text(key, layout);
 	var text = key.snapshot(); var encoded = new Utf8ByteBuilder(); source_append_text(encoded, "astra.g."); syntax_write_hex(encoded, text.text); return encoded.snapshot();
 }

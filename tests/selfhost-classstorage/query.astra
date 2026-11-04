@@ -7,7 +7,11 @@ int main(string[] args) {
 		var checked = checked_build_classstorage(move bindings, 0);
 		var flow = flow_index(move checked, 8192, 1000000);
 		var observation = flow_observation(flow); print(observation.text);
-		if (!flow.checked.validate() || !generic_verify(flow.checked)) return 1;
+		if (!flow.checked.validate() || !generic_verify(flow.checked)) {
+			var diagnostics = new Utf8ByteBuilder(); source_append_text(diagnostics, "GENERIC_VERIFY_FAILURE"); flow_number(diagnostics, generic_verify_failure(flow.checked));
+			if (!flow.checked.validate()) source_append_text(diagnostics, " CHECKED_INVALID");
+			source_append_text(diagnostics, "\n"); var diagnostic = diagnostics.snapshot(); print(diagnostic.text); return 1;
+		}
 		var plan = class_storage_plan(flow.checked);
 		if (!class_storage_verify(plan, flow.checked)) return 2;
 		var output = new Utf8ByteBuilder();

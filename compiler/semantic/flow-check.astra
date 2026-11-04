@@ -23,6 +23,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		int source_flags = checked_flags(checked.bindings.program.arena, function_declaration.node) & 4;
 		if (source_type.index != 0 && checked.bindings.program.arena.kind(source_type) == SyntaxKind.NonNullTypeSyntax()) source_flags = source_flags | 1;
 		var result = checked.types.argument(checked.types, checked.signatures[graph.ordinal - 1].callable, 0);
+		if (generic_record_channel(checked, source_type, result.type)) source_flags = source_flags & ~4;
 		if (checked.semantic_admission && checked_record_owned(checked, result.type, 0)) source_flags = source_flags | 4;
 		if ((result.flags & 5) != source_flags) return false;
 	}
@@ -67,6 +68,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		if (source == 0 && checked.class_storage && checked.bindings.program.arena.kind(loan.node) == SyntaxKind.FieldAccessExpressionSyntax()) {
 			int field = flowsem_place(graph, checked, loan.node, 0);
 			if (field > 0) source = graph.fields[field - 1].root;
+			if (field > 0 && source == 0 && class_storage_constructor_verified(checked, graph.function)) source = graph.slot_for(type_symbol(class_storage_receiver(checked, graph.function)));
 		}
 		if (loan.source != source) {
 			return false;
@@ -144,10 +146,16 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		if (event.operation == 3 || event.operation == 4 || event.operation == 13 || event.operation == 5 || event.operation == 6 || event.operation == 15 || event.operation == 2) {
 			SymbolId symbol = type_symbol(0);
 			if (event.operation == 3) {
-				if (kind != SyntaxKind.NameExpressionSyntax() && kind != SyntaxKind.AddressOfExpressionSyntax()) {
+				if (kind != SyntaxKind.NameExpressionSyntax() && kind != SyntaxKind.AddressOfExpressionSyntax() && !(kind == SyntaxKind.MoveExpressionSyntax() && generic_record_move(checked, event.node))) {
 					return false;
 				}
-				symbol = checked_target(checked, event.node, checked.bindings.program.arena.get_token_identifier(event.node));
+				SyntaxTokenId token = {index = 0};
+				if (kind == SyntaxKind.MoveExpressionSyntax()) {
+					token = checked.bindings.program.arena.get_token_source(event.node);
+				} else {
+					token = checked.bindings.program.arena.get_token_identifier(event.node);
+				}
+				symbol = checked_target(checked, event.node, token);
 			}
 			if (event.operation == 4 || event.operation == 13) {
 				if (kind != SyntaxKind.MoveExpressionSyntax()) {

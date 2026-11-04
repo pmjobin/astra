@@ -197,6 +197,7 @@ int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 	if (source == 0 && checked.class_storage && checked.bindings.program.arena.kind(node) == SyntaxKind.FieldAccessExpressionSyntax()) {
 		int field = flowsem_place(graph, checked, node, 0);
 		if (field > 0) source = graph.fields[field - 1].root;
+		if (field > 0 && source == 0 && class_storage_constructor_verified(checked, graph.function)) source = graph.slot_for(type_symbol(class_storage_receiver(checked, graph.function)));
 	}
 	if (source == 0) {
 		if (checked.bindings.program.arena.kind(node) != SyntaxKind.NullPointerExpressionSyntax()) {
@@ -350,6 +351,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 			if (call != 0) {
 				operation = 13;
 			}
+			if (generic_record_move(checked, node)) operation = 3;
 		} else {
 			token = checked.bindings.program.arena.get_token_identifier(node);
 		}

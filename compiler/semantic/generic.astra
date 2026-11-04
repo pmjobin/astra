@@ -358,7 +358,10 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		int mapped = index.generic_symbol_map[plan.symbols + i];
 		if (mapped != 0) {
 			var symbol = index.bindings.symbol(type_symbol(mapped));
-			if (symbol.kind == 6) {
+			// The retained Class constructor is a source template, not a second
+			// executable body. Its source parameters still need specialized type
+			// identities, independently of the callable's hidden receiver.
+			if (symbol.kind == 6 || declaration.kind == 4 && symbol.kind == 7) {
 				int context = 1;
 				if (index.class_storage && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0) context = 2;
 				var ignored = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), context);

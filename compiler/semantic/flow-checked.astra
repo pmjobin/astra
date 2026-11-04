@@ -73,6 +73,7 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		}
 		var use = index.uses[node.index];
 		use.flags = 4;
+		if (kind == SyntaxKind.MoveExpressionSyntax() && generic_record_move_type(index, node, type)) use.flags = 0;
 		use.deferred = 19;
 		index.uses[node.index] = use;
 		return type;

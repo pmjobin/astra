@@ -297,6 +297,17 @@ int checked_flags(borrowed SyntaxArena arena, SyntaxNodeId node) {
 }
 
 SymbolId checked_target(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) {
+	if (index.class_storage && index.bindings.program.arena.token_is(token, "this")) {
+		var scope = index.bindings.scope_for_node(node);
+		if (scope.index > 0) {
+			var function = index.bindings.scope(scope).owner;
+			int receiver = 0;
+			// An incomplete constructor receiver uses the separate root-zero
+			// field inventory until publication. Normal methods borrow the owner.
+			if (!class_storage_initializing(index, function)) receiver = class_storage_receiver(index, function);
+			if (receiver > 0) return type_symbol(receiver);
+		}
+	}
 	if (index.native_abi && node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0 && index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && index.bindings.program.arena.get_token_identifier(node).index == token.index) return index.generic_calls[node.index];
 	int i = index.node_references[node.index];
 	while (i != 0) {

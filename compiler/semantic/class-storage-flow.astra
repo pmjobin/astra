@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Separate source consumer for the initial private Class construction domain.
 // It never calls flow_graph, flow_solve, the inventory builder or LLVM lowering.
-// Straight-line initialization is deliberate; conditional/throwing construction
-// remains deferred until its partial-publication/rollback contract is qualified.
+// Every field is initialized before a bounded scalar/reserve tail. Conditional
+// field initialization and throwing rollback remain outside this profile.
 bool class_storage_slot_call_present(CheckedIndex checked, SyntaxNodeId node) {
 	if (class_storage_slot_action(checked, node) == 0) return false;
 	var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
@@ -32,11 +32,12 @@ int class_storage_slot_flow(borrowed FlowGraph graph, CheckedIndex checked, int[
 	var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
 	var arguments = checked.bindings.program.arena.get_list_arguments(node);
 	int action = class_storage_slot_action(checked, node);
+	bool owning = checked_kind(checked, checked.types.argument(checked.types, checked.uses[receiver.index].type, 0).type) != 30;
 	var commit = flow_event(checked, node, 8, 0, region, next); commit.call = node.index;
 	int head = graph.add(commit); int i = checked.bindings.program.arena.list_count(arguments) - 1;
 	while (i >= 0) {
 		var argument = checked.bindings.program.arena.node_at(arguments, i);
-		bool consuming = action == 2 || action == 4 && i == 1;
+		bool consuming = owning && (action == 2 || action == 4 && i == 1);
 		var direct = flow_unwrap(checked, argument);
 		if (consuming && checked.bindings.program.arena.kind(direct) != SyntaxKind.MoveExpressionSyntax()) {
 			var bad = flow_event(checked, argument, 16, 0, region, head); bad.call = 5; head = graph.add(bad);
@@ -47,6 +48,38 @@ int class_storage_slot_flow(borrowed FlowGraph graph, CheckedIndex checked, int[
 	}
 	head = flow_temporary(graph, checked, origins, receiver, node, region, head);
 	return flow_expression(graph, checked, origins, receiver, region, head, 0, depth + 1);
+}
+
+// This independent syntax consumer admits no receiver escape or field rewrite
+// after publication-ready initialization. Reserve uses the authoritative field;
+// only scalar temporaries/control can follow the initialization prefix.
+bool class_storage_constructor_tail(CheckedIndex checked, SyntaxNodeId node, int depth) {
+	if (node.index == 0) return true;
+	if (depth > 128) return false;
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.BlockStatementSyntax()) {
+		var statements = checked.bindings.program.arena.get_list_statements(node); int i = 0;
+		while (i < checked.bindings.program.arena.list_count(statements)) {
+			if (!class_storage_constructor_tail(checked, checked.bindings.program.arena.node_at(statements, i), depth + 1)) return false;
+			i = i + 1;
+		}
+		return true;
+	}
+	if (kind == SyntaxKind.IfStatementSyntax()) return class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_condition(node), depth + 1) && class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_then_body(node), depth + 1) && class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_else_body(node), depth + 1);
+	if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax()) {
+		var symbol = checked.node_symbols[node.index];
+		if (symbol.index == 0 || checked.symbol_flags[symbol.index] != 0 || (!type_numeric(checked_kind(checked, checked.symbol_types[symbol.index])) && checked_kind(checked, checked.symbol_types[symbol.index]) != 13)) return false;
+		return class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_initializer(node), depth + 1);
+	}
+	if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) return class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_left(node), depth + 1) && class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_right(node), depth + 1);
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_expression(node), depth + 1);
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) return class_storage_constructor_tail(checked, checked.bindings.program.arena.get_node_operand(node), depth + 1);
+	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) return type_numeric(checked_kind(checked, checked.uses[node.index].type)) || checked_kind(checked, checked.uses[node.index].type) == 13;
+	if (kind != SyntaxKind.CallExpressionSyntax() || class_storage_slot_action(checked, node) != 1) return false;
+	var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
+	if (receiver.index == 0 || checked.bindings.program.arena.kind(receiver) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(receiver).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(receiver), "this") || checked_kind(checked, checked.uses[receiver.index].type) != 23) return false;
+	var arguments = checked.bindings.program.arena.get_list_arguments(node);
+	return checked.bindings.program.arena.list_count(arguments) == 1 && class_storage_constructor_tail(checked, checked.bindings.program.arena.node_at(arguments, 0), depth + 1);
 }
 
 bool class_storage_constructor_verified(CheckedIndex checked, SymbolId function) {
@@ -64,9 +97,10 @@ bool class_storage_constructor_verified(CheckedIndex checked, SymbolId function)
 	var statements = checked.bindings.program.arena.get_list_statements(body);
 	var owner = checked.bindings.symbol(checked.types.row(type).nominal);
 	var fields = checked.bindings.program.arena.get_list_fields(owner.node);
-	if (checked.bindings.program.arena.list_count(statements) != checked.bindings.program.arena.list_count(fields)) return false;
+	int prefix = checked.bindings.program.arena.list_count(fields);
+	if (checked.bindings.program.arena.list_count(statements) < prefix) return false;
 	var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
-	while (i < checked.bindings.program.arena.list_count(statements)) {
+	while (i < prefix) {
 		var statement = checked.bindings.program.arena.node_at(statements, i);
 		if (checked.bindings.program.arena.kind(statement) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
 		var target = checked.bindings.program.arena.get_node_target(statement);
@@ -94,6 +128,10 @@ bool class_storage_constructor_verified(CheckedIndex checked, SymbolId function)
 			if (!producer || (flags & 1) != 0 && kind == SyntaxKind.NullPointerExpressionSyntax()) return false;
 		}
 		initialized[field.index] = true; i = i + 1;
+	}
+	while (i < checked.bindings.program.arena.list_count(statements)) {
+		if (!class_storage_constructor_tail(checked, checked.bindings.program.arena.node_at(statements, i), 0)) return false;
+		i = i + 1;
 	}
 	i = 0;
 	while (i < checked.bindings.program.arena.list_count(fields)) {

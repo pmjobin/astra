@@ -53,7 +53,7 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 		if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
 			row.kind = 3;
 			row.place = core_lower_place(core, checked, graph, function, source);
-			if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			if (kind == SyntaxKind.MoveExpressionSyntax() && !generic_record_move(checked, source)) {
 				row.kind = 4;
 				row.target = call;
 			}

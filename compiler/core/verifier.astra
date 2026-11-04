@@ -161,7 +161,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 	if (row.kind == 3 || row.kind == 4) {
 		if (row.a != 0 || row.place < 1 || row.place > core.place_count || core.places[row.place - 1].function != function || row.type.index != core.places[row.place - 1].type.index || core_source_place(core, checked, function, source, 0) != row.place) return false;
 		if (row.kind == 4) return kind == SyntaxKind.MoveExpressionSyntax() && row.target == call && (core.places[row.place - 1].flags & 4) != 0;
-		return kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax();
+		return kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax() && generic_record_move(checked, source);
 	}
 	if (row.kind == 5 || row.kind == 8 || row.kind == 12) {
 		if ((row.kind == 5 && (kind != SyntaxKind.PrefixExpressionSyntax() || row.operation.index != checked.bindings.program.arena.get_token_operator_token(source).index)) || (row.kind == 8 && kind != SyntaxKind.ConversionExpressionSyntax()) || (row.kind == 12 && kind != SyntaxKind.ParenthesizedExpressionSyntax())) return false;

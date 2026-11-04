@@ -255,7 +255,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 					field = field + 1;
 				}
 				var element = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, type_id(t), 0);
-				if (element.flags != 0 || !class_storage_source_verified(program.cfg.core.flow.checked, element.type, true, 0)) return false;
+				if (element.flags != 0 || !class_storage_slot_element_verified(program.cfg.core.flow.checked, element.type, 0)) return false;
 			}
 			if (source.kind == 30) {
 				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != row.count) return false;

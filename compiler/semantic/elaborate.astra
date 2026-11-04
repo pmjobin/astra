@@ -348,7 +348,8 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 
 TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId type, int context) throws Error {
 	var resolved = checked_resolve(index, type, context, 0);
-	if (index.class_storage && symbol.kind == 7 && checked_kind(index, resolved) == 30 && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0) {
+	bool record_channel = generic_record_channel(index, type, resolved);
+	if (index.class_storage && symbol.kind == 7 && checked_kind(index, resolved) == 30 && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0 && !record_channel) {
 		index.fail(index.bindings.program.arena.header(symbol.node).span, "DEFERRED: explicit owned record parameters are not admitted by C0");
 		return no_type();
 	}
@@ -360,6 +361,7 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 	if (type.index != 0) {
 		flags = flags | index.uses[type.index].flags;
 	}
+	if (record_channel) flags = flags & ~4;
 	if (index.semantic_admission && symbol.kind == 7 && checked_record_owned(index, resolved, 0) && (flags & 2) == 0) flags = flags | 4;
 	index.symbol_flags[index.node_symbols[symbol.node.index].index] = flags;
 	if ((flags & 6) != 0 && (type_numeric(checked_kind(index, resolved)) || resolved.index == 13)) {
@@ -431,6 +433,7 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	if (return_node.index != 0) {
 		flags = flags | index.uses[return_node.index].flags;
 	}
+	if (generic_record_channel(index, return_node, result)) flags = flags & ~4;
 	if (index.semantic_admission && checked_record_owned(index, result, 0)) flags = flags | 4;
 	if ((flags & 4) != 0 && (type_numeric(checked_kind(index, result)) || result.index == 13 || result.index == 14 || result.index == 16)) {
 		index.fail(index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_owned_keyword(node)), "owned result requires an exact nominal ownership contract");

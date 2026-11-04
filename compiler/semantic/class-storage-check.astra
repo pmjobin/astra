@@ -7,10 +7,14 @@ bool class_storage_template_verified(CheckedIndex checked, SymbolId origin) {
 	if (declaration.kind != 4) return false;
 	var parameters = checked.bindings.program.arena.get_list_type_parameters(node);
 	var clauses = checked.bindings.program.arena.get_list_where_clauses(node);
-	if (checked.bindings.program.arena.list_count(parameters) != 1 || checked.bindings.program.arena.list_count(clauses) != 1) return false;
-	var clause = checked.bindings.program.arena.node_at(clauses, 0);
-	var capabilities = checked.bindings.program.arena.get_list_capabilities(clause);
-	if (!generic_token_equal(checked, checked.bindings.program.arena.token_at(parameters, 0), checked.bindings.program.arena.get_token_type_parameter(clause)) || checked.bindings.program.arena.list_count(capabilities) != 1 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.token_at(capabilities, 0), "ExactHeapClass")) return false;
+	int constraints = checked.bindings.program.arena.list_count(clauses);
+	if (checked.bindings.program.arena.list_count(parameters) != 1 || constraints > 1) return false;
+	if (checked.bindings.program.arena.get_bool_exact_heap_class(node) != (constraints == 1)) return false;
+	if (constraints == 1) {
+		var clause = checked.bindings.program.arena.node_at(clauses, 0);
+		var capabilities = checked.bindings.program.arena.get_list_capabilities(clause);
+		if (!generic_token_equal(checked, checked.bindings.program.arena.token_at(parameters, 0), checked.bindings.program.arena.get_token_type_parameter(clause)) || checked.bindings.program.arena.list_count(capabilities) != 1 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.token_at(capabilities, 0), "ExactHeapClass")) return false;
+	}
 	var fields = checked.bindings.program.arena.get_list_fields(node); int slots = 0; int i = 0;
 	while (i < checked.bindings.program.arena.list_count(fields)) {
 		var field = checked.bindings.program.arena.node_at(fields, i); var id = checked.node_symbols[field.index];
@@ -39,10 +43,9 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0) return false;
 	if (exact && generic_instance_for(checked, descriptor.nominal) != 0) return false;
 	if (checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0) return false;
-	if (checked.bindings.program.arena.get_bool_exact_heap_class(node)) {
-		int instance = generic_instance_for(checked, descriptor.nominal);
-		if (instance == 0 || !class_storage_template_verified(checked, checked.instances[instance - 1].origin)) return false;
-	}
+	int instance = generic_instance_for(checked, descriptor.nominal);
+	if (instance > 0 && !class_storage_template_verified(checked, checked.instances[instance - 1].origin)) return false;
+	if (checked.bindings.program.arena.get_bool_exact_heap_class(node) && instance == 0) return false;
 	var policy = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
 	if (policy.present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
 	var members = checked.bindings.program.arena.get_list_members(node); int initializers = 0; int m = 0;
@@ -98,11 +101,18 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 			} if (element_kind != 30 && !type_numeric(element_kind) && element_kind != 13) return false;
 		} if (kind == 23) {
 			var element = checked.types.argument(checked.types, value, 0);
-			if (flags != 4 || element.flags != 0 || !class_storage_source_verified(checked, element.type, true, depth + 1)) return false;
+			if (flags != 4 || element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, depth + 1)) return false;
 		} if (!type_numeric(kind) && kind != 13 && kind != 30 && kind != 31 && kind != 22 && kind != 23) return false;
 		i = i - 1;
 	}
 	return true;
+}
+
+bool class_storage_slot_element_verified(CheckedIndex checked, TypeId type, int depth) {
+	if (depth > 32) return false;
+	int kind = checked_kind(checked, type);
+	if (kind == 31) return class_storage_source_verified(checked, type, true, depth + 1);
+	return kind == 30 && class_storage_record_verified(checked, type) && !checked_record_owned(checked, type, 0) && class_storage_fields_verified(checked, type, depth + 1);
 }
 
 bool class_storage_record_verified(CheckedIndex checked, TypeId type) {
@@ -175,7 +185,7 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 			if (source.kind == 22 || source.kind == 23) {
 				var element = checked.types.argument(checked.types, type_id(t), 0);
 				if (plan.types[element.type.index].state != 2 || element.flags != 0) return false;
-				if (source.kind == 23 && !class_storage_source_verified(checked, element.type, true, 0)) return false;
+				if (source.kind == 23 && !class_storage_slot_element_verified(checked, element.type, 0)) return false;
 			}
 		}
 		t = t + 1;

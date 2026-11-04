@@ -1,0 +1,216 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent source/channel consumer; it calls no storage planner or producer.
+bool genclass_source_consumer(CheckedIndex checked) {
+	int i = 0;
+	while (i < checked.instance_count) {
+		var plan = checked.instances[i]; var origin = checked.bindings.symbol(plan.origin);
+		if (origin.kind == 4 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(origin.node)) > 0) {
+			if (plan.argument_count != 1 || plan.enclosing.index != 0 || plan.state != 2) return false;
+			var argument = checked.generic_arguments[plan.arguments];
+			if (argument.flags != 0 || (checked_kind(checked, argument.type) != 30 && checked_kind(checked, argument.type) != 31)) return false;
+			var actual = checked.symbol_types[plan.concrete.index]; var shape = checked.types.row(actual);
+			if (shape.kind != 31 || shape.nominal.index != plan.concrete.index || shape.count != 0) return false;
+			var concrete_declaration = checked.bindings.symbol(plan.concrete);
+			var fields = checked.bindings.program.arena.get_list_fields(concrete_declaration.node);
+			var originals = checked.bindings.program.arena.get_list_fields(origin.node);
+			if (checked.bindings.program.arena.list_count(fields) != checked.bindings.program.arena.list_count(originals)) return false;
+			int f = 0;
+			while (f < checked.bindings.program.arena.list_count(fields)) {
+				var field = checked.bindings.program.arena.node_at(fields, f); var source = checked.bindings.program.arena.node_at(originals, f);
+				var symbol = checked.node_symbols[field.index]; var source_symbol = checked.node_symbols[source.index]; var binding = checked.bindings.symbol(symbol); var source_binding = checked.bindings.symbol(source_symbol);
+				if (binding.kind != 6 || binding.owner.index != plan.concrete.index || binding.node.index != field.index || !flow_equal_span(binding.span, source_binding.span) || !flow_equal_span(checked.bindings.program.arena.header(field).span, checked.bindings.program.arena.header(source).span)) return false;
+				if (generic_symbol(checked, plan, source_symbol.index) != symbol.index || generic_node(checked, plan, source.index) != field.index) return false;
+				var pattern_type = checked.symbol_types[source_symbol.index]; var pattern = checked.types.row(pattern_type);
+				if (pattern.kind == 23) {
+					var parameter_edge = checked.types.argument(checked.types, pattern_type, 0); var parameter = checked.types.row(parameter_edge.type);
+					if (parameter.kind != 33 || checked.bindings.symbol(parameter.nominal).owner.index != plan.origin.index) return false;
+					var type = checked.symbol_types[symbol.index];
+					if (checked_kind(checked, type) != 23 || checked.symbol_flags[symbol.index] != 4) return false;
+					var element = checked.types.argument(checked.types, type, 0);
+					if (element.type.index != argument.type.index || element.flags != 0) return false;
+				}
+				f = f + 1;
+			}
+		}
+		if (plan.enclosing.index != 0) {
+			var owner = checked.types.row(plan.enclosing); int outer = generic_instance_for(checked, owner.nominal);
+			bool field_owner = false;
+			if (outer > 0) {
+				var outer_plan = checked.instances[outer - 1];
+				var owner_declaration = checked.bindings.symbol(outer_plan.origin);
+				var owner_fields = checked.bindings.program.arena.get_list_fields(owner_declaration.node);
+				field_owner = checked.bindings.program.arena.list_count(owner_fields) > 0;
+			}
+			if (field_owner) {
+				if (origin.owner.index != checked.instances[outer - 1].origin.index) return false;
+				var method_declaration = checked.bindings.symbol(plan.concrete); var parameters = checked.bindings.program.arena.get_list_parameters(method_declaration.node); var originals = checked.bindings.program.arena.get_list_parameters(origin.node);
+				int count = checked.bindings.program.arena.list_count(parameters);
+				if (count != checked.bindings.program.arena.list_count(originals) + 1) return false;
+				var signature = checked.symbol_types[plan.concrete.index];
+				if (checked_kind(checked, signature) != 25 || checked.types.row(signature).count != count + 1) return false;
+				int p = 0;
+				while (p < count) {
+					var node = checked.bindings.program.arena.node_at(parameters, p); var symbol = checked.node_symbols[node.index]; var channel = checked.types.argument(checked.types, signature, p + 1);
+					if (channel.type.index != checked.symbol_types[symbol.index].index || channel.flags != checked.symbol_flags[symbol.index]) return false;
+					if (p == 0 && (channel.type.index != plan.enclosing.index || channel.flags != 2)) return false;
+					if (p > 0) {
+						var source = checked.bindings.program.arena.node_at(originals, p - 1); var pattern = checked.symbol_types[checked.node_symbols[source.index].index]; int expected = checked_flags(checked.bindings.program.arena, source) & 6;
+						if (checked_kind(checked, pattern) == 33 && checked_kind(checked, channel.type) == 30) expected = expected & ~4;
+						if (channel.flags != expected || !generic_type_matches(checked, i, pattern, channel.type, 0)) return false;
+					}
+					p = p + 1;
+				}
+				var result = checked.types.argument(checked.types, signature, 0);
+				if (result.flags != (checked.symbol_flags[plan.concrete.index] & 7)) return false;
+			}
+		}
+		i = i + 1;
+	}
+	return true;
+}
+
+int genclass_mutation_stage(FlowIndex flow) {
+	if (!genclass_source_consumer(flow.checked)) return 1;
+	if (!generic_verify(flow.checked)) return 2;
+	if (!admit_verify_index(flow)) return 3;
+	return 0;
+}
+
+void genclass_owner_model_mutation(FlowIndex flow, int owning) throws Error {
+	assert_that(owning >= 0 && genclass_mutation_stage(flow) == 0);
+	var before = checked_observation(flow.checked); var flow_before = flow_observation(flow);
+	var owner_plan = flow.checked.instances[owning]; var declaration = flow.checked.bindings.symbol(owner_plan.concrete); var params = flow.checked.bindings.program.arena.get_list_parameters(declaration.node); int p = 1; int stage = 0;
+	while (p < flow.checked.bindings.program.arena.list_count(params) && stage == 0) {
+		var parameter_node = flow.checked.bindings.program.arena.node_at(params, p); var symbol = flow.checked.node_symbols[parameter_node.index]; int old = flow.checked.symbol_flags[symbol.index];
+		if (old == 4) {
+			flow.checked.symbol_flags[symbol.index] = 0; stage = genclass_mutation_stage(flow); flow.checked.symbol_flags[symbol.index] = old;
+		}
+		p = p + 1;
+	}
+	assert_that(stage > 0 && genclass_mutation_stage(flow) == 0);
+	var after = checked_observation(flow.checked); var flow_after = flow_observation(flow);
+	assert_that(before.text == after.text && flow_before.text == flow_after.text);
+	var output = new Utf8ByteBuilder(); source_append_text(output, "GENCLASS_MODEL_MUTATION"); flow_number(output, 14); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+}
+
+void genclass_model_mutations(FlowIndex flow) throws Error {
+	assert_that(flow_status(flow) == 0 && genclass_mutation_stage(flow) == 0);
+	int first = -1; int second = -1; int method = -1; int constructor = -1; int owning = -1; int i = 0;
+	while (i < flow.checked.instance_count) {
+		var plan = flow.checked.instances[i]; var source = flow.checked.bindings.symbol(plan.origin);
+		if (source.kind == 4 && plan.argument_count == 1 && checked_kind(flow.checked, flow.checked.generic_arguments[plan.arguments].type) == 30) {
+			if (first < 0) {
+				first = i;
+			} else {
+				second = i;
+			}
+		}
+		if (source.kind == 12 && plan.enclosing.index != 0) constructor = i;
+		if (source.kind == 11 && plan.enclosing.index != 0) {
+			method = i; var signature = flow.checked.symbol_types[plan.concrete.index]; var callable = flow.checked.types.row(signature); int c = 2;
+			while (c < callable.count) {
+				var channel = flow.checked.types.argument(flow.checked.types, signature, c);
+				if (channel.flags == 4) owning = i;
+				c = c + 1;
+			}
+		}
+		i = i + 1;
+	}
+	if (first < 0 || second < 0) {
+		genclass_owner_model_mutation(flow, owning);
+		return;
+	}
+	assert_that(method >= 0 && constructor >= 0);
+	var plan = flow.checked.instances[first]; var other = flow.checked.instances[second];
+	var concrete_declaration = flow.checked.bindings.symbol(plan.concrete);
+	var fields = flow.checked.bindings.program.arena.get_list_fields(concrete_declaration.node);
+	var field_node = flow.checked.bindings.program.arena.node_at(fields, 0); var field = flow.checked.node_symbols[field_node.index];
+	var method_plan = flow.checked.instances[method]; var constructor_plan = flow.checked.instances[constructor];
+	var method_declaration = flow.checked.bindings.symbol(method_plan.concrete); var parameters = flow.checked.bindings.program.arena.get_list_parameters(method_declaration.node);
+	var hidden_node = flow.checked.bindings.program.arena.node_at(parameters, 0); var hidden = flow.checked.node_symbols[hidden_node.index];
+	// Construct counterfactual shapes before freezing the valid controls. Every
+	// tested mutation then restores all checked/Flow observations exactly.
+	var constructor_type = flow.checked.symbol_types[constructor_plan.concrete.index]; var constructor_shape = flow.checked.types.row(constructor_type);
+	var missing_edges = new TypeEdge[constructor_shape.count - 1]; var wrong_edges = new TypeEdge[constructor_shape.count]; int edge_index = 0;
+	while (edge_index < constructor_shape.count) {
+		var edge = flow.checked.types.argument(flow.checked.types, constructor_type, edge_index);
+		if (edge_index < len(missing_edges)) missing_edges[edge_index] = edge;
+		if (edge_index == 2) edge.type = type_id(12);
+		wrong_edges[edge_index] = edge; edge_index = edge_index + 1;
+	}
+	var missing_argument = flow.checked.types.intern(25, type_symbol(0), 0, missing_edges); var wrong_argument = flow.checked.types.intern(25, type_symbol(0), 0, wrong_edges);
+	var before = checked_observation(flow.checked); var flow_before = flow_observation(flow);
+	int category = 0;
+	while (category < 14) {
+		int stage = 0;
+		if (category == 0) {
+			var old = flow.checked.generic_arguments[plan.arguments]; flow.checked.generic_arguments[plan.arguments] = flow.checked.generic_arguments[other.arguments];
+			stage = genclass_mutation_stage(flow); flow.checked.generic_arguments[plan.arguments] = old;
+		}
+		if (category == 1 || category == 5 || category == 9) {
+			var symbol = field; if (category == 5) symbol = plan.concrete; if (category == 9) symbol = hidden;
+			var old = flow.checked.symbol_types[symbol.index]; flow.checked.symbol_types[symbol.index] = type_id(1);
+			stage = genclass_mutation_stage(flow); flow.checked.symbol_types[symbol.index] = old;
+		}
+		if (category == 2 || category == 8 || category == 10) {
+			var symbol = field; if (category == 8) symbol = hidden; if (category == 10) symbol = method_plan.concrete;
+			int old = flow.checked.symbol_flags[symbol.index]; flow.checked.symbol_flags[symbol.index] = old ^ 4;
+			stage = genclass_mutation_stage(flow); flow.checked.symbol_flags[symbol.index] = old;
+		}
+		if (category == 3 || category == 13) {
+			var old = flow.checked.bindings.symbol(field); var changed = old;
+			if (category == 3) {
+				changed.owner = other.concrete;
+			} else {
+				changed.span.start = changed.span.start + 1;
+			}
+			flow.checked.bindings.replace_instance_symbol(field, changed); stage = genclass_mutation_stage(flow); flow.checked.bindings.replace_instance_symbol(field, old);
+		}
+		if (category == 4) {
+			var original_declaration = flow.checked.bindings.symbol(plan.origin); var original_fields = flow.checked.bindings.program.arena.get_list_fields(original_declaration.node); var original_node = flow.checked.bindings.program.arena.node_at(original_fields, 0); var original = flow.checked.node_symbols[original_node.index];
+			int position = plan.symbols + original.index; int old = flow.checked.generic_symbol_map[position]; flow.checked.generic_symbol_map[position] = hidden.index;
+			stage = genclass_mutation_stage(flow); flow.checked.generic_symbol_map[position] = old;
+		}
+		if (category == 6) {
+			var original_declaration = flow.checked.bindings.symbol(plan.origin); var source_fields = flow.checked.bindings.program.arena.get_list_fields(original_declaration.node); var source_node = flow.checked.bindings.program.arena.node_at(source_fields, 0); var source_field = flow.checked.node_symbols[source_node.index];
+			var field_type = flow.checked.symbol_types[source_field.index]; var parameter_edge = flow.checked.types.argument(flow.checked.types, field_type, 0); var parameter_shape = flow.checked.types.row(parameter_edge.type); var parameter = parameter_shape.nominal;
+			var old = flow.checked.bindings.symbol(parameter); var changed = old; changed.owner = method_plan.origin;
+			flow.checked.bindings.replace_instance_symbol(parameter, changed); stage = genclass_mutation_stage(flow); flow.checked.bindings.replace_instance_symbol(parameter, old);
+		}
+		if (category == 7) {
+			var old = flow.checked.instances[method]; var changed = old; changed.enclosing = flow.checked.symbol_types[plan.concrete.index];
+			if (changed.enclosing.index == old.enclosing.index) changed.enclosing = flow.checked.symbol_types[other.concrete.index];
+			flow.checked.instances[method] = changed; stage = genclass_mutation_stage(flow); flow.checked.instances[method] = old;
+		}
+		if (category == 11 || category == 12) {
+			var symbol = constructor_plan.concrete; var old = flow.checked.symbol_types[symbol.index];
+			flow.checked.symbol_types[symbol.index] = missing_argument;
+			if (category == 12) flow.checked.symbol_types[symbol.index] = wrong_argument;
+			stage = genclass_mutation_stage(flow); flow.checked.symbol_types[symbol.index] = old;
+		}
+		assert_that(stage > 0 && genclass_mutation_stage(flow) == 0);
+		var after = checked_observation(flow.checked); var flow_after = flow_observation(flow);
+		assert_that(before.text == after.text && flow_before.text == flow_after.text);
+		var output = new Utf8ByteBuilder(); source_append_text(output, "GENCLASS_MODEL_MUTATION"); flow_number(output, category); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+		category = category + 1;
+	}
+	if (owning >= 0) genclass_owner_model_mutation(flow, owning);
+}
+
+void genclass_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 80;
+	while (category <= 85) {
+		var valid = llvm_lower(program, program, profile); assert_that(valid.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile);
+		if (mutant.genclass_fault(program.cfg.core.flow.checked, category)) {
+			assert_that(mutant.llvm_valid());
+			int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+			bool rejected = false; try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+			var label = llvm_name("GENCLASS_NATIVE_MUTATION ", category); print(label.text); var boundary = llvm_name(" ", stage); print(boundary.text); print(" LLVM_VALID ");
+			valid.snapshot(); print(" "); mutant.snapshot(); print(" "); mutant.close();
+			var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0); restored.snapshot(); println("");
+			var after = ssa_test_snapshot(program.data); assert_that(after.text == upstream.text && ssa_verify(program) == 0);
+		}
+		category = category + 1;
+	}
+}

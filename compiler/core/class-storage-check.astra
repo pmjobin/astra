@@ -13,7 +13,7 @@ bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNo
 		if (kind != SyntaxKind.BufferAllocationSyntax() || checked_kind(checked, row.type) != 23 || row.flags != 4 || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_node_failure_call(source).index != 0) return false;
 		var count = checked.bindings.program.arena.get_node_count(source);
 		var element = checked.types.argument(checked.types, row.type, 0);
-		return count.index > 0 && checked.bindings.program.arena.kind(count) == SyntaxKind.NameExpressionSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(count), "slots") && element.flags == 0 && class_storage_source_verified(checked, element.type, true, 0);
+		return count.index > 0 && checked.bindings.program.arena.kind(count) == SyntaxKind.NameExpressionSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(count), "slots") && element.flags == 0 && class_storage_slot_element_verified(checked, element.type, 0);
 	}
 	if (row.kind == 18) {
 		if (row.type.index != 1 || row.flags != 0 || row.place < 1 || row.place > core.place_count || checked_kind(checked, core.places[row.place - 1].type) != 23) return false;
@@ -51,12 +51,13 @@ bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNo
 		if (checked.bindings.program.arena.token_is(token, "replace")) action = 4;
 		if (action == 0 || row.target != action || row.count != 1 && !(action == 4 && row.count == 2) || action == 4 && row.count != 2) return false;
 		var element = checked.types.argument(checked.types, core.places[row.place - 1].type, 0);
-		if (element.flags != 0 || !class_storage_source_verified(checked, element.type, true, 0)) return false;
+		if (element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, 0)) return false;
 		int result = 14; int flags = 0;
 		if (action == 1) result = 13;
 		if (action == 3) {
 			result = element.type.index;
 			flags = 4;
+			if (checked_kind(checked, element.type) == 30) flags = 0;
 		}
 		if (row.type.index != result || row.flags != flags) return false;
 	}
@@ -71,6 +72,7 @@ bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNo
 			if (row.target == 2 || row.target == 4 && i == 1) {
 				mode = 4;
 				expected = checked.types.argument(checked.types, core.places[row.place - 1].type, 0).type;
+				if (checked_kind(checked, expected) == 30) mode = 0;
 			}
 		}
 		if (!core_verify_edge(core, row, i, label, mode, seen_edges)) return false;

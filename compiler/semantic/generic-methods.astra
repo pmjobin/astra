@@ -1,5 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Approved bounded ABI: a real empty-Class owner and one borrowed receiver.
+// Private generic ABI: a unique owner and exactly one borrowed receiver.
+// A source-owned T channel becomes value transport only for C0's copyable
+// record specialization. Explicit owned Record declarations stay unsupported.
+bool generic_record_channel(CheckedIndex index, SyntaxNodeId source_type, TypeId actual) {
+	if (!index.class_storage || source_type.index <= index.generic_nodes || checked_kind(index, actual) != 30 || checked_record_owned(index, actual, 0) || index.bindings.program.arena.kind(source_type) != SyntaxKind.TypeNameSyntax()) return false;
+	var parameter = checked_target(index, source_type, index.bindings.program.arena.get_token_identifier(source_type));
+	if (parameter.index == 0) return false;
+	var symbol = index.bindings.symbol(parameter);
+	return symbol.kind == 9 && symbol.owner.index > 0 && index.bindings.symbol(symbol.owner).kind == 4 && class_storage_template_verified(index, symbol.owner);
+}
+
+int generic_channel_flags(CheckedIndex index, TypeId pattern, TypeId actual, int flags) {
+	if (index.class_storage && checked_kind(index, pattern) == 33 && checked_kind(index, actual) == 30 && !checked_record_owned(index, actual, 0)) return flags & ~4;
+	return flags;
+}
+
+bool generic_record_move_type(CheckedIndex index, SyntaxNodeId node, TypeId actual) {
+	if (!index.class_storage || node.index <= index.generic_nodes || checked_kind(index, actual) != 30 || checked_record_owned(index, actual, 0)) return false;
+	var scope = index.bindings.scope_for_node(node);
+	if (scope.index == 0) return false;
+	int instance = generic_instance_for(index, index.bindings.scope(scope).owner);
+	if (instance == 0 || index.instances[instance - 1].enclosing.index == 0) return false;
+	var owner = index.types.row(index.instances[instance - 1].enclosing);
+	int outer = generic_instance_for(index, owner.nominal);
+	return outer > 0 && class_storage_template_verified(index, index.instances[outer - 1].origin);
+}
+
+bool generic_record_move(CheckedIndex index, SyntaxNodeId node) {
+	return generic_record_move_type(index, node, index.uses[node.index].type);
+}
+
 bool generic_empty_class(CheckedIndex index, TypeId type) {
 	if (checked_kind(index, type) != 31) return false;
 	var row = index.types.row(type);

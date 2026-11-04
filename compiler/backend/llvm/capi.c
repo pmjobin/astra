@@ -21,8 +21,10 @@ const char *llvm12_empty(void) {
 	return "";
 }
 
-static char *text_copy(const char *p, int32_t n) {
-	if (!p || n < 0 || n > 4096 || memchr(p, 0, (size_t)n)) return NULL;
+enum { PRIVATE_NAME_LIMIT = 65536 };
+
+static char *text_copy_limit(const char *p, int32_t n, int32_t limit) {
+	if (!p || n < 0 || n > limit || memchr(p, 0, (size_t)n)) return NULL;
 	char *out = malloc((size_t)n + 1);
 	if (out) {
 		memcpy(out, p, (size_t)n);
@@ -31,8 +33,12 @@ static char *text_copy(const char *p, int32_t n) {
 	return out;
 }
 
+static char *text_copy(const char *p, int32_t n) {
+	return text_copy_limit(p, n, 4096);
+}
+
 LLVMTypeRef llvm15_struct(LLVMContextRef context, const char *p, int32_t n) {
-	char *name = text_copy(p, n);
+	char *name = text_copy_limit(p, n, PRIVATE_NAME_LIMIT);
 	if (!name) return NULL;
 	LLVMTypeRef type = LLVMStructCreateNamed(context, name);
 	free(name);
@@ -40,7 +46,7 @@ LLVMTypeRef llvm15_struct(LLVMContextRef context, const char *p, int32_t n) {
 }
 
 int32_t llvm15_struct_named(LLVMTypeRef type, const char *p, int32_t n) {
-	if (!type || !p || n < 1 || n > 4096 || LLVMGetTypeKind(type) != LLVMStructTypeKind) return 0;
+	if (!type || !p || n < 1 || n > PRIVATE_NAME_LIMIT || LLVMGetTypeKind(type) != LLVMStructTypeKind) return 0;
 	const char *name = LLVMGetStructName(type);
 	return name && strlen(name) == (size_t)n && memcmp(name, p, (size_t)n) == 0;
 }
@@ -56,7 +62,7 @@ double llvm13_real_value(LLVMValueRef value) {
 }
 
 int32_t llvm13_named(LLVMValueRef value, const char *p, int32_t n) {
-	if (!value || !p || n < 1 || n > 4096) return 0;
+	if (!value || !p || n < 1 || n > PRIVATE_NAME_LIMIT) return 0;
 	size_t length = 0;
 	const char *actual = LLVMGetValueName2(value, &length);
 	return length == (size_t)n && !memcmp(actual, p, length);
@@ -76,7 +82,7 @@ int32_t llvm13_attribute(LLVMValueRef value, int32_t index, int32_t call, const 
 }
 
 void llvm13_rename(LLVMValueRef value, const char *p, int32_t n) {
-	if (value && p && n > 0 && n <= 4096) LLVMSetValueName2(value, p, (size_t)n);
+	if (value && p && n > 0 && n <= PRIVATE_NAME_LIMIT) LLVMSetValueName2(value, p, (size_t)n);
 }
 
 void llvm13_false_align(LLVMContextRef context, LLVMValueRef function, int32_t parameter) {
@@ -85,7 +91,7 @@ void llvm13_false_align(LLVMContextRef context, LLVMValueRef function, int32_t p
 }
 
 LLVMValueRef llvm12_function(LLVMModuleRef m, LLVMTypeRef t, const char *p, int32_t n) {
-	char *name = text_copy(p, n);
+	char *name = text_copy_limit(p, n, PRIVATE_NAME_LIMIT);
 	if (!name) return NULL;
 	LLVMValueRef result = LLVMGetNamedFunction(m, name);
 	if (result && LLVMGlobalGetValueType(result) != t) {
