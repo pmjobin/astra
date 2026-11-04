@@ -72,6 +72,7 @@ void generic_add_plan(CheckedIndex index, GenericInstance plan) {
 bool generic_template(CheckedIndex index, SymbolId id) {
 	if (!index.native_abi || id.index < 1 || id.index > index.generic_symbols) return false;
 	var symbol = index.bindings.symbol(id);
+	if (class_storage_member_template(index, id)) return true;
 	if (symbol.kind != 1 && symbol.kind != 3 && symbol.kind != 4 && symbol.kind != 11 && symbol.kind != 12) return false;
 	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0) return true;
 	return symbol.owner.index > 0 && generic_template(index, symbol.owner);
@@ -233,7 +234,14 @@ GenericInstance generic_copy_bindings(CheckedIndex index, GenericInstance input)
 		if (index.generic_node_map[plan.nodes + edge.node.index] != 0) {
 			edge.node.index = index.generic_node_map[plan.nodes + edge.node.index];
 			if (edge.scope.index > 0 && index.generic_scope_map[plan.scopes + edge.scope.index] != 0) edge.scope.index = index.generic_scope_map[plan.scopes + edge.scope.index];
-			if (edge.target.index > 0 && index.generic_symbol_map[plan.symbols + edge.target.index] != 0) edge.target.index = index.generic_symbol_map[plan.symbols + edge.target.index];
+			if (edge.target.index > 0 && index.generic_symbol_map[plan.symbols + edge.target.index] != 0) {
+				edge.target.index = index.generic_symbol_map[plan.symbols + edge.target.index];
+			} else {
+				if (index.class_storage && plan.enclosing.index != 0 && edge.target.index > 0) {
+					int outer = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
+					if (outer > 0 && index.generic_symbol_map[index.instances[outer - 1].symbols + edge.target.index] != 0) edge.target.index = index.generic_symbol_map[index.instances[outer - 1].symbols + edge.target.index];
+				}
+			}
 			if (edge.alternative.index > 0 && index.generic_symbol_map[plan.symbols + edge.alternative.index] != 0) edge.alternative.index = index.generic_symbol_map[plan.symbols + edge.alternative.index];
 			index.bindings.add_reference(edge);
 		}
@@ -260,7 +268,7 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		index.fail(span, "generic specialization arity mismatch");
 		return type_symbol(0);
 	}
-	if (declaration.kind == 4 && !generic_class_source(index, origin)) {
+	if (declaration.kind == 4 && !generic_class_source(index, origin) && !class_storage_generic_source(index, origin)) {
 		index.fail(span, "DEFERRED: generic Class requires the bounded empty receiver policy");
 		return type_symbol(0);
 	}
@@ -329,8 +337,17 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		int mapped = index.generic_node_map[plan.nodes + i];
 		if (mapped != 0) {
 			SyntaxNodeId node = {index = i};
-			if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && index.uses[i].type.index != 0) {
-				var type = generic_substitute(index, plan, index.uses[i].type, 0);
+			var pattern = index.uses[i].type;
+			// Class constructors can be requested while heads are being checked,
+			// before their generic body has visited a type-name expression. Resolve
+			// that declared parameter from its Binder identity, without marking an
+			// unvisited original expression as checked.
+			if (index.class_storage && pattern.index == 0 && index.bindings.program.arena.kind(node) == SyntaxKind.TypeNameSyntax()) {
+				var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+				if (target.index > 0 && index.bindings.symbol(target).kind == 9) pattern = index.symbol_types[target.index];
+			}
+			if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && pattern.index != 0) {
+				var type = generic_substitute(index, plan, pattern, 0);
 				SyntaxNodeId copy = {index = mapped}; var ignored = index.record(copy, type, index.uses[i].flags);
 			}
 		}
@@ -342,19 +359,22 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		if (mapped != 0) {
 			var symbol = index.bindings.symbol(type_symbol(mapped));
 			if (symbol.kind == 6) {
-				var ignored = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), 1);
+				int context = 1;
+				if (index.class_storage && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0) context = 2;
+				var ignored = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), context);
 			}
 		}
 		i = i + 1;
 	}
-	if (declaration.kind == 11) {
+	if (declaration.kind == 11 || index.class_storage && declaration.kind == 12) {
 		var function = index.bindings.symbol(concrete); function.kind = 1; index.bindings.replace_instance_symbol(concrete, function);
 		var hidden = generic_hidden_parameter(index, plan);
 	}
-	if (declaration.kind == 1 || declaration.kind == 11) checked_signature(index, concrete);
+	if (declaration.kind == 1 || declaration.kind == 11 || index.class_storage && declaration.kind == 12) checked_signature(index, concrete);
 	plan.state = 2;
 	generic_add_plan(index, plan);
 	index.generic_active[origin.index] = false;
+	if (index.class_storage && declaration.kind == 4) class_storage_members(index, index.symbol_types[concrete.index]);
 	return concrete;
 }
 

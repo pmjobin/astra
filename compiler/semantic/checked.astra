@@ -41,6 +41,7 @@ class CheckedIndex {
 	bool semantic_flow;
 	bool semantic_admission;
 	bool native_abi;
+	bool class_storage;
 	bool generic_definition;
 	int current_result_flags;
 	int pending_contract_message;
@@ -85,6 +86,7 @@ class CheckedIndex {
 		this.semantic_flow = false;
 		this.semantic_admission = false;
 		this.native_abi = false;
+		this.class_storage = false;
 		this.generic_definition = false;
 		this.current_result_flags = 0;
 		this.pending_contract_message = 0;
@@ -188,6 +190,7 @@ class CheckedIndex {
 	}
 
 	bool validate() {
+		if (this.class_storage && !this.native_abi) return false;
 		if (this.native_abi && !this.semantic_admission) return false;
 		if (!this.complete || this.failed() || !this.types.valid()) {
 			return false;

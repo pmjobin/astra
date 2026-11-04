@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-NAMES = '''FunctionDeclarationSyntax ParameterSyntax BlockStatementSyntax ReturnStatementSyntax LocalDeclarationSyntax InferredLocalDeclarationSyntax StructLocalDeclarationSyntax StructDeclarationSyntax StructFieldDeclarationSyntax StructInitializerSyntax FieldInitializerSyntax TypeNameSyntax GenericTypeApplicationSyntax SliceTypeSyntax PointerTypeSyntax ArrayTypeSyntax NonNullTypeSyntax CallableChannelTypeSyntax CallExpressionSyntax NameExpressionSyntax IntegerLiteralExpressionSyntax FloatLiteralExpressionSyntax BooleanLiteralExpressionSyntax BinaryExpressionSyntax ShortCircuitExpressionSyntax PrefixExpressionSyntax ParenthesizedExpressionSyntax ConversionExpressionSyntax IfStatementSyntax WhileStatementSyntax ForStatementSyntax AssignmentStatementSyntax FieldAssignmentStatementSyntax CallStatementSyntax MoveExpressionSyntax BufferAllocationSyntax FieldAccessExpressionSyntax BreakStatementSyntax ContinueStatementSyntax WhereClauseSyntax HeapObjectConstructionSyntax ClassDeclarationSyntax LifecycleDeclarationSyntax'''.split()
+NAMES = '''FunctionDeclarationSyntax ParameterSyntax BlockStatementSyntax ReturnStatementSyntax LocalDeclarationSyntax InferredLocalDeclarationSyntax StructLocalDeclarationSyntax StructDeclarationSyntax StructFieldDeclarationSyntax StructInitializerSyntax FieldInitializerSyntax TypeNameSyntax GenericTypeApplicationSyntax SliceTypeSyntax OwnerSlotsTypeSyntax PointerTypeSyntax ArrayTypeSyntax NonNullTypeSyntax CallableChannelTypeSyntax CallExpressionSyntax NameExpressionSyntax IntegerLiteralExpressionSyntax FloatLiteralExpressionSyntax BooleanLiteralExpressionSyntax NullPointerExpressionSyntax BinaryExpressionSyntax ShortCircuitExpressionSyntax PrefixExpressionSyntax ParenthesizedExpressionSyntax ConversionExpressionSyntax IfStatementSyntax WhileStatementSyntax ForStatementSyntax AssignmentStatementSyntax FieldAssignmentStatementSyntax CallStatementSyntax MoveExpressionSyntax BufferAllocationSyntax FieldAccessExpressionSyntax BreakStatementSyntax ContinueStatementSyntax WhereClauseSyntax HeapObjectConstructionSyntax ClassDeclarationSyntax LifecycleDeclarationSyntax'''.split()
 
 
 def generate():
@@ -30,7 +30,7 @@ def generate():
 			elif name == 'ClassDeclarationSyntax' and field == 'methods':
 				copy += [f'\t\t\tdata.{f}.index = 0;']
 				check += [f'\t\t\tif (index.bindings.program.arena.list_count(second_data.{f}) != 0) return false;']
-			elif name == 'FunctionDeclarationSyntax' and field == 'parameters':
+			elif name in ('FunctionDeclarationSyntax', 'LifecycleDeclarationSyntax') and field == 'parameters':
 				copy += [f'\t\t\tdata.{f} = generic_copy_list(index, plan, data.{f}, syntax_kind_code(SyntaxKind.ParameterSyntax()), depth + 1);']
 				check += [f'\t\t\tif (!generic_parameters_verified(index, plan, first_data.{f}, second_data.{f})) return false;']
 			elif typ.rstrip('?') in model:

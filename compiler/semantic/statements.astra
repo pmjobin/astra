@@ -222,19 +222,24 @@ owned CheckedIndex checked_build(owned BindingIndex bindings, int stop_after, bo
 }
 
 owned CheckedIndex checked_build_admission(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission) throws Error {
-	return checked_build_profile(move bindings, stop_after, flow_adapters, semantic_flow, admission, false);
+	return checked_build_profile(move bindings, stop_after, flow_adapters, semantic_flow, admission, false, false);
 }
 
 owned CheckedIndex checked_build_nativeabi(owned BindingIndex bindings, int stop_after) throws Error {
-	return checked_build_profile(move bindings, stop_after, true, true, true, true);
+	return checked_build_profile(move bindings, stop_after, true, true, true, true, false);
 }
 
-owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi) throws Error {
+owned CheckedIndex checked_build_classstorage(owned BindingIndex bindings, int stop_after) throws Error {
+	return checked_build_profile(move bindings, stop_after, true, true, true, true, true);
+}
+
+owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi, bool class_storage) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
 	result.flow_adapters = flow_adapters;
 	result.semantic_flow = semantic_flow;
 	result.semantic_admission = admission && semantic_flow;
 	result.native_abi = native_abi && result.semantic_admission;
+	result.class_storage = class_storage && result.native_abi;
 	if (result.bindings.failed()) {
 		int r = 1;
 		while (r <= result.bindings.reference_count) {
@@ -257,6 +262,14 @@ owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_a
 	}
 	result.stage = 1;
 	checked_heads(result);
+	if (result.class_storage && !result.failed()) {
+		int owner = 1;
+		while (owner <= result.generic_symbols && !result.failed()) {
+			var declaration = result.bindings.symbol(type_symbol(owner));
+			if (declaration.kind == 4 && result.bindings.program.arena.list_count(result.bindings.program.arena.get_list_type_parameters(declaration.node)) == 0) class_storage_members(result, result.symbol_types[owner]);
+			owner = owner + 1;
+		}
+	}
 	if (stop_after == 1 && !result.failed()) {
 		result.fail(result.bindings.program.span(), "stopped after checked signatures");
 	}
@@ -292,7 +305,7 @@ owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_a
 		var type = result.types.argument(result.types, signature.callable, 0);
 		result.current_result_flags = type.flags;
 		checked_statement(result, body, type.type, 0);
-		if (result.semantic_flow && symbol.kind == 12) {
+		if (result.semantic_flow && (symbol.kind == 12 || class_storage_initializing(result, signature.declaration))) {
 			var obligation = result.defer(symbol.node, 20);
 		}
 		i = i + 1;

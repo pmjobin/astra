@@ -348,6 +348,10 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 
 TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId type, int context) throws Error {
 	var resolved = checked_resolve(index, type, context, 0);
+	if (index.class_storage && symbol.kind == 7 && checked_kind(index, resolved) == 30 && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0) {
+		index.fail(index.bindings.program.arena.header(symbol.node).span, "DEFERRED: explicit owned record parameters are not admitted by C0");
+		return no_type();
+	}
 	if (type.index != 0 && resolved.index == 14) {
 		index.fail(index.bindings.program.arena.header(type).span, "parameter, field or local type cannot be 'void'");
 	}
@@ -525,7 +529,9 @@ bool checked_capability(CheckedIndex index, TypeId type, string capability) thro
 		return type_integer(kind);
 	}
 	if (index.native_abi && capability == "Ownable") return kind == 31;
-	if (index.native_abi && capability == "ExactHeapClass") return false;
+	if (index.native_abi && capability == "ExactHeapClass") {
+		return index.class_storage && class_storage_prepare_fields(index, type, 0) && class_storage_exact(index, type, 0);
+	}
 	if (capability == "Ownable" || capability == "ExactHeapClass") {
 		return kind == 31 || kind == 27 || kind == 28 || kind == 29 || kind == 35 || kind == 34;
 	}

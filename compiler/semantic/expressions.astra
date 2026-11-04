@@ -182,6 +182,7 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 			receiver = checked_this_type(index, node, index.bindings.program.arena.get_token_identifier(node));
 		}
 	}
+	if (index.class_storage && checked_kind(index, receiver) == 23 && index.bindings.program.arena.token_is(field, "capacity")) return type_id(1);
 	var selected = checked_member(index, receiver, field);
 	if (selected.index == 0) {
 		if (checked_kind(index, receiver) == 31) {
@@ -499,6 +500,10 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 }
 
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (index.class_storage && class_storage_slot_action(index, node) > 0) {
+		var result = class_storage_slot_call(index, node, depth + 1);
+		if (result.index != 0 || index.failed()) return result;
+	}
 	if (index.flow_adapters && checked_flow_intrinsic(index, node)) {
 		return checked_flow_length(index, node, depth);
 	}

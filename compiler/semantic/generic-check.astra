@@ -65,9 +65,9 @@ bool generic_verify(CheckedIndex index) {
 		if (plan_origin.index < 1 || plan_origin.index > index.generic_symbols || concrete.index <= index.generic_symbols || concrete.index > index.bindings.symbol_count || generic_state(index.instances[ordinal]) != 2) return false;
 		if (!generic_references_verified(index, index.instances[ordinal])) return false;
 		var original = index.bindings.symbol(plan_origin); var clone = index.bindings.symbol(concrete);
-		bool method = original.kind == 11 && clone.kind == 1;
+		bool method = (original.kind == 11 || index.class_storage && original.kind == 12) && clone.kind == 1;
 		if ((!method && original.kind != clone.kind) || (original.kind != 1 && original.kind != 3 && original.kind != 4 && !method)) return false;
-		if (original.kind == 4 && !generic_class_source(index, plan_origin)) return false;
+		if (original.kind == 4 && !generic_class_source(index, plan_origin) && !class_storage_template_verified(index, plan_origin)) return false;
 		var parameters = index.bindings.program.arena.get_list_type_parameters(original.node);
 		if (index.bindings.program.arena.list_count(parameters) != generic_argument_count(index, index.instances[ordinal]) || (generic_argument_count(index, index.instances[ordinal]) == 0 && !method) || (method != (generic_enclosing(index.instances[ordinal]).index != 0))) return false;
 		if (!generic_constraints_verified(index, index.instances[ordinal])) return false;
@@ -83,7 +83,15 @@ bool generic_verify(CheckedIndex index) {
 				SyntaxNodeId node = {index = n};
 				if (!generic_check_node(index, index.instances[ordinal], node)) return false;
 				int mapped = generic_node(index, index.instances[ordinal], n);
-				if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && index.uses[n].type.index != 0 && !generic_type_matches(index, ordinal, index.uses[n].type, index.uses[mapped].type, 0)) return false;
+				var pattern = index.uses[n].type;
+				if (index.class_storage && pattern.index == 0 && index.bindings.program.arena.kind(node) == SyntaxKind.TypeNameSyntax()) {
+					var reference = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+					if (reference.index > 0 && index.bindings.symbol(reference).kind == 9) {
+						pattern = index.symbol_types[reference.index];
+						if (checked_kind(index, pattern) != 33 || index.uses[mapped].flags != 0) return false;
+					}
+				}
+				if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && pattern.index != 0 && !generic_type_matches(index, ordinal, pattern, index.uses[mapped].type, 0)) return false;
 			}
 			n = n + 1;
 		}
@@ -93,7 +101,7 @@ bool generic_verify(CheckedIndex index) {
 			if (mapped != 0) {
 				if (mapped <= index.generic_symbols || mapped > index.bindings.symbol_count) return false;
 				var source = index.bindings.symbol(type_symbol(n)); var target = index.bindings.symbol(type_symbol(mapped));
-				if ((source.kind != target.kind && !(source.kind == 11 && target.kind == 1 && n == plan_origin.index)) || source.token.index != target.token.index || source.name != target.name || source.canonical != target.canonical || source.restricted != target.restricted || generic_node(index, index.instances[ordinal], source.node.index) != target.node.index) return false;
+				if ((source.kind != target.kind && !((source.kind == 11 || index.class_storage && source.kind == 12) && target.kind == 1 && n == plan_origin.index)) || source.token.index != target.token.index || source.name != target.name || source.canonical != target.canonical || source.restricted != target.restricted || generic_node(index, index.instances[ordinal], source.node.index) != target.node.index) return false;
 				int owner = source.owner.index;
 				if (owner > 0 && generic_symbol(index, index.instances[ordinal], owner) != 0) owner = generic_symbol(index, index.instances[ordinal], owner);
 				if (owner != target.owner.index) return false;
@@ -133,6 +141,7 @@ bool generic_capability_verified(CheckedIndex index, TypeId argument, SyntaxToke
 	if (index.bindings.program.arena.token_is(capability, "Bitwise")) return type_integer(kind);
 	if (index.bindings.program.arena.token_is(capability, "Shift")) return type_integer(kind);
 	if (index.bindings.program.arena.token_is(capability, "Ownable")) return kind == 31;
+	if (index.bindings.program.arena.token_is(capability, "ExactHeapClass")) return index.class_storage && class_storage_source_verified(index, argument, true, 0);
 	return false;
 }
 
@@ -171,6 +180,7 @@ bool generic_calls_verified(CheckedIndex index) {
 			int ordinal = generic_instance_for(index, target) - 1;
 			if (ordinal < 0) return false;
 			var plan = index.instances[ordinal];
+
 			var token = index.bindings.program.arena.get_token_identifier(node);
 			int r = index.node_references[n]; bool bound = false;
 			while (r != 0) {
@@ -181,11 +191,12 @@ bool generic_calls_verified(CheckedIndex index) {
 			if (plan.enclosing.index != 0) {
 				var receiver_token = index.bindings.program.arena.get_token_receiver(node);
 				var receiver = checked_target(index, node, receiver_token);
-				if (receiver.index == 0 || index.symbol_types[receiver.index].index != plan.enclosing.index || !generic_empty_class(index, plan.enclosing)) return false;
+				if (receiver.index == 0 || index.symbol_types[receiver.index].index != plan.enclosing.index || (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0))) return false;
 				int outer_number = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
-				var outer = index.instances[outer_number - 1];
+				var owner = index.types.row(plan.enclosing).nominal;
+				if (outer_number > 0) owner = index.instances[outer_number - 1].origin;
 				var declaration = index.bindings.symbol(plan.origin);
-				if (declaration.kind != 11 || declaration.owner.index != outer.origin.index || !generic_token_equal(index, declaration.token, token)) return false;
+				if (declaration.kind != 11 || declaration.owner.index != owner.index || !generic_token_equal(index, declaration.token, token)) return false;
 				var normalized = checked_call_arguments(index, node);
 				var source_arguments = index.bindings.program.arena.get_list_arguments(node);
 				int a = 0;
@@ -244,7 +255,14 @@ bool generic_references_verified(CheckedIndex index, GenericInstance plan) {
 			if (actual.scope.index != scope) return false;
 			if (original.state_code == 1) {
 				int target = original.target.index;
-				if (index.generic_symbol_map[plan.symbols + target] != 0) target = index.generic_symbol_map[plan.symbols + target];
+				if (index.generic_symbol_map[plan.symbols + target] != 0) {
+					target = index.generic_symbol_map[plan.symbols + target];
+				} else {
+					if (index.class_storage && plan.enclosing.index != 0) {
+						int owner = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
+						if (owner > 0 && generic_symbol(index, index.instances[owner - 1], target) != 0) target = generic_symbol(index, index.instances[owner - 1], target);
+					}
+				}
 				if (actual.state_code != 1 || actual.target.index != target) return false;
 			} else {
 				if (actual.state_code != original.state_code && !(original.state_code == 5 && actual.state_code == 1 && (original.reason == 1 || original.reason == 3))) return false;

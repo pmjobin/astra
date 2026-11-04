@@ -79,6 +79,12 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 	}
 	if (kind == SyntaxKind.BufferAllocationSyntax()) {
 		var element = checked_resolve(index, index.bindings.program.arena.get_node_element_type(node), 0, 0);
+		if (class_storage_slot_initialization(index, node, expected)) {
+			var argument = index.types.argument(index.types, expected, 0);
+			checked_mismatch(index, index.bindings.program.arena.header(node).span, argument.type, element, "owner-slot initializer element");
+			var use = index.uses[node.index]; use.flags = 4; use.deferred = 19; index.uses[node.index] = use;
+			return expected;
+		}
 		var count_node = index.bindings.program.arena.get_node_count(node);
 		var count = checked_expression(index, count_node, type_id(1), depth + 1);
 		checked_mismatch(index, index.bindings.program.arena.header(count_node).span, type_id(1), count, "buffer count");
@@ -103,11 +109,12 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 			if (constructor.index != 0 && index.symbol_signatures[constructor.index].index > 0) {
 				var signature = index.signatures[index.symbol_signatures[constructor.index].index - 1];
 				var descriptor = index.types.descriptor(index.types, signature.callable);
-				if (descriptor.count != index.bindings.program.arena.list_count(arguments) + 1) {
+				int offset = 1; if (class_storage_initializing(index, constructor)) offset = 2;
+				if (descriptor.count != index.bindings.program.arena.list_count(arguments) + offset) {
 					index.fail(index.uses[node.index].span, "constructor argument count does not match signature");
 					return no_type();
 				}
-				var parameter = index.types.argument(index.types, signature.callable, i + 1);
+				var parameter = index.types.argument(index.types, signature.callable, i + offset);
 				expected_argument = parameter.type;
 				flags = parameter.flags;
 			}
@@ -152,7 +159,7 @@ TypeId checked_flow_length(CheckedIndex index, SyntaxNodeId node, int depth) thr
 	var operand = index.bindings.program.arena.node_at(args, 0);
 	var type = checked_expression(index, operand, no_type(), depth + 1);
 	int code = checked_kind(index, type);
-	if (code == 21 || code == 22) {
+	if (code == 21 || code == 22 || index.class_storage && code == 23) {
 		return type_id(1);
 	}
 	return index.defer(node, 17);
@@ -244,11 +251,16 @@ TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId to
 	var context = index.bindings.scope(scope);
 	if (context.owner.index == 0) return no_type();
 	var symbol = index.bindings.symbol(context.owner);
+	if (index.class_storage && class_storage_receiver(index, context.owner) > 0) {
+		int instance = generic_instance_for(index, context.owner);
+		return index.instances[instance - 1].enclosing;
+	}
 	if (symbol.kind == 12 && symbol.owner.index != 0 && checked_flow_receiver_shape(index, index.symbol_types[symbol.owner.index])) return index.symbol_types[symbol.owner.index];
 	return no_type();
 }
 
 SymbolId checked_constructor(CheckedIndex index, TypeId type) {
+	if (index.class_storage && class_storage_class(index, type)) return class_storage_constructor(index, type);
 	if (checked_kind(index, type) != 31) return type_symbol(0);
 	var descriptor = index.types.descriptor(index.types, type);
 	var declaration = index.bindings.symbol(descriptor.nominal);
@@ -273,6 +285,7 @@ bool checked_flow_declared_nonnull(CheckedIndex index, SymbolId symbol) {
 // Completing an implicit receiver must not expose unqualified storage families
 // to the small type adapter (owner slots, shared fields and richer records).
 bool checked_flow_receiver_shape(CheckedIndex index, TypeId type) {
+	if (index.class_storage && class_storage_class(index, type)) return true;
 	if (checked_kind(index, type) != 31) return false;
 	var descriptor = index.types.descriptor(index.types, type);
 	var declaration = index.bindings.symbol(descriptor.nominal);

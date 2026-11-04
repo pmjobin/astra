@@ -1,0 +1,198 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Separate source consumer for the initial private Class construction domain.
+// It never calls flow_graph, flow_solve, the inventory builder or LLVM lowering.
+// Straight-line initialization is deliberate; conditional/throwing construction
+// remains deferred until its partial-publication/rollback contract is qualified.
+bool class_storage_slot_call_present(CheckedIndex checked, SyntaxNodeId node) {
+	if (class_storage_slot_action(checked, node) == 0) return false;
+	var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
+	return receiver.index > 0 && checked_kind(checked, checked.uses[receiver.index].type) == 23;
+}
+
+bool class_storage_slot_capacity(CheckedIndex checked, SyntaxNodeId node) {
+	if (!checked.class_storage || checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax()) return false;
+	var receiver = checked.bindings.program.arena.get_node_aggregate(node);
+	return receiver.index > 0 && checked_kind(checked, checked.uses[receiver.index].type) == 23 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_field_name(node), "capacity");
+}
+
+bool class_storage_record_projection_deferred(borrowed FlowGraph graph, CheckedIndex checked, int field) {
+	if (!checked.class_storage || field < 1 || field > graph.field_count) return false;
+	int root = graph.fields[field - 1].root;
+	if (root == 0 || checked_kind(checked, graph.slots[root - 1].type) != 30) return false;
+	int current = field;
+	while (current > 0) {
+		var projection = graph.fields[current - 1];
+		if ((projection.flags & 4) != 0 && checked_kind(checked, projection.type) == 31) return true;
+		current = projection.parent;
+	}
+	return false;
+}
+
+int class_storage_slot_flow(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
+	var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
+	var arguments = checked.bindings.program.arena.get_list_arguments(node);
+	int action = class_storage_slot_action(checked, node);
+	var commit = flow_event(checked, node, 8, 0, region, next); commit.call = node.index;
+	int head = graph.add(commit); int i = checked.bindings.program.arena.list_count(arguments) - 1;
+	while (i >= 0) {
+		var argument = checked.bindings.program.arena.node_at(arguments, i);
+		bool consuming = action == 2 || action == 4 && i == 1;
+		var direct = flow_unwrap(checked, argument);
+		if (consuming && checked.bindings.program.arena.kind(direct) != SyntaxKind.MoveExpressionSyntax()) {
+			var bad = flow_event(checked, argument, 16, 0, region, head); bad.call = 5; head = graph.add(bad);
+		}
+		int call = 0; if (consuming) call = node.index;
+		head = flow_expression(graph, checked, origins, argument, region, head, call, depth + 1);
+		i = i - 1;
+	}
+	head = flow_temporary(graph, checked, origins, receiver, node, region, head);
+	return flow_expression(graph, checked, origins, receiver, region, head, 0, depth + 1);
+}
+
+bool class_storage_constructor_verified(CheckedIndex checked, SymbolId function) {
+	if (!checked.class_storage || !class_storage_initializing(checked, function)) return false;
+	int instance = generic_instance_for(checked, function);
+	var type = checked.instances[instance - 1].enclosing;
+	if (!class_storage_source_verified(checked, type, false, 0)) return false;
+	var origin = checked.bindings.symbol(checked.instances[instance - 1].origin); var expected_owner = checked.types.row(type).nominal;
+	int outer = generic_instance_for(checked, expected_owner);
+	if (outer > 0) expected_owner = checked.instances[outer - 1].origin;
+	if (origin.kind != 12 || origin.owner.index != expected_owner.index) return false;
+	var declaration = checked.bindings.symbol(function);
+	var body = checked.bindings.program.arena.get_node_body(declaration.node);
+	if (checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+	var statements = checked.bindings.program.arena.get_list_statements(body);
+	var owner = checked.bindings.symbol(checked.types.row(type).nominal);
+	var fields = checked.bindings.program.arena.get_list_fields(owner.node);
+	if (checked.bindings.program.arena.list_count(statements) != checked.bindings.program.arena.list_count(fields)) return false;
+	var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
+	while (i < checked.bindings.program.arena.list_count(statements)) {
+		var statement = checked.bindings.program.arena.node_at(statements, i);
+		if (checked.bindings.program.arena.kind(statement) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
+		var target = checked.bindings.program.arena.get_node_target(statement);
+		if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this")) return false;
+		var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+		if (field.index < 1 || initialized[field.index]) return false;
+		var symbol = checked.bindings.symbol(field);
+		if (symbol.kind != 6 || symbol.owner.index != checked.types.row(type).nominal.index) return false;
+		var value = checked.bindings.program.arena.get_node_expression(statement);
+		if (value.index < 1 || checked.uses[value.index].type.index != checked.symbol_types[field.index].index) return false;
+		int flags = checked.symbol_flags[field.index];
+		if ((flags & 4) != 0) {
+			var direct = flow_unwrap(checked, value); var kind = checked.bindings.program.arena.kind(direct);
+			bool producer = kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.NullPointerExpressionSyntax();
+			if (kind == SyntaxKind.MoveExpressionSyntax()) {
+				var source = checked_target(checked, direct, checked.bindings.program.arena.get_token_source(direct));
+				if (source.index < 1 || checked.bindings.symbol(source).kind != 7 || checked.bindings.symbol(source).owner.index != function.index || (checked.symbol_flags[source.index] & 4) == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(direct)) != 0) return false;
+				producer = true;
+			}
+			if (kind == SyntaxKind.CallExpressionSyntax()) {
+				var callee = checked_target(checked, direct, checked.bindings.program.arena.get_token_identifier(direct));
+				if (callee.index == 0 || checked.symbol_signatures[callee.index].index == 0 || (checked.symbol_flags[callee.index] & 4) == 0) return false;
+				producer = true;
+			}
+			if (!producer || (flags & 1) != 0 && kind == SyntaxKind.NullPointerExpressionSyntax()) return false;
+		}
+		initialized[field.index] = true; i = i + 1;
+	}
+	i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var node = checked.bindings.program.arena.node_at(fields, i);
+		if (!initialized[checked.node_symbols[node.index].index]) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+// A closed Class's retained constructor declaration is a source template. Its
+// executable specialization is a distinct function with one borrowed receiver.
+// Recognize only the exact source/node/symbol mapping and its checked function.
+bool class_storage_constructor_template(CheckedIndex checked, SymbolId symbol) {
+	if (!checked.class_storage || symbol.index <= checked.generic_symbols || symbol.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(symbol);
+	if (declaration.kind != 12 || declaration.owner.index == 0) return false;
+	int outer = generic_instance_for(checked, declaration.owner);
+	if (outer == 0) return false;
+	var plan = checked.instances[outer - 1]; var original = checked.bindings.symbol(plan.origin);
+	if (original.kind != 4 || !class_storage_source_verified(checked, checked.symbol_types[declaration.owner.index], false, 0)) return false;
+	int source = 1;
+	while (source <= checked.generic_symbols) {
+		var member = checked.bindings.symbol(type_symbol(source));
+		if (member.kind == 12 && member.owner.index == plan.origin.index && generic_symbol(checked, plan, source) == symbol.index && generic_node(checked, plan, member.node.index) == declaration.node.index) {
+			int i = 0;
+			while (i < checked.instance_count) {
+				var body = checked.instances[i];
+				if (body.origin.index == source && body.enclosing.index == checked.symbol_types[declaration.owner.index].index && class_storage_constructor_verified(checked, body.concrete)) return true;
+				i = i + 1;
+			}
+		}
+		source = source + 1;
+	}
+	return false;
+}
+
+// Count and identify every declared projection using a read-only source walk.
+int class_storage_verify_inventory(borrowed FlowGraph graph, CheckedIndex checked, TypeId type, int root, int parent, int depth) {
+	if (depth > 32) return -1;
+	var descriptor = checked.types.row(type);
+	if (descriptor.kind != 30 && descriptor.kind != 31) return 0;
+	var declaration = checked.bindings.symbol(descriptor.nominal);
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = 0; int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var node = checked.bindings.program.arena.node_at(fields, i); var symbol = checked.node_symbols[node.index];
+		int matched = 0; int f = 0;
+		while (f < graph.field_count) {
+			var field = graph.fields[f];
+			if (field.root == root && field.parent == parent && field.symbol.index == symbol.index) {
+				if (matched != 0 || field.type.index != checked.symbol_types[symbol.index].index || field.flags != checked.symbol_flags[symbol.index] || field.leaf != (checked_kind(checked, field.type) != 30)) return -1;
+				matched = f + 1;
+			}
+			f = f + 1;
+		}
+		if (matched == 0) return -1;
+		count = count + 1;
+		var child = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, child);
+		if (kind == 30 || kind == 31) {
+			int nested = class_storage_verify_inventory(graph, checked, child, root, matched, depth + 1);
+			if (nested < 0) return -1;
+			count = count + nested;
+		}
+		i = i + 1;
+	}
+	return count;
+}
+
+bool class_storage_graph_verified(borrowed FlowGraph graph, CheckedIndex checked) {
+	var function = graph.function;
+	bool initializing = class_storage_initializing(checked, function);
+	if (initializing && !class_storage_constructor_verified(checked, function)) return false;
+	int fields = 0; int s = 0;
+	while (s < graph.slot_count) {
+		var slot = graph.slots[s]; int kind = checked_kind(checked, slot.type);
+		bool receiver = slot.symbol.index == class_storage_receiver(checked, function);
+		if ((kind == 30 || kind == 31) && !(initializing && receiver)) {
+			int count = class_storage_verify_inventory(graph, checked, slot.type, s + 1, 0, 0);
+			if (count < 0) return false;
+			fields = fields + count;
+		}
+		s = s + 1;
+	}
+	if (initializing) {
+		int instance = generic_instance_for(checked, function);
+		int count = class_storage_verify_inventory(graph, checked, checked.instances[instance - 1].enclosing, 0, 0, 0);
+		if (count < 0) return false;
+		fields = fields + count;
+	}
+	if (fields != graph.field_count) return false;
+	return true;
+}
+
+bool class_storage_flow_verify(FlowIndex index) {
+	if (!index.checked.class_storage || flow_status(index) != 0) return true;
+	int g = 0;
+	while (g < index.graphs.count()) {
+		if (!class_storage_graph_verified(index.graphs.entries[g], index.checked)) return false;
+		g = g + 1;
+	}
+	return true;
+}

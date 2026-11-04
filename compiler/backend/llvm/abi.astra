@@ -41,6 +41,7 @@ struct NativeAbiFunction {
 }
 
 class NativeAbiPlan {
+	owned ClassStoragePlan storage;
 	owned NativeAbiType[] types;
 	owned NativeAbiField[] fields;
 	owned NativeAbiChannel[] channels;
@@ -50,12 +51,13 @@ class NativeAbiPlan {
 	bool active;
 
 	init(int types, int fields, int channels, int functions, int optimization) {
+		var storage = new ClassStoragePlan(0, 0); storage.active = false; this.storage = move storage;
 		this.types = new NativeAbiType[types]; this.fields = new NativeAbiField[fields];
 		this.channels = new NativeAbiChannel[channels]; this.functions = new NativeAbiFunction[functions];
 		this.optimization = optimization; this.pointer_size = 8; this.active = true;
 	}
 
-	void close() { this.active = false; }
+	void close() { this.active = false; this.storage.close(); }
 }
 
 int native_abi_representation(CheckedIndex checked, TypeEdge edge, bool foreign) {
@@ -71,7 +73,7 @@ int native_abi_representation(CheckedIndex checked, TypeEdge edge, bool foreign)
 		if (kind == 31) return 8;
 		return -1;
 	}
-	if (kind == 30 || kind == 22) return 6;
+	if (kind == 30 || kind == 22 || checked.class_storage && kind == 23) return 6;
 	if (kind == 14) return 0; return 7;
 }
 
@@ -93,16 +95,17 @@ void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, in
 				row.size = 4;
 				row.alignment = 4;
 			}
-			else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20) || (source.kind == 31 && generic_empty_class(checked, type))) {
+			else { if (source.kind == 12 || (source.kind == 16 || source.kind == 20) || (source.kind == 31 && (generic_empty_class(checked, type) || class_storage_class(checked, type)))) {
 					row.size = 8;
 					row.alignment = 8;
 				}
-				else { if (source.kind == 22) {
+				else { if (source.kind == 22 || checked.class_storage && source.kind == 23) {
 						var element = checked.types.argument(checked.types, type, 0);
 						native_abi_layout(plan, checked, element.type, depth + 1, budget);
 						row.size = 16;
 						row.alignment = 8;
 						row.count = 2;
+						if (source.kind == 23) row.count = 3;
 					}
 					else { if (source.kind == 30) {
 							int symbol = 1;
@@ -150,6 +153,13 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 		} f = f + 1;
 	}
 	var plan = new NativeAbiPlan(program.cfg.core.flow.checked.types.count + 1, program.cfg.core.flow.checked.bindings.symbol_count + 1, count, program.data.function_count, optimization);
+	if (program.cfg.core.flow.checked.class_storage) {
+		var storage = class_storage_plan(program.cfg.core.flow.checked);
+		if (!class_storage_verify(storage, program.cfg.core.flow.checked)) {
+			throw new Error("LLVM_INVALID_UPSTREAM: Class storage layout");
+		}
+		plan.storage = move storage;
+	}
 	var budget = new SsaBudget(8000000); int cursor = 0; f = 0;
 	while (f < program.data.function_count) {
 		var source = program.cfg.core.data.functions[f]; var declaration = program.cfg.core.flow.checked.bindings.symbol(source.symbol);
@@ -176,7 +186,8 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 		int p = 0;
 		while (p < shape.count) {
 			var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, p);
-			if (checked_kind(program.cfg.core.flow.checked, edge.type) == 31 && (receiver != 0 || p != 1 || edge.flags != 2)) {
+			bool storage = program.cfg.core.flow.checked.class_storage && linkage == 0 && class_storage_class(program.cfg.core.flow.checked, edge.type) && edge.flags >= 0 && edge.flags <= 5 && (p != 0 || edge.flags == 4 || edge.flags == 5);
+			if (checked_kind(program.cfg.core.flow.checked, edge.type) == 31 && !storage && (receiver != 0 || p != 1 || edge.flags != 2)) {
 				throw new Error("LLVM_DEFERRED: Class ABI is qualified only for the hidden borrowed receiver");
 			}
 			native_abi_layout(plan, program.cfg.core.flow.checked, edge.type, 0, budget);
@@ -200,6 +211,13 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 		native_abi_layout(plan, program.cfg.core.flow.checked, program.cfg.core.data.places[place].type, 0, budget); place = place + 1;
 	}
 	native_abi_layout(plan, program.cfg.core.flow.checked, type_id(14), 0, budget);
+	if (program.cfg.core.flow.checked.class_storage) {
+		int t = 1;
+		while (t < len(plan.storage.types)) {
+			if (plan.storage.types[t].state == 2) native_abi_layout(plan, program.cfg.core.flow.checked, type_id(t), 0, budget);
+			t = t + 1;
+		}
+	}
 	return move plan;
 }
 
@@ -207,6 +225,11 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 // It never calls the planner, its layout recursion, or the emitter's type mapper.
 bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization, void* layout, void*[] types, void*[] functions) {
 	if (!plan.active || plan.optimization != optimization || plan.pointer_size != 8 || LLVMPointerSize(layout) != 8 || len(plan.functions) != program.data.function_count || len(plan.types) != len(types) || len(plan.fields) != program.cfg.core.flow.checked.bindings.symbol_count + 1) return false;
+	if (program.cfg.core.flow.checked.class_storage) {
+		if (!class_storage_verify(plan.storage, program.cfg.core.flow.checked)) return false;
+	} else {
+		if (plan.storage.active || len(plan.storage.types) != 0 || len(plan.storage.fields) != 0) return false;
+	}
 	var budget = new SsaBudget(8000000); int t = 1;
 	while (t < len(types) && budget.take(1)) {
 		if (types[t] != null) {
@@ -219,9 +242,20 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 				if (LLVMGetTypeKind(actual) != 8 || LLVMGetIntTypeWidth(actual) != width) return false;
 			}
 			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || (source.kind == 16 || source.kind == 20) && LLVMGetTypeKind(actual) != 12) return false;
-			if (source.kind == 31 && (!generic_empty_class(program.cfg.core.flow.checked, type_id(t)) || LLVMGetTypeKind(actual) != 12 || row.size != 8 || row.alignment != 8)) return false;
+			if (source.kind == 31 && ((!generic_empty_class(program.cfg.core.flow.checked, type_id(t)) && !class_storage_source_verified(program.cfg.core.flow.checked, type_id(t), false, 0)) || LLVMGetTypeKind(actual) != 12 || row.size != 8 || row.alignment != 8)) return false;
 			if (source.kind == 22) {
 				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) != 32 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8) return false;
+			}
+			if (source.kind == 23) {
+				if (!program.cfg.core.flow.checked.class_storage || row.count != 3 || row.size != 16 || row.alignment != 8 || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 3 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8 || LLVMOffsetOfElement(layout, actual, 2) != 12) return false;
+				int field = 1;
+				while (field < 3) {
+					var physical = LLVMStructGetTypeAtIndex(actual, field);
+					if (LLVMGetTypeKind(physical) != 8 || LLVMGetIntTypeWidth(physical) != 32) return false;
+					field = field + 1;
+				}
+				var element = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, type_id(t), 0);
+				if (element.flags != 0 || !class_storage_source_verified(program.cfg.core.flow.checked, element.type, true, 0)) return false;
 			}
 			if (source.kind == 30) {
 				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != row.count) return false;
@@ -258,7 +292,13 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 			var edge = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, p); var channel = plan.channels[cursor];
 			if (channel.function != f + 1 || channel.ordinal != p - 1 || channel.semantic != edge.type.index || channel.ownership != edge.flags) return false;
 			int kind = checked_kind(program.cfg.core.flow.checked, edge.type); int expected = 7;
-			if (kind == 31 && (receiver != 0 || p != 1 || edge.flags != 2)) return false;
+			if (kind == 31) {
+				if (program.cfg.core.flow.checked.class_storage) {
+					if (linkage != 0 || !class_storage_source_verified(program.cfg.core.flow.checked, edge.type, false, 0) || edge.flags < 0 || edge.flags > 5 || p == 0 && edge.flags != 4 && edge.flags != 5 || p == 1 && receiver == 0 && edge.flags != 2) return false;
+				} else {
+					if (receiver != 0 || p != 1 || edge.flags != 2) return false;
+				}
+			}
 			if (linkage != 0) {
 				if (!checked_c_scalar_signature(program.cfg.core.flow.checked, source.symbol)) return false;
 				expected = -1; if (kind == 1) expected = 1; if (kind == 11) expected = 2; if (kind == 12) expected = 3; if ((kind == 16 || kind == 20)) expected = 4; if (p == 0 && kind == 14) expected = 0;
@@ -267,9 +307,9 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 					expected = 0;
 				} else {
 					if ((edge.flags & 2) != 0) {
-						expected = 5; if (kind == 31 && generic_empty_class(program.cfg.core.flow.checked, edge.type)) expected = 8;
+						expected = 5; if (kind == 31 && (generic_empty_class(program.cfg.core.flow.checked, edge.type) || program.cfg.core.flow.checked.class_storage)) expected = 8;
 					} else {
-						if (kind == 22 || kind == 30) expected = 6;
+						if (kind == 22 || kind == 30 || program.cfg.core.flow.checked.class_storage && kind == 23) expected = 6;
 					}
 				}
 			}

@@ -64,7 +64,7 @@ def build(compiler, directory, capture, modes=('O0', 'O2'), consumer=None, with_
 		target = directory / (name + '.o')
 		product([gcc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', source, '-o', target], target, [Path(p) for p in deps], name)
 		objects += ['--link-object', target]
-	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *[p for p in sorted((ROOT / 'compiler/semantic').glob('*.astra')) if with_flow or not p.name.startswith('flow-') or p.name == 'flow-checked.astra'], *extra_sources, consumer or ROOT / 'tests/selfhost-typecore/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
+	sources = [*sorted((ROOT / 'compiler/source').glob('*.astra')), *sorted((ROOT / 'compiler/syntax').glob('*.astra')), *[p for p in sorted((ROOT / 'compiler/semantic').glob('*.astra')) if with_flow or p.name == 'flow-checked.astra' or not p.name.startswith('flow-') and p.name != 'class-storage-flow.astra'], *extra_sources, consumer or ROOT / 'tests/selfhost-typecore/query.astra', ROOT / 'tests/selfhost-parser/controls.astra', ROOT / 'tests/selfhost-parser/cursors.astra', *[ROOT / f'lib/astra/{p}.astra' for p in LIBRARIES]]
 	for mode in modes:
 		target = directory / ((product_prefix or ('astra-flow-' if with_flow else 'astra-types-')) + mode)
 		extra_links = [arg for path in link_objects for arg in ('--link-object', path)] + [arg for name in link_libraries for arg in ('--link-library', name)]

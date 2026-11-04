@@ -33,10 +33,12 @@ bool flowsem_field_type(CheckedIndex checked, TypeId type, int flags, int depth)
 	if (code == 30) return (flags & 7) == 0 && flowsem_record_shape(checked, type, depth + 1);
 	if ((flags & 4) == 0 || (flags & 2) != 0) return false;
 	if (code == 22) return (flags & 1) == 0 && flow_buffer_type(checked, type);
-	return code == 31 && flow_empty_class(checked, type);
+	if (checked.class_storage && code == 23) return class_storage_value(checked, type, flags, 0);
+	return code == 31 && (flow_empty_class(checked, type) || class_storage_class(checked, type));
 }
 
 bool flowsem_class_shape(CheckedIndex checked, TypeId type) {
+	if (class_storage_class(checked, type)) return true;
 	if (checked_kind(checked, type) != 31) return false;
 	var descriptor = checked.types.descriptor(checked.types, type);
 	var declaration = checked.bindings.symbol(descriptor.nominal);
@@ -85,7 +87,7 @@ void flowsem_inventory(borrowed FlowGraph graph, CheckedIndex checked, TypeId ty
 		bool leaf = checked_kind(checked, field_type) != 30;
 		FlowField field = { root = root, parent = parent, symbol = symbol, type = field_type, flags = checked.symbol_flags[symbol.index], leaf = leaf };
 		int id = graph.add_field(field);
-		if (!leaf && id > 0) flowsem_inventory(graph, checked, field_type, root, id, depth + 1);
+		if (id > 0 && (!leaf || checked.class_storage && checked_kind(checked, field_type) == 31)) flowsem_inventory(graph, checked, field_type, root, id, depth + 1);
 		i = i + 1;
 	}
 }
@@ -114,6 +116,7 @@ int flowsem_place(borrowed FlowGraph graph, CheckedIndex checked, SyntaxNodeId n
 		var symbol = checked_target(checked, node, token);
 		if (symbol.index != 0) root = graph.slot_for(symbol);
 		if (root == 0 && checked_this_type(checked, node, token).index == 0) return 0;
+		if (root == 0 && checked.class_storage && !class_storage_initializing(checked, graph.function)) root = graph.slot_for(type_symbol(class_storage_receiver(checked, graph.function)));
 	}
 	return flowsem_find_field(graph, root, parent, checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node)));
 }
@@ -245,8 +248,8 @@ int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 	}
 	var destination = graph.fields[field - 1];
 	var value = checked.bindings.program.arena.get_node_expression(node);
-	if (checked.semantic_admission && !destination.leaf && destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 30) {
-		if (graph.slots[destination.root - 1].parameter || (destination.flags & 128) != 0) {
+	if (checked.semantic_admission && !destination.leaf && (destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 30 || checked.class_storage)) {
+		if (destination.root > 0 && graph.slots[destination.root - 1].parameter && checked_kind(checked, graph.slots[destination.root - 1].type) == 30 || (destination.flags & 128) != 0) {
 			graph.defer(node, 6);
 			return next;
 		}
@@ -254,7 +257,7 @@ int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 	}
 	// Only the constructor owns a Class's incomplete receiver. Detached record
 	// copies never become that receiver, and owning-record extraction is deferred.
-	if ((destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 31) || ((destination.flags & 4) != 0 && destination.root > 0) || (destination.flags & 128) != 0 && destination.root > 0 || !destination.leaf) {
+	if ((destination.root > 0 && checked_kind(checked, graph.slots[destination.root - 1].type) == 31 && !checked.class_storage) || ((destination.flags & 4) != 0 && destination.root > 0) || (destination.flags & 128) != 0 && destination.root > 0 || !destination.leaf) {
 		graph.defer(node, 6);
 		return next;
 	}
@@ -268,13 +271,16 @@ int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 
 int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
 	var type = checked.uses[node.index].type;
-	if (generic_empty_class(checked, type) && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(node)) == 0 && checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && !checked.bindings.program.arena.get_bool_fallible(node)) {
+	bool ordinary_heap = checked.bindings.program.arena.kind(node) == SyntaxKind.HeapObjectConstructionSyntax();
+	bool default_heap = class_storage_construction(checked, node);
+	if (ordinary_heap) default_heap = checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && !checked.bindings.program.arena.get_bool_fallible(node);
+	if (ordinary_heap && generic_empty_class(checked, type) && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(node)) == 0 && default_heap) {
 		var marker = flow_event(checked, node, 8, 0, region, next);
 		marker.call = node.index;
 		return graph.add(marker);
 	}
 	var constructor = checked_constructor(checked, type);
-	if (!flow_simple_class(checked, type) || constructor.index == 0 || checked.symbol_signatures[constructor.index].index == 0 || checked.bindings.program.arena.get_node_allocation_context(node).index != 0 || checked.bindings.program.arena.get_bool_fallible(node)) {
+	if (!flow_simple_class(checked, type) || constructor.index == 0 || checked.symbol_signatures[constructor.index].index == 0 || !default_heap) {
 		graph.defer(node, 8);
 		return next;
 	}
@@ -285,7 +291,8 @@ int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] o
 	}
 	var arguments = checked_call_arguments(checked, node);
 	var descriptor = checked.types.descriptor(checked.types, signature.callable);
-	if (descriptor.count != checked.bindings.program.arena.list_count(arguments) + 1) {
+	int offset = 1; if (class_storage_initializing(checked, constructor)) offset = 2;
+	if (descriptor.count != checked.bindings.program.arena.list_count(arguments) + offset) {
 		graph.defer(node, 9);
 		return next;
 	}
@@ -295,7 +302,7 @@ int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] o
 	int i = checked.bindings.program.arena.list_count(arguments) - 1;
 	while (i >= 0) {
 		var argument = checked.bindings.program.arena.node_at(arguments, i);
-		var parameter = checked.types.argument(checked.types, signature.callable, i + 1);
+		var parameter = checked.types.argument(checked.types, signature.callable, i + offset);
 		head = flowsem_demand(graph, checked, argument, parameter.flags, region, head);
 		if ((parameter.flags & 4) != 0) {
 			if (!flowsem_owner_producer(checked, argument)) graph.fail(5, checked.bindings.program.arena.header(argument).span);
@@ -324,6 +331,9 @@ void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent 
 		if (slot.parameter) {
 			nulls[event.slot - 1] = 3;
 			if ((slot.flags & 1) != 0 && flow_simple_class(checked, slot.type)) nulls[event.slot - 1] = 2;
+			// The single private receiver is checked before invocation. Its
+			// borrowed channel remains flag 2, without LLVM nonnull metadata.
+			if (checked.class_storage && slot.symbol.index == class_storage_receiver(checked, graph.function)) nulls[event.slot - 1] = 2;
 		}
 		if (checked.bindings.program.arena.kind(event.node) != SyntaxKind.StructLocalDeclarationSyntax() && (!checked.semantic_admission || slot.parameter || checked_kind(checked, slot.type) != 30)) {
 			int i = 0;
@@ -373,6 +383,13 @@ void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent 
 		if (validate && (field.flags & 128) != 0 && (fields[event.field - 1] & 1) != 0) graph.fail(16, event.span);
 		if (validate && checked.bindings.program.arena.kind(event.node) == SyntaxKind.FieldInitializerSyntax() && (fields[event.field - 1] & 1) != 0) graph.fail(16, event.span);
 		fields[event.field - 1] = 1;
+		if (checked.class_storage && checked_kind(checked, field.type) == 31) {
+			int i = event.field;
+			while (i < graph.field_count) {
+				if (flowsem_under(graph, i + 1, event.field)) fields[i] = 1;
+				i = i + 1;
+			}
+		}
 	}
 	if (operation == 21) flowsem_require_complete(graph, event, fields, event.slot, event.field, validate);
 	if (operation == 9 || operation == 17) {

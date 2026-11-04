@@ -153,6 +153,16 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (first_data.f_stars.index != second_data.f_stars.index) return false;
 			if (!generic_check_child(index, plan, first_data.f_element_type, second_data.f_element_type)) return false;
 		}
+		case SyntaxKind.OwnerSlotsTypeSyntax(): {
+			var first_data = index.bindings.program.arena.owner_slots_type(original);
+			var second_data = index.bindings.program.arena.owner_slots_type(concrete);
+			if (first_data.f_namespace_qualifier.index != second_data.f_namespace_qualifier.index) return false;
+			if (first_data.f_identifier.index != second_data.f_identifier.index) return false;
+			if (first_data.f_stars.index != second_data.f_stars.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_element, second_data.f_element)) return false;
+			if (first_data.f_marker.index != second_data.f_marker.index) return false;
+			if (first_data.f_close.index != second_data.f_close.index) return false;
+		}
 		case SyntaxKind.PointerTypeSyntax(): {
 			var first_data = index.bindings.program.arena.pointer_type(original);
 			var second_data = index.bindings.program.arena.pointer_type(concrete);
@@ -223,6 +233,11 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			var first_data = index.bindings.program.arena.boolean_literal_expression(original);
 			var second_data = index.bindings.program.arena.boolean_literal_expression(concrete);
 			if (first_data.f_literal.index != second_data.f_literal.index) return false;
+		}
+		case SyntaxKind.NullPointerExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.null_pointer_expression(original);
+			var second_data = index.bindings.program.arena.null_pointer_expression(concrete);
+			if (first_data.f_keyword.index != second_data.f_keyword.index) return false;
 		}
 		case SyntaxKind.BinaryExpressionSyntax(): {
 			var first_data = index.bindings.program.arena.binary_expression(original);
@@ -405,7 +420,7 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_return_type, second_data.f_return_type)) return false;
 			if (first_data.f_name.index != second_data.f_name.index) return false;
 			if (first_data.f_open_paren.index != second_data.f_open_paren.index) return false;
-			if (!generic_check_list(index, plan, first_data.f_parameters, second_data.f_parameters)) return false;
+			if (!generic_parameters_verified(index, plan, first_data.f_parameters, second_data.f_parameters)) return false;
 			if (first_data.f_commas.index != second_data.f_commas.index) return false;
 			if (first_data.f_close_paren.index != second_data.f_close_paren.index) return false;
 			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;

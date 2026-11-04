@@ -1,0 +1,368 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Opt-in private LP64 storage profile. A Class handle and its object payload
+// have different layouts; neither a TypeId nor this plan proves owner flow.
+struct ClassStorageLayout {
+	int semantic;
+	int nominal;
+	int kind;
+	int size;
+	int alignment;
+	int fields;
+	int payload_size;
+	int payload_alignment;
+	int state;
+}
+
+struct ClassStorageField {
+	int owner;
+	int symbol;
+	int ordinal;
+	int semantic;
+	int flags;
+	int offset;
+}
+
+class ClassStoragePlan {
+	owned shared TypeOwner identity;
+	owned ClassStorageLayout[] types;
+	owned ClassStorageField[] fields;
+	int pointer_size;
+	int pointer_alignment;
+	int target;
+	bool active;
+
+	init(int types, int symbols) {
+		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
+		this.types = new ClassStorageLayout[types];
+		this.fields = new ClassStorageField[symbols];
+		this.pointer_size = 8;
+		this.pointer_alignment = 8;
+		this.target = 1;
+		this.active = true;
+	}
+
+	void close() { this.active = false; }
+}
+
+bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
+	var kind = index.bindings.program.arena.kind(member);
+	if (kind == SyntaxKind.StructFieldDeclarationSyntax()) return true;
+	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
+	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) return false;
+	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
+	return index.bindings.program.arena.get_int_dispatch(member) == 0 && index.bindings.program.arena.get_node_body(member).index != 0 && index.bindings.program.arena.get_node_throws_class(member).index == 0 && index.bindings.program.arena.get_token_async_keyword(member).index == 0 && index.bindings.program.arena.get_node_foreign_policy(member).index == 0 && index.bindings.program.arena.get_node_foreign_member(member).index == 0 && !index.bindings.program.arena.get_bool_is_signal(member) && index.bindings.program.arena.get_token_extern_keyword(member).index == 0 && index.bindings.program.arena.get_token_export_keyword(member).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(member)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(member)) == 0;
+}
+
+bool class_storage_declaration(CheckedIndex index, SymbolId symbol) {
+	if (!index.class_storage || symbol.index < 1 || symbol.index > index.bindings.symbol_count) return false;
+	var declaration = index.bindings.symbol(symbol); var node = declaration.node;
+	if (declaration.kind != 4 || index.bindings.program.arena.get_node_parent_class(node).index != 0 || index.bindings.program.arena.get_bool_is_interface(node) || index.bindings.program.arena.get_token_exception_root(node).index != 0) return false;
+	// This syntax flag records an ExactHeapClass where-clause on a generic
+	// declaration. The clause and each concrete argument are proved separately.
+	if (index.bindings.program.arena.get_bool_exact_heap_class(node) && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) == 0 && generic_instance_for(index, symbol) == 0) return false;
+	var concurrency = index.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	if (concurrency.present || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_allocator(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_alignment(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_representation(node)) != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_node_foreign_export(node).index != 0 || index.bindings.program.arena.get_node_com_export(node).index != 0 || index.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
+	var members = index.bindings.program.arena.get_list_members(node);
+	int constructors = 0; int i = 0;
+	while (i < index.bindings.program.arena.list_count(members)) {
+		var member = index.bindings.program.arena.node_at(members, i);
+		if (!class_storage_member(index, member)) return false;
+		if (index.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax()) constructors = constructors + 1;
+		i = i + 1;
+	}
+	return constructors == 1 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node)) <= 128;
+}
+
+// Recursive nominal ownership is deliberately outside this finite payload domain.
+// The same bound also rejects cycles without treating a raw Class kind as proof.
+bool class_storage_record_declaration(CheckedIndex index, TypeId type) {
+	var row = index.types.row(type);
+	if (row.kind != 30) return false;
+	var symbol = index.bindings.symbol(row.nominal); var node = symbol.node;
+	var policy = index.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	if (symbol.kind != 3 || policy.present || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_allocator(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_alignment(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_representation(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(node)) != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0) return false;
+	var members = index.bindings.program.arena.get_list_members(node); int i = 0;
+	while (i < index.bindings.program.arena.list_count(members)) {
+		if (index.bindings.program.arena.kind(index.bindings.program.arena.node_at(members, i)) != SyntaxKind.StructFieldDeclarationSyntax()) return false;
+		i = i + 1;
+	}
+	int count = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node));
+	return count > 0 && count <= 128;
+}
+
+bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) {
+	if (!index.class_storage || depth > 32 || !index.types.valid_id(type)) return false;
+	int kind = checked_kind(index, type);
+	if (type_numeric(kind) || kind == 13) return flags == 0;
+	if (kind == 22) {
+		var element = index.types.argument(index.types, type, 0);
+		return flags == 4 && element.flags == 0 && !checked_record_owned(index, element.type, 0) && class_storage_value(index, element.type, 0, depth + 1);
+	}
+	if (kind == 23) {
+		var element = index.types.argument(index.types, type, 0);
+		return flags == 4 && element.flags == 0 && class_storage_exact(index, element.type, depth + 1);
+	}
+	if (kind != 30 && kind != 31) return false;
+	if ((kind == 30 && flags != 0) || (kind == 31 && flags != 4 && flags != 5)) return false;
+	var row = index.types.row(type); var declaration = index.bindings.symbol(row.nominal);
+	if (kind == 31 && !class_storage_declaration(index, row.nominal)) return false;
+	var node = declaration.node;
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0) return false;
+	if (kind == 30 && !class_storage_record_declaration(index, type)) return false;
+	var fields = index.bindings.program.arena.get_list_fields(node); int i = 0;
+	while (i < index.bindings.program.arena.list_count(fields)) {
+		var field = index.bindings.program.arena.node_at(fields, i); var symbol = index.node_symbols[field.index];
+		if (kind == 31 && symbol.index > 0 && checked_kind(index, index.symbol_types[symbol.index]) == 30 && checked_record_owned(index, index.symbol_types[symbol.index], 0)) return false;
+		if (symbol.index == 0 || !class_storage_value(index, index.symbol_types[symbol.index], index.symbol_flags[symbol.index], depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool class_storage_exact(CheckedIndex index, TypeId type, int depth) {
+	if (checked_kind(index, type) != 31 || depth > 32) return false;
+	var row = index.types.row(type);
+	// C0 ExactHeapClass excludes an exact generic Class application as T.
+	if (generic_instance_for(index, row.nominal) != 0) return false;
+	return class_storage_value(index, type, 4, depth + 1);
+}
+
+// Capability clauses can occur before a later record's fields in head order.
+// Resolve the actual declared field types; never substitute guessed scalars.
+bool class_storage_prepare_fields(CheckedIndex index, TypeId type, int depth) throws Error {
+	if (depth > 32 || !index.types.valid_id(type)) return false;
+	var row = index.types.row(type);
+	if (row.kind == 22 || row.kind == 23) return class_storage_prepare_fields(index, index.types.argument(index.types, type, 0).type, depth + 1);
+	if (row.kind != 30 && row.kind != 31) return true;
+	var declaration = index.bindings.symbol(row.nominal);
+	var fields = index.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
+	while (i < index.bindings.program.arena.list_count(fields)) {
+		var node = index.bindings.program.arena.node_at(fields, i); var symbol = index.node_symbols[node.index];
+		if (symbol.index == 0) return false;
+		if (index.symbol_types[symbol.index].index == 0) {
+			var field = index.bindings.symbol(symbol); int context = 1;
+			if (index.bindings.program.arena.get_token_owned_keyword(node).index != 0) context = 2;
+			var ignored = checked_declared(index, field, index.bindings.program.arena.get_node_type_name(node), context);
+		}
+		if (index.failed() || !class_storage_prepare_fields(index, index.symbol_types[symbol.index], depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool class_storage_class(CheckedIndex index, TypeId type) {
+	return index.class_storage && checked_kind(index, type) == 31 && class_storage_value(index, type, 4, 0);
+}
+
+bool class_storage_generic_source(CheckedIndex index, SymbolId origin) throws Error {
+	if (!class_storage_declaration(index, origin)) return false;
+	if (!class_storage_prepare_fields(index, index.symbol_types[origin.index], 0)) return false;
+	var declaration = index.bindings.symbol(origin);
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 1) return false;
+	var fields = index.bindings.program.arena.get_list_fields(declaration.node); int slots = 0; int i = 0;
+	while (i < index.bindings.program.arena.list_count(fields)) {
+		var node = index.bindings.program.arena.node_at(fields, i); var symbol = index.node_symbols[node.index];
+		if (symbol.index == 0) return false;
+		var type = index.symbol_types[symbol.index]; int kind = checked_kind(index, type);
+		if (type_numeric(kind) || kind == 13) {
+			if (index.symbol_flags[symbol.index] != 0) return false;
+		} else {
+			if (kind != 23 || index.symbol_flags[symbol.index] != 4) return false;
+			var element = index.types.argument(index.types, type, 0);
+			if (element.flags != 0 || !checked_parameter_capability(index, element.type, "ExactHeapClass")) return false;
+			slots = slots + 1;
+		}
+		i = i + 1;
+	}
+	return slots > 0 && slots <= 8;
+}
+
+SymbolId class_storage_origin(CheckedIndex index, TypeId type) {
+	var row = index.types.row(type); int instance = generic_instance_for(index, row.nominal);
+	if (instance > 0) return index.instances[instance - 1].origin;
+	return row.nominal;
+}
+
+bool class_storage_member_template(CheckedIndex index, SymbolId symbol) {
+	if (!index.class_storage || symbol.index < 1 || symbol.index > index.generic_symbols) return false;
+	var member = index.bindings.symbol(symbol);
+	return (member.kind == 11 || member.kind == 12) && member.owner.index != 0 && class_storage_declaration(index, member.owner);
+}
+
+void class_storage_members(CheckedIndex index, TypeId type) throws Error {
+	if (!class_storage_class(index, type)) return;
+	var owner = class_storage_origin(index, type); int s = 1;
+	while (s <= index.generic_symbols && !index.failed()) {
+		var symbol = index.bindings.symbol(type_symbol(s));
+		if (symbol.owner.index == owner.index && (symbol.kind == 11 || symbol.kind == 12) && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(symbol.node)) == 0) {
+			if (index.symbol_types[s].index == 0) checked_signature(index, type_symbol(s));
+			var arguments = new TypeEdge[0];
+			var ignored = generic_instantiate(index, type_symbol(s), type, arguments, index.bindings.program.arena.header(symbol.node).span);
+		}
+		s = s + 1;
+	}
+}
+
+SymbolId class_storage_constructor(CheckedIndex index, TypeId type) {
+	if (!class_storage_class(index, type)) return type_symbol(0);
+	int i = 0;
+	while (i < index.instance_count) {
+		var plan = index.instances[i];
+		if (plan.enclosing.index == type.index && index.bindings.symbol(plan.origin).kind == 12) return plan.concrete;
+		i = i + 1;
+	}
+	return type_symbol(0);
+}
+
+int class_storage_receiver(CheckedIndex index, SymbolId function) {
+	if (!index.class_storage) return 0;
+	int instance = generic_instance_for(index, function);
+	if (instance == 0 || index.instances[instance - 1].enclosing.index == 0) return 0;
+	var declaration = index.bindings.symbol(function);
+	var parameters = index.bindings.program.arena.get_list_parameters(declaration.node);
+	if (index.bindings.program.arena.list_count(parameters) < 1) return 0;
+	return index.node_symbols[index.bindings.program.arena.node_at(parameters, 0).index].index;
+}
+
+bool class_storage_initializing(CheckedIndex index, SymbolId function) {
+	if (!index.class_storage) return false;
+	int instance = generic_instance_for(index, function);
+	return instance > 0 && index.bindings.symbol(index.instances[instance - 1].origin).kind == 12;
+}
+
+bool class_storage_construction(CheckedIndex checked, SyntaxNodeId node) {
+	if (!checked.class_storage) return false;
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) return class_storage_class(checked, checked.uses[node.index].type);
+	return false;
+}
+
+int class_storage_slot_action(CheckedIndex index, SyntaxNodeId node) {
+	if (!index.class_storage || index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() || index.bindings.program.arena.get_node_receiver_place(node).index == 0) return 0;
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	if (index.bindings.program.arena.token_is(token, "reserve")) return 1;
+	if (index.bindings.program.arena.token_is(token, "append")) return 2;
+	if (index.bindings.program.arena.token_is(token, "take")) return 3;
+	if (index.bindings.program.arena.token_is(token, "replace")) return 4;
+	return 0;
+}
+
+TypeId class_storage_slot_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	int action = class_storage_slot_action(index, node);
+	if (action == 0) return no_type();
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node);
+	var type = checked_expression(index, receiver, no_type(), depth + 1);
+	if (checked_kind(index, type) != 23) return no_type();
+	var element = index.types.argument(index.types, type, 0);
+	if (!class_storage_exact(index, element.type, 0) && !(index.generic_definition && checked_parameter_capability(index, element.type, "ExactHeapClass"))) return index.defer(node, 6);
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	int count = 1; if (action == 4) count = 2;
+	if (index.bindings.program.arena.list_count(arguments) != count || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0) {
+		index.fail(index.bindings.program.arena.header(node).span, "owner-slot operation argument count or type argument mismatch");
+		return no_type();
+	}
+	int i = 0;
+	while (i < count) {
+		var argument = index.bindings.program.arena.node_at(arguments, i);
+		var expected = type_id(1); if (action == 2 || action == 4 && i == 1) expected = element.type;
+		var actual = checked_expression(index, argument, expected, depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(argument).span, expected, actual, "owner-slot argument");
+		i = i + 1;
+	}
+	if (action == 1) return type_id(13);
+	if (action == 3) {
+		var use = index.uses[node.index]; use.flags = 4; index.uses[node.index] = use;
+		return element.type;
+	}
+	return type_id(14);
+}
+
+bool class_storage_slot_initialization(CheckedIndex index, SyntaxNodeId node, TypeId expected) {
+	if (!index.class_storage || checked_kind(index, expected) != 23 || index.bindings.program.arena.kind(node) != SyntaxKind.BufferAllocationSyntax() || index.bindings.program.arena.get_node_allocation_context(node).index != 0 || index.bindings.program.arena.get_node_failure_call(node).index != 0) return false;
+	var count = index.bindings.program.arena.get_node_count(node);
+	return index.bindings.program.arena.kind(count) == SyntaxKind.NameExpressionSyntax() && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(count), "slots");
+}
+
+void class_storage_layout(ClassStoragePlan plan, CheckedIndex index, TypeId type, int depth) throws Error {
+	if (depth > 64 || type.index < 1 || type.index >= len(plan.types)) {
+		throw new Error("CLASS_STORAGE_RESOURCE: layout depth or type");
+	}
+	if (plan.types[type.index].state == 2) return;
+	if (plan.types[type.index].state == 1) {
+		throw new Error("CLASS_STORAGE_DEFERRED: cyclic payload ownership");
+	}
+	var source = index.types.row(type);
+	ClassStorageLayout row = {semantic = type.index, nominal = source.nominal.index, kind = source.kind, size = 0, alignment = 1, fields = 0, payload_size = 0, payload_alignment = 1, state = 1};
+	plan.types[type.index] = row;
+	if (type_integer(source.kind)) {
+		row.size = type_width(source.kind) / 8;
+		row.alignment = row.size;
+	}
+	if (source.kind == 13) row.size = 1;
+	if (source.kind == 11) {
+		row.size = 4;
+		row.alignment = 4;
+	}
+	if (source.kind == 12 || source.kind == 16 || source.kind == 20 || source.kind == 31) {
+		row.size = 8;
+		row.alignment = 8;
+	}
+	if (source.kind == 22 || source.kind == 23) {
+		row.size = 16;
+		row.alignment = 8;
+	}
+	if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 16 && source.kind != 20 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) {
+		throw new Error("CLASS_STORAGE_DEFERRED: representation");
+	}
+	if (source.kind == 30 || source.kind == 31) {
+		if (source.kind == 31 && !class_storage_class(index, type)) {
+			throw new Error("CLASS_STORAGE_DEFERRED: Class declaration or fields");
+		}
+		var declaration = index.bindings.symbol(source.nominal);
+		var fields = index.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
+		while (i < index.bindings.program.arena.list_count(fields)) {
+			var field = index.bindings.program.arena.node_at(fields, i); var symbol = index.node_symbols[field.index];
+			if (symbol.index == 0) {
+				throw new Error("CLASS_STORAGE_INVALID: missing field identity");
+			}
+			var child_type = index.symbol_types[symbol.index]; class_storage_layout(plan, index, child_type, depth + 1);
+			var child = plan.types[child_type.index];
+			int padding = (child.alignment - row.payload_size % child.alignment) % child.alignment;
+			if (row.payload_size > 16777216 - child.size - padding) {
+				throw new Error("CLASS_STORAGE_RESOURCE: payload extent");
+			}
+			row.payload_size = row.payload_size + padding;
+			ClassStorageField entry = {owner = type.index, symbol = symbol.index, ordinal = i, semantic = child_type.index, flags = index.symbol_flags[symbol.index], offset = row.payload_size};
+			plan.fields[symbol.index] = entry;
+			row.payload_size = row.payload_size + child.size;
+			if (child.alignment > row.payload_alignment) row.payload_alignment = child.alignment;
+			row.fields = row.fields + 1; i = i + 1;
+		}
+		row.payload_size = row.payload_size + (row.payload_alignment - row.payload_size % row.payload_alignment) % row.payload_alignment;
+		if (source.kind == 31 && row.payload_size == 0) row.payload_size = 1;
+		if (source.kind == 30) {
+			row.size = row.payload_size;
+			row.alignment = row.payload_alignment;
+		}
+	}
+	if (source.kind == 22 || source.kind == 23) {
+		var element = index.types.argument(index.types, type, 0);
+		class_storage_layout(plan, index, element.type, depth + 1);
+	}
+	row.state = 2; plan.types[type.index] = row;
+}
+
+owned ClassStoragePlan class_storage_plan(CheckedIndex index) throws Error {
+	if (!index.class_storage || !index.validate() || !generic_verify(index)) {
+		throw new Error("CLASS_STORAGE_INVALID: checked authority");
+	}
+	var plan = new ClassStoragePlan(index.types.count + 1, index.bindings.symbol_count + 1);
+	var identity = shared_clone(index.types.identity); plan.identity = move identity;
+	int s = 1;
+	while (s <= index.bindings.symbol_count) {
+		var symbol = index.bindings.symbol(type_symbol(s)); var type = index.symbol_types[s];
+		if ((symbol.kind == 4 || symbol.kind == 8 || symbol.kind == 7) && class_storage_class(index, type)) class_storage_layout(plan, index, type, 0);
+		s = s + 1;
+	}
+	return move plan;
+}

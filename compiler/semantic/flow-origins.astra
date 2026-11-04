@@ -37,6 +37,8 @@ int flow_class_value(CheckedIndex checked, int[] origins, SyntaxNodeId value) {
 		return 8;
 	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		if (class_storage_construction(checked, node)) return 2;
+		if (class_storage_slot_call_present(checked, node) && class_storage_slot_action(checked, node) == 3) return 2;
 		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
 		if (symbol.index > 0 && checked.bindings.symbol(symbol).kind == 1 && (checked.symbol_flags[symbol.index] & (8 | 16 | 32 | 64)) == 0) {
 			return origins[symbol.index];
@@ -107,15 +109,23 @@ owned int[] flow_class_origins(CheckedIndex checked) {
 					}
 				}
 			}
-			if (kind == SyntaxKind.CallExpressionSyntax()) {
-				var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+			if (kind == SyntaxKind.CallExpressionSyntax() || checked.class_storage && kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+				var target = type_symbol(0); int offset = 0;
+				if (kind == SyntaxKind.CallExpressionSyntax()) {
+					target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+					if (class_storage_construction(checked, node)) offset = 1;
+				}
+				if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+					target = class_storage_constructor(checked, checked.uses[node.index].type);
+					offset = 1;
+				}
 				if (target.index > 0 && checked.bindings.symbol(target).kind == 1 && checked.symbol_signatures[target.index].index > 0) {
 					var declaration = checked.bindings.symbol(target);
 					var args = checked_call_arguments(checked, node);
 					var params = checked.bindings.program.arena.get_list_parameters(declaration.node);
 					int p = 0;
-					while (p < checked.bindings.program.arena.list_count(args) && p < checked.bindings.program.arena.list_count(params)) {
-						var param = checked.bindings.program.arena.node_at(params, p);
+					while (p < checked.bindings.program.arena.list_count(args) && p + offset < checked.bindings.program.arena.list_count(params)) {
+						var param = checked.bindings.program.arena.node_at(params, p + offset);
 						var symbol = checked.node_symbols[param.index];
 						if (symbol.index > 0 && (checked.symbol_flags[symbol.index] & 4) != 0 && flow_class_type(checked, checked.symbol_types[symbol.index])) {
 							var value = checked.bindings.program.arena.node_at(args, p);

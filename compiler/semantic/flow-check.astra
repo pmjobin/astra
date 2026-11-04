@@ -63,7 +63,12 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		if (loan.source < 0 || loan.source > graph.slot_count || loan.borrower < 0 || loan.borrower > graph.slot_count || loan.region <= 0 || loan.region > graph.region_count || loan.node.index <= 0 || loan.node.index > checked.bindings.program.arena.node_count) {
 			return false;
 		}
-		if (loan.source != flow_origin(graph, checked, class_origins, loan.node)) {
+		int source = flow_origin(graph, checked, class_origins, loan.node);
+		if (source == 0 && checked.class_storage && checked.bindings.program.arena.kind(loan.node) == SyntaxKind.FieldAccessExpressionSyntax()) {
+			int field = flowsem_place(graph, checked, loan.node, 0);
+			if (field > 0) source = graph.fields[field - 1].root;
+		}
+		if (loan.source != source) {
 			return false;
 		}
 		if (loan.borrower != 0) {
@@ -77,6 +82,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 			var args = checked_call_arguments(checked, loan.call);
 			int a = 0;
 			bool exact = false;
+			if (class_storage_slot_call_present(checked, loan.call) && checked.bindings.program.arena.get_node_receiver_place(loan.call).index == loan.node.index) exact = true;
 			while (a < checked.bindings.program.arena.list_count(args)) {
 				var argument = flow_unwrap(checked, checked.bindings.program.arena.node_at(args, a));
 				if (argument.index == loan.node.index) {
@@ -131,7 +137,8 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		}
 		var kind = checked.bindings.program.arena.kind(event.node);
 		if (event.operation == 22 || event.operation == 23) {
-			if (!checked.semantic_admission || event.field == 0 || event.producer.index == 0 || event.slot == 0 || !graph.fields[event.field - 1].leaf || graph.fields[event.field - 1].root != event.slot) return false;
+			if (!checked.semantic_admission || event.field == 0 || event.producer.index == 0 || !graph.fields[event.field - 1].leaf || graph.fields[event.field - 1].root != event.slot) return false;
+			if (event.slot == 0 && (!checked.class_storage || !class_storage_constructor_verified(checked, graph.function))) return false;
 			if (event.operation == 22 && (event.source_field == 0 || !graph.fields[event.source_field - 1].leaf || graph.fields[event.source_field - 1].root <= 0)) return false;
 		}
 		if (event.operation == 3 || event.operation == 4 || event.operation == 13 || event.operation == 5 || event.operation == 6 || event.operation == 15 || event.operation == 2) {
@@ -608,6 +615,7 @@ void flow_solve(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 int flow_global_reason(CheckedIndex checked, SymbolId id) {
 	var symbol = checked.bindings.symbol(id);
 	if (generic_template(checked, id)) return 0;
+	if (class_storage_constructor_template(checked, id)) return 0;
 	if (symbol.kind == 12 && symbol.owner.index > 0 && generic_empty_class(checked, checked.symbol_types[symbol.owner.index])) return 0;
 	if (symbol.kind == 2 && !flow_constant_admitted(checked, id)) return 14;
 	if (symbol.kind == 3 && !(checked.semantic_flow && flowsem_record_shape(checked, checked.symbol_types[id.index], 0))) return 3;
