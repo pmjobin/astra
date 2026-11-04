@@ -39,6 +39,13 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 	var row = core_node(checked, source, function);
 	int id = core_add_node(core, row);
 	if (id == 0) return 0;
+	if (checked.class_storage) {
+		if (core_class_source(checked, source)) {
+			row = core_lower_class(core, checked, graph, row, id, function, loop, depth);
+			core.nodes[id - 1] = row;
+			return id;
+		}
+	}
 	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
 		row.kind = 1;
 		row.token = checked.bindings.program.arena.get_token_literal(source);
@@ -254,14 +261,16 @@ void core_lower_inventory(CoreData core, CheckedIndex checked, borrowed FlowGrap
 	int i = 0;
 	while (i < graph.field_count && core.status == 0) {
 		var field = graph.fields[i];
-		if (field.root == 0) {
+		int root = field.root;
+		if (root == 0 && class_storage_initializing(checked, graph.function)) root = graph.slot_for(type_symbol(class_storage_receiver(checked, graph.function)));
+		if (root < 1 || root > graph.slot_count) {
 			core.status = 3;
 			return;
 		}
-		var slot = graph.slots[field.root - 1];
-		int parent = first + field.root;
+		var slot = graph.slots[root - 1];
+		int parent = first + root;
 		if (field.parent > 0) parent = first + graph.slot_count + field.parent;
-		CorePlace row = { function = function, root = first + field.root, parent = parent, slot = field.root, field = i + 1, symbol = field.symbol, type = field.type, flags = field.flags, region = slot.region, parameter = slot.parameter, leaf = field.leaf };
+		CorePlace row = { function = function, root = first + root, parent = parent, slot = root, field = i + 1, symbol = field.symbol, type = field.type, flags = field.flags, region = slot.region, parameter = slot.parameter, leaf = field.leaf };
 		int added = core_add_place(core, row);
 		i = i + 1;
 	}

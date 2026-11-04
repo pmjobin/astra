@@ -148,6 +148,7 @@ class CfgCheck {
 			var loan = core.loans[l];
 			var row = core.nodes[origin - 1];
 			bool applies = loan.function == function && loan.value.index == row.source.index;
+			if (opcode == 42 && row.kind == 16) applies = loan.function == function && loan.call.index == row.source.index && core.places[row.place - 1].root == loan.source;
 			if (opcode == 43) applies = loan.function == function && loan.call.index == row.source.index;
 			if (applies) {
 				int after = this.following(d, current);
@@ -216,12 +217,13 @@ class CfgCheck {
 		int tail = this.following(d, r.operation);
 		if (!this.instruction(d, core, r.operation, f, id, n.kind, result, n.a, n.b, 0, 0, tail)) return false;
 		int after = tail;
-		if (core_value_kind(n.kind)) after = this.loans(d, core, after, f, id, 42);
-		if (n.kind == 9) after = this.loans(d, core, after, f, id, 43);
+		if (core_value_kind(n.kind) && n.kind != 16) after = this.loans(d, core, after, f, id, 42);
+		if (n.kind == 9 || n.kind == 13 || n.kind == 16) after = this.loans(d, core, after, f, id, 43);
 		if (after != next) return false;
 		// Check evaluation in forward source order; continuations are inferred
 		// from the next operand's verified region, never a builder replay/hash.
 		int current = r.entry;
+		if (n.kind == 16) current = this.loans(d, core, current, f, id, 42);
 		if (n.a != 0) {
 			int target = r.operation;
 			if (n.b != 0) target = this.entry(d, n.b, target);
@@ -355,7 +357,7 @@ bool cfg_verify_operands(CfgData d, CoreData core) {
 		var operand = d.operands[i];
 		if (operand.instruction < 1 || operand.instruction > d.instruction_count) return false;
 		var instruction = d.instructions[operand.instruction - 1];
-		if (instruction.opcode != 9 && instruction.opcode != 10) return false;
+		if (instruction.opcode != 9 && instruction.opcode != 10 && instruction.opcode != 13 && instruction.opcode != 16) return false;
 		if (instruction.origin < 1 || instruction.origin > core.node_count) return false;
 		var node = core.nodes[instruction.origin - 1];
 		if (operand.ordinal < 0 || operand.ordinal >= node.count || operand.function != node.function) return false;
@@ -369,7 +371,7 @@ bool cfg_verify_operands(CfgData d, CoreData core) {
 	i = 0;
 	while (i < core.node_count) {
 		var node = core.nodes[i];
-		if (node.kind == 9 || node.kind == 10) count = count + node.count;
+		if (node.kind == 9 || node.kind == 10 || node.kind == 13 || node.kind == 16) count = count + node.count;
 		i = i + 1;
 	}
 	return count == d.operand_count;

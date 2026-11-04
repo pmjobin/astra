@@ -1,0 +1,222 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A separate consumer of source declarations and physical payload types.
+// Class handles remain pointers; this checks the distinct identified payload,
+// its target layout and every declared field, without invoking its builder.
+bool llvm_storage_projection(CoreData core, CheckedIndex checked, int place) {
+	if (!checked.class_storage || place < 1 || place > core.place_count) return false;
+	int parent = core.places[place - 1].parent; int depth = 0;
+	while (parent > 0 && depth <= 64) {
+		if (checked_kind(checked, core.places[parent - 1].type) == 31) return true;
+		parent = core.places[parent - 1].parent; depth = depth + 1;
+	}
+	return false;
+}
+
+bool llvm_storage_layout_verify(ClassStoragePlan plan, CheckedIndex checked, void* layout, void*[] types, void*[] payloads) throws Error {
+	if (len(types) != len(payloads)) return false;
+	if (!checked.class_storage) {
+		int t = 0;
+		while (t < len(payloads)) {
+			if (payloads[t] != null) return false;
+			t = t + 1;
+		}
+		return !plan.active;
+	}
+	if (!class_storage_verify(plan, checked) || len(plan.types) != len(types) || LLVMPointerSize(layout) != 8) return false;
+	int t = 1;
+	while (t < len(payloads)) {
+		var row = plan.types[t]; var payload = payloads[t];
+		if (row.state == 2 && row.kind == 31) {
+			if (payload == null || LLVMGetTypeKind(payload) != 10 || LLVMIsPackedStruct(payload) != 0 || LLVMABISizeOfType(layout, payload) != row.payload_size as u64 || LLVMABIAlignmentOfType(layout, payload) != row.payload_alignment || !class_storage_source_verified(checked, type_id(t), false, 0)) return false;
+			var descriptor = checked.types.row(type_id(t));
+			bool named = false;
+			if (generic_instance_for(checked, descriptor.nominal) > 0) {
+				var key = generic_backend_name(checked, descriptor.nominal, "x86_64-linux-p64", "classstorage15.payload"); named = llvm15_struct_named(payload, key.text) == 1;
+			} else {
+				var key = llvm_name("astra.classstorage.t", t); named = llvm15_struct_named(payload, key.text) == 1;
+			}
+			if (!named) return false;
+			int previous = 1;
+			while (previous < t) {
+				if (payloads[previous] == payload) return false;
+				previous = previous + 1;
+			}
+			var declaration = checked.bindings.symbol(descriptor.nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+			int count = checked.bindings.program.arena.list_count(fields);
+			if (count == 0) {
+				if (LLVMCountStructElementTypes(payload) != 1 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(payload, 0)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(payload, 0)) != 8 || row.payload_size != 1) return false;
+			} else {
+				if (LLVMCountStructElementTypes(payload) != count) return false;
+				int f = 0;
+				while (f < count) {
+					var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index];
+					var field_type = checked.symbol_types[symbol.index]; var entry = plan.fields[symbol.index];
+					if (entry.owner != t || entry.ordinal != f || entry.semantic != field_type.index || types[field_type.index] == null || LLVMStructGetTypeAtIndex(payload, f) != types[field_type.index] || LLVMOffsetOfElement(layout, payload, f) != entry.offset as u64) return false;
+					f = f + 1;
+				}
+			}
+		} else {
+			if (payload != null) return false;
+		}
+		t = t + 1;
+	}
+	return payloads[0] == null;
+}
+
+bool llvm_storage_null_guard(void* load, void* target, void* function, SsaBudget budget) {
+	if (!llvm_check_live_instruction(function, load, budget)) return false;
+	var condition = LLVMGetNextInstruction(load);
+	if (condition == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 32 || LLVMGetOperand(condition, 0) != load || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0) return false;
+	var branch = LLVMGetNextInstruction(condition);
+	if (branch == null || LLVMGetInstructionOpcode(branch) != 71 || LLVMGetCondition(branch) != condition || LLVMGetNumSuccessors(branch) != 2 || LLVMGetSuccessor(branch, 1) != target) return false;
+	var trap = LLVMGetSuccessor(branch, 0);
+	if (LLVMGetBasicBlockParent(trap) != function) return false;
+	var call = LLVMGetFirstInstruction(trap); var end = LLVMGetBasicBlockTerminator(trap);
+	return call != null && end != null && LLVMGetInstructionOpcode(call) == 45 && llvm13_named(LLVMGetCalledValue(call), "llvm.trap") == 1 && LLVMGetNumArgOperands(call) == 0 && LLVMGetNextInstruction(call) == end && LLVMGetInstructionOpcode(end) == 7;
+}
+
+bool llvm_storage_method_guard_verified(void* entry, void* call, void* receiver, void* function) {
+	var condition = LLVMGetFirstInstruction(entry);
+	while (condition != null && LLVMGetInstructionOpcode(condition) == 44) condition = LLVMGetNextInstruction(condition);
+	if (condition == null) return false;
+	void* branch = condition;
+	if (LLVMIsNull(receiver) != 0) {
+		if (LLVMGetInstructionOpcode(branch) != 71 || LLVMIsAConstantInt(LLVMGetCondition(branch)) == null || LLVMConstIntGetZExtValue(LLVMGetCondition(branch)) != 1) return false;
+	} else {
+		if (LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 32 || LLVMGetOperand(condition, 0) != receiver || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0) return false;
+		branch = LLVMGetNextInstruction(condition);
+		if (branch == null || LLVMGetInstructionOpcode(branch) != 71 || LLVMGetCondition(branch) != condition) return false;
+	}
+	if (branch != LLVMGetBasicBlockTerminator(entry) || LLVMGetNumSuccessors(branch) != 2 || LLVMGetSuccessor(branch, 1) != LLVMGetInstructionParent(call)) return false;
+	var trap = LLVMGetSuccessor(branch, 0); if (LLVMGetBasicBlockParent(trap) != function) return false;
+	var effect = LLVMGetFirstInstruction(trap); var end = LLVMGetBasicBlockTerminator(trap);
+	return effect != null && end != null && LLVMGetInstructionOpcode(effect) == 45 && llvm13_named(LLVMGetCalledValue(effect), "llvm.trap") == 1 && LLVMGetNumArgOperands(effect) == 0 && LLVMGetNextInstruction(effect) == end && LLVMGetInstructionOpcode(end) == 7;
+}
+
+// Validate every use's real address chain, including each current handle load
+// and its null guard. No entry-time cached object address is accepted.
+bool llvm_storage_address_verify(SsaProgram program, void*[] types, void*[] payloads, void*[] places, void* address, int place, void* function, void* begin, void* use_block, int depth, SsaBudget budget) {
+	if (!budget.take(1) || depth > 64 || place < 1 || place > program.cfg.core.data.place_count || address == null) return false;
+	if (!llvm_storage_projection(program.cfg.core.data, program.cfg.core.flow.checked, place)) return address == places[place - 1] && (depth == 0 || use_block == begin);
+	if (!llvm_check_live_instruction(function, address, budget) || LLVMGetInstructionParent(address) != use_block || LLVMGetInstructionOpcode(address) != 29 || LLVMGetNumOperands(address) != 3 || LLVMGEPGetNoWrapFlags(address) != 0) return false;
+	var source = program.cfg.core.data.places[place - 1]; var parent = program.cfg.core.data.places[source.parent - 1]; var descriptor = program.cfg.core.flow.checked.types.row(parent.type);
+	var declaration = program.cfg.core.flow.checked.bindings.symbol(descriptor.nominal); var fields = program.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node);
+	int ordinal = -1; int f = 0;
+	while (f < program.cfg.core.flow.checked.bindings.program.arena.list_count(fields) && budget.take(1)) {
+		var node = program.cfg.core.flow.checked.bindings.program.arena.node_at(fields, f);
+		if (program.cfg.core.flow.checked.node_symbols[node.index].index == source.symbol.index) ordinal = f;
+		f = f + 1;
+	}
+	if (ordinal < 0 || LLVMIsAConstantInt(LLVMGetOperand(address, 1)) == null || LLVMIsAConstantInt(LLVMGetOperand(address, 2)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(address, 1)) != 0 || LLVMConstIntGetZExtValue(LLVMGetOperand(address, 2)) != ordinal as u64) return false;
+	var base = LLVMGetOperand(address, 0); var physical = types[parent.type.index]; var prior_block = use_block;
+	if (descriptor.kind == 31) {
+		physical = payloads[parent.type.index];
+		if (!llvm_check_live_instruction(function, base, budget) || LLVMGetInstructionOpcode(base) != 27 || LLVMTypeOf(base) != types[parent.type.index] || LLVMGetAlignment(base) != 8 || !llvm_storage_null_guard(base, LLVMGetInstructionParent(address), function, budget)) return false;
+		prior_block = LLVMGetInstructionParent(base);
+		base = LLVMGetOperand(base, 0);
+	}
+	return LLVMGetGEPSourceElementType(address) == physical && llvm_storage_address_verify(program, types, payloads, places, base, source.parent, function, begin, prior_block, depth + 1, budget);
+}
+
+bool llvm_storage_call_verified(void* call, void* callee, void* argument) {
+	return call != null && LLVMGetInstructionOpcode(call) == 45 && LLVMGetCalledValue(call) == callee && LLVMGetNumArgOperands(call) == 1 && LLVMGetArgOperand(call, 0) == argument && LLVMGetInstructionCallConv(call) == 0 && llvm_check_attributes(call, 1, 1);
+}
+
+bool llvm_storage_free_verified(void* call, void* argument) {
+	return call != null && LLVMGetInstructionOpcode(call) == 45 && llvm13_named(LLVMGetCalledValue(call), "free") == 1 && LLVMGetNumArgOperands(call) == 1 && LLVMGetArgOperand(call, 0) == argument && LLVMGetInstructionCallConv(call) == 0 && llvm_check_attributes(call, 1, 1);
+}
+
+// Consume each implicit destructor's actual graph in reverse declaration
+// order. A missing child, changed owner/type, duplicate retirement, or an extra
+// free cannot be hidden behind a producer seal or cached instruction pointer.
+bool llvm_storage_drop_verified(CheckedIndex checked, int type, void* payload, void*[] types, void*[] drops, void*[] slots, SsaBudget budget) throws Error {
+	var function = drops[type];
+	if (function == null || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != 1 || LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, 0))) != 12 || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0 || !llvm_check_attributes(function, 1, 0)) return false;
+	var name = llvm_name("astra.classstorage.drop.", type); if (llvm13_named(function, name.text) != 1) return false;
+	var entry = LLVMGetFirstBasicBlock(function); if (entry == null) return false;
+	var retire = LLVMGetNextBasicBlock(entry); if (retire == null) return false;
+	var done = LLVMGetNextBasicBlock(retire); if (done == null || LLVMGetNextBasicBlock(done) != null) return false;
+	var object = LLVMGetParam(function, 0); var condition = LLVMGetFirstInstruction(entry);
+	if (condition == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 32 || LLVMGetOperand(condition, 0) != object || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0) return false;
+	var branch = LLVMGetNextInstruction(condition);
+	if (branch != LLVMGetBasicBlockTerminator(entry) || LLVMGetInstructionOpcode(branch) != 71 || LLVMGetNumSuccessors(branch) != 2 || LLVMGetCondition(branch) != condition || LLVMGetSuccessor(branch, 0) != done || LLVMGetSuccessor(branch, 1) != retire) return false;
+	var end = LLVMGetFirstInstruction(done);
+	if (end == null || LLVMGetInstructionOpcode(end) != 1 || LLVMGetNumOperands(end) != 0 || LLVMGetNextInstruction(end) != null) return false;
+	var descriptor = checked.types.row(type_id(type)); var declaration = checked.bindings.symbol(descriptor.nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	var cursor = LLVMGetFirstInstruction(retire); int f = checked.bindings.program.arena.list_count(fields) - 1;
+	while (f >= 0 && budget.take(1)) {
+		var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index];
+		if ((checked.symbol_flags[symbol.index] & 4) != 0) {
+			if (cursor == null || LLVMGetInstructionOpcode(cursor) != 29 || LLVMGEPGetNoWrapFlags(cursor) != 0 || LLVMGetGEPSourceElementType(cursor) != payload || LLVMGetNumOperands(cursor) != 3 || LLVMGetOperand(cursor, 0) != object || LLVMIsAConstantInt(LLVMGetOperand(cursor, 1)) == null || LLVMIsAConstantInt(LLVMGetOperand(cursor, 2)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(cursor, 1)) != 0 || LLVMConstIntGetZExtValue(LLVMGetOperand(cursor, 2)) != f as u64) return false;
+			var address = cursor; cursor = LLVMGetNextInstruction(cursor); var field_type = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, field_type);
+			if (kind == 23) {
+				if (!llvm_storage_call_verified(cursor, slots[field_type.index * 6 + 5], address)) return false;
+			} else {
+				if (cursor == null || LLVMGetInstructionOpcode(cursor) != 27 || LLVMGetOperand(cursor, 0) != address || LLVMTypeOf(cursor) != types[field_type.index]) return false;
+				var value = cursor; cursor = LLVMGetNextInstruction(cursor);
+				if (kind == 31) {
+					if (!llvm_storage_call_verified(cursor, drops[field_type.index], value)) return false;
+				} else {
+					if (kind != 22 || cursor == null || LLVMGetInstructionOpcode(cursor) != 53 || llvm13_index(cursor, 0, 0) != 1 || LLVMGetOperand(cursor, 0) != value) return false;
+					value = cursor; cursor = LLVMGetNextInstruction(cursor);
+					if (!llvm_storage_free_verified(cursor, value)) return false;
+				}
+			}
+			cursor = LLVMGetNextInstruction(cursor);
+		}
+		f = f - 1;
+	}
+	if (!llvm_storage_free_verified(cursor, object)) return false;
+	var jump = LLVMGetNextInstruction(cursor);
+	return jump != null && jump == LLVMGetBasicBlockTerminator(retire) && LLVMGetInstructionOpcode(jump) == 70 && LLVMGetNumSuccessors(jump) == 1 && LLVMGetSuccessor(jump, 0) == done && !budget.exhausted;
+}
+
+bool llvm_storage_function_live(void* module, void* wanted) {
+	var function = LLVMGetFirstFunction(module); int count = 0;
+	while (function != null && count < 65536) {
+		if (function == wanted) return true;
+		function = LLVMGetNextFunction(function); count = count + 1;
+	}
+	return false;
+}
+
+bool llvm_storage_drops_verify(void* module, ClassStoragePlan plan, CheckedIndex checked, void*[] types, void*[] payloads, void*[] drops, void*[] slots) throws Error {
+	if (len(drops) != len(types) || len(slots) != len(types) * 6) return false;
+	var budget = new SsaBudget(8000000); int t = 0;
+	while (t < len(drops) && budget.take(1)) {
+		bool required = checked.class_storage && t > 0 && plan.types[t].state == 2 && plan.types[t].kind == 31;
+		if (required) {
+			if (!llvm_storage_function_live(module, drops[t])) return false;
+			if (!llvm_storage_drop_verified(checked, t, payloads[t], types, drops, slots, budget)) return false;
+		} else {
+			if (drops[t] != null) return false;
+		}
+		t = t + 1;
+	}
+	return !budget.exhausted;
+}
+
+bool llvm_storage_allocation_verified(SsaProgram program, void* layout, void*[] payloads, void*[] functions, void*[] ends, void*[] values, void*[] effects, int index, void* allocation, SsaBudget budget) {
+	var row = program.data.instructions[index].origin; var node = row.value;
+	if (!program.cfg.core.flow.checked.class_storage || !class_storage_source_verified(program.cfg.core.flow.checked, node.type, false, 0) || node.target < 1 || node.target > len(functions)) return false;
+	var function = functions[node.function - 1];
+	if (!llvm_check_live_instruction(function, allocation, budget) || LLVMGetInstructionOpcode(allocation) != 45 || llvm13_named(LLVMGetCalledValue(allocation), "calloc") != 1 || LLVMGetNumArgOperands(allocation) != 2 || LLVMGetInstructionCallConv(allocation) != 0) return false;
+	u64 extent = LLVMABISizeOfType(layout, payloads[node.type.index]);
+	if (extent < 1 || extent > 16777216) return false;
+	int a = 0;
+	while (a < 2) {
+		var argument = LLVMGetArgOperand(allocation, a); u64 expected = 1; if (a == 1) expected = extent;
+		if (LLVMIsAConstantInt(argument) == null || LLVMGetIntTypeWidth(LLVMTypeOf(argument)) != 64 || LLVMConstIntGetZExtValue(argument) != expected) return false;
+		a = a + 1;
+	}
+	if (!llvm_storage_null_guard(allocation, ends[row.block - 1], function, budget)) return false;
+	var call = effects[index];
+	if (call == null || call != LLVMGetFirstInstruction(ends[row.block - 1]) || LLVMGetInstructionOpcode(call) != 45 || LLVMGetCalledValue(call) != functions[node.target - 1] || LLVMGetInstructionCallConv(call) != 0 || LLVMGetNumArgOperands(call) != node.count + 1 || LLVMGetArgOperand(call, 0) != allocation || LLVMGetTypeKind(LLVMTypeOf(call)) != 0 || !llvm_check_attributes(call, node.count + 1, 1)) return false;
+	a = 0;
+	while (a < node.count && budget.take(1)) {
+		int use = llvm_check_use(program.data, index + 1, 3, a, budget);
+		if (use < 1 || LLVMGetArgOperand(call, a + 1) != values[use - 1]) return false;
+		a = a + 1;
+	}
+	return !budget.exhausted;
+}

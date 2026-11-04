@@ -88,7 +88,7 @@ void ssa_seed_uses(SsaData data, CfgData cfg) {
 				ssa_build_use(data, block.function, b + 1, block.instruction, 2, 0, row.b, type_symbol(0), 0);
 			}
 			if (row.opcode == 3 && ssa_variable_for(data, 2, row.value.place) != 0) ssa_build_use(data, block.function, b + 1, block.instruction, 4, 0, row.value.place, type_symbol(0), 0);
-			if (row.opcode == 9 || row.opcode == 10) {
+			if (row.opcode == 9 || row.opcode == 10 || row.opcode == 13 || row.opcode == 16) {
 				int a = 0;
 				while (a < row.value.count && data.status == 0) {
 					var edge = cfg.operands[0]; int e = 0; bool found = false;

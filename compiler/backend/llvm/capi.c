@@ -31,6 +31,20 @@ static char *text_copy(const char *p, int32_t n) {
 	return out;
 }
 
+LLVMTypeRef llvm15_struct(LLVMContextRef context, const char *p, int32_t n) {
+	char *name = text_copy(p, n);
+	if (!name) return NULL;
+	LLVMTypeRef type = LLVMStructCreateNamed(context, name);
+	free(name);
+	return type;
+}
+
+int32_t llvm15_struct_named(LLVMTypeRef type, const char *p, int32_t n) {
+	if (!type || !p || n < 1 || n > 4096 || LLVMGetTypeKind(type) != LLVMStructTypeKind) return 0;
+	const char *name = LLVMGetStructName(type);
+	return name && strlen(name) == (size_t)n && memcmp(name, p, (size_t)n) == 0;
+}
+
 LLVMValueRef llvm13_real(LLVMTypeRef type, const char *p, int32_t n, int32_t count) {
 	if (!p || count < 1 || count > n || n > 4096 || memchr(p, 0, (size_t)n)) return NULL;
 	return LLVMConstRealOfStringAndSize(type, p, (unsigned)count);

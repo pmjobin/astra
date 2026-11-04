@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent schemas for private Class and slot operations. Source identity,
+// binding, constructor channels and place ancestry are checked afresh here.
+bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNode row, int id, SyntaxNodeId source, int function, int loop, int depth, bool[] seen, bool[] seen_edges) {
+	if (!checked.class_storage || row.a != 0 || row.b != 0 || row.c != 0 || row.token.index != 0 || row.operation.index != 0) return false;
+	var kind = checked.bindings.program.arena.kind(source);
+	if (row.kind != 13 && (row.symbol.index != 0 || row.signature.index != 0)) return false;
+	if (row.kind != 16 && row.kind != 18 && row.place != 0) return false;
+	if (row.kind != 13 && row.kind != 16 && row.kind != 18 && row.target != 0) return false;
+	if (row.kind != 13 && row.kind != 16 && (row.first != 0 || row.count != 0)) return false;
+	if (row.kind == 17) return kind == SyntaxKind.NullPointerExpressionSyntax() && checked_kind(checked, row.type) == 31 && class_storage_source_verified(checked, row.type, false, 0);
+	if (row.kind == 15) {
+		if (kind != SyntaxKind.BufferAllocationSyntax() || checked_kind(checked, row.type) != 23 || row.flags != 4 || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_node_failure_call(source).index != 0) return false;
+		var count = checked.bindings.program.arena.get_node_count(source);
+		var element = checked.types.argument(checked.types, row.type, 0);
+		return count.index > 0 && checked.bindings.program.arena.kind(count) == SyntaxKind.NameExpressionSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(count), "slots") && element.flags == 0 && class_storage_source_verified(checked, element.type, true, 0);
+	}
+	if (row.kind == 18) {
+		if (row.type.index != 1 || row.flags != 0 || row.place < 1 || row.place > core.place_count || checked_kind(checked, core.places[row.place - 1].type) != 23) return false;
+		SyntaxNodeId receiver = {index = 0};
+		if (row.target == 1) {
+			if (kind != SyntaxKind.CallExpressionSyntax() || !checked_flow_intrinsic(checked, source)) return false;
+			var arguments = checked_call_arguments(checked, source);
+			if (checked.bindings.program.arena.list_count(arguments) != 1) return false;
+			receiver = flow_unwrap(checked, checked.bindings.program.arena.node_at(arguments, 0));
+		} else {
+			if (row.target != 2 || kind != SyntaxKind.FieldAccessExpressionSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_field_name(source), "capacity")) return false;
+			receiver = checked.bindings.program.arena.get_node_aggregate(source);
+		}
+		return core_source_place(core, checked, function, receiver, 0) == row.place;
+	}
+	var arguments = checked.bindings.program.arena.get_list_arguments(source);
+	SyntaxListId parameters = {index = 0};
+	if (row.kind == 13) {
+		if (!class_storage_source_verified(checked, row.type, false, 0) || row.flags != 4 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || !class_storage_constructor_verified(checked, row.symbol)) return false;
+		int instance = generic_instance_for(checked, row.symbol);
+		if (instance == 0 || checked.instances[instance - 1].enclosing.index != row.type.index) return false;
+		if (kind != SyntaxKind.HeapObjectConstructionSyntax() || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source)) return false;
+		if (row.signature.index != checked.symbol_signatures[row.symbol.index].index || row.signature.index < 1 || row.signature.index > checked.signature_count || row.target < 1 || row.target > core.function_count || core.functions[row.target - 1].symbol.index != row.symbol.index || core.functions[row.target - 1].result.index != 14) return false;
+		var declaration = checked.bindings.symbol(row.symbol); parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+		var signature = checked.signatures[row.signature.index - 1]; var receiver = checked.types.argument(checked.types, signature.callable, 1);
+		if (receiver.type.index != row.type.index || receiver.flags != 2 || checked.types.row(signature.callable).count != row.count + 2 || checked.bindings.program.arena.list_count(parameters) != row.count + 1) return false;
+	} else {
+		if (row.kind != 16 || kind != SyntaxKind.CallExpressionSyntax() || row.place < 1 || row.place > core.place_count || core.places[row.place - 1].function != function || checked_kind(checked, core.places[row.place - 1].type) != 23) return false;
+		var receiver = checked.bindings.program.arena.get_node_receiver_place(source);
+		if (core_source_place(core, checked, function, receiver, 0) != row.place || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(source)) != 0) return false;
+		int action = 0; var token = checked.bindings.program.arena.get_token_identifier(source);
+		if (checked.bindings.program.arena.token_is(token, "reserve")) action = 1;
+		if (checked.bindings.program.arena.token_is(token, "append")) action = 2;
+		if (checked.bindings.program.arena.token_is(token, "take")) action = 3;
+		if (checked.bindings.program.arena.token_is(token, "replace")) action = 4;
+		if (action == 0 || row.target != action || row.count != 1 && !(action == 4 && row.count == 2) || action == 4 && row.count != 2) return false;
+		var element = checked.types.argument(checked.types, core.places[row.place - 1].type, 0);
+		if (element.flags != 0 || !class_storage_source_verified(checked, element.type, true, 0)) return false;
+		int result = 14; int flags = 0;
+		if (action == 1) result = 13;
+		if (action == 3) {
+			result = element.type.index;
+			flags = 4;
+		}
+		if (row.type.index != result || row.flags != flags) return false;
+	}
+	if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
+	int i = 0;
+	while (i < row.count) {
+		SymbolId label = {index = 0}; int mode = 0; var expected = type_id(1);
+		if (row.kind == 13) {
+			var signature = checked.signatures[row.signature.index - 1]; var parameter = checked.types.argument(checked.types, signature.callable, i + 2);
+			var declaration = checked.bindings.program.arena.node_at(parameters, i + 1); label = checked.node_symbols[declaration.index]; mode = parameter.flags; expected = parameter.type;
+		} else {
+			if (row.target == 2 || row.target == 4 && i == 1) {
+				mode = 4;
+				expected = checked.types.argument(checked.types, core.places[row.place - 1].type, 0).type;
+			}
+		}
+		if (!core_verify_edge(core, row, i, label, mode, seen_edges)) return false;
+		var edge = core.edges[row.first + i]; var argument = checked.bindings.program.arena.node_at(arguments, i);
+		if (!core_verify_child(core, checked, proofs, edge.child, argument, function, loop, id, depth, seen, seen_edges) || core.nodes[edge.child - 1].type.index != expected.index) return false;
+		i = i + 1;
+	}
+	return true;
+}

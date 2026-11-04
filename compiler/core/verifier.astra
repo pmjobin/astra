@@ -9,7 +9,7 @@ bool core_counts(CoreData core) {
 	return core.limit > 0 && core.limit <= 65536 && core.function_count >= 0 && core.function_count <= len(core.functions) && core.node_count >= 0 && core.node_count <= len(core.nodes) && core.place_count >= 0 && core.place_count <= len(core.places) && core.edge_count >= 0 && core.edge_count <= len(core.edges) && core.exit_count >= 0 && core.exit_count <= len(core.exits) && core.cleanup_count >= 0 && core.cleanup_count <= len(core.cleanups) && core.loan_count >= 0 && core.loan_count <= len(core.loans);
 }
 
-bool core_value_kind(int kind) { return kind >= 1 && kind <= 14; }
+bool core_value_kind(int kind) { return kind >= 1 && kind <= 18; }
 
 // Find an authoritative place from Binder identity, not name equality.
 int core_symbol_place(CoreData core, int function, SymbolId symbol) {
@@ -37,14 +37,25 @@ bool core_verify_places(CoreData core, CheckedIndex checked, borrowed FlowGraph 
 		} else {
 			int field_id = i - graph.slot_count + 1;
 			var field = graph.fields[field_id - 1];
-			if (field.root < 1 || field.root > graph.slot_count) return false;
-			int parent = first + field.root;
+			int root = field.root;
+			if (root == 0) {
+				if (!checked.class_storage || !class_storage_constructor_verified(checked, graph.function)) return false;
+				var declaration = checked.bindings.symbol(graph.function);
+				var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+				if (checked.bindings.program.arena.list_count(parameters) == 0) return false;
+				var parameter = checked.bindings.program.arena.node_at(parameters, 0);
+				root = graph.slot_for(checked.node_symbols[parameter.index]);
+				if (root == 0 || graph.slots[root - 1].flags != 2) return false;
+			}
+			if (root < 1 || root > graph.slot_count) return false;
+			int parent = first + root;
 			if (field.parent > 0) parent = first + graph.slot_count + field.parent;
-			if (parent < 1 || parent > first + i || p.root != first + field.root || p.parent != parent || p.slot != field.root || p.field != field_id || p.symbol.index != field.symbol.index || p.type.index != field.type.index || p.flags != field.flags || p.leaf != field.leaf || p.region != graph.slots[field.root - 1].region || p.parameter != graph.slots[field.root - 1].parameter) return false;
+			if (parent < 1 || parent > first + i || p.root != first + root || p.parent != parent || p.slot != root || p.field != field_id || p.symbol.index != field.symbol.index || p.type.index != field.type.index || p.flags != field.flags || p.leaf != field.leaf || p.region != graph.slots[root - 1].region || p.parameter != graph.slots[root - 1].parameter) return false;
 			var parent_type = core.places[parent - 1].type;
 			var descriptor = checked.types.descriptor(checked.types, parent_type);
 			var declaration = checked.bindings.symbol(p.symbol);
-			if (descriptor.kind != 30 || declaration.kind != 6 || declaration.owner.index != descriptor.nominal.index || p.type.index != checked.symbol_types[p.symbol.index].index || p.flags != checked.symbol_flags[p.symbol.index]) return false;
+			if (descriptor.kind != 30 && !(checked.class_storage && descriptor.kind == 31 && class_storage_source_verified(checked, parent_type, false, 0))) return false;
+			if (declaration.kind != 6 || declaration.owner.index != descriptor.nominal.index || p.type.index != checked.symbol_types[p.symbol.index].index || p.flags != checked.symbol_flags[p.symbol.index]) return false;
 		}
 		i = i + 1;
 	}
@@ -71,6 +82,14 @@ int core_source_place(CoreData core, CheckedIndex checked, int function, SyntaxN
 		parent = core_source_place(core, checked, function, aggregate, depth + 1);
 	} else {
 		parent = core_symbol_place(core, function, checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node)));
+		if (parent == 0 && checked.class_storage && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(node), "this")) {
+			var declaration = checked.bindings.symbol(core.functions[function - 1].symbol);
+			var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+			if (checked.bindings.program.arena.list_count(parameters) > 0) {
+				var receiver = checked.bindings.program.arena.node_at(parameters, 0);
+				parent = core_symbol_place(core, function, checked.node_symbols[receiver.index]);
+			}
+		}
 	}
 	if (parent == 0) return 0;
 	var field = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
@@ -119,6 +138,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		if (expected_type.index == 0 || (use.deferred != 0 && proofs[source.index] != 1)) return false;
 	}
 	if (row.type.index != expected_type.index || row.flags != expected_flags || !checked.types.owns(checked.types, row.type)) return false;
+	if (row.kind >= 15 && row.kind <= 18 || row.kind == 13 && checked.class_storage) return core_verify_class(core, checked, proofs, row, id, source, function, loop, depth, seen, seen_edges);
 	// Each kind checks its complete schema, including unused metadata. This also
 	// rejects a plausible value substituted into a writable-place channel.
 	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.kind != 14 && row.place != 0) return false;

@@ -19,16 +19,23 @@ spec.loader.exec_module(core)
 
 
 def sources():
-	return [*sorted((ROOT/'compiler/core').glob('*.astra')), *sorted((ROOT/'compiler/cfg').glob('*.astra')), ROOT/'tests/selfhost-coreir/mutations.astra', ROOT/'tests/selfhost-cfg/mutations.astra', *sorted((ROOT/'compiler/ssa').glob('*.astra')), ROOT/'tests/selfhost-ssa/predecessor.astra', ROOT/'tests/selfhost-ssa/mutations.astra', ROOT/'tests/selfhost-ssa/graphs.astra', ROOT/'tests/selfhost-llvm/ssa-cli.astra', ROOT/'tests/selfhost-generics/mutations.astra', *sorted((ROOT/'compiler/backend/llvm').glob('*.astra'))]
+	return [*sorted((ROOT/'compiler/core').glob('*.astra')), *sorted((ROOT/'compiler/cfg').glob('*.astra')), ROOT/'tests/selfhost-coreir/mutations.astra', ROOT/'tests/selfhost-cfg/mutations.astra', *sorted((ROOT/'compiler/ssa').glob('*.astra')), ROOT/'tests/selfhost-ssa/predecessor.astra', ROOT/'tests/selfhost-ssa/mutations.astra', ROOT/'tests/selfhost-ssa/graphs.astra', ROOT/'tests/selfhost-llvm/ssa-cli.astra', ROOT/'tests/selfhost-generics/mutations.astra', ROOT/'tests/selfhost-classstorage/mutations.astra', *sorted((ROOT/'compiler/backend/llvm').glob('*.astra'))]
 
 
 def main():
+	global ROOT
+	recipe_root = ROOT
 	p = argparse.ArgumentParser()
 	for key in ('compiler', 'build', 'runtime'):
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', action='append')
 	p.add_argument('--check', action='store_true')
+	p.add_argument('--semantic-only', action='store_true', help='Run C0 checks without a CFG dump or native code generation')
+	p.add_argument('--source-root', type=Path, help='Compile an explicit retained source snapshot')
 	a = p.parse_args()
+	if a.source_root:
+		ROOT = a.source_root.resolve()
+		core.base.ROOT = ROOT
 	assert all(not x.resolve().is_relative_to(ROOT) for x in (a.build, a.runtime))
 	a.build.mkdir(parents=True, exist_ok=True)
 	attempt = a.runtime/('build-'+str(time.time_ns()))
@@ -37,15 +44,16 @@ def main():
 		if argv is None:
 			(attempt/(name+'.json')).write_text(json.dumps(details, indent=2)+'\n')
 			return b''
-		if a.check and name.startswith('ownflow-'):
-			argv = [*argv[:2], argv[2], '--dump-cfg', *argv[4:argv.index('--link-object')]]
+		if (a.check or a.semantic_only) and name.startswith('ownflow-'):
+			flag = '--check' if a.semantic_only else '--dump-cfg'
+			argv = [*argv[:2], argv[2], flag, *argv[4:argv.index('--link-object')]]
 		start = time.monotonic()
 		r = subprocess.run(list(map(str, argv)), cwd=a.build, capture_output=True, env=dict(os.environ, CCACHE_DISABLE='1'))
 		(attempt/(name+'.stdout')).write_bytes(r.stdout); (attempt/(name+'.stderr')).write_bytes(r.stderr)
 		(attempt/(name+'.json')).write_text(json.dumps(dict(argv=list(map(str, argv)), exit=r.returncode, monotonic_start=start, monotonic_end=time.monotonic()), indent=2)+'\n')
 		print(name, r.returncode, flush=True)
 		assert r.returncode == 0, r.stderr.decode(errors='replace').split('Command being timed')[0][:3000]
-		if a.check and name.startswith('ownflow-'): raise SystemExit(0)
+		if (a.check or a.semantic_only) and name.startswith('ownflow-'): raise SystemExit(0)
 		return r.stdout
 	version = subprocess.check_output(['llvm-config', '--version'], text=True).strip()
 	assert version == '23.1.4', version
@@ -69,13 +77,13 @@ def main():
 	if not shim.exists() or old != dict(inputs=identity, sha256=core.base.sha(shim)):
 		capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', ROOT/'compiler/backend/llvm/capi.c', '-o', shim], 'llvm-capi')
 		cache.write_text(json.dumps(dict(inputs=identity, sha256=core.base.sha(shim)), indent=2)+'\n')
-	defined = set(re.findall(r'\b(llvm(?:12|13)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
+	defined = set(re.findall(r'\b(llvm(?:12|13|15)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
 	library = ctypes.CDLL(str(library_path))
 	imports = re.findall(r'extern\(C\) (?:void\*|u64|int|void|f32|f64) (\w+)\(', (ROOT/'compiler/backend/llvm/capi.astra').read_text())
 	missing = [name for name in imports if name not in defined and not hasattr(library, name)]
 	assert not missing, ('missing qualified LLVM C ABI symbols', missing)
 	(attempt/'llvm-symbols.json').write_text(json.dumps(dict(library=core.base.sha(library_path), imports=imports, shim_symbols=sorted(defined)), indent=2)+'\n')
-	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=sources(), product_prefix='astra-llvm-', link_objects=[shim], link_libraries=[library_name], link_inputs=[library_path, *map(Path, deps), Path(__file__), ROOT/'tests/selfhost-typecore/build.py', ROOT/'tests/selfhost-coreir/build.py'])
+	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=sources(), product_prefix='astra-llvm-', link_objects=[shim], link_libraries=[library_name], link_inputs=[library_path, *map(Path, deps), Path(__file__), recipe_root/'tests/selfhost-typecore/build.py', recipe_root/'tests/selfhost-coreir/build.py'])
 	(attempt/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 
 

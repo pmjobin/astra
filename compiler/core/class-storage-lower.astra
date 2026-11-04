@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// These operations retain authoritative places. Owner-slot descriptors are
+// never passed as detached aggregate operands to a collection mutation.
+bool core_class_source(CheckedIndex checked, SyntaxNodeId source) {
+	if (!checked.class_storage) return false;
+	if (class_storage_construction(checked, source) || class_storage_slot_call_present(checked, source) || class_storage_slot_capacity(checked, source)) return true;
+	var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.NullPointerExpressionSyntax()) return checked_kind(checked, checked.uses[source.index].type) == 31;
+	if (kind == SyntaxKind.BufferAllocationSyntax()) return class_storage_slot_initialization(checked, source, checked.uses[source.index].type);
+	if (kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, source)) {
+		var arguments = checked_call_arguments(checked, source);
+		if (checked.bindings.program.arena.list_count(arguments) != 1) return false;
+		var argument = checked.bindings.program.arena.node_at(arguments, 0);
+		return checked_kind(checked, checked.uses[argument.index].type) == 23;
+	}
+	return false;
+}
+
+CoreNode core_lower_class(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, CoreNode input, int id, int function, int loop, int depth) {
+	var row = input; var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.NullPointerExpressionSyntax()) {
+		row.kind = 17;
+		return row;
+	}
+	if (kind == SyntaxKind.BufferAllocationSyntax()) {
+		row.kind = 15;
+		return row;
+	}
+	if (class_storage_slot_capacity(checked, source) || kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, source)) {
+		row.kind = 18; row.target = 2;
+		SyntaxNodeId receiver = {index = 0};
+		if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+			receiver = checked.bindings.program.arena.get_node_aggregate(source);
+		} else {
+			row.target = 1; var arguments = checked_call_arguments(checked, source);
+			receiver = flow_unwrap(checked, checked.bindings.program.arena.node_at(arguments, 0));
+		}
+		row.place = core_lower_place(core, checked, graph, function, receiver);
+		if (row.place == 0) core.status = 3;
+		return row;
+	}
+	var arguments = checked.bindings.program.arena.get_list_arguments(source);
+	SyntaxListId parameters = {index = 0};
+	if (class_storage_slot_call_present(checked, source)) {
+		row.kind = 16; row.target = class_storage_slot_action(checked, source);
+		row.place = core_lower_place(core, checked, graph, function, checked.bindings.program.arena.get_node_receiver_place(source));
+		if (row.place == 0) {
+			core.status = 3;
+			return row;
+		}
+	} else {
+		row.kind = 13; row.symbol = class_storage_constructor(checked, row.type);
+		if (row.symbol.index == 0) {
+			core.status = 3;
+			return row;
+		}
+		row.signature = checked.symbol_signatures[row.symbol.index];
+		var declaration = checked.bindings.symbol(row.symbol); parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+		int f = 0;
+		while (f < core.function_count) {
+			if (core.functions[f].symbol.index == row.symbol.index) row.target = f + 1;
+			f = f + 1;
+		}
+		if (row.target == 0) {
+			core.status = 3;
+			return row;
+		}
+	}
+	row.count = checked.bindings.program.arena.list_count(arguments); row.first = core.edge_count;
+	int i = 0;
+	while (i < row.count && core.status == 0) {
+		CoreEdge edge = {child = 0, label = {index = 0}, mode = 0}; int added = core_add_edge(core, edge); i = i + 1;
+	}
+	i = 0;
+	while (i < row.count && core.status == 0) {
+		CoreEdge edge = {child = 0, label = {index = 0}, mode = 0};
+		if (row.kind == 13) {
+			var parameter = checked.bindings.program.arena.node_at(parameters, i + 1); edge.label = checked.node_symbols[parameter.index];
+			var signature = checked.signatures[row.signature.index - 1]; edge.mode = checked.types.argument(checked.types, signature.callable, i + 2).flags;
+		} else {
+			if (row.target == 2 || row.target == 4 && i == 1) edge.mode = 4;
+		}
+		edge.child = core_lower_tree(core, checked, graph, checked.bindings.program.arena.node_at(arguments, i), function, loop, id, depth + 1);
+		core.edges[row.first + i] = edge; i = i + 1;
+	}
+	return row;
+}

@@ -11,12 +11,12 @@ int llvm_check_use(SsaData data, int instruction, int kind, int ordinal, SsaBudg
 	return 0;
 }
 
-void* llvm_check_borrow(SsaData data, void*[] places, int id, SsaBudget budget) {
+void* llvm_check_borrow(SsaData data, void*[] accesses, int id, SsaBudget budget) {
 	int steps = 0; int current = id;
 	while (current > 0 && steps < 192 && budget.take(1)) {
 		var value = data.values[current - 1]; if (value.kind != 1 || value.instruction == 0) return null;
 		var operation = data.instructions[value.instruction - 1].origin;
-		if (operation.opcode == 3 && operation.value.place > 0) return places[operation.value.place - 1];
+		if (operation.opcode == 3 && operation.value.place > 0) return accesses[value.instruction - 1];
 		if (operation.opcode != 12) return null;
 		current = llvm_check_use(data, value.instruction, 1, 0, budget); steps = steps + 1;
 	}
@@ -144,6 +144,16 @@ bool llvm_check_fp_binary(string op, int kind, void* result, void* left, void* r
 bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* left, void* right) throws Error {
 	var text = checked.bindings.program.arena.token_message(node.operation); var op = text.text;
 	var left_node = checked.bindings.program.arena.get_node_left(node.source); var left_use = checked.uses[left_node.index]; int kind = checked_kind(checked, left_use.type);
+	if (checked.class_storage && kind == 31) {
+		if ((op != "==" && op != "!=") || !class_storage_source_verified(checked, left_use.type, false, 0) || LLVMGetTypeKind(LLVMTypeOf(left)) != 12 || LLVMTypeOf(right) != LLVMTypeOf(left)) return false;
+		int predicate = 32; if (op == "!=") predicate = 33;
+		if (LLVMIsAInstruction(result) != null) return LLVMGetInstructionOpcode(result) == 42 && LLVMGetICmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
+		// LLVM may fold an identical SSA handle or two literal nulls. A
+		// distinct allocation is never inferred equal from its LLVM spelling.
+		if (left != right && (LLVMIsNull(left) == 0 || LLVMIsNull(right) == 0)) return false;
+		u64 expected = 1; if (op == "!=") expected = 0;
+		return LLVMIsAConstantInt(result) != null && LLVMConstIntGetZExtValue(result) == expected;
+	}
 	if (kind == 11 || kind == 12) return llvm_check_fp_binary(op, kind, result, left, right);
 	int opcode = llvm_check_opcode(op); int predicate = llvm_check_predicate(op, kind);
 	if (LLVMIsAInstruction(result) != null && (opcode != 0 || predicate != 0)) {
@@ -201,7 +211,7 @@ bool llvm_check_attributes(void* value, int parameters, int call) {
 	return true;
 }
 
-bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] blocks, void*[] places, void*[] armed, void*[] calls, void*[] guards) {
+bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] drops, void*[] blocks, void*[] places, void*[] armed, void*[] calls, void*[] guards) {
 	if (len(calls) != program.data.instruction_count || len(guards) != len(calls)) return false;
 	var budget = new SsaBudget(8000000); int required = 0; int i = 0;
 	while (i < program.data.instruction_count && budget.take(1)) {
@@ -209,7 +219,8 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 		if (row.opcode == 40) place = program.cfg.core.data.cleanups[row.contract - 1].place;
 		if (row.opcode == 22 && !source.promoted && row.value.place > 0) {
 			var target = program.cfg.core.data.places[row.value.place - 1];
-			if ((target.flags & 4) != 0 && checked_kind(program.cfg.core.flow.checked, target.type) == 22) place = row.value.place;
+			bool initializing = class_storage_initializing(program.cfg.core.flow.checked, program.cfg.core.data.functions[row.value.function - 1].symbol) && target.parent != 0;
+			if (!initializing && (target.flags & 4) != 0 && checked_kind(program.cfg.core.flow.checked, target.type) == 22) place = row.value.place;
 		}
 		if (!program.data.graph.reachable[row.block - 1]) place = 0;
 		if (place == 0) {
@@ -218,7 +229,13 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 		else {
 			required = required + 1; int p = place - 1; var call = calls[i]; var guard = guards[i]; var function = functions[row.value.function - 1];
 			if (p < 0 || p >= len(armed) || armed[p] == null || call == null || guard == null || !llvm_check_live_instruction(function, call, budget) || !llvm_check_live_instruction(function, guard, budget)) return false;
-			if (LLVMGetInstructionOpcode(call) != 45 || LLVMGetNumArgOperands(call) != 1 || LLVMGetInstructionCallConv(call) != 0 || llvm13_named(LLVMGetCalledValue(call), "free") != 1) return false;
+			if (LLVMGetInstructionOpcode(call) != 45 || LLVMGetNumArgOperands(call) != 1 || LLVMGetInstructionCallConv(call) != 0) return false;
+			bool storage = program.cfg.core.flow.checked.class_storage && checked_kind(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type) == 31;
+			if (storage) {
+				if (LLVMGetCalledValue(call) != drops[program.cfg.core.data.places[p].type.index]) return false;
+			} else {
+				if (llvm13_named(LLVMGetCalledValue(call), "free") != 1) return false;
+			}
 			if (LLVMGetInstructionOpcode(guard) != 71 || LLVMGetNumSuccessors(guard) != 2 || LLVMGetInstructionParent(guard) != blocks[row.block - 1]) return false;
 			var condition = LLVMGetOperand(guard, 0);
 			if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 27 || LLVMGetOperand(condition, 0) != armed[p] || LLVMGetInstructionParent(condition) != blocks[row.block - 1]) return false;
@@ -226,7 +243,7 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 			if (LLVMGetSuccessor(guard, 0) != releasing || LLVMGetBasicBlockParent(releasing) != function || LLVMGetBasicBlockParent(next) != function) return false;
 			var load = LLVMGetFirstInstruction(releasing); var pointer = LLVMGetArgOperand(call, 0);
 			if (load == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[p]) return false;
-			if (generic_empty_class(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type)) {
+			if (generic_empty_class(program.cfg.core.flow.checked, program.cfg.core.data.places[p].type) || storage) {
 				if (pointer != load || LLVMGetNextInstruction(load) != call) return false;
 			} else {
 				if (LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 53 || llvm13_index(pointer, 0, 0) != 1 || LLVMGetOperand(pointer, 0) != load || LLVMGetNextInstruction(load) != pointer || LLVMGetNextInstruction(pointer) != call) return false;
@@ -244,7 +261,17 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 		while (block != null && budget.take(1)) {
 			void* instruction = LLVMGetFirstInstruction(block);
 			while (instruction != null && budget.take(1)) {
-				if (LLVMGetInstructionOpcode(instruction) == 45 && llvm13_named(LLVMGetCalledValue(instruction), "free") == 1) observed = observed + 1;
+				if (LLVMGetInstructionOpcode(instruction) == 45) {
+					var callee = LLVMGetCalledValue(instruction); bool retirement = llvm13_named(callee, "free") == 1;
+					if (program.cfg.core.flow.checked.class_storage) {
+						int t = 1;
+						while (t < len(drops) && budget.take(1)) {
+							if (drops[t] != null && callee == drops[t]) retirement = true;
+							t = t + 1;
+						}
+					}
+					if (retirement) observed = observed + 1;
+				}
 				instruction = LLVMGetNextInstruction(instruction);
 			}
 			block = LLVMGetNextBasicBlock(block);
@@ -254,7 +281,7 @@ bool llvm_check_retirements(SsaProgram program, void*[] functions, void*[] block
 	return observed == required && !budget.exhausted;
 }
 
-bool llvm_check_buffer(CheckedIndex checked, CoreNode node, void* result, void* count) {
+bool llvm_check_buffer(CheckedIndex checked, void* layout, void*[] types, CoreNode node, void* result, void* count) {
 	if (result == null || count == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 54 || llvm13_index(result, 0, 1) != 1 || LLVMGetOperand(result, 1) != count) return false;
 	var aggregate = LLVMGetOperand(result, 0);
 	if (LLVMIsAInstruction(aggregate) == null || LLVMGetInstructionOpcode(aggregate) != 54 || llvm13_index(aggregate, 0, 0) != 1 || LLVMIsNull(LLVMGetOperand(aggregate, 0)) == 0) return false;
@@ -266,8 +293,12 @@ bool llvm_check_buffer(CheckedIndex checked, CoreNode node, void* result, void* 
 	if (shape.kind != 22 || shape.count != 1) return false;
 	var element = checked.types.argument(checked.types, node.type, 0);
 	int kind = checked_kind(checked, element.type);
-	if (!type_numeric(kind) && kind != 13) return false;
+	if (!type_numeric(kind) && kind != 13 && !(checked.class_storage && kind == 30 && class_storage_record_verified(checked, element.type) && !checked_record_owned(checked, element.type, 0))) return false;
 	int size = type_width(kind) / 8; if (kind == 13) size = 1;
+	if (kind == 30) {
+		if (types[element.type.index] == null) return false;
+		size = LLVMABISizeOfType(layout, types[element.type.index]) as int;
+	}
 	var width = LLVMGetArgOperand(allocation, 1);
 	if (LLVMIsAConstantInt(width) == null || LLVMConstIntGetZExtValue(width) != size as u64) return false;
 	var amount = LLVMGetArgOperand(allocation, 0);
@@ -275,8 +306,9 @@ bool llvm_check_buffer(CheckedIndex checked, CoreNode node, void* result, void* 
 	return LLVMIsAInstruction(amount) != null && LLVMGetInstructionOpcode(amount) == 31 && LLVMGetOperand(amount, 0) == count;
 }
 
-bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wrappers, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] effects, int limit) throws Error {
+bool llvm_check(SsaProgram program, void* layout, void*[] types, void*[] payloads, void*[] slots, void*[] functions, void*[] wrappers, void*[] signatures, void*[] blocks, void*[] ends, void*[] edges, void*[] values, void*[] places, void*[] accesses, void*[] effects, int limit) throws Error {
 	var budget = new SsaBudget(limit);
+	if (len(accesses) != program.data.instruction_count) return false;
 	int f = 0;
 	while (f < program.data.function_count && budget.take(1)) {
 		var original = program.cfg.core.data.functions[f]; var declaration = program.cfg.core.flow.checked.bindings.symbol(original.symbol);
@@ -378,6 +410,10 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 	int place = 0;
 	while (place < program.cfg.core.data.place_count && budget.take(1)) {
 		var source = program.cfg.core.data.places[place];
+		if (llvm_storage_projection(program.cfg.core.data, program.cfg.core.flow.checked, place + 1)) {
+			if (places[place] != null) return false;
+			place = place + 1; continue;
+		}
 		if (source.parent != 0) {
 			var pointer = places[place];
 			if (pointer == null || LLVMIsAInstruction(pointer) == null || LLVMGetInstructionOpcode(pointer) != 29 || LLVMGEPGetNoWrapFlags(pointer) != 0 || LLVMGetNumOperands(pointer) != 3 || LLVMGetOperand(pointer, 0) != places[source.parent - 1]) return false;
@@ -432,9 +468,15 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 		var instruction = program.data.instructions[i]; var row = instruction.origin; int op = row.opcode;
 		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.value.function)) {
 			void* result = null; if (instruction.result > 0) result = values[instruction.result - 1];
+			bool memory = (op == 3 && !instruction.promoted) || op == 4 || op == 14 || op == 16 || op == 18 || (op == 21 || op == 22) && !instruction.promoted;
+			if (memory) {
+				if (!llvm_storage_address_verify(program, types, payloads, places, accesses[i], row.value.place, functions[row.value.function - 1], blocks[row.block - 1], ends[row.block - 1], 0, budget)) return false;
+			} else {
+				if (accesses[i] != null) return false;
+			}
 			if (op == 11) {
 				int count = llvm_check_use(program.data, i + 1, 1, 0, budget);
-				if (count < 1 || !llvm_check_buffer(program.cfg.core.flow.checked, row.value, result, values[count - 1])) return false;
+				if (count < 1 || !llvm_check_buffer(program.cfg.core.flow.checked, layout, types, row.value, result, values[count - 1])) return false;
 			}
 			if ((op == 1 || op == 2) && !llvm_check_literal(program.cfg.core.flow.checked, row.value, result, budget)) return false;
 			if (op == 3 && instruction.promoted) {
@@ -442,14 +484,37 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 				if (!llvm_check_operand(result, values, use)) return false;
 			}
 			if ((op == 3 && !instruction.promoted || op == 4) && !((row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30)) {
-				if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != places[row.value.place - 1]) return false;
+				if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 27 || LLVMGetOperand(result, 0) != accesses[i]) return false;
+				if (program.cfg.core.flow.checked.class_storage && LLVMGetAlignment(result) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(result))) return false;
 			}
+			if (op == 3 && (row.value.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, row.value.type) == 30 && result != accesses[i]) return false;
 			if (op == 14) {
 				if (row.value.place < 1 || row.value.place > len(places) || !flow_buffer_type(program.cfg.core.flow.checked, program.cfg.core.data.places[row.value.place - 1].type) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 53 || llvm13_index(result, 0, 1) != 1) return false;
 				var load = LLVMGetOperand(result, 0);
-				if (LLVMIsAInstruction(load) == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != places[row.value.place - 1] || LLVMGetInstructionParent(load) != LLVMGetInstructionParent(result)) return false;
+				if (LLVMIsAInstruction(load) == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != accesses[i] || LLVMGetInstructionParent(load) != LLVMGetInstructionParent(result)) return false;
 			}
-			if (op == 13) {
+			if (op == 13 && program.cfg.core.flow.checked.class_storage && !llvm_storage_allocation_verified(program, layout, payloads, functions, ends, values, effects, i, result, budget)) return false;
+			if (op == 15 || op == 17) {
+				if (!program.cfg.core.flow.checked.class_storage || result == null || LLVMIsNull(result) == 0) return false;
+				int kind = checked_kind(program.cfg.core.flow.checked, row.value.type);
+				if (op == 15 && kind != 23 || op == 17 && kind != 31) return false;
+			}
+			if (op == 18) {
+				if (result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 53 || llvm13_index(result, 0, row.value.target) != 1) return false;
+				var load = LLVMGetOperand(result, 0); var descriptor = program.cfg.core.data.places[row.value.place - 1].type;
+				if (LLVMIsAInstruction(load) == null || LLVMGetInstructionOpcode(load) != 27 || LLVMGetOperand(load, 0) != accesses[i] || LLVMTypeOf(load) != types[descriptor.index]) return false;
+			}
+			if (op == 16) {
+				var descriptor = program.cfg.core.data.places[row.value.place - 1].type;
+				if (result == null || result != effects[i] || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || LLVMGetCalledValue(result) != slots[descriptor.index * 6 + row.value.target] || LLVMGetInstructionCallConv(result) != 0 || LLVMGetNumArgOperands(result) != row.value.count + 1 || LLVMGetArgOperand(result, 0) != accesses[i]) return false;
+				int a = 0;
+				while (a < row.value.count && budget.take(1)) {
+					int use = llvm_check_use(program.data, i + 1, 3, a, budget);
+					if (use < 1 || LLVMGetArgOperand(result, a + 1) != values[use - 1]) return false;
+					a = a + 1;
+				}
+			}
+			if (op == 13 && !program.cfg.core.flow.checked.class_storage) {
 				if (!generic_empty_class(program.cfg.core.flow.checked, row.value.type) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || llvm13_named(LLVMGetCalledValue(result), "calloc") != 1 || LLVMGetNumArgOperands(result) != 2) return false;
 				int a = 0;
 				while (a < 2) {
@@ -513,7 +578,8 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 			if ((op == 21 || op == 22) && !instruction.promoted) {
 				var store = effects[i]; int a = llvm_check_use(program.data, i + 1, 1, 0, budget);
 				var destination = program.cfg.core.data.places[row.value.place - 1]; int observation = 0; if ((destination.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, destination.type, 0)) observation = 1;
-				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != places[row.value.place - 1] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) return false;
+				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != accesses[i] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) return false;
+				if (program.cfg.core.flow.checked.class_storage && LLVMGetAlignment(store) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(LLVMGetOperand(store, 0)))) return false;
 			}
 			if (op == 9) {
 				int target = -1; int c = 0; while (c < program.data.function_count && budget.take(1)) {
@@ -521,11 +587,13 @@ bool llvm_check(SsaProgram program, void*[] types, void*[] functions, void*[] wr
 					c = c + 1;
 				}
 				if (target < 0 || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || LLVMGetCalledValue(result) != functions[target] || LLVMGetNumArgOperands(result) != row.value.count || LLVMGetInstructionCallConv(result) != 0) return false;
+				int instance = generic_instance_for(program.cfg.core.flow.checked, row.value.symbol);
+				if (program.cfg.core.flow.checked.class_storage && instance > 0 && program.cfg.core.flow.checked.instances[instance - 1].enclosing.index != 0 && !llvm_storage_method_guard_verified(blocks[row.block - 1], result, LLVMGetArgOperand(result, 0), functions[row.value.function - 1])) return false;
 				int a = 0; var signature = program.cfg.core.flow.checked.signatures[row.value.signature.index - 1];
 				while (a < row.value.count && budget.take(1)) {
 					int use = llvm_check_use(program.data, i + 1, 3, a, budget); var parameter = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, a + 1);
 					if ((parameter.flags & 2) != 0 && checked_kind(program.cfg.core.flow.checked, parameter.type) == 30) {
-						var pointer = llvm_check_borrow(program.data, places, use, budget);
+						var pointer = llvm_check_borrow(program.data, accesses, use, budget);
 						if (pointer == null || LLVMGetArgOperand(result, a) != pointer) return false;
 					}
 					else {

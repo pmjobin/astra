@@ -16,7 +16,7 @@ int cfg_emit(CfgData data, CoreData core, int function, int origin, int opcode, 
 	if (block == 0) return 0;
 	CfgInstruction row = {value = cfg_payload(core, origin, function), block = block, origin = origin, opcode = opcode, result = result, a = a, b = b, contract = contract, guarded = guarded};
 	int instruction = cfg_add_instruction(data, row);
-	if (opcode == 9 || opcode == 10) {
+	if (opcode == 9 || opcode == 10 || opcode == 13 || opcode == 16) {
 		var value = row.value;
 		int i = 0;
 		while (i < value.count && data.status == 0) {
@@ -56,6 +56,7 @@ int cfg_loan_chain(CfgData data, CoreData core, int function, int origin, int op
 		var loan = core.loans[l];
 		var row = core.nodes[origin - 1];
 		bool applies = loan.function == function && loan.value.index == row.source.index;
+		if (opcode == 42 && row.kind == 16) applies = loan.function == function && loan.call.index == row.source.index && core.places[row.place - 1].root == loan.source;
 		if (opcode == 43) applies = loan.function == function && loan.call.index == row.source.index;
 		if (applies) head = cfg_emit(data, core, function, origin, opcode, 0, 0, 0, l + 1, 0, head);
 		l = l - 1;
@@ -122,8 +123,8 @@ int cfg_lower_node(CfgData data, CoreData core, CheckedIndex checked, int id, in
 					head = cfg_lower_node(data, core, checked, row.a, branch, break_to, continue_to, depth + 1);
 				} else {
 					int tail = next;
-					if (row.kind == 9) tail = cfg_loan_chain(data, core, function, id, 43, tail);
-					if (core_value_kind(row.kind)) tail = cfg_loan_chain(data, core, function, id, 42, tail);
+					if (row.kind == 9 || row.kind == 13 || row.kind == 16) tail = cfg_loan_chain(data, core, function, id, 43, tail);
+					if (core_value_kind(row.kind) && row.kind != 16) tail = cfg_loan_chain(data, core, function, id, 42, tail);
 					int result = 0;
 					if (core_value_kind(row.kind)) result = id;
 					int operation = cfg_emit(data, core, function, id, row.kind, result, row.a, row.b, 0, 0, tail);
@@ -136,6 +137,7 @@ int cfg_lower_node(CfgData data, CoreData core, CheckedIndex checked, int id, in
 					}
 					if (row.b != 0) head = cfg_lower_node(data, core, checked, row.b, head, break_to, continue_to, depth + 1);
 					if (row.a != 0) head = cfg_lower_node(data, core, checked, row.a, head, break_to, continue_to, depth + 1);
+					if (row.kind == 16) head = cfg_loan_chain(data, core, function, id, 42, head);
 				}
 			}
 		}

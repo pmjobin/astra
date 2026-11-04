@@ -1,0 +1,267 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only instruction/edge consumer for the private owner-slot helpers.
+// It consumes the actual LLVM graph, never a builder log, seal or checksum.
+class LlvmStorageCursor {
+	void* function;
+	void* cursor;
+	void* block;
+	owned void*[] blocks;
+	owned bool[] seen;
+	bool valid;
+
+	init(void* function) {
+		this.function = function; this.cursor = null; this.block = null;
+		int count = 0;
+		if (function != null) {
+			var block = LLVMGetFirstBasicBlock(function);
+			while (block != null && count <= 32) {
+				count = count + 1;
+				block = LLVMGetNextBasicBlock(block);
+			}
+		}
+		bool valid = count > 0 && count <= 32; if (!valid) count = 0;
+		this.blocks = new void*[count]; this.seen = new bool[count]; this.valid = valid;
+		if (valid) {
+			var block = LLVMGetFirstBasicBlock(function); int i = 0;
+			while (i < count) {
+				this.blocks[i] = block;
+				block = LLVMGetNextBasicBlock(block);
+				i = i + 1;
+			}
+		}
+	}
+
+	void begin(void* block) {
+		if (!this.valid || this.cursor != null) {
+			this.valid = false;
+			return;
+		}
+		int i = 0;
+		while (i < len(this.blocks)) {
+			if (this.blocks[i] == block) {
+				if (this.seen[i]) {
+					this.valid = false;
+					return;
+				}
+				this.seen[i] = true; this.block = block; this.cursor = LLVMGetFirstInstruction(block); return;
+			}
+			i = i + 1;
+		}
+		this.valid = false;
+	}
+
+	void* take(int opcode) {
+		if (!this.valid || this.cursor == null || LLVMGetInstructionOpcode(this.cursor) != opcode) {
+			this.valid = false;
+			return null;
+		}
+		var value = this.cursor; this.cursor = LLVMGetNextInstruction(value); return value;
+	}
+
+	bool operand(void* value, int ordinal, void* expected) {
+		return value != null && ordinal >= 0 && ordinal < LLVMGetNumOperands(value) && LLVMGetOperand(value, ordinal) == expected;
+	}
+
+	void* field(void* type, void* base, int ordinal) {
+		var value = this.take(29);
+		if (!this.valid) return null;
+		if (LLVMGetGEPSourceElementType(value) != type || LLVMGEPGetNoWrapFlags(value) != 0 || LLVMGetNumOperands(value) != 3 || !this.operand(value, 0, base) || LLVMIsAConstantInt(LLVMGetOperand(value, 1)) == null || LLVMIsAConstantInt(LLVMGetOperand(value, 2)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(value, 1)) != 0 || LLVMConstIntGetZExtValue(LLVMGetOperand(value, 2)) != ordinal as u64) this.valid = false;
+		return value;
+	}
+
+	void* slot(void* type, void* base, void* index) {
+		var value = this.take(29);
+		if (!this.valid) return null;
+		if (LLVMGetGEPSourceElementType(value) != type || LLVMGEPGetNoWrapFlags(value) != 0 || LLVMGetNumOperands(value) != 2 || !this.operand(value, 0, base) || !this.operand(value, 1, index)) this.valid = false;
+		return value;
+	}
+
+	void* load(void* type, void* address) {
+		var value = this.take(27);
+		int alignment = 8; if (LLVMGetTypeKind(type) == 8) alignment = 4;
+		if (this.valid && (LLVMTypeOf(value) != type || !this.operand(value, 0, address) || LLVMGetVolatile(value) != 0 || LLVMGetAlignment(value) != alignment)) this.valid = false;
+		return value;
+	}
+
+	void store(void* value, void* address) {
+		var instruction = this.take(28);
+		if (!this.valid) return;
+		int alignment = 8; if (LLVMGetTypeKind(LLVMTypeOf(value)) == 8) alignment = 4;
+		if (!this.operand(instruction, 0, value) || !this.operand(instruction, 1, address) || LLVMGetVolatile(instruction) != 0 || LLVMGetAlignment(instruction) != alignment) this.valid = false;
+	}
+
+	void* binary(int opcode, void* left, void* right) {
+		var value = this.take(opcode);
+		if (this.valid && (!this.operand(value, 0, left) || !this.operand(value, 1, right))) this.valid = false;
+		return value;
+	}
+
+	void* compare(int predicate, void* left, void* right) {
+		var value = this.binary(42, left, right);
+		if (this.valid && LLVMGetICmpPredicate(value) != predicate) this.valid = false;
+		return value;
+	}
+
+	void* branch(void* condition) {
+		var value = this.take(71);
+		if (this.valid && (LLVMGetNumSuccessors(value) != 2 || LLVMGetCondition(value) != condition || this.cursor != null)) this.valid = false;
+		return value;
+	}
+
+	void* successor(void* branch, int ordinal) {
+		if (!this.valid || branch == null || ordinal < 0 || ordinal >= LLVMGetNumSuccessors(branch)) {
+			this.valid = false;
+			return null;
+		}
+		return LLVMGetSuccessor(branch, ordinal);
+	}
+
+	void jump(void* destination) {
+		var value = this.take(70);
+		if (this.valid && (LLVMGetNumSuccessors(value) != 1 || LLVMGetSuccessor(value, 0) != destination || this.cursor != null)) this.valid = false;
+	}
+
+	void* go() {
+		var value = this.take(70);
+		if (!this.valid) return null;
+		if (LLVMGetNumSuccessors(value) != 1 || this.cursor != null) {
+			this.valid = false;
+			return null;
+		}
+		return LLVMGetSuccessor(value, 0);
+	}
+
+	void ret(void* result) {
+		var value = this.take(1); int count = 0; if (result != null) count = 1;
+		if (this.valid && (LLVMGetNumOperands(value) != count || count == 1 && !this.operand(value, 0, result) || this.cursor != null)) this.valid = false;
+	}
+
+	void* guard(void* condition) {
+		var branch = this.branch(condition); var trap = this.successor(branch, 0); var next = this.successor(branch, 1);
+		this.begin(trap); var call = this.take(45);
+		if (this.valid && (llvm13_named(LLVMGetCalledValue(call), "llvm.trap") != 1 || LLVMGetNumArgOperands(call) != 0)) this.valid = false;
+		var end = this.take(7); if (this.cursor != null) this.valid = false;
+		this.begin(next); return next;
+	}
+
+	void* call(void* callee, void*[] arguments) {
+		var value = this.take(45);
+		if (!this.valid) return null;
+		if (LLVMGetCalledValue(value) != callee || LLVMGetInstructionCallConv(value) != 0 || LLVMGetNumArgOperands(value) != len(arguments) || !llvm_check_attributes(value, len(arguments), 1)) {
+			this.valid = false;
+			return value;
+		}
+		int i = 0;
+		while (i < len(arguments)) {
+			if (LLVMGetArgOperand(value, i) != arguments[i]) this.valid = false;
+			i = i + 1;
+		}
+		return value;
+	}
+
+	void free(void* pointer) {
+		var value = this.take(45);
+		if (this.valid && !llvm_storage_free_verified(value, pointer)) this.valid = false;
+	}
+
+	void incoming(void* phi, void* first, void* first_block, void* second, void* second_block) {
+		if (!this.valid || phi == null) {
+			this.valid = false;
+			return;
+		}
+		if (LLVMCountIncoming(phi) != 2 || LLVMGetIncomingValue(phi, 0) != first || LLVMGetIncomingBlock(phi, 0) != first_block || LLVMGetIncomingValue(phi, 1) != second || LLVMGetIncomingBlock(phi, 1) != second_block) this.valid = false;
+	}
+
+	bool finish() {
+		if (!this.valid || this.cursor != null) return false;
+		int i = 0;
+		while (i < len(this.seen)) {
+			if (!this.seen[i]) return false;
+			i = i + 1;
+		}
+		return true;
+	}
+}
+
+bool llvm_storage_slot_verified(CheckedIndex checked, TypeId type, int action, void* function, void*[] types, void*[] drops) throws Error {
+	if (function == null || action < 1 || action > 5 || LLVMGetLinkage(function) != 8 || LLVMGetFunctionCallConv(function) != 0) return false;
+	int parameters = 2; if (action == 4) parameters = 3; if (action == 5) parameters = 1;
+	var name = llvm_name("astra.classstorage.slots.", type.index * 6 + action);
+	if (llvm13_named(function, name.text) != 1 || LLVMCountParams(function) != parameters || !llvm_check_attributes(function, parameters, 0)) return false;
+	var context = LLVMGetTypeContext(types[type.index]); var pointer = LLVMPointerTypeInContext(context, 0); var i32 = LLVMIntTypeInContext(context, 32); var word = LLVMIntTypeInContext(context, 64); var bit = LLVMIntTypeInContext(context, 1);
+	void* result_type = LLVMVoidTypeInContext(context); if (action == 1) result_type = bit; if (action == 3) result_type = pointer;
+	if (LLVMGetReturnType(LLVMGlobalGetValueType(function)) != result_type || LLVMTypeOf(LLVMGetParam(function, 0)) != pointer) return false;
+	if (action != 5) {
+		void* expected = i32; if (action == 2) expected = pointer;
+		if (LLVMTypeOf(LLVMGetParam(function, 1)) != expected || action == 4 && LLVMTypeOf(LLVMGetParam(function, 2)) != pointer) return false;
+	}
+	var element = checked.types.argument(checked.types, type, 0);
+	if (element.flags != 0 || !class_storage_source_verified(checked, element.type, true, 0)) return false;
+	var zero = LLVMConstNull(i32); var one = LLVMConstInt(i32, 1, 0); var nil = LLVMConstNull(pointer); var yes = LLVMConstInt(bit, 1, 0); var no = LLVMConstNull(bit);
+	var reader = new LlvmStorageCursor(function); reader.begin(LLVMGetFirstBasicBlock(function));
+	var descriptor = LLVMGetParam(function, 0); var base_address = reader.field(types[type.index], descriptor, 0); var count_address = reader.field(types[type.index], descriptor, 1); var capacity_address = reader.field(types[type.index], descriptor, 2);
+	var backing = reader.load(pointer, base_address); var count = reader.load(i32, count_address); var capacity = reader.load(i32, capacity_address);
+	var negative = reader.compare(40, count, zero); var short_capacity = reader.compare(40, capacity, count); var no_backing = reader.compare(32, backing, nil); var empty_capacity = reader.compare(32, capacity, zero);
+	var inconsistent = reader.binary(25, no_backing, empty_capacity); var bad_range = reader.binary(24, negative, short_capacity); var invalid = reader.binary(24, bad_range, inconsistent); var initial = reader.guard(invalid);
+	if (!reader.valid) return false;
+	if (action == 1) {
+		var requested = LLVMGetParam(function, 1); var below_zero = reader.compare(40, requested, zero); var branch = reader.branch(below_zero); var rejected = reader.successor(branch, 0); var extent = reader.successor(branch, 1);
+		reader.begin(rejected); reader.ret(no);
+		reader.begin(extent); var sufficient = reader.compare(41, requested, capacity); var choice = reader.branch(sufficient); var noop = reader.successor(choice, 0); var allocate = reader.successor(choice, 1);
+		reader.begin(noop); reader.ret(yes);
+		reader.begin(allocate); var amount = reader.take(31);
+		if (!reader.valid || !reader.operand(amount, 0, requested) || LLVMTypeOf(amount) != word) return false;
+		var allocation = reader.take(45);
+		if (!reader.valid || LLVMTypeOf(allocation) != pointer || LLVMGetInstructionCallConv(allocation) != 0 || llvm13_named(LLVMGetCalledValue(allocation), "calloc") != 1 || LLVMGetNumArgOperands(allocation) != 2 || LLVMGetArgOperand(allocation, 0) != amount || LLVMGetArgOperand(allocation, 1) != LLVMConstInt(word, 8, 0) || !llvm_check_attributes(allocation, 2, 1)) return false;
+		var missing = reader.compare(32, allocation, nil); var admitted = reader.guard(missing); var header = reader.go();
+		reader.begin(header); var index = reader.take(44); if (!reader.valid || LLVMTypeOf(index) != i32) return false;
+		var more = reader.compare(40, index, count); var iterate = reader.branch(more); var copy = reader.successor(iterate, 0); var commit = reader.successor(iterate, 1);
+		reader.begin(copy); var source = reader.slot(pointer, backing, index); var destination = reader.slot(pointer, allocation, index); var value = reader.load(pointer, source); reader.store(value, destination); reader.store(nil, source); var increment = reader.binary(8, index, one); reader.jump(header); reader.incoming(index, zero, admitted, increment, copy);
+		reader.begin(commit); reader.store(allocation, base_address); reader.store(requested, capacity_address); reader.free(backing); reader.ret(yes); return reader.finish();
+	}
+	if (action == 2) {
+		var incoming = LLVMGetParam(function, 1); var absent = reader.compare(32, incoming, nil); var after_null = reader.guard(absent);
+		var full = reader.compare(39, count, capacity); var after_capacity = reader.guard(full);
+		var address = reader.slot(pointer, backing, count); var previous = reader.load(pointer, address); var occupied = reader.compare(33, previous, nil); var after_slot = reader.guard(occupied);
+		reader.store(incoming, address); var increment = reader.binary(8, count, one); reader.store(increment, count_address); reader.ret(null); return reader.finish();
+	}
+	if (action == 3 || action == 4) {
+		var index = LLVMGetParam(function, 1); var outside = reader.compare(35, index, count); var in_bounds = reader.guard(outside);
+		var address = reader.slot(pointer, backing, index); var previous = reader.load(pointer, address); var absent = reader.compare(32, previous, nil); var predecessor = reader.guard(absent);
+		if (action == 4) {
+			var incoming = LLVMGetParam(function, 2); var missing = reader.compare(32, incoming, nil); var after_null = reader.guard(missing); var alias = reader.compare(32, incoming, previous); var after_alias = reader.guard(alias);
+			reader.store(incoming, address); var arguments = new void*[1]; arguments[0] = previous; var call = reader.call(drops[element.type.index], arguments); reader.ret(null); return reader.finish();
+		}
+		var start = reader.binary(8, index, one); var header = reader.go(); reader.begin(header); var cursor = reader.take(44); if (!reader.valid || LLVMTypeOf(cursor) != i32) return false;
+		var more = reader.compare(40, cursor, count); var branch = reader.branch(more); var copy = reader.successor(branch, 0); var done = reader.successor(branch, 1);
+		reader.begin(copy); var source = reader.slot(pointer, backing, cursor); var prior = reader.binary(10, cursor, one); var destination = reader.slot(pointer, backing, prior); var value = reader.load(pointer, source); reader.store(value, destination); var increment = reader.binary(8, cursor, one); reader.jump(header); reader.incoming(cursor, start, predecessor, increment, copy);
+		reader.begin(done); var last = reader.binary(10, count, one); var vacated = reader.slot(pointer, backing, last); reader.store(nil, vacated); reader.store(last, count_address); reader.ret(previous); return reader.finish();
+	}
+	var header = reader.go(); reader.begin(header); var remaining = reader.take(44); if (!reader.valid || LLVMTypeOf(remaining) != i32) return false;
+	var more = reader.compare(38, remaining, zero); var branch = reader.branch(more); var retire = reader.successor(branch, 0); var done = reader.successor(branch, 1);
+	reader.begin(retire); var index = reader.binary(10, remaining, one); var address = reader.slot(pointer, backing, index); var value = reader.load(pointer, address); reader.store(nil, address); reader.store(index, count_address);
+	var arguments = new void*[1]; arguments[0] = value; var call = reader.call(drops[element.type.index], arguments); reader.jump(header); reader.incoming(remaining, count, initial, index, retire);
+	reader.begin(done); reader.free(backing); reader.store(nil, base_address); reader.store(zero, count_address); reader.store(zero, capacity_address); reader.ret(null); return reader.finish();
+}
+
+bool llvm_storage_slots_verify(void* module, ClassStoragePlan plan, CheckedIndex checked, void*[] types, void*[] drops, void*[] slots) throws Error {
+	if (len(slots) != len(types) * 6) return false;
+	int t = 0;
+	while (t < len(types)) {
+		bool required = checked.class_storage && t > 0 && plan.types[t].state == 2 && plan.types[t].kind == 23;
+		int action = 0;
+		while (action < 6) {
+			var function = slots[t * 6 + action];
+			if (required && action != 0) {
+				if (types[t] == null) return false;
+				if (!llvm_storage_function_live(module, function)) return false;
+				if (!llvm_storage_slot_verified(checked, type_id(t), action, function, types, drops)) return false;
+			} else {
+				if (function != null) return false;
+			}
+			action = action + 1;
+		}
+		t = t + 1;
+	}
+	return true;
+}

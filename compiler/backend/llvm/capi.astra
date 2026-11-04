@@ -34,6 +34,16 @@ extern(C) void* LLVMPointerTypeInContext(void* context, int space);
 
 extern(C) void* LLVMStructTypeInContext(void* context, void* fields, int count, int packed);
 
+[CCode(text_abi="utf8-i32")]
+extern(C) void* llvm15_struct(void* context, borrowed string name);
+
+[CCode(text_abi="utf8-i32")]
+extern(C) int llvm15_struct_named(void* type, borrowed string name);
+
+extern(C) void LLVMStructSetBody(void* type, void* fields, int count, int packed);
+
+extern(C) void* LLVMBuildGEP2(void* builder, void* type, void* pointer, void* indices, int count, void* name);
+
 extern(C) void* LLVMFunctionType(void* result, void* parameters, int count, int variadic);
 
 extern(C) void* LLVMGetParam(void* function, int index);
@@ -49,6 +59,8 @@ extern(C) void* LLVMTypeOf(void* value);
 extern(C) void* LLVMBuildAlloca(void* builder, void* type, void* name);
 
 extern(C) void* LLVMBuildLoad2(void* builder, void* type, void* pointer, void* name);
+
+extern(C) int LLVMGetAlignment(void* value);
 
 extern(C) void* LLVMBuildStore(void* builder, void* value, void* pointer);
 

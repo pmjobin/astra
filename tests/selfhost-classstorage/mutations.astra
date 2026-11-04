@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Substantive representation/source-owner mutations with fresh valid controls.
+// The consumer decides validity; a producer snapshot is never a certificate.
+bool class_storage_plan_fault(ClassStoragePlan plan, CheckedIndex checked, int category) {
+	if (category == 0) {
+		var other = new TypeOwner(); var identity = shared_acquire(move other); plan.identity = move identity; return true;
+	}
+	if (category == 15) {
+		plan.pointer_alignment = 4;
+		return true;
+	}
+	int t = 1;
+	while (t < len(plan.types)) {
+		var row = plan.types[t];
+		if (row.state == 2 && row.kind == 31) {
+			if (category == 1) {
+				row.nominal = row.nominal + 1;
+				plan.types[t] = row;
+				return true;
+			}
+			if (category == 2) {
+				row.kind = 30;
+				plan.types[t] = row;
+				return true;
+			}
+			if (category == 3) {
+				row.size = 16;
+				plan.types[t] = row;
+				return true;
+			}
+			if (category == 4) {
+				row.payload_size = row.payload_size + 1;
+				plan.types[t] = row;
+				return true;
+			}
+			if (category == 5) {
+				row.payload_alignment = 16;
+				plan.types[t] = row;
+				return true;
+			}
+			if (category == 6 && row.fields > 0) {
+				row.fields = row.fields - 1;
+				plan.types[t] = row;
+				return true;
+			}
+		}
+		if (category == 12 && row.state == 2 && row.kind == 23) {
+			row.size = 8;
+			plan.types[t] = row;
+			return true;
+		}
+		if (category == 13 && row.state == 2 && row.kind == 30) {
+			row.size = row.size + 1;
+			plan.types[t] = row;
+			return true;
+		}
+		t = t + 1;
+	}
+	int s = 1;
+	while (s < len(plan.fields)) {
+		var field = plan.fields[s];
+		if (field.symbol > 0) {
+			if (category == 7) {
+				field.owner = field.owner + 1;
+				plan.fields[s] = field;
+				return true;
+			}
+			if (category == 8 && plan.types[field.owner].fields > 1) {
+				field.ordinal = (field.ordinal + 1) % plan.types[field.owner].fields;
+				plan.fields[s] = field;
+				return true;
+			}
+			if (category == 9) {
+				int other = 1;
+				if (field.semantic == 1) other = 11;
+				field.semantic = other;
+				plan.fields[s] = field;
+				return true;
+			}
+			if (category == 10) {
+				field.offset = field.offset + 1;
+				plan.fields[s] = field;
+				return true;
+			}
+			if (category == 11 && (field.flags & 4) != 0) {
+				field.flags = field.flags & ~4;
+				plan.fields[s] = field;
+				return true;
+			}
+			if (category == 14) {
+				field.symbol = field.symbol + 1;
+				plan.fields[s] = field;
+				return true;
+			}
+			if (category == 16) {
+				int unused = 1;
+				while (unused < len(plan.fields)) {
+					if (plan.fields[unused].symbol == 0) {
+						plan.fields[unused] = field;
+						return true;
+					}
+					unused = unused + 1;
+				}
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
+void class_storage_plan_observation(ClassStoragePlan plan) throws Error {
+	var output = new Utf8ByteBuilder(); int t = 1;
+	while (t < len(plan.types)) {
+		var row = plan.types[t];
+		if (row.state != 0) {
+			source_append_text(output, " MODEL_TYPE"); flow_number(output, row.semantic); flow_number(output, row.nominal); flow_number(output, row.kind); flow_number(output, row.size); flow_number(output, row.alignment); flow_number(output, row.fields); flow_number(output, row.payload_size); flow_number(output, row.payload_alignment);
+		}
+		t = t + 1;
+	}
+	int s = 1;
+	while (s < len(plan.fields)) {
+		var row = plan.fields[s];
+		if (row.symbol != 0) {
+			source_append_text(output, " MODEL_FIELD");
+			flow_number(output, s);
+			flow_number(output, row.owner);
+			flow_number(output, row.symbol);
+			flow_number(output, row.ordinal);
+			flow_number(output, row.semantic);
+			flow_number(output, row.flags);
+			flow_number(output, row.offset);
+		}
+		s = s + 1;
+	}
+	var text = output.snapshot();
+	print(text.text);
+}
+
+void class_storage_model_mutations(FlowIndex flow) throws Error {
+	assert_that(flow.checked.class_storage && flow_status(flow) == 0 && admit_verify_index(flow));
+	int category = 0;
+	while (category <= 16) {
+		var valid = class_storage_plan(flow.checked); assert_that(class_storage_verify(valid, flow.checked));
+		var forged = class_storage_plan(flow.checked);
+		if (class_storage_plan_fault(forged, flow.checked, category)) {
+			assert_that(!class_storage_verify(forged, flow.checked));
+			var restored = class_storage_plan(flow.checked); assert_that(class_storage_verify(restored, flow.checked));
+			var label = new Utf8ByteBuilder(); source_append_text(label, "CLASS_STORAGE_MODEL_MUTATION"); flow_number(label, category); var prefix = label.snapshot(); print(prefix.text); class_storage_plan_observation(valid); print(" MUTANT"); class_storage_plan_observation(forged); print(" RESTORED"); class_storage_plan_observation(restored); println("");
+			assert_that(admit_verify_index(flow));
+		}
+		category = category + 1;
+	}
+}
+
+void class_storage_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 60;
+	while (category <= 78) {
+		var baseline = llvm_lower(program, program, profile); assert_that(baseline.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile);
+		if (mutant.storage_fault(category)) {
+			int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+			bool rejected = false;
+			try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; }
+			assert_that(rejected);
+			var prefix = llvm_name("CLASS_STORAGE_NATIVE_MUTATION ", category); print(prefix.text); var boundary = llvm_name(" ", stage); print(boundary.text); print(" ");
+			baseline.snapshot(); print(" "); mutant.snapshot(); print(" "); mutant.close();
+			var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0); restored.snapshot(); println("");
+			var after = ssa_test_snapshot(program.data); assert_that(upstream.text == after.text && ssa_verify(program) == 0);
+		}
+		category = category + 1;
+	}
+}
