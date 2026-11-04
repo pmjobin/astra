@@ -22,8 +22,8 @@ fields of that parameter, optional scalar fields, one bounded constructor and
 nonvirtual nonthrowing methods. The inherited `ExactHeapClass` constraint remains
 checked when present. Unconstrained declarations such as the unchanged library
 `Vector<T>` do not acquire an invented constraint. Concrete elements must be
-qualified exact Classes or plain copyable records. Owning records, generic-Class
-elements, Resources, shared/weak policies and arbitrary destructor/allocator
+qualified exact Classes or plain copyable records with one to 128 fields. Owning
+records, generic-Class elements, Resources, shared/weak policies and arbitrary destructor/allocator
 contracts remain outside this storage policy. C0 rejects `Vector<int>` because
 `int[slots]` is an invalid ordinary array extent; scalar-slot semantics are not
 introduced here.
