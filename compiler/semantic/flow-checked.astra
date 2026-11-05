@@ -264,6 +264,16 @@ TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId to
 	// receiver storage exists until the independently checked specialization.
 	if (index.class_storage && index.generic_definition && symbol.kind == 11 && class_storage_member_template(index, context.owner)) return index.symbol_types[symbol.owner.index];
 	if (symbol.kind == 12 && symbol.owner.index != 0 && checked_flow_receiver_shape(index, index.symbol_types[symbol.owner.index])) return index.symbol_types[symbol.owner.index];
+	// Original nongeneric method bodies also have a lexical receiver. Its
+	// nominal type is a member-selection authority, not a native storage proof:
+	// unrelated throwing methods or unsupported fields must not erase it.
+	// Flow/Core and the independent layout consumer still qualify the complete
+	// containing Class before constructing an executable field Place.
+	if (index.class_storage && symbol.kind == 11 && symbol.owner.index > 0 && index.bindings.program.arena.get_int_dispatch(symbol.node) == 0) {
+		var owner = index.bindings.symbol(symbol.owner);
+		var type = index.symbol_types[symbol.owner.index];
+		if (owner.kind == 4 && checked_kind(index, type) == 31 && index.types.row(type).nominal.index == symbol.owner.index && index.bindings.program.arena.get_node_parent_class(owner.node).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(owner.node)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(symbol.node)) == 0) return type;
+	}
 	return no_type();
 }
 

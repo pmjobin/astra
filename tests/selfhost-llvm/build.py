@@ -83,7 +83,7 @@ def main():
 	missing = [name for name in imports if name not in defined and not hasattr(library, name)]
 	assert not missing, ('missing qualified LLVM C ABI symbols', missing)
 	(attempt/'llvm-symbols.json').write_text(json.dumps(dict(library=core.base.sha(library_path), imports=imports, shim_symbols=sorted(defined)), indent=2)+'\n')
-	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=sources(), product_prefix='astra-llvm-', link_objects=[shim], link_libraries=[library_name], link_inputs=[library_path, *map(Path, deps), Path(__file__), recipe_root/'tests/selfhost-typecore/build.py', recipe_root/'tests/selfhost-coreir/build.py'])
+	products = core.base.build(a.compiler.resolve(), a.build.resolve(), capture, a.mode or ('O0', 'O2'), consumer=ROOT/'tests/selfhost-llvm/query.astra', with_flow=True, extra_sources=[*sources(), ROOT/'tests/selfhost-slotswap/check.astra'], product_prefix='astra-llvm-', link_objects=[shim], link_libraries=[library_name], link_inputs=[library_path, *map(Path, deps), Path(__file__), recipe_root/'tests/selfhost-typecore/build.py', recipe_root/'tests/selfhost-coreir/build.py'])
 	(attempt/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 
 

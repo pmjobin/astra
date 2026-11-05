@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Observation only: never fabricates a binding or a checked fact.
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1);
+		var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		var out = new Utf8ByteBuilder();
+		int n = 1;
+		while (n <= checked.generic_nodes) {
+			SyntaxNodeId node = {index = n};
+			if (checked.bindings.program.arena.kind(node) == SyntaxKind.SwapStatementSyntax()) {
+				var span = checked.bindings.program.arena.header(node).span;
+				if (span.source.index == checked.error_span.source.index && span.start == checked.error_span.start) {
+					source_append_text(out, "STOP "); binding_write_span(checked.bindings, span, out); source_append_text(out, "\n");
+					diagnose_operand(checked, checked.bindings.program.arena.get_node_left(node), out);
+					diagnose_operand(checked, checked.bindings.program.arena.get_node_right(node), out);
+				}
+			}
+			n = n + 1;
+		}
+		var text = out.snapshot(); print(text.text);
+		var observation = checked_observation(checked); print(observation.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 3; }
+}
+
+void diagnose_number(Utf8ByteBuilder out, int value) throws Error {
+	source_append_text(out, " "); append_int(out, value);
+}
+
+void diagnose_operand(CheckedIndex checked, SyntaxNodeId node, Utf8ByteBuilder out) throws Error {
+	var token = checked.bindings.program.arena.get_token_identifier(node);
+	if (checked.bindings.program.arena.kind(node) == SyntaxKind.FieldAccessExpressionSyntax()) token = checked.bindings.program.arena.get_token_field_name(node);
+	var symbol = checked_target(checked, node, token);
+	source_append_text(out, "OPERAND"); diagnose_number(out, node.index); diagnose_number(out, owner_exchange_slot_failure(checked, node));
+	diagnose_number(out, symbol.index); diagnose_number(out, checked.uses[node.index].type.index); diagnose_number(out, checked.uses[node.index].flags);
+	if (symbol.index > 0) {
+		diagnose_number(out, checked.bindings.symbol(symbol).kind); diagnose_number(out, checked.symbol_types[symbol.index].index); diagnose_number(out, checked.symbol_flags[symbol.index]);
+		var type = checked.symbol_types[symbol.index];
+		if (checked_kind(checked, type) == 22) {
+			var element = checked.types.argument(checked.types, type, 0);
+			diagnose_number(out, element.type.index); diagnose_number(out, checked_kind(checked, element.type));
+			diagnose_number(out, element.flags);
+			if (class_storage_slot_element_verified(checked, element.type, 0)) source_append_text(out, " ELEMENT_VERIFIED");
+			if (checked_record_owned(checked, element.type, 0)) source_append_text(out, " OWNING_RECORD");
+		}
+	}
+	source_append_text(out, "\n");
+	var scope = checked.bindings.scope_for_node(node);
+	while (scope.index > 0) {
+		var owner = checked.bindings.scope(scope).owner;
+		if (owner.index > 0) {
+			var member = checked.bindings.symbol(owner);
+			source_append_text(out, "CONTEXT"); diagnose_number(out, owner.index); diagnose_number(out, member.kind); diagnose_number(out, member.owner.index); diagnose_number(out, class_storage_receiver(checked, owner));
+			if (member.kind == 11 && member.owner.index > 0) {
+				if (class_storage_declaration(checked, member.owner)) source_append_text(out, " CLASS_DECLARATION");
+				if (class_storage_class(checked, checked.symbol_types[member.owner.index])) source_append_text(out, " CLASS_STORAGE");
+				var declaration = checked.bindings.symbol(member.owner);
+				var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+				int i = 0;
+				while (i < checked.bindings.program.arena.list_count(fields)) {
+					var field = checked.bindings.program.arena.node_at(fields, i);
+					var name = checked.bindings.program.arena.get_token_name(field);
+					if (generic_token_equal(checked, token, name)) {
+						var id = checked.node_symbols[field.index];
+						source_append_text(out, " DECLARED_FIELD"); diagnose_number(out, id.index); diagnose_number(out, checked.symbol_types[id.index].index); diagnose_number(out, checked.symbol_flags[id.index]);
+					}
+					i = i + 1;
+				}
+			}
+			source_append_text(out, "\n");
+		}
+		scope = checked.bindings.scope(scope).parent;
+	}
+}

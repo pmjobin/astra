@@ -2,6 +2,7 @@
 // The new private profile is selected explicitly. Existing native-ABI commands
 // retain their original admission and hidden borrowed-receiver contract.
 string llvm_class_command(string command) {
+	if (command == "--classstorage-slotswap-mutations") return "--slotswap-mutations";
 	if (command == "--classstorage-resource-mutations") return "--resource-mutations";
 	if (command == "--classstorage-source-ledger") return "--source-ledger";
 	if (command == "--classstorage-ownexchange-mutations") return "--ownexchange-mutations";
@@ -35,7 +36,7 @@ int main(string[] args) {
 	}
 	var mapped = llvm_class_command(args[1]); var command = args[1];
 	if (mapped != "") command = mapped;
-	if (command != "--resource-mutations" && command != "--source-ledger" && command != "--ownexchange-mutations" && command != "--indexpath-loan-mutations" && command != "--indexpath-substitution-mutations" && command != "--indexpath-mutations" && command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations" && command != "--genclass-consumer" && command != "--genclass-model-mutations" && command != "--genclass-native-mutations" && command != "--text-model-mutations" && command != "--text-native-mutations" && command != "--text-release-mutations") return llvm_ssa_cli(args);
+	if (command != "--slotswap-mutations" && command != "--resource-mutations" && command != "--source-ledger" && command != "--ownexchange-mutations" && command != "--indexpath-loan-mutations" && command != "--indexpath-substitution-mutations" && command != "--indexpath-mutations" && command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations" && command != "--genclass-consumer" && command != "--genclass-model-mutations" && command != "--genclass-native-mutations" && command != "--text-model-mutations" && command != "--text-native-mutations" && command != "--text-release-mutations") return llvm_ssa_cli(args);
 	if (len(args) < 5) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
@@ -104,6 +105,10 @@ int main(string[] args) {
 			throw new Error(stage.text);
 		}
 		if (command == "--text-release-mutations") text_release_core_mutations(core);
+		if (command == "--slotswap-mutations") {
+			slotswap_record_mutations(core);
+			return 0;
+		}
 		if (command == "--ownexchange-mutations") owner_exchange_core_mutations(core);
 		if (command == "--indexpath-mutations") indexpath_core_mutations(core);
 		if (command == "--indexpath-loan-mutations") {

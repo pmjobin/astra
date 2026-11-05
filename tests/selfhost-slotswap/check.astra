@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Record-specific authority mutations consumed by the actual Core firewall.
+void slotswap_record_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0);
+	int capture = -1; int field = 0; int nested = 0; int record = 0; int local = 0; int i = 0;
+	while (i < program.data.node_count) {
+		var node = program.data.nodes[i];
+		if (node.kind == 34) {
+			var place = program.data.places[node.place - 1];
+			if (place.field > 0) {
+				capture = i;
+				field = place.symbol.index;
+			}
+			if (place.field == 0) local = place.symbol.index;
+		}
+		i = i + 1;
+	}
+	assert_that(capture >= 0 && field > 0 && local > 0);
+	var buffer = program.flow.checked.symbol_types[field]; var element = program.flow.checked.types.argument(program.flow.checked.types, buffer, 0);
+	assert_that(checked_kind(program.flow.checked, element.type) == 30);
+	record = program.flow.checked.types.row(element.type).nominal.index;
+	var declaration = program.flow.checked.bindings.symbol(type_symbol(record)); var fields = program.flow.checked.bindings.program.arena.get_list_fields(declaration.node);
+	i = 0;
+	while (i < program.flow.checked.bindings.program.arena.list_count(fields)) {
+		var node = program.flow.checked.bindings.program.arena.node_at(fields, i); var symbol = program.flow.checked.node_symbols[node.index];
+		if (checked_kind(program.flow.checked, program.flow.checked.symbol_types[symbol.index]) == 30) nested = symbol.index;
+		i = i + 1;
+	}
+	assert_that(nested > 0);
+	var before = core_projection(program); int category = 0;
+	while (category < 14) {
+		int stage = 0;
+		if (category < 4) {
+			int original = program.flow.checked.symbol_flags[nested]; int value = 4;
+			if (category == 1) value = 2;
+			if (category == 2) value = 128;
+			if (category == 3) value = 1;
+			program.flow.checked.symbol_flags[nested] = value; stage = core_verify(program); program.flow.checked.symbol_flags[nested] = original;
+		}
+		if (category == 4 || category == 5) {
+			var original = program.flow.checked.symbol_types[nested]; var value = type_id(15);
+			if (category == 5) {
+				var binding = program.flow.checked.bindings.symbol(type_symbol(field));
+				value = program.flow.checked.symbol_types[binding.owner.index];
+			}
+			program.flow.checked.symbol_types[nested] = value; stage = core_verify(program); program.flow.checked.symbol_types[nested] = original;
+		}
+		if (category >= 6 && category <= 8) {
+			int id = record; if (category == 7) id = nested; if (category == 8) id = field;
+			var original = program.flow.checked.bindings.symbol(type_symbol(id)); var value = original;
+			if (category == 6) value.kind = 4;
+			if (category == 7) value.owner = type_symbol(field);
+			if (category == 8) value.owner = type_symbol(record);
+			program.flow.checked.bindings.replace_instance_symbol(type_symbol(id), value); stage = core_verify(program); program.flow.checked.bindings.replace_instance_symbol(type_symbol(id), original);
+		}
+		if (category == 9 || category == 10) {
+			int id = field; if (category == 10) id = local;
+			int original = program.flow.checked.symbol_flags[id]; int value = original | 128; if (category == 10) value = 2;
+			program.flow.checked.symbol_flags[id] = value; stage = core_verify(program); program.flow.checked.symbol_flags[id] = original;
+		}
+		if (category == 11) {
+			var original = program.flow.checked.symbol_types[local]; program.flow.checked.symbol_types[local] = element.type; stage = core_verify(program); program.flow.checked.symbol_types[local] = original;
+		}
+		if (category == 12) {
+			int id = program.data.nodes[capture].source.index; var original = program.flow.checked.uses[id]; var value = original; value.span.end = value.span.end + 1;
+			program.flow.checked.uses[id] = value; stage = core_verify(program); program.flow.checked.uses[id] = original;
+		}
+		if (category == 13) {
+			int id = program.data.nodes[capture].source.index; int original = program.flow.proofs[id]; assert_that(original != 0);
+			program.flow.proofs[id] = 0; stage = core_verify(program); program.flow.proofs[id] = original;
+		}
+		assert_that(stage > 0 && stage != 2 && core_verify(program) == 0);
+		var after = core_projection(program); assert_that(before.text == after.text);
+		var out = new Utf8ByteBuilder(); source_append_text(out, "SLOTSWAP_RECORD_MUTATION"); flow_number(out, category); flow_number(out, stage); source_append_text(out, " VALID_RESTORED\n"); var text = out.snapshot(); print(text.text);
+		category = category + 1;
+	}
+}
