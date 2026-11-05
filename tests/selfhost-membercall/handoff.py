@@ -28,6 +28,15 @@ def main():
 				omissions.append(dict(path=name,bytes=path.stat().st_size,sha256=sha(path),reason='Exact predecessor report externally preserved, not duplicated in successor.')); continue
 			files[name] = path
 	collect(RUNTIME,'task-runtime'); collect(BUILD,'task-build')
+	for version in ('v1','v2','v3'):
+		identity = read(BUILD/('diagnosis-'+version)/'diagnose-O0.identity.json')
+		for source,value in identity['identity']['sources'].items():
+			path = Path(source)
+			if sha(path) != value:
+				assert version in ('v1','v2') and path.parent == ROOT/'tests/selfhost-membercall'
+				path = RUNTIME/'failed-observer-inputs'/(version+'-'+path.name)
+			assert sha(path) == value
+			files['compiled-inputs/'+value+'/'+Path(source).name] = path
 	for name in COHORTS:
 		ledger = PRIOR/('ledger-v1-'+name)/'ledger.json'; files['historical/ledger-before-'+name+'.json'] = ledger
 		for row in read(ledger)['files']:

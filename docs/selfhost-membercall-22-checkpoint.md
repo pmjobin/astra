@@ -129,6 +129,10 @@ only after exact process/argv revalidation. Its CPU/RSS total is unavailable;
 no whole frozen C0 success or complete cost measurement is claimed. Scoped C0
 dependency checks are a separate successful result. Cold observer build costs,
 fresh replay costs, logs and limitations are in the runtime audit.
+The failed observer source and recipe versions were recovered by reversing the
+documented edits and matching all four original pre-build SHA-256 identities.
+The first debugger command-registration attempt produced no operand evidence;
+only the successful command-file trace is credited.
 
 ## Resuming
 
