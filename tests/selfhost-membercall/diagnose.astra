@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only observation after checking; never completes a reference or type.
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1);
+		var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		var out = new Utf8ByteBuilder();
+		source_append_text(out, "STOP "); binding_write_span(checked.bindings, checked.error_span, out); source_append_text(out, "\n");
+		int n = 1;
+		while (n <= checked.generic_nodes) {
+			SyntaxNodeId node = {index = n};
+			var span = checked.bindings.program.arena.header(node).span;
+			if (span.source.index == checked.error_span.source.index && span.start >= checked.error_span.start && span.end <= checked.error_span.end) {
+				source_append_text(out, "NODE"); diagnose_number(out, n); diagnose_number(out, syntax_kind_code(checked.bindings.program.arena.kind(node))); diagnose_number(out, span.start); diagnose_number(out, span.end); diagnose_number(out, checked.uses[n].type.index); diagnose_number(out, checked.uses[n].flags); diagnose_number(out, checked.uses[n].deferred); source_append_text(out, "\n");
+				diagnose_type(checked, checked.uses[n].type, out);
+				int r = checked.node_references[n];
+				while (r != 0) {
+					var ref = checked.bindings.reference(r);
+					source_append_text(out, "REFERENCE"); diagnose_number(out, r); diagnose_number(out, ref.token.index); diagnose_number(out, ref.state_code); diagnose_number(out, ref.reason); diagnose_number(out, ref.target.index); diagnose_number(out, ref.alternative.index); source_append_text(out, "\n");
+					if (ref.target.index > 0) diagnose_symbol(checked, ref.target, out);
+					r = checked.reference_next[r];
+				}
+				if (checked.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax()) {
+					var token = checked.bindings.program.arena.get_token_receiver(node);
+					SymbolId receiver = {index = 0};
+					if (token.index > 0) receiver = checked_target(checked, node, token);
+					var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+					source_append_text(out, "CALL"); diagnose_number(out, n); diagnose_number(out, token.index); diagnose_number(out, checked.bindings.program.arena.get_node_receiver_place(node).index); diagnose_number(out, receiver.index); diagnose_number(out, target.index); diagnose_number(out, checked.generic_calls[n].index); source_append_text(out, "\n");
+					if (receiver.index > 0) {
+						diagnose_symbol(checked, receiver, out);
+						var member = checked_member(checked, checked.symbol_types[receiver.index], checked.bindings.program.arena.get_token_identifier(node));
+						if (member.index > 0) diagnose_symbol(checked, member, out);
+					}
+					var arguments = checked.bindings.program.arena.get_list_arguments(node); int i = 0;
+					while (i < checked.bindings.program.arena.list_count(arguments)) {
+						source_append_text(out, "ARGUMENT"); diagnose_number(out, i); diagnose_number(out, checked.bindings.program.arena.node_at(arguments, i).index); source_append_text(out, "\n"); i = i + 1;
+					}
+				}
+			}
+			n = n + 1;
+		}
+		var text = out.snapshot(); print(text.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 3; }
+}
+
+void diagnose_number(Utf8ByteBuilder out, int value) throws Error {
+	source_append_text(out, " "); append_int(out, value);
+}
+
+void diagnose_type(CheckedIndex checked, TypeId type, Utf8ByteBuilder out) throws Error {
+	if (type.index == 0) return;
+	var row = checked.types.row(type);
+	source_append_text(out, "TYPE"); diagnose_number(out, type.index); diagnose_number(out, row.kind); diagnose_number(out, row.nominal.index); diagnose_number(out, row.extent); diagnose_number(out, row.count); source_append_text(out, "\n");
+	int i = 0;
+	while (i < row.count) {
+		var edge = checked.types.argument(checked.types, type, i);
+		source_append_text(out, "EDGE"); diagnose_number(out, i); diagnose_number(out, edge.type.index); diagnose_number(out, edge.flags); source_append_text(out, "\n"); i = i + 1;
+	}
+}
+
+void diagnose_symbol(CheckedIndex checked, SymbolId id, Utf8ByteBuilder out) throws Error {
+	var symbol = checked.bindings.symbol(id);
+	int parameters = 0;
+	if (symbol.kind == 1 || symbol.kind == 3 || symbol.kind == 4 || symbol.kind == 11 || symbol.kind == 12) parameters = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(symbol.node));
+	source_append_text(out, "SYMBOL"); diagnose_number(out, id.index); diagnose_number(out, symbol.kind); diagnose_number(out, symbol.owner.index); diagnose_number(out, symbol.node.index); diagnose_number(out, checked.symbol_types[id.index].index); diagnose_number(out, checked.symbol_flags[id.index]); diagnose_number(out, checked.symbol_signatures[id.index].index); diagnose_number(out, parameters); diagnose_number(out, generic_instance_for(checked, id));
+	var name = checked.bindings.names.text(symbol.name); source_append_text(out, " "); source_append_text(out, name.text); source_append_text(out, "\n");
+	diagnose_type(checked, checked.symbol_types[id.index], out);
+	if (symbol.owner.index > 0) {
+		var owner = checked.bindings.symbol(symbol.owner);
+		parameters = 0;
+		if (owner.kind == 1 || owner.kind == 3 || owner.kind == 4 || owner.kind == 11 || owner.kind == 12) parameters = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(owner.node));
+		source_append_text(out, "OWNER"); diagnose_number(out, owner.kind); diagnose_number(out, owner.owner.index); diagnose_number(out, checked.symbol_types[symbol.owner.index].index); diagnose_number(out, parameters); source_append_text(out, "\n");
+	}
+}
