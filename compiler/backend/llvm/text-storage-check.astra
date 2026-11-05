@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent consumers of the physical counted-text graph. No emitter or
+// producer instruction inventory supplies operands, sizes, branches or bytes.
+bool llvm_text_op(void* value, int opcode) {
+	return value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == opcode;
+}
+
+bool llvm_text_extract(void* value, void* input, int field) {
+	return llvm_text_op(value, 53) && llvm13_index(value, 0, field) == 1 && LLVMGetOperand(value, 0) == input;
+}
+
+bool llvm_text_integer(void* value, int width, u64 bits) {
+	return value != null && LLVMIsAConstantInt(value) != null && LLVMGetIntTypeWidth(LLVMTypeOf(value)) == width && LLVMConstIntGetZExtValue(value) == bits;
+}
+
+bool llvm_text_compare(void* value, int predicate, void* left, void* right) {
+	return llvm_text_op(value, 42) && LLVMGetICmpPredicate(value) == predicate && LLVMGetOperand(value, 0) == left && LLVMGetOperand(value, 1) == right;
+}
+
+bool llvm_text_return(void* value, void* result) {
+	return llvm_text_op(value, 1) && LLVMGetNumOperands(value) == 1 && LLVMGetOperand(value, 0) == result && LLVMGetNextInstruction(value) == null;
+}
+
+bool llvm_text_branch(void* value, void* condition, void* yes, void* no) {
+	return llvm_text_op(value, 71) && LLVMGetCondition(value) == condition && LLVMGetNumSuccessors(value) == 2 && LLVMGetSuccessor(value, 0) == yes && LLVMGetSuccessor(value, 1) == no && LLVMGetNextInstruction(value) == null;
+}
+
+bool llvm_text_external(void* call, string name, int count) {
+	if (!llvm_text_op(call, 45) || LLVMGetNumArgOperands(call) != count || LLVMGetInstructionCallConv(call) != 0 || !llvm_check_attributes(call, count, 1)) return false;
+	var callee = LLVMGetCalledValue(call);
+	if (llvm13_named(callee, name) != 1 || LLVMCountParams(callee) != count || LLVMGetFirstBasicBlock(callee) != null || LLVMGetFunctionCallConv(callee) != 0 || !llvm_check_attributes(callee, count, 0) || LLVMGetReturnType(LLVMGlobalGetValueType(callee)) != LLVMTypeOf(call)) return false;
+	int i = 0;
+	while (i < count) {
+		if (LLVMTypeOf(LLVMGetParam(callee, i)) != LLVMTypeOf(LLVMGetArgOperand(call, i))) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool llvm_text_trap(void* block) {
+	if (block == null) return false;
+	var call = LLVMGetFirstInstruction(block);
+	if (!llvm_text_op(call, 45) || LLVMGetNumArgOperands(call) != 0 || LLVMGetInstructionCallConv(call) != 0 || !llvm_check_attributes(call, 0, 1)) return false;
+	var callee = LLVMGetCalledValue(call);
+	if (llvm13_named(callee, "llvm.trap") != 1 || LLVMCountParams(callee) != 0 || LLVMGetFirstBasicBlock(callee) != null || LLVMGetFunctionCallConv(callee) != 0 || LLVMGetTypeKind(LLVMTypeOf(call)) != 0) return false;
+	var end = LLVMGetNextInstruction(call);
+	return llvm_text_op(end, 7) && LLVMGetNextInstruction(end) == null;
+}
+
+bool llvm_text_snapshot_verified(void* function) {
+	if (function == null || llvm13_named(function, "astra.text.snapshot") != 1 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != 1 || LLVMGetFunctionCallConv(function) != 0 || !llvm_check_attributes(function, 1, 0)) return false;
+	var input = LLVMGetParam(function, 0); var carrier = LLVMTypeOf(input);
+	if (LLVMGetReturnType(LLVMGlobalGetValueType(function)) != carrier || LLVMGetTypeKind(carrier) != 10 || LLVMCountStructElementTypes(carrier) != 2) return false;
+	var entry = LLVMGetFirstBasicBlock(function); if (entry == null) return false;
+	var first_trap = LLVMGetNextBasicBlock(entry); if (!llvm_text_trap(first_trap)) return false;
+	var size = LLVMGetNextBasicBlock(first_trap); if (size == null) return false;
+	var empty = LLVMGetNextBasicBlock(size); if (empty == null) return false;
+	var allocate = LLVMGetNextBasicBlock(empty); if (allocate == null) return false;
+	var second_trap = LLVMGetNextBasicBlock(allocate); if (!llvm_text_trap(second_trap)) return false;
+	var copy = LLVMGetNextBasicBlock(second_trap); if (copy == null || LLVMGetNextBasicBlock(copy) != null) return false;
+	var base = LLVMGetFirstInstruction(entry); if (!llvm_text_extract(base, input, 0)) return false;
+	var count = LLVMGetNextInstruction(base); if (!llvm_text_extract(count, input, 1)) return false;
+	var negative = LLVMGetNextInstruction(count);
+	if (!llvm_text_op(negative, 42) || LLVMGetICmpPredicate(negative) != 40 || LLVMGetOperand(negative, 0) != count || !llvm_text_integer(LLVMGetOperand(negative, 1), 32, 0)) return false;
+	var absent = LLVMGetNextInstruction(negative);
+	if (!llvm_text_op(absent, 42) || LLVMGetICmpPredicate(absent) != 32 || LLVMGetOperand(absent, 0) != base || LLVMIsNull(LLVMGetOperand(absent, 1)) == 0) return false;
+	var nonempty = LLVMGetNextInstruction(absent);
+	if (!llvm_text_op(nonempty, 42) || LLVMGetICmpPredicate(nonempty) != 33 || LLVMGetOperand(nonempty, 0) != count || !llvm_text_integer(LLVMGetOperand(nonempty, 1), 32, 0)) return false;
+	var missing = LLVMGetNextInstruction(nonempty);
+	if (!llvm_text_op(missing, 23) || LLVMGetOperand(missing, 0) != nonempty || LLVMGetOperand(missing, 1) != absent) return false;
+	var invalid = LLVMGetNextInstruction(missing);
+	if (!llvm_text_op(invalid, 24) || LLVMGetOperand(invalid, 0) != negative || LLVMGetOperand(invalid, 1) != missing || !llvm_text_branch(LLVMGetNextInstruction(invalid), invalid, first_trap, size)) return false;
+	var zero = LLVMGetFirstInstruction(size);
+	if (!llvm_text_op(zero, 42) || LLVMGetICmpPredicate(zero) != 32 || LLVMGetOperand(zero, 0) != count || !llvm_text_integer(LLVMGetOperand(zero, 1), 32, 0) || !llvm_text_branch(LLVMGetNextInstruction(zero), zero, empty, allocate)) return false;
+	var empty_end = LLVMGetFirstInstruction(empty);
+	if (!llvm_text_op(empty_end, 1) || LLVMGetNumOperands(empty_end) != 1 || LLVMTypeOf(LLVMGetOperand(empty_end, 0)) != carrier || LLVMIsNull(LLVMGetOperand(empty_end, 0)) == 0 || LLVMGetNextInstruction(empty_end) != null) return false;
+	var wide = LLVMGetFirstInstruction(allocate);
+	if (!llvm_text_op(wide, 31) || LLVMGetOperand(wide, 0) != count || LLVMGetIntTypeWidth(LLVMTypeOf(wide)) != 64) return false;
+	var allocation = LLVMGetNextInstruction(wide);
+	if (!llvm_text_external(allocation, "calloc", 2) || LLVMGetArgOperand(allocation, 0) != wide || !llvm_text_integer(LLVMGetArgOperand(allocation, 1), 64, 1)) return false;
+	var exhausted = LLVMGetNextInstruction(allocation);
+	if (!llvm_text_op(exhausted, 42) || LLVMGetICmpPredicate(exhausted) != 32 || LLVMGetOperand(exhausted, 0) != allocation || LLVMIsNull(LLVMGetOperand(exhausted, 1)) == 0 || !llvm_text_branch(LLVMGetNextInstruction(exhausted), exhausted, second_trap, copy)) return false;
+	var copied = LLVMGetFirstInstruction(copy);
+	if (!llvm_text_external(copied, "memcpy", 3) || LLVMGetArgOperand(copied, 0) != allocation || LLVMGetArgOperand(copied, 1) != base || LLVMGetArgOperand(copied, 2) != wide) return false;
+	var aggregate = LLVMGetNextInstruction(copied);
+	if (!llvm_text_op(aggregate, 54) || llvm13_index(aggregate, 0, 0) != 1 || LLVMIsNull(LLVMGetOperand(aggregate, 0)) == 0 || LLVMGetOperand(aggregate, 1) != allocation) return false;
+	var result = LLVMGetNextInstruction(aggregate);
+	return llvm_text_op(result, 54) && llvm13_index(result, 0, 1) == 1 && LLVMGetOperand(result, 0) == aggregate && LLVMGetOperand(result, 1) == count && LLVMTypeOf(result) == carrier && llvm_text_return(LLVMGetNextInstruction(result), result);
+}
+
+bool llvm_text_equal_verified(void* function) {
+	if (function == null || llvm13_named(function, "astra.text.equal") != 1 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != 2 || LLVMGetFunctionCallConv(function) != 0 || !llvm_check_attributes(function, 2, 0)) return false;
+	var left = LLVMGetParam(function, 0); var right = LLVMGetParam(function, 1);
+	if (LLVMTypeOf(left) != LLVMTypeOf(right) || LLVMGetTypeKind(LLVMTypeOf(left)) != 10) return false;
+	var entry = LLVMGetFirstBasicBlock(function); if (entry == null) return false;
+	var size = LLVMGetNextBasicBlock(entry); if (size == null) return false;
+	var bytes = LLVMGetNextBasicBlock(size); if (bytes == null) return false;
+	var yes = LLVMGetNextBasicBlock(bytes); if (yes == null) return false;
+	var no = LLVMGetNextBasicBlock(yes); if (no == null || LLVMGetNextBasicBlock(no) != null) return false;
+	var count = LLVMGetFirstInstruction(entry); if (!llvm_text_extract(count, left, 1)) return false;
+	var other = LLVMGetNextInstruction(count); if (!llvm_text_extract(other, right, 1)) return false;
+	var equal = LLVMGetNextInstruction(other);
+	if (!llvm_text_compare(equal, 32, count, other) || !llvm_text_branch(LLVMGetNextInstruction(equal), equal, size, no)) return false;
+	var empty = LLVMGetFirstInstruction(size);
+	if (!llvm_text_op(empty, 42) || LLVMGetICmpPredicate(empty) != 32 || LLVMGetOperand(empty, 0) != count || !llvm_text_integer(LLVMGetOperand(empty, 1), 32, 0) || !llvm_text_branch(LLVMGetNextInstruction(empty), empty, yes, bytes)) return false;
+	var a = LLVMGetFirstInstruction(bytes); if (!llvm_text_extract(a, left, 0)) return false;
+	var b = LLVMGetNextInstruction(a); if (!llvm_text_extract(b, right, 0)) return false;
+	var wide = LLVMGetNextInstruction(b);
+	if (!llvm_text_op(wide, 31) || LLVMGetOperand(wide, 0) != count || LLVMGetIntTypeWidth(LLVMTypeOf(wide)) != 64) return false;
+	var compared = LLVMGetNextInstruction(wide);
+	if (!llvm_text_external(compared, "memcmp", 3) || LLVMGetArgOperand(compared, 0) != a || LLVMGetArgOperand(compared, 1) != b || LLVMGetArgOperand(compared, 2) != wide) return false;
+	var result = LLVMGetNextInstruction(compared);
+	if (!llvm_text_op(result, 42) || LLVMGetICmpPredicate(result) != 32 || LLVMGetOperand(result, 0) != compared || !llvm_text_integer(LLVMGetOperand(result, 1), 32, 0) || !llvm_text_return(LLVMGetNextInstruction(result), result)) return false;
+	var true_return = LLVMGetFirstInstruction(yes); var false_return = LLVMGetFirstInstruction(no);
+	return llvm_text_op(true_return, 1) && LLVMGetNumOperands(true_return) == 1 && llvm_text_integer(LLVMGetOperand(true_return, 0), 1, 1) && LLVMGetNextInstruction(true_return) == null && llvm_text_op(false_return, 1) && LLVMGetNumOperands(false_return) == 1 && llvm_text_integer(LLVMGetOperand(false_return, 0), 1, 0) && LLVMGetNextInstruction(false_return) == null;
+}
+
+bool llvm_text_snapshot_call(void* value, void* input) {
+	return llvm_text_op(value, 45) && LLVMGetNumArgOperands(value) == 1 && LLVMGetArgOperand(value, 0) == input && LLVMTypeOf(value) == LLVMTypeOf(input) && LLVMGetInstructionCallConv(value) == 0 && llvm_check_attributes(value, 1, 1) && llvm_text_snapshot_verified(LLVMGetCalledValue(value));
+}
+
+bool llvm_text_equal_call(void* value, void* left, void* right, bool inverse) {
+	var call = value;
+	if (inverse) {
+		if (!llvm_text_op(value, 25) || !llvm_text_integer(LLVMGetOperand(value, 1), 1, 1)) return false;
+		call = LLVMGetOperand(value, 0);
+	}
+	return llvm_text_op(call, 45) && LLVMGetNumArgOperands(call) == 2 && LLVMGetArgOperand(call, 0) == left && LLVMGetArgOperand(call, 1) == right && LLVMGetInstructionCallConv(call) == 0 && llvm_check_attributes(call, 2, 1) && llvm_text_equal_verified(LLVMGetCalledValue(call));
+}

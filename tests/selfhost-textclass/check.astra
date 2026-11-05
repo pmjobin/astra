@@ -1,0 +1,175 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int text_model_stage(FlowIndex flow) {
+	int s = 1;
+	while (s <= flow.checked.bindings.symbol_count) {
+		var symbol = flow.checked.bindings.symbol(type_symbol(s));
+		if (symbol.kind == 4 && !generic_template(flow.checked, type_symbol(s)) && !class_storage_source_verified(flow.checked, flow.checked.symbol_types[s], false, 0)) return 1;
+		s = s + 1;
+	}
+	if (!generic_verify(flow.checked)) return 2;
+	if (!admit_verify_index(flow)) return 3;
+	return 0;
+}
+
+int text_graph_projection(borrowed FlowGraph graph, int field) {
+	int f = 0;
+	while (f < graph.field_count) {
+		if (graph.fields[f].symbol.index == field) return f + 1;
+		f = f + 1;
+	}
+	return 0;
+}
+
+FlowField text_graph_change(borrowed FlowGraph graph, int projection, int category) {
+	var old = graph.fields[projection - 1]; var changed = old;
+	if (category == 8) changed.type = type_id(1);
+	if (category == 9) changed.flags = changed.flags ^ 128;
+	graph.fields[projection - 1] = changed;
+	return old;
+}
+
+void text_graph_restore(borrowed FlowGraph graph, int projection, FlowField original) {
+	graph.fields[projection - 1] = original;
+}
+
+void text_model_mutations(FlowIndex flow) throws Error {
+	assert_that(flow_status(flow) == 0 && text_model_stage(flow) == 0);
+	int field = 0; int property = 0; int constructor = 0; int g = 0; int projection = 0; int s = 1;
+	while (s <= flow.checked.bindings.symbol_count) {
+		var symbol = flow.checked.bindings.symbol(type_symbol(s));
+		if (symbol.kind == 6 && flow.checked.symbol_types[s].index == 15) field = s;
+		if (symbol.kind == 14 && flow.checked.symbol_types[s].index == 15) property = s;
+		if (class_storage_initializing(flow.checked, type_symbol(s))) {
+			var parameters = flow.checked.bindings.program.arena.get_list_parameters(symbol.node);
+			if (flow.checked.bindings.program.arena.list_count(parameters) > 1) {
+				var parameter_node = flow.checked.bindings.program.arena.node_at(parameters, 1);
+				var parameter = flow.checked.node_symbols[parameter_node.index];
+				if (flow.checked.symbol_types[parameter.index].index == 15) constructor = parameter.index;
+			}
+		}
+		s = s + 1;
+	}
+	assert_that(field > 0 && property > 0 && constructor > 0);
+	int i = 0;
+	while (i < flow.graphs.count() && projection == 0) {
+		projection = text_graph_projection(flow.graphs.entries[i], field); g = i;
+		i = i + 1;
+	}
+	assert_that(projection > 0);
+	var property_symbol = flow.checked.bindings.symbol(type_symbol(property)); var property_node = property_symbol.node; var getter = flow.checked.bindings.program.arena.get_node_getter(property_node);
+	var body = flow.checked.bindings.program.arena.get_node_body(getter); var statement = flow.checked.bindings.program.arena.node_at(flow.checked.bindings.program.arena.get_list_statements(body), 0); var expression = flow.checked.bindings.program.arena.get_node_expression(statement);
+	var before = checked_observation(flow.checked); var flow_before = flow_observation(flow); int category = 0;
+	while (category < 12) {
+		int stage = 0;
+		if (category == 0 || category == 3 || category == 6) {
+			int symbol = field; if (category == 3) symbol = property; if (category == 6) symbol = constructor;
+			var old = flow.checked.symbol_types[symbol]; flow.checked.symbol_types[symbol] = type_id(1); stage = text_model_stage(flow); flow.checked.symbol_types[symbol] = old;
+		}
+		if (category == 1 || category == 2) {
+			int old = flow.checked.symbol_flags[field]; int changed = old & ~128; if (category == 2) changed = old | 4;
+			flow.checked.symbol_flags[field] = changed; stage = text_model_stage(flow); flow.checked.symbol_flags[field] = old;
+		}
+		if (category == 4) {
+			var old = flow.checked.bindings.program.arena.get_node_setter(property_node); flow.checked.bindings.program.arena.set_node_setter(property_node, getter); stage = text_model_stage(flow); flow.checked.bindings.program.arena.set_node_setter(property_node, old);
+		}
+		if (category == 5) {
+			var old = flow.checked.bindings.program.arena.get_token_identifier(expression); flow.checked.bindings.program.arena.set_token_identifier(expression, flow.checked.bindings.program.arena.get_token_field_name(expression)); stage = text_model_stage(flow); flow.checked.bindings.program.arena.set_token_identifier(expression, old);
+		}
+		if (category == 7) {
+			var old = flow.checked.uses[expression.index]; var changed = old; changed.span.start = changed.span.start + 1; flow.checked.uses[expression.index] = changed; stage = text_model_stage(flow); flow.checked.uses[expression.index] = old;
+		}
+		if (category == 8 || category == 9) {
+			var old = text_graph_change(flow.graphs.entries[g], projection, category);
+			stage = text_model_stage(flow);
+			text_graph_restore(flow.graphs.entries[g], projection, old);
+		}
+		if (category == 10 || category == 11) {
+			var plan = class_storage_plan(flow.checked); assert_that(class_storage_verify(plan, flow.checked));
+			if (category == 10) {
+				var old = plan.fields[field]; var changed = old; changed.offset = changed.offset + 8; plan.fields[field] = changed;
+			} else {
+				var old = plan.types[15]; var changed = old; changed.size = 8; plan.types[15] = changed;
+			}
+			if (!class_storage_verify(plan, flow.checked)) stage = 4;
+		}
+		assert_that(stage > 0 && text_model_stage(flow) == 0);
+		var after = checked_observation(flow.checked); var flow_after = flow_observation(flow); assert_that(before.text == after.text && flow_before.text == flow_after.text);
+		var output = new Utf8ByteBuilder(); source_append_text(output, "TEXT_MODEL_MUTATION"); flow_number(output, category); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+		category = category + 1;
+	}
+}
+
+void text_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 90;
+	while (category <= 97) {
+		var valid = llvm_lower(program, program, profile); assert_that(valid.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile); assert_that(mutant.text_fault(category) && mutant.llvm_valid());
+		int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+		bool rejected = false; try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+		var label = llvm_name("TEXT_NATIVE_MUTATION ", category); print(label.text); var boundary = llvm_name(" ", stage); print(boundary.text); print(" LLVM_VALID ");
+		valid.snapshot(); print(" "); mutant.snapshot(); print(" "); mutant.close();
+		var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0); restored.snapshot(); println("");
+		var after = ssa_test_snapshot(program.data); assert_that(after.text == upstream.text && ssa_verify(program) == 0);
+		category = category + 1;
+	}
+}
+
+void text_release_core_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0);
+	int at = -1; int other = 0; int plan = -1; int i = 0;
+	while (i < program.data.node_count) {
+		if (program.data.nodes[i].kind == 29) at = i;
+		i = i + 1;
+	}
+	assert_that(at >= 0); var retirement = program.data.nodes[at];
+	i = 0;
+	while (i < program.data.place_count) {
+		var place = program.data.places[i];
+		if (place.parent == 0 && place.function == retirement.function && (place.flags & 4) != 0 && place.type.index == program.data.places[retirement.place - 1].type.index && i + 1 != retirement.place) other = i + 1;
+		i = i + 1;
+	}
+	i = 0;
+	while (i < program.data.exit_count) {
+		if (program.data.exits[i].source.index == retirement.source.index && program.data.exits[i].function == retirement.function) plan = i;
+		i = i + 1;
+	}
+	assert_that(other > 0 && plan >= 0 && program.data.exits[plan].count == 1);
+	var before = core_projection(program); int category = 0;
+	while (category < 3) {
+		int stage = 0;
+		if (category == 0) {
+			var changed = retirement; changed.place = other; program.data.nodes[at] = changed;
+			stage = core_verify(program); program.data.nodes[at] = retirement;
+		}
+		if (category == 1) {
+			int cleanup = program.data.exits[plan].first; var old = program.data.cleanups[cleanup]; var changed = old; changed.place = other; changed.owner = other; program.data.cleanups[cleanup] = changed;
+			stage = core_verify(program); program.data.cleanups[cleanup] = old;
+		}
+		if (category == 2) {
+			var old = program.data.exits[plan]; var changed = old; changed.count = 0; program.data.exits[plan] = changed;
+			stage = core_verify(program); program.data.exits[plan] = old;
+		}
+		assert_that(stage > 0 && core_verify(program) == 0); var after = core_projection(program); assert_that(before.text == after.text);
+		var output = new Utf8ByteBuilder(); source_append_text(output, "TEXT_RELEASE_MUTATION"); flow_number(output, category); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+		category = category + 1;
+	}
+}
+
+void text_release_cfg_mutation(CfgProgram program) throws Error {
+	assert_that(cfg_verify(program) == 0); int at = -1; int other = 0; int i = 0;
+	while (i < program.data.instruction_count) {
+		var instruction = program.data.instructions[i];
+		if (instruction.opcode == 40 && instruction.origin > 0 && program.core.data.nodes[instruction.origin - 1].kind == 29) at = i;
+		i = i + 1;
+	}
+	assert_that(at >= 0); var original = program.data.instructions[at]; var cleanup = program.core.data.cleanups[original.contract - 1];
+	i = 0;
+	while (i < program.core.data.cleanup_count) {
+		var candidate = program.core.data.cleanups[i];
+		if (candidate.owner != cleanup.owner && candidate.type.index == cleanup.type.index) other = i + 1;
+		i = i + 1;
+	}
+	assert_that(other > 0); var before = cfg_projection(program); var changed = original; changed.contract = other; program.data.instructions[at] = changed;
+	int stage = cfg_verify(program); program.data.instructions[at] = original; assert_that(stage > 0 && cfg_verify(program) == 0);
+	var after = cfg_projection(program); assert_that(before.text == after.text); var output = new Utf8ByteBuilder(); source_append_text(output, "TEXT_RELEASE_MUTATION 3"); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+}

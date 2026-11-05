@@ -92,7 +92,7 @@ int core_source_place(CoreData core, CheckedIndex checked, int function, SyntaxN
 		}
 	}
 	if (parent == 0) return 0;
-	var field = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
+	var field = text_storage_verified_projection(checked, checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node)));
 	var f = core.functions[function - 1];
 	int i = f.place_first;
 	while (i < f.place_first + f.place_count) {
@@ -141,7 +141,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 	if (row.kind >= 15 && row.kind <= 18 || row.kind == 13 && checked.class_storage) return core_verify_class(core, checked, proofs, row, id, source, function, loop, depth, seen, seen_edges);
 	// Each kind checks its complete schema, including unused metadata. This also
 	// rejects a plausible value substituted into a writable-place channel.
-	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.kind != 14 && row.place != 0) return false;
+	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.kind != 14 && row.kind != 29 && row.place != 0) return false;
 	if (row.kind != 9 && (row.symbol.index != 0 || row.signature.index != 0)) return false;
 	if (row.kind != 4 && row.kind != 9 && row.kind != 25 && row.kind != 26 && row.target != 0) return false;
 	if (row.kind != 1 && row.kind != 2 && row.token.index != 0) return false;
@@ -150,7 +150,8 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 	if (row.kind != 6 && row.kind != 7 && row.kind != 23 && row.kind != 24 && row.b != 0) return false;
 	if (row.kind != 23 && row.c != 0) return false;
 	if (row.kind == 1) {
-		if (row.a != 0 || (kind != SyntaxKind.IntegerLiteralExpressionSyntax() && kind != SyntaxKind.FloatLiteralExpressionSyntax() && kind != SyntaxKind.BooleanLiteralExpressionSyntax())) return false;
+		if (row.a != 0 || (kind != SyntaxKind.IntegerLiteralExpressionSyntax() && kind != SyntaxKind.FloatLiteralExpressionSyntax() && kind != SyntaxKind.BooleanLiteralExpressionSyntax() && !(checked.class_storage && kind == SyntaxKind.TextLiteralExpressionSyntax()))) return false;
+		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) return row.token.index == checked.bindings.program.arena.get_token_token(source).index;
 		return row.token.index == checked.bindings.program.arena.get_token_literal(source).index;
 	}
 	if (row.kind == 2) {
@@ -258,7 +259,11 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 			}
 		}
 		if (row.kind == 22) value = checked.bindings.program.arena.get_node_expression(source);
-		if (place < 1 || place != row.place || row.type.index != core.places[place - 1].type.index || (row.kind == 22 && (core.places[place - 1].flags & 128) != 0)) return false;
+		if (place < 1 || place != row.place || row.type.index != core.places[place - 1].type.index) return false;
+		if (row.kind == 22 && (core.places[place - 1].flags & 128) != 0) {
+			var declaration = core.functions[function - 1].symbol;
+			if (!checked.class_storage || core.places[place - 1].parent == 0 || !class_storage_initializing(checked, declaration) || !class_storage_constructor_verified(checked, declaration)) return false;
+		}
 		return core_verify_child(core, checked, proofs, row.a, value, function, loop, 0, depth, seen, seen_edges) && core.nodes[row.a - 1].type.index == row.type.index;
 	}
 	if (row.kind == 23 || row.kind == 24) {
@@ -276,6 +281,11 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		return core_verify_child(core, checked, proofs, row.a, value, function, loop, 0, depth, seen, seen_edges) && (row.a == 0 || core.nodes[row.a - 1].type.index == row.type.index);
 	}
 	if (row.kind == 28) return kind == SyntaxKind.CallStatementSyntax() && core_verify_child(core, checked, proofs, row.a, checked.bindings.program.arena.get_node_call(source), function, loop, 0, depth, seen, seen_edges);
+	if (row.kind == 29) {
+		if (!checked.class_storage || kind != SyntaxKind.ReleaseStatementSyntax() || row.a != 0 || row.place < 1 || row.place > core.place_count) return false;
+		var symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_owner(source)); var place = core.places[row.place - 1];
+		return symbol.index > 0 && core_symbol_place(core, function, symbol) == row.place && place.parent == 0 && place.function == function && (place.flags & 4) != 0 && checked_kind(checked, place.type) == 31 && class_storage_source_verified(checked, place.type, false, 0);
+	}
 	return false;
 }
 
@@ -319,6 +329,21 @@ bool core_verify_responsibility(CoreData core, CheckedIndex checked, borrowed Fl
 				s = s - 1;
 			}
 			if (plan.count != cursors[1] - first) return false;
+			cursors[0] = cursors[0] + 1;
+		}
+		if (event.operation == 5 && checked.class_storage) {
+			if (event.slot < 1 || event.slot > graph.slot_count || cursors[0] >= core.exit_count) return false;
+			var slot = graph.slots[event.slot - 1];
+			if (!slot.owner || checked_kind(checked, slot.type) != 31 || checked.bindings.program.arena.kind(event.node) != SyntaxKind.ReleaseStatementSyntax() || checked_target(checked, event.node, checked.bindings.program.arena.get_token_owner(event.node)).index != slot.symbol.index) return false;
+			var plan = core.exits[cursors[0]];
+			if (plan.function != function || plan.source.index != event.node.index || plan.region != event.region || plan.witness != e + 1 || plan.first != cursors[1]) return false;
+			int state = graph.facts[e * graph.slot_count + event.slot - 1]; int count = 0;
+			if (graph.reachable[e] && (state & 1) != 0) {
+				int owner = f.place_first + event.slot;
+				if (!core_verify_cleanup_row(core, cursors[1], owner, owner, state)) return false;
+				cursors[1] = cursors[1] + 1; count = 1;
+			}
+			if (plan.count != count) return false;
 			cursors[0] = cursors[0] + 1;
 		}
 		e = e + 1;

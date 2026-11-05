@@ -5,6 +5,7 @@ bool core_class_source(CheckedIndex checked, SyntaxNodeId source) {
 	if (!checked.class_storage) return false;
 	if (class_storage_construction(checked, source) || class_storage_slot_call_present(checked, source) || class_storage_slot_capacity(checked, source)) return true;
 	var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.TextMemberExpressionSyntax() || text_storage_field_length(checked, source)) return true;
 	if (kind == SyntaxKind.NullPointerExpressionSyntax()) return checked_kind(checked, checked.uses[source.index].type) == 31;
 	if (kind == SyntaxKind.BufferAllocationSyntax()) return class_storage_slot_initialization(checked, source, checked.uses[source.index].type);
 	if (kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, source)) {
@@ -18,6 +19,23 @@ bool core_class_source(CheckedIndex checked, SyntaxNodeId source) {
 
 CoreNode core_lower_class(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, CoreNode input, int id, int function, int loop, int depth) {
 	var row = input; var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.TextMemberExpressionSyntax() || text_storage_field_length(checked, source)) {
+		row.kind = 18; row.target = 1;
+		SyntaxNodeId receiver = {index = 0};
+		if (kind == SyntaxKind.TextMemberExpressionSyntax()) {
+			receiver = checked.bindings.program.arena.get_node_receiver(source);
+		} else {
+			receiver = checked.bindings.program.arena.get_node_aggregate(source);
+		}
+		if (receiver.index > 0) {
+			row.place = core_lower_place(core, checked, graph, function, receiver);
+		} else {
+			int slot = graph.slot_for(checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)));
+			if (slot > 0) row.place = core.functions[function - 1].place_first + slot;
+		}
+		if (row.place == 0) core.status = 3;
+		return row;
+	}
 	if (kind == SyntaxKind.NullPointerExpressionSyntax()) {
 		row.kind = 17;
 		return row;

@@ -46,9 +46,13 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 			return id;
 		}
 	}
-	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
+	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax() || checked.class_storage && kind == SyntaxKind.TextLiteralExpressionSyntax()) {
 		row.kind = 1;
-		row.token = checked.bindings.program.arena.get_token_literal(source);
+		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) {
+			row.token = checked.bindings.program.arena.get_token_token(source);
+		} else {
+			row.token = checked.bindings.program.arena.get_token_literal(source);
+		}
 	} else {
 		if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
 			row.kind = 3;
@@ -246,6 +250,12 @@ CoreNode core_lower_statement(CoreData core, CheckedIndex checked, borrowed Flow
 		row.kind = 28;
 		row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_call(source), function, loop, 0, depth + 1);
 	}
+	if (checked.class_storage && kind == SyntaxKind.ReleaseStatementSyntax()) {
+		int slot = graph.slot_for(checked_target(checked, source, checked.bindings.program.arena.get_token_owner(source)));
+		if (slot > 0 && graph.slots[slot - 1].owner && checked_kind(checked, graph.slots[slot - 1].type) == 31) {
+			row.kind = 29; row.place = core.functions[function - 1].place_first + slot;
+		}
+	}
 	return row;
 }
 
@@ -307,6 +317,14 @@ void core_lower_responsibility(CoreData core, CheckedIndex checked, borrowed Flo
 				s = s - 1;
 			}
 			plan.count = core.cleanup_count - plan.first;
+			int added = core_add_exit(core, plan);
+		}
+		if (checked.class_storage && event.operation == 5 && event.slot > 0 && event.slot <= graph.slot_count && graph.slots[event.slot - 1].owner && checked_kind(checked, graph.slots[event.slot - 1].type) == 31) {
+			CoreExit plan = {function = function, source = event.node, region = event.region, witness = e + 1, first = core.cleanup_count, count = 0};
+			int state = graph.facts[e * graph.slot_count + event.slot - 1];
+			if (graph.reachable[e] && (state & 1) != 0) {
+				int owner = first + event.slot; core_lower_cleanup(core, owner, owner, state); plan.count = 1;
+			}
 			int added = core_add_exit(core, plan);
 		}
 		e = e + 1;

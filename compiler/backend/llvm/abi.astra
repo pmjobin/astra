@@ -99,9 +99,11 @@ void native_abi_layout(NativeAbiPlan plan, CheckedIndex checked, TypeId type, in
 					row.size = 8;
 					row.alignment = 8;
 				}
-				else { if (source.kind == 22 || checked.class_storage && source.kind == 23) {
-						var element = checked.types.argument(checked.types, type, 0);
-						native_abi_layout(plan, checked, element.type, depth + 1, budget);
+				else { if (source.kind == 22 || checked.class_storage && (source.kind == 15 || source.kind == 23)) {
+						if (source.kind != 15) {
+							var element = checked.types.argument(checked.types, type, 0);
+							native_abi_layout(plan, checked, element.type, depth + 1, budget);
+						}
 						row.size = 16;
 						row.alignment = 8;
 						row.count = 2;
@@ -243,7 +245,7 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 			}
 			if (source.kind == 11 && LLVMGetTypeKind(actual) != 2 || source.kind == 12 && LLVMGetTypeKind(actual) != 3 || source.kind == 14 && LLVMGetTypeKind(actual) != 0 || (source.kind == 16 || source.kind == 20) && LLVMGetTypeKind(actual) != 12) return false;
 			if (source.kind == 31 && ((!generic_empty_class(program.cfg.core.flow.checked, type_id(t)) && !class_storage_source_verified(program.cfg.core.flow.checked, type_id(t), false, 0)) || LLVMGetTypeKind(actual) != 12 || row.size != 8 || row.alignment != 8)) return false;
-			if (source.kind == 22) {
+			if (source.kind == 22 || source.kind == 15) {
 				if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) != 32 || LLVMOffsetOfElement(layout, actual, 0) != 0 || LLVMOffsetOfElement(layout, actual, 1) != 8) return false;
 			}
 			if (source.kind == 23) {

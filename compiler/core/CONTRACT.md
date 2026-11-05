@@ -25,6 +25,18 @@ ordinary returns and scope exits; custom destructors, release/replacement, forei
 calls, exceptions, unknown member effects and other unsupported policies defer.
 Ordinary mutable borrows imply no exclusivity. Nullness is separate from ownership.
 
+The explicitly selected private `class_storage` extension has a bounded text-owner
+contract (TEXTCLASS-17). Counted text literals retain decoded token payloads, and
+kind 18 also reads the byte count of an authoritative string place. A finite
+readonly string getter is a checked field projection. Kind 29 represents explicit
+release of a qualified owned Class root. Its exact source binding and owner are
+verified independently, and its EXIT witness addresses the corresponding Flow
+release event (operation 5). Ordinary scope witnesses still address operation 9.
+Both use the existing conditional cleanup actions through CFG/SSA/LLVM; a release
+cannot substitute another equal-typed owner or discard its cleanup obligation.
+These additions do not admit general release/replacement or exception policies
+in the base profile. Historical COREIR-9 qualifications below remain historical.
+
 The separate verifier must validate the complete model before reads, traversal or
 projection. It reconstructs source structure, types, field trees, call contracts,
 loan endpoints and cleanup plans from the retained authoritative stages. Builder

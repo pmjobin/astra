@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Finite readonly text accessors are source-bound projections. They never
+// transfer the snapshot owner and cannot execute arbitrary accessor bodies.
+SymbolId text_storage_property(CheckedIndex index, SyntaxNodeId node, SymbolId owner) {
+	if (!index.class_storage || index.bindings.program.arena.kind(node) != SyntaxKind.PropertyDeclarationSyntax() || index.bindings.program.arena.get_node_setter(node).index != 0 || index.bindings.program.arena.get_node_throws_class(node).index != 0 || index.bindings.program.arena.get_node_factory_syntax(node).index != 0 || index.bindings.program.arena.get_token_lazy_keyword(node).index != 0 || index.bindings.program.arena.get_token_owned_keyword(node).index != 0 || index.bindings.program.arena.get_int_dispatch(node) != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0) return type_symbol(0);
+	var type = index.bindings.program.arena.get_node_type_name(node);
+	if (index.bindings.program.arena.kind(type) != SyntaxKind.TypeNameSyntax() || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(type), "string")) return type_symbol(0);
+	var getter = index.bindings.program.arena.get_node_getter(node);
+	if (getter.index == 0 || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_keyword(getter), "get") || index.bindings.program.arena.get_node_parameter(getter).index != 0 || index.bindings.program.arena.get_node_foreign_member(getter).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(getter)) != 0) return type_symbol(0);
+	var body = index.bindings.program.arena.get_node_body(getter);
+	if (body.index == 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_statements(body)) != 1) return type_symbol(0);
+	var statement = index.bindings.program.arena.node_at(index.bindings.program.arena.get_list_statements(body), 0);
+	if (index.bindings.program.arena.kind(statement) != SyntaxKind.ReturnStatementSyntax()) return type_symbol(0);
+	var value = index.bindings.program.arena.get_node_expression(statement);
+	if (index.bindings.program.arena.kind(value) != SyntaxKind.FieldAccessExpressionSyntax() || index.bindings.program.arena.get_node_aggregate(value).index != 0 || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(value), "this")) return type_symbol(0);
+	int s = 1;
+	while (s <= index.bindings.symbol_count) {
+		var field = index.bindings.symbol(type_symbol(s));
+		if (field.kind == 6 && field.owner.index == owner.index && generic_token_equal(index, field.token, index.bindings.program.arena.get_token_field_name(value))) {
+			var source_type = index.bindings.program.arena.get_node_type_name(field.node);
+			if (index.bindings.program.arena.get_token_readonly_keyword(field.node).index == 0 || index.bindings.program.arena.get_token_owned_keyword(field.node).index != 0 || index.bindings.program.arena.kind(source_type) != SyntaxKind.TypeNameSyntax() || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(source_type), "string")) return type_symbol(0);
+			return type_symbol(s);
+		}
+		s = s + 1;
+	}
+	return type_symbol(0);
+}
+
+SymbolId text_storage_projection(CheckedIndex index, SymbolId member) {
+	if (member.index == 0) return member;
+	var symbol = index.bindings.symbol(member);
+	if (symbol.kind != 14) return member;
+	return text_storage_property(index, symbol.node, symbol.owner);
+}
+
+// A retained accessor is still checked source. Complete its original field
+// reference before the independent Class/capability consumer inspects it.
+void text_storage_check_accessors(CheckedIndex index) throws Error {
+	if (!index.class_storage) return;
+	int s = 1;
+	while (s <= index.generic_symbols) {
+		var property = index.bindings.symbol(type_symbol(s));
+		if (property.kind == 14) {
+			var field = text_storage_property(index, property.node, property.owner);
+			if (field.index != 0 && index.symbol_types[field.index].index == 15 && index.symbol_types[s].index == 15) {
+				var getter = index.bindings.program.arena.get_node_getter(property.node); var body = index.bindings.program.arena.get_node_body(getter);
+				var statement = index.bindings.program.arena.node_at(index.bindings.program.arena.get_list_statements(body), 0); var value = index.bindings.program.arena.get_node_expression(statement);
+				checked_complete_member(index, value, index.bindings.program.arena.get_token_field_name(value), field);
+				var recorded = index.record(value, type_id(15), 0);
+			}
+		}
+		s = s + 1;
+	}
+}
+
+bool text_storage_field_length(CheckedIndex index, SyntaxNodeId node) {
+	if (!index.class_storage || index.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax() || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_field_name(node), "byte_length")) return false;
+	var aggregate = index.bindings.program.arena.get_node_aggregate(node);
+	if (aggregate.index != 0) return index.uses[aggregate.index].type.index == 15;
+	var receiver = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+	return receiver.index > 0 && index.symbol_types[receiver.index].index == 15;
+}

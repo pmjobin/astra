@@ -19,7 +19,7 @@ spec.loader.exec_module(core)
 
 
 def sources():
-	return [*sorted((ROOT/'compiler/core').glob('*.astra')), *sorted((ROOT/'compiler/cfg').glob('*.astra')), ROOT/'tests/selfhost-coreir/mutations.astra', ROOT/'tests/selfhost-cfg/mutations.astra', *sorted((ROOT/'compiler/ssa').glob('*.astra')), ROOT/'tests/selfhost-ssa/predecessor.astra', ROOT/'tests/selfhost-ssa/mutations.astra', ROOT/'tests/selfhost-ssa/graphs.astra', ROOT/'tests/selfhost-llvm/ssa-cli.astra', ROOT/'tests/selfhost-generics/mutations.astra', ROOT/'tests/selfhost-classstorage/mutations.astra', ROOT/'tests/selfhost-genclass/check.astra', *sorted((ROOT/'compiler/backend/llvm').glob('*.astra'))]
+	return [*sorted((ROOT/'compiler/core').glob('*.astra')), *sorted((ROOT/'compiler/cfg').glob('*.astra')), ROOT/'tests/selfhost-coreir/mutations.astra', ROOT/'tests/selfhost-cfg/mutations.astra', *sorted((ROOT/'compiler/ssa').glob('*.astra')), ROOT/'tests/selfhost-ssa/predecessor.astra', ROOT/'tests/selfhost-ssa/mutations.astra', ROOT/'tests/selfhost-ssa/graphs.astra', ROOT/'tests/selfhost-llvm/ssa-cli.astra', ROOT/'tests/selfhost-generics/mutations.astra', ROOT/'tests/selfhost-classstorage/mutations.astra', ROOT/'tests/selfhost-genclass/check.astra', ROOT/'tests/selfhost-textclass/check.astra', *sorted((ROOT/'compiler/backend/llvm').glob('*.astra'))]
 
 
 def main():
@@ -77,7 +77,7 @@ def main():
 	if not shim.exists() or old != dict(inputs=identity, sha256=core.base.sha(shim)):
 		capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', ROOT/'compiler/backend/llvm/capi.c', '-o', shim], 'llvm-capi')
 		cache.write_text(json.dumps(dict(inputs=identity, sha256=core.base.sha(shim)), indent=2)+'\n')
-	defined = set(re.findall(r'\b(llvm(?:12|13|15)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
+	defined = set(re.findall(r'\b(llvm(?:12|13|15|17)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
 	library = ctypes.CDLL(str(library_path))
 	imports = re.findall(r'extern\(C\) (?:void\*|u64|int|void|f32|f64) (\w+)\(', (ROOT/'compiler/backend/llvm/capi.astra').read_text())
 	missing = [name for name in imports if name not in defined and not hasattr(library, name)]

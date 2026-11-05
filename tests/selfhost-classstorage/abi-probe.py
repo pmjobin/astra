@@ -50,7 +50,7 @@ def declarations(tree):
 			assert re.fullmatch(r'[A-Za-z_]\w*', name) and name not in result
 			fields = []
 			for child in node[2:]:
-				if isinstance(child, list) and child and child[0] in ('field', 'owned-field'):
+				if isinstance(child, list) and child and child[0] in ('field', 'owned-field', 'readonly-field'):
 					parts = {row[0]: row[1] for row in child[1:] if isinstance(row, list) and len(row) == 2}
 					assert set(parts) == {'name', 'type'}, parts
 					fields.append(dict(name=parts['name'], type=parts['type'], owned=child[0] == 'owned-field'))
@@ -65,7 +65,7 @@ def declarations(tree):
 
 def cpp_probe(decls):
 	names = {name: 'Payload'+str(i) for i, name in enumerate(decls)}
-	primitives = {'int': 'std::int32_t', 'i8': 'std::int8_t', 'u8': 'std::uint8_t', 'i16': 'std::int16_t', 'u16': 'std::uint16_t', 'i32': 'std::int32_t', 'u32': 'std::uint32_t', 'i64': 'std::int64_t', 'u64': 'std::uint64_t', 'f32': 'float', 'f64': 'double', 'bool': 'bool'}
+	primitives = {'int': 'std::int32_t', 'i8': 'std::int8_t', 'u8': 'std::uint8_t', 'i16': 'std::int16_t', 'u16': 'std::uint16_t', 'i32': 'std::int32_t', 'u32': 'std::uint32_t', 'i64': 'std::int64_t', 'u64': 'std::uint64_t', 'f32': 'float', 'f64': 'double', 'bool': 'bool', 'string': 'CountedText'}
 	def field_type(field):
 		value = field['type'].removeprefix('nonnull ')
 		if value.endswith('[slots]'): return 'OwnerSlots'
@@ -73,7 +73,7 @@ def cpp_probe(decls):
 		if value in primitives: return primitives[value]
 		assert value in decls, ('unqualified probe type', value)
 		return 'void*' if decls[value]['kind'] == 'class' else names[value]
-	lines = ['#include <cstdint>', '#include <cstddef>', '#include <cstdio>', '#include <type_traits>', 'struct Buffer { void* base; std::int32_t length; };', 'struct OwnerSlots { void* base; std::int32_t length; std::int32_t capacity; };']
+	lines = ['#include <cstdint>', '#include <cstddef>', '#include <cstdio>', '#include <type_traits>', 'struct Buffer { void* base; std::int32_t length; };', 'struct CountedText { const void* bytes; std::int32_t count; };', 'struct OwnerSlots { void* base; std::int32_t length; std::int32_t capacity; };']
 	pending, completed = list(decls), set()
 	while pending:
 		progress = False

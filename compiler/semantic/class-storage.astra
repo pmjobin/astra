@@ -47,6 +47,10 @@ class ClassStoragePlan {
 bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
 	var kind = index.bindings.program.arena.kind(member);
 	if (kind == SyntaxKind.StructFieldDeclarationSyntax()) return true;
+	if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
+		var symbol = index.node_symbols[member.index];
+		return symbol.index > 0 && text_storage_property(index, member, index.bindings.symbol(symbol).owner).index > 0;
+	}
 	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) return false;
 	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
@@ -93,6 +97,7 @@ bool class_storage_record_declaration(CheckedIndex index, TypeId type) {
 bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) {
 	if (!index.class_storage || depth > 32 || !index.types.valid_id(type)) return false;
 	int kind = checked_kind(index, type);
+	if (kind == 15) return (flags & 7) == 0 && (flags & 128) != 0;
 	if (type_numeric(kind) || kind == 13) return flags == 0;
 	if (kind == 22) {
 		var element = index.types.argument(index.types, type, 0);
@@ -320,11 +325,11 @@ void class_storage_layout(ClassStoragePlan plan, CheckedIndex index, TypeId type
 		row.size = 8;
 		row.alignment = 8;
 	}
-	if (source.kind == 22 || source.kind == 23) {
+	if (source.kind == 15 || source.kind == 22 || source.kind == 23) {
 		row.size = 16;
 		row.alignment = 8;
 	}
-	if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 16 && source.kind != 20 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) {
+	if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 15 && source.kind != 16 && source.kind != 20 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) {
 		throw new Error("CLASS_STORAGE_DEFERRED: representation");
 	}
 	if (source.kind == 30 || source.kind == 31) {

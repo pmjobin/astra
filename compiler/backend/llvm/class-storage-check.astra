@@ -146,7 +146,7 @@ bool llvm_storage_drop_verified(CheckedIndex checked, int type, void* payload, v
 	var cursor = LLVMGetFirstInstruction(retire); int f = checked.bindings.program.arena.list_count(fields) - 1;
 	while (f >= 0 && budget.take(1)) {
 		var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index];
-		if ((checked.symbol_flags[symbol.index] & 4) != 0) {
+		if ((checked.symbol_flags[symbol.index] & 4) != 0 || checked_kind(checked, checked.symbol_types[symbol.index]) == 15) {
 			if (cursor == null || LLVMGetInstructionOpcode(cursor) != 29 || LLVMGEPGetNoWrapFlags(cursor) != 0 || LLVMGetGEPSourceElementType(cursor) != payload || LLVMGetNumOperands(cursor) != 3 || LLVMGetOperand(cursor, 0) != object || LLVMIsAConstantInt(LLVMGetOperand(cursor, 1)) == null || LLVMIsAConstantInt(LLVMGetOperand(cursor, 2)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(cursor, 1)) != 0 || LLVMConstIntGetZExtValue(LLVMGetOperand(cursor, 2)) != f as u64) return false;
 			var address = cursor; cursor = LLVMGetNextInstruction(cursor); var field_type = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, field_type);
 			if (kind == 23) {
@@ -157,7 +157,7 @@ bool llvm_storage_drop_verified(CheckedIndex checked, int type, void* payload, v
 				if (kind == 31) {
 					if (!llvm_storage_call_verified(cursor, drops[field_type.index], value)) return false;
 				} else {
-					if (kind != 22 || cursor == null || LLVMGetInstructionOpcode(cursor) != 53 || llvm13_index(cursor, 0, 0) != 1 || LLVMGetOperand(cursor, 0) != value) return false;
+					if ((kind != 15 && kind != 22) || cursor == null || LLVMGetInstructionOpcode(cursor) != 53 || llvm13_index(cursor, 0, 0) != 1 || LLVMGetOperand(cursor, 0) != value) return false;
 					value = cursor; cursor = LLVMGetNextInstruction(cursor);
 					if (!llvm_storage_free_verified(cursor, value)) return false;
 				}

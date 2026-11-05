@@ -54,6 +54,10 @@ u64 llvm_check_mask(int width) { if (width == 64) return 18446744073709551615; r
 
 bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBudget budget) throws Error {
 	int kind = checked_kind(checked, node.type);
+	if (kind == 15 && checked.class_storage) {
+		var text = checked.bindings.program.arena.payload_message(node.token);
+		return budget.take(text.text.byte_length + 1) && llvm17_text_literal_matches(value, text.text) == 1;
+	}
 	if (kind == 11 || kind == 12) {
 		if (LLVMIsAConstantFP(value) == null) return false;
 		var source = checked.bindings.program.arena.token_message(node.token);
@@ -144,6 +148,7 @@ bool llvm_check_fp_binary(string op, int kind, void* result, void* left, void* r
 bool llvm_check_binary(CheckedIndex checked, CoreNode node, void* result, void* left, void* right) throws Error {
 	var text = checked.bindings.program.arena.token_message(node.operation); var op = text.text;
 	var left_node = checked.bindings.program.arena.get_node_left(node.source); var left_use = checked.uses[left_node.index]; int kind = checked_kind(checked, left_use.type);
+	if (checked.class_storage && kind == 15) return (op == "==" || op == "!=") && llvm_text_equal_call(result, left, right, op == "!=");
 	if (checked.class_storage && kind == 31) {
 		if ((op != "==" && op != "!=") || !class_storage_source_verified(checked, left_use.type, false, 0) || LLVMGetTypeKind(LLVMTypeOf(left)) != 12 || LLVMTypeOf(right) != LLVMTypeOf(left)) return false;
 		int predicate = 32; if (op == "!=") predicate = 33;
@@ -578,7 +583,13 @@ bool llvm_check(SsaProgram program, void* layout, void*[] types, void*[] payload
 			if ((op == 21 || op == 22) && !instruction.promoted) {
 				var store = effects[i]; int a = llvm_check_use(program.data, i + 1, 1, 0, budget);
 				var destination = program.cfg.core.data.places[row.value.place - 1]; int observation = 0; if ((destination.flags & 4) != 0 || checked_record_owned(program.cfg.core.flow.checked, destination.type, 0)) observation = 1;
-				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != accesses[i] || !llvm_check_operand(LLVMGetOperand(store, 0), values, a)) return false;
+				if (store == null || LLVMGetInstructionOpcode(store) != 28 || LLVMGetVolatile(store) != observation || LLVMGetOperand(store, 1) != accesses[i] || a < 1) return false;
+				var actual = LLVMGetOperand(store, 0);
+				if (destination.type.index == 15 && destination.parent != 0) {
+					if (!class_storage_initializing(program.cfg.core.flow.checked, program.cfg.core.data.functions[row.value.function - 1].symbol) || !llvm_text_snapshot_call(actual, values[a - 1])) return false;
+				} else {
+					if (actual != values[a - 1]) return false;
+				}
 				if (program.cfg.core.flow.checked.class_storage && LLVMGetAlignment(store) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(LLVMGetOperand(store, 0)))) return false;
 			}
 			if (op == 9) {

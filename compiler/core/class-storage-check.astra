@@ -16,6 +16,20 @@ bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNo
 		return count.index > 0 && checked.bindings.program.arena.kind(count) == SyntaxKind.NameExpressionSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(count), "slots") && element.flags == 0 && class_storage_slot_element_verified(checked, element.type, 0);
 	}
 	if (row.kind == 18) {
+		if (kind == SyntaxKind.TextMemberExpressionSyntax()) return row.type.index == 1 && row.flags == 0 && row.target == 1 && row.place > 0 && row.place <= core.place_count && core.places[row.place - 1].type.index == 15 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_member(source), "byte_length") && core_source_place(core, checked, function, checked.bindings.program.arena.get_node_receiver(source), 0) == row.place;
+		if (kind == SyntaxKind.FieldAccessExpressionSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_field_name(source), "byte_length")) {
+			if (row.type.index != 1 || row.flags != 0 || row.target != 1 || row.place < 1 || row.place > core.place_count || core.places[row.place - 1].type.index != 15) return false;
+			var receiver = checked.bindings.program.arena.get_node_aggregate(source); int expected = 0;
+			if (receiver.index > 0) {
+				if (checked.uses[receiver.index].type.index != 15) return false;
+				expected = core_source_place(core, checked, function, receiver, 0);
+			} else {
+				var symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+				if (symbol.index == 0 || checked.symbol_types[symbol.index].index != 15) return false;
+				expected = core_symbol_place(core, function, symbol);
+			}
+			return expected == row.place;
+		}
 		if (row.type.index != 1 || row.flags != 0 || row.place < 1 || row.place > core.place_count || checked_kind(checked, core.places[row.place - 1].type) != 23) return false;
 		SyntaxNodeId receiver = {index = 0};
 		if (row.target == 1) {

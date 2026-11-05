@@ -29,6 +29,7 @@ bool flowsem_record_shape(CheckedIndex checked, TypeId type, int depth) {
 
 bool flowsem_field_type(CheckedIndex checked, TypeId type, int flags, int depth) {
 	int code = checked_kind(checked, type);
+	if (checked.class_storage && code == 15) return (flags & 7) == 0 && (flags & 128) != 0;
 	if (type_numeric(code) || code == 13) return (flags & 7) == 0;
 	if (code == 30) return (flags & 7) == 0 && flowsem_record_shape(checked, type, depth + 1);
 	if ((flags & 4) == 0 || (flags & 2) != 0) return false;
@@ -118,7 +119,7 @@ int flowsem_place(borrowed FlowGraph graph, CheckedIndex checked, SyntaxNodeId n
 		if (root == 0 && checked_this_type(checked, node, token).index == 0) return 0;
 		if (root == 0 && checked.class_storage && !class_storage_initializing(checked, graph.function)) root = graph.slot_for(type_symbol(class_storage_receiver(checked, graph.function)));
 	}
-	return flowsem_find_field(graph, root, parent, checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node)));
+	return flowsem_find_field(graph, root, parent, text_storage_projection(checked, checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node))));
 }
 
 bool flowsem_under(borrowed FlowGraph graph, int field, int parent) {

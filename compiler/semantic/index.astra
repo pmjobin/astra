@@ -131,7 +131,8 @@ class BindingIndex {
 		var symbol = this.symbol(target);
 		if (edge.state_code != 5 || edge.target.index != 0) return false;
 		if (edge.reason == 1 || edge.reason == 3) {
-			if (symbol.owner.index != receiver.index || receiver.index == 0 || symbol.kind != 6) return false;
+			bool property_read = edge.reason == 1 && symbol.kind == 14 && this.program.arena.kind(edge.node) == SyntaxKind.FieldAccessExpressionSyntax();
+			if (symbol.owner.index != receiver.index || receiver.index == 0 || (symbol.kind != 6 && !property_read)) return false;
 		} else {
 			if (edge.reason != 7 || target.index != edge.alternative.index || (symbol.kind != 8 && symbol.kind != 7)) return false;
 		}

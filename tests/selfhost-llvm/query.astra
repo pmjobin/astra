@@ -2,6 +2,9 @@
 // The new private profile is selected explicitly. Existing native-ABI commands
 // retain their original admission and hidden borrowed-receiver contract.
 string llvm_class_command(string command) {
+	if (command == "--classstorage-text-release-mutations") return "--text-release-mutations";
+	if (command == "--classstorage-text-model-mutations") return "--text-model-mutations";
+	if (command == "--classstorage-text-native-mutations") return "--text-native-mutations";
 	if (command == "--classstorage-genclass-consumer") return "--genclass-consumer";
 	if (command == "--classstorage-genclass-model-mutations") return "--genclass-model-mutations";
 	if (command == "--classstorage-genclass-native-mutations") return "--genclass-native-mutations";
@@ -26,7 +29,7 @@ int main(string[] args) {
 	}
 	var mapped = llvm_class_command(args[1]); var command = args[1];
 	if (mapped != "") command = mapped;
-	if (command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations" && command != "--genclass-consumer" && command != "--genclass-model-mutations" && command != "--genclass-native-mutations") return llvm_ssa_cli(args);
+	if (command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations" && command != "--genclass-consumer" && command != "--genclass-model-mutations" && command != "--genclass-native-mutations" && command != "--text-model-mutations" && command != "--text-native-mutations" && command != "--text-release-mutations") return llvm_ssa_cli(args);
 	if (len(args) < 5) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
@@ -42,6 +45,10 @@ int main(string[] args) {
 		}
 		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
 		var checked = checked_build_profile(move bindings, 0, true, true, true, true, command != args[1]); var flow = flow_index(move checked, 8192, 1000000);
+		if (command == "--text-model-mutations") {
+			text_model_mutations(flow);
+			return 0;
+		}
 		if (command == "--genclass-model-mutations") {
 			genclass_model_mutations(flow);
 			return 0;
@@ -62,6 +69,12 @@ int main(string[] args) {
 			var observation = generic_observation(flow.checked); print(observation.text); return flow_status(flow);
 		}
 		if (command == "--nativeabi-admit") {
+			if (!flow.complete && !flow.checked.failed()) {
+				var diagnostic = new Utf8ByteBuilder(); source_append_text(diagnostic, "CHECKED_CONSUMER");
+				int validity = 0; if (flow.checked.validate()) validity = 1;
+				flow_number(diagnostic, validity); flow_number(diagnostic, generic_verify_failure(flow.checked));
+				var message = diagnostic.snapshot(); println_stderr(message.text);
+			}
 			var observation = flow_observation(flow);
 			print(observation.text);
 			return flow_status(flow);
@@ -76,6 +89,7 @@ int main(string[] args) {
 			var stage = llvm_name("LLVM_INVALID_UPSTREAM: Core ", core.data.status);
 			throw new Error(stage.text);
 		}
+		if (command == "--text-release-mutations") text_release_core_mutations(core);
 		var cfg = cfg_lower(move core, 65536);
 		if (command == "--nativeabi-cfg") {
 			var text = cfg_projection(cfg);
@@ -86,8 +100,16 @@ int main(string[] args) {
 			var stage = llvm_name("LLVM_INVALID_UPSTREAM: CFG ", cfg.data.status);
 			throw new Error(stage.text);
 		}
+		if (command == "--text-release-mutations") {
+			text_release_cfg_mutation(cfg);
+			return 0;
+		}
 		var program = ssa_lower(move cfg, 65536, 8000000);
 		var profile = new LlvmProfile(optimization, 8000000, 16777216);
+		if (command == "--text-native-mutations") {
+			text_native_mutations(program, profile, args[3]);
+			return 0;
+		}
 		if (command == "--nativeabi-ssa") {
 			if (ssa_verify(program) != 0) {
 				var reason = new Utf8ByteBuilder(); source_append_text(reason, "LLVM_INVALID_UPSTREAM: native ABI SSA"); flow_number(reason, program.data.status); flow_number(reason, ssa_verify(program)); var message = reason.snapshot(); throw new Error(message.text);

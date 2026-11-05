@@ -1,6 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Independent source/representation consumer. No planner, producer eligibility
 // helper, cached proof bit, LLVM handle or source filename is an authority here.
+bool text_storage_accessor_verified(CheckedIndex checked, SyntaxNodeId property, SymbolId owner) {
+	var id = checked.node_symbols[property.index];
+	if (id.index == 0 || checked.bindings.symbol(id).kind != 14 || checked.bindings.symbol(id).owner.index != owner.index || checked.symbol_types[id.index].index != 15 || (checked.symbol_flags[id.index] & ~2) != 0) return false;
+	var data = checked.bindings.program.arena.property_declaration(property);
+	if (checked.bindings.program.arena.kind(data.f_type_name) != SyntaxKind.TypeNameSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(data.f_type_name), "string")) return false;
+	if (data.f_setter.index != 0 || data.f_throws_class.index != 0 || data.f_factory_syntax.index != 0 || data.f_lazy_keyword.index != 0 || data.f_owned_keyword.index != 0 || data.f_dispatch != 0 || data.f_getter.index == 0 || checked.bindings.program.arena.get_node_foreign_member(property).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(property)) != 0) return false;
+	var accessor = checked.bindings.program.arena.property_accessor(data.f_getter);
+	if (!checked.bindings.program.arena.token_is(accessor.f_keyword, "get") || accessor.f_parameter.index != 0 || accessor.f_body.index == 0 || checked.bindings.program.arena.get_node_foreign_member(data.f_getter).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(data.f_getter)) != 0) return false;
+	var statements = checked.bindings.program.arena.get_list_statements(accessor.f_body);
+	if (checked.bindings.program.arena.list_count(statements) != 1) return false;
+	var statement = checked.bindings.program.arena.node_at(statements, 0);
+	if (checked.bindings.program.arena.kind(statement) != SyntaxKind.ReturnStatementSyntax()) return false;
+	var value = checked.bindings.program.arena.get_node_expression(statement);
+	if (checked.bindings.program.arena.kind(value) != SyntaxKind.FieldAccessExpressionSyntax()) return false;
+	var projection = checked.bindings.program.arena.field_access_expression(value);
+	if (projection.f_aggregate.index != 0 || !checked.bindings.program.arena.token_is(projection.f_identifier, "this")) return false;
+	var field = checked_target(checked, value, projection.f_field_name);
+	if (field.index == 0) return false;
+	var declaration = checked.bindings.symbol(field);
+	return declaration.kind == 6 && declaration.owner.index == owner.index && checked.symbol_types[field.index].index == 15 && (checked.symbol_flags[field.index] & 135) == 128 && checked.bindings.program.arena.get_token_readonly_keyword(declaration.node).index != 0;
+}
+
+SymbolId text_storage_verified_projection(CheckedIndex checked, SymbolId member) {
+	if (member.index == 0 || checked.bindings.symbol(member).kind != 14) return member;
+	var source = checked.bindings.symbol(member);
+	if (!text_storage_accessor_verified(checked, source.node, source.owner)) return type_symbol(0);
+	var getter = checked.bindings.program.arena.get_node_getter(source.node); var body = checked.bindings.program.arena.get_node_body(getter);
+	var statement = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_statements(body), 0); var value = checked.bindings.program.arena.get_node_expression(statement);
+	return checked_target(checked, value, checked.bindings.program.arena.get_token_field_name(value));
+}
+
 bool class_storage_template_verified(CheckedIndex checked, SymbolId origin) {
 	if (!checked.class_storage || origin.index < 1 || origin.index > checked.generic_symbols) return false;
 	var declaration = checked.bindings.symbol(origin); var node = declaration.node;
@@ -51,6 +82,11 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 	var members = checked.bindings.program.arena.get_list_members(node); int initializers = 0; int m = 0;
 	while (m < checked.bindings.program.arena.list_count(members)) {
 		var member = checked.bindings.program.arena.node_at(members, m); var kind = checked.bindings.program.arena.kind(member);
+		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
+			if (!text_storage_accessor_verified(checked, member, descriptor.nominal)) return false;
+			m = m + 1;
+			continue;
+		}
 		if (kind != SyntaxKind.StructFieldDeclarationSyntax()) {
 			if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 			if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
@@ -84,10 +120,13 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		int source_flags = checked_flags(checked.bindings.program.arena, node) & 7;
 		var source_type = checked.bindings.program.arena.get_node_type_name(node);
 		if (source_type.index != 0 && checked.bindings.program.arena.kind(source_type) == SyntaxKind.NonNullTypeSyntax()) source_flags = source_flags | 1;
-		if (flags != source_flags) return false;
+		if ((flags & 7) != source_flags || (flags & 384) != (checked_flags(checked.bindings.program.arena, node) & 384)) return false;
 		var value = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, value);
 		if (type_numeric(kind) || kind == 13) {
 			if (flags != 0) return false;
+		}
+		if (kind == 15) {
+			if (descriptor.kind != 31 || (flags & 7) != 0 || (flags & 128) == 0 || checked.bindings.program.arena.kind(source_type) != SyntaxKind.TypeNameSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(source_type), "string")) return false;
 		}
 		if (kind == 30) {
 			if (flags != 0 || !class_storage_record_verified(checked, value) || !class_storage_fields_verified(checked, value, depth + 1) || descriptor.kind == 31 && checked_record_owned(checked, value, 0)) return false;
@@ -102,7 +141,7 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		} if (kind == 23) {
 			var element = checked.types.argument(checked.types, value, 0);
 			if (flags != 4 || element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, depth + 1)) return false;
-		} if (!type_numeric(kind) && kind != 13 && kind != 30 && kind != 31 && kind != 22 && kind != 23) return false;
+		} if (!type_numeric(kind) && kind != 13 && kind != 15 && kind != 30 && kind != 31 && kind != 22 && kind != 23) return false;
 		i = i - 1;
 	}
 	return true;
@@ -151,11 +190,11 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 				size = 8;
 				alignment = 8;
 			}
-			if (source.kind == 22 || source.kind == 23) {
+			if (source.kind == 15 || source.kind == 22 || source.kind == 23) {
 				size = 16;
 				alignment = 8;
 			}
-			if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 16 && source.kind != 20 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) return false;
+			if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 15 && source.kind != 16 && source.kind != 20 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) return false;
 			if (source.kind == 30 || source.kind == 31) {
 				if (source.kind == 31 && !class_storage_source_verified(checked, type_id(t), false, 0)) return false;
 				if (source.kind == 30 && !class_storage_fields_verified(checked, type_id(t), 0)) return false;

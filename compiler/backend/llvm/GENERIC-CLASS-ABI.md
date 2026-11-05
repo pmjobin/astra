@@ -61,3 +61,26 @@ New physical mutants are resealed and must pass LLVM's verifier before the
 source/ABI correspondence consumer rejects them. Module/context-owned type and
 layout caches retain their previous lifetime checks. Public scalar C boundaries
 and the Vala compiler's source semantics are unchanged.
+
+TEXTCLASS-17 adds readonly owned-string fields to qualified exact Classes in this
+same private profile. The string carrier is 16 bytes with alignment eight: a byte
+pointer at zero and a signed 32-bit byte count at eight. Constructor assignment
+copies exactly that many decoded UTF-8 bytes into independent backing. Embedded
+NUL is data, equality compares counts and bytes, and an empty snapshot has null
+backing without allocation. Class pointer identity remains separate from text
+equality. Reverse field retirement frees each string backing before its Class.
+
+A property is admitted only as a source-bound, nonthrowing, setter-free projection
+of a readonly string field on the same Class. Constructor initialization is the
+only admitted readonly store. Borrowed property reads are constrained by the Class lifetime;
+constructing a fresh owner copies the text before an explicit source-owner release.
+The latter has its own Core/CFG source and responsibility checks. Counted literal
+construction in the C adapter is mechanical LLVM constant assembly; construction,
+copy, comparison, collection and retirement algorithms remain in Astra lowering.
+
+Default string-copy and owner-slot allocation exhaustion follow C0's fatal,
+non-unwinding policy. Negative reserve extents returning false are separate.
+Recoverable exception/factory operations, `text_split`, arbitrary accessors,
+general public string C signatures and wider ownership families remain deferred.
+This contract neither qualifies the complete compiler source nor establishes
+Stage 1. The existing SSA work-bound and numerical discrepancies remain separate.

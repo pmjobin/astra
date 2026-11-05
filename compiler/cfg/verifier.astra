@@ -172,6 +172,7 @@ class CfgCheck {
 		this.nodes[id - 1] = true;
 		var n = core.nodes[id - 1]; var r = d.regions[id - 1];
 		int f = n.function;
+		if (n.kind == 29) return r.one == 0 && r.two == 0 && r.three == 0 && r.entry == r.operation && this.cleanup(d, core, r.operation, next, f, id, n.source);
 		if (n.kind == 20) {
 			if (r.one != 0 || r.two != 0 || r.three != 0 || !this.cleanup(d, core, r.operation, next, f, id, n.source)) return false;
 			int current = r.entry;

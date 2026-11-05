@@ -9927,6 +9927,13 @@ class SyntaxArena {
 		return move result;
 	}
 
+	owned Utf8Message payload_message(SyntaxTokenId id) throws Error {
+		var output = new Utf8ByteBuilder();
+		this.write_payload(id, output);
+		var result = output.snapshot();
+		return move result;
+	}
+
 	owned Utf8Message text_message(SyntaxTextId id) throws Error {
 		var output = new Utf8ByteBuilder();
 		this.write_text(id, output);

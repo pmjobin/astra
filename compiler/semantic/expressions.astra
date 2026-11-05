@@ -168,7 +168,9 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	var field = index.bindings.program.arena.get_token_field_name(node);
 	var existing = checked_target(index, node, field);
 	if (existing.index != 0) {
-		return index.symbol_types[existing.index];
+		var projected = text_storage_projection(index, existing);
+		if (projected.index == 0) return index.defer(node, 12);
+		return index.symbol_types[projected.index];
 	}
 	var receiver = no_type();
 	var aggregate = index.bindings.program.arena.get_node_aggregate(node);
@@ -182,6 +184,7 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 			receiver = checked_this_type(index, node, index.bindings.program.arena.get_token_identifier(node));
 		}
 	}
+	if (index.class_storage && receiver.index == 15 && index.bindings.program.arena.token_is(field, "byte_length")) return type_id(1);
 	if (index.class_storage && checked_kind(index, receiver) == 23 && index.bindings.program.arena.token_is(field, "capacity")) return type_id(1);
 	var selected = checked_member(index, receiver, field);
 	if (selected.index == 0) {
@@ -199,6 +202,12 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 		return index.defer(node, 12);
 	}
 	var member = index.bindings.symbol(selected);
+	if (index.class_storage && member.kind == 14) {
+		var projected = text_storage_projection(index, selected);
+		if (projected.index == 0) return index.defer(node, 12);
+		checked_complete_member(index, node, field, selected);
+		return index.symbol_types[projected.index];
+	}
 	if (member.kind != 6) {
 		return index.defer(node, 12);
 	}
@@ -236,6 +245,11 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
+	if (index.class_storage && kind == SyntaxKind.TextMemberExpressionSyntax()) {
+		var receiver = checked_expression(index, index.bindings.program.arena.get_node_receiver(node), type_id(15), depth + 1);
+		if (receiver.index == 15 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_member(node), "byte_length")) return type_id(1);
+		return index.defer(node, 17);
+	}
 	if (index.flow_adapters && checked_flow_admits(kind)) {
 		return checked_flow_expression(index, node, expected, depth);
 	}

@@ -10,7 +10,7 @@ bool flow_buffer_type(CheckedIndex checked, TypeId type) {
 
 bool flow_borrow_type(CheckedIndex checked, TypeId type) {
 	int code = checked_kind(checked, type);
-	return code == 20 || code == 22 || code == 31 || code == 16;
+	return code == 20 || code == 22 || code == 31 || code == 16 || checked.class_storage && code == 15;
 }
 
 bool flow_simple_class(CheckedIndex checked, TypeId type) {
@@ -72,7 +72,7 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 		graph.defer(declaration.node, 12);
 	}
 	if (checked.semantic_flow && !checked.semantic_admission && parameter && checked_record_owned(checked, type, 0)) graph.defer(declaration.node, 4);
-	if (parameter && code == 15) {
+	if (parameter && code == 15 && !checked.class_storage) {
 		graph.defer(declaration.node, 17);
 	}
 	var callable_declaration = checked.bindings.symbol(graph.function);
@@ -175,6 +175,10 @@ int flow_origin(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.AddressOfExpressionSyntax()) {
 		return flow_symbol_slot(graph, checked, class_origins, node, checked.bindings.program.arena.get_token_identifier(node));
 	}
+	if (checked.class_storage && kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		int field = flowsem_place(graph, checked, node, 0);
+		if (field > 0) return graph.fields[field - 1].root;
+	}
 	return 0;
 }
 
@@ -200,7 +204,7 @@ int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		if (field > 0 && source == 0 && class_storage_constructor_verified(checked, graph.function)) source = graph.slot_for(type_symbol(class_storage_receiver(checked, graph.function)));
 	}
 	if (source == 0) {
-		if (checked.bindings.program.arena.kind(node) != SyntaxKind.NullPointerExpressionSyntax()) {
+		if (checked.bindings.program.arena.kind(node) != SyntaxKind.NullPointerExpressionSyntax() && !(checked.class_storage && checked.bindings.program.arena.kind(node) == SyntaxKind.TextLiteralExpressionSyntax())) {
 			graph.defer(node, 6);
 		}
 		return next;
@@ -300,6 +304,17 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		return next;
 	}
 	var kind = checked.bindings.program.arena.kind(node);
+	if (checked.class_storage && kind == SyntaxKind.TextMemberExpressionSyntax()) return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_receiver(node), region, next, 0, depth + 1);
+	if (text_storage_field_length(checked, node)) {
+		var receiver = checked.bindings.program.arena.get_node_aggregate(node);
+		if (receiver.index > 0) return flow_expression(graph, checked, class_origins, receiver, region, next, 0, depth + 1);
+		int slot = flow_symbol_slot(graph, checked, class_origins, node, checked.bindings.program.arena.get_token_identifier(node));
+		if (slot == 0) {
+			graph.defer(node, 18);
+			return next;
+		}
+		return graph.add(flow_event(checked, node, 3, slot, region, next));
+	}
 	int deferred = checked.uses[node.index].deferred;
 	if (deferred != 0 && deferred != 18 && deferred != 19 && !(checked.semantic_flow && deferred == 20)) {
 		int reason = 9;
@@ -480,7 +495,7 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	var destination = graph.slots[slot - 1];
 	var direct = flow_unwrap(checked, value);
 	var kind = checked.bindings.program.arena.kind(direct);
-	if (checked_kind(checked, destination.type) == 15 && kind != SyntaxKind.TextLiteralExpressionSyntax()) {
+	if (checked_kind(checked, destination.type) == 15 && kind != SyntaxKind.TextLiteralExpressionSyntax() && !checked.class_storage) {
 		graph.defer(node, 17);
 	}
 	int operation = 15;
@@ -493,7 +508,7 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	}
 	int tail = next;
 	int source = flow_origin(graph, checked, class_origins, direct);
-	if (!destination.owner && flow_borrow_type(checked, destination.type) && source == 0 && kind != SyntaxKind.NullPointerExpressionSyntax()) {
+	if (!destination.owner && flow_borrow_type(checked, destination.type) && source == 0 && kind != SyntaxKind.NullPointerExpressionSyntax() && !(checked.class_storage && kind == SyntaxKind.TextLiteralExpressionSyntax())) {
 		graph.defer(node, 4);
 	}
 	bool owned_result = checked.class_storage && kind == SyntaxKind.CallExpressionSyntax() && (checked.uses[direct.index].flags & 4) != 0;

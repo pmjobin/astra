@@ -21,6 +21,33 @@ const char *llvm12_empty(void) {
 	return "";
 }
 
+LLVMValueRef llvm17_text_literal(LLVMModuleRef module, const char *p, int32_t n) {
+	if (!module || n < 0 || n > 16777216 || (!p && n)) return NULL;
+	LLVMContextRef context = LLVMGetModuleContext(module);
+	LLVMValueRef bytes = LLVMConstStringInContext2(context, n ? p : "", n ? (size_t)n : 1, 1);
+	LLVMValueRef global = LLVMAddGlobal(module, LLVMTypeOf(bytes), "astra.text.literal");
+	LLVMSetLinkage(global, LLVMPrivateLinkage);
+	LLVMSetGlobalConstant(global, 1);
+	LLVMSetInitializer(global, bytes);
+	LLVMTypeRef fields[] = {LLVMPointerTypeInContext(context, 0), LLVMInt32TypeInContext(context)};
+	LLVMTypeRef type = LLVMStructTypeInContext(context, fields, 2, 0);
+	LLVMValueRef values[] = {global, LLVMConstInt(fields[1], (uint64_t)n, 0)};
+	return LLVMConstNamedStruct(type, values, 2);
+}
+
+int32_t llvm17_text_literal_matches(LLVMValueRef value, const char *p, int32_t n) {
+	if (!value || n < 0 || (!p && n) || !LLVMIsAConstantStruct(value) || LLVMGetNumOperands(value) != 2) return 0;
+	LLVMValueRef count = LLVMGetOperand(value, 1), base = LLVMGetOperand(value, 0);
+	if (!LLVMIsAConstantInt(count) || LLVMGetIntTypeWidth(LLVMTypeOf(count)) != 32 || LLVMConstIntGetZExtValue(count) != (uint64_t)n || !LLVMIsAGlobalVariable(base) || !LLVMIsGlobalConstant(base) || LLVMGetLinkage(base) != LLVMPrivateLinkage) return 0;
+	LLVMValueRef payload = LLVMGetInitializer(base);
+	if (!payload || LLVMGetTypeKind(LLVMTypeOf(payload)) != LLVMArrayTypeKind || LLVMGetArrayLength2(LLVMTypeOf(payload)) != (n ? (uint64_t)n : 1) || LLVMGetElementType(LLVMTypeOf(payload)) != LLVMInt8TypeInContext(LLVMGetTypeContext(LLVMTypeOf(payload)))) return 0;
+	for (int32_t i = 0; i < (n ? n : 1); ++i) {
+		LLVMValueRef byte = LLVMGetAggregateElement(payload, (unsigned)i);
+		if (!byte || !LLVMIsAConstantInt(byte) || LLVMConstIntGetZExtValue(byte) != (n ? (unsigned char)p[i] : 0)) return 0;
+	}
+	return 1;
+}
+
 enum { PRIVATE_NAME_LIMIT = 65536 };
 
 static char *text_copy_limit(const char *p, int32_t n, int32_t limit) {
