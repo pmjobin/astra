@@ -5,7 +5,6 @@ import argparse
 import importlib.util
 import io
 import json
-import lzma
 from pathlib import Path
 import shutil
 import subprocess
@@ -17,7 +16,7 @@ from state import ROOT, RUNTIME, BUILD, PRIOR, COHORTS, read, sha, git
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--version',default='v3'); a = p.parse_args(); assert a.version.replace('-','').isalnum()
+	p = argparse.ArgumentParser(); p.add_argument('--version',default='v4'); a = p.parse_args(); assert a.version.replace('-','').isalnum()
 	assert git('status','--porcelain=v1','--untracked-files=all') == ''
 	audit = read(RUNTIME/'final-audit.json'); engineering = read(RUNTIME/'engineering-summary.json')
 	head = git('rev-parse','HEAD').strip(); tree = git('rev-parse','HEAD^{tree}').strip()
@@ -75,7 +74,7 @@ def main():
 	files['derived-ledgers/restore-plan.json'] = plan_path; files['derived-ledgers/reconstruction.json'] = receipt
 	index = dict(format='astra-genresource20-raw-evidence/1',storage_format='astra-line-chunk/1',final_commit=head,final_tree=tree,files=[],omissions=omitted)
 	archive = output/'evidence.tar.xz'
-	with tarfile.open(archive,'w:xz',filters=[dict(id=lzma.FILTER_LZMA2,preset=6,dict_size=64*1024**2)]) as packed:
+	with tarfile.open(archive,'w:xz',preset=9) as packed:
 		writer = transport.ChunkWriter(packed)
 		for name,path in sorted(files.items()):
 			before = sha(path); index['files'].append(writer.add(name,path,None,path.stat().st_mode & 0o777,before))
