@@ -2,6 +2,8 @@
 // The new private profile is selected explicitly. Existing native-ABI commands
 // retain their original admission and hidden borrowed-receiver contract.
 string llvm_class_command(string command) {
+	if (command == "--classstorage-source-ledger") return "--source-ledger";
+	if (command == "--classstorage-ownexchange-mutations") return "--ownexchange-mutations";
 	if (command == "--classstorage-indexpath-loan-mutations") return "--indexpath-loan-mutations";
 	if (command == "--classstorage-indexpath-substitution-mutations") return "--indexpath-substitution-mutations";
 	if (command == "--classstorage-indexpath-mutations") return "--indexpath-mutations";
@@ -32,7 +34,7 @@ int main(string[] args) {
 	}
 	var mapped = llvm_class_command(args[1]); var command = args[1];
 	if (mapped != "") command = mapped;
-	if (command != "--indexpath-loan-mutations" && command != "--indexpath-substitution-mutations" && command != "--indexpath-mutations" && command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations" && command != "--genclass-consumer" && command != "--genclass-model-mutations" && command != "--genclass-native-mutations" && command != "--text-model-mutations" && command != "--text-native-mutations" && command != "--text-release-mutations") return llvm_ssa_cli(args);
+	if (command != "--source-ledger" && command != "--ownexchange-mutations" && command != "--indexpath-loan-mutations" && command != "--indexpath-substitution-mutations" && command != "--indexpath-mutations" && command != "--llvm-ir" && command != "--emit-obj" && command != "--llvm-raw" && command != "--mutate-llvm" && command != "--llvm-limits" && command != "--llvm-lifecycle" && command != "--nativeabi-mutations" && command != "--abi-plan" && command != "--nativeabi-admit" && command != "--nativeabi-ssa" && command != "--generic-plan" && command != "--generic-mutations" && command != "--generic-native-mutations" && command != "--nativeabi-core" && command != "--nativeabi-cfg" && command != "--storage-model-mutations" && command != "--storage-native-mutations" && command != "--genclass-consumer" && command != "--genclass-model-mutations" && command != "--genclass-native-mutations" && command != "--text-model-mutations" && command != "--text-native-mutations" && command != "--text-release-mutations") return llvm_ssa_cli(args);
 	if (len(args) < 5) {
 		println_stderr("LLVM_INVALID_COMMAND");
 		return 2;
@@ -46,8 +48,12 @@ int main(string[] args) {
 				throw new Error("LLVM_TARGET_UNAVAILABLE");
 			}
 		}
-		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
+		var source = binding_load_program(args, 4); int original_nodes = source.arena.node_count; var bindings = binding_index(move source, 0);
 		var checked = checked_build_profile(move bindings, 0, true, true, true, true, command != args[1]); var flow = flow_index(move checked, 8192, 1000000);
+		if (command == "--source-ledger") {
+			owner_exchange_source_ledger(flow, original_nodes);
+			return flow_status(flow);
+		}
 		if (command == "--text-model-mutations") {
 			text_model_mutations(flow);
 			return 0;
@@ -93,6 +99,7 @@ int main(string[] args) {
 			throw new Error(stage.text);
 		}
 		if (command == "--text-release-mutations") text_release_core_mutations(core);
+		if (command == "--ownexchange-mutations") owner_exchange_core_mutations(core);
 		if (command == "--indexpath-mutations") indexpath_core_mutations(core);
 		if (command == "--indexpath-loan-mutations") {
 			indexpath_loan_mutations(core);
@@ -116,9 +123,13 @@ int main(string[] args) {
 			text_release_cfg_mutation(cfg);
 			return 0;
 		}
+		if (command == "--ownexchange-mutations") owner_exchange_cfg_mutations(cfg);
 		if (command == "--indexpath-mutations") indexpath_cfg_mutation(cfg);
 		var program = ssa_lower(move cfg, 65536, 8000000);
 		var profile = new LlvmProfile(optimization, 8000000, 16777216);
+		if (command == "--ownexchange-mutations") {
+			owner_exchange_ssa_mutations(program); owner_exchange_native_mutations(program, profile, args[3]); return 0;
+		}
 		if (command == "--indexpath-mutations") {
 			indexpath_ssa_mutation(program);
 			indexpath_native_mutations(program, profile, args[3]);

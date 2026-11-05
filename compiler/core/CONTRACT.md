@@ -155,3 +155,13 @@ index/dereference operations, text, classes/lifecycle, explicit release or ownin
 field replacement, unknown effects, generics, exceptions and foreign/indirect
 calls remain deferred where not represented/proved. No Core evaluator, native
 backend, whole-compiler admission or self-hosted astrac is claimed.
+
+OWNEXCHANGE-19 adds kind 33 for the existing resultless owner-buffer exchange
+and kind 34 for each ordered storage capture in the private Class-storage
+profile. The closed operation has two distinct capture nodes; a capture has an
+authoritative Place, its source operation identity, and an operand ordinal in
+`c`. That ordinal is metadata, not a third child. Captures are not payload values
+or cleanup owners. Source/schema checking binds exact canonical buffer types,
+original operands, nominal fields, writable owner flags and declaration cleanup
+responsibilities. Definition-time lexical Class fields are resolved before their
+concrete receiver/storage specializations are independently checked.

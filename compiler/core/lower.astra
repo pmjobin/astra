@@ -39,6 +39,9 @@ int core_lower_tree(CoreData core, CheckedIndex checked, borrowed FlowGraph grap
 	var row = core_node(checked, source, function);
 	int id = core_add_node(core, row);
 	if (id == 0) return 0;
+	if (checked.class_storage && kind == SyntaxKind.SwapStatementSyntax()) {
+		row = core_lower_owner_exchange(core, checked, graph, row, function); core.nodes[id - 1] = row; return id;
+	}
 	if (core_indexpath_source(checked, source)) {
 		row = core_lower_indexpath(core, checked, graph, row, function, loop, depth); core.nodes[id - 1] = row; return id;
 	}

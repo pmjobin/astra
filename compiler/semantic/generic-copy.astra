@@ -225,6 +225,12 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_call = generic_copy_node(index, plan, data.f_call, depth + 1);
 			if (!index.failed()) result = index.bindings.program.arena.add_call_statement(data, header.span, header.depth);
 		}
+		case SyntaxKind.SwapStatementSyntax(): {
+			var data = index.bindings.program.arena.swap_statement(original);
+			data.f_left = generic_copy_node(index, plan, data.f_left, depth + 1);
+			data.f_right = generic_copy_node(index, plan, data.f_right, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_swap_statement(data, header.span, header.depth);
+		}
 		case SyntaxKind.MoveExpressionSyntax(): {
 			var data = index.bindings.program.arena.move_expression(original);
 			if (!index.failed()) result = index.bindings.program.arena.add_move_expression(data, header.span, header.depth);

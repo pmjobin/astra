@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Dedicated resultless owner operation. A descriptor value is never a slot.
+int owner_exchange_slot_failure(CheckedIndex checked, SyntaxNodeId node) {
+	if (!checked.class_storage || node.index < 1 || node.index >= len(checked.uses)) return 1;
+	var kind = checked.bindings.program.arena.kind(node); SymbolId symbol = {index = 0};
+	if (kind == SyntaxKind.NameExpressionSyntax()) symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return 2;
+	var declaration = checked.bindings.symbol(symbol); var type = checked.symbol_types[symbol.index];
+	if ((checked.symbol_flags[symbol.index] & (4 | 128)) != 4) return 3;
+	if (checked_kind(checked, type) != 22) return 4;
+	if (checked.uses[node.index].type.index != type.index) return 5;
+	var element = checked.types.argument(checked.types, type, 0); int element_kind = checked_kind(checked, element.type);
+	if (element.flags != 0 || !(type_numeric(element_kind) || element_kind == 13 || element_kind == 30 && !checked_record_owned(checked, element.type, 0) && class_storage_slot_element_verified(checked, element.type, 0) || checked.generic_definition && element_kind == 33)) return 6;
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		if (declaration.kind == 7 || declaration.kind == 8) return 0;
+		return 7;
+	}
+	if (declaration.kind != 6) return 8;
+	var aggregate = checked.bindings.program.arena.get_node_aggregate(node);
+	if (aggregate.index == 0 && checked.generic_definition && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(node), "this")) {
+		var scope = checked.bindings.scope_for_node(node); int remaining = checked.bindings.scope_count + 1;
+		while (scope.index > 0 && remaining > 0) {
+			var context = checked.bindings.scope(scope);
+			if (context.owner.index > 0) {
+				var method = checked.bindings.symbol(context.owner);
+				if (method.kind == 11) {
+					if (method.owner.index != declaration.owner.index) return 9;
+					if (!class_storage_member_template(checked, context.owner)) return 10;
+					return 0;
+				}
+			}
+			scope = context.parent; remaining = remaining - 1;
+		}
+		return 11;
+	}
+	var receiver = no_type();
+	if (aggregate.index == 0) {
+		var token = checked.bindings.program.arena.get_token_identifier(node); var root = checked_target(checked, node, token);
+		if (root.index > 0) receiver = checked.symbol_types[root.index];
+		if (root.index == 0) receiver = checked_this_type(checked, node, token);
+	} else {
+		// Effectful/temporary receivers need a broader capture domain.
+		if (checked.bindings.program.arena.kind(aggregate) != SyntaxKind.NameExpressionSyntax()) return 12;
+		receiver = checked.uses[aggregate.index].type;
+	}
+	if (checked_kind(checked, receiver) != 31) return 13;
+	if (checked.types.row(receiver).nominal.index != declaration.owner.index) return 14;
+	return 0;
+}
+
+bool owner_exchange_slot(CheckedIndex checked, SyntaxNodeId node) { return owner_exchange_slot_failure(checked, node) == 0; }
+
+void checked_owner_exchange(CheckedIndex checked, SyntaxNodeId node, int depth) throws Error {
+	var left = checked.bindings.program.arena.get_node_left(node); var right = checked.bindings.program.arena.get_node_right(node);
+	var first = checked_expression(checked, left, no_type(), depth + 1);
+	var second = checked_expression(checked, right, no_type(), depth + 1);
+	if (!owner_exchange_slot(checked, left) || !owner_exchange_slot(checked, right)) {
+		var out = new Utf8ByteBuilder(); source_append_text(out, "DEFERRED: swap requires writable owning buffer local/parameter or admitted Class field Places with qualified elements; operand codes "); append_int(out, owner_exchange_slot_failure(checked, left)); source_append_text(out, " "); append_int(out, owner_exchange_slot_failure(checked, right)); var message = out.snapshot(); checked.fail(checked.bindings.program.arena.header(node).span, message.text);
+		return;
+	}
+	checked_mismatch(checked, checked.bindings.program.arena.header(node).span, first, second, "swap exact owner and cleanup type");
+	var recorded = checked.record(node, type_id(14), 0);
+}

@@ -228,7 +228,8 @@ class SsaCheck {
 			var block = cfg.blocks[b]; int id = block.instruction;
 			if (id != 0) {
 				var row = cfg.instructions[id - 1];
-				if (row.opcode < 40 || row.opcode == 44) {
+				// Exchange children name resultless storage captures, not SSA values.
+				if (row.opcode < 40 && row.opcode != 33 || row.opcode == 44) {
 					if (!this.use(d, cfg, core, graph, incoming, b + 1, id, 1, 0, row.a, type_symbol(0), 0, budget) || !this.use(d, cfg, core, graph, incoming, b + 1, id, 2, 0, row.b, type_symbol(0), 0, budget)) return false;
 				}
 				if (row.opcode == 3 && this.place_variable[row.value.place - 1] != 0 && !this.use(d, cfg, core, graph, incoming, b + 1, id, 4, 0, row.value.place, type_symbol(0), 0, budget)) return false;

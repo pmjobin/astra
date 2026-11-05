@@ -142,6 +142,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		expected_flags = 0;
 	}
 	if (row.type.index != expected_type.index || row.flags != expected_flags || !checked.types.owns(checked.types, row.type)) return false;
+	if (row.kind == 33 || row.kind == 34) return core_verify_owner_exchange(core, checked, proofs, row, id, source, function, loop, depth, seen, seen_edges);
 	if (row.kind >= 15 && row.kind <= 18 || row.kind == 13 && checked.class_storage) return core_verify_class(core, checked, proofs, row, id, source, function, loop, depth, seen, seen_edges);
 	if (row.kind == 19 || row.kind == 30 || row.kind == 31 || row.kind == 32) return core_verify_indexpath(core, checked, proofs, row, source, function, loop, depth, seen, seen_edges);
 	// Each kind checks its complete schema, including unused metadata. This also

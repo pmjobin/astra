@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent retained-IR consumer: exact complete opposite descriptors, with
+// both loads before the first store. No producer replay or trusted byte seal.
+int llvm_owner_capture_instruction(SsaProgram program, int node) {
+	if (node < 1 || node > program.cfg.data.region_count) return 0;
+	int block = program.cfg.data.regions[node - 1].operation;
+	if (block < 1 || block > program.data.block_count) return 0;
+	int instruction = program.data.blocks[block - 1].origin.instruction;
+	if (instruction < 1 || instruction > program.data.instruction_count || program.data.instructions[instruction - 1].origin.origin != node || program.data.instructions[instruction - 1].origin.opcode != 34) return 0;
+	return instruction;
+}
+
+bool llvm_owner_exchange_verified(SsaProgram program, void* layout, void*[] types, void*[] accesses, void*[] effects, int instruction) {
+	var source = program.data.instructions[instruction].origin; var row = source.value;
+	if (source.opcode != 33 || row.kind != 33 || program.data.instructions[instruction].result != 0) return false;
+	int left = llvm_owner_capture_instruction(program, row.a); int right = llvm_owner_capture_instruction(program, row.b);
+	if (left == 0 || right == 0 || left == right) return false;
+	var first = program.data.instructions[left - 1]; var second = program.data.instructions[right - 1];
+	if (first.result != 0 || second.result != 0 || first.origin.value.target != row.source.index || second.origin.value.target != row.source.index || first.origin.value.c != 1 || second.origin.value.c != 2) return false;
+	if (!program.data.graph.dominates[(first.origin.block - 1) * program.data.block_count + second.origin.block - 1] || !program.data.graph.dominates[(second.origin.block - 1) * program.data.block_count + source.block - 1]) return false;
+	var descriptor = types[program.cfg.core.data.places[first.origin.value.place - 1].type.index];
+	if (descriptor != types[program.cfg.core.data.places[second.origin.value.place - 1].type.index] || LLVMGetTypeKind(descriptor) != 10 || LLVMCountStructElementTypes(descriptor) != 2 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(descriptor, 0)) != 12 || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(descriptor, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(descriptor, 1)) != 32) return false;
+	var load_left = effects[instruction];
+	if (load_left == null || LLVMIsAInstruction(load_left) == null || LLVMGetInstructionOpcode(load_left) != 27 || LLVMTypeOf(load_left) != descriptor || LLVMGetOperand(load_left, 0) != accesses[left - 1]) return false;
+	var load_right = LLVMGetNextInstruction(load_left);
+	if (load_right == null || LLVMGetInstructionOpcode(load_right) != 27 || LLVMTypeOf(load_right) != descriptor || LLVMGetOperand(load_right, 0) != accesses[right - 1]) return false;
+	var store_left = LLVMGetNextInstruction(load_right);
+	if (store_left == null || LLVMGetInstructionOpcode(store_left) != 28 || LLVMGetOperand(store_left, 0) != load_right || LLVMGetOperand(store_left, 1) != accesses[left - 1]) return false;
+	var store_right = LLVMGetNextInstruction(store_left);
+	if (store_right == null || LLVMGetInstructionOpcode(store_right) != 28 || LLVMGetOperand(store_right, 0) != load_left || LLVMGetOperand(store_right, 1) != accesses[right - 1]) return false;
+	if (LLVMGetPreviousInstruction(load_left) != null || LLVMGetNextInstruction(store_right) != LLVMGetBasicBlockTerminator(LLVMGetInstructionParent(store_right))) return false;
+	return LLVMGetVolatile(load_left) == 0 && LLVMGetVolatile(load_right) == 0 && LLVMGetVolatile(store_left) == 0 && LLVMGetVolatile(store_right) == 0 && LLVMGetAlignment(load_left) == LLVMABIAlignmentOfType(layout, descriptor) && LLVMGetAlignment(load_right) == LLVMABIAlignmentOfType(layout, descriptor) && LLVMGetAlignment(store_left) == LLVMABIAlignmentOfType(layout, descriptor) && LLVMGetAlignment(store_right) == LLVMABIAlignmentOfType(layout, descriptor);
+}

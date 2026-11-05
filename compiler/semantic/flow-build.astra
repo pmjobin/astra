@@ -254,6 +254,14 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 	var commit = flow_event(checked, node, 8, 0, region, next);
 	commit.call = node.index;
 	int head = graph.add(commit);
+	int guarded = checked.bindings.program.arena.list_count(arguments) - 1;
+	while (guarded >= 0) {
+		var argument = owner_exchange_call_argument(checked, node, guarded);
+		if (argument.index > 0) {
+			var guard = flow_event(checked, node, 25, flow_origin(graph, checked, class_origins, argument), region, head); guard.producer = argument; guard.call = guarded + 1; head = graph.add(guard);
+		}
+		guarded = guarded - 1;
+	}
 	int i = checked.bindings.program.arena.list_count(arguments) - 1;
 	while (i >= 0 && !graph.exhausted) {
 		var argument = checked.bindings.program.arena.node_at(arguments, i);
@@ -692,6 +700,11 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		var call_node = checked.bindings.program.arena.get_node_call(node);
 		if (checked.semantic_admission && checked_kind(checked, checked.uses[call_node.index].type) == 30) graph.fail(5, checked.bindings.program.arena.header(call_node).span);
 		return flow_call(graph, checked, class_origins, call_node, region, next, depth + 1);
+	}
+	if (checked.class_storage && kind == SyntaxKind.SwapStatementSyntax()) {
+		var right = checked.bindings.program.arena.get_node_right(node); var left = checked.bindings.program.arena.get_node_left(node);
+		int tail = flow_owner_capture(graph, checked, class_origins, node, right, 2, region, next, depth + 1);
+		return flow_owner_capture(graph, checked, class_origins, node, left, 1, region, tail, depth + 1);
 	}
 	if (kind == SyntaxKind.ReleaseStatementSyntax()) {
 		int slot = flow_symbol_slot(graph, checked, class_origins, node, checked.bindings.program.arena.get_token_owner(node));

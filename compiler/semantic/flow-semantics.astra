@@ -321,6 +321,8 @@ int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] o
 // use the existing responsibility bits, independently of whole-root ownership.
 void flowsem_simulate(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] owners, int[] reservations, bool[] loans, int[] nulls, int[] fields, bool validate) {
 	int operation = event.operation;
+	if (operation == 25 && validate) flow_owner_call_check(graph, checked, event, loans);
+	if (operation == 24 && validate) flow_owner_capture_check(graph, checked, event, owners, reservations, loans, fields);
 	if (checked.semantic_admission) admit_simulate(graph, checked, event, owners, reservations, loans, fields, validate);
 	int incoming = event.null_kind;
 	if (event.input > 0) incoming = nulls[event.input - 1];

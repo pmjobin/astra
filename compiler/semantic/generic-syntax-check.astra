@@ -324,6 +324,12 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_call, second_data.f_call)) return false;
 			if (first_data.f_semicolon.index != second_data.f_semicolon.index) return false;
 		}
+		case SyntaxKind.SwapStatementSyntax(): {
+			var first_data = index.bindings.program.arena.swap_statement(original);
+			var second_data = index.bindings.program.arena.swap_statement(concrete);
+			if (!generic_check_child(index, plan, first_data.f_left, second_data.f_left)) return false;
+			if (!generic_check_child(index, plan, first_data.f_right, second_data.f_right)) return false;
+		}
 		case SyntaxKind.MoveExpressionSyntax(): {
 			var first_data = index.bindings.program.arena.move_expression(original);
 			var second_data = index.bindings.program.arena.move_expression(concrete);

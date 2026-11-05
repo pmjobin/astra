@@ -979,6 +979,21 @@ class LlvmModule {
 	void* instruction(SsaProgram program, int index) throws Error {
 		this.take(1); var ssa = program.data.instructions[index - 1]; var input = ssa.origin; var row = input.value; int op = input.opcode;
 		var type = this.type(program.cfg.core.flow.checked, row.type, 0); var function = this.functions[row.function - 1];
+		if (op == 34) {
+			var captured = this.address(program, row.place, function, 0); this.accesses[index - 1] = captured; return null;
+		}
+		if (op == 33) {
+			int left = llvm_owner_capture_instruction(program, row.a); int right = llvm_owner_capture_instruction(program, row.b);
+			if (left == 0 || right == 0 || this.accesses[left - 1] == null || this.accesses[right - 1] == null) {
+				throw new Error("LLVM_INVALID_IR: missing ordered owner captures");
+			}
+			var descriptor = this.type(program.cfg.core.flow.checked, program.cfg.core.data.places[program.data.instructions[left - 1].origin.value.place - 1].type, 0);
+			var first = LLVMBuildLoad2(this.builder, descriptor, this.accesses[left - 1], this.empty);
+			var second = LLVMBuildLoad2(this.builder, descriptor, this.accesses[right - 1], this.empty);
+			var left_store = LLVMBuildStore(this.builder, second, this.accesses[left - 1]);
+			var right_store = LLVMBuildStore(this.builder, first, this.accesses[right - 1]);
+			this.effects[index - 1] = first; return null;
+		}
 		if (op == 19 || op == 31 || op == 32) {
 			var buffer_type = program.cfg.core.data.places[row.place - 1].type;
 			var pointer = this.address(program, row.place, function, 0); this.accesses[index - 1] = pointer;
@@ -1248,7 +1263,53 @@ class LlvmModule {
 		throw new Error("LLVM_DEFERRED: instruction");
 	}
 
+	bool owner_exchange_fault(SsaProgram program, int category) throws Error {
+		if (!this.complete || this.disposed || category < 0 || category > 10) return false;
+		int i = 0;
+		while (i < program.data.instruction_count) {
+			if (program.data.instructions[i].origin.opcode == 33) {
+				var first = this.effects[i]; var second = LLVMGetNextInstruction(first); var left = LLVMGetNextInstruction(second); var right = LLVMGetNextInstruction(left);
+				if (category == 0) LLVMSetOperand(first, 0, LLVMGetOperand(second, 0));
+				if (category == 1) LLVMSetOperand(second, 0, LLVMGetOperand(first, 0));
+				if (category == 2) LLVMSetOperand(left, 0, first);
+				if (category == 3) LLVMSetOperand(right, 0, second);
+				if (category == 4) LLVMSetOperand(left, 1, LLVMGetOperand(right, 1));
+				if (category == 5) LLVMSetOperand(right, 1, LLVMGetOperand(left, 1));
+				if (category == 6) LLVMSetOperand(right, 0, LLVMConstNull(LLVMTypeOf(first)));
+				if (category == 7) {
+					LLVMPositionBuilderBefore(this.builder, left);
+					var pointer = LLVMBuildExtractValue(this.builder, first, 0, this.empty); var invalid = this.free_pointer(pointer);
+				}
+				if (category == 8) {
+					LLVMPositionBuilderBefore(this.builder, left);
+					var partial = LLVMBuildInsertValue(this.builder, second, LLVMConstNull(LLVMStructGetTypeAtIndex(LLVMTypeOf(second), 1)), 1, this.empty); LLVMSetOperand(left, 0, partial);
+				}
+				if (category == 9) {
+					LLVMPositionBuilderBefore(this.builder, second);
+					var early = LLVMBuildStore(this.builder, first, LLVMGetOperand(left, 1));
+				}
+				if (category == 10) {
+					var address = LLVMGetOperand(left, 1);
+					if (LLVMIsAInstruction(address) == null || LLVMGetInstructionOpcode(address) != 29) return false;
+					var base = LLVMGetOperand(address, 0); LLVMSetOperand(address, 0, LLVMConstNull(LLVMTypeOf(base)));
+				}
+				return true;
+			}
+			i = i + 1;
+		}
+		return false;
+	}
+
 	bool ready(SsaData data, int instruction) throws Error {
+		if (instruction > 0 && data.instructions[instruction - 1].origin.opcode == 33) {
+			var row = data.instructions[instruction - 1].origin.value; bool left = false; bool right = false; int i = 0;
+			while (i < data.instruction_count) {
+				if (data.instructions[i].origin.origin == row.a && this.accesses[i] != null) left = true;
+				if (data.instructions[i].origin.origin == row.b && this.accesses[i] != null) right = true;
+				i = i + 1;
+			}
+			if (!left || !right) return false;
+		}
 		int u = 0;
 		while (u < data.use_count) {
 			this.take(1);
@@ -2175,6 +2236,8 @@ class LlvmArtifact {
 	bool text_fault(int category) throws Error { return this.implementation.text_fault(category); }
 
 	bool indexpath_fault(SsaProgram program, int category) throws Error { return this.implementation.indexpath_fault(program, category); }
+
+	bool owner_exchange_fault(SsaProgram program, int category) throws Error { return this.implementation.owner_exchange_fault(program, category); }
 
 	bool llvm_valid() { return this.implementation.llvm_valid(); }
 

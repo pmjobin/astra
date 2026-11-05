@@ -106,3 +106,11 @@ Final cold builds took 428.98 s / 1,320,208 KiB (O0) and 739.88 s / 1,328,464 Ki
 checks, the synthetic-exit projection-span trap and repair, auxiliary replay/trace
 setup failures, and the deliberately interrupted pre-API O2 build remain in the
 private evidence. These costs are not a size/speed comparison or a Stage-1 result.
+
+OWNEXCHANGE-19 retains Core's closed owner exchange (33) and resultless capture
+operations (34). The existing continuation builder evaluates the left capture,
+then right capture, then commit. Its separate structural consumer checks those
+exact source regions and continuations; there is no temporary public move or
+field hole. Receiver checks occur at their capture blocks. Supported receiver
+forms have no intervening user effect that could invalidate a captured Place.
+Cleanup ranks and conditional arm tests remain attached to declared storage.

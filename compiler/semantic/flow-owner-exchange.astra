@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Live owner-slot checks preserve each declaration responsibility.
+int flow_owner_capture(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId statement, SyntaxNodeId node, int side, int region, int next, int depth) throws Error {
+	int field = flowsem_place(graph, checked, node, 0); int slot = 0;
+	if (field > 0) slot = graph.fields[field - 1].root;
+	if (checked.bindings.program.arena.kind(node) == SyntaxKind.NameExpressionSyntax()) slot = graph.slot_for(checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node)));
+	var event = flow_event(checked, node, 24, slot, region, next); event.field = field; event.producer = statement; event.call = side;
+	int capture = graph.add(event);
+	return flow_expression(graph, checked, origins, node, region, capture, 0, depth + 1);
+}
+
+bool flow_owner_capture_verified(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event) {
+	if (event.region < 1 || !owner_exchange_slot(checked, event.node) || event.producer.index < 1 || checked.bindings.program.arena.kind(event.producer) != SyntaxKind.SwapStatementSyntax() || event.call < 1 || event.call > 2) return false;
+	var operand = checked.bindings.program.arena.get_node_left(event.producer);
+	if (event.call == 2) operand = checked.bindings.program.arena.get_node_right(event.producer);
+	if (operand.index != event.node.index) return false;
+	var left = checked.bindings.program.arena.get_node_left(event.producer); var right = checked.bindings.program.arena.get_node_right(event.producer);
+	if (!owner_exchange_slot(checked, left) || !owner_exchange_slot(checked, right) || checked.uses[left.index].type.index != checked.uses[right.index].type.index) return false;
+	if (event.field > 0) return event.field == flowsem_place(graph, checked, event.node, 0) && graph.fields[event.field - 1].root == event.slot && graph.fields[event.field - 1].leaf;
+	return event.slot > 0 && graph.slot_for(checked_target(checked, event.node, checked.bindings.program.arena.get_token_identifier(event.node))) == event.slot && graph.slots[event.slot - 1].owner;
+}
+
+void flow_owner_capture_check(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, int[] owners, int[] reservations, bool[] loans, int[] fields) {
+	if (event.slot > 0) flow_require(graph, event, owners[event.slot - 1], reservations[event.slot - 1], true);
+	if (event.field > 0 && flow_field_summary(graph, fields, 0, event.field) != 1) graph.fail(17, event.span);
+	int i = 0;
+	while (i < graph.loan_count) {
+		var loan = graph.loans[i]; bool overlap = loan.source == event.slot;
+		if (event.field > 0 && loan.source > 0 && event.slot > 0) overlap = checked_kind(checked, checked.uses[loan.node.index].type) != 31 && graph.slots[loan.source - 1].type.index == graph.slots[event.slot - 1].type.index;
+		if (loans[i] && overlap) graph.fail(9, event.span);
+		i = i + 1;
+	}
+}
+
+// C0 protects payload loans across possibly aliasing containing-Class call
+// arguments, including the hidden receiver. Whole-Class loans alone are valid.
+SyntaxNodeId owner_exchange_call_argument(CheckedIndex checked, SyntaxNodeId node, int ordinal) {
+	SyntaxNodeId absent = {index = 0};
+	if (!checked.class_storage || checked.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return absent;
+	var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (target.index == 0 || checked.symbol_signatures[target.index].index == 0) return absent;
+	var signature = checked.signatures[checked.symbol_signatures[target.index].index - 1]; var arguments = checked_call_arguments(checked, node);
+	if (ordinal < 0 || ordinal >= checked.bindings.program.arena.list_count(arguments) || ordinal + 1 >= checked.types.row(signature.callable).count) return absent;
+	var parameter = checked.types.argument(checked.types, signature.callable, ordinal + 1);
+	if ((parameter.flags & 2) == 0 || checked_kind(checked, parameter.type) != 31) return absent;
+	var argument = checked.bindings.program.arena.node_at(arguments, ordinal);
+	if (checked.uses[argument.index].type.index != parameter.type.index) return absent;
+	return argument;
+}
+
+bool flow_owner_call_verified(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, FlowEvent event) {
+	var argument = owner_exchange_call_argument(checked, event.node, event.call - 1);
+	return event.region > 0 && argument.index > 0 && event.producer.index == argument.index && event.slot == flow_origin(graph, checked, origins, argument) && event.field == 0 && event.loan == 0;
+}
+
+void flow_owner_call_check(borrowed FlowGraph graph, CheckedIndex checked, FlowEvent event, bool[] loans) {
+	var receiver = checked.uses[event.producer.index].type;
+	if (checked_kind(checked, receiver) != 31) {
+		graph.fail(13, event.span);
+		return;
+	}
+	int i = 0;
+	while (i < graph.loan_count) {
+		var loan = graph.loans[i];
+		if (loans[i] && checked.bindings.program.arena.kind(loan.node) == SyntaxKind.FieldAccessExpressionSyntax() && checked_kind(checked, checked.uses[loan.node.index].type) == 22) {
+			var field = checked_target(checked, loan.node, checked.bindings.program.arena.get_token_field_name(loan.node));
+			if (field.index > 0 && checked.bindings.symbol(field).owner.index == checked.types.row(receiver).nominal.index) graph.fail(9, event.span);
+		}
+		i = i + 1;
+	}
+}

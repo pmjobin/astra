@@ -104,3 +104,10 @@ edge/source/version checking remains independent of this normalization.
 
 There is no LLVM emitter, machine execution through this new SSA, general memory
 SSA, optimization/ABI change, full semantic admission or Stage-1 qualification.
+
+OWNEXCHANGE-19 preserves the two resultless storage captures and closed descriptor
+exchange through exact CFG refinement. Exchange child coordinates name captures,
+not SSA values, and therefore do not become value uses or extra owners. The
+independent CFG/source correspondence and dominance checks establish left/right/
+commit order. Descriptor storage stays in memory, with no promotion, noalias
+promise or change to cleanup arm state. The 8,000,000-step limit is unchanged.

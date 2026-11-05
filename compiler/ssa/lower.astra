@@ -83,7 +83,7 @@ void ssa_seed_uses(SsaData data, CfgData cfg) {
 		var block = cfg.blocks[b];
 		if (block.instruction != 0) {
 			var row = cfg.instructions[block.instruction - 1];
-			if (row.opcode < 40 || row.opcode == 44) {
+			if (row.opcode < 40 && row.opcode != 33 || row.opcode == 44) {
 				ssa_build_use(data, block.function, b + 1, block.instruction, 1, 0, row.a, type_symbol(0), 0);
 				ssa_build_use(data, block.function, b + 1, block.instruction, 2, 0, row.b, type_symbol(0), 0);
 			}

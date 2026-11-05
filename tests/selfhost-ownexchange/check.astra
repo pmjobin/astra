@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void owner_exchange_event_set(borrowed FlowGraph graph, int event, FlowEvent value) { graph.events[event] = value; }
+
+int owner_exchange_fact_set(borrowed FlowGraph graph, int cell, int value) { int previous = graph.facts[cell]; graph.facts[cell] = value; return previous; }
+
+int owner_exchange_graph_capture(borrowed FlowGraph graph) { int e = 0; while (e < graph.count) {
+		if (graph.events[e].operation == 24) return e;
+		e = e + 1;
+	} return -1; }
+
+FlowEvent owner_exchange_event_get(borrowed FlowGraph graph, int event) { return graph.events[event]; }
+
+int owner_exchange_fact_cell(borrowed FlowGraph graph, int event, int slot) { return event * graph.slot_count + slot - 1; }
+
+void owner_exchange_mutation(int category, int stage) throws Error {
+	assert_that(stage > 0); var out = new Utf8ByteBuilder(); source_append_text(out, "OWNEXCHANGE_MODEL_MUTATION"); flow_number(out, category); flow_number(out, stage); source_append_text(out, " VALID_RESTORED\n"); var text = out.snapshot(); print(text.text);
+}
+
+void owner_exchange_core_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0); var before = core_projection(program); int capture = -1; int exchange = -1; int i = 0;
+	while (i < program.data.node_count) {
+		if (program.data.nodes[i].kind == 33) exchange = i;
+		if (program.data.nodes[i].kind == 34) capture = i;
+		i = i + 1;
+	}
+	assert_that(capture >= 0 && exchange >= 0);
+	int category = 0;
+	while (category < 22) {
+		int at = capture; if (category >= 7 && category <= 10) at = exchange;
+		var old = program.data.nodes[at]; var changed = old; int stage = 0;
+		if (category == 0) changed.source.index = 1;
+		if (category == 1) changed.place = 0;
+		if (category == 2) changed.type = type_id(1);
+		if (category == 3) changed.flags = 4;
+		if (category == 4) changed.target = 0;
+		if (category == 5) changed.c = 3;
+		if (category == 6) changed.span.start = changed.span.start + 1;
+		if (category == 7) {
+			changed.a = old.b;
+			changed.b = old.a;
+		}
+		if (category == 8) changed.b = old.a;
+		if (category == 9) changed.kind = 28;
+		if (category == 10) changed.place = program.data.nodes[capture].place;
+		if (category < 11) {
+			program.data.nodes[at] = changed; stage = core_verify(program); program.data.nodes[at] = old;
+		}
+		if (category == 11) {
+			int p = program.data.nodes[capture].place - 1; var original = program.data.places[p]; var forged = original; forged.flags = forged.flags & ~4;
+			program.data.places[p] = forged; stage = core_verify(program); program.data.places[p] = original;
+		}
+		if (category == 12) {
+			assert_that(program.data.cleanup_count > 0); var original = program.data.cleanups[0]; var forged = original; forged.owner = original.owner + 1;
+			program.data.cleanups[0] = forged; stage = core_verify(program); program.data.cleanups[0] = original;
+		}
+		if (category == 13) {
+			assert_that(program.flow.checked.instance_count > 0); var original = program.flow.checked.instances[0]; var forged = original; forged.state = 1;
+			program.flow.checked.instances[0] = forged; stage = core_verify(program); program.flow.checked.instances[0] = original;
+		}
+		if (category == 14) {
+			var original = program.data.cleanups[0]; var forged = original; forged.state = 0; program.data.cleanups[0] = forged; stage = core_verify(program); program.data.cleanups[0] = original;
+		}
+		if (category == 15) {
+			assert_that(program.data.cleanup_count > 1); var first = program.data.cleanups[0]; var second = program.data.cleanups[1]; program.data.cleanups[0] = second; program.data.cleanups[1] = first; stage = core_verify(program); program.data.cleanups[0] = first; program.data.cleanups[1] = second;
+		}
+		if (category == 16 || category == 17) {
+			int p = program.data.nodes[capture].place - 1; var original = program.data.places[p]; var forged = original;
+			if (category == 16) forged.type = type_id(13);
+			if (category == 17) forged.root = 0;
+			program.data.places[p] = forged; stage = core_verify(program); program.data.places[p] = original;
+		}
+		if (category >= 18 && category <= 20) {
+			int g = 0; int e = 0; bool found = false;
+			while (g < program.flow.graphs.count() && !found) {
+				e = 0;
+				e = owner_exchange_graph_capture(program.flow.graphs.entries[g]); found = e >= 0;
+				if (!found) g = g + 1;
+			}
+			assert_that(found); var original = owner_exchange_event_get(program.flow.graphs.entries[g], e); var forged = original;
+			if (category == 18) forged.slot = 0;
+			if (category == 20) forged.region = 0;
+			if (category == 19) {
+				int cell = owner_exchange_fact_cell(program.flow.graphs.entries[g], e, original.slot); assert_that(original.slot > 0); int fact = owner_exchange_fact_set(program.flow.graphs.entries[g], cell, 0); stage = core_verify(program); int ignored = owner_exchange_fact_set(program.flow.graphs.entries[g], cell, fact);
+			} else {
+				owner_exchange_event_set(program.flow.graphs.entries[g], e, forged); stage = core_verify(program); owner_exchange_event_set(program.flow.graphs.entries[g], e, original);
+			}
+		}
+		if (category == 21) {
+			changed = old; changed.symbol = type_symbol(1); program.data.nodes[at] = changed; stage = core_verify(program); program.data.nodes[at] = old;
+		}
+
+		assert_that(core_verify(program) == 0); var after = core_projection(program); assert_that(after.text == before.text); owner_exchange_mutation(category, stage); category = category + 1;
+	}
+}
+
+void owner_exchange_cfg_mutations(CfgProgram program) throws Error {
+	assert_that(cfg_verify(program) == 0); var before = cfg_projection(program); int i = 0;
+	while (i < program.data.instruction_count && program.data.instructions[i].opcode != 33) i = i + 1;
+	assert_that(i < program.data.instruction_count); var old = program.data.instructions[i];
+	var changed = old; changed.a = old.b; changed.b = old.a; program.data.instructions[i] = changed; int stage = cfg_verify(program); program.data.instructions[i] = old;
+	owner_exchange_mutation(22, stage);
+	int block = old.block - 1; var original = program.data.blocks[block]; var forged = original; forged.yes = block + 1;
+	program.data.blocks[block] = forged; stage = cfg_verify(program); program.data.blocks[block] = original;
+	owner_exchange_mutation(23, stage); assert_that(cfg_verify(program) == 0); var after = cfg_projection(program); assert_that(after.text == before.text);
+}
+
+void owner_exchange_ssa_mutations(SsaProgram program) throws Error {
+	assert_that(ssa_verify(program) == 0); var before = ssa_test_snapshot(program.data); int i = 0;
+	while (i < program.data.instruction_count && program.data.instructions[i].origin.opcode != 33) i = i + 1;
+	assert_that(i < program.data.instruction_count); var old = program.data.instructions[i]; var changed = old; changed.noalias = true;
+	program.data.instructions[i] = changed; int stage = ssa_verify(program); program.data.instructions[i] = old; owner_exchange_mutation(24, stage);
+	changed = old; changed.origin.value.a = old.origin.value.b;
+	program.data.instructions[i] = changed; stage = ssa_verify(program); program.data.instructions[i] = old; owner_exchange_mutation(25, stage);
+	assert_that(ssa_verify(program) == 0); var after = ssa_test_snapshot(program.data); assert_that(after.text == before.text);
+}
+
+void owner_exchange_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 0;
+	while (category < 11) {
+		var valid = llvm_lower(program, program, profile); assert_that(valid.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile); assert_that(mutant.owner_exchange_fault(program, category) && mutant.llvm_valid());
+		int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+		bool rejected = false; try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+		var label = llvm_name("OWNEXCHANGE_PHYSICAL_MUTATION ", category); print(label.text); var boundary = llvm_name(" ", stage); print(boundary.text); print(" LLVM_VALID "); valid.snapshot(); print(" "); mutant.snapshot(); print(" "); mutant.close();
+		var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0); restored.snapshot(); println("");
+		var after = ssa_test_snapshot(program.data); assert_that(after.text == upstream.text && ssa_verify(program) == 0); category = category + 1;
+	}
+}

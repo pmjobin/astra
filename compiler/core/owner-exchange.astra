@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// 33 closed owner exchange, 34 ordered storage capture (never a value/owner).
+CoreNode core_lower_owner_exchange(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, CoreNode input, int function) {
+	var row = input; row.kind = 33; row.type = type_id(14); row.flags = 0;
+	var left = checked.bindings.program.arena.get_node_left(row.source); var right = checked.bindings.program.arena.get_node_right(row.source);
+	var first = core_node(checked, left, function); first.kind = 34; first.type = type_id(14); first.flags = 0; first.target = row.source.index; first.c = 1; first.place = core_lower_place(core, checked, graph, function, left);
+	var second = core_node(checked, right, function); second.kind = 34; second.type = type_id(14); second.flags = 0; second.target = row.source.index; second.c = 2; second.place = core_lower_place(core, checked, graph, function, right);
+	row.a = core_add_node(core, first); row.b = core_add_node(core, second);
+	if (first.place < 1 || second.place < 1) core.status = 3;
+	return row;
+}
+
+bool core_verify_owner_exchange(CoreData core, CheckedIndex checked, int[] proofs, CoreNode row, int id, SyntaxNodeId source, int function, int loop, int depth, bool[] seen, bool[] seen_edges) {
+	if (!checked.class_storage || row.type.index != 14 || row.flags != 0 || row.token.index != 0 || row.operation.index != 0 || row.symbol.index != 0 || row.signature.index != 0 || row.first != 0 || row.count != 0) return false;
+	if (row.kind == 34) {
+		if (row.a != 0 || row.b != 0 || row.c < 1 || row.c > 2 || row.target < 1 || row.target >= len(checked.uses) || !owner_exchange_slot(checked, source)) return false;
+		SyntaxNodeId statement = {index = row.target};
+		if (checked.bindings.program.arena.kind(statement) != SyntaxKind.SwapStatementSyntax()) return false;
+		var operand = checked.bindings.program.arena.get_node_left(statement);
+		if (row.c == 2) operand = checked.bindings.program.arena.get_node_right(statement);
+		if (operand.index != source.index || row.place < 1 || row.place > core.place_count || core_source_place(core, checked, function, source, 0) != row.place) return false;
+		var place = core.places[row.place - 1];
+		return place.function == function && place.leaf && (place.flags & (4 | 128)) == 4 && checked_kind(checked, place.type) == 22 && place.type.index == checked.uses[source.index].type.index;
+	}
+	if (row.kind != 33 || checked.bindings.program.arena.kind(source) != SyntaxKind.SwapStatementSyntax() || row.place != 0 || row.c != 0 || row.target != 0 || row.a < 1 || row.a > core.node_count || row.b < 1 || row.b > core.node_count || row.a == row.b) return false;
+	var left = checked.bindings.program.arena.get_node_left(source); var right = checked.bindings.program.arena.get_node_right(source);
+	if (!core_verify_child(core, checked, proofs, row.a, left, function, loop, 0, depth, seen, seen_edges) || !core_verify_child(core, checked, proofs, row.b, right, function, loop, 0, depth, seen, seen_edges)) return false;
+	var first = core.nodes[row.a - 1]; var second = core.nodes[row.b - 1];
+	if (first.kind != 34 || second.kind != 34 || first.c != 1 || second.c != 2 || first.target != source.index || second.target != source.index) return false;
+	return core.places[first.place - 1].type.index == core.places[second.place - 1].type.index;
+}

@@ -80,3 +80,14 @@ field types. This does not admit owning-element duplication, general indexed
 field assignment, borrowed element escape, effectful indexes or wider index
 channels. Complete original consumer bodies can still reach the unchanged SSA
 work bound; the original source-operation view is reported separately.
+
+OWNEXCHANGE-19 uses the existing private buffer descriptor `{ptr, i32}`. Each
+capture materializes its authoritative local or Class-field address after the
+existing receiver guard. The closed commit consists of two whole-descriptor
+loads followed by the two opposite stores. The retained physical consumer checks
+exact source/capture association, address provenance, descriptor component types,
+alignment, dominance, consecutive memory operations and absence of extra effects.
+It does not inspect element payloads or recover semantic types from pointers.
+Captures acquire no allocation or destructor duty. Existing normal Class-field
+retirement and local cleanup operate on the allocations received by their slots.
+No public ABI or runtime exchange helper is added.

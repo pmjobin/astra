@@ -113,7 +113,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 	i = 0;
 	while (i < graph.count) {
 		var event = graph.events[i];
-		if (event.node.index <= 0 || event.node.index > checked.bindings.program.arena.node_count || !flow_equal_span(event.span, checked.bindings.program.arena.header(event.node).span) || event.operation < 0 || event.operation > 23 || event.input < 0 || event.input > graph.slot_count + graph.value_count || event.output < 0 || event.output > graph.slot_count + graph.value_count || event.field < 0 || event.field > graph.field_count || event.source_field < 0 || event.source_field > graph.field_count || event.producer.index < 0 || event.producer.index > checked.bindings.program.arena.node_count || event.predicate.index < 0 || event.predicate.index > checked.bindings.program.arena.node_count) {
+		if (event.node.index <= 0 || event.node.index > checked.bindings.program.arena.node_count || !flow_equal_span(event.span, checked.bindings.program.arena.header(event.node).span) || event.operation < 0 || event.operation > 25 || event.input < 0 || event.input > graph.slot_count + graph.value_count || event.output < 0 || event.output > graph.slot_count + graph.value_count || event.field < 0 || event.field > graph.field_count || event.source_field < 0 || event.source_field > graph.field_count || event.producer.index < 0 || event.producer.index > checked.bindings.program.arena.node_count || event.predicate.index < 0 || event.predicate.index > checked.bindings.program.arena.node_count) {
 			return false;
 		}
 		if (event.slot < 0 || event.slot > graph.slot_count || event.region < 0 || event.region > graph.region_count) {
@@ -138,6 +138,8 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 			}
 		}
 		var kind = checked.bindings.program.arena.kind(event.node);
+		if (event.operation == 25 && !flow_owner_call_verified(graph, checked, class_origins, event)) return false;
+		if (event.operation == 24 && !flow_owner_capture_verified(graph, checked, event)) return false;
 		if (event.operation == 22 || event.operation == 23) {
 			if (!checked.semantic_admission || event.field == 0 || event.producer.index == 0 || !graph.fields[event.field - 1].leaf || graph.fields[event.field - 1].root != event.slot) return false;
 			if (event.slot == 0 && (!checked.class_storage || !class_storage_constructor_verified(checked, graph.function))) return false;

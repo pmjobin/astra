@@ -26,6 +26,7 @@ def main():
 	p.add_argument('--phase', choices=('before', 'after'), required=True)
 	p.add_argument('--target-root', type=Path, help='Observe an exact retained source snapshot with the current consumer')
 	p.add_argument('--implementation-root', type=Path, help='Compile an exact retained implementation snapshot for a before/after comparison')
+	p.add_argument('--component', type=Path, help='Use an exact LLVM component with the read-only source-ledger command; no helper build')
 	p.add_argument('--class-storage', action='store_true', help='Observe the explicitly authorized private Class-storage profile')
 	a = p.parse_args()
 	assert all(not x.resolve().is_relative_to(ROOT) for x in (a.build, a.runtime))
@@ -54,14 +55,22 @@ def main():
 		if name.startswith(('ownflow-', *base.PROVIDERS)):
 			assert r.returncode == 0, r.stderr.decode(errors='replace')[:3000]
 		return r.stdout
-	products = base.build(a.compiler.resolve(), a.build.resolve(), capture, ('O0',), with_flow=True, consumer=Path(__file__).with_suffix('.astra'), product_prefix='astra-ledger-', link_inputs=[Path(__file__), ROOT/'tests/selfhost-typecore/build.py'])
+	component = a.component.resolve() if a.component else a.build/'astra-ledger-O0'
+	if a.component:
+		assert a.phase == 'after' and a.class_storage
+		identity = json.loads(component.with_suffix('.identity.json').read_text()); assert sha(component) == identity['sha256']
+		assert all(sha(path) == value for group in ('sources', 'tools') for path, value in identity['identity'][group].items())
+		products = {component.name: dict(path=str(component), sha256=sha(component), identity=sha(component.with_suffix('.identity.json')), classification='EXACT_COMPONENT_REUSE_FRESH_OBSERVATION')}
+	else:
+		products = base.build(a.compiler.resolve(), a.build.resolve(), capture, ('O0',), with_flow=True, consumer=Path(__file__).with_suffix('.astra'), product_prefix='astra-ledger-', link_inputs=[Path(__file__), ROOT/'tests/selfhost-typecore/build.py'])
 	(a.runtime/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 	target_root = a.target_root.resolve() if a.target_root else root
 	inputs = [*sorted((target_root/'compiler').rglob('*.astra')), *[target_root/f'lib/astra/{name}.astra' for name in base.LIBRARIES]]
 	identities = {str(path): dict(relative=str(path.relative_to(target_root)), bytes=path.stat().st_size, sha256=sha(path)) for path in inputs}
 	(a.runtime/'inputs.json').write_text(json.dumps(identities, indent=2)+'\n')
 	profile = ['--class-storage'] if a.class_storage else []
-	data = capture(['/usr/bin/time', '-v', a.build/'astra-ledger-O0', *profile, *inputs], 'whole-compiler')
+	command = [component, '--classstorage-source-ledger', 'O0', a.build/'unused'] if a.component else [component, *profile]
+	data = capture(['/usr/bin/time', '-v', *command, *inputs], 'whole-compiler')
 	assert all(sha(path) == value['sha256'] for path, value in identities.items())
 	decls, nodes, flow = {}, [], []
 	for line in data.decode().splitlines():
@@ -98,7 +107,7 @@ def main():
 			diagnostics.append(dict(kind='CHECKED_ERROR', path=bytes.fromhex(values[1]).decode(), start=int(values[2]), end=int(values[3]), message=bytes.fromhex(values[4]).decode()))
 		if values[0] == 'DEFER':
 			diagnostics.append(dict(kind='DEFERRED', reason=values[1], code=int(values[2]), path=bytes.fromhex(values[3]).decode(), start=int(values[4]), end=int(values[5])))
-	result = dict(format='astra-whole-source-ledger/1', phase=a.phase, initial_commit=INITIAL if a.phase == 'before' else None, component_sha256=sha(a.build/'astra-ledger-O0'), files=files, declarations=decls, nodes=nodes, raw_flow=flow, diagnostics=diagnostics, reason_authority=dict(path=str(reason_authority), sha256=sha(reason_authority), reasons=reasons), limitations='Zero typed use is not acceptance. It may name a structural syntax node or a node unvisited after the recorded first error. Deferred and typed observations do not imply Flow/IR/LLVM admission. Original and current whole compiler remain unqualified.')
+	result = dict(format='astra-whole-source-ledger/1', phase=a.phase, initial_commit=INITIAL if a.phase == 'before' else None, component_sha256=sha(component), files=files, declarations=decls, nodes=nodes, raw_flow=flow, diagnostics=diagnostics, reason_authority=dict(path=str(reason_authority), sha256=sha(reason_authority), reasons=reasons), limitations='Zero typed use is not acceptance. It may name a structural syntax node or a node unvisited after the recorded first error. Deferred and typed observations do not imply Flow/IR/LLVM admission. Original and current whole compiler remain unqualified.')
 	(a.runtime/'ledger.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(a.phase, len(files), 'files', len(nodes), 'original parsed nodes; full-source disposition preserved')
 

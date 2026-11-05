@@ -45,7 +45,9 @@ class CoreWalk {
 		if (row.kind == 7 || row.kind == 23) this.branches = this.branches + 1;
 		if (row.kind == 24) this.loops = this.loops + 1;
 		if (row.kind == 10) this.records = this.records + 1;
-		if (!this.walk(core, row.a, depth + 1) || !this.walk(core, row.b, depth + 1) || !this.walk(core, row.c, depth + 1)) return false;
+		// Capture c is an operand ordinal; only the closed exchange has children.
+		int third = row.c; if (row.kind == 34) third = 0;
+		if (!this.walk(core, row.a, depth + 1) || !this.walk(core, row.b, depth + 1) || !this.walk(core, third, depth + 1)) return false;
 		int i = 0;
 		while (i < row.count) {
 			if (!this.walk(core, core.edges[row.first + i].child, depth + 1)) return false;
