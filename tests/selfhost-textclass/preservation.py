@@ -45,7 +45,17 @@ def main():
 	for path, expected in workflow.items(): assert sha(path) == expected, path
 	assert git(ROOT, 'config', '--local', '--show-origin', '--list').decode() == prior['local_config']
 	assert git(ROOT, 'config', '--show-origin', '--list').decode() == initial['effective_config']
-	assert git(ROOT, 'worktree', 'list', '--porcelain').decode() == initial['worktrees']
+	worktrees = git(ROOT, 'worktree', 'list', '--porcelain').decode()
+	def worktree_structure(raw, expected_head):
+		records = []
+		for record in raw.strip().split('\n\n'):
+			lines = record.splitlines()
+			if lines[0] == 'worktree '+str(ROOT):
+				assert 'HEAD '+expected_head in lines
+				lines = ['HEAD <authorized task revision>' if line.startswith('HEAD ') else line for line in lines]
+			records.append(lines)
+		return records
+	assert worktree_structure(worktrees, git(ROOT, 'rev-parse', 'HEAD').decode().strip()) == worktree_structure(initial['worktrees'], BASE)
 	assert git(ROOT, 'stash', 'list').decode() == initial['stash']
 	unchanged = ('AGENTS.md', 'CODING_STYLE.md', 'codex-project.json')
 	for path in unchanged:
@@ -63,7 +73,7 @@ def main():
 	assert sha(toolchain['C0']['path']) == toolchain['C0']['sha256']
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	assert sha(a.intake/'GENCLASS-16-report.zip') == '1c5c33637078926f383df6ebd7701d4bfd1204f07665b8863d7a399b40b5709f'
-	result = dict(status='PASS', base=BASE, final_head=git(ROOT, 'rev-parse', 'HEAD').decode().strip(), final_tree=git(ROOT, 'rev-parse', 'HEAD^{tree}').decode().strip(), protected_files=451, donor_files=6622, donor_head=old['donor_head'], donor_status=old['donor_status'], workflow_unchanged=workflow, hooks_unchanged=prior['hooks_unchanged'], effective_config=initial['effective_config'], formatter_existing_classifications_preserved=True, C0_sources=len(toolchain['C0']['sources']), C0_runtime_libraries=len(toolchain['C0']['runtime_libraries']), original_report_sha256=sha(a.intake/'GENCLASS-16-report.zip'), tracked_status=git(ROOT, 'status', '--porcelain=v1', '--untracked-files=all').decode(), recipe_sha256=sha(__file__))
+	result = dict(status='PASS', base=BASE, final_head=git(ROOT, 'rev-parse', 'HEAD').decode().strip(), final_tree=git(ROOT, 'rev-parse', 'HEAD^{tree}').decode().strip(), protected_files=451, donor_files=6622, donor_head=old['donor_head'], donor_status=old['donor_status'], workflow_unchanged=workflow, hooks_unchanged=prior['hooks_unchanged'], effective_config=initial['effective_config'], worktrees_initial=initial['worktrees'], worktrees_final=worktrees, worktree_structure='Exact paths, branches and other fields; only this authorized task checkout HEAD advances.', formatter_existing_classifications_preserved=True, C0_sources=len(toolchain['C0']['sources']), C0_runtime_libraries=len(toolchain['C0']['runtime_libraries']), original_report_sha256=sha(a.intake/'GENCLASS-16-report.zip'), tracked_status=git(ROOT, 'status', '--porcelain=v1', '--untracked-files=all').decode(), recipe_sha256=sha(__file__))
 	with a.output.open('x') as out: out.write(json.dumps(result, indent=2)+'\n')
 	print('451 protected files, 6622 read-only donor files, workflow/hooks/config, formatter lanes and pinned C0 preserved')
 

@@ -32,6 +32,7 @@ def main():
 	p.add_argument('--source-version', required=True, help='Exact final immutable implementation snapshot, e.g. source-v9')
 	p.add_argument('--ledger-version', required=True, help='Exact final ledger leaf prefix, e.g. ledger-v9')
 	p.add_argument('--live-ledger', type=Path, required=True, help='Separate exact final live-population ledger')
+	p.add_argument('--correspondence', type=Path, required=True, help='Exact final committed source/product correspondence receipt')
 	a = p.parse_args(); assert a.output.resolve().is_relative_to(a.runtime.resolve())
 	assert subprocess.check_output(['git', 'status', '--porcelain=v1', '--untracked-files=all']) == b''
 	assert subprocess.run(['git', 'merge-base', '--is-ancestor', BASE, 'HEAD']).returncode == 0
@@ -74,7 +75,8 @@ def main():
 		data = read(a.runtime/('comparison-final-'+name+'.json')); assert data['status'] == 'EXACT_COHORT_CHECKED_STOP_ADVANCED'
 		assert data['after']['typed'] > data['before']['typed']
 	assert a.live_ledger.resolve().is_relative_to(a.runtime.resolve()) and read(a.live_ledger)['diagnostics'], 'final live source must retain honest disposition'
-	assert read(a.runtime/'source-product-correspondence.json')['status'] == 'PASS'
+	correspondence = read(a.correspondence)
+	assert correspondence['status'] == 'PASS' and correspondence['final_head'] == subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() and correspondence['final_tree'] == subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip()
 	a.output.mkdir(parents=True, exist_ok=False)
 	model = dict(format='astra-textclass-handoff/1', storage_format='astra-line-chunk/1', status='PASS', final_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), final_tree=subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip(), profiles=profiles, gate_receipts=receipts, historical_proof_outputs=1044, evidence_classification='Current native/model/physical gates are fresh. Historical proof outputs are hash-preserved under original source/tool/flag/dependency identities.', omissions=[], files=[])
 	files, blobs = {}, {}
