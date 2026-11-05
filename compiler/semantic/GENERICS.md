@@ -59,3 +59,33 @@ emits the exact TypeTable and Binder identities and map occupancy. Trace data is
 observational and grants no acceptance authority. Raw receipts belong in the
 external `genresource20` runtime; retained source snapshots bind long builds to
 their actual input bytes.
+
+Current GENRESOURCE-20 qualification advances these identical frozen populations:
+
+| Population | Original-node checked uses before | After |
+| --- | ---: | ---: |
+| Original, 79 files | 8,003 | 14,966 |
+| LLVM23-base, 85 files | 8,297 | 15,593 |
+| Class15-current, 92 files | 8,760 | 17,637 |
+| Live-initial, 92 files | 8,810 | 17,877 |
+
+All four pass their former map-resource operation and next defer at
+`swap(this.signatures, grown)` in their frozen `CheckedIndex`. These are checked
+prefix observations, not whole-source admission. The complete original
+`FlowGraph.outlives` body additionally executes in a disclosed byte-preserving
+Class/dependency view, with an independently equal C0 syntax tree.
+
+O0/O2 each retain 145 freshly executed inherited programs and qualify 12 new
+programs, plus two additional valid twins/views (159 source identities total).
+Seven new core programs per profile perform material allocations under
+unsuppressed Valgrind. Fourteen new retained-model controls and six LLVM-valid
+post-emission source/ABI/runtime controls pass per profile; the previous 37
+exchange controls, including their 11 retained-module physical audits, are
+separately rerun. The nested-record case uses a bounded C0-syntax substitution
+closure for its independent C++ layout probe; unrelated successful cases retain
+their exact source/product receipts.
+
+The 257th distinct instance and the separate original SSA stress cases remain
+resource-deferred. Finite generic runtime recursion, wider owner targets,
+`Utf8Message` factory/exception work, the wide-u64/f32 Valgrind discrepancy,
+whole-source safety and Stage 1 remain outside this qualification.
