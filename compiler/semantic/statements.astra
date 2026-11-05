@@ -234,7 +234,12 @@ owned CheckedIndex checked_build_classstorage(owned BindingIndex bindings, int s
 }
 
 owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi, bool class_storage) throws Error {
+	return checked_build_profile_trace(move bindings, stop_after, flow_adapters, semantic_flow, admission, native_abi, class_storage, false);
+}
+
+owned CheckedIndex checked_build_profile_trace(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi, bool class_storage, bool trace) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
+	result.generic_trace = trace;
 	result.flow_adapters = flow_adapters;
 	result.semantic_flow = semantic_flow;
 	result.semantic_admission = admission && semantic_flow;

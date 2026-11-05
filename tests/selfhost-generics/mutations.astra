@@ -79,8 +79,8 @@ void generic_mutations(FlowIndex flow) throws Error {
 			stage = generic_mutation_stage(flow); flow.checked.symbol_types[symbol.index] = old;
 		}
 		if (category == 8 || category == 18) {
-			int position = record_plan.symbols + record_plan.origin.index;
-			if (category == 18) position = scalar_plan.nodes + body.index;
+			int position = record_plan.symbols + record_plan.origin.index - record_plan.symbol_first + 1;
+			if (category == 18) position = scalar_plan.nodes + body.index - scalar_plan.node_first + 1;
 			if (category == 8) {
 				int old = flow.checked.generic_symbol_map[position]; flow.checked.generic_symbol_map[position] = scalar_plan.concrete.index;
 				stage = generic_mutation_stage(flow); flow.checked.generic_symbol_map[position] = old;

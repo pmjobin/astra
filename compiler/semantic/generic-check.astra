@@ -47,13 +47,19 @@ int generic_verify_failure(CheckedIndex index) {
 		return 1;
 	}
 	if (index.instance_count < 0 || index.instance_count > 256 || index.instance_count > len(index.instances)) return 2;
+	int node_slots = 0; int symbol_slots = 0; int scope_slots = 0;
 	int ordinal = 0;
 	while (ordinal < index.instance_count) {
 		if (!generic_plan_bounds(index, index.instances[ordinal])) return 3;
+		var storage = index.instances[ordinal];
+		if (index.generic_node_map[storage.nodes] != 0 || index.generic_symbol_map[storage.symbols] != 0 || index.generic_scope_map[storage.scopes] != 0) return 28;
+		if (node_slots > index.generic_node_used - storage.node_count - 1 || symbol_slots > index.generic_symbol_used - storage.symbol_count - 1 || scope_slots > index.generic_scope_used - storage.scope_count - 1) return 29;
+		node_slots = node_slots + storage.node_count + 1; symbol_slots = symbol_slots + storage.symbol_count + 1; scope_slots = scope_slots + storage.scope_count + 1;
 		int previous = 0;
 		while (previous < ordinal) {
 			var first = index.instances[previous]; var current = index.instances[ordinal];
 			if (first.concrete.index == current.concrete.index) return 4;
+			if (!(first.nodes + first.node_count < current.nodes || current.nodes + current.node_count < first.nodes) || !(first.symbols + first.symbol_count < current.symbols || current.symbols + current.symbol_count < first.symbols) || !(first.scopes + first.scope_count < current.scopes || current.scopes + current.scope_count < first.scopes)) return 27;
 			bool same = first.origin.index == current.origin.index && first.enclosing.index == current.enclosing.index && first.argument_count == current.argument_count;
 			int argument = 0;
 			while (same && argument < first.argument_count) {
@@ -68,7 +74,9 @@ int generic_verify_failure(CheckedIndex index) {
 		if (plan_origin.index < 1 || plan_origin.index > index.generic_symbols || concrete.index <= index.generic_symbols || concrete.index > index.bindings.symbol_count || generic_state(index.instances[ordinal]) != 2) return 6;
 		if (!generic_references_verified(index, index.instances[ordinal])) return 7;
 		var original = index.bindings.symbol(plan_origin); var clone = index.bindings.symbol(concrete);
+		if (generic_symbol(index, index.instances[ordinal], plan_origin.index) != concrete.index) return 30;
 		bool method = (original.kind == 11 || index.class_storage && original.kind == 12) && clone.kind == 1;
+		if (generic_node(index, index.instances[ordinal], original.node.index) != clone.node.index || !generic_check_node(index, index.instances[ordinal], original.node)) return 26;
 		if ((!method && original.kind != clone.kind) || (original.kind != 1 && original.kind != 3 && original.kind != 4 && !method)) return 8;
 		if (original.kind == 4 && !generic_class_source(index, plan_origin) && !class_storage_template_verified(index, plan_origin)) return 9;
 		var parameters = index.bindings.program.arena.get_list_type_parameters(original.node);
@@ -134,6 +142,7 @@ int generic_verify_failure(CheckedIndex index) {
 		}
 		ordinal = ordinal + 1;
 	}
+	if (node_slots != index.generic_node_used || symbol_slots != index.generic_symbol_used || scope_slots != index.generic_scope_used) return 31;
 	if (!generic_calls_verified(index)) return 25;
 	return 0;
 }
@@ -253,18 +262,18 @@ bool generic_references_verified(CheckedIndex index, GenericInstance plan) {
 	int source = 1; int offset = 0;
 	while (source <= index.generic_references) {
 		var original = index.bindings.reference(source);
-		int node = index.generic_node_map[plan.nodes + original.node.index];
+		int node = generic_node(index, plan, original.node.index);
 		if (node != 0) {
 			if (offset >= plan.reference_count) return false;
 			var actual = index.bindings.reference(plan.first_reference + offset);
 			if (actual.node.index != node || actual.token.index != original.token.index || actual.span.source.index != original.span.source.index || actual.span.start != original.span.start || actual.span.end != original.span.end || actual.domain != original.domain) return false;
 			int scope = original.scope.index;
-			if (scope > 0 && index.generic_scope_map[plan.scopes + scope] != 0) scope = index.generic_scope_map[plan.scopes + scope];
+			if (scope > 0 && generic_scope(index, plan, scope) != 0) scope = generic_scope(index, plan, scope);
 			if (actual.scope.index != scope) return false;
 			if (original.state_code == 1) {
 				int target = original.target.index;
-				if (index.generic_symbol_map[plan.symbols + target] != 0) {
-					target = index.generic_symbol_map[plan.symbols + target];
+				if (generic_symbol(index, plan, target) != 0) {
+					target = generic_symbol(index, plan, target);
 				} else {
 					if (index.class_storage && plan.enclosing.index != 0) {
 						int owner = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
@@ -282,6 +291,12 @@ bool generic_references_verified(CheckedIndex index, GenericInstance plan) {
 	return offset == plan.reference_count;
 }
 
+// Independent storage-bound checks precede any map consumption. Windows are
+// allowed to contain zeros; edge correspondence never follows span containment.
+bool generic_window_bounds(int first, int count, int originals, int base, int used, int capacity) {
+	return first >= 1 && first <= originals + 1 && count >= 0 && count <= originals + 1 - first && base >= 0 && used >= 0 && used <= capacity && count < used && base <= used - count - 1;
+}
+
 bool generic_plan_bounds(CheckedIndex index, GenericInstance plan) {
-	return plan.arguments >= 0 && plan.argument_count >= 0 && plan.argument_count <= 257 && plan.arguments <= len(index.generic_arguments) - plan.argument_count && plan.nodes >= 0 && plan.nodes <= len(index.generic_node_map) - index.generic_nodes - 1 && plan.symbols >= 0 && plan.symbols <= len(index.generic_symbol_map) - index.generic_symbols - 1 && plan.scopes >= 0 && plan.scopes <= len(index.generic_scope_map) - index.generic_scopes - 1;
+	return plan.arguments >= 0 && plan.argument_count >= 0 && plan.argument_count <= 257 && plan.arguments <= len(index.generic_arguments) - plan.argument_count && index.generic_node_used <= 8000000 && index.generic_symbol_used <= 8000000 && generic_window_bounds(plan.node_first, plan.node_count, index.generic_nodes, plan.nodes, index.generic_node_used, len(index.generic_node_map)) && generic_window_bounds(plan.symbol_first, plan.symbol_count, index.generic_symbols, plan.symbols, index.generic_symbol_used, len(index.generic_symbol_map)) && generic_window_bounds(plan.scope_first, plan.scope_count, index.generic_scopes, plan.scopes, index.generic_scope_used, len(index.generic_scope_map));
 }

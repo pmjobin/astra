@@ -2,7 +2,7 @@
 // Generated structural consumer. Never calls the instance builder.
 bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId original) {
 	if (original.index <= 0 || original.index >= (index.generic_nodes + 1)) return false;
-	SyntaxNodeId concrete = {index = index.generic_node_map[plan.nodes + original.index]};
+	SyntaxNodeId concrete = {index = generic_node(index, plan, original.index)};
 	if (concrete.index <= index.generic_nodes || concrete.index >= len(index.uses)) return false;
 	var first = index.bindings.program.arena.header(original); var second = index.bindings.program.arena.header(concrete);
 	if (first.kind_code != second.kind_code || first.span.source.index != second.span.source.index || first.span.start != second.span.start || first.span.end != second.span.end || first.depth != second.depth || first.module_internal != second.module_internal) return false;
@@ -467,7 +467,7 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 
 bool generic_check_child(CheckedIndex index, GenericInstance plan, SyntaxNodeId original, SyntaxNodeId concrete) {
 	if (original.index == 0) return concrete.index == 0;
-	return original.index > 0 && original.index < (index.generic_nodes + 1) && index.generic_node_map[plan.nodes + original.index] == concrete.index && concrete.index != 0;
+	return original.index > 0 && original.index < (index.generic_nodes + 1) && generic_node(index, plan, original.index) == concrete.index && concrete.index != 0;
 }
 
 bool generic_check_list(CheckedIndex index, GenericInstance plan, SyntaxListId original, SyntaxListId concrete) {

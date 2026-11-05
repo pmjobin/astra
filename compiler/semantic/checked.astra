@@ -20,6 +20,10 @@ class CheckedIndex {
 	int generic_symbols;
 	int generic_scopes;
 	int generic_references;
+	bool generic_trace;
+	int generic_requests;
+	int generic_hits;
+	int generic_parent;
 	owned TypeTable types;
 	owned CheckedTypeUse[] uses;
 	owned TypeId[] symbol_types;
@@ -61,6 +65,8 @@ class CheckedIndex {
 		this.generic_symbols = this.bindings.symbol_count;
 		this.generic_scopes = this.bindings.scope_count;
 		this.generic_references = this.bindings.reference_count;
+		this.generic_trace = false;
+		this.generic_requests = 0; this.generic_hits = 0; this.generic_parent = 0;
 		int nodes = this.bindings.program.arena.node_count + 1;
 		this.generic_calls = new SymbolId[nodes];
 		this.generic_argument_lists = new SyntaxListId[nodes];

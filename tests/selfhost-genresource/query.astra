@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only diagnostic consumer; no native qualification is inferred here.
+int main(string[] args) {
+	try {
+		var program = binding_load_program(args, 1);
+		var bindings = binding_index(move program, 0);
+		var index = checked_build_profile_trace(move bindings, 0, true, true, true, true, true, true);
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "GENCOUNTS");
+		resource_number(output, index.generic_nodes); resource_number(output, index.generic_symbols);
+		resource_number(output, index.generic_scopes); resource_number(output, index.instance_count);
+		resource_number(output, index.generic_node_used); resource_number(output, index.generic_symbol_used);
+		resource_number(output, index.generic_scope_used); resource_number(output, index.generic_requests);
+		resource_number(output, index.generic_hits); resource_number(output, index.bindings.program.arena.node_count);
+		source_append_text(output, "\n");
+		int i = 0;
+		while (i < index.instance_count) {
+			var plan = index.instances[i]; int nodes = 0; int symbols = 0; int scopes = 0;
+			int n = 1;
+			while (n <= index.generic_nodes) {
+				if (generic_node(index, plan, n) != 0) nodes = nodes + 1;
+				n = n + 1;
+			}
+			n = 1;
+			while (n <= index.generic_symbols) {
+				if (generic_symbol(index, plan, n) != 0) symbols = symbols + 1;
+				n = n + 1;
+			}
+			n = 1;
+			while (n <= index.generic_scopes) {
+				if (generic_scope(index, plan, n) != 0) scopes = scopes + 1;
+				n = n + 1;
+			}
+			source_append_text(output, "GENPLAN"); resource_number(output, i + 1);
+			resource_number(output, plan.origin.index); resource_number(output, plan.concrete.index);
+			resource_number(output, plan.enclosing.index); resource_number(output, plan.state);
+			resource_number(output, nodes); resource_number(output, symbols); resource_number(output, scopes);
+			resource_number(output, plan.argument_count); n = 0;
+			while (n < plan.argument_count) {
+				var edge = generic_argument(index, plan, n);
+				resource_number(output, edge.type.index); resource_number(output, edge.flags); n = n + 1;
+			}
+			source_append_text(output, " "); binding_write_span(index.bindings, index.bindings.symbol(plan.origin).span, output);
+			source_append_text(output, "\n"); i = i + 1;
+		}
+		i = 1;
+		while (i <= index.types.count) {
+			var row = index.types.row(type_id(i)); source_append_text(output, "GENTYPE");
+			resource_number(output, i); resource_number(output, row.kind); resource_number(output, row.nominal.index);
+			resource_number(output, row.extent); resource_number(output, row.count); int p = 0;
+			while (p < row.count) {
+				var edge = index.types.argument(index.types, type_id(i), p);
+				resource_number(output, edge.type.index); resource_number(output, edge.flags); p = p + 1;
+			}
+			source_append_text(output, "\n"); i = i + 1;
+		}
+		i = 1;
+		while (i <= index.bindings.symbol_count) {
+			var symbol = index.bindings.symbol(type_symbol(i)); source_append_text(output, "GENSYMBOL");
+			resource_number(output, i); resource_number(output, symbol.kind); resource_number(output, symbol.owner.index);
+			resource_number(output, symbol.node.index); resource_number(output, symbol.token.index);
+			source_append_text(output, " "); binding_write_span(index.bindings, symbol.span, output);
+			source_append_text(output, "\n"); i = i + 1;
+		}
+		var text = output.snapshot(); print(text.text);
+		var observation = checked_observation(index); print(observation.text);
+		if (index.failed()) return 1;
+		if (!generic_verify(index)) return 2;
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 3; }
+}
+
+void resource_number(Utf8ByteBuilder output, int value) throws Error {
+	source_append_text(output, " "); append_int(output, value);
+}

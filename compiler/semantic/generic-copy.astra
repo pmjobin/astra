@@ -7,8 +7,8 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 		index.fail(index.bindings.program.arena.header(original).span, "generic syntax resource limit");
 		return absent;
 	}
-	if (index.generic_node_map[plan.nodes + original.index] != 0) {
-		SyntaxNodeId cached = {index = index.generic_node_map[plan.nodes + original.index]};
+	if (generic_node(index, plan, original.index) != 0) {
+		SyntaxNodeId cached = {index = generic_node(index, plan, original.index)};
 		return cached;
 	}
 	var header = index.bindings.program.arena.header(original);
@@ -319,7 +319,7 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 		else: { index.fail(header.span, "DEFERRED: generic body syntax lacks a concrete specialization contract"); }
 	}
 	if (result.index != 0) {
-		index.generic_node_map[plan.nodes + original.index] = result.index;
+		generic_store_node(index, plan, original, result);
 		index.bindings.program.arena.set_bool_module_internal(result, header.module_internal);
 	}
 	return result;

@@ -168,7 +168,7 @@ void genclass_model_mutations(FlowIndex flow) throws Error {
 		}
 		if (category == 4) {
 			var original_declaration = flow.checked.bindings.symbol(plan.origin); var original_fields = flow.checked.bindings.program.arena.get_list_fields(original_declaration.node); var original_node = flow.checked.bindings.program.arena.node_at(original_fields, 0); var original = flow.checked.node_symbols[original_node.index];
-			int position = plan.symbols + original.index; int old = flow.checked.generic_symbol_map[position]; flow.checked.generic_symbol_map[position] = hidden.index;
+			int position = plan.symbols + original.index - plan.symbol_first + 1; int old = flow.checked.generic_symbol_map[position]; flow.checked.generic_symbol_map[position] = hidden.index;
 			stage = genclass_mutation_stage(flow); flow.checked.generic_symbol_map[position] = old;
 		}
 		if (category == 6) {

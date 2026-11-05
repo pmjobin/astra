@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Corrupt authoritative retained metadata, then invoke the independent consumer.
+// These tests never use a producer's success flag as acceptance authority.
+void resource_model_mutations(FlowIndex flow) throws Error {
+	assert_that(flow_status(flow) == 0 && genclass_mutation_stage(flow) == 0);
+	int selected = -1; int other = -1; int i = 0;
+	while (i < flow.checked.instance_count) {
+		var plan = flow.checked.instances[i];
+		if (plan.argument_count > 0 && flow.checked.bindings.symbol(plan.origin).kind == 1) {
+			if (selected < 0) {
+				selected = i;
+			} else {
+				other = i;
+			}
+		}
+		i = i + 1;
+	}
+	assert_that(selected >= 0 && other >= 0);
+	var original = flow.checked.instances[selected]; var alternate = flow.checked.instances[other];
+	assert_that(original.node_count > 0 && original.symbol_count > 0 && original.scope_count > 0);
+	int category = 0;
+	while (category < 14) {
+		var changed = original; int stage = 0;
+		// Lost root, lost lexical binding, lost scope correspondence, and three
+		// independently indexed aliases to another concrete specialization.
+		if (category == 0) changed.node_count = 0;
+		if (category == 1) changed.symbol_count = 0;
+		if (category == 2) changed.scope_count = 0;
+		if (category == 3) changed.nodes = alternate.nodes;
+		if (category == 4) changed.symbols = alternate.symbols;
+		if (category == 5) changed.scopes = alternate.scopes;
+		// Invalid coordinate arithmetic must fail before an array read.
+		if (category == 6) changed.node_first = 0;
+		if (category == 7) changed.symbol_count = -1;
+		if (category == 8) changed.scope_first = flow.checked.generic_scopes + 2;
+		if (category <= 8) {
+			flow.checked.instances[selected] = changed; stage = genclass_mutation_stage(flow); flow.checked.instances[selected] = original;
+		}
+		// Used counters and reserved zero keys are independently checked;
+		// holes/overflows cannot turn another plan's storage into a cache hit.
+		if (category == 9) {
+			int value = flow.checked.generic_node_used + 1;
+			int old = resource_node_used_set(flow.checked, value);
+			stage = genclass_mutation_stage(flow); int ignored = resource_node_used_set(flow.checked, old);
+		}
+		if (category == 10) {
+			int old = resource_symbol_used_set(flow.checked, 8000001);
+			stage = genclass_mutation_stage(flow); int ignored = resource_symbol_used_set(flow.checked, old);
+		}
+		if (category == 11) {
+			int old = flow.checked.generic_node_map[original.nodes]; flow.checked.generic_node_map[original.nodes] = alternate.concrete.index;
+			stage = genclass_mutation_stage(flow); flow.checked.generic_node_map[original.nodes] = old;
+		}
+		if (category == 12) {
+			int old = flow.checked.generic_symbol_map[original.symbols]; flow.checked.generic_symbol_map[original.symbols] = alternate.concrete.index;
+			stage = genclass_mutation_stage(flow); flow.checked.generic_symbol_map[original.symbols] = old;
+		}
+		if (category == 13) {
+			int old = flow.checked.generic_scope_map[original.scopes]; flow.checked.generic_scope_map[original.scopes] = 1;
+			stage = genclass_mutation_stage(flow); flow.checked.generic_scope_map[original.scopes] = old;
+		}
+		assert_that(stage > 0 && genclass_mutation_stage(flow) == 0);
+		var output = new Utf8ByteBuilder(); source_append_text(output, "RESOURCE_MODEL_MUTATION"); flow_number(output, category); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+		category = category + 1;
+	}
+}
+
+int resource_node_used_set(borrowed CheckedIndex index, int value) {
+	int old = index.generic_node_used; index.generic_node_used = value; return old;
+}
+
+int resource_symbol_used_set(borrowed CheckedIndex index, int value) {
+	int old = index.generic_symbol_used; index.generic_symbol_used = value; return old;
+}
