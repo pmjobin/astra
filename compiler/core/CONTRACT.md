@@ -37,6 +37,19 @@ cannot substitute another equal-typed owner or discard its cleanup obligation.
 These additions do not admit general release/replacement or exception policies
 in the base profile. Historical COREIR-9 qualifications below remain historical.
 
+The private INDEXPATH-18 extension defines kinds 19 (copy an indexed scalar or
+plain record), 30 (project a detached record value), 31 (store a copied array
+element), and 32 (check bounds before evaluating a store RHS). Kind 32 returns
+an ordinary integer index; storage authority remains the independently checked
+buffer Place on kind 31. A snapshot cannot become a writable Place. Index and
+RHS expressions have a bounded effect-free grammar, and the array element must
+retain its exact concrete nominal TypeId. Constant-index syntax retains its
+original vector/index/token relationships even when its receiver is an array.
+These schemas and their separate source consumer are in `indexpath.astra`.
+The engineering evidence and explicit source-view/resource limits are recorded
+in `docs/selfhost-indexpath-18-progress.md`; no complete consumer-body or
+whole-source qualification follows from this extension.
+
 The separate verifier must validate the complete model before reads, traversal or
 projection. It reconstructs source structure, types, field trees, call contracts,
 loan endpoints and cleanup plans from the retained authoritative stages. Builder

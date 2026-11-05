@@ -237,6 +237,25 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_failure_call = generic_copy_node(index, plan, data.f_failure_call, depth + 1);
 			if (!index.failed()) result = index.bindings.program.arena.add_buffer_allocation(data, header.span, header.depth);
 		}
+		case SyntaxKind.IndexExpressionSyntax(): {
+			var data = index.bindings.program.arena.index_expression(original);
+			data.f_container = generic_copy_node(index, plan, data.f_container, depth + 1);
+			data.f_subscript = generic_copy_node(index, plan, data.f_subscript, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_index_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.VectorExtractExpressionSyntax(): {
+			var data = index.bindings.program.arena.vector_extract_expression(original);
+			data.f_container = generic_copy_node(index, plan, data.f_container, depth + 1);
+			data.f_subscript = generic_copy_node(index, plan, data.f_subscript, depth + 1);
+			data.f_vector = generic_copy_node(index, plan, data.f_vector, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_vector_extract_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.IndexedAssignmentSyntax(): {
+			var data = index.bindings.program.arena.indexed_assignment(original);
+			data.f_target = generic_copy_node(index, plan, data.f_target, depth + 1);
+			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_indexed_assignment(data, header.span, header.depth);
+		}
 		case SyntaxKind.FieldAccessExpressionSyntax(): {
 			var data = index.bindings.program.arena.field_access_expression(original);
 			data.f_aggregate = generic_copy_node(index, plan, data.f_aggregate, depth + 1);

@@ -473,12 +473,15 @@ bool llvm_check(SsaProgram program, void* layout, void*[] types, void*[] payload
 		var instruction = program.data.instructions[i]; var row = instruction.origin; int op = row.opcode;
 		if (program.data.graph.reachable[row.block - 1] && !llvm_imported(program, row.value.function)) {
 			void* result = null; if (instruction.result > 0) result = values[instruction.result - 1];
-			bool memory = (op == 3 && !instruction.promoted) || op == 4 || op == 14 || op == 16 || op == 18 || (op == 21 || op == 22) && !instruction.promoted;
+			bool memory = (op == 3 && !instruction.promoted) || op == 4 || op == 14 || op == 16 || op == 18 || op == 19 || op == 31 || op == 32 || (op == 21 || op == 22) && !instruction.promoted;
 			if (memory) {
-				if (!llvm_storage_address_verify(program, types, payloads, places, accesses[i], row.value.place, functions[row.value.function - 1], blocks[row.block - 1], ends[row.block - 1], 0, budget)) return false;
+				var access_block = ends[row.block - 1];
+				if ((op == 19 || op == 32) && accesses[i] != null && LLVMIsAInstruction(accesses[i]) != null) access_block = LLVMGetInstructionParent(accesses[i]);
+				if (!llvm_storage_address_verify(program, types, payloads, places, accesses[i], row.value.place, functions[row.value.function - 1], blocks[row.block - 1], access_block, 0, budget)) return false;
 			} else {
 				if (accesses[i] != null) return false;
 			}
+			if ((op == 19 || op == 30 || op == 31 || op == 32) && !llvm_indexpath_verified(program, layout, types, values, accesses, effects, functions, ends, i, result, budget)) return false;
 			if (op == 11) {
 				int count = llvm_check_use(program.data, i + 1, 1, 0, budget);
 				if (count < 1 || !llvm_check_buffer(program.cfg.core.flow.checked, layout, types, row.value, result, values[count - 1])) return false;

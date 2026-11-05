@@ -127,6 +127,43 @@ class LlvmModule {
 		} return llvm12_handle_offset(this.handles, offset);
 	}
 
+	bool indexpath_fault(SsaProgram program, int category) throws Error {
+		int i = 0;
+		while (i < program.data.instruction_count) {
+			var row = program.data.instructions[i]; int op = row.origin.opcode;
+			if (op == 19 && row.result > 0 && this.values[row.result - 1] != null) {
+				var load = this.values[row.result - 1]; var address = LLVMGetOperand(load, 0); var condition = this.effects[i];
+				if (category == 0) {
+					var index = LLVMGetOperand(address, 1);
+					LLVMSetOperand(address, 1, LLVMConstInt(LLVMTypeOf(index), 7, 0));
+				}
+				if (category == 1) {
+					LLVMPositionBuilderBefore(this.builder, load);
+					var wrong = this.slot_address(LLVMIntTypeInContext(this.context, 8), LLVMGetOperand(address, 0), LLVMGetOperand(address, 1)); LLVMSetOperand(load, 0, wrong);
+				}
+				if (category == 2) LLVMSetAlignment(load, 1);
+				if (category == 3) LLVMSetOperand(condition, 1, LLVMConstInt(LLVMTypeOf(LLVMGetOperand(condition, 1)), 2147483647, 0));
+				if (category == 4) LLVMSetOperand(condition, 0, LLVMConstInt(LLVMTypeOf(LLVMGetOperand(condition, 0)), 9, 0));
+				if (category == 7) {
+					var branch = LLVMGetNextInstruction(condition);
+					LLVMSetSuccessor(branch, 0, LLVMGetSuccessor(branch, 1));
+				}
+				if (category != 5 && category != 6) {
+					this.reseal();
+					return true;
+				}
+			}
+			if (category == 5 && op == 30 && row.result > 0 && this.values[row.result - 1] != null) {
+				var value = this.values[row.result - 1]; LLVMSetOperand(value, 0, LLVMConstNull(LLVMTypeOf(LLVMGetOperand(value, 0)))); this.reseal(); return true;
+			}
+			if (category == 6 && op == 31 && this.effects[i] != null) {
+				var store = this.effects[i]; LLVMSetOperand(store, 0, LLVMConstNull(LLVMTypeOf(LLVMGetOperand(store, 0)))); this.reseal(); return true;
+			}
+			i = i + 1;
+		}
+		return false;
+	}
+
 	void take(int count) throws Error {
 		if (count < 0 || count > this.remaining) {
 			throw new Error("LLVM_RESOURCE_EXHAUSTED: work");
@@ -942,6 +979,26 @@ class LlvmModule {
 	void* instruction(SsaProgram program, int index) throws Error {
 		this.take(1); var ssa = program.data.instructions[index - 1]; var input = ssa.origin; var row = input.value; int op = input.opcode;
 		var type = this.type(program.cfg.core.flow.checked, row.type, 0); var function = this.functions[row.function - 1];
+		if (op == 19 || op == 31 || op == 32) {
+			var buffer_type = program.cfg.core.data.places[row.place - 1].type;
+			var pointer = this.address(program, row.place, function, 0); this.accesses[index - 1] = pointer;
+			var descriptor = LLVMBuildLoad2(this.builder, this.type(program.cfg.core.flow.checked, buffer_type, 0), pointer, this.empty);
+			var subscript = this.use(program.data, index, 1, 0);
+			if (op == 19 || op == 32) {
+				var count = LLVMBuildExtractValue(this.builder, descriptor, 1, this.empty);
+				var invalid = LLVMBuildICmp(this.builder, 35, subscript, count, this.empty); this.effects[index - 1] = invalid; this.guard(invalid, function);
+				if (op == 32) return subscript;
+			}
+			var element = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, buffer_type, 0); var physical = this.type(program.cfg.core.flow.checked, element.type, 0);
+			var backing = LLVMBuildExtractValue(this.builder, descriptor, 0, this.empty); var address = this.slot_address(physical, backing, subscript);
+			if (op == 19) return LLVMBuildLoad2(this.builder, physical, address, this.empty);
+			var value = this.use(program.data, index, 2, 0); var store = LLVMBuildStore(this.builder, value, address); this.effects[index - 1] = store; return store;
+		}
+		if (op == 30) {
+			var aggregate = program.cfg.core.flow.checked.bindings.program.arena.get_node_aggregate(row.source);
+			int field = this.field_index(program.cfg.core.flow.checked, program.cfg.core.flow.checked.uses[aggregate.index].type, row.symbol);
+			return LLVMBuildExtractValue(this.builder, this.use(program.data, index, 1, 0), field, this.empty);
+		}
 		if (op >= 15 && op <= 18) {
 			if (!program.cfg.core.flow.checked.class_storage) {
 				throw new Error("LLVM_INVALID_UPSTREAM: private storage operation");
@@ -2116,6 +2173,8 @@ class LlvmArtifact {
 	bool genclass_fault(CheckedIndex checked, int category) throws Error { return this.implementation.genclass_fault(checked, category); }
 
 	bool text_fault(int category) throws Error { return this.implementation.text_fault(category); }
+
+	bool indexpath_fault(SsaProgram program, int category) throws Error { return this.implementation.indexpath_fault(program, category); }
 
 	bool llvm_valid() { return this.implementation.llvm_valid(); }
 

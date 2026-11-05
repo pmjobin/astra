@@ -24,7 +24,7 @@ def sha(path):
 	return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def compare_layouts(text, observations):
+def compare_layouts(text, observations, authority=None, plan=None):
 	layouts, fields = {}, {}
 	for line in observations:
 		r = line.split()
@@ -42,7 +42,36 @@ def compare_layouts(text, observations):
 			name = actual[int(r[1])]; member = bytes.fromhex(r[8]).decode(); planned, measured = map(int, r[6:8])
 			assert fields[(name, member)][0] == planned == measured, r
 			count += 1
-	assert actual, 'no physical payload observations'
+	if not actual:
+		# A standalone record array has no Class payload. Compare its semantic
+		# nominal IDs and separate ABI plan directly to the independent C0/C++
+		# record measurements; absence of a Class observation is not a layout.
+		assert authority and plan, 'missing record-only layout authorities'
+		declarations, semantic, physical, members = {}, {}, {}, []
+		for line in authority.splitlines():
+			r = line.split()
+			if r[:1] == ['DECL']: declarations[int(r[1])] = (int(r[2]), bytes.fromhex(r[7]).decode())
+			if r[:1] == ['TYPE']: semantic[int(r[1])] = tuple(map(int, r[2:]))
+		for line in plan.splitlines():
+			r = line.split()
+			if r[:1] == ['TYPE']: physical[int(r[1])] = tuple(map(int, r[2:]))
+			if r[:1] == ['FIELD']: members.append(tuple(map(int, r[1:])))
+		assert not any(row[0] == 31 for row in physical.values()), 'missing Class payload observations'
+		records = 0; fields_checked = 0
+		for type_id, row in physical.items():
+			if row[0] != 30: continue
+			shape = semantic[type_id]; kind, name = declarations[shape[1]]; name = name.rsplit('.', 1)[-1]
+			assert kind == 3 and shape[0] == 30 and layouts[name] == row[1:]
+			entries = sorted(field for field in members if field[0] == type_id); assert len(entries) == row[3]
+			for ordinal, field in enumerate(entries):
+				owner, position, symbol, element, offset = field; member_kind, member_name = declarations[symbol]
+				assert owner == type_id and position == ordinal and member_kind == 6
+				measured = fields[(name, member_name.rsplit('.', 1)[-1])]
+				assert measured == (offset, physical[element][1], physical[element][2])
+				fields_checked += 1
+			records += 1
+		assert records > 0 and fields_checked > 0, 'no independently measured record layouts'
+		return dict(payloads=0, fields=fields_checked, plain_records=records, authority='C0 syntax/C++ measurements against exact nominal IDs and separate native ABI plan')
 	return dict(payloads=len(actual), fields=count)
 
 
@@ -95,7 +124,7 @@ def main():
 			(a.runtime/(name+'.abi')).write_text(plan+'\nastra-classstorage-physical/1\n'+physical)
 			probe_runtime = a.runtime/(name+'-independent-ABI'); probe_build = a.build/(name+'-independent-ABI')
 			run([sys.executable, '-B', Path(__file__).with_name('abi-probe.py'), '--compiler', a.compiler, '--compiler-sha256', a.compiler_sha256, '--build', probe_build, '--runtime', probe_runtime, *sources], name+'-ABI-probe')
-			measured = json.loads((probe_runtime/'result.json').read_text()); row['layout_comparison'] = compare_layouts(physical, measured['observations'])
+			measured = json.loads((probe_runtime/'result.json').read_text()); row['layout_comparison'] = compare_layouts(physical, measured['observations'], ssa.decode(), plan)
 			products = {key: Path(str(prefix)+suffix) for key, suffix in (('raw', '.raw.ll'), ('ir', '.ll'), ('object', '.o'), ('native', ''), ('C0', '.c0'))}
 			for command, key in (('--classstorage-llvm-raw', 'raw'), ('--classstorage-llvm-ir', 'ir'), ('--classstorage-emit-obj', 'object')):
 				run([a.component, command, a.mode, products[key], *sources], name+'-'+key)

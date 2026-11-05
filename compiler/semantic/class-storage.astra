@@ -181,7 +181,7 @@ bool class_storage_generic_source(CheckedIndex index, SymbolId origin) throws Er
 		if (type_numeric(kind) || kind == 13) {
 			if (index.symbol_flags[symbol.index] != 0) return false;
 		} else {
-			if (kind != 23 || index.symbol_flags[symbol.index] != 4) return false;
+			if ((kind != 22 && kind != 23) || index.symbol_flags[symbol.index] != 4) return false;
 			var element = index.types.argument(index.types, type, 0);
 			if (element.flags != 0 || checked_kind(index, element.type) != 33) return false;
 			var parameter = index.bindings.symbol(index.types.row(element.type).nominal);

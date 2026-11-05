@@ -54,13 +54,42 @@ def declarations(tree):
 					parts = {row[0]: row[1] for row in child[1:] if isinstance(row, list) and len(row) == 2}
 					assert set(parts) == {'name', 'type'}, parts
 					fields.append(dict(name=parts['name'], type=parts['type'], owned=child[0] == 'owned-field'))
+			parameters = [row[1:] for row in node[2:] if isinstance(row, list) and row and row[0] == 'type-parameters']
 			result[name] = dict(kind=node[0], fields=fields)
+			if parameters: result[name]['parameters'] = parameters[0]
 			return
 		if node[0] in ('program', 'source', 'unit'):
 			for child in node[1:]: visit(child)
 	visit(tree)
 	assert result
 	return result
+
+
+def specialize_value_fields(decls, tree):
+	"""Resolve a unique concrete value-field instantiation from C0 syntax alone.
+
+	Array/slot descriptors already have element-independent size. A template
+	with differently sized inline instances needs separately named probes and
+	is refused here rather than choosing an arbitrary instance.
+	"""
+	strings = []
+	def visit(node):
+		if isinstance(node, str): strings.append(node)
+		elif isinstance(node, list):
+			for child in node: visit(child)
+	visit(tree)
+	resolved = {}
+	for name, declaration in decls.items():
+		parameters = declaration.get('parameters', [])
+		if not any(field['type'] in parameters for field in declaration['fields']): continue
+		pattern = re.compile(r'\b'+re.escape(name)+r'<([^<>]+)>')
+		instances = {tuple(part.strip() for part in match.group(1).split(',')) for text in strings for match in pattern.finditer(text)}
+		assert len(instances) == 1, ('inline generic layout requires one exact C0-syntax instantiation per probe', name, instances)
+		arguments = next(iter(instances)); assert len(arguments) == len(parameters)
+		mapping = dict(zip(parameters, arguments)); resolved[name] = mapping
+		for field in declaration['fields']:
+			if field['type'] in mapping: field['type'] = mapping[field['type']]
+	return resolved
 
 
 def cpp_probe(decls):
@@ -117,7 +146,8 @@ def main():
 		(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 		assert r.returncode == 0, r.stderr.decode(errors='replace')[-2000:]
 		return r.stdout
-	decls = declarations(syntax(run([a.compiler, '--dump-syntax', *a.sources], 'c0-syntax').decode()))
+	tree = syntax(run([a.compiler, '--dump-syntax', *a.sources], 'c0-syntax').decode())
+	decls = declarations(tree); substitutions = specialize_value_fields(decls, tree)
 	cpp = a.build/'layout.cpp'; cpp.write_text(cpp_probe(decls)); binary = a.build/'layout-probe'
 	compiler = Path(shutil.which('g++')).resolve()
 	actual = compiler
@@ -131,7 +161,7 @@ def main():
 	observed = run([binary], 'execute').decode().splitlines()
 	assert inputs == {name: sha(name) for name in inputs}
 	assert recipe_sha == sha(__file__) and headers == {path: sha(path) for path in headers}
-	result = dict(format='astra-classstorage-independent-layout/1', sources=inputs, c0_sha256=sha(a.compiler), c0_syntax_sha256=sha(a.runtime/'c0-syntax.stdout'), cpp_sha256=sha(cpp), executable_sha256=sha(binary), recipe_sha256=recipe_sha, tools=tool_inputs, dependencies=headers, declarations=decls, observations=observed, limitation='Physical layout only; no application, ownership, calling-channel or native emitter PASS follows from this probe.')
+	result = dict(format='astra-classstorage-independent-layout/1', sources=inputs, c0_sha256=sha(a.compiler), c0_syntax_sha256=sha(a.runtime/'c0-syntax.stdout'), cpp_sha256=sha(cpp), executable_sha256=sha(binary), recipe_sha256=recipe_sha, tools=tool_inputs, dependencies=headers, declarations=decls, concrete_inline_substitutions=substitutions, observations=observed, limitation='Physical layout only; no application, ownership, calling-channel or native emitter PASS follows from this probe.')
 	(a.runtime/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print('\n'.join(observed))
 

@@ -9,7 +9,7 @@ bool core_counts(CoreData core) {
 	return core.limit > 0 && core.limit <= 65536 && core.function_count >= 0 && core.function_count <= len(core.functions) && core.node_count >= 0 && core.node_count <= len(core.nodes) && core.place_count >= 0 && core.place_count <= len(core.places) && core.edge_count >= 0 && core.edge_count <= len(core.edges) && core.exit_count >= 0 && core.exit_count <= len(core.exits) && core.cleanup_count >= 0 && core.cleanup_count <= len(core.cleanups) && core.loan_count >= 0 && core.loan_count <= len(core.loans);
 }
 
-bool core_value_kind(int kind) { return kind >= 1 && kind <= 18; }
+bool core_value_kind(int kind) { return kind >= 1 && kind <= 19 || kind == 30 || kind == 32; }
 
 // Find an authoritative place from Binder identity, not name equality.
 int core_symbol_place(CoreData core, int function, SymbolId symbol) {
@@ -137,8 +137,13 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 	} else {
 		if (expected_type.index == 0 || (use.deferred != 0 && proofs[source.index] != 1)) return false;
 	}
+	if (row.kind == 32) {
+		expected_type = type_id(1);
+		expected_flags = 0;
+	}
 	if (row.type.index != expected_type.index || row.flags != expected_flags || !checked.types.owns(checked.types, row.type)) return false;
 	if (row.kind >= 15 && row.kind <= 18 || row.kind == 13 && checked.class_storage) return core_verify_class(core, checked, proofs, row, id, source, function, loop, depth, seen, seen_edges);
+	if (row.kind == 19 || row.kind == 30 || row.kind == 31 || row.kind == 32) return core_verify_indexpath(core, checked, proofs, row, source, function, loop, depth, seen, seen_edges);
 	// Each kind checks its complete schema, including unused metadata. This also
 	// rejects a plausible value substituted into a writable-place channel.
 	if (row.kind != 3 && row.kind != 4 && row.kind != 21 && row.kind != 22 && row.kind != 14 && row.kind != 29 && row.place != 0) return false;

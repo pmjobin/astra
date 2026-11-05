@@ -431,6 +431,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 	if (checked.semantic_flow && kind == SyntaxKind.FieldAccessExpressionSyntax()) {
 		if (class_storage_slot_capacity(checked, node)) return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_aggregate(node), region, next, 0, depth + 1);
 		int field = flowsem_place(graph, checked, node, 0);
+		if (field == 0 && indexpath_snapshot(checked, node, 0)) return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_aggregate(node), region, next, 0, depth + 1);
 		if (field == 0) {
 			graph.defer(node, 18);
 			return next;
@@ -471,6 +472,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_operand(node), region, next, 0, depth + 1);
 	}
 	if (checked_flow_index_kind(kind)) {
+		if (checked.class_storage && !indexpath_snapshot(checked, node, 0)) graph.defer(node, 18);
 		int tail = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_subscript(node), region, next, 0, depth + 1);
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_container(node), region, tail, 0, depth + 1);
 	}
@@ -706,6 +708,7 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		return graph.add(flow_event(checked, node, 5, slot, region, next));
 	}
 	if (kind == SyntaxKind.DereferenceAssignmentSyntax() || kind == SyntaxKind.IndexedAssignmentSyntax()) {
+		if (checked.class_storage && kind == SyntaxKind.IndexedAssignmentSyntax() && !indexpath_pure(checked, checked.bindings.program.arena.get_node_expression(node), 0)) graph.defer(node, 18);
 		int tail = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_expression(node), region, next, 0, depth + 1);
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_target(node), region, tail, 0, depth + 1);
 	}

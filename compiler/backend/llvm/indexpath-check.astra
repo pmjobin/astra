@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only physical correspondence, independent of emission and byte seals.
+bool llvm_indexpath_extract(void* value, int ordinal, void* aggregate) {
+	return value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 53 && llvm13_index(value, 0, ordinal) == 1 && LLVMGetOperand(value, 0) == aggregate;
+}
+
+bool llvm_indexpath_guard(void* condition, void* index, void* count, void* success, void* function) {
+	if (condition == null || LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 35 || LLVMGetOperand(condition, 0) != index || LLVMGetOperand(condition, 1) != count) return false;
+	var branch = LLVMGetNextInstruction(condition);
+	if (branch == null || LLVMGetInstructionOpcode(branch) != 71 || LLVMGetCondition(branch) != condition || LLVMGetNumSuccessors(branch) != 2 || LLVMGetSuccessor(branch, 1) != success) return false;
+	var trap = LLVMGetSuccessor(branch, 0);
+	if (LLVMGetBasicBlockParent(trap) != function) return false;
+	var call = LLVMGetFirstInstruction(trap); var end = LLVMGetBasicBlockTerminator(trap);
+	return call != null && end != null && LLVMGetInstructionOpcode(call) == 45 && llvm13_named(LLVMGetCalledValue(call), "llvm.trap") == 1 && LLVMGetNumArgOperands(call) == 0 && LLVMGetNextInstruction(call) == end && LLVMGetInstructionOpcode(end) == 7;
+}
+
+bool llvm_indexpath_verified(SsaProgram program, void* layout, void*[] types, void*[] values, void*[] accesses, void*[] effects, void*[] functions, void*[] ends, int instruction, void* result, SsaBudget budget) {
+	var ssa = program.data.instructions[instruction]; var row = ssa.origin.value; int op = ssa.origin.opcode;
+	int a = llvm_check_use(program.data, instruction + 1, 1, 0, budget);
+	if (a < 1) return false;
+	if (op == 30) {
+		var source = program.cfg.core.flow.checked.bindings.program.arena.get_node_aggregate(row.source); var type = program.cfg.core.flow.checked.uses[source.index].type;
+		var nominal = program.cfg.core.flow.checked.types.row(type); int ordinal = 0; int found = -1; int symbol = 1;
+		while (symbol <= program.cfg.core.flow.checked.bindings.symbol_count && budget.take(1)) {
+			var field = program.cfg.core.flow.checked.bindings.symbol(type_symbol(symbol));
+			if (field.kind == 6 && field.owner.index == nominal.nominal.index) {
+				if (symbol == row.symbol.index) found = ordinal;
+				ordinal = ordinal + 1;
+			}
+			symbol = symbol + 1;
+		}
+		return found >= 0 && LLVMTypeOf(values[a - 1]) == types[type.index] && LLVMTypeOf(result) == types[row.type.index] && llvm_indexpath_extract(result, found, values[a - 1]);
+	}
+	var buffer = program.cfg.core.data.places[row.place - 1].type; var element = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, buffer, 0);
+	if (LLVMABISizeOfType(layout, types[element.type.index]) < 1 || LLVMABISizeOfType(layout, types[element.type.index]) > 16777216) return false;
+	void* address = null; void* load = null;
+	if (op == 32) {
+		if (result != values[a - 1]) return false;
+		var condition = effects[instruction];
+		if (condition == null || LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42) return false;
+		var count = LLVMGetOperand(condition, 1);
+		if (count == null || LLVMIsAInstruction(count) == null || LLVMGetInstructionOpcode(count) != 53) return false;
+		load = LLVMGetOperand(count, 0);
+		if (load == null || LLVMIsAInstruction(load) == null || LLVMGetInstructionOpcode(load) != 27) return false;
+		if (LLVMGetNextInstruction(load) != count || LLVMGetNextInstruction(count) != condition || !llvm_indexpath_extract(count, 1, load) || !llvm_indexpath_guard(condition, values[a - 1], count, ends[ssa.origin.block - 1], functions[row.function - 1])) return false;
+	} else {
+		void* access = result;
+		if (op == 31) access = effects[instruction];
+		int opcode = 27; int operand = 0; if (op == 31) {
+			opcode = 28;
+			operand = 1;
+		}
+		if (access == null || LLVMIsAInstruction(access) == null || LLVMGetInstructionOpcode(access) != opcode || LLVMGetVolatile(access) != 0 || LLVMGetAlignment(access) != LLVMABIAlignmentOfType(layout, types[element.type.index])) return false;
+		address = LLVMGetOperand(access, operand);
+		if (address == null || LLVMIsAInstruction(address) == null || LLVMGetInstructionOpcode(address) != 29 || LLVMGEPGetNoWrapFlags(address) != 0 || LLVMGetNumOperands(address) != 2 || LLVMGetGEPSourceElementType(address) != types[element.type.index] || LLVMGetOperand(address, 1) != values[a - 1]) return false;
+		var backing = LLVMGetOperand(address, 0);
+		if (backing == null || LLVMIsAInstruction(backing) == null || LLVMGetInstructionOpcode(backing) != 53) return false;
+		load = LLVMGetOperand(backing, 0);
+		if (load == null || LLVMIsAInstruction(load) == null || LLVMGetInstructionOpcode(load) != 27) return false;
+		if (!llvm_indexpath_extract(backing, 0, load) || LLVMGetInstructionParent(address) != LLVMGetInstructionParent(access)) return false;
+		if (op == 19) {
+			var condition = effects[instruction];
+			if (condition == null || LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42) return false;
+			var count = LLVMGetOperand(condition, 1);
+			if (LLVMGetNextInstruction(load) != count || LLVMGetNextInstruction(count) != condition || !llvm_indexpath_extract(count, 1, load) || !llvm_indexpath_guard(condition, values[a - 1], count, LLVMGetInstructionParent(access), functions[row.function - 1])) return false;
+		} else {
+			int b = llvm_check_use(program.data, instruction + 1, 2, 0, budget);
+			var bound = program.data.values[a - 1];
+			if (bound.kind != 1 || bound.instruction < 1 || program.data.instructions[bound.instruction - 1].origin.opcode != 32 || program.data.instructions[bound.instruction - 1].origin.value.place != row.place || b < 1 || LLVMGetOperand(access, 0) != values[b - 1] || LLVMTypeOf(values[b - 1]) != types[element.type.index]) return false;
+		}
+	}
+	return load != null && LLVMIsAInstruction(load) != null && LLVMGetInstructionOpcode(load) == 27 && LLVMGetOperand(load, 0) == accesses[instruction] && LLVMTypeOf(load) == types[buffer.index] && !budget.exhausted;
+}

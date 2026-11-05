@@ -143,7 +143,8 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 	var type = checked_expression(index, operand, no_type(), depth + 1);
 	if (checked_flow_index_kind(kind)) {
 		var subscript = index.bindings.program.arena.get_node_subscript(node);
-		var ignored = checked_expression(index, subscript, type_id(1), depth + 1);
+		var actual = checked_expression(index, subscript, type_id(1), depth + 1);
+		if (index.class_storage) checked_mismatch(index, index.bindings.program.arena.header(subscript).span, type_id(1), actual, "array index");
 	}
 	int code = checked_kind(index, type);
 	if ((kind == SyntaxKind.DereferenceExpressionSyntax() && code == 20) || (checked_flow_index_kind(kind) && (code == 21 || code == 22))) {

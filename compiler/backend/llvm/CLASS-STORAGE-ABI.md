@@ -61,3 +61,22 @@ Caller-backed `.init`, arena/custom allocation, owning-Class record projection,
 mixed null/caller-backed and heap result joins, general shared/weak policies,
 public C/COM/GObject Class ABI and unsupported buffer indexing remain deferred.
 No universal heap policy or public language/ABI promise follows from this profile.
+
+The separately qualified INDEXPATH-18 extension uses the existing private
+`{ pointer, i32 count }` array descriptor for checked scalar/plain-record element
+reads and copied element stores. A signed i32 subscript is evaluated once. An
+unsigned `>= count` guard rejects negative and past-end values before element
+access; an indexed store checks its target before evaluating the RHS. GEP uses
+the independently checked concrete element type and carries no wrap/alias
+promise. Record field projection from a copied element is an SSA value operation,
+without dynamic Place or owner authority. The source and physical consumers
+check the descriptor source, bound, element type/stride, field identity and
+load/store alignment separately. Module-owned LLVM type caches are unchanged.
+
+One-parameter generic Class templates may also contain owned `T[]` fields when
+the concrete element satisfies the existing scalar/plain-record copy contract.
+The source template and substitution consumers independently reconstruct those
+field types. This does not admit owning-element duplication, general indexed
+field assignment, borrowed element escape, effectful indexes or wider index
+channels. Complete original consumer bodies can still reach the unchanged SSA
+work bound; the original source-operation view is reported separately.

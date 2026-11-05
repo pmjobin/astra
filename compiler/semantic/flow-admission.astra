@@ -47,7 +47,7 @@ int admit_record_value(borrowed FlowGraph graph, CheckedIndex checked, int[] ori
 	bool owning = checked_record_owned(checked, type, 0);
 	int source_root = 0;
 	int source_parent = 0;
-	bool producer = kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.CallExpressionSyntax();
+	bool producer = kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.CallExpressionSyntax() || !owning && indexpath_snapshot(checked, direct, 0);
 	if (kind == SyntaxKind.NameExpressionSyntax()) {
 		source_root = graph.slot_for(checked_target(checked, direct, checked.bindings.program.arena.get_token_identifier(direct)));
 	}

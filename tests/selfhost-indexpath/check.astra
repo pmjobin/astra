@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void indexpath_mutation_row(int category, int stage) throws Error {
+	assert_that(stage > 0); var output = new Utf8ByteBuilder(); source_append_text(output, "INDEXPATH_MODEL_MUTATION"); flow_number(output, category); flow_number(output, stage); source_append_text(output, " VALID_RESTORED\n"); var text = output.snapshot(); print(text.text);
+}
+
+void indexpath_core_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0); var before = core_projection(program);
+	int load = -1; int projection = -1; int store = -1; int bound = -1; int i = 0;
+	while (i < program.data.node_count) {
+		var row = program.data.nodes[i];
+		if (row.kind == 19 && load < 0) load = i;
+		if (row.kind == 30) projection = i;
+		if (row.kind == 31) store = i;
+		if (row.kind == 32) bound = i;
+		i = i + 1;
+	}
+	assert_that(load >= 0 && projection >= 0 && store >= 0 && bound >= 0 && program.data.exit_count > 0 && program.flow.checked.instance_count > 0);
+	int category = 0;
+	while (category < 12) {
+		int at = load;
+		if (category == 3 || category == 4) at = projection;
+		if (category == 6 || category == 7) at = store;
+		if (category == 11) at = bound;
+		var original = program.data.nodes[at]; var changed = original; int stage = 0;
+		if (category == 0) changed.type = type_id(13);
+		if (category == 1) {
+			int place = 0;
+			while (place < program.data.place_count) {
+				var candidate = program.data.places[place];
+				if (candidate.function == original.function && candidate.type.index == program.data.places[original.place - 1].type.index && place + 1 != original.place) changed.place = place + 1;
+				place = place + 1;
+			}
+			assert_that(changed.place != original.place);
+		}
+		if (category == 2) changed.source = program.data.nodes[projection].source;
+		if (category == 3) changed.symbol = type_symbol(1);
+		if (category == 4) changed.place = program.data.nodes[load].place;
+		if (category == 5) changed.flags = 4;
+		if (category == 6) changed.a = program.data.nodes[bound].a;
+		if (category == 7) {
+			changed.a = original.b;
+			changed.b = original.a;
+		}
+		if (category == 10) changed.span.start = changed.span.start + 1;
+		if (category == 11) changed.kind = 19;
+		if (category != 8 && category != 9) {
+			program.data.nodes[at] = changed; stage = core_verify(program); program.data.nodes[at] = original;
+		}
+		if (category == 8) {
+			int plan = 0; while (plan < program.data.exit_count && program.data.exits[plan].count == 0) plan = plan + 1; assert_that(plan < program.data.exit_count);
+			var old = program.data.exits[plan]; var forged = old; forged.count = 0; program.data.exits[plan] = forged; stage = core_verify(program); program.data.exits[plan] = old;
+		}
+		if (category == 9) {
+			var old = program.flow.checked.instances[0]; var forged = old; forged.state = 1; program.flow.checked.instances[0] = forged; stage = core_verify(program); program.flow.checked.instances[0] = old;
+		}
+		assert_that(core_verify(program) == 0); var after = core_projection(program); assert_that(before.text == after.text); indexpath_mutation_row(category, stage); category = category + 1;
+	}
+}
+
+void indexpath_cfg_mutation(CfgProgram program) throws Error {
+	assert_that(cfg_verify(program) == 0); var before = cfg_projection(program); int at = 0;
+	while (at < program.data.instruction_count && program.data.instructions[at].opcode != 31) at = at + 1; assert_that(at < program.data.instruction_count);
+	var old = program.data.instructions[at]; var forged = old; forged.a = old.b; forged.b = old.a; program.data.instructions[at] = forged; int stage = cfg_verify(program); program.data.instructions[at] = old;
+	assert_that(cfg_verify(program) == 0); var after = cfg_projection(program); assert_that(before.text == after.text); indexpath_mutation_row(12, stage);
+}
+
+void indexpath_loan_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0 && program.data.loan_count > 0); var before = core_projection(program); var old = program.data.loans[0]; int category = 14;
+	while (category <= 15) {
+		var changed = old;
+		if (category == 14) changed.end = 0;
+		if (category == 15) changed.source = 0;
+		program.data.loans[0] = changed; int stage = core_verify(program); program.data.loans[0] = old;
+		assert_that(core_verify(program) == 0); var after = core_projection(program); assert_that(before.text == after.text); indexpath_mutation_row(category, stage); category = category + 1;
+	}
+}
+
+void indexpath_substitution_mutation(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0); var before = core_projection(program); int at = 0;
+	while (at < program.flow.checked.instance_count && program.flow.checked.instances[at].argument_count == 0) at = at + 1;
+	assert_that(at < program.flow.checked.instance_count); int argument = program.flow.checked.instances[at].arguments;
+	var old = program.flow.checked.generic_arguments[argument]; var changed = old; changed.type = type_id(1); assert_that(old.type.index != changed.type.index);
+	program.flow.checked.generic_arguments[argument] = changed; int stage = core_verify(program); program.flow.checked.generic_arguments[argument] = old;
+	assert_that(core_verify(program) == 0); var after = core_projection(program); assert_that(before.text == after.text); indexpath_mutation_row(16, stage);
+}
+
+void indexpath_ssa_mutation(SsaProgram program) throws Error {
+	assert_that(ssa_verify(program) == 0); var before = ssa_test_snapshot(program.data); int at = 0;
+	while (at < program.data.use_count) {
+		var use = program.data.uses[at];
+		if (use.instruction > 0 && program.data.instructions[use.instruction - 1].origin.opcode == 19) break;
+		at = at + 1;
+	} assert_that(at < program.data.use_count);
+	var old = program.data.uses[at]; var forged = old; forged.value = 0; program.data.uses[at] = forged; int stage = ssa_verify(program); program.data.uses[at] = old;
+	assert_that(ssa_verify(program) == 0); var after = ssa_test_snapshot(program.data); assert_that(before.text == after.text); indexpath_mutation_row(13, stage);
+}
+
+void indexpath_native_mutations(SsaProgram program, LlvmProfile profile, string path) throws Error {
+	var upstream = ssa_test_snapshot(program.data); int category = 0;
+	while (category < 8) {
+		var valid = llvm_lower(program, program, profile); assert_that(valid.audit(program) == 0);
+		var mutant = llvm_lower(program, program, profile); assert_that(mutant.indexpath_fault(program, category) && mutant.llvm_valid());
+		int stage = mutant.audit(program); assert_that(stage > 0 && stage < 5);
+		bool rejected = false; try { mutant.write(program, program, profile, path, true); } catch (Error error) { rejected = true; } assert_that(rejected);
+		var label = llvm_name("INDEXPATH_PHYSICAL_MUTATION ", category); print(label.text); var boundary = llvm_name(" ", stage); print(boundary.text); print(" LLVM_VALID "); valid.snapshot(); print(" "); mutant.snapshot(); print(" "); mutant.close();
+		var restored = llvm_lower(program, program, profile); assert_that(restored.audit(program) == 0); restored.snapshot(); println("");
+		var after = ssa_test_snapshot(program.data); assert_that(after.text == upstream.text && ssa_verify(program) == 0); category = category + 1;
+	}
+}

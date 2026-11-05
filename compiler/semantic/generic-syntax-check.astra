@@ -339,6 +339,30 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_count, second_data.f_count)) return false;
 			if (!generic_check_child(index, plan, first_data.f_failure_call, second_data.f_failure_call)) return false;
 		}
+		case SyntaxKind.IndexExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.index_expression(original);
+			var second_data = index.bindings.program.arena.index_expression(concrete);
+			if (!generic_check_child(index, plan, first_data.f_container, second_data.f_container)) return false;
+			if (!generic_check_child(index, plan, first_data.f_subscript, second_data.f_subscript)) return false;
+			if (first_data.f_close.index != second_data.f_close.index) return false;
+		}
+		case SyntaxKind.VectorExtractExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.vector_extract_expression(original);
+			var second_data = index.bindings.program.arena.vector_extract_expression(concrete);
+			if (!generic_check_child(index, plan, first_data.f_container, second_data.f_container)) return false;
+			if (!generic_check_child(index, plan, first_data.f_subscript, second_data.f_subscript)) return false;
+			if (first_data.f_close.index != second_data.f_close.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_vector, second_data.f_vector)) return false;
+			if (first_data.f_open_bracket.index != second_data.f_open_bracket.index) return false;
+			if (first_data.f_index.index != second_data.f_index.index) return false;
+			if (first_data.f_close_bracket.index != second_data.f_close_bracket.index) return false;
+		}
+		case SyntaxKind.IndexedAssignmentSyntax(): {
+			var first_data = index.bindings.program.arena.indexed_assignment(original);
+			var second_data = index.bindings.program.arena.indexed_assignment(concrete);
+			if (!generic_check_child(index, plan, first_data.f_target, second_data.f_target)) return false;
+			if (!generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+		}
 		case SyntaxKind.FieldAccessExpressionSyntax(): {
 			var first_data = index.bindings.program.arena.field_access_expression(original);
 			var second_data = index.bindings.program.arena.field_access_expression(concrete);

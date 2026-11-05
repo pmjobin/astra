@@ -52,7 +52,7 @@ bool class_storage_template_verified(CheckedIndex checked, SymbolId origin) {
 		if (id.index == 0) return false;
 		var type = checked.symbol_types[id.index]; var row = checked.types.row(type);
 		int flags = checked.symbol_flags[id.index];
-		if (row.kind == 23) {
+		if (row.kind == 22 || row.kind == 23) {
 			var argument = checked.types.argument(checked.types, type, 0); var parameter = checked.types.row(argument.type);
 			if (flags != 4 || argument.flags != 0 || parameter.kind != 33) return false;
 			var source = checked.bindings.symbol(parameter.nominal);

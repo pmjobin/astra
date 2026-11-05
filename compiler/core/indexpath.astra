@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// 19 copied indexed value, 30 detached record projection, 31 indexed store,
+// 32 bounds-before-RHS index token. A token is an int, never storage authority.
+bool core_indexpath_source(CheckedIndex checked, SyntaxNodeId node) {
+	if (!checked.class_storage) return false;
+	var kind = checked.bindings.program.arena.kind(node);
+	return checked_flow_index_kind(kind) || kind == SyntaxKind.IndexedAssignmentSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax() && indexpath_snapshot(checked, node, 0);
+}
+
+CoreNode core_lower_indexpath(CoreData core, CheckedIndex checked, borrowed FlowGraph graph, CoreNode input, int function, int loop, int depth) {
+	var row = input; var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		row.kind = 30; row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_field_name(source));
+		row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_aggregate(source), function, loop, 0, depth + 1);
+		return row;
+	}
+	var target = source;
+	if (kind == SyntaxKind.IndexedAssignmentSyntax()) target = checked.bindings.program.arena.get_node_target(source);
+	row.place = core_lower_place(core, checked, graph, function, checked.bindings.program.arena.get_node_container(target));
+	if (row.place == 0 || !indexpath_snapshot(checked, target, 0)) {
+		core.status = 3;
+		return row;
+	}
+	row.kind = 19;
+	if (kind == SyntaxKind.IndexedAssignmentSyntax()) {
+		row.kind = 31; row.type = type_id(14); row.flags = 0;
+		var bound = core_node(checked, target, function); bound.kind = 32; bound.type = type_id(1); bound.flags = 0; bound.place = row.place;
+		int id = core_add_node(core, bound);
+		bound.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_subscript(target), function, loop, 0, depth + 1);
+		core.nodes[id - 1] = bound; row.a = id;
+		row.b = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_expression(source), function, loop, 0, depth + 1);
+	} else {
+		row.a = core_lower_tree(core, checked, graph, checked.bindings.program.arena.get_node_subscript(target), function, loop, 0, depth + 1);
+	}
+	return row;
+}
+
+// Independent source/schema consumer. It never calls the indexpath lowerer.
+bool core_verify_indexpath(CoreData core, CheckedIndex checked, int[] proofs, CoreNode row, SyntaxNodeId source, int function, int loop, int depth, bool[] seen, bool[] seen_edges) {
+	if (!checked.class_storage || row.flags != 0 || row.token.index != 0 || row.operation.index != 0 || row.c != 0 || row.signature.index != 0 || row.target != 0 || row.first != 0 || row.count != 0) return false;
+	var kind = checked.bindings.program.arena.kind(source);
+	if (row.kind == 30) {
+		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.place != 0 || row.b != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
+		var aggregate = checked.bindings.program.arena.get_node_aggregate(source);
+		if (aggregate.index < 1 || !core_verify_child(core, checked, proofs, row.a, aggregate, function, loop, 0, depth, seen, seen_edges)) return false;
+		var receiver = core.nodes[row.a - 1].type; var nominal = checked.types.row(receiver); var field = checked.bindings.symbol(row.symbol);
+		return nominal.kind == 30 && !checked_record_owned(checked, receiver, 0) && field.kind == 6 && field.owner.index == nominal.nominal.index && checked_target(checked, source, checked.bindings.program.arena.get_token_field_name(source)).index == row.symbol.index && row.type.index == checked.symbol_types[row.symbol.index].index && indexpath_copy(checked, row.type);
+	}
+	if (row.symbol.index != 0 || row.place < 1 || row.place > core.place_count || core.places[row.place - 1].function != function) return false;
+	var target = source;
+	if (row.kind == 31) {
+		if (kind != SyntaxKind.IndexedAssignmentSyntax() || row.type.index != 14) return false;
+		target = checked.bindings.program.arena.get_node_target(source);
+	} else {
+		if (!checked_flow_index_kind(kind) || row.b != 0 || row.kind != 19 && row.kind != 32) return false;
+	}
+	if (!checked_flow_index_kind(checked.bindings.program.arena.kind(target))) return false;
+	var container = checked.bindings.program.arena.get_node_container(target); var subscript = checked.bindings.program.arena.get_node_subscript(target);
+	if (checked.bindings.program.arena.kind(target) == SyntaxKind.VectorExtractExpressionSyntax()) {
+		var data = checked.bindings.program.arena.vector_extract_expression(target);
+		if (data.f_container.index != data.f_vector.index || data.f_close.index != data.f_close_bracket.index || checked.bindings.program.arena.kind(subscript) != SyntaxKind.IntegerLiteralExpressionSyntax() || checked.bindings.program.arena.get_token_literal(subscript).index != data.f_index.index) return false;
+	}
+	var buffer = core.places[row.place - 1];
+	if (core_source_place(core, checked, function, container, 0) != row.place || checked_kind(checked, buffer.type) != 22 || buffer.type.index != checked.uses[container.index].type.index || checked.uses[subscript.index].type.index != 1 || !indexpath_pure(checked, subscript, 0)) return false;
+	var element = checked.types.argument(checked.types, buffer.type, 0);
+	if (element.flags != 0 || element.type.index != checked.uses[target.index].type.index || !indexpath_copy(checked, element.type)) return false;
+	if (row.kind == 31) {
+		var value = checked.bindings.program.arena.get_node_expression(source);
+		if ((buffer.flags & 128) != 0 || !indexpath_pure(checked, value, 0) || !core_verify_child(core, checked, proofs, row.a, target, function, loop, 0, depth, seen, seen_edges) || core.nodes[row.a - 1].kind != 32 || core.nodes[row.a - 1].place != row.place) return false;
+		return core_verify_child(core, checked, proofs, row.b, value, function, loop, 0, depth, seen, seen_edges) && core.nodes[row.b - 1].type.index == element.type.index;
+	}
+	if (row.type.index != element.type.index && row.kind == 19 || row.kind == 32 && row.type.index != 1) return false;
+	return core_verify_child(core, checked, proofs, row.a, subscript, function, loop, 0, depth, seen, seen_edges);
+}

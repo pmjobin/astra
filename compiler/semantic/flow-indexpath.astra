@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Finite value snapshots never manufacture a dynamic writable Place or loan.
+bool indexpath_copy(CheckedIndex checked, TypeId type) {
+	int kind = checked_kind(checked, type);
+	return type_numeric(kind) || kind == 13 || kind == 30 && !checked_record_owned(checked, type, 0) && flowsem_record_shape(checked, type, 0);
+}
+
+bool indexpath_pure(CheckedIndex checked, SyntaxNodeId node, int depth) {
+	if (!checked.class_storage || node.index < 1 || node.index >= len(checked.uses) || depth > 64) return false;
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return indexpath_pure(checked, checked.bindings.program.arena.get_node_expression(node), depth + 1);
+	if (!indexpath_copy(checked, checked.uses[node.index].type)) return false;
+	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) return true;
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		var aggregate = checked.bindings.program.arena.get_node_aggregate(node);
+		return aggregate.index == 0 || indexpath_pure(checked, aggregate, depth + 1);
+	}
+	if (checked_flow_index_kind(kind)) return indexpath_pure(checked, checked.bindings.program.arena.get_node_subscript(node), depth + 1);
+	if (kind == SyntaxKind.PrefixExpressionSyntax() || kind == SyntaxKind.ConversionExpressionSyntax()) return indexpath_pure(checked, checked.bindings.program.arena.get_node_operand(node), depth + 1);
+	if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) return indexpath_pure(checked, checked.bindings.program.arena.get_node_left(node), depth + 1) && indexpath_pure(checked, checked.bindings.program.arena.get_node_right(node), depth + 1);
+	return false;
+}
+
+bool indexpath_snapshot(CheckedIndex checked, SyntaxNodeId node, int depth) {
+	if (!checked.class_storage || depth > 64 || node.index < 1 || node.index >= len(checked.uses) || !indexpath_copy(checked, checked.uses[node.index].type)) return false;
+	var kind = checked.bindings.program.arena.kind(node);
+	if (checked_flow_index_kind(kind)) {
+		var container = checked.bindings.program.arena.get_node_container(node);
+		var subscript = checked.bindings.program.arena.get_node_subscript(node);
+		var type = checked.uses[container.index].type;
+		if (checked_kind(checked, type) != 22 || checked.uses[subscript.index].type.index != 1 || !indexpath_pure(checked, subscript, 0)) return false;
+		var element = checked.types.argument(checked.types, type, 0);
+		return element.flags == 0 && element.type.index == checked.uses[node.index].type.index;
+	}
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) return indexpath_snapshot(checked, checked.bindings.program.arena.get_node_aggregate(node), depth + 1);
+	return false;
+}

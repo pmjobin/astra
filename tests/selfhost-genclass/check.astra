@@ -21,11 +21,11 @@ bool genclass_source_consumer(CheckedIndex checked) {
 				if (binding.kind != 6 || binding.owner.index != plan.concrete.index || binding.node.index != field.index || !flow_equal_span(binding.span, source_binding.span) || !flow_equal_span(checked.bindings.program.arena.header(field).span, checked.bindings.program.arena.header(source).span)) return false;
 				if (generic_symbol(checked, plan, source_symbol.index) != symbol.index || generic_node(checked, plan, source.index) != field.index) return false;
 				var pattern_type = checked.symbol_types[source_symbol.index]; var pattern = checked.types.row(pattern_type);
-				if (pattern.kind == 23) {
+				if (pattern.kind == 22 || pattern.kind == 23) {
 					var parameter_edge = checked.types.argument(checked.types, pattern_type, 0); var parameter = checked.types.row(parameter_edge.type);
 					if (parameter.kind != 33 || checked.bindings.symbol(parameter.nominal).owner.index != plan.origin.index) return false;
 					var type = checked.symbol_types[symbol.index];
-					if (checked_kind(checked, type) != 23 || checked.symbol_flags[symbol.index] != 4) return false;
+					if (checked_kind(checked, type) != pattern.kind || checked.symbol_flags[symbol.index] != 4) return false;
 					var element = checked.types.argument(checked.types, type, 0);
 					if (element.type.index != argument.type.index || element.flags != 0) return false;
 				}
