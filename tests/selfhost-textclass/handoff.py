@@ -32,12 +32,13 @@ def main():
 	p.add_argument('--source-version', required=True, help='Exact final immutable implementation snapshot, e.g. source-v9')
 	p.add_argument('--ledger-version', required=True, help='Exact final ledger leaf prefix, e.g. ledger-v9')
 	p.add_argument('--live-ledger', type=Path, required=True, help='Separate exact final live-population ledger')
+	p.add_argument('--preservation', type=Path, required=True, help='Exact final preservation receipt')
 	p.add_argument('--correspondence', type=Path, required=True, help='Exact final committed source/product correspondence receipt')
 	a = p.parse_args(); assert a.output.resolve().is_relative_to(a.runtime.resolve())
 	assert subprocess.check_output(['git', 'status', '--porcelain=v1', '--untracked-files=all']) == b''
 	assert subprocess.run(['git', 'merge-base', '--is-ancestor', BASE, 'HEAD']).returncode == 0
-	assert read(a.runtime/'preservation-final.json')['status'] == 'PASS'
-	assert read(a.runtime/'preservation-final.json')['tracked_status'] == ''
+	assert read(a.preservation)['status'] == 'PASS'
+	assert read(a.preservation)['tracked_status'] == ''
 	historical = read(a.runtime/'historical-preservation.json'); assert historical['status'] == 'PRESERVED_HISTORICAL_NOT_FRESH_EXECUTION' and historical['original_proof_observations'] == 1044
 	proof_products = read(a.runtime/'history-audit-final/result.json'); assert proof_products['status'] == 'PRESERVED_IDENTITY_BOUND_HISTORICAL' and proof_products['observations'] == 1044
 	profiles = {}; receipts = {}
@@ -128,6 +129,23 @@ def main():
 	files['recipes/transport.py'] = ROOT/'tests/selfhost-genclass/transport.py'
 	files['recipes/encoded-evidence.py'] = ROOT/'tools/qualification/encoded-evidence.py'
 	files['recipes/tests/ecosystem-abi-8/layout-lifetime-guard.c'] = ROOT/'tests/ecosystem-abi-8/layout-lifetime-guard.c'
+	# Full JSON ledgers repeat native NODE observations and declaration metadata.
+	# Preserve raw outputs and restore the original serialization under its SHA.
+	plan = dict(format='astra-lossless-derived-ledgers/1', final_commit=model['final_commit'], final_tree=model['final_tree'], classification='Exact byte reconstruction; no compiler re-execution or disposition change.', files=[])
+	metadata_root = a.output/'derived-ledgers/metadata'; metadata_root.mkdir(parents=True)
+	for name in sorted(final_ledgers):
+		logical = 'task-runtime/'+name+'/ledger.json'; original = files.pop(logical)
+		metadata = read(original); metadata['nodes'] = None
+		path = metadata_root/(name+'.json'); path.write_text(json.dumps(metadata, indent=2)+'\n')
+		raw = 'task-runtime/'+name+'/whole-compiler.stdout'
+		plan['files'].append(dict(path=logical, bytes=original.stat().st_size, mode=original.stat().st_mode & 0o777, sha256=sha(original), raw=raw, raw_sha256=sha(files[raw]), metadata='metadata/'+path.name, metadata_sha256=sha(path)))
+		files['derived-ledgers/metadata/'+path.name] = path
+	plan_path = a.output/'derived-ledgers/restore-plan.json'; plan_path.write_text(json.dumps(plan, indent=2)+'\n')
+	reconstruction = a.output/'ledger-reconstruction-verification.json'
+	decoder = ROOT/'tests/selfhost-textclass/derived-ledgers.py'
+	subprocess.run([sys.executable, '-B', decoder, a.output, '--plan', plan_path, '--original-runtime', a.runtime, '--verify-only', '--receipt', reconstruction], check=True)
+	files['recipes/restore-ledgers.py'] = decoder; files['derived-ledgers/restore-plan.json'] = plan_path; files['derived-ledgers/reconstruction-verification.json'] = reconstruction
+	model['lossless_derived_ledgers'] = plan
 	spec = importlib.util.spec_from_file_location('transport', files['recipes/transport.py']); transport = importlib.util.module_from_spec(spec); spec.loader.exec_module(transport)
 	archive = a.output/'textclass17-evidence.tar.xz'; started = time.monotonic()
 	with tarfile.open(archive, 'w:xz', preset=6) as tar:
