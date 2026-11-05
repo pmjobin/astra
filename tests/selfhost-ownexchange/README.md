@@ -60,6 +60,13 @@ the existing Core refusal of a local null initializer. Repaired guard witnesses
 pass null through an already admitted borrowed Class parameter. Final receipts
 use `family-repaired` and `lifetime-repaired` leaves; failed leaves remain intact.
 Neither repair changes the final compiler or broadens source admission.
+The root qualifier records its file hash at receipt completion. During the O0
+family-selector edit, an in-flight Python process retains its loaded code; that
+root hash alone does not identify its loaded file version. Both versions are
+retained in source freezes. Child manifests independently identify unchanged
+stage/oracle recipes, commands and exact compiler products. The affected final
+family gate is freshly executed with the repaired selection; aggregate evidence
+discloses this fixture-only composition.
 
 After all gates, `summary.py` checks the complete execution closure;
 `correspondence.py` binds compiled sources and changed bytes to final Git blobs.

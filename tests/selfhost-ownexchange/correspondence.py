@@ -39,7 +39,7 @@ def main():
 		live = ROOT/'tests/selfhost-ownexchange/qualify.py'
 		candidates = [live, *sorted(RUNTIME.glob('source-*/tests/selfhost-ownexchange/qualify.py'))]
 		actual = next((p for p in candidates if p.is_file() and sha(p) == expected), None); assert actual is not None, receipt
-		recipes[str(receipt)] = dict(observed_sha256=expected, retained_exact_path=str(actual), current_path=str(live), current_sha256=sha(live), classification='Exact executed recipe bytes; earlier final O0 gates precede the family-selection fixture repair.' if actual != live else 'Current committed recipe')
+		recipes[str(receipt)] = dict(receipt_recorded_sha256=expected, retained_matching_path=str(actual), current_path=str(live), current_sha256=sha(live), classification='Root qualifier file hash observed at receipt completion. The family-selection-only edit occurred during some O0 runs; Python retains loaded code. Both file versions are preserved. Child manifests independently pin actual stage/oracle recipes and compiler products; no child semantic recipe changed.')
 	for manifest in RUNTIME.glob('final-'+a.version+'-*/**/manifest.json'):
 		for name, expected in read(manifest).get('recipes', {}).items():
 			path = Path(name)
