@@ -20,12 +20,13 @@ def main():
 	leaf = RUNTIME/('handoff-'+a.version); leaf.mkdir(exist_ok=False); archive = leaf/'effects25-evidence.tar.xz'
 	index = {}; blobs = set(); encoded = {}; omissions = []
 	columns = load_module('effects_lossless_columns', ROOT/'tests/selfhost-genref/columns.py'); column_directory = leaf/'columns'; column_directory.mkdir()
+	restore = load_module('effects_ledger_decoder', ROOT/'tests/selfhost-effects/restore.py')
 	reuse = {}; reused = []
 	if a.reuse_columns:
 		assert a.reuse_columns.replace('-', '').isalnum()
 		previous = RUNTIME/('handoff-'+a.reuse_columns)
 		with tarfile.open(previous/'effects25-evidence.tar.xz', 'r:xz') as old:
-			model = json.load(old.extractfile('INDEX.json')); assert model['format'] == 'astra-effects25-evidence/2'
+			model = json.load(old.extractfile('INDEX.json')); assert model['format'] in ('astra-effects25-evidence/2', 'astra-effects25-evidence/3')
 			for row in model['files'].values():
 				if 'columns' in row: reuse[row['sha256']] = row['columns']
 	with tarfile.open(archive, 'w:xz', preset=9) as z:
@@ -44,7 +45,17 @@ def main():
 				digest = hashlib.sha256(data).hexdigest(); size = len(data); mode = '0o644'
 			if expected: assert digest == expected
 			row = dict(bytes=size, sha256=digest, mode=mode, blob='blobs/'+digest)
-			if name in index: assert index[name] == row; return
+			if name in index:
+				assert all(index[name][key] == row[key] for key in ('bytes', 'sha256', 'mode')); return
+			if transform and path is not None and path.name == 'ledger.json':
+				model = read(path)
+				if model.get('format') == 'astra-whole-source-ledger/1':
+					raw = path.with_name('whole-compiler.stdout'); assert raw.is_file()
+					model['nodes'] = None; model['raw_flow'] = None; metadata = leaf/(digest+'-ledger-metadata.json'); metadata.write_text(json.dumps(model, indent=2)+'\n')
+					data = restore.ledger(raw, metadata); assert len(data) == size and hashlib.sha256(data).hexdigest() == digest; del data, model
+					raw_name = str(Path(name).with_name('whole-compiler.stdout')); metadata_name = 'ledger-metadata/'+digest+'.json'
+					add(raw_name, path=raw); add(metadata_name, path=metadata, transform=False)
+					row.pop('blob'); row['ledger'] = dict(raw=raw_name, metadata=metadata_name); index[name] = row; return
 			if transform and path is not None and path.suffix == '.stdout' and size >= 1048576:
 				with path.open('rb') as stream: first = stream.readline()
 				if not first.startswith(b'('):
@@ -92,7 +103,7 @@ def main():
 			for row in read(RUNTIME/('inherited-v1-'+mode)/'result.json')['programs']:
 				for source in row['sources']:
 					path = Path(source['path']); add('inherited-source/'+source['sha256']+'/'+path.name, path=path, expected=source['sha256'])
-		store('INDEX.json', data=(json.dumps(dict(format='astra-effects25-evidence/2', files=index, preserved_external_transports=omissions), indent=2)+'\n').encode())
+		store('INDEX.json', data=(json.dumps(dict(format='astra-effects25-evidence/3', files=index, preserved_external_transports=omissions), indent=2)+'\n').encode())
 	with tarfile.open(archive, 'r:xz') as z:
 		remaining = {row['blob']: row for row in index.values() if 'blob' in row}
 		for entry in z:
