@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Real reference-model mutations; each original is restored before proceeding.
+void genref_mutations(CheckedIndex index) throws Error {
+	assert_that(generic_verify_failure(index) == 0);
+	int ordinal = -1; int source = 0; int actual = 0; int method_source = 0; int method_actual = 0; int p = 0;
+	while (p < index.instance_count) {
+		var plan = index.instances[p]; int r = 1; int offset = 0;
+		while (r <= index.generic_references) {
+			var edge = index.bindings.reference(r);
+			if (generic_node(index, plan, edge.node.index) != 0) {
+				int at = plan.first_reference + offset; var concrete = index.bindings.reference(at);
+				if (source == 0 && edge.state_code == 1 && concrete.state_code == 1 && edge.target.index > 0 && generic_symbol(index, plan, edge.target.index) == concrete.target.index && edge.scope.index != concrete.scope.index) {
+					ordinal = p;
+					source = r;
+					actual = at;
+				}
+				if (method_source == 0 && edge.state_code == 1 && edge.domain == 4 && edge.target.index > 0 && index.bindings.symbol(edge.target).kind == 11 && concrete.target.index == edge.target.index && generic_symbol(index, plan, edge.target.index) != 0) {
+					method_source = r;
+					method_actual = at;
+				}
+				offset = offset + 1;
+			}
+			r = r + 1;
+		}
+		p = p + 1;
+	}
+	assert_that(ordinal >= 0 && source > 0 && actual > 0 && method_source > 0 && method_actual > 0);
+	var plan = index.instances[ordinal]; var original = index.bindings.reference(source); var row = index.bindings.reference(actual);
+	int category = 0;
+	while (category < 26) {
+		if (category < 4 || category == 22) {
+			var forged = plan;
+			if (category == 0) forged.first_reference = 0;
+			if (category == 1) forged.reference_count = plan.reference_count - 1;
+			if (category == 2) forged.reference_count = plan.reference_count + 1;
+			if (category == 3) forged.first_reference = plan.first_reference + 1;
+			if (category == 22) forged.reference_count = -1;
+			index.instances[ordinal] = forged;
+		}
+		if (category >= 4 && category <= 15 || category == 20 || category == 21) {
+			var forged = row;
+			if (category == 4) forged.node = original.node;
+			if (category == 5) forged.token.index = row.token.index + 1;
+			if (category == 6) forged.span.start = row.span.start + 1;
+			if (category == 7) forged.span.end = row.span.end + 1;
+			if (category == 8) forged.span.source.index = row.span.source.index + 1;
+			if (category == 9) forged.domain = 4;
+			if (category == 10) forged.scope = original.scope;
+			if (category == 11) forged.target = original.target;
+			if (category == 12) forged.target.index = 0;
+			if (category == 13) forged.alternative = row.target;
+			if (category == 14) forged.reason = row.reason + 1;
+			if (category == 15) forged.state_code = 5;
+			if (category == 20) forged.next_reference = actual;
+			if (category == 21) forged.next_reference = index.bindings.reference_count + 1;
+			index.bindings.replace_instance_reference(actual, forged);
+		}
+		int next = index.reference_next[actual]; int head = index.node_references[row.node.index];
+		if (category == 16) index.reference_next[actual] = actual;
+		if (category == 17) index.node_references[row.node.index] = 0;
+		if (category == 18) index.reference_next[actual] = index.bindings.reference_count + 1;
+		var symbol = index.bindings.symbol(row.target);
+		if (category == 19) {
+			var forged = symbol;
+			forged.first_reference = 0;
+			index.bindings.replace_instance_symbol(row.target, forged);
+		}
+		var member = index.bindings.reference(method_actual);
+		if (category == 23) {
+			var forged = member; forged.target = plan.concrete; index.bindings.replace_instance_reference(method_actual, forged);
+		}
+		var declaration = index.bindings.symbol(member.target);
+		if (category == 24) {
+			var forged = declaration;
+			forged.owner = plan.concrete;
+			index.bindings.replace_instance_symbol(member.target, forged);
+		}
+		var first = index.bindings.reference(plan.first_reference); var second = index.bindings.reference(plan.first_reference + 1);
+		if (category == 25) {
+			index.bindings.replace_instance_reference(plan.first_reference, second);
+			index.bindings.replace_instance_reference(plan.first_reference + 1, first);
+		}
+		int stage = generic_verify_failure(index); assert_that(stage == 7);
+		index.instances[ordinal] = plan; index.bindings.replace_instance_reference(actual, row); index.reference_next[actual] = next; index.node_references[row.node.index] = head;
+		index.bindings.replace_instance_symbol(row.target, symbol); index.bindings.replace_instance_reference(method_actual, member); index.bindings.replace_instance_symbol(member.target, declaration);
+		if (category == 25) {
+			index.bindings.replace_instance_reference(plan.first_reference, first);
+			index.bindings.replace_instance_reference(plan.first_reference + 1, second);
+		}
+		assert_that(generic_verify_failure(index) == 0);
+		var out = new Utf8ByteBuilder(); source_append_text(out, "GENREF_MODEL_MUTATION"); flow_number(out, category); flow_number(out, stage); source_append_text(out, " VALID_RESTORED\n"); var text = out.snapshot(); print(text.text);
+		category = category + 1;
+	}
+}
+
+void genref_rebuild_reverse_references(CheckedIndex index) {
+	int n = 1;
+	while (n <= index.bindings.symbol_count) {
+		var symbol = index.bindings.symbol(type_symbol(n)); symbol.first_reference = 0; index.bindings.replace_instance_symbol(type_symbol(n), symbol); n = n + 1;
+	}
+	n = 1;
+	while (n <= index.bindings.reference_count) {
+		var edge = index.bindings.reference(n); edge.next_reference = 0;
+		if (edge.state_code == 1 && edge.target.index > 0 && edge.target.index <= index.bindings.symbol_count) {
+			var symbol = index.bindings.symbol(edge.target); edge.next_reference = symbol.first_reference; symbol.first_reference = n; index.bindings.replace_instance_symbol(edge.target, symbol);
+		}
+		index.bindings.replace_instance_reference(n, edge); n = n + 1;
+	}
+}
+
+void genref_transition_mutations(CheckedIndex index) throws Error {
+	assert_that(generic_verify_failure(index) == 0 && genref_before_verify_failure(index) == 0);
+	int source = 0; int actual = 0; int selected = -1; int p = 0;
+	while (p < index.instance_count && source == 0) {
+		var plan = index.instances[p]; int r = 1; int offset = 0;
+		while (r <= index.generic_references && source == 0) {
+			var edge = index.bindings.reference(r);
+			if (generic_node(index, plan, edge.node.index) != 0) {
+				var concrete = index.bindings.reference(plan.first_reference + offset);
+				if (edge.state_code == 5 && (edge.reason == 1 || edge.reason == 3) && concrete.state_code == 1 && index.bindings.program.arena.kind(edge.node) == SyntaxKind.FieldAccessExpressionSyntax() && index.bindings.symbol(concrete.target).kind == 6) {
+					source = r;
+					actual = plan.first_reference + offset;
+					selected = p;
+				}
+				offset = offset + 1;
+			}
+			r = r + 1;
+		}
+		p = p + 1;
+	}
+	assert_that(selected >= 0 && source > 0 && actual > 0);
+	var original = index.bindings.reference(source); var row = index.bindings.reference(actual); var member = index.bindings.symbol(row.target);
+	SymbolId field = {index = 0}; int n = 1;
+	while (n <= index.generic_symbols) {
+		var candidate = index.bindings.symbol(type_symbol(n));
+		if (candidate.kind == 6 && candidate.owner.index != member.owner.index && candidate.token.index == member.token.index) field.index = n;
+		n = n + 1;
+	}
+	assert_that(field.index > 0);
+	var references = new BindingReference[index.bindings.reference_count + 1]; var symbols = new BindingSymbol[index.bindings.symbol_count + 1]; n = 1;
+	while (n <= index.bindings.reference_count) {
+		references[n] = index.bindings.reference(n);
+		n = n + 1;
+	}
+	n = 1;
+	while (n <= index.bindings.symbol_count) {
+		symbols[n] = index.bindings.symbol(type_symbol(n));
+		n = n + 1;
+	}
+	int category = 0;
+	while (category < 11) {
+		var forged = row; var provenance = original;
+		if (category == 0) forged.target = index.instances[selected].concrete;
+		if (category == 1) forged.target = member.owner;
+		if (category == 2) forged.target = field;
+		if (category == 3) provenance.reason = 7;
+		if (category == 4) provenance.reason = 0;
+		if (category == 5) forged.reason = 7;
+		if (category == 6) forged.domain = 2;
+		if (category == 7) forged.alternative = field;
+		if (category == 8) forged.scope = original.scope;
+		if (category == 9) forged.token.index = row.token.index + 1;
+		if (category == 10) forged.target.index = 0;
+		index.bindings.replace_instance_reference(source, provenance); index.bindings.replace_instance_reference(actual, forged);
+		// Repair reverse linkage for the forged target, so these semantic cases
+		// cannot be dismissed as broken-list tests before their target check.
+		genref_rebuild_reverse_references(index);
+		int before = genref_before_verify_failure(index); int stage = generic_verify_failure(index);
+		assert_that(stage == 7 && (category < 3 && before == 0 || category >= 3 && before == 7));
+		n = 1;
+		while (n <= index.bindings.reference_count) {
+			index.bindings.replace_instance_reference(n, references[n]);
+			n = n + 1;
+		}
+		n = 1;
+		while (n <= index.bindings.symbol_count) {
+			index.bindings.replace_instance_symbol(type_symbol(n), symbols[n]);
+			n = n + 1;
+		}
+		assert_that(generic_verify_failure(index) == 0 && genref_before_verify_failure(index) == 0);
+		var out = new Utf8ByteBuilder(); source_append_text(out, "GENREF_TRANSITION_MUTATION"); flow_number(out, category); flow_number(out, before); flow_number(out, stage); source_append_text(out, " VALID_RESTORED\n"); var text = out.snapshot(); print(text.text); category = category + 1;
+	}
+}

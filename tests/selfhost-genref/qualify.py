@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+"""Fresh GENREF native/C0/ABI/Valgrind execution and independent raw-graph checks."""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+from state import ROOT, RUNTIME, BUILD, C0, read, sha
+
+
+def main():
+	p = argparse.ArgumentParser(); p.add_argument('--component', type=Path, required=True); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); a = p.parse_args()
+	leaf = RUNTIME/('qualified-'+a.version+'-'+a.mode); directory = BUILD/leaf.name; leaf.mkdir(exist_ok=False); directory.mkdir(exist_ok=False)
+	selection = RUNTIME/'corpus-v5/selection.json'; commands = []; env = dict(os.environ, CCACHE_DISABLE='1'); env.pop('VALGRIND_OPTS', None); env.pop('LD_PRELOAD', None)
+	def run(argv, name, timeout=180):
+		start = time.monotonic(); r = subprocess.run(['/usr/bin/time', '-v', '-o', leaf/(name+'.time'), *map(str, argv)], cwd=ROOT, capture_output=True, env=env, timeout=timeout)
+		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr)
+		commands.append(dict(name=name, argv=list(map(str, argv)), exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=sha(leaf/(name+'.stdout')), stderr_sha256=sha(leaf/(name+'.stderr')))); (leaf/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
+		print(a.mode, name, r.returncode, flush=True); assert r.returncode == 0, r.stderr.decode(errors='replace')[-2000:]
+	run([sys.executable, '-B', ROOT/'tests/selfhost-callplace/run.py', '--compiler', C0, '--compiler-sha256', sha(C0), '--component', a.component, '--mode', a.mode, '--selection', selection, '--build', directory/'products', '--runtime', leaf/'observations'], 'native', 2400)
+	rows = read(leaf/'observations/results.json'); assert len(rows) == 15 and all(row['baseline_complete'] for row in rows)
+	for row in read(selection):
+		for stage in ('core', 'cfg', 'generic-plan'):
+			run([a.component, '--classstorage-'+stage, a.mode, directory/'unused', *[s['path'] for s in row['sources']]], row['name']+'-'+stage)
+		name = row['name']+'-reference-graph'
+		run([a.component, '--classstorage-genref-data', a.mode, directory/'unused', *[s['path'] for s in row['sources']]], name)
+		run([sys.executable, '-B', ROOT/'tests/selfhost-genref/oracle.py', leaf/(name+'.stdout'), '--output', leaf/(row['name']+'-oracle.json')], row['name']+'-independent-oracle')
+	(leaf/'result.json').write_text(json.dumps(dict(status='PASS', mode=a.mode, component_sha256=sha(a.component), new_source_programs=len(rows), programs=rows, commands=commands, recipe_sha256=sha(__file__)), indent=2)+'\n')
+
+
+if __name__ == '__main__':
+	main()

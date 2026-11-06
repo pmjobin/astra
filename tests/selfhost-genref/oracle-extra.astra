@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void genref_call_stop(CheckedIndex index, int n, int reason) throws Error {
+	SyntaxNodeId node = {index = n}; var target = index.generic_calls[n];
+	var out = new Utf8ByteBuilder(); source_append_text(out, "NEXT_CALL_FAILURE"); flow_number(out, reason); flow_number(out, n); flow_number(out, target.index); flow_number(out, index.uses[n].type.index); flow_number(out, index.uses[n].flags); flow_number(out, index.uses[n].deferred); source_append_text(out, "\nNEXT_CALL_SPAN "); binding_write_span(index.bindings, index.bindings.program.arena.header(node).span, out); source_append_text(out, "\n");
+	int ordinal = generic_instance_for(index, target);
+	if (ordinal > 0) {
+		var plan = index.instances[ordinal - 1]; source_append_text(out, "NEXT_CALL_PLAN"); flow_number(out, ordinal); flow_number(out, plan.origin.index); flow_number(out, plan.concrete.index); flow_number(out, plan.enclosing.index); source_append_text(out, "\n");
+		var arguments = index.bindings.program.arena.get_list_arguments(node); int a = 0;
+		while (a < index.bindings.program.arena.list_count(arguments)) {
+			var child = index.bindings.program.arena.node_at(arguments, a); var use = index.uses[child.index]; source_append_text(out, "NEXT_CALL_ARGUMENT"); flow_number(out, a); flow_number(out, child.index); flow_number(out, use.type.index); flow_number(out, use.flags); flow_number(out, use.deferred); source_append_text(out, "\n"); a = a + 1;
+		}
+	}
+	var text = out.snapshot(); print(text.text);
+}
+
+void genref_token_data(SyntaxArena arena, SyntaxTokenId token, Utf8ByteBuilder out) throws Error {
+	if (token.index == 0) return;
+	var span = arena.token_span(token); var text = arena.token_message(token);
+	source_append_text(out, "TOKEN"); flow_number(out, token.index); flow_number(out, span.source.index); flow_number(out, span.start); flow_number(out, span.end); source_append_text(out, " "); syntax_write_hex(out, text.text); source_append_text(out, "\n");
+}
+
+void genref_extra_data(CheckedIndex index) throws Error {
+	bool call_valid = genref_diagnose_calls(index); assert_that(call_valid == generic_calls_verified(index));
+	var out = new Utf8ByteBuilder(); int n = 1;
+	while (n <= index.bindings.symbol_count) {
+		source_append_text(out, "SYMBOL_TYPE"); flow_number(out, n); flow_number(out, index.symbol_types[n].index); flow_number(out, index.symbol_flags[n]); source_append_text(out, "\n");
+		var symbol = index.bindings.symbol(type_symbol(n)); genref_token_data(index.bindings.program.arena, symbol.token, out); n = n + 1;
+	}
+	n = 1;
+	while (n <= index.bindings.reference_count) {
+		var edge = index.bindings.reference(n); genref_token_data(index.bindings.program.arena, edge.token, out); n = n + 1;
+	}
+	var seen = new bool[index.bindings.program.arena.node_count + 1]; n = 1;
+	while (n < len(index.generic_calls)) {
+		if (index.generic_calls[n].index > 0) {
+			SyntaxNodeId node = {index = n}; var arguments = checked_call_arguments(index, node);
+			source_append_text(out, "CALL_TARGET"); flow_number(out, n); flow_number(out, index.generic_calls[n].index); flow_number(out, index.bindings.program.arena.list_count(arguments)); int a = 0;
+			while (a < index.bindings.program.arena.list_count(arguments)) {
+				flow_number(out, index.bindings.program.arena.node_at(arguments, a).index);
+				a = a + 1;
+			}
+			source_append_text(out, "\n"); genref_ast(index.bindings.program.arena, node, seen, out); a = 0;
+			while (a < index.bindings.program.arena.list_count(arguments)) {
+				var argument = index.bindings.program.arena.node_at(arguments, a);
+				genref_ast(index.bindings.program.arena, argument, seen, out);
+				a = a + 1;
+			}
+		}
+		n = n + 1;
+	}
+	n = -index.bindings.program.arena.generated_source_count;
+	while (n <= index.bindings.program.arena.source_count) {
+		if (n != 0) {
+			SyntaxSourceId id = {index = n}; var source = index.bindings.program.arena.source(id); var path = source_path(shared_borrow(source));
+			source_append_text(out, "SOURCE_ID"); flow_number(out, n); source_append_text(out, " "); syntax_write_hex(out, path.text); source_append_text(out, "\n");
+		}
+		n = n + 1;
+	}
+	var text = out.snapshot(); print(text.text);
+}

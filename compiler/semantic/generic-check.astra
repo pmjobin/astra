@@ -269,6 +269,101 @@ bool generic_token_equal(CheckedIndex index, SyntaxTokenId first, SyntaxTokenId 
 	return index.bindings.program.arena.token_text_equal(first, second);
 }
 
+// Reconstruct lexical member authority from the actual receiver and original
+// declaration. Do not consult the builder's remapping decision or callable ID.
+bool generic_lexical_method_verified(CheckedIndex index, BindingReference original, BindingReference actual) {
+	if (original.target.index < 1 || original.target.index > index.generic_symbols || original.domain != 4 || actual.domain != 4 || index.bindings.program.arena.kind(original.node) != SyntaxKind.CallExpressionSyntax() || index.bindings.program.arena.kind(actual.node) != SyntaxKind.CallExpressionSyntax()) return false;
+	var method = index.bindings.symbol(original.target);
+	if (method.kind != 11 || method.owner.index < 1 || method.owner.index > index.generic_symbols || index.bindings.symbol(method.owner).kind != 4 || index.bindings.program.arena.get_token_identifier(original.node).index != original.token.index || index.bindings.program.arena.get_token_identifier(actual.node).index != actual.token.index || !index.bindings.program.arena.token_text_equal(actual.token, method.token)) return false;
+	var receiver = no_type(); var place = index.bindings.program.arena.get_node_receiver_place(actual.node);
+	if (place.index > 0) {
+		if (place.index > index.bindings.program.arena.node_count || place.index >= len(index.uses)) return false;
+		receiver = index.uses[place.index].type;
+	} else {
+		var token = index.bindings.program.arena.get_token_receiver(actual.node);
+		var symbol = checked_target(index, actual.node, token);
+		if (symbol.index < 0 || symbol.index > index.bindings.symbol_count || symbol.index >= len(index.symbol_types)) return false;
+		if (symbol.index > 0) receiver = index.symbol_types[symbol.index];
+		if (receiver.index == 0) receiver = checked_this_type(index, actual.node, token);
+	}
+	if (!index.types.valid_id(receiver) || checked_kind(index, receiver) != 31) return false;
+	var owner = index.types.row(receiver).nominal;
+	int enclosing = generic_instance_for(index, owner);
+	if (enclosing > 0) owner = index.instances[enclosing - 1].origin;
+	return owner.index == method.owner.index && index.bindings.accessible(original.target, actual.scope);
+}
+
+bool generic_reference_linked(CheckedIndex index, int number, BindingReference edge) {
+	if (edge.node.index < 1 || edge.node.index >= len(index.node_references) || number < 1 || number >= len(index.reference_next)) return false;
+	int current = index.node_references[edge.node.index]; int remaining = index.bindings.reference_count; int found = 0;
+	while (current != 0 && remaining > 0) {
+		if (current < 1 || current > index.bindings.reference_count || current >= len(index.reference_next) || index.bindings.reference(current).node.index != edge.node.index) return false;
+		if (current == number) found = found + 1;
+		current = index.reference_next[current]; remaining = remaining - 1;
+	}
+	if (current != 0 || found != 1) return false;
+	if (edge.state_code != 1) return edge.next_reference == 0;
+	if (edge.target.index < 1 || edge.target.index > index.bindings.symbol_count) return false;
+	current = index.bindings.symbol(edge.target).first_reference; remaining = index.bindings.reference_count; found = 0;
+	while (current != 0 && remaining > 0) {
+		if (current < 1 || current > index.bindings.reference_count) return false;
+		var next = index.bindings.reference(current);
+		if (next.state_code != 1 || next.target.index != edge.target.index) return false;
+		if (current == number) found = found + 1;
+		current = next.next_reference; remaining = remaining - 1;
+	}
+	return current == 0 && found == 1;
+}
+
+// A completed deferred edge needs the same source-domain authority as an
+// originally bound edge. Reconstruct member identity, never a completion bit.
+bool generic_deferred_reference_verified(CheckedIndex index, GenericInstance plan, BindingReference original, BindingReference actual) {
+	if (original.state_code != 5 || (original.reason != 1 && original.reason != 3) || original.domain != 4 || original.target.index != 0 || actual.state_code != 1 || actual.reason != 0 || actual.target.index < 1 || actual.target.index > index.bindings.symbol_count) return false;
+	var member = index.bindings.symbol(actual.target); var kind = index.bindings.program.arena.kind(actual.node);
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var candidate = original; candidate.target = actual.target;
+		return generic_lexical_method_verified(index, candidate, actual);
+	}
+	if (member.kind != 6 && !(member.kind == 14 && original.reason == 1 && kind == SyntaxKind.FieldAccessExpressionSyntax())) return false;
+	if (!index.bindings.program.arena.token_text_equal(actual.token, member.token) || !index.bindings.accessible(actual.target, actual.scope)) return false;
+	var receiver = no_type();
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		if (index.bindings.program.arena.get_token_field_name(actual.node).index != actual.token.index) return false;
+		var place = index.bindings.program.arena.get_node_aggregate(actual.node);
+		if (place.index > 0) {
+			if (place.index > index.bindings.program.arena.node_count || place.index >= len(index.uses)) return false;
+			receiver = index.uses[place.index].type;
+		} else {
+			var token = index.bindings.program.arena.get_token_identifier(actual.node);
+			var symbol = checked_target(index, actual.node, token);
+			if (symbol.index < 0 || symbol.index > index.bindings.symbol_count || symbol.index >= len(index.symbol_types)) return false;
+			if (symbol.index > 0) receiver = index.symbol_types[symbol.index];
+			if (receiver.index == 0) receiver = checked_this_type(index, actual.node, token);
+		}
+	} else {
+		if (kind != SyntaxKind.FieldInitializerSyntax() || index.bindings.program.arena.get_token_name(actual.node).index != actual.token.index) return false;
+		int parents = 0; int n = plan.node_first;
+		while (n - plan.node_first < plan.node_count) {
+			SyntaxNodeId node = {index = n};
+			if (index.bindings.program.arena.kind(node) == SyntaxKind.StructInitializerSyntax()) {
+				var fields = index.bindings.program.arena.get_list_fields(node); int f = 0;
+				while (f < index.bindings.program.arena.list_count(fields)) {
+					if (index.bindings.program.arena.node_at(fields, f).index == original.node.index) {
+						int mapped = generic_node(index, plan, n);
+						if (mapped <= index.generic_nodes || mapped > index.bindings.program.arena.node_count || mapped >= len(index.uses)) return false;
+						receiver = index.uses[mapped].type; parents = parents + 1;
+					}
+					f = f + 1;
+				}
+			}
+			n = n + 1;
+		}
+		if (parents != 1) return false;
+	}
+	if (!index.types.valid_id(receiver) || checked_kind(index, receiver) != 30 && checked_kind(index, receiver) != 31) return false;
+	return index.types.row(receiver).nominal.index == member.owner.index;
+}
+
 bool generic_references_verified(CheckedIndex index, GenericInstance plan) {
 	if (plan.first_reference < 1 || plan.reference_count < 0 || plan.first_reference > index.bindings.reference_count + 1 - plan.reference_count) return false;
 	int source = 1; int offset = 0;
@@ -276,25 +371,42 @@ bool generic_references_verified(CheckedIndex index, GenericInstance plan) {
 		var original = index.bindings.reference(source);
 		int node = generic_node(index, plan, original.node.index);
 		if (node != 0) {
+			if (node <= index.generic_nodes || node > index.bindings.program.arena.node_count || node >= len(index.uses)) return false;
 			if (offset >= plan.reference_count) return false;
 			var actual = index.bindings.reference(plan.first_reference + offset);
 			if (actual.node.index != node || actual.token.index != original.token.index || actual.span.source.index != original.span.source.index || actual.span.start != original.span.start || actual.span.end != original.span.end || actual.domain != original.domain) return false;
+			if (!generic_reference_linked(index, source, original) || !generic_reference_linked(index, plan.first_reference + offset, actual)) return false;
 			int scope = original.scope.index;
 			if (scope > 0 && generic_scope(index, plan, scope) != 0) scope = generic_scope(index, plan, scope);
 			if (actual.scope.index != scope) return false;
+			int alternative = original.alternative.index;
+			if (generic_symbol(index, plan, alternative) != 0) alternative = generic_symbol(index, plan, alternative);
+			if (actual.alternative.index != alternative) return false;
 			if (original.state_code == 1) {
 				int target = original.target.index;
-				if (generic_symbol(index, plan, target) != 0) {
-					target = generic_symbol(index, plan, target);
+				if (target < 1 || target > index.bindings.symbol_count) return false;
+				bool member = original.domain == 4 && index.bindings.symbol(original.target).kind == 11;
+				if (member) {
+					if (!generic_lexical_method_verified(index, original, actual)) return false;
 				} else {
-					if (index.class_storage && plan.enclosing.index != 0) {
-						int owner = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
-						if (owner > 0 && generic_symbol(index, index.instances[owner - 1], target) != 0) target = generic_symbol(index, index.instances[owner - 1], target);
+					if (generic_symbol(index, plan, target) != 0) {
+						target = generic_symbol(index, plan, target);
+					} else {
+						if (index.class_storage && plan.enclosing.index != 0) {
+							int owner = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
+							if (owner > 0 && generic_symbol(index, index.instances[owner - 1], target) != 0) target = generic_symbol(index, index.instances[owner - 1], target);
+						}
 					}
 				}
-				if (actual.state_code != 1 || actual.target.index != target) return false;
+				if (actual.state_code != 1 || actual.target.index != target || actual.reason != original.reason) return false;
 			} else {
 				if (actual.state_code != original.state_code && !(original.state_code == 5 && actual.state_code == 1 && (original.reason == 1 || original.reason == 3))) return false;
+				if (actual.state_code == original.state_code) {
+					if (actual.reason != original.reason || actual.target.index != original.target.index) return false;
+				} else {
+					if (actual.reason != 0 || actual.target.index < 1 || actual.target.index > index.bindings.symbol_count) return false;
+					if (!generic_deferred_reference_verified(index, plan, original, actual)) return false;
+				}
 			}
 			offset = offset + 1;
 		}

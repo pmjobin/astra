@@ -1,0 +1,104 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only raw binder/AST export. Acceptance is computed in another language.
+void genref_binding_data(BindingIndex index, string prefix, Utf8ByteBuilder out) throws Error {
+	int n = 1;
+	while (n <= index.reference_count) {
+		var r = index.reference(n); source_append_text(out, prefix); source_append_text(out, "_REF"); flow_number(out, n); flow_number(out, r.node.index); flow_number(out, r.token.index); flow_number(out, r.span.source.index); flow_number(out, r.span.start); flow_number(out, r.span.end); flow_number(out, r.scope.index); flow_number(out, r.target.index); flow_number(out, r.alternative.index); flow_number(out, r.state_code); flow_number(out, r.reason); flow_number(out, r.domain); flow_number(out, r.next_reference); source_append_text(out, "\n"); n = n + 1;
+	}
+	n = 1;
+	while (n <= index.symbol_count) {
+		var s = index.symbol(type_symbol(n)); source_append_text(out, prefix); source_append_text(out, "_SYMBOL"); flow_number(out, n); flow_number(out, s.node.index); flow_number(out, s.token.index); flow_number(out, s.span.source.index); flow_number(out, s.span.start); flow_number(out, s.span.end); flow_number(out, s.scope.index); flow_number(out, s.owner.index); flow_number(out, s.kind); flow_number(out, s.domain); flow_number(out, s.name); flow_number(out, s.canonical); flow_number(out, s.first_reference); source_append_text(out, "\n"); n = n + 1;
+	}
+	n = 1;
+	while (n <= index.scope_count) {
+		ScopeId id = {index = n}; var s = index.scope(id); source_append_text(out, prefix); source_append_text(out, "_SCOPE"); flow_number(out, n); flow_number(out, s.node.index); flow_number(out, s.owner.index); flow_number(out, s.parent.index); flow_number(out, s.unit.index); flow_number(out, s.kind); flow_number(out, s.namespace_name); source_append_text(out, "\n"); n = n + 1;
+	}
+}
+
+void genref_checked_data(CheckedIndex index) throws Error {
+	var out = new Utf8ByteBuilder(); source_append_text(out, "UNIVERSE"); flow_number(out, index.generic_nodes); flow_number(out, index.generic_symbols); flow_number(out, index.generic_scopes); flow_number(out, index.generic_references); flow_number(out, index.instance_count); flow_number(out, generic_verify_failure(index)); source_append_text(out, "\n");
+	genref_binding_data(index.bindings, "C", out);
+	var seen = new bool[index.bindings.program.arena.node_count + 1]; int p = 0;
+	while (p < index.instance_count) {
+		var plan = index.instances[p]; source_append_text(out, "INSTANCE"); flow_number(out, p + 1); flow_number(out, plan.origin.index); flow_number(out, plan.concrete.index); flow_number(out, plan.enclosing.index); flow_number(out, plan.first_reference); flow_number(out, plan.reference_count); flow_number(out, plan.state); flow_number(out, plan.argument_count); int a = 0;
+		while (a < plan.argument_count) {
+			var edge = generic_argument(index, plan, a); flow_number(out, edge.type.index); flow_number(out, edge.flags); a = a + 1;
+		}
+		source_append_text(out, "\n");
+		var original_node = index.bindings.symbol(plan.origin).node; var concrete_node = index.bindings.symbol(plan.concrete).node;
+		genref_ast(index.bindings.program.arena, original_node, seen, out);
+		genref_ast(index.bindings.program.arena, concrete_node, seen, out);
+		int n = plan.node_first;
+		while (n - plan.node_first < plan.node_count) {
+			int mapped = generic_node(index, plan, n);
+			if (mapped > 0) {
+				source_append_text(out, "MAP_NODE");
+				flow_number(out, p + 1);
+				flow_number(out, n);
+				flow_number(out, mapped);
+				source_append_text(out, "\n");
+			}
+			n = n + 1;
+		}
+		n = plan.symbol_first;
+		while (n - plan.symbol_first < plan.symbol_count) {
+			int mapped = generic_symbol(index, plan, n);
+			if (mapped > 0) {
+				source_append_text(out, "MAP_SYMBOL");
+				flow_number(out, p + 1);
+				flow_number(out, n);
+				flow_number(out, mapped);
+				source_append_text(out, "\n");
+			}
+			n = n + 1;
+		}
+		n = plan.scope_first;
+		while (n - plan.scope_first < plan.scope_count) {
+			int mapped = generic_scope(index, plan, n);
+			if (mapped > 0) {
+				source_append_text(out, "MAP_SCOPE");
+				flow_number(out, p + 1);
+				flow_number(out, n);
+				flow_number(out, mapped);
+				source_append_text(out, "\n");
+			}
+			n = n + 1;
+		}
+		p = p + 1;
+	}
+	int n = 1;
+	while (n < len(index.uses)) {
+		var use = index.uses[n];
+		if (use.type.index > 0 || use.deferred != 0) {
+			source_append_text(out, "USE");
+			flow_number(out, n);
+			flow_number(out, use.type.index);
+			flow_number(out, use.flags);
+			flow_number(out, use.deferred);
+			source_append_text(out, "\n");
+		}
+		if (index.node_references[n] != 0) {
+			source_append_text(out, "REF_HEAD");
+			flow_number(out, n);
+			flow_number(out, index.node_references[n]);
+			source_append_text(out, "\n");
+		}
+		n = n + 1;
+	}
+	n = 1;
+	while (n <= index.bindings.reference_count) {
+		source_append_text(out, "REF_NEXT"); flow_number(out, n); flow_number(out, index.reference_next[n]); source_append_text(out, "\n"); n = n + 1;
+	}
+	n = 1;
+	while (n <= index.types.count) {
+		var row = index.types.row(type_id(n)); source_append_text(out, "TYPE"); flow_number(out, n); flow_number(out, row.kind); flow_number(out, row.nominal.index); flow_number(out, row.extent); flow_number(out, row.count); int a = 0;
+		while (a < row.count) {
+			var edge = index.types.argument(index.types, type_id(n), a);
+			flow_number(out, edge.type.index);
+			flow_number(out, edge.flags);
+			a = a + 1;
+		}
+		source_append_text(out, "\n"); n = n + 1;
+	}
+	var text = out.snapshot(); print(text.text);
+}

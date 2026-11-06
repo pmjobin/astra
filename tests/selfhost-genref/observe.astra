@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only baseline observer. It creates no semantic facts or proof authority.
+void genref_reference(CheckedIndex index, int number, string label, Utf8ByteBuilder out) throws Error {
+	var r = index.bindings.reference(number);
+	source_append_text(out, label); flow_number(out, number); flow_number(out, r.node.index); flow_number(out, r.token.index);
+	flow_number(out, r.span.source.index); flow_number(out, r.span.start); flow_number(out, r.span.end);
+	flow_number(out, r.scope.index); flow_number(out, r.target.index); flow_number(out, r.alternative.index);
+	flow_number(out, r.state_code); flow_number(out, r.reason); flow_number(out, r.domain); flow_number(out, r.next_reference);
+	flow_number(out, index.node_references[r.node.index]); flow_number(out, index.reference_next[number]); source_append_text(out, "\n");
+	source_append_text(out, "SPAN "); binding_write_span(index.bindings, r.span, out); source_append_text(out, "\n");
+	int n = 0;
+	while (n < 2) {
+		var id = r.target; if (n == 1) id = r.alternative;
+		if (id.index > 0 && id.index <= index.bindings.symbol_count) {
+			var s = index.bindings.symbol(id); source_append_text(out, "SYMBOL"); flow_number(out, id.index); flow_number(out, s.node.index); flow_number(out, s.token.index); flow_number(out, s.scope.index); flow_number(out, s.owner.index); flow_number(out, s.kind); flow_number(out, s.domain); flow_number(out, s.first_reference);
+			var name = index.bindings.names.text(s.canonical); source_append_text(out, " "); syntax_write_hex(out, name.text); source_append_text(out, "\n");
+		}
+		n = n + 1;
+	}
+	if (r.scope.index > 0) {
+		var scope = index.bindings.scope(r.scope); source_append_text(out, "SCOPE"); flow_number(out, r.scope.index); flow_number(out, scope.node.index); flow_number(out, scope.owner.index); flow_number(out, scope.parent.index); flow_number(out, scope.kind); source_append_text(out, "\n");
+	}
+}
+
+int genref_observe_plan(CheckedIndex index, GenericInstance plan, Utf8ByteBuilder out) throws Error {
+	if (plan.first_reference < 1 || plan.reference_count < 0 || plan.first_reference > index.bindings.reference_count + 1 - plan.reference_count) return 1;
+	int source = 1; int offset = 0;
+	while (source <= index.generic_references) {
+		var original = index.bindings.reference(source);
+		int node = generic_node(index, plan, original.node.index);
+		if (node != 0) {
+			int failure = 0;
+			if (offset >= plan.reference_count) {
+				failure = 2;
+			} else {
+				var actual = index.bindings.reference(plan.first_reference + offset);
+				if (actual.node.index != node) failure = 3;
+				if (failure == 0 && actual.token.index != original.token.index) failure = 4;
+				if (failure == 0 && (actual.span.source.index != original.span.source.index || actual.span.start != original.span.start || actual.span.end != original.span.end)) failure = 5;
+				if (failure == 0 && actual.domain != original.domain) failure = 6;
+				int scope = original.scope.index; if (scope > 0 && generic_scope(index, plan, scope) != 0) scope = generic_scope(index, plan, scope);
+				if (failure == 0 && actual.scope.index != scope) failure = 7;
+				int target = original.target.index;
+				if (generic_symbol(index, plan, target) != 0) {
+					target = generic_symbol(index, plan, target);
+				} else {
+					if (index.class_storage && plan.enclosing.index != 0) {
+						int owner = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
+						if (owner > 0 && generic_symbol(index, index.instances[owner - 1], target) != 0) target = generic_symbol(index, index.instances[owner - 1], target);
+					}
+				}
+				if (failure == 0 && original.state_code == 1 && (actual.state_code != 1 || actual.target.index != target)) failure = 8;
+				if (failure == 0 && original.state_code != 1 && actual.state_code != original.state_code && !(original.state_code == 5 && actual.state_code == 1 && (original.reason == 1 || original.reason == 3))) failure = 9;
+				if (failure != 0) {
+					source_append_text(out, "REMAP"); flow_number(out, node); flow_number(out, scope); flow_number(out, target); flow_number(out, generic_symbol(index, plan, original.target.index)); source_append_text(out, "\n");
+					genref_reference(index, plan.first_reference + offset, "ACTUAL", out);
+				}
+			}
+			if (failure != 0) {
+				source_append_text(out, "MISMATCH"); flow_number(out, failure); flow_number(out, source); flow_number(out, offset); source_append_text(out, "\n");
+				genref_reference(index, source, "ORIGINAL", out); return failure;
+			}
+			offset = offset + 1;
+		}
+		source = source + 1;
+	}
+	if (offset != plan.reference_count) return 10;
+	return 0;
+}
+
+void genref_observe(CheckedIndex index) throws Error {
+	var out = new Utf8ByteBuilder(); source_append_text(out, "GENREF_BASELINE"); flow_number(out, generic_verify_failure(index)); flow_number(out, index.instance_count); flow_number(out, index.generic_references); flow_number(out, index.bindings.reference_count); source_append_text(out, "\n");
+	int ordinal = 0; bool stopped = false;
+	while (ordinal < index.instance_count && !stopped) {
+		var plan = index.instances[ordinal]; source_append_text(out, "PLAN"); flow_number(out, ordinal + 1); flow_number(out, plan.origin.index); flow_number(out, plan.concrete.index); flow_number(out, plan.enclosing.index); flow_number(out, plan.state); flow_number(out, plan.first_reference); flow_number(out, plan.reference_count);
+		flow_number(out, plan.node_first); flow_number(out, plan.node_count); flow_number(out, plan.symbol_first); flow_number(out, plan.symbol_count); flow_number(out, plan.scope_first); flow_number(out, plan.scope_count); source_append_text(out, "\n");
+		int failure = genref_observe_plan(index, plan, out);
+		assert_that((failure == 0) == generic_references_verified(index, plan));
+		source_append_text(out, "RESULT"); flow_number(out, ordinal + 1); flow_number(out, failure); source_append_text(out, "\n");
+		if (failure != 0) {
+			var origin = index.bindings.symbol(plan.origin); source_append_text(out, "ORIGIN "); binding_write_span(index.bindings, origin.span, out); source_append_text(out, "\nKEY "); generic_write_key(index, plan.concrete, out, 0); source_append_text(out, "\n"); stopped = true;
+		}
+		ordinal = ordinal + 1;
+	}
+	var text = out.snapshot(); print(text.text);
+}
+
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1); var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		genref_observe(checked);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

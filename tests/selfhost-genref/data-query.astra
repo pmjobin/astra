@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1); var bindings = binding_index(move source, 0);
+		var out = new Utf8ByteBuilder(); genref_binding_data(bindings, "B", out); var before = out.snapshot(); print(before.text);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		genref_checked_data(checked);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

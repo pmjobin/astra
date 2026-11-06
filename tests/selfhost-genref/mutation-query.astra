@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		int first = 1; bool transitions = len(args) > 1 && args[1] == "--transitions"; if (transitions) first = 2;
+		var source = binding_load_program(args, first); var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		if (transitions) {
+			genref_transition_mutations(checked);
+		} else {
+			genref_mutations(checked);
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

@@ -284,12 +284,16 @@ GenericInstance generic_copy_bindings(CheckedIndex index, GenericInstance input)
 	while (i <= index.generic_references) {
 		var edge = index.bindings.reference(i);
 		if (generic_node(index, plan, edge.node.index) != 0) {
+			// Member binding names the source Class declaration. Its executable
+			// function (including a recursive self call) is selected separately by
+			// generic_calls. Preserve that identity even after early completion.
+			bool lexical_method = edge.domain == 4 && index.bindings.program.arena.kind(edge.node) == SyntaxKind.CallExpressionSyntax() && edge.target.index > 0 && index.bindings.symbol(edge.target).kind == 11;
 			edge.node.index = generic_node(index, plan, edge.node.index);
 			if (edge.scope.index > 0 && generic_scope(index, plan, edge.scope.index) != 0) edge.scope.index = generic_scope(index, plan, edge.scope.index);
-			if (edge.target.index > 0 && generic_symbol(index, plan, edge.target.index) != 0) {
+			if (!lexical_method && edge.target.index > 0 && generic_symbol(index, plan, edge.target.index) != 0) {
 				edge.target.index = generic_symbol(index, plan, edge.target.index);
 			} else {
-				if (index.class_storage && plan.enclosing.index != 0 && edge.target.index > 0) {
+				if (!lexical_method && index.class_storage && plan.enclosing.index != 0 && edge.target.index > 0) {
 					int outer = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
 					if (outer > 0 && generic_symbol(index, index.instances[outer - 1], edge.target.index) != 0) edge.target.index = generic_symbol(index, index.instances[outer - 1], edge.target.index);
 				}
