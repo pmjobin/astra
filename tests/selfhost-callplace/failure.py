@@ -37,9 +37,9 @@ def main():
 	assert run([C0,'-'+a.mode,source,'-o',oracle],'C0-build').returncode == 0
 	results = {}
 	for label,exe in [('native',native),('C0',oracle)]:
-		r = run([exe],label+'-execute'); assert r.returncode in (-6,134) and r.stdout == b'A',(label,r.returncode,r.stdout,r.stderr)
+		r = run([exe],label+'-execute'); assert r.returncode in (-4,132) and r.stdout == b'A',(label,r.returncode,r.stdout,r.stderr)
 		results[label] = dict(exit=r.returncode,stdout_hex=r.stdout.hex(),ELF_sha256=sha(exe))
-	(leaf/'result.json').write_text(json.dumps(dict(status='PASS',source_sha256=sha(source),results=results,commands=commands,limitation='Fatal bounds-trap ordering only. This is not recoverable throws Error, and no normal-return leak claim is made for an aborted process.'),indent=2)+'\n'); print(a.mode,'INNER_EFFECT_RETAINED OUTER_NOT_EXECUTED')
+	(leaf/'result.json').write_text(json.dumps(dict(status='PASS',source_sha256=sha(source),results=results,commands=commands,limitation='Fatal bounds-trap ordering only: the qualified C0 and native LLVM trap both use SIGILL. This is not recoverable throws Error, and no normal-return leak claim is made for an aborted process.'),indent=2)+'\n'); print(a.mode,'INNER_EFFECT_RETAINED OUTER_NOT_EXECUTED')
 
 
 if __name__ == '__main__':

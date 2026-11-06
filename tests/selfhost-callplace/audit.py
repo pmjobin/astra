@@ -60,6 +60,7 @@ def main():
 		models = read(RUNTIME/('models-'+mode)/'result.json'); physical = read(RUNTIME/('physical-'+mode)/'result.json'); negative = read(RUNTIME/('negative-'+mode)/'result.json'); failure = read(RUNTIME/('failure-'+mode)/'result.json')
 		assert all(result['status'] == 'PASS' for result in (models,physical,negative,failure))
 		assert len(models['mutations']) == 28 and len(physical['mutations']) == 7 and all(row['LLVM_valid'] and row['independently_rejected'] for row in physical['mutations'])
+		assert read(RUNTIME/('lifetime-'+mode)/'result.json')['status'] == 'PASS'
 		assert len(negative['cases']) == 10 and all(row['baseline_complete'] and set(row['memory']) == {'native','C0'} for row in qualified['programs'])
 		profiles[mode] = dict(inherited_source_programs=172,new_native_source_programs=15,total=187,model_mutations=28,LLVM_valid_physical_alternatives=7,source_negatives=10,new_normal_return_native_memory_qualifications=15,new_C0_memory_qualifications=15,previous_IR_identical=sum(row['IR_equal_to_predecessor'] for row in inherited['programs']),failure_order=failure['results'])
 	continuity = read(RUNTIME/'continuity/result.json'); assert continuity['status'] == 'INHERITED_CONTROLS_PASS'

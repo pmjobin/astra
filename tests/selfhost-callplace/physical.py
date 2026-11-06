@@ -29,10 +29,10 @@ def main():
 		'stale-inner-input': replace(inner,inner[0].replace('i32 7','i32 8')),
 		'duplicated-inner-effect': replace(inner,inner[0]+inner[0].replace(inner['result']+' =','%callplace.duplicate =',1)),
 		'omitted-outer-effect': replace(outer,'  '+outer['result']+' = add i32 0, 7\n'),
-		'lost-owner-cleanup': re.sub(r'^  call void @free\(ptr [^\n]+\)\n','',text,flags=re.M),
+		'lost-owner-cleanup': re.sub(r'^  call void @free\(ptr [^\n]+\)(?: #[0-9]+)?\n','',text,flags=re.M),
 	}
 	assert variants['lost-owner-cleanup'] != text
-	function = re.search(r'^define \{ i32 \} '+re.escape(inner['fn'])+r'\(ptr (?P<receiver>%[\w.]+), i32 [^\n]+\n.*?^}\n',text,re.M|re.S); assert function
+	function = re.search(r'^define (?:internal )?\{ i32 \} '+re.escape(inner['fn'])+r'\(ptr (?P<receiver>%[\w.]+), i32 [^\n]+\n.*?^}\n',text,re.M|re.S); assert function
 	old_function = function[0]; receiver = function['receiver']; body_start = old_function.index('\n')+1
 	header = old_function[:body_start].replace('ptr '+receiver,'i64 '+receiver,1)
 	body = re.sub(re.escape(receiver)+r'(?![\w.])','%callplace.receiver.ptr',old_function[body_start:])
@@ -58,7 +58,7 @@ def main():
 		# The private ABI requires a pointer-valued borrowed Class receiver.
 		# i64 transport is LLVM-valid and may preserve LP64 bits at runtime; it
 		# still violates that independently stated source/ABI contract.
-		abi_rejected = name == 'wrong-borrowed-receiver-signature' and re.search(r'^define \{ i32 \} '+re.escape(inner['fn'])+r'\(ptr ',candidate,re.M) is None
+		abi_rejected = name == 'wrong-borrowed-receiver-signature' and re.search(r'^define (?:internal )?\{ i32 \} '+re.escape(inner['fn'])+r'\(ptr ',candidate,re.M) is None
 		assert r.returncode != 63 or errors > 0 or abi_rejected,name
 		assert sha(raw) == row['products']['raw']['sha256'] and run([row['products']['native']['path']],name+'-restored-twin').returncode == 63
 		results.append(dict(category=name,LLVM_valid=True,runtime_exit=r.returncode,Valgrind_errors=errors,independent_ABI_rejected=abi_rejected,independently_rejected=True,IR_sha256=sha(path),object_sha256=sha(obj),ELF_sha256=sha(elf))); print(a.mode,name,'LLVM_VALID INDEPENDENTLY_REJECTED',flush=True)
