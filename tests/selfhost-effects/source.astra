@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// E25-A-v1 source authority. Nominal error identity never comes from spelling,
+// layout equality or the generic builder's specialization caches.
+SymbolId effect_source_type(CheckedIndex checked, SyntaxNodeId node) {
+	if (node.index <= 0 || node.index >= len(checked.uses)) return type_symbol(0);
+	var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (target.index < 1 || target.index > checked.bindings.symbol_count || checked.bindings.symbol(target).kind != 4) return type_symbol(0);
+	return target;
+}
+
+SymbolId effect_source_root(CheckedIndex checked) {
+	var result = type_symbol(0); int s = 1;
+	while (s <= checked.generic_symbols) {
+		var symbol = checked.bindings.symbol(type_symbol(s));
+		if (symbol.kind == 4 && checked.bindings.program.arena.get_token_exception_root(symbol.node).index != 0) {
+			if (result.index != 0) return type_symbol(0);
+			result = type_symbol(s);
+		}
+		s = s + 1;
+	}
+	return result;
+}
+
+// A bounded ancestry query establishes only nominal source subtyping. It does
+// not admit object layout, construction, catches, cleanup or an executable ABI.
+bool effect_source_subtype(CheckedIndex checked, SymbolId actual, SymbolId bound) {
+	if (bound.index < 1 || bound.index > checked.bindings.symbol_count) return false;
+	int steps = 0; var current = actual;
+	while (current.index > 0 && current.index <= checked.bindings.symbol_count && steps < 128) {
+		var declaration = checked.bindings.symbol(current);
+		if (declaration.kind != 4) return false;
+		if (current.index == bound.index) return true;
+		current = effect_source_type(checked, checked.bindings.program.arena.get_node_parent_class(declaration.node));
+		steps = steps + 1;
+	}
+	return false;
+}
+
+SymbolId effect_source_bound(CheckedIndex checked, SymbolId function) {
+	if (function.index < 1 || function.index > checked.bindings.symbol_count) return type_symbol(0);
+	var declaration = checked.bindings.symbol(function);
+	if (declaration.kind != 1 && declaration.kind != 11 && declaration.kind != 12) return type_symbol(0);
+	return effect_source_type(checked, checked.bindings.program.arena.get_node_throws_class(declaration.node));
+}
+
+// Keep a separately reconstructed declaration result beside the typed result.
+// This observer is deliberately usable while executable effect admission is
+// absent. A nonzero ordinal is not an ownership/initialized-success witness.
+TypeId effect_source_result(CheckedIndex checked, SymbolId function) {
+	if (function.index < 1 || function.index > checked.bindings.symbol_count) return no_type();
+	var declaration = checked.bindings.symbol(function);
+	if (declaration.kind != 1 && declaration.kind != 11) return no_type();
+	var node = checked.bindings.program.arena.get_node_return_type(declaration.node);
+	if (node.index == 0) return type_id(14);
+	if (checked.bindings.program.arena.kind(node) == SyntaxKind.NonNullTypeSyntax() || checked.bindings.program.arena.kind(node) == SyntaxKind.CallableChannelTypeSyntax()) node = checked.bindings.program.arena.get_node_underlying(node);
+	var symbol = effect_source_type(checked, node);
+	if (symbol.index == 0) return no_type();
+	return checked.symbol_types[symbol.index];
+}

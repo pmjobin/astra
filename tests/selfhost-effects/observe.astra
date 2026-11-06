@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only producer/local/move trace. No helper below creates a checked fact.
+void effects_use(CheckedIndex index, SyntaxNodeId node, string label, Utf8ByteBuilder out) throws Error {
+	var use = index.uses[node.index];
+	source_append_text(out, label); flow_number(out, node.index); flow_number(out, use.type.index); flow_number(out, use.flags); flow_number(out, use.deferred);
+	flow_number(out, use.span.source.index); flow_number(out, use.span.start); flow_number(out, use.span.end); source_append_text(out, "\n");
+}
+
+void effects_symbol(CheckedIndex index, SymbolId id, string label, Utf8ByteBuilder out) throws Error {
+	var symbol = index.bindings.symbol(id);
+	source_append_text(out, label); flow_number(out, id.index); flow_number(out, symbol.node.index); flow_number(out, symbol.kind); flow_number(out, symbol.owner.index); flow_number(out, symbol.scope.index); flow_number(out, index.symbol_types[id.index].index); flow_number(out, index.symbol_flags[id.index]);
+	var name = index.bindings.program.arena.token_message(symbol.token); source_append_text(out, " "); syntax_write_hex(out, name.text); source_append_text(out, "\n");
+	int signature = index.symbol_signatures[id.index].index;
+	if (signature > 0) {
+		var row = index.signatures[signature - 1];
+		source_append_text(out, "SIGNATURE"); flow_number(out, id.index); flow_number(out, signature); flow_number(out, row.callable.index); flow_number(out, row.error.index); flow_number(out, row.flags); source_append_text(out, "\n");
+	}
+}
+
+void effects_trace(CheckedIndex index) throws Error {
+	var out = new Utf8ByteBuilder();
+	int failed = 0; if (index.failed()) failed = 1;
+	int valid = 0; if (index.validate()) valid = 1;
+	source_append_text(out, "CHECKED_STATE"); flow_number(out, failed); flow_number(out, valid); flow_number(out, index.stage); source_append_text(out, "\n");
+	source_append_text(out, "CONSUMER"); flow_number(out, generic_verify_failure(index)); flow_number(out, index.generic_nodes); flow_number(out, index.generic_symbols); source_append_text(out, "\n");
+	int s = 1;
+	while (s <= index.bindings.symbol_count) {
+		var id = type_symbol(s); var symbol = index.bindings.symbol(id);
+		if (symbol.kind == 1 || symbol.kind == 11 || symbol.kind == 4) effects_symbol(index, id, "DECLARATION", out);
+		if (symbol.kind == 8 && index.bindings.program.arena.kind(symbol.node) == SyntaxKind.InferredLocalDeclarationSyntax()) {
+			var init = index.bindings.program.arena.get_node_initializer(symbol.node);
+			if (index.bindings.program.arena.kind(init) == SyntaxKind.CallExpressionSyntax()) {
+				effects_symbol(index, id, "LOCAL", out); effects_use(index, symbol.node, "LOCAL_USE", out); effects_use(index, init, "INITIALIZER", out);
+				var target = checked_target(index, init, index.bindings.program.arena.get_token_identifier(init));
+				source_append_text(out, "PRODUCER"); flow_number(out, s); flow_number(out, target.index); flow_number(out, index.generic_calls[init.index].index); source_append_text(out, "\n");
+			}
+		}
+		s = s + 1;
+	}
+	int n = 1;
+	while (n < len(index.uses)) {
+		SyntaxNodeId node = {index = n};
+		if (index.bindings.program.arena.kind(node) == SyntaxKind.MoveExpressionSyntax()) {
+			var target = checked_target(index, node, index.bindings.program.arena.get_token_source(node));
+			effects_use(index, node, "MOVE", out); source_append_text(out, "MOVE_TARGET"); flow_number(out, n); flow_number(out, target.index); source_append_text(out, "\n");
+		}
+		n = n + 1;
+	}
+	n = 1;
+	while (n <= index.types.count) {
+		var row = index.types.row(type_id(n)); source_append_text(out, "TYPE"); flow_number(out, n); flow_number(out, row.kind); flow_number(out, row.nominal.index); flow_number(out, row.count);
+		int a = 0;
+		while (a < row.count) {
+			var edge = index.types.argument(index.types, type_id(n), a); flow_number(out, edge.type.index); flow_number(out, edge.flags); a = a + 1;
+		}
+		source_append_text(out, "\n"); n = n + 1;
+	}
+	var text = out.snapshot(); print(text.text);
+}
+
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1); var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		effects_trace(checked);
+		var flow = flow_index(move checked, 8192, 1000000);
+		var observation = flow_observation(flow); print(observation.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

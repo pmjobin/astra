@@ -28,6 +28,14 @@ separate: missing nonnull flow proof is reason 18, and pending ownership/borrow
 proof is reason 19. Explicit null violations are diagnosed after ordinary
 type checks. A declared qualifier is retained even when its proof is deferred.
 
+EFFECTS-25 additionally retains the exact declaration-derived success result
+of a private synchronous throwing call with a complete matching signature.
+The call and inferred local retain deferral 17 and the signature retains its
+exact error bound/flag 64. This conditional type observation proves neither
+argument validity nor successful owner initialization; moved uses still carry
+obligation 19. Flow continues to refuse unsupported effects with reason 6.
+There is no recoverable-error ABI admission in this static improvement.
+
 The type graph and checked uses are separate from syntax. Expression uses retain
 the original node and byte span. Unsupported families have a nonzero, named
 reason and no invented type. Dependent contexts remain explicit. The finite

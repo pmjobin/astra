@@ -150,6 +150,11 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 		index.symbol_types[id.index] = expected;
 		if (kind == SyntaxKind.InferredLocalDeclarationSyntax() && expected.index != 0) {
 			index.symbol_flags[id.index] = index.uses[initializer.index].flags;
+			// The local denotes the successful initializer continuation only.
+			// A known result type cannot initialize an owner on an error edge.
+			if (index.uses[initializer.index].deferred == 17) {
+				var ignored = index.defer(node, 17);
+			}
 		}
 		var recorded = index.record(node, expected, index.symbol_flags[id.index]);
 		return;

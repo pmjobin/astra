@@ -513,6 +513,29 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 	return left;
 }
 
+// A declaration can describe a success value while its call is not admitted.
+// Retain only that conditional fact; reason 17 and the signature's exact error
+// bound remain outstanding. This does not establish argument or owner flow.
+TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, SymbolId target) {
+	if (!index.native_abi || !index.semantic_admission || !index.semantic_flow || target.index < 1 || target.index > index.bindings.symbol_count) return no_type();
+	var declaration = index.bindings.symbol(target);
+	int ordinal = index.symbol_signatures[target.index].index;
+	if (declaration.kind != 1 || ordinal < 1 || ordinal > index.signature_count || index.bindings.program.arena.get_node_throws_class(declaration.node).index == 0) return no_type();
+	var signature = index.signatures[ordinal - 1];
+	if (signature.declaration.index != target.index || signature.callable.index != index.symbol_types[target.index].index || signature.flags != index.symbol_flags[target.index] || (signature.flags & (8 | 16 | 32 | 64)) != 64 || signature.dispatch != 0 || !index.types.valid_id(signature.error)) return no_type();
+	int error_kind = checked_kind(index, signature.error);
+	if ((error_kind != 31 && error_kind != 34) || !index.types.valid_id(signature.callable)) return no_type();
+	var callable = index.types.row(signature.callable);
+	var arguments = checked_call_arguments(index, node);
+	if (callable.kind != 25 || callable.count < 1 || index.bindings.program.arena.list_count(arguments) != callable.count - 1) return no_type();
+	var result = index.types.argument(index.types, signature.callable, 0);
+	if (!index.types.valid_id(result.type)) return no_type();
+	var use = index.uses[node.index];
+	use.flags = result.flags;
+	index.uses[node.index] = use;
+	return result.type;
+}
+
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	if (index.class_storage && class_storage_slot_action(index, node) > 0) {
 		var result = class_storage_slot_call(index, node, depth + 1);
@@ -542,7 +565,8 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 	}
 	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target)) {
 		checked_deferred_children(index, node, 17, depth + 1);
-		return index.defer(node, 17);
+		var ignored = index.defer(node, 17);
+		return checked_pending_effect_result(index, node, target);
 	}
 	var type = index.symbol_types[target.index];
 	int code = checked_kind(index, type);
