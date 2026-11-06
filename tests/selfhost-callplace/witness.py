@@ -18,13 +18,13 @@ def find(tree, tag, name):
 
 
 def main():
-	leaf = RUNTIME/'source-witness'; leaf.mkdir(exist_ok=False); commands = []; rows = {}
+	leaf = RUNTIME/'source-witness-v2'; leaf.mkdir(exist_ok=False); commands = []; rows = {}
 	spec = importlib.util.spec_from_file_location('syntax',ROOT/'tests/selfhost-classstorage/abi-probe.py'); probe = importlib.util.module_from_spec(spec); spec.loader.exec_module(probe)
 	def syntax(path,name):
 		argv = [C0,'--dump-syntax',path]; start = time.monotonic(); r = subprocess.run(['/usr/bin/time','-v','-o',leaf/(name+'.time'),*map(str,argv)],cwd=BUILD,capture_output=True,timeout=60)
 		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr); commands.append(dict(name=name,argv=list(map(str,argv)),exit=r.returncode,start=start,end=time.monotonic())); (leaf/'commands.json').write_text(json.dumps(commands,indent=2)+'\n'); assert r.returncode == 0
 		return probe.syntax(r.stdout.decode())
-	selection = read(RUNTIME/'corpus-v3/selection.json'); view = Path(selection[0]['sources'][0]['path']); view_ast = syntax(view,'native-view')
+	selection = read(RUNTIME/'corpus-v6/selection.json'); view = Path(selection[0]['sources'][0]['path']); view_ast = syntax(view,'native-view')
 	previous = read(RUNTIME.parent/'membercall22/facts-v2/result.json')['cohorts']
 	for name in COHORTS:
 		old = previous[name]; caller = old['enclosing_function']; path = Path(old['first_stop']['path']); raw = path.read_bytes()[caller['start']:caller['end']]
@@ -40,7 +40,7 @@ def main():
 	assert 'graph.slot_for(checked_target(checked, direct, checked.bindings.program.arena.get_token_identifier(direct)))' in view.read_text()
 	assert 'graph.add(bad)' in Path(selection[2]['sources'][0]['path']).read_text()
 	helper = (RUNTIME.parent/'membercall22/reference-v4/original-checked-target.astra').read_text(); assert helper in view.read_text()
-	(leaf/'result.json').write_text(json.dumps(dict(status='PASS',cohorts=rows,view_disclosure=read(RUNTIME/'corpus-v3/views.json'),helper_sha256=hashlib.sha256(helper.encode()).hexdigest(),commands=commands),indent=2)+'\n'); print('Four original throwing caller ASTs/bytes preserved; three unchanged method bodies and original checked_target retained')
+	(leaf/'result.json').write_text(json.dumps(dict(status='PASS',cohorts=rows,view_disclosure=read(RUNTIME/'corpus-v6/views.json'),helper_sha256=hashlib.sha256(helper.encode()).hexdigest(),commands=commands),indent=2)+'\n'); print('Four original throwing caller ASTs/bytes preserved; three unchanged method bodies and original checked_target retained')
 
 
 if __name__ == '__main__':

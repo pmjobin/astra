@@ -94,3 +94,30 @@ void callplace_core_mutations(CoreProgram program) throws Error {
 		category = category + 1;
 	}
 }
+
+void callplace_cfg_mutations(CfgProgram program) throws Error {
+	assert_that(cfg_verify(program) == 0); var before = cfg_projection(program); int i = 0;
+	while (i < program.data.instruction_count && (program.data.instructions[i].opcode != 9 || program.data.instructions[i].value.count < 2)) i = i + 1;
+	assert_that(i < program.data.instruction_count); int operand = 0;
+	while (operand < program.data.operand_count && (program.data.operands[operand].instruction != i + 1 || program.data.operands[operand].ordinal != 0)) operand = operand + 1;
+	assert_that(operand < program.data.operand_count); var old = program.data.operands[operand]; var forged = old; forged.mode = 4;
+	program.data.operands[operand] = forged; int stage = cfg_verify(program); program.data.operands[operand] = old; callplace_mutation(24, stage);
+	int edge = 0; int block = program.data.instructions[i].block;
+	while (edge < program.data.edge_count && program.data.edges[edge].target != block) edge = edge + 1;
+	assert_that(edge < program.data.edge_count); var original = program.data.edges[edge]; var changed = original; changed.target = original.source;
+	program.data.edges[edge] = changed; stage = cfg_verify(program); program.data.edges[edge] = original; callplace_mutation(25, stage);
+	assert_that(cfg_verify(program) == 0); var after = cfg_projection(program); assert_that(before.text == after.text);
+}
+
+void callplace_ssa_mutations(SsaProgram program) throws Error {
+	assert_that(ssa_verify(program) == 0); var before = ssa_test_snapshot(program.data); int i = 0;
+	while (i < program.data.instruction_count && (program.data.instructions[i].origin.opcode != 9 || program.data.instructions[i].result == 0)) i = i + 1;
+	assert_that(i < program.data.instruction_count); int use = 0;
+	while (use < program.data.use_count && (program.data.uses[use].instruction != i + 1 || program.data.uses[use].kind != 3 || program.data.uses[use].ordinal != 0)) use = use + 1;
+	assert_that(use < program.data.use_count); var old = program.data.uses[use]; var forged = old; forged.mode = 4;
+	program.data.uses[use] = forged; int stage = ssa_verify(program); program.data.uses[use] = old; callplace_mutation(26, stage);
+	int value = program.data.instructions[i].result - 1; var original = program.data.values[value]; var changed = original;
+	changed.type = type_id(13); if (original.type.index == 13) changed.type = type_id(1);
+	program.data.values[value] = changed; stage = ssa_verify(program); program.data.values[value] = original; callplace_mutation(27, stage);
+	assert_that(ssa_verify(program) == 0); var after = ssa_test_snapshot(program.data); assert_that(before.text == after.text);
+}

@@ -3,6 +3,7 @@
 """Run the independent source, ABI, LLVM, ELF and unsuppressed memory checks."""
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -13,9 +14,9 @@ from state import ROOT, RUNTIME, BUILD, C0, read, sha
 def main():
 	p = argparse.ArgumentParser(); p.add_argument('--component',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); p.add_argument('--version',default='v1'); a = p.parse_args()
 	leaf = RUNTIME/('qualified-'+a.version+'-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
-	selection = RUNTIME/'corpus-v4/selection.json'; commands = []
+	selection = RUNTIME/'corpus-v6/selection.json'; commands = []; env = dict(os.environ,CCACHE_DISABLE='1'); env.pop('LD_PRELOAD',None); env.pop('VALGRIND_OPTS',None)
 	def run(argv,name):
-		start = time.monotonic(); r = subprocess.run(['/usr/bin/time','-v','-o',leaf/(name+'.time'),*map(str,argv)],cwd=ROOT,capture_output=True,timeout=2400)
+		start = time.monotonic(); r = subprocess.run(['/usr/bin/time','-v','-o',leaf/(name+'.time'),*map(str,argv)],cwd=ROOT,capture_output=True,env=env,timeout=2400)
 		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr)
 		commands.append(dict(name=name,argv=list(map(str,argv)),exit=r.returncode,start=start,end=time.monotonic())); (leaf/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')
 		print(a.mode,name,r.returncode,flush=True); assert r.returncode == 0,r.stderr.decode(errors='replace')[-2000:]

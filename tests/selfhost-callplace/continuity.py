@@ -10,12 +10,12 @@ from state import ROOT, RUNTIME, BUILD, PRIOR, read, sha
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--component-root',type=Path,required=True); a = p.parse_args()
+	p = argparse.ArgumentParser(); p.add_argument('--O0',type=Path,required=True); p.add_argument('--O2',type=Path,required=True); a = p.parse_args()
 	leaf = RUNTIME/'continuity'; leaf.mkdir(exist_ok=False); commands = []; results = {}
 	for mode in ('O0','O2'):
 		results[mode] = {}
 		for label,gate in [('source-status','inherited-native'),('layout-lifetime','inherited-native-layout')]:
-			old = PRIOR/('replay-'+gate+'-'+mode); command = read(old/'commands.json')[0]; argv = command['argv'].copy(); argv[argv.index('--component')+1] = str(a.component_root/('astra-llvm-'+mode)); name = label+'-'+mode
+			old = PRIOR/('replay-'+gate+'-'+mode); command = read(old/'commands.json')[0]; argv = command['argv'].copy(); argv[argv.index('--component')+1] = str(getattr(a,mode)); name = label+'-'+mode
 			for flag,value in [('--build',BUILD/name),('--runtime',leaf/name)]: argv[argv.index(flag)+1] = str(value)
 			start = time.monotonic()
 			r = subprocess.run(['/usr/bin/time','-v','-o',leaf/(name+'.time'),*argv],cwd=ROOT,capture_output=True,timeout=300)

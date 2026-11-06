@@ -285,6 +285,8 @@ int main(string[] args) {
 		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
 		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
 		var flow = flow_index(move checked, 8192, 1000000); var core = core_lower(move flow, 65536);
-		callplace_core_mutations(core); return 0;
+		callplace_core_mutations(core);
+		var cfg = cfg_lower(move core, 65536); callplace_cfg_mutations(cfg);
+		var program = ssa_lower(move cfg, 65536, 8000000); callplace_ssa_mutations(program); return 0;
 	} catch (Error error) { println_stderr(error.message); return 2; }
 }

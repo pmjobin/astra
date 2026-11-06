@@ -16,7 +16,7 @@ def method(path, spelling):
 
 
 def main():
-	leaf = RUNTIME/'corpus-v4'; leaf.mkdir(exist_ok=False)
+	leaf = RUNTIME/'corpus-v6'; leaf.mkdir(exist_ok=False)
 	model = ROOT/'compiler/semantic/flow-model.astra'
 	common = ''.join(declaration(ROOT/path, spelling) for path,spelling in [
 		('compiler/semantic/model.astra','struct SymbolId {'),
@@ -70,7 +70,7 @@ class CheckedIndex {
 FlowEvent make_event(SyntaxNodeId node) { FlowEvent result = {operation = 7, node = node, span = {source = {index = 1}, start = 2, end = 3}, slot = node.index, loan = 0, region = 0, call = 0, next = 0, other = 0, loop_head = 0, input = 0, output = 0, null_kind = 0, field = 0, source_field = 0, producer = {index = 0}, predicate = {index = 0}, required = false}; return result; }
 '''
 	support += (RUNTIME.parent/'membercall22/reference-v4/original-checked-target.astra').read_text()
-	seed = 'FlowSlot slot = {symbol = {index = 11}, type = {index = 1}, flags = 0, region = 0, owner = false, parameter = false}; graph.slots[0] = slot;'
+	seed = 'FlowSlot slot = {symbol = {index = 11}, type = {index = 1}, flags = 0, region = 0, owner = false, parameter = false}; graph.slots[0] = slot; FlowSlot second = slot; second.symbol.index = 22; graph.slots[1] = second;'
 	seed += ' BindingReference ref = {node = {index = 1}, token = {index = 11}, span = {source = {index = 0}, start = 0, end = 0}, scope = {index = 0}, target = {index = 11}, alternative = {index = 0}, state_code = 1, reason = 0, domain = 2, next_reference = 0}; checked.bindings.references[0] = ref; checked.node_references[1] = 1;'
 	cases = {}
 	for name,index,expected in [('nested-slot-hit',1,1),('nested-slot-miss',2,0)]:
@@ -124,12 +124,12 @@ class Watch { owned Clock clock; init(owned Clock clock) { this.clock = move clo
 ''',67,'Second unrelated Class family with i64 record and distinct method names')
 	for name,member in [('specialized-class-concrete','echo'),('specialized-class-generic','identity')]:
 		generic = '''struct Token { int value; }
-class Echo<T> { init() {} T echo(T value) { return value; } U identity<U>(U value) { return value; } }
+class Echo<T> { owned T[] data; init() { this.data = new T[2]; } T echo(T value) { return value; } U identity<U>(U value) { return value; } }
 class Envelope { owned Echo<Token> child; init(owned Echo<Token> child) { this.child = move child; } }
 '''
 		cases[name] = (generic+f'''int main() {{ var child = new Echo<Token>(); var box = new Envelope(move child); Token input = {{value = 19}}; var result = box.child.{member}{"<Token>" if member == "identity" else ""}(input); if (result.value != 19) return 99; return 68; }}
 ''',68,'Canonical generic Class specialization and real generic-method substitution')
-	cases['field-array-record-result'] = (meter+'''int main() { var meter = new Meter(); var rack = new Rack(move meter); var rows = new Sample[2]; rows[1] = rack.instrument.form(9); if (rack.instrument.fold(rows[1]) != 9 || rack.instrument.stamp != 12) return 99; return 69; }
+	cases['field-array-record-result'] = (meter+'''int main() { var meter = new Meter(); var rack = new Rack(move meter); var rows = new Sample[2]; var formed = rack.instrument.form(9); rows[1] = formed; if (rack.instrument.fold(rows[1]) != 9 || rack.instrument.stamp != 12) return 99; return 69; }
 ''',69,'Call result into indexed record storage, then argument snapshot')
 	cases['nested-owner-retirement'] = (meter+'''int compute(owned Rack rack) { var row = rack.instrument.form(3); return rack.instrument.fold(row); }
 int main() { var meter = new Meter(); var rack = new Rack(move meter); if (compute(move rack) != 3) return 99; return 70; }
