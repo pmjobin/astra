@@ -24,6 +24,7 @@ def main():
 		for path in sorted(root.rglob('*')):
 			if path.is_dir(): continue
 			if root == RUNTIME and path.relative_to(root).parts[0].startswith('handoff-'): continue
+			if root == RUNTIME and path.relative_to(root).parts[0] == 'transport-sort-preflight': continue
 			assert path.is_file() and not path.is_symlink(),path
 			name = prefix+'/'+str(path.relative_to(root))
 			if path.suffix == '.zip':
@@ -69,6 +70,16 @@ def main():
 	collect(RUNTIME.parent/'native-current/input','submission/input'); files['submission/intake.json'] = RUNTIME.parent/'native-current/pm-next-intake.json'
 	decoder = ROOT/'tests/selfhost-textclass/derived-ledgers.py'; encoder = ROOT/'tools/qualification/encoded-evidence.py'; transport_path = ROOT/'tests/selfhost-callplace/transport.py'
 	for name,path in [('restore-ledgers.py',decoder),('encoded-evidence.py',encoder),('transport.py',transport_path)]: files['recipes/'+name] = path
+	observations_path = ROOT/'tests/selfhost-callplace/observations.py'; files['recipes/restore-observations.py'] = observations_path
+	observation_spec = importlib.util.spec_from_file_location('observations',observations_path); observations = importlib.util.module_from_spec(observation_spec); observation_spec.loader.exec_module(observations)
+	observation_directory = output/'derived-observations'; observation_directory.mkdir()
+	observation_plan = dict(format='astra-lossless-native-observations/1',final_commit=head,final_tree=tree,files=[])
+	for logical,path in list(files.items()):
+		if path.name == 'whole-compiler.stdout' or logical in {'task-runtime/'+name+'.stdout' for name in COHORTS}:
+			observation_plan['files'].append(observations.encode(path,observation_directory,logical,len(observation_plan['files'])))
+	observation_plan_path = observation_directory/'restore-plan.json'; observation_plan_path.write_text(json.dumps(observation_plan,indent=2)+'\n')
+	observation_receipt = output/'observation-reconstruction.json'
+	subprocess.run([sys.executable,'-B',observations_path,output,'--plan',observation_plan_path,'--verify-only','--receipt',observation_receipt],check=True)
 	spec = importlib.util.spec_from_file_location('transport',transport_path); transport = importlib.util.module_from_spec(spec); spec.loader.exec_module(transport)
 	plan = dict(format='astra-lossless-derived-ledgers/1',final_commit=head,final_tree=tree,files=[]); metadata = output/'derived-ledgers/metadata'; metadata.mkdir(parents=True)
 	for logical,path in list(files.items()):
@@ -84,6 +95,9 @@ def main():
 	plan_path = output/'derived-ledgers/restore-plan.json'; plan_path.write_text(json.dumps(plan,indent=2)+'\n'); receipt = output/'ledger-reconstruction.json'
 	subprocess.run([sys.executable,'-B',decoder,output,'--plan',plan_path,'--original-runtime',RUNTIME,'--verify-only','--receipt',receipt],check=True)
 	files['derived-ledgers/restore-plan.json'] = plan_path; files['derived-ledgers/reconstruction.json'] = receipt
+	for row in observation_plan['files']: del files[row['path']]
+	for path in observation_directory.iterdir(): files['derived-observations/'+path.name] = path
+	files['derived-observations/reconstruction.json'] = observation_receipt
 	index = dict(format='astra-callplace23-evidence/1',storage_format='astra-line-chunk/1',final_commit=head,final_tree=tree,files=[],omissions=omissions)
 	archive = output/'evidence.tar.xz'
 	with tarfile.open(archive,'w:xz',preset=9) as packed:
@@ -96,7 +110,7 @@ def main():
 	attachments = output/'attachments'; subprocess.run([sys.executable,'-B',encoder,'pack','--input',archive,'--output',attachments,'--stem','callplace23'],check=True)
 	for name in ('final-audit.json','cohorts-v2.json','archive-integrity.json'): shutil.copy2(RUNTIME/name,attachments/name)
 	shutil.copy2(output/'transport-verification.json',attachments/'transport-verification.json')
-	(attachments/'review-guide.txt').write_text('CALLPLACE-23: read final-audit.json and the committed qualification note first. MEMBERCALL-22 remains PARTIAL. Original admit_record_value and class_storage_slot_flow callers remain DEFERRED because their recoverable throws Error contract is outside this milestone.\nDecode callplace23-encoding.json with recipes/encoded-evidence.py, restore the lossless archive with recipes/transport.py, then reconstruct exact before/after source ledgers with recipes/restore-ledgers.py. These byte reconstructions are not fresh executions.\nAll 172 inherited plus 15 new source programs/profile have fresh native emissions and ELF execution. New C0/ABI/memory, 28 model-consumer mutations and seven independent LLVM-valid physical alternatives/profile have separate ledgers. Failed drafts and cancelled builds retain their actual costs and input identities. Tool dependencies remain hash-pinned; no donor source is collected.\n')
+	(attachments/'review-guide.txt').write_text('CALLPLACE-23: read final-audit.json and the committed qualification note first. MEMBERCALL-22 remains PARTIAL. Original admit_record_value and class_storage_slot_flow callers remain DEFERRED because their recoverable throws Error contract is outside this milestone.\nDecode callplace23-encoding.json with recipes/encoded-evidence.py, restore the lossless archive with recipes/transport.py, reconstruct exact native stdout with recipes/restore-observations.py, then reconstruct exact before/after source ledgers with recipes/restore-ledgers.py. These byte reconstructions are not fresh executions.\nAll 172 inherited plus 15 new source programs/profile have fresh native emissions and ELF execution. New C0/ABI/memory, 28 model-consumer mutations and seven independent LLVM-valid physical alternatives/profile have separate ledgers. Failed drafts and cancelled builds retain their actual costs and input identities. Tool dependencies remain hash-pinned; no donor source is collected.\n')
 	(attachments/'packaging.json').write_text(json.dumps(dict(final_commit=head,final_tree=tree,archive_bytes=archive.stat().st_size,archive_sha256=sha(archive),seconds=time.monotonic()-started),indent=2)+'\n')
 	evidence = dict(format='pm-next-evidence/1',files=[dict(path=path.name,bytes=path.stat().st_size,sha256=sha(path)) for path in sorted(attachments.iterdir())]); assert len(evidence['files']) <= 128 and sum(row['bytes'] for row in evidence['files']) <= 64*1024**2 and all(row['bytes'] <= 2*1024**2 for row in evidence['files'])
 	(attachments/'INDEX.json').write_text(json.dumps(evidence,indent=2)+'\n'); print(attachments/'INDEX.json',archive.stat().st_size,sha(archive),flush=True)

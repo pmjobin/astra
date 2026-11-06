@@ -138,10 +138,15 @@ product hashes.
 
 The first complete lossless package reconstructed correctly but exceeded the
 unchanged report cap (31,043,996 bytes). It remains preserved externally with its
-verification receipt. The successor transport uses content-defined chunk
-boundaries to share unchanged bytes across shifted source/IR/binary data. Its
-independent reconstruction verifier remains byte-identical to the reviewed prior
-transport. This changes evidence packaging only; no compiler/resource contract,
-installed workflow or required evidence is removed.
+verification receipt. Content-defined chunking also exceeded the cap (35,009,728
+bytes); sorting the original chunks produced 29,901,652 bytes and still failed.
+Both experiments remain preserved with their actual outcomes. The final package
+column-encodes the recorded native `NODE` rows with exact path dictionaries and
+integer deltas, preserving all prefix/suffix bytes. A separate restorer recreates
+every original stdout byte and verifies its recorded SHA-256 before the existing
+source-ledger restorer runs. These are reversible evidence representations, not
+new executions or semantic observations. The chunk transport's independent byte
+verifier remains byte-identical to the reviewed version. No compiler/resource
+contract, installed workflow or required evidence is removed.
 
 Made by Ria and Pim. 💙🖤

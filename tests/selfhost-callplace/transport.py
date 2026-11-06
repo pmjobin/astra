@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-"""Lossless content-defined transport; reconstruct every indexed byte and mode."""
+"""Lossless line/token chunk transport; logical files retain exact SHA and mode."""
 import argparse
 import hashlib
 import io
@@ -36,22 +36,30 @@ class ChunkWriter:
 		return self.chunks[key]
 
 	def pieces(self, stream, name):
-		# Content-defined boundaries resynchronize after changed type IDs,
-		# offsets or ELF relocations. Every logical byte is still indexed and
-		# independently reconstructed by verify; this is transport, not proof.
-		gear = [int.from_bytes(hashlib.sha256(bytes([n])).digest()[:8], 'little') for n in range(256)]
-		mask = (1 << 64) - 1; state = 0; pending = bytearray()
-		while block := stream.read(1048576):
-			for value in block:
-				pending.append(value); state = ((state << 1) + gear[value]) & mask
-				if len(pending) >= 256 and (state & 511 == 0 or len(pending) >= 4096):
-					yield bytes(pending); pending.clear(); state = 0
-		if pending: yield bytes(pending)
+		if Path(name).suffix not in {'.json', '.stdout', '.stderr', '.ll', '.log', '.txt', '.csv', '.md'}:
+			while raw := stream.read(65536): yield raw
+			return
+			# Stable top-level JSON and row-family boundaries keep unchanged source
+			# observations shared even when earlier type numbers change byte lengths.
+		buffer, lines, previous = [], 0, None
+		for line in stream:
+			family = line.partition(b' ')[0]
+			anchor = line.startswith(b'  "') if name.endswith('.json') else family != previous
+			if buffer and (anchor or lines >= (256 if name.endswith('.json') else 32)):
+				yield b''.join(buffer); buffer, lines = [], 0
+			previous = family
+			if len(line) > 262144:
+				if buffer: yield b''.join(buffer); buffer, lines = [], 0
+				# Actual LLVM mutation snapshots are long whitespace-separated hex
+				# tokens. Preserve every separator while sharing exact valid twins.
+				for match in re.finditer(rb'\S+|\s+', line): yield match.group()
+			else: buffer.append(line); lines += 1
+		if buffer: yield b''.join(buffer)
 
 	def add(self, name, path, raw, mode, expected):
 		safe(name); size = path.stat().st_size if path else len(raw)
 		row = dict(archive_path=name, bytes=size, mode=mode, sha256=expected)
-		if size >= 4096:
+		if size >= 1048576:
 			stream = path.open('rb') if path else io.BytesIO(raw)
 			try:
 				ids = []; observed = hashlib.sha256(); count = 0
