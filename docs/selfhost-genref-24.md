@@ -141,3 +141,11 @@ build/runtime routing and command ledgers. `audit.py` binds actual results to
 the final clean Git state; `handoff.py` packages every current attempt using
 lossless, hash-verified transport through the unchanged installed publisher.
 Generated evidence belongs under external `work/astra/{runtime,build}/genref24/`.
+
+The graph tables use `columns.py` for byte-exact token-column storage, with an
+original-byte hash for every restored observation. `transport.py` reads the
+unchanged `astra-line-chunk/1` format using one disk spool. The existing chunk
+writer, observation/ledger restorers, installed workflow and report caps remain
+unchanged. Earlier packaging attempts and the complete oversized archive remain
+preserved with their actual status/hash; their duplicate transport bytes are
+listed as external artifacts instead of being nested in the replacement archive.

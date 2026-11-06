@@ -5,6 +5,7 @@ import argparse
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -25,17 +26,20 @@ def main():
 	assert audit['status'] == 'PASS' and audit['final_commit'] == head and audit['final_tree'] == tree
 	output = RUNTIME/('handoff-'+a.version); output.mkdir(exist_ok=False); files = {}; omissions = []; started = time.monotonic()
 	def collect(root, prefix):
-		for path in sorted(root.rglob('*')):
-			if path.is_dir(): continue
-			if root == RUNTIME and path.relative_to(root).parts[0].startswith('handoff-'): continue
-			assert path.is_file() and not path.is_symlink(), path
-			name = prefix+'/'+str(path.relative_to(root))
-			if path.suffix == '.zip':
-				omissions.append(dict(path=name, bytes=path.stat().st_size, sha256=sha(path), reason='Exact predecessor report remains externally preserved; its compressed ZIP is not duplicated in the successor.')); continue
-			files[name] = path
+		for directory, children, names in os.walk(root):
+			if Path(directory) == RUNTIME: children[:] = [name for name in children if not name.startswith('handoff-')]
+			assert not any((Path(directory)/name).is_symlink() for name in children)
+			for name in sorted(names):
+				path = Path(directory)/name; assert path.is_file() and not path.is_symlink(), path; logical = prefix+'/'+str(path.relative_to(root))
+				if path.suffix == '.zip':
+					omissions.append(dict(path=logical, bytes=path.stat().st_size, sha256=sha(path), reason='Exact predecessor report remains externally preserved; its compressed ZIP is not duplicated in the successor.')); continue
+				files[logical] = path
 	collect(RUNTIME, 'task-runtime'); collect(BUILD, 'task-build')
-	# Every old task source version used by a failed, cancelled or successful
-	# build is already recovered by exact recorded hash, without session logs.
+	for path in sorted(RUNTIME.glob('handoff-*/evidence.tar.xz')):
+		if path.parent == output: continue
+		omissions.append(dict(path=str(path), bytes=path.stat().st_size, sha256=sha(path), reason='Earlier oversized transport remains externally preserved. Its underlying raw engineering files, source/codec versions and failed packaging receipts are included; duplicate transport bytes are not nested in their replacement.'))
+		# Every old task source version used by a failed, cancelled or successful
+		# build is already recovered by exact recorded hash, without session logs.
 	recovery = read(RUNTIME/'recovered-build-inputs/result.json'); assert recovery['status'] == 'PASS' and recovery['expected'] == recovery['recovered']
 	for row in recovery['inputs']:
 		path = RUNTIME/'recovered-build-inputs'/row['sha256']; assert sha(path) == row['sha256']
@@ -64,9 +68,9 @@ def main():
 	for name in ('checkpoint-audit.json', 'inference-operands-v2/result.json', 'facts-v2/result.json'): files['historical/membercall22/'+name] = RUNTIME.parent/'membercall22'/name
 	files['historical/proof-output-inventory.json'] = RUNTIME.parent/'indexpath18/historical-proof-outputs.json'
 	collect(RUNTIME.parent/'native-current/input', 'submission/input'); files['submission/intake.json'] = RUNTIME.parent/'native-current/pm-next-intake.json'
-	decoder = ROOT/'tests/selfhost-textclass/derived-ledgers.py'; encoder = ROOT/'tools/qualification/encoded-evidence.py'; transport_path = ROOT/'tests/selfhost-callplace/transport.py'; observation_path = ROOT/'tests/selfhost-callplace/observations.py'
-	for name, path in [('restore-ledgers.py', decoder), ('encoded-evidence.py', encoder), ('transport.py', transport_path), ('restore-observations.py', observation_path)]: files['recipes/'+name] = path
-	observations = load('observations', observation_path); transport = load('transport', transport_path)
+	decoder = ROOT/'tests/selfhost-textclass/derived-ledgers.py'; encoder = ROOT/'tools/qualification/encoded-evidence.py'; writer_path = ROOT/'tests/selfhost-callplace/transport.py'; transport_path = ROOT/'tests/selfhost-genref/transport.py'; observation_path = ROOT/'tests/selfhost-callplace/observations.py'; columns_path = ROOT/'tests/selfhost-genref/columns.py'
+	for name, path in [('restore-ledgers.py', decoder), ('encoded-evidence.py', encoder), ('transport.py', transport_path), ('line-chunk-writer.py', writer_path), ('restore-observations.py', observation_path), ('restore-columns.py', columns_path)]: files['recipes/'+name] = path
+	observations = load('observations', observation_path); transport = load('transport', transport_path); chunk_writer = load('chunk_writer', writer_path); columns = load('columns', columns_path)
 	observation_directory = output/'derived-observations'; observation_directory.mkdir()
 	observation_plan = dict(format='astra-lossless-native-observations/1', final_commit=head, final_tree=tree, files=[])
 	for logical, path in list(files.items()):
@@ -77,6 +81,19 @@ def main():
 		if contains_nodes: observation_plan['files'].append(observations.encode(path, observation_directory, logical, len(observation_plan['files'])))
 	observation_plan_path = observation_directory/'restore-plan.json'; observation_plan_path.write_text(json.dumps(observation_plan, indent=2)+'\n'); observation_receipt = output/'observation-reconstruction.json'
 	subprocess.run([sys.executable, '-B', observation_path, output, '--plan', observation_plan_path, '--verify-only', '--receipt', observation_receipt], check=True)
+	column_directory = output/'derived-columns'; column_directory.mkdir(); column_plan = dict(format='astra-lossless-token-columns/1', final_commit=head, final_tree=tree, files=[]); encoded = {}
+	for logical, path in list(files.items()):
+		if path.suffix != '.stdout' or path.stat().st_size < 1048576: continue
+		with path.open('rb') as stream: first = stream.readline()
+		if not first.startswith(b'B_REF '): continue
+		identity = sha(path)
+		if identity not in encoded: encoded[identity] = columns.encode(path, column_directory, logical, len(encoded))
+		column_plan['files'].append(dict(encoded[identity], path=logical, mode=path.stat().st_mode & 0o777))
+	column_plan_path = column_directory/'restore-plan.json'; column_plan_path.write_text(json.dumps(column_plan, indent=2)+'\n'); column_receipt = output/'column-reconstruction.json'
+	subprocess.run([sys.executable, '-B', columns_path, output, '--plan', column_plan_path, '--verify-only', '--receipt', column_receipt], check=True)
+	for row in column_plan['files']: del files[row['path']]
+	for path in column_directory.iterdir(): files['derived-columns/'+path.name] = path
+	files['derived-columns/reconstruction.json'] = column_receipt
 	plan = dict(format='astra-lossless-derived-ledgers/1', final_commit=head, final_tree=tree, files=[]); metadata = output/'derived-ledgers/metadata'; metadata.mkdir(parents=True)
 	for logical, path in list(files.items()):
 		if path.suffix != '.json' or not ('ledger' in path.name or logical.startswith('historical/ledger-before-')): continue
@@ -97,20 +114,20 @@ def main():
 	index = dict(format='astra-genref24-evidence/1', storage_format='astra-line-chunk/1', final_commit=head, final_tree=tree, files=[], omissions=omissions)
 	archive = output/'evidence.tar.xz'
 	with tarfile.open(archive, 'w:xz', preset=9) as packed:
-		writer = transport.ChunkWriter(packed)
+		writer = chunk_writer.ChunkWriter(packed)
 		for name, path in sorted(files.items()):
 			before = sha(path); index['files'].append(writer.add(name, path, None, path.stat().st_mode & 0o777, before)); assert sha(path) == before
 		data = (json.dumps(index, indent=2)+'\n').encode(); entry = tarfile.TarInfo('ARCHIVE-INDEX.json'); entry.size = len(data); entry.mode = 0o644; packed.addfile(entry, io.BytesIO(data))
-	verification = transport.verify(archive); assert verification['status'] == 'PASS'; (output/'transport-verification.json').write_text(json.dumps(verification, indent=2)+'\n')
 	assert archive.stat().st_size < 24*1024**2, 'Preserve the report cap; improve lossless transport rather than dropping evidence'
+	verification = transport.verify(archive); assert verification['status'] == 'PASS'; (output/'transport-verification.json').write_text(json.dumps(verification, indent=2)+'\n')
 	attachments = output/'attachments'; subprocess.run([sys.executable, '-B', encoder, 'pack', '--input', archive, '--output', attachments, '--stem', 'genref24'], check=True)
 	for name in ('final-audit.json', 'cohorts-v3-O0.json', 'cohorts-v3-O2.json', 'baseline.json'): shutil.copy2(RUNTIME/name, attachments/name)
 	for mode in ('O0', 'O2'): shutil.copy2(RUNTIME/('next-blocker-v3b-'+mode)/'result.json', attachments/('next-blocker-'+mode+'.json'))
 	shutil.copy2(output/'transport-verification.json', attachments/'transport-verification.json')
 	# Bootstrap decoders can be inspected before restoring the inner archive.
-	for name, path in [('decode-evidence.py.txt', encoder), ('restore-transport.py.txt', transport_path), ('restore-observations.py.txt', observation_path), ('restore-ledgers.py.txt', decoder)]: shutil.copy2(path, attachments/name)
-	(attachments/'review-guide.txt').write_text('GENREF-24: read final-audit.json and docs/selfhost-genref-24.md first. Scoped reference-correspondence PASS; MEMBERCALL-22 remains PARTIAL. All original calls retain obligation 19. Both complete original throws Error callers remain DEFERRED. No exception/error ABI or Stage 1 is qualified.\nRecover evidence.tar.xz with decode-evidence.py.txt and genref24-encoding.json. Use restore-transport.py.txt to restore byte-exact indexed files, then restore-observations.py.txt, then restore-ledgers.py.txt. Each decoder supports receipts and verifies original SHA-256 identities. Reconstructions are byte transport, not fresh executions or safety proofs. The inner archive includes the same recipes.\nAll 187 inherited plus 15 new program source identities/profile have fresh native LLVM/object/ELF execution. The 15 new sources/profile have independent C0/ABI/Valgrind evidence. Source-bound reference oracles prove 2394/2394/2367/2367 reference correspondences and unchanged source/node/span identities; all four actual consumers advance from 1 7 to 1 25. The next actual blocker is index.graphs.append(move graph), argument TypeId 0, owned flag 4, obligation 19.\nThere are 37 new native reference-model mutation categories/profile, including three well-linked wrong targets demonstrably accepted by retained v1 and rejected by final code; 27 separate Python oracle mutations and seven independent LLVM-valid physical alternatives/profile. Failed drafts, cancelled builds, intermediate v1 qualification, exact old build source versions, allocation traces, timing/RSS and final warm-reuse checks remain attributed to their actual products. Reports stay preserved externally by exact archive hashes; donor source and private session logs are not collected.\n')
-	(attachments/'packaging.json').write_text(json.dumps(dict(final_commit=head, final_tree=tree, archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), seconds=time.monotonic()-started, preserved_external_reports=omissions), indent=2)+'\n')
+	for name, path in [('decode-evidence.py.txt', encoder), ('restore-transport.py.txt', transport_path), ('restore-observations.py.txt', observation_path), ('restore-columns.py.txt', columns_path), ('restore-ledgers.py.txt', decoder)]: shutil.copy2(path, attachments/name)
+	(attachments/'review-guide.txt').write_text('GENREF-24: read final-audit.json and docs/selfhost-genref-24.md first. Scoped reference-correspondence PASS; MEMBERCALL-22 remains PARTIAL. All original calls retain obligation 19. Both complete original throws Error callers remain DEFERRED. No exception/error ABI or Stage 1 is qualified.\nRecover evidence.tar.xz with decode-evidence.py.txt and genref24-encoding.json. Use restore-transport.py.txt to restore byte-exact indexed files, then restore-observations.py.txt and restore-columns.py.txt, then restore-ledgers.py.txt. Each decoder supports receipts and verifies original SHA-256 identities. Reconstructions are byte transport, not fresh executions or safety proofs. The inner archive includes the same recipes. The existing chunk writer and archive format are unchanged; the reader uses one disk spool to avoid one temporary file per chunk.\nAll 187 inherited plus 15 new program source identities/profile have fresh native LLVM/object/ELF execution. The 15 new sources/profile have independent C0/ABI/Valgrind evidence. Source-bound reference oracles prove 2394/2394/2367/2367 reference correspondences and unchanged source/node/span identities; all four actual consumers advance from 1 7 to 1 25. The next actual blocker is index.graphs.append(move graph), argument TypeId 0, owned flag 4, obligation 19.\nThere are 37 new native reference-model mutation categories/profile, including three well-linked wrong targets demonstrably accepted by retained v1 and rejected by final code; 27 separate Python oracle mutations and seven independent LLVM-valid physical alternatives/profile. Failed drafts, cancelled builds, intermediate v1 qualification, exact old build source versions, allocation traces, timing/RSS and final warm-reuse checks remain attributed to their actual products. Reports stay preserved externally by exact archive hashes; donor source and private session logs are not collected.\n')
+	(attachments/'packaging.json').write_text(json.dumps(dict(final_commit=head, final_tree=tree, archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), seconds=time.monotonic()-started, preserved_external_archives=omissions), indent=2)+'\n')
 	evidence = dict(format='pm-next-evidence/1', files=[dict(path=path.name, bytes=path.stat().st_size, sha256=sha(path)) for path in sorted(attachments.iterdir())]); assert len(evidence['files']) <= 128 and sum(row['bytes'] for row in evidence['files']) <= 64*1024**2 and all(row['bytes'] <= 2*1024**2 for row in evidence['files'])
 	(attachments/'INDEX.json').write_text(json.dumps(evidence, indent=2)+'\n'); print(attachments/'INDEX.json', archive.stat().st_size, sha(archive), flush=True)
 

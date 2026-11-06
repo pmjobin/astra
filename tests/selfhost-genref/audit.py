@@ -111,16 +111,16 @@ def main():
 		sizes[mode] = dict(native_ELF_bytes=sum(Path(row.get('fresh_products', row.get('products'))['native']['path']).stat().st_size for row in rows), native_ELF_unique_sha256=len({row.get('fresh_products', row.get('products'))['native']['sha256'] for row in rows}), new_C0_ELF_bytes=sum(Path(row['products']['C0']['path']).stat().st_size for row in qualified['programs']), warm_reuse=metrics(RUNTIME/('warm-v3-'+mode+'.time')))
 		profiles[mode] = dict(inherited_native_sources=187, new_native_sources=15, total_native_sources=202, inherited_raw_LLVM_identical=187, new_Astra_reference_model_mutations=37, separate_Python_oracle_mutations=27, LLVM_valid_physical_alternatives=7, new_native_and_C0_memory_pairs=15, material_native_allocation_programs=13, inherited_source_statuses=controls['original_statuses'], inherited_downstream_model_controls=28, strict_source_negatives=10)
 	costs = []
+	captures = [path for path in RUNTIME.iterdir() if path.is_dir() and not path.name.startswith('handoff-')]
 	# The full compiler recipe stores one JSON per command; the C0 observer
 	# and mutator recipe stores the same observations in commands.json.
-	for path in sorted(RUNTIME.rglob('ownflow-*.json')):
+	for path in sorted(path for capture in captures for path in capture.rglob('ownflow-*.json')):
 		if path.name.endswith(('input-identity.json', 'exact-reuse.json')): continue
 		row = read(path)
 		if 'exit' not in row: continue
 		start = row.get('start', row.get('monotonic_start')); end = row.get('end', row.get('monotonic_end')); stderr = path.with_suffix('.stderr')
 		costs.append(dict(path=str(path), exit=row['exit'], monotonic_start=start, monotonic_end=end, wall_seconds=end-start, **metrics(stderr)))
-	for path in sorted(RUNTIME.rglob('commands.json')):
-		if path.relative_to(RUNTIME).parts[0].startswith('handoff-'): continue
+	for path in sorted(path for capture in captures for path in capture.rglob('commands.json')):
 		commands = read(path)
 		if not isinstance(commands, list): continue
 		for row in commands:
