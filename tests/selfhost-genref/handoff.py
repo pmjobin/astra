@@ -70,7 +70,9 @@ def main():
 	observation_directory = output/'derived-observations'; observation_directory.mkdir()
 	observation_plan = dict(format='astra-lossless-native-observations/1', final_commit=head, final_tree=tree, files=[])
 	for logical, path in list(files.items()):
-		if path.suffix != '.stdout': continue
+		# The inherited codec accepts the ten-column whole-source NODE schema.
+		# Core/CFG/SSA also print NODE, with a different schema; keep those raw.
+		if path.name not in ('whole-compiler.stdout', 'ledger.stdout'): continue
 		with path.open('rb') as stream: contains_nodes = any(line.startswith(b'NODE ') for line in stream)
 		if contains_nodes: observation_plan['files'].append(observations.encode(path, observation_directory, logical, len(observation_plan['files'])))
 	observation_plan_path = observation_directory/'restore-plan.json'; observation_plan_path.write_text(json.dumps(observation_plan, indent=2)+'\n'); observation_receipt = output/'observation-reconstruction.json'
