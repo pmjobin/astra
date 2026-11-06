@@ -23,7 +23,7 @@ def main():
 	assert all(after[ref] == value for ref, value in before.items() if ref != branch)
 	import subprocess
 	old_scope = json.loads(subprocess.check_output(['git', 'show', state.BASE+':format/scope.json'], cwd=ROOT))
-	assert all(read(ROOT/'format/scope.json').get(path) == row for path, row in old_scope.items())
+	scope = read(ROOT/'format/scope.json'); assert all(scope.get(path) == row for path, row in old_scope.items())
 	assert read(state.RUNTIME/'process-deadline.json')['status'] == 'PASS'
 	final = state.RUNTIME/'final'; profiles = {}; products = {}
 	time_values = load_module('r2_time_parser', ROOT/'tests/selfhost-effects/r1-audit.py').time_values
@@ -40,6 +40,7 @@ def main():
 			assert new['fresh_products']['raw']['sha256'] == previous['fresh_products']['raw']['sha256']
 			assert all(sha(p['path']) == p['sha256'] for p in new['sources'])
 			assert all(sha(p['path']) == p['sha256'] for p in new['fresh_products'].values())
+			with Path(new['fresh_products']['native']['path']).open('rb') as elf: assert elf.read(4) == b'\x7fELF'
 		continuity = read(final/('continuity-v1-'+mode)/'result.json'); assert continuity['original_statuses'] == dict(admitted=56, rejected=12, deferred=12) and continuity['model_categories'] == 28
 		memory = read(final/('memory-v1-'+mode)/'result.json'); assert len(memory['programs']) == 15
 		assert read(final/('negative-v1-'+mode+'-'+mode)/'result.json')['status'] == 'PASS'
@@ -49,6 +50,15 @@ def main():
 			assert all(row[k] == cohorts[name][k] for k in ('files', 'nodes', 'population_sha256', 'node_identity_sha256'))
 		assert all(row['conditional_facts_preserved'] and row['native_attempt']['destination_preserved'] for row in cohorts.values())
 		assert read(final/('first-failure-v1-'+mode)/'result.json')['first_stop'] == ['55', '26']
+		captures = []
+		with (final/('cohorts-v1-'+mode)/'original.stdout').open() as stream:
+			for line in stream:
+				if not line.startswith('E 55 '): continue
+				values = line.split()
+				if values[3] != '24': continue
+				path = Path(bytes.fromhex(values[9]).decode()); begin, end = map(int, values[10:12])
+				captures.append(dict(slot=int(values[4]), source=str(path), source_sha256=sha(path), start=begin, end=end, text=path.read_bytes()[begin:end].decode()))
+		assert {(row['text'], row['slot']) for row in captures} == {('this.signatures', 0), ('grown', 6)}
 		candidates = read(final/('candidates-v1-'+mode)/'result.json'); assert len(candidates['programs']) == 12 and candidates['Astra_new_native_programs'] == 0
 		frontier = read(state.RUNTIME/('frontier-final-'+mode+'-v1')/'result.json'); assert len(frontier['programs']) == 4 and frontier['new_Astra_effect_ELFs'] == 0
 		assert all(row['Astra_destination_preserved'] and not row['Astra_effect_ELF'] for row in frontier['programs'])
@@ -59,7 +69,7 @@ def main():
 		cold = read(cold_path); cost = dict(time_values(cold_path.with_suffix('.stderr')), wall_seconds=cold['monotonic_end']-cold['monotonic_start'], monotonic_start=cold['monotonic_start'], monotonic_end=cold['monotonic_end'], receipt=str(cold_path))
 		warm = read(state.RUNTIME/('warm-'+mode+'.json')); assert warm['status'] == 'EXACT_REUSE_VERIFIED' and warm['product_sha256'] == sha(component)
 		cost['exact_warm_reuse'] = dict(time_values(state.RUNTIME/('warm-'+mode+'.time')), wall_seconds=warm['seconds'])
-		profiles[mode] = dict(inherited_native_sources=202, raw_LLVM_identical=202, distinct_ELF_hashes=len({r['fresh_products']['native']['sha256'] for r in inherited}), source_statuses=continuity['original_statuses'], inherited_model_categories=28, inherited_returning_Valgrind_programs=15, new_C0_only_oracles=12, additional_C0_void_scalar_frontier_oracles=4, ABI_signature_sources=6, ABI_signature_deferrals=5, ABI_plan_mutation_categories=13, LLVM_valid_signature_alternatives_per_source=7, new_Astra_effect_ELFs=0, new_Astra_error_path_Valgrind_programs=0, new_cross_stage_effect_mutation_categories=0, new_error_path_LLVM_physical_alternatives=0, original_throwing_function_executed=False, first_native_boundary=frontier['first_boundary'], owner_root_deferral=dict(graph=55, symbol=2053, predicate=26, field_slot=0, local_slot=6), cold_build=cost)
+		profiles[mode] = dict(inherited_native_sources=202, raw_LLVM_identical=202, distinct_ELF_hashes=len({r['fresh_products']['native']['sha256'] for r in inherited}), source_statuses=continuity['original_statuses'], inherited_model_categories=28, inherited_returning_Valgrind_programs=15, new_C0_only_oracles=12, additional_C0_void_scalar_frontier_oracles=4, ABI_signature_sources=6, ABI_signature_deferrals=5, ABI_plan_mutation_categories=13, LLVM_valid_signature_alternatives_per_source=7, new_Astra_effect_ELFs=0, new_Astra_error_path_Valgrind_programs=0, new_cross_stage_effect_mutation_categories=0, new_error_path_LLVM_physical_alternatives=0, original_throwing_function_executed=False, first_native_boundary=frontier['first_boundary'], owner_root_deferral=dict(graph=55, symbol=2053, predicate=26, field_slot=0, local_slot=6, sides=captures), cold_build=cost)
 		products[mode] = dict(path=str(component), sha256=sha(component), identity_sha256=sha(component.with_suffix('.identity.json')))
 	unchanged = ['compiler/semantic/flow-build.astra', 'compiler/semantic/flow-model.astra', 'compiler/semantic/flow-check.astra', 'compiler/core/model.astra', 'compiler/core/lower.astra', 'compiler/core/verifier.astra', 'compiler/cfg/model.astra', 'compiler/cfg/lower.astra', 'compiler/cfg/verifier.astra', 'compiler/ssa/model.astra', 'compiler/ssa/lower.astra', 'compiler/ssa/verifier.astra', 'compiler/backend/llvm/module.astra', 'docs/selfhost-effects-25.md', 'docs/selfhost-effects-25-r1.md']
 	import hashlib
