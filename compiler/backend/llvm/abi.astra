@@ -149,6 +149,12 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 	int count = 0; int f = 0;
 	while (f < program.data.function_count) {
 		var signature = program.cfg.core.flow.checked.signatures[program.cfg.core.data.functions[f].signature.index - 1];
+		// A declaration-level checked signature does not prove error successors,
+		// owner transfer or success-store dominance. Fail before constructing an
+		// ordinary ABI plan, even if an independently supplied SSA reaches here.
+		if ((signature.flags & 64) != 0) {
+			throw new Error("LLVM_DEFERRED: E25-A-v1 requires verified error control and ownership");
+		}
 		count = count + program.cfg.core.flow.checked.types.row(signature.callable).count;
 		if (count > 65536) {
 			throw new Error("LLVM_RESOURCE_EXHAUSTED: ABI channels");
@@ -278,6 +284,8 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 	}
 	int f = 0; int cursor = 0;
 	while (f < program.data.function_count && budget.take(1)) {
+		var source_signature = program.cfg.core.flow.checked.signatures[program.cfg.core.data.functions[f].signature.index - 1];
+		if ((source_signature.flags & 64) != 0) return false;
 		var source = program.cfg.core.data.functions[f]; var row = plan.functions[f];
 		var declaration = program.cfg.core.flow.checked.bindings.symbol(source.symbol); var signature = program.cfg.core.flow.checked.signatures[source.signature.index - 1];
 		int linkage = 0;

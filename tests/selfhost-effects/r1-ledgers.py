@@ -13,8 +13,8 @@ BUILD = BASE/'build/effects25-r1'
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); a = p.parse_args()
-	component = BUILD/('compiler-v1-'+a.mode)/('astra-llvm-'+a.mode)
+	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--component', type=Path); a = p.parse_args()
+	component = a.component or BUILD/('compiler-v1-'+a.mode)/('astra-llvm-'+a.mode)
 	identity = read(component.with_suffix('.identity.json')); assert sha(component) == identity['sha256']
 	assert all(sha(p) == h for group in ('sources', 'tools') for p, h in identity['identity'][group].items())
 	results = {}

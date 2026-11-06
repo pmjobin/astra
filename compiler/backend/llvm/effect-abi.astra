@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// E25-A-v1's scalar/void declaration contract. This is not effect admission:
+// Flow, Core, CFG and SSA must still establish error ownership and successors.
+// No LLVM handle or layout cache is retained beyond the supplied module owner.
+class NativeCheckedAbi {
+	owned shared TypeOwner owner;
+	SymbolId declaration;
+	SignatureId signature;
+	TypeId callable;
+	TypeId result;
+	TypeId error;
+	int policy;
+	int convention;
+	int linkage;
+	int receiver;
+	int success;
+	int parameters;
+	SyntaxSpan span;
+
+	init(CheckedIndex checked, SymbolId declaration) {
+		var owner = shared_clone(checked.types.identity); this.owner = move owner;
+		this.declaration = declaration; this.signature = checked.symbol_signatures[declaration.index];
+		var signature = checked.signatures[this.signature.index - 1];
+		this.callable = signature.callable; this.error = signature.error;
+		this.result = checked.types.argument(checked.types, signature.callable, 0).type;
+		this.policy = 1; this.convention = 8; this.linkage = 8; this.receiver = -1;
+		int success = 0; if (checked_kind(checked, this.result) == 14) success = -1;
+		this.success = success;
+		int hidden = 1; if (success < 0) hidden = 0;
+		this.parameters = checked.types.row(signature.callable).count - 1 + hidden;
+		var node = checked.bindings.symbol(declaration).node;
+		this.span = checked.bindings.program.arena.header(node).span;
+	}
+}
+
+// Deliberately the first scalar/void slice only. Methods, generic instances,
+// record/buffer/Class carriers and owner inputs remain independently deferred.
+bool native_checked_abi_source(CheckedIndex checked, SymbolId symbol) {
+	if (!checked.complete || checked.failed() || !checked.native_abi || !checked.semantic_admission || !checked.semantic_flow || symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(symbol); var node = declaration.node;
+	if (declaration.kind != 1 || declaration.owner.index != 0 || checked.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || checked.bindings.program.arena.get_node_body(node).index == 0) return false;
+	int ordinal = checked.symbol_signatures[symbol.index].index;
+	if (ordinal < 1 || ordinal > checked.signature_count) return false;
+	var signature = checked.signatures[ordinal - 1];
+	if (signature.declaration.index != symbol.index || signature.callable.index != checked.symbol_types[symbol.index].index || signature.flags != 64 || signature.dispatch != 0 || !checked_effect_signature_verified(checked, signature)) return false;
+	if (generic_instance_for(checked, symbol) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0) return false;
+	if (checked.bindings.program.arena.get_token_extern_keyword(node).index != 0 || checked.bindings.program.arena.get_token_export_keyword(node).index != 0 || checked.bindings.program.arena.get_token_async_keyword(node).index != 0 || checked.bindings.program.arena.get_bool_is_signal(node)) return false;
+	if (checked.bindings.program.arena.get_node_foreign_member(node).index != 0 || checked.bindings.program.arena.get_node_foreign_policy(node).index != 0 || checked.bindings.program.arena.get_bool_utf8_factory(node) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
+	if (checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(node), "main")) return false;
+	if (!checked.types.valid_id(signature.callable)) return false;
+	var shape = checked.types.row(signature.callable);
+	if (shape.kind != 25 || shape.count < 1 || shape.count > 257 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(node)) != shape.count - 1) return false;
+	int p = 0;
+	while (p < shape.count) {
+		var channel = checked.types.argument(checked.types, signature.callable, p);
+		if (!checked.types.valid_id(channel.type) || channel.flags != 0) return false;
+		int kind = checked_kind(checked, channel.type);
+		if (!type_numeric(kind) && kind != 13 && !(p == 0 && kind == 14)) return false;
+		p = p + 1;
+	}
+	return true;
+}
+
+owned NativeCheckedAbi native_checked_abi_plan(CheckedIndex checked, SymbolId declaration) throws Error {
+	if (!checked.validate() || !native_checked_abi_source(checked, declaration)) {
+		throw new Error("LLVM_DEFERRED: E25-A-v1 scalar/void declaration");
+	}
+	var plan = new NativeCheckedAbi(checked, declaration); return move plan;
+}
+
+// Reconstruct channel order from the declaration. Never call the plan builder
+// or physical type mapper, and never interpret result type as initialization.
+bool native_checked_abi_verify(NativeCheckedAbi plan, CheckedIndex checked) {
+	if (!type_owner_same(plan.owner, checked.types.identity) || !checked.validate() || !native_checked_abi_source(checked, plan.declaration)) return false;
+	var declaration = checked.bindings.symbol(plan.declaration); var signature_id = checked.symbol_signatures[plan.declaration.index];
+	var signature = checked.signatures[signature_id.index - 1];
+	if (plan.signature.index != signature_id.index || plan.callable.index != signature.callable.index || plan.error.index != signature.error.index || plan.result.index != checked.types.argument(checked.types, signature.callable, 0).type.index) return false;
+	if (plan.policy != 1 || plan.convention != 8 || plan.linkage != 8 || plan.receiver != -1) return false;
+	var span = checked.bindings.program.arena.header(declaration.node).span;
+	if (plan.span.source.index != span.source.index || plan.span.start != span.start || plan.span.end != span.end) return false;
+	int explicit_count = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(declaration.node));
+	if (checked_kind(checked, plan.result) == 14) return plan.success == -1 && plan.parameters == explicit_count;
+	return plan.success == 0 && plan.parameters == explicit_count + 1;
+}
+
+void* llvm_checked_abi_scalar(void* context, int kind) {
+	if (type_integer(kind)) return LLVMIntTypeInContext(context, type_width(kind));
+	if (kind == 13) return LLVMIntTypeInContext(context, 1);
+	if (kind == 11) return LLVMFloatTypeInContext(context);
+	if (kind == 12) return LLVMDoubleTypeInContext(context);
+	return null;
+}
+
+// Caller owns context and scratch handles (as with LlvmModule.handle_args).
+// Constructing a type does not authorize a call, body, load or success store.
+void* llvm_checked_abi_signature(NativeCheckedAbi plan, CheckedIndex checked, void* context, void* handles) throws Error {
+	if (context == null || handles == null || !native_checked_abi_verify(plan, checked)) {
+		throw new Error("LLVM_INVALID_IR: E25-A-v1 signature authority");
+	}
+	int physical = 0;
+	if (plan.success == 0) {
+		llvm12_handle_set(handles, physical, LLVMPointerTypeInContext(context, 0));
+		physical = physical + 1;
+	}
+	int p = 1;
+	while (physical < plan.parameters) {
+		var channel = checked.types.argument(checked.types, plan.callable, p);
+		var type = llvm_checked_abi_scalar(context, checked_kind(checked, channel.type));
+		if (type == null) {
+			throw new Error("LLVM_INVALID_IR: E25-A-v1 parameter shape");
+		}
+		llvm12_handle_set(handles, physical, type); physical = physical + 1; p = p + 1;
+	}
+	return LLVMFunctionType(LLVMPointerTypeInContext(context, 0), llvm12_handle_offset(handles, 0), plan.parameters, 0);
+}
+
+// Independent physical consumer: inspects actual LLVM function channels and
+// attributes. A signature pass is not a proof of effect control or cleanup.
+bool llvm_checked_abi_verify(NativeCheckedAbi plan, CheckedIndex checked, void* function) {
+	if (function == null || !native_checked_abi_verify(plan, checked)) return false;
+	var signature = LLVMGlobalGetValueType(function);
+	if (LLVMGetTypeKind(signature) != 9 || LLVMIsFunctionVarArg(signature) != 0 || LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != plan.parameters) return false;
+	var error = LLVMGetReturnType(signature);
+	if (LLVMGetTypeKind(error) != 12 || LLVMGetPointerAddressSpace(error) != 0) return false;
+	if (LLVMGetAttributeCountAtIndex(function, -1) != 0 || LLVMGetAttributeCountAtIndex(function, 0) != 0) return false;
+	int physical = 0;
+	if (checked_kind(checked, checked.types.argument(checked.types, plan.callable, 0).type) != 14) {
+		var success = LLVMTypeOf(LLVMGetParam(function, 0));
+		if (LLVMGetTypeKind(success) != 12 || LLVMGetPointerAddressSpace(success) != 0 || LLVMGetAttributeCountAtIndex(function, 1) != 0) return false;
+		physical = 1;
+	}
+	int p = 1;
+	while (physical < plan.parameters) {
+		var channel = checked.types.argument(checked.types, plan.callable, p);
+		int kind = checked_kind(checked, channel.type); var actual = LLVMTypeOf(LLVMGetParam(function, physical));
+		if (type_integer(kind) || kind == 13) {
+			int width = 1; if (type_integer(kind)) width = type_width(kind);
+			if (LLVMGetTypeKind(actual) != 8 || LLVMGetIntTypeWidth(actual) != width) return false;
+		} else {
+			if (kind == 11 && LLVMGetTypeKind(actual) != 2 || kind == 12 && LLVMGetTypeKind(actual) != 3 || kind != 11 && kind != 12) return false;
+		}
+		if (LLVMGetAttributeCountAtIndex(function, physical + 1) != 0) return false;
+		physical = physical + 1; p = p + 1;
+	}
+	return true;
+}

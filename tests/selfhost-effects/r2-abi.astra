@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Declaration/physical channel probes only. Unreachable fixture bodies never
+// constitute Astra-emitted recoverable-error programs or ownership evidence.
+void r2_abi_number(Utf8ByteBuilder out, int value) throws Error { source_append_text(out, " "); append_int(out, value); }
+
+class CheckedAbiProbe {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* empty;
+	int serial;
+
+	init() {
+		this.context = LLVMContextCreate(); this.empty = llvm12_empty();
+		this.module = LLVMModuleCreateWithNameInContext(this.empty, this.context);
+		this.builder = LLVMCreateBuilderInContext(this.context);
+		this.handles = llvm12_handles(); this.serial = 0;
+	}
+
+	deinit() { llvm12_handles_dispose(this.handles); LLVMDisposeBuilder(this.builder); LLVMDisposeModule(this.module); LLVMContextDispose(this.context); }
+
+	void* function(void* signature) throws Error {
+		this.serial = this.serial + 1;
+		var out = new Utf8ByteBuilder(); source_append_text(out, "e25a.signature."); append_int(out, this.serial); var name = out.snapshot();
+		var function = llvm12_function(this.module, signature, name.text);
+		LLVMSetLinkage(function, 8); LLVMSetFunctionCallConv(function, 8);
+		var entry = llvm12_block(this.context, function, "signature.fixture"); LLVMPositionBuilderAtEnd(this.builder, entry);
+		var end = LLVMBuildUnreachable(this.builder); return function;
+	}
+
+	void models(NativeCheckedAbi plan, CheckedIndex checked) throws Error {
+		var declaration = plan.declaration; var signature = plan.signature; var callable = plan.callable; var result = plan.result; var error = plan.error;
+		int success = plan.success; int parameters = plan.parameters; var span = plan.span;
+		int category = 0;
+		while (category < 13) {
+			if (category == 0) plan.policy = 2;
+			if (category == 1) plan.convention = 0;
+			if (category == 2) plan.linkage = 0;
+			if (category == 3) plan.receiver = 0;
+			if (category == 4) plan.success = success + 1;
+			if (category == 5) plan.parameters = parameters + 1;
+			if (category == 6) plan.declaration = type_symbol(0);
+			if (category == 7) {
+				SignatureId absent = {index = 0};
+				plan.signature = absent;
+			}
+			if (category == 8) plan.callable = type_id(1);
+			if (category == 9) plan.result = no_type();
+			if (category == 10) plan.error = no_type();
+			if (category == 11) {
+				var wrong = span;
+				wrong.start = wrong.start + 1;
+				plan.span = wrong;
+			}
+			if (category == 12) {
+				var wrong = span;
+				wrong.source.index = wrong.source.index + 1;
+				plan.span = wrong;
+			}
+			assert_that(!native_checked_abi_verify(plan, checked));
+			plan.declaration = declaration; plan.signature = signature; plan.callable = callable; plan.result = result; plan.error = error;
+			plan.policy = 1; plan.convention = 8; plan.linkage = 8; plan.receiver = -1; plan.success = success; plan.parameters = parameters; plan.span = span;
+			assert_that(native_checked_abi_verify(plan, checked)); category = category + 1;
+		}
+		println("CHECKED_ABI_MODEL_MUTATIONS 13 VALID_RESTORED");
+	}
+
+	void inspect(NativeCheckedAbi plan, CheckedIndex checked) throws Error {
+		this.models(plan, checked);
+		var signature = llvm_checked_abi_signature(plan, checked, this.context, this.handles);
+		var correct = this.function(signature);
+		assert_that(llvm12_verify(this.module) == 0 && llvm_checked_abi_verify(plan, checked, correct));
+		int category = 0;
+		while (category < 7) {
+			int count = plan.parameters; if (category == 2) count = count + 1;
+			int p = 0;
+			while (p < plan.parameters) {
+				llvm12_handle_set(this.handles, p, LLVMTypeOf(LLVMGetParam(correct, p)));
+				p = p + 1;
+			}
+			if (category == 2) llvm12_handle_set(this.handles, count - 1, LLVMIntTypeInContext(this.context, 32));
+			if (category == 5 && count > 0) llvm12_handle_set(this.handles, 0, LLVMIntTypeInContext(this.context, 64));
+			var result = LLVMGetReturnType(signature);
+			if (category == 0) result = LLVMIntTypeInContext(this.context, 32);
+			if (category == 1) result = LLVMPointerTypeInContext(this.context, 1);
+			if (category == 6 || category == 5 && count == 0) result = LLVMDoubleTypeInContext(this.context);
+			var wrong_signature = LLVMFunctionType(result, llvm12_handle_offset(this.handles, 0), count, 0);
+			var alternative = this.function(wrong_signature);
+			if (category == 3) LLVMSetFunctionCallConv(alternative, 0);
+			if (category == 4) LLVMSetLinkage(alternative, 0);
+			assert_that(llvm12_verify(this.module) == 0);
+			assert_that(!llvm_checked_abi_verify(plan, checked, alternative));
+			assert_that(llvm_checked_abi_verify(plan, checked, correct));
+			var out = new Utf8ByteBuilder(); source_append_text(out, "CHECKED_ABI_PHYSICAL_REJECT "); append_int(out, category); var text = out.snapshot(); println(text.text);
+			category = category + 1;
+		}
+		var out = new Utf8ByteBuilder(); source_append_text(out, "CHECKED_ABI_SIGNATURE"); r2_abi_number(out, plan.declaration.index); r2_abi_number(out, checked_kind(checked, plan.result)); r2_abi_number(out, plan.success); r2_abi_number(out, plan.parameters); var text = out.snapshot(); println(text.text);
+	}
+
+	void snapshot() throws Error { print("LLVM_HEX "); llvm12_print_hex(this.module); println(""); }
+}
+
+int r2_abi_cli(string[] args) {
+	try {
+		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		if (checked.failed()) {
+			var observation = checked_observation(checked);
+			print(observation.text);
+			return 1;
+		}
+		assert_that(checked.validate());
+		var probe = new CheckedAbiProbe(); int symbol = 1; int count = 0;
+		while (symbol <= checked.bindings.symbol_count) {
+			if (native_checked_abi_source(checked, type_symbol(symbol))) {
+				var plan = native_checked_abi_plan(checked, type_symbol(symbol));
+				probe.inspect(plan, checked); count = count + 1;
+			}
+			symbol = symbol + 1;
+		}
+		if (count == 0) {
+			println("CHECKED_ABI_DEFERRED");
+			return 3;
+		}
+		probe.snapshot(); println("SIGNATURES_ONLY; FLOW_ERROR_CONTROL_PENDING"); return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

@@ -10,6 +10,7 @@ from state import ROOT, read, sha, bounded_run, population, digest, load_module
 BASE = ROOT.parent/'codex/work/astra'
 PRIOR = BASE/'runtime/effects25'
 RUNTIME = BASE/'runtime/effects25-r1'
+BUILD = BASE/'build/effects25-r1'
 
 
 def first_failure(component, mode):
@@ -30,7 +31,7 @@ def main():
 	p = argparse.ArgumentParser(); p.add_argument('--component', type=Path, required=True); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--diagnose-first', action='store_true'); a = p.parse_args()
 	if a.diagnose_first: first_failure(a.component, a.mode); return
 	leaf = RUNTIME/('cohorts-v1-'+a.mode); leaf.mkdir(exist_ok=False)
-	build = BASE/'build/effects25-r1'/leaf.name; build.mkdir(exist_ok=False)
+	build = BUILD/leaf.name; build.mkdir(exist_ok=False)
 	parse = load_module('r1_trace_parser', ROOT/'tests/selfhost-effects/observe.py').parse
 	identity = read(a.component.with_suffix('.identity.json')); assert sha(a.component) == identity['sha256']
 	assert all(sha(path) == h for group in ('sources', 'tools') for path, h in identity['identity'][group].items())
