@@ -207,7 +207,8 @@ bool generic_calls_verified(CheckedIndex index) {
 			}
 			if (plan.enclosing.index != 0) {
 				var receiver_token = index.bindings.program.arena.get_token_receiver(node);
-				var receiver = checked_target(index, node, receiver_token);
+				SymbolId receiver = {index = 0};
+				if (receiver_token.index != 0) receiver = checked_target(index, node, receiver_token);
 				var place = index.bindings.program.arena.get_node_receiver_place(node);
 				if (place.index != 0) {
 					if (index.uses[place.index].type.index != plan.enclosing.index) return false;

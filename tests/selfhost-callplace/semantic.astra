@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Small independent checked/Flow consumer for focused source regressions.
+int main(string[] args) {
+	try {
+		var source = binding_load_program(args, 1); var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		var flow = flow_index(move checked, 8192, 1000000);
+		var text = flow_observation(flow); print(text.text); return flow_status(flow);
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

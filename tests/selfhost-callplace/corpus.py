@@ -16,7 +16,7 @@ def method(path, spelling):
 
 
 def main():
-	leaf = RUNTIME/'corpus-v3'; leaf.mkdir(exist_ok=False)
+	leaf = RUNTIME/'corpus-v4'; leaf.mkdir(exist_ok=False)
 	model = ROOT/'compiler/semantic/flow-model.astra'
 	common = ''.join(declaration(ROOT/path, spelling) for path,spelling in [
 		('compiler/semantic/model.astra','struct SymbolId {'),
@@ -141,6 +141,9 @@ int main() { if (compute(true) != 6 || compute(false) != 7) return 99; return 71
 	for name,(source,expected,oracle) in cases.items():
 		path = leaf/(name+'.astra'); path.write_text(source)
 		selection.append(dict(name=name,sources=[dict(path=str(path),bytes=path.stat().st_size,sha256=sha(path))],expected_exit=expected,oracle=oracle))
+	provider = leaf/'namespace-provider.astra'; provider.write_text('namespace Counter; int twice(int n) { return n + n; }\n')
+	entry = leaf/'namespace-main.astra'; entry.write_text('class Gauge { int value; init(int value) { this.value = value; } int read() { return this.value; } } int main() { var gauge = new Gauge(7); return Counter.twice(gauge.read()); }\n')
+	selection.append(dict(name='namespace-qualified-continuity',sources=[dict(path=str(p),bytes=p.stat().st_size,sha256=sha(p)) for p in (provider,entry)],expected_exit=14,oracle='Bound namespace function remains distinct from instance receiver resolution'))
 	(leaf/'selection.json').write_text(json.dumps(selection,indent=2)+'\n')
 	(leaf/'views.json').write_text(json.dumps(dict(original_model=str(model),original_model_sha256=sha(model),methods=methods,disclosure='FlowGraph has only six relevant fields and a bounded constructor; complete room/add/slot_for bodies copied unchanged. Arena, Program, BindingIndex, CheckedIndex and make_event are explicit nonthrowing dependency views; checked_target is the complete original nonthrowing helper, not original whole compiler callers. Original throwing callers are never transformed or executed.'),indent=2)+'\n')
 	print(len(selection),'new distinct source programs')

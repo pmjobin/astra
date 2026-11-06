@@ -132,7 +132,11 @@ class BindingIndex {
 		if (edge.state_code != 5 || edge.target.index != 0) return false;
 		if (edge.reason == 1 || edge.reason == 3) {
 			bool property_read = edge.reason == 1 && symbol.kind == 14 && this.program.arena.kind(edge.node) == SyntaxKind.FieldAccessExpressionSyntax();
-			if (symbol.owner.index != receiver.index || receiver.index == 0 || (symbol.kind != 6 && !property_read)) return false;
+			// Completion records a lexical member, never a physical receiver or
+			// callable ABI. Typecore and its independent consumer check those.
+			bool method_call = symbol.kind == 11 && edge.domain == 4 && this.program.arena.kind(edge.node) == SyntaxKind.CallExpressionSyntax();
+			if (method_call) method_call = receiver.index > 0 && receiver.index <= this.symbol_count && this.program.arena.get_token_identifier(edge.node).index == edge.token.index && this.program.arena.token_text_equal(edge.token, symbol.token) && this.symbol(receiver).kind == 4;
+			if (symbol.owner.index != receiver.index || receiver.index == 0 || (symbol.kind != 6 && !property_read && !method_call)) return false;
 		} else {
 			if (edge.reason != 7 || target.index != edge.alternative.index || (symbol.kind != 8 && symbol.kind != 7)) return false;
 		}

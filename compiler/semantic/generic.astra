@@ -599,7 +599,14 @@ SymbolId generic_select_call(CheckedIndex index, SyntaxNodeId node, SymbolId tar
 
 SymbolId generic_call_target(CheckedIndex index, SyntaxNodeId node, SymbolId target, int depth) throws Error {
 	if (node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0) return index.generic_calls[node.index];
-	if (index.bindings.program.arena.get_token_receiver(node).index != 0 || index.bindings.program.arena.get_node_receiver_place(node).index != 0) return generic_method_target(index, node, depth);
+	var place = index.bindings.program.arena.get_node_receiver_place(node);
+	if (index.bindings.program.arena.get_token_receiver(node).index != 0 || place.index != 0) {
+		var method = generic_method_target(index, node, depth);
+		if (method.index > 0 || index.failed() || target.index == 0 || place.index != 0) return method;
+		// Binder may have resolved a namespace-qualified ordinary callable.
+		// An unsupported instance method must never take that fallback.
+		if (index.bindings.symbol(target).kind == 11) return type_symbol(0);
+	}
 	if (target.index == 0) return generic_method_target(index, node, depth);
 	if (!generic_template(index, target)) return target;
 	return generic_select_call(index, node, target, no_type(), depth);
