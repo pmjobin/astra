@@ -53,6 +53,11 @@ identities are 202 at O0 and 182 at O2. This predecessor replay alone supplies n
 evidence about the changed compiler. Final changed-compiler regression results
 are recorded separately.
 
+Fresh complete ledgers at both final profiles compare every original source,
+node, syntax kind and byte span against the frozen predecessor: 79/85/92/92
+sources and 174297/188293/206465/208328 nodes. All eight populations match;
+the original producer/local/move facts are also checked in those ledgers.
+
 Both final compiler profiles pass the same inherited native behavior and retain
 all 202 raw LLVM identities. The 80 statuses remain 56 admitted, 12 rejected and
 12 deferred. Per profile, 28 inherited model controls, 10 source negatives,

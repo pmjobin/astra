@@ -63,6 +63,9 @@ def main():
 		assert read(RUNTIME/('effect-boundary-inherited-v1-'+mode)/'result.json')['status'] == 'EXISTING_EFFECT_BOUNDARY_CONFIRMED'
 		controls = read(RUNTIME/('typecore-controls-final-v2-'+mode)/'result.json'); assert len(controls['cases']) == 21 and controls['model_mutations'] == 12
 		cohorts = read(RUNTIME/('cohorts-v1-'+mode)/'result.json'); assert len(cohorts) == 4
+		ledgers = read(RUNTIME/('ledgers-v1-'+mode+'.json')); assert len(ledgers) == 4
+		for name, row in ledgers.items():
+			assert all(row[key] == cohorts[name][key] for key in ('files', 'nodes', 'population_sha256', 'node_identity_sha256'))
 		assert all(row['conditional_facts_preserved'] and row['native_attempt']['destination_preserved'] for row in cohorts.values())
 		assert read(RUNTIME/('first-failure-v1-'+mode)/'result.json')['first_stop'] == ['55', '26']
 		captures = []

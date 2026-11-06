@@ -19,13 +19,23 @@ BUILD = BASE/'build/effects25-r1'
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--version', required=True); a = p.parse_args(); assert a.version.replace('-', '').isalnum()
+	p = argparse.ArgumentParser(); p.add_argument('--version', required=True); p.add_argument('--reuse-columns'); a = p.parse_args(); assert a.version.replace('-', '').isalnum()
 	audit = read(RUNTIME/'final-audit.json'); assert audit['status'] == 'PARTIAL'
 	leaf = RUNTIME/('handoff-'+a.version); leaf.mkdir(exist_ok=False)
 	archive = leaf/'effects25-r1-evidence.tar.xz'; index = {}; blobs = set(); encoded = {}
 	columns = load_module('r1_lossless_columns', ROOT/'tests/selfhost-genref/columns.py')
+	restore = load_module('r1_ledger_decoder', ROOT/'tests/selfhost-effects/restore.py')
+	reuse = {}; reused = []
+	if a.reuse_columns:
+		assert a.reuse_columns.replace('-', '').isalnum()
+		previous = RUNTIME/('handoff-'+a.reuse_columns)
+		with tarfile.open(previous/'effects25-r1-evidence.tar.xz', 'r:xz') as old:
+			model = json.load(old.extractfile('INDEX.json'))
+			assert model['files']['recipes/columns.py']['sha256'] == sha(ROOT/'tests/selfhost-genref/columns.py')
+			for row in model['files'].values():
+				if 'columns' in row: reuse[row['sha256']] = row['columns']
 	column_directory = leaf/'columns'; column_directory.mkdir(); start = time.monotonic()
-	with tarfile.open(archive, 'w:xz', preset=6) as packed:
+	with tarfile.open(archive, 'w:xz', preset=9) as packed:
 		def store(name, path=None, data=None):
 			entry = tarfile.TarInfo(name); entry.mode = 0o644
 			if path is not None:
@@ -42,14 +52,32 @@ def main():
 			if expected: assert digest == expected, name
 			row = dict(bytes=size, sha256=digest, mode=mode, blob='blobs/'+digest)
 			if name in index: assert index[name]['sha256'] == digest; return
-			if transform and path is not None and path.suffix == '.stdout' and size >= 1048576:
+			if transform and path is not None and path.name == 'ledger.json':
+				model = read(path)
+				if model.get('format') == 'astra-whole-source-ledger/1':
+					raw = path.with_name('whole-compiler.stdout'); assert raw.is_file()
+					model['nodes'] = None; model['raw_flow'] = None
+					metadata = leaf/(digest+'-metadata.json'); metadata.write_text(json.dumps(model, indent=2)+'\n')
+					data = restore.ledger(raw, metadata); assert len(data) == size and hashlib.sha256(data).hexdigest() == digest
+					del data, model
+					raw_name = str(Path(name).with_name('whole-compiler.stdout')); metadata_name = 'ledger-metadata/'+digest+'.json'
+					add(raw_name, path=raw); add(metadata_name, path=metadata, transform=False)
+					row.pop('blob'); row['ledger'] = dict(raw=raw_name, metadata=metadata_name); index[name] = row; return
+			if transform and path is not None and (path.suffix == '.stdout' or path.name == 'stdout') and size >= 1048576:
 				with path.open('rb') as stream: first = stream.readline()
 				if not first.startswith(b'('):
 					if digest not in encoded:
-						plan = columns.encode(path, column_directory, name, len(encoded))
-						observed = hashlib.sha256(); count = 0
-						for block in columns.reconstruct(column_directory, plan): observed.update(block); count += len(block)
-						assert observed.hexdigest() == digest and count == size
+						if digest in reuse:
+							plan = json.loads(json.dumps(reuse[digest])); assert plan['sha256'] == digest and plan['bytes'] == size
+							for part in list(plan['parts'].values())+[p for group in plan['groups'] for p in group['columns']]:
+								original = previous/'columns'/part['path']; assert sha(original) == part['sha256'] and original.stat().st_size == part['bytes']
+								part['path'] = 'cached-'+digest[:16]+'-'+part['path']; shutil.copy2(original, column_directory/part['path'])
+							reused.append(dict(sha256=digest, previous=str(previous), verification='Previously reconstructed identical bytes; exact source, decoder and part hashes rechecked'))
+						else:
+							plan = columns.encode(path, column_directory, name, len(encoded))
+							observed = hashlib.sha256(); count = 0
+							for block in columns.reconstruct(column_directory, plan): observed.update(block); count += len(block)
+							assert observed.hexdigest() == digest and count == size
 						encoded[digest] = plan
 						for part in list(plan['parts'].values())+[p for group in plan['groups'] for p in group['columns']]: add('columns/'+part['path'], path=column_directory/part['path'], transform=False)
 					row.pop('blob'); row['columns'] = dict(encoded[digest], path=name); index[name] = row; return
@@ -94,7 +122,7 @@ def main():
 	for name in ('final-audit.json', 'baseline.json', 'process-deadline.json'): shutil.copy2(RUNTIME/name, attachments/name)
 	(attachments/'abi-approval.json').write_text(json.dumps(audit['approval'], indent=2)+'\n')
 	shutil.copy2(tool, attachments/'decode-evidence.py.txt'); shutil.copy2(ROOT/'tests/selfhost-effects/restore.py', attachments/'restore-effects.py.txt'); shutil.copy2(ROOT/'tests/selfhost-genref/columns.py', attachments/'restore-columns.py.txt')
-	packaging = dict(status='LOSSLESS_EVIDENCE_VERIFIED', logical_files=len(index), unique_blobs=len(blobs), column_encoded_observations=len(encoded), archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), seconds=time.monotonic()-start, predecessor_report_preserved=str(RUNTIME/'predecessor-report.zip'), predecessor_sha256=sha(RUNTIME/'predecessor-report.zip'), classification='Exact byte transport only; not semantic or native effect qualification')
+	packaging = dict(status='LOSSLESS_EVIDENCE_VERIFIED', logical_files=len(index), unique_blobs=len(blobs), column_encoded_observations=len(encoded), exact_column_reuse=reused, archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), seconds=time.monotonic()-start, predecessor_report_preserved=str(RUNTIME/'predecessor-report.zip'), predecessor_sha256=sha(RUNTIME/'predecessor-report.zip'), classification='Exact byte transport only; not semantic or native effect qualification')
 	(attachments/'packaging.json').write_text(json.dumps(packaging, indent=2)+'\n')
 	(attachments/'review-guide.txt').write_text('Read final-audit.json and docs/selfhost-effects-25-r1.md. Effect domain PARTIAL: source checking implemented; native effect transport absent. Decode effects25-r1-encoding.json with decode-evidence.py.txt to recover the tar.xz. Save restore-effects.py.txt and restore-columns.py.txt beside each other as restore-effects.py and restore-columns.py, then run the former with ARCHIVE --output EXTERNAL_DIRECTORY --verify-only. This verifies all reconstructed bytes without executing evidence. The source controls, predecessor baseline, current compiler regression, C0-only design oracles and missing runtime effect gates retain separate attribution. G12 publication is established by the actual installed report and its subsequent independent verification.\n')
 	files = [dict(path=p.name, bytes=p.stat().st_size, sha256=sha(p)) for p in sorted(attachments.iterdir())]
