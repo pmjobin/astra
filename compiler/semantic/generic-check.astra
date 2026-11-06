@@ -208,7 +208,13 @@ bool generic_calls_verified(CheckedIndex index) {
 			if (plan.enclosing.index != 0) {
 				var receiver_token = index.bindings.program.arena.get_token_receiver(node);
 				var receiver = checked_target(index, node, receiver_token);
-				if (receiver.index == 0 || index.symbol_types[receiver.index].index != plan.enclosing.index || (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0))) return false;
+				var place = index.bindings.program.arena.get_node_receiver_place(node);
+				if (place.index != 0) {
+					if (index.uses[place.index].type.index != plan.enclosing.index) return false;
+				} else {
+					if (receiver.index == 0 || index.symbol_types[receiver.index].index != plan.enclosing.index) return false;
+				}
+				if (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0)) return false;
 				int outer_number = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
 				var owner = index.types.row(plan.enclosing).nominal;
 				if (outer_number > 0) owner = index.instances[outer_number - 1].origin;
@@ -222,7 +228,12 @@ bool generic_calls_verified(CheckedIndex index) {
 					a = a + 1;
 				}
 				var hidden = index.bindings.program.arena.node_at(normalized, 0);
-				if (index.bindings.program.arena.kind(hidden) != SyntaxKind.NameExpressionSyntax() || index.bindings.program.arena.get_token_identifier(hidden).index != receiver_token.index || checked_target(index, hidden, receiver_token).index != receiver.index || index.bindings.program.arena.list_count(normalized) != index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) + 1) return false;
+				if (index.bindings.program.arena.list_count(normalized) != index.bindings.program.arena.list_count(source_arguments) + 1) return false;
+				if (place.index != 0) {
+					if (hidden.index != place.index) return false;
+				} else {
+					if (index.bindings.program.arena.kind(hidden) != SyntaxKind.NameExpressionSyntax() || index.bindings.program.arena.get_token_identifier(hidden).index != receiver_token.index || checked_target(index, hidden, receiver_token).index != receiver.index) return false;
+				}
 			} else {
 				if (!bound) return false;
 			}

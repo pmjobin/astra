@@ -565,6 +565,14 @@ SymbolId generic_select_call(CheckedIndex index, SyntaxNodeId node, SymbolId tar
 		var type = checked_resolve(index, index.bindings.program.arena.node_at(explicit, i), 0, 0);
 		TypeEdge edge = {type = type, flags = 0}; args[i] = edge; i = i + 1;
 	}
+	// A concrete method may need receiver specialization, but has no inference
+	// variables. The ordinary call checker checks its full concrete signature.
+	if (count == 0 && supplied == 0) {
+		if (enclosing.index == 0) return target;
+		var concrete = generic_instantiate(index, target, enclosing, args, index.uses[node.index].span);
+		if (concrete.index > 0) index.generic_calls[node.index] = concrete;
+		return concrete;
+	}
 	if (supplied == 0) {
 		var callable = index.symbol_types[target.index];
 		if (callable.index == 0) return type_symbol(0);
@@ -576,6 +584,7 @@ SymbolId generic_select_call(CheckedIndex index, SyntaxNodeId node, SymbolId tar
 		i = 0;
 		while (i < index.bindings.program.arena.list_count(arguments)) {
 			var actual = checked_expression(index, index.bindings.program.arena.node_at(arguments, i), no_type(), depth + 1);
+			if (actual.index == 0) return type_symbol(0);
 			if (!generic_unify(index, target, enclosing, index.types.argument(index.types, callable, i + 1).type, actual, args, 0)) {
 				index.fail(index.uses[node.index].span, "conflicting or unavailable generic argument inference");
 				return type_symbol(0);
@@ -590,10 +599,7 @@ SymbolId generic_select_call(CheckedIndex index, SyntaxNodeId node, SymbolId tar
 
 SymbolId generic_call_target(CheckedIndex index, SyntaxNodeId node, SymbolId target, int depth) throws Error {
 	if (node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0) return index.generic_calls[node.index];
-	if (!index.generic_definition && index.bindings.program.arena.get_token_receiver(node).index != 0) {
-		var method = generic_method_target(index, node, depth);
-		if (method.index > 0 || index.failed()) return method;
-	}
+	if (index.bindings.program.arena.get_token_receiver(node).index != 0 || index.bindings.program.arena.get_node_receiver_place(node).index != 0) return generic_method_target(index, node, depth);
 	if (target.index == 0) return generic_method_target(index, node, depth);
 	if (!generic_template(index, target)) return target;
 	return generic_select_call(index, node, target, no_type(), depth);

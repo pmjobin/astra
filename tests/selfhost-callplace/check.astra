@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Each mutant starts from the valid source-bound call, reaches a real consumer,
+// and restores the original before the next independent check.
+void callplace_mutation(int category, int stage) throws Error {
+	assert_that(stage > 0 && stage != 2);
+	var out = new Utf8ByteBuilder(); source_append_text(out, "CALLPLACE_MODEL_MUTATION"); flow_number(out, category); flow_number(out, stage); source_append_text(out, " VALID_RESTORED\n"); var text = out.snapshot(); print(text.text);
+}
+
+void callplace_core_mutations(CoreProgram program) throws Error {
+	assert_that(core_verify(program) == 0);
+	int call = -1; int other = -1; int n = 0;
+	while (n < program.data.node_count) {
+		var row = program.data.nodes[n];
+		if (row.kind == 9 && row.count > 1 && program.flow.checked.bindings.program.arena.get_node_receiver_place(row.source).index > 0) {
+			if (call < 0) {
+				call = n;
+			} else {
+				other = n;
+			}
+		}
+		n = n + 1;
+	}
+	assert_that(call >= 0 && other >= 0 && program.data.cleanup_count > 0);
+	var original = program.data.nodes[call]; var alternative = program.data.nodes[other];
+	int source = original.source.index; int instance = generic_instance_for(program.flow.checked, original.symbol) - 1;
+	assert_that(instance >= 0);
+	var plan = program.flow.checked.instances[instance];
+	var receiver = program.flow.checked.bindings.program.arena.get_node_receiver_place(original.source);
+	var method_declaration = program.flow.checked.bindings.symbol(original.symbol);
+	var parameters = program.flow.checked.bindings.program.arena.get_list_parameters(method_declaration.node);
+	var hidden_node = program.flow.checked.bindings.program.arena.node_at(parameters, 0);
+	var hidden = program.flow.checked.node_symbols[hidden_node.index];
+	var before = core_projection(program); int category = 0;
+	while (category < 24) {
+		int stage = 0;
+		if (category <= 4) {
+			var forged = plan;
+			if (category == 0) forged.origin = alternative.symbol;
+			if (category == 1) forged.enclosing = type_id(1);
+			if (category == 2) forged.state = 1;
+			if (category == 3) forged.argument_count = plan.argument_count + 1;
+			if (category == 4) forged.concrete = alternative.symbol;
+			program.flow.checked.instances[instance] = forged; stage = generic_verify_failure(program.flow.checked); program.flow.checked.instances[instance] = plan;
+		}
+		if (category == 5) {
+			int old = program.flow.checked.symbol_flags[hidden.index]; program.flow.checked.symbol_flags[hidden.index] = 4; stage = generic_verify_failure(program.flow.checked); program.flow.checked.symbol_flags[hidden.index] = old;
+		}
+		if (category == 6) {
+			var old = program.flow.checked.symbol_types[hidden.index]; program.flow.checked.symbol_types[hidden.index] = type_id(1); stage = generic_verify_failure(program.flow.checked); program.flow.checked.symbol_types[hidden.index] = old;
+		}
+		if (category == 7 || category == 8) {
+			int at = source; if (category == 8) at = receiver.index;
+			var old = program.flow.checked.uses[at]; var forged = old; forged.type = no_type(); program.flow.checked.uses[at] = forged; stage = generic_verify_failure(program.flow.checked); program.flow.checked.uses[at] = old;
+		}
+		if (category == 9) {
+			var old = program.flow.checked.generic_argument_lists[source]; program.flow.checked.generic_argument_lists[source] = program.flow.checked.bindings.program.arena.get_list_arguments(original.source); stage = generic_verify_failure(program.flow.checked); program.flow.checked.generic_argument_lists[source] = old;
+		}
+		if (category == 10) {
+			var old = program.flow.checked.generic_calls[source]; program.flow.checked.generic_calls[source] = alternative.symbol; stage = generic_verify_failure(program.flow.checked); program.flow.checked.generic_calls[source] = old;
+		}
+		if (category >= 11 && category <= 16) {
+			var forged = original;
+			if (category == 11) forged.target = 0;
+			if (category == 12) forged.signature.index = 0;
+			if (category == 13) forged.type = type_id(13);
+			if (category == 14) forged.span.source.index = forged.span.source.index + 1;
+			if (category == 15) forged.symbol = alternative.symbol;
+			if (category == 16) forged.count = original.count - 1;
+			program.data.nodes[call] = forged; stage = core_verify(program); program.data.nodes[call] = original;
+		}
+		if (category == 17 || category == 18) {
+			var old = program.data.edges[original.first]; var forged = old;
+			if (category == 17) forged.mode = 4;
+			if (category == 18) forged.label = type_symbol(0);
+			program.data.edges[original.first] = forged; stage = core_verify(program); program.data.edges[original.first] = old;
+		}
+		if (category == 19 || category == 20) {
+			var first = program.data.edges[original.first]; var second = program.data.edges[original.first + 1];
+			var a = first; var b = second; a.child = second.child; if (category == 19) b.child = first.child;
+			program.data.edges[original.first] = a; program.data.edges[original.first + 1] = b; stage = core_verify(program); program.data.edges[original.first] = first; program.data.edges[original.first + 1] = second;
+		}
+		if (category == 21 || category == 22) {
+			var old = program.data.cleanups[0]; var forged = old;
+			if (category == 21) forged.state = 0;
+			if (category == 22) forged.owner = old.owner + 1;
+			program.data.cleanups[0] = forged; stage = core_verify(program); program.data.cleanups[0] = old;
+		}
+		if (category == 23) {
+			var old = program.flow.checked.bindings.symbol(plan.origin); var forged = old; forged.owner = alternative.symbol;
+			program.flow.checked.bindings.replace_instance_symbol(plan.origin, forged); stage = generic_verify_failure(program.flow.checked); program.flow.checked.bindings.replace_instance_symbol(plan.origin, old);
+		}
+		callplace_mutation(category, stage);
+		assert_that(core_verify(program) == 0); var after = core_projection(program); assert_that(before.text == after.text);
+		category = category + 1;
+	}
+}
