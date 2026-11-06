@@ -15,8 +15,8 @@ from state import ROOT, RUNTIME, BUILD, read, sha
 
 def main():
 	resource.setrlimit(resource.RLIMIT_CORE,(0,0))
-	p = argparse.ArgumentParser(); p.add_argument('--qualification',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); a = p.parse_args()
-	leaf = RUNTIME/('physical-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
+	p = argparse.ArgumentParser(); p.add_argument('--qualification',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); p.add_argument('--version',default='v2'); a = p.parse_args()
+	leaf = RUNTIME/('physical-'+a.version+'-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
 	row = next(row for row in read(a.qualification/'results.json') if row['name'] == 'independent-nested-order'); assert row['baseline_complete']
 	assert all(sha(s['path']) == s['sha256'] for s in row['sources']) and all(sha(x['path']) == x['sha256'] for x in row['products'].values())
 	measured = (a.qualification/'independent-nested-order-ABI-probe.stdout').read_text(); assert 'LAYOUT Sample 4 4 1\n' in measured

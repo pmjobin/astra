@@ -63,7 +63,7 @@ def main():
 		for row in rows:
 			assert all(sha(s['path']) == s['sha256'] for s in row['sources'])
 			assert all(sha(p['path']) == p['sha256'] for p in row.get('fresh_products',row.get('products')).values())
-		models = read(RUNTIME/('models-v2-'+mode)/'result.json'); physical = read(RUNTIME/('physical-'+mode)/'result.json'); negative = read(RUNTIME/('negative-v2-'+mode)/'result.json'); failure = read(RUNTIME/('failure-v2-'+mode)/'result.json')
+		models = read(RUNTIME/('models-v2-'+mode)/'result.json'); physical = read(RUNTIME/('physical-v2-'+mode)/'result.json'); negative = read(RUNTIME/('negative-v2-'+mode)/'result.json'); failure = read(RUNTIME/('failure-v2-'+mode)/'result.json')
 		assert all(result['status'] == 'PASS' for result in (models,physical,negative,failure))
 		assert models['component_sha256'] == negative['component_sha256'] == failure['component_sha256'] == sha(component)
 		assert len(models['mutations']) == 28 and len(physical['mutations']) == 7 and all(row['LLVM_valid'] and row['independently_rejected'] for row in physical['mutations'])
