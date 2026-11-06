@@ -31,6 +31,9 @@ def main():
 	for path in initial['protected']:
 		mode = git('ls-tree',BASE,'--',path).split()[0]; assert (ROOT/path).stat().st_mode & 0o777 == (0o755 if mode == '100755' else 0o644)
 	assert sha(RUNTIME/'predecessor-report.zip') == initial['predecessor_sha256'] == '33098abb7273845a70279ea71e33ff5285044433a410f130f6fa243a3d56cfc5'
+	archives = read(RUNTIME/'archive-integrity.json'); assert archives['status'] == 'PASS'
+	for row in archives['archives']: assert Path(row['path']).stat().st_size == row['bytes'] and sha(row['path']) == row['sha256']
+	assert archives['archives'][0]['sha256'] == '8129c854b4e8651a933ea083c9ace1f1a9a586345e0262aaa2080d23cc04c409' and archives['archives'][1]['status'] == 'PARTIAL'
 	assert git('config','--show-origin','--list') == initial['config'] and git('stash','list') == initial['stash']
 	refs = {row.split()[1]:row.split()[0] for row in git('show-ref').splitlines()}; oldrefs = {row.split()[1]:row.split()[0] for row in initial['refs'].splitlines()}
 	assert refs.keys() == oldrefs.keys() and all(refs[name] == value for name,value in oldrefs.items() if name != 'refs/heads/main')

@@ -66,6 +66,26 @@ whole-module refusal are recorded separately. A published nonzero lexical type
 does not discharge a pending borrow/ownership obligation or qualify a whole call
 plan. No whole original compiler module, complete caller or Stage 1 is claimed.
 
+The final O0 observer reran all four cohorts using the same source/node/span
+populations. Counts below are source uses with a nonzero type and no per-use
+deferral; they are partial facts, not whole-module verification:
+
+| Frozen cohort | Before | After | New such facts in the same file after the old stop span |
+|---|---:|---:|---:|
+| original | 52,257 | 96,817 | 547 |
+| LLVM23-base | 54,255 | 104,172 | 552 |
+| Class15-current | 59,268 | 117,410 | 821 |
+| live-initial | 59,815 | 118,780 | 1,105 |
+
+The original call nodes 40833, 42968, 46736 and 47584 now each publish type 1
+(`int`), flags 0, with borrow/ownership obligation 19 still pending. All four
+whole-module observations remain `STATUS 2 0`; their separate admission probes
+report `CHECKED_CONSUMER 1 7`: structural validation passes, independent generic
+reference verification fails. There is no replacement checked-error diagnostic.
+These remaining stops are recorded independently of the unchanged throwing
+caller effect boundary. The successfully executed nonthrowing views do not
+discharge either original whole-module obligation.
+
 Both original complete callers, `admit_record_value` and
 `class_storage_slot_flow`, remain **DEFERRED**: their complete bytes/ASTs and
 `throws Error` declarations are unchanged. Independent pure/throws twins retain
@@ -85,5 +105,35 @@ by `audit.py` in `final-audit.json` after the qualification completes. `handoff.
 reconstructs and verifies lossless evidence before handing an indexed attachment
 set to the unchanged installed `$pm-next` publisher. Generated products and
 temporary proof output remain outside Git.
+
+The final qualification executed 172 inherited plus 15 new source identities at
+each of O0 and O2 (187/profile). All 172 inherited raw LLVM outputs/profile are
+byte-identical to their predecessors. All 15 new native and independent C0
+executables/profile agree with explicit expected exits and pass unsuppressed
+Valgrind with no errors or lost allocations. Separate Core, CFG and generic-plan
+consumption also passes for every new program. There are 28 new model rejections,
+seven LLVM-valid independently rejected physical alternatives and ten parse-valid
+source refusals/profile. The ownership-alias declaration negative remains native
+deferred rather than receiving a new ownership-error classification.
+
+The two-profile continuity replay preserves exactly 56 admitted, 12 rejected and
+12 deferred original source statuses, along with the module layout-lifetime
+controls. Historical outputs retain their original attribution. Preservation
+checks cover 451 protected files, 6,622 donor files and 1,044 historical proof
+outputs; these counts do not represent fresh qualification of those old proofs.
+
+| Final cold compiler build | Wall seconds | User CPU seconds | System CPU seconds | Peak RSS KiB |
+|---|---:|---:|---:|---:|
+| O0 | 1,160.322 | 1,151.53 | 1.25 | 1,795,700 |
+| O2 | 1,824.232 | 1,810.43 | 1.27 | 1,807,644 |
+
+These builds overlapped. Earlier failed, cancelled and successful intermediate
+builds have their own exact command/input/cost records in the report; none is
+substituted for final execution. Nested parent/child measurements also overlap
+and must not be summed as an exclusive performance benchmark. The final results
+use `compiler-v7-{O0,O2}`, `qualified-v3-{O0,O2}`, `inherited-v2-{O0,O2}` and the
+separate versioned mutation/effect/cohort ledgers. Source cohort comparisons are
+`cohorts-v2.json`; earlier cohort observations remain attributed to their earlier
+product hashes.
 
 Made by Ria and Pim. 💙🖤
