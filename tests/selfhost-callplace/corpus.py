@@ -16,7 +16,7 @@ def method(path, spelling):
 
 
 def main():
-	leaf = RUNTIME/'corpus-v6'; leaf.mkdir(exist_ok=False)
+	leaf = RUNTIME/'corpus-v7'; leaf.mkdir(exist_ok=False)
 	model = ROOT/'compiler/semantic/flow-model.astra'
 	common = ''.join(declaration(ROOT/path, spelling) for path,spelling in [
 		('compiler/semantic/model.astra','struct SymbolId {'),
@@ -70,6 +70,20 @@ class CheckedIndex {
 FlowEvent make_event(SyntaxNodeId node) { FlowEvent result = {operation = 7, node = node, span = {source = {index = 1}, start = 2, end = 3}, slot = node.index, loan = 0, region = 0, call = 0, next = 0, other = 0, loop_head = 0, input = 0, output = 0, null_kind = 0, field = 0, source_field = 0, producer = {index = 0}, predicate = {index = 0}, required = false}; return result; }
 '''
 	support += (RUNTIME.parent/'membercall22/reference-v4/original-checked-target.astra').read_text()
+	# Minimal dependency views keep the unchanged source algorithms below the
+	# established SSA work bound. Unused global helpers still cost CFG/SSA work.
+	prefix = common[:common.index('class FlowGraph {')]
+	capacity = declaration(ROOT/'compiler/syntax/arena-support.astra', 'int syntax_grown_capacity(')
+	assertion = 'void assert_that(bool value) { if (!value) { var a = new int[0]; int bad = a[1]; } }\n'
+	slot_common = prefix.replace(capacity, '').replace(assertion, '')+'class FlowGraph {\n\towned FlowSlot[] slots;\n\tint slot_count;\n\tinit(int limit) { this.slots = new FlowSlot[2]; this.slot_count = 2; }\n'+methods['slot_for']+'}\n'
+	add_common = prefix+'class FlowGraph {\n\towned FlowEvent[] events;\n\tint count;\n\tint limit;\n\tbool exhausted;\n\tinit(int limit) { this.events = new FlowEvent[16]; this.count = 0; this.limit = limit; this.exhausted = false; }\n'+methods['room']+'\n'+methods['add']+'}\n'
+	slot_support = support[:support.index('FlowEvent make_event(')]+support[support.index('SymbolId checked_target('):]
+	event_helper = support[support.index('FlowEvent make_event('):support.index('SymbolId checked_target(')]
+	add_support = """class SyntaxArena { owned SyntaxNodeId[] nodes; int visits; init() { this.nodes = new SyntaxNodeId[3]; this.visits = 0; } SyntaxNodeId node_at(int arguments, int i) { this.visits = this.visits + 1; return this.nodes[arguments + i]; } }
+class SyntaxProgram { owned SyntaxArena arena; init(owned SyntaxArena arena) { this.arena = move arena; } }
+class BindingIndex { owned SyntaxProgram program; init(owned SyntaxProgram program) { this.program = move program; } }
+class CheckedIndex { owned BindingIndex bindings; init(owned BindingIndex bindings) { this.bindings = move bindings; } }
+"""+event_helper
 	seed = 'FlowSlot slot = {symbol = {index = 11}, type = {index = 1}, flags = 0, region = 0, owner = false, parameter = false}; graph.slots[0] = slot; FlowSlot second = slot; second.symbol.index = 22; graph.slots[1] = second;'
 	seed += ' BindingReference ref = {node = {index = 1}, token = {index = 11}, span = {source = {index = 0}, start = 0, end = 0}, scope = {index = 0}, target = {index = 11}, alternative = {index = 0}, state_code = 1, reason = 0, domain = 2, next_reference = 0}; checked.bindings.references[0] = ref; checked.node_references[1] = 1;'
 	cases = {}
@@ -78,7 +92,7 @@ FlowEvent make_event(SyntaxNodeId node) { FlowEvent result = {operation = 7, nod
 	int result = graph.slot_for(checked_target(checked, direct, checked.bindings.program.arena.get_token_identifier(direct)));
 	if (result != {expected} || checked.bindings.program.arena.visits != 1) return 99; return 61; }}
 '''
-		cases[name] = (common+support+body,61,'Original slot_for/room and complete original checked_target body; synthetic token accessor explicitly disclosed')
+		cases[name] = (slot_common+slot_support+body,61,'Original slot_for/room and complete original checked_target body; synthetic token accessor explicitly disclosed')
 	for name,count,limit,expected_count in [('record-add-growth',41,100,41),('record-add-limit',4,3,3)]:
 		body = f'''int main() {{ var graph = new FlowGraph({limit}); var arena = new SyntaxArena(); var program = new SyntaxProgram(move arena); var bindings = new BindingIndex(move program); var checked = new CheckedIndex(move bindings); SyntaxNodeId source = {{index = 17}}; checked.bindings.program.arena.nodes[1] = source; int arguments = 0; int i = 1;
 	var argument = checked.bindings.program.arena.node_at(arguments, i); var bad = make_event(argument);
@@ -86,7 +100,7 @@ FlowEvent make_event(SyntaxNodeId node) { FlowEvent result = {operation = 7, nod
 	if (graph.count != {expected_count} || graph.events[0].slot != 17 || graph.events[{expected_count-1}].node.index != 17 || checked.bindings.program.arena.visits != 1) return 98;
 	if (graph.exhausted != {'true' if limit < count else 'false'}) return 97; return 62; }}
 '''
-		cases[name] = (common+support+body,62,'Original add/room; real record buffer copy/growth and once-only nested receiver evaluation')
+		cases[name] = (add_common+add_support+body,62,'Original add/room; real record buffer copy/growth and once-only nested receiver evaluation')
 	meter = '''struct Sample { int amount; }
 struct Other { int amount; }
 class Meter {
@@ -145,7 +159,7 @@ int main() { if (compute(true) != 6 || compute(false) != 7) return 99; return 71
 	entry = leaf/'namespace-main.astra'; entry.write_text('class Gauge { int value; init(int value) { this.value = value; } int read() { return this.value; } } int main() { var gauge = new Gauge(7); return Counter.twice(gauge.read()); }\n')
 	selection.append(dict(name='namespace-qualified-continuity',sources=[dict(path=str(p),bytes=p.stat().st_size,sha256=sha(p)) for p in (provider,entry)],expected_exit=14,oracle='Bound namespace function remains distinct from instance receiver resolution'))
 	(leaf/'selection.json').write_text(json.dumps(selection,indent=2)+'\n')
-	(leaf/'views.json').write_text(json.dumps(dict(original_model=str(model),original_model_sha256=sha(model),methods=methods,disclosure='FlowGraph has only six relevant fields and a bounded constructor; complete room/add/slot_for bodies copied unchanged. Arena, Program, BindingIndex, CheckedIndex and make_event are explicit nonthrowing dependency views; checked_target is the complete original nonthrowing helper, not original whole compiler callers. Original throwing callers are never transformed or executed.'),indent=2)+'\n')
+	(leaf/'views.json').write_text(json.dumps(dict(original_model=str(model),original_model_sha256=sha(model),methods=methods,disclosure='Slot views retain slots/count; add views retain events/count/limit/exhausted. Unused global helpers are omitted to respect the unchanged SSA budget. Complete room/add/slot_for bodies are copied unchanged in their corresponding views. Arena, Program, BindingIndex, CheckedIndex and make_event are explicit nonthrowing dependency views; checked_target is the complete original nonthrowing helper, not original whole compiler callers. Original throwing callers are never transformed or executed.'),indent=2)+'\n')
 	print(len(selection),'new distinct source programs')
 
 

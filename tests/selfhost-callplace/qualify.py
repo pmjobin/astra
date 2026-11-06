@@ -14,13 +14,13 @@ from state import ROOT, RUNTIME, BUILD, C0, read, sha
 def main():
 	p = argparse.ArgumentParser(); p.add_argument('--component',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); p.add_argument('--version',default='v1'); a = p.parse_args()
 	leaf = RUNTIME/('qualified-'+a.version+'-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
-	selection = RUNTIME/'corpus-v6/selection.json'; commands = []; env = dict(os.environ,CCACHE_DISABLE='1'); env.pop('LD_PRELOAD',None); env.pop('VALGRIND_OPTS',None)
+	selection = RUNTIME/'corpus-v7/selection.json'; commands = []; env = dict(os.environ,CCACHE_DISABLE='1'); env.pop('LD_PRELOAD',None); env.pop('VALGRIND_OPTS',None)
 	def run(argv,name):
 		start = time.monotonic(); r = subprocess.run(['/usr/bin/time','-v','-o',leaf/(name+'.time'),*map(str,argv)],cwd=ROOT,capture_output=True,env=env,timeout=2400)
 		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr)
 		commands.append(dict(name=name,argv=list(map(str,argv)),exit=r.returncode,start=start,end=time.monotonic())); (leaf/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')
 		print(a.mode,name,r.returncode,flush=True); assert r.returncode == 0,r.stderr.decode(errors='replace')[-2000:]
-	run([sys.executable,'-B',ROOT/'tests/selfhost-classstorage/run.py','--compiler',C0,'--compiler-sha256',sha(C0),'--component',a.component,'--mode',a.mode,'--selection',selection,'--build',build/'products','--runtime',leaf/'observations'],'native')
+	run([sys.executable,'-B',ROOT/'tests/selfhost-callplace/run.py','--compiler',C0,'--compiler-sha256',sha(C0),'--component',a.component,'--mode',a.mode,'--selection',selection,'--build',build/'products','--runtime',leaf/'observations'],'native')
 	rows = read(leaf/'observations/results.json'); assert len(rows) == 15 and all(row['baseline_complete'] for row in rows)
 	for row in read(selection):
 		for stage in ('core','cfg','generic-plan'):

@@ -57,7 +57,7 @@ def main():
 			if 'synthetic_source_hex' not in row:
 				path = Path(row['path']); assert sha(path) == row['sha256']; files['historical/source/'+row['sha256']+'/'+path.name] = path
 	for mode in ('O0','O2'):
-		for row in read(RUNTIME/('inherited-'+mode)/'programs.json'):
+		for row in read(RUNTIME/('inherited-v2-'+mode)/'programs.json'):
 			for source in row['sources']:
 				path = Path(source['path']); assert sha(path) == source['sha256']; files['program-inputs/'+source['sha256']+'/'+path.name] = path
 			for product in row['prior_products'].values():
@@ -94,7 +94,7 @@ def main():
 	verification = transport.verify(archive); assert verification['status'] == 'PASS'; (output/'transport-verification.json').write_text(json.dumps(verification,indent=2)+'\n')
 	assert archive.stat().st_size < 24*1024**2,'Preserve the report cap; improve lossless transport rather than dropping evidence'
 	attachments = output/'attachments'; subprocess.run([sys.executable,'-B',encoder,'pack','--input',archive,'--output',attachments,'--stem','callplace23'],check=True)
-	for name in ('final-audit.json','cohorts-v1.json','archive-integrity.json'): shutil.copy2(RUNTIME/name,attachments/name)
+	for name in ('final-audit.json','cohorts-v2.json','archive-integrity.json'): shutil.copy2(RUNTIME/name,attachments/name)
 	shutil.copy2(output/'transport-verification.json',attachments/'transport-verification.json')
 	(attachments/'review-guide.txt').write_text('CALLPLACE-23: read final-audit.json and the committed qualification note first. MEMBERCALL-22 remains PARTIAL. Original admit_record_value and class_storage_slot_flow callers remain DEFERRED because their recoverable throws Error contract is outside this milestone.\nDecode callplace23-encoding.json with recipes/encoded-evidence.py, restore the lossless archive with recipes/transport.py, then reconstruct exact before/after source ledgers with recipes/restore-ledgers.py. These byte reconstructions are not fresh executions.\nAll 172 inherited plus 15 new source programs/profile have fresh native emissions and ELF execution. New C0/ABI/memory, 28 model-consumer mutations and seven independent LLVM-valid physical alternatives/profile have separate ledgers. Failed drafts and cancelled builds retain their actual costs and input identities. Tool dependencies remain hash-pinned; no donor source is collected.\n')
 	(attachments/'packaging.json').write_text(json.dumps(dict(final_commit=head,final_tree=tree,archive_bytes=archive.stat().st_size,archive_sha256=sha(archive),seconds=time.monotonic()-started),indent=2)+'\n')

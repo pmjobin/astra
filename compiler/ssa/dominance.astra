@@ -30,10 +30,14 @@ owned SsaGraph ssa_analyze(CfgData cfg, SsaBudget budget) {
 		}
 		b = b + 1;
 	}
+	// CFG construction appends continuations before their predecessors. Visit
+	// them in reverse order so entry facts propagate along the forward path
+	// in one pass. Intersection stays monotone; the separate path-exclusion
+	// verifier below reconstructs the result without this order or cache.
 	bool changed = true;
 	while (changed && !budget.exhausted) {
-		changed = false; b = 0;
-		while (b < n && !budget.exhausted) {
+		changed = false; b = n - 1;
+		while (b >= 0 && !budget.exhausted) {
 			if (graph.reachable[b] && b + 1 != cfg.functions[cfg.blocks[b].function - 1].entry) {
 				int d = 0;
 				while (d < n && budget.take(1)) {
@@ -53,7 +57,7 @@ owned SsaGraph ssa_analyze(CfgData cfg, SsaBudget budget) {
 					d = d + 1;
 				}
 			}
-			b = b + 1;
+			b = b - 1;
 		}
 	}
 	// The strict dominator with greatest depth is the immediate dominator.

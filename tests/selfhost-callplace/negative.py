@@ -44,8 +44,8 @@ CASES = {
 
 def main():
 	resource.setrlimit(resource.RLIMIT_CORE,(0,0))
-	p = argparse.ArgumentParser(); p.add_argument('--component',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); a = p.parse_args()
-	leaf = RUNTIME/('negative-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False); commands = []; rows = []
+	p = argparse.ArgumentParser(); p.add_argument('--component',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); p.add_argument('--version',default='v1'); a = p.parse_args()
+	leaf = RUNTIME/('negative-'+a.version+'-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False); commands = []; rows = []
 	def run(argv,name):
 		start = time.monotonic(); r = subprocess.run(['/usr/bin/time','-v','-o',leaf/(name+'.time'),*map(str,argv)],cwd=build,capture_output=True,env=dict(os.environ,CCACHE_DISABLE='1'),timeout=180)
 		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr)
@@ -59,7 +59,7 @@ def main():
 		dest = build/(name+'.o'); dest.write_bytes(b'preserved negative destination\n'); original = sha(dest)
 		assert run([a.component,'--classstorage-emit-obj',a.mode,dest,path],name+'-writer').returncode == 2 and sha(dest) == original
 		rows.append(dict(name=name,source_sha256=sha(path),C0_diagnostic=oracle.stderr.decode(),native_diagnostic=admit.stdout.decode(),native_exit=admit.returncode,destination_sha256=original)); print(a.mode,name,'REFUSED',flush=True)
-	(leaf/'result.json').write_text(json.dumps(dict(status='PASS',mode=a.mode,cases=rows,commands=commands,limitation='Source negatives are separate from substantive model/physical mutations.'),indent=2)+'\n')
+	(leaf/'result.json').write_text(json.dumps(dict(status='PASS',mode=a.mode,component_sha256=sha(a.component),cases=rows,commands=commands,recipe_sha256=sha(__file__),limitation='Source negatives are separate from substantive model/physical mutations.'),indent=2)+'\n')
 
 
 if __name__ == '__main__':

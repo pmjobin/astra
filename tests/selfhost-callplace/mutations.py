@@ -11,8 +11,8 @@ from state import ROOT, RUNTIME, BUILD, read, sha
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--component',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); a = p.parse_args()
-	leaf = RUNTIME/('models-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
+	p = argparse.ArgumentParser(); p.add_argument('--component',type=Path,required=True); p.add_argument('--mode',choices=('O0','O2'),required=True); p.add_argument('--version',default='v1'); a = p.parse_args()
+	leaf = RUNTIME/('models-'+a.version+'-'+a.mode); build = BUILD/leaf.name; leaf.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
 	case = next(row for row in read(RUNTIME/'corpus-v6/selection.json') if row['name'] == 'multiple-arguments-order')
 	assert all(sha(s['path']) == s['sha256'] for s in case['sources'])
 	output = build/'preserved.o'; output.write_bytes(b'preserved model-test destination\n'); before = sha(output)
