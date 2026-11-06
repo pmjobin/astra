@@ -51,6 +51,10 @@ def main():
 	assert old_ssa.split(boundary,1)[1] == new_ssa.split(boundary,1)[1]
 	for path in ('compiler/ssa/model.astra','compiler/ssa/verifier.astra','compiler/semantic/model.astra'):
 		assert (ROOT/path).read_bytes() == subprocess.check_output(['git','show',BASE+':'+path],cwd=ROOT)
+		# Packing boundaries may change; independent byte reconstruction does not.
+	old_transport = (ROOT/'tests/selfhost-genclass/transport.py').read_text()
+	new_transport = (ROOT/'tests/selfhost-callplace/transport.py').read_text()
+	assert old_transport.split('def verify(',1)[1] == new_transport.split('def verify(',1)[1]
 	old_scope = json.loads(subprocess.check_output(['git','show',BASE+':format/scope.json'],cwd=ROOT)); scope = read(ROOT/'format/scope.json'); assert all(scope.get(path) == value for path,value in old_scope.items())
 	assert sha(C0) == 'e3b2a5d6a4b9c5a42becbc3704f2d062489fb6f99a5ed1727461dfef4cf8681b' and subprocess.check_output(['llvm-config','--version']).strip() == b'23.1.4'
 	profiles = {}; products = {}

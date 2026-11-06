@@ -67,7 +67,7 @@ def main():
 		files['historical/membercall22/'+name] = RUNTIME.parent/'membercall22'/name
 	files['historical/proof-output-inventory.json'] = RUNTIME.parent/'indexpath18/historical-proof-outputs.json'
 	collect(RUNTIME.parent/'native-current/input','submission/input'); files['submission/intake.json'] = RUNTIME.parent/'native-current/pm-next-intake.json'
-	decoder = ROOT/'tests/selfhost-textclass/derived-ledgers.py'; encoder = ROOT/'tools/qualification/encoded-evidence.py'; transport_path = ROOT/'tests/selfhost-genclass/transport.py'
+	decoder = ROOT/'tests/selfhost-textclass/derived-ledgers.py'; encoder = ROOT/'tools/qualification/encoded-evidence.py'; transport_path = ROOT/'tests/selfhost-callplace/transport.py'
 	for name,path in [('restore-ledgers.py',decoder),('encoded-evidence.py',encoder),('transport.py',transport_path)]: files['recipes/'+name] = path
 	spec = importlib.util.spec_from_file_location('transport',transport_path); transport = importlib.util.module_from_spec(spec); spec.loader.exec_module(transport)
 	plan = dict(format='astra-lossless-derived-ledgers/1',final_commit=head,final_tree=tree,files=[]); metadata = output/'derived-ledgers/metadata'; metadata.mkdir(parents=True)

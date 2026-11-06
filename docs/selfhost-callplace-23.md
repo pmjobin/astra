@@ -136,4 +136,12 @@ separate versioned mutation/effect/cohort ledgers. Source cohort comparisons are
 `cohorts-v2.json`; earlier cohort observations remain attributed to their earlier
 product hashes.
 
+The first complete lossless package reconstructed correctly but exceeded the
+unchanged report cap (31,043,996 bytes). It remains preserved externally with its
+verification receipt. The successor transport uses content-defined chunk
+boundaries to share unchanged bytes across shifted source/IR/binary data. Its
+independent reconstruction verifier remains byte-identical to the reviewed prior
+transport. This changes evidence packaging only; no compiler/resource contract,
+installed workflow or required evidence is removed.
+
 Made by Ria and Pim. 💙🖤
