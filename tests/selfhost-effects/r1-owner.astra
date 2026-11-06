@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only source-bound investigation. Never repairs a root or changes a
+// verifier event; original predicate 26 remains the acceptance authority.
+int r1_owner_failure(borrowed FlowGraph graph, CheckedIndex checked, int after) {
+	int event = after;
+	while (event < graph.count) {
+		var capture = graph.events[event];
+		if (capture.operation == 24 && !flow_owner_capture_verified(graph, checked, capture)) return event + 1;
+		event = event + 1;
+	}
+	return 0;
+}
+
+FlowEvent r1_owner_event(borrowed FlowGraph graph, int ordinal) {
+	assert_that(ordinal > 0 && ordinal <= graph.count); return graph.events[ordinal - 1];
+}
+
+SymbolId r1_owner_function(borrowed FlowGraph graph) { return graph.function; }
+
+void r1_owner_write(CheckedIndex checked, SymbolId function, FlowEvent capture, int ordinal, int event) throws Error {
+	var out = new Utf8ByteBuilder(); source_append_text(out, "R1_OWNER_CAPTURE");
+	flow_number(out, ordinal); flow_number(out, function.index); flow_number(out, event);
+	flow_number(out, capture.node.index); flow_number(out, capture.field); flow_number(out, capture.slot);
+	flow_number(out, class_storage_receiver(checked, function));
+	flow_number(out, generic_instance_for(checked, function));
+	var declaration = checked.bindings.symbol(function);
+	flow_number(out, declaration.kind); flow_number(out, declaration.owner.index);
+	int storage = 0;
+	if (declaration.owner.index > 0 && class_storage_class(checked, checked.symbol_types[declaration.owner.index])) storage = 1;
+	flow_number(out, storage);
+	flow_number(out, capture.span.source.index); flow_number(out, capture.span.start); flow_number(out, capture.span.end);
+	var message = out.snapshot(); println(message.text);
+}
+
+void r1_owner_trace(FlowIndex flow) throws Error {
+	int graph = 0;
+	while (graph < flow.graphs.count()) {
+		var function = r1_owner_function(flow.graphs.entries[graph]); int after = 0;
+		while (true) {
+			int event = r1_owner_failure(flow.graphs.entries[graph], flow.checked, after);
+			if (event == 0) break;
+			var capture = r1_owner_event(flow.graphs.entries[graph], event);
+			r1_owner_write(flow.checked, function, capture, graph + 1, event); after = event;
+		}
+		graph = graph + 1;
+	}
+}
+
+int r1_owner_cli(string[] args) {
+	try {
+		var source = binding_load_program(args, 4); var bindings = binding_index(move source, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		effects_trace(checked);
+		var flow = flow_index(move checked, 8192, 1000000);
+		r1_owner_trace(flow);
+		var observation = flow_observation(flow); print(observation.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

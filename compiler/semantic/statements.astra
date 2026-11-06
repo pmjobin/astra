@@ -218,6 +218,37 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	if (kind == SyntaxKind.BreakStatementSyntax() || kind == SyntaxKind.ContinueStatementSyntax()) {
 		return;
 	}
+	if (index.native_abi && kind == SyntaxKind.TryStatementSyntax()) {
+		checked_statement(index, index.bindings.program.arena.get_node_body(node), result, depth + 1);
+		var clauses = index.bindings.program.arena.get_list_catches(node); int i = 0;
+		while (i < index.bindings.program.arena.list_count(clauses) && !index.failed()) {
+			var clause = index.bindings.program.arena.node_at(clauses, i);
+			var type_node = index.bindings.program.arena.get_node_class_name(clause);
+			var type = checked_resolve(index, type_node, 0, 0);
+			if (!checked_effect_bound(index, type_node, type)) {
+				index.fail(index.uses[clause.index].span, "catch type must derive from the nominated ExceptionRoot class");
+				return;
+			}
+			var binding = index.node_symbols[clause.index];
+			if (binding.index < 1 || index.bindings.symbol(binding).kind != 15) {
+				index.fail(index.uses[clause.index].span, "catch requires its exact lexical binding");
+				return;
+			}
+			index.symbol_types[binding.index] = type; index.symbol_flags[binding.index] = 2;
+			var recorded = index.record(clause, type, 2);
+			checked_statement(index, index.bindings.program.arena.get_node_body(clause), result, depth + 1);
+			var pending = index.defer(clause, 100 + syntax_kind_code(kind));
+			i = i + 1;
+		}
+		var pending = index.defer(node, 100 + syntax_kind_code(kind)); return;
+	}
+	if (index.native_abi && kind == SyntaxKind.ThrowStatementSyntax()) {
+		var expression = index.bindings.program.arena.get_node_expression(node);
+		if (expression.index > 0) {
+			var type = checked_expression(index, expression, no_type(), depth + 1);
+		}
+		var pending = index.defer(node, 100 + syntax_kind_code(kind)); return;
+	}
 	checked_deferred_children(index, node, 100 + syntax_kind_code(kind), depth + 1);
 	var ignored = index.defer(node, 100 + syntax_kind_code(kind));
 }
@@ -327,6 +358,15 @@ owned CheckedIndex checked_build_profile_trace(owned BindingIndex bindings, int 
 		var message = result.bindings.names.text(result.pending_contract_message);
 		result.stage = 4;
 		result.fail(result.pending_contract_span, message.text);
+	}
+	if (result.native_abi && !result.failed()) {
+		var effects = checked_effect_source_verify(result);
+		if (effects.status != 0) {
+			var span = result.bindings.program.span();
+			if (effects.node.index > 0 && effects.node.index < len(result.uses)) span = result.uses[effects.node.index].span;
+			result.stage = 5;
+			result.fail(span, checked_effect_source_message(effects.status));
+		}
 	}
 	result.complete = !result.failed();
 	return move result;

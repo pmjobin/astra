@@ -244,6 +244,17 @@ class CheckedIndex {
 		i = 0;
 		while (i < this.signature_count) {
 			var sig = this.signatures[i];
+			if (this.native_abi) {
+				if (sig.declaration.index < 1 || sig.declaration.index > this.bindings.symbol_count || sig.flags != this.symbol_flags[sig.declaration.index]) return false;
+				var declaration = this.bindings.symbol(sig.declaration);
+				var bound = this.bindings.program.arena.get_node_throws_class(declaration.node);
+				if (sig.dispatch != this.bindings.program.arena.get_int_dispatch(declaration.node)) return false;
+				if (bound.index == 0) {
+					if (sig.error.index != 0 || (sig.flags & 64) != 0) return false;
+				} else {
+					if (sig.error.index == 0 || sig.error.index != this.uses[bound.index].type.index || (sig.flags & 64) == 0) return false;
+				}
+			}
 			if (!this.types.owns(this.types, sig.callable)) {
 				return false;
 			}

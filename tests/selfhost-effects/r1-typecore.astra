@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Typecore controls are C0-built observers, never Astra-emitted error programs.
+void r1_effect_mutations(CheckedIndex index, SyntaxNodeId node) {
+	assert_that(checked_effect_call_verified(index, node) && index.validate());
+	var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+	int ordinal = index.symbol_signatures[target.index].index - 1;
+	var original = index.signatures[ordinal]; var use = index.uses[node.index];
+	int category = 1;
+	while (category <= 10) {
+		var signature = original; var changed_use = use;
+		if (category == 1) signature.error = type_id(1);
+		if (category == 2) signature.error = no_type();
+		if (category == 3) signature.flags = signature.flags & ~64;
+		if (category == 4) signature.dispatch = 1;
+		if (category == 5) signature.declaration = type_symbol(0);
+		if (category == 6) signature.callable = type_id(1);
+		if (category == 7) changed_use.deferred = 0;
+		if (category == 8) changed_use.type = type_id(13);
+		if (category == 9) changed_use.flags = 4;
+		if (category == 10) signature.flags = signature.flags | 16;
+		index.signatures[ordinal] = signature; index.uses[node.index] = changed_use;
+		assert_that(!checked_effect_call_verified(index, node));
+		index.signatures[ordinal] = original; index.uses[node.index] = use;
+		assert_that(checked_effect_call_verified(index, node) && index.validate());
+		category = category + 1;
+	}
+	var arguments = checked_call_arguments(index, node);
+	var argument = index.bindings.program.arena.node_at(arguments, 0); var argument_use = index.uses[argument.index];
+	var changed_argument = argument_use; changed_argument.type = type_id(13); index.uses[argument.index] = changed_argument;
+	assert_that(!checked_effect_call_verified(index, node)); index.uses[argument.index] = argument_use;
+	changed_argument = argument_use; changed_argument.deferred = 19; index.uses[argument.index] = changed_argument;
+	assert_that(!checked_effect_call_verified(index, node)); index.uses[argument.index] = argument_use;
+	assert_that(checked_effect_call_verified(index, node) && index.validate());
+	println("TYPECORE_EFFECT_MUTATIONS 12 VALID_RESTORED");
+}
+
+int main(string[] args) {
+	try {
+		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
+		var index = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		var observation = checked_observation(index); print(observation.text);
+		if (index.failed()) {
+			if (index.stage == 5) {
+				var effect = checked_effect_source_verify(index); var out = new Utf8ByteBuilder();
+				source_append_text(out, "EFFECT_SOURCE_FAILURE "); append_int(out, effect.status);
+				var message = out.snapshot(); println(message.text);
+			}
+			return 1;
+		}
+		assert_that(index.validate());
+		int node = 1; int calls = 0;
+		while (node < len(index.uses)) {
+			SyntaxNodeId id = {index = node};
+			if (checked_effect_call_verified(index, id)) {
+				calls = calls + 1;
+				if (args[1] == "--mutations") r1_effect_mutations(index, id);
+			}
+			node = node + 1;
+		}
+		if (calls > 0) println("CONDITIONAL_CALL_VERIFIED; FLOW_EFFECT_PENDING");
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

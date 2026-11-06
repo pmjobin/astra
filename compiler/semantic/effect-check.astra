@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source nominal authority only. These queries neither allocate an Error nor
+// prove its physical layout, initialized owner, handler or executable channel.
+SymbolId checked_effect_class(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index <= 0 || node.index >= len(index.uses)) return type_symbol(0);
+	var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+	if (target.index < 1 || target.index > index.bindings.symbol_count || index.bindings.symbol(target).kind != 4) return type_symbol(0);
+	return target;
+}
+
+SymbolId checked_effect_root(CheckedIndex index) {
+	if (index.generic_symbols < 0 || index.generic_symbols > index.bindings.symbol_count) return type_symbol(0);
+	var root = type_symbol(0); int symbol = 1;
+	while (symbol <= index.generic_symbols) {
+		var declaration = index.bindings.symbol(type_symbol(symbol));
+		if (declaration.kind == 4 && index.bindings.program.arena.get_token_exception_root(declaration.node).index != 0) {
+			if (root.index != 0) return type_symbol(0);
+			root = type_symbol(symbol);
+		}
+		symbol = symbol + 1;
+	}
+	return root;
+}
+
+bool checked_effect_subtype(CheckedIndex index, SymbolId actual, SymbolId bound) {
+	if (bound.index < 1 || bound.index > index.bindings.symbol_count || index.bindings.symbol(bound).kind != 4) return false;
+	var current = actual; int steps = 0;
+	while (current.index > 0 && current.index <= index.bindings.symbol_count && steps < 128) {
+		var declaration = index.bindings.symbol(current);
+		if (declaration.kind != 4) return false;
+		if (current.index == bound.index) return true;
+		current = checked_effect_class(index, index.bindings.program.arena.get_node_parent_class(declaration.node));
+		steps = steps + 1;
+	}
+	return false;
+}
+
+bool checked_effect_bound(CheckedIndex index, SyntaxNodeId node, TypeId type) {
+	if (!index.types.valid_id(type) || checked_kind(index, type) != 31) return false;
+	var symbol = checked_effect_class(index, node); var root = checked_effect_root(index);
+	return symbol.index > 0 && index.types.row(type).nominal.index == symbol.index && checked_effect_subtype(index, symbol, root);
+}
+
+bool checked_effect_signature_verified(CheckedIndex index, CheckedSignature signature) {
+	if (signature.declaration.index < 1 || signature.declaration.index > index.bindings.symbol_count) return false;
+	var declaration = index.bindings.symbol(signature.declaration);
+	if (declaration.kind != 1 && declaration.kind != 11 && declaration.kind != 12) return false;
+	if (signature.flags != index.symbol_flags[signature.declaration.index] || signature.dispatch != index.bindings.program.arena.get_int_dispatch(declaration.node)) return false;
+	var bound_node = index.bindings.program.arena.get_node_throws_class(declaration.node);
+	if (bound_node.index == 0) return signature.error.index == 0 && (signature.flags & 64) == 0;
+	if ((signature.flags & 64) == 0 || !index.types.valid_id(signature.error)) return false;
+	// Closed generic error types are still deferred; their substitution needs
+	// a separate concrete nominal check before entering the private domain.
+	if (checked_kind(index, signature.error) == 34) return index.types.row(signature.error).nominal.index == checked_effect_class(index, bound_node).index;
+	return checked_effect_bound(index, bound_node, signature.error);
+}
+
+// Conditional Typecore calls are independently reconstructed from declaration
+// and argument edges. This is deliberately weaker than Flow effect admission:
+// reason 17 must remain present until success/error control and cleanup exist.
+bool checked_effect_call_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!index.native_abi || !index.semantic_admission || !index.semantic_flow || node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return false;
+	var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+	if (target.index < 1 || target.index > index.bindings.symbol_count) return false;
+	var declaration = index.bindings.symbol(target); int ordinal = index.symbol_signatures[target.index].index;
+	if (declaration.kind != 1 || ordinal < 1 || ordinal > index.signature_count) return false;
+	var signature = index.signatures[ordinal - 1];
+	if (!checked_effect_signature_verified(index, signature)) return false;
+	if (signature.declaration.index != target.index || signature.callable.index != index.symbol_types[target.index].index || signature.flags != index.symbol_flags[target.index] || (signature.flags & (8 | 16 | 32 | 64)) != 64 || signature.dispatch != 0 || !index.types.valid_id(signature.callable)) return false;
+	var bound_node = index.bindings.program.arena.get_node_throws_class(declaration.node);
+	if (!checked_effect_bound(index, bound_node, signature.error)) return false;
+	var shape = index.types.row(signature.callable); var arguments = checked_call_arguments(index, node);
+	if (shape.kind != 25 || shape.count < 1 || index.bindings.program.arena.list_count(arguments) != shape.count - 1) return false;
+	var result = index.types.argument(index.types, signature.callable, 0); var use = index.uses[node.index];
+	if (!index.types.valid_id(result.type) || use.type.index != result.type.index || use.flags != result.flags || use.deferred != 17) return false;
+	int i = 0;
+	while (i < shape.count - 1) {
+		var argument = index.bindings.program.arena.node_at(arguments, i); var parameter = index.types.argument(index.types, signature.callable, i + 1);
+		if (argument.index < 1 || argument.index >= len(index.uses) || !index.types.valid_id(parameter.type)) return false;
+		// Unknown/deferred argument facts cannot certify a callable contract.
+		if (index.uses[argument.index].type.index != parameter.type.index || index.uses[argument.index].deferred != 0) return false;
+		i = i + 1;
+	}
+	return true;
+}

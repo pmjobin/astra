@@ -1,0 +1,189 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent lexical effect consumer. Handler bounds apply only to protected
+// bodies; catch bodies inherit the outer stack. This establishes source effect
+// coverage, never an initialized owner or permission to emit a checked call.
+struct CheckedEffectSourceResult { int status; SyntaxNodeId node; }
+
+class CheckedEffectSource {
+	owned SymbolId[] handlers;
+	int count;
+	SymbolId bound;
+	SymbolId root;
+	SymbolId caught;
+	int steps;
+	int status;
+	SyntaxNodeId node;
+
+	init(SymbolId bound, SymbolId root) {
+		this.handlers = new SymbolId[256]; this.count = 0;
+		this.bound = bound; this.caught = type_symbol(0); this.steps = 0;
+		this.root = root;
+		this.status = 0; SyntaxNodeId absent = {index = 0}; this.node = absent;
+	}
+
+	void fail(SyntaxNodeId node, int status) {
+		if (this.status == 0) {
+			this.node = node;
+			this.status = status;
+		}
+	}
+}
+
+bool checked_effect_covered(CheckedIndex index, CheckedEffectSource source, SymbolId actual) {
+	int i = source.count - 1;
+	while (i >= 0) {
+		if (checked_effect_subtype(index, actual, source.handlers[i])) return true;
+		i = i - 1;
+	}
+	return checked_effect_subtype(index, actual, source.bound);
+}
+
+void checked_effect_source_visit(CheckedIndex index, CheckedEffectSource source, SyntaxNodeId node, int depth) {
+	if (node.index == 0 || source.status != 0) return;
+	if (node.index < 1 || node.index >= len(index.uses) || depth > 256 || source.steps >= 8000000) {
+		source.fail(node, 1);
+		return;
+	}
+	source.steps = source.steps + 1;
+	var kind = index.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.TryStatementSyntax()) {
+		var clauses = index.bindings.program.arena.get_list_catches(node); int count = index.bindings.program.arena.list_count(clauses);
+		int outer = source.count;
+		if (count < 1 || count > 256 - outer) {
+			source.fail(node, 1);
+			return;
+		}
+		int i = 0;
+		while (i < count) {
+			var clause = index.bindings.program.arena.node_at(clauses, i);
+			var bound = checked_effect_class(index, index.bindings.program.arena.get_node_class_name(clause));
+			if (!checked_effect_subtype(index, bound, source.root)) {
+				source.fail(clause, 2);
+				return;
+			}
+			int previous = 0;
+			while (previous < i) {
+				if (checked_effect_subtype(index, bound, source.handlers[outer + previous])) {
+					source.fail(clause, 3);
+					return;
+				}
+				previous = previous + 1;
+			}
+			source.handlers[outer + i] = bound; i = i + 1;
+		}
+		source.count = outer + count;
+		checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_body(node), depth + 1);
+		source.count = outer;
+		var caught = source.caught; i = 0;
+		while (i < count && source.status == 0) {
+			var clause = index.bindings.program.arena.node_at(clauses, i);
+			// Reconstruct each catch's nominal bound: a nested protected body may
+			// reuse scratch handler entries after the surrounding stack is popped.
+			source.caught = checked_effect_class(index, index.bindings.program.arena.get_node_class_name(clause));
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_body(clause), depth + 1);
+			i = i + 1;
+		}
+		source.caught = caught; return;
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (target.index > 0 && target.index <= index.bindings.symbol_count) {
+			var declaration = index.bindings.symbol(target);
+			if (declaration.kind == 1 || declaration.kind == 11 || declaration.kind == 12) {
+				var bound_node = index.bindings.program.arena.get_node_throws_class(declaration.node);
+				if (bound_node.index > 0) {
+					var bound = checked_effect_class(index, bound_node);
+					if (!checked_effect_subtype(index, bound, source.root)) {
+						source.fail(node, 2);
+						return;
+					}
+					if (!checked_effect_covered(index, source, bound)) {
+						source.fail(node, 4);
+						return;
+					}
+				}
+			}
+		}
+	}
+	if (kind == SyntaxKind.ThrowStatementSyntax()) {
+		var expression = index.bindings.program.arena.get_node_expression(node); var actual = source.caught;
+		if (expression.index == 0) {
+			if (actual.index == 0) {
+				source.fail(node, 5);
+				return;
+			}
+		} else {
+			var value = checked_effect_unwrap(index, expression);
+			var expression_kind = index.bindings.program.arena.kind(value);
+			actual = type_symbol(0);
+			if (expression_kind == SyntaxKind.HeapObjectConstructionSyntax()) actual = checked_effect_class(index, index.bindings.program.arena.get_node_class_name(value));
+			if (expression_kind == SyntaxKind.MoveExpressionSyntax() && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(value)) == 0) {
+				var owner = checked_target(index, value, index.bindings.program.arena.get_token_source(value));
+				if (owner.index > 0 && (index.symbol_flags[owner.index] & 4) != 0 && checked_kind(index, index.symbol_types[owner.index]) == 31) actual = index.types.row(index.symbol_types[owner.index]).nominal;
+			}
+			if (actual.index == 0) {
+				source.fail(node, 6);
+				return;
+			}
+		}
+		if (!checked_effect_subtype(index, actual, source.root)) {
+			source.fail(node, 2);
+			return;
+		}
+		if (!checked_effect_covered(index, source, actual)) {
+			source.fail(node, 4);
+			return;
+		}
+	}
+	checked_effect_source_children(index, source, node, depth + 1);
+}
+
+SyntaxNodeId checked_effect_unwrap(CheckedIndex index, SyntaxNodeId node) {
+	var current = node; int depth = 0;
+	while (current.index > 0 && index.bindings.program.arena.kind(current) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 256) {
+		current = index.bindings.program.arena.get_node_expression(current); depth = depth + 1;
+	}
+	return current;
+}
+
+CheckedEffectSourceResult checked_effect_source_verify(CheckedIndex index) {
+	SyntaxNodeId absent = {index = 0}; CheckedEffectSourceResult result = {status = 0, node = absent};
+	var root = checked_effect_root(index);
+	int symbol = 1;
+	while (symbol <= index.bindings.symbol_count) {
+		var declaration = index.bindings.symbol(type_symbol(symbol));
+		if (declaration.kind == 1 || declaration.kind == 11 || declaration.kind == 12) {
+			var bound_node = index.bindings.program.arena.get_node_throws_class(declaration.node);
+			var bound = checked_effect_class(index, bound_node);
+			if (bound_node.index > 0 && !checked_effect_subtype(index, bound, root)) {
+				result.status = 2;
+				result.node = bound_node;
+				return result;
+			}
+			if (bound_node.index > 0 && (declaration.kind == 12 || index.bindings.program.arena.get_int_dispatch(declaration.node) != 0 || (index.symbol_flags[symbol] & (8 | 16 | 32)) != 0)) {
+				result.status = 7;
+				result.node = bound_node;
+				return result;
+			}
+			var source = new CheckedEffectSource(bound, root);
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_body(declaration.node), 0);
+			if (source.status != 0) {
+				result.status = source.status;
+				result.node = source.node;
+				return result;
+			}
+		}
+		symbol = symbol + 1;
+	}
+	return result;
+}
+
+string checked_effect_source_message(int status) {
+	if (status == 1) return "effect source resource limit";
+	if (status == 2) return "exception type must derive from the nominated ExceptionRoot class";
+	if (status == 3) return "catch is hidden by an earlier ancestor catch";
+	if (status == 4) return "checked error is neither caught nor within the declared throws bound";
+	if (status == 5) return "bare throw requires a lexical catch owner";
+	if (status == 6) return "throw requires a new error or an owned error move";
+	return "checked effect boundary is outside the private direct synchronous domain";
+}

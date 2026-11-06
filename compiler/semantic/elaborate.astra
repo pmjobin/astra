@@ -463,6 +463,10 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 		index.fail(index.bindings.program.arena.header(error_node).span, "exception type must derive from the nominated ExceptionRoot class");
 		return;
 	}
+	if (index.native_abi && error.index != 0 && checked_kind(index, error) == 31 && !checked_effect_bound(index, error_node, error)) {
+		index.fail(index.bindings.program.arena.header(error_node).span, "exception type must derive from the nominated ExceptionRoot class");
+		return;
+	}
 	if (index.bindings.program.arena.get_token_async_keyword(node).index != 0) {
 		flags = flags | 8;
 	}

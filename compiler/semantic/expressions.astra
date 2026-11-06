@@ -516,7 +516,7 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 // A declaration can describe a success value while its call is not admitted.
 // Retain only that conditional fact; reason 17 and the signature's exact error
 // bound remain outstanding. This does not establish argument or owner flow.
-TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, SymbolId target) {
+TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, SymbolId target, int depth) throws Error {
 	if (!index.native_abi || !index.semantic_admission || !index.semantic_flow || target.index < 1 || target.index > index.bindings.symbol_count) return no_type();
 	var declaration = index.bindings.symbol(target);
 	int ordinal = index.symbol_signatures[target.index].index;
@@ -530,6 +530,17 @@ TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, Symb
 	if (callable.kind != 25 || callable.count < 1 || index.bindings.program.arena.list_count(arguments) != callable.count - 1) return no_type();
 	var result = index.types.argument(index.types, signature.callable, 0);
 	if (!index.types.valid_id(result.type)) return no_type();
+	// Deferral of the transport must not bypass ordinary argument checking.
+	// Preserve the declared conditional result even when an argument still
+	// needs a Flow proof, but reject a known mismatched argument immediately.
+	int argument = 0;
+	while (argument < callable.count - 1 && !index.failed()) {
+		var child = index.bindings.program.arena.node_at(arguments, argument);
+		var parameter = index.types.argument(index.types, signature.callable, argument + 1);
+		var actual = checked_expression(index, child, parameter.type, depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(child).span, parameter.type, actual, "argument");
+		argument = argument + 1;
+	}
 	var use = index.uses[node.index];
 	use.flags = result.flags;
 	index.uses[node.index] = use;
@@ -564,9 +575,11 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 		return index.defer(node, 17);
 	}
 	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target)) {
-		checked_deferred_children(index, node, 17, depth + 1);
 		var ignored = index.defer(node, 17);
-		return checked_pending_effect_result(index, node, target);
+		var result = checked_pending_effect_result(index, node, target, depth);
+		if (result.index != 0 || index.failed()) return result;
+		checked_deferred_children(index, node, 17, depth + 1);
+		return no_type();
 	}
 	var type = index.symbol_types[target.index];
 	int code = checked_kind(index, type);
