@@ -113,6 +113,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.kind = 26; row.type = type_id(14); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_call(source), function, handler, caught, depth + 1);
 	}
 	row = recover_build_owner(flow, checked, types, row, depth);
+	row = recover_build_loop(flow, checked, types, row, depth);
 	if (row.kind == 0) flow.defer(source);
 	flow.nodes[id - 1] = row; return id;
 }
@@ -157,7 +158,7 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) {
 	int f = 0;
 	while (f < flow.data.function_count && flow.data.status == 0) {
 		var function = flow.data.functions[f]; var declaration = flow.checked.bindings.symbol(function.symbol);
-		function.body = recover_build_node(flow.data, flow.checked, flow.types, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0); flow.data.function_row(f, function); f = f + 1;
+		function.body = recover_build_node(flow.data, flow.checked, flow.types, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0); flow.data.function_row(f, function); recover_loop_bind(flow.data, function.body, 0, 0); f = f + 1;
 	}
 	if (flow.data.status == 0 && !recover_flow_verify(flow)) flow.data.fail(1, flow.data.boundary);
 	return move flow;

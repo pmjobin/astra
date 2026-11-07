@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The condition entry exists before lowering the body, so continue targets
+// the actual condition evaluation, including its checked-call error edge.
+int recover_cfg_loop(RecoverCfg cfg, int id, int next, int depth) {
+	var row = cfg.core.nodes[id - 1].value; int operation = 0; int head = 0;
+	if (row.kind == 28) {
+		operation = cfg.block(row.function, id, 21, row.a, 0, 0, next, 0, 0, 0);
+		head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
+		RecoverRegion early = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = early;
+		int body = recover_cfg_tree(cfg, row.b, head, depth + 1); var branch = cfg.blocks[operation - 1]; branch.next = body; cfg.blocks[operation - 1] = branch;
+	}
+	if (row.kind == 29 || row.kind == 41) {
+		var loop = cfg.regions[row.c - 1]; int destination = loop.next; if (row.kind == 41) destination = loop.entry;
+		operation = cfg.block(row.function, id, row.kind, 0, 0, destination, 0, 0, 0, 0);
+		head = recover_cfg_scope_exit(cfg, id, cfg.core.owners.scopes[id - 1], cfg.core.owners.scopes[row.c - 1], row.caught, 0, 0, operation, 0);
+	}
+	if (row.kind == 42) {
+		operation = cfg.block(row.function, id, 42, row.a, 0, next, 0, 0, 0, 0);
+		head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
+	}
+	RecoverRegion region = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = region; return head;
+}
+
+bool recover_cfg_check_loop(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value; var region = cfg.regions[id - 1]; int operation = region.operation;
+	if (row.kind == 28) {
+		int body = cfg.regions[row.b - 1].entry;
+		return recover_cfg_expect(cfg, operation, recover_cfg_expected(row.function, id, 21, row.a, 0, body, next, 0, 0, 0), seen) && recover_cfg_check_tree(cfg, row.a, operation, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry && recover_cfg_check_tree(cfg, row.b, region.entry, seen, nodes, depth + 1);
+	}
+	if (row.kind == 29 || row.kind == 41) {
+		var loop = cfg.regions[row.c - 1]; int destination = loop.next; if (row.kind == 41) destination = loop.entry;
+		return recover_cfg_expect(cfg, operation, recover_cfg_expected(row.function, id, row.kind, 0, 0, destination, 0, 0, 0, 0), seen) && recover_cfg_check_scope_exit(cfg, region.entry, id, cfg.core.owners.scopes[id - 1], cfg.core.owners.scopes[row.c - 1], row.caught, 0, 0, operation, seen);
+	}
+	return row.kind == 42 && recover_cfg_expect(cfg, operation, recover_cfg_expected(row.function, id, 42, row.a, 0, next, 0, 0, 0, 0), seen) && recover_cfg_check_tree(cfg, row.a, operation, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
+}

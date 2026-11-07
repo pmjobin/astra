@@ -10,8 +10,9 @@ from state import ROOT, C0, load_module, bounded_run, sha
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); a = p.parse_args(); assert a.version.isalnum()
-	paths = load_module('owned_oracle_paths', ROOT/'tests/selfhost-effects/recover-build.py'); corpus = load_module('owned_oracle_sources', ROOT/'tests/selfhost-effects/recover-owned-qualify.py').corpus()
+	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); group = p.add_mutually_exclusive_group(); group.add_argument('--error-owners', action='store_true'); group.add_argument('--loops', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
+	name = 'recover-loop-qualify' if a.loops else 'recover-error-owned-qualify' if a.error_owners else 'recover-owned-qualify'
+	paths = load_module('owned_oracle_paths', ROOT/'tests/selfhost-effects/recover-build.py'); corpus = load_module('owned_oracle_sources', ROOT/('tests/selfhost-effects/'+name+'.py')).corpus()
 	leaf = paths.RUNTIME/('owned-oracle-'+a.version+'-'+a.mode); build = paths.BUILD/leaf.name; leaf.mkdir(); build.mkdir(); commands = []; rows = []
 	def run(argv, name, expected):
 		argv = list(map(str, argv)); start = time.monotonic(); r = bounded_run(['/usr/bin/time', '-v', '-o', leaf/(name+'.time'), *argv], cwd=build, env=dict(os.environ, CCACHE_DISABLE='1'), capture_output=True, timeout=300)

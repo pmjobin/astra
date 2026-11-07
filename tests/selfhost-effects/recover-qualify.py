@@ -60,7 +60,7 @@ def main():
 		commands.append(dict(name=label, argv=argv, exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=sha(leaf/(label+'.stdout')), stderr_sha256=sha(leaf/(label+'.stderr')))); save()
 		assert r.returncode in allowed, (label, r.returncode, r.stdout[-2500:], r.stderr[-2500:]); return r
 	for name, source in (expanded_corpus() if a.expanded else corpus(not a.without_message_read)).items():
-		path = leaf/(name+'.astra'); path.write_text(source); inputs = [path, ROOT/'lib/astra/base/errors.astra']; row = dict(name=name, source_sha256=sha(path), Astra_effect_ELF=False); results.append(row); save()
+		path = leaf/(name+'.astra'); path.write_text(source); inputs = [path, ROOT/'lib/astra/base/errors.astra']; row = dict(name=name, source_sha256=sha(path), observed_error_path=not name.endswith('-success'), Astra_effect_ELF=False); results.append(row); save()
 		c0 = build/(name+'-C0'); run([C0, '-'+a.mode, *inputs, '-o', c0], name+'-C0-build', {0}); run([c0], name+'-C0-execute', {42}); row['C0_ELF_sha256'] = sha(c0)
 		oracle = run([C0, '-O0', '--dump-llvm', *inputs], name+'-C0-ABI', {0}); c0_ir = build/(name+'-C0.ll'); c0_ir.write_bytes(oracle.stdout); run(['opt', '-passes=verify', '-disable-output', c0_ir], name+'-C0-verify', {0})
 		ir = build/(name+'-Astra.ll'); ir.write_text('Astra continuation output sentinel\n'); row['destination_before'] = sha(ir)

@@ -152,9 +152,8 @@ not a semantic-only check or a native executable build. These intervals overlap.
 
 This is an implementation checkpoint, not completion or a full gate PASS.
 The native compiler itself remains O0-built for both target profiles.
-Static checked receivers/generics, owner cleanup across loop exits, owned Error
-locals/throw-move, additional source forms and unchanged original throwing
-compiler-function execution remain unfinished. Record carriers currently contain
+Static checked receivers/generics, additional source forms and unchanged
+original throwing compiler-function execution remain unfinished. Record carriers currently contain
 only scalar integer/bool fields; ordinary Class payloads are fieldless, and
 error subclasses have no added payload fields.
 
@@ -174,6 +173,54 @@ capacity remains 1,024. These boundary probes receive zero native program credit
 The v9 cold build costs 853.71 seconds wall, 846.96 seconds user, 1.09 seconds
 system and 1,477,196 KiB peak RSS. Its successful Core check costs 30.95 seconds.
 Earlier owner-mutator loan-check refusals remain in the build evidence.
+
+The v10 focused build adds real owned Error locals/inputs/results, normal dynamic
+destruction, throw-move transfer and a separate fatal null guard. CFG commits
+the actual source reservation before testing the pointer; the raised Error SSA
+owner is defined only on the non-null edge. Ordinary empty factory results are
+legal success owners and remain separate from nullable error returns. Error
+scope cleanup calls a separately verified null-safe dynamic destructor helper;
+ordinary Class payload cleanup does not acquire an Error header.
+
+While/continue/break lowering retains lexical loop identity, real binder scopes
+and scalar assignment slots. CFG independently reconstructs condition/backedge
+and exit cleanup. SSA explores actual slot states and repeated dynamic versions
+of each allocation site; a new iteration cannot overwrite an unretired owner.
+The twelve loop programs cover nested breaks, return/continue cleanup, checked
+conditions, propagation, catch continue/break, throw-move, rethrow, replacement,
+and repeated empty success owners. Nine Error-owner programs and these twelve
+loop programs execute at both target profiles, independently C0-matched, LLVM
+verified and clean under unsuppressed Valgrind. Their leaves are
+`early-v10a-O0` (Error), `early-v10errors-O2`, `early-v10loops-O0`, and
+`early-v10a-O2` (loops). The initial colliding wrapper labels refused directory
+reuse before source/product writes; the valid corpora use separate leaves.
+
+`loop-adversarial-v10a-*` adds six semantic categories and six LLVM-valid
+alternatives/profile; the earlier 17/10 effect and 16/8 owner controls also pass
+again. These give 39 semantic categories and 24 physical alternatives/profile
+for the tested domain. The Error-cleanup falsifier still returns 42 while
+Valgrind independently finds its lost Error object and counted snapshot. Raw O0
+memory falsifiers remain distinct from optimized target-profile evidence.
+`null-guard-v10a-*` independently executes genuine Astra and C0 ELFs: throwing a
+legal empty factory result produces SIGILL before header access. Fatal tests
+have core dumps disabled and receive zero returning-memory/program credit.
+
+The v10 cold focused build costs 928.71 seconds wall, 921.13 seconds user,
+1.05 seconds system and 1,441,752 KiB peak RSS. Its combined Core check costs
+59.38 seconds. `original-v10a-O0` runs the byte-exact original `flow_number`
+function body with real source/Text dependencies under C0 (exit 42, clean
+Valgrind), then attempts genuine Astra native emission. It refuses at Flow 3,
+node 1221, before constructing any function body and preserves its destination.
+No original-function Astra execution follows from that C0-only result.
+
+An independent C0 policy probe found that the earlier private recovery route
+over-admitted direct-null owned Class locals. C0 additionally rejects typed
+parenthesized construction and fresh Class construction in a return expression,
+while permitting inferred parentheses and proven heap-owner moves. The v11
+source/consumer guards enforce those existing boundaries without changing C0
+or ordinary Class policy. Its combined Core check passes in 60.23 seconds,
+using 364,752 KiB peak RSS. Both combined native host profiles are building;
+the current Class-policy controls and full regression replay are still pending.
 
 The 202 inherited programs and frozen source cohorts have not yet been replayed
 using a combined current compiler. Earlier R2 qualifications remain tied to

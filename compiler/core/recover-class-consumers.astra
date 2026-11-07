@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Construction is source-local acquisition (or a fresh Error throw), never
+// an arbitrary Class expression. Nullable carriers enter locals through a
+// genuine factory call, not by inventing a fresh owner for a null literal.
+bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerBudget work) {
+	int n = 0; while (n < flow.data.node_count) {
+		if (!work.take()) return false;
+		var row = flow.data.nodes[n];
+		if (row.kind == 5 || row.kind == 11 || row.kind == 13) {
+			int consumer = plan.consumers[n]; if (consumer < 1 || consumer > flow.data.node_count) return false;
+			int kind = flow.data.nodes[consumer - 1].kind;
+			if (row.kind == 13) {
+				if (kind != 22) return false;
+			}
+			else {
+				if (kind != 27 && !(row.kind == 5 && kind == 23)) return false;
+			}
+		}
+		n = n + 1;
+	}
+	return !work.exhausted;
+}

@@ -17,7 +17,7 @@ def corpus():
 		'record-input-success': 'int consume(Pair value, bool fail) throws Error { if (fail) { throw new Error("kept"); } return value.left + value.right; }\nint main() { Pair input = {left = 17, right = 25}; try { return consume(input, false); } catch (Error caught) { return 4; } }\n',
 		'record-input-error': 'int consume(Pair value, bool fail) throws Error { if (fail) { throw new Error("kept"); } return value.left + value.right; }\nint main() { Pair input = {left = 17, right = 25}; try { return consume(input, true); } '+catch+' }\n',
 		'record-local-success': 'int source(int value) { return value; }\nint main() { Pair input = {left = source(17), right = source(25)}; var copy = input; return copy.left + copy.right; }\n',
-		'record-catch-success': leaf+'int main() { try { var pair = make(true); return 3; } catch (RuntimeError caught) { Pair replacement = {left = 17, right = 25}; return replacement.left + replacement.right; } catch (Error caught) { return 4; } }\n'
+		'record-catch-error': leaf+'int main() { try { var pair = make(true); return 3; } catch (RuntimeError caught) { Pair replacement = {left = 17, right = 25}; return replacement.left + replacement.right; } catch (Error caught) { return 4; } }\n'
 	}
 	return {name:header+source for name, source in rows.items()}
 

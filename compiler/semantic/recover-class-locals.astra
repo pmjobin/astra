@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Match the existing C0 Class-local acquisition boundary. Empty results of
+// independently qualified heap factories remain legal; a direct null local
+// is not a factory result. Inferred locals unwrap parentheses as C0 does.
+bool recover_class_local_source(CheckedIndex checked, SyntaxNodeId source, SymbolId symbol) {
+	if (checked_kind(checked, checked.symbol_types[symbol.index]) != 31 || (checked.symbol_flags[symbol.index] & 4) == 0) return true;
+	var initializer = checked.bindings.program.arena.get_node_initializer(source); int depth = 0;
+	if (checked.bindings.program.arena.kind(source) == SyntaxKind.InferredLocalDeclarationSyntax()) {
+		while (initializer.index > 0 && checked.bindings.program.arena.kind(initializer) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 192) {
+			initializer = checked.bindings.program.arena.get_node_expression(initializer);
+			depth = depth + 1;
+		}
+	}
+	if (initializer.index == 0 || depth == 192) return false;
+	var kind = checked.bindings.program.arena.kind(initializer);
+	return kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.CallExpressionSyntax();
+}

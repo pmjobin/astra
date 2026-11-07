@@ -30,6 +30,7 @@ class RecoverLlvm {
 	void* subtype_function;
 	void* equal_function;
 	void* buffer_function;
+	void* error_owner_function;
 	owned void*[] functions;
 	owned void*[] entries;
 	owned void*[] blocks;
@@ -54,6 +55,7 @@ class RecoverLlvm {
 		this.context = null; this.module = null; this.builder = null; this.machine = null; this.layout = null; this.handles = null; this.empty = llvm12_empty();
 		this.pointer = null; this.integer = null; this.wide = null; this.boolean = null; this.text = null; this.payload = null; this.descriptor = null; this.origin_type = null;
 		this.free_function = null; this.calloc_function = null; this.memcpy_function = null; this.memcmp_function = null; this.trap_function = null; this.allocate_function = null; this.construct_function = null; this.message_function = null; this.destroy_function = null; this.subtype_function = null; this.equal_function = null; this.buffer_function = null;
+		this.error_owner_function = null;
 		int functions = ssa.cfg.core.flow.data.function_count; int nodes = ssa.cfg.core.count; int symbols = ssa.cfg.core.flow.checked.bindings.symbol_count + 1;
 		this.functions = new void*[functions]; this.entries = new void*[functions]; this.blocks = new void*[ssa.cfg.block_count]; this.values = new void*[len(ssa.data.values)]; this.slots = new void*[nodes]; this.locals = new void*[symbols]; this.owner_addresses = new void*[symbols]; this.owner_armed = new void*[symbols]; this.owner_initial_values = new void*[symbols]; this.owner_initial_flags = new void*[symbols];
 		this.descriptors = new void*[symbols]; this.payloads = new void*[symbols]; this.destroyers = new void*[symbols]; this.tables = new void*[symbols]; this.origins = new void*[nodes]; this.operations = new void*[ssa.cfg.block_count]; this.emitted = new bool[ssa.cfg.block_count]; this.complete = false;
@@ -268,21 +270,24 @@ class RecoverLlvm {
 		}
 		place = 0; while (place < ssa.cfg.core.flow.storage.count) {
 			var slot = ssa.cfg.core.flow.storage.slots[place];
-			if (slot.owner) {
+			if (slot.owner || recover_mutable(ssa.cfg.core.flow.data, slot.symbol)) {
 				LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
 				var type = this.scalar(ssa.cfg.core.flow.checked, slot.type);
 				var address = LLVMBuildAlloca(this.builder, type, this.empty);
-				var armed = LLVMBuildAlloca(this.builder, this.boolean, this.empty);
-				void* value = LLVMConstNull(type);
-				if (slot.parameter) value = this.locals[slot.symbol.index];
-				var value_store = LLVMBuildStore(this.builder, value, address);
-				int state = 0;
-				if (slot.parameter) state = 1;
-				var flag_store = LLVMBuildStore(this.builder, LLVMConstInt(this.boolean, state as u64, 0), armed);
 				this.owner_addresses[slot.symbol.index] = address;
-				this.owner_armed[slot.symbol.index] = armed;
-				this.owner_initial_values[slot.symbol.index] = value_store;
-				this.owner_initial_flags[slot.symbol.index] = flag_store;
+				if (slot.owner) {
+					var armed = LLVMBuildAlloca(this.builder, this.boolean, this.empty);
+					void* value = LLVMConstNull(type);
+					if (slot.parameter) value = this.locals[slot.symbol.index];
+					var value_store = LLVMBuildStore(this.builder, value, address);
+					int state = 0;
+					if (slot.parameter) state = 1;
+					var flag_store = LLVMBuildStore(this.builder, LLVMConstInt(this.boolean, state as u64, 0), armed);
+					this.owner_addresses[slot.symbol.index] = address;
+					this.owner_armed[slot.symbol.index] = armed;
+					this.owner_initial_values[slot.symbol.index] = value_store;
+					this.owner_initial_flags[slot.symbol.index] = flag_store;
+				}
 			}
 			place = place + 1;
 		}
@@ -390,7 +395,14 @@ class RecoverLlvm {
 		int op = block.opcode; SyntaxNodeId absent = {index = 0}; RecoverNode row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 		void* value = null; void* operation = null;
 		if (op == 1) value = this.literal(ssa, row);
-		if (op == 2 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) == 0) value = this.locals[row.symbol.index];
+		if (op == 2 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) == 0) {
+			if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) {
+				value = this.load(this.scalar(ssa.cfg.core.flow.checked, row.type), this.owner_addresses[row.symbol.index]);
+				operation = value;
+			} else {
+				value = this.locals[row.symbol.index];
+			}
+		}
 		if (op == 3) value = this.binary(ssa, row);
 		if (op == 7) value = this.values[row.a];
 		if (op == 4) {
@@ -455,10 +467,12 @@ class RecoverLlvm {
 			value = LLVMBuildExtractValue(this.builder, this.locals[row.symbol.index], ordinal, this.empty);
 		}
 		if (op == 27) this.locals[row.symbol.index] = this.values[row.a];
+		if ((op == 27 || op == 42) && recover_mutable(ssa.cfg.core.flow.data, row.symbol)) operation = LLVMBuildStore(this.builder, this.values[row.a], this.owner_addresses[row.symbol.index]);
 		bool owner_read = op == 2 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0; bool owner_write = op == 27 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0;
 		if (owner_read || owner_write || op == 9 || op == 10 || op == 11 || op == 13 || op == 14 || op == 36 || op == 38) {
 			var type = row.type; if (owner_write) type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index]; if (op == 38) type = ssa.cfg.core.flow.storage.slots[block.a - 1].type; var storage = this.scalar(ssa.cfg.core.flow.checked, type); void* element = null; if (op == 9) element = this.scalar(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type);
-			var lowered = recover_llvm_owner_emit(ssa, block, this.builder, this.context, this.layout, this.handles, storage, element, this.buffer_function, this.allocate_function, this.free_function, this.functions, this.values, this.owner_addresses, this.owner_armed); value = lowered.value; operation = lowered.operation;
+			void* drop = this.free_function; if (op == 38 && recover_storage_error(ssa.cfg.core.flow.checked, type)) drop = this.error_owner_function;
+			var lowered = recover_llvm_owner_emit(ssa, block, this.builder, this.context, this.layout, this.handles, storage, element, this.buffer_function, this.allocate_function, drop, this.functions, this.values, this.owner_addresses, this.owner_armed); value = lowered.value; operation = lowered.operation;
 		}
 		if (op == 30) {
 			value = this.load(this.scalar(ssa.cfg.core.flow.checked, row.type), this.slots[block.origin - 1]);
@@ -466,6 +480,11 @@ class RecoverLlvm {
 		}
 		if (value != null && row.type.index != 14) this.values[block.origin] = value;
 		if (op == 21) operation = LLVMBuildCondBr(this.builder, this.values[block.a], this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		if (op == 39) {
+			this.values[block.owner] = this.values[block.a];
+			operation = LLVMBuildICmp(this.builder, 33, this.values[block.a], LLVMConstNull(this.pointer), this.empty);
+			var branch = LLVMBuildCondBr(this.builder, operation, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		}
 		if (op == 31) {
 			var nominal = ssa.cfg.core.flow.checked.types.row(row.type).nominal;
 			var arguments = new void*[2];
@@ -527,7 +546,7 @@ class RecoverLlvm {
 		} LLVMSetModuleDataLayout(this.module, this.layout);
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
-		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.declarations(ssa);
+		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.declarations(ssa);
 		int f = 0; while (f < len(this.functions)) {
 			this.emit(ssa, ssa.cfg.entries[f], 0);
 			f = f + 1;
@@ -558,14 +577,15 @@ class RecoverLlvm {
 	bool check(RecoverSsa ssa) throws Error {
 		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_llvm_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
-		var helpers = new void*[12]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function;
+		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
+		var helpers = new void*[13]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function;
 		if (!recover_llvm_function_inventory(this.module, this.functions, this.destroyers, helpers)) return false;
 		int n = 0; while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
 			if (row.kind == 23 && row.a != 0 && !recover_llvm_origin(ssa.cfg.core.flow.checked, row, this.origins[n], this.layout, this.handles)) return false;
 			n = n + 1;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

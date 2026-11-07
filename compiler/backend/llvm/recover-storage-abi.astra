@@ -81,7 +81,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) {
 	if (actual == null) return false;
 	int kind = checked_kind(checked, type);
-	if (kind == 31) return recover_storage_class(checked, type) && LLVMGetTypeKind(actual) == 12;
+	if (kind == 31) return (recover_storage_class(checked, type) || recover_storage_error(checked, type)) && LLVMGetTypeKind(actual) == 12;
 	if (kind == 22) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
 	if (kind == 30) {
 		if (!recover_storage_record(checked, type) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;

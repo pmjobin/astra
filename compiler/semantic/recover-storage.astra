@@ -28,7 +28,7 @@ bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool 
 	int kind = checked_kind(checked, type);
 	if (flags == 0 && (type_integer(kind) || kind == 13 || result && kind == 14)) return true;
 	if (kind == 30) return flags == 0 && recover_storage_record(checked, type);
-	if (kind == 31) return (flags == 4 || !result && flags == 2) && recover_storage_class(checked, type);
+	if (kind == 31) return (flags == 4 || !result && flags == 2) && (recover_storage_class(checked, type) || recover_storage_error(checked, type));
 	if (kind == 22) {
 		var element = checked.types.argument(checked.types, type, 0);
 		int code = checked_kind(checked, element.type);

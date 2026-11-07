@@ -4,6 +4,7 @@
 bool recover_heap_witness(RecoverFlow flow, int id, bool[] seen, RecoverOwnerBudget work, int depth) {
 	if (id < 1 || id > flow.data.node_count || depth > 192 || !work.take() || seen[id - 1]) return false; seen[id - 1] = true; var row = flow.data.nodes[id - 1];
 	if (row.kind == 11) return recover_storage_class(flow.checked, row.type);
+	if (row.kind == 5) return recover_storage_error(flow.checked, row.type);
 	if (row.kind == 7) return recover_heap_witness(flow, row.a, seen, work, depth + 1);
 	if (row.kind == 10) {
 		var declaration = flow.checked.bindings.symbol(row.symbol); if (declaration.kind == 7) return (flow.checked.symbol_flags[row.symbol.index] & 4) != 0;

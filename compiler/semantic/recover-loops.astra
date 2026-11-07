@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Loop targets are lexical identities, not value operands. Construction and
+// the independent retained-tree walk establish the nearest enclosing loop.
+RecoverNode recover_build_loop(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode initial, int depth) {
+	var row = initial; var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.WhileStatementSyntax()) {
+		row.kind = 28; row.type = type_id(14);
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_condition(source), row.function, row.handler, row.caught, depth + 1);
+		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_body(source), row.function, row.handler, row.caught, depth + 1);
+	}
+	if (kind == SyntaxKind.BreakStatementSyntax()) {
+		row.kind = 29;
+		row.type = type_id(14);
+	}
+	if (kind == SyntaxKind.ContinueStatementSyntax()) {
+		row.kind = 41;
+		row.type = type_id(14);
+	}
+	if (kind == SyntaxKind.AssignmentStatementSyntax()) {
+		row.kind = 42; row.type = type_id(14); row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_name(source));
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), row.function, row.handler, row.caught, depth + 1);
+	}
+	return row;
+}
+
+void recover_loop_bind(RecoverFlowData flow, int id, int loop, int depth) {
+	if (id == 0 || flow.status != 0) return;
+	if (depth > 192 || id > flow.node_count) {
+		flow.status = 2;
+		return;
+	}
+	var row = flow.nodes[id - 1];
+	if (row.kind == 29 || row.kind == 41) {
+		row.c = loop;
+		flow.nodes[id - 1] = row;
+		return;
+	}
+	recover_loop_bind(flow, row.a, loop, depth + 1);
+	int nested = loop; if (row.kind == 28) nested = id;
+	recover_loop_bind(flow, row.b, nested, depth + 1);
+	if (row.kind == 21) recover_loop_bind(flow, row.c, loop, depth + 1);
+	int i = 0; while (i < row.count) {
+		recover_loop_bind(flow, flow.edges[row.first + i], loop, depth + 1);
+		i = i + 1;
+	}
+}
+
+bool recover_loop_verify(RecoverFlowData flow, int id, int loop, int depth) {
+	if (id == 0) return true;
+	if (depth > 192 || id < 1 || id > flow.node_count) return false;
+	var row = flow.nodes[id - 1];
+	if (row.kind == 29 || row.kind == 41) return loop > 0 && row.c == loop && flow.nodes[loop - 1].kind == 28 && flow.nodes[loop - 1].function == row.function;
+	if (!recover_loop_verify(flow, row.a, loop, depth + 1)) return false;
+	if (row.kind == 28) {
+		if (!recover_loop_verify(flow, row.b, id, depth + 1)) return false;
+	}
+	else {
+		if (!recover_loop_verify(flow, row.b, loop, depth + 1)) return false;
+	}
+	if (row.kind == 21 && !recover_loop_verify(flow, row.c, loop, depth + 1)) return false;
+	int i = 0; while (i < row.count) {
+		if (!recover_loop_verify(flow, flow.edges[row.first + i], loop, depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool recover_loop_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var kind = checked.bindings.program.arena.kind(row.source);
+	if (row.kind == 28) return kind == SyntaxKind.WhileStatementSyntax() && row.c == 0 && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_condition(row.source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 13 && recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_body(row.source), function, handler, caught, seen, edges, depth + 1);
+	if (row.kind == 29 || row.kind == 41) return row.a == 0 && row.b == 0 && row.c > 0 && row.c <= flow.node_count && (row.kind == 29 && kind == SyntaxKind.BreakStatementSyntax() || row.kind == 41 && kind == SyntaxKind.ContinueStatementSyntax());
+	if (row.kind != 42 || kind != SyntaxKind.AssignmentStatementSyntax() || row.b != 0 || row.c != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(row.symbol); var type = checked.symbol_types[row.symbol.index]; int code = checked_kind(checked, type);
+	return declaration.kind == 8 && declaration.owner.index == flow.functions[function - 1].symbol.index && checked.symbol_flags[row.symbol.index] == 0 && (type_integer(code) || code == 13) && checked_target(checked, row.source, checked.bindings.program.arena.get_token_name(row.source)).index == row.symbol.index && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(row.source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == type.index;
+}
+
+bool recover_mutable(RecoverFlowData flow, SymbolId symbol) {
+	int n = 0; while (n < flow.node_count) {
+		if (flow.nodes[n].kind == 42 && flow.nodes[n].symbol.index == symbol.index) return true;
+		n = n + 1;
+	}
+	return false;
+}

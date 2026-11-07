@@ -48,7 +48,9 @@ RecoverOwnerInstruction recover_llvm_owner_emit(RecoverSsa ssa, RecoverBlock blo
 		var disarm = LLVMBuildStore(builder, LLVMConstInt(boolean, 0, 0), armed[slot.symbol.index]);
 		llvm12_handle_set(handles, 0, selected);
 		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(free_function), free_function, llvm12_handle_offset(handles, 0), 1, empty);
-		llvm12_nobuiltin(context, operation);
+		if (recover_storage_error(ssa.cfg.core.flow.checked, slot.type)) LLVMSetInstructionCallConv(operation, 8); else {
+			llvm12_nobuiltin(context, operation);
+		}
 	}
 	RecoverOwnerInstruction result = {value = value, operation = operation}; return result;
 }

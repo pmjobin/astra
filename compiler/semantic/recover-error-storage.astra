@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Error object storage has the approved exception header and dynamic destroy
+// entry. It is never admitted by the ordinary Class payload query.
+bool recover_storage_error(CheckedIndex checked, TypeId type) {
+	if (!checked.types.valid_id(type) || checked_kind(checked, type) != 31) return false; var nominal = checked.types.row(type).nominal; var root = checked_effect_root(checked);
+	return root.index > 0 && checked_effect_subtype(checked, nominal, root) && recover_error_shape(checked, nominal, 0);
+}

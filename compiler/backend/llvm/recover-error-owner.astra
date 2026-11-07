@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Empty owned Error values are legal ordinary values. Raising an empty value
+// is a fatal guard in CFG; ordinary scope cleanup simply has nothing to retire.
+void* recover_error_owner_helper(void* context, void* module, void* builder, void* handles, void* destroy) {
+	var pointer = LLVMPointerTypeInContext(context, 0); var empty = llvm12_empty(); llvm12_handle_set(handles, 0, pointer); var signature = LLVMFunctionType(LLVMVoidTypeInContext(context), llvm12_handle_offset(handles, 0), 1, 0); var function = llvm12_function(module, signature, "astra.e25a.owner.error.drop"); LLVMSetLinkage(function, 8); LLVMSetFunctionCallConv(function, 8);
+	var entry = llvm12_block(context, function, "entry"); var live = llvm12_block(context, function, "live"); var done = llvm12_block(context, function, "done"); LLVMPositionBuilderAtEnd(builder, entry); var value = LLVMGetParam(function, 0); var present = LLVMBuildICmp(builder, 33, value, LLVMConstNull(pointer), empty); var split = LLVMBuildCondBr(builder, present, live, done);
+	LLVMPositionBuilderAtEnd(builder, live); llvm12_handle_set(handles, 0, value); var call = LLVMBuildCall2(builder, LLVMGlobalGetValueType(destroy), destroy, llvm12_handle_offset(handles, 0), 1, empty); LLVMSetInstructionCallConv(call, 8); var jump = LLVMBuildBr(builder, done); LLVMPositionBuilderAtEnd(builder, done); var result = LLVMBuildRetVoid(builder); return function;
+}
+
+bool recover_error_owner_helper_verified(void* function, void* destroy) {
+	if (!recover_llvm_helper_signature(function, 1) || llvm13_named(function, "astra.e25a.owner.error.drop") != 1) return false; var blocks = recover_llvm_helper_blocks(function, 3); if (len(blocks) != 3) return false;
+	if (LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0 || LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, 0))) != 12) return false;
+	var entry = recover_llvm_body(blocks[0], 2); var live = recover_llvm_body(blocks[1], 2); var done = recover_llvm_body(blocks[2], 1); if (len(entry) != 2 || len(live) != 2 || len(done) != 1 || LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != LLVMGetParam(function, 0) || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[2])) return false;
+	return recover_llvm_call(live[0], destroy, 1, 8) && LLVMGetArgOperand(live[0], 0) == LLVMGetParam(function, 0) && recover_llvm_jump(live[1], blocks[2]) && recover_llvm_void_return(done[0]);
+}
+
+bool recover_llvm_raise_move(void* physical, void* value, void* token, void* operation, void* present, void* fatal) {
+	var body = recover_llvm_body(physical, 2);
+	return len(body) == 2 && value == token && operation == body[0] && LLVMGetInstructionOpcode(body[0]) == 42 && LLVMGetICmpPredicate(body[0]) == 33 && LLVMGetOperand(body[0], 0) == value && LLVMIsNull(LLVMGetOperand(body[0], 1)) != 0 && recover_llvm_split(body[1], body[0], present, fatal);
+}

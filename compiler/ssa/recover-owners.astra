@@ -76,6 +76,10 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 	var definition = data.values[value]; int consumer = cfg.core.owners.consumers[value - 1]; if (consumer < 1) return false;
 	int start = cfg.blocks[definition.block - 1].next; if (start == 0) return false; var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
 	while (count > 0) { if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / 2 + 1; bool live = item % 2 == 1; var row = cfg.blocks[block - 1];
+		if (block == definition.block) {
+			if (live) return false;
+			live = true;
+		}
 		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4)) {
 			if (!live) return false;
 			live = false;

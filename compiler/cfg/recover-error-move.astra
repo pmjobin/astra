@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Raising an owned Error slot transfers its owner only after the move has
+// committed. A separate normal-edge token proves non-nullness before any
+// header access. The fatal edge does not promise source cleanup or unwinding.
+int recover_cfg_move_token(RecoverCfg cfg, int origin) { return cfg.core.count * 3 + cfg.core.flow.data.function_count + origin; }
+
+bool recover_cfg_throw_move(RecoverCfg cfg, int origin) {
+	var row = cfg.core.nodes[origin - 1].value; int value = recover_owner_unwrap(cfg.core.flow.data, row.a);
+	return row.kind == 23 && value > 0 && cfg.core.nodes[value - 1].value.kind == 10;
+}
+
+int recover_cfg_raise_move(RecoverCfg cfg, int origin, int destination) {
+	var row = cfg.core.nodes[origin - 1].value; int value = recover_owner_unwrap(cfg.core.flow.data, row.a); int token = recover_cfg_move_token(cfg, origin);
+	int fatal = cfg.block(row.function, origin, 35, 0, 0, 0, 0, 0, 0, 0);
+	int guard = cfg.block(row.function, origin, 39, value, 0, destination, fatal, token, 0, 0);
+	return recover_cfg_commit(cfg, origin, guard);
+}
+
+bool recover_cfg_raise_move_verified(RecoverCfg cfg, int origin, int head, int destination, bool[] seen) {
+	var row = cfg.core.nodes[origin - 1].value; int value = recover_owner_unwrap(cfg.core.flow.data, row.a); int token = recover_cfg_move_token(cfg, origin); int guard = head; int n = 1;
+	while (n <= cfg.core.count) {
+		if (cfg.core.owners.consumers[n - 1] == origin && cfg.core.owners.slots[n - 1] > 0) {
+			if (guard < 1 || guard > cfg.block_count) return false;
+			guard = cfg.blocks[guard - 1].next;
+		}
+		n = n + 1;
+	}
+	if (!recover_cfg_check_commit(cfg, head, origin, guard, seen) || guard < 1 || guard > cfg.block_count) return false;
+	int fatal = cfg.blocks[guard - 1].other;
+	return recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, origin, 39, value, 0, destination, fatal, token, 0, 0), seen) && recover_cfg_expect(cfg, fatal, recover_cfg_expected(row.function, origin, 35, 0, 0, 0, 0, 0, 0, 0), seen);
+}
