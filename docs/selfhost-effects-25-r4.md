@@ -278,3 +278,10 @@ verifier checks the delivered ZIP manifest, final Git HEAD/tree, indexed source
 blobs, original submission identity and every reconstructed logical evidence
 byte. Overall status must remain PARTIAL while any mandatory original-source
 or bounded effects gate remains unfinished.
+
+The expanded transport size probe contained 135411 logical files. Standard
+XZ with a 256 MiB dictionary and preset 9 extreme reduced its archive from
+28517032 to 18232040 bytes, preserving exactly the same 1149368320 tar bytes
+and independently checked uncompressed SHA-256. This changes transport
+encoding only. No failed/native evidence is omitted to fit the publisher's
+unchanged 25 MiB cap; final packaging and reconstruction are separately verified.
