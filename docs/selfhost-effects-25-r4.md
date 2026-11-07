@@ -197,7 +197,7 @@ The integrated `final13` compiler products are
 | O2 | 3367.62 | 3339.76 / 2.42 | 2323224 | 1.02 |
 
 The full C0 preflight passed through LLVM lowering and verification in
-2312.25 seconds, with peak RSS 2196908 KiB. The measured command catalogue
+2312.25 seconds, with peak RSS 2196908 KiB. At the superseded final13 checkpoint, the measured command catalogue
 contains 28 build/check attempts (15 zero exits, 13 nonzero exits) and six
 exact product reuse observations. Its compile intervals have a 19358.91-second
 union and a 32033.93-second sum; overlapping intervals are not campaign elapsed
@@ -260,6 +260,52 @@ An independent focused preflight executes the complete byte-exact declaration
 verifier at C0 O0/O2 against five canonical bindings and six single-change
 negative forms, including wrong-width and variadic declarations with their
 canonical names retained. It passes with zero Astra-native program credit.
+
+The corrected `final16` compiler products are
+`3ca8e0ea25ce26d3a0e8c0b05a981623ee591f13373c0cb5d3d443bdfcfa2783`
+(O0) and
+`f1c1f90cbfa4b6784ccf0e493b29d4274b411ef41cb7f4b6fae0f4269bbfa26a`
+(O2). Their cold command measurements are:
+
+| Profile | Wall seconds | User / system seconds | Peak RSS KiB | Exact reuse seconds |
+| --- | ---: | ---: | ---: | ---: |
+| O0 | 2273.58 | 2256.47 / 1.69 | 2324640 | 1.02 |
+| O2 | 3279.50 | 3254.74 / 1.76 | 2391204 | 1.04 |
+
+The final measured build/check catalogue contains 36 attempts (18 zero exits,
+18 nonzero exits) and eight exact reuse observations. Compile interval union
+is 24660.99 seconds; the overlapping interval sum is 41561.97 seconds.
+These are command measurements, not campaign elapsed time or speedup claims.
+Both matching-profile focused lifetime and 23/14 mutation checks pass; the
+O0-host/O2-target debug run also passes but has no O2 qualification credit.
+
+Final16 completes all 39 integrated recipes at each matching optimization
+profile with no failed jobs. Each executes the 322 retained source identities
+and 18 distinct new programs (nine actual new recoverable-error paths), for
+340 source programs per profile. The 120 retained effects include all 65
+original error paths. All 202 inherited non-effects raw LLVM identities remain
+equal. The retained 78 semantic/38 physical categories plus 23/14 new categories
+produce 101 semantic and 52 independently LLVM-valid physical rejections per
+profile. Returning paths have clean unsuppressed Valgrind and C0 observables.
+
+All four 79/85/92/92-file frozen cohorts replay with their conditional 17/19
+facts, and graph 55/symbol 2053/predicate 26 remains independently DEFERRED.
+All 120 exact old effects input paths execute afresh against C0. Strict raw
+LLVM/ELF identity is 0/120; raw text outside only the buffer helper is also
+0/120 after the allocator attribute correction. The separately resolved
+nonallocator text diagnostic matches 120/120. These measurements preserve the
+strict identity gate as PARTIAL.
+
+Original unchanged flow_number still has no Astra execution at either profile.
+The full population stops at SourceSpan, node 1004, source.astra bytes
+6349..7688; the minimal source-preserving view stops at the real UTF-8 factory,
+node 282, utf8-message.astra bytes 383..445. Its C0 oracles remain 42 and clean.
+The complete original Utf8Message Class view does execute natively at both
+profiles, separately from the mandatory builder/formatter target. Original
+SourceBuffer/builder execution, UTF-8 validation/conversion and buffer element,
+slice, fixed-array and scalar-formatting paths remain required, as do bounded
+field/rvalue/owning-result and C0-valid derived-Error initialization forms.
+The milestone therefore remains PARTIAL; no program total closes those gates.
 
 All authored recipes use `tests/selfhost-effects/r4.py` for explicit routing to
 `~/Workspace/codex/work/astra/{build,runtime}/effects25-r4/`. This entry point
