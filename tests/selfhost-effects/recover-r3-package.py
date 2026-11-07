@@ -22,11 +22,26 @@ def main():
 	reuse = {}; reused = []
 	if a.reuse_columns:
 		with zipfile.ZipFile(paths.RUNTIME/'predecessor-report.zip') as previous: previous_packaging = json.loads(previous.read('evidence/packaging.json'))
-		old_archive = a.reuse_columns/'effects25-r2-evidence.tar.xz'; assert sha(old_archive) == previous_packaging['archive_sha256']
+		old_archive = a.reuse_columns/'effects25-completion-evidence.tar.xz'; assert sha(old_archive) == previous_packaging['archive_sha256']
 		with tarfile.open(old_archive,'r:xz') as old:
 			old_index = json.load(old.extractfile('INDEX.json')); assert old_index['files']['recipes/columns.py']['sha256'] == sha(ROOT/'tests/selfhost-genref/columns.py')
 			for row in old_index['files'].values():
 				if 'columns' in row: reuse[row['sha256']] = row['columns']
+				# The prior verify-only restore intentionally leaves no extracted data.
+				# Materialize only authenticated, non-executable column transport parts.
+			old_parts = {}
+			for name,row in old_index['files'].items():
+				if name.startswith('columns/'): old_parts.setdefault(row['blob'],[]).append((name.removeprefix('columns/'),row))
+			old_columns = a.reuse_columns/'columns'; old_columns.mkdir(exist_ok=True)
+			for member in old:
+				if member.name not in old_parts: continue
+				data = old.extractfile(member).read()
+				for name,row in old_parts.pop(member.name):
+					assert Path(name).name == name and len(data) == row['bytes'] and hashlib.sha256(data).hexdigest() == row['sha256']
+					target = old_columns/name
+					if target.exists(): assert target.read_bytes() == data
+					else: target.write_bytes(data)
+			assert not old_parts
 	with tarfile.open(archive,'w:xz',preset=9) as packed:
 		def store(name,path=None,data=None):
 			entry = tarfile.TarInfo(name); entry.mode = 0o644
@@ -116,7 +131,7 @@ def main():
 	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact gates, native counts, original-source attempts, costs and deferrals. Decode effects25-completion-encoding.json using decode-evidence.py.txt to recover the tar.xz. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py; run restore-effects.py ARCHIVE --output DIRECTORY --verify-only to verify all logical bytes without executing evidence. Original/R1/current-old PARTIAL checkpoints retain their identities and Git history. ABI caller adapters and independent C/C++/C0 probes have zero Astra program credit. Installed publication plus its independent ZIP verification establishes G12.\n')
 	files = [dict(path=path.name,bytes=path.stat().st_size,sha256=sha(path)) for path in sorted(attachments.iterdir())]; assert all(row['bytes'] <= 2*1024**2 for row in files) and len(files) <= 128; manifest = attachments/'INDEX.json'; manifest.write_text(json.dumps(dict(format='pm-next-evidence/1',files=files),indent=2)+'\n')
 	counts = ', '.join(mode+': '+str(profile['native_programs'])+' genuine Astra programs ('+str(profile['actual_error_programs'])+' error paths)' for mode,profile in audit['profiles'].items())
-	descriptor = dict(status='PARTIAL',summary='ASTRA-SELFHOST-EFFECTS-25-R3 completion revision of milestone 25 implements the byte-exact original SourceBoundsError literal base initializer, concrete static checked receivers and closed generic calls, inferred parenthesized construction, strict floating scalar/record/buffer carriers and C0-valid owned-buffer call-result reassignment. Independent source and physical verifiers retain the approved private E25-A-v1 contract. '+counts+'. Each profile separately preserves 202 inherited native source identities and raw LLVM. Remaining implementation boundary: '+audit['remaining_boundary']+' Original EFFECTS-25, R1, R2 and the preceding R2 amendment remain immutable historical PARTIAL checkpoints. Predicate 26 remains independently deferred. Original unchanged flow_number has no Astra execution. No Stage 1, public push/release, C0/public ABI/LLVM/resource ceiling or installed workflow change.',tests=[key+': '+value for key,value in audit['gates'].items()]+['Cold/warm CPU, wall, RSS, overlap and explicit deferrals are recorded in final-audit.json.','All attached logical bytes were reconstructed and verified independently before installed publication. The committed recover-r3-verify-report.py verifies the actual delivered ZIP and records the final G12 outcome separately.'])
+	descriptor = dict(status='PARTIAL',summary='ASTRA-SELFHOST-EFFECTS-25-R3 completion revision of milestone 25 implements the byte-exact original SourceBoundsError literal base initializer, concrete static checked receivers on fieldless Classes and closed free generic calls, inferred parenthesized construction, strict floating scalar/record/buffer carriers and C0-valid owned-buffer call-result reassignment. Independent source and physical verifiers retain the approved private E25-A-v1 contract. '+counts+'. Each profile separately preserves 202 inherited native source identities and raw LLVM. Remaining implementation boundary: '+audit['remaining_boundary']+' Original EFFECTS-25, R1, R2 and the preceding R2 amendment remain immutable historical PARTIAL checkpoints. Predicate 26 remains independently deferred. Original unchanged flow_number has no Astra execution. No Stage 1, public push/release, C0/public ABI/LLVM/resource ceiling or installed workflow change.',tests=[key+': '+value for key,value in audit['gates'].items()]+['Cold/warm CPU, wall, RSS, overlap and explicit deferrals are recorded in final-audit.json.','All attached logical bytes were reconstructed and verified independently before installed publication. The committed recover-r3-verify-report.py verifies the actual delivered ZIP and records the final G12 outcome separately.'])
 	(leaf/'pm-next-result.json').write_text(json.dumps(descriptor,indent=2)+'\n'); print(json.dumps(packaging),flush=True); print('EVIDENCE_MANIFEST',manifest,flush=True); print('RESULT_DESCRIPTOR',leaf/'pm-next-result.json',flush=True)
 
 

@@ -29,6 +29,7 @@ def corpus():
 		'inferred-parenthesized-construction': (True, 'class Parcel { init() {} }\nint main() { var value = (new Parcel()); return 42; }\n'),
 		'fielded-derived-Error': (True, 'class Detail : Error { int code; init(int code) : base("literal") { this.code = code; } }\nint main() { try { throw new Detail(42); } catch (Error caught) { return 42; } }\n'),
 		'computed-base-message': (True, 'string message() { return "literal"; }\nclass Detail : Error { init() : base(message()) {} }\nint main() { try { throw new Detail(); } catch (Error caught) { return 42; } }\n'),
+		'discarded-checked-scalar-result': (True, 'class Parcel { init() {} int leaf() throws Error { throw new Error("kept"); } }\nint main() { var value = new Parcel(); try { value.leaf(); return 3; } catch (Error caught) { if (caught.message == "kept") return 42; return 4; } }\n'),
 	}
 
 

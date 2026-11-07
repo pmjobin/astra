@@ -186,3 +186,21 @@ invented executable template signature is independently rejected. An earlier
 candidate incorrectly required such a row; its two full builds and one focused
 build were stopped with complete GNU-time termination receipts. Successful
 Core checks did not establish runtime qualification for that candidate.
+
+The next focused emission exposed a separate source copier boundary: checked
+specializations contain text literals and throw/try/catch nodes. The generated
+copier and its independent recursive syntax consumer now cover those four
+syntax forms, preserving literal tokens, catch bindings, child correspondence
+and original spans. No source template receives an executable signature row.
+Two C0-executed generic relay controls distinguish normal return from an actual
+bare-rethrow path. Native and consolidated qualification of this candidate
+remain pending; the earlier emission failures keep their own receipts.
+
+The focused compiler now executes checked receiver and closed free-generic
+success/error/rethrow cases. A separate C0-valid discarded nonvoid call
+statement remains rejected by Flow's void-only statement contract. That
+deferral is retained as an explicit policy control. New positive fixtures
+capture their success result and use an unexpected normal exit of 3, so their
+error credit still requires the real catch. No original or inherited source
+was changed. The combined concrete-domain fixture independently rejects all
+19 semantic and eight LLVM-valid physical alternatives at focused O0.

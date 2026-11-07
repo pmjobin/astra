@@ -43,8 +43,8 @@ def corpus():
 		rows['Class-call-result-return'+suffix] = 'class Parcel { init() {} }\nowned Parcel make(bool fail) throws Error { var value = new Parcel(); if (fail) { throw new Error("kept"); } return move value; }\nowned Parcel relay(bool fail) throws Error { return make(fail); }\nint main() { try { var value = relay('+flag+'); return '+normal+'; } '+catch+' }\n'
 	parcel = 'class Parcel { init() {} int leaf(owned int[] data, bool fail) throws Error { if (fail) { throw new Error("kept"); } return len(data) + 25; } }\n'
 	rows['receiver-owned-input-success'] = parcel+'int main() { var value = new Parcel(); var data = new int[17]; try { return value.leaf(move data, false); } catch (Error caught) { return 4; } }\n'
-	rows['receiver-owned-input-error'] = parcel+'int main() { var value = new Parcel(); var data = new int[17]; try { value.leaf(move data, true); return 3; } '+catch+' }\n'
-	rows['receiver-reservation-abort-error'] = 'class Parcel { init() {} int leaf(owned int[] data, int extra) { return len(data) + extra; } }\nint fail() throws Error { throw new Error("kept"); }\nint main() { var value = new Parcel(); var data = new int[42]; try { value.leaf(move data, fail()); return 3; } catch (Error caught) { if (caught.message != "kept") return 4; return len(data); } }\n'
+	rows['receiver-owned-input-error'] = parcel+'int main() { var value = new Parcel(); var data = new int[17]; try { var unexpected = value.leaf(move data, true); return 3; } '+catch+' }\n'
+	rows['receiver-reservation-abort-error'] = 'class Parcel { init() {} int leaf(owned int[] data, int extra) { return len(data) + extra; } }\nint fail() throws Error { throw new Error("kept"); }\nint main() { var value = new Parcel(); var data = new int[42]; try { var unexpected = value.leaf(move data, fail()); return 3; } catch (Error caught) { if (caught.message != "kept") return 4; return len(data); } }\n'
 	for fail in (False, True):
 		flag = str(fail).lower(); suffix = '-error' if fail else '-success'
 		call = 'value.leaf(move other, '+flag+')'; body = scalar(call, 'return '+call+';', fail)
