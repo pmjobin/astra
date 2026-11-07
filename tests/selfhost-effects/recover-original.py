@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import time
 from state import ROOT, C0, load_module, read, sha, bounded_run
@@ -32,7 +33,18 @@ def main():
 	if emitted:
 		run(['opt', '-passes=verify', '-disable-output', target], 'Astra-verify', {0}); obj = build/'Astra.o'; exe = build/'Astra'; run(['llc', '-filetype=obj', '-'+a.mode, target, '-o', obj], 'Astra-object', {0}); provider_objects = links[1::2]; run(['cc', '-no-pie', obj, *provider_objects, '-o', exe], 'Astra-link', {0}); run([exe], 'Astra-execute-original-function', {42})
 	else: assert sha(target) == before
+	boundary = None
+	if not emitted:
+		ledger = run([a.component,'--classstorage-source-ledger',a.mode,leaf/'unused-ledger-destination',*inputs],'Astra-original-boundary-ledger',{0,1,2,3,4})
+		match = re.search(rb'RECOVER_FLOW ([0-9]+) ([0-9]+) ([0-9]+)',attempt.stdout)
+		if match and int(match[2]) > 0:
+			for line in ledger.stdout.splitlines():
+				row = line.split()
+				if len(row) == 10 and row[0] == b'NODE' and int(row[1]) == int(match[2]):
+					path = Path(bytes.fromhex(row[7].decode()).decode()); content = path.read_bytes(); first,last = int(row[8]),int(row[9]); assert path in inputs and 0 <= first <= last <= len(content); fragment = content[first:last]; boundary = dict(stage=int(match[1]),node=int(row[1]),syntax_kind=int(row[2]),source=str(path),source_sha256=sha(path),start_byte=first,end_byte=last,source_fragment_sha256=hashlib.sha256(fragment).hexdigest(),source_first_line=fragment.decode(errors='replace').splitlines()[0] if fragment else '',ledger_exit=ledger.returncode); break
+			assert boundary is not None,'The native failure must map to an actual original source/span identity'
 	result = dict(status='ORIGINAL_FUNCTION_EXECUTED' if emitted else 'ORIGINAL_FUNCTION_NATIVE_DEFERRED', component_sha256=sha(a.component), profile=a.mode, source=dict(path=str(original), full_file_sha256=sha(original), pinned_commit=BASE, slice_start_byte=start, slice_end_byte=end, slice_sha256=hashlib.sha256(body).hexdigest(), exact_original_bytes=True), inputs=[dict(path=str(path), sha256=sha(path)) for path in inputs], C0_ELF_sha256=sha(c0), C0_actual_execution=42, Astra_emitted=emitted, Astra_actual_execution=42 if emitted else None, destination_preserved=not emitted, first_failure_stdout=attempt.stdout.decode(errors='replace')[:2000], first_failure_stderr=attempt.stderr.decode(errors='replace')[:2000], limitation='Only an actual Astra-emitted execution can satisfy G9. C0 executes the unchanged function with the real Utf8ByteBuilder, scalar formatter and original source dependencies; no substitute Class or no-op helper is used. This separate slice does not replace frozen whole-cohort identity checks.')
+	result['first_source_boundary'] = boundary
 	(leaf/'result.json').write_text(json.dumps(result, indent=2)+'\n'); print(result['status'], flush=True)
 
 
