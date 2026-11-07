@@ -247,6 +247,10 @@ measured SIGINT receipts before this correction. A fresh complete C0 Core
 check passes. The initial check refused a new generic string C boundary;
 the memory-attribute bridge instead uses one opaque pointer and a scalar
 return, preserving C0's existing boundary policy.
+An independent focused preflight executes the complete byte-exact declaration
+verifier at C0 O0/O2 against five canonical bindings and six single-change
+negative forms, including wrong-width and variadic declarations with their
+canonical names retained. It passes with zero Astra-native program credit.
 
 All authored recipes use `tests/selfhost-effects/r4.py` for explicit routing to
 `~/Workspace/codex/work/astra/{build,runtime}/effects25-r4/`. This entry point
