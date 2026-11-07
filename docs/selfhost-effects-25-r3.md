@@ -2,8 +2,9 @@
 
 This is a completion revision of milestone 25. Original EFFECTS-25, R1, R2,
 the preceding R2 amendment, and the delivered R2 report remain historical
-**PARTIAL** checkpoints. This document records current engineering evidence;
-the R3 campaign has not yet been published or qualified as complete.
+**PARTIAL** checkpoints. Final consolidated O0/O2 engineering evidence keeps
+R3 **PARTIAL**: the original function and bounded field/owner forms remain
+unqualified. Publication integrity is checked separately after the source commit.
 
 The exact initial HEAD was `633b713cfc14de4d77166ea4220eb5a3bdb6f072`, tree
 `952c6253e71742e1a60eb5e29f1d1c0c5913b57a`. Installed unchanged `pm-next`
@@ -204,3 +205,64 @@ capture their success result and use an unexpected normal exit of 3, so their
 error credit still requires the real catch. No original or inherited source
 was changed. The combined concrete-domain fixture independently rejects all
 19 semantic and eight LLVM-valid physical alternatives at focused O0.
+
+## Final combined compiler and costs
+
+The combined `final6` products retain all inherited entry points and R3 stage
+observers in one source-pinned compiler per host profile. Their SHA-256 values:
+
+- O0: `13a52bdb7e0f98f3bd1f284e60b093c546a090c305c698cb2f7234f56bdae4a7`
+- O2: `b5e37e57b37e501b8ceab2c7c464697d92b099e73dcaf8089a532a81313dde5b`
+
+Cold O0/O2 wall times are 1,972.12 / 2,914.27 seconds; user CPU is 1,958.54 /
+2,894.11 seconds, system CPU 1.55 / 1.61 seconds, and peak RSS 2,308,272 /
+2,309,160 KiB. Exact source/tool/product reuse through the same R3 route takes
+1.15 / 1.09 seconds wall, 0.54 / 0.51 seconds user and 0.60 / 0.57 seconds
+system CPU, with peak RSS 199,716 / 199,500 KiB. Reuse performs no compilation.
+
+`final-costs.json` retains 33 measured build/check records and two reuse
+observations. Measured compile interval union is 10,259.79 seconds; interval
+sum is 16,655.41 seconds. The intervals overlap; neither value is total campaign
+elapsed time. RSS is per command, not aggregate simultaneous memory. Earlier
+unmeasured literal-build stops are explicitly separate. The R3 compiler includes
+additional implementation and observers, so these cold workloads do not justify
+an equal-work speedup claim against R2 or a donor qualification.
+
+## Final source-bound outcome: PARTIAL
+
+One consolidated suite completed for each actual combined host profile. Both
+retain 202 inherited native source programs with identical raw LLVM and all
+60 R2 effects programs (35 real errors). Each profile additionally executes
+60 distinct R3 source identities: 13 literal-constructor cases and 47 concrete
+receiver/generic/carrier/owner cases. Thirty take real error paths and thirty
+exercise success/cleanup. Thus each profile has 322 source programs, including
+120 effects/owner programs with 65 actual error paths. C0 agrees on every new
+program; source-generated LLVM verification, native execution and unsuppressed
+returning-path Valgrind all pass. C0-only probes and synthetic ABI adapters are
+excluded from those counts.
+
+Per profile, all inherited 39 semantic/24 LLVM-valid physical categories and
+39 new semantic/14 LLVM-valid physical categories reject independently: totals
+78/38. The 24 independent FP bit/poison observations, GCC/Clang dynamic Error
+observations, receiver/null-throw fatal controls, C/C++ layout checks, 19 C0
+policy controls and original-source attempts retain separate attribution.
+Fatal controls have no returning-memory credit. The four immutable cohorts,
+56/12/12 statuses, 1,044 historical proofs and protected/donor populations
+retain their exact identities.
+
+Both final original-source attempts still stop at `SourceBuffer`; the disclosed
+dependency view stops at the real `Utf8ByteBuilder`. The byte-exact original
+`flow_number` executes only under C0, returning 42 with clean memory evidence.
+It has **no Astra native execution**. Fielded ordinary Classes, derived Error
+fields/computed base initializers, writable-field authority and assignments,
+remaining C0-valid field/rvalue receiver/owner forms, and discarded nonvoid
+call statements remain unqualified. These are bounded implementation
+obligations, not new language/ABI-policy requests. The separate predicate 26
+investigation remains DEFERRED without inventing a field root.
+
+G3/G4/G5/G6/G7/G9 and the overall milestone remain PARTIAL. G0/G1/G2/G8/G10/G11
+pass for the precise evidence stated in the final audit. The installed
+publisher and `recover-r3-verify-report.py` establish G12 after this clean source
+commit; the independent delivered-ZIP receipt records exact final HEAD/tree,
+manifest bytes, lossless reconstruction and the unchanged overall PARTIAL
+classification. No Stage 1 or complete milestone qualification is claimed.
