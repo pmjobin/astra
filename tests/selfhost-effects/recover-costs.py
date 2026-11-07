@@ -21,6 +21,16 @@ def time_values(path):
 	return result
 
 
+def check_flag(flags,path):
+	# The combined Core wrapper transforms --check immediately before exec;
+	# its parent recipe preserves the earlier argv. GNU time records the actual
+	# command. Keep that distinction rather than relabeling a full LLVM check.
+	data = path.read_text(); command = next((line for line in data.splitlines() if 'Command being timed:' in line),'')
+	for flag in ('--dump-core','--check'):
+		if ' '+flag+' ' in command: return flag
+	return '--dump-core' if '--dump-core' in flags else '--check' if '--check' in flags else None
+
+
 def main():
 	p = argparse.ArgumentParser(); p.add_argument('--output',type=Path,required=True); a = p.parse_args(); paths = load_module('recover_cost_paths',ROOT/'tests/selfhost-effects/recover-build.py'); builds = []; reuse = []
 	for directory in sorted(paths.RUNTIME.iterdir()):
@@ -29,14 +39,14 @@ def main():
 			for receipt in sorted(directory.glob('*/commands.json')):
 				for row in read(receipt):
 					if not row['name'].startswith('typecore-'): continue
-					stderr = receipt.parent/(row['name']+'.stderr'); values = time_values(stderr); flags = row['argv']; kind = 'Core check' if '--dump-core' in flags else 'LLVM lowering/verification check' if '--check' in flags else 'Native compiler build'
+					stderr = receipt.parent/(row['name']+'.stderr'); values = time_values(stderr); flags = row['argv']; effective = check_flag(flags,stderr); kind = 'Core check' if effective == '--dump-core' else 'LLVM lowering/verification check' if effective == '--check' else 'Native compiler build'
 					builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr_sha256=sha(stderr),exit=row['exit'],monotonic_start=row['start'],monotonic_end=row['end'],**values))
 		if directory.name.startswith('full-build-'):
 			for receipt in sorted(directory.glob('build-*/ownflow-*.json')):
 				if '-input-identity' in receipt.name or '-exact-reuse' in receipt.name: continue
 				row = read(receipt)
 				if 'argv' not in row: continue
-				stderr = receipt.with_suffix('.stderr'); flags = row['argv']; values = time_values(stderr); kind = 'Combined Core check' if '--dump-core' in flags else 'Combined LLVM lowering/verification check' if '--check' in flags else 'Combined native compiler build'; builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr_sha256=sha(stderr),exit=row['exit'],monotonic_start=row['monotonic_start'],monotonic_end=row['monotonic_end'],**values))
+				stderr = receipt.with_suffix('.stderr'); flags = row['argv']; values = time_values(stderr); effective = check_flag(flags,stderr); kind = 'Combined Core check' if effective == '--dump-core' else 'Combined LLVM lowering/verification check' if effective == '--check' else 'Combined native compiler build'; builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr_sha256=sha(stderr),recorded_check_flag='--check' if '--check' in flags else None,effective_check_flag=effective,exit=row['exit'],monotonic_start=row['monotonic_start'],monotonic_end=row['monotonic_end'],**values))
 		if directory.name.startswith('warm-') and (directory/'result.json').is_file():
 			row = read(directory/'result.json')
 			if row['status'] == 'EXACT_IDENTITY_REUSE': reuse.append(dict(result=str(directory/'result.json'),result_sha256=sha(directory/'result.json'),measurement=time_values(directory/'time'),**row))
