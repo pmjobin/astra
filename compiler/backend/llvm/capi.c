@@ -309,3 +309,7 @@ void llvm12_noinline(LLVMContextRef c, LLVMValueRef f) {
 void llvm13_remove_noinline(LLVMValueRef f) {
 	LLVMRemoveEnumAttributeAtIndex(f, LLVMAttributeFunctionIndex, LLVMGetEnumAttributeKindForName("noinline", 8));
 }
+
+void llvm13_fake_memory_none(LLVMContextRef c, LLVMValueRef call) {
+	LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("memory", 6), 0));
+}

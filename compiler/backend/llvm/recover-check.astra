@@ -6,7 +6,12 @@ bool recover_llvm_call(void* call, void* function, int count, int convention) {
 		if (LLVMGetCallSiteAttributeCount(call, p) != 0) return false;
 		p = p + 1;
 	}
-	return convention != 8 || LLVMGetCallSiteAttributeCount(call, -1) == 0;
+	int attributes = LLVMGetCallSiteAttributeCount(call, -1);
+	if (convention == 8) return attributes == 0;
+	// The emitter's C calls either have no call-level attributes (trap) or
+	// exactly nobuiltin. A forged memory effect can erase the real copy or
+	// retirement while leaving every operand and LLVM type otherwise valid.
+	return attributes == 0 || attributes == 1 && llvm13_attribute(call, -1, 1, "nobuiltin") == 1;
 }
 
 bool recover_llvm_extract(void* value, void* aggregate, int index) {

@@ -214,6 +214,27 @@ Observer environment metadata copies each invocation's settings; historical
 immutable argv records remain authoritative for the earlier mutable-label
 metadata. Fresh integration is required after this correction.
 
+The allocator correction also changes raw attribute-group numbering. Retained
+replay continues measuring strict raw LLVM/ELF identity and its older raw
+comparison outside the buffer helper, even when they report differences. A
+separate text diagnostic excludes both complete allocation helpers and resolves
+attribute references outside quoted strings and comments. Five LLVM-valid
+controls check that this diagnostic still detects changed scalar constants,
+used attributes and quoted numbered bytes. It is not raw-byte identity or a
+behavioral equivalence proof and supplies no native or stage-mutation credit.
+The historical strict identity gate remains PARTIAL after these corrections.
+
+Further physical review found that C calls admitted arbitrary function-level
+call attributes. A LLVM-valid `memory(none)` forgery on the ordinary snapshot
+copy makes the byte-sensitive original Utf8Message witness return 3 instead
+of C0's 42 after O2. The physical consumer now permits only the emitted empty
+or sole `nobuiltin` C-call attribute sets; native calls remain attribute-free.
+A twelfth physical mutation forges the copy's memory effect. The two `final14`
+builds were explicitly stopped before changing pinned inputs. GNU time and
+their build parents retained the actual SIGINT/130 receipts and partial costs;
+this was an intentional supersession, not a compiler rejection. All diagnostic
+LLVM alternatives remain outside native source-program credit.
+
 All authored recipes use `tests/selfhost-effects/r4.py` for explicit routing to
 `~/Workspace/codex/work/astra/{build,runtime}/effects25-r4/`. This entry point
 does not replace the installed intake or publisher. Immutable snapshots bind
