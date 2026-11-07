@@ -735,6 +735,7 @@ class RecoverLlvm {
 	}
 
 	bool check(RecoverSsa ssa) throws Error {
+		if (!recover_llvm_external_verified(this.calloc_function, 0) || !recover_llvm_external_verified(this.free_function, 1) || !recover_llvm_external_verified(this.memcpy_function, 2) || !recover_llvm_external_verified(this.memcmp_function, 3) || !recover_llvm_external_verified(this.trap_function, 4)) return false;
 		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_llvm_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;

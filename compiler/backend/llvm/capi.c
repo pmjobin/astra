@@ -108,6 +108,13 @@ int32_t llvm13_attribute(LLVMValueRef value, int32_t index, int32_t call, const 
 	return attribute != NULL;
 }
 
+uint64_t llvm13_function_memory(LLVMValueRef function) {
+	if (!function) return 0;
+	unsigned kind = LLVMGetEnumAttributeKindForName("memory", 6);
+	LLVMAttributeRef attribute = LLVMGetEnumAttributeAtIndex(function, LLVMAttributeFunctionIndex, kind);
+	return attribute ? LLVMGetEnumAttributeValue(attribute) : 0;
+}
+
 void llvm13_rename(LLVMValueRef value, const char *p, int32_t n) {
 	if (value && p && n > 0 && n <= PRIVATE_NAME_LIMIT) LLVMSetValueName2(value, p, (size_t)n);
 }
@@ -312,4 +319,8 @@ void llvm13_remove_noinline(LLVMValueRef f) {
 
 void llvm13_fake_memory_none(LLVMContextRef c, LLVMValueRef call) {
 	LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("memory", 6), 0));
+}
+
+void llvm13_fake_function_memory_none(LLVMContextRef c, LLVMValueRef function) {
+	LLVMAddAttributeAtIndex(function, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("memory", 6), 0));
 }

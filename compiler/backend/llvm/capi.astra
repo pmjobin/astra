@@ -281,6 +281,10 @@ extern(C) void llvm13_remove_noinline(void* function);
 
 extern(C) void llvm13_fake_memory_none(void* context, void* call);
 
+extern(C) void llvm13_fake_function_memory_none(void* context, void* function);
+
+extern(C) void* LLVMIsAFunction(void* value);
+
 extern(C) void LLVMGEPSetNoWrapFlags(void* instruction, int flags);
 
 extern(C) int LLVMGEPGetNoWrapFlags(void* instruction);
@@ -361,6 +365,8 @@ extern(C) void LLVMSetFastMathFlags(void* instruction, int flags);
 
 [CCode(text_abi="utf8-i32")]
 extern(C) int llvm13_attribute(void* value, int index, int call, borrowed string name);
+
+extern(C) u64 llvm13_function_memory(void* function);
 
 [CCode(text_abi="utf8-i32")]
 extern(C) void llvm13_rename(void* value, borrowed string name);

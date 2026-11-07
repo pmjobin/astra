@@ -235,6 +235,19 @@ their build parents retained the actual SIGINT/130 receipts and partial costs;
 this was an intentional supersession, not a compiler rejection. All diagnostic
 LLVM alternatives remain outside native source-program credit.
 
+The declaration-level copy forgery is independently LLVM-valid and changes
+the same original Utf8Message witness to exit 3. Runtime binding checks now
+independently require the exact libc names, C calling convention, external
+declaration state, pointer/i64 argument groups, return types and empty
+declaration attributes. The LLVM 23.1.4 trap additionally retains its four
+canonical attributes and inaccessible-memory-write enum value 8. Two further
+physical mutations forge the memcpy and trap declaration effects, bringing
+the new physical catalogue to 14. `final15` was intentionally stopped with
+measured SIGINT receipts before this correction. A fresh complete C0 Core
+check passes. The initial check refused a new generic string C boundary;
+the memory-attribute bridge instead uses one opaque pointer and a scalar
+return, preserving C0's existing boundary policy.
+
 All authored recipes use `tests/selfhost-effects/r4.py` for explicit routing to
 `~/Workspace/codex/work/astra/{build,runtime}/effects25-r4/`. This entry point
 does not replace the installed intake or publisher. Immutable snapshots bind

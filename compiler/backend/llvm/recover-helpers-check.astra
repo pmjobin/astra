@@ -51,6 +51,51 @@ bool recover_llvm_helper_signature(void* function, int parameters) {
 	} return true;
 }
 
+bool recover_llvm_external_verified(void* function, int kind) {
+	if (function == null || LLVMIsAFunction(function) == null || kind < 0 || kind > 4) return false;
+	if (LLVMGetFunctionCallConv(function) != 0 || LLVMGetLinkage(function) != 0 || LLVMGetFirstBasicBlock(function) != null || LLVMIsFunctionVarArg(LLVMGlobalGetValueType(function)) != 0) return false;
+	int count = 3; int result_kind = 12;
+	if (kind == 0) {
+		count = 2;
+		if (llvm13_named(function, "calloc") != 1) return false;
+	}
+	if (kind == 1) {
+		count = 1;
+		result_kind = 0;
+		if (llvm13_named(function, "free") != 1) return false;
+	}
+	if (kind == 2 && llvm13_named(function, "memcpy") != 1) return false;
+	if (kind == 3) {
+		result_kind = 8;
+		if (llvm13_named(function, "memcmp") != 1) return false;
+	}
+	if (kind == 4) {
+		count = 0;
+		result_kind = 0;
+		if (llvm13_named(function, "llvm.trap") != 1) return false;
+	}
+	if (LLVMCountParams(function) != count) return false;
+	var result = LLVMGetReturnType(LLVMGlobalGetValueType(function));
+	if (LLVMGetTypeKind(result) != result_kind || result_kind == 12 && LLVMGetPointerAddressSpace(result) != 0 || result_kind == 8 && LLVMGetIntTypeWidth(result) != 32) return false;
+	int p = 0; while (p <= count) {
+		if (LLVMGetAttributeCountAtIndex(function, p) != 0) return false;
+		if (p > 0) {
+			var parameter = LLVMTypeOf(LLVMGetParam(function, p - 1)); bool wide = kind == 0 || p == 3;
+			if (wide) {
+				if (LLVMGetTypeKind(parameter) != 8 || LLVMGetIntTypeWidth(parameter) != 64) return false;
+			} else {
+				if (LLVMGetTypeKind(parameter) != 12 || LLVMGetPointerAddressSpace(parameter) != 0) return false;
+			}
+		}
+		p = p + 1;
+	}
+	if (kind != 4) return LLVMGetAttributeCountAtIndex(function, -1) == 0;
+	// LLVM 23.1.4's canonical trap has four attributes. Its memory enum is
+	// inaccessible-memory write (8); neither a caller nor a declaration may
+	// replace that effect with memory(none) or claim that the trap returns.
+	return LLVMGetAttributeCountAtIndex(function, -1) == 4 && llvm13_attribute(function, -1, 0, "cold") == 1 && llvm13_attribute(function, -1, 0, "noreturn") == 1 && llvm13_attribute(function, -1, 0, "nounwind") == 1 && llvm13_attribute(function, -1, 0, "memory") == 1 && llvm13_function_memory(function) == 8;
+}
+
 bool recover_llvm_message_verified(void* function, void* payload) {
 	if (!recover_llvm_helper_signature(function, 1)) return false;
 	var blocks = recover_llvm_helper_blocks(function, 1); if (len(blocks) != 1) return false; var body = recover_llvm_body(blocks[0], 7); if (len(body) != 7) return false;
