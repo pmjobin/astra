@@ -7,11 +7,13 @@ int recover_r4_find(RecoverFlow flow, int kind) {
 	} return 0;
 }
 
+void recover_r4_disable_fields(CheckedIndex checked) { checked.field_effects = false; }
+
 int recover_r4_mutation(string[] args, int category) throws Error {
 	var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_effects_profile(move bindings, 0); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow));
 	int load = recover_r4_find(flow, 17); int store = recover_r4_find(flow, 44); assert_that(load > 0 && store > 0); var node = flow.data.nodes[store - 1]; var fact = flow.fields.facts[node.source.index];
 	if (category == 22) {
-		flow.checked.field_effects = false;
+		recover_r4_disable_fields(flow.checked);
 		assert_that(!recover_flow_verify(flow)); return 2;
 	}
 	if (category < 15) {
