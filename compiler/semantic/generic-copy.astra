@@ -316,6 +316,27 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_base_arguments = generic_copy_list(index, plan, data.f_base_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()), depth + 1);
 			if (!index.failed()) result = index.bindings.program.arena.add_lifecycle_declaration(data, header.span, header.depth);
 		}
+		case SyntaxKind.TextLiteralExpressionSyntax(): {
+			var data = index.bindings.program.arena.text_literal_expression(original);
+			if (!index.failed()) result = index.bindings.program.arena.add_text_literal_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.ThrowStatementSyntax(): {
+			var data = index.bindings.program.arena.throw_statement(original);
+			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_throw_statement(data, header.span, header.depth);
+		}
+		case SyntaxKind.TryStatementSyntax(): {
+			var data = index.bindings.program.arena.try_statement(original);
+			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
+			data.f_catches = generic_copy_list(index, plan, data.f_catches, syntax_kind_code(SyntaxKind.CatchClauseSyntax()), depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_try_statement(data, header.span, header.depth);
+		}
+		case SyntaxKind.CatchClauseSyntax(): {
+			var data = index.bindings.program.arena.catch_clause(original);
+			data.f_class_name = generic_copy_node(index, plan, data.f_class_name, depth + 1);
+			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_catch_clause(data, header.span, header.depth);
+		}
 		else: { index.fail(header.span, "DEFERRED: generic body syntax lacks a concrete specialization contract"); }
 	}
 	if (result.index != 0) {

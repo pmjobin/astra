@@ -29,6 +29,8 @@ def corpus():
 		rows['generic-nested'+suffix] = leaf+'T relay<T>(T value, bool fail) throws Error { return leaf<T>(value, fail); }\nint main() { try { '+body+' } '+catch+' }\n'
 		body = scalar('leaf<f64>(0.5d, '+flag+')', 'if (leaf<f64>(0.5d, '+flag+') == 0.5d) return 42; return 3;', fail)
 		rows['generic-floating'+suffix] = leaf+'int main() { try { '+body+' } '+catch+' }\n'
+		body = scalar('relay<int>(42, '+flag+')', 'return relay<int>(42, '+flag+');', fail)
+		rows['generic-rethrow'+suffix] = leaf+'T relay<T>(T value, bool fail) throws Error { try { return leaf<T>(value, fail); } catch (Error caught) { throw; } }\nint main() { try { '+body+' } '+catch+' }\n'
 		body = scalar('leaf('+flag+')', 'return leaf('+flag+');', fail)
 		rows['inferred-parenthesized'+suffix] = 'class Parcel { init() {} }\nint leaf(bool fail) throws Error { var value = (new Parcel()); if (fail) { throw new Error("kept"); } return 42; }\nint main() { try { '+body+' } '+catch+' }\n'
 		for kind, literal in [('f32', '0.5f'), ('f64', '0.5d')]:

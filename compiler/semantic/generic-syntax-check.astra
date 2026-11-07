@@ -460,6 +460,29 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (first_data.f_semicolon.index != second_data.f_semicolon.index) return false;
 			if (!generic_check_list(index, plan, first_data.f_base_arguments, second_data.f_base_arguments)) return false;
 		}
+		case SyntaxKind.TextLiteralExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.text_literal_expression(original);
+			var second_data = index.bindings.program.arena.text_literal_expression(concrete);
+			if (first_data.f_token.index != second_data.f_token.index) return false;
+		}
+		case SyntaxKind.ThrowStatementSyntax(): {
+			var first_data = index.bindings.program.arena.throw_statement(original);
+			var second_data = index.bindings.program.arena.throw_statement(concrete);
+			if (!generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+		}
+		case SyntaxKind.TryStatementSyntax(): {
+			var first_data = index.bindings.program.arena.try_statement(original);
+			var second_data = index.bindings.program.arena.try_statement(concrete);
+			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;
+			if (!generic_check_list(index, plan, first_data.f_catches, second_data.f_catches)) return false;
+		}
+		case SyntaxKind.CatchClauseSyntax(): {
+			var first_data = index.bindings.program.arena.catch_clause(original);
+			var second_data = index.bindings.program.arena.catch_clause(concrete);
+			if (!generic_check_child(index, plan, first_data.f_class_name, second_data.f_class_name)) return false;
+			if (first_data.f_binding.index != second_data.f_binding.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;
+		}
 		else: { return false; }
 	}
 	return true;
