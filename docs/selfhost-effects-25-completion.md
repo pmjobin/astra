@@ -220,7 +220,46 @@ while permitting inferred parentheses and proven heap-owner moves. The v11
 source/consumer guards enforce those existing boundaries without changing C0
 or ordinary Class policy. Its combined Core check passes in 60.23 seconds,
 using 364,752 KiB peak RSS. Both combined native host profiles are building;
-the current Class-policy controls and full regression replay are still pending.
+the current O2 Class-policy controls and full regression replay are still pending.
+
+The combined v11 O0 compiler, SHA-256
+`5eebc4b791f484dc2a97a2bbbebabdd309ef09e0079d2e188dd3240db88e574e`,
+completes the consolidated O0 replay. All 202 inherited source programs execute
+with byte-identical predecessor raw LLVM; the 80 statuses remain 56/12/12.
+The four complete node/span ledgers retain 79/85/92/92 files and
+174,297/188,293/206,465/208,328 nodes. The 60 new source identities have no
+overlap with inherited sources: 35 real recoverable-error paths and 25
+success/cleanup programs, with 60 distinct O0 ELF hashes. All pass independent
+C0 comparisons, raw/optimized LLVM verification and unsuppressed Valgrind.
+The same compiler rejects 39 semantic categories and 24 LLVM-valid alternatives.
+Current Class controls reject the six forbidden acquisition/construction forms;
+four positive Class-owner controls execute cleanly. The C0-legal inferred
+parenthesized construction remains a source deferral at Flow 1, before output.
+The initial positive-assumption failure remains in `class-policy-v11-O0`; its
+explicitly classified retry is separate. The historical v10 compiler reproduces
+the same refusal, so the new Class-local guard did not introduce this boundary.
+
+The initial original-function probe included unrelated container libraries and
+stopped at generic `Bag<T>`. The narrower `original-v11minimal-O0` uses only real
+required source/Text dependencies and the byte-exact original host declaration.
+C0 executes the unchanged `flow_number` body with exit 42 and clean Valgrind;
+Astra stops before Core at Flow 3, node 6: original `SourceBoundsError` in
+`compiler/source/source.astra`, bytes 134..220. The original complete source/span
+ledger independently maps that failure. Its literal base constructor is not
+admitted by the current Error shape query. Original compiler-function Astra
+execution therefore remains unmet, independently of predicate 26.
+
+Concrete C0-qualified frontier attempts additionally retain refusal of checked
+scalar/void receivers, closed generic checked calls, fielded Class factories,
+derived Error fields/literal constructors, floating scalar and floating buffer
+results. The remaining direct grammar also lacks general owner/field assignment
+and owning call rvalues. These are implementation boundaries, not a request to
+change the approved transport or broaden Class policy.
+
+The combined O0 cold compiler command costs 1,800.49 seconds wall, 1,787.04
+seconds user, 1.61 seconds system and 2,244,940 KiB peak RSS. Exact warm reuse
+preserves its binary and is recorded separately. The O2 cold build overlaps
+this interval; the wall times must not be added as campaign elapsed time.
 
 The 202 inherited programs and frozen source cohorts have not yet been replayed
 using a combined current compiler. Earlier R2 qualifications remain tied to

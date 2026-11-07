@@ -16,9 +16,17 @@ from state import ROOT, load_module, read, sha, bounded_run, git
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--audit', type=Path, required=True); p.add_argument('--version', required=True); a = p.parse_args(); assert a.version.isalnum(); audit = read(a.audit); assert audit['status'] == 'PARTIAL'
+	p = argparse.ArgumentParser(); p.add_argument('--audit', type=Path, required=True); p.add_argument('--version', required=True); p.add_argument('--reuse-columns',type=Path); a = p.parse_args(); assert a.version.isalnum(); audit = read(a.audit); assert audit['status'] == 'PARTIAL'
 	assert (git('rev-parse','HEAD').strip(),git('rev-parse','HEAD^{tree}').strip()) == (audit['final_commit'],audit['final_tree']) and not git('status','--porcelain=v1','--untracked-files=all').strip()
 	paths = load_module('recover_package_paths',ROOT/'tests/selfhost-effects/recover-build.py'); leaf = paths.RUNTIME/('handoff-'+a.version); leaf.mkdir(); archive = leaf/'effects25-completion-evidence.tar.xz'; columns = load_module('recover_package_columns',ROOT/'tests/selfhost-genref/columns.py'); restore = load_module('recover_package_restore',ROOT/'tests/selfhost-effects/restore.py'); column_directory = leaf/'columns'; column_directory.mkdir(); index = {}; blobs = set(); encoded = {}; start = time.monotonic()
+	reuse = {}; reused = []
+	if a.reuse_columns:
+		with zipfile.ZipFile(paths.RUNTIME/'checkpoint-report.zip') as previous: previous_packaging = json.loads(previous.read('evidence/packaging.json'))
+		old_archive = a.reuse_columns/'effects25-r2-evidence.tar.xz'; assert sha(old_archive) == previous_packaging['archive_sha256']
+		with tarfile.open(old_archive,'r:xz') as old:
+			old_index = json.load(old.extractfile('INDEX.json')); assert old_index['files']['recipes/columns.py']['sha256'] == sha(ROOT/'tests/selfhost-genref/columns.py')
+			for row in old_index['files'].values():
+				if 'columns' in row: reuse[row['sha256']] = row['columns']
 	with tarfile.open(archive,'w:xz',preset=9) as packed:
 		def store(name,path=None,data=None):
 			entry = tarfile.TarInfo(name); entry.mode = 0o644
@@ -42,7 +50,13 @@ def main():
 				with path.open('rb') as stream: first = stream.readline()
 				if not first.startswith(b'('):
 					if digest not in encoded:
-						plan = columns.encode(path,column_directory,name,len(encoded)); observed = hashlib.sha256(); count = 0
+						if digest in reuse:
+							plan = json.loads(json.dumps(reuse[digest])); assert plan['sha256'] == digest and plan['bytes'] == size
+							for part in list(plan['parts'].values())+[p for group in plan['groups'] for p in group['columns']]:
+								original = a.reuse_columns/'columns'/part['path']; assert sha(original) == part['sha256'] and original.stat().st_size == part['bytes']; part['path'] = 'reused-'+digest[:16]+'-'+part['path']; shutil.copy2(original,column_directory/part['path'])
+							reused.append(digest)
+						else: plan = columns.encode(path,column_directory,name,len(encoded))
+						observed = hashlib.sha256(); count = 0
 						for block in columns.reconstruct(column_directory,plan): observed.update(block); count += len(block)
 						assert observed.hexdigest() == digest and count == size; encoded[digest] = plan
 						for part in list(plan['parts'].values())+[p for group in plan['groups'] for p in group['columns']]: add('columns/'+part['path'],path=column_directory/part['path'],transform=False)
@@ -94,7 +108,7 @@ def main():
 	verify = leaf/'decoder-verification'; r = bounded_run([sys.executable,'-B',ROOT/'tests/selfhost-effects/restore.py',archive,'--output',verify,'--verify-only'],capture_output=True,timeout=1200); (leaf/'decoder.stdout').write_bytes(r.stdout); (leaf/'decoder.stderr').write_bytes(r.stderr); assert r.returncode == 0,r.stderr[-2500:]
 	attachments = leaf/'attachments'; attachments.mkdir(); tool = ROOT/'tools/qualification/encoded-evidence.py'; r = bounded_run([sys.executable,'-B',tool,'pack','--input',archive,'--output',attachments,'--stem','effects25-completion'],capture_output=True,timeout=300); (leaf/'packing.stdout').write_bytes(r.stdout); (leaf/'packing.stderr').write_bytes(r.stderr); assert r.returncode == 0,r.stderr[-2500:]
 	shutil.copy2(a.audit,attachments/'final-audit.json'); shutil.copy2(tool,attachments/'decode-evidence.py.txt'); shutil.copy2(ROOT/'tests/selfhost-effects/restore.py',attachments/'restore-effects.py.txt'); shutil.copy2(ROOT/'tests/selfhost-genref/columns.py',attachments/'restore-columns.py.txt')
-	packaging = dict(status='LOSSLESS_EVIDENCE_VERIFIED',logical_files=len(index),unique_blobs=len(blobs),column_observations=len(encoded),archive_bytes=archive.stat().st_size,archive_sha256=sha(archive),seconds=time.monotonic()-start,previous_report_sha256=sha(old)); (attachments/'packaging.json').write_text(json.dumps(packaging,indent=2)+'\n')
+	packaging = dict(status='LOSSLESS_EVIDENCE_VERIFIED',logical_files=len(index),unique_blobs=len(blobs),column_observations=len(encoded),byte_exact_column_reuse=reused,column_reuse_limitation='Transport encoding reuse only; every reconstructed observation is hashed again, with no semantic/runtime credit from reuse.',archive_bytes=archive.stat().st_size,archive_sha256=sha(archive),seconds=time.monotonic()-start,previous_report_sha256=sha(old)); (attachments/'packaging.json').write_text(json.dumps(packaging,indent=2)+'\n')
 	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact gates, native counts, original-source attempts, costs and deferrals. Decode effects25-completion-encoding.json using decode-evidence.py.txt to recover the tar.xz. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py; run restore-effects.py ARCHIVE --output DIRECTORY --verify-only to verify all logical bytes without executing evidence. Original/R1/current-old PARTIAL checkpoints retain their identities and Git history. ABI caller adapters and independent C/C++/C0 probes have zero Astra program credit. Installed publication plus its independent ZIP verification establishes G12.\n')
 	files = [dict(path=path.name,bytes=path.stat().st_size,sha256=sha(path)) for path in sorted(attachments.iterdir())]; assert all(row['bytes'] <= 2*1024**2 for row in files) and len(files) <= 128; manifest = attachments/'INDEX.json'; manifest.write_text(json.dumps(dict(format='pm-next-evidence/1',files=files),indent=2)+'\n')
 	counts = ', '.join(mode+': '+str(profile['native_programs'])+' genuine Astra programs ('+str(profile['actual_error_programs'])+' error paths)' for mode,profile in audit['profiles'].items())
