@@ -98,7 +98,12 @@ bool recover_llvm_dtor_verified(void* function, void* parent, void* payload, voi
 }
 
 bool recover_llvm_allocate_verified(void* function, void* calloc_function, void* trap_function) {
-	if (!recover_llvm_helper_signature(function, 2)) return false;
+	if (function == null || LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != 2 || LLVMIsFunctionVarArg(LLVMGlobalGetValueType(function)) != 0) return false;
+	if (LLVMGetAttributeCountAtIndex(function, -1) != 1 || llvm13_attribute(function, -1, 0, "noinline") != 1) return false;
+	int p = 0; while (p <= 2) {
+		if (LLVMGetAttributeCountAtIndex(function, p) != 0) return false;
+		p = p + 1;
+	}
 	var blocks = recover_llvm_helper_blocks(function, 3); if (len(blocks) != 3) return false; var entry = recover_llvm_body(blocks[0], 3); var valid = recover_llvm_body(blocks[1], 1); var fatal = recover_llvm_body(blocks[2], 2); if (len(entry) != 3 || len(valid) != 1 || len(fatal) != 2) return false;
 	if (!recover_llvm_call(entry[0], calloc_function, 2, 0) || LLVMGetArgOperand(entry[0], 0) != LLVMGetParam(function, 0) || LLVMGetArgOperand(entry[0], 1) != LLVMGetParam(function, 1) || LLVMGetInstructionOpcode(entry[1]) != 42 || LLVMGetICmpPredicate(entry[1]) != 33 || LLVMGetOperand(entry[1], 0) != entry[0] || LLVMIsNull(LLVMGetOperand(entry[1], 1)) == 0) return false;
 	return recover_llvm_split(entry[2], entry[1], blocks[1], blocks[2]) && recover_llvm_return(valid[0], entry[0]) && recover_llvm_call(fatal[0], trap_function, 0, 0) && LLVMGetInstructionOpcode(fatal[1]) == 7;

@@ -195,6 +195,25 @@ union and a 32033.93-second sum; overlapping intervals are not campaign elapsed
 time or a speedup measurement. Raw commands, failed/stopped attempts and GNU
 time receipts remain available. Product reuse performs no compilation.
 
+The `final13` O0 integration passed all 39 recipes. O2 passed its source
+corpora and mutations but failed the empty-snapshot allocation/lifetime
+control: optimization erased the unused Class allocation. Forcing the
+16-byte allocation to fail traps in actual C0 (132/SIGILL) but the emitted
+O2 executable returned 42 without an allocation. `nobuiltin` on calloc was
+already present; it did not preserve the boundary after helper inlining.
+These products are superseded and do not qualify final integration.
+
+LLVM-valid diagnostic alternatives establish that `noinline` on the private
+checked allocator preserves C0's trace and fatal-failure behavior; those
+alternatives have zero Astra source-program credit. The source emitter now
+sets this general allocator attribute, and its independent verifier requires
+exactly that attribute while retaining strict empty attribute inventories
+for other helpers. An eleventh physical mutation removes it. All five
+lifetime controls now also force the actual Class allocation to fail.
+Observer environment metadata copies each invocation's settings; historical
+immutable argv records remain authoritative for the earlier mutable-label
+metadata. Fresh integration is required after this correction.
+
 All authored recipes use `tests/selfhost-effects/r4.py` for explicit routing to
 `~/Workspace/codex/work/astra/{build,runtime}/effects25-r4/`. This entry point
 does not replace the installed intake or publisher. Immutable snapshots bind

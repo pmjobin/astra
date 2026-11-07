@@ -90,6 +90,10 @@ int recover_r4_mutation(string[] args, int category) throws Error {
 }
 
 bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	if (category == 10) {
+		llvm13_remove_noinline(module.allocate_function);
+		return true;
+	}
 	if (category == 8 || category == 9) {
 		var valid = LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(module.buffer_function));
 		if (category == 8) {
@@ -175,7 +179,7 @@ int recover_r4_mutations_cli(string[] args) {
 			int stage = recover_r4_mutation(args, category); var out = new Utf8ByteBuilder(); source_append_text(out, "R4_FIELD_REJECT "); append_int(out, category); source_append_text(out, " "); append_int(out, stage); var text = out.snapshot(); println(text.text); category = category + 1;
 		}
 		var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_effects_profile(move bindings, 0); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;
-		while (category < 10) {
+		while (category < 11) {
 			var module = new RecoverLlvm(ssa); module.build(ssa); assert_that(module.check(ssa)); assert_that(recover_r4_physical(module, ssa, category)); assert_that(llvm12_verify(module.module) == 0); assert_that(!module.check(ssa));
 			var output = new Utf8ByteBuilder(); source_append_text(output, args[2]); source_append_text(output, "/field-physical-"); append_int(output, category); source_append_text(output, ".ll"); var path = output.snapshot(); assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0); var out = new Utf8ByteBuilder(); source_append_text(out, "R4_FIELD_LLVM_REJECT "); append_int(out, category); var text = out.snapshot(); println(text.text); category = category + 1;
 		}

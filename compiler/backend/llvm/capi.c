@@ -305,3 +305,7 @@ void llvm12_false_noalias(LLVMContextRef c, LLVMValueRef f) {
 void llvm12_noinline(LLVMContextRef c, LLVMValueRef f) {
 	LLVMAddAttributeAtIndex(f, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("noinline", 8), 0));
 }
+
+void llvm13_remove_noinline(LLVMValueRef f) {
+	LLVMRemoveEnumAttributeAtIndex(f, LLVMAttributeFunctionIndex, LLVMGetEnumAttributeKindForName("noinline", 8));
+}

@@ -10,7 +10,7 @@ import time
 from state import ROOT, C0, load_module, read, sha, bounded_run
 
 SEMANTIC = ['missing receiver', 'zero owner slot', 'out-of-range owner slot', 'non-field nominal member', 'field ordinal', 'field byte offset', 'reverse cleanup rank', 'writable authority', 'constructor authority', 'equal-size different nominal Class', 'layout offset', 'payload extent', 'field qualifier identity', 'store receiver binding', 'load source type', 'Core receiver Place', 'Core ownership role', 'CFG missing value', 'CFG wrong source operation', 'CFG skipped initialization/cleanup', 'SSA field type', 'SSA field definition', 'forged private fielded-effects profile']
-PHYSICAL = ['undersized Class allocation', 'different same-type field GEP', 'wrong field value', 'null substituted receiver', 'containing object freed as child payload', 'containing object retirement omitted', 'buffer exchange publishes its old left descriptor', 'buffer exchange overwrites only its left destination', 'zero-buffer branch selects count one', 'nonempty buffer allocation loses its actual count']
+PHYSICAL = ['undersized Class allocation', 'different same-type field GEP', 'wrong field value', 'null substituted receiver', 'containing object freed as child payload', 'containing object retirement omitted', 'buffer exchange publishes its old left descriptor', 'buffer exchange overwrites only its left destination', 'zero-buffer branch selects count one', 'nonempty buffer allocation loses its actual count', 'checked allocator noinline barrier removed']
 
 
 def main():
@@ -30,11 +30,11 @@ def main():
 		r = run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', program], label+'-memory', (42,)); assert b'ERROR SUMMARY: 0 errors' in r.stderr and b'in use at exit: 0 bytes in 0 blocks' in r.stderr and b'(suppressed: 0 from 0)' in r.stderr
 	r = run([a.component, '--r4-field-adversarial', build, *inputs], 'stage-negatives')
 	semantic = [(int(c), int(s)) for c, s in re.findall(rb'R4_FIELD_REJECT ([0-9]+) ([0-9]+)', r.stdout)]; physical = [int(c) for c in re.findall(rb'R4_FIELD_LLVM_REJECT ([0-9]+)', r.stdout)]
-	assert semantic == [(i, 2 if i < 15 or i == 22 else 3 if i < 17 else 4 if i < 20 else 5) for i in range(23)] and physical == list(range(10))
+	assert semantic == [(i, 2 if i < 15 or i == 22 else 3 if i < 17 else 4 if i < 20 else 5) for i in range(23)] and physical == list(range(11))
 	variants = []
 	for category in physical:
 		variant = build/('field-physical-'+str(category)+'.ll'); assert sha(variant) != sha(ir); run(['llvm-as', variant, '-o', build/(str(category)+'.bc')], str(category)+'-assemble'); run(['opt', '-passes=verify', '-disable-output', variant], str(category)+'-verify'); target = build/(str(category)+'-optimized.ll'); run(['opt', '-passes=default<'+a.mode+'>', '-S', variant, '-o', target], str(category)+'-optimize'); run(['opt', '-passes=verify', '-disable-output', target], str(category)+'-optimized-verify'); variants.append(dict(category=category, meaning=PHYSICAL[category], LLVM_sha256=sha(variant), optimized_sha256=sha(target)))
-	(leaf/'result.json').write_text(json.dumps(dict(status='INDEPENDENT_FIELD_CONTROLS', profile=a.mode, component_sha256=sha(a.component), source_sha256=sha(source), public_diagnostic_fixture=a.public_controls, semantic=[dict(category=c, stage=s, meaning=SEMANTIC[c]) for c, s in semantic], LLVM_valid_physical=variants, primary_corpus_credit=0, limitation='Public diagnostic fixtures are unrelated authored controls, never altered original declarations. Original builder/function execution and remaining field/effect forms require separate evidence.'), indent=2)+'\n'); print(a.mode, '23 field-stage mutations and 10 LLVM-valid physical alternatives rejected', flush=True)
+	(leaf/'result.json').write_text(json.dumps(dict(status='INDEPENDENT_FIELD_CONTROLS', profile=a.mode, component_sha256=sha(a.component), source_sha256=sha(source), public_diagnostic_fixture=a.public_controls, semantic=[dict(category=c, stage=s, meaning=SEMANTIC[c]) for c, s in semantic], LLVM_valid_physical=variants, primary_corpus_credit=0, limitation='Public diagnostic fixtures are unrelated authored controls, never altered original declarations. Original builder/function execution and remaining field/effect forms require separate evidence.'), indent=2)+'\n'); print(a.mode, '23 field-stage mutations and 11 LLVM-valid physical alternatives rejected', flush=True)
 
 
 if __name__ == '__main__':

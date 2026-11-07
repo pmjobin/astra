@@ -90,7 +90,8 @@ def main():
 		controls = {}
 		for key in ('r4_policy', 'lifetime', 'field_guard', 'class_loans', 'generic_call_proof', 'original_policy', 'independent_layout', 'independent_field_producers', 'receiver_guard', 'dynamic_observer', 'ABI_success_probe', 'ABI_limit'):
 			leaf = paths.RUNTIME/profile[key]; result = read(leaf/'result.json'); assert result.get('component_sha256') in (None, sha(component)); controls[key] = dict(path=profile[key], result_sha256=sha(leaf/'result.json'))
-		assert all(row['trace_equal'] for row in read(paths.RUNTIME/profile['lifetime']/'result.json')['programs'])
+		lifetimes = read(paths.RUNTIME/profile['lifetime']/'result.json'); assert lifetimes['status'] == 'INDEPENDENT_LIFETIME_CONTROLS' and len(lifetimes['programs']) == 5 and all(row['trace_equal'] for row in lifetimes['programs'])
+		assert all(row[label+'_object_failure_exit'] == 132 and row[label+'_object_failure_signal'] == 4 for row in lifetimes['programs'] for label in ('Astra', 'C0'))
 		proofs = read(paths.RUNTIME/profile['generic_call_proof']/'result.json'); assert len(proofs['programs']) == 3 and all(r['source_check'] == [3, 0, 0] and r['C0_exit'] == 42 for r in proofs['programs'])
 		assert proofs['status'] == 'INDEPENDENT_GENERIC_CALL_PROOF_CONTROLS'
 		assert proofs['semantic_profiles'] == dict(call_proof='Explicit private checked_build_effects_profile', retained_use_ledger='Retained checked_build_profile, field_effects false', original_method_signature='Retained checked_build_profile, field_effects false')

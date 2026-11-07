@@ -119,6 +119,10 @@ class RecoverLlvm {
 		var bytes_types = new void*[3]; bytes_types[0] = this.pointer; bytes_types[1] = this.pointer; bytes_types[2] = this.wide; this.memcpy_function = this.function("memcpy", this.pointer, bytes_types, false); this.memcmp_function = this.function("memcmp", this.integer, bytes_types, false);
 		var none = new void*[0]; this.trap_function = this.function("llvm.trap", LLVMVoidTypeInContext(this.context), none, false);
 		this.allocate_function = this.function("astra.e25a.allocate", this.pointer, allocation_types, true);
+		// Keep the fatal allocation boundary observable even when the object
+		// is otherwise dead. nobuiltin on calloc alone does not prevent LLVM
+		// from eliding this checked allocation after helper inlining.
+		llvm12_noinline(this.context, this.allocate_function);
 		var entry = llvm12_block(this.context, this.allocate_function, "entry"); var valid = llvm12_block(this.context, this.allocate_function, "allocated"); var fatal = llvm12_block(this.context, this.allocate_function, "fatal"); LLVMPositionBuilderAtEnd(this.builder, entry);
 		var arguments = new void*[2]; arguments[0] = LLVMGetParam(this.allocate_function, 0); arguments[1] = LLVMGetParam(this.allocate_function, 1); var pointer = this.call(this.calloc_function, arguments, false); llvm12_nobuiltin(this.context, pointer);
 		var present = LLVMBuildICmp(this.builder, 33, pointer, LLVMConstNull(this.pointer), this.empty); var branch = LLVMBuildCondBr(this.builder, present, valid, fatal);
