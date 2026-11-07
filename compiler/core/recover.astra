@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Structured Core has explicit conditional result and owned error channels.
+// The retained Flow is a sibling authority, not a mutable producer certificate.
+struct RecoverCoreNode {
+	RecoverNode value;
+	TypeId error;
+	int result_role;
+	int error_owner;
+	int borrowed_owner;
+	bool conditional;
+}
+
+class RecoverCore {
+	owned RecoverFlow flow;
+	owned shared TypeOwner identity;
+	owned RecoverCoreNode[] nodes;
+	int count;
+	int status;
+
+	init(owned RecoverFlow flow) {
+		int count = flow.data.node_count; this.flow = move flow;
+		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
+		this.nodes = new RecoverCoreNode[count]; this.count = count; this.status = 0;
+	}
+}
+
+bool recover_node_equal(RecoverNode a, RecoverNode b) {
+	return a.kind == b.kind && a.function == b.function && a.source.index == b.source.index && a.type.index == b.type.index && a.token.index == b.token.index && a.symbol.index == b.symbol.index && a.a == b.a && a.b == b.b && a.c == b.c && a.first == b.first && a.count == b.count && a.handler == b.handler && a.caught == b.caught;
+}
+
+bool recover_core_verify(RecoverCore core) {
+	if (core.status != 0 || !recover_flow_verify(core.flow) || core.count != core.flow.data.node_count || len(core.nodes) != core.count) return false;
+	int i = 0;
+	while (i < core.count) {
+		var row = core.nodes[i]; var source = core.flow.data.nodes[i];
+		if (!recover_node_equal(row.value, source)) return false;
+		int role = 0; if (source.kind < 20 && source.type.index != 14) role = 1;
+		if (source.kind == 5) role = 2;
+		if (source.kind == 6) role = 3;
+		if (row.result_role != role) return false;
+		int owner = 0; if (source.kind == 5 || source.kind == 25) owner = i + 1;
+		int borrow = 0; if (source.kind == 6) borrow = source.caught;
+		if (row.error_owner != owner || row.borrowed_owner != borrow) return false;
+		TypeId error = {index = 0}; bool conditional = false;
+		if (source.kind == 4) {
+			int callee = core.flow.data.symbols[source.symbol.index]; var function = core.flow.data.functions[callee - 1]; error = function.error; conditional = function.checked;
+		}
+		if (row.error.index != error.index || row.conditional != conditional) return false;
+		// A caught source binding is always a borrow. The separately identified
+		// owner can only be destroyed or transferred by explicit CFG operations.
+		if (source.kind == 25 && (source.symbol.index == 0 || core.flow.checked.bindings.symbol(source.symbol).kind != 15)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+owned RecoverCore recover_core_lower(owned RecoverFlow flow) {
+	bool valid = recover_flow_verify(flow); var core = new RecoverCore(move flow);
+	if (!valid) {
+		core.status = 4;
+		return move core;
+	}
+	int i = 0;
+	while (i < core.count) {
+		var value = core.flow.data.nodes[i]; int role = 0; if (value.kind < 20 && value.type.index != 14) role = 1;
+		if (value.kind == 5) role = 2; if (value.kind == 6) role = 3;
+		int owner = 0; if (value.kind == 5 || value.kind == 25) owner = i + 1;
+		int borrow = 0; if (value.kind == 6) borrow = value.caught;
+		TypeId error = {index = 0}; bool conditional = false;
+		if (value.kind == 4) {
+			var function = core.flow.data.functions[core.flow.data.symbols[value.symbol.index] - 1];
+			error = function.error;
+			conditional = function.checked;
+		}
+		RecoverCoreNode row = {value = value, error = error, result_role = role, error_owner = owner, borrowed_owner = borrow, conditional = conditional}; core.nodes[i] = row; i = i + 1;
+	}
+	if (!recover_core_verify(core)) core.status = 1;
+	return move core;
+}

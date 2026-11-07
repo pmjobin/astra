@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Continuation lowering from Core only. Error owners travel on explicit edges.
+int recover_cfg_owner(RecoverCfg cfg, int caught) { return cfg.core.count * 2 + cfg.catch_try[caught - 1]; }
+
+int recover_cfg_cleanup(RecoverCfg cfg, int origin, int caught, int stop, int skip, int carry, int next, int depth) {
+	if (caught == stop || caught == 0 || cfg.status != 0) return next;
+	if (depth > 192) {
+		cfg.status = 2;
+		return 0;
+	}
+	var row = cfg.core.nodes[caught - 1].value;
+	int tail = recover_cfg_cleanup(cfg, origin, row.caught, stop, skip, carry, next, depth + 1);
+	if (caught == skip) return tail;
+	return cfg.block(row.function, origin, 32, 0, 0, tail, 0, recover_cfg_owner(cfg, caught), carry, caught);
+}
+
+int recover_cfg_error(RecoverCfg cfg, int id, int owner, int skip) {
+	var row = cfg.core.nodes[id - 1].value;
+	int destination = cfg.errors[row.function - 1]; int stop = 0;
+	if (row.handler > 0) {
+		destination = cfg.handlers[row.handler - 1];
+		stop = cfg.core.nodes[row.handler - 1].value.caught;
+	}
+	int tail = recover_cfg_cleanup(cfg, id, row.caught, stop, skip, owner, destination, 0);
+	return cfg.block(row.function, id, 34, 0, 0, tail, 0, owner, owner, 0);
+}
+
+int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
+	if (id == 0 || cfg.status != 0) return next;
+	if (depth > 192) {
+		cfg.status = 2;
+		return 0;
+	}
+	var node = cfg.core.nodes[id - 1]; var row = node.value;
+	int operation = 0; int head = next;
+	if (row.kind == 20) {
+		int i = row.count - 1;
+		while (i >= 0 && cfg.status == 0) {
+			head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
+			i = i - 1;
+		}
+	} else {
+		if (row.kind == 21) {
+			int yes = recover_cfg_tree(cfg, row.b, next, depth + 1); int no = recover_cfg_tree(cfg, row.c, next, depth + 1);
+			operation = cfg.block(row.function, id, 21, row.a, 0, yes, no, 0, 0, 0); head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
+		} else {
+			if (row.kind == 24) {
+				int owner = cfg.core.count * 2 + id;
+				int phi = cfg.block(row.function, id, 33, 0, 0, 0, 0, owner, owner, id); cfg.handlers[id - 1] = phi;
+				int i = 0;
+				while (i < row.count) {
+					int caught = cfg.core.flow.data.edges[row.first + i];
+					cfg.catch_try[caught - 1] = id;
+					i = i + 1;
+				}
+				int dispatch = recover_cfg_error(cfg, id, owner, 0); i = row.count - 1;
+				while (i >= 0 && cfg.status == 0) {
+					int caught = cfg.core.flow.data.edges[row.first + i]; var clause = cfg.core.nodes[caught - 1].value;
+					int retire = cfg.block(row.function, caught, 32, 0, 0, next, 0, owner, 0, caught);
+					int body = recover_cfg_tree(cfg, clause.a, retire, depth + 1);
+					int test = cfg.block(row.function, caught, 31, 0, 0, body, dispatch, owner, owner, caught);
+					RecoverRegion region = {entry = body, operation = test, next = next}; cfg.regions[caught - 1] = region;
+					dispatch = test; i = i - 1;
+				}
+				var saved = cfg.blocks[phi - 1]; saved.next = dispatch; cfg.blocks[phi - 1] = saved;
+				operation = phi; head = recover_cfg_tree(cfg, row.a, next, depth + 1);
+			} else {
+				if (row.kind == 22) {
+					operation = cfg.block(row.function, id, 22, row.a, 0, 0, 0, 0, 0, 0);
+					head = recover_cfg_cleanup(cfg, id, row.caught, 0, 0, 0, operation, 0);
+					head = recover_cfg_tree(cfg, row.a, head, depth + 1);
+				} else {
+					if (row.kind == 23) {
+						int owner = row.a; int skip = 0;
+						if (row.a == 0) {
+							owner = recover_cfg_owner(cfg, row.caught);
+							skip = row.caught;
+						}
+						operation = recover_cfg_error(cfg, id, owner, skip); head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
+					} else {
+						if (row.kind == 26) {
+							head = recover_cfg_tree(cfg, row.a, next, depth + 1);
+						}
+						else {
+							int tail = next; int error = 0;
+							if (node.conditional) {
+								error = recover_cfg_error(cfg, id, cfg.core.count + id, 0);
+								if (row.type.index != 14) tail = cfg.block(row.function, id, 30, 0, 0, next, 0, 0, 0, 0);
+							}
+							int owner = 0; if (row.kind == 5) owner = id;
+							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation;
+							int i = row.count - 1;
+							while (i >= 0 && cfg.status == 0) {
+								head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
+								i = i - 1;
+							}
+							if (row.b != 0) head = recover_cfg_tree(cfg, row.b, head, depth + 1);
+							if (row.a != 0) head = recover_cfg_tree(cfg, row.a, head, depth + 1);
+						}
+					}
+				}
+			}
+		}
+	}
+	RecoverRegion region = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = region; return head;
+}
+
+owned RecoverCfg recover_cfg_lower(owned RecoverCore core, int limit) {
+	bool valid = recover_core_verify(core); var cfg = new RecoverCfg(move core, limit);
+	if (!valid) {
+		cfg.status = 4;
+		return move cfg;
+	}
+	int f = 0;
+	while (f < cfg.core.flow.data.function_count && cfg.status == 0) {
+		var function = cfg.core.flow.data.functions[f]; int owner = cfg.core.count * 3 + f + 1;
+		int opcode = 35; if (function.checked) opcode = 23;
+		int error = cfg.block(f + 1, 0, opcode, 0, 0, 0, 0, owner, 0, 0);
+		int phi = cfg.block(f + 1, 0, 33, 0, 0, error, 0, owner, owner, 0); cfg.errors[f] = phi;
+		int terminal = 35; if (function.result.index == 14) terminal = 22;
+		int exit = cfg.block(f + 1, 0, terminal, 0, 0, 0, 0, 0, 0, 0);
+		int entry = recover_cfg_tree(cfg, function.body, exit, 0); cfg.entries[f] = entry; f = f + 1;
+	}
+	int b = 0;
+	while (b < cfg.block_count && cfg.status == 0) {
+		var block = cfg.blocks[b]; int p = 1;
+		while (p <= 2) {
+			int target = block.next; int owner = block.carry;
+			if (p == 2) {
+				target = block.other;
+				if (block.opcode == 4) owner = cfg.core.count + block.origin;
+			}
+			if (target != 0) {
+				RecoverCfgEdge edge = {source = b + 1, target = target, polarity = p, owner = owner};
+				cfg.edges[cfg.edge_count] = edge;
+				cfg.edge_count = cfg.edge_count + 1;
+			}
+			p = p + 1;
+		}
+		b = b + 1;
+	}
+	if (cfg.status == 0 && !recover_cfg_verify(cfg)) cfg.status = 1;
+	return move cfg;
+}

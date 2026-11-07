@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The only source walk in construction. Later stages consume these retained
+// typed operations; they do not parse source or recover operations from text.
+int recover_build_node(RecoverFlowData flow, CheckedIndex checked, SyntaxNodeId source, int function, int handler, int caught, int depth) {
+	if (source.index == 0 || flow.status != 0) return 0;
+	if (depth > 192) {
+		flow.status = 2;
+		return 0;
+	}
+	var kind = checked.bindings.program.arena.kind(source);
+	var row = recover_empty(source, function, checked.uses[source.index].type, handler, caught);
+	int id = flow.add(row); if (id == 0) return 0;
+	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax() || kind == SyntaxKind.TextLiteralExpressionSyntax()) {
+		row.kind = 1;
+		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) row.token = checked.bindings.program.arena.get_token_token(source);
+		else {
+			row.token = checked.bindings.program.arena.get_token_literal(source);
+		}
+	}
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		row.kind = 2; row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+	}
+	if (kind == SyntaxKind.BinaryExpressionSyntax()) {
+		row.kind = 3; row.token = checked.bindings.program.arena.get_token_operator_token(source);
+		row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_left(source), function, handler, caught, depth + 1);
+		row.b = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_right(source), function, handler, caught, depth + 1);
+	}
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+		row.kind = 7; row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+		row.kind = 4;
+		if (kind == SyntaxKind.CallExpressionSyntax()) row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+		var arguments = checked_call_arguments(checked, source);
+		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+			row.kind = 5; row.symbol = checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(source));
+			arguments = checked.bindings.program.arena.get_list_arguments(source);
+		}
+		int count = checked.bindings.program.arena.list_count(arguments); var children = new int[count]; int i = 0;
+		while (i < count && flow.status == 0) {
+			children[i] = recover_build_node(flow, checked, checked.bindings.program.arena.node_at(arguments, i), function, handler, caught, depth + 1);
+			i = i + 1;
+		}
+		row.first = flow.edge_count; row.count = count; i = 0;
+		while (i < count && flow.status == 0) {
+			int added = flow.edge(children[i]);
+			i = i + 1;
+		}
+	}
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		row.kind = 6; row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+		row.token = checked.bindings.program.arena.get_token_field_name(source);
+	}
+	if (kind == SyntaxKind.BlockStatementSyntax()) {
+		row.kind = 20; row.type = type_id(14);
+		var statements = checked.bindings.program.arena.get_list_statements(source); int count = checked.bindings.program.arena.list_count(statements);
+		var children = new int[count]; int i = 0;
+		while (i < count && flow.status == 0) {
+			children[i] = recover_build_node(flow, checked, checked.bindings.program.arena.node_at(statements, i), function, handler, caught, depth + 1);
+			i = i + 1;
+		}
+		row.first = flow.edge_count; row.count = count; i = 0;
+		while (i < count && flow.status == 0) {
+			int added = flow.edge(children[i]);
+			i = i + 1;
+		}
+	}
+	if (kind == SyntaxKind.IfStatementSyntax()) {
+		row.kind = 21; row.type = type_id(14);
+		row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_condition(source), function, handler, caught, depth + 1);
+		row.b = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_then_body(source), function, handler, caught, depth + 1);
+		row.c = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_else_body(source), function, handler, caught, depth + 1);
+	}
+	if (kind == SyntaxKind.ReturnStatementSyntax() || kind == SyntaxKind.ThrowStatementSyntax()) {
+		row.kind = 22; if (kind == SyntaxKind.ThrowStatementSyntax()) row.kind = 23;
+		row.type = type_id(14); row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
+	}
+	if (kind == SyntaxKind.TryStatementSyntax()) {
+		row.kind = 24; row.type = type_id(14);
+		row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_body(source), function, id, caught, depth + 1);
+		var clauses = checked.bindings.program.arena.get_list_catches(source); int count = checked.bindings.program.arena.list_count(clauses); var children = new int[count]; int i = 0;
+		while (i < count && flow.status == 0) {
+			children[i] = recover_build_node(flow, checked, checked.bindings.program.arena.node_at(clauses, i), function, handler, caught, depth + 1);
+			i = i + 1;
+		}
+		row.first = flow.edge_count; row.count = count; i = 0;
+		while (i < count && flow.status == 0) {
+			int added = flow.edge(children[i]);
+			i = i + 1;
+		}
+	}
+	if (kind == SyntaxKind.CatchClauseSyntax()) {
+		row.kind = 25; var bound_node = checked.bindings.program.arena.get_node_class_name(source); var bound_use = checked.uses[bound_node.index]; row.type = bound_use.type; row.symbol = checked.node_symbols[source.index];
+		row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_body(source), function, handler, id, depth + 1);
+	}
+	if (kind == SyntaxKind.CallStatementSyntax()) {
+		row.kind = 26; row.type = type_id(14); row.a = recover_build_node(flow, checked, checked.bindings.program.arena.get_node_call(source), function, handler, caught, depth + 1);
+	}
+	if (row.kind == 0) flow.defer(source);
+	flow.nodes[id - 1] = row; return id;
+}
+
+owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) {
+	var flow = new RecoverFlow(move checked, limit);
+	if (!flow.checked.validate() || flow.checked.failed() || !flow.checked.native_abi || !flow.checked.semantic_admission || !flow.checked.semantic_flow || !flow.checked.class_storage) {
+		flow.data.fail(4, flow.data.boundary);
+		return move flow;
+	}
+	var source = checked_effect_source_verify(flow.checked);
+	if (source.status != 0) {
+		flow.data.fail(4, source.node);
+		return move flow;
+	}
+	int s = 1;
+	while (s <= flow.checked.bindings.symbol_count && flow.data.status == 0) {
+		var symbol = type_symbol(s); var declaration = flow.checked.bindings.symbol(symbol);
+		if (declaration.kind == 4 && !recover_error_shape(flow.checked, symbol, 0)) flow.data.defer(declaration.node);
+		if (declaration.kind == 11 || declaration.kind == 12 && !recover_error_shape(flow.checked, declaration.owner, 0)) flow.data.defer(declaration.node);
+		if (declaration.kind == 1) {
+			if (!recover_function_source(flow.checked, symbol)) {
+				flow.data.defer(declaration.node);
+				break;
+			}
+			if (flow.data.function_count >= flow.data.limit) {
+				flow.data.fail(2, declaration.node);
+				break;
+			}
+			var signature_id = flow.checked.symbol_signatures[s]; var signature = flow.checked.signatures[signature_id.index - 1];
+			RecoverFunction function = {symbol = symbol, signature = signature_id, result = flow.checked.types.argument(flow.checked.types, signature.callable, 0).type, error = signature.error, body = 0, checked = (signature.flags & 64) != 0};
+			flow.data.function_add(function);
+		}
+		s = s + 1;
+	}
+	int f = 0;
+	while (f < flow.data.function_count && flow.data.status == 0) {
+		var function = flow.data.functions[f]; var declaration = flow.checked.bindings.symbol(function.symbol);
+		function.body = recover_build_node(flow.data, flow.checked, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0); flow.data.function_row(f, function); f = f + 1;
+	}
+	if (flow.data.status == 0 && !recover_flow_verify(flow)) flow.data.fail(1, flow.data.boundary);
+	return move flow;
+}

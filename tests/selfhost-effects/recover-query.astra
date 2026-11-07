@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int main(string[] args) {
+	try {
+		int start = 2; if (args[1] == "--native") start = 3;
+		var program = binding_load_program(args, start); var bindings = binding_index(move program, 0);
+		var checked = checked_build_profile(move bindings, 0, true, true, true, true, true);
+		if (checked.failed()) {
+			var observation = checked_observation(checked);
+			print(observation.text);
+			return 4;
+		}
+		var flow = recover_flow_lower(move checked, 8192);
+		var out = new Utf8ByteBuilder(); source_append_text(out, "RECOVER_FLOW "); append_int(out, flow.data.status); source_append_text(out, " "); append_int(out, flow.data.boundary.index); source_append_text(out, " "); append_int(out, flow.data.node_count); var text = out.snapshot(); println(text.text);
+		if (flow.data.status != 0) return flow.data.status;
+		assert_that(recover_flow_verify(flow));
+		if (args[1] == "--flow") return 0;
+		var core = recover_core_lower(move flow); if (core.status != 0) {
+			println("RECOVER_CORE_INVALID");
+			return 6;
+		}
+		var cfg = recover_cfg_lower(move core, 8192); if (cfg.status != 0) {
+			println("RECOVER_CFG_INVALID");
+			return 7;
+		}
+		var ssa = recover_ssa_lower(move cfg, 8000000); if (ssa.data.status != 0) {
+			println("RECOVER_SSA_INVALID");
+			return 8;
+		}
+		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
+		if (args[1] == "--native") {
+			var module = new RecoverLlvm(ssa);
+			module.build(ssa);
+			module.write(ssa, args[2]);
+			println("RECOVER_LLVM_WRITTEN");
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 5; }
+}

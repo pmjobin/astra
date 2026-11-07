@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Error storage is a separate nominal domain from ordinary Class field roots.
+// No lexical receiver/Place is invented for an unadmitted Class method.
+bool recover_member_attributes(CheckedIndex checked, SyntaxNodeId node) {
+	return checked.bindings.program.arena.get_token_extern_keyword(node).index == 0 && checked.bindings.program.arena.get_token_export_keyword(node).index == 0 && checked.bindings.program.arena.get_token_async_keyword(node).index == 0 && !checked.bindings.program.arena.get_bool_is_signal(node) && checked.bindings.program.arena.get_node_foreign_member(node).index == 0 && checked.bindings.program.arena.get_node_foreign_policy(node).index == 0 && !checked.bindings.program.arena.get_bool_utf8_factory(node) && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(node)) == 0 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) == 0 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(node)) == 0 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(node)) == 0;
+}
+
+bool recover_plain_member(CheckedIndex checked, SyntaxNodeId node) { return recover_member_attributes(checked, node) && checked.bindings.program.arena.get_node_throws_class(node).index == 0; }
+
+// The initial physical slice admits one snapshot string in the root and no
+// extra derived payload. Every constructor/getter body is checked explicitly.
+bool recover_error_shape(CheckedIndex checked, SymbolId symbol, int depth) {
+	if (depth > 32 || symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(symbol); var node = declaration.node;
+	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax()) return false;
+	if (checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_concurrency_concurrency_policy(node).present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0 || checked.bindings.program.arena.get_bool_exact_heap_class(node)) return false;
+	var root = checked_effect_root(checked); bool is_root = symbol.index == root.index;
+	var parent = checked.bindings.program.arena.get_node_parent_class(node);
+	if (is_root) {
+		if (parent.index != 0 || checked.bindings.program.arena.get_token_exception_root(node).index == 0) return false;
+	}
+	else {
+		if (parent.index == 0 || checked.bindings.program.arena.get_token_exception_root(node).index != 0 || !recover_error_shape(checked, checked_effect_class(checked, parent), depth + 1)) return false;
+	}
+	var fields = checked.bindings.program.arena.get_list_fields(node); int field_count = checked.bindings.program.arena.list_count(fields);
+	if (is_root && field_count != 1 || !is_root && field_count != 0) return false;
+	var field = type_symbol(0);
+	if (is_root) {
+		var source = checked.bindings.program.arena.node_at(fields, 0); field = checked.node_symbols[source.index];
+		if (field.index < 1 || checked.symbol_types[field.index].index != 15 || checked.bindings.program.arena.get_token_readonly_keyword(source).index == 0 || checked.bindings.program.arena.get_token_owned_keyword(source).index != 0) return false;
+	}
+	var members = checked.bindings.program.arena.get_list_members(node); int i = 0; int constructors = 0; int getters = 0;
+	while (i < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, i); var kind = checked.bindings.program.arena.kind(member);
+		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
+			i = i + 1;
+			continue;
+		}
+		if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+			if (!recover_plain_member(checked, member) || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init") || checked.bindings.program.arena.get_int_dispatch(member) != 0) return false;
+			var parameters = checked.bindings.program.arena.get_list_parameters(member);
+			if (checked.bindings.program.arena.list_count(parameters) != 1) return false;
+			var parameter_node = checked.bindings.program.arena.node_at(parameters, 0); var parameter = checked.node_symbols[parameter_node.index];
+			if (parameter.index < 1 || checked.symbol_types[parameter.index].index != 15 || checked.symbol_flags[parameter.index] != 0) return false;
+			var body = checked.bindings.program.arena.get_node_body(member);
+			if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+			var statements = checked.bindings.program.arena.get_list_statements(body); var base_arguments = checked.bindings.program.arena.get_list_base_arguments(member);
+			if (is_root) {
+				if (checked.bindings.program.arena.list_count(base_arguments) != 0 || checked.bindings.program.arena.list_count(statements) != 1) return false;
+				var statement = checked.bindings.program.arena.node_at(statements, 0);
+				if (checked.bindings.program.arena.kind(statement) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
+				var target = checked.bindings.program.arena.get_node_target(statement); var value = checked.bindings.program.arena.get_node_expression(statement);
+				if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this") || !generic_token_equal(checked, checked.bindings.program.arena.get_token_field_name(target), checked.bindings.symbol(field).token) || checked.bindings.program.arena.kind(value) != SyntaxKind.NameExpressionSyntax() || checked_target(checked, value, checked.bindings.program.arena.get_token_identifier(value)).index != parameter.index) return false;
+			} else {
+				if (checked.bindings.program.arena.list_count(base_arguments) != 1 || checked.bindings.program.arena.list_count(statements) != 0) return false;
+				var value = checked.bindings.program.arena.node_at(base_arguments, 0);
+				if (checked.bindings.program.arena.kind(value) != SyntaxKind.NameExpressionSyntax() || checked_target(checked, value, checked.bindings.program.arena.get_token_identifier(value)).index != parameter.index) return false;
+			}
+			constructors = constructors + 1;
+		} else {
+			if (!is_root || kind != SyntaxKind.PropertyDeclarationSyntax() || checked.bindings.program.arena.get_int_dispatch(member) != 1 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "message") || checked.bindings.program.arena.get_node_setter(member).index != 0) return false;
+			var property = checked.bindings.program.arena.property_declaration(member);
+			if (property.f_owned_keyword.index != 0 || property.f_factory_syntax.index != 0 || property.f_is_borrowed || property.f_lazy_keyword.index != 0 || property.f_throws_class.index != 0) return false;
+			var type = checked.bindings.program.arena.get_node_type_name(member);
+			if (checked.bindings.program.arena.kind(type) != SyntaxKind.TypeNameSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(type), "string")) return false;
+			var getter = checked.bindings.program.arena.get_node_getter(member);
+			if (getter.index == 0 || checked.bindings.program.arena.get_node_parameter(getter).index != 0) return false;
+			var body = checked.bindings.program.arena.get_node_body(getter);
+			if (body.index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_statements(body)) != 1) return false;
+			var statement = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_statements(body), 0);
+			if (checked.bindings.program.arena.kind(statement) != SyntaxKind.ReturnStatementSyntax()) return false;
+			var value = checked.bindings.program.arena.get_node_expression(statement);
+			if (checked.bindings.program.arena.kind(value) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(value).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(value), "this") || !generic_token_equal(checked, checked.bindings.program.arena.get_token_field_name(value), checked.bindings.symbol(field).token)) return false;
+			getters = getters + 1;
+		}
+		i = i + 1;
+	}
+	return constructors == 1 && (is_root && getters == 1 || !is_root && getters == 0);
+}
+
+bool recover_function_source(CheckedIndex checked, SymbolId symbol) {
+	var declaration = checked.bindings.symbol(symbol); var node = declaration.node;
+	if (declaration.kind != 1 || declaration.owner.index != 0 || checked.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || checked.bindings.program.arena.get_node_body(node).index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0) return false;
+	int ordinal = checked.symbol_signatures[symbol.index].index;
+	if (ordinal < 1 || ordinal > checked.signature_count) return false;
+	var signature = checked.signatures[ordinal - 1];
+	if (signature.declaration.index != symbol.index || signature.dispatch != 0 || signature.flags != 0 && signature.flags != 64 || !checked_effect_signature_verified(checked, signature)) return false;
+	if (!recover_member_attributes(checked, node)) return false;
+	if (signature.flags == 64 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(node), "main")) return false;
+	var shape = checked.types.row(signature.callable); int p = 0;
+	if (shape.kind != 25 || shape.count < 1 || shape.count > 257) return false;
+	while (p < shape.count) {
+		var channel = checked.types.argument(checked.types, signature.callable, p); int kind = checked_kind(checked, channel.type);
+		if (channel.flags != 0 || !type_integer(kind) && kind != 13 && !(p == 0 && kind == 14)) return false;
+		p = p + 1;
+	}
+	return true;
+}

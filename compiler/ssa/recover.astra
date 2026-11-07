@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Normal values and error owners occupy disjoint SSA identities. A checked
+// result is defined by its success load, never by the nullable-error call.
+struct RecoverValue { int function; int block; TypeId type; int channel; int edge; }
+
+class RecoverWork {
+	int remaining;
+	bool exhausted;
+
+	init(int limit) { this.remaining = limit; this.exhausted = limit < 1 || limit > 8000000; }
+
+	bool take() { if (this.exhausted || this.remaining == 0) {
+			this.exhausted = true;
+			return false;
+		} this.remaining = this.remaining - 1; return true; }
+}
+
+class RecoverSsaData {
+	owned RecoverValue[] values;
+	owned bool[] reachable;
+	int status;
+	int work_limit;
+
+	init(int values, int blocks, int work_limit) { this.values = new RecoverValue[values]; this.reachable = new bool[blocks]; this.status = 0; this.work_limit = work_limit; }
+
+	void fail(int status) { this.status = status; }
+}
+
+class RecoverSsa {
+	owned RecoverCfg cfg;
+	owned RecoverSsaData data;
+
+	init(owned RecoverCfg cfg, int work_limit) {
+		int values = cfg.core.count * 3 + cfg.core.flow.data.function_count + 1; int blocks = cfg.block_count; this.cfg = move cfg;
+		var data = new RecoverSsaData(values, blocks, work_limit); this.data = move data;
+	}
+}
+
+bool recover_ssa_reach(RecoverCfg cfg, bool[] reachable, RecoverWork work) {
+	var pending = new int[cfg.block_count]; int f = 0;
+	while (f < len(cfg.entries)) {
+		int count = 1; pending[0] = cfg.entries[f]; reachable[pending[0] - 1] = true;
+		while (count > 0) {
+			if (!work.take()) return false;
+			count = count - 1; var block = cfg.blocks[pending[count] - 1]; int p = 0;
+			while (p < 2) {
+				int target = block.next; if (p == 1) target = block.other;
+				if (target != 0 && !reachable[target - 1]) {
+					reachable[target - 1] = true;
+					pending[count] = target;
+					count = count + 1;
+				}
+				p = p + 1;
+			}
+		}
+		f = f + 1;
+	}
+	return true;
+}
+
+// Prove dominance by searching the actual CFG with the definition removed.
+// No producer-supplied dominator table or predecessor certificate is trusted.
+bool recover_ssa_dominates(RecoverCfg cfg, int definition, int use, RecoverWork work) {
+	if (definition == use) return true;
+	int function = cfg.blocks[use - 1].function; int entry = cfg.entries[function - 1]; if (definition == entry) return true;
+	var seen = new bool[cfg.block_count]; var pending = new int[cfg.block_count]; int count = 1; pending[0] = entry; seen[entry - 1] = true;
+	while (count > 0) {
+		if (!work.take()) return false; count = count - 1; int current = pending[count]; if (current == use) return false;
+		var block = cfg.blocks[current - 1]; int p = 0;
+		while (p < 2) {
+			int target = block.next; if (p == 1) target = block.other;
+			if (target > 0 && target != definition && !seen[target - 1]) {
+				seen[target - 1] = true;
+				pending[count] = target;
+				count = count + 1;
+			}
+			p = p + 1;
+		}
+	}
+	return true;
+}
+
+int recover_ssa_definition(RecoverCfg cfg, int block) {
+	var row = cfg.blocks[block - 1]; if (row.origin == 0) {
+		if (row.opcode == 33) return row.owner;
+		return 0;
+	}
+	if (row.opcode == 33) return row.owner;
+	if (row.opcode == 30) return row.origin;
+	if (row.opcode == 4 && cfg.core.nodes[row.origin - 1].conditional) return cfg.core.count + row.origin;
+	if (row.opcode > 0 && row.opcode < 20 && cfg.core.nodes[row.origin - 1].value.type.index != 14) return row.origin;
+	return 0;
+}
+
+RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
+	var row = cfg.blocks[block - 1]; TypeId type = {index = 0}; int channel = 0; int edge = 0;
+	if (row.opcode == 33) {
+		channel = 3;
+		var root = checked_effect_root(cfg.core.flow.checked);
+		type = cfg.core.flow.checked.symbol_types[root.index];
+	}
+	else {
+		if (row.opcode == 4 && cfg.core.nodes[row.origin - 1].conditional) {
+			channel = 2;
+			edge = row.other;
+			type = cfg.core.nodes[row.origin - 1].error;
+		}
+		else {
+			type = cfg.core.nodes[row.origin - 1].value.type;
+			if (row.opcode == 5) channel = 1;
+		}
+	}
+	RecoverValue value = {function = row.function, block = block, type = type, channel = channel, edge = edge}; return value;
+}
+
+void recover_ssa_define(RecoverSsaData data, RecoverCfg cfg, RecoverWork work) {
+	int b = 1;
+	while (b <= cfg.block_count && work.take()) {
+		int id = recover_ssa_definition(cfg, b);
+		if (id > 0) data.values[id] = recover_ssa_expected(cfg, b);
+		b = b + 1;
+	}
+	if (work.exhausted || !recover_ssa_reach(cfg, data.reachable, work)) data.status = 2;
+}
+
+bool recover_ssa_use(RecoverSsaData data, RecoverCfg cfg, int value, int block, RecoverWork work) {
+	if (value < 1 || value >= len(data.values)) return false;
+	var definition = data.values[value]; if (definition.block < 1 || definition.function != cfg.blocks[block - 1].function) return false;
+	int anchor = definition.block; if (definition.edge != 0) anchor = definition.edge;
+	return !data.reachable[block - 1] || recover_ssa_dominates(cfg, anchor, block, work);
+}
+
+// Explore each owner version on all its paths, including its retired state.
+// A phi consumes an incoming owner and creates a new version of that same
+// allocation. Borrow/message, destroy, carry and return uses require LIVE.
+bool recover_ssa_owner(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWork work) {
+	var definition = data.values[value]; if (definition.channel == 0 || !data.reachable[definition.block - 1]) return true;
+	int start = cfg.blocks[definition.block - 1].next; if (definition.edge != 0) start = definition.edge;
+	if (start == 0) return false;
+	var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
+	while (count > 0) {
+		if (!work.take()) return false; count = count - 1; int state = pending[count]; int id = state / 2 + 1; bool live = (state % 2) == 1; var block = cfg.blocks[id - 1];
+		bool use = (block.opcode == 31 || block.opcode == 32 || block.opcode == 34 || block.opcode == 23) && block.owner == value;
+		if (block.opcode == 6) {
+			var source = cfg.core.nodes[block.origin - 1].value;
+			use = cfg.core.count * 2 + cfg.catch_try[source.caught - 1] == value;
+		}
+		if (use && !live) return false;
+		if (block.opcode == 32 && block.owner == value || block.opcode == 23 && block.owner == value) live = false;
+		if ((block.opcode == 22 || block.opcode == 23) && live) return false;
+		int p = 0;
+		while (p < 2) {
+			int target = block.next; int carried = block.carry; if (p == 1) {
+				target = block.other;
+				if (block.opcode == 4) carried = cfg.core.count + block.origin;
+			}
+			if (target > 0) {
+				bool next_live = live;
+				if (cfg.blocks[target - 1].opcode == 33 && carried == value) {
+					if (!live) return false;
+					next_live = false;
+				}
+				int next_state = (target - 1) * 2; if (next_live) next_state = next_state + 1;
+				if (!seen[next_state]) {
+					seen[next_state] = true;
+					pending[count] = next_state;
+					count = count + 1;
+				}
+			}
+			p = p + 1;
+		}
+	}
+	return true;
+}
+
+bool recover_ssa_verify(RecoverSsa ssa) {
+	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || ssa.cfg.block_count > 1024 || len(ssa.data.values) != ssa.cfg.core.count * 3 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
+	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count]; if (!recover_ssa_reach(ssa.cfg, reachable, work)) return false;
+	var definitions = new bool[len(ssa.data.values)]; int b = 1;
+	while (b <= ssa.cfg.block_count) {
+		if (!work.take() || reachable[b - 1] != ssa.data.reachable[b - 1]) return false;
+		int id = recover_ssa_definition(ssa.cfg, b);
+		if (id != 0) {
+			if (definitions[id]) return false; definitions[id] = true; var value = ssa.data.values[id]; var expected = recover_ssa_expected(ssa.cfg, b);
+			if (value.function != expected.function || value.block != b || value.type.index != expected.type.index || value.channel != expected.channel || value.edge != expected.edge) return false;
+		}
+		b = b + 1;
+	}
+	int v = 0;
+	while (v < len(definitions)) {
+		if (!definitions[v]) {
+			var value = ssa.data.values[v];
+			if (value.function != 0 || value.block != 0 || value.type.index != 0 || value.channel != 0 || value.edge != 0) return false;
+		}
+		v = v + 1;
+	}
+	b = 1;
+	while (b <= ssa.cfg.block_count) {
+		var row = ssa.cfg.blocks[b - 1];
+		if (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work)) return false;
+		if (row.opcode == 4 || row.opcode == 5) {
+			var source = ssa.cfg.core.nodes[row.origin - 1].value; int i = 0;
+			while (i < source.count) {
+				if (!recover_ssa_use(ssa.data, ssa.cfg, ssa.cfg.core.flow.data.edges[source.first + i], b, work)) return false;
+				i = i + 1;
+			}
+		}
+		if ((row.opcode == 31 || row.opcode == 32 || row.opcode == 34 || row.opcode == 23) && !recover_ssa_use(ssa.data, ssa.cfg, row.owner, b, work)) return false;
+		if (row.opcode == 6) {
+			var source = ssa.cfg.core.nodes[row.origin - 1].value;
+			if (!recover_ssa_use(ssa.data, ssa.cfg, ssa.cfg.core.count * 2 + ssa.cfg.catch_try[source.caught - 1], b, work)) return false;
+		}
+		if (row.opcode == 33) {
+			int e = 0;
+			while (e < ssa.cfg.edge_count) {
+				var edge = ssa.cfg.edges[e];
+				if (edge.target == b && reachable[edge.source - 1] && (edge.owner == 0 || !recover_ssa_use(ssa.data, ssa.cfg, edge.owner, edge.source, work))) return false;
+				e = e + 1;
+			}
+		}
+		b = b + 1;
+	}
+	v = 1;
+	while (v < len(definitions)) {
+		if (definitions[v] && !recover_ssa_owner(ssa.data, ssa.cfg, v, work)) return false;
+		v = v + 1;
+	}
+	return !work.exhausted;
+}
+
+owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {
+	bool valid = recover_cfg_verify(cfg); var ssa = new RecoverSsa(move cfg, work_limit);
+	if (!valid) {
+		ssa.data.fail(4);
+		return move ssa;
+	}
+	if (ssa.cfg.block_count > 1024) {
+		ssa.data.fail(2);
+		return move ssa;
+	}
+	var work = new RecoverWork(work_limit); recover_ssa_define(ssa.data, ssa.cfg, work);
+	if (ssa.data.status == 0 && !recover_ssa_verify(ssa)) ssa.data.fail(1);
+	return move ssa;
+}

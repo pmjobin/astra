@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Private synchronous effect domain. Source facts remain conditional in the
+// CheckedIndex; this owner records the additional control/ownership proof.
+// IDs are local to this retained owner, never global syntax back-pointers.
+struct RecoverFunction {
+	SymbolId symbol;
+	SignatureId signature;
+	TypeId result;
+	TypeId error;
+	int body;
+	bool checked;
+}
+
+// Typed structured Flow. 1 literal, 2 parameter, 3 binary, 4 direct call,
+// 5 error construction, 6 borrowed message, 7 parentheses,
+// 20 block, 21 if, 22 return, 23 throw/rethrow, 24 try, 25 catch,
+// 26 call statement. Catch owners are distinct from their source borrow.
+// handler is the protected try node; caught is a lexical catch node. Calls
+// retain both channels: their ordinary type is available only on success.
+struct RecoverNode {
+	int kind;
+	int function;
+	SyntaxNodeId source;
+	TypeId type;
+	SyntaxTokenId token;
+	SymbolId symbol;
+	int a;
+	int b;
+	int c;
+	int first;
+	int count;
+	int handler;
+	int caught;
+}
+
+class RecoverFlowData {
+	owned shared TypeOwner identity;
+	owned RecoverFunction[] functions;
+	owned RecoverNode[] nodes;
+	owned int[] edges;
+	owned int[] symbols;
+	int function_count;
+	int node_count;
+	int edge_count;
+	int status;
+	SyntaxNodeId boundary;
+	int limit;
+
+	init(int symbols, int limit) {
+		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
+		int capacity = limit; if (limit < 1 || limit > 8192) capacity = 0;
+		this.functions = new RecoverFunction[capacity]; this.nodes = new RecoverNode[capacity]; this.edges = new int[capacity]; this.symbols = new int[symbols];
+		this.function_count = 0; this.node_count = 0; this.edge_count = 0; this.limit = limit;
+		int status = 0; if (capacity == 0) status = 2; this.status = status;
+		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
+	}
+
+	void defer(SyntaxNodeId source) { if (this.status == 0) {
+			this.status = 3;
+			this.boundary = source;
+		} }
+
+	void fail(int status, SyntaxNodeId source) { this.status = status; this.boundary = source; }
+
+	void function_row(int ordinal, RecoverFunction row) { this.functions[ordinal] = row; }
+
+	void function_add(RecoverFunction row) {
+		if (this.function_count >= this.limit) {
+			this.status = 2;
+			return;
+		}
+		this.functions[this.function_count] = row; this.function_count = this.function_count + 1; this.symbols[row.symbol.index] = this.function_count;
+	}
+
+	int add(RecoverNode row) {
+		if (this.status != 0) return 0;
+		if (this.node_count >= this.limit) {
+			this.status = 2;
+			return 0;
+		}
+		this.nodes[this.node_count] = row; this.node_count = this.node_count + 1; return this.node_count;
+	}
+
+	int edge(int child) {
+		if (this.status != 0) return 0;
+		if (child < 1 || this.edge_count >= this.limit) {
+			this.status = 2;
+			return 0;
+		}
+		this.edges[this.edge_count] = child; this.edge_count = this.edge_count + 1; return this.edge_count;
+	}
+}
+
+RecoverNode recover_empty(SyntaxNodeId source, int function, TypeId type, int handler, int caught) {
+	RecoverNode row = {kind = 0, function = function, source = source, type = type, token = {index = 0}, symbol = {index = 0}, a = 0, b = 0, c = 0, first = 0, count = 0, handler = handler, caught = caught}; return row;
+}
+
+// Keep mutable construction tables separate from retained source authority.
+class RecoverFlow {
+	owned CheckedIndex checked;
+	owned RecoverFlowData data;
+
+	init(owned CheckedIndex checked, int limit) {
+		int symbols = checked.bindings.symbol_count + 1; this.checked = move checked;
+		var data = new RecoverFlowData(symbols, limit); this.data = move data;
+	}
+}
