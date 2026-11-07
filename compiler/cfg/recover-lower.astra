@@ -31,6 +31,16 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		return 0;
 	}
 	var node = cfg.core.nodes[id - 1]; var row = node.value;
+	if (row.kind == 44) {
+		int publish = cfg.block(row.function, id, 44, row.a, 0, next, 0, 0, 0, 0);
+		int enter = recover_cfg_commit(cfg, id, publish);
+		int head = recover_cfg_tree(cfg, row.a, enter, depth + 1); head = recover_cfg_field_guard(cfg, id, head); RecoverRegion region = {entry = head, operation = publish, next = next}; cfg.regions[id - 1] = region; return head;
+	}
+	if (row.kind == 45) {
+		int operation = cfg.block(row.function, id, 45, row.a, row.b, next, 0, 0, 0, 0);
+		int head = recover_cfg_tree(cfg, row.b, operation, depth + 1); head = recover_cfg_tree(cfg, row.a, head, depth + 1);
+		RecoverRegion region = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = region; return head;
+	}
 	if (row.kind == 43) {
 		int place = node.place; var slot = cfg.core.flow.storage.slots[place - 1];
 		int publish = cfg.block(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0);
@@ -101,7 +111,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 								if (row.type.index != 14) tail = cfg.block(row.function, id, 30, 0, 0, next, 0, 0, 0, 0);
 							}
 							int owner = 0; if (row.kind == 5) owner = id;
-							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4) head = recover_cfg_commit(cfg, id, operation);
+							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || row.kind == 11) head = recover_cfg_commit(cfg, id, operation);
 							int i = row.count - 1;
 							while (i >= 0 && cfg.status == 0) {
 								// Check the evaluated receiver before explicit arguments.
@@ -120,6 +130,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 			}
 		}
 	}
+	if (row.kind == 17 || row.kind == 18) head = recover_cfg_field_guard(cfg, id, head);
 	RecoverRegion region = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = region; return head;
 }
 

@@ -7,7 +7,7 @@ bool recover_llvm_insert(void* value, void* previous, void* element, int ordinal
 
 bool recover_llvm_group(CheckedIndex checked, TypeId type, void* value, void* function, int start) {
 	int kind = checked_kind(checked, type); int count = recover_abi_group_count(checked, type, 0); if (kind == 22) count = 2;
-	if (kind != 30 && kind != 22) return value == LLVMGetParam(function, start);
+	if (kind != 30 && kind != 22 && kind != 15) return value == LLVMGetParam(function, start);
 	if (!recover_storage_llvm_type(checked, type, LLVMTypeOf(value))) return false;
 	int i = count - 1; void* current = value;
 	while (i >= 0) {

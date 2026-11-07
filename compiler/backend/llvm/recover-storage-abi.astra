@@ -5,7 +5,7 @@
 // follows an admitted receiver and precedes every explicit source group.
 int recover_abi_group_count(CheckedIndex checked, TypeId type, int flags) {
 	if (!recover_storage_channel(checked, type, flags, false)) return 0;
-	int kind = checked_kind(checked, type); if (kind == 22) return 2;
+	int kind = checked_kind(checked, type); if (kind == 22 || kind == 15) return 2;
 	if (kind == 30) {
 		var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
 		return checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node));
@@ -65,7 +65,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 		var channel = checked.types.argument(checked.types, signature.callable, p + 1); if (!recover_storage_channel(checked, channel.type, channel.flags, false)) return false;
 		if (p == 0 && receiver == 0 && (channel.flags != 2 || channel.type.index != checked.instances[instance - 1].enclosing.index)) return false;
 		int kind = checked_kind(checked, channel.type); int groups = 1;
-		if (kind == 22) groups = 2;
+		if (kind == 22 || kind == 15) groups = 2;
 		if (kind == 30) {
 			var declaration = checked.bindings.symbol(checked.types.row(channel.type).nominal);
 			groups = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node));
@@ -82,7 +82,7 @@ bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) 
 	if (actual == null) return false;
 	int kind = checked_kind(checked, type);
 	if (kind == 31) return (recover_storage_class(checked, type) || recover_storage_error(checked, type)) && LLVMGetTypeKind(actual) == 12;
-	if (kind == 22) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
+	if (kind == 22 || kind == 15) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
 	if (kind == 30) {
 		if (!recover_storage_record(checked, type) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
 		var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = checked.bindings.program.arena.list_count(fields); if (LLVMCountStructElementTypes(actual) != count) return false; int f = 0;
@@ -108,7 +108,7 @@ bool recover_storage_llvm_abi(RecoverAbi plan, CheckedIndex checked, void* funct
 	if (plan.success >= 0 && LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, plan.success))) != 12) return false;
 	int p = 0; while (p < len(plan.groups)) {
 		var channel = checked.types.argument(checked.types, signature.callable, p + 1); int at = plan.groups[p]; int kind = checked_kind(checked, channel.type);
-		if (kind == 22) {
+		if (kind == 22 || kind == 15) {
 			if (LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, at))) != 12 || !recover_llvm_scalar_type(checked, type_id(1), LLVMTypeOf(LLVMGetParam(function, at + 1)))) return false;
 		}
 		else { if (kind == 30) {

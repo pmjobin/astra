@@ -31,6 +31,9 @@ class RecoverLlvm {
 	void* equal_function;
 	void* buffer_function;
 	void* error_owner_function;
+	void* class_snapshot;
+	owned void*[] class_payloads;
+	owned void*[] class_destroyers;
 	owned void*[] functions;
 	owned void*[] entries;
 	owned void*[] blocks;
@@ -56,9 +59,11 @@ class RecoverLlvm {
 		this.pointer = null; this.integer = null; this.wide = null; this.boolean = null; this.text = null; this.payload = null; this.descriptor = null; this.origin_type = null;
 		this.free_function = null; this.calloc_function = null; this.memcpy_function = null; this.memcmp_function = null; this.trap_function = null; this.allocate_function = null; this.construct_function = null; this.message_function = null; this.destroy_function = null; this.subtype_function = null; this.equal_function = null; this.buffer_function = null;
 		this.error_owner_function = null;
+		this.class_snapshot = null;
 		int functions = ssa.cfg.core.flow.data.function_count; int nodes = ssa.cfg.core.count; int symbols = ssa.cfg.core.flow.checked.bindings.symbol_count + 1;
 		this.functions = new void*[functions]; this.entries = new void*[functions]; this.blocks = new void*[ssa.cfg.block_count]; this.values = new void*[len(ssa.data.values)]; this.slots = new void*[nodes]; this.locals = new void*[symbols]; this.owner_addresses = new void*[symbols]; this.owner_armed = new void*[symbols]; this.owner_initial_values = new void*[symbols]; this.owner_initial_flags = new void*[symbols];
 		this.descriptors = new void*[symbols]; this.payloads = new void*[symbols]; this.destroyers = new void*[symbols]; this.tables = new void*[symbols]; this.origins = new void*[nodes]; this.operations = new void*[ssa.cfg.block_count]; this.emitted = new bool[ssa.cfg.block_count]; this.complete = false;
+		this.class_payloads = new void*[symbols]; this.class_destroyers = new void*[symbols];
 	}
 
 	deinit() {
@@ -226,7 +231,7 @@ class RecoverLlvm {
 			}
 			var parameters = new void*[plan.parameters]; if (plan.success >= 0) parameters[plan.success] = this.pointer; int p = 0;
 			while (p < len(plan.groups)) { var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, p + 1); int at = plan.groups[p]; var type = this.scalar(ssa.cfg.core.flow.checked, channel.type); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type);
-				if (kind == 30 || kind == 22) {
+				if (kind == 30 || kind == 22 || kind == 15) {
 					int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
 					int field = 0;
 					while (field < count) {
@@ -255,7 +260,7 @@ class RecoverLlvm {
 				if (source < 0) {
 					throw new Error("LLVM_INVALID_IR: parameter source");
 				} var plan = new RecoverAbi(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[slot.function - 1].symbol); int at = plan.groups[source]; var function = this.functions[slot.function - 1]; void* value = LLVMGetParam(function, at); int kind = checked_kind(ssa.cfg.core.flow.checked, slot.type);
-				if (kind == 30 || kind == 22) {
+				if (kind == 30 || kind == 22 || kind == 15) {
 					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
 					value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, slot.type));
 					int field = 0;
@@ -431,7 +436,7 @@ class RecoverLlvm {
 				var type = ssa.cfg.core.nodes[child - 1].value.type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 				int at = plan.groups[i];
-				if (kind == 30 || kind == 22) {
+				if (kind == 30 || kind == 22 || kind == 15) {
 					var signature = ssa.cfg.core.flow.checked.signatures[function.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1); int fields = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags);
 					int field = 0;
 					while (field < fields) {
@@ -490,9 +495,33 @@ class RecoverLlvm {
 		if (op == 27 && row.kind == 27) this.locals[row.symbol.index] = this.values[row.a];
 		if ((op == 27 || op == 42) && recover_mutable(ssa.cfg.core.flow.data, row.symbol)) operation = LLVMBuildStore(this.builder, this.values[row.a], this.owner_addresses[row.symbol.index]);
 		bool owner_read = op == 2 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0; bool owner_write = op == 27 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0;
-		if (owner_read || owner_write || op == 9 || op == 10 || op == 11 || op == 13 || op == 14 || op == 36 || op == 38) {
+		if (op == 11) {
+			var shape = ssa.cfg.core.flow.fields.layout.types[row.type.index];
+			var sizes = new void*[2]; sizes[0] = this.int64(1); sizes[1] = this.int64(shape.payload_size); value = this.call(this.allocate_function, sizes, true);
+			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); var arguments = new void*[plan.parameters]; arguments[plan.groups[0]] = value; int i = 0;
+			while (i < row.count) {
+				int child = ssa.cfg.core.flow.data.edges[row.first + i]; var type = ssa.cfg.core.nodes[child - 1].value.type; int kind = checked_kind(ssa.cfg.core.flow.checked, type); int at = plan.groups[i + 1];
+				if (kind == 22 || kind == 30 || kind == 15) {
+					var signature = ssa.cfg.core.flow.checked.signatures[plan.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 2); int count = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags); int field = 0;
+					while (field < count) {
+						arguments[at + field] = LLVMBuildExtractValue(this.builder, this.values[child], field, this.empty);
+						field = field + 1;
+					}
+				} else {
+					arguments[at] = this.values[child];
+				}
+				i = i + 1;
+			}
+			operation = this.call(this.functions[ssa.cfg.core.flow.data.symbols[row.symbol.index] - 1], arguments, true);
+		}
+		if (op == 17 || op == 18 || op == 44) {
+			var lowered = this.class_field_emit(ssa, block); value = lowered.value; operation = lowered.operation;
+		}
+		if (op == 45) operation = recover_exchange_emit(ssa, block, this.builder, this.values, this.owner_addresses);
+		if (owner_read || owner_write || op == 9 || op == 10 || op == 13 || op == 14 || op == 36 || op == 38) {
 			var type = row.type; if (owner_write) type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index]; if (op == 38) type = ssa.cfg.core.flow.storage.slots[block.a - 1].type; var storage = this.scalar(ssa.cfg.core.flow.checked, type); void* element = null; if (op == 9) element = this.scalar(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type);
 			void* drop = this.free_function; if (op == 38 && recover_storage_error(ssa.cfg.core.flow.checked, type)) drop = this.error_owner_function;
+			if (op == 38 && checked_kind(ssa.cfg.core.flow.checked, type) == 31 && this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) drop = this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
 			var lowered = recover_llvm_owner_emit(ssa, block, this.builder, this.context, this.layout, this.handles, storage, element, this.buffer_function, this.allocate_function, drop, this.functions, this.values, this.owner_addresses, this.owner_armed); value = lowered.value; operation = lowered.operation;
 		}
 		if (op == 30) {
@@ -503,6 +532,11 @@ class RecoverLlvm {
 		if (op == 21) operation = LLVMBuildCondBr(this.builder, this.values[block.a], this.blocks[block.next - 1], this.blocks[block.other - 1]);
 		if (op == 16) {
 			var present = LLVMBuildICmp(this.builder, 33, this.values[block.a], LLVMConstNull(this.pointer), this.empty);
+			operation = LLVMBuildCondBr(this.builder, present, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		}
+		if (op == 46) {
+			var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
+			var present = LLVMBuildICmp(this.builder, 33, this.locals[fact.receiver.index], LLVMConstNull(this.pointer), this.empty);
 			operation = LLVMBuildCondBr(this.builder, present, this.blocks[block.next - 1], this.blocks[block.other - 1]);
 		}
 		if (op == 39) {
@@ -561,6 +595,100 @@ class RecoverLlvm {
 		this.emit(ssa, block.next, depth + 1); this.emit(ssa, block.other, depth + 1);
 	}
 
+	void class_helpers(RecoverSsa ssa) throws Error {
+		int s = 1; bool snapshot = false;
+		while (s <= ssa.cfg.core.flow.checked.bindings.symbol_count) {
+			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)); var type = ssa.cfg.core.flow.checked.symbol_types[s];
+			if (declaration.kind == 4 && recover_storage_class(ssa.cfg.core.flow.checked, type)) {
+				var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node); int count = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields);
+				if (count > 0) {
+					var types = new void*[count]; int i = 0;
+					while (i < count) {
+						var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var member = ssa.cfg.core.flow.checked.node_symbols[source.index]; var field_type = ssa.cfg.core.flow.checked.symbol_types[member.index];
+						types[i] = this.scalar(ssa.cfg.core.flow.checked, field_type); if (field_type.index == 15) snapshot = true; i = i + 1;
+					}
+					var physical = this.structure(types); this.class_payloads[s] = physical;
+					var name_builder = new Utf8ByteBuilder(); source_append_text(name_builder, "astra.e25a.class.drop."); append_int(name_builder, s); var name = name_builder.snapshot();
+					var parameters = new void*[1]; parameters[0] = this.pointer;
+					var destroyer = this.function(name.text, LLVMVoidTypeInContext(this.context), parameters, true); this.class_destroyers[s] = destroyer;
+				}
+			}
+			s = s + 1;
+		}
+		s = 1;
+		while (s <= ssa.cfg.core.flow.checked.bindings.symbol_count) {
+			var function = this.class_destroyers[s];
+			if (function != null) {
+				var entry = llvm12_block(this.context, function, "entry"); var destroy = llvm12_block(this.context, function, "destroy"); var exit = llvm12_block(this.context, function, "exit");
+				LLVMPositionBuilderAtEnd(this.builder, entry); var object = LLVMGetParam(function, 0); var present = LLVMBuildICmp(this.builder, 33, object, LLVMConstNull(this.pointer), this.empty); var branch = LLVMBuildCondBr(this.builder, present, destroy, exit);
+				LLVMPositionBuilderAtEnd(this.builder, destroy); var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)); var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node); int i = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields) - 1;
+				while (i >= 0) {
+					var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var member = ssa.cfg.core.flow.checked.node_symbols[source.index]; var type = ssa.cfg.core.flow.checked.symbol_types[member.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, type);
+					if ((ssa.cfg.core.flow.checked.symbol_flags[member.index] & 4) != 0 || kind == 15) {
+						var contents = this.load(this.scalar(ssa.cfg.core.flow.checked, type), this.field(this.class_payloads[s], object, i)); void* data = contents;
+						if (kind == 22 || kind == 15) data = LLVMBuildExtractValue(this.builder, contents, 0, this.empty);
+						void* drop = this.free_function; bool native = false;
+						if (kind == 31) {
+							var nominal = ssa.cfg.core.flow.checked.types.row(type).nominal;
+							if (this.class_destroyers[nominal.index] != null) {
+								drop = this.class_destroyers[nominal.index];
+								native = true;
+							}
+						}
+						var arguments = new void*[1]; arguments[0] = data; var call = this.call(drop, arguments, native); if (!native) llvm12_nobuiltin(this.context, call);
+					}
+					i = i - 1;
+				}
+				var arguments = new void*[1]; arguments[0] = object; var free = this.call(this.free_function, arguments, false); llvm12_nobuiltin(this.context, free); var jump = LLVMBuildBr(this.builder, exit);
+				LLVMPositionBuilderAtEnd(this.builder, exit); var end = LLVMBuildRetVoid(this.builder);
+			}
+			s = s + 1;
+		}
+		if (snapshot) {
+			var parameters = new void*[2]; parameters[0] = this.pointer; parameters[1] = this.integer;
+			this.class_snapshot = this.function("astra.e25a.class.snapshot", this.text, parameters, true);
+			var entry = llvm12_block(this.context, this.class_snapshot, "entry"); var size = llvm12_block(this.context, this.class_snapshot, "size"); var empty = llvm12_block(this.context, this.class_snapshot, "empty"); var bytes_block = llvm12_block(this.context, this.class_snapshot, "copy"); var fatal = llvm12_block(this.context, this.class_snapshot, "fatal"); LLVMPositionBuilderAtEnd(this.builder, entry);
+			var data = LLVMGetParam(this.class_snapshot, 0); var count = LLVMGetParam(this.class_snapshot, 1);
+			var negative = LLVMBuildICmp(this.builder, 40, count, this.int32(0), this.empty); var absent = LLVMBuildICmp(this.builder, 32, data, LLVMConstNull(this.pointer), this.empty); var nonempty = LLVMBuildICmp(this.builder, 33, count, this.int32(0), this.empty); var missing = LLVMBuildAnd(this.builder, absent, nonempty, this.empty); var invalid = LLVMBuildOr(this.builder, negative, missing, this.empty); var guard = LLVMBuildCondBr(this.builder, invalid, fatal, size);
+			LLVMPositionBuilderAtEnd(this.builder, size); var zero = LLVMBuildICmp(this.builder, 32, count, this.int32(0), this.empty); var branch = LLVMBuildCondBr(this.builder, zero, empty, bytes_block);
+			LLVMPositionBuilderAtEnd(this.builder, empty); var empty_end = LLVMBuildRet(this.builder, LLVMConstNull(this.text));
+			LLVMPositionBuilderAtEnd(this.builder, bytes_block); var extent = LLVMBuildZExt(this.builder, count, this.wide, this.empty);
+			var arguments = new void*[2]; arguments[0] = extent; arguments[1] = this.int64(1); var copy = this.call(this.allocate_function, arguments, true);
+			var bytes = new void*[3]; bytes[0] = copy; bytes[1] = data; bytes[2] = extent; var call = this.call(this.memcpy_function, bytes, false); llvm12_nobuiltin(this.context, call);
+			var initial = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), copy, 0, this.empty); var result = LLVMBuildInsertValue(this.builder, initial, count, 1, this.empty); var end = LLVMBuildRet(this.builder, result);
+			LLVMPositionBuilderAtEnd(this.builder, fatal); var no_arguments = new void*[0]; var trap = this.call(this.trap_function, no_arguments, false); var stopped = LLVMBuildUnreachable(this.builder);
+		}
+	}
+
+	RecoverOwnerInstruction class_field_emit(RecoverSsa ssa, RecoverBlock block) {
+		var row = ssa.cfg.core.nodes[block.origin - 1].value; var fact = ssa.cfg.core.flow.fields.facts[row.source.index]; var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, type);
+		var nominal = ssa.cfg.core.flow.checked.types.row(fact.aggregate).nominal; var object = this.locals[fact.receiver.index];
+		var address = this.field(this.class_payloads[nominal.index], object, fact.ordinal); void* result = null; void* operation = null;
+		if (block.opcode == 17 || block.opcode == 18) {
+			result = this.load(this.scalar(ssa.cfg.core.flow.checked, type), address); operation = result;
+			if (block.opcode == 18) {
+				result = LLVMBuildExtractValue(this.builder, result, 1, this.empty);
+				operation = result;
+			}
+		} else {
+			var value = this.values[row.a];
+			if (kind == 15) {
+				var arguments = new void*[2]; arguments[0] = LLVMBuildExtractValue(this.builder, value, 0, this.empty); arguments[1] = LLVMBuildExtractValue(this.builder, value, 1, this.empty); value = this.call(this.class_snapshot, arguments, true);
+			}
+			if (!fact.initializing && ((ssa.cfg.core.flow.checked.symbol_flags[fact.field.index] & 4) != 0 || kind == 15)) {
+				var previous = this.load(this.scalar(ssa.cfg.core.flow.checked, type), address); void* data = previous; if (kind == 22 || kind == 15) data = LLVMBuildExtractValue(this.builder, previous, 0, this.empty);
+				void* drop = this.free_function; bool native = false;
+				if (kind == 31 && this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) {
+					drop = this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
+					native = true;
+				}
+				var arguments = new void*[1]; arguments[0] = data; var call = this.call(drop, arguments, native); if (!native) llvm12_nobuiltin(this.context, call);
+			}
+			operation = LLVMBuildStore(this.builder, value, address);
+		}
+		RecoverOwnerInstruction lowered = {value = result, operation = operation}; return lowered;
+	}
+
 	void build(RecoverSsa ssa) throws Error {
 		if (this.context != null || !recover_ssa_verify(ssa) || !type_owner_same(this.owner, ssa.cfg.core.identity)) {
 			throw new Error("LLVM_INVALID_UPSTREAM: recover SSA");
@@ -574,7 +702,7 @@ class RecoverLlvm {
 		} LLVMSetModuleDataLayout(this.module, this.layout);
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
-		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.declarations(ssa);
+		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.declarations(ssa);
 		int f = 0; while (f < len(this.functions)) {
 			this.emit(ssa, ssa.cfg.entries[f], 0);
 			f = f + 1;
@@ -606,14 +734,25 @@ class RecoverLlvm {
 		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_llvm_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
-		var helpers = new void*[13]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function;
-		if (!recover_llvm_function_inventory(this.module, this.functions, this.destroyers, helpers)) return false;
+		if (!recover_class_helpers_verified(ssa, this.layout, this.class_payloads, this.class_destroyers, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function)) return false;
+		int helper_count = 13; if (this.class_snapshot != null) helper_count = 14;
+		var helpers = new void*[helper_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; if (this.class_snapshot != null) helpers[13] = this.class_snapshot;
+		var destroyers = new void*[len(this.destroyers) + len(this.class_destroyers)]; int d = 0;
+		while (d < len(this.destroyers)) {
+			destroyers[d] = this.destroyers[d];
+			d = d + 1;
+		}
+		d = 0; while (d < len(this.class_destroyers)) {
+			destroyers[len(this.destroyers) + d] = this.class_destroyers[d];
+			d = d + 1;
+		}
+		if (!recover_llvm_function_inventory(this.module, this.functions, destroyers, helpers)) return false;
 		int n = 0; while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
 			if (row.kind == 23 && row.a != 0 && !recover_llvm_origin(ssa.cfg.core.flow.checked, row, this.origins[n], this.layout, this.handles)) return false;
 			n = n + 1;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

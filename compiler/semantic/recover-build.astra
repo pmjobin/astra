@@ -58,6 +58,23 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.kind = 6; row.symbol = recover_type_receiver(checked, source);
 		row.token = checked.bindings.program.arena.get_token_field_name(source);
 		if (row.symbol.index > 0 && checked_kind(checked, checked.symbol_types[row.symbol.index]) == 30) row.kind = 12;
+		var receiver = recover_field_receiver(checked, source, flow.functions[function - 1].symbol);
+		if (receiver.index > 0) {
+			row.kind = 17;
+			row.symbol = receiver;
+			var member = checked_target(checked, source, row.token);
+			if (member.index > 0 && checked.bindings.symbol(member).kind == 14) {
+				var declaration = checked.bindings.symbol(member);
+				var scalar = class_property_source(checked, declaration.node, declaration.owner);
+				if (scalar.mode == 2) row.kind = 18;
+			}
+		}
+	}
+	if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
+		row.kind = 44; row.type = type_id(14);
+		var target = checked.bindings.program.arena.get_node_target(source);
+		row.symbol = recover_field_receiver(checked, target, flow.functions[function - 1].symbol);
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
 	}
 	if (kind == SyntaxKind.StructInitializerSyntax()) {
 		row.kind = 8; var fields = checked.bindings.program.arena.get_list_fields(source); int count = checked.bindings.program.arena.list_count(fields); var children = new int[count]; int i = 0;
@@ -121,12 +138,14 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	}
 	row = recover_build_owner(flow, checked, types, row, depth);
 	row = recover_build_loop(flow, checked, types, row, depth);
+	row = recover_build_exchange(flow, checked, types, row, depth);
 	if (row.kind == 0) flow.defer(source);
 	flow.nodes[id - 1] = row; return id;
 }
 
-owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) {
-	var flow = new RecoverFlow(move checked, limit);
+owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) throws Error {
+	var layout = class_storage_plan(checked);
+	var flow = new RecoverFlow(move checked, limit, move layout);
 	if (!flow.checked.validate() || flow.checked.failed() || !flow.checked.native_abi || !flow.checked.semantic_admission || !flow.checked.semantic_flow || !flow.checked.class_storage) {
 		flow.data.fail(4, flow.data.boundary);
 		return move flow;
@@ -167,6 +186,7 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) {
 		var function = flow.data.functions[f]; var declaration = flow.checked.bindings.symbol(function.symbol);
 		function.body = recover_build_node(flow.data, flow.checked, flow.types, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0); flow.data.function_row(f, function); recover_loop_bind(flow.data, function.body, 0, 0); f = f + 1;
 	}
+	if (flow.data.status == 0) recover_fields_build(flow.fields, flow.checked, flow.storage, flow.data);
 	if (flow.data.status == 0 && !recover_flow_verify(flow)) flow.data.fail(1, flow.data.boundary);
 	return move flow;
 }

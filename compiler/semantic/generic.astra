@@ -322,8 +322,7 @@ bool generic_checked_source(CheckedIndex index, SymbolId origin, TypeId enclosin
 		if (declaration.owner.index != 0 || enclosing.index != 0) return false;
 	} else {
 		if (declaration.kind != 11 || !class_storage_source_verified(index, enclosing, false, 0)) return false;
-		var owner = class_storage_origin(index, enclosing); var source = index.bindings.symbol(owner); var fields = index.bindings.program.arena.get_list_fields(source.node);
-		if (index.bindings.program.arena.list_count(fields) != 0) return false;
+		if (!class_storage_fields_verified(index, enclosing, 0)) return false;
 	}
 	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_int_dispatch(node) != 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
 	var bound = index.bindings.program.arena.get_node_throws_class(node);

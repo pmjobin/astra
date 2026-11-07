@@ -21,7 +21,7 @@ bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverWork work) {
 	while (count > 0) {
 		if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / versions + 1; int before = item % versions; int after = before; var row = ssa.cfg.blocks[block - 1];
 		SyntaxNodeId absent = {index = 0}; var source = recover_empty(absent, 0, type_id(14), 0, 0); if (row.origin > 0) source = ssa.cfg.core.nodes[row.origin - 1].value;
-		if ((row.opcode == 2 || row.opcode == 10 || row.opcode == 12) && source.symbol.index == slot.symbol.index) {
+		if ((row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46) && source.symbol.index == slot.symbol.index) {
 			if (before == 0) return false;
 			if (row.opcode == 10) {
 				if (before != 1 || reservations[row.origin - 1] < 2) return false;
@@ -80,7 +80,7 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 			if (live) return false;
 			live = true;
 		}
-		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4)) {
+		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 11 || row.opcode == 44)) {
 			if (!live) return false;
 			live = false;
 		}

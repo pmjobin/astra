@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Finite copied scalar accessors: one declared field, or its counted length.
+// This source shape grants neither a receiver root nor a writable property.
+struct ClassProperty { SymbolId field; int mode; }
+
+int class_property_builtin(CheckedIndex checked, SyntaxNodeId node) {
+	if (checked.bindings.program.arena.kind(node) != SyntaxKind.TypeNameSyntax()) return 0;
+	int code = 1;
+	while (code <= 13) {
+		if ((type_numeric(code) || code == 13) && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(node), type_builtin_name(code))) return code;
+		code = code + 1;
+	}
+	return 0;
+}
+
+ClassProperty class_property_source(CheckedIndex checked, SyntaxNodeId node, SymbolId owner) {
+	ClassProperty absent = {field = {index = 0}, mode = 0};
+	if (!checked.class_storage || checked.bindings.program.arena.kind(node) != SyntaxKind.PropertyDeclarationSyntax() || checked.bindings.program.arena.get_node_setter(node).index != 0 || checked.bindings.program.arena.get_node_throws_class(node).index != 0 || checked.bindings.program.arena.get_node_factory_syntax(node).index != 0 || checked.bindings.program.arena.get_token_lazy_keyword(node).index != 0 || checked.bindings.program.arena.get_token_owned_keyword(node).index != 0 || checked.bindings.program.arena.get_int_dispatch(node) != 0 || checked.bindings.program.arena.get_node_foreign_member(node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(node)) != 0) return absent;
+	int result = class_property_builtin(checked, checked.bindings.program.arena.get_node_type_name(node)); if (result == 0) return absent;
+	var getter = checked.bindings.program.arena.get_node_getter(node);
+	if (getter.index == 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_keyword(getter), "get") || checked.bindings.program.arena.get_node_parameter(getter).index != 0 || checked.bindings.program.arena.get_node_foreign_member(getter).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(getter)) != 0) return absent;
+	var body = checked.bindings.program.arena.get_node_body(getter);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return absent;
+	var statements = checked.bindings.program.arena.get_list_statements(body); if (checked.bindings.program.arena.list_count(statements) != 1) return absent;
+	var statement = checked.bindings.program.arena.node_at(statements, 0); if (checked.bindings.program.arena.kind(statement) != SyntaxKind.ReturnStatementSyntax()) return absent;
+	var value = checked.bindings.program.arena.get_node_expression(statement); int mode = 1;
+	if (checked.bindings.program.arena.kind(value) == SyntaxKind.CallExpressionSyntax()) {
+		if (result != 1 || !checked_flow_intrinsic(checked, value) || checked.bindings.program.arena.get_token_receiver(value).index != 0 || checked.bindings.program.arena.get_node_receiver_place(value).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(value)) != 0) return absent;
+		var arguments = checked.bindings.program.arena.get_list_arguments(value); if (checked.bindings.program.arena.list_count(arguments) != 1) return absent;
+		value = checked.bindings.program.arena.node_at(arguments, 0); mode = 2;
+	}
+	if (checked.bindings.program.arena.kind(value) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(value).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(value), "this")) return absent;
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var field = checked.bindings.symbol(type_symbol(s));
+		if (field.kind == 6 && field.owner.index == owner.index && generic_token_equal(checked, field.token, checked.bindings.program.arena.get_token_field_name(value))) {
+			var source_type = checked.bindings.program.arena.get_node_type_name(field.node);
+			if (mode == 1 && (class_property_builtin(checked, source_type) != result || checked.bindings.program.arena.get_token_owned_keyword(field.node).index != 0)) return absent;
+			if (mode == 2 && (checked.bindings.program.arena.kind(source_type) != SyntaxKind.SliceTypeSyntax() || class_property_builtin(checked, checked.bindings.program.arena.get_node_element_type(source_type)) == 0 || checked.bindings.program.arena.get_token_owned_keyword(field.node).index == 0)) return absent;
+			ClassProperty projection = {field = {index = s}, mode = mode}; return projection;
+		}
+		s = s + 1;
+	}
+	return absent;
+}
+
+void class_property_check_accessors(CheckedIndex checked) throws Error {
+	int s = 1;
+	while (s <= checked.generic_symbols) {
+		var property = checked.bindings.symbol(type_symbol(s));
+		if (property.kind == 14) {
+			var plan = class_property_source(checked, property.node, property.owner);
+			if (plan.field.index > 0) {
+				var getter = checked.bindings.program.arena.get_node_getter(property.node); var body = checked.bindings.program.arena.get_node_body(getter); var statement = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_statements(body), 0); var value = checked.bindings.program.arena.get_node_expression(statement); var field = value;
+				if (plan.mode == 2) field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_arguments(value), 0);
+				checked_complete_member(checked, field, checked.bindings.program.arena.get_token_field_name(field), plan.field); var recorded = checked.record(field, checked.symbol_types[plan.field.index], 0);
+				if (plan.mode == 2) {
+					var length = checked.record(value, type_id(1), 0);
+				}
+			}
+		}
+		s = s + 1;
+	}
+}
+
+// Separate consumer: reconstruct the original getter, completed field binding
+// and declared result TypeId, without invoking the source selector above.
+ClassProperty class_property_verified(CheckedIndex checked, SymbolId member) {
+	ClassProperty absent = {field = {index = 0}, mode = 0};
+	if (!checked.class_storage || member.index < 1 || member.index > checked.bindings.symbol_count) return absent;
+	var declaration = checked.bindings.symbol(member); if (declaration.kind != 14 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.PropertyDeclarationSyntax() || (checked.symbol_flags[member.index] & ~256) != 0) return absent;
+	var property = checked.bindings.program.arena.property_declaration(declaration.node); var result = checked.symbol_types[member.index]; int code = checked_kind(checked, result);
+	if ((!type_numeric(code) && code != 13) || property.f_setter.index != 0 || property.f_throws_class.index != 0 || property.f_factory_syntax.index != 0 || property.f_lazy_keyword.index != 0 || property.f_owned_keyword.index != 0 || property.f_dispatch != 0 || property.f_getter.index == 0 || checked.bindings.program.arena.get_node_foreign_member(declaration.node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(declaration.node)) != 0 || checked.uses[property.f_type_name.index].type.index != result.index) return absent;
+	if (checked.bindings.program.arena.kind(property.f_getter) != SyntaxKind.PropertyAccessorSyntax()) return absent;
+	var accessor = checked.bindings.program.arena.property_accessor(property.f_getter);
+	if (!checked.bindings.program.arena.token_is(accessor.f_keyword, "get") || accessor.f_parameter.index != 0 || accessor.f_body.index == 0 || checked.bindings.program.arena.kind(accessor.f_body) != SyntaxKind.BlockStatementSyntax() || checked.bindings.program.arena.get_node_foreign_member(property.f_getter).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(property.f_getter)) != 0) return absent;
+	var statements = checked.bindings.program.arena.get_list_statements(accessor.f_body); if (checked.bindings.program.arena.list_count(statements) != 1) return absent;
+	var statement = checked.bindings.program.arena.node_at(statements, 0); if (checked.bindings.program.arena.kind(statement) != SyntaxKind.ReturnStatementSyntax()) return absent;
+	var expression = checked.bindings.program.arena.get_node_expression(statement); var value = expression; int mode = 1;
+	if (checked.bindings.program.arena.kind(expression) == SyntaxKind.CallExpressionSyntax()) {
+		if (result.index != 1 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(expression), "len") || checked_target(checked, expression, checked.bindings.program.arena.get_token_identifier(expression)).index != 0 || checked.bindings.program.arena.get_token_receiver(expression).index != 0 || checked.bindings.program.arena.get_node_receiver_place(expression).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(expression)) != 0) return absent;
+		var arguments = checked.bindings.program.arena.get_list_arguments(expression); if (checked.bindings.program.arena.list_count(arguments) != 1) return absent;
+		value = checked.bindings.program.arena.node_at(arguments, 0); mode = 2;
+	}
+	if (checked.bindings.program.arena.kind(value) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(value).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(value), "this")) return absent;
+	var field = checked_target(checked, value, checked.bindings.program.arena.get_token_field_name(value)); if (field.index < 1 || field.index > checked.bindings.symbol_count) return absent;
+	var source = checked.bindings.symbol(field); var type = checked.symbol_types[field.index];
+	if (source.kind != 6 || source.owner.index != declaration.owner.index || checked.uses[value.index].type.index != type.index || checked.uses[expression.index].type.index != result.index) return absent;
+	if (mode == 1 && (type.index != result.index || (checked.symbol_flags[field.index] & 6) != 0)) return absent;
+	if (mode == 2) {
+		if (checked_kind(checked, type) != 22 || (checked.symbol_flags[field.index] & (4 | 2)) != 4) return absent;
+		var element = checked.types.argument(checked.types, type, 0); if (element.flags != 0 || (!type_numeric(checked_kind(checked, element.type)) && checked_kind(checked, element.type) != 13)) return absent;
+	}
+	ClassProperty projection = {field = field, mode = mode}; return projection;
+}

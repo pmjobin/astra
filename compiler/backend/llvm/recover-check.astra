@@ -44,7 +44,7 @@ bool recover_llvm_literal(CheckedIndex checked, RecoverNode row, void* value) th
 	return LLVMGetIntTypeWidth(LLVMTypeOf(value)) == width && LLVMConstIntGetZExtValue(value) == bits;
 }
 
-bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, void* module, void* layout, void* payload, void* free_function, void* construct_function, void* message_function, void* destroy_function, void* subtype_function, void* equal_function, void*[] origins, void*[] functions, void*[] entries, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] descriptors, void*[] payloads, void*[] destroyers, void*[] tables, void*[] operations, void* buffer_function, void* allocate_function, void*[] owner_addresses, void*[] owner_armed, void*[] owner_initial_values, void*[] owner_initial_flags, void* error_owner_function) throws Error {
+bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, void* module, void* layout, void* payload, void* free_function, void* construct_function, void* message_function, void* destroy_function, void* subtype_function, void* equal_function, void*[] origins, void*[] functions, void*[] entries, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] descriptors, void*[] payloads, void*[] destroyers, void*[] tables, void*[] operations, void* buffer_function, void* allocate_function, void*[] owner_addresses, void*[] owner_armed, void*[] owner_initial_values, void*[] owner_initial_flags, void* error_owner_function, void*[] class_payloads, void*[] class_destroyers, void* class_snapshot) throws Error {
 	if (module == null || !type_owner_same(source_owner, ssa.cfg.core.identity) || !recover_ssa_verify(ssa) || len(functions) != ssa.cfg.core.flow.data.function_count || len(blocks) != ssa.cfg.block_count || len(values) != len(ssa.data.values) || LLVMABISizeOfType(layout, payload) != 32 || LLVMABIAlignmentOfType(layout, payload) != 8 || LLVMCountStructElementTypes(payload) != 4 || LLVMIsPackedStruct(payload) != 0) return false;
 	if (LLVMOffsetOfElement(layout, payload, 0) != 0 || LLVMOffsetOfElement(layout, payload, 1) != 8 || LLVMOffsetOfElement(layout, payload, 2) != 16 || LLVMOffsetOfElement(layout, payload, 3) != 24) return false;
 	int s = 1;
@@ -107,7 +107,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 						var parameter = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(parameters, p);
 						if (ssa.cfg.core.flow.checked.node_symbols[parameter.index].index == slot.symbol.index) source = p;
 						p = p + 1;
-					} if (source < 0 || !recover_llvm_group(ssa.cfg.core.flow.checked, slot.type, locals[slot.symbol.index], function, plan.groups[source])) return false; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22) allocation_count = allocation_count + recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
+					} if (source < 0 || !recover_llvm_group(ssa.cfg.core.flow.checked, slot.type, locals[slot.symbol.index], function, plan.groups[source])) return false; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 15) allocation_count = allocation_count + recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
 				} else {
 					int stores = 0;
 					int candidate = 0;
@@ -176,7 +176,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			while (i < row.count) {
 				int child = ssa.cfg.core.flow.data.edges[row.first + i];
 				var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1);
-				if ((checked_kind(ssa.cfg.core.flow.checked, channel.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 22) && LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
+				if ((checked_kind(ssa.cfg.core.flow.checked, channel.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 15) && LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
 				i = i + 1;
 			}
 			if (!recover_llvm_native_attributes(operation, LLVMGetNumArgOperands(operation))) return false;
@@ -204,9 +204,39 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 		if (op == 11) {
 			instruction_count = 3;
 			var allocation = values[block.origin];
-			if (!recover_llvm_call(allocation, allocate_function, 2, 8) || !recover_llvm_bits(LLVMGetArgOperand(allocation, 0), 64, 1) || !recover_llvm_bits(LLVMGetArgOperand(allocation, 1), 64, 1)) return false;
+			var shape = ssa.cfg.core.flow.fields.layout.types[row.type.index];
+			if (!recover_llvm_call(allocation, allocate_function, 2, 8) || !recover_llvm_bits(LLVMGetArgOperand(allocation, 0), 64, 1) || !recover_llvm_bits(LLVMGetArgOperand(allocation, 1), 64, shape.payload_size as u64)) return false;
 			int callee = ssa.cfg.core.flow.data.symbols[row.symbol.index];
-			if (!recover_llvm_call(operation, functions[callee - 1], 1, 8) || LLVMGetArgOperand(operation, 0) != allocation) return false;
+			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol);
+			if (!recover_llvm_call(operation, functions[callee - 1], plan.parameters, 8) || LLVMGetArgOperand(operation, plan.groups[0]) != allocation) return false;
+			var signature = ssa.cfg.core.flow.checked.signatures[plan.signature.index - 1]; int i = 0;
+			while (i < row.count) {
+				int child = ssa.cfg.core.flow.data.edges[row.first + i]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 2); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type); int at = plan.groups[i + 1];
+				if (kind == 22 || kind == 30 || kind == 15) {
+					int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags); int field = 0;
+					while (field < count) {
+						if (!recover_llvm_extract(LLVMGetArgOperand(operation, at + field), values[child], field)) return false;
+						field = field + 1;
+					}
+					if (LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + count;
+				} else {
+					if (LLVMGetArgOperand(operation, at) != values[child]) return false;
+				}
+				i = i + 1;
+			}
+		}
+		if (op == 17 || op == 18 || op == 44) {
+			instruction_count = recover_class_field_instructions(ssa, block);
+			if (op == 44 && ssa.cfg.core.flow.checked.symbol_types[ssa.cfg.core.flow.fields.facts[row.source.index].field.index].index == 15) instruction_count = instruction_count + recover_llvm_extract_instructions(values[row.a]);
+			if (!recover_class_field_verified(ssa, block, physical, operation, values, locals, class_payloads, class_destroyers, class_snapshot, free_function)) return false;
+		}
+		if (op == 45) {
+			instruction_count = 3;
+			if (!recover_exchange_verified(ssa, block, physical, operation, values, owner_addresses)) return false;
+		}
+		if (op == 46) {
+			instruction_count = 2;
+			if (!recover_field_guard_verified(ssa, block, physical, operation, locals, blocks[block.next - 1], blocks[block.other - 1])) return false;
 		}
 		if (op == 13 && (values[block.origin] == null || LLVMIsNull(values[block.origin]) == 0 || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(values[block.origin])))) return false;
 		if (op == 14) {
@@ -232,6 +262,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			instruction_count = 6;
 			if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22) instruction_count = 7;
 			void* drop = free_function; if (recover_storage_error(ssa.cfg.core.flow.checked, slot.type)) drop = error_owner_function;
+			if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 31 && class_destroyers[ssa.cfg.core.flow.checked.types.row(slot.type).nominal.index] != null) drop = class_destroyers[ssa.cfg.core.flow.checked.types.row(slot.type).nominal.index];
 			if (!recover_llvm_owner_drop(ssa.cfg.core.flow.checked, slot, physical, owner_addresses[slot.symbol.index], owner_armed[slot.symbol.index], drop, operation)) return false;
 		}
 		if (op == 39) {
@@ -260,7 +291,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 				var type = ssa.cfg.core.nodes[child - 1].value.type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 				int at = plan.groups[i];
-				if (kind == 30 || kind == 22) {
+				if (kind == 30 || kind == 22 || kind == 15) {
 					var signature = ssa.cfg.core.flow.checked.signatures[function.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1); int count = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags);
 					int field = 0;
 					while (field < count) {
@@ -321,7 +352,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			}
 			if (incoming == 0 || incoming != LLVMCountIncoming(phi)) return false;
 		}
-		if (op == 21 || op == 16 || op == 31 || op == 39) {
+		if (op == 21 || op == 16 || op == 31 || op == 39 || op == 46) {
 			if (LLVMGetNumSuccessors(term) != 2 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1] || LLVMGetSuccessor(term, 1) != blocks[block.other - 1]) return false;
 			if (op == 21 && LLVMGetCondition(term) != values[block.a]) return false;
 			if (op == 16) {
@@ -329,7 +360,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 				if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 33 || LLVMGetOperand(condition, 0) != values[block.a] || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0 || operation != term) return false;
 			}
 		}
-		if (op != 21 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
+		if (op != 21 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && op != 46 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
 			if (LLVMGetInstructionOpcode(term) != 70 || LLVMGetNumSuccessors(term) != 1 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1]) return false;
 		}
 		b = b + 1;

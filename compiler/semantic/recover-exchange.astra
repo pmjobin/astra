@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Capture both complete descriptors before either destination is overwritten.
+// Destination responsibility and reverse declaration cleanup ranks stay fixed.
+RecoverNode recover_build_exchange(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode initial, int depth) {
+	var row = initial;
+	if (checked.bindings.program.arena.kind(row.source) == SyntaxKind.SwapStatementSyntax()) {
+		row.kind = 45; row.type = type_id(14);
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_left(row.source), row.function, row.handler, row.caught, depth + 1);
+		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_right(row.source), row.function, row.handler, row.caught, depth + 1);
+	}
+	return row;
+}
+
+bool recover_exchange_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	if (checked.bindings.program.arena.kind(row.source) != SyntaxKind.SwapStatementSyntax() || row.a < 1 || row.b < 1 || row.c != 0) return false;
+	var left = checked.bindings.program.arena.get_node_left(row.source); var right = checked.bindings.program.arena.get_node_right(row.source);
+	if (!owner_exchange_slot(checked, left) || !owner_exchange_slot(checked, right) || !recover_child(flow, checked, types, row.a, left, function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, right, function, handler, caught, seen, edges, depth + 1)) return false;
+	var first = flow.nodes[row.a - 1]; var last = flow.nodes[row.b - 1];
+	return first.type.index == last.type.index && checked_kind(checked, first.type) == 22 && (first.kind == 2 || first.kind == 17) && (last.kind == 2 || last.kind == 17);
+}
+
+bool recover_exchange_place(RecoverFlow flow, int id) {
+	if (id < 1 || id > flow.data.node_count) return false;
+	var row = flow.data.nodes[id - 1];
+	if (row.kind == 17) {
+		var fact = flow.fields.facts[row.source.index];
+		return fact.writable && !fact.initializing && checked_kind(flow.checked, row.type) == 22 && (flow.checked.symbol_flags[fact.field.index] & (4 | 128)) == 4;
+	}
+	if (row.kind != 2 || row.symbol.index < 1 || row.symbol.index >= len(flow.storage.symbols)) return false;
+	int place = flow.storage.symbols[row.symbol.index];
+	return place > 0 && place <= flow.storage.count && flow.storage.slots[place - 1].owner && flow.storage.slots[place - 1].function == row.function && checked_kind(flow.checked, row.type) == 22;
+}
+
+// Inspect the complete other-argument tree, including nested calls. A method
+// on a possibly aliasing containing Class can replace a captured field even
+// without moving its receiver. No noalias premise is inferred from symbols.
+bool recover_payload_preserved(RecoverFlowData flow, int id, TypeId aggregate, int[] work, int depth) {
+	if (id < 1 || id > flow.node_count || depth > 192 || work[0] == 0) return false;
+	work[0] = work[0] - 1; var row = flow.nodes[id - 1];
+	if (aggregate.index > 0 && row.type.index == aggregate.index) return false;
+	if (row.a > 0 && !recover_payload_preserved(flow, row.a, aggregate, work, depth + 1) || row.b > 0 && !recover_payload_preserved(flow, row.b, aggregate, work, depth + 1) || row.c > 0 && !recover_payload_preserved(flow, row.c, aggregate, work, depth + 1)) return false;
+	int i = 0;
+	while (i < row.count) {
+		if (!recover_payload_preserved(flow, flow.edges[row.first + i], aggregate, work, depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+// Borrowed payloads cannot accompany an aliasing containing Class, or an
+// explicit move of their own root. Borrowed payload locals are not admitted;
+// forwarding parameters retain this obligation at their source call boundary.
+bool recover_payload_calls_verified(RecoverFlow flow) {
+	var work = new int[1]; work[0] = 8000000; int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 45 && (!recover_exchange_place(flow, row.a) || !recover_exchange_place(flow, row.b))) return false;
+		if (row.kind == 4 || row.kind == 11) {
+			int signature = flow.checked.symbol_signatures[row.symbol.index].index; if (signature < 1 || signature > flow.checked.signature_count) return false;
+			var callable = flow.checked.signatures[signature - 1].callable; int offset = 1; if (row.kind == 11) offset = 2;
+			int i = 0;
+			while (i < row.count) {
+				var channel = flow.checked.types.argument(flow.checked.types, callable, i + offset); int kind = checked_kind(flow.checked, channel.type);
+				if ((kind == 22 || kind == 15 || kind == 31) && (channel.flags & 4) == 0) {
+					int id = flow.data.edges[row.first + i]; int steps = 0;
+					while (flow.data.nodes[id - 1].kind == 7 && steps < 192) {
+						id = flow.data.nodes[id - 1].a;
+						steps = steps + 1;
+					}
+					if (steps == 192) return false; var argument = flow.data.nodes[id - 1]; var root = type_symbol(0); TypeId aggregate = {index = 0};
+					if (argument.kind == 2) root = argument.symbol;
+					if (argument.kind == 17) {
+						var fact = flow.fields.facts[argument.source.index];
+						root = fact.receiver;
+						aggregate = fact.aggregate;
+					}
+					if (argument.kind != 1 && argument.kind != 2 && argument.kind != 17) return false;
+					int other = 0;
+					while (other < row.count) {
+						if (other != i) {
+							int child = flow.data.edges[row.first + other];
+							if (root.index > 0 && !recover_borrow_preserved(flow.data, child, root, work, 0)) return false;
+							if (!recover_payload_preserved(flow.data, child, aggregate, work, 0)) return false;
+							var target = flow.checked.types.argument(flow.checked.types, callable, other + offset);
+							if (aggregate.index > 0 && target.type.index == aggregate.index) return false;
+						}
+						other = other + 1;
+					}
+				}
+				i = i + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return work[0] > 0;
+}

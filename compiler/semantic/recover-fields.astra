@@ -1,0 +1,212 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Field authority is a nominal projection of an actual source receiver slot.
+// Merely knowing the projected TypeId never creates a writable destination.
+struct RecoverField {
+	SymbolId receiver;
+	SymbolId field;
+	TypeId aggregate;
+	int slot;
+	int ordinal;
+	int offset;
+	int cleanup_rank;
+	bool writable;
+	bool initializing;
+}
+
+class RecoverFields {
+	owned shared TypeOwner identity;
+	owned ClassStoragePlan layout;
+	owned RecoverField[] facts;
+
+	init(CheckedIndex checked, owned ClassStoragePlan layout) {
+		var identity = shared_clone(checked.types.identity); this.identity = move identity;
+		this.layout = move layout; this.facts = new RecoverField[len(checked.uses)];
+	}
+}
+
+// Resolve the implicit language receiver through its concrete specialization,
+// then check the actual declared borrowed parameter and callable channel.
+SymbolId recover_field_receiver(CheckedIndex checked, SyntaxNodeId projection, SymbolId function) {
+	var receiver = recover_type_receiver(checked, projection);
+	if (receiver.index == 0 && checked.bindings.program.arena.get_node_aggregate(projection).index == 0 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(projection), "this")) {
+		int instance = generic_instance_for(checked, function);
+		if (instance < 1 || checked.instances[instance - 1].enclosing.index == 0) return type_symbol(0);
+		int id = class_storage_receiver(checked, function);
+		if (id < 1 || id > checked.bindings.symbol_count) return type_symbol(0);
+		receiver = type_symbol(id);
+		var parameter = checked.bindings.symbol(receiver);
+		if (parameter.kind != 7 || parameter.owner.index != function.index || checked.symbol_flags[id] != 2 || checked.symbol_types[id].index != checked.instances[instance - 1].enclosing.index) return type_symbol(0);
+		int signature = checked.symbol_signatures[function.index].index;
+		if (signature < 1 || signature > checked.signature_count) return type_symbol(0);
+		var callable = checked.signatures[signature - 1].callable;
+		if (checked.types.row(callable).count < 2) return type_symbol(0);
+		var channel = checked.types.argument(checked.types, callable, 1);
+		if (channel.flags != 2 || channel.type.index != checked.symbol_types[id].index) return type_symbol(0);
+	}
+	if (receiver.index < 1 || receiver.index > checked.bindings.symbol_count) return type_symbol(0);
+	var declaration = checked.bindings.symbol(receiver);
+	if ((declaration.kind != 7 && declaration.kind != 8) || declaration.owner.index != function.index || checked_kind(checked, checked.symbol_types[receiver.index]) != 31) return type_symbol(0);
+	return receiver;
+}
+
+// This walk is intentionally separate from constructor lowering. Before all
+// fields are initialized, only parameter moves, literals and initialized field
+// reads can contribute values. Passing/returning the receiver is never allowed.
+bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId function, TypeId aggregate, bool[] initialized, int depth) {
+	if (node.index == 0 || depth > 192) return false;
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax() || kind == SyntaxKind.TextLiteralExpressionSyntax() || kind == SyntaxKind.NullPointerExpressionSyntax()) return true;
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+		return symbol.index > 0 && checked.bindings.symbol(symbol).kind == 7 && checked.bindings.symbol(symbol).owner.index == function.index && symbol.index != class_storage_receiver(checked, function);
+	}
+	if (kind == SyntaxKind.MoveExpressionSyntax()) {
+		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_source(node));
+		return symbol.index > 0 && checked.bindings.symbol(symbol).kind == 7 && checked.bindings.symbol(symbol).owner.index == function.index && checked.symbol_flags[symbol.index] == 4 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) == 0;
+	}
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.BinaryExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_left(node), function, aggregate, initialized, depth + 1) && recover_constructor_value(checked, checked.bindings.program.arena.get_node_right(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.BufferAllocationSyntax()) return checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && checked.bindings.program.arena.get_node_failure_call(node).index == 0 && recover_constructor_value(checked, checked.bindings.program.arena.get_node_count(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, node)) {
+		var arguments = checked_call_arguments(checked, node);
+		return checked.bindings.program.arena.list_count(arguments) == 1 && recover_constructor_value(checked, checked.bindings.program.arena.node_at(arguments, 0), function, aggregate, initialized, depth + 1);
+	}
+	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) return false;
+	var field = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
+	if (field.index < 1 || field.index >= len(initialized) || !initialized[field.index] || checked.bindings.symbol(field).owner.index != checked.types.row(aggregate).nominal.index) return false;
+	return recover_field_receiver(checked, node, function).index == class_storage_receiver(checked, function);
+}
+
+bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function) {
+	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
+	int instance = generic_instance_for(checked, function); if (instance < 1) return false;
+	var type = checked.instances[instance - 1].enclosing;
+	if (!class_storage_source_verified(checked, type, false, 0)) return false;
+	int receiver = class_storage_receiver(checked, function);
+	if (receiver < 1 || receiver > checked.bindings.symbol_count || checked.bindings.symbol(type_symbol(receiver)).kind != 7 || checked.bindings.symbol(type_symbol(receiver)).owner.index != function.index || checked.symbol_types[receiver].index != type.index || checked.symbol_flags[receiver] != 2) return false;
+	var origin = checked.bindings.symbol(checked.instances[instance - 1].origin);
+	if (origin.kind != 12 || origin.owner.index != class_storage_origin(checked, type).index) return false;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	var source = checked.bindings.symbol(function).node;
+	if (!recover_plain_member(checked, source) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(source)) != 0) return false;
+	var body = checked.bindings.program.arena.get_node_body(source);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+	var statements = checked.bindings.program.arena.get_list_statements(body);
+	if (checked.bindings.program.arena.list_count(statements) != checked.bindings.program.arena.list_count(fields)) return false;
+	var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var statement = checked.bindings.program.arena.node_at(statements, i);
+		if (checked.bindings.program.arena.kind(statement) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
+		var target = checked.bindings.program.arena.get_node_target(statement);
+		if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this")) return false;
+		var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+		if (field.index < 1 || initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(type).nominal.index || recover_field_receiver(checked, target, function).index != class_storage_receiver(checked, function)) return false;
+		var value = checked.bindings.program.arena.get_node_expression(statement);
+		if (value.index == 0 || checked.uses[value.index].type.index != checked.symbol_types[field.index].index || !recover_constructor_value(checked, value, function, type, initialized, 0)) return false;
+		initialized[field.index] = true; i = i + 1;
+	}
+	i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var field = checked.bindings.program.arena.node_at(fields, i);
+		if (!initialized[checked.node_symbols[field.index].index]) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+SyntaxNodeId recover_field_source(CheckedIndex checked, RecoverNode row) {
+	if (row.kind == 17 || row.kind == 18) return row.source;
+	if (row.kind == 44) return checked.bindings.program.arena.get_node_target(row.source);
+	SyntaxNodeId absent = {index = 0}; return absent;
+}
+
+void recover_fields_build(RecoverFields fields, CheckedIndex checked, RecoverStorage storage, RecoverFlowData flow) {
+	int n = 0;
+	while (n < flow.node_count && flow.status == 0) {
+		var row = flow.nodes[n]; var projection = recover_field_source(checked, row);
+		if (projection.index > 0) {
+			var function = flow.functions[row.function - 1].symbol;
+			var receiver = recover_field_receiver(checked, projection, function);
+			var member = checked_target(checked, projection, checked.bindings.program.arena.get_token_field_name(projection));
+			var selected = member;
+			member = text_storage_verified_projection(checked, member);
+			if (member.index == 0 && selected.index > 0) {
+				var declaration = checked.bindings.symbol(selected);
+				var scalar = class_property_source(checked, declaration.node, declaration.owner);
+				member = scalar.field;
+			}
+			if (receiver.index == 0 || member.index == 0 || storage.symbols[receiver.index] == 0) {
+				flow.defer(row.source);
+				return;
+			}
+			var type = checked.symbol_types[receiver.index]; var layout = fields.layout.types[type.index]; var field = fields.layout.fields[member.index];
+			bool initializing = class_storage_initializing(checked, function) && receiver.index == class_storage_receiver(checked, function);
+			int flags = checked.symbol_flags[member.index];
+			RecoverField fact = {receiver = receiver, field = member, aggregate = type, slot = storage.symbols[receiver.index], ordinal = field.ordinal, offset = field.offset, cleanup_rank = layout.fields - 1 - field.ordinal, writable = (flags & 2) == 0 && ((flags & 128) == 0 || initializing), initializing = initializing};
+			fields.facts[row.source.index] = fact;
+		}
+		n = n + 1;
+	}
+}
+
+bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverStorage storage, RecoverFlowData flow) {
+	if (!type_owner_same(fields.identity, checked.types.identity) || !class_storage_verify(fields.layout, checked) || len(fields.facts) != len(checked.uses)) return false;
+	var seen = new bool[len(fields.facts)]; int n = 0;
+	while (n < flow.node_count) {
+		var row = flow.nodes[n]; var projection = recover_field_source(checked, row);
+		if (projection.index > 0) {
+			if (seen[row.source.index] || checked.bindings.program.arena.kind(projection) != SyntaxKind.FieldAccessExpressionSyntax()) return false;
+			seen[row.source.index] = true; var fact = fields.facts[row.source.index];
+			if (row.function < 1 || row.function > flow.function_count || fact.receiver.index < 1 || fact.receiver.index > checked.bindings.symbol_count || fact.field.index < 1 || fact.field.index > checked.bindings.symbol_count || fact.slot < 1 || fact.slot > storage.count) return false;
+			var function = flow.functions[row.function - 1].symbol;
+			if (recover_field_receiver(checked, projection, function).index != fact.receiver.index || row.symbol.index != fact.receiver.index) return false;
+			var slot = storage.slots[fact.slot - 1];
+			if (slot.symbol.index != fact.receiver.index || slot.function != row.function || slot.type.index != fact.aggregate.index || storage.symbols[fact.receiver.index] != fact.slot || checked.symbol_types[fact.receiver.index].index != fact.aggregate.index || !class_storage_source_verified(checked, fact.aggregate, false, 0)) return false;
+			var selected = checked_target(checked, projection, checked.bindings.program.arena.get_token_field_name(projection));
+			var member_projection = text_storage_verified_projection(checked, selected); var scalar = class_property_verified(checked, selected);
+			if (member_projection.index != fact.field.index && scalar.field.index != fact.field.index || row.kind == 18 && scalar.mode != 2 || row.kind == 17 && scalar.mode == 2) return false;
+			if (!checked_field_accessible(checked, projection, selected)) return false;
+			var member = checked.bindings.symbol(fact.field); var nominal = checked.types.row(fact.aggregate).nominal;
+			if (member.kind != 6 || member.owner.index != nominal.index) return false;
+			var declaration = checked.bindings.symbol(nominal); var source_fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = checked.bindings.program.arena.list_count(source_fields);
+			if (fact.ordinal < 0 || fact.ordinal >= count || checked.node_symbols[checked.bindings.program.arena.node_at(source_fields, fact.ordinal).index].index != fact.field.index || fact.cleanup_rank != count - 1 - fact.ordinal) return false;
+			var physical = fields.layout.fields[fact.field.index];
+			if (physical.owner != fact.aggregate.index || physical.symbol != fact.field.index || physical.ordinal != fact.ordinal || physical.offset != fact.offset || physical.semantic != checked.symbol_types[fact.field.index].index || physical.flags != checked.symbol_flags[fact.field.index]) return false;
+			var source_type = checked.bindings.program.arena.get_node_type_name(member.node);
+			if (source_type.index == 0 || checked.uses[source_type.index].type.index != 0 && checked.uses[source_type.index].type.index != physical.semantic) return false;
+			bool initializing = class_storage_initializing(checked, function) && fact.receiver.index == class_storage_receiver(checked, function);
+			int flags = checked.symbol_flags[fact.field.index]; bool writable = (flags & 2) == 0 && ((flags & 128) == 0 || initializing);
+			if (fact.initializing != initializing || fact.writable != writable || initializing && !recover_field_constructor_verified(checked, function)) return false;
+			if (row.kind == 44 && (!writable || selected.index != fact.field.index || row.a < 1 || row.a > flow.node_count || flow.nodes[row.a - 1].type.index != physical.semantic)) return false;
+			if (row.kind == 44) {
+				var work = new int[1]; work[0] = 8000000;
+				if (!recover_borrow_preserved(flow, row.a, fact.receiver, work, 0)) return false;
+				if (!recover_payload_preserved(flow, row.a, fact.aggregate, work, 0)) return false;
+				if ((physical.flags & 1) != 0) {
+					int producer = row.a; int steps = 0;
+					while (flow.nodes[producer - 1].kind == 7 && steps < 192) {
+						producer = flow.nodes[producer - 1].a;
+						steps = steps + 1;
+					}
+					// A nullable owner does not acquire a non-null promise by
+					// being stored in a declared non-null field.
+					if (steps == 192 || flow.nodes[producer - 1].kind != 11) return false;
+				}
+			}
+			if (row.kind == 17 && row.type.index != physical.semantic) return false;
+			if (row.kind == 18 && (row.type.index != 1 || checked_kind(checked, type_id(physical.semantic)) != 22)) return false;
+		}
+		n = n + 1;
+	}
+	int i = 0;
+	while (i < len(fields.facts)) {
+		if (!seen[i]) {
+			var fact = fields.facts[i];
+			if (fact.receiver.index != 0 || fact.field.index != 0 || fact.aggregate.index != 0 || fact.slot != 0 || fact.ordinal != 0 || fact.offset != 0 || fact.cleanup_rank != 0 || fact.writable || fact.initializing) return false;
+		}
+		i = i + 1;
+	}
+	return true;
+}

@@ -47,11 +47,11 @@ bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
 
 int recover_owner_consumer(RecoverFlowData flow, int producer, RecoverOwnerBudget work) {
 	int found = 0; int n = 0; while (n < flow.node_count) { if (!work.take()) return -1; var row = flow.nodes[n];
-		if ((row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 43) && recover_owner_unwrap(flow, row.a) == producer) {
+		if ((row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 43 || row.kind == 44) && recover_owner_unwrap(flow, row.a) == producer) {
 			if (found != 0) return -1;
 			found = n + 1;
 		}
-		if (row.kind == 4) {
+		if (row.kind == 4 || row.kind == 11) {
 			int a = 0;
 			while (a < row.count) {
 				if (recover_owner_unwrap(flow, flow.edges[row.first + a]) == producer) {
@@ -93,13 +93,13 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow) {
 					break;
 				}
 				plan.slots[n] = slot;
-				if (flow.data.nodes[consumer - 1].kind == 4) plan.reservations[n] = consumer;
+				if (flow.data.nodes[consumer - 1].kind == 4 || flow.data.nodes[consumer - 1].kind == 11) plan.reservations[n] = consumer;
 			}
 		}
 		n = n + 1;
 	}
 	int call = 1; while (call <= flow.data.node_count && plan.status == 0) { var parent = flow.data.nodes[call - 1];
-		if (parent.kind == 4) { int a = 1; while (a < parent.count && plan.status == 0) { int subtree = flow.data.edges[parent.first + a]; int child = 1;
+		if (parent.kind == 4 || parent.kind == 11) { int a = 1; while (a < parent.count && plan.status == 0) { int subtree = flow.data.edges[parent.first + a]; int child = 1;
 				while (child <= flow.data.node_count && plan.status == 0) { if (!work.take()) {
 						plan.status = 2;
 						break;
@@ -140,6 +140,10 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			int input = recover_owner_unwrap(flow.data, row.a);
 			if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
 		}
+		if (row.kind == 44 && (flow.checked.symbol_flags[flow.fields.facts[row.source.index].field.index] & 4) != 0) {
+			int input = recover_owner_unwrap(flow.data, row.a);
+			if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
+		}
 		if (row.kind == 22) {
 			var function = flow.data.functions[row.function - 1];
 			var signature = flow.checked.signatures[function.signature.index - 1];
@@ -149,11 +153,12 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
 			}
 		}
-		if (row.kind == 4) {
+		if (row.kind == 4 || row.kind == 11) {
 			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
 			int a = 0;
 			while (a < row.count) {
-				var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + 1);
+				int offset = 1; if (row.kind == 11) offset = 2;
+				var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + offset);
 				if ((channel.flags & 4) != 0) {
 					int input = recover_owner_unwrap(flow.data, flow.data.edges[row.first + a]);
 					if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
@@ -162,16 +167,17 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			}
 		}
 		int parent = 0; while (parent < count) { if (!work.take()) return false; var candidate = flow.data.nodes[parent];
-			if (owner && (candidate.kind == 22 || candidate.kind == 23 || candidate.kind == 27 || candidate.kind == 43) && recover_owner_unwrap(flow.data, candidate.a) == n + 1) {
+			if (owner && (candidate.kind == 22 || candidate.kind == 23 || candidate.kind == 27 || candidate.kind == 43 || candidate.kind == 44) && recover_owner_unwrap(flow.data, candidate.a) == n + 1) {
 				uses = uses + 1;
 				consumer = parent + 1;
 			}
-			if (owner && candidate.kind == 4) {
+			if (owner && (candidate.kind == 4 || candidate.kind == 11)) {
 				int a = 0;
 				while (a < candidate.count) {
 					if (recover_owner_unwrap(flow.data, flow.data.edges[candidate.first + a]) == n + 1) {
 						var signature = flow.checked.signatures[flow.checked.symbol_signatures[candidate.symbol.index].index - 1];
-						var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + 1);
+						int offset = 1; if (candidate.kind == 11) offset = 2;
+						var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + offset);
 						if ((channel.flags & 4) == 0 || row.kind != 10) return false;
 						uses = uses + 1;
 						consumer = parent + 1;
@@ -193,7 +199,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 	int expected = 0; int call = 1;
 	while (call <= count) {
 		var parent = flow.data.nodes[call - 1];
-		if (parent.kind == 4) {
+		if (parent.kind == 4 || parent.kind == 11) {
 			int a = 1;
 			while (a < parent.count) {
 				int subtree = flow.data.edges[parent.first + a];

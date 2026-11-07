@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A slice is a borrowed counted view. Typing it grants no live owner root,
+// bounds proof, writable destination or native operation admission.
+bool checked_slice_intrinsic(CheckedIndex index, SyntaxNodeId node) {
+	return index.class_storage && index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && index.bindings.program.arena.get_token_receiver(node).index == 0 && index.bindings.program.arena.get_node_receiver_place(node).index == 0 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "slice") && checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0;
+}
+
+TypeId checked_slice_type(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var arguments = index.bindings.program.arena.get_list_arguments(node); int count = index.bindings.program.arena.list_count(arguments);
+	if (count != 1 && count != 3 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0) return index.defer(node, 17);
+	var input = index.bindings.program.arena.node_at(arguments, 0); var type = checked_expression(index, input, no_type(), depth + 1); int kind = checked_kind(index, type);
+	if (kind != 21 && kind != 22) return index.defer(node, 17);
+	var element = index.types.argument(index.types, type, 0);
+	if (element.flags != 0 || (!type_numeric(checked_kind(index, element.type)) && checked_kind(index, element.type) != 13)) return index.defer(node, 17);
+	int i = 1;
+	while (i < count) {
+		var argument = index.bindings.program.arena.node_at(arguments, i); var actual = checked_expression(index, argument, type_id(1), depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(argument).span, type_id(1), actual, "slice bound");
+		if (actual.index == 0) return index.defer(node, 17);
+		i = i + 1;
+	}
+	var use = index.uses[node.index]; use.flags = 0; use.deferred = 19; index.uses[node.index] = use;
+	return index.types.unary(22, element.type, 0);
+}

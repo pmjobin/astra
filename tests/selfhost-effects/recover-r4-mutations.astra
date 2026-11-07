@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source-root and physical alternatives are independent of construction.
+int recover_r4_find(RecoverFlow flow, int kind) {
+	int i = 0; while (i < flow.data.node_count) {
+		if (flow.data.nodes[i].kind == kind) return i + 1;
+		i = i + 1;
+	} return 0;
+}
+
+int recover_r4_mutation(string[] args, int category) throws Error {
+	var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow));
+	int load = recover_r4_find(flow, 17); int store = recover_r4_find(flow, 44); assert_that(load > 0 && store > 0); var node = flow.data.nodes[store - 1]; var fact = flow.fields.facts[node.source.index];
+	if (category < 15) {
+		if (category == 0) fact.receiver = type_symbol(0);
+		if (category == 1) fact.slot = 0;
+		if (category == 2) fact.slot = flow.storage.count + 1;
+		if (category == 3) fact.field = flow.data.functions[0].symbol;
+		if (category == 4) fact.ordinal = fact.ordinal + 1;
+		if (category == 5) fact.offset = fact.offset + 1;
+		if (category == 6) fact.cleanup_rank = fact.cleanup_rank + 1;
+		if (category == 7) fact.writable = !fact.writable;
+		if (category == 8) fact.initializing = !fact.initializing;
+		if (category == 9) {
+			int s = 1; var other = no_type();
+			while (s <= flow.checked.bindings.symbol_count) {
+				var type = flow.checked.symbol_types[s];
+				if (flow.checked.bindings.symbol(type_symbol(s)).kind == 4 && type.index != fact.aggregate.index && checked_kind(flow.checked, type) == 31 && flow.fields.layout.types[type.index].state == 2 && flow.fields.layout.types[type.index].payload_size == flow.fields.layout.types[fact.aggregate.index].payload_size) other = type;
+				s = s + 1;
+			}
+			assert_that(other.index > 0); fact.aggregate = other;
+		}
+		flow.fields.facts[node.source.index] = fact;
+		if (category == 10) {
+			var field = flow.fields.layout.fields[fact.field.index];
+			field.offset = field.offset + 1;
+			flow.fields.layout.fields[fact.field.index] = field;
+		}
+		if (category == 11) {
+			var layout = flow.fields.layout.types[fact.aggregate.index];
+			layout.payload_size = layout.payload_size + 1;
+			flow.fields.layout.types[fact.aggregate.index] = layout;
+		}
+		if (category == 12) {
+			var field = flow.fields.layout.fields[fact.field.index];
+			field.flags = field.flags ^ 4;
+			flow.fields.layout.fields[fact.field.index] = field;
+		}
+		if (category == 13) {
+			node.symbol = flow.data.functions[0].symbol;
+			flow.data.nodes[store - 1] = node;
+		}
+		if (category == 14) {
+			var row = flow.data.nodes[load - 1];
+			if (row.type.index == 13) {
+				row.type = type_id(1);
+			} else {
+				row.type = type_id(13);
+			}
+			flow.data.nodes[load - 1] = row;
+		}
+		assert_that(!recover_flow_verify(flow)); return 2;
+	}
+	var core = recover_core_lower(move flow); assert_that(recover_core_verify(core));
+	if (category == 15 || category == 16) {
+		var row = core.nodes[load - 1]; if (category == 15) row.place = 0; if (category == 16) row.result_role = 4; core.nodes[load - 1] = row;
+		assert_that(!recover_core_verify(core)); return 3;
+	}
+	var cfg = recover_cfg_lower(move core, 8192); assert_that(recover_cfg_verify(cfg));
+	if (category == 17 || category == 18 || category == 19) {
+		int at = cfg.regions[store - 1].operation; var block = cfg.blocks[at - 1];
+		if (category == 17) block.a = 0;
+		if (category == 18) block.origin = load;
+		if (category == 19) block.next = cfg.terminals[block.function - 1];
+		cfg.blocks[at - 1] = block; assert_that(!recover_cfg_verify(cfg)); return 4;
+	}
+	var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa));
+	var value = ssa.data.values[load]; if (category == 20) {
+		if (value.type.index == 13) {
+			value.type = type_id(1);
+		} else {
+			value.type = type_id(13);
+		}
+	} if (category == 21) value.block = ssa.cfg.regions[store - 1].operation; ssa.data.values[load] = value; assert_that(!recover_ssa_verify(ssa)); return 5;
+}
+
+bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	if (category == 8 || category == 9) {
+		var valid = LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(module.buffer_function));
+		if (category == 8) {
+			LLVMSetOperand(LLVMGetFirstInstruction(valid), 1, module.int32(1));
+		}
+		else {
+			var allocated = LLVMGetNextBasicBlock(LLVMGetNextBasicBlock(valid));
+			var call = LLVMGetNextInstruction(LLVMGetFirstInstruction(allocated));
+			LLVMSetOperand(call, 0, module.int64(1));
+		}
+		return true;
+	}
+	int n = 0;
+	while (n < ssa.cfg.core.count) {
+		var row = ssa.cfg.core.nodes[n].value; int at = ssa.cfg.regions[n].operation;
+		if (row.kind == 11 && category == 0) {
+			var size = module.int64(1);
+			LLVMSetOperand(module.values[n + 1], 1, size);
+			return true;
+		}
+		if (row.kind == 45 && (category == 6 || category == 7) && at > 0) {
+			var first = module.operations[at - 1];
+			if (category == 6) LLVMSetOperand(first, 0, module.values[row.a]);
+			if (category == 7) {
+				var last = LLVMGetNextInstruction(first);
+				LLVMSetOperand(last, 1, LLVMGetOperand(first, 1));
+			}
+			return true;
+		}
+		if ((row.kind == 44 && (category == 1 || category == 2) || row.kind == 17 && category == 3) && at > 0) {
+			var address = LLVMGetFirstInstruction(module.blocks[at - 1]);
+			if (category == 1) {
+				var fact = ssa.cfg.core.flow.fields.facts[row.source.index]; int symbol = 1;
+				while (symbol < len(ssa.cfg.core.flow.fields.layout.fields)) {
+					var other = ssa.cfg.core.flow.fields.layout.fields[symbol];
+					if (other.owner == fact.aggregate.index && other.ordinal != fact.ordinal && other.semantic == ssa.cfg.core.flow.checked.symbol_types[fact.field.index].index) {
+						LLVMSetOperand(address, 2, module.int32(other.ordinal));
+						return true;
+					}
+					symbol = symbol + 1;
+				}
+			}
+			if (category == 2 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[ssa.cfg.core.flow.fields.facts[row.source.index].field.index]) == 1) {
+				var zero = module.int32(0);
+				LLVMSetOperand(module.operations[at - 1], 0, zero);
+				return true;
+			}
+			if (category == 3) {
+				LLVMSetOperand(address, 0, LLVMConstNull(module.pointer));
+				return true;
+			}
+		}
+		n = n + 1;
+	}
+	int s = 1; while (s < len(module.class_destroyers)) {
+		var function = module.class_destroyers[s];
+		if (function != null) {
+			var block = LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(function)); var instruction = LLVMGetFirstInstruction(block); void* first = null; void* last = null;
+			while (instruction != null) {
+				if (LLVMGetInstructionOpcode(instruction) == 45) {
+					if (first == null) first = instruction;
+					last = instruction;
+				}
+				instruction = LLVMGetNextInstruction(instruction);
+			}
+			if (category == 4 && first != null && first != last) {
+				LLVMSetOperand(first, 0, LLVMGetParam(function, 0));
+				return true;
+			}
+			if (category == 5 && last != null) {
+				LLVMSetOperand(last, 0, LLVMConstNull(module.pointer));
+				return true;
+			}
+		}
+		s = s + 1;
+	} return false;
+}
+
+int recover_r4_mutations_cli(string[] args) {
+	try {
+		int category = 0;
+		while (category < 22) {
+			int stage = recover_r4_mutation(args, category); var out = new Utf8ByteBuilder(); source_append_text(out, "R4_FIELD_REJECT "); append_int(out, category); source_append_text(out, " "); append_int(out, stage); var text = out.snapshot(); println(text.text); category = category + 1;
+		}
+		var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;
+		while (category < 10) {
+			var module = new RecoverLlvm(ssa); module.build(ssa); assert_that(module.check(ssa)); assert_that(recover_r4_physical(module, ssa, category)); assert_that(llvm12_verify(module.module) == 0); assert_that(!module.check(ssa));
+			var output = new Utf8ByteBuilder(); source_append_text(output, args[2]); source_append_text(output, "/field-physical-"); append_int(output, category); source_append_text(output, ".ll"); var path = output.snapshot(); assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0); var out = new Utf8ByteBuilder(); source_append_text(out, "R4_FIELD_LLVM_REJECT "); append_int(out, category); var text = out.snapshot(); println(text.text); category = category + 1;
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

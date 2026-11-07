@@ -83,7 +83,9 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 	while (m < checked.bindings.program.arena.list_count(members)) {
 		var member = checked.bindings.program.arena.node_at(members, m); var kind = checked.bindings.program.arena.kind(member);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
-			if (!text_storage_accessor_verified(checked, member, descriptor.nominal)) return false;
+			var id = checked.node_symbols[member.index]; if (id.index < 1 || checked.bindings.symbol(id).owner.index != descriptor.nominal.index) return false;
+			var scalar = class_property_verified(checked, id);
+			if (!text_storage_accessor_verified(checked, member, descriptor.nominal) && scalar.field.index == 0) return false;
 			m = m + 1;
 			continue;
 		}
@@ -94,7 +96,7 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 				initializers = initializers + 1;
 			}
 			var bound = checked.bindings.program.arena.get_node_throws_class(member);
-			if (bound.index != 0 && (kind != SyntaxKind.FunctionDeclarationSyntax() || !checked.semantic_admission || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0 || !checked_effect_subtype(checked, checked_effect_class(checked, bound), checked_effect_root(checked)))) return false;
+			if (bound.index != 0 && (kind != SyntaxKind.FunctionDeclarationSyntax() || !checked.semantic_admission || !checked_effect_subtype(checked, checked_effect_class(checked, bound), checked_effect_root(checked)))) return false;
 			if (checked.bindings.program.arena.get_int_dispatch(member) != 0 || checked.bindings.program.arena.get_node_body(member).index == 0 || checked.bindings.program.arena.get_token_async_keyword(member).index != 0 || checked.bindings.program.arena.get_bool_is_signal(member) || checked.bindings.program.arena.get_token_extern_keyword(member).index != 0 || checked.bindings.program.arena.get_token_export_keyword(member).index != 0 || checked.bindings.program.arena.get_node_foreign_policy(member).index != 0 || checked.bindings.program.arena.get_node_foreign_member(member).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(member)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(member)) != 0) return false;
 		}
 		m = m + 1;
@@ -117,6 +119,8 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		var field = checked.bindings.symbol(symbol);
 		if (field.kind != 6 || field.owner.index != descriptor.nominal.index || field.node.index != node.index) return false;
 		int flags = checked.symbol_flags[symbol.index];
+		if ((flags & ~391) != 0) return false;
+		int storage_flags = flags & ~256;
 		// Field qualifiers come directly from source, without a dependency
 		// on the Flow solver or its graph representation.
 		int source_flags = checked_flags(checked.bindings.program.arena, node) & 7;
@@ -125,24 +129,24 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		if ((flags & 7) != source_flags || (flags & 384) != (checked_flags(checked.bindings.program.arena, node) & 384)) return false;
 		var value = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, value);
 		if (type_numeric(kind) || kind == 13) {
-			if (flags != 0) return false;
+			if (storage_flags != 0) return false;
 		}
 		if (kind == 15) {
 			if (descriptor.kind != 31 || (flags & 7) != 0 || (flags & 128) == 0 || checked.bindings.program.arena.kind(source_type) != SyntaxKind.TypeNameSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(source_type), "string")) return false;
 		}
 		if (kind == 30) {
-			if (flags != 0 || !class_storage_record_verified(checked, value) || !class_storage_fields_verified(checked, value, depth + 1) || descriptor.kind == 31 && checked_record_owned(checked, value, 0)) return false;
+			if (storage_flags != 0 || !class_storage_record_verified(checked, value) || !class_storage_fields_verified(checked, value, depth + 1) || descriptor.kind == 31 && checked_record_owned(checked, value, 0)) return false;
 		} if (kind == 31) {
-			if ((flags != 4 && flags != 5) || !class_storage_source_verified(checked, value, false, depth + 1)) return false;
+			if ((storage_flags != 4 && storage_flags != 5) || !class_storage_source_verified(checked, value, false, depth + 1)) return false;
 		} if (kind == 22) {
 			var element = checked.types.argument(checked.types, value, 0); int element_kind = checked_kind(checked, element.type);
-			if (flags != 4 || element.flags != 0) return false;
+			if (storage_flags != 4 || element.flags != 0) return false;
 			if (element_kind == 30) {
 				if (checked_record_owned(checked, element.type, 0) || !class_storage_record_verified(checked, element.type) || !class_storage_fields_verified(checked, element.type, depth + 1)) return false;
 			} if (element_kind != 30 && !type_numeric(element_kind) && element_kind != 13) return false;
 		} if (kind == 23) {
 			var element = checked.types.argument(checked.types, value, 0);
-			if (flags != 4 || element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, depth + 1)) return false;
+			if (storage_flags != 4 || element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, depth + 1)) return false;
 		} if (!type_numeric(kind) && kind != 13 && kind != 15 && kind != 30 && kind != 31 && kind != 22 && kind != 23) return false;
 		i = i - 1;
 	}

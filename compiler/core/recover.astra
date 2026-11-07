@@ -41,6 +41,7 @@ bool recover_core_verify(RecoverCore core) {
 		if (source.kind == 6) role = 3;
 		if (source.kind == 9 || source.kind == 10 || source.kind == 11 || source.kind == 13 || source.kind == 4 && (core.flow.checked.uses[source.source.index].flags & 4) != 0) role = 4;
 		int place = 0; if (source.kind == 2 || source.kind == 10 || source.kind == 12 || source.kind == 27 || source.kind == 42 || source.kind == 43) place = core.flow.storage.symbols[source.symbol.index];
+		if (source.kind == 17 || source.kind == 18 || source.kind == 44) place = core.flow.fields.facts[source.source.index].slot;
 		if (row.result_role != role || row.place != place) return false;
 		int owner = 0; if (source.kind == 5 || source.kind == 25) owner = i + 1;
 		int borrow = 0; if (source.kind == 6) borrow = source.caught;
@@ -70,6 +71,7 @@ owned RecoverCore recover_core_lower(owned RecoverFlow flow) {
 		if (value.kind == 5) role = 2; if (value.kind == 6) role = 3;
 		if (value.kind == 9 || value.kind == 10 || value.kind == 11 || value.kind == 13 || value.kind == 4 && (core.flow.checked.uses[value.source.index].flags & 4) != 0) role = 4;
 		int place = 0; if (value.kind == 2 || value.kind == 10 || value.kind == 12 || value.kind == 27 || value.kind == 42 || value.kind == 43) place = core.flow.storage.symbols[value.symbol.index];
+		if (value.kind == 17 || value.kind == 18 || value.kind == 44) place = core.flow.fields.facts[value.source.index].slot;
 		int owner = 0; if (value.kind == 5 || value.kind == 25) owner = i + 1;
 		int borrow = 0; if (value.kind == 6) borrow = value.caught;
 		TypeId error = {index = 0}; bool conditional = false;

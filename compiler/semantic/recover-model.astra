@@ -100,11 +100,13 @@ class RecoverFlow {
 	owned CheckedIndex checked;
 	owned RecoverTypes types;
 	owned RecoverStorage storage;
+	owned RecoverFields fields;
 	owned RecoverFlowData data;
 
-	init(owned CheckedIndex checked, int limit) {
+	init(owned CheckedIndex checked, int limit, owned ClassStoragePlan layout) {
 		int symbols = checked.bindings.symbol_count + 1;
 		var types = new RecoverTypes(checked); var storage = new RecoverStorage(checked);
+		var fields = new RecoverFields(checked, move layout); this.fields = move fields;
 		this.checked = move checked; this.types = move types; this.storage = move storage;
 		var data = new RecoverFlowData(symbols, limit); this.data = move data;
 	}

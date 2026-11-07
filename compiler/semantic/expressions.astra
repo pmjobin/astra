@@ -168,6 +168,17 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	var field = index.bindings.program.arena.get_token_field_name(node);
 	var existing = checked_target(index, node, field);
 	if (existing.index != 0) {
+		var declaration = index.bindings.symbol(existing);
+		if (index.class_storage && declaration.kind == 14) {
+			var scalar = class_property_source(index, declaration.node, declaration.owner);
+			if (scalar.field.index > 0) {
+				if (!checked_field_accessible(index, node, existing)) {
+					index.fail(index.bindings.program.arena.token_span(field), "private property is accessible only from its declaring Class");
+					return no_type();
+				}
+				return index.symbol_types[existing.index];
+			}
+		}
 		var projected = text_storage_projection(index, existing);
 		if (projected.index == 0) return index.defer(node, 12);
 		return index.symbol_types[projected.index];
@@ -203,6 +214,15 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	}
 	var member = index.bindings.symbol(selected);
 	if (index.class_storage && member.kind == 14) {
+		var scalar = class_property_source(index, member.node, member.owner);
+		if (scalar.field.index > 0) {
+			if (!checked_field_accessible(index, node, selected)) {
+				index.fail(index.bindings.program.arena.token_span(field), "private property is accessible only from its declaring Class");
+				return no_type();
+			}
+			checked_complete_member(index, node, field, selected);
+			return index.symbol_types[selected.index];
+		}
 		var projected = text_storage_projection(index, selected);
 		if (projected.index == 0) return index.defer(node, 12);
 		checked_complete_member(index, node, field, selected);
@@ -557,6 +577,7 @@ TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, Symb
 }
 
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (checked_slice_intrinsic(index, node)) return checked_slice_type(index, node, depth);
 	if (index.class_storage && class_storage_slot_action(index, node) > 0) {
 		var result = class_storage_slot_call(index, node, depth + 1);
 		if (result.index != 0 || index.failed()) return result;

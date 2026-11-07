@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Borrowed LLVM handles belong to the calling module. No allocation, element
+// exchange, owner disarm or cleanup-rank rewrite occurs during buffer swap.
+void* recover_exchange_address(RecoverSsa ssa, int id, void*[] values, void*[] addresses) {
+	var row = ssa.cfg.core.nodes[id - 1].value;
+	if (row.kind == 2) return addresses[row.symbol.index];
+	if (row.kind == 17) return LLVMGetOperand(values[id], 0);
+	return null;
+}
+
+void* recover_exchange_emit(RecoverSsa ssa, RecoverBlock block, void* builder, void*[] values, void*[] addresses) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value;
+	var left = recover_exchange_address(ssa, row.a, values, addresses); var right = recover_exchange_address(ssa, row.b, values, addresses);
+	var first = LLVMBuildStore(builder, values[row.b], left); var last = LLVMBuildStore(builder, values[row.a], right); return first;
+}
+
+bool recover_exchange_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] addresses) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value; var first = ssa.cfg.core.nodes[row.a - 1].value; var last = ssa.cfg.core.nodes[row.b - 1].value;
+	void* left = null; void* right = null;
+	if (first.kind == 2) left = addresses[first.symbol.index];
+	if (first.kind == 17) {
+		if (LLVMIsAInstruction(values[row.a]) == null || LLVMGetInstructionOpcode(values[row.a]) != 27) return false;
+		left = LLVMGetOperand(values[row.a], 0);
+	}
+	if (last.kind == 2) right = addresses[last.symbol.index];
+	if (last.kind == 17) {
+		if (LLVMIsAInstruction(values[row.b]) == null || LLVMGetInstructionOpcode(values[row.b]) != 27) return false;
+		right = LLVMGetOperand(values[row.b], 0);
+	}
+	if (left == null || right == null) return false;
+	var body = recover_llvm_body(physical, 3); if (len(body) != 3) return false;
+	return body[0] == operation && LLVMGetInstructionOpcode(body[0]) == 28 && LLVMGetInstructionOpcode(body[1]) == 28 && LLVMGetOperand(body[0], 0) == values[row.b] && LLVMGetOperand(body[0], 1) == left && LLVMGetOperand(body[1], 0) == values[row.a] && LLVMGetOperand(body[1], 1) == right && LLVMGetVolatile(body[0]) == 0 && LLVMGetVolatile(body[1]) == 0;
+}

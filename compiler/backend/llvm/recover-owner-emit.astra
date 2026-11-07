@@ -18,16 +18,6 @@ RecoverOwnerInstruction recover_llvm_owner_emit(RecoverSsa ssa, RecoverBlock blo
 		value = LLVMBuildInsertValue(builder, initial, values[row.a], 1, empty);
 		operation = call;
 	}
-	if (op == 11) {
-		llvm12_handle_set(handles, 0, LLVMConstInt(wide, 1, 0));
-		llvm12_handle_set(handles, 1, LLVMConstInt(wide, 1, 0));
-		value = LLVMBuildCall2(builder, LLVMGlobalGetValueType(allocate_function), allocate_function, llvm12_handle_offset(handles, 0), 2, empty);
-		LLVMSetInstructionCallConv(value, 8);
-		llvm12_handle_set(handles, 0, value);
-		var constructor = functions[ssa.cfg.core.flow.data.symbols[row.symbol.index] - 1];
-		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(constructor), constructor, llvm12_handle_offset(handles, 0), 1, empty);
-		LLVMSetInstructionCallConv(operation, 8);
-	}
 	if (op == 13) value = LLVMConstNull(storage);
 	if (op == 14) value = LLVMBuildExtractValue(builder, values[ssa.cfg.core.flow.data.edges[row.first]], 1, empty);
 	if (op == 27) {
@@ -48,7 +38,9 @@ RecoverOwnerInstruction recover_llvm_owner_emit(RecoverSsa ssa, RecoverBlock blo
 		var disarm = LLVMBuildStore(builder, LLVMConstInt(boolean, 0, 0), armed[slot.symbol.index]);
 		llvm12_handle_set(handles, 0, selected);
 		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(free_function), free_function, llvm12_handle_offset(handles, 0), 1, empty);
-		if (recover_storage_error(ssa.cfg.core.flow.checked, slot.type)) LLVMSetInstructionCallConv(operation, 8); else {
+		bool native = recover_storage_error(ssa.cfg.core.flow.checked, slot.type);
+		if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 31 && recover_storage_class(ssa.cfg.core.flow.checked, slot.type)) native = ssa.cfg.core.flow.fields.layout.types[slot.type.index].fields > 0;
+		if (native) LLVMSetInstructionCallConv(operation, 8); else {
 			llvm12_nobuiltin(context, operation);
 		}
 	}

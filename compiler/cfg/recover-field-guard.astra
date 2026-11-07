@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A method's actual hidden receiver was checked at call entry. Every other
+// Class root gets an explicit fatal null edge before its field is evaluated.
+int recover_cfg_field_guard(RecoverCfg cfg, int id, int next) {
+	var row = cfg.core.nodes[id - 1].value; var fact = cfg.core.flow.fields.facts[row.source.index];
+	if (fact.receiver.index == class_storage_receiver(cfg.core.flow.checked, cfg.core.flow.data.functions[row.function - 1].symbol)) return next;
+	int fatal = cfg.block(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0);
+	return cfg.block(row.function, id, 46, 0, 0, next, fatal, 0, 0, 0);
+}
+
+bool recover_cfg_field_guard_verified(RecoverCfg cfg, int id, int head, int next, bool[] seen) {
+	var row = cfg.core.nodes[id - 1].value; var fact = cfg.core.flow.fields.facts[row.source.index];
+	if (fact.receiver.index == class_storage_receiver(cfg.core.flow.checked, cfg.core.flow.data.functions[row.function - 1].symbol)) return head == next;
+	if (head < 1 || head > cfg.block_count) return false;
+	int fatal = cfg.blocks[head - 1].other;
+	return recover_cfg_expect(cfg, head, recover_cfg_expected(row.function, id, 46, 0, 0, next, fatal, 0, 0, 0), seen) && recover_cfg_expect(cfg, fatal, recover_cfg_expected(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0), seen);
+}

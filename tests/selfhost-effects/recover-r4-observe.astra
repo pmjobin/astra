@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only, independent source-policy observation after ordinary checking.
+// Neither a TypeId nor a printed layout query grants native field authority.
+void recover_r4_observe_number(Utf8ByteBuilder out, int value) throws Error {
+	source_append_text(out, " "); append_int(out, value);
+}
+
+int recover_r4_observe_cli(string[] args) {
+	try {
+		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var out = new Utf8ByteBuilder();
+		source_append_text(out, "R4_CHECKED"); recover_r4_observe_number(out, checked.stage); recover_r4_observe_number(out, checked.error_message); recover_r4_observe_number(out, generic_verify_failure(checked)); source_append_text(out, "\n");
+		int s = 1;
+		while (s <= checked.bindings.symbol_count) {
+			var symbol = checked.bindings.symbol(type_symbol(s));
+			if (symbol.kind == 4) {
+				var type = checked.symbol_types[s]; var name = checked.bindings.names.text(symbol.name);
+				source_append_text(out, "R4_CLASS "); source_append_text(out, name.text); recover_r4_observe_number(out, s); recover_r4_observe_number(out, symbol.node.index); recover_r4_observe_number(out, type.index);
+				int producer = 0; if (class_storage_declaration(checked, type_symbol(s))) producer = 1; int source = 0; if (class_storage_source_verified(checked, type, false, 0)) source = 1; int fields = 0; if (class_storage_fields_verified(checked, type, 0)) fields = 1;
+				recover_r4_observe_number(out, producer); recover_r4_observe_number(out, source); recover_r4_observe_number(out, fields); source_append_text(out, " "); binding_write_span(checked.bindings, symbol.span, out); source_append_text(out, "\n");
+				var members = checked.bindings.program.arena.get_list_members(symbol.node); int m = 0;
+				while (m < checked.bindings.program.arena.list_count(members)) {
+					var member = checked.bindings.program.arena.node_at(members, m); int admitted = 0; if (class_storage_member(checked, member)) admitted = 1;
+					source_append_text(out, "R4_MEMBER"); recover_r4_observe_number(out, s); recover_r4_observe_number(out, member.index); recover_r4_observe_number(out, syntax_kind_code(checked.bindings.program.arena.kind(member))); recover_r4_observe_number(out, admitted); source_append_text(out, " "); binding_write_span(checked.bindings, checked.bindings.program.arena.header(member).span, out); source_append_text(out, "\n");
+					m = m + 1;
+				}
+			}
+			s = s + 1;
+		}
+		int n = 1;
+		while (n < len(checked.generic_calls)) {
+			if (checked.generic_calls[n].index > 0) {
+				SyntaxNodeId node = {index = n}; var arguments = checked.bindings.program.arena.get_list_arguments(node); int a = 0;
+				source_append_text(out, "R4_CALL"); recover_r4_observe_number(out, n); recover_r4_observe_number(out, checked.generic_calls[n].index); recover_r4_observe_number(out, checked.uses[n].type.index); recover_r4_observe_number(out, checked.uses[n].deferred); source_append_text(out, " "); binding_write_span(checked.bindings, checked.bindings.program.arena.header(node).span, out); source_append_text(out, "\n");
+				while (a < checked.bindings.program.arena.list_count(arguments)) {
+					var argument = checked.bindings.program.arena.node_at(arguments, a); source_append_text(out, "R4_ARGUMENT"); recover_r4_observe_number(out, n); recover_r4_observe_number(out, a); recover_r4_observe_number(out, argument.index); recover_r4_observe_number(out, checked.uses[argument.index].type.index); recover_r4_observe_number(out, checked.uses[argument.index].deferred); source_append_text(out, "\n"); a = a + 1;
+				}
+			}
+			n = n + 1;
+		}
+		var text = out.snapshot(); print(text.text); return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

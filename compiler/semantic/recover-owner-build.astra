@@ -14,8 +14,6 @@ RecoverNode recover_build_owner(RecoverFlowData flow, CheckedIndex checked, Reco
 	if (kind == SyntaxKind.HeapObjectConstructionSyntax() && !recover_error_shape(checked, row.symbol, 0)) {
 		row.kind = 11;
 		row.symbol = checked_constructor(checked, row.type);
-		row.first = 0;
-		row.count = 0;
 	}
 	if (kind == SyntaxKind.NullPointerExpressionSyntax()) row.kind = 13;
 	if (kind == SyntaxKind.CallExpressionSyntax() && row.symbol.index == 0 && checked_flow_intrinsic(checked, source)) row.kind = 14;

@@ -216,7 +216,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
 		if (row.opcode != 36 && row.opcode != 37 && row.opcode != 38 && (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work))) return false;
-		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || row.opcode == 14) {
+		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || row.opcode == 11 || row.opcode == 14) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; int i = 0;
 			while (i < source.count) {
 				if (!recover_ssa_use(ssa.data, ssa.cfg, ssa.cfg.core.flow.data.edges[source.first + i], b, work)) return false;

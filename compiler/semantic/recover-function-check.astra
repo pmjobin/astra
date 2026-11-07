@@ -32,12 +32,7 @@ bool recover_static_method(CheckedIndex checked, SymbolId function) {
 bool recover_call_receiver(CheckedIndex checked, SymbolId function) { return recover_static_method(checked, function); }
 
 bool recover_empty_constructor_verified(CheckedIndex checked, SymbolId function) {
-	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false; int instance = generic_instance_for(checked, function); var concrete = checked.instances[instance - 1]; if (!recover_storage_class(checked, concrete.enclosing)) return false;
-	var origin = checked.bindings.symbol(concrete.origin); if (origin.kind != 12 || origin.owner.index != checked.types.row(concrete.enclosing).nominal.index) return false;
-	var declaration = checked.bindings.symbol(function); var body = checked.bindings.program.arena.get_node_body(declaration.node); var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
-	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax() || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_statements(body)) != 0 || checked.bindings.program.arena.list_count(parameters) != 1 || !recover_plain_member(checked, declaration.node)) return false;
-	var parameter = checked.bindings.program.arena.node_at(parameters, 0); var symbol = checked.node_symbols[parameter.index]; if (symbol.index < 1 || checked.bindings.symbol(symbol).kind != 7 || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_types[symbol.index].index != concrete.enclosing.index || checked.symbol_flags[symbol.index] != 2) return false;
-	int ordinal = checked.symbol_signatures[function.index].index; if (ordinal < 1 || ordinal > checked.signature_count) return false; var signature = checked.signatures[ordinal - 1]; return signature.flags == 0 && checked.types.row(signature.callable).count == 2 && checked.types.argument(checked.types, signature.callable, 0).type.index == 14;
+	return recover_field_constructor_verified(checked, function);
 }
 
 bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
@@ -60,6 +55,7 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	int p = 0; while (p < shape.count) {
 		var channel = checked.types.argument(checked.types, signature.callable, p);
 		if (!recover_storage_channel(checked, channel.type, channel.flags, p == 0)) return false;
+		if (p == 0 && channel.type.index == 15 && (signature.flags & 64) != 0) return false;
 		p = p + 1;
 	} return true;
 }

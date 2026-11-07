@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Literal string results refer to immutable module storage. This separate
+// source/Flow consumer grants no escaping loan of a Class snapshot or local.
+bool recover_literal_string_results(RecoverFlowData flow) {
+	int f = 0;
+	while (f < flow.function_count) {
+		if (flow.functions[f].result.index == 15) {
+			if (flow.functions[f].checked) return false;
+			bool found = false; int n = 0;
+			while (n < flow.node_count) {
+				var row = flow.nodes[n];
+				if (row.function == f + 1 && row.kind == 22) {
+					int value = row.a; int steps = 0;
+					if (value < 1 || value > flow.node_count) return false;
+					while (flow.nodes[value - 1].kind == 7 && steps < 192) {
+						value = flow.nodes[value - 1].a;
+						steps = steps + 1;
+					}
+					if (steps == 192 || flow.nodes[value - 1].kind != 1 || flow.nodes[value - 1].type.index != 15) return false;
+					found = true;
+				}
+				n = n + 1;
+			}
+			if (!found) return false;
+		}
+		f = f + 1;
+	}
+	return true;
+}

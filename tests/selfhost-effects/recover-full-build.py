@@ -29,7 +29,7 @@ def main():
 	original = genref.original
 	def extend(*args, **kwargs):
 		kwargs['consumer'] = ROOT/'tests/selfhost-effects/recover-full-query.astra'
-		kwargs['extra_sources'] = [*kwargs['extra_sources'], full.INPUTS/'genref-query.astra', full.INPUTS/'flow-diagnostic.astra', full.INPUTS/'effects-observe.astra', renamed, recover, r2, ROOT/'tests/selfhost-effects/source.astra', ROOT/'tests/selfhost-effects/r1-owner.astra', ROOT/'tests/selfhost-effects/r2-abi.astra', ROOT/'tests/selfhost-effects/recover-mutations.astra', ROOT/'tests/selfhost-effects/recover-owner-mutations.astra', ROOT/'tests/selfhost-effects/recover-loop-mutations.astra']
+		kwargs['extra_sources'] = [*kwargs['extra_sources'], full.INPUTS/'genref-query.astra', full.INPUTS/'flow-diagnostic.astra', full.INPUTS/'effects-observe.astra', renamed, recover, r2, ROOT/'tests/selfhost-effects/source.astra', ROOT/'tests/selfhost-effects/r1-owner.astra', ROOT/'tests/selfhost-effects/r2-abi.astra', ROOT/'tests/selfhost-effects/recover-mutations.astra', ROOT/'tests/selfhost-effects/recover-owner-mutations.astra', ROOT/'tests/selfhost-effects/recover-loop-mutations.astra', ROOT/'tests/selfhost-effects/recover-r4-mutations.astra', ROOT/'tests/selfhost-effects/recover-r4-observe.astra']
 		kwargs['link_inputs'] = [*kwargs['link_inputs'], Path(__file__), ROOT/'tests/selfhost-effects/observe.astra', ROOT/'tests/selfhost-effects/r1-typecore.astra', ROOT/'tests/selfhost-effects/recover-query.astra', ROOT/'tests/selfhost-effects/r2-query.astra']
 		return original(*args, **kwargs)
 	genref.original = extend; genref.base.core.base.build = genref.build
