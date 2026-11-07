@@ -25,6 +25,7 @@ class RecoverCfg {
 	owned RecoverCfgEdge[] edges;
 	owned RecoverRegion[] regions;
 	owned int[] entries;
+	owned int[] terminals;
 	owned int[] errors;
 	owned int[] handlers;
 	owned int[] catch_try;
@@ -37,7 +38,7 @@ class RecoverCfg {
 		int nodes = core.count; int functions = core.flow.data.function_count; this.core = move core;
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
 		int capacity = limit; if (limit < 1 || limit > 8192) capacity = 0;
-		this.blocks = new RecoverBlock[capacity]; this.edges = new RecoverCfgEdge[capacity * 2]; this.regions = new RecoverRegion[nodes]; this.entries = new int[functions]; this.errors = new int[functions]; this.handlers = new int[nodes]; this.catch_try = new int[nodes]; this.block_count = 0; this.edge_count = 0; this.limit = limit;
+		this.blocks = new RecoverBlock[capacity]; this.edges = new RecoverCfgEdge[capacity * 2]; this.regions = new RecoverRegion[nodes]; this.entries = new int[functions]; this.terminals = new int[functions]; this.errors = new int[functions]; this.handlers = new int[nodes]; this.catch_try = new int[nodes]; this.block_count = 0; this.edge_count = 0; this.limit = limit;
 		int status = 0; if (capacity == 0) status = 2; this.status = status;
 	}
 

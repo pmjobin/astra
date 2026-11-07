@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Owner storage is a real slot plus an independent armed bit. A null Class
+// value may be armed; an uninitialized successful result may not be read.
+bool recover_llvm_owner_initial(RecoverSlot slot, CheckedIndex checked, void* entry, void* address, void* armed, void* value_store, void* flag_store, void* source) {
+	if (!slot.owner || address == null || armed == null || value_store == null || flag_store == null || LLVMIsAInstruction(value_store) == null || LLVMIsAInstruction(flag_store) == null || LLVMIsAInstruction(address) == null || LLVMIsAInstruction(armed) == null || LLVMGetInstructionOpcode(address) != 26 || LLVMGetInstructionOpcode(armed) != 26 || LLVMGetInstructionParent(address) != entry || LLVMGetInstructionParent(armed) != entry || !recover_storage_llvm_type(checked, slot.type, LLVMGetAllocatedType(address)) || LLVMGetTypeKind(LLVMGetAllocatedType(armed)) != 8 || LLVMGetIntTypeWidth(LLVMGetAllocatedType(armed)) != 1) return false;
+	if (LLVMGetInstructionOpcode(value_store) != 28 || LLVMGetOperand(value_store, 1) != address || LLVMGetInstructionParent(value_store) != entry || LLVMGetInstructionOpcode(flag_store) != 28 || LLVMGetOperand(flag_store, 1) != armed || LLVMGetInstructionParent(flag_store) != entry) return false;
+	if (!recover_llvm_bits(LLVMGetOperand(flag_store, 0), 1, 0) && !slot.parameter || !recover_llvm_bits(LLVMGetOperand(flag_store, 0), 1, 1) && slot.parameter) return false;
+	if (slot.parameter) return LLVMGetOperand(value_store, 0) == source; return LLVMIsNull(LLVMGetOperand(value_store, 0)) != 0;
+}
+
+bool recover_llvm_owner_drop(CheckedIndex checked, RecoverSlot slot, void* block, void* address, void* armed, void* free_function, void* operation) {
+	int kind = checked_kind(checked, slot.type); int count = 6; if (kind == 22) count = 7; var body = recover_llvm_body(block, count); if (len(body) != count) return false;
+	if (LLVMGetInstructionOpcode(body[0]) != 27 || LLVMGetOperand(body[0], 0) != address || !recover_storage_llvm_type(checked, slot.type, LLVMTypeOf(body[0])) || LLVMGetInstructionOpcode(body[1]) != 27 || LLVMGetOperand(body[1], 0) != armed) return false;
+	int at = 2; void* data = body[0]; if (kind == 22) {
+		if (!recover_llvm_extract(body[2], body[0], 0)) return false;
+		data = body[2];
+		at = 3;
+	}
+	if (LLVMGetInstructionOpcode(body[at]) != 46 || LLVMGetOperand(body[at], 0) != body[1] || LLVMGetOperand(body[at], 1) != data || LLVMIsNull(LLVMGetOperand(body[at], 2)) == 0 || LLVMGetInstructionOpcode(body[at + 1]) != 28 || !recover_llvm_bits(LLVMGetOperand(body[at + 1], 0), 1, 0) || LLVMGetOperand(body[at + 1], 1) != armed || !recover_llvm_call(body[at + 2], free_function, 1, 0) || LLVMGetArgOperand(body[at + 2], 0) != body[at] || operation != body[at + 2]) return false;
+	return LLVMGetVolatile(body[0]) == 0 && LLVMGetVolatile(body[1]) == 0 && LLVMGetVolatile(body[at + 1]) == 0;
+}
+
+bool recover_llvm_owner_write(void* block, void* address, void* armed, void* value, void* operation) {
+	var body = recover_llvm_body(block, 3); return len(body) == 3 && operation == body[0] && LLVMGetInstructionOpcode(body[0]) == 28 && LLVMGetOperand(body[0], 0) == value && LLVMGetOperand(body[0], 1) == address && LLVMGetVolatile(body[0]) == 0 && LLVMGetInstructionOpcode(body[1]) == 28 && recover_llvm_bits(LLVMGetOperand(body[1], 0), 1, 1) && LLVMGetOperand(body[1], 1) == armed && LLVMGetVolatile(body[1]) == 0;
+}

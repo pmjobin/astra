@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// These operations consume retained SSA/slot identities. All passed LLVM
+// handles and layouts are borrowed from the one active RecoverLlvm module.
+struct RecoverOwnerInstruction { void* value; void* operation; }
+
+RecoverOwnerInstruction recover_llvm_owner_emit(RecoverSsa ssa, RecoverBlock block, void* builder, void* context, void* layout, void* handles, void* storage, void* element, void* buffer_function, void* allocate_function, void* free_function, void*[] functions, void*[] values, void*[] addresses, void*[] armed) {
+	var pointer = LLVMPointerTypeInContext(context, 0); var boolean = LLVMIntTypeInContext(context, 1); var wide = LLVMIntTypeInContext(context, 64); var empty = llvm12_empty(); void* value = null; void* operation = null; var row = ssa.cfg.core.nodes[block.origin - 1].value; int op = block.opcode;
+	if (op == 2 || op == 10) {
+		value = LLVMBuildLoad2(builder, storage, addresses[row.symbol.index], empty);
+		operation = value;
+	}
+	if (op == 9) {
+		llvm12_handle_set(handles, 0, values[row.a]);
+		llvm12_handle_set(handles, 1, LLVMConstInt(wide, LLVMABISizeOfType(layout, element), 0));
+		var call = LLVMBuildCall2(builder, LLVMGlobalGetValueType(buffer_function), buffer_function, llvm12_handle_offset(handles, 0), 2, empty);
+		LLVMSetInstructionCallConv(call, 8);
+		var initial = LLVMBuildInsertValue(builder, LLVMConstNull(storage), call, 0, empty);
+		value = LLVMBuildInsertValue(builder, initial, values[row.a], 1, empty);
+		operation = call;
+	}
+	if (op == 11) {
+		llvm12_handle_set(handles, 0, LLVMConstInt(wide, 1, 0));
+		llvm12_handle_set(handles, 1, LLVMConstInt(wide, 1, 0));
+		value = LLVMBuildCall2(builder, LLVMGlobalGetValueType(allocate_function), allocate_function, llvm12_handle_offset(handles, 0), 2, empty);
+		LLVMSetInstructionCallConv(value, 8);
+		llvm12_handle_set(handles, 0, value);
+		var constructor = functions[ssa.cfg.core.flow.data.symbols[row.symbol.index] - 1];
+		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(constructor), constructor, llvm12_handle_offset(handles, 0), 1, empty);
+		LLVMSetInstructionCallConv(operation, 8);
+	}
+	if (op == 13) value = LLVMConstNull(storage);
+	if (op == 14) value = LLVMBuildExtractValue(builder, values[ssa.cfg.core.flow.data.edges[row.first]], 1, empty);
+	if (op == 27) {
+		operation = LLVMBuildStore(builder, values[row.a], addresses[row.symbol.index]);
+		var arm = LLVMBuildStore(builder, LLVMConstInt(boolean, 1, 0), armed[row.symbol.index]);
+	}
+	if (op == 36) {
+		var slot = ssa.cfg.core.flow.storage.slots[block.b - 1];
+		operation = LLVMBuildStore(builder, LLVMConstInt(boolean, 0, 0), armed[slot.symbol.index]);
+	}
+	if (op == 38) {
+		var slot = ssa.cfg.core.flow.storage.slots[block.a - 1];
+		var contents = LLVMBuildLoad2(builder, storage, addresses[slot.symbol.index], empty);
+		var live = LLVMBuildLoad2(builder, boolean, armed[slot.symbol.index], empty);
+		void* data = contents;
+		if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22) data = LLVMBuildExtractValue(builder, contents, 0, empty);
+		var selected = LLVMBuildSelect(builder, live, data, LLVMConstNull(pointer), empty);
+		var disarm = LLVMBuildStore(builder, LLVMConstInt(boolean, 0, 0), armed[slot.symbol.index]);
+		llvm12_handle_set(handles, 0, selected);
+		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(free_function), free_function, llvm12_handle_offset(handles, 0), 1, empty);
+		llvm12_nobuiltin(context, operation);
+	}
+	RecoverOwnerInstruction result = {value = value, operation = operation}; return result;
+}

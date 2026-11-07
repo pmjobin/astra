@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Conditional call facts stay in CheckedIndex. This consumer binds their
+// original declaration/result/argument channels; Core and SSA must separately
+// discharge result initialization and every owner obligation.
+bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId target, TypeId result) {
+	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax() || target.index < 1 || target.index > checked.bindings.symbol_count || checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index != target.index) return false;
+	var declaration = checked.bindings.symbol(target); int ordinal = checked.symbol_signatures[target.index].index;
+	if (declaration.kind != 1 || ordinal < 1 || ordinal > checked.signature_count || !recover_function_source(checked, target) || checked.bindings.program.arena.get_node_receiver_place(source).index != 0 || checked.bindings.program.arena.get_token_receiver(source).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(source)) != 0) return false;
+	var signature = checked.signatures[ordinal - 1]; var channel = checked.types.argument(checked.types, signature.callable, 0); var use = checked.uses[source.index];
+	if (!checked_effect_signature_verified(checked, signature) || signature.declaration.index != target.index || signature.callable.index != checked.symbol_types[target.index].index || result.index != channel.type.index || use.type.index != result.index || use.flags != channel.flags || use.deferred != 0 && use.deferred != 17 && use.deferred != 19) return false;
+	if ((signature.flags & 64) != 0 && !checked_effect_bound(checked, checked.bindings.program.arena.get_node_throws_class(declaration.node), signature.error)) return false;
+	var arguments = checked_call_arguments(checked, source); int count = checked.bindings.program.arena.list_count(arguments); if (checked.types.row(signature.callable).count != count + 1) return false;
+	int a = 0; while (a < count) {
+		var argument = checked.bindings.program.arena.node_at(arguments, a);
+		var input = checked.types.argument(checked.types, signature.callable, a + 1);
+		var value = checked.uses[argument.index];
+		if (value.type.index != input.type.index || value.deferred != 0 && value.deferred != 17 && value.deferred != 19) return false;
+		a = a + 1;
+	} return true;
+}

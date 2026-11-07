@@ -112,6 +112,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	if (kind == SyntaxKind.CallStatementSyntax()) {
 		row.kind = 26; row.type = type_id(14); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_call(source), function, handler, caught, depth + 1);
 	}
+	row = recover_build_owner(flow, checked, types, row, depth);
 	if (row.kind == 0) flow.defer(source);
 	flow.nodes[id - 1] = row; return id;
 }
@@ -135,8 +136,8 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) {
 	int s = 1;
 	while (s <= flow.checked.bindings.symbol_count && flow.data.status == 0) {
 		var symbol = type_symbol(s); var declaration = flow.checked.bindings.symbol(symbol);
-		if (declaration.kind == 4 && !recover_error_shape(flow.checked, symbol, 0)) flow.data.defer(declaration.node);
-		if (declaration.kind == 11 || declaration.kind == 12 && !recover_error_shape(flow.checked, declaration.owner, 0)) flow.data.defer(declaration.node);
+		if (declaration.kind == 4 && !recover_error_shape(flow.checked, symbol, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[s])) flow.data.defer(declaration.node);
+		if (declaration.kind == 11 || declaration.kind == 12 && !recover_error_shape(flow.checked, declaration.owner, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[declaration.owner.index])) flow.data.defer(declaration.node);
 		if (declaration.kind == 1) {
 			if (!recover_function_source(flow.checked, symbol)) {
 				flow.data.defer(declaration.node);

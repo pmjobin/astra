@@ -15,14 +15,13 @@ int recover_cfg_cleanup(RecoverCfg cfg, int origin, int caught, int stop, int sk
 }
 
 int recover_cfg_error(RecoverCfg cfg, int id, int owner, int skip) {
-	var row = cfg.core.nodes[id - 1].value;
-	int destination = cfg.errors[row.function - 1]; int stop = 0;
+	var row = cfg.core.nodes[id - 1].value; int destination = cfg.errors[row.function - 1]; int stop = 0;
 	if (row.handler > 0) {
 		destination = cfg.handlers[row.handler - 1];
-		stop = cfg.core.nodes[row.handler - 1].value.caught;
+		stop = cfg.core.owners.scopes[row.handler - 1];
 	}
-	int tail = recover_cfg_cleanup(cfg, id, row.caught, stop, skip, owner, destination, 0);
-	return cfg.block(row.function, id, 34, 0, 0, tail, 0, owner, owner, 0);
+	int tail = recover_cfg_scope_exit(cfg, id, cfg.core.owners.scopes[id - 1], stop, row.caught, skip, owner, destination, 0);
+	int origin = cfg.block(row.function, id, 34, 0, 0, tail, 0, owner, owner, 0); return recover_cfg_abort(cfg, id, owner, origin);
 }
 
 int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
@@ -34,6 +33,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 	var node = cfg.core.nodes[id - 1]; var row = node.value;
 	int operation = 0; int head = next;
 	if (row.kind == 20) {
+		int scope = cfg.core.owners.scopes[id - 1]; head = recover_cfg_scope_exit(cfg, id, scope, cfg.core.flow.storage.parents[scope], row.caught, 0, 0, next, 0);
 		int i = row.count - 1;
 		while (i >= 0 && cfg.status == 0) {
 			head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
@@ -67,7 +67,8 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 			} else {
 				if (row.kind == 22) {
 					operation = cfg.block(row.function, id, 22, row.a, 0, 0, 0, 0, 0, 0);
-					head = recover_cfg_cleanup(cfg, id, row.caught, 0, 0, 0, operation, 0);
+					head = recover_cfg_scope_exit(cfg, id, cfg.core.owners.scopes[id - 1], 0, row.caught, 0, 0, operation, 0);
+					head = recover_cfg_commit(cfg, id, head);
 					head = recover_cfg_tree(cfg, row.a, head, depth + 1);
 				} else {
 					if (row.kind == 23) {
@@ -81,7 +82,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 						if (row.kind == 26 || row.kind == 27) {
 							int tail = next; if (row.kind == 27) {
 								operation = cfg.block(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0);
-								tail = operation;
+								tail = recover_cfg_commit(cfg, id, operation);
 							}
 							head = recover_cfg_tree(cfg, row.a, tail, depth + 1);
 						}
@@ -92,7 +93,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 								if (row.type.index != 14) tail = cfg.block(row.function, id, 30, 0, 0, next, 0, 0, 0, 0);
 							}
 							int owner = 0; if (row.kind == 5) owner = id;
-							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation;
+							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4) head = recover_cfg_commit(cfg, id, operation);
 							int i = row.count - 1;
 							while (i >= 0 && cfg.status == 0) {
 								head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
@@ -123,7 +124,8 @@ owned RecoverCfg recover_cfg_lower(owned RecoverCore core, int limit) {
 		int phi = cfg.block(f + 1, 0, 33, 0, 0, error, 0, owner, owner, 0); cfg.errors[f] = phi;
 		int terminal = 35; if (function.result.index == 14) terminal = 22;
 		int exit = cfg.block(f + 1, 0, terminal, 0, 0, 0, 0, 0, 0, 0);
-		int entry = recover_cfg_tree(cfg, function.body, exit, 0); cfg.entries[f] = entry; f = f + 1;
+		cfg.terminals[f] = exit; int continuation = exit; if (function.result.index == 14) continuation = recover_cfg_scope_exit(cfg, function.body, cfg.core.owners.functions[f], 0, 0, 0, 0, exit, 0);
+		int entry = recover_cfg_tree(cfg, function.body, continuation, 0); cfg.entries[f] = entry; f = f + 1;
 	}
 	int b = 0;
 	while (b < cfg.block_count && cfg.status == 0) {

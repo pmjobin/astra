@@ -29,16 +29,20 @@ bool recover_cfg_check_cleanup(RecoverCfg cfg, int head, int origin, int caught,
 }
 
 bool recover_cfg_check_error(RecoverCfg cfg, int head, int id, int owner, int skip, bool[] seen) {
-	var row = cfg.core.nodes[id - 1].value;
-	if (head < 1 || head > cfg.block_count) return false;
-	int tail = cfg.blocks[head - 1].next;
-	if (!recover_cfg_expect(cfg, head, recover_cfg_expected(row.function, id, 34, 0, 0, tail, 0, owner, owner, 0), seen)) return false;
-	int stop = 0; int destination = cfg.errors[row.function - 1];
-	if (row.handler != 0) {
-		stop = cfg.core.nodes[row.handler - 1].value.caught;
+	var row = cfg.core.nodes[id - 1].value; int anchor = head; int a = 0; while (a < cfg.core.owners.abort_count) {
+		if (cfg.core.owners.aborts[a].operation == id) {
+			if (anchor < 1 || anchor > cfg.block_count) return false;
+			anchor = cfg.blocks[anchor - 1].next;
+		}
+		a = a + 1;
+	}
+	if (!recover_cfg_check_abort(cfg, head, id, owner, anchor, seen) || anchor < 1 || anchor > cfg.block_count) return false; int tail = cfg.blocks[anchor - 1].next;
+	if (!recover_cfg_expect(cfg, anchor, recover_cfg_expected(row.function, id, 34, 0, 0, tail, 0, owner, owner, 0), seen)) return false;
+	int stop = 0; int destination = cfg.errors[row.function - 1]; if (row.handler != 0) {
+		stop = cfg.core.owners.scopes[row.handler - 1];
 		destination = cfg.handlers[row.handler - 1];
 	}
-	return recover_cfg_check_cleanup(cfg, tail, id, row.caught, stop, skip, owner, destination, seen);
+	return recover_cfg_check_scope_exit(cfg, tail, id, cfg.core.owners.scopes[id - 1], stop, row.caught, skip, owner, destination, seen);
 }
 
 bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
@@ -48,7 +52,10 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	var core = cfg.core.nodes[id - 1]; var row = core.value; var region = cfg.regions[id - 1]; int op = region.operation;
 	if (region.next != next || region.entry < 1 || region.entry > cfg.block_count) return false;
 	if (row.kind == 20) {
-		if (op != 0) return false; int head = next; int i = row.count - 1;
+		if (op != 0) return false; int scope = cfg.core.owners.scopes[id - 1]; int head = next; if (row.count > 0) head = cfg.regions[cfg.core.flow.data.edges[row.first + row.count - 1] - 1].next; else {
+			head = region.entry;
+		}
+		if (!recover_cfg_check_scope_exit(cfg, head, id, scope, cfg.core.flow.storage.parents[scope], row.caught, 0, 0, next, seen)) return false; int i = row.count - 1;
 		while (i >= 0) {
 			int child = cfg.core.flow.data.edges[row.first + i];
 			if (!recover_cfg_check_tree(cfg, child, head, seen, nodes, depth + 1)) return false;
@@ -88,7 +95,14 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 			clean = cfg.regions[row.a - 1].next;
 			if (!recover_cfg_check_tree(cfg, row.a, clean, seen, nodes, depth + 1) || region.entry != cfg.regions[row.a - 1].entry) return false;
 		}
-		return recover_cfg_check_cleanup(cfg, clean, id, row.caught, 0, 0, 0, op, seen);
+		int clean_head = clean; int reserve = 1; while (reserve <= cfg.core.count) {
+			if (cfg.core.owners.consumers[reserve - 1] == id && cfg.core.owners.slots[reserve - 1] > 0) {
+				if (clean_head < 1 || clean_head > cfg.block_count) return false;
+				clean_head = cfg.blocks[clean_head - 1].next;
+			}
+			reserve = reserve + 1;
+		}
+		return recover_cfg_check_commit(cfg, clean, id, clean_head, seen) && recover_cfg_check_scope_exit(cfg, clean_head, id, cfg.core.owners.scopes[id - 1], 0, row.caught, 0, 0, op, seen);
 	}
 	if (row.kind == 23) {
 		int owner = row.a; int skip = 0; if (row.a == 0) {
@@ -99,10 +113,10 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 		if (row.a == 0) return region.entry == op;
 		return region.entry == cfg.regions[row.a - 1].entry;
 	}
-	if (row.kind == 27) {
-		if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.a, op, seen, nodes, depth + 1)) return false;
-		return region.entry == cfg.regions[row.a - 1].entry;
+	if (row.kind == 27) { if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0), seen)) return false;
+		int head = cfg.regions[row.a - 1].next; if (!recover_cfg_check_commit(cfg, head, id, op, seen) || !recover_cfg_check_tree(cfg, row.a, head, seen, nodes, depth + 1)) return false; return region.entry == cfg.regions[row.a - 1].entry;
 	}
+
 	if (row.kind == 26) return op == 0 && recover_cfg_check_tree(cfg, row.a, next, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
 	if (row.kind >= 20) return false;
 	int tail = next; int error = 0;
@@ -117,7 +131,8 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	}
 	int owner = 0; if (row.kind == 5) owner = id;
 	if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0), seen)) return false;
-	int head = op; int i = row.count - 1;
+	int head = op; if (row.kind == 4 && row.count > 0) head = cfg.regions[cfg.core.flow.data.edges[row.first + row.count - 1] - 1].next;
+	if (row.kind == 4 && !recover_cfg_check_commit(cfg, head, id, op, seen)) return false; int i = row.count - 1;
 	while (i >= 0) {
 		int child = cfg.core.flow.data.edges[row.first + i];
 		if (!recover_cfg_check_tree(cfg, child, head, seen, nodes, depth + 1)) return false;
@@ -136,7 +151,7 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 }
 
 bool recover_cfg_verify(RecoverCfg cfg) {
-	if (cfg.status != 0 || !recover_core_verify(cfg.core) || cfg.limit < 1 || cfg.limit > 8192 || cfg.block_count < 1 || cfg.block_count > cfg.limit || cfg.edge_count < 0 || cfg.edge_count > cfg.block_count * 2 || len(cfg.blocks) != cfg.limit || len(cfg.edges) != cfg.limit * 2 || len(cfg.regions) != cfg.core.count || len(cfg.handlers) != cfg.core.count || len(cfg.catch_try) != cfg.core.count || len(cfg.entries) != cfg.core.flow.data.function_count || len(cfg.errors) != cfg.core.flow.data.function_count) return false;
+	if (cfg.status != 0 || !recover_core_verify(cfg.core) || cfg.limit < 1 || cfg.limit > 8192 || cfg.block_count < 1 || cfg.block_count > cfg.limit || cfg.edge_count < 0 || cfg.edge_count > cfg.block_count * 2 || len(cfg.blocks) != cfg.limit || len(cfg.edges) != cfg.limit * 2 || len(cfg.regions) != cfg.core.count || len(cfg.handlers) != cfg.core.count || len(cfg.catch_try) != cfg.core.count || len(cfg.entries) != cfg.core.flow.data.function_count || len(cfg.terminals) != len(cfg.entries) || len(cfg.errors) != cfg.core.flow.data.function_count) return false;
 	int e = 0; int b = 0;
 	while (b < cfg.block_count) {
 		var row = cfg.blocks[b]; if (row.function < 1 || row.function > len(cfg.entries) || row.origin < 0 || row.origin > cfg.core.count || row.next < 0 || row.next > cfg.block_count || row.other < 0 || row.other > cfg.block_count) return false;
@@ -161,8 +176,13 @@ bool recover_cfg_verify(RecoverCfg cfg) {
 		var function = cfg.core.flow.data.functions[f]; int phi = cfg.errors[f]; if (phi < 1 || phi > cfg.block_count) return false;
 		int owner = cfg.core.count * 3 + f + 1; int terminal = cfg.blocks[phi - 1].next; int opcode = 35; if (function.checked) opcode = 23;
 		if (!recover_cfg_expect(cfg, phi, recover_cfg_expected(f + 1, 0, 33, 0, 0, terminal, 0, owner, owner, 0), seen) || !recover_cfg_expect(cfg, terminal, recover_cfg_expected(f + 1, 0, opcode, 0, 0, 0, 0, owner, 0, 0), seen)) return false;
-		int exit = cfg.regions[function.body - 1].next; opcode = 35; if (function.result.index == 14) opcode = 22;
-		if (!recover_cfg_expect(cfg, exit, recover_cfg_expected(f + 1, 0, opcode, 0, 0, 0, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, function.body, exit, seen, nodes, 0) || cfg.entries[f] != cfg.regions[function.body - 1].entry) return false;
+		int exit = cfg.terminals[f]; int continuation = cfg.regions[function.body - 1].next; opcode = 35; if (function.result.index == 14) {
+			opcode = 22;
+			if (!recover_cfg_check_scope_exit(cfg, continuation, function.body, cfg.core.owners.functions[f], 0, 0, 0, 0, exit, seen)) return false;
+		} else {
+			if (continuation != exit) return false;
+		}
+		if (!recover_cfg_expect(cfg, exit, recover_cfg_expected(f + 1, 0, opcode, 0, 0, 0, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, function.body, continuation, seen, nodes, 0) || cfg.entries[f] != cfg.regions[function.body - 1].entry) return false;
 		f = f + 1;
 	}
 	b = 0; while (b < cfg.block_count) {

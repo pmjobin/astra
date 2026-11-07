@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source correspondence for owner operations, independent of the builder.
+bool recover_owner_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (row.kind == 9) {
+		if (kind != SyntaxKind.BufferAllocationSyntax() || checked_kind(checked, row.type) != 22 || !recover_storage_channel(checked, row.type, 4, false) || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_node_failure_call(source).index != 0 || row.symbol.index != 0) return false;
+		return recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_count(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 1;
+	}
+	if (row.kind == 10) {
+		if (kind != SyntaxKind.MoveExpressionSyntax() || row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || checked_target(checked, source, checked.bindings.program.arena.get_token_source(source)).index != row.symbol.index || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(source)) != 0) return false;
+		var declaration = checked.bindings.symbol(row.symbol); return (declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index == flow.functions[function - 1].symbol.index && checked.symbol_flags[row.symbol.index] == 4 && row.type.index == checked.symbol_types[row.symbol.index].index && recover_storage_channel(checked, row.type, 4, false);
+	}
+	if (row.kind == 11) {
+		if (kind != SyntaxKind.HeapObjectConstructionSyntax() || row.a != 0 || !recover_storage_class(checked, row.type) || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(source)) != 0 || row.symbol.index < 1 || row.symbol.index != checked_constructor(checked, row.type).index || !recover_empty_constructor_verified(checked, row.symbol)) return false;
+		int callee = flow.symbols[row.symbol.index]; return callee > 0 && callee <= flow.function_count && !flow.functions[callee - 1].checked && flow.functions[callee - 1].result.index == 14;
+	}
+	if (row.kind == 13) return kind == SyntaxKind.NullPointerExpressionSyntax() && row.a == 0 && checked_kind(checked, row.type) == 31 && recover_storage_class(checked, row.type);
+	if (row.kind == 14) {
+		if (kind != SyntaxKind.CallExpressionSyntax() || row.a != 0 || row.type.index != 1 || row.symbol.index != 0 || !checked_flow_intrinsic(checked, source) || row.count != 1) return false;
+		var arguments = checked_call_arguments(checked, source); if (checked.bindings.program.arena.list_count(arguments) != 1 || edges[row.first]) return false; edges[row.first] = true;
+		if (!recover_child(flow, checked, types, flow.edges[row.first], checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, depth + 1)) return false; var child = flow.nodes[flow.edges[row.first] - 1]; return checked_kind(checked, child.type) == 22 && child.kind == 2;
+	}
+	return false;
+}

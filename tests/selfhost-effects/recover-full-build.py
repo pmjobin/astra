@@ -9,7 +9,7 @@ from state import ROOT, C0, load_module, bounded_run
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); p.add_argument('--check', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
+	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); p.add_argument('--check', action='store_true'); p.add_argument('--core-check', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
 	paths = load_module('recover_full_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	full = load_module('recover_full_inputs', ROOT/'tests/selfhost-effects/full-build.py')
 	full.RUNTIME = paths.RUNTIME; full.BUILD = paths.BUILD; full.INPUTS = paths.RUNTIME/('full-inputs-'+a.version); full.prepare()
@@ -37,8 +37,15 @@ def main():
 	def run(argv, **kwargs):
 		kwargs.setdefault('timeout', 3600); return bounded_run(argv, **kwargs)
 	genref.base.subprocess.run = run
+	if a.core_check:
+		original_run = run
+		def core_run(argv, **kwargs):
+			words = list(map(str, argv))
+			if '--check' in words: words[words.index('--check')] = '--dump-core'
+			return original_run(words, **kwargs)
+		genref.base.subprocess.run = core_run
 	sys.argv = [sys.argv[0], '--compiler', str(C0), '--build', str(paths.BUILD/('full-'+a.version+'-'+a.mode)), '--runtime', str(paths.RUNTIME/('full-build-'+a.version+'-'+a.mode)), '--mode', a.mode]
-	if a.check: sys.argv += ['--semantic-only']
+	if a.check or a.core_check: sys.argv += ['--semantic-only']
 	genref.base.main()
 
 

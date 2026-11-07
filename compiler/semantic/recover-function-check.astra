@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Admit ordinary private functions and actual existing constructor instances.
+// A receiver is accepted only with the original generic/Class storage proof.
+bool recover_empty_constructor_verified(CheckedIndex checked, SymbolId function) {
+	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false; int instance = generic_instance_for(checked, function); var concrete = checked.instances[instance - 1]; if (!recover_storage_class(checked, concrete.enclosing)) return false;
+	var origin = checked.bindings.symbol(concrete.origin); if (origin.kind != 12 || origin.owner.index != checked.types.row(concrete.enclosing).nominal.index) return false;
+	var declaration = checked.bindings.symbol(function); var body = checked.bindings.program.arena.get_node_body(declaration.node); var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax() || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_statements(body)) != 0 || checked.bindings.program.arena.list_count(parameters) != 1 || !recover_plain_member(checked, declaration.node)) return false;
+	var parameter = checked.bindings.program.arena.node_at(parameters, 0); var symbol = checked.node_symbols[parameter.index]; if (symbol.index < 1 || checked.bindings.symbol(symbol).kind != 7 || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_types[symbol.index].index != concrete.enclosing.index || checked.symbol_flags[symbol.index] != 2) return false;
+	int ordinal = checked.symbol_signatures[function.index].index; if (ordinal < 1 || ordinal > checked.signature_count) return false; var signature = checked.signatures[ordinal - 1]; return signature.flags == 0 && checked.types.row(signature.callable).count == 2 && checked.types.argument(checked.types, signature.callable, 0).type.index == 14;
+}
+
+bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false; var declaration = checked.bindings.symbol(symbol); var node = declaration.node;
+	if (declaration.kind != 1 || checked.bindings.program.arena.get_node_body(node).index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || !recover_member_attributes(checked, node)) return false;
+	bool initializing = class_storage_initializing(checked, symbol); var kind = checked.bindings.program.arena.kind(node);
+	if (initializing) {
+		int instance = generic_instance_for(checked, symbol);
+		if (instance < 1 || !recover_storage_class(checked, checked.instances[instance - 1].enclosing) || !recover_empty_constructor_verified(checked, symbol) || !generic_verify(checked)) return false;
+	}
+	else {
+		if (declaration.owner.index != 0 || kind != SyntaxKind.FunctionDeclarationSyntax() || generic_instance_for(checked, symbol) != 0) return false;
+	}
+	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
+	int ordinal = checked.symbol_signatures[symbol.index].index; if (ordinal < 1 || ordinal > checked.signature_count) return false; var signature = checked.signatures[ordinal - 1];
+	if (signature.declaration.index != symbol.index || signature.callable.index != checked.symbol_types[symbol.index].index || signature.flags != checked.symbol_flags[symbol.index] || signature.dispatch != 0 || (signature.flags & ~(4 | 64)) != 0 || !checked_effect_signature_verified(checked, signature)) return false;
+	if ((signature.flags & 64) != 0 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(node), "main")) return false;
+	var shape = checked.types.row(signature.callable); if (shape.kind != 25 || shape.count < 1 || shape.count > 257 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(node)) != shape.count - 1) return false;
+	int p = 0; while (p < shape.count) {
+		var channel = checked.types.argument(checked.types, signature.callable, p);
+		if (!recover_storage_channel(checked, channel.type, channel.flags, p == 0)) return false;
+		p = p + 1;
+	} return true;
+}

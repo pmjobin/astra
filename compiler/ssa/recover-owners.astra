@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explore each genuine owner slot over the actual CFG. States distinguish
+// dead, live, and live with one pending reservation; nullness is irrelevant.
+// No producer-supplied liveness or definite-assignment certificate is trusted.
+bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverWork work) {
+	var slot = ssa.cfg.core.flow.storage.slots[place - 1]; if (!slot.owner) return true;
+	var reservations = new int[ssa.cfg.core.count]; int versions = 2; int n = 0;
+	while (n < ssa.cfg.core.count) {
+		if (!work.take()) return false;
+		if (ssa.cfg.core.owners.slots[n] == place) {
+			reservations[n] = versions;
+			versions = versions + 1;
+		}
+		n = n + 1;
+	}
+	if (ssa.cfg.block_count > 8000000 / versions) {
+		work.exhausted = true;
+		return false;
+	}
+	int capacity = ssa.cfg.block_count * versions; var seen = new bool[capacity]; var pending = new int[capacity]; int entry = ssa.cfg.entries[slot.function - 1]; int state = 0; if (slot.parameter) state = 1; int start = (entry - 1) * versions + state; pending[0] = start; seen[start] = true; int count = 1;
+	while (count > 0) {
+		if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / versions + 1; int before = item % versions; int after = before; var row = ssa.cfg.blocks[block - 1];
+		SyntaxNodeId absent = {index = 0}; var source = recover_empty(absent, 0, type_id(14), 0, 0); if (row.origin > 0) source = ssa.cfg.core.nodes[row.origin - 1].value;
+		if ((row.opcode == 2 || row.opcode == 10 || row.opcode == 12) && source.symbol.index == slot.symbol.index) {
+			if (before == 0) return false;
+			if (row.opcode == 10) {
+				if (before != 1 || reservations[row.origin - 1] < 2) return false;
+				after = reservations[row.origin - 1];
+			}
+		}
+		if (row.opcode == 27 && source.symbol.index == slot.symbol.index) {
+			if (before != 0) return false;
+			after = 1;
+		}
+		if (row.opcode == 36 && row.b == place) {
+			if (row.a < 1 || row.a > len(reservations) || before != reservations[row.a - 1] || before < 2) return false;
+			after = 0;
+		}
+		if (row.opcode == 37 && row.b == place) {
+			if (row.a < 1 || row.a > len(reservations) || before != reservations[row.a - 1] || before < 2) return false;
+			after = 1;
+		}
+		if (row.opcode == 38 && row.a == place) {
+			if (before >= 2) return false;
+			after = 0;
+		}
+		if ((row.opcode == 22 || row.opcode == 23) && after != 0) return false;
+		int polarity = 0; while (polarity < 2) {
+			int target = row.next;
+			if (polarity == 1) target = row.other;
+			if (target > 0) {
+				if (ssa.cfg.blocks[target - 1].function != slot.function) return false;
+				int next = (target - 1) * versions + after;
+				if (!seen[next]) {
+					seen[next] = true;
+					pending[count] = next;
+					count = count + 1;
+				}
+			}
+			polarity = polarity + 1;
+		}
+	} return true;
+}
+
+bool recover_ssa_slots(RecoverSsa ssa, RecoverWork work) {
+	if (!recover_owners_verify(ssa.cfg.core.owners, ssa.cfg.core.flow)) return false;
+	int place = 1; while (place <= ssa.cfg.core.flow.storage.count) {
+		if (!recover_ssa_slot(ssa, place, work)) return false;
+		place = place + 1;
+	} return !work.exhausted;
+}
+
+// Ordinary owned temporaries are distinct from both Error tokens and slots.
+// Their unique consumer must execute before every returning normal/error exit.
+bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWork work) {
+	var definition = data.values[value]; int consumer = cfg.core.owners.consumers[value - 1]; if (consumer < 1) return false;
+	int start = cfg.blocks[definition.block - 1].next; if (start == 0) return false; var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
+	while (count > 0) { if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / 2 + 1; bool live = item % 2 == 1; var row = cfg.blocks[block - 1];
+		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4)) {
+			if (!live) return false;
+			live = false;
+		}
+		if ((row.opcode == 22 || row.opcode == 23) && live) return false;
+		int polarity = 0; while (polarity < 2) {
+			int target = row.next;
+			if (polarity == 1) target = row.other;
+			if (target > 0) {
+				int next = (target - 1) * 2;
+				if (live) next = next + 1;
+				if (!seen[next]) {
+					seen[next] = true;
+					pending[count] = next;
+					count = count + 1;
+				}
+			}
+			polarity = polarity + 1;
+		}
+	} return true;
+}

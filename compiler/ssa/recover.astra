@@ -108,6 +108,7 @@ RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
 		else {
 			type = cfg.core.nodes[row.origin - 1].value.type;
 			if (row.opcode == 5) channel = 1;
+			if ((row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
 		}
 	}
 	RecoverValue value = {function = row.function, block = block, type = type, channel = channel, edge = edge}; return value;
@@ -135,6 +136,7 @@ bool recover_ssa_use(RecoverSsaData data, RecoverCfg cfg, int value, int block, 
 // allocation. Borrow/message, destroy, carry and return uses require LIVE.
 bool recover_ssa_owner(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWork work) {
 	var definition = data.values[value]; if (definition.channel == 0 || !data.reachable[definition.block - 1]) return true;
+	if (definition.channel == 4) return recover_ssa_temporary(data, cfg, value, work);
 	int start = cfg.blocks[definition.block - 1].next; if (definition.edge != 0) start = definition.edge;
 	if (start == 0) return false;
 	var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
@@ -197,8 +199,8 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
-		if (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work)) return false;
-		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8) {
+		if (row.opcode != 36 && row.opcode != 37 && row.opcode != 38 && (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work))) return false;
+		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || row.opcode == 14) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; int i = 0;
 			while (i < source.count) {
 				if (!recover_ssa_use(ssa.data, ssa.cfg, ssa.cfg.core.flow.data.edges[source.first + i], b, work)) return false;
@@ -241,7 +243,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		if (definitions[v] && !recover_ssa_owner(ssa.data, ssa.cfg, v, work)) return false;
 		v = v + 1;
 	}
-	return !work.exhausted;
+	return !work.exhausted && recover_ssa_slots(ssa, work);
 }
 
 owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {

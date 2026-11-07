@@ -1,0 +1,225 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Ownership relations are retained separately from value TypeIds. A move
+// reserves its actual binder slot until its unique consuming operation enters.
+class RecoverOwnerBudget {
+	int remaining;
+	bool exhausted;
+
+	init() { this.remaining = 8000000; this.exhausted = false; }
+
+	bool take() { if (this.remaining == 0) {
+			this.exhausted = true;
+			return false;
+		} this.remaining = this.remaining - 1; return true; }
+}
+
+struct RecoverAbort { int operation; int reservation; int call; }
+
+class RecoverOwners {
+	owned shared TypeOwner identity;
+	owned int[] scopes;
+	owned int[] functions;
+	owned int[] consumers;
+	owned int[] reservations;
+	owned int[] slots;
+	owned RecoverAbort[] aborts;
+	int abort_count;
+	int status;
+
+	init(RecoverFlow flow) {
+		var identity = shared_clone(flow.data.identity); this.identity = move identity; int count = flow.data.node_count;
+		this.scopes = new int[count]; this.functions = new int[flow.data.function_count]; this.consumers = new int[count]; this.reservations = new int[count]; this.slots = new int[count]; this.aborts = new RecoverAbort[8192]; this.abort_count = 0; this.status = 0;
+	}
+}
+
+int recover_owner_unwrap(RecoverFlowData flow, int id) {
+	int current = id; int depth = 0; while (current > 0 && current <= flow.node_count && flow.nodes[current - 1].kind == 7 && depth < 192) {
+		current = flow.nodes[current - 1].a;
+		depth = depth + 1;
+	} if (depth == 192) return 0; return current;
+}
+
+bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
+	if (row.kind == 5 || row.kind == 9 || row.kind == 10 || row.kind == 11 || row.kind == 13) return true;
+	if (row.kind != 4) return false;
+	return (checked.uses[row.source.index].flags & 4) != 0;
+}
+
+int recover_owner_consumer(RecoverFlowData flow, int producer, RecoverOwnerBudget work) {
+	int found = 0; int n = 0; while (n < flow.node_count) { if (!work.take()) return -1; var row = flow.nodes[n];
+		if ((row.kind == 22 || row.kind == 23 || row.kind == 27) && recover_owner_unwrap(flow, row.a) == producer) {
+			if (found != 0) return -1;
+			found = n + 1;
+		}
+		if (row.kind == 4) {
+			int a = 0;
+			while (a < row.count) {
+				if (recover_owner_unwrap(flow, flow.edges[row.first + a]) == producer) {
+					if (found != 0) return -1;
+					found = n + 1;
+				}
+				a = a + 1;
+			}
+		}
+		n = n + 1;
+	} return found;
+}
+
+bool recover_owner_contains(RecoverFlowData flow, int root, int target, RecoverOwnerBudget work, int depth) {
+	if (root == target) return true; if (root == 0 || depth > 192 || !work.take()) return false; var row = flow.nodes[root - 1];
+	if (row.a != 0 && recover_owner_contains(flow, row.a, target, work, depth + 1) || row.b != 0 && recover_owner_contains(flow, row.b, target, work, depth + 1)) return true;
+	int i = 0; while (i < row.count) {
+		if (recover_owner_contains(flow, flow.edges[row.first + i], target, work, depth + 1)) return true;
+		i = i + 1;
+	} return false;
+}
+
+owned RecoverOwners recover_owners_build(RecoverFlow flow) {
+	var plan = new RecoverOwners(flow); var work = new RecoverOwnerBudget(); int n = 0;
+	int f = 0; while (f < flow.data.function_count) {
+		var declaration = flow.checked.bindings.symbol(flow.data.functions[f].symbol);
+		plan.functions[f] = flow.checked.bindings.scope_for_node(declaration.node).index;
+		f = f + 1;
+	}
+	while (n < flow.data.node_count && plan.status == 0) { var row = flow.data.nodes[n]; plan.scopes[n] = flow.checked.bindings.scope_for_node(row.source).index;
+		if (recover_owner_value(flow.checked, row)) { int consumer = recover_owner_consumer(flow.data, n + 1, work); if (consumer < 1) {
+				plan.status = 3;
+				break;
+			} plan.consumers[n] = consumer;
+			if (row.kind == 10) {
+				int slot = flow.storage.symbols[row.symbol.index];
+				if (slot < 1 || !flow.storage.slots[slot - 1].owner) {
+					plan.status = 3;
+					break;
+				}
+				plan.slots[n] = slot;
+				if (flow.data.nodes[consumer - 1].kind == 4) plan.reservations[n] = consumer;
+			}
+		}
+		n = n + 1;
+	}
+	int call = 1; while (call <= flow.data.node_count && plan.status == 0) { var parent = flow.data.nodes[call - 1];
+		if (parent.kind == 4) { int a = 1; while (a < parent.count && plan.status == 0) { int subtree = flow.data.edges[parent.first + a]; int child = 1;
+				while (child <= flow.data.node_count && plan.status == 0) { if (!work.take()) {
+						plan.status = 2;
+						break;
+					} var candidate = flow.data.nodes[child - 1];
+					if (candidate.kind == 4 && (flow.checked.symbol_flags[candidate.symbol.index] & 64) != 0 && recover_owner_contains(flow.data, subtree, child, work, 0)) {
+						int earlier = 0; while (earlier < a) {
+							int reserve = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + earlier]);
+							if (reserve > 0 && flow.data.nodes[reserve - 1].kind == 10) {
+								if (plan.abort_count == 8192) {
+									plan.status = 2;
+									break;
+								}
+								RecoverAbort abort = {operation = child, reservation = reserve, call = call};
+								plan.aborts[plan.abort_count] = abort;
+								plan.abort_count = plan.abort_count + 1;
+							}
+							earlier = earlier + 1;
+						}
+					} child = child + 1;
+				} a = a + 1;
+			} } call = call + 1;
+	}
+	if (work.exhausted) plan.status = 2; return move plan;
+}
+
+// The consumer does not call the relation builder or trust its consumer table.
+// It reconstructs each unique source use and every later-argument abort pair.
+bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
+	int count = flow.data.node_count; if (plan.status != 0 || !type_owner_same(plan.identity, flow.data.identity) || len(plan.scopes) != count || len(plan.functions) != flow.data.function_count || len(plan.consumers) != count || len(plan.reservations) != count || len(plan.slots) != count || len(plan.aborts) != 8192 || plan.abort_count < 0 || plan.abort_count > 8192) return false;
+	var work = new RecoverOwnerBudget(); int n = 0;
+	int f = 0; while (f < flow.data.function_count) {
+		var declaration = flow.checked.bindings.symbol(flow.data.functions[f].symbol);
+		if (plan.functions[f] != flow.checked.bindings.scope_for_node(declaration.node).index) return false;
+		f = f + 1;
+	}
+	while (n < count) { var row = flow.data.nodes[n]; if (!work.take() || plan.scopes[n] != flow.checked.bindings.scope_for_node(row.source).index) return false; bool owner = recover_owner_value(flow.checked, row); int uses = 0; int consumer = 0; int call = 0; int slot = 0;
+		if (row.kind == 27 && (flow.checked.symbol_flags[row.symbol.index] & 4) != 0) {
+			int input = recover_owner_unwrap(flow.data, row.a);
+			if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
+		}
+		if (row.kind == 22) {
+			var function = flow.data.functions[row.function - 1];
+			var signature = flow.checked.signatures[function.signature.index - 1];
+			var result = flow.checked.types.argument(flow.checked.types, signature.callable, 0);
+			if ((result.flags & 4) != 0) {
+				int input = recover_owner_unwrap(flow.data, row.a);
+				if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
+			}
+		}
+		if (row.kind == 4) {
+			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
+			int a = 0;
+			while (a < row.count) {
+				var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + 1);
+				if ((channel.flags & 4) != 0) {
+					int input = recover_owner_unwrap(flow.data, flow.data.edges[row.first + a]);
+					if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
+				}
+				a = a + 1;
+			}
+		}
+		int parent = 0; while (parent < count) { if (!work.take()) return false; var candidate = flow.data.nodes[parent];
+			if (owner && (candidate.kind == 22 || candidate.kind == 23 || candidate.kind == 27) && recover_owner_unwrap(flow.data, candidate.a) == n + 1) {
+				uses = uses + 1;
+				consumer = parent + 1;
+			}
+			if (owner && candidate.kind == 4) {
+				int a = 0;
+				while (a < candidate.count) {
+					if (recover_owner_unwrap(flow.data, flow.data.edges[candidate.first + a]) == n + 1) {
+						var signature = flow.checked.signatures[flow.checked.symbol_signatures[candidate.symbol.index].index - 1];
+						var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + 1);
+						if ((channel.flags & 4) == 0 || row.kind != 10) return false;
+						uses = uses + 1;
+						consumer = parent + 1;
+						if (row.kind == 10) call = parent + 1;
+					}
+					a = a + 1;
+				}
+			}
+			parent = parent + 1;
+		}
+		if (owner && uses != 1) return false;
+		if (row.kind == 10) {
+			if (row.symbol.index < 1 || row.symbol.index >= len(flow.storage.symbols)) return false;
+			slot = flow.storage.symbols[row.symbol.index];
+			if (slot < 1 || slot > flow.storage.count || !flow.storage.slots[slot - 1].owner || flow.storage.slots[slot - 1].function != row.function) return false;
+		}
+		if (plan.consumers[n] != consumer || plan.reservations[n] != call || plan.slots[n] != slot) return false; n = n + 1;
+	}
+	int expected = 0; int call = 1;
+	while (call <= count) {
+		var parent = flow.data.nodes[call - 1];
+		if (parent.kind == 4) {
+			int a = 1;
+			while (a < parent.count) {
+				int subtree = flow.data.edges[parent.first + a];
+				int child = 1;
+				while (child <= count) {
+					if (!work.take()) return false;
+					var candidate = flow.data.nodes[child - 1];
+					if (candidate.kind == 4 && (flow.checked.symbol_flags[candidate.symbol.index] & 64) != 0 && recover_owner_contains(flow.data, subtree, child, work, 0)) {
+						int earlier = 0;
+						while (earlier < a) {
+							int reserve = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + earlier]);
+							if (reserve > 0 && flow.data.nodes[reserve - 1].kind == 10) {
+								if (expected >= plan.abort_count) return false;
+								var abort = plan.aborts[expected];
+								if (abort.operation != child || abort.reservation != reserve || abort.call != call) return false;
+								expected = expected + 1;
+							}
+							earlier = earlier + 1;
+						}
+					}
+					child = child + 1;
+				}
+				a = a + 1;
+			}
+		}
+		call = call + 1;
+	}
+	return expected == plan.abort_count && !work.exhausted && recover_heap_results(flow, work);
+}

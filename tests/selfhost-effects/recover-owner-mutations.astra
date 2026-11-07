@@ -1,0 +1,272 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent owner controls start with a freshly verified positive twin.
+void recover_owner_refresh_edges(RecoverCfg cfg) {
+	int count = 0; int b = 0; while (b < cfg.block_count) {
+		var row = cfg.blocks[b];
+		int p = 1;
+		while (p <= 2) {
+			int target = row.next;
+			int owner = row.carry;
+			if (p == 2) {
+				target = row.other;
+				if (row.opcode == 4) owner = cfg.core.count + row.origin;
+			}
+			if (target > 0) {
+				RecoverCfgEdge edge = {source = b + 1, target = target, polarity = p, owner = owner};
+				cfg.edges[count] = edge;
+				count = count + 1;
+			}
+			p = p + 1;
+		}
+		b = b + 1;
+	} cfg.edge_count = count;
+}
+
+bool recover_owner_mutate_flow(RecoverFlow flow, int category) {
+	if (category == 0) {
+		int p = 0;
+		while (p < flow.storage.count) {
+			var slot = flow.storage.slots[p];
+			if (slot.owner) {
+				slot.owner = false;
+				flow.storage.slots[p] = slot;
+				return true;
+			}
+			p = p + 1;
+		}
+	}
+	if (category == 1) {
+		var binding = type_symbol(0);
+		int n = 0;
+		while (n < flow.data.node_count) {
+			if (flow.data.nodes[n].kind == 25) binding = flow.data.nodes[n].symbol;
+			n = n + 1;
+		}
+		n = 0;
+		while (n < flow.data.node_count) {
+			var row = flow.data.nodes[n];
+			if (row.kind == 10 && binding.index > 0) {
+				row.symbol = binding;
+				flow.data.nodes[n] = row;
+				return true;
+			}
+			n = n + 1;
+		}
+	}
+	if (category == 14) {
+		int n = 0;
+		while (n < flow.data.node_count) {
+			var row = flow.data.nodes[n];
+			if (row.kind == 4 && row.count == 2) {
+				int left = flow.data.edges[row.first];
+				flow.data.edges[row.first] = flow.data.edges[row.first + 1];
+				flow.data.edges[row.first + 1] = left;
+				return true;
+			}
+			n = n + 1;
+		}
+	}
+	return false;
+}
+
+bool recover_owner_mutate_core(RecoverCore core, int category) {
+	if (category == 4 && core.owners.abort_count > 0) {
+		core.owners.abort_count = 0;
+		return true;
+	}
+	int n = 0; while (n < core.count) {
+		if (category == 2 && core.owners.reservations[n] > 0) {
+			core.owners.reservations[n] = 0;
+			return true;
+		}
+		if (category == 3 && core.owners.consumers[n] > 0) {
+			core.owners.consumers[n] = 0;
+			return true;
+		}
+		var row = core.nodes[n]; if (category == 5 && row.value.kind == 10) {
+			row.place = 0;
+			core.nodes[n] = row;
+			return true;
+		}
+		if (category == 15 && row.value.kind == 9) {
+			row.error_owner = n + 1;
+			core.nodes[n] = row;
+			return true;
+		} n = n + 1;
+	} return false;
+}
+
+bool recover_owner_mutate_cfg(RecoverCfg cfg, int category) {
+	int b = 0; while (b < cfg.block_count) { var row = cfg.blocks[b];
+		if (category == 6 && row.opcode == 36 && cfg.core.nodes[row.origin - 1].value.kind == 4 && cfg.core.owners.reservations[row.a - 1] == row.origin) {
+			int move_block = cfg.regions[row.a - 1].operation;
+			var reservation = cfg.blocks[move_block - 1];
+			reservation.next = b + 1;
+			cfg.blocks[move_block - 1] = reservation;
+			recover_owner_refresh_edges(cfg);
+			return true;
+		}
+		if (category == 7 && row.opcode == 37) {
+			row.opcode = 36;
+			cfg.blocks[b] = row;
+			recover_owner_refresh_edges(cfg);
+			return true;
+		}
+		if (category == 8 && row.opcode == 38) {
+			row.rank = row.rank + 1;
+			cfg.blocks[b] = row;
+			return true;
+		} b = b + 1;
+	} return false;
+}
+
+int recover_owner_semantic_case(string[] args, int category) throws Error {
+	var source = binding_load_program(args, 3); var bindings = binding_index(move source, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow));
+	if (category <= 1 || category == 14) {
+		assert_that(recover_owner_mutate_flow(flow, category));
+		assert_that(!recover_flow_verify(flow));
+		return 2;
+	}
+	var core = recover_core_lower(move flow); assert_that(recover_core_verify(core));
+	if (category <= 5 || category == 15) {
+		assert_that(recover_owner_mutate_core(core, category));
+		assert_that(!recover_core_verify(core));
+		return 3;
+	}
+	var cfg = recover_cfg_lower(move core, 8192); assert_that(recover_cfg_verify(cfg));
+	if (category <= 8) {
+		assert_that(recover_owner_mutate_cfg(cfg, category));
+		assert_that(!recover_cfg_verify(cfg));
+		return 4;
+	}
+	var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa));
+	if (category == 9 || category == 10) {
+		int v = 1;
+		bool changed = false;
+		while (v < len(ssa.data.values) && !changed) {
+			var row = ssa.data.values[v];
+			if (category == 9 && row.channel == 4) {
+				row.channel = 0;
+				ssa.data.values[v] = row;
+				changed = true;
+			}
+			if (category == 10 && row.block > 0 && ssa.cfg.blocks[row.block - 1].opcode == 10) {
+				row.channel = 4;
+				ssa.data.values[v] = row;
+				changed = true;
+			}
+			v = v + 1;
+		}
+		assert_that(changed && !recover_ssa_verify(ssa));
+		return 5;
+	}
+	int f = 0; while (f < ssa.cfg.core.flow.data.function_count) {
+		var function = ssa.cfg.core.flow.data.functions[f];
+		if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 22) {
+			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
+			assert_that(recover_abi_verify(plan, ssa.cfg.core.flow.checked));
+			if (category == 11) plan.groups[0] = plan.success;
+			if (category == 12) plan.result_flags = 0;
+			if (category == 13) plan.result = type_id(13);
+			assert_that(!recover_abi_verify(plan, ssa.cfg.core.flow.checked));
+			return 6;
+		}
+		f = f + 1;
+	}
+	assert_that(false); return 0;
+}
+
+bool recover_owner_main(RecoverSsa ssa, int function) { var symbol = ssa.cfg.core.flow.data.functions[function - 1].symbol; return ssa.cfg.core.flow.checked.bindings.program.arena.token_is(ssa.cfg.core.flow.checked.bindings.symbol(symbol).token, "main"); }
+
+bool recover_owner_input(RecoverSsa ssa, int place) { var slot = ssa.cfg.core.flow.storage.slots[place - 1]; return recover_owner_main(ssa, slot.function) && ssa.cfg.core.flow.checked.bindings.program.arena.token_is(ssa.cfg.core.flow.checked.bindings.symbol(slot.symbol).token, "input"); }
+
+bool recover_owner_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	bool changed = false; int b = 0; while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.operations[b];
+		if (ssa.data.reachable[b]) {
+			if (category == 0 && row.opcode == 10 && recover_owner_main(ssa, row.function)) {
+				var source = ssa.cfg.core.nodes[row.origin - 1].value;
+				LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.blocks[b]));
+				var early = LLVMBuildStore(module.builder, LLVMConstInt(module.boolean, 0, 0), module.owner_armed[source.symbol.index]);
+				changed = true;
+			}
+			if (category == 1 && row.opcode == 36) {
+				LLVMSetOperand(operation, 0, LLVMConstInt(module.boolean, 1, 0));
+				changed = true;
+			}
+			if (category == 2 && row.opcode == 37) {
+				var slot = ssa.cfg.core.flow.storage.slots[row.b - 1];
+				LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.blocks[b]));
+				var early = LLVMBuildStore(module.builder, LLVMConstInt(module.boolean, 0, 0), module.owner_armed[slot.symbol.index]);
+				changed = true;
+			}
+			if (category == 3 && row.opcode == 38 && recover_owner_input(ssa, row.a)) {
+				LLVMSetOperand(operation, 0, LLVMConstNull(module.pointer));
+				changed = true;
+			}
+			if (category == 4 && row.opcode == 27) {
+				var source = ssa.cfg.core.nodes[row.origin - 1].value;
+				int place = ssa.cfg.core.flow.storage.symbols[source.symbol.index];
+				if (place > 0 && recover_owner_input(ssa, place)) {
+					var flag = LLVMGetNextInstruction(operation);
+					LLVMSetOperand(flag, 0, LLVMConstInt(module.boolean, 0, 0));
+					changed = true;
+				}
+			}
+			if (category == 5 && row.opcode == 22 && operation != null) {
+				var function = ssa.cfg.core.flow.data.functions[row.function - 1];
+				if (function.checked && checked_kind(ssa.cfg.core.flow.checked, function.result) == 22) {
+					LLVMSetOperand(operation, 1, LLVMGetParam(module.functions[row.function - 1], 1));
+					changed = true;
+				}
+			}
+			if (category == 6 && row.opcode == 38 && recover_owner_input(ssa, row.a)) {
+				var selected = LLVMGetArgOperand(operation, 0);
+				LLVMSetOperand(selected, 0, LLVMConstInt(module.boolean, 1, 0));
+				changed = true;
+			}
+			if (category == 7 && row.opcode == 9) {
+				LLVMSetOperand(operation, 1, module.int64(2));
+				changed = true;
+			}
+		} b = b + 1;
+	} return changed;
+}
+
+int recover_owner_mutations_cli(string[] args) {
+	try {
+		int category = 0; while (category < 16) {
+			int stage = recover_owner_semantic_case(args, category);
+			var out = new Utf8ByteBuilder();
+			source_append_text(out, "RECOVER_OWNER_REJECT ");
+			append_int(out, category);
+			source_append_text(out, " ");
+			append_int(out, stage);
+			var text = out.snapshot();
+			println(text.text);
+			category = category + 1;
+		}
+		var source = binding_load_program(args, 3); var bindings = binding_index(move source, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa));
+		category = 0; while (category < 8) {
+			var module = new RecoverLlvm(ssa);
+			module.build(ssa);
+			assert_that(module.check(ssa));
+			assert_that(recover_owner_mutate_physical(module, ssa, category));
+			assert_that(llvm12_verify(module.module) == 0);
+			assert_that(!module.check(ssa));
+			var path = new Utf8ByteBuilder();
+			source_append_text(path, args[2]);
+			source_append_text(path, "/owner-physical-");
+			append_int(path, category);
+			source_append_text(path, ".ll");
+			var filename = path.snapshot();
+			assert_that(llvm12_write(module.module, module.machine, 0, 16777216, filename.text) == 0);
+			var out = new Utf8ByteBuilder();
+			source_append_text(out, "RECOVER_OWNER_LLVM_REJECT ");
+			append_int(out, category);
+			var text = out.snapshot();
+			println(text.text);
+			category = category + 1;
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 5; }
+}

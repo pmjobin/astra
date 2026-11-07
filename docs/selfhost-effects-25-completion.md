@@ -104,20 +104,70 @@ The v7 cold focused build costs 668.68 seconds wall, 663.42 seconds user,
 check is separate. The combined compiler recipe is prepared for inherited
 routes; integration and the 202-program replay are not yet qualified here.
 
+## Owned storage and reservation continuation
+
+The v8 O0-built compiler SHA-256 is
+`14164a1496d4d6ff54f858240ad648ab6da2eae62c94b7dd38328f5ab6c2547b`.
+It adds actual binder-owned local/parameter slots, separate armed bits, move
+reservation and call-entry commits, explicit later-argument aborts, lexical
+cleanup by validated scope/declaration order, and independent SSA slot/temporary
+lifetime exploration. A null Class value can be armed. Success initialization
+is separate from the nullable error return and is never inferred from TypeId.
+The original CheckedIndex and pending obligations remain unchanged.
+
+Class results here use the existing independently qualified fieldless Class
+shape and its actual constructor specialization/borrowed receiver. No lexical
+receiver root is invented. Checked Class results require a retained heap-factory
+witness; a null-only checked factory is outside the native-v14-compatible domain.
+The first independent C0-only nullable fixture was correctly refused for that
+reason; the corrected heap-origin factory and its evidence are preserved.
+
+Sixteen new owner programs per target profile cover buffer results, entered
+callee success/error cleanup, later-argument reservation abort/commit, a retained
+caller owner, protected/ordinary lexical scopes, implicit void cleanup, Class
+factory success/error and nullable Class success. Together with the repeated
+15 scalar/void and eight record cases there are **39 distinct source identities
+and 39 distinct ELF hashes per target profile**. All match independent C0,
+verify through LLVM and pass unsuppressed Valgrind. Evidence is in
+`early-v8owned-*`, `early-v8scalar-*`, and `early-v8record-*`.
+The 17 semantic and ten physical controls also repeat in `adversarial-v8a-*`.
+
+`success-cell-v8b-{O0,O2}/` independently controls the caller's result cell for
+scalar, buffer and nullable Class results against both Astra and C0 emitted
+bodies. It proves the initialized canary remains unchanged on error, while
+successful cells contain the complete expected carrier. These handwritten LLVM
+caller adapters are **ABI probes with zero Astra program credit**. Original
+emitted modules remain separate, byte-exact artifacts. The earlier harness
+refusal over C0 dump mode's absent public main wrapper remains in `v8a`.
+Independent GCC/Clang carrier assertions are in `layout-v7carriers/`.
+
+The v8 cold focused build costs 848.95 seconds wall, 841.94 seconds user,
+1.08 seconds system and 1,453,964 KiB peak RSS. Its focused Core check costs
+31.13 seconds wall. The combined v8 Core check passes in 59.47 seconds with
+359,988 KiB peak RSS. The earlier combined v7 `--check` passed through full LLVM
+lowering/verification in 1,595.96 seconds, using 2,069,592 KiB peak RSS; it was
+not a semantic-only check or a native executable build. These intervals overlap.
+
 ## Remaining boundary
 
 This is an implementation checkpoint, not completion or a full gate PASS.
-The initial message-reading failure (`RECOVER_FLOW 1`, before output) is
-retained in `early-v4a-O0`; it is resolved by the conditional typed-borrow facts
-above. The first minimal witnesses remain tied to their original sources.
+The native compiler itself remains O0-built for both target profiles.
+Static checked receivers/generics, owner cleanup across loop exits, owned Error
+locals/throw-move, additional source forms and unchanged original throwing
+compiler-function execution remain unfinished. Record carriers currently contain
+only scalar integer/bool fields; ordinary Class payloads are fieldless, and
+error subclasses have no added payload fields.
 
-Owned input reservations, owned buffer/Class results, owner locals and loop
-cleanup, admitted static receivers/generics, full source integration, the
-required owner/input coverage, and unchanged throwing compiler-function execution
-are unfinished. The current record path permits only copyable scalar fields.
+Owner-specific mutations and ABI resource-boundary controls are authored but
+not yet compiled or qualified. The existing opaque-handle adapter has capacity
+1,024; the general flattened-record ABI needs an explicit pre-construction guard
+before oversized signatures can be tested. No adapter capacity increase is
+planned. Those draft probes receive no mutation or native credit here.
+
 The 202 inherited programs and frozen source cohorts have not yet been replayed
 using a combined current compiler. Earlier R2 qualifications remain tied to
-their original products. Draft owner models receive no execution credit.
+their original products. Full final costs, warm reuse and all gate results still
+need consolidation before the installed report amendment is published.
 
 `CheckedIndex.add_signature` predicate 26 remains independently deferred. No
 receiver root, owner slot, `noalias`, verifier exemption, or larger resource

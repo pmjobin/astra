@@ -37,7 +37,7 @@ def main():
 	capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', ROOT/'compiler/backend/llvm/capi.c', '-o', shim], 'llvm-capi')
 	library = subprocess.check_output(['llvm-config', '--link-shared', '--libs', 'core', 'analysis', 'native'], text=True).strip(); assert library.startswith('-l') and ' ' not in library
 	base = load_module('recover_type_build', ROOT/'tests/selfhost-typecore/build.py')
-	extra = [ROOT/'compiler/backend/llvm/capi.astra', ROOT/'compiler/backend/llvm/effect-abi.astra', ROOT/'compiler/core/recover.astra', *sorted((ROOT/'compiler/cfg').glob('recover-*.astra')), ROOT/'compiler/ssa/recover.astra', *sorted((ROOT/'compiler/backend/llvm').glob('recover-*.astra')), ROOT/'tests/selfhost-effects/recover-mutations.astra']
+	extra = [ROOT/'compiler/backend/llvm/capi.astra', ROOT/'compiler/backend/llvm/effect-abi.astra', *sorted((ROOT/'compiler/core').glob('recover*.astra')), *sorted((ROOT/'compiler/cfg').glob('recover-*.astra')), *sorted((ROOT/'compiler/ssa').glob('recover*.astra')), *sorted((ROOT/'compiler/backend/llvm').glob('recover-*.astra')), ROOT/'tests/selfhost-effects/recover-mutations.astra']
 	products = base.build(C0, build, capture, (a.mode,), consumer=ROOT/'tests/selfhost-effects/recover-query.astra', extra_sources=extra, product_prefix='astra-recover-', link_objects=[shim], link_libraries=[library[2:]], link_inputs=[Path(__file__)])
 	(leaf/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 
