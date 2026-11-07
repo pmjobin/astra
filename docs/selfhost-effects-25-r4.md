@@ -176,11 +176,35 @@ rejected. Nine Class loan controls, seven field/constructor guard controls and
 five allocation/lifetime controls pass. These are focused O0 results; combined
 profile qualification and final publication remain separate.
 
+The integrated `final13` compiler products are
+`8925bd1fd82625c772a970005548c558731520208ca3a8cc45657a6a16691f50`
+(O0) and
+`aeddad125eee381d8e4e65e3f77b2c0c45d9db69298118473533e17c94d48695`
+(O2). Their measured C0 compiler commands and exact product reuse are:
+
+| Profile | Cold wall seconds | User / system seconds | Peak RSS KiB | Reuse wall seconds |
+| --- | ---: | ---: | ---: | ---: |
+| O0 | 2306.46 | 2286.71 / 2.50 | 2322876 | 1.05 |
+| O2 | 3367.62 | 3339.76 / 2.42 | 2323224 | 1.02 |
+
+The full C0 preflight passed through LLVM lowering and verification in
+2312.25 seconds, with peak RSS 2196908 KiB. The measured command catalogue
+contains 28 build/check attempts (15 zero exits, 13 nonzero exits) and six
+exact product reuse observations. Its compile intervals have a 19358.91-second
+union and a 32033.93-second sum; overlapping intervals are not campaign elapsed
+time or a speedup measurement. Raw commands, failed/stopped attempts and GNU
+time receipts remain available. Product reuse performs no compilation.
+
 All authored recipes use `tests/selfhost-effects/r4.py` for explicit routing to
 `~/Workspace/codex/work/astra/{build,runtime}/effects25-r4/`. This entry point
 does not replace the installed intake or publisher. Immutable snapshots bind
 each compiler product to its actual source/tool inputs; loaded Python recipe
 bytes are also preserved. No generated build output belongs in this Git tree.
+The immutable baseline snapshot additionally retains all nine generated Astra
+input views and six link objects outside the repository, checked against the
+original baseline identity. Installed LLVM/SDK dependencies remain explicitly
+hash pinned rather than bundled as a toolchain distribution. Supplemental
+copies do not rewrite or rebind the historical input paths or receipts.
 
 `recover-r4-consolidated.py` runs the retained qualification and new controls
 at each optimization profile, retaining individual job failures. The audit

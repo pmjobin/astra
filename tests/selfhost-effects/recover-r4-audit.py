@@ -43,6 +43,11 @@ def main():
 		archived = paths.RUNTIME/'baseline-snapshots'/mode/'baseline-component'; original = Path(old['component']); receipt = read(archived/'INDEX.json'); assert receipt['origin'] == str(original) and receipt['sha256'] == old['sha256'] == sha(archived/original.name) and receipt['identity_sha256'] == sha(original.with_suffix('.identity.json')) == sha(archived/original.with_suffix('.identity.json').name)
 		for path, expected in old['identity']['identity']['sources'].items():
 			if Path(path).is_relative_to(ROOT): assert sha(paths.RUNTIME/'baseline-snapshots'/mode/Path(path).relative_to(ROOT)) == expected
+		external = paths.RUNTIME/'baseline-snapshots'/mode/'external-inputs'; external_index = read(external/'INDEX.json'); expected_external = {name:value for name,value in old['identity']['identity']['sources'].items() if not Path(name).is_relative_to(ROOT)}
+		assert external_index['component_sha256'] == old['sha256'] and {name:row['sha256'] for name,row in external_index['inputs'].items()} == expected_external
+		for name, row in external_index['inputs'].items():
+			assert sha(name) == row['sha256'] and Path(name).stat().st_size == row['bytes']
+			if Path(name).suffix in ('.astra', '.py', '.c', '.json', '.o'): assert sha(external/row['copy']) == row['sha256'] and (external/row['copy']).stat().st_size == row['bytes']
 		def programs(names):
 			rows = []
 			for name in names:

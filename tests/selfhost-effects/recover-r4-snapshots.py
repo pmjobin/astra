@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Independently preserve exact baseline inputs and verify the R3 transport."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -10,8 +11,30 @@ import zipfile
 from state import ROOT, load_module, read, sha, bounded_run
 
 
+def external_inputs(identity, component, destination):
+	destination.mkdir(); rows = {}
+	for name, expected in identity['identity']['sources'].items():
+		path = Path(name)
+		if path.is_relative_to(ROOT): continue
+		assert sha(path) == expected
+		row = dict(sha256=expected, bytes=path.stat().st_size)
+		if path.suffix in ('.astra', '.py', '.c', '.json', '.o'):
+			target = destination/expected/path.name; target.parent.mkdir(exist_ok=True); shutil.copy2(path, target)
+			assert sha(target) == expected; row.update(copy=str(target.relative_to(destination)), classification='Generated source or link object used by the actual baseline build')
+		else: row['classification'] = 'Installed toolchain dependency, hash pinned; not a bundled LLVM/SDK distribution'
+		rows[name] = row
+	(destination/'INDEX.json').write_text(json.dumps(dict(component_sha256=component, inputs=rows, attribution='Supplemental byte copies verified against the immutable baseline compiler identity. Historical sources, products and receipts are not rewritten or rebound; no additional execution credit.'), indent=2)+'\n')
+
+
 def main():
-	paths = load_module('r4_snapshots_paths', ROOT/'tests/selfhost-effects/recover-build.py'); leaf = paths.RUNTIME/'baseline-snapshots'; leaf.mkdir(); products = {}
+	p = argparse.ArgumentParser(); p.add_argument('--supplement-external', action='store_true'); a = p.parse_args()
+	paths = load_module('r4_snapshots_paths', ROOT/'tests/selfhost-effects/recover-build.py'); leaf = paths.RUNTIME/'baseline-snapshots'
+	if a.supplement_external:
+		for mode, row in read(leaf/'products.json').items():
+			assert sha(row['component']) == row['sha256'] and read(Path(row['component']).with_suffix('.identity.json')) == row['identity']
+			external_inputs(row['identity'], row['sha256'], leaf/mode/'external-inputs')
+		print('Immutable baseline generated inputs and link objects independently copied; toolchain dependencies remain hash pinned', flush=True); return
+	leaf.mkdir(); products = {}
 	for mode in ('O0', 'O2'):
 		component = paths.BUILD.parent/('effects25-r3/full-final6-'+mode)/('astra-llvm-'+mode); identity = read(component.with_suffix('.identity.json')); assert sha(component) == identity['sha256']
 		for group in ('sources', 'tools'):
@@ -22,6 +45,7 @@ def main():
 		products[mode] = dict(component=str(component), sha256=sha(component), identity=identity)
 		archive = leaf/mode/'baseline-component'; archive.mkdir(); target = archive/component.name; shutil.copy2(component, target); original_identity = component.with_suffix('.identity.json'); shutil.copy2(original_identity, archive/original_identity.name)
 		(archive/'INDEX.json').write_text(json.dumps(dict(origin=str(component), copy=str(target), sha256=sha(component), identity_sha256=sha(original_identity), attribution='Exact executable used for the genuine initial R3 baseline replays. This archival byte copy grants no additional execution credit and does not rebind or alter the historical executable or receipts.'), indent=2)+'\n')
+		external_inputs(identity, sha(component), leaf/mode/'external-inputs')
 	(leaf/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 	with zipfile.ZipFile(paths.RUNTIME/'predecessor-report.zip') as z:
 		for name in z.namelist():
