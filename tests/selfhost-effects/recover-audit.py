@@ -5,6 +5,7 @@ import argparse
 import json
 from pathlib import Path
 import subprocess
+import zipfile
 from state import ROOT, load_module, read, sha, git
 
 
@@ -17,11 +18,13 @@ def source_identity(component):
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--configuration', type=Path, required=True); p.add_argument('--output', type=Path, required=True); a = p.parse_args(); config = read(a.configuration)
+	p = argparse.ArgumentParser(); p.add_argument('--configuration', type=Path, required=True); p.add_argument('--output', type=Path, required=True); p.add_argument('--previous-report', type=Path); a = p.parse_args(); config = read(a.configuration)
 	paths = load_module('recover_audit_paths', ROOT/'tests/selfhost-effects/recover-build.py'); original = load_module('recover_audit_preservation', ROOT/'tests/selfhost-effects/state.py'); r2 = load_module('recover_audit_approval', ROOT/'tests/selfhost-effects/r2-state.py')
 	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip(), 'Commit task-owned sources and findings before the final audit'
 	head = git('rev-parse', 'HEAD').strip(); tree = git('rev-parse', 'HEAD^{tree}').strip(); assert subprocess.run(['git', 'merge-base', '--is-ancestor', '271d1b80b3922da1466ea303b7deea9e941249d1', head], cwd=ROOT).returncode == 0
-	preservation = original.preservation(); approval = r2.approval(); old = paths.RUNTIME/'checkpoint-report.zip'; canonical = ROOT.parent/'codex/reports/astra-report-current.zip'; assert sha(old) == sha(canonical) == '8cc90df9c524cd8a22ca0e9ba166920cff9962cc92a493691de64121aad5dc5a'
+	preservation = original.preservation(); approval = r2.approval(); checkpoint = paths.RUNTIME/'checkpoint-report.zip'; assert sha(checkpoint) == '8cc90df9c524cd8a22ca0e9ba166920cff9962cc92a493691de64121aad5dc5a'; old = a.previous_report or checkpoint; canonical = ROOT.parent/'codex/reports/astra-report-current.zip'; assert sha(old) == sha(canonical)
+	with zipfile.ZipFile(old) as previous:
+		assert previous.testzip() is None; previous_result = json.loads(previous.read('RESULT.json')); assert previous_result['status'] == 'PARTIAL' and previous_result['milestone_id'] == 'ASTRA-SELFHOST-EFFECTS-25-R2' and previous_result['submission_sha256'] == '95899164ec3ab946f6e23e10c69c6e635d49bf70e5a03e05b028ce8d960c9244'; assert subprocess.run(['git','merge-base','--is-ancestor',previous_result['final_commit'],head],cwd=ROOT).returncode == 0
 	profiles = {}
 	for mode in ('O0', 'O2'):
 		profile = config['profiles'][mode]; component = Path(profile['component']); identity = source_identity(component); assert identity['identity']['argv'][1] == '-'+mode
@@ -64,7 +67,7 @@ def main():
 		# must have separate implementation and independent qualification evidence.
 	residual = config['remaining_boundary']; assert isinstance(residual, str) and residual
 	gates = dict(G0='PASS: approval, submission ancestry and historical PARTIAL preserved', G1='PASS: 202 native identities and four frozen source populations per profile', G2='PASS: genuine checked void/scalar success/error ELF and independent C0/LLVM/Valgrind', G3='PARTIAL: qualified direct carriers and Error layout; '+residual, G4='PARTIAL: independently checked implemented owners and exits; '+residual, G5='PARTIAL: independently checked implemented stage domain; '+residual, G6='PASS: at least twelve distinct Astra source identities, eight error and four success/cleanup per profile', G7='PASS for the returning qualified domain; fatal guards and absent source forms remain separately attributed', G8='PASS for the qualified mutation domain; source-boundaries remain explicit', G9='PASS' if all(p['original_function_attempt']['Astra_actual_execution'] == 42 for p in profiles.values()) else 'PARTIAL: complete immutable cohorts rechecked; original throwing function has no qualified Astra execution', G10='PASS: inherited raw LLVM, statuses, protected paths, donor and historical proofs preserved', G11='PASS: unchanged C0/public ABI/LLVM23/limits/history/workflow; measured costs retain exact build attribution', G12='PENDING: installed publisher amendment and subsequent independent archive verification')
-	result = dict(format='astra-effects25-completion-audit/1', status='PARTIAL', final_commit=head, final_tree=tree, previous_report_sha256=sha(canonical), configuration_path=str(a.configuration), configuration_sha256=sha(a.configuration), preservation=preservation, approval=approval, profiles=profiles, gates=gates, remaining_boundary=residual, costs=config['costs'], limitations=config['limitations']); a.output.write_text(json.dumps(result, indent=2)+'\n'); print('PARTIAL; exact current native/source/protection evidence bound to',head,tree,flush=True)
+	result = dict(format='astra-effects25-completion-audit/1', status='PARTIAL', final_commit=head, final_tree=tree, previous_report_sha256=sha(canonical), previous_report_path=str(old), configuration_path=str(a.configuration), configuration_sha256=sha(a.configuration), preservation=preservation, approval=approval, profiles=profiles, gates=gates, remaining_boundary=residual, costs=config['costs'], limitations=config['limitations']); a.output.write_text(json.dumps(result, indent=2)+'\n'); print('PARTIAL; exact current native/source/protection evidence bound to',head,tree,flush=True)
 
 
 if __name__ == '__main__':

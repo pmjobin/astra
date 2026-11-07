@@ -68,6 +68,10 @@ def main():
 				if not path.is_file() or path.is_symlink(): continue
 				parts = path.relative_to(directory).parts
 				if prefix == 'runtime' and (parts[0].startswith('handoff-') or path.suffix == '.zip'): continue
+				# Prior publication decoding only copies the already indexed archive
+				# and attachments. Keep its actual verification output and receipt,
+				# without nesting transport copies in the next transport archive.
+				if prefix == 'runtime' and parts[0].startswith('published-verification') and len(parts) > 1 and path.name not in ('restore.stdout','restore.stderr','restore.time'): continue
 				add(prefix+'/'+str(path.relative_to(directory)),path=path)
 		for mode,profile in audit['profiles'].items():
 			identity = read(Path(profile['component']).with_suffix('.identity.json'))
@@ -87,7 +91,7 @@ def main():
 			if path.is_file(): add('submission/'+path.name,path=path)
 		add('submission/E25-A-v1-proposal.md',path=packet/'reference/approved/E25-A-v1-proposal.md')
 		add('workflow/intake-before-amendment.json',path=paths.RUNTIME.parent/'native-current/pm-next-intake.json')
-		old = paths.RUNTIME/'checkpoint-report.zip'; assert sha(old) == audit['previous_report_sha256']
+		old = Path(audit.get('previous_report_path', paths.RUNTIME/'checkpoint-report.zip')); assert sha(old) == audit['previous_report_sha256']
 		with zipfile.ZipFile(old) as previous:
 			for name in ('RESULT.json','REPORT.md','MANIFEST.json','changes.patch'):
 				if name in previous.namelist(): add('history/previous-'+name,data=previous.read(name))
@@ -108,7 +112,7 @@ def main():
 	verify = leaf/'decoder-verification'; r = bounded_run([sys.executable,'-B',ROOT/'tests/selfhost-effects/restore.py',archive,'--output',verify,'--verify-only'],capture_output=True,timeout=1200); (leaf/'decoder.stdout').write_bytes(r.stdout); (leaf/'decoder.stderr').write_bytes(r.stderr); assert r.returncode == 0,r.stderr[-2500:]
 	attachments = leaf/'attachments'; attachments.mkdir(); tool = ROOT/'tools/qualification/encoded-evidence.py'; r = bounded_run([sys.executable,'-B',tool,'pack','--input',archive,'--output',attachments,'--stem','effects25-completion'],capture_output=True,timeout=300); (leaf/'packing.stdout').write_bytes(r.stdout); (leaf/'packing.stderr').write_bytes(r.stderr); assert r.returncode == 0,r.stderr[-2500:]
 	shutil.copy2(a.audit,attachments/'final-audit.json'); shutil.copy2(tool,attachments/'decode-evidence.py.txt'); shutil.copy2(ROOT/'tests/selfhost-effects/restore.py',attachments/'restore-effects.py.txt'); shutil.copy2(ROOT/'tests/selfhost-genref/columns.py',attachments/'restore-columns.py.txt')
-	packaging = dict(status='LOSSLESS_EVIDENCE_VERIFIED',logical_files=len(index),unique_blobs=len(blobs),column_observations=len(encoded),byte_exact_column_reuse=reused,column_reuse_limitation='Transport encoding reuse only; every reconstructed observation is hashed again, with no semantic/runtime credit from reuse.',archive_bytes=archive.stat().st_size,archive_sha256=sha(archive),seconds=time.monotonic()-start,previous_report_sha256=sha(old)); (attachments/'packaging.json').write_text(json.dumps(packaging,indent=2)+'\n')
+	packaging = dict(status='LOSSLESS_EVIDENCE_VERIFIED',logical_files=len(index),unique_blobs=len(blobs),column_observations=len(encoded),byte_exact_column_reuse=reused,column_reuse_limitation='Transport encoding reuse only; every reconstructed observation is hashed again, with no semantic/runtime credit from reuse.',prior_publication_decoding='Generated attachment/archive copies are excluded; actual restore stdout/stderr/time and the publication receipt are retained. Prior report ZIPs remain byte-exact in report-history.',archive_bytes=archive.stat().st_size,archive_sha256=sha(archive),seconds=time.monotonic()-start,previous_report_sha256=sha(old)); (attachments/'packaging.json').write_text(json.dumps(packaging,indent=2)+'\n')
 	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact gates, native counts, original-source attempts, costs and deferrals. Decode effects25-completion-encoding.json using decode-evidence.py.txt to recover the tar.xz. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py; run restore-effects.py ARCHIVE --output DIRECTORY --verify-only to verify all logical bytes without executing evidence. Original/R1/current-old PARTIAL checkpoints retain their identities and Git history. ABI caller adapters and independent C/C++/C0 probes have zero Astra program credit. Installed publication plus its independent ZIP verification establishes G12.\n')
 	files = [dict(path=path.name,bytes=path.stat().st_size,sha256=sha(path)) for path in sorted(attachments.iterdir())]; assert all(row['bytes'] <= 2*1024**2 for row in files) and len(files) <= 128; manifest = attachments/'INDEX.json'; manifest.write_text(json.dumps(dict(format='pm-next-evidence/1',files=files),indent=2)+'\n')
 	counts = ', '.join(mode+': '+str(profile['native_programs'])+' genuine Astra programs ('+str(profile['actual_error_programs'])+' error paths)' for mode,profile in audit['profiles'].items())

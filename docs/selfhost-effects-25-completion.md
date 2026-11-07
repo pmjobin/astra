@@ -6,7 +6,7 @@ This continues the published PARTIAL checkpoint at
 amendment after engineering, preserving the current report as history. Its
 SHA-256 remains
 `8cc90df9c524cd8a22ca0e9ba166920cff9962cc92a493691de64121aad5dc5a`.
-No new intake, repinning, ABI decision, or publication has occurred here.
+No new intake, repinning, or ABI decision was needed for this continuation.
 
 ## First actual error ELFs
 
@@ -310,10 +310,14 @@ profiles. Complete Utf8Message/native compiler admission, numerical/stress
 deferrals and Stage 1 remain unqualified. Predicate 26 is separately deferred.
 The final audit and installed report bind exact final HEAD/tree and all receipts.
 
-The 202 inherited programs and frozen source cohorts have not yet been replayed
-using a combined current compiler. Earlier R2 qualifications remain tied to
-their original products. Full final costs, warm reuse and all gate results still
-need consolidation before the installed report amendment is published.
+The installed workflow published and independently verified the first completion
+amendment at `42bf26d63196cc78b578cbb4d6bc9cb89313f51e`, report SHA-256
+`ece8b386c2c314b4023bcdf1f5cd68e27bb35115792646475b0b76d2a8edfc70`.
+Final document review found a stale pre-qualification paragraph, removed here.
+This documentation correction preserves that verified PARTIAL report and its
+receipt as history. The compiler products, qualification results and remaining
+implementation boundary above are unchanged; the final audit and replacement
+report bind the corrected Git identity.
 
 `CheckedIndex.add_signature` predicate 26 remains independently deferred. No
 receiver root, owner slot, `noalias`, verifier exemption, or larger resource
