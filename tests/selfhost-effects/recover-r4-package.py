@@ -43,7 +43,7 @@ def main():
 					if target.exists(): assert target.read_bytes() == data
 					else: target.write_bytes(data)
 			assert not old_parts
-	with tarfile.open(archive,'w:xz',filters=[dict(id=lzma.FILTER_LZMA2,dict_size=256*1024**2,preset=9|lzma.PRESET_EXTREME)]) as packed:
+	with lzma.LZMAFile(archive,'wb',filters=[dict(id=lzma.FILTER_LZMA2,dict_size=256*1024**2,preset=9|lzma.PRESET_EXTREME)]) as compressed, tarfile.open(fileobj=compressed,mode='w') as packed:
 		def store(name,path=None,data=None):
 			entry = tarfile.TarInfo(name); entry.mode = 0o644
 			if path is None: entry.size = len(data); packed.addfile(entry,io.BytesIO(data))
