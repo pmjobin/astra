@@ -35,6 +35,10 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 			row.kind = 5; row.symbol = checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(source));
 			arguments = checked.bindings.program.arena.get_list_arguments(source);
+			if (recover_error_shape(checked, row.symbol, 0)) {
+				var initializer = recover_error_initializer(checked, row.symbol);
+				if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer)) == 0 && checked.bindings.program.arena.list_count(arguments) == 0) arguments = checked.bindings.program.arena.get_list_base_arguments(initializer);
+			}
 		}
 		int count = checked.bindings.program.arena.list_count(arguments); var children = new int[count]; int i = 0;
 		while (i < count && flow.status == 0) {

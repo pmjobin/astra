@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source-bound literal constructors: independent positive twins precede every
+// mutation. These observers do not change any production verifier.
+int recover_r3_constructor(RecoverFlow flow) {
+	int n = 0;
+	while (n < flow.data.node_count) {
+		if (flow.data.nodes[n].kind == 5 && flow.data.nodes[n].handler > 0) return n + 1;
+		n = n + 1;
+	}
+	return 0;
+}
+
+int recover_r3_case(string[] args, int category) throws Error {
+	var source = binding_load_program(args, 3); var bindings = binding_index(move source, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow));
+	int id = recover_r3_constructor(flow); assert_that(id > 0); var construction = flow.data.nodes[id - 1]; int child = flow.data.edges[construction.first]; var literal = flow.data.nodes[child - 1]; var root = checked_effect_root(flow.checked);
+	assert_that(construction.count == 1 && literal.kind == 1 && literal.type.index == 15);
+	if (category < 2) {
+		if (category == 0) flow.types.types[literal.source.index] = type_id(13);
+		if (category == 1) flow.types.types[construction.source.index] = flow.checked.symbol_types[root.index];
+		assert_that(!recover_types_verify(flow.types, flow.checked)); return 1;
+	}
+	if (category < 10) {
+		if (category == 2) literal.source = construction.source;
+		if (category == 3) literal.token = flow.checked.bindings.symbol(root).token;
+		if (category == 4) construction.symbol = root;
+		if (category == 5) construction.type = flow.checked.symbol_types[root.index];
+		if (category == 6) flow.data.edges[construction.first] = id;
+		if (category == 7) construction.count = 0;
+		if (category == 8) literal.handler = 0;
+		if (category == 9) literal.caught = id;
+		flow.data.nodes[id - 1] = construction; flow.data.nodes[child - 1] = literal;
+		assert_that(!recover_flow_verify(flow)); return 2;
+	}
+	var core = recover_core_lower(move flow); assert_that(recover_core_verify(core));
+	if (category < 14) {
+		var row = core.nodes[id - 1];
+		if (category == 10) row.result_role = 1;
+		if (category == 11) row.error_owner = 0;
+		if (category == 12) row.value.symbol = root;
+		if (category == 13) row.place = 1;
+		core.nodes[id - 1] = row; assert_that(!recover_core_verify(core)); return 3;
+	}
+	var cfg = recover_cfg_lower(move core, 8192); assert_that(recover_cfg_verify(cfg));
+	if (category < 17) {
+		int b = 0; bool changed = false;
+		while (b < cfg.block_count && !changed) {
+			var row = cfg.blocks[b];
+			if (row.opcode == 5 && row.origin == id) {
+				if (category == 14) row.owner = 0;
+				if (category == 15) row.other = row.next;
+				cfg.blocks[b] = row; changed = category != 16;
+			}
+			if (category == 16 && row.origin == child) {
+				row.function = 0;
+				cfg.blocks[b] = row;
+				changed = true;
+			}
+			b = b + 1;
+		}
+		assert_that(changed && !recover_cfg_verify(cfg)); return 4;
+	}
+	var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa));
+	if (category == 18) {
+		var value = ssa.data.values[child];
+		value.type = type_id(13);
+		ssa.data.values[child] = value;
+	}
+	else {
+		var value = ssa.data.values[id];
+		if (category == 17) value.channel = 0;
+		if (category == 19) value.edge = 1;
+		ssa.data.values[id] = value;
+	}
+	assert_that(!recover_ssa_verify(ssa)); return 5;
+}
+
+bool recover_r3_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (block.opcode == 5 && ssa.cfg.core.nodes[block.origin - 1].value.handler > 0) {
+			var operation = module.operations[b]; var root = checked_effect_root(ssa.cfg.core.flow.checked);
+			if (category == 0) LLVMSetOperand(operation, 0, module.descriptors[root.index]);
+			if (category == 1) LLVMSetOperand(operation, 1, LLVMConstNull(module.pointer));
+			if (category == 2) LLVMSetOperand(operation, 2, LLVMConstInt(module.integer, 0, 0));
+			if (category == 3) LLVMSetOperand(operation, 0, LLVMConstNull(module.pointer));
+			if (category == 4) LLVMSetOperand(operation, 1, module.descriptors[root.index]);
+			if (category == 5) LLVMSetOperand(operation, 2, LLVMConstInt(module.integer, 2147483647 as u64, 0));
+			return true;
+		}
+		b = b + 1;
+	}
+	return false;
+}
+
+int recover_r3_mutations_cli(string[] args) {
+	try {
+		int category = 0;
+		while (category < 20) {
+			int stage = recover_r3_case(args, category); var out = new Utf8ByteBuilder(); source_append_text(out, "R3_SEMANTIC_REJECT "); append_int(out, category); source_append_text(out, " "); append_int(out, stage); var text = out.snapshot(); println(text.text); category = category + 1;
+		}
+		var source = binding_load_program(args, 3); var bindings = binding_index(move source, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;
+		while (category < 6) {
+			var module = new RecoverLlvm(ssa); module.build(ssa); assert_that(module.check(ssa)); assert_that(recover_r3_physical(module, ssa, category)); assert_that(llvm12_verify(module.module) == 0); assert_that(!module.check(ssa));
+			var output = new Utf8ByteBuilder(); source_append_text(output, args[2]); source_append_text(output, "/r3-physical-"); append_int(output, category); source_append_text(output, ".ll"); var path = output.snapshot(); assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0);
+			var out = new Utf8ByteBuilder(); source_append_text(out, "R3_LLVM_VALID_REJECT "); append_int(out, category); var text = out.snapshot(); println(text.text); category = category + 1;
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

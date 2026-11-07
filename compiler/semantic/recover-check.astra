@@ -48,6 +48,16 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		} else {
 			if (kind != SyntaxKind.HeapObjectConstructionSyntax() || row.symbol.index != checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(source)).index || !recover_error_shape(checked, row.symbol, 0) || checked_kind(checked, row.type) != 31 || checked.types.row(row.type).nominal.index != row.symbol.index || row.count != 1) return false;
 			arguments = checked.bindings.program.arena.get_list_arguments(source);
+			// The constructor's retained literal is the sole message operand for
+			// a zero-parameter initializer. It is not a fabricated call argument.
+			var initializer = recover_error_initializer(checked, row.symbol);
+			if (initializer.index == 0) return false;
+			int parameters = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer));
+			if (checked.bindings.program.arena.list_count(arguments) != parameters) return false;
+			if (parameters == 0) {
+				arguments = checked.bindings.program.arena.get_list_base_arguments(initializer);
+				if (checked.bindings.program.arena.list_count(arguments) != 1 || checked.bindings.program.arena.kind(checked.bindings.program.arena.node_at(arguments, 0)) != SyntaxKind.TextLiteralExpressionSyntax()) return false;
+			}
 		}
 		if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
 		int i = 0;

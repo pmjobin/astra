@@ -58,6 +58,9 @@ TypeId recover_type_compute(RecoverTypes data, CheckedIndex checked, SyntaxNodeI
 	if (node.index == 0 || depth > 192 || !data.take(node)) return no_type();
 	if (data.types[node.index].index != 0) return data.types[node.index];
 	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.TextLiteralExpressionSyntax() && recover_error_base_literal(checked, node)) {
+		var type = type_id(15); data.types[node.index] = type; return type;
+	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 		var type = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_expression(node), depth + 1);
 		data.types[node.index] = type;

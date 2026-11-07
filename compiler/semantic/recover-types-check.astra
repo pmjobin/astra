@@ -27,6 +27,7 @@ bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
 			}
 			else {
 				var kind = checked.bindings.program.arena.kind(node); TypeId expected = {index = 0};
+				if (kind == SyntaxKind.TextLiteralExpressionSyntax() && recover_error_base_literal(checked, node)) expected = type_id(15);
 				if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 					var child = checked.bindings.program.arena.get_node_expression(node);
 					expected = data.types[child.index];

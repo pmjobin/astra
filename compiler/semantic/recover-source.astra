@@ -7,6 +7,26 @@ bool recover_member_attributes(CheckedIndex checked, SyntaxNodeId node) {
 
 bool recover_plain_member(CheckedIndex checked, SyntaxNodeId node) { return recover_member_attributes(checked, node) && checked.bindings.program.arena.get_node_throws_class(node).index == 0; }
 
+SyntaxNodeId recover_error_initializer(CheckedIndex checked, SymbolId symbol) {
+	SyntaxNodeId absent = {index = 0};
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return absent;
+	var declaration = checked.bindings.symbol(symbol);
+	if (declaration.kind != 4) return absent;
+	var members = checked.bindings.program.arena.get_list_members(declaration.node); int i = 0;
+	while (i < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, i);
+		if (checked.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init")) {
+			if (absent.index != 0) {
+				SyntaxNodeId invalid = {index = 0};
+				return invalid;
+			}
+			absent = member;
+		}
+		i = i + 1;
+	}
+	return absent;
+}
+
 // The initial physical slice admits one snapshot string in the root and no
 // extra derived payload. Every constructor/getter body is checked explicitly.
 bool recover_error_shape(CheckedIndex checked, SymbolId symbol, int depth) {
@@ -39,9 +59,13 @@ bool recover_error_shape(CheckedIndex checked, SymbolId symbol, int depth) {
 		if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
 			if (!recover_plain_member(checked, member) || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init") || checked.bindings.program.arena.get_int_dispatch(member) != 0) return false;
 			var parameters = checked.bindings.program.arena.get_list_parameters(member);
-			if (checked.bindings.program.arena.list_count(parameters) != 1) return false;
-			var parameter_node = checked.bindings.program.arena.node_at(parameters, 0); var parameter = checked.node_symbols[parameter_node.index];
-			if (parameter.index < 1 || checked.symbol_types[parameter.index].index != 15 || checked.symbol_flags[parameter.index] != 0) return false;
+			int parameter_count = checked.bindings.program.arena.list_count(parameters);
+			if (parameter_count != 1 && (is_root || parameter_count != 0)) return false;
+			var parameter = type_symbol(0);
+			if (parameter_count == 1) {
+				var parameter_node = checked.bindings.program.arena.node_at(parameters, 0); parameter = checked.node_symbols[parameter_node.index];
+				if (parameter.index < 1 || checked.symbol_types[parameter.index].index != 15 || checked.symbol_flags[parameter.index] != 0) return false;
+			}
 			var body = checked.bindings.program.arena.get_node_body(member);
 			if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
 			var statements = checked.bindings.program.arena.get_list_statements(body); var base_arguments = checked.bindings.program.arena.get_list_base_arguments(member);
@@ -53,8 +77,14 @@ bool recover_error_shape(CheckedIndex checked, SymbolId symbol, int depth) {
 				if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this") || !generic_token_equal(checked, checked.bindings.program.arena.get_token_field_name(target), checked.bindings.symbol(field).token) || checked.bindings.program.arena.kind(value) != SyntaxKind.NameExpressionSyntax() || checked_target(checked, value, checked.bindings.program.arena.get_token_identifier(value)).index != parameter.index) return false;
 			} else {
 				if (checked.bindings.program.arena.list_count(base_arguments) != 1 || checked.bindings.program.arena.list_count(statements) != 0) return false;
+				var base_initializer = recover_error_initializer(checked, checked_effect_class(checked, parent));
+				if (base_initializer.index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(base_initializer)) != 1) return false;
 				var value = checked.bindings.program.arena.node_at(base_arguments, 0);
-				if (checked.bindings.program.arena.kind(value) != SyntaxKind.NameExpressionSyntax() || checked_target(checked, value, checked.bindings.program.arena.get_token_identifier(value)).index != parameter.index) return false;
+				if (parameter_count == 0) {
+					if (checked.bindings.program.arena.kind(value) != SyntaxKind.TextLiteralExpressionSyntax() || checked.uses[value.index].type.index != 0 && checked.uses[value.index].type.index != 15) return false;
+				} else {
+					if (checked.bindings.program.arena.kind(value) != SyntaxKind.NameExpressionSyntax() || checked_target(checked, value, checked.bindings.program.arena.get_token_identifier(value)).index != parameter.index) return false;
+				}
 			}
 			constructors = constructors + 1;
 		} else {
@@ -76,6 +106,28 @@ bool recover_error_shape(CheckedIndex checked, SymbolId symbol, int depth) {
 		i = i + 1;
 	}
 	return constructors == 1 && (is_root && getters == 1 || !is_root && getters == 0);
+}
+
+// Original deferred constructors have no expression use for base arguments.
+// The literal receives the built-in string type only in this independently
+// checked, nonthrowing, zero-parameter Error initializer context.
+bool recover_error_base_literal(CheckedIndex checked, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(checked.uses) || checked.bindings.program.arena.kind(node) != SyntaxKind.TextLiteralExpressionSyntax()) return false;
+	var scope = checked.bindings.scope_for_node(node); int depth = 0;
+	while (scope.index > 0 && depth < 192) {
+		var binding = checked.bindings.scope(scope);
+		if (binding.owner.index > 0) {
+			var owner = checked.bindings.symbol(binding.owner);
+			if (owner.kind == 12) {
+				if (!recover_error_shape(checked, owner.owner, 0) || recover_error_initializer(checked, owner.owner).index != owner.node.index || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(owner.node)) != 0) return false;
+				var arguments = checked.bindings.program.arena.get_list_base_arguments(owner.node);
+				return checked.bindings.program.arena.list_count(arguments) == 1 && checked.bindings.program.arena.node_at(arguments, 0).index == node.index;
+			}
+			if (owner.kind == 1 || owner.kind == 11) return false;
+		}
+		scope = binding.parent; depth = depth + 1;
+	}
+	return false;
 }
 
 bool recover_function_source(CheckedIndex checked, SymbolId symbol) { return recover_owner_function_source(checked, symbol); }
