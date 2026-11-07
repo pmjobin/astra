@@ -41,13 +41,13 @@ def main():
 					if not row['name'].startswith(('typecore-', 'ownflow-')): continue
 					stderr = receipt.parent/(row['name']+'.stderr'); values = time_values(stderr); flags = row['argv']; effective = check_flag(flags,stderr); kind = 'Core check' if effective == '--dump-core' else 'LLVM lowering/verification check' if effective == '--check' else 'Native compiler build'
 					if directory.name.startswith('build-typeproof-'): kind = 'Focused Typecore source-observation compiler build'
-					builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr_sha256=sha(stderr),exit=row['exit'],monotonic_start=row['start'],monotonic_end=row['end'],**values))
+					builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr=str(stderr),stderr_sha256=sha(stderr),exit=row['exit'],monotonic_start=row['start'],monotonic_end=row['end'],**values))
 		if directory.name.startswith('full-build-'):
 			for receipt in sorted(directory.glob('build-*/ownflow-*.json')):
 				if '-input-identity' in receipt.name or '-exact-reuse' in receipt.name: continue
 				row = read(receipt)
 				if 'argv' not in row: continue
-				stderr = receipt.with_suffix('.stderr'); flags = row['argv']; values = time_values(stderr); effective = check_flag(flags,stderr); kind = 'Combined Core check' if effective == '--dump-core' else 'Combined LLVM lowering/verification check' if effective == '--check' else 'Combined native compiler build'; builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr_sha256=sha(stderr),recorded_check_flag='--check' if '--check' in flags else None,effective_check_flag=effective,exit=row['exit'],monotonic_start=row['monotonic_start'],monotonic_end=row['monotonic_end'],**values))
+				stderr = receipt.with_suffix('.stderr'); flags = row['argv']; values = time_values(stderr); effective = check_flag(flags,stderr); kind = 'Combined Core check' if effective == '--dump-core' else 'Combined LLVM lowering/verification check' if effective == '--check' else 'Combined native compiler build'; builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr=str(stderr),stderr_sha256=sha(stderr),recorded_check_flag='--check' if '--check' in flags else None,effective_check_flag=effective,exit=row['exit'],monotonic_start=row['monotonic_start'],monotonic_end=row['monotonic_end'],**values))
 		if directory.name.startswith('warm-') and (directory/'result.json').is_file():
 			row = read(directory/'result.json')
 			if row['status'] == 'EXACT_IDENTITY_REUSE': reuse.append(dict(result=str(directory/'result.json'),result_sha256=sha(directory/'result.json'),measurement=time_values(directory/'time'),**row))

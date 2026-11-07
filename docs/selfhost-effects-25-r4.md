@@ -30,7 +30,7 @@ was not reached in this candidate; its historical deferral was never promoted.
 The producer correction separates temporary specialization during argument
 checking from a completed call proof. Calls with an untyped argument retain
 their conditional result and original deferral but remove the premature proof
-entry. Every completed call still passes the unchanged independent generic
+entry. Every completed call still passes independent generic
 verifier. Small C0-valid ordinary and checked calls reproduced the bug at both
 profiles; their computed getter remains unsupported. The positive control
 retains its completed proof. Final replay must also preserve the exact frozen
@@ -53,6 +53,20 @@ profile must reproduce graph 55/symbol 2053/predicate 26; the private effects
 profile separately qualifies the new native programs and original-source
 attempts. Both profiles, all failed experiments and every unresolved gate remain
 visible in the evidence. Overall status remains PARTIAL.
+
+The focused `proof12b` O0 component reproduces the complete raw observations
+for all four frozen cohorts byte-for-byte against the fresh R3 baseline. Their
+79/85/92/92 logical file counts each include one synthetic builtin source;
+the explicit command inputs contain 78/84/91/91 files. Conditional 17/19 facts
+and graph 55/symbol 2053's unknown root remain intact. These read-only focused
+observations do not replace integrated source/node ledgers, native refusal
+attempts or the independent predicate-26 diagnostic.
+
+The source-mapping ledger uses the retained profile. It supplies unchanged
+syntax node/span/byte correspondence, without conferring private field-effects
+authority. The separate source-policy query prints its explicit private profile.
+The final audit keeps the predecessor R3 gates, this ZIP's ACCEPTANCE.md gates
+and TASK.md workstream gates as three distinct maps with their original scope.
 
 ## Implementation and independent boundaries
 
