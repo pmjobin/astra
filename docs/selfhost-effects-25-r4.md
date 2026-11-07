@@ -68,6 +68,15 @@ authority. The separate source-policy query prints its explicit private profile.
 The final audit keeps the predecessor R3 gates, this ZIP's ACCEPTANCE.md gates
 and TASK.md workstream gates as three distinct maps with their original scope.
 
+The small call-proof controls also distinguish those profiles. The explicit
+private query proves one completed call for the fully typed input and none
+for either unsupported computed-getter argument, with consumer zero. The
+retained source ledger records `(type, flags, deferral)` as `(1,0,0)`,
+`(0,0,15)` and `(0,0,17)` respectively. It does not report the private
+specialization's conditional result. Earlier harness expectations conflated
+these modes; both failed assertions and the independent three-case measurement
+are preserved. The frozen FlowGraph 17/19 assertions remain separate and strict.
+
 ## Implementation and independent boundaries
 
 Ordinary finite Classes reuse nominal Class storage plans and module-owned

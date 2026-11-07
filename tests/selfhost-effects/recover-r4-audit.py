@@ -88,11 +88,11 @@ def main():
 		assert all(row['trace_equal'] for row in read(paths.RUNTIME/profile['lifetime']/'result.json')['programs'])
 		proofs = read(paths.RUNTIME/profile['generic_call_proof']/'result.json'); assert len(proofs['programs']) == 3 and all(r['source_check'] == [3, 0, 0] and r['C0_exit'] == 42 for r in proofs['programs'])
 		assert proofs['status'] == 'INDEPENDENT_GENERIC_CALL_PROOF_CONTROLS'
-		assert proofs['semantic_profiles'] == dict(call_proof='Explicit private checked_build_effects_profile', conditional_use_ledger='Retained checked_build_profile, field_effects false', original_method_signature='Retained checked_build_profile, field_effects false')
+		assert proofs['semantic_profiles'] == dict(call_proof='Explicit private checked_build_effects_profile', retained_use_ledger='Retained checked_build_profile, field_effects false', original_method_signature='Retained checked_build_profile, field_effects false')
 		assert read(paths.RUNTIME/profile['original_policy']/'result.json')['semantic_profile'] == 'Explicit private checked_build_effects_profile'
 		commands(paths.RUNTIME/profile['generic_call_proof'], read(paths.RUNTIME/profile['generic_call_proof']/'commands.json'))
 		for row in proofs['programs']:
-			assert row['completed_call_proofs'] == (1 if row['name'] == 'complete-arguments' else 0) and row['conditional_use'] == [1, 0, 17 if row['name'] == 'deferred-checked-argument' else 19]
+			assert row['completed_call_proofs'] == (1 if row['name'] == 'complete-arguments' else 0) and row['retained_call_use'] == {'complete-arguments': [1, 0, 0], 'deferred-ordinary-argument': [0, 0, 15], 'deferred-checked-argument': [0, 0, 17]}[row['name']]
 			assert row['original_signature_retained'] == (row['name'] == 'deferred-checked-argument')
 			assert sha(paths.RUNTIME/profile['generic_call_proof']/(row['name']+'.astra')) == row['source_sha256']; memory(paths.RUNTIME/profile['generic_call_proof']/(row['name']+'-C0-memory.stderr'))
 		loans = read(paths.RUNTIME/profile['class_loans']/'result.json'); assert len(loans['programs']) == 9 and sum(r['Astra_emitted'] for r in loans['programs']) == 2
