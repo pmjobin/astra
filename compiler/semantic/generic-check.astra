@@ -2,13 +2,21 @@
 // Separate consumer: reconstruct substitution from declaration/argument edges.
 // No builder, cached trust bit, serialized projection or native layout is used.
 bool generic_checked_instance_verified(CheckedIndex index, GenericInstance plan) {
-	var origin = index.bindings.symbol(plan.origin); var concrete = index.bindings.symbol(plan.concrete);
-	int first = index.symbol_signatures[plan.origin.index].index; int second = index.symbol_signatures[plan.concrete.index].index;
-	if (first < 1 || first > index.signature_count || second < 1 || second > index.signature_count) return false;
-	var source = index.signatures[first - 1]; var result = index.signatures[second - 1];
-	if ((source.flags & 64) == 0 && (result.flags & 64) == 0) return source.error.index == 0 && result.error.index == 0;
-	if (!checked_effect_signature_verified(index, source) || !checked_effect_signature_verified(index, result) || generic_channel_flags(index, index.types.argument(index.types, source.callable, 0).type, index.types.argument(index.types, result.callable, 0).type, source.flags) != result.flags) return false;
-	if (!index.native_abi || !index.semantic_admission || !index.class_storage || source.error.index != result.error.index || checked_kind(index, result.error) != 31 || source.dispatch != 0 || result.dispatch != 0 || (source.flags & (8 | 16 | 32)) != 0) return false;
+	var origin = index.bindings.symbol(plan.origin); var concrete = index.bindings.symbol(plan.concrete); var node = origin.node;
+	int ordinal = index.symbol_signatures[plan.concrete.index].index;
+	if (ordinal < 1 || ordinal > index.signature_count) return false;
+	var result = index.signatures[ordinal - 1]; var bound_node = index.bindings.program.arena.get_node_throws_class(node); int source_flags = index.symbol_flags[plan.origin.index];
+	if (result.declaration.index != plan.concrete.index || result.callable.index != index.symbol_types[plan.concrete.index].index) return false;
+	if (bound_node.index == 0) return (source_flags & 64) == 0 && (result.flags & 64) == 0 && result.error.index == 0;
+	// A template has a typed callable and source bound, never an executable
+	// signature row. Compare the actual concrete signature to those facts.
+	if (!index.native_abi || !index.semantic_admission || !index.class_storage || index.symbol_signatures[plan.origin.index].index != 0 || (source_flags & (8 | 16 | 32 | 64)) != 64 || !checked_effect_signature_verified(index, result) || result.dispatch != 0) return false;
+	var pattern = index.symbol_types[plan.origin.index];
+	if (!index.types.valid_id(pattern) || !index.types.valid_id(result.callable) || index.types.row(pattern).kind != 25 || index.types.row(result.callable).kind != 25 || index.types.row(pattern).count < 1 || index.types.row(result.callable).count < 1) return false;
+	if (generic_channel_flags(index, index.types.argument(index.types, pattern, 0).type, index.types.argument(index.types, result.callable, 0).type, source_flags) != result.flags) return false;
+	var bound = checked_effect_class(index, bound_node); if (bound.index == 0) return false;
+	var bound_class = index.bindings.symbol(bound); var parameters = index.bindings.program.arena.get_list_type_parameters(bound_class.node); var error = index.symbol_types[bound.index];
+	if (index.bindings.program.arena.list_count(parameters) != 0 || result.error.index != error.index || !checked_effect_bound(index, bound_node, error)) return false;
 	if (origin.kind != 1 && origin.kind != 11 || concrete.kind != 1) return false;
 	if (origin.kind == 1 && (origin.owner.index != 0 || plan.enclosing.index != 0)) return false;
 	if (origin.kind == 11) {
@@ -16,9 +24,8 @@ bool generic_checked_instance_verified(CheckedIndex index, GenericInstance plan)
 		var owner = index.bindings.symbol(origin.owner); var fields = index.bindings.program.arena.get_list_fields(owner.node);
 		if (index.bindings.program.arena.list_count(fields) != 0) return false;
 	}
-	var node = origin.node;
-	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
-	return checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(node), source.error) && checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(concrete.node), result.error);
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_int_dispatch(node) != 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_bool_utf8_factory(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
+	return checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(concrete.node), result.error);
 }
 
 bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeId actual, int depth) {

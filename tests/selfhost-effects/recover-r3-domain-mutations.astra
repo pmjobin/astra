@@ -34,6 +34,10 @@ int recover_r3_domain_case(string[] args, int category) throws Error {
 			int id = flow.checked.symbol_signatures[source.symbol.index].index; var signature = flow.checked.signatures[id - 1]; signature.error = type_id(13); flow.checked.signatures[id - 1] = signature;
 		}
 		if (category == 17) flow.checked.symbol_flags[source.symbol.index] = flow.checked.symbol_flags[source.symbol.index] & ~64;
+		if (category == 18) {
+			var signature = flow.checked.symbol_signatures[source.symbol.index];
+			flow.checked.symbol_signatures[plan.origin.index] = signature;
+		}
 		assert_that(!generic_verify(flow.checked)); return 1;
 	}
 	if (category == 2 || category == 3 || category == 10 || category == 11 || category == 12) {
@@ -163,7 +167,7 @@ bool recover_r3_domain_physical(RecoverLlvm module, RecoverSsa ssa, int category
 int recover_r3_domain_mutations_cli(string[] args) {
 	try {
 		int category = 0;
-		while (category < 18) {
+		while (category < 19) {
 			int stage = recover_r3_domain_case(args, category); var out = new Utf8ByteBuilder(); source_append_text(out, "R3_DOMAIN_REJECT "); append_int(out, category); source_append_text(out, " "); append_int(out, stage); var text = out.snapshot(); println(text.text); category = category + 1;
 		}
 		var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;

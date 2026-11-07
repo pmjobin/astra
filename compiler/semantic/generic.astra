@@ -326,9 +326,9 @@ bool generic_checked_source(CheckedIndex index, SymbolId origin, TypeId enclosin
 		if (index.bindings.program.arena.list_count(fields) != 0) return false;
 	}
 	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_int_dispatch(node) != 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
-	int ordinal = index.symbol_signatures[origin.index].index; if (ordinal < 1 || ordinal > index.signature_count) return false;
-	var signature = index.signatures[ordinal - 1];
-	return (signature.flags & (8 | 16 | 32 | 64)) == 64 && checked_effect_signature_verified(index, signature) && checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(node), signature.error);
+	var bound = index.bindings.program.arena.get_node_throws_class(node);
+	if (bound.index < 1 || bound.index >= len(index.uses) || index.bindings.program.arena.get_bool_utf8_factory(node)) return false;
+	return (index.symbol_flags[origin.index] & (8 | 16 | 32 | 64)) == 64 && checked_effect_bound(index, bound, index.uses[bound.index].type);
 }
 
 SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeEdge[] arguments, SyntaxSpan span) throws Error {

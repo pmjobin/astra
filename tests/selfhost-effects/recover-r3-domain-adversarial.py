@@ -9,7 +9,7 @@ import re
 import time
 from state import ROOT, C0, load_module, read, sha, bounded_run
 
-SEMANTIC = ['closed generic argument key', 'concrete call target identity', 'receiver operand authority', 'receiver declaration binding', 'checked method result channel', 'receiver fatal edge', 'receiver before argument evaluation', 'receiver SSA nominal', 'floating Core width', 'floating SSA success width', 'floating source literal width', 'floating unary source operator', 'owned assignment local binding', 'owned assignment Place', 'capture before old-owner retirement', 'owned rvalue SSA channel', 'concrete generic error bound', 'concrete generic checked flag']
+SEMANTIC = ['closed generic argument key', 'concrete call target identity', 'receiver operand authority', 'receiver declaration binding', 'checked method result channel', 'receiver fatal edge', 'receiver before argument evaluation', 'receiver SSA nominal', 'floating Core width', 'floating SSA success width', 'floating source literal width', 'floating unary source operator', 'owned assignment local binding', 'owned assignment Place', 'capture before old-owner retirement', 'owned rvalue SSA channel', 'concrete generic error bound', 'concrete generic checked flag', 'invented executable template signature']
 PHYSICAL = ['receiver/success pointer inversion', 'success written through receiver', 'null guard inversion', 'wrong floating source argument', 'unauthorized fast-math flags', 'wrong floating success value', 'old-owner retirement skipped', 'replacement publication disarmed']
 
 
@@ -28,12 +28,12 @@ def main():
 		r = run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', program], label+'-memory', (42,)); assert b'ERROR SUMMARY: 0 errors' in r.stderr and b'in use at exit: 0 bytes in 0 blocks' in r.stderr and b'(suppressed: 0 from 0)' in r.stderr
 	r = run([a.component, '--r3-domain-adversarial', build, *inputs], 'stage-negatives')
 	semantic = [(int(c), int(s)) for c, s in re.findall(rb'R3_DOMAIN_REJECT ([0-9]+) ([0-9]+)', r.stdout)]; physical = [int(c) for c in re.findall(rb'R3_DOMAIN_LLVM_REJECT ([0-9]+)', r.stdout)]
-	assert semantic == [(i, 1 if i in (0, 1, 16, 17) else 2 if i in (2, 3, 10, 11, 12) else 3 if i in (4, 8, 13) else 4 if i in (5, 6, 14) else 5) for i in range(18)] and physical == list(range(8))
+	assert semantic == [(i, 1 if i in (0, 1, 16, 17, 18) else 2 if i in (2, 3, 10, 11, 12) else 3 if i in (4, 8, 13) else 4 if i in (5, 6, 14) else 5) for i in range(19)] and physical == list(range(8))
 	variants = []
 	for category in physical:
 		variant = build/('domain-physical-'+str(category)+'.ll'); assert sha(variant) != sha(ir)
 		run(['llvm-as', variant, '-o', build/(str(category)+'.bc')], str(category)+'-assemble'); run(['opt', '-passes=verify', '-disable-output', variant], str(category)+'-verify'); target = build/(str(category)+'-optimized.ll'); run(['opt', '-passes=default<'+a.mode+'>', '-S', variant, '-o', target], str(category)+'-optimize'); run(['opt', '-passes=verify', '-disable-output', target], str(category)+'-optimized-verify'); variants.append(dict(category=category, meaning=PHYSICAL[category], LLVM_sha256=sha(variant), optimized_sha256=sha(target)))
-	(leaf/'result.json').write_text(json.dumps(dict(status='INDEPENDENT_CONCRETE_DOMAIN_CONTROLS', profile=a.mode, component_sha256=sha(a.component), source_sha256=sha(source), semantic=[dict(category=c, stage=s, meaning=SEMANTIC[c]) for c, s in semantic], LLVM_valid_physical=variants, primary_corpus_credit=0, limitation='These controls bind implemented concrete forms; fielded ordinary Classes, derived Error fields and the original function chain remain separate obligations.'), indent=2)+'\n'); print(a.mode, '18 concrete-domain mutations and 8 LLVM-valid physical alternatives rejected', flush=True)
+	(leaf/'result.json').write_text(json.dumps(dict(status='INDEPENDENT_CONCRETE_DOMAIN_CONTROLS', profile=a.mode, component_sha256=sha(a.component), source_sha256=sha(source), semantic=[dict(category=c, stage=s, meaning=SEMANTIC[c]) for c, s in semantic], LLVM_valid_physical=variants, primary_corpus_credit=0, limitation='These controls bind implemented concrete forms; fielded ordinary Classes, derived Error fields and the original function chain remain separate obligations.'), indent=2)+'\n'); print(a.mode, '19 concrete-domain mutations and 8 LLVM-valid physical alternatives rejected', flush=True)
 
 
 if __name__ == '__main__':

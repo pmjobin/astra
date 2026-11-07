@@ -49,6 +49,12 @@ def corpus():
 		rows['receiver-distinct-owner'+suffix] = 'class Parcel { init() {} int leaf(owned Parcel other, bool fail) throws Error { if (fail) { throw new Error("kept"); } return 42; } }\nint main() { var value = new Parcel(); var other = new Parcel(); try { '+body+' } '+catch+' }\n'
 		call = 'leaf(value, move other, '+flag+')'; body = scalar(call, 'return '+call+';', fail)
 		rows['borrow-distinct-owner'+suffix] = 'class Parcel { init() {} }\nint leaf(borrowed Parcel view, owned Parcel other, bool fail) throws Error { if (fail) { throw new Error("kept"); } return 42; }\nint main() { var value = new Parcel(); var other = new Parcel(); try { '+body+' } '+catch+' }\n'
+	for fail in (False, True):
+		flag = str(fail).lower(); suffix = '-error' if fail else '-success'
+		body = 'return 3;' if fail else 'if (value == 0.5d) return 42; return 3;'
+		caught = 'if (caught.message == "kept") { if (value == 1.5d) return 42; } return 4;' if fail else 'return 4;'
+		rows['floating-local-assignment'+suffix] = 'f64 leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } return 0.5d; }\nint main() { f64 value = 1.5d; try { value = leaf('+flag+'); '+body+' } catch (Error caught) { '+caught+' } }\n'
+	rows['floating-mutable-loop-success'] = 'f32 leaf(f32 value) throws Error { return +value; }\nint main() { f32 value = 0.0f; int count = 0; try { while (count < 3) { value = leaf(value + 0.5f); count = count + 1; } if (value == 1.5f) return 42; return 3; } catch (Error caught) { return 4; } }\n'
 	rows['floating-signed-zero-success'] = 'f64 leaf(f64 value) throws Error { return -value; }\nint main() { try { var value = leaf(0.0d); if (value == -0.0d) return 42; return 3; } catch (Error caught) { return 4; } }\n'
 	rows['floating-NaN-success'] = 'f64 leaf() throws Error { return 0.0d / 0.0d; }\nint main() { try { var value = leaf(); if (value != value) return 42; return 3; } catch (Error caught) { return 4; } }\n'
 	rows['floating-strict-arithmetic-success'] = 'f32 leaf(f32 value) throws Error { return (value + 0.5f) * 2.0f - 1.0f; }\nint main() { try { if (leaf(1.0f) == 2.0f) return 42; return 3; } catch (Error caught) { return 4; } }\n'

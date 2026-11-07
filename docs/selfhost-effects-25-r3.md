@@ -176,3 +176,13 @@ New authored error fixtures use an unexpected normal exit distinct from 42.
 The intended catch must run to produce 42, and returning Valgrind receipts also
 retain actual Error/snapshot allocation counts. The original function and all
 262 inherited source identities are unchanged by this test strengthening.
+
+Source templates intentionally have no executable signature row. Their typed
+callable, source flags and declared nominal bound describe the specialization;
+the concrete declaration alone owns the runtime signature. The checked generic
+consumer now reconstructs that source contract and compares the actual
+concrete signature, including ownership conversion and error identity. An
+invented executable template signature is independently rejected. An earlier
+candidate incorrectly required such a row; its two full builds and one focused
+build were stopped with complete GNU-time termination receipts. Successful
+Core checks did not establish runtime qualification for that candidate.

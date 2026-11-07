@@ -33,6 +33,8 @@ def main():
 				for row in result['programs']:
 					assert row['name'] not in used and row['Astra_effect_ELF']; used.add(row['name']); source = leaf/(row['name']+'.astra'); build = paths.BUILD/name
 					assert sha(source) == row['source_sha256'] and sha(build/(row['name']+'-Astra')) == row['Astra_ELF_sha256'] and sha(build/(row['name']+'-Astra.ll')) == row['Astra_raw_LLVM_sha256'] and sha(build/(row['name']+'-'+mode+'.ll')) == row['Astra_optimized_LLVM_sha256']
+					assert sha(build/(row['name']+'-C0')) == row['C0_ELF_sha256']
+					for stream in ('stdout', 'stderr'): assert (leaf/(row['name']+'-Astra-execute.'+stream)).read_bytes() == (leaf/(row['name']+'-C0-execute.'+stream)).read_bytes()
 					expected = {'Astra-emit':0, 'Astra-verify':0, 'Astra-optimized-verify':0, 'Astra-execute':42, 'C0-execute':42, 'Astra-memory':42, 'C0-memory':42}
 					for suffix, code in expected.items():
 						command = next(c for c in result['commands'] if c['name'] == row['name']+'-'+suffix); assert command['exit'] == code

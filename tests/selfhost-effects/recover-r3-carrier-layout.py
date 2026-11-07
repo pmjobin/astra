@@ -14,7 +14,8 @@ _Static_assert(sizeof(FloatingBuffer) == 16 && _Alignof(FloatingBuffer) == 8 && 
 
 def main():
 	runner = load_module('r3_floating_layout_runner', ROOT/'tests/selfhost-effects/recover-layout.py')
-	runner.SOURCE = runner.SOURCE.replace('typedef struct Descriptor Descriptor;', FIELDS+'\ntypedef struct Descriptor Descriptor;')
+	common = load_module('r3_common_carrier_layout', ROOT/'tests/selfhost-effects/recover-carrier-layout.py')
+	runner.SOURCE = runner.SOURCE.replace('typedef struct Descriptor Descriptor;', common.FIELDS+FIELDS+'\ntypedef struct Descriptor Descriptor;')
 	runner.main()
 
 
