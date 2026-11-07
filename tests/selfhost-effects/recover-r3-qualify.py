@@ -18,7 +18,7 @@ def corpus():
 		'literal-exact-catch': leaf+'int main() { try { return leaf(true); } catch (SourceBoundsError caught) { if (caught.message == "'+message+'") return 42; return 4; } catch (Error ancestor) { return 5; } }\n',
 		'literal-ancestor-catch': leaf+'int main() { try { return leaf(true); } '+catch+' }\n',
 		'literal-sibling-dispatch': leaf+'int main() { try { return leaf(true); } catch (RuntimeError sibling) { return 5; } '+catch+' }\n',
-		'literal-nested-propagation': leaf+'int relay() throws Error { return leaf(true) + 25; }\nint main() { try { return relay(); } '+catch+' }\n',
+		'literal-nested-propagation': leaf+'int relay() throws Error { return leaf(true) + 1; }\nint main() { try { return relay(); } '+catch+' }\n',
 		'literal-bare-rethrow': leaf+'int relay() throws Error { try { return leaf(true); } catch (SourceBoundsError caught) { throw; } }\nint main() { try { return relay(); } '+catch+' }\n',
 		'literal-replacement-owner': 'int relay() throws Error { try { throw new Error("old"); } catch (Error old) { throw new SourceBoundsError(); } }\nint main() { try { return relay(); } '+catch+' }\n',
 		'literal-owned-local-throw': 'int leaf() throws SourceBoundsError { var failure = new SourceBoundsError(); throw move failure; }\nint main() { try { return leaf(); } '+catch+' }\n',

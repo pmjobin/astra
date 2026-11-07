@@ -154,3 +154,25 @@ rebinding excludes the latter. Three C0 Class/Error rebinding negatives remain
 explicit controls. The intermediate compiler's 110 repository input snapshots
 match its recorded source hashes exactly, preserving both actual progress and
 failures before the fixes. Final combined O0/O2 qualification remains required.
+
+Further independent C0 controls reject consumption of a method receiver owner
+in a direct or nested argument, and a borrowed Class argument paired with a
+move of that same owner in either argument order. Flow now reconstructs each
+borrow's named root and examines the actual validated argument subtrees for
+consumption. Parameters retain their declared root; owned locals retain their
+real slot. Borrowed local aliases remain deferred without an alias-root proof.
+The consumer has its own bounded work counter and grants no field authority.
+
+C0 also rejects reading a moved argument in a catch that might receive a
+checked callee's post-entry error. The valid reservation-abort control uses a
+nonthrowing receiver method and a later throwing argument. Distinct Class-owner
+and owned-buffer receiver controls distinguish these rules from a blanket
+rejection. Two combined `final2` native builds were deliberately terminated to
+add the missing borrow check. Only their validated compiler children received
+SIGTERM; GNU-time parents completed real CPU/wall/peak-RSS receipts. Those stops
+remain failed intermediate attempts, with no compiler or milestone pass credit.
+
+New authored error fixtures use an unexpected normal exit distinct from 42.
+The intended catch must run to produce 42, and returning Valgrind receipts also
+retain actual Error/snapshot allocation counts. The original function and all
+262 inherited source identities are unchanged by this test strengthening.

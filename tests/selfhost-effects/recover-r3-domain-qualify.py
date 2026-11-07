@@ -8,25 +8,47 @@ from state import ROOT, load_module
 def corpus():
 	catch = 'catch (Error caught) { if (caught.message == "kept") return 42; return 4; }'
 	rows = {}
+	def scalar(call, success, failure):
+		return 'var unexpected = '+call+'; return 3;' if failure else success
 	for fail in (False, True):
-		flag = str(fail).lower(); suffix = '-error' if fail else '-success'
+		flag = str(fail).lower(); suffix = '-error' if fail else '-success'; normal = '3' if fail else '42'
 		for result in ('int', 'void'):
 			returned = ' return 17;' if result == 'int' else ''
-			call = 'return value.leaf('+flag+') + 25;' if result == 'int' else 'value.leaf('+flag+'); return 42;'
+			call = scalar('value.leaf('+flag+')', 'return value.leaf('+flag+') + 25;', fail) if result == 'int' else 'value.leaf('+flag+'); return '+normal+';'
 			rows['receiver-'+result+suffix] = 'class Parcel { init() {} '+result+' leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); }'+returned+' } }\nint main() { var value = new Parcel(); try { '+call+' } '+catch+' }\n'
-		rows['receiver-nested'+suffix] = 'class Parcel { init() {} int leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } return 42; } int relay(bool fail) throws Error { return this.leaf(fail); } }\nint main() { var value = new Parcel(); try { return value.relay('+flag+'); } '+catch+' }\n'
-		rows['receiver-floating'+suffix] = 'class Parcel { init() {} f64 leaf(f64 value, bool fail) throws Error { if (fail) { throw new Error("kept"); } return value; } }\nint main() { var value = new Parcel(); try { if (value.leaf(0.5d, '+flag+') == 0.5d) return 42; return 3; } '+catch+' }\n'
+		body = scalar('value.relay('+flag+')', 'return value.relay('+flag+');', fail)
+		rows['receiver-nested'+suffix] = 'class Parcel { init() {} int leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } return 42; } int relay(bool fail) throws Error { return this.leaf(fail); } }\nint main() { var value = new Parcel(); try { '+body+' } '+catch+' }\n'
+		body = scalar('value.leaf(0.5d, '+flag+')', 'if (value.leaf(0.5d, '+flag+') == 0.5d) return 42; return 3;', fail)
+		rows['receiver-floating'+suffix] = 'class Parcel { init() {} f64 leaf(f64 value, bool fail) throws Error { if (fail) { throw new Error("kept"); } return value; } }\nint main() { var value = new Parcel(); try { '+body+' } '+catch+' }\n'
 		leaf = 'T leaf<T>(T value, bool fail) throws Error { if (fail) { throw new Error("kept"); } return value; }\n'
-		rows['generic-scalar'+suffix] = leaf+'int main() { try { return leaf<int>(42, '+flag+'); } '+catch+' }\n'
-		rows['generic-record'+suffix] = 'struct Pair { int left; int right; }\n'+leaf+'int main() { Pair input = {left = 17, right = 25}; try { var result = leaf<Pair>(input, '+flag+'); return result.left + result.right; } '+catch+' }\n'
-		rows['generic-nested'+suffix] = leaf+'T relay<T>(T value, bool fail) throws Error { return leaf<T>(value, fail); }\nint main() { try { return relay<int>(42, '+flag+'); } '+catch+' }\n'
-		rows['generic-floating'+suffix] = leaf+'int main() { try { if (leaf<f64>(0.5d, '+flag+') == 0.5d) return 42; return 3; } '+catch+' }\n'
-		rows['inferred-parenthesized'+suffix] = 'class Parcel { init() {} }\nint leaf(bool fail) throws Error { var value = (new Parcel()); if (fail) { throw new Error("kept"); } return 42; }\nint main() { try { return leaf('+flag+'); } '+catch+' }\n'
+		body = scalar('leaf<int>(42, '+flag+')', 'return leaf<int>(42, '+flag+');', fail)
+		rows['generic-scalar'+suffix] = leaf+'int main() { try { '+body+' } '+catch+' }\n'
+		body = 'return 3;' if fail else 'return result.left + result.right;'
+		rows['generic-record'+suffix] = 'struct Pair { int left; int right; }\n'+leaf+'int main() { Pair input = {left = 17, right = 25}; try { var result = leaf<Pair>(input, '+flag+'); '+body+' } '+catch+' }\n'
+		body = scalar('relay<int>(42, '+flag+')', 'return relay<int>(42, '+flag+');', fail)
+		rows['generic-nested'+suffix] = leaf+'T relay<T>(T value, bool fail) throws Error { return leaf<T>(value, fail); }\nint main() { try { '+body+' } '+catch+' }\n'
+		body = scalar('leaf<f64>(0.5d, '+flag+')', 'if (leaf<f64>(0.5d, '+flag+') == 0.5d) return 42; return 3;', fail)
+		rows['generic-floating'+suffix] = leaf+'int main() { try { '+body+' } '+catch+' }\n'
+		body = scalar('leaf('+flag+')', 'return leaf('+flag+');', fail)
+		rows['inferred-parenthesized'+suffix] = 'class Parcel { init() {} }\nint leaf(bool fail) throws Error { var value = (new Parcel()); if (fail) { throw new Error("kept"); } return 42; }\nint main() { try { '+body+' } '+catch+' }\n'
 		for kind, literal in [('f32', '0.5f'), ('f64', '0.5d')]:
-			rows['floating-'+kind+suffix] = kind+' leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } return '+literal+'; }\nint main() { try { if (leaf('+flag+') == '+literal+') return 42; return 3; } '+catch+' }\n'
-		rows['floating-buffer'+suffix] = 'owned f32[] make(bool fail) throws Error { var value = new f32[2]; if (fail) { throw new Error("kept"); } return move value; }\nint main() { try { var value = make('+flag+'); return len(value) + 40; } '+catch+' }\n'
-		rows['floating-record'+suffix] = 'struct Mixed { f32 fraction; int value; f64 wide; }\nMixed make(bool fail) throws Error { Mixed value = {fraction = 0.5f, value = 42, wide = 1.5d}; if (fail) { throw new Error("kept"); } return value; }\nint main() { try { var value = make('+flag+'); if (value.fraction != 0.5f) return 3; if (value.wide != 1.5d) return 3; return value.value; } '+catch+' }\n'
-		rows['Class-call-result-return'+suffix] = 'class Parcel { init() {} }\nowned Parcel make(bool fail) throws Error { var value = new Parcel(); if (fail) { throw new Error("kept"); } return move value; }\nowned Parcel relay(bool fail) throws Error { return make(fail); }\nint main() { try { var value = relay('+flag+'); return 42; } '+catch+' }\n'
+			body = scalar('leaf('+flag+')', 'if (leaf('+flag+') == '+literal+') return 42; return 3;', fail)
+			rows['floating-'+kind+suffix] = kind+' leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } return '+literal+'; }\nint main() { try { '+body+' } '+catch+' }\n'
+		body = 'return 3;' if fail else 'return len(value) + 40;'
+		rows['floating-buffer'+suffix] = 'owned f32[] make(bool fail) throws Error { var value = new f32[2]; if (fail) { throw new Error("kept"); } return move value; }\nint main() { try { var value = make('+flag+'); '+body+' } '+catch+' }\n'
+		body = 'return 3;' if fail else 'if (value.fraction != 0.5f) return 3; if (value.wide != 1.5d) return 3; return value.value;'
+		rows['floating-record'+suffix] = 'struct Mixed { f32 fraction; int value; f64 wide; }\nMixed make(bool fail) throws Error { Mixed value = {fraction = 0.5f, value = 42, wide = 1.5d}; if (fail) { throw new Error("kept"); } return value; }\nint main() { try { var value = make('+flag+'); '+body+' } '+catch+' }\n'
+		rows['Class-call-result-return'+suffix] = 'class Parcel { init() {} }\nowned Parcel make(bool fail) throws Error { var value = new Parcel(); if (fail) { throw new Error("kept"); } return move value; }\nowned Parcel relay(bool fail) throws Error { return make(fail); }\nint main() { try { var value = relay('+flag+'); return '+normal+'; } '+catch+' }\n'
+	parcel = 'class Parcel { init() {} int leaf(owned int[] data, bool fail) throws Error { if (fail) { throw new Error("kept"); } return len(data) + 25; } }\n'
+	rows['receiver-owned-input-success'] = parcel+'int main() { var value = new Parcel(); var data = new int[17]; try { return value.leaf(move data, false); } catch (Error caught) { return 4; } }\n'
+	rows['receiver-owned-input-error'] = parcel+'int main() { var value = new Parcel(); var data = new int[17]; try { value.leaf(move data, true); return 3; } '+catch+' }\n'
+	rows['receiver-reservation-abort-error'] = 'class Parcel { init() {} int leaf(owned int[] data, int extra) { return len(data) + extra; } }\nint fail() throws Error { throw new Error("kept"); }\nint main() { var value = new Parcel(); var data = new int[42]; try { value.leaf(move data, fail()); return 3; } catch (Error caught) { if (caught.message != "kept") return 4; return len(data); } }\n'
+	for fail in (False, True):
+		flag = str(fail).lower(); suffix = '-error' if fail else '-success'
+		call = 'value.leaf(move other, '+flag+')'; body = scalar(call, 'return '+call+';', fail)
+		rows['receiver-distinct-owner'+suffix] = 'class Parcel { init() {} int leaf(owned Parcel other, bool fail) throws Error { if (fail) { throw new Error("kept"); } return 42; } }\nint main() { var value = new Parcel(); var other = new Parcel(); try { '+body+' } '+catch+' }\n'
+		call = 'leaf(value, move other, '+flag+')'; body = scalar(call, 'return '+call+';', fail)
+		rows['borrow-distinct-owner'+suffix] = 'class Parcel { init() {} }\nint leaf(borrowed Parcel view, owned Parcel other, bool fail) throws Error { if (fail) { throw new Error("kept"); } return 42; }\nint main() { var value = new Parcel(); var other = new Parcel(); try { '+body+' } '+catch+' }\n'
 	rows['floating-signed-zero-success'] = 'f64 leaf(f64 value) throws Error { return -value; }\nint main() { try { var value = leaf(0.0d); if (value == -0.0d) return 42; return 3; } catch (Error caught) { return 4; } }\n'
 	rows['floating-NaN-success'] = 'f64 leaf() throws Error { return 0.0d / 0.0d; }\nint main() { try { var value = leaf(); if (value != value) return 42; return 3; } catch (Error caught) { return 4; } }\n'
 	rows['floating-strict-arithmetic-success'] = 'f32 leaf(f32 value) throws Error { return (value + 0.5f) * 2.0f - 1.0f; }\nint main() { try { if (leaf(1.0f) == 2.0f) return 42; return 3; } catch (Error caught) { return 4; } }\n'

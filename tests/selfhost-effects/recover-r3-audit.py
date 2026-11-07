@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 from state import ROOT, load_module, read, sha, git, preservation
 
@@ -37,6 +38,10 @@ def main():
 						command = next(c for c in result['commands'] if c['name'] == row['name']+'-'+suffix); assert command['exit'] == code
 						assert sha(leaf/(command['name']+'.stdout')) == command['stdout_sha256'] and sha(leaf/(command['name']+'.stderr')) == command['stderr_sha256']
 						if suffix == 'Astra-emit': assert command['argv'][0] == str(component)
+					for label in ('Astra', 'C0'):
+						data = (leaf/(row['name']+'-'+label+'-memory.stderr')).read_bytes(); heap = re.search(rb'total heap usage: ([0-9,]+) allocs, ([0-9,]+) frees', data); assert heap
+						allocations = int(heap[1].replace(b',', b'')); frees = int(heap[2].replace(b',', b'')); assert allocations == frees == row[label+'_allocations']
+						if row['observed_error_path'] and not (row['name'] == 'empty-snapshot' and mode == 'O2'): assert allocations >= (1 if row['name'] == 'empty-snapshot' else 2)
 					rows.append(dict(name=row['name'], source_sha256=sha(source), ELF_sha256=row['Astra_ELF_sha256'], actual_error_path=row['observed_error_path'], memory={label:memory(leaf/(row['name']+'-'+label+'-memory.stderr')) for label in ('Astra', 'C0')}))
 			return rows
 		prior = programs(profile['native_results']); new = programs(profile['new_native_results']); assert len(prior) == len({r['source_sha256'] for r in prior}) == 60 and sum(r['actual_error_path'] for r in prior) == 35 and len({r['ELF_sha256'] for r in prior}) == 60
@@ -44,6 +49,7 @@ def main():
 		for leaf in paths.RUNTIME.glob('early-baseline*-'+mode): baseline += read(leaf/'result.json')['programs']
 		assert len(baseline) == 60 and {r['name']:r['source_sha256'] for r in baseline} == {r['name']:r['source_sha256'] for r in prior}
 		assert len(new) == len({r['source_sha256'] for r in new}) >= 12 and sum(r['actual_error_path'] for r in new) >= 8
+		assert len({r['ELF_sha256'] for r in new}) >= 12
 		assert {r['source_sha256'] for r in new}.isdisjoint(r['source_sha256'] for r in prior)
 		regression = paths.RUNTIME/profile['regression']; inherited = read(regression/('inherited-v1-'+mode)/'result.json'); before = read(paths.RUNTIME/('regression-baselineregression-'+mode)/('inherited-v1-'+mode)/'result.json'); assert inherited['component_sha256'] == sha(component) and len(inherited['programs']) == 202
 		assert [[r['name'], r['sources']] for r in inherited['programs']] == [[r['name'], r['sources']] for r in before['programs']]
@@ -55,13 +61,18 @@ def main():
 		mutants = []
 		for name in [*profile['adversarial'], *profile['new_adversarial']]:
 			result = read(paths.RUNTIME/name/'result.json'); assert result['component_sha256'] == sha(component) and result.get('target_profile', result.get('profile')) == mode; mutants.append(dict(path=name, result_sha256=sha(paths.RUNTIME/name/'result.json'), semantic=len(result['semantic']), physical=len(result['LLVM_valid_physical'])))
+			for command in read(paths.RUNTIME/name/'commands.json'):
+				assert sha(paths.RUNTIME/name/(command['name']+'.stdout')) == command['stdout_sha256'] and sha(paths.RUNTIME/name/(command['name']+'.stderr')) == command['stderr_sha256']
 		assert sum(r['semantic'] for r in mutants[:3]) == 39 and sum(r['physical'] for r in mutants[:3]) == 24 and sum(r['semantic'] for r in mutants[3:]) >= 20 and sum(r['physical'] for r in mutants[3:]) >= 6
 		original = read(paths.RUNTIME/profile['original']/'result.json'); assert original['component_sha256'] == sha(component) and original['source']['exact_original_bytes'] and original['source']['slice_sha256'] == '8641d4ff6a1f19cc8bfc0ccbec492a8f7d4248eebcb05373c15479e7114a3e68'
 		view = read(paths.RUNTIME/profile['original_view']/'result.json'); assert view['component_sha256'] == view['ledger_component_sha256'] == sha(component) and view['C0_actual_execution'] == 42 and all(r['AST_byte_exact'] for r in view['selections'])
 		guards = read(paths.RUNTIME/profile['receiver_guard']/'result.json'); assert guards['component_sha256'] == sha(component) and guards['status'] == 'FATAL_CHECKED_RECEIVER_ORDER' and len(guards['programs']) == 2 and all(r['Astra_exit'] == r['C0_exit'] == -4 for r in guards['programs']) and guards['returning_effect_program_credit'] == 0
 		floating = read(paths.RUNTIME/profile['floating_probe']/'result.json'); assert floating['component_sha256'] == sha(component) and floating['status'] == 'INDEPENDENT_FP_CARRIER_BITS_ONLY' and floating['Astra_effect_ELFs'] == 0 and len(floating['results']) == 24
 		observer = read(paths.RUNTIME/profile['dynamic_observer']/'result.json'); assert observer['status'] == 'INDEPENDENT_C0_ASTRA_DYNAMIC_ERROR_OBSERVATION' and len(observer['observations']) == 4 and all(r['actual_exit'] == 42 and 'valid=1 snapshots=1 errors=1 live=0' in r['observation'] for r in observer['observations'])
+		literal = next(r for name in profile['new_native_results'] for r in read(paths.RUNTIME/name/'result.json')['programs'] if r['name'] == 'literal-exact-catch')
+		assert all(r['ELF_sha256'] == literal[r['program']+'_ELF_sha256'] and r['observer_sha256'] == sha(paths.BUILD/profile['dynamic_observer']/(r['observer_compiler']+'.so')) for r in observer['observations'])
 		root = read(paths.RUNTIME/profile['root']); assert (root['status'], root['graph'], root['symbol'], root['predicate']) == ('DEFERRED', 55, 2053, 26)
+		assert root['component_sha256'] == sha(component)
 		frontier = read(paths.RUNTIME/profile['frontier']/'result.json'); assert frontier['component_sha256'] == sha(component) and len(frontier['programs']) == 8
 		fields = read(paths.RUNTIME/profile['fields']/'result.json'); assert fields['component_sha256'] == sha(component) and len(fields['programs']) == 4 and all(r['C0_actual_execution'] == 42 for r in fields['programs'])
 		oracles = read(paths.RUNTIME/profile['source_oracles']/'result.json'); assert oracles['C0_sha256'] == sha(ROOT.parent/'codex/work/astra/build/llvm23-migration/production-final/astrac') and len(oracles['programs']) == 11 and oracles['primary_Astra_credit'] == 0
