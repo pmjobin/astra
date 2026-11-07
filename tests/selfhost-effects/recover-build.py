@@ -15,7 +15,7 @@ RUNTIME = BASE/'runtime/effects25-r2-completion'
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); p.add_argument('--check', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
+	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); p.add_argument('--check', action='store_true'); p.add_argument('--core-check', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
 	build = BUILD/(a.version+'-'+a.mode); build.mkdir(parents=True, exist_ok=True)
 	leaf = RUNTIME/('build-'+a.version+'-'+a.mode)/str(time.time_ns()); leaf.mkdir(parents=True)
 	commands = []
@@ -23,14 +23,14 @@ def main():
 		if argv is None:
 			(leaf/(name+'.json')).write_text(json.dumps(details, indent=2)+'\n'); return b''
 		argv = list(map(str, argv))
-		if a.check and name.startswith('typecore-'):
-			argv = [*argv[:3], '--check', *argv[4:argv.index('--link-object')]]
+		if (a.check or a.core_check) and name.startswith('typecore-'):
+			argv = [*argv[:3], '--dump-core' if a.core_check else '--check', *argv[4:argv.index('--link-object')]]
 		start = time.monotonic(); r = bounded_run(argv, cwd=build, capture_output=True, env=dict(os.environ, CCACHE_DISABLE='1'), timeout=3600)
 		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr)
 		commands.append(dict(name=name, argv=argv, exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=sha(leaf/(name+'.stdout')), stderr_sha256=sha(leaf/(name+'.stderr'))))
 		(leaf/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 		print(name, r.returncode, flush=True); assert r.returncode == 0, r.stderr.split(b'Command being timed')[0][-6000:]
-		if a.check and name.startswith('typecore-'): raise SystemExit(0)
+		if (a.check or a.core_check) and name.startswith('typecore-'): raise SystemExit(0)
 		return r.stdout
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	flags = subprocess.check_output(['llvm-config', '--cflags'], text=True).split(); shim = build/'llvm-capi.o'

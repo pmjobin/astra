@@ -98,10 +98,13 @@ RecoverNode recover_empty(SyntaxNodeId source, int function, TypeId type, int ha
 // Keep mutable construction tables separate from retained source authority.
 class RecoverFlow {
 	owned CheckedIndex checked;
+	owned RecoverTypes types;
 	owned RecoverFlowData data;
 
 	init(owned CheckedIndex checked, int limit) {
-		int symbols = checked.bindings.symbol_count + 1; this.checked = move checked;
+		int symbols = checked.bindings.symbol_count + 1;
+		var types = new RecoverTypes(checked);
+		this.checked = move checked; this.types = move types;
 		var data = new RecoverFlowData(symbols, limit); this.data = move data;
 	}
 }

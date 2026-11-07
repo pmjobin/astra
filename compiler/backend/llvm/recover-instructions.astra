@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Closed instruction inventories prevent an otherwise LLVM-valid extra load,
+// call or store from escaping the source/ownership correspondence checks.
+int recover_llvm_instruction_count(void* block) {
+	int count = 0; var instruction = LLVMGetFirstInstruction(block);
+	while (instruction != null && count <= 8192) {
+		count = count + 1;
+		instruction = LLVMGetNextInstruction(instruction);
+	}
+	if (instruction != null) return -1; return count;
+}
+
+bool recover_llvm_scalar_type(CheckedIndex checked, TypeId semantic, void* actual) {
+	int kind = checked_kind(checked, semantic);
+	if (kind == 14) return LLVMGetTypeKind(actual) == 0;
+	int width = 1; if (type_integer(kind)) width = type_width(kind);
+	return (kind == 13 || type_integer(kind)) && LLVMGetTypeKind(actual) == 8 && LLVMGetIntTypeWidth(actual) == width;
+}
+
+bool recover_llvm_native_attributes(void* call, int arguments) {
+	int i = -1; while (i <= arguments) {
+		if (LLVMGetCallSiteAttributeCount(call, i) != 0) return false;
+		i = i + 1;
+	} return true;
+}
+
+int recover_llvm_extract_instructions(void* aggregate) { if (LLVMIsAInstruction(aggregate) == null) return 0; return 2; }
+
+bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* left, void* right, void* equal_function) throws Error {
+	var token = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(row.token); int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
+	if (kind == 15) {
+		var call = result;
+		if (token.text == "!=") {
+			if (LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 42 || LLVMGetICmpPredicate(result) != 32 || LLVMIsAConstantInt(LLVMGetOperand(result, 1)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(result, 1)) != 0) return false;
+			call = LLVMGetOperand(result, 0);
+		}
+		if (!recover_llvm_call(call, equal_function, 4, 8) || !recover_llvm_native_attributes(call, 4)) return false;
+		return recover_llvm_extract(LLVMGetArgOperand(call, 0), left, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 1), left, 1) && recover_llvm_extract(LLVMGetArgOperand(call, 2), right, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 3), right, 1);
+	}
+	if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(result))) return false;
+	bool comparison = token.text == "==" || token.text == "!=" || token.text == "<" || token.text == ">" || token.text == "<=" || token.text == ">=";
+	if (LLVMIsAConstantInt(result) != null) {
+		if (LLVMIsAConstantInt(left) == null || LLVMIsAConstantInt(right) == null) return false;
+		u64 a = LLVMConstIntGetZExtValue(left); u64 b = LLVMConstIntGetZExtValue(right); u64 expected = 0; int width = 1; if (kind != 13) width = type_width(kind);
+		if (comparison) {
+			if (type_signed(kind)) {
+				u64 sign = 1 as u64 << (width - 1);
+				a = a ^ sign;
+				b = b ^ sign;
+			}
+			bool truth = false;
+			if (token.text == "==") truth = a == b; if (token.text == "!=") truth = a != b; if (token.text == "<") truth = a < b; if (token.text == ">") truth = a > b; if (token.text == "<=") truth = a <= b; if (token.text == ">=") truth = a >= b;
+			if (truth) expected = 1;
+		} else {
+			if (token.text == "+") expected = a + b; if (token.text == "-") expected = a - b; if (token.text == "*") expected = a * b;
+			if (width < 64) expected = expected & ((1 as u64 << width) - 1);
+		}
+		return LLVMConstIntGetZExtValue(result) == expected;
+	}
+	if (LLVMIsAInstruction(result) == null || LLVMGetNumOperands(result) != 2 || LLVMGetOperand(result, 0) != left || LLVMGetOperand(result, 1) != right) return false;
+	if (!comparison) {
+		int opcode = 8;
+		if (token.text == "-") opcode = 10;
+		if (token.text == "*") opcode = 12;
+		return LLVMGetInstructionOpcode(result) == opcode && LLVMGetNUW(result) == 0 && LLVMGetNSW(result) == 0;
+	}
+	int predicate = 32; if (token.text == "!=") predicate = 33;
+	if (type_signed(kind)) {
+		if (token.text == "<") predicate = 40;
+		if (token.text == ">") predicate = 38;
+		if (token.text == "<=") predicate = 41;
+		if (token.text == ">=") predicate = 39;
+	}
+	else {
+		if (token.text == "<") predicate = 36;
+		if (token.text == ">") predicate = 34;
+		if (token.text == "<=") predicate = 37;
+		if (token.text == ">=") predicate = 35;
+	}
+	return LLVMGetInstructionOpcode(result) == 42 && LLVMGetICmpPredicate(result) == predicate;
+}

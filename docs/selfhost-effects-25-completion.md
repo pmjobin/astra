@@ -44,23 +44,46 @@ offsets 0/8/16/24, descriptor offsets 0/8/16, origin layout, complete base tail
 padding, and embedded-NUL UTF-8 snapshot storage. These probes receive **zero**
 Astra ELF credit. Their evidence is `runtime/effects25-r2-completion/layout-v1/`.
 
+## Typed messages and runtime continuation
+
+The next implementation adds independently consumed conditional Typecore facts
+for the source-declared message property and its lexical catch borrow. It keeps
+the original CheckedIndex and pending obligations unchanged. LLVM verification
+now also checks complete helper bodies, source parameter bindings, arithmetic,
+instruction inventories, exact origin records and a closed function inventory.
+
+The v5 O0-built compiler SHA-256 is
+`7da7abbdc50c2a538dac70c3c2140d95ffed58c9d165f0d631d94f38615fec7c`.
+It qualifies 15 distinct source programs per target profile, including 11 error
+cases and four success cases. Typed derived/ancestor catches, ordered dispatch,
+nested propagation, bare rethrow, replacement capture, outer handlers, empty
+messages and embedded-NUL UTF-8 snapshots now execute. All compare with C0,
+verify through LLVM and pass unsuppressed Valgrind. Evidence is
+`early-v5b-O0/` and `early-v5d-O2/` in the continuation runtime.
+
+Replacement performs four allocations/frees; bare rethrow performs two, with no
+new Error allocation. The O0 empty-message representations differ: Astra
+allocates its snapshot backing byte while C0 uses null backing. O2 can remove
+the empty-error storage; the O0 twin retains its physical witness. Earlier
+allocation-count assertions and their failed runs are retained separately.
+
+The v5 cold build costs 594.14 seconds wall, 589.18 seconds user, 0.97 seconds
+system and 1,424,112 KiB peak RSS. Focused Core checks are separate costs. The
+native compiler itself remains O0-built for both target profiles.
+
 ## Remaining boundary
 
 This is an implementation checkpoint, not completion or a full gate PASS.
-The message-reading version of the error witness is rejected by the Flow
-consumer (`RECOVER_FLOW 1`, before output); its failed attempt is retained in
-`early-v4a-O0`. The working minimal witnesses use direct catch returns. Catch
-message projection still needs the independent checked/borrow contract.
+The initial message-reading failure (`RECOVER_FLOW 1`, before output) is
+retained in `early-v4a-O0`; it is resolved by the conditional typed-borrow facts
+above. The first minimal witnesses remain tied to their original sources.
 
-The initial physical consumer checks declaration groups, error splits,
-success-only loads/stores, handler targets, phi incoming owners, destruction
-calls, and layouts. Complete instruction/body correspondence, independent
-adversarial controls, and helper-body verification remain required. No mutation
-credit is claimed for this checkpoint.
+Independent adversarial controls are drafted but not yet compiled or qualified.
+No mutation credit is claimed at this checkpoint.
 
 Owned input reservations, owned buffer/Class and record results, ordinary local
 and loop cleanup, admitted static receivers/generics, full source integration,
-the 12-program/eight-error minimum, and unchanged throwing compiler-function
+the required carrier/input coverage, and unchanged throwing compiler-function
 execution are unfinished. The 202 inherited programs and frozen source cohorts
 have not yet been replayed using a combined current compiler. Earlier R2
 qualifications remain tied to their original products.

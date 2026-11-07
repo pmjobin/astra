@@ -461,7 +461,17 @@ class RecoverLlvm {
 		} this.complete = true;
 	}
 
-	bool check(RecoverSsa ssa) throws Error { return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.functions, this.entries, this.blocks, this.values, this.slots, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations); }
+	bool check(RecoverSsa ssa) throws Error {
+		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_llvm_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
+		var helpers = new void*[11]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function;
+		if (!recover_llvm_function_inventory(this.module, this.functions, this.destroyers, helpers)) return false;
+		int n = 0; while (n < ssa.cfg.core.count) {
+			var row = ssa.cfg.core.nodes[n].value;
+			if (row.kind == 23 && row.a != 0 && !recover_llvm_origin(ssa.cfg.core.flow.checked, row, this.origins[n], this.layout, this.handles)) return false;
+			n = n + 1;
+		}
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations);
+	}
 
 	void write(RecoverSsa ssa, string path) throws Error {
 		if (!this.complete || !this.check(ssa) || llvm12_verify(this.module) != 0) {

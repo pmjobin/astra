@@ -24,8 +24,29 @@ def corpus(message_read=True):
 	return rows
 
 
+def expanded_corpus():
+	rows = corpus()
+	def observed(expression, message='kept', catches=None):
+		if catches is None: catches = 'catch (Error error) { if (error.message == "'+message+'") return 42; return 4; }'
+		return 'int main() { try { '+expression+' } '+catches+' }\n'
+	leaf = 'int leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } return 17; }\n'
+	rows['nested-direct-error'] = leaf+'int relay(bool fail) throws Error { return leaf(fail) + 1; }\n'+observed('return relay(true);')
+	rows['nested-direct-success'] = leaf+'int relay(bool fail) throws Error { return leaf(fail) + 1; }\nint main() { try { return relay(false) + 24; } catch (Error error) { return 4; } }\n'
+	rows['derived-exact-catch'] = 'int leaf() throws RuntimeError { throw new RuntimeError("kept"); }\n'+observed('return leaf();', catches='catch (RuntimeError derived) { if (derived.message == "kept") return 42; return 4; } catch (Error ancestor) { return 5; }')
+	rows['derived-ancestor-catch'] = 'int leaf() throws RuntimeError { throw new RuntimeError("kept"); }\n'+observed('return leaf();')
+	rows['ordered-root-catch'] = leaf+observed('return leaf(true);', catches='catch (RuntimeError derived) { return 5; } catch (Error ancestor) { if (ancestor.message == "kept") return 42; return 4; }')
+	rows['bare-rethrow'] = leaf+'int relay(bool fail) throws Error { try { return leaf(fail); } catch (Error caught) { throw; } }\n'+observed('return relay(true);')
+	rows['replacement-capture'] = leaf+'int relay(bool fail) throws Error { try { return leaf(fail); } catch (Error caught) { throw new Error(caught.message); } }\n'+observed('return relay(true);')
+	rows['outer-handler'] = leaf+observed('try { return leaf(true); } catch (RuntimeError specific) { return 5; }')
+	rows['empty-snapshot'] = 'int leaf() throws Error { throw new Error(""); }\n'+observed('return leaf();', message='')
+	rows['nul-utf8-snapshot'] = 'int leaf() throws Error { throw new Error("é\\0x"); }\n'+observed('return leaf();', message='é\\0x')
+	rows['nested-void-success'] = 'void leaf(bool fail) throws Error { if (fail) { throw new Error("kept"); } }\nvoid relay(bool fail) throws Error { leaf(fail); }\nint main() { try { relay(false); return 42; } catch (Error error) { return 4; } }\n'
+	assert len(rows) == len(set(rows.values()))
+	return rows
+
+
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--component', type=Path, required=True); p.add_argument('--version', required=True); p.add_argument('--without-message-read', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
+	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--component', type=Path, required=True); p.add_argument('--version', required=True); p.add_argument('--without-message-read', action='store_true'); p.add_argument('--expanded', action='store_true'); a = p.parse_args(); assert a.version.isalnum(); assert not (a.expanded and a.without_message_read)
 	state = load_module('recover_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	leaf = state.RUNTIME/('early-'+a.version+'-'+a.mode); build = state.BUILD/leaf.name; leaf.mkdir(); build.mkdir()
 	identity = read(a.component.with_suffix('.identity.json')); assert sha(a.component) == identity['sha256']
@@ -38,7 +59,7 @@ def main():
 		(leaf/(label+'.stdout')).write_bytes(r.stdout); (leaf/(label+'.stderr')).write_bytes(r.stderr)
 		commands.append(dict(name=label, argv=argv, exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=sha(leaf/(label+'.stdout')), stderr_sha256=sha(leaf/(label+'.stderr')))); save()
 		assert r.returncode in allowed, (label, r.returncode, r.stdout[-2500:], r.stderr[-2500:]); return r
-	for name, source in corpus(not a.without_message_read).items():
+	for name, source in (expanded_corpus() if a.expanded else corpus(not a.without_message_read)).items():
 		path = leaf/(name+'.astra'); path.write_text(source); inputs = [path, ROOT/'lib/astra/base/errors.astra']; row = dict(name=name, source_sha256=sha(path), Astra_effect_ELF=False); results.append(row); save()
 		c0 = build/(name+'-C0'); run([C0, '-'+a.mode, *inputs, '-o', c0], name+'-C0-build', {0}); run([c0], name+'-C0-execute', {42}); row['C0_ELF_sha256'] = sha(c0)
 		oracle = run([C0, '-O0', '--dump-llvm', *inputs], name+'-C0-ABI', {0}); c0_ir = build/(name+'-C0.ll'); c0_ir.write_bytes(oracle.stdout); run(['opt', '-passes=verify', '-disable-output', c0_ir], name+'-C0-verify', {0})
@@ -54,7 +75,13 @@ def main():
 			heap = re.search(rb'total heap usage: ([0-9,]+) allocs, ([0-9,]+) frees', memory.stderr); assert heap
 			allocations = int(heap[1].replace(b',', b'')); frees = int(heap[2].replace(b',', b'')); assert allocations == frees
 			row[compiler+'_allocations'] = allocations
-			if name.endswith('-error'): assert allocations >= 2, 'Error object and snapshot must actually allocate on the executed error path'
+			save()
+			# An empty counted snapshot can use null backing storage. C0 uses
+			# that representation and can remove the whole empty case at O2.
+			# Its O0 twin retains the physical allocation witness.
+			optimized_empty = a.mode == 'O2' and name == 'empty-snapshot'
+			if not name.endswith('-success') and not optimized_empty: assert allocations >= (1 if name == 'empty-snapshot' else 2), 'The executed error path must allocate its Error and any nonempty snapshot'
+			if name == 'replacement-capture': assert allocations == 4, 'Replacement must allocate its new owner before retiring the caught owner'
 		row.update(Astra_effect_ELF=True, Astra_raw_LLVM_sha256=sha(ir), Astra_optimized_LLVM_sha256=sha(optimized), Astra_ELF_sha256=sha(exe), expected_exit=42, unsuppressed_Valgrind='Astra and independent C0: zero errors and live allocations'); save(); print(a.mode, name, 'Astra ELF and C0 oracle agree; LLVM and unsuppressed Valgrind pass', flush=True)
 
 

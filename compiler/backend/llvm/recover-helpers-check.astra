@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent helper-body verification, including exact instruction/block
+// inventories. Descriptor equality alone cannot prove destruction or ancestry.
+owned void*[] recover_llvm_body(void* block, int count) {
+	var body = new void*[count]; var instruction = LLVMGetFirstInstruction(block); int i = 0;
+	while (i < count && instruction != null) {
+		body[i] = instruction;
+		instruction = LLVMGetNextInstruction(instruction);
+		i = i + 1;
+	}
+	if (i != count || instruction != null) {
+		var empty = new void*[0];
+		return move empty;
+	}
+	return move body;
+}
+
+owned void*[] recover_llvm_helper_blocks(void* function, int count) {
+	var blocks = new void*[count]; var block = LLVMGetFirstBasicBlock(function); int i = 0;
+	while (i < count && block != null) {
+		blocks[i] = block;
+		block = LLVMGetNextBasicBlock(block);
+		i = i + 1;
+	}
+	if (i != count || block != null) {
+		var empty = new void*[0];
+		return move empty;
+	}
+	return move blocks;
+}
+
+bool recover_llvm_bits(void* value, int width, u64 bits) { return value != null && LLVMIsAConstantInt(value) != null && LLVMGetIntTypeWidth(LLVMTypeOf(value)) == width && LLVMConstIntGetZExtValue(value) == bits; }
+
+bool recover_llvm_load_field(void* load, void* type, void* object, int field) { return load != null && LLVMGetInstructionOpcode(load) == 27 && recover_llvm_field(LLVMGetOperand(load, 0), type, object, field) && LLVMGetVolatile(load) == 0; }
+
+bool recover_llvm_return(void* instruction, void* value) { return instruction != null && LLVMGetInstructionOpcode(instruction) == 1 && LLVMGetNumOperands(instruction) == 1 && LLVMGetOperand(instruction, 0) == value; }
+
+bool recover_llvm_void_return(void* instruction) { return instruction != null && LLVMGetInstructionOpcode(instruction) == 1 && LLVMGetNumOperands(instruction) == 0; }
+
+bool recover_llvm_jump(void* instruction, void* next) { return instruction != null && LLVMGetInstructionOpcode(instruction) == 70 && LLVMGetNumSuccessors(instruction) == 1 && LLVMGetSuccessor(instruction, 0) == next; }
+
+bool recover_llvm_split(void* instruction, void* condition, void* yes, void* no) { return instruction != null && LLVMGetInstructionOpcode(instruction) == 71 && LLVMGetCondition(instruction) == condition && LLVMGetNumSuccessors(instruction) == 2 && LLVMGetSuccessor(instruction, 0) == yes && LLVMGetSuccessor(instruction, 1) == no; }
+
+bool recover_llvm_compare(void* instruction, int predicate, void* a, void* b) { return instruction != null && LLVMGetInstructionOpcode(instruction) == 42 && LLVMGetICmpPredicate(instruction) == predicate && LLVMGetOperand(instruction, 0) == a && LLVMGetOperand(instruction, 1) == b; }
+
+bool recover_llvm_helper_signature(void* function, int parameters) {
+	if (function == null || LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != parameters || LLVMIsFunctionVarArg(LLVMGlobalGetValueType(function)) != 0) return false;
+	int p = -1; while (p <= parameters) {
+		if (LLVMGetAttributeCountAtIndex(function, p) != 0) return false;
+		p = p + 1;
+	} return true;
+}
+
+bool recover_llvm_message_verified(void* function, void* payload) {
+	if (!recover_llvm_helper_signature(function, 1)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1); if (len(blocks) != 1) return false; var body = recover_llvm_body(blocks[0], 7); if (len(body) != 7) return false;
+	var object = LLVMGetParam(function, 0);
+	if (!recover_llvm_load_field(body[1], payload, object, 2) || LLVMGetOperand(body[1], 0) != body[0] || !recover_llvm_load_field(body[3], payload, object, 3) || LLVMGetOperand(body[3], 0) != body[2]) return false;
+	if (LLVMGetInstructionOpcode(body[4]) != 54 || LLVMIsNull(LLVMGetOperand(body[4], 0)) == 0 || LLVMGetOperand(body[4], 1) != body[1] || llvm13_index(body[4], 0, 0) != 1 || LLVMGetInstructionOpcode(body[5]) != 54 || LLVMGetOperand(body[5], 0) != body[4] || LLVMGetOperand(body[5], 1) != body[3] || llvm13_index(body[5], 0, 1) != 1) return false;
+	return recover_llvm_return(body[6], body[5]);
+}
+
+bool recover_llvm_constructor_verified(void* function, void* payload, void* allocate, void* copy) {
+	if (!recover_llvm_helper_signature(function, 3)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1); if (len(blocks) != 1) return false; var body = recover_llvm_body(blocks[0], 14); if (len(body) != 14) return false;
+	if (!recover_llvm_call(body[0], allocate, 2, 8) || !recover_llvm_bits(LLVMGetArgOperand(body[0], 0), 64, 1) || !recover_llvm_bits(LLVMGetArgOperand(body[0], 1), 64, 32)) return false;
+	var count = LLVMGetParam(function, 2);
+	if (LLVMGetInstructionOpcode(body[1]) != 31 || LLVMGetOperand(body[1], 0) != count || LLVMGetIntTypeWidth(LLVMTypeOf(body[1])) != 64 || LLVMGetInstructionOpcode(body[2]) != 8 || LLVMGetOperand(body[2], 0) != body[1] || !recover_llvm_bits(LLVMGetOperand(body[2], 1), 64, 1) || LLVMGetNUW(body[2]) != 0 || LLVMGetNSW(body[2]) != 0) return false;
+	if (!recover_llvm_call(body[3], allocate, 2, 8) || LLVMGetArgOperand(body[3], 0) != body[2] || !recover_llvm_bits(LLVMGetArgOperand(body[3], 1), 64, 1) || !recover_llvm_call(body[4], copy, 3, 0) || LLVMGetArgOperand(body[4], 0) != body[3] || LLVMGetArgOperand(body[4], 1) != LLVMGetParam(function, 1) || LLVMGetArgOperand(body[4], 2) != body[1]) return false;
+	int f = 0;
+	while (f < 4) {
+		int at = 5 + f * 2;
+		if (!recover_llvm_field(body[at], payload, body[0], f) || LLVMGetInstructionOpcode(body[at + 1]) != 28 || LLVMGetOperand(body[at + 1], 1) != body[at] || LLVMGetVolatile(body[at + 1]) != 0) return false;
+		f = f + 1;
+	}
+	if (LLVMGetOperand(body[6], 0) != LLVMGetParam(function, 0) || LLVMIsNull(LLVMGetOperand(body[8], 0)) == 0 || LLVMGetOperand(body[10], 0) != body[3] || LLVMGetOperand(body[12], 0) != count) return false;
+	return recover_llvm_return(body[13], body[0]);
+}
+
+bool recover_llvm_destroy_verified(void* function, void* payload, void* descriptor, void* free_function) {
+	if (!recover_llvm_helper_signature(function, 1)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1); if (len(blocks) != 1) return false; var body = recover_llvm_body(blocks[0], 7); if (len(body) != 7) return false;
+	var object = LLVMGetParam(function, 0);
+	if (!recover_llvm_load_field(body[1], payload, object, 0) || LLVMGetOperand(body[1], 0) != body[0] || !recover_llvm_load_field(body[3], descriptor, body[1], 1) || LLVMGetOperand(body[3], 0) != body[2]) return false;
+	if (!recover_llvm_call(body[4], body[3], 1, 8) || LLVMGetArgOperand(body[4], 0) != object || LLVMGetTypeKind(LLVMTypeOf(body[4])) != 0 || !recover_llvm_call(body[5], free_function, 1, 0) || LLVMGetArgOperand(body[5], 0) != object) return false;
+	return recover_llvm_void_return(body[6]);
+}
+
+bool recover_llvm_dtor_verified(void* function, void* parent, void* payload, void* free_function) {
+	if (!recover_llvm_helper_signature(function, 1)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1); if (len(blocks) != 1) return false; var object = LLVMGetParam(function, 0);
+	if (parent != null) {
+		var body = recover_llvm_body(blocks[0], 2);
+		return len(body) == 2 && recover_llvm_call(body[0], parent, 1, 8) && LLVMGetArgOperand(body[0], 0) == object && recover_llvm_void_return(body[1]);
+	}
+	var body = recover_llvm_body(blocks[0], 4);
+	return len(body) == 4 && recover_llvm_load_field(body[1], payload, object, 2) && LLVMGetOperand(body[1], 0) == body[0] && recover_llvm_call(body[2], free_function, 1, 0) && LLVMGetArgOperand(body[2], 0) == body[1] && recover_llvm_void_return(body[3]);
+}
+
+bool recover_llvm_allocate_verified(void* function, void* calloc_function, void* trap_function) {
+	if (!recover_llvm_helper_signature(function, 2)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3); if (len(blocks) != 3) return false; var entry = recover_llvm_body(blocks[0], 3); var valid = recover_llvm_body(blocks[1], 1); var fatal = recover_llvm_body(blocks[2], 2); if (len(entry) != 3 || len(valid) != 1 || len(fatal) != 2) return false;
+	if (!recover_llvm_call(entry[0], calloc_function, 2, 0) || LLVMGetArgOperand(entry[0], 0) != LLVMGetParam(function, 0) || LLVMGetArgOperand(entry[0], 1) != LLVMGetParam(function, 1) || LLVMGetInstructionOpcode(entry[1]) != 42 || LLVMGetICmpPredicate(entry[1]) != 33 || LLVMGetOperand(entry[1], 0) != entry[0] || LLVMIsNull(LLVMGetOperand(entry[1], 1)) == 0) return false;
+	return recover_llvm_split(entry[2], entry[1], blocks[1], blocks[2]) && recover_llvm_return(valid[0], entry[0]) && recover_llvm_call(fatal[0], trap_function, 0, 0) && LLVMGetInstructionOpcode(fatal[1]) == 7;
+}
+
+bool recover_llvm_subtype_verified(void* function, void* payload, void* descriptor) {
+	if (!recover_llvm_helper_signature(function, 2)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 6); if (len(blocks) != 6) return false;
+	var entry = recover_llvm_body(blocks[0], 3); var loop = recover_llvm_body(blocks[1], 3); var matching = recover_llvm_body(blocks[2], 2); var parent = recover_llvm_body(blocks[3], 3); var found = recover_llvm_body(blocks[4], 1); var absent = recover_llvm_body(blocks[5], 1);
+	if (len(entry) != 3 || len(loop) != 3 || len(matching) != 2 || len(parent) != 3 || len(found) != 1 || len(absent) != 1) return false;
+	if (!recover_llvm_load_field(entry[1], payload, LLVMGetParam(function, 0), 0) || LLVMGetOperand(entry[1], 0) != entry[0] || !recover_llvm_jump(entry[2], blocks[1]) || LLVMGetInstructionOpcode(loop[0]) != 44 || LLVMCountIncoming(loop[0]) != 2 || LLVMGetIncomingValue(loop[0], 0) != entry[1] || LLVMGetIncomingBlock(loop[0], 0) != blocks[0] || LLVMGetIncomingValue(loop[0], 1) != parent[1] || LLVMGetIncomingBlock(loop[0], 1) != blocks[3]) return false;
+	if (LLVMGetInstructionOpcode(loop[1]) != 42 || LLVMGetICmpPredicate(loop[1]) != 33 || LLVMGetOperand(loop[1], 0) != loop[0] || LLVMIsNull(LLVMGetOperand(loop[1], 1)) == 0 || !recover_llvm_split(loop[2], loop[1], blocks[2], blocks[5])) return false;
+	if (!recover_llvm_compare(matching[0], 32, loop[0], LLVMGetParam(function, 1)) || !recover_llvm_split(matching[1], matching[0], blocks[4], blocks[3]) || !recover_llvm_load_field(parent[1], descriptor, loop[0], 0) || LLVMGetOperand(parent[1], 0) != parent[0] || !recover_llvm_jump(parent[2], blocks[1])) return false;
+	return LLVMGetInstructionOpcode(found[0]) == 1 && recover_llvm_bits(LLVMGetOperand(found[0], 0), 1, 1) && LLVMGetInstructionOpcode(absent[0]) == 1 && recover_llvm_bits(LLVMGetOperand(absent[0], 0), 1, 0);
+}
+
+bool recover_llvm_equal_verified(void* function, void* compare_function) {
+	if (!recover_llvm_helper_signature(function, 4)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 5); if (len(blocks) != 5) return false;
+	var entry = recover_llvm_body(blocks[0], 2); var empty = recover_llvm_body(blocks[1], 2); var bytes = recover_llvm_body(blocks[2], 4); var equal = recover_llvm_body(blocks[3], 1); var different = recover_llvm_body(blocks[4], 1); if (len(entry) != 2 || len(empty) != 2 || len(bytes) != 4 || len(equal) != 1 || len(different) != 1) return false;
+	if (!recover_llvm_compare(entry[0], 32, LLVMGetParam(function, 1), LLVMGetParam(function, 3)) || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[4]) || LLVMGetInstructionOpcode(empty[0]) != 42 || LLVMGetICmpPredicate(empty[0]) != 32 || LLVMGetOperand(empty[0], 0) != LLVMGetParam(function, 1) || !recover_llvm_bits(LLVMGetOperand(empty[0], 1), 32, 0) || !recover_llvm_split(empty[1], empty[0], blocks[3], blocks[2])) return false;
+	if (LLVMGetInstructionOpcode(bytes[0]) != 31 || LLVMGetOperand(bytes[0], 0) != LLVMGetParam(function, 1) || LLVMGetIntTypeWidth(LLVMTypeOf(bytes[0])) != 64 || !recover_llvm_call(bytes[1], compare_function, 3, 0) || LLVMGetArgOperand(bytes[1], 0) != LLVMGetParam(function, 0) || LLVMGetArgOperand(bytes[1], 1) != LLVMGetParam(function, 2) || LLVMGetArgOperand(bytes[1], 2) != bytes[0] || LLVMGetInstructionOpcode(bytes[2]) != 42 || LLVMGetICmpPredicate(bytes[2]) != 32 || LLVMGetOperand(bytes[2], 0) != bytes[1] || !recover_llvm_bits(LLVMGetOperand(bytes[2], 1), 32, 0) || !recover_llvm_return(bytes[3], bytes[2])) return false;
+	return LLVMGetInstructionOpcode(equal[0]) == 1 && recover_llvm_bits(LLVMGetOperand(equal[0], 0), 1, 1) && LLVMGetInstructionOpcode(different[0]) == 1 && recover_llvm_bits(LLVMGetOperand(different[0], 0), 1, 0);
+}
+
+bool recover_llvm_origin(CheckedIndex checked, RecoverNode source, void* global, void* layout, void* handles) throws Error {
+	if (global == null || LLVMGetLinkage(global) != 9 || LLVMIsGlobalConstant(global) != 1) return false;
+	var type = LLVMGlobalGetValueType(global); var value = LLVMGetInitializer(global);
+	if (value == null || LLVMGetNumOperands(value) != 4 || LLVMGetTypeKind(type) != 10 || LLVMIsPackedStruct(type) != 0 || LLVMCountStructElementTypes(type) != 4 || LLVMABISizeOfType(layout, type) != 24 || LLVMABIAlignmentOfType(layout, type) != 8 || LLVMOffsetOfElement(layout, type, 0) != 0 || LLVMOffsetOfElement(layout, type, 1) != 8 || LLVMOffsetOfElement(layout, type, 2) != 12 || LLVMOffsetOfElement(layout, type, 3) != 16) return false;
+	var header = checked.bindings.program.arena.header(source.source); var span = checked.bindings.program.arena.source_span(header.span); var path = span.path(); var location = span.location();
+	llvm12_handle_set(handles, 0, LLVMGetOperand(value, 0)); llvm12_handle_set(handles, 1, LLVMGetOperand(value, 1)); var counted_file = LLVMConstStructInContext(LLVMGetTypeContext(type), llvm12_handle_offset(handles, 0), 2, 0);
+	return llvm17_text_literal_matches(counted_file, path.text) == 1 && recover_llvm_bits(LLVMGetOperand(value, 1), 32, path.text.byte_length as u64) && recover_llvm_bits(LLVMGetOperand(value, 2), 32, location.line as u64) && recover_llvm_bits(LLVMGetOperand(value, 3), 32, location.column as u64);
+}
+
+bool recover_llvm_function_inventory(void* module, void*[] sources, void*[] destroyers, void*[] helpers) {
+	int expected = len(sources) + len(helpers); int i = 0; while (i < len(destroyers)) {
+		if (destroyers[i] != null) expected = expected + 1;
+		i = i + 1;
+	}
+	int count = 0; var function = LLVMGetFirstFunction(module);
+	while (function != null && count <= expected) {
+		int found = 0; i = 0; while (i < len(sources)) {
+			if (sources[i] == function) found = found + 1;
+			i = i + 1;
+		}
+		i = 0; while (i < len(destroyers)) {
+			if (destroyers[i] == function) found = found + 1;
+			i = i + 1;
+		}
+		i = 0; while (i < len(helpers)) {
+			if (helpers[i] == function) found = found + 1;
+			i = i + 1;
+		}
+		if (found != 1) return false; count = count + 1; function = LLVMGetNextFunction(function);
+	}
+	return function == null && count == expected;
+}

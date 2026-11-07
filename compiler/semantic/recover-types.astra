@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Additional conditional Typecore facts for the private effect domain. The
+// original CheckedIndex, its pending 17/19 obligations and type table are not
+// mutated. Every nominal and declared property type comes from that owner.
+class RecoverTypes {
+	owned shared TypeOwner identity;
+	owned TypeId[] types;
+	owned SymbolId[] members;
+	owned SymbolId[] borrows;
+	int status;
+	int remaining;
+	SyntaxNodeId boundary;
+
+	init(CheckedIndex checked) {
+		var identity = shared_clone(checked.types.identity); this.identity = move identity;
+		int count = len(checked.uses); this.types = new TypeId[count]; this.members = new SymbolId[count]; this.borrows = new SymbolId[count]; this.status = 0; this.remaining = 8000000;
+		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
+	}
+
+	bool take(SyntaxNodeId node) { if (this.remaining == 0) {
+			this.status = 2;
+			this.boundary = node;
+			return false;
+		} this.remaining = this.remaining - 1; return true; }
+}
+
+SymbolId recover_type_receiver(CheckedIndex checked, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(checked.uses) || checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax()) return type_symbol(0);
+	var receiver = checked.bindings.program.arena.get_node_aggregate(node);
+	if (receiver.index == 0) return checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (checked.bindings.program.arena.kind(receiver) != SyntaxKind.NameExpressionSyntax()) return type_symbol(0);
+	return checked_target(checked, receiver, checked.bindings.program.arena.get_token_identifier(receiver));
+}
+
+SymbolId recover_type_message(CheckedIndex checked, SyntaxNodeId node) {
+	if (checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax() || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_field_name(node), "message")) return type_symbol(0);
+	var receiver = recover_type_receiver(checked, node);
+	if (receiver.index < 1 || receiver.index > checked.bindings.symbol_count) return type_symbol(0);
+	var binding = checked.bindings.symbol(receiver);
+	if (binding.kind != 15 || checked.symbol_flags[receiver.index] != 2 || checked.bindings.program.arena.kind(binding.node) != SyntaxKind.CatchClauseSyntax()) return type_symbol(0);
+	var bound = checked.bindings.program.arena.get_node_class_name(binding.node);
+	if (!checked_effect_bound(checked, bound, checked.symbol_types[receiver.index])) return type_symbol(0);
+	var root = checked_effect_root(checked); var result = type_symbol(0); int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var declaration = checked.bindings.symbol(type_symbol(s));
+		if (declaration.kind == 14 && declaration.owner.index == root.index && generic_token_equal(checked, declaration.token, checked.bindings.program.arena.get_token_field_name(node))) {
+			if (result.index != 0) return type_symbol(0);
+			var property = checked.bindings.program.arena.property_declaration(declaration.node);
+			if (property.f_dispatch != 1 || property.f_owned_keyword.index != 0 || property.f_factory_syntax.index != 0 || property.f_is_borrowed || property.f_lazy_keyword.index != 0 || property.f_throws_class.index != 0 || property.f_getter.index == 0 || property.f_setter.index != 0 || checked.uses[property.f_type_name.index].type.index != 15) return type_symbol(0);
+			result = type_symbol(s);
+		}
+		s = s + 1;
+	}
+	return result;
+}
+
+TypeId recover_type_compute(RecoverTypes data, CheckedIndex checked, SyntaxNodeId node, int depth) {
+	if (node.index == 0 || depth > 192 || !data.take(node)) return no_type();
+	if (data.types[node.index].index != 0) return data.types[node.index];
+	var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+		var type = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_expression(node), depth + 1);
+		data.types[node.index] = type;
+		return type;
+	}
+	if (kind != SyntaxKind.BinaryExpressionSyntax()) return no_type();
+	var left = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_left(node), depth + 1); var right = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_right(node), depth + 1);
+	if (left.index == 0 || right.index == 0 || left.index != right.index) return no_type();
+	var token = checked.bindings.program.arena.get_token_operator_token(node);
+	bool equality = checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!=");
+	if (!equality || (!type_integer(checked_kind(checked, left)) && left.index != 13 && left.index != 15)) return no_type();
+	var result = type_id(13); data.types[node.index] = result; return result;
+}
+
+void recover_types_build(RecoverTypes data, CheckedIndex checked) {
+	int n = 1;
+	while (n < len(checked.uses) && data.status == 0) {
+		SyntaxNodeId node = {index = n}; data.types[n] = checked.uses[n].type;
+		if (checked.uses[n].type.index == 0 && checked.uses[n].deferred == 12) {
+			var member = recover_type_message(checked, node);
+			if (member.index > 0) {
+				var declaration = checked.bindings.symbol(member);
+				var source_type = checked.bindings.program.arena.get_node_type_name(declaration.node);
+				data.types[n] = checked.uses[source_type.index].type;
+				data.members[n] = member;
+				data.borrows[n] = recover_type_receiver(checked, node);
+			}
+		}
+		n = n + 1;
+	}
+	n = 1;
+	while (n < len(checked.uses) && data.status == 0) {
+		SyntaxNodeId node = {index = n};
+		var type = recover_type_compute(data, checked, node, 0);
+		n = n + 1;
+	}
+}
+
+TypeId recover_type(RecoverTypes data, SyntaxNodeId node) { if (node.index < 1 || node.index >= len(data.types)) return no_type(); return data.types[node.index]; }

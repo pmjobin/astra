@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent conditional-type consumer. It never invokes the refiner,
+// computes a nominal ID from spelling, or changes an original checked use.
+bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
+	if (data.status != 0 || !type_owner_same(data.identity, checked.types.identity) || !checked.validate() || len(data.types) != len(checked.uses) || len(data.members) != len(data.types) || len(data.borrows) != len(data.types)) return false;
+	int n = 1;
+	while (n < len(data.types)) {
+		SyntaxNodeId node = {index = n}; var original = checked.uses[n]; var type = data.types[n]; var member = data.members[n]; var borrow = data.borrows[n];
+		if (type.index != 0 && !checked.types.valid_id(type)) return false;
+		if (member.index != 0) {
+			if (original.type.index != 0 || original.deferred != 12 || checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax() || member.index < 1 || member.index > checked.bindings.symbol_count || borrow.index < 1 || borrow.index > checked.bindings.symbol_count) return false;
+			var property = checked.bindings.symbol(member); var binding = checked.bindings.symbol(borrow); var root = checked_effect_root(checked);
+			if (property.kind != 14 || property.owner.index != root.index || binding.kind != 15 || checked.symbol_flags[borrow.index] != 2 || checked.bindings.program.arena.kind(binding.node) != SyntaxKind.CatchClauseSyntax() || !checked.bindings.program.arena.token_is(property.token, "message") || !generic_token_equal(checked, checked.bindings.program.arena.get_token_field_name(node), property.token)) return false;
+			var receiver = checked.bindings.program.arena.get_node_aggregate(node); var target = type_symbol(0);
+			if (receiver.index == 0) target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+			else {
+				if (checked.bindings.program.arena.kind(receiver) != SyntaxKind.NameExpressionSyntax()) return false;
+				target = checked_target(checked, receiver, checked.bindings.program.arena.get_token_identifier(receiver));
+			}
+			if (target.index != borrow.index || !checked_effect_bound(checked, checked.bindings.program.arena.get_node_class_name(binding.node), checked.symbol_types[borrow.index])) return false;
+			var declaration = checked.bindings.program.arena.property_declaration(property.node); var declared_type = checked.uses[declaration.f_type_name.index].type;
+			if (declared_type.index != 15 || type.index != declared_type.index || declaration.f_dispatch != 1 || declaration.f_setter.index != 0 || declaration.f_getter.index == 0 || declaration.f_owned_keyword.index != 0 || declaration.f_factory_syntax.index != 0 || declaration.f_is_borrowed || declaration.f_lazy_keyword.index != 0 || declaration.f_throws_class.index != 0) return false;
+		} else {
+			if (borrow.index != 0) return false;
+			if (original.type.index != 0) {
+				if (type.index != original.type.index) return false;
+			}
+			else {
+				var kind = checked.bindings.program.arena.kind(node); TypeId expected = {index = 0};
+				if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
+					var child = checked.bindings.program.arena.get_node_expression(node);
+					expected = data.types[child.index];
+				}
+				if (kind == SyntaxKind.BinaryExpressionSyntax()) {
+					var left_node = checked.bindings.program.arena.get_node_left(node); var right_node = checked.bindings.program.arena.get_node_right(node); var left = data.types[left_node.index]; var right = data.types[right_node.index]; var token = checked.bindings.program.arena.get_token_operator_token(node);
+					if (left.index > 0 && left.index == right.index && (type_integer(checked_kind(checked, left)) || left.index == 13 || left.index == 15) && (checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!="))) expected = type_id(13);
+				}
+				if (type.index != expected.index) return false;
+			}
+		}
+		n = n + 1;
+	}
+	return true;
+}
