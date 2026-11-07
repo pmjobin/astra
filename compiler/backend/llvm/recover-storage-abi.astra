@@ -45,7 +45,7 @@ class RecoverAbi {
 }
 
 bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
-	if (!type_owner_same(plan.identity, checked.types.identity) || plan.declaration.index < 1 || plan.declaration.index > checked.bindings.symbol_count || !checked.validate()) return false;
+	if (plan.parameters < 0 || plan.parameters > 1024 || !type_owner_same(plan.identity, checked.types.identity) || plan.declaration.index < 1 || plan.declaration.index > checked.bindings.symbol_count || !checked.validate()) return false;
 	var symbol = checked.bindings.symbol(plan.declaration); var id = checked.symbol_signatures[plan.declaration.index]; if (symbol.kind != 1 || id.index < 1 || id.index > checked.signature_count || plan.signature.index != id.index) return false;
 	var signature = checked.signatures[id.index - 1]; var result = checked.types.argument(checked.types, signature.callable, 0);
 	if (plan.result.index != result.type.index || plan.error.index != signature.error.index || plan.result_flags != result.flags || !recover_storage_channel(checked, result.type, result.flags, true) || signature.dispatch != 0 || (signature.flags & ~(4 | 64)) != 0 || !checked_effect_signature_verified(checked, signature) || !recover_member_attributes(checked, symbol.node)) return false;
@@ -73,7 +73,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 		physical = physical + groups; p = p + 1;
 	}
 	if (physical == success) physical = physical + 1;
-	return plan.parameters == physical;
+	return plan.parameters == physical && physical <= 1024;
 }
 
 // Compare physical types against the original nominal table, independently

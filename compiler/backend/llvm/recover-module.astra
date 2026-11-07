@@ -217,7 +217,9 @@ class RecoverLlvm {
 		while (f < len(this.functions)) {
 			var row = ssa.cfg.core.flow.data.functions[f]; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(row.symbol); var source_name = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(declaration.token); bool main = source_name.text == "main";
 			var out = new Utf8ByteBuilder(); source_append_text(out, "astra.e25a.f."); append_int(out, row.symbol.index); var name = out.snapshot(); var signature = ssa.cfg.core.flow.checked.signatures[row.signature.index - 1];
-			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); if (!recover_abi_verify(plan, ssa.cfg.core.flow.checked)) {
+			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); if (plan.parameters > 1024) {
+				throw new Error("LLVM_DEFERRED: carrier handle capacity");
+			} if (!recover_abi_verify(plan, ssa.cfg.core.flow.checked)) {
 				throw new Error("LLVM_INVALID_IR: carrier signature");
 			}
 			var parameters = new void*[plan.parameters]; if (plan.success >= 0) parameters[plan.success] = this.pointer; int p = 0;

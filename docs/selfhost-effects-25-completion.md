@@ -158,11 +158,22 @@ compiler-function execution remain unfinished. Record carriers currently contain
 only scalar integer/bool fields; ordinary Class payloads are fieldless, and
 error subclasses have no added payload fields.
 
-Owner-specific mutations and ABI resource-boundary controls are authored but
-not yet compiled or qualified. The existing opaque-handle adapter has capacity
-1,024; the general flattened-record ABI needs an explicit pre-construction guard
-before oversized signatures can be tested. No adapter capacity increase is
-planned. Those draft probes receive no mutation or native credit here.
+The v9 focused compiler, SHA-256
+`0d747eb2ed0f0a32d03a56f4fde43ed8c09c57c458671adc62056a4680657acf`,
+qualifies 16 additional owner mutation categories and eight LLVM-valid owner
+alternatives per target profile in `owner-adversarial-v9a-*`. The positive
+reservation-abort twin passes execution, LLVM and unsuppressed Valgrind against
+C0. Skipping its input-buffer cleanup preserves exit 42 but leaks eight bytes
+and yields Valgrind exit 99 in a separate raw O0 falsifier. This falsifier is
+not counted as O2 runtime evidence.
+
+`abi-limit-v9a/` admits and LLVM-verifies 1,017 physical parameters, while 1,025
+are explicitly deferred before LLVM signature construction; the existing output
+sentinel remains intact. Independent C0 LLVM verifies both sources. The adapter
+capacity remains 1,024. These boundary probes receive zero native program credit.
+The v9 cold build costs 853.71 seconds wall, 846.96 seconds user, 1.09 seconds
+system and 1,477,196 KiB peak RSS. Its successful Core check costs 30.95 seconds.
+Earlier owner-mutator loan-check refusals remain in the build evidence.
 
 The 202 inherited programs and frozen source cohorts have not yet been replayed
 using a combined current compiler. Earlier R2 qualifications remain tied to

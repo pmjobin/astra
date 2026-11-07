@@ -69,11 +69,10 @@ bool recover_owner_mutate_flow(RecoverFlow flow, int category) {
 	return false;
 }
 
+bool recover_owner_clear_aborts(RecoverOwners plan) { if (plan.abort_count < 1) return false; plan.abort_count = 0; return true; }
+
 bool recover_owner_mutate_core(RecoverCore core, int category) {
-	if (category == 4 && core.owners.abort_count > 0) {
-		core.owners.abort_count = 0;
-		return true;
-	}
+	if (category == 4) return recover_owner_clear_aborts(core.owners);
 	int n = 0; while (n < core.count) {
 		if (category == 2 && core.owners.reservations[n] > 0) {
 			core.owners.reservations[n] = 0;
@@ -176,9 +175,9 @@ int recover_owner_semantic_case(string[] args, int category) throws Error {
 	assert_that(false); return 0;
 }
 
-bool recover_owner_main(RecoverSsa ssa, int function) { var symbol = ssa.cfg.core.flow.data.functions[function - 1].symbol; return ssa.cfg.core.flow.checked.bindings.program.arena.token_is(ssa.cfg.core.flow.checked.bindings.symbol(symbol).token, "main"); }
+bool recover_owner_main(RecoverSsa ssa, int function) { var symbol = ssa.cfg.core.flow.data.functions[function - 1].symbol; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(symbol); return ssa.cfg.core.flow.checked.bindings.program.arena.token_is(declaration.token, "main"); }
 
-bool recover_owner_input(RecoverSsa ssa, int place) { var slot = ssa.cfg.core.flow.storage.slots[place - 1]; return recover_owner_main(ssa, slot.function) && ssa.cfg.core.flow.checked.bindings.program.arena.token_is(ssa.cfg.core.flow.checked.bindings.symbol(slot.symbol).token, "input"); }
+bool recover_owner_input(RecoverSsa ssa, int place) { var slot = ssa.cfg.core.flow.storage.slots[place - 1]; bool main = recover_owner_main(ssa, slot.function); var declaration = ssa.cfg.core.flow.checked.bindings.symbol(slot.symbol); return main && ssa.cfg.core.flow.checked.bindings.program.arena.token_is(declaration.token, "input"); }
 
 bool recover_owner_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 	bool changed = false; int b = 0; while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.operations[b];
