@@ -38,8 +38,9 @@ def main():
 		if directory.name.startswith('build-'):
 			for receipt in sorted(directory.glob('*/commands.json')):
 				for row in read(receipt):
-					if not row['name'].startswith('typecore-'): continue
+					if not row['name'].startswith(('typecore-', 'ownflow-')): continue
 					stderr = receipt.parent/(row['name']+'.stderr'); values = time_values(stderr); flags = row['argv']; effective = check_flag(flags,stderr); kind = 'Core check' if effective == '--dump-core' else 'LLVM lowering/verification check' if effective == '--check' else 'Native compiler build'
+					if directory.name.startswith('build-typeproof-'): kind = 'Focused Typecore source-observation compiler build'
 					builds.append(dict(kind=kind,receipt=str(receipt),receipt_sha256=sha(receipt),stderr_sha256=sha(stderr),exit=row['exit'],monotonic_start=row['start'],monotonic_end=row['end'],**values))
 		if directory.name.startswith('full-build-'):
 			for receipt in sorted(directory.glob('build-*/ownflow-*.json')):

@@ -577,6 +577,26 @@ TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, Symb
 }
 
 TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var result = checked_call_inner(index, node, depth);
+	if (node.index < len(index.generic_calls) && index.generic_calls[node.index].index > 0) {
+		// Specialization supplies the expected parameter types while checking
+		// arguments. A conditional result is not a completed call proof when
+		// an argument remains untyped. Keep its existing deferral and result,
+		// and leave independent generic validation fully responsible for every
+		// completed call. No owner or effect authority follows from this fact.
+		bool complete = result.index > 0;
+		var arguments = index.bindings.program.arena.get_list_arguments(node); int i = 0;
+		while (i < index.bindings.program.arena.list_count(arguments)) {
+			var argument = index.bindings.program.arena.node_at(arguments, i);
+			if (index.uses[argument.index].type.index == 0) complete = false;
+			i = i + 1;
+		}
+		if (!complete) index.generic_calls[node.index] = type_symbol(0);
+	}
+	return result;
+}
+
+TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	if (checked_slice_intrinsic(index, node)) return checked_slice_type(index, node, depth);
 	if (index.class_storage && class_storage_slot_action(index, node) > 0) {
 		var result = class_storage_slot_call(index, node, depth + 1);

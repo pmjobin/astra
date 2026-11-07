@@ -7,8 +7,9 @@ void recover_r4_observe_number(Utf8ByteBuilder out, int value) throws Error {
 
 int recover_r4_observe_cli(string[] args) {
 	try {
-		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var out = new Utf8ByteBuilder();
+		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0); var checked = checked_build_effects_profile(move bindings, 0); var out = new Utf8ByteBuilder();
 		source_append_text(out, "R4_CHECKED"); recover_r4_observe_number(out, checked.stage); recover_r4_observe_number(out, checked.error_message); recover_r4_observe_number(out, generic_verify_failure(checked)); source_append_text(out, "\n");
+		source_append_text(out, "R4_PROFILE PRIVATE_FIELDED_EFFECTS\n");
 		int s = 1;
 		while (s <= checked.bindings.symbol_count) {
 			var symbol = checked.bindings.symbol(type_symbol(s));

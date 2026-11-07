@@ -50,6 +50,7 @@ bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
 	if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
 		var symbol = index.node_symbols[member.index];
 		if (symbol.index == 0) return false;
+		if (!index.field_effects) return text_storage_property(index, member, index.bindings.symbol(symbol).owner).index > 0;
 		var owner = index.bindings.symbol(symbol).owner; var scalar = class_property_source(index, member, owner);
 		return text_storage_property(index, member, owner).index > 0 || scalar.field.index > 0;
 	}
@@ -60,6 +61,8 @@ bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
 	if (bound.index != 0) {
 		var symbol = index.node_symbols[member.index];
 		if (symbol.index < 1) return false;
+		var owner = index.bindings.symbol(index.bindings.symbol(symbol).owner);
+		if (!index.field_effects && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(owner.node)) != 0) return false;
 		if (kind != SyntaxKind.FunctionDeclarationSyntax() || !index.semantic_admission || !checked_effect_subtype(index, checked_effect_class(index, bound), checked_effect_root(index))) return false;
 	}
 	return index.bindings.program.arena.get_int_dispatch(member) == 0 && index.bindings.program.arena.get_node_body(member).index != 0 && index.bindings.program.arena.get_token_async_keyword(member).index == 0 && index.bindings.program.arena.get_node_foreign_policy(member).index == 0 && index.bindings.program.arena.get_node_foreign_member(member).index == 0 && !index.bindings.program.arena.get_bool_is_signal(member) && index.bindings.program.arena.get_token_extern_keyword(member).index == 0 && index.bindings.program.arena.get_token_export_keyword(member).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(member)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(member)) == 0;
@@ -106,7 +109,8 @@ bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) 
 	if (!index.class_storage || depth > 32 || !index.types.valid_id(type)) return false;
 	// Visibility is checked at the source use; it does not alter storage.
 	if ((flags & ~391) != 0) return false;
-	int storage_flags = flags & ~256;
+	int storage_flags = flags;
+	if (index.field_effects) storage_flags = flags & ~256;
 	int kind = checked_kind(index, type);
 	if (kind == 15) return (flags & 7) == 0 && (flags & 128) != 0;
 	if (type_numeric(kind) || kind == 13) return storage_flags == 0;

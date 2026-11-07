@@ -285,6 +285,16 @@ owned CheckedIndex checked_build_profile(owned BindingIndex bindings, int stop_a
 }
 
 owned CheckedIndex checked_build_profile_trace(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi, bool class_storage, bool trace) throws Error {
+	return checked_build_profile_mode(move bindings, stop_after, flow_adapters, semantic_flow, admission, native_abi, class_storage, trace, false);
+}
+
+// The private effects extension does not replace the retained source/Flow
+// profile or silently reclassify its ordinary declarations as templates.
+owned CheckedIndex checked_build_effects_profile(owned BindingIndex bindings, int stop_after) throws Error {
+	return checked_build_profile_mode(move bindings, stop_after, true, true, true, true, true, false, true);
+}
+
+owned CheckedIndex checked_build_profile_mode(owned BindingIndex bindings, int stop_after, bool flow_adapters, bool semantic_flow, bool admission, bool native_abi, bool class_storage, bool trace, bool field_effects) throws Error {
 	var result = new CheckedIndex(move bindings, stop_after);
 	result.generic_trace = trace;
 	result.flow_adapters = flow_adapters;
@@ -292,6 +302,7 @@ owned CheckedIndex checked_build_profile_trace(owned BindingIndex bindings, int 
 	result.semantic_admission = admission && semantic_flow;
 	result.native_abi = native_abi && result.semantic_admission;
 	result.class_storage = class_storage && result.native_abi;
+	result.field_effects = field_effects && result.class_storage;
 	if (result.bindings.failed()) {
 		int r = 1;
 		while (r <= result.bindings.reference_count) {

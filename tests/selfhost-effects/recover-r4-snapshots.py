@@ -4,6 +4,7 @@
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import sys
 import zipfile
 from state import ROOT, load_module, read, sha, bounded_run
@@ -19,6 +20,8 @@ def main():
 				if group == 'sources' and Path(path).is_relative_to(ROOT):
 					target = leaf/mode/Path(path).relative_to(ROOT); target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(Path(path).read_bytes())
 		products[mode] = dict(component=str(component), sha256=sha(component), identity=identity)
+		archive = leaf/mode/'baseline-component'; archive.mkdir(); target = archive/component.name; shutil.copy2(component, target); original_identity = component.with_suffix('.identity.json'); shutil.copy2(original_identity, archive/original_identity.name)
+		(archive/'INDEX.json').write_text(json.dumps(dict(origin=str(component), copy=str(target), sha256=sha(component), identity_sha256=sha(original_identity), attribution='Exact executable used for the genuine initial R3 baseline replays. This archival byte copy grants no additional execution credit and does not rebind or alter the historical executable or receipts.'), indent=2)+'\n')
 	(leaf/'products.json').write_text(json.dumps(products, indent=2)+'\n')
 	with zipfile.ZipFile(paths.RUNTIME/'predecessor-report.zip') as z:
 		for name in z.namelist():

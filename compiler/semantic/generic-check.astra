@@ -21,6 +21,8 @@ bool generic_checked_instance_verified(CheckedIndex index, GenericInstance plan)
 	if (origin.kind == 1 && (origin.owner.index != 0 || plan.enclosing.index != 0)) return false;
 	if (origin.kind == 11) {
 		if (plan.enclosing.index == 0 || !class_storage_source_verified(index, plan.enclosing, false, 0) || origin.owner.index != class_storage_origin(index, plan.enclosing).index) return false;
+		var owner = index.bindings.symbol(origin.owner); var fields = index.bindings.program.arena.get_list_fields(owner.node);
+		if (!index.field_effects && index.bindings.program.arena.list_count(fields) != 0) return false;
 		if (!class_storage_fields_verified(index, plan.enclosing, 0)) return false;
 	}
 	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_int_dispatch(node) != 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_bool_utf8_factory(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;

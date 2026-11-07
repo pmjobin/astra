@@ -15,6 +15,7 @@ int class_property_builtin(CheckedIndex checked, SyntaxNodeId node) {
 
 ClassProperty class_property_source(CheckedIndex checked, SyntaxNodeId node, SymbolId owner) {
 	ClassProperty absent = {field = {index = 0}, mode = 0};
+	if (!checked.field_effects) return absent;
 	if (!checked.class_storage || checked.bindings.program.arena.kind(node) != SyntaxKind.PropertyDeclarationSyntax() || checked.bindings.program.arena.get_node_setter(node).index != 0 || checked.bindings.program.arena.get_node_throws_class(node).index != 0 || checked.bindings.program.arena.get_node_factory_syntax(node).index != 0 || checked.bindings.program.arena.get_token_lazy_keyword(node).index != 0 || checked.bindings.program.arena.get_token_owned_keyword(node).index != 0 || checked.bindings.program.arena.get_int_dispatch(node) != 0 || checked.bindings.program.arena.get_node_foreign_member(node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(node)) != 0) return absent;
 	int result = class_property_builtin(checked, checked.bindings.program.arena.get_node_type_name(node)); if (result == 0) return absent;
 	var getter = checked.bindings.program.arena.get_node_getter(node);
@@ -67,6 +68,7 @@ void class_property_check_accessors(CheckedIndex checked) throws Error {
 // and declared result TypeId, without invoking the source selector above.
 ClassProperty class_property_verified(CheckedIndex checked, SymbolId member) {
 	ClassProperty absent = {field = {index = 0}, mode = 0};
+	if (!checked.field_effects) return absent;
 	if (!checked.class_storage || member.index < 1 || member.index > checked.bindings.symbol_count) return absent;
 	var declaration = checked.bindings.symbol(member); if (declaration.kind != 14 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.PropertyDeclarationSyntax() || (checked.symbol_flags[member.index] & ~256) != 0) return absent;
 	var property = checked.bindings.program.arena.property_declaration(declaration.node); var result = checked.symbol_types[member.index]; int code = checked_kind(checked, result);

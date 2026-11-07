@@ -18,6 +18,42 @@ Astra-emitted LLVM, linked execution and independent C0 equivalence can close
 that gate. Compilation, C0 execution, Class eligibility queries and program
 counts provide no original-function execution credit.
 
+Integrated qualification of the superseded `final9` O0 compiler executed all
+340 source programs and retained the 202 inherited raw LLVM identities, but
+the frozen original cohort exposed generic consumer failure 25 before Flow.
+The actual first call is SyntaxObservation.format_where in the unchanged
+observation source at bytes 17440..17478: its second argument has TypeId 0 and
+deferral 15, while specialization had already installed a completed call entry.
+The independent verifier correctly refused it. The prior graph 55/predicate 26
+was not reached in this candidate; its historical deferral was never promoted.
+
+The producer correction separates temporary specialization during argument
+checking from a completed call proof. Calls with an untyped argument retain
+their conditional result and original deferral but remove the premature proof
+entry. Every completed call still passes the unchanged independent generic
+verifier. Small C0-valid ordinary and checked calls reproduced the bug at both
+profiles; their computed getter remains unsupported. The positive control
+retains its completed proof. Final replay must also preserve the exact frozen
+conditional 17/19 facts and independently reproduce predicate 26.
+
+The `final10` integration restored those conditional facts and consumer zero,
+but also exposed a distinct declaration-retention regression: broader template
+classification omitted the original add_signature signature. It therefore did
+not reproduce graph 55 and cannot qualify that owner-root gate. An attempted
+declaration-only correction in `proof11` failed independent generic validation
+and trapped during the frozen owner trace; it has no qualification credit.
+
+The retained source/Flow entry point now keeps its original Class policy. The
+private fielded-effects entry point selects `field_effects` explicitly before
+head/body checking. Scalar getter admission, private field layout normalization
+and fielded checked method specializations follow that mode in both producers
+and independent consumers. This separates two explicit compiler profiles without
+removing the source obligation or inventing a receiver owner. The original
+profile must reproduce graph 55/symbol 2053/predicate 26; the private effects
+profile separately qualifies the new native programs and original-source
+attempts. Both profiles, all failed experiments and every unresolved gate remain
+visible in the evidence. Overall status remains PARTIAL.
+
 ## Implementation and independent boundaries
 
 Ordinary finite Classes reuse nominal Class storage plans and module-owned

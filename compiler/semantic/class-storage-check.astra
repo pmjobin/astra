@@ -120,7 +120,8 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		if (field.kind != 6 || field.owner.index != descriptor.nominal.index || field.node.index != node.index) return false;
 		int flags = checked.symbol_flags[symbol.index];
 		if ((flags & ~391) != 0) return false;
-		int storage_flags = flags & ~256;
+		int storage_flags = flags;
+		if (checked.field_effects) storage_flags = flags & ~256;
 		// Field qualifiers come directly from source, without a dependency
 		// on the Flow solver or its graph representation.
 		int source_flags = checked_flags(checked.bindings.program.arena, node) & 7;

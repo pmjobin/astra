@@ -2,7 +2,7 @@
 // A slice is a borrowed counted view. Typing it grants no live owner root,
 // bounds proof, writable destination or native operation admission.
 bool checked_slice_intrinsic(CheckedIndex index, SyntaxNodeId node) {
-	return index.class_storage && index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && index.bindings.program.arena.get_token_receiver(node).index == 0 && index.bindings.program.arena.get_node_receiver_place(node).index == 0 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "slice") && checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0;
+	return index.field_effects && index.class_storage && index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && index.bindings.program.arena.get_token_receiver(node).index == 0 && index.bindings.program.arena.get_node_receiver_place(node).index == 0 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "slice") && checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0;
 }
 
 TypeId checked_slice_type(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {

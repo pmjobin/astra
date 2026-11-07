@@ -8,8 +8,12 @@ int recover_r4_find(RecoverFlow flow, int kind) {
 }
 
 int recover_r4_mutation(string[] args, int category) throws Error {
-	var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow));
+	var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_effects_profile(move bindings, 0); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow));
 	int load = recover_r4_find(flow, 17); int store = recover_r4_find(flow, 44); assert_that(load > 0 && store > 0); var node = flow.data.nodes[store - 1]; var fact = flow.fields.facts[node.source.index];
+	if (category == 22) {
+		flow.checked.field_effects = false;
+		assert_that(!recover_flow_verify(flow)); return 2;
+	}
 	if (category < 15) {
 		if (category == 0) fact.receiver = type_symbol(0);
 		if (category == 1) fact.slot = 0;
@@ -165,10 +169,10 @@ bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 int recover_r4_mutations_cli(string[] args) {
 	try {
 		int category = 0;
-		while (category < 22) {
+		while (category < 23) {
 			int stage = recover_r4_mutation(args, category); var out = new Utf8ByteBuilder(); source_append_text(out, "R4_FIELD_REJECT "); append_int(out, category); source_append_text(out, " "); append_int(out, stage); var text = out.snapshot(); println(text.text); category = category + 1;
 		}
-		var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;
+		var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_effects_profile(move bindings, 0); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;
 		while (category < 10) {
 			var module = new RecoverLlvm(ssa); module.build(ssa); assert_that(module.check(ssa)); assert_that(recover_r4_physical(module, ssa, category)); assert_that(llvm12_verify(module.module) == 0); assert_that(!module.check(ssa));
 			var output = new Utf8ByteBuilder(); source_append_text(output, args[2]); source_append_text(output, "/field-physical-"); append_int(output, category); source_append_text(output, ".ll"); var path = output.snapshot(); assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0); var out = new Utf8ByteBuilder(); source_append_text(out, "R4_FIELD_LLVM_REJECT "); append_int(out, category); var text = out.snapshot(); println(text.text); category = category + 1;

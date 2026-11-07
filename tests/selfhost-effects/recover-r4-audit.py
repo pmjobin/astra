@@ -31,8 +31,9 @@ def main():
 		latest = {}
 		for row in read(integration/'commands.json'):
 			assert row['component_sha256'] == sha(component) and sha(integration/(row['label']+'.stdout')) == row['stdout_sha256'] and sha(integration/(row['label']+'.stderr')) == row['stderr_sha256']; latest[row['name']] = row
-		assert len(latest) == 38 and all(row['exit'] == 0 for row in latest.values())
+		assert len(latest) == 39 and all(row['exit'] == 0 for row in latest.values())
 		old = baseline[mode]; assert sha(old['component']) == old['sha256']
+		archived = paths.RUNTIME/'baseline-snapshots'/mode/'baseline-component'; original = Path(old['component']); receipt = read(archived/'INDEX.json'); assert receipt['origin'] == str(original) and receipt['sha256'] == old['sha256'] == sha(archived/original.name) and receipt['identity_sha256'] == sha(original.with_suffix('.identity.json')) == sha(archived/original.with_suffix('.identity.json').name)
 		for path, expected in old['identity']['identity']['sources'].items():
 			if Path(path).is_relative_to(ROOT): assert sha(paths.RUNTIME/'baseline-snapshots'/mode/Path(path).relative_to(ROOT)) == expected
 		def programs(names):
@@ -75,9 +76,18 @@ def main():
 			view = read(paths.RUNTIME/profile[key]/'result.json'); assert view['component_sha256'] == view['ledger_component_sha256'] == sha(component) and view['C0_actual_execution'] == 42 and all(r['AST_byte_exact'] for r in view['selections']); views.append(view)
 		message = read(paths.RUNTIME/profile['original_message']/'result.json'); assert message['component_sha256'] == sha(component) and message['AST_byte_exact'] and message['C0_actual_execution'] == message['Astra_actual_execution'] == 42
 		controls = {}
-		for key in ('r4_policy', 'lifetime', 'field_guard', 'class_loans', 'original_policy', 'independent_layout', 'independent_field_producers', 'receiver_guard', 'dynamic_observer', 'ABI_success_probe', 'ABI_limit'):
+		for key in ('r4_policy', 'lifetime', 'field_guard', 'class_loans', 'generic_call_proof', 'original_policy', 'independent_layout', 'independent_field_producers', 'receiver_guard', 'dynamic_observer', 'ABI_success_probe', 'ABI_limit'):
 			leaf = paths.RUNTIME/profile[key]; result = read(leaf/'result.json'); assert result.get('component_sha256') in (None, sha(component)); controls[key] = dict(path=profile[key], result_sha256=sha(leaf/'result.json'))
 		assert all(row['trace_equal'] for row in read(paths.RUNTIME/profile['lifetime']/'result.json')['programs'])
+		proofs = read(paths.RUNTIME/profile['generic_call_proof']/'result.json'); assert len(proofs['programs']) == 3 and all(r['source_check'] == [3, 0, 0] and r['C0_exit'] == 42 for r in proofs['programs'])
+		assert proofs['status'] == 'INDEPENDENT_GENERIC_CALL_PROOF_CONTROLS'
+		assert proofs['semantic_profiles'] == dict(call_proof_and_ledger='Explicit private checked_build_effects_profile', original_method_signature='Retained checked_build_profile, field_effects false')
+		assert read(paths.RUNTIME/profile['original_policy']/'result.json')['semantic_profile'] == 'Explicit private checked_build_effects_profile'
+		commands(paths.RUNTIME/profile['generic_call_proof'], read(paths.RUNTIME/profile['generic_call_proof']/'commands.json'))
+		for row in proofs['programs']:
+			assert row['completed_call_proofs'] == (1 if row['name'] == 'complete-arguments' else 0) and row['conditional_use'] == [1, 0, 17 if row['name'] == 'deferred-checked-argument' else 19]
+			assert row['original_signature_retained'] == (row['name'] == 'deferred-checked-argument')
+			assert sha(paths.RUNTIME/profile['generic_call_proof']/(row['name']+'.astra')) == row['source_sha256']; memory(paths.RUNTIME/profile['generic_call_proof']/(row['name']+'-C0-memory.stderr'))
 		loans = read(paths.RUNTIME/profile['class_loans']/'result.json'); assert len(loans['programs']) == 9 and sum(r['Astra_emitted'] for r in loans['programs']) == 2
 		for row in loans['programs']:
 			assert row['Astra_emitted'] == row['native_expected'] and sha(paths.RUNTIME/profile['class_loans']/(row['name']+'.astra')) == row['source_sha256']
