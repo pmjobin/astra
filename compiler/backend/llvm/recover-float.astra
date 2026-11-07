@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Strict floating carriers retain their exact scalar width. No fast-math
+// permission or host integer reinterpretation is inferred from a TypeId.
+bool recover_llvm_float_literal(CheckedIndex checked, RecoverNode row, void* value) throws Error {
+	if (value == null) return false;
+	int kind = checked_kind(checked, row.type);
+	if ((kind != 11 && kind != 12) || LLVMIsAConstantFP(value) == null || !recover_llvm_scalar_type(checked, row.type, LLVMTypeOf(value))) return false;
+	var source = checked.bindings.program.arena.token_message(row.token); int count = source.text.byte_length;
+	if (count < 1) return false;
+	int last = astra_host_text_byte(source.text, count - 1);
+	if (last == 100 || last == 68 || last == 102 || last == 70) count = count - 1;
+	var context = LLVMGetTypeContext(LLVMTypeOf(value)); void* type = LLVMFloatTypeInContext(context); if (kind == 12) type = LLVMDoubleTypeInContext(context);
+	var expected = llvm13_real(type, source.text, count);
+	return expected != null && value == expected;
+}
+
+bool recover_llvm_float_binary(string op, int kind, void* result, void* left, void* right) {
+	if (result == null || left == null || right == null) return false;
+	int code = 0; int predicate = 0;
+	if (op == "+") code = 9; if (op == "-") code = 11; if (op == "*") code = 13; if (op == "/") code = 16;
+	if (op == "==") predicate = 1; if (op == "!=") predicate = 14; if (op == ">") predicate = 2; if (op == ">=") predicate = 3; if (op == "<") predicate = 4; if (op == "<=") predicate = 5;
+	if (LLVMIsAInstruction(result) != null) {
+		if (LLVMCanValueUseFastMathFlags(result) == 0 || LLVMGetFastMathFlags(result) != 0) return false;
+		if (predicate != 0) return LLVMGetInstructionOpcode(result) == 43 && LLVMGetFCmpPredicate(result) == predicate && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
+		return code != 0 && LLVMGetInstructionOpcode(result) == code && LLVMGetOperand(result, 0) == left && LLVMGetOperand(result, 1) == right;
+	}
+	if (LLVMIsAConstantFP(left) == null || LLVMIsAConstantFP(right) == null) return false;
+	// This evaluator uses independently compiled strict C0 scalar arithmetic,
+	// including f32 rounding, rather than the emitter's instruction builder.
+	f64 a = llvm13_real_value(left); f64 b = llvm13_real_value(right);
+	if (predicate != 0) {
+		bool answer = false;
+		if (op == "==") answer = a == b; if (op == "!=") answer = a != b; if (op == ">") answer = a > b; if (op == ">=") answer = a >= b; if (op == "<") answer = a < b; if (op == "<=") answer = a <= b;
+		u64 expected = 0; if (answer) expected = 1;
+		return LLVMIsAConstantInt(result) != null && LLVMConstIntGetZExtValue(result) == expected;
+	}
+	if (code == 0 || LLVMIsAConstantFP(result) == null) return false;
+	f64 expected = 0.0d;
+	if (kind == 11) {
+		f32 x = a as f32; f32 y = b as f32; f32 value = 0.0f;
+		if (op == "+") value = x + y; if (op == "-") value = x - y; if (op == "*") value = x * y; if (op == "/") value = x / y;
+		expected = value as f64;
+	} else {
+		if (op == "+") expected = a + b; if (op == "-") expected = a - b; if (op == "*") expected = a * b; if (op == "/") expected = a / b;
+	}
+	if (expected != expected) return llvm13_real_value(result) != llvm13_real_value(result);
+	return result == LLVMConstReal(LLVMTypeOf(result), expected);
+}
+
+bool recover_llvm_float_unary(CheckedIndex checked, RecoverNode row, void* result, void* value) {
+	if (result == null || value == null) return false;
+	if (!recover_llvm_scalar_type(checked, row.type, LLVMTypeOf(result))) return false;
+	if (checked.bindings.program.arena.token_is(row.token, "+")) return result == value;
+	if (!checked.bindings.program.arena.token_is(row.token, "-")) return false;
+	if (LLVMIsAConstantFP(value) != null) return LLVMIsAConstantFP(result) != null && result == LLVMConstReal(LLVMTypeOf(value), -llvm13_real_value(value));
+	return LLVMIsAInstruction(result) != null && LLVMGetInstructionOpcode(result) == 66 && LLVMGetNumOperands(result) == 1 && LLVMGetOperand(result, 0) == value && LLVMGetFastMathFlags(result) == 0;
+}

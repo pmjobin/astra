@@ -1,6 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Separate consumer: reconstruct substitution from declaration/argument edges.
 // No builder, cached trust bit, serialized projection or native layout is used.
+bool generic_checked_instance_verified(CheckedIndex index, GenericInstance plan) {
+	var origin = index.bindings.symbol(plan.origin); var concrete = index.bindings.symbol(plan.concrete);
+	int first = index.symbol_signatures[plan.origin.index].index; int second = index.symbol_signatures[plan.concrete.index].index;
+	if (first < 1 || first > index.signature_count || second < 1 || second > index.signature_count) return false;
+	var source = index.signatures[first - 1]; var result = index.signatures[second - 1];
+	if ((source.flags & 64) == 0 && (result.flags & 64) == 0) return source.error.index == 0 && result.error.index == 0;
+	if (!checked_effect_signature_verified(index, source) || !checked_effect_signature_verified(index, result) || generic_channel_flags(index, index.types.argument(index.types, source.callable, 0).type, index.types.argument(index.types, result.callable, 0).type, source.flags) != result.flags) return false;
+	if (!index.native_abi || !index.semantic_admission || !index.class_storage || source.error.index != result.error.index || checked_kind(index, result.error) != 31 || source.dispatch != 0 || result.dispatch != 0 || (source.flags & (8 | 16 | 32)) != 0) return false;
+	if (origin.kind != 1 && origin.kind != 11 || concrete.kind != 1) return false;
+	if (origin.kind == 1 && (origin.owner.index != 0 || plan.enclosing.index != 0)) return false;
+	if (origin.kind == 11) {
+		if (plan.enclosing.index == 0 || !class_storage_source_verified(index, plan.enclosing, false, 0) || origin.owner.index != class_storage_origin(index, plan.enclosing).index) return false;
+		var owner = index.bindings.symbol(origin.owner); var fields = index.bindings.program.arena.get_list_fields(owner.node);
+		if (index.bindings.program.arena.list_count(fields) != 0) return false;
+	}
+	var node = origin.node;
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
+	return checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(node), source.error) && checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(concrete.node), result.error);
+}
+
 bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeId actual, int depth) {
 	if (!index.types.valid_id(pattern) || !index.types.valid_id(actual) || depth > 128) return false;
 	var p = index.types.row(pattern); var a = index.types.row(actual);
@@ -121,6 +141,7 @@ int generic_verify_failure(CheckedIndex index) {
 			n = n + 1;
 		}
 		if (original.kind == 1 || method) {
+			if (!generic_checked_instance_verified(index, index.instances[ordinal])) return 32;
 			int signature = index.symbol_signatures[concrete.index].index;
 			if (signature < 1 || signature > index.signature_count) return 20;
 			var pattern = index.symbol_types[plan_origin.index]; var actual = index.signatures[signature - 1].callable;

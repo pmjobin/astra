@@ -335,6 +335,11 @@ class RecoverLlvm {
 			return llvm17_text_literal(this.module, text.text);
 		}
 		var text = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(row.token); u64 bits = 0;
+		if (row.type.index == 11 || row.type.index == 12) {
+			int count = text.text.byte_length; int last = astra_host_text_byte(text.text, count - 1);
+			if (last == 100 || last == 68 || last == 102 || last == 70) count = count - 1;
+			return llvm13_real(this.scalar(ssa.cfg.core.flow.checked, row.type), text.text, count);
+		}
 		if (row.type.index == 13) {
 			if (text.text == "true") bits = 1;
 		}
@@ -357,6 +362,16 @@ class RecoverLlvm {
 		if (ssa.cfg.core.nodes[row.a - 1].value.type.index == 15) {
 			var arguments = new void*[4]; arguments[0] = LLVMBuildExtractValue(this.builder, left, 0, this.empty); arguments[1] = LLVMBuildExtractValue(this.builder, left, 1, this.empty); arguments[2] = LLVMBuildExtractValue(this.builder, right, 0, this.empty); arguments[3] = LLVMBuildExtractValue(this.builder, right, 1, this.empty); var equal = this.call(this.equal_function, arguments, true);
 			if (token.text == "!=") return LLVMBuildICmp(this.builder, 32, equal, LLVMConstInt(this.boolean, 0, 0), this.empty); return equal;
+		}
+		int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
+		if (kind == 11 || kind == 12) {
+			if (token.text == "+") return LLVMBuildFAdd(this.builder, left, right, this.empty);
+			if (token.text == "-") return LLVMBuildFSub(this.builder, left, right, this.empty);
+			if (token.text == "*") return LLVMBuildFMul(this.builder, left, right, this.empty);
+			if (token.text == "/") return LLVMBuildFDiv(this.builder, left, right, this.empty);
+			int predicate = 1;
+			if (token.text == "!=") predicate = 14; if (token.text == ">") predicate = 2; if (token.text == ">=") predicate = 3; if (token.text == "<") predicate = 4; if (token.text == "<=") predicate = 5;
+			return LLVMBuildFCmp(this.builder, predicate, left, right, this.empty);
 		}
 		if (token.text == "+") return LLVMBuildAdd(this.builder, left, right, this.empty);
 		if (token.text == "-") return LLVMBuildSub(this.builder, left, right, this.empty);
@@ -404,6 +419,10 @@ class RecoverLlvm {
 			}
 		}
 		if (op == 3) value = this.binary(ssa, row);
+		if (op == 15) {
+			value = this.values[row.a];
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "-")) value = LLVMBuildFNeg(this.builder, value, this.empty);
+		}
 		if (op == 7) value = this.values[row.a];
 		if (op == 4) {
 			int callee = ssa.cfg.core.flow.data.symbols[row.symbol.index]; var function = ssa.cfg.core.flow.data.functions[callee - 1]; var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol); var arguments = new void*[plan.parameters]; if (plan.success >= 0) arguments[plan.success] = this.slots[block.origin - 1]; int i = 0;
@@ -466,7 +485,9 @@ class RecoverLlvm {
 			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
 			value = LLVMBuildExtractValue(this.builder, this.locals[row.symbol.index], ordinal, this.empty);
 		}
-		if (op == 27) this.locals[row.symbol.index] = this.values[row.a];
+		// Retain the declaration's SSA identity. Owner reassignment publishes
+		// through its physical slot, never by replacing this lexical witness.
+		if (op == 27 && row.kind == 27) this.locals[row.symbol.index] = this.values[row.a];
 		if ((op == 27 || op == 42) && recover_mutable(ssa.cfg.core.flow.data, row.symbol)) operation = LLVMBuildStore(this.builder, this.values[row.a], this.owner_addresses[row.symbol.index]);
 		bool owner_read = op == 2 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0; bool owner_write = op == 27 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0;
 		if (owner_read || owner_write || op == 9 || op == 10 || op == 11 || op == 13 || op == 14 || op == 36 || op == 38) {
@@ -480,6 +501,10 @@ class RecoverLlvm {
 		}
 		if (value != null && row.type.index != 14) this.values[block.origin] = value;
 		if (op == 21) operation = LLVMBuildCondBr(this.builder, this.values[block.a], this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		if (op == 16) {
+			var present = LLVMBuildICmp(this.builder, 33, this.values[block.a], LLVMConstNull(this.pointer), this.empty);
+			operation = LLVMBuildCondBr(this.builder, present, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		}
 		if (op == 39) {
 			this.values[block.owner] = this.values[block.a];
 			operation = LLVMBuildICmp(this.builder, 33, this.values[block.a], LLVMConstNull(this.pointer), this.empty);
@@ -509,7 +534,10 @@ class RecoverLlvm {
 		if (op == 22) {
 			var function = ssa.cfg.core.flow.data.functions[block.function - 1];
 			if (function.checked) {
-				if (function.result.index != 14) operation = LLVMBuildStore(this.builder, this.values[block.a], LLVMGetParam(this.functions[block.function - 1], 0));
+				if (function.result.index != 14) {
+					var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
+					operation = LLVMBuildStore(this.builder, this.values[block.a], LLVMGetParam(this.functions[block.function - 1], plan.success));
+				}
 				var end = LLVMBuildRet(this.builder, LLVMConstNull(this.pointer));
 				if (operation == null) operation = end;
 			}

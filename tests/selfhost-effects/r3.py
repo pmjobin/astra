@@ -75,13 +75,14 @@ def route():
 		if Path(path).name == 'recover-build.py':
 			module.RUNTIME = RUNTIME
 			module.BUILD = BUILD
-		if Path(path) == ROOT/'tests/selfhost-typecore/build.py':
-			build = module.build
+		if Path(path) in (ROOT/'tests/selfhost-typecore/build.py', ROOT/'tests/selfhost-genref/build.py'):
+			entry = 'build' if Path(path).name == 'build.py' and Path(path).parent.name == 'selfhost-typecore' else 'original'
+			build = getattr(module, entry)
 			def pinned_build(*args, **kwargs):
-				kwargs['link_inputs'] = [*kwargs.get('link_inputs', ()), Path(__file__)]
-				kwargs['extra_sources'] = [*kwargs.get('extra_sources', ()), ROOT/'tests/selfhost-effects/recover-r3-mutations.astra']
+				kwargs['link_inputs'] = list(dict.fromkeys([*kwargs.get('link_inputs', ()), Path(__file__)]))
+				kwargs['extra_sources'] = list(dict.fromkeys([*kwargs.get('extra_sources', ()), ROOT/'tests/selfhost-effects/recover-r3-mutations.astra', ROOT/'tests/selfhost-effects/recover-r3-domain-mutations.astra']))
 				return build(*args, **kwargs)
-			module.build = pinned_build
+			setattr(module, entry, pinned_build)
 		return module
 	state.load_module = load
 	return load

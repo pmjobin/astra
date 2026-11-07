@@ -144,6 +144,17 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			}
 		}
 		int contract = checked_contract(index, initializer, index.symbol_flags[id.index]);
+		if (index.native_abi && kind != SyntaxKind.InferredLocalDeclarationSyntax() && checked_kind(index, expected) == 31 && index.bindings.program.arena.kind(initializer) == SyntaxKind.ParenthesizedExpressionSyntax()) {
+			var inner = initializer; int steps = 0;
+			while (index.bindings.program.arena.kind(inner) == SyntaxKind.ParenthesizedExpressionSyntax() && steps < 256) {
+				inner = index.bindings.program.arena.get_node_expression(inner);
+				steps = steps + 1;
+			}
+			if (index.bindings.program.arena.kind(inner) == SyntaxKind.HeapObjectConstructionSyntax()) {
+				index.fail(index.bindings.program.arena.header(initializer).span, "typed Class construction requires a direct initializer");
+				return;
+			}
+		}
 		if (contract != 0) {
 			var ignored = index.defer(node, contract);
 		}

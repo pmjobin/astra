@@ -313,6 +313,24 @@ GenericInstance generic_copy_bindings(CheckedIndex index, GenericInstance input)
 	return plan;
 }
 
+// Establish only a closed private checked declaration. Executable channels,
+// receiver provenance, ownership and error edges remain separate consumers.
+bool generic_checked_source(CheckedIndex index, SymbolId origin, TypeId enclosing) {
+	if (!index.native_abi || !index.semantic_admission || !index.class_storage) return false;
+	var declaration = index.bindings.symbol(origin); var node = declaration.node;
+	if (declaration.kind == 1) {
+		if (declaration.owner.index != 0 || enclosing.index != 0) return false;
+	} else {
+		if (declaration.kind != 11 || !class_storage_source_verified(index, enclosing, false, 0)) return false;
+		var owner = class_storage_origin(index, enclosing); var source = index.bindings.symbol(owner); var fields = index.bindings.program.arena.get_list_fields(source.node);
+		if (index.bindings.program.arena.list_count(fields) != 0) return false;
+	}
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.FunctionDeclarationSyntax() || index.bindings.program.arena.get_node_body(node).index == 0 || index.bindings.program.arena.get_int_dispatch(node) != 0 || index.bindings.program.arena.get_token_extern_keyword(node).index != 0 || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node) || index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0) return false;
+	int ordinal = index.symbol_signatures[origin.index].index; if (ordinal < 1 || ordinal > index.signature_count) return false;
+	var signature = index.signatures[ordinal - 1];
+	return (signature.flags & (8 | 16 | 32 | 64)) == 64 && checked_effect_signature_verified(index, signature) && checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(node), signature.error);
+}
+
 SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeEdge[] arguments, SyntaxSpan span) throws Error {
 	int request = 0;
 	if (index.generic_trace) {
@@ -321,7 +339,7 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 	}
 	var declaration = index.bindings.symbol(origin);
 	int count = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node));
-	if ((index.symbol_flags[origin.index] & (8 | 16 | 32 | 64)) != 0) {
+	if ((index.symbol_flags[origin.index] & (8 | 16 | 32)) != 0 || (index.symbol_flags[origin.index] & 64) != 0 && !generic_checked_source(index, origin, enclosing)) {
 		index.fail(span, "DEFERRED: generic foreign, async, signal or throwing ABI policy");
 		return type_symbol(0);
 	}

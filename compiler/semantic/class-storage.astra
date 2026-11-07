@@ -54,7 +54,14 @@ bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
 	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) return false;
 	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
-	return index.bindings.program.arena.get_int_dispatch(member) == 0 && index.bindings.program.arena.get_node_body(member).index != 0 && index.bindings.program.arena.get_node_throws_class(member).index == 0 && index.bindings.program.arena.get_token_async_keyword(member).index == 0 && index.bindings.program.arena.get_node_foreign_policy(member).index == 0 && index.bindings.program.arena.get_node_foreign_member(member).index == 0 && !index.bindings.program.arena.get_bool_is_signal(member) && index.bindings.program.arena.get_token_extern_keyword(member).index == 0 && index.bindings.program.arena.get_token_export_keyword(member).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(member)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(member)) == 0;
+	var bound = index.bindings.program.arena.get_node_throws_class(member);
+	if (bound.index != 0) {
+		var symbol = index.node_symbols[member.index];
+		if (symbol.index < 1) return false;
+		var owner = index.bindings.symbol(index.bindings.symbol(symbol).owner);
+		if (kind != SyntaxKind.FunctionDeclarationSyntax() || !index.semantic_admission || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(owner.node)) != 0 || !checked_effect_subtype(index, checked_effect_class(index, bound), checked_effect_root(index))) return false;
+	}
+	return index.bindings.program.arena.get_int_dispatch(member) == 0 && index.bindings.program.arena.get_node_body(member).index != 0 && index.bindings.program.arena.get_token_async_keyword(member).index == 0 && index.bindings.program.arena.get_node_foreign_policy(member).index == 0 && index.bindings.program.arena.get_node_foreign_member(member).index == 0 && !index.bindings.program.arena.get_bool_is_signal(member) && index.bindings.program.arena.get_token_extern_keyword(member).index == 0 && index.bindings.program.arena.get_token_export_keyword(member).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_ccode(member)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(member)) == 0;
 }
 
 bool class_storage_declaration(CheckedIndex index, SymbolId symbol) {

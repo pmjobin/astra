@@ -1,6 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Admit ordinary private functions and actual existing constructor instances.
 // A receiver is accepted only with the original generic/Class storage proof.
+bool recover_closed_free_function(CheckedIndex checked, SymbolId function) {
+	int instance = generic_instance_for(checked, function);
+	if (instance < 1 || !generic_verify(checked)) return false;
+	var plan = checked.instances[instance - 1]; var origin = checked.bindings.symbol(plan.origin);
+	if (plan.concrete.index != function.index || plan.enclosing.index != 0 || plan.state != 2 || origin.kind != 1 || origin.owner.index != 0 || plan.argument_count < 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(origin.node)) != plan.argument_count) return false;
+	int i = 0;
+	while (i < plan.argument_count) {
+		var argument = checked.generic_arguments[plan.arguments + i];
+		if (argument.flags != 0 || !generic_closed(checked, argument.type, 0)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool recover_runtime_function(CheckedIndex checked, SymbolId symbol) {
+	return checked.bindings.symbol(symbol).kind == 1 && !generic_template(checked, symbol);
+}
+
+bool recover_static_method(CheckedIndex checked, SymbolId function) {
+	int instance = generic_instance_for(checked, function); if (instance < 1 || !generic_verify(checked)) return false;
+	var plan = checked.instances[instance - 1]; var origin = checked.bindings.symbol(plan.origin);
+	if (plan.concrete.index != function.index || plan.state != 2 || origin.kind != 11 || !recover_storage_class(checked, plan.enclosing) || origin.owner.index != class_storage_origin(checked, plan.enclosing).index) return false;
+	var declaration = checked.bindings.symbol(function); var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	if (checked.bindings.program.arena.list_count(parameters) < 1) return false;
+	var parameter = checked.bindings.program.arena.node_at(parameters, 0); var symbol = checked.node_symbols[parameter.index];
+	return symbol.index > 0 && checked.bindings.symbol(symbol).kind == 7 && checked.bindings.symbol(symbol).owner.index == function.index && checked.symbol_types[symbol.index].index == plan.enclosing.index && checked.symbol_flags[symbol.index] == 2 && class_storage_receiver(checked, function) == symbol.index;
+}
+
+bool recover_call_receiver(CheckedIndex checked, SymbolId function) { return recover_static_method(checked, function); }
+
 bool recover_empty_constructor_verified(CheckedIndex checked, SymbolId function) {
 	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false; int instance = generic_instance_for(checked, function); var concrete = checked.instances[instance - 1]; if (!recover_storage_class(checked, concrete.enclosing)) return false;
 	var origin = checked.bindings.symbol(concrete.origin); if (origin.kind != 12 || origin.owner.index != checked.types.row(concrete.enclosing).nominal.index) return false;
@@ -19,7 +49,8 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 		if (instance < 1 || !recover_storage_class(checked, checked.instances[instance - 1].enclosing) || !recover_empty_constructor_verified(checked, symbol) || !generic_verify(checked)) return false;
 	}
 	else {
-		if (declaration.owner.index != 0 || kind != SyntaxKind.FunctionDeclarationSyntax() || generic_instance_for(checked, symbol) != 0) return false;
+		if (kind != SyntaxKind.FunctionDeclarationSyntax()) return false;
+		if (!recover_static_method(checked, symbol) && (declaration.owner.index != 0 || generic_instance_for(checked, symbol) != 0 && !recover_closed_free_function(checked, symbol))) return false;
 	}
 	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 	int ordinal = checked.symbol_signatures[symbol.index].index; if (ordinal < 1 || ordinal > checked.signature_count) return false; var signature = checked.signatures[ordinal - 1];

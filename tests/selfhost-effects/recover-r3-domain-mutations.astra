@@ -1,0 +1,176 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent concrete generic, checked receiver and strict FP controls.
+int recover_r3_method_call(RecoverFlow flow) {
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 4 && recover_call_receiver(flow.checked, row.symbol)) return n + 1;
+		n = n + 1;
+	}
+	return 0;
+}
+
+int recover_r3_domain_case(string[] args, int category) throws Error {
+	var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); assert_that(recover_flow_verify(flow)); int method = recover_r3_method_call(flow); assert_that(method > 0); var call = flow.data.nodes[method - 1]; int receiver = flow.data.edges[call.first];
+	int generic = 0; int floating = 0; int unary = 0; int assignment = 0; int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 4 && recover_closed_free_function(flow.checked, row.symbol)) generic = n + 1;
+		if (row.kind == 1 && row.type.index == 12) floating = n + 1;
+		if (row.kind == 15) unary = n + 1;
+		if (row.kind == 43) assignment = n + 1;
+		n = n + 1;
+	}
+	assert_that(generic > 0 && floating > 0 && unary > 0 && assignment > 0);
+	if (category < 2 || category >= 16) {
+		var source = flow.data.nodes[generic - 1]; int ordinal = generic_instance_for(flow.checked, source.symbol); var plan = flow.checked.instances[ordinal - 1];
+		if (category == 0) {
+			var argument = flow.checked.generic_arguments[plan.arguments];
+			argument.type = type_id(13);
+			flow.checked.generic_arguments[plan.arguments] = argument;
+		}
+		if (category == 1) flow.checked.generic_calls[source.source.index] = call.symbol;
+		if (category == 16) {
+			int id = flow.checked.symbol_signatures[source.symbol.index].index; var signature = flow.checked.signatures[id - 1]; signature.error = type_id(13); flow.checked.signatures[id - 1] = signature;
+		}
+		if (category == 17) flow.checked.symbol_flags[source.symbol.index] = flow.checked.symbol_flags[source.symbol.index] & ~64;
+		assert_that(!generic_verify(flow.checked)); return 1;
+	}
+	if (category == 2 || category == 3 || category == 10 || category == 11 || category == 12) {
+		if (category == 2) flow.data.edges[call.first] = flow.data.edges[call.first + 1];
+		if (category == 3) {
+			call.symbol = flow.data.nodes[generic - 1].symbol;
+			flow.data.nodes[method - 1] = call;
+		}
+		if (category == 10) {
+			var literal = flow.data.nodes[floating - 1];
+			literal.type = type_id(11);
+			flow.data.nodes[floating - 1] = literal;
+		}
+		if (category == 11) {
+			var negative = flow.data.nodes[unary - 1];
+			negative.token = flow.checked.bindings.symbol(call.symbol).token;
+			flow.data.nodes[unary - 1] = negative;
+		}
+		if (category == 12) {
+			var row = flow.data.nodes[assignment - 1];
+			row.symbol = call.symbol;
+			flow.data.nodes[assignment - 1] = row;
+		}
+		assert_that(!recover_flow_verify(flow)); return 2;
+	}
+	var core = recover_core_lower(move flow); assert_that(recover_core_verify(core));
+	if (category == 4 || category == 8 || category == 13) {
+		if (category == 4) {
+			var row = core.nodes[method - 1];
+			row.conditional = false;
+			core.nodes[method - 1] = row;
+		}
+		if (category == 8) {
+			var row = core.nodes[floating - 1];
+			row.value.type = type_id(1);
+			core.nodes[floating - 1] = row;
+		}
+		if (category == 13) {
+			var row = core.nodes[assignment - 1];
+			row.place = 0;
+			core.nodes[assignment - 1] = row;
+		}
+		assert_that(!recover_core_verify(core)); return 3;
+	}
+	var cfg = recover_cfg_lower(move core, 8192); assert_that(recover_cfg_verify(cfg));
+	if (category == 5 || category == 6 || category == 14) {
+		if (category == 14) {
+			var row = cfg.regions[assignment - 1]; row.entry = row.operation; cfg.regions[assignment - 1] = row; assert_that(!recover_cfg_verify(cfg)); return 4;
+		}
+		int b = 0; bool changed = false;
+		while (b < cfg.block_count && !changed) {
+			var block = cfg.blocks[b];
+			if (block.opcode == 16 && block.origin == method) {
+				if (category == 5) block.other = block.next;
+				if (category == 6) block.next = cfg.regions[method - 1].operation;
+				cfg.blocks[b] = block; changed = true;
+			}
+			b = b + 1;
+		}
+		assert_that(changed && !recover_cfg_verify(cfg)); return 4;
+	}
+	var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa));
+	if (category == 7) {
+		var value = ssa.data.values[receiver];
+		value.type = type_id(12);
+		ssa.data.values[receiver] = value;
+	}
+	if (category == 9) {
+		var value = ssa.data.values[method];
+		value.type = type_id(11);
+		ssa.data.values[method] = value;
+	}
+	if (category == 15) {
+		var row = ssa.cfg.core.nodes[assignment - 1].value;
+		var value = ssa.data.values[row.a];
+		value.channel = 0;
+		ssa.data.values[row.a] = value;
+	}
+	assert_that(!recover_ssa_verify(ssa)); return 5;
+}
+
+bool recover_r3_domain_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (block.origin > 0) {
+			var row = ssa.cfg.core.nodes[block.origin - 1].value; var operation = module.operations[b];
+			if ((category == 0 || category == 3) && block.opcode == 4 && recover_call_receiver(ssa.cfg.core.flow.checked, row.symbol)) {
+				if (category == 0) {
+					var receiver = LLVMGetArgOperand(operation, 0);
+					var success = LLVMGetArgOperand(operation, 1);
+					LLVMSetOperand(operation, 0, success);
+					LLVMSetOperand(operation, 1, receiver);
+				}
+				if (category == 3) LLVMSetOperand(operation, 2, LLVMConstReal(LLVMTypeOf(LLVMGetArgOperand(operation, 2)), 0.75d));
+				return true;
+			}
+			if (category == 2 && block.opcode == 16) {
+				var term = LLVMGetBasicBlockTerminator(module.blocks[b]); var first = LLVMGetSuccessor(term, 0); var second = LLVMGetSuccessor(term, 1); LLVMSetSuccessor(term, 0, second); LLVMSetSuccessor(term, 1, first); return true;
+			}
+			if (category == 4 && block.opcode == 3 && row.type.index == 12 && LLVMIsAInstruction(module.values[block.origin]) != null) {
+				LLVMSetFastMathFlags(module.values[block.origin], 1);
+				return true;
+			}
+			if ((category == 1 || category == 5) && block.opcode == 22 && recover_call_receiver(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[block.function - 1].symbol)) {
+				if (category == 1) LLVMSetOperand(operation, 1, LLVMGetParam(module.functions[block.function - 1], 0));
+				if (category == 5) LLVMSetOperand(operation, 0, LLVMConstReal(LLVMTypeOf(LLVMGetOperand(operation, 0)), 0.75d));
+				return true;
+			}
+			if (category == 6 && row.kind == 43 && block.opcode == 38) {
+				var selection = LLVMGetArgOperand(operation, 0);
+				LLVMSetOperand(selection, 0, LLVMConstInt(module.boolean, 0, 0));
+				return true;
+			}
+			if (category == 7 && row.kind == 43 && block.opcode == 27) {
+				var body = recover_llvm_body(module.blocks[b], 3);
+				if (len(body) != 3) return false;
+				LLVMSetOperand(body[1], 0, LLVMConstInt(module.boolean, 0, 0));
+				return true;
+			}
+		}
+		b = b + 1;
+	}
+	return false;
+}
+
+int recover_r3_domain_mutations_cli(string[] args) {
+	try {
+		int category = 0;
+		while (category < 18) {
+			int stage = recover_r3_domain_case(args, category); var out = new Utf8ByteBuilder(); source_append_text(out, "R3_DOMAIN_REJECT "); append_int(out, category); source_append_text(out, " "); append_int(out, stage); var text = out.snapshot(); println(text.text); category = category + 1;
+		}
+		var program = binding_load_program(args, 3); var bindings = binding_index(move program, 0); var checked = checked_build_profile(move bindings, 0, true, true, true, true, true); var flow = recover_flow_lower(move checked, 8192); var core = recover_core_lower(move flow); var cfg = recover_cfg_lower(move core, 8192); var ssa = recover_ssa_lower(move cfg, 8000000); assert_that(recover_ssa_verify(ssa)); category = 0;
+		while (category < 8) {
+			var module = new RecoverLlvm(ssa); module.build(ssa); assert_that(module.check(ssa)); assert_that(recover_r3_domain_physical(module, ssa, category)); assert_that(llvm12_verify(module.module) == 0); assert_that(!module.check(ssa));
+			var output = new Utf8ByteBuilder(); source_append_text(output, args[2]); source_append_text(output, "/domain-physical-"); append_int(output, category); source_append_text(output, ".ll"); var path = output.snapshot(); assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0); var out = new Utf8ByteBuilder(); source_append_text(out, "R3_DOMAIN_LLVM_REJECT "); append_int(out, category); var text = out.snapshot(); println(text.text); category = category + 1;
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

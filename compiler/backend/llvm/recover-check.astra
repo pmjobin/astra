@@ -25,6 +25,7 @@ bool recover_llvm_literal(CheckedIndex checked, RecoverNode row, void* value) th
 		var text = checked.bindings.program.arena.payload_message(row.token);
 		return llvm17_text_literal_matches(value, text.text) == 1;
 	}
+	if (row.type.index == 11 || row.type.index == 12) return recover_llvm_float_literal(checked, row, value);
 	if (LLVMIsAConstantInt(value) == null) return false;
 	var text = checked.bindings.program.arena.token_message(row.token); u64 bits = 0;
 	if (row.type.index == 13) {
@@ -165,6 +166,10 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 				if (LLVMIsAInstruction(result) != null) instruction_count = 2;
 			}
 		}
+		if (op == 15) {
+			if (!recover_llvm_float_unary(ssa.cfg.core.flow.checked, row, values[block.origin], values[row.a])) return false;
+			if (LLVMIsAInstruction(values[block.origin]) != null && values[block.origin] != values[row.a]) instruction_count = 2;
+		}
 		if (op == 4) {
 			instruction_count = 2; if (ssa.cfg.core.nodes[block.origin - 1].conditional) instruction_count = 3;
 			var signature = ssa.cfg.core.flow.checked.signatures[ssa.cfg.core.flow.checked.symbol_signatures[row.symbol.index].index - 1]; int i = 0;
@@ -237,7 +242,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			int child = ssa.cfg.core.flow.data.edges[row.first];
 			instruction_count = 2 + recover_llvm_extract_instructions(values[child]);
 		}
-		if (op == 6 || op == 30 || op == 31 || op == 32 || op == 33 || op == 35) instruction_count = 2;
+		if (op == 6 || op == 16 || op == 30 || op == 31 || op == 32 || op == 33 || op == 35) instruction_count = 2;
 		if (op == 22 && ssa.cfg.core.flow.data.functions[block.function - 1].checked && ssa.cfg.core.flow.data.functions[block.function - 1].result.index != 14) instruction_count = 2;
 		if (op == 34 && row.kind == 23 && row.a != 0) {
 			instruction_count = 6; var address = LLVMGetFirstInstruction(physical); var previous = LLVMGetNextInstruction(address); var fresh = LLVMGetNextInstruction(previous); var selected = LLVMGetNextInstruction(fresh); var store = LLVMGetNextInstruction(selected);
@@ -294,7 +299,8 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			var function = ssa.cfg.core.flow.data.functions[block.function - 1]; if (LLVMGetInstructionOpcode(term) != 1) return false;
 			if (function.checked) {
 				if (LLVMGetNumOperands(term) != 1 || LLVMIsNull(LLVMGetOperand(term, 0)) == 0) return false;
-				if (function.result.index != 14 && (operation == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetOperand(operation, 0) != values[block.a] || LLVMGetOperand(operation, 1) != LLVMGetParam(functions[block.function - 1], 0) || LLVMGetNextInstruction(operation) != term)) return false;
+				var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
+				if (function.result.index != 14 && (operation == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetOperand(operation, 0) != values[block.a] || LLVMGetOperand(operation, 1) != LLVMGetParam(functions[block.function - 1], plan.success) || LLVMGetNextInstruction(operation) != term)) return false;
 			}
 			else {
 				if (function.result.index != 14 && (LLVMGetNumOperands(term) != 1 || LLVMGetOperand(term, 0) != values[block.a])) return false;
@@ -315,11 +321,15 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			}
 			if (incoming == 0 || incoming != LLVMCountIncoming(phi)) return false;
 		}
-		if (op == 21 || op == 31 || op == 39) {
+		if (op == 21 || op == 16 || op == 31 || op == 39) {
 			if (LLVMGetNumSuccessors(term) != 2 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1] || LLVMGetSuccessor(term, 1) != blocks[block.other - 1]) return false;
 			if (op == 21 && LLVMGetCondition(term) != values[block.a]) return false;
+			if (op == 16) {
+				var condition = LLVMGetCondition(term);
+				if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 33 || LLVMGetOperand(condition, 0) != values[block.a] || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0 || operation != term) return false;
+			}
 		}
-		if (op != 21 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
+		if (op != 21 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
 			if (LLVMGetInstructionOpcode(term) != 70 || LLVMGetNumSuccessors(term) != 1 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1]) return false;
 		}
 		b = b + 1;

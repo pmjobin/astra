@@ -288,7 +288,16 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 		return type_id(16);
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
-		return checked_expression(index, index.bindings.program.arena.get_node_expression(node), expected, depth + 1);
+		var child = index.bindings.program.arena.get_node_expression(node);
+		var type = checked_expression(index, child, expected, depth + 1);
+		// Parentheses preserve responsibility and pending success/owner facts;
+		// they do not establish initialization or extend a borrowed lifetime.
+		if (index.flow_adapters) {
+			var use = index.uses[node.index]; use.flags = index.uses[child.index].flags;
+			if (use.deferred == 0) use.deferred = index.uses[child.index].deferred;
+			index.uses[node.index] = use;
+		}
+		return type;
 	}
 	if (kind == SyntaxKind.NameExpressionSyntax()) {
 		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));

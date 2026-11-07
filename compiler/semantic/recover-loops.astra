@@ -18,6 +18,7 @@ RecoverNode recover_build_loop(RecoverFlowData flow, CheckedIndex checked, Recov
 	}
 	if (kind == SyntaxKind.AssignmentStatementSyntax()) {
 		row.kind = 42; row.type = type_id(14); row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_name(source));
+		if (row.symbol.index > 0 && checked.symbol_flags[row.symbol.index] == 4) row.kind = 43;
 		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), row.function, row.handler, row.caught, depth + 1);
 	}
 	return row;
@@ -69,9 +70,18 @@ bool recover_loop_source(RecoverFlowData flow, CheckedIndex checked, RecoverType
 	var kind = checked.bindings.program.arena.kind(row.source);
 	if (row.kind == 28) return kind == SyntaxKind.WhileStatementSyntax() && row.c == 0 && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_condition(row.source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 13 && recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_body(row.source), function, handler, caught, seen, edges, depth + 1);
 	if (row.kind == 29 || row.kind == 41) return row.a == 0 && row.b == 0 && row.c > 0 && row.c <= flow.node_count && (row.kind == 29 && kind == SyntaxKind.BreakStatementSyntax() || row.kind == 41 && kind == SyntaxKind.ContinueStatementSyntax());
-	if (row.kind != 42 || kind != SyntaxKind.AssignmentStatementSyntax() || row.b != 0 || row.c != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
+	if (row.kind != 42 && row.kind != 43 || kind != SyntaxKind.AssignmentStatementSyntax() || row.b != 0 || row.c != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
 	var declaration = checked.bindings.symbol(row.symbol); var type = checked.symbol_types[row.symbol.index]; int code = checked_kind(checked, type);
-	return declaration.kind == 8 && declaration.owner.index == flow.functions[function - 1].symbol.index && checked.symbol_flags[row.symbol.index] == 0 && (type_integer(code) || code == 13) && checked_target(checked, row.source, checked.bindings.program.arena.get_token_name(row.source)).index == row.symbol.index && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(row.source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == type.index;
+	if (declaration.kind != 8 || declaration.owner.index != flow.functions[function - 1].symbol.index || checked_target(checked, row.source, checked.bindings.program.arena.get_token_name(row.source)).index != row.symbol.index || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(row.source), function, handler, caught, seen, edges, depth + 1) || flow.nodes[row.a - 1].type.index != type.index) return false;
+	if (row.kind == 42) return checked.symbol_flags[row.symbol.index] == 0 && (type_numeric(code) || code == 13);
+	// C0 permits owned buffer rebinding, but forbids Class local rebinding.
+	if (checked.symbol_flags[row.symbol.index] != 4 || code != 22 || !recover_storage_channel(checked, type, 4, false)) return false;
+	int producer = row.a; int steps = 0;
+	while (producer > 0 && producer <= flow.node_count && flow.nodes[producer - 1].kind == 7 && steps < 192) {
+		producer = flow.nodes[producer - 1].a;
+		steps = steps + 1;
+	}
+	return producer > 0 && producer <= flow.node_count && steps < 192 && flow.nodes[producer - 1].kind == 4 && (checked.uses[flow.nodes[producer - 1].source.index].flags & 4) != 0;
 }
 
 bool recover_mutable(RecoverFlowData flow, SymbolId symbol) {

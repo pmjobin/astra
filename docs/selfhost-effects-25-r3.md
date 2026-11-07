@@ -116,3 +116,41 @@ returning-memory credit.
 Remaining bounded receiver/generic/field/carrier obligations and original
 native function execution still require implementation and qualification.
 Minimum program and mutation counts do not close G3/G4/G5/G9 or establish Stage 1.
+
+## Concrete-domain focused work
+
+The second candidate adds concrete private method and free generic source
+checks, preserving the original specialization maps and independent generic
+consumer. The checked specialization policy requires a closed nominal Error
+bound, private synchronous source, and an actual fieldless Class for a static
+receiver. The consumer checks the copied declaration, precise error bound and
+checked flag independently. The 256-instance limit is unchanged. Receiver
+evaluation precedes a fatal null guard, which precedes all explicit arguments;
+the receiver precedes success storage in the existing ABI plan.
+
+Strict f32/f64 storage is admitted for scalar, copyable record and owned-buffer
+carriers. The physical verifier checks source literal identity, operand order,
+width, ordered comparisons, unordered inequality and absence of fast-math
+permissions. Independent caller adapters compare exact NaN payload and signed
+zero bits, mixed record fields, buffer length and unchanged poison on error.
+These adapters receive no Astra-native source credit.
+
+Inferred parentheses retain their child's ownership and pending facts. Typed
+parenthesized Class construction remains C0-rejected. An owned buffer local may
+receive an owned call result: evaluate/capture first, retire its old value only
+on success, then publish and arm the replacement. The independent CFG consumer
+reconstructs this order and the real slot; SSA checks its owner states and
+unique result consumer. Self transfer commits the old reservation before
+retirement, so the old slot is disarmed when the same owner returns.
+
+The intermediate `domain5` O0 component genuinely executes 19 focused positive
+source identities (floating carriers, inferred construction, Class call-result
+return and buffer reassignment), with C0 agreement and unsuppressed Valgrind.
+Its 24 independent FP bit/poison observations also pass. It exposed an older
+blanket throwing-specialization gate and accidental C0-invalid Class local
+rebinding. Neither is accepted as final qualification: the former now has a
+bounded checked declaration policy and independent consumer; buffer-only
+rebinding excludes the latter. Three C0 Class/Error rebinding negatives remain
+explicit controls. The intermediate compiler's 110 repository input snapshots
+match its recorded source hashes exactly, preserving both actual progress and
+failures before the fixes. Final combined O0/O2 qualification remains required.

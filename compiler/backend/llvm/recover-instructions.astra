@@ -13,6 +13,8 @@ int recover_llvm_instruction_count(void* block) {
 bool recover_llvm_scalar_type(CheckedIndex checked, TypeId semantic, void* actual) {
 	int kind = checked_kind(checked, semantic);
 	if (kind == 14) return LLVMGetTypeKind(actual) == 0;
+	if (kind == 11) return LLVMGetTypeKind(actual) == 2;
+	if (kind == 12) return LLVMGetTypeKind(actual) == 3;
 	int width = 1; if (type_integer(kind)) width = type_width(kind);
 	return (kind == 13 || type_integer(kind)) && LLVMGetTypeKind(actual) == 8 && LLVMGetIntTypeWidth(actual) == width;
 }
@@ -38,6 +40,7 @@ bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* le
 		return recover_llvm_extract(LLVMGetArgOperand(call, 0), left, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 1), left, 1) && recover_llvm_extract(LLVMGetArgOperand(call, 2), right, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 3), right, 1);
 	}
 	if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(result))) return false;
+	if (kind == 11 || kind == 12) return recover_llvm_float_binary(token.text, kind, result, left, right);
 	bool comparison = token.text == "==" || token.text == "!=" || token.text == "<" || token.text == ">" || token.text == "<=" || token.text == ">=";
 	if (LLVMIsAConstantInt(result) != null) {
 		if (LLVMIsAConstantInt(left) == null || LLVMIsAConstantInt(right) == null) return false;

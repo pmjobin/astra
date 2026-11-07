@@ -31,6 +31,12 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		return 0;
 	}
 	var node = cfg.core.nodes[id - 1]; var row = node.value;
+	if (row.kind == 43) {
+		int place = node.place; var slot = cfg.core.flow.storage.slots[place - 1];
+		int publish = cfg.block(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0);
+		int retire = cfg.block(row.function, id, 38, place, slot.scope, publish, 0, 0, 0, place);
+		int head = recover_cfg_tree(cfg, row.a, retire, depth + 1); RecoverRegion region = {entry = head, operation = publish, next = next}; cfg.regions[id - 1] = region; return head;
+	}
 	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42) return recover_cfg_loop(cfg, id, next, depth);
 	int operation = 0; int head = next;
 	if (row.kind == 20) {
@@ -98,6 +104,11 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4) head = recover_cfg_commit(cfg, id, operation);
 							int i = row.count - 1;
 							while (i >= 0 && cfg.status == 0) {
+								// Check the evaluated receiver before explicit arguments.
+								if (i == 0 && row.kind == 4 && recover_call_receiver(cfg.core.flow.checked, row.symbol)) {
+									int fatal = cfg.block(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0);
+									head = cfg.block(row.function, id, 16, cfg.core.flow.data.edges[row.first], 0, head, fatal, 0, 0, 0);
+								}
 								head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
 								i = i - 1;
 							}
