@@ -91,7 +91,7 @@ bool recover_function_source(CheckedIndex checked, SymbolId symbol) {
 	if (shape.kind != 25 || shape.count < 1 || shape.count > 257) return false;
 	while (p < shape.count) {
 		var channel = checked.types.argument(checked.types, signature.callable, p); int kind = checked_kind(checked, channel.type);
-		if (channel.flags != 0 || !type_integer(kind) && kind != 13 && !(p == 0 && kind == 14)) return false;
+		if (!recover_copy_channel(checked, channel.type, channel.flags, p == 0)) return false;
 		p = p + 1;
 	}
 	return true;

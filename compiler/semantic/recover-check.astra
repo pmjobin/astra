@@ -11,9 +11,9 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (row.kind >= 20 && row.kind != 25 && row.type.index != 14) return false;
 	if (row.kind != 3 && row.kind != 21 && (row.b != 0 || row.c != 0)) return false;
 	if (row.kind == 3 && row.c != 0) return false;
-	if (row.kind != 4 && row.kind != 5 && row.kind != 20 && row.kind != 24 && (row.count != 0 || row.first != 0)) return false;
-	if (row.kind != 1 && row.kind != 3 && row.kind != 6 && row.token.index != 0) return false;
-	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 25 && row.symbol.index != 0) return false;
+	if (row.kind != 4 && row.kind != 5 && row.kind != 8 && row.kind != 20 && row.kind != 24 && (row.count != 0 || row.first != 0)) return false;
+	if (row.kind != 1 && row.kind != 3 && row.kind != 6 && row.kind != 12 && row.token.index != 0) return false;
+	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 25 && row.kind != 27 && row.symbol.index != 0) return false;
 	if (row.kind == 1) {
 		if (row.a != 0) return false;
 		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) return row.token.index == checked.bindings.program.arena.get_token_token(source).index && row.type.index == 15;
@@ -23,7 +23,7 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (row.kind == 2) {
 		if (kind != SyntaxKind.NameExpressionSyntax() || row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
 		var declaration = checked.bindings.symbol(row.symbol);
-		return declaration.kind == 7 && declaration.owner.index == flow.functions[function - 1].symbol.index && row.symbol.index == checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index && checked.symbol_flags[row.symbol.index] == 0 && row.type.index == checked.symbol_types[row.symbol.index].index;
+		return (declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index == flow.functions[function - 1].symbol.index && row.symbol.index == checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index && checked.symbol_flags[row.symbol.index] == 0 && row.type.index == checked.symbol_types[row.symbol.index].index;
 	}
 	if (row.kind == 3) {
 		if (kind != SyntaxKind.BinaryExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_operator_token(source).index || row.a < 1 || row.b < 1) return false;
@@ -67,6 +67,26 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (row.kind == 6) {
 		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.a != 0 || caught < 1 || caught > flow.node_count || row.type.index != 15 || !checked.bindings.program.arena.token_is(row.token, "message") || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;
 		return row.symbol.index == flow.nodes[caught - 1].symbol.index && row.symbol.index == types.borrows[source.index].index && types.members[source.index].index > 0;
+	}
+	if (row.kind == 8) {
+		if (row.a != 0 || !recover_record_source(checked, source, row.type)) return false; var fields = checked.bindings.program.arena.get_list_fields(source); if (row.count != checked.bindings.program.arena.list_count(fields)) return false; int i = 0;
+		while (i < row.count) {
+			int at = row.first + i;
+			if (edges[at]) return false;
+			edges[at] = true;
+			var field = checked.bindings.program.arena.node_at(fields, i);
+			if (!recover_child(flow, checked, types, flow.edges[at], checked.bindings.program.arena.get_node_expression(field), function, handler, caught, seen, edges, depth + 1) || flow.nodes[flow.edges[at] - 1].type.index != types.types[field.index].index) return false;
+			i = i + 1;
+		} return true;
+	}
+	if (row.kind == 12) {
+		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index || row.symbol.index != recover_type_receiver(checked, source).index) return false;
+		var declaration = checked.bindings.symbol(row.symbol); if ((declaration.kind != 7 && declaration.kind != 8) || declaration.owner.index != flow.functions[function - 1].symbol.index || checked.symbol_flags[row.symbol.index] != 0) return false;
+		var receiver = checked.symbol_types[row.symbol.index]; int ordinal = recover_record_field(checked, receiver, row.token); if (ordinal < 0) return false; var record = checked.bindings.symbol(checked.types.row(receiver).nominal); var field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(record.node), ordinal); var symbol = checked.node_symbols[field.index]; return row.type.index == checked.symbol_types[symbol.index].index;
+	}
+	if (row.kind == 27) {
+		if (kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.InferredLocalDeclarationSyntax() && kind != SyntaxKind.StructLocalDeclarationSyntax() || row.symbol.index < 1 || row.symbol.index != checked.node_symbols[source.index].index || checked.bindings.symbol(row.symbol).kind != 8 || checked.bindings.symbol(row.symbol).owner.index != flow.functions[function - 1].symbol.index || !recover_copy_channel(checked, checked.symbol_types[row.symbol.index], checked.symbol_flags[row.symbol.index], false)) return false;
+		return recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_initializer(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == checked.symbol_types[row.symbol.index].index;
 	}
 	if (row.kind == 7) return kind == SyntaxKind.ParenthesizedExpressionSyntax() && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, depth + 1);
 	if (row.kind == 20 || row.kind == 24) {
@@ -133,7 +153,7 @@ bool recover_falls(RecoverFlowData flow, int id, int depth) {
 
 bool recover_flow_verify(RecoverFlow flow) {
 	if (flow.data.status != 0 || flow.data.limit < 1 || flow.data.limit > 8192 || flow.data.function_count < 1 || flow.data.function_count > flow.data.limit || flow.data.node_count < 1 || flow.data.node_count > flow.data.limit || flow.data.edge_count < 0 || flow.data.edge_count > flow.data.limit || len(flow.data.nodes) != flow.data.limit || len(flow.data.edges) != flow.data.limit || len(flow.data.functions) != flow.data.limit || len(flow.data.symbols) != flow.checked.bindings.symbol_count + 1 || !flow.checked.validate() || flow.checked.failed()) return false;
-	if (!recover_types_verify(flow.types, flow.checked)) return false;
+	if (!recover_types_verify(flow.types, flow.checked) || !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols)) return false;
 	var source = checked_effect_source_verify(flow.checked); if (source.status != 0) return false;
 	var seen = new bool[flow.data.node_count]; var edges = new bool[flow.data.edge_count]; int expected = 0; int s = 1; int entries = 0;
 	while (s <= flow.checked.bindings.symbol_count) {

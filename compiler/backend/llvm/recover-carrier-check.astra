@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Exact insert/extract correspondence for flattened native source groups.
+bool recover_llvm_insert(void* value, void* previous, void* element, int ordinal) {
+	if (LLVMIsAInstruction(value) == null || LLVMGetInstructionOpcode(value) != 54 || llvm13_index(value, 0, ordinal) != 1) return false;
+	return LLVMGetOperand(value, 0) == previous && LLVMGetOperand(value, 1) == element;
+}
+
+bool recover_llvm_group(CheckedIndex checked, TypeId type, void* value, void* function, int start) {
+	int kind = checked_kind(checked, type); int count = recover_abi_group_count(checked, type, 0);
+	if (kind != 30) return value == LLVMGetParam(function, start);
+	if (!recover_storage_llvm_type(checked, type, LLVMTypeOf(value))) return false;
+	int i = count - 1; void* current = value;
+	while (i >= 0) {
+		if (LLVMIsAInstruction(current) == null || LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, i) != 1 || LLVMGetOperand(current, 1) != LLVMGetParam(function, start + i)) return false;
+		current = LLVMGetOperand(current, 0);
+		i = i - 1;
+	} return LLVMIsNull(current) != 0;
+}
+
+bool recover_llvm_record(RecoverSsa ssa, RecoverNode row, void* value, void*[] values) {
+	if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return false;
+	int i = row.count - 1; void* current = value;
+	while (i >= 0) {
+		int child = ssa.cfg.core.flow.data.edges[row.first + i];
+		// LLVM folds inserts of all-constant fields. Extracting the verified
+		// field value also covers this canonical constant aggregate form.
+		if (LLVMIsAInstruction(current) == null) {
+			int f = 0;
+			while (f <= i) {
+				int element = ssa.cfg.core.flow.data.edges[row.first + f];
+				if (LLVMGetAggregateElement(current, f) != values[element]) return false;
+				f = f + 1;
+			}
+			return true;
+		}
+		if (LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, i) != 1 || LLVMGetOperand(current, 1) != values[child]) return false;
+		current = LLVMGetOperand(current, 0); i = i - 1;
+	} return LLVMIsNull(current) != 0;
+}

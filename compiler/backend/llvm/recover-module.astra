@@ -34,6 +34,7 @@ class RecoverLlvm {
 	owned void*[] blocks;
 	owned void*[] values;
 	owned void*[] slots;
+	owned void*[] locals;
 	owned void*[] descriptors;
 	owned void*[] payloads;
 	owned void*[] destroyers;
@@ -49,7 +50,7 @@ class RecoverLlvm {
 		this.pointer = null; this.integer = null; this.wide = null; this.boolean = null; this.text = null; this.payload = null; this.descriptor = null; this.origin_type = null;
 		this.free_function = null; this.calloc_function = null; this.memcpy_function = null; this.memcmp_function = null; this.trap_function = null; this.allocate_function = null; this.construct_function = null; this.message_function = null; this.destroy_function = null; this.subtype_function = null; this.equal_function = null;
 		int functions = ssa.cfg.core.flow.data.function_count; int nodes = ssa.cfg.core.count; int symbols = ssa.cfg.core.flow.checked.bindings.symbol_count + 1;
-		this.functions = new void*[functions]; this.entries = new void*[functions]; this.blocks = new void*[ssa.cfg.block_count]; this.values = new void*[len(ssa.data.values)]; this.slots = new void*[nodes];
+		this.functions = new void*[functions]; this.entries = new void*[functions]; this.blocks = new void*[ssa.cfg.block_count]; this.values = new void*[len(ssa.data.values)]; this.slots = new void*[nodes]; this.locals = new void*[symbols];
 		this.descriptors = new void*[symbols]; this.payloads = new void*[symbols]; this.destroyers = new void*[symbols]; this.tables = new void*[symbols]; this.origins = new void*[nodes]; this.operations = new void*[ssa.cfg.block_count]; this.emitted = new bool[ssa.cfg.block_count]; this.complete = false;
 	}
 
@@ -151,7 +152,22 @@ class RecoverLlvm {
 	}
 
 	void* scalar(CheckedIndex checked, TypeId type) {
-		int kind = checked_kind(checked, type); if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15) return this.text;
+		int kind = checked_kind(checked, type); if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22) return this.text;
+		if (kind == 31) return this.pointer;
+		if (kind == 30) {
+			var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+			var source = checked.bindings.program.arena.get_list_fields(declaration.node);
+			int count = checked.bindings.program.arena.list_count(source);
+			var fields = new void*[count];
+			int f = 0;
+			while (f < count) {
+				var node = checked.bindings.program.arena.node_at(source, f);
+				var symbol = checked.node_symbols[node.index];
+				fields[f] = llvm_checked_abi_scalar(this.context, checked_kind(checked, checked.symbol_types[symbol.index]));
+				f = f + 1;
+			}
+			return this.structure(fields);
+		}
 		return llvm_checked_abi_scalar(this.context, kind);
 	}
 
@@ -196,26 +212,52 @@ class RecoverLlvm {
 		while (f < len(this.functions)) {
 			var row = ssa.cfg.core.flow.data.functions[f]; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(row.symbol); var source_name = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(declaration.token); bool main = source_name.text == "main";
 			var out = new Utf8ByteBuilder(); source_append_text(out, "astra.e25a.f."); append_int(out, row.symbol.index); var name = out.snapshot(); var signature = ssa.cfg.core.flow.checked.signatures[row.signature.index - 1];
-			void* function = null;
-			if (row.checked) {
-				var plan = native_checked_abi_plan(ssa.cfg.core.flow.checked, row.symbol);
-				var type = llvm_checked_abi_signature(plan, ssa.cfg.core.flow.checked, this.context, this.handles);
-				function = llvm12_function(this.module, type, name.text);
-				LLVMSetLinkage(function, 8);
-				LLVMSetFunctionCallConv(function, 8);
+			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); if (!recover_abi_verify(plan, ssa.cfg.core.flow.checked)) {
+				throw new Error("LLVM_INVALID_IR: carrier signature");
 			}
-			else {
-				int count = ssa.cfg.core.flow.checked.types.row(signature.callable).count - 1; var parameters = new void*[count]; int p = 0;
-				while (p < count) {
-					parameters[p] = this.scalar(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, p + 1).type);
+			var parameters = new void*[plan.parameters]; if (plan.success >= 0) parameters[plan.success] = this.pointer; int p = 0;
+			while (p < len(plan.groups)) { var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, p + 1); int at = plan.groups[p]; var type = this.scalar(ssa.cfg.core.flow.checked, channel.type); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type);
+				if (kind == 30 || kind == 22) {
+					int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
+					int field = 0;
+					while (field < count) {
+						parameters[at + field] = LLVMStructGetTypeAtIndex(type, field);
+						field = field + 1;
+					}
+				} else {
+					parameters[at] = type;
+				} p = p + 1;
+			}
+			var result = this.scalar(ssa.cfg.core.flow.checked, row.result); if (row.checked) result = this.pointer;
+			void* function = null; if (main) function = this.function("main", result, parameters, false); else {
+				function = this.function(name.text, result, parameters, true);
+			}
+
+			this.functions[f] = function; var entry = llvm12_block(this.context, function, "entry"); this.entries[f] = entry; f = f + 1;
+		}
+		int place = 0; while (place < ssa.cfg.core.flow.storage.count) {
+			var slot = ssa.cfg.core.flow.storage.slots[place]; if (slot.parameter) {
+				var declaration = ssa.cfg.core.flow.checked.bindings.symbol(ssa.cfg.core.flow.data.functions[slot.function - 1].symbol); var parameters = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_parameters(declaration.node); int p = 0; int source = -1;
+				while (p < ssa.cfg.core.flow.checked.bindings.program.arena.list_count(parameters)) {
+					var parameter = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(parameters, p);
+					if (ssa.cfg.core.flow.checked.node_symbols[parameter.index].index == slot.symbol.index) source = p;
 					p = p + 1;
 				}
-				if (main) function = this.function("main", this.integer, parameters, false);
-				else {
-					function = this.function(name.text, this.scalar(ssa.cfg.core.flow.checked, row.result), parameters, true);
+				if (source < 0) {
+					throw new Error("LLVM_INVALID_IR: parameter source");
+				} var plan = new RecoverAbi(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[slot.function - 1].symbol); int at = plan.groups[source]; var function = this.functions[slot.function - 1]; void* value = LLVMGetParam(function, at); int kind = checked_kind(ssa.cfg.core.flow.checked, slot.type);
+				if (kind == 30 || kind == 22) {
+					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
+					value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, slot.type));
+					int field = 0;
+					int count = recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
+					while (field < count) {
+						value = LLVMBuildInsertValue(this.builder, value, LLVMGetParam(function, at + field), field, this.empty);
+						field = field + 1;
+					}
 				}
-			}
-			this.functions[f] = function; var entry = llvm12_block(this.context, function, "entry"); this.entries[f] = entry; f = f + 1;
+				this.locals[slot.symbol.index] = value;
+			} place = place + 1;
 		}
 		int n = 0;
 		while (n < ssa.cfg.core.count) {
@@ -321,24 +363,29 @@ class RecoverLlvm {
 		int op = block.opcode; SyntaxNodeId absent = {index = 0}; RecoverNode row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 		void* value = null; void* operation = null;
 		if (op == 1) value = this.literal(ssa, row);
-		if (op == 2) {
-			var function = ssa.cfg.core.flow.data.functions[row.function - 1]; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(function.symbol); var parameters = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_parameters(declaration.node); int p = 0; int ordinal = -1;
-			while (p < ssa.cfg.core.flow.checked.bindings.program.arena.list_count(parameters)) {
-				var parameter = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(parameters, p);
-				if (ssa.cfg.core.flow.checked.node_symbols[parameter.index].index == row.symbol.index) ordinal = p;
-				p = p + 1;
-			}
-			if (function.checked && function.result.index != 14) ordinal = ordinal + 1; value = LLVMGetParam(this.functions[row.function - 1], ordinal);
-		}
+		if (op == 2) value = this.locals[row.symbol.index];
 		if (op == 3) value = this.binary(ssa, row);
 		if (op == 7) value = this.values[row.a];
 		if (op == 4) {
-			int callee = ssa.cfg.core.flow.data.symbols[row.symbol.index]; var function = ssa.cfg.core.flow.data.functions[callee - 1]; int hidden = 0; if (function.checked && function.result.index != 14) hidden = 1; var arguments = new void*[row.count + hidden]; if (hidden == 1) arguments[0] = this.slots[block.origin - 1]; int i = 0;
+			int callee = ssa.cfg.core.flow.data.symbols[row.symbol.index]; var function = ssa.cfg.core.flow.data.functions[callee - 1]; var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol); var arguments = new void*[plan.parameters]; if (plan.success >= 0) arguments[plan.success] = this.slots[block.origin - 1]; int i = 0;
 			while (i < row.count) {
 				int child = ssa.cfg.core.flow.data.edges[row.first + i];
-				arguments[i + hidden] = this.values[child];
+				var type = ssa.cfg.core.nodes[child - 1].value.type;
+				int kind = checked_kind(ssa.cfg.core.flow.checked, type);
+				int at = plan.groups[i];
+				if (kind == 30 || kind == 22) {
+					int fields = recover_abi_group_count(ssa.cfg.core.flow.checked, type, 0);
+					int field = 0;
+					while (field < fields) {
+						arguments[at + field] = LLVMBuildExtractValue(this.builder, this.values[child], field, this.empty);
+						field = field + 1;
+					}
+				} else {
+					arguments[at] = this.values[child];
+				}
 				i = i + 1;
 			}
+
 			operation = this.call(this.functions[callee - 1], arguments, true);
 			if (function.checked) {
 				this.values[ssa.cfg.core.count + block.origin] = operation;
@@ -366,6 +413,21 @@ class RecoverLlvm {
 			value = this.call(this.message_function, argument, true);
 			operation = value;
 		}
+		if (op == 8) {
+			value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type));
+			int i = 0;
+			while (i < row.count) {
+				int child = ssa.cfg.core.flow.data.edges[row.first + i];
+				value = LLVMBuildInsertValue(this.builder, value, this.values[child], i, this.empty);
+				i = i + 1;
+			}
+		}
+		if (op == 12) {
+			var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
+			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
+			value = LLVMBuildExtractValue(this.builder, this.locals[row.symbol.index], ordinal, this.empty);
+		}
+		if (op == 27) this.locals[row.symbol.index] = this.values[row.a];
 		if (op == 30) {
 			value = this.load(this.scalar(ssa.cfg.core.flow.checked, row.type), this.slots[block.origin - 1]);
 			operation = value;
@@ -470,7 +532,7 @@ class RecoverLlvm {
 			if (row.kind == 23 && row.a != 0 && !recover_llvm_origin(ssa.cfg.core.flow.checked, row, this.origins[n], this.layout, this.handles)) return false;
 			n = n + 1;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

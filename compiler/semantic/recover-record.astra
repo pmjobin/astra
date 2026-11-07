@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyable record projections retain exact declaration identity. No field is
+// selected by an assumed offset or by a compiler-specific type spelling.
+int recover_record_field(CheckedIndex checked, TypeId type, SyntaxTokenId token) {
+	if (!recover_storage_record(checked, type)) return -1;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var node = checked.bindings.program.arena.node_at(fields, i);
+		var symbol = checked.node_symbols[node.index];
+		if (generic_token_equal(checked, token, checked.bindings.symbol(symbol).token)) return i;
+		i = i + 1;
+	} return -1;
+}
+
+bool recover_copy_channel(CheckedIndex checked, TypeId type, int flags, bool result) {
+	int kind = checked_kind(checked, type); return flags == 0 && (type_integer(kind) || kind == 13 || result && kind == 14 || kind == 30 && recover_storage_record(checked, type));
+}
+
+bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId type) {
+	if (!recover_storage_record(checked, type) || checked.bindings.program.arena.kind(source) != SyntaxKind.StructInitializerSyntax()) return false;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); var values = checked.bindings.program.arena.get_list_fields(source); int count = checked.bindings.program.arena.list_count(fields); if (checked.bindings.program.arena.list_count(values) != count) return false; int i = 0;
+	while (i < count) {
+		var field = checked.bindings.program.arena.node_at(fields, i);
+		var symbol = checked.node_symbols[field.index];
+		var value = checked.bindings.program.arena.node_at(values, i);
+		var token = checked.bindings.program.arena.get_token_name(value);
+		if (checked_target(checked, value, token).index != symbol.index || !generic_token_equal(checked, token, checked.bindings.symbol(symbol).token) || checked.bindings.program.arena.get_node_initializer(value).index != 0) return false;
+		i = i + 1;
+	} return true;
+}

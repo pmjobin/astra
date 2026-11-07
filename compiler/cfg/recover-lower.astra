@@ -78,8 +78,12 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 						}
 						operation = recover_cfg_error(cfg, id, owner, skip); head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
 					} else {
-						if (row.kind == 26) {
-							head = recover_cfg_tree(cfg, row.a, next, depth + 1);
+						if (row.kind == 26 || row.kind == 27) {
+							int tail = next; if (row.kind == 27) {
+								operation = cfg.block(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0);
+								tail = operation;
+							}
+							head = recover_cfg_tree(cfg, row.a, tail, depth + 1);
 						}
 						else {
 							int tail = next; int error = 0;

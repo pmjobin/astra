@@ -99,6 +99,10 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 		if (row.a == 0) return region.entry == op;
 		return region.entry == cfg.regions[row.a - 1].entry;
 	}
+	if (row.kind == 27) {
+		if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.a, op, seen, nodes, depth + 1)) return false;
+		return region.entry == cfg.regions[row.a - 1].entry;
+	}
 	if (row.kind == 26) return op == 0 && recover_cfg_check_tree(cfg, row.a, next, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
 	if (row.kind >= 20) return false;
 	int tail = next; int error = 0;

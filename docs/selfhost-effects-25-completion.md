@@ -71,6 +71,39 @@ The v5 cold build costs 594.14 seconds wall, 589.18 seconds user, 0.97 seconds
 system and 1,424,112 KiB peak RSS. Focused Core checks are separate costs. The
 native compiler itself remains O0-built for both target profiles.
 
+## Independent controls and copyable record carriers
+
+The v6 compiler qualified 17 semantic mutation categories and ten LLVM-valid
+physical body alternatives at each target profile. Each negative begins with a
+fresh verified positive twin and is rejected by the named independent consumer.
+The skipped-object-free alternative returns 42 but independently fails
+unsuppressed Valgrind with a 32-byte leak. The earlier harness assumption about
+an unexecuted cleanup site is retained in `adversarial-v6a-O0/`; corrected runs
+are `adversarial-v6b-{O0,O2}/`. These are focused controls, not complete input,
+reservation, receiver or carrier qualification.
+
+The v7 compiler SHA-256 is
+`3f1a0bd64aa2b913ab998d46aa4078d95f8e9837bbace1b0c2129f60aa2384f2`.
+Copyable records of integer/bool fields now retain declaration-bound construction,
+local definitions, projections, checked returns and flattened source argument
+groups. The physical verifier reconstructs the groups and validates aggregates,
+source bindings and success-only storage independently. Original ordinary
+compiler routes and the scalar-only historical ABI planner remain unchanged.
+
+Eight distinct record programs pass per target profile, including result/error
+paths, forwarding, flattened inputs, record copying and catch-local construction.
+All 15 scalar/void cases are freshly repeated with v7. The combined 23 source
+identities per target profile match independent C0, pass LLVM verification before
+and after optimization and pass unsuppressed Valgrind. The 17 semantic and ten
+LLVM-valid physical controls are also repeated at both target profiles.
+Evidence leaves are `early-v7a-{O0,O2}/`, `early-v7scalar-{O0,O2}/`, and
+`adversarial-v7a-{O0,O2}/`. All remain emitted by an O0-built compiler.
+
+The v7 cold focused build costs 668.68 seconds wall, 663.42 seconds user,
+0.94 seconds system and 1,394,264 KiB peak RSS. Its 29.74-second focused Core
+check is separate. The combined compiler recipe is prepared for inherited
+routes; integration and the 202-program replay are not yet qualified here.
+
 ## Remaining boundary
 
 This is an implementation checkpoint, not completion or a full gate PASS.
@@ -78,15 +111,13 @@ The initial message-reading failure (`RECOVER_FLOW 1`, before output) is
 retained in `early-v4a-O0`; it is resolved by the conditional typed-borrow facts
 above. The first minimal witnesses remain tied to their original sources.
 
-Independent adversarial controls are drafted but not yet compiled or qualified.
-No mutation credit is claimed at this checkpoint.
-
-Owned input reservations, owned buffer/Class and record results, ordinary local
-and loop cleanup, admitted static receivers/generics, full source integration,
-the required carrier/input coverage, and unchanged throwing compiler-function
-execution are unfinished. The 202 inherited programs and frozen source cohorts
-have not yet been replayed using a combined current compiler. Earlier R2
-qualifications remain tied to their original products.
+Owned input reservations, owned buffer/Class results, owner locals and loop
+cleanup, admitted static receivers/generics, full source integration, the
+required owner/input coverage, and unchanged throwing compiler-function execution
+are unfinished. The current record path permits only copyable scalar fields.
+The 202 inherited programs and frozen source cohorts have not yet been replayed
+using a combined current compiler. Earlier R2 qualifications remain tied to
+their original products. Draft owner models receive no execution credit.
 
 `CheckedIndex.add_signature` predicate 26 remains independently deferred. No
 receiver root, owner slot, `noalias`, verifier exemption, or larger resource
