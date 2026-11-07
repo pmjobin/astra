@@ -151,7 +151,7 @@ not a semantic-only check or a native executable build. These intervals overlap.
 ## Remaining boundary
 
 This is an implementation checkpoint, not completion or a full gate PASS.
-The native compiler itself remains O0-built for both target profiles.
+Both combined current compiler host profiles are built and independently replayed.
 Static checked receivers/generics, additional source forms and unchanged
 original throwing compiler-function execution remain unfinished. Record carriers currently contain
 only scalar integer/bool fields; ordinary Class payloads are fieldless, and
@@ -219,8 +219,8 @@ parenthesized construction and fresh Class construction in a return expression,
 while permitting inferred parentheses and proven heap-owner moves. The v11
 source/consumer guards enforce those existing boundaries without changing C0
 or ordinary Class policy. Its combined Core check passes in 60.23 seconds,
-using 364,752 KiB peak RSS. Both combined native host profiles are building;
-the current O2 Class-policy controls and full regression replay are still pending.
+using 364,752 KiB peak RSS. Both combined native host profiles complete their
+consolidated qualification; unimplemented source shapes retain explicit deferrals.
 
 The combined v11 O0 compiler, SHA-256
 `5eebc4b791f484dc2a97a2bbbebabdd309ef09e0079d2e188dd3240db88e574e`,
@@ -260,6 +260,55 @@ The combined O0 cold compiler command costs 1,800.49 seconds wall, 1,787.04
 seconds user, 1.61 seconds system and 2,244,940 KiB peak RSS. Exact warm reuse
 preserves its binary and is recorded separately. The O2 cold build overlaps
 this interval; the wall times must not be added as campaign elapsed time.
+
+## Final current qualification
+
+The O2 combined compiler SHA-256 is
+`00d03e49ee17ae9a9f9c5fbcf1ea1a42b3ebd81fb8993532f542a8d67598b694`.
+Its complete replay matches O0: 202 inherited native executions and raw LLVM
+identities, 56/12/12 statuses, four immutable complete source/node/span ledgers,
+60 new source identities, 35 actual error paths and 25 success/cleanup paths.
+The new programs have 60 distinct ELF hashes at each profile; inherited ELF
+hash counts remain 202 at O0 and 182 at O2. Each current profile passes the
+39 semantic categories, 24 LLVM-valid alternatives, unsuppressed returning
+memory checks, caller-controlled success-cell probes, 1,024-handle boundary
+checks and fatal null guard. ABI adapters and C/C++/C0-only programs receive
+zero primary new-program credit.
+
+The O2 cold compiler command costs 2,782.90 seconds wall, 2,761.25 seconds user,
+1.77 seconds system and 2,310,908 KiB peak RSS. Warm reuse is 1.20 seconds O0
+and 1.04 seconds O2, preserving both exact products. Cost receipts distinguish
+44 compiler build/check attempts, overlapping intervals, cold native builds,
+Core checks, full LLVM verification and exact identity reuse. GNU time records
+the effective `--dump-core` command where its parent Core wrapper's receipt
+retains the earlier `--check` spelling. No larger compiler limits were used.
+
+| Gate | Current result |
+|---|---|
+| G0 | PASS: submission/approval/history and protected state authenticated |
+| G1 | PASS: 202 inherited source programs and four frozen populations/profile |
+| G2 | PASS: first genuine void/scalar success/error ELFs at O0/O2 |
+| G3 | PARTIAL: direct carrier/layout proof; checked receivers and remaining shapes absent |
+| G4 | PARTIAL: qualified direct owners, reservations and lexical exits; full source domain incomplete |
+| G5 | PARTIAL: independent implemented-stage proofs; remaining source/receiver/storage plans absent |
+| G6 | PASS: 60 new source identities/profile, including 35 real error paths |
+| G7 | PASS for qualified returning paths; fatal and unadmitted domains remain separate |
+| G8 | PASS for qualified mutation domain: 39 semantic/24 physical categories/profile |
+| G9 | PARTIAL: all immutable source ledgers replayed; unchanged original throwing function does not execute as Astra |
+| G10 | PASS: raw LLVM/status/proof/protected/donor continuity retained |
+| G11 | PASS: C0/public ABI/LLVM23/ceilings/history/workflow preserved; costs measured |
+| G12 | Installed amendment and independent ZIP verification establish publication separately |
+
+Overall **PARTIAL**. The exact bounded ABI approval is retained without a new
+design request. Remaining work is actual Typecore/Flow admission and subsequent
+verified lowering for checked static receivers/closed generics, fielded ordinary
+Classes, derived Error fields/literal constructors and floating carriers; general
+owning rvalues/owner or field assignment and inferred parenthesized construction
+also remain unadmitted. The original `SourceBoundsError` constructor is the first
+mapped source boundary for the minimal unchanged `flow_number` attempt at both
+profiles. Complete Utf8Message/native compiler admission, numerical/stress
+deferrals and Stage 1 remain unqualified. Predicate 26 is separately deferred.
+The final audit and installed report bind exact final HEAD/tree and all receipts.
 
 The 202 inherited programs and frozen source cohorts have not yet been replayed
 using a combined current compiler. Earlier R2 qualifications remain tied to
