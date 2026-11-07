@@ -166,6 +166,15 @@ receiver owner root can be established. It is not an effects success.
 
 ## Reproduction and evidence
 
+Iteration checks precede expensive integration builds: execute small complete
+verifier functions against independent LLVM fixtures, run full C0 Core checks
+when source typing changes, and use an available O0 compiler for focused O0
+and O2 target lifetime/physical tests. Those target tests record both compiler
+and target optimization profiles. Mismatched profiles are debug evidence only;
+the final audit requires matching independently built O0/O2 components. This
+ordering catches optimizer failures before waiting for the O2 host build and
+does not replace any consolidated acceptance job.
+
 The focused O0 candidate SHA-256
 `b099ca9a3c8892f8ea6acc9a374e136e19ceb39cb1e94308fec8fa3f126baff8`
 executes all 18 new programs (nine actual error paths), all 120 retained effects
