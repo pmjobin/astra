@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read-only diagnosis and independent mutations of actual source ABI plans.
+int main(string[] args) {
+	try {
+		var program = binding_load_program(args, 2);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed()) return 1;
+		var flow = recover_flow_lower(move checked, 8192);
+		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
+		int errors = 0;
+		int f = 0;
+		while (f < flow.data.function_count) {
+			var function = flow.data.functions[f];
+			int instance = generic_instance_for(flow.checked, function.symbol);
+			if (instance > 0 && error_storage_class(flow.checked, flow.checked.instances[instance - 1].enclosing)) {
+				var plan = new RecoverAbi(flow.checked, function.symbol);
+				var declaration = flow.checked.bindings.symbol(function.symbol);
+				var source = flow.checked.instances[instance - 1];
+				int receiver = class_storage_receiver(flow.checked, function.symbol);
+				if (receiver < 1 || flow.checked.bindings.symbol(type_symbol(receiver)).kind != 7 || flow.checked.bindings.symbol(type_symbol(receiver)).owner.index != function.symbol.index || flow.checked.symbol_types[receiver].index != source.enclosing.index || flow.checked.symbol_flags[receiver] != 2 || !generic_verify(flow.checked)) return 3;
+				bool valid = recover_abi_verify(plan, flow.checked);
+				var out = new Utf8ByteBuilder(); source_append_text(out, "ABI_ERROR_RECEIVER "); append_int(out, function.symbol.index); source_append_text(out, " "); append_int(out, declaration.node.index); source_append_text(out, " "); append_int(out, receiver); source_append_text(out, " "); append_int(out, source.enclosing.index); source_append_text(out, " "); append_int(out, plan.parameters); source_append_text(out, " "); int status = 0; if (valid) status = 1; append_int(out, status); source_append_text(out, "\n"); binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(declaration.node).span, out); var text = out.snapshot(); println(text.text);
+				if (args[1] == "--diagnose") {
+					if (valid) return 4;
+				} else {
+					if (args[1] != "--verify" || !valid || plan.receiver != 0 || plan.success != -1) return 5;
+					int prior = plan.receiver; plan.receiver = -1; bool rejected = !recover_abi_verify(plan, flow.checked); plan.receiver = prior;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 6;
+					prior = plan.parameters; plan.parameters = prior + 1; rejected = !recover_abi_verify(plan, flow.checked); plan.parameters = prior;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 7;
+					prior = plan.groups[0]; plan.groups[0] = prior + 1; rejected = !recover_abi_verify(plan, flow.checked); plan.groups[0] = prior;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 8;
+					prior = plan.result_flags; plan.result_flags = prior ^ 4; rejected = !recover_abi_verify(plan, flow.checked); plan.result_flags = prior;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 9;
+					prior = plan.success; plan.success = 0; rejected = !recover_abi_verify(plan, flow.checked); plan.success = prior;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 10;
+					println("ABI_RECEIVER_MUTATIONS_VALID 5");
+				}
+				errors = errors + 1;
+			}
+			f = f + 1;
+		}
+		if (errors < 2) return 11;
+		return 42;
+	} catch (Error error) { println_stderr(error.message); return 12; }
+}

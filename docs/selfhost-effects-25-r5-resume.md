@@ -363,3 +363,36 @@ exact reuse, all 41 retained recipes and strict raw drift. It runs full-original
 source first and continues independent jobs after ordinary failures. A filtered
 or incremental run grants no milestone qualification. Its source/format checks
 pass; actual current profile qualification awaits the compiler products.
+
+`full-final1-O0/astra-llvm-O0` completes with SHA256
+`243f27f69da29e49b8a68ec1f6923681b5a017159a4196ef6d9bf96e61134b72`;
+its input sidecar is `c7463dc04b79252104a51877de8afbc3e5ca09781ae87098b64b35998592252a`.
+Actual cold-product GNU time is wall 2,937.32 s, user CPU 2,917.86 s,
+system CPU 1.68 s and peak RSS 2,468,936 KiB. O2 starts from the same
+241 project input hashes and identical tools while O0 is still compiling;
+the overlap is explicit and must not be summed into elapsed session time.
+
+`native-frontiers-final1-O0` records all 71 cases: 64 actual Astra/C0 executions
+with returning unsuppressed memory, including full-original `flow_number`
+first and its separate reduced view. Seven derived Error cases stop at
+`LLVM_INVALID_IR: carrier signature`, preserving their destination sentinels.
+`runtime-stages-final1O0` independently passes all 71 through actual
+Flow/Core/CFG/SSA and mutation consumers, including the Error catch-root and
+same-type outer-catch controls. Source-stage success is not Error ELF credit.
+Both negative suites pass actual integrated rejection (15 array, 6 owner),
+and the frontier physical source witness executes with 14 independently
+LLVM-valid alternatives rejected. Exact O0 product reuse is 1.1473 s,
+not recompilation. The 202 inherited O0 executions also replay freshly.
+
+The current Error LLVM stop is the normalized member receiver family check in
+`recover_abi_verify`: it still requires `class_storage_class` although source
+and ownership stages separately qualify the Error family. The ABI group layout
+already carries a borrowed Class/Error receiver as one pointer. Any correction
+must retain actual receiver/binder/instance and generic proof, all carrier
+groups, hidden success positions and the approved E25-A-v1 transport. The
+independent ABI probe uses the exact complete production plan definitions and
+real checked source receivers; its diagnosis does not emit target LLVM or grant
+execution credit. Its first source check included unrelated historical LLVM
+mutation dependencies and failed; the established focused build entry point
+then passes C0 Core checking. Its native diagnostic is pending. No compiled
+source is edited while the O2 and diagnostic input guards remain active.
