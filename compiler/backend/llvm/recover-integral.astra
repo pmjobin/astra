@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Physical unary proof is separate from source admission and emission. The
+// semantic consumer supplies the exact boolean/signed domain; LLVM supplies
+// the independently checked operand and result widths.
+u64 recover_llvm_prefix_mask(int width) {
+	if (width == 64) return 0 - 1 as u64;
+	if (width != 1 && width != 8 && width != 16 && width != 32) return 0;
+	return (1 as u64 << width) - 1;
+}
+
+bool recover_llvm_integral_unary(string op, bool logical, bool signed_value, void* result, void* value) {
+	if (result == null || value == null || LLVMTypeOf(result) != LLVMTypeOf(value) || LLVMGetTypeKind(LLVMTypeOf(value)) != 8) return false;
+	int width = LLVMGetIntTypeWidth(LLVMTypeOf(value));
+	if (logical) {
+		if (width != 1 || op != "!") return false;
+	} else {
+		if (width != 8 && width != 16 && width != 32 && width != 64 || op != "+" && op != "-" && op != "~" || op == "-" && !signed_value) return false;
+	}
+	if (op == "+") return result == value;
+	u64 mask = 0 - 1 as u64;
+	if (width < 64) mask = (1 as u64 << width) - 1;
+	if (LLVMIsAConstantInt(value) != null) {
+		if (LLVMIsAConstantInt(result) == null) return false;
+		u64 bits = LLVMConstIntGetZExtValue(value); u64 expected = bits ^ mask;
+		if (op == "-") expected = (0 - bits) & mask;
+		return LLVMConstIntGetZExtValue(result) == expected;
+	}
+	if (LLVMIsAInstruction(result) == null || LLVMGetNumOperands(result) != 2) return false;
+	if (op == "-") {
+		return LLVMGetInstructionOpcode(result) == 10 && LLVMGetNUW(result) == 0 && LLVMGetNSW(result) == 0 && LLVMIsAConstantInt(LLVMGetOperand(result, 0)) != null && LLVMConstIntGetZExtValue(LLVMGetOperand(result, 0)) == 0 && LLVMGetOperand(result, 1) == value;
+	}
+	return LLVMGetInstructionOpcode(result) == 25 && LLVMGetOperand(result, 0) == value && LLVMIsAConstantInt(LLVMGetOperand(result, 1)) != null && LLVMConstIntGetZExtValue(LLVMGetOperand(result, 1)) == mask;
+}

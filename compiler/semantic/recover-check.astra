@@ -142,7 +142,12 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42 || row.kind == 43) return recover_loop_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
 	if (row.kind == 7) return kind == SyntaxKind.ParenthesizedExpressionSyntax() && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, depth + 1);
 	if (row.kind == 15) {
-		if (kind != SyntaxKind.PrefixExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_operator_token(source).index || row.type.index != 11 && row.type.index != 12 || !checked.bindings.program.arena.token_is(row.token, "+") && !checked.bindings.program.arena.token_is(row.token, "-")) return false;
+		if (kind != SyntaxKind.PrefixExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_operator_token(source).index) return false;
+		int code = checked_kind(checked, row.type);
+		bool positive = checked.bindings.program.arena.token_is(row.token, "+");
+		bool negative = checked.bindings.program.arena.token_is(row.token, "-");
+		bool valid = code == 13 && checked.bindings.program.arena.token_is(row.token, "!") || type_integer(code) && (positive || negative && type_signed(code) || checked.bindings.program.arena.token_is(row.token, "~")) || (code == 11 || code == 12) && (positive || negative);
+		if (!valid) return false;
 		return recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_operand(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == row.type.index;
 	}
 	if (row.kind == 20 || row.kind == 24) {

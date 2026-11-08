@@ -430,7 +430,17 @@ class RecoverLlvm {
 		if (op == 3) value = this.binary(ssa, row);
 		if (op == 15) {
 			value = this.values[row.a];
-			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "-")) value = LLVMBuildFNeg(this.builder, value, this.empty);
+			int kind = checked_kind(ssa.cfg.core.flow.checked, row.type);
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "-")) {
+				if (kind == 11 || kind == 12) value = LLVMBuildFNeg(this.builder, value, this.empty);
+				else {
+					value = LLVMBuildSub(this.builder, LLVMConstInt(LLVMTypeOf(value), 0, 0), value, this.empty);
+				}
+			}
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "!") || ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "~")) {
+				u64 mask = recover_llvm_prefix_mask(LLVMGetIntTypeWidth(LLVMTypeOf(value)));
+				value = LLVMBuildXor(this.builder, value, LLVMConstInt(LLVMTypeOf(value), mask, 0), this.empty);
+			}
 		}
 		if (op == 7) value = this.values[row.a];
 		if (op == 4) {

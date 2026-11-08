@@ -172,7 +172,13 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			}
 		}
 		if (op == 15) {
-			if (!recover_llvm_float_unary(ssa.cfg.core.flow.checked, row, values[block.origin], values[row.a])) return false;
+			int kind = checked_kind(ssa.cfg.core.flow.checked, row.type);
+			if (kind == 11 || kind == 12) {
+				if (!recover_llvm_float_unary(ssa.cfg.core.flow.checked, row, values[block.origin], values[row.a])) return false;
+			} else {
+				var token = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(row.token);
+				if (!recover_llvm_integral_unary(token.text, kind == 13, type_signed(kind), values[block.origin], values[row.a])) return false;
+			}
 			if (LLVMIsAInstruction(values[block.origin]) != null && values[block.origin] != values[row.a]) instruction_count = 2;
 		}
 		if (op == 4) {
