@@ -1,7 +1,9 @@
 # R5 continuation evidence
 
 This is milestone 25 work in progress. Genuine unchanged original
-`flow_number` has **zero Astra→LLVM→ELF executions** in this continuation.
+`flow_number` executes through Astra→LLVM→ELF at **O0**, with the complete
+original population, exit 42, C0-equivalent contents and unsuppressed clean
+returning Valgrind in `native-frontiers-llvm2-O0`. O2 remains unproved.
 The canonical report remains the previously published PARTIAL report, SHA-256
 `16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
 No current-source PASS follows from the implementation or the checks below.
@@ -88,8 +90,11 @@ attempts. It distinguishes failed postcompile identity guards from completed
 products and reports command interval union separately from overlapping/nested
 duration sums. Native7 used 1,183.24 seconds wall, 1,174.15 seconds user CPU,
 1.10 seconds system CPU and 1,535,852 KiB peak RSS. The focused LLVM build
-`build-llvm1-O0` is running from frozen source revision `94b2d6f`; it has no
-completed product or target execution credit yet.
+`build-llvm1-O0` completed from frozen source revision `94b2d6f`, with all 162
+recorded inputs byte-exact. Product SHA-256 is
+`4fb04c4a9192c8f0d1c38fa7566942d207f1050b87b6f116187327931cfd0d58`.
+Actual cold compilation used 2,002.01 seconds wall, 1,987.41 seconds user CPU,
+1.26 seconds system CPU and 1,696,884 KiB peak RSS.
 
 Native4 is bound to its captured source witnesses. Its actual cold compilation
 used 1,139.09 seconds wall, 1,130.00 seconds user CPU, 0.94 seconds system CPU
@@ -122,9 +127,8 @@ source continuation rather than a stale edge table. `shared-stage-native7-O0`
 compiled with frozen inputs and passed its identity check. In
 `frontier-source-source8`, the **full unchanged original population passes
 Flow/Core/CFG/SSA**, followed separately by the exact minimal view. All fourteen
-focused sources and twelve shared sources also pass. No target has yet been
-emitted by Astra. The next focused native build includes current LLVM lowering
-and its independent consumers.
+focused sources and twelve shared sources also pass. That stage-only receipt has zero target execution credit. The subsequent
+focused LLVM compiler and executions are separately measured below.
 
 Native5 finished its C0 command but failed the existing postcompile source-hash
 guard because task inputs changed during compilation. It has no product
@@ -144,12 +148,41 @@ independent real-source C0 lifetime oracles pass; integrated Astra source
 execution and fatal-size comparisons are still required. Historical R4 results
 are not promoted or rewritten.
 
-`runtime-stages-runtime1` is replaying the exact C0-observed expanded
+`runtime-stages-runtime1` replays the exact C0-observed expanded
 callers through the qualified Native7 consumers and mutation twins. The full
 original, reduced view, integer boundaries, empty/growing builder, formatter
 widths, SourceBuffer copy/location, SourceSpan and SourceDiagnostic callers
-have reached SSA. Every remaining stop stays separate; stage success does not
-earn target execution credit.
+and all original UTF8 cases reached SSA. Three derived Error declarations
+remain actual Flow stops. Stage success does not earn target execution credit.
+
+The first original LLVM authenticity probe, `native-frontiers-llvm1-O0`,
+stopped after successful emission and LLVM verification: the test incorrectly
+assumed textual basic-block order was execution order. The corrected probe
+walks actual CFG successors. `native-frontiers-llvm2-O0` then verifies both
+real discarded bool callees, the actual receiver/value operands and caller
+invocation, independently verifies/optimizes LLVM, links ELF and executes it.
+Full originals execute first; the exact reduced view independently executes
+second. Both return 42 with C0 agreement and clean unsuppressed memory. The
+failed first probe retains its source/command/LLVM receipts and earns no ELF
+execution credit.
+
+`native-frontiers-llvm1focused-O0` executes 14 frontier and 12 shared programs,
+plus two valid owner forms, with independent C0 and returning memory. Its final
+assertion remains failed because all three derived Error forms still stop in
+Flow. `error-lifetime-llvm1-O0` passes all five real source allocation/free and
+fatal-size comparisons, including zero-count no-allocation and original
+InvalidUtf8. Six owner-policy negatives are rejected by C0 and Astra.
+
+`array-source-negative-llvm1-O0` fails: both literal end indices on one-element
+fixed arrays were wrongly emitted, while C0 rejects them. The legacy decimal
+helper's truncating `(limit - digit) / 10` check can return a digit above a
+small limit; the new source-bound consumer omitted an explicit result range
+postcondition. Runtime bounds remain guarded, but that cannot replace C0 source
+rejection. This failure is retained. `recover_array_decimal` now checks the exact
+nonnegative range after parsing. `array-bound-helper1` independently verifies
+its complete source/AST against 759 integer cases under C0 O0/O2 with clean
+unsuppressed memory. Actual repaired Astra source rejection remains to be
+measured with the next compiler revision.
 
 The task-owned full build recipe now has a finite 10,800-second deadline,
 reflecting the larger source population and R4 O2's already measured
@@ -174,3 +207,11 @@ four exact cohorts and independent predicate 26. Historical R4 raw effect
 identity drift remains 0/120, never byte-for-byte equivalence. Field-bearing
 derived Error/computed base forms and all required original runtime/error/memory
 observations remain acceptance obligations.
+
+`native-frontiers-llvm1runtime-O0` completes all eighteen expanded original
+runtime callers and all sixteen retained original UTF8/builder callers through
+actual Astra→LLVM→ELF, matching independent C0 and unsuppressed returning
+memory. This includes original SourceBuffer/SourceSpan/SourceDiagnostic,
+repeated growth and snapshots, INT_MIN/64-bit formatters, empty/ASCII/multibyte/
+NUL and all eight retained malformed UTF8 cases. These are O0 observations;
+none establishes the required O2 or final matched-source pair.

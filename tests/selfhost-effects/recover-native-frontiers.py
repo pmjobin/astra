@@ -6,8 +6,44 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import time
 from state import ROOT, C0, load_module, read, sha, bounded_run
+
+
+def original_target_graph(path, driver):
+	text = path.read_text()
+	functions = dict(re.findall(r'^define[^\n]* @(astra\.e25a\.f\.[0-9]+)\([^\n]*\) \{\n(.*?)^\}', text, re.M | re.S))
+	candidates = re.findall(r'^define internal fastcc ptr @(astra\.e25a\.f\.[0-9]+)\(ptr (%[a-zA-Z0-9_.]+), i32 (%[a-zA-Z0-9_.]+)\) \{\n(.*?)^\}', text, re.M | re.S)
+	# The complete original population has one checked void function with
+	# (borrowed builder, int). Its actual raw body contains both discarded
+	# bool calls, with the same source receiver/value and a one-byte space.
+	assert len(candidates) == 1, [(row[0], row[1:3]) for row in candidates]
+	function, receiver, value, body = candidates[0]
+	labels = list(re.finditer(r'^([a-zA-Z0-9_.]+):[^\n]*\n', body, re.M))
+	blocks = {label[1]: body[label.end():labels[i+1].start() if i+1 < len(labels) else len(body)] for i, label in enumerate(labels)}
+	current, visited, calls = 'entry', set(), []
+	while True:
+		assert current in blocks and current not in visited and len(visited) < 32
+		visited.add(current)
+		block = blocks[current]
+		calls += re.findall(r'call fastcc i1 @(astra\.e25a\.f\.[0-9]+)\(([^\n]*)\)', block)
+		if 'ret ptr null' in block:
+			break
+		edges = re.findall(r'br label %([a-zA-Z0-9_.]+)', block)
+		assert len(edges) == 1
+		current = edges[0]
+	assert len(calls) == 2 and calls[0][0] != calls[1][0]
+	assert calls[0][0] in functions and calls[1][0] in functions
+	assert calls[0][1].startswith('ptr '+receiver+', ') and calls[0][1].endswith('i32 1')
+	assert calls[1][1] == 'ptr '+receiver+', i32 '+value
+	assert 'ret ptr null' in body and '@astra_host_text_byte' in functions[calls[0][0]]
+	main = re.search(r'^define i32 @main\([^\n]*\) \{\n(.*?)^\}', text, re.M | re.S)
+	assert main is not None
+	observed = main[1].count('@'+function+'(')
+	expected = Path(driver).read_text().count('flow_number(')
+	assert expected > 0 and observed == expected
+	return dict(function=function, definition_sha256=hashlib.sha256(body.encode()).hexdigest(), discarded_bool_callees=[row[0] for row in calls], actual_raw_caller_invocations=observed, receiver_operand=receiver, integer_operand=value, classification='Raw Astra module definitions and call operands, independently checked against the unchanged original source contract before optimization. Source hashes, full population and actual ELF execution are separate required evidence.')
 
 
 def original_inputs(paths, run):
@@ -148,6 +184,8 @@ def main():
 			row['Astra'] = dict(emitted=emitted.returncode == 0, emit_exit=emitted.returncode, actual_execution=None)
 			if emitted.returncode == 0:
 				run(['opt', '-passes=verify', '-disable-output', physical], name+'-Astra-verify')
+				if domain in ('FULL_ORIGINAL', 'EXACT_REDUCED_VIEW') or name == 'flow-boundaries':
+					row['original_target_graph'] = original_target_graph(physical, inputs[1])
 				optimized = build/(name+'-optimized.ll')
 				run(['opt', '-passes=default<'+a.mode+'>', '-S', physical, '-o', optimized], name+'-Astra-optimize')
 				run(['opt', '-passes=verify', '-disable-output', optimized], name+'-Astra-optimized-verify')

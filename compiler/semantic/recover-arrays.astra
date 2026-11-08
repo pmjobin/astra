@@ -3,6 +3,16 @@
 // Element types and counts alone never grant backing, lifetime or writability.
 struct RecoverArrayBound { bool constant; bool valid; int value; }
 
+int recover_array_decimal(string text, int maximum) {
+	if (maximum < 0 || text.byte_length == 0) return -1;
+	int value = checked_decimal(text, maximum);
+	// Truncating division in the legacy decimal helper's first-digit check
+	// can admit a digit above a small limit. Source bounds require the exact
+	// range postcondition independently of that parsing implementation.
+	if (value < 0 || value > maximum) return -1;
+	return value;
+}
+
 RecoverArrayBound recover_array_bound(CheckedIndex checked, SyntaxNodeId source, int maximum) {
 	try {
 		var node = source;
@@ -30,7 +40,7 @@ RecoverArrayBound recover_array_bound(CheckedIndex checked, SyntaxNodeId source,
 		if (checked.bindings.program.arena.kind(node) != SyntaxKind.IntegerLiteralExpressionSyntax()) return result;
 		result.constant = true;
 		var text = checked.bindings.program.arena.token_message(checked.bindings.program.arena.get_token_literal(node));
-		int value = checked_decimal(text.text, maximum);
+		int value = recover_array_decimal(text.text, maximum);
 		result.valid = result.valid && value >= 0 && (!negative || value == 0);
 		result.value = value;
 		return result;
