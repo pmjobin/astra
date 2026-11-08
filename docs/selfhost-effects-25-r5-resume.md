@@ -1,9 +1,14 @@
 # R5 continuation evidence
 
 This is milestone 25 work in progress. Genuine unchanged original
-`flow_number` executes through Astra→LLVM→ELF at **O0**, with the complete
-original population, exit 42, C0-equivalent contents and unsuppressed clean
-returning Valgrind in `native-frontiers-llvm2-O0`. O2 remains unproved.
+`flow_number` executes through Astra→LLVM→ELF at **both O0 and O2**, with the
+complete original population, exit 42, C0-equivalent contents and unsuppressed
+clean returning Valgrind in `native-frontiers-final1-{O0,O2}`. The separate
+exact reduced view also executes. These captured compiler revisions qualify
+64 of 71 new source cases per profile; seven derived Error cases stop at the
+carrier consumer. The subsequent bounded receiver repair passes focused and
+complete integrated C0 Core checking; native mutation and integrated replay
+of that repair remain pending.
 The canonical report remains the previously published PARTIAL report, SHA-256
 `16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
 No current-source PASS follows from the implementation or the checks below.
@@ -48,7 +53,7 @@ The original allocator `noinline`, fatal allocation boundary, zero-buffer
 behavior, libc memory-effect checks, public ABI and approved E25-A-v1 transport
 are retained. Generic and SSA ceilings remain 256 and 8,000,000.
 
-## Focused evidence so far
+## Historical focused evidence at each captured revision
 
 | Receipt | Actual observation | Limit |
 | --- | --- | --- |
@@ -451,13 +456,13 @@ unqualified. Source/format validation passes; the complete positive audit must
 await actual repaired products and receipts.
 
 The repaired full integrated C0 Core preflight `repaircore1` passes: actual
-wall70.54 s, user69.84 s, system0.22 s, peak RSS416,352 KiB. A clean-worktree
-protection recheck again authenticates all451 protected paths,6622 donor
-files,1044 historical proofs, settings/hooks/workflow and unchanged C0/report.
+wall 70.54 s, user 69.84 s, system 0.22 s, peak RSS 416,352 KiB. A clean-worktree
+protection recheck again authenticates all 451 protected paths, 6,622 donor
+files, 1,044 historical proofs, settings/hooks/workflow and unchanged C0/report.
 Cost accounting includes the ordinary build entry point's separate per-command
 monotonic receipts as well as commands.json, so cold compiler overlap is part
 of the actual interval union. It retains actual source-only transformed argv
 separately from requested native-product identities. The measured interim
-ledger has11,363 GNU-time records and70 compiler attempts; it includes active
+ledger has 11,363 GNU-time records and 70 compiler attempts; it includes active
 attempts without assigning completed product/cost credit. A final ledger must
 be regenerated after the repaired builds and qualification finish.
