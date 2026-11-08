@@ -105,6 +105,17 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 	return class_storage_fields_verified(checked, type, depth + 1);
 }
 
+bool class_storage_shared_verified(CheckedIndex checked, TypeId type, int depth) {
+	if (!checked.field_effects || depth > 32 || !checked.types.valid_id(type)) return false;
+	var descriptor = checked.types.row(type);
+	if (descriptor.kind != 27 || descriptor.nominal.index != 0 || descriptor.extent != 0 || descriptor.count != 1) return false;
+	var payload = checked.types.argument(checked.types, type, 0);
+	if (payload.flags != 0 || !checked.types.valid_id(payload.type)) return false;
+	var nominal = checked.types.row(payload.type);
+	if (nominal.kind != 31 || generic_instance_for(checked, nominal.nominal) != 0) return false;
+	return class_storage_source_verified(checked, payload.type, true, depth + 1);
+}
+
 bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth) {
 	if (depth > 32 || !checked.types.valid_id(type)) return false;
 	var descriptor = checked.types.row(type);
@@ -137,6 +148,8 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		}
 		if (kind == 30) {
 			if (storage_flags != 0 || !class_storage_record_verified(checked, value) || !class_storage_fields_verified(checked, value, depth + 1) || descriptor.kind == 31 && checked_record_owned(checked, value, 0)) return false;
+		} if (kind == 27) {
+			if ((storage_flags != 4 && storage_flags != 5) || !class_storage_shared_verified(checked, value, depth + 1)) return false;
 		} if (kind == 31) {
 			if ((storage_flags != 4 && storage_flags != 5) || !class_storage_source_verified(checked, value, false, depth + 1)) return false;
 		} if (kind == 22) {
@@ -148,7 +161,7 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		} if (kind == 23) {
 			var element = checked.types.argument(checked.types, value, 0);
 			if (storage_flags != 4 || element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, depth + 1)) return false;
-		} if (!type_numeric(kind) && kind != 13 && kind != 15 && kind != 30 && kind != 31 && kind != 22 && kind != 23) return false;
+		} if (!type_numeric(kind) && kind != 13 && kind != 15 && kind != 27 && kind != 30 && kind != 31 && kind != 22 && kind != 23) return false;
 		i = i - 1;
 	}
 	return true;
@@ -193,7 +206,7 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 				size = 4;
 				alignment = 4;
 			}
-			if (source.kind == 12 || source.kind == 16 || source.kind == 20 || source.kind == 31) {
+			if (source.kind == 12 || source.kind == 16 || source.kind == 20 || source.kind == 27 || source.kind == 31) {
 				size = 8;
 				alignment = 8;
 			}
@@ -201,7 +214,7 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 				size = 16;
 				alignment = 8;
 			}
-			if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 15 && source.kind != 16 && source.kind != 20 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) return false;
+			if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 15 && source.kind != 16 && source.kind != 20 && source.kind != 27 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) return false;
 			if (source.kind == 30 || source.kind == 31) {
 				if (source.kind == 31 && !class_storage_source_verified(checked, type_id(t), false, 0)) return false;
 				if (source.kind == 30 && !class_storage_fields_verified(checked, type_id(t), 0)) return false;
@@ -228,9 +241,10 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 				}
 			} if (source.kind != 30 && source.kind != 31 && (row.fields != 0 || row.payload_size != 0 || row.payload_alignment != 1)) return false;
 			if (row.size != size || row.alignment != alignment) return false;
-			if (source.kind == 22 || source.kind == 23) {
+			if (source.kind == 22 || source.kind == 23 || source.kind == 27) {
 				var element = checked.types.argument(checked.types, type_id(t), 0);
 				if (plan.types[element.type.index].state != 2 || element.flags != 0) return false;
+				if (source.kind == 27 && !class_storage_shared_verified(checked, type_id(t), 0)) return false;
 				if (source.kind == 23 && !class_storage_slot_element_verified(checked, element.type, 0)) return false;
 			}
 		}

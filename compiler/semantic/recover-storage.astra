@@ -20,7 +20,13 @@ bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 				var element = checked.types.argument(checked.types, value, 0); int code = checked_kind(checked, element.type);
 				if (element.flags != 0 || !type_numeric(code) && code != 13) return false;
 			} else {
-				if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+				if (kind == 27) {
+					if (!class_storage_shared_verified(checked, value, depth + 1)) return false;
+					var payload = checked.types.argument(checked.types, value, 0).type;
+					if (!recover_storage_fields(checked, payload, depth + 1)) return false;
+				} else {
+					if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+				}
 			}
 		}
 		i = i + 1;
@@ -41,16 +47,22 @@ bool recover_storage_record(CheckedIndex checked, TypeId type) {
 	return true;
 }
 
+bool recover_storage_shared(CheckedIndex checked, TypeId type) {
+	if (!class_storage_shared_verified(checked, type, 0)) return false;
+	return recover_storage_class(checked, checked.types.argument(checked.types, type, 0).type);
+}
+
 bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool result) {
 	int kind = checked_kind(checked, type);
 	if (flags == 0 && (type_numeric(kind) || kind == 13 || result && kind == 14)) return true;
 	if (kind == 15) return flags == 0;
 	if (kind == 30) return flags == 0 && recover_storage_record(checked, type);
+	if (kind == 27) return (flags == 4 || !result && flags == 2) && recover_storage_shared(checked, type);
 	if (kind == 31) return (flags == 4 || !result && (flags == 0 || flags == 2)) && (recover_storage_class(checked, type) || recover_storage_error(checked, type));
 	if (kind == 22) {
 		var element = checked.types.argument(checked.types, type, 0);
 		int code = checked_kind(checked, element.type);
-		return (flags == 4 || !result && flags == 0) && element.flags == 0 && (type_numeric(code) || code == 13);
+		return (flags == 4 || !result && (flags == 0 || flags == 2)) && element.flags == 0 && (type_numeric(code) || code == 13);
 	}
 	return false;
 }
@@ -96,7 +108,7 @@ void recover_storage_inventory(RecoverStorage storage, CheckedIndex checked, int
 		var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
 		if ((declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			var type = checked.symbol_types[s]; int flags = checked.symbol_flags[s];
-			if (!recover_storage_channel(checked, type, flags, false) || declaration.kind == 8 && (type.index == 15 || checked_kind(checked, type) == 31 && flags != 4 || checked_kind(checked, type) == 22 && flags != 4)) {
+			if (!recover_storage_binding(checked, symbol)) {
 				storage.status = 3;
 				storage.boundary = declaration.node;
 				return;
@@ -114,7 +126,7 @@ bool recover_storage_verify(RecoverStorage storage, CheckedIndex checked, int[] 
 		var declaration = checked.bindings.symbol(type_symbol(s));
 		if ((declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			if (expected >= storage.count || storage.symbols[s] != expected + 1) return false;
-			var row = storage.slots[expected]; if (row.symbol.index != s || row.type.index != checked.symbol_types[s].index || row.flags != checked.symbol_flags[s] || row.function != functions[declaration.owner.index] || row.scope != declaration.scope.index || row.parameter != (declaration.kind == 7) || row.owner != ((row.flags & 4) != 0) || !recover_storage_channel(checked, row.type, row.flags, false) || declaration.kind == 8 && (row.type.index == 15 || checked_kind(checked, row.type) == 31 && row.flags != 4 || checked_kind(checked, row.type) == 22 && row.flags != 4)) return false;
+			var row = storage.slots[expected]; if (row.symbol.index != s || row.type.index != checked.symbol_types[s].index || row.flags != checked.symbol_flags[s] || row.function != functions[declaration.owner.index] || row.scope != declaration.scope.index || row.parameter != (declaration.kind == 7) || row.owner != ((row.flags & 4) != 0) || !recover_storage_binding(checked, type_symbol(s))) return false;
 			expected = expected + 1;
 		} else {
 			if (storage.symbols[s] != 0) return false;

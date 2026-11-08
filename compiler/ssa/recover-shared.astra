@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Track the actual root version from payload definition to its call use.
+// Cleanup on an aborted argument path is legal; reaching the consuming call
+// after retiring/replacing that root is not. No cached liveness is accepted.
+bool recover_ssa_shared_borrow(RecoverSsa ssa, int value, RecoverWork work) {
+	var source = ssa.cfg.core.nodes[value - 1];
+	if (source.value.kind != 19 || source.result_role != 3) return true;
+	int place = source.borrowed_owner;
+	if (place < 1 || place > ssa.cfg.core.flow.storage.count) return false;
+	var slot = ssa.cfg.core.flow.storage.slots[place - 1];
+	var budget = new RecoverOwnerBudget();
+	budget.remaining = work.remaining;
+	int consumer = recover_shared_borrow_consumer(ssa.cfg.core.flow, value, budget);
+	work.remaining = budget.remaining;
+	if (budget.exhausted) work.exhausted = true;
+	if (consumer < 1 || work.exhausted) return false;
+	int target = ssa.cfg.regions[consumer - 1].operation;
+	int definition = ssa.data.values[value].block;
+	if (target < 1 || definition < 1 || source.value.count != 1) return false;
+	int input = recover_owner_unwrap(ssa.cfg.core.flow.data, ssa.cfg.core.flow.data.edges[source.value.first]);
+	if (input < 1 || input > ssa.cfg.core.count) return false;
+	var seen = new bool[ssa.cfg.block_count * 2];
+	var pending = new int[ssa.cfg.block_count * 2];
+	int first = ssa.cfg.blocks[definition - 1].next;
+	if (first < 1) return false;
+	pending[0] = (first - 1) * 2 + 1;
+	seen[pending[0]] = true;
+	int count = 1;
+	while (count > 0) {
+		if (!work.take()) return false;
+		count = count - 1;
+		int item = pending[count];
+		int block = item / 2 + 1;
+		bool live = item % 2 == 1;
+		if (block == target) {
+			if (!live) return false;
+		} else {
+			var row = ssa.cfg.blocks[block - 1];
+			if (row.function != source.value.function) return false;
+			if (block == definition) live = true;
+			if (slot.owner && (row.opcode == 36 && row.b == place || row.opcode == 38 && row.a == place)) live = false;
+			if (row.opcode == 44) {
+				var write = ssa.cfg.core.nodes[row.origin - 1].value;
+				var target_field = ssa.cfg.core.flow.fields.facts[write.source.index].field;
+				int projection = input;
+				int depth = 0;
+				while (projection > 0 && depth < 192) {
+					if (!work.take()) return false;
+					var source_field = ssa.cfg.core.nodes[projection - 1].value;
+					if (source_field.kind != 17) break;
+					var fact = ssa.cfg.core.flow.fields.facts[source_field.source.index];
+					if (target_field.index == fact.field.index) live = false;
+					projection = fact.parent;
+					depth = depth + 1;
+				}
+				if (depth == 192) return false;
+			}
+			int polarity = 0;
+			while (polarity < 2) {
+				int next = row.next;
+				if (polarity == 1) next = row.other;
+				if (next > 0) {
+					int state = (next - 1) * 2;
+					if (live) state = state + 1;
+					if (!seen[state]) {
+						seen[state] = true;
+						pending[count] = state;
+						count = count + 1;
+					}
+				}
+				polarity = polarity + 1;
+			}
+		}
+	}
+	return true;
+}

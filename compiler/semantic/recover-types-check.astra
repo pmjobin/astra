@@ -2,11 +2,12 @@
 // Independent conditional-type consumer. It never invokes the refiner,
 // computes a nominal ID from spelling, or changes an original checked use.
 bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
-	if (data.status != 0 || !type_owner_same(data.identity, checked.types.identity) || !checked.validate() || len(data.types) != len(checked.uses) || len(data.members) != len(data.types) || len(data.borrows) != len(data.types)) return false;
+	if (data.status != 0 || !type_owner_same(data.identity, checked.types.identity) || !checked.validate() || len(data.types) != len(checked.uses) || len(data.members) != len(data.types) || len(data.borrows) != len(data.types) || len(data.numeric_prefixes) != len(data.types) || data.numeric_prefixes[0].index != 0) return false;
 	int n = 1;
 	while (n < len(data.types)) {
 		SyntaxNodeId node = {index = n}; var original = checked.uses[n]; var type = data.types[n]; var member = data.members[n]; var borrow = data.borrows[n];
 		if (type.index != 0 && !checked.types.valid_id(type)) return false;
+		if (data.numeric_prefixes[n].index != 0 && (member.index != 0 || borrow.index != 0 || !recover_prefix_type_verified(data, checked, node))) return false;
 		if (member.index != 0) {
 			if (original.type.index != 0 || original.deferred != 12 || checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax() || member.index < 1 || member.index > checked.bindings.symbol_count || borrow.index < 1 || borrow.index > checked.bindings.symbol_count) return false;
 			var property = checked.bindings.symbol(member); var binding = checked.bindings.symbol(borrow); var root = checked_effect_root(checked);
@@ -27,6 +28,7 @@ bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
 			}
 			else {
 				var kind = checked.bindings.program.arena.kind(node); TypeId expected = {index = 0};
+				if (data.numeric_prefixes[n].index != 0) expected = checked.uses[data.numeric_prefixes[n].index].type;
 				if (kind == SyntaxKind.TextLiteralExpressionSyntax() && recover_error_base_literal(checked, node)) expected = type_id(15);
 				if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 					var child = checked.bindings.program.arena.get_node_expression(node);
@@ -34,7 +36,7 @@ bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
 				}
 				if (kind == SyntaxKind.BinaryExpressionSyntax()) {
 					var left_node = checked.bindings.program.arena.get_node_left(node); var right_node = checked.bindings.program.arena.get_node_right(node); var left = data.types[left_node.index]; var right = data.types[right_node.index]; var token = checked.bindings.program.arena.get_token_operator_token(node);
-					if (left.index > 0 && left.index == right.index && (type_numeric(checked_kind(checked, left)) || left.index == 13 || left.index == 15) && (checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!="))) expected = type_id(13);
+					if (left.index > 0 && left.index == right.index && (type_numeric(checked_kind(checked, left)) || left.index == 13 || left.index == 15 || recover_storage_class(checked, left) || recover_storage_error(checked, left) || recover_storage_shared(checked, left)) && (checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!="))) expected = type_id(13);
 				}
 				if (type.index != expected.index) return false;
 			}

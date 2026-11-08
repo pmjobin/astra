@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A retained Shared operation names its actual source operand. A payload
+// borrow never manufactures a local slot or a receiver root from its TypeId.
+bool recover_shared_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var source = row.source;
+	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax() || row.a != 0 || row.symbol.index != 0 || row.count != 1 || row.token.index != checked.bindings.program.arena.get_token_identifier(source).index || checked_target(checked, source, row.token).index != 0) return false;
+	if (checked.bindings.program.arena.get_token_receiver(source).index != 0 || checked.bindings.program.arena.get_node_receiver_place(source).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(source)) != 0) return false;
+	var arguments = checked.bindings.program.arena.get_list_arguments(source);
+	if (checked.bindings.program.arena.list_count(arguments) != 1 || edges[row.first]) return false;
+	edges[row.first] = true;
+	int child = flow.edges[row.first];
+	if (!recover_child(flow, checked, types, child, checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, depth + 1)) return false;
+	var operand = flow.nodes[child - 1];
+	var use = checked.uses[source.index];
+	if (use.type.index != row.type.index || use.deferred != 19) return false;
+	if (checked.bindings.program.arena.token_is(row.token, "shared_acquire")) {
+		if (operand.kind != 10 || use.flags != 4 || !recover_storage_shared(checked, row.type) || checked.types.argument(checked.types, row.type, 0).type.index != operand.type.index) return false;
+		return recover_storage_class(checked, operand.type);
+	}
+	bool clone = checked.bindings.program.arena.token_is(row.token, "shared_clone");
+	bool borrow = checked.bindings.program.arena.token_is(row.token, "shared_borrow");
+	if (!clone && !borrow || !recover_storage_shared(checked, operand.type)) return false;
+	int steps = 0;
+	while (operand.kind == 7 && steps < 192) {
+		operand = flow.nodes[operand.a - 1];
+		steps = steps + 1;
+	}
+	if (steps == 192 || operand.kind != 2 && operand.kind != 17) return false;
+	if (operand.kind == 2) {
+		var declaration = checked.bindings.symbol(operand.symbol);
+		int flags = checked.symbol_flags[operand.symbol.index];
+		if (!(declaration.kind == 8 && flags == 4) && !(declaration.kind == 7 && (flags == 2 || flags == 4))) return false;
+	}
+	if (clone) return use.flags == 4 && row.type.index == operand.type.index;
+	return use.flags == 2 && row.type.index == checked.types.argument(checked.types, operand.type, 0).type.index;
+}
+
+SymbolId recover_shared_borrow_root(RecoverFlowData flow, CheckedIndex checked, int id) {
+	if (id < 1 || id > flow.node_count) return type_symbol(0);
+	var row = flow.nodes[id - 1];
+	if (row.kind != 19 || row.count != 1 || !checked.bindings.program.arena.token_is(row.token, "shared_borrow")) return type_symbol(0);
+	int child = flow.edges[row.first];
+	int steps = 0;
+	while (child > 0 && child <= flow.node_count && flow.nodes[child - 1].kind == 7 && steps < 192) {
+		child = flow.nodes[child - 1].a;
+		steps = steps + 1;
+	}
+	if (child < 1 || child > flow.node_count || steps == 192) return type_symbol(0);
+	var operand = flow.nodes[child - 1];
+	if (operand.kind != 2 && operand.kind != 17) return type_symbol(0);
+	return operand.symbol;
+}
+
+SymbolId recover_borrow_argument_root(RecoverFlowData flow, CheckedIndex checked, int id) {
+	int current = id;
+	int steps = 0;
+	while (current > 0 && current <= flow.node_count && flow.nodes[current - 1].kind == 7 && steps < 192) {
+		current = flow.nodes[current - 1].a;
+		steps = steps + 1;
+	}
+	if (current < 1 || current > flow.node_count || steps == 192) return type_symbol(0);
+	var row = flow.nodes[current - 1];
+	if (row.kind == 2 || row.kind == 17) return row.symbol;
+	return recover_shared_borrow_root(flow, checked, current);
+}

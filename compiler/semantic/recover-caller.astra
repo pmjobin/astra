@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Caller information is a source-bound implicit operand. It retains the actual
+// call and parameter; no synthetic AST node or unrelated source range is made.
+bool recover_span_contains(SyntaxSpan outer, SyntaxSpan inner) {
+	return outer.source.index > 0 && outer.source.index == inner.source.index && outer.start >= 0 && outer.end > outer.start && inner.start >= outer.start && inner.end > inner.start && inner.end <= outer.end;
+}
+
+int recover_caller_kind(CheckedIndex checked, SymbolId function, int ordinal) {
+	if (function.index < 1 || function.index > checked.bindings.symbol_count) return 0;
+	var declaration = checked.bindings.symbol(function);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	if (ordinal < 0 || ordinal >= checked.bindings.program.arena.list_count(parameters)) return 0;
+	var parameter = checked.bindings.program.arena.node_at(parameters, ordinal);
+	var info = checked.bindings.program.arena.get_node_caller_information(parameter);
+	if (info.index == 0 || checked.bindings.program.arena.kind(info) != SyntaxKind.CallerInformationSyntax()) return 0;
+	var symbol = checked.node_symbols[parameter.index];
+	if (symbol.index < 1 || checked.bindings.symbol(symbol).kind != 7 || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_flags[symbol.index] != 0) return 0;
+	var data = checked.bindings.program.arena.caller_information(info);
+	var parameter_span = checked.bindings.program.arena.header(parameter).span;
+	var info_span = checked.bindings.program.arena.header(info).span;
+	var binding = checked.bindings.symbol(symbol);
+	var name_span = checked.bindings.program.arena.token_span(binding.token);
+	if (!recover_span_contains(checked.bindings.program.arena.header(declaration.node).span, parameter_span) || !recover_span_contains(parameter_span, info_span) || info_span.end > name_span.start) return 0;
+	if (checked.bindings.program.arena.token_is(data.f_name, "CallerFilePath") && data.f_target.index == 0 && checked.symbol_types[symbol.index].index == 15) return 1;
+	if (checked.bindings.program.arena.token_is(data.f_name, "CallerLineNumber") && data.f_target.index == 0 && checked.symbol_types[symbol.index].index == 1) return 2;
+	if (!checked.bindings.program.arena.token_is(data.f_name, "CallerArgumentExpression") || data.f_target.index == 0 || checked.symbol_types[symbol.index].index != 15) return 0;
+	try {
+		var target = checked.bindings.program.arena.payload_message(data.f_target);
+		int p = 0;
+		while (p < ordinal) {
+			var previous = checked.bindings.program.arena.node_at(parameters, p);
+			var name = checked.bindings.program.arena.token_message(checked.bindings.program.arena.get_token_name(previous));
+			if (name.text == target.text && checked.bindings.program.arena.get_node_caller_information(previous).index == 0) return 3;
+			p = p + 1;
+		}
+	} catch (Error caught) {
+		return 0;
+	}
+	return 0;
+}
+
+bool recover_caller_parameters(CheckedIndex checked, SymbolId function) {
+	if (function.index < 1 || function.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(function);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	bool suffix = false;
+	int p = 0;
+	while (p < checked.bindings.program.arena.list_count(parameters)) {
+		var parameter = checked.bindings.program.arena.node_at(parameters, p);
+		bool present = checked.bindings.program.arena.get_node_caller_information(parameter).index != 0;
+		if (present) {
+			if (declaration.kind != 1 || checked.bindings.program.arena.get_token_extern_keyword(declaration.node).index != 0 || checked.bindings.program.arena.get_token_export_keyword(declaration.node).index != 0) return false;
+			if (recover_caller_kind(checked, function, p) == 0) return false;
+			suffix = true;
+		} else {
+			if (suffix) return false;
+		}
+		p = p + 1;
+	}
+	return true;
+}
+
+bool recover_caller_arity(CheckedIndex checked, SyntaxNodeId call, SymbolId function) {
+	if (!recover_caller_parameters(checked, function)) return false;
+	var declaration = checked.bindings.symbol(function);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	var arguments = checked_call_arguments(checked, call);
+	int count = checked.bindings.program.arena.list_count(arguments);
+	int total = checked.bindings.program.arena.list_count(parameters);
+	if (count > total) return false;
+	while (count < total) {
+		if (recover_caller_kind(checked, function, count) == 0) return false;
+		count = count + 1;
+	}
+	return true;
+}
+
+SyntaxSpan recover_caller_site(CheckedIndex checked, SyntaxNodeId call) {
+	return checked.bindings.program.arena.token_span(checked.bindings.program.arena.get_token_identifier(call));
+}
+
+int recover_caller_target(CheckedIndex checked, SymbolId function, int ordinal) throws Error {
+	var declaration = checked.bindings.symbol(function);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	var parameter = checked.bindings.program.arena.node_at(parameters, ordinal);
+	var info = checked.bindings.program.arena.get_node_caller_information(parameter);
+	var data = checked.bindings.program.arena.caller_information(info);
+	var target = checked.bindings.program.arena.payload_message(data.f_target);
+	int p = 0;
+	while (p < ordinal) {
+		var earlier = checked.bindings.program.arena.node_at(parameters, p);
+		var name = checked.bindings.program.arena.token_message(checked.bindings.program.arena.get_token_name(earlier));
+		if (name.text == target.text && checked.bindings.program.arena.get_node_caller_information(earlier).index == 0) return p;
+		p = p + 1;
+	}
+	return -1;
+}
+
+owned Utf8Message recover_caller_text(CheckedIndex checked, SyntaxNodeId call, SymbolId function, int ordinal) throws Error {
+	int kind = recover_caller_kind(checked, function, ordinal);
+	var site_span = recover_caller_site(checked, call);
+	var span = checked.bindings.program.arena.source_span(site_span);
+	if (kind == 1) return span.path();
+	if (kind != 3) {
+		throw new Error("invalid caller text kind");
+	}
+	int target = recover_caller_target(checked, function, ordinal);
+	var arguments = checked_call_arguments(checked, call);
+	if (target < 0 || target >= checked.bindings.program.arena.list_count(arguments)) {
+		throw new Error("invalid caller expression target");
+	}
+	var written = checked.bindings.program.arena.header(checked.bindings.program.arena.node_at(arguments, target)).span;
+	var syntax = checked.bindings.program.arena.call_expression(call);
+	var open = checked.bindings.program.arena.token_span(syntax.f_open_paren);
+	var close = checked.bindings.program.arena.token_span(syntax.f_close_paren);
+	if (!recover_span_contains(checked.bindings.program.arena.header(call).span, written) || written.source.index != open.source.index || written.source.index != close.source.index || written.start < open.end || written.end > close.start) {
+		throw new Error("invalid caller expression range");
+	}
+	var source = checked.bindings.program.arena.source_span(written);
+	var bytes = source.bytes();
+	return utf8_message(bytes);
+}
+
+bool recover_caller_value_source(CheckedIndex checked, RecoverNode row, SyntaxNodeId call, SymbolId function, int ordinal) {
+	var declaration = checked.bindings.symbol(function);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	var arguments = checked_call_arguments(checked, call);
+	if (!recover_caller_arity(checked, call, function) || ordinal < checked.bindings.program.arena.list_count(arguments) || ordinal >= checked.bindings.program.arena.list_count(parameters) || row.kind != 51 || row.source.index != call.index || row.a != 0 || row.b != 0 || row.c != 0 || row.first != 0 || row.count != 0 || row.token.index != 0) return false;
+	var parameter = checked.bindings.program.arena.node_at(parameters, ordinal);
+	var symbol = checked.node_symbols[parameter.index];
+	if (row.symbol.index != symbol.index || row.type.index != checked.symbol_types[symbol.index].index || !recover_span_contains(checked.bindings.program.arena.header(call).span, recover_caller_site(checked, call))) return false;
+	try {
+		if (recover_caller_kind(checked, function, ordinal) == 2) {
+			var site_span = recover_caller_site(checked, call);
+			var site = checked.bindings.program.arena.source_span(site_span);
+			var location = site.location();
+			return location.line > 0;
+		}
+		var text = recover_caller_text(checked, call, function, ordinal);
+		return text.text.byte_length >= 0;
+	} catch (Error caught) {
+		return false;
+	}
+}

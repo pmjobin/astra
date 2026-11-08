@@ -9,7 +9,9 @@ TypeId checked_slice_type(CheckedIndex index, SyntaxNodeId node, int depth) thro
 	var arguments = index.bindings.program.arena.get_list_arguments(node); int count = index.bindings.program.arena.list_count(arguments);
 	if (count != 1 && count != 3 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0) return index.defer(node, 17);
 	var input = index.bindings.program.arena.node_at(arguments, 0); var type = checked_expression(index, input, no_type(), depth + 1); int kind = checked_kind(index, type);
-	if (kind != 21 && kind != 22) return index.defer(node, 17);
+	if (kind != 21 || index.bindings.program.arena.kind(input) != SyntaxKind.NameExpressionSyntax()) return index.defer(node, 17);
+	var local = checked_target(index, input, index.bindings.program.arena.get_token_identifier(input));
+	if (local.index < 1 || index.bindings.symbol(local).kind != 8) return index.defer(node, 17);
 	var element = index.types.argument(index.types, type, 0);
 	if (element.flags != 0 || (!type_numeric(checked_kind(index, element.type)) && checked_kind(index, element.type) != 13)) return index.defer(node, 17);
 	int i = 1;

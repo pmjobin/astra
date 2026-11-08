@@ -11,10 +11,16 @@ bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId tar
 		var arguments = checked_call_arguments(checked, source);
 		if (checked.bindings.program.arena.list_count(arguments) < 1) return false;
 		var receiver = checked.bindings.program.arena.node_at(arguments, 0);
-		if (checked.bindings.program.arena.kind(receiver) != SyntaxKind.NameExpressionSyntax()) return false;
-		var owner = checked_target(checked, receiver, checked.bindings.program.arena.get_token_identifier(receiver));
+		var owner = type_symbol(0);
+		var receiver_kind = checked.bindings.program.arena.kind(receiver);
+		if (receiver_kind == SyntaxKind.NameExpressionSyntax()) owner = checked_target(checked, receiver, checked.bindings.program.arena.get_token_identifier(receiver));
+		if (receiver_kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+			var caller = recover_source_function(checked, source);
+			if (caller.index == 0) return false;
+			owner = recover_field_receiver(checked, receiver, caller);
+		}
 		int instance = generic_instance_for(checked, target); var plan = checked.instances[instance - 1];
-		if (owner.index < 1 || checked.symbol_types[owner.index].index != plan.enclosing.index) return false;
+		if (owner.index < 1 || checked.uses[receiver.index].type.index != plan.enclosing.index) return false;
 		var binding = checked.bindings.symbol(owner);
 		// A borrowed local needs a separate alias-root proof. Parameters retain
 		// their declared borrow; an owned local retains its actual binder slot.
@@ -27,7 +33,7 @@ bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId tar
 	var signature = checked.signatures[ordinal - 1]; var channel = checked.types.argument(checked.types, signature.callable, 0); var use = checked.uses[source.index];
 	if (!checked_effect_signature_verified(checked, signature) || signature.declaration.index != target.index || signature.callable.index != checked.symbol_types[target.index].index || result.index != channel.type.index || use.type.index != result.index || use.flags != channel.flags || use.deferred != 0 && use.deferred != 17 && use.deferred != 19) return false;
 	if ((signature.flags & 64) != 0 && !checked_effect_bound(checked, checked.bindings.program.arena.get_node_throws_class(declaration.node), signature.error)) return false;
-	var arguments = checked_call_arguments(checked, source); int count = checked.bindings.program.arena.list_count(arguments); if (checked.types.row(signature.callable).count != count + 1) return false;
+	var arguments = checked_call_arguments(checked, source); int count = checked.bindings.program.arena.list_count(arguments); if (!recover_caller_arity(checked, source, target) || checked.types.row(signature.callable).count < count + 1) return false;
 	int a = 0; while (a < count) {
 		var argument = checked.bindings.program.arena.node_at(arguments, a);
 		var input = checked.types.argument(checked.types, signature.callable, a + 1);

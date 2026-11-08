@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Independent source/layout/physical consumer for ordinary fielded Classes.
 // No emitter helper or pointer-shaped Error layout is used as authority.
-bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloads, void*[] destroyers, void* snapshot, void* allocate, void* free, void* copy) throws Error {
+bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* allocate, void* free, void* copy) throws Error {
 	if (!class_storage_verify(ssa.cfg.core.flow.fields.layout, ssa.cfg.core.flow.checked) || len(payloads) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || len(destroyers) != len(payloads)) return false;
 	bool needs_snapshot = false; int s = 0;
 	while (s < len(payloads)) {
@@ -51,6 +51,10 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloa
 						drop = destroyers[ssa.cfg.core.flow.checked.types.row(child).nominal.index];
 						convention = 8;
 					}
+					if (kind == 27) {
+						drop = shared_drops[child.index];
+						convention = 8;
+					}
 					if (!recover_llvm_call(body[at], drop, 1, convention) || LLVMGetArgOperand(body[at], 0) != data) return false; at = at + 1;
 				}
 				i = i - 1;
@@ -87,19 +91,21 @@ int recover_class_field_instructions(RecoverSsa ssa, RecoverBlock block) {
 	return count;
 }
 
-bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void* snapshot, void* free) {
+bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* free) {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value; var fact = ssa.cfg.core.flow.fields.facts[row.source.index]; var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, type); var nominal = ssa.cfg.core.flow.checked.types.row(fact.aggregate).nominal;
+	void* object = locals[fact.receiver.index];
+	if (fact.parent > 0) object = values[fact.parent];
 	int count = recover_class_field_instructions(ssa, block); if (block.opcode == 44 && kind == 15) count = count + recover_llvm_extract_instructions(values[row.a]);
-	var body = recover_llvm_body(physical, count); if (len(body) != count || !recover_llvm_field(body[0], payloads[nominal.index], locals[fact.receiver.index], fact.ordinal)) return false;
-	if (block.opcode == 17) return operation == body[1] && values[block.origin] == body[1] && recover_llvm_load_field(body[1], payloads[nominal.index], locals[fact.receiver.index], fact.ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1]));
-	if (block.opcode == 18) return operation == body[2] && values[block.origin] == body[2] && recover_llvm_load_field(body[1], payloads[nominal.index], locals[fact.receiver.index], fact.ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1])) && recover_llvm_extract(body[2], body[1], 1) && recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(body[2]));
+	var body = recover_llvm_body(physical, count); if (len(body) != count || !recover_llvm_field(body[0], payloads[nominal.index], object, fact.ordinal)) return false;
+	if (block.opcode == 17) return operation == body[1] && values[block.origin] == body[1] && recover_llvm_load_field(body[1], payloads[nominal.index], object, fact.ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1]));
+	if (block.opcode == 18) return operation == body[2] && values[block.origin] == body[2] && recover_llvm_load_field(body[1], payloads[nominal.index], object, fact.ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1])) && recover_llvm_extract(body[2], body[1], 1) && recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(body[2]));
 	int at = 1; void* value = values[row.a];
 	if (kind == 15) {
 		at = at + recover_llvm_extract_instructions(value); var call = body[at];
 		if (!recover_llvm_call(call, snapshot, 2, 8) || !recover_llvm_extract(LLVMGetArgOperand(call, 0), value, 0) || !recover_llvm_extract(LLVMGetArgOperand(call, 1), value, 1)) return false; value = call; at = at + 1;
 	}
 	if (!fact.initializing && ((ssa.cfg.core.flow.checked.symbol_flags[fact.field.index] & 4) != 0 || kind == 15)) {
-		if (!recover_llvm_load_field(body[at], payloads[nominal.index], locals[fact.receiver.index], fact.ordinal)) return false;
+		if (!recover_llvm_load_field(body[at], payloads[nominal.index], object, fact.ordinal)) return false;
 		void* data = body[at]; at = at + 1;
 		if (kind == 22 || kind == 15) {
 			if (!recover_llvm_extract(body[at], data, 0)) return false;
@@ -108,6 +114,10 @@ bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* phys
 		}
 		void* drop = free; int convention = 0; if (kind == 31 && destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) {
 			drop = destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
+			convention = 8;
+		}
+		if (kind == 27) {
+			drop = shared_drops[type.index];
 			convention = 8;
 		}
 		if (!recover_llvm_call(body[at], drop, 1, convention) || LLVMGetArgOperand(body[at], 0) != data) return false; at = at + 1;

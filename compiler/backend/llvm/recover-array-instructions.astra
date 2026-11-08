@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct the exact address/value correspondence from independently
+// verified source, Core, CFG and SSA; no emitter layout cache is authority.
+bool recover_array_cast_verified(int source, int target, void* value, void* operand) {
+	if (!type_integer(source) || !type_integer(target) || value == null || operand == null || LLVMGetTypeKind(LLVMTypeOf(value)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(value)) != type_width(target) || LLVMGetTypeKind(LLVMTypeOf(operand)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(operand)) != type_width(source)) return false;
+	int first = type_width(source);
+	int last = type_width(target);
+	if (first == last) return value == operand;
+	if (LLVMIsAConstantInt(value) != null) {
+		if (LLVMIsAConstantInt(operand) == null) return false;
+		u64 bits = LLVMConstIntGetZExtValue(operand);
+		if (last > first && type_signed(source) && (bits & (1 as u64 << (first - 1))) != 0) bits = bits | (18446744073709551615 << first);
+		if (last < 64) bits = bits & ((1 as u64 << last) - 1);
+		return LLVMConstIntGetZExtValue(value) == bits;
+	}
+	if (LLVMIsAInstruction(value) == null || LLVMGetNumOperands(value) != 1 || LLVMGetOperand(value, 0) != operand || LLVMHasMetadata(value) != 0) return false;
+	if (last < first) return LLVMGetInstructionOpcode(value) == 30 && LLVMGetNSW(value) == 0 && LLVMGetNUW(value) == 0;
+	if (type_signed(source)) return LLVMGetInstructionOpcode(value) == 32;
+	return LLVMGetInstructionOpcode(value) == 31 && LLVMGetNNeg(value) == 0;
+}
+
+bool recover_array_memory(void* instruction, int opcode, void* address, void* value, void* layout) {
+	if (instruction == null || LLVMIsAInstruction(instruction) == null || LLVMGetInstructionOpcode(instruction) != opcode || LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0 || LLVMHasMetadata(instruction) != 0) return false;
+	void* type = LLVMTypeOf(instruction);
+	if (opcode == 28) type = LLVMTypeOf(value);
+	if (LLVMGetAlignment(instruction) != LLVMABIAlignmentOfType(layout, type)) return false;
+	if (opcode == 27) return LLVMGetOperand(instruction, 0) == address;
+	return LLVMGetOperand(instruction, 0) == value && LLVMGetOperand(instruction, 1) == address;
+}
+
+bool recover_array_backing_verified(RecoverSsa ssa, int id, void* backing, void* entry, void* layout) {
+	var row = ssa.cfg.core.nodes[id - 1].value;
+	if (row.kind != 57 || !recover_storage_fixed(ssa.cfg.core.flow.checked, row.type) || backing == null || LLVMIsAInstruction(backing) == null || LLVMGetInstructionOpcode(backing) != 26 || LLVMGetInstructionParent(backing) != entry || LLVMGetNumOperands(backing) != 1 || !recover_llvm_bits(LLVMGetOperand(backing, 0), 32, row.count as u64)) return false;
+	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type;
+	var physical = LLVMGetAllocatedType(backing);
+	return recover_llvm_scalar_type(ssa.cfg.core.flow.checked, element, physical) && LLVMGetAlignment(backing) == LLVMABIAlignmentOfType(layout, physical) && LLVMGetPointerAddressSpace(LLVMTypeOf(backing)) == 0 && LLVMHasMetadata(backing) == 0;
+}
+
+// A source fixed array has its own actual stack allocation. Matching element
+// types/extents cannot alias another array, mutable scalar, or success slot.
+bool recover_array_backings_distinct(void*[] backings, void*[] successes, void*[] locals) {
+	int remaining = 8000000;
+	int n = 0;
+	while (n < len(backings)) {
+		if (remaining == 0) return false;
+		remaining = remaining - 1;
+		var backing = backings[n];
+		if (backing != null) {
+			int p = 0;
+			while (p < n) {
+				if (remaining == 0 || backings[p] == backing) return false;
+				remaining = remaining - 1;
+				p = p + 1;
+			}
+			p = 0;
+			while (p < len(successes)) {
+				if (remaining == 0 || successes[p] == backing) return false;
+				remaining = remaining - 1;
+				p = p + 1;
+			}
+			p = 0;
+			while (p < len(locals)) {
+				if (remaining == 0 || locals[p] == backing) return false;
+				remaining = remaining - 1;
+				p = p + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
+// Returns the exact block inventory, or zero when the physical proof fails.
+int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void* layout, void*[] values, void*[] locals, void*[] operations, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value;
+	int op = block.opcode;
+	if (op == 54) {
+		int source = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
+		int target = checked_kind(ssa.cfg.core.flow.checked, row.type);
+		var value = values[block.origin];
+		if (!recover_array_cast_verified(source, target, value, values[row.a])) return 0;
+		if (value != values[row.a] && LLVMIsAInstruction(value) != null) {
+			if (value != operation || LLVMGetInstructionParent(value) != physical) return 0;
+			return 2;
+		}
+		return 1;
+	}
+	if (op == 58) {
+		var value = values[block.origin];
+		void* input = values[row.a];
+		if (row.symbol.index > 0) input = locals[row.symbol.index];
+		if (!recover_llvm_extract(value, input, 1) || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(value))) return 0;
+		if (LLVMIsAInstruction(input) != null) {
+			if (value != operation || LLVMGetInstructionParent(value) != physical) return 0;
+			return 2;
+		}
+		return 1;
+	}
+	if (op == 57) {
+		int count = row.count * 2 + 3;
+		var body = recover_llvm_body(physical, count);
+		if (len(body) != count) return 0;
+		var backing = fixed_backings[block.origin - 1];
+		var element = LLVMGetAllocatedType(backing);
+		int p = 0;
+		while (p < row.count) {
+			var address = body[p * 2];
+			if (!recover_array_address(address, element, backing, LLVMGetOperand(address, 1)) || !recover_llvm_bits(LLVMGetOperand(address, 1), 32, p as u64) || !recover_array_memory(body[p * 2 + 1], 28, address, values[ssa.cfg.core.flow.data.edges[row.first + p]], layout)) return 0;
+			p = p + 1;
+		}
+		var first = body[row.count * 2];
+		var last = body[row.count * 2 + 1];
+		if (!recover_llvm_insert(first, LLVMGetOperand(first, 0), backing, 0) || LLVMIsNull(LLVMGetOperand(first, 0)) == 0 || !recover_llvm_insert(last, first, LLVMGetOperand(last, 1), 1) || !recover_llvm_bits(LLVMGetOperand(last, 1), 32, row.count as u64) || values[block.origin] != last || operation != last || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(last))) return 0;
+		return count;
+	}
+	if (op == 61) {
+		int guard = ssa.cfg.regions[row.b - 1].next;
+		if (guard < 1 || guard > ssa.cfg.block_count || ssa.cfg.blocks[guard - 1].opcode != 64 || ssa.cfg.blocks[guard - 1].origin != block.origin || !recover_array_memory(operation, 28, operations[guard - 1], values[row.c], layout) || LLVMGetInstructionParent(operation) != physical) return 0;
+		return 2;
+	}
+	if (op != 55 && op != 56 && op != 64) return 0;
+	int input = row.a;
+	if (op == 56) input = ssa.cfg.core.flow.data.edges[row.first];
+	var type = ssa.cfg.core.nodes[input - 1].value.type;
+	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+	int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+	if (kind < 1 || kind > 13 || len(index_functions) != 13 || len(slice_functions) != 13) return 0;
+	void* function = index_functions[kind - 1];
+	int parameters = 3;
+	if (op == 56) {
+		function = slice_functions[kind - 1];
+		parameters = 4;
+	}
+	if (function == null || !recover_llvm_call(operation, function, parameters, 8) || !recover_llvm_native_attributes(operation, parameters) || LLVMGetInstructionParent(operation) != physical || LLVMHasMetadata(operation) != 0 || !recover_llvm_extract(LLVMGetArgOperand(operation, 0), values[input], 0) || !recover_llvm_extract(LLVMGetArgOperand(operation, 1), values[input], 1)) return 0;
+	int count = 2 + recover_llvm_extract_instructions(values[input]);
+	if (op == 56) {
+		if (values[block.origin] != operation) return 0;
+		if (row.count == 1) {
+			if (!recover_llvm_bits(LLVMGetArgOperand(operation, 2), 32, 0) || !recover_llvm_extract(LLVMGetArgOperand(operation, 3), values[input], 1)) return 0;
+		} else {
+			if (row.count != 3 || LLVMGetArgOperand(operation, 2) != values[ssa.cfg.core.flow.data.edges[row.first + 1]] || LLVMGetArgOperand(operation, 3) != values[ssa.cfg.core.flow.data.edges[row.first + 2]]) return 0;
+		}
+	} else {
+		if (LLVMGetArgOperand(operation, 2) != values[row.b]) return 0;
+		if (op == 55) {
+			var load = values[block.origin];
+			if (!recover_array_memory(load, 27, operation, null, layout) || LLVMGetNextInstruction(operation) != load || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, element, LLVMTypeOf(load))) return 0;
+			count = count + 1;
+		}
+	}
+	return count;
+}

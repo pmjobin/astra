@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool recover_short_llvm_phi(RecoverSsa ssa, int join, void* phi, void*[] values, void*[] blocks) {
+	var block = ssa.cfg.blocks[join - 1];
+	var row = ssa.cfg.core.nodes[block.origin - 1].value;
+	if (phi == null || LLVMIsAInstruction(phi) == null || LLVMGetInstructionOpcode(phi) != 44 || LLVMGetInstructionParent(phi) != blocks[join - 1] || LLVMGetTypeKind(LLVMTypeOf(phi)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(phi)) != 1 || LLVMHasMetadata(phi) != 0) return false;
+	int incoming = 0;
+	int e = 0;
+	while (e < ssa.cfg.edge_count) {
+		var edge = ssa.cfg.edges[e];
+		if (edge.target == join && ssa.data.reachable[edge.source - 1]) {
+			var source = ssa.cfg.blocks[edge.source - 1];
+			void* expected = values[row.b];
+			if (source.opcode == 63 && source.origin == block.origin) expected = values[row.a];
+			if (incoming >= LLVMCountIncoming(phi) || LLVMGetIncomingBlock(phi, incoming) != blocks[edge.source - 1] || LLVMGetIncomingValue(phi, incoming) != expected) return false;
+			incoming = incoming + 1;
+		}
+		e = e + 1;
+	}
+	return incoming == 2 && LLVMCountIncoming(phi) == 2;
+}

@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Only a validated (backing,count,index) produces an element address. Source
+// and SSA consumers separately establish its actual root and live interval.
+void* recover_array_integer_cast(void* builder, int source, int target, void* input, void* type, void* empty) {
+	void* value = input;
+	if (type_width(source) > type_width(target)) value = LLVMBuildTrunc(builder, value, type, empty);
+	if (type_width(source) < type_width(target)) {
+		if (type_signed(source)) value = LLVMBuildSExt(builder, value, type, empty);
+		else {
+			value = LLVMBuildZExt(builder, value, type, empty);
+		}
+	}
+	return value;
+}
+
+class RecoverArrayRuntime {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* trap;
+	void* empty;
+	void* integer;
+	void* pointer;
+
+	init(void* context, void* module, void* builder, void* handles, void* trap) {
+		this.context = context;
+		this.module = module;
+		this.builder = builder;
+		this.handles = handles;
+		this.trap = trap;
+		this.empty = llvm12_empty();
+		this.integer = LLVMIntTypeInContext(context, 32);
+		this.pointer = LLVMPointerTypeInContext(context, 0);
+	}
+
+	void fatal() {
+		var call = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(this.trap), this.trap, this.empty, 0, this.empty);
+		var end = LLVMBuildUnreachable(this.builder);
+	}
+
+	void* compare(int predicate, void* left, void* right) {
+		return LLVMBuildICmp(this.builder, predicate, left, right, this.empty);
+	}
+
+	void* index_helper(void* element, string name) {
+		llvm12_handle_set(this.handles, 0, this.pointer);
+		llvm12_handle_set(this.handles, 1, this.integer);
+		llvm12_handle_set(this.handles, 2, this.integer);
+		var signature = LLVMFunctionType(this.pointer, llvm12_handle_offset(this.handles, 0), 3, 0);
+		var function = llvm12_function(this.module, signature, name);
+		LLVMSetLinkage(function, 8);
+		LLVMSetFunctionCallConv(function, 8);
+		var entry = llvm12_block(this.context, function, "bounds");
+		var fatal = llvm12_block(this.context, function, "invalid");
+		var valid = llvm12_block(this.context, function, "address");
+		var pointer = LLVMGetParam(function, 0);
+		var count = LLVMGetParam(function, 1);
+		var index = LLVMGetParam(function, 2);
+		var zero = LLVMConstNull(this.integer);
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var backing = this.compare(33, pointer, LLVMConstNull(this.pointer));
+		var counted = this.compare(39, count, zero);
+		var nonnegative = this.compare(39, index, zero);
+		var within = this.compare(40, index, count);
+		var positive_count = LLVMBuildAnd(this.builder, backing, counted, this.empty);
+		var indexed = LLVMBuildAnd(this.builder, nonnegative, within, this.empty);
+		var accepted = LLVMBuildAnd(this.builder, positive_count, indexed, this.empty);
+		var guard = LLVMBuildCondBr(this.builder, accepted, valid, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, fatal);
+		this.fatal();
+		LLVMPositionBuilderAtEnd(this.builder, valid);
+		llvm12_handle_set(this.handles, 0, index);
+		var address = LLVMBuildGEP2(this.builder, element, pointer, llvm12_handle_offset(this.handles, 0), 1, this.empty);
+		LLVMGEPSetNoWrapFlags(address, 0);
+		var result = LLVMBuildRet(this.builder, address);
+		return function;
+	}
+
+	void* slice_helper(void* element, void* descriptor, string name) {
+		llvm12_handle_set(this.handles, 0, this.pointer);
+		llvm12_handle_set(this.handles, 1, this.integer);
+		llvm12_handle_set(this.handles, 2, this.integer);
+		llvm12_handle_set(this.handles, 3, this.integer);
+		var signature = LLVMFunctionType(descriptor, llvm12_handle_offset(this.handles, 0), 4, 0);
+		var function = llvm12_function(this.module, signature, name);
+		LLVMSetLinkage(function, 8);
+		LLVMSetFunctionCallConv(function, 8);
+		var entry = llvm12_block(this.context, function, "bounds");
+		var fatal = llvm12_block(this.context, function, "invalid");
+		var valid = llvm12_block(this.context, function, "view");
+		var pointer = LLVMGetParam(function, 0);
+		var count = LLVMGetParam(function, 1);
+		var start = LLVMGetParam(function, 2);
+		var length = LLVMGetParam(function, 3);
+		var zero = LLVMConstNull(this.integer);
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var counted = this.compare(39, count, zero);
+		var positioned = this.compare(39, start, zero);
+		var sized = this.compare(39, length, zero);
+		var beginning = this.compare(41, start, count);
+		var remaining = LLVMBuildSub(this.builder, count, start, this.empty);
+		var ending = this.compare(41, length, remaining);
+		var backing = this.compare(33, pointer, LLVMConstNull(this.pointer));
+		var vacant = this.compare(32, count, zero);
+		var present = LLVMBuildOr(this.builder, backing, vacant, this.empty);
+		var first = LLVMBuildAnd(this.builder, counted, positioned, this.empty);
+		var second = LLVMBuildAnd(this.builder, sized, beginning, this.empty);
+		var third = LLVMBuildAnd(this.builder, ending, present, this.empty);
+		var both = LLVMBuildAnd(this.builder, first, second, this.empty);
+		var accepted = LLVMBuildAnd(this.builder, both, third, this.empty);
+		var guard = LLVMBuildCondBr(this.builder, accepted, valid, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, fatal);
+		this.fatal();
+		LLVMPositionBuilderAtEnd(this.builder, valid);
+		llvm12_handle_set(this.handles, 0, start);
+		var address = LLVMBuildGEP2(this.builder, element, pointer, llvm12_handle_offset(this.handles, 0), 1, this.empty);
+		LLVMGEPSetNoWrapFlags(address, 0);
+		var base = LLVMBuildInsertValue(this.builder, LLVMConstNull(descriptor), address, 0, this.empty);
+		var view = LLVMBuildInsertValue(this.builder, base, length, 1, this.empty);
+		var result = LLVMBuildRet(this.builder, view);
+		return function;
+	}
+}

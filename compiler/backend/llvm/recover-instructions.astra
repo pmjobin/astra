@@ -28,7 +28,7 @@ bool recover_llvm_native_attributes(void* call, int arguments) {
 
 int recover_llvm_extract_instructions(void* aggregate) { if (LLVMIsAInstruction(aggregate) == null) return 0; return 2; }
 
-bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* left, void* right, void* equal_function) throws Error {
+bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* left, void* right, void* equal_function, void*[] integer_functions) throws Error {
 	var token = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(row.token); int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 	if (kind == 15) {
 		var call = result;
@@ -40,6 +40,25 @@ bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* le
 		return recover_llvm_extract(LLVMGetArgOperand(call, 0), left, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 1), left, 1) && recover_llvm_extract(LLVMGetArgOperand(call, 2), right, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 3), right, 1);
 	}
 	if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(result))) return false;
+	if (kind >= 1 && kind <= 10 && (token.text == "/" || token.text == "%")) {
+		if (len(integer_functions) != 20) return false;
+		int index = (kind - 1) * 2;
+		if (token.text == "%") index = index + 1;
+		return integer_functions[index] != null && recover_llvm_call(result, integer_functions[index], 2, 8) && recover_llvm_native_attributes(result, 2) && LLVMGetArgOperand(result, 0) == left && LLVMGetArgOperand(result, 1) == right && LLVMHasMetadata(result) == 0;
+	}
+	if (kind == 27 || kind == 31) {
+		if ((token.text != "==" && token.text != "!=") || !recover_shared_pointer(LLVMTypeOf(left)) || LLVMTypeOf(right) != LLVMTypeOf(left)) return false;
+		bool equal = token.text == "==";
+		if (LLVMIsAConstantInt(result) != null) {
+			if (left != right && !(LLVMIsNull(left) != 0 && LLVMIsNull(right) != 0)) return false;
+			u64 expected = 0;
+			if (equal) expected = 1;
+			return recover_llvm_bits(result, 1, expected);
+		}
+		int predicate = 33;
+		if (equal) predicate = 32;
+		return recover_llvm_compare(result, predicate, left, right) && LLVMGetICmpSameSign(result) == 0 && LLVMHasMetadata(result) == 0;
+	}
 	if (kind == 11 || kind == 12) return recover_llvm_float_binary(token.text, kind, result, left, right);
 	bool comparison = token.text == "==" || token.text == "!=" || token.text == "<" || token.text == ">" || token.text == "<=" || token.text == ">=";
 	if (LLVMIsAConstantInt(result) != null) {
@@ -56,11 +75,19 @@ bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* le
 			if (truth) expected = 1;
 		} else {
 			if (token.text == "+") expected = a + b; if (token.text == "-") expected = a - b; if (token.text == "*") expected = a * b;
+			if (token.text == "&") expected = a & b; if (token.text == "|") expected = a | b; if (token.text == "^") expected = a ^ b;
 			if (width < 64) expected = expected & ((1 as u64 << width) - 1);
 		}
 		return LLVMConstIntGetZExtValue(result) == expected;
 	}
 	if (LLVMIsAInstruction(result) == null || LLVMGetNumOperands(result) != 2 || LLVMGetOperand(result, 0) != left || LLVMGetOperand(result, 1) != right) return false;
+	if (token.text == "&" || token.text == "|" || token.text == "^") {
+		int opcode = 23;
+		if (token.text == "|") opcode = 24;
+		if (token.text == "^") opcode = 25;
+		if (LLVMGetInstructionOpcode(result) != opcode || LLVMHasMetadata(result) != 0) return false;
+		return opcode != 24 || LLVMGetIsDisjoint(result) == 0;
+	}
 	if (!comparison) {
 		int opcode = 8;
 		if (token.text == "-") opcode = 10;

@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct the byte/range and control proofs from the actual LLVM graph.
+// The producer's width selection, helper object and caches are not authority.
+bool recover_utf8_add(void* instruction, void* index, int amount) {
+	return LLVMGetInstructionOpcode(instruction) == 8 && LLVMGetOperand(instruction, 0) == index && recover_llvm_bits(LLVMGetOperand(instruction, 1), 32, amount as u64) && LLVMGetNSW(instruction) == 0 && LLVMGetNUW(instruction) == 0;
+}
+
+bool recover_utf8_read(void* address, void* load, void* pointer, void* index) {
+	if (LLVMGetInstructionOpcode(address) != 29 || LLVMGetNumOperands(address) != 2 || LLVMGetOperand(address, 0) != pointer || LLVMGetOperand(address, 1) != index || LLVMGEPGetNoWrapFlags(address) != 0) return false;
+	var element = LLVMGetGEPSourceElementType(address);
+	if (LLVMGetTypeKind(element) != 8 || LLVMGetIntTypeWidth(element) != 8) return false;
+	return LLVMGetInstructionOpcode(load) == 27 && LLVMGetOperand(load, 0) == address && LLVMTypeOf(load) == element && LLVMGetVolatile(load) == 0 && LLVMGetOrdering(load) == 0 && LLVMGetAlignment(load) == 1;
+}
+
+bool recover_utf8_range(void* low, void* high, void* combined, void* value, int first, int last) {
+	if (LLVMGetInstructionOpcode(low) != 42 || LLVMGetICmpPredicate(low) != 35 || LLVMGetOperand(low, 0) != value || !recover_llvm_bits(LLVMGetOperand(low, 1), 8, first as u64)) return false;
+	if (LLVMGetInstructionOpcode(high) != 42 || LLVMGetICmpPredicate(high) != 37 || LLVMGetOperand(high, 0) != value || !recover_llvm_bits(LLVMGetOperand(high, 1), 8, last as u64)) return false;
+	return LLVMGetInstructionOpcode(combined) == 23 && LLVMGetOperand(combined, 0) == low && LLVMGetOperand(combined, 1) == high;
+}
+
+bool recover_utf8_same_function(void* function) {
+	if (!recover_llvm_helper_signature(function, 2) || llvm13_named(function, "astra.e25a.utf8.validate") != 1 || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 0)))) return false;
+	var count = LLVMTypeOf(LLVMGetParam(function, 1));
+	var result = LLVMGetReturnType(LLVMGlobalGetValueType(function));
+	if (LLVMGetTypeKind(count) != 8 || LLVMGetIntTypeWidth(count) != 32 || LLVMGetTypeKind(result) != 8 || LLVMGetIntTypeWidth(result) != 1) return false;
+	var block = LLVMGetFirstBasicBlock(function);
+	int remaining = 8192;
+	while (block != null) {
+		if (remaining == 0) return false;
+		remaining = remaining - 1;
+		var instruction = LLVMGetFirstInstruction(block);
+		while (instruction != null) {
+			if (remaining == 0) return false;
+			remaining = remaining - 1;
+			if (LLVMHasMetadata(instruction) != 0 || LLVMGetInstructionOpcode(instruction) == 42 && LLVMGetICmpSameSign(instruction) != 0) return false;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		block = LLVMGetNextBasicBlock(block);
+	}
+	return true;
+}
+
+bool recover_utf8_helper_verified(void* function) {
+	if (!recover_utf8_same_function(function)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 20);
+	if (len(blocks) != 20) return false;
+	var count = LLVMGetParam(function, 1);
+	var pointer = LLVMGetParam(function, 0);
+	var entry = recover_llvm_body(blocks[0], 2);
+	var empty = recover_llvm_body(blocks[1], 2);
+	var backing = recover_llvm_body(blocks[2], 2);
+	var loop = recover_llvm_body(blocks[3], 3);
+	var lead = recover_llvm_body(blocks[4], 4);
+	var ascii = recover_llvm_body(blocks[5], 2);
+	var valid = recover_llvm_body(blocks[6], 1);
+	var invalid = recover_llvm_body(blocks[7], 1);
+	if (len(entry) != 2 || len(empty) != 2 || len(backing) != 2 || len(loop) != 3 || len(lead) != 4 || len(ascii) != 2 || len(valid) != 1 || len(invalid) != 1) return false;
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 39 || LLVMGetOperand(entry[0], 0) != count || !recover_llvm_bits(LLVMGetOperand(entry[0], 1), 32, 0) || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[7])) return false;
+	if (LLVMGetInstructionOpcode(empty[0]) != 42 || LLVMGetICmpPredicate(empty[0]) != 32 || LLVMGetOperand(empty[0], 0) != count || !recover_llvm_bits(LLVMGetOperand(empty[0], 1), 32, 0) || !recover_llvm_split(empty[1], empty[0], blocks[6], blocks[2])) return false;
+	if (LLVMGetInstructionOpcode(backing[0]) != 42 || LLVMGetICmpPredicate(backing[0]) != 33 || LLVMGetOperand(backing[0], 0) != pointer || LLVMIsNull(LLVMGetOperand(backing[0], 1)) == 0 || !recover_llvm_split(backing[1], backing[0], blocks[3], blocks[7])) return false;
+	var index = loop[0];
+	if (LLVMGetInstructionOpcode(index) != 44 || LLVMCountIncoming(index) != 5 || !recover_llvm_bits(LLVMGetIncomingValue(index, 0), 32, 0) || LLVMGetIncomingBlock(index, 0) != blocks[2] || LLVMGetIncomingValue(index, 1) != ascii[0] || LLVMGetIncomingBlock(index, 1) != blocks[5]) return false;
+	if (!recover_llvm_compare(loop[1], 32, index, count) || !recover_llvm_split(loop[2], loop[1], blocks[6], blocks[4]) || !recover_utf8_read(lead[0], lead[1], pointer, index)) return false;
+	var head = lead[1];
+	if (LLVMGetInstructionOpcode(lead[2]) != 42 || LLVMGetICmpPredicate(lead[2]) != 36 || LLVMGetOperand(lead[2], 0) != head || !recover_llvm_bits(LLVMGetOperand(lead[2], 1), 8, 128) || !recover_llvm_split(lead[3], lead[2], blocks[5], blocks[8]) || !recover_utf8_add(ascii[0], index, 1) || !recover_llvm_jump(ascii[1], blocks[3])) return false;
+	if (LLVMGetInstructionOpcode(valid[0]) != 1 || LLVMGetNumOperands(valid[0]) != 1 || !recover_llvm_bits(LLVMGetOperand(valid[0], 0), 1, 1) || LLVMGetInstructionOpcode(invalid[0]) != 1 || LLVMGetNumOperands(invalid[0]) != 1 || !recover_llvm_bits(LLVMGetOperand(invalid[0], 0), 1, 0)) return false;
+	int width = 2;
+	int selected = 8;
+	int start = 9;
+	while (width <= 4) {
+		var selection = recover_llvm_body(blocks[selected], 4);
+		var bounds = recover_llvm_body(blocks[start], 3);
+		int instructions = 7;
+		if (width == 3) instructions = 22;
+		if (width == 4) instructions = 29;
+		var bytes = recover_llvm_body(blocks[start + 1], instructions);
+		var advance = recover_llvm_body(blocks[start + 2], 2);
+		if (len(selection) != 4 || len(bounds) != 3 || len(bytes) != instructions || len(advance) != 2) return false;
+		int next = 7;
+		if (width < 4) next = start + 3;
+		int first = 194;
+		int last = 223;
+		if (width == 3) {
+			first = 224;
+			last = 239;
+		}
+		if (width == 4) {
+			first = 240;
+			last = 244;
+		}
+		if (!recover_utf8_range(selection[0], selection[1], selection[2], head, first, last) || !recover_llvm_split(selection[3], selection[2], blocks[start], blocks[next])) return false;
+		if (LLVMGetInstructionOpcode(bounds[0]) != 10 || LLVMGetOperand(bounds[0], 0) != count || LLVMGetOperand(bounds[0], 1) != index || LLVMGetNSW(bounds[0]) != 0 || LLVMGetNUW(bounds[0]) != 0) return false;
+		if (LLVMGetInstructionOpcode(bounds[1]) != 42 || LLVMGetICmpPredicate(bounds[1]) != 35 || LLVMGetOperand(bounds[1], 0) != bounds[0] || !recover_llvm_bits(LLVMGetOperand(bounds[1], 1), 32, width as u64) || !recover_llvm_split(bounds[2], bounds[1], blocks[start + 1], blocks[7])) return false;
+		int offset = 1;
+		int at = 0;
+		void* accepted = null;
+		while (offset < width) {
+			if (!recover_utf8_add(bytes[at], index, offset) || !recover_utf8_read(bytes[at + 1], bytes[at + 2], pointer, bytes[at]) || !recover_utf8_range(bytes[at + 3], bytes[at + 4], bytes[at + 5], bytes[at + 2], 128, 191)) return false;
+			var byte = bytes[at + 2];
+			void* condition = bytes[at + 5];
+			at = at + 6;
+			if (offset > 1) {
+				if (LLVMGetInstructionOpcode(bytes[at]) != 23 || LLVMGetOperand(bytes[at], 0) != accepted || LLVMGetOperand(bytes[at], 1) != condition) return false;
+				condition = bytes[at];
+				at = at + 1;
+			}
+			if (offset == 1 && width >= 3) {
+				int low_head = 224;
+				int low_second = 160;
+				int high_head = 237;
+				int high_second = 159;
+				if (width == 4) {
+					low_head = 240;
+					low_second = 144;
+					high_head = 244;
+					high_second = 143;
+				}
+				if (LLVMGetInstructionOpcode(bytes[at]) != 42 || LLVMGetICmpPredicate(bytes[at]) != 33 || LLVMGetOperand(bytes[at], 0) != head || !recover_llvm_bits(LLVMGetOperand(bytes[at], 1), 8, low_head as u64)) return false;
+				if (LLVMGetInstructionOpcode(bytes[at + 1]) != 42 || LLVMGetICmpPredicate(bytes[at + 1]) != 35 || LLVMGetOperand(bytes[at + 1], 0) != byte || !recover_llvm_bits(LLVMGetOperand(bytes[at + 1], 1), 8, low_second as u64)) return false;
+				if (LLVMGetInstructionOpcode(bytes[at + 2]) != 24 || LLVMGetOperand(bytes[at + 2], 0) != bytes[at] || LLVMGetOperand(bytes[at + 2], 1) != bytes[at + 1] || LLVMGetInstructionOpcode(bytes[at + 3]) != 23 || LLVMGetOperand(bytes[at + 3], 0) != condition || LLVMGetOperand(bytes[at + 3], 1) != bytes[at + 2]) return false;
+				condition = bytes[at + 3];
+				at = at + 4;
+				if (LLVMGetInstructionOpcode(bytes[at]) != 42 || LLVMGetICmpPredicate(bytes[at]) != 33 || LLVMGetOperand(bytes[at], 0) != head || !recover_llvm_bits(LLVMGetOperand(bytes[at], 1), 8, high_head as u64)) return false;
+				if (LLVMGetInstructionOpcode(bytes[at + 1]) != 42 || LLVMGetICmpPredicate(bytes[at + 1]) != 37 || LLVMGetOperand(bytes[at + 1], 0) != byte || !recover_llvm_bits(LLVMGetOperand(bytes[at + 1], 1), 8, high_second as u64)) return false;
+				if (LLVMGetInstructionOpcode(bytes[at + 2]) != 24 || LLVMGetOperand(bytes[at + 2], 0) != bytes[at] || LLVMGetOperand(bytes[at + 2], 1) != bytes[at + 1] || LLVMGetInstructionOpcode(bytes[at + 3]) != 23 || LLVMGetOperand(bytes[at + 3], 0) != condition || LLVMGetOperand(bytes[at + 3], 1) != bytes[at + 2]) return false;
+				condition = bytes[at + 3];
+				at = at + 4;
+			}
+			accepted = condition;
+			offset = offset + 1;
+		}
+		if (at != instructions - 1 || !recover_llvm_split(bytes[at], accepted, blocks[start + 2], blocks[7]) || !recover_utf8_add(advance[0], index, width) || !recover_llvm_jump(advance[1], blocks[3]) || LLVMGetIncomingValue(index, width) != advance[0] || LLVMGetIncomingBlock(index, width) != blocks[start + 2]) return false;
+		selected = next;
+		start = start + 4;
+		width = width + 1;
+	}
+	return true;
+}

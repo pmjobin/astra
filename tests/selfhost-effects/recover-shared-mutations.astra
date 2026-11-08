@@ -1,0 +1,192 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Each changed plan starts with a valid twin and is restored before reuse.
+bool shared_flow_mutations(RecoverFlow flow) {
+	if (!recover_flow_verify(flow)) return false;
+	int operation = 0;
+	int projection = 0;
+	int shared_slot = 0;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (operation == 0 && row.kind == 19) operation = n + 1;
+		if (projection == 0 && (row.kind == 17 || row.kind == 44)) {
+			var fact = flow.fields.facts[row.source.index];
+			if (checked_kind(flow.checked, flow.checked.symbol_types[fact.field.index]) == 27) projection = row.source.index;
+		}
+		n = n + 1;
+	}
+	n = 0;
+	while (n < flow.storage.count) {
+		if (flow.storage.slots[n].owner && checked_kind(flow.checked, flow.storage.slots[n].type) == 27) shared_slot = n + 1;
+		n = n + 1;
+	}
+	if (operation > 0) {
+		var original = flow.data.nodes[operation - 1];
+		var changed = original;
+		changed.token.index = 0;
+		flow.data.nodes[operation - 1] = changed;
+		bool rejected = !recover_flow_verify(flow);
+		flow.data.nodes[operation - 1] = original;
+		if (!rejected || !recover_flow_verify(flow)) return false;
+		println("SEMANTIC shared-source-token");
+		changed = original;
+		changed.type = type_id(1);
+		flow.data.nodes[operation - 1] = changed;
+		rejected = !recover_flow_verify(flow);
+		flow.data.nodes[operation - 1] = original;
+		if (!rejected || !recover_flow_verify(flow)) return false;
+		println("SEMANTIC shared-result-type");
+	}
+	if (shared_slot > 0) {
+		var original = flow.storage.slots[shared_slot - 1];
+		var changed = original;
+		changed.owner = false;
+		flow.storage.slots[shared_slot - 1] = changed;
+		bool rejected = !recover_flow_verify(flow);
+		flow.storage.slots[shared_slot - 1] = original;
+		if (!rejected || !recover_flow_verify(flow)) return false;
+		println("SEMANTIC shared-slot-responsibility");
+	}
+	if (projection > 0) {
+		var original = flow.fields.facts[projection];
+		var changed = original;
+		changed.receiver.index = 0;
+		flow.fields.facts[projection] = changed;
+		bool rejected = !recover_flow_verify(flow);
+		flow.fields.facts[projection] = original;
+		if (!rejected || !recover_flow_verify(flow)) return false;
+		println("SEMANTIC shared-field-root");
+		changed = original;
+		changed.cleanup_rank = changed.cleanup_rank + 1;
+		flow.fields.facts[projection] = changed;
+		rejected = !recover_flow_verify(flow);
+		flow.fields.facts[projection] = original;
+		if (!rejected || !recover_flow_verify(flow)) return false;
+		println("SEMANTIC shared-field-cleanup-rank");
+	}
+	bool rebound = false;
+	n = 0;
+	while (n < flow.data.node_count && !rebound) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 19 && !flow.checked.bindings.program.arena.token_is(row.token, "shared_acquire")) {
+			int original = flow.data.edges[row.first];
+			var input = flow.data.nodes[original - 1];
+			int other = 0;
+			while (other < flow.data.node_count && !rebound) {
+				var candidate = flow.data.nodes[other];
+				if ((input.kind == 2 || input.kind == 17) && (candidate.kind == 2 || candidate.kind == 17) && candidate.type.index == input.type.index && candidate.function == input.function && candidate.symbol.index != input.symbol.index) {
+					flow.data.edges[row.first] = other + 1;
+					bool rejected = !recover_flow_verify(flow);
+					flow.data.edges[row.first] = original;
+					if (!rejected || !recover_flow_verify(flow)) return false;
+					rebound = true;
+					println("SEMANTIC shared-same-type-operand-root");
+				}
+				other = other + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return recover_flow_verify(flow);
+}
+
+bool shared_core_mutations(RecoverCore core) {
+	if (!recover_core_verify(core)) return false;
+	bool role = false;
+	bool borrow = false;
+	bool reservation = false;
+	int n = 0;
+	while (n < core.count) {
+		var original = core.nodes[n];
+		if (!role && original.value.kind == 19 && original.result_role == 4) {
+			var changed = original;
+			changed.result_role = 1;
+			core.nodes[n] = changed;
+			bool rejected = !recover_core_verify(core);
+			core.nodes[n] = original;
+			if (!rejected || !recover_core_verify(core)) return false;
+			println("SEMANTIC shared-core-owner-role");
+			int consumer = core.owners.consumers[n];
+			core.owners.consumers[n] = 0;
+			rejected = !recover_core_verify(core);
+			core.owners.consumers[n] = consumer;
+			if (!rejected || !recover_core_verify(core)) return false;
+			println("SEMANTIC shared-core-owner-consumer");
+			role = true;
+		}
+		if (!borrow && original.value.kind == 19 && original.result_role == 3) {
+			var changed = original;
+			changed.borrowed_owner = 0;
+			core.nodes[n] = changed;
+			bool rejected = !recover_core_verify(core);
+			core.nodes[n] = original;
+			if (!rejected || !recover_core_verify(core)) return false;
+			println("SEMANTIC shared-core-payload-root");
+			borrow = true;
+		}
+		if (!reservation && original.value.kind == 10 && core.owners.reservations[n] > 0 && core.nodes[core.owners.reservations[n] - 1].value.kind == 19) {
+			int saved = core.owners.reservations[n];
+			core.owners.reservations[n] = 0;
+			bool rejected = !recover_core_verify(core);
+			core.owners.reservations[n] = saved;
+			if (!rejected || !recover_core_verify(core)) return false;
+			println("SEMANTIC shared-core-acquisition-reservation");
+			reservation = true;
+		}
+		n = n + 1;
+	}
+	return recover_core_verify(core);
+}
+
+bool shared_cfg_mutations(RecoverCfg cfg) {
+	if (!recover_cfg_verify(cfg)) return false;
+	bool commit = false;
+	bool cleanup = false;
+	int b = 0;
+	while (b < cfg.block_count) {
+		var original = cfg.blocks[b];
+		if (!commit && original.opcode == 36 && original.origin > 0 && cfg.core.nodes[original.origin - 1].value.kind == 19) {
+			var changed = original;
+			changed.b = 0;
+			cfg.blocks[b] = changed;
+			bool rejected = !recover_cfg_verify(cfg);
+			cfg.blocks[b] = original;
+			if (!rejected || !recover_cfg_verify(cfg)) return false;
+			println("SEMANTIC shared-cfg-acquisition-commit");
+			commit = true;
+		}
+		if (!cleanup && original.opcode == 38 && original.a > 0 && checked_kind(cfg.core.flow.checked, cfg.core.flow.storage.slots[original.a - 1].type) == 27) {
+			var changed = original;
+			changed.a = 0;
+			cfg.blocks[b] = changed;
+			bool rejected = !recover_cfg_verify(cfg);
+			cfg.blocks[b] = original;
+			if (!rejected || !recover_cfg_verify(cfg)) return false;
+			println("SEMANTIC shared-cfg-cleanup-slot");
+			cleanup = true;
+		}
+		b = b + 1;
+	}
+	return recover_cfg_verify(cfg);
+}
+
+bool shared_ssa_mutations(RecoverSsa ssa) {
+	if (!recover_ssa_verify(ssa)) return false;
+	int v = 1;
+	bool changed = false;
+	while (v <= ssa.cfg.core.count && !changed) {
+		if (ssa.cfg.core.nodes[v - 1].value.kind == 19 && ssa.data.values[v].channel == 4) {
+			var original = ssa.data.values[v];
+			var corrupt = original;
+			corrupt.channel = 0;
+			ssa.data.values[v] = corrupt;
+			bool rejected = !recover_ssa_verify(ssa);
+			ssa.data.values[v] = original;
+			if (!rejected || !recover_ssa_verify(ssa)) return false;
+			println("SEMANTIC shared-ssa-owner-version");
+			changed = true;
+		}
+		v = v + 1;
+	}
+	return recover_ssa_verify(ssa);
+}

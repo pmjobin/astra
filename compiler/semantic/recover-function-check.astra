@@ -16,7 +16,7 @@ bool recover_closed_free_function(CheckedIndex checked, SymbolId function) {
 }
 
 bool recover_runtime_function(CheckedIndex checked, SymbolId symbol) {
-	return checked.bindings.symbol(symbol).kind == 1 && !generic_template(checked, symbol);
+	return checked.bindings.symbol(symbol).kind == 1 && !generic_template(checked, symbol) && !recover_foreign_source(checked, symbol);
 }
 
 bool recover_static_method(CheckedIndex checked, SymbolId function) {
@@ -37,6 +37,7 @@ bool recover_empty_constructor_verified(CheckedIndex checked, SymbolId function)
 
 bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false; var declaration = checked.bindings.symbol(symbol); var node = declaration.node;
+	if (!recover_caller_parameters(checked, symbol)) return false;
 	if (declaration.kind != 1 || checked.bindings.program.arena.get_node_body(node).index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || !recover_member_attributes(checked, node)) return false;
 	bool initializing = class_storage_initializing(checked, symbol); var kind = checked.bindings.program.arena.kind(node);
 	if (initializing) {
@@ -55,7 +56,6 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	int p = 0; while (p < shape.count) {
 		var channel = checked.types.argument(checked.types, signature.callable, p);
 		if (!recover_storage_channel(checked, channel.type, channel.flags, p == 0)) return false;
-		if (p == 0 && channel.type.index == 15 && (signature.flags & 64) != 0) return false;
 		p = p + 1;
 	} return true;
 }

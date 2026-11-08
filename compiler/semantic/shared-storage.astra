@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Shared has its own control-block pointer. Layout admission does not prove
+// acquisition, borrowed payload liveness, or balanced retain/release.
+bool class_storage_shared(CheckedIndex checked, TypeId type, int depth) {
+	if (!checked.field_effects || depth > 32 || checked_kind(checked, type) != 27) return false;
+	var row = checked.types.row(type);
+	if (row.nominal.index != 0 || row.extent != 0 || row.count != 1) return false;
+	var element = checked.types.argument(checked.types, type, 0);
+	if (element.flags != 0 || checked_kind(checked, element.type) != 31) return false;
+	var payload = checked.types.row(element.type);
+	if (generic_instance_for(checked, payload.nominal) != 0) return false;
+	return class_storage_value(checked, element.type, 4, depth + 1);
+}
+
+int checked_shared_action(CheckedIndex checked, SyntaxNodeId node) {
+	if (!checked.field_effects || checked.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return 0;
+	var token = checked.bindings.program.arena.get_token_identifier(node);
+	if (checked_target(checked, node, token).index != 0) return 0;
+	if (checked.bindings.program.arena.token_is(token, "shared_acquire")) return 1;
+	if (checked.bindings.program.arena.token_is(token, "shared_clone")) return 2;
+	if (checked.bindings.program.arena.token_is(token, "shared_borrow")) return 3;
+	return 0;
+}
+
+TypeId checked_shared_call(CheckedIndex checked, SyntaxNodeId node, int depth) throws Error {
+	int action = checked_shared_action(checked, node);
+	if (action == 0) return no_type();
+	var arguments = checked.bindings.program.arena.get_list_arguments(node);
+	if (checked.bindings.program.arena.list_count(arguments) != 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0 || checked.bindings.program.arena.get_token_receiver(node).index != 0 || checked.bindings.program.arena.get_node_receiver_place(node).index != 0) {
+		checked.fail(checked.bindings.program.arena.header(node).span, "shared operation requires one exact operand and no receiver or type arguments");
+		return no_type();
+	}
+	var operand = checked.bindings.program.arena.node_at(arguments, 0);
+	var type = checked_expression(checked, operand, no_type(), depth + 1);
+	if (type.index == 0) return checked.defer(node, 19);
+	var result = type;
+	if (action == 1) {
+		if (checked.bindings.program.arena.kind(operand) != SyntaxKind.MoveExpressionSyntax() || checked_kind(checked, type) != 31 || !class_storage_exact(checked, type, 0)) {
+			checked.fail(checked.bindings.program.arena.header(node).span, "shared_acquire requires explicit move of an exact native Class owner");
+			return no_type();
+		}
+		var symbol = checked_target(checked, operand, checked.bindings.program.arena.get_token_source(operand));
+		if (symbol.index < 1 || checked.symbol_flags[symbol.index] != 4) {
+			checked.fail(checked.bindings.program.arena.header(operand).span, "shared_acquire requires an owned source slot");
+			return no_type();
+		}
+		result = checked.types.unary(27, type, 0);
+	} else {
+		if (!class_storage_shared(checked, type, 0)) {
+			checked.fail(checked.bindings.program.arena.header(operand).span, "shared operation requires an exact Shared native Class handle");
+			return no_type();
+		}
+		if (action == 3) result = checked.types.argument(checked.types, type, 0).type;
+	}
+	var use = checked.uses[node.index];
+	use.flags = 4;
+	if (action == 3) use.flags = 2;
+	// Conditional type/qualifier only. The independent owner consumers must
+	// still prove the actual source slot, acquisition and payload borrow.
+	use.deferred = 19;
+	checked.uses[node.index] = use;
+	return result;
+}

@@ -39,7 +39,7 @@ void recover_loop_bind(RecoverFlowData flow, int id, int loop, int depth) {
 	recover_loop_bind(flow, row.a, loop, depth + 1);
 	int nested = loop; if (row.kind == 28) nested = id;
 	recover_loop_bind(flow, row.b, nested, depth + 1);
-	if (row.kind == 21) recover_loop_bind(flow, row.c, loop, depth + 1);
+	if (row.kind == 21 || row.kind == 61) recover_loop_bind(flow, row.c, loop, depth + 1);
 	int i = 0; while (i < row.count) {
 		recover_loop_bind(flow, flow.edges[row.first + i], loop, depth + 1);
 		i = i + 1;
@@ -58,7 +58,7 @@ bool recover_loop_verify(RecoverFlowData flow, int id, int loop, int depth) {
 	else {
 		if (!recover_loop_verify(flow, row.b, loop, depth + 1)) return false;
 	}
-	if (row.kind == 21 && !recover_loop_verify(flow, row.c, loop, depth + 1)) return false;
+	if ((row.kind == 21 || row.kind == 61) && !recover_loop_verify(flow, row.c, loop, depth + 1)) return false;
 	int i = 0; while (i < row.count) {
 		if (!recover_loop_verify(flow, flow.edges[row.first + i], loop, depth + 1)) return false;
 		i = i + 1;

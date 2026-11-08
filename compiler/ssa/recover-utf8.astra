@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A string view cannot be formed until the true edge of validation of the same
+// parameter dominates it. Inspect actual CFG edges, never a producer bit.
+bool recover_ssa_utf8(RecoverSsa ssa, int value, RecoverWork work) {
+	var row = ssa.cfg.core.nodes[value - 1].value;
+	if (row.kind != 52 && row.kind != 53) return true;
+	var core = ssa.cfg.core.nodes[value - 1];
+	int slot = ssa.cfg.core.flow.storage.symbols[row.symbol.index];
+	if (slot < 1 || slot > ssa.cfg.core.flow.storage.count) return false;
+	var root = ssa.cfg.core.flow.storage.slots[slot - 1];
+	if (!root.parameter || root.owner || root.function != row.function || root.symbol.index != row.symbol.index || root.type.index != ssa.cfg.core.flow.checked.symbol_types[row.symbol.index].index || checked_kind(ssa.cfg.core.flow.checked, root.type) != 22) return false;
+	if (row.kind == 52) return core.result_role == 1 && core.borrowed_owner == 0;
+	if (core.result_role != 3 || core.borrowed_owner != slot) return false;
+	int validation = 0;
+	int branch = 0;
+	int consumer = 0;
+	int n = 0;
+	while (n < ssa.cfg.core.count) {
+		if (!work.take()) return false;
+		var candidate = ssa.cfg.core.nodes[n].value;
+		if (candidate.function == row.function) {
+			if (candidate.kind == 52 && candidate.symbol.index == row.symbol.index) {
+				if (validation != 0) return false;
+				validation = n + 1;
+			}
+			if (candidate.kind == 11) {
+				int p = 0;
+				while (p < candidate.count) {
+					if (recover_owner_unwrap(ssa.cfg.core.flow.data, ssa.cfg.core.flow.data.edges[candidate.first + p]) == value) {
+						if (consumer != 0 || p != 0 || candidate.count != 1) return false;
+						consumer = n + 1;
+					}
+					p = p + 1;
+				}
+			}
+		}
+		n = n + 1;
+	}
+	if (validation == 0 || consumer == 0) return false;
+	n = 0;
+	while (n < ssa.cfg.core.count) {
+		if (!work.take()) return false;
+		var candidate = ssa.cfg.core.nodes[n].value;
+		if (candidate.function == row.function && candidate.kind == 21 && candidate.a == validation) {
+			if (branch != 0) return false;
+			branch = ssa.cfg.regions[n].operation;
+		}
+		n = n + 1;
+	}
+	if (branch < 1 || branch > ssa.cfg.block_count) return false;
+	var control = ssa.cfg.blocks[branch - 1];
+	int definition = ssa.data.values[value].block;
+	int use = ssa.cfg.regions[consumer - 1].operation;
+	return control.opcode == 21 && control.a == validation && control.next > 0 && control.other > 0 && recover_ssa_dominates(ssa.cfg, branch, definition, work) && recover_ssa_dominates(ssa.cfg, control.next, definition, work) && recover_ssa_dominates(ssa.cfg, definition, use, work);
+}

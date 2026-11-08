@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent LLVM consumer. No emitter method or construction table is used.
+bool recover_shared_pointer(void* type) {
+	return type != null && LLVMGetTypeKind(type) == 12 && LLVMGetPointerAddressSpace(type) == 0;
+}
+
+bool recover_shared_control_verified(void* control, void* layout) {
+	if (control == null || LLVMGetTypeKind(control) != 10 || LLVMIsPackedStruct(control) != 0 || LLVMCountStructElementTypes(control) != 3 || LLVMABISizeOfType(layout, control) != 24 || LLVMABIAlignmentOfType(layout, control) != 8) return false;
+	int i = 0;
+	while (i < 2) {
+		var field = LLVMStructGetTypeAtIndex(control, i);
+		if (LLVMGetTypeKind(field) != 8 || LLVMGetIntTypeWidth(field) != 64 || LLVMOffsetOfElement(layout, control, i) != (i * 8) as u64) return false;
+		i = i + 1;
+	}
+	return recover_shared_pointer(LLVMStructGetTypeAtIndex(control, 2)) && LLVMOffsetOfElement(layout, control, 2) == 16;
+}
+
+bool recover_shared_signature(void* function, string name, int result_kind) {
+	if (!recover_llvm_helper_signature(function, 1) || llvm13_named(function, name) != 1 || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 0)))) return false;
+	var block = LLVMGetFirstBasicBlock(function);
+	int remaining = 8192;
+	while (block != null) {
+		if (remaining == 0) return false;
+		remaining = remaining - 1;
+		var instruction = LLVMGetFirstInstruction(block);
+		while (instruction != null) {
+			if (remaining == 0) return false;
+			remaining = remaining - 1;
+			if (LLVMHasMetadata(instruction) != 0 || LLVMGetInstructionOpcode(instruction) == 42 && LLVMGetICmpSameSign(instruction) != 0) return false;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		block = LLVMGetNextBasicBlock(block);
+	}
+	var result = LLVMGetReturnType(LLVMGlobalGetValueType(function));
+	if (LLVMGetTypeKind(result) != result_kind) return false;
+	if (result_kind == 8) return LLVMGetIntTypeWidth(result) == 64;
+	if (result_kind == 12) return recover_shared_pointer(result);
+	return result_kind == 0;
+}
+
+bool recover_shared_phi(void* value, void* first, void* first_block, void* second, void* second_block) {
+	return LLVMGetInstructionOpcode(value) == 44 && LLVMCountIncoming(value) == 2 && LLVMGetIncomingValue(value, 0) == first && LLVMGetIncomingBlock(value, 0) == first_block && LLVMGetIncomingValue(value, 1) == second && LLVMGetIncomingBlock(value, 1) == second_block;
+}
+
+bool recover_shared_atomic_load(void* instruction, void* address) {
+	return LLVMGetInstructionOpcode(instruction) == 27 && LLVMGetOperand(instruction, 0) == address && LLVMGetTypeKind(LLVMTypeOf(instruction)) == 8 && LLVMGetIntTypeWidth(LLVMTypeOf(instruction)) == 64 && LLVMGetAlignment(instruction) == 8 && LLVMGetOrdering(instruction) == 4 && LLVMGetVolatile(instruction) == 0 && LLVMIsAtomicSingleThread(instruction) == 0;
+}
+
+bool recover_shared_atomic_initial(void* instruction, void* address) {
+	return LLVMGetInstructionOpcode(instruction) == 28 && LLVMGetOperand(instruction, 1) == address && recover_llvm_bits(LLVMGetOperand(instruction, 0), 64, 1) && LLVMGetAlignment(instruction) == 8 && LLVMGetOrdering(instruction) == 2 && LLVMGetVolatile(instruction) == 0 && LLVMIsAtomicSingleThread(instruction) == 0;
+}
+
+bool recover_shared_fatal(void* block, void* trap) {
+	var body = recover_llvm_body(block, 2);
+	return len(body) == 2 && recover_llvm_call(body[0], trap, 0, 0) && LLVMGetInstructionOpcode(body[1]) == 7;
+}
+
+bool recover_shared_adjust_verified(void* function, void* trap, bool increment) {
+	string name = "astra.e25a.shared.decrement";
+	if (increment) name = "astra.e25a.shared.increment";
+	if (!recover_shared_signature(function, name, 8)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 5);
+	if (len(blocks) != 5) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	int count = 3;
+	if (increment) count = 5;
+	var loop = recover_llvm_body(blocks[1], count);
+	var attempt = recover_llvm_body(blocks[2], 5);
+	var done = recover_llvm_body(blocks[3], 1);
+	if (len(entry) != 2 || len(loop) != count || len(attempt) != 5 || len(done) != 1 || !recover_shared_fatal(blocks[4], trap)) return false;
+	var address = LLVMGetParam(function, 0);
+	if (!recover_shared_atomic_load(entry[0], address) || !recover_llvm_jump(entry[1], blocks[1]) || !recover_shared_phi(loop[0], entry[0], blocks[0], attempt[2], blocks[2])) return false;
+	if (LLVMGetInstructionOpcode(loop[1]) != 42 || LLVMGetICmpPredicate(loop[1]) != 32 || LLVMGetOperand(loop[1], 0) != loop[0] || !recover_llvm_bits(LLVMGetOperand(loop[1], 1), 64, 0)) return false;
+	void* invalid = loop[1];
+	if (increment) {
+		if (LLVMGetInstructionOpcode(loop[2]) != 42 || LLVMGetICmpPredicate(loop[2]) != 32 || LLVMGetOperand(loop[2], 0) != loop[0] || !recover_llvm_bits(LLVMGetOperand(loop[2], 1), 64, 0 - 1 as u64) || LLVMGetInstructionOpcode(loop[3]) != 24 || LLVMGetOperand(loop[3], 0) != loop[1] || LLVMGetOperand(loop[3], 1) != loop[2]) return false;
+		invalid = loop[3];
+	}
+	if (!recover_llvm_split(loop[count - 1], invalid, blocks[4], blocks[2])) return false;
+	int opcode = 10;
+	if (increment) opcode = 8;
+	if (LLVMGetInstructionOpcode(attempt[0]) != opcode || LLVMGetOperand(attempt[0], 0) != loop[0] || !recover_llvm_bits(LLVMGetOperand(attempt[0], 1), 64, 1) || LLVMGetNSW(attempt[0]) != 0 || LLVMGetNUW(attempt[0]) != 0) return false;
+	if (LLVMGetInstructionOpcode(attempt[1]) != 56 || LLVMGetOperand(attempt[1], 0) != address || LLVMGetOperand(attempt[1], 1) != loop[0] || LLVMGetOperand(attempt[1], 2) != attempt[0] || LLVMGetCmpXchgSuccessOrdering(attempt[1]) != 6 || LLVMGetCmpXchgFailureOrdering(attempt[1]) != 4 || LLVMGetAlignment(attempt[1]) != 8 || LLVMGetWeak(attempt[1]) != 0 || LLVMGetVolatile(attempt[1]) != 0 || LLVMIsAtomicSingleThread(attempt[1]) != 0) return false;
+	return recover_llvm_extract(attempt[2], attempt[1], 0) && recover_llvm_extract(attempt[3], attempt[1], 1) && recover_llvm_split(attempt[4], attempt[3], blocks[3], blocks[1]) && recover_llvm_return(done[0], attempt[0]);
+}
+
+bool recover_shared_acquire_verified(void* function, void* control, void* allocate, void* trap) {
+	if (!recover_shared_signature(function, "astra.e25a.shared.acquire", 12)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3);
+	if (len(blocks) != 3) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	var body = recover_llvm_body(blocks[1], 8);
+	if (len(entry) != 2 || len(body) != 8 || !recover_shared_fatal(blocks[2], trap)) return false;
+	var payload = LLVMGetParam(function, 0);
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != payload || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[2])) return false;
+	if (!recover_llvm_call(body[0], allocate, 2, 8) || !recover_llvm_bits(LLVMGetArgOperand(body[0], 0), 64, 1) || !recover_llvm_bits(LLVMGetArgOperand(body[0], 1), 64, 24)) return false;
+	if (!recover_llvm_field(body[1], control, body[0], 0) || !recover_shared_atomic_initial(body[2], body[1]) || !recover_llvm_field(body[3], control, body[0], 1) || !recover_shared_atomic_initial(body[4], body[3]) || !recover_llvm_field(body[5], control, body[0], 2)) return false;
+	return LLVMGetInstructionOpcode(body[6]) == 28 && LLVMGetOperand(body[6], 0) == payload && LLVMGetOperand(body[6], 1) == body[5] && LLVMGetVolatile(body[6]) == 0 && LLVMGetOrdering(body[6]) == 0 && recover_llvm_return(body[7], body[0]);
+}
+
+bool recover_shared_clone_verified(void* function, void* control, void* increment) {
+	if (!recover_shared_signature(function, "astra.e25a.shared.clone", 12)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3);
+	if (len(blocks) != 3) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	var body = recover_llvm_body(blocks[1], 3);
+	var done = recover_llvm_body(blocks[2], 2);
+	if (len(entry) != 2 || len(body) != 3 || len(done) != 2) return false;
+	var handle = LLVMGetParam(function, 0);
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != handle || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[2])) return false;
+	if (!recover_llvm_field(body[0], control, handle, 0) || !recover_llvm_call(body[1], increment, 1, 8) || LLVMGetArgOperand(body[1], 0) != body[0] || !recover_llvm_jump(body[2], blocks[2])) return false;
+	return recover_shared_phi(done[0], LLVMGetOperand(entry[0], 1), blocks[0], handle, blocks[1]) && recover_llvm_return(done[1], done[0]);
+}
+
+bool recover_shared_borrow_verified(void* function, void* control, void* trap) {
+	if (!recover_shared_signature(function, "astra.e25a.shared.borrow", 12)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 5);
+	if (len(blocks) != 5) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	var live = recover_llvm_body(blocks[1], 4);
+	var payload = recover_llvm_body(blocks[2], 4);
+	var done = recover_llvm_body(blocks[3], 1);
+	if (len(entry) != 2 || len(live) != 4 || len(payload) != 4 || len(done) != 1 || !recover_shared_fatal(blocks[4], trap)) return false;
+	var handle = LLVMGetParam(function, 0);
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != handle || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[4])) return false;
+	if (!recover_llvm_field(live[0], control, handle, 0) || !recover_shared_atomic_load(live[1], live[0]) || LLVMGetInstructionOpcode(live[2]) != 42 || LLVMGetICmpPredicate(live[2]) != 33 || LLVMGetOperand(live[2], 0) != live[1] || !recover_llvm_bits(LLVMGetOperand(live[2], 1), 64, 0) || !recover_llvm_split(live[3], live[2], blocks[2], blocks[4])) return false;
+	if (!recover_llvm_field(payload[0], control, handle, 2) || !recover_llvm_load_field(payload[1], control, handle, 2) || !recover_shared_pointer(LLVMTypeOf(payload[1])) || LLVMGetOrdering(payload[1]) != 0) return false;
+	return LLVMGetInstructionOpcode(payload[2]) == 42 && LLVMGetICmpPredicate(payload[2]) == 33 && LLVMGetOperand(payload[2], 0) == payload[1] && LLVMIsNull(LLVMGetOperand(payload[2], 1)) != 0 && recover_llvm_split(payload[3], payload[2], blocks[3], blocks[4]) && recover_llvm_return(done[0], payload[1]);
+}
+
+bool recover_shared_release_verified(void* function, void* control, void* decrement, void* destroy_payload, bool native, void* free, string name) {
+	if (!recover_shared_signature(function, name, 0)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 5);
+	if (len(blocks) != 5) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	var live = recover_llvm_body(blocks[1], 4);
+	var last = recover_llvm_body(blocks[2], 8);
+	var retire = recover_llvm_body(blocks[3], 2);
+	var done = recover_llvm_body(blocks[4], 1);
+	if (len(entry) != 2 || len(live) != 4 || len(last) != 8 || len(retire) != 2 || len(done) != 1) return false;
+	var handle = LLVMGetParam(function, 0);
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != handle || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[4])) return false;
+	if (!recover_llvm_field(live[0], control, handle, 0) || !recover_llvm_call(live[1], decrement, 1, 8) || LLVMGetArgOperand(live[1], 0) != live[0] || LLVMGetInstructionOpcode(live[2]) != 42 || LLVMGetICmpPredicate(live[2]) != 32 || LLVMGetOperand(live[2], 0) != live[1] || !recover_llvm_bits(LLVMGetOperand(live[2], 1), 64, 0) || !recover_llvm_split(live[3], live[2], blocks[2], blocks[4])) return false;
+	int convention = 0;
+	if (native) convention = 8;
+	if (!recover_llvm_field(last[0], control, handle, 2) || !recover_llvm_load_field(last[1], control, handle, 2) || !recover_shared_pointer(LLVMTypeOf(last[1])) || LLVMGetOrdering(last[1]) != 0 || LLVMGetInstructionOpcode(last[2]) != 28 || LLVMGetOperand(last[2], 1) != last[0] || LLVMIsNull(LLVMGetOperand(last[2], 0)) == 0 || LLVMGetVolatile(last[2]) != 0 || LLVMGetOrdering(last[2]) != 0 || !recover_llvm_call(last[3], destroy_payload, 1, convention) || LLVMGetArgOperand(last[3], 0) != last[1]) return false;
+	if (!recover_llvm_field(last[4], control, handle, 1) || !recover_llvm_call(last[5], decrement, 1, 8) || LLVMGetArgOperand(last[5], 0) != last[4] || LLVMGetInstructionOpcode(last[6]) != 42 || LLVMGetICmpPredicate(last[6]) != 32 || LLVMGetOperand(last[6], 0) != last[5] || !recover_llvm_bits(LLVMGetOperand(last[6], 1), 64, 0) || !recover_llvm_split(last[7], last[6], blocks[3], blocks[4])) return false;
+	return recover_llvm_call(retire[0], free, 1, 0) && LLVMGetArgOperand(retire[0], 0) == handle && recover_llvm_jump(retire[1], blocks[4]) && recover_llvm_void_return(done[0]);
+}

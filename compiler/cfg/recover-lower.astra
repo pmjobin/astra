@@ -49,6 +49,31 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 	}
 	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42) return recover_cfg_loop(cfg, id, next, depth);
 	int operation = 0; int head = next;
+	if (row.kind == 61) {
+		int store = cfg.block(row.function, id, 61, row.a, row.b, next, 0, 0, 0, 0);
+		int value = recover_cfg_tree(cfg, row.c, store, depth + 1);
+		int guard = cfg.block(row.function, id, 64, row.a, row.b, value, 0, 0, 0, 0);
+		int index = recover_cfg_tree(cfg, row.b, guard, depth + 1);
+		int input = recover_cfg_tree(cfg, row.a, index, depth + 1);
+		RecoverRegion region = {entry = input, operation = store, next = next};
+		cfg.regions[id - 1] = region;
+		return input;
+	}
+	if (row.kind == 62) {
+		int join = cfg.block(row.function, id, 62, row.a, row.b, next, 0, 0, 0, 0);
+		int right = recover_cfg_tree(cfg, row.b, join, depth + 1);
+		int yes = right;
+		int no = join;
+		if (!recover_cfg_short_and(cfg, row)) {
+			yes = join;
+			no = right;
+		}
+		int guard = cfg.block(row.function, id, 63, row.a, 0, yes, no, 0, 0, 0);
+		int left = recover_cfg_tree(cfg, row.a, guard, depth + 1);
+		RecoverRegion region = {entry = left, operation = join, next = next};
+		cfg.regions[id - 1] = region;
+		return left;
+	}
 	if (row.kind == 20) {
 		int scope = cfg.core.owners.scopes[id - 1]; head = recover_cfg_scope_exit(cfg, id, scope, cfg.core.flow.storage.parents[scope], row.caught, 0, 0, next, 0);
 		int i = row.count - 1;
@@ -111,7 +136,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 								if (row.type.index != 14) tail = cfg.block(row.function, id, 30, 0, 0, next, 0, 0, 0, 0);
 							}
 							int owner = 0; if (row.kind == 5) owner = id;
-							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || row.kind == 11) head = recover_cfg_commit(cfg, id, operation);
+							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || row.kind == 11 || row.kind == 19) head = recover_cfg_commit(cfg, id, operation);
 							int i = row.count - 1;
 							while (i >= 0 && cfg.status == 0) {
 								// Check the evaluated receiver before explicit arguments.
@@ -122,6 +147,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 								head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
 								i = i - 1;
 							}
+							if (row.kind == 17 || row.kind == 18) head = recover_cfg_field_guard(cfg, id, head);
 							if (row.b != 0) head = recover_cfg_tree(cfg, row.b, head, depth + 1);
 							if (row.a != 0) head = recover_cfg_tree(cfg, row.a, head, depth + 1);
 						}
@@ -130,7 +156,6 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 			}
 		}
 	}
-	if (row.kind == 17 || row.kind == 18) head = recover_cfg_field_guard(cfg, id, head);
 	RecoverRegion region = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = region; return head;
 }
 

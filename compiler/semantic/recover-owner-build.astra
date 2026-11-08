@@ -17,5 +17,9 @@ RecoverNode recover_build_owner(RecoverFlowData flow, CheckedIndex checked, Reco
 	}
 	if (kind == SyntaxKind.NullPointerExpressionSyntax()) row.kind = 13;
 	if (kind == SyntaxKind.CallExpressionSyntax() && row.symbol.index == 0 && checked_flow_intrinsic(checked, source)) row.kind = 14;
+	if (kind == SyntaxKind.CallExpressionSyntax() && row.symbol.index == 0 && checked_shared_action(checked, source) != 0) {
+		row.kind = 19;
+		row.token = checked.bindings.program.arena.get_token_identifier(source);
+	}
 	return row;
 }

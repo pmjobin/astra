@@ -24,7 +24,7 @@ bool recover_exchange_place(RecoverFlow flow, int id) {
 	var row = flow.data.nodes[id - 1];
 	if (row.kind == 17) {
 		var fact = flow.fields.facts[row.source.index];
-		return fact.writable && !fact.initializing && checked_kind(flow.checked, row.type) == 22 && (flow.checked.symbol_flags[fact.field.index] & (4 | 128)) == 4;
+		return fact.parent == 0 && fact.writable && !fact.initializing && checked_kind(flow.checked, row.type) == 22 && (flow.checked.symbol_flags[fact.field.index] & (4 | 128)) == 4;
 	}
 	if (row.kind != 2 || row.symbol.index < 1 || row.symbol.index >= len(flow.storage.symbols)) return false;
 	int place = flow.storage.symbols[row.symbol.index];
@@ -50,37 +50,88 @@ bool recover_payload_preserved(RecoverFlowData flow, int id, TypeId aggregate, i
 // Borrowed payloads cannot accompany an aliasing containing Class, or an
 // explicit move of their own root. Borrowed payload locals are not admitted;
 // forwarding parameters retain this obligation at their source call boundary.
+bool recover_projection_preserved(RecoverFlow flow, int projection, int other, int[] work) {
+	int current = projection;
+	int depth = 0;
+	while (current > 0 && depth < 192) {
+		if (current > flow.data.node_count || work[0] == 0) return false;
+		work[0] = work[0] - 1;
+		var row = flow.data.nodes[current - 1];
+		if (row.kind == 7) current = row.a;
+		else {
+			if (row.kind != 17) return true;
+			var fact = flow.fields.facts[row.source.index];
+			if (!recover_payload_preserved(flow.data, other, fact.aggregate, work, 0)) return false;
+			current = fact.parent;
+		}
+		depth = depth + 1;
+	}
+	return current == 0;
+}
+
 bool recover_payload_calls_verified(RecoverFlow flow) {
 	var work = new int[1]; work[0] = 8000000; int n = 0;
 	while (n < flow.data.node_count) {
 		var row = flow.data.nodes[n];
 		if (row.kind == 45 && (!recover_exchange_place(flow, row.a) || !recover_exchange_place(flow, row.b))) return false;
-		if (row.kind == 4 || row.kind == 11) {
+		if (row.kind == 4 || row.kind == 11 || row.kind == 50) {
 			int signature = flow.checked.symbol_signatures[row.symbol.index].index; if (signature < 1 || signature > flow.checked.signature_count) return false;
 			var callable = flow.checked.signatures[signature - 1].callable; int offset = 1; if (row.kind == 11) offset = 2;
 			int i = 0;
 			while (i < row.count) {
 				var channel = flow.checked.types.argument(flow.checked.types, callable, i + offset); int kind = checked_kind(flow.checked, channel.type);
-				if ((kind == 22 || kind == 15 || kind == 31) && (channel.flags & 4) == 0) {
+				if ((kind == 22 || kind == 15 || kind == 27 || kind == 31) && (channel.flags & 4) == 0) {
 					int id = flow.data.edges[row.first + i]; int steps = 0;
 					while (flow.data.nodes[id - 1].kind == 7 && steps < 192) {
 						id = flow.data.nodes[id - 1].a;
 						steps = steps + 1;
 					}
 					if (steps == 192) return false; var argument = flow.data.nodes[id - 1]; var root = type_symbol(0); TypeId aggregate = {index = 0};
+					int projection = 0;
+					if (argument.kind == 56) {
+						int input = flow.data.edges[argument.first];
+						root = recover_array_root(flow, input, false);
+						if (root.index == 0) return false;
+						int depth = 0;
+						while (flow.data.nodes[input - 1].kind == 7 && depth < 192) {
+							input = flow.data.nodes[input - 1].a;
+							depth = depth + 1;
+						}
+						if (depth == 192) return false;
+						var backing = flow.data.nodes[input - 1];
+						projection = input;
+						if (backing.kind == 17) aggregate = flow.fields.facts[backing.source.index].aggregate;
+					}
+					if (argument.kind == 53) root = argument.symbol;
 					if (argument.kind == 2) root = argument.symbol;
 					if (argument.kind == 17) {
+						projection = id;
 						var fact = flow.fields.facts[argument.source.index];
 						root = fact.receiver;
 						aggregate = fact.aggregate;
 					}
-					if (argument.kind != 1 && argument.kind != 2 && argument.kind != 17) return false;
+					if (argument.kind == 19) {
+						root = recover_shared_borrow_root(flow.data, flow.checked, id);
+						if (root.index == 0) return false;
+						int input = flow.data.edges[argument.first];
+						int input_steps = 0;
+						while (flow.data.nodes[input - 1].kind == 7 && input_steps < 192) {
+							input = flow.data.nodes[input - 1].a;
+							input_steps = input_steps + 1;
+						}
+						if (input_steps == 192) return false;
+						var handle = flow.data.nodes[input - 1];
+						projection = input;
+						if (handle.kind == 17) aggregate = flow.fields.facts[handle.source.index].aggregate;
+					}
+					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19) return false;
 					int other = 0;
 					while (other < row.count) {
 						if (other != i) {
 							int child = flow.data.edges[row.first + other];
 							if (root.index > 0 && !recover_borrow_preserved(flow.data, child, root, work, 0)) return false;
 							if (!recover_payload_preserved(flow.data, child, aggregate, work, 0)) return false;
+							if (!recover_projection_preserved(flow, projection, child, work)) return false;
 							var target = flow.checked.types.argument(flow.checked.types, callable, other + offset);
 							if (aggregate.index > 0 && target.type.index == aggregate.index) return false;
 						}

@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A cast retains the original operand, destination syntax and logical type.
+// Integer width/sign rules never establish an owner or unchecked pointer cast.
+void recover_prefix_types_build(RecoverTypes data, CheckedIndex checked) {
+	int n = 1;
+	while (n < len(checked.uses) && data.status == 0) {
+		SyntaxNodeId parent = {index = n};
+		if (!data.take(parent)) return;
+		if (checked.bindings.program.arena.kind(parent) == SyntaxKind.PrefixExpressionSyntax() && type_integer(checked_kind(checked, checked.uses[n].type))) {
+			var token = checked.bindings.program.arena.get_token_operator_token(parent);
+			if (checked.bindings.program.arena.token_is(token, "+") || checked.bindings.program.arena.token_is(token, "-")) {
+				var literal = checked.bindings.program.arena.get_node_operand(parent);
+				int depth = 0;
+				while (checked.bindings.program.arena.kind(literal) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 192) {
+					if (!data.take(parent)) return;
+					literal = checked.bindings.program.arena.get_node_expression(literal);
+					depth = depth + 1;
+				}
+				if (depth < 192 && checked.bindings.program.arena.kind(literal) == SyntaxKind.IntegerLiteralExpressionSyntax() && checked.uses[literal.index].type.index == 0) {
+					if (data.numeric_prefixes[literal.index].index != 0 && data.numeric_prefixes[literal.index].index != n) {
+						data.status = 3;
+						data.boundary = literal;
+						return;
+					}
+					data.numeric_prefixes[literal.index] = parent;
+					data.types[literal.index] = checked.uses[n].type;
+				}
+			}
+		}
+		n = n + 1;
+	}
+}
+
+bool recover_prefix_type_verified(RecoverTypes data, CheckedIndex checked, SyntaxNodeId literal) {
+	var parent = data.numeric_prefixes[literal.index];
+	if (parent.index < 1 || parent.index >= len(checked.uses) || checked.uses[literal.index].type.index != 0 || checked.bindings.program.arena.kind(literal) != SyntaxKind.IntegerLiteralExpressionSyntax() || checked.bindings.program.arena.kind(parent) != SyntaxKind.PrefixExpressionSyntax()) return false;
+	var original = checked.uses[parent.index];
+	if (!type_integer(checked_kind(checked, original.type)) || original.flags != 0 || original.type.index != data.types[literal.index].index) return false;
+	var syntax = checked.bindings.program.arena.prefix_expression(parent);
+	if (!checked.bindings.program.arena.token_is(syntax.f_operator_token, "+") && !checked.bindings.program.arena.token_is(syntax.f_operator_token, "-")) return false;
+	var operand = syntax.f_operand;
+	int depth = 0;
+	while (checked.bindings.program.arena.kind(operand) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 192) {
+		operand = checked.bindings.program.arena.get_node_expression(operand);
+		depth = depth + 1;
+	}
+	return depth < 192 && operand.index == literal.index;
+}
+
+bool recover_integer_cast_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	if (row.kind != 54 || row.a < 1 || row.b != 0 || row.c != 0 || row.first != 0 || row.count != 0 || row.symbol.index != 0 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.ConversionExpressionSyntax()) return false;
+	var syntax = checked.bindings.program.arena.conversion_expression(row.source);
+	if (row.token.index != syntax.f_keyword.index || !checked.bindings.program.arena.token_is(row.token, "as") || checked.uses[syntax.f_destination.index].type.index != row.type.index || !type_integer(checked_kind(checked, row.type))) return false;
+	return recover_child(flow, checked, types, row.a, syntax.f_operand, function, handler, caught, seen, edges, depth + 1) && type_integer(checked_kind(checked, flow.nodes[row.a - 1].type));
+}

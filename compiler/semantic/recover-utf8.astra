@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Validate the language's original generated factory, not its filename. The
+// conversion can occur only in the true arm of validation of the same input.
+bool recover_utf8_factory_source(CheckedIndex checked, SymbolId function) {
+	if (!checked.field_effects || function.index < 1 || function.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(function);
+	var source = declaration.node;
+	if (declaration.kind != 1 || declaration.owner.index != 0 || !checked.bindings.program.arena.get_bool_utf8_factory(source) || !checked.bindings.program.arena.token_is(declaration.token, "utf8_message")) return false;
+	int factories = 0;
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var candidate = checked.bindings.symbol(type_symbol(s));
+		if (candidate.kind == 1 && checked.bindings.program.arena.get_bool_utf8_factory(candidate.node)) factories = factories + 1;
+		s = s + 1;
+	}
+	if (factories != 1 || checked.bindings.program.arena.get_token_extern_keyword(source).index != 0 || checked.bindings.program.arena.get_token_export_keyword(source).index != 0 || checked.bindings.program.arena.get_token_async_keyword(source).index != 0 || checked.bindings.program.arena.get_node_foreign_policy(source).index != 0 || checked.bindings.program.arena.get_node_foreign_member(source).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(source)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(source)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(source)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(source)) != 0 || checked.bindings.program.arena.get_bool_is_signal(source)) return false;
+	int ordinal = checked.symbol_signatures[function.index].index;
+	if (ordinal < 1 || ordinal > checked.signature_count) return false;
+	var signature = checked.signatures[ordinal - 1];
+	if (signature.flags != 68 || signature.dispatch != 0 || !checked_effect_signature_verified(checked, signature) || checked.types.row(signature.callable).count != 2) return false;
+	var result = checked.types.argument(checked.types, signature.callable, 0);
+	if (result.flags != 4 || !recover_storage_class(checked, result.type) || !recover_storage_error(checked, signature.error)) return false;
+	var message_id = checked.types.row(result.type).nominal;
+	var message = checked.bindings.symbol(message_id);
+	var error_id = checked.types.row(signature.error).nominal;
+	var error = checked.bindings.symbol(error_id);
+	if (!checked.bindings.program.arena.token_is(message.token, "Utf8Message") || !checked.bindings.program.arena.token_is(error.token, "InvalidUtf8")) return false;
+	var fields = checked.bindings.program.arena.get_list_fields(message.node);
+	var members = checked.bindings.program.arena.get_list_members(message.node);
+	if (checked.bindings.program.arena.list_count(fields) != 1 || checked.bindings.program.arena.list_count(members) != 3) return false;
+	var field_node = checked.bindings.program.arena.node_at(fields, 0);
+	var field = checked.node_symbols[field_node.index];
+	if (field.index < 1 || checked.symbol_types[field.index].index != 15 || (checked.symbol_flags[field.index] & (4 | 128)) != 128) return false;
+	int accessors = 0;
+	s = 0;
+	while (s < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, s);
+		if (checked.bindings.program.arena.kind(member) == SyntaxKind.PropertyDeclarationSyntax()) {
+			if (!checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "text") || text_storage_property(checked, member, checked.types.row(result.type).nominal).index != field.index) return false;
+			accessors = accessors + 1;
+		}
+		s = s + 1;
+	}
+	if (accessors != 1) return false;
+	var initializer = recover_error_initializer(checked, checked.types.row(signature.error).nominal);
+	var arguments = checked.bindings.program.arena.get_list_base_arguments(initializer);
+	if (checked.bindings.program.arena.list_count(arguments) != 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer)) != 0) return false;
+	var literal = checked.bindings.program.arena.node_at(arguments, 0);
+	if (checked.bindings.program.arena.kind(literal) != SyntaxKind.TextLiteralExpressionSyntax()) return false;
+	try {
+		var text = checked.bindings.program.arena.payload_message(checked.bindings.program.arena.get_token_token(literal));
+		if (text.text != "invalid UTF-8") return false;
+	} catch (Error caught) {
+		return false;
+	}
+	var body = checked.bindings.program.arena.get_node_body(source);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+	var statements = checked.bindings.program.arena.get_list_statements(body);
+	if (checked.bindings.program.arena.list_count(statements) != 2) return false;
+	var branch = checked.bindings.program.arena.node_at(statements, 0);
+	var raised = checked.bindings.program.arena.node_at(statements, 1);
+	if (checked.bindings.program.arena.kind(branch) != SyntaxKind.IfStatementSyntax() || checked.bindings.program.arena.get_node_else_body(branch).index != 0 || checked.bindings.program.arena.kind(raised) != SyntaxKind.ThrowStatementSyntax()) return false;
+	var condition = checked.bindings.program.arena.get_node_condition(branch);
+	var parameter = checked_utf8_parameter(checked, condition);
+	if (parameter.index == 0 || checked.bindings.symbol(parameter).owner.index != function.index || !checked.bindings.program.arena.get_bool_validates(condition) || checked.uses[condition.index].type.index != 13 || checked.uses[condition.index].deferred != 19) return false;
+	var yes = checked.bindings.program.arena.get_node_then_body(branch);
+	if (checked.bindings.program.arena.kind(yes) != SyntaxKind.BlockStatementSyntax()) return false;
+	var success = checked.bindings.program.arena.get_list_statements(yes);
+	if (checked.bindings.program.arena.list_count(success) != 2) return false;
+	var local = checked.bindings.program.arena.node_at(success, 0);
+	var returned = checked.bindings.program.arena.node_at(success, 1);
+	if (checked.bindings.program.arena.kind(local) != SyntaxKind.InferredLocalDeclarationSyntax() || checked.bindings.program.arena.kind(returned) != SyntaxKind.ReturnStatementSyntax()) return false;
+	var construction = checked.bindings.program.arena.get_node_initializer(local);
+	if (checked.bindings.program.arena.kind(construction) != SyntaxKind.HeapObjectConstructionSyntax() || checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(construction)).index != message_id.index) return false;
+	var inputs = checked.bindings.program.arena.get_list_arguments(construction);
+	if (checked.bindings.program.arena.list_count(inputs) != 1) return false;
+	var converted = checked.bindings.program.arena.node_at(inputs, 0);
+	if (checked_utf8_parameter(checked, converted).index != parameter.index || checked.bindings.program.arena.get_bool_validates(converted) || checked.uses[converted.index].type.index != 15 || checked.uses[converted.index].deferred != 19) return false;
+	var transfer = checked.bindings.program.arena.get_node_expression(returned);
+	if (checked.bindings.program.arena.kind(transfer) != SyntaxKind.MoveExpressionSyntax() || checked_target(checked, transfer, checked.bindings.program.arena.get_token_source(transfer)).index != checked.node_symbols[local.index].index) return false;
+	var failure = checked.bindings.program.arena.get_node_expression(raised);
+	return checked.bindings.program.arena.kind(failure) == SyntaxKind.HeapObjectConstructionSyntax() && checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(failure)).index == error_id.index && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(failure)) == 0;
+}
+
+bool recover_utf8_value_source(CheckedIndex checked, RecoverNode row, SymbolId function) {
+	if (!recover_utf8_factory_source(checked, function) || row.a != 0 || row.b != 0 || row.c != 0 || row.count != 0 || row.first != 0 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.Utf8FactoryExpressionSyntax() || row.symbol.index < 1 || checked_utf8_parameter(checked, row.source).index != row.symbol.index || checked.bindings.symbol(row.symbol).owner.index != function.index || row.token.index != checked.bindings.program.arena.get_token_input(row.source).index) return false;
+	bool validation = checked.bindings.program.arena.get_bool_validates(row.source);
+	return validation && row.kind == 52 && row.type.index == 13 || !validation && row.kind == 53 && row.type.index == 15;
+}

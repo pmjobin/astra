@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // The physical root is the same retained, initialized source slot used by
 // the field access. Fatal edges carry no recoverable-error/cleanup promise.
-bool recover_field_guard_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] locals, void* yes, void* no) {
+bool recover_field_guard_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void* yes, void* no) {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value; var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
 	if (fact.slot < 1 || fact.slot > ssa.cfg.core.flow.storage.count || ssa.cfg.core.flow.storage.slots[fact.slot - 1].symbol.index != fact.receiver.index || locals[fact.receiver.index] == null) return false;
 	var body = recover_llvm_body(physical, 2); if (len(body) != 2) return false;
-	return LLVMGetInstructionOpcode(body[0]) == 42 && LLVMGetICmpPredicate(body[0]) == 33 && LLVMGetOperand(body[0], 0) == locals[fact.receiver.index] && LLVMIsNull(LLVMGetOperand(body[0], 1)) != 0 && operation == body[1] && recover_llvm_split(body[1], body[0], yes, no);
+	void* object = locals[fact.receiver.index];
+	if (fact.parent > 0) object = values[fact.parent];
+	return object != null && LLVMGetInstructionOpcode(body[0]) == 42 && LLVMGetICmpPredicate(body[0]) == 33 && LLVMGetOperand(body[0], 0) == object && LLVMIsNull(LLVMGetOperand(body[0], 1)) != 0 && operation == body[1] && recover_llvm_split(body[1], body[0], yes, no);
 }

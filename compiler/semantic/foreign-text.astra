@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Explicit C0 counted UTF8 import contract. This is a source noescape promise;
+// it never supplies LLVM readonly, nocapture, nonnull or memory attributes.
+bool checked_c_text_signature(CheckedIndex index, SymbolId symbol) {
+	if (!index.field_effects || !index.native_abi || !index.semantic_admission || symbol.index < 1 || symbol.index > index.bindings.symbol_count) return false;
+	var declaration = index.bindings.symbol(symbol);
+	if (declaration.kind != 1 || declaration.owner.index != 0 || index.bindings.program.arena.kind(declaration.node) != SyntaxKind.FunctionDeclarationSyntax()) return false;
+	var node = declaration.node;
+	if (index.bindings.program.arena.get_token_extern_keyword(node).index == 0 || !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_abi_identifier(node), "C") || index.bindings.program.arena.get_token_export_keyword(node).index != 0 || index.bindings.program.arena.get_node_body(node).index != 0 || index.bindings.program.arena.get_token_async_keyword(node).index != 0 || index.bindings.program.arena.get_bool_is_signal(node)) return false;
+	if (index.bindings.program.arena.get_node_foreign_policy(node).index != 0 || index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_floating_point(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(node)) != 0 || index.bindings.program.arena.get_node_throws_class(node).index != 0) return false;
+	var entries = index.bindings.program.arena.get_list_ccode(node);
+	if (index.bindings.program.arena.list_count(entries) != 1) return false;
+	var entry_node = index.bindings.program.arena.node_at(entries, 0);
+	if (index.bindings.program.arena.kind(entry_node) != SyntaxKind.CCodeEntrySyntax()) return false;
+	var entry = index.bindings.program.arena.c_code_entry(entry_node);
+	if (!index.bindings.program.arena.token_is(entry.f_key, "text_abi")) return false;
+	try {
+		var decoded = index.bindings.program.arena.text_message(entry.f_decoded_value);
+		if (decoded.text != "utf8-i32") return false;
+	} catch (Error caught) {
+		return false;
+	}
+	int ordinal = index.symbol_signatures[symbol.index].index;
+	if (ordinal < 1 || ordinal > index.signature_count) return false;
+	var signature = index.signatures[ordinal - 1];
+	if (signature.declaration.index != symbol.index || signature.callable.index != index.symbol_types[symbol.index].index || signature.flags != 16 || index.symbol_flags[symbol.index] != 16 || signature.dispatch != 0 || signature.error.index != 0) return false;
+	var shape = index.types.row(signature.callable);
+	var parameters = index.bindings.program.arena.get_list_parameters(node);
+	if (shape.kind != 25 || shape.count < 2 || shape.count > 257 || index.bindings.program.arena.list_count(parameters) != shape.count - 1) return false;
+	bool text = false;
+	int p = 0;
+	while (p < shape.count) {
+		var channel = index.types.argument(index.types, signature.callable, p);
+		if (checked_kind(index, channel.type) == 15) {
+			if (p == 0 || channel.flags != 2) return false;
+			text = true;
+		} else {
+			if (channel.flags != 0 || !checked_c_scalar_type(index, channel.type, p == 0)) return false;
+		}
+		if (p > 0) {
+			var parameter = index.bindings.program.arena.node_at(parameters, p - 1);
+			var binding = index.node_symbols[parameter.index];
+			if (binding.index < 1 || index.bindings.symbol(binding).kind != 7 || index.bindings.symbol(binding).owner.index != symbol.index || index.symbol_types[binding.index].index != channel.type.index || index.symbol_flags[binding.index] != channel.flags || index.bindings.program.arena.get_node_caller_information(parameter).index != 0) return false;
+		}
+		p = p + 1;
+	}
+	return text;
+}

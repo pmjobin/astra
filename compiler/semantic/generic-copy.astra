@@ -37,6 +37,10 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_type_name = generic_copy_node(index, plan, data.f_type_name, depth + 1);
 			if (!index.failed()) result = index.bindings.program.arena.add_parameter(data, header.span, header.depth);
 		}
+		case SyntaxKind.CallerInformationSyntax(): {
+			var data = index.bindings.program.arena.caller_information(original);
+			if (!index.failed()) result = index.bindings.program.arena.add_caller_information(data, header.span, header.depth);
+		}
 		case SyntaxKind.BlockStatementSyntax(): {
 			var data = index.bindings.program.arena.block_statement(original);
 			data.f_statements = generic_copy_list(index, plan, data.f_statements, syntax_kind_code(SyntaxKind.StatementSyntax()), depth + 1);
@@ -86,6 +90,16 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_fields = generic_copy_list(index, plan, data.f_fields, syntax_kind_code(SyntaxKind.FieldInitializerSyntax()), depth + 1);
 			if (!index.failed()) result = index.bindings.program.arena.add_struct_initializer(data, header.span, header.depth);
 		}
+		case SyntaxKind.ArrayInitializerSyntax(): {
+			var data = index.bindings.program.arena.array_initializer(original);
+			data.f_elements = generic_copy_list(index, plan, data.f_elements, syntax_kind_code(SyntaxKind.ExpressionSyntax()), depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_array_initializer(data, header.span, header.depth);
+		}
+		case SyntaxKind.TextMemberExpressionSyntax(): {
+			var data = index.bindings.program.arena.text_member_expression(original);
+			data.f_receiver = generic_copy_node(index, plan, data.f_receiver, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_text_member_expression(data, header.span, header.depth);
+		}
 		case SyntaxKind.FieldInitializerSyntax(): {
 			var data = index.bindings.program.arena.field_initializer(original);
 			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
@@ -110,6 +124,11 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			var data = index.bindings.program.arena.owner_slots_type(original);
 			data.f_element = generic_copy_node(index, plan, data.f_element, depth + 1);
 			if (!index.failed()) result = index.bindings.program.arena.add_owner_slots_type(data, header.span, header.depth);
+		}
+		case SyntaxKind.SharedTypeSyntax(): {
+			var data = index.bindings.program.arena.shared_type(original);
+			data.f_payload = generic_copy_node(index, plan, data.f_payload, depth + 1);
+			if (!index.failed()) result = index.bindings.program.arena.add_shared_type(data, header.span, header.depth);
 		}
 		case SyntaxKind.PointerTypeSyntax(): {
 			var data = index.bindings.program.arena.pointer_type(original);

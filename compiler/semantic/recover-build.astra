@@ -10,6 +10,12 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	var kind = checked.bindings.program.arena.kind(source);
 	var row = recover_empty(source, function, recover_type(types, source), handler, caught);
 	int id = flow.add(row); if (id == 0) return 0;
+	if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
+		row.kind = 53;
+		if (checked.bindings.program.arena.get_bool_validates(source)) row.kind = 52;
+		row.symbol = checked_utf8_parameter(checked, source);
+		row.token = checked.bindings.program.arena.get_token_input(source);
+	}
 	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax() || kind == SyntaxKind.TextLiteralExpressionSyntax()) {
 		row.kind = 1;
 		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) row.token = checked.bindings.program.arena.get_token_token(source);
@@ -25,15 +31,24 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_left(source), function, handler, caught, depth + 1);
 		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_right(source), function, handler, caught, depth + 1);
 	}
+	if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
+		row.kind = 62;
+		row.token = checked.bindings.program.arena.get_token_operator_token(source);
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_left(source), function, handler, caught, depth + 1);
+		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_right(source), function, handler, caught, depth + 1);
+	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 		row.kind = 7; row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
 	}
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
 		row.kind = 15; row.token = checked.bindings.program.arena.get_token_operator_token(source); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_operand(source), function, handler, caught, depth + 1);
 	}
-	if (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+	if (kind == SyntaxKind.CallExpressionSyntax() && !checked_slice_intrinsic(checked, source) || kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 		row.kind = 4;
-		if (kind == SyntaxKind.CallExpressionSyntax()) row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+		if (kind == SyntaxKind.CallExpressionSyntax()) {
+			row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+			if (row.symbol.index > 0 && recover_foreign_source(checked, row.symbol)) row.kind = 50;
+		}
 		var arguments = checked_call_arguments(checked, source);
 		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 			row.kind = 5; row.symbol = checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(source));
@@ -43,9 +58,27 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 				if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer)) == 0 && checked.bindings.program.arena.list_count(arguments) == 0) arguments = checked.bindings.program.arena.get_list_base_arguments(initializer);
 			}
 		}
-		int count = checked.bindings.program.arena.list_count(arguments); var children = new int[count]; int i = 0;
+		int written = checked.bindings.program.arena.list_count(arguments);
+		int count = written;
+		if (row.kind == 4 && row.symbol.index > 0 && recover_caller_arity(checked, source, row.symbol)) {
+			var declaration = checked.bindings.symbol(row.symbol);
+			var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+			count = checked.bindings.program.arena.list_count(parameters);
+		}
+		var children = new int[count];
+		int i = 0;
 		while (i < count && flow.status == 0) {
-			children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, i), function, handler, caught, depth + 1);
+			if (i < written) children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, i), function, handler, caught, depth + 1);
+			else {
+				var declaration = checked.bindings.symbol(row.symbol);
+				var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+				var parameter = checked.bindings.program.arena.node_at(parameters, i);
+				var symbol = checked.node_symbols[parameter.index];
+				var implicit = recover_empty(source, function, checked.symbol_types[symbol.index], handler, caught);
+				implicit.kind = 51;
+				implicit.symbol = symbol;
+				children[i] = flow.add(implicit);
+			}
 			i = i + 1;
 		}
 		row.first = flow.edge_count; row.count = count; i = 0;
@@ -62,6 +95,8 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		if (receiver.index > 0) {
 			row.kind = 17;
 			row.symbol = receiver;
+			var aggregate = checked.bindings.program.arena.get_node_aggregate(source);
+			if (aggregate.index > 0 && checked.bindings.program.arena.kind(aggregate) == SyntaxKind.FieldAccessExpressionSyntax()) row.a = recover_build_node(flow, checked, types, aggregate, function, handler, caught, depth + 1);
 			var member = checked_target(checked, source, row.token);
 			if (member.index > 0 && checked.bindings.symbol(member).kind == 14) {
 				var declaration = checked.bindings.symbol(member);
@@ -136,6 +171,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	if (kind == SyntaxKind.CallStatementSyntax()) {
 		row.kind = 26; row.type = type_id(14); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_call(source), function, handler, caught, depth + 1);
 	}
+	row = recover_build_array(flow, checked, types, row, depth);
 	row = recover_build_owner(flow, checked, types, row, depth);
 	row = recover_build_loop(flow, checked, types, row, depth);
 	row = recover_build_exchange(flow, checked, types, row, depth);

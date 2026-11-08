@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Focused observation of real source and independent layout validation.
+// Pending 19 is deliberately retained; this driver emits no target code.
+int main(string[] args) {
+	try {
+		var program = binding_load_program(args, 1);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "CHECKED");
+		append_int(output, checked.stage);
+		source_append_text(output, " ");
+		append_int(output, checked.error_message);
+		source_append_text(output, "\n");
+		if (checked.failed()) {
+			var message = checked.bindings.names.text(checked.error_message);
+			source_append_text(output, message.text);
+			var result = output.snapshot();
+			println(result.text);
+			return 1;
+		}
+		var plan = class_storage_plan(checked);
+		if (!class_storage_verify(plan, checked)) return 2;
+		int n = 1;
+		while (n < len(checked.uses)) {
+			SyntaxNodeId node = {index = n};
+			int action = checked_shared_action(checked, node);
+			if (action > 0) {
+				var use = checked.uses[n];
+				source_append_text(output, "SHARED ");
+				append_int(output, action);
+				source_append_text(output, " ");
+				append_int(output, checked_kind(checked, use.type));
+				source_append_text(output, " ");
+				append_int(output, use.flags);
+				source_append_text(output, " ");
+				append_int(output, use.deferred);
+				source_append_text(output, "\n");
+			}
+			n = n + 1;
+		}
+		var result = output.snapshot();
+		println(result.text);
+		return 42;
+	} catch (Error error) {
+		println(error.message);
+		return 3;
+	}
+}

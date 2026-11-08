@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct integer domain guards and exact flag-free physical operations.
+bool recover_integer_helper_verified(void* function, int kind, bool remainder, string name, void* trap) {
+	if (kind < 1 || kind > 10 || !recover_llvm_helper_signature(function, 2) || llvm13_named(function, name) != 1) return false;
+	int width = type_width(kind);
+	var integer = LLVMTypeOf(LLVMGetParam(function, 0));
+	if (LLVMGetTypeKind(integer) != 8 || LLVMGetIntTypeWidth(integer) != width || LLVMTypeOf(LLVMGetParam(function, 1)) != integer || LLVMGetReturnType(LLVMGlobalGetValueType(function)) != integer) return false;
+	int count = 3;
+	if (type_signed(kind)) count = 5;
+	var blocks = recover_llvm_helper_blocks(function, count);
+	if (len(blocks) != count) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	var fatal = recover_llvm_body(blocks[1], 2);
+	if (len(entry) != 2 || len(fatal) != 2) return false;
+	var left = LLVMGetParam(function, 0);
+	var right = LLVMGetParam(function, 1);
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 32 || LLVMGetOperand(entry[0], 0) != right || !recover_llvm_bits(LLVMGetOperand(entry[0], 1), width, 0) || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[2]) || !recover_llvm_call(fatal[0], trap, 0, 0) || !recover_llvm_native_attributes(fatal[0], 0) || LLVMGetInstructionOpcode(fatal[1]) != 7) return false;
+	int normal = 2;
+	int opcode = 14;
+	if (remainder) opcode = 17;
+	if (type_signed(kind)) {
+		var guard = recover_llvm_body(blocks[2], 4);
+		var special = recover_llvm_body(blocks[3], 1);
+		if (len(guard) != 4 || len(special) != 1) return false;
+		u64 minimum = 1 as u64 << (width - 1);
+		u64 mask = 18446744073709551615;
+		if (width < 64) mask = (1 as u64 << width) - 1;
+		if (LLVMGetInstructionOpcode(guard[0]) != 42 || LLVMGetICmpPredicate(guard[0]) != 32 || LLVMGetOperand(guard[0], 0) != left || !recover_llvm_bits(LLVMGetOperand(guard[0], 1), width, minimum) || LLVMGetInstructionOpcode(guard[1]) != 42 || LLVMGetICmpPredicate(guard[1]) != 32 || LLVMGetOperand(guard[1], 0) != right || !recover_llvm_bits(LLVMGetOperand(guard[1], 1), width, mask) || LLVMGetInstructionOpcode(guard[2]) != 23 || LLVMGetOperand(guard[2], 0) != guard[0] || LLVMGetOperand(guard[2], 1) != guard[1] || !recover_llvm_split(guard[3], guard[2], blocks[3], blocks[4])) return false;
+		u64 expected = minimum;
+		if (remainder) expected = 0;
+		if (LLVMGetInstructionOpcode(special[0]) != 1 || LLVMGetNumOperands(special[0]) != 1 || !recover_llvm_bits(LLVMGetOperand(special[0], 0), width, expected)) return false;
+		normal = 4;
+		opcode = 15;
+		if (remainder) opcode = 18;
+	}
+	var body = recover_llvm_body(blocks[normal], 2);
+	if (len(body) != 2 || LLVMGetInstructionOpcode(body[0]) != opcode || LLVMGetOperand(body[0], 0) != left || LLVMGetOperand(body[0], 1) != right || !recover_llvm_return(body[1], body[0]) || !remainder && LLVMGetExact(body[0]) != 0) return false;
+	int b = 0;
+	while (b < count) {
+		var instruction = LLVMGetFirstInstruction(blocks[b]);
+		int remaining = 16;
+		while (instruction != null) {
+			if (remaining == 0 || LLVMHasMetadata(instruction) != 0 || LLVMGetInstructionOpcode(instruction) == 42 && LLVMGetICmpSameSign(instruction) != 0) return false;
+			remaining = remaining - 1;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		b = b + 1;
+	}
+	return true;
+}

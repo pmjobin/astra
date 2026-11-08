@@ -90,7 +90,7 @@ int recover_ssa_definition(RecoverCfg cfg, int block) {
 	if (row.opcode == 39) return row.owner;
 	if (row.opcode == 30) return row.origin;
 	if (row.opcode == 4 && cfg.core.nodes[row.origin - 1].conditional) return cfg.core.count + row.origin;
-	if (row.opcode > 0 && row.opcode < 20 && cfg.core.nodes[row.origin - 1].value.type.index != 14) return row.origin;
+	if (recover_value_kind(row.opcode) && cfg.core.nodes[row.origin - 1].value.type.index != 14) return row.origin;
 	return 0;
 }
 
@@ -115,7 +115,7 @@ RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
 			else {
 				type = cfg.core.nodes[row.origin - 1].value.type;
 				if (row.opcode == 5) channel = 1;
-				if ((row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
+				if ((row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
 			}
 		}
 	} RecoverValue value = {function = row.function, block = block, type = type, channel = channel, edge = edge}; return value;
@@ -212,11 +212,22 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		}
 		v = v + 1;
 	}
+	v = 1;
+	while (v <= ssa.cfg.core.count) {
+		if (definitions[v] && (!recover_ssa_shared_borrow(ssa, v, work) || !recover_ssa_utf8(ssa, v, work) || !recover_ssa_array_view(ssa, v, work))) return false;
+		v = v + 1;
+	}
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
-		if (row.opcode != 36 && row.opcode != 37 && row.opcode != 38 && (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work))) return false;
-		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || row.opcode == 11 || row.opcode == 14) {
+		if (row.opcode != 62 && row.opcode != 36 && row.opcode != 37 && row.opcode != 38 && (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work))) return false;
+		if (row.opcode == 61) {
+			var source = ssa.cfg.core.nodes[row.origin - 1].value;
+			int guard = ssa.cfg.regions[source.b - 1].next;
+			if (!recover_ssa_use(ssa.data, ssa.cfg, source.c, b, work) || guard < 1 || guard > ssa.cfg.block_count || !recover_ssa_dominates(ssa.cfg, guard, b, work)) return false;
+		}
+		if (row.opcode == 62 && !recover_ssa_short_inputs(ssa, b, work)) return false;
+		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || row.opcode == 11 || row.opcode == 14 || row.opcode == 19 || row.opcode == 50 || row.opcode == 56 || row.opcode == 57) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; int i = 0;
 			while (i < source.count) {
 				if (!recover_ssa_use(ssa.data, ssa.cfg, ssa.cfg.core.flow.data.edges[source.first + i], b, work)) return false;
@@ -224,7 +235,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			}
 		}
 		if ((row.opcode == 31 || row.opcode == 32 || row.opcode == 34 || row.opcode == 23) && !recover_ssa_use(ssa.data, ssa.cfg, row.owner, b, work)) return false;
-		if (row.opcode == 2 || row.opcode == 12 || row.opcode == 42) {
+		if (row.opcode == 2 || row.opcode == 12 || row.opcode == 42 || row.opcode == 58 && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(source.symbol);
 			if (declaration.kind == 8) {
 				int definition = 0;

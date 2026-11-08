@@ -7,13 +7,14 @@ class RecoverTypes {
 	owned TypeId[] types;
 	owned SymbolId[] members;
 	owned SymbolId[] borrows;
+	owned SyntaxNodeId[] numeric_prefixes;
 	int status;
 	int remaining;
 	SyntaxNodeId boundary;
 
 	init(CheckedIndex checked) {
 		var identity = shared_clone(checked.types.identity); this.identity = move identity;
-		int count = len(checked.uses); this.types = new TypeId[count]; this.members = new SymbolId[count]; this.borrows = new SymbolId[count]; this.status = 0; this.remaining = 8000000;
+		int count = len(checked.uses); this.types = new TypeId[count]; this.members = new SymbolId[count]; this.borrows = new SymbolId[count]; this.numeric_prefixes = new SyntaxNodeId[count]; this.status = 0; this.remaining = 8000000;
 		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
 	}
 
@@ -71,7 +72,7 @@ TypeId recover_type_compute(RecoverTypes data, CheckedIndex checked, SyntaxNodeI
 	if (left.index == 0 || right.index == 0 || left.index != right.index) return no_type();
 	var token = checked.bindings.program.arena.get_token_operator_token(node);
 	bool equality = checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!=");
-	if (!equality || (!type_numeric(checked_kind(checked, left)) && left.index != 13 && left.index != 15)) return no_type();
+	if (!equality || (!type_numeric(checked_kind(checked, left)) && left.index != 13 && left.index != 15 && !recover_storage_class(checked, left) && !recover_storage_error(checked, left) && !recover_storage_shared(checked, left))) return no_type();
 	var result = type_id(13); data.types[node.index] = result; return result;
 }
 
@@ -91,6 +92,7 @@ void recover_types_build(RecoverTypes data, CheckedIndex checked) {
 		}
 		n = n + 1;
 	}
+	recover_prefix_types_build(data, checked);
 	n = 1;
 	while (n < len(checked.uses) && data.status == 0) {
 		SyntaxNodeId node = {index = n};

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A temporary slice has one nonowning call use, tied to its real backing slot.
+int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work) {
+	int found = 0;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		if (!work.take()) return -1;
+		var row = flow.data.nodes[n];
+		if (row.kind == 4 || row.kind == 11) {
+			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
+			int offset = 1;
+			if (row.kind == 11) offset = 2;
+			int p = 0;
+			while (p < row.count) {
+				if (recover_owner_unwrap(flow.data, flow.data.edges[row.first + p]) == value) {
+					var channel = flow.checked.types.argument(flow.checked.types, signature.callable, p + offset);
+					if (found != 0 || row.function != flow.data.nodes[value - 1].function || channel.flags != 0 && channel.flags != 2 || checked_kind(flow.checked, channel.type) != 22 || channel.type.index != flow.data.nodes[value - 1].type.index) return -1;
+					found = n + 1;
+				}
+				p = p + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return found;
+}

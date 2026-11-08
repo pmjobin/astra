@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Every alternative changes real LLVM from the actual source pipeline. The
+// unchanged module passes first; LLVM validity and independent rejection are
+// separate observations. No alternative earns native source execution credit.
+bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (block.origin > 0 && ssa.data.reachable[b]) {
+			var row = ssa.cfg.core.nodes[block.origin - 1].value;
+			var operation = module.operations[b];
+			if (category == 0 && block.opcode == 50) {
+				LLVMSetOperand(operation, 1, module.int32(42));
+				return true;
+			}
+			if (category == 1 && block.opcode == 4) {
+				int p = 0;
+				while (p < row.count) {
+					var child = ssa.cfg.core.nodes[ssa.cfg.core.flow.data.edges[row.first + p] - 1].value;
+					if (child.kind == 51 && child.type.index == 1) {
+						var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol);
+						LLVMSetOperand(operation, plan.groups[p], module.int32(0));
+						return true;
+					}
+					p = p + 1;
+				}
+			}
+			if (category == 3 && block.opcode == 19 && ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_clone")) {
+				LLVMSetOperand(operation, 0, LLVMConstNull(module.pointer));
+				return true;
+			}
+			if (category == 4 && block.opcode == 55) {
+				LLVMSetOperand(operation, 2, module.int32(2147483647));
+				return true;
+			}
+			if (category == 5 && block.opcode == 61) {
+				LLVMSetOperand(operation, 0, LLVMConstNull(LLVMTypeOf(LLVMGetOperand(operation, 0))));
+				return true;
+			}
+			if (category == 9 && block.opcode == 54) {
+				var value = module.values[block.origin];
+				if (LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 30) {
+					LLVMSetNSW(value, 1);
+					return true;
+				}
+			}
+			if (category == 11 && block.opcode == 17) {
+				var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
+				if (fact.parent > 0) {
+					var address = LLVMGetFirstInstruction(module.blocks[b]);
+					LLVMSetOperand(address, 0, module.locals[fact.receiver.index]);
+					return true;
+				}
+			}
+			if (category == 12 && block.opcode == 62) {
+				LLVMSetOperand(module.values[block.origin], 0, LLVMConstInt(module.boolean, 1, 0));
+				return true;
+			}
+		}
+		b = b + 1;
+	}
+	if (category == 2 && module.utf8_function != null) {
+		var entry = LLVMGetFirstBasicBlock(module.utf8_function);
+		var branch = LLVMGetBasicBlockTerminator(entry);
+		LLVMSetOperand(branch, 0, LLVMConstInt(module.boolean, 1, 0));
+		return true;
+	}
+	int k = 0;
+	while (k < 13) {
+		if (category == 6 && module.index_functions[k] != null) {
+			var entry = LLVMGetFirstBasicBlock(module.index_functions[k]);
+			var valid = LLVMGetNextBasicBlock(LLVMGetNextBasicBlock(entry));
+			LLVMGEPSetNoWrapFlags(LLVMGetFirstInstruction(valid), 1);
+			return true;
+		}
+		if (category == 7 && module.slice_functions[k] != null) {
+			var function = module.slice_functions[k];
+			var valid = LLVMGetNextBasicBlock(LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(function)));
+			var descriptor = LLVMGetNextInstruction(LLVMGetNextInstruction(LLVMGetFirstInstruction(valid)));
+			LLVMSetOperand(descriptor, 1, LLVMGetParam(function, 2));
+			return true;
+		}
+		k = k + 1;
+	}
+	k = 0;
+	while (k < 20) {
+		if (category == 10 && module.integer_functions[k] != null) {
+			var entry = LLVMGetFirstBasicBlock(module.integer_functions[k]);
+			LLVMSetOperand(LLVMGetBasicBlockTerminator(entry), 0, LLVMConstInt(module.boolean, 1, 0));
+			return true;
+		}
+		k = k + 1;
+	}
+	int n = 0;
+	while (n < len(module.fixed_backings)) {
+		var backing = module.fixed_backings[n];
+		if (backing != null) {
+			if (category == 8) {
+				var count = LLVMGetOperand(backing, 0);
+				LLVMSetOperand(backing, 0, LLVMConstInt(LLVMTypeOf(count), LLVMConstIntGetZExtValue(count) - 1, 0));
+				return true;
+			}
+			if (category == 13) {
+				int p = 0;
+				while (p < n) {
+					var other = module.fixed_backings[p];
+					if (other != null && LLVMGetInstructionParent(other) == LLVMGetInstructionParent(backing) && LLVMGetAllocatedType(other) == LLVMGetAllocatedType(backing) && LLVMGetOperand(other, 0) == LLVMGetOperand(backing, 0)) {
+						LLVMReplaceAllUsesWith(backing, other);
+						module.fixed_backings[n] = other;
+						return true;
+					}
+					p = p + 1;
+				}
+			}
+		}
+		n = n + 1;
+	}
+	return false;
+}
+
+int recover_frontier_physical_cli(string[] args) {
+	try {
+		var program = binding_load_program(args, 3);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		var flow = recover_flow_lower(move checked, 8192);
+		var core = recover_core_lower(move flow);
+		var cfg = recover_cfg_lower(move core, 8192);
+		var ssa = recover_ssa_lower(move cfg, 8000000);
+		assert_that(recover_ssa_verify(ssa));
+		int category = 0;
+		while (category < 14) {
+			var module = new RecoverLlvm(ssa);
+			module.build(ssa);
+			assert_that(module.check(ssa));
+			assert_that(recover_frontier_physical(module, ssa, category));
+			assert_that(llvm12_verify(module.module) == 0);
+			assert_that(!module.check(ssa));
+			var name = new Utf8ByteBuilder();
+			source_append_text(name, args[2]);
+			source_append_text(name, "/frontier-physical-");
+			append_int(name, category);
+			source_append_text(name, ".ll");
+			var path = name.snapshot();
+			assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0);
+			var output = new Utf8ByteBuilder();
+			source_append_text(output, "FRONTIER_LLVM_REJECT ");
+			append_int(output, category);
+			var text = output.snapshot();
+			println(text.text);
+			category = category + 1;
+		}
+		return 0;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}

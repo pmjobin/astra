@@ -1,0 +1,173 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool frontier_flow_mutations(RecoverFlow flow) {
+	bool foreign = false;
+	bool caller = false;
+	bool utf8 = false;
+	var arrays = new bool[7];
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var saved = flow.data.nodes[n];
+		bool changed = false;
+		var row = saved;
+		if (saved.kind == 50 && !foreign) {
+			row.symbol = type_symbol(0);
+			foreign = true;
+			changed = true;
+		}
+		if (saved.kind == 51 && !caller) {
+			row.symbol = type_symbol(0);
+			caller = true;
+			changed = true;
+		}
+		if (saved.kind == 53 && !utf8) {
+			row.symbol = type_symbol(0);
+			utf8 = true;
+			changed = true;
+		}
+		int array = -1;
+		if (saved.kind == 55) array = 0;
+		if (saved.kind == 61) array = 1;
+		if (saved.kind == 56) array = 2;
+		if (saved.kind == 57) array = 3;
+		if (saved.kind == 54) array = 4;
+		if (saved.kind == 58 && saved.symbol.index > 0) array = 5;
+		if (saved.kind == 17 && flow.fields.facts[saved.source.index].parent > 0) array = 6;
+		if (array >= 0 && !arrays[array]) {
+			arrays[array] = true;
+			if (array == 0) row.a = row.b;
+			if (array == 1) row.b = row.a;
+			if (array == 2 || array == 3) row.count = row.count - 1;
+			if (array == 4) {
+				SyntaxTokenId absent = {index = 0};
+				row.token = absent;
+			}
+			if (array == 5) row.symbol = type_symbol(0);
+			if (array == 6) {
+				var fact = flow.fields.facts[saved.source.index];
+				var changed_fact = fact;
+				changed_fact.parent = 0;
+				flow.fields.facts[saved.source.index] = changed_fact;
+				bool rejected = !recover_flow_verify(flow);
+				flow.fields.facts[saved.source.index] = fact;
+				if (!rejected || !recover_flow_verify(flow)) return false;
+				println("SEMANTIC nested-field-parent-authority");
+			} else {
+				flow.data.nodes[n] = row;
+				bool rejected = !recover_flow_verify(flow);
+				flow.data.nodes[n] = saved;
+				if (!rejected || !recover_flow_verify(flow)) return false;
+				if (array == 0) println("SEMANTIC indexed-load-source-input");
+				if (array == 1) println("SEMANTIC indexed-store-source-index");
+				if (array == 2) println("SEMANTIC slice-source-arity");
+				if (array == 3) println("SEMANTIC fixed-array-initializer-extent");
+				if (array == 4) println("SEMANTIC integer-cast-source-operator");
+				if (array == 5) println("SEMANTIC counted-text-source-root");
+			}
+		}
+		if (changed) {
+			flow.data.nodes[n] = row;
+			bool rejected = !recover_flow_verify(flow);
+			flow.data.nodes[n] = saved;
+			if (!rejected || !recover_flow_verify(flow)) return false;
+			if (saved.kind == 50) println("SEMANTIC counted-C-source-identity");
+			if (saved.kind == 51) println("SEMANTIC caller-parameter-identity");
+			if (saved.kind == 53) println("SEMANTIC UTF8-input-identity");
+		}
+		n = n + 1;
+	}
+	int literal = 1;
+	while (literal < len(flow.types.numeric_prefixes)) {
+		var parent = flow.types.numeric_prefixes[literal];
+		if (parent.index > 0) {
+			SyntaxNodeId absent = {index = 0};
+			flow.types.numeric_prefixes[literal] = absent;
+			bool rejected = !recover_flow_verify(flow);
+			flow.types.numeric_prefixes[literal] = parent;
+			if (!rejected || !recover_flow_verify(flow)) return false;
+			println("SEMANTIC signed-magnitude-source-parent");
+			break;
+		}
+		literal = literal + 1;
+	}
+	return true;
+}
+
+bool frontier_core_mutations(RecoverCore core) {
+	int n = 0;
+	while (n < core.count) {
+		var saved = core.nodes[n];
+		if (saved.value.kind == 56) {
+			var row = saved;
+			row.borrowed_owner = 0;
+			core.nodes[n] = row;
+			bool rejected = !recover_core_verify(core);
+			core.nodes[n] = saved;
+			if (!rejected || !recover_core_verify(core)) return false;
+			println("SEMANTIC slice-core-backing-root");
+			return true;
+		}
+		if (saved.value.kind == 53) {
+			var row = saved;
+			row.borrowed_owner = 0;
+			core.nodes[n] = row;
+			bool rejected = !recover_core_verify(core);
+			core.nodes[n] = saved;
+			if (!rejected || !recover_core_verify(core)) return false;
+			println("SEMANTIC UTF8-core-borrow-root");
+			return true;
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
+bool frontier_cfg_mutations(RecoverCfg cfg) {
+	int n = 0;
+	while (n < cfg.block_count) {
+		var saved = cfg.blocks[n];
+		if (saved.opcode == 64) {
+			var row = saved;
+			row.next = cfg.regions[saved.origin - 1].operation;
+			cfg.blocks[n] = row;
+			bool rejected = !recover_cfg_verify(cfg);
+			cfg.blocks[n] = saved;
+			if (!rejected || !recover_cfg_verify(cfg)) return false;
+			println("SEMANTIC indexed-store-guard-before-RHS");
+			return true;
+		}
+		if (saved.opcode == 21 && cfg.core.nodes[saved.a - 1].value.kind == 52) {
+			var row = saved;
+			row.next = saved.other;
+			row.other = saved.next;
+			cfg.blocks[n] = row;
+			bool rejected = !recover_cfg_verify(cfg);
+			cfg.blocks[n] = saved;
+			if (!rejected || !recover_cfg_verify(cfg)) return false;
+			println("SEMANTIC UTF8-CFG-true-edge");
+			return true;
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
+bool frontier_ssa_mutations(RecoverSsa ssa) {
+	int n = 1;
+	while (n <= ssa.cfg.core.count) {
+		int kind = ssa.cfg.core.nodes[n - 1].value.kind;
+		if (kind == 53 || kind == 56) {
+			var saved = ssa.data.values[n];
+			var row = saved;
+			row.block = ssa.cfg.entries[row.function - 1];
+			ssa.data.values[n] = row;
+			bool rejected = !recover_ssa_verify(ssa);
+			ssa.data.values[n] = saved;
+			if (!rejected || !recover_ssa_verify(ssa)) return false;
+			if (kind == 53) println("SEMANTIC UTF8-SSA-definition-dominance");
+			if (kind == 56) println("SEMANTIC slice-SSA-definition-dominance");
+			return true;
+		}
+		n = n + 1;
+	}
+	return true;
+}

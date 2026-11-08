@@ -2,6 +2,7 @@
 // Error storage is a separate nominal domain from ordinary Class field roots.
 // No lexical receiver/Place is invented for an unadmitted Class method.
 bool recover_member_attributes(CheckedIndex checked, SyntaxNodeId node) {
+	if (checked.bindings.program.arena.get_bool_utf8_factory(node)) return recover_utf8_factory_source(checked, checked.node_symbols[node.index]);
 	return checked.bindings.program.arena.get_token_extern_keyword(node).index == 0 && checked.bindings.program.arena.get_token_export_keyword(node).index == 0 && checked.bindings.program.arena.get_token_async_keyword(node).index == 0 && !checked.bindings.program.arena.get_bool_is_signal(node) && checked.bindings.program.arena.get_node_foreign_member(node).index == 0 && checked.bindings.program.arena.get_node_foreign_policy(node).index == 0 && !checked.bindings.program.arena.get_bool_utf8_factory(node) && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_foreign_channels(node)) == 0 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) == 0 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_ccode(node)) == 0 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_floating_point(node)) == 0;
 }
 

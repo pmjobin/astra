@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Validate the captured target before evaluating the store's RHS, as C0 does.
+bool recover_cfg_array_store(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value;
+	var region = cfg.regions[id - 1];
+	int store = region.operation;
+	if (row.kind != 61 || !recover_cfg_expect(cfg, store, recover_cfg_expected(row.function, id, 61, row.a, row.b, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.c, store, seen, nodes, depth + 1)) return false;
+	int guard = cfg.regions[row.b - 1].next;
+	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 64, row.a, row.b, cfg.regions[row.c - 1].entry, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.b, guard, seen, nodes, depth + 1) || !recover_cfg_check_tree(cfg, row.a, cfg.regions[row.b - 1].entry, seen, nodes, depth + 1)) return false;
+	return region.entry == cfg.regions[row.a - 1].entry;
+}

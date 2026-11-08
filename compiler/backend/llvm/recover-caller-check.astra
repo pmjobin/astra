@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct immutable caller operands from actual call-name/source ranges.
+bool recover_caller_llvm_value(CheckedIndex checked, RecoverNode row, void* value) throws Error {
+	if (row.kind != 51 || value == null) return false;
+	var target = checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source));
+	if (target.index < 1 || target.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(target);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	int ordinal = -1;
+	int p = 0;
+	while (p < checked.bindings.program.arena.list_count(parameters)) {
+		var parameter = checked.bindings.program.arena.node_at(parameters, p);
+		if (checked.node_symbols[parameter.index].index == row.symbol.index) {
+			if (ordinal >= 0) return false;
+			ordinal = p;
+		}
+		p = p + 1;
+	}
+	if (ordinal < 0 || !recover_caller_value_source(checked, row, row.source, target, ordinal)) return false;
+	if (row.type.index == 1) {
+		var syntax = checked.bindings.program.arena.call_expression(row.source);
+		var name = checked.bindings.program.arena.token_span(syntax.f_identifier);
+		var source = checked.bindings.program.arena.source_span(name);
+		var location = source.location();
+		return recover_llvm_bits(value, 32, location.line as u64);
+	}
+	var text = recover_caller_text(checked, row.source, target, ordinal);
+	return llvm17_text_literal_matches(value, text.text) == 1;
+}

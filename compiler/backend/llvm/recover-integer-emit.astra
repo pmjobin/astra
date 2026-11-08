@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// C0 integer division: zero is fatal; signed MIN/-1 wraps, remainder is zero.
+// Dynamic helper parameters keep invalid LLVM division out of constant folds.
+class RecoverIntegerRuntime {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* trap;
+	void* empty;
+
+	init(void* context, void* module, void* builder, void* handles, void* trap) {
+		this.context = context;
+		this.module = module;
+		this.builder = builder;
+		this.handles = handles;
+		this.trap = trap;
+		this.empty = llvm12_empty();
+	}
+
+	void* build_helper(int kind, bool remainder, string name) {
+		if (kind < 1 || kind > 10) return null;
+		int width = type_width(kind);
+		var integer = LLVMIntTypeInContext(this.context, width);
+		llvm12_handle_set(this.handles, 0, integer);
+		llvm12_handle_set(this.handles, 1, integer);
+		var signature = LLVMFunctionType(integer, llvm12_handle_offset(this.handles, 0), 2, 0);
+		var function = llvm12_function(this.module, signature, name);
+		LLVMSetFunctionCallConv(function, 8);
+		LLVMSetLinkage(function, 8);
+		var entry = llvm12_block(this.context, function, "zero.guard");
+		var fatal = llvm12_block(this.context, function, "zero.fatal");
+		var nonzero = llvm12_block(this.context, function, "nonzero");
+		var left = LLVMGetParam(function, 0);
+		var right = LLVMGetParam(function, 1);
+		var zero = LLVMConstNull(integer);
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var absent = LLVMBuildICmp(this.builder, 32, right, zero, this.empty);
+		var zero_guard = LLVMBuildCondBr(this.builder, absent, fatal, nonzero);
+		LLVMPositionBuilderAtEnd(this.builder, fatal);
+		var trap = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(this.trap), this.trap, this.empty, 0, this.empty);
+		var terminal = LLVMBuildUnreachable(this.builder);
+		LLVMPositionBuilderAtEnd(this.builder, nonzero);
+		if (type_signed(kind)) {
+			var special = llvm12_block(this.context, function, "signed.wrap");
+			var normal = llvm12_block(this.context, function, "signed.normal");
+			u64 mask = 18446744073709551615;
+			if (width < 64) mask = (1 as u64 << width) - 1;
+			var minimum = LLVMConstInt(integer, 1 as u64 << (width - 1), 0);
+			var minus_one = LLVMConstInt(integer, mask, 0);
+			var lowest = LLVMBuildICmp(this.builder, 32, left, minimum, this.empty);
+			var negative_one = LLVMBuildICmp(this.builder, 32, right, minus_one, this.empty);
+			var wraps = LLVMBuildAnd(this.builder, lowest, negative_one, this.empty);
+			var overflow_guard = LLVMBuildCondBr(this.builder, wraps, special, normal);
+			LLVMPositionBuilderAtEnd(this.builder, special);
+			void* result = minimum;
+			if (remainder) result = zero;
+			var special_return = LLVMBuildRet(this.builder, result);
+			LLVMPositionBuilderAtEnd(this.builder, normal);
+			void* quotient = null;
+			if (remainder) quotient = LLVMBuildSRem(this.builder, left, right, this.empty);
+			else {
+				quotient = LLVMBuildSDiv(this.builder, left, right, this.empty);
+			}
+			var normal_return = LLVMBuildRet(this.builder, quotient);
+		} else {
+			void* quotient = null;
+			if (remainder) quotient = LLVMBuildURem(this.builder, left, right, this.empty);
+			else {
+				quotient = LLVMBuildUDiv(this.builder, left, right, this.empty);
+			}
+			var normal_return = LLVMBuildRet(this.builder, quotient);
+		}
+		return function;
+	}
+}

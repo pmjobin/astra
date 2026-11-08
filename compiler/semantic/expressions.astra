@@ -4,6 +4,10 @@ TypeId checked_context(CheckedIndex index, SyntaxNodeId node, int depth) throws 
 		return no_type();
 	}
 	var kind = index.bindings.program.arena.kind(node);
+	if (index.field_effects && kind == SyntaxKind.ConversionExpressionSyntax()) {
+		var destination = checked_resolve(index, index.bindings.program.arena.get_node_destination(node), 0, 0);
+		if (type_numeric(checked_kind(index, destination))) return destination;
+	}
 	if (index.flow_adapters && (checked_flow_index_kind(kind) || kind == SyntaxKind.DereferenceExpressionSyntax() || kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.PrefixExpressionSyntax())) {
 		return checked_flow_context(index, node, depth);
 	}
@@ -265,6 +269,8 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
+	if (index.field_effects && kind == SyntaxKind.Utf8FactoryExpressionSyntax()) return checked_utf8_expression(index, node);
+	if (index.field_effects && kind == SyntaxKind.ArrayInitializerSyntax()) return checked_fixed_numeric_initializer(index, node, expected, depth);
 	if (index.class_storage && kind == SyntaxKind.TextMemberExpressionSyntax()) {
 		var receiver = checked_expression(index, index.bindings.program.arena.get_node_receiver(node), type_id(15), depth + 1);
 		if (receiver.index == 15 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_member(node), "byte_length")) return type_id(1);
@@ -597,6 +603,7 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 }
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (index.flow_adapters && checked_shared_action(index, node) != 0) return checked_shared_call(index, node, depth);
 	if (checked_slice_intrinsic(index, node)) return checked_slice_type(index, node, depth);
 	if (index.class_storage && class_storage_slot_action(index, node) > 0) {
 		var result = class_storage_slot_call(index, node, depth + 1);
@@ -624,7 +631,7 @@ TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) thro
 		checked_deferred_children(index, node, 17, depth + 1);
 		return index.defer(node, 17);
 	}
-	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target)) {
+	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target) && !checked_c_text_signature(index, target)) {
 		var ignored = index.defer(node, 17);
 		var result = checked_pending_effect_result(index, node, target, depth);
 		if (result.index != 0 || index.failed()) return result;

@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// All LLVM handles belong to the enclosing module. No process-global cache.
+// Shared uses the native-v14 {strong, weak sentinel, exact payload} block.
+class RecoverSharedRuntime {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* pointer;
+	void* wide;
+	void* control;
+	void* empty;
+	void* allocate;
+	void* free;
+	void* trap;
+	void* increment;
+	void* decrement;
+	void* acquire;
+	void* clone;
+	void* borrow;
+
+	init(void* context, void* module, void* builder, void* handles, void* allocate, void* free, void* trap) {
+		this.context = context;
+		this.module = module;
+		this.builder = builder;
+		this.handles = handles;
+		this.pointer = null;
+		this.wide = null;
+		this.empty = llvm12_empty();
+		this.allocate = allocate;
+		this.free = free;
+		this.trap = trap;
+		this.increment = null;
+		this.decrement = null;
+		this.acquire = null;
+		this.clone = null;
+		this.borrow = null;
+		this.control = null;
+	}
+
+	void build_helpers() {
+		if (this.context == null || this.module == null || this.builder == null || this.handles == null) return;
+		this.pointer = LLVMPointerTypeInContext(this.context, 0);
+		this.wide = LLVMIntTypeInContext(this.context, 64);
+		llvm12_handle_set(this.handles, 0, this.wide);
+		llvm12_handle_set(this.handles, 1, this.wide);
+		llvm12_handle_set(this.handles, 2, this.pointer);
+		this.control = LLVMStructTypeInContext(this.context, llvm12_handle_offset(this.handles, 0), 3, 0);
+		this.increment = this.adjust(true);
+		this.decrement = this.adjust(false);
+		this.acquire = this.build_acquire();
+		this.clone = this.build_clone();
+		this.borrow = this.build_borrow();
+	}
+
+	void* function(string name, void* result) {
+		llvm12_handle_set(this.handles, 0, this.pointer);
+		var signature = LLVMFunctionType(result, llvm12_handle_offset(this.handles, 0), 1, 0);
+		var function = llvm12_function(this.module, signature, name);
+		LLVMSetLinkage(function, 8);
+		LLVMSetFunctionCallConv(function, 8);
+		return function;
+	}
+
+	void* field(void* root, int member) {
+		var address = LLVMBuildStructGEP2(this.builder, this.control, root, member, this.empty);
+		LLVMGEPSetNoWrapFlags(address, 0);
+		return address;
+	}
+
+	void* call(void* function, void* argument, bool native) {
+		llvm12_handle_set(this.handles, 0, argument);
+		var call = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(function), function, llvm12_handle_offset(this.handles, 0), 1, this.empty);
+		if (native) LLVMSetInstructionCallConv(call, 8);
+		return call;
+	}
+
+	void fatal(void* block) {
+		LLVMPositionBuilderAtEnd(this.builder, block);
+		var trap = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(this.trap), this.trap, llvm12_handle_offset(this.handles, 0), 0, this.empty);
+		var end = LLVMBuildUnreachable(this.builder);
+	}
+
+	void* count(void* address) {
+		var value = LLVMBuildLoad2(this.builder, this.wide, address, this.empty);
+		LLVMSetOrdering(value, 4);
+		LLVMSetAlignment(value, 8);
+		return value;
+	}
+
+	void initial_count(void* address) {
+		var store = LLVMBuildStore(this.builder, LLVMConstInt(this.wide, 1, 0), address);
+		LLVMSetOrdering(store, 2);
+		LLVMSetAlignment(store, 8);
+	}
+
+	void* adjust(bool increment) {
+		string name = "astra.e25a.shared.decrement";
+		if (increment) name = "astra.e25a.shared.increment";
+		var function = this.function(name, this.wide);
+		var entry = llvm12_block(this.context, function, "entry");
+		var loop = llvm12_block(this.context, function, "retry");
+		var attempt = llvm12_block(this.context, function, "attempt");
+		var done = llvm12_block(this.context, function, "done");
+		var fatal = llvm12_block(this.context, function, "fatal");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var address = LLVMGetParam(function, 0);
+		var initial = this.count(address);
+		var enter = LLVMBuildBr(this.builder, loop);
+		LLVMPositionBuilderAtEnd(this.builder, loop);
+		var expected = LLVMBuildPhi(this.builder, this.wide, this.empty);
+		var invalid = LLVMBuildICmp(this.builder, 32, expected, LLVMConstNull(this.wide), this.empty);
+		if (increment) {
+			var overflow = LLVMBuildICmp(this.builder, 32, expected, LLVMConstInt(this.wide, 0 - 1 as u64, 0), this.empty);
+			invalid = LLVMBuildOr(this.builder, invalid, overflow, this.empty);
+		}
+		var guard = LLVMBuildCondBr(this.builder, invalid, fatal, attempt);
+		LLVMPositionBuilderAtEnd(this.builder, attempt);
+		var one = LLVMConstInt(this.wide, 1, 0);
+		void* replacement = null;
+		if (increment) {
+			replacement = LLVMBuildAdd(this.builder, expected, one, this.empty);
+		} else {
+			replacement = LLVMBuildSub(this.builder, expected, one, this.empty);
+		}
+		var exchange = LLVMBuildAtomicCmpXchg(this.builder, address, expected, replacement, 6, 4, 0);
+		LLVMSetAlignment(exchange, 8);
+		var observed = LLVMBuildExtractValue(this.builder, exchange, 0, this.empty);
+		var success = LLVMBuildExtractValue(this.builder, exchange, 1, this.empty);
+		var retry = LLVMBuildCondBr(this.builder, success, done, loop);
+		llvm12_handle_set(this.handles, 0, initial);
+		llvm12_handle_set(this.handles, 1, observed);
+		llvm12_handle_set(this.handles, 2, entry);
+		llvm12_handle_set(this.handles, 3, attempt);
+		LLVMAddIncoming(expected, llvm12_handle_offset(this.handles, 0), llvm12_handle_offset(this.handles, 2), 2);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var result = LLVMBuildRet(this.builder, replacement);
+		this.fatal(fatal);
+		return function;
+	}
+
+	void* build_acquire() {
+		var function = this.function("astra.e25a.shared.acquire", this.pointer);
+		var entry = llvm12_block(this.context, function, "entry");
+		var valid = llvm12_block(this.context, function, "valid");
+		var fatal = llvm12_block(this.context, function, "fatal");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var payload = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, payload, LLVMConstNull(this.pointer), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, present, valid, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, valid);
+		llvm12_handle_set(this.handles, 0, LLVMConstInt(this.wide, 1, 0));
+		llvm12_handle_set(this.handles, 1, LLVMConstInt(this.wide, 24, 0));
+		var control = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(this.allocate), this.allocate, llvm12_handle_offset(this.handles, 0), 2, this.empty);
+		LLVMSetInstructionCallConv(control, 8);
+		this.initial_count(this.field(control, 0));
+		this.initial_count(this.field(control, 1));
+		var publish = LLVMBuildStore(this.builder, payload, this.field(control, 2));
+		var result = LLVMBuildRet(this.builder, control);
+		this.fatal(fatal);
+		return function;
+	}
+
+	void* build_clone() {
+		var function = this.function("astra.e25a.shared.clone", this.pointer);
+		var entry = llvm12_block(this.context, function, "entry");
+		var live = llvm12_block(this.context, function, "live");
+		var done = llvm12_block(this.context, function, "done");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var handle = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, handle, LLVMConstNull(this.pointer), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, present, live, done);
+		LLVMPositionBuilderAtEnd(this.builder, live);
+		var increment = this.call(this.increment, this.field(handle, 0), true);
+		var next = LLVMBuildBr(this.builder, done);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var value = LLVMBuildPhi(this.builder, this.pointer, this.empty);
+		llvm12_handle_set(this.handles, 0, LLVMConstNull(this.pointer));
+		llvm12_handle_set(this.handles, 1, handle);
+		llvm12_handle_set(this.handles, 2, entry);
+		llvm12_handle_set(this.handles, 3, live);
+		LLVMAddIncoming(value, llvm12_handle_offset(this.handles, 0), llvm12_handle_offset(this.handles, 2), 2);
+		var result = LLVMBuildRet(this.builder, value);
+		return function;
+	}
+
+	void* build_borrow() {
+		var function = this.function("astra.e25a.shared.borrow", this.pointer);
+		var entry = llvm12_block(this.context, function, "entry");
+		var live = llvm12_block(this.context, function, "live");
+		var payload_block = llvm12_block(this.context, function, "payload");
+		var done = llvm12_block(this.context, function, "done");
+		var fatal = llvm12_block(this.context, function, "fatal");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var handle = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, handle, LLVMConstNull(this.pointer), this.empty);
+		var handle_guard = LLVMBuildCondBr(this.builder, present, live, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, live);
+		var count = this.count(this.field(handle, 0));
+		var alive = LLVMBuildICmp(this.builder, 33, count, LLVMConstNull(this.wide), this.empty);
+		var live_guard = LLVMBuildCondBr(this.builder, alive, payload_block, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, payload_block);
+		var payload = LLVMBuildLoad2(this.builder, this.pointer, this.field(handle, 2), this.empty);
+		var valid_payload = LLVMBuildICmp(this.builder, 33, payload, LLVMConstNull(this.pointer), this.empty);
+		var payload_guard = LLVMBuildCondBr(this.builder, valid_payload, done, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var result = LLVMBuildRet(this.builder, payload);
+		this.fatal(fatal);
+		return function;
+	}
+
+	void* build_release(void* destroy_payload, bool native, string name) {
+		var function = this.function(name, LLVMVoidTypeInContext(this.context));
+		var entry = llvm12_block(this.context, function, "entry");
+		var live = llvm12_block(this.context, function, "live");
+		var last = llvm12_block(this.context, function, "last.strong");
+		var retire = llvm12_block(this.context, function, "last.weak");
+		var done = llvm12_block(this.context, function, "done");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var handle = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, handle, LLVMConstNull(this.pointer), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, present, live, done);
+		LLVMPositionBuilderAtEnd(this.builder, live);
+		var remaining = this.call(this.decrement, this.field(handle, 0), true);
+		var empty = LLVMBuildICmp(this.builder, 32, remaining, LLVMConstNull(this.wide), this.empty);
+		var strong = LLVMBuildCondBr(this.builder, empty, last, done);
+		LLVMPositionBuilderAtEnd(this.builder, last);
+		var address = this.field(handle, 2);
+		var payload = LLVMBuildLoad2(this.builder, this.pointer, address, this.empty);
+		var clear = LLVMBuildStore(this.builder, LLVMConstNull(this.pointer), address);
+		var destroy = this.call(destroy_payload, payload, native);
+		if (!native) llvm12_nobuiltin(this.context, destroy);
+		var weak = this.call(this.decrement, this.field(handle, 1), true);
+		var vacant = LLVMBuildICmp(this.builder, 32, weak, LLVMConstNull(this.wide), this.empty);
+		var sentinel = LLVMBuildCondBr(this.builder, vacant, retire, done);
+		LLVMPositionBuilderAtEnd(this.builder, retire);
+		var free = this.call(this.free, handle, false);
+		llvm12_nobuiltin(this.context, free);
+		var end = LLVMBuildBr(this.builder, done);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var result = LLVMBuildRetVoid(this.builder);
+		return function;
+	}
+}

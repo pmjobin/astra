@@ -40,8 +40,8 @@ int recover_owner_unwrap(RecoverFlowData flow, int id) {
 }
 
 bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
-	if (row.kind == 5 || row.kind == 9 || row.kind == 10 || row.kind == 11 || row.kind == 13) return true;
-	if (row.kind != 4) return false;
+	if (row.kind == 5 || row.kind == 9 || row.kind == 10 || row.kind == 11) return true;
+	if (row.kind != 4 && row.kind != 19) return false;
 	return (checked.uses[row.source.index].flags & 4) != 0;
 }
 
@@ -51,7 +51,7 @@ int recover_owner_consumer(RecoverFlowData flow, int producer, RecoverOwnerBudge
 			if (found != 0) return -1;
 			found = n + 1;
 		}
-		if (row.kind == 4 || row.kind == 11) {
+		if (row.kind == 4 || row.kind == 11 || row.kind == 19) {
 			int a = 0;
 			while (a < row.count) {
 				if (recover_owner_unwrap(flow, flow.edges[row.first + a]) == producer) {
@@ -93,7 +93,7 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow) {
 					break;
 				}
 				plan.slots[n] = slot;
-				if (flow.data.nodes[consumer - 1].kind == 4 || flow.data.nodes[consumer - 1].kind == 11) plan.reservations[n] = consumer;
+				if (flow.data.nodes[consumer - 1].kind == 4 || flow.data.nodes[consumer - 1].kind == 11 || flow.data.nodes[consumer - 1].kind == 19) plan.reservations[n] = consumer;
 			}
 		}
 		n = n + 1;
@@ -150,7 +150,11 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			var result = flow.checked.types.argument(flow.checked.types, signature.callable, 0);
 			if ((result.flags & 4) != 0) {
 				int input = recover_owner_unwrap(flow.data, row.a);
-				if (input < 1 || !recover_owner_value(flow.checked, flow.data.nodes[input - 1])) return false;
+				if (input < 1) return false;
+				var value = flow.data.nodes[input - 1];
+				// The source-verified absent literal carries no allocation or
+				// initialized owner. The caller still owns its returned slot.
+				if (!recover_owner_value(flow.checked, value) && !(value.kind == 13 && value.type.index == result.type.index && (recover_storage_class(flow.checked, value.type) || recover_storage_error(flow.checked, value.type) || recover_storage_shared(flow.checked, value.type)))) return false;
 			}
 		}
 		if (row.kind == 4 || row.kind == 11) {
@@ -167,6 +171,12 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			}
 		}
 		int parent = 0; while (parent < count) { if (!work.take()) return false; var candidate = flow.data.nodes[parent];
+			if (owner && candidate.kind == 19 && candidate.count == 1 && recover_owner_unwrap(flow.data, flow.data.edges[candidate.first]) == n + 1) {
+				if (row.kind != 10 || !flow.checked.bindings.program.arena.token_is(candidate.token, "shared_acquire")) return false;
+				uses = uses + 1;
+				consumer = parent + 1;
+				call = parent + 1;
+			}
 			if (owner && (candidate.kind == 22 || candidate.kind == 23 || candidate.kind == 27 || candidate.kind == 43 || candidate.kind == 44) && recover_owner_unwrap(flow.data, candidate.a) == n + 1) {
 				uses = uses + 1;
 				consumer = parent + 1;
@@ -227,5 +237,5 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 		}
 		call = call + 1;
 	}
-	return expected == plan.abort_count && !work.exhausted && recover_heap_results(flow, work) && recover_class_consumers(plan, flow, work);
+	return expected == plan.abort_count && !work.exhausted && recover_heap_results(flow, work) && recover_class_consumers(plan, flow, work) && recover_shared_acquisitions(flow, work);
 }

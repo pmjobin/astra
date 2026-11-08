@@ -41,3 +41,18 @@ bool recover_heap_results(RecoverFlow flow, RecoverOwnerBudget work) {
 			} if (!heap) return false;
 		} f = f + 1; } return !work.exhausted;
 }
+
+bool recover_shared_acquisitions(RecoverFlow flow, RecoverOwnerBudget work) {
+	int n = 0;
+	while (n < flow.data.node_count) {
+		if (!work.take()) return false;
+		var row = flow.data.nodes[n];
+		if (row.kind == 19 && flow.checked.bindings.program.arena.token_is(row.token, "shared_acquire")) {
+			if (row.count != 1) return false;
+			var seen = new bool[flow.data.node_count];
+			if (!recover_heap_witness(flow, flow.data.edges[row.first], seen, work, 0)) return false;
+		}
+		n = n + 1;
+	}
+	return !work.exhausted;
+}

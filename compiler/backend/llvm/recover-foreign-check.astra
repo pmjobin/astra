@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Read the actual external signature and call. Counted text stays (ptr,i32);
+// no C terminator, UTF8 promise, alias metadata or memory effect is inferred.
+bool recover_foreign_llvm_type(CheckedIndex checked, TypeId type, void* actual) {
+	int kind = checked_kind(checked, type);
+	if (kind == 16 || kind == 20) return recover_shared_pointer(actual);
+	return recover_llvm_scalar_type(checked, type, actual);
+}
+
+bool recover_foreign_llvm_declaration(CheckedIndex checked, SymbolId symbol, void* function) throws Error {
+	if (!recover_foreign_source(checked, symbol) || function == null || LLVMIsAFunction(function) == null || LLVMGetLinkage(function) != 0 || LLVMGetFunctionCallConv(function) != 0 || LLVMGetFirstBasicBlock(function) != null || LLVMIsFunctionVarArg(LLVMGlobalGetValueType(function)) != 0) return false;
+	var declaration = checked.bindings.symbol(symbol);
+	var name = checked.bindings.program.arena.token_message(declaration.token);
+	if (llvm13_named(function, name.text) != 1) return false;
+	var signature = checked.signatures[checked.symbol_signatures[symbol.index].index - 1];
+	var result = checked.types.argument(checked.types, signature.callable, 0);
+	if (!recover_foreign_llvm_type(checked, result.type, LLVMGetReturnType(LLVMGlobalGetValueType(function)))) return false;
+	int count = checked.types.row(signature.callable).count - 1;
+	int p = 0;
+	int at = 0;
+	while (p < count) {
+		var channel = checked.types.argument(checked.types, signature.callable, p + 1);
+		if (at >= LLVMCountParams(function)) return false;
+		if (channel.type.index == 15) {
+			if (at + 1 >= LLVMCountParams(function) || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, at))) || !recover_llvm_scalar_type(checked, type_id(1), LLVMTypeOf(LLVMGetParam(function, at + 1)))) return false;
+			at = at + 2;
+		} else {
+			if (!recover_foreign_llvm_type(checked, channel.type, LLVMTypeOf(LLVMGetParam(function, at)))) return false;
+			at = at + 1;
+		}
+		p = p + 1;
+	}
+	if (at != LLVMCountParams(function)) return false;
+	p = -1;
+	while (p <= at) {
+		if (LLVMGetAttributeCountAtIndex(function, p) != 0) return false;
+		p = p + 1;
+	}
+	return true;
+}
+
+int recover_foreign_llvm_call(RecoverSsa ssa, RecoverNode row, void* call, void*[] values, void* function) {
+	if (function == null || !recover_llvm_call(call, function, LLVMCountParams(function), 0) || !recover_llvm_native_attributes(call, LLVMCountParams(function)) || LLVMHasMetadata(call) != 0 || !recover_foreign_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(call))) return 0;
+	int instructions = 2;
+	int p = 0;
+	int at = 0;
+	while (p < row.count) {
+		int child = ssa.cfg.core.flow.data.edges[row.first + p];
+		var input = ssa.cfg.core.nodes[child - 1].value;
+		if (input.type.index == 15) {
+			if (at + 1 >= LLVMGetNumArgOperands(call) || !recover_llvm_extract(LLVMGetArgOperand(call, at), values[child], 0) || !recover_llvm_extract(LLVMGetArgOperand(call, at + 1), values[child], 1)) return 0;
+			instructions = instructions + recover_llvm_extract_instructions(values[child]);
+			at = at + 2;
+		} else {
+			if (at >= LLVMGetNumArgOperands(call) || LLVMGetArgOperand(call, at) != values[child]) return 0;
+			at = at + 1;
+		}
+		p = p + 1;
+	}
+	if (at != LLVMGetNumArgOperands(call)) return 0;
+	return instructions;
+}

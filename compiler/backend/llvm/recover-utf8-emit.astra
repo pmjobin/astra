@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Counted UTF-8 validation. NUL is ASCII data; no C-string terminator is read.
+// The enclosing module owns every LLVM handle and the one helper definition.
+class RecoverUtf8Runtime {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* empty;
+	void* byte;
+	void* integer;
+	void* boolean;
+	void* pointer;
+
+	init(void* context, void* module, void* builder, void* handles) {
+		this.context = context;
+		this.module = module;
+		this.builder = builder;
+		this.handles = handles;
+		this.empty = llvm12_empty();
+		this.byte = LLVMIntTypeInContext(context, 8);
+		this.integer = LLVMIntTypeInContext(context, 32);
+		this.boolean = LLVMIntTypeInContext(context, 1);
+		this.pointer = LLVMPointerTypeInContext(context, 0);
+	}
+
+	void* compare(int predicate, void* left, void* right) {
+		return LLVMBuildICmp(this.builder, predicate, left, right, this.empty);
+	}
+
+	void* bound(void* value, int low, int high) {
+		var first = this.compare(35, value, LLVMConstInt(this.byte, low as u64, 0));
+		var last = this.compare(37, value, LLVMConstInt(this.byte, high as u64, 0));
+		return LLVMBuildAnd(this.builder, first, last, this.empty);
+	}
+
+	void* read(void* pointer, void* index) {
+		llvm12_handle_set(this.handles, 0, index);
+		var address = LLVMBuildGEP2(this.builder, this.byte, pointer, llvm12_handle_offset(this.handles, 0), 1, this.empty);
+		LLVMGEPSetNoWrapFlags(address, 0);
+		var value = LLVMBuildLoad2(this.builder, this.byte, address, this.empty);
+		LLVMSetAlignment(value, 1);
+		return value;
+	}
+
+	void incoming(void* phi, void* value, void* block) {
+		llvm12_handle_set(this.handles, 0, value);
+		llvm12_handle_set(this.handles, 1, block);
+		LLVMAddIncoming(phi, llvm12_handle_offset(this.handles, 0), llvm12_handle_offset(this.handles, 1), 1);
+	}
+
+	void* build_helper() {
+		llvm12_handle_set(this.handles, 0, this.pointer);
+		llvm12_handle_set(this.handles, 1, this.integer);
+		var signature = LLVMFunctionType(this.boolean, llvm12_handle_offset(this.handles, 0), 2, 0);
+		var function = llvm12_function(this.module, signature, "astra.e25a.utf8.validate");
+		LLVMSetLinkage(function, 8);
+		LLVMSetFunctionCallConv(function, 8);
+		var entry = llvm12_block(this.context, function, "count");
+		var empty = llvm12_block(this.context, function, "empty");
+		var backing = llvm12_block(this.context, function, "backing");
+		var loop = llvm12_block(this.context, function, "next");
+		var lead = llvm12_block(this.context, function, "lead");
+		var ascii = llvm12_block(this.context, function, "ascii");
+		var valid = llvm12_block(this.context, function, "valid");
+		var invalid = llvm12_block(this.context, function, "invalid");
+		var wide = llvm12_block(this.context, function, "wide");
+		var pointer = LLVMGetParam(function, 0);
+		var count = LLVMGetParam(function, 1);
+		var zero = LLVMConstNull(this.integer);
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var nonnegative = this.compare(39, count, zero);
+		var count_guard = LLVMBuildCondBr(this.builder, nonnegative, empty, invalid);
+		LLVMPositionBuilderAtEnd(this.builder, empty);
+		var vacant = this.compare(32, count, zero);
+		var empty_guard = LLVMBuildCondBr(this.builder, vacant, valid, backing);
+		LLVMPositionBuilderAtEnd(this.builder, backing);
+		var present = this.compare(33, pointer, LLVMConstNull(this.pointer));
+		var backing_guard = LLVMBuildCondBr(this.builder, present, loop, invalid);
+		LLVMPositionBuilderAtEnd(this.builder, loop);
+		var index = LLVMBuildPhi(this.builder, this.integer, this.empty);
+		this.incoming(index, zero, backing);
+		var complete = this.compare(32, index, count);
+		var loop_guard = LLVMBuildCondBr(this.builder, complete, valid, lead);
+		LLVMPositionBuilderAtEnd(this.builder, lead);
+		var first = this.read(pointer, index);
+		var single = this.compare(36, first, LLVMConstInt(this.byte, 128, 0));
+		var ascii_guard = LLVMBuildCondBr(this.builder, single, ascii, wide);
+		LLVMPositionBuilderAtEnd(this.builder, ascii);
+		var next = LLVMBuildAdd(this.builder, index, LLVMConstInt(this.integer, 1, 0), this.empty);
+		var ascii_next = LLVMBuildBr(this.builder, loop);
+		this.incoming(index, next, ascii);
+		void* selection = wide;
+		int width = 2;
+		while (width <= 4) {
+			var bounds = llvm12_block(this.context, function, "sequence.bounds");
+			var bytes = llvm12_block(this.context, function, "sequence.bytes");
+			var advance = llvm12_block(this.context, function, "sequence.advance");
+			void* following = invalid;
+			if (width < 4) following = llvm12_block(this.context, function, "sequence.select");
+			int low = 194;
+			int high = 223;
+			if (width == 3) {
+				low = 224;
+				high = 239;
+			}
+			if (width == 4) {
+				low = 240;
+				high = 244;
+			}
+			LLVMPositionBuilderAtEnd(this.builder, selection);
+			var range = this.bound(first, low, high);
+			var selected = LLVMBuildCondBr(this.builder, range, bounds, following);
+			LLVMPositionBuilderAtEnd(this.builder, bounds);
+			var remaining = LLVMBuildSub(this.builder, count, index, this.empty);
+			var enough = this.compare(35, remaining, LLVMConstInt(this.integer, width as u64, 0));
+			var length_guard = LLVMBuildCondBr(this.builder, enough, bytes, invalid);
+			LLVMPositionBuilderAtEnd(this.builder, bytes);
+			void* accepted = LLVMConstInt(this.boolean, 1, 0);
+			int offset = 1;
+			while (offset < width) {
+				var position = LLVMBuildAdd(this.builder, index, LLVMConstInt(this.integer, offset as u64, 0), this.empty);
+				var byte = this.read(pointer, position);
+				var continuation = this.bound(byte, 128, 191);
+				if (offset == 1) accepted = continuation;
+				else {
+					accepted = LLVMBuildAnd(this.builder, accepted, continuation, this.empty);
+				}
+				if (offset == 1 && width >= 3) {
+					int low_head = 224;
+					int low_second = 160;
+					int high_head = 237;
+					int high_second = 159;
+					if (width == 4) {
+						low_head = 240;
+						low_second = 144;
+						high_head = 244;
+						high_second = 143;
+					}
+					var ordinary_low = this.compare(33, first, LLVMConstInt(this.byte, low_head as u64, 0));
+					var second_low = this.compare(35, byte, LLVMConstInt(this.byte, low_second as u64, 0));
+					var shortest = LLVMBuildOr(this.builder, ordinary_low, second_low, this.empty);
+					accepted = LLVMBuildAnd(this.builder, accepted, shortest, this.empty);
+					var ordinary_high = this.compare(33, first, LLVMConstInt(this.byte, high_head as u64, 0));
+					var second_high = this.compare(37, byte, LLVMConstInt(this.byte, high_second as u64, 0));
+					var scalar = LLVMBuildOr(this.builder, ordinary_high, second_high, this.empty);
+					accepted = LLVMBuildAnd(this.builder, accepted, scalar, this.empty);
+				}
+				offset = offset + 1;
+			}
+			var byte_guard = LLVMBuildCondBr(this.builder, accepted, advance, invalid);
+			LLVMPositionBuilderAtEnd(this.builder, advance);
+			var advanced = LLVMBuildAdd(this.builder, index, LLVMConstInt(this.integer, width as u64, 0), this.empty);
+			var sequence_next = LLVMBuildBr(this.builder, loop);
+			this.incoming(index, advanced, advance);
+			selection = following;
+			width = width + 1;
+		}
+		LLVMPositionBuilderAtEnd(this.builder, valid);
+		var success = LLVMBuildRet(this.builder, LLVMConstInt(this.boolean, 1, 0));
+		LLVMPositionBuilderAtEnd(this.builder, invalid);
+		var failure = LLVMBuildRet(this.builder, LLVMConstNull(this.boolean));
+		return function;
+	}
+}

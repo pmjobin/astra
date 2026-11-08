@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Fixed numeric arrays are lexical stack storage. This query never grants a
+// heap owner, an escaping slice or a Class-field/public ABI representation.
+bool recover_storage_fixed(CheckedIndex checked, TypeId type) {
+	if (!checked.field_effects || !checked.types.valid_id(type)) return false;
+	var shape = checked.types.row(type);
+	if (shape.kind != 21 || shape.count != 1 || shape.extent < 1) return false;
+	var element = checked.types.argument(checked.types, type, 0);
+	int kind = checked_kind(checked, element.type);
+	if (element.flags != 0 || !type_numeric(kind) && kind != 13) return false;
+	int size = 1;
+	if (kind != 13) size = type_width(kind) / 8;
+	return shape.extent <= 16777216 / size;
+}
+
+TypeId checked_fixed_numeric_initializer(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	if (!recover_storage_fixed(index, expected) || index.bindings.program.arena.kind(node) != SyntaxKind.ArrayInitializerSyntax()) return index.defer(node, 19);
+	var elements = index.bindings.program.arena.get_list_elements(node);
+	int count = index.bindings.program.arena.list_count(elements);
+	if (count != index.types.row(expected).extent) {
+		index.fail(index.bindings.program.arena.header(node).span, "fixed array initializer must initialize every element");
+		return no_type();
+	}
+	var element = index.types.argument(index.types, expected, 0);
+	int p = 0;
+	while (p < count && !index.failed()) {
+		var source = index.bindings.program.arena.node_at(elements, p);
+		var actual = checked_expression(index, source, element.type, depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(source).span, element.type, actual, "fixed array element");
+		if (actual.index == 0) return index.defer(node, 19);
+		p = p + 1;
+	}
+	var use = index.uses[node.index];
+	use.flags = 0;
+	use.deferred = 19;
+	index.uses[node.index] = use;
+	return expected;
+}
+
+bool recover_storage_binding(CheckedIndex checked, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(symbol);
+	var type = checked.symbol_types[symbol.index];
+	int flags = checked.symbol_flags[symbol.index];
+	if (declaration.kind == 8 && recover_storage_fixed(checked, type)) {
+		if (flags != 0 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.LocalDeclarationSyntax()) return false;
+		var initializer = checked.bindings.program.arena.get_node_initializer(declaration.node);
+		return checked.bindings.program.arena.kind(initializer) == SyntaxKind.ArrayInitializerSyntax() && checked.uses[initializer.index].type.index == type.index && checked.uses[initializer.index].flags == 0;
+	}
+	if (!recover_storage_channel(checked, type, flags, false)) return false;
+	if (declaration.kind != 8) return declaration.kind == 7;
+	int kind = checked_kind(checked, type);
+	return type.index != 15 && ((kind != 31 && kind != 27 && kind != 22) || flags == 4);
+}

@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Parser-created validation/conversion expressions retain a real parameter.
+// These conditional types do not certify conversion dominance or lifetime.
+SymbolId checked_utf8_parameter(CheckedIndex index, SyntaxNodeId node) {
+	if (!index.field_effects || node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.Utf8FactoryExpressionSyntax()) return type_symbol(0);
+	var scope = index.bindings.scope_for_node(node);
+	int depth = 0;
+	while (scope.index > 0 && depth < 192) {
+		var current = index.bindings.scope(scope);
+		if (current.owner.index > 0) {
+			var declaration = index.bindings.symbol(current.owner);
+			if (declaration.kind == 1) {
+				if (!index.bindings.program.arena.get_bool_utf8_factory(declaration.node)) return type_symbol(0);
+				var parameters = index.bindings.program.arena.get_list_parameters(declaration.node);
+				if (index.bindings.program.arena.list_count(parameters) != 1) return type_symbol(0);
+				var parameter = index.bindings.program.arena.node_at(parameters, 0);
+				var symbol = index.node_symbols[parameter.index];
+				if (symbol.index < 1 || index.bindings.symbol(symbol).kind != 7 || index.bindings.symbol(symbol).owner.index != current.owner.index || index.symbol_flags[symbol.index] != 0 && index.symbol_flags[symbol.index] != 2) return type_symbol(0);
+				var type = index.symbol_types[symbol.index];
+				if (checked_kind(index, type) != 22) return type_symbol(0);
+				var element = index.types.argument(index.types, type, 0);
+				if (element.type.index != 3 || element.flags != 0) return type_symbol(0);
+				var syntax = index.bindings.program.arena.utf8_factory_expression(node);
+				if (checked_target(index, node, syntax.f_input).index != symbol.index) return type_symbol(0);
+				return symbol;
+			}
+			if (declaration.kind == 11 || declaration.kind == 12) return type_symbol(0);
+		}
+		scope = current.parent;
+		depth = depth + 1;
+	}
+	return type_symbol(0);
+}
+
+TypeId checked_utf8_expression(CheckedIndex index, SyntaxNodeId node) {
+	if (checked_utf8_parameter(index, node).index == 0) return index.defer(node, 19);
+	var use = index.uses[node.index];
+	use.flags = 0;
+	use.deferred = 19;
+	index.uses[node.index] = use;
+	if (index.bindings.program.arena.get_bool_validates(node)) return type_id(13);
+	return type_id(15);
+}

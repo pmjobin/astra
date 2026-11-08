@@ -6,17 +6,39 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerB
 	int n = 0; while (n < flow.data.node_count) {
 		if (!work.take()) return false;
 		var row = flow.data.nodes[n];
-		if (row.kind == 5 || row.kind == 11 || row.kind == 13) {
+		if (row.kind == 56 && recover_slice_consumer(flow, n + 1, work) < 1) return false;
+		if (row.kind == 19 && flow.checked.uses[row.source.index].flags == 2 && recover_shared_borrow_consumer(flow, n + 1, work) < 1) return false;
+		if (row.kind == 5 || row.kind == 11 || row.kind == 19 && (flow.checked.uses[row.source.index].flags & 4) != 0) {
 			int consumer = plan.consumers[n]; if (consumer < 1 || consumer > flow.data.node_count) return false;
 			int kind = flow.data.nodes[consumer - 1].kind;
-			if (row.kind == 13) {
-				if (kind != 22) return false;
-			}
-			else {
-				if (kind != 27 && !(row.kind == 5 && kind == 23)) return false;
-			}
+			if (kind != 27 && !(row.kind == 5 && kind == 23)) return false;
 		}
 		n = n + 1;
 	}
 	return !work.exhausted;
+}
+
+int recover_shared_borrow_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work) {
+	int found = 0;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		if (!work.take()) return -1;
+		var row = flow.data.nodes[n];
+		if (row.kind == 4 || row.kind == 11) {
+			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
+			int offset = 1;
+			if (row.kind == 11) offset = 2;
+			int a = 0;
+			while (a < row.count) {
+				if (recover_owner_unwrap(flow.data, flow.data.edges[row.first + a]) == value) {
+					var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + offset);
+					if (found != 0 || row.function != flow.data.nodes[value - 1].function || (channel.flags & 4) != 0 || checked_kind(flow.checked, channel.type) != 31) return -1;
+					found = n + 1;
+				}
+				a = a + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return found;
 }

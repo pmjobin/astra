@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The right expression runs only on its source-selected edge. A distinct join
+// value carries the short path's left bool or the evaluated right bool.
+bool recover_cfg_short_and(RecoverCfg cfg, RecoverNode row) {
+	return cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "&&");
+}
+
+bool recover_cfg_short_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value;
+	var region = cfg.regions[id - 1];
+	int join = region.operation;
+	if (row.kind != 62 || !recover_cfg_expect(cfg, join, recover_cfg_expected(row.function, id, 62, row.a, row.b, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.b, join, seen, nodes, depth + 1)) return false;
+	int guard = cfg.regions[row.a - 1].next;
+	int yes = cfg.regions[row.b - 1].entry;
+	int no = join;
+	if (!recover_cfg_short_and(cfg, row)) {
+		yes = join;
+		no = cfg.regions[row.b - 1].entry;
+	}
+	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 63, row.a, 0, yes, no, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.a, guard, seen, nodes, depth + 1)) return false;
+	return region.entry == cfg.regions[row.a - 1].entry;
+}
