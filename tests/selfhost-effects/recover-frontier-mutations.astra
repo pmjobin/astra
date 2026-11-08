@@ -1,6 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool constructor_index_mutations(RecoverFlow flow) {
+	int f = 0;
+	while (f < flow.data.function_count) {
+		var function = flow.data.functions[f].symbol;
+		if (class_storage_initializing(flow.checked, function)) {
+			int instance = generic_instance_for(flow.checked, function);
+			var aggregate = flow.checked.instances[instance - 1].enclosing;
+			var declaration = flow.checked.bindings.symbol(function);
+			var body = flow.checked.bindings.program.arena.get_node_body(declaration.node);
+			var statements = flow.checked.bindings.program.arena.get_list_statements(body);
+			var initialized = new bool[flow.checked.bindings.symbol_count + 1];
+			int i = 0;
+			while (i < flow.checked.bindings.program.arena.list_count(statements)) {
+				var statement = flow.checked.bindings.program.arena.node_at(statements, i);
+				if (flow.checked.bindings.program.arena.kind(statement) == SyntaxKind.FieldAssignmentStatementSyntax()) {
+					var target = flow.checked.bindings.program.arena.get_node_target(statement);
+					var field = checked_target(flow.checked, target, flow.checked.bindings.program.arena.get_token_field_name(target));
+					if (field.index > 0) initialized[field.index] = true;
+				}
+				if (flow.checked.bindings.program.arena.kind(statement) == SyntaxKind.IndexedAssignmentSyntax()) {
+					if (!recover_constructor_indexed(flow.checked, statement, function, aggregate, initialized)) return false;
+					var target = flow.checked.bindings.program.arena.get_node_target(statement);
+					var container = flow.checked.bindings.program.arena.get_node_container(target);
+					var field = checked_target(flow.checked, container, flow.checked.bindings.program.arena.get_token_field_name(container));
+					initialized[field.index] = false; bool rejected = !recover_constructor_indexed(flow.checked, statement, function, aggregate, initialized); initialized[field.index] = true;
+					if (!rejected || !recover_constructor_indexed(flow.checked, statement, function, aggregate, initialized) || !recover_flow_verify(flow)) return false;
+					println("SEMANTIC constructor-array-initialized-source-path");
+					int flags = flow.checked.symbol_flags[field.index]; flow.checked.symbol_flags[field.index] = 0; rejected = !recover_flow_verify(flow); flow.checked.symbol_flags[field.index] = flags;
+					if (!rejected || !recover_flow_verify(flow)) return false;
+					println("SEMANTIC constructor-array-owned-field");
+					var type = flow.checked.symbol_types[field.index]; flow.checked.symbol_types[field.index] = type_id(1); rejected = !recover_flow_verify(flow); flow.checked.symbol_types[field.index] = type;
+					if (!rejected || !recover_flow_verify(flow)) return false;
+					println("SEMANTIC constructor-array-source-type");
+					int receiver = class_storage_receiver(flow.checked, function); flags = flow.checked.symbol_flags[receiver]; flow.checked.symbol_flags[receiver] = 0; rejected = !recover_flow_verify(flow); flow.checked.symbol_flags[receiver] = flags;
+					if (!rejected || !recover_flow_verify(flow)) return false;
+					println("SEMANTIC constructor-array-actual-receiver");
+					return true;
+				}
+				i = i + 1;
+			}
+		}
+		f = f + 1;
+	}
+	return true;
+}
+
 bool frontier_flow_mutations(RecoverFlow flow) {
-	if (!error_flow_mutations(flow)) return false;
+	if (!error_flow_mutations(flow) || !constructor_index_mutations(flow)) return false;
 	bool foreign = false;
 	bool caller = false;
 	bool utf8 = false;

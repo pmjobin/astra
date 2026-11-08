@@ -304,6 +304,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			int child = ssa.cfg.core.flow.data.edges[row.first];
 			instruction_count = 2 + recover_llvm_extract_instructions(values[child]);
 		}
+		if (op == 65) instruction_count = 2 + recover_llvm_extract_instructions(values[row.a]);
 		if (op == 6 || op == 16 || op == 30 || op == 31 || op == 32 || op == 33 || op == 35) instruction_count = 2;
 		if (op == 22 && ssa.cfg.core.flow.data.functions[block.function - 1].checked && ssa.cfg.core.flow.data.functions[block.function - 1].result.index != 14) instruction_count = 2;
 		if (op == 34 && row.kind == 23 && row.a != 0) {
@@ -350,7 +351,6 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			if (values[block.origin] != values[ssa.cfg.core.count * 2 + ssa.cfg.catch_try[caught_owner - 1]]) return false;
 		}
 		if (op == 65) {
-			instruction_count = 2 + recover_llvm_extract_instructions(values[row.a]);
 			if (!recover_llvm_call(operation, snapshot_initialize, 3, 8) || LLVMGetArgOperand(operation, 0) != locals[row.symbol.index] || !recover_llvm_extract(LLVMGetArgOperand(operation, 1), values[row.a], 0) || !recover_llvm_extract(LLVMGetArgOperand(operation, 2), values[row.a], 1)) return false;
 		}
 		if (op == 6) {

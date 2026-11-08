@@ -5,11 +5,11 @@ This is milestone 25 work in progress. Genuine unchanged original
 complete original population, exit 42, C0-equivalent contents and unsuppressed
 clean returning Valgrind in `native-frontiers-final1-{O0,O2}`. The separate
 exact reduced view also executes. These captured compiler revisions qualify
-64 of 71 new source cases per profile; seven derived Error cases stop at the
-carrier consumer. The subsequent bounded receiver repair passes focused and
-complete integrated C0 Core checking and the actual source ABI probe with
-nine mutations per constructor/method receiver. Integrated native replay of
-that repair remains pending.
+64 of 71 new source cases per profile. The receiver repair passes its actual
+ABI mutations and advances seven derived Error cases to the physical consumer;
+their target execution remains unproved. The next instruction-count ordering
+correction and source-bound initialized buffer constructor proof pass complete
+C0 Core checking and await focused stage/mutation and integrated native replay.
 The canonical report remains the previously published PARTIAL report, SHA-256
 `16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
 No current-source PASS follows from the implementation or the checks below.
@@ -494,3 +494,57 @@ this 30-source C0/Astra LLVM/ELF/fault/memory differential to the prior eleven.
 The independent auditor binds those results and keeps fatal signals distinct
 from returning memory. No frozen compiler input or installed workflow changes.
 The current compiler builds remain active; new Astra fault execution is pending.
+
+The completed `full-repair1` pair has independently matching 241 project inputs
+and tools. O0 SHA256 is `41d4c3b881620db99228ed13dab393e4b16025ff48142dfd271027ff244c87db`;
+actual wall 48:57.49, user 2918.14 s, system 1.61 s, RSS 2,469,836 KiB.
+O2 SHA256 is `2586c4a46a9037d17b0b19d6819aaa83f8c2a2c5873fb0f476be759b58aa6c5d`;
+actual wall 1:09:13, user 4124.86 s, system 1.65 s, RSS 2,469,352 KiB.
+Both execute the complete unchanged original and separate reduced target;
+all 71 current sources pass actual source stages and mutation twins. All 41
+retained recipes pass at both profiles, independently rebound in
+`retained-captured-repair1.json`: 340 native identities,74 actual errors,
+101 semantic/52 LLVM-valid physical categories, exact cohorts and raw drift.
+Read-only exact Git witnesses for all 241 captured source inputs preserve this
+revision separately from subsequent edits. Seven Error sources still stop at
+`LLVM_INVALID_IR: recover physical contract`, with zero target execution credit.
+
+`debug-physical-receiver4` traces the unchanged O0 compiler's actual failure:
+LLVM accepts the generated module, while the physical block counter returns4
+and its expected stack value is1. Source `recover-check.astra` computes opcode65
+initializer count only after the global count comparison. The correction moves
+that exact count expression before the comparison; all receiver/data/count call
+operand checks remain. The refused module is a diagnostic witness and is never
+executed. The first diagnostic misclassified two checked-method returns before
+their result-storage ABI was corrected. A subsequent optional inferior print
+from a finish callback stalled and was explicitly interrupted/stopped; those
+receipts remain. Memory/instruction-only traces then confirm the real count
+failure without changing a predicate, verdict or binary on disk.
+
+Initial dynamic probes used plain scalar C imports, outside this private
+counted-text import profile. Their 30 source refusals remain. The disclosed
+`counted1` witnesses route external inputs through the existing approved
+`CCode(text_abi="utf8-i32")` contract; their numeric/bounds operations are
+unchanged. Both profiles execute29/30 with exact C0 exit/signal/output/memory
+agreement. The remaining C0-valid source stops at normalized constructor node99,
+span [332,384), SHA256
+`0878ca16c438dd16246a4c6f298574b7d50914f8d26377936bf58eec9e7ed0ae`:
+an indexed store after its owned buffer field has been initialized.
+
+The constructor consumer now proves that exact own initialized numeric-buffer
+field, actual hidden receiver, original Binder field, scalar index/RHS and
+non-escaping constructor-safe values. An indexed store cannot initialize a
+descriptor or obtain a root from TypeId alone. Ordinary and Error constructors
+use the same source rule. New actual-source mutations erase initialization,
+field ownership/type and the real receiver qualifier, with positive restoration.
+The suite expands to32 distinct programs, adding normal ordinary/Error
+constructor content and memory witnesses; three constructor cases require the
+four source mutations. Unchanged C0 independently passes20 fatal/12 returning
+cases at each profile in `constructoracle1`; stage and complete integrated Core
+checks (`constructorcore1`, `countercore1`) pass before another native build.
+
+Cost metadata now distinguishes caller/requested argv from GNU time's actual
+child command text. The interim ledger's `actual_command` was caller metadata:
+the Core recipe changes `--check` to `--dump-core` after that receipt. Original
+receipts and measured CPU/wall/RSS remain; the final ledger records both fields
+explicitly and never calls a source-only check a native compiler build.

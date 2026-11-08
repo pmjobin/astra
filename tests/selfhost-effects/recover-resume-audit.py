@@ -162,10 +162,11 @@ def support(paths, component, mode, version, native_facts):
 			output = (where/(name+'-Astra-attempt.stdout')).read_bytes() + (where/(name+'-Astra-attempt.stderr')).read_bytes()
 			assert b'RESOURCE_EXHAUSTED' not in output and b'RECOVER_FLOW 2 ' not in output
 	where, build, data, run = load('dynamic-faults-'+version+'-'+mode)
-	assert data['component_sha256'] == sha(component) and data['C0_sha256'] == sha(C0) and data['profile'] == mode and data['complete'] and not data['failed'] and len(data['programs']) == 30
+	assert data['component_sha256'] == sha(component) and data['C0_sha256'] == sha(C0) and data['profile'] == mode and data['complete'] and not data['failed'] and len(data['programs']) == 32
 	assert sum(row['profiles']['C0']['fatal'] for row in data['programs']) == 20
 	for row in data['programs']:
 		name = row['name']; assert set(row['profiles']) == {'C0', 'Astra'} and row['C0_build_exit'] == row['Astra_emit_exit'] == 0
+		if name in ('stored-buffer-write-end', 'constructor-field-normal', 'constructor-error-field-normal'): assert row['constructor_stage_exit'] == run[name+'-source-stage-mutations']['exit'] == 42 and len(row['constructor_stage_markers']) == 4
 		assert all(sha(source['path']) == source['sha256'] for source in row['inputs']) and sha(build/(name+'.ll')) == row['raw_LLVM_sha256'] and sha(build/(name+'-optimized.ll')) == row['optimized_LLVM_sha256']
 		left, right = row['profiles']['C0'], row['profiles']['Astra']; assert {k:v for k,v in left.items() if k!='ELF_sha256'} == {k:v for k,v in right.items() if k!='ELF_sha256'}
 		assert run[name+'-Astra-emit']['argv'][0] == str(component) and run[name+'-C0-build']['argv'][:2] == [str(C0), '-'+mode]
@@ -205,7 +206,7 @@ def support(paths, component, mode, version, native_facts):
 			assert data['actual_exit'] == 42 and sha(build/'Astra') == data['Astra_ELF_sha256'] and sha(build/'C0') == data['C0_ELF_sha256']
 			for producer in ('Astra', 'C0'): assert run[producer+'-execute']['exit'] == run[producer+'-memory']['exit'] == 42; memory(where/(producer+'-memory.stderr'))
 		else: assert (where/'actual-source-physical-alternatives.stdout').read_text().splitlines() == ['ERROR_LLVM_REJECT '+str(i) for i in range(10)]
-	facts.update(complete=True, stage_programs=71, new_semantic_categories=sorted(markers), array_source_negatives=15, owner_source_negatives=6, dynamic_fault_sources=30, dynamic_fatal_controls=20, error_order_programs=3, error_lifetime_programs=8, new_LLVM_valid_physical=24, receipts=receipts)
+	facts.update(complete=True, stage_programs=71, new_semantic_categories=sorted(markers), array_source_negatives=15, owner_source_negatives=6, dynamic_fault_sources=32, dynamic_fatal_controls=20, constructor_stage_source_programs=3, error_order_programs=3, error_lifetime_programs=8, new_LLVM_valid_physical=24, receipts=receipts)
 	return facts
 
 

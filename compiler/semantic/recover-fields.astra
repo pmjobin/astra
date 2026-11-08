@@ -128,6 +128,25 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 	return recover_field_receiver(checked, node, function).index == class_storage_receiver(checked, function);
 }
 
+// An indexed store does not initialize a field descriptor. Its actual own
+// buffer field must already be initialized on the constructor's source path.
+bool recover_constructor_indexed(CheckedIndex checked, SyntaxNodeId statement, SymbolId function, TypeId aggregate, bool[] initialized) {
+	if (checked.bindings.program.arena.kind(statement) != SyntaxKind.IndexedAssignmentSyntax()) return false;
+	var target = checked.bindings.program.arena.get_node_target(statement);
+	if (!checked_flow_index_kind(checked.bindings.program.arena.kind(target))) return false;
+	var container = checked.bindings.program.arena.get_node_container(target);
+	if (checked.bindings.program.arena.kind(container) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(container).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(container), "this")) return false;
+	var field = checked_target(checked, container, checked.bindings.program.arena.get_token_field_name(container));
+	if (field.index < 1 || field.index >= len(initialized) || !initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(aggregate).nominal.index || (checked.symbol_flags[field.index] & ~256) != 4 || recover_field_receiver(checked, container, function).index != class_storage_receiver(checked, function)) return false;
+	var type = checked.symbol_types[field.index];
+	if (checked_kind(checked, type) != 22 || checked.uses[container.index].type.index != type.index) return false;
+	var element = checked.types.argument(checked.types, type, 0);
+	if (element.flags != 0 || !type_numeric(checked_kind(checked, element.type)) && checked_kind(checked, element.type) != 13) return false;
+	var subscript = checked.bindings.program.arena.get_node_subscript(target);
+	var value = checked.bindings.program.arena.get_node_expression(statement);
+	return checked.uses[subscript.index].type.index == 1 && checked.uses[value.index].type.index == element.type.index && recover_constructor_value(checked, subscript, function, aggregate, initialized, 0) && recover_constructor_value(checked, value, function, aggregate, initialized, 0);
+}
+
 bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function) {
 	int error_instance = generic_instance_for(checked, function);
 	if (error_instance > 0 && error_storage_class(checked, checked.instances[error_instance - 1].enclosing)) return recover_error_constructor_source(checked, function);
@@ -149,6 +168,11 @@ bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function)
 	var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
 	while (i < checked.bindings.program.arena.list_count(statements)) {
 		var statement = checked.bindings.program.arena.node_at(statements, i);
+		if (checked.bindings.program.arena.kind(statement) == SyntaxKind.IndexedAssignmentSyntax()) {
+			if (!recover_constructor_indexed(checked, statement, function, type, initialized)) return false;
+			i = i + 1;
+			continue;
+		}
 		if (checked.bindings.program.arena.kind(statement) == SyntaxKind.CallStatementSyntax()) {
 			if (!recover_constructor_value(checked, checked.bindings.program.arena.get_node_call(statement), function, type, initialized, 0)) return false;
 			i = i + 1;

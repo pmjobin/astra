@@ -35,6 +35,11 @@ bool recover_error_constructor_source(CheckedIndex checked, SymbolId function) {
 	p = 0;
 	while (p < checked.bindings.program.arena.list_count(statements)) {
 		var statement = checked.bindings.program.arena.node_at(statements, p);
+		if (checked.bindings.program.arena.kind(statement) == SyntaxKind.IndexedAssignmentSyntax()) {
+			if (!recover_constructor_indexed(checked, statement, function, plan.enclosing, initialized)) return false;
+			p = p + 1;
+			continue;
+		}
 		if (checked.bindings.program.arena.kind(statement) == SyntaxKind.CallStatementSyntax()) {
 			if (!recover_constructor_value(checked, checked.bindings.program.arena.get_node_call(statement), function, plan.enclosing, initialized, 0)) return false;
 		} else {
