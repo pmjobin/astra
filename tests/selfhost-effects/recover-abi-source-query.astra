@@ -35,7 +35,15 @@ int main(string[] args) {
 					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 9;
 					prior = plan.success; plan.success = 0; rejected = !recover_abi_verify(plan, flow.checked); plan.success = prior;
 					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 10;
-					println("ABI_RECEIVER_MUTATIONS_VALID 5");
+					prior = flow.checked.symbol_flags[receiver]; flow.checked.symbol_flags[receiver] = 0; rejected = !recover_abi_verify(plan, flow.checked); flow.checked.symbol_flags[receiver] = prior;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 13;
+					var original_type = flow.checked.symbol_types[receiver]; flow.checked.symbol_types[receiver] = type_id(14); rejected = !recover_abi_verify(plan, flow.checked); flow.checked.symbol_types[receiver] = original_type;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 14;
+					var original_binding = flow.checked.bindings.symbol(type_symbol(receiver)); var changed_binding = original_binding; changed_binding.owner = type_symbol(0); flow.checked.bindings.replace_instance_symbol(type_symbol(receiver), changed_binding); rejected = !recover_abi_verify(plan, flow.checked); flow.checked.bindings.replace_instance_symbol(type_symbol(receiver), original_binding);
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 15;
+					var original_instance = flow.checked.instances[instance - 1]; var changed_instance = original_instance; changed_instance.state = 1; flow.checked.instances[instance - 1] = changed_instance; rejected = !recover_abi_verify(plan, flow.checked); flow.checked.instances[instance - 1] = original_instance;
+					if (!rejected || !recover_abi_verify(plan, flow.checked)) return 16;
+					println("ABI_RECEIVER_MUTATIONS_VALID 9");
 				}
 				errors = errors + 1;
 			}

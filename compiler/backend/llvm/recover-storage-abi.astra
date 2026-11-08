@@ -51,7 +51,18 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 	if (plan.result.index != result.type.index || plan.error.index != signature.error.index || plan.result_flags != result.flags || !recover_storage_channel(checked, result.type, result.flags, true) || signature.dispatch != 0 || (signature.flags & ~(4 | 64)) != 0 || !checked_effect_signature_verified(checked, signature) || !recover_member_attributes(checked, symbol.node)) return false;
 	int receiver = -1; int instance = generic_instance_for(checked, plan.declaration);
 	if (instance > 0 && checked.instances[instance - 1].enclosing.index != 0) {
-		var source = checked.instances[instance - 1]; var origin = checked.bindings.symbol(source.origin); if (origin.kind != 11 && origin.kind != 12 || !class_storage_class(checked, source.enclosing) || !generic_verify(checked)) return false; receiver = 0;
+		var source = checked.instances[instance - 1]; var origin = checked.bindings.symbol(source.origin);
+		bool error = error_storage_class(checked, source.enclosing);
+		if (origin.kind != 11 && origin.kind != 12 || !class_storage_class(checked, source.enclosing) && !error || !generic_verify(checked)) return false;
+		if (error) {
+			// Error members use the same borrowed one-pointer group, with the
+			// actual independently checked source copy and hidden parameter.
+			if (source.concrete.index != plan.declaration.index || source.state != 2 || origin.owner.index != checked.types.row(source.enclosing).nominal.index) return false;
+			int hidden = class_storage_receiver(checked, plan.declaration);
+			if (hidden < 1 || checked.bindings.symbol(type_symbol(hidden)).kind != 7 || checked.bindings.symbol(type_symbol(hidden)).owner.index != plan.declaration.index || checked.symbol_types[hidden].index != source.enclosing.index || checked.symbol_flags[hidden] != 2) return false;
+			if (origin.kind == 12 && !recover_error_constructor_source(checked, plan.declaration)) return false;
+		}
+		receiver = 0;
 	}
 	int success = -1; if ((signature.flags & 64) != 0 && result.type.index != 14) {
 		success = 0;

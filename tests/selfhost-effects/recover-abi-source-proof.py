@@ -58,8 +58,8 @@ def main():
 	(leaf/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')
 	assert r.returncode == 42,(r.returncode,r.stdout[-3000:],r.stderr[-1000:])
 	assert r.stdout.count(b'ABI_ERROR_RECEIVER ') >= 2
-	if not a.diagnose: assert r.stdout.count(b'ABI_RECEIVER_MUTATIONS_VALID 5') >= 2
-	(leaf/'result.json').write_text(json.dumps(dict(status='SOURCE_ABI_RECEIVER_DIAGNOSED' if a.diagnose else 'SOURCE_ABI_RECEIVER_PLANS_VERIFIED',source_path=str(source),source_sha256=sha(source),view_first=0,view_last=end,view_sha256=sha(view),products=products,inputs=witness['inputs'],fixture_sha256=sha(fixture),observation_sha256=sha(leaf/'observe.stdout'),Astra_native_execution_credit=0,limitation='Complete byte-exact production ABI-plan definitions and actual source normalization/checking under unchanged C0. Diagnosis preserves the actual rejection. Verification requires five independent ABI-plan mutations with positive restoration per source receiver. No target LLVM, ELF execution or milestone qualification is inferred.'),indent=2)+'\n')
+	if not a.diagnose: assert r.stdout.count(b'ABI_RECEIVER_MUTATIONS_VALID 9') >= 2
+	(leaf/'result.json').write_text(json.dumps(dict(status='SOURCE_ABI_RECEIVER_DIAGNOSED' if a.diagnose else 'SOURCE_ABI_RECEIVER_PLANS_VERIFIED',source_path=str(source),source_sha256=sha(source),view_first=0,view_last=end,view_sha256=sha(view),products=products,inputs=witness['inputs'],fixture_sha256=sha(fixture),observation_sha256=sha(leaf/'observe.stdout'),Astra_native_execution_credit=0,limitation='Complete byte-exact production ABI-plan definitions and actual source normalization/checking under unchanged C0. Diagnosis preserves the actual rejection. Verification requires five independent ABI-plan and four actual receiver/binder/instance mutations with positive restoration per source receiver. No target LLVM, ELF execution or milestone qualification is inferred.'),indent=2)+'\n')
 	print('Source ABI receiver observation passed; zero target native execution credit',flush=True)
 
 

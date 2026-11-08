@@ -420,3 +420,22 @@ function/callee/caller graph proof and clean unsuppressed returning Valgrind.
 The separate exact reduced view also executes 42. This establishes genuine
 full-original target execution at both profiles at this captured revision;
 the derived Error carrier frontier and overall milestone remain unqualified.
+
+The O2 71-case campaign completes with the same 64 executions/seven carrier
+stops as O0. `abi-source-diagnose1` independently observes real constructor
+function 19/node90/receiver21 and method function22/node97/receiver23, both
+enclosing TypeId19, rejected with physical counts2/1. Original constructor
+span [119,175) hashes `153c2334cd5c7803fa6eb6b521471783a032b21651bb91f706998653beaa57f0`;
+method [176,208) hashes `eb5c1221a121c5b83738e205ca54e1061c9e222da925dc20c56460d0b2a59938`.
+These are actual source-binder receiver identities, not synthesized owner roots.
+
+The ABI consumer now admits the separately source-qualified Error family,
+retaining generic reconstruction and checking concrete instance/state,
+original nominal member owner and actual borrowed parameter kind/owner/type/
+flags. Constructor source/base/initialization proof is required independently.
+Carrier counts, groups, pointer representation and success-storage positions
+are unchanged. The focused probe adds five plan mutations and four real
+receiver/binder/instance mutations, each with positive restoration. C0 Core
+`abi-source-verifycore1` passes; actual mutation execution awaits its native
+focused product before another integrated build. No new native credit is
+inferred from this source change.
