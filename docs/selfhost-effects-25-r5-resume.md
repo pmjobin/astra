@@ -548,3 +548,14 @@ child command text. The interim ledger's `actual_command` was caller metadata:
 the Core recipe changes `--check` to `--dump-core` after that receipt. Original
 receipts and measured CPU/wall/RSS remain; the final ledger records both fields
 explicitly and never calls a source-only check a native compiler build.
+
+`shared-stage-constructor1-O0` and `abi-source-verify2` complete with guarded
+product identities. `runtime-stages-constructor1` validates all41 actual sources
+through Flow/Core/CFG/SSA: the32 C0 witnesses, seven retained derived Error
+cases and both full/reduced originals. The three constructor-index programs
+each reject erased initialization, owned-field qualifier, actual source type
+and hidden receiver qualifier, then restore the positive source facts. The
+current ABI probe separately admits both real Error receivers and rejects all
+nine mutations per receiver. These are source/stage/ABI preflights only; target
+LLVM/ELF, Error execution and complete milestone qualification still await the
+next independently matched integrated pair (`repair2`).
