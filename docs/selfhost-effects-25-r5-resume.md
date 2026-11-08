@@ -242,3 +242,35 @@ its distinct outer/inner messages and scalar fields will check owner selection.
 The generic solver algorithm, instance ceiling, public ABI and checked E25-A-v1
 transport are unchanged. The generic consumer's closed receiver domain now
 recognizes the separately qualified Error source family.
+
+The LLVM revision now emits derived allocations at the checked Error payload
+size, the dynamic descriptor and the actual normalized constructor call. Base
+snapshot initialization uses a separate lazy module-owned helper; field access
+selects the Error payload family, and derived destructors retire own fields
+before the parent without freeing the object twice. Independent consumers
+recompute physical offsets and check the actual constructor, receiver, descriptor,
+catch phi, destructor and instruction inventories. Ordinary Class payload caches
+remain separate. The allocator noinline and C memory-effect checks are retained.
+These changes have passed focused C0 Core checking (`errorllvmcore2`) and full
+C0 Core checking (`errorfullcore2`); the added ten physical mutation controls
+also pass full C0 Core checking (`errorfullcore3`). These source checks earn
+no derived Error native execution credit.
+
+`error-snapshot-helper2` passes sixteen independently LLVM-valid mutation
+categories with valid twins and four helper execution profiles. Its exact C0
+constructor comparison also initializes preallocated derived storage, checking
+descriptor/origin/tail canaries, empty/nonempty text and independent copied bytes.
+`native-frontiers-errororacle2` confirms all six owner fixtures independently at
+C0 O0/O2, including distinct outer/inner catch messages and receivers.
+`error-order-native-oracle1` validates the new allocation/order differential
+runner against fresh C0 O0/O2 executions; no Astra component was supplied.
+
+The first LLVM Core preflight rejected an owned-child local alias; its failed
+receipt remains, and the verifier now takes a real borrowed argument instead.
+The first full Core preflight stopped before compilation because the historical
+call diagnostic differed from the current verifier. The task-owned full build
+recipe retains that historical diagnostic under a distinct witness name and lets
+the existing GENREF generator derive its current read-only observer. It does not
+alter a compiler predicate, installed workflow or historical evidence. The
+focused native stage consumer remains the next actual admission check before
+expensive matched native integration; O2 target execution remains unproved.

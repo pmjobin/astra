@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Error fields use their own source-bound layout plan and descriptor family.
+// The destructor retires own fields before the parent; dynamic destroy frees
+// the object once, after the complete Error destructor chain returns.
+bool recover_error_fields_destroyed(CheckedIndex checked, int nominal, void* physical, void* function, void* parent, void*[] ordinary_drops, void*[] shared_drops, void* free) {
+	var declaration = checked.bindings.symbol(type_symbol(nominal));
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	int count = checked.bindings.program.arena.list_count(fields);
+	int instructions = 2;
+	int f = 0;
+	while (f < count) {
+		var source = checked.bindings.program.arena.node_at(fields, f);
+		var member = checked.node_symbols[source.index];
+		int kind = checked_kind(checked, checked.symbol_types[member.index]);
+		if ((checked.symbol_flags[member.index] & 4) != 0 || kind == 15) {
+			instructions = instructions + 3;
+			if (kind == 15 || kind == 22) instructions = instructions + 1;
+		}
+		f = f + 1;
+	}
+	if (!recover_llvm_helper_signature(function, 1) || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 0))) || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1);
+	if (len(blocks) != 1) return false;
+	var body = recover_llvm_body(blocks[0], instructions);
+	if (len(body) != instructions) return false;
+	var object = LLVMGetParam(function, 0);
+	int at = 0;
+	f = count - 1;
+	while (f >= 0) {
+		var source = checked.bindings.program.arena.node_at(fields, f);
+		var member = checked.node_symbols[source.index];
+		var type = checked.symbol_types[member.index];
+		int kind = checked_kind(checked, type);
+		if ((checked.symbol_flags[member.index] & 4) != 0 || kind == 15) {
+			if (!recover_llvm_field(body[at], physical, object, f + 1) || !recover_llvm_load_field(body[at + 1], physical, object, f + 1) || !recover_storage_llvm_type(checked, type, LLVMTypeOf(body[at + 1]))) return false;
+			void* value = body[at + 1]; at = at + 2;
+			if (kind == 15 || kind == 22) {
+				if (!recover_llvm_extract(body[at], value, 0)) return false;
+				value = body[at]; at = at + 1;
+			}
+			void* drop = free; int convention = 0;
+			if (kind == 31 && ordinary_drops[checked.types.row(type).nominal.index] != null) {
+				drop = ordinary_drops[checked.types.row(type).nominal.index];
+				convention = 8;
+			}
+			if (kind == 27) {
+				drop = shared_drops[type.index];
+				convention = 8;
+			}
+			if (!recover_llvm_call(body[at], drop, 1, convention) || LLVMGetArgOperand(body[at], 0) != value) return false;
+			at = at + 1;
+		}
+		f = f - 1;
+	}
+	if (at != instructions - 2 || !recover_llvm_call(body[at], parent, 1, 8) || LLVMGetArgOperand(body[at], 0) != object || !recover_llvm_void_return(body[at + 1])) return false;
+	at = 0;
+	while (at < instructions) {
+		if (LLVMHasMetadata(body[at]) != 0) return false;
+		at = at + 1;
+	}
+	return true;
+}
+
+bool recover_error_types_verified(RecoverSsa ssa, void* layout, void* payload, void*[] descriptors, void*[] payloads, void*[] destroyers, void*[] tables, void*[] ordinary_drops, void*[] shared_drops, void* free, void* message) throws Error {
+	if (!recover_error_layout_verified(ssa.cfg.core.flow.fields.errors, ssa.cfg.core.flow.fields.layout, ssa.cfg.core.flow.checked) || len(descriptors) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || len(payloads) != len(descriptors) || len(destroyers) != len(descriptors) || len(tables) != len(descriptors)) return false;
+	int s = 0;
+	while (s < len(descriptors)) {
+		bool expected = false;
+		if (s > 0) expected = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)).kind == 4 && (recover_error_shape(ssa.cfg.core.flow.checked, type_symbol(s), 0) || error_storage_nominal(ssa.cfg.core.flow.checked, type_symbol(s), 0));
+		if (!expected) {
+			if (descriptors[s] != null || payloads[s] != null || destroyers[s] != null || tables[s] != null) return false;
+			if (s > 0 && ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)).kind == 4 && !recover_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s])) return false;
+		} else {
+			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s));
+			var type = ssa.cfg.core.flow.checked.symbol_types[s];
+			var plan = ssa.cfg.core.flow.fields.errors.types[type.index];
+			int extent = 32;
+			if (error_storage_class(ssa.cfg.core.flow.checked, type)) extent = plan.payload_size;
+			var physical = payloads[s];
+			if (physical == null || descriptors[s] == null || tables[s] == null || LLVMGetTypeKind(physical) != 10 || LLVMIsPackedStruct(physical) != 0 || LLVMABISizeOfType(layout, physical) != extent as u64 || LLVMABIAlignmentOfType(layout, physical) != 8) return false;
+			var descriptor = LLVMGetInitializer(descriptors[s]);
+			if (descriptor == null || LLVMGetNumOperands(descriptor) != 3 || LLVMGetOperand(descriptor, 1) != destroyers[s] || LLVMGetOperand(descriptor, 2) != tables[s]) return false;
+			var parent_node = ssa.cfg.core.flow.checked.bindings.program.arena.get_node_parent_class(declaration.node);
+			void* parent_destroy = null;
+			if (parent_node.index == 0) {
+				if (physical != payload || LLVMIsNull(LLVMGetOperand(descriptor, 0)) == 0) return false;
+			} else {
+				var parent = checked_effect_class(ssa.cfg.core.flow.checked, parent_node);
+				parent_destroy = destroyers[parent.index];
+				if (LLVMGetOperand(descriptor, 0) != descriptors[parent.index] || LLVMCountStructElementTypes(physical) != plan.fields + 1 || LLVMStructGetTypeAtIndex(physical, 0) != payloads[parent.index] || LLVMOffsetOfElement(layout, physical, 0) != 0) return false;
+				var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node);
+				int f = 0;
+				while (f < plan.fields) {
+					var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, f);
+					var member = ssa.cfg.core.flow.checked.node_symbols[source.index];
+					var fact = ssa.cfg.core.flow.fields.errors.fields[member.index];
+					if (LLVMOffsetOfElement(layout, physical, f + 1) != fact.offset as u64 || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[member.index], LLVMStructGetTypeAtIndex(physical, f + 1))) return false;
+					f = f + 1;
+				}
+			}
+			if (error_storage_class(ssa.cfg.core.flow.checked, type)) {
+				if (parent_destroy == null || !recover_error_fields_destroyed(ssa.cfg.core.flow.checked, s, physical, destroyers[s], parent_destroy, ordinary_drops, shared_drops, free)) return false;
+			} else {
+				if (!recover_llvm_dtor_verified(destroyers[s], parent_destroy, payload, free)) return false;
+			}
+			var name_builder = new Utf8ByteBuilder(); source_append_text(name_builder, "astra.e25a.dtor."); append_int(name_builder, s); var name = name_builder.snapshot();
+			if (llvm13_named(destroyers[s], name.text) != 1 || LLVMGetLinkage(descriptors[s]) != 9 || LLVMIsGlobalConstant(descriptors[s]) != 1 || LLVMGetLinkage(tables[s]) != 9 || LLVMIsGlobalConstant(tables[s]) != 1) return false;
+			var table = LLVMGetInitializer(tables[s]);
+			if (table == null || LLVMGetNumOperands(table) != 1 || LLVMGetOperand(table, 0) != message) return false;
+		}
+		s = s + 1;
+	}
+	return true;
+}

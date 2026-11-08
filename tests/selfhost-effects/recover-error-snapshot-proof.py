@@ -55,6 +55,13 @@ static void candidate_wrapper(LLVMValueRef constructor) {
 	LLVMValueRef args[] = {LLVMGetParam(f, 0), LLVMGetParam(f, 1), LLVMGetParam(f, 2)};
 	LLVMValueRef value = LLVMBuildCall2(builder, type, constructor, args, 3, ""); LLVMSetInstructionCallConv(value, 8); LLVMBuildRet(builder, value);
 }
+static void initialize_wrapper(LLVMModuleRef target, LLVMValueRef constructor, const char *name) {
+	LLVMTypeRef type = LLVMGlobalGetValueType(constructor);
+	LLVMValueRef f = LLVMAddFunction(target, name, type);
+	LLVMPositionBuilderAtEnd(builder, LLVMAppendBasicBlockInContext(context, f, "entry"));
+	LLVMValueRef args[] = {LLVMGetParam(f, 0), LLVMGetParam(f, 1), LLVMGetParam(f, 2)};
+	LLVMValueRef call = LLVMBuildCall2(builder, type, constructor, args, 3, ""); LLVMSetInstructionCallConv(call, 8); LLVMBuildRetVoid(builder);
+}
 static int reference_wrapper(void) {
 	LLVMMemoryBufferRef buffer = NULL; char *error = NULL; LLVMModuleRef reference = NULL;
 	if (LLVMCreateMemoryBufferWithContentsOfFile("reference.ll", &buffer, &error)) { if (error) LLVMDisposeMessage(error); return 0; }
@@ -75,13 +82,14 @@ static int reference_wrapper(void) {
 	char *after = LLVMPrintValueToString(constructor);
 	int identical = 1; for (unsigned p = 0; before[p] || after[p]; p++) if (before[p] != after[p]) { identical = 0; break; }
 	LLVMDisposeMessage(before); LLVMDisposeMessage(after);
+	initialize_wrapper(reference, constructor, "reference_initialize");
 	error = NULL; int failed = LLVMVerifyModule(reference, LLVMReturnStatusAction, &error); if (error) { if (failed) fputs(error, stderr); LLVMDisposeMessage(error); }
 	error = NULL; if (LLVMPrintModuleToFile(reference, "reference-wrapped.ll", &error)) failed = 1; if (error) LLVMDisposeMessage(error);
-	LLVMDisposeModule(reference);
+	LLVMClearInsertionPosition(builder); LLVMDisposeModule(reference);
 	return identical && !failed;
 }
 int32_t error_test_finish(int32_t variant) {
-	LLVMValueRef constructor = LLVMGetNamedFunction(module, "astra.e25a.construct"), snapshot = LLVMGetNamedFunction(module, "astra.e25a.snapshot.allocate");
+	LLVMValueRef constructor = LLVMGetNamedFunction(module, "astra.e25a.construct"), snapshot = LLVMGetNamedFunction(module, "astra.e25a.snapshot.allocate"), initialize = LLVMGetNamedFunction(module, "astra.e25a.snapshot.initialize");
 	LLVMTypeRef word = LLVMInt64TypeInContext(context), integer = LLVMInt32TypeInContext(context);
 	if (variant == 1) LLVMSetOperand(instruction(constructor, 0, 2), 1, LLVMConstInt(word, 1, 0));
 	if (variant == 2) LLVMSetOperand(instruction(snapshot, 2, 1), 0, LLVMConstInt(LLVMInt1TypeInContext(context), 0, 0));
@@ -93,7 +101,13 @@ int32_t error_test_finish(int32_t variant) {
 	if (variant == 8) LLVMSetICmpSameSign(instruction(snapshot, 0, 0), 1);
 	if (variant == 9) LLVMAddAttributeAtIndex(snapshot, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(context, LLVMGetEnumAttributeKindForName("memory", 6), 0));
 	if (variant == 10) LLVMSetAlignment(instruction(constructor, 0, 12), 8);
-	if (variant == 0) { candidate_wrapper(constructor); if (!reference_wrapper()) return 0; }
+	if (variant == 11) LLVMSetOperand(instruction(initialize, 0, 1), 0, LLVMConstInt(word, 1, 0));
+	if (variant == 12) LLVMAddCallSiteAttribute(instruction(initialize, 0, 2), LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(context, LLVMGetEnumAttributeKindForName("memory", 6), 0));
+	if (variant == 13) LLVMSetOperand(instruction(initialize, 0, 3), 2, LLVMConstInt(integer, 0, 0));
+	if (variant == 14) LLVMSetOperand(instruction(initialize, 0, 6), 0, LLVMConstInt(integer, 0, 0));
+	if (variant == 15) LLVMSetNNeg(instruction(initialize, 0, 0), 1);
+	if (variant == 16) LLVMSetOperand(instruction(initialize, 0, 2), 1, LLVMGetParam(initialize, 0));
+	if (variant == 0) { candidate_wrapper(constructor); initialize_wrapper(module, initialize, "candidate_initialize"); if (!reference_wrapper()) return 0; }
 	char *error = NULL; int failed = LLVMVerifyModule(module, LLVMReturnStatusAction, &error); if (error) { if (failed) fputs(error, stderr); LLVMDisposeMessage(error); }
 	char path[64]; snprintf(path, sizeof path, "error-snapshot-%d.ll", variant); error = NULL; if (LLVMPrintModuleToFile(module, path, &error)) failed = 1; if (error) LLVMDisposeMessage(error);
 	return !failed;
@@ -107,15 +121,16 @@ extern(C) int error_test_finish(int variant);
 extern(C) void error_test_close();
 int main() {
 	int variant = 0;
-	while (variant <= 10) {
+	while (variant <= 16) {
 		error_test_open();
 		var handles = llvm12_handles();
 		var runtime = new RecoverErrorSnapshotRuntime(error_test_handle(0), error_test_handle(1), error_test_handle(2), handles, error_test_handle(3), error_test_handle(4));
 		var snapshot = runtime.build_helper();
 		var constructor = runtime.build_constructor(error_test_handle(5), snapshot, error_test_handle(6));
-		if (!recover_error_snapshot_verified(snapshot, error_test_handle(3), error_test_handle(4)) || !recover_error_constructor_verified(constructor, error_test_handle(5), error_test_handle(3), snapshot, error_test_handle(6))) return 90 + variant;
+		var initialize = runtime.build_initializer(error_test_handle(5), snapshot, error_test_handle(6));
+		if (!recover_error_snapshot_verified(snapshot, error_test_handle(3), error_test_handle(4)) || !recover_error_constructor_verified(constructor, error_test_handle(5), error_test_handle(3), snapshot, error_test_handle(6)) || !recover_error_initializer_verified(initialize, error_test_handle(5), snapshot, error_test_handle(6))) return 90 + variant;
 		if (error_test_finish(variant) != 1) return 60 + variant;
-		bool valid = recover_error_snapshot_verified(snapshot, error_test_handle(3), error_test_handle(4)) && recover_error_constructor_verified(constructor, error_test_handle(5), error_test_handle(3), snapshot, error_test_handle(6));
+		bool valid = recover_error_snapshot_verified(snapshot, error_test_handle(3), error_test_handle(4)) && recover_error_constructor_verified(constructor, error_test_handle(5), error_test_handle(3), snapshot, error_test_handle(6)) && recover_error_initializer_verified(initialize, error_test_handle(5), snapshot, error_test_handle(6));
 		llvm12_handles_dispose(handles);
 		error_test_close();
 		if (valid != (variant == 0)) return 10 + variant;
@@ -133,6 +148,8 @@ typedef struct { void *descriptor, *origin; unsigned char *bytes; int32_t count;
 _Static_assert(sizeof(header) == 32, "approved Error header");
 extern void *candidate_construct(void *, const void *, int32_t);
 extern void *reference_construct(void *, const void *, int32_t);
+extern void candidate_initialize(void *, const void *, int32_t);
+extern void reference_initialize(void *, const void *, int32_t);
 extern void *__real_calloc(size_t, size_t);
 static unsigned calls, fail_step;
 static size_t ns[4], sizes[4], fail_bytes;
@@ -143,6 +160,7 @@ void *__wrap_calloc(size_t n, size_t size) {
 }
 void *oracle_checked_allocate(uint64_t n, uint64_t size) { void *p = calloc((size_t)n, (size_t)size); if (!p) __builtin_trap(); return p; }
 typedef void *(*constructor)(void *, const void *, int32_t);
+typedef void (*initializer)(void *, const void *, int32_t);
 static int descriptor;
 static int check(constructor construct, unsigned count) {
 	unsigned char input[257]; for (unsigned p = 0; p < sizeof input; p++) input[p] = (unsigned char)(p * 73 + count);
@@ -152,10 +170,19 @@ static int check(constructor construct, unsigned count) {
 	else if (object->bytes) return 0;
 	free(object->bytes); free(object); return 1;
 }
+static int check_initialize(initializer initialize, unsigned count) {
+	unsigned char input[257]; for (unsigned p = 0; p < sizeof input; p++) input[p] = (unsigned char)(p * 37 + count);
+	struct { header base; uint64_t tail; } object = {{&descriptor, &calls, NULL, 0}, UINT64_C(0x1827364554637281)};
+	calls = 0; initialize(&object, input, (int32_t)count);
+	if (object.base.descriptor != &descriptor || object.base.origin != &calls || object.tail != UINT64_C(0x1827364554637281) || object.base.count != (int32_t)count || calls != (count ? 1U : 0U)) return 0;
+	if (count) { if (!object.base.bytes || object.base.bytes == input || ns[0] != count || sizes[0] != 1 || memcmp(object.base.bytes, input, count)) return 0; unsigned char first = object.base.bytes[0]; input[0] ^= 1; if (object.base.bytes[0] != first) return 0; }
+	else if (object.base.bytes) return 0;
+	free(object.base.bytes); return 1;
+}
 int main(int argc, char **argv) {
 	if (argc > 1) { constructor f = strcmp(argv[1], "candidate") == 0 ? candidate_construct : reference_construct; unsigned count = (unsigned)strtoul(argv[2], NULL, 10); fail_step = (unsigned)strtoul(argv[3], NULL, 10); fail_bytes = (size_t)strtoull(argv[4], NULL, 10); return check(f, count) ? 42 : 3; }
-	for (unsigned count = 0; count <= 256; count++) if (!check(candidate_construct, count) || !check(reference_construct, count)) return 2;
-	puts("ERROR_SNAPSHOT_C0_BYTES_COUNTS_EMPTY_COPY 514"); return 42;
+	for (unsigned count = 0; count <= 256; count++) if (!check(candidate_construct, count) || !check(reference_construct, count) || !check_initialize(candidate_initialize, count) || !check_initialize(reference_initialize, count)) return 2;
+	puts("ERROR_SNAPSHOT_C0_BYTES_COUNTS_EMPTY_COPY_AND_INITIALIZE 1028"); return 42;
 }
 '''
 
@@ -225,8 +252,8 @@ def main():
 				codes = [run([target, who, str(count), str(step), str(size)], mode+'-'+target_mode+'-'+who+'-allocation-'+label, allowed=expected).returncode for who in ('candidate', 'reference')]
 				assert codes[0] == codes[1]
 		profiles.append(dict(C0_producer=mode, producer_ELF_sha256=sha(exe), LLVM_inputs={p.name: sha(p) for p in sorted(working.glob('*.ll'))}))
-	(leaf/'result.json').write_text(json.dumps(dict(status='INDEPENDENT_ERROR_SNAPSHOT_PREFLIGHT', profiles=profiles, original_C0_reference=reference, source_sha256={str(path): sha(path) for path in sources}, helper_views=views, LLVM_valid_mutation_categories=10, Astra_native_execution_credit=0, limitation='Actual production Error snapshot producer/constructor and independent consumers under C0 O0/O2. Ten independently LLVM-valid alternatives with positive twins. Four helper-only native profiles execute unchanged C0 constructor IR, exact byte/allocation shapes including empty text, independent copy, unsuppressed returning Valgrind and matching fatal allocation ordinal/size controls. The Error header/E25-A-v1 transport is unchanged; zero Astra source pipeline/original-function credit.'), indent=2)+'\n')
-	print('Error snapshot helper preflight passed: exact C0 count/empty/size-failure behavior, 10 LLVM-valid categories; zero Astra pipeline credit', flush=True)
+	(leaf/'result.json').write_text(json.dumps(dict(status='INDEPENDENT_ERROR_SNAPSHOT_PREFLIGHT', profiles=profiles, original_C0_reference=reference, source_sha256={str(path): sha(path) for path in sources}, helper_views=views, LLVM_valid_mutation_categories=16, Astra_native_execution_credit=0, limitation='Actual production Error snapshot producer/constructor/initializer and independent consumers under C0 O0/O2. Sixteen independently LLVM-valid alternatives with positive twins. Four helper-only native profiles execute unchanged C0 constructor IR, exact byte/allocation shapes including empty text, independent copy, unsuppressed returning Valgrind and matching fatal allocation ordinal/size controls. Preallocated derived payload checks retain descriptor/origin/tail canaries. The Error header/E25-A-v1 transport is unchanged; zero Astra source pipeline/original-function credit.'), indent=2)+'\n')
+	print('Error snapshot helper preflight passed: exact C0 count/empty/size-failure behavior and derived initialization, 16 LLVM-valid categories; zero Astra pipeline credit', flush=True)
 
 
 if __name__ == '__main__':

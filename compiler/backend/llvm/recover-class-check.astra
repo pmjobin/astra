@@ -8,6 +8,14 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloa
 		bool expected = false; SyntaxListId fields = {index = 0}; TypeId type = {index = 0};
 		if (s > 0) {
 			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)); type = ssa.cfg.core.flow.checked.symbol_types[s];
+			if (declaration.kind == 4 && error_storage_class(ssa.cfg.core.flow.checked, type)) {
+				var error_fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
+				while (f < ssa.cfg.core.flow.checked.bindings.program.arena.list_count(error_fields)) {
+					var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(error_fields, f);
+					if (ssa.cfg.core.flow.checked.symbol_types[ssa.cfg.core.flow.checked.node_symbols[source.index].index].index == 15) needs_snapshot = true;
+					f = f + 1;
+				}
+			}
 			if (declaration.kind == 4 && recover_storage_class(ssa.cfg.core.flow.checked, type)) {
 				fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node); expected = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields) > 0;
 			}
@@ -91,21 +99,26 @@ int recover_class_field_instructions(RecoverSsa ssa, RecoverBlock block) {
 	return count;
 }
 
-bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* free) {
+bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* free, void*[] error_payloads) {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value; var fact = ssa.cfg.core.flow.fields.facts[row.source.index]; var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, type); var nominal = ssa.cfg.core.flow.checked.types.row(fact.aggregate).nominal;
 	void* object = locals[fact.receiver.index];
 	if (fact.parent > 0) object = values[fact.parent];
+	void* aggregate = payloads[nominal.index]; int ordinal = fact.ordinal;
+	if (error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate)) {
+		aggregate = error_payloads[nominal.index];
+		ordinal = ordinal + 1;
+	}
 	int count = recover_class_field_instructions(ssa, block); if (block.opcode == 44 && kind == 15) count = count + recover_llvm_extract_instructions(values[row.a]);
-	var body = recover_llvm_body(physical, count); if (len(body) != count || !recover_llvm_field(body[0], payloads[nominal.index], object, fact.ordinal)) return false;
-	if (block.opcode == 17) return operation == body[1] && values[block.origin] == body[1] && recover_llvm_load_field(body[1], payloads[nominal.index], object, fact.ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1]));
-	if (block.opcode == 18) return operation == body[2] && values[block.origin] == body[2] && recover_llvm_load_field(body[1], payloads[nominal.index], object, fact.ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1])) && recover_llvm_extract(body[2], body[1], 1) && recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(body[2]));
+	var body = recover_llvm_body(physical, count); if (len(body) != count || !recover_llvm_field(body[0], aggregate, object, ordinal)) return false;
+	if (block.opcode == 17) return operation == body[1] && values[block.origin] == body[1] && recover_llvm_load_field(body[1], aggregate, object, ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1]));
+	if (block.opcode == 18) return operation == body[2] && values[block.origin] == body[2] && recover_llvm_load_field(body[1], aggregate, object, ordinal) && recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(body[1])) && recover_llvm_extract(body[2], body[1], 1) && recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(body[2]));
 	int at = 1; void* value = values[row.a];
 	if (kind == 15) {
 		at = at + recover_llvm_extract_instructions(value); var call = body[at];
 		if (!recover_llvm_call(call, snapshot, 2, 8) || !recover_llvm_extract(LLVMGetArgOperand(call, 0), value, 0) || !recover_llvm_extract(LLVMGetArgOperand(call, 1), value, 1)) return false; value = call; at = at + 1;
 	}
 	if (!fact.initializing && ((ssa.cfg.core.flow.checked.symbol_flags[fact.field.index] & 4) != 0 || kind == 15)) {
-		if (!recover_llvm_load_field(body[at], payloads[nominal.index], object, fact.ordinal)) return false;
+		if (!recover_llvm_load_field(body[at], aggregate, object, ordinal)) return false;
 		void* data = body[at]; at = at + 1;
 		if (kind == 22 || kind == 15) {
 			if (!recover_llvm_extract(body[at], data, 0)) return false;

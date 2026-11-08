@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """One current compiler with preserved inherited routes and genuine effects."""
 import argparse
+import hashlib
+import json
 from pathlib import Path
 import sys
 import types
@@ -13,6 +15,17 @@ def main():
 	paths = load_module('recover_full_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	full = load_module('recover_full_inputs', ROOT/'tests/selfhost-effects/full-build.py')
 	full.RUNTIME = paths.RUNTIME; full.BUILD = paths.BUILD; full.INPUTS = paths.RUNTIME/('full-inputs-'+a.version); full.prepare()
+	# Keep the exact predecessor diagnostics as witnesses. GENREF regenerates
+	# its test-only observer from the current verifier; copying the historical
+	# observer into that current name would correctly fail its source guard.
+	historical = []
+	for name in ('call-diagnostic.astra', 'call-diagnostic-reasons.json'):
+		source = full.INPUTS/name
+		target = full.INPUTS/('predecessor-'+name)
+		assert not target.exists()
+		source.rename(target)
+		historical.append(dict(path=str(target), sha256=hashlib.sha256(target.read_bytes()).hexdigest(), role='Unchanged predecessor diagnostic witness, excluded from current compiler sources.'))
+	(full.INPUTS/'predecessor-diagnostics.json').write_text(json.dumps(historical, indent=2)+'\n')
 	def view(path, old, new, name):
 		text = path.read_text(); assert text.count(old) == 1; text = text.replace(old, new); target = full.INPUTS/name
 		if target.exists(): assert target.read_text() == text
@@ -31,6 +44,7 @@ def main():
 		kwargs['consumer'] = ROOT/'tests/selfhost-effects/recover-full-query.astra'
 		kwargs['extra_sources'] = [*kwargs['extra_sources'], full.INPUTS/'genref-query.astra', full.INPUTS/'flow-diagnostic.astra', full.INPUTS/'effects-observe.astra', renamed, recover, r2, ROOT/'tests/selfhost-effects/source.astra', ROOT/'tests/selfhost-effects/r1-owner.astra', ROOT/'tests/selfhost-effects/r2-abi.astra', ROOT/'tests/selfhost-effects/recover-mutations.astra', ROOT/'tests/selfhost-effects/recover-owner-mutations.astra', ROOT/'tests/selfhost-effects/recover-loop-mutations.astra', ROOT/'tests/selfhost-effects/recover-r4-mutations.astra', ROOT/'tests/selfhost-effects/recover-r4-observe.astra']
 		kwargs['link_inputs'] = [*kwargs['link_inputs'], Path(__file__), ROOT/'tests/selfhost-effects/observe.astra', ROOT/'tests/selfhost-effects/r1-typecore.astra', ROOT/'tests/selfhost-effects/recover-query.astra', ROOT/'tests/selfhost-effects/r2-query.astra']
+		kwargs['extra_sources'].append(ROOT/'tests/selfhost-effects/recover-error-physical.astra')
 		return original(*args, **kwargs)
 	genref.original = extend; genref.base.core.base.build = genref.build
 	genref.base.subprocess = types.SimpleNamespace(**vars(genref.base.subprocess))

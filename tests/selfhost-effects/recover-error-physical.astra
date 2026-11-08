@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Actual LLVM alternatives for source-bound derived Error operations. Each
+// starts from a fresh valid module and must remain independently LLVM-valid.
+bool recover_error_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
+	int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (block.origin > 0 && ssa.data.reachable[b]) {
+			var row = ssa.cfg.core.nodes[block.origin - 1].value;
+			var operation = module.operations[b];
+			if (block.opcode == 67) {
+				var object = module.values[block.origin];
+				if (category == 0) {
+					LLVMSetOperand(object, 1, module.int64(32));
+					return true;
+				}
+				if (category == 1) {
+					var nominal = ssa.cfg.core.flow.checked.types.row(row.type).nominal;
+					var descriptor = LLVMGetOperand(LLVMGetInitializer(module.descriptors[nominal.index]), 0);
+					var store = LLVMGetNextInstruction(LLVMGetNextInstruction(object));
+					LLVMSetOperand(store, 0, descriptor); return true;
+				}
+				if (category == 2) {
+					var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol);
+					LLVMSetOperand(operation, plan.groups[0], LLVMConstNull(module.pointer)); return true;
+				}
+			}
+			if (block.opcode == 65) {
+				if (category == 3) {
+					LLVMSetOperand(operation, 0, LLVMConstNull(module.pointer));
+					return true;
+				}
+				if (category == 4) {
+					LLVMSetOperand(operation, 2, module.int32(0));
+					return true;
+				}
+			}
+			if (category == 6 && (block.opcode == 17 || block.opcode == 44)) {
+				var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
+				if (error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate)) {
+					var address = LLVMGetFirstInstruction(module.blocks[b]);
+					LLVMSetOperand(address, 2, module.int32(0)); return true;
+				}
+			}
+			if (category == 9 && block.opcode == 66) {
+				var value = module.values[block.origin];
+				LLVMReplaceAllUsesWith(value, LLVMConstNull(module.pointer));
+				module.values[block.origin] = LLVMConstNull(module.pointer); return true;
+			}
+		}
+		b = b + 1;
+	}
+	if (category == 5 && module.snapshot_initialize_function != null) {
+		var instruction = LLVMGetFirstInstruction(LLVMGetFirstBasicBlock(module.snapshot_initialize_function));
+		instruction = LLVMGetNextInstruction(LLVMGetNextInstruction(instruction));
+		llvm13_fake_memory_none(module.context, instruction); return true;
+	}
+	int s = 1;
+	while (s < len(module.destroyers)) {
+		if (error_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s])) {
+			var function = module.destroyers[s];
+			if (category == 7) {
+				var instruction = LLVMGetFirstInstruction(LLVMGetFirstBasicBlock(function));
+				while (LLVMGetNextInstruction(LLVMGetNextInstruction(instruction)) != null) instruction = LLVMGetNextInstruction(instruction);
+				LLVMSetOperand(instruction, 0, LLVMConstNull(module.pointer)); return true;
+			}
+			if (category == 8) {
+				llvm13_fake_function_memory_none(module.context, function);
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
+int recover_error_physical_cli(string[] args) {
+	try {
+		var program = binding_load_program(args, 3);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		var flow = recover_flow_lower(move checked, 8192);
+		var core = recover_core_lower(move flow);
+		var cfg = recover_cfg_lower(move core, 8192);
+		var ssa = recover_ssa_lower(move cfg, 8000000);
+		assert_that(recover_ssa_verify(ssa));
+		int category = 0;
+		while (category < 10) {
+			var module = new RecoverLlvm(ssa);
+			module.build(ssa);
+			assert_that(module.check(ssa));
+			assert_that(recover_error_physical(module, ssa, category));
+			assert_that(llvm12_verify(module.module) == 0);
+			assert_that(!module.check(ssa));
+			var name = new Utf8ByteBuilder(); source_append_text(name, args[2]); source_append_text(name, "/error-physical-"); append_int(name, category); source_append_text(name, ".ll"); var path = name.snapshot();
+			assert_that(llvm12_write(module.module, module.machine, 0, 16777216, path.text) == 0);
+			var output = new Utf8ByteBuilder(); source_append_text(output, "ERROR_LLVM_REJECT "); append_int(output, category); var text = output.snapshot(); println(text.text);
+			category = category + 1;
+		}
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 2; }
+}

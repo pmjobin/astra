@@ -101,6 +101,43 @@ class RecoverErrorSnapshotRuntime {
 		var result = LLVMBuildRet(this.builder, object);
 		return function;
 	}
+
+	void* build_initializer(void* payload, void* snapshot_allocate, void* copy) {
+		var pointer = LLVMPointerTypeInContext(this.context, 0);
+		var integer = LLVMIntTypeInContext(this.context, 32);
+		var word = LLVMIntTypeInContext(this.context, 64);
+		llvm12_handle_set(this.handles, 0, pointer);
+		llvm12_handle_set(this.handles, 1, pointer);
+		llvm12_handle_set(this.handles, 2, integer);
+		var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), llvm12_handle_offset(this.handles, 0), 3, 0);
+		var function = llvm12_function(this.module, signature, "astra.e25a.snapshot.initialize");
+		LLVMSetLinkage(function, 8);
+		LLVMSetFunctionCallConv(function, 8);
+		var entry = llvm12_block(this.context, function, "entry");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var object = LLVMGetParam(function, 0);
+		var count = LLVMGetParam(function, 2);
+		var extent = LLVMBuildZExt(this.builder, count, word, this.empty);
+		llvm12_handle_set(this.handles, 0, extent);
+		llvm12_handle_set(this.handles, 1, LLVMConstInt(word, 1, 0));
+		var snapshot = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(snapshot_allocate), snapshot_allocate, llvm12_handle_offset(this.handles, 0), 2, this.empty);
+		LLVMSetInstructionCallConv(snapshot, 8);
+		llvm12_handle_set(this.handles, 0, snapshot);
+		llvm12_handle_set(this.handles, 1, LLVMGetParam(function, 1));
+		llvm12_handle_set(this.handles, 2, extent);
+		var copied = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(copy), copy, llvm12_handle_offset(this.handles, 0), 3, this.empty);
+		llvm12_nobuiltin(this.context, copied);
+		var data_address = LLVMBuildStructGEP2(this.builder, payload, object, 2, this.empty);
+		LLVMGEPSetNoWrapFlags(data_address, 0);
+		var data_store = LLVMBuildStore(this.builder, snapshot, data_address);
+		LLVMSetAlignment(data_store, 8);
+		var count_address = LLVMBuildStructGEP2(this.builder, payload, object, 3, this.empty);
+		LLVMGEPSetNoWrapFlags(count_address, 0);
+		var count_store = LLVMBuildStore(this.builder, count, count_address);
+		LLVMSetAlignment(count_store, 4);
+		var result = LLVMBuildRetVoid(this.builder);
+		return function;
+	}
 }
 
 bool recover_error_snapshot_verified(void* function, void* allocate, void* trap) {
@@ -163,6 +200,39 @@ bool recover_error_constructor_verified(void* function, void* payload, void* all
 	if (LLVMGetOperand(body[6], 0) != LLVMGetParam(function, 0) || LLVMIsNull(LLVMGetOperand(body[8], 0)) == 0 || LLVMGetOperand(body[10], 0) != body[3] || LLVMGetOperand(body[12], 0) != count || !recover_llvm_return(body[13], body[0])) return false;
 	int i = 0;
 	while (i < 14) {
+		if (LLVMHasMetadata(body[i]) != 0) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool recover_error_initializer_verified(void* function, void* payload, void* snapshot_allocate, void* copy) {
+	if (!recover_llvm_helper_signature(function, 3) || llvm13_named(function, "astra.e25a.snapshot.initialize") != 1 || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0 || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 0))) || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 1)))) return false;
+	var object = LLVMGetParam(function, 0);
+	var count = LLVMGetParam(function, 2);
+	if (LLVMGetTypeKind(LLVMTypeOf(count)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(count)) != 32) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1);
+	if (len(blocks) != 1) return false;
+	var body = recover_llvm_body(blocks[0], 8);
+	if (len(body) != 8 || LLVMGetInstructionOpcode(body[0]) != 31 || LLVMGetOperand(body[0], 0) != count || LLVMGetIntTypeWidth(LLVMTypeOf(body[0])) != 64 || LLVMGetNNeg(body[0]) != 0) return false;
+	if (!recover_llvm_call(body[1], snapshot_allocate, 2, 8) || !recover_llvm_native_attributes(body[1], 2) || LLVMGetArgOperand(body[1], 0) != body[0] || !recover_llvm_bits(LLVMGetArgOperand(body[1], 1), 64, 1)) return false;
+	if (!recover_llvm_call(body[2], copy, 3, 0) || LLVMGetArgOperand(body[2], 0) != body[1] || LLVMGetArgOperand(body[2], 1) != LLVMGetParam(function, 1) || LLVMGetArgOperand(body[2], 2) != body[0]) return false;
+	if (!recover_llvm_field(body[3], payload, object, 2) || !recover_llvm_field(body[5], payload, object, 3)) return false;
+	int i = 0;
+	while (i < 2) {
+		var store = body[4 + i * 2];
+		void* expected = body[1];
+		int alignment = 8;
+		if (i == 1) {
+			expected = count;
+			alignment = 4;
+		}
+		if (LLVMGetInstructionOpcode(store) != 28 || LLVMGetOperand(store, 0) != expected || LLVMGetOperand(store, 1) != body[3 + i * 2] || LLVMGetVolatile(store) != 0 || LLVMGetOrdering(store) != 0 || LLVMGetAlignment(store) != alignment) return false;
+		i = i + 1;
+	}
+	if (!recover_llvm_void_return(body[7])) return false;
+	i = 0;
+	while (i < 8) {
 		if (LLVMHasMetadata(body[i]) != 0) return false;
 		i = i + 1;
 	}
