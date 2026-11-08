@@ -219,7 +219,7 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (row.kind == 22 || row.kind == 23) {
 		if (row.kind == 22 && kind != SyntaxKind.ReturnStatementSyntax() || row.kind == 23 && kind != SyntaxKind.ThrowStatementSyntax()) return false;
 		if (!recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, depth + 1)) return false;
-		if (row.kind == 23) return row.a == 0 && caught > 0 || row.a > 0 && (flow.nodes[row.a - 1].kind == 5 || flow.nodes[row.a - 1].kind == 10 && recover_storage_error(checked, flow.nodes[row.a - 1].type));
+		if (row.kind == 23) return row.a == 0 && caught > 0 || row.a > 0 && (recover_error_new_kind(flow.nodes[row.a - 1].kind) || flow.nodes[row.a - 1].kind == 10 && recover_storage_error(checked, flow.nodes[row.a - 1].type));
 		return row.a == 0 && flow.functions[function - 1].result.index == 14 || row.a > 0 && flow.nodes[row.a - 1].type.index == flow.functions[function - 1].result.index;
 	}
 	if (row.kind == 25) {

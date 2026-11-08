@@ -38,6 +38,10 @@ bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
 					var left_node = checked.bindings.program.arena.get_node_left(node); var right_node = checked.bindings.program.arena.get_node_right(node); var left = data.types[left_node.index]; var right = data.types[right_node.index]; var token = checked.bindings.program.arena.get_token_operator_token(node);
 					if (left.index > 0 && left.index == right.index && (type_numeric(checked_kind(checked, left)) || left.index == 13 || left.index == 15 || recover_storage_class(checked, left) || recover_storage_error(checked, left) || recover_storage_shared(checked, left)) && (checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!="))) expected = type_id(13);
 				}
+				if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
+					var left = checked.bindings.program.arena.get_node_left(node); var right = checked.bindings.program.arena.get_node_right(node); var token = checked.bindings.program.arena.get_token_operator_token(node);
+					if (data.types[left.index].index == 13 && data.types[right.index].index == 13 && (checked.bindings.program.arena.token_is(token, "&&") || checked.bindings.program.arena.token_is(token, "||"))) expected = type_id(13);
+				}
 				if (type.index != expected.index) return false;
 			}
 		}

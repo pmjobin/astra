@@ -274,3 +274,23 @@ the existing GENREF generator derive its current read-only observer. It does not
 alter a compiler predicate, installed workflow or historical evidence. The
 focused native stage consumer remains the next actual admission check before
 expensive matched native integration; O2 target execution remains unproved.
+
+`shared-stage-errorstage1-O0` completes its native build with the frozen input
+identity guard intact (wall 1,203.66 s, user CPU 1,195.26 s, system CPU 1.03 s,
+peak RSS 1,519,920 KiB). `runtime-stages-errorstage1` independently confirms the
+full original and separate minimal view through SSA. Both ordinary owner cases
+and the root Error order case pass. All six derived Error attempts stop in the
+Flow consumer, status 1 with boundary 0. Its leaf diagnostics identify the throw
+statement, not the earlier derived declaration: the independent throw predicate
+still admitted only legacy operation 5 and omitted source-bound operation 67.
+The nested case also exposes a missing conditional boolean type fact when
+short-circuiting two recovered `.message` comparisons. These failed receipts
+earn no derived Error execution credit.
+
+The corrected throw predicate recognizes the separate checked Error construction
+family. The conditional-type refiner and independent consumer now require actual
+boolean child facts and an actual `&&`/`||` AST token, without changing the
+original CheckedIndex uses. A coherent forged type/Flow-row mutation checks the
+new consumer. Constructor reservations now recognize operation 67 consistently
+with the existing independent owner consumer. `shared-stage-errorcore8-O0`
+passes focused C0 Core checking; the corrected native stage replay is pending.

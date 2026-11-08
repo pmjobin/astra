@@ -67,6 +67,14 @@ TypeId recover_type_compute(RecoverTypes data, CheckedIndex checked, SyntaxNodeI
 		data.types[node.index] = type;
 		return type;
 	}
+	if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
+		var token = checked.bindings.program.arena.get_token_operator_token(node);
+		if (!checked.bindings.program.arena.token_is(token, "&&") && !checked.bindings.program.arena.token_is(token, "||")) return no_type();
+		var left = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_left(node), depth + 1);
+		var right = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_right(node), depth + 1);
+		if (left.index != 13 || right.index != 13) return no_type();
+		var result = type_id(13); data.types[node.index] = result; return result;
+	}
 	if (kind != SyntaxKind.BinaryExpressionSyntax()) return no_type();
 	var left = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_left(node), depth + 1); var right = recover_type_compute(data, checked, checked.bindings.program.arena.get_node_right(node), depth + 1);
 	if (left.index == 0 || right.index == 0 || left.index != right.index) return no_type();

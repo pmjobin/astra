@@ -213,9 +213,19 @@ bool error_flow_mutations(RecoverFlow flow) {
 	bool base = false;
 	bool nominal = false;
 	bool layout = false;
+	bool conditional = false;
 	int n = 0;
 	while (n < flow.data.node_count) {
 		var saved = flow.data.nodes[n];
+		if (saved.kind == 62 && flow.checked.uses[saved.source.index].type.index == 0 && !conditional) {
+			var prior = flow.types.types[saved.source.index];
+			var row = saved; row.type = type_id(1);
+			flow.data.nodes[n] = row; flow.types.types[saved.source.index] = row.type;
+			bool rejected = !recover_flow_verify(flow);
+			flow.data.nodes[n] = saved; flow.types.types[saved.source.index] = prior;
+			if (!rejected || !recover_flow_verify(flow)) return false;
+			println("SEMANTIC recovered-short-circuit-source-type"); conditional = true;
+		}
 		if (saved.kind == 65 && !base) {
 			var row = saved;
 			int instance = generic_instance_for(flow.checked, flow.data.functions[row.function - 1].symbol);
