@@ -355,3 +355,11 @@ later cases ran. Original full/reduced executions are assessed separately from
 remaining owner cases. Read-only checks validate the historical receipt formats
 and confirm the checked allocator/noinline body remains byte-exact to R4.
 These auditor checks do not create fresh historical executions or advance a gate.
+
+The eleven-job continuation runner preserves individual commands, outputs,
+resource receipts and failures for the 71 current source cases, stage mutations,
+array/owner negatives, Error order/lifetime, both new physical mutation suites,
+exact reuse, all 41 retained recipes and strict raw drift. It runs full-original
+source first and continues independent jobs after ordinary failures. A filtered
+or incremental run grants no milestone qualification. Its source/format checks
+pass; actual current profile qualification awaits the compiler products.
