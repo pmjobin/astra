@@ -64,7 +64,7 @@ def pack(paths, a):
 	for row in read(paths.RUNTIME/'canonical-input-witnesses/INDEX.json')['files']:
 		source = Path(row['path'])
 		if source.is_relative_to('/usr') and '.so' in source.name:
-			witness = paths.RUNTIME/'canonical-input-witnesses'/row['sha256']
+			witness = paths.RUNTIME/'canonical-input-witnesses/blobs'/row['sha256']
 			assert source.stat().st_size == witness.stat().st_size == row['bytes'] and sha(source) == sha(witness) == row['sha256']
 			for profile in audit['profiles'].values():
 				identity = read(Path(profile['component']).with_suffix('.identity.json'))['identity']; assert identity['sources'].get(str(source), identity['tools'].get(str(source))) == row['sha256']
