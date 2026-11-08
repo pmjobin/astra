@@ -134,7 +134,7 @@ def support(paths, component, mode, version, native_facts):
 	result = read(leaf/'result.json'); observed = commands(leaf)
 	assert result['component_sha256'] == sha(component) and result['profile'] == mode
 	facts = dict(complete=False, receipt=str(leaf/'result.json'), receipt_sha256=sha(leaf/'result.json'), failed_jobs=result['failed_jobs'])
-	if result['status'] != 'CONTINUATION_QUALIFICATION_COMPLETED' or result['selected_jobs'] is not None or result['completed_jobs'] != result['expected_jobs'] or result['expected_jobs'] != len(observed) or len(observed) != 11 or any(row['exit'] != 0 or row['timed_out'] for row in observed.values()): return facts
+	if result['status'] != 'CONTINUATION_QUALIFICATION_COMPLETED' or result['selected_jobs'] is not None or result['completed_jobs'] != result['expected_jobs'] or result['expected_jobs'] != len(observed) or len(observed) != 12 or any(row['exit'] != 0 or row['timed_out'] for row in observed.values()): return facts
 	receipts = []
 	def load(stem):
 		where = paths.RUNTIME/stem; data = read(where/'result.json'); run = commands(where)
@@ -161,6 +161,20 @@ def support(paths, component, mode, version, native_facts):
 			assert (build/(name+'.ll')).read_bytes() == b'Negative source output sentinel\n'
 			output = (where/(name+'-Astra-attempt.stdout')).read_bytes() + (where/(name+'-Astra-attempt.stderr')).read_bytes()
 			assert b'RESOURCE_EXHAUSTED' not in output and b'RECOVER_FLOW 2 ' not in output
+	where, build, data, run = load('dynamic-faults-'+version+'-'+mode)
+	assert data['component_sha256'] == sha(component) and data['C0_sha256'] == sha(C0) and data['profile'] == mode and data['complete'] and not data['failed'] and len(data['programs']) == 30
+	assert sum(row['profiles']['C0']['fatal'] for row in data['programs']) == 20
+	for row in data['programs']:
+		name = row['name']; assert set(row['profiles']) == {'C0', 'Astra'} and row['C0_build_exit'] == row['Astra_emit_exit'] == 0
+		assert all(sha(source['path']) == source['sha256'] for source in row['inputs']) and sha(build/(name+'.ll')) == row['raw_LLVM_sha256'] and sha(build/(name+'-optimized.ll')) == row['optimized_LLVM_sha256']
+		left, right = row['profiles']['C0'], row['profiles']['Astra']; assert {k:v for k,v in left.items() if k!='ELF_sha256'} == {k:v for k,v in right.items() if k!='ELF_sha256'}
+		assert run[name+'-Astra-emit']['argv'][0] == str(component) and run[name+'-C0-build']['argv'][:2] == [str(C0), '-'+mode]
+		for label in ('verify', 'optimize', 'optimized-verify', 'object', 'link'): assert run[name+'-Astra-'+label]['exit'] == 0
+		for producer, entry in row['profiles'].items():
+			label = name+'-'+producer; assert sha(build/label) == entry['ELF_sha256'] and run[label+'-execute']['exit'] == entry['exit']
+			assert sha(where/(label+'-execute.stdout')) == entry['stdout_sha256'] and sha(where/(label+'-execute.stderr')) == entry['stderr_sha256']
+			if entry['fatal']: assert entry['signal'] == 4 and entry['exit'] in (132, -4) and not entry['returning_clean_memory'] and label+'-memory' not in run
+			else: assert entry['exit'] == run[label+'-memory']['exit'] == 42 and entry['returning_clean_memory']; memory(where/(label+'-memory.stderr'))
 	where, build, data, run = load('error-order-native-'+version+'-'+mode)
 	assert data['component_sha256'] == sha(component) and data['profile'] == mode and len(data['programs']) == 3
 	for row in data['programs']:
@@ -191,7 +205,7 @@ def support(paths, component, mode, version, native_facts):
 			assert data['actual_exit'] == 42 and sha(build/'Astra') == data['Astra_ELF_sha256'] and sha(build/'C0') == data['C0_ELF_sha256']
 			for producer in ('Astra', 'C0'): assert run[producer+'-execute']['exit'] == run[producer+'-memory']['exit'] == 42; memory(where/(producer+'-memory.stderr'))
 		else: assert (where/'actual-source-physical-alternatives.stdout').read_text().splitlines() == ['ERROR_LLVM_REJECT '+str(i) for i in range(10)]
-	facts.update(complete=True, stage_programs=71, new_semantic_categories=sorted(markers), array_source_negatives=15, owner_source_negatives=6, error_order_programs=3, error_lifetime_programs=8, new_LLVM_valid_physical=24, receipts=receipts)
+	facts.update(complete=True, stage_programs=71, new_semantic_categories=sorted(markers), array_source_negatives=15, owner_source_negatives=6, dynamic_fault_sources=30, dynamic_fatal_controls=20, error_order_programs=3, error_lifetime_programs=8, new_LLVM_valid_physical=24, receipts=receipts)
 	return facts
 
 

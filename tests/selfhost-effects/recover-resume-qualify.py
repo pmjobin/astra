@@ -33,6 +33,7 @@ def main():
 		('source-stage-mutations', 'recover-stage-frontiers', ['--observer', a.component, '--version', a.version+a.mode, '--fixtures', native_fixture]),
 		('array-source-negatives', 'recover-array-source-negative', ['--component', a.component, '--mode', a.mode, '--version', a.version]),
 		('owner-source-negatives', 'recover-owner-source-negative', ['--component', a.component, '--mode', a.mode, '--version', a.version]),
+		('dynamic-source-faults', 'recover-dynamic-faults', ['--component', a.component, '--mode', a.mode, '--version', a.version]),
 		('error-order', 'recover-error-order-native', ['--component', a.component, '--mode', a.mode, '--version', a.version]),
 		('error-lifetime', 'recover-error-lifetime', ['--component', a.component, '--mode', a.mode, '--version', a.version, '--fixtures', extra_fixture]),
 		('frontier-physical', 'recover-frontier-physical-proof', ['--component', a.component, '--mode', a.mode, '--version', a.version]),

@@ -476,3 +476,21 @@ preflight, with zero target native execution credit. The next independently
 matched O0/O2 compiler pair uses this unchanged repaired source set; qualification
 must repeat the complete original and retained native, owner/memory and mutation
 populations before an overall status can advance.
+
+The dynamic source fault suite adds direct pipeline witnesses for cases whose
+component helper proofs must not be called target executions. In
+`dynamic-faults-oracle2-{O0,O2}`, unchanged C0 independently qualifies all 30
+distinct sources: 20 actual SIGILL controls for dynamic fixed/buffer/field
+bounds, slice ranges and signed/unsigned 32/64-bit division/modulo by zero;
+10 returning cases cover empty end slices, signed MIN/-1, narrow/extended casts
+and wraparound. Returning paths have unsuppressed clean Valgrind; fatal paths
+receive none. Invalid indexed stores stop before the observable RHS. Dynamic
+values come from a separate C object; the compiler cannot substitute constants.
+The earlier oracle1 receipts remain, including its two equivalent cast sources;
+oracle2 makes their widths distinct and checks all 30 source identities unique.
+
+The task-owned qualification runner now has twelve independent jobs, adding
+this 30-source C0/Astra LLVM/ELF/fault/memory differential to the prior eleven.
+The independent auditor binds those results and keeps fatal signals distinct
+from returning memory. No frozen compiler input or installed workflow changes.
+The current compiler builds remain active; new Astra fault execution is pending.
