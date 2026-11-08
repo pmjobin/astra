@@ -346,3 +346,12 @@ focused original-source stage evidence, pure helper LLVM-valid preflights,
 negative refusals and failed derived Error stages all precede that build.
 Derived Error implementation changes remain unqualified until the integrated
 source/consumer/LLVM/ELF/memory replay; no earlier failure becomes a PASS.
+
+The continuation auditor independently rechecks exact compiler/source/tool
+identities, LLVM/ELF hashes, execution commands and unsuppressed memory receipts.
+It requires the complete 71-case current native population before calling that
+population complete, preventing an incremental result file from implying that
+later cases ran. Original full/reduced executions are assessed separately from
+remaining owner cases. Read-only checks validate the historical receipt formats
+and confirm the checked allocator/noinline body remains byte-exact to R4.
+These auditor checks do not create fresh historical executions or advance a gate.
