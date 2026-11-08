@@ -144,6 +144,28 @@ independent real-source C0 lifetime oracles pass; integrated Astra source
 execution and fatal-size comparisons are still required. Historical R4 results
 are not promoted or rewritten.
 
+`runtime-stages-runtime1` is replaying the exact C0-observed expanded
+callers through the qualified Native7 consumers and mutation twins. The full
+original, reduced view, integer boundaries, empty/growing builder, formatter
+widths, SourceBuffer copy/location, SourceSpan and SourceDiagnostic callers
+have reached SSA. Every remaining stop stays separate; stage success does not
+earn target execution credit.
+
+The task-owned full build recipe now has a finite 10,800-second deadline,
+reflecting the larger source population and R4 O2's already measured
+3,279-second cold build. This changes neither installed workflow nor a compiler
+resource ceiling. No final matched integrated pair has been launched in this
+continuation.
+
+Derived Error completion must retain the observed C0 order: allocate the actual
+derived payload, evaluate its real base initializer, initialize the parent
+snapshot, then store own fields. The measured root header is 32 bytes and the
+single-int derived payload is 40 bytes. A source-bound normalized receiver and
+actual catch-owned SSA identity must carry field/method authority; merely
+relaxing the old zero-field Error shape would not implement these operations.
+The E25-A-v1 checked transport and public ABI remain unchanged. These are
+outstanding implementation requirements, not qualifications.
+
 The full population and reduced view remain separate gates. Neither C0
 execution, helper-only ELF execution nor a successful reduced view establishes
 full-original compilation. Before final publication, rerun the retained 340 R4

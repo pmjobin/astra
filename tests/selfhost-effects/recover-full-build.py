@@ -35,7 +35,7 @@ def main():
 	genref.original = extend; genref.base.core.base.build = genref.build
 	genref.base.subprocess = types.SimpleNamespace(**vars(genref.base.subprocess))
 	def run(argv, **kwargs):
-		kwargs.setdefault('timeout', 3600); return bounded_run(argv, **kwargs)
+		kwargs.setdefault('timeout', 10800); return bounded_run(argv, **kwargs)
 	genref.base.subprocess.run = run
 	if a.core_check:
 		original_run = run
