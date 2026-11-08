@@ -64,6 +64,33 @@ are retained. Generic and SSA ceilings remain 256 and 8,000,000.
 | `error-snapshot-helper1` | Ten independently LLVM-valid mutation categories; four helper-only ELF profiles match unchanged C0 constructor IR for exact bytes/allocation shapes, zero-count no allocation and forced allocation ordinal/size failures; returning Valgrind passes | Zero Astra source pipeline credit |
 | `error-lifetime-oracle1-{O0,O2}` | Actual C0 source empty/single/NUL Error messages, derived literal and original InvalidUtf8 paths have complete allocation/free/fatal-size and returning memory observations | No Astra comparison yet |
 
+The new `native-frontiers-oracle1-{O0,O2}` receipts independently execute
+20 original callers at each profile: the full target and exact reduced view,
+integer boundaries, empty and growing builder/snapshot behavior, original
+SourceBuffer copy/location, shared SourceSpan methods, SourceDiagnostic and ten
+real Error paths. All returning Valgrind observations are unsuppressed and
+clean. `native-frontiers-oracle2-O0` additionally replays all sixteen prior
+original UTF8/builder callers and five C0-valid owner/derived Error forms.
+`owner-source-negative-oracle1-{O0,O2}` confirms all six C0-rejected owned
+result/rvalue receiver forms remain source-policy negatives. None of these
+C0 observations earns Astra execution credit.
+
+The continuation retained runner names the entire unchanged 41-recipe R5
+population (the original 39 plus two prefix recipes) and explicitly resolves
+read-only R4 history, original witnesses and predecessor relocation baselines.
+Its `routing1` check executes the unchanged C0 source-policy recipe. No filtered
+run can establish complete retained coverage. The signed-literal recipe now
+measures actual emission/execution or preservation of a real refusal; its old
+receipts remain historical.
+
+`costs-prellvm1` indexes 2,573 actual GNU-time records and 46 compiler/check
+attempts. It distinguishes failed postcompile identity guards from completed
+products and reports command interval union separately from overlapping/nested
+duration sums. Native7 used 1,183.24 seconds wall, 1,174.15 seconds user CPU,
+1.10 seconds system CPU and 1,535,852 KiB peak RSS. The focused LLVM build
+`build-llvm1-O0` is running from frozen source revision `94b2d6f`; it has no
+completed product or target execution credit yet.
+
 Native4 is bound to its captured source witnesses. Its actual cold compilation
 used 1,139.09 seconds wall, 1,130.00 seconds user CPU, 0.94 seconds system CPU
 and 1,466,400 KiB peak RSS. All stopped, failed, superseded and warm/cold

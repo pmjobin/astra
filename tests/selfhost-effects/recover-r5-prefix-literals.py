@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-"""Disclose C0-valid signed literal forms whose operand Typecore fact is absent."""
+"""Measure source-bound signed literal forms and preserve any actual refusal."""
 import argparse
 import json
 import os
@@ -23,13 +23,19 @@ def main():
 		argv = list(map(str, argv)); start = time.monotonic(); r = bounded_run(['/usr/bin/time', '-v', '-o', leaf/(name+'.time'), *argv], cwd=build, env=dict(os.environ, CCACHE_DISABLE='1'), capture_output=True, timeout=240)
 		(leaf/(name+'.stdout')).write_bytes(r.stdout); (leaf/(name+'.stderr')).write_bytes(r.stderr); commands.append(dict(name=name, argv=argv, exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=sha(leaf/(name+'.stdout')), stderr_sha256=sha(leaf/(name+'.stderr')))); (leaf/'commands.json').write_text(json.dumps(commands, indent=2)+'\n'); assert r.returncode in allowed, (name, r.returncode, r.stderr[-2000:]); return r
 	for name, text in CASES.items():
-		source = leaf/(name+'.astra'); source.write_text(text); inputs = [source, ROOT/'lib/astra/base/errors.astra']; c0 = build/name; run([C0, '-'+a.mode, *inputs, '-o', c0], name+'-C0-build'); run([c0], name+'-C0-execute', (42,)); target = build/(name+'.ll'); target.write_text('Unqualified signed literal sentinel\n'); before = sha(target); native = run([a.component, '--native', target, *inputs], name+'-Astra', range(1, 9)); assert sha(target) == before
+		source = leaf/(name+'.astra'); source.write_text(text); inputs = [source, ROOT/'lib/astra/base/errors.astra']; c0 = build/name; run([C0, '-'+a.mode, *inputs, '-o', c0], name+'-C0-build'); run([c0], name+'-C0-execute', (42,)); target = build/(name+'.ll'); target.write_text('Unqualified signed literal sentinel\n'); before = sha(target); native = run([a.component, '--native', target, *inputs], name+'-Astra', range(9)); emitted = native.returncode == 0
+		if emitted:
+			run(['opt', '-passes=verify', '-disable-output', target], name+'-verify'); optimized = build/(name+'-optimized.ll'); run(['opt', '-passes=default<'+a.mode+'>', '-S', target, '-o', optimized], name+'-optimize'); run(['opt', '-passes=verify', '-disable-output', optimized], name+'-optimized-verify'); obj = build/(name+'.o'); exe = build/(name+'-Astra'); run(['llc', '-filetype=obj', '-'+a.mode, optimized, '-o', obj], name+'-object'); run(['cc', '-no-pie', obj, '-o', exe], name+'-link'); actual = run([exe], name+'-Astra-execute', (42,))
+			for label, binary in [('Astra', exe), ('C0', c0)]:
+				memory = run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', binary], name+'-'+label+'-memory', (42,)); assert b'ERROR SUMMARY: 0 errors' in memory.stderr and b'in use at exit: 0 bytes in 0 blocks' in memory.stderr and b'(suppressed: 0 from 0)' in memory.stderr and memory.stdout == actual.stdout
+		else:
+			assert sha(target) == before
 		ledger = run([a.component, '--classstorage-source-ledger', a.mode, build/'unused', *inputs], name+'-source-ledger', range(9)); nodes = []
 		for line in ledger.stdout.splitlines():
 			r = line.split()
 			if r and r[0] == b'NODE' and bytes.fromhex(r[7].decode()).decode() == str(source): nodes.append(dict(node=int(r[1]), kind=int(r[2]), type=int(r[4]), flags=int(r[5]), deferred=int(r[6]), start=int(r[8]), end=int(r[9])))
-		rows.append(dict(name=name, source_sha256=sha(source), C0_exit=42, C0_ELF_sha256=sha(c0), Astra_emitted=False, Astra_exit=native.returncode, stdout=native.stdout.decode(), destination_preserved=True, source_nodes=nodes))
-	(leaf/'result.json').write_text(json.dumps(dict(status='C0_VALID_SIGNED_LITERAL_FORMS_UNQUALIFIED', profile=a.mode, component_sha256=sha(a.component), programs=rows, Astra_native_credit=0, limitation='The new integral unary lowering consumes exact typed operands. Typecore special-cases a signed integer literal at its prefix but leaves the magnitude operand without a recorded type; the independent RecoverFlow consumer refuses that absent fact. No type/owner proof is fabricated. Dynamic typed integer operands are qualified separately. These literal forms remain unfinished and have no Astra execution credit.'), indent=2)+'\n'); print(a.mode, 'three C0-valid signed literal forms remain explicitly unqualified', flush=True)
+		rows.append(dict(name=name, source_sha256=sha(source), C0_exit=42, C0_ELF_sha256=sha(c0), Astra_emitted=emitted, Astra_exit=native.returncode, Astra_execution=42 if emitted else None, Astra_LLVM_sha256=sha(target) if emitted else None, Astra_ELF_sha256=sha(exe) if emitted else None, stdout=native.stdout.decode(), destination_preserved=not emitted, source_nodes=nodes))
+	(leaf/'result.json').write_text(json.dumps(dict(status='ACTUAL_SIGNED_LITERAL_FORMS' if all(row['Astra_emitted'] for row in rows) else 'SIGNED_LITERAL_FORMS_PARTIAL', profile=a.mode, component_sha256=sha(a.component), programs=rows, Astra_native_executions=sum(row['Astra_emitted'] for row in rows), limitation='Only successful matched-profile LLVM to ELF executions with independent C0 and unsuppressed returning memory receive execution credit. Refusals preserve destinations and source-node facts. Typecore magnitude facts remain original; a source-bound RecoverTypes parent relation must be independently verified before emission.'), indent=2)+'\n'); print(a.mode, sum(row['Astra_emitted'] for row in rows), 'of 3 signed literal forms actually executed by Astra', flush=True)
 
 
 if __name__ == '__main__':

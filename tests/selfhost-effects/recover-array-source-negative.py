@@ -8,6 +8,8 @@ from pathlib import Path
 import time
 from state import ROOT, C0, load_module, read, sha, bounded_run
 
+GROUP = 'array'
+
 CASES = {
 	'buffer-slice': 'int first(u8[] value) { return value[0] as int; } int main() { var bytes = new u8[1]; return first(slice(bytes)); }\n',
 	'subslice': 'int first(u8[] value) { return value[0] as int; } int main() { u8[1] bytes = {42}; return first(slice(slice(bytes))); }\n',
@@ -41,7 +43,7 @@ def main():
 		assert sha(a.component) == identity['sha256'] and identity['identity']['argv'][1] == '-'+a.mode
 		assert all(sha(path) == expected for group in ('sources', 'tools') for path, expected in identity['identity'][group].items())
 	paths = load_module('array_negative_paths', ROOT/'tests/selfhost-effects/recover-build.py')
-	leaf = paths.RUNTIME/('array-source-negative-'+a.version+'-'+a.mode)
+	leaf = paths.RUNTIME/(GROUP+'-source-negative-'+a.version+'-'+a.mode)
 	build = paths.BUILD/leaf.name
 	leaf.mkdir()
 	build.mkdir()
@@ -70,7 +72,7 @@ def main():
 			actual = run([a.component, '--native', destination, *inputs], name+'-Astra-attempt', range(9))
 			row.update(Astra_not_emitted=actual.returncode != 0, Astra_status=actual.returncode, destination_preserved=sha(destination) == before)
 		rows.append(row)
-		(leaf/'result.json').write_text(json.dumps(dict(status='C0_ARRAY_NEGATIVE_POLICY_COLLECTED' if a.oracle_only else 'ARRAY_SOURCE_NEGATIVE_CONTROLS', profile=a.mode, component_sha256=None if a.oracle_only else sha(a.component), C0_sha256=sha(C0), Error_source_sha256=sha(ROOT/'lib/astra/base/errors.astra'), programs=rows, Astra_native_execution_credit=0, limitation='Independent C0 policy is established before expecting Astra rejection. Failed/crashed compiler processes cannot count as a verified negative. Every attempted output is hash-checked for preservation.'), indent=2)+'\n')
+		(leaf/'result.json').write_text(json.dumps(dict(status='C0_'+GROUP.upper()+'_NEGATIVE_POLICY_COLLECTED' if a.oracle_only else GROUP.upper()+'_SOURCE_NEGATIVE_CONTROLS', profile=a.mode, component_sha256=None if a.oracle_only else sha(a.component), C0_sha256=sha(C0), Error_source_sha256=sha(ROOT/'lib/astra/base/errors.astra'), programs=rows, Astra_native_execution_credit=0, limitation='Independent C0 policy is established before expecting Astra rejection. Failed/crashed compiler processes cannot count as a verified negative. Every attempted output is hash-checked for preservation.'), indent=2)+'\n')
 		print(a.mode, name, 'C0 rejected' if row['C0_rejected'] else 'C0 accepted: review policy', flush=True)
 	assert all(row['C0_rejected'] for row in rows), 'Some proposed negatives are C0-valid; review their explicit source policy.'
 	if not a.oracle_only:
