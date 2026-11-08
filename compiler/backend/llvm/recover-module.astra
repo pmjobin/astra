@@ -25,6 +25,7 @@ class RecoverLlvm {
 	void* trap_function;
 	void* allocate_function;
 	void* construct_function;
+	void* snapshot_allocate_function;
 	void* message_function;
 	void* destroy_function;
 	void* subtype_function;
@@ -67,6 +68,7 @@ class RecoverLlvm {
 		this.pointer = null; this.integer = null; this.wide = null; this.boolean = null; this.text = null; this.payload = null; this.descriptor = null; this.origin_type = null;
 		this.free_function = null; this.calloc_function = null; this.memcpy_function = null; this.memcmp_function = null; this.trap_function = null; this.allocate_function = null; this.construct_function = null; this.message_function = null; this.destroy_function = null; this.subtype_function = null; this.equal_function = null; this.buffer_function = null;
 		this.error_owner_function = null;
+		this.snapshot_allocate_function = null;
 		this.class_snapshot = null;
 		this.utf8_function = null;
 		this.integer_functions = new void*[20];
@@ -148,21 +150,18 @@ class RecoverLlvm {
 	}
 
 	void object_helpers() {
+		var snapshot_runtime = new RecoverErrorSnapshotRuntime(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function);
+		var snapshot_allocate = snapshot_runtime.build_helper();
+		this.snapshot_allocate_function = snapshot_allocate;
 		var pointer_type = new void*[1]; pointer_type[0] = this.pointer; this.message_function = this.function("astra.e25a.message", this.text, pointer_type, true);
 		var entry = llvm12_block(this.context, this.message_function, "entry"); LLVMPositionBuilderAtEnd(this.builder, entry); var object = LLVMGetParam(this.message_function, 0);
 		var data = this.load(this.pointer, this.field(this.payload, object, 2)); var count = this.load(this.integer, this.field(this.payload, object, 3));
 		var one = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), data, 0, this.empty); var text = LLVMBuildInsertValue(this.builder, one, count, 1, this.empty); var result = LLVMBuildRet(this.builder, text);
-		var constructor_types = new void*[3]; constructor_types[0] = this.pointer; constructor_types[1] = this.pointer; constructor_types[2] = this.integer; this.construct_function = this.function("astra.e25a.construct", this.pointer, constructor_types, true);
-		entry = llvm12_block(this.context, this.construct_function, "entry"); LLVMPositionBuilderAtEnd(this.builder, entry);
-		var object_size = new void*[2]; object_size[0] = this.int64(1); object_size[1] = this.int64(32); object = this.call(this.allocate_function, object_size, true);
-		var descriptor = LLVMGetParam(this.construct_function, 0); data = LLVMGetParam(this.construct_function, 1); count = LLVMGetParam(this.construct_function, 2);
-		var extent = LLVMBuildZExt(this.builder, count, this.wide, this.empty); var storage = LLVMBuildAdd(this.builder, extent, this.int64(1), this.empty);
-		var snapshot_size = new void*[2]; snapshot_size[0] = storage; snapshot_size[1] = this.int64(1); var snapshot = this.call(this.allocate_function, snapshot_size, true);
-		var copy_arguments = new void*[3]; copy_arguments[0] = snapshot; copy_arguments[1] = data; copy_arguments[2] = extent; var copy = this.call(this.memcpy_function, copy_arguments, false); llvm12_nobuiltin(this.context, copy);
-		var a = LLVMBuildStore(this.builder, descriptor, this.field(this.payload, object, 0)); var b = LLVMBuildStore(this.builder, LLVMConstNull(this.pointer), this.field(this.payload, object, 1)); var c = LLVMBuildStore(this.builder, snapshot, this.field(this.payload, object, 2)); var d = LLVMBuildStore(this.builder, count, this.field(this.payload, object, 3)); result = LLVMBuildRet(this.builder, object);
+		var constructed = snapshot_runtime.build_constructor(this.payload, this.snapshot_allocate_function, this.memcpy_function);
+		this.construct_function = constructed;
 		this.destroy_function = this.function("astra.e25a.destroy", LLVMVoidTypeInContext(this.context), pointer_type, true);
 		entry = llvm12_block(this.context, this.destroy_function, "entry"); LLVMPositionBuilderAtEnd(this.builder, entry); object = LLVMGetParam(this.destroy_function, 0);
-		descriptor = this.load(this.pointer, this.field(this.payload, object, 0)); var destroy = this.load(this.pointer, this.field(this.descriptor, descriptor, 1));
+		var descriptor = this.load(this.pointer, this.field(this.payload, object, 0)); var destroy = this.load(this.pointer, this.field(this.descriptor, descriptor, 1));
 		var destroy_args = new void*[1]; destroy_args[0] = object; var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), this.arguments(pointer_type), 1, 0); var call = LLVMBuildCall2(this.builder, signature, destroy, this.arguments(destroy_args), 1, this.empty); LLVMSetInstructionCallConv(call, 8);
 		var free = this.call(this.free_function, destroy_args, false); llvm12_nobuiltin(this.context, free); result = LLVMBuildRetVoid(this.builder);
 	}
@@ -1203,7 +1202,8 @@ class RecoverLlvm {
 
 	bool check(RecoverSsa ssa) throws Error {
 		if (!recover_llvm_external_verified(this.calloc_function, 0) || !recover_llvm_external_verified(this.free_function, 1) || !recover_llvm_external_verified(this.memcpy_function, 2) || !recover_llvm_external_verified(this.memcmp_function, 3) || !recover_llvm_external_verified(this.trap_function, 4)) return false;
-		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_llvm_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
+		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_error_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.snapshot_allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
+		if (!recover_error_snapshot_verified(this.snapshot_allocate_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
 		if (!recover_class_helpers_verified(ssa, this.layout, this.class_payloads, this.class_destroyers, this.shared_drops, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa)) return false;
@@ -1232,7 +1232,7 @@ class RecoverLlvm {
 			if (this.utf8_function != null) return false;
 		}
 		if (!this.integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
-		int helper_count = 13; if (this.class_snapshot != null) helper_count = 14;
+		int helper_count = 14; if (this.class_snapshot != null) helper_count = 15;
 		int shared_start = helper_count;
 		if (this.shared_runtime.context != null) helper_count = helper_count + 5;
 		int utf8_at = helper_count;
@@ -1250,7 +1250,7 @@ class RecoverLlvm {
 			if (this.slice_functions[array] != null) helper_count = helper_count + 1;
 			array = array + 1;
 		}
-		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; if (this.class_snapshot != null) helpers[13] = this.class_snapshot;
+		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; helpers[13] = this.snapshot_allocate_function; if (this.class_snapshot != null) helpers[14] = this.class_snapshot;
 		if (this.shared_runtime.context != null) {
 			helpers[shared_start] = this.shared_runtime.increment;
 			helpers[shared_start + 1] = this.shared_runtime.decrement;

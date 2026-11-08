@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-"""Independent C0 and actual conditional Shared Typecore/layout observations."""
+"""Independent C0 and actual source-bound Shared stage observations."""
 import argparse
 import json
 import os
@@ -42,6 +42,7 @@ def main():
 		observation = run([a.observer, *inputs], name+'-types', (42,))
 		facts = [list(map(int, line.split()[1:])) for line in observation.stdout.decode().splitlines() if line.startswith('SHARED ')]
 		assert facts and all(row in ([1, 27, 4, 19], [2, 27, 4, 19], [3, 31, 2, 19]) for row in facts)
+		assert all(marker in observation.stdout for marker in (b'SHARED_CORE_VALID', b'SHARED_CFG_VALID', b'SHARED_SSA_VALID'))
 		products = []
 		for mode in ('O0', 'O2'):
 			exe = build/(name+'-'+mode)
@@ -50,9 +51,9 @@ def main():
 			memory = run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', exe], name+'-'+mode+'-memory', (42,))
 			assert b'ERROR SUMMARY: 0 errors' in memory.stderr and b'in use at exit: 0 bytes in 0 blocks' in memory.stderr and b'(suppressed: 0 from 0)' in memory.stderr
 			products.append(dict(profile=mode, ELF_sha256=sha(exe), actual_exit=42))
-		rows.append(dict(name=name, source_sha256=sha(source), actual_error=not name.endswith('-success'), conditional_type_facts=facts, C0=products))
-		(leaf/'result.json').write_text(json.dumps(dict(status='SHARED_SOURCE_PREFLIGHT', programs=rows, observer_sha256=sha(a.observer), Astra_native_credit=0, limitation='Actual unchanged Typecore/layout consumer executes over these source bytes; ownership obligation 19 remains pending. C0 establishes source semantics and memory independently. No Astra target ELF or original-function execution credit.'), indent=2)+'\n')
-		print(name, 'C0 O0/O2 and conditional Shared type facts', flush=True)
+		rows.append(dict(name=name, source_sha256=sha(source), actual_error=not name.endswith('-success'), conditional_type_facts=facts, actual_stages=['Flow', 'Core', 'CFG', 'SSA'], C0=products))
+		(leaf/'result.json').write_text(json.dumps(dict(status='SHARED_SOURCE_PREFLIGHT', programs=rows, observer_sha256=sha(a.observer), Astra_native_credit=0, limitation='Actual source-bound Flow/Core/CFG/SSA consumers and mutation twins execute over these source bytes. C0 independently establishes source semantics and returning memory. No Astra target ELF or original-function execution credit.'), indent=2)+'\n')
+		print(name, 'C0 O0/O2 and actual Flow/Core/CFG/SSA', flush=True)
 
 
 if __name__ == '__main__':

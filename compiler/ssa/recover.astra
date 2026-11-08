@@ -58,6 +58,9 @@ bool recover_ssa_reach(RecoverCfg cfg, bool[] reachable, RecoverWork work) {
 	return true;
 }
 
+// The independently checked CFG admits up to 8192 blocks. SSA uses that
+// same finite population; every reachability/dominance/liveness walk still
+// shares the existing 8,000,000-step verification budget.
 // Prove dominance by searching the actual CFG with the definition removed.
 // No producer-supplied dominator table or predecessor certificate is trusted.
 bool recover_ssa_dominates(RecoverCfg cfg, int definition, int use, RecoverWork work) {
@@ -192,7 +195,7 @@ bool recover_ssa_owner(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWo
 }
 
 bool recover_ssa_verify(RecoverSsa ssa) {
-	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || ssa.cfg.block_count > 1024 || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
+	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || ssa.cfg.block_count > 8192 || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count]; if (!recover_ssa_reach(ssa.cfg, reachable, work)) return false;
 	var definitions = new bool[len(ssa.data.values)]; int b = 1;
 	while (b <= ssa.cfg.block_count) {
@@ -279,7 +282,7 @@ owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {
 		ssa.data.fail(4);
 		return move ssa;
 	}
-	if (ssa.cfg.block_count > 1024) {
+	if (ssa.cfg.block_count > 8192) {
 		ssa.data.fail(2);
 		return move ssa;
 	}

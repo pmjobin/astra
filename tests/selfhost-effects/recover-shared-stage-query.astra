@@ -127,8 +127,20 @@ int recover_shared_stage_cli(string[] args, int start, bool mutations) {
 		var cfg = recover_cfg_lower(move core, 8192);
 		if (cfg.status != 0 || !recover_cfg_verify(cfg) || mutations && (!shared_cfg_mutations(cfg) || !frontier_cfg_mutations(cfg))) return 5;
 		println("SHARED_CFG_VALID");
+		int cfg_blocks = cfg.block_count;
 		var ssa = recover_ssa_lower(move cfg, 8000000);
-		if (ssa.data.status != 0 || !recover_ssa_verify(ssa) || mutations && (!shared_ssa_mutations(ssa) || !frontier_ssa_mutations(ssa))) return 6;
+		if (ssa.data.status != 0 || !recover_ssa_verify(ssa) || mutations && (!shared_ssa_mutations(ssa) || !frontier_ssa_mutations(ssa))) {
+			var diagnostic = new Utf8ByteBuilder();
+			source_append_text(diagnostic, "SHARED_SSA_STOP status ");
+			append_int(diagnostic, ssa.data.status);
+			source_append_text(diagnostic, " CFG_blocks ");
+			append_int(diagnostic, cfg_blocks);
+			source_append_text(diagnostic, " work_limit ");
+			append_int(diagnostic, ssa.data.work_limit);
+			var message = diagnostic.snapshot();
+			println(message.text);
+			return 6;
+		}
 		println("SHARED_SSA_VALID");
 		return 42;
 	} catch (Error error) {

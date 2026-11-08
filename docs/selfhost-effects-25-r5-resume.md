@@ -50,8 +50,8 @@ are retained. Generic and SSA ceilings remain 256 and 8,000,000.
 
 | Receipt | Actual observation | Limit |
 | --- | --- | --- |
-| `shared-stage-native4-O0`, `shared-source-source5` | All 12 shared sources pass Flow/Core/CFG/SSA and mutation twins; C0 O0/O2 execution and unsuppressed returning Valgrind pass | No Astra target emission |
-| `frontier-source-source6` | Caller information, counted imports, nested snapshot-property receivers, empty fixed slice, pointer/shared comparison and original UTF8 empty-input source pass the stages; all 14 C0 programs execute and return with clean unsuppressed memory | Seven stage cases still fail at this revision |
+| `shared-stage-native7-O0`, `shared-source-source7` | All 12 shared sources pass Flow/Core/CFG/SSA and mutation twins; C0 O0/O2 execution and unsuppressed returning Valgrind pass | No Astra target emission |
+| `frontier-source-source8` | All 14 focused sources pass Flow/Core/CFG/SSA, including the complete original builder/scalar-format inputs and actual InvalidUtf8 case; independent C0 O0/O2 execution and returning Valgrind pass | No Astra target emission |
 | `shared-runtime-helper10` | 17 independently LLVM-valid shared-helper mutation categories; helper-only native destruction and memory differentials | Zero Astra pipeline credit |
 | `utf8-runtime-helper3` | 18 independently LLVM-valid UTF8-helper mutation categories; complete scalar/byte/truncation/guard-page C0 differentials | Zero Astra pipeline credit |
 | `integer-runtime-helper1` | 12 independently LLVM-valid integer-helper mutation categories; 8-bit pairs, wider boundaries/random cases, MIN/-1 and fatal zero | Zero Astra pipeline credit |
@@ -59,7 +59,10 @@ are retained. Generic and SSA ceilings remain 256 and 8,000,000.
 | `array-oracles-source2` | Dynamic invalid fixed index traps before an observable RHS under C0 O0/O2 | Fatal receipts do not earn returning memory credit |
 | `owner-form-oracles-source2` | C0 O0/O2 executes field-bearing derived Errors, computed/snapshot base messages, field receiver and explicit owner transfer | Derived Error lowering is still unfinished |
 | `frontier-physical-oracle1-{O0,O2}` | New complete physical-test fixture executes under C0 with unsuppressed returning memory | Its Astra execution and 14 whole-module alternatives remain unqualified |
-| `full-build-frontiercore1-O0` | Full current compiler source, including the new physical controls, passes C0 Core checking | No native compiler or target qualification |
+| `full-build-frontiercore1-O0`, `full-build-snapshotcore1-O0` | Full compiler source, whole-module controls and new Error snapshot helpers pass C0 Core checking | No native compiler or target qualification |
+| `array-source-negative-oracle2-{O0,O2}` | C0 rejects all 15 source cases, including escaping views, moved roots and aliasing RHS | Astra rejection remains to be measured |
+| `error-snapshot-helper1` | Ten independently LLVM-valid mutation categories; four helper-only ELF profiles match unchanged C0 constructor IR for exact bytes/allocation shapes, zero-count no allocation and forced allocation ordinal/size failures; returning Valgrind passes | Zero Astra source pipeline credit |
+| `error-lifetime-oracle1-{O0,O2}` | Actual C0 source empty/single/NUL Error messages, derived literal and original InvalidUtf8 paths have complete allocation/free/fatal-size and returning memory observations | No Astra comparison yet |
 
 Native4 is bound to its captured source witnesses. Its actual cold compilation
 used 1,139.09 seconds wall, 1,130.00 seconds user CPU, 0.94 seconds system CPU
@@ -69,18 +72,50 @@ and presented as elapsed wall time.
 
 ## Latest measured original frontiers
 
-Native4's full-original attempt advanced to Source node 222,
-`compiler/source/source.astra` bytes `[1649,1663)`, `starts[0] = 0;`, SHA-256
-`bb49d2f9da6fee4033f53f419e49c4cc072bf967030868708c42352e0ce008a1`.
-The separate minimal byte/AST-exact view fails Flow correspondence at the named
-string `text.byte_length` access. The exact selected declarations and their
-original ranges were revalidated with C0 AST dumps before that attempt.
+Native6 passes Typecore/Flow/Core/CFG over the full unchanged original
+population, then stops in SSA. Read-only GDB diagnosis `ssa-limit-native6b`
+observes **1,606 actual CFG blocks** at the unchanged 1,024-block comparison.
+The guard executes normally and the program still returns its original failure;
+no register, memory, branch or verification result is altered. The earlier
+`ssa-limit-native6` receipt has an incorrectly labeled disassembly-command
+field; the corrected b receipt retains the actual command and captured source
+hashes. Its original bytes are retained.
 
-The next source revision handles the literal-index AST subtype, named string
-length, explicit cast context and discarded foreign void calls. It adds actual
-array/source mutation twins and more precise read-only failure diagnostics.
-`shared-stage-native5-O0` is being compiled after its focused C0 check passed.
-These fixes have not yet advanced the measured frontier above.
+The exact minimal byte/AST-preserving original dependency view independently
+passes Flow/Core/CFG/SSA in `frontier-source-source8`. This is not full-original
+SSA or compilation. All fourteen focused source cases pass the same stage
+consumers at Native6, including the original complete builder/scalar-format
+inputs. All twelve shared source cases remain valid.
+
+The next source revision uses the existing verified 8,192-block CFG population
+bound in SSA. Reachability, dominance and lifetime verification retain the same
+8,000,000-step shared budget. Edge-coherent controls now update the CFG edge
+table together with a forged continuation, so rejection tests the actual
+source continuation rather than a stale edge table. `shared-stage-native7-O0`
+compiled with frozen inputs and passed its identity check. In
+`frontier-source-source8`, the **full unchanged original population passes
+Flow/Core/CFG/SSA**, followed separately by the exact minimal view. All fourteen
+focused sources and twelve shared sources also pass. No target has yet been
+emitted by Astra. The next focused native build includes current LLVM lowering
+and its independent consumers.
+
+Native5 finished its C0 command but failed the existing postcompile source-hash
+guard because task inputs changed during compilation. It has no product
+identity sidecar and earns no qualification credit. Its stopped build, source
+witnesses and read-only `stopped-stage-diagnose-stopped5` observations are
+retained. Native6 was rebuilt with frozen inputs and passed the provenance
+check. Future qualified builds must keep every recorded source/tool input
+unchanged until that check completes.
+
+C0 Error constructor IR also exposes a prior private snapshot mismatch: it
+allocates exactly count bytes and skips allocation for zero count. The older
+private helper added a trailing byte. New production snapshot/constructor
+helpers correct this allocation behavior without changing the approved
+32-byte Error header or transport. The original noinline allocation helper and
+libc call/declaration memory checks remain intact. Its focused helper proof and
+independent real-source C0 lifetime oracles pass; integrated Astra source
+execution and fatal-size comparisons are still required. Historical R4 results
+are not promoted or rewritten.
 
 The full population and reduced view remain separate gates. Neither C0
 execution, helper-only ELF execution nor a successful reduced view establishes

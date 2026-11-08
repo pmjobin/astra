@@ -67,7 +67,9 @@ SymbolId recover_array_root(RecoverFlow flow, int value, bool write) {
 	if (!recover_array_type(flow.checked, row.type)) return type_symbol(0);
 	if (row.kind == 17) {
 		var fact = flow.fields.facts[row.source.index];
-		if (fact.slot < 1 || fact.slot > flow.storage.count || fact.receiver.index != row.symbol.index || fact.field.index < 1 || flow.checked.symbol_types[fact.field.index].index != row.type.index || checked_kind(flow.checked, row.type) != 22 || flow.checked.symbol_flags[fact.field.index] != 4 || write && !fact.writable) return type_symbol(0);
+		// Visibility is independently checked by recover_fields_verify. It
+		// neither creates nor removes the declared owned-buffer obligation.
+		if (fact.slot < 1 || fact.slot > flow.storage.count || fact.receiver.index != row.symbol.index || fact.field.index < 1 || flow.checked.symbol_types[fact.field.index].index != row.type.index || checked_kind(flow.checked, row.type) != 22 || (flow.checked.symbol_flags[fact.field.index] & ~256) != 4 || write && !fact.writable) return type_symbol(0);
 		return fact.receiver;
 	}
 	if (row.kind != 2 || row.symbol.index < 1 || row.symbol.index >= len(flow.storage.symbols)) return type_symbol(0);

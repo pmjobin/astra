@@ -128,9 +128,21 @@ bool frontier_cfg_mutations(RecoverCfg cfg) {
 		if (saved.opcode == 64) {
 			var row = saved;
 			row.next = cfg.regions[saved.origin - 1].operation;
+			int edge = -1;
+			int e = 0;
+			while (e < cfg.edge_count) {
+				if (cfg.edges[e].source == n + 1 && cfg.edges[e].polarity == 1) edge = e;
+				e = e + 1;
+			}
+			if (edge < 0) return false;
+			var saved_edge = cfg.edges[edge];
+			var changed_edge = saved_edge;
+			changed_edge.target = row.next;
+			cfg.edges[edge] = changed_edge;
 			cfg.blocks[n] = row;
 			bool rejected = !recover_cfg_verify(cfg);
 			cfg.blocks[n] = saved;
+			cfg.edges[edge] = saved_edge;
 			if (!rejected || !recover_cfg_verify(cfg)) return false;
 			println("SEMANTIC indexed-store-guard-before-RHS");
 			return true;
@@ -139,9 +151,30 @@ bool frontier_cfg_mutations(RecoverCfg cfg) {
 			var row = saved;
 			row.next = saved.other;
 			row.other = saved.next;
+			int yes = -1;
+			int no = -1;
+			int e = 0;
+			while (e < cfg.edge_count) {
+				if (cfg.edges[e].source == n + 1) {
+					if (cfg.edges[e].polarity == 1) yes = e;
+					if (cfg.edges[e].polarity == 2) no = e;
+				}
+				e = e + 1;
+			}
+			if (yes < 0 || no < 0) return false;
+			var saved_yes = cfg.edges[yes];
+			var saved_no = cfg.edges[no];
+			var changed_yes = saved_yes;
+			var changed_no = saved_no;
+			changed_yes.target = row.next;
+			changed_no.target = row.other;
+			cfg.edges[yes] = changed_yes;
+			cfg.edges[no] = changed_no;
 			cfg.blocks[n] = row;
 			bool rejected = !recover_cfg_verify(cfg);
 			cfg.blocks[n] = saved;
+			cfg.edges[yes] = saved_yes;
+			cfg.edges[no] = saved_no;
 			if (!rejected || !recover_cfg_verify(cfg)) return false;
 			println("SEMANTIC UTF8-CFG-true-edge");
 			return true;
