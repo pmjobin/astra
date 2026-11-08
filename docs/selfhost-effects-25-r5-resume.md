@@ -409,3 +409,14 @@ the original fixture and all six semantic/six LLVM-valid physical categories.
 campaign remains failed; its receipts and historical six-byte policy are not
 rewritten. The separate strict raw drift replay passes and retains R4/R3
 0/120 byte identities explicitly.
+
+`full-final1-O2/astra-llvm-O2` completes with SHA256
+`dd84d9d51de88b1f65f9a82a6421497dd25d1ee7a6d4bf44e8593c55cf5d33d6`.
+Its 241 project input hashes and tools independently match O0. Actual cold
+GNU time is wall 1:09:46, user CPU 4,157.55 s, system CPU 1.60 s and peak
+RSS 2,468,336 KiB. `native-frontiers-final1-O2` executes the unchanged
+full-original `flow_number` first, exit 42, with independent C0, actual raw
+function/callee/caller graph proof and clean unsuppressed returning Valgrind.
+The separate exact reduced view also executes 42. This establishes genuine
+full-original target execution at both profiles at this captured revision;
+the derived Error carrier frontier and overall milestone remain unqualified.
