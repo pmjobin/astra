@@ -396,3 +396,16 @@ execution credit. Its first source check included unrelated historical LLVM
 mutation dependencies and failed; the established focused build entry point
 then passes C0 Core checking. Its native diagnostic is pending. No compiled
 source is edited while the O2 and diagnostic input guards remain active.
+
+The O0 retained campaign completes all 41 recipes with one runner failure:
+`recover-loop-adversarial` still expects R4's count-plus-one six-byte snapshot
+for `"spare"`. The current raw leak falsifier correctly exits 42 and Valgrind
+99, losing the 32-byte Error plus its five-byte snapshot. Fresh unchanged C0
+and Astra positive allocation traces match exactly and independently establish
+32 then 5 bytes; both positives have clean returning unsuppressed memory. The
+runner now derives its leak expectation from that observed C0 trace, retaining
+the original fixture and all six semantic/six LLVM-valid physical categories.
+`loop-adversarial-leak1-O0` passes the full corrected runner. The earlier failed
+campaign remains failed; its receipts and historical six-byte policy are not
+rewritten. The separate strict raw drift replay passes and retains R4/R3
+0/120 byte identities explicitly.
