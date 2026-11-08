@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import time
 import types
 from state import ROOT, C0, load_module, bounded_run
 
@@ -14,18 +15,33 @@ def main():
 	p = argparse.ArgumentParser(); p.add_argument('--mode', choices=('O0', 'O2'), required=True); p.add_argument('--version', required=True); p.add_argument('--check', action='store_true'); p.add_argument('--core-check', action='store_true'); a = p.parse_args(); assert a.version.isalnum()
 	paths = load_module('recover_full_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	full = load_module('recover_full_inputs', ROOT/'tests/selfhost-effects/full-build.py')
-	full.RUNTIME = paths.RUNTIME; full.BUILD = paths.BUILD; full.INPUTS = paths.RUNTIME/('full-inputs-'+a.version); full.prepare()
+	full.RUNTIME = paths.RUNTIME; full.BUILD = paths.BUILD; full.INPUTS = paths.RUNTIME/('full-inputs-'+a.version)
 	# Keep the exact predecessor diagnostics as witnesses. GENREF regenerates
 	# its test-only observer from the current verifier; copying the historical
 	# observer into that current name would correctly fail its source guard.
-	historical = []
-	for name in ('call-diagnostic.astra', 'call-diagnostic-reasons.json'):
-		source = full.INPUTS/name
-		target = full.INPUTS/('predecessor-'+name)
-		assert not target.exists()
-		source.rename(target)
-		historical.append(dict(path=str(target), sha256=hashlib.sha256(target.read_bytes()).hexdigest(), role='Unchanged predecessor diagnostic witness, excluded from current compiler sources.'))
-	(full.INPUTS/'predecessor-diagnostics.json').write_text(json.dumps(historical, indent=2)+'\n')
+	if (full.INPUTS/'predecessor-diagnostics.json').exists():
+		# Warm reuse must still rederive every generated source. A fresh
+		# validation leaf preserves both versions without rewriting witnesses.
+		current = full.INPUTS
+		verification = paths.RUNTIME/('full-input-verification-'+a.version+'-'+str(time.time_ns()))
+		full.INPUTS = verification
+		full.prepare()
+		full.INPUTS = current
+		for expected in verification.rglob('*'):
+			if not expected.is_file(): continue
+			relative = expected.relative_to(verification)
+			if str(relative) in ('call-diagnostic.astra', 'call-diagnostic-reasons.json'): relative = Path('predecessor-'+str(relative))
+			assert (current/relative).read_bytes() == expected.read_bytes()
+	else:
+		full.prepare()
+		historical = []
+		for name in ('call-diagnostic.astra', 'call-diagnostic-reasons.json'):
+			source = full.INPUTS/name
+			target = full.INPUTS/('predecessor-'+name)
+			assert not target.exists()
+			source.rename(target)
+			historical.append(dict(path=str(target), sha256=hashlib.sha256(target.read_bytes()).hexdigest(), role='Unchanged predecessor diagnostic witness, excluded from current compiler sources.'))
+		(full.INPUTS/'predecessor-diagnostics.json').write_text(json.dumps(historical, indent=2)+'\n')
 	def view(path, old, new, name):
 		text = path.read_text(); assert text.count(old) == 1; text = text.replace(old, new); target = full.INPUTS/name
 		if target.exists(): assert target.read_text() == text

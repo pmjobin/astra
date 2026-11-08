@@ -162,7 +162,12 @@ int main() {
 	} catch (Error caught) { return 4; }
 }
 '''
-		for name in ('derived-error-field', 'derived-error-computed-base', 'derived-error-snapshot', 'field-receiver', 'owned-result-explicit-transfer', 'nested-outer-Error-borrow'):
+		cases.update({
+			'derived-error-readonly-field': 'class Detail : Error { private readonly string note; init(string text) : base("detail") { this.note = text; } int read() { if (this.note == "payload") return 42; return 3; } }\nint main() { try { throw new Detail("payload"); } catch (Detail caught) { if (caught.message != "detail") return 4; return caught.read(); } }\n',
+			'derived-error-owned-child': 'class Value { private int code; init(int code) { this.code = code; } int read() { return this.code; } }\nclass Detail : Error { private owned Value item; init(owned Value item) : base("detail") { this.item = move item; } int read() { return this.item.read(); } }\nint main() { var value = new Value(42); try { throw new Detail(move value); } catch (Detail caught) { return caught.read(); } }\n',
+			'derived-error-owned-buffer': 'class Detail : Error { private owned u8[] data; init(owned u8[] data) : base("detail") { this.data = move data; } int read() { return this.data[0] as int; } }\nint main() { var data = new u8[1]; data[0] = 42; try { throw new Detail(move data); } catch (Detail caught) { return caught.read(); } }\n',
+		})
+		for name in ('derived-error-field', 'derived-error-computed-base', 'derived-error-snapshot', 'field-receiver', 'owned-result-explicit-transfer', 'nested-outer-Error-borrow', 'derived-error-readonly-field', 'derived-error-owned-child', 'derived-error-owned-buffer'):
 			source = leaf/(name+'.astra')
 			source.write_text(cases[name])
 			programs.append((name, [source, ROOT/'lib/astra/base/errors.astra'], 'C0_VALID_OWNER_FORM'))

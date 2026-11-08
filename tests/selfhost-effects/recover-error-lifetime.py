@@ -23,6 +23,7 @@ def main():
 	p.add_argument('--component', type=Path)
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	p.add_argument('--version', required=True)
+	p.add_argument('--fixtures', type=Path, action='append')
 	a = p.parse_args()
 	assert a.version.isalnum()
 	if a.component:
@@ -55,12 +56,23 @@ def main():
 	library = build/'observe.so'
 	run(['cc', '-std=c11', '-O2', '-shared', '-fPIC', '-Wall', '-Wextra', '-Werror', provider, '-o', library], 'observer-build')
 	rows = []
+	programs = []
 	for name, (text, utf8) in PROGRAMS.items():
 		source = leaf/(name+'.astra')
 		source.write_text(text)
 		inputs = [source, ROOT/'lib/astra/base/errors.astra']
 		if utf8:
 			inputs += [ROOT/'lib/astra/text/utf8-message.astra']
+		programs.append((name, inputs))
+	for fixture in a.fixtures or ():
+		witness = read(fixture)
+		assert witness['profile'] == a.mode
+		for row in witness['programs']:
+			assert row['C0']['exit'] == 42 and row['C0']['returning_clean_memory']
+			assert all(sha(source['path']) == source['sha256'] for source in row['inputs'])
+			assert row['name'] not in {name for name, _ in programs}
+			programs.append((row['name'], [Path(source['path']) for source in row['inputs']]))
+	for name, inputs in programs:
 		oracle = build/(name+'-C0')
 		run([C0, '-'+a.mode, *inputs, '-o', oracle], name+'-C0-build')
 		products = [('C0', oracle)]

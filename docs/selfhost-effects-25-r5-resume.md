@@ -294,3 +294,27 @@ original CheckedIndex uses. A coherent forged type/Flow-row mutation checks the
 new consumer. Constructor reservations now recognize operation 67 consistently
 with the existing independent owner consumer. `shared-stage-errorcore8-O0`
 passes focused C0 Core checking; the corrected native stage replay is pending.
+
+Three additional derived Error fixtures independently execute at C0 O0/O2 with
+clean unsuppressed memory (`native-frontiers-errorextra1`): readonly string,
+owned ordinary Class child and owned buffer. `error-lifetime-errorextra1`
+rebuilds these exact source inputs and the five retained Error lifetime cases.
+Both C0 profiles show identical allocation/free order and fatal-size behavior:
+readonly Error payload 48 bytes, base snapshot 6, own snapshot 7, then reverse
+retirement; child Error payload 40 and buffer Error payload 48, retiring the
+owned child/buffer before the parent message and final object. These are C0
+observations, pending actual Astra stage/native qualification.
+
+The stage negative runner now distinguishes source admission refusal from an
+invalid verifier or resource stop; it grants no LLVM/ELF credit. Stage receipts
+can retain exact failed-leaf node/span/hash diagnostics alongside the actual
+Flow status/boundary, without substituting a leaf for a missing boundary.
+
+The continuation transport recipe authenticates the exact previous report and
+its bound archive, preserving all 79,965 historical logical rows and blobs when
+merging new receipts. Its independent read check passes against the unchanged
+canonical report. Actual packing/publication/G12 remain pending. The current
+full build recipe can rederive generated inputs in a new verification leaf for
+warm checking without overwriting current or historical diagnostics. Its fresh
+full C0 Core check passes; this source check is not a warm native compiler build
+or speedup claim.

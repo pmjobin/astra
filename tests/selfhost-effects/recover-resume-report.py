@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+"""Lossless continuation transport; only installed pm-next publishes the ZIP."""
+import argparse
+import hashlib
+import io
+import json
+import lzma
+from pathlib import Path
+import subprocess
+import sys
+import tarfile
+import time
+import zipfile
+from state import ROOT, load_module, read, sha, git, bounded_run
+
+PREVIOUS = '16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887'
+SUBMISSION = 'e7837fba03f7a19c6552776488d5848849cc65b50f3b46eb3d505c4ce4b51541'
+BASE = 'c271e0822d0fc12a878a5adc1388aa1a8e147067'
+
+
+def verified_zip(path, expected=None):
+	if expected:
+		assert sha(path) == expected
+	with zipfile.ZipFile(path) as archive:
+		names = archive.namelist()
+		assert len(names) == len(set(names)) and archive.testzip() is None
+		manifest = json.loads(archive.read('MANIFEST.json'))
+		assert set(names) == {'MANIFEST.json'} | {row['path'] for row in manifest['files']}
+		for row in manifest['files']:
+			data = archive.read(row['path'])
+			assert len(data) == row['bytes'] and hashlib.sha256(data).hexdigest() == row['sha256']
+		result = json.loads(archive.read('RESULT.json'))
+		assert result['project_id'] == 'astra' and result['milestone_id'] == 'ASTRA-SELFHOST-EFFECTS-25-R5' and result['submission_sha256'] == SUBMISSION and result['start_commit'] == BASE
+		return result, manifest
+
+
+def prior_transport(paths, report):
+	result, _ = verified_zip(report, PREVIOUS)
+	assert result['status'] == 'PARTIAL' and result['final_commit'] == '0ce000667dd5cbee3e2af9fe0237b9c88a5536f3'
+	with zipfile.ZipFile(report) as archive:
+		packaging = json.loads(archive.read('evidence/packaging.json'))
+	path = paths.RUNTIME.parent/'effects25-r5/handoff-transport/effects25-r5-evidence.tar.xz'
+	assert path.stat().st_size == packaging['archive_bytes'] and sha(path) == packaging['archive_sha256']
+	return path
+
+
+def pack(paths, a, helpers):
+	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
+	audit = read(a.audit)
+	assert audit['format'] == 'astra-effects25-r5-continuation-audit/1' and audit['status'] in ('PASS', 'PARTIAL')
+	assert (audit['final_commit'], audit['final_tree']) == (git('rev-parse', 'HEAD').strip(), git('rev-parse', 'HEAD^{tree}').strip())
+	assert audit['previous_report_sha256'] == PREVIOUS and audit['gates']['G12'].startswith('PENDING')
+	if audit['status'] == 'PASS':
+		assert all(audit['gates']['G'+str(gate)].startswith('PASS') for gate in range(12))
+	leaf = paths.RUNTIME/('handoff-'+a.version)
+	leaf.mkdir()
+	previous = prior_transport(paths, ROOT.parent/'codex/reports/astra-report-current.zip')
+	old = helpers.verify_archive(previous)
+	assert old['final_commit'] == '0ce000667dd5cbee3e2af9fe0237b9c88a5536f3'
+	files, blobs, encoded = dict(old['files']), set(), {}
+	archive = leaf/'effects25-r5-resume-evidence.tar.xz'
+	start = time.monotonic()
+	with lzma.LZMAFile(archive, 'wb', filters=[dict(id=lzma.FILTER_LZMA2, preset=9, dict_size=64*1024**2)]) as compressed, tarfile.open(fileobj=compressed, mode='w|') as packed:
+		def store(name, stream, size):
+			entry = tarfile.TarInfo(name); entry.mode = 0o644; entry.size = size
+			packed.addfile(entry, stream)
+		with tarfile.open(previous, 'r|xz') as inherited:
+			for member in inherited:
+				if member.name == 'INDEX.json':
+					raw_index = inherited.extractfile(member).read()
+					assert json.loads(raw_index) == old
+					continue
+				assert member.isfile() and member.name.startswith('blobs/') and member.name not in blobs
+				store(member.name, inherited.extractfile(member), member.size)
+				blobs.add(member.name)
+		def add_bytes(name, data, mode='0o644'):
+			digest = hashlib.sha256(data).hexdigest(); blob = 'blobs/'+digest
+			assert name not in files
+			files[name] = dict(bytes=len(data), sha256=digest, mode=mode, blob=blob)
+			if blob not in blobs:
+				store(blob, io.BytesIO(data), len(data)); blobs.add(blob)
+		def add(name, path, transform=True):
+			assert path.is_file() and not path.is_symlink()
+			digest, size = sha(path), path.stat().st_size
+			if name in files:
+				assert files[name]['sha256'] == digest and files[name]['bytes'] == size
+				return
+			row = dict(bytes=size, sha256=digest, mode=oct(path.stat().st_mode & 0o777), blob='blobs/'+digest)
+			if transform and path.suffix == '.stdout' and size >= 1048576:
+				with path.open('rb') as stream: first = stream.readline()
+				if not first.startswith(b'('):
+					if digest not in encoded: encoded[digest] = helpers.column_plan(paths, path, name)
+					root, plan = encoded[digest]
+					for part in list(plan['parts'].values())+[part for group in plan['groups'] for part in group['columns']]: add('columns/'+part['path'], root/part['path'], False)
+					row.pop('blob'); row['columns'] = dict(plan, path=name); files[name] = row
+					return
+			files[name] = row
+			if row['blob'] not in blobs:
+				with path.open('rb') as stream: store(row['blob'], stream, size)
+				blobs.add(row['blob'])
+		add_bytes('history/previous-evidence-index.json', raw_index)
+		for prefix, root in [('runtime', paths.RUNTIME), ('build', paths.BUILD)]:
+			for path in sorted(root.rglob('*')):
+				if not path.is_file(): continue
+				relative = path.relative_to(root)
+				if prefix == 'runtime' and relative.parts[0].startswith(('handoff-', 'published-verification-')): continue
+				add('resume/'+prefix+'/'+str(relative), path)
+		index = dict(format='astra-effects25-evidence/3', milestone='ASTRA-SELFHOST-EFFECTS-25-R5', final_commit=audit['final_commit'], final_tree=audit['final_tree'], files=files, previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), previous_logical_files=len(old['files']), external_system_dependencies=old['external_system_dependencies'], predecessor_transport=old['predecessor_transport'], limitation='Every previous logical evidence row and blob is retained byte-exact. All continuation task products, source witnesses and failed/stopped/successful receipts are included under resume/. Packaging outputs and redundant prior ZIP transports are identified separately and remain preserved locally. Lossless token columns are independently reconstructed; source snapshots are witnesses, never copied over the checkout.')
+		data = (json.dumps(index, indent=2)+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
+	assert helpers.verify_archive(archive) == index
+	assert all(index['files'][name] == row for name, row in old['files'].items())
+	helpers.restore_all(archive, leaf, len(files))
+	attachments = leaf/'attachments'
+	tool = ROOT/'tools/qualification/encoded-evidence.py'
+	r = bounded_run([sys.executable, '-B', tool, 'pack', '--input', archive, '--output', attachments, '--stem', 'effects25-r5-resume'], capture_output=True, timeout=300)
+	(leaf/'encoding.stdout').write_bytes(r.stdout); (leaf/'encoding.stderr').write_bytes(r.stderr)
+	assert r.returncode == 0, r.stderr[-2000:]
+	for name, path in [('final-audit.json', a.audit), ('decode-evidence.py.txt', tool), ('verify-evidence.py.txt', Path(__file__)), ('restore-effects.py.txt', ROOT/'tests/selfhost-effects/restore.py'), ('restore-columns.py.txt', ROOT/'tests/selfhost-genref/columns.py')]:
+		(attachments/name).write_bytes(path.read_bytes())
+	packaging = dict(status='LOSSLESS_R5_CONTINUATION_EVIDENCE_VERIFIED', logical_files=len(files), previous_logical_files=len(old['files']), unique_blobs=len(blobs), archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), seconds=time.monotonic()-start, G12='PENDING actual installed publication and independent after-delivery verification')
+	(attachments/'packaging.json').write_text(json.dumps(packaging, indent=2)+'\n')
+	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact qualification and unproved gates. Decode effects25-r5-resume-encoding.json with decode-evidence.py.txt. The content-addressed archive retains every previous logical file and all continuation source/run/build receipts, including failures. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py, then run python3 restore-effects.py ARCHIVE --output DIRECTORY --verify-only. The independent decoder reconstructs and hashes every original byte without executing evidence. Historical observations remain tied to their captured compiler revisions; actual original full-population execution and reduced-view execution are separate. The installed publisher alone creates the canonical ZIP; G12 is checked only afterward.\n')
+	rows = [dict(path=path.name, bytes=path.stat().st_size, sha256=sha(path)) for path in sorted(attachments.iterdir())]
+	assert len(rows) <= 128 and all(row['bytes'] <= 2*1024**2 for row in rows)
+	manifest = attachments/'INDEX.json'; manifest.write_text(json.dumps(dict(format='pm-next-evidence/1', files=rows), indent=2)+'\n')
+	descriptor = dict(status=audit['status'], summary=audit['summary'], tests=[name+': '+value for name, value in audit['gates'].items()]+['All previous and continuation failed, stopped, cold and warm receipts are retained losslessly. Actual CPU/wall/RSS and overlapping intervals are independently attributed.','Publication G12 remains pending until the installed publisher and separate after-delivery check complete.'])
+	(paths.RUNTIME.parent/'native-current/pm-next-result.json').write_text(json.dumps(descriptor, indent=2)+'\n')
+	print('EVIDENCE_MANIFEST', manifest, flush=True)
+	print(json.dumps(packaging), flush=True)
+
+
+def verify(paths, a, helpers):
+	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
+	report = ROOT.parent/'codex/reports/astra-report-current.zip'
+	assert report.stat().st_size <= 25*1024**2
+	result, manifest = verified_zip(report)
+	audit = read(a.audit)
+	assert result['status'] == audit['status'] and (result['final_commit'], result['final_tree']) == (audit['final_commit'], audit['final_tree']) == (git('rev-parse', 'HEAD').strip(), git('rev-parse', 'HEAD^{tree}').strip())
+	assert not result['final_dirty_tracked_paths'] and not result['untracked_inventory_changed']
+	assert result['amendment']['previous_report_sha256'] == PREVIOUS
+	assert subprocess.run(['git', 'merge-base', '--is-ancestor', BASE, result['final_commit']], cwd=ROOT).returncode == 0
+	leaf = paths.RUNTIME/('published-verification-'+a.version); leaf.mkdir()
+	with zipfile.ZipFile(report) as archive:
+		assert 'OMISSIONS.md' not in archive.namelist()
+		assert {name[7:] for name in archive.namelist() if name.startswith('source/')} == set(result['changed_committed_paths'])
+		for name in archive.namelist():
+			if name.startswith('source/'):
+				assert archive.read(name) == subprocess.check_output(['git', 'show', result['final_commit']+':'+name[7:]], cwd=ROOT)
+			if name.startswith('evidence/'):
+				relative = Path(name[9:]); assert len(relative.parts) == 1
+				(leaf/relative).write_bytes(archive.read(name))
+		assert json.loads(archive.read('evidence/final-audit.json')) == audit
+		assert json.loads(archive.read('history/previous-RESULT.json'))['final_commit'] == '0ce000667dd5cbee3e2af9fe0237b9c88a5536f3'
+	decoder = load_module('resume_delivered_decoder', ROOT/'tools/qualification/encoded-evidence.py')
+	_, data = decoder.decode(leaf/'effects25-r5-resume-encoding.json')
+	packaging = read(leaf/'packaging.json')
+	assert len(data) == packaging['archive_bytes'] and hashlib.sha256(data).hexdigest() == packaging['archive_sha256']
+	path = leaf/'effects25-r5-resume-evidence.tar.xz'; path.write_bytes(data)
+	index = helpers.verify_archive(path)
+	assert len(index['files']) == packaging['logical_files'] and (index['final_commit'], index['final_tree']) == (result['final_commit'], result['final_tree'])
+	helpers.restore_all(path, leaf, len(index['files']))
+	previous = prior_transport(paths, paths.RUNTIME.parent/'report-history'/(PREVIOUS+'.zip'))
+	old = helpers.verify_archive(previous)
+	assert all(index['files'][name] == row for name, row in old['files'].items())
+	for row in index['external_system_dependencies'].values():
+		assert Path(row['path']).stat().st_size == Path(row['local_witness']).stat().st_size == row['bytes'] and sha(row['path']) == sha(row['local_witness']) == row['sha256']
+	intake = read(paths.RUNTIME.parent/'native-current/pm-next-intake.json')
+	assert intake['published'] and intake['report_sha256'] == sha(report) and (intake['final_commit'], intake['final_tree']) == (result['final_commit'], result['final_tree'])
+	receipt = dict(status='PUBLISHED_R5_CONTINUATION_VERIFIED', G12='PASS: installed publisher followed by independent delivered ZIP/member/source/Git/transport verification', report=str(report), report_bytes=report.stat().st_size, report_sha256=sha(report), final_commit=result['final_commit'], final_tree=result['final_tree'], payloads=len(manifest['files']), logical_evidence_files=len(index['files']), preserved_previous_logical_files=len(old['files']), previous_report_sha256=PREVIOUS, original_flow_number_Astra_executions=audit['original_flow_number_Astra_executions'], overall_status=result['status'], limitation='G12 establishes delivery integrity only; it cannot promote any unproved source, owner, effects or memory gate.')
+	(paths.RUNTIME/('published-verification-'+a.version+'.json')).write_text(json.dumps(receipt, indent=2)+'\n')
+	print(json.dumps(receipt, indent=2), flush=True)
+
+
+def main():
+	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True)
+	a = p.parse_args(); assert a.version.isalnum() and a.audit.is_file()
+	paths = load_module('resume_report_paths', ROOT/'tests/selfhost-effects/recover-build.py')
+	helpers = load_module('resume_transport_helpers', ROOT/'tests/selfhost-effects/recover-r5-report.py')
+	if a.mode == 'pack': pack(paths, a, helpers)
+	else: verify(paths, a, helpers)
+
+
+if __name__ == '__main__':
+	main()

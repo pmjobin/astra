@@ -35,8 +35,10 @@ def main():
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	p.add_argument('--version', required=True)
 	p.add_argument('--oracle-only', action='store_true')
+	p.add_argument('--stage-only', action='store_true')
 	a = p.parse_args()
 	assert a.version.isalnum()
+	assert not (a.oracle_only and a.stage_only)
 	if not a.oracle_only:
 		assert a.component is not None
 		identity = read(a.component.with_suffix('.identity.json'))
@@ -69,14 +71,20 @@ def main():
 			destination = build/(name+'.ll')
 			destination.write_text('Negative source output sentinel\n')
 			before = sha(destination)
-			actual = run([a.component, '--native', destination, *inputs], name+'-Astra-attempt', range(9))
-			row.update(Astra_not_emitted=actual.returncode != 0, Astra_status=actual.returncode, destination_preserved=sha(destination) == before)
+			if a.stage_only:
+				argv = [a.component]
+				if not a.component.name.startswith('astra-shared-stage-'): argv.append('--shared-stages')
+				actual = run([*argv, *inputs], name+'-Astra-stages', (*range(9), 42))
+				row.update(Astra_stage_admission_refused=actual.returncode in (1, 2) and b'SHARED_FLOW 1 ' not in actual.stdout and b'SHARED_FLOW 2 ' not in actual.stdout, Astra_stage_status=actual.returncode, destination_preserved=sha(destination) == before)
+			else:
+				actual = run([a.component, '--native', destination, *inputs], name+'-Astra-attempt', range(9))
+				row.update(Astra_not_emitted=actual.returncode != 0, Astra_status=actual.returncode, destination_preserved=sha(destination) == before)
 		rows.append(row)
-		(leaf/'result.json').write_text(json.dumps(dict(status='C0_'+GROUP.upper()+'_NEGATIVE_POLICY_COLLECTED' if a.oracle_only else GROUP.upper()+'_SOURCE_NEGATIVE_CONTROLS', profile=a.mode, component_sha256=None if a.oracle_only else sha(a.component), C0_sha256=sha(C0), Error_source_sha256=sha(ROOT/'lib/astra/base/errors.astra'), programs=rows, Astra_native_execution_credit=0, limitation='Independent C0 policy is established before expecting Astra rejection. Failed/crashed compiler processes cannot count as a verified negative. Every attempted output is hash-checked for preservation.'), indent=2)+'\n')
+		(leaf/'result.json').write_text(json.dumps(dict(status='C0_'+GROUP.upper()+'_NEGATIVE_POLICY_COLLECTED' if a.oracle_only else GROUP.upper()+'_SOURCE_NEGATIVE_CONTROLS', profile=a.mode, stage_only=a.stage_only, component_sha256=None if a.oracle_only else sha(a.component), C0_sha256=sha(C0), Error_source_sha256=sha(ROOT/'lib/astra/base/errors.astra'), programs=rows, Astra_native_execution_credit=0, limitation='Independent C0 policy is established before expecting Astra rejection. Failed/crashed compiler processes cannot count as a verified negative. Every attempted output is hash-checked for preservation. Stage-only probes establish admission refusal, never target LLVM emission/execution or matched integrated qualification.'), indent=2)+'\n')
 		print(a.mode, name, 'C0 rejected' if row['C0_rejected'] else 'C0 accepted: review policy', flush=True)
 	assert all(row['C0_rejected'] for row in rows), 'Some proposed negatives are C0-valid; review their explicit source policy.'
 	if not a.oracle_only:
-		assert all(row['Astra_not_emitted'] and row['destination_preserved'] for row in rows)
+		assert all(row['Astra_stage_admission_refused' if a.stage_only else 'Astra_not_emitted'] and row['destination_preserved'] for row in rows)
 
 
 if __name__ == '__main__':
