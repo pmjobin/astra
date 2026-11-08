@@ -57,6 +57,14 @@ def main():
 		for ordinal, row in enumerate(read(path)):
 			if 'start' in row and 'end' in row:
 				commands.append(dict(receipt=str(path), receipt_sha256=digest, ordinal=ordinal, name=row.get('name'), argv=row.get('argv'), exit=row.get('exit'), start=row['start'], end=row['end']))
+				# The ordinary LLVM build entry point keeps one receipt per command,
+				# rather than commands.json. Include its measured cold-build intervals.
+	for path in sorted(paths.RUNTIME.rglob('*.json')):
+		if path.is_relative_to(leaf) or any(part.startswith(('handoff-', 'published-verification-')) for part in path.relative_to(paths.RUNTIME).parts): continue
+		if not path.with_suffix('.stdout').is_file() or not path.with_suffix('.stderr').is_file(): continue
+		row = read(path)
+		if not isinstance(row, dict) or 'monotonic_start' not in row or 'monotonic_end' not in row: continue
+		commands.append(dict(receipt=str(path), receipt_sha256=sha(path), ordinal=None, name=path.stem, argv=row.get('argv'), exit=row.get('exit'), start=row['monotonic_start'], end=row['monotonic_end']))
 	intervals = interval_union([(row['start'], row['end']) for row in commands])
 	builds = []
 	for path in sorted(paths.RUNTIME.rglob('*input-identity.json')):
@@ -71,7 +79,8 @@ def main():
 		target = Path(identity['argv'][-1])
 		product = target.with_suffix('.identity.json')
 		qualified_product = product.exists() and read(product).get('identity') == identity and target.is_file() and sha(target) == read(product)['sha256']
-		builds.append(dict(input_identity=str(path), input_identity_sha256=sha(path), requested_product_argv=identity['argv'], captured_source_count=len(identity['sources']), metrics=metrics, stdout_sha256=sha(stdout) if stdout.exists() else None, stderr_sha256=sha(stderr) if stderr.exists() else None, matching_product_identity=qualified_product, qualification='A matching sidecar proves the product identity check completed. Missing/mismatched sidecars and failed/stopped checks earn no product credit. Source-only checks are distinct from native builds.'))
+		actual_receipt = path.parent/(label+'.json'); actual = read(actual_receipt) if actual_receipt.exists() else None
+		builds.append(dict(input_identity=str(path), input_identity_sha256=sha(path), requested_product_argv=identity['argv'], actual_command_receipt=str(actual_receipt) if actual else None, actual_command=actual, captured_source_count=len(identity['sources']), metrics=metrics, stdout_sha256=sha(stdout) if stdout.exists() else None, stderr_sha256=sha(stderr) if stderr.exists() else None, matching_product_identity=qualified_product, qualification='A matching sidecar proves the product identity check completed. The actual command receipt, where present, records source-only flag transformations separately from the requested product identity. Missing/mismatched sidecars and failed/stopped checks earn no product credit. Source-only checks are distinct from native builds.'))
 	result = dict(status='MEASURED_CONTINUATION_COSTS', GNU_time_measurements=measurements, compiler_attempts=builds, command_intervals=commands, completed_command_wall_interval_union=intervals, completed_command_wall_union_seconds=sum(last-first for first, last in intervals), completed_command_durations_sum_seconds=sum(row['end']-row['start'] for row in commands), peak_observed_command_RSS_KiB=max((row['peak_RSS_KiB'] for row in measurements), default=0), limitation='All measured failures, fatal signals, source-only checks and successful commands are retained. GNU time reports actual user/system CPU, elapsed wall and peak RSS for each named process tree. Measurements may contain nested or overlapping process trees; CPU, RSS and wall values are never added and called total session resources. The merged monotonic command interval union differs from the durations sum and excludes unmeasured thinking/idle time. Active attempts have no completed cost/qualification credit. Exact identity reuse is not recompilation or compiler speedup. Earlier R5 costs remain historical in the immutable predecessor report.')
 	(leaf/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(len(measurements), 'actual GNU time records;', len(builds), 'compiler attempts;', result['completed_command_wall_union_seconds'], 'seconds completed command interval union', flush=True)

@@ -449,3 +449,15 @@ negative gates. It also binds the actual source ABI receiver mutation product.
 A read-only self-check correctly keeps the earlier failed eleven-job campaign
 unqualified. Source/format validation passes; the complete positive audit must
 await actual repaired products and receipts.
+
+The repaired full integrated C0 Core preflight `repaircore1` passes: actual
+wall70.54 s, user69.84 s, system0.22 s, peak RSS416,352 KiB. A clean-worktree
+protection recheck again authenticates all451 protected paths,6622 donor
+files,1044 historical proofs, settings/hooks/workflow and unchanged C0/report.
+Cost accounting includes the ordinary build entry point's separate per-command
+monotonic receipts as well as commands.json, so cold compiler overlap is part
+of the actual interval union. It retains actual source-only transformed argv
+separately from requested native-product identities. The measured interim
+ledger has11,363 GNU-time records and70 compiler attempts; it includes active
+attempts without assigning completed product/cost credit. A final ledger must
+be regenerated after the repaired builds and qualification finish.
