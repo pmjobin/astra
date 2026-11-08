@@ -439,3 +439,13 @@ receiver/binder/instance mutations, each with positive restoration. C0 Core
 `abi-source-verifycore1` passes; actual mutation execution awaits its native
 focused product before another integrated build. No new native credit is
 inferred from this source change.
+
+The independent continuation auditor now binds all 71 actual source-stage
+results and semantic markers, all 15 array/six owner C0-negative refusals,
+the three Error order and eight Error lifetime native/C0 comparisons, their
+fatal traces and clean unsuppressed memory, and the 14+10 independently
+LLVM-valid new physical categories before permitting completed owner/memory/
+negative gates. It also binds the actual source ABI receiver mutation product.
+A read-only self-check correctly keeps the earlier failed eleven-job campaign
+unqualified. Source/format validation passes; the complete positive audit must
+await actual repaired products and receipts.

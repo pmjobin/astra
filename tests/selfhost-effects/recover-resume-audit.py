@@ -128,8 +128,75 @@ def retained(paths, component, mode, version, previous):
 	return facts
 
 
+def support(paths, component, mode, version, native_facts):
+	leaf = paths.RUNTIME/('qualification-'+version+'-'+mode)
+	if not (leaf/'result.json').exists(): return dict(complete=False, missing=str(leaf/'result.json'))
+	result = read(leaf/'result.json'); observed = commands(leaf)
+	assert result['component_sha256'] == sha(component) and result['profile'] == mode
+	facts = dict(complete=False, receipt=str(leaf/'result.json'), receipt_sha256=sha(leaf/'result.json'), failed_jobs=result['failed_jobs'])
+	if result['status'] != 'CONTINUATION_QUALIFICATION_COMPLETED' or result['selected_jobs'] is not None or result['completed_jobs'] != result['expected_jobs'] or result['expected_jobs'] != len(observed) or len(observed) != 11 or any(row['exit'] != 0 or row['timed_out'] for row in observed.values()): return facts
+	receipts = []
+	def load(stem):
+		where = paths.RUNTIME/stem; data = read(where/'result.json'); run = commands(where)
+		receipts.append(dict(path=str(where/'result.json'), sha256=sha(where/'result.json')))
+		return where, paths.BUILD/stem, data, run
+	where, build, data, run = load('runtime-stages-'+version+mode)
+	assert data['observer_sha256'] == sha(component) and data['observer_identity_sha256'] == sha(component.with_suffix('.identity.json'))
+	assert len(data['programs']) == len(native_facts['programs']) == 71
+	markers = set()
+	for ordinal, (row, source) in enumerate(zip(data['programs'], native_facts['programs'], strict=True)):
+		assert row['name'] == source['name'] and row['inputs'] == source['inputs'] and row['Flow_Core_CFG_SSA_valid'] and row['exit'] == 42 and row['source_boundary'] is None and not row['verification_failure_leaves']
+		label = str(ordinal)+'-'+row['name']; assert run[label]['exit'] == 42 and run[label]['argv'][:2] == [str(component), '--shared-stages']
+		stdout = (where/(label+'.stdout')).read_text(); assert 'SHARED_SSA_VALID' in stdout
+		assert row['semantic_markers'] == [line for line in stdout.splitlines() if line.startswith('SEMANTIC ')]
+		markers.update(row['semantic_markers'])
+	assert len(markers) >= 12
+	for group, count in [('array', 15), ('owner', 6)]:
+		where, build, data, run = load(group+'-source-negative-'+version+'-'+mode)
+		assert data['component_sha256'] == sha(component) and data['C0_sha256'] == sha(C0) and data['profile'] == mode and not data['stage_only'] and len(data['programs']) == count
+		for row in data['programs']:
+			name = row['name']; assert sha(where/(name+'.astra')) == row['source_sha256'] and row['C0_rejected'] and row['Astra_not_emitted'] and row['destination_preserved']
+			assert run[name+'-C0-build']['exit'] == 1 and run[name+'-C0-build']['argv'][:2] == [str(C0), '-'+mode]
+			assert run[name+'-Astra-attempt']['argv'][0] == str(component) and run[name+'-Astra-attempt']['exit'] == row['Astra_status'] and row['Astra_status'] in range(1, 7)
+			assert (build/(name+'.ll')).read_bytes() == b'Negative source output sentinel\n'
+			output = (where/(name+'-Astra-attempt.stdout')).read_bytes() + (where/(name+'-Astra-attempt.stderr')).read_bytes()
+			assert b'RESOURCE_EXHAUSTED' not in output and b'RECOVER_FLOW 2 ' not in output
+	where, build, data, run = load('error-order-native-'+version+'-'+mode)
+	assert data['component_sha256'] == sha(component) and data['profile'] == mode and len(data['programs']) == 3
+	for row in data['programs']:
+		assert row['emit_exit'] == 0 and [entry['producer'] for entry in row['observations']] == ['C0', 'Astra']
+		left, right = row['observations']; assert left['allocation_events'] == right['allocation_events'] and left['failures'] == right['failures']
+		for entry in row['observations']:
+			label = row['name']+'-'+entry['producer']; assert entry['exit'] == run[label+'-execute']['exit'] == run[label+'-memory']['exit'] == 42 and entry['returning_clean_memory'] and sha(build/label) == entry['ELF_sha256']
+			memory(where/(label+'-memory.stderr'))
+			assert all(not control['returning_memory_credit'] and control['exit'] in (132, -4) for control in entry['failures'])
+		for stream in ('stdout', 'stderr'): assert (where/(row['name']+'-Astra-execute.'+stream)).read_bytes() == (where/(row['name']+'-C0-execute.'+stream)).read_bytes()
+	where, build, data, run = load('error-lifetime-'+version+'-'+mode)
+	assert data['component_sha256'] == sha(component) and data['profile'] == mode and len(data['programs']) == 8
+	for row in data['programs']:
+		assert set(row['profiles']) == {'C0', 'Astra'}
+		left, right = row['profiles']['C0'], row['profiles']['Astra']; assert left['trace'] == right['trace'] and left['failures'] == right['failures'] and left['stdout_sha256'] == right['stdout_sha256'] and left['stderr_sha256'] == right['stderr_sha256']
+		for producer, entry in row['profiles'].items():
+			label = row['name']+'-'+producer; assert run[label+'-execute']['exit'] == run[label+'-memory']['exit'] == 42 and sha(build/label) == entry['ELF_sha256']
+			assert '--default-suppressions=no' in run[label+'-memory']['argv'] and 'LD_PRELOAD' not in ' '.join(run[label+'-memory']['argv'])
+			memory(where/(label+'-memory.stderr')); assert entry['trace'] and all(not control['returning_memory_credit'] and (control['exit'] in (132, -4) if control['fatal'] else control['exit'] == 42) for control in entry['failures'])
+	for stem, count in [('frontier-physical', 14), ('error-physical', 10)]:
+		where, build, data, run = load(stem+'-'+version+'-'+mode)
+		assert data['component_sha256'] == sha(component) and data['profile'] == mode
+		rows = data['LLVM_valid_physical'] if stem == 'frontier-physical' else data['modules']; assert len(rows) == count
+		for ordinal, row in enumerate(rows):
+			physical = build/(stem+'-'+str(ordinal)+'.ll'); assert row['category'] == ordinal and sha(physical) == row['LLVM_sha256' if stem == 'frontier-physical' else 'sha256']
+			assert any(item['exit'] == 0 and item['argv'][:2] == ['opt', '-passes=verify'] and str(physical) in item['argv'] for item in run.values())
+		if stem == 'frontier-physical':
+			assert data['actual_exit'] == 42 and sha(build/'Astra') == data['Astra_ELF_sha256'] and sha(build/'C0') == data['C0_ELF_sha256']
+			for producer in ('Astra', 'C0'): assert run[producer+'-execute']['exit'] == run[producer+'-memory']['exit'] == 42; memory(where/(producer+'-memory.stderr'))
+		else: assert (where/'actual-source-physical-alternatives.stdout').read_text().splitlines() == ['ERROR_LLVM_REJECT '+str(i) for i in range(10)]
+	facts.update(complete=True, stage_programs=71, new_semantic_categories=sorted(markers), array_source_negatives=15, owner_source_negatives=6, error_order_programs=3, error_lifetime_programs=8, new_LLVM_valid_physical=24, receipts=receipts)
+	return facts
+
+
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('--version', required=True); p.add_argument('--component', action='append', default=[]); p.add_argument('--assessment', type=Path, required=True); p.add_argument('--output', type=Path, required=True)
+	p = argparse.ArgumentParser(); p.add_argument('--version', required=True); p.add_argument('--component', action='append', default=[]); p.add_argument('--assessment', type=Path, required=True); p.add_argument('--output', type=Path, required=True); p.add_argument('--abi-source-proof', type=Path)
 	a = p.parse_args(); assert a.version.isalnum() and not a.output.exists()
 	paths = load_module('resume_audit_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	initial = read(paths.RUNTIME/'initial.json')
@@ -153,11 +220,23 @@ def main():
 		component = Path(path); row = compiler(component, mode)
 		row['native'] = native(paths, component, mode, a.version)
 		row['retained'] = retained(paths, component, mode, a.version, previous['profiles'][mode])
+		row['support'] = support(paths, component, mode, a.version, row['native'])
 		profiles[mode] = row
 	matched = set(profiles) == {'O0', 'O2'} and profiles['O0']['project_input_hashes'] == profiles['O2']['project_input_hashes'] and profiles['O0']['tools'] == profiles['O2']['tools']
 	actual = {mode: sum(row['domain'] == 'FULL_ORIGINAL' and row['native_execution'] == 42 for row in profiles.get(mode, {}).get('native', {}).get('programs', [])) for mode in ('O0', 'O2')}
 	assessment = read(a.assessment)
 	assert assessment['status'] in ('PASS', 'PARTIAL') and set(assessment['gates']) == {'G'+str(n) for n in range(13)} and assessment['gates']['G12'].startswith('PENDING')
+	abi_proof = None
+	if a.abi_source_proof:
+		proof = read(a.abi_source_proof); where = a.abi_source_proof.parent; observed = commands(where)
+		assert proof['status'] == 'SOURCE_ABI_RECEIVER_PLANS_VERIFIED' and proof['source_sha256'] == sha(ROOT/'compiler/backend/llvm/recover-storage-abi.astra') and proof['Astra_native_execution_credit'] == 0
+		assert (where/'actual-abi-source.astra').read_bytes() == Path(proof['source_path']).read_bytes()[proof['view_first']:proof['view_last']] and sha(where/'actual-abi-source.astra') == proof['view_sha256']
+		assert observed['observe']['exit'] == 42 and sha(where/'observe.stdout') == proof['observation_sha256'] and all(sha(row['path']) == row['sha256'] for row in proof['inputs'])
+		stdout = (where/'observe.stdout').read_text(); assert stdout.count('ABI_ERROR_RECEIVER ') >= 2 and stdout.count('ABI_RECEIVER_MUTATIONS_VALID 9') == stdout.count('ABI_ERROR_RECEIVER ')
+		product = proof['products']['astra-abi-source-O0']; assert sha(product['path']) == product['sha256']
+		identity = read(Path(product['path']).with_suffix('.identity.json')); assert all(sha(source) == expected for group in ('sources', 'tools') for source, expected in identity['identity'][group].items())
+		abi_proof = dict(path=str(a.abi_source_proof), sha256=sha(a.abi_source_proof), actual_receivers=stdout.count('ABI_ERROR_RECEIVER '), mutations_per_receiver=9, target_execution_credit=0)
+	if assessment['gates']['G5'].startswith('PASS'): assert abi_proof is not None
 	if assessment['gates']['G1'].startswith('PASS'): assert matched and all(row['retained']['complete'] for row in profiles.values())
 	if assessment['gates']['G6'].startswith('PASS'):
 		assert matched and actual == dict(O0=1, O2=1)
@@ -169,7 +248,7 @@ def main():
 				for row in profiles.values():
 					programs = [program for program in row['native']['programs'] if program['domain'] in domains]
 					assert {program['domain'] for program in programs} == domains and all(program['native_execution'] == 42 for program in programs)
-		if assessment['gates']['G7'].startswith('PASS') or assessment['gates']['G8'].startswith('PASS'): assert all(row['native']['complete'] for row in profiles.values())
+		if any(assessment['gates']['G'+str(gate)].startswith('PASS') for gate in (5, 7, 8)): assert all(row['native']['complete'] and row['support']['complete'] for row in profiles.values())
 	if assessment['gates']['G9'].startswith('PASS'): assert matched and all('cohorts' in row['retained'] for row in profiles.values())
 	if assessment['status'] == 'PASS': assert not assessment['remaining_boundary'] and all(assessment['gates']['G'+str(n)].startswith('PASS') for n in range(12))
 	for receipt in assessment['evidence_receipts']:
@@ -177,6 +256,7 @@ def main():
 	cost_path = paths.RUNTIME/('costs-'+a.version)/'result.json'; costs = read(cost_path)
 	assert costs['status'] == 'MEASURED_CONTINUATION_COSTS'
 	result = dict(format='astra-effects25-r5-continuation-audit/1', status=assessment['status'], summary=assessment['summary'], gates=assessment['gates'], remaining_boundary=assessment['remaining_boundary'], evidence_receipts=assessment['evidence_receipts'], assessment_sha256=sha(a.assessment), final_commit=head, final_tree=tree, previous_report_sha256=PREVIOUS, original_flow_number_Astra_executions=actual, matched_current_source_profiles=matched, profiles=profiles, protection_counts=dict(protected=len(protection['protected']), donor=len(protection['donor']), historical_proofs=protection['historical_proofs']), costs=dict(path=str(cost_path), sha256=sha(cost_path), GNU_time_records=len(costs['GNU_time_measurements']), compiler_attempts=len(costs['compiler_attempts'])), anchors=[dict(path=name, first=first, last=last, sha256=expected) for name, first, last, expected in anchors], historical_qualifications=dict(previous_final_commit=initial['base'], previous_status='PARTIAL', historical_R4_R3_effect_raw_identities='0/120; never raw-byte equivalent', original_historical_statuses=dict(admitted=56, rejected=12, deferred=12)), limitation='Facts are independently rebound to exact source, compiler, output, command, memory and Git identities. The assessment records engineering judgment and every unresolved obligation; counts and successful recipes cannot narrow the milestone contract. Historical results remain tied to their captured revisions. G12 is pending actual publication and independent after-delivery verification.')
+	result['source_ABI_receiver_proof'] = abi_proof
 	a.output.write_text(json.dumps(result, indent=2)+'\n')
 	print(result['status'], 'current full-original executions', actual, 'matched profiles', matched, flush=True)
 
