@@ -7,8 +7,9 @@ clean returning Valgrind in `native-frontiers-final1-{O0,O2}`. The separate
 exact reduced view also executes. These captured compiler revisions qualify
 64 of 71 new source cases per profile; seven derived Error cases stop at the
 carrier consumer. The subsequent bounded receiver repair passes focused and
-complete integrated C0 Core checking; native mutation and integrated replay
-of that repair remain pending.
+complete integrated C0 Core checking and the actual source ABI probe with
+nine mutations per constructor/method receiver. Integrated native replay of
+that repair remains pending.
 The canonical report remains the previously published PARTIAL report, SHA-256
 `16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
 No current-source PASS follows from the implementation or the checks below.
@@ -466,3 +467,12 @@ separately from requested native-product identities. The measured interim
 ledger has 11,363 GNU-time records and 70 compiler attempts; it includes active
 attempts without assigning completed product/cost credit. A final ledger must
 be regenerated after the repaired builds and qualification finish.
+
+`abi-source-verify1` passes actual C0 execution of the production ABI consumer:
+both real normalized constructor/method receivers are admitted, with all nine
+independent plan/receiver/binder/instance mutations rejected and their positive
+twins restored for each receiver. This establishes the focused source/ABI
+preflight, with zero target native execution credit. The next independently
+matched O0/O2 compiler pair uses this unchanged repaired source set; qualification
+must repeat the complete original and retained native, owner/memory and mutation
+populations before an overall status can advance.
