@@ -175,6 +175,13 @@ Only the unchanged installed pm-next publisher writes the canonical report.
 The separate after-publication verification checks delivered ZIP/member
 coverage, Git/source bindings, transport and every indexed evidence byte.
 G12 can pass delivery integrity while the compiler milestone remains PARTIAL.
+The first full package exceeded the installed 25 MiB ceiling. Its archive
+remains in runtime. The delivery archive declares the unchanged installed
+LLVM shared library as an external system dependency, with exact path,
+size and SHA-256 matched to both build identities and its retained local
+153,057,416-byte witness. This excludes that system-library copy from
+transport, while preserving all task sources, generated products and run
+receipts in the independently decoded archive. No evidence was deleted.
 
 The next bounded source work is a verified shared receiver/field owner model
 at the actual SourceSpan frontier and genuine checked UTF8/count conversion
