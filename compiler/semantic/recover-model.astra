@@ -39,6 +39,7 @@ class RecoverFlowData {
 	owned RecoverNode[] nodes;
 	owned int[] edges;
 	owned int[] symbols;
+	owned int[] catch_owners;
 	int function_count;
 	int node_count;
 	int edge_count;
@@ -50,6 +51,7 @@ class RecoverFlowData {
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
 		int capacity = limit; if (limit < 1 || limit > 8192) capacity = 0;
 		this.functions = new RecoverFunction[capacity]; this.nodes = new RecoverNode[capacity]; this.edges = new int[capacity]; this.symbols = new int[symbols];
+		this.catch_owners = new int[symbols];
 		this.function_count = 0; this.node_count = 0; this.edge_count = 0; this.limit = limit;
 		int status = 0; if (capacity == 0) status = 2; this.status = status;
 		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
@@ -103,10 +105,10 @@ class RecoverFlow {
 	owned RecoverFields fields;
 	owned RecoverFlowData data;
 
-	init(owned CheckedIndex checked, int limit, owned ClassStoragePlan layout) {
+	init(owned CheckedIndex checked, int limit, owned ClassStoragePlan layout, owned ClassStoragePlan errors) {
 		int symbols = checked.bindings.symbol_count + 1;
 		var types = new RecoverTypes(checked); var storage = new RecoverStorage(checked);
-		var fields = new RecoverFields(checked, move layout); this.fields = move fields;
+		var fields = new RecoverFields(checked, move layout, move errors); this.fields = move fields;
 		this.checked = move checked; this.types = move types; this.storage = move storage;
 		var data = new RecoverFlowData(symbols, limit); this.data = move data;
 	}

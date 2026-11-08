@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Error payloads retain the approved exception header. Their source-bound
+// member normalization is separate from ordinary Class storage admission.
+bool error_storage_nominal(CheckedIndex checked, SymbolId symbol, int depth) {
+	if (!checked.field_effects || depth > 32 || symbol.index < 1 || symbol.index > checked.generic_symbols) return false;
+	if (recover_error_shape(checked, symbol, 0)) return true;
+	var declaration = checked.bindings.symbol(symbol);
+	var node = declaration.node;
+	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || checked_kind(checked, checked.symbol_types[symbol.index]) != 31) return false;
+	if (checked.bindings.program.arena.get_token_exception_root(node).index != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_bool_exact_heap_class(node) || checked.bindings.program.arena.get_concurrency_concurrency_policy(node).present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
+	var parent_node = checked.bindings.program.arena.get_node_parent_class(node);
+	var parent = checked_effect_class(checked, parent_node);
+	if (parent_node.index == 0 || parent.index == symbol.index || !error_storage_nominal(checked, parent, depth + 1)) return false;
+	var members = checked.bindings.program.arena.get_list_members(node);
+	int constructors = 0;
+	int i = 0;
+	while (i < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, i);
+		var kind = checked.bindings.program.arena.kind(member);
+		if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+			if (!recover_plain_member(checked, member) || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init") || checked.bindings.program.arena.get_int_dispatch(member) != 0 || checked.bindings.program.arena.get_node_body(member).index == 0) return false;
+			var initializer = recover_error_initializer(checked, parent);
+			if (initializer.index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(member)) != checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer))) return false;
+			constructors = constructors + 1;
+		} else {
+			if (kind != SyntaxKind.StructFieldDeclarationSyntax() && (kind != SyntaxKind.FunctionDeclarationSyntax() || !class_storage_member(checked, member) || checked.bindings.program.arena.get_node_throws_class(member).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(member)) != 0)) return false;
+		}
+		i = i + 1;
+	}
+	var fields = checked.bindings.program.arena.get_list_fields(node);
+	if (constructors != 1 || checked.bindings.program.arena.list_count(fields) > 128) return false;
+	i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var source = checked.bindings.program.arena.node_at(fields, i);
+		var field = checked.node_symbols[source.index];
+		if (field.index < 1 || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != symbol.index) return false;
+		var type = checked.symbol_types[field.index];
+		int flags = checked.symbol_flags[field.index];
+		int kind = checked_kind(checked, type);
+		if (type_numeric(kind) || kind == 13) flags = flags & ~128;
+		if (!class_storage_value(checked, type, flags, depth + 1)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool error_storage_class(CheckedIndex checked, TypeId type) {
+	if (!checked.field_effects || checked_kind(checked, type) != 31) return false;
+	var nominal = checked.types.row(type).nominal;
+	return !recover_error_shape(checked, nominal, 0) && error_storage_nominal(checked, nominal, 0);
+}
+
+void error_storage_members(CheckedIndex checked, TypeId type) throws Error {
+	if (!error_storage_class(checked, type)) return;
+	var owner = checked.types.row(type).nominal;
+	var declaration = checked.bindings.symbol(owner);
+	var parent_node = checked.bindings.program.arena.get_node_parent_class(declaration.node);
+	var parent = checked_effect_class(checked, parent_node);
+	if (parent.index > 0) {
+		var parent_type = checked.symbol_types[parent.index];
+		error_storage_members(checked, parent_type);
+	}
+	int s = 1;
+	while (s <= checked.generic_symbols && !checked.failed()) {
+		var symbol = checked.bindings.symbol(type_symbol(s));
+		if (symbol.owner.index == owner.index && (symbol.kind == 11 || symbol.kind == 12)) {
+			if (checked.symbol_types[s].index == 0) checked_signature(checked, type_symbol(s));
+			var arguments = new TypeEdge[0];
+			var ignored = generic_instantiate(checked, type_symbol(s), type, arguments, checked.bindings.program.arena.header(symbol.node).span);
+		}
+		s = s + 1;
+	}
+}
+
+SymbolId error_storage_constructor(CheckedIndex checked, TypeId type) {
+	if (!error_storage_class(checked, type)) return type_symbol(0);
+	int i = 0;
+	while (i < checked.instance_count) {
+		var plan = checked.instances[i];
+		if (plan.enclosing.index == type.index && checked.bindings.symbol(plan.origin).kind == 12) return plan.concrete;
+		i = i + 1;
+	}
+	return type_symbol(0);
+}
+
+// Base expressions are actual copied syntax, with original Binder references
+// and the same independently checked generic substitution as the body.
+void error_storage_check_base(CheckedIndex checked, SymbolId function) throws Error {
+	int instance = generic_instance_for(checked, function);
+	if (instance < 1 || !class_storage_initializing(checked, function)) return;
+	var plan = checked.instances[instance - 1];
+	if (!error_storage_class(checked, plan.enclosing)) return;
+	var declaration = checked.bindings.symbol(function);
+	var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
+	var parent = checked_effect_class(checked, checked.bindings.program.arena.get_node_parent_class(owner.node));
+	var initializer = recover_error_initializer(checked, parent);
+	var arguments = checked.bindings.program.arena.get_list_base_arguments(declaration.node);
+	var parameters = checked.bindings.program.arena.get_list_parameters(initializer);
+	if (checked.bindings.program.arena.list_count(arguments) != checked.bindings.program.arena.list_count(parameters)) {
+		checked.fail(checked.bindings.program.arena.header(declaration.node).span, "Error base initializer argument count mismatch");
+		return;
+	}
+	int p = 0;
+	while (p < checked.bindings.program.arena.list_count(arguments) && !checked.failed()) {
+		var source = checked.bindings.program.arena.node_at(arguments, p);
+		var parameter = checked.bindings.program.arena.node_at(parameters, p);
+		var target = checked.node_symbols[parameter.index];
+		var expected = checked.symbol_types[target.index];
+		var actual = checked_expression(checked, source, expected, 0);
+		checked_mismatch(checked, checked.bindings.program.arena.header(source).span, expected, actual, "Error base initializer");
+		p = p + 1;
+	}
+}

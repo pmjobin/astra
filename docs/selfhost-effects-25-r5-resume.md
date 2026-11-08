@@ -215,3 +215,30 @@ memory. This includes original SourceBuffer/SourceSpan/SourceDiagnostic,
 repeated growth and snapshots, INT_MIN/64-bit formatters, empty/ASCII/multibyte/
 NUL and all eight retained malformed UTF8 cases. These are O0 observations;
 none establishes the required O2 or final matched-source pair.
+
+## Derived Error stage revision in progress
+
+The source normalizer now retains actual Error constructor/method copies, their
+real borrowed receiver declarations and checked base-expression syntax. A
+separate Error layout plan preserves the approved 32-byte header and places
+derived fields after their parent payload. Its independent consumer recomputes
+parent/field offsets, symbols, flags and TypeOwner identity. Flow operations 65
+(base snapshot initialization), 66 (actual catch borrow) and 67 (derived Error
+construction) carry separate receiver/catch owner identities through Core/CFG/SSA.
+Catch lookup is an independently verified symbol-to-catch map; outer catches
+retain their actual owner instead of inheriting the innermost lexical owner.
+
+`shared-stage-errorcore7-O0` passes current focused C0 Core checking, including
+new source/field/CFG/SSA mutation controls. This is source checking only. A
+new focused native stage consumer will test actual admission before the final
+LLVM implementation and matched builds. LLVM emission/checking for these new
+Error operations remains unfinished; no derived Error execution is claimed.
+
+`error-order-oracles-source1` independently observes C0 O0/O2 argument effects
+before object allocation, followed by base evaluation/snapshot and own-field
+initialization. Forced object and message allocation failures stop the later
+observable effects. The nested outer-catch witness is independently C0-valid;
+its distinct outer/inner messages and scalar fields will check owner selection.
+The generic solver algorithm, instance ceiling, public ABI and checked E25-A-v1
+transport are unchanged. The generic consumer's closed receiver domain now
+recognizes the separately qualified Error source family.

@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Receiver identity comes from the actual independently checked member copy.
+// Source base initialization precedes every own-field statement.
+bool recover_error_constructor_source(CheckedIndex checked, SymbolId function) {
+	int instance = generic_instance_for(checked, function);
+	if (instance < 1 || !class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
+	var plan = checked.instances[instance - 1];
+	if (!error_storage_class(checked, plan.enclosing)) return false;
+	var origin = checked.bindings.symbol(plan.origin);
+	var declaration = checked.bindings.symbol(function);
+	var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
+	if (plan.concrete.index != function.index || plan.state != 2 || origin.kind != 12 || origin.owner.index != checked.types.row(plan.enclosing).nominal.index || !recover_plain_member(checked, declaration.node)) return false;
+	int receiver = class_storage_receiver(checked, function);
+	if (receiver < 1 || checked.bindings.symbol(type_symbol(receiver)).kind != 7 || checked.bindings.symbol(type_symbol(receiver)).owner.index != function.index || checked.symbol_flags[receiver] != 2 || checked.symbol_types[receiver].index != plan.enclosing.index) return false;
+	var parent_node = checked.bindings.program.arena.get_node_parent_class(owner.node);
+	var parent = checked_effect_class(checked, parent_node);
+	// Header-only ancestors already have exact retained constructor contracts.
+	// Richer parent calls require their own explicit borrowed-receiver call.
+	if (parent.index < 1 || !recover_error_shape(checked, parent, 0)) return false;
+	var initializer = recover_error_initializer(checked, parent);
+	if (initializer.index == 0) return false;
+	var parameters = checked.bindings.program.arena.get_list_parameters(initializer);
+	var base = checked.bindings.program.arena.get_list_base_arguments(declaration.node);
+	if (checked.bindings.program.arena.list_count(base) != checked.bindings.program.arena.list_count(parameters)) return false;
+	var initialized = new bool[checked.bindings.symbol_count + 1];
+	int p = 0;
+	while (p < checked.bindings.program.arena.list_count(base)) {
+		var argument = checked.bindings.program.arena.node_at(base, p);
+		if (checked.uses[argument.index].type.index != 15 || !recover_constructor_value(checked, argument, function, plan.enclosing, initialized, 0)) return false;
+		p = p + 1;
+	}
+	var body = checked.bindings.program.arena.get_node_body(declaration.node);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+	var statements = checked.bindings.program.arena.get_list_statements(body);
+	p = 0;
+	while (p < checked.bindings.program.arena.list_count(statements)) {
+		var statement = checked.bindings.program.arena.node_at(statements, p);
+		if (checked.bindings.program.arena.kind(statement) == SyntaxKind.CallStatementSyntax()) {
+			if (!recover_constructor_value(checked, checked.bindings.program.arena.get_node_call(statement), function, plan.enclosing, initialized, 0)) return false;
+		} else {
+			if (checked.bindings.program.arena.kind(statement) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
+			var target = checked.bindings.program.arena.get_node_target(statement);
+			if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this")) return false;
+			var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+			if (field.index < 1 || initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(plan.enclosing).nominal.index || recover_field_receiver(checked, target, function).index != receiver) return false;
+			var value = checked.bindings.program.arena.get_node_expression(statement);
+			if (value.index == 0 || checked.uses[value.index].type.index != checked.symbol_types[field.index].index || !recover_constructor_value(checked, value, function, plan.enclosing, initialized, 0)) return false;
+			initialized[field.index] = true;
+		}
+		p = p + 1;
+	}
+	var fields = checked.bindings.program.arena.get_list_fields(owner.node);
+	p = 0;
+	while (p < checked.bindings.program.arena.list_count(fields)) {
+		var source = checked.bindings.program.arena.node_at(fields, p);
+		if (!initialized[checked.node_symbols[source.index].index]) return false;
+		p = p + 1;
+	}
+	return true;
+}
+
+SyntaxNodeId recover_error_base_value(CheckedIndex checked, SymbolId function) {
+	SyntaxNodeId absent = {index = 0};
+	if (!recover_error_constructor_source(checked, function)) return absent;
+	var declaration = checked.bindings.symbol(function);
+	var arguments = checked.bindings.program.arena.get_list_base_arguments(declaration.node);
+	if (checked.bindings.program.arena.list_count(arguments) == 1) return checked.bindings.program.arena.node_at(arguments, 0);
+	int instance = generic_instance_for(checked, function);
+	var owner = checked.bindings.symbol(checked.types.row(checked.instances[instance - 1].enclosing).nominal);
+	var parent_node = checked.bindings.program.arena.get_node_parent_class(owner.node);
+	var parent = checked_effect_class(checked, parent_node);
+	var initializer = recover_error_initializer(checked, parent);
+	if (initializer.index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer)) != 0) return absent;
+	arguments = checked.bindings.program.arena.get_list_base_arguments(initializer);
+	if (checked.bindings.program.arena.list_count(arguments) != 1) return absent;
+	var literal = checked.bindings.program.arena.node_at(arguments, 0);
+	if (checked.bindings.program.arena.kind(literal) != SyntaxKind.TextLiteralExpressionSyntax()) return absent;
+	return literal;
+}

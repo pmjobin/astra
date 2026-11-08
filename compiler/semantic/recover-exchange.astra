@@ -74,9 +74,9 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 	while (n < flow.data.node_count) {
 		var row = flow.data.nodes[n];
 		if (row.kind == 45 && (!recover_exchange_place(flow, row.a) || !recover_exchange_place(flow, row.b))) return false;
-		if (row.kind == 4 || row.kind == 11 || row.kind == 50) {
+		if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 50) {
 			int signature = flow.checked.symbol_signatures[row.symbol.index].index; if (signature < 1 || signature > flow.checked.signature_count) return false;
-			var callable = flow.checked.signatures[signature - 1].callable; int offset = 1; if (row.kind == 11) offset = 2;
+			var callable = flow.checked.signatures[signature - 1].callable; int offset = 1; if (recover_constructor_kind(row.kind)) offset = 2;
 			int i = 0;
 			while (i < row.count) {
 				var channel = flow.checked.types.argument(flow.checked.types, callable, i + offset); int kind = checked_kind(flow.checked, channel.type);

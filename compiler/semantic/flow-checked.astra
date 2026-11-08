@@ -278,6 +278,7 @@ TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId to
 }
 
 SymbolId checked_constructor(CheckedIndex index, TypeId type) {
+	if (error_storage_class(index, type)) return error_storage_constructor(index, type);
 	if (index.class_storage && class_storage_class(index, type)) return class_storage_constructor(index, type);
 	if (checked_kind(index, type) != 31) return type_symbol(0);
 	var descriptor = index.types.descriptor(index.types, type);
@@ -303,6 +304,7 @@ bool checked_flow_declared_nonnull(CheckedIndex index, SymbolId symbol) {
 // Completing an implicit receiver must not expose unqualified storage families
 // to the small type adapter (owner slots, shared fields and richer records).
 bool checked_flow_receiver_shape(CheckedIndex index, TypeId type) {
+	if (error_storage_class(index, type)) return true;
 	if (index.class_storage && class_storage_class(index, type)) return true;
 	if (checked_kind(index, type) != 31) return false;
 	var descriptor = index.types.descriptor(index.types, type);

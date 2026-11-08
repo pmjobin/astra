@@ -184,7 +184,7 @@ SymbolId generic_method_target(CheckedIndex index, SyntaxNodeId call, int depth)
 	var class_type = index.types.row(enclosing); int outer = generic_instance_for(index, class_type.nominal) - 1;
 	var origin = class_type.nominal; if (outer >= 0) origin = index.instances[outer].origin;
 	var owner = index.bindings.symbol(origin);
-	if (owner.kind != 4 || index.bindings.program.arena.get_node_parent_class(owner.node).index != 0 || index.bindings.program.arena.get_bool_is_interface(owner.node)) return type_symbol(0);
+	if (owner.kind != 4 || index.bindings.program.arena.get_node_parent_class(owner.node).index != 0 && !error_storage_class(index, enclosing) || index.bindings.program.arena.get_bool_is_interface(owner.node)) return type_symbol(0);
 	var token = index.bindings.program.arena.get_token_identifier(call);
 	SymbolId method = {index = 0}; int i = 1;
 	while (i <= index.generic_symbols) {
@@ -201,7 +201,7 @@ SymbolId generic_method_target(CheckedIndex index, SyntaxNodeId call, int depth)
 	checked_complete_member(index, call, token, method);
 	// Unqualified storage/effects may still expose an exact nongeneric lexical
 	// signature. Flow/Core independently refuse emitting that original method.
-	if (index.generic_definition || (!generic_empty_class(index, enclosing) && !class_storage_class(index, enclosing))) {
+	if (index.generic_definition || (!generic_empty_class(index, enclosing) && !class_storage_class(index, enclosing) && !error_storage_class(index, enclosing))) {
 		if (outer < 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(owner.node)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) == 0) return method;
 		return type_symbol(0);
 	}

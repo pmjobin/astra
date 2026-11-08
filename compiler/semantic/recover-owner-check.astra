@@ -10,8 +10,8 @@ bool recover_owner_source(RecoverFlowData flow, CheckedIndex checked, RecoverTyp
 		if (kind != SyntaxKind.MoveExpressionSyntax() || row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || checked_target(checked, source, checked.bindings.program.arena.get_token_source(source)).index != row.symbol.index || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(source)) != 0) return false;
 		var declaration = checked.bindings.symbol(row.symbol); return (declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index == flow.functions[function - 1].symbol.index && checked.symbol_flags[row.symbol.index] == 4 && row.type.index == checked.symbol_types[row.symbol.index].index && recover_storage_channel(checked, row.type, 4, false);
 	}
-	if (row.kind == 11) {
-		if (kind != SyntaxKind.HeapObjectConstructionSyntax() || row.a != 0 || !recover_storage_class(checked, row.type) || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source) || row.symbol.index < 1 || row.symbol.index != checked_constructor(checked, row.type).index || !recover_empty_constructor_verified(checked, row.symbol)) return false;
+	if (recover_constructor_kind(row.kind)) {
+		if (kind != SyntaxKind.HeapObjectConstructionSyntax() || row.a != 0 || row.kind == 11 && !recover_storage_class(checked, row.type) || row.kind == 67 && !error_storage_class(checked, row.type) || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source) || row.symbol.index < 1 || row.symbol.index != checked_constructor(checked, row.type).index || !recover_empty_constructor_verified(checked, row.symbol)) return false;
 		var arguments = checked.bindings.program.arena.get_list_arguments(source); if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
 		var signature = checked.signatures[checked.symbol_signatures[row.symbol.index].index - 1]; if (checked.types.row(signature.callable).count != row.count + 2) return false;
 		int i = 0;

@@ -6,10 +6,10 @@ int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work)
 	while (n < flow.data.node_count) {
 		if (!work.take()) return -1;
 		var row = flow.data.nodes[n];
-		if (row.kind == 4 || row.kind == 11) {
+		if (row.kind == 4 || recover_constructor_kind(row.kind)) {
 			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
 			int offset = 1;
-			if (row.kind == 11) offset = 2;
+			if (recover_constructor_kind(row.kind)) offset = 2;
 			int p = 0;
 			while (p < row.count) {
 				if (recover_owner_unwrap(flow.data, flow.data.edges[row.first + p]) == value) {

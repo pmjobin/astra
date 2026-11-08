@@ -218,11 +218,14 @@ SymbolId class_storage_origin(CheckedIndex index, TypeId type) {
 bool class_storage_member_template(CheckedIndex index, SymbolId symbol) {
 	if (!index.class_storage || symbol.index < 1 || symbol.index > index.generic_symbols) return false;
 	var member = index.bindings.symbol(symbol);
-	return (member.kind == 11 || member.kind == 12) && member.owner.index != 0 && class_storage_declaration(index, member.owner);
+	return (member.kind == 11 || member.kind == 12) && member.owner.index != 0 && (class_storage_declaration(index, member.owner) || error_storage_class(index, index.symbol_types[member.owner.index]));
 }
 
 void class_storage_members(CheckedIndex index, TypeId type) throws Error {
-	if (!class_storage_class(index, type)) return;
+	if (!class_storage_class(index, type)) {
+		error_storage_members(index, type);
+		return;
+	}
 	var owner = class_storage_origin(index, type); int s = 1;
 	while (s <= index.generic_symbols && !index.failed()) {
 		var symbol = index.bindings.symbol(type_symbol(s));

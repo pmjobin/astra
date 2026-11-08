@@ -135,8 +135,8 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 								error = recover_cfg_error(cfg, id, cfg.core.count + id, 0);
 								if (row.type.index != 14) tail = cfg.block(row.function, id, 30, 0, 0, next, 0, 0, 0, 0);
 							}
-							int owner = 0; if (row.kind == 5) owner = id;
-							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || row.kind == 11 || row.kind == 19) head = recover_cfg_commit(cfg, id, operation);
+							int owner = 0; if (recover_error_new_kind(row.kind)) owner = id;
+							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19) head = recover_cfg_commit(cfg, id, operation);
 							int i = row.count - 1;
 							while (i >= 0 && cfg.status == 0) {
 								// Check the evaluated receiver before explicit arguments.

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 bool frontier_flow_mutations(RecoverFlow flow) {
+	if (!error_flow_mutations(flow)) return false;
 	bool foreign = false;
 	bool caller = false;
 	bool utf8 = false;
@@ -93,6 +94,7 @@ bool frontier_flow_mutations(RecoverFlow flow) {
 }
 
 bool frontier_core_mutations(RecoverCore core) {
+	if (!error_core_mutations(core)) return false;
 	int n = 0;
 	while (n < core.count) {
 		var saved = core.nodes[n];
@@ -122,6 +124,7 @@ bool frontier_core_mutations(RecoverCore core) {
 }
 
 bool frontier_cfg_mutations(RecoverCfg cfg) {
+	if (!error_cfg_mutations(cfg)) return false;
 	int n = 0;
 	while (n < cfg.block_count) {
 		var saved = cfg.blocks[n];
@@ -185,6 +188,7 @@ bool frontier_cfg_mutations(RecoverCfg cfg) {
 }
 
 bool frontier_ssa_mutations(RecoverSsa ssa) {
+	if (!error_ssa_mutations(ssa)) return false;
 	int n = 1;
 	while (n <= ssa.cfg.core.count) {
 		int kind = ssa.cfg.core.nodes[n - 1].value.kind;
@@ -198,6 +202,162 @@ bool frontier_ssa_mutations(RecoverSsa ssa) {
 			if (!rejected || !recover_ssa_verify(ssa)) return false;
 			if (kind == 53) println("SEMANTIC UTF8-SSA-definition-dominance");
 			if (kind == 56) println("SEMANTIC slice-SSA-definition-dominance");
+			return true;
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
+bool error_flow_mutations(RecoverFlow flow) {
+	bool base = false;
+	bool nominal = false;
+	bool layout = false;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var saved = flow.data.nodes[n];
+		if (saved.kind == 65 && !base) {
+			var row = saved;
+			int instance = generic_instance_for(flow.checked, flow.data.functions[row.function - 1].symbol);
+			row.source = flow.checked.bindings.symbol(flow.checked.instances[instance - 1].origin).node;
+			flow.data.nodes[n] = row;
+			bool rejected = !recover_flow_verify(flow);
+			flow.data.nodes[n] = saved;
+			if (!rejected || !recover_flow_verify(flow)) return false;
+			println("SEMANTIC Error-base-binder-universe");
+			base = true;
+		}
+		if (saved.kind == 67 && !nominal) {
+			var row = saved;
+			var owner = flow.checked.bindings.symbol(flow.checked.types.row(row.type).nominal);
+			var parent_node = flow.checked.bindings.program.arena.get_node_parent_class(owner.node);
+			var parent = checked_effect_class(flow.checked, parent_node);
+			row.type = flow.checked.symbol_types[parent.index];
+			flow.data.nodes[n] = row;
+			bool rejected = !recover_flow_verify(flow);
+			flow.data.nodes[n] = saved;
+			if (!rejected || !recover_flow_verify(flow)) return false;
+			println("SEMANTIC Error-construction-source-nominal");
+			nominal = true;
+		}
+		if ((saved.kind == 17 || saved.kind == 44) && !layout) {
+			var fact = flow.fields.facts[saved.source.index];
+			if (error_storage_class(flow.checked, fact.aggregate)) {
+				var physical = flow.fields.errors.fields[fact.field.index];
+				var forged = physical;
+				forged.offset = 16;
+				flow.fields.errors.fields[fact.field.index] = forged;
+				int k = 0;
+				while (k < len(flow.fields.facts)) {
+					var other = flow.fields.facts[k];
+					if (other.field.index == fact.field.index) {
+						other.offset = 16;
+						flow.fields.facts[k] = other;
+					}
+					k = k + 1;
+				}
+				bool rejected = !recover_flow_verify(flow);
+				flow.fields.errors.fields[fact.field.index] = physical;
+				k = 0;
+				while (k < len(flow.fields.facts)) {
+					var other = flow.fields.facts[k];
+					if (other.field.index == fact.field.index) {
+						other.offset = physical.offset;
+						flow.fields.facts[k] = other;
+					}
+					k = k + 1;
+				}
+				if (!rejected || !recover_flow_verify(flow)) return false;
+				println("SEMANTIC Error-derived-field-header-overlap");
+				layout = true;
+			}
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
+bool error_core_mutations(RecoverCore core) {
+	int n = 0;
+	while (n < core.count) {
+		var saved = core.nodes[n];
+		if (saved.value.kind == 66) {
+			int other = 0;
+			while (other < core.count) {
+				var owner = core.nodes[other].value;
+				if (owner.kind == 25 && owner.type.index == saved.value.type.index && other + 1 != saved.borrowed_owner) {
+					var row = saved;
+					row.borrowed_owner = other + 1;
+					core.nodes[n] = row;
+					bool rejected = !recover_core_verify(core);
+					core.nodes[n] = saved;
+					if (!rejected || !recover_core_verify(core)) return false;
+					println("SEMANTIC Error-same-type-catch-owner");
+					return true;
+				}
+				other = other + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
+bool error_cfg_mutations(RecoverCfg cfg) {
+	int b = 0;
+	while (b < cfg.block_count) {
+		var saved = cfg.blocks[b];
+		if (saved.opcode == 65) {
+			var region = cfg.regions[saved.origin - 1];
+			var row = saved;
+			row.next = cfg.terminals[row.function - 1];
+			if (row.next == saved.next) row.next = cfg.errors[row.function - 1];
+			cfg.blocks[b] = row;
+			var forged = region;
+			forged.next = row.next;
+			cfg.regions[saved.origin - 1] = forged;
+			int e = 0;
+			while (e < cfg.edge_count) {
+				var edge = cfg.edges[e];
+				if (edge.source == b + 1) {
+					edge.target = row.next;
+					cfg.edges[e] = edge;
+				}
+				e = e + 1;
+			}
+			bool rejected = !recover_cfg_verify(cfg);
+			cfg.blocks[b] = saved;
+			cfg.regions[saved.origin - 1] = region;
+			e = 0;
+			while (e < cfg.edge_count) {
+				var edge = cfg.edges[e];
+				if (edge.source == b + 1) {
+					edge.target = saved.next;
+					cfg.edges[e] = edge;
+				}
+				e = e + 1;
+			}
+			if (!rejected || !recover_cfg_verify(cfg)) return false;
+			println("SEMANTIC Error-base-before-field-continuation");
+			return true;
+		}
+		b = b + 1;
+	}
+	return true;
+}
+
+bool error_ssa_mutations(RecoverSsa ssa) {
+	int n = 0;
+	while (n < ssa.cfg.core.count) {
+		if (ssa.cfg.core.nodes[n].value.kind == 67) {
+			var saved = ssa.data.values[n + 1];
+			var row = saved;
+			row.channel = 4;
+			ssa.data.values[n + 1] = row;
+			bool rejected = !recover_ssa_verify(ssa);
+			ssa.data.values[n + 1] = saved;
+			if (!rejected || !recover_ssa_verify(ssa)) return false;
+			println("SEMANTIC Error-SSA-acquisition-channel");
 			return true;
 		}
 		n = n + 1;

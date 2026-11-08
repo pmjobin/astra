@@ -367,6 +367,7 @@ owned CheckedIndex checked_build_profile_mode(owned BindingIndex bindings, int s
 		var body = result.bindings.program.arena.get_node_body(symbol.node);
 		var type = result.types.argument(result.types, signature.callable, 0);
 		result.current_result_flags = type.flags;
+		error_storage_check_base(result, signature.declaration);
 		checked_statement(result, body, type.type, 0);
 		if (result.semantic_flow && (symbol.kind == 12 || class_storage_initializing(result, signature.declaration))) {
 			var obligation = result.defer(symbol.node, 20);

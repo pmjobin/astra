@@ -17,12 +17,24 @@ struct RecoverField {
 class RecoverFields {
 	owned shared TypeOwner identity;
 	owned ClassStoragePlan layout;
+	owned ClassStoragePlan errors;
 	owned RecoverField[] facts;
 
-	init(CheckedIndex checked, owned ClassStoragePlan layout) {
+	init(CheckedIndex checked, owned ClassStoragePlan layout, owned ClassStoragePlan errors) {
 		var identity = shared_clone(checked.types.identity); this.identity = move identity;
 		this.layout = move layout; this.facts = new RecoverField[len(checked.uses)];
+		this.errors = move errors;
 	}
+}
+
+ClassStorageLayout recover_field_layout(RecoverFields fields, CheckedIndex checked, TypeId type) {
+	if (error_storage_class(checked, type)) return fields.errors.types[type.index];
+	return fields.layout.types[type.index];
+}
+
+ClassStorageField recover_field_physical(RecoverFields fields, CheckedIndex checked, TypeId type, SymbolId field) {
+	if (error_storage_class(checked, type)) return fields.errors.fields[field.index];
+	return fields.layout.fields[field.index];
 }
 
 // Resolve the implicit language receiver through its concrete specialization,
@@ -117,6 +129,8 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 }
 
 bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function) {
+	int error_instance = generic_instance_for(checked, function);
+	if (error_instance > 0 && error_storage_class(checked, checked.instances[error_instance - 1].enclosing)) return recover_error_constructor_source(checked, function);
 	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
 	int instance = generic_instance_for(checked, function); if (instance < 1) return false;
 	var type = checked.instances[instance - 1].enclosing;
@@ -187,7 +201,7 @@ void recover_fields_build(RecoverFields fields, CheckedIndex checked, RecoverSto
 			if (row.kind == 17 || row.kind == 18) parent = row.a;
 			var type = checked.symbol_types[receiver.index];
 			if (parent > 0) type = flow.nodes[parent - 1].type;
-			var layout = fields.layout.types[type.index]; var field = fields.layout.fields[member.index];
+			var layout = recover_field_layout(fields, checked, type); var field = recover_field_physical(fields, checked, type, member);
 			bool initializing = parent == 0 && class_storage_initializing(checked, function) && receiver.index == class_storage_receiver(checked, function);
 			int flags = checked.symbol_flags[member.index];
 			RecoverField fact = {receiver = receiver, field = member, aggregate = type, slot = storage.symbols[receiver.index], parent = parent, ordinal = field.ordinal, offset = field.offset, cleanup_rank = layout.fields - 1 - field.ordinal, writable = (flags & 2) == 0 && ((flags & 128) == 0 || initializing), initializing = initializing};
@@ -198,7 +212,7 @@ void recover_fields_build(RecoverFields fields, CheckedIndex checked, RecoverSto
 }
 
 bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverStorage storage, RecoverFlowData flow) {
-	if (!type_owner_same(fields.identity, checked.types.identity) || !class_storage_verify(fields.layout, checked) || len(fields.facts) != len(checked.uses)) return false;
+	if (!type_owner_same(fields.identity, checked.types.identity) || !class_storage_verify(fields.layout, checked) || !recover_error_layout_verified(fields.errors, fields.layout, checked) || len(fields.facts) != len(checked.uses)) return false;
 	var seen = new bool[len(fields.facts)]; int n = 0;
 	while (n < flow.node_count) {
 		var row = flow.nodes[n]; var projection = recover_field_source(checked, row);
@@ -209,7 +223,7 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 			var function = flow.functions[row.function - 1].symbol;
 			if (recover_field_receiver(checked, projection, function).index != fact.receiver.index || row.symbol.index != fact.receiver.index) return false;
 			var slot = storage.slots[fact.slot - 1];
-			if (slot.symbol.index != fact.receiver.index || slot.function != row.function || storage.symbols[fact.receiver.index] != fact.slot || checked.symbol_types[fact.receiver.index].index != slot.type.index || !class_storage_source_verified(checked, fact.aggregate, false, 0)) return false;
+			if (slot.symbol.index != fact.receiver.index || slot.function != row.function || storage.symbols[fact.receiver.index] != fact.slot || checked.symbol_types[fact.receiver.index].index != slot.type.index || !class_storage_source_verified(checked, fact.aggregate, false, 0) && !error_storage_class(checked, fact.aggregate)) return false;
 			if (fact.parent == 0) {
 				if (slot.type.index != fact.aggregate.index) return false;
 			} else {
@@ -225,7 +239,7 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 			if (member.kind != 6 || member.owner.index != nominal.index) return false;
 			var declaration = checked.bindings.symbol(nominal); var source_fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = checked.bindings.program.arena.list_count(source_fields);
 			if (fact.ordinal < 0 || fact.ordinal >= count || checked.node_symbols[checked.bindings.program.arena.node_at(source_fields, fact.ordinal).index].index != fact.field.index || fact.cleanup_rank != count - 1 - fact.ordinal) return false;
-			var physical = fields.layout.fields[fact.field.index];
+			var physical = recover_field_physical(fields, checked, fact.aggregate, fact.field);
 			if (physical.owner != fact.aggregate.index || physical.symbol != fact.field.index || physical.ordinal != fact.ordinal || physical.offset != fact.offset || physical.semantic != checked.symbol_types[fact.field.index].index || physical.flags != checked.symbol_flags[fact.field.index]) return false;
 			var source_type = checked.bindings.program.arena.get_node_type_name(member.node);
 			if (source_type.index == 0 || checked.uses[source_type.index].type.index != 0 && checked.uses[source_type.index].type.index != physical.semantic) return false;

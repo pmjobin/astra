@@ -244,7 +244,7 @@ bool generic_calls_verified(CheckedIndex index) {
 				} else {
 					if (receiver.index == 0 || index.symbol_types[receiver.index].index != plan.enclosing.index) return false;
 				}
-				if (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0)) return false;
+				if (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0) && !error_storage_class(index, plan.enclosing)) return false;
 				int outer_number = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
 				var owner = index.types.row(plan.enclosing).nominal;
 				if (outer_number > 0) owner = index.instances[outer_number - 1].origin;

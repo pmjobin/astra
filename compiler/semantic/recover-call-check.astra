@@ -25,7 +25,7 @@ bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId tar
 		// A borrowed local needs a separate alias-root proof. Parameters retain
 		// their declared borrow; an owned local retains its actual binder slot.
 		int flags = checked.symbol_flags[owner.index];
-		if (!(binding.kind == 7 && (flags == 0 || flags == 2 || flags == 4)) && !(binding.kind == 8 && flags == 4)) return false;
+		if (!(binding.kind == 7 && (flags == 0 || flags == 2 || flags == 4)) && !(binding.kind == 8 && flags == 4) && !recover_error_borrow_binding(checked, owner)) return false;
 	} else {
 		if (checked.bindings.program.arena.get_node_receiver_place(source).index != 0 || checked.bindings.program.arena.get_token_receiver(source).index != 0) return false;
 	}

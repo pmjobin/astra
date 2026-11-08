@@ -37,15 +37,16 @@ bool recover_core_verify(RecoverCore core) {
 		var row = core.nodes[i]; var source = core.flow.data.nodes[i];
 		if (!recover_node_equal(row.value, source)) return false;
 		int role = 0; if (recover_value_kind(source.kind) && source.type.index != 14) role = 1;
-		if (source.kind == 5) role = 2;
-		if (source.kind == 6 || source.kind == 53 || source.kind == 56) role = 3;
+		if (recover_error_new_kind(source.kind)) role = 2;
+		if (source.kind == 6 || source.kind == 66 || source.kind == 53 || source.kind == 56) role = 3;
 		if (source.kind == 9 || source.kind == 10 || source.kind == 11 || (source.kind == 4 || source.kind == 19) && (core.flow.checked.uses[source.source.index].flags & 4) != 0) role = 4;
 		if (source.kind == 19 && core.flow.checked.uses[source.source.index].flags == 2) role = 3;
 		int place = 0; if (source.kind == 58 || source.kind == 2 || source.kind == 10 || source.kind == 12 || source.kind == 27 || source.kind == 42 || source.kind == 43) place = core.flow.storage.symbols[source.symbol.index];
+		if (source.kind == 65) place = core.flow.storage.symbols[source.symbol.index];
 		if (source.kind == 17 || source.kind == 18 || source.kind == 44) place = core.flow.fields.facts[source.source.index].slot;
 		if (row.result_role != role || row.place != place) return false;
-		int owner = 0; if (source.kind == 5 || source.kind == 25) owner = i + 1;
-		int borrow = 0; if (source.kind == 6) borrow = source.caught;
+		int owner = 0; if (recover_error_new_kind(source.kind) || source.kind == 25) owner = i + 1;
+		int borrow = 0; if (source.kind == 6 || source.kind == 66) borrow = recover_caught_owner(core.flow.data, source.symbol);
 		if (source.kind == 53) borrow = core.flow.storage.symbols[source.symbol.index];
 		if (source.kind == 56) {
 			var root = recover_array_root(core.flow, core.flow.data.edges[source.first], false);
@@ -58,6 +59,8 @@ bool recover_core_verify(RecoverCore core) {
 			borrow = core.flow.storage.symbols[root.index];
 			if (borrow < 1 || borrow > core.flow.storage.count) return false;
 		}
+		if (source.kind == 65 && (place < 1 || place > core.flow.storage.count || !core.flow.storage.slots[place - 1].parameter || core.flow.storage.slots[place - 1].owner)) return false;
+		if (source.kind == 66 && borrow == 0) return false;
 		if (row.error_owner != owner || row.borrowed_owner != borrow) return false;
 		TypeId error = {index = 0}; bool conditional = false;
 		if (source.kind == 4) {
@@ -81,13 +84,14 @@ owned RecoverCore recover_core_lower(owned RecoverFlow flow) {
 	int i = 0;
 	while (i < core.count) {
 		var value = core.flow.data.nodes[i]; int role = 0; if (recover_value_kind(value.kind) && value.type.index != 14) role = 1;
-		if (value.kind == 5) role = 2; if (value.kind == 6 || value.kind == 53 || value.kind == 56) role = 3;
+		if (recover_error_new_kind(value.kind)) role = 2; if (value.kind == 6 || value.kind == 66 || value.kind == 53 || value.kind == 56) role = 3;
 		if (value.kind == 9 || value.kind == 10 || value.kind == 11 || (value.kind == 4 || value.kind == 19) && (core.flow.checked.uses[value.source.index].flags & 4) != 0) role = 4;
 		if (value.kind == 19 && core.flow.checked.uses[value.source.index].flags == 2) role = 3;
 		int place = 0; if (value.kind == 58 || value.kind == 2 || value.kind == 10 || value.kind == 12 || value.kind == 27 || value.kind == 42 || value.kind == 43) place = core.flow.storage.symbols[value.symbol.index];
+		if (value.kind == 65) place = core.flow.storage.symbols[value.symbol.index];
 		if (value.kind == 17 || value.kind == 18 || value.kind == 44) place = core.flow.fields.facts[value.source.index].slot;
-		int owner = 0; if (value.kind == 5 || value.kind == 25) owner = i + 1;
-		int borrow = 0; if (value.kind == 6) borrow = value.caught;
+		int owner = 0; if (recover_error_new_kind(value.kind) || value.kind == 25) owner = i + 1;
+		int borrow = 0; if (value.kind == 6 || value.kind == 66) borrow = recover_caught_owner(core.flow.data, value.symbol);
 		if (value.kind == 53) borrow = core.flow.storage.symbols[value.symbol.index];
 		if (value.kind == 56) {
 			var root = recover_array_root(core.flow, core.flow.data.edges[value.first], false);

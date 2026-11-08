@@ -13,6 +13,7 @@ RecoverNode recover_build_owner(RecoverFlowData flow, CheckedIndex checked, Reco
 	}
 	if (kind == SyntaxKind.HeapObjectConstructionSyntax() && !recover_error_shape(checked, row.symbol, 0)) {
 		row.kind = 11;
+		if (error_storage_class(checked, row.type)) row.kind = 67;
 		row.symbol = checked_constructor(checked, row.type);
 	}
 	if (kind == SyntaxKind.NullPointerExpressionSyntax()) row.kind = 13;

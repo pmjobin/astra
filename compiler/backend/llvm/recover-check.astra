@@ -363,7 +363,8 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			int child = ssa.cfg.core.flow.data.edges[row.first]; if (!recover_llvm_call(operation, construct_function, 3, 8) || LLVMGetArgOperand(operation, 0) != descriptors[row.symbol.index] || !recover_llvm_extract(LLVMGetArgOperand(operation, 1), values[child], 0) || !recover_llvm_extract(LLVMGetArgOperand(operation, 2), values[child], 1) || values[block.origin] != operation) return false;
 		}
 		if (op == 6) {
-			int owner = ssa.cfg.core.count * 2 + ssa.cfg.catch_try[row.caught - 1];
+			int caught_owner = ssa.cfg.core.nodes[block.origin - 1].borrowed_owner;
+			int owner = ssa.cfg.core.count * 2 + ssa.cfg.catch_try[caught_owner - 1];
 			if (!recover_llvm_call(operation, message_function, 1, 8) || LLVMGetArgOperand(operation, 0) != values[owner] || values[block.origin] != operation) return false;
 		}
 		if (op == 30) {

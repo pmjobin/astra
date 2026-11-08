@@ -25,6 +25,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	}
 	if (kind == SyntaxKind.NameExpressionSyntax()) {
 		row.kind = 2; row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+		if (recover_error_borrow_binding(checked, row.symbol)) row.kind = 66;
 	}
 	if (kind == SyntaxKind.BinaryExpressionSyntax()) {
 		row.kind = 3; row.token = checked.bindings.program.arena.get_token_operator_token(source);
@@ -129,9 +130,24 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	if (kind == SyntaxKind.BlockStatementSyntax()) {
 		row.kind = 20; row.type = type_id(14);
 		var statements = checked.bindings.program.arena.get_list_statements(source); int count = checked.bindings.program.arena.list_count(statements);
+		int prefix = 0;
+		if (recover_error_body_prefix(checked, flow.functions[function - 1].symbol, source)) prefix = 1;
+		count = count + prefix;
 		var children = new int[count]; int i = 0;
+		if (prefix == 1) {
+			var declaration = checked.bindings.symbol(flow.functions[function - 1].symbol);
+			var base = recover_empty(declaration.node, function, type_id(14), handler, caught);
+			base.kind = 65;
+			base.symbol = type_symbol(class_storage_receiver(checked, flow.functions[function - 1].symbol));
+			int first = flow.add(base);
+			if (first == 0) return id;
+			base.a = recover_build_node(flow, checked, types, recover_error_base_value(checked, flow.functions[function - 1].symbol), function, handler, caught, depth + 1);
+			flow.nodes[first - 1] = base;
+			children[0] = first;
+			i = 1;
+		}
 		while (i < count && flow.status == 0) {
-			children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(statements, i), function, handler, caught, depth + 1);
+			children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(statements, i - prefix), function, handler, caught, depth + 1);
 			i = i + 1;
 		}
 		row.first = flow.edge_count; row.count = count; i = 0;
@@ -166,6 +182,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	}
 	if (kind == SyntaxKind.CatchClauseSyntax()) {
 		row.kind = 25; var bound_node = checked.bindings.program.arena.get_node_class_name(source); var bound_use = checked.uses[bound_node.index]; row.type = bound_use.type; row.symbol = checked.node_symbols[source.index];
+		flow.catch_owners[row.symbol.index] = id;
 		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_body(source), function, handler, id, depth + 1);
 	}
 	if (kind == SyntaxKind.CallStatementSyntax()) {
@@ -181,7 +198,8 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 
 owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) throws Error {
 	var layout = class_storage_plan(checked);
-	var flow = new RecoverFlow(move checked, limit, move layout);
+	var errors = recover_error_layout(checked, layout);
+	var flow = new RecoverFlow(move checked, limit, move layout, move errors);
 	if (!flow.checked.validate() || flow.checked.failed() || !flow.checked.native_abi || !flow.checked.semantic_admission || !flow.checked.semantic_flow || !flow.checked.class_storage) {
 		flow.data.fail(4, flow.data.boundary);
 		return move flow;
@@ -199,8 +217,8 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) thro
 	int s = 1;
 	while (s <= flow.checked.bindings.symbol_count && flow.data.status == 0) {
 		var symbol = type_symbol(s); var declaration = flow.checked.bindings.symbol(symbol);
-		if (declaration.kind == 4 && !recover_error_shape(flow.checked, symbol, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[s])) flow.data.defer(declaration.node);
-		if ((declaration.kind == 11 || declaration.kind == 12) && !recover_error_shape(flow.checked, declaration.owner, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[declaration.owner.index])) flow.data.defer(declaration.node);
+		if (declaration.kind == 4 && !recover_error_shape(flow.checked, symbol, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[s]) && !error_storage_class(flow.checked, flow.checked.symbol_types[s])) flow.data.defer(declaration.node);
+		if ((declaration.kind == 11 || declaration.kind == 12) && !recover_error_shape(flow.checked, declaration.owner, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[declaration.owner.index]) && !error_storage_class(flow.checked, flow.checked.symbol_types[declaration.owner.index])) flow.data.defer(declaration.node);
 		if (recover_runtime_function(flow.checked, symbol)) {
 			if (!recover_function_source(flow.checked, symbol)) {
 				flow.data.defer(declaration.node);

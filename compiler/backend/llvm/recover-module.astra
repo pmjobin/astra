@@ -657,7 +657,8 @@ class RecoverLlvm {
 			operation = value;
 		}
 		if (op == 6) {
-			int owner = ssa.cfg.core.count * 2 + ssa.cfg.catch_try[row.caught - 1];
+			int caught_owner = ssa.cfg.core.nodes[block.origin - 1].borrowed_owner;
+			int owner = ssa.cfg.core.count * 2 + ssa.cfg.catch_try[caught_owner - 1];
 			var argument = new void*[1];
 			argument[0] = this.values[owner];
 			value = this.call(this.message_function, argument, true);

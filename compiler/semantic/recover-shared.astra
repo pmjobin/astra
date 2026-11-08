@@ -60,6 +60,6 @@ SymbolId recover_borrow_argument_root(RecoverFlowData flow, CheckedIndex checked
 	}
 	if (current < 1 || current > flow.node_count || steps == 192) return type_symbol(0);
 	var row = flow.nodes[current - 1];
-	if (row.kind == 2 || row.kind == 17) return row.symbol;
+	if (row.kind == 2 || row.kind == 17 || row.kind == 66 && recover_error_borrow_binding(checked, row.symbol)) return row.symbol;
 	return recover_shared_borrow_root(flow, checked, current);
 }

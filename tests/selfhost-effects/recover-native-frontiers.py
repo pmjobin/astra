@@ -142,7 +142,27 @@ def main():
 			programs.append((name, inputs, 'COMPLETE_ORIGINAL_UTF8_ERROR' if actual_error else 'COMPLETE_ORIGINAL_UTF8_SUCCESS'))
 	if 'owner' in groups:
 		cases = load_module('native_owner_forms', ROOT/'tests/selfhost-effects/recover-owner-form-oracles.py').CASES
-		for name in ('derived-error-field', 'derived-error-computed-base', 'derived-error-snapshot', 'field-receiver', 'owned-result-explicit-transfer'):
+		cases['nested-outer-Error-borrow'] = '''string label(int code) { if (code == 20) return "outer"; return "inner"; }
+class Detail : Error {
+	private int code;
+	init(int code) : base(label(code)) { this.code = code; }
+	int read() { return this.code; }
+}
+int fail(int code) throws Detail { throw new Detail(code); }
+int main() {
+	try {
+		try { return fail(20); }
+		catch (Detail first) {
+			try { return fail(22); }
+			catch (Detail last) {
+				if (first.message != "outer" || last.message != "inner") return 3;
+				return first.read() + last.read();
+			}
+		}
+	} catch (Error caught) { return 4; }
+}
+'''
+		for name in ('derived-error-field', 'derived-error-computed-base', 'derived-error-snapshot', 'field-receiver', 'owned-result-explicit-transfer', 'nested-outer-Error-borrow'):
 			source = leaf/(name+'.astra')
 			source.write_text(cases[name])
 			programs.append((name, [source, ROOT/'lib/astra/base/errors.astra'], 'C0_VALID_OWNER_FORM'))

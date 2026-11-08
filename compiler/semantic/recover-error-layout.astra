@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// This separate plan shares the layout record format, never ordinary Class
+// admission. The approved 32-byte exception header precedes derived fields.
+void recover_error_layout_build(ClassStoragePlan errors, ClassStoragePlan ordinary, CheckedIndex checked, TypeId type, int depth) throws Error {
+	if (depth > 32 || checked_kind(checked, type) != 31 || !error_storage_nominal(checked, checked.types.row(type).nominal, 0)) {
+		throw new Error("ERROR_STORAGE_DEFERRED: source hierarchy");
+	}
+	if (errors.types[type.index].state == 2) return;
+	if (errors.types[type.index].state != 0) {
+		throw new Error("ERROR_STORAGE_DEFERRED: recursive payload");
+	}
+	var nominal = checked.types.row(type).nominal;
+	var declaration = checked.bindings.symbol(nominal);
+	ClassStorageLayout row = {semantic = type.index, nominal = nominal.index, kind = 31, size = 8, alignment = 8, fields = 0, payload_size = 32, payload_alignment = 8, state = 1};
+	errors.types[type.index] = row;
+	var parent_node = checked.bindings.program.arena.get_node_parent_class(declaration.node);
+	if (parent_node.index > 0) {
+		var parent = checked_effect_class(checked, parent_node);
+		var parent_type = checked.symbol_types[parent.index];
+		recover_error_layout_build(errors, ordinary, checked, parent_type, depth + 1);
+		row.payload_size = errors.types[parent_type.index].payload_size;
+	}
+	if (error_storage_class(checked, type)) {
+		var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+		int i = 0;
+		while (i < checked.bindings.program.arena.list_count(fields)) {
+			var source = checked.bindings.program.arena.node_at(fields, i);
+			var field = checked.node_symbols[source.index];
+			var value = checked.symbol_types[field.index];
+			class_storage_layout(ordinary, checked, value, 0);
+			var child = ordinary.types[value.index];
+			int padding = (child.alignment - row.payload_size % child.alignment) % child.alignment;
+			if (child.size < 1 || row.payload_size > 16777216 - child.size - padding) {
+				throw new Error("ERROR_STORAGE_RESOURCE: payload extent");
+			}
+			row.payload_size = row.payload_size + padding;
+			ClassStorageField slot = {owner = type.index, symbol = field.index, ordinal = i, semantic = value.index, flags = checked.symbol_flags[field.index], offset = row.payload_size};
+			errors.fields[field.index] = slot;
+			row.payload_size = row.payload_size + child.size;
+			row.fields = row.fields + 1;
+			i = i + 1;
+		}
+		row.payload_size = row.payload_size + (8 - row.payload_size % 8) % 8;
+	}
+	row.state = 2;
+	errors.types[type.index] = row;
+}
+
+owned ClassStoragePlan recover_error_layout(CheckedIndex checked, ClassStoragePlan ordinary) throws Error {
+	var errors = new ClassStoragePlan(checked.types.count + 1, checked.bindings.symbol_count + 1);
+	var identity = shared_clone(checked.types.identity);
+	errors.identity = move identity;
+	int s = 1;
+	while (s <= checked.generic_symbols) {
+		var symbol = type_symbol(s);
+		var declaration = checked.bindings.symbol(symbol);
+		if (declaration.kind == 4 && error_storage_nominal(checked, symbol, 0)) {
+			var type = checked.symbol_types[s];
+			recover_error_layout_build(errors, ordinary, checked, type, 0);
+		}
+		s = s + 1;
+	}
+	return move errors;
+}
+
+// Independent consumer: recompute every offset from actual parent/field ASTs,
+// checked scalar layouts and declaration symbols, without calling the builder.
+bool recover_error_layout_verified(ClassStoragePlan errors, ClassStoragePlan ordinary, CheckedIndex checked) {
+	if (!type_owner_same(errors.identity, checked.types.identity) || !errors.active || errors.pointer_size != 8 || errors.pointer_alignment != 8 || errors.target != 1 || len(errors.types) != checked.types.count + 1 || len(errors.fields) != checked.bindings.symbol_count + 1 || !class_storage_verify(ordinary, checked)) return false;
+	var seen = new bool[len(errors.fields)];
+	int t = 1;
+	while (t < len(errors.types)) {
+		var row = errors.types[t];
+		if (row.state != 0) {
+			var type = type_id(t);
+			var shape = checked.types.row(type);
+			if (shape.kind != 31 || row.state != 2 || row.kind != 31 || row.semantic != t || row.nominal != shape.nominal.index || row.size != 8 || row.alignment != 8 || row.payload_alignment != 8 || !error_storage_nominal(checked, shape.nominal, 0)) return false;
+			var declaration = checked.bindings.symbol(shape.nominal);
+			var parent_node = checked.bindings.program.arena.get_node_parent_class(declaration.node);
+			int size = 32;
+			if (parent_node.index > 0) {
+				var parent = checked_effect_class(checked, parent_node);
+				var parent_type = checked.symbol_types[parent.index];
+				var base = errors.types[parent_type.index];
+				if (base.state != 2 || base.nominal != parent.index || base.payload_size < 32 || base.payload_size > 16777216 || base.payload_size % 8 != 0) return false;
+				size = base.payload_size;
+			}
+			if (error_storage_class(checked, type)) {
+				var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+				if (row.fields != checked.bindings.program.arena.list_count(fields)) return false;
+				int i = 0;
+				while (i < row.fields) {
+					var source = checked.bindings.program.arena.node_at(fields, i);
+					var field = checked.node_symbols[source.index];
+					if (field.index < 1 || seen[field.index]) return false;
+					var member = checked.bindings.symbol(field);
+					var value = checked.symbol_types[field.index];
+					var scalar = ordinary.types[value.index];
+					if (member.kind != 6 || member.owner.index != shape.nominal.index || scalar.state != 2 || scalar.alignment < 1 || scalar.alignment > 8 || scalar.size < 1 || scalar.size > 16777216) return false;
+					int padding = (scalar.alignment - size % scalar.alignment) % scalar.alignment;
+					if (size > 16777216 - scalar.size - padding) return false;
+					size = size + padding;
+					var slot = errors.fields[field.index];
+					if (slot.owner != t || slot.symbol != field.index || slot.ordinal != i || slot.semantic != value.index || slot.flags != checked.symbol_flags[field.index] || slot.offset != size) return false;
+					var source_type = checked.bindings.program.arena.get_node_type_name(source);
+					if (source_type.index == 0 || checked.uses[source_type.index].type.index != 0 && checked.uses[source_type.index].type.index != value.index) return false;
+					seen[field.index] = true;
+					size = size + scalar.size;
+					i = i + 1;
+				}
+			} else {
+				if (!recover_error_shape(checked, shape.nominal, 0) || row.fields != 0) return false;
+			}
+			size = size + (8 - size % 8) % 8;
+			if (row.payload_size != size) return false;
+		}
+		t = t + 1;
+	}
+	int s = 1;
+	while (s < len(errors.fields)) {
+		if (!seen[s] && errors.fields[s].symbol != 0) return false;
+		if (s <= checked.generic_symbols) {
+			var symbol = type_symbol(s);
+			var declaration = checked.bindings.symbol(symbol);
+			if (declaration.kind == 4 && error_storage_nominal(checked, symbol, 0) && errors.types[checked.symbol_types[s].index].state != 2) return false;
+		}
+		s = s + 1;
+	}
+	return true;
+}

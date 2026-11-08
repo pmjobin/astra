@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Catch borrows name the actual catch owner, including an outer lexical catch.
+// They never create an ordinary storage slot or a replacement owner root.
+int recover_caught_owner(RecoverFlowData flow, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index >= len(flow.catch_owners)) return 0;
+	int owner = flow.catch_owners[symbol.index];
+	if (owner < 1 || owner > flow.node_count || flow.nodes[owner - 1].kind != 25 || flow.nodes[owner - 1].symbol.index != symbol.index) return 0;
+	return owner;
+}
+
+bool recover_error_borrow_binding(CheckedIndex checked, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.symbol_flags[symbol.index] != 2) return false;
+	var declaration = checked.bindings.symbol(symbol);
+	if (declaration.kind != 15 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.CatchClauseSyntax() || !recover_storage_error(checked, checked.symbol_types[symbol.index])) return false;
+	var bound = checked.bindings.program.arena.get_node_class_name(declaration.node);
+	return checked.uses[bound.index].type.index == checked.symbol_types[symbol.index].index && checked_effect_bound(checked, bound, checked.symbol_types[symbol.index]);
+}
+
+bool recover_error_body_prefix(CheckedIndex checked, SymbolId function, SyntaxNodeId source) {
+	if (!class_storage_initializing(checked, function)) return false;
+	int instance = generic_instance_for(checked, function);
+	if (instance < 1 || !error_storage_class(checked, checked.instances[instance - 1].enclosing)) return false;
+	var declaration = checked.bindings.symbol(function);
+	return checked.bindings.program.arena.get_node_body(declaration.node).index == source.index;
+}
+
+bool recover_error_value_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	if (row.kind == 66) {
+		if (checked.bindings.program.arena.kind(row.source) != SyntaxKind.NameExpressionSyntax() || row.a != 0 || !recover_error_borrow_binding(checked, row.symbol) || row.symbol.index != checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source)).index || row.type.index != checked.symbol_types[row.symbol.index].index) return false;
+		int owner = recover_caught_owner(flow, row.symbol);
+		if (owner < 1 || owner > flow.node_count || flow.nodes[owner - 1].function != function || flow.nodes[owner - 1].type.index != row.type.index) return false;
+		return checked.bindings.accessible(row.symbol, checked.bindings.scope_for_node(row.source));
+	}
+	if (row.kind != 65 || row.type.index != 14 || handler != 0 || caught != 0) return false;
+	var declaration = checked.bindings.symbol(flow.functions[function - 1].symbol);
+	if (row.source.index != declaration.node.index || !recover_error_constructor_source(checked, flow.functions[function - 1].symbol) || row.symbol.index != class_storage_receiver(checked, flow.functions[function - 1].symbol)) return false;
+	var value = recover_error_base_value(checked, flow.functions[function - 1].symbol);
+	return value.index > 0 && recover_child(flow, checked, types, row.a, value, function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
+}
