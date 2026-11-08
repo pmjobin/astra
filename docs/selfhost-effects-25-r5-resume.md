@@ -318,3 +318,31 @@ full build recipe can rederive generated inputs in a new verification leaf for
 warm checking without overwriting current or historical diagnostics. Its fresh
 full C0 Core check passes; this source check is not a warm native compiler build
 or speedup claim.
+
+`shared-stage-errorstage2-O0` completes its guarded native build (wall
+1,205.47 s, user CPU 1,197.26 s, system CPU 0.97 s, RSS 1,521,220 KiB).
+`runtime-stages-errorstage2` again verifies full originals and the reduced view
+through SSA, plus both ordinary owner cases and root Error order. The nine
+derived Error attempts still stop at Flow status 1/boundary 0, now specifically
+`FLOW_PROOF_FAILED payload-calls`; the earlier throw and conditional-type leaf
+failures are gone. The global payload-call consumer omitted actual catch-borrow
+operation 66. It now requires both its real source catch binding and nonzero
+verified catch-owner mapping, then applies the existing other-argument lifetime
+checks using that actual symbol. A zero-map mutation checks this consumer with
+positive restoration. `errorfullcore4` passes complete C0 Core checking after
+this correction; actual derived Error native qualification remains pending.
+
+The first strict stage-negative probes retain failed runner assertions: their
+classification excluded deliberate source/owner consumer refusals. Actual
+receipts show all fifteen C0-invalid array cases and all six C0-invalid owner
+cases refused acceptance, including the two repaired literal end indices.
+The runner now records each actual refusal stage and observation, distinguishes
+crashes/exceptions/resource stops, and grants no LLVM/native execution credit.
+Its corrected classification awaits the current integrated replay; these first
+probe receipts are not rewritten or described as successful runner executions.
+
+The next integrated compiler build uses the corrected frozen sources. The
+focused original-source stage evidence, pure helper LLVM-valid preflights,
+negative refusals and failed derived Error stages all precede that build.
+Derived Error implementation changes remain unqualified until the integrated
+source/consumer/LLVM/ELF/memory replay; no earlier failure becomes a PASS.

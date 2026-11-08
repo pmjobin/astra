@@ -214,9 +214,25 @@ bool error_flow_mutations(RecoverFlow flow) {
 	bool nominal = false;
 	bool layout = false;
 	bool conditional = false;
+	bool catch_root = false;
 	int n = 0;
 	while (n < flow.data.node_count) {
 		var saved = flow.data.nodes[n];
+		if (saved.kind == 4 && !catch_root) {
+			int p = 0;
+			while (p < saved.count && !catch_root) {
+				int id = recover_owner_unwrap(flow.data, flow.data.edges[saved.first + p]);
+				if (id > 0 && flow.data.nodes[id - 1].kind == 66) {
+					var argument = flow.data.nodes[id - 1]; int prior = flow.data.catch_owners[argument.symbol.index];
+					flow.data.catch_owners[argument.symbol.index] = 0;
+					bool rejected = !recover_payload_calls_verified(flow);
+					flow.data.catch_owners[argument.symbol.index] = prior;
+					if (!rejected || !recover_flow_verify(flow)) return false;
+					println("SEMANTIC Error-catch-borrow-call-root"); catch_root = true;
+				}
+				p = p + 1;
+			}
+		}
 		if (saved.kind == 62 && flow.checked.uses[saved.source.index].type.index == 0 && !conditional) {
 			var prior = flow.types.types[saved.source.index];
 			var row = saved; row.type = type_id(1);

@@ -104,6 +104,10 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 					}
 					if (argument.kind == 53) root = argument.symbol;
 					if (argument.kind == 2) root = argument.symbol;
+					if (argument.kind == 66) {
+						if (!recover_error_borrow_binding(flow.checked, argument.symbol) || recover_caught_owner(flow.data, argument.symbol) < 1) return false;
+						root = argument.symbol;
+					}
 					if (argument.kind == 17) {
 						projection = id;
 						var fact = flow.fields.facts[argument.source.index];
@@ -124,7 +128,7 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 						projection = input;
 						if (handle.kind == 17) aggregate = flow.fields.facts[handle.source.index].aggregate;
 					}
-					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19) return false;
+					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19 && argument.kind != 66) return false;
 					int other = 0;
 					while (other < row.count) {
 						if (other != i) {

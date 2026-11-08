@@ -99,13 +99,15 @@ def pack(paths, a, helpers):
 			if row['blob'] not in blobs:
 				with path.open('rb') as stream: store(row['blob'], stream, size)
 				blobs.add(row['blob'])
-		add_bytes('history/previous-evidence-index.json', raw_index)
 		for prefix, root in [('runtime', paths.RUNTIME), ('build', paths.BUILD)]:
 			for path in sorted(root.rglob('*')):
 				if not path.is_file(): continue
 				relative = path.relative_to(root)
 				if prefix == 'runtime' and relative.parts[0].startswith(('handoff-', 'published-verification-')): continue
 				add('resume/'+prefix+'/'+str(relative), path)
+				# Adjacent original/current indexes share the bounded XZ window while
+				# retaining the previous index's exact bytes and row ordering.
+		add_bytes('history/previous-evidence-index.json', raw_index)
 		index = dict(format='astra-effects25-evidence/3', milestone='ASTRA-SELFHOST-EFFECTS-25-R5', final_commit=audit['final_commit'], final_tree=audit['final_tree'], files=files, previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), previous_logical_files=len(old['files']), external_system_dependencies=old['external_system_dependencies'], predecessor_transport=old['predecessor_transport'], limitation='Every previous logical evidence row and blob is retained byte-exact. All continuation task products, source witnesses and failed/stopped/successful receipts are included under resume/. Packaging outputs and redundant prior ZIP transports are identified separately and remain preserved locally. Lossless token columns are independently reconstructed; source snapshots are witnesses, never copied over the checkout.')
 		data = (json.dumps(index, indent=2)+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
 	assert helpers.verify_archive(archive) == index
