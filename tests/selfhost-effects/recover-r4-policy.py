@@ -52,7 +52,7 @@ def main():
 	for name, (expected, source_text) in corpus().items():
 		source = leaf/(name+'.astra'); source.write_text(source_text); exe = build/name
 		def run(argv, suffix):
-			argv = list(map(str, argv)); start = time.monotonic(); r = bounded_run(['/usr/bin/time', '-v', '-o', leaf/(name+'-'+suffix+'.time'), *argv], cwd=build, env=dict(os.environ, CCACHE_DISABLE='1'), capture_output=True, timeout=120); (leaf/(name+'-'+suffix+'.stdout')).write_bytes(r.stdout); (leaf/(name+'-'+suffix+'.stderr')).write_bytes(r.stderr); commands.append(dict(name=name+'-'+suffix, argv=argv, exit=r.returncode, start=start, end=time.monotonic())); (leaf/'commands.json').write_text(json.dumps(commands, indent=2)+'\n'); return r
+			argv = list(map(str, argv)); start = time.monotonic(); r = bounded_run(['/usr/bin/time', '-v', '-o', leaf/(name+'-'+suffix+'.time'), *argv], cwd=build, env=dict(os.environ, CCACHE_DISABLE='1'), capture_output=True, timeout=120); (leaf/(name+'-'+suffix+'.stdout')).write_bytes(r.stdout); (leaf/(name+'-'+suffix+'.stderr')).write_bytes(r.stderr); commands.append(dict(name=name+'-'+suffix, argv=argv, exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=sha(leaf/(name+'-'+suffix+'.stdout')), stderr_sha256=sha(leaf/(name+'-'+suffix+'.stderr')))); (leaf/'commands.json').write_text(json.dumps(commands, indent=2)+'\n'); return r
 		r = run([C0, '-'+a.mode, source, ROOT/'lib/astra/base/errors.astra', '-o', exe], 'build'); assert r.returncode in (0, 1)
 		legal = r.returncode == 0
 		if expected is not None: assert legal == expected, (name, r.stderr)
@@ -63,12 +63,17 @@ def main():
 			assert memory.returncode == execution.returncode and b'ERROR SUMMARY: 0 errors' in memory.stderr and b'in use at exit: 0 bytes in 0 blocks' in memory.stderr and b'(suppressed: 0 from 0)' in memory.stderr
 		if a.component:
 			target = build/(name+'.ll'); target.write_text('R4 policy output sentinel\n'); before = sha(target); native = run([a.component, '--native', target, source, ROOT/'lib/astra/base/errors.astra'], 'Astra-emit')
-			positive = name in ('discard-false', 'discard-scalar', 'discard-error', 'discard-string', 'field-mixed', 'field-exchange', 'field-replace-buffer', 'field-self-exchange', 'field-alias-exchange', 'field-replace-class', 'inherited-inferred-parenthesized-construction', 'inherited-discarded-checked-scalar-result')
+			# R5 explicitly implements these two C0-valid Error forms. Keep the
+			# inherited sources and C0 expectations exact; their earlier Astra
+			# refusals remain historical, rather than a current negative gate.
+			positive = name in ('discard-false', 'discard-scalar', 'discard-error', 'discard-string', 'field-mixed', 'field-exchange', 'field-replace-buffer', 'field-self-exchange', 'field-alias-exchange', 'field-replace-class', 'inherited-inferred-parenthesized-construction', 'inherited-discarded-checked-scalar-result', 'inherited-fielded-derived-Error', 'inherited-computed-base-message')
 			assert (native.returncode == 0) == positive, (name, native.stdout[-2000:], native.stderr[-2500:])
 			row.update(Astra_exit=native.returncode, Astra_emitted=positive, first_output=native.stdout.decode(), component_sha256=sha(a.component))
 			if positive:
 				assert run(['opt', '-passes=verify', '-disable-output', target], 'Astra-verify').returncode == 0; obj = build/(name+'.o'); program = build/(name+'-Astra'); assert run(['llc', '-filetype=obj', '-'+a.mode, target, '-o', obj], 'Astra-object').returncode == 0; assert run(['cc', '-no-pie', obj, '-o', program], 'Astra-link').returncode == 0; assert run([program], 'Astra-execute').returncode == 42
 				memory = run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', program], 'Astra-memory'); assert memory.returncode == 42 and b'ERROR SUMMARY: 0 errors' in memory.stderr and b'in use at exit: 0 bytes in 0 blocks' in memory.stderr and b'(suppressed: 0 from 0)' in memory.stderr
+				assert legal and row['actual_exit'] == 42
+				for stream in ('stdout', 'stderr'): assert (leaf/(name+'-Astra-execute.'+stream)).read_bytes() == (leaf/(name+'-execute.'+stream)).read_bytes()
 				row.update(Astra_ELF_sha256=sha(program), Astra_LLVM_sha256=sha(target))
 			else: assert sha(target) == before
 		rows.append(row); (leaf/'result.json').write_text(json.dumps(dict(status='C0_POLICY_OBSERVATIONS', profile=a.mode, programs=rows, Astra_native_credit=0), indent=2)+'\n'); print(name, 'legal' if legal else 'rejected', row.get('actual_exit'), flush=True)

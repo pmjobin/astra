@@ -1,18 +1,23 @@
 # R5 continuation evidence
 
-This is milestone 25 work in progress. Genuine unchanged original
-`flow_number` executes through Astra→LLVM→ELF at **both O0 and O2**, with the
-complete original population, exit 42, C0-equivalent contents and unsuppressed
-clean returning Valgrind in `native-frontiers-final1-{O0,O2}`. The separate
-exact reduced view also executes. These captured compiler revisions qualify
-64 of 71 new source cases per profile. The receiver repair passes its actual
-ABI mutations and advances seven derived Error cases to the physical consumer;
-their target execution remains unproved. The next instruction-count ordering
-correction and source-bound initialized buffer constructor proof pass complete
-C0 Core checking and await focused stage/mutation and integrated native replay.
-The canonical report remains the previously published PARTIAL report, SHA-256
-`16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
-No current-source PASS follows from the implementation or the checks below.
+Genuine unchanged original `flow_number` executes through Astra→LLVM→ELF at
+**both O0 and O2**, with the complete original population, exit42, equivalent
+C0 contents/errors and unsuppressed clean returning Valgrind. The final
+`repair2` compiler pair qualifies all71 new native source cases per profile,
+including all seven derived Error forms and the separately measured exact
+reduced view. The32 dynamic fault/content witnesses, three Error order and
+eight Error lifetime comparisons also complete at both profiles.
+
+The engineering assessment is completion of the original bounded milestone25
+contract, subject to independent final evidence binding and actual delivery.
+Raw qualification campaigns remain PARTIAL: one inherited test still expected
+two now-implemented C0-valid Error forms to be refused, and one physical test
+produced LLVM-invalid adversarial IR. Explicit corrected supplemental tests
+complete those obligations using the exact unchanged compiler pair. Their
+raw failures remain failures. G12 requires the installed publisher and a
+separate after-delivery check; it is never granted in advance. R4 remains
+historically PARTIAL, predicate26 remains independently DEFERRED, and this
+work grants no milestone26, Stage1, release or push authority.
 
 The continuation starts from commit
 `0ce000667dd5cbee3e2af9fe0237b9c88a5536f3`, without resetting or repinning the
@@ -559,3 +564,64 @@ current ABI probe separately admits both real Error receivers and rejects all
 nine mutations per receiver. These are source/stage/ABI preflights only; target
 LLVM/ELF, Error execution and complete milestone qualification still await the
 next independently matched integrated pair (`repair2`).
+
+## Final matched products and supplemental evidence
+
+Both `full-repair2` products have identical241 project input hashes and tools.
+O0 SHA256 is `455d1175fdc16c59b4a6b84ed56f8a3549aea9b5e3e3c48ddad77df58fc9b615`;
+actual cold wall49:04.88, user2925.27s, system1.57s, peak RSS2,470,920KiB.
+O2 SHA256 is `c1ef10a478fd4efa3c03be4f3d4fee2078f9d2193019e33d09921f8cd4f7c7ee`;
+actual cold wall1:09:25, user4137.40s, system1.65s, peak RSS2,470,436KiB.
+These overlapping process trees are reported separately. Native originals,
+all71 source-stage/mutation cases,15 array/six owner source negatives,32
+dynamic20-fatal/12-returning cases and all Error order/lifetime paths complete.
+Fatal paths have no returning Valgrind credit. The retained340 source
+identities/74 actual errors,101 semantic/52 LLVM-valid physical categories,
+four original cohorts and strict historical raw0/120 drift remain explicit.
+
+The raw `qualification-repair2` campaigns ran all12 jobs and the nested
+retained campaigns ran all41 recipes. Their two failures are preserved.
+`policyfix3` replays the entire inherited policy corpus at both profiles:
+only the two newly implemented, C0-valid fielded/computed-base Error forms
+change their current Astra expectation. Source bytes and C0 expectations
+remain exact. Fresh source→LLVM→ELF, output and unsuppressed returning
+Valgrind comparisons establish those positives; every other negative retains
+its refusal and output sentinel. This is an explicit supplemental replay,
+not a claim that the raw41-recipe campaign passed.
+
+The compiled Error physical test's category6 changed a GEP index1→0 while
+retaining an incompatible cached result element type. LLVM rejected that
+test input before the independent consumer could judge it. The disclosed
+`error-physical-valid1` driver changes only that negative setter input to a
+same-type null field receiver. It does not alter source, the compiler ELF on
+disk, a canonical producer/consumer predicate or a verdict. Each of the ten
+categories has a fresh positive twin, the unchanged independent consumer
+rejects every forged alternative, and separate `opt -passes=verify` accepts
+all ten saved modules at each profile. All14 frontier physical alternatives
+also pass LLVM verification and fail their independent consumer. No physical
+test earns target ELF execution credit; the invalid raw category6 remains
+failed, with its exact receipts retained.
+
+The host underwent an external offline package update/reboot after the main
+qualification: LLVM23.1.4→23.1.5 and PCRE2 changed. The first fresh policy
+replay correctly stopped at the existing input hash guard. No task tool or
+installed package was changed or repinned. `toolchain-capsule-exact1`
+independently recovers the exact original LLVM/header witnesses and two exact
+hash-matched ELF members from official Fedora RPMs. A temporary child mount
+namespace binds those bytes read-only at their original paths and restores
+the actual PCRE SONAME dependency. Every captured source/tool hash matches,
+and `llvm-config`/`opt` report23.1.4. Host before/after hashes remain identical.
+The initial capsule Valgrind startup failure from read-only scratch is retained;
+the corrected capsule routes scratch into the task runtime, after which both
+complete policy replays pass. This environment recovery changes no production
+source, executable identity, workflow or historical qualification.
+
+The final auditor explicitly binds the raw failed campaigns to these named
+supplements and independently rechecks all source, output, memory, mutation,
+cohort and Git identities. The final cost ledger separates monotonic clock
+domains across the host reboot using disclosed receipt completion epochs;
+numeric timestamps from distinct boots are never merged as overlapping work.
+All earlier costs and every actual failed/stopped/warm/cold receipt remain
+lossless evidence. Publication and G12 use the installed unchanged amendment
+workflow with predecessor SHA256
+`16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
