@@ -51,7 +51,12 @@ The complete 190-file input has 1,926 top-level C0 syntax declarations. Every
 file was independently parsed by the exact C0. Whole-context C0 semantic
 validity remains a separate obligation: an initial invocation incorrectly
 combined `-O0/-O2` with `--check` and was refused as a command error. The corrected
-whole-context check timed out at 180 seconds; neither is a semantic PASS.
+whole-context check timed out at 180 seconds. A second corrected check on frozen,
+read-only original inputs reached its 2,400-second process-group deadline and
+was killed with exit-9; its stdout/stderr contain no semantic diagnostic. The
+whole process group, including GNU time, was killed, so that attempt has no
+completed GNU-time CPU/peak-RSS measurement. Sampled RSS is only a lower bound.
+None of these attempts is a semantic PASS or a demonstrated semantic rejection.
 
 Both R5 native profiles, fed all 180 compiler originals and ten dependencies,
 stop in Typecore at `lib/astra/collections/bag.astra:3`, bytes `[133,649)`,
