@@ -171,7 +171,7 @@ def pack(paths, a, helpers):
 			required = {row['blob'] for row in files.values() if 'blob' in row}; pending = {name: path for name, path in pending.items() if name in required}
 			pending, storage, codec_receipt = codec.encode(pending, files, leaf, paths.BUILD/('transport-deltas-'+a.version), paths.BUILD/'transport-bsdiff-tool2', a.delta_cache)
 			index.update(format='astra-effects25-evidence/5', storage=storage, delta_codec_receipt=codec_receipt)
-		data = (json.dumps(index, indent=2)+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
+		data = (json.dumps(index, separators=(',', ':'))+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
 		nominal = {}
 		for name, row in files.items():
 			if 'blob' in row: nominal.setdefault(row['blob'], name)
@@ -215,11 +215,15 @@ def pack(paths, a, helpers):
 	helpers.restore_all(standard_archive, leaf, len(files))
 	attachments = leaf/'attachments'
 	tool = ROOT/'tools/qualification/encoded-evidence.py'
-	r = bounded_run([sys.executable, '-B', tool, 'pack', '--input', archive, '--output', attachments, '--stem', 'effects25-r5-resume'], capture_output=True, timeout=300)
-	(leaf/'encoding.stdout').write_bytes(r.stdout); (leaf/'encoding.stderr').write_bytes(r.stderr)
-	assert r.returncode == 0, r.stderr[-2000:]
+	if a.byte_indices:
+		indices = load_module('resume_binary_indices', ROOT/'tests/selfhost-effects/transport-indices.py'); indices.encode(archive, attachments, 'effects25-r5-resume')
+	else:
+		r = bounded_run([sys.executable, '-B', tool, 'pack', '--input', archive, '--output', attachments, '--stem', 'effects25-r5-resume'], capture_output=True, timeout=300)
+		(leaf/'encoding.stdout').write_bytes(r.stdout); (leaf/'encoding.stderr').write_bytes(r.stderr)
+		assert r.returncode == 0, r.stderr[-2000:]
 	for name, path in [('final-audit.json', a.audit), ('decode-evidence.py.txt', tool), ('verify-evidence.py.txt', Path(__file__)), ('restore-effects.py.txt', ROOT/'tests/selfhost-effects/restore.py'), ('restore-columns.py.txt', ROOT/'tests/selfhost-genref/columns.py')]:
 		(attachments/name).write_bytes(path.read_bytes())
+	if a.byte_indices: (attachments/'decode-indices.py.txt').write_bytes((ROOT/'tests/selfhost-effects/transport-indices.py').read_bytes())
 	if a.content_chunks:
 		(attachments/'restore-chunks.py.txt').write_bytes((ROOT/'tests/selfhost-effects/transport-chunks.py').read_bytes())
 		(attachments/'chunk-codec-receipt.json').write_bytes((leaf/'chunk-codec-receipt.json').read_bytes())
@@ -232,11 +236,13 @@ def pack(paths, a, helpers):
 	if a.content_chunks: packaging.update(storage_codec='content-defined byte chunks; lexicographically sorted pool', physical_order='lexicographically sorted distinct byte chunks; canonical predecessor rows unchanged', physical_blobs=1, unique_blobs=len(storage['blobs']), original_unique_blobs=len(storage['blobs']), unique_chunks=len(storage['chunks']), continued_Core_byte_encodings=len(digit_cache))
 	if a.byte_deltas: packaging.update(storage_codec='BSDIFF40 exact byte deltas with raw bases', physical_blobs=len(pending)-1, original_unique_blobs=len(blobs), delta_blobs=len(storage['deltas']))
 	(attachments/'packaging.json').write_text(json.dumps(packaging, indent=2)+'\n')
-	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact qualification and unproved gates. Decode effects25-r5-resume-encoding.json with decode-evidence.py.txt. The content-addressed archive retains every previous logical file and all continuation source/run/build receipts, including failures. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py, then run python3 restore-effects.py ARCHIVE --output DIRECTORY --verify-only. The independent decoder reconstructs and hashes every original byte without executing evidence. Historical observations remain tied to their captured compiler revisions; actual original full-population execution and reduced-view execution are separate. The installed publisher alone creates the canonical ZIP; G12 is checked only afterward.\n')
+	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact qualification and unproved gates. Decode effects25-r5-resume-encoding.json with the matching provided decoder described below (decode-indices.py for u8 index parts; decode-evidence.py for legacy gzip/base64). The content-addressed archive retains every previous logical evidence file and all continuation source/run/build receipts, including failures. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py, then run python3 restore-effects.py on the reconstructed standard archive with --output DIRECTORY --verify-only. The independent decoder reconstructs and hashes every original byte without executing evidence. Historical observations remain tied to their captured compiler revisions; actual original full-population execution and reduced-view execution are separate. The installed publisher alone creates the canonical ZIP; G12 is checked only afterward.\n')
 	if a.content_chunks:
 		with (attachments/'review-guide.txt').open('a') as out: out.write('This v4 transport stores common byte chunks once. Before the unchanged original logical-file decoder, save restore-chunks.py.txt as restore-chunks.py and run python3 restore-chunks.py ARCHIVE --output reconstructed-standard.tar.xz. This independently hashes every reconstructed original blob and emits a standard v3 archive. Use that reconstructed standard archive with restore-effects.py. No evidence byte, original logical path or proof result is removed; encoder native-helper credit is zero.\n')
 	if a.byte_deltas:
 		with (attachments/'review-guide.txt').open('a') as out: out.write('This v5 transport stores exact BSDIFF40 byte deltas and raw bases. Save restore-deltas.py.txt as restore-deltas.py and run python3 restore-deltas.py ARCHIVE --output reconstructed-standard.tar.xz. Its standard-library decoder validates each original blob hash and emits a standard v3 archive. Then use the unchanged restore-effects.py and restore-columns.py on that standard archive. All original logical rows and reconstructed bytes remain exact. The original BSD-licensed encoder source and copyright notices are included; no external patch tool is needed to decode. Encoder native execution earns zero Astra qualification credit.\n')
+	if a.byte_indices:
+		with (attachments/'review-guide.txt').open('a') as out: out.write('The outer evidence parts are native supported .indices arrays of u8 values with an identity byte mapping, avoiding base64 text overhead. Save decode-indices.py.txt as decode-indices.py and run python3 decode-indices.py effects25-r5-resume-encoding.json --output ARCHIVE before the v5 restoration steps. Each part and the concatenated exact archive are independently hashed.\n')
 	rows = [dict(path=path.name, bytes=path.stat().st_size, sha256=sha(path)) for path in sorted(attachments.iterdir())]
 	assert len(rows) <= 128 and all(row['bytes'] <= 2*1024**2 for row in rows)
 	manifest = attachments/'INDEX.json'; manifest.write_text(json.dumps(dict(format='pm-next-evidence/1', files=rows), indent=2)+'\n')
@@ -268,7 +274,9 @@ def verify(paths, a, helpers):
 				(leaf/relative).write_bytes(archive.read(name))
 		assert json.loads(archive.read('evidence/final-audit.json')) == audit
 		assert json.loads(archive.read('history/previous-RESULT.json'))['final_commit'] == '0ce000667dd5cbee3e2af9fe0237b9c88a5536f3'
-	decoder = load_module('resume_delivered_decoder', ROOT/'tools/qualification/encoded-evidence.py')
+	decoder_path = ROOT/'tests/selfhost-effects/transport-indices.py' if (leaf/'decode-indices.py.txt').exists() else ROOT/'tools/qualification/encoded-evidence.py'
+	decoder = load_module('resume_delivered_decoder', decoder_path)
+	if (leaf/'decode-indices.py.txt').exists(): assert (leaf/'decode-indices.py.txt').read_bytes() == decoder_path.read_bytes()
 	_, data = decoder.decode(leaf/'effects25-r5-resume-encoding.json')
 	packaging = read(leaf/'packaging.json')
 	assert len(data) == packaging['archive_bytes'] and hashlib.sha256(data).hexdigest() == packaging['archive_sha256']
@@ -302,7 +310,7 @@ def verify(paths, a, helpers):
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true'); p.add_argument('--byte-deltas', action='store_true'); p.add_argument('--delta-cache', type=Path)
+	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true'); p.add_argument('--byte-deltas', action='store_true'); p.add_argument('--delta-cache', type=Path); p.add_argument('--byte-indices', action='store_true')
 	a = p.parse_args(); assert a.version.isalnum() and a.audit.is_file()
 	paths = load_module('resume_report_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	helpers = load_module('resume_transport_helpers', ROOT/'tests/selfhost-effects/recover-r5-report.py')

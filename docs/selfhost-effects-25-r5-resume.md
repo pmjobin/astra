@@ -690,3 +690,12 @@ original byte and hash; a focused XZ measurement reduces2,310,476 bytes to
 969,492 bytes. The full disassembly remains present as a reconstructed original
 blob, not an omitted diagnostic. The encoding interprets no proof or source
 semantics and adds no Astra-native credit.
+
+The installed publisher's final25MiB ZIP check includes outer text-wrapping,
+source and patch overhead. The original base64 envelope still exceeded that
+combined bound. Native supported `.indices` evidence parts now contain bounded
+u8 arrays with an explicit identity byte mapping and per-part/whole-archive
+hashes. A standalone decoder concatenates those exact bytes before the v5 and
+unchanged original restoration stages. The current transport manifest uses
+compact JSON; all parsed metadata and all original logical rows/bytes remain
+the same. Installed skill/intake/publisher scripts and limits are unchanged.
