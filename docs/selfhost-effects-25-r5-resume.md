@@ -666,3 +666,14 @@ standard archive and unchanged original logical-file decoder must still pass.
 This changes no proof or original file byte, and no encoder execution earns
 Astra-native credit. The original encoder sources and copyright notices are
 included with the transport; no external patch tool is required for decoding.
+
+An interim packaging mistake nested the exact16,338,136-byte amendment-parent
+ZIP inside the continuation evidence, duplicating the already retained prior
+proof data. The original R5 recipe explicitly excludes this redundant ZIP.
+The corrected continuation does likewise, verifies its exact parent hash and
+identifies the retained local copy; the installed publisher preserves that
+same ZIP under report-history. All79,965 original logical evidence rows and
+every actual source/run/build receipt remain included. Delta chains are
+bounded to64; exact cached input pairs/patches may be revalidated with their
+original command/cost fields clearly historical, without compiler speedup
+credit. All oversize attempts remain preserved locally.

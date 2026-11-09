@@ -66,6 +66,13 @@ def pack(paths, a, helpers):
 	if a.seed_archive: assert seed['previous_report_sha256'] == PREVIOUS
 	assert subprocess.run(['git', 'merge-base', '--is-ancestor', seed['final_commit'], audit['final_commit']], cwd=ROOT).returncode == 0
 	files, blobs, encoded = dict(seed['files']), set(), {}
+	redundant_transports = []
+	duplicate = 'resume/runtime/predecessor-report.zip'
+	if duplicate in files:
+		row = files.pop(duplicate); witness = paths.RUNTIME/'predecessor-report.zip'
+		assert row['sha256'] == sha(witness) == PREVIOUS and row['bytes'] == witness.stat().st_size
+		verified_zip(witness, PREVIOUS)
+		redundant_transports.append(dict(path=str(witness), bytes=row['bytes'], sha256=PREVIOUS, classification='Exact duplicate of the amendment parent, retained locally and by the installed publisher under report-history. All 79,965 original logical evidence rows remain included; no proof/receipt/source evidence is omitted. Redundant prior ZIP copies are excluded by the original R5 transport recipe too.'))
 	spool = leaf/'blob-spool'; spool.mkdir()
 	pending, capture_generations, digit_cache = {}, [], {}
 	byte_codec = load_module('resume_byte_codec', ROOT/'tests/selfhost-effects/transport-chunks.py') if a.digit_columns or a.content_chunks else None
@@ -139,6 +146,9 @@ def pack(paths, a, helpers):
 				if not path.is_file(): continue
 				relative = path.relative_to(root)
 				if prefix == 'runtime' and relative.parts[0].startswith(('handoff-', 'published-verification-')): continue
+				if prefix == 'runtime' and relative == Path('predecessor-report.zip'):
+					assert sha(path) == PREVIOUS
+					continue
 				add('resume/'+prefix+'/'+str(relative), path)
 				# Adjacent original/current indexes share the bounded XZ window while
 				# retaining the previous index's exact bytes and row ordering.
@@ -146,8 +156,9 @@ def pack(paths, a, helpers):
 		add_bytes('history/previous-evidence-index.json', raw_index)
 		index = dict(format='astra-effects25-evidence/3', milestone='ASTRA-SELFHOST-EFFECTS-25-R5', final_commit=audit['final_commit'], final_tree=audit['final_tree'], files=files, previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), previous_logical_files=len(old['files']), external_system_dependencies=old['external_system_dependencies'], predecessor_transport=old['predecessor_transport'], limitation='Every previous logical evidence row and blob is retained byte-exact. All continuation task products, source witnesses and failed/stopped/successful receipts are included under resume/. Packaging outputs and redundant prior ZIP transports are identified separately and remain preserved locally. Lossless token columns are independently reconstructed; source snapshots are witnesses, never copied over the checkout.')
 		index['capture_generations'] = capture_generations
+		index['redundant_transport_copies'] = redundant_transports
 		if a.seed_archive:
-			index['transport_seed'] = dict(path=str(a.seed_archive), bytes=a.seed_archive.stat().st_size, sha256=sha(a.seed_archive), logical_files=len(seed['files']), limitation='Verified oversize lossless transport retained locally. Every original logical path, byte count, byte hash and reconstructed file byte is preserved. Reversible byte encodings and physical order may change; all canonical predecessor rows remain exact. Packaging streams that completed after the seed capture have explicit additional generations.')
+			index['transport_seed'] = dict(path=str(a.seed_archive), bytes=a.seed_archive.stat().st_size, sha256=sha(a.seed_archive), logical_files=len(seed['files']), limitation='Verified oversize lossless transport retained locally. Every original proof/source/receipt byte and all canonical predecessor rows remain exact. Redundant ZIP transport copies are explicitly identified separately and retained locally by exact hash, following the original R5 transport recipe. Reversible byte encodings and physical order may change. Packaging streams that completed after the seed capture have explicit additional generations.')
 		if a.content_chunks:
 			codec = byte_codec
 			required = {row['blob'] for row in files.values() if 'blob' in row}; assert required <= set(pending)
@@ -157,7 +168,8 @@ def pack(paths, a, helpers):
 			pending = {storage['pool_blob']: pool}
 		if a.byte_deltas:
 			codec = load_module('resume_delta_codec', ROOT/'tests/selfhost-effects/transport-deltas.py')
-			pending, storage, codec_receipt = codec.encode(pending, files, leaf, paths.BUILD/('transport-deltas-'+a.version), paths.BUILD/'transport-bsdiff-tool2')
+			required = {row['blob'] for row in files.values() if 'blob' in row}; pending = {name: path for name, path in pending.items() if name in required}
+			pending, storage, codec_receipt = codec.encode(pending, files, leaf, paths.BUILD/('transport-deltas-'+a.version), paths.BUILD/'transport-bsdiff-tool2', a.delta_cache)
 			index.update(format='astra-effects25-evidence/5', storage=storage, delta_codec_receipt=codec_receipt)
 		data = (json.dumps(index, indent=2)+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
 		nominal = {}
@@ -199,6 +211,7 @@ def pack(paths, a, helpers):
 		assert helpers.verify_archive(standard_archive) == standard
 	else: assert helpers.verify_archive(archive) == index
 	assert all(index['files'][name] == row for name, row in old['files'].items())
+	for row in index.get('redundant_transport_copies', []): assert sha(row['path']) == row['sha256'] == PREVIOUS and row['bytes'] == Path(row['path']).stat().st_size
 	helpers.restore_all(standard_archive, leaf, len(files))
 	attachments = leaf/'attachments'
 	tool = ROOT/'tools/qualification/encoded-evidence.py'
@@ -278,6 +291,7 @@ def verify(paths, a, helpers):
 	previous = prior_transport(paths, paths.RUNTIME.parent/'report-history'/(PREVIOUS+'.zip'))
 	old = helpers.verify_archive(previous)
 	assert all(index['files'][name] == row for name, row in old['files'].items())
+	for row in index.get('redundant_transport_copies', []): assert sha(row['path']) == row['sha256'] == PREVIOUS and sha(paths.RUNTIME.parent/'report-history'/(PREVIOUS+'.zip')) == PREVIOUS
 	for row in index['external_system_dependencies'].values():
 		assert Path(row['path']).stat().st_size == Path(row['local_witness']).stat().st_size == row['bytes'] and sha(row['path']) == sha(row['local_witness']) == row['sha256']
 	intake = read(paths.RUNTIME.parent/'native-current/pm-next-intake.json')
@@ -288,7 +302,7 @@ def verify(paths, a, helpers):
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true'); p.add_argument('--byte-deltas', action='store_true')
+	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true'); p.add_argument('--byte-deltas', action='store_true'); p.add_argument('--delta-cache', type=Path)
 	a = p.parse_args(); assert a.version.isalnum() and a.audit.is_file()
 	paths = load_module('resume_report_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	helpers = load_module('resume_transport_helpers', ROOT/'tests/selfhost-effects/recover-r5-report.py')

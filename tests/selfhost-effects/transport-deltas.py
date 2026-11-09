@@ -67,8 +67,12 @@ def prepare(leaf, build, witness):
 	return receipts
 
 
-def encode(pending, files, leaf, build, witness):
+def encode(pending, files, leaf, build, witness, cache=None):
 	tools = prepare(leaf, build, witness); jobs = leaf/'delta-jobs'; jobs.mkdir()
+	captured = {}
+	if cache:
+		for row in json.loads((cache/'delta-commands.json').read_text()): captured[(row['base'], row['target'])] = row
+		cache_sha256 = digest(cache/'delta-commands.json')
 	column_keys = {}
 	for row in files.values():
 		if 'columns' not in row: continue
@@ -94,11 +98,18 @@ def encode(pending, files, leaf, build, witness):
 		previous = None
 		for name in sorted(members, key=lambda name: (pending[name].stat().st_size, name)):
 			size = pending[name].stat().st_size
-			if previous is None or size > pending[previous].stat().st_size*1.4 or depths[previous] >= 8: depths[name] = 0
+			if previous is None or size > pending[previous].stat().st_size*1.4 or depths[previous] >= 64: depths[name] = 0
 			else: planned.append((previous, name)); depths[name] = depths[previous]+1
 			previous = name
 	def run(pair):
 		base, name = pair; label = name[6:]; patch = jobs/(label+'.bsdiff'); argv = [build/'bsdiff', pending[base], pending[name], patch]
+		if pair in captured and captured[pair]['exit'] == 0:
+			row = dict(captured[pair]); prior_patch = cache/'delta-jobs'/(label+'.bsdiff'); assert prior_patch.is_file()
+			if row['accepted']:
+				assert 'blobs/'+digest(prior_patch) == row['patch']
+				data = apply(pending[base].read_bytes(), prior_patch.read_bytes()); assert len(data) == row['bytes'] and hashlib.sha256(data).hexdigest() == name[6:]
+			row.update(exact_cached_input_pair=True, cache_receipt=str(cache/'delta-commands.json'), cache_receipt_sha256=cache_sha256, cache_revalidation_monotonic=time.monotonic(), limitation='Original command/time fields remain historical. Exact captured bytes and each accepted patch are revalidated; no compiler execution or speedup credit.')
+			return row, prior_patch
 		start = time.monotonic(); r = subprocess.run(['/usr/bin/time', '-v', '-o', jobs/(label+'.time'), *map(str, argv)], capture_output=True, timeout=300)
 		(jobs/(label+'.stdout')).write_bytes(r.stdout); (jobs/(label+'.stderr')).write_bytes(r.stderr)
 		row = dict(base=base, target=name, argv=list(map(str, argv)), exit=r.returncode, start=start, end=time.monotonic(), stdout_sha256=hashlib.sha256(r.stdout).hexdigest(), stderr_sha256=hashlib.sha256(r.stderr).hexdigest(), accepted=False)
