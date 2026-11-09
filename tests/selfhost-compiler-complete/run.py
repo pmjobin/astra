@@ -123,7 +123,7 @@ def ledger(path, inputs, output):
 				assert int(row[1]) == count
 				value = dict(node=count, syntax_kind=int(row[2]), function_symbol=int(row[3]), type=int(row[4]), flags=int(row[5]), deferred=int(row[6]), path=name, first=first, last=last, fragment_sha256=hashlib.sha256(raw[first:last]).hexdigest(), disposition='recorded type is not whole-program acceptance' if int(row[4]) else 'unvisited or structural; not admitted')
 				nodes.write(json.dumps(value, separators=(',', ':'))+'\n')
-	return dict(nodes=count, declarations=decls, raw_ledger_sha256=sha(path), node_index_sha256=sha(output), synthetic_sources=[name for name in sources if Path(name) not in inputs])
+	return dict(nodes=count, declarations=decls, raw_ledger_sha256=sha(path), node_index_sha256=sha(output), synthetic_sources=[dict(path=name, bytes=len(data), sha256=hashlib.sha256(data).hexdigest()) for name, data in sources.items() if Path(name) not in inputs])
 
 
 def main():
@@ -216,6 +216,23 @@ def main():
 		observed = run([component, '--classstorage-source-ledger', mode, build/'unused', *inputs], mode+'-source-ledger')
 		assert not observed['timed_out']
 		result['class_storage_ledger'] = ledger(runtime/(mode+'-source-ledger.stdout'), inputs, runtime/(mode+'-nodes.jsonl'))
+		if not result['full_source_emitted'] and result['first_frontier'] is None:
+			lines = (runtime/(mode+'-native.stdout')).read_text().splitlines()
+			for line in lines:
+				parts = line.split()
+				if len(parts) == 4 and parts[0] == 'RECOVER_FLOW' and int(parts[1]) != 0:
+					status, node = int(parts[1]), int(parts[2])
+					result['first_frontier'] = dict(stage='Flow', status=status, node=node, source_span=None)
+					with (runtime/(mode+'-nodes.jsonl')).open() as stream:
+						for raw in stream:
+							entry = json.loads(raw)
+							if entry['node'] == node:
+								entry['original_path'] = logical_paths.get(Path(entry['path']))
+								result['first_frontier']['source_span'] = entry
+								break
+				for marker, stage in (('RECOVER_CORE_INVALID', 'Core'), ('RECOVER_CFG_INVALID', 'CFG'), ('RECOVER_SSA_INVALID', 'SSA')):
+					if line == marker:
+						result['first_frontier'] = dict(stage=stage, message=marker, source_span=None)
 		profiles[mode] = result
 	assert all(sha(ROOT/row['path']) == row['sha256'] for row in plan['files'])
 	write(runtime/'population.json', plan)
