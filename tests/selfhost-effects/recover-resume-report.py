@@ -47,6 +47,7 @@ def prior_transport(paths, report):
 
 
 def pack(paths, a, helpers):
+	if a.digit_columns: assert a.content_chunks
 	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
 	audit = read(a.audit)
 	assert audit['format'] == 'astra-effects25-r5-continuation-audit/1' and audit['status'] in ('PASS', 'PARTIAL')
@@ -65,7 +66,8 @@ def pack(paths, a, helpers):
 	assert subprocess.run(['git', 'merge-base', '--is-ancestor', seed['final_commit'], audit['final_commit']], cwd=ROOT).returncode == 0
 	files, blobs, encoded = dict(seed['files']), set(), {}
 	spool = leaf/'blob-spool'; spool.mkdir()
-	pending, capture_generations = {}, []
+	pending, capture_generations, digit_cache = {}, [], {}
+	byte_codec = load_module('resume_byte_codec', ROOT/'tests/selfhost-effects/transport-chunks.py') if a.digit_columns or a.content_chunks else None
 	archive = leaf/'effects25-r5-resume-evidence.tar.xz'
 	start = time.monotonic()
 	with lzma.LZMAFile(archive, 'wb', filters=[dict(id=lzma.FILTER_LZMA2, preset=9, dict_size=a.dictionary_mib*1024**2)]) as compressed, tarfile.open(fileobj=compressed, mode='w|') as packed:
@@ -97,6 +99,20 @@ def pack(paths, a, helpers):
 		def add(name, path, transform=True):
 			assert path.is_file() and not path.is_symlink()
 			digest, size = sha(path), path.stat().st_size
+			if a.digit_columns and name.startswith('resume/runtime/') and path.suffix == '.stdout' and size >= 1048576:
+				with path.open('rb') as stream: first = stream.read(1)
+				if first == b'(':
+					if digest not in digit_cache:
+						root = leaf/'digit-columns'; plan = byte_codec.digit_columns(path, root, name)
+						columns = load_module('resume_original_column_decoder', ROOT/'tests/selfhost-genref/columns.py'); observed, count = hashlib.sha256(), 0
+						for block in columns.reconstruct(root, plan): observed.update(block); count += len(block)
+						assert observed.hexdigest() == digest and count == size
+						digit_cache[digest] = root, plan
+					root, plan = digit_cache[digest]
+					for part in list(plan['parts'].values())+[part for group in plan['groups'] for part in group['columns']]: add('columns/'+part['path'], root/part['path'], False)
+					if name in files: assert files[name]['sha256'] == digest and files[name]['bytes'] == size
+					files[name] = dict(bytes=size, sha256=digest, mode=oct(path.stat().st_mode & 0o777), columns=dict(plan, path=name))
+					return
 			if name in files:
 				if files[name]['sha256'] == digest and files[name]['bytes'] == size: return
 				assert name.startswith('resume/runtime/pack-') and path.suffix in ('.stdout', '.stderr', '.time'), name
@@ -130,9 +146,11 @@ def pack(paths, a, helpers):
 		index = dict(format='astra-effects25-evidence/3', milestone='ASTRA-SELFHOST-EFFECTS-25-R5', final_commit=audit['final_commit'], final_tree=audit['final_tree'], files=files, previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), previous_logical_files=len(old['files']), external_system_dependencies=old['external_system_dependencies'], predecessor_transport=old['predecessor_transport'], limitation='Every previous logical evidence row and blob is retained byte-exact. All continuation task products, source witnesses and failed/stopped/successful receipts are included under resume/. Packaging outputs and redundant prior ZIP transports are identified separately and remain preserved locally. Lossless token columns are independently reconstructed; source snapshots are witnesses, never copied over the checkout.')
 		index['capture_generations'] = capture_generations
 		if a.seed_archive:
-			index['transport_seed'] = dict(path=str(a.seed_archive), bytes=a.seed_archive.stat().st_size, sha256=sha(a.seed_archive), logical_files=len(seed['files']), limitation='Verified oversize lossless transport retained locally. Every logical row/blob is preserved; only physical blob order and bounded XZ window change. Packaging streams that completed after the seed capture have explicit additional generations.')
+			index['transport_seed'] = dict(path=str(a.seed_archive), bytes=a.seed_archive.stat().st_size, sha256=sha(a.seed_archive), logical_files=len(seed['files']), limitation='Verified oversize lossless transport retained locally. Every original logical path, byte count, byte hash and reconstructed file byte is preserved. Reversible byte encodings and physical order may change; all canonical predecessor rows remain exact. Packaging streams that completed after the seed capture have explicit additional generations.')
 		if a.content_chunks:
-			codec = load_module('resume_chunk_codec', ROOT/'tests/selfhost-effects/transport-chunks.py')
+			codec = byte_codec
+			required = {row['blob'] for row in files.values() if 'blob' in row}; assert required <= set(pending)
+			pending = {name: path for name, path in pending.items() if name in required}
 			pool, storage, codec_receipt = codec.encode(pending, leaf, paths.BUILD/('transport-chunks-'+a.version))
 			index.update(format='astra-effects25-evidence/4', storage=storage, chunk_codec_receipt=codec_receipt)
 			pending = {storage['pool_blob']: pool}
@@ -188,7 +206,7 @@ def pack(paths, a, helpers):
 		(attachments/'chunk-codec-receipt.json').write_bytes((leaf/'chunk-codec-receipt.json').read_bytes())
 	packaging = dict(status='LOSSLESS_R5_CONTINUATION_EVIDENCE_VERIFIED', logical_files=len(files), previous_logical_files=len(old['files']), unique_blobs=len(blobs), archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), seconds=time.monotonic()-start, G12='PENDING actual installed publication and independent after-delivery verification')
 	packaging.update(dictionary_MiB=a.dictionary_mib, physical_order='similar ELF/Core/LLVM/JSON/column variants adjacent; original index adjacent to current index', transport_seed=index.get('transport_seed'))
-	if a.content_chunks: packaging.update(storage_codec='content-defined byte chunks; lexicographically sorted pool', physical_order='lexicographically sorted distinct byte chunks; original logical rows unchanged', physical_blobs=1, original_unique_blobs=len(blobs), unique_chunks=len(storage['chunks']))
+	if a.content_chunks: packaging.update(storage_codec='content-defined byte chunks; lexicographically sorted pool', physical_order='lexicographically sorted distinct byte chunks; canonical predecessor rows unchanged', physical_blobs=1, unique_blobs=len(storage['blobs']), original_unique_blobs=len(storage['blobs']), unique_chunks=len(storage['chunks']), continued_Core_byte_encodings=len(digit_cache))
 	(attachments/'packaging.json').write_text(json.dumps(packaging, indent=2)+'\n')
 	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact qualification and unproved gates. Decode effects25-r5-resume-encoding.json with decode-evidence.py.txt. The content-addressed archive retains every previous logical file and all continuation source/run/build receipts, including failures. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py, then run python3 restore-effects.py ARCHIVE --output DIRECTORY --verify-only. The independent decoder reconstructs and hashes every original byte without executing evidence. Historical observations remain tied to their captured compiler revisions; actual original full-population execution and reduced-view execution are separate. The installed publisher alone creates the canonical ZIP; G12 is checked only afterward.\n')
 	if a.content_chunks:
@@ -251,7 +269,7 @@ def verify(paths, a, helpers):
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true')
+	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true')
 	a = p.parse_args(); assert a.version.isalnum() and a.audit.is_file()
 	paths = load_module('resume_report_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	helpers = load_module('resume_transport_helpers', ROOT/'tests/selfhost-effects/recover-r5-report.py')

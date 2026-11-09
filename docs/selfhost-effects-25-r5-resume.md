@@ -637,8 +637,9 @@ publication. No evidence is removed to meet the delivery limit.
 
 The reordered transports also pass complete reconstruction but remain oversize.
 The v4 transport therefore stores repeated content-defined byte chunks once,
-with their exact original ordering retained in a blob map. All original logical
-rows, hashes and proof results remain unchanged. A standalone standard-library
+with their exact original ordering retained in a blob map. All canonical
+predecessor rows and every original file byte/hash and proof result remain
+unchanged. A standalone standard-library
 decoder checks the pool and every reconstructed original blob hash, then emits
 a normal v3 archive for the unchanged independent original verifier/decoder.
 The native chunk-boundary helper is generated out of source by the portable
@@ -646,3 +647,10 @@ Python recipe and earns zero Astra execution credit. Six byte fixtures and
 three actual corruption controls pass before full evidence integration. The
 first focused codec metadata failure remains a failed receipt; no original
 compiler source, product, tool pin or installed workflow is changed.
+
+Large continuation Core receipts additionally use reversible decimal/literal
+byte tokens in the existing raw-column wire format. The unchanged original
+column decoder independently reconstructs a complete38,510,506-byte real Core
+receipt before integration. Token contexts are bounded to513 streams; no
+source record is omitted or interpreted. This is transport encoding, with no
+target execution credit or change to the compiler's generic/SSA ceilings.

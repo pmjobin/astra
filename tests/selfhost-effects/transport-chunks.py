@@ -2,14 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Lossless content chunks; decode to a standard archive for the unchanged verifier."""
 import argparse
+from array import array
 import hashlib
 import io
 import json
 import lzma
 import mmap
 from pathlib import Path
+import re
+import struct
 import subprocess
+import sys
 import tarfile
+import zlib
 
 CHUNK_BOUNDARY_SOURCE = r'''// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #define _GNU_SOURCE
@@ -64,6 +69,32 @@ int main(void) {
 
 def digest(path):
 	with Path(path).open('rb') as stream: return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def digit_columns(source, directory, logical):
+	"""Exact byte tokens in the existing independent raw-column wire format."""
+	key = digest(source); directory.mkdir(exist_ok=True)
+	dictionary, tokens = [], {}
+	order, columns, previous = array('I'), [array('q') for _ in range(513)], [0]*513
+	prior_context = 0
+	for match in re.finditer(rb'[0-9]+|[^0-9]+', source.read_bytes()):
+		word = match.group(); number = int(word) if 48 <= word[0] <= 57 and len(word) < 19 else None
+		if number is not None and number < (1 << 60) and str(number).encode() == word:
+			group, code = 1+prior_context+64*(min(len(word), 8)-1), number*2
+		else:
+			if word not in tokens: tokens[word] = len(dictionary); dictionary.append(word)
+			prior_context = zlib.crc32(word[-16:]) & 63; group, code = 0, tokens[word]*2+1
+		columns[group].append(code-previous[group]); previous[group] = code; order.append(group)
+	def part(name, data):
+		path = directory/(key[:20]+'.digits.'+name); path.write_bytes(data)
+		return dict(path=path.name, sha256=digest(path), bytes=len(data))
+	def little(values):
+		if sys.byteorder != 'little': values.byteswap()
+		return values.tobytes()
+	assert order.itemsize == 4 and all(column.itemsize == 8 for column in columns)
+	parts = dict(order=part('order', little(order)), dictionary=part('dictionary', b''.join(struct.pack('<Q', len(word))+word for word in dictionary)))
+	groups = [dict(header='', raw=True, count=len(column), columns=[part(str(ordinal), little(column))]) for ordinal, column in enumerate(columns)]
+	return dict(path=logical, bytes=source.stat().st_size, sha256=key, mode=source.stat().st_mode & 0o777, lines=len(order), parts=parts, groups=groups, byte_token_encoding='Decimal byte runs and exact literal runs; raw column units concatenate without interpretation or newline changes.')
 
 
 def encode(pending, leaf, build):
