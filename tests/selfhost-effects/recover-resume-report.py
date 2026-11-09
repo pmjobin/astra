@@ -135,6 +135,17 @@ def pack(paths, a, helpers):
 		nominal = {}
 		for name, row in files.items():
 			if 'blob' in row: nominal.setdefault(row['blob'], name)
+		column_order = {}
+		for row in files.values():
+			if 'columns' not in row: continue
+			plan = row['columns']
+			for kind, part in plan['parts'].items():
+				blob = files['columns/'+part['path']]['blob']; key = (kind, '', 0, 0, part['bytes'])
+				column_order[blob] = min(column_order.get(blob, key), key)
+			for group in plan['groups']:
+				for ordinal, part in enumerate(group['columns']):
+					blob = files['columns/'+part['path']]['blob']; key = ('values', group['header'], int(group['raw']), ordinal, part['bytes'])
+					column_order[blob] = min(column_order.get(blob, key), key)
 		def order(name):
 			if name == 'INDEX.json': return (9, '', 0, name)
 			logical = nominal[name]; path = pending[name]; size = path.stat().st_size
@@ -145,7 +156,7 @@ def pack(paths, a, helpers):
 			if first.startswith(b'('): return (1, base, size, name)
 			if b'; ModuleID' in first or first.startswith(b'source_filename'): return (2, base, size, name)
 			if first.lstrip().startswith((b'{', b'[')): return (3, base, size, name)
-			if logical.startswith('columns/'): return (5, base.rsplit('.', 1)[-1], size, name)
+			if name in column_order: return (5, column_order[name], size, name)
 			return (4, base, size, name)
 		for name in sorted(pending, key=order):
 			path = pending[name]; entry = tarfile.TarInfo(name); entry.mode = 0o644; entry.size = path.stat().st_size
