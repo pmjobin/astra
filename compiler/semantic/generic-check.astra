@@ -69,7 +69,15 @@ bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeI
 	return true;
 }
 
+// Inclusive consumer bound: the last permitted node may already be present.
+// This consumer does not call the producer's allocation predicate.
+bool generic_syntax_count_valid(int originals, int total) {
+	if (originals < 0 || total < originals) return false;
+	return total - originals <= 262144;
+}
+
 int generic_verify_failure(CheckedIndex index) {
+	if (!generic_syntax_count_valid(index.generic_nodes, index.bindings.program.arena.node_count)) return 32;
 	if (!index.native_abi) {
 		if (index.instance_count == 0) return 0;
 		return 1;

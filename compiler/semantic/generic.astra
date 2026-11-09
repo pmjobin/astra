@@ -21,6 +21,19 @@ struct GenericInstance {
 	int reference_count;
 }
 
+// The parsed input is already owned by the arena. Bound additional syntax,
+// independently of the number of original declarations in the compilation.
+bool generic_syntax_room(int originals, int total) {
+	if (originals < 0 || total < originals || total == 2147483647) return false;
+	return total - originals < 262144;
+}
+
+bool generic_copy_room(CheckedIndex index, SyntaxNodeId original) throws Error {
+	if (generic_syntax_room(index.generic_nodes, index.bindings.program.arena.node_count)) return true;
+	index.fail(index.bindings.program.arena.header(original).span, "generic syntax resource limit");
+	return false;
+}
+
 // Maps reserve a conservative source-declaration window, not the whole program.
 // Source spans only bound storage; original integer identities remain map keys.
 // The copier refuses any child outside the window, and the independent consumer
@@ -468,7 +481,7 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		var function = index.bindings.symbol(concrete); function.kind = 1; index.bindings.replace_instance_symbol(concrete, function);
 		var hidden = generic_hidden_parameter(index, plan);
 	}
-	if (declaration.kind == 1 || declaration.kind == 11 || index.class_storage && declaration.kind == 12) checked_signature(index, concrete);
+	if (!index.failed() && (declaration.kind == 1 || declaration.kind == 11 || index.class_storage && declaration.kind == 12)) checked_signature(index, concrete);
 	if (index.failed()) {
 		generic_abandon(index, origin, request, parent);
 		return type_symbol(0);
