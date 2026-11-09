@@ -48,6 +48,7 @@ def prior_transport(paths, report):
 
 def pack(paths, a, helpers):
 	if a.digit_columns: assert a.content_chunks
+	if a.byte_deltas: assert not a.content_chunks and not a.digit_columns
 	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
 	audit = read(a.audit)
 	assert audit['format'] == 'astra-effects25-r5-continuation-audit/1' and audit['status'] in ('PASS', 'PARTIAL')
@@ -154,6 +155,10 @@ def pack(paths, a, helpers):
 			pool, storage, codec_receipt = codec.encode(pending, leaf, paths.BUILD/('transport-chunks-'+a.version))
 			index.update(format='astra-effects25-evidence/4', storage=storage, chunk_codec_receipt=codec_receipt)
 			pending = {storage['pool_blob']: pool}
+		if a.byte_deltas:
+			codec = load_module('resume_delta_codec', ROOT/'tests/selfhost-effects/transport-deltas.py')
+			pending, storage, codec_receipt = codec.encode(pending, files, leaf, paths.BUILD/('transport-deltas-'+a.version), paths.BUILD/'transport-bsdiff-tool2')
+			index.update(format='astra-effects25-evidence/5', storage=storage, delta_codec_receipt=codec_receipt)
 		data = (json.dumps(index, indent=2)+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
 		nominal = {}
 		for name, row in files.items():
@@ -172,6 +177,7 @@ def pack(paths, a, helpers):
 		def order(name):
 			if name == 'INDEX.json': return (9, '', 0, name)
 			if a.content_chunks: return (0, '', 0, name)
+			if name not in nominal: return (6, '', pending[name].stat().st_size, name)
 			logical = nominal[name]; path = pending[name]; size = path.stat().st_size
 			if logical == 'history/previous-evidence-index.json': return (8, '', 0, name)
 			with path.open('rb') as stream: first = stream.read(128)
@@ -186,7 +192,7 @@ def pack(paths, a, helpers):
 			path = pending[name]; entry = tarfile.TarInfo(name); entry.mode = 0o644; entry.size = path.stat().st_size
 			with path.open('rb') as stream: packed.addfile(entry, stream)
 	standard_archive = archive
-	if a.content_chunks:
+	if a.content_chunks or a.byte_deltas:
 		standard_archive = leaf/'reconstructed-standard.tar.xz'
 		assert codec.decode(archive, standard_archive, index) == index
 		standard = dict(index); standard['format'] = 'astra-effects25-evidence/3'; standard.pop('storage')
@@ -204,13 +210,20 @@ def pack(paths, a, helpers):
 	if a.content_chunks:
 		(attachments/'restore-chunks.py.txt').write_bytes((ROOT/'tests/selfhost-effects/transport-chunks.py').read_bytes())
 		(attachments/'chunk-codec-receipt.json').write_bytes((leaf/'chunk-codec-receipt.json').read_bytes())
+	if a.byte_deltas:
+		(attachments/'restore-deltas.py.txt').write_bytes((ROOT/'tests/selfhost-effects/transport-deltas.py').read_bytes())
+		(attachments/'delta-codec-receipt.json').write_bytes((leaf/'delta-codec-receipt.json').read_bytes())
+		for name in ('bsdiff', 'bspatch'): (attachments/(name+'-source.c.txt')).write_bytes((paths.BUILD/('transport-deltas-'+a.version)/(name+'.c')).read_bytes())
 	packaging = dict(status='LOSSLESS_R5_CONTINUATION_EVIDENCE_VERIFIED', logical_files=len(files), previous_logical_files=len(old['files']), unique_blobs=len(blobs), archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), seconds=time.monotonic()-start, G12='PENDING actual installed publication and independent after-delivery verification')
 	packaging.update(dictionary_MiB=a.dictionary_mib, physical_order='similar ELF/Core/LLVM/JSON/column variants adjacent; original index adjacent to current index', transport_seed=index.get('transport_seed'))
 	if a.content_chunks: packaging.update(storage_codec='content-defined byte chunks; lexicographically sorted pool', physical_order='lexicographically sorted distinct byte chunks; canonical predecessor rows unchanged', physical_blobs=1, unique_blobs=len(storage['blobs']), original_unique_blobs=len(storage['blobs']), unique_chunks=len(storage['chunks']), continued_Core_byte_encodings=len(digit_cache))
+	if a.byte_deltas: packaging.update(storage_codec='BSDIFF40 exact byte deltas with raw bases', physical_blobs=len(pending)-1, original_unique_blobs=len(blobs), delta_blobs=len(storage['deltas']))
 	(attachments/'packaging.json').write_text(json.dumps(packaging, indent=2)+'\n')
 	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact qualification and unproved gates. Decode effects25-r5-resume-encoding.json with decode-evidence.py.txt. The content-addressed archive retains every previous logical file and all continuation source/run/build receipts, including failures. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py, then run python3 restore-effects.py ARCHIVE --output DIRECTORY --verify-only. The independent decoder reconstructs and hashes every original byte without executing evidence. Historical observations remain tied to their captured compiler revisions; actual original full-population execution and reduced-view execution are separate. The installed publisher alone creates the canonical ZIP; G12 is checked only afterward.\n')
 	if a.content_chunks:
 		with (attachments/'review-guide.txt').open('a') as out: out.write('This v4 transport stores common byte chunks once. Before the unchanged original logical-file decoder, save restore-chunks.py.txt as restore-chunks.py and run python3 restore-chunks.py ARCHIVE --output reconstructed-standard.tar.xz. This independently hashes every reconstructed original blob and emits a standard v3 archive. Use that reconstructed standard archive with restore-effects.py. No evidence byte, original logical path or proof result is removed; encoder native-helper credit is zero.\n')
+	if a.byte_deltas:
+		with (attachments/'review-guide.txt').open('a') as out: out.write('This v5 transport stores exact BSDIFF40 byte deltas and raw bases. Save restore-deltas.py.txt as restore-deltas.py and run python3 restore-deltas.py ARCHIVE --output reconstructed-standard.tar.xz. Its standard-library decoder validates each original blob hash and emits a standard v3 archive. Then use the unchanged restore-effects.py and restore-columns.py on that standard archive. All original logical rows and reconstructed bytes remain exact. The original BSD-licensed encoder source and copyright notices are included; no external patch tool is needed to decode. Encoder native execution earns zero Astra qualification credit.\n')
 	rows = [dict(path=path.name, bytes=path.stat().st_size, sha256=sha(path)) for path in sorted(attachments.iterdir())]
 	assert len(rows) <= 128 and all(row['bytes'] <= 2*1024**2 for row in rows)
 	manifest = attachments/'INDEX.json'; manifest.write_text(json.dumps(dict(format='pm-next-evidence/1', files=rows), indent=2)+'\n')
@@ -247,7 +260,13 @@ def verify(paths, a, helpers):
 	packaging = read(leaf/'packaging.json')
 	assert len(data) == packaging['archive_bytes'] and hashlib.sha256(data).hexdigest() == packaging['archive_sha256']
 	path = leaf/'effects25-r5-resume-evidence.tar.xz'; path.write_bytes(data)
-	if (leaf/'restore-chunks.py.txt').exists():
+	if (leaf/'restore-deltas.py.txt').exists():
+		codec = load_module('resume_delivered_deltas', ROOT/'tests/selfhost-effects/transport-deltas.py')
+		assert (leaf/'restore-deltas.py.txt').read_bytes() == (ROOT/'tests/selfhost-effects/transport-deltas.py').read_bytes()
+		standard_archive = leaf/'reconstructed-standard.tar.xz'; index = codec.decode(path, standard_archive)
+		standard = dict(index); standard['format'] = 'astra-effects25-evidence/3'; standard.pop('storage')
+		assert helpers.verify_archive(standard_archive) == standard
+	elif (leaf/'restore-chunks.py.txt').exists():
 		codec = load_module('resume_delivered_chunks', ROOT/'tests/selfhost-effects/transport-chunks.py')
 		assert (leaf/'restore-chunks.py.txt').read_bytes() == (ROOT/'tests/selfhost-effects/transport-chunks.py').read_bytes()
 		standard_archive = leaf/'reconstructed-standard.tar.xz'; index = codec.decode(path, standard_archive)
@@ -269,7 +288,7 @@ def verify(paths, a, helpers):
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true')
+	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64); p.add_argument('--content-chunks', action='store_true'); p.add_argument('--digit-columns', action='store_true'); p.add_argument('--byte-deltas', action='store_true')
 	a = p.parse_args(); assert a.version.isalnum() and a.audit.is_file()
 	paths = load_module('resume_report_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	helpers = load_module('resume_transport_helpers', ROOT/'tests/selfhost-effects/recover-r5-report.py')

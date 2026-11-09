@@ -654,3 +654,15 @@ column decoder independently reconstructs a complete38,510,506-byte real Core
 receipt before integration. Token contexts are bounded to513 streams; no
 source record is omitted or interpreted. This is transport encoding, with no
 target execution credit or change to the compiler's generic/SSA ceilings.
+
+The complete chunk/numeric transports remain preserved as verified oversize
+attempts. The final byte-delta preflight uses the original BSD-licensed
+BSDIFF40 tools: a real38,510,506-byte Core receipt becomes a3,348-byte patch.
+Both the original BSPATCH tool and the independently authored standard-library
+Python decoder reproduce its exact target hash. The v5 transport may encode
+similar captured artifacts this way, with bounded dependency depth and raw
+bases; every accepted patch is applied and hash-checked before use. The full
+standard archive and unchanged original logical-file decoder must still pass.
+This changes no proof or original file byte, and no encoder execution earns
+Astra-native credit. The original encoder sources and copyright notices are
+included with the transport; no external patch tool is required for decoding.
