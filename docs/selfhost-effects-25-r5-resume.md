@@ -634,3 +634,15 @@ similar captured compiler/Core/LLVM variants and use an explicit larger bounded
 XZ dictionary. This changes physical ordering/compression only; the unchanged
 independent decoder must again reconstruct every logical original byte before
 publication. No evidence is removed to meet the delivery limit.
+
+The reordered transports also pass complete reconstruction but remain oversize.
+The v4 transport therefore stores repeated content-defined byte chunks once,
+with their exact original ordering retained in a blob map. All original logical
+rows, hashes and proof results remain unchanged. A standalone standard-library
+decoder checks the pool and every reconstructed original blob hash, then emits
+a normal v3 archive for the unchanged independent original verifier/decoder.
+The native chunk-boundary helper is generated out of source by the portable
+Python recipe and earns zero Astra execution credit. Six byte fixtures and
+three actual corruption controls pass before full evidence integration. The
+first focused codec metadata failure remains a failed receipt; no original
+compiler source, product, tool pin or installed workflow is changed.
