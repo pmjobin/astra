@@ -107,7 +107,7 @@ def encode(pending, files, leaf, build, witness, cache=None):
 	def run(pair):
 		base, name = pair; label = name[6:]; patch = jobs/(label+'.bsdiff'); argv = [build/'bsdiff', pending[base], pending[name], patch]
 		if pair in captured and captured[pair]['exit'] == 0:
-			row = dict(captured[pair]); prior_patch = cache/'delta-jobs'/(label+'.bsdiff'); assert prior_patch.is_file()
+			row = dict(captured[pair]); prior_patch = Path(row['argv'][-1]); assert prior_patch.is_file()
 			if row['accepted']:
 				assert 'blobs/'+digest(prior_patch) == row['patch']
 				data = apply(pending[base].read_bytes(), prior_patch.read_bytes()); assert len(data) == row['bytes'] and hashlib.sha256(data).hexdigest() == name[6:]
