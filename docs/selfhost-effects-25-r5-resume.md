@@ -706,3 +706,9 @@ The standalone decoder performs that same reconstruction and original hash
 check. In particular, the prior pretty-printed index remains a complete exact
 original blob; compact storage avoids duplicating its structure in the current
 transport manifest. No metadata, measurement or evidence record is removed.
+
+The inline audit attachment may contain the complete gate summary and an exact
+path/size/SHA256 reference to the full audit stored inside the lossless evidence.
+This avoids carrying that same large audit twice. The after-delivery verifier
+checks the inline judgments and reads the exact full audit blob from the
+reconstructed standard archive. Every audit fact remains delivered and checked.
