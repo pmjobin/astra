@@ -699,3 +699,10 @@ hashes. A standalone decoder concatenates those exact bytes before the v5 and
 unchanged original restoration stages. The current transport manifest uses
 compact JSON; all parsed metadata and all original logical rows/bytes remain
 the same. Installed skill/intake/publisher scripts and limits are unchanged.
+
+Canonical large JSON receipts may also be stored compactly only after verifying
+that standard indent2 serialization reproduces every original byte exactly.
+The standalone decoder performs that same reconstruction and original hash
+check. In particular, the prior pretty-printed index remains a complete exact
+original blob; compact storage avoids duplicating its structure in the current
+transport manifest. No metadata, measurement or evidence record is removed.

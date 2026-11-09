@@ -176,10 +176,15 @@ def encode(pending, files, leaf, build, witness, cache=None):
 	for name, path in pending.items():
 		if name in deltas or path.stat().st_size < 1048576: continue
 		with path.open('rb') as stream: first = stream.read(4096)
-		if b'Disassembly of section' not in first: continue
-		original = path.read_bytes(); encoded = hex_encode(original); assert hex_decode(encoded) == original
-		encoded_path = jobs/(name[6:]+'.hex-bytes'); encoded_path.write_bytes(encoded); reference = 'blobs/'+digest(encoded_path)
-		physical.pop(name); physical[reference] = encoded_path; transforms[name] = dict(encoding='ASTRAHX2', blob=reference, bytes=len(original))
+		if b'Disassembly of section' in first:
+			original = path.read_bytes(); encoded = hex_encode(original); assert hex_decode(encoded) == original; encoding = 'ASTRAHX2'
+		elif first.lstrip().startswith((b'{', b'[')):
+			original = path.read_bytes(); model = json.loads(original)
+			if (json.dumps(model, indent=2)+'\n').encode() != original: continue
+			encoded = (json.dumps(model, separators=(',', ':'))+'\n').encode(); assert (json.dumps(json.loads(encoded), indent=2)+'\n').encode() == original; encoding = 'json-indent2'
+		else: continue
+		encoded_path = jobs/(name[6:]+'.encoded-bytes'); encoded_path.write_bytes(encoded); reference = 'blobs/'+digest(encoded_path)
+		physical.pop(name); physical[reference] = encoded_path; transforms[name] = dict(encoding=encoding, blob=reference, bytes=len(original))
 	commands = [row for row, _ in results]; (leaf/'delta-commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 	storage = dict(format='astra-byte-deltas/1', deltas=deltas, transforms=transforms)
 	receipt = dict(recipe_sha256=digest(__file__), tools=tools, attempted=len(results), accepted=len(deltas), exact_hex_byte_transforms=len(transforms), original_blob_bytes=sum(path.stat().st_size for path in pending.values()), stored_blob_bytes=sum(path.stat().st_size for path in physical.values()), commands_sha256=digest(leaf/'delta-commands.json'), failed=[row for row in commands if row['exit'] != 0], Astra_execution_credit=0, limitation='Every accepted BSDIFF40 delta and reversible hexadecimal byte transform is independently decoded and required to match the actual original byte hash. Raw bases and every original logical row remain. Eight bounded encoder processes operate only on captured artifact bytes; no source, command, proof result or target execution is synthesized.')
@@ -209,7 +214,9 @@ def decode(archive, output, expected=None):
 		if name in cache: return cache[name]
 		assert name not in visiting and len(visiting) <= 64; visiting.add(name)
 		if name in transforms:
-			row = transforms[name]; assert row['encoding'] == 'ASTRAHX2'; data = hex_decode(observed[row['blob']].read_bytes())
+			row = transforms[name]; encoded = observed[row['blob']].read_bytes()
+			if row['encoding'] == 'ASTRAHX2': data = hex_decode(encoded)
+			else: assert row['encoding'] == 'json-indent2'; data = (json.dumps(json.loads(encoded), indent=2)+'\n').encode()
 			assert len(data) == row['bytes'] and name == 'blobs/'+hashlib.sha256(data).hexdigest(); path = root/('decoded-'+name[6:]); path.write_bytes(data)
 		elif name in deltas:
 			row = deltas[name]; old = materialize(row['base']).read_bytes(); data = apply(old, observed[row['patch']].read_bytes())
