@@ -87,6 +87,9 @@ def encode(pending, files, leaf, build, witness, cache=None):
 		size = path.stat().st_size
 		if size < 8192: continue
 		with path.open('rb') as stream: first = stream.read(128)
+		# Small target ELFs share whole runtime sections in the global window.
+		# Individually bzip-compressed patches destroy that cross-file reuse.
+		if first.startswith(b'\x7fELF') and size < 500000: continue
 		if name in column_keys: key = column_keys[name]
 		elif first.startswith(b'(') and b'\0' not in first: key = ('Core', Path(nominal[name]).name)
 		elif first.startswith(b'\x7fELF'): key = ('ELF', first[16:18].hex(), 'large' if size >= 500000 else 'small')

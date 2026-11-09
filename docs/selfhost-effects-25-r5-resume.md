@@ -677,3 +677,9 @@ every actual source/run/build receipt remain included. Delta chains are
 bounded to64; exact cached input pairs/patches may be revalidated with their
 original command/cost fields clearly historical, without compiler speedup
 credit. All oversize attempts remain preserved locally.
+
+Small target ELFs retain their raw bytes in the shared compression window:
+individually compressed patches hid their common runtime sections and made
+the complete transport larger. Large compiler/Core receipts still use verified
+byte deltas. This is a storage choice only; all executable hashes and actual
+execution/memory records remain identical.
