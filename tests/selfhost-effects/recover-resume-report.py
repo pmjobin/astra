@@ -7,6 +7,7 @@ import io
 import json
 import lzma
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -58,25 +59,38 @@ def pack(paths, a, helpers):
 	previous = prior_transport(paths, ROOT.parent/'codex/reports/astra-report-current.zip')
 	old = helpers.verify_archive(previous)
 	assert old['final_commit'] == '0ce000667dd5cbee3e2af9fe0237b9c88a5536f3'
-	files, blobs, encoded = dict(old['files']), set(), {}
+	seed = helpers.verify_archive(a.seed_archive) if a.seed_archive else old
+	assert all(seed['files'][name] == row for name, row in old['files'].items())
+	if a.seed_archive: assert seed['previous_report_sha256'] == PREVIOUS
+	assert subprocess.run(['git', 'merge-base', '--is-ancestor', seed['final_commit'], audit['final_commit']], cwd=ROOT).returncode == 0
+	files, blobs, encoded = dict(seed['files']), set(), {}
+	spool = leaf/'blob-spool'; spool.mkdir()
+	pending, capture_generations = {}, []
 	archive = leaf/'effects25-r5-resume-evidence.tar.xz'
 	start = time.monotonic()
-	with lzma.LZMAFile(archive, 'wb', filters=[dict(id=lzma.FILTER_LZMA2, preset=9, dict_size=64*1024**2)]) as compressed, tarfile.open(fileobj=compressed, mode='w|') as packed:
+	with lzma.LZMAFile(archive, 'wb', filters=[dict(id=lzma.FILTER_LZMA2, preset=9, dict_size=a.dictionary_mib*1024**2)]) as compressed, tarfile.open(fileobj=compressed, mode='w|') as packed:
 		def store(name, stream, size):
-			entry = tarfile.TarInfo(name); entry.mode = 0o644; entry.size = size
-			packed.addfile(entry, stream)
-		with tarfile.open(previous, 'r|xz') as inherited:
+			# Physical ordering is independent of logical names and byte hashes.
+			# Spooling permits similar captured compiler/Core variants to remain
+			# adjacent in the larger bounded compression window, across history.
+			assert name not in pending
+			target = spool/Path(name).name
+			with target.open('xb') as out: shutil.copyfileobj(stream, out, 1048576)
+			assert target.stat().st_size == size
+			pending[name] = target
+		with tarfile.open(a.seed_archive or previous, 'r|xz') as inherited:
 			for member in inherited:
 				if member.name == 'INDEX.json':
-					raw_index = inherited.extractfile(member).read()
-					assert json.loads(raw_index) == old
+					assert json.load(inherited.extractfile(member)) == seed
 					continue
 				assert member.isfile() and member.name.startswith('blobs/') and member.name not in blobs
 				store(member.name, inherited.extractfile(member), member.size)
 				blobs.add(member.name)
 		def add_bytes(name, data, mode='0o644'):
 			digest = hashlib.sha256(data).hexdigest(); blob = 'blobs/'+digest
-			assert name not in files
+			if name in files:
+				assert files[name]['sha256'] == digest and files[name]['bytes'] == len(data)
+				return
 			files[name] = dict(bytes=len(data), sha256=digest, mode=mode, blob=blob)
 			if blob not in blobs:
 				store(blob, io.BytesIO(data), len(data)); blobs.add(blob)
@@ -84,7 +98,11 @@ def pack(paths, a, helpers):
 			assert path.is_file() and not path.is_symlink()
 			digest, size = sha(path), path.stat().st_size
 			if name in files:
-				assert files[name]['sha256'] == digest and files[name]['bytes'] == size
+				if files[name]['sha256'] == digest and files[name]['bytes'] == size: return
+				assert name.startswith('resume/runtime/pack-') and path.suffix in ('.stdout', '.stderr', '.time'), name
+				generation = 'history/capture-generations/'+digest+'/'+name
+				capture_generations.append(dict(logical_path=name, later_capture=generation, earlier_sha256=files[name]['sha256'], later_sha256=digest))
+				add(generation, path, transform)
 				return
 			row = dict(bytes=size, sha256=digest, mode=oct(path.stat().st_mode & 0o777), blob='blobs/'+digest)
 			if transform and path.suffix == '.stdout' and size >= 1048576:
@@ -107,9 +125,31 @@ def pack(paths, a, helpers):
 				add('resume/'+prefix+'/'+str(relative), path)
 				# Adjacent original/current indexes share the bounded XZ window while
 				# retaining the previous index's exact bytes and row ordering.
+		with tarfile.open(previous, 'r:xz') as inherited: raw_index = inherited.extractfile('INDEX.json').read()
 		add_bytes('history/previous-evidence-index.json', raw_index)
 		index = dict(format='astra-effects25-evidence/3', milestone='ASTRA-SELFHOST-EFFECTS-25-R5', final_commit=audit['final_commit'], final_tree=audit['final_tree'], files=files, previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), previous_logical_files=len(old['files']), external_system_dependencies=old['external_system_dependencies'], predecessor_transport=old['predecessor_transport'], limitation='Every previous logical evidence row and blob is retained byte-exact. All continuation task products, source witnesses and failed/stopped/successful receipts are included under resume/. Packaging outputs and redundant prior ZIP transports are identified separately and remain preserved locally. Lossless token columns are independently reconstructed; source snapshots are witnesses, never copied over the checkout.')
+		index['capture_generations'] = capture_generations
+		if a.seed_archive:
+			index['transport_seed'] = dict(path=str(a.seed_archive), bytes=a.seed_archive.stat().st_size, sha256=sha(a.seed_archive), logical_files=len(seed['files']), limitation='Verified oversize lossless transport retained locally. Every logical row/blob is preserved; only physical blob order and bounded XZ window change. Packaging streams that completed after the seed capture have explicit additional generations.')
 		data = (json.dumps(index, indent=2)+'\n').encode(); store('INDEX.json', io.BytesIO(data), len(data))
+		nominal = {}
+		for name, row in files.items():
+			if 'blob' in row: nominal.setdefault(row['blob'], name)
+		def order(name):
+			if name == 'INDEX.json': return (9, '', 0, name)
+			logical = nominal[name]; path = pending[name]; size = path.stat().st_size
+			if logical == 'history/previous-evidence-index.json': return (8, '', 0, name)
+			with path.open('rb') as stream: first = stream.read(128)
+			base = Path(logical).name
+			if first.startswith(b'\x7fELF'): return (0, 'large' if size >= 500000 else 'small', size, name)
+			if first.startswith(b'('): return (1, base, size, name)
+			if b'; ModuleID' in first or first.startswith(b'source_filename'): return (2, base, size, name)
+			if first.lstrip().startswith((b'{', b'[')): return (3, base, size, name)
+			if logical.startswith('columns/'): return (5, base.rsplit('.', 1)[-1], size, name)
+			return (4, base, size, name)
+		for name in sorted(pending, key=order):
+			path = pending[name]; entry = tarfile.TarInfo(name); entry.mode = 0o644; entry.size = path.stat().st_size
+			with path.open('rb') as stream: packed.addfile(entry, stream)
 	assert helpers.verify_archive(archive) == index
 	assert all(index['files'][name] == row for name, row in old['files'].items())
 	helpers.restore_all(archive, leaf, len(files))
@@ -121,6 +161,7 @@ def pack(paths, a, helpers):
 	for name, path in [('final-audit.json', a.audit), ('decode-evidence.py.txt', tool), ('verify-evidence.py.txt', Path(__file__)), ('restore-effects.py.txt', ROOT/'tests/selfhost-effects/restore.py'), ('restore-columns.py.txt', ROOT/'tests/selfhost-genref/columns.py')]:
 		(attachments/name).write_bytes(path.read_bytes())
 	packaging = dict(status='LOSSLESS_R5_CONTINUATION_EVIDENCE_VERIFIED', logical_files=len(files), previous_logical_files=len(old['files']), unique_blobs=len(blobs), archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), previous_report_sha256=PREVIOUS, previous_archive_sha256=sha(previous), seconds=time.monotonic()-start, G12='PENDING actual installed publication and independent after-delivery verification')
+	packaging.update(dictionary_MiB=a.dictionary_mib, physical_order='similar ELF/Core/LLVM/JSON/column variants adjacent; original index adjacent to current index', transport_seed=index.get('transport_seed'))
 	(attachments/'packaging.json').write_text(json.dumps(packaging, indent=2)+'\n')
 	(attachments/'review-guide.txt').write_text('Read final-audit.json for exact qualification and unproved gates. Decode effects25-r5-resume-encoding.json with decode-evidence.py.txt. The content-addressed archive retains every previous logical file and all continuation source/run/build receipts, including failures. Save restore-effects.py.txt and restore-columns.py.txt together as restore-effects.py and restore-columns.py, then run python3 restore-effects.py ARCHIVE --output DIRECTORY --verify-only. The independent decoder reconstructs and hashes every original byte without executing evidence. Historical observations remain tied to their captured compiler revisions; actual original full-population execution and reduced-view execution are separate. The installed publisher alone creates the canonical ZIP; G12 is checked only afterward.\n')
 	rows = [dict(path=path.name, bytes=path.stat().st_size, sha256=sha(path)) for path in sorted(attachments.iterdir())]
@@ -175,7 +216,7 @@ def verify(paths, a, helpers):
 
 
 def main():
-	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True)
+	p = argparse.ArgumentParser(); p.add_argument('mode', choices=('pack', 'verify')); p.add_argument('--version', required=True); p.add_argument('--audit', type=Path, required=True); p.add_argument('--seed-archive', type=Path); p.add_argument('--dictionary-mib', type=int, choices=(64, 256, 512, 1024), default=64)
 	a = p.parse_args(); assert a.version.isalnum() and a.audit.is_file()
 	paths = load_module('resume_report_paths', ROOT/'tests/selfhost-effects/recover-build.py')
 	helpers = load_module('resume_transport_helpers', ROOT/'tests/selfhost-effects/recover-r5-report.py')

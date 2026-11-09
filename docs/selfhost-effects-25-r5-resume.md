@@ -625,3 +625,12 @@ All earlier costs and every actual failed/stopped/warm/cold receipt remain
 lossless evidence. Publication and G12 use the installed unchanged amendment
 workflow with predecessor SHA256
 `16408c8bd00c3e81633e2ab7cefa6d557bbdad0dbdd9239add328c160fe7f887`.
+
+The first complete lossless transport verifies229,303 logical files and92,538
+unique blobs, but its56,684,112 bytes exceed the installed25MiB report ceiling.
+That oversize archive and its restoration receipt remain preserved locally.
+The transport recipe can seed from all of its exact rows/blobs, cluster
+similar captured compiler/Core/LLVM variants and use an explicit larger bounded
+XZ dictionary. This changes physical ordering/compression only; the unchanged
+independent decoder must again reconstruct every logical original byte before
+publication. No evidence is removed to meet the delivery limit.
