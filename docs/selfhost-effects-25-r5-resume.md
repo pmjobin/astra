@@ -683,3 +683,10 @@ individually compressed patches hid their common runtime sections and made
 the complete transport larger. Large compiler/Core receipts still use verified
 byte deltas. This is a storage choice only; all executable hashes and actual
 execution/memory records remain identical.
+
+The complete21,767,948-byte diagnostic disassembly also has an exact reversible
+hexadecimal/literal byte encoding. Its standalone decoder reproduces every
+original byte and hash; a focused XZ measurement reduces2,310,476 bytes to
+969,492 bytes. The full disassembly remains present as a reconstructed original
+blob, not an omitted diagnostic. The encoding interprets no proof or source
+semantics and adds no Astra-native credit.

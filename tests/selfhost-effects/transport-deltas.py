@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Exact BSDIFF40 evidence storage; standalone standard-library reconstruction."""
 import argparse
+from array import array
 import bz2
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
@@ -11,6 +12,8 @@ import lzma
 from pathlib import Path
 import re
 import subprocess
+import struct
+import sys
 import tarfile
 import time
 import urllib.request
@@ -23,6 +26,46 @@ SOURCES = {
 
 def digest(path):
 	with Path(path).open('rb') as stream: return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def hex_encode(data):
+	words, dictionary, order = [], {}, bytearray(); values = [array('q') for _ in range(65)]; previous = [0]*65
+	def literal(word):
+		if not word: return
+		if word not in dictionary: dictionary[word] = len(words); words.append(word)
+		value = dictionary[word]; values[0].append(value-previous[0]); previous[0] = value; order.append(0)
+	first = 0
+	for match in re.finditer(rb'(?<![A-Za-z0-9_])(?:0x)?[0-9a-f]{1,16}(?![A-Za-z0-9_])', data):
+		literal(data[first:match.start()]); word = match.group(); prefix = word.startswith(b'0x'); digits = word[2:] if prefix else word
+		group = len(digits)+(16 if prefix else 0)+(32 if data[match.end():match.end()+1] == b':' else 0); value = int(digits, 16)
+		delta = ((value-previous[group]+(1 << 63)) % (1 << 64))-(1 << 63)
+		values[group].append(delta); previous[group] = value; order.append(group); first = match.end()
+	literal(data[first:]); dictionary_bytes = b''.join(struct.pack('<Q', len(word))+word for word in words)
+	for column in values:
+		if sys.byteorder != 'little': column.byteswap()
+	return b'ASTRAHX2'+struct.pack('<68Q', len(data), len(dictionary_bytes), len(order), len(values[0]), *[len(column) for column in values[1:]])+dictionary_bytes+order+b''.join(column.tobytes() for column in values)
+
+
+def hex_decode(data):
+	assert data[:8] == b'ASTRAHX2'; size, dictionary_size, units, literal_count, *counts = struct.unpack_from('<68Q', data, 8); offset = 552
+	end = offset+dictionary_size; words = []
+	while offset < end:
+		count = struct.unpack_from('<Q', data, offset)[0]; offset += 8; assert offset+count <= end; words.append(data[offset:offset+count]); offset += count
+	order = data[offset:offset+units]; offset += units; assert len(order) == units
+	columns = []
+	for count in [literal_count, *counts]:
+		column = array('q'); column.frombytes(data[offset:offset+count*8]); offset += count*8
+		if sys.byteorder != 'little': column.byteswap()
+		assert len(column) == count; columns.append(column)
+	assert offset == len(data); positions, previous, result = [0]*65, [0]*65, bytearray()
+	for group in order:
+		assert group < 65 and positions[group] < len(columns[group]); previous[group] = (previous[group]+columns[group][positions[group]]) % (1 << 64); positions[group] += 1
+		if group == 0: assert previous[0] < len(words); result.extend(words[previous[0]])
+		else:
+			kind = group-32 if group > 32 else group; width = kind-16 if kind > 16 else kind; word = format(previous[group], '0'+str(width)+'x').encode(); assert len(word) == width
+			result.extend((b'0x' if kind > 16 else b'')+word)
+	assert len(result) == size and positions == [len(column) for column in columns]
+	return result
 
 
 def number(data):
@@ -129,9 +172,17 @@ def encode(pending, files, leaf, build, witness, cache=None):
 			physical.pop(row['target']); deltas[row['target']] = dict(base=row['base'], patch=row['patch'], bytes=row['bytes'])
 	for row, path in results:
 		if row['accepted']: physical[row['patch']] = path
+	transforms = {}
+	for name, path in pending.items():
+		if name in deltas or path.stat().st_size < 1048576: continue
+		with path.open('rb') as stream: first = stream.read(4096)
+		if b'Disassembly of section' not in first: continue
+		original = path.read_bytes(); encoded = hex_encode(original); assert hex_decode(encoded) == original
+		encoded_path = jobs/(name[6:]+'.hex-bytes'); encoded_path.write_bytes(encoded); reference = 'blobs/'+digest(encoded_path)
+		physical.pop(name); physical[reference] = encoded_path; transforms[name] = dict(encoding='ASTRAHX2', blob=reference, bytes=len(original))
 	commands = [row for row, _ in results]; (leaf/'delta-commands.json').write_text(json.dumps(commands, indent=2)+'\n')
-	storage = dict(format='astra-byte-deltas/1', deltas=deltas)
-	receipt = dict(recipe_sha256=digest(__file__), tools=tools, attempted=len(results), accepted=len(deltas), original_blob_bytes=sum(path.stat().st_size for path in pending.values()), stored_blob_bytes=sum(path.stat().st_size for path in physical.values()), commands_sha256=digest(leaf/'delta-commands.json'), failed=[row for row in commands if row['exit'] != 0], Astra_execution_credit=0, limitation='Every accepted BSDIFF40 delta is independently applied by the standalone Python decoder and required to match the actual original byte hash. Raw bases and every original logical row remain. Eight bounded encoder processes operate only on captured artifact bytes; no source, command, proof result or target execution is synthesized.')
+	storage = dict(format='astra-byte-deltas/1', deltas=deltas, transforms=transforms)
+	receipt = dict(recipe_sha256=digest(__file__), tools=tools, attempted=len(results), accepted=len(deltas), exact_hex_byte_transforms=len(transforms), original_blob_bytes=sum(path.stat().st_size for path in pending.values()), stored_blob_bytes=sum(path.stat().st_size for path in physical.values()), commands_sha256=digest(leaf/'delta-commands.json'), failed=[row for row in commands if row['exit'] != 0], Astra_execution_credit=0, limitation='Every accepted BSDIFF40 delta and reversible hexadecimal byte transform is independently decoded and required to match the actual original byte hash. Raw bases and every original logical row remain. Eight bounded encoder processes operate only on captured artifact bytes; no source, command, proof result or target execution is synthesized.')
 	(leaf/'delta-codec-receipt.json').write_text(json.dumps(receipt, indent=2)+'\n')
 	return physical, storage, receipt
 
@@ -150,14 +201,17 @@ def decode(archive, output, expected=None):
 	assert index['format'] == 'astra-effects25-evidence/5' and index['milestone'] == 'ASTRA-SELFHOST-EFFECTS-25-R5'
 	if expected is not None: assert index == expected
 	storage = index['storage']; assert storage['format'] == 'astra-byte-deltas/1'; deltas = storage['deltas']
-	originals = {row['blob'] for row in index['files'].values() if 'blob' in row}; assert set(deltas) <= originals
-	assert set(observed)-{'INDEX.json'} == (originals-set(deltas)) | {row['patch'] for row in deltas.values()}
+	originals = {row['blob'] for row in index['files'].values() if 'blob' in row}; transforms = storage.get('transforms', {}); assert set(deltas) <= originals and set(transforms) <= originals and not set(deltas) & set(transforms)
+	assert set(observed)-{'INDEX.json'} == (originals-set(deltas)-set(transforms)) | {row['patch'] for row in deltas.values()} | {row['blob'] for row in transforms.values()}
 	cache, visiting = {}, set()
 	def materialize(name):
 		assert name in originals
 		if name in cache: return cache[name]
 		assert name not in visiting and len(visiting) <= 64; visiting.add(name)
-		if name in deltas:
+		if name in transforms:
+			row = transforms[name]; assert row['encoding'] == 'ASTRAHX2'; data = hex_decode(observed[row['blob']].read_bytes())
+			assert len(data) == row['bytes'] and name == 'blobs/'+hashlib.sha256(data).hexdigest(); path = root/('decoded-'+name[6:]); path.write_bytes(data)
+		elif name in deltas:
 			row = deltas[name]; old = materialize(row['base']).read_bytes(); data = apply(old, observed[row['patch']].read_bytes())
 			assert len(data) == row['bytes'] and name == 'blobs/'+hashlib.sha256(data).hexdigest()
 			path = root/('decoded-'+name[6:]); path.write_bytes(data)
