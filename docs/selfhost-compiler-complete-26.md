@@ -104,6 +104,27 @@ pair builds the complete corrected source in distinct external leaves. Reused
 R5 translators are historical baseline products; neither a helper test nor a
 warm reuse is described as a cold compiler build.
 
+The v2 focused O0 stage observer was genuinely rebuilt by C0 in 1,283.61 seconds
+(1,274.60 user / 0.99 system seconds), peak RSS 1,550,232 KiB, product SHA-256
+`7e1fc0ba3b5684976605163e2d2177cce289d57a8991cb1aebcd90ab3c051e0d`.
+It checks the exact complete original population in 130.96 seconds, without
+the previous Typecore resource failure. It then returns **exit2**, with
+`SHARED_FLOW 3 307096`, binding that node to the same original Bag declaration
+and fragment hash above. The wrapper's successful exit is not compiler PASS.
+Its raw shared-use rows retain deferred19 obligations; reaching Flow does not
+discharge them or admit the compiler as a whole.
+
+The first Flow stop is the ordinary-Class declaration guard in
+`recover_flow_lower`: the original `Bag<T>` is not qualified by the Error or
+ordinary success-storage predicates. `recover_storage_fields` currently admits
+scalar/text fields, numeric buffers and independently checked Class/shared
+fields; it does not supply the original owning `T[slots]` Bag contract. Generic
+template/concrete coverage, slot-owner operations, initialization, cleanup and
+independent source/physical consumers must be proved together. Skipping the
+template, pruning Bag or treating layout admission as a receiver root would
+not close this frontier. The focused observer emits no target LLVM or native
+object and earns no full-original native execution credit.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
