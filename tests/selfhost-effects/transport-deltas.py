@@ -179,7 +179,9 @@ def encode(pending, files, leaf, build, witness, cache=None):
 		if b'Disassembly of section' in first:
 			original = path.read_bytes(); encoded = hex_encode(original); assert hex_decode(encoded) == original; encoding = 'ASTRAHX2'
 		elif first.lstrip().startswith((b'{', b'[')):
-			original = path.read_bytes(); model = json.loads(original)
+			original = path.read_bytes()
+			try: model = json.loads(original)
+			except (ValueError, UnicodeError): continue
 			if (json.dumps(model, indent=2)+'\n').encode() != original: continue
 			encoded = (json.dumps(model, separators=(',', ':'))+'\n').encode(); assert (json.dumps(json.loads(encoded), indent=2)+'\n').encode() == original; encoding = 'json-indent2'
 		else: continue
