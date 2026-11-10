@@ -1,9 +1,46 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Semantic diagnosis only. This observer never emits target LLVM or objects.
+bool template_closed_controls(CheckedIndex checked, SymbolId owner) {
+	if (!recover_slot_template_source(checked, owner)) return false;
+	int i = 0;
+	while (i < checked.instance_count) {
+		var instance = checked.instances[i];
+		if (instance.origin.index == owner.index) {
+			var type = checked.symbol_types[instance.concrete.index];
+			int first = -1; int second = -1; int m = 0;
+			while (m < checked.instance_count && second < 0) {
+				if (checked.instances[m].enclosing.index == type.index) {
+					if (first < 0) {
+						first = m;
+					}
+					else {
+						second = m;
+					}
+				}
+				m = m + 1;
+			}
+			if (first < 0 || second < 0) return false;
+			var original = checked.instances[first]; var changed = original; changed.origin = type_symbol(0);
+			checked.instances[first] = changed;
+			bool rejected = !recover_slot_template_source(checked, owner);
+			checked.instances[first] = original;
+			if (!rejected || !recover_slot_template_source(checked, owner)) return false;
+			var duplicate = checked.instances[second]; changed = duplicate; changed.origin = original.origin;
+			checked.instances[second] = changed;
+			rejected = !recover_slot_template_source(checked, owner);
+			checked.instances[second] = duplicate;
+			return rejected && recover_slot_template_source(checked, owner) && generic_verify(checked);
+		}
+		i = i + 1;
+	}
+	return false;
+}
+
 bool template_source_controls(CheckedIndex checked, SymbolId owner) {
 	if (!recover_slot_template_source(checked, owner)) return false;
 	var declaration = checked.bindings.symbol(owner); var node = declaration.node;
 	bool exact = checked.bindings.program.arena.get_bool_exact_heap_class(node);
+	if (!exact) return template_closed_controls(checked, owner);
 	checked.bindings.program.arena.set_bool_exact_heap_class(node, false);
 	bool rejected = !recover_slot_template_source(checked, owner);
 	checked.bindings.program.arena.set_bool_exact_heap_class(node, exact);

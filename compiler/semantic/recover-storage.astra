@@ -162,10 +162,53 @@ bool recover_template_method(CheckedIndex checked, SymbolId owner, SymbolId memb
 	return returned || result.type.index == 14;
 }
 
+// Every original member of a closed-only template must have a concrete
+// function in every used specialization. The generic verifier checks the
+// source copy, and the ordinary Flow consumer checks every concrete body.
+bool recover_closed_slot_template(CheckedIndex checked, SymbolId owner, SyntaxListId members, int[] work) {
+	int closed = 0; int i = 0;
+	while (i < checked.instance_count) {
+		if (work[0] == 0) return false;
+		work[0] = work[0] - 1;
+		var instance = checked.instances[i];
+		if (instance.origin.index == owner.index) {
+			if (instance.state != 2 || instance.concrete.index < 1 || instance.concrete.index > checked.bindings.symbol_count) return false;
+			var type = checked.symbol_types[instance.concrete.index];
+			if (!recover_storage_class(checked, type)) return false;
+			int m = 0;
+			while (m < checked.bindings.program.arena.list_count(members)) {
+				var node = checked.bindings.program.arena.node_at(members, m);
+				var kind = checked.bindings.program.arena.kind(node);
+				if (kind != SyntaxKind.StructFieldDeclarationSyntax()) {
+					if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax() || !recover_plain_member(checked, node) || checked.bindings.program.arena.get_int_dispatch(node) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0) return false;
+					var member = checked.node_symbols[node.index];
+					if (member.index < 1 || checked.bindings.symbol(member).owner.index != owner.index) return false;
+					int matches = 0; int c = 0;
+					while (c < checked.instance_count) {
+						if (work[0] == 0) return false;
+						work[0] = work[0] - 1;
+						var concrete = checked.instances[c];
+						if (concrete.origin.index == member.index && concrete.enclosing.index == type.index) {
+							if (concrete.state != 2 || concrete.concrete.index < 1 || concrete.concrete.index > checked.bindings.symbol_count || checked.bindings.symbol(concrete.concrete).kind != 1) return false;
+							matches = matches + 1;
+						}
+						c = c + 1;
+					}
+					if (matches != 1) return false;
+				}
+				m = m + 1;
+			}
+			closed = closed + 1;
+		}
+		i = i + 1;
+	}
+	return closed > 0;
+}
+
 bool recover_slot_template_source(CheckedIndex checked, SymbolId owner) {
 	if (!checked.class_storage || owner.index < 1 || owner.index > checked.generic_symbols || !generic_template(checked, owner) || !class_storage_template_verified(checked, owner)) return false;
 	var declaration = checked.bindings.symbol(owner); var node = declaration.node;
-	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || !checked.bindings.program.arena.get_bool_exact_heap_class(node) || checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0 || checked.bindings.program.arena.get_concurrency_concurrency_policy(node).present) return false;
+	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0 || checked.bindings.program.arena.get_concurrency_concurrency_policy(node).present) return false;
 	if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
 	var fields = checked.bindings.program.arena.get_list_fields(node); int f = 0;
 	while (f < checked.bindings.program.arena.list_count(fields)) {
@@ -176,6 +219,7 @@ bool recover_slot_template_source(CheckedIndex checked, SymbolId owner) {
 		f = f + 1;
 	}
 	var work = new int[1]; work[0] = 8000000; var members = checked.bindings.program.arena.get_list_members(node); int i = 0; int constructors = 0;
+	if (!checked.bindings.program.arena.get_bool_exact_heap_class(node)) return recover_closed_slot_template(checked, owner, members, work);
 	while (i < checked.bindings.program.arena.list_count(members)) {
 		var member = checked.bindings.program.arena.node_at(members, i); var kind = checked.bindings.program.arena.kind(member); var symbol = checked.node_symbols[member.index];
 		if (kind != SyntaxKind.StructFieldDeclarationSyntax()) {
