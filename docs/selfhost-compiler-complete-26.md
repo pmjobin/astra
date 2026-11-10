@@ -5,7 +5,7 @@ generation, integrated linkage and full compiler performance qualification
 have not been established. Bounded current regressions remain separately
 attributed below. No Stage1 or self-host claim is made.
 
-## Progress snapshot — 2026-11-10 03:03 UTC
+## Progress snapshot — 2026-11-10 03:27 UTC
 
 | Work item | Evidence-backed state |
 |---|---|
@@ -13,9 +13,9 @@ attributed below. No Stage1 or self-host claim is made.
 | Original compiler C0 front end | All 180 compiler files plus 10 dependencies pass together |
 | Bounded O0/O2 regression checkpoint | Qualified at c99a96a with the disclosed failed raw jobs and separate supplements; does not qualify later edits |
 | New owning-Class slot runtime helpers | O0/O2 native, C ABI, cleanup-order and unsuppressed memory checks pass; 10 physical graphs, 24 LLVM-valid mutations and 20 convention controls |
-| Slot source/owner/Core/CFG/SSA/LLVM integration | Committed at 314b782; full current C0 front-end check passes; native integration pending |
-| Current O0 host rebuild | Running; completion receipt absent at this snapshot |
-| Focused source-to-native slot checks | Queued after that build; stop on a failed required positive |
+| Slot source/owner/Core/CFG/SSA/LLVM integration | Candidate3 reaches SSA for empty field slots; full slot calls still fail Flow; two focused corrections pass current C0 checking and await a new native build |
+| Candidate3 O0 host rebuild | Finished successfully in53:43.64, peak RSS2,532,364 KiB; no compiler completeness inference |
+| Focused source-to-native slot checks | First required positive failed physical validation; later checks were skipped; correction build queued next |
 | Current O2 host rebuild and broad regressions | Deferred until focused O0 integration succeeds |
 | Full original compiler native objects | 0 of 2 profiles proved; remains a completeness blocker |
 | Full compiler linkage and performance | Unproved |
@@ -30,6 +30,35 @@ are committed at7f78547 without changing the active build's 348 source and46
 tool inputs. Its independent during-build hash check is BYTE_EXACT. The next
 decision is the focused native slot result, followed by the still-unproved
 generic-template/concrete coverage and full original source frontier.
+
+Candidate3's 6,180,656-byte O0 ELF has SHA-256
+`a6d2600448ffeed973824faba11c7093ab2138bd5149123193e9e004a598eb12`.
+The empty-field-slot source passes actual Flow/Core/CFG/SSA and preserves the
+output sentinel when native emission exits5 with `LLVM_INVALID_IR: recover
+physical contract`. The full field-slot program and six-operation variant
+are C0-valid and instead fail Flow at slot call statements. Original generic
+Bag still stops at its declaration. These failed receipts are unchanged.
+
+An exact source-order-matched C0 Core map takes73.49 seconds. The unchanged
+candidate is then observed with read-only debugger breakpoints: LLVM's verifier
+returns0, while the independent physical consumer returns false. The dumped
+module is a diagnosis witness only and is never linked or executed. The new
+empty-slot predicate incorrectly required a null operation, although emission
+records its actual branch; the correction requires that exact terminator while
+retaining the constant/type and one-instruction checks. The independent Flow
+statement consumer also needs to recognize its already-verified slot-call
+operation69. The stage diagnostic's genuine success exit is42; the focused
+harness now checks42 rather than0.
+
+`current-C0-semantics5` passes all190 current inputs in49.70 seconds after those
+two production corrections. Fresh source-to-native and memory checks remain
+pending. `original-source-candidate3b` independently replays all190 frozen,
+read-only original inputs: exit3, `RECOVER_FLOW 3 307096 0`, preserved sentinel,
+127.70 seconds. The two subsequent corrections are explicitly not compiled
+into that observed product. This refused attempt does not demonstrate full
+compiler performance or a speedup. A first outer-harness check encountered
+the externally upgraded host LLVM before entering the capsule and stopped
+before launching the compiler; that harness failure is retained separately.
 
 The existing checkout started clean at commit
 `8b8cf003ea0b47b1322b887317b6fc535bfb9850`, tree

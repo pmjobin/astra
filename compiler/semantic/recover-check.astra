@@ -232,7 +232,7 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (row.kind == 26) {
 		if (kind != SyntaxKind.CallStatementSyntax() || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_call(source), function, handler, caught, seen, edges, depth + 1)) return false;
 		var call = flow.nodes[row.a - 1]; int code = checked_kind(checked, call.type);
-		return (call.kind == 4 || call.kind == 50) && (checked.uses[call.source.index].flags & 4) == 0 && (code == 14 || code == 13 || code == 15 || type_numeric(code));
+		return (call.kind == 4 || call.kind == 50 || call.kind == 69) && (checked.uses[call.source.index].flags & 4) == 0 && (code == 14 || code == 13 || code == 15 || type_numeric(code));
 	}
 	return false;
 }

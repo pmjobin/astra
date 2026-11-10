@@ -56,6 +56,31 @@ int main() {
 '''+TAKE+'}\n',
 }
 
+CASES['field-slot-operations'] = ITEM+'''class Items {
+	private owned Item[slots] data;
+	init() { this.data = new Item[slots]; }
+	bool reserve(int count) { return this.data.reserve(count); }
+	void append(owned Item value) { this.data.append(move value); }
+	owned Item take(int at) { var value = this.data.take(at); return move value; }
+	void replace(int at, owned Item value) { this.data.replace(at, move value); }
+	int count() { return len(this.data); }
+	int capacity() { return this.data.capacity; }
+}
+int main() {
+	var values = new Items();
+	if (!values.reserve(2)) return 3;
+	var a = new Item(20); var b = new Item(22);
+	values.append(move a); values.append(move b);
+	if (values.count() != 2 || values.capacity() != 2) return 4;
+	var taken = values.take(0);
+	var replacement = new Item(24); values.replace(0, move replacement);
+	values.append(move taken);
+	var first = values.take(0); var second = values.take(0);
+	if (values.count() != 0 || values.capacity() != 2) return 5;
+	return first.read() + second.read() - 2;
+}
+'''
+
 CASES['double-transfer'] = CASES['field-slots'].replace('values.append(move b);', 'values.append(move a);')
 CASES['missing-move'] = CASES['field-slots'].replace('values.append(move a);', 'values.append(a);')
 CASES['borrowed-transfer'] = CASES['field-slots']+'void invalid(Items values, borrowed Item value) { values.append(move value); }\n'
@@ -73,6 +98,7 @@ def main():
 	p.add_argument('--runtime-root', type=Path, required=True)
 	p.add_argument('--case', choices=tuple(CASES), action='append')
 	p.add_argument('--require-native', action='store_true', help='fail unless every selected C0-positive source also executes natively under Astra')
+	p.add_argument('--source-commit', default=BASELINE, help='Git source revision authenticating any captured compiler inputs that differ from the live tree')
 	a = p.parse_args()
 	assert a.version.isalnum() and sha(a.compiler) == C0_SHA256
 	for path, parent in ((a.build_root, WORK/'build'), (a.runtime_root, WORK/'runtime')):
@@ -93,7 +119,7 @@ def main():
 			if sha(name) != expected:
 				path = Path(name)
 				assert group == 'sources' and path.is_relative_to(ROOT)
-				assert hashlib.sha256(git('show', BASELINE+':'+str(path.relative_to(ROOT)))).hexdigest() == expected
+				assert hashlib.sha256(git('show', a.source_commit+':'+str(path.relative_to(ROOT)))).hexdigest() == expected
 				historical.append(name)
 	providers = a.component.parent
 	objects = [providers/(name+'.o') for name in ('args-posix', 'files-posix', 'text-posix', 'text-ops-posix', 'diagnostics-trap')]
@@ -159,9 +185,9 @@ def main():
 			row.update(Astra_native_execution=42, Astra_unsuppressed_memory=True, raw_LLVM_sha256=sha(physical), optimized_LLVM_sha256=sha(optimized), object_sha256=sha(obj), Astra_ELF_sha256=sha(exe))
 		rows.append(row)
 		assert sha(Path(__file__)) == recipe_sha256
-		write(leaf/'result.json', dict(status='PARTIAL', profile=a.mode, component_sha256=sha(a.component), recipe_sha256=recipe_sha256, recipe_witness=str(recipe_witness), baseline_commit=git('rev-parse', BASELINE).decode().strip(), historical_source_bindings=historical, programs=rows, scope='Focused owner-slot probes only; no 340/71/full-original source or milestone qualification credit. Historical compiler bindings are explicitly labelled; changed implementation is not called rebuilt.'))
+		write(leaf/'result.json', dict(status='PARTIAL', profile=a.mode, component_sha256=sha(a.component), recipe_sha256=recipe_sha256, recipe_witness=str(recipe_witness), baseline_commit=git('rev-parse', a.source_commit).decode().strip(), historical_source_bindings=historical, programs=rows, scope='Focused owner-slot probes only; no 340/71/full-original source or milestone qualification credit. Historical compiler bindings are explicitly labelled; changed implementation is not called rebuilt.'))
 		print(name, 'C0=42' if valid else 'C0 rejects', 'Astra native='+str(code), 'stages='+str(stages), flush=True)
-		if a.require_native and valid: assert row['Astra_native_execution'] == 42 and stages == 0, name
+		if a.require_native and valid: assert row['Astra_native_execution'] == 42 and stages == 42, name
 
 
 if __name__ == '__main__':
