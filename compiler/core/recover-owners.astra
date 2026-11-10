@@ -99,7 +99,14 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow) {
 		n = n + 1;
 	}
 	int call = 1; while (call <= flow.data.node_count && plan.status == 0) { var parent = flow.data.nodes[call - 1];
-		if (parent.kind == 4 || recover_constructor_kind(parent.kind)) { int a = 1; while (a < parent.count && plan.status == 0) { int subtree = flow.data.edges[parent.first + a]; int child = 1;
+		if (parent.kind == 4 || recover_constructor_kind(parent.kind)) { int a = 1; bool reserved = false; while (a < parent.count && plan.status == 0) {
+				int preceding = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + a - 1]);
+				if (preceding > 0 && flow.data.nodes[preceding - 1].kind == 10) reserved = true;
+				if (!reserved) {
+					a = a + 1;
+					continue;
+				}
+				int subtree = flow.data.edges[parent.first + a]; int child = 1;
 				while (child <= flow.data.node_count && plan.status == 0) { if (!work.take()) {
 						plan.status = 2;
 						break;
@@ -170,8 +177,8 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				a = a + 1;
 			}
 		}
-		int parent = 0; while (parent < count) { if (!work.take()) return false; var candidate = flow.data.nodes[parent];
-			if (owner && candidate.kind == 69) {
+		int parent = 0; while (owner && parent < count) { if (!work.take()) return false; var candidate = flow.data.nodes[parent];
+			if (candidate.kind == 69) {
 				int a = 0;
 				while (a < candidate.count) {
 					if (recover_owner_unwrap(flow.data, flow.data.edges[candidate.first + a]) == n + 1) {
@@ -182,17 +189,17 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 					a = a + 1;
 				}
 			}
-			if (owner && candidate.kind == 19 && candidate.count == 1 && recover_owner_unwrap(flow.data, flow.data.edges[candidate.first]) == n + 1) {
+			if (candidate.kind == 19 && candidate.count == 1 && recover_owner_unwrap(flow.data, flow.data.edges[candidate.first]) == n + 1) {
 				if (row.kind != 10 || !flow.checked.bindings.program.arena.token_is(candidate.token, "shared_acquire")) return false;
 				uses = uses + 1;
 				consumer = parent + 1;
 				call = parent + 1;
 			}
-			if (owner && (candidate.kind == 22 || candidate.kind == 23 || candidate.kind == 27 || candidate.kind == 43 || candidate.kind == 44) && recover_owner_unwrap(flow.data, candidate.a) == n + 1) {
+			if ((candidate.kind == 22 || candidate.kind == 23 || candidate.kind == 27 || candidate.kind == 43 || candidate.kind == 44) && recover_owner_unwrap(flow.data, candidate.a) == n + 1) {
 				uses = uses + 1;
 				consumer = parent + 1;
 			}
-			if (owner && (candidate.kind == 4 || recover_constructor_kind(candidate.kind))) {
+			if (candidate.kind == 4 || recover_constructor_kind(candidate.kind)) {
 				int a = 0;
 				while (a < candidate.count) {
 					if (recover_owner_unwrap(flow.data, flow.data.edges[candidate.first + a]) == n + 1) {
@@ -221,8 +228,14 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 	while (call <= count) {
 		var parent = flow.data.nodes[call - 1];
 		if (parent.kind == 4 || recover_constructor_kind(parent.kind)) {
-			int a = 1;
+			int a = 1; bool reserved = false;
 			while (a < parent.count) {
+				int preceding = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + a - 1]);
+				if (preceding > 0 && flow.data.nodes[preceding - 1].kind == 10) reserved = true;
+				if (!reserved) {
+					a = a + 1;
+					continue;
+				}
 				int subtree = flow.data.edges[parent.first + a];
 				int child = 1;
 				while (child <= count) {

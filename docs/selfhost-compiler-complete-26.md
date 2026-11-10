@@ -72,6 +72,33 @@ diagnostic. The corrected code uses temporary borrows. Astra native qualificatio
 is pending. Fixed record arrays, record slices, and owning record elements retain
 their existing restrictions.
 
+## Core work and LLVM traversal candidate
+
+The previous O0 host admits both long-path fixtures to Flow and refuses them in
+Core. The sequential assignment fixture has 5,127 Flow nodes and the ordinary
+call fixture has 3,850. Original C0 executes both to 42 with clean memory. Both
+old refusals preserve their sentinels. The Core consumer now scans for unique
+consumers only for owning values. The producer and consumer skip abort-pair
+searches when a call argument has no preceding move reservation. The existing
+ownership checks and work ceiling still apply.
+
+The SSA verifier reconstructs immediate dominators from the independently
+checked CFG and answers queries using dominator tree intervals. LLVM emission
+uses a bounded stack with the former next-before-other traversal order. The
+exact-source kernel in `ssa-dominance-kernel2` matches six normalized production
+declarations. At both O0 and O2, the independent reachability and traversal
+oracles cover 15,002 small graphs, 237,409 dominance queries, disjoint functions,
+budget refusals, and the 8,192-block chain. The chain and its 2,048 queries use
+100,349 SSA work steps. All four memory runs are clean. The existing declaration
+lookup kernel also retains its 5,468 verified cases per profile. These kernel
+tests and `native-longpathcheck1-O0` establish focused checks. The integrated
+native results and full compiler performance measurement remain pending.
+
+A read-only stack sample of the in-flight frozen C0 build found bootstrap SSA
+owned-field loan verification during LLVM lowering. The sample identifies the
+active phase at that instant. It does not measure how much of the total build
+time that phase consumes.
+
 ## Earlier progress snapshot — 2026-11-10, candidate4 and template work
 
 | Work item | Evidence-backed state |

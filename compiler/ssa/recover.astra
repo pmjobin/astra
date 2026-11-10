@@ -6,8 +6,15 @@ struct RecoverValue { int function; int block; TypeId type; int channel; int edg
 class RecoverWork {
 	int remaining;
 	bool exhausted;
+	owned int[] dominance_first;
+	owned int[] dominance_end;
 
-	init(int limit) { this.remaining = limit; this.exhausted = limit < 1 || limit > 8000000; }
+	init(int limit) {
+		this.remaining = limit;
+		this.exhausted = limit < 1 || limit > 8000000;
+		this.dominance_first = new int[0];
+		this.dominance_end = new int[0];
+	}
 
 	bool take() { if (this.exhausted || this.remaining == 0) {
 			this.exhausted = true;
@@ -58,29 +65,149 @@ bool recover_ssa_reach(RecoverCfg cfg, bool[] reachable, RecoverWork work) {
 	return true;
 }
 
-// The independently checked CFG admits up to 8192 blocks. SSA uses that
-// same finite population; every reachability/dominance/liveness walk still
-// shares the existing 8,000,000-step verification budget.
-// Prove dominance by searching the actual CFG with the definition removed.
-// No producer-supplied dominator table or predecessor certificate is trusted.
-bool recover_ssa_dominates(RecoverCfg cfg, int definition, int use, RecoverWork work) {
-	if (definition == use) return true;
-	int function = cfg.blocks[use - 1].function; int entry = cfg.entries[function - 1]; if (definition == entry) return true;
-	var seen = new bool[cfg.block_count]; var pending = new int[cfg.block_count]; int count = 1; pending[0] = entry; seen[entry - 1] = true;
-	while (count > 0) {
-		if (!work.take()) return false; count = count - 1; int current = pending[count]; if (current == use) return false;
-		var block = cfg.blocks[current - 1]; int p = 0;
+// Walk the checked successor graph once. The rank table is also the discovery
+// mark until the postorder is complete.
+int recover_ssa_dominance_order(RecoverBlock[] blocks, int count, int[] entries, int[] post, int[] rank, RecoverWork work) {
+	var stack = new int[count]; var next_edge = new int[count + 1]; int reached = 0;
+	int f = 0;
+	while (f < len(entries)) {
+		int root = entries[f];
+		if (root < 1 || root > count || rank[root] != 0) return -1;
+		int depth = 1; stack[0] = root; rank[root] = -1;
+		while (depth > 0) {
+			if (!work.take()) return -1;
+			int node = stack[depth - 1];
+			int edge = next_edge[node];
+			if (edge == 2) {
+				post[reached] = node;
+				reached = reached + 1;
+				depth = depth - 1;
+			} else {
+				int target = blocks[node - 1].next;
+				if (edge == 1) target = blocks[node - 1].other;
+				next_edge[node] = edge + 1;
+				if (target < 0 || target > count) return -1;
+				if (target > 0 && rank[target] == 0) {
+					rank[target] = -1;
+					stack[depth] = target;
+					depth = depth + 1;
+				}
+			}
+		}
+		f = f + 1;
+	}
+	return reached;
+}
+
+// Reconstruct predecessors and immediate dominators from the checked CFG.
+// All scans, chain intersections and queries use the verifier's work budget.
+bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries, RecoverWork work) {
+	if (count < 1 || count > 8192 || count > len(blocks) || len(entries) == 0 || len(entries) > count || work.exhausted) return false;
+	var incoming = new int[count + 1]; var links = new int[count * 2 + 1];
+	int b = 1;
+	while (b <= count) {
+		if (!work.take()) return false;
+		int p = 0;
 		while (p < 2) {
-			int target = block.next; if (p == 1) target = block.other;
-			if (target > 0 && target != definition && !seen[target - 1]) {
-				seen[target - 1] = true;
-				pending[count] = target;
-				count = count + 1;
+			int target = blocks[b - 1].next;
+			if (p == 1) target = blocks[b - 1].other;
+			if (target < 0 || target > count) return false;
+			if (target > 0) {
+				int edge = (b - 1) * 2 + p + 1;
+				links[edge] = incoming[target];
+				incoming[target] = edge;
 			}
 			p = p + 1;
 		}
+		b = b + 1;
 	}
+	var post = new int[count]; var rank = new int[count + 1];
+	int reached = recover_ssa_dominance_order(blocks, count, entries, post, rank, work);
+	if (reached < 1) return false;
+	var parent = new int[count + 1];
+	int i = 0;
+	while (i < reached) {
+		if (!work.take()) return false;
+		rank[post[reached - 1 - i]] = i + 1;
+		i = i + 1;
+	}
+	int f = 0;
+	while (f < len(entries)) {
+		parent[entries[f]] = entries[f];
+		f = f + 1;
+	}
+	bool changed = true;
+	while (changed) {
+		changed = false;
+		i = reached - 1;
+		while (i >= 0) {
+			if (!work.take()) return false;
+			int node = post[i]; i = i - 1;
+			if (parent[node] == node) continue;
+			int candidate = 0; int edge = incoming[node];
+			while (edge > 0) {
+				if (!work.take()) return false;
+				int predecessor = (edge - 1) / 2 + 1; edge = links[edge];
+				if (parent[predecessor] == 0) continue;
+				if (candidate == 0) {
+					candidate = predecessor;
+					continue;
+				}
+				while (candidate != predecessor) {
+					if (!work.take()) return false;
+					if (rank[candidate] > rank[predecessor]) candidate = parent[candidate];
+					else {
+						predecessor = parent[predecessor];
+					}
+				}
+			}
+			if (candidate == 0 || rank[candidate] >= rank[node]) return false;
+			if (parent[node] != candidate) {
+				parent[node] = candidate;
+				changed = true;
+			}
+		}
+	}
+	var children = new int[count + 1]; var sibling = new int[count + 1];
+	i = 0;
+	while (i < reached) {
+		if (!work.take()) return false;
+		int node = post[i]; int ancestor = parent[node];
+		if (ancestor != node) {
+			sibling[node] = children[ancestor];
+			children[ancestor] = node;
+		}
+		i = i + 1;
+	}
+	var first = new int[count + 1]; var end = new int[count + 1];
+	int stamp = 1; f = 0;
+	while (f < len(entries)) {
+		int root = entries[f]; int depth = 1;
+		post[0] = root; first[root] = stamp; stamp = stamp + 1;
+		while (depth > 0) {
+			if (!work.take()) return false;
+			int node = post[depth - 1]; int child = children[node];
+			if (child == 0) {
+				end[node] = stamp;
+				depth = depth - 1;
+			} else {
+				children[node] = sibling[child];
+				first[child] = stamp; stamp = stamp + 1;
+				post[depth] = child; depth = depth + 1;
+			}
+		}
+		f = f + 1;
+	}
+	if (stamp != reached + 1) return false;
+	work.dominance_first = move first;
+	work.dominance_end = move end;
 	return true;
+}
+
+bool recover_ssa_dominates(int definition, int use, RecoverWork work) {
+	if (!work.take() || definition < 1 || use < 1 || definition >= len(work.dominance_first) || use >= len(work.dominance_first)) return false;
+	int anchor = work.dominance_first[definition]; int point = work.dominance_first[use];
+	return point == 0 || anchor > 0 && anchor <= point && point < work.dominance_end[definition];
 }
 
 int recover_ssa_definition(RecoverCfg cfg, int block) {
@@ -138,7 +265,7 @@ bool recover_ssa_use(RecoverSsaData data, RecoverCfg cfg, int value, int block, 
 	if (value < 1 || value >= len(data.values)) return false;
 	var definition = data.values[value]; if (definition.block < 1 || definition.function != cfg.blocks[block - 1].function) return false;
 	int anchor = definition.block; if (definition.edge != 0) anchor = definition.edge;
-	return !data.reachable[block - 1] || recover_ssa_dominates(cfg, anchor, block, work);
+	return !data.reachable[block - 1] || recover_ssa_dominates(anchor, block, work);
 }
 
 // Explore each owner version on all its paths, including its retired state.
@@ -220,6 +347,7 @@ owned int[] recover_ssa_local_definitions(RecoverCfg cfg, RecoverWork work) {
 bool recover_ssa_verify(RecoverSsa ssa) {
 	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || ssa.cfg.block_count > 8192 || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count]; if (!recover_ssa_reach(ssa.cfg, reachable, work)) return false;
+	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work)) return false;
 	var definitions = new bool[len(ssa.data.values)]; int b = 1;
 	while (b <= ssa.cfg.block_count) {
 		if (!work.take() || reachable[b - 1] != ssa.data.reachable[b - 1]) return false;
@@ -252,7 +380,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		if (row.opcode == 61) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value;
 			int guard = ssa.cfg.regions[source.b - 1].next;
-			if (!recover_ssa_use(ssa.data, ssa.cfg, source.c, b, work) || guard < 1 || guard > ssa.cfg.block_count || !recover_ssa_dominates(ssa.cfg, guard, b, work)) return false;
+			if (!recover_ssa_use(ssa.data, ssa.cfg, source.c, b, work) || guard < 1 || guard > ssa.cfg.block_count || !recover_ssa_dominates(guard, b, work)) return false;
 		}
 		if (row.opcode == 62 && !recover_ssa_short_inputs(ssa, b, work)) return false;
 		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || recover_constructor_kind(row.opcode) || row.opcode == 14 || row.opcode == 19 || row.opcode == 50 || row.opcode == 56 || row.opcode == 57 || row.opcode == 69 || row.opcode == 70) {
@@ -267,7 +395,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(source.symbol);
 			if (declaration.kind == 8) {
 				int definition = locals[source.symbol.index];
-				if (definition < 1 || ssa.data.reachable[b - 1] && !recover_ssa_dominates(ssa.cfg, definition, b, work)) return false;
+				if (definition < 1 || ssa.data.reachable[b - 1] && !recover_ssa_dominates(definition, b, work)) return false;
 			}
 		}
 		if (row.opcode == 6 || row.opcode == 66) {

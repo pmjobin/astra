@@ -1,4 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The explicit stack preserves next-before-other depth-first emission.
+// Each first visit can add at most two entries to the pending stack.
+int recover_llvm_emission_order(RecoverBlock[] blocks, int count, int[] entries, bool[] reachable, int[] order) {
+	if (count < 1 || count > 8192 || count > len(blocks) || count != len(reachable) || count != len(order)) return 0;
+	var pending = new int[count + 1]; var visited = new bool[count];
+	int emitted = 0; int f = 0;
+	while (f < len(entries)) {
+		int depth = 1;
+		pending[0] = entries[f];
+		while (depth > 0) {
+			depth = depth - 1;
+			int node = pending[depth];
+			if (node < 1 || node > count || !reachable[node - 1]) return 0;
+			if (visited[node - 1]) continue;
+			visited[node - 1] = true;
+			order[emitted] = node;
+			emitted = emitted + 1;
+			var block = blocks[node - 1];
+			if (block.other != 0) {
+				if (depth == len(pending)) return 0;
+				pending[depth] = block.other;
+				depth = depth + 1;
+			}
+			if (block.next != 0) {
+				if (depth == len(pending)) return 0;
+				pending[depth] = block.next;
+				depth = depth + 1;
+			}
+		}
+		f = f + 1;
+	}
+	int b = 0;
+	while (b < count) {
+		if (visited[b] != reachable[b]) return 0;
+		b = b + 1;
+	}
+	return emitted;
+}
+
 struct RecoverRecordStorage {
 	void* memory;
 	void* load_function;
@@ -615,16 +654,8 @@ class RecoverLlvm {
 		return LLVMBuildICmp(this.builder, predicate, left, right, this.empty);
 	}
 
-	void emit(RecoverSsa ssa, int id, int depth) throws Error {
-		if (id == 0 || this.emitted[id - 1]) return;
-		if (depth > 1024) {
-			throw new Error("LLVM_RESOURCE_EXHAUSTED: recover blocks");
-		}
+	void emit_block(RecoverSsa ssa, int id) throws Error {
 		this.emitted[id - 1] = true; var block = ssa.cfg.blocks[id - 1]; LLVMPositionBuilderAtEnd(this.builder, this.blocks[id - 1]);
-		if (!ssa.data.reachable[id - 1]) {
-			var end = LLVMBuildUnreachable(this.builder);
-			return;
-		}
 		int op = block.opcode; SyntaxNodeId absent = {index = 0}; RecoverNode row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 		void* value = null; void* operation = null;
 		if (op == 1) value = this.literal(ssa, row);
@@ -939,7 +970,6 @@ class RecoverLlvm {
 			if (operation == null) operation = jump;
 		}
 		this.operations[id - 1] = operation;
-		this.emit(ssa, block.next, depth + 1); this.emit(ssa, block.other, depth + 1);
 	}
 
 	void shared_helpers(RecoverSsa ssa) throws Error {
@@ -1370,9 +1400,15 @@ class RecoverLlvm {
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
 		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.array_helpers(ssa); this.declarations(ssa);
-		int f = 0; while (f < len(this.functions)) {
-			this.emit(ssa, ssa.cfg.entries[f], 0);
-			f = f + 1;
+		var order = new int[ssa.cfg.block_count];
+		int emitted = recover_llvm_emission_order(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, ssa.data.reachable, order);
+		if (emitted == 0) {
+			throw new Error("LLVM_INVALID_UPSTREAM: recover emission order");
+		}
+		int i = 0;
+		while (i < emitted) {
+			this.emit_block(ssa, order[i]);
+			i = i + 1;
 		}
 		int b = 0; while (b < len(this.blocks)) {
 			if (!this.emitted[b]) {

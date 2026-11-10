@@ -51,5 +51,5 @@ bool recover_ssa_utf8(RecoverSsa ssa, int value, RecoverWork work) {
 	var control = ssa.cfg.blocks[branch - 1];
 	int definition = ssa.data.values[value].block;
 	int use = ssa.cfg.regions[consumer - 1].operation;
-	return control.opcode == 21 && control.a == validation && control.next > 0 && control.other > 0 && recover_ssa_dominates(ssa.cfg, branch, definition, work) && recover_ssa_dominates(ssa.cfg, control.next, definition, work) && recover_ssa_dominates(ssa.cfg, definition, use, work);
+	return control.opcode == 21 && control.a == validation && control.next > 0 && control.other > 0 && recover_ssa_dominates(branch, definition, work) && recover_ssa_dominates(control.next, definition, work) && recover_ssa_dominates(definition, use, work);
 }

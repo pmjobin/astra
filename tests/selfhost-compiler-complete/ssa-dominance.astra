@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void dominance_observed(int work);
+
+// A tiny reachability oracle deletes the candidate definition and checks
+// every use. It does not build predecessors or a dominator tree.
+bool dominance_oracle(RecoverBlock[] blocks, int entry, int definition, int use) {
+	if (entry == definition) return true;
+	int reached = 1 << (entry - 1);
+	int previous = 0;
+	while (reached != previous) {
+		previous = reached;
+		int i = 0;
+		while (i < len(blocks)) {
+			if ((previous & (1 << i)) != 0) {
+				int first = blocks[i].next;
+				int second = blocks[i].other;
+				if (first > 0 && first != definition) reached = reached | (1 << (first - 1));
+				if (second > 0 && second != definition) reached = reached | (1 << (second - 1));
+			}
+			i = i + 1;
+		}
+	}
+	return (reached & (1 << (use - 1))) == 0;
+}
+
+int emission_oracle(RecoverBlock[] blocks, int node, bool[] visited, int[] order, int at) {
+	if (node == 0 || visited[node - 1]) return at;
+	visited[node - 1] = true;
+	order[at] = node;
+	int through_next = emission_oracle(blocks, blocks[node - 1].next, visited, order, at + 1);
+	return emission_oracle(blocks, blocks[node - 1].other, visited, order, through_next);
+}
+
+bool emission_case(RecoverBlock[] blocks, int[] entries) {
+	var expected = new int[len(blocks)]; var reachable = new bool[len(blocks)];
+	int count = 0; int f = 0;
+	while (f < len(entries)) {
+		count = emission_oracle(blocks, entries[f], reachable, expected, count);
+		f = f + 1;
+	}
+	var order = new int[len(blocks)];
+	if (recover_llvm_emission_order(blocks, len(blocks), entries, reachable, order) != count) return false;
+	int i = 0;
+	while (i < count) {
+		if (order[i] != expected[i]) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool dominance_case(RecoverBlock[] blocks, int[] entries) {
+	var work = new RecoverWork(8000000);
+	if (!recover_ssa_build_dominance(blocks, len(blocks), entries, work)) return false;
+	int definition = 1;
+	while (definition <= len(blocks)) {
+		int use = 1;
+		while (use <= len(blocks)) {
+			int entry = entries[blocks[use - 1].function - 1];
+			if (recover_ssa_dominates(definition, use, work) != dominance_oracle(blocks, entry, definition, use)) return false;
+			use = use + 1;
+		}
+		definition = definition + 1;
+	}
+	return !work.exhausted && emission_case(blocks, entries);
+}
+
+int dominance_exhaustive() {
+	var entries = new int[1]; entries[0] = 1;
+	int n = 1; int graphs = 0; int queries = 0;
+	while (n <= 4) {
+		int choices = 1 + n + n * (n - 1) / 2;
+		var next = new int[choices]; var other = new int[choices];
+		int a = 1; int index = 1;
+		while (a <= n) {
+			next[index] = a; index = index + 1;
+			int b = a + 1;
+			while (b <= n) {
+				next[index] = a; other[index] = b;
+				index = index + 1; b = b + 1;
+			}
+			a = a + 1;
+		}
+		int combinations = 1; int p = 0;
+		while (p < n) {
+			combinations = combinations * choices;
+			p = p + 1;
+		}
+		var blocks = new RecoverBlock[n]; int shape = 0;
+		while (shape < combinations) {
+			int remaining = shape; int node = 0;
+			while (node < n) {
+				int pick = remaining % choices;
+				blocks[node].function = 1;
+				blocks[node].next = next[pick]; blocks[node].other = other[pick];
+				remaining = remaining / choices; node = node + 1;
+			}
+			if (!dominance_case(blocks, entries)) return 1;
+			graphs = graphs + 1; queries = queries + n * n; shape = shape + 1;
+		}
+		n = n + 1;
+	}
+	if (graphs != 15002 || queries != 237409) return 2;
+	var separate = new RecoverBlock[4];
+	separate[0].function = 1; separate[0].next = 2; separate[0].other = 2;
+	separate[1].function = 1; separate[1].next = 1;
+	separate[2].function = 2; separate[2].next = 4;
+	separate[3].function = 2;
+	var roots = new int[2]; roots[0] = 1; roots[1] = 3;
+	if (!dominance_case(separate, roots)) return 3;
+	var starved = new RecoverWork(1);
+	if (recover_ssa_build_dominance(separate, 4, roots, starved) || !starved.exhausted || len(starved.dominance_first) != 0) return 4;
+	var forbidden = new RecoverWork(8000001);
+	if (recover_ssa_build_dominance(separate, 4, roots, forbidden)) return 5;
+	return 42;
+}
+
+int dominance_chain() {
+	var blocks = new RecoverBlock[8192]; var entries = new int[1]; entries[0] = 1;
+	var reachable = new bool[8192];
+	int i = 0;
+	while (i < len(blocks)) {
+		blocks[i].function = 1;
+		reachable[i] = true;
+		if (i + 1 < len(blocks)) blocks[i].next = i + 2;
+		i = i + 1;
+	}
+	var work = new RecoverWork(8000000);
+	if (!recover_ssa_build_dominance(blocks, len(blocks), entries, work)) return 6;
+	i = 0;
+	while (i < 1024) {
+		int use = 8192 - i;
+		if (!recover_ssa_dominates(use - 1, use, work) || recover_ssa_dominates(use, use - 1, work)) return 7;
+		i = i + 1;
+	}
+	if (work.exhausted || work.remaining < 7899000) return 8;
+	var order = new int[8192];
+	if (recover_llvm_emission_order(blocks, len(blocks), entries, reachable, order) != len(blocks)) return 10;
+	i = 0;
+	while (i < len(order)) {
+		if (order[i] != i + 1) return 11;
+		i = i + 1;
+	}
+	dominance_observed(8000000 - work.remaining);
+	return 42;
+}
+
+int main(string[] args) {
+	if (len(args) != 2) return 9;
+	if (args[1] == "--exhaustive") return dominance_exhaustive();
+	if (args[1] == "--chain") return dominance_chain();
+	return 9;
+}
