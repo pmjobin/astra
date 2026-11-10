@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// C0-built generator for the exact production slot emitter. This is a helper
+// test, not an Astra-produced compiler or a source-admission qualification.
+bool slot_consumer_controls(void* module, void* function, void* layout, void* descriptor, void* pointer, void* drop, int action, int convention) {
+	if (!llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, convention)) return false;
+	int other = 8; if (convention == 8) other = 0;
+	if (llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, other)) return false;
+	LLVMSetFunctionCallConv(function, 8);
+	if (llvm12_verify(module) != 0 || llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, convention)) return false;
+	LLVMSetFunctionCallConv(function, 0);
+	void* comparison = null; void* store = null; void* retirement = null;
+	var block = LLVMGetFirstBasicBlock(function);
+	while (block != null) {
+		var instruction = LLVMGetFirstInstruction(block);
+		while (instruction != null) {
+			int opcode = LLVMGetInstructionOpcode(instruction);
+			if (opcode == 42 && comparison == null) comparison = instruction;
+			if (opcode == 28) store = instruction;
+			if (opcode == 45 && LLVMGetCalledValue(instruction) == drop) retirement = instruction;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		block = LLVMGetNextBasicBlock(block);
+	}
+	if (comparison == null || store == null) return false;
+	var original = LLVMGetOperand(comparison, 1); var integer = LLVMTypeOf(original);
+	LLVMSetOperand(comparison, 1, LLVMConstInt(integer, 1, 0));
+	if (llvm12_verify(module) != 0 || llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, convention)) return false;
+	LLVMSetOperand(comparison, 1, original);
+	original = LLVMGetOperand(store, 0); var type = LLVMTypeOf(original); var replacement = LLVMConstNull(type);
+	if (LLVMGetTypeKind(type) == 8) replacement = LLVMConstInt(type, 7, 0);
+	LLVMSetOperand(store, 0, replacement);
+	if (llvm12_verify(module) != 0 || llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, convention)) return false;
+	LLVMSetOperand(store, 0, original);
+	if (action == 4 || action == 5) {
+		if (retirement == null) return false;
+		LLVMSetInstructionCallConv(retirement, other);
+		if (llvm12_verify(module) != 0 || llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, convention)) return false;
+		LLVMSetInstructionCallConv(retirement, convention);
+	} else {
+		if (retirement != null) return false;
+	}
+	return llvm12_verify(module) == 0 && llvm_storage_slot_body_verified(action, function, layout, descriptor, pointer, drop, true, convention);
+}
+
+int emit_slot_runtime(string path, int convention) {
+	var context = LLVMContextCreate(); var module = LLVMModuleCreateWithNameInContext(llvm12_empty(), context); var builder = LLVMCreateBuilderInContext(context); var machine = llvm12_machine(0); var handles = llvm12_handles();
+	if (context == null || module == null || builder == null || machine == null || handles == null) return 1;
+	var layout = LLVMCreateTargetDataLayout(machine);
+	if (layout == null || LLVMPointerSize(layout) != 8 || llvm12_target(module, machine) != 0) return 2;
+	LLVMSetModuleDataLayout(module, layout);
+	var pointer = LLVMPointerTypeInContext(context, 0); var integer = LLVMIntTypeInContext(context, 32); var bit = LLVMIntTypeInContext(context, 1); var nothing = LLVMVoidTypeInContext(context);
+	llvm12_handle_set(handles, 0, pointer); llvm12_handle_set(handles, 1, integer); llvm12_handle_set(handles, 2, integer);
+	var descriptor = LLVMStructTypeInContext(context, llvm12_handle_offset(handles, 0), 3, 0);
+	if (LLVMABISizeOfType(layout, descriptor) != 16) return 3;
+	llvm12_handle_set(handles, 0, pointer);
+	var drop_type = LLVMFunctionType(nothing, llvm12_handle_offset(handles, 0), 1, 0);
+	var observe = llvm12_function(module, drop_type, "observe_drop");
+	var drop = llvm12_function(module, drop_type, "slot_test_drop"); LLVMSetLinkage(drop, 8); LLVMSetFunctionCallConv(drop, convention);
+	var entry = llvm12_block(context, drop, "entry"); LLVMPositionBuilderAtEnd(builder, entry); llvm12_handle_set(handles, 0, LLVMGetParam(drop, 0));
+	var observed = LLVMBuildCall2(builder, drop_type, observe, llvm12_handle_offset(handles, 0), 1, llvm12_empty()); var returned = LLVMBuildRetVoid(builder);
+	{
+		var writer = new RecoverSlotWriter(context, module, builder, layout, handles, convention);
+		int action = 1;
+		while (action <= 5) {
+			string name = "slot_reserve"; if (action == 2) name = "slot_append"; if (action == 3) name = "slot_take"; if (action == 4) name = "slot_replace"; if (action == 5) name = "slot_drop";
+			int count = 2; if (action == 4) count = 3; if (action == 5) count = 1;
+			llvm12_handle_set(handles, 0, pointer); llvm12_handle_set(handles, 1, integer); if (action == 2) llvm12_handle_set(handles, 1, pointer); if (action == 4) llvm12_handle_set(handles, 2, pointer);
+			void* result = nothing; if (action == 1) result = bit; if (action == 3) result = pointer;
+			var signature = LLVMFunctionType(result, llvm12_handle_offset(handles, 0), count, 0); var function = llvm12_function(module, signature, name);
+			LLVMSetLinkage(function, 8);
+			if (writer.emit(function, descriptor, pointer, drop, 0, true)) return 4;
+			if (!writer.emit(function, descriptor, pointer, drop, action, true)) return 5;
+			if (writer.emit(function, descriptor, pointer, drop, action, true)) return 6;
+			if (!slot_consumer_controls(module, function, layout, descriptor, pointer, drop, action, convention)) return 10 + action;
+			// Export only after the independent private-helper graph checks.
+			LLVMSetLinkage(function, 0);
+			action = action + 1;
+		}
+	}
+	int result = llvm12_verify(module);
+	if (result == 0) result = llvm12_write(module, machine, 0, 4194304, path);
+	llvm12_handles_dispose(handles); LLVMDisposeTargetData(layout); LLVMDisposeTargetMachine(machine); LLVMDisposeBuilder(builder); LLVMDisposeModule(module); LLVMContextDispose(context);
+	return result;
+}
+
+int main(string[] args) {
+	if (len(args) != 3) return 7;
+	int first = emit_slot_runtime(args[1], 0); if (first != 0) return first;
+	return emit_slot_runtime(args[2], 8);
+}

@@ -49,8 +49,8 @@ other library files are inventoried separately with their exclusion reason;
 they are not counted as compiler dependencies or translated code.
 
 The complete 190-file input has 1,926 top-level C0 syntax declarations. Every
-file was independently parsed by the exact C0. Whole-context C0 semantic
-validity remains a separate obligation: an initial invocation incorrectly
+file was independently parsed by the exact C0. An initial whole-context
+C0 invocation incorrectly
 combined `-O0/-O2` with `--check` and was refused as a command error. The corrected
 whole-context check timed out at 180 seconds. A second corrected check on frozen,
 read-only original inputs reached its 2,400-second process-group deadline and
@@ -58,6 +58,14 @@ was killed with exit-9; its stdout/stderr contain no semantic diagnostic. The
 whole process group, including GNU time, was killed, so that attempt has no
 completed GNU-time CPU/peak-RSS measurement. Sampled RSS is only a lower bound.
 None of these attempts is a semantic PASS or a demonstrated semantic rejection.
+
+The subsequent `original-C0-semantics1` check uses C0's actual front-end mode,
+`--dump-semantics`, on all 190 frozen original inputs. It passes with exit0 in
+48.66 seconds, peak RSS335,608 KiB, with no diagnostic. The earlier `--check`
+mode proceeds through LLVM and was not a front-end-only check. Its failed and
+timed-out receipts remain unchanged. Original C0 front-end admission is now
+proved separately; native compiler generation through its later passes remains
+unproved.
 
 Both R5 native profiles, fed all 180 compiler originals and ten dependencies,
 stop in Typecore at `lib/astra/collections/bag.astra:3`, bytes `[133,649)`,
@@ -130,6 +138,37 @@ independent source/physical consumers must be proved together. Skipping the
 template, pruning Bag or treating layout admission as a receiver root would
 not close this frontier. The focused observer emits no target LLVM or native
 object and earns no full-original native execution credit.
+
+The continuation now includes a module-local `RecoverSlotWriter`, derived from
+the original five slot operations: reserve, append, take with compaction and
+vacating, replace with retirement, and reverse drop with descriptor clearing.
+Its LLVM handles have the caller's module lifetime. The independent physical
+consumer reads the actual instructions and edges; the legacy source wrapper
+still requires calling convention zero. The physical consumer additionally
+accepts an explicitly expected convention8 drop for the private Class runtime,
+checking both declaration and call. This adds no public or checked-call carrier.
+
+The focused `slot-runtime.py` recipe compiles the exact production writer,
+cursor, physical body consumer and support declarations with the original C0.
+Normalized C0 AST hashes bind each extracted declaration to production source.
+Ten helper graphs pass the independent consumer; 24 LLVM-valid instruction
+mutations and 20 wrong-convention controls are refused, then original graphs
+are restored and rechecked. Real O0/O2 LLVM verification, object generation,
+GCC C ABI linkage and native execution pass for both drop conventions. Four
+native helper ELFs and two original-C0 Bag oracle ELFs return42 with the exact
+cleanup trace `22,20,24` and clean unsuppressed Valgrind. The C observer asserts
+the 16-byte, alignment8 descriptor and offsets0/8/12. Twenty-four fatal controls
+trap and receive no returning-memory credit. These receipts are under
+`compiler-complete26v3/slot-runtime-actual3`.
+
+The first local-slot probe was rejected by C0 itself under BUFFER-1 and remains
+a negative, with its failed harness receipt retained. Real field-slot and
+original generic Bag positives run under C0 and remain refused by the prior
+qualified Astra host. The new runtime helpers are not yet connected to
+RecoverFlow/Core/CFG/SSA source admission; no rebuilt compiler, record-slot
+element support, whole-module physical qualification or full compiler credit
+is claimed from the focused helpers. The earlier bounded regression campaign
+qualifies its recorded compiler checkpoint, not these unbuilt host edits.
 
 Both complete corrected C0-built hosts were subsequently fed the exact frozen
 original 190-file population. Each returns exit3 with

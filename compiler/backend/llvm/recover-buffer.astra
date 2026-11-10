@@ -23,3 +23,168 @@ bool recover_buffer_helper_verified(void* function, void* allocate, void* trap) 
 	var nonempty = recover_llvm_body(allocated, 3); if (len(nonempty) != 3 || LLVMGetInstructionOpcode(nonempty[0]) != 31 || LLVMGetOperand(nonempty[0], 0) != LLVMGetParam(function, 0) || LLVMGetIntTypeWidth(LLVMTypeOf(nonempty[0])) != 64 || !recover_llvm_call(nonempty[1], allocate, 2, 8) || LLVMGetArgOperand(nonempty[1], 0) != nonempty[0] || LLVMGetArgOperand(nonempty[1], 1) != LLVMGetParam(function, 1) || !recover_llvm_return(nonempty[2], nonempty[1])) return false;
 	var failed = recover_llvm_body(fatal, 2); return len(failed) == 2 && recover_llvm_call(failed[0], trap, 0, 0) && LLVMGetInstructionOpcode(failed[1]) == 7;
 }
+
+// Module-local slot runtime emitter. The caller owns context/module/builder/
+// layout/handle storage; this temporary object neither disposes nor caches them
+// beyond its use. Slot source/owner admission and the independent instruction
+// consumer remain separate obligations. No new source carrier group is admitted.
+class RecoverSlotWriter {
+	void* context;
+	void* module;
+	void* builder;
+	void* layout;
+	void* handles;
+	void* empty;
+	int drop_convention;
+
+	init(void* context, void* module, void* builder, void* layout, void* handles, int drop_convention) {
+		this.context = context; this.module = module; this.builder = builder;
+		this.layout = layout; this.handles = handles; this.empty = llvm12_empty();
+		this.drop_convention = drop_convention;
+	}
+
+	void* arguments(void*[] values, int offset) {
+		int i = 0;
+		while (i < len(values)) {
+			llvm12_handle_set(this.handles, offset + i, values[i]); i = i + 1;
+		}
+		return llvm12_handle_offset(this.handles, offset);
+	}
+
+	bool accepts(void* function, void* physical, void* value, void* drop, int action, bool owning) {
+		if (this.context == null || this.module == null || this.builder == null || this.layout == null || this.handles == null || function == null || physical == null || value == null || action < 1 || action > 5) return false;
+		if (this.drop_convention != 0 && this.drop_convention != 8) return false;
+		if (LLVMGetTypeContext(physical) != this.context || LLVMGetTypeContext(value) != this.context || LLVMGetTypeKind(physical) != 10 || LLVMIsPackedStruct(physical) != 0 || LLVMCountStructElementTypes(physical) != 3) return false;
+		var pointer = LLVMPointerTypeInContext(this.context, 0); var integer = LLVMIntTypeInContext(this.context, 32);
+		if (LLVMStructGetTypeAtIndex(physical, 0) != pointer || LLVMStructGetTypeAtIndex(physical, 1) != integer || LLVMStructGetTypeAtIndex(physical, 2) != integer) return false;
+		if (LLVMGetFunctionCallConv(function) != 0 || LLVMGetFirstBasicBlock(function) != null) return false;
+		int count = 2; if (action == 4) count = 3; if (action == 5) count = 1;
+		if (LLVMCountParams(function) != count || LLVMTypeOf(LLVMGetParam(function, 0)) != pointer) return false;
+		void* result = LLVMVoidTypeInContext(this.context); if (action == 1) result = LLVMIntTypeInContext(this.context, 1); if (action == 3) result = value;
+		if (LLVMGetReturnType(LLVMGlobalGetValueType(function)) != result) return false;
+		if (action != 5) {
+			void* second = integer; if (action == 2) second = value;
+			if (LLVMTypeOf(LLVMGetParam(function, 1)) != second || action == 4 && LLVMTypeOf(LLVMGetParam(function, 2)) != value) return false;
+		}
+		if (owning) {
+			if (value != pointer || drop == null || LLVMGetFunctionCallConv(drop) != this.drop_convention || LLVMCountParams(drop) != 1 || LLVMTypeOf(LLVMGetParam(drop, 0)) != pointer || LLVMGetReturnType(LLVMGlobalGetValueType(drop)) != LLVMVoidTypeInContext(this.context)) return false;
+		}
+		return true;
+	}
+
+	void guard(void* bad, void* function) {
+		var trap = llvm12_block(this.context, function, "trap"); var next = llvm12_block(this.context, function, "valid");
+		var branch = LLVMBuildCondBr(this.builder, bad, trap, next);
+		LLVMPositionBuilderAtEnd(this.builder, trap);
+		var none = new void*[1]; var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), this.arguments(none, 0), 0, 0);
+		var declaration = llvm12_function(this.module, signature, "llvm.trap");
+		var call = LLVMBuildCall2(this.builder, signature, declaration, this.arguments(none, 0), 0, this.empty); var end = LLVMBuildUnreachable(this.builder);
+		LLVMPositionBuilderAtEnd(this.builder, next);
+	}
+
+	void* slot_address(void* element, void* backing, void* index) {
+		var indices = new void*[1]; indices[0] = index;
+		var address = LLVMBuildGEP2(this.builder, element, backing, this.arguments(indices, 0), 1, this.empty); LLVMGEPSetNoWrapFlags(address, 0); return address;
+	}
+
+	void* free_pointer(void* pointer) {
+		var parameters = new void*[1]; parameters[0] = LLVMPointerTypeInContext(this.context, 0);
+		var signature = LLVMFunctionType(LLVMVoidTypeInContext(this.context), this.arguments(parameters, 0), 1, 0); var callee = llvm12_function(this.module, signature, "free");
+		var args = new void*[1]; args[0] = pointer;
+		var call = LLVMBuildCall2(this.builder, signature, callee, this.arguments(args, 0), 1, this.empty); llvm12_nobuiltin(this.context, call); return call;
+	}
+
+	void* storage_call(void* callee, void*[] values) {
+		var call = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(callee), callee, this.arguments(values, 0), len(values), this.empty);
+		LLVMSetInstructionCallConv(call, this.drop_convention); return call;
+	}
+
+	bool emit(void* function, void* physical, void* value_type, void* drop, int action, bool owning) {
+		if (!this.accepts(function, physical, value_type, drop, action, owning)) return false;
+		var entry = llvm12_block(this.context, function, "entry"); LLVMPositionBuilderAtEnd(this.builder, entry);
+		var pointer = LLVMPointerTypeInContext(this.context, 0); var i32 = LLVMIntTypeInContext(this.context, 32); var bit = LLVMIntTypeInContext(this.context, 1); var word = LLVMIntTypeInContext(this.context, 64);
+		var descriptor = LLVMGetParam(function, 0);
+		var base_address = LLVMBuildStructGEP2(this.builder, physical, descriptor, 0, this.empty); LLVMGEPSetNoWrapFlags(base_address, 0);
+		var count_address = LLVMBuildStructGEP2(this.builder, physical, descriptor, 1, this.empty); LLVMGEPSetNoWrapFlags(count_address, 0);
+		var capacity_address = LLVMBuildStructGEP2(this.builder, physical, descriptor, 2, this.empty); LLVMGEPSetNoWrapFlags(capacity_address, 0);
+		var backing = LLVMBuildLoad2(this.builder, pointer, base_address, this.empty); var count = LLVMBuildLoad2(this.builder, i32, count_address, this.empty); var capacity = LLVMBuildLoad2(this.builder, i32, capacity_address, this.empty);
+		var negative = LLVMBuildICmp(this.builder, 40, count, LLVMConstNull(i32), this.empty); var short_capacity = LLVMBuildICmp(this.builder, 40, capacity, count, this.empty);
+		var no_backing = LLVMBuildICmp(this.builder, 32, backing, LLVMConstNull(pointer), this.empty); var empty_capacity = LLVMBuildICmp(this.builder, 32, capacity, LLVMConstNull(i32), this.empty);
+		var inconsistent = LLVMBuildXor(this.builder, no_backing, empty_capacity, this.empty); var bad_range = LLVMBuildOr(this.builder, negative, short_capacity, this.empty); var invalid = LLVMBuildOr(this.builder, bad_range, inconsistent, this.empty); this.guard(invalid, function);
+		var vacant = LLVMConstNull(value_type);
+		if (action == 1) {
+			var requested = LLVMGetParam(function, 1); var rejected = llvm12_block(this.context, function, "rejected"); var extent = llvm12_block(this.context, function, "extent"); var noop = llvm12_block(this.context, function, "noop"); var allocate = llvm12_block(this.context, function, "allocate"); var header = llvm12_block(this.context, function, "transfer"); var copy = llvm12_block(this.context, function, "copy"); var commit = llvm12_block(this.context, function, "commit");
+			var below_zero = LLVMBuildICmp(this.builder, 40, requested, LLVMConstNull(i32), this.empty); var branch = LLVMBuildCondBr(this.builder, below_zero, rejected, extent);
+			LLVMPositionBuilderAtEnd(this.builder, rejected); var rejected_end = LLVMBuildRet(this.builder, LLVMConstNull(bit));
+			LLVMPositionBuilderAtEnd(this.builder, extent); var sufficient = LLVMBuildICmp(this.builder, 41, requested, capacity, this.empty); var extent_branch = LLVMBuildCondBr(this.builder, sufficient, noop, allocate);
+			LLVMPositionBuilderAtEnd(this.builder, noop); var noop_end = LLVMBuildRet(this.builder, LLVMConstInt(bit, 1, 0));
+			LLVMPositionBuilderAtEnd(this.builder, allocate); var parameters = new void*[2]; parameters[0] = word; parameters[1] = word; var signature = LLVMFunctionType(pointer, this.arguments(parameters, 0), 2, 0); var callee = llvm12_function(this.module, signature, "calloc");
+			var arguments = new void*[2]; arguments[0] = LLVMBuildZExt(this.builder, requested, word, this.empty); arguments[1] = LLVMConstInt(word, LLVMABISizeOfType(this.layout, value_type), 0); var allocation = LLVMBuildCall2(this.builder, signature, callee, this.arguments(arguments, 0), 2, this.empty); llvm12_nobuiltin(this.context, allocation);
+			// The default C0 allocator traps on exhaustion. A fallible custom
+			// allocation policy is outside this private profile.
+			var failed = LLVMBuildICmp(this.builder, 32, allocation, LLVMConstNull(pointer), this.empty); this.guard(failed, function); var admitted = LLVMGetInsertBlock(this.builder); var allocation_end = LLVMBuildBr(this.builder, header);
+			LLVMPositionBuilderAtEnd(this.builder, header); var index = LLVMBuildPhi(this.builder, i32, this.empty); var available = LLVMBuildICmp(this.builder, 40, index, count, this.empty); var iteration = LLVMBuildCondBr(this.builder, available, copy, commit);
+			LLVMPositionBuilderAtEnd(this.builder, copy); var source = this.slot_address(value_type, backing, index); var destination = this.slot_address(value_type, allocation, index); var value = LLVMBuildLoad2(this.builder, value_type, source, this.empty); var stored = LLVMBuildStore(this.builder, value, destination); var disarmed = LLVMBuildStore(this.builder, vacant, source);
+			var increment = LLVMBuildAdd(this.builder, index, LLVMConstInt(i32, 1, 0), this.empty); var back = LLVMBuildBr(this.builder, header);
+			var incoming = new void*[2]; incoming[0] = LLVMConstNull(i32); incoming[1] = increment; var predecessors = new void*[2]; predecessors[0] = admitted; predecessors[1] = copy; LLVMAddIncoming(index, this.arguments(incoming, 0), this.arguments(predecessors, 8), 2);
+			LLVMPositionBuilderAtEnd(this.builder, commit); var base_store = LLVMBuildStore(this.builder, allocation, base_address); var capacity_store = LLVMBuildStore(this.builder, requested, capacity_address); var freed = this.free_pointer(backing); var success = LLVMBuildRet(this.builder, LLVMConstInt(bit, 1, 0)); return true;
+		}
+		if (action == 2) {
+			var incoming = LLVMGetParam(function, 1);
+			if (owning) {
+				var absent = LLVMBuildICmp(this.builder, 32, incoming, vacant, this.empty);
+				this.guard(absent, function);
+			}
+			var full = LLVMBuildICmp(this.builder, 39, count, capacity, this.empty); this.guard(full, function);
+			var address = this.slot_address(value_type, backing, count);
+			if (owning) {
+				var previous = LLVMBuildLoad2(this.builder, value_type, address, this.empty);
+				var occupied = LLVMBuildICmp(this.builder, 33, previous, vacant, this.empty);
+				this.guard(occupied, function);
+			}
+			var store = LLVMBuildStore(this.builder, incoming, address); var increment = LLVMBuildAdd(this.builder, count, LLVMConstInt(i32, 1, 0), this.empty); var count_store = LLVMBuildStore(this.builder, increment, count_address); var end = LLVMBuildRetVoid(this.builder); return true;
+		}
+		if (action == 3 || action == 4) {
+			var index = LLVMGetParam(function, 1); var outside = LLVMBuildICmp(this.builder, 35, index, count, this.empty); this.guard(outside, function);
+			var address = this.slot_address(value_type, backing, index); var previous = LLVMBuildLoad2(this.builder, value_type, address, this.empty);
+			if (owning) {
+				var absent = LLVMBuildICmp(this.builder, 32, previous, vacant, this.empty);
+				this.guard(absent, function);
+			}
+			if (action == 4) {
+				var incoming = LLVMGetParam(function, 2);
+				if (owning) {
+					var missing = LLVMBuildICmp(this.builder, 32, incoming, vacant, this.empty); this.guard(missing, function);
+					var alias = LLVMBuildICmp(this.builder, 32, incoming, previous, this.empty); this.guard(alias, function);
+				}
+				var store = LLVMBuildStore(this.builder, incoming, address);
+				if (owning) {
+					var arguments = new void*[1];
+					arguments[0] = previous;
+					var call = this.storage_call(drop, arguments);
+				}
+				var end = LLVMBuildRetVoid(this.builder); return true;
+			}
+			var start = LLVMBuildAdd(this.builder, index, LLVMConstInt(i32, 1, 0), this.empty); var predecessor = LLVMGetInsertBlock(this.builder); var header = llvm12_block(this.context, function, "shift"); var copy = llvm12_block(this.context, function, "copy"); var done = llvm12_block(this.context, function, "done"); var jump = LLVMBuildBr(this.builder, header);
+			LLVMPositionBuilderAtEnd(this.builder, header); var cursor = LLVMBuildPhi(this.builder, i32, this.empty); var more = LLVMBuildICmp(this.builder, 40, cursor, count, this.empty); var branch = LLVMBuildCondBr(this.builder, more, copy, done);
+			LLVMPositionBuilderAtEnd(this.builder, copy); var source = this.slot_address(value_type, backing, cursor); var prior = LLVMBuildSub(this.builder, cursor, LLVMConstInt(i32, 1, 0), this.empty); var destination = this.slot_address(value_type, backing, prior); var value = LLVMBuildLoad2(this.builder, value_type, source, this.empty); var store = LLVMBuildStore(this.builder, value, destination); var increment = LLVMBuildAdd(this.builder, cursor, LLVMConstInt(i32, 1, 0), this.empty); var back = LLVMBuildBr(this.builder, header);
+			var incoming = new void*[2]; incoming[0] = start; incoming[1] = increment; var predecessors = new void*[2]; predecessors[0] = predecessor; predecessors[1] = copy; LLVMAddIncoming(cursor, this.arguments(incoming, 0), this.arguments(predecessors, 8), 2);
+			LLVMPositionBuilderAtEnd(this.builder, done); var last = LLVMBuildSub(this.builder, count, LLVMConstInt(i32, 1, 0), this.empty); var vacated = this.slot_address(value_type, backing, last); var cleared = LLVMBuildStore(this.builder, vacant, vacated); var count_store = LLVMBuildStore(this.builder, last, count_address); var end = LLVMBuildRet(this.builder, previous); return true;
+		}
+		if (action != 5) {
+			return false;
+		}
+		var predecessor = LLVMGetInsertBlock(this.builder); var header = llvm12_block(this.context, function, "reverse"); var retire = llvm12_block(this.context, function, "retire"); var done = llvm12_block(this.context, function, "done"); var jump = LLVMBuildBr(this.builder, header);
+		LLVMPositionBuilderAtEnd(this.builder, header); var remaining = LLVMBuildPhi(this.builder, i32, this.empty); var more = LLVMBuildICmp(this.builder, 38, remaining, LLVMConstNull(i32), this.empty); var branch = LLVMBuildCondBr(this.builder, more, retire, done);
+		LLVMPositionBuilderAtEnd(this.builder, retire); var index = LLVMBuildSub(this.builder, remaining, LLVMConstInt(i32, 1, 0), this.empty); var address = this.slot_address(value_type, backing, index); var value = LLVMBuildLoad2(this.builder, value_type, address, this.empty); var clear = LLVMBuildStore(this.builder, vacant, address); var count_store = LLVMBuildStore(this.builder, index, count_address);
+		if (owning) {
+			var arguments = new void*[1];
+			arguments[0] = value;
+			var call = this.storage_call(drop, arguments);
+		}
+		var back = LLVMBuildBr(this.builder, header);
+		var incoming = new void*[2]; incoming[0] = count; incoming[1] = index; var predecessors = new void*[2]; predecessors[0] = predecessor; predecessors[1] = retire; LLVMAddIncoming(remaining, this.arguments(incoming, 0), this.arguments(predecessors, 8), 2);
+		LLVMPositionBuilderAtEnd(this.builder, done); var freed = this.free_pointer(backing); var base_store = LLVMBuildStore(this.builder, LLVMConstNull(pointer), base_address); var length_store = LLVMBuildStore(this.builder, LLVMConstNull(i32), count_address); var capacity_store = LLVMBuildStore(this.builder, LLVMConstNull(i32), capacity_address); var end = LLVMBuildRetVoid(this.builder);
+		return true;
+	}
+}

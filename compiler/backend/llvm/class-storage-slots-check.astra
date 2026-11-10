@@ -147,9 +147,13 @@ class LlvmStorageCursor {
 	}
 
 	void* call(void* callee, void*[] arguments) {
+		return this.call_convention(callee, arguments, 0);
+	}
+
+	void* call_convention(void* callee, void*[] arguments, int convention) {
 		var value = this.take(45);
 		if (!this.valid) return null;
-		if (LLVMGetCalledValue(value) != callee || LLVMGetInstructionCallConv(value) != 0 || LLVMGetNumArgOperands(value) != len(arguments) || !llvm_check_attributes(value, len(arguments), 1)) {
+		if ((convention != 0 && convention != 8) || LLVMGetCalledValue(value) != callee || LLVMGetInstructionCallConv(value) != convention || LLVMGetNumArgOperands(value) != len(arguments) || !llvm_check_attributes(value, len(arguments), 1)) {
 			this.valid = false;
 			return value;
 		}
@@ -187,14 +191,26 @@ class LlvmStorageCursor {
 
 bool llvm_storage_slot_verified(CheckedIndex checked, TypeId type, int action, void* function, void* layout, void*[] types, void*[] drops) throws Error {
 	if (function == null || action < 1 || action > 5 || LLVMGetLinkage(function) != 8 || LLVMGetFunctionCallConv(function) != 0) return false;
-	int parameters = 2; if (action == 4) parameters = 3; if (action == 5) parameters = 1;
 	var name = llvm_name("astra.classstorage.slots.", type.index * 6 + action);
-	if (llvm13_named(function, name.text) != 1 || LLVMCountParams(function) != parameters || !llvm_check_attributes(function, parameters, 0)) return false;
-	var context = LLVMGetTypeContext(types[type.index]); var pointer = LLVMPointerTypeInContext(context, 0); var i32 = LLVMIntTypeInContext(context, 32); var word = LLVMIntTypeInContext(context, 64); var bit = LLVMIntTypeInContext(context, 1);
+	if (llvm13_named(function, name.text) != 1) return false;
 	var element = checked.types.argument(checked.types, type, 0);
 	if (element.flags != 0 || !class_storage_slot_element_verified(checked, element.type, 0)) return false;
-	var value_type = types[element.type.index]; var vacant = LLVMConstNull(value_type);
 	bool owning = checked_kind(checked, element.type) == 31;
+	return llvm_storage_slot_body_verified(action, function, layout, types[type.index], types[element.type.index], drops[element.type.index], owning, 0);
+}
+
+// Consume the physical graph independently of the emitter. Source callers must
+// separately establish the exact element/drop identity and expected convention.
+// The legacy source consumer above continues to require convention zero.
+bool llvm_storage_slot_body_verified(int action, void* function, void* layout, void* physical, void* value_type, void* drop, bool owning, int drop_convention) {
+	if (function == null || layout == null || physical == null || value_type == null || action < 1 || action > 5 || LLVMGetLinkage(function) != 8 || LLVMGetFunctionCallConv(function) != 0 || (drop_convention != 0 && drop_convention != 8)) return false;
+	if (LLVMGetTypeKind(physical) != 10 || LLVMIsPackedStruct(physical) != 0 || LLVMCountStructElementTypes(physical) != 3) return false;
+	var context = LLVMGetTypeContext(physical); var pointer = LLVMPointerTypeInContext(context, 0); var i32 = LLVMIntTypeInContext(context, 32); var word = LLVMIntTypeInContext(context, 64); var bit = LLVMIntTypeInContext(context, 1);
+	if (LLVMGetTypeContext(value_type) != context || LLVMStructGetTypeAtIndex(physical, 0) != pointer || LLVMStructGetTypeAtIndex(physical, 1) != i32 || LLVMStructGetTypeAtIndex(physical, 2) != i32) return false;
+	if (owning && (value_type != pointer || drop == null || LLVMGetFunctionCallConv(drop) != drop_convention || LLVMCountParams(drop) != 1 || LLVMTypeOf(LLVMGetParam(drop, 0)) != pointer || LLVMGetReturnType(LLVMGlobalGetValueType(drop)) != LLVMVoidTypeInContext(context))) return false;
+	int parameters = 2; if (action == 4) parameters = 3; if (action == 5) parameters = 1;
+	if (LLVMCountParams(function) != parameters || !llvm_check_attributes(function, parameters, 0)) return false;
+	var vacant = LLVMConstNull(value_type);
 	void* result_type = LLVMVoidTypeInContext(context); if (action == 1) result_type = bit; if (action == 3) result_type = value_type;
 	if (LLVMGetReturnType(LLVMGlobalGetValueType(function)) != result_type || LLVMTypeOf(LLVMGetParam(function, 0)) != pointer) return false;
 	if (action != 5) {
@@ -203,7 +219,7 @@ bool llvm_storage_slot_verified(CheckedIndex checked, TypeId type, int action, v
 	}
 	var zero = LLVMConstNull(i32); var one = LLVMConstInt(i32, 1, 0); var nil = LLVMConstNull(pointer); var yes = LLVMConstInt(bit, 1, 0); var no = LLVMConstNull(bit);
 	var reader = new LlvmStorageCursor(function, layout); reader.begin(LLVMGetFirstBasicBlock(function));
-	var descriptor = LLVMGetParam(function, 0); var base_address = reader.field(types[type.index], descriptor, 0); var count_address = reader.field(types[type.index], descriptor, 1); var capacity_address = reader.field(types[type.index], descriptor, 2);
+	var descriptor = LLVMGetParam(function, 0); var base_address = reader.field(physical, descriptor, 0); var count_address = reader.field(physical, descriptor, 1); var capacity_address = reader.field(physical, descriptor, 2);
 	var backing = reader.load(pointer, base_address); var count = reader.load(i32, count_address); var capacity = reader.load(i32, capacity_address);
 	var negative = reader.compare(40, count, zero); var short_capacity = reader.compare(40, capacity, count); var no_backing = reader.compare(32, backing, nil); var empty_capacity = reader.compare(32, capacity, zero);
 	var inconsistent = reader.binary(25, no_backing, empty_capacity); var bad_range = reader.binary(24, negative, short_capacity); var invalid = reader.binary(24, bad_range, inconsistent); var initial = reader.guard(invalid);
@@ -257,7 +273,7 @@ bool llvm_storage_slot_verified(CheckedIndex checked, TypeId type, int action, v
 			if (owning) {
 				var arguments = new void*[1];
 				arguments[0] = previous;
-				var call = reader.call(drops[element.type.index], arguments);
+				var call = reader.call_convention(drop, arguments, drop_convention);
 			}
 			reader.ret(null); return reader.finish();
 		}
@@ -272,7 +288,7 @@ bool llvm_storage_slot_verified(CheckedIndex checked, TypeId type, int action, v
 	if (owning) {
 		var arguments = new void*[1];
 		arguments[0] = value;
-		var call = reader.call(drops[element.type.index], arguments);
+		var call = reader.call_convention(drop, arguments, drop_convention);
 	}
 	reader.jump(header); reader.incoming(remaining, count, initial, index, retire);
 	reader.begin(done); reader.free(backing); reader.store(nil, base_address); reader.store(zero, count_address); reader.store(zero, capacity_address); reader.ret(null); return reader.finish();
