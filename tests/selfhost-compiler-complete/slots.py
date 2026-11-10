@@ -81,6 +81,8 @@ int main() {
 }
 '''
 
+CASES['original-generic-Bag-operations'] = ITEM+'int main()'+CASES['field-slot-operations'].split('int main()', 1)[1].replace('new Items()', 'new Bag<Item>()')
+
 CASES['double-transfer'] = CASES['field-slots'].replace('values.append(move b);', 'values.append(move a);')
 CASES['missing-move'] = CASES['field-slots'].replace('values.append(move a);', 'values.append(a);')
 CASES['borrowed-transfer'] = CASES['field-slots']+'void invalid(Items values, borrowed Item value) { values.append(move value); }\n'
@@ -150,7 +152,7 @@ def main():
 		source = leaf/(name+'.astra')
 		source.write_text(text)
 		inputs = [source, ROOT/'lib/astra/base/errors.astra']
-		if name == 'original-generic-Bag': inputs.append(ROOT/'lib/astra/collections/bag.astra')
+		if name.startswith('original-generic-Bag'): inputs.append(ROOT/'lib/astra/collections/bag.astra')
 		oracle = build/(name+'-C0')
 		links = [word for obj in objects for word in ('--link-object', obj)]
 		valid = name not in C0_REJECTS
