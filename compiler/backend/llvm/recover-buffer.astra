@@ -188,3 +188,95 @@ class RecoverSlotWriter {
 		return true;
 	}
 }
+
+// Temporary borrowed handles only. Native record values flatten scalar leaves;
+// memory uses the original nested structs. Source/path authority is verified
+// separately, and these helpers do not admit a source type by themselves.
+class RecoverRecordWriter {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+
+	init(void* context, void* module, void* builder, void* handles) {
+		this.context = context; this.module = module; this.builder = builder; this.handles = handles;
+	}
+
+	owned int[] path(int[] parents, int[] ordinals, int leaf) {
+		var reverse = new int[32]; int depth = 0; int current = leaf;
+		while (current > 1) {
+			if (current > len(parents) || depth == 32 || parents[current - 1] < 1 || parents[current - 1] >= current || ordinals[current - 1] < 0) {
+				var absent = new int[0];
+				return move absent;
+			}
+			reverse[depth] = ordinals[current - 1]; current = parents[current - 1]; depth = depth + 1;
+		}
+		if (current != 1) {
+			var absent = new int[0];
+			return move absent;
+		}
+		var result = new int[depth + 1]; result[0] = 0; int i = 0;
+		while (i < depth) {
+			result[i + 1] = reverse[depth - i - 1];
+			i = i + 1;
+		}
+		return move result;
+	}
+
+	void* leaf_type(void* memory, int[] path) {
+		void* type = memory; int i = 1;
+		while (i < len(path)) {
+			if (LLVMGetTypeKind(type) != 10 || LLVMIsPackedStruct(type) != 0 || path[i] < 0 || path[i] >= LLVMCountStructElementTypes(type)) return null;
+			type = LLVMStructGetTypeAtIndex(type, path[i]); i = i + 1;
+		}
+		int kind = LLVMGetTypeKind(type);
+		if (kind == 2 || kind == 3) return type;
+		if (kind != 8) return null;
+		int width = LLVMGetIntTypeWidth(type); if (width == 1 || width == 8 || width == 16 || width == 32 || width == 64) return type;
+		return null;
+	}
+
+	bool emit(void* function, void* memory, void* carrier, int[] parents, int[] ordinals, int[] leaves, bool store) {
+		if (function == null || this.context == null || this.module == null || this.builder == null || this.handles == null || len(parents) < 1 || len(parents) > 32768 || len(ordinals) != len(parents) || parents[0] != 0 || ordinals[0] != -1 || len(leaves) < 1 || len(leaves) > 1024 || LLVMGetTypeKind(memory) != 10 || LLVMIsPackedStruct(memory) != 0 || LLVMGetTypeKind(carrier) != 10 || LLVMIsPackedStruct(carrier) != 0 || LLVMCountStructElementTypes(carrier) != len(leaves)) return false;
+		int parameters = 1; if (store) parameters = 2;
+		var signature = LLVMGlobalGetValueType(function);
+		if (LLVMGetGlobalParent(function) != this.module || LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMGetFirstBasicBlock(function) != null || LLVMCountParams(function) != parameters || LLVMIsFunctionVarArg(signature) != 0) return false;
+		var pointer = LLVMTypeOf(LLVMGetParam(function, 0)); if (LLVMGetTypeKind(pointer) != 12 || LLVMGetPointerAddressSpace(pointer) != 0) return false;
+		if (store) {
+			if (LLVMGetTypeKind(LLVMGetReturnType(signature)) != 0 || LLVMTypeOf(LLVMGetParam(function, 1)) != carrier) return false;
+		}
+		else {
+			if (LLVMGetReturnType(signature) != carrier) return false;
+		}
+		int i = 0;
+		while (i < len(leaves)) {
+			var path = this.path(parents, ordinals, leaves[i]);
+			if (len(path) < 2 || this.leaf_type(memory, path) != LLVMStructGetTypeAtIndex(carrier, i)) return false;
+			i = i + 1;
+		}
+		var block = llvm12_block(this.context, function, "entry"); LLVMPositionBuilderAtEnd(this.builder, block);
+		var integer = LLVMIntTypeInContext(this.context, 32); var empty = llvm12_empty(); void* value = LLVMConstNull(carrier); if (store) value = LLVMGetParam(function, 1);
+		i = 0;
+		while (i < len(leaves)) {
+			var path = this.path(parents, ordinals, leaves[i]); int p = 0;
+			while (p < len(path)) {
+				llvm12_handle_set(this.handles, p, LLVMConstInt(integer, path[p] as u64, 0));
+				p = p + 1;
+			}
+			var address = LLVMBuildGEP2(this.builder, memory, LLVMGetParam(function, 0), llvm12_handle_offset(this.handles, 0), len(path), empty);
+			if (store) {
+				var element = LLVMBuildExtractValue(this.builder, value, i, empty); var write = LLVMBuildStore(this.builder, element, address); LLVMSetAlignment(write, 1);
+			} else {
+				var element = LLVMBuildLoad2(this.builder, LLVMStructGetTypeAtIndex(carrier, i), address, empty); LLVMSetAlignment(element, 1); value = LLVMBuildInsertValue(this.builder, value, element, i, empty);
+			}
+			i = i + 1;
+		}
+		if (store) {
+			var result = LLVMBuildRetVoid(this.builder);
+		}
+		else {
+			var result = LLVMBuildRet(this.builder, value);
+		}
+		return true;
+	}
+}

@@ -172,6 +172,25 @@ must still be implemented and independently proved. Its C0 front-end check passe
 native source-plan and seven mutation-control checks are pending. The earlier
 observer shared-swap and missing Error-bound prechecks remain failed receipts.
 
+The immutable source-plan observer at5b870dd subsequently builds in1447.82
+seconds and exits42 on the real record ABI fixture. RecordLeaf has three plan
+parts/two leaves; RecordPair has six parts/four leaves with paths0,1.0,1.1,2 and
+widths8,8,64,8. Seven independent corruptions per record are rejected and every
+restored twin is accepted, including a distinct TypeOwner identity.
+
+The candidate LLVM memory/value helper class and its independent consumer are
+also exact production-AST-bound in `record-runtime-actual2`. The consumer walks
+the physical nested memory tree independently of emitter path metadata. Load
+and store helpers preserve the32-byte nested memory and24-byte flat carrier
+layouts. Ten LLVM-valid path/value/alignment/volatile/convention mutations refuse
+with restored valid twins. Actual O0/O2 objects and linked executables exit42,
+preserve all padding bytes checked by an independent C observer, and have clean
+unsuppressed Valgrind. Those focused commands take1.86 seconds combined. A first
+kernel attempt lacks a required existing C API declaration and remains failed.
+All180 current production modules pass C0 front-end checking after the helpers.
+Neither helper nor source-plan evidence enables Astra record admission; the
+module value/memory paths and independent whole-module checks remain unhooked.
+
 While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
 local-declaration scans are replaced with one local index reconstructed from the
 independently verified Core/CFG. Missing and duplicate sites still refuse, and

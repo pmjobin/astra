@@ -146,3 +146,115 @@ bool recover_storage_llvm_abi(RecoverAbi plan, CheckedIndex checked, void* funct
 		attribute = attribute + 1;
 	} return true;
 }
+
+// Independent physical-tree traversal. No emitter metadata or cached source
+// leaf offsets are used to choose a path in the supplied memory descriptor.
+int recover_record_memory_leaves(void* type, int depth) {
+	if (type == null || depth > 32) return 0;
+	int kind = LLVMGetTypeKind(type);
+	if (kind == 2 || kind == 3) return 1;
+	if (kind == 8) {
+		int width = LLVMGetIntTypeWidth(type);
+		if (width == 1 || width == 8 || width == 16 || width == 32 || width == 64) return 1;
+		return 0;
+	}
+	if (kind != 10 || LLVMIsPackedStruct(type) != 0) return 0;
+	int fields = LLVMCountStructElementTypes(type); if (fields < 1 || fields > 128) return 0;
+	int result = 0; int i = 0;
+	while (i < fields) {
+		int leaves = recover_record_memory_leaves(LLVMStructGetTypeAtIndex(type, i), depth + 1);
+		if (leaves < 1 || leaves > 1024 - result) return 0;
+		result = result + leaves; i = i + 1;
+	}
+	return result;
+}
+
+owned int[] recover_record_memory_path(void* memory, int ordinal) {
+	var path = new int[33]; path[0] = 0; int depth = 0; int remaining = ordinal; void* type = memory;
+	while (type != null && LLVMGetTypeKind(type) == 10) {
+		if (depth == 32 || LLVMIsPackedStruct(type) != 0) {
+			var absent = new int[0];
+			return move absent;
+		}
+		int fields = LLVMCountStructElementTypes(type); int i = 0; bool selected = false;
+		while (i < fields && !selected) {
+			var child = LLVMStructGetTypeAtIndex(type, i); int leaves = recover_record_memory_leaves(child, depth + 1);
+			if (leaves < 1) {
+				var absent = new int[0];
+				return move absent;
+			}
+			if (remaining < leaves) {
+				depth = depth + 1;
+				path[depth] = i;
+				type = child;
+				selected = true;
+			}
+			else {
+				remaining = remaining - leaves;
+			}
+			i = i + 1;
+		}
+		if (!selected) {
+			var absent = new int[0];
+			return move absent;
+		}
+	}
+	if (remaining != 0 || recover_record_memory_leaves(type, depth) != 1) {
+		var absent = new int[0];
+		return move absent;
+	}
+	var result = new int[depth + 1]; int p = 0;
+	while (p <= depth) {
+		result[p] = path[p];
+		p = p + 1;
+	}
+	return move result;
+}
+
+bool recover_record_helper_verified(void* function, void* memory, void* carrier, bool store) {
+	if (function == null || memory == null || carrier == null || LLVMGetTypeKind(memory) != 10 || LLVMGetTypeKind(carrier) != 10 || LLVMIsPackedStruct(carrier) != 0) return false;
+	int count = recover_record_memory_leaves(memory, 0); if (count < 1 || count != LLVMCountStructElementTypes(carrier)) return false;
+	int parameters = 1; if (store) parameters = 2;
+	var signature = LLVMGlobalGetValueType(function);
+	if (LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != parameters || LLVMIsFunctionVarArg(signature) != 0) return false;
+	var first = LLVMGetFirstBasicBlock(function); if (first == null || LLVMGetNextBasicBlock(first) != null) return false;
+	var pointer = LLVMTypeOf(LLVMGetParam(function, 0)); if (LLVMGetTypeKind(pointer) != 12 || LLVMGetPointerAddressSpace(pointer) != 0) return false;
+	if (store) {
+		if (LLVMGetTypeKind(LLVMGetReturnType(signature)) != 0 || LLVMTypeOf(LLVMGetParam(function, 1)) != carrier) return false;
+	}
+	else {
+		if (LLVMGetReturnType(signature) != carrier) return false;
+	}
+	int attribute = -1; while (attribute <= parameters) {
+		if (LLVMGetAttributeCountAtIndex(function, attribute) != 0) return false;
+		attribute = attribute + 1;
+	}
+	var block = LLVMGetFirstBasicBlock(function); var instruction = LLVMGetFirstInstruction(block); void* previous = LLVMConstNull(carrier); int i = 0;
+	while (i < count) {
+		var path = recover_record_memory_path(memory, i); if (len(path) < 2) return false;
+		if (instruction == null || LLVMGetInstructionOpcode(instruction) != 29 || LLVMGetGEPSourceElementType(instruction) != memory || LLVMGEPGetNoWrapFlags(instruction) != 0 || LLVMGetNumOperands(instruction) != len(path) + 1 || LLVMGetOperand(instruction, 0) != LLVMGetParam(function, 0) || LLVMHasMetadata(instruction) != 0) return false;
+		void* leaf = memory; int p = 0;
+		while (p < len(path)) {
+			if (!recover_llvm_bits(LLVMGetOperand(instruction, p + 1), 32, path[p] as u64)) return false;
+			if (p > 0) leaf = LLVMStructGetTypeAtIndex(leaf, path[p]);
+			p = p + 1;
+		}
+		if (leaf != LLVMStructGetTypeAtIndex(carrier, i)) return false;
+		var address = instruction; instruction = LLVMGetNextInstruction(instruction);
+		if (instruction == null || LLVMHasMetadata(instruction) != 0) return false;
+		if (store) {
+			if (LLVMGetInstructionOpcode(instruction) != 53 || LLVMGetOperand(instruction, 0) != LLVMGetParam(function, 1) || llvm13_index(instruction, 0, i) != 1 || LLVMTypeOf(instruction) != leaf) return false;
+			var element = instruction; instruction = LLVMGetNextInstruction(instruction);
+			if (instruction == null || LLVMGetInstructionOpcode(instruction) != 28 || LLVMGetOperand(instruction, 0) != element || LLVMGetOperand(instruction, 1) != address || LLVMGetAlignment(instruction) != 1 || LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0 || LLVMHasMetadata(instruction) != 0) return false;
+		} else {
+			if (LLVMGetInstructionOpcode(instruction) != 27 || LLVMGetOperand(instruction, 0) != address || LLVMTypeOf(instruction) != leaf || LLVMGetAlignment(instruction) != 1 || LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0) return false;
+			var element = instruction; instruction = LLVMGetNextInstruction(instruction);
+			if (instruction == null || !recover_llvm_insert(instruction, previous, element, i) || LLVMHasMetadata(instruction) != 0) return false;
+			previous = instruction;
+		}
+		instruction = LLVMGetNextInstruction(instruction); i = i + 1;
+	}
+	if (instruction == null || LLVMGetInstructionOpcode(instruction) != 1 || LLVMHasMetadata(instruction) != 0 || LLVMGetNextInstruction(instruction) != null || LLVMGetBasicBlockTerminator(block) != instruction) return false;
+	if (store) return LLVMGetNumOperands(instruction) == 0;
+	return LLVMGetNumOperands(instruction) == 1 && LLVMGetOperand(instruction, 0) == previous;
+}

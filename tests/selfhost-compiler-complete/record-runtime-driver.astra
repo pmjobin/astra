@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Exact production helper kernels under C0; no source-admission claim.
+bool record_runtime_controls(void* module, void* function, void* memory, void* carrier, bool store) {
+	if (!recover_record_helper_verified(function, memory, carrier, store)) return false;
+	var address = LLVMGetFirstInstruction(LLVMGetFirstBasicBlock(function)); var middle = LLVMGetNextInstruction(address); var last = LLVMGetNextInstruction(middle);
+	var index = LLVMGetOperand(address, 2); LLVMSetOperand(address, 2, LLVMConstInt(LLVMTypeOf(index), 2, 0));
+	if (llvm12_verify(module) != 0 || recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetOperand(address, 2, index);
+	if (!recover_record_helper_verified(function, memory, carrier, store)) return false;
+	void* access = middle; if (store) access = last;
+	LLVMSetAlignment(access, 2);
+	if (llvm12_verify(module) != 0 || recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetAlignment(access, 1);
+	if (!recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetVolatile(access, 1);
+	if (llvm12_verify(module) != 0 || recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetVolatile(access, 0);
+	if (!recover_record_helper_verified(function, memory, carrier, store)) return false;
+	void* target = last; int operand = 1; if (store) {
+		target = last;
+		operand = 0;
+	}
+	var original = LLVMGetOperand(target, operand); LLVMSetOperand(target, operand, LLVMConstInt(LLVMTypeOf(original), 7, 0));
+	if (llvm12_verify(module) != 0 || recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetOperand(target, operand, original);
+	if (!recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetFunctionCallConv(function, 0);
+	if (llvm12_verify(module) != 0 || recover_record_helper_verified(function, memory, carrier, store)) return false;
+	LLVMSetFunctionCallConv(function, 8);
+	return recover_record_helper_verified(function, memory, carrier, store);
+}
+
+int main(string[] args) {
+	if (len(args) != 2) return 9;
+	var context = LLVMContextCreate(); var module = LLVMModuleCreateWithNameInContext(llvm12_empty(), context); var builder = LLVMCreateBuilderInContext(context); var handles = llvm12_handles(); var machine = llvm12_machine(0);
+	if (context == null || module == null || builder == null || handles == null || machine == null) return 1;
+	var layout = LLVMCreateTargetDataLayout(machine); if (layout == null || LLVMPointerSize(layout) != 8 || llvm12_target(module, machine) != 0) return 2;
+	LLVMSetModuleDataLayout(module, layout);
+	var byte = LLVMIntTypeInContext(context, 8); var wide = LLVMIntTypeInContext(context, 64); var integer = LLVMIntTypeInContext(context, 32); var pointer = LLVMPointerTypeInContext(context, 0); var nothing = LLVMVoidTypeInContext(context);
+	llvm12_handle_set(handles, 0, byte); llvm12_handle_set(handles, 1, wide); var nested = LLVMStructTypeInContext(context, llvm12_handle_offset(handles, 0), 2, 0);
+	llvm12_handle_set(handles, 0, byte); llvm12_handle_set(handles, 1, nested); llvm12_handle_set(handles, 2, byte); var memory = LLVMStructTypeInContext(context, llvm12_handle_offset(handles, 0), 3, 0);
+	llvm12_handle_set(handles, 0, byte); llvm12_handle_set(handles, 1, byte); llvm12_handle_set(handles, 2, wide); llvm12_handle_set(handles, 3, byte); var carrier = LLVMStructTypeInContext(context, llvm12_handle_offset(handles, 0), 4, 0);
+	if (LLVMABISizeOfType(layout, memory) != 32 || LLVMABISizeOfType(layout, carrier) != 24) return 3;
+	var parents = new int[6]; parents[0] = 0; parents[1] = 1; parents[2] = 1; parents[3] = 3; parents[4] = 3; parents[5] = 1;
+	var ordinals = new int[6]; ordinals[0] = -1; ordinals[1] = 0; ordinals[2] = 1; ordinals[3] = 0; ordinals[4] = 1; ordinals[5] = 2;
+	var leaves = new int[4]; leaves[0] = 2; leaves[1] = 4; leaves[2] = 5; leaves[3] = 6;
+	llvm12_handle_set(handles, 0, pointer); var load_type = LLVMFunctionType(carrier, llvm12_handle_offset(handles, 0), 1, 0); var load = llvm12_function(module, load_type, "record_load"); LLVMSetLinkage(load, 8); LLVMSetFunctionCallConv(load, 8);
+	llvm12_handle_set(handles, 0, pointer); llvm12_handle_set(handles, 1, carrier); var store_type = LLVMFunctionType(nothing, llvm12_handle_offset(handles, 0), 2, 0); var store = llvm12_function(module, store_type, "record_store"); LLVMSetLinkage(store, 8); LLVMSetFunctionCallConv(store, 8);
+	{
+		var writer = new RecoverRecordWriter(context, module, builder, handles);
+		leaves[0] = 7; if (writer.emit(load, memory, carrier, parents, ordinals, leaves, false) || LLVMGetFirstBasicBlock(load) != null) return 4; leaves[0] = 2;
+		if (!writer.emit(load, memory, carrier, parents, ordinals, leaves, false) || !writer.emit(store, memory, carrier, parents, ordinals, leaves, true)) return 5;
+		if (writer.emit(load, memory, carrier, parents, ordinals, leaves, false)) return 6;
+	}
+	if (!record_runtime_controls(module, load, memory, carrier, false) || !record_runtime_controls(module, store, memory, carrier, true)) return 7;
+	llvm12_handle_set(handles, 0, pointer); llvm12_handle_set(handles, 1, pointer); var wrapper_type = LLVMFunctionType(integer, llvm12_handle_offset(handles, 0), 2, 0); var wrapper = llvm12_function(module, wrapper_type, "record_roundtrip");
+	var entry = llvm12_block(context, wrapper, "entry"); LLVMPositionBuilderAtEnd(builder, entry);
+	llvm12_handle_set(handles, 0, LLVMGetParam(wrapper, 0)); var value = LLVMBuildCall2(builder, load_type, load, llvm12_handle_offset(handles, 0), 1, llvm12_empty()); LLVMSetInstructionCallConv(value, 8);
+	llvm12_handle_set(handles, 0, LLVMGetParam(wrapper, 1)); llvm12_handle_set(handles, 1, value); var copied = LLVMBuildCall2(builder, store_type, store, llvm12_handle_offset(handles, 0), 2, llvm12_empty()); LLVMSetInstructionCallConv(copied, 8); var result = LLVMBuildRet(builder, LLVMConstInt(integer, 42, 0));
+	int status = llvm12_verify(module); if (status == 0) status = llvm12_write(module, machine, 0, 4194304, args[1]);
+	llvm12_handles_dispose(handles); LLVMDisposeTargetData(layout); LLVMDisposeTargetMachine(machine); LLVMDisposeBuilder(builder); LLVMDisposeModule(module); LLVMContextDispose(context);
+	return status;
+}
