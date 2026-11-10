@@ -7,6 +7,199 @@ bool recover_storage_class(CheckedIndex checked, TypeId type) {
 	return class_storage_fields_verified(checked, type, 0) && recover_storage_fields(checked, type, 0);
 }
 
+// Definition-time coverage for exact heap-Class slot collections. A lexical
+// `this` selects a source declaration here; it is never a native receiver root.
+// Every concrete method still needs the ordinary Flow/owner/CFG/SSA consumers.
+bool recover_template_parameter(CheckedIndex checked, SymbolId owner, TypeId type) {
+	if (checked_kind(checked, type) != 33) return false;
+	var shape = checked.types.row(type); if (shape.count != 0 || shape.extent != 0) return false;
+	var parameter = shape.nominal;
+	return parameter.index > 0 && checked.bindings.symbol(parameter).kind == 9 && checked.bindings.symbol(parameter).owner.index == owner.index;
+}
+
+SymbolId recover_template_field(CheckedIndex checked, SymbolId owner, SyntaxNodeId node) {
+	if (node.index == 0 || checked.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(node).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(node), "this")) return type_symbol(0);
+	var token = checked.bindings.program.arena.get_token_field_name(node); var resolved = checked_target(checked, node, token);
+	var declaration = checked.bindings.symbol(owner); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var field_node = checked.bindings.program.arena.node_at(fields, i); var field = checked.node_symbols[field_node.index];
+		if (field.index > 0 && checked.bindings.symbol(field).owner.index == owner.index && generic_token_equal(checked, checked.bindings.symbol(field).token, token)) {
+			if (resolved.index != 0 && resolved.index != field.index) return type_symbol(0);
+			return field;
+		}
+		i = i + 1;
+	}
+	return type_symbol(0);
+}
+
+TypeId recover_template_value(CheckedIndex checked, SymbolId owner, SymbolId member, SyntaxNodeId node, bool[] live, int[] work, int depth) {
+	if (node.index == 0 || depth > 192 || work[0] == 0) return no_type();
+	work[0] = work[0] - 1; var kind = checked.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_template_value(checked, owner, member, checked.bindings.program.arena.get_node_expression(node), live, work, depth + 1);
+	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) {
+		var type = checked.uses[node.index].type; if (type_numeric(checked_kind(checked, type)) || type.index == 13) return type; return no_type();
+	}
+	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
+		var token = checked.bindings.program.arena.get_token_identifier(node); if (kind == SyntaxKind.MoveExpressionSyntax()) token = checked.bindings.program.arena.get_token_source(node);
+		var symbol = checked_target(checked, node, token);
+		if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return no_type();
+		var declaration = checked.bindings.symbol(symbol); var type = checked.symbol_types[symbol.index]; int flags = checked.symbol_flags[symbol.index];
+		if ((declaration.kind != 7 && declaration.kind != 8) || declaration.owner.index != member.index) return no_type();
+		if (kind == SyntaxKind.MoveExpressionSyntax()) {
+			if (!recover_template_parameter(checked, owner, type) || flags != 4 || !live[symbol.index] || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0) return no_type();
+			live[symbol.index] = false; return type;
+		}
+		if (flags == 0 && (type_numeric(checked_kind(checked, type)) || type.index == 13)) return type;
+		return no_type();
+	}
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		if (!checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_field_name(node), "capacity") || recover_template_field(checked, owner, checked.bindings.program.arena.get_node_aggregate(node)).index == 0) return no_type();
+		return type_id(1);
+	}
+	if (kind != SyntaxKind.CallExpressionSyntax() || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0) return no_type();
+	var arguments = checked.bindings.program.arena.get_list_arguments(node);
+	if (checked_flow_intrinsic(checked, node)) {
+		if (!checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(node), "len") || checked.bindings.program.arena.list_count(arguments) != 1 || recover_template_field(checked, owner, checked.bindings.program.arena.node_at(arguments, 0)).index == 0) return no_type();
+		return type_id(1);
+	}
+	int action = class_storage_slot_action(checked, node);
+	var field = recover_template_field(checked, owner, checked.bindings.program.arena.get_node_receiver_place(node));
+	if (action < 1 || action > 4 || field.index == 0) return no_type();
+	var element = checked.types.argument(checked.types, checked.symbol_types[field.index], 0).type;
+	int count = 1; if (action == 4) count = 2;
+	if (checked.bindings.program.arena.list_count(arguments) != count) return no_type();
+	int i = 0;
+	while (i < count) {
+		var child = checked.bindings.program.arena.node_at(arguments, i);
+		var type = recover_template_value(checked, owner, member, child, live, work, depth + 1);
+		var expected = type_id(1); if (action == 2 || action == 4 && i == 1) expected = element;
+		if (expected.index == element.index && checked.bindings.program.arena.kind(child) != SyntaxKind.MoveExpressionSyntax()) return no_type();
+		if (type.index != expected.index) return no_type();
+		i = i + 1;
+	}
+	if (action == 1) return type_id(13); if (action == 3) return element; return type_id(14);
+}
+
+bool recover_template_constructor(CheckedIndex checked, SymbolId owner, SyntaxNodeId member, int[] work) {
+	if (!checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init") || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(member)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
+	var body = checked.bindings.program.arena.get_node_body(member);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+	var declaration = checked.bindings.symbol(owner); var statements = checked.bindings.program.arena.get_list_statements(body); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	if (checked.bindings.program.arena.list_count(statements) != checked.bindings.program.arena.list_count(fields)) return false;
+	var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
+	while (i < checked.bindings.program.arena.list_count(statements)) {
+		if (work[0] == 0) return false; work[0] = work[0] - 1;
+		var statement = checked.bindings.program.arena.node_at(statements, i);
+		if (checked.bindings.program.arena.kind(statement) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
+		var field = recover_template_field(checked, owner, checked.bindings.program.arena.get_node_target(statement));
+		if (field.index == 0 || initialized[field.index]) return false;
+		var value = checked.bindings.program.arena.get_node_expression(statement);
+		if (!class_storage_slot_initialization(checked, value, checked.symbol_types[field.index])) return false;
+		var allocation = checked.bindings.program.arena.buffer_allocation(value); var element = allocation.f_element_type;
+		if (checked.bindings.program.arena.kind(element) != SyntaxKind.TypeNameSyntax()) return false;
+		var name = checked.bindings.program.arena.type_name(element);
+		if (name.f_namespace_qualifier.index != 0 || checked.bindings.program.arena.list_count(name.f_stars) != 0) return false;
+		var parameter = checked_target(checked, element, name.f_identifier); var expected = checked.types.argument(checked.types, checked.symbol_types[field.index], 0).type;
+		if (parameter.index != checked.types.row(expected).nominal.index) return false;
+		initialized[field.index] = true; i = i + 1;
+	}
+	i = 0;
+	while (i < checked.bindings.program.arena.list_count(fields)) {
+		var field = checked.bindings.program.arena.node_at(fields, i); var symbol = checked.node_symbols[field.index];
+		if (!initialized[symbol.index]) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool recover_template_method(CheckedIndex checked, SymbolId owner, SymbolId member, int[] work) {
+	var declaration = checked.bindings.symbol(member); var callable = checked.symbol_types[member.index]; var shape = checked.types.row(callable);
+	var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
+	if (shape.kind != 25 || shape.count < 1 || shape.count > 257 || shape.count != checked.bindings.program.arena.list_count(parameters) + 1) return false;
+	var result = checked.types.argument(checked.types, callable, 0); bool result_owner = recover_template_parameter(checked, owner, result.type);
+	if (result_owner && result.flags != 4 || !result_owner && (result.flags != 0 || !type_numeric(checked_kind(checked, result.type)) && result.type.index != 13 && result.type.index != 14)) return false;
+	var live = new bool[checked.bindings.symbol_count + 1]; int p = 0;
+	while (p < checked.bindings.program.arena.list_count(parameters)) {
+		var parameter = checked.bindings.program.arena.node_at(parameters, p); var symbol = checked.node_symbols[parameter.index]; var channel = checked.types.argument(checked.types, callable, p + 1);
+		if (symbol.index < 1 || checked.bindings.symbol(symbol).kind != 7 || checked.bindings.symbol(symbol).owner.index != member.index || checked.symbol_types[symbol.index].index != channel.type.index || checked.symbol_flags[symbol.index] != channel.flags || checked.bindings.program.arena.get_node_caller_information(parameter).index != 0) return false;
+		bool transferred = recover_template_parameter(checked, owner, channel.type);
+		if (transferred && channel.flags != 4 || !transferred && (channel.flags != 0 || !type_numeric(checked_kind(checked, channel.type)) && channel.type.index != 13)) return false;
+		live[symbol.index] = transferred; p = p + 1;
+	}
+	var body = checked.bindings.program.arena.get_node_body(declaration.node);
+	if (body.index == 0 || checked.bindings.program.arena.kind(body) != SyntaxKind.BlockStatementSyntax()) return false;
+	var statements = checked.bindings.program.arena.get_list_statements(body); bool returned = false; int i = 0;
+	while (i < checked.bindings.program.arena.list_count(statements)) {
+		if (returned || work[0] == 0) return false; work[0] = work[0] - 1;
+		var statement = checked.bindings.program.arena.node_at(statements, i); var kind = checked.bindings.program.arena.kind(statement);
+		if (kind == SyntaxKind.InferredLocalDeclarationSyntax() || kind == SyntaxKind.LocalDeclarationSyntax()) {
+			var symbol = checked.node_symbols[statement.index];
+			if (symbol.index < 1 || checked.bindings.symbol(symbol).kind != 8 || checked.bindings.symbol(symbol).owner.index != member.index) return false;
+			var type = recover_template_value(checked, owner, member, checked.bindings.program.arena.get_node_initializer(statement), live, work, 0);
+			if (type.index == 0 || type.index != checked.symbol_types[symbol.index].index) return false;
+			bool acquired = recover_template_parameter(checked, owner, type);
+			if (acquired && (live[symbol.index] || checked.symbol_flags[symbol.index] != 4) || !acquired && (checked.symbol_flags[symbol.index] != 0 || !type_numeric(checked_kind(checked, type)) && type.index != 13)) return false;
+			live[symbol.index] = acquired;
+		} else { if (kind == SyntaxKind.ReturnStatementSyntax()) {
+				var value = checked.bindings.program.arena.get_node_expression(statement); var type = type_id(14);
+				if (value.index > 0) type = recover_template_value(checked, owner, member, value, live, work, 0);
+				if (type.index != result.type.index || result_owner && checked.bindings.program.arena.kind(value) != SyntaxKind.MoveExpressionSyntax()) return false;
+				returned = true;
+			} else {
+				if (kind != SyntaxKind.CallStatementSyntax()) return false;
+				var type = recover_template_value(checked, owner, member, checked.bindings.program.arena.get_node_call(statement), live, work, 0);
+				if (type.index == 0 || recover_template_parameter(checked, owner, type)) return false;
+			}
+		}
+		i = i + 1;
+	}
+	// Remaining local/parameter owners retire at scope exit. Concrete cleanup
+	// paths and transfers must still pass the independent Core/SSA consumers.
+	return returned || result.type.index == 14;
+}
+
+bool recover_slot_template_source(CheckedIndex checked, SymbolId owner) {
+	if (!checked.class_storage || owner.index < 1 || owner.index > checked.generic_symbols || !generic_template(checked, owner) || !class_storage_template_verified(checked, owner)) return false;
+	var declaration = checked.bindings.symbol(owner); var node = declaration.node;
+	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || !checked.bindings.program.arena.get_bool_exact_heap_class(node) || checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0 || checked.bindings.program.arena.get_concurrency_concurrency_policy(node).present) return false;
+	if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
+	var fields = checked.bindings.program.arena.get_list_fields(node); int f = 0;
+	while (f < checked.bindings.program.arena.list_count(fields)) {
+		var field = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[field.index];
+		if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 6 || checked.bindings.symbol(symbol).owner.index != owner.index || checked.bindings.symbol(symbol).node.index != field.index) return false;
+		var type = checked.symbol_types[symbol.index];
+		if (checked_kind(checked, type) != 23 || checked.symbol_flags[symbol.index] != 4 || !recover_template_parameter(checked, owner, checked.types.argument(checked.types, type, 0).type)) return false;
+		f = f + 1;
+	}
+	var work = new int[1]; work[0] = 8000000; var members = checked.bindings.program.arena.get_list_members(node); int i = 0; int constructors = 0;
+	while (i < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, i); var kind = checked.bindings.program.arena.kind(member); var symbol = checked.node_symbols[member.index];
+		if (kind != SyntaxKind.StructFieldDeclarationSyntax()) {
+			if (symbol.index < 1 || checked.bindings.symbol(symbol).owner.index != owner.index || !recover_plain_member(checked, member) || checked.bindings.program.arena.get_int_dispatch(member) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(member)) != 0) return false;
+			if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+				if (!recover_template_constructor(checked, owner, member, work)) return false; constructors = constructors + 1;
+			} else {
+				if (kind != SyntaxKind.FunctionDeclarationSyntax() || !recover_template_method(checked, owner, symbol, work)) return false;
+			}
+		}
+		i = i + 1;
+	}
+	if (constructors != 1) return false;
+	i = 0;
+	while (i < checked.instance_count) {
+		var instance = checked.instances[i];
+		if (instance.origin.index == owner.index && (instance.state != 2 || !recover_storage_class(checked, checked.symbol_types[instance.concrete.index]))) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+bool recover_class_declaration_source(CheckedIndex checked, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 4) return false;
+	var type = checked.symbol_types[symbol.index];
+	return recover_error_shape(checked, symbol, 0) || recover_storage_class(checked, type) || error_storage_class(checked, type) || recover_slot_template_source(checked, symbol);
+}
+
 // Owning slots are field storage, not a new callable carrier. Element source
 // and nested payload admission remain distinct from field-place authority.
 bool recover_storage_slots(CheckedIndex checked, TypeId type, int depth) {

@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Semantic diagnosis only. This observer never emits target LLVM or objects.
+bool template_source_controls(CheckedIndex checked, SymbolId owner) {
+	if (!recover_slot_template_source(checked, owner)) return false;
+	var declaration = checked.bindings.symbol(owner); var node = declaration.node;
+	bool exact = checked.bindings.program.arena.get_bool_exact_heap_class(node);
+	checked.bindings.program.arena.set_bool_exact_heap_class(node, false);
+	bool rejected = !recover_slot_template_source(checked, owner);
+	checked.bindings.program.arena.set_bool_exact_heap_class(node, exact);
+	if (!rejected || !recover_slot_template_source(checked, owner)) return false;
+	var fields = checked.bindings.program.arena.get_list_fields(node); var field_node = checked.bindings.program.arena.node_at(fields, 0); var field = checked.node_symbols[field_node.index];
+	int flags = checked.symbol_flags[field.index]; checked.symbol_flags[field.index] = flags & ~4;
+	rejected = !recover_slot_template_source(checked, owner); checked.symbol_flags[field.index] = flags;
+	if (!rejected || !recover_slot_template_source(checked, owner)) return false;
+	SyntaxNodeId integer_type = {index = 0}; SyntaxNodeId allocation = {index = 0}; SyntaxNodeId append_body = {index = 0};
+	var members = checked.bindings.program.arena.get_list_members(node); int m = 0;
+	while (m < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, m); var kind = checked.bindings.program.arena.kind(member);
+		if (kind == SyntaxKind.LifecycleDeclarationSyntax() || kind == SyntaxKind.FunctionDeclarationSyntax()) {
+			var parameters = checked.bindings.program.arena.get_list_parameters(member); int p = 0;
+			while (p < checked.bindings.program.arena.list_count(parameters)) {
+				var parameter = checked.bindings.program.arena.node_at(parameters, p); var symbol = checked.node_symbols[parameter.index];
+				if (checked.symbol_types[symbol.index].index == 1) integer_type = checked.bindings.program.arena.get_node_type_name(parameter);
+				p = p + 1;
+			}
+			var body = checked.bindings.program.arena.get_node_body(member); var statements = checked.bindings.program.arena.get_list_statements(body);
+			if (checked.bindings.program.arena.list_count(statements) == 1) {
+				var statement = checked.bindings.program.arena.node_at(statements, 0);
+				if (kind == SyntaxKind.LifecycleDeclarationSyntax()) allocation = checked.bindings.program.arena.get_node_expression(statement);
+				if (checked.bindings.program.arena.kind(statement) == SyntaxKind.CallStatementSyntax()) {
+					var call = checked.bindings.program.arena.get_node_call(statement);
+					if (class_storage_slot_action(checked, call) == 2) append_body = body;
+				}
+			}
+		}
+		m = m + 1;
+	}
+	if (integer_type.index == 0 || allocation.index == 0 || append_body.index == 0) return false;
+	var original_element = checked.bindings.program.arena.get_node_element_type(allocation);
+	checked.bindings.program.arena.set_node_element_type(allocation, integer_type);
+	rejected = !recover_slot_template_source(checked, owner);
+	checked.bindings.program.arena.set_node_element_type(allocation, original_element);
+	if (!rejected || !recover_slot_template_source(checked, owner)) return false;
+	var original_statements = checked.bindings.program.arena.get_list_statements(append_body); var first = checked.bindings.program.arena.node_at(original_statements, 0);
+	var duplicate = checked.bindings.program.arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax()));
+	checked.bindings.program.arena.append_node(duplicate, first); checked.bindings.program.arena.append_node(duplicate, first);
+	checked.bindings.program.arena.set_list_statements(append_body, duplicate);
+	rejected = !recover_slot_template_source(checked, owner);
+	checked.bindings.program.arena.set_list_statements(append_body, original_statements);
+	return rejected && recover_slot_template_source(checked, owner);
+}
+
+int main(string[] args) {
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--mutations") return 9;
+	try {
+		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed()) {
+			var text = checked_observation(checked);
+			print(text.text);
+			return 1;
+		}
+		assert_that(checked.validate() && generic_verify(checked));
+		bool complete = true; int count = 0; int s = 1;
+		while (s <= checked.generic_symbols) {
+			var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
+			if (declaration.kind == 4 && generic_template(checked, symbol)) {
+				count = count + 1; var name = checked.bindings.program.arena.token_message(declaration.token);
+				bool header = class_storage_template_verified(checked, symbol); bool accepted = recover_slot_template_source(checked, symbol);
+				var output = new Utf8ByteBuilder(); source_append_text(output, "TEMPLATE "); source_append_text(output, name.text); source_append_text(output, " "); append_int(output, s);
+				int bit = 0; if (header) bit = 1; source_append_text(output, " HEADER "); append_int(output, bit);
+				bit = 0; if (accepted) bit = 1; source_append_text(output, " SOURCE "); append_int(output, bit);
+				var text = output.snapshot(); println(text.text); complete = complete && accepted;
+				if (args[1] == "--mutations" && (!accepted || !template_source_controls(checked, symbol))) return 8;
+				var members = checked.bindings.program.arena.get_list_members(declaration.node); int m = 0;
+				while (m < checked.bindings.program.arena.list_count(members)) {
+					var node = checked.bindings.program.arena.node_at(members, m); var kind = checked.bindings.program.arena.kind(node); var member = checked.node_symbols[node.index];
+					if (kind == SyntaxKind.FunctionDeclarationSyntax() || kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+						var work = new int[1]; work[0] = 8000000; bool valid = false;
+						if (kind == SyntaxKind.FunctionDeclarationSyntax()) valid = recover_template_method(checked, symbol, member, work);
+						else {
+							valid = recover_template_constructor(checked, symbol, node, work);
+						}
+						var member_declaration = checked.bindings.symbol(member); var member_name = checked.bindings.program.arena.token_message(member_declaration.token);
+						var member_output = new Utf8ByteBuilder(); source_append_text(member_output, "MEMBER "); source_append_text(member_output, member_name.text); source_append_text(member_output, " "); append_int(member_output, member.index);
+						int member_bit = 0; if (valid) member_bit = 1; source_append_text(member_output, " SOURCE "); append_int(member_output, member_bit);
+						var callable = checked.symbol_types[member.index]; source_append_text(member_output, " KIND "); append_int(member_output, checked_kind(checked, callable)); source_append_text(member_output, " CHANNELS "); append_int(member_output, checked.types.row(callable).count);
+						var member_text = member_output.snapshot(); println(member_text.text);
+					}
+					m = m + 1;
+				}
+			}
+			s = s + 1;
+		}
+		var count_output = new Utf8ByteBuilder(); source_append_text(count_output, "TEMPLATE_COUNT "); append_int(count_output, count); var count_text = count_output.snapshot(); println(count_text.text);
+		if (args[1] == "--templates") {
+			if (complete) return 0;
+			return 3;
+		}
+		if (args[1] == "--mutations") {
+			if (complete && count > 0) return 42;
+			return 3;
+		}
+		var flow = recover_flow_lower(move checked, 8192);
+		var details = new Utf8ByteBuilder(); source_append_text(details, "FLOW "); append_int(details, flow.data.status); source_append_text(details, " "); append_int(details, flow.data.boundary.index); source_append_text(details, " "); append_int(details, flow.data.node_count);
+		var status = details.snapshot(); println(status.text);
+		if (flow.data.boundary.index > 0) {
+			var span_output = new Utf8ByteBuilder();
+			binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(flow.data.boundary).span, span_output);
+			var span_text = span_output.snapshot();
+			println(span_text.text);
+		}
+		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
+		return 42;
+	} catch (Error error) { println_stderr(error.message); return 7; }
+}

@@ -5,7 +5,7 @@ generation, integrated linkage and full compiler performance qualification
 have not been established. Bounded current regressions remain separately
 attributed below. No Stage1 or self-host claim is made.
 
-## Progress snapshot — 2026-11-10 03:27 UTC
+## Progress snapshot — 2026-11-10, candidate4 and template work
 
 | Work item | Evidence-backed state |
 |---|---|
@@ -13,9 +13,10 @@ attributed below. No Stage1 or self-host claim is made.
 | Original compiler C0 front end | All 180 compiler files plus 10 dependencies pass together |
 | Bounded O0/O2 regression checkpoint | Qualified at c99a96a with the disclosed failed raw jobs and separate supplements; does not qualify later edits |
 | New owning-Class slot runtime helpers | O0/O2 native, C ABI, cleanup-order and unsuppressed memory checks pass; 10 physical graphs, 24 LLVM-valid mutations and 20 convention controls |
-| Slot source/owner/Core/CFG/SSA/LLVM integration | Candidate3 reaches SSA for empty field slots; full slot calls still fail Flow; two focused corrections pass current C0 checking and await a new native build |
-| Candidate3 O0 host rebuild | Finished successfully in53:43.64, peak RSS2,532,364 KiB; no compiler completeness inference |
-| Focused source-to-native slot checks | First required positive failed physical validation; later checks were skipped; correction build queued next |
+| Slot source/owner/Core/CFG/SSA/LLVM integration | Three focused O0 source programs pass all stages, actual native linkage/execution and independent artifact/memory checks at4f797d9 |
+| Candidate4 O0 host rebuild | Finished in53:07.61, peak RSS2,532,892 KiB; no compiler completeness inference |
+| Focused source-to-native slot checks | Empty field slots, reserve/append/take and all six operations pass; five additional owner/source negatives refuse with preserved destinations |
+| Original generic Bag source | C0 executes42 with clean memory; candidate4 still refuses its declaration; bounded template definition proof is under development |
 | Current O2 host rebuild and broad regressions | Deferred until focused O0 integration succeeds |
 | Full original compiler native objects | 0 of 2 profiles proved; remains a completeness blocker |
 | Full compiler linkage and performance | Unproved |
@@ -25,11 +26,10 @@ attributed below. No Stage1 or self-host claim is made.
 Every completion claim is tied to a source/compiler identity and an actual
 receipt. Failed attempts remain failed. The earlier approximate30% estimate
 was an engineering estimate, not a measured fraction of language support;
-the states and counts above are the progress authority. Latest test additions
-are committed at7f78547 without changing the active build's 348 source and46
-tool inputs. Its independent during-build hash check is BYTE_EXACT. The next
-decision is the focused native slot result, followed by the still-unproved
-generic-template/concrete coverage and full original source frontier.
+the states and counts above are the progress authority. The later approximate35%
+estimate is likewise an engineering estimate, not measured language coverage.
+The next decision is bounded generic-template source proof and concrete Flow,
+followed by the still-unproved full original source frontier.
 
 Candidate3's 6,180,656-byte O0 ELF has SHA-256
 `a6d2600448ffeed973824faba11c7093ab2138bd5149123193e9e004a598eb12`.
@@ -50,9 +50,37 @@ statement consumer also needs to recognize its already-verified slot-call
 operation69. The stage diagnostic's genuine success exit is42; the focused
 harness now checks42 rather than0.
 
-`current-C0-semantics5` passes all190 current inputs in49.70 seconds after those
-two production corrections. Fresh source-to-native and memory checks remain
-pending. `original-source-candidate3b` independently replays all190 frozen,
+Candidate4 at4f797d9 includes those two corrections. Its O0 host SHA-256 is
+`2d4214a24e4471bc04bcf5c1d16906bca599a6d11f8218d243efbd5e3d8d9cc2`.
+The three positive source probes each pass actual Astra LLVM verification,
+optimization, object emission, ELF linkage and exit42. Independent C0 executions
+match stdout/stderr; all six C0/Astra unsuppressed Valgrind receipts have zero
+errors and zero remaining allocations. The six-operation probe exercises reserve,
+append, take, replace, count and capacity. Five C0-invalid ownership/source probes
+are also refused by Astra without replacing the output sentinel.
+
+`compiler-complete26v4/repair4-independent-audit.json` independently binds the
+348 source and46 tool inputs, raw/optimized LLVM, objects, C0/Astra ELF identities,
+ELF64 x86-64 headers, command exits and raw memory logs. Three live WIP source
+differences are authenticated against4f797d9, rather than called rebuilt. The
+empty-source LLVM is byte-identical to candidate3's earlier refused diagnostic;
+only the correctly repaired consumer admits it now. The earlier refusal remains
+failed. This is focused O0 source qualification only: no current O2, inherited
+340/71, generic Bag, whole compiler or Stage1 credit.
+
+The actual original Bag plus client remains C0-valid, exit42 and clean memory,
+while candidate4 refuses at Flow's generic declaration boundary. The new bounded
+template proof checks every original constructor/member, including unused methods,
+and all actual concrete instances still need ordinary independent Flow, owner,
+Core, CFG and SSA verification. Lexical `this` only selects a source declaration;
+it supplies no runtime root and does not change CheckedIndex.add_signature's
+independent owner-root deferral. A smaller current Typecore/Flow observer is being
+built for diagnosis before another full native host build. It emits no target
+LLVM or objects and receives no native completeness credit. The current190-input
+C0 semantic check passes in48.92 seconds; the focused observer's C0 semantic check
+also passes. These are front-end checks, not execution of the new template proof.
+
+`original-source-candidate3b` independently replays all190 frozen,
 read-only original inputs: exit3, `RECOVER_FLOW 3 307096 0`, preserved sentinel,
 127.70 seconds. The two subsequent corrections are explicitly not compiled
 into that observed product. This refused attempt does not demonstrate full

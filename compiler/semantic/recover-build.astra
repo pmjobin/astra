@@ -214,11 +214,19 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) thro
 		flow.data.fail(4, flow.types.boundary);
 		return move flow;
 	}
+	// Source coverage is computed once per Class in this construction pass.
+	// The consumer independently reconstructs it from the retained CheckedIndex.
+	var classes = new bool[flow.checked.bindings.symbol_count + 1]; int c = 1;
+	while (c <= flow.checked.bindings.symbol_count) {
+		var symbol = type_symbol(c);
+		if (flow.checked.bindings.symbol(symbol).kind == 4) classes[c] = recover_class_declaration_source(flow.checked, symbol);
+		c = c + 1;
+	}
 	int s = 1;
 	while (s <= flow.checked.bindings.symbol_count && flow.data.status == 0) {
 		var symbol = type_symbol(s); var declaration = flow.checked.bindings.symbol(symbol);
-		if (declaration.kind == 4 && !recover_error_shape(flow.checked, symbol, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[s]) && !error_storage_class(flow.checked, flow.checked.symbol_types[s])) flow.data.defer(declaration.node);
-		if ((declaration.kind == 11 || declaration.kind == 12) && !recover_error_shape(flow.checked, declaration.owner, 0) && !recover_storage_class(flow.checked, flow.checked.symbol_types[declaration.owner.index]) && !error_storage_class(flow.checked, flow.checked.symbol_types[declaration.owner.index])) flow.data.defer(declaration.node);
+		if (declaration.kind == 4 && !classes[s]) flow.data.defer(declaration.node);
+		if ((declaration.kind == 11 || declaration.kind == 12) && (declaration.owner.index < 1 || declaration.owner.index >= len(classes) || !classes[declaration.owner.index])) flow.data.defer(declaration.node);
 		if (recover_runtime_function(flow.checked, symbol)) {
 			if (!recover_function_source(flow.checked, symbol)) {
 				flow.data.defer(declaration.node);
