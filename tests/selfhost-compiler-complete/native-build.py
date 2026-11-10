@@ -22,19 +22,21 @@ def main():
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	p.add_argument('--check', action='store_true')
 	p.add_argument('--snapshot', action='store_true', help='compile immutable Git-authenticated inputs while live engineering continues')
+	p.add_argument('--stage', choices=('native', 'templates'), default='native')
 	a = p.parse_args()
 	assert a.version.isalnum() and sha(a.compiler) == C0_SHA256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	for path, parent in ((a.build_root, WORK/'build'), (a.runtime_root, WORK/'runtime')):
 		assert path.is_absolute() and path.resolve().is_relative_to(parent.resolve()) and path.is_dir()
-	leaf = a.runtime_root/('native-'+a.version+'-'+a.mode); build = a.build_root/leaf.name
+	leaf = a.runtime_root/(a.stage+'-'+a.version+'-'+a.mode); build = a.build_root/leaf.name
 	leaf.mkdir(); build.mkdir()
+	query = 'native-query.astra' if a.stage == 'native' else 'template-query.astra'
 	source_root = ROOT
 	if a.snapshot:
 		source_root = leaf/'source-inputs'; source_root.mkdir()
 		revision = git('rev-parse', 'HEAD').decode().strip(); rows = []
 		tracked = git('ls-files', '-z', 'compiler', 'lib/astra', 'lib/runtime/platform').decode().split('\0')
-		names = sorted({name for name in tracked if name and Path(name).suffix in ('.astra', '.c', '.h')} | {'tests/selfhost-typecore/build.py', 'tests/selfhost-parser/controls.astra', 'tests/selfhost-parser/cursors.astra', 'tests/selfhost-compiler-complete/native-query.astra'})
+		names = sorted({name for name in tracked if name and Path(name).suffix in ('.astra', '.c', '.h')} | {'tests/selfhost-typecore/build.py', 'tests/selfhost-parser/controls.astra', 'tests/selfhost-parser/cursors.astra', 'tests/selfhost-compiler-complete/'+query})
 		for name in names:
 			path = ROOT/name; raw = path.read_bytes(); assert git('show', revision+':'+name) == raw, name
 			target = source_root/name; target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(raw); target.chmod(0o444)
@@ -70,21 +72,26 @@ def main():
 			write(leaf/'result.json', dict(status='C0_FRONTEND_ONLY', target_native_credit=0, limitation='Actual --dump-semantics command only. No native product, cache identity or full source translation is published.'))
 			raise SystemExit(0)
 		return out
-	flags = subprocess.check_output(['llvm-config', '--cflags'], text=True).split(); shim_source = source_root/'compiler/backend/llvm/capi.c'; shim = build/'llvm-capi.o'
-	deps = subprocess.check_output(['gcc', '-std=c11', *flags, '-M', shim_source], text=True).replace('\\\n', ' ').split(':', 1)[1].split()
-	capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', shim_source, '-o', shim], 'llvm-capi')
-	library = subprocess.check_output(['llvm-config', '--link-shared', '--libs', 'core', 'analysis', 'native'], text=True).strip(); assert library.startswith('-l') and ' ' not in library
-	library_path = Path(subprocess.check_output(['llvm-config', '--libdir'], text=True).strip())/('lib'+library[2:]+'.so')
+	link_objects = []; link_libraries = []; link_inputs = []
+	if a.stage == 'native':
+		flags = subprocess.check_output(['llvm-config', '--cflags'], text=True).split(); shim_source = source_root/'compiler/backend/llvm/capi.c'; shim = build/'llvm-capi.o'
+		deps = subprocess.check_output(['gcc', '-std=c11', *flags, '-M', shim_source], text=True).replace('\\\n', ' ').split(':', 1)[1].split()
+		capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', shim_source, '-o', shim], 'llvm-capi')
+		library = subprocess.check_output(['llvm-config', '--link-shared', '--libs', 'core', 'analysis', 'native'], text=True).strip(); assert library.startswith('-l') and ' ' not in library
+		library_path = Path(subprocess.check_output(['llvm-config', '--libdir'], text=True).strip())/('lib'+library[2:]+'.so')
+		link_objects = [shim]; link_libraries = [library[2:]]; link_inputs = [library_path, *map(Path, deps)]
 	compiler_sources = sorted((source_root/'compiler').rglob('*.astra'))
 	tracked = git('ls-files', '-z', 'compiler').decode().split('\0')
 	assert {str(p.relative_to(source_root)) for p in compiler_sources} == {p for p in tracked if p.endswith('.astra')}
 	base_path = source_root/'tests/selfhost-typecore/build.py'; base = runpy.run_path(str(base_path))
 	automatic = {*(source_root/'compiler/source').glob('*.astra'), *(source_root/'compiler/syntax').glob('*.astra'), *(source_root/'compiler/semantic').glob('*.astra')}
-	extra = [p for p in compiler_sources if p not in automatic]
-	write(leaf/'scope.json', dict(compiler_modules=len(compiler_sources), compiler_sources={str(p):sha(p) for p in compiler_sources}, retained_test_entry='native-query.astra', limitation='All current production compiler modules form the C0-built test host. Historical regression dispatch is absent from this host only. Frozen original target inputs are selected separately and are never pruned by this recipe. No cold speedup, inherited qualification or Stage1 credit.'))
-	products = base['build'](a.compiler, build, capture, (a.mode,), consumer=source_root/'tests/selfhost-compiler-complete/native-query.astra', with_flow=True, extra_sources=extra, product_prefix='astra-native-probe-', link_objects=[shim], link_libraries=[library[2:]], link_inputs=[library_path, *map(Path, deps), Path(__file__), Path(__file__).with_name('run.py'), base_path])
+	extra = [p for p in compiler_sources if p not in automatic] if a.stage == 'native' else []
+	selected = compiler_sources if a.stage == 'native' else sorted(automatic)
+	write(leaf/'scope.json', dict(stage=a.stage, compiler_modules=len(selected), compiler_sources={str(p):sha(p) for p in selected}, retained_test_entry=query, limitation='Native mode retains every production module. Template mode is only a focused Typecore/Flow observer, with no Core/CFG/SSA/LLVM target coverage. Historical regression dispatch is absent from either development host only; frozen original target inputs are selected separately and never pruned. No cold speedup, inherited qualification or Stage1 credit.'))
+	prefix = 'astra-native-probe-' if a.stage == 'native' else 'astra-template-proof-'
+	products = base['build'](a.compiler, build, capture, (a.mode,), consumer=source_root/('tests/selfhost-compiler-complete/'+query), with_flow=True, extra_sources=extra, product_prefix=prefix, link_objects=link_objects, link_libraries=link_libraries, link_inputs=[*link_inputs, Path(__file__), Path(__file__).with_name('run.py'), base_path])
 	write(leaf/'products.json', products)
-	write(leaf/'result.json', dict(status='BUILT_COMPLETE_PRODUCTION_TEST_HOST', target_native_credit=0, limitation='C0-built development host with all current production modules. Actual target source-to-native execution must be proved separately. No complete original compiler translation, inherited regression or Stage1 claim follows from this build.'))
+	write(leaf/'result.json', dict(status='BUILT_COMPLETE_PRODUCTION_TEST_HOST' if a.stage == 'native' else 'BUILT_TEMPLATE_FLOW_OBSERVER', target_native_credit=0, limitation='C0-built development host. Actual target source-to-native execution must be proved separately. Template mode observes only Typecore/Flow. No complete original compiler translation, inherited regression or Stage1 claim follows from this build.'))
 
 
 if __name__ == '__main__':

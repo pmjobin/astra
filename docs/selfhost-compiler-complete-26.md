@@ -86,6 +86,17 @@ separate during-build audit matches every byte. Three actual C0 native oracles
 all exit42 with unsuppressed zero-error/zero-leak memory receipts. Their nine
 commands take1.13 seconds combined. Astra template/Flow results remain pending.
 
+The first template observer builds in1369.36 seconds, ELF SHA-256
+`bb8e928ea0f98fa4eb3ed1b3d35eee5275255a2d514051331dae84c5dc9c239c`.
+Every focused observation then terminates with SIGILL before printing a template
+result. These receipts remain failed. The conditional full native build is
+explicitly skipped. Read-only GDB and a source-order-exact C0 Core map trace the
+trap through `recover_template_value` to SyntaxArena's guarded identifier getter,
+line6460. The new checker requested a Name-only accessor from a Move node before
+selecting the Move accessor. The corrected source selects the node-appropriate
+accessor before invoking it. Its native rebuild and functional checks are pending;
+neither the trap nor the correction establishes generic Bag admission.
+
 A separate focused native test entry compiles with every one of the180 current
 production compiler modules under C0's actual `--dump-semantics` command. Its
 native build and target execution remain unproved. Historical mutation dispatch

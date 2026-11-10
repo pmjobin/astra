@@ -40,7 +40,11 @@ TypeId recover_template_value(CheckedIndex checked, SymbolId owner, SymbolId mem
 		var type = checked.uses[node.index].type; if (type_numeric(checked_kind(checked, type)) || type.index == 13) return type; return no_type();
 	}
 	if (kind == SyntaxKind.NameExpressionSyntax() || kind == SyntaxKind.MoveExpressionSyntax()) {
-		var token = checked.bindings.program.arena.get_token_identifier(node); if (kind == SyntaxKind.MoveExpressionSyntax()) token = checked.bindings.program.arena.get_token_source(node);
+		SyntaxTokenId token = {index = 0};
+		if (kind == SyntaxKind.MoveExpressionSyntax()) token = checked.bindings.program.arena.get_token_source(node);
+		else {
+			token = checked.bindings.program.arena.get_token_identifier(node);
+		}
 		var symbol = checked_target(checked, node, token);
 		if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return no_type();
 		var declaration = checked.bindings.symbol(symbol); var type = checked.symbol_types[symbol.index]; int flags = checked.symbol_flags[symbol.index];
