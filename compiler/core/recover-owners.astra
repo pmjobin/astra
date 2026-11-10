@@ -40,8 +40,8 @@ int recover_owner_unwrap(RecoverFlowData flow, int id) {
 }
 
 bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
-	if (row.kind == 5 || row.kind == 9 || row.kind == 10 || recover_constructor_kind(row.kind)) return true;
-	if (row.kind != 4 && row.kind != 19) return false;
+	if (row.kind == 5 || row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind)) return true;
+	if (row.kind != 4 && row.kind != 19 && row.kind != 69) return false;
 	return (checked.uses[row.source.index].flags & 4) != 0;
 }
 
@@ -51,7 +51,7 @@ int recover_owner_consumer(RecoverFlowData flow, int producer, RecoverOwnerBudge
 			if (found != 0) return -1;
 			found = n + 1;
 		}
-		if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19) {
+		if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) {
 			int a = 0;
 			while (a < row.count) {
 				if (recover_owner_unwrap(flow, flow.edges[row.first + a]) == producer) {
@@ -93,7 +93,7 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow) {
 					break;
 				}
 				plan.slots[n] = slot;
-				if (flow.data.nodes[consumer - 1].kind == 4 || recover_constructor_kind(flow.data.nodes[consumer - 1].kind) || flow.data.nodes[consumer - 1].kind == 19) plan.reservations[n] = consumer;
+				if (flow.data.nodes[consumer - 1].kind == 4 || recover_constructor_kind(flow.data.nodes[consumer - 1].kind) || flow.data.nodes[consumer - 1].kind == 19 || flow.data.nodes[consumer - 1].kind == 69) plan.reservations[n] = consumer;
 			}
 		}
 		n = n + 1;
@@ -171,6 +171,17 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			}
 		}
 		int parent = 0; while (parent < count) { if (!work.take()) return false; var candidate = flow.data.nodes[parent];
+			if (owner && candidate.kind == 69) {
+				int a = 0;
+				while (a < candidate.count) {
+					if (recover_owner_unwrap(flow.data, flow.data.edges[candidate.first + a]) == n + 1) {
+						bool consuming = a == candidate.count - 1 && (flow.checked.bindings.program.arena.token_is(candidate.token, "append") || flow.checked.bindings.program.arena.token_is(candidate.token, "replace"));
+						if (!consuming || row.kind != 10 || row.function != candidate.function) return false;
+						uses = uses + 1; consumer = parent + 1; call = parent + 1;
+					}
+					a = a + 1;
+				}
+			}
 			if (owner && candidate.kind == 19 && candidate.count == 1 && recover_owner_unwrap(flow.data, flow.data.edges[candidate.first]) == n + 1) {
 				if (row.kind != 10 || !flow.checked.bindings.program.arena.token_is(candidate.token, "shared_acquire")) return false;
 				uses = uses + 1;

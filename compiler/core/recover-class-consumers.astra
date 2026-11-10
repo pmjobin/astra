@@ -6,6 +6,23 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerB
 	int n = 0; while (n < flow.data.node_count) {
 		if (!work.take()) return false;
 		var row = flow.data.nodes[n];
+		if (row.kind == 68) {
+			int consumer = plan.consumers[n];
+			if (consumer < 1 || consumer > flow.data.node_count) return false;
+			var assignment = flow.data.nodes[consumer - 1]; var field = flow.fields.facts[assignment.source.index];
+			if (assignment.kind != 44 || assignment.function != row.function || !field.initializing || field.field.index < 1 || flow.checked.symbol_types[field.field.index].index != row.type.index || (flow.checked.symbol_flags[field.field.index] & 4) == 0) return false;
+		}
+		if (row.kind == 69) {
+			bool consuming = flow.checked.bindings.program.arena.token_is(row.token, "append") || flow.checked.bindings.program.arena.token_is(row.token, "replace");
+			if (consuming) {
+				int input = recover_owner_unwrap(flow.data, flow.data.edges[row.first + row.count - 1]);
+				if (input < 1 || flow.data.nodes[input - 1].kind != 10) return false;
+			}
+			if ((flow.checked.uses[row.source.index].flags & 4) != 0) {
+				int consumer = plan.consumers[n];
+				if (!flow.checked.bindings.program.arena.token_is(row.token, "take") || consumer < 1 || consumer > flow.data.node_count || flow.data.nodes[consumer - 1].kind != 27) return false;
+			}
+		}
 		if (row.kind == 56 && recover_slice_consumer(flow, n + 1, work) < 1) return false;
 		if (row.kind == 19 && flow.checked.uses[row.source.index].flags == 2 && recover_shared_borrow_consumer(flow, n + 1, work) < 1) return false;
 		if (row.kind == 5 || recover_constructor_kind(row.kind) || row.kind == 19 && (flow.checked.uses[row.source.index].flags & 4) != 0) {

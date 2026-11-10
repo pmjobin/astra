@@ -440,8 +440,11 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		int kind = 30; if (declaration.kind == 4) kind = 31;
 		var empty = new TypeEdge[0]; index.symbol_types[concrete.index] = index.types.intern(kind, concrete, 0, empty);
 	}
-	i = 1;
-	while (i <= index.generic_nodes && !index.failed()) {
+	// Outside this source window generic_node is identically zero. Preserve
+	// ascending original identities without rescanning unrelated declarations.
+	// The independent structural consumer still visits the original population.
+	i = plan.node_first;
+	while (i - plan.node_first < plan.node_count && !index.failed()) {
 		int mapped = generic_node(index, plan, i);
 		if (mapped != 0) {
 			SyntaxNodeId node = {index = i};
@@ -461,8 +464,8 @@ SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosi
 		}
 		i = i + 1;
 	}
-	i = 1;
-	while (i <= index.generic_symbols && !index.failed()) {
+	i = plan.symbol_first;
+	while (i - plan.symbol_first < plan.symbol_count && !index.failed()) {
 		int mapped = generic_symbol(index, plan, i);
 		if (mapped != 0) {
 			var symbol = index.bindings.symbol(type_symbol(mapped));

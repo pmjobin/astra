@@ -4,7 +4,7 @@
 bool recover_borrow_preserved(RecoverFlowData flow, int id, SymbolId receiver, int[] work, int depth) {
 	if (id < 1 || id > flow.node_count || depth > 192 || work[0] == 0) return false;
 	work[0] = work[0] - 1; var row = flow.nodes[id - 1];
-	if (!recover_value_kind(row.kind) || row.kind == 10 && row.symbol.index == receiver.index) return false;
+	if (!recover_value_kind(row.kind) || row.kind == 69 || row.kind == 10 && row.symbol.index == receiver.index) return false;
 	if (row.a != 0 && !recover_borrow_preserved(flow, row.a, receiver, work, depth + 1) || row.b != 0 && !recover_borrow_preserved(flow, row.b, receiver, work, depth + 1) || row.c != 0 && !recover_borrow_preserved(flow, row.c, receiver, work, depth + 1)) return false;
 	int i = 0;
 	while (i < row.count) {
@@ -24,8 +24,8 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	if (!recover_value_kind(row.kind) && row.kind != 25 && row.type.index != 14) return false;
 	if (row.kind != 3 && row.kind != 62 && row.kind != 55 && row.kind != 61 && row.kind != 21 && row.kind != 28 && row.kind != 29 && row.kind != 41 && row.kind != 45 && (row.b != 0 || row.c != 0)) return false;
 	if (row.kind == 3 && row.c != 0) return false;
-	if (row.kind != 4 && row.kind != 5 && row.kind != 8 && row.kind != 11 && row.kind != 67 && row.kind != 14 && row.kind != 19 && row.kind != 50 && row.kind != 56 && row.kind != 57 && row.kind != 20 && row.kind != 24 && (row.count != 0 || row.first != 0)) return false;
-	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.token.index != 0) return false;
+	if (row.kind != 4 && row.kind != 5 && row.kind != 8 && row.kind != 11 && row.kind != 67 && row.kind != 69 && row.kind != 70 && row.kind != 14 && row.kind != 19 && row.kind != 50 && row.kind != 56 && row.kind != 57 && row.kind != 20 && row.kind != 24 && (row.count != 0 || row.first != 0)) return false;
+	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.kind != 69 && row.kind != 70 && row.token.index != 0) return false;
 	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 10 && row.kind != 11 && row.kind != 17 && row.kind != 18 && row.kind != 50 && row.kind != 52 && row.kind != 53 && row.kind != 58 && row.kind != 25 && row.kind != 27 && row.kind != 42 && row.kind != 43 && row.kind != 44 && row.kind != 65 && row.kind != 66 && row.kind != 67 && row.symbol.index != 0) return false;
 	if (row.kind == 1) {
 		if (row.a != 0) return false;
@@ -171,7 +171,8 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		if (!recover_class_local_source(checked, source, row.symbol)) return false;
 		return recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_initializer(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == checked.symbol_types[row.symbol.index].index;
 	}
-	if (row.kind == 9 || row.kind == 10 || recover_constructor_kind(row.kind) || row.kind == 13 || row.kind == 14) return recover_owner_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
+	if (row.kind == 69 || row.kind == 70) return recover_slot_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
+	if (row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind) || row.kind == 13 || row.kind == 14) return recover_owner_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
 	if (row.kind == 65 || row.kind == 66) return recover_error_value_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
 	if (row.kind == 52 || row.kind == 53) return recover_utf8_value_source(checked, row, flow.functions[function - 1].symbol);
 	if (row.kind == 19) return recover_shared_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
@@ -304,5 +305,5 @@ bool recover_flow_verify(RecoverFlow flow) {
 		if (!caught_symbols[i] && flow.data.catch_owners[i] != 0) return false;
 		i = i + 1;
 	}
-	return recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data);
+	return recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data);
 }

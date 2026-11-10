@@ -2,6 +2,7 @@
 // Source correspondence for owner operations, independent of the builder.
 bool recover_owner_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
 	var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (row.kind == 68) return row.a == 0 && row.symbol.index == 0 && class_storage_slot_initialization(checked, source, row.type) && recover_storage_slots(checked, row.type, 0);
 	if (row.kind == 9) {
 		if (kind != SyntaxKind.BufferAllocationSyntax() || checked_kind(checked, row.type) != 22 || !recover_storage_channel(checked, row.type, 4, false) || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_node_failure_call(source).index != 0 || row.symbol.index != 0) return false;
 		return recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_count(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 1;
@@ -29,4 +30,76 @@ bool recover_owner_source(RecoverFlowData flow, CheckedIndex checked, RecoverTyp
 		if (!recover_child(flow, checked, types, flow.edges[row.first], checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, depth + 1)) return false; var child = flow.nodes[flow.edges[row.first] - 1]; return recover_array_type(checked, child.type) && (child.kind == 2 || child.kind == 17);
 	}
 	return false;
+}
+
+bool recover_slot_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	if (row.a != 0 || row.b != 0 || row.c != 0 || row.symbol.index != 0 || row.count < 1) return false;
+	var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	SyntaxNodeId receiver = {index = 0}; SyntaxListId arguments = {index = 0}; int action = 0;
+	if (row.kind == 69) {
+		if (!class_storage_slot_call_present(checked, source) || row.token.index != checked.bindings.program.arena.get_token_identifier(source).index || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(source)) != 0) return false;
+		action = class_storage_slot_action(checked, source); receiver = checked.bindings.program.arena.get_node_receiver_place(source); arguments = checked.bindings.program.arena.get_list_arguments(source);
+		int count = 2; if (action == 4) count = 3;
+		if (row.count != count || checked.bindings.program.arena.list_count(arguments) != count - 1) return false;
+	} else {
+		if (row.kind != 70 || row.count != 1 || row.type.index != 1) return false;
+		if (class_storage_slot_capacity(checked, source)) {
+			receiver = checked.bindings.program.arena.get_node_aggregate(source);
+			if (row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;
+		} else {
+			if (kind != SyntaxKind.CallExpressionSyntax() || !checked_flow_intrinsic(checked, source) || row.token.index != checked.bindings.program.arena.get_token_identifier(source).index || !checked.bindings.program.arena.token_is(row.token, "len")) return false;
+			arguments = checked_call_arguments(checked, source);
+			if (checked.bindings.program.arena.list_count(arguments) != 1) return false;
+			receiver = checked.bindings.program.arena.node_at(arguments, 0);
+		}
+	}
+	int i = 0;
+	while (i < row.count) {
+		int at = row.first + i; if (edges[at]) return false; edges[at] = true;
+		var child_source = receiver; if (i > 0) child_source = checked.bindings.program.arena.node_at(arguments, i - 1);
+		if (!recover_child(flow, checked, types, flow.edges[at], child_source, function, handler, caught, seen, edges, depth + 1)) return false;
+		i = i + 1;
+	}
+	var type = flow.nodes[flow.edges[row.first] - 1].type;
+	if (!recover_storage_slots(checked, type, 0)) return false;
+	var element = checked.types.argument(checked.types, type, 0).type;
+	if (row.kind == 69) {
+		var result = type_id(14); if (action == 1) result = type_id(13); if (action == 3) result = element;
+		if (row.type.index != result.index || action == 3 && checked.uses[source.index].flags != 4) return false;
+		i = 1;
+		while (i < row.count) {
+			var expected = type_id(1); if (action == 2 || action == 4 && i == 2) expected = element;
+			if (flow.nodes[flow.edges[row.first + i] - 1].type.index != expected.index) return false;
+			i = i + 1;
+		}
+	}
+	return true;
+}
+
+bool recover_slot_places_verified(RecoverFlow flow) {
+	var work = new int[1]; work[0] = 8000000; int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 69 || row.kind == 70) {
+			int id = flow.data.edges[row.first]; int steps = 0;
+			while (id > 0 && id <= flow.data.node_count && flow.data.nodes[id - 1].kind == 7 && steps < 192) {
+				id = flow.data.nodes[id - 1].a;
+				steps = steps + 1;
+			}
+			if (steps == 192) return false;
+			if (id < 1 || id > flow.data.node_count) return false;
+			var receiver = flow.data.nodes[id - 1];
+			if (receiver.kind != 17 || receiver.function != row.function || checked_kind(flow.checked, receiver.type) != 23) return false;
+			var field = flow.fields.facts[receiver.source.index];
+			if (field.receiver.index != receiver.symbol.index || field.field.index < 1 || field.slot < 1 || field.slot > flow.storage.count || flow.storage.slots[field.slot - 1].symbol.index != field.receiver.index || flow.checked.symbol_types[field.field.index].index != receiver.type.index || (flow.checked.symbol_flags[field.field.index] & 4) == 0 || row.kind == 69 && !field.writable) return false;
+			int i = 1;
+			while (i < row.count) {
+				int child = flow.data.edges[row.first + i];
+				if (!recover_borrow_preserved(flow.data, child, field.receiver, work, 0) || !recover_payload_preserved(flow.data, child, field.aggregate, work, 0)) return false;
+				i = i + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return true;
 }

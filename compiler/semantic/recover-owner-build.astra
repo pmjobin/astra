@@ -5,7 +5,10 @@ RecoverNode recover_build_owner(RecoverFlowData flow, CheckedIndex checked, Reco
 	var row = initial; var source = row.source; var kind = checked.bindings.program.arena.kind(source);
 	if (kind == SyntaxKind.BufferAllocationSyntax()) {
 		row.kind = 9;
-		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_count(source), row.function, row.handler, row.caught, depth + 1);
+		if (class_storage_slot_initialization(checked, source, row.type)) row.kind = 68;
+		else {
+			row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_count(source), row.function, row.handler, row.caught, depth + 1);
+		}
 	}
 	if (kind == SyntaxKind.MoveExpressionSyntax()) {
 		row.kind = 10;
@@ -21,6 +24,30 @@ RecoverNode recover_build_owner(RecoverFlowData flow, CheckedIndex checked, Reco
 	if (kind == SyntaxKind.CallExpressionSyntax() && row.symbol.index == 0 && checked_shared_action(checked, source) != 0) {
 		row.kind = 19;
 		row.token = checked.bindings.program.arena.get_token_identifier(source);
+	}
+	if (class_storage_slot_call_present(checked, source)) {
+		row.kind = 69; row.symbol = type_symbol(0); row.token = checked.bindings.program.arena.get_token_identifier(source);
+		var arguments = checked.bindings.program.arena.get_list_arguments(source); int count = checked.bindings.program.arena.list_count(arguments) + 1;
+		var children = new int[count];
+		children[0] = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_receiver_place(source), row.function, row.handler, row.caught, depth + 1);
+		int i = 1;
+		while (i < count && flow.status == 0) {
+			children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, i - 1), row.function, row.handler, row.caught, depth + 1);
+			i = i + 1;
+		}
+		row.first = flow.edge_count; row.count = count; i = 0;
+		while (i < count && flow.status == 0) {
+			int added = flow.edge(children[i]);
+			i = i + 1;
+		}
+	}
+	if (class_storage_slot_capacity(checked, source)) {
+		row.kind = 70; row.symbol = type_symbol(0); row.token = checked.bindings.program.arena.get_token_field_name(source);
+		int receiver = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_aggregate(source), row.function, row.handler, row.caught, depth + 1);
+		row.first = flow.edge_count; row.count = 1; int added = flow.edge(receiver);
+	}
+	if (flow.status == 0 && row.kind == 14 && row.count == 1 && flow.nodes[flow.edges[row.first] - 1].type.index > 0 && checked_kind(checked, flow.nodes[flow.edges[row.first] - 1].type) == 23) {
+		row.kind = 70; row.token = checked.bindings.program.arena.get_token_identifier(source);
 	}
 	return row;
 }

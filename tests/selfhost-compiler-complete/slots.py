@@ -24,6 +24,12 @@ TAKE = '''	var first = values.take(0);
 	return first.read() + second.read();
 '''
 CASES = {
+	'empty-field-slots': ITEM+'''class Items {
+	private owned Item[slots] data;
+	init() { this.data = new Item[slots]; }
+}
+int main() { var values = new Items(); return 42; }
+''',
 	'local-slots': ITEM+'''int main() {
 	var values = new Item[slots];
 	var a = new Item(20); var b = new Item(22);
@@ -60,6 +66,7 @@ def main():
 	p.add_argument('--build-root', type=Path, required=True)
 	p.add_argument('--runtime-root', type=Path, required=True)
 	p.add_argument('--case', choices=tuple(CASES), action='append')
+	p.add_argument('--require-native', action='store_true', help='fail unless every selected C0-positive source also executes natively under Astra')
 	a = p.parse_args()
 	assert a.version.isalnum() and sha(a.compiler) == C0_SHA256
 	for path, parent in ((a.build_root, WORK/'build'), (a.runtime_root, WORK/'runtime')):
@@ -144,6 +151,7 @@ def main():
 		rows.append(row)
 		write(leaf/'result.json', dict(status='PARTIAL', profile=a.mode, component_sha256=sha(a.component), baseline_commit=git('rev-parse', BASELINE).decode().strip(), historical_source_bindings=historical, programs=rows, scope='Focused owner-slot probes only; no 340/71/full-original source or milestone qualification credit. Historical compiler bindings are explicitly labelled; changed implementation is not called rebuilt.'))
 		print(name, 'C0=42' if valid else 'C0 rejects', 'Astra native='+str(code), 'stages='+str(stages), flush=True)
+		if a.require_native and valid: assert row['Astra_native_execution'] == 42 and stages == 0, name
 
 
 if __name__ == '__main__':

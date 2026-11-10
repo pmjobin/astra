@@ -7,25 +7,36 @@ bool recover_storage_class(CheckedIndex checked, TypeId type) {
 	return class_storage_fields_verified(checked, type, 0) && recover_storage_fields(checked, type, 0);
 }
 
+// Owning slots are field storage, not a new callable carrier. Element source
+// and nested payload admission remain distinct from field-place authority.
+bool recover_storage_slots(CheckedIndex checked, TypeId type, int depth) {
+	if (depth > 32 || checked_kind(checked, type) != 23) return false;
+	var element = checked.types.argument(checked.types, type, 0);
+	return element.flags == 0 && checked_kind(checked, element.type) == 31 && class_storage_slot_element_verified(checked, element.type, depth + 1) && recover_storage_fields(checked, element.type, depth + 1);
+}
+
 bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 	if (depth > 32) return false;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
 	while (i < checked.bindings.program.arena.list_count(fields)) {
 		var node = checked.bindings.program.arena.node_at(fields, i); var symbol = checked.node_symbols[node.index]; var value = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, value);
-		if (kind == 31) {
-			if (!recover_storage_fields(checked, value, depth + 1)) return false;
-		}
-		else {
-			if (kind == 22) {
-				var element = checked.types.argument(checked.types, value, 0); int code = checked_kind(checked, element.type);
-				if (element.flags != 0 || !type_numeric(code) && code != 13) return false;
-			} else {
-				if (kind == 27) {
-					if (!class_storage_shared_verified(checked, value, depth + 1)) return false;
-					var payload = checked.types.argument(checked.types, value, 0).type;
-					if (!recover_storage_fields(checked, payload, depth + 1)) return false;
+		if (kind == 23) {
+			if (!recover_storage_slots(checked, value, depth + 1)) return false;
+		} else { if (kind == 31) {
+				if (!recover_storage_fields(checked, value, depth + 1)) return false;
+			}
+			else {
+				if (kind == 22) {
+					var element = checked.types.argument(checked.types, value, 0); int code = checked_kind(checked, element.type);
+					if (element.flags != 0 || !type_numeric(code) && code != 13) return false;
 				} else {
-					if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+					if (kind == 27) {
+						if (!class_storage_shared_verified(checked, value, depth + 1)) return false;
+						var payload = checked.types.argument(checked.types, value, 0).type;
+						if (!recover_storage_fields(checked, payload, depth + 1)) return false;
+					} else {
+						if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+					}
 				}
 			}
 		}

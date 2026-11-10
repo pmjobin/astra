@@ -170,6 +170,33 @@ element support, whole-module physical qualification or full compiler credit
 is claimed from the focused helpers. The earlier bounded regression campaign
 qualifies its recorded compiler checkpoint, not these unbuilt host edits.
 
+The next implementation batch adds retained Flow operations68 (empty slots),
+69 (slot call) and70 (count/capacity), with source correspondence, field-place
+checks, unique owner consumption, entry reservations, CFG/SSA uses, module-local
+helpers and physical instruction consumers. Slot descriptors remain fields;
+the callable carrier rules are unchanged. Initialization requires the actual
+owned field in its verified constructor; whole-descriptor replacement is
+refused. Mutating calls require its existing writable field fact and preserve
+the receiver during argument evaluation. Nested slot mutation during those
+evaluations is conservatively refused until a separate alias proof exists.
+No lexical root is synthesized. This batch is not yet native-qualified; full
+compiler and template/concrete coverage remain unproved.
+
+`current-C0-semantics4` checks all 190 current implementation inputs after
+this batch: exit0 in50.22 seconds, with exact before/after source hashes.
+This is a front-end check. The subsequent O0 integration build and focused
+native field-slot probes are separate pending qualifications.
+
+The generic instantiator also traverses its declaration's original node/symbol
+windows directly instead of rescanning unrelated original declarations. The
+mapping functions are identically zero outside those windows; processing order
+and mapping bodies are unchanged. The independent structural consumer still
+walks the full original population. Boundary membership checks cover50,905
+valid windows and2,419,250 selected ordinals, including the309,231-node original
+program and signed-counter bounds. This is conditional source equivalence;
+actual clone behavior, whole-module speed/RSS and full compiler performance
+remain pending the rebuilt host. No generic or SSA ceiling is raised.
+
 Both complete corrected C0-built hosts were subsequently fed the exact frozen
 original 190-file population. Each returns exit3 with
 `RECOVER_FLOW 3 307096 0`, at the same original Bag span and fragment hash.

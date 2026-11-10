@@ -44,7 +44,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
 		row.kind = 15; row.token = checked.bindings.program.arena.get_token_operator_token(source); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_operand(source), function, handler, caught, depth + 1);
 	}
-	if (kind == SyntaxKind.CallExpressionSyntax() && !checked_slice_intrinsic(checked, source) || kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+	if (kind == SyntaxKind.CallExpressionSyntax() && !checked_slice_intrinsic(checked, source) && !class_storage_slot_call_present(checked, source) || kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 		row.kind = 4;
 		if (kind == SyntaxKind.CallExpressionSyntax()) {
 			row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
@@ -88,7 +88,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 			i = i + 1;
 		}
 	}
-	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax() && !class_storage_slot_capacity(checked, source)) {
 		row.kind = 6; row.symbol = recover_type_receiver(checked, source);
 		row.token = checked.bindings.program.arena.get_token_field_name(source);
 		if (row.symbol.index > 0 && checked_kind(checked, checked.symbol_types[row.symbol.index]) == 30) row.kind = 12;

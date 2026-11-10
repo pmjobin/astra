@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Independent source/layout/physical consumer for ordinary fielded Classes.
 // No emitter helper or pointer-shaped Error layout is used as authority.
-bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* allocate, void* free, void* copy) throws Error {
+bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloads, void*[] destroyers, void*[] shared_drops, void*[] slot_functions, void* snapshot, void* allocate, void* free, void* copy) throws Error {
 	if (!class_storage_verify(ssa.cfg.core.flow.fields.layout, ssa.cfg.core.flow.checked) || len(payloads) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || len(destroyers) != len(payloads)) return false;
 	bool needs_snapshot = false; int s = 0;
 	while (s < len(payloads)) {
@@ -32,7 +32,10 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloa
 				if (fact.ordinal != i || LLVMOffsetOfElement(layout, physical, i) != fact.offset as u64 || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, child, LLVMStructGetTypeAtIndex(physical, i))) return false;
 				if (kind == 15) needs_snapshot = true;
 				if ((ssa.cfg.core.flow.checked.symbol_flags[symbol.index] & 4) != 0 || kind == 15) {
-					instructions = instructions + 3;
+					if (kind == 23) instructions = instructions + 2;
+					else {
+						instructions = instructions + 3;
+					}
 					if (kind == 22 || kind == 15) instructions = instructions + 1;
 				}
 				i = i + 1;
@@ -47,23 +50,28 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloa
 			while (i >= 0) {
 				var node = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var symbol = ssa.cfg.core.flow.checked.node_symbols[node.index]; var child = ssa.cfg.core.flow.checked.symbol_types[symbol.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, child);
 				if ((ssa.cfg.core.flow.checked.symbol_flags[symbol.index] & 4) != 0 || kind == 15) {
-					if (!recover_llvm_field(body[at], physical, object, i) || !recover_llvm_load_field(body[at + 1], physical, object, i) || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, child, LLVMTypeOf(body[at + 1]))) return false;
-					void* data = body[at + 1]; at = at + 2;
-					if (kind == 22 || kind == 15) {
-						if (!recover_llvm_extract(body[at], data, 0)) return false;
-						data = body[at];
-						at = at + 1;
+					if (kind == 23) {
+						if (!recover_llvm_field(body[at], physical, object, i) || !recover_llvm_call(body[at + 1], slot_functions[child.index * 6 + 5], 1, 0) || LLVMGetArgOperand(body[at + 1], 0) != body[at]) return false;
+						at = at + 2;
+					} else {
+						if (!recover_llvm_field(body[at], physical, object, i) || !recover_llvm_load_field(body[at + 1], physical, object, i) || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, child, LLVMTypeOf(body[at + 1]))) return false;
+						void* data = body[at + 1]; at = at + 2;
+						if (kind == 22 || kind == 15) {
+							if (!recover_llvm_extract(body[at], data, 0)) return false;
+							data = body[at];
+							at = at + 1;
+						}
+						void* drop = free; int convention = 0;
+						if (kind == 31 && destroyers[ssa.cfg.core.flow.checked.types.row(child).nominal.index] != null) {
+							drop = destroyers[ssa.cfg.core.flow.checked.types.row(child).nominal.index];
+							convention = 8;
+						}
+						if (kind == 27) {
+							drop = shared_drops[child.index];
+							convention = 8;
+						}
+						if (!recover_llvm_call(body[at], drop, 1, convention) || LLVMGetArgOperand(body[at], 0) != data) return false; at = at + 1;
 					}
-					void* drop = free; int convention = 0;
-					if (kind == 31 && destroyers[ssa.cfg.core.flow.checked.types.row(child).nominal.index] != null) {
-						drop = destroyers[ssa.cfg.core.flow.checked.types.row(child).nominal.index];
-						convention = 8;
-					}
-					if (kind == 27) {
-						drop = shared_drops[child.index];
-						convention = 8;
-					}
-					if (!recover_llvm_call(body[at], drop, 1, convention) || LLVMGetArgOperand(body[at], 0) != data) return false; at = at + 1;
 				}
 				i = i - 1;
 			}
@@ -97,6 +105,28 @@ int recover_class_field_instructions(RecoverSsa ssa, RecoverBlock block) {
 		if (kind == 22 || kind == 15) count = count + 1;
 	}
 	return count;
+}
+
+bool recover_slot_instruction_verified(RecoverSsa ssa, RecoverBlock block, void* operation, void*[] values, void*[] slot_functions) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value;
+	int receiver = ssa.cfg.core.flow.data.edges[row.first];
+	var descriptor = values[receiver];
+	if (descriptor == null || LLVMIsAInstruction(descriptor) == null || LLVMGetInstructionOpcode(descriptor) != 27) return false;
+	if (block.opcode == 70) {
+		int ordinal = 1; if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "capacity")) ordinal = 2;
+		return operation == values[block.origin] && recover_llvm_extract(operation, descriptor, ordinal);
+	}
+	if (block.opcode != 69) return false;
+	int action = 1; if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "append")) action = 2; if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "take")) action = 3; if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "replace")) action = 4;
+	var type = ssa.cfg.core.nodes[receiver - 1].value.type;
+	if (!recover_llvm_call(operation, slot_functions[type.index * 6 + action], row.count, 0) || !recover_llvm_native_attributes(operation, row.count) || LLVMGetArgOperand(operation, 0) != LLVMGetOperand(descriptor, 0)) return false;
+	if (row.type.index != 14 && values[block.origin] != operation) return false;
+	int i = 1;
+	while (i < row.count) {
+		if (LLVMGetArgOperand(operation, i) != values[ssa.cfg.core.flow.data.edges[row.first + i]]) return false;
+		i = i + 1;
+	}
+	return true;
 }
 
 bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* free, void*[] error_payloads) {

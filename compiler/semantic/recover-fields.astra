@@ -102,7 +102,11 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.BinaryExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_left(node), function, aggregate, initialized, depth + 1) && recover_constructor_value(checked, checked.bindings.program.arena.get_node_right(node), function, aggregate, initialized, depth + 1);
-	if (kind == SyntaxKind.BufferAllocationSyntax()) return checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && checked.bindings.program.arena.get_node_failure_call(node).index == 0 && recover_constructor_value(checked, checked.bindings.program.arena.get_node_count(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.BufferAllocationSyntax()) {
+		var type = checked.uses[node.index].type;
+		if (checked_kind(checked, type) == 23) return class_storage_slot_initialization(checked, node, type) && recover_storage_slots(checked, type, 0);
+		return checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && checked.bindings.program.arena.get_node_failure_call(node).index == 0 && recover_constructor_value(checked, checked.bindings.program.arena.get_node_count(node), function, aggregate, initialized, depth + 1);
+	}
 	if (kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, node)) {
 		var arguments = checked_call_arguments(checked, node);
 		return checked.bindings.program.arena.list_count(arguments) == 1 && recover_constructor_value(checked, checked.bindings.program.arena.node_at(arguments, 0), function, aggregate, initialized, depth + 1);
@@ -272,6 +276,9 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 			if (fact.initializing != initializing || fact.writable != writable || initializing && !recover_field_constructor_verified(checked, function)) return false;
 			if (row.kind == 44 && (!writable || selected.index != fact.field.index || row.a < 1 || row.a > flow.node_count || flow.nodes[row.a - 1].type.index != physical.semantic)) return false;
 			if (row.kind == 44) {
+				// A slot descriptor is constructed once in its actual owned
+				// field. Replacement needs its own retirement contract.
+				if (checked_kind(checked, type_id(physical.semantic)) == 23 && !initializing) return false;
 				var work = new int[1]; work[0] = 8000000;
 				if (!recover_borrow_preserved(flow, row.a, fact.receiver, work, 0)) return false;
 				if (!recover_payload_preserved(flow, row.a, fact.aggregate, work, 0)) return false;

@@ -154,14 +154,14 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	}
 	int owner = 0; if (recover_error_new_kind(row.kind)) owner = id;
 	if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0), seen)) return false;
-	int head = op; if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19) && row.count > 0) head = cfg.regions[cfg.core.flow.data.edges[row.first + row.count - 1] - 1].next;
+	int head = op; if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) && row.count > 0) head = cfg.regions[cfg.core.flow.data.edges[row.first + row.count - 1] - 1].next;
 	// With only the hidden receiver, its guard is also the last argument's
 	// continuation. Entry reservations follow that guard and precede the call.
 	if (row.kind == 4 && row.count == 1 && recover_call_receiver(cfg.core.flow.checked, row.symbol)) {
 		if (head < 1 || head > cfg.block_count) return false;
 		head = cfg.blocks[head - 1].next;
 	}
-	if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19) && !recover_cfg_check_commit(cfg, head, id, op, seen)) return false; int i = row.count - 1;
+	if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) && !recover_cfg_check_commit(cfg, head, id, op, seen)) return false; int i = row.count - 1;
 	while (i >= 0) {
 		int child = cfg.core.flow.data.edges[row.first + i];
 		if (i == 0 && row.kind == 4 && recover_call_receiver(cfg.core.flow.checked, row.symbol)) {

@@ -37,7 +37,7 @@ bool recover_exchange_place(RecoverFlow flow, int id) {
 bool recover_payload_preserved(RecoverFlowData flow, int id, TypeId aggregate, int[] work, int depth) {
 	if (id < 1 || id > flow.node_count || depth > 192 || work[0] == 0) return false;
 	work[0] = work[0] - 1; var row = flow.nodes[id - 1];
-	if (aggregate.index > 0 && row.type.index == aggregate.index) return false;
+	if (row.kind == 69 || aggregate.index > 0 && row.type.index == aggregate.index) return false;
 	if (row.a > 0 && !recover_payload_preserved(flow, row.a, aggregate, work, depth + 1) || row.b > 0 && !recover_payload_preserved(flow, row.b, aggregate, work, depth + 1) || row.c > 0 && !recover_payload_preserved(flow, row.c, aggregate, work, depth + 1)) return false;
 	int i = 0;
 	while (i < row.count) {
