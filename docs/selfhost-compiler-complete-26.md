@@ -188,8 +188,9 @@ preserve all padding bytes checked by an independent C observer, and have clean
 unsuppressed Valgrind. Those focused commands take1.86 seconds combined. A first
 kernel attempt lacks a required existing C API declaration and remains failed.
 All180 current production modules pass C0 front-end checking after the helpers.
-Neither helper nor source-plan evidence enables Astra record admission; the
-module value/memory paths and independent whole-module checks remain unhooked.
+This helper and source-plan evidence alone does not qualify Astra record
+admission. The memory helper remains unhooked; the subsequent value integration
+below must pass its own native and independent whole-module checks.
 
 The frozen `3881177` native O0 host completes in3,101.18 seconds and has SHA-256
 `177e9213d52aaa793273dc2ea8bc396907b0cbe004788f6e3ba4b1374f47b67f`.
@@ -219,9 +220,40 @@ it does not enable nested record memory or the deferred graph55 receiver proof.
 modules and the focused host in52.40 seconds. `record-values-oracle1-O0` has two
 fresh original-C0 exit42 and clean unsuppressed memory receipts, for the source
 fixture and its renamed equivalent. They exercise once-only receiver mutation,
-normal/checked record results and the error edge. Astra source-stage controls,
-LLVM-valid wrong-aggregate controls and native execution remain pending a rebuilt
-host; the C0 receipts supply no Astra native or complete-compiler credit.
+normal/checked record results and the error edge. These initial C0 receipts
+supply no Astra native or complete-compiler credit.
+
+The subsequent frozen `c8cdccc` O0 host completes in2,882.73 seconds, reaches
+2,230,896KiB maximum RSS and has SHA-256
+`6c6f9afa28dcce2ba9055f29b75380aa639ef9546e4fdaede36156b9f5fe8ea0`.
+`record-values-nativegen4-O0` then passes source-stage and restored source/LLVM
+controls plus actual native generation, execution42 and clean unsuppressed
+Valgrind for both the original and renamed fixture. `slots-nativegen4-O0`
+retains all three focused positives and five refusals. The separate
+`native-gen4-independent-audit.json` reauthenticates195 consumed archived inputs
+against that Git revision, all180 production modules, actual tool identities in
+the original23.1.4 capsule, both sets of raw command stream hashes, ELF64 x86-64
+products, execution and memory receipts. This is an independent receipt recheck,
+not a new target execution. The observed build cost is not a matched speedup.
+These are O0 focused results; O2, inherited340/71 and whole original compiler
+qualification remain unproved for this host.
+
+The current nested-value candidate uses the independently verified source shape
+to produce flattened native carriers, parameter groups, constructors and field
+projections. Separate consumer traversals reconstruct scalar leaf counts, types
+and offsets from the actual source declarations without reading producer shape
+offsets. The physical consumer verifies each insert/extract, its block and exact
+instruction inventory, including partial LLVM constant folding. Already admitted
+flat records retain their emitted carrier shape. Class memory remains refused;
+an explicit Error-field guard also prevents native-value admission from silently
+flattening nested record memory. The original Error header and E25-A-v1 remain
+unchanged. `native-nestedvaluescheck2-O0` checks all180 modules and the focused
+host through original C0 semantics in49.80 seconds. `record-values-nestedoracle2-O0`
+has four original-C0 execution42 and clean memory receipts: nested values, their
+renamed equivalent, and Class/Error nested memory that the candidate must refuse.
+Nested Astra stage/physical/native results are pending the next frozen build;
+these C0-only observations receive zero Astra native or complete-compiler credit.
+The256 generic and8,000,000 SSA ceilings and graph55 deferral remain unchanged.
 
 While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
 local-declaration scans are replaced with one local index reconstructed from the

@@ -197,13 +197,9 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			if (instruction_count == 0) return false;
 		}
 		if (op == 8) {
-			if (!recover_llvm_record(ssa, row, values[block.origin], values)) return false;
-			var current = values[block.origin];
-			while (LLVMIsAInstruction(current) != null && LLVMGetInstructionParent(current) == physical) {
-				if (LLVMGetInstructionOpcode(current) != 54) return false;
-				instruction_count = instruction_count + 1;
-				current = LLVMGetOperand(current, 0);
-			}
+			int introduced = recover_llvm_record(ssa, row, values[block.origin], values, physical);
+			if (introduced < 0) return false;
+			instruction_count = 1 + introduced;
 		}
 		if (op == 12) {
 			var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
@@ -212,9 +208,9 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 				type = ssa.cfg.core.nodes[row.a - 1].value.type;
 				aggregate = values[row.a];
 			}
-			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
-			if (ordinal < 0 || !recover_llvm_extract(values[block.origin], aggregate, ordinal)) return false;
-			if (LLVMIsAInstruction(values[block.origin]) != null) instruction_count = 2;
+			int introduced = recover_llvm_record_projection(ssa, row, type, aggregate, values[block.origin], physical);
+			if (introduced < 0) return false;
+			instruction_count = 1 + introduced;
 		}
 
 		if (op == 69 || op == 70) {

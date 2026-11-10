@@ -8,7 +8,17 @@ int recover_abi_group_count(CheckedIndex checked, TypeId type, int flags) {
 	int kind = checked_kind(checked, type); if (kind == 22 || kind == 15) return 2;
 	if (kind == 30) {
 		var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
-		return checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node));
+		var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
+		while (f < checked.bindings.program.arena.list_count(fields)) {
+			var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index];
+			if (checked_kind(checked, checked.symbol_types[symbol.index]) == 30) {
+				var shape = recover_record_shape(checked, type);
+				if (!recover_record_shape_verify(shape, checked)) return 0;
+				return shape.leaf_count;
+			}
+			f = f + 1;
+		}
+		return checked.bindings.program.arena.list_count(fields);
 	}
 	return 1;
 }
@@ -78,8 +88,8 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 		int kind = checked_kind(checked, channel.type); int groups = 1;
 		if (kind == 22 || kind == 15) groups = 2;
 		if (kind == 30) {
-			var declaration = checked.bindings.symbol(checked.types.row(channel.type).nominal);
-			groups = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node));
+			groups = recover_record_value_count(checked, channel.type, 0);
+			if (groups < 0) return false;
 		}
 		physical = physical + groups; p = p + 1;
 	}
@@ -88,7 +98,8 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 }
 
 // Compare physical types against the original nominal table, independently
-// of the module's layout cache. Records here contain only scalar fields.
+// of the module's layout cache. Native record values flatten scalar leaves;
+// this function is not a record memory-layout check.
 bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) {
 	if (actual == null) return false;
 	int kind = checked_kind(checked, type);
@@ -102,11 +113,10 @@ bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) 
 	if (kind == 21 || kind == 22 || kind == 15) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
 	if (kind == 30) {
 		if (!recover_storage_record(checked, type) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
-		var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = checked.bindings.program.arena.list_count(fields); if (LLVMCountStructElementTypes(actual) != count) return false; int f = 0;
+		int count = recover_record_value_count(checked, type, 0); if (count < 0 || LLVMCountStructElementTypes(actual) != count) return false; int f = 0;
 		while (f < count) {
-			var node = checked.bindings.program.arena.node_at(fields, f);
-			var symbol = checked.node_symbols[node.index];
-			if (!recover_llvm_scalar_type(checked, checked.symbol_types[symbol.index], LLVMStructGetTypeAtIndex(actual, f))) return false;
+			var leaf = recover_record_value_type(checked, type, f, 0);
+			if (leaf.index == 0 || !recover_llvm_scalar_type(checked, leaf, LLVMStructGetTypeAtIndex(actual, f))) return false;
 			f = f + 1;
 		} return true;
 	}
@@ -129,11 +139,10 @@ bool recover_storage_llvm_abi(RecoverAbi plan, CheckedIndex checked, void* funct
 			if (LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, at))) != 12 || !recover_llvm_scalar_type(checked, type_id(1), LLVMTypeOf(LLVMGetParam(function, at + 1)))) return false;
 		}
 		else { if (kind == 30) {
-				var declaration = checked.bindings.symbol(checked.types.row(channel.type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
-				while (f < checked.bindings.program.arena.list_count(fields)) {
-					var node = checked.bindings.program.arena.node_at(fields, f);
-					var symbol = checked.node_symbols[node.index];
-					if (!recover_llvm_scalar_type(checked, checked.symbol_types[symbol.index], LLVMTypeOf(LLVMGetParam(function, at + f)))) return false;
+				int count = recover_record_value_count(checked, channel.type, 0); if (count < 0) return false; int f = 0;
+				while (f < count) {
+					var leaf = recover_record_value_type(checked, channel.type, f, 0);
+					if (leaf.index == 0 || !recover_llvm_scalar_type(checked, leaf, LLVMTypeOf(LLVMGetParam(function, at + f)))) return false;
 					f = f + 1;
 				}
 			} else {

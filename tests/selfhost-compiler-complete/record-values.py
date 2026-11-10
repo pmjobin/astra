@@ -18,6 +18,7 @@ def main():
 	p.add_argument('--component', type=Path)
 	p.add_argument('--oracle-only', action='store_true')
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
+	p.add_argument('--scope', choices=('flat', 'nested'), default='flat')
 	p.add_argument('--version', required=True)
 	p.add_argument('--build-root', type=Path, required=True)
 	p.add_argument('--runtime-root', type=Path, required=True)
@@ -47,12 +48,15 @@ def main():
 			except subprocess.TimeoutExpired:
 				os.killpg(process.pid, signal.SIGKILL); process.wait(); raise
 		commands.append(dict(name=name, argv=argv, exit=code, seconds=time.monotonic()-start, stdout_sha256=sha(leaf/(name+'.stdout')), stderr_sha256=sha(leaf/(name+'.stderr')))); write(leaf/'commands.json', commands)
-		assert code == expected, (name, code)
+		assert expected is None or code == expected, (name, code)
+		return code
 	def memory(exe, name):
 		run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', exe], name, 42)
 		assert all(token in (leaf/(name+'.stderr')).read_bytes() for token in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
-	fixture = recipe.with_suffix('.astra').read_text()
-	for label, text in [('original', fixture), ('renamed', fixture.replace('ValuePair', 'ResultFields').replace('ValueCounter', 'ReadCounter').replace('left', 'first').replace('right', 'second'))]:
+	fixture_path = recipe.with_name('record-nested-values.astra') if a.scope == 'nested' else recipe.with_suffix('.astra')
+	fixture = fixture_path.read_text()
+	renamed = fixture.replace('ValuePair', 'ResultFields').replace('ValueCounter', 'ReadCounter').replace('left', 'first').replace('right', 'second').replace('RecordLeaf', 'InnerValue').replace('RecordPair', 'OuterValue')
+	for label, text in [('original', fixture), ('renamed', renamed)]:
 		source = leaf/(label+'.astra'); source.write_text(text); inputs = [source, ROOT/'lib/astra/base/errors.astra']
 		links = [word for obj in objects for word in ('--link-object', obj)]
 		oracle = build/(label+'-C0'); run([a.compiler, '-'+a.mode, *inputs, *links, '-o', oracle], label+'-C0-build'); run([oracle], label+'-C0-execute', 42); memory(oracle, label+'-C0-memory')
@@ -70,8 +74,24 @@ def main():
 			for stream in ('stdout', 'stderr'): assert (leaf/(label+'-execute.'+stream)).read_bytes() == (leaf/(label+'-C0-execute.'+stream)).read_bytes()
 			row.update(Astra_native_execution=42, Astra_unsuppressed_memory=True, raw_LLVM_sha256=sha(physical), optimized_LLVM_sha256=sha(optimized), object_sha256=sha(obj), Astra_ELF_sha256=sha(exe))
 		rows.append(row); assert sha(recipe) == recipe_sha256
-		write(leaf/'result.json', dict(status='ORIGINAL_C0_ORACLES_ONLY' if a.oracle_only else 'FOCUSED_RECORD_RESULT_NATIVE_PASS', mode=a.mode, component_sha256=component_sha256, compiler_sha256=sha(a.compiler), LLVM_library_sha256=sha('/usr/lib64/libLLVM.so.23.1'), recipe_sha256=recipe_sha256, programs=rows, full_original_compiler_credit=0, limitation='Flat copyable record results only. Nested records and record memory admission remain separate. The source/model perturbations and LLVM-valid wrong-aggregate replacements are restored before native emission; refused alternatives are never executed. No inherited 340/71 regression or Stage1 credit.'))
+		write(leaf/'result.json', dict(status='RUNNING_FOCUSED_RECORD_RESULT', scope=a.scope, mode=a.mode, component_sha256=component_sha256, compiler_sha256=sha(a.compiler), LLVM_library_sha256=sha('/usr/lib64/libLLVM.so.23.1'), recipe_sha256=recipe_sha256, fixture_sha256=sha(fixture_path), programs=rows, full_original_compiler_credit=0, limitation='Copyable record values only, in the selected scope. Record memory admission remains separate. The source/model perturbations and LLVM-valid replacements are restored before native emission; refused alternatives are never executed. No inherited 340/71 regression or Stage1 credit.'))
 		print(label, 'C0=42', 'Astra=42' if a.component else 'oracle only', flush=True)
+	if a.scope == 'nested':
+		types = fixture.split('RecordPair record_identity(', 1)[0]
+		setup = 'RecordLeaf leaf = {tag = 1, value = 1234605616436508552}; RecordPair pair = {first = 2, leaf = leaf, last = 3};'
+		for label, declaration in [('Class-memory', 'class MemoryBox { RecordPair data; init(RecordPair input) { this.data = input; } }'), ('Error-memory', 'class MemoryBox : Error { RecordPair data; init(RecordPair input) : base("record") { this.data = input; } }')]:
+			source = leaf/(label+'.astra'); source.write_text(types+declaration+'\nint main() { '+setup+' var box = new MemoryBox(pair); return 42; }\n')
+			inputs = [source, ROOT/'lib/astra/base/errors.astra']; links = [word for obj in objects for word in ('--link-object', obj)]
+			oracle = build/(label+'-C0'); run([a.compiler, '-'+a.mode, *inputs, *links, '-o', oracle], label+'-C0-build'); run([oracle], label+'-C0-execute', 42); memory(oracle, label+'-C0-memory')
+			row = dict(name=label, intent='REFUSE_UNHOOKED_RECORD_MEMORY', sources={str(path):sha(path) for path in inputs}, C0_ELF_sha256=sha(oracle), C0_exit=42, C0_unsuppressed_memory=True, Astra_native_execution=None)
+			if a.component:
+				physical = build/(label+'.ll'); sentinel = b'Unhooked nested record memory output sentinel\n'; physical.write_bytes(sentinel)
+				code = run([a.component, '--native', physical, *inputs], label+'-native', None)
+				assert code != 0 and physical.read_bytes() == sentinel
+				row.update(native_exit=code, destination_preserved=True)
+			rows.append(row); print(label, 'C0=42', 'Astra refused' if a.component else 'oracle only', flush=True)
+	assert sha(recipe) == recipe_sha256
+	result = json.loads((leaf/'result.json').read_text()); result.update(status='ORIGINAL_C0_ORACLES_ONLY' if a.oracle_only else 'FOCUSED_RECORD_RESULT_NATIVE_PASS', programs=rows); write(leaf/'result.json', result)
 
 
 if __name__ == '__main__':

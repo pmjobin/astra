@@ -30,8 +30,6 @@ bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId typ
 }
 
 // Source paths and native leaf ordinals are separate from memory offsets.
-// This candidate plan is not an admission flag: the current backend remains
-// guarded until nested memory and flattened value lowering are both qualified.
 struct RecoverRecordPart {
 	TypeId type;
 	SymbolId field;
@@ -186,4 +184,64 @@ bool recover_record_shape_verify(RecoverRecordShape shape, CheckedIndex checked)
 		n = n + 1;
 	}
 	return counts[0] == shape.leaf_count;
+}
+
+// Consumer-side source traversal. It does not call the shape producer or use
+// retained offsets. A negative count refuses unsupported or excessive trees.
+int recover_record_value_count(CheckedIndex checked, TypeId type, int depth) {
+	if (depth > 32 || !checked.types.valid_id(type)) return -1;
+	int kind = checked_kind(checked, type); if (type_numeric(kind) || kind == 13) return 1;
+	if (kind != 30 || !class_storage_record_verified(checked, type) || checked_record_owned(checked, type, 0)) return -1;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int total = 0; int f = 0;
+	while (f < checked.bindings.program.arena.list_count(fields)) {
+		var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index];
+		if (symbol.index < 1 || checked.symbol_flags[symbol.index] != 0) return -1;
+		int child = recover_record_value_count(checked, checked.symbol_types[symbol.index], depth + 1);
+		if (child < 0 || total > 1024 - child) return -1;
+		total = total + child; f = f + 1;
+	}
+	return total;
+}
+
+TypeId recover_record_value_type(CheckedIndex checked, TypeId type, int ordinal, int depth) {
+	if (depth > 32 || ordinal < 0 || !checked.types.valid_id(type)) return no_type();
+	int kind = checked_kind(checked, type);
+	if (type_numeric(kind) || kind == 13) {
+		if (ordinal == 0) return type;
+		return no_type();
+	}
+	if (kind != 30 || !class_storage_record_verified(checked, type)) return no_type();
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int at = ordinal; int f = 0;
+	while (f < checked.bindings.program.arena.list_count(fields)) {
+		var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index];
+		if (symbol.index < 1 || checked.symbol_flags[symbol.index] != 0) return no_type();
+		var child = checked.symbol_types[symbol.index]; int count = recover_record_value_count(checked, child, depth + 1);
+		if (count < 0) return no_type();
+		if (at < count) return recover_record_value_type(checked, child, at, depth + 1);
+		at = at - count; f = f + 1;
+	}
+	return no_type();
+}
+
+int recover_record_value_first(CheckedIndex checked, TypeId type, int ordinal) {
+	if (checked_kind(checked, type) != 30 || ordinal < 0) return -1;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	if (ordinal >= checked.bindings.program.arena.list_count(fields)) return -1;
+	int first = 0; int f = 0;
+	while (f < ordinal) {
+		var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index]; int count = recover_record_value_count(checked, checked.symbol_types[symbol.index], 1);
+		if (count < 0 || first > 1024 - count) return -1;
+		first = first + count; f = f + 1;
+	}
+	return first;
+}
+
+int recover_record_shape_field(RecoverRecordShape shape, int ordinal) {
+	int p = 1;
+	while (p < shape.part_count) {
+		var part = shape.parts[p];
+		if (part.parent == 1 && part.ordinal == ordinal) return p;
+		p = p + 1;
+	}
+	return -1;
 }

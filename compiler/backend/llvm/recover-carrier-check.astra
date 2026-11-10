@@ -17,23 +17,70 @@ bool recover_llvm_group(CheckedIndex checked, TypeId type, void* value, void* fu
 	} return LLVMIsNull(current) != 0;
 }
 
-bool recover_llvm_record(RecoverSsa ssa, RecoverNode row, void* value, void*[] values) {
-	if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return false;
-	int i = row.count - 1; void* current = value;
+// Return the exact number of instructions introduced by this construction.
+// Source field counts and leaf ordering are reconstructed without a shape plan.
+int recover_llvm_record(RecoverSsa ssa, RecoverNode row, void* value, void*[] values, void* block) {
+	if (value == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return -1;
+	int at = recover_record_value_count(ssa.cfg.core.flow.checked, row.type, 0) - 1;
+	int i = row.count - 1; int instructions = 0; bool folded = false; void* current = value;
 	while (i >= 0) {
-		int child = ssa.cfg.core.flow.data.edges[row.first + i];
-		// LLVM folds inserts of all-constant fields. Extracting the verified
-		// field value also covers this canonical constant aggregate form.
-		if (LLVMIsAInstruction(current) == null) {
-			int f = 0;
-			while (f <= i) {
-				int element = ssa.cfg.core.flow.data.edges[row.first + f];
-				if (LLVMGetAggregateElement(current, f) != values[element]) return false;
-				f = f + 1;
+		int child = ssa.cfg.core.flow.data.edges[row.first + i]; var type = ssa.cfg.core.nodes[child - 1].value.type; bool record = checked_kind(ssa.cfg.core.flow.checked, type) == 30;
+		int count = 1; if (record) count = recover_record_value_count(ssa.cfg.core.flow.checked, type, 0);
+		if (count < 0) return -1; int leaf = count - 1;
+		while (leaf >= 0) {
+			void* element = null;
+			if (LLVMIsAInstruction(current) != null) {
+				if (LLVMGetInstructionParent(current) != block || LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, at) != 1 || LLVMHasMetadata(current) != 0) return -1;
+				element = LLVMGetOperand(current, 1); current = LLVMGetOperand(current, 0); instructions = instructions + 1;
+			} else {
+				if (at < 0) return -1;
+				element = LLVMGetAggregateElement(current, at); folded = true;
 			}
-			return true;
+			if (record) {
+				if (!recover_llvm_extract(element, values[child], leaf)) return -1;
+				if (LLVMIsAInstruction(values[child]) != null) {
+					if (LLVMGetInstructionParent(element) != block || LLVMHasMetadata(element) != 0) return -1;
+					instructions = instructions + 1;
+				}
+			} else {
+				if (element != values[child]) return -1;
+			}
+			at = at - 1; leaf = leaf - 1;
 		}
-		if (LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, i) != 1 || LLVMGetOperand(current, 1) != values[child]) return false;
-		current = LLVMGetOperand(current, 0); i = i - 1;
-	} return LLVMIsNull(current) != 0;
+		i = i - 1;
+	}
+	if (at != -1 || !folded && LLVMIsNull(current) == 0) return -1;
+	return instructions;
+}
+
+int recover_llvm_record_projection(RecoverSsa ssa, RecoverNode row, TypeId receiver, void* aggregate, void* value, void* block) {
+	if (value == null || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, receiver, LLVMTypeOf(aggregate))) return -1;
+	int ordinal = recover_record_field(ssa.cfg.core.flow.checked, receiver, row.token); int first = recover_record_value_first(ssa.cfg.core.flow.checked, receiver, ordinal);
+	if (first < 0) return -1;
+	if (checked_kind(ssa.cfg.core.flow.checked, row.type) != 30) {
+		if (!recover_llvm_extract(value, aggregate, first)) return -1;
+		if (LLVMIsAInstruction(value) == null) return 0;
+		if (LLVMGetInstructionParent(value) != block || LLVMHasMetadata(value) != 0) return -1;
+		return 1;
+	}
+	if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return -1;
+	int count = recover_record_value_count(ssa.cfg.core.flow.checked, row.type, 0); if (count < 0) return -1;
+	int leaf = count - 1; int instructions = 0; bool folded = false; void* current = value;
+	while (leaf >= 0) {
+		void* element = null;
+		if (LLVMIsAInstruction(current) != null) {
+			if (LLVMGetInstructionParent(current) != block || LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, leaf) != 1 || LLVMHasMetadata(current) != 0) return -1;
+			element = LLVMGetOperand(current, 1); current = LLVMGetOperand(current, 0); instructions = instructions + 1;
+		} else {
+			element = LLVMGetAggregateElement(current, leaf); folded = true;
+		}
+		if (!recover_llvm_extract(element, aggregate, first + leaf)) return -1;
+		if (LLVMIsAInstruction(aggregate) != null) {
+			if (LLVMGetInstructionParent(element) != block || LLVMHasMetadata(element) != 0) return -1;
+			instructions = instructions + 1;
+		}
+		leaf = leaf - 1;
+	}
+	if (!folded && LLVMIsNull(current) == 0) return -1;
+	return instructions;
 }

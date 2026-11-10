@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Nested source records use the original C0 flat native value convention.
+struct RecordLeaf { u8 tag; u64 value; }
+
+struct RecordPair { u8 first; RecordLeaf leaf; u8 last; }
+
+RecordPair record_identity(RecordPair input) { return input; }
+
+RecordLeaf record_inner(RecordLeaf input) { return input; }
+
+RecordPair record_checked(RecordPair input, int mode) throws Error {
+	if (mode < 0) {
+		throw new Error("negative");
+	}
+	return input;
+}
+
+RecordPair record_build(u8 first, RecordLeaf leaf, u8 last) {
+	RecordPair result = {first = first, leaf = leaf, last = last};
+	return result;
+}
+
+bool record_valid(RecordPair input) {
+	return input.first == 2 && input.leaf.tag == 1 && input.leaf.value == 1234605616436508552 && input.last == 3;
+}
+
+int main() {
+	RecordLeaf leaf = {tag = 1, value = 1234605616436508552}; RecordPair pair = {first = 2, leaf = leaf, last = 3};
+	if (!record_valid(pair)) return 1;
+	var returned = record_identity(pair); if (!record_valid(returned)) return 2;
+	var rebuilt = record_build(2, record_inner(returned.leaf), 3); if (!record_valid(rebuilt)) return 3;
+	if (record_inner(record_identity(pair).leaf).value != 1234605616436508552) return 4;
+	try {
+		if (record_checked(rebuilt, 0).leaf.tag != 1) return 5;
+		try { var unexpected = record_checked(pair, -1).leaf; return 6; }
+		catch (Error error) { if (error.message != "negative") return 7; }
+	} catch (Error error) { return 8; }
+	return 42;
+}

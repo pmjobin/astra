@@ -1,7 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Error object storage has the approved exception header and dynamic destroy
 // entry. It is never admitted by the ordinary Class payload query.
+bool recover_error_record_memory_source(CheckedIndex checked, SymbolId nominal, int depth) {
+	if (depth > 32 || nominal.index < 1 || nominal.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(nominal); var parent = checked.bindings.program.arena.get_node_parent_class(declaration.node);
+	if (parent.index > 0 && !recover_error_record_memory_source(checked, checked_effect_class(checked, parent), depth + 1)) return false;
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
+	while (f < checked.bindings.program.arena.list_count(fields)) {
+		var node = checked.bindings.program.arena.node_at(fields, f); var symbol = checked.node_symbols[node.index]; var type = checked.symbol_types[symbol.index];
+		if (checked_kind(checked, type) == 30) {
+			// Native value admission does not authorize flattening memory fields.
+			if (!recover_storage_record(checked, type)) return false;
+			var record = checked.bindings.symbol(checked.types.row(type).nominal); var members = checked.bindings.program.arena.get_list_fields(record.node); int m = 0;
+			while (m < checked.bindings.program.arena.list_count(members)) {
+				var field = checked.bindings.program.arena.node_at(members, m); var member = checked.node_symbols[field.index];
+				if (checked_kind(checked, checked.symbol_types[member.index]) == 30) return false;
+				m = m + 1;
+			}
+		}
+		f = f + 1;
+	}
+	return true;
+}
+
 bool recover_storage_error(CheckedIndex checked, TypeId type) {
 	if (!checked.types.valid_id(type) || checked_kind(checked, type) != 31) return false; var nominal = checked.types.row(type).nominal; var root = checked_effect_root(checked);
-	return root.index > 0 && checked_effect_subtype(checked, nominal, root) && (recover_error_shape(checked, nominal, 0) || error_storage_class(checked, type));
+	return root.index > 0 && checked_effect_subtype(checked, nominal, root) && (recover_error_shape(checked, nominal, 0) || error_storage_class(checked, type) && recover_error_record_memory_source(checked, nominal, 0));
 }

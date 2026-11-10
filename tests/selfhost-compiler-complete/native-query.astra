@@ -33,7 +33,7 @@ bool template_error_cache_controls(RecoverLlvm module, RecoverSsa ssa) throws Er
 
 bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	if (!module.check(ssa) || !recover_flow_verify(ssa.cfg.core.flow)) return false;
-	int count = 0; int n = 0;
+	int count = 0; int source_controls = 0; int n = 0;
 	while (n < ssa.cfg.core.flow.data.node_count) {
 		var row = ssa.cfg.core.flow.data.nodes[n];
 		if (row.kind == 12 && row.a > 0) {
@@ -43,6 +43,7 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 			ssa.cfg.core.flow.data.nodes[n].symbol = type_symbol(1);
 			rejected = !recover_flow_verify(ssa.cfg.core.flow); ssa.cfg.core.flow.data.nodes[n].symbol = row.symbol;
 			if (!rejected || !recover_flow_verify(ssa.cfg.core.flow)) return false;
+			source_controls = source_controls + 2;
 			var value = module.values[n + 1]; var aggregate = module.values[row.a];
 			if (value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 53 && LLVMIsAInstruction(aggregate) != null) {
 				LLVMSetOperand(value, 0, LLVMConstNull(LLVMTypeOf(aggregate)));
@@ -51,9 +52,22 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				count = count + 1;
 			}
 		}
+		if (row.kind == 8 || row.kind == 12 && checked_kind(ssa.cfg.core.flow.checked, row.type) == 30) {
+			var record = module.values[n + 1];
+			if (record != null && LLVMIsAInstruction(record) != null && LLVMGetInstructionOpcode(record) == 54) {
+				var element = LLVMGetOperand(record, 1); var replacement = LLVMConstNull(LLVMTypeOf(element));
+				if (element != replacement) {
+					LLVMSetOperand(record, 1, replacement);
+					bool rejected_record = llvm12_verify(module.module) == 0 && !module.check(ssa); LLVMSetOperand(record, 1, element);
+					if (!rejected_record || !module.check(ssa)) return false;
+					count = count + 1;
+				}
+			}
+		}
 		n = n + 1;
 	}
 	// Source/model controls and LLVM-valid replacements are separately labelled.
+	var output = new Utf8ByteBuilder(); source_append_text(output, "RECORD_VALUE_CONTROLS source="); append_int(output, source_controls); source_append_text(output, " physical="); append_int(output, count); var text = output.snapshot(); println(text.text);
 	return count > 0;
 }
 

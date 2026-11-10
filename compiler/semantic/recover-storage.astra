@@ -201,7 +201,7 @@ bool recover_slot_template_source(CheckedIndex checked, SymbolId owner) {
 bool recover_class_declaration_source(CheckedIndex checked, SymbolId symbol) {
 	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 4) return false;
 	var type = checked.symbol_types[symbol.index];
-	return recover_error_shape(checked, symbol, 0) || recover_storage_class(checked, type) || error_storage_class(checked, type) || recover_slot_template_source(checked, symbol);
+	return recover_error_shape(checked, symbol, 0) || recover_storage_class(checked, type) || error_storage_class(checked, type) && recover_error_record_memory_source(checked, symbol, 0) || recover_slot_template_source(checked, symbol);
 }
 
 // Owning slots are field storage, not a new callable carrier. Element source
@@ -244,13 +244,20 @@ bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 
 bool recover_storage_record(CheckedIndex checked, TypeId type) {
 	if (checked_kind(checked, type) != 30 || !class_storage_record_verified(checked, type) || !class_storage_fields_verified(checked, type, 0) || checked_record_owned(checked, type, 0)) return false;
-	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0; bool nested = false;
 	while (f < checked.bindings.program.arena.list_count(fields)) {
 		var node = checked.bindings.program.arena.node_at(fields, f);
 		var symbol = checked.node_symbols[node.index];
 		int kind = checked_kind(checked, checked.symbol_types[symbol.index]);
-		if (!type_numeric(kind) && kind != 13) return false;
+		if (kind == 30) nested = true;
+		else {
+			if (!type_numeric(kind) && kind != 13) return false;
+		}
 		f = f + 1;
+	}
+	if (nested) {
+		var shape = recover_record_shape(checked, type);
+		return recover_record_shape_verify(shape, checked);
 	}
 	return true;
 }
