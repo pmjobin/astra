@@ -119,6 +119,29 @@ for original Bag<FlowGraph> payload support or the independent graph55 owner
 proof. A new native O0 probe freezes every production module atf818ab6 before
 building; its output and focused native results are pending.
 
+That O0 probe finishes in51:00.52, peak RSS2,254,972 KiB; its ELF SHA-256 is
+`39d189ff56b35997ce80f44d5ad0e35231de959d0647555a0f97afea43b9cd54`.
+Its smaller entry retains193 Astra inputs including all180 production modules;
+the differing source set prevents a matched cold-speedup claim. Empty slots and
+all six ordinary field-slot operations pass actual native execution and memory
+checks. Their raw LLVM and final ELF identities match the preceding candidate4
+results, although optimized textual LLVM keeps its actual differing path bytes.
+The five additional invalid sources still refuse; four negatives skipped by the
+first fail-fast sequence run separately as `slots-nativegen2neg-O0`.
+
+Original Bag's six-operation program passes actual Flow/Core/CFG/SSA but still
+exits5 at physical validation and preserves its output sentinel. An exact C0 Core
+symbol map takes65.61 seconds. Unchanged-ELF GDB traces LLVM verification0 and
+`recover_error_types_verified` false: original generic Bag is symbol1/type17,
+while its closed instance is symbol44/type34. The Error-table consumer demands
+an ordinary runtime layout even for the independently checked template definition.
+The correction permits only the complete template source/closed-instance proof
+and retains all four null-cache requirements. Four planned cache-model mutations
+keep LLVM valid and must each refuse, with restored valid twins. These are not
+new physical IR mutation categories. Both the correction and controls pass C0
+front-end checks; their new native build/execution remains pending. The earlier
+refused module is a diagnosis witness only and is never linked or executed.
+
 The next record-storage work uses fresh original-C0 evidence rather than assuming
 one representation. `record-abi-actual1` executes normal and checked success/error
 paths at O0/O2, exit42, with unsuppressed zero-error/zero-leak memory receipts.

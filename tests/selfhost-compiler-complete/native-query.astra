@@ -1,8 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Focused development host for the complete production pipeline. Regression
 // mutation dispatch is separate; this is not a packaged or self-hosted astrac.
+bool template_error_cache_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa)) return false;
+	var root = checked_effect_root(ssa.cfg.core.flow.checked);
+	if (root.index < 1 || module.descriptors[root.index] == null || module.payloads[root.index] == null || module.destroyers[root.index] == null || module.tables[root.index] == null) return false;
+	int count = 0; int s = 1;
+	while (s <= ssa.cfg.core.flow.checked.bindings.symbol_count) {
+		var symbol = type_symbol(s);
+		if (recover_slot_template_source(ssa.cfg.core.flow.checked, symbol)) {
+			if (recover_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s]) || module.descriptors[s] != null || module.payloads[s] != null || module.destroyers[s] != null || module.tables[s] != null) return false;
+			module.descriptors[s] = module.descriptors[root.index];
+			bool rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.descriptors[s] = null;
+			if (!rejected || !module.check(ssa)) return false;
+			module.payloads[s] = module.payloads[root.index];
+			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.payloads[s] = null;
+			if (!rejected || !module.check(ssa)) return false;
+			module.destroyers[s] = module.destroyers[root.index];
+			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.destroyers[s] = null;
+			if (!rejected || !module.check(ssa)) return false;
+			module.tables[s] = module.tables[root.index];
+			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.tables[s] = null;
+			if (!rejected || !module.check(ssa)) return false;
+			count = count + 1;
+		}
+		s = s + 1;
+	}
+	// These are cache-model perturbations; the unchanged LLVM remains valid.
+	// They are not counted as new physical IR mutation categories.
+	return count > 0;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls") return 9;
 	if (args[1] == "--native" && len(args) < 4) return 9;
 	try {
 		int start = 2; if (args[1] == "--native") start = 3;
@@ -36,7 +66,12 @@ int main(string[] args) {
 		}
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
 		if (args[1] == "--shared-stages") return 42;
-		var module = new RecoverLlvm(ssa); module.build(ssa); module.write(ssa, args[2]);
+		var module = new RecoverLlvm(ssa); module.build(ssa);
+		if (args[1] == "--template-cache-controls") {
+			if (template_error_cache_controls(module, ssa)) return 42;
+			return 10;
+		}
+		module.write(ssa, args[2]);
 		println("RECOVER_LLVM_WRITTEN"); return 0;
 	} catch (Error error) { println_stderr(error.message); return 5; }
 }

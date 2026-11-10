@@ -69,7 +69,10 @@ bool recover_error_types_verified(RecoverSsa ssa, void* layout, void* payload, v
 		if (s > 0) expected = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)).kind == 4 && (recover_error_shape(ssa.cfg.core.flow.checked, type_symbol(s), 0) || error_storage_nominal(ssa.cfg.core.flow.checked, type_symbol(s), 0));
 		if (!expected) {
 			if (descriptors[s] != null || payloads[s] != null || destroyers[s] != null || tables[s] != null) return false;
-			if (s > 0 && ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)).kind == 4 && !recover_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s])) return false;
+			// A definition-time template has no runtime Error descriptor. Its
+			// complete original bodies and every actual closed instance must
+			// pass the independent source proof; all four caches above stay null.
+			if (s > 0 && ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)).kind == 4 && !recover_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s]) && !recover_slot_template_source(ssa.cfg.core.flow.checked, type_symbol(s))) return false;
 		} else {
 			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s));
 			var type = ssa.cfg.core.flow.checked.symbol_types[s];
