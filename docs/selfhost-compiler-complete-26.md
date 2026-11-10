@@ -17,6 +17,7 @@ attributed below. No Stage1 or self-host claim is made.
 | Candidate4 O0 host rebuild | Finished in53:07.61, peak RSS2,532,892 KiB; no compiler completeness inference |
 | Focused source-to-native slot checks | Empty field slots, reserve/append/take and all six operations pass; five additional owner/source negatives refuse with preserved destinations |
 | Original generic Bag source | C0 executes42 with clean memory; candidate4 still refuses its declaration; bounded template definition proof is under development |
+| SSA local-declaration lookup | Exact new kernel passes C0 O0/O2 occurrence, boundary and memory checks; integrated Astra SSA validation is pending |
 | Current O2 host rebuild and broad regressions | Deferred until focused O0 integration succeeds |
 | Full original compiler native objects | 0 of 2 profiles proved; remains a completeness blocker |
 | Full compiler linkage and performance | Unproved |
@@ -96,6 +97,24 @@ line6460. The new checker requested a Name-only accessor from a Move node before
 selecting the Move accessor. The corrected source selects the node-appropriate
 accessor before invoking it. Its native rebuild and functional checks are pending;
 neither the trap nor the correction establishes generic Bag admission.
+
+While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
+local-declaration scans are replaced with one local index reconstructed from the
+independently verified Core/CFG. Missing and duplicate sites still refuse, and
+the original per-use dominance checks remain. Each index scan step is metered
+under the unchanged8,000,000 budget; no cached producer index is trusted.
+The byte-exact production kernel and RecoverWork declaration are independently
+bound by C0 normalized ASTs. Using minimal field containers, an occurrence oracle
+checks5,461 exhaustive cases and seven capacity/order cases per profile under
+C0 O0/O2. Both actual native executables exit42 with unsuppressed zero-error/
+zero-leak Valgrind; all commands take1.38 seconds combined. The8,192-row case
+uses exactly8,192 index steps. The former full scan for8,192 reads would visit
+67,108,864 rows; this is an algorithmic count, not a measured whole-compiler
+speedup. Initial harness AST-selection and parameter-assignment failures remain
+preserved; the passing receipt is `ssa-index-kernel3`.
+All180 current production modules also pass the focused C0 front-end check after
+the SSA edit. Integrated SSA/Astra native, whole-compiler scaling and performance
+remain unproved; these helper containers receive no compiler completeness credit.
 
 A separate focused native test entry compiles with every one of the180 current
 production compiler modules under C0's actual `--dump-semantics` command. Its

@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Minimal field containers for the exact production index kernel under C0.
+// This tests lookup semantics/work only; it does not verify a compiler CFG/SSA.
+extern(C) void observed(int nodes, int code, int first, int second, int third, int remaining, int exhausted);
+
+struct SymbolId { int index; }
+
+struct KernelValue { int kind; SymbolId symbol; }
+
+struct KernelNode { KernelValue value; }
+
+struct KernelRegion { int operation; }
+
+class KernelBindings { int symbol_count;
+
+	init(int count) { this.symbol_count = count; } }
+
+class KernelChecked { owned KernelBindings bindings;
+
+	init(int count) { var bindings = new KernelBindings(count); this.bindings = move bindings; } }
+
+class KernelFlow { owned KernelChecked checked;
+
+	init(int count) { var checked = new KernelChecked(count); this.checked = move checked; } }
+
+class KernelCore {
+	owned KernelFlow flow; owned KernelNode[] nodes; int count;
+
+	init(int nodes, int symbols) { var flow = new KernelFlow(symbols); this.flow = move flow; this.nodes = new KernelNode[nodes]; this.count = nodes; }
+}
+
+class RecoverCfg {
+	owned KernelCore core; owned KernelRegion[] regions;
+
+	init(int nodes, int symbols) { var core = new KernelCore(nodes, symbols); this.core = move core; this.regions = new KernelRegion[nodes]; }
+}
+
+void kernel_fill(RecoverCfg cfg, int code, bool unique) {
+	int i = 0; int remaining_code = code;
+	while (i < cfg.core.count) {
+		int symbol = remaining_code % 4; remaining_code = remaining_code / 4; if (unique) symbol = i + 1;
+		KernelValue value = {kind = 0, symbol = {index = symbol}}; if (symbol > 0) value.kind = 27;
+		KernelNode node = {value = value}; cfg.core.nodes[i] = node;
+		KernelRegion region = {operation = i + 1}; cfg.regions[i] = region;
+		i = i + 1;
+	}
+}
+
+int main() {
+	int n = 0; int limit = 1;
+	while (n <= 6) {
+		int code = 0;
+		while (code < limit) {
+			var cfg = new RecoverCfg(n, 3); kernel_fill(cfg, code, false);
+			var work = new RecoverWork(8000000); var result = recover_ssa_local_definitions(cfg, work);
+			if (work.exhausted || len(result) != 4) return 2;
+			observed(n, code, result[1], result[2], result[3], work.remaining, 0);
+			code = code + 1;
+		}
+		n = n + 1; limit = limit * 4;
+	}
+	{
+		var cfg = new RecoverCfg(8192, 8192); kernel_fill(cfg, 0, true);
+		var work = new RecoverWork(8000000); var result = recover_ssa_local_definitions(cfg, work);
+		if (work.exhausted || len(result) != 8193 || work.remaining != 8000000 - 8192) return 3;
+		int i = 1; while (i <= 8192) {
+			if (result[i] != i) return 4;
+			i = i + 1;
+		}
+		observed(8192, -1, result[1], result[4096], result[8192], work.remaining, 0);
+	}
+	int boundary = 0;
+	while (boundary < 4) {
+		var cfg = new RecoverCfg(4, 4); kernel_fill(cfg, 0, true);
+		int budget = 3; if (boundary == 1) budget = 4; if (boundary == 2) budget = 0; if (boundary == 3) budget = 8000001;
+		var work = new RecoverWork(budget); var result = recover_ssa_local_definitions(cfg, work);
+		int exhausted = 0; if (work.exhausted) exhausted = 1;
+		observed(4, -2 - boundary, result[1], result[2], result[4], work.remaining, exhausted);
+		boundary = boundary + 1;
+	}
+	int order = 0;
+	while (order < 2) {
+		var cfg = new RecoverCfg(2, 1); kernel_fill(cfg, 5, false);
+		KernelRegion zero = {operation = 0}; cfg.regions[order] = zero;
+		var work = new RecoverWork(8000000); var result = recover_ssa_local_definitions(cfg, work);
+		observed(2, -6 - order, result[1], 0, 0, work.remaining, 0);
+		order = order + 1;
+	}
+	return 42;
+}
