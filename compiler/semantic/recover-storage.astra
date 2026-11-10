@@ -224,8 +224,7 @@ bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 			}
 			else {
 				if (kind == 22) {
-					var element = checked.types.argument(checked.types, value, 0); int code = checked_kind(checked, element.type);
-					if (element.flags != 0 || !type_numeric(code) && code != 13) return false;
+					if (!recover_array_type(checked, value)) return false;
 				} else {
 					if (kind == 27) {
 						if (!class_storage_shared_verified(checked, value, depth + 1)) return false;
@@ -279,9 +278,7 @@ bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool 
 	if (kind == 27) return (flags == 4 || !result && flags == 2) && recover_storage_shared(checked, type);
 	if (kind == 31) return (flags == 4 || !result && (flags == 0 || flags == 2)) && (recover_storage_class(checked, type) || recover_storage_error(checked, type));
 	if (kind == 22) {
-		var element = checked.types.argument(checked.types, type, 0);
-		int code = checked_kind(checked, element.type);
-		return (flags == 4 || !result && (flags == 0 || flags == 2)) && element.flags == 0 && (type_numeric(code) || code == 13);
+		return (flags == 4 || !result && (flags == 0 || flags == 2)) && recover_array_type(checked, type);
 	}
 	return false;
 }

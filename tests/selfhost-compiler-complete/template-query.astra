@@ -108,6 +108,46 @@ int record_shape_cli(CheckedIndex checked) throws Error {
 	return 3;
 }
 
+void template_closed_storage(CheckedIndex checked, SymbolId owner) throws Error {
+	int i = 0;
+	while (i < checked.instance_count) {
+		var instance = checked.instances[i];
+		if (instance.origin.index == owner.index && instance.state == 2) {
+			var type = checked.symbol_types[instance.concrete.index];
+			var output = new Utf8ByteBuilder();
+			var declaration = checked.bindings.symbol(owner);
+			var name = checked.bindings.program.arena.token_message(declaration.token);
+			source_append_text(output, "CLOSED "); source_append_text(output, name.text);
+			source_append_text(output, " TYPE "); append_int(output, type.index);
+			int admitted = 0;
+			if (recover_storage_class(checked, type)) admitted = 1;
+			source_append_text(output, " STORAGE "); append_int(output, admitted);
+			var concrete = checked.bindings.symbol(instance.concrete);
+			var fields = checked.bindings.program.arena.get_list_fields(concrete.node); int f = 0;
+			while (f < checked.bindings.program.arena.list_count(fields)) {
+				var field = checked.bindings.program.arena.node_at(fields, f);
+				var field_type = checked.symbol_types[checked.node_symbols[field.index].index];
+				if (checked_kind(checked, field_type) == 23) {
+					var element = checked.types.argument(checked.types, field_type, 0).type;
+					var nominal = checked.types.row(element).nominal;
+					source_append_text(output, " ELEMENT "); append_int(output, element.index);
+					if (nominal.index > 0) {
+						var payload = checked.bindings.symbol(nominal);
+						var label = checked.bindings.program.arena.token_message(payload.token);
+						source_append_text(output, " "); source_append_text(output, label.text);
+					}
+					int accepted = 0;
+					if (recover_storage_slots(checked, field_type, 0)) accepted = 1;
+					source_append_text(output, " SLOTS "); append_int(output, accepted);
+				}
+				f = f + 1;
+			}
+			var text = output.snapshot(); println(text.text);
+		}
+		i = i + 1;
+	}
+}
+
 int main(string[] args) {
 	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
@@ -130,6 +170,7 @@ int main(string[] args) {
 				int bit = 0; if (header) bit = 1; source_append_text(output, " HEADER "); append_int(output, bit);
 				bit = 0; if (accepted) bit = 1; source_append_text(output, " SOURCE "); append_int(output, bit);
 				var text = output.snapshot(); println(text.text); complete = complete && accepted;
+				if (args[1] == "--flow") template_closed_storage(checked, symbol);
 				if (args[1] == "--mutations" && (!accepted || !template_source_controls(checked, symbol))) return 8;
 				var members = checked.bindings.program.arena.get_list_members(declaration.node); int m = 0;
 				while (m < checked.bindings.program.arena.list_count(members)) {

@@ -18,18 +18,18 @@ bool recover_record_field_layout(CheckedIndex checked, ClassStoragePlan plan, vo
 	return true;
 }
 
-bool recover_record_field_helpers_verified(CheckedIndex checked, void* module, void*[] payloads, RecoverRecordFieldStorage[] records) throws Error {
-	if (len(records) != checked.types.count + 1) return false;
+bool recover_record_storage_verified(RecoverSsa ssa, void* module, void* layout, void*[] payloads, RecoverRecordStorage[] records, void* trap) throws Error {
+	if (len(records) != ssa.cfg.core.flow.checked.types.count + 1) return false;
 	var expected = new void*[len(records)]; int s = 1;
 	while (s < len(payloads)) {
 		if (payloads[s] != null) {
-			var declaration = checked.bindings.symbol(type_symbol(s));
-			var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s));
+			var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node);
 			int i = 0;
-			while (i < checked.bindings.program.arena.list_count(fields)) {
-				var node = checked.bindings.program.arena.node_at(fields, i);
-				var type = checked.symbol_types[checked.node_symbols[node.index].index];
-				if (checked_kind(checked, type) == 30) {
+			while (i < ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields)) {
+				var node = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i);
+				var type = ssa.cfg.core.flow.checked.symbol_types[ssa.cfg.core.flow.checked.node_symbols[node.index].index];
+				if (checked_kind(ssa.cfg.core.flow.checked, type) == 30) {
 					var memory = LLVMStructGetTypeAtIndex(payloads[s], i);
 					if (expected[type.index] != null && expected[type.index] != memory) return false;
 					expected[type.index] = memory;
@@ -39,19 +39,40 @@ bool recover_record_field_helpers_verified(CheckedIndex checked, void* module, v
 		}
 		s = s + 1;
 	}
+	var indexed = new bool[len(records)]; int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (block.opcode == 55 || block.opcode == 64) {
+			if (block.origin < 1 || block.origin > ssa.cfg.core.count) return false;
+			var row = ssa.cfg.core.nodes[block.origin - 1].value;
+			if (row.a < 1 || row.a > ssa.cfg.core.count) return false;
+			var array = ssa.cfg.core.nodes[row.a - 1].value.type;
+			if (!recover_array_type(ssa.cfg.core.flow.checked, array)) return false;
+			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, array, 0).type;
+			if (checked_kind(ssa.cfg.core.flow.checked, element) == 30) indexed[element.index] = true;
+		}
+		b = b + 1;
+	}
 	int t = 0;
 	while (t < len(records)) {
 		var record = records[t];
-		if (record.memory != expected[t]) return false;
-		if (expected[t] == null) {
-			if (record.load_function != null || record.store_function != null) return false;
+		if (expected[t] != null && record.memory != expected[t]) return false;
+		if (expected[t] == null && !indexed[t]) {
+			if (record.memory != null || record.load_function != null || record.store_function != null || record.index_function != null) return false;
 		} else {
+			if (!recover_record_field_layout(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.fields.layout, layout, type_id(t), record.memory, 0)) return false;
 			if (!llvm_storage_function_live(module, record.load_function) || !llvm_storage_function_live(module, record.store_function)) return false;
 			var load_name = llvm_name("astra.e25a.record.load.", t);
 			var store_name = llvm_name("astra.e25a.record.store.", t);
 			if (llvm13_named(record.load_function, load_name.text) != 1 || llvm13_named(record.store_function, store_name.text) != 1) return false;
 			var carrier = LLVMGetReturnType(LLVMGlobalGetValueType(record.load_function));
-			if (!recover_storage_llvm_type(checked, type_id(t), carrier) || !recover_record_helper_verified(record.load_function, record.memory, carrier, false) || !recover_record_helper_verified(record.store_function, record.memory, carrier, true)) return false;
+			if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, type_id(t), carrier) || !recover_record_helper_verified(record.load_function, record.memory, carrier, false) || !recover_record_helper_verified(record.store_function, record.memory, carrier, true)) return false;
+			if (indexed[t]) {
+				var index_name = llvm_name("astra.e25a.record.index.", t);
+				if (!llvm_storage_function_live(module, record.index_function) || !recover_array_index_helper(record.index_function, record.memory, index_name.text, trap)) return false;
+			} else {
+				if (record.index_function != null) return false;
+			}
 		}
 		t = t + 1;
 	}
@@ -192,7 +213,7 @@ bool recover_slot_instruction_verified(RecoverSsa ssa, RecoverBlock block, void*
 	return true;
 }
 
-bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* free, void*[] error_payloads, RecoverRecordFieldStorage[] records) {
+bool recover_class_field_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void*[] values, void*[] locals, void*[] payloads, void*[] destroyers, void*[] shared_drops, void* snapshot, void* free, void*[] error_payloads, RecoverRecordStorage[] records) {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value; var fact = ssa.cfg.core.flow.fields.facts[row.source.index]; var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, type); var nominal = ssa.cfg.core.flow.checked.types.row(fact.aggregate).nominal;
 	void* object = locals[fact.receiver.index];
 	if (fact.parent > 0) object = values[fact.parent];

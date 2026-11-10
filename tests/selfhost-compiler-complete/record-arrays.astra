@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ArrayLeaf {
+	u8 tag;
+	u64 value;
+}
+
+struct ArrayRecord {
+	u8 first;
+	ArrayLeaf leaf;
+	u8 last;
+}
+
+class RecordArrayBox {
+	private owned ArrayRecord[] entries;
+
+	init(int capacity) { this.entries = new ArrayRecord[capacity]; }
+
+	void put(int index, ArrayRecord value) { this.entries[index] = value; }
+
+	ArrayRecord get(int index) { return this.entries[index]; }
+
+	int size() { return len(this.entries); }
+
+	void grow(int capacity) {
+		var grown = new ArrayRecord[capacity];
+		int index = 0;
+		while (index < len(this.entries)) {
+			grown[index] = this.entries[index];
+			index = index + 1;
+		}
+		swap(this.entries, grown);
+	}
+}
+
+ArrayRecord make_array_record(u8 first, u8 tag, u64 value, u8 last) {
+	ArrayLeaf leaf = {tag = tag, value = value};
+	ArrayRecord row = {first = first, leaf = leaf, last = last};
+	return row;
+}
+
+ArrayRecord read_record_at(borrowed ArrayRecord[] entries, int index) {
+	return entries[index];
+}
+
+owned ArrayRecord[] transfer_records(owned ArrayRecord[] input, int mode) throws Error {
+	if (mode < 0) {
+		throw new Error("negative record transfer");
+	}
+	return move input;
+}
+
+int main() {
+	var box = new RecordArrayBox(2);
+	if (box.get(1).leaf.value != 0) return 1;
+	var first = make_array_record(2, 3, 1234605616436508552, 4);
+	var second = make_array_record(5, 6, 8, 7);
+	box.put(0, first);
+	box.put(1, second);
+	box.grow(4);
+	if (box.size() != 4) return 2;
+	var left = box.get(0);
+	var right = box.get(1);
+	if (left.first != 2 || left.leaf.tag != 3 || left.leaf.value != 1234605616436508552 || left.last != 4) return 3;
+	if (right.first != 5 || right.leaf.tag != 6 || right.leaf.value != 8 || right.last != 7) return 4;
+	if (box.get(3).leaf.value != 0) return 5;
+	var values = new ArrayRecord[2];
+	values[0] = left;
+	values[1] = right;
+	try {
+		var retained = transfer_records(move values, 0);
+		if (read_record_at(retained, 1).leaf.value != 8) return 6;
+		var retired = new ArrayRecord[2];
+		retired[1] = first;
+		try {
+			var unexpected = transfer_records(move retired, -1);
+			return 7;
+		} catch (Error error) {
+			if (error.message != "negative record transfer") return 8;
+		}
+	} catch (Error error) {
+		return 9;
+	}
+	return 42;
+}

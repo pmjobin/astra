@@ -66,29 +66,44 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 		}
 		n = n + 1;
 	}
-	int block = 0;
+	int block = 0; int memory_controls = 0;
 	while (block < ssa.cfg.block_count) {
 		var lowered = ssa.cfg.blocks[block];
-		if (ssa.data.reachable[block] && (lowered.opcode == 17 || lowered.opcode == 44)) {
+		if (ssa.data.reachable[block] && lowered.origin > 0) {
 			var row = ssa.cfg.core.nodes[lowered.origin - 1].value;
-			var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
-			var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index];
-			if (checked_kind(ssa.cfg.core.flow.checked, type) == 30 && !error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate)) {
-				var operation = module.operations[block];
+			void* operation = module.operations[block]; int operand = 0; bool selected = false;
+			if (lowered.opcode == 17 || lowered.opcode == 44) {
+				var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
+				var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index];
+				selected = checked_kind(ssa.cfg.core.flow.checked, type) == 30 && !error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate);
+			}
+			if (lowered.opcode == 9) {
+				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type;
+				selected = checked_kind(ssa.cfg.core.flow.checked, element) == 30;
+				operand = 1;
+			}
+			if (lowered.opcode == 55 && checked_kind(ssa.cfg.core.flow.checked, row.type) == 30) {
+				operation = module.values[lowered.origin];
+				selected = true;
+			}
+			if (lowered.opcode == 61) selected = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.c - 1].value.type) == 30;
+			if (selected) {
 				if (operation == null || LLVMGetInstructionOpcode(operation) != 45) return false;
-				var address = LLVMGetArgOperand(operation, 0);
-				var absent = LLVMConstNull(LLVMTypeOf(address));
-				LLVMSetOperand(operation, 0, absent);
-				bool rejected_address = LLVMGetArgOperand(operation, 0) == absent && llvm12_verify(module.module) == 0 && !module.check(ssa);
-				LLVMSetOperand(operation, 0, address);
-				if (!rejected_address || !module.check(ssa)) return false;
+				var original = LLVMGetArgOperand(operation, operand);
+				var absent = LLVMConstNull(LLVMTypeOf(original));
+				if (original == absent) return false;
+				LLVMSetOperand(operation, operand, absent);
+				bool rejected_memory = LLVMGetArgOperand(operation, operand) == absent && llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(operation, operand, original);
+				if (!rejected_memory || !module.check(ssa)) return false;
 				count = count + 1;
+				memory_controls = memory_controls + 1;
 			}
 		}
 		block = block + 1;
 	}
 	// Source/model controls and LLVM-valid replacements are separately labelled.
-	var output = new Utf8ByteBuilder(); source_append_text(output, "RECORD_VALUE_CONTROLS source="); append_int(output, source_controls); source_append_text(output, " physical="); append_int(output, count); var text = output.snapshot(); println(text.text);
+	var output = new Utf8ByteBuilder(); source_append_text(output, "RECORD_VALUE_CONTROLS source="); append_int(output, source_controls); source_append_text(output, " physical="); append_int(output, count); source_append_text(output, " memory="); append_int(output, memory_controls); var text = output.snapshot(); println(text.text);
 	return count > 0;
 }
 

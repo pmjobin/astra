@@ -102,6 +102,17 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.BinaryExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_left(node), function, aggregate, initialized, depth + 1) && recover_constructor_value(checked, checked.bindings.program.arena.get_node_right(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.StructInitializerSyntax()) {
+		if (!recover_record_source(checked, node, checked.uses[node.index].type)) return false;
+		var fields = checked.bindings.program.arena.get_list_fields(node);
+		int i = 0;
+		while (i < checked.bindings.program.arena.list_count(fields)) {
+			var field = checked.bindings.program.arena.node_at(fields, i);
+			if (!recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(field), function, aggregate, initialized, depth + 1)) return false;
+			i = i + 1;
+		}
+		return true;
+	}
 	if (kind == SyntaxKind.BufferAllocationSyntax()) {
 		var type = checked.uses[node.index].type;
 		if (checked_kind(checked, type) == 23) return class_storage_slot_initialization(checked, node, type) && recover_storage_slots(checked, type, 0);
@@ -145,7 +156,7 @@ bool recover_constructor_indexed(CheckedIndex checked, SyntaxNodeId statement, S
 	var type = checked.symbol_types[field.index];
 	if (checked_kind(checked, type) != 22 || checked.uses[container.index].type.index != type.index) return false;
 	var element = checked.types.argument(checked.types, type, 0);
-	if (element.flags != 0 || !type_numeric(checked_kind(checked, element.type)) && checked_kind(checked, element.type) != 13) return false;
+	if (!recover_array_type(checked, type)) return false;
 	var subscript = checked.bindings.program.arena.get_node_subscript(target);
 	var value = checked.bindings.program.arena.get_node_expression(statement);
 	return checked.uses[subscript.index].type.index == 1 && checked.uses[value.index].type.index == element.type.index && recover_constructor_value(checked, subscript, function, aggregate, initialized, 0) && recover_constructor_value(checked, value, function, aggregate, initialized, 0);

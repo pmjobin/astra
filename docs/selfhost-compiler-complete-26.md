@@ -52,6 +52,26 @@ The second oracle replaces the field and verifies the earlier record copy.
 The Astra native checks are pending. Owned record arrays and nested Error
 storage remain open, along with complete original compiler generation.
 
+## Dynamic arrays of copyable records candidate
+
+Dynamic record arrays use the existing owned buffer descriptor and owner checks.
+Allocation uses the nested element size. Indexing uses a type-specific bounds
+helper and the record memory load or store at its checked address. The independent
+consumer checks the element layout, allocation stride, bounds helper, and exact
+use of the returned address. The scalar array helpers retain their existing
+inventory. New controls substitute the allocation size or access address and
+restore the valid instruction after checking the verifier refusal.
+
+The original C0 fixture grows an owned Class field by swap, checks adjacent and
+zero-initialized records, reads through a borrowed parameter, and exercises normal
+and error cleanup after transferring an array. `record-arrays-oracles1` verifies
+its raw C0 LLVM and records exit42 and clean unsuppressed memory at O0 and O2.
+The C0 semantic check of all 180 production modules passes in 50.98 seconds in
+`native-recordarraycheck2-O0`. The first check retains its owned-field alias
+diagnostic. The corrected code uses temporary borrows. Astra native qualification
+is pending. Fixed record arrays, record slices, and owning record elements retain
+their existing restrictions.
+
 ## Earlier progress snapshot — 2026-11-10, candidate4 and template work
 
 | Work item | Evidence-backed state |
