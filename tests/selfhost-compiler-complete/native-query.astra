@@ -66,6 +66,27 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 		}
 		n = n + 1;
 	}
+	int block = 0;
+	while (block < ssa.cfg.block_count) {
+		var lowered = ssa.cfg.blocks[block];
+		if (ssa.data.reachable[block] && (lowered.opcode == 17 || lowered.opcode == 44)) {
+			var row = ssa.cfg.core.nodes[lowered.origin - 1].value;
+			var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
+			var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index];
+			if (checked_kind(ssa.cfg.core.flow.checked, type) == 30 && !error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate)) {
+				var operation = module.operations[block];
+				if (operation == null || LLVMGetInstructionOpcode(operation) != 45) return false;
+				var address = LLVMGetArgOperand(operation, 0);
+				var absent = LLVMConstNull(LLVMTypeOf(address));
+				LLVMSetOperand(operation, 0, absent);
+				bool rejected_address = LLVMGetArgOperand(operation, 0) == absent && llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(operation, 0, address);
+				if (!rejected_address || !module.check(ssa)) return false;
+				count = count + 1;
+			}
+		}
+		block = block + 1;
+	}
 	// Source/model controls and LLVM-valid replacements are separately labelled.
 	var output = new Utf8ByteBuilder(); source_append_text(output, "RECORD_VALUE_CONTROLS source="); append_int(output, source_controls); source_append_text(output, " physical="); append_int(output, count); var text = output.snapshot(); println(text.text);
 	return count > 0;

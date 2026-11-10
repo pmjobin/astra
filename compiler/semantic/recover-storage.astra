@@ -232,7 +232,11 @@ bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 						var payload = checked.types.argument(checked.types, value, 0).type;
 						if (!recover_storage_fields(checked, payload, depth + 1)) return false;
 					} else {
-						if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+						if (kind == 30) {
+							if (!recover_storage_record(checked, value)) return false;
+						} else {
+							if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+						}
 					}
 				}
 			}

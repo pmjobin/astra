@@ -32,6 +32,26 @@ bytes 133–649. Complete compiler native generation remains at zero of two
 profiles. The concrete collection payload, independent graph55 owner proof,
 and compiler scale qualification remain open.
 
+## Ordinary Class record memory candidate
+
+The candidate admits copyable record fields in ordinary Classes. It uses the
+nested source layout for memory and the established flat carrier for native
+values. The load and store helpers belong to the LLVM module. The consumer checks
+record sizes, alignments, offsets, helper bodies, and access addresses against
+the source layout and actual receiver. The new control substitutes a null
+address in each reachable record field call, checks LLVM validity and verifier
+refusal, and restores the valid call before emission.
+
+`native-classrecordcheck2-O0` passes original C0 semantics for all 180
+production modules and the test host in 52.08 seconds. The initial wrong
+verifier argument remains recorded as a failure. The pinned Astra formatting
+check passes on all five changed sources. The Python formatter refused the host
+3.15.2 executable against its 3.15.0 pin, so the existing Python recipe was
+restored. Both original C0 record field oracles execute to 42 with clean memory.
+The second oracle replaces the field and verifies the earlier record copy.
+The Astra native checks are pending. Owned record arrays and nested Error
+storage remain open, along with complete original compiler generation.
+
 ## Earlier progress snapshot — 2026-11-10, candidate4 and template work
 
 | Work item | Evidence-backed state |

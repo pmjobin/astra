@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct RecoverRecordFieldStorage {
+	void* memory;
+	void* load_function;
+	void* store_function;
+}
+
 // E25-A-v1 private module. All LLVM handles, descriptor/layout caches, source
 // identity and success-slot addresses have exactly this module's lifetime.
 class RecoverLlvm {
@@ -41,6 +47,7 @@ class RecoverLlvm {
 	owned void*[] fixed_backings;
 	owned void*[] class_payloads;
 	owned void*[] class_destroyers;
+	owned RecoverRecordFieldStorage[] record_fields;
 	owned void*[] slot_functions;
 	owned RecoverSharedRuntime shared_runtime;
 	owned void*[] shared_drops;
@@ -86,6 +93,7 @@ class RecoverLlvm {
 		this.functions = new void*[functions]; this.entries = new void*[functions]; this.blocks = new void*[ssa.cfg.block_count]; this.values = new void*[len(ssa.data.values)]; this.slots = new void*[nodes]; this.locals = new void*[symbols]; this.owner_addresses = new void*[symbols]; this.owner_armed = new void*[symbols]; this.owner_initial_values = new void*[symbols]; this.owner_initial_flags = new void*[symbols];
 		this.descriptors = new void*[symbols]; this.payloads = new void*[symbols]; this.destroyers = new void*[symbols]; this.tables = new void*[symbols]; this.origins = new void*[nodes]; this.operations = new void*[ssa.cfg.block_count]; this.emitted = new bool[ssa.cfg.block_count]; this.complete = false;
 		this.class_payloads = new void*[symbols]; this.class_destroyers = new void*[symbols];
+		this.record_fields = new RecoverRecordFieldStorage[ssa.cfg.core.flow.checked.types.count + 1];
 		this.slot_functions = new void*[(ssa.cfg.core.flow.checked.types.count + 1) * 6];
 	}
 
@@ -1007,6 +1015,59 @@ class RecoverLlvm {
 		return true;
 	}
 
+	void* record_memory_type(CheckedIndex checked, TypeId type, int depth) throws Error {
+		if (depth > 32) {
+			throw new Error("LLVM_INVALID_IR: record memory depth");
+		}
+		if (checked_kind(checked, type) != 30) return this.scalar(checked, type);
+		var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+		var source = checked.bindings.program.arena.get_list_fields(declaration.node);
+		var fields = new void*[checked.bindings.program.arena.list_count(source)];
+		int i = 0;
+		while (i < len(fields)) {
+			var node = checked.bindings.program.arena.node_at(source, i);
+			var symbol = checked.node_symbols[node.index];
+			fields[i] = this.record_memory_type(checked, checked.symbol_types[symbol.index], depth + 1);
+			i = i + 1;
+		}
+		return this.structure(fields);
+	}
+
+	void* record_field_storage(CheckedIndex checked, TypeId type) throws Error {
+		if (this.record_fields[type.index].memory != null) return this.record_fields[type.index].memory;
+		var shape = recover_record_shape(checked, type);
+		if (!recover_record_shape_verify(shape, checked)) {
+			throw new Error("LLVM_INVALID_IR: record field source shape");
+		}
+		var memory = this.record_memory_type(checked, type, 0);
+		var carrier = this.scalar(checked, type);
+		var parents = new int[shape.part_count]; var ordinals = new int[shape.part_count]; var leaves = new int[shape.leaf_count];
+		int i = 0;
+		while (i < shape.part_count) {
+			parents[i] = shape.parts[i].parent;
+			ordinals[i] = shape.parts[i].ordinal;
+			i = i + 1;
+		}
+		i = 0;
+		while (i < shape.leaf_count) {
+			leaves[i] = shape.leaves[i];
+			i = i + 1;
+		}
+		var load_name = llvm_name("astra.e25a.record.load.", type.index);
+		var store_name = llvm_name("astra.e25a.record.store.", type.index);
+		var load_parameters = new void*[1]; load_parameters[0] = this.pointer;
+		var store_parameters = new void*[2]; store_parameters[0] = this.pointer; store_parameters[1] = carrier;
+		var load_function = this.function(load_name.text, carrier, load_parameters, true);
+		var store_function = this.function(store_name.text, LLVMVoidTypeInContext(this.context), store_parameters, true);
+		var writer = new RecoverRecordWriter(this.context, this.module, this.builder, this.handles);
+		if (!writer.emit(load_function, memory, carrier, parents, ordinals, leaves, false) || !writer.emit(store_function, memory, carrier, parents, ordinals, leaves, true)) {
+			throw new Error("LLVM_INVALID_IR: record field helpers");
+		}
+		RecoverRecordFieldStorage entry = {memory = memory, load_function = load_function, store_function = store_function};
+		this.record_fields[type.index] = entry;
+		return memory;
+	}
+
 	void class_helpers(RecoverSsa ssa) throws Error {
 		int s = 1; bool snapshot = false;
 		while (s <= ssa.cfg.core.flow.checked.bindings.symbol_count) {
@@ -1025,7 +1086,12 @@ class RecoverLlvm {
 					var types = new void*[count]; int i = 0;
 					while (i < count) {
 						var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var member = ssa.cfg.core.flow.checked.node_symbols[source.index]; var field_type = ssa.cfg.core.flow.checked.symbol_types[member.index];
-						types[i] = this.scalar(ssa.cfg.core.flow.checked, field_type); if (field_type.index == 15) snapshot = true; i = i + 1;
+						if (checked_kind(ssa.cfg.core.flow.checked, field_type) == 30) types[i] = this.record_field_storage(ssa.cfg.core.flow.checked, field_type);
+						else {
+							types[i] = this.scalar(ssa.cfg.core.flow.checked, field_type);
+						}
+						if (field_type.index == 15) snapshot = true;
+						i = i + 1;
 					}
 					var physical = this.structure(types); this.class_payloads[s] = physical;
 					var name_builder = new Utf8ByteBuilder(); source_append_text(name_builder, "astra.e25a.class.drop."); append_int(name_builder, s); var name = name_builder.snapshot();
@@ -1211,6 +1277,19 @@ class RecoverLlvm {
 			ordinal = ordinal + 1;
 		}
 		var address = this.field(physical, object, ordinal); void* result = null; void* operation = null;
+		if (kind == 30 && !error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate)) {
+			var record = this.record_fields[type.index];
+			if (block.opcode == 17) {
+				var arguments = new void*[1]; arguments[0] = address;
+				result = this.call(record.load_function, arguments, true);
+				operation = result;
+			} else {
+				var arguments = new void*[2]; arguments[0] = address; arguments[1] = this.values[row.a];
+				operation = this.call(record.store_function, arguments, true);
+			}
+			RecoverOwnerInstruction access = {value = result, operation = operation};
+			return access;
+		}
 		if (block.opcode == 17 || block.opcode == 18) {
 			result = this.load(this.scalar(ssa.cfg.core.flow.checked, type), address); operation = result;
 			if (block.opcode == 18) {
@@ -1415,6 +1494,7 @@ class RecoverLlvm {
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
 		if (!recover_class_helpers_verified(ssa, this.layout, this.class_payloads, this.class_destroyers, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.slot_helpers_verified(ssa)) return false;
+		if (!recover_record_field_helpers_verified(ssa.cfg.core.flow.checked, this.module, this.class_payloads, this.record_fields)) return false;
 		if (len(this.foreign_functions) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || this.foreign_functions[0] != null) return false;
 		int foreign_count = 0;
 		int foreign = 1;
@@ -1508,7 +1588,8 @@ class RecoverLlvm {
 			}
 			foreign = foreign + 1;
 		}
-		var destroyers = new void*[len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + len(this.slot_functions)]; int d = 0;
+		int record_start = len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + len(this.slot_functions);
+		var destroyers = new void*[record_start + len(this.record_fields) * 2]; int d = 0;
 		while (d < len(this.destroyers)) {
 			destroyers[d] = this.destroyers[d];
 			d = d + 1;
@@ -1527,6 +1608,12 @@ class RecoverLlvm {
 			destroyers[len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + d] = this.slot_functions[d];
 			d = d + 1;
 		}
+		d = 0;
+		while (d < len(this.record_fields)) {
+			destroyers[record_start + d * 2] = this.record_fields[d].load_function;
+			destroyers[record_start + d * 2 + 1] = this.record_fields[d].store_function;
+			d = d + 1;
+		}
 		if (!recover_llvm_function_inventory(this.module, this.functions, destroyers, helpers)) return false;
 		int n = 0; while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
@@ -1541,7 +1628,7 @@ class RecoverLlvm {
 			clone = this.shared_runtime.clone;
 			borrow = this.shared_runtime.borrow;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_fields);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {
