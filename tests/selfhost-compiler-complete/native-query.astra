@@ -31,8 +31,34 @@ bool template_error_cache_controls(RecoverLlvm module, RecoverSsa ssa) throws Er
 	return count > 0;
 }
 
+bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa) || !recover_flow_verify(ssa.cfg.core.flow)) return false;
+	int count = 0; int n = 0;
+	while (n < ssa.cfg.core.flow.data.node_count) {
+		var row = ssa.cfg.core.flow.data.nodes[n];
+		if (row.kind == 12 && row.a > 0) {
+			ssa.cfg.core.flow.data.nodes[n].a = 0;
+			bool rejected = !recover_flow_verify(ssa.cfg.core.flow); ssa.cfg.core.flow.data.nodes[n].a = row.a;
+			if (!rejected || !recover_flow_verify(ssa.cfg.core.flow)) return false;
+			ssa.cfg.core.flow.data.nodes[n].symbol = type_symbol(1);
+			rejected = !recover_flow_verify(ssa.cfg.core.flow); ssa.cfg.core.flow.data.nodes[n].symbol = row.symbol;
+			if (!rejected || !recover_flow_verify(ssa.cfg.core.flow)) return false;
+			var value = module.values[n + 1]; var aggregate = module.values[row.a];
+			if (value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 53 && LLVMIsAInstruction(aggregate) != null) {
+				LLVMSetOperand(value, 0, LLVMConstNull(LLVMTypeOf(aggregate)));
+				rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); LLVMSetOperand(value, 0, aggregate);
+				if (!rejected || !module.check(ssa)) return false;
+				count = count + 1;
+			}
+		}
+		n = n + 1;
+	}
+	// Source/model controls and LLVM-valid replacements are separately labelled.
+	return count > 0;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls") return 9;
 	if (args[1] == "--native" && len(args) < 4) return 9;
 	try {
 		int start = 2; if (args[1] == "--native") start = 3;
@@ -67,6 +93,10 @@ int main(string[] args) {
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
 		if (args[1] == "--shared-stages") return 42;
 		var module = new RecoverLlvm(ssa); module.build(ssa);
+		if (args[1] == "--record-value-controls") {
+			if (record_value_controls(module, ssa)) return 42;
+			return 11;
+		}
 		if (args[1] == "--template-cache-controls") {
 			if (template_error_cache_controls(module, ssa)) return 42;
 			return 10;

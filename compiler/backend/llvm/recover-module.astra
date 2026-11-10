@@ -737,8 +737,13 @@ class RecoverLlvm {
 		}
 		if (op == 12) {
 			var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
+			void* aggregate = this.locals[row.symbol.index];
+			if (row.a > 0) {
+				type = ssa.cfg.core.nodes[row.a - 1].value.type;
+				aggregate = this.values[row.a];
+			}
 			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
-			value = LLVMBuildExtractValue(this.builder, this.locals[row.symbol.index], ordinal, this.empty);
+			value = LLVMBuildExtractValue(this.builder, aggregate, ordinal, this.empty);
 		}
 		// Retain the declaration's SSA identity. Owner reassignment publishes
 		// through its physical slot, never by replacing this lexical witness.

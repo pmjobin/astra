@@ -153,9 +153,19 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		} return true;
 	}
 	if (row.kind == 12) {
-		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index || row.symbol.index != recover_type_receiver(checked, source).index) return false;
-		var declaration = checked.bindings.symbol(row.symbol); if ((declaration.kind != 7 && declaration.kind != 8) || declaration.owner.index != flow.functions[function - 1].symbol.index || checked.symbol_flags[row.symbol.index] != 0) return false;
-		var receiver = checked.symbol_types[row.symbol.index]; int ordinal = recover_record_field(checked, receiver, row.token); if (ordinal < 0) return false; var record = checked.bindings.symbol(checked.types.row(receiver).nominal); var field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(record.node), ordinal); var symbol = checked.node_symbols[field.index]; return row.type.index == checked.symbol_types[symbol.index].index;
+		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;
+		var receiver = type_id(0);
+		if (row.a != 0) {
+			var aggregate = checked.bindings.program.arena.get_node_aggregate(source);
+			if (row.symbol.index != 0 || aggregate.index < 1 || checked.bindings.program.arena.kind(aggregate) == SyntaxKind.NameExpressionSyntax() || !recover_child(flow, checked, types, row.a, aggregate, function, handler, caught, seen, edges, depth + 1)) return false;
+			receiver = types.types[aggregate.index];
+			if (flow.nodes[row.a - 1].type.index != receiver.index) return false;
+		} else {
+			if (row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || row.symbol.index != recover_type_receiver(checked, source).index) return false;
+			var declaration = checked.bindings.symbol(row.symbol); if ((declaration.kind != 7 && declaration.kind != 8) || declaration.owner.index != flow.functions[function - 1].symbol.index || checked.symbol_flags[row.symbol.index] != 0) return false;
+			receiver = checked.symbol_types[row.symbol.index];
+		}
+		int ordinal = recover_record_field(checked, receiver, row.token); if (ordinal < 0) return false; var record = checked.bindings.symbol(checked.types.row(receiver).nominal); var field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(record.node), ordinal); var symbol = checked.node_symbols[field.index]; return row.type.index == checked.symbol_types[symbol.index].index;
 	}
 	if (row.kind == 17 || row.kind == 18) {
 		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.symbol.index < 1 || row.symbol.index != recover_field_receiver(checked, source, flow.functions[function - 1].symbol).index || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;

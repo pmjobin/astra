@@ -191,6 +191,21 @@ All180 current production modules pass C0 front-end checking after the helpers.
 Neither helper nor source-plan evidence enables Astra record admission; the
 module value/memory paths and independent whole-module checks remain unhooked.
 
+The next candidate retains an evaluated record aggregate as a real Flow child
+for `make().field` and `object.method().field`. Independent source checking binds
+that child to the exact aggregate expression and field declaration; SSA checks
+its dominance without inventing a lexical owner root. The existing direct local
+record path is retained. The LLVM emitter and consumer select the child value
+for this new form. This is limited to the already admitted flat copyable records;
+it does not enable nested record memory or the deferred graph55 receiver proof.
+`native-recordvaluescheck1-O0` passes C0 semantic checking of all180 production
+modules and the focused host in52.40 seconds. `record-values-oracle1-O0` has two
+fresh original-C0 exit42 and clean unsuppressed memory receipts, for the source
+fixture and its renamed equivalent. They exercise once-only receiver mutation,
+normal/checked record results and the error edge. Astra source-stage controls,
+LLVM-valid wrong-aggregate controls and native execution remain pending a rebuilt
+host; the C0 receipts supply no Astra native or complete-compiler credit.
+
 While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
 local-declaration scans are replaced with one local index reconstructed from the
 independently verified Core/CFG. Missing and duplicate sites still refuse, and

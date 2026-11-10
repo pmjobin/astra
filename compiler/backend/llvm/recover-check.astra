@@ -206,8 +206,14 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			}
 		}
 		if (op == 12) {
-			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[row.symbol.index], row.token);
-			if (ordinal < 0 || !recover_llvm_extract(values[block.origin], locals[row.symbol.index], ordinal)) return false;
+			var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
+			void* aggregate = locals[row.symbol.index];
+			if (row.a > 0) {
+				type = ssa.cfg.core.nodes[row.a - 1].value.type;
+				aggregate = values[row.a];
+			}
+			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
+			if (ordinal < 0 || !recover_llvm_extract(values[block.origin], aggregate, ordinal)) return false;
 			if (LLVMIsAInstruction(values[block.origin]) != null) instruction_count = 2;
 		}
 

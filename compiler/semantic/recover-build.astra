@@ -92,8 +92,14 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.kind = 6; row.symbol = recover_type_receiver(checked, source);
 		row.token = checked.bindings.program.arena.get_token_field_name(source);
 		if (row.symbol.index > 0 && checked_kind(checked, checked.symbol_types[row.symbol.index]) == 30) row.kind = 12;
+		var record_aggregate = checked.bindings.program.arena.get_node_aggregate(source);
+		if (record_aggregate.index > 0 && checked.bindings.program.arena.kind(record_aggregate) != SyntaxKind.NameExpressionSyntax() && recover_storage_record(checked, types.types[record_aggregate.index])) {
+			row.kind = 12;
+			row.symbol = type_symbol(0);
+			row.a = recover_build_node(flow, checked, types, record_aggregate, function, handler, caught, depth + 1);
+		}
 		var receiver = recover_field_receiver(checked, source, flow.functions[function - 1].symbol);
-		if (receiver.index > 0) {
+		if (receiver.index > 0 && row.kind != 12) {
 			row.kind = 17;
 			row.symbol = receiver;
 			var aggregate = checked.bindings.program.arena.get_node_aggregate(source);

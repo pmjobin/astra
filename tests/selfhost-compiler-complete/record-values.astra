@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A projected call must run once, including receiver mutation and error edges.
+struct ValuePair { int left; int right; }
+
+class ValueCounter {
+	int count;
+
+	init() { this.count = 0; }
+
+	ValuePair next() {
+		this.count = this.count + 1;
+		ValuePair value = {left = this.count + 19, right = 22};
+		return value;
+	}
+
+	int reads() { return this.count; }
+}
+
+ValuePair value_make(int left) {
+	ValuePair value = {left = left, right = 22};
+	return value;
+}
+
+ValuePair value_checked(int mode) throws Error {
+	if (mode < 0) {
+		throw new Error("negative");
+	}
+	return value_make(20);
+}
+
+int main() {
+	var counter = new ValueCounter();
+	if (counter.next().left != 20 || counter.reads() != 1) return 1;
+	if (value_make(20).right != 22) return 2;
+	try {
+		if (value_checked(0).left != 20) return 3;
+		try { int unexpected = value_checked(-1).right; return 4; }
+		catch (Error error) { if (error.message != "negative") return 5; }
+	} catch (Error error) { return 6; }
+	return counter.next().left + counter.reads() + 19;
+}
