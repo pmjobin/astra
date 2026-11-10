@@ -5,6 +5,32 @@ generation, integrated linkage and full compiler performance qualification
 have not been established. Bounded current regressions remain separately
 attributed below. No Stage1 or self-host claim is made.
 
+## Progress snapshot — 2026-11-10 03:03 UTC
+
+| Work item | Evidence-backed state |
+|---|---|
+| Independent R5 post-delivery G12 | Complete; separate fresh verification described below |
+| Original compiler C0 front end | All 180 compiler files plus 10 dependencies pass together |
+| Bounded O0/O2 regression checkpoint | Qualified at c99a96a with the disclosed failed raw jobs and separate supplements; does not qualify later edits |
+| New owning-Class slot runtime helpers | O0/O2 native, C ABI, cleanup-order and unsuppressed memory checks pass; 10 physical graphs, 24 LLVM-valid mutations and 20 convention controls |
+| Slot source/owner/Core/CFG/SSA/LLVM integration | Committed at 314b782; full current C0 front-end check passes; native integration pending |
+| Current O0 host rebuild | Running; completion receipt absent at this snapshot |
+| Focused source-to-native slot checks | Queued after that build; stop on a failed required positive |
+| Current O2 host rebuild and broad regressions | Deferred until focused O0 integration succeeds |
+| Full original compiler native objects | 0 of 2 profiles proved; remains a completeness blocker |
+| Full compiler linkage and performance | Unproved |
+| Milestone26 delivery and its post-delivery check | Not published or run yet |
+| Milestone27 self-hosting | Outside this authorization |
+
+Every completion claim is tied to a source/compiler identity and an actual
+receipt. Failed attempts remain failed. The earlier approximate30% estimate
+was an engineering estimate, not a measured fraction of language support;
+the states and counts above are the progress authority. Latest test additions
+are committed at7f78547 without changing the active build's 348 source and46
+tool inputs. Its independent during-build hash check is BYTE_EXACT. The next
+decision is the focused native slot result, followed by the still-unproved
+generic-template/concrete coverage and full original source frontier.
+
 The existing checkout started clean at commit
 `8b8cf003ea0b47b1322b887317b6fc535bfb9850`, tree
 `fe0644c1b2e2d5db3d97b898933bc24166f034e2`.
