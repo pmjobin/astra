@@ -56,6 +56,12 @@ int main() {
 '''+TAKE+'}\n',
 }
 
+CASES['double-transfer'] = CASES['field-slots'].replace('values.append(move b);', 'values.append(move a);')
+CASES['missing-move'] = CASES['field-slots'].replace('values.append(move a);', 'values.append(a);')
+CASES['borrowed-transfer'] = CASES['field-slots']+'void invalid(Items values, borrowed Item value) { values.append(move value); }\n'
+CASES['wrong-element'] = 'class Other { int code; init(int code) { this.code = code; } }\n'+CASES['field-slots'].replace('b = new Item(22)', 'b = new Other(22)')
+C0_REJECTS = {'local-slots', 'double-transfer', 'missing-move', 'borrowed-transfer', 'wrong-element'}
+
 
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
@@ -76,6 +82,9 @@ def main():
 	build = a.build_root/leaf.name
 	leaf.mkdir()
 	build.mkdir()
+	recipe_witness = leaf/'probe-recipe.py.txt'
+	recipe_witness.write_bytes(Path(__file__).read_bytes())
+	recipe_sha256 = sha(recipe_witness)
 	identity = json.loads(a.component.with_suffix('.identity.json').read_text())
 	assert sha(a.component) == identity['sha256'] and identity['identity']['argv'][1] == '-'+a.mode
 	historical = []
@@ -118,7 +127,7 @@ def main():
 		if name == 'original-generic-Bag': inputs.append(ROOT/'lib/astra/collections/bag.astra')
 		oracle = build/(name+'-C0')
 		links = [word for obj in objects for word in ('--link-object', obj)]
-		valid = name != 'local-slots'
+		valid = name not in C0_REJECTS
 		run([a.compiler, '-'+a.mode, *inputs, *links, '-o', oracle], name+'-C0-build', 0 if valid else 1)
 		if valid:
 			run([oracle], name+'-C0-execute', 42)
@@ -149,7 +158,8 @@ def main():
 				assert (leaf/(name+'-Astra-execute.'+stream)).read_bytes() == (leaf/(name+'-C0-execute.'+stream)).read_bytes()
 			row.update(Astra_native_execution=42, Astra_unsuppressed_memory=True, raw_LLVM_sha256=sha(physical), optimized_LLVM_sha256=sha(optimized), object_sha256=sha(obj), Astra_ELF_sha256=sha(exe))
 		rows.append(row)
-		write(leaf/'result.json', dict(status='PARTIAL', profile=a.mode, component_sha256=sha(a.component), baseline_commit=git('rev-parse', BASELINE).decode().strip(), historical_source_bindings=historical, programs=rows, scope='Focused owner-slot probes only; no 340/71/full-original source or milestone qualification credit. Historical compiler bindings are explicitly labelled; changed implementation is not called rebuilt.'))
+		assert sha(Path(__file__)) == recipe_sha256
+		write(leaf/'result.json', dict(status='PARTIAL', profile=a.mode, component_sha256=sha(a.component), recipe_sha256=recipe_sha256, recipe_witness=str(recipe_witness), baseline_commit=git('rev-parse', BASELINE).decode().strip(), historical_source_bindings=historical, programs=rows, scope='Focused owner-slot probes only; no 340/71/full-original source or milestone qualification credit. Historical compiler bindings are explicitly labelled; changed implementation is not called rebuilt.'))
 		print(name, 'C0=42' if valid else 'C0 rejects', 'Astra native='+str(code), 'stages='+str(stages), flush=True)
 		if a.require_native and valid: assert row['Astra_native_execution'] == 42 and stages == 0, name
 

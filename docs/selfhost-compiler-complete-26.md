@@ -187,6 +187,16 @@ this batch: exit0 in50.22 seconds, with exact before/after source hashes.
 This is a front-end check. The subsequent O0 integration build and focused
 native field-slot probes are separate pending qualifications.
 
+Four additional focused C0 source negatives cover duplicate transfer, missing
+explicit move, a borrowed transfer and a nominally different slot element.
+The original C0 rejects each; the prior qualified c99 host also refuses each
+without overwriting the output sentinel. Exact diagnostics and recipe/source
+witnesses are in `compiler-complete26v3/slots-negativebaseline1-O0`. This is a
+baseline, not new-host qualification, and adds no credit to the inherited
+15-array/6-owner ledger. An initial test-harness placement error, rejected by
+argparse before any compilation, is preserved separately and is not a compiler
+failure. The corrected test recipe also binds its exact bytes in each run.
+
 The generic instantiator also traverses its declaration's original node/symbol
 windows directly instead of rescanning unrelated original declarations. The
 mapping functions are identically zero outside those windows; processing order
