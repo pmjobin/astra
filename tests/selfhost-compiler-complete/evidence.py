@@ -12,6 +12,8 @@ import tarfile
 import tempfile
 import time
 
+from columns import encode, reconstruct
+
 
 def sha(path):
 	with Path(path).open('rb') as stream:
@@ -26,7 +28,7 @@ def safe(name):
 	return PurePosixPath(name)
 
 
-def pack(roots, output):
+def pack(roots, output, runtime):
 	assert not output.exists()
 	files = {}
 	blobs = {}
@@ -52,22 +54,40 @@ def pack(roots, output):
 			blob = 'blobs/'+digest
 			files[name] = dict(bytes=after.st_size, sha256=digest, blob=blob, mode=oct(stat.S_IMODE(after.st_mode)), mtime_ns=after.st_mtime_ns)
 			blobs.setdefault(blob, path)
-	model = dict(format='astra-compiler-complete26-evidence/1', files=files)
-	filters = [dict(id=lzma.FILTER_LZMA2, preset=6, dict_size=128*1024*1024)]
-	with lzma.LZMAFile(output, 'wb', filters=filters) as compressed, tarfile.open(fileobj=compressed, mode='w|') as archive:
-		for name, path in sorted(blobs.items()):
-			assert sha(path) == name[6:]
-			entry = tarfile.TarInfo(name)
-			entry.size = path.stat().st_size
+	model = dict(format='astra-compiler-complete26-evidence/2', files=files, columns={})
+	filters = [dict(id=lzma.FILTER_LZMA2, preset=6, dict_size=256*1024*1024)]
+	with tempfile.TemporaryDirectory(prefix='encode-columns-', dir=runtime) as temporary:
+		payload = {}
+		for name, path in blobs.items():
+			if path.stat().st_size >= 2*1024*1024 and path.name.endswith(('-ledger.stdout', '-trace.stdout')):
+				directory = Path(temporary)/name[6:]
+				directory.mkdir()
+				row = encode(path, directory, name, 0)
+				assert row['sha256'] == name[6:]
+				model['columns'][name] = row
+				for part in directory.iterdir():
+					payload['columns/'+name[6:]+'/'+part.name] = part
+			else:
+				payload[name] = path
+		def ordering(item):
+			name, path = item
+			if path.name.endswith('-nodes.jsonl'): return (0, path.stat().st_size, name)
+			if name.startswith('columns/'): return (1, path.name, name)
+			return (2, path.suffix, name)
+		with lzma.LZMAFile(output, 'wb', filters=filters) as compressed, tarfile.open(fileobj=compressed, mode='w|') as archive:
+			for name, path in sorted(payload.items(), key=ordering):
+				if name.startswith('blobs/'): assert sha(path) == name[6:]
+				entry = tarfile.TarInfo(name)
+				entry.size = path.stat().st_size
+				entry.mode = 0o644
+				with path.open('rb') as stream:
+					archive.addfile(entry, stream)
+			data = (json.dumps(model, separators=(',', ':'))+'\n').encode()
+			entry = tarfile.TarInfo('INDEX.json')
+			entry.size = len(data)
 			entry.mode = 0o644
-			with path.open('rb') as stream:
-				archive.addfile(entry, stream)
-		data = (json.dumps(model, separators=(',', ':'))+'\n').encode()
-		entry = tarfile.TarInfo('INDEX.json')
-		entry.size = len(data)
-		entry.mode = 0o644
-		archive.addfile(entry, io.BytesIO(data))
-	return dict(files=len(files), blobs=len(blobs), original_bytes=sum(row['bytes'] for row in files.values()), archive_bytes=output.stat().st_size, archive_sha256=sha(output))
+			archive.addfile(entry, io.BytesIO(data))
+	return dict(files=len(files), blobs=len(blobs), column_encoded_blobs=len(model['columns']), original_bytes=sum(row['bytes'] for row in files.values()), archive_bytes=output.stat().st_size, archive_sha256=sha(output))
 
 
 def verify(archive, runtime):
@@ -83,21 +103,43 @@ def verify(archive, runtime):
 					assert model is None
 					model = json.load(stream)
 					continue
-				assert member.name.startswith('blobs/') and len(member.name) == 70
-				name = member.name[6:]
-				assert all(char in '0123456789abcdef' for char in name)
-				path = root/name
+				safe(member.name)
+				parts = member.name.split('/')
+				assert parts[0] in ('blobs', 'columns') and len(parts[1]) == 64
+				assert all(char in '0123456789abcdef' for char in parts[1])
+				assert len(parts) == (2 if parts[0] == 'blobs' else 3)
+				path = root/member.name
+				path.parent.mkdir(parents=True, exist_ok=True)
 				with path.open('xb') as out:
 					for block in iter(lambda: stream.read(1048576), b''):
 						out.write(block)
-				assert path.stat().st_size == member.size and sha(path) == name
+				assert path.stat().st_size == member.size
+				if parts[0] == 'blobs': assert sha(path) == parts[1]
 				observed[member.name] = member.size
-		assert model['format'] == 'astra-compiler-complete26-evidence/1'
-		assert {row['blob'] for row in model['files'].values()} == set(observed)
+		assert model['format'] in ('astra-compiler-complete26-evidence/1', 'astra-compiler-complete26-evidence/2')
+		column_parts = set()
+		for name, row in model.get('columns', {}).items():
+			assert name == row['path'] == 'blobs/'+row['sha256'] and name not in observed
+			assert len(row['sha256']) == 64 and all(char in '0123456789abcdef' for char in row['sha256'])
+			directory = root/'columns'/row['sha256']
+			parts = [*row['parts'].values(), *(part for group in row['groups'] for part in group['columns'])]
+			for part in parts:
+				assert Path(part['path']).name == part['path']
+				key = 'columns/'+row['sha256']+'/'+part['path']
+				assert key in observed and key not in column_parts
+				column_parts.add(key)
+			path = root/name
+			path.parent.mkdir(exist_ok=True)
+			with path.open('xb') as out:
+				for raw in reconstruct(directory, row): out.write(raw)
+			assert path.stat().st_size == row['bytes'] and sha(path) == row['sha256']
+			observed[name] = row['bytes']
+		assert column_parts == {name for name in observed if name.startswith('columns/')}
+		assert {row['blob'] for row in model['files'].values()} == {name for name in observed if name.startswith('blobs/')}
 		for name, row in model['files'].items():
 			safe(name)
 			assert row['blob'] == 'blobs/'+row['sha256'] and observed[row['blob']] == row['bytes']
-		return dict(status='BYTE_EXACT', logical_files=len(model['files']), unique_blobs=len(observed), archive_sha256=sha(archive), classification='Complete byte reconstruction only; no recorded executable is run or qualified.')
+		return dict(status='BYTE_EXACT', logical_files=len(model['files']), unique_blobs=sum(name.startswith('blobs/') for name in observed), column_encoded_blobs=len(model.get('columns', {})), archive_sha256=sha(archive), classification='Complete byte reconstruction only; no recorded executable is run or qualified.')
 
 
 def main():
@@ -110,7 +152,7 @@ def main():
 	a = p.parse_args()
 	assert a.archive.is_absolute() and a.runtime.is_absolute() and a.runtime.is_dir()
 	start = time.monotonic()
-	result = pack(a.root, a.archive) if a.mode == 'pack' else verify(a.archive, a.runtime)
+	result = pack(a.root, a.archive, a.runtime) if a.mode == 'pack' else verify(a.archive, a.runtime)
 	result['seconds'] = time.monotonic()-start
 	a.receipt.write_text(json.dumps(result, indent=2)+'\n')
 	print(json.dumps(result), flush=True)

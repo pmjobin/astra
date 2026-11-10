@@ -201,6 +201,19 @@ of its failed result. Explicit task build/runtime roots and the authenticated
 23.1.4 capsule are required throughout. `evidence.py` packages and verifies
 byte-exact content without executing any archived compiler or proof.
 
+The first complete proof encoding contains 51,963 logical files and
+3,774,844,489 logical bytes. Its 70,707,996-byte archive exceeds the installed
+report-size limit and remains preserved, SHA-256
+`e86da4f891269547c9bb74138223aea0dbe4d2fd9749900d7f3096d6ad5dc275`.
+The compact encoding uses reversible token/numeric columns for the large raw
+observation tables, reusing the independently restored R5 algorithm, and
+retains each original blob's exact SHA-256. Binary/UTF8/duplicate/empty and
+numeric/whitespace controls round-trip; corrupt columns, duplicate entries,
+traversal and orphan payloads are refused. Publication requires complete
+reconstruction and comparison against the first payload index, with no dropped
+or changed original logical file. This changes proof transport only, with
+no semantic inference, root repair or compiler/workflow limit modification.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
