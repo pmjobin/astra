@@ -140,6 +140,15 @@ does not close them. This is source-policy inspection, not a claim to have reach
 or passed that Class through the native pipeline. Graph55's owner-root deferral
 and the8,000,000 SSA ceiling remain unchanged.
 
+A candidate record source plan now records the original field-parent tree and
+the separate flattened leaf order. Its consumer independently reconstructs source
+parentage, every field ordinal, subtree counts, leaf coverage and TypeOwner identity;
+it does not invoke the producer or trust its counts. The plan remains unhooked
+from native admission: memory packing/unpacking and flattened carrier lowering
+must still be implemented and independently proved. Its C0 front-end check passes;
+native source-plan and seven mutation-control checks are pending. The earlier
+observer shared-swap and missing Error-bound prechecks remain failed receipts.
+
 While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
 local-declaration scans are replaced with one local index reconstructed from the
 independently verified Core/CFG. Missing and duplicate sites still refuse, and

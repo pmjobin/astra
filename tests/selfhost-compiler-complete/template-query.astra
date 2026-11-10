@@ -50,8 +50,66 @@ bool template_source_controls(CheckedIndex checked, SymbolId owner) {
 	return rejected && recover_slot_template_source(checked, owner);
 }
 
+bool record_shape_controls(RecoverRecordShape shape, CheckedIndex checked) {
+	if (!recover_record_shape_verify(shape, checked)) return false;
+	var root = shape.parts[0]; var changed = root; changed.count = root.count + 1; shape.parts[0] = changed;
+	bool rejected = !recover_record_shape_verify(shape, checked); shape.parts[0] = root;
+	if (!rejected || !recover_record_shape_verify(shape, checked)) return false;
+	int index = shape.leaves[0] - 1; var leaf = shape.parts[index]; changed = leaf; changed.type = type_id(1); if (leaf.type.index == 1) changed.type = type_id(13);
+	shape.parts[index] = changed; rejected = !recover_record_shape_verify(shape, checked); shape.parts[index] = leaf;
+	if (!rejected || !recover_record_shape_verify(shape, checked)) return false;
+	changed = leaf; changed.ordinal = leaf.ordinal + 1; shape.parts[index] = changed;
+	rejected = !recover_record_shape_verify(shape, checked); shape.parts[index] = leaf;
+	if (!rejected || !recover_record_shape_verify(shape, checked)) return false;
+	changed = leaf; changed.first = shape.leaf_count; shape.parts[index] = changed;
+	rejected = !recover_record_shape_verify(shape, checked); shape.parts[index] = leaf;
+	if (!rejected || !recover_record_shape_verify(shape, checked)) return false;
+	changed = leaf; changed.parent = index + 1; shape.parts[index] = changed;
+	rejected = !recover_record_shape_verify(shape, checked); shape.parts[index] = leaf;
+	if (!rejected || !recover_record_shape_verify(shape, checked)) return false;
+	int original_leaf = shape.leaves[0]; shape.leaves[0] = 0; rejected = !recover_record_shape_verify(shape, checked); shape.leaves[0] = original_leaf;
+	if (!rejected || !recover_record_shape_verify(shape, checked)) return false;
+	var previous = shared_clone(shape.identity); var alien = new TypeOwner(); var identity = shared_acquire(move alien); shape.identity = move identity;
+	rejected = !recover_record_shape_verify(shape, checked); shape.identity = move previous;
+	return rejected && recover_record_shape_verify(shape, checked);
+}
+
+int record_shape_cli(CheckedIndex checked) throws Error {
+	int t = 1; int count = 0;
+	while (t <= checked.types.count) {
+		var type = type_id(t);
+		if (checked_kind(checked, type) == 30 && class_storage_fields_verified(checked, type, 0) && !checked_record_owned(checked, type, 0)) {
+			var shape = recover_record_shape(checked, type);
+			if (shape.status != 0 || !record_shape_controls(shape, checked)) return 8;
+			var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var name = checked.bindings.program.arena.token_message(declaration.token);
+			var output = new Utf8ByteBuilder(); source_append_text(output, "RECORD "); source_append_text(output, name.text); source_append_text(output, " PARTS "); append_int(output, shape.part_count); source_append_text(output, " LEAVES "); append_int(output, shape.leaf_count); source_append_text(output, " CONTROLS 7"); var text = output.snapshot(); println(text.text);
+			int i = 0;
+			while (i < shape.leaf_count) {
+				int node = shape.leaves[i] - 1; var part = shape.parts[node]; int kind = checked_kind(checked, part.type); int width = 1; if (kind != 13) width = type_width(kind);
+				var leaf_output = new Utf8ByteBuilder(); source_append_text(leaf_output, "LEAF "); append_int(leaf_output, i); source_append_text(leaf_output, " WIDTH "); append_int(leaf_output, width); source_append_text(leaf_output, " PATH");
+				var path = new int[33]; int depth = 0;
+				while (part.parent > 0) {
+					path[depth] = part.ordinal;
+					depth = depth + 1;
+					part = shape.parts[part.parent - 1];
+				}
+				while (depth > 0) {
+					depth = depth - 1;
+					source_append_text(leaf_output, " ");
+					append_int(leaf_output, path[depth]);
+				}
+				var leaf_text = leaf_output.snapshot(); println(leaf_text.text); i = i + 1;
+			}
+			count = count + 1;
+		}
+		t = t + 1;
+	}
+	if (count > 0) return 42;
+	return 3;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--mutations") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -61,6 +119,7 @@ int main(string[] args) {
 			return 1;
 		}
 		assert_that(checked.validate() && generic_verify(checked));
+		if (args[1] == "--records") return record_shape_cli(checked);
 		bool complete = true; int count = 0; int s = 1;
 		while (s <= checked.generic_symbols) {
 			var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);

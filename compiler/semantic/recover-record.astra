@@ -28,3 +28,162 @@ bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId typ
 		i = i + 1;
 	} return true;
 }
+
+// Source paths and native leaf ordinals are separate from memory offsets.
+// This candidate plan is not an admission flag: the current backend remains
+// guarded until nested memory and flattened value lowering are both qualified.
+struct RecoverRecordPart {
+	TypeId type;
+	SymbolId field;
+	int parent;
+	int ordinal;
+	int first;
+	int count;
+}
+
+class RecoverRecordShape {
+	owned shared TypeOwner identity;
+	TypeId root;
+	owned RecoverRecordPart[] parts;
+	owned int[] leaves;
+	int part_count;
+	int leaf_count;
+	int remaining;
+	int status;
+
+	init(CheckedIndex checked, TypeId root) {
+		var identity = shared_clone(checked.types.identity); this.identity = move identity;
+		this.root = root; this.parts = new RecoverRecordPart[16]; this.leaves = new int[16];
+		this.part_count = 0; this.leaf_count = 0; this.remaining = 8000000; this.status = 0;
+	}
+
+	int append(RecoverRecordPart row) {
+		if (this.status != 0 || this.remaining == 0 || this.part_count == 32768) {
+			this.status = 2;
+			return 0;
+		}
+		this.remaining = this.remaining - 1;
+		if (this.part_count == len(this.parts)) {
+			var grown = new RecoverRecordPart[syntax_grown_capacity(len(this.parts), this.part_count + 1)]; int i = 0;
+			while (i < this.part_count) {
+				grown[i] = this.parts[i];
+				i = i + 1;
+			}
+			swap(this.parts, grown);
+		}
+		this.parts[this.part_count] = row; this.part_count = this.part_count + 1; return this.part_count;
+	}
+
+	void leaf(int part) {
+		// This is the existing physical parameter ceiling, not a larger ABI.
+		if (this.status != 0 || this.leaf_count == 1024) {
+			this.status = 2;
+			return;
+		}
+		if (this.leaf_count == len(this.leaves)) {
+			var grown = new int[syntax_grown_capacity(len(this.leaves), this.leaf_count + 1)]; int i = 0;
+			while (i < this.leaf_count) {
+				grown[i] = this.leaves[i];
+				i = i + 1;
+			}
+			swap(this.leaves, grown);
+		}
+		this.leaves[this.leaf_count] = part; this.leaf_count = this.leaf_count + 1;
+	}
+}
+
+int recover_record_shape_part(RecoverRecordShape shape, CheckedIndex checked, TypeId type, SymbolId field, int parent, int ordinal, int depth) {
+	if (depth > 32 || !checked.types.valid_id(type)) {
+		shape.status = 3;
+		return 0;
+	}
+	int kind = checked_kind(checked, type);
+	if (!type_numeric(kind) && kind != 13 && (kind != 30 || !class_storage_record_verified(checked, type) || checked_record_owned(checked, type, 0))) {
+		shape.status = 3;
+		return 0;
+	}
+	RecoverRecordPart row = {type = type, field = field, parent = parent, ordinal = ordinal, first = shape.leaf_count, count = 0}; int id = shape.append(row);
+	if (id == 0) return 0;
+	if (kind != 30) {
+		shape.leaf(id); row.count = 1;
+	} else {
+		var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
+		while (i < checked.bindings.program.arena.list_count(fields) && shape.status == 0) {
+			var source = checked.bindings.program.arena.node_at(fields, i); var symbol = checked.node_symbols[source.index];
+			if (symbol.index < 1 || checked.symbol_flags[symbol.index] != 0) {
+				shape.status = 3;
+				return 0;
+			}
+			int child = recover_record_shape_part(shape, checked, checked.symbol_types[symbol.index], symbol, id, i, depth + 1);
+			if (child == 0) return 0;
+			i = i + 1;
+		}
+		row.count = shape.leaf_count - row.first;
+	}
+	shape.parts[id - 1] = row; return id;
+}
+
+owned RecoverRecordShape recover_record_shape(CheckedIndex checked, TypeId type) {
+	var shape = new RecoverRecordShape(checked, type);
+	if (!checked.types.valid_id(type) || checked_kind(checked, type) != 30 || !class_storage_fields_verified(checked, type, 0)) {
+		shape.status = 3;
+		return move shape;
+	}
+	int root = recover_record_shape_part(shape, checked, type, type_symbol(0), 0, -1, 0);
+	if (root != 1 && shape.status == 0) shape.status = 1;
+	return move shape;
+}
+
+// Reconstruct coverage, source parentage, leaf order and subtree sizes without
+// calling the producer or trusting its counts. Parent indices form a finite
+// source tree; all field ordinals must occur exactly once in source order.
+bool recover_record_shape_verify(RecoverRecordShape shape, CheckedIndex checked) {
+	if (shape.status != 0 || !type_owner_same(shape.identity, checked.types.identity) || !checked.types.valid_id(shape.root) || checked_kind(checked, shape.root) != 30 || !class_storage_fields_verified(checked, shape.root, 0) || shape.part_count < 1 || shape.part_count > 32768 || shape.part_count > len(shape.parts) || shape.leaf_count < 1 || shape.leaf_count > 1024 || shape.leaf_count > len(shape.leaves)) return false;
+	var root = shape.parts[0]; if (root.type.index != shape.root.index || root.field.index != 0 || root.parent != 0 || root.ordinal != -1 || root.first != 0 || root.count != shape.leaf_count) return false;
+	var next = new int[shape.part_count]; var counts = new int[shape.part_count]; var depths = new int[shape.part_count]; var leaves = new bool[shape.leaf_count]; int n = 0;
+	while (n < shape.part_count) {
+		var part = shape.parts[n]; if (!checked.types.valid_id(part.type)) return false;
+		int kind = checked_kind(checked, part.type);
+		if (n > 0) {
+			if (part.parent < 1 || part.parent > n) return false;
+			var parent = shape.parts[part.parent - 1]; if (checked_kind(checked, parent.type) != 30 || part.ordinal != next[part.parent - 1]) return false;
+			depths[n] = depths[part.parent - 1] + 1; if (depths[n] > 32) return false;
+			var declaration = checked.bindings.symbol(checked.types.row(parent.type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+			if (part.ordinal < 0 || part.ordinal >= checked.bindings.program.arena.list_count(fields)) return false;
+			var source = checked.bindings.program.arena.node_at(fields, part.ordinal); var field = checked.node_symbols[source.index];
+			if (field.index < 1 || field.index != part.field.index || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(parent.type).nominal.index || checked.bindings.symbol(field).node.index != source.index || checked.symbol_types[field.index].index != part.type.index || checked.symbol_flags[field.index] != 0) return false;
+			next[part.parent - 1] = next[part.parent - 1] + 1;
+		}
+		if (kind == 30) {
+			if (!class_storage_record_verified(checked, part.type) || checked_record_owned(checked, part.type, 0)) return false;
+		} else {
+			if (!type_numeric(kind) && kind != 13 || part.first < 0 || part.first >= shape.leaf_count || part.count != 1 || leaves[part.first] || shape.leaves[part.first] != n + 1) return false;
+			leaves[part.first] = true; counts[n] = 1;
+		}
+		n = n + 1;
+	}
+	n = shape.part_count - 1;
+	while (n >= 0) {
+		var part = shape.parts[n];
+		if (checked_kind(checked, part.type) == 30) {
+			var declaration = checked.bindings.symbol(checked.types.row(part.type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+			if (next[n] != checked.bindings.program.arena.list_count(fields)) return false;
+		} else {
+			if (next[n] != 0) return false;
+		}
+		if (part.count != counts[n] || counts[n] < 1 || counts[n] > shape.leaf_count) return false;
+		if (part.parent > 0) counts[part.parent - 1] = counts[part.parent - 1] + counts[n];
+		n = n - 1;
+	}
+	var offsets = new int[shape.part_count]; n = 1;
+	while (n < shape.part_count) {
+		var part = shape.parts[n]; var parent = shape.parts[part.parent - 1];
+		if (part.first != parent.first + offsets[part.parent - 1]) return false;
+		offsets[part.parent - 1] = offsets[part.parent - 1] + counts[n]; n = n + 1;
+	}
+	n = 0; while (n < shape.leaf_count) {
+		if (!leaves[n]) return false;
+		n = n + 1;
+	}
+	return counts[0] == shape.leaf_count;
+}
