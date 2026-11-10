@@ -102,7 +102,11 @@ int recover_ssa_dominance_order(RecoverBlock[] blocks, int count, int[] entries,
 // Reconstruct predecessors and immediate dominators from the checked CFG.
 // All scans, chain intersections and queries use the verifier's work budget.
 bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries, RecoverWork work) {
-	if (count < 1 || count > 8192 || count > len(blocks) || len(entries) == 0 || len(entries) > count || work.exhausted) return false;
+	if (count < 1 || count > 8000000 || count > len(blocks) || len(entries) == 0 || len(entries) > count || work.exhausted) return false;
+	if (count > work.remaining) {
+		work.exhausted = true;
+		return false;
+	}
 	var incoming = new int[count + 1]; var links = new int[count * 2 + 1];
 	int b = 1;
 	while (b <= count) {
@@ -345,7 +349,7 @@ owned int[] recover_ssa_local_definitions(RecoverCfg cfg, RecoverWork work) {
 }
 
 bool recover_ssa_verify(RecoverSsa ssa) {
-	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || ssa.cfg.block_count > 8192 || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
+	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count]; if (!recover_ssa_reach(ssa.cfg, reachable, work)) return false;
 	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work)) return false;
 	var definitions = new bool[len(ssa.data.values)]; int b = 1;
@@ -373,6 +377,19 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	}
 	var locals = recover_ssa_local_definitions(ssa.cfg, work);
 	if (work.exhausted || len(locals) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1) return false;
+	// Record incoming reachable edges of each Error phi from the verified CFG.
+	// Descending insertion retains the original ascending verification order.
+	var phi_head = new int[ssa.cfg.block_count + 1]; var phi_next = new int[ssa.cfg.edge_count + 1];
+	int e = ssa.cfg.edge_count;
+	while (e > 0) {
+		if (!work.take()) return false;
+		var edge = ssa.cfg.edges[e - 1];
+		if (ssa.cfg.blocks[edge.target - 1].opcode == 33 && reachable[edge.source - 1]) {
+			phi_next[e] = phi_head[edge.target];
+			phi_head[edge.target] = e;
+		}
+		e = e - 1;
+	}
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
@@ -411,11 +428,11 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			if (!slot.parameter || slot.owner || slot.flags != 2 || slot.symbol.index != source.symbol.index || slot.function != row.function) return false;
 		}
 		if (row.opcode == 33) {
-			int e = 0;
-			while (e < ssa.cfg.edge_count) {
-				var edge = ssa.cfg.edges[e];
-				if (edge.target == b && reachable[edge.source - 1] && (edge.owner == 0 || !recover_ssa_use(ssa.data, ssa.cfg, edge.owner, edge.source, work))) return false;
-				e = e + 1;
+			e = phi_head[b];
+			while (e > 0) {
+				var edge = ssa.cfg.edges[e - 1];
+				if (edge.owner == 0 || !recover_ssa_use(ssa.data, ssa.cfg, edge.owner, edge.source, work)) return false;
+				e = phi_next[e];
 			}
 		}
 		b = b + 1;
@@ -432,10 +449,6 @@ owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {
 	bool valid = recover_cfg_verify(cfg); var ssa = new RecoverSsa(move cfg, work_limit);
 	if (!valid) {
 		ssa.data.fail(4);
-		return move ssa;
-	}
-	if (ssa.cfg.block_count > 8192) {
-		ssa.data.fail(2);
 		return move ssa;
 	}
 	var work = new RecoverWork(work_limit); recover_ssa_define(ssa.data, ssa.cfg, work);

@@ -2,12 +2,13 @@
 // Conditional call facts stay in CheckedIndex. This consumer binds their
 // original declaration/result/argument channels; Core and SSA must separately
 // discharge result initialization and every owner obligation.
+// The Flow pass has already independently checked the complete generic map.
 bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId target, TypeId result) {
 	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax() || target.index < 1 || target.index > checked.bindings.symbol_count || checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index != target.index) return false;
 	var declaration = checked.bindings.symbol(target); int ordinal = checked.symbol_signatures[target.index].index;
 	if (declaration.kind != 1 || ordinal < 1 || ordinal > checked.signature_count || !recover_function_source(checked, target)) return false;
-	if (recover_call_receiver(checked, target)) {
-		if (!generic_verify(checked) || checked.generic_calls[source.index].index != target.index) return false;
+	if (recover_static_method(checked, target)) {
+		if (checked.generic_calls[source.index].index != target.index) return false;
 		var arguments = checked_call_arguments(checked, source);
 		if (checked.bindings.program.arena.list_count(arguments) < 1) return false;
 		var receiver = checked.bindings.program.arena.node_at(arguments, 0);

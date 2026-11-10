@@ -32,7 +32,7 @@ bytes 133–649. Complete compiler native generation remains at zero of two
 profiles. The concrete collection payload, independent graph55 owner proof,
 and compiler scale qualification remain open.
 
-## Ordinary Class record memory candidate
+## Ordinary Class record memory
 
 The candidate admits copyable record fields in ordinary Classes. It uses the
 nested source layout for memory and the established flat carrier for native
@@ -49,8 +49,16 @@ check passes on all five changed sources. The Python formatter refused the host
 3.15.2 executable against its 3.15.0 pin, so the existing Python recipe was
 restored. Both original C0 record field oracles execute to 42 with clean memory.
 The second oracle replaces the field and verifies the earlier record copy.
-The Astra native checks are pending. Owned record arrays and nested Error
-storage remain open, along with complete original compiler generation.
+The frozen `119829c` O0 host built in 48:47.14 at 2,285,868 KiB peak RSS. Its
+SHA-256 is `8de498cbee8cabeb7e5e0382849fb67211c5a8ee49329c2baa9ade8bd738192d`.
+Both Class record programs passed independent LLVM verification, native
+linkage, exit 42, and unsuppressed Valgrind. The nested Error memory refusal
+preserved its output sentinel. Two flat record and three owner slot programs
+also passed native execution and memory checks. Five slot refusals preserved
+their output sentinels. `native-gen7-independent-audit.json` rechecks 195
+Git-authenticated inputs, 46 tool identities, source and native artifact hashes,
+and command streams. Its SHA-256 is
+`ed5e67cdd7a7e0b925c9cd530ca532603908378e2a1c77d993faf5338bea1243`.
 
 ## Dynamic arrays of copyable records candidate
 
@@ -71,6 +79,14 @@ The C0 semantic check of all 180 production modules passes in 50.98 seconds in
 diagnostic. The corrected code uses temporary borrows. Astra native qualification
 is pending. Fixed record arrays, record slices, and owning record elements retain
 their existing restrictions.
+
+The frozen `2d63b55` observer accepted both original `Bag` payloads on all 190
+unchanged original inputs, including `Bag<FlowGraph>`. RecoverFlow advanced to
+the original `Vector` declaration at bytes 140–1018 and exited 2. The four closed
+`Vector` payload layouts passed storage checks. The declaration and executable
+methods still require Flow validation. `record-array-flow-original` retains
+the input ledger and raw result. Complete original native generation remains
+at zero of two profiles.
 
 ## Core work and LLVM traversal candidate
 
@@ -98,6 +114,44 @@ A read-only stack sample of the in-flight frozen C0 build found bootstrap SSA
 owned-field loan verification during LLVM lowering. The sample identifies the
 active phase at that instant. It does not measure how much of the total build
 time that phase consumes.
+
+## Per-function capacity and verifier work candidate
+
+`module-unit-baseline2` exercises the former aggregate limit with two actual
+source programs. The 19-function program has 160 assignments in each of 18
+units. The single large function has 2,100 assignments. Original C0 executes
+both programs to 42 with clean unsuppressed Valgrind at O0 and O2. The frozen
+`119829c` Astra host refuses both with `RECOVER_FLOW 2 0 8192`, preserving both
+destinations. The first fixture attempt remains recorded with its missing
+assertion declaration diagnostic.
+
+The candidate counts Flow nodes, Flow edges and CFG blocks within each
+function. Each consumer reconstructs those counts from its verified population.
+Aggregate storage grows on demand under the existing SSA budget. The 8,192
+per-function bound, 256 generic-instance bound and 8,000,000 SSA work ceiling
+apply. The exact-source `module-capacity-kernel3` exercises 16,384 rows across
+two units, verifies cross-function separation, and refuses a single extra row,
+a cross-unit Flow edge and insufficient SSA work. Both O0 and O2 execute to 42
+with clean Valgrind. The first two kernel attempts retain their declaration
+count and missing diagnostics provider failures. The successful receipt
+SHA-256 is `383c40167080628d63b6938b61112a2db24cef3678adc5f1f4b8c00c5e5837f9`.
+
+Core records owner uses while visiting their consuming operations. The Core
+consumer independently reconstructs immediate parents, resolves parentheses,
+and checks the actual use, reservation and slot. SSA indexes reservations once
+and explores each slot over the blocks of its own function. Incoming Error phi
+edges are indexed from verified CFG edges. `ssa-owner-index-kernel2` compares
+the old and new slot traversal on eight controls and 2,048 interleaved functions
+with 8,192 blocks. It records 4,202,496 prior and 26,624 candidate metered steps
+on that fixture, with exit 42 and clean Valgrind at both profiles. The receipt
+SHA-256 is `c861e861c37127ec313ff50f5272c5b529b19e70ad4db43f4cc8563848ffa6ec`.
+
+The generic consumer walks every slot in each independently bounded map window.
+Flow and CFG retain the complete generic verification at their pass boundaries
+and read concrete call and receiver facts at each use. The all-module C0
+semantic check `native-moduleunitscheck1-O0` passes in 53.51 seconds at 360,604
+KiB peak RSS. The kernel measurements establish bounded behavior on their
+fixtures. Native integration and matched complete-original timing are pending.
 
 ## Earlier progress snapshot — 2026-11-10, candidate4 and template work
 

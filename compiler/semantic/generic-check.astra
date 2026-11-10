@@ -124,8 +124,10 @@ int generic_verify_failure(CheckedIndex index) {
 			if (argument.flags != 0 || !generic_closed(index, argument.type, 0)) return 12;
 			p = p + 1;
 		}
-		int n = 1;
-		while (n <= index.generic_nodes) {
+		// The independently bounded map has no slots outside this window.
+		// Check every stored slot and reconstruct each mapped source edge.
+		int n = storage.node_first;
+		while (n - storage.node_first < storage.node_count) {
 			if (generic_node(index, index.instances[ordinal], n) != 0) {
 				SyntaxNodeId node = {index = n};
 				if (!generic_check_node(index, index.instances[ordinal], node)) return 13;
@@ -142,8 +144,8 @@ int generic_verify_failure(CheckedIndex index) {
 			}
 			n = n + 1;
 		}
-		n = 1;
-		while (n <= index.generic_symbols) {
+		n = storage.symbol_first;
+		while (n - storage.symbol_first < storage.symbol_count) {
 			int mapped = generic_symbol(index, index.instances[ordinal], n);
 			if (mapped != 0) {
 				if (mapped <= index.generic_symbols || mapped > index.bindings.symbol_count) return 16;

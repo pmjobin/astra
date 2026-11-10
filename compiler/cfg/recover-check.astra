@@ -157,14 +157,14 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	int head = op; if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) && row.count > 0) head = cfg.regions[cfg.core.flow.data.edges[row.first + row.count - 1] - 1].next;
 	// With only the hidden receiver, its guard is also the last argument's
 	// continuation. Entry reservations follow that guard and precede the call.
-	if (row.kind == 4 && row.count == 1 && recover_call_receiver(cfg.core.flow.checked, row.symbol)) {
+	if (row.kind == 4 && row.count == 1 && recover_static_method(cfg.core.flow.checked, row.symbol)) {
 		if (head < 1 || head > cfg.block_count) return false;
 		head = cfg.blocks[head - 1].next;
 	}
 	if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) && !recover_cfg_check_commit(cfg, head, id, op, seen)) return false; int i = row.count - 1;
 	while (i >= 0) {
 		int child = cfg.core.flow.data.edges[row.first + i];
-		if (i == 0 && row.kind == 4 && recover_call_receiver(cfg.core.flow.checked, row.symbol)) {
+		if (i == 0 && row.kind == 4 && recover_static_method(cfg.core.flow.checked, row.symbol)) {
 			int guard = cfg.regions[child - 1].next;
 			if (guard < 1 || guard > cfg.block_count) return false;
 			int fatal = cfg.blocks[guard - 1].other;
@@ -193,10 +193,13 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 }
 
 bool recover_cfg_verify(RecoverCfg cfg) {
-	if (cfg.status != 0 || !recover_core_verify(cfg.core) || cfg.limit < 1 || cfg.limit > 8192 || cfg.block_count < 1 || cfg.block_count > cfg.limit || cfg.edge_count < 0 || cfg.edge_count > cfg.block_count * 2 || len(cfg.blocks) != cfg.limit || len(cfg.edges) != cfg.limit * 2 || len(cfg.regions) != cfg.core.count || len(cfg.handlers) != cfg.core.count || len(cfg.catch_try) != cfg.core.count || len(cfg.entries) != cfg.core.flow.data.function_count || len(cfg.terminals) != len(cfg.entries) || len(cfg.errors) != cfg.core.flow.data.function_count) return false;
+	if (cfg.status != 0 || !recover_core_verify(cfg.core) || cfg.limit < 1 || cfg.limit > 8192 || cfg.block_count < 1 || cfg.block_count > len(cfg.blocks) || len(cfg.blocks) > 8000000 || cfg.edge_count < 0 || cfg.edge_count > cfg.block_count * 2 || len(cfg.edges) != cfg.block_count * 2 || len(cfg.regions) != cfg.core.count || len(cfg.handlers) != cfg.core.count || len(cfg.catch_try) != cfg.core.count || len(cfg.entries) != cfg.core.flow.data.function_count || len(cfg.terminals) != len(cfg.entries) || len(cfg.errors) != cfg.core.flow.data.function_count) return false;
+	var unit_blocks = new int[len(cfg.entries)];
 	int e = 0; int b = 0;
 	while (b < cfg.block_count) {
 		var row = cfg.blocks[b]; if (row.function < 1 || row.function > len(cfg.entries) || row.origin < 0 || row.origin > cfg.core.count || row.next < 0 || row.next > cfg.block_count || row.other < 0 || row.other > cfg.block_count) return false;
+		if (unit_blocks[row.function - 1] == cfg.limit) return false;
+		unit_blocks[row.function - 1] = unit_blocks[row.function - 1] + 1;
 		int p = 1;
 		while (p <= 2) {
 			int target = row.next; int owner = row.carry;

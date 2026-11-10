@@ -251,6 +251,7 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) thro
 	recover_storage_inventory(flow.storage, flow.checked, flow.data.symbols);
 	int f = 0;
 	while (f < flow.data.function_count && flow.data.status == 0) {
+		flow.data.begin_function(f + 1);
 		var function = flow.data.functions[f]; var declaration = flow.checked.bindings.symbol(function.symbol);
 		function.body = recover_build_node(flow.data, flow.checked, flow.types, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0); flow.data.function_row(f, function); recover_loop_bind(flow.data, function.body, 0, 0); f = f + 1;
 	}

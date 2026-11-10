@@ -2,30 +2,76 @@
 // Explore each genuine owner slot over the actual CFG. States distinguish
 // dead, live, and live with one pending reservation; nullness is irrelevant.
 // No producer-supplied liveness or definite-assignment certificate is trusted.
-bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverWork work) {
-	var slot = ssa.cfg.core.flow.storage.slots[place - 1]; if (!slot.owner) return true;
-	var reservations = new int[ssa.cfg.core.count]; int versions = 2; int n = 0;
-	while (n < ssa.cfg.core.count) {
+class RecoverSsaOwnerIndex {
+	owned int[] starts;
+	owned int[] positions;
+	owned int[] blocks;
+	owned int[] reservations;
+	owned int[] moves;
+
+	init(RecoverCfg cfg) {
+		this.starts = new int[len(cfg.entries) + 1];
+		this.positions = new int[cfg.block_count];
+		this.blocks = new int[cfg.block_count];
+		this.reservations = new int[cfg.core.count];
+		this.moves = new int[cfg.core.flow.storage.count];
+	}
+}
+
+bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, RecoverWork work) {
+	int b = 0;
+	while (b < cfg.block_count) {
 		if (!work.take()) return false;
-		if (ssa.cfg.core.owners.slots[n] == place) {
-			reservations[n] = versions;
-			versions = versions + 1;
+		int function = cfg.blocks[b].function;
+		if (function < 1 || function >= len(index.starts)) return false;
+		index.starts[function] = index.starts[function] + 1;
+		b = b + 1;
+	}
+	int f = 1;
+	while (f < len(index.starts)) {
+		index.starts[f] = index.starts[f] + index.starts[f - 1];
+		f = f + 1;
+	}
+	var used = new int[len(cfg.entries)]; b = 0;
+	while (b < cfg.block_count) {
+		if (!work.take()) return false;
+		f = cfg.blocks[b].function - 1;
+		int position = used[f]; used[f] = position + 1;
+		index.positions[b] = position;
+		index.blocks[index.starts[f] + position] = b + 1;
+		b = b + 1;
+	}
+	int n = 0;
+	while (n < cfg.core.count) {
+		if (!work.take()) return false;
+		int place = cfg.core.owners.slots[n];
+		if (place != 0) {
+			if (place < 1 || place > len(index.moves)) return false;
+			index.reservations[n] = index.moves[place - 1] + 2;
+			index.moves[place - 1] = index.moves[place - 1] + 1;
 		}
 		n = n + 1;
 	}
-	if (ssa.cfg.block_count > 8000000 / versions) {
+	return true;
+}
+
+bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverSsaOwnerIndex index, RecoverWork work) {
+	var slot = ssa.cfg.core.flow.storage.slots[place - 1]; if (!slot.owner) return true;
+	int versions = index.moves[place - 1] + 2;
+	int first = index.starts[slot.function - 1]; int blocks = index.starts[slot.function] - first;
+	if (blocks > 8000000 / versions) {
 		work.exhausted = true;
 		return false;
 	}
-	int capacity = ssa.cfg.block_count * versions; var seen = new bool[capacity]; var pending = new int[capacity]; int entry = ssa.cfg.entries[slot.function - 1]; int state = 0; if (slot.parameter) state = 1; int start = (entry - 1) * versions + state; pending[0] = start; seen[start] = true; int count = 1;
+	int capacity = blocks * versions; var seen = new bool[capacity]; var pending = new int[capacity]; int entry = ssa.cfg.entries[slot.function - 1]; int state = 0; if (slot.parameter) state = 1; int start = index.positions[entry - 1] * versions + state; pending[0] = start; seen[start] = true; int count = 1;
 	while (count > 0) {
-		if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / versions + 1; int before = item % versions; int after = before; var row = ssa.cfg.blocks[block - 1];
+		if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = index.blocks[first + item / versions]; int before = item % versions; int after = before; var row = ssa.cfg.blocks[block - 1];
 		SyntaxNodeId absent = {index = 0}; var source = recover_empty(absent, 0, type_id(14), 0, 0); if (row.origin > 0) source = ssa.cfg.core.nodes[row.origin - 1].value;
 		if ((row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46) && source.symbol.index == slot.symbol.index) {
 			if (before == 0) return false;
 			if (row.opcode == 10) {
-				if (before != 1 || reservations[row.origin - 1] < 2) return false;
-				after = reservations[row.origin - 1];
+				if (before != 1 || ssa.cfg.core.owners.slots[row.origin - 1] != place || index.reservations[row.origin - 1] < 2) return false;
+				after = index.reservations[row.origin - 1];
 			}
 		}
 		if (row.opcode == 27 && source.symbol.index == slot.symbol.index) {
@@ -33,11 +79,11 @@ bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverWork work) {
 			after = 1;
 		}
 		if (row.opcode == 36 && row.b == place) {
-			if (row.a < 1 || row.a > len(reservations) || before != reservations[row.a - 1] || before < 2) return false;
+			if (row.a < 1 || row.a > len(index.reservations) || ssa.cfg.core.owners.slots[row.a - 1] != place || before != index.reservations[row.a - 1] || before < 2) return false;
 			after = 0;
 		}
 		if (row.opcode == 37 && row.b == place) {
-			if (row.a < 1 || row.a > len(reservations) || before != reservations[row.a - 1] || before < 2) return false;
+			if (row.a < 1 || row.a > len(index.reservations) || ssa.cfg.core.owners.slots[row.a - 1] != place || before != index.reservations[row.a - 1] || before < 2) return false;
 			after = 1;
 		}
 		if (row.opcode == 38 && row.a == place) {
@@ -50,7 +96,7 @@ bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverWork work) {
 			if (polarity == 1) target = row.other;
 			if (target > 0) {
 				if (ssa.cfg.blocks[target - 1].function != slot.function) return false;
-				int next = (target - 1) * versions + after;
+				int next = index.positions[target - 1] * versions + after;
 				if (!seen[next]) {
 					seen[next] = true;
 					pending[count] = next;
@@ -64,8 +110,13 @@ bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverWork work) {
 
 bool recover_ssa_slots(RecoverSsa ssa, RecoverWork work) {
 	if (!recover_owners_verify(ssa.cfg.core.owners, ssa.cfg.core.flow)) return false;
-	int place = 1; while (place <= ssa.cfg.core.flow.storage.count) {
-		if (!recover_ssa_slot(ssa, place, work)) return false;
+	int place = 1;
+	while (place <= ssa.cfg.core.flow.storage.count && !ssa.cfg.core.flow.storage.slots[place - 1].owner) place = place + 1;
+	if (place > ssa.cfg.core.flow.storage.count) return !work.exhausted;
+	var index = new RecoverSsaOwnerIndex(ssa.cfg);
+	if (!recover_ssa_owner_index(index, ssa.cfg, work)) return false;
+	while (place <= ssa.cfg.core.flow.storage.count) {
+		if (!recover_ssa_slot(ssa, place, index, work)) return false;
 		place = place + 1;
 	} return !work.exhausted;
 }

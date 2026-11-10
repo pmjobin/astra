@@ -5,6 +5,7 @@ int recover_cfg_loop(RecoverCfg cfg, int id, int next, int depth) {
 	var row = cfg.core.nodes[id - 1].value; int operation = 0; int head = 0;
 	if (row.kind == 28) {
 		operation = cfg.block(row.function, id, 21, row.a, 0, 0, next, 0, 0, 0);
+		if (operation == 0) return 0;
 		head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
 		RecoverRegion early = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = early;
 		int body = recover_cfg_tree(cfg, row.b, head, depth + 1); var branch = cfg.blocks[operation - 1]; branch.next = body; cfg.blocks[operation - 1] = branch;

@@ -19,8 +19,9 @@ class RecoverCore {
 	int count;
 	int status;
 
-	init(owned RecoverFlow flow) {
-		int count = flow.data.node_count; var owners = recover_owners_build(flow); this.owners = move owners; this.flow = move flow;
+	init(owned RecoverFlow flow, bool valid) {
+		int count = 0; if (valid) count = flow.data.node_count;
+		var owners = recover_owners_build(flow, valid); this.owners = move owners; this.flow = move flow;
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
 		this.nodes = new RecoverCoreNode[count]; this.count = count; this.status = 0;
 	}
@@ -76,7 +77,7 @@ bool recover_core_verify(RecoverCore core) {
 }
 
 owned RecoverCore recover_core_lower(owned RecoverFlow flow) {
-	bool valid = recover_flow_verify(flow); var core = new RecoverCore(move flow);
+	bool valid = recover_flow_verify(flow); var core = new RecoverCore(move flow, valid);
 	if (!valid) {
 		core.status = 4;
 		return move core;

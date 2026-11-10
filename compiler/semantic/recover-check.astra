@@ -273,7 +273,7 @@ bool recover_falls(RecoverFlowData flow, int id, int depth) {
 }
 
 bool recover_flow_verify(RecoverFlow flow) {
-	if (flow.data.status != 0 || flow.data.limit < 1 || flow.data.limit > 8192 || flow.data.function_count < 1 || flow.data.function_count > flow.data.limit || flow.data.node_count < 1 || flow.data.node_count > flow.data.limit || flow.data.edge_count < 0 || flow.data.edge_count > flow.data.limit || len(flow.data.nodes) != flow.data.limit || len(flow.data.edges) != flow.data.limit || len(flow.data.functions) != flow.data.limit || len(flow.data.symbols) != flow.checked.bindings.symbol_count + 1 || len(flow.data.catch_owners) != len(flow.data.symbols) || !flow.checked.validate() || flow.checked.failed()) return false;
+	if (flow.data.status != 0 || flow.data.limit < 1 || flow.data.limit > 8192 || flow.data.function_count < 1 || flow.data.function_count > flow.data.limit || flow.data.node_count < 1 || flow.data.node_count > len(flow.data.nodes) || flow.data.edge_count < 0 || flow.data.edge_count > len(flow.data.edges) || len(flow.data.nodes) > 8000000 || len(flow.data.edges) > 8000000 || len(flow.data.functions) != flow.data.limit || len(flow.data.symbols) != flow.checked.bindings.symbol_count + 1 || len(flow.data.catch_owners) != len(flow.data.symbols) || !flow.checked.validate() || flow.checked.failed()) return false;
 	if (!recover_types_verify(flow.types, flow.checked) || !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols)) return false;
 	var source = checked_effect_source_verify(flow.checked); if (source.status != 0 || !generic_verify(flow.checked)) return false;
 	var seen = new bool[flow.data.node_count]; var edges = new bool[flow.data.edge_count]; var caught_symbols = new bool[len(flow.data.catch_owners)]; int expected = 0; int s = 1; int entries = 0;
@@ -305,9 +305,14 @@ bool recover_flow_verify(RecoverFlow flow) {
 		s = s + 1;
 	}
 	if (expected != flow.data.function_count || entries != 1) return false;
+	var unit_nodes = new int[flow.data.function_count]; var unit_edges = new int[flow.data.function_count];
 	int i = 0; while (i < flow.data.node_count) {
 		if (!seen[i]) return false;
 		var node = flow.data.nodes[i];
+		int function = node.function - 1;
+		if (unit_nodes[function] == flow.data.limit || node.count > flow.data.limit - unit_edges[function]) return false;
+		unit_nodes[function] = unit_nodes[function] + 1;
+		unit_edges[function] = unit_edges[function] + node.count;
 		if (node.kind == 25) {
 			int symbol = node.symbol.index;
 			if (symbol < 1 || symbol >= len(caught_symbols) || caught_symbols[symbol] || flow.data.catch_owners[symbol] != i + 1) return false;

@@ -33,20 +33,34 @@ class RecoverCfg {
 	int edge_count;
 	int status;
 	int limit;
+	int unit;
+	int first_block;
 
 	init(owned RecoverCore core, int limit) {
 		int nodes = core.count; int functions = core.flow.data.function_count; this.core = move core;
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
 		int capacity = limit; if (limit < 1 || limit > 8192) capacity = 0;
-		this.blocks = new RecoverBlock[capacity]; this.edges = new RecoverCfgEdge[capacity * 2]; this.regions = new RecoverRegion[nodes]; this.entries = new int[functions]; this.terminals = new int[functions]; this.errors = new int[functions]; this.handlers = new int[nodes]; this.catch_try = new int[nodes]; this.block_count = 0; this.edge_count = 0; this.limit = limit;
+		this.blocks = new RecoverBlock[capacity]; this.edges = new RecoverCfgEdge[0]; this.regions = new RecoverRegion[nodes]; this.entries = new int[functions]; this.terminals = new int[functions]; this.errors = new int[functions]; this.handlers = new int[nodes]; this.catch_try = new int[nodes]; this.block_count = 0; this.edge_count = 0; this.limit = limit;
+		this.unit = 0; this.first_block = 0;
 		int status = 0; if (capacity == 0) status = 2; this.status = status;
 	}
 
+	void begin_function(int function) { this.unit = function; this.first_block = this.block_count; }
+
 	int block(int function, int origin, int opcode, int a, int b, int next, int other, int owner, int carry, int rank) {
 		if (this.status != 0) return 0;
-		if (this.block_count >= this.limit) {
+		if (function != this.unit || this.block_count - this.first_block >= this.limit || this.block_count == 8000000) {
 			this.status = 2;
 			return 0;
+		}
+		if (this.block_count == len(this.blocks)) {
+			int capacity = recover_module_capacity(len(this.blocks), this.block_count + 1);
+			var grown = new RecoverBlock[capacity]; int i = 0;
+			while (i < this.block_count) {
+				grown[i] = this.blocks[i];
+				i = i + 1;
+			}
+			swap(this.blocks, grown);
 		}
 		RecoverBlock row = {function = function, origin = origin, opcode = opcode, a = a, b = b, next = next, other = other, owner = owner, carry = carry, rank = rank};
 		this.blocks[this.block_count] = row; this.block_count = this.block_count + 1; return this.block_count;

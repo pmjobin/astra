@@ -46,6 +46,9 @@ class RecoverFlowData {
 	int status;
 	SyntaxNodeId boundary;
 	int limit;
+	int unit;
+	int first_node;
+	int first_edge;
 
 	init(int symbols, int limit) {
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
@@ -53,6 +56,7 @@ class RecoverFlowData {
 		this.functions = new RecoverFunction[capacity]; this.nodes = new RecoverNode[capacity]; this.edges = new int[capacity]; this.symbols = new int[symbols];
 		this.catch_owners = new int[symbols];
 		this.function_count = 0; this.node_count = 0; this.edge_count = 0; this.limit = limit;
+		this.unit = 0; this.first_node = 0; this.first_edge = 0;
 		int status = 0; if (capacity == 0) status = 2; this.status = status;
 		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
 	}
@@ -66,6 +70,8 @@ class RecoverFlowData {
 
 	void function_row(int ordinal, RecoverFunction row) { this.functions[ordinal] = row; }
 
+	void begin_function(int function) { this.unit = function; this.first_node = this.node_count; this.first_edge = this.edge_count; }
+
 	void function_add(RecoverFunction row) {
 		if (this.function_count >= this.limit) {
 			this.status = 2;
@@ -76,21 +82,47 @@ class RecoverFlowData {
 
 	int add(RecoverNode row) {
 		if (this.status != 0) return 0;
-		if (this.node_count >= this.limit) {
-			this.status = 2;
+		if (row.function != this.unit || this.node_count - this.first_node >= this.limit || this.node_count == 8000000) {
+			this.fail(2, row.source);
 			return 0;
+		}
+		if (this.node_count == len(this.nodes)) {
+			int capacity = recover_module_capacity(len(this.nodes), this.node_count + 1);
+			var grown = new RecoverNode[capacity]; int i = 0;
+			while (i < this.node_count) {
+				grown[i] = this.nodes[i];
+				i = i + 1;
+			}
+			swap(this.nodes, grown);
 		}
 		this.nodes[this.node_count] = row; this.node_count = this.node_count + 1; return this.node_count;
 	}
 
 	int edge(int child) {
 		if (this.status != 0) return 0;
-		if (child < 1 || this.edge_count >= this.limit) {
+		if (child <= this.first_node || child > this.node_count || this.edge_count - this.first_edge >= this.limit || this.edge_count == 8000000) {
 			this.status = 2;
 			return 0;
 		}
+		if (this.edge_count == len(this.edges)) {
+			int capacity = recover_module_capacity(len(this.edges), this.edge_count + 1);
+			var grown = new int[capacity]; int i = 0;
+			while (i < this.edge_count) {
+				grown[i] = this.edges[i];
+				i = i + 1;
+			}
+			swap(this.edges, grown);
+		}
 		this.edges[this.edge_count] = child; this.edge_count = this.edge_count + 1; return this.edge_count;
 	}
+}
+
+// Aggregate storage is allocated on demand. A compilation with more than
+// this many rows cannot complete even one full traversal under the SSA budget.
+int recover_module_capacity(int current, int needed) {
+	int grown = syntax_grown_capacity(current, needed);
+	if (grown > 8000000) return 8000000;
+	return grown;
 }
 
 RecoverNode recover_empty(SyntaxNodeId source, int function, TypeId type, int handler, int caught) {

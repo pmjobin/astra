@@ -2,7 +2,7 @@
 // The explicit stack preserves next-before-other depth-first emission.
 // Each first visit can add at most two entries to the pending stack.
 int recover_llvm_emission_order(RecoverBlock[] blocks, int count, int[] entries, bool[] reachable, int[] order) {
-	if (count < 1 || count > 8192 || count > len(blocks) || count != len(reachable) || count != len(order)) return 0;
+	if (count < 1 || count > 8000000 || count > len(blocks) || count != len(reachable) || count != len(order)) return 0;
 	var pending = new int[count + 1]; var visited = new bool[count];
 	int emitted = 0; int f = 0;
 	while (f < len(entries)) {
