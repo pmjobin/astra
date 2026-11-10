@@ -16,7 +16,7 @@ attributed below. No Stage1 or self-host claim is made.
 | Slot source/owner/Core/CFG/SSA/LLVM integration | Three focused O0 source programs pass all stages, actual native linkage/execution and independent artifact/memory checks at4f797d9 |
 | Candidate4 O0 host rebuild | Finished in53:07.61, peak RSS2,532,892 KiB; no compiler completeness inference |
 | Focused source-to-native slot checks | Empty field slots, reserve/append/take and all six operations pass; five additional owner/source negatives refuse with preserved destinations |
-| Original generic Bag source | C0 executes42 with clean memory; candidate4 still refuses its declaration; bounded template definition proof is under development |
+| Original generic Bag source | All seven original members and small Bag<Item> Flow pass in the repaired observer; whole-original population still refuses concrete collection admission |
 | SSA local-declaration lookup | Exact new kernel passes C0 O0/O2 occurrence, boundary and memory checks; integrated Astra SSA validation is pending |
 | Current O2 host rebuild and broad regressions | Deferred until focused O0 integration succeeds |
 | Full original compiler native objects | 0 of 2 profiles proved; remains a completeness blocker |
@@ -97,6 +97,27 @@ line6460. The new checker requested a Name-only accessor from a Move node before
 selecting the Move accessor. The corrected source selects the node-appropriate
 accessor before invoking it. Its native rebuild and functional checks are pending;
 neither the trap nor the correction establishes generic Bag admission.
+
+The repaired immutable observer atb43a946 builds in1368.14 seconds, ELF SHA-256
+`a3f877c77b7da6c7c4b0248b23327f8322c455de34d8f0aeb462a96a36d2329d`.
+`template-cases-proof2` passes: the actual original Bag and renamed Vault each
+report all seven original members accepted, actual Flow exit42, and four source
+mutation controls with restored valid twins. The C0-valid unused arithmetic
+method is explicitly refused by both template and Flow consumers. C0 oracles
+are reused with disclosed byte/hash bindings, not called freshly executed.
+These are Typecore/Flow observations under a C0-built host; Core/CFG/SSA/LLVM
+and native Bag target execution are still pending.
+
+`original-flow-proof2` authenticates all190 read-only original inputs again
+against the exact initial Git commit. One actual whole-original run takes131.18
+seconds and exits2: `FLOW 3 307096 0` at the same original Bag declaration.
+All seven Bag members separately report SOURCE1 while the complete template
+reports SOURCE0, whose predicate also requires every actual concrete instance's
+storage admission. Vector's constructor, ensure and append report SOURCE0.
+The whole compiler remains unadmitted; this source family is not a substitute
+for original Bag<FlowGraph> payload support or the independent graph55 owner
+proof. A new native O0 probe freezes every production module atf818ab6 before
+building; its output and focused native results are pending.
 
 While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
 local-declaration scans are replaced with one local index reconstructed from the
