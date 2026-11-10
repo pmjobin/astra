@@ -191,6 +191,23 @@ All180 current production modules pass C0 front-end checking after the helpers.
 Neither helper nor source-plan evidence enables Astra record admission; the
 module value/memory paths and independent whole-module checks remain unhooked.
 
+The frozen `3881177` native O0 host completes in3,101.18 seconds and has SHA-256
+`177e9213d52aaa793273dc2ea8bc396907b0cbe004788f6e3ba4b1374f47b67f`.
+`native-gen3-work.json` records successful template cache controls (exit42) and
+the complete focused slot sequence. `slots-nativegen3-O0` independently executes
+three C0/Astra positive programs to42 with clean unsuppressed Valgrind and five
+negative refusals with preserved output sentinels. The new passing original
+generic Bag program retains the exact original Bag file and exercises all six
+slot operations. Its Astra LLVM SHA-256 is
+`a9158fef0dc5c9e11422400a90bf47b70298385856cd1a7b5e97a7d50a0c89fd`
+and linked ELF SHA-256 is
+`cad5be6561ad434d8d8a8d42ead9287b2572e8a027edf01e1109ee2597ec58d8`.
+The independent follow-up rehashes the actual positive ELF files and reads their
+raw execution and Valgrind receipts. This closes the focused generic-template
+physical-cache failure; the earlier gen2 failure remains unchanged. No O2,
+inherited340/71 or complete original compiler qualification follows. Full original
+compiler native profiles proved remain0/2, and graph55 remains deferred.
+
 The next candidate retains an evaluated record aggregate as a real Flow child
 for `make().field` and `object.method().field`. Independent source checking binds
 that child to the exact aggregate expression and field declaration; SSA checks
