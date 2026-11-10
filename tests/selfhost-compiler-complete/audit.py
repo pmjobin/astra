@@ -13,16 +13,67 @@ import zipfile
 from run import BASE, ROOT, WORK, git, sha, write
 
 
+def source_identities(paths, component, mode, version, consumer):
+	leaf = paths.RUNTIME/('identity-'+version+'-'+mode)
+	build = paths.BUILD/leaf.name
+	result = json.loads((leaf/'result.json').read_text())
+	assert result['status'] == 'EXACT_R5_SOURCE_IDENTITIES_RETAINED' and result['component_sha256'] == sha(component)
+	assert result['source_byte_identical_primary'] == 70 and result['original_source_identities_retained'] == 71
+	original, primary = (result[key] for key in ('old_receipt', 'primary_receipt'))
+	assert all(sha(row['path']) == row['sha256'] for row in (original, primary))
+	old = {row['name']:row for row in json.loads(Path(original['path']).read_text())['programs']}
+	new = {row['name']:row for row in json.loads(Path(primary['path']).read_text())['programs']}
+	assert set(old) == set(new) == {row['name'] for row in result['comparisons']} and len(old) == 71
+	for row in result['comparisons']:
+		before, after = old[row['name']], new[row['name']]
+		assert row['original_inputs'] == before['inputs'] and row['current_inputs'] == after['inputs']
+		assert all(sha(source['path']) == source['sha256'] for item in (before, after) for source in item['inputs'])
+		assert row['source_bytes_equal'] == ([v['sha256'] for v in before['inputs']] == [v['sha256'] for v in after['inputs']])
+		for key, producer, field in (('raw_LLVM', 'Astra', 'raw_LLVM_sha256'), ('Astra_ELF', 'Astra', 'ELF_sha256'), ('C0_ELF', 'C0', 'ELF_sha256')):
+			assert row['R5_'+key+'_sha256'] == before[producer][field] and row['current_'+key+'_sha256'] == after[producer][field]
+			assert row[key+'_equal'] == (row['R5_'+key+'_sha256'] == row['current_'+key+'_sha256'])
+	assert [row['name'] for row in result['comparisons'] if not row['source_bytes_equal']] == ['caller-all']
+	before, after = (Path(table['caller-all']['inputs'][0]['path']) for table in (old, new))
+	assert before.read_bytes().replace(str(before).encode(), str(after).encode()) == after.read_bytes()
+	caller = result['exact_original_caller']
+	assert caller['inputs'] == old['caller-all']['inputs']
+	observed = consumer.commands(leaf)
+	for name in ('C0-build', 'Astra-emit', 'verify', 'optimize', 'optimized-verify', 'object', 'link'):
+		assert observed[name]['exit'] == 0 and not observed[name]['timed_out']
+	inputs = [row['path'] for row in caller['inputs']]
+	assert observed['Astra-emit']['argv'] == [str(component), '--native', str(build/'caller-all.ll'), *inputs]
+	assert observed['C0-build']['argv'][:2+len(inputs)] == [str(consumer.C0), '-'+mode, *inputs]
+	assert observed['original-source-stages']['argv'] == [str(component), '--shared-stages', *inputs]
+	assert observed['original-source-stages']['exit'] == 42 and not observed['original-source-stages']['timed_out']
+	stages = (leaf/'original-source-stages.stdout').read_bytes()
+	assert b'SHARED_SSA_VALID' in stages and b'FLOW_LEAF ' not in stages
+	for producer in ('C0', 'Astra'):
+		assert observed[producer+'-execute']['exit'] == observed[producer+'-memory']['exit'] == 42
+		assert '--default-suppressions=no' in observed[producer+'-memory']['argv']
+		consumer.memory(leaf/(producer+'-memory.stderr'))
+		assert sha(build/('caller-all-'+producer)) == caller[producer+'_ELF_sha256']
+	for stream in ('stdout', 'stderr'):
+		assert (leaf/('Astra-execute.'+stream)).read_bytes() == (leaf/('C0-execute.'+stream)).read_bytes()
+	for filename, key in (('caller-all.ll', 'raw_LLVM'), ('caller-all-optimized.ll', 'optimized_LLVM'), ('caller-all.o', 'object')):
+		assert sha(build/filename) == caller[key+'_sha256']
+	assert all(sha(row['path']) == row['sha256'] for row in caller['provider_objects'])
+	pool = {}
+	for label, producer, field in (('raw_LLVM', 'Astra', 'raw_LLVM_sha256'), ('Astra_ELF', 'Astra', 'ELF_sha256'), ('C0_ELF', 'C0', 'ELF_sha256')):
+		pool[label] = sum(row[label+'_equal'] for row in result['comparisons'] if row['name'] != 'caller-all') + int(caller[field if label == 'raw_LLVM' else label+'_sha256'] == old['caller-all'][producer][field])
+	return dict(receipt=str(leaf/'result.json'), sha256=sha(leaf/'result.json'), original_source_identities=71, primary_source_identical=70, exact_original_caller=caller, current_primary_raw_identical=sum(row['raw_LLVM_equal'] for row in result['comparisons']), current_primary_Astra_ELF_identical=sum(row['Astra_ELF_equal'] for row in result['comparisons']), current_primary_C0_ELF_identical=sum(row['C0_ELF_equal'] for row in result['comparisons']), exact_original_source_pool_product_identities=pool, limitation=result['limitation'])
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument('--build-root', type=Path, required=True)
 	p.add_argument('--runtime-root', type=Path, required=True)
 	p.add_argument('--build-version', required=True)
 	p.add_argument('--version', required=True)
+	p.add_argument('--fixture-version', default='fix26')
 	p.add_argument('--whole-source-result', type=Path, required=True)
 	p.add_argument('--output', type=Path, required=True)
 	a = p.parse_args()
-	assert a.version.isalnum() and a.build_version.isalnum()
+	assert a.version.isalnum() and a.build_version.isalnum() and a.fixture_version.isalnum()
 	assert not a.output.exists() and a.output.resolve().is_relative_to(a.runtime_root.resolve())
 	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
 	assert git('merge-base', '--is-ancestor', BASE, 'HEAD') == b''
@@ -52,11 +103,15 @@ def main():
 		native = consumer.native(paths, component, mode, a.version)
 		retained = consumer.retained(paths, component, mode, a.version, previous['profiles'][mode])
 		support = consumer.support(paths, component, mode, a.version, native, retained, a.version)
+		if not support['complete']:
+			from receipt_support import current_support
+			support = current_support(paths, component, mode, a.version, native, retained, consumer, a.fixture_version)
+		identities = source_identities(paths, component, mode, a.version, consumer)
 		assert native['complete'] and retained['complete'] and support['complete']
 		assert len(native['programs']) == 71 and retained['retained_native'] == 340
 		assert sum(row['semantic'] for row in retained['mutations']) == 101
 		assert sum(row['LLVM_valid_physical'] for row in retained['mutations']) == 52
-		profiles[mode] = dict(compiler=compiler, bounded_native=native, retained=retained, support=support)
+		profiles[mode] = dict(compiler=compiler, bounded_native=native, retained=retained, support=support, literal_R5_source_identities=identities)
 		print(mode, 'current 340+71 and independent source/IR/ELF/ABI/memory/mutation receipts rebound', flush=True)
 	assert profiles['O0']['compiler']['project_input_hashes'] == profiles['O2']['compiler']['project_input_hashes']
 	assert profiles['O0']['compiler']['tools'] == profiles['O2']['compiler']['tools']

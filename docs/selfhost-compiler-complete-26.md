@@ -1,8 +1,9 @@
 # Compiler-complete 26: current qualification
 
 Milestone26 is **PARTIAL**. Whole original compiler admission, native object
-generation, integrated linkage and complete current regression/performance
-qualification have not been established. No Stage1 or self-host claim is made.
+generation, integrated linkage and full compiler performance qualification
+have not been established. Bounded current regressions remain separately
+attributed below. No Stage1 or self-host claim is made.
 
 The existing checkout started clean at commit
 `8b8cf003ea0b47b1322b887317b6fc535bfb9850`, tree
@@ -130,15 +131,85 @@ template, pruning Bag or treating layout admission as a receiver root would
 not close this frontier. The focused observer emits no target LLVM or native
 object and earns no full-original native execution credit.
 
+Both complete corrected C0-built hosts were subsequently fed the exact frozen
+original 190-file population. Each returns exit3 with
+`RECOVER_FLOW 3 307096 0`, at the same original Bag span and fragment hash.
+Both preserve the output sentinel. Neither emits target LLVM or an object;
+Core/CFG/SSA/LLVM, full-source linkage and runtime remain unqualified.
+The separate class-storage ledgers return exit1 and record 309,231 nodes;
+their source-span inventories are not semantic or stage acceptance.
+
+| Actual operation | O0 wall / peak RSS KiB | O2 wall / peak RSS KiB |
+|---|---:|---:|
+| Cold C0-built complete test host | 50:49.85 / 2,517,808 | 1:10:43 / 2,518,468 |
+| Frozen original source native attempt, refused | 2:10.65 / 303,288 | 0:16.58 / 301,356 |
+| Separate class-storage source ledger, exit1 | 0:31.61 / 931,496 | 0:07.02 / 928,372 |
+| Exact product reuse, without recompilation | 1.070 s | 1.057 s |
+
+The cold host builds use 3,029.34/4,214.33 user CPU seconds and 1.70 system CPU
+seconds each. They overlap and must not be summed as elapsed session time.
+The original-only C0 timeout has no completed GNU-time peak-RSS/CPU receipt.
+R5's 2,944.88/4,165.4-second cold builds remain historical measurements with
+different source bytes; no speedup is claimed. Incremental compiler rebuild
+costs, full SSA scaling, the 1,024-block issue and full compiler optimization
+are unproved. The resource-accounting repair does not establish those gates.
+
+## Current bounded replays and literal identities
+
+Both current profiles complete all 41 retained recipes, including the 340
+inherited source identities, 101 semantic/52 LLVM-valid physical categories,
+four exact frozen cohorts and the separate root0/slot6 deferral. The primary
+native replay also executes all 71 R5 cases per profile, with independent
+C0/Astra LLVM verification, native execution and unsuppressed memory checks.
+All 71 source-stage mutation probes, 15 array/6 owner negatives, 32 dynamic
+witnesses, Error lifetime and physical consumers are separately recorded.
+
+One primary case, `caller-all`, embeds its own filename, so changing the runtime
+directory changes its source bytes. The other 70 primary source identities
+match R5 byte-for-byte. `identity.py` independently executes the exact original
+caller source **at its original physical path** with each current host and C0,
+including stage mutations and clean unsuppressed Valgrind. This retains all 71
+original source identities; the new self-filename successor is additional
+evidence, not a replacement original. Raw LLVM/Astra ELF/C0 ELF identities are
+54/71 for the primary successor set and 55/71 for the exact original-source
+pool at each profile. Every differing hash remains explicit; no normalized
+comparison is called byte identity. Historical R4/R3 raw identity stays 0/120.
+
+Each current raw 12-job campaign remains **PARTIAL** with two missing-input
+failures: `error-order` and `error-physical` initially could not find inherited
+fixture records in the new task directory. `fixtures.py` later prepares eight
+byte-exact read-only input snapshots without changing any historical original.
+`supplement.py` replays only those two jobs in `fix26` leaves at both profiles;
+both corrected jobs pass. Detailed independent consumers rebind the corrected
+source/IR/ELF/order/memory/LLVM-valid-mutation receipts while preserving the raw
+failures. This is distinct from R5's earlier policy/invalid-LLVM failures and
+their policyfix3/valid1 supplements. No failed campaign is rewritten as passing.
+
+The first additional product audit compared absolute profile-local object paths
+and failed that assertion after validating each product. Its corrected audit
+checks 342 common input paths and exactly six named, byte-equal provider objects
+in the separate profile directories, plus all 46 exact tool identities. Both
+audit attempts remain in the evidence. The production source and products were
+unchanged by the audit correction.
+
+Portable order: `build.py` for each profile; `fixtures.py` before `qualify.py`;
+`run.py --skip-check` for frozen original-source observations when a separate
+C0 check is recorded; `identity.py` for literal historical-source retention;
+then `audit.py` after committing task-owned findings. A campaign started before
+fixture preparation requires separate `supplement.py` receipts, not alteration
+of its failed result. Explicit task build/runtime roots and the authenticated
+23.1.4 capsule are required throughout. `evidence.py` packages and verifies
+byte-exact content without executing any archived compiler or proof.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
 reported PASS, with the new host G12 verdict separately attributed. Its raw
 12-job campaigns still have `error-physical` and `retained-41-recipes` failures;
 the policyfix3/valid1 supplements do not rewrite them. R4/R3 raw LLVM identity
-remains 0/120. The four 79/85/92/92 cohorts, 56/12/12 statuses, 17/19 conditions,
-101/52 mutation categories, 15 array/6 owner negatives and 32 dynamic witnesses
-remain historical evidence until separately replayed against current products.
+remains 0/120. Historical four-cohort, 56/12/12, 17/19, mutation, negative and
+dynamic receipts remain tied to their original products. The current replays
+above are separate measurements and do not relabel historical qualifications.
 
 `CheckedIndex.add_signature` graph55/symbol2053/predicate26 remains independently
 DEFERRED: `this.signatures` root0 versus `grown` slot6. No owning receiver root
