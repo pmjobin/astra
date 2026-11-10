@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Original-C0 baseline: native record carriers flatten leaves, memory does not.
+struct RecordLeaf { u8 tag; u64 value; }
+
+struct RecordPair { u8 first; RecordLeaf leaf; u8 last; }
+
+class RecordBox {
+	RecordPair data;
+
+	init(RecordPair data) { this.data = data; }
+
+	RecordPair read() { return this.data; }
+}
+
+RecordPair record_checked(RecordPair input, int mode) throws Error {
+	if (mode < 0) {
+		throw new Error("negative");
+	}
+	return input;
+}
+
+bool record_valid(RecordPair value) {
+	return value.first == 2 && value.leaf.tag == 1 && value.leaf.value == 1234605616436508552 && value.last == 3;
+}
+
+int main() {
+	RecordLeaf leaf = {tag = 1, value = 1234605616436508552}; RecordPair pair = {first = 2, leaf = leaf, last = 3};
+	var box = new RecordBox(pair); var value = box.read();
+	if (!record_valid(value)) return 2;
+	try {
+		var success = record_checked(value, 0); if (!record_valid(success)) return 3;
+		try { var unexpected = record_checked(value, -1); return 4; }
+		catch (Error error) { if (error.message != "negative") return 5; return 42; }
+	} catch (Error error) { return 6; }
+}

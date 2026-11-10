@@ -119,6 +119,27 @@ for original Bag<FlowGraph> payload support or the independent graph55 owner
 proof. A new native O0 probe freezes every production module atf818ab6 before
 building; its output and focused native results are pending.
 
+The next record-storage work uses fresh original-C0 evidence rather than assuming
+one representation. `record-abi-actual1` executes normal and checked success/error
+paths at O0/O2, exit42, with unsuppressed zero-error/zero-leak memory receipts.
+The alignment-sensitive nested record has a nested memory representation, while
+native arguments, ordinary results and checked success storage flatten its four
+scalar leaves. Exact signatures are `ptr(ptr,i8,i8,i64,i8,i32)` for the checked
+free function and `{i8,i8,i64,i8}(ptr)` for its Class getter. LLVM verification and
+ELF64 x86-64 headers are checked. These original-C0 receipts do not qualify Astra
+record admission or native generation. Early invalid cast/hexadecimal spellings
+and formatter refusals remain separately preserved; the passing fixture uses
+the accepted decimal spelling.
+
+Static original C0 AST receipt159 also records186 private fields,727 methods and
+three properties in SyntaxArena. The current Class-storage source domain has a
+128-field restriction, and ordinary eligible members currently use the generic
+instantiation route. Those additional large-source issues require proper field
+layout and ordinary nongeneric member planning; increasing the256-instance ceiling
+does not close them. This is source-policy inspection, not a claim to have reached
+or passed that Class through the native pipeline. Graph55's owner-root deferral
+and the8,000,000 SSA ceiling remain unchanged.
+
 While that rebuild uses frozen inputs, the SSA consumer's repeated whole-Core
 local-declaration scans are replaced with one local index reconstructed from the
 independently verified Core/CFG. Missing and duplicate sites still refuse, and
