@@ -5,7 +5,34 @@ generation, integrated linkage and full compiler performance qualification
 have not been established. Bounded current regressions remain separately
 attributed below. No Stage1 or self-host claim is made.
 
-## Progress snapshot — 2026-11-10, candidate4 and template work
+## Post-restart O0 results
+
+The fresh build at `7830a0d` took 47:25.62 with 2,215,952 KiB peak RSS. Its
+compiler SHA-256 is
+`9ae694a5aed6faba8f633314c4712334e4067f2596aafbbfa1d3155559664fdc`.
+`native-gen6-independent-audit.json` binds all 180 production modules, 195
+consumed archived Git inputs, the exact LLVM 23.1.4 tool identities, and 115 raw
+command stream pairs. The earlier user-terminated attempt remains preserved.
+
+Two nested record value programs, two flat record programs, and three slot
+programs generate native objects, link, and execute to 42 under Astra O0. The
+seven Astra and nine C0 executables have clean unsuppressed Valgrind receipts.
+The record controls refuse 48 source model and 36 LLVM-valid perturbations.
+Five slot negatives and two C0-valid nested Class/Error memory cases refuse with
+their destination sentinels intact. All three slot LLVM and ELF pairs match the
+prior artifacts. The flat record comparisons across different input paths retain
+their CallerInfo byte drift. `record-values-gen6-same-path-O0` replays the exact
+prior input paths and obtains byte-identical raw LLVM and ELF for both programs.
+
+`original-gen6-frontier-O0` reauthenticates all 180 original compiler files and
+ten dependencies against the initial Git base. The complete native attempt
+takes 126.12 seconds, exits 3 with `RECOVER_FLOW 3 307096 0`, and preserves its
+output sentinel. The first refusal is the original `bag.astra` declaration at
+bytes 133–649. Complete compiler native generation remains at zero of two
+profiles. The concrete collection payload, independent graph55 owner proof,
+and compiler scale qualification remain open.
+
+## Earlier progress snapshot — 2026-11-10, candidate4 and template work
 
 | Work item | Evidence-backed state |
 |---|---|
