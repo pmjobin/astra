@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Focused development host for the complete production pipeline. Regression
+// mutation dispatch is separate; this is not a packaged or self-hosted astrac.
+int main(string[] args) {
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages") return 9;
+	if (args[1] == "--native" && len(args) < 4) return 9;
+	try {
+		int start = 2; if (args[1] == "--native") start = 3;
+		var program = binding_load_program(args, start); var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed()) {
+			var observation = checked_observation(checked); print(observation.text); return 4;
+		}
+		var flow = recover_flow_lower(move checked, 8192);
+		var output = new Utf8ByteBuilder(); source_append_text(output, "RECOVER_FLOW "); append_int(output, flow.data.status); source_append_text(output, " "); append_int(output, flow.data.boundary.index); source_append_text(output, " "); append_int(output, flow.data.node_count);
+		var text = output.snapshot(); println(text.text);
+		if (flow.data.status != 0) {
+			if (flow.data.boundary.index > 0) {
+				var span_output = new Utf8ByteBuilder(); binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(flow.data.boundary).span, span_output);
+				var span_text = span_output.snapshot(); println(span_text.text);
+			}
+			return flow.data.status;
+		}
+		assert_that(recover_flow_verify(flow));
+		var core = recover_core_lower(move flow); if (core.status != 0) {
+			println("RECOVER_CORE_INVALID");
+			return 6;
+		}
+		var cfg = recover_cfg_lower(move core, 8192); if (cfg.status != 0) {
+			println("RECOVER_CFG_INVALID");
+			return 7;
+		}
+		var ssa = recover_ssa_lower(move cfg, 8000000); if (ssa.data.status != 0) {
+			println("RECOVER_SSA_INVALID");
+			return 8;
+		}
+		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
+		if (args[1] == "--shared-stages") return 42;
+		var module = new RecoverLlvm(ssa); module.build(ssa); module.write(ssa, args[2]);
+		println("RECOVER_LLVM_WRITTEN"); return 0;
+	} catch (Error error) { println_stderr(error.message); return 5; }
+}

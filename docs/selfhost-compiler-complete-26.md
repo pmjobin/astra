@@ -80,6 +80,22 @@ LLVM or objects and receives no native completeness credit. The current190-input
 C0 semantic check passes in48.92 seconds; the focused observer's C0 semantic check
 also passes. These are front-end checks, not execution of the new template proof.
 
+The focused template observer retains113 source inputs and46 tool inputs; a
+separate during-build audit matches every byte. Three actual C0 native oracles
+(original Bag, renamed Vault, and a Vault with an unused arithmetic method)
+all exit42 with unsuppressed zero-error/zero-leak memory receipts. Their nine
+commands take1.13 seconds combined. Astra template/Flow results remain pending.
+
+A separate focused native test entry compiles with every one of the180 current
+production compiler modules under C0's actual `--dump-semantics` command. Its
+native build and target execution remain unproved. Historical mutation dispatch
+is excluded from this development host only; target source is never pruned and
+no inherited regression qualification transfers to it. An explicit `--snapshot`
+route freezes Git-authenticated source bytes read-only in the task runtime,
+allowing later live engineering without changing an active build's inputs.
+This is a build-input archive, not another checkout or a toolchain replacement.
+No speedup follows from either the smaller test entry or a front-end check.
+
 `original-source-candidate3b` independently replays all190 frozen,
 read-only original inputs: exit3, `RECOVER_FLOW 3 307096 0`, preserved sentinel,
 127.70 seconds. The two subsequent corrections are explicitly not compiled
