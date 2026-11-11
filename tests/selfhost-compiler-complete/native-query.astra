@@ -107,8 +107,44 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	return count > 0;
 }
 
+bool class_finalizer_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa)) return false;
+	int count = 0; int source_controls = 0; int s = 1;
+	while (s < len(module.class_destroyers)) {
+		var destroy = module.class_destroyers[s];
+		if (destroy != null) {
+			var source = recover_class_deinit_source(ssa.cfg.core.flow.checked, type_symbol(s));
+			if (source.index > 0) {
+				var original = ssa.cfg.core.flow.checked.node_symbols[source.index];
+				ssa.cfg.core.flow.checked.node_symbols[source.index] = type_symbol(0);
+				bool refused = !recover_flow_verify(ssa.cfg.core.flow);
+				ssa.cfg.core.flow.checked.node_symbols[source.index] = original;
+				if (!refused || !module.check(ssa)) return false;
+				source_controls = source_controls + 1;
+				var body = LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(destroy));
+				var call = LLVMGetFirstInstruction(body);
+				if (call == null || LLVMGetInstructionOpcode(call) != 45 || LLVMGetNumOperands(call) != 2) return false;
+				var receiver = LLVMGetArgOperand(call, 0); var callee = LLVMGetCalledValue(call);
+				if (receiver != LLVMGetParam(destroy, 0) || LLVMGetOperand(call, 1) != callee || callee == destroy) return false;
+				LLVMSetOperand(call, 0, LLVMConstNull(LLVMTypeOf(receiver)));
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(call, 0, receiver);
+				if (!refused || llvm12_verify(module.module) != 0 || !module.check(ssa)) return false;
+				LLVMSetOperand(call, 1, destroy);
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(call, 1, callee);
+				if (!refused || llvm12_verify(module.module) != 0 || !module.check(ssa)) return false;
+				count = count + 2;
+			}
+		}
+		s = s + 1;
+	}
+	var output = new Utf8ByteBuilder(); source_append_text(output, "FINALIZER_CONTROLS source="); append_int(output, source_controls); source_append_text(output, " physical="); append_int(output, count); var text = output.snapshot(); println(text.text);
+	return count > 0;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls") return 9;
 	if (args[1] == "--native" && len(args) < 4) return 9;
 	try {
 		int start = 2; if (args[1] == "--native") start = 3;
@@ -150,6 +186,10 @@ int main(string[] args) {
 		if (args[1] == "--template-cache-controls") {
 			if (template_error_cache_controls(module, ssa)) return 42;
 			return 10;
+		}
+		if (args[1] == "--class-finalizer-controls") {
+			if (class_finalizer_controls(module, ssa)) return 42;
+			return 12;
 		}
 		module.write(ssa, args[2]);
 		println("RECOVER_LLVM_WRITTEN"); return 0;
