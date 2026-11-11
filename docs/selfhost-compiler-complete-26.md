@@ -1552,6 +1552,33 @@ address-space-zero pointer leaf in both paths, preserving the existing depth,
 field and leaf ceilings. Both development entries pass C0 semantic and Core
 preflights with these corrections. Astra execution is pending.
 
+## Bounded parallel regression execution
+
+The milestone regression wrapper accepts `--jobs 1` through `--jobs 8` and
+defaults to its existing serial execution. Each job retains its own process
+group, timeout, output streams and GNU-time receipt. Source-stage mutations
+wait for their actual original/native fixture producer. The strict drift ledger
+waits for the complete retained recipe campaign. The main thread writes results
+in the original job order, preserving failed-command and receipt ordering.
+
+Synthetic scheduling controls cover one-worker compatibility, four-worker
+overlap, both fixture dependencies, an injected raw failure and an injected
+process-group timeout. They confer zero native qualification credit. Actual
+parallel native campaign timing remains pending. The active development batch
+uses one O2 native host for intermediate target O0/O2 checks, alongside the
+independently built O2 source observer. Final qualification still requires
+matching O0/O2 compiler products from the completed source revision.
+
+The completed cd5cfee native pair took 3,728.959 and 4,408.223 seconds in its
+recorded C0 compilation commands. Each host retained 14 positive native
+programs at both target profiles, with 30 clean unsuppressed memory streams.
+The independent audit authenticates Git inputs, tools, compile plans and
+56 total Astra fixture ELFs. Both hosts retain the raw record-local Flow
+refusal, constructor source refusal and pointer-record LLVM-helper refusal,
+plus the genuine257 and copied-payload Match refusals. Their whole-original
+attempts remain deferred after focused failures. The current source correction
+is still undergoing focused execution.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
