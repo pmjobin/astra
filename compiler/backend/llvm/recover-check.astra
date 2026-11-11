@@ -227,13 +227,24 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 		if (op == 12) {
 			var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
 			void* aggregate = locals[row.symbol.index];
+			int loaded = 0;
 			if (row.a > 0) {
 				type = ssa.cfg.core.nodes[row.a - 1].value.type;
 				aggregate = values[row.a];
+			} else {
+				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) {
+					aggregate = LLVMGetFirstInstruction(physical);
+					if (aggregate == null || LLVMGetInstructionOpcode(aggregate) != 27 || LLVMGetOperand(aggregate, 0) != owner_addresses[row.symbol.index] || LLVMGetVolatile(aggregate) != 0 || LLVMGetOrdering(aggregate) != 0 || LLVMHasMetadata(aggregate) != 0) return false;
+					loaded = 1;
+				}
 			}
 			int introduced = recover_llvm_record_projection(ssa, row, type, aggregate, values[block.origin], physical);
 			if (introduced < 0) return false;
-			instruction_count = 1 + introduced;
+			instruction_count = 1 + loaded + introduced;
+		}
+		if (op == 75) {
+			instruction_count = recover_record_write_verified(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[row.function - 1].symbol, row, physical, operation, owner_addresses[row.symbol.index], values[row.a]);
+			if (instruction_count == 0) return false;
 		}
 
 		if (op == 69 || op == 70) {

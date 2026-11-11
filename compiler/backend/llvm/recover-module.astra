@@ -822,6 +822,8 @@ class RecoverLlvm {
 			if (row.a > 0) {
 				type = ssa.cfg.core.nodes[row.a - 1].value.type;
 				aggregate = this.values[row.a];
+			} else {
+				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) aggregate = this.load(this.scalar(ssa.cfg.core.flow.checked, type), this.owner_addresses[row.symbol.index]);
 			}
 			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
 			var shape = recover_record_shape(ssa.cfg.core.flow.checked, type);
@@ -848,6 +850,7 @@ class RecoverLlvm {
 		// through its physical slot, never by replacing this lexical witness.
 		if (op == 27 && row.kind == 27) this.locals[row.symbol.index] = this.values[row.a];
 		if ((op == 27 || op == 42) && recover_mutable(ssa.cfg.core.flow.data, row.symbol)) operation = LLVMBuildStore(this.builder, this.values[row.a], this.owner_addresses[row.symbol.index]);
+		if (op == 75) operation = recover_record_write_emit(ssa.cfg.core.flow.checked, row, this.builder, this.empty, this.owner_addresses[row.symbol.index], this.values[row.a]);
 		bool owner_read = op == 2 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0; bool owner_write = op == 27 && (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] & 4) != 0;
 		if (op == 11 || op == 67) {
 			var shape = ssa.cfg.core.flow.fields.layout.types[row.type.index];

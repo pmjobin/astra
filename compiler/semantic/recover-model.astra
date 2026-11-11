@@ -14,7 +14,7 @@ struct RecoverFunction {
 // Typed structured Flow. 1 literal, 2 parameter, 3 binary, 4 direct call,
 // 5 error construction, 6 borrowed message, 7 parentheses,
 // 20 block, 21 if, 22 return, 23 throw/rethrow, 24 try, 25 catch,
-// 26 call statement, 71 enum value, 72 match, 73 enum arm. An arm keeps its
+// 26 call statement, 71 enum value, 72 match, 73 enum arm, 75 record local write. An arm keeps its
 // enclosing match in c as structural metadata. Catch owners are distinct from their source borrow.
 // handler is the protected try node; caught is a lexical catch node. Calls
 // retain both channels: their ordinary type is available only on success.
@@ -84,7 +84,7 @@ class RecoverFlowData {
 		int n = 0;
 		while (n < this.node_count) {
 			var row = this.nodes[n];
-			if (row.kind == 42 && row.symbol.index > 0 && row.symbol.index < len(this.mutable_symbols)) this.mutable_symbols[row.symbol.index] = true;
+			if ((row.kind == 42 || row.kind == 75) && row.symbol.index > 0 && row.symbol.index < len(this.mutable_symbols)) this.mutable_symbols[row.symbol.index] = true;
 			n = n + 1;
 		}
 	}

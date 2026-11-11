@@ -172,6 +172,10 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		}
 		int ordinal = recover_record_field(checked, receiver, row.token); if (ordinal < 0) return false; var record = checked.bindings.symbol(checked.types.row(receiver).nominal); var field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(record.node), ordinal); var symbol = checked.node_symbols[field.index]; return row.type.index == checked.symbol_types[symbol.index].index;
 	}
+	if (row.kind == 75) {
+		var target = checked.bindings.program.arena.get_node_target(source);
+		return row.type.index == 14 && row.b == 0 && row.c == 0 && row.count == 0 && row.token.index == checked.bindings.program.arena.get_token_field_name(target).index && recover_record_write_source(checked, source, row.symbol, flow.functions[function - 1].symbol) && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == checked.uses[source.index].type.index;
+	}
 	if (row.kind == 17 || row.kind == 18) {
 		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.symbol.index < 1 || row.symbol.index != recover_field_receiver(checked, source, flow.functions[function - 1].symbol).index || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;
 		var aggregate = checked.bindings.program.arena.get_node_aggregate(source);
@@ -291,7 +295,7 @@ bool recover_mutations_verified(RecoverFlowData flow) {
 	var observed = new bool[len(flow.symbols)]; int n = 0;
 	while (n < flow.node_count) {
 		var row = flow.nodes[n];
-		if (row.kind == 42) {
+		if (row.kind == 42 || row.kind == 75) {
 			if (row.symbol.index < 1 || row.symbol.index >= len(observed)) return false;
 			observed[row.symbol.index] = true;
 		}

@@ -119,6 +119,12 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.kind = 44; row.type = type_id(14);
 		var target = checked.bindings.program.arena.get_node_target(source);
 		row.symbol = recover_field_receiver(checked, target, flow.functions[function - 1].symbol);
+		var record = recover_record_root(checked, target, 0);
+		if (record.index > 0) {
+			row.kind = 75;
+			row.symbol = record;
+			row.token = checked.bindings.program.arena.get_token_field_name(target);
+		}
 		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
 	}
 	if (kind == SyntaxKind.StructInitializerSyntax()) {

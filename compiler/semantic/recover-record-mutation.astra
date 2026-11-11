@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyable record updates retain the actual lexical local and source path.
+// By-value parameters remain read-only under the original C0 contract.
+SymbolId recover_record_root(CheckedIndex checked, SyntaxNodeId source, int depth) {
+	if (source.index < 1 || depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return type_symbol(0);
+	var parent = checked.bindings.program.arena.get_node_aggregate(source);
+	if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
+		var root = recover_type_receiver(checked, source);
+		if (root.index < 1 || root.index > checked.bindings.symbol_count || !recover_storage_record(checked, checked.symbol_types[root.index])) return type_symbol(0);
+		return root;
+	}
+	if (!recover_storage_record(checked, checked.uses[parent.index].type)) return type_symbol(0);
+	return recover_record_root(checked, parent, depth + 1);
+}
+
+// Consumer reconstruction uses source field leaf counts, independently of the
+// producer's RecoverRecordShape offsets and retained part ordering.
+int recover_record_destination(CheckedIndex checked, SyntaxNodeId source, SymbolId root, int depth) {
+	if (source.index < 1 || root.index < 1 || root.index > checked.bindings.symbol_count || depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return -1;
+	var parent = checked.bindings.program.arena.get_node_aggregate(source);
+	var type = checked.symbol_types[root.index]; int first = 0;
+	if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
+		if (recover_type_receiver(checked, source).index != root.index) return -1;
+	} else {
+		first = recover_record_destination(checked, parent, root, depth + 1);
+		if (first < 0) return -1;
+		type = checked.uses[parent.index].type;
+	}
+	int ordinal = recover_record_field(checked, type, checked.bindings.program.arena.get_token_field_name(source));
+	if (ordinal < 0) return -1;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+	var field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(declaration.node), ordinal);
+	var symbol = checked.node_symbols[field.index];
+	if (symbol.index < 1 || checked_target(checked, source, checked.bindings.program.arena.get_token_field_name(source)).index != symbol.index || checked.symbol_flags[symbol.index] != 0 || checked.uses[source.index].type.index != 0 && checked.symbol_types[symbol.index].index != checked.uses[source.index].type.index || !checked_field_accessible(checked, source, symbol)) return -1;
+	int offset = recover_record_value_first(checked, type, ordinal);
+	if (offset < 0 || first > 1024 - offset) return -1;
+	return first + offset;
+}
+
+bool recover_record_write_source(CheckedIndex checked, SyntaxNodeId source, SymbolId root, SymbolId function) {
+	if (root.index < 1 || root.index > checked.bindings.symbol_count || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAssignmentStatementSyntax()) return false;
+	var local = checked.bindings.symbol(root);
+	var target = checked.bindings.program.arena.get_node_target(source);
+	var value = checked.bindings.program.arena.get_node_expression(source);
+	var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+	if (field.index < 1 || field.index > checked.bindings.symbol_count) return false;
+	var type = checked.symbol_types[field.index];
+	return local.kind == 8 && local.owner.index == function.index && checked.symbol_flags[root.index] == 0 && recover_storage_record(checked, checked.symbol_types[root.index]) && checked.bindings.accessible(root, checked.bindings.scope_for_node(target)) && recover_record_root(checked, target, 0).index == root.index && recover_record_destination(checked, target, root, 0) >= 0 && value.index > 0 && checked.uses[source.index].type.index == type.index && checked.uses[value.index].type.index == type.index && recover_copy_channel(checked, type, checked.uses[value.index].flags, false);
+}

@@ -408,7 +408,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			}
 		}
 		if ((row.opcode == 31 || row.opcode == 32 || row.opcode == 34 || row.opcode == 23) && !recover_ssa_use(ssa.data, ssa.cfg, row.owner, b, work)) return false;
-		if (row.opcode == 2 || (row.opcode == 12 || row.opcode == 58) && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0 || row.opcode == 42) {
+		if (row.opcode == 2 || (row.opcode == 12 || row.opcode == 58) && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0 || row.opcode == 42 || row.opcode == 75) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(source.symbol);
 			if (declaration.kind == 8) {
 				int definition = locals[source.symbol.index];

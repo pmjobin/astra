@@ -604,6 +604,62 @@ bool template_shared_parameter_controls(CheckedIndex checked) throws Error {
 	return false;
 }
 
+SymbolId template_effect_root_reference(CheckedIndex checked) {
+	if (checked.generic_symbols < 0 || checked.generic_symbols > checked.bindings.symbol_count) return type_symbol(0);
+	var root = type_symbol(0); int s = 1;
+	while (s <= checked.generic_symbols) {
+		var symbol = checked.bindings.symbol(type_symbol(s));
+		if (symbol.kind == 4 && checked.bindings.program.arena.get_token_exception_root(symbol.node).index != 0) {
+			if (root.index != 0) return type_symbol(0);
+			root = type_symbol(s);
+		}
+		s = s + 1;
+	}
+	return root;
+}
+
+bool template_effect_root_controls(CheckedIndex checked) throws Error {
+	var root = checked_effect_root(checked);
+	if (root.index < 1 || root.index != template_effect_root_reference(checked).index) return false;
+	var declaration = checked.bindings.symbol(root);
+	var token = checked.bindings.program.arena.get_token_exception_root(declaration.node);
+	var changed = declaration; changed.kind = 3;
+	checked.bindings.replace_instance_symbol(root, changed);
+	bool refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+	checked.bindings.replace_instance_symbol(root, declaration);
+	if (!refused || checked_effect_root(checked).index != root.index) return false;
+	SyntaxTokenId absent = {index = 0};
+	checked.bindings.program.arena.set_token_exception_root(declaration.node, absent);
+	refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+	checked.bindings.program.arena.set_token_exception_root(declaration.node, token);
+	if (!refused || checked_effect_root(checked).index != root.index) return false;
+	bool duplicate = false; int s = 1;
+	while (s <= checked.generic_symbols && !duplicate) {
+		var other = checked.bindings.symbol(type_symbol(s));
+		if (s != root.index && other.kind == 4) {
+			var original = checked.bindings.program.arena.get_token_exception_root(other.node);
+			checked.bindings.program.arena.set_token_exception_root(other.node, token);
+			refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+			checked.bindings.program.arena.set_token_exception_root(other.node, original);
+			if (!refused || checked_effect_root(checked).index != root.index) return false;
+			duplicate = true;
+		}
+		s = s + 1;
+	}
+	if (!duplicate) return false;
+	int maximum = checked.generic_symbols;
+	checked.generic_symbols = -1;
+	refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+	checked.generic_symbols = maximum;
+	if (!refused) return false;
+	checked.generic_symbols = checked.bindings.symbol_count + 1;
+	refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+	checked.generic_symbols = maximum;
+	if (!refused || checked_effect_root(checked).index != root.index || !generic_verify(checked)) return false;
+	println("EFFECT_ROOT_CONTROLS kind=1 source=2 bounds=2 reference=1 restored=1");
+	return true;
+}
+
 bool template_constructor_channel_controls(CheckedIndex checked) throws Error {
 	int s = 1;
 	while (s <= checked.bindings.symbol_count) {
@@ -625,7 +681,8 @@ bool template_constructor_channel_controls(CheckedIndex checked) throws Error {
 				var write = checked.bindings.program.arena.node_at(statements, 3);
 				var target = checked.bindings.program.arena.get_node_target(write);
 				var receiver = recover_field_receiver(checked, target, function);
-				var local = checked.node_symbols[checked.bindings.program.arena.node_at(statements, 2).index];
+				var local_source = checked.bindings.program.arena.node_at(statements, 2);
+				var local = checked.node_symbols[local_source.index];
 				if (receiver.index < 1 || receiver.index != local.index || !initialized[local.index] || !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0)) return false;
 				initialized[local.index] = false;
 				bool refused = !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0);
@@ -642,8 +699,9 @@ bool template_constructor_channel_controls(CheckedIndex checked) throws Error {
 				refused = !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0);
 				checked.symbol_flags[field.index] = field_flags;
 				if (!refused) return false;
-				var first = checked.node_symbols[checked.bindings.program.arena.node_at(statements, 0).index];
-				var acquire = checked.bindings.program.arena.get_node_initializer(checked.bindings.program.arena.node_at(statements, 2));
+				var first_source = checked.bindings.program.arena.node_at(statements, 0);
+				var first = checked.node_symbols[first_source.index];
+				var acquire = checked.bindings.program.arena.get_node_initializer(local_source);
 				initialized[first.index] = false;
 				refused = !recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0);
 				initialized[first.index] = true;
@@ -875,7 +933,7 @@ void template_source_map_usage(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -911,6 +969,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--scope-map-controls") {
 			if (template_scope_map_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--effect-root-controls") {
+			if (template_effect_root_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--receiver-class-controls") {

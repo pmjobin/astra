@@ -9,17 +9,7 @@ SymbolId checked_effect_class(CheckedIndex index, SyntaxNodeId node) {
 }
 
 SymbolId checked_effect_root(CheckedIndex index) {
-	if (index.generic_symbols < 0 || index.generic_symbols > index.bindings.symbol_count) return type_symbol(0);
-	var root = type_symbol(0); int symbol = 1;
-	while (symbol <= index.generic_symbols) {
-		var declaration = index.bindings.symbol(type_symbol(symbol));
-		if (declaration.kind == 4 && index.bindings.program.arena.get_token_exception_root(declaration.node).index != 0) {
-			if (root.index != 0) return type_symbol(0);
-			root = type_symbol(symbol);
-		}
-		symbol = symbol + 1;
-	}
-	return root;
+	return index.bindings.exception_root(index.generic_symbols);
 }
 
 bool checked_effect_subtype(CheckedIndex index, SymbolId actual, SymbolId bound) {

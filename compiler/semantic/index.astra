@@ -110,6 +110,25 @@ class BindingIndex {
 		return this.symbols[id.index - 1];
 	}
 
+	// Scan current declaration facts directly. The frequent effect query needs
+	// only a kind discriminator for each non-Class symbol, without copying its
+	// complete BindingSymbol and source span across the method boundary.
+	SymbolId exception_root(int maximum) {
+		if (maximum < 0 || maximum > this.symbol_count) return type_symbol(0);
+		var root = type_symbol(0); int symbol = 0;
+		while (symbol < maximum) {
+			if (this.symbols[symbol].kind == 4) {
+				var declaration = this.symbols[symbol];
+				if (this.program.arena.get_token_exception_root(declaration.node).index != 0) {
+					if (root.index != 0) return type_symbol(0);
+					root = type_symbol(symbol + 1);
+				}
+			}
+			symbol = symbol + 1;
+		}
+		return root;
+	}
+
 	BindingScope scope(ScopeId id) {
 		assert_that(id.index > 0 && id.index <= this.scope_count);
 		return this.scopes[id.index - 1];

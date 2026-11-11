@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct MutableLeaf {
+	int value;
+	bool active;
+	void* pointer;
+}
+
+struct MutableRecord {
+	MutableLeaf left;
+	MutableLeaf right;
+	int tail;
+}
+
+int record_update(MutableRecord input) {
+	var row = input;
+	row.left.value = 20;
+	row.right = row.left;
+	row.left.pointer = input.right.pointer;
+	row.left.active = true;
+	int i = 0;
+	while (i < 2) {
+		row.left.value = row.left.value + 1;
+		i = i + 1;
+	}
+	row.tail = 0;
+	if (row.right.value != 20 || !row.left.active || row.left.pointer != null) return 3;
+	var copied = row;
+	copied.left = row.right;
+	copied.tail = row.left.value;
+	row = copied;
+	return row.left.value + row.tail;
+}
+
+int main() {
+	MutableLeaf first = {value = 17, active = false, pointer = null};
+	MutableLeaf second = {value = 20, active = false, pointer = null};
+	MutableRecord input = {left = first, right = second, tail = 1};
+	int result = record_update(input);
+	if (input.left.value != 17 || input.left.active || input.tail != 1) return 4;
+	return result;
+}

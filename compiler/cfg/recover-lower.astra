@@ -48,7 +48,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		int retire = cfg.block(row.function, id, 38, place, slot.scope, publish, 0, 0, 0, place);
 		int head = recover_cfg_tree(cfg, row.a, retire, depth + 1); RecoverRegion region = {entry = head, operation = publish, next = next}; cfg.regions[id - 1] = region; return head;
 	}
-	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42) return recover_cfg_loop(cfg, id, next, depth);
+	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42 || row.kind == 75) return recover_cfg_loop(cfg, id, next, depth);
 	int operation = 0; int head = next;
 	if (row.kind == 61) {
 		int store = cfg.block(row.function, id, 61, row.a, row.b, next, 0, 0, 0, 0);

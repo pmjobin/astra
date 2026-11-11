@@ -73,7 +73,7 @@ bool recover_loop_source(RecoverFlowData flow, CheckedIndex checked, RecoverType
 	if (row.kind != 42 && row.kind != 43 || kind != SyntaxKind.AssignmentStatementSyntax() || row.b != 0 || row.c != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
 	var declaration = checked.bindings.symbol(row.symbol); var type = checked.symbol_types[row.symbol.index]; int code = checked_kind(checked, type);
 	if (declaration.kind != 8 || declaration.owner.index != flow.functions[function - 1].symbol.index || checked_target(checked, row.source, checked.bindings.program.arena.get_token_name(row.source)).index != row.symbol.index || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(row.source), function, handler, caught, seen, edges, depth + 1) || flow.nodes[row.a - 1].type.index != type.index) return false;
-	if (row.kind == 42) return checked.symbol_flags[row.symbol.index] == 0 && (type_numeric(code) || code == 13 || recover_storage_pointer(checked, type));
+	if (row.kind == 42) return recover_copy_channel(checked, type, checked.symbol_flags[row.symbol.index], false);
 	// C0 permits owned buffer rebinding, but forbids Class local rebinding.
 	if (checked.symbol_flags[row.symbol.index] != 4 || code != 22 || !recover_storage_channel(checked, type, 4, false)) return false;
 	int producer = row.a; int steps = 0;

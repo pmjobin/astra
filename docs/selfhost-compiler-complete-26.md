@@ -1436,6 +1436,53 @@ The old c13 source inventory was explicitly stopped with exit 143 after
 preserving partial output. It has no completed inventory verdict. The finished
 O2 inventory supplies the current source-header diagnostic counts above.
 
+## Record-local mutation candidate and iteration checks
+
+The next candidate retains mutable copyable record locals in actual lexical
+stack slots. Record field writes carry the source local and exact nested field
+path through Flow, Core, CFG and SSA. LLVM updates only the selected flattened
+subtree after loading the current record. The physical consumer independently
+reconstructs source leaf offsets and checks every load, extraction, insertion
+and store in order. Mutable projections reload the same actual slot, and whole
+record reassignment uses the existing mutable-local machinery. SSA checks that
+the original local declaration dominates reads and writes. By-value record
+parameters retain C0's read-only contract. Record-array field mutation remains
+an open body-translation obligation.
+
+The focused nested-record and whole-record reassignment fixture passes original
+C0 O0/O2 execution and clean unsuppressed Valgrind. Astra source and native
+execution of this candidate are pending. Restored controls cover source roots,
+read-only parameter authority, mutation-index coverage, CFG correspondence and
+four LLVM-valid physical mutations. These controls require actual execution.
+
+The 314c965 constructor observer build failed C0 Core verification in a newly
+added test control that projected a temporary record directly into an index.
+The control now binds the source node to a local before reading its index.
+The failed build remains retained. Both development entries then passed C0
+semantic and Core preflight checks. A separate frontend refusal of a borrowed
+CheckedIndex local in the record emitter was corrected by passing that actual
+owner as a temporary argument. Its raw failed check is also retained. Later
+Core checks precede expensive native rebuilds.
+
+The 3486f4d O2 source observer passes 35 of 36 focused checks, with the raw
+pointer-record composite failure retained. Its complete-original inventory
+has 19 constructor header refusals after the three string-array headers were
+cleared. Whole-original Typecore took 158.922 seconds, Flow 168.476 seconds and
+the inventory 169.463 seconds. The separate gen14 native audit authenticates
+14 positive programs at both target profiles, 28 linked returning products,
+13 restored enum transport controls and the literal pointer-record, generic
+257, copied payload-Match and complete-original refusals. Complete original
+native profiles remain zero of two.
+
+Three read-only stack samples of the 3486f4d O2 Typecore observer found repeated
+Class storage traversal and linear Error-root searches during method selection.
+The next producer candidate scans the current BindingIndex symbol discriminators
+directly, copying complete declaration records only for Class symbols. Every
+query still checks the current original symbol range and duplicate annotations.
+The source query retains no cached root. Restored controls compare it with the
+previous full-record reference scan, including changed kinds, absent and duplicate
+annotations and invalid range bounds. Runtime benefit awaits measurement.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

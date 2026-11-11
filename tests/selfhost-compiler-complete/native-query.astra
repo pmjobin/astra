@@ -284,8 +284,83 @@ bool enum_transport_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	return true;
 }
 
+bool record_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa)) return false;
+	int n = 0; int source_controls = 0;
+	while (n < ssa.cfg.core.flow.data.node_count && source_controls == 0) {
+		var row = ssa.cfg.core.flow.data.nodes[n];
+		if (row.kind == 75) {
+			int flags = ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index];
+			ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] = 2;
+			bool refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] = flags;
+			if (!refused || !module.check(ssa)) return false;
+			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(row.symbol);
+			var changed = declaration;
+			changed.kind = 7;
+			ssa.cfg.core.flow.checked.bindings.replace_instance_symbol(row.symbol, changed);
+			refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.checked.bindings.replace_instance_symbol(row.symbol, declaration);
+			if (!refused || !module.check(ssa)) return false;
+			SyntaxTokenId absent = {index = 0};
+			ssa.cfg.core.flow.data.nodes[n].token = absent;
+			refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.data.nodes[n].token = row.token;
+			if (!refused || !module.check(ssa)) return false;
+			ssa.cfg.core.flow.data.mutable_symbols[row.symbol.index] = false;
+			refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.data.mutable_symbols[row.symbol.index] = true;
+			if (!refused || !module.check(ssa)) return false;
+			source_controls = 4;
+		}
+		n = n + 1;
+	}
+	int cfg_controls = 0; int physical_controls = 0; bool projection = false; int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (ssa.data.reachable[b] && block.origin > 0) {
+			var row = ssa.cfg.core.nodes[block.origin - 1].value;
+			if (block.opcode == 75 && cfg_controls == 0) {
+				ssa.cfg.blocks[b].opcode = 42;
+				bool refused = !recover_cfg_verify(ssa.cfg) && !recover_ssa_verify(ssa);
+				ssa.cfg.blocks[b].opcode = block.opcode;
+				if (!refused || !module.check(ssa)) return false;
+				cfg_controls = 1;
+				var store = module.operations[b]; var address = LLVMGetOperand(store, 1);
+				LLVMSetOperand(store, 1, LLVMConstNull(module.pointer));
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(store, 1, address);
+				if (!refused || !module.check(ssa)) return false;
+				var load = LLVMGetFirstInstruction(module.blocks[b]);
+				LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(load, 0, address);
+				if (!refused || !module.check(ssa)) return false;
+				var insertion = LLVMGetOperand(store, 0); var previous = LLVMGetOperand(insertion, 0);
+				LLVMSetOperand(insertion, 0, LLVMConstNull(LLVMTypeOf(previous)));
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(insertion, 0, previous);
+				if (!refused || !module.check(ssa)) return false;
+				physical_controls = physical_controls + 3;
+			}
+			if (block.opcode == 12 && row.a == 0 && recover_mutable(ssa.cfg.core.flow.data, row.symbol) && !projection) {
+				var load = LLVMGetFirstInstruction(module.blocks[b]); var address = LLVMGetOperand(load, 0);
+				LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
+				bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(load, 0, address);
+				if (!refused || !module.check(ssa)) return false;
+				projection = true; physical_controls = physical_controls + 1;
+			}
+		}
+		b = b + 1;
+	}
+	if (source_controls != 4 || cfg_controls != 1 || physical_controls != 4) return false;
+	println("RECORD_MUTATION_CONTROLS source=4 cfg=1 physical=4 restored=1");
+	return true;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls") return 9;
 	bool library = args[1] == "--native-module";
 	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
@@ -328,6 +403,10 @@ int main(string[] args) {
 		if (args[1] == "--enum-transport-controls") {
 			if (enum_transport_controls(module, ssa)) return 42;
 			return 14;
+		}
+		if (args[1] == "--record-mutation-controls") {
+			if (record_mutation_controls(module, ssa)) return 42;
+			return 15;
 		}
 		if (args[1] == "--record-value-controls") {
 			if (record_value_controls(module, ssa)) return 42;

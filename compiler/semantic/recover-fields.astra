@@ -309,6 +309,8 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 	if (kind == SyntaxKind.CallStatementSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_call(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
 		var target = checked.bindings.program.arena.get_node_target(node);
+		var record = recover_record_root(checked, target, 0);
+		if (record.index > 0) return record.index < len(initialized) && initialized[record.index] && recover_record_write_source(checked, node, record, function) && recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
 		var receiver = recover_field_receiver(checked, target, function);
 		if (receiver.index < 1 || receiver.index >= len(initialized) || !initialized[receiver.index] || checked.bindings.symbol(receiver).kind != 8 || checked.bindings.symbol(receiver).owner.index != function.index || checked.symbol_flags[receiver.index] != 4 || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.accessible(receiver, checked.bindings.scope_for_node(target))) return false;
 		var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));

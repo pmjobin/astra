@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The emitter selects a declared subtree in the verified producer shape.
+int recover_record_write_part(CheckedIndex checked, RecoverRecordShape shape, SyntaxNodeId source, SymbolId root, int depth) {
+	if (depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return -1;
+	var parent = checked.bindings.program.arena.get_node_aggregate(source); int part = 0;
+	if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
+		if (recover_type_receiver(checked, source).index != root.index) return -1;
+	} else {
+		part = recover_record_write_part(checked, shape, parent, root, depth + 1);
+		if (part < 0) return -1;
+	}
+	int ordinal = recover_record_field(checked, shape.parts[part].type, checked.bindings.program.arena.get_token_field_name(source));
+	if (ordinal < 0) return -1;
+	int i = part + 1;
+	while (i < shape.part_count) {
+		if (shape.parts[i].parent == part + 1 && shape.parts[i].ordinal == ordinal) return i;
+		i = i + 1;
+	}
+	return -1;
+}
+
+void* recover_record_write_emit(CheckedIndex checked, RecoverNode row, void* builder, void* empty, void* address, void* input) throws Error {
+	var type = checked.symbol_types[row.symbol.index];
+	var shape = recover_record_shape(checked, type);
+	if (!recover_record_shape_verify(shape, checked)) {
+		throw new Error("LLVM_INVALID_IR: record update source shape");
+	}
+	var target = checked.bindings.program.arena.get_node_target(row.source);
+	int part = recover_record_write_part(checked, shape, target, row.symbol, 0);
+	if (part < 1 || address == null || input == null) {
+		throw new Error("LLVM_INVALID_IR: record update destination");
+	}
+	var field = shape.parts[part];
+	bool record = checked_kind(checked, field.type) == 30;
+	void* value = LLVMBuildLoad2(builder, LLVMGetAllocatedType(address), address, empty); int leaf = 0;
+	while (leaf < field.count) {
+		void* element = input;
+		if (record) element = LLVMBuildExtractValue(builder, input, leaf, empty);
+		value = LLVMBuildInsertValue(builder, value, element, field.first + leaf, empty);
+		leaf = leaf + 1;
+	}
+	return LLVMBuildStore(builder, value, address);
+}
+
+// Reconstruct each destination leaf from original source declarations. The
+// consumer checks actual load/insert/store order without using producer parts.
+int recover_record_write_verified(CheckedIndex checked, SymbolId function, RecoverNode row, void* block, void* operation, void* address, void* input) {
+	if (!recover_record_write_source(checked, row.source, row.symbol, function) || operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetInstructionParent(operation) != block || LLVMGetOperand(operation, 1) != address || LLVMGetVolatile(operation) != 0 || LLVMGetOrdering(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
+	var target = checked.bindings.program.arena.get_node_target(row.source);
+	int first = recover_record_destination(checked, target, row.symbol, 0);
+	var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+	var type = checked.symbol_types[field.index];
+	bool record = checked_kind(checked, type) == 30;
+	int count = recover_record_value_count(checked, type, 0);
+	if (first < 0 || count < 1 || input == null || !recover_storage_llvm_type(checked, type, LLVMTypeOf(input))) return 0;
+	void* current = LLVMGetOperand(operation, 0); void* next = operation; int leaf = count - 1; int instructions = 3;
+	while (leaf >= 0) {
+		if (LLVMIsAInstruction(current) == null || LLVMGetInstructionOpcode(current) != 54 || LLVMGetInstructionParent(current) != block || LLVMGetNextInstruction(current) != next || LLVMHasMetadata(current) != 0 || llvm13_index(current, 0, first + leaf) != 1) return 0;
+		void* element = LLVMGetOperand(current, 1);
+		next = current;
+		if (record) {
+			if (!recover_llvm_extract(element, input, leaf)) return 0;
+			if (LLVMIsAInstruction(input) != null) {
+				if (LLVMGetInstructionParent(element) != block || LLVMGetNextInstruction(element) != current || LLVMHasMetadata(element) != 0) return 0;
+				next = element;
+				instructions = instructions + 1;
+			}
+		} else {
+			if (element != input) return 0;
+		}
+		current = LLVMGetOperand(current, 0);
+		instructions = instructions + 1;
+		leaf = leaf - 1;
+	}
+	if (LLVMIsAInstruction(current) == null || LLVMGetInstructionOpcode(current) != 27 || LLVMGetInstructionParent(current) != block || LLVMGetFirstInstruction(block) != current || LLVMGetNextInstruction(current) != next || LLVMGetOperand(current, 0) != address || LLVMGetVolatile(current) != 0 || LLVMGetOrdering(current) != 0 || LLVMHasMetadata(current) != 0 || !recover_storage_llvm_type(checked, checked.symbol_types[row.symbol.index], LLVMTypeOf(current))) return 0;
+	if (LLVMGetNextInstruction(operation) != LLVMGetBasicBlockTerminator(block)) return 0;
+	return instructions;
+}
