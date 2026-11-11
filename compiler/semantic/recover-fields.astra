@@ -120,7 +120,9 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 		int i = 0;
 		while (i < checked.bindings.program.arena.list_count(fields)) {
 			var field = checked.bindings.program.arena.node_at(fields, i);
-			if (!recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_expression(field), function, aggregate, initialized, handled, depth + 1)) return false;
+			var value = checked.bindings.program.arena.get_node_expression(field);
+			if (value.index == 0) value = checked.bindings.program.arena.get_node_initializer(field);
+			if (!recover_constructor_value_at(checked, value, function, aggregate, initialized, handled, depth + 1)) return false;
 			i = i + 1;
 		}
 		return true;

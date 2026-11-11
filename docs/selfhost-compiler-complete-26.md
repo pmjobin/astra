@@ -1552,6 +1552,48 @@ address-space-zero pointer leaf in both paths, preserving the existing depth,
 field and leaf ceilings. Both development entries pass C0 semantic and Core
 preflights with these corrections. Astra execution is pending.
 
+## Complete original headers and nested record initializers
+
+The 45b2bed O2 source observer builds in 2,110.555 seconds and passes all
+42 focused source/control cases. The complete 190-input original Typecore
+check takes 138.378 seconds with 269,588 KiB peak RSS. The source inventory
+takes 147.025 seconds and admits all 89 Classes and 2,392 function headers.
+Whole-original Flow takes 151.395 seconds and stops at status 2 with
+38,352 nodes, preserving that raw failure.
+
+Read-only failure breakpoints identify original `compiler/cfg/lower.astra`
+function `cfg_payload`, bytes 144–559. Its initializer at bytes 224–496 uses
+inline nested record fields. The builder passes a zero expression child to
+the edge table because these fields retain their inner record through the
+separate initializer child. The recorded stop has 14 nodes and two edges in
+this function, an 8,192 per-function limit and status zero immediately before
+the invalid-edge failure. The function and fragment match the original Git
+bytes. An initial host-library identity refusal and two incomplete debugger
+setup attempts remain separate diagnostic receipts.
+
+The candidate follows the actual nested initializer child in construction,
+constructor reads and the independent Source/Flow consumer. Source validation
+requires exactly one expression/initializer child, the actual declared field
+identity and type, and a copyable nested record type. Five restored source
+controls cover missing/dual children, child/field type corruption and a changed
+field name. Their Astra execution remains pending. The new C0 witness uses
+inline nested records in a constructor and ordinary function, copies a returned
+record into an owned array, and exits42 at O0/O2 with clean unsuppressed
+Valgrind. Complete original Flow and native qualification remain outstanding.
+
+The source observer also gains `--construction-inventory`. It retains the
+complete checked source and genuine function/signature inventory, then creates
+a fresh construction table for every original function. Each body passes
+through the existing builder, independent source/tree consumer, loop consumer
+and node/edge coverage checks. Every refused function keeps its status and
+original span. This batches diagnosis across successive source blockers. The
+complete-module field, owner and IR consumers remain acceptance requirements.
+The original whole-module failure is retained alongside this diagnostic mode.
+Guarded formatting and C0 semantic/Core checks pass the candidate. The batch
+driver's first preflight caught its missing checked Error declaration. The
+corrected driver passes a fresh preflight. Exact source/tool checks reuse the
+already passing native entry checks after the observer-only edit.
+
 ## Bounded parallel regression execution
 
 The milestone regression wrapper accepts `--jobs 1` through `--jobs 8` and

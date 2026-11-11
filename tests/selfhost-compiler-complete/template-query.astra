@@ -947,8 +947,115 @@ void template_source_map_usage(CheckedIndex checked) throws Error {
 	var text = output.snapshot(); println(text.text);
 }
 
+int template_construction_inventory(RecoverFlow flow) throws Error {
+	if (!flow.checked.validate() || flow.checked.failed() || !recover_types_verify(flow.types, flow.checked)) return 8;
+	int expected = 0; int s = 1;
+	while (s <= flow.checked.bindings.symbol_count) {
+		var symbol = type_symbol(s);
+		if (recover_runtime_function(flow.checked, symbol)) {
+			expected = expected + 1;
+			int id = flow.data.symbols[s];
+			if (id < 1 || id > flow.data.function_count || flow.data.functions[id - 1].symbol.index != s || !recover_function_source(flow.checked, symbol)) return 8;
+		}
+		s = s + 1;
+	}
+	if (expected != flow.data.function_count) return 8;
+	int f = 0; int refused = 0; int nodes = 0;
+	while (f < flow.data.function_count) {
+		var data = new RecoverFlowData(flow.checked.bindings.symbol_count + 1, flow.data.limit);
+		data.library_mode(flow.data.library);
+		int other = 0;
+		while (other < flow.data.function_count) {
+			var function = flow.data.functions[other]; function.body = 0;
+			data.function_add(function);
+			other = other + 1;
+		}
+		data.begin_function(f + 1);
+		var declaration = flow.checked.bindings.symbol(flow.data.functions[f].symbol);
+		int body = recover_build_node(data, flow.checked, flow.types, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0);
+		recover_loop_bind(data, body, 0, 0);
+		if (data.status == 0) {
+			var seen = new bool[data.node_count]; var edges = new bool[data.edge_count];
+			bool valid = recover_child(data, flow.checked, flow.types, body, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, seen, edges, 0) && (flow.data.functions[f].result.index == 14 || !recover_falls(data, body, 0)) && recover_loop_verify(data, body, 0, 0);
+			int n = 0;
+			while (n < data.node_count && valid) {
+				valid = seen[n];
+				n = n + 1;
+			}
+			n = 0;
+			while (n < data.edge_count && valid) {
+				valid = edges[n];
+				n = n + 1;
+			}
+			if (!valid) data.fail(1, declaration.node);
+		}
+		if (nodes > 8000000 - data.node_count) return 2;
+		nodes = nodes + data.node_count;
+		if (data.status != 0) {
+			refused = refused + 1;
+			var output = new Utf8ByteBuilder(); source_append_text(output, "FLOW_CONSTRUCTION symbol="); append_int(output, flow.data.functions[f].symbol.index); source_append_text(output, " status="); append_int(output, data.status); source_append_text(output, " nodes="); append_int(output, data.node_count); source_append_text(output, " SPAN ");
+			var source = declaration.node; if (data.boundary.index > 0) source = data.boundary;
+			binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(source).span, output);
+			var text = output.snapshot(); println(text.text);
+		}
+		f = f + 1;
+	}
+	var output = new Utf8ByteBuilder(); source_append_text(output, "FLOW_CONSTRUCTION_INVENTORY functions="); append_int(output, f); source_append_text(output, " constructed="); append_int(output, f - refused); source_append_text(output, " refused="); append_int(output, refused); source_append_text(output, " nodes="); append_int(output, nodes); var text = output.snapshot(); println(text.text);
+	if (refused > 0) return 3;
+	return 0;
+}
+
+bool template_record_initializer_controls(CheckedIndex checked) throws Error {
+	int n = 1;
+	while (n < len(checked.uses)) {
+		SyntaxNodeId node = {index = n};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.StructInitializerSyntax()) {
+			var fields = checked.bindings.program.arena.get_list_fields(node);
+			if (checked.bindings.program.arena.list_count(fields) > 0) {
+				var field = checked.bindings.program.arena.node_at(fields, 0);
+				var original = checked.bindings.program.arena.field_initializer(field);
+				var nested = original.f_initializer;
+				if (nested.index > 0) {
+					var type = checked.uses[n].type;
+					if (!recover_record_source(checked, node, type)) return false;
+					var inner = checked.bindings.program.arena.get_list_fields(nested);
+					if (checked.bindings.program.arena.list_count(inner) < 1) return false;
+					var value = checked.bindings.program.arena.node_at(inner, 0);
+					var expression = checked.bindings.program.arena.get_node_expression(value);
+					if (expression.index < 1) return false;
+					var changed = original; changed.f_initializer.index = 0;
+					checked.bindings.program.arena.replace_field_initializer(field, changed);
+					bool refused = !recover_record_source(checked, node, type);
+					checked.bindings.program.arena.replace_field_initializer(field, original);
+					if (!refused || !recover_record_source(checked, node, type)) return false;
+					changed = original; changed.f_expression = expression;
+					checked.bindings.program.arena.replace_field_initializer(field, changed);
+					refused = !recover_record_source(checked, node, type);
+					checked.bindings.program.arena.replace_field_initializer(field, original);
+					if (!refused || !recover_record_source(checked, node, type)) return false;
+					var use = checked.uses[nested.index]; var altered = use; altered.type = type_id(1); checked.uses[nested.index] = altered;
+					refused = !recover_record_source(checked, node, type); checked.uses[nested.index] = use;
+					if (!refused || !recover_record_source(checked, node, type)) return false;
+					use = checked.uses[field.index]; altered = use; altered.type = type_id(1); checked.uses[field.index] = altered;
+					refused = !recover_record_source(checked, node, type); checked.uses[field.index] = use;
+					if (!refused || !recover_record_source(checked, node, type)) return false;
+					changed = original; changed.f_name = checked.bindings.program.arena.get_token_name(value);
+					checked.bindings.program.arena.replace_field_initializer(field, changed);
+					refused = !recover_record_source(checked, node, type);
+					checked.bindings.program.arena.replace_field_initializer(field, original);
+					if (!refused || !recover_record_source(checked, node, type) || !checked.validate() || !generic_verify(checked)) return false;
+					println("RECORD_INITIALIZER_CONTROLS source=5 restored=1");
+					return true;
+				}
+			}
+		}
+		n = n + 1;
+	}
+	return false;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -988,6 +1095,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--effect-root-controls") {
 			if (template_effect_root_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--record-initializer-controls") {
+			if (template_record_initializer_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--receiver-class-controls") {
@@ -1061,7 +1172,7 @@ int main(string[] args) {
 			if (complete && count > 0) return 42;
 			return 3;
 		}
-		var flow = recover_flow_lower_mode(move checked, 8192, args[1] == "--module-flow");
+		var flow = recover_flow_lower_mode(move checked, 8192, args[1] == "--module-flow" || args[1] == "--construction-inventory");
 		var details = new Utf8ByteBuilder(); source_append_text(details, "FLOW "); append_int(details, flow.data.status); source_append_text(details, " "); append_int(details, flow.data.boundary.index); source_append_text(details, " "); append_int(details, flow.data.node_count);
 		var status = details.snapshot(); println(status.text);
 		if (flow.data.boundary.index > 0) {
@@ -1070,6 +1181,7 @@ int main(string[] args) {
 			var span_text = span_output.snapshot();
 			println(span_text.text);
 		}
+		if (args[1] == "--construction-inventory") return template_construction_inventory(flow);
 		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 7; }

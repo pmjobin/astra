@@ -23,8 +23,13 @@ bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId typ
 		var field = checked.bindings.program.arena.node_at(fields, i);
 		var symbol = checked.node_symbols[field.index];
 		var value = checked.bindings.program.arena.node_at(values, i);
+		if (checked.bindings.program.arena.kind(value) != SyntaxKind.FieldInitializerSyntax()) return false;
 		var token = checked.bindings.program.arena.get_token_name(value);
-		if (checked_target(checked, value, token).index != symbol.index || !generic_token_equal(checked, token, checked.bindings.symbol(symbol).token) || checked.bindings.program.arena.get_node_initializer(value).index != 0) return false;
+		if (checked_target(checked, value, token).index != symbol.index || !generic_token_equal(checked, token, checked.bindings.symbol(symbol).token) || checked.uses[value.index].type.index != checked.symbol_types[symbol.index].index || checked.uses[value.index].flags != 0) return false;
+		var expression = checked.bindings.program.arena.get_node_expression(value);
+		var nested = checked.bindings.program.arena.get_node_initializer(value);
+		if (expression.index < 0 || expression.index >= len(checked.uses) || nested.index < 0 || nested.index >= len(checked.uses) || expression.index == 0 && nested.index == 0 || expression.index != 0 && nested.index != 0) return false;
+		if (nested.index != 0 && (checked.bindings.program.arena.kind(nested) != SyntaxKind.StructInitializerSyntax() || checked.uses[nested.index].type.index != checked.symbol_types[symbol.index].index || checked.uses[nested.index].flags != 0 || !recover_storage_record(checked, checked.uses[nested.index].type))) return false;
 		i = i + 1;
 	} return true;
 }

@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct InitializerLeaf {
+	int value;
+	bool active;
+	void* pointer;
+}
+
+struct InitializerRecord {
+	InitializerLeaf leaf;
+	int tail;
+}
+
+class InitializerReader {
+	int value;
+
+	init(int input) {
+		InitializerRecord row = {leaf = {value = input, active = true, pointer = null}, tail = 2};
+		this.value = row.leaf.value + row.tail;
+	}
+
+	int read() {
+		return this.value;
+	}
+}
+
+InitializerRecord initializer_record(int input) {
+	InitializerRecord row = {leaf = {value = input, active = true, pointer = null}, tail = 2};
+	return row;
+}
+
+int main() {
+	var reader = new InitializerReader(40);
+	var row = initializer_record(40);
+	var rows = new InitializerRecord[1];
+	rows[0] = row;
+	InitializerRecord second = {leaf = {value = 17, active = false, pointer = null}, tail = 1};
+	if (second.leaf.value != 17 || second.leaf.active || second.tail != 1) return 3;
+	if (!rows[0].leaf.active || rows[0].leaf.pointer != null || rows[0].leaf.value + rows[0].tail != 42) return 4;
+	return reader.read();
+}

@@ -153,7 +153,9 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 			if (edges[at]) return false;
 			edges[at] = true;
 			var field = checked.bindings.program.arena.node_at(fields, i);
-			if (!recover_child(flow, checked, types, flow.edges[at], checked.bindings.program.arena.get_node_expression(field), function, handler, caught, seen, edges, depth + 1) || flow.nodes[flow.edges[at] - 1].type.index != types.types[field.index].index) return false;
+			var value = checked.bindings.program.arena.get_node_initializer(field);
+			if (value.index == 0) value = checked.bindings.program.arena.get_node_expression(field);
+			if (!recover_child(flow, checked, types, flow.edges[at], value, function, handler, caught, seen, edges, depth + 1) || flow.nodes[flow.edges[at] - 1].type.index != types.types[field.index].index) return false;
 			i = i + 1;
 		} return true;
 	}

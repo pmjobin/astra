@@ -141,7 +141,9 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.kind = 8; var fields = checked.bindings.program.arena.get_list_fields(source); int count = checked.bindings.program.arena.list_count(fields); var children = new int[count]; int i = 0;
 		while (i < count && flow.status == 0) {
 			var field = checked.bindings.program.arena.node_at(fields, i);
-			children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(field), function, handler, caught, depth + 1);
+			var value = checked.bindings.program.arena.get_node_expression(field);
+			if (value.index == 0) value = checked.bindings.program.arena.get_node_initializer(field);
+			children[i] = recover_build_node(flow, checked, types, value, function, handler, caught, depth + 1);
 			i = i + 1;
 		}
 		row.first = flow.edge_count; row.count = count; i = 0; while (i < count && flow.status == 0) {
