@@ -631,7 +631,7 @@ TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) thro
 		checked_deferred_children(index, node, 17, depth + 1);
 		return index.defer(node, 17);
 	}
-	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target) && !checked_c_text_signature(index, target)) {
+	if ((index.symbol_flags[target.index] & (8 | 16 | 64)) != 0 && !checked_c_scalar_signature(index, target) && !checked_c_text_signature(index, target) && !(index.field_effects && checked_c_scalar_abi_signature(index, target, true)) && !checked_c_counted_signature(index, target, true)) {
 		var ignored = index.defer(node, 17);
 		var result = checked_pending_effect_result(index, node, target, depth);
 		if (result.index != 0 || index.failed()) return result;

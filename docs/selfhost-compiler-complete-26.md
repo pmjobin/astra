@@ -150,6 +150,14 @@ transport only to the explicit `buffer_abi = "u8-i32"` declaration and its
 borrowed byte descriptor, with the actual data pointer and extent operands.
 Fresh integrated Flow and native qualification are pending.
 
+The frozen `572a933` native O0 host now passes the record-array fixture through
+all stages and real native execution, with 324 LLVM blocks, twelve memory-layout
+controls and clean unsuppressed Valgrind. The local-only record array and
+forward-Vector fixtures also pass. Long assignment/call, Class record memory,
+flat record and owner-slot checks pass. Its hosted-files refusal precedes the
+later opaque/counting C changes. Its full-original attempt retains the actual
+`LlvmStorageCursor` refusal. Both failed raw sequence steps remain failed.
+
 The frozen `2a14329` observer builds in 23 minutes 47.46 seconds with
 1,660,140 KiB peak RSS. Its pointer-array fixture reaches 31 Flow nodes and
 fails the independent Flow check. The pointer constructor refuses its Class
@@ -160,6 +168,18 @@ diagnostic in `SourceSet`, bytes 5114–5385. These failed raw receipts remain
 unchanged. The 256-instance ceiling still applies. Source review also found
 that both conditional-type equality queries lacked the canonical opaque-pointer
 case. Both queries now include that case. Its integrated proof is pending.
+
+Hardware-only observation of the frozen hosted-files failure finds the real
+`this.descriptor` receiver at symbol 155 in concrete function 150. Storage
+construction succeeds with 70 slots and no boundary. The field token itself
+has no completed Binder target. Normal Typecore call checking still sends the
+new counted-buffer and full-width scalar C signatures down its deferred-call
+path. That route skips ordinary field-argument completion. The candidate now
+runs the existing authoritative argument checking for those exact admitted
+signatures, using ordinary Binder-reference completion before Flow. The all-module
+C0 frontend check passes. Native integration remains pending. The first
+hardware observer retains GDB's own callback-deletion crash. Its corrected
+stable-breakpoint replay preserves the original target refusal.
 
 ## Indexed mutation queries candidate
 
