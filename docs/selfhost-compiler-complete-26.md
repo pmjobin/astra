@@ -1922,6 +1922,32 @@ input. It reuses the completed whole-source refusal before attempting expensive
 whole-module native generation. The original callback bytes and both repair
 hashes are recorded separately.
 
+## Native owner-scaling checkpoint and representative usage
+
+The `3470091` O0 development host builds in 3,865.18 seconds. Its independent
+audit binds the exact Git sources, compiler product, tool identities, raw
+commands and 54 Astra ELF products across O0/O2, with 56 clean Astra memory
+streams. Eighteen retained programs, seven newer programs and both owner-factory
+sizes pass. The 768-factory case now passes Source/Core/CFG/SSA, native object
+generation, linked exit42 and unsuppressed Valgrind under the existing work
+ceiling. Its raw LLVM retains all 770 source functions. The previous Core
+resource refusal remains available. Indexed-Class inspection still retains its
+exit5 physical-contract refusal on this revision. Whole-original native
+completion remains 0/2. The first auditor requests a nonexistent control-log
+name. Its corrected independent audit reads the actual transport-control log
+and passes, with the failed auditor and diagnostic preserved.
+
+`representative-compiler-use.astra` supplies an application entry for all 180
+original compiler files and their ten original library dependencies. It exercises
+UTF-8 source locations, checked bounds errors, invalid parsing, 129 typed
+signatures with table growth, and ordinary integer-program generation through
+Flow/Core/CFG/SSA/LLVM. Original C0 semantic and Core preflights pass. The
+portable `representative-use.py` recipe prepares separate C0 O0/O2 applications
+and checks Astra applications against their observations, generated LLVM,
+linked generated-program execution and unsuppressed memory receipts. Actual
+execution of this new application remains pending. Whole-module function
+retention and compiler self-hosting cycles retain their separate obligations.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

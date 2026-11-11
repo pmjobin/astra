@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned u8[] representative_bytes(string text) {
+	var bytes = new u8[text.byte_length];
+	int i = 0;
+	while (i < len(bytes)) {
+		bytes[i] = astra_host_text_byte(text, i) as u8;
+		i = i + 1;
+	}
+	return move bytes;
+}
+
+owned SyntaxProgram representative_parse(string text) throws Error {
+	var bytes = representative_bytes(text);
+	var buffer = source_buffer("m26/representative.astra", move bytes, false);
+	var retained = shared_acquire(move buffer);
+	var entry = new SourceEntry(move retained);
+	var entries = new Vector<SourceEntry>(1);
+	assert_that(entries.append(move entry));
+	var sources = source_set(move entries);
+	var program = syntax_program(move sources);
+	return move program;
+}
+
+int main() {
+	try {
+		var bytes = representative_bytes("é\r\nx");
+		var buffer = source_buffer("m26/../m26/location.astra", move bytes, false);
+		var location = buffer.locate(4);
+		if (buffer.length != 5 || location.line != 2 || location.column != 1) return 1;
+		bool bounds_checked = false;
+		try {
+			var invalid = buffer.locate(6);
+		} catch (SourceBoundsError error) {
+			bounds_checked = true;
+		}
+		if (!bounds_checked) return 2;
+		var invalid_program = representative_parse("int main( { return 42; }");
+		if (!invalid_program.failed()) return 3;
+		var source = new Utf8ByteBuilder();
+		int i = 0;
+		while (i < 128) {
+			assert_that(source_append_text(source, "int usage_"));
+			assert_that(append_int(source, i));
+			assert_that(source_append_text(source, "(int value) { return value + 1; }\n"));
+			i = i + 1;
+		}
+		assert_that(source_append_text(source, "int main() { return usage_127(41); }\n"));
+		var text = source.snapshot();
+		var program = representative_parse(text.text);
+		if (program.failed()) return 4;
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed() || checked.signature_count != 129) return 5;
+		var flow = recover_flow_lower(move checked, 8192);
+		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 6;
+		var core = recover_core_lower(move flow);
+		if (core.status != 0 || !recover_core_verify(core)) return 7;
+		var cfg = recover_cfg_lower(move core, 8192);
+		if (cfg.status != 0) return 8;
+		var ssa = recover_ssa_lower(move cfg, 8000000);
+		if (ssa.data.status != 0 || !recover_ssa_verify(ssa)) return 9;
+		var module = new RecoverLlvm(ssa);
+		module.build(ssa);
+		module.write(ssa, "m26-representative.ll");
+		return 42;
+	} catch (Error error) {
+		return 10;
+	}
+}
