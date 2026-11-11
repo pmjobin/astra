@@ -150,6 +150,44 @@ transport only to the explicit `buffer_abi = "u8-i32"` declaration and its
 borrowed byte descriptor, with the actual data pointer and extent operands.
 Fresh integrated Flow and native qualification are pending.
 
+The frozen `2a14329` observer builds in 23 minutes 47.46 seconds with
+1,660,140 KiB peak RSS. Its pointer-array fixture reaches 31 Flow nodes and
+fails the independent Flow check. The pointer constructor refuses its Class
+declaration, and hosted-files refuses the original `this.descriptor` expression
+at bytes 1974–1989. The forward-Vector fixture passes. The full 190 original
+inputs fail Typecore with the exact `generic instance resource limit`
+diagnostic in `SourceSet`, bytes 5114–5385. These failed raw receipts remain
+unchanged. The 256-instance ceiling still applies. Source review also found
+that both conditional-type equality queries lacked the canonical opaque-pointer
+case. Both queries now include that case. Its integrated proof is pending.
+
+## Indexed mutation queries candidate
+
+LLVM emission and its independent consumer previously scanned all Flow nodes
+for each scalar mutation query. The producer now indexes mutated symbols after
+building Flow. The Flow consumer reconstructs the index from retained nodes and
+compares every symbol. A consumer cannot treat an unchecked cached flag as a
+source fact. The six existing LLVM call sites use the checked index.
+
+`mutation-index-kernel3` matches nine actual source AST declarations. Across
+16,384 retained rows and 4,096 symbols, the indexed query agrees with the exact
+previous scan at O0 and O2. Six controls reject missing, extra, zero-symbol,
+wrong-length and invalid-source entries. Removing mutations and rebuilding the
+index clears their old flags. Both profiles return 42 with clean unsuppressed
+Valgrind. The first two attempts retain their missing capsule fixture and
+recipe-precedence setup failures. The all-module C0 semantic check passes in
+55.00 seconds. The real Flow entry also has missing/extra-index corruption and
+restoration controls for the next native candidate.
+
+`mutation-index-cost2` separately compares matching 16,384-row populations and
+262,144 queries using original C0, three timed executions per variant/profile,
+and the actual prior source from `c4884a8`. The candidate includes index
+construction. Minimum elapsed samples are 15.5142 versus 0.00421 seconds at
+O0 and 2.98505 versus 0.00254 seconds at O2. GNU time CPU/RSS receipts and all
+three samples are retained. These are query-kernel measurements. Matched
+whole-compiler execution and cold-build costs remain pending. The first cost
+recipe retains its missing diagnostics-provider failure.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in

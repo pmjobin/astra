@@ -257,6 +257,7 @@ owned RecoverFlow recover_flow_lower_mode(owned CheckedIndex checked, int limit,
 		function.body = recover_build_node(flow.data, flow.checked, flow.types, flow.checked.bindings.program.arena.get_node_body(declaration.node), f + 1, 0, 0, 0); flow.data.function_row(f, function); recover_loop_bind(flow.data, function.body, 0, 0); f = f + 1;
 	}
 	if (flow.data.status == 0) recover_fields_build(flow.fields, flow.checked, flow.storage, flow.data);
+	flow.data.index_mutations();
 	if (flow.data.status == 0 && !recover_flow_verify(flow)) flow.data.fail(1, flow.data.boundary);
 	return move flow;
 }

@@ -85,9 +85,5 @@ bool recover_loop_source(RecoverFlowData flow, CheckedIndex checked, RecoverType
 }
 
 bool recover_mutable(RecoverFlowData flow, SymbolId symbol) {
-	int n = 0; while (n < flow.node_count) {
-		if (flow.nodes[n].kind == 42 && flow.nodes[n].symbol.index == symbol.index) return true;
-		n = n + 1;
-	}
-	return false;
+	return symbol.index > 0 && symbol.index < len(flow.mutable_symbols) && flow.mutable_symbols[symbol.index];
 }

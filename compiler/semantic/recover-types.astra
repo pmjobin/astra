@@ -80,7 +80,7 @@ TypeId recover_type_compute(RecoverTypes data, CheckedIndex checked, SyntaxNodeI
 	if (left.index == 0 || right.index == 0 || left.index != right.index) return no_type();
 	var token = checked.bindings.program.arena.get_token_operator_token(node);
 	bool equality = checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!=");
-	if (!equality || (!type_numeric(checked_kind(checked, left)) && left.index != 13 && left.index != 15 && !recover_storage_class(checked, left) && !recover_storage_error(checked, left) && !recover_storage_shared(checked, left))) return no_type();
+	if (!equality || (!type_numeric(checked_kind(checked, left)) && left.index != 13 && left.index != 15 && !recover_storage_class(checked, left) && !recover_storage_error(checked, left) && !recover_storage_shared(checked, left) && !recover_storage_pointer(checked, left))) return no_type();
 	var result = type_id(13); data.types[node.index] = result; return result;
 }
 

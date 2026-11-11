@@ -272,6 +272,25 @@ bool recover_falls(RecoverFlowData flow, int id, int depth) {
 	return true;
 }
 
+bool recover_mutations_verified(RecoverFlowData flow) {
+	if (flow.node_count < 0 || flow.node_count > len(flow.nodes) || len(flow.mutable_symbols) != len(flow.symbols)) return false;
+	var observed = new bool[len(flow.symbols)]; int n = 0;
+	while (n < flow.node_count) {
+		var row = flow.nodes[n];
+		if (row.kind == 42) {
+			if (row.symbol.index < 1 || row.symbol.index >= len(observed)) return false;
+			observed[row.symbol.index] = true;
+		}
+		n = n + 1;
+	}
+	int s = 0;
+	while (s < len(observed)) {
+		if (flow.mutable_symbols[s] != observed[s]) return false;
+		s = s + 1;
+	}
+	return true;
+}
+
 bool recover_flow_verify(RecoverFlow flow) {
 	if (flow.data.status != 0 || flow.data.limit < 1 || flow.data.limit > 8192 || flow.data.function_count < 1 || flow.data.function_count > flow.data.limit || flow.data.node_count < 1 || flow.data.node_count > len(flow.data.nodes) || flow.data.edge_count < 0 || flow.data.edge_count > len(flow.data.edges) || len(flow.data.nodes) > 8000000 || len(flow.data.edges) > 8000000 || len(flow.data.functions) != flow.data.limit || len(flow.data.symbols) != flow.checked.bindings.symbol_count + 1 || len(flow.data.catch_owners) != len(flow.data.symbols) || !flow.checked.validate() || flow.checked.failed()) return false;
 	if (!recover_types_verify(flow.types, flow.checked) || !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols)) return false;
@@ -330,5 +349,5 @@ bool recover_flow_verify(RecoverFlow flow) {
 		if (!caught_symbols[i] && flow.data.catch_owners[i] != 0) return false;
 		i = i + 1;
 	}
-	return recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data);
+	return recover_mutations_verified(flow.data) && recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data);
 }

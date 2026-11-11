@@ -143,8 +143,31 @@ bool class_finalizer_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	return count > 0;
 }
 
+bool mutation_index_controls(RecoverFlow flow) {
+	if (!recover_flow_verify(flow)) return false;
+	int present = -1; int absent = -1; int s = 1;
+	while (s < len(flow.data.mutable_symbols)) {
+		if (flow.data.mutable_symbols[s]) present = s;
+		else {
+			absent = s;
+		}
+		s = s + 1;
+	}
+	if (present < 1 || absent < 1) return false;
+	flow.data.mutable_symbols[present] = false;
+	bool refused = !recover_flow_verify(flow);
+	flow.data.mutable_symbols[present] = true;
+	if (!refused || !recover_flow_verify(flow)) return false;
+	flow.data.mutable_symbols[absent] = true;
+	refused = !recover_flow_verify(flow);
+	flow.data.mutable_symbols[absent] = false;
+	if (!refused || !recover_flow_verify(flow)) return false;
+	println("MUTATION_INDEX_CONTROLS missing=1 extra=1 restored=1");
+	return true;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls") return 9;
 	bool library = args[1] == "--native-module";
 	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
@@ -165,6 +188,10 @@ int main(string[] args) {
 			return flow.data.status;
 		}
 		assert_that(recover_flow_verify(flow));
+		if (args[1] == "--mutation-index-controls") {
+			if (mutation_index_controls(flow)) return 42;
+			return 13;
+		}
 		var core = recover_core_lower(move flow); if (core.status != 0) {
 			println("RECOVER_CORE_INVALID");
 			return 6;

@@ -40,6 +40,7 @@ class RecoverFlowData {
 	owned int[] edges;
 	owned int[] symbols;
 	owned int[] catch_owners;
+	owned bool[] mutable_symbols;
 	int function_count;
 	int node_count;
 	int edge_count;
@@ -56,6 +57,7 @@ class RecoverFlowData {
 		int capacity = limit; if (limit < 1 || limit > 8192) capacity = 0;
 		this.functions = new RecoverFunction[capacity]; this.nodes = new RecoverNode[capacity]; this.edges = new int[capacity]; this.symbols = new int[symbols];
 		this.catch_owners = new int[symbols];
+		this.mutable_symbols = new bool[symbols];
 		this.function_count = 0; this.node_count = 0; this.edge_count = 0; this.limit = limit;
 		this.unit = 0; this.first_node = 0; this.first_edge = 0;
 		this.library = false;
@@ -71,6 +73,20 @@ class RecoverFlowData {
 	void fail(int status, SyntaxNodeId source) { this.status = status; this.boundary = source; }
 
 	void library_mode(bool library) { this.library = library; }
+
+	void index_mutations() {
+		int s = 0;
+		while (s < len(this.mutable_symbols)) {
+			this.mutable_symbols[s] = false;
+			s = s + 1;
+		}
+		int n = 0;
+		while (n < this.node_count) {
+			var row = this.nodes[n];
+			if (row.kind == 42 && row.symbol.index > 0 && row.symbol.index < len(this.mutable_symbols)) this.mutable_symbols[row.symbol.index] = true;
+			n = n + 1;
+		}
+	}
 
 	void function_row(int ordinal, RecoverFunction row) { this.functions[ordinal] = row; }
 
