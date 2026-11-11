@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+u64 mixed_left_shift(u64 value, i8 count) {
+	return value << count;
+}
+
+i8 mixed_signed_shift(i8 value, u64 count) {
+	return value >> count;
+}
+
+u16 mixed_unsigned_shift(u16 value, i64 count) {
+	return value >> count;
+}
+
+bool boolean_bits(bool left, bool right) {
+	return ((left & right) | (left ^ right)) & true;
+}
+
+int main() {
+	if (mixed_left_shift(21, 1) != 42 || mixed_left_shift(1, 63) != 9223372036854775808) return 1;
+	if (mixed_left_shift(42, 0) != 42 || mixed_signed_shift(-84, 1) != -42) return 2;
+	if (mixed_signed_shift(-128, 7) != -1 || mixed_unsigned_shift(65535, 15) != 1) return 3;
+	if (!boolean_bits(true, false) || boolean_bits(false, false)) return 4;
+	return 42;
+}

@@ -50,5 +50,9 @@ bool recover_storage_binding(CheckedIndex checked, SymbolId symbol) {
 	if (!recover_storage_channel(checked, type, flags, false)) return false;
 	if (declaration.kind != 8) return declaration.kind == 7;
 	int kind = checked_kind(checked, type);
-	return type.index != 15 && ((kind != 31 && kind != 27 && kind != 22) || flags == 4);
+	if (kind == 15) {
+		var initializer = checked.bindings.program.arena.get_node_initializer(declaration.node);
+		return flags == 0 && initializer.index > 0 && checked.uses[initializer.index].type.index == type.index && checked.uses[initializer.index].flags == 0;
+	}
+	return (kind != 31 && kind != 27 && kind != 22) || flags == 4;
 }

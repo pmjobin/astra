@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct immutable descriptor provenance from retained source. A positive
+// result is an actual Class receiver symbol. Zero denotes caller/module text.
+// A negative result leaves the view unsupported.
+int recover_text_view_root(CheckedIndex checked, SyntaxNodeId source, SymbolId function, int[] work, int depth) {
+	if (source.index < 1 || source.index >= len(checked.uses) || depth > 192 || work[0] == 0 || checked.uses[source.index].type.index != 15 || checked.uses[source.index].flags != 0) return -1;
+	work[0] = work[0] - 1;
+	var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.TextLiteralExpressionSyntax()) return 0;
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_text_view_root(checked, checked.bindings.program.arena.get_node_expression(source), function, work, depth + 1);
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+		if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.symbol_types[symbol.index].index != 15 || checked.symbol_flags[symbol.index] != 0) return -1;
+		var declaration = checked.bindings.symbol(symbol);
+		if (declaration.owner.index != function.index || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(source))) return -1;
+		if (declaration.kind == 7) return 0;
+		if (declaration.kind != 8) return -1;
+		return recover_text_view_root(checked, checked.bindings.program.arena.get_node_initializer(declaration.node), function, work, depth + 1);
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var target = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
+		// The whole-module result consumer separately proves literal storage for
+		// every string-returning function, including this actual callee.
+		if (recover_call_source(checked, source, target, type_id(15))) return 0;
+		return -1;
+	}
+	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) return -1;
+	var aggregate = checked.bindings.program.arena.get_node_aggregate(source);
+	if (aggregate.index > 0 && checked.bindings.program.arena.kind(aggregate) != SyntaxKind.NameExpressionSyntax()) return -1;
+	var receiver = recover_field_receiver(checked, source, function);
+	if (receiver.index < 1 || !recover_storage_binding(checked, receiver)) return -1;
+	var member = checked_target(checked, source, checked.bindings.program.arena.get_token_field_name(source));
+	var field = text_storage_verified_projection(checked, member);
+	if (field.index < 1 || field.index > checked.bindings.symbol_count || checked.symbol_types[field.index].index != 15 || (checked.symbol_flags[field.index] & 135) != 128) return -1;
+	var declaration = checked.bindings.symbol(field);
+	var type = checked.symbol_types[receiver.index];
+	if (declaration.kind != 6 || declaration.owner.index != checked.types.row(type).nominal.index || checked.bindings.program.arena.get_token_readonly_keyword(declaration.node).index == 0) return -1;
+	return receiver.index;
+}
+
+// Descriptor copies keep their source storage. Reconstruct every mutation and
+// move independently, then require a live enclosing receiver for Class views.
+bool recover_text_views_verified(RecoverFlow flow) {
+	var changed = new bool[flow.checked.bindings.symbol_count + 1];
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 10 || row.kind == 42 || row.kind == 43 || row.kind == 75) {
+			if (row.symbol.index < 1 || row.symbol.index >= len(changed)) return false;
+			changed[row.symbol.index] = true;
+		}
+		n = n + 1;
+	}
+	var work = new int[1]; work[0] = 8000000;
+	n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 27 && row.symbol.index > 0 && row.symbol.index < len(changed) && flow.checked.symbol_types[row.symbol.index].index == 15) {
+			if (changed[row.symbol.index] || row.function < 1 || row.function > flow.data.function_count) return false;
+			var declaration = flow.checked.bindings.symbol(row.symbol);
+			var function = flow.data.functions[row.function - 1].symbol;
+			int root = recover_text_view_root(flow.checked, flow.checked.bindings.program.arena.get_node_initializer(row.source), function, work, 0);
+			if (root < 0) return false;
+			if (root > 0) {
+				var receiver = flow.checked.bindings.symbol(type_symbol(root));
+				if (changed[root] || receiver.owner.index != function.index || !recover_storage_outlives(flow.storage, receiver.scope.index, declaration.scope.index)) return false;
+			}
+		}
+		n = n + 1;
+	}
+	return work[0] > 0;
+}

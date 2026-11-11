@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct LexicalBaseRecord {
+	int value;
+}
+
+class LexicalBaseClass {
+	int value;
+
+	init(int input) {
+		this.value = input;
+	}
+
+	int read() {
+		return this.value;
+	}
+}
+
+int lexical_base_parameter(int base) {
+	return base + 2;
+}
+
+int lexical_base_local() {
+	int base = 40;
+	return base + 2;
+}
+
+int lexical_base_record(LexicalBaseRecord base) {
+	return base.value;
+}
+
+int lexical_base_class(LexicalBaseClass base) {
+	return base.read();
+}
+
+bool generic_window_bounds(int first, int count, int originals, int base, int used, int capacity) {
+	return first >= 1 && first <= originals + 1 && count >= 0 && count <= originals + 1 - first && base >= 0 && used >= 0 && used <= capacity && count < used && base <= used - count - 1;
+}
+
+int main() {
+	LexicalBaseRecord record = {value = 42};
+	var instance = new LexicalBaseClass(42);
+	if (lexical_base_parameter(40) != 42 || lexical_base_local() != 42) return 1;
+	if (lexical_base_record(record) != 42 || lexical_base_class(instance) != 42) return 2;
+	if (!generic_window_bounds(1, 1, 10, 0, 2, 10) || generic_window_bounds(1, 1, 10, -1, 2, 10)) return 3;
+	return 42;
+}

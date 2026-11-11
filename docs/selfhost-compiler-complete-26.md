@@ -1686,6 +1686,37 @@ pending. Guarded formatting and native-driver semantic/Core preflights pass
 after correcting a temporary borrowed-child selection caught by the first
 native preflight. Earlier failed formatter and preflight receipts are retained.
 
+## Borrowed text and lexical receiver-spelling candidates
+
+The text-local candidate admits immutable descriptor copies from module
+literals, caller text, other immutable text locals, literal-returning calls and
+direct readonly text fields/accessors of actual Class receivers. Its separate
+consumer reconstructs provenance, lexical scope ancestry and every actual
+receiver move or rebinding. A moved receiver currently leaves the complete
+function unsupported, including moves after the final view use. Nested receiver
+projections and mutable text locals await further lifetime proofs. Existing
+literal-only result validation continues to guard string-returning calls.
+
+The new source witness covers caller, literal-call, owned receiver, borrowed
+receiver, copied descriptors and a nested lexical scope. Six restored mutation
+controls target readonly/type facts, receiver moves, descriptor assignment,
+scope ancestry and receiver ownership. Guarded formatting and both compiler
+drivers' C0 semantic/Core preflights pass. Original C0 O0/O2 executions and
+unsuppressed Valgrind pass. Astra Source/Flow and target native execution of
+the candidate remain pending.
+
+A separate exact-original `generic_window_bounds` witness reproduces a raw
+Flow status1 refusal with 61 nodes. Read-only entry/return breakpoints bind
+the original C0-produced observer and identify `base` name expressions with
+pending reason13 and type0. The binder had overridden the resolved lexical
+parameter with implicit-receiver reason2. The correction retains an actual
+resolved declaration through that spelling-sensitive branch. Parameter, local,
+record-field and Class-method witnesses pass C0 O0/O2 with clean unsuppressed
+Valgrind, alongside the exact original numeric bounds function. Both compiler
+drivers' semantic/Core preflights pass. Compiled Astra observer execution is
+pending. The same focused oracle batch confirms the mixed-width shift and
+boolean bitwise witness at C0 O0/O2.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

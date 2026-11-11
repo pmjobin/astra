@@ -718,7 +718,9 @@ class BindingIndex {
 			return;
 		}
 		var result = this.resolve(scope, node, token, name, domain);
-		if (reason != 0) {
+		// Explicit lexical declarations retain their resolved binding even when
+		// their spelling also denotes an implicit receiver in another scope.
+		if (reason != 0 && !(reason == 2 && domain == 2 && result.state_code == 1)) {
 			result.state_code = 5;
 			result.reason = reason;
 			result.target.index = 0;

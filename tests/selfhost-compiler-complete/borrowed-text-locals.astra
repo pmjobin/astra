@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class TextViewOwner {
+	readonly string snapshot;
+
+	init(string input) {
+		this.snapshot = input;
+	}
+
+	property string text {
+		get { return this.snapshot; }
+	}
+}
+
+string text_view_literal() {
+	return "literal";
+}
+
+int text_view_parameter(string input) {
+	var original = input;
+	var copy = original;
+	var literal = text_view_literal();
+	if (copy != "caller" || literal != "literal") return 1;
+	return copy.byte_length;
+}
+
+int text_view_receiver(TextViewOwner input) {
+	var view = input.text;
+	var copy = (view);
+	if (copy != "message") return 1;
+	return copy.byte_length;
+}
+
+int main() {
+	var owner = new TextViewOwner("message");
+	{
+		var view = owner.text;
+		var copy = view;
+		if (view != "message" || copy.byte_length != 7) return 1;
+	}
+	if (text_view_receiver(owner) != 7 || text_view_parameter("caller") != 6) return 2;
+	return 42;
+}

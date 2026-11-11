@@ -1005,6 +1005,51 @@ int template_construction_inventory(RecoverFlow flow) throws Error {
 	return 0;
 }
 
+bool template_text_view_controls(RecoverFlow flow) {
+	if (!recover_flow_verify(flow) || !recover_text_views_verified(flow)) return false;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 27 && flow.checked.symbol_types[row.symbol.index].index == 15) {
+			var initializer = flow.checked.bindings.program.arena.get_node_initializer(row.source);
+			var work = new int[1]; work[0] = 8000000;
+			int root = recover_text_view_root(flow.checked, initializer, flow.data.functions[row.function - 1].symbol, work, 0);
+			var local = flow.checked.bindings.symbol(row.symbol);
+			if (root > 0 && flow.checked.bindings.symbol(type_symbol(root)).kind == 8 && flow.checked.bindings.symbol(type_symbol(root)).scope.index != local.scope.index && flow.checked.bindings.program.arena.kind(initializer) == SyntaxKind.FieldAccessExpressionSyntax()) {
+				var member = checked_target(flow.checked, initializer, flow.checked.bindings.program.arena.get_token_field_name(initializer));
+				var field = text_storage_verified_projection(flow.checked, member);
+				if (field.index < 1) return false;
+				int flags = flow.checked.symbol_flags[field.index];
+				flow.checked.symbol_flags[field.index] = flags & ~128;
+				bool readonly_rejected = !recover_text_views_verified(flow);
+				flow.checked.symbol_flags[field.index] = flags;
+				var type = flow.checked.symbol_types[field.index];
+				flow.checked.symbol_types[field.index] = type_id(1);
+				bool type_rejected = !recover_text_views_verified(flow);
+				flow.checked.symbol_types[field.index] = type;
+				var original = flow.data.nodes[0]; var mutated = original;
+				mutated.kind = 10; mutated.symbol = type_symbol(root); flow.data.nodes[0] = mutated;
+				bool move_rejected = !recover_text_views_verified(flow);
+				mutated.kind = 42; mutated.symbol = row.symbol; flow.data.nodes[0] = mutated;
+				bool assignment_rejected = !recover_text_views_verified(flow);
+				flow.data.nodes[0] = original;
+				int parent = flow.storage.parents[local.scope.index];
+				flow.storage.parents[local.scope.index] = 0;
+				bool scope_rejected = !recover_text_views_verified(flow);
+				flow.storage.parents[local.scope.index] = parent;
+				flags = flow.checked.symbol_flags[root]; flow.checked.symbol_flags[root] = 0;
+				bool root_rejected = !recover_text_views_verified(flow);
+				flow.checked.symbol_flags[root] = flags;
+				if (!readonly_rejected || !type_rejected || !move_rejected || !assignment_rejected || !scope_rejected || !root_rejected || !recover_flow_verify(flow)) return false;
+				println("TEXT_VIEW_CONTROLS source=2 lifetime=4 restored=1");
+				return true;
+			}
+		}
+		n = n + 1;
+	}
+	return false;
+}
+
 bool template_record_initializer_controls(CheckedIndex checked) throws Error {
 	int n = 1;
 	while (n < len(checked.uses)) {
@@ -1055,7 +1100,7 @@ bool template_record_initializer_controls(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--text-view-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -1183,6 +1228,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--construction-inventory") return template_construction_inventory(flow);
 		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
+		if (args[1] == "--text-view-controls") {
+			if (template_text_view_controls(flow)) return 42;
+			return 8;
+		}
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 7; }
 }
