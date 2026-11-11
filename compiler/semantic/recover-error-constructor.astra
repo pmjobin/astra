@@ -2,9 +2,8 @@
 // Receiver identity comes from the actual independently checked member copy.
 // Source base initialization precedes every own-field statement.
 bool recover_error_constructor_source(CheckedIndex checked, SymbolId function) {
-	int instance = generic_instance_for(checked, function);
-	if (instance < 1 || !class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
-	var plan = checked.instances[instance - 1];
+	var plan = checked_source_plan(checked, function);
+	if (plan.concrete.index != function.index || !class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
 	if (!error_storage_class(checked, plan.enclosing)) return false;
 	var origin = checked.bindings.symbol(plan.origin);
 	var declaration = checked.bindings.symbol(function);
@@ -70,8 +69,8 @@ SyntaxNodeId recover_error_base_value(CheckedIndex checked, SymbolId function) {
 	var declaration = checked.bindings.symbol(function);
 	var arguments = checked.bindings.program.arena.get_list_base_arguments(declaration.node);
 	if (checked.bindings.program.arena.list_count(arguments) == 1) return checked.bindings.program.arena.node_at(arguments, 0);
-	int instance = generic_instance_for(checked, function);
-	var owner = checked.bindings.symbol(checked.types.row(checked.instances[instance - 1].enclosing).nominal);
+	var plan = checked_source_plan(checked, function);
+	var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
 	var parent_node = checked.bindings.program.arena.get_node_parent_class(owner.node);
 	var parent = checked_effect_class(checked, parent_node);
 	var initializer = recover_error_initializer(checked, parent);

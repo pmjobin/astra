@@ -18,8 +18,8 @@ bool recover_error_borrow_binding(CheckedIndex checked, SymbolId symbol) {
 
 bool recover_error_body_prefix(CheckedIndex checked, SymbolId function, SyntaxNodeId source) {
 	if (!class_storage_initializing(checked, function)) return false;
-	int instance = generic_instance_for(checked, function);
-	if (instance < 1 || !error_storage_class(checked, checked.instances[instance - 1].enclosing)) return false;
+	var plan = checked_source_plan(checked, function);
+	if (plan.concrete.index != function.index || !error_storage_class(checked, plan.enclosing)) return false;
 	var declaration = checked.bindings.symbol(function);
 	return checked.bindings.program.arena.get_node_body(declaration.node).index == source.index;
 }

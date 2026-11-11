@@ -84,10 +84,10 @@ bool class_storage_constructor_tail(CheckedIndex checked, SyntaxNodeId node, int
 
 bool class_storage_constructor_verified(CheckedIndex checked, SymbolId function) {
 	if (!checked.class_storage || !class_storage_initializing(checked, function)) return false;
-	int instance = generic_instance_for(checked, function);
-	var type = checked.instances[instance - 1].enclosing;
+	var plan = checked_source_plan(checked, function);
+	var type = plan.enclosing;
 	if (!class_storage_source_verified(checked, type, false, 0)) return false;
-	var origin = checked.bindings.symbol(checked.instances[instance - 1].origin); var expected_owner = checked.types.row(type).nominal;
+	var origin = checked.bindings.symbol(plan.origin); var expected_owner = checked.types.row(type).nominal;
 	int outer = generic_instance_for(checked, expected_owner);
 	if (outer > 0) expected_owner = checked.instances[outer - 1].origin;
 	if (origin.kind != 12 || origin.owner.index != expected_owner.index) return false;
@@ -216,8 +216,8 @@ bool class_storage_graph_verified(borrowed FlowGraph graph, CheckedIndex checked
 		s = s + 1;
 	}
 	if (initializing) {
-		int instance = generic_instance_for(checked, function);
-		int count = class_storage_verify_inventory(graph, checked, checked.instances[instance - 1].enclosing, 0, 0, 0);
+		var plan = checked_source_plan(checked, function);
+		int count = class_storage_verify_inventory(graph, checked, plan.enclosing, 0, 0, 0);
 		if (count < 0) return false;
 		fields = fields + count;
 	}

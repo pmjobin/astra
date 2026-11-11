@@ -791,8 +791,8 @@ owned FlowGraph flow_graph(CheckedIndex checked, int[] class_origins, SymbolId f
 		}
 		if (symbol.kind == 12 && symbol.owner.index != 0 && flowsem_class_shape(checked, checked.symbol_types[symbol.owner.index])) flowsem_inventory(graph, checked, checked.symbol_types[symbol.owner.index], 0, 0, 0);
 		if (class_storage_initializing(checked, function)) {
-			int instance = generic_instance_for(checked, function);
-			flowsem_inventory(graph, checked, checked.instances[instance - 1].enclosing, 0, 0, 0);
+			var plan = checked_source_plan(checked, function);
+			flowsem_inventory(graph, checked, plan.enclosing, 0, 0, 0);
 		}
 	}
 	graph.exit = graph.add(flow_event(checked, symbol.node, 0, 0, 0, 0));

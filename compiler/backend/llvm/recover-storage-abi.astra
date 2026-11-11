@@ -37,7 +37,7 @@ class RecoverAbi {
 
 	init(CheckedIndex checked, SymbolId declaration) {
 		var identity = shared_clone(checked.types.identity); this.identity = move identity; this.declaration = declaration; var id = checked.symbol_signatures[declaration.index]; this.signature = id; var signature = checked.signatures[id.index - 1]; var result = checked.types.argument(checked.types, signature.callable, 0); this.result = result.type; this.result_flags = result.flags; this.error = signature.error;
-		int receiver = -1; int instance = generic_instance_for(checked, declaration); if (instance > 0 && checked.instances[instance - 1].enclosing.index != 0) receiver = 0; this.receiver = receiver;
+		int receiver = -1; var source = checked_source_plan(checked, declaration); if (source.concrete.index == declaration.index && source.enclosing.index != 0) receiver = 0; this.receiver = receiver;
 		int success = -1; if ((signature.flags & 64) != 0 && result.type.index != 14) {
 			success = 0;
 			if (receiver == 0) success = 1;
@@ -59,9 +59,9 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 	var symbol = checked.bindings.symbol(plan.declaration); var id = checked.symbol_signatures[plan.declaration.index]; if (symbol.kind != 1 || id.index < 1 || id.index > checked.signature_count || plan.signature.index != id.index) return false;
 	var signature = checked.signatures[id.index - 1]; var result = checked.types.argument(checked.types, signature.callable, 0);
 	if (plan.result.index != result.type.index || plan.error.index != signature.error.index || plan.result_flags != result.flags || !recover_storage_channel(checked, result.type, result.flags, true) || signature.dispatch != 0 || (signature.flags & ~(4 | 64)) != 0 || !checked_effect_signature_verified(checked, signature) || !recover_member_attributes(checked, symbol.node)) return false;
-	int receiver = -1; int instance = generic_instance_for(checked, plan.declaration);
-	if (instance > 0 && checked.instances[instance - 1].enclosing.index != 0) {
-		var source = checked.instances[instance - 1]; var origin = checked.bindings.symbol(source.origin);
+	int receiver = -1; var source = checked_source_plan(checked, plan.declaration);
+	if (source.concrete.index == plan.declaration.index && source.enclosing.index != 0) {
+		var origin = checked.bindings.symbol(source.origin);
 		bool error = error_storage_class(checked, source.enclosing);
 		if (origin.kind != 11 && origin.kind != 12 || !class_storage_class(checked, source.enclosing) && !error || !generic_verify(checked)) return false;
 		if (error) {
@@ -84,7 +84,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 	while (p < count) {
 		if (physical == success) physical = physical + 1; if (plan.groups[p] != physical) return false;
 		var channel = checked.types.argument(checked.types, signature.callable, p + 1); if (!recover_storage_channel(checked, channel.type, channel.flags, false)) return false;
-		if (p == 0 && receiver == 0 && (channel.flags != 2 || channel.type.index != checked.instances[instance - 1].enclosing.index)) return false;
+		if (p == 0 && receiver == 0 && (channel.flags != 2 || channel.type.index != source.enclosing.index)) return false;
 		int kind = checked_kind(checked, channel.type); int groups = 1;
 		if (kind == 22 || kind == 15) groups = 2;
 		if (kind == 30) {

@@ -187,8 +187,8 @@ owned NativeAbiPlan native_abi_plan(SsaProgram program, int optimization) throws
 				previous = previous + 1;
 			}
 		}
-		int receiver = -1; int instance = generic_instance_for(program.cfg.core.flow.checked, source.symbol);
-		if (instance > 0 && program.cfg.core.flow.checked.instances[instance - 1].enclosing.index != 0) receiver = 0;
+		int receiver = -1; var member = checked_source_plan(program.cfg.core.flow.checked, source.symbol);
+		if (member.concrete.index == source.symbol.index && member.enclosing.index != 0) receiver = 0;
 		NativeAbiFunction row = {ordinal = f + 1, symbol = source.symbol.index, signature = source.signature.index, linkage = linkage, convention = 0, result_convention = 1, receiver = receiver, hidden_result = -1, first = cursor, count = shape.count, span = source.span};
 		if (source.result.index == 14) row.result_convention = 0;
 		int p = 0;
@@ -293,8 +293,8 @@ bool native_abi_verify(NativeAbiPlan plan, SsaProgram program, int optimization,
 		if (program.cfg.core.flow.checked.bindings.program.arena.computed_is_c_export(declaration.node)) linkage = 2;
 		int count = program.cfg.core.flow.checked.types.row(signature.callable).count;
 		int result = 1; if (source.result.index == 14) result = 0;
-		int receiver = -1; int instance = generic_instance_for(program.cfg.core.flow.checked, source.symbol);
-		if (instance > 0 && program.cfg.core.flow.checked.instances[instance - 1].enclosing.index != 0) receiver = 0;
+		int receiver = -1; var member = checked_source_plan(program.cfg.core.flow.checked, source.symbol);
+		if (member.concrete.index == source.symbol.index && member.enclosing.index != 0) receiver = 0;
 		if (row.ordinal != f + 1 || row.symbol != source.symbol.index || row.signature != source.signature.index || row.linkage != linkage || row.convention != 0 || row.result_convention != result || row.receiver != receiver || row.hidden_result != -1 || row.first != cursor || row.count != count || !core_span_equal(row.span, source.span) || LLVMCountParams(functions[f]) != count - 1 || LLVMGetFunctionCallConv(functions[f]) != 0) return false;
 		int p = 0;
 		while (p < count && budget.take(1)) {

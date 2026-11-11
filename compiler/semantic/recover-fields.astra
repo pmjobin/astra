@@ -45,13 +45,13 @@ SymbolId recover_field_receiver_at(CheckedIndex checked, SyntaxNodeId projection
 	if (aggregate.index > 0 && checked.bindings.program.arena.kind(aggregate) == SyntaxKind.FieldAccessExpressionSyntax()) return recover_field_receiver_at(checked, aggregate, function, depth + 1);
 	var receiver = recover_type_receiver(checked, projection);
 	if (receiver.index == 0 && checked.bindings.program.arena.get_node_aggregate(projection).index == 0 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(projection), "this")) {
-		int instance = generic_instance_for(checked, function);
-		if (instance < 1 || checked.instances[instance - 1].enclosing.index == 0) return type_symbol(0);
+		var plan = checked_source_plan(checked, function);
+		if (plan.concrete.index != function.index || plan.enclosing.index == 0) return type_symbol(0);
 		int id = class_storage_receiver(checked, function);
 		if (id < 1 || id > checked.bindings.symbol_count) return type_symbol(0);
 		receiver = type_symbol(id);
 		var parameter = checked.bindings.symbol(receiver);
-		if (parameter.kind != 7 || parameter.owner.index != function.index || checked.symbol_flags[id] != 2 || checked.symbol_types[id].index != checked.instances[instance - 1].enclosing.index) return type_symbol(0);
+		if (parameter.kind != 7 || parameter.owner.index != function.index || checked.symbol_flags[id] != 2 || checked.symbol_types[id].index != plan.enclosing.index) return type_symbol(0);
 		int signature = checked.symbol_signatures[function.index].index;
 		if (signature < 1 || signature > checked.signature_count) return type_symbol(0);
 		var callable = checked.signatures[signature - 1].callable;
@@ -237,15 +237,15 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 }
 
 bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function) {
-	int error_instance = generic_instance_for(checked, function);
-	if (error_instance > 0 && error_storage_class(checked, checked.instances[error_instance - 1].enclosing)) return recover_error_constructor_source(checked, function);
+	var plan = checked_source_plan(checked, function);
+	if (plan.concrete.index == function.index && error_storage_class(checked, plan.enclosing)) return recover_error_constructor_source(checked, function);
 	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
-	int instance = generic_instance_for(checked, function); if (instance < 1) return false;
-	var type = checked.instances[instance - 1].enclosing;
+	if (plan.concrete.index != function.index) return false;
+	var type = plan.enclosing;
 	if (!class_storage_source_verified(checked, type, false, 0)) return false;
 	int receiver = class_storage_receiver(checked, function);
 	if (receiver < 1 || receiver > checked.bindings.symbol_count || checked.bindings.symbol(type_symbol(receiver)).kind != 7 || checked.bindings.symbol(type_symbol(receiver)).owner.index != function.index || checked.symbol_types[receiver].index != type.index || checked.symbol_flags[receiver] != 2) return false;
-	var origin = checked.bindings.symbol(checked.instances[instance - 1].origin);
+	var origin = checked.bindings.symbol(plan.origin);
 	if (origin.kind != 12 || origin.owner.index != class_storage_origin(checked, type).index) return false;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
 	var fields = checked.bindings.program.arena.get_list_fields(declaration.node);

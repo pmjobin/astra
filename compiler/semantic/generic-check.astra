@@ -29,22 +29,22 @@ bool generic_checked_instance_verified(CheckedIndex index, GenericInstance plan)
 	return checked_effect_bound(index, index.bindings.program.arena.get_node_throws_class(concrete.node), result.error);
 }
 
-bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeId actual, int depth) {
+bool source_type_matches(CheckedIndex index, GenericInstance plan, TypeId pattern, TypeId actual, int depth) {
 	if (!index.types.valid_id(pattern) || !index.types.valid_id(actual) || depth > 128) return false;
 	var p = index.types.row(pattern); var a = index.types.row(actual);
 	if (p.kind == 33) {
 		var symbol = index.bindings.symbol(p.nominal);
-		if (symbol.owner.index != generic_origin(index.instances[ordinal]).index) {
-			var enclosing = index.instances[ordinal].enclosing;
+		if (symbol.owner.index != plan.origin.index) {
+			var enclosing = plan.enclosing;
 			if (enclosing.index == 0) return false;
 			int outer = generic_instance_for(index, index.types.row(enclosing).nominal);
 			if (outer == 0) return false;
-			return generic_type_matches(index, outer - 1, pattern, actual, depth + 1);
+			return source_type_matches(index, index.instances[outer - 1], pattern, actual, depth + 1);
 		}
-		var declaration = index.bindings.symbol(generic_origin(index.instances[ordinal]));
+		var declaration = index.bindings.symbol(plan.origin);
 		var params = index.bindings.program.arena.get_list_type_parameters(declaration.node); int i = 0;
-		while (i < generic_argument_count(index, index.instances[ordinal])) {
-			if (index.bindings.program.arena.token_at(params, i).index == symbol.token.index) return generic_argument(index, index.instances[ordinal], i).type.index == actual.index;
+		while (i < plan.argument_count) {
+			if (index.bindings.program.arena.token_at(params, i).index == symbol.token.index) return generic_argument(index, plan, i).type.index == actual.index;
 			i = i + 1;
 		}
 		return false;
@@ -54,7 +54,7 @@ bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeI
 		if (instance == 0 || generic_origin(index.instances[instance - 1]).index != p.nominal.index || generic_argument_count(index, index.instances[instance - 1]) != p.count) return false;
 		int i = 0;
 		while (i < p.count) {
-			if (!generic_type_matches(index, ordinal, index.types.argument(index.types, pattern, i).type, generic_argument(index, index.instances[instance - 1], i).type, depth + 1)) return false;
+			if (!source_type_matches(index, plan, index.types.argument(index.types, pattern, i).type, generic_argument(index, index.instances[instance - 1], i).type, depth + 1)) return false;
 			i = i + 1;
 		}
 		return true;
@@ -63,10 +63,29 @@ bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeI
 	int i = 0;
 	while (i < p.count) {
 		var pe = index.types.argument(index.types, pattern, i); var ae = index.types.argument(index.types, actual, i);
-		if (generic_channel_flags(index, pe.type, ae.type, pe.flags) != ae.flags || !generic_type_matches(index, ordinal, pe.type, ae.type, depth + 1)) return false;
+		if (generic_channel_flags(index, pe.type, ae.type, pe.flags) != ae.flags || !source_type_matches(index, plan, pe.type, ae.type, depth + 1)) return false;
 		i = i + 1;
 	}
 	return true;
+}
+
+bool generic_type_matches(CheckedIndex index, int ordinal, TypeId pattern, TypeId actual, int depth) {
+	if (ordinal < 0 || ordinal >= index.instance_count) return false;
+	return source_type_matches(index, index.instances[ordinal], pattern, actual, depth);
+}
+
+GenericInstance checked_copy_plan(CheckedIndex index, int ordinal) {
+	if (ordinal < index.instance_count) return index.instances[ordinal];
+	return index.direct_methods[ordinal - index.instance_count];
+}
+
+bool direct_method_source_verified(CheckedIndex index, GenericInstance plan) {
+	if (!index.native_abi || !index.class_storage || !index.field_effects || plan.origin.index < 1 || plan.origin.index > index.generic_symbols || plan.argument_count != 0 || !index.types.valid_id(plan.enclosing)) return false;
+	var source = index.bindings.symbol(plan.origin); var owner = index.types.row(plan.enclosing);
+	if (source.kind != 11 && source.kind != 12 || owner.kind != 31 || owner.nominal.index != source.owner.index || source.owner.index < 1 || source.owner.index > index.generic_symbols) return false;
+	var declaration = index.bindings.symbol(source.owner);
+	if (declaration.kind != 4 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(source.node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(source.node)) != 0 || index.bindings.program.arena.get_int_dispatch(source.node) != 0 || index.bindings.program.arena.get_node_body(source.node).index == 0) return false;
+	return class_storage_source_verified(index, plan.enclosing, false, 0) || error_storage_class(index, plan.enclosing);
 }
 
 // Inclusive consumer bound: the last permitted node may already be present.
@@ -84,16 +103,28 @@ int generic_verify_failure(CheckedIndex index) {
 	}
 	if (index.instance_count < 0 || index.instance_count > 256 || index.instance_count > len(index.instances)) return 2;
 	int node_slots = 0; int symbol_slots = 0; int scope_slots = 0;
+	if (len(index.direct_methods) != index.generic_symbols + 1 || len(index.direct_method_symbols) != len(index.symbol_types) || index.direct_method_symbols[0] != 0) return 33;
 	int ordinal = 0;
-	while (ordinal < index.instance_count) {
-		if (!generic_plan_bounds(index, index.instances[ordinal])) return 3;
-		var storage = index.instances[ordinal];
+	while (ordinal < index.instance_count + len(index.direct_methods)) {
+		var storage = checked_copy_plan(index, ordinal);
+		bool direct = ordinal >= index.instance_count;
+		if (direct && storage.state == 0) {
+			if (storage.origin.index != 0 || storage.concrete.index != 0 || storage.enclosing.index != 0) return 33;
+			ordinal = ordinal + 1;
+			continue;
+		}
+		if (direct && (storage.origin.index != ordinal - index.instance_count || !direct_method_source_verified(index, storage) || storage.concrete.index < 1 || storage.concrete.index >= len(index.direct_method_symbols) || index.direct_method_symbols[storage.concrete.index] != storage.origin.index)) return 33;
+		if (!generic_plan_bounds(index, storage)) return 3;
 		if (index.generic_node_map[storage.nodes] != 0 || index.generic_symbol_map[storage.symbols] != 0 || index.generic_scope_map[storage.scopes] != 0) return 28;
 		if (node_slots > index.generic_node_used - storage.node_count - 1 || symbol_slots > index.generic_symbol_used - storage.symbol_count - 1 || scope_slots > index.generic_scope_used - storage.scope_count - 1) return 29;
 		node_slots = node_slots + storage.node_count + 1; symbol_slots = symbol_slots + storage.symbol_count + 1; scope_slots = scope_slots + storage.scope_count + 1;
 		int previous = 0;
 		while (previous < ordinal) {
-			var first = index.instances[previous]; var current = index.instances[ordinal];
+			var first = checked_copy_plan(index, previous); var current = storage;
+			if (previous >= index.instance_count && first.state == 0) {
+				previous = previous + 1;
+				continue;
+			}
 			if (first.concrete.index == current.concrete.index) return 4;
 			if (!(first.nodes + first.node_count < current.nodes || current.nodes + current.node_count < first.nodes) || !(first.symbols + first.symbol_count < current.symbols || current.symbols + current.symbol_count < first.symbols) || !(first.scopes + first.scope_count < current.scopes || current.scopes + current.scope_count < first.scopes)) return 27;
 			bool same = first.origin.index == current.origin.index && first.enclosing.index == current.enclosing.index && first.argument_count == current.argument_count;
@@ -105,22 +136,22 @@ int generic_verify_failure(CheckedIndex index) {
 			if (same) return 5;
 			previous = previous + 1;
 		}
-		var plan_origin = generic_origin(index.instances[ordinal]);
-		var concrete = generic_declaration(index.instances[ordinal]);
-		if (plan_origin.index < 1 || plan_origin.index > index.generic_symbols || concrete.index <= index.generic_symbols || concrete.index > index.bindings.symbol_count || generic_state(index.instances[ordinal]) != 2) return 6;
-		if (!generic_references_verified(index, index.instances[ordinal])) return 7;
+		var plan_origin = generic_origin(storage);
+		var concrete = generic_declaration(storage);
+		if (plan_origin.index < 1 || plan_origin.index > index.generic_symbols || concrete.index <= index.generic_symbols || concrete.index > index.bindings.symbol_count || generic_state(storage) != 2) return 6;
+		if (!generic_references_verified(index, storage)) return 7;
 		var original = index.bindings.symbol(plan_origin); var clone = index.bindings.symbol(concrete);
-		if (generic_symbol(index, index.instances[ordinal], plan_origin.index) != concrete.index) return 30;
+		if (generic_symbol(index, storage, plan_origin.index) != concrete.index) return 30;
 		bool method = (original.kind == 11 || index.class_storage && original.kind == 12) && clone.kind == 1;
-		if (generic_node(index, index.instances[ordinal], original.node.index) != clone.node.index || !generic_check_node(index, index.instances[ordinal], original.node)) return 26;
+		if (generic_node(index, storage, original.node.index) != clone.node.index || !generic_check_node(index, storage, original.node)) return 26;
 		if ((!method && original.kind != clone.kind) || (original.kind != 1 && original.kind != 3 && original.kind != 4 && !method)) return 8;
 		if (original.kind == 4 && !generic_class_source(index, plan_origin) && !class_storage_template_verified(index, plan_origin)) return 9;
 		var parameters = index.bindings.program.arena.get_list_type_parameters(original.node);
-		if (index.bindings.program.arena.list_count(parameters) != generic_argument_count(index, index.instances[ordinal]) || (generic_argument_count(index, index.instances[ordinal]) == 0 && !method) || (method != (generic_enclosing(index.instances[ordinal]).index != 0))) return 10;
-		if (!generic_constraints_verified(index, index.instances[ordinal])) return 11;
+		if (index.bindings.program.arena.list_count(parameters) != generic_argument_count(index, storage) || (generic_argument_count(index, storage) == 0 && !method) || (method != (generic_enclosing(storage).index != 0))) return 10;
+		if (!generic_constraints_verified(index, storage)) return 11;
 		int p = 0;
-		while (p < generic_argument_count(index, index.instances[ordinal])) {
-			var argument = generic_argument(index, index.instances[ordinal], p);
+		while (p < generic_argument_count(index, storage)) {
+			var argument = generic_argument(index, storage, p);
 			if (argument.flags != 0 || !generic_closed(index, argument.type, 0)) return 12;
 			p = p + 1;
 		}
@@ -128,10 +159,10 @@ int generic_verify_failure(CheckedIndex index) {
 		// Check every stored slot and reconstruct each mapped source edge.
 		int n = storage.node_first;
 		while (n - storage.node_first < storage.node_count) {
-			if (generic_node(index, index.instances[ordinal], n) != 0) {
+			if (generic_node(index, storage, n) != 0) {
 				SyntaxNodeId node = {index = n};
-				if (!generic_check_node(index, index.instances[ordinal], node)) return 13;
-				int mapped = generic_node(index, index.instances[ordinal], n);
+				if (!generic_check_node(index, storage, node)) return 13;
+				int mapped = generic_node(index, storage, n);
 				var pattern = index.uses[n].type;
 				if (index.class_storage && pattern.index == 0 && index.bindings.program.arena.kind(node) == SyntaxKind.TypeNameSyntax()) {
 					var reference = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
@@ -140,46 +171,54 @@ int generic_verify_failure(CheckedIndex index) {
 						if (checked_kind(index, pattern) != 33 || index.uses[mapped].flags != 0) return 14;
 					}
 				}
-				if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && pattern.index != 0 && !generic_type_matches(index, ordinal, pattern, index.uses[mapped].type, 0)) return 15;
+				if (syntax_kind_accepts(index.bindings.program.arena.kind(node), SyntaxKind.TypeNameSyntax()) && pattern.index != 0 && !source_type_matches(index, storage, pattern, index.uses[mapped].type, 0)) return 15;
 			}
 			n = n + 1;
 		}
 		n = storage.symbol_first;
 		while (n - storage.symbol_first < storage.symbol_count) {
-			int mapped = generic_symbol(index, index.instances[ordinal], n);
+			int mapped = generic_symbol(index, storage, n);
 			if (mapped != 0) {
 				if (mapped <= index.generic_symbols || mapped > index.bindings.symbol_count) return 16;
 				var source = index.bindings.symbol(type_symbol(n)); var target = index.bindings.symbol(type_symbol(mapped));
-				if ((source.kind != target.kind && !((source.kind == 11 || index.class_storage && source.kind == 12) && target.kind == 1 && n == plan_origin.index)) || source.token.index != target.token.index || source.name != target.name || source.canonical != target.canonical || source.restricted != target.restricted || generic_node(index, index.instances[ordinal], source.node.index) != target.node.index) return 17;
+				if ((source.kind != target.kind && !((source.kind == 11 || index.class_storage && source.kind == 12) && target.kind == 1 && n == plan_origin.index)) || source.token.index != target.token.index || source.name != target.name || source.canonical != target.canonical || source.restricted != target.restricted || generic_node(index, storage, source.node.index) != target.node.index) return 17;
 				int owner = source.owner.index;
-				if (owner > 0 && generic_symbol(index, index.instances[ordinal], owner) != 0) owner = generic_symbol(index, index.instances[ordinal], owner);
+				if (owner > 0 && generic_symbol(index, storage, owner) != 0) owner = generic_symbol(index, storage, owner);
 				if (owner != target.owner.index) return 18;
-				if ((source.kind == 6 || source.kind == 7) && (!generic_type_matches(index, ordinal, index.symbol_types[n], index.symbol_types[mapped], 0) || generic_channel_flags(index, index.symbol_types[n], index.symbol_types[mapped], index.symbol_flags[n]) != index.symbol_flags[mapped])) return 19;
+				if ((source.kind == 6 || source.kind == 7) && (!source_type_matches(index, storage, index.symbol_types[n], index.symbol_types[mapped], 0) || generic_channel_flags(index, index.symbol_types[n], index.symbol_types[mapped], index.symbol_flags[n]) != index.symbol_flags[mapped])) return 19;
 			}
 			n = n + 1;
 		}
 		if (original.kind == 1 || method) {
-			if (!generic_checked_instance_verified(index, index.instances[ordinal])) return 32;
+			if (!generic_checked_instance_verified(index, storage)) return 32;
 			int signature = index.symbol_signatures[concrete.index].index;
 			if (signature < 1 || signature > index.signature_count) return 20;
 			var pattern = index.symbol_types[plan_origin.index]; var actual = index.signatures[signature - 1].callable;
 			if (!method) {
-				if (!generic_type_matches(index, ordinal, pattern, actual, 0)) return 21;
+				if (!source_type_matches(index, storage, pattern, actual, 0)) return 21;
 			} else {
 				var actual_shape = index.types.row(actual); var pattern_shape = index.types.row(pattern);
 				if (actual_shape.count != pattern_shape.count + 1) return 22;
 				var hidden = index.types.argument(index.types, actual, 1);
-				if (hidden.type.index != index.instances[ordinal].enclosing.index || hidden.flags != 2) return 23;
+				if (hidden.type.index != storage.enclosing.index || hidden.flags != 2) return 23;
 				int channel = 0;
 				while (channel < pattern_shape.count) {
 					int position = channel; if (channel > 0) position = position + 1;
 					var pe = index.types.argument(index.types, pattern, channel); var ae = index.types.argument(index.types, actual, position);
-					if (generic_channel_flags(index, pe.type, ae.type, pe.flags) != ae.flags || !generic_type_matches(index, ordinal, pe.type, ae.type, 0)) return 24;
+					if (generic_channel_flags(index, pe.type, ae.type, pe.flags) != ae.flags || !source_type_matches(index, storage, pe.type, ae.type, 0)) return 24;
 					channel = channel + 1;
 				}
 			}
 		}
 		ordinal = ordinal + 1;
+	}
+	int concrete = 1;
+	while (concrete < len(index.direct_method_symbols)) {
+		int origin = index.direct_method_symbols[concrete];
+		if (origin != 0) {
+			if (origin < 1 || origin >= len(index.direct_methods) || index.direct_methods[origin].state != 2 || index.direct_methods[origin].concrete.index != concrete) return 33;
+		}
+		concrete = concrete + 1;
 	}
 	if (node_slots != index.generic_node_used || symbol_slots != index.generic_symbol_used || scope_slots != index.generic_scope_used) return 31;
 	if (!generic_calls_verified(index)) return 25;
@@ -233,9 +272,8 @@ bool generic_calls_verified(CheckedIndex index) {
 		if (target.index != 0) {
 			SyntaxNodeId node = {index = n};
 			if (index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return false;
-			int ordinal = generic_instance_for(index, target) - 1;
-			if (ordinal < 0) return false;
-			var plan = index.instances[ordinal];
+			var plan = checked_source_plan(index, target);
+			if (plan.state != 2 || plan.concrete.index != target.index) return false;
 
 			var token = index.bindings.program.arena.get_token_identifier(node);
 			int r = index.node_references[n]; bool bound = false;
@@ -283,7 +321,7 @@ bool generic_calls_verified(CheckedIndex index) {
 			int i = 0;
 			while (i < index.bindings.program.arena.list_count(arguments)) {
 				var argument = index.bindings.program.arena.node_at(arguments, i);
-				if (!generic_type_matches(index, ordinal, index.types.argument(index.types, signature, i + 1).type, index.uses[argument.index].type, 0)) return false;
+				if (!source_type_matches(index, plan, index.types.argument(index.types, signature, i + 1).type, index.uses[argument.index].type, 0)) return false;
 				i = i + 1;
 			}
 			var explicit = index.bindings.program.arena.get_list_type_arguments(node);

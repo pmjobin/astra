@@ -50,11 +50,10 @@ void generic_write_key(CheckedIndex index, SymbolId symbol, Utf8ByteBuilder outp
 	if (depth > 128) {
 		throw new Error("GENERIC_INVALID_INSTANCE_KEY");
 	}
-	int ordinal = generic_instance_for(index, symbol);
-	if (ordinal == 0) {
+	var plan = checked_source_plan(index, symbol);
+	if (plan.concrete.index != symbol.index || plan.state != 2) {
 		throw new Error("GENERIC_NO_INSTANCE");
 	}
-	var plan = index.instances[ordinal - 1];
 	source_append_text(output, "generic-v1:"); generic_write_origin(index, plan.origin, output);
 	if (plan.enclosing.index != 0) generic_write_type(index, plan.enclosing, output, depth + 1);
 	int i = 0;

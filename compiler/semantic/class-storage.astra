@@ -251,6 +251,19 @@ void class_storage_members(CheckedIndex index, TypeId type) throws Error {
 
 SymbolId class_storage_lifecycle(CheckedIndex index, TypeId type, string name) {
 	if (!class_storage_class(index, type)) return type_symbol(0);
+	var owner = index.bindings.symbol(index.types.row(type).nominal);
+	var members = index.bindings.program.arena.get_list_members(owner.node); int m = 0;
+	while (m < index.bindings.program.arena.list_count(members)) {
+		var node = index.bindings.program.arena.node_at(members, m);
+		if (index.bindings.program.arena.kind(node) == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(node), name)) {
+			int source = index.node_symbols[node.index].index;
+			if (source > 0 && source < len(index.direct_methods)) {
+				var plan = index.direct_methods[source];
+				if (plan.state == 2 && plan.origin.index == source && plan.enclosing.index == type.index) return plan.concrete;
+			}
+		}
+		m = m + 1;
+	}
 	int i = 0;
 	while (i < index.instance_count) {
 		var plan = index.instances[i];
@@ -267,8 +280,8 @@ SymbolId class_storage_constructor(CheckedIndex index, TypeId type) { return cla
 
 int class_storage_receiver(CheckedIndex index, SymbolId function) {
 	if (!index.class_storage) return 0;
-	int instance = generic_instance_for(index, function);
-	if (instance == 0 || index.instances[instance - 1].enclosing.index == 0) return 0;
+	var plan = checked_source_plan(index, function);
+	if (plan.concrete.index != function.index || plan.state != 2 || plan.enclosing.index == 0) return 0;
 	var declaration = index.bindings.symbol(function);
 	var parameters = index.bindings.program.arena.get_list_parameters(declaration.node);
 	if (index.bindings.program.arena.list_count(parameters) < 1) return 0;
@@ -277,9 +290,9 @@ int class_storage_receiver(CheckedIndex index, SymbolId function) {
 
 bool class_storage_initializing(CheckedIndex index, SymbolId function) {
 	if (!index.class_storage) return false;
-	int instance = generic_instance_for(index, function);
-	if (instance == 0) return false;
-	var origin = index.bindings.symbol(index.instances[instance - 1].origin);
+	var plan = checked_source_plan(index, function);
+	if (plan.concrete.index != function.index || plan.state != 2 || plan.origin.index == 0) return false;
+	var origin = index.bindings.symbol(plan.origin);
 	return origin.kind == 12 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(origin.node), "init");
 }
 

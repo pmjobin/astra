@@ -214,15 +214,16 @@ void generic_resize(CheckedIndex index) {
 	}
 	size = index.bindings.symbol_count + 1;
 	if (size > len(index.symbol_types)) {
-		var types = new TypeId[size]; var flags = new int[size]; var signatures = new SignatureId[size];
+		var types = new TypeId[size]; var flags = new int[size]; var signatures = new SignatureId[size]; var methods = new int[size];
 		int i = 0;
 		while (i < len(index.symbol_types)) {
 			types[i] = index.symbol_types[i];
 			flags[i] = index.symbol_flags[i];
 			signatures[i] = index.symbol_signatures[i];
+			methods[i] = index.direct_method_symbols[i];
 			i = i + 1;
 		}
-		swap(index.symbol_types, types); swap(index.symbol_flags, flags); swap(index.symbol_signatures, signatures);
+		swap(index.symbol_types, types); swap(index.symbol_flags, flags); swap(index.symbol_signatures, signatures); swap(index.direct_method_symbols, methods);
 	}
 	size = index.bindings.reference_count + 1;
 	if (size > len(index.reference_next)) {
@@ -346,6 +347,7 @@ bool generic_checked_source(CheckedIndex index, SymbolId origin, TypeId enclosin
 }
 
 SymbolId generic_instantiate(CheckedIndex index, SymbolId origin, TypeId enclosing, TypeEdge[] arguments, SyntaxSpan span) throws Error {
+	if (len(arguments) == 0 && direct_method_source(index, origin, enclosing)) return direct_method_lower(index, origin, enclosing, span);
 	int request = 0;
 	if (index.generic_trace) {
 		index.generic_requests = index.generic_requests + 1; request = index.generic_requests;

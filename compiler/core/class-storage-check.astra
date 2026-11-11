@@ -47,8 +47,8 @@ bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNo
 	SyntaxListId parameters = {index = 0};
 	if (row.kind == 13) {
 		if (!class_storage_source_verified(checked, row.type, false, 0) || row.flags != 4 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || !class_storage_constructor_verified(checked, row.symbol)) return false;
-		int instance = generic_instance_for(checked, row.symbol);
-		if (instance == 0 || checked.instances[instance - 1].enclosing.index != row.type.index) return false;
+		var plan = checked_source_plan(checked, row.symbol);
+		if (plan.concrete.index != row.symbol.index || plan.enclosing.index != row.type.index) return false;
 		if (kind != SyntaxKind.HeapObjectConstructionSyntax() || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source)) return false;
 		if (row.signature.index != checked.symbol_signatures[row.symbol.index].index || row.signature.index < 1 || row.signature.index > checked.signature_count || row.target < 1 || row.target > core.function_count || core.functions[row.target - 1].symbol.index != row.symbol.index || core.functions[row.target - 1].result.index != 14) return false;
 		var declaration = checked.bindings.symbol(row.symbol); parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);

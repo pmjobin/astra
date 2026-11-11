@@ -260,8 +260,8 @@ TypeId checked_this_type(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId to
 	if (context.owner.index == 0) return no_type();
 	var symbol = index.bindings.symbol(context.owner);
 	if (index.class_storage && class_storage_receiver(index, context.owner) > 0) {
-		int instance = generic_instance_for(index, context.owner);
-		return index.instances[instance - 1].enclosing;
+		var plan = checked_source_plan(index, context.owner);
+		return plan.enclosing;
 	}
 	// Definition-time methods use their lexical Class universe. No concrete
 	// receiver storage exists until the independently checked specialization.

@@ -602,8 +602,8 @@ bool llvm_check(SsaProgram program, void* layout, void*[] types, void*[] payload
 					c = c + 1;
 				}
 				if (target < 0 || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || LLVMGetCalledValue(result) != functions[target] || LLVMGetNumArgOperands(result) != row.value.count || LLVMGetInstructionCallConv(result) != 0) return false;
-				int instance = generic_instance_for(program.cfg.core.flow.checked, row.value.symbol);
-				if (program.cfg.core.flow.checked.class_storage && instance > 0 && program.cfg.core.flow.checked.instances[instance - 1].enclosing.index != 0 && !llvm_storage_method_guard_verified(blocks[row.block - 1], result, LLVMGetArgOperand(result, 0), functions[row.value.function - 1])) return false;
+				var member = checked_source_plan(program.cfg.core.flow.checked, row.value.symbol);
+				if (program.cfg.core.flow.checked.class_storage && member.concrete.index == row.value.symbol.index && member.enclosing.index != 0 && !llvm_storage_method_guard_verified(blocks[row.block - 1], result, LLVMGetArgOperand(result, 0), functions[row.value.function - 1])) return false;
 				int a = 0; var signature = program.cfg.core.flow.checked.signatures[row.value.signature.index - 1];
 				while (a < row.value.count && budget.take(1)) {
 					int use = llvm_check_use(program.data, i + 1, 3, a, budget); var parameter = program.cfg.core.flow.checked.types.argument(program.cfg.core.flow.checked.types, signature.callable, a + 1);

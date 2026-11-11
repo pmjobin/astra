@@ -22,8 +22,8 @@ bool recover_runtime_function(CheckedIndex checked, SymbolId symbol) {
 }
 
 bool recover_static_method(CheckedIndex checked, SymbolId function) {
-	int instance = generic_instance_for(checked, function); if (instance < 1) return false;
-	var plan = checked.instances[instance - 1]; var origin = checked.bindings.symbol(plan.origin);
+	var plan = checked_source_plan(checked, function); if (plan.origin.index < 1 || plan.concrete.index != function.index) return false;
+	var origin = checked.bindings.symbol(plan.origin);
 	bool finalizer = origin.kind == 12 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(origin.node), "deinit");
 	if (plan.concrete.index != function.index || plan.state != 2 || origin.kind != 11 && !finalizer || !recover_storage_class(checked, plan.enclosing) && (finalizer || !error_storage_class(checked, plan.enclosing)) || origin.owner.index != class_storage_origin(checked, plan.enclosing).index) return false;
 	var declaration = checked.bindings.symbol(function); var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
@@ -45,8 +45,8 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	if (declaration.kind != 1 || checked.bindings.program.arena.get_node_body(node).index == 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_where_clauses(node)) != 0 || !recover_member_attributes(checked, node)) return false;
 	bool initializing = class_storage_initializing(checked, symbol); var kind = checked.bindings.program.arena.kind(node);
 	if (initializing) {
-		int instance = generic_instance_for(checked, symbol);
-		if (instance < 1 || !recover_storage_class(checked, checked.instances[instance - 1].enclosing) && !error_storage_class(checked, checked.instances[instance - 1].enclosing) || !recover_empty_constructor_verified(checked, symbol)) return false;
+		var plan = checked_source_plan(checked, symbol);
+		if (plan.concrete.index != symbol.index || !recover_storage_class(checked, plan.enclosing) && !error_storage_class(checked, plan.enclosing) || !recover_empty_constructor_verified(checked, symbol)) return false;
 	}
 	else {
 		bool method = recover_static_method(checked, symbol);

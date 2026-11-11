@@ -5,6 +5,8 @@ class CheckedIndex {
 	owned BindingIndex bindings;
 	owned GenericInstance[] instances;
 	int instance_count;
+	owned GenericInstance[] direct_methods;
+	owned int[] direct_method_symbols;
 	owned TypeEdge[] generic_arguments;
 	int generic_argument_used;
 	owned int[] generic_node_map;
@@ -64,6 +66,7 @@ class CheckedIndex {
 		this.generic_scope_map = new int[0]; this.generic_scope_used = 0;
 		this.generic_nodes = this.bindings.program.arena.node_count;
 		this.generic_symbols = this.bindings.symbol_count;
+		this.direct_methods = new GenericInstance[this.generic_symbols + 1];
 		this.generic_scopes = this.bindings.scope_count;
 		this.generic_references = this.bindings.reference_count;
 		this.generic_trace = false;
@@ -73,6 +76,7 @@ class CheckedIndex {
 		this.generic_argument_lists = new SyntaxListId[nodes];
 		this.generic_active = new bool[this.generic_symbols + 1];
 		int symbols = this.bindings.symbol_count + 1;
+		this.direct_method_symbols = new int[symbols];
 		this.uses = new CheckedTypeUse[nodes];
 		this.symbol_types = new TypeId[symbols];
 		this.symbol_flags = new int[symbols];

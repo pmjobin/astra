@@ -91,9 +91,8 @@ SymbolId error_storage_constructor(CheckedIndex checked, TypeId type) {
 // Base expressions are actual copied syntax, with original Binder references
 // and the same independently checked generic substitution as the body.
 void error_storage_check_base(CheckedIndex checked, SymbolId function) throws Error {
-	int instance = generic_instance_for(checked, function);
-	if (instance < 1 || !class_storage_initializing(checked, function)) return;
-	var plan = checked.instances[instance - 1];
+	var plan = checked_source_plan(checked, function);
+	if (plan.concrete.index != function.index || !class_storage_initializing(checked, function)) return;
 	if (!error_storage_class(checked, plan.enclosing)) return;
 	var declaration = checked.bindings.symbol(function);
 	var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);

@@ -208,6 +208,39 @@ three samples are retained. These are query-kernel measurements. Matched
 whole-compiler execution and cold-build costs remain pending. The first cost
 recipe retains its missing diagnostics-provider failure.
 
+## Source-bound ordinary method lowering candidate
+
+The original source limit arises while the previous semantic route normalizes
+ordinary Class members through the generic instance table. The candidate has
+a separate table indexed by each original method's Binder symbol. A direct
+method has a fixed nongeneric declaring Class, no type parameters and no type
+arguments. Its body is copied from that exact declaration, receives the actual
+borrowed receiver parameter, and obtains its ordinary checked signature.
+The existing bounded source maps and callable-key bytes are reused.
+
+The independent consumer verifies each direct source's original Class, copied
+AST, bindings, references, signature and hidden receiver. It checks every map
+slot across both tables, their nonoverlap and the direct table's inverse symbol
+mapping. The generic instance limit remains 256. The syntax, map and SSA limits
+also apply. Native ABI planning, field/constructor proofs and both backends read
+the actual source plan for either kind of callable. Independent owner and field
+authority still passes through the existing consumers.
+
+`direct-method-oracles1` independently executes the focused 262-member source
+and the genuine 256- and 257-specialization sources with original C0 at O0/O2.
+All six ELFs return 42 with clean unsuppressed Valgrind. The previous
+`572a933` host refuses 262 ordinary members, accepts exactly 256 real generic
+instances through native LLVM generation, and refuses 257 real instances.
+Both refusals preserve their output sentinels. The focused ordinary fixture
+has two Classes, 130 methods per Class, two constructors and linked member calls.
+It supplies boundary evidence for this feature.
+
+The candidate passes the all-production C0 frontend check. The first check
+retains its stale receiver-lookup variable diagnostic. The observer has five
+restored controls for source origin, enclosing Class, type-argument count,
+inverse mapping and receiver ownership. Actual candidate execution, native
+integration and complete-original qualification are pending.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in

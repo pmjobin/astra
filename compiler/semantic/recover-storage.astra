@@ -264,8 +264,8 @@ bool recover_class_declaration_source(CheckedIndex checked, SymbolId symbol) {
 		var member = checked.bindings.symbol(origin);
 		if (member.kind != 12 || member.owner.index != symbol.index || member.node.index != source.index) return false;
 		var function = class_storage_lifecycle(checked, type, "deinit");
-		int instance = generic_instance_for(checked, function);
-		return instance > 0 && checked.instances[instance - 1].origin.index == origin.index;
+		var plan = checked_source_plan(checked, function);
+		return plan.concrete.index == function.index && plan.origin.index == origin.index;
 	}
 	return recover_error_shape(checked, symbol, 0) || error_storage_class(checked, type) && recover_error_record_memory_source(checked, symbol, 0) || recover_slot_template_source(checked, symbol);
 }

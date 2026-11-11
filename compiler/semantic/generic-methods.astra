@@ -169,6 +169,75 @@ void generic_method_arguments(CheckedIndex index, SyntaxNodeId call, SymbolId re
 	index.generic_argument_lists[call.index] = arguments;
 }
 
+// Ordinary members retain a fixed declaring Class and source signature.
+// Their bounded source-copy maps reuse the existing declaration-map storage.
+bool direct_method_source(CheckedIndex index, SymbolId origin, TypeId enclosing) {
+	if (!index.native_abi || !index.class_storage || !index.field_effects || origin.index < 1 || origin.index > index.generic_symbols || !index.types.valid_id(enclosing)) return false;
+	var declaration = index.bindings.symbol(origin); var type = index.types.row(enclosing);
+	if (declaration.kind != 11 && declaration.kind != 12 || type.kind != 31 || type.nominal.index != declaration.owner.index || declaration.owner.index < 1 || declaration.owner.index > index.generic_symbols) return false;
+	var owner = index.bindings.symbol(declaration.owner);
+	if (owner.kind != 4 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(owner.node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(declaration.node)) != 0) return false;
+	return class_storage_member(index, declaration.node) && (class_storage_class(index, enclosing) || error_storage_class(index, enclosing));
+}
+
+GenericInstance checked_source_plan(CheckedIndex index, SymbolId concrete) {
+	if (concrete.index > 0 && concrete.index < len(index.direct_method_symbols)) {
+		int source = index.direct_method_symbols[concrete.index];
+		if (source > 0 && source < len(index.direct_methods)) return index.direct_methods[source];
+	}
+	int generic = generic_instance_for(index, concrete);
+	if (generic > 0) return index.instances[generic - 1];
+	return index.direct_methods[0];
+}
+
+SymbolId direct_method_lower(CheckedIndex index, SymbolId origin, TypeId enclosing, SyntaxSpan span) throws Error {
+	if (!direct_method_source(index, origin, enclosing)) {
+		index.fail(span, "ordinary member source binding is invalid");
+		return type_symbol(0);
+	}
+	var previous = index.direct_methods[origin.index];
+	if (previous.state == 2 && previous.origin.index == origin.index && previous.enclosing.index == enclosing.index) return previous.concrete;
+	if (index.generic_active[origin.index]) {
+		index.fail(span, "recursive ordinary member normalization");
+		return type_symbol(0);
+	}
+	var declaration = index.bindings.symbol(origin);
+	if ((index.symbol_flags[origin.index] & (8 | 16 | 32)) != 0 || (index.symbol_flags[origin.index] & 64) != 0 && !generic_checked_source(index, origin, enclosing)) {
+		index.fail(span, "ordinary member ABI source is invalid");
+		return type_symbol(0);
+	}
+	var plan = generic_window(index, origin, enclosing, 0);
+	if (index.generic_node_used > 8000000 - plan.node_count - 1 || index.generic_symbol_used > 8000000 - plan.symbol_count - 1) {
+		index.fail(span, "ordinary member source map resource limit");
+		return type_symbol(0);
+	}
+	index.generic_active[origin.index] = true;
+	generic_grow_maps(index, plan);
+	var clone = generic_copy_node(index, plan, declaration.node, 0);
+	if (!index.failed() && clone.index > 0) {
+		plan = generic_copy_bindings(index, plan);
+		int n = plan.node_first;
+		while (n - plan.node_first < plan.node_count && !index.failed()) {
+			int mapped = generic_node(index, plan, n);
+			SyntaxNodeId source = {index = n};
+			if (mapped > 0 && syntax_kind_accepts(index.bindings.program.arena.kind(source), SyntaxKind.TypeNameSyntax()) && index.uses[n].type.index > 0) {
+				SyntaxNodeId target = {index = mapped};
+				var ignored = index.record(target, index.uses[n].type, index.uses[n].flags);
+			}
+			n = n + 1;
+		}
+		var function = index.bindings.symbol(plan.concrete); function.kind = 1; index.bindings.replace_instance_symbol(plan.concrete, function);
+		var hidden = generic_hidden_parameter(index, plan);
+		if (!index.failed()) checked_signature(index, plan.concrete);
+	}
+	index.generic_active[origin.index] = false;
+	if (index.failed() || clone.index == 0) return type_symbol(0);
+	plan.state = 2;
+	index.direct_methods[origin.index] = plan;
+	index.direct_method_symbols[plan.concrete.index] = origin.index;
+	return plan.concrete;
+}
+
 // Lexical receiver identity does not depend on whole-Class storage admission.
 // Only the executable specialization below grants a hidden borrowed channel.
 SymbolId generic_method_target(CheckedIndex index, SyntaxNodeId call, int depth) throws Error {

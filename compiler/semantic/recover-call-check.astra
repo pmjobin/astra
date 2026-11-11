@@ -20,7 +20,7 @@ bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId tar
 			if (caller.index == 0) return false;
 			owner = recover_field_receiver(checked, receiver, caller);
 		}
-		int instance = generic_instance_for(checked, target); var plan = checked.instances[instance - 1];
+		var plan = checked_source_plan(checked, target);
 		if (owner.index < 1 || checked.uses[receiver.index].type.index != plan.enclosing.index) return false;
 		var binding = checked.bindings.symbol(owner);
 		// A borrowed local needs a separate alias-root proof. Parameters retain

@@ -23,7 +23,8 @@ owned Utf8Message llvm_name(string prefix, int index) throws Error {
 }
 
 owned Utf8Message llvm_native_name(CheckedIndex checked, SymbolId symbol, int ordinal) throws Error {
-	if (generic_instance_for(checked, symbol) > 0) {
+	var source = checked_source_plan(checked, symbol);
+	if (source.state == 2 && source.concrete.index == symbol.index) {
 		if (checked.class_storage) return generic_backend_name(checked, symbol, "x86_64-linux-p64", "classstorage15");
 		return generic_backend_name(checked, symbol, "x86_64-linux-p64", "nativeabi13");
 	}
