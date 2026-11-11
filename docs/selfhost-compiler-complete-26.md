@@ -2212,8 +2212,8 @@ independent whole-Flow recheck completes with actual CLI exit42 in4101.86seconds
 Audit16 binds all190 original inputs to the required initial Git base, all204
 current inputs to `b59c87c`, and114 consumed host inputs to that revision.
 The focused sequence passes
-75/75 checks. Current-source Flow separately reports status1 with all nine
-global consumers returning1.
+75/75 checks. At that revision, current-source Flow separately reports status1
+with all nine global consumers returning1.
 
 An optimized read-only diagnostic identifies current `RecoverLlvm.slot_helpers`
 as the first refusing function. A small C0-vetted program reproduces its direct
@@ -2251,6 +2251,31 @@ The combined changes pass the complete normal C0 Core preflight and the source
 observer's Core preflight. The unchanged source guard accepts all four selected
 Astra files. The earlier complete normal `b59c87c` O0 test host cold build takes
 1h07m27s with peak2,705,152 KiB RSS. Its production bytes precede these two fixes.
+
+The actual rebuilt `52742c3` O2 source observer passes79/79 focused checks.
+Audit18 independently binds both complete module proofs: original190 returns42
+with `FLOW 0 0 284425`, and current204 returns42 with `FLOW 0 0 318951`.
+All nine independent global consumers return1 in each module. The original
+output hash exactly matches the earlier successful `b59c87c` observation.
+Current-source inputs include every194 compiler module and10 required libraries;
+the complete original set remains bound to the initial Git base. The source
+observer SHA256 is
+`3bbff239cfc59e6808aaa0792454829d3a75034c0dbc9c3db2d3fabcedb1fcc7`.
+Its cold C0 build takes2214.61seconds; the original/current whole proofs take
+537.74/657.83seconds. These O2 observations do not establish an algorithm speedup
+against the earlier O0 observer. Full original native profiles remain0/2.
+
+A read-only stage-timing pilot adds independent verifier entry/return samples
+and active-stage reporting. Its actual emitted LLVM remains byte-identical to
+the uninstrumented positive. The small complete pipeline invokes Flow verification
+12times, Core9times, CFG7times and SSA5times. These include nested validation and
+must not be summed as disjoint costs. Full-module timings and user-space CPU
+sampling will identify expensive work while retaining every independent boundary.
+
+The daemon restart interrupts outer result finalizers while the existing native
+compiler build and original owner probe survive. Recovery adopts those processes
+without repeating compilation or the probe. Their interrupted monitor receipts
+remain preserved, and new continuation/adoption receipts record the transition.
 
 ## Preserved obligations
 
