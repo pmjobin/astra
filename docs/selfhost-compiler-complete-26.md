@@ -1803,6 +1803,44 @@ pending. The first Source-only test preflight reports an unavailable Core helper
 the corrected test performs its own bounded parenthesis traversal. Raw receipts
 are retained.
 
+## Guarded float-to-integer conversions and enum reassignment
+
+`source-observers-independent-audit9.json` independently binds the `598414d`
+observer, 114 consumed Git inputs, 46 tool identities, all 190 original target
+files and 202 current target files. Its original and current Typecore/header
+runs pass. Both whole Flow runs retain exit2. The 54 focused passes and exact
+2,345/2,392 body inventory remain source-stage observations.
+
+The original numeric checker also requires floating-to-integer casts. The
+candidate uses ordered range guards before conversion, including the signed
+64-bit minimum, fractional negative unsigned inputs, NaNs and infinities.
+The independent LLVM consumer reconstructs fixed mathematical bounds and checks
+the complete helper bodies, guard edges, operations, operands, attributes,
+metadata and module inventory. Twenty physical helpers cover both floating
+source types and all ten integer destinations. The first native preflight
+catches an undeclared checked Error from source-derived helper naming. The
+caller now propagates that existing bound through its checked verifier caller.
+Both complete driver semantic/Core preflights then pass.
+
+`float-integer-runtime-proof1/result.json` records 83,644 valid bit comparisons
+for each of four C0-producer/target O0/O2 combinations, 320 matched fatal pairs,
+sixteen independently LLVM-valid mutation categories and four clean unsuppressed
+memory runs. All 694 command receipts remain available. Complete helper-source
+snapshots and byte-exact helper views are retained. These tests contribute zero
+Astra-pipeline or whole-compiler qualification credit.
+
+The remaining original `flow_constant_admitted` body also reassigns a
+payload-free enum local. Its nominal copy channel now requires the existing
+independent empty-payload enum proof. The focused enum-reassignment and twenty
+floating-to-integer source functions pass original C0 O0/O2, exit42 and clean
+unsuppressed Valgrind. The preceding Astra observer refuses both witnesses.
+Updated Source/Core/CFG/SSA/LLVM executions remain pending.
+
+The indexed-Class development builds use immutable `60838e1` inputs. Their
+source observer and complete O0 native host run concurrently. O0 was selected
+for the development host to reduce rebuild cost. Final matching O0/O2 products
+and qualification still require the completed implementation revision.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct mathematical truncation intervals from the source integer kind.
+bool recover_float_integer_helper_verified(void* function, int source, int target, string name, void* trap) {
+	if (source != 11 && source != 12 || !type_integer(target) || !recover_llvm_helper_signature(function, 1) || llvm13_named(function, name) != 1) return false;
+	var input = LLVMGetParam(function, 0); int physical = 2;
+	if (source == 12) physical = 3;
+	var destination = LLVMGetReturnType(LLVMGlobalGetValueType(function));
+	int width = type_width(target);
+	if (LLVMGetTypeKind(LLVMTypeOf(input)) != physical || LLVMGetTypeKind(destination) != 8 || LLVMGetIntTypeWidth(destination) != width) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3);
+	if (len(blocks) != 3) return false;
+	int count = 4; int at = 0;
+	if (source == 11) count = 5;
+	var entry = recover_llvm_body(blocks[0], count);
+	var fatal = recover_llvm_body(blocks[1], 2);
+	var body = recover_llvm_body(blocks[2], 2);
+	if (len(entry) != count || len(fatal) != 2 || len(body) != 2) return false;
+	void* wide = input;
+	if (source == 11) {
+		wide = entry[0]; at = 1;
+		if (LLVMGetInstructionOpcode(wide) != 38 || LLVMGetNumOperands(wide) != 1 || LLVMGetOperand(wide, 0) != input || LLVMGetTypeKind(LLVMTypeOf(wide)) != 3) return false;
+	}
+	f64 lower = -1.0d; f64 upper = 0.0d; int predicate = 2;
+	if (type_signed(target)) {
+		if (width == 8) {
+			lower = -129.0d;
+			upper = 128.0d;
+		}
+		if (width == 16) {
+			lower = -32769.0d;
+			upper = 32768.0d;
+		}
+		if (width == 32) {
+			lower = -2147483649.0d;
+			upper = 2147483648.0d;
+		}
+		if (width == 64) {
+			lower = -9223372036854775808.0d;
+			upper = 9223372036854775808.0d;
+			predicate = 3;
+		}
+	} else {
+		if (width == 8) upper = 256.0d;
+		if (width == 16) upper = 65536.0d;
+		if (width == 32) upper = 4294967296.0d;
+		if (width == 64) upper = 18446744073709551616.0d;
+	}
+	var above = entry[at]; var below = entry[at + 1]; var accepted = entry[at + 2];
+	if (LLVMGetInstructionOpcode(above) != 43 || LLVMGetNumOperands(above) != 2 || LLVMGetFCmpPredicate(above) != predicate || LLVMGetOperand(above, 0) != wide || LLVMGetOperand(above, 1) != LLVMConstReal(LLVMTypeOf(wide), lower)) return false;
+	if (LLVMGetInstructionOpcode(below) != 43 || LLVMGetNumOperands(below) != 2 || LLVMGetFCmpPredicate(below) != 4 || LLVMGetOperand(below, 0) != wide || LLVMGetOperand(below, 1) != LLVMConstReal(LLVMTypeOf(wide), upper)) return false;
+	if (LLVMGetInstructionOpcode(accepted) != 23 || LLVMGetNumOperands(accepted) != 2 || LLVMGetOperand(accepted, 0) != above || LLVMGetOperand(accepted, 1) != below || !recover_llvm_split(entry[at + 3], accepted, blocks[2], blocks[1])) return false;
+	if (!recover_llvm_call(fatal[0], trap, 0, 0) || !recover_llvm_native_attributes(fatal[0], 0) || LLVMGetInstructionOpcode(fatal[1]) != 7) return false;
+	int opcode = 33;
+	if (type_signed(target)) opcode = 34;
+	if (LLVMGetInstructionOpcode(body[0]) != opcode || LLVMTypeOf(body[0]) != destination || LLVMGetNumOperands(body[0]) != 1 || LLVMGetOperand(body[0], 0) != input || !recover_llvm_return(body[1], body[0])) return false;
+	int b = 0;
+	while (b < 3) {
+		var instruction = LLVMGetFirstInstruction(blocks[b]); int remaining = 5;
+		while (instruction != null) {
+			if (remaining == 0 || LLVMHasMetadata(instruction) != 0 || LLVMCanValueUseFastMathFlags(instruction) != 0 && LLVMGetFastMathFlags(instruction) != 0) return false;
+			remaining = remaining - 1;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		b = b + 1;
+	}
+	return true;
+}
+
+bool recover_float_integer_call_verified(int source, int target, void* result, void* input, void* module) throws Error {
+	if (source != 11 && source != 12 || !type_integer(target) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || input == null) return false;
+	int physical = 2; if (source == 12) physical = 3;
+	if (LLVMGetTypeKind(LLVMTypeOf(input)) != physical || LLVMGetTypeKind(LLVMTypeOf(result)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(result)) != type_width(target)) return false;
+	var function = LLVMGetCalledValue(result);
+	if (function == null || LLVMIsAFunction(function) == null || LLVMGetGlobalParent(function) != module) return false;
+	var name = llvm_name("astra.e25a.float.integer.", (source - 11) * 10 + target - 1);
+	return llvm13_named(function, name.text) == 1 && recover_llvm_call(result, function, 1, 8) && recover_llvm_native_attributes(result, 1) && LLVMGetArgOperand(result, 0) == input && LLVMHasMetadata(result) == 0;
+}

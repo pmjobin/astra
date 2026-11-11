@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+enum MutableTag {
+	First, Second, Third
+}
+
+MutableTag enum_update(MutableTag input, bool enabled) {
+	var kind = input;
+	if (enabled) kind = MutableTag.Second();
+	int pass = 0;
+	while (pass < 2) {
+		if (pass == 1) kind = MutableTag.Third();
+		pass = pass + 1;
+	}
+	return kind;
+}
+
+int main() {
+	var kind = MutableTag.First();
+	kind = enum_update(kind, true);
+	if (kind != MutableTag.Third()) return 1;
+	kind = MutableTag.First();
+	if (kind != MutableTag.First()) return 2;
+	return 42;
+}

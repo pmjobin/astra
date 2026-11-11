@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Ordered range guards establish the truncation domain before conversion.
+class RecoverFloatIntegerRuntime {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* trap;
+	void* empty;
+
+	init(void* context, void* module, void* builder, void* handles, void* trap) {
+		this.context = context;
+		this.module = module;
+		this.builder = builder;
+		this.handles = handles;
+		this.trap = trap;
+		this.empty = llvm12_empty();
+	}
+
+	void* build_helper(int source, int target, string name) {
+		if (source != 11 && source != 12 || !type_integer(target)) return null;
+		var input = LLVMDoubleTypeInContext(this.context);
+		if (source == 11) input = LLVMFloatTypeInContext(this.context);
+		var destination = LLVMIntTypeInContext(this.context, type_width(target));
+		llvm12_handle_set(this.handles, 0, input);
+		var signature = LLVMFunctionType(destination, llvm12_handle_offset(this.handles, 0), 1, 0);
+		var function = llvm12_function(this.module, signature, name);
+		LLVMSetFunctionCallConv(function, 8);
+		LLVMSetLinkage(function, 8);
+		var entry = llvm12_block(this.context, function, "range.guard");
+		var fatal = llvm12_block(this.context, function, "range.fatal");
+		var valid = llvm12_block(this.context, function, "range.valid");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var value = LLVMGetParam(function, 0);
+		var wide = value;
+		var double_type = LLVMDoubleTypeInContext(this.context);
+		if (source == 11) wide = LLVMBuildFPExt(this.builder, value, double_type, this.empty);
+		int width = type_width(target); int exponent = width;
+		if (type_signed(target)) exponent = width - 1;
+		f64 upper = 1.0d; int bit = 0;
+		while (bit < exponent) {
+			upper = upper * 2.0d;
+			bit = bit + 1;
+		}
+		f64 lower = -1.0d; int predicate = 2;
+		if (type_signed(target)) {
+			lower = -upper;
+			if (width == 64) predicate = 3;
+			else {
+				lower = lower - 1.0d;
+			}
+		}
+		var above = LLVMBuildFCmp(this.builder, predicate, wide, LLVMConstReal(double_type, lower), this.empty);
+		var below = LLVMBuildFCmp(this.builder, 4, wide, LLVMConstReal(double_type, upper), this.empty);
+		var accepted = LLVMBuildAnd(this.builder, above, below, this.empty);
+		var guard = LLVMBuildCondBr(this.builder, accepted, valid, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, fatal);
+		var failed = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(this.trap), this.trap, this.empty, 0, this.empty);
+		var terminal = LLVMBuildUnreachable(this.builder);
+		LLVMPositionBuilderAtEnd(this.builder, valid);
+		void* converted = null;
+		if (type_signed(target)) converted = LLVMBuildFPToSI(this.builder, value, destination, this.empty);
+		else {
+			converted = LLVMBuildFPToUI(this.builder, value, destination, this.empty);
+		}
+		var result = LLVMBuildRet(this.builder, converted);
+		return function;
+	}
+}

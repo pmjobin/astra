@@ -124,14 +124,18 @@ bool recover_array_backings_distinct(void*[] backings, void*[] successes, void*[
 }
 
 // Returns the exact block inventory, or zero when the physical proof fails.
-int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void* layout, void*[] values, void*[] locals, void*[] owner_addresses, void*[] operations, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, RecoverRecordStorage[] records) {
+int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void* layout, void*[] values, void*[] locals, void*[] owner_addresses, void*[] operations, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, RecoverRecordStorage[] records) throws Error {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	if (op == 54) {
 		int source = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 		int target = checked_kind(ssa.cfg.core.flow.checked, row.type);
 		var value = values[block.origin];
-		if (!recover_array_cast_verified(source, target, value, values[row.a])) return 0;
+		if ((source == 11 || source == 12) && type_integer(target)) {
+			if (!recover_float_integer_call_verified(source, target, value, values[row.a], LLVMGetGlobalParent(LLVMGetBasicBlockParent(physical)))) return 0;
+		} else {
+			if (!recover_array_cast_verified(source, target, value, values[row.a])) return 0;
+		}
 		if (value != values[row.a] && LLVMIsAInstruction(value) != null) {
 			if (value != operation || LLVMGetInstructionParent(value) != physical) return 0;
 			return 2;
