@@ -447,6 +447,33 @@ bool record_array_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws E
 	return false;
 }
 
+bool reservation_controls(RecoverOwners owners, RecoverFlow flow) {
+	if (!recover_owners_verify(owners, flow) || owners.abort_count < 2) return false;
+	int last = owners.abort_count - 1;
+	var first_abort = owners.aborts[0]; var last_abort = owners.aborts[last];
+	if (first_abort.operation == last_abort.operation || first_abort.reservation == last_abort.reservation) return false;
+	owners.abort_count = last;
+	bool refused = !recover_owners_verify(owners, flow);
+	owners.abort_count = last + 1;
+	if (!refused || !recover_owners_verify(owners, flow)) return false;
+	owners.aborts[0] = last_abort; owners.aborts[last] = first_abort;
+	refused = !recover_owners_verify(owners, flow);
+	owners.aborts[0] = first_abort; owners.aborts[last] = last_abort;
+	if (!refused || !recover_owners_verify(owners, flow)) return false;
+	var changed = first_abort; changed.operation = last_abort.operation;
+	owners.aborts[0] = changed;
+	refused = !recover_owners_verify(owners, flow);
+	owners.aborts[0] = first_abort;
+	if (!refused || !recover_owners_verify(owners, flow)) return false;
+	changed = first_abort; changed.reservation = last_abort.reservation;
+	owners.aborts[0] = changed;
+	refused = !recover_owners_verify(owners, flow);
+	owners.aborts[0] = first_abort;
+	if (!refused || !recover_owners_verify(owners, flow)) return false;
+	println("RESERVATION_CONTROLS count=1 order=1 operation=1 owner=1 restored=1");
+	return true;
+}
+
 bool record_order_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	if (!module.check(ssa)) return false;
 	int n = 0;
@@ -552,7 +579,7 @@ bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls" && args[1] != "--record-array-mutation-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--reservation-controls" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls" && args[1] != "--record-array-mutation-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls") return 9;
 	bool library = args[1] == "--native-module";
 	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
@@ -591,6 +618,10 @@ int main(string[] args) {
 		}
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
 		if (args[1] == "--shared-stages") return 42;
+		if (args[1] == "--reservation-controls") {
+			if (reservation_controls(ssa.cfg.core.owners, ssa.cfg.core.flow) && recover_ssa_verify(ssa)) return 42;
+			return 19;
+		}
 		var module = new RecoverLlvm(ssa); module.build(ssa);
 		if (args[1] == "--record-order-controls") {
 			if (record_order_controls(module, ssa)) return 42;

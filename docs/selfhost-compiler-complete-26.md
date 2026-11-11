@@ -1948,6 +1948,48 @@ linked generated-program execution and unsuppressed memory receipts. Actual
 execution of this new application remains pending. Whole-module function
 retention and compiler self-hosting cycles retain their separate obligations.
 
+## Reservation-abort scan scaling
+
+A separate 32/768-function population exercises move reservation, a later
+throwing argument, commit and handler reuse after abort. Both populations pass
+original C0 O0/O2 execution and clean unsuppressed Valgrind. The `3470091`
+native host passes the smaller population through SSA. The larger reaches
+`RECOVER_FLOW 0 0 18459`, then refuses Core with exit6. A read-only breakpoint
+at the actual exhausted-budget branch records remaining0 and exhausted=true.
+The exact caller address maps to `astra.fn.295`, `recover_owners_build`.
+
+The candidate reconstructs ascending checked-call lists for each function in
+both owner construction and independent owner verification. Subtree membership,
+earlier move reservations and exact abort ordering retain their existing checks.
+The scan visits candidates in the enclosing function. The 8,000,000 ceiling
+retains its original value. Four independent owner-plan controls cover omitted
+aborts, reordered entries, wrong operations and wrong reservation owners.
+`owner-scaling.py --scope reservations` supplies portable C0 and Astra checks.
+Its original factory invocation and fixture bytes are preserved.
+
+An exact-helper C0 kernel compares the index against the prior ascending filter
+over 65 deterministic populations, including empty inputs, dimension mismatches,
+out-of-range function ids and actual work exhaustion. Both O0/O2 execute42
+with clean unsuppressed memory. These isolated helper checks contribute zero
+Astra-pipeline credit. Updated full-pipeline scaling verification is pending.
+The corrected independent audit is `reservation-index-independent-audit2.json`.
+Its initial metadata record retains a shadowed native-symbol label, and the
+corrected record binds the actual symbol. The first native-driver preflight
+rejects a temporary owning-field alias in the test controls. The corrected
+controls use temporary borrowed arguments.
+
+The full regression CLI now routes explicit `--native-module` requests to the
+existing library-mode lowering path. Its C0 Core preflight passes. Native
+execution through that full dispatcher remains pending.
+
+The normal population entry previously attempted to resolve every new compiler
+file in the initial Git tree. It now retains the exact 190-file original target
+and inventories all 204 current inputs. Fourteen post-baseline compiler additions
+carry explicit absent baseline provenance. The original target's blob identities
+and library recipe are preserved. Direct entry checks and the guarded Python
+format check pass. In-flight development builds bind their exact earlier Git
+recipe bytes read-only, preserving their recorded compiler-product identities.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

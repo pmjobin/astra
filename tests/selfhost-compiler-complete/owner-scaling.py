@@ -10,7 +10,7 @@ import signal
 import subprocess
 import time
 
-from run import C0_SHA256, ROOT, WORK, sha, write
+from run import BASE, C0_SHA256, ROOT, WORK, git, sha, write
 
 
 def program(count):
@@ -23,6 +23,14 @@ def program(count):
 	return '\n'.join(lines) + '\n'
 
 
+def reservation_program(count):
+	lines = ['int reservation_later(bool fail) throws Error { if (fail) { throw new Error("reservation kept"); } return 40; }', 'int reservation_take(owned int[] values, int extra) { return len(values) + extra; }']
+	for index in range(count):
+		lines += [f'int reservation_case_{index}(bool fail) {{', '\tvar values = new int[2];', '\ttry {', '\t\treturn reservation_take(move values, reservation_later(fail));', '\t} catch (Error caught) {', '\t\tif (caught.message != "reservation kept") return 1;', '\t\treturn reservation_take(move values, 40);', '\t}', '}']
+	lines += [f'int main() {{ if (reservation_case_{count - 1}(false) != 42) return 2; return reservation_case_{count - 1}(true); }}']
+	return '\n'.join(lines) + '\n'
+
+
 def main():
 	parser = argparse.ArgumentParser(description=__doc__)
 	parser.add_argument('--compiler', type=Path, required=True)
@@ -30,13 +38,14 @@ def main():
 	parser.add_argument('--build-root', type=Path, required=True)
 	parser.add_argument('--runtime-root', type=Path, required=True)
 	parser.add_argument('--version', required=True)
+	parser.add_argument('--scope', choices=('factories', 'reservations'), default='factories')
 	parser.add_argument('--phase', choices=('prepare', 'check'), required=True)
 	args = parser.parse_args()
 	assert args.version.isalnum() and sha(args.compiler) == C0_SHA256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	for path, parent in ((args.build_root, WORK / 'build'), (args.runtime_root, WORK / 'runtime')):
 		assert path.is_absolute() and path.resolve().is_relative_to(parent.resolve()) and path.is_dir()
-	leaf = args.runtime_root / ('owner-scaling-' + args.version)
+	leaf = args.runtime_root / (('owner-scaling-' if args.scope == 'factories' else 'owner-reservations-') + args.version)
 	build = args.build_root / leaf.name
 	if args.phase == 'prepare':
 		leaf.mkdir()
@@ -83,29 +92,35 @@ def main():
 
 	if args.phase == 'prepare':
 		programs = []
+		errors = None
+		if args.scope == 'reservations':
+			errors = leaf / 'errors.astra'
+			errors.write_bytes(git('show', BASE + ':lib/astra/base/errors.astra'))
+			errors.chmod(0o444)
 		for count in (32, 768):
-			source = leaf / (f'factories-{count}.astra')
-			source.write_text(program(count))
+			source = leaf / (f'{args.scope}-{count}.astra')
+			source.write_text(program(count) if args.scope == 'factories' else reservation_program(count))
 			source.chmod(0o444)
+			inputs = [source] if errors is None else [source, errors]
 			profiles = []
 			for mode in ('O0', 'O2'):
-				label = f'factories-{count}-C0-{mode}'
+				label = f'{args.scope}-{count}-C0-{mode}'
 				target = build / label
-				run(label + '-build', [args.compiler, '-' + mode, source, '-o', target])
+				run(label + '-build', [args.compiler, '-' + mode, *inputs, '-o', target])
 				run(label + '-execute', [target], 42)
 				memory(label + '-memory', target)
 				profiles.append(dict(profile=mode, ELF_sha256=sha(target), execution=42, unsuppressed_memory=True))
-			programs.append(dict(factories=count, inputs={str(source): sha(source)}, C0_profiles=profiles))
+			programs.append({args.scope:count, 'inputs':{str(path):sha(path) for path in inputs}, 'C0_profiles':profiles})
 		write(leaf / 'oracles.json', dict(status='C0_OWNER_SCALING_ORACLES', programs=programs, recipe_sha256=sha(__file__), full_original_native_credit=0))
 		return
 	oracles = json.loads((leaf / 'oracles.json').read_text())
 	providers = [args.component.parent / (name + '.o') for name in ('args-posix', 'files-posix', 'text-posix', 'text-ops-posix', 'diagnostics-trap')]
 	observations = []
 	for oracle in oracles['programs']:
-		count = oracle['factories']
-		label = f'factories-{count}'
+		count = oracle[args.scope]
+		label = f'{args.scope}-{count}'
 		assert all(sha(path) == expected for path, expected in oracle['inputs'].items())
-		row = dict(factories=count, inputs=oracle['inputs'], products=[])
+		row = {args.scope:count, 'inputs':oracle['inputs'], 'products':[]}
 		observations.append(row)
 		try:
 			physical = working / (label + '.ll')
@@ -119,8 +134,8 @@ def main():
 			else:
 				assert b'RECOVER_SSA_VALID' in stdout and b'RECOVER_LLVM_WRITTEN' in stdout
 				definitions = re.findall(r'^define internal fastcc .* @(astra\.e25a\.f\.[0-9]+)\(', physical.read_text(), re.M)
-				assert len(definitions) == count + 1
-				row.update(raw_LLVM_sha256=sha(physical), raw_source_functions=count + 2)
+				assert len(definitions) == count + (1 if args.scope == 'factories' else 2)
+				row.update(raw_LLVM_sha256=sha(physical), raw_source_functions=len(definitions) + 1)
 				for mode in ('O0', 'O2'):
 					prefix = label + '-' + mode
 					optimized = working / (prefix + '.ll')
@@ -134,10 +149,14 @@ def main():
 					run(prefix + '-execute', [target], 42)
 					memory(prefix + '-memory', target)
 					row['products'].append(dict(profile=mode, ELF_sha256=sha(target), object_sha256=sha(obj), optimized_LLVM_sha256=sha(optimized), execution=42, unsuppressed_memory=True))
+				if args.scope == 'reservations':
+					_, controls, _ = run(label + '-controls', [args.component, '--reservation-controls', *oracle['inputs']], 42)
+					assert b'RESERVATION_CONTROLS count=1 order=1 operation=1 owner=1 restored=1' in controls
+					row['restored_owner_controls'] = 4
 				row['status'] = 'FOCUSED_OWNER_SCALING_PASS'
 		except (AssertionError, OSError, subprocess.SubprocessError) as error:
 			row.update(status='CHECK_FAILED', error=repr(error))
-		write(output / 'result.json', dict(status='RAW_OWNER_SCALING_OBSERVATIONS', component_sha256=sha(args.component), recipe_sha256=sha(__file__), programs=observations, full_original_native_credit=0, scope='All factory bodies pass retained Source/Core/CFG/SSA and appear in raw LLVM. Linked execution calls the final factory. Per-function retention in optimized objects and whole-original compiler qualification require separate evidence.'))
+		write(output / 'result.json', dict(status='RAW_OWNER_SCALING_OBSERVATIONS', component_sha256=sha(args.component), recipe_sha256=sha(__file__), programs=observations, full_original_native_credit=0, scope='All generated bodies pass retained Source/Core/CFG/SSA and appear in raw LLVM. Linked execution exercises the final function. Reservation inputs execute both commit and abort with handler reuse. Per-function retention in optimized objects and whole-original compiler qualification require separate evidence.'))
 		print(label, row['status'], flush=True)
 
 

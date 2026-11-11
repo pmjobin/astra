@@ -7,8 +7,9 @@ int main(string[] args) {
 	if (len(args) > 4 && args[1] == "--loop-adversarial") return recover_loop_mutations_cli(args);
 	if (len(args) > 4 && args[1] == "--owner-adversarial") return recover_owner_mutations_cli(args);
 	if (len(args) > 4 && args[1] == "--adversarial") return recover_mutations_cli(args);
+	bool library = args[1] == "--native-module";
 	try {
-		int start = 2; if (args[1] == "--native") start = 3;
+		int start = 2; if (args[1] == "--native" || library) start = 3;
 		var program = binding_load_program(args, start); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
 		if (checked.failed()) {
@@ -16,7 +17,7 @@ int main(string[] args) {
 			print(observation.text);
 			return 4;
 		}
-		var flow = recover_flow_lower(move checked, 8192);
+		var flow = recover_flow_lower_mode(move checked, 8192, library);
 		var out = new Utf8ByteBuilder(); source_append_text(out, "RECOVER_FLOW "); append_int(out, flow.data.status); source_append_text(out, " "); append_int(out, flow.data.boundary.index); source_append_text(out, " "); append_int(out, flow.data.node_count); var text = out.snapshot(); println(text.text);
 		if (flow.data.status != 0) return flow.data.status;
 		assert_that(recover_flow_verify(flow));
@@ -34,7 +35,7 @@ int main(string[] args) {
 			return 8;
 		}
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
-		if (args[1] == "--native") {
+		if (args[1] == "--native" || library) {
 			var module = new RecoverLlvm(ssa);
 			module.build(ssa);
 			module.write(ssa, args[2]);

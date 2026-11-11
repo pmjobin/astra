@@ -88,11 +88,35 @@ bool recover_owner_contains(RecoverFlowData flow, int root, int target, RecoverO
 	} return false;
 }
 
+// Reconstruct checked-call chains in ascending node order for each function.
+// Source verification already requires every subtree to retain its function.
+bool recover_owner_checked_calls(RecoverFlow flow, int[] first, int[] next, RecoverOwnerBudget work) {
+	if (len(first) != flow.data.function_count || len(next) != flow.data.node_count) return false;
+	int n = flow.data.node_count - 1;
+	while (n >= 0) {
+		if (!work.take()) return false;
+		var row = flow.data.nodes[n];
+		if (row.kind == 4 && (flow.checked.symbol_flags[row.symbol.index] & 64) != 0) {
+			if (row.function < 1 || row.function > flow.data.function_count) return false;
+			next[n] = first[row.function - 1];
+			first[row.function - 1] = n + 1;
+		}
+		n = n - 1;
+	}
+	return true;
+}
+
 owned RecoverOwners recover_owners_build(RecoverFlow flow, bool valid) {
 	var plan = new RecoverOwners(flow, valid);
 	if (!valid) return move plan;
 	var work = new RecoverOwnerBudget(); int n = 0;
 	if (!recover_owner_uses(flow, plan.consumers, work)) {
+		plan.status = 3;
+		if (work.exhausted) plan.status = 2;
+		return move plan;
+	}
+	var first_checked = new int[flow.data.function_count]; var next_checked = new int[flow.data.node_count];
+	if (!recover_owner_checked_calls(flow, first_checked, next_checked, work)) {
 		plan.status = 3;
 		if (work.exhausted) plan.status = 2;
 		return move plan;
@@ -127,12 +151,12 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow, bool valid) {
 					a = a + 1;
 					continue;
 				}
-				int subtree = flow.data.edges[parent.first + a]; int child = 1;
-				while (child <= flow.data.node_count && plan.status == 0) { if (!work.take()) {
+				int subtree = flow.data.edges[parent.first + a]; int child = first_checked[parent.function - 1];
+				while (child > 0 && plan.status == 0) { if (!work.take()) {
 						plan.status = 2;
 						break;
-					} var candidate = flow.data.nodes[child - 1];
-					if (candidate.kind == 4 && (flow.checked.symbol_flags[candidate.symbol.index] & 64) != 0 && recover_owner_contains(flow.data, subtree, child, work, 0)) {
+					}
+					if (recover_owner_contains(flow.data, subtree, child, work, 0)) {
 						int earlier = 0; while (earlier < a) {
 							int reserve = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + earlier]);
 							if (reserve > 0 && flow.data.nodes[reserve - 1].kind == 10) {
@@ -146,7 +170,7 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow, bool valid) {
 							}
 							earlier = earlier + 1;
 						}
-					} child = child + 1;
+					} child = next_checked[child - 1];
 				} a = a + 1;
 			} } call = call + 1;
 	}
@@ -190,6 +214,8 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 	var work = new RecoverOwnerBudget(); int n = 0;
 	var parents = new RecoverOwnerParent[count];
 	if (!recover_owner_parents(flow.data, parents, work)) return false;
+	var first_checked = new int[flow.data.function_count]; var next_checked = new int[count];
+	if (!recover_owner_checked_calls(flow, first_checked, next_checked, work)) return false;
 	int f = 0; while (f < flow.data.function_count) {
 		var declaration = flow.checked.bindings.symbol(flow.data.functions[f].symbol);
 		if (plan.functions[f] != flow.checked.bindings.scope_for_node(declaration.node).index) return false;
@@ -276,11 +302,10 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 					continue;
 				}
 				int subtree = flow.data.edges[parent.first + a];
-				int child = 1;
-				while (child <= count) {
+				int child = first_checked[parent.function - 1];
+				while (child > 0) {
 					if (!work.take()) return false;
-					var candidate = flow.data.nodes[child - 1];
-					if (candidate.kind == 4 && (flow.checked.symbol_flags[candidate.symbol.index] & 64) != 0 && recover_owner_contains(flow.data, subtree, child, work, 0)) {
+					if (recover_owner_contains(flow.data, subtree, child, work, 0)) {
 						int earlier = 0;
 						while (earlier < a) {
 							int reserve = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + earlier]);
@@ -293,7 +318,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 							earlier = earlier + 1;
 						}
 					}
-					child = child + 1;
+					child = next_checked[child - 1];
 				}
 				a = a + 1;
 			}
