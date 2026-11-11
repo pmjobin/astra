@@ -963,7 +963,11 @@ The existing checkout started clean at commit
 
 ## Intake and predecessor
 
-R5 post-delivery G12 was independently closed before milestone26 implementation.
+The initial independent post-delivery audit reported R5 G12 closed before
+milestone26 implementation. A later executable-byte check found that its capsule
+restored LLVM23.1.4's library but retained the host's23.1.5 `opt` and `llc`.
+The corrective replay below closes that provenance gap after some milestone26
+engineering had already occurred. The earlier version-only check was insufficient.
 The actual canonical report is 26,132,976 bytes, SHA-256
 `69a1f817f1448ab8eed5cac5db8f6f8e7d262385a9c0b959a8750f573bfeb2a9`.
 All 188 payloads, 152 patch/Git/live source snapshots, 15 segments and the
@@ -2204,7 +2208,10 @@ ABI therefore has focused actual native coverage before whole-module testing.
 
 The `b59c87c` O0 source observer reports `FLOW 0 0 284425` for all190 original
 inputs. All nine independently invoked global consumers return1. Its final
-independent whole-Flow recheck is still running. The focused sequence passes
+independent whole-Flow recheck completes with actual CLI exit42 in4101.86seconds.
+Audit16 binds all190 original inputs to the required initial Git base, all204
+current inputs to `b59c87c`, and114 consumed host inputs to that revision.
+The focused sequence passes
 75/75 checks. Current-source Flow separately reports status1 with all nine
 global consumers returning1.
 
@@ -2262,3 +2269,59 @@ Original C0, public C ABI, approved E25-A-v1 proposal
 `d77c02f3144ab5dc3da41eb310b29cd02629b49876042934ea5071a1549ac66e`,
 module-owned LLVM cache lifetime, donor and all safety ceilings are preserved.
 No push, release, history rewrite or Stage1 work is authorized or performed.
+
+## Exact frontend provenance correction
+
+The original capsule's version check was insufficient: LLVM frontends linked to
+the restored23.1.4 library printed23.1.4 despite their executable bytes coming
+from the host's23.1.5 package. The host `opt` hash is
+`6d881b82f4b524b642514a7da24c70bfb75e205bed4135965d424458163b7c6e`;
+the host `llc` hash is
+`ce5aa8375d4b5acbe400cd0f29093edc7647e9f9fbfd33d451be2727f39c9527`.
+Earlier frontend-based milestone26 receipts used that combination. Their raw
+outcomes remain preserved and require exact-frontend replay for final acceptance.
+Source-only observers and direct original C0 builds do not invoke those external
+frontends. Their original C0/library hashes remain independently authenticated.
+
+The exact23.1.4 tools and SDK are extracted read-only from official Fedora Koji
+RPMs without installing packages. The `llvm` package SHA256 is
+`f1ad284d1d42569206baab982e47542641cb85cb800a771874877397647af065`;
+the `llvm-devel` package SHA256 is
+`631d28d3e599792fb9e36036e2bc79805ef85f44f25950c5cbbb22d6f85a3933`,
+matching the earlier restoration download. Header and payload digests pass.
+The packages lack OpenPGP signatures, as their preserved raw checks disclose.
+All18 recorded original SDK/config witnesses match. Of2356 SDK headers, four
+differ from the upgraded host: the configuration header and three C++ headers.
+The C API headers match. The complete original SDK is mounted for future runs.
+
+Actual capsule hashes are `opt`
+`2f287dfa714b32026b70f5712230d9e49644fd9aeba470b0a9d772be73caf845`
+and `llc`
+`35be28120a2d05e9fad67200a16ef5d4a661bd5ffc838a7db30738e58cef5bdc`.
+The new portable `toolchain.py` guard authenticates executable bytes, original
+C0, library and SDK anchors before accepting versions. No existing toolchain pin,
+installed workflow, historical receipt or host package is changed.
+The guarded Python source check passes. A real execution under the earlier
+hybrid capsule returns2 with `BASELINE_MISMATCH`; the complete original capsule
+returns0 with `EXACT_BASELINE_AUTHENTICATED`. The version strings alone agree in
+both runs, so this negative directly exercises the discovered provenance gap.
+
+The separate real-host R5 supplement replays four original cases per profile
+through C0/Astra compilation, LLVM verification, optimization, object generation,
+linking, execution and strict unsuppressed Valgrind. All8 raw LLVM and C0/Astra
+ELF identities equal their original R5 receipts. All16 memory streams are clean.
+The original independent ABI observer executes42 and verifies two sets of nine
+receiver mutations. Its independent audit also rechecks1044 proof hashes,
+451 protected paths,6622 donor files,6 workflow files,14 hooks and Git settings.
+The canonical predecessor ZIP remains byte-exact. This is a fresh supplement;
+the original report's G12 PENDING and historical raw campaign failures remain.
+
+The successful supplement is
+`compiler-complete26v4/g12-frontends-supplement6/verdict.json`, SHA256
+`47b4ee92bba7f2a75e8b44f4079c3e95e562a55855c0a5aac4d363fa193f5908`.
+Its first five harness attempts remain separately preserved: an overly strict
+blob-mode assertion, a missing fallback to exact Git-base bytes, two symlink
+mount routing errors, and reuse of the earlier failed provider-source routing.
+They are not passing replay receipts. The sixth uses the preserved corrected
+R5 driver and independently verified read-only source mappings. No source edit
+was made while this newly discovered toolchain gap was being closed.
