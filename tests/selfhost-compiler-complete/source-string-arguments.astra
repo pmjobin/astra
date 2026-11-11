@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+string source_argument_literal(bool choose) {
+	if (choose) return "ASTRA";
+	return "A";
+}
+
+int source_argument_length(string value) {
+	return value.byte_length;
+}
+
+int source_argument_paths(string[] values) {
+	if (len(values) < 3) return 1;
+	if (source_argument_length(source_argument_literal(true)) != 5) return 2;
+	if (source_argument_length(source_argument_literal(false)) != 1) return 3;
+	return source_argument_length(values[1]) + source_argument_length(values[2]) + 36;
+}

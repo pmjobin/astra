@@ -1299,7 +1299,7 @@ bool template_scalar_store_controls(RecoverFlow flow) throws Error {
 		if (row.kind == 44 && row.a > 0) {
 			var fact = flow.fields.facts[row.source.index];
 			var value = flow.data.nodes[row.a - 1];
-			if (!fact.initializing && value.kind == 4 && value.type.index >= 1 && value.type.index <= 13) {
+			if (!fact.initializing && value.kind == 4 && (value.type.index >= 1 && value.type.index <= 13 || recover_storage_pointer(flow.checked, value.type))) {
 				var changed = value; changed.kind = 10; changed.symbol = fact.receiver;
 				flow.data.nodes[row.a - 1] = changed;
 				bool move_rejected = !recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data);
@@ -1314,6 +1314,55 @@ bool template_scalar_store_controls(RecoverFlow flow) throws Error {
 		n = n + 1;
 	}
 	return false;
+}
+
+bool template_source_string_controls(RecoverFlow flow) throws Error {
+	if (!recover_flow_verify(flow) || !recover_payload_calls_verified(flow)) return false;
+	bool literal_checked = false;
+	bool element_checked = false;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (!literal_checked && recover_module_string_call(flow.data, row)) {
+			int function = flow.data.symbols[row.symbol.index];
+			int value = 0; int r = 0;
+			while (r < flow.data.node_count && value == 0) {
+				var result = flow.data.nodes[r];
+				if (result.function == function && result.kind == 22) value = result.a;
+				r = r + 1;
+			}
+			if (value < 1 || value > flow.data.node_count) return false;
+			var original = flow.data.nodes[value - 1];
+			var changed = original; changed.kind = 2; flow.data.nodes[value - 1] = changed;
+			bool return_rejected = !recover_literal_string_results(flow.data) && !recover_payload_calls_verified(flow);
+			flow.data.nodes[value - 1] = original;
+			if (!return_rejected || !recover_flow_verify(flow)) return false;
+			changed = row; changed.symbol = type_symbol(0); flow.data.nodes[n] = changed;
+			bool target_rejected = !recover_module_string_call(flow.data, changed) && !recover_payload_calls_verified(flow);
+			flow.data.nodes[n] = row;
+			if (!target_rejected || !recover_flow_verify(flow)) return false;
+			literal_checked = true;
+		}
+		if (!element_checked && row.kind == 55 && row.type.index == 15 && row.a > 0) {
+			var root = recover_array_root(flow, row.a, false);
+			if (root.index < 1 || flow.checked.bindings.symbol(root).kind != 7) return false;
+			int flags = flow.checked.symbol_flags[root.index];
+			flow.checked.symbol_flags[root.index] = 2;
+			bool qualifier_rejected = !recover_payload_calls_verified(flow);
+			flow.checked.symbol_flags[root.index] = flags;
+			if (!qualifier_rejected || !recover_flow_verify(flow)) return false;
+			int slot = flow.storage.symbols[root.index]; var original = flow.storage.slots[slot - 1];
+			var changed = original; changed.parameter = false; flow.storage.slots[slot - 1] = changed;
+			bool caller_rejected = !recover_payload_calls_verified(flow);
+			flow.storage.slots[slot - 1] = original;
+			if (!caller_rejected || !recover_flow_verify(flow)) return false;
+			element_checked = true;
+		}
+		n = n + 1;
+	}
+	if (!literal_checked || !element_checked) return false;
+	println("SOURCE_STRING_CONTROLS literal_return=1 callee=1 qualifier=1 caller=1 restored=1");
+	return true;
 }
 
 bool template_payload_read_controls(RecoverFlow flow) throws Error {
@@ -1354,7 +1403,7 @@ bool template_payload_read_controls(RecoverFlow flow) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--flow-proofs" && args[1] != "--construction-inventory" && args[1] != "--payload-read-controls" && args[1] != "--binding-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--flow-proofs" && args[1] != "--construction-inventory" && args[1] != "--source-string-controls" && args[1] != "--pointer-store-controls" && args[1] != "--payload-read-controls" && args[1] != "--binding-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -1471,7 +1520,7 @@ int main(string[] args) {
 			if (complete && count > 0) return 42;
 			return 3;
 		}
-		var flow = recover_flow_lower_mode(move checked, 8192, args[1] == "--module-flow" || args[1] == "--flow-proofs" || args[1] == "--construction-inventory");
+		var flow = recover_flow_lower_mode(move checked, 8192, args[1] == "--module-flow" || args[1] == "--flow-proofs" || args[1] == "--construction-inventory" || args[1] == "--source-string-controls");
 		var details = new Utf8ByteBuilder(); source_append_text(details, "FLOW "); append_int(details, flow.data.status); source_append_text(details, " "); append_int(details, flow.data.boundary.index); source_append_text(details, " "); append_int(details, flow.data.node_count);
 		var status = details.snapshot(); println(status.text);
 		if (flow.data.boundary.index > 0) {
@@ -1486,6 +1535,14 @@ int main(string[] args) {
 		if (args[1] == "--storage-controls") {
 			if (template_storage_controls(flow)) return 42;
 			return 8;
+		}
+		if (args[1] == "--source-string-controls") {
+			if (!template_source_string_controls(flow)) return 6;
+			return 42;
+		}
+		if (args[1] == "--pointer-store-controls") {
+			if (!template_scalar_store_controls(flow)) return 6;
+			return 42;
 		}
 		if (args[1] == "--payload-read-controls") {
 			if (!template_scalar_store_controls(flow) || !template_payload_read_controls(flow)) return 6;

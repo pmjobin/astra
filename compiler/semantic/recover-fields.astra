@@ -522,7 +522,7 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 				// The scalar destination belongs to the retained receiver slot.
 				// Its address and stored value are selected after RHS evaluation.
 				// Receiver methods may update fields while producing that scalar.
-				if ((physical.semantic < 1 || physical.semantic > 13) && !recover_payload_preserved(flow, row.a, fact.aggregate, work, 0)) return false;
+				if ((physical.semantic < 1 || physical.semantic > 13) && !recover_storage_pointer(checked, type_id(physical.semantic)) && !recover_payload_preserved(flow, row.a, fact.aggregate, work, 0)) return false;
 				if ((physical.flags & 1) != 0) {
 					int producer = row.a; int steps = 0;
 					while (flow.nodes[producer - 1].kind == 7 && steps < 192) {

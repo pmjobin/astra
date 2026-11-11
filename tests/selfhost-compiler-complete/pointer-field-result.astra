@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class PointerFieldResult {
+	void* handle;
+	owned int[] values;
+
+	init() {
+		this.handle = null;
+		this.values = new int[1];
+	}
+
+	void* replace_values() {
+		var grown = new int[3];
+		this.values = move grown;
+		return this.handle;
+	}
+
+	void refresh() {
+		this.handle = this.replace_values();
+	}
+
+	int count() {
+		return len(this.values);
+	}
+}
+
+int main() {
+	var value = new PointerFieldResult();
+	value.refresh();
+	if (value.handle != null || value.count() != 3) return 1;
+	return 42;
+}

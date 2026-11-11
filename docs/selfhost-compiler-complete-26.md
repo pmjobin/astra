@@ -2092,6 +2092,49 @@ public `LLVMShutdown` releases every allocation at both profiles without
 suppressions. The revised application invokes it after all compiler owners leave
 their scope. Complete revised application builds and execution remain pending.
 
+## Pointer results and source string call arguments
+
+The corrected source-test CLI at `e0acfa5` passes all 69 focused checks. Its
+production compiler bytes match `b047c22`. The latter's complete original and
+current module runs now pass array-place verification, while field and payload
+consumers still refuse. The original node count remains284,425 and the current
+candidate count is318,805. Full original native profiles proved remain0/2.
+
+The actual native field diagnostic reaches the assignment of `calloc_function`
+in original `RecoverLlvm` initialization. Its raw-pointer RHS calls the retained
+receiver. A separate C0-vetted program reproduces the same sole field refusal
+while replacing an unrelated owned buffer. The candidate extends the retained
+scalar destination rule to source-qualified native pointers. Receiver moves,
+field type, access and owning-payload obligations retain their existing checks.
+
+The original payload allowlist separately refuses nine literal-result call
+arguments and three caller-owned string-table element arguments. Focused actual
+source-verifier runs reproduce that refusal with every other global consumer
+passing. The candidate binds string calls to the actual retained module function
+and independently verifies every string-returning function's literal storage.
+Indexed descriptors require the real read-only string-array parameter with its
+existing qualifier0 contract and verified backing. Neither case creates an
+owning root. New source controls cover the callee, literal return, qualifier and
+caller provenance. Actual updated source/native execution remains pending.
+
+The portable string fixture qualifies the original C0 caller and a real
+Astra-produced library. An explicitly authored C ABI bridge calls the private
+function with a caller-owned descriptor table. Production LLVM is verified before
+the test bridge is appended. Empty caller input also exercises a null-backed zero
+table. This fixture contributes no complete-original-compiler qualification.
+
+The representative compiler-service C0 application now passes O0/O2 execution,
+strict unsuppressed memory and generated-program verify/optimize/object/link/
+execution/memory checks after scoped LLVM shutdown. Its actual Astra conversion
+and integrated execution are still pending.
+
+The host's upgraded formatter is refused by the unchanged source guard. The
+original clang-format23.1.4 executable is restored in a read-only capsule and
+matches the repository SHA-256 exactly. Its matched C++ library comes from the
+same Fedora Koji release. Header/payload digests pass, while those HTTPS RPMs
+lack OpenPGP signatures. The exact executable, package and dependency hashes are
+recorded. Installed tools and formatter pins are unchanged.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

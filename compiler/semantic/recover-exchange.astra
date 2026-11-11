@@ -105,6 +105,9 @@ bool recover_projection_preserved(RecoverFlow flow, int projection, int other, i
 }
 
 bool recover_payload_calls_verified(RecoverFlow flow) {
+	// Every module string result has independently reconstructed literal storage.
+	// The call classifier below still binds the actual retained source function.
+	if (!recover_literal_string_results(flow.data)) return false;
 	var slot_borrows = new bool[flow.data.node_count];
 	var work = new int[1]; work[0] = 8000000; int n = 0;
 	while (n < flow.data.node_count) {
@@ -124,6 +127,13 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 					}
 					if (steps == 192) return false; var argument = flow.data.nodes[id - 1]; var root = type_symbol(0); TypeId aggregate = {index = 0};
 					int projection = 0;
+					bool module_string = recover_module_string_call(flow.data, argument);
+					bool string_element = argument.kind == 55 && argument.type.index == 15 && argument.a > 0 && argument.a <= flow.data.node_count && recover_string_array(flow.checked, flow.data.nodes[argument.a - 1].type);
+					if (string_element) {
+						root = recover_array_root(flow, argument.a, false);
+						if (root.index < 1 || flow.checked.bindings.symbol(root).kind != 7 || flow.checked.symbol_flags[root.index] != 0) return false;
+						projection = argument.a;
+					}
 					bool slot_borrow = argument.kind == 55 && argument.a > 0 && argument.a <= flow.data.node_count && recover_storage_slots(flow.checked, flow.data.nodes[argument.a - 1].type, 0);
 					if (slot_borrow) {
 						if (row.kind != 4 || kind != 31 || channel.flags != 2) return false;
@@ -179,7 +189,7 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 						projection = input;
 						if (handle.kind == 17) aggregate = flow.fields.facts[handle.source.index].aggregate;
 					}
-					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19 && argument.kind != 66 && !slot_borrow) return false;
+					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19 && argument.kind != 66 && !slot_borrow && !module_string && !string_element) return false;
 					int other = 0;
 					while (other < row.count) {
 						if (other != i) {
