@@ -22,13 +22,25 @@ bool recover_llvm_group(CheckedIndex checked, TypeId type, void* value, void* fu
 // Source field counts and leaf ordering are reconstructed without a shape plan.
 int recover_llvm_record(RecoverSsa ssa, RecoverNode row, void* value, void*[] values, void* block) {
 	if (value == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return -1;
-	int at = recover_record_value_count(ssa.cfg.core.flow.checked, row.type, 0) - 1;
+	int total = recover_record_value_count(ssa.cfg.core.flow.checked, row.type, 0);
+	if (total < 0) return -1;
+	var seen = new bool[total]; int checked_leaves = 0;
+	var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(row.source);
+	if (row.count != ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields)) return -1;
 	int i = row.count - 1; int instructions = 0; bool folded = false; void* current = value;
 	while (i >= 0) {
+		var field = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i);
+		var token = ssa.cfg.core.flow.checked.bindings.program.arena.get_token_name(field);
+		int ordinal = recover_record_field(ssa.cfg.core.flow.checked, row.type, token);
+		int first = recover_record_value_first(ssa.cfg.core.flow.checked, row.type, ordinal);
+		if (first < 0) return -1;
 		int child = ssa.cfg.core.flow.data.edges[row.first + i]; var type = ssa.cfg.core.nodes[child - 1].value.type; bool record = checked_kind(ssa.cfg.core.flow.checked, type) == 30;
 		int count = 1; if (record) count = recover_record_value_count(ssa.cfg.core.flow.checked, type, 0);
 		if (count < 0) return -1; int leaf = count - 1;
 		while (leaf >= 0) {
+			int at = first + leaf;
+			if (at < 0 || at >= total || seen[at]) return -1;
+			seen[at] = true; checked_leaves = checked_leaves + 1;
 			void* element = null;
 			if (LLVMIsAInstruction(current) != null) {
 				if (LLVMGetInstructionParent(current) != block || LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, at) != 1 || LLVMHasMetadata(current) != 0) return -1;
@@ -46,11 +58,11 @@ int recover_llvm_record(RecoverSsa ssa, RecoverNode row, void* value, void*[] va
 			} else {
 				if (element != values[child]) return -1;
 			}
-			at = at - 1; leaf = leaf - 1;
+			leaf = leaf - 1;
 		}
 		i = i - 1;
 	}
-	if (at != -1 || !folded && LLVMIsNull(current) == 0) return -1;
+	if (checked_leaves != total || !folded && LLVMIsNull(current) == 0) return -1;
 	return instructions;
 }
 

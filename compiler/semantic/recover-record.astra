@@ -19,12 +19,16 @@ bool recover_copy_channel(CheckedIndex checked, TypeId type, int flags, bool res
 bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId type) {
 	if (!recover_storage_record(checked, type) || checked.bindings.program.arena.kind(source) != SyntaxKind.StructInitializerSyntax()) return false;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); var values = checked.bindings.program.arena.get_list_fields(source); int count = checked.bindings.program.arena.list_count(fields); if (checked.bindings.program.arena.list_count(values) != count) return false; int i = 0;
+	var seen = new bool[count];
 	while (i < count) {
-		var field = checked.bindings.program.arena.node_at(fields, i);
-		var symbol = checked.node_symbols[field.index];
 		var value = checked.bindings.program.arena.node_at(values, i);
 		if (checked.bindings.program.arena.kind(value) != SyntaxKind.FieldInitializerSyntax()) return false;
 		var token = checked.bindings.program.arena.get_token_name(value);
+		int ordinal = recover_record_field(checked, type, token);
+		if (ordinal < 0 || ordinal >= count || seen[ordinal]) return false;
+		seen[ordinal] = true;
+		var field = checked.bindings.program.arena.node_at(fields, ordinal);
+		var symbol = checked.node_symbols[field.index];
 		if (checked_target(checked, value, token).index != symbol.index || !generic_token_equal(checked, token, checked.bindings.symbol(symbol).token) || checked.uses[value.index].type.index != checked.symbol_types[symbol.index].index || checked.uses[value.index].flags != 0) return false;
 		var expression = checked.bindings.program.arena.get_node_expression(value);
 		var nested = checked.bindings.program.arena.get_node_initializer(value);

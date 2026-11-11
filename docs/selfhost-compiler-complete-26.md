@@ -1882,6 +1882,46 @@ backing projection as an inspection. The expanded nested-pair witness passes ori
 unsuppressed memory. The preceding `60838e1` observer refuses it with
 `FLOW 1 0 124`. Current Astra qualification of this extension remains pending.
 
+## Remaining initializer order and physical slot checks
+
+`source-observers-independent-audit10.json` binds the `60838e1` observer's
+56 focused passes and 2,387/2,392 original body admissions. The subsequent
+`3470091` observer passes 62/62 focused checks, including enum reassignment,
+floating-to-integer casts, nested indexed inspections and both factory sizes.
+Its independently bound inventory admits 2,391/2,392 original bodies, or
+99.96 percent. `source-observers-independent-audit11.json` authenticates all
+190 original inputs, 204 current inputs and the exact remaining source span.
+Both original/current Typecore and header checks pass. Their whole Flow runs
+retain exit2. Full-original native completion remains 0/2.
+
+The remaining original body is `SyntaxArena.add_header`. Its named record
+initializer lists fields in a different order from the declaration. Original
+C0 resolves names while preserving initializer evaluation order. The candidate
+Source verifier now reconstructs the exact field bijection. LLVM production
+maps each syntax-ordered child to its declaration-ordered leaf positions, and
+the physical consumer independently reconstructs that mapping and coverage.
+A focused nested-record witness checks dynamic evaluation order, constant
+initializers and copied nested values. Original C0 O0/O2 both exit42 with clean
+unsuppressed Valgrind. Four source correspondence controls and three
+independently LLVM-valid physical mutation controls are authored. Updated Astra
+execution remains pending. The first native preflight retains a duplicate-local
+refusal. Corrected semantic/Core preflights pass for both complete drivers.
+
+The `60838e1` native host passes the indexed-Class witness through Flow and SSA,
+then refuses its LLVM physical contract with exit5. Read-only debugger receipts
+identify a record-storage inventory check that assumes every index operation
+uses an ordinary array. The candidate recognizes the exact validated Class-slot
+inspection there and in the pointer-load allowlist, retaining nominal element,
+address-space, operand and helper checks. Both driver preflights pass. Native
+qualification of these two corrections remains pending.
+
+The retained replay callback also had stale archive paths and old population
+counts. Its failed raw run remains available. The pending `3470091` callback
+now reconstructs its exact Git snapshot closure and retains every original
+input. It reuses the completed whole-source refusal before attempting expensive
+whole-module native generation. The original callback bytes and both repair
+hashes are recorded separately.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

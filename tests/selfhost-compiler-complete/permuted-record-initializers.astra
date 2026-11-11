@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct InitializerPosition {
+	int first;
+	int last;
+}
+
+struct InitializerEnvelope {
+	int head;
+	InitializerPosition span;
+	bool active;
+	int tail;
+}
+
+class InitializerSequence {
+	int order;
+
+	init() {
+		this.order = 0;
+	}
+
+	int digit(int value) {
+		this.order = this.order * 10 + value;
+		return value;
+	}
+}
+
+InitializerEnvelope initializer_permute(InitializerSequence sequence) {
+	InitializerEnvelope result = {tail = sequence.digit(4), active = true, span = {last = sequence.digit(3), first = sequence.digit(2)}, head = sequence.digit(1)};
+	return result;
+}
+
+int main() {
+	var sequence = new InitializerSequence();
+	var result = initializer_permute(sequence);
+	if (sequence.order != 4321 || result.head != 1 || result.span.first != 2 || result.span.last != 3 || !result.active || result.tail != 4) return 1;
+	InitializerEnvelope folded = {tail = 40, active = false, span = {last = 30, first = 20}, head = 10};
+	if (folded.head != 10 || folded.span.first != 20 || folded.span.last != 30 || folded.active || folded.tail != 40) return 2;
+	InitializerEnvelope copied = {tail = 8, span = folded.span, active = true, head = 5};
+	if (copied.head != 5 || copied.span.first != 20 || copied.span.last != 30 || !copied.active || copied.tail != 8) return 3;
+	return 42;
+}

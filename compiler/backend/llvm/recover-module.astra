@@ -838,8 +838,16 @@ class RecoverLlvm {
 		}
 		if (op == 8) {
 			value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type));
-			int i = 0; int at = 0;
+			var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(row.source);
+			int i = 0;
 			while (i < row.count) {
+				var initializer_field = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i);
+				var token = ssa.cfg.core.flow.checked.bindings.program.arena.get_token_name(initializer_field);
+				int ordinal = recover_record_field(ssa.cfg.core.flow.checked, row.type, token);
+				int at = recover_record_value_first(ssa.cfg.core.flow.checked, row.type, ordinal);
+				if (at < 0) {
+					throw new Error("LLVM_INVALID_IR: record initializer field");
+				}
 				int child = ssa.cfg.core.flow.data.edges[row.first + i];
 				var type = ssa.cfg.core.nodes[child - 1].value.type;
 				if (checked_kind(ssa.cfg.core.flow.checked, type) == 30) {

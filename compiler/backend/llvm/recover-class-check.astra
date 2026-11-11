@@ -47,8 +47,10 @@ bool recover_record_storage_verified(RecoverSsa ssa, void* module, void* layout,
 			var row = ssa.cfg.core.nodes[block.origin - 1].value;
 			if (row.a < 1 || row.a > ssa.cfg.core.count) return false;
 			var array = ssa.cfg.core.nodes[row.a - 1].value.type;
-			if (!recover_array_type(ssa.cfg.core.flow.checked, array)) return false;
+			bool slot_borrow = block.opcode == 55 && recover_storage_slots(ssa.cfg.core.flow.checked, array, 0);
+			if (!recover_array_type(ssa.cfg.core.flow.checked, array) && !slot_borrow) return false;
 			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, array, 0).type;
+			if (slot_borrow && checked_kind(ssa.cfg.core.flow.checked, element) != 31) return false;
 			if (checked_kind(ssa.cfg.core.flow.checked, element) == 30) indexed[element.index] = true;
 		}
 		b = b + 1;

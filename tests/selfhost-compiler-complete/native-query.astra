@@ -447,6 +447,54 @@ bool record_array_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws E
 	return false;
 }
 
+bool record_order_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa)) return false;
+	int n = 0;
+	while (n < ssa.cfg.core.count) {
+		var row = ssa.cfg.core.nodes[n].value;
+		if (row.kind == 8 && row.count > 1) {
+			var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(row.source);
+			var first = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, 0);
+			var token = ssa.cfg.core.flow.checked.bindings.program.arena.get_token_name(first);
+			if (recover_record_field(ssa.cfg.core.flow.checked, row.type, token) > 0) {
+				void* first_insert = null; void* second_insert = null; void* extraction = null;
+				var current = module.values[n + 1]; int remaining = 1024;
+				while (current != null && LLVMIsAInstruction(current) != null && LLVMGetInstructionOpcode(current) == 54 && remaining > 0) {
+					var element = LLVMGetOperand(current, 1);
+					if (LLVMGetTypeKind(LLVMTypeOf(element)) == 8 && LLVMGetIntTypeWidth(LLVMTypeOf(element)) == 32) {
+						if (first_insert == null) first_insert = current;
+						else {
+							if (second_insert == null && LLVMGetOperand(first_insert, 1) != element) second_insert = current;
+						}
+					}
+					if (LLVMIsAInstruction(element) != null && LLVMGetInstructionOpcode(element) == 53 && LLVMGetTypeKind(LLVMTypeOf(LLVMGetOperand(element, 0))) == 10) extraction = element;
+					current = LLVMGetOperand(current, 0); remaining = remaining - 1;
+				}
+				if (first_insert != null && second_insert != null && extraction != null) {
+					var a = LLVMGetOperand(first_insert, 1); var b = LLVMGetOperand(second_insert, 1);
+					LLVMSetOperand(first_insert, 1, b); LLVMSetOperand(second_insert, 1, a);
+					bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+					LLVMSetOperand(first_insert, 1, a); LLVMSetOperand(second_insert, 1, b);
+					if (!refused || !module.check(ssa)) return false;
+					LLVMSetOperand(first_insert, 1, LLVMConstNull(LLVMTypeOf(a)));
+					refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+					LLVMSetOperand(first_insert, 1, a);
+					if (!refused || !module.check(ssa)) return false;
+					var aggregate = LLVMGetOperand(extraction, 0);
+					LLVMSetOperand(extraction, 0, LLVMConstNull(LLVMTypeOf(aggregate)));
+					refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+					LLVMSetOperand(extraction, 0, aggregate);
+					if (!refused || !module.check(ssa)) return false;
+					println("RECORD_ORDER_CONTROLS LLVM_valid_physical=3 restored=1");
+					return true;
+				}
+			}
+		}
+		n = n + 1;
+	}
+	return false;
+}
+
 bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	if (!module.check(ssa)) return false;
 	var parents = new RecoverOwnerParent[ssa.cfg.core.count]; var parent_work = new RecoverOwnerBudget();
@@ -504,7 +552,7 @@ bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls" && args[1] != "--record-array-mutation-controls" && args[1] != "--slot-borrow-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls" && args[1] != "--record-array-mutation-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls") return 9;
 	bool library = args[1] == "--native-module";
 	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
@@ -544,6 +592,10 @@ int main(string[] args) {
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
 		if (args[1] == "--shared-stages") return 42;
 		var module = new RecoverLlvm(ssa); module.build(ssa);
+		if (args[1] == "--record-order-controls") {
+			if (record_order_controls(module, ssa)) return 42;
+			return 18;
+		}
 		if (args[1] == "--slot-borrow-controls") {
 			if (slot_borrow_controls(module, ssa)) return 42;
 			return 17;
