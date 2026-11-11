@@ -749,7 +749,11 @@ bool checked_field_accessible(CheckedIndex index, SyntaxNodeId node, SymbolId fi
 		return true;
 	}
 	var owner = index.bindings.symbol(context.owner);
-	return owner.owner.index == symbol.owner.index;
+	if (owner.owner.index == symbol.owner.index) return true;
+	var plan = checked_source_plan(index, context.owner);
+	if (plan.concrete.index != context.owner.index || !class_getter_plan_verified(index, plan)) return false;
+	var property = class_getter_property(index, plan.origin);
+	return property.index == owner.owner.index && index.bindings.symbol(property).owner.index == symbol.owner.index;
 }
 
 // Compatibility obligations are separate from logical TypeId equivalence.

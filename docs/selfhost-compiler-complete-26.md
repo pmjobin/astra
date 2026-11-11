@@ -381,6 +381,12 @@ return 42 with clean unsuppressed Valgrind. The previous Astra host refuses it.
 The new observer defines seven source, receiver and call-table controls.
 Matching candidate execution and native qualification remain pending.
 
+The source visibility walk also needs the accessor's original declaring Class
+when its normalized function remains owned by the property symbol. The
+successor checks that relationship through the actual getter source plan before
+granting private-field access. The focused C0 observer check passes. The
+earlier `795ac1f` build snapshot is retained separately.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in
