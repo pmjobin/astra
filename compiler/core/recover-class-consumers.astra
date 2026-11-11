@@ -2,7 +2,7 @@
 // Construction is source-local acquisition (or a fresh Error throw), never
 // an arbitrary Class expression. Nullable carriers enter locals through a
 // genuine factory call, not by inventing a fresh owner for a null literal.
-bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerBudget work) {
+bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerParent[] parents, RecoverOwnerBudget work) {
 	int n = 0; while (n < flow.data.node_count) {
 		if (!work.take()) return false;
 		var row = flow.data.nodes[n];
@@ -23,9 +23,9 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerB
 				if (!flow.checked.bindings.program.arena.token_is(row.token, "take") || consumer < 1 || consumer > flow.data.node_count || flow.data.nodes[consumer - 1].kind != 27) return false;
 			}
 		}
-		if (row.kind == 56 && recover_slice_consumer(flow, n + 1, work) < 1) return false;
-		if (row.kind == 55 && recover_storage_slots(flow.checked, flow.data.nodes[row.a - 1].type, 0) && recover_slice_consumer(flow, n + 1, work) < 1) return false;
-		if (row.kind == 19 && flow.checked.uses[row.source.index].flags == 2 && recover_shared_borrow_consumer(flow, n + 1, work) < 1) return false;
+		if (row.kind == 56 && recover_slice_consumer(flow, n + 1, parents, work) < 1) return false;
+		if (row.kind == 55 && recover_storage_slots(flow.checked, flow.data.nodes[row.a - 1].type, 0) && recover_slice_consumer(flow, n + 1, parents, work) < 1) return false;
+		if (row.kind == 19 && flow.checked.uses[row.source.index].flags == 2 && recover_shared_borrow_consumer(flow, n + 1, parents, work) < 1) return false;
 		if (row.kind == 5 || recover_constructor_kind(row.kind) || row.kind == 19 && (flow.checked.uses[row.source.index].flags & 4) != 0) {
 			int consumer = plan.consumers[n]; if (consumer < 1 || consumer > flow.data.node_count) return false;
 			int kind = flow.data.nodes[consumer - 1].kind;
@@ -36,27 +36,19 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerB
 	return !work.exhausted;
 }
 
-int recover_shared_borrow_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work) {
-	int found = 0;
-	int n = 0;
-	while (n < flow.data.node_count) {
-		if (!work.take()) return -1;
-		var row = flow.data.nodes[n];
-		if (row.kind == 4 || recover_constructor_kind(row.kind)) {
-			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
-			int offset = 1;
-			if (recover_constructor_kind(row.kind)) offset = 2;
-			int a = 0;
-			while (a < row.count) {
-				if (recover_owner_unwrap(flow.data, flow.data.edges[row.first + a]) == value) {
-					var channel = flow.checked.types.argument(flow.checked.types, signature.callable, a + offset);
-					if (found != 0 || row.function != flow.data.nodes[value - 1].function || (channel.flags & 4) != 0 || checked_kind(flow.checked, channel.type) != 31) return -1;
-					found = n + 1;
-				}
-				a = a + 1;
-			}
-		}
-		n = n + 1;
+int recover_shared_borrow_consumer(RecoverFlow flow, int value, RecoverOwnerParent[] parents, RecoverOwnerBudget work) {
+	if (value < 1 || value > flow.data.node_count || len(parents) != flow.data.node_count) return -1;
+	var parent = parents[value - 1]; int depth = 0;
+	while (parent.node > 0 && parent.node <= flow.data.node_count && flow.data.nodes[parent.node - 1].kind == 7) {
+		if (!work.take() || depth == 191) return -1;
+		parent = parents[parent.node - 1]; depth = depth + 1;
 	}
-	return found;
+	if (!work.take() || parent.node < 1 || parent.node > flow.data.node_count) return -1;
+	var row = flow.data.nodes[parent.node - 1];
+	if (row.kind != 4 && !recover_constructor_kind(row.kind) || row.function != flow.data.nodes[value - 1].function || parent.argument < 0 || parent.argument >= row.count) return -1;
+	var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
+	int offset = 1; if (recover_constructor_kind(row.kind)) offset = 2;
+	var channel = flow.checked.types.argument(flow.checked.types, signature.callable, parent.argument + offset);
+	if ((channel.flags & 4) != 0 || checked_kind(flow.checked, channel.type) != 31) return -1;
+	return parent.node;
 }

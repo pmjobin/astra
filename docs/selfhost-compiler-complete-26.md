@@ -1841,6 +1841,47 @@ source observer and complete O0 native host run concurrently. O0 was selected
 for the development host to reduce rebuild cost. Final matching O0/O2 products
 and qualification still require the completed implementation revision.
 
+## Measured owner-verifier scaling
+
+The resumed immutable `60838e1` source observer passes all 56 focused cases,
+including four indexed-Class source/backing controls. Original/current complete
+source diagnostics continue separately. Its first follow-up driver fails before
+these tests because a mechanically renamed oracle path does not exist. A fresh
+resume check refuses upgraded-host tool identities. The next resume runs wholly
+inside the original-tool capsule and reuses the authenticated completed build.
+All failed driver attempts and initial states remain available.
+
+A focused source population of 32 factories passes the existing `45b2bed`
+native host. A 768-factory population passes original C0 O0/O2 and clean
+unsuppressed Valgrind, then reaches `RECOVER_FLOW 0 0 30729` and fails Core.
+Read-only breakpoints on that authenticated host identify actual exhaustion in
+`recover_heap_results`. The 32-factory case returns true with 7,935,085 units
+remaining. The 768-factory case returns false with zero remaining and its
+exhausted flag set. The original 8,000,000 ceiling stays fixed.
+
+The candidate reconstructs initializer and ordered-return indexes from the
+verified Flow for each owner-verifier invocation. Heap witnesses follow those
+actual edges. Core and SSA borrow-consumer checks reuse freshly reconstructed
+parent edges, including exact call arguments, nominal types and channels.
+Each pass obtains its lookup edges directly from its authoritative Flow.
+Both complete drivers pass fresh semantic/Core preflights. Native scaling
+verification of the updated implementation remains pending. The portable `owner-scaling.py` recipe retains both populations and their C0
+oracles, raw source-function inventory and linked O0/O2 checks. Its linked
+entry exercises the final factory. Optimized whole-compiler function retention
+has a separate acceptance obligation.
+
+An additional ABI-only diagnostic was stopped after existing stage measurements
+showed that it repeated the expensive original-C0 CFG/SSA pipeline. Its raw
+termination and cancellation reason are retained. The first debugger symbol
+expression fails. A fresh attempt uses the exact ELF address and records both
+budget outcomes without modifying inferior memory.
+
+Two borrowed indexed reads may also share a nested backing projection. The
+candidate retains index-expression effect checks while treating the validated
+backing projection as an inspection. The expanded nested-pair witness passes original C0 O0/O2 with clean
+unsuppressed memory. The preceding `60838e1` observer refuses it with
+`FLOW 1 0 124`. Current Astra qualification of this extension remains pending.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

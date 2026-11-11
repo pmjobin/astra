@@ -370,9 +370,14 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		}
 		v = v + 1;
 	}
+	var parents = new RecoverOwnerParent[ssa.cfg.core.count];
+	var parent_work = new RecoverOwnerBudget(); parent_work.remaining = work.remaining;
+	if (!recover_owner_parents(ssa.cfg.core.flow.data, parents, parent_work)) return false;
+	work.remaining = parent_work.remaining;
+	if (parent_work.exhausted) work.exhausted = true;
 	v = 1;
 	while (v <= ssa.cfg.core.count) {
-		if (definitions[v] && (!recover_ssa_shared_borrow(ssa, v, work) || !recover_ssa_utf8(ssa, v, work) || !recover_ssa_array_view(ssa, v, work))) return false;
+		if (definitions[v] && (!recover_ssa_shared_borrow(ssa, v, parents, work) || !recover_ssa_utf8(ssa, v, work) || !recover_ssa_array_view(ssa, v, parents, work))) return false;
 		v = v + 1;
 	}
 	var locals = recover_ssa_local_definitions(ssa.cfg, work);

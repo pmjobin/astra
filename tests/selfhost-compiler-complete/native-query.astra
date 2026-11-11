@@ -449,6 +449,8 @@ bool record_array_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws E
 
 bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	if (!module.check(ssa)) return false;
+	var parents = new RecoverOwnerParent[ssa.cfg.core.count]; var parent_work = new RecoverOwnerBudget();
+	if (!recover_owner_parents(ssa.cfg.core.flow.data, parents, parent_work)) return false;
 	int b = 0;
 	while (b < ssa.cfg.block_count) {
 		var block = ssa.cfg.blocks[b];
@@ -468,11 +470,11 @@ bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				ssa.cfg.blocks[next - 1].opcode = 36;
 				ssa.cfg.blocks[next - 1].b = row.borrowed_owner;
 				var retired_work = new RecoverWork(8000000);
-				bool retired_rejected = !recover_ssa_array_view(ssa, block.origin, retired_work) && !retired_work.exhausted;
+				bool retired_rejected = !recover_ssa_array_view(ssa, block.origin, parents, retired_work) && !retired_work.exhausted;
 				ssa.cfg.blocks[next - 1] = original;
 				ssa.cfg.blocks[next - 1].opcode = 69;
 				var mutation_work = new RecoverWork(8000000);
-				bool mutation_rejected = !recover_ssa_array_view(ssa, block.origin, mutation_work) && !mutation_work.exhausted;
+				bool mutation_rejected = !recover_ssa_array_view(ssa, block.origin, parents, mutation_work) && !mutation_work.exhausted;
 				ssa.cfg.blocks[next - 1] = original;
 				if (!retired_rejected || !mutation_rejected || !module.check(ssa)) return false;
 				var call = module.operations[b]; var index = LLVMGetArgOperand(call, 2);

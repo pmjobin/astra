@@ -1,34 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Temporary array views and indexed Class inspections have one borrowed call use.
-int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work) {
-	if (value < 1 || value > flow.data.node_count) return -1;
+int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerParent[] parents, RecoverOwnerBudget work) {
+	if (value < 1 || value > flow.data.node_count || len(parents) != flow.data.node_count) return -1;
 	var input = flow.data.nodes[value - 1];
 	bool slot_borrow = input.kind == 55 && input.a > 0 && input.a <= flow.data.node_count && recover_storage_slots(flow.checked, flow.data.nodes[input.a - 1].type, 0);
-	int found = 0;
-	int n = 0;
-	while (n < flow.data.node_count) {
-		if (!work.take()) return -1;
-		var row = flow.data.nodes[n];
-		if (row.kind == 4 || recover_constructor_kind(row.kind)) {
-			var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
-			int offset = 1;
-			if (recover_constructor_kind(row.kind)) offset = 2;
-			int p = 0;
-			while (p < row.count) {
-				if (recover_owner_unwrap(flow.data, flow.data.edges[row.first + p]) == value) {
-					var channel = flow.checked.types.argument(flow.checked.types, signature.callable, p + offset);
-					if (found != 0 || row.function != input.function || channel.type.index != input.type.index) return -1;
-					if (slot_borrow) {
-						if (row.kind != 4 || channel.flags != 2 || checked_kind(flow.checked, channel.type) != 31) return -1;
-					} else {
-						if (channel.flags != 0 && channel.flags != 2 || checked_kind(flow.checked, channel.type) != 22) return -1;
-					}
-					found = n + 1;
-				}
-				p = p + 1;
-			}
-		}
-		n = n + 1;
+	var parent = parents[value - 1]; int depth = 0;
+	while (parent.node > 0 && parent.node <= flow.data.node_count && flow.data.nodes[parent.node - 1].kind == 7) {
+		if (!work.take() || depth == 191) return -1;
+		parent = parents[parent.node - 1]; depth = depth + 1;
 	}
-	return found;
+	if (!work.take() || parent.node < 1 || parent.node > flow.data.node_count) return -1;
+	var row = flow.data.nodes[parent.node - 1];
+	if (row.kind != 4 && !recover_constructor_kind(row.kind) || row.function != input.function || parent.argument < 0 || parent.argument >= row.count) return -1;
+	var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
+	int offset = 1; if (recover_constructor_kind(row.kind)) offset = 2;
+	var channel = flow.checked.types.argument(flow.checked.types, signature.callable, parent.argument + offset);
+	if (channel.type.index != input.type.index) return -1;
+	if (slot_borrow) {
+		if (row.kind != 4 || channel.flags != 2 || checked_kind(flow.checked, channel.type) != 31) return -1;
+	} else {
+		if (channel.flags != 0 && channel.flags != 2 || checked_kind(flow.checked, channel.type) != 22) return -1;
+	}
+	return parent.node;
 }

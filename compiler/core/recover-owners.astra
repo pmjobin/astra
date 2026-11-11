@@ -300,5 +300,6 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 		}
 		call = call + 1;
 	}
-	return expected == plan.abort_count && !work.exhausted && recover_heap_results(flow, work) && recover_class_consumers(plan, flow, work) && recover_shared_acquisitions(flow, work);
+	var heap = recover_heap_index(flow, work);
+	return expected == plan.abort_count && !work.exhausted && heap.valid && recover_heap_results(flow, heap, work) && recover_class_consumers(plan, flow, parents, work) && recover_shared_acquisitions(flow, heap, work);
 }

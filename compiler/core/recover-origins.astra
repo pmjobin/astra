@@ -1,7 +1,56 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Native-v14 checked Class results must have heap-factory provenance. A raw
 // nullable Class TypeId alone may describe excluded caller-backed storage.
-bool recover_heap_witness(RecoverFlow flow, int id, bool[] seen, RecoverOwnerBudget work, int depth) {
+// Each verifier invocation reconstructs these lookup edges from its own Flow.
+class RecoverHeapIndex {
+	owned int[] initializers;
+	owned int[] first_returns;
+	owned int[] next_returns;
+	bool valid;
+
+	init(int symbols, int functions, int nodes) {
+		this.initializers = new int[symbols];
+		this.first_returns = new int[functions];
+		this.next_returns = new int[nodes];
+		this.valid = true;
+	}
+}
+
+owned RecoverHeapIndex recover_heap_index(RecoverFlow flow, RecoverOwnerBudget work) {
+	var index = new RecoverHeapIndex(len(flow.data.symbols), flow.data.function_count, flow.data.node_count);
+	var tails = new int[flow.data.function_count];
+	int n = 0;
+	while (n < flow.data.node_count) {
+		if (!work.take()) {
+			index.valid = false;
+			return move index;
+		}
+		var row = flow.data.nodes[n];
+		if (row.kind == 27) {
+			if (row.symbol.index < 1 || row.symbol.index >= len(index.initializers) || index.initializers[row.symbol.index] != 0) {
+				index.valid = false;
+				return move index;
+			}
+			index.initializers[row.symbol.index] = n + 1;
+		}
+		if (row.kind == 22) {
+			if (row.function < 1 || row.function > flow.data.function_count) {
+				index.valid = false;
+				return move index;
+			}
+			int previous = tails[row.function - 1];
+			if (previous == 0) index.first_returns[row.function - 1] = n + 1;
+			else {
+				index.next_returns[previous - 1] = n + 1;
+			}
+			tails[row.function - 1] = n + 1;
+		}
+		n = n + 1;
+	}
+	return move index;
+}
+
+bool recover_heap_witness(RecoverFlow flow, RecoverHeapIndex index, int id, bool[] seen, RecoverOwnerBudget work, int depth) {
 	if (id < 1 || id > flow.data.node_count || depth > 192 || !work.take() || seen[id - 1]) return false; seen[id - 1] = true; var row = flow.data.nodes[id - 1];
 	if (row.kind == 11) return recover_storage_class(flow.checked, row.type);
 	if (row.kind == 67) return error_storage_class(flow.checked, row.type);
@@ -9,44 +58,39 @@ bool recover_heap_witness(RecoverFlow flow, int id, bool[] seen, RecoverOwnerBud
 	// Source-verified owning Class slots contain transferred heap owners.
 	// The separately consumed native take graph rejects a vacant element.
 	if (row.kind == 69 && flow.checked.bindings.program.arena.token_is(row.token, "take")) return recover_storage_class(flow.checked, row.type) && flow.checked.uses[row.source.index].flags == 4;
-	if (row.kind == 7) return recover_heap_witness(flow, row.a, seen, work, depth + 1);
+	if (row.kind == 7) return recover_heap_witness(flow, index, row.a, seen, work, depth + 1);
 	if (row.kind == 10) {
 		var declaration = flow.checked.bindings.symbol(row.symbol); if (declaration.kind == 7) return (flow.checked.symbol_flags[row.symbol.index] & 4) != 0;
-		int n = 0; while (n < flow.data.node_count) {
-			if (!work.take()) return false;
-			var candidate = flow.data.nodes[n];
-			if (candidate.kind == 27 && candidate.symbol.index == row.symbol.index && recover_heap_witness(flow, candidate.a, seen, work, depth + 1)) return true;
-			n = n + 1;
-		} return false;
+		int local = index.initializers[row.symbol.index];
+		return local > 0 && recover_heap_witness(flow, index, flow.data.nodes[local - 1].a, seen, work, depth + 1);
 	}
 	if (row.kind == 4) {
 		int callee = flow.data.symbols[row.symbol.index];
-		int n = 0;
-		while (n < flow.data.node_count) {
+		if (callee < 1 || callee > flow.data.function_count) return false;
+		int n = index.first_returns[callee - 1];
+		while (n > 0) {
 			if (!work.take()) return false;
-			var candidate = flow.data.nodes[n];
-			if (candidate.kind == 22 && candidate.function == callee && recover_heap_witness(flow, candidate.a, seen, work, depth + 1)) return true;
-			n = n + 1;
+			var candidate = flow.data.nodes[n - 1];
+			if (recover_heap_witness(flow, index, candidate.a, seen, work, depth + 1)) return true;
+			n = index.next_returns[n - 1];
 		}
 	}
 	return false;
 }
 
-bool recover_heap_results(RecoverFlow flow, RecoverOwnerBudget work) {
+bool recover_heap_results(RecoverFlow flow, RecoverHeapIndex index, RecoverOwnerBudget work) {
 	int f = 0; while (f < flow.data.function_count) { var function = flow.data.functions[f]; if (checked_kind(flow.checked, function.result) == 31) {
-			bool heap = false; int n = 0; while (n < flow.data.node_count) {
+			bool heap = false; int n = index.first_returns[f]; while (n > 0) {
 				if (!work.take()) return false;
-				var row = flow.data.nodes[n];
-				if (row.function == f + 1 && row.kind == 22) {
-					var seen = new bool[flow.data.node_count];
-					heap = recover_heap_witness(flow, row.a, seen, work, 0) || heap;
-				}
-				n = n + 1;
+				var row = flow.data.nodes[n - 1];
+				var seen = new bool[flow.data.node_count];
+				heap = recover_heap_witness(flow, index, row.a, seen, work, 0) || heap;
+				n = index.next_returns[n - 1];
 			} if (!heap) return false;
 		} f = f + 1; } return !work.exhausted;
 }
 
-bool recover_shared_acquisitions(RecoverFlow flow, RecoverOwnerBudget work) {
+bool recover_shared_acquisitions(RecoverFlow flow, RecoverHeapIndex index, RecoverOwnerBudget work) {
 	int n = 0;
 	while (n < flow.data.node_count) {
 		if (!work.take()) return false;
@@ -54,7 +98,7 @@ bool recover_shared_acquisitions(RecoverFlow flow, RecoverOwnerBudget work) {
 		if (row.kind == 19 && flow.checked.bindings.program.arena.token_is(row.token, "shared_acquire")) {
 			if (row.count != 1) return false;
 			var seen = new bool[flow.data.node_count];
-			if (!recover_heap_witness(flow, flow.data.edges[row.first], seen, work, 0)) return false;
+			if (!recover_heap_witness(flow, index, flow.data.edges[row.first], seen, work, 0)) return false;
 		}
 		n = n + 1;
 	}

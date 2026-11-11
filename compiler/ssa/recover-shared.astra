@@ -2,7 +2,7 @@
 // Track the actual root version from payload definition to its call use.
 // Cleanup on an aborted argument path is legal; reaching the consuming call
 // after retiring/replacing that root is not. No cached liveness is accepted.
-bool recover_ssa_shared_borrow(RecoverSsa ssa, int value, RecoverWork work) {
+bool recover_ssa_shared_borrow(RecoverSsa ssa, int value, RecoverOwnerParent[] parents, RecoverWork work) {
 	var source = ssa.cfg.core.nodes[value - 1];
 	if (source.value.kind != 19 || source.result_role != 3) return true;
 	int place = source.borrowed_owner;
@@ -10,7 +10,7 @@ bool recover_ssa_shared_borrow(RecoverSsa ssa, int value, RecoverWork work) {
 	var slot = ssa.cfg.core.flow.storage.slots[place - 1];
 	var budget = new RecoverOwnerBudget();
 	budget.remaining = work.remaining;
-	int consumer = recover_shared_borrow_consumer(ssa.cfg.core.flow, value, budget);
+	int consumer = recover_shared_borrow_consumer(ssa.cfg.core.flow, value, parents, budget);
 	work.remaining = budget.remaining;
 	if (budget.exhausted) work.exhausted = true;
 	if (consumer < 1 || work.exhausted) return false;

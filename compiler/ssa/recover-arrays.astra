@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Follow every actual path from an array view or indexed Class borrow to its
 // call consumer, checking the backing and every captured field along the path.
-bool recover_ssa_array_view(RecoverSsa ssa, int value, RecoverWork work) {
+bool recover_ssa_array_view(RecoverSsa ssa, int value, RecoverOwnerParent[] parents, RecoverWork work) {
 	var row = ssa.cfg.core.nodes[value - 1].value;
 	bool slot_borrow = row.kind == 55 && row.a > 0 && row.a <= ssa.cfg.core.count && recover_storage_slots(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type, 0);
 	if (row.kind != 56 && !slot_borrow) return true;
@@ -13,7 +13,7 @@ bool recover_ssa_array_view(RecoverSsa ssa, int value, RecoverWork work) {
 	if (slot < 1 || slot > ssa.cfg.core.flow.storage.count || ssa.cfg.core.nodes[value - 1].result_role != 3 || ssa.cfg.core.nodes[value - 1].borrowed_owner != slot) return false;
 	var budget = new RecoverOwnerBudget();
 	budget.remaining = work.remaining;
-	int consumer = recover_slice_consumer(ssa.cfg.core.flow, value, budget);
+	int consumer = recover_slice_consumer(ssa.cfg.core.flow, value, parents, budget);
 	work.remaining = budget.remaining;
 	if (budget.exhausted) work.exhausted = true;
 	if (consumer < 1 || consumer > ssa.cfg.core.count || !recover_storage_outlives(ssa.cfg.core.flow.storage, ssa.cfg.core.flow.storage.slots[slot - 1].scope, ssa.cfg.core.owners.scopes[consumer - 1])) return false;
