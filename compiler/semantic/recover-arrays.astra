@@ -56,13 +56,23 @@ bool recover_array_static_index(CheckedIndex checked, TypeId type, SyntaxNodeId 
 	return bound.valid;
 }
 
+// The hosted argv provider owns the descriptor table. These source channels
+// are non-owning, read-only views of its actual builtin string descriptors.
+bool recover_string_array(CheckedIndex checked, TypeId type) {
+	if (!checked.field_effects || !checked.types.valid_id(type)) return false;
+	var shape = checked.types.row(type);
+	if (shape.kind != 22 || shape.count != 1 || shape.nominal.index != 0 || shape.extent != 0) return false;
+	var element = checked.types.argument(checked.types, type, 0);
+	return element.type.index == 15 && element.flags == 0;
+}
+
 bool recover_array_type(CheckedIndex checked, TypeId type) {
 	int kind = checked_kind(checked, type);
 	if (kind == 21) return recover_storage_fixed(checked, type);
 	if (kind != 22) return false;
 	var element = checked.types.argument(checked.types, type, 0);
 	int code = checked_kind(checked, element.type);
-	return element.flags == 0 && (type_numeric(code) || code == 13 || code == 30 && recover_storage_record(checked, element.type) || recover_storage_pointer(checked, element.type));
+	return element.flags == 0 && (type_numeric(code) || code == 13 || code == 30 && recover_storage_record(checked, element.type) || recover_string_array(checked, type) || recover_storage_pointer(checked, element.type));
 }
 
 SymbolId recover_array_root(RecoverFlow flow, int value, bool write) {
@@ -74,7 +84,7 @@ SymbolId recover_array_root(RecoverFlow flow, int value, bool write) {
 	}
 	if (id < 1 || id > flow.data.node_count || depth == 192) return type_symbol(0);
 	var row = flow.data.nodes[id - 1];
-	if (!recover_array_type(flow.checked, row.type)) return type_symbol(0);
+	if (!recover_array_type(flow.checked, row.type) || write && recover_string_array(flow.checked, row.type)) return type_symbol(0);
 	if (row.kind == 17) {
 		var fact = flow.fields.facts[row.source.index];
 		// Visibility is independently checked by recover_fields_verify. It

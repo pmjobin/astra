@@ -1571,7 +1571,7 @@ class RecoverLlvm {
 					b = b + 1;
 					continue;
 				}
-				if ((kind < 1 || kind > 13) && (block.opcode == 56 || !recover_storage_pointer(ssa.cfg.core.flow.checked, element))) return false;
+				if ((kind < 1 || kind > 13) && (block.opcode == 56 || kind != 15 && !recover_storage_pointer(ssa.cfg.core.flow.checked, element))) return false;
 				if (block.opcode == 56) slices[kind - 1] = element;
 				else {
 					indices[kind - 1] = element;
@@ -1588,7 +1588,7 @@ class RecoverLlvm {
 				append_int(name, k + 1);
 				var text = name.snapshot();
 				var element = this.scalar(ssa.cfg.core.flow.checked, indexed);
-				if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function, false)) return false;
+				if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function, false)) return false;
 			} else {
 				if (this.index_functions[k] != null) return false;
 			}

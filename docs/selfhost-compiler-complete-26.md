@@ -1339,6 +1339,58 @@ the complete checked owner and generic map as before. This removes repeated
 whole-owner scans from declaration-level LLVM ABI checks. The candidate has
 no measured native speedup yet.
 
+## Measured iteration costs and receiver-root proof reuse
+
+The independent c13/c937 audit binds 109 and 111 consumed Git inputs,
+respectively, plus each product's exact tools and command streams. On the
+same 190 read-only original inputs, c937 records 953,173 scope-map entries,
+53 genuine instances and 1,245 direct methods. Scope occupancy falls 95.1%
+from 19,603,257 entries. The conditional Typecore/map probe completes exit0
+in 1,047.777 seconds, with peak RSS 273,356 KiB. The earlier probe took
+997.635 seconds with peak RSS 437,244 KiB. These revisions also differ in enum
+typing and scope verification. The storage reduction is measured, while a
+runtime speedup remains unestablished.
+
+The separate c937 Flow probe takes 1,279.233 seconds, peaks at 272,808 KiB
+and returns exit2 with diagnostic Flow status3 at node63565. It still refuses
+the original pointer-record-returning `recover_llvm_owner_emit` function,
+bytes 275–3377. This is the predecessor source revision. Its raw first-stop
+receipt remains preserved alongside the ccc1ed1 pointer-record candidate.
+
+One brief read-only GDB sample attaches to the exact scoped Flow worker and
+detaches. It shows `generic_calls_verified` invoking recursive Class source
+and field checks through `SyntaxArena.node_at`. The Flow timing includes that
+sampling interval. The C0 semantic dump and native symbol addresses identify
+these frames. The next candidate reuses a receiver type's complete root-depth
+proof within the current generic consumer invocation. Its table starts empty
+on each invocation. Per-call receiver, source, argument and signature checks
+continue for every call. Standalone direct-method predicates retain their full
+source check. Three new mutations require a fresh invocation to refuse changed
+field flags, declaring owner and source node, followed by restoration.
+
+The Class layout construction pass also reuses its own completed layout rows
+before classifying another symbol with the same type. The independent layout
+consumer reconstructs the current source separately. Guarded formatting and
+both exact-C0 frontend entries pass for the candidate. Execution of its new
+controls and matched performance measurements remain pending.
+
+C0 accepts hosted argv-backed `string[]` input channels as `(ptr, i32)` and
+reads each string descriptor at stride16/alignment8. Its O0/O2 argv-forwarding
+oracles execute exit42 with clean unsuppressed Valgrind. Separate raw capability
+attempts preserve C0's refusals for general string-buffer allocation and text
+slice slot assignment. The next candidate admits actual read-only, non-owning
+string descriptor inputs through existing array source, root, carrier and
+physical memory checks. Three original compiler function signatures need these
+channels. The focused source library and its C0 driver remain byte-exact in
+read-only oracle snapshots. Astra execution of this candidate is pending.
+
+Same-source O2 semantic and native development hosts are building concurrently
+under the original C0/LLVM23.1.4 identities. Their purpose is to measure the
+cost of executing verification loops with optimized development hosts. Target
+O0/O2 generation, native identity, memory and acceptance gates remain separate
+receipts. The installed build/workflow scripts remain the ones that authenticate
+these snapshots and products.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

@@ -131,7 +131,7 @@ int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void*
 	var type = ssa.cfg.core.nodes[input - 1].value.type;
 	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 	int kind = checked_kind(ssa.cfg.core.flow.checked, element);
-	if ((kind < 1 || kind > 13) && (op == 56 || kind != 30 && !recover_storage_pointer(ssa.cfg.core.flow.checked, element)) || len(index_functions) != 16 || len(slice_functions) != 13) return 0;
+	if ((kind < 1 || kind > 13) && (op == 56 || kind != 30 && kind != 15 && !recover_storage_pointer(ssa.cfg.core.flow.checked, element)) || len(index_functions) != 16 || len(slice_functions) != 13) return 0;
 	void* function = null;
 	if (kind == 30) {
 		if (op == 56) return 0;
@@ -161,7 +161,7 @@ int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void*
 			if (kind == 30) {
 				if (!recover_llvm_call(load, records[element.index].load_function, 1, 8) || LLVMGetArgOperand(load, 0) != operation || LLVMHasMetadata(load) != 0 || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, element, LLVMTypeOf(load))) return 0;
 			} else {
-				if (!recover_array_memory(load, 27, operation, null, layout) || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, element, LLVMTypeOf(load))) return 0;
+				if (!recover_array_memory(load, 27, operation, null, layout) || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, element, LLVMTypeOf(load))) return 0;
 			}
 			count = count + 1;
 		}

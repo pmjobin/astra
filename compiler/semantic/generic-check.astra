@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Separate consumer: reconstruct substitution from declaration/argument edges.
-// No builder, cached trust bit, serialized projection or native layout is used.
+// Independent consumer reconstructs substitution from declaration/argument
+// edges. Any reuse of checked root proofs is local to this invocation.
 bool generic_checked_instance_verified(CheckedIndex index, GenericInstance plan) {
 	var origin = index.bindings.symbol(plan.origin); var concrete = index.bindings.symbol(plan.concrete); var node = origin.node;
 	if (origin.kind == 18) return class_getter_signature_verified(index, plan);
@@ -80,14 +80,18 @@ GenericInstance checked_copy_plan(CheckedIndex index, int ordinal) {
 	return index.direct_methods[ordinal - index.instance_count];
 }
 
-bool direct_method_source_verified(CheckedIndex index, GenericInstance plan) {
+bool direct_method_declaration_verified(CheckedIndex index, GenericInstance plan) {
 	if (!index.native_abi || !index.class_storage || !index.field_effects || plan.origin.index < 1 || plan.origin.index > index.generic_symbols || plan.argument_count != 0 || !index.types.valid_id(plan.enclosing)) return false;
 	var source = index.bindings.symbol(plan.origin); var owner = index.types.row(plan.enclosing);
 	if (source.kind == 18) return class_getter_plan_verified(index, plan);
 	if (source.kind != 11 && source.kind != 12 || owner.kind != 31 || owner.nominal.index != source.owner.index || source.owner.index < 1 || source.owner.index > index.generic_symbols) return false;
 	var declaration = index.bindings.symbol(source.owner);
 	if (declaration.kind != 4 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(source.node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_where_clauses(source.node)) != 0 || index.bindings.program.arena.get_int_dispatch(source.node) != 0 || index.bindings.program.arena.get_node_body(source.node).index == 0) return false;
-	return class_storage_source_verified(index, plan.enclosing, false, 0) || error_storage_class(index, plan.enclosing);
+	return true;
+}
+
+bool direct_method_source_verified(CheckedIndex index, GenericInstance plan) {
+	return direct_method_declaration_verified(index, plan) && (class_storage_source_verified(index, plan.enclosing, false, 0) || error_storage_class(index, plan.enclosing));
 }
 
 // Inclusive consumer bound: the last permitted node may already be present.
@@ -109,6 +113,7 @@ int generic_verify_failure(CheckedIndex index) {
 		return 0;
 	}
 	if (index.instance_count < 0 || index.instance_count > 256 || index.instance_count > len(index.instances)) return 2;
+	var source_classes = new bool[index.types.count + 1];
 	int node_slots = 0; int symbol_slots = 0; int scope_slots = 0;
 	if (len(index.direct_methods) != index.generic_symbols + 1 || len(index.direct_method_symbols) != len(index.symbol_types) || index.direct_method_symbols[0] != 0) return 33;
 	int ordinal = 0;
@@ -120,7 +125,14 @@ int generic_verify_failure(CheckedIndex index) {
 			ordinal = ordinal + 1;
 			continue;
 		}
-		if (direct && (storage.origin.index != ordinal - index.instance_count || !direct_method_source_verified(index, storage) || storage.concrete.index < 1 || storage.concrete.index >= len(index.direct_method_symbols) || index.direct_method_symbols[storage.concrete.index] != storage.origin.index)) return 33;
+		if (direct && (storage.origin.index != ordinal - index.instance_count || !direct_method_declaration_verified(index, storage) || storage.concrete.index < 1 || storage.concrete.index >= len(index.direct_method_symbols) || index.direct_method_symbols[storage.concrete.index] != storage.origin.index)) return 33;
+		if (direct) {
+			if (!index.types.valid_id(storage.enclosing)) return 33;
+			if (!source_classes[storage.enclosing.index]) {
+				if (!class_storage_source_verified(index, storage.enclosing, false, 0) && !error_storage_class(index, storage.enclosing)) return 33;
+				source_classes[storage.enclosing.index] = true;
+			}
+		}
 		if (storage.sparse_bindings != direct || !generic_plan_bounds(index, storage) || !generic_symbol_keys_verified(index, storage) || !generic_scope_keys_verified(index, storage)) return 3;
 		if (index.generic_node_map[storage.nodes] != 0 || index.generic_symbol_map[storage.symbols] != 0 || index.generic_scope_map[storage.scopes] != 0) return 28;
 		if (node_slots > index.generic_node_used - storage.node_count - 1 || symbol_slots > index.generic_symbol_used - storage.symbol_count - 1 || scope_slots > index.generic_scope_used - storage.scope_count - 1) return 29;
@@ -287,6 +299,9 @@ bool generic_constraints_verified(CheckedIndex index, GenericInstance plan) {
 }
 
 bool generic_calls_verified(CheckedIndex index) {
+	// Checked source rows remain immutable throughout this consumer. Rebuild
+	// this table on every invocation, after each actual root-depth proof.
+	var receiver_classes = new bool[index.types.count + 1];
 	int n = 1;
 	while (n < len(index.generic_calls)) {
 		var target = index.generic_calls[n];
@@ -328,7 +343,11 @@ bool generic_calls_verified(CheckedIndex index) {
 				} else {
 					if (receiver.index == 0 || index.symbol_types[receiver.index].index != plan.enclosing.index) return false;
 				}
-				if (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0) && !error_storage_class(index, plan.enclosing)) return false;
+				if (!index.types.valid_id(plan.enclosing)) return false;
+				if (!receiver_classes[plan.enclosing.index]) {
+					if (!generic_empty_class(index, plan.enclosing) && !class_storage_source_verified(index, plan.enclosing, false, 0) && !error_storage_class(index, plan.enclosing)) return false;
+					receiver_classes[plan.enclosing.index] = true;
+				}
 				int outer_number = generic_instance_for(index, index.types.row(plan.enclosing).nominal);
 				var owner = index.types.row(plan.enclosing).nominal;
 				if (outer_number > 0) owner = index.instances[outer_number - 1].origin;

@@ -367,6 +367,7 @@ bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool 
 	if (kind == 27) return (flags == 4 || !result && flags == 2) && recover_storage_shared(checked, type);
 	if (kind == 31) return (flags == 4 || !result && (flags == 0 || flags == 2)) && (recover_storage_class(checked, type) || recover_storage_error(checked, type));
 	if (kind == 22) {
+		if (recover_string_array(checked, type)) return !result && flags == 0;
 		return (flags == 4 || !result && (flags == 0 || flags == 2)) && recover_array_type(checked, type);
 	}
 	return false;

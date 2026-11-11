@@ -435,7 +435,9 @@ owned ClassStoragePlan class_storage_plan(CheckedIndex index) throws Error {
 	int s = 1;
 	while (s <= index.bindings.symbol_count) {
 		var symbol = index.bindings.symbol(type_symbol(s)); var type = index.symbol_types[s];
-		if ((symbol.kind == 4 || symbol.kind == 8 || symbol.kind == 7) && class_storage_class(index, type)) class_storage_layout(plan, index, type, 0);
+		// This construction pass owns the layout table. Completed rows have
+		// already traversed the same immutable checked source and fields.
+		if ((symbol.kind == 4 || symbol.kind == 8 || symbol.kind == 7) && plan.types[type.index].state != 2 && class_storage_class(index, type)) class_storage_layout(plan, index, type, 0);
 		s = s + 1;
 	}
 	// An indexed record array can be confined to a local or parameter. Its
