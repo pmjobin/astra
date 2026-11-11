@@ -50,6 +50,9 @@ bool recover_prefix_type_verified(RecoverTypes data, CheckedIndex checked, Synta
 bool recover_integer_cast_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
 	if (row.kind != 54 || row.a < 1 || row.b != 0 || row.c != 0 || row.first != 0 || row.count != 0 || row.symbol.index != 0 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.ConversionExpressionSyntax()) return false;
 	var syntax = checked.bindings.program.arena.conversion_expression(row.source);
-	if (row.token.index != syntax.f_keyword.index || !checked.bindings.program.arena.token_is(row.token, "as") || checked.uses[syntax.f_destination.index].type.index != row.type.index || !type_integer(checked_kind(checked, row.type))) return false;
-	return recover_child(flow, checked, types, row.a, syntax.f_operand, function, handler, caught, seen, edges, depth + 1) && type_integer(checked_kind(checked, flow.nodes[row.a - 1].type));
+	int target = checked_kind(checked, row.type);
+	if (row.token.index != syntax.f_keyword.index || !checked.bindings.program.arena.token_is(row.token, "as") || checked.uses[syntax.f_destination.index].type.index != row.type.index || !type_numeric(target)) return false;
+	if (!recover_child(flow, checked, types, row.a, syntax.f_operand, function, handler, caught, seen, edges, depth + 1)) return false;
+	int source = checked_kind(checked, flow.nodes[row.a - 1].type);
+	return type_numeric(source) && (type_integer(source) || source == 11 && target == 12 || source == 12 && target == 11);
 }

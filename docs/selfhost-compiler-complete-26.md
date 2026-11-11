@@ -1717,6 +1717,62 @@ drivers' semantic/Core preflights pass. Compiled Astra observer execution is
 pending. The same focused oracle batch confirms the mixed-width shift and
 boolean bitwise witness at C0 O0/O2.
 
+## Verified text/binding batch and subsequent construction work
+
+The 7c605eb O2 observer completes its actual C0 compilation in 2,200.968
+seconds with 1,689,112 KiB maximum RSS. Its ELF SHA-256 is
+`c68b6358658e53632a4fe9bc66af2896555c924fe2d476a6487d8f20ad0af428`.
+All 49 focused Source/Flow cases pass, including the five nested-initializer
+controls, six text-view controls, mixed-width shifts and lexical `base`
+bindings. The independent audit authenticates 114 consumed Git inputs,
+the tool identities and all original input bytes. All 89 Class and 2,392
+runtime function headers pass. Isolated body construction/source checks pass
+for 2,318 of 2,392 functions, or 96.9 percent, with 74 exact refusals retained.
+Whole-original Flow retains exit2, internal status3 at original
+`recover-utf8.astra` line52, `text.text`, after 284,462 nodes. Complete original
+native qualification remains 0/2.
+
+Further read-only diagnostics identify three concrete requirements. The exact
+original floating checker stops at `a as f32`. The original path comparator
+passes its recursive source/tree check but retains two unseen `first.text` /
+`last.text` nodes constructed twice for `.text.byte_length`. Counting every
+required original parameter/local gives 20,656 slots, at most 313 in one
+function, compared with the former 8,192 aggregate table.
+
+The next candidate builds text-length projections once, admits integer-to-float
+and f32/f64 width changes, and sizes module storage from the actual bound symbol
+inventory. Producer and independent consumer retain 8,192 slots per function
+and the 8,000,000 aggregate bound. A 601-function C0 witness requires 9,600
+parameter slots, sixteen per function. Its O0/O2 oracles exit42 with clean
+unsuppressed Valgrind. Six source/storage mutation controls await observer
+execution. The first control-driver preflight catches a projected scalar write
+requiring a complete receiver loan. The corrected helper passes fresh checks.
+
+Caller/module-backed text descriptors can also be reassigned. Every replacement
+is independently checked for caller/module provenance. Class-backed local views
+retain their immutable receiver/scope proof. Direct byte-length reads of mutable
+text reload the current descriptor, with an independent load/extract inventory
+check. The expanded text witness and floating-cast source witness pass original
+C0 O0/O2 with clean unsuppressed memory. Their Astra pipeline runs remain pending.
+
+The floating helper preflight compares 22 conversions plus two identity
+transports against original C0 bitwise, 120,384 observations per producer/target
+combination at O0/O2. It also checks 192 constant cases and eight independently
+LLVM-valid physical mutations, with four clean unsuppressed memory streams.
+Early harness attempts retain their invalid same-type C0 cast, missing metadata
+declarations and out-of-width constant refusals. The corrected constant producer
+masks each declared integer width. The existing unchanged array/cast recipe
+passes its 24 LLVM-valid categories after restoration of its four-argument
+verifier entry point. Record indexing uses the explicit shape verifier.
+Historical directories retain read-only mounts, and a recorded output-root
+adapter directs this replay into the milestone26 directories.
+
+`source-observers-independent-audit8.json` and
+`completion-helper-independent-audit1.json` bind these separate outcomes.
+Both compiler drivers pass semantic/Core preflights. Complete original
+Core/CFG/SSA/LLVM, representative linkage and owner-root qualification remain
+outstanding.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

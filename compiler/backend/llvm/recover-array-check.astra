@@ -52,7 +52,7 @@ bool recover_array_fatal(void* block, void* trap) {
 	return len(instructions) == 2 && recover_llvm_call(instructions[0], trap, 0, 0) && recover_llvm_native_attributes(instructions[0], 0) && LLVMGetInstructionOpcode(instructions[1]) == 7;
 }
 
-bool recover_array_index_helper(void* function, void* element, string name, void* trap, bool record) {
+bool recover_array_index_shape_verified(void* function, void* element, string name, void* trap, bool record) {
 	if (!recover_array_helper_signature(function, 3, name, element, record) || !recover_shared_pointer(LLVMGetReturnType(LLVMGlobalGetValueType(function)))) return false;
 	var blocks = recover_llvm_helper_blocks(function, 3);
 	if (len(blocks) != 3) return false;
@@ -64,6 +64,10 @@ bool recover_array_index_helper(void* function, void* element, string name, void
 	var index = LLVMGetParam(function, 2);
 	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != pointer || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0) return false;
 	return recover_array_constant_compare(entry[1], 39, count, 0) && recover_array_constant_compare(entry[2], 39, index, 0) && recover_llvm_compare(entry[3], 40, index, count) && recover_array_boolean(entry[4], 23, entry[0], entry[1]) && recover_array_boolean(entry[5], 23, entry[2], entry[3]) && recover_array_boolean(entry[6], 23, entry[4], entry[5]) && recover_llvm_split(entry[7], entry[6], blocks[2], blocks[1]) && recover_array_address(valid[0], element, pointer, index) && recover_llvm_return(valid[1], valid[0]);
+}
+
+bool recover_array_index_helper(void* function, void* element, string name, void* trap) {
+	return recover_array_index_shape_verified(function, element, name, trap, false);
 }
 
 bool recover_array_slice_helper(void* function, void* element, void* descriptor, string name, void* trap) {

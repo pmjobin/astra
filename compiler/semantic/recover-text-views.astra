@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Reconstruct immutable descriptor provenance from retained source. A positive
+// Reconstruct declared descriptor provenance from retained source. A positive
 // result is an actual Class receiver symbol. Zero denotes caller/module text.
 // A negative result leaves the view unsupported.
 int recover_text_view_root(CheckedIndex checked, SyntaxNodeId source, SymbolId function, int[] work, int depth) {
@@ -55,15 +55,23 @@ bool recover_text_views_verified(RecoverFlow flow) {
 	n = 0;
 	while (n < flow.data.node_count) {
 		var row = flow.data.nodes[n];
+		if (row.kind == 42 && row.symbol.index > 0 && row.symbol.index < len(changed) && flow.checked.symbol_types[row.symbol.index].index == 15) {
+			if (row.function < 1 || row.function > flow.data.function_count || flow.checked.bindings.program.arena.kind(row.source) != SyntaxKind.AssignmentStatementSyntax()) return false;
+			var function = flow.data.functions[row.function - 1].symbol;
+			var value = flow.checked.bindings.program.arena.get_node_expression(row.source);
+			// Every replacement must retain caller/module storage. Class-rooted
+			// descriptors retain the immutable view proof below.
+			if (recover_text_view_root(flow.checked, value, function, work, 0) != 0) return false;
+		}
 		if (row.kind == 27 && row.symbol.index > 0 && row.symbol.index < len(changed) && flow.checked.symbol_types[row.symbol.index].index == 15) {
-			if (changed[row.symbol.index] || row.function < 1 || row.function > flow.data.function_count) return false;
+			if (row.function < 1 || row.function > flow.data.function_count) return false;
 			var declaration = flow.checked.bindings.symbol(row.symbol);
 			var function = flow.data.functions[row.function - 1].symbol;
 			int root = recover_text_view_root(flow.checked, flow.checked.bindings.program.arena.get_node_initializer(row.source), function, work, 0);
 			if (root < 0) return false;
 			if (root > 0) {
 				var receiver = flow.checked.bindings.symbol(type_symbol(root));
-				if (changed[root] || receiver.owner.index != function.index || !recover_storage_outlives(flow.storage, receiver.scope.index, declaration.scope.index)) return false;
+				if (changed[row.symbol.index] || changed[root] || receiver.owner.index != function.index || !recover_storage_outlives(flow.storage, receiver.scope.index, declaration.scope.index)) return false;
 			}
 		}
 		n = n + 1;

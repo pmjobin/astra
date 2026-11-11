@@ -1321,12 +1321,15 @@ class RecoverLlvm {
 			int source = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 			int target = checked_kind(ssa.cfg.core.flow.checked, row.type);
 			var type = this.scalar(ssa.cfg.core.flow.checked, row.type);
-			value = recover_array_integer_cast(this.builder, source, target, value, type, this.empty);
+			value = recover_array_numeric_cast(this.builder, source, target, value, type, this.empty);
 			if (LLVMIsAInstruction(value) != null && value != this.values[row.a]) operation = value;
 		}
 		if (op == 58) {
 			void* input = this.values[row.a];
-			if (row.symbol.index > 0) input = this.locals[row.symbol.index];
+			if (row.symbol.index > 0) {
+				input = this.locals[row.symbol.index];
+				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) input = this.load(this.scalar(ssa.cfg.core.flow.checked, type_id(15)), this.owner_addresses[row.symbol.index]);
+			}
 			value = LLVMBuildExtractValue(this.builder, input, 1, this.empty);
 			if (LLVMIsAInstruction(input) != null) operation = value;
 		}
@@ -1629,7 +1632,7 @@ class RecoverLlvm {
 				append_int(name, k + 1);
 				var text = name.snapshot();
 				var element = this.scalar(ssa.cfg.core.flow.checked, indexed);
-				if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function, false)) return false;
+				if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function)) return false;
 			} else {
 				if (this.index_functions[k] != null) return false;
 			}

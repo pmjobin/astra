@@ -69,7 +69,7 @@ bool recover_record_storage_verified(RecoverSsa ssa, void* module, void* layout,
 			if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, type_id(t), carrier) || !recover_record_helper_verified(record.load_function, record.memory, carrier, false) || !recover_record_helper_verified(record.store_function, record.memory, carrier, true)) return false;
 			if (indexed[t]) {
 				var index_name = llvm_name("astra.e25a.record.index.", t);
-				if (!llvm_storage_function_live(module, record.index_function) || !recover_array_index_helper(record.index_function, record.memory, index_name.text, trap, true)) return false;
+				if (!llvm_storage_function_live(module, record.index_function) || !recover_array_index_shape_verified(record.index_function, record.memory, index_name.text, trap, true)) return false;
 			} else {
 				if (record.index_function != null) return false;
 			}

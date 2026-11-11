@@ -2,6 +2,59 @@
 // Reconstruct the exact address/value correspondence from independently
 // verified source, Core, CFG and SSA; no emitter layout cache is authority.
 bool recover_array_cast_verified(int source, int target, void* value, void* operand) {
+	if (target == 11 || target == 12) {
+		if (!type_numeric(source) || value == null || operand == null) return false;
+		int physical = 2; if (target == 12) physical = 3;
+		if (LLVMGetTypeKind(LLVMTypeOf(value)) != physical) return false;
+		if (type_integer(source)) {
+			if (LLVMGetTypeKind(LLVMTypeOf(operand)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(operand)) != type_width(source)) return false;
+		} else {
+			int input = 2; if (source == 12) input = 3;
+			if (LLVMGetTypeKind(LLVMTypeOf(operand)) != input) return false;
+		}
+		if (source == target) return value == operand;
+		if (LLVMIsAInstruction(value) != null) {
+			int opcode = 35;
+			if (type_signed(source)) opcode = 36;
+			if (source == 11) opcode = 38;
+			if (source == 12) opcode = 37;
+			if (LLVMGetInstructionOpcode(value) != opcode || LLVMGetNumOperands(value) != 1 || LLVMGetOperand(value, 0) != operand || LLVMHasMetadata(value) != 0) return false;
+			if (LLVMCanValueUseFastMathFlags(value) != 0 && LLVMGetFastMathFlags(value) != 0) return false;
+			return opcode != 35 || LLVMGetNNeg(value) == 0;
+		}
+		if (LLVMIsAConstantFP(value) == null) return false;
+		f64 expected = 0.0d;
+		if (type_integer(source)) {
+			if (LLVMIsAConstantInt(operand) == null) return false;
+			u64 bits = LLVMConstIntGetZExtValue(operand);
+			int width = type_width(source);
+			if (type_signed(source)) {
+				if (width < 64 && (bits & (1 as u64 << (width - 1))) != 0) bits = bits | (18446744073709551615 << width);
+				i64 number = bits as i64;
+				if (target == 11) {
+					f32 rounded = number as f32;
+					expected = rounded as f64;
+				} else {
+					expected = number as f64;
+				}
+			} else {
+				if (target == 11) {
+					f32 rounded = bits as f32;
+					expected = rounded as f64;
+				} else {
+					expected = bits as f64;
+				}
+			}
+		} else {
+			if (LLVMIsAConstantFP(operand) == null) return false;
+			expected = llvm13_real_value(operand);
+			if (target == 11) {
+				f32 rounded = expected as f32;
+				expected = rounded as f64;
+			}
+		}
+		return value == LLVMConstReal(LLVMTypeOf(value), expected);
+	}
 	if (!type_integer(source) || !type_integer(target) || value == null || operand == null || LLVMGetTypeKind(LLVMTypeOf(value)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(value)) != type_width(target) || LLVMGetTypeKind(LLVMTypeOf(operand)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(operand)) != type_width(source)) return false;
 	int first = type_width(source);
 	int last = type_width(target);
@@ -71,7 +124,7 @@ bool recover_array_backings_distinct(void*[] backings, void*[] successes, void*[
 }
 
 // Returns the exact block inventory, or zero when the physical proof fails.
-int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void* layout, void*[] values, void*[] locals, void*[] operations, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, RecoverRecordStorage[] records) {
+int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* operation, void* layout, void*[] values, void*[] locals, void*[] owner_addresses, void*[] operations, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, RecoverRecordStorage[] records) {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	if (op == 54) {
@@ -89,6 +142,13 @@ int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void*
 		var value = values[block.origin];
 		void* input = values[row.a];
 		if (row.symbol.index > 0) input = locals[row.symbol.index];
+		if (row.symbol.index > 0 && recover_mutable(ssa.cfg.core.flow.data, row.symbol)) {
+			if (value == null || LLVMIsAInstruction(value) == null || LLVMGetInstructionOpcode(value) != 53 || LLVMGetNumOperands(value) != 1) return 0;
+			input = LLVMGetOperand(value, 0);
+			if (input == null || LLVMIsAInstruction(input) == null) return 0;
+			if (!recover_array_memory(input, 27, owner_addresses[row.symbol.index], null, layout) || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type_id(15), LLVMTypeOf(input)) || LLVMGetFirstInstruction(physical) != input || LLVMGetInstructionParent(value) != physical || LLVMGetNextInstruction(input) != value || !recover_llvm_extract(value, input, 1) || value != operation || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(value))) return 0;
+			return 3;
+		}
 		if (!recover_llvm_extract(value, input, 1) || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(1), LLVMTypeOf(value))) return 0;
 		if (LLVMIsAInstruction(input) != null) {
 			if (value != operation || LLVMGetInstructionParent(value) != physical) return 0;

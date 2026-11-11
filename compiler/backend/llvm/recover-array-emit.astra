@@ -13,6 +13,19 @@ void* recover_array_integer_cast(void* builder, int source, int target, void* in
 	return value;
 }
 
+void* recover_array_numeric_cast(void* builder, int source, int target, void* input, void* type, void* empty) {
+	if (target == 11 || target == 12) {
+		if (source == target) return input;
+		if (source == 11) return LLVMBuildFPExt(builder, input, type, empty);
+		if (source == 12) return LLVMBuildFPTrunc(builder, input, type, empty);
+		if (!type_integer(source)) return null;
+		if (type_signed(source)) return LLVMBuildSIToFP(builder, input, type, empty);
+		return LLVMBuildUIToFP(builder, input, type, empty);
+	}
+	if (!type_integer(source) || !type_integer(target)) return null;
+	return recover_array_integer_cast(builder, source, target, input, type, empty);
+}
+
 class RecoverArrayRuntime {
 	void* context;
 	void* module;

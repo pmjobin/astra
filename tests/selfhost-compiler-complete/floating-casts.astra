@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+f32 narrow_float(f64 input) {
+	return input as f32;
+}
+
+f64 widen_float(f32 input) {
+	return input as f64;
+}
+
+f64 signed_float(i64 input) {
+	f32 rounded = input as f32;
+	return rounded as f64;
+}
+
+f64 unsigned_float(u64 input) {
+	return input as f64;
+}
+
+int main() {
+	f32 exact = 42.0d as f32;
+	if (widen_float(exact) != 42.0d || widen_float(narrow_float(16777217.0d)) != 16777216.0d) return 1;
+	if (signed_float(-16777217) != -16777216.0d || unsigned_float(18446744073709551615) != 18446744073709551616.0d) return 2;
+	f64 negative_zero = widen_float(narrow_float(-0.0d));
+	if (1.0d / negative_zero >= 0.0d) return 3;
+	f64 unordered = widen_float(narrow_float(0.0d / 0.0d));
+	if (unordered == unordered) return 4;
+	return 42;
+}

@@ -393,16 +393,24 @@ class RecoverStorage {
 	SyntaxNodeId boundary;
 
 	init(CheckedIndex checked) {
-		var identity = shared_clone(checked.types.identity); this.identity = move identity; this.slots = new RecoverSlot[8192]; this.symbols = new int[checked.bindings.symbol_count + 1]; this.parents = new int[checked.bindings.scope_count + 1]; this.count = 0; this.status = 0; SyntaxNodeId absent = {index = 0}; this.boundary = absent;
+		int capacity = checked.bindings.symbol_count + 1;
+		if (capacity < 8192) capacity = 8192;
+		int status = 0;
+		if (capacity > 8000000) {
+			capacity = 0;
+			status = 2;
+		}
+		var identity = shared_clone(checked.types.identity); this.identity = move identity; this.slots = new RecoverSlot[capacity]; this.symbols = new int[checked.bindings.symbol_count + 1]; this.parents = new int[checked.bindings.scope_count + 1]; this.count = 0; this.status = status; SyntaxNodeId absent = {index = 0}; this.boundary = absent;
 	}
 
-	void add(RecoverSlot row) { if (this.count == 8192) {
+	void add(RecoverSlot row) { if (this.count == len(this.slots)) {
 			this.status = 2;
 			return;
 		} this.slots[this.count] = row; this.count = this.count + 1; this.symbols[row.symbol.index] = this.count; }
 }
 
 void recover_storage_inventory(RecoverStorage storage, CheckedIndex checked, int[] functions) {
+	var units = new int[8193];
 	int scope = 1; while (scope < len(storage.parents)) {
 		ScopeId id = {index = scope};
 		var row = checked.bindings.scope(id);
@@ -413,6 +421,13 @@ void recover_storage_inventory(RecoverStorage storage, CheckedIndex checked, int
 	while (s <= checked.bindings.symbol_count && storage.status == 0) {
 		var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
 		if ((declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
+			int function = functions[declaration.owner.index];
+			if (function > 8192 || units[function] == 8192) {
+				storage.status = 2;
+				storage.boundary = declaration.node;
+				return;
+			}
+			units[function] = units[function] + 1;
 			var type = checked.symbol_types[s]; int flags = checked.symbol_flags[s];
 			if (!recover_storage_binding(checked, symbol)) {
 				storage.status = 3;
@@ -426,13 +441,18 @@ void recover_storage_inventory(RecoverStorage storage, CheckedIndex checked, int
 }
 
 bool recover_storage_verify(RecoverStorage storage, CheckedIndex checked, int[] functions) {
-	if (storage.status != 0 || !type_owner_same(storage.identity, checked.types.identity) || storage.count < 0 || storage.count > 8192 || len(storage.slots) != 8192 || len(storage.symbols) != checked.bindings.symbol_count + 1 || len(storage.parents) != checked.bindings.scope_count + 1 || len(functions) != len(storage.symbols)) return false;
+	int capacity = checked.bindings.symbol_count + 1;
+	if (capacity < 8192) capacity = 8192;
+	if (storage.status != 0 || !type_owner_same(storage.identity, checked.types.identity) || capacity > 8000000 || len(storage.slots) != capacity || storage.count < 0 || storage.count > capacity || len(storage.symbols) != checked.bindings.symbol_count + 1 || len(storage.parents) != checked.bindings.scope_count + 1 || len(functions) != len(storage.symbols)) return false;
+	var units = new int[8193];
 	int expected = 0; int s = 1;
 	while (s <= checked.bindings.symbol_count) {
 		var declaration = checked.bindings.symbol(type_symbol(s));
 		if ((declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			if (expected >= storage.count || storage.symbols[s] != expected + 1) return false;
 			var row = storage.slots[expected]; if (row.symbol.index != s || row.type.index != checked.symbol_types[s].index || row.flags != checked.symbol_flags[s] || row.function != functions[declaration.owner.index] || row.scope != declaration.scope.index || row.parameter != (declaration.kind == 7) || row.owner != ((row.flags & 4) != 0) || !recover_storage_binding(checked, type_symbol(s))) return false;
+			if (row.function > 8192 || units[row.function] == 8192) return false;
+			units[row.function] = units[row.function] + 1;
 			expected = expected + 1;
 		} else {
 			if (storage.symbols[s] != 0) return false;

@@ -1005,6 +1005,59 @@ int template_construction_inventory(RecoverFlow flow) throws Error {
 	return 0;
 }
 
+void template_storage_count(RecoverStorage storage, int count) {
+	storage.count = count;
+}
+
+bool template_storage_controls(RecoverFlow flow) {
+	if (flow.storage.count <= 8192 || !recover_flow_verify(flow)) return false;
+	int count = flow.storage.count;
+	template_storage_count(flow.storage, count + 1);
+	bool count_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+	template_storage_count(flow.storage, count);
+	var first = flow.storage.slots[0];
+	int mapped = flow.storage.symbols[first.symbol.index];
+	flow.storage.symbols[first.symbol.index] = 0;
+	bool map_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+	flow.storage.symbols[first.symbol.index] = mapped;
+	var changed = first; changed.function = 8193; flow.storage.slots[0] = changed;
+	bool function_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+	changed = first; changed.scope = 0; flow.storage.slots[0] = changed;
+	bool scope_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+	changed = first; changed.owner = !first.owner; flow.storage.slots[0] = changed;
+	bool owner_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+	flow.storage.slots[0] = first;
+	var original_functions = new int[len(flow.data.symbols)];
+	int n = 0;
+	while (n < len(original_functions)) {
+		original_functions[n] = flow.data.symbols[n];
+		n = n + 1;
+	}
+	var original_units = new int[count];
+	n = 0;
+	while (n < count) {
+		var slot = flow.storage.slots[n]; original_units[n] = slot.function;
+		var declaration = flow.checked.bindings.symbol(slot.symbol);
+		flow.data.symbols[declaration.owner.index] = 1;
+		slot.function = 1; flow.storage.slots[n] = slot;
+		n = n + 1;
+	}
+	bool per_function_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+	n = 0;
+	while (n < count) {
+		var slot = flow.storage.slots[n]; slot.function = original_units[n]; flow.storage.slots[n] = slot;
+		n = n + 1;
+	}
+	n = 0;
+	while (n < len(original_functions)) {
+		flow.data.symbols[n] = original_functions[n];
+		n = n + 1;
+	}
+	if (!count_rejected || !map_rejected || !function_rejected || !scope_rejected || !owner_rejected || !per_function_rejected || !recover_flow_verify(flow)) return false;
+	println("STORAGE_CONTROLS correspondence=5 per_function=1 restored=1");
+	return true;
+}
+
 bool template_text_view_controls(RecoverFlow flow) {
 	if (!recover_flow_verify(flow) || !recover_text_views_verified(flow)) return false;
 	int n = 0;
@@ -1100,7 +1153,7 @@ bool template_record_initializer_controls(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--text-view-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -1228,6 +1281,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--construction-inventory") return template_construction_inventory(flow);
 		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
+		if (args[1] == "--storage-controls") {
+			if (template_storage_controls(flow)) return 42;
+			return 8;
+		}
 		if (args[1] == "--text-view-controls") {
 			if (template_text_view_controls(flow)) return 42;
 			return 8;

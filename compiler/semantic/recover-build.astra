@@ -91,7 +91,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 			i = i + 1;
 		}
 	}
-	if (kind == SyntaxKind.FieldAccessExpressionSyntax() && !class_storage_slot_capacity(checked, source) && !getter) {
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax() && !class_storage_slot_capacity(checked, source) && !getter && !text_storage_field_length(checked, source)) {
 		row.kind = 6; row.symbol = recover_type_receiver(checked, source);
 		row.token = checked.bindings.program.arena.get_token_field_name(source);
 		if (row.symbol.index > 0 && checked_kind(checked, checked.symbol_types[row.symbol.index]) == 30) row.kind = 12;

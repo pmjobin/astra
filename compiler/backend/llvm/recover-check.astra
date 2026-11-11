@@ -207,7 +207,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 			if (!recover_llvm_native_attributes(operation, LLVMGetNumArgOperands(operation))) return false;
 		}
 		if (op >= 54 && op <= 58 || op == 61 || op == 64 || op == 76) {
-			instruction_count = recover_array_instruction_verified(ssa, block, physical, operation, layout, values, locals, operations, fixed_backings, index_functions, slice_functions, record_storage);
+			instruction_count = recover_array_instruction_verified(ssa, block, physical, operation, layout, values, locals, owner_addresses, operations, fixed_backings, index_functions, slice_functions, record_storage);
 			if (instruction_count == 0) return false;
 		}
 		if (op == 51 && !recover_caller_llvm_value(ssa.cfg.core.flow.checked, row, values[block.origin])) return false;

@@ -24,9 +24,19 @@ int text_view_parameter(string input) {
 }
 
 int text_view_receiver(TextViewOwner input) {
+	if (input.text.byte_length != 7) return 2;
 	var view = input.text;
 	var copy = (view);
 	if (copy != "message") return 1;
+	return copy.byte_length;
+}
+
+int text_view_selection(bool choose, string input) {
+	string name = "first";
+	if (choose) name = input;
+	var copy = name;
+	name = "second";
+	if (name != "second" || name.byte_length != 6) return 1;
 	return copy.byte_length;
 }
 
@@ -35,8 +45,9 @@ int main() {
 	{
 		var view = owner.text;
 		var copy = view;
-		if (view != "message" || copy.byte_length != 7) return 1;
+		if (view != "message" || copy.byte_length != 7 || owner.text.byte_length != 7) return 1;
 	}
 	if (text_view_receiver(owner) != 7 || text_view_parameter("caller") != 6) return 2;
+	if (text_view_selection(true, "caller") != 6 || text_view_selection(false, "caller") != 5) return 3;
 	return 42;
 }
