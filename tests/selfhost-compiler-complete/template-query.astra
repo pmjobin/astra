@@ -288,6 +288,42 @@ bool template_foreign_source_controls(CheckedIndex checked) throws Error {
 	return other_declarations > 0;
 }
 
+bool template_class_layout_controls(CheckedIndex checked) throws Error {
+	var layout = class_storage_plan(checked);
+	if (!class_storage_verify(layout, checked)) return false;
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
+		if (declaration.kind == 4 && checked.bindings.program.arena.token_is(declaration.token, "WideClass")) {
+			var type = checked.symbol_types[s]; var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = checked.bindings.program.arena.list_count(fields);
+			if (count < 128 || !class_storage_source_verified(checked, type, false, 0)) return false;
+			var first = checked.bindings.program.arena.node_at(fields, 0); var last = checked.bindings.program.arena.node_at(fields, count - 1); var field = checked.node_symbols[last.index];
+			int flags = checked.symbol_flags[field.index]; checked.symbol_flags[field.index] = 2;
+			bool refused = !class_storage_fields_verified(checked, type, 0); checked.symbol_flags[field.index] = flags;
+			if (!refused || !class_storage_verify(layout, checked)) return false;
+			checked.node_symbols[last.index] = checked.node_symbols[first.index];
+			refused = !class_storage_fields_verified(checked, type, 0); checked.node_symbols[last.index] = field;
+			if (!refused || !class_storage_verify(layout, checked)) return false;
+			var original_type = layout.types[type.index]; var changed_type = original_type; changed_type.fields = count - 1; layout.types[type.index] = changed_type;
+			refused = !class_storage_verify(layout, checked); layout.types[type.index] = original_type;
+			if (!refused || !class_storage_verify(layout, checked)) return false;
+			changed_type = original_type; changed_type.payload_size = original_type.payload_size + 1; layout.types[type.index] = changed_type;
+			refused = !class_storage_verify(layout, checked); layout.types[type.index] = original_type;
+			if (!refused || !class_storage_verify(layout, checked)) return false;
+			var original_field = layout.fields[field.index]; var changed_field = original_field; changed_field.ordinal = count - 2; layout.fields[field.index] = changed_field;
+			refused = !class_storage_verify(layout, checked); layout.fields[field.index] = original_field;
+			if (!refused || !class_storage_verify(layout, checked)) return false;
+			changed_field = original_field; changed_field.offset = original_field.offset + 1; layout.fields[field.index] = changed_field;
+			refused = !class_storage_verify(layout, checked); layout.fields[field.index] = original_field;
+			if (!refused || !class_storage_verify(layout, checked)) return false;
+			var output = new Utf8ByteBuilder(); source_append_text(output, "CLASS_LAYOUT_CONTROLS fields="); append_int(output, count); source_append_text(output, " source=2 layout=4 restored=1"); var text = output.snapshot(); println(text.text);
+			return true;
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
 int template_source_obligations(CheckedIndex checked) throws Error {
 	int s = 1; int classes = 0; int functions = 0; int rejected_classes = 0; int rejected_functions = 0;
 	while (s <= checked.bindings.symbol_count) {
@@ -328,7 +364,7 @@ int template_source_obligations(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--foreign-source-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -351,6 +387,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--foreign-source-controls") {
 			if (template_foreign_source_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--class-layout-controls") {
+			if (template_class_layout_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--records") return record_shape_cli(checked);

@@ -95,7 +95,9 @@ bool class_storage_declaration(CheckedIndex index, SymbolId symbol) {
 	}
 	int fields = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node));
 	if (finalizers != 0 && (finalizers != 1 || fields == 0 || generic_instance_for(index, symbol) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0)) return false;
-	return constructors == 1 && fields <= 128;
+	// Heap fields have one entry per real Binder symbol. Payload extent is
+	// separately bounded by the layout producer and its independent consumer.
+	return constructors == 1 && fields <= index.bindings.symbol_count;
 }
 
 // Recursive nominal ownership is deliberately outside this finite payload domain.

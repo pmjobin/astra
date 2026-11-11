@@ -127,7 +127,7 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 	if (descriptor.kind != 30 && descriptor.kind != 31) return false;
 	var declaration = checked.bindings.symbol(descriptor.nominal);
 	var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int count = checked.bindings.program.arena.list_count(fields);
-	if (count > 128 || descriptor.kind == 30 && count == 0) return false;
+	if (count > checked.bindings.symbol_count || descriptor.kind == 30 && (count == 0 || count > 128)) return false;
 	int i = count - 1;
 	while (i >= 0) {
 		var node = checked.bindings.program.arena.node_at(fields, i); var symbol = checked.node_symbols[node.index];
@@ -232,7 +232,9 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 					var node = checked.bindings.program.arena.node_at(fields, field); var symbol = checked.node_symbols[node.index];
 					var type = checked.symbol_types[symbol.index]; var child = plan.types[type.index]; var entry = plan.fields[symbol.index];
 					if (child.state != 2 || child.alignment < 1 || child.alignment > 8 || child.size < 1 || child.size > 16777216) return false;
-					extent = ((extent + child.alignment - 1) / child.alignment) * child.alignment;
+					int aligned = ((extent + child.alignment - 1) / child.alignment) * child.alignment;
+					if (aligned > 16777216 - child.size) return false;
+					extent = aligned;
 					if (entry.owner != t || entry.symbol != symbol.index || entry.ordinal != field || entry.semantic != type.index || entry.flags != checked.symbol_flags[symbol.index] || entry.offset != extent || seen[symbol.index]) return false;
 					seen[symbol.index] = true; extent = extent + child.size;
 					if (child.alignment > payload_alignment) payload_alignment = child.alignment;

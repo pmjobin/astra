@@ -307,6 +307,40 @@ observer successor scans every real Binder symbol through the foreign query
 before native emission. The matching production and observer C0 checks pass.
 Actual rerun qualification for these corrections is pending.
 
+## Heap-Class field population candidate
+
+The unchanged original `SyntaxArena` has 186 private fields. The focused
+`wide-class-oracles1` sources independently exercise 128, 129 and 186 scalar
+fields with original C0. All six O0/O2 ELFs return 42 with clean unsuppressed
+Valgrind. The frozen `572a933` Astra host emits verified LLVM for 128 fields
+and refuses 129 and 186 in Flow, preserving both output sentinels.
+
+The candidate extends heap-Class field admission to its actual Binder-indexed
+population. Each field still requires its source node, owner, type and flags.
+The layout's 16 MiB payload bound remains, and the independent consumer now
+checks the aggregate extent before adding each child. By-value records retain
+their 128-field domain. This is a heap-Class source-capacity change required
+by the original source. The generic 256 and SSA 8,000,000 ceilings remain.
+
+The tracked 186-field fixture passes the guarded formatter's AST preservation
+checks. The all-production and observer C0 frontend checks pass. New observer
+controls perturb the actual field binding, qualifier, field population,
+payload extent, ordinal and offset, restoring each before continuing.
+Their execution and native integration remain pending.
+
+`direct-source-independent-audit1` reauthenticates the frozen `2569232`
+observer's 107 consumed archived Git inputs and its tool identities, all 190
+unchanged original target inputs, eight original-C0 oracle ELFs and their
+memory receipts. It preserves the raw pointer-constructor assertion and
+attributes the 195.60-second original Typecore result to that exact observer.
+
+The separate `computed-property-oracles2` sources exercise the arithmetic,
+nested-field and method-call getter shapes used by original `SyntaxArena`.
+Original C0 executes all six O0/O2 ELFs to 42 with clean memory. The previous
+Astra host refuses each. The first oracle attempt retains its C0 rejection
+of a direct field allocation. The successor uses the required owned local
+and explicit move. Computed getters remain a source-admission obligation.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in
