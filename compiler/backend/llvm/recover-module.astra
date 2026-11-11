@@ -122,7 +122,7 @@ class RecoverLlvm {
 		this.class_snapshot = null;
 		this.utf8_function = null;
 		this.integer_functions = new void*[20];
-		this.index_functions = new void*[13];
+		this.index_functions = new void*[16];
 		this.slice_functions = new void*[13];
 		this.fixed_backings = new void*[ssa.cfg.core.count];
 		var shared_runtime = new RecoverSharedRuntime(null, null, null, null, null, null, null);
@@ -241,7 +241,7 @@ class RecoverLlvm {
 			var fields = new void*[3]; fields[0] = this.pointer; fields[1] = this.integer; fields[2] = this.integer;
 			return this.structure(fields);
 		}
-		if (kind == 27 || kind == 31) return this.pointer;
+		if (kind == 27 || kind == 31 || recover_storage_pointer(checked, type)) return this.pointer;
 		if (kind == 30) {
 			var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
 			var source = checked.bindings.program.arena.get_list_fields(declaration.node);
@@ -343,7 +343,7 @@ class RecoverLlvm {
 				int physical = count;
 				int p = 0;
 				while (p < count) {
-					if (checked.types.argument(checked.types, signature.callable, p + 1).type.index == 15) physical = physical + 1;
+					if (recover_foreign_counted(checked, checked.types.argument(checked.types, signature.callable, p + 1).type)) physical = physical + 1;
 					p = p + 1;
 				}
 				var parameters = new void*[physical];
@@ -351,7 +351,7 @@ class RecoverLlvm {
 				int at = 0;
 				while (p < count) {
 					var channel = checked.types.argument(checked.types, signature.callable, p + 1);
-					if (channel.type.index == 15) {
+					if (recover_foreign_counted(checked, channel.type)) {
 						parameters[at] = this.pointer;
 						parameters[at + 1] = this.integer;
 						at = at + 2;
@@ -681,7 +681,7 @@ class RecoverLlvm {
 			int at = 0;
 			while (p < row.count) {
 				int child = ssa.cfg.core.flow.data.edges[row.first + p];
-				if (ssa.cfg.core.nodes[child - 1].value.type.index == 15) {
+				if (recover_foreign_counted(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type)) {
 					arguments[at] = LLVMBuildExtractValue(this.builder, this.values[child], 0, this.empty);
 					arguments[at + 1] = LLVMBuildExtractValue(this.builder, this.values[child], 1, this.empty);
 					at = at + 2;
@@ -1495,8 +1495,8 @@ class RecoverLlvm {
 	}
 
 	bool array_helpers_verified(RecoverSsa ssa) throws Error {
-		if (len(this.index_functions) != 13 || len(this.slice_functions) != 13) return false;
-		var indices = new TypeId[13];
+		if (len(this.index_functions) != 16 || len(this.slice_functions) != 13) return false;
+		var indices = new TypeId[16];
 		var slices = new TypeId[13];
 		int b = 0;
 		while (b < ssa.cfg.block_count) {
@@ -1512,7 +1512,7 @@ class RecoverLlvm {
 					b = b + 1;
 					continue;
 				}
-				if (kind < 1 || kind > 13) return false;
+				if ((kind < 1 || kind > 13) && (block.opcode == 56 || !recover_storage_pointer(ssa.cfg.core.flow.checked, element))) return false;
 				if (block.opcode == 56) slices[kind - 1] = element;
 				else {
 					indices[kind - 1] = element;
@@ -1521,9 +1521,8 @@ class RecoverLlvm {
 			b = b + 1;
 		}
 		int k = 0;
-		while (k < 13) {
+		while (k < len(indices)) {
 			var indexed = indices[k];
-			var sliced = slices[k];
 			if (indexed.index > 0) {
 				var name = new Utf8ByteBuilder();
 				source_append_text(name, "astra.e25a.index.");
@@ -1534,6 +1533,11 @@ class RecoverLlvm {
 			} else {
 				if (this.index_functions[k] != null) return false;
 			}
+			if (k >= len(slices)) {
+				k = k + 1;
+				continue;
+			}
+			var sliced = slices[k];
 			if (sliced.index > 0) {
 				var name = new Utf8ByteBuilder();
 				source_append_text(name, "astra.e25a.slice.");
@@ -1646,9 +1650,9 @@ class RecoverLlvm {
 		}
 		int array_at = helper_count;
 		int array = 0;
-		while (array < 13) {
+		while (array < len(this.index_functions)) {
 			if (this.index_functions[array] != null) helper_count = helper_count + 1;
-			if (this.slice_functions[array] != null) helper_count = helper_count + 1;
+			if (array < len(this.slice_functions) && this.slice_functions[array] != null) helper_count = helper_count + 1;
 			array = array + 1;
 		}
 		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; helpers[13] = this.snapshot_allocate_function; if (this.class_snapshot != null) helpers[14] = this.class_snapshot;
@@ -1670,12 +1674,12 @@ class RecoverLlvm {
 			integer = integer + 1;
 		}
 		array = 0;
-		while (array < 13) {
+		while (array < len(this.index_functions)) {
 			if (this.index_functions[array] != null) {
 				helpers[array_at] = this.index_functions[array];
 				array_at = array_at + 1;
 			}
-			if (this.slice_functions[array] != null) {
+			if (array < len(this.slice_functions) && this.slice_functions[array] != null) {
 				helpers[array_at] = this.slice_functions[array];
 				array_at = array_at + 1;
 			}

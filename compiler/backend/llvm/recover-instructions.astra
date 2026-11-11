@@ -12,6 +12,7 @@ int recover_llvm_instruction_count(void* block) {
 
 bool recover_llvm_scalar_type(CheckedIndex checked, TypeId semantic, void* actual) {
 	int kind = checked_kind(checked, semantic);
+	if (recover_storage_pointer(checked, semantic)) return recover_shared_pointer(actual);
 	if (kind == 14) return LLVMGetTypeKind(actual) == 0;
 	if (kind == 11) return LLVMGetTypeKind(actual) == 2;
 	if (kind == 12) return LLVMGetTypeKind(actual) == 3;
@@ -46,7 +47,7 @@ bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* le
 		if (token.text == "%") index = index + 1;
 		return integer_functions[index] != null && recover_llvm_call(result, integer_functions[index], 2, 8) && recover_llvm_native_attributes(result, 2) && LLVMGetArgOperand(result, 0) == left && LLVMGetArgOperand(result, 1) == right && LLVMHasMetadata(result) == 0;
 	}
-	if (kind == 27 || kind == 31) {
+	if (kind == 27 || kind == 31 || recover_storage_pointer(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type)) {
 		if ((token.text != "==" && token.text != "!=") || !recover_shared_pointer(LLVMTypeOf(left)) || LLVMTypeOf(right) != LLVMTypeOf(left)) return false;
 		bool equal = token.text == "==";
 		if (LLVMIsAConstantInt(result) != null) {

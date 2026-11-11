@@ -52,7 +52,7 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		if (left.type.index != right.type.index) return false;
 		bool compare = checked.bindings.program.arena.token_is(row.token, "==") || checked.bindings.program.arena.token_is(row.token, "!=") || checked.bindings.program.arena.token_is(row.token, "<") || checked.bindings.program.arena.token_is(row.token, ">") || checked.bindings.program.arena.token_is(row.token, "<=") || checked.bindings.program.arena.token_is(row.token, ">=");
 		int code = checked_kind(checked, left.type);
-		bool pointer = recover_storage_class(checked, left.type) || recover_storage_error(checked, left.type) || recover_storage_shared(checked, left.type);
+		bool pointer = recover_storage_class(checked, left.type) || recover_storage_error(checked, left.type) || recover_storage_shared(checked, left.type) || recover_storage_pointer(checked, left.type);
 		if ((code == 15 || pointer) && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=")) return false;
 		if (!type_numeric(code) && code != 13 && code != 15 && !pointer || checked.bindings.program.arena.token_is(row.token, "/") && !type_numeric(code)) return false;
 		if ((checked.bindings.program.arena.token_is(row.token, "%") || checked.bindings.program.arena.token_is(row.token, "&") || checked.bindings.program.arena.token_is(row.token, "|") || checked.bindings.program.arena.token_is(row.token, "^")) && !type_integer(code)) return false;

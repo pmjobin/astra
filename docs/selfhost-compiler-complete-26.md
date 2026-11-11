@@ -121,8 +121,34 @@ The forward-field fixture reproduces the omission when an earlier field needs
 oracles execute to 42 with clean Valgrind at O0 and O2. The candidate revisits
 closed Class specializations after checking declaration heads. Their missing
 member signatures are established before concrete body checking. All ordinary
-generic verification and the 256-instance ceiling still apply. Fresh Flow and
-complete-original verification are pending.
+generic verification and the 256-instance ceiling still apply. The frozen
+`cf2a4c2` observer passes the forward fixture with 103 Flow nodes and the
+missing and duplicate member controls. All four original `Vector` declarations
+pass on the 190 unchanged inputs. The next refusal is `LlvmStorageCursor` in
+`compiler/backend/llvm/class-storage-slots-check.astra`, bytes 211–6700.
+
+## Opaque handle and counted C import candidate
+
+`LlvmStorageCursor` stores non-owning `void*` values and owned arrays of those
+values. Its constructor counts the incoming blocks before allocating the arrays
+and writes through initialized fields. The candidate uses the canonical opaque
+pointer type, preserves array owners and bounds, and verifies the initialization
+of constructor fields and scalar locals against the original binder. It checks
+every pointer load/store address and the unqualified C import conventions.
+
+`raw-pointer-c-oracles2` and `raw-pointer-constructor-oracles1` execute to 42 at
+O0 and O2 under original C0 with clean unsuppressed Valgrind. The raw C0 LLVM
+uses `ptr` and a full-width `i64` result for the actual C provider. The first
+oracle attempt retains the refusal of a link option on the LLVM dump command.
+`opaque-index-kernel1` matches the actual array helper declarations. Both
+profiles accept the opaque pointer GEP and refuse the LLVM-valid address-space
+and pointer-slice controls, alongside the existing scalar and record controls.
+
+The exact original hosted-files C0 dump separately verifies both byte-buffer
+imports with `(i32, ptr, i32, i32, i32)` channels. The candidate binds that
+transport only to the explicit `buffer_abi = "u8-i32"` declaration and its
+borrowed byte descriptor, with the actual data pointer and extent operands.
+Fresh integrated Flow and native qualification are pending.
 
 ## Core work and LLVM traversal candidate
 

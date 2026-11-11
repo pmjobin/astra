@@ -62,7 +62,7 @@ bool recover_array_type(CheckedIndex checked, TypeId type) {
 	if (kind != 22) return false;
 	var element = checked.types.argument(checked.types, type, 0);
 	int code = checked_kind(checked, element.type);
-	return element.flags == 0 && (type_numeric(code) || code == 13 || code == 30 && recover_storage_record(checked, element.type));
+	return element.flags == 0 && (type_numeric(code) || code == 13 || code == 30 && recover_storage_record(checked, element.type) || recover_storage_pointer(checked, element.type));
 }
 
 SymbolId recover_array_root(RecoverFlow flow, int value, bool write) {

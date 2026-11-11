@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Explicit C0 counted UTF8 import contract. This is a source noescape promise;
-// it never supplies LLVM readonly, nocapture, nonnull or memory attributes.
-bool checked_c_text_signature(CheckedIndex index, SymbolId symbol) {
+// Explicit C0 counted import contracts. Their source borrow promise supplies
+// neither LLVM alias attributes nor assumptions about the foreign body.
+bool checked_c_byte_buffer(CheckedIndex index, TypeId type) {
+	if (checked_kind(index, type) != 22 || index.types.row(type).count != 1) return false;
+	var element = index.types.argument(index.types, type, 0);
+	return element.type.index == 3 && element.flags == 0;
+}
+
+bool checked_c_counted_signature(CheckedIndex index, SymbolId symbol, bool buffer) {
 	if (!index.field_effects || !index.native_abi || !index.semantic_admission || symbol.index < 1 || symbol.index > index.bindings.symbol_count) return false;
 	var declaration = index.bindings.symbol(symbol);
 	if (declaration.kind != 1 || declaration.owner.index != 0 || index.bindings.program.arena.kind(declaration.node) != SyntaxKind.FunctionDeclarationSyntax()) return false;
@@ -13,10 +19,15 @@ bool checked_c_text_signature(CheckedIndex index, SymbolId symbol) {
 	var entry_node = index.bindings.program.arena.node_at(entries, 0);
 	if (index.bindings.program.arena.kind(entry_node) != SyntaxKind.CCodeEntrySyntax()) return false;
 	var entry = index.bindings.program.arena.c_code_entry(entry_node);
-	if (!index.bindings.program.arena.token_is(entry.f_key, "text_abi")) return false;
+	string key = "text_abi"; string abi = "utf8-i32";
+	if (buffer) {
+		key = "buffer_abi";
+		abi = "u8-i32";
+	}
+	if (!index.bindings.program.arena.token_is(entry.f_key, key)) return false;
 	try {
 		var decoded = index.bindings.program.arena.text_message(entry.f_decoded_value);
-		if (decoded.text != "utf8-i32") return false;
+		if (decoded.text != abi) return false;
 	} catch (Error caught) {
 		return false;
 	}
@@ -27,13 +38,13 @@ bool checked_c_text_signature(CheckedIndex index, SymbolId symbol) {
 	var shape = index.types.row(signature.callable);
 	var parameters = index.bindings.program.arena.get_list_parameters(node);
 	if (shape.kind != 25 || shape.count < 2 || shape.count > 257 || index.bindings.program.arena.list_count(parameters) != shape.count - 1) return false;
-	bool text = false;
+	bool counted = false;
 	int p = 0;
 	while (p < shape.count) {
 		var channel = index.types.argument(index.types, signature.callable, p);
-		if (checked_kind(index, channel.type) == 15) {
+		if (buffer && checked_c_byte_buffer(index, channel.type) || !buffer && checked_kind(index, channel.type) == 15) {
 			if (p == 0 || channel.flags != 2) return false;
-			text = true;
+			counted = true;
 		} else {
 			if (channel.flags != 0 || !checked_c_scalar_type(index, channel.type, p == 0)) return false;
 		}
@@ -44,5 +55,7 @@ bool checked_c_text_signature(CheckedIndex index, SymbolId symbol) {
 		}
 		p = p + 1;
 	}
-	return text;
+	return counted;
 }
+
+bool checked_c_text_signature(CheckedIndex index, SymbolId symbol) { return checked_c_counted_signature(index, symbol, false); }

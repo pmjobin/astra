@@ -23,7 +23,7 @@ bool recover_owner_source(RecoverFlowData flow, CheckedIndex checked, RecoverTyp
 		}
 		int callee = flow.symbols[row.symbol.index]; return callee > 0 && callee <= flow.function_count && !flow.functions[callee - 1].checked && flow.functions[callee - 1].result.index == 14;
 	}
-	if (row.kind == 13) return kind == SyntaxKind.NullPointerExpressionSyntax() && row.a == 0 && (checked_kind(checked, row.type) == 31 && (recover_storage_class(checked, row.type) || recover_storage_error(checked, row.type)) || recover_storage_shared(checked, row.type));
+	if (row.kind == 13) return kind == SyntaxKind.NullPointerExpressionSyntax() && row.a == 0 && (checked_kind(checked, row.type) == 31 && (recover_storage_class(checked, row.type) || recover_storage_error(checked, row.type)) || recover_storage_shared(checked, row.type) || recover_storage_pointer(checked, row.type));
 	if (row.kind == 14) {
 		if (kind != SyntaxKind.CallExpressionSyntax() || row.a != 0 || row.type.index != 1 || row.symbol.index != 0 || !checked_flow_intrinsic(checked, source) || row.count != 1) return false;
 		var arguments = checked_call_arguments(checked, source); if (checked.bindings.program.arena.list_count(arguments) != 1 || edges[row.first]) return false; edges[row.first] = true;

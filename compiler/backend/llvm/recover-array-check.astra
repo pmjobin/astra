@@ -13,7 +13,7 @@ bool recover_array_helper_signature(void* function, int parameters, string name,
 	if (record) {
 		if (kind != 10 || LLVMIsPackedStruct(element) != 0 || LLVMCountStructElementTypes(element) == 0) return false;
 	} else {
-		if (kind != 8 && kind != 2 && kind != 3) return false;
+		if (kind != 8 && kind != 2 && kind != 3 && !(parameters == 3 && recover_shared_pointer(element))) return false;
 	}
 	if (kind == 8) {
 		int width = LLVMGetIntTypeWidth(element);
