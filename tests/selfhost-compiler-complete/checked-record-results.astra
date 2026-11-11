@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct CheckedResultToken {
+	int index;
+	bool valid;
+	void* handle;
+}
+
+CheckedResultToken checked_record_result(bool fail) throws Error {
+	var pending = new int[2];
+	pending[0] = 40;
+	if (fail) {
+		throw new Error("record result failed");
+	}
+	CheckedResultToken result = {index = pending[0] + 2, valid = true, handle = null};
+	return result;
+}
+
+int main() {
+	CheckedResultToken value = {index = 1, valid = false, handle = null};
+	try {
+		value = checked_record_result(false);
+	} catch (Error error) {
+		return 1;
+	}
+	if (value.index != 42 || !value.valid || value.handle != null) return 2;
+	bool caught = false;
+	try {
+		value = checked_record_result(true);
+		return 3;
+	} catch (Error error) {
+		if (error.message != "record result failed") return 4;
+		caught = true;
+	}
+	if (!caught || value.index != 42 || !value.valid || value.handle != null) return 5;
+	return 42;
+}

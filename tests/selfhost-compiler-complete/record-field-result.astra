@@ -15,15 +15,18 @@ class RecordFieldResult {
 		this.values = new int[1];
 	}
 
-	ResultToken scan() {
+	ResultToken scan(bool fail) throws Error {
 		var grown = new int[3];
 		this.values = move grown;
+		if (fail) {
+			throw new Error("record field failed");
+		}
 		ResultToken result = {index = 42, valid = true, handle = null};
 		return result;
 	}
 
-	void refresh() {
-		this.current = this.scan();
+	void refresh(bool fail) throws Error {
+		this.current = this.scan(fail);
 	}
 
 	int count() {
@@ -32,9 +35,22 @@ class RecordFieldResult {
 }
 
 int main() {
-	var value = new RecordFieldResult();
-	value.refresh();
-	if (value.current.index != 42 || !value.current.valid || value.current.handle != null) return 1;
-	if (value.count() != 3) return 2;
-	return 42;
+	try {
+		var value = new RecordFieldResult();
+		value.refresh(false);
+		if (value.current.index != 42 || !value.current.valid || value.current.handle != null) return 1;
+		if (value.count() != 3) return 2;
+		bool caught = false;
+		try {
+			value.refresh(true);
+			return 3;
+		} catch (Error error) {
+			if (error.message != "record field failed") return 4;
+			caught = true;
+		}
+		if (!caught || value.current.index != 42 || !value.current.valid || value.current.handle != null) return 5;
+		return 42;
+	} catch (Error error) {
+		return 6;
+	}
 }

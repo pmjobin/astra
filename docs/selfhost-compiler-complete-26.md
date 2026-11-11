@@ -2181,6 +2181,25 @@ clean at both profiles. The normal-route complete C0 Core preflight passes.
 Updated actual source/native execution and restored record-store controls are
 pending. Full original native profiles proved remain0/2.
 
+The rebuilt source CLI at `b59c87c` passes75/75 focused checks, including the
+copied-record destination and restored receiver-move/type corruptions. A further
+C0-vetted fallible receiver method checks that failed record assignment leaves
+the previous destination intact after replacing an owned buffer. C0 O0/O2 and
+strict Valgrind pass. Application-mode Flow and both restored source controls
+pass under the rebuilt CLI.
+
+That supplement initially requested library mode with an application entry
+point. It refused the entry-point contract, and all nine printed global
+consumers passed. The raw invocation and its read-only diagnostic are retained.
+The corrected application-mode invocation is a separate receipt.
+
+The separate checked-record result fixture passes actual Astra LLVM, object,
+linked execution and strict Valgrind at O0/O2 under the `f7a4a0c` native host.
+It exercises success and throw paths, owned-buffer cleanup, mixed integer,
+boolean and opaque-pointer record fields, and preservation of the previous local
+record after a failed checked call. The original parser's fallible record-return
+ABI therefore has focused actual native coverage before whole-module testing.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
