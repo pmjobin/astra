@@ -369,6 +369,111 @@ bool template_getter_controls(CheckedIndex checked) throws Error {
 	return false;
 }
 
+bool template_shared_constructor_controls(CheckedIndex checked) throws Error {
+	if (!generic_verify(checked)) return false;
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var function = type_symbol(s); var plan = checked_source_plan(checked, function);
+		if (plan.concrete.index == s && class_storage_initializing(checked, function)) {
+			var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
+			if (checked.bindings.program.arena.token_is(owner.token, "ClassStoragePlan")) {
+				if (!recover_field_constructor_verified(checked, function)) return false;
+				var declaration = checked.bindings.symbol(function); var body = checked.bindings.program.arena.get_node_body(declaration.node); var statements = checked.bindings.program.arena.get_list_statements(body);
+				if (checked.bindings.program.arena.list_count(statements) < 3) return false;
+				var first = checked.bindings.program.arena.node_at(statements, 0); var second = checked.bindings.program.arena.node_at(statements, 1); var third = checked.bindings.program.arena.node_at(statements, 2);
+				var acquire = checked.bindings.program.arena.get_node_initializer(second); var moved = checked.bindings.program.arena.get_node_expression(third); var local = checked.node_symbols[second.index];
+				if (checked_shared_action(checked, acquire) != 1 || checked.bindings.program.arena.kind(moved) != SyntaxKind.MoveExpressionSyntax()) return false;
+				var initialized = new bool[checked.bindings.symbol_count + 1];
+				if (recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0)) return false;
+				if (!recover_constructor_statement(checked, first, function, plan.enclosing, initialized, 0) || !recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0)) return false;
+				if (recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0)) return false;
+				if (!recover_constructor_statement(checked, second, function, plan.enclosing, initialized, 0) || !initialized[local.index] || !recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0)) return false;
+				initialized[local.index] = false;
+				if (recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0)) return false;
+				initialized[local.index] = true;
+				var original = checked.uses[acquire.index]; var changed = original; changed.flags = 0; checked.uses[acquire.index] = changed;
+				bool refused = !recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0); checked.uses[acquire.index] = original;
+				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
+				changed = original; changed.deferred = 0; checked.uses[acquire.index] = changed;
+				refused = !recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0); checked.uses[acquire.index] = original;
+				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
+				int flags = checked.symbol_flags[local.index]; checked.symbol_flags[local.index] = 2;
+				refused = !recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0); checked.symbol_flags[local.index] = flags;
+				if (!refused || !recover_field_constructor_verified(checked, function) || !generic_verify(checked)) return false;
+				println("SHARED_CTOR_CONTROLS transitions=5 source=3 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
+bool template_match_copy_controls(CheckedIndex checked) throws Error {
+	int s = 1;
+	while (s <= checked.generic_symbols) {
+		var plan = checked.direct_methods[s];
+		if (plan.state == 2) {
+			SyntaxNodeId match_node = {index = 0};
+			SyntaxNodeId arm = {index = 0};
+			SyntaxNodeId binding = {index = 0};
+			int n = 1;
+			while (n <= checked.generic_nodes) {
+				SyntaxNodeId original = {index = n};
+				if (generic_node(checked, plan, n) != 0) {
+					var kind = checked.bindings.program.arena.kind(original);
+					if (kind == SyntaxKind.MatchStatementSyntax()) match_node = original;
+					if (kind == SyntaxKind.EnumArmSyntax() && checked.bindings.program.arena.get_token_variant(original).index != 0) arm = original;
+					if (kind == SyntaxKind.EnumBindingSyntax() && checked.bindings.program.arena.get_token_field(original).index != 0) binding = original;
+				}
+				n = n + 1;
+			}
+			if (match_node.index != 0 && arm.index != 0 && binding.index != 0) {
+				SyntaxNodeId concrete_match = {index = generic_node(checked, plan, match_node.index)};
+				SyntaxNodeId concrete_arm = {index = generic_node(checked, plan, arm.index)};
+				SyntaxNodeId concrete_binding = {index = generic_node(checked, plan, binding.index)};
+				SyntaxNodeId absent_node = {index = 0};
+				SyntaxListId absent_list = {index = 0};
+				SyntaxTokenId absent_token = {index = 0};
+				var scrutinee = checked.bindings.program.arena.get_node_scrutinee(concrete_match);
+				checked.bindings.program.arena.set_node_scrutinee(concrete_match, absent_node);
+				bool refused = !generic_check_node(checked, plan, match_node);
+				checked.bindings.program.arena.set_node_scrutinee(concrete_match, scrutinee);
+				if (!refused || !generic_verify(checked)) return false;
+				var arms = checked.bindings.program.arena.get_list_arms(concrete_match);
+				checked.bindings.program.arena.set_list_arms(concrete_match, absent_list);
+				refused = !generic_check_node(checked, plan, match_node);
+				checked.bindings.program.arena.set_list_arms(concrete_match, arms);
+				if (!refused || !generic_verify(checked)) return false;
+				var body = checked.bindings.program.arena.get_node_body(concrete_arm);
+				checked.bindings.program.arena.set_node_body(concrete_arm, absent_node);
+				refused = !generic_check_node(checked, plan, arm);
+				checked.bindings.program.arena.set_node_body(concrete_arm, body);
+				if (!refused || !generic_verify(checked)) return false;
+				var variant = checked.bindings.program.arena.get_token_variant(concrete_arm);
+				checked.bindings.program.arena.set_token_variant(concrete_arm, absent_token);
+				refused = !generic_check_node(checked, plan, arm);
+				checked.bindings.program.arena.set_token_variant(concrete_arm, variant);
+				if (!refused || !generic_verify(checked)) return false;
+				var field = checked.bindings.program.arena.get_token_field(concrete_binding);
+				checked.bindings.program.arena.set_token_field(concrete_binding, absent_token);
+				refused = !generic_check_node(checked, plan, binding);
+				checked.bindings.program.arena.set_token_field(concrete_binding, field);
+				if (!refused || !generic_verify(checked)) return false;
+				var name = checked.bindings.program.arena.get_token_binding(concrete_binding);
+				checked.bindings.program.arena.set_token_binding(concrete_binding, absent_token);
+				refused = !generic_check_node(checked, plan, binding);
+				checked.bindings.program.arena.set_token_binding(concrete_binding, name);
+				if (!refused || !generic_verify(checked)) return false;
+				println("MATCH_COPY_CONTROLS edges=3 tokens=3 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
 int template_source_obligations(CheckedIndex checked) throws Error {
 	int s = 1; int classes = 0; int functions = 0; int rejected_classes = 0; int rejected_functions = 0;
 	while (s <= checked.bindings.symbol_count) {
@@ -409,7 +514,7 @@ int template_source_obligations(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -428,6 +533,14 @@ int main(string[] args) {
 		}
 		if (args[1] == "--constructor-local-controls") {
 			if (template_constructor_local_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--shared-constructor-controls") {
+			if (template_shared_constructor_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--match-copy-controls") {
+			if (template_match_copy_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--foreign-source-controls") {

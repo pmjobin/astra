@@ -229,6 +229,23 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
 			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_for_statement(data, header.span, header.depth);
 		}
+		case SyntaxKind.MatchStatementSyntax(): {
+			var data = index.bindings.program.arena.match_statement(original);
+			data.f_scrutinee = generic_copy_node(index, plan, data.f_scrutinee, depth + 1);
+			data.f_arms = generic_copy_list(index, plan, data.f_arms, syntax_kind_code(SyntaxKind.EnumArmSyntax()), depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_match_statement(data, header.span, header.depth);
+		}
+		case SyntaxKind.EnumArmSyntax(): {
+			var data = index.bindings.program.arena.enum_arm(original);
+			data.f_type_arguments = generic_copy_list(index, plan, data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()), depth + 1);
+			data.f_bindings = generic_copy_list(index, plan, data.f_bindings, syntax_kind_code(SyntaxKind.EnumBindingSyntax()), depth + 1);
+			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_enum_arm(data, header.span, header.depth);
+		}
+		case SyntaxKind.EnumBindingSyntax(): {
+			var data = index.bindings.program.arena.enum_binding(original);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_enum_binding(data, header.span, header.depth);
+		}
 		case SyntaxKind.AssignmentStatementSyntax(): {
 			var data = index.bindings.program.arena.assignment_statement(original);
 			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);

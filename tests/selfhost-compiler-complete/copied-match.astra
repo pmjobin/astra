@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+enum CopiedChoice {
+	Empty,
+	Data(int value),
+}
+
+class CopiedMatchReader {
+	int bias;
+
+	init(int bias) {
+		this.bias = bias;
+	}
+
+	int evaluate(int input) {
+		var choice = CopiedChoice.Data(input);
+		match (choice) {
+			case CopiedChoice.Empty(): {
+				return this.bias;
+			}
+			case CopiedChoice.Data(value = payload): {
+				return payload + this.bias;
+			}
+		}
+	}
+}
+
+int main() {
+	var reader = new CopiedMatchReader(2);
+	return reader.evaluate(40);
+}

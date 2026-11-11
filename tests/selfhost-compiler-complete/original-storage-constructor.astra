@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Paired with the unchanged original storage declarations and TypeOwner.
+int main() {
+	var plan = new ClassStoragePlan(2, 2);
+	if (len(plan.types) != 2 || len(plan.fields) != 2 || !plan.active || plan.pointer_size != 8) return 1;
+	plan.close();
+	if (plan.active) return 2;
+	return 42;
+}

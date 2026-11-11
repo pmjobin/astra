@@ -97,13 +97,13 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 		var declaration = checked.bindings.symbol(symbol);
 		if (declaration.owner.index != function.index || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 		if (declaration.kind == 7) return symbol.index != class_storage_receiver(checked, function);
-		return declaration.kind == 8 && initialized[symbol.index] && (checked.symbol_flags[symbol.index] == 0 || checked.symbol_flags[symbol.index] == 4 && recover_storage_class(checked, checked.symbol_types[symbol.index]));
+		return declaration.kind == 8 && initialized[symbol.index] && (checked.symbol_flags[symbol.index] == 0 || checked.symbol_flags[symbol.index] == 4 && (recover_storage_class(checked, checked.symbol_types[symbol.index]) || recover_storage_shared(checked, checked.symbol_types[symbol.index])));
 	}
 	if (kind == SyntaxKind.MoveExpressionSyntax()) {
 		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_source(node));
 		if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_flags[symbol.index] != 4 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0) return false;
 		var declaration = checked.bindings.symbol(symbol);
-		return declaration.kind == 7 || declaration.kind == 8 && initialized[symbol.index] && recover_storage_class(checked, checked.symbol_types[symbol.index]) && checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node));
+		return declaration.kind == 7 || declaration.kind == 8 && initialized[symbol.index] && (recover_storage_class(checked, checked.symbol_types[symbol.index]) || recover_storage_shared(checked, checked.symbol_types[symbol.index])) && checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node));
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, depth + 1);
@@ -162,7 +162,20 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var arguments = checked_call_arguments(checked, node);
-		if (checked_shared_action(checked, node) == 3) return checked.bindings.program.arena.list_count(arguments) == 1 && recover_constructor_value(checked, checked.bindings.program.arena.node_at(arguments, 0), function, aggregate, initialized, depth + 1);
+		int shared = checked_shared_action(checked, node);
+		if (shared != 0) {
+			if (checked.bindings.program.arena.list_count(arguments) != 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0 || checked.bindings.program.arena.get_token_receiver(node).index != 0 || checked.bindings.program.arena.get_node_receiver_place(node).index != 0) return false;
+			var operand = checked.bindings.program.arena.node_at(arguments, 0); var use = checked.uses[node.index]; var input = checked.uses[operand.index];
+			if (use.deferred != 19) return false;
+			if (shared == 1) {
+				if (checked.bindings.program.arena.kind(operand) != SyntaxKind.MoveExpressionSyntax() || use.flags != 4 || !recover_storage_shared(checked, use.type) || input.type.index != checked.types.argument(checked.types, use.type, 0).type.index || !recover_storage_class(checked, input.type)) return false;
+			} else {
+				if (!recover_storage_shared(checked, input.type)) return false;
+				if (shared == 2 && (use.flags != 4 || use.type.index != input.type.index)) return false;
+				if (shared == 3 && (use.flags != 2 || use.type.index != checked.types.argument(checked.types, input.type, 0).type.index)) return false;
+			}
+			return recover_constructor_value(checked, operand, function, aggregate, initialized, depth + 1);
+		}
 		var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
 		if (target.index < 1 || target.index > checked.bindings.symbol_count || checked.bindings.symbol(target).owner.index != 0) return false;
 		bool foreign = recover_foreign_source(checked, target);
@@ -256,7 +269,10 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 	if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).kind != 8 || checked.bindings.symbol(symbol).owner.index != function.index || initialized[symbol.index] != assignment || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 	var type = checked.symbol_types[symbol.index];
 	bool owned_class = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_class(checked, type) && value.index > 0 && checked.bindings.program.arena.kind(value) == SyntaxKind.HeapObjectConstructionSyntax();
-	if (!owned_class && (checked.symbol_flags[symbol.index] != 0 || !type_numeric(checked_kind(checked, type)) && type.index != 13 && !recover_storage_pointer(checked, type))) return false;
+	int shared = 0;
+	if (value.index > 0) shared = checked_shared_action(checked, value);
+	bool owned_shared = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_shared(checked, type) && (shared == 1 || shared == 2);
+	if (!owned_class && !owned_shared && (checked.symbol_flags[symbol.index] != 0 || !type_numeric(checked_kind(checked, type)) && type.index != 13 && !recover_storage_pointer(checked, type))) return false;
 	if (value.index == 0 || checked.uses[value.index].type.index != type.index || !recover_constructor_value(checked, value, function, aggregate, initialized, depth + 1)) return false;
 	initialized[symbol.index] = true;
 	return true;

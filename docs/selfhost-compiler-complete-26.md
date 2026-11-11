@@ -418,6 +418,42 @@ search, function-table bounds, calling convention and actual instruction checks.
 Its all-production C0 frontend check passes. Matching native qualification,
 including descriptor cleanup and finalizer mutations, remains pending.
 
+## Match source copying and constructor Shared locals candidate
+
+The frozen `5b4f8ca` observer passes all 20 focused cases, including four
+computed-getter shapes with seven restored controls each. Its full 190-input
+original-source attempt stops while copying `BindingIndex.schedule_children`
+at the original `match` statement. Both Typecore and Flow attempts retain that
+literal source-copy failure.
+
+The generator now includes MatchStatement, EnumArm and EnumBinding payloads.
+The copier follows the actual scrutinee, arm, binding and body edges. Its
+separate generated consumer compares those edges and the original tokens.
+A named-payload method fixture executes to 42 under original C0 at O0/O2,
+with clean unsuppressed Valgrind. The earlier observer refuses its body copy.
+Six copied-edge/token mutations have been added to the focused observer and
+await matching execution.
+
+Constructor source checks now admit initialized owned Shared locals produced
+by the actual `shared_acquire` and `shared_clone` operations. They verify the
+canonical Shared/Class types, explicit acquisition move, conditional use flags,
+real source accessibility and current initialization state. Existing independent
+owner and memory consumers still qualify acquisition, movement and retirement.
+The unchanged original ClassStoragePlan constructor and TypeOwner fragments
+execute to 42 with original C0 at both profiles and clean unsuppressed Valgrind.
+The previous native host preserves its refusal and output sentinel. Five local
+initialization transitions and three source mutations await matching execution.
+
+The unchanged formatter uses the restored exact pinned Python 3.15.0 executable,
+SHA-256 `8f9b3657aa73659bdee8d4ff9da604fba390870be227a8c626029c2402cb063c`,
+inside a read-only task capsule. The Fedora Koji packages have valid header and
+payload digests with no OpenPGP signatures. The executable matches the existing
+repository hash, and the extracted dependency bytes have a separate inventory.
+Installed Python, formatter pins and workflow scripts retain their identities.
+The seven selected source guards, generator consistency check and both
+development entries' all-source C0 frontend checks pass.
+Full-original native qualification remains zero of two profiles.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in
