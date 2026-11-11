@@ -1320,6 +1320,35 @@ bool template_scalar_store_controls(RecoverFlow flow) throws Error {
 	return false;
 }
 
+bool template_buffer_rebind_controls(RecoverFlow flow) throws Error {
+	if (!recover_flow_verify(flow)) return false;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 43 && row.a > 0 && flow.data.nodes[row.a - 1].kind == 9) {
+			var producer = flow.data.nodes[row.a - 1];
+			var use = flow.checked.uses[producer.source.index];
+			var changed_use = use; changed_use.flags = use.flags & ~4;
+			flow.checked.uses[producer.source.index] = changed_use;
+			bool source_rejected = !recover_flow_verify(flow);
+			flow.checked.uses[producer.source.index] = use;
+			var changed = producer; changed.kind = 10; changed.symbol = row.symbol;
+			flow.data.nodes[row.a - 1] = changed;
+			bool producer_rejected = !recover_flow_verify(flow);
+			flow.data.nodes[row.a - 1] = producer;
+			int flags = flow.checked.symbol_flags[row.symbol.index];
+			flow.checked.symbol_flags[row.symbol.index] = 2;
+			bool qualifier_rejected = !recover_flow_verify(flow);
+			flow.checked.symbol_flags[row.symbol.index] = flags;
+			if (!source_rejected || !producer_rejected || !qualifier_rejected || !recover_flow_verify(flow)) return false;
+			println("BUFFER_REBIND_CONTROLS source=1 producer=1 qualifier=1 restored=1");
+			return true;
+		}
+		n = n + 1;
+	}
+	return false;
+}
+
 bool template_source_string_controls(RecoverFlow flow) throws Error {
 	if (!recover_flow_verify(flow) || !recover_payload_calls_verified(flow)) return false;
 	bool literal_checked = false;
@@ -1407,7 +1436,7 @@ bool template_payload_read_controls(RecoverFlow flow) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--flow-proofs" && args[1] != "--construction-inventory" && args[1] != "--source-string-controls" && args[1] != "--pointer-store-controls" && args[1] != "--payload-read-controls" && args[1] != "--binding-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--flow-proofs" && args[1] != "--construction-inventory" && args[1] != "--source-string-controls" && args[1] != "--pointer-store-controls" && args[1] != "--buffer-rebind-controls" && args[1] != "--payload-read-controls" && args[1] != "--binding-controls" && args[1] != "--record-order-controls" && args[1] != "--slot-borrow-controls" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -1542,6 +1571,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--source-string-controls") {
 			if (!template_source_string_controls(flow)) return 6;
+			return 42;
+		}
+		if (args[1] == "--buffer-rebind-controls") {
+			if (!template_buffer_rebind_controls(flow)) return 6;
 			return 42;
 		}
 		if (args[1] == "--pointer-store-controls") {

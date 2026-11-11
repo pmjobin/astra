@@ -2200,6 +2200,51 @@ boolean and opaque-pointer record fields, and preservation of the previous local
 record after a failed checked call. The original parser's fallible record-return
 ABI therefore has focused actual native coverage before whole-module testing.
 
+## Complete original Flow and the next current-source refusal
+
+The `b59c87c` O0 source observer reports `FLOW 0 0 284425` for all190 original
+inputs. All nine independently invoked global consumers return1. Its final
+independent whole-Flow recheck is still running. The focused sequence passes
+75/75 checks. Current-source Flow separately reports status1 with all nine
+global consumers returning1.
+
+An optimized read-only diagnostic identifies current `RecoverLlvm.slot_helpers`
+as the first refusing function. A small C0-vetted program reproduces its direct
+owned pointer-buffer reassignment. C0 O0/O2 execute42 with clean strict memory.
+The previous Astra native host refuses before LLVM publication. The retained
+tree contains exactly two owned-buffer rebindings, both produced by actual
+buffer-allocation nodes. The existing rule already accepts owning factory calls.
+The candidate additionally accepts independently source-verified buffer
+allocation, retaining the local declaration, exact type, qualifier and child
+checks. New controls corrupt allocation ownership, producer correspondence and
+the destination qualifier, then require restored whole verification.
+
+## String descriptor bounds helpers
+
+The `f7a4a0c` native library reaches valid SSA for the string-argument fixture and
+refuses its physical contract. Its raw exit5 and output sentinel are retained.
+Three smaller libraries covering literal return, parameter length and nested
+calls emit LLVM. The indexed-descriptor variant reproduces the refusal.
+
+A read-only native diagnostic identifies the scalar element-kind guard inside
+the bounds-helper signature check. The source-qualified builtin string carrier
+is an unpacked pointer/int32 structure. The candidate selects the existing
+struct bounds-shape consumer for that builtin after independent storage-type
+verification. The primitive helper API retains its previous checks.
+
+Seventeen exact production physical helpers pass a C0 O0/O2 kernel with clean
+strict Valgrind. Both descriptor and scalar positives pass. Six LLVM-valid
+corruptions of stride, signed bounds, guard combination, pointer flags, selected
+index and returned address are rejected. The first two fixture builds fail for
+missing C declarations and remain preserved. This kernel grants zero actual
+Astra native or whole-original qualification. Integrated updated execution is
+pending.
+
+The combined changes pass the complete normal C0 Core preflight and the source
+observer's Core preflight. The unchanged source guard accepts all four selected
+Astra files. The earlier complete normal `b59c87c` O0 test host cold build takes
+1h07m27s with peak2,705,152 KiB RSS. Its production bytes precede these two fixes.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

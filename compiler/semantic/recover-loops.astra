@@ -86,7 +86,7 @@ bool recover_loop_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 		producer = flow.nodes[producer - 1].a;
 		steps = steps + 1;
 	}
-	return producer > 0 && producer <= flow.node_count && steps < 192 && flow.nodes[producer - 1].kind == 4 && (checked.uses[flow.nodes[producer - 1].source.index].flags & 4) != 0;
+	return producer > 0 && producer <= flow.node_count && steps < 192 && (flow.nodes[producer - 1].kind == 4 || flow.nodes[producer - 1].kind == 9) && (checked.uses[flow.nodes[producer - 1].source.index].flags & 4) != 0;
 }
 
 bool recover_mutable(RecoverFlowData flow, SymbolId symbol) {

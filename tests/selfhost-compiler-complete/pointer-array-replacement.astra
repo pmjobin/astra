@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned void*[] replacement_parameters(int count) {
+	var result = new void*[count];
+	return move result;
+}
+
+int main() {
+	int action = 1;
+	while (action <= 5) {
+		var parameters = new void*[2];
+		if (action == 4) parameters = new void*[3];
+		if (action == 5) parameters = new void*[1];
+		parameters[0] = null;
+		if (action != 5) parameters[1] = null;
+		if (action == 4) parameters[2] = null;
+		action = action + 1;
+	}
+	var final_parameters = replacement_parameters(2);
+	final_parameters = replacement_parameters(3);
+	if (len(final_parameters) != 3 || final_parameters[0] != null) return 1;
+	return 42;
+}

@@ -1666,7 +1666,7 @@ class RecoverLlvm {
 				append_int(name, k + 1);
 				var text = name.snapshot();
 				var element = this.scalar(ssa.cfg.core.flow.checked, indexed);
-				if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function)) return false;
+				if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_shape_verified(this.index_functions[k], element, text.text, this.trap_function, indexed.index == 15)) return false;
 			} else {
 				if (this.index_functions[k] != null) return false;
 			}
