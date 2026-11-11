@@ -2135,6 +2135,22 @@ same Fedora Koji release. Header/payload digests pass, while those HTTPS RPMs
 lack OpenPGP signatures. The exact executable, package and dependency hashes are
 recorded. Installed tools and formatter pins are unchanged.
 
+## Targeted signature exchange qualification
+
+The normal complete test entry now has a pending `--signature-owner-controls`
+route. It selects the actual `CheckedIndex.add_signature` exchange, checks its
+source field path and fresh `grown` allocation, and requires the actual receiver
+to remain a borrowed parameter with owner=false. The separate grown slot must be
+an initialized owner. Five authored controls corrupt receiver ownership, field
+path, writability, cleanup rank and grown ownership, then restore each state.
+Three authored LLVM-valid controls corrupt the real exchange values or address.
+The final physical consumer must accept the restored whole module.
+
+The project normal-route C0 Core preflight passes. Actual execution of these
+controls and the original integrated signature growth remain pending. Historical
+graph55/symbol2053/predicate26 remains independently DEFERRED. This test route
+creates no owning receiver root and grants no qualification before execution.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

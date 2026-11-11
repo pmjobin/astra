@@ -1,4 +1,82 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int recover_signature_exchange_controls(RecoverFlow flow) throws Error {
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 45) {
+			var function = flow.data.functions[row.function - 1].symbol;
+			var declaration = flow.checked.bindings.symbol(function);
+			var plan = checked_source_plan(flow.checked, function);
+			if (flow.checked.bindings.program.arena.token_is(declaration.token, "add_signature") && plan.enclosing.index > 0) {
+				var nominal = flow.checked.bindings.symbol(flow.checked.types.row(plan.enclosing).nominal);
+				if (flow.checked.bindings.program.arena.token_is(nominal.token, "CheckedIndex")) {
+					var left = flow.data.nodes[row.a - 1]; var right = flow.data.nodes[row.b - 1];
+					if (left.kind != 17 || right.kind != 2 || left.type.index != right.type.index) return 0;
+					var fact = flow.fields.facts[left.source.index];
+					var field = flow.checked.bindings.symbol(fact.field);
+					var local = flow.checked.bindings.symbol(right.symbol);
+					if (!flow.checked.bindings.program.arena.token_is(field.token, "signatures") || !flow.checked.bindings.program.arena.token_is(local.token, "grown") || local.kind != 8 || local.owner.index != function.index || flow.checked.bindings.program.arena.kind(flow.checked.bindings.program.arena.get_node_initializer(local.node)) != SyntaxKind.BufferAllocationSyntax()) return 0;
+					int grown = flow.storage.symbols[right.symbol.index];
+					if (fact.parent != 0 || !fact.writable || fact.initializing || fact.aggregate.index != plan.enclosing.index || fact.receiver.index != class_storage_receiver(flow.checked, function) || grown < 1 || grown == fact.slot) return 0;
+					var receiver = flow.storage.slots[fact.slot - 1]; var incoming = flow.storage.slots[grown - 1];
+					if (!receiver.parameter || receiver.owner || receiver.flags != 2 || receiver.function != row.function || !incoming.owner || incoming.parameter || incoming.flags != 4 || incoming.function != row.function || !recover_exchange_place(flow, row.a) || !recover_exchange_place(flow, row.b)) return 0;
+					var forged = receiver; forged.owner = true; flow.storage.slots[fact.slot - 1] = forged;
+					bool owner_rejected = !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols);
+					flow.storage.slots[fact.slot - 1] = receiver;
+					if (!owner_rejected || !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols)) return 0;
+					var changed = fact; changed.parent = row.b; flow.fields.facts[left.source.index] = changed;
+					bool path_rejected = !recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data);
+					flow.fields.facts[left.source.index] = fact;
+					if (!path_rejected || !recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data)) return 0;
+					changed = fact; changed.writable = false; flow.fields.facts[left.source.index] = changed;
+					bool writable_rejected = !recover_exchange_place(flow, row.a);
+					flow.fields.facts[left.source.index] = fact;
+					changed = fact; changed.cleanup_rank = fact.cleanup_rank + 1; flow.fields.facts[left.source.index] = changed;
+					bool cleanup_rejected = !recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data);
+					flow.fields.facts[left.source.index] = fact;
+					forged = incoming; forged.owner = false; flow.storage.slots[grown - 1] = forged;
+					bool grown_rejected = !recover_exchange_place(flow, row.b);
+					flow.storage.slots[grown - 1] = incoming;
+					if (!writable_rejected || !cleanup_rejected || !grown_rejected || !recover_flow_verify(flow)) return 0;
+					var output = new Utf8ByteBuilder();
+					source_append_text(output, "SIGNATURE_EXCHANGE_SOURCE receiver_slot="); append_int(output, fact.slot);
+					source_append_text(output, " receiver_owner=0 grown_slot="); append_int(output, grown);
+					source_append_text(output, " controls=5 restored=1 ");
+					binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(row.source).span, output);
+					var text = output.snapshot(); println(text.text);
+					return n + 1;
+				}
+			}
+		}
+		n = n + 1;
+	}
+	return 0;
+}
+
+bool recover_signature_exchange_llvm_controls(RecoverLlvm module, RecoverSsa ssa, int exchange) throws Error {
+	int id = ssa.cfg.regions[exchange - 1].operation;
+	if (id < 1 || id > ssa.cfg.block_count) return false;
+	var block = ssa.cfg.blocks[id - 1];
+	if (block.opcode != 45 || block.origin != exchange) return false;
+	void* physical = module.blocks[id - 1]; void* operation = module.operations[id - 1];
+	if (!recover_exchange_verified(ssa, block, physical, operation, module.values, module.owner_addresses)) return false;
+	var first = LLVMGetFirstInstruction(physical); var last = LLVMGetNextInstruction(first);
+	var first_value = LLVMGetOperand(first, 0); var last_value = LLVMGetOperand(last, 0);
+	var first_address = LLVMGetOperand(first, 1); var last_address = LLVMGetOperand(last, 1);
+	LLVMSetOperand(first, 0, last_value);
+	bool first_rejected = llvm12_verify(module.module) == 0 && !recover_exchange_verified(ssa, block, physical, operation, module.values, module.owner_addresses);
+	LLVMSetOperand(first, 0, first_value);
+	LLVMSetOperand(last, 0, first_value);
+	bool last_rejected = llvm12_verify(module.module) == 0 && !recover_exchange_verified(ssa, block, physical, operation, module.values, module.owner_addresses);
+	LLVMSetOperand(last, 0, last_value);
+	LLVMSetOperand(first, 1, last_address);
+	bool address_rejected = llvm12_verify(module.module) == 0 && !recover_exchange_verified(ssa, block, physical, operation, module.values, module.owner_addresses);
+	LLVMSetOperand(first, 1, first_address);
+	if (!first_rejected || !last_rejected || !address_rejected || !module.check(ssa)) return false;
+	println("SIGNATURE_EXCHANGE_LLVM_CONTROLS valid_physical=3 restored=1");
+	return true;
+}
+
 int main(string[] args) {
 	if (len(args) > 2 && args[1] == "--r4-source-policy") return recover_r4_observe_cli(args);
 	if (len(args) > 4 && args[1] == "--r4-field-adversarial") return recover_r4_mutations_cli(args);
@@ -7,9 +85,10 @@ int main(string[] args) {
 	if (len(args) > 4 && args[1] == "--loop-adversarial") return recover_loop_mutations_cli(args);
 	if (len(args) > 4 && args[1] == "--owner-adversarial") return recover_owner_mutations_cli(args);
 	if (len(args) > 4 && args[1] == "--adversarial") return recover_mutations_cli(args);
-	bool library = args[1] == "--native-module";
+	bool signature_controls = args[1] == "--signature-owner-controls";
+	bool library = args[1] == "--native-module" || signature_controls;
 	try {
-		int start = 2; if (args[1] == "--native" || library) start = 3;
+		int start = 2; if (args[1] == "--native" || args[1] == "--native-module") start = 3;
 		var program = binding_load_program(args, start); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
 		if (checked.failed()) {
@@ -35,6 +114,14 @@ int main(string[] args) {
 			return 8;
 		}
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
+		if (signature_controls) {
+			int exchange = recover_signature_exchange_controls(ssa.cfg.core.flow);
+			if (exchange == 0 || !recover_ssa_verify(ssa)) return 19;
+			var module = new RecoverLlvm(ssa);
+			module.build(ssa);
+			if (!recover_signature_exchange_llvm_controls(module, ssa, exchange)) return 19;
+			return 42;
+		}
 		if (args[1] == "--native" || library) {
 			var module = new RecoverLlvm(ssa);
 			module.build(ssa);
