@@ -25,6 +25,11 @@ bool recover_error_body_prefix(CheckedIndex checked, SymbolId function, SyntaxNo
 }
 
 bool recover_error_value_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var bindings = new u8[len(checked.symbol_types)];
+	return recover_error_value_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+}
+
+bool recover_error_value_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth) {
 	if (row.kind == 66) {
 		if (checked.bindings.program.arena.kind(row.source) != SyntaxKind.NameExpressionSyntax() || row.a != 0 || !recover_error_borrow_binding(checked, row.symbol) || row.symbol.index != checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source)).index || row.type.index != checked.symbol_types[row.symbol.index].index) return false;
 		int owner = recover_caught_owner(flow, row.symbol);
@@ -35,5 +40,5 @@ bool recover_error_value_source(RecoverFlowData flow, CheckedIndex checked, Reco
 	var declaration = checked.bindings.symbol(flow.functions[function - 1].symbol);
 	if (row.source.index != declaration.node.index || !recover_error_constructor_local(checked, flow.functions[function - 1].symbol) || row.symbol.index != class_storage_receiver(checked, flow.functions[function - 1].symbol)) return false;
 	var value = recover_error_base_value_local(checked, flow.functions[function - 1].symbol);
-	return value.index > 0 && recover_child(flow, checked, types, row.a, value, function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
+	return value.index > 0 && recover_child_with_bindings(flow, checked, types, row.a, value, function, handler, caught, seen, edges, bindings, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
 }

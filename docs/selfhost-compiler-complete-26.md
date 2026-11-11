@@ -1997,6 +1997,46 @@ Physical tool and consumed compiler-source checks retain their byte comparisons.
 `run.py`, after the current population repair. The preparing C0 applications
 retain their original recipe snapshot and manifest.
 
+## Verifier-local binding queries and complete Flow diagnosis
+
+The `281c8d8` native development host builds in 3,937.53 seconds with maximum
+RSS 2,359,940 KiB. All nine newer focused programs pass actual Astra O0/O2
+generation, linked exit42 and unsuppressed Valgrind. Indexed-Class inspection
+also passes two Core, two liveness and three LLVM-valid physical controls.
+Permuted record initialization passes its three LLVM-valid physical controls.
+The eighteen retained programs and both factory sizes pass separately. The
+retained callback then asserts while the concurrent source campaign is still
+running. Its failed raw driver and partial result remain available. Recovery
+descriptors bind the completed native observations to those raw commands.
+
+The complete original `281c8d8` Flow run still returns exit2, internal status1,
+after 284,425 nodes. Its O0 observer takes 2,090.6 seconds for that command,
+including Typecore. A read-only live stack snapshot finds repeated Class-storage
+qualification at variable reads. The candidate retains binding-query results
+within each independent verifier invocation. Every first query runs the existing
+source-based qualification. Every invocation creates a fresh table. Ten legacy
+helper signatures remain byte-exact, and their normalized checking bodies match
+the preceding revision after query-table forwarding is removed. Both complete
+drivers pass C0 semantic/Core preflights.
+
+An exact-helper C0 kernel checks 8,192 repeated queries per profile, 256 actual
+qualifications across 64 fresh invocations, changed answers between invocations
+and four bounds controls. O0/O2 execute42 with clean unsuppressed memory.
+These helper checks contribute zero Astra-pipeline credit. Three actual-source
+controls are authored for changed Class fields, binding qualifiers and types
+between independent subtree/verifier calls. Their updated Astra runs remain
+pending. A portable test command, `--flow-proofs`, reports the actual retained
+global consumers while preserving the plan's failed status.
+
+An isolated diagnostic process using the authenticated `3470091` O2 observer
+calls the actual global consumers on its refused original Flow plan. Mutation,
+slot, literal-string-result and text-view consumers return true. Field,
+array-place and payload-call consumers return false. Its original body refusal,
+final `FLOW 1 0 284425` and process exit2 remain intact. The diagnostic grants
+zero complete-source or native qualification credit. A later diagnostic-driver
+attempt requests an optimized-away symbol and fails before execution. The next
+attempt uses retained native symbols to narrow the three global refusals.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

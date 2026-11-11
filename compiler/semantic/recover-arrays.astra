@@ -181,22 +181,27 @@ RecoverNode recover_build_array(RecoverFlowData flow, CheckedIndex checked, Reco
 }
 
 bool recover_array_value_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var bindings = new u8[len(checked.symbol_types)];
+	return recover_array_value_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+}
+
+bool recover_array_value_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth) {
 	var source = row.source;
 	var kind = checked.bindings.program.arena.kind(source);
-	if (row.kind == 54) return recover_integer_cast_source(flow, checked, types, row, function, handler, caught, seen, edges, depth);
+	if (row.kind == 54) return recover_integer_cast_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
 	if (row.kind == 58) {
 		if (row.b != 0 || row.c != 0 || row.type.index != 1 || !checked.bindings.program.arena.token_is(row.token, "byte_length")) return false;
-		if (kind == SyntaxKind.TextMemberExpressionSyntax()) return row.symbol.index == 0 && row.token.index == checked.bindings.program.arena.get_token_member(source).index && recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_receiver(source), function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
+		if (kind == SyntaxKind.TextMemberExpressionSyntax()) return row.symbol.index == 0 && row.token.index == checked.bindings.program.arena.get_token_member(source).index && recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_receiver(source), function, handler, caught, seen, edges, bindings, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
 		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;
 		var aggregate = checked.bindings.program.arena.get_node_aggregate(source);
-		if (aggregate.index > 0) return row.symbol.index == 0 && recover_child(flow, checked, types, row.a, aggregate, function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
+		if (aggregate.index > 0) return row.symbol.index == 0 && recover_child_with_bindings(flow, checked, types, row.a, aggregate, function, handler, caught, seen, edges, bindings, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
 		if (row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || row.symbol.index != recover_type_receiver(checked, source).index || checked.symbol_types[row.symbol.index].index != 15 || checked.symbol_flags[row.symbol.index] != 0) return false;
 		var binding = checked.bindings.symbol(row.symbol);
 		return (binding.kind == 7 || binding.kind == 8) && binding.owner.index == flow.functions[function - 1].symbol.index;
 	}
 
 	if (row.kind == 55) {
-		if (!checked_flow_index_kind(kind) || row.c != 0 || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(source), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(source), function, handler, caught, seen, edges, depth + 1)) return false;
+		if (!checked_flow_index_kind(kind) || row.c != 0 || !recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(source), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(source), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 		var container = flow.nodes[row.a - 1];
 		bool slots = recover_storage_slots(checked, container.type, 0);
 		if (slots && (checked.uses[source.index].flags != 2 || checked.uses[source.index].deferred != 19 || checked_kind(checked, row.type) != 31)) return false;
@@ -222,7 +227,7 @@ bool recover_array_value_source(RecoverFlowData flow, CheckedIndex checked, Reco
 			if (edges[edge]) return false;
 			edges[edge] = true;
 			int child = flow.edges[edge];
-			if (!recover_child(flow, checked, types, child, checked.bindings.program.arena.node_at(inputs, p), function, handler, caught, seen, edges, depth + 1)) return false;
+			if (!recover_child_with_bindings(flow, checked, types, child, checked.bindings.program.arena.node_at(inputs, p), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 			var value = flow.nodes[child - 1];
 			if (row.kind == 57 && value.type.index != element.type.index || row.kind == 56 && p > 0 && value.type.index != 1) return false;
 			if (row.kind == 56 && p == 0) {
@@ -243,7 +248,7 @@ bool recover_array_value_source(RecoverFlowData flow, CheckedIndex checked, Reco
 		var target = checked.bindings.program.arena.get_node_target(source);
 		var indexed = recover_record_index(checked, target, 0);
 		var value = checked.bindings.program.arena.get_node_expression(source);
-		if (indexed.index < 1 || row.token.index != checked.bindings.program.arena.get_token_field_name(target).index || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(indexed), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(indexed), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.c, value, function, handler, caught, seen, edges, depth + 1)) return false;
+		if (indexed.index < 1 || row.token.index != checked.bindings.program.arena.get_token_field_name(target).index || !recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(indexed), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(indexed), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.c, value, function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 		var container = flow.nodes[row.a - 1];
 		if (!recover_array_type(checked, container.type)) return false;
 		var record = checked.types.argument(checked.types, container.type, 0).type;
@@ -253,7 +258,7 @@ bool recover_array_value_source(RecoverFlowData flow, CheckedIndex checked, Reco
 	if (row.kind == 61) {
 		if (kind != SyntaxKind.IndexedAssignmentSyntax()) return false;
 		var target = checked.bindings.program.arena.get_node_target(source);
-		if (!checked_flow_index_kind(checked.bindings.program.arena.kind(target)) || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(target), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(target), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.c, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, depth + 1)) return false;
+		if (!checked_flow_index_kind(checked.bindings.program.arena.kind(target)) || !recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(target), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(target), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.c, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 		var container = flow.nodes[row.a - 1];
 		return recover_array_type(checked, container.type) && flow.nodes[row.b - 1].type.index == 1 && checked.types.argument(checked.types, container.type, 0).type.index == flow.nodes[row.c - 1].type.index && recover_array_static_index(checked, container.type, checked.bindings.program.arena.get_node_subscript(target));
 	}

@@ -12,9 +12,14 @@ RecoverNode recover_build_exchange(RecoverFlowData flow, CheckedIndex checked, R
 }
 
 bool recover_exchange_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var bindings = new u8[len(checked.symbol_types)];
+	return recover_exchange_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+}
+
+bool recover_exchange_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth) {
 	if (checked.bindings.program.arena.kind(row.source) != SyntaxKind.SwapStatementSyntax() || row.a < 1 || row.b < 1 || row.c != 0) return false;
 	var left = checked.bindings.program.arena.get_node_left(row.source); var right = checked.bindings.program.arena.get_node_right(row.source);
-	if (!owner_exchange_slot(checked, left) || !owner_exchange_slot(checked, right) || !recover_child(flow, checked, types, row.a, left, function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, right, function, handler, caught, seen, edges, depth + 1)) return false;
+	if (!owner_exchange_slot(checked, left) || !owner_exchange_slot(checked, right) || !recover_child_with_bindings(flow, checked, types, row.a, left, function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, right, function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 	var first = flow.nodes[row.a - 1]; var last = flow.nodes[row.b - 1];
 	return first.type.index == last.type.index && checked_kind(checked, first.type) == 22 && (first.kind == 2 || first.kind == 17) && (last.kind == 2 || last.kind == 17);
 }

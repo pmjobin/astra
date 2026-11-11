@@ -2,6 +2,11 @@
 // A retained Shared operation names its actual source operand. A payload
 // borrow never manufactures a local slot or a receiver root from its TypeId.
 bool recover_shared_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
+	var bindings = new u8[len(checked.symbol_types)];
+	return recover_shared_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+}
+
+bool recover_shared_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth) {
 	var source = row.source;
 	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax() || row.a != 0 || row.symbol.index != 0 || row.count != 1 || row.token.index != checked.bindings.program.arena.get_token_identifier(source).index || checked_target(checked, source, row.token).index != 0) return false;
 	if (checked.bindings.program.arena.get_token_receiver(source).index != 0 || checked.bindings.program.arena.get_node_receiver_place(source).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(source)) != 0) return false;
@@ -9,7 +14,7 @@ bool recover_shared_source(RecoverFlowData flow, CheckedIndex checked, RecoverTy
 	if (checked.bindings.program.arena.list_count(arguments) != 1 || edges[row.first]) return false;
 	edges[row.first] = true;
 	int child = flow.edges[row.first];
-	if (!recover_child(flow, checked, types, child, checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, depth + 1)) return false;
+	if (!recover_child_with_bindings(flow, checked, types, child, checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 	var operand = flow.nodes[child - 1];
 	var use = checked.uses[source.index];
 	if (use.type.index != row.type.index || use.deferred != 19) return false;
