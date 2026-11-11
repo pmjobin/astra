@@ -1559,11 +1559,13 @@ defaults to its existing serial execution. Each job retains its own process
 group, timeout, output streams and GNU-time receipt. Source-stage mutations
 wait for their actual original/native fixture producer. The strict drift ledger
 waits for the complete retained recipe campaign. The main thread writes results
-in the original job order, preserving failed-command and receipt ordering.
+as jobs finish, retaining the original job order in each receipt and preserving
+failed-command ordering.
 
 Synthetic scheduling controls cover one-worker compatibility, four-worker
-overlap, both fixture dependencies, an injected raw failure and an injected
-process-group timeout. They confer zero native qualification credit. Actual
+overlap, an eight-worker run, both fixture dependencies, injected raw failures
+and injected process-group timeouts. Complete synthetic streams and scheduler
+events are retained. They confer zero native qualification credit. Actual
 parallel native campaign timing remains pending. The active development batch
 uses one O2 native host for intermediate target O0/O2 checks, alongside the
 independently built O2 source observer. Final qualification still requires

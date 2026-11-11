@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Fresh current-profile regressions; historical failed campaigns stay failed."""
 import argparse
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 from pathlib import Path
@@ -77,8 +77,11 @@ def main():
 		futures = {}
 		for job in jobs:
 			futures[job[0]] = pool.submit(run, job, futures.get(dependencies.get(job[0])))
-		for name, _, _ in jobs:
-			commands.append(futures[name].result())
+		completed = {}
+		for future in as_completed(futures.values()):
+			row = future.result()
+			completed[row['name']] = row
+			commands = [completed[name] for name, _, _ in jobs if name in completed]
 			write(leaf/'commands.json', commands)
 			failed = [row['name'] for row in commands if row['exit'] != 0 or row['timed_out']]
 			write(leaf/'result.json', dict(status='CONTINUATION_QUALIFICATION_PARTIAL' if failed else 'CONTINUATION_QUALIFICATION_IN_PROGRESS', milestone='ASTRA-SELFHOST-COMPILER-COMPLETE-26', profile=a.mode, component_sha256=sha(a.component), selected_jobs=None, completed_jobs=len(commands), expected_jobs=len(jobs), failed_jobs=failed, workers=a.jobs, dependencies=dependencies, historical_extra_fixture=dict(path=str(extra), sha256=sha(extra)), limitation='Fresh milestone26 campaign with the previously qualified LLVM-valid receiver setter explicitly enabled. This does not relabel either raw failed R5 campaign. No campaign count or passing subset proves full original compiler completeness.'))
