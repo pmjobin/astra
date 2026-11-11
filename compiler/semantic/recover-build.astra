@@ -149,7 +149,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 			base.symbol = type_symbol(class_storage_receiver(checked, flow.functions[function - 1].symbol));
 			int first = flow.add(base);
 			if (first == 0) return id;
-			base.a = recover_build_node(flow, checked, types, recover_error_base_value(checked, flow.functions[function - 1].symbol), function, handler, caught, depth + 1);
+			base.a = recover_build_node(flow, checked, types, recover_error_base_value_local(checked, flow.functions[function - 1].symbol), function, handler, caught, depth + 1);
 			flow.nodes[first - 1] = base;
 			children[0] = first;
 			i = 1;

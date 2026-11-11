@@ -1242,6 +1242,55 @@ reconstruction and comparison against the first payload index, with no dropped
 or changed original logical file. This changes proof transport only, with
 no semantic inference, root repair or compiler/workflow limit modification.
 
+## Scope-map and constructor verification cycle
+
+The `c13a8ef` observer passes 28 focused source/control cases and the original
+190-input conditional Typecore/map probe. The original probe records 53 genuine
+instances, 1,245 normalized direct methods and map usage of 121,012 node,
+486,786 symbol and 19,603,257 scope entries. Its Typecore observation takes
+997.635 seconds. Its separate Flow attempt takes 1,172.458 seconds and refuses
+at original `compiler/backend/llvm/recover-owner-emit.astra`, bytes 275–3377.
+Both raw outcomes remain preserved. There is no whole-compiler native credit.
+
+The next candidate stores direct-method scopes under their actual ordered
+Binder IDs. Genuine generic plans retain their existing dense domains. Map
+arrays grow geometrically, with logical coverage and existing node/symbol
+ceilings checked independently. The scope consumer reconstructs key coverage,
+parent/owner/node/unit/kind/namespace correspondence and copied node/symbol
+scope edges. New mutation controls exercise six key corruptions, a missing
+mapping and six changed scope fields. These controls await native execution.
+
+Constructor body checks now have pass-local entry points for passes that
+independently verify the complete generic map at entry. Standalone verified
+entry points retain their complete verification contract. Each local call
+still checks the current source fields and body. There is no persisted trust
+flag. The candidate also types original payload-free enum construction and
+match source facts, with independent source consumers and six mutation
+controls. Enum Flow/Core/CFG/SSA/LLVM transport remains unimplemented in this
+candidate. The exact C0 oracle uses caller-provided sum storage even for these
+payload-free enums. Scalar result transport cannot establish its ABI.
+
+Guarded formatting passes all 18 changed Astra paths, and simultaneous exact-C0
+frontend checks pass both development-host entries. These checks establish
+frontend acceptance only. An immutable observer build and focused execution
+are required before any runtime or performance claim for this candidate.
+
+The completed `2314de0` native gen13 host produces verified O0/O2 objects and
+linked exit42 programs for 11 focused positives. These include original Shared
+construction, hosted FileHandle, four computed getters, 128/129/186-field
+Classes, 262 ordinary members and genuine256. FileHandle descriptor lifetime
+and three restored finalizer mutations pass. Genuine257 refuses at exit4,
+payload Match at exit3 and the original module at exit4. Their output sentinels
+and raw refusals remain preserved. These are predecessor-revision results.
+
+Each observed C0 compilation uses one CPU thread. Independent host builds and
+stage-cost jobs have run concurrently on the 32-logical-CPU host. Frozen gen12
+cumulative C0 stage observations take 390.386 seconds through CFG, 1,177.210
+through SSA and 1,573.188 through native ABI. They ran concurrently and measure
+the unchanged development-host C0 path. A perf-event sample was denied by host
+permissions, with the refusal retained. The native module probe also refuses
+the required enum result channel. No toolchain or installed workflow changed.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

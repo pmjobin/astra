@@ -70,7 +70,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 			if (source.concrete.index != plan.declaration.index || source.state != 2 || origin.owner.index != checked.types.row(source.enclosing).nominal.index) return false;
 			int hidden = class_storage_receiver(checked, plan.declaration);
 			if (hidden < 1 || checked.bindings.symbol(type_symbol(hidden)).kind != 7 || checked.bindings.symbol(type_symbol(hidden)).owner.index != plan.declaration.index || checked.symbol_types[hidden].index != source.enclosing.index || checked.symbol_flags[hidden] != 2) return false;
-			if (origin.kind == 12 && !recover_error_constructor_source(checked, plan.declaration)) return false;
+			if (origin.kind == 12 && !recover_error_constructor_local(checked, plan.declaration)) return false;
 		}
 		receiver = 0;
 	}

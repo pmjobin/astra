@@ -470,6 +470,83 @@ bool template_symbol_map_controls(CheckedIndex checked) throws Error {
 	return false;
 }
 
+bool template_scope_map_controls(CheckedIndex checked) throws Error {
+	int s = 1;
+	while (s <= checked.generic_symbols) {
+		var plan = checked.direct_methods[s];
+		if (plan.state == 2 && plan.scope_count >= 2) {
+			int gap = 0; int at = 1;
+			while (at < plan.scope_count) {
+				int first = checked.generic_scope_keys[plan.scopes + at];
+				int second = checked.generic_scope_keys[plan.scopes + at + 1];
+				if (second > first + 1) gap = first + 1;
+				at = at + 1;
+			}
+			if (gap != 0) {
+				if (!generic_scope_keys_verified(checked, plan) || generic_scope(checked, plan, gap) != 0) return false;
+				at = 0;
+				while (at < plan.scope_count) {
+					int slot = plan.scopes + at + 1;
+					if (generic_scope(checked, plan, checked.generic_scope_keys[slot]) != checked.generic_scope_map[slot]) return false;
+					at = at + 1;
+				}
+				int first = checked.generic_scope_keys[plan.scopes + 1];
+				int second = checked.generic_scope_keys[plan.scopes + 2];
+				checked.generic_scope_keys[plan.scopes + 1] = 0;
+				bool refused = !generic_scope_keys_verified(checked, plan);
+				checked.generic_scope_keys[plan.scopes + 1] = first;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_scope_keys[plan.scopes + 2] = first;
+				refused = !generic_scope_keys_verified(checked, plan);
+				checked.generic_scope_keys[plan.scopes + 2] = second;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_scope_keys[plan.scopes + 2] = gap;
+				refused = !generic_scope_keys_verified(checked, plan);
+				checked.generic_scope_keys[plan.scopes + 2] = second;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_scope_keys[plan.scopes + 1] = second;
+				checked.generic_scope_keys[plan.scopes + 2] = first;
+				refused = !generic_scope_keys_verified(checked, plan);
+				checked.generic_scope_keys[plan.scopes + 1] = first;
+				checked.generic_scope_keys[plan.scopes + 2] = second;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_scope_keys[plan.scopes] = first;
+				refused = !generic_scope_keys_verified(checked, plan);
+				checked.generic_scope_keys[plan.scopes] = 0;
+				if (!refused || !generic_verify(checked)) return false;
+				var short_plan = plan;
+				short_plan.scope_count = short_plan.scope_count - 1;
+				if (generic_scope_keys_verified(checked, short_plan)) return false;
+				int mapped = checked.generic_scope_map[plan.scopes + 1];
+				checked.generic_scope_map[plan.scopes + 1] = 0;
+				refused = !generic_verify(checked);
+				checked.generic_scope_map[plan.scopes + 1] = mapped;
+				if (!refused || !generic_verify(checked)) return false;
+				ScopeId id = {index = mapped}; var row = checked.bindings.scope(id);
+				int category = 0;
+				while (category < 6) {
+					var changed = row;
+					if (category == 0) changed.node.index = 0;
+					if (category == 1) changed.parent.index = id.index;
+					if (category == 2) changed.owner.index = 0;
+					if (category == 3) changed.unit.index = 0;
+					if (category == 4) changed.kind = -1;
+					if (category == 5) changed.namespace_name = -1;
+					checked.bindings.replace_instance_scope(id.index, changed);
+					refused = !generic_scopes_verified(checked, plan);
+					checked.bindings.replace_instance_scope(id.index, row);
+					if (!refused || !generic_verify(checked)) return false;
+					category = category + 1;
+				}
+				println("SCOPE_MAP_CONTROLS keys=6 mapping=1 rows=6 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
 bool template_shared_parameter_controls(CheckedIndex checked) throws Error {
 	int s = 1;
 	while (s <= checked.bindings.symbol_count) {
@@ -588,6 +665,64 @@ bool template_match_copy_controls(CheckedIndex checked) throws Error {
 	return false;
 }
 
+bool template_enum_source_controls(CheckedIndex checked) throws Error {
+	SyntaxNodeId call = {index = 0}; SyntaxNodeId match_node = {index = 0}; TypeId other = {index = 0};
+	int n = 1;
+	while (n <= checked.generic_nodes) {
+		SyntaxNodeId node = {index = n}; var kind = checked.bindings.program.arena.kind(node);
+		if (kind == SyntaxKind.CallExpressionSyntax() && checked_kind(checked, checked.uses[n].type) == 32) {
+			if (call.index == 0) call = node;
+			else {
+				if (checked.uses[n].type.index != checked.uses[call.index].type.index) other = checked.uses[n].type;
+			}
+		}
+		if (kind == SyntaxKind.MatchStatementSyntax() && checked.uses[n].type.index == 14) match_node = node;
+		n = n + 1;
+	}
+	if (call.index == 0 || match_node.index == 0 || other.index == 0 || !enum_value_facts_verified(checked)) return false;
+	var use = checked.uses[call.index]; int category = 0;
+	while (category < 3) {
+		var changed = use;
+		if (category == 0) changed.type = other;
+		if (category == 1) changed.flags = 2;
+		if (category == 2) changed.deferred = 17;
+		checked.uses[call.index] = changed;
+		bool refused = !enum_value_facts_verified(checked);
+		checked.uses[call.index] = use;
+		if (!refused || !enum_value_facts_verified(checked) || !generic_verify(checked)) return false;
+		category = category + 1;
+	}
+	var arms = checked.bindings.program.arena.get_list_arms(match_node);
+	int count = checked.bindings.program.arena.list_count(arms);
+	if (count != 3) return false;
+	var first = checked.bindings.program.arena.node_at(arms, 0);
+	var second = checked.bindings.program.arena.node_at(arms, 1);
+	var fallback = checked.bindings.program.arena.node_at(arms, 2);
+	var arm_use = checked.uses[first.index]; var wrong = arm_use; wrong.type = use.type;
+	checked.uses[first.index] = wrong;
+	bool refused = !enum_match_verified(checked, match_node);
+	checked.uses[first.index] = arm_use;
+	if (!refused || !enum_value_facts_verified(checked)) return false;
+	var duplicate = checked.bindings.program.arena.new_list(syntax_kind_code(SyntaxKind.EnumArmSyntax()));
+	checked.bindings.program.arena.append_node(duplicate, first);
+	checked.bindings.program.arena.append_node(duplicate, first);
+	checked.bindings.program.arena.append_node(duplicate, fallback);
+	checked.bindings.program.arena.set_list_arms(match_node, duplicate);
+	refused = !enum_match_verified(checked, match_node);
+	checked.bindings.program.arena.set_list_arms(match_node, arms);
+	if (!refused || !enum_value_facts_verified(checked)) return false;
+	var reordered = checked.bindings.program.arena.new_list(syntax_kind_code(SyntaxKind.EnumArmSyntax()));
+	checked.bindings.program.arena.append_node(reordered, fallback);
+	checked.bindings.program.arena.append_node(reordered, first);
+	checked.bindings.program.arena.append_node(reordered, second);
+	checked.bindings.program.arena.set_list_arms(match_node, reordered);
+	refused = !enum_match_verified(checked, match_node);
+	checked.bindings.program.arena.set_list_arms(match_node, arms);
+	if (!refused || !enum_value_facts_verified(checked) || !generic_verify(checked)) return false;
+	println("ENUM_SOURCE_CONTROLS call=3 match=3 restored=1");
+	return true;
+}
+
 int template_source_obligations(CheckedIndex checked) throws Error {
 	int s = 1; int classes = 0; int functions = 0; int rejected_classes = 0; int rejected_functions = 0;
 	while (s <= checked.bindings.symbol_count) {
@@ -643,7 +778,7 @@ void template_source_map_usage(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -653,7 +788,7 @@ int main(string[] args) {
 			print(text.text);
 			return 1;
 		}
-		if (!checked.validate() || !generic_verify(checked)) {
+		if (!checked.validate() || !generic_verify(checked) || !enum_value_facts_verified(checked)) {
 			var output = new Utf8ByteBuilder(); source_append_text(output, "SOURCE_PLAN_FAILURE "); append_int(output, generic_verify_failure(checked)); var text = output.snapshot(); println(text.text);
 			return 8;
 		}
@@ -671,6 +806,14 @@ int main(string[] args) {
 		}
 		if (args[1] == "--symbol-map-controls") {
 			if (template_symbol_map_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--scope-map-controls") {
+			if (template_scope_map_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--enum-source-controls") {
+			if (template_enum_source_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--shared-parameter-controls") {

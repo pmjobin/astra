@@ -14,7 +14,7 @@ struct GenericInstance {
 	int node_count;
 	int symbol_first;
 	int symbol_count;
-	bool sparse_symbols;
+	bool sparse_bindings;
 	int scope_first;
 	int scope_count;
 	int state;
@@ -35,13 +35,13 @@ bool generic_copy_room(CheckedIndex index, SyntaxNodeId original) throws Error {
 	return false;
 }
 
-// Nodes/scopes reserve a conservative source-declaration window. Symbol keys
-// retain the actual original IDs, including gaps between heads and body locals.
+// Nodes reserve a conservative source-declaration window. Direct source
+// binding keys retain actual original IDs, including head/body scope gaps.
 // Source spans only bound storage; original integer identities remain map keys.
 // The copier refuses any child outside the window, and the independent consumer
 // reconstructs every copied edge starting with the exact declaration root.
-GenericInstance generic_window(CheckedIndex index, SymbolId origin, TypeId enclosing, int arguments, bool sparse_symbols) {
-	GenericInstance plan = {origin = origin, concrete = {index = 0}, enclosing = enclosing, arguments = index.generic_argument_used, argument_count = arguments, nodes = index.generic_node_used, symbols = index.generic_symbol_used, scopes = index.generic_scope_used, node_first = index.generic_nodes + 1, node_count = 0, symbol_first = index.generic_symbols + 1, symbol_count = 0, sparse_symbols = sparse_symbols, scope_first = index.generic_scopes + 1, scope_count = 0, state = 1, first_reference = 0, reference_count = 0};
+GenericInstance generic_window(CheckedIndex index, SymbolId origin, TypeId enclosing, int arguments, bool sparse_bindings) {
+	GenericInstance plan = {origin = origin, concrete = {index = 0}, enclosing = enclosing, arguments = index.generic_argument_used, argument_count = arguments, nodes = index.generic_node_used, symbols = index.generic_symbol_used, scopes = index.generic_scope_used, node_first = index.generic_nodes + 1, node_count = 0, symbol_first = index.generic_symbols + 1, symbol_count = 0, sparse_bindings = sparse_bindings, scope_first = index.generic_scopes + 1, scope_count = 0, state = 1, first_reference = 0, reference_count = 0};
 	var declaration = index.bindings.symbol(origin);
 	var span = index.bindings.program.arena.header(declaration.node).span;
 	int last = 0; int i = 1;
@@ -64,17 +64,18 @@ GenericInstance generic_window(CheckedIndex index, SymbolId origin, TypeId enclo
 		}
 		i = i + 1;
 	}
-	if (!sparse_symbols && last >= plan.symbol_first) plan.symbol_count = last - plan.symbol_first + 1;
+	if (!sparse_bindings && last >= plan.symbol_first) plan.symbol_count = last - plan.symbol_first + 1;
 	last = 0; i = 1;
 	while (i <= index.generic_scopes) {
 		ScopeId id = {index = i}; int node = index.bindings.scope(id).node.index;
 		if (node >= plan.node_first && node - plan.node_first < plan.node_count) {
 			if (i < plan.scope_first) plan.scope_first = i;
+			plan.scope_count = plan.scope_count + 1;
 			last = i;
 		}
 		i = i + 1;
 	}
-	if (last >= plan.scope_first) plan.scope_count = last - plan.scope_first + 1;
+	if (!sparse_bindings && last >= plan.scope_first) plan.scope_count = last - plan.scope_first + 1;
 	return plan;
 }
 
@@ -98,39 +99,66 @@ GenericInstance generic_new_plan(CheckedIndex index, GenericInstance input, Type
 
 void generic_grow_maps(CheckedIndex index, GenericInstance plan) {
 	int size = index.generic_node_used + plan.node_count + 1;
-	var nodes = new int[size]; int i = 0;
-	while (i < index.generic_node_used) {
-		nodes[i] = index.generic_node_map[i];
-		i = i + 1;
+	if (size > len(index.generic_node_map)) {
+		int capacity = syntax_grown_capacity(len(index.generic_node_map), size);
+		if (capacity > 8000000) capacity = 8000000;
+		var nodes = new int[capacity]; int i = 0;
+		while (i < index.generic_node_used) {
+			nodes[i] = index.generic_node_map[i];
+			i = i + 1;
+		}
+		swap(index.generic_node_map, nodes);
 	}
-	swap(index.generic_node_map, nodes); index.generic_node_used = size;
+	index.generic_node_used = size;
 	size = index.generic_symbol_used + plan.symbol_count + 1;
-	var symbols = new int[size]; var keys = new int[size]; i = 0;
-	while (i < index.generic_symbol_used) {
-		symbols[i] = index.generic_symbol_map[i];
-		keys[i] = index.generic_symbol_keys[i];
-		i = i + 1;
+	if (size > len(index.generic_symbol_map)) {
+		int capacity = syntax_grown_capacity(len(index.generic_symbol_map), size);
+		if (capacity > 8000000) capacity = 8000000;
+		var symbols = new int[capacity]; var keys = new int[capacity]; int i = 0;
+		while (i < index.generic_symbol_used) {
+			symbols[i] = index.generic_symbol_map[i];
+			keys[i] = index.generic_symbol_keys[i];
+			i = i + 1;
+		}
+		swap(index.generic_symbol_map, symbols); swap(index.generic_symbol_keys, keys);
 	}
-	if (plan.sparse_symbols) {
-		int at = plan.symbols + 1; i = 1;
+	if (plan.sparse_bindings) {
+		int at = plan.symbols + 1; int i = 1;
 		while (i <= index.generic_symbols) {
 			int node = index.bindings.symbol(type_symbol(i)).node.index;
 			if (node >= plan.node_first && node - plan.node_first < plan.node_count) {
-				keys[at] = i;
+				index.generic_symbol_keys[at] = i;
 				at = at + 1;
 			}
 			i = i + 1;
 		}
 		assert_that(at == size);
 	}
-	swap(index.generic_symbol_map, symbols); swap(index.generic_symbol_keys, keys); index.generic_symbol_used = size;
+	index.generic_symbol_used = size;
 	size = index.generic_scope_used + plan.scope_count + 1;
-	var scopes = new int[size]; i = 0;
-	while (i < index.generic_scope_used) {
-		scopes[i] = index.generic_scope_map[i];
-		i = i + 1;
+	if (size > len(index.generic_scope_map)) {
+		int capacity = syntax_grown_capacity(len(index.generic_scope_map), size);
+		var scopes = new int[capacity]; var keys = new int[capacity]; int i = 0;
+		while (i < index.generic_scope_used) {
+			scopes[i] = index.generic_scope_map[i];
+			keys[i] = index.generic_scope_keys[i];
+			i = i + 1;
+		}
+		swap(index.generic_scope_map, scopes); swap(index.generic_scope_keys, keys);
 	}
-	swap(index.generic_scope_map, scopes); index.generic_scope_used = size;
+	if (plan.sparse_bindings) {
+		int at = plan.scopes + 1; int i = 1;
+		while (i <= index.generic_scopes) {
+			ScopeId id = {index = i}; int node = index.bindings.scope(id).node.index;
+			if (node >= plan.node_first && node - plan.node_first < plan.node_count) {
+				index.generic_scope_keys[at] = i;
+				at = at + 1;
+			}
+			i = i + 1;
+		}
+		assert_that(at == size);
+	}
+	index.generic_scope_used = size;
 }
 
 void generic_add_plan(CheckedIndex index, GenericInstance plan) {
@@ -265,24 +293,27 @@ GenericInstance generic_copy_bindings(CheckedIndex index, GenericInstance input)
 		ordinal = ordinal + 1;
 	}
 	plan.concrete = type_symbol(generic_symbol(index, plan, plan.origin.index));
-	int i = 1;
-	while (i <= index.generic_scopes) {
-		ScopeId scope_id = {index = i}; var scope = index.bindings.scope(scope_id);
-		if (scope.node.index > 0 && generic_node(index, plan, scope.node.index) != 0) index.generic_scope_map[plan.scopes + i - plan.scope_first + 1] = index.bindings.append_instance_scope(scope).index;
-		i = i + 1;
+	ordinal = 0;
+	while (ordinal < plan.scope_count) {
+		int source = generic_scope_source(index, plan, ordinal);
+		ScopeId scope_id = {index = source}; var scope = index.bindings.scope(scope_id);
+		if (scope.node.index > 0 && generic_node(index, plan, scope.node.index) != 0) index.generic_scope_map[plan.scopes + ordinal + 1] = index.bindings.append_instance_scope(scope).index;
+		ordinal = ordinal + 1;
 	}
-	i = 1;
-	while (i <= index.generic_scopes) {
-		if (generic_scope(index, plan, i) != 0) {
-			ScopeId old_id = {index = i}; var scope = index.bindings.scope(old_id);
+	ordinal = 0;
+	while (ordinal < plan.scope_count) {
+		int source = generic_scope_source(index, plan, ordinal);
+		int target = index.generic_scope_map[plan.scopes + ordinal + 1];
+		if (target != 0) {
+			ScopeId old_id = {index = source}; var scope = index.bindings.scope(old_id);
 			if (scope.parent.index > 0 && generic_scope(index, plan, scope.parent.index) != 0) scope.parent.index = generic_scope(index, plan, scope.parent.index);
 			if (scope.owner.index > 0 && generic_symbol(index, plan, scope.owner.index) != 0) scope.owner.index = generic_symbol(index, plan, scope.owner.index);
 			scope.node.index = generic_node(index, plan, scope.node.index);
-			int target_scope = generic_scope(index, plan, i);
-			index.bindings.replace_instance_scope(target_scope, scope);
+			index.bindings.replace_instance_scope(target, scope);
 		}
-		i = i + 1;
+		ordinal = ordinal + 1;
 	}
+	int i = 0;
 	ordinal = 0;
 	while (ordinal < plan.symbol_count) {
 		i = generic_symbol_source(index, plan, ordinal);
@@ -687,12 +718,12 @@ int generic_node(CheckedIndex index, GenericInstance plan, int ordinal) {
 }
 
 int generic_symbol_source(CheckedIndex index, GenericInstance plan, int ordinal) {
-	if (plan.sparse_symbols) return index.generic_symbol_keys[plan.symbols + ordinal + 1];
+	if (plan.sparse_bindings) return index.generic_symbol_keys[plan.symbols + ordinal + 1];
 	return plan.symbol_first + ordinal;
 }
 
 int generic_symbol(CheckedIndex index, GenericInstance plan, int ordinal) {
-	if (!plan.sparse_symbols) {
+	if (!plan.sparse_bindings) {
 		if (ordinal < plan.symbol_first || ordinal - plan.symbol_first >= plan.symbol_count) return 0;
 		return index.generic_symbol_map[plan.symbols + ordinal - plan.symbol_first + 1];
 	}
@@ -711,9 +742,29 @@ int generic_symbol(CheckedIndex index, GenericInstance plan, int ordinal) {
 	return 0;
 }
 
+int generic_scope_source(CheckedIndex index, GenericInstance plan, int ordinal) {
+	if (plan.sparse_bindings) return index.generic_scope_keys[plan.scopes + ordinal + 1];
+	return plan.scope_first + ordinal;
+}
+
 int generic_scope(CheckedIndex index, GenericInstance plan, int ordinal) {
-	if (ordinal < plan.scope_first || ordinal - plan.scope_first >= plan.scope_count) return 0;
-	return index.generic_scope_map[plan.scopes + ordinal - plan.scope_first + 1];
+	if (!plan.sparse_bindings) {
+		if (ordinal < plan.scope_first || ordinal - plan.scope_first >= plan.scope_count) return 0;
+		return index.generic_scope_map[plan.scopes + ordinal - plan.scope_first + 1];
+	}
+	if (ordinal < plan.scope_first || ordinal > index.generic_scopes) return 0;
+	int low = 0; int high = plan.scope_count - 1;
+	while (low <= high) {
+		int middle = low + (high - low) / 2;
+		int slot = plan.scopes + middle + 1;
+		int key = index.generic_scope_keys[slot];
+		if (key == ordinal) return index.generic_scope_map[slot];
+		if (key < ordinal) low = middle + 1;
+		else {
+			high = middle - 1;
+		}
+	}
+	return 0;
 }
 
 void generic_store_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId original, SyntaxNodeId concrete) throws Error {

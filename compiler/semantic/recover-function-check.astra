@@ -51,7 +51,7 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	bool initializing = class_storage_initializing(checked, symbol); var kind = checked.bindings.program.arena.kind(node);
 	if (initializing) {
 		var plan = checked_source_plan(checked, symbol);
-		if (plan.concrete.index != symbol.index || !recover_storage_class(checked, plan.enclosing) && !error_storage_class(checked, plan.enclosing) || !recover_empty_constructor_verified(checked, symbol)) return false;
+		if (plan.concrete.index != symbol.index || !recover_storage_class(checked, plan.enclosing) && !error_storage_class(checked, plan.enclosing) || !recover_field_constructor_source(checked, symbol)) return false;
 	}
 	else {
 		bool method = recover_static_method(checked, symbol);

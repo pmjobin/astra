@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Receiver identity comes from the actual independently checked member copy.
 // Source base initialization precedes every own-field statement.
-bool recover_error_constructor_source(CheckedIndex checked, SymbolId function) {
+bool recover_error_constructor_local(CheckedIndex checked, SymbolId function) {
 	var plan = checked_source_plan(checked, function);
-	if (plan.concrete.index != function.index || !class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
+	if (plan.concrete.index != function.index || !class_storage_initializing(checked, function)) return false;
 	if (!error_storage_class(checked, plan.enclosing)) return false;
 	var origin = checked.bindings.symbol(plan.origin);
 	var declaration = checked.bindings.symbol(function);
@@ -63,9 +63,13 @@ bool recover_error_constructor_source(CheckedIndex checked, SymbolId function) {
 	return true;
 }
 
-SyntaxNodeId recover_error_base_value(CheckedIndex checked, SymbolId function) {
+bool recover_error_constructor_source(CheckedIndex checked, SymbolId function) {
+	return generic_verify(checked) && recover_error_constructor_local(checked, function);
+}
+
+SyntaxNodeId recover_error_base_value_local(CheckedIndex checked, SymbolId function) {
 	SyntaxNodeId absent = {index = 0};
-	if (!recover_error_constructor_source(checked, function)) return absent;
+	if (!recover_error_constructor_local(checked, function)) return absent;
 	var declaration = checked.bindings.symbol(function);
 	var arguments = checked.bindings.program.arena.get_list_base_arguments(declaration.node);
 	if (checked.bindings.program.arena.list_count(arguments) == 1) return checked.bindings.program.arena.node_at(arguments, 0);
@@ -80,4 +84,10 @@ SyntaxNodeId recover_error_base_value(CheckedIndex checked, SymbolId function) {
 	var literal = checked.bindings.program.arena.node_at(arguments, 0);
 	if (checked.bindings.program.arena.kind(literal) != SyntaxKind.TextLiteralExpressionSyntax()) return absent;
 	return literal;
+}
+
+SyntaxNodeId recover_error_base_value(CheckedIndex checked, SymbolId function) {
+	SyntaxNodeId absent = {index = 0};
+	if (!generic_verify(checked)) return absent;
+	return recover_error_base_value_local(checked, function);
 }

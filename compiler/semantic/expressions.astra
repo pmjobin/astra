@@ -161,8 +161,11 @@ void checked_complete_member(CheckedIndex index, SyntaxNodeId node, SyntaxTokenI
 	int i = index.node_references[node.index];
 	while (i != 0) {
 		var edge = index.bindings.reference(i);
-		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 5 && (edge.reason == 1 || edge.reason == 3)) {
-			assert_that(index.bindings.complete_reference(i, member, symbol.owner));
+		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 5 && (edge.reason == 1 || edge.reason == 3 || edge.reason == 4 && symbol.kind == 13)) {
+			if (symbol.kind == 13) assert_that(index.bindings.complete_enum_reference(i, member, symbol.owner));
+			else {
+				assert_that(index.bindings.complete_reference(i, member, symbol.owner));
+			}
 		}
 		i = index.reference_next[i];
 	}
@@ -619,6 +622,10 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	if (index.flow_adapters && checked_shared_action(index, node) != 0) return checked_shared_call(index, node, depth);
+	if (index.field_effects) {
+		var type = checked_enum_call(index, node);
+		if (type.index != 0 || index.failed()) return type;
+	}
 	if (checked_slice_intrinsic(index, node)) return checked_slice_type(index, node, depth);
 	if (index.class_storage && class_storage_slot_action(index, node) > 0) {
 		var result = class_storage_slot_call(index, node, depth + 1);

@@ -110,6 +110,7 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 		checked_statement(index, index.bindings.program.arena.get_node_step(node), result, depth + 1);
 		return;
 	}
+	if (index.field_effects && kind == SyntaxKind.MatchStatementSyntax() && checked_enum_match(index, node, result, depth)) return;
 	if (kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax() || kind == SyntaxKind.StructLocalDeclarationSyntax()) {
 		var expected = no_type();
 		var id = index.node_symbols[node.index];

@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source typing for existing payload-free enum values. Physical sum transport
+// and control/owner admission are separate obligations.
+TypeId checked_enum_qualifier(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token) throws Error {
+	if (token.index == 0) return no_type();
+	var scope = index.bindings.scope_for_node(node);
+	var name = index.bindings.program.arena.token_message(token);
+	var selected = index.bindings.resolve(scope, node, token, name.text, 1);
+	if (selected.state_code != 1 || selected.target.index < 1 || selected.target.index > index.generic_symbols) return no_type();
+	var declaration = index.bindings.symbol(selected.target);
+	var type = index.symbol_types[selected.target.index];
+	if (declaration.kind != 5 || checked_kind(index, type) != 32 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0 || !checked_payload_free_enum(index, type)) return no_type();
+	return type;
+}
+
+SymbolId checked_enum_variant(CheckedIndex index, TypeId type, SyntaxTokenId token) {
+	var declaration = index.bindings.symbol(index.types.row(type).nominal);
+	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
+	int at = 0;
+	while (at < index.bindings.program.arena.list_count(variants)) {
+		var node = index.bindings.program.arena.node_at(variants, at);
+		var symbol = index.node_symbols[node.index];
+		if (symbol.index > 0 && generic_token_equal(index, token, index.bindings.symbol(symbol).token)) return symbol;
+		at = at + 1;
+	}
+	return type_symbol(0);
+}
+
+TypeId checked_enum_call(CheckedIndex index, SyntaxNodeId node) throws Error {
+	if (!index.field_effects || index.bindings.program.arena.get_node_receiver_place(node).index != 0) return no_type();
+	var type = checked_enum_qualifier(index, node, index.bindings.program.arena.get_token_receiver(node));
+	if (type.index == 0) return type;
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	var variant = checked_enum_variant(index, type, token);
+	if (variant.index == 0) {
+		index.fail(index.bindings.program.arena.token_span(token), "unknown variant in enum construction");
+		return no_type();
+	}
+	if (index.bindings.program.arena.get_bool_signal_emission(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0) {
+		index.fail(index.bindings.program.arena.header(node).span, "payload-free enum construction requires no arguments or type arguments");
+		return no_type();
+	}
+	checked_complete_member(index, node, token, variant);
+	var use = index.uses[node.index];
+	use.flags = 0; use.deferred = 0; index.uses[node.index] = use;
+	return type;
+}
+
+bool checked_enum_match(CheckedIndex index, SyntaxNodeId node, TypeId result, int depth) throws Error {
+	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
+	var type = checked_expression(index, scrutinee, no_type(), depth + 1);
+	if (type.index == 0) return false;
+	int kind = checked_kind(index, type);
+	if (kind != 32 && kind != 34) {
+		index.fail(index.bindings.program.arena.header(scrutinee).span, "match requires an enum scrutinee");
+		return true;
+	}
+	if (kind != 32 || !checked_payload_free_enum(index, type)) return false;
+	var declaration = index.bindings.symbol(index.types.row(type).nominal);
+	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
+	int count = index.bindings.program.arena.list_count(variants);
+	var seen = new bool[count];
+	var arms = index.bindings.program.arena.get_list_arms(node);
+	int matched = 0; int at = 0; bool fallback = false;
+	while (at < index.bindings.program.arena.list_count(arms) && !index.failed()) {
+		var arm = index.bindings.program.arena.node_at(arms, at);
+		var qualifier = index.bindings.program.arena.get_token_qualifier(arm);
+		var token = index.bindings.program.arena.get_token_variant(arm);
+		if (fallback) {
+			index.fail(index.bindings.program.arena.header(arm).span, "match else arm must be last");
+			return true;
+		}
+		if (qualifier.index == 0 && token.index == 0) {
+			if (matched == count) {
+				index.fail(index.bindings.program.arena.header(arm).span, "unreachable match else arm");
+				return true;
+			}
+			fallback = true;
+		} else {
+			var actual = checked_enum_qualifier(index, arm, qualifier);
+			var variant = checked_enum_variant(index, type, token);
+			if (actual.index != type.index || variant.index == 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(arm)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_bindings(arm)) != 0) {
+				index.fail(index.bindings.program.arena.header(arm).span, "case requires an exact payload-free enum variant");
+				return true;
+			}
+			int ordinal = 0;
+			while (ordinal < count && index.node_symbols[index.bindings.program.arena.node_at(variants, ordinal).index].index != variant.index) ordinal = ordinal + 1;
+			if (ordinal == count || seen[ordinal]) {
+				index.fail(index.bindings.program.arena.header(arm).span, "duplicate enum case");
+				return true;
+			}
+			seen[ordinal] = true; matched = matched + 1;
+			checked_complete_member(index, arm, token, variant);
+		}
+		var recorded = index.record(arm, type, 0);
+		checked_statement(index, index.bindings.program.arena.get_node_body(arm), result, depth + 1);
+		at = at + 1;
+	}
+	if (!fallback && matched != count) index.fail(index.bindings.program.arena.header(node).span, "nonexhaustive enum match");
+	var recorded = index.record(node, type_id(14), 0);
+	return true;
+}

@@ -33,7 +33,7 @@ bool recover_error_value_source(RecoverFlowData flow, CheckedIndex checked, Reco
 	}
 	if (row.kind != 65 || row.type.index != 14 || handler != 0 || caught != 0) return false;
 	var declaration = checked.bindings.symbol(flow.functions[function - 1].symbol);
-	if (row.source.index != declaration.node.index || !recover_error_constructor_source(checked, flow.functions[function - 1].symbol) || row.symbol.index != class_storage_receiver(checked, flow.functions[function - 1].symbol)) return false;
-	var value = recover_error_base_value(checked, flow.functions[function - 1].symbol);
+	if (row.source.index != declaration.node.index || !recover_error_constructor_local(checked, flow.functions[function - 1].symbol) || row.symbol.index != class_storage_receiver(checked, flow.functions[function - 1].symbol)) return false;
+	var value = recover_error_base_value_local(checked, flow.functions[function - 1].symbol);
 	return value.index > 0 && recover_child(flow, checked, types, row.a, value, function, handler, caught, seen, edges, depth + 1) && flow.nodes[row.a - 1].type.index == 15;
 }

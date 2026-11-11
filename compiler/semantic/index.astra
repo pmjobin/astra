@@ -151,6 +151,23 @@ class BindingIndex {
 		return true;
 	}
 
+	bool complete_enum_reference(int number, SymbolId target, SymbolId receiver) {
+		if (number <= 0 || number > this.reference_count || target.index <= 0 || target.index > this.symbol_count || receiver.index <= 0 || receiver.index > this.symbol_count) return false;
+		var edge = this.reference(number);
+		var symbol = this.symbol(target);
+		if (edge.state_code != 5 || edge.target.index != 0 || edge.domain != 4 || symbol.kind != 13 || symbol.owner.index != receiver.index || this.symbol(receiver).kind != 5 || !this.program.arena.token_text_equal(edge.token, symbol.token) || !this.accessible(target, edge.scope)) return false;
+		var kind = this.program.arena.kind(edge.node);
+		bool construction = edge.reason == 1 && kind == SyntaxKind.CallExpressionSyntax() && this.program.arena.get_token_identifier(edge.node).index == edge.token.index;
+		bool arm = edge.reason == 4 && kind == SyntaxKind.EnumArmSyntax() && this.program.arena.get_token_variant(edge.node).index == edge.token.index;
+		if (!construction && !arm) return false;
+		edge.state_code = 1; edge.reason = 0; edge.target = target;
+		edge.next_reference = symbol.first_reference;
+		symbol.first_reference = number;
+		this.symbols[target.index - 1] = symbol;
+		this.references[number - 1] = edge;
+		return true;
+	}
+
 	ScopeId scope_for_node(SyntaxNodeId node) {
 		assert_that(node.index > 0 && node.index < len(this.node_scopes));
 		return this.node_scopes[node.index];

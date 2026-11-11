@@ -121,7 +121,7 @@ int generic_verify_failure(CheckedIndex index) {
 			continue;
 		}
 		if (direct && (storage.origin.index != ordinal - index.instance_count || !direct_method_source_verified(index, storage) || storage.concrete.index < 1 || storage.concrete.index >= len(index.direct_method_symbols) || index.direct_method_symbols[storage.concrete.index] != storage.origin.index)) return 33;
-		if (storage.sparse_symbols != direct || !generic_plan_bounds(index, storage) || !generic_symbol_keys_verified(index, storage)) return 3;
+		if (storage.sparse_bindings != direct || !generic_plan_bounds(index, storage) || !generic_symbol_keys_verified(index, storage) || !generic_scope_keys_verified(index, storage)) return 3;
 		if (index.generic_node_map[storage.nodes] != 0 || index.generic_symbol_map[storage.symbols] != 0 || index.generic_scope_map[storage.scopes] != 0) return 28;
 		if (node_slots > index.generic_node_used - storage.node_count - 1 || symbol_slots > index.generic_symbol_used - storage.symbol_count - 1 || scope_slots > index.generic_scope_used - storage.scope_count - 1) return 29;
 		node_slots = node_slots + storage.node_count + 1; symbol_slots = symbol_slots + storage.symbol_count + 1; scope_slots = scope_slots + storage.scope_count + 1;
@@ -146,6 +146,7 @@ int generic_verify_failure(CheckedIndex index) {
 		var plan_origin = generic_origin(storage);
 		var concrete = generic_declaration(storage);
 		if (plan_origin.index < 1 || plan_origin.index > index.generic_symbols || concrete.index <= index.generic_symbols || concrete.index > index.bindings.symbol_count || generic_state(storage) != 2) return 6;
+		if (!generic_scopes_verified(index, storage)) return 34;
 		if (!generic_references_verified(index, storage)) return 7;
 		var original = index.bindings.symbol(plan_origin); var clone = index.bindings.symbol(concrete);
 		if (generic_symbol(index, storage, plan_origin.index) != concrete.index) return 30;
@@ -172,6 +173,10 @@ int generic_verify_failure(CheckedIndex index) {
 				SyntaxNodeId node = {index = n};
 				if (!source_copy_node_verified(index, storage, node)) return 13;
 				int mapped = generic_node(index, storage, n);
+				SyntaxNodeId target_node = {index = mapped};
+				var scope = index.bindings.scope_for_node(node);
+				if (generic_scope(index, storage, scope.index) != 0) scope.index = generic_scope(index, storage, scope.index);
+				if (index.bindings.scope_for_node(target_node).index != scope.index) return 34;
 				var pattern = index.uses[n].type;
 				if (index.class_storage && pattern.index == 0 && index.bindings.program.arena.kind(node) == SyntaxKind.TypeNameSyntax()) {
 					var reference = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
@@ -195,6 +200,9 @@ int generic_verify_failure(CheckedIndex index) {
 				int owner = source.owner.index;
 				if (owner > 0 && generic_symbol(index, storage, owner) != 0) owner = generic_symbol(index, storage, owner);
 				if (owner != target.owner.index) return 18;
+				int scope = source.scope.index;
+				if (generic_scope(index, storage, scope) != 0) scope = generic_scope(index, storage, scope);
+				if (target.scope.index != scope) return 34;
 				if ((source.kind == 6 || source.kind == 7) && (!source_type_matches(index, storage, index.symbol_types[n], index.symbol_types[mapped], 0) || generic_channel_flags(index, index.symbol_types[n], index.symbol_types[mapped], index.symbol_flags[n]) != index.symbol_flags[mapped])) return 19;
 			}
 			symbol_at = symbol_at + 1;
@@ -423,8 +431,11 @@ bool generic_reference_linked(CheckedIndex index, int number, BindingReference e
 // A completed deferred edge needs the same source-domain authority as an
 // originally bound edge. Reconstruct member identity, never a completion bit.
 bool generic_deferred_reference_verified(CheckedIndex index, GenericInstance plan, BindingReference original, BindingReference actual) {
-	if (original.state_code != 5 || (original.reason != 1 && original.reason != 3) || original.domain != 4 || original.target.index != 0 || actual.state_code != 1 || actual.reason != 0 || actual.target.index < 1 || actual.target.index > index.bindings.symbol_count) return false;
+	if (original.state_code != 5 || (original.reason != 1 && original.reason != 3 && original.reason != 4) || original.domain != 4 || original.target.index != 0 || actual.state_code != 1 || actual.reason != 0 || actual.target.index < 1 || actual.target.index > index.bindings.symbol_count || actual.node.index < 1 || actual.node.index >= len(index.uses)) return false;
 	var member = index.bindings.symbol(actual.target); var kind = index.bindings.program.arena.kind(actual.node);
+	if (member.kind == 13 && original.reason == 1 && kind == SyntaxKind.CallExpressionSyntax()) return actual.token.index == index.bindings.program.arena.get_token_identifier(actual.node).index && enum_constructor_verified(index, actual.node, actual.target, index.uses[actual.node.index].type);
+	if (member.kind == 13 && original.reason == 4 && kind == SyntaxKind.EnumArmSyntax()) return actual.token.index == index.bindings.program.arena.get_token_variant(actual.node).index && enum_arm_variant_verified(index, actual.node, actual.target, index.uses[actual.node.index].type);
+	if (original.reason == 4) return false;
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var candidate = original; candidate.target = actual.target;
 		return generic_lexical_method_verified(index, candidate, actual);
@@ -505,7 +516,7 @@ bool generic_references_verified(CheckedIndex index, GenericInstance plan) {
 				}
 				if (actual.state_code != 1 || actual.target.index != target || actual.reason != original.reason) return false;
 			} else {
-				if (actual.state_code != original.state_code && !(original.state_code == 5 && actual.state_code == 1 && (original.reason == 1 || original.reason == 3))) return false;
+				if (actual.state_code != original.state_code && !(original.state_code == 5 && actual.state_code == 1 && (original.reason == 1 || original.reason == 3 || original.reason == 4))) return false;
 				if (actual.state_code == original.state_code) {
 					if (actual.reason != original.reason || actual.target.index != original.target.index) return false;
 				} else {
@@ -527,14 +538,14 @@ bool generic_window_bounds(int first, int count, int originals, int base, int us
 }
 
 bool generic_plan_bounds(CheckedIndex index, GenericInstance plan) {
-	return plan.arguments >= 0 && plan.argument_count >= 0 && plan.argument_count <= 257 && plan.arguments <= len(index.generic_arguments) - plan.argument_count && index.generic_node_used <= 8000000 && index.generic_symbol_used <= 8000000 && len(index.generic_symbol_keys) == len(index.generic_symbol_map) && generic_window_bounds(plan.node_first, plan.node_count, index.generic_nodes, plan.nodes, index.generic_node_used, len(index.generic_node_map)) && generic_window_bounds(plan.symbol_first, plan.symbol_count, index.generic_symbols, plan.symbols, index.generic_symbol_used, len(index.generic_symbol_map)) && generic_window_bounds(plan.scope_first, plan.scope_count, index.generic_scopes, plan.scopes, index.generic_scope_used, len(index.generic_scope_map));
+	return plan.arguments >= 0 && plan.argument_count >= 0 && plan.argument_count <= 257 && plan.arguments <= len(index.generic_arguments) - plan.argument_count && index.generic_node_used <= 8000000 && index.generic_symbol_used <= 8000000 && len(index.generic_symbol_keys) == len(index.generic_symbol_map) && len(index.generic_scope_keys) == len(index.generic_scope_map) && generic_window_bounds(plan.node_first, plan.node_count, index.generic_nodes, plan.nodes, index.generic_node_used, len(index.generic_node_map)) && generic_window_bounds(plan.symbol_first, plan.symbol_count, index.generic_symbols, plan.symbols, index.generic_symbol_used, len(index.generic_symbol_map)) && generic_window_bounds(plan.scope_first, plan.scope_count, index.generic_scopes, plan.scopes, index.generic_scope_used, len(index.generic_scope_map));
 }
 
 // Reconstruct the complete ordered source-key domain independently of the
 // allocator and binary-search lookup. Missing, extra and duplicate keys fail.
 bool generic_symbol_keys_verified(CheckedIndex index, GenericInstance plan) {
 	if (!generic_plan_bounds(index, plan) || index.generic_symbol_keys[plan.symbols] != 0) return false;
-	if (!plan.sparse_symbols) {
+	if (!plan.sparse_bindings) {
 		int at = 1;
 		while (at <= plan.symbol_count) {
 			if (index.generic_symbol_keys[plan.symbols + at] != 0) return false;
@@ -553,4 +564,59 @@ bool generic_symbol_keys_verified(CheckedIndex index, GenericInstance plan) {
 		source = source + 1;
 	}
 	return expected == plan.symbol_count && first == plan.symbol_first;
+}
+
+// Scope keys are reconstructed from original Binder scopes, independently of
+// the producer and its lookup. Genuine generic plans keep their dense domain.
+bool generic_scope_keys_verified(CheckedIndex index, GenericInstance plan) {
+	if (!generic_plan_bounds(index, plan) || index.generic_scope_keys[plan.scopes] != 0) return false;
+	if (!plan.sparse_bindings) {
+		int at = 1;
+		while (at <= plan.scope_count) {
+			if (index.generic_scope_keys[plan.scopes + at] != 0) return false;
+			at = at + 1;
+		}
+		return true;
+	}
+	int expected = 0; int first = index.generic_scopes + 1; int source = 1;
+	while (source <= index.generic_scopes) {
+		ScopeId id = {index = source}; int node = index.bindings.scope(id).node.index;
+		if (node >= plan.node_first && node - plan.node_first < plan.node_count) {
+			if (expected == plan.scope_count || index.generic_scope_keys[plan.scopes + expected + 1] != source) return false;
+			if (expected == 0) first = source;
+			expected = expected + 1;
+		}
+		source = source + 1;
+	}
+	return expected == plan.scope_count && first == plan.scope_first;
+}
+
+bool generic_scopes_verified(CheckedIndex index, GenericInstance plan) {
+	if (!generic_scope_keys_verified(index, plan) || plan.origin.index < 1 || plan.origin.index > index.generic_symbols) return false;
+	var origin = index.bindings.symbol(plan.origin);
+	int ordinal = 0;
+	while (ordinal < plan.scope_count) {
+		ScopeId id = {index = generic_scope_source(index, plan, ordinal)};
+		var source = index.bindings.scope(id);
+		int node = generic_node(index, plan, source.node.index);
+		int mapped = index.generic_scope_map[plan.scopes + ordinal + 1];
+		if (node == 0) {
+			if (mapped != 0) return false;
+		} else {
+			if (mapped <= index.generic_scopes || mapped > index.bindings.scope_count) return false;
+			ScopeId target_id = {index = mapped}; var target = index.bindings.scope(target_id);
+			int parent = source.parent.index;
+			if (generic_scope(index, plan, parent) != 0) parent = generic_scope(index, plan, parent);
+			int owner = source.owner.index;
+			if (generic_symbol(index, plan, owner) != 0) owner = generic_symbol(index, plan, owner);
+			int kind = source.kind;
+			if (origin.kind == 18 && source.node.index == origin.node.index) {
+				if (kind != 5) return false;
+				kind = 4;
+			}
+			if (target.node.index != node || target.parent.index != parent || target.owner.index != owner || target.unit.index != source.unit.index || target.kind != kind || target.namespace_name != source.namespace_name) return false;
+		}
+		ordinal = ordinal + 1;
+	}
+	return true;
 }

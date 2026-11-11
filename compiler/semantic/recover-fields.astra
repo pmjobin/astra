@@ -294,10 +294,12 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 	return true;
 }
 
-bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function) {
+// The enclosing pass independently verifies the full generic map at entry.
+// Reconstruct the current constructor body for each local use.
+bool recover_field_constructor_source(CheckedIndex checked, SymbolId function) {
 	var plan = checked_source_plan(checked, function);
-	if (plan.concrete.index == function.index && error_storage_class(checked, plan.enclosing)) return recover_error_constructor_source(checked, function);
-	if (!class_storage_initializing(checked, function) || !generic_verify(checked)) return false;
+	if (plan.concrete.index == function.index && error_storage_class(checked, plan.enclosing)) return recover_error_constructor_local(checked, function);
+	if (!class_storage_initializing(checked, function)) return false;
 	if (plan.concrete.index != function.index) return false;
 	var type = plan.enclosing;
 	if (!class_storage_source_verified(checked, type, false, 0)) return false;
@@ -380,6 +382,10 @@ void recover_fields_build(RecoverFields fields, CheckedIndex checked, RecoverSto
 	}
 }
 
+bool recover_field_constructor_verified(CheckedIndex checked, SymbolId function) {
+	return generic_verify(checked) && recover_field_constructor_source(checked, function);
+}
+
 bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverStorage storage, RecoverFlowData flow) {
 	if (!type_owner_same(fields.identity, checked.types.identity) || !class_storage_verify(fields.layout, checked) || !recover_error_layout_verified(fields.errors, fields.layout, checked) || len(fields.facts) != len(checked.uses)) return false;
 	var seen = new bool[len(fields.facts)]; int n = 0;
@@ -414,7 +420,7 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 			if (source_type.index == 0 || checked.uses[source_type.index].type.index != 0 && checked.uses[source_type.index].type.index != physical.semantic) return false;
 			bool initializing = fact.parent == 0 && class_storage_initializing(checked, function) && fact.receiver.index == class_storage_receiver(checked, function);
 			int flags = checked.symbol_flags[fact.field.index]; bool writable = (flags & 2) == 0 && ((flags & 128) == 0 || initializing);
-			if (fact.initializing != initializing || fact.writable != writable || initializing && !recover_field_constructor_verified(checked, function)) return false;
+			if (fact.initializing != initializing || fact.writable != writable || initializing && !recover_field_constructor_source(checked, function)) return false;
 			if (row.kind == 44 && (!writable || selected.index != fact.field.index || row.a < 1 || row.a > flow.node_count || flow.nodes[row.a - 1].type.index != physical.semantic)) return false;
 			if (row.kind == 44) {
 				// A slot descriptor is constructed once in its actual owned
