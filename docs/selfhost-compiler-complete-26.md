@@ -2151,6 +2151,36 @@ controls and the original integrated signature growth remain pending. Historical
 graph55/symbol2053/predicate26 remains independently DEFERRED. This test route
 creates no owning receiver root and grants no qualification before execution.
 
+## Copied record destinations
+
+The `f7a4a0c` source CLI passes73/73 focused checks. Complete original and
+current Flow runs pass eight global consumers, including payload arguments and
+array places. Field verification remains the sole refusing global consumer.
+Its original and current raw exit2 receipts remain preserved.
+
+A read-only native diagnostic locates the first remaining original failure at
+`Parser.advance`, specifically `this.current = this.scan(arena)`. The actual
+result is a copied `SyntaxTokenId` record. The earlier offline store frontier
+contains20 raw-pointer assignments and five assignments of this copied record.
+The pointer fix accounts for20 entries. That frontier grants no qualification.
+
+The candidate uses the existing independently source-qualified copy-channel
+query for retained field destinations. Records must pass their declaration,
+layout, leaf and ownership checks. Enums retain their existing verified value
+representation. Borrowed text results and owning payloads continue through the
+payload-preservation query. The retained receiver move, destination type,
+field access and cleanup obligations still run. The focused regression returns
+a record containing an integer, boolean and opaque pointer while replacing an
+unrelated owned buffer. An initial fixture's enum field is refused by C0's
+native-field restriction, and that raw failure remains separately recorded.
+The revised regression exercises the C0-supported copied-record destination.
+
+The previous actual source CLI reproduces the revised fixture's sole field
+refusal. Its C0 O0/O2 execution returns42 with strict unsuppressed Valgrind
+clean at both profiles. The normal-route complete C0 Core preflight passes.
+Updated actual source/native execution and restored record-store controls are
+pending. Full original native profiles proved remain0/2.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

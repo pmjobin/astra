@@ -1299,7 +1299,7 @@ bool template_scalar_store_controls(RecoverFlow flow) throws Error {
 		if (row.kind == 44 && row.a > 0) {
 			var fact = flow.fields.facts[row.source.index];
 			var value = flow.data.nodes[row.a - 1];
-			if (!fact.initializing && value.kind == 4 && (value.type.index >= 1 && value.type.index <= 13 || recover_storage_pointer(flow.checked, value.type))) {
+			if (!fact.initializing && value.kind == 4 && recover_copy_channel(flow.checked, value.type, 0, true)) {
 				var changed = value; changed.kind = 10; changed.symbol = fact.receiver;
 				flow.data.nodes[row.a - 1] = changed;
 				bool move_rejected = !recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data);
@@ -1307,7 +1307,11 @@ bool template_scalar_store_controls(RecoverFlow flow) throws Error {
 				bool type_rejected = !recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data);
 				flow.data.nodes[row.a - 1] = value;
 				if (!move_rejected || !type_rejected || !recover_flow_verify(flow)) return false;
-				println("SCALAR_STORE_CONTROLS root_move=1 type=1 restored=1");
+				if (recover_storage_record(flow.checked, value.type)) {
+					println("RECORD_STORE_CONTROLS root_move=1 type=1 restored=1");
+				} else {
+					println("SCALAR_STORE_CONTROLS root_move=1 type=1 restored=1");
+				}
 				return true;
 			}
 		}

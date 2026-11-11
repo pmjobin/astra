@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ResultToken {
+	int index;
+	bool valid;
+	void* handle;
+}
+
+class RecordFieldResult {
+	ResultToken current;
+	owned int[] values;
+
+	init() {
+		ResultToken current = {index = 0, valid = false, handle = null};
+		this.current = current;
+		this.values = new int[1];
+	}
+
+	ResultToken scan() {
+		var grown = new int[3];
+		this.values = move grown;
+		ResultToken result = {index = 42, valid = true, handle = null};
+		return result;
+	}
+
+	void refresh() {
+		this.current = this.scan();
+	}
+
+	int count() {
+		return len(this.values);
+	}
+}
+
+int main() {
+	var value = new RecordFieldResult();
+	value.refresh();
+	if (value.current.index != 42 || !value.current.valid || value.current.handle != null) return 1;
+	if (value.count() != 3) return 2;
+	return 42;
+}
