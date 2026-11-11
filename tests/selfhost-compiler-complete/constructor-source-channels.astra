@@ -5,15 +5,25 @@ struct ConstructorCell {
 
 class ConstructorInput {
 	owned ConstructorCell[] cells;
+	private int limit;
 
 	init(int value) {
 		this.cells = new ConstructorCell[1];
+		this.limit = 1;
 		ConstructorCell cell = {value = value};
 		this.cells[0] = cell;
 	}
 
 	ConstructorCell read(int index) {
 		return this.cells[index];
+	}
+
+	property int count {
+		get { return this.limit; }
+	}
+
+	property int doubled {
+		get { return this.limit + this.limit; }
 	}
 }
 
@@ -32,15 +42,28 @@ owned ConstructorStorage constructor_storage(int value) {
 	return move storage;
 }
 
+bool constructor_check(ConstructorInput input, bool fail) throws Error {
+	if (fail) {
+		throw new Error("constructor");
+	}
+	return input.count == 1;
+}
+
 class ConstructorChannels {
 	owned ConstructorStorage storage;
 	ConstructorCell cell;
 
-	init(ConstructorInput input) {
+	init(ConstructorInput input, bool fail) {
 		var first = input.cells[0];
 		var second = input.read(0);
-		var storage = constructor_storage(first.value + second.value);
-		storage.active = false;
+		bool valid = false;
+		try {
+			valid = constructor_check(input, fail);
+		} catch (Error error) {
+			valid = false;
+		}
+		var storage = constructor_storage(first.value + second.value + input.count + input.doubled);
+		storage.active = !valid;
 		this.storage = move storage;
 		this.cell = first;
 	}
@@ -52,7 +75,9 @@ class ConstructorChannels {
 }
 
 int main() {
-	var input = new ConstructorInput(14);
-	var channels = new ConstructorChannels(input);
+	var input = new ConstructorInput(13);
+	var channels = new ConstructorChannels(input, false);
+	var rejected = new ConstructorChannels(input, true);
+	if (rejected.result() != 3) return 4;
 	return channels.result();
 }

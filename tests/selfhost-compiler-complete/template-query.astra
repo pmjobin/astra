@@ -672,16 +672,31 @@ bool template_constructor_channel_controls(CheckedIndex checked) throws Error {
 				var declaration = checked.bindings.symbol(function);
 				var body = checked.bindings.program.arena.get_node_body(declaration.node);
 				var statements = checked.bindings.program.arena.get_list_statements(body);
-				if (checked.bindings.program.arena.list_count(statements) != 6) return false;
+				if (checked.bindings.program.arena.list_count(statements) != 8) return false;
 				var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
-				while (i < 3) {
+				var attempt = checked.bindings.program.arena.node_at(statements, 3);
+				var clauses = checked.bindings.program.arena.get_list_catches(attempt);
+				if (checked.bindings.program.arena.list_count(clauses) != 1) return false;
+				var clause = checked.bindings.program.arena.node_at(clauses, 0);
+				var binding = checked.node_symbols[clause.index];
+				int catch_flags = checked.symbol_flags[binding.index];
+				checked.symbol_flags[binding.index] = 0;
+				bool invalid_catch = !recover_field_constructor_verified(checked, function);
+				checked.symbol_flags[binding.index] = catch_flags;
+				if (!invalid_catch || !recover_field_constructor_verified(checked, function)) return false;
+				var protected_body = checked.bindings.program.arena.get_node_body(attempt);
+				var protected_statements = checked.bindings.program.arena.get_list_statements(protected_body);
+				var assignment = checked.bindings.program.arena.node_at(protected_statements, 0);
+				var call = checked.bindings.program.arena.get_node_expression(assignment);
+				if (recover_constructor_value(checked, call, function, plan.enclosing, initialized, 0)) return false;
+				while (i < 5) {
 					if (!recover_constructor_statement(checked, checked.bindings.program.arena.node_at(statements, i), function, plan.enclosing, initialized, 0)) return false;
 					i = i + 1;
 				}
-				var write = checked.bindings.program.arena.node_at(statements, 3);
+				var write = checked.bindings.program.arena.node_at(statements, 5);
 				var target = checked.bindings.program.arena.get_node_target(write);
 				var receiver = recover_field_receiver(checked, target, function);
-				var local_source = checked.bindings.program.arena.node_at(statements, 2);
+				var local_source = checked.bindings.program.arena.node_at(statements, 4);
 				var local = checked.node_symbols[local_source.index];
 				if (receiver.index < 1 || receiver.index != local.index || !initialized[local.index] || !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0)) return false;
 				initialized[local.index] = false;
@@ -706,7 +721,7 @@ bool template_constructor_channel_controls(CheckedIndex checked) throws Error {
 				refused = !recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0);
 				initialized[first.index] = true;
 				if (!refused || !recover_field_constructor_verified(checked, function) || !generic_verify(checked)) return false;
-				println("CONSTRUCTOR_CHANNEL_CONTROLS initialized=2 owner=1 readonly=1 restored=1");
+				println("CONSTRUCTOR_CHANNEL_CONTROLS initialized=2 owner=1 readonly=1 restored=1 handled=2");
 				return true;
 			}
 		}

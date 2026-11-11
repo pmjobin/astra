@@ -1516,6 +1516,42 @@ The fresh native semantic check then required the array emitter's source-shape
 validation Error to propagate through its declared checked contract. After that
 correction, both development entries passed semantic and Core preflights.
 
+## Constructor context and Flow integration correction
+
+The cd5cfee O2 observer completed 40 focused checks. It passed 37, including
+pointer-record Flow and fresh Error-root reference controls. Constructor-channel
+controls, constructor-channel Flow and record-local Flow failed. Their raw
+receipts remain retained. The complete original source inventory reduced the
+constructor header refusals from 19 to five. Whole-original Typecore took
+143.892 seconds, Flow 150.092 seconds and the inventory 152.389 seconds. These
+single observations use a changed candidate revision and do not isolate a
+runtime speedup.
+
+The integration correction permits the verified owned-result function flag in
+constructor factory calls and includes record-write tokens and local symbols
+in the Flow node checks. Constructor reads now follow independently verified
+scalar properties and actual getter argument edges. Caught checked calls carry
+the actual nominated Error catch bound through the constructor source walk.
+The public source predicates enter with an empty handler and continue to refuse
+unhandled checked calls. The expanded C0 constructor witness exercises scalar
+and computed getters, owned factory results and both caught-call outcomes at
+O0/O2 with clean unsuppressed Valgrind. Two additional restored controls require
+refusal for an invalid catch binding and an unhandled checked call.
+
+The completed 314c965 C0 development-host builds took 3,651.249 seconds at O0
+and 4,381.297 seconds at O2 under explicit 7,200-second budgets. Both hosts
+retained 14 positive native programs in their follow-ups. Both refused the
+constructor-channel witness at source admission and the pointer-record witness
+after valid Flow and SSA, while constructing LLVM record helpers. Whole-original
+native attempts were deferred after those focused failures. The raw results
+and the earlier 3,600-second timeout remain separate receipts.
+
+The record helper emitter's leaf selector and its independent memory-leaf
+consumer still excluded pointers. The correction admits the source-qualified
+address-space-zero pointer leaf in both paths, preserving the existing depth,
+field and leaf ceilings. Both development entries pass C0 semantic and Core
+preflights with these corrections. Astra execution is pending.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
