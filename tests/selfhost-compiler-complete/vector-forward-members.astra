@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Use with the original Vector source and Error root. The first field requests
+// the specialization before the payload's member types have been checked.
+class EarlyHolder {
+	owned Vector<LateValue> items;
+
+	init(owned Vector<LateValue> items) { this.items = move items; }
+}
+
+class LateValue {
+	int value;
+
+	init(int value) { this.value = value; }
+}
+
+int main() {
+	var items = new Vector<LateValue>(1);
+	if (items.count() != 0) return 1;
+	return 42;
+}

@@ -88,6 +88,30 @@ methods still require Flow validation. `record-array-flow-original` retains
 the input ledger and raw result. Complete original native generation remains
 at zero of two profiles.
 
+## Original Vector specialization coverage
+
+The frozen `85cd40c` observer admits the original `Vector` and its focused
+`SlotValue` client through Typecore and Flow with 185 Flow nodes. Removing a
+concrete member and duplicating another both cause refusal. Restoring the
+original plans passes the complete generic verifier. On the 190 unchanged
+compiler inputs, the same observer still refuses the original `Vector`.
+
+The hardware-breakpoint inspection reads the frozen observer's 223 actual
+specialization rows. `Vector<Utf8Message>`, `Vector<SourceEntry>`, and
+`Vector<Token>` each lack `init` and `replace` plans. `Vector<SyntaxList>` has
+all eight member plans. The original refusal reproduces after the inspection.
+The setup attempt before the inferior was running retains its debugger failure.
+The successful inspection receipt SHA-256 is
+`5e1bab250ab6858dd33f9e149626c55541bfeef15acf0237c5c552eff81eea5c`.
+
+The forward-field fixture reproduces the omission when an earlier field needs
+`Vector<LateValue>` before `LateValue`'s fields have types. Its original C0
+oracles execute to 42 with clean Valgrind at O0 and O2. The candidate revisits
+closed Class specializations after checking declaration heads. Their missing
+member signatures are established before concrete body checking. All ordinary
+generic verification and the 256-instance ceiling still apply. Fresh Flow and
+complete-original verification are pending.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in

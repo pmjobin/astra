@@ -332,6 +332,15 @@ owned CheckedIndex checked_build_profile_mode(owned BindingIndex bindings, int s
 			if (declaration.kind == 4 && result.bindings.program.arena.list_count(result.bindings.program.arena.get_list_type_parameters(declaration.node)) == 0) class_storage_members(result, result.symbol_types[owner]);
 			owner = owner + 1;
 		}
+		// A Class specialization requested while checking heads can refer to
+		// payload fields whose declarations have not been typed yet. Complete
+		// those member signatures now, before checking any concrete bodies.
+		int instance = 0;
+		while (instance < result.instance_count && !result.failed()) {
+			var plan = result.instances[instance];
+			if (result.bindings.symbol(plan.origin).kind == 4) class_storage_members(result, result.symbol_types[plan.concrete.index]);
+			instance = instance + 1;
+		}
 	}
 	if (stop_after == 1 && !result.failed()) {
 		result.fail(result.bindings.program.span(), "stopped after checked signatures");
