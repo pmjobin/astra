@@ -241,6 +241,72 @@ restored controls for source origin, enclosing Class, type-argument count,
 inverse mapping and receiver ownership. Actual candidate execution, native
 integration and complete-original qualification are pending.
 
+## Constructor-owned locals candidate
+
+The original `SyntaxArena` initializer creates local `Vector` objects and moves
+them into owned fields. `nested-class-field-oracles1` independently reproduces
+that allocation-and-move shape, plus a call through the owned child field.
+Original C0 returns 42 with clean unsuppressed Valgrind at O0 and O2. The
+previous `572a933` native host refuses the parent constructor, bytes 186–302,
+with its output sentinel preserved. The tracked fixture has the same C0 AST
+as the vetted source.
+
+The source walk now checks an actual Class allocation's constructor, signature,
+receiver and argument channels against the current initialization state. A
+fresh owned Class local becomes usable after its initializer passes that walk.
+Moving it into a field retains its lexical Binder slot. The enclosing Flow
+pass checks every constructor body, while Core, SSA and LLVM retain their
+ownership and retirement checks. The ordinary initialization walk still
+establishes each field once. Its actual native qualification is pending.
+
+The all-production C0 frontend check passes in 54.58 seconds. The updated
+semantic observer check passes in 32.09 seconds. Its constructor controls check
+before/after/cleared local state, the owned local flag and the actual callee
+signature. The direct-method control successor adds disabled-native-profile
+and empty-table cases. Missing source-plan queries return an explicit empty
+value. The frozen `2569232` observer retains its earlier five-control source.
+Both new control groups await execution by their matching product.
+
+## Direct-method and native dispatch observations
+
+The frozen `2569232` observer executes all 262 ordinary members through checked
+Typecore and Flow, with zero generic instances. Five restored source/receiver
+controls pass. The genuine 256-specialization source passes Flow with 2,057
+nodes, and 257 specializations retain the exact resource refusal. The pointer
+array, original hosted-files and forward-Vector sources also pass Flow.
+The pointer constructor retains a real SIGILL assertion, so the initial
+focused worker defers its full-original Flow run.
+
+`direct-original-typecore1` separately executes all 190 unchanged read-only
+original inputs through the checked Typecore and independent source-plan
+verification. It completes in 195.60 seconds, with both original generic Class
+declaration contracts passing. The separately printed restricted member-body
+predicates remain literal diagnostics. This supplies Typecore evidence only.
+Original whole-compiler Flow, Core, CFG, SSA and native products remain unproved.
+
+The frozen `4afb133` native O0 host executes the opaque pointer-array program
+to 42 with clean unsuppressed Valgrind. Its function-only module source generates
+real retained-function objects at O0 and O2. Both objects preserve the actual
+private source function. The native mutation-index entry passes its missing,
+extra and restoration controls on 11,712 Flow nodes. Its raw sequence also
+retains post-SSA assertions across the earlier array, Class, flat and slot
+programs. Several scripts stop before writing their final result. The separate
+independent audit rechecks all 195 consumed archived Git inputs, all 46 tool
+identities, raw command streams, the pointer ELF and both module objects.
+Every failed and incomplete receipt remains explicit.
+
+The natural pointer-constructor backtrace reaches
+`SyntaxArena.get_node_initializer` from `recover_constructor_statement`.
+An assignment was sent to a declaration-only accessor before its expression
+branch ran. The source walk now selects the accessor for the actual AST kind.
+The native post-SSA backtrace reaches `get_token_extern_keyword` while scanning
+foreign declarations. The extended foreign predicate lacked its function-kind
+guard before that accessor. The predicate now checks the symbol kind, owner
+and AST kind first. The protected arena assertions stay active. The source
+observer successor scans every real Binder symbol through the foreign query
+before native emission. The matching production and observer C0 checks pass.
+Actual rerun qualification for these corrections is pending.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in

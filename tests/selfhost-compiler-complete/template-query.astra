@@ -185,7 +185,7 @@ void template_closed_storage(CheckedIndex checked, SymbolId owner) throws Error 
 	}
 }
 
-bool template_direct_method_controls(CheckedIndex checked) throws Error {
+bool template_direct_method_controls(owned CheckedIndex checked) throws Error {
 	if (!generic_verify(checked)) return false;
 	int first = 0; int other = 0; int members = 0; int s = 1;
 	while (s < len(checked.direct_methods)) {
@@ -218,8 +218,74 @@ bool template_direct_method_controls(CheckedIndex checked) throws Error {
 	checked.symbol_flags[receiver] = 4;
 	refused = !generic_verify(checked); checked.symbol_flags[receiver] = 2;
 	if (!refused || !generic_verify(checked)) return false;
-	var output = new Utf8ByteBuilder(); source_append_text(output, "DIRECT_METHOD_CONTROLS members="); append_int(output, members); source_append_text(output, " generic="); append_int(output, checked.instance_count); source_append_text(output, " source=5 restored=1"); var text = output.snapshot(); println(text.text);
+	bool native = checked.native_abi; checked.native_abi = false;
+	refused = !generic_verify(checked); checked.native_abi = native;
+	if (!refused || !generic_verify(checked)) return false;
+	var empty = new GenericInstance[0]; swap(checked.direct_methods, empty);
+	var missing = checked_source_plan(checked, original.concrete);
+	refused = !generic_verify(checked) && missing.origin.index == 0 && missing.concrete.index == 0 && missing.state == 0;
+	swap(checked.direct_methods, empty);
+	if (!refused || !generic_verify(checked)) return false;
+	var output = new Utf8ByteBuilder(); source_append_text(output, "DIRECT_METHOD_CONTROLS members="); append_int(output, members); source_append_text(output, " generic="); append_int(output, checked.instance_count); source_append_text(output, " source=7 restored=1"); var text = output.snapshot(); println(text.text);
 	return true;
+}
+
+bool template_constructor_local_controls(CheckedIndex checked) throws Error {
+	if (!generic_verify(checked)) return false;
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var function = type_symbol(s); var plan = checked_source_plan(checked, function);
+		if (plan.concrete.index == s && class_storage_initializing(checked, function)) {
+			var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
+			if (checked.bindings.program.arena.token_is(owner.token, "ConstructorParent")) {
+				if (!recover_field_constructor_verified(checked, function)) return false;
+				var declaration = checked.bindings.symbol(function); var body = checked.bindings.program.arena.get_node_body(declaration.node);
+				var statements = checked.bindings.program.arena.get_list_statements(body);
+				if (checked.bindings.program.arena.list_count(statements) != 3) return false;
+				var local = checked.bindings.program.arena.node_at(statements, 0); var symbol = checked.node_symbols[local.index];
+				var assignment = checked.bindings.program.arena.node_at(statements, 1); var moved = checked.bindings.program.arena.get_node_expression(assignment);
+				var allocation = checked.bindings.program.arena.get_node_initializer(local);
+				if (symbol.index < 1 || checked.symbol_flags[symbol.index] != 4 || checked.bindings.program.arena.kind(moved) != SyntaxKind.MoveExpressionSyntax()) return false;
+				var initialized = new bool[checked.bindings.symbol_count + 1];
+				if (recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0)) return false;
+				if (!recover_constructor_statement(checked, local, function, plan.enclosing, initialized, 0) || !initialized[symbol.index] || !recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0)) return false;
+				initialized[symbol.index] = false;
+				if (recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0)) return false;
+				initialized[symbol.index] = true; checked.symbol_flags[symbol.index] = 0;
+				bool refused = !recover_constructor_value(checked, moved, function, plan.enclosing, initialized, 0);
+				checked.symbol_flags[symbol.index] = 4;
+				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
+				var callee = checked_constructor(checked, checked.uses[allocation.index].type); int signature = checked.symbol_signatures[callee.index].index;
+				if (signature < 1 || signature > checked.signature_count) return false;
+				var original = checked.signatures[signature - 1]; var changed = original; changed.flags = 64; checked.signatures[signature - 1] = changed;
+				refused = !recover_constructor_value(checked, allocation, function, plan.enclosing, initialized, 0);
+				checked.signatures[signature - 1] = original;
+				if (!refused || !recover_field_constructor_verified(checked, function) || !generic_verify(checked)) return false;
+				println("CONSTRUCTOR_LOCAL_CONTROLS transitions=3 source=2 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
+bool template_foreign_source_controls(CheckedIndex checked) throws Error {
+	int s = 1; int imports = 0; int other_declarations = 0;
+	while (s <= checked.bindings.symbol_count) {
+		var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
+		bool foreign = recover_foreign_source(checked, symbol);
+		if (declaration.kind != 1 || declaration.owner.index != 0) {
+			other_declarations = other_declarations + 1;
+			if (foreign) return false;
+		} else { if (foreign) {
+				if (checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.FunctionDeclarationSyntax() || checked.bindings.program.arena.get_token_extern_keyword(declaration.node).index == 0) return false;
+				imports = imports + 1;
+			} }
+		s = s + 1;
+	}
+	var output = new Utf8ByteBuilder(); source_append_text(output, "FOREIGN_SOURCE_CONTROLS symbols="); append_int(output, checked.bindings.symbol_count); source_append_text(output, " imports="); append_int(output, imports); source_append_text(output, " other_declarations="); append_int(output, other_declarations); var text = output.snapshot(); println(text.text);
+	return other_declarations > 0;
 }
 
 int template_source_obligations(CheckedIndex checked) throws Error {
@@ -262,7 +328,7 @@ int template_source_obligations(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--foreign-source-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -276,7 +342,15 @@ int main(string[] args) {
 			return 8;
 		}
 		if (args[1] == "--direct-method-controls") {
-			if (template_direct_method_controls(checked)) return 42;
+			if (template_direct_method_controls(move checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--constructor-local-controls") {
+			if (template_constructor_local_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--foreign-source-controls") {
+			if (template_foreign_source_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--records") return record_shape_cli(checked);

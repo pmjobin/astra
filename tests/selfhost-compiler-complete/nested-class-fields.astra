@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ConstructorChild {
+	int value;
+
+	init(int value) { this.value = value; }
+
+	int read() { return this.value; }
+}
+
+class ConstructorParent {
+	owned ConstructorChild child;
+	int value;
+
+	init(int value) {
+		var child = new ConstructorChild(value);
+		this.child = move child;
+		this.value = value + 1;
+	}
+
+	int read() { return this.value; }
+
+	int read_child() { return this.child.read(); }
+}
+
+int main() {
+	var parent = new ConstructorParent(41);
+	if (parent.read_child() != 41) return 1;
+	return parent.read();
+}

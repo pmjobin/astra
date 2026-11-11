@@ -84,9 +84,9 @@ SymbolId recover_source_function(CheckedIndex checked, SyntaxNodeId node) {
 	return type_symbol(0);
 }
 
-// This walk is intentionally separate from constructor lowering. Before all
-// fields are initialized, only parameter moves, literals and initialized field
-// reads can contribute values. Passing/returning the receiver is never allowed.
+// This walk independently follows initialized fields and lexical locals through
+// constructor source. Each allocation argument uses the current initialization
+// state. The receiver remains confined to its field initialization operations.
 bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId function, TypeId aggregate, bool[] initialized, int depth) {
 	if (node.index == 0 || depth > 192) return false;
 	var kind = checked.bindings.program.arena.kind(node);
@@ -97,11 +97,13 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 		var declaration = checked.bindings.symbol(symbol);
 		if (declaration.owner.index != function.index || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 		if (declaration.kind == 7) return symbol.index != class_storage_receiver(checked, function);
-		return declaration.kind == 8 && initialized[symbol.index] && checked.symbol_flags[symbol.index] == 0;
+		return declaration.kind == 8 && initialized[symbol.index] && (checked.symbol_flags[symbol.index] == 0 || checked.symbol_flags[symbol.index] == 4 && recover_storage_class(checked, checked.symbol_types[symbol.index]));
 	}
 	if (kind == SyntaxKind.MoveExpressionSyntax()) {
 		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_source(node));
-		return symbol.index > 0 && checked.bindings.symbol(symbol).kind == 7 && checked.bindings.symbol(symbol).owner.index == function.index && checked.symbol_flags[symbol.index] == 4 && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) == 0;
+		if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_flags[symbol.index] != 4 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0) return false;
+		var declaration = checked.bindings.symbol(symbol);
+		return declaration.kind == 7 || declaration.kind == 8 && initialized[symbol.index] && recover_storage_class(checked, checked.symbol_types[symbol.index]) && checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node));
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, depth + 1);
@@ -121,6 +123,27 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 		var type = checked.uses[node.index].type;
 		if (checked_kind(checked, type) == 23) return class_storage_slot_initialization(checked, node, type) && recover_storage_slots(checked, type, 0);
 		return checked.bindings.program.arena.get_node_allocation_context(node).index == 0 && checked.bindings.program.arena.get_node_failure_call(node).index == 0 && recover_constructor_value(checked, checked.bindings.program.arena.get_node_count(node), function, aggregate, initialized, depth + 1);
+	}
+	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+		var type = checked.uses[node.index].type;
+		if (!recover_storage_class(checked, type) || checked.uses[node.index].flags != 4 || checked.bindings.program.arena.get_node_allocation_context(node).index != 0 || checked.bindings.program.arena.get_bool_fallible(node)) return false;
+		var constructor = checked_constructor(checked, type); var plan = checked_source_plan(checked, constructor);
+		if (constructor.index < 1 || plan.concrete.index != constructor.index || plan.enclosing.index != type.index || !class_storage_initializing(checked, constructor)) return false;
+		int ordinal = checked.symbol_signatures[constructor.index].index;
+		if (ordinal < 1 || ordinal > checked.signature_count) return false;
+		var signature = checked.signatures[ordinal - 1]; var arguments = checked.bindings.program.arena.get_list_arguments(node);
+		if (signature.declaration.index != constructor.index || signature.callable.index != checked.symbol_types[constructor.index].index || signature.dispatch != 0 || signature.flags != 0 || signature.error.index != 0 || checked.types.row(signature.callable).count != checked.bindings.program.arena.list_count(arguments) + 2) return false;
+		var result = checked.types.argument(checked.types, signature.callable, 0); var receiver = checked.types.argument(checked.types, signature.callable, 1);
+		if (result.type.index != 14 || result.flags != 0 || receiver.type.index != type.index || receiver.flags != 2) return false;
+		// The enclosing Flow pass checks each constructor body. This local
+		// source check binds the allocation and its actual argument channels.
+		int p = 0;
+		while (p < checked.bindings.program.arena.list_count(arguments)) {
+			var argument = checked.bindings.program.arena.node_at(arguments, p); var channel = checked.types.argument(checked.types, signature.callable, p + 2);
+			if (checked.uses[argument.index].type.index != channel.type.index || (channel.flags & 4) != 0 && (checked.uses[argument.index].flags & 4) == 0 || !recover_constructor_value(checked, argument, function, aggregate, initialized, depth + 1)) return false;
+			p = p + 1;
+		}
+		return true;
 	}
 	if (kind == SyntaxKind.CallExpressionSyntax() && checked_flow_intrinsic(checked, node)) {
 		var arguments = checked_call_arguments(checked, node);
@@ -223,14 +246,17 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 	bool assignment = kind == SyntaxKind.AssignmentStatementSyntax();
 	if (!assignment && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.InferredLocalDeclarationSyntax()) return false;
 	var symbol = checked.node_symbols[node.index];
-	var value = checked.bindings.program.arena.get_node_initializer(node);
+	SyntaxNodeId value = {index = 0};
 	if (assignment) {
 		symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_name(node));
 		value = checked.bindings.program.arena.get_node_expression(node);
+	} else {
+		value = checked.bindings.program.arena.get_node_initializer(node);
 	}
-	if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).kind != 8 || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_flags[symbol.index] != 0 || initialized[symbol.index] != assignment || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
+	if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).kind != 8 || checked.bindings.symbol(symbol).owner.index != function.index || initialized[symbol.index] != assignment || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 	var type = checked.symbol_types[symbol.index];
-	if (!type_numeric(checked_kind(checked, type)) && type.index != 13 && !recover_storage_pointer(checked, type)) return false;
+	bool owned_class = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_class(checked, type) && value.index > 0 && checked.bindings.program.arena.kind(value) == SyntaxKind.HeapObjectConstructionSyntax();
+	if (!owned_class && (checked.symbol_flags[symbol.index] != 0 || !type_numeric(checked_kind(checked, type)) && type.index != 13 && !recover_storage_pointer(checked, type))) return false;
 	if (value.index == 0 || checked.uses[value.index].type.index != type.index || !recover_constructor_value(checked, value, function, aggregate, initialized, depth + 1)) return false;
 	initialized[symbol.index] = true;
 	return true;

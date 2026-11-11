@@ -98,8 +98,13 @@ bool generic_syntax_count_valid(int originals, int total) {
 int generic_verify_failure(CheckedIndex index) {
 	if (!generic_syntax_count_valid(index.generic_nodes, index.bindings.program.arena.node_count)) return 32;
 	if (!index.native_abi) {
-		if (index.instance_count == 0) return 0;
-		return 1;
+		if (index.instance_count != 0) return 1;
+		int source = 0;
+		while (source < len(index.direct_methods)) {
+			if (index.direct_methods[source].state != 0 || index.direct_methods[source].concrete.index != 0) return 1;
+			source = source + 1;
+		}
+		return 0;
 	}
 	if (index.instance_count < 0 || index.instance_count > 256 || index.instance_count > len(index.instances)) return 2;
 	int node_slots = 0; int symbol_slots = 0; int scope_slots = 0;

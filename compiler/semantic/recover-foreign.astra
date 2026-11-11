@@ -5,7 +5,7 @@ bool recover_foreign_source(CheckedIndex checked, SymbolId symbol) {
 	if (checked_c_text_signature(checked, symbol) || checked_c_counted_signature(checked, symbol, true)) return true;
 	if (!checked.field_effects || symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false;
 	var declaration = checked.bindings.symbol(symbol);
-	return declaration.owner.index == 0 && checked.bindings.program.arena.get_token_extern_keyword(declaration.node).index != 0 && checked_c_scalar_abi_signature(checked, symbol, true);
+	return declaration.kind == 1 && declaration.owner.index == 0 && checked.bindings.program.arena.kind(declaration.node) == SyntaxKind.FunctionDeclarationSyntax() && checked.bindings.program.arena.get_token_extern_keyword(declaration.node).index != 0 && checked_c_scalar_abi_signature(checked, symbol, true);
 }
 
 bool recover_foreign_counted(CheckedIndex checked, TypeId type) { return type.index == 15 || checked_c_byte_buffer(checked, type); }

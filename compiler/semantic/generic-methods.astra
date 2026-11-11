@@ -187,7 +187,14 @@ GenericInstance checked_source_plan(CheckedIndex index, SymbolId concrete) {
 	}
 	int generic = generic_instance_for(index, concrete);
 	if (generic > 0) return index.instances[generic - 1];
-	return index.direct_methods[0];
+	GenericInstance absent = {
+		origin = {index = 0}, concrete = {index = 0}, enclosing = {index = 0},
+		arguments = 0, argument_count = 0, nodes = 0, symbols = 0, scopes = 0,
+		node_first = 0, node_count = 0, symbol_first = 0, symbol_count = 0,
+		scope_first = 0, scope_count = 0, state = 0,
+		first_reference = 0, reference_count = 0
+	};
+	return absent;
 }
 
 SymbolId direct_method_lower(CheckedIndex index, SymbolId origin, TypeId enclosing, SyntaxSpan span) throws Error {
