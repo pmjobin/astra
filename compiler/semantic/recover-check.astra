@@ -47,16 +47,32 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	}
 	if (row.kind == 3) {
 		if (kind != SyntaxKind.BinaryExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_operator_token(source).index || row.a < 1 || row.b < 1) return false;
-		if (!checked.bindings.program.arena.token_is(row.token, "+") && !checked.bindings.program.arena.token_is(row.token, "-") && !checked.bindings.program.arena.token_is(row.token, "*") && !checked.bindings.program.arena.token_is(row.token, "/") && !checked.bindings.program.arena.token_is(row.token, "%") && !checked.bindings.program.arena.token_is(row.token, "&") && !checked.bindings.program.arena.token_is(row.token, "|") && !checked.bindings.program.arena.token_is(row.token, "^") && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=") && !checked.bindings.program.arena.token_is(row.token, "<") && !checked.bindings.program.arena.token_is(row.token, ">") && !checked.bindings.program.arena.token_is(row.token, "<=") && !checked.bindings.program.arena.token_is(row.token, ">=")) return false;
+		if (!checked.bindings.program.arena.token_is(row.token, "+") && !checked.bindings.program.arena.token_is(row.token, "-") && !checked.bindings.program.arena.token_is(row.token, "*") && !checked.bindings.program.arena.token_is(row.token, "/") && !checked.bindings.program.arena.token_is(row.token, "%") && !checked.bindings.program.arena.token_is(row.token, "&") && !checked.bindings.program.arena.token_is(row.token, "|") && !checked.bindings.program.arena.token_is(row.token, "^") && !checked.bindings.program.arena.token_is(row.token, "<<") && !checked.bindings.program.arena.token_is(row.token, ">>") && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=") && !checked.bindings.program.arena.token_is(row.token, "<") && !checked.bindings.program.arena.token_is(row.token, ">") && !checked.bindings.program.arena.token_is(row.token, "<=") && !checked.bindings.program.arena.token_is(row.token, ">=")) return false;
 		if (!recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_left(source), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_right(source), function, handler, caught, seen, edges, depth + 1)) return false;
 		var left = flow.nodes[row.a - 1]; var right = flow.nodes[row.b - 1];
+		bool shift = checked.bindings.program.arena.token_is(row.token, "<<") || checked.bindings.program.arena.token_is(row.token, ">>");
+		if (shift) {
+			if (!type_integer(checked_kind(checked, left.type)) || !type_integer(checked_kind(checked, right.type)) || row.type.index != left.type.index) return false;
+			var count = checked.bindings.program.arena.get_node_right(source);
+			if (checked.bindings.program.arena.kind(count) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+				try {
+					var spelling = checked.bindings.program.arena.token_message(checked.bindings.program.arena.get_token_literal(count));
+					int value = checked_decimal(spelling.text, 64);
+					if (value < 0 || value >= type_width(checked_kind(checked, left.type))) return false;
+				} catch (Error error) {
+					return false;
+				}
+			}
+			return true;
+		}
 		if (left.type.index != right.type.index) return false;
 		bool compare = checked.bindings.program.arena.token_is(row.token, "==") || checked.bindings.program.arena.token_is(row.token, "!=") || checked.bindings.program.arena.token_is(row.token, "<") || checked.bindings.program.arena.token_is(row.token, ">") || checked.bindings.program.arena.token_is(row.token, "<=") || checked.bindings.program.arena.token_is(row.token, ">=");
 		int code = checked_kind(checked, left.type);
 		bool pointer = recover_storage_class(checked, left.type) || recover_storage_error(checked, left.type) || recover_storage_shared(checked, left.type) || recover_storage_pointer(checked, left.type);
 		if ((code == 15 || pointer || code == 32) && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=")) return false;
 		if (!type_numeric(code) && code != 13 && code != 15 && !(code == 32 && enum_value_type_verified(checked, left.type)) && !pointer || checked.bindings.program.arena.token_is(row.token, "/") && !type_numeric(code)) return false;
-		if ((checked.bindings.program.arena.token_is(row.token, "%") || checked.bindings.program.arena.token_is(row.token, "&") || checked.bindings.program.arena.token_is(row.token, "|") || checked.bindings.program.arena.token_is(row.token, "^")) && !type_integer(code)) return false;
+		if (checked.bindings.program.arena.token_is(row.token, "%") && !type_integer(code)) return false;
+		if ((checked.bindings.program.arena.token_is(row.token, "&") || checked.bindings.program.arena.token_is(row.token, "|") || checked.bindings.program.arena.token_is(row.token, "^")) && !type_integer(code) && code != 13) return false;
 		return compare && row.type.index == 13 || !compare && code != 15 && row.type.index == left.type.index;
 	}
 	if (row.kind == 4 || row.kind == 5) {

@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct count domains, guard edges, normalization and exact operations
+// from source integer kinds and actual LLVM instructions.
+bool recover_shift_helper_verified(void* function, int kind, int count_kind, bool right_shift, string name, void* trap) {
+	if (!type_integer(kind) || !type_integer(count_kind) || !recover_llvm_helper_signature(function, 2) || llvm13_named(function, name) != 1) return false;
+	int width = type_width(kind); int count_width = type_width(count_kind);
+	var left = LLVMGetParam(function, 0); var right = LLVMGetParam(function, 1);
+	if (LLVMGetTypeKind(LLVMTypeOf(left)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(left)) != width || LLVMGetTypeKind(LLVMTypeOf(right)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(right)) != count_width || LLVMGetReturnType(LLVMGlobalGetValueType(function)) != LLVMTypeOf(left)) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3);
+	if (len(blocks) != 3) return false;
+	var entry = recover_llvm_body(blocks[0], 2); var fatal = recover_llvm_body(blocks[1], 2);
+	if (len(entry) != 2 || len(fatal) != 2 || LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetNumOperands(entry[0]) != 2) return false;
+	if (!recover_llvm_compare(entry[0], 36, right, LLVMGetOperand(entry[0], 1)) || !recover_llvm_bits(LLVMGetOperand(entry[0], 1), count_width, width as u64) || !recover_llvm_split(entry[1], entry[0], blocks[2], blocks[1])) return false;
+	if (!recover_llvm_call(fatal[0], trap, 0, 0) || !recover_llvm_native_attributes(fatal[0], 0) || LLVMGetInstructionOpcode(fatal[1]) != 7) return false;
+	int instructions = 2;
+	if (count_width != width) instructions = 3;
+	var body = recover_llvm_body(blocks[2], instructions);
+	if (len(body) != instructions) return false;
+	void* count = right; int operation = 0;
+	if (count_width != width) {
+		count = body[0]; operation = 1;
+		if (LLVMGetNumOperands(count) != 1 || LLVMGetOperand(count, 0) != right || LLVMTypeOf(count) != LLVMTypeOf(left)) return false;
+		if (count_width > width) {
+			if (LLVMGetInstructionOpcode(count) != 30 || LLVMGetNUW(count) != 0 || LLVMGetNSW(count) != 0) return false;
+		} else {
+			if (LLVMGetInstructionOpcode(count) != 31 || LLVMGetNNeg(count) != 0) return false;
+		}
+	}
+	int opcode = 20;
+	if (right_shift) {
+		opcode = 21;
+		if (type_signed(kind)) opcode = 22;
+	}
+	var value = body[operation];
+	if (LLVMGetInstructionOpcode(value) != opcode || LLVMGetNumOperands(value) != 2 || LLVMGetOperand(value, 0) != left || LLVMGetOperand(value, 1) != count || !recover_llvm_return(body[operation + 1], value)) return false;
+	if (!right_shift && (LLVMGetNUW(value) != 0 || LLVMGetNSW(value) != 0) || right_shift && LLVMGetExact(value) != 0) return false;
+	int b = 0;
+	while (b < 3) {
+		var instruction = LLVMGetFirstInstruction(blocks[b]); int remaining = 4;
+		while (instruction != null) {
+			if (remaining == 0 || LLVMHasMetadata(instruction) != 0 || LLVMGetInstructionOpcode(instruction) == 42 && LLVMGetICmpSameSign(instruction) != 0) return false;
+			remaining = remaining - 1;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		b = b + 1;
+	}
+	return true;
+}
+
+bool recover_shift_call_verified(RecoverSsa ssa, RecoverNode row, void* result, void* left, void* right, void* module) throws Error {
+	int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
+	int count_kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.b - 1].value.type);
+	if (!type_integer(kind) || !type_integer(count_kind) || result == null || LLVMIsAInstruction(result) == null || LLVMGetInstructionOpcode(result) != 45 || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(result))) return false;
+	var callee = LLVMGetCalledValue(result);
+	if (callee == null || LLVMIsAFunction(callee) == null || LLVMGetGlobalParent(callee) != module) return false;
+	bool right_shift = ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, ">>");
+	int index = ((kind - 1) * 10 + count_kind - 1) * 2;
+	if (right_shift) index = index + 1;
+	var name = llvm_name("astra.e25a.shift.", index);
+	return llvm13_named(callee, name.text) == 1 && recover_llvm_call(result, callee, 2, 8) && recover_llvm_native_attributes(result, 2) && LLVMGetArgOperand(result, 0) == left && LLVMGetArgOperand(result, 1) == right && LLVMHasMetadata(result) == 0;
+}

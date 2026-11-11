@@ -42,6 +42,10 @@ bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* le
 		return recover_llvm_extract(LLVMGetArgOperand(call, 0), left, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 1), left, 1) && recover_llvm_extract(LLVMGetArgOperand(call, 2), right, 0) && recover_llvm_extract(LLVMGetArgOperand(call, 3), right, 1);
 	}
 	if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(result))) return false;
+	if (token.text == "<<" || token.text == ">>") {
+		if (equal_function == null || LLVMIsAFunction(equal_function) == null) return false;
+		return recover_shift_call_verified(ssa, row, result, left, right, LLVMGetGlobalParent(equal_function));
+	}
 	if (kind >= 1 && kind <= 10 && (token.text == "/" || token.text == "%")) {
 		if (len(integer_functions) != 20) return false;
 		int index = (kind - 1) * 2;

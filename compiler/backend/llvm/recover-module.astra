@@ -82,6 +82,7 @@ class RecoverLlvm {
 	void* class_snapshot;
 	void* utf8_function;
 	owned void*[] integer_functions;
+	owned void*[] shift_functions;
 	owned void*[] index_functions;
 	owned void*[] slice_functions;
 	owned void*[] fixed_backings;
@@ -122,6 +123,7 @@ class RecoverLlvm {
 		this.class_snapshot = null;
 		this.utf8_function = null;
 		this.integer_functions = new void*[20];
+		this.shift_functions = new void*[200];
 		this.index_functions = new void*[16];
 		this.slice_functions = new void*[13];
 		this.fixed_backings = new void*[ssa.cfg.core.count];
@@ -374,6 +376,7 @@ class RecoverLlvm {
 
 	void declarations(RecoverSsa ssa) throws Error {
 		var integer_runtime = new RecoverIntegerRuntime(this.context, this.module, this.builder, this.handles, this.trap_function);
+		var shift_runtime = new RecoverShiftRuntime(this.context, this.module, this.builder, this.handles, this.trap_function);
 		int n = 0;
 		while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
@@ -393,6 +396,19 @@ class RecoverLlvm {
 						}
 						var name = output.snapshot();
 						this.integer_functions[index] = integer_runtime.build_helper(kind, remainder, name.text);
+					}
+				}
+				bool right_shift = ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, ">>");
+				if (type_integer(kind) && (right_shift || ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "<<"))) {
+					int count_kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.b - 1].value.type);
+					if (!type_integer(count_kind)) {
+						throw new Error("LLVM_DEFERRED: shift count");
+					}
+					int index = ((kind - 1) * 10 + count_kind - 1) * 2;
+					if (right_shift) index = index + 1;
+					if (this.shift_functions[index] == null) {
+						var name = llvm_name("astra.e25a.shift.", index);
+						this.shift_functions[index] = shift_runtime.build_helper(kind, count_kind, right_shift, name.text);
 					}
 				}
 			}
@@ -619,6 +635,16 @@ class RecoverLlvm {
 			if (token.text == "!=") return LLVMBuildICmp(this.builder, 32, equal, LLVMConstInt(this.boolean, 0, 0), this.empty); return equal;
 		}
 		int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
+		if (type_integer(kind) && (token.text == "<<" || token.text == ">>")) {
+			int count_kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.b - 1].value.type);
+			if (!type_integer(count_kind)) {
+				throw new Error("LLVM_DEFERRED: shift count");
+			}
+			int index = ((kind - 1) * 10 + count_kind - 1) * 2;
+			if (token.text == ">>") index = index + 1;
+			var arguments = new void*[2]; arguments[0] = left; arguments[1] = right;
+			return this.call(this.shift_functions[index], arguments, true);
+		}
 		if (type_integer(kind) && (token.text == "/" || token.text == "%")) {
 			int index = (kind - 1) * 2;
 			if (token.text == "%") index = index + 1;
@@ -1666,6 +1692,38 @@ class RecoverLlvm {
 		return true;
 	}
 
+	bool shift_helpers_verified(RecoverSsa ssa) throws Error {
+		if (len(this.shift_functions) != 200) return false;
+		var needed = new bool[200]; int n = 0;
+		while (n < ssa.cfg.core.count) {
+			var row = ssa.cfg.core.nodes[n].value;
+			if (row.kind == 3) {
+				bool right_shift = ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, ">>");
+				if (right_shift || ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "<<")) {
+					int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
+					int count_kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.b - 1].value.type);
+					if (!type_integer(kind) || !type_integer(count_kind)) return false;
+					int index = ((kind - 1) * 10 + count_kind - 1) * 2;
+					if (right_shift) index = index + 1;
+					needed[index] = true;
+				}
+			}
+			n = n + 1;
+		}
+		n = 0;
+		while (n < 200) {
+			if (needed[n]) {
+				int kind = n / 20 + 1; int count_kind = n / 2 % 10 + 1;
+				var name = llvm_name("astra.e25a.shift.", n);
+				if (!recover_shift_helper_verified(this.shift_functions[n], kind, count_kind, n % 2 == 1, name.text, this.trap_function) || LLVMGetGlobalParent(this.shift_functions[n]) != this.module) return false;
+			} else {
+				if (this.shift_functions[n] != null) return false;
+			}
+			n = n + 1;
+		}
+		return true;
+	}
+
 	bool check(RecoverSsa ssa) throws Error {
 		if (!recover_llvm_external_verified(this.calloc_function, 0) || !recover_llvm_external_verified(this.free_function, 1) || !recover_llvm_external_verified(this.memcpy_function, 2) || !recover_llvm_external_verified(this.memcmp_function, 3) || !recover_llvm_external_verified(this.trap_function, 4)) return false;
 		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_error_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.snapshot_allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
@@ -1698,7 +1756,7 @@ class RecoverLlvm {
 		} else {
 			if (this.utf8_function != null) return false;
 		}
-		if (!this.integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
+		if (!this.integer_helpers_verified(ssa) || !this.shift_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
 		bool initialize_needed = false; int initialize = 0;
 		while (initialize < ssa.cfg.core.count) {
 			if (ssa.cfg.core.nodes[initialize].value.kind == 65) initialize_needed = true;
@@ -1721,6 +1779,11 @@ class RecoverLlvm {
 		while (integer < 20) {
 			if (this.integer_functions[integer] != null) helper_count = helper_count + 1;
 			integer = integer + 1;
+		}
+		int shift_at = helper_count; int shift = 0;
+		while (shift < 200) {
+			if (this.shift_functions[shift] != null) helper_count = helper_count + 1;
+			shift = shift + 1;
 		}
 		int array_at = helper_count;
 		int array = 0;
@@ -1746,6 +1809,14 @@ class RecoverLlvm {
 				integer_at = integer_at + 1;
 			}
 			integer = integer + 1;
+		}
+		shift = 0;
+		while (shift < 200) {
+			if (this.shift_functions[shift] != null) {
+				helpers[shift_at] = this.shift_functions[shift];
+				shift_at = shift_at + 1;
+			}
+			shift = shift + 1;
 		}
 		array = 0;
 		while (array < len(this.index_functions)) {

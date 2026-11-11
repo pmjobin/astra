@@ -1640,6 +1640,52 @@ plus the genuine257 and copied-payload Match refusals. Their whole-original
 attempts remain deferred after focused failures. The subsequent 45b2bed results
 above retain their separate source and product identities.
 
+## Complete original construction inventory and shift preflight
+
+The ef59a11 O2 source observer compiles in 2,177.588 seconds. Its focused
+batch records 44 passing cases and one raw mutation-driver failure. The new
+nested-record witness passes Source/Flow with 96 nodes. The mutation driver
+selects an untyped original constructor initializer and exits8. A read-only
+breakpoint receipt binds that selection. The corrected driver requires a typed
+initializer, and its compiled execution remains pending.
+
+Separate full-original diagnostics retain all 190 byte-exact source inputs.
+Typecore and all 89 Class / 2,392 runtime function headers pass. The diagnostic
+inventory examines every required function instance. Independent source-tree,
+loop and coverage checks pass for 2,290 bodies, or 95.7 percent, and record
+102 refusals with original spans and fragment hashes. The independent audit
+`source-observers-independent-audit7.json` binds the product, original inputs,
+raw failed mutation case and all refusal fragments. Whole-module Flow reaches
+284,462 nodes and retains its exit2, internal status3 refusal. A read-only
+storage breakpoint identifies the first inventory stop after 3,492 slots at
+original `compiler/backend/llvm/check.astra` line149, `var op = text.text;`.
+Borrowed-text lifetime admission and the remaining source refusals require
+implementation and qualification. Full original native qualification remains
+0/2 profiles.
+
+Integer shifts now have guarded LLVM helpers for all ten operand kinds, ten
+count kinds and both directions. The guard rejects negative and out-of-range
+counts before truncation or extension. Signed right shifts use arithmetic
+shifts, unsigned right shifts use logical shifts. The independent physical
+consumer reconstructs signatures, blocks, guard edges, count normalization,
+operations, flags and closed instruction inventories. Module validation retains
+every required helper and verifies each actual call.
+
+`shift-runtime.py` builds the complete production helper definitions and pure
+consumer definitions under original C0 in the verified LLVM23.1.4 capsule.
+O0/O2 C0 producers each test O0/O2 target ELFs. Each of the four combinations
+compares 180,960 valid shifts against C0 reference operations and records a
+clean unsuppressed Valgrind stream. Every count kind and direction also has
+matched negative/out-of-range trap receipts. Twenty independently LLVM-valid
+physical mutation categories are rejected, with fresh positive checks before
+each mutation. The immutable-witness rerun takes 3.08 / 3.33 seconds for helper
+emitter compilation. `shift-runtime-independent-audit1.json` authenticates all
+382 commands, sources, IR, native identities and memory streams. The recipe
+records zero Astra-native credit. Whole-pipeline shift execution remains
+pending. Guarded formatting and native-driver semantic/Core preflights pass
+after correcting a temporary borrowed-child selection caught by the first
+native preflight. Earlier failed formatter and preflight receipts are retained.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

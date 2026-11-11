@@ -1009,7 +1009,7 @@ bool template_record_initializer_controls(CheckedIndex checked) throws Error {
 	int n = 1;
 	while (n < len(checked.uses)) {
 		SyntaxNodeId node = {index = n};
-		if (checked.bindings.program.arena.kind(node) == SyntaxKind.StructInitializerSyntax()) {
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.StructInitializerSyntax() && checked.uses[n].type.index > 0) {
 			var fields = checked.bindings.program.arena.get_list_fields(node);
 			if (checked.bindings.program.arena.list_count(fields) > 0) {
 				var field = checked.bindings.program.arena.node_at(fields, 0);

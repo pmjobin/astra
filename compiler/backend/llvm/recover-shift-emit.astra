@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The count guard precedes width normalization and the physical shift.
+// Helper parameters keep invalid constant counts out of LLVM constant folding.
+class RecoverShiftRuntime {
+	void* context;
+	void* module;
+	void* builder;
+	void* handles;
+	void* trap;
+	void* empty;
+
+	init(void* context, void* module, void* builder, void* handles, void* trap) {
+		this.context = context;
+		this.module = module;
+		this.builder = builder;
+		this.handles = handles;
+		this.trap = trap;
+		this.empty = llvm12_empty();
+	}
+
+	void* build_helper(int kind, int count_kind, bool right_shift, string name) {
+		if (!type_integer(kind) || !type_integer(count_kind)) return null;
+		int width = type_width(kind);
+		int count_width = type_width(count_kind);
+		var integer = LLVMIntTypeInContext(this.context, width);
+		var count_type = LLVMIntTypeInContext(this.context, count_width);
+		llvm12_handle_set(this.handles, 0, integer);
+		llvm12_handle_set(this.handles, 1, count_type);
+		var signature = LLVMFunctionType(integer, llvm12_handle_offset(this.handles, 0), 2, 0);
+		var function = llvm12_function(this.module, signature, name);
+		LLVMSetFunctionCallConv(function, 8);
+		LLVMSetLinkage(function, 8);
+		var entry = llvm12_block(this.context, function, "count.guard");
+		var fatal = llvm12_block(this.context, function, "count.fatal");
+		var valid = llvm12_block(this.context, function, "count.valid");
+		var left = LLVMGetParam(function, 0);
+		var right = LLVMGetParam(function, 1);
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		// Every admitted integer count has at least eight bits. The unsigned
+		// upper bound also rejects every signed negative count for widths <= 64.
+		var accepted = LLVMBuildICmp(this.builder, 36, right, LLVMConstInt(count_type, width as u64, 0), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, accepted, valid, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, fatal);
+		var failed = LLVMBuildCall2(this.builder, LLVMGlobalGetValueType(this.trap), this.trap, this.empty, 0, this.empty);
+		var terminal = LLVMBuildUnreachable(this.builder);
+		LLVMPositionBuilderAtEnd(this.builder, valid);
+		void* count = right;
+		if (count_width > width) count = LLVMBuildTrunc(this.builder, right, integer, this.empty);
+		if (count_width < width) count = LLVMBuildZExt(this.builder, right, integer, this.empty);
+		void* value = null;
+		if (!right_shift) value = LLVMBuildShl(this.builder, left, count, this.empty);
+		else {
+			if (type_signed(kind)) value = LLVMBuildAShr(this.builder, left, count, this.empty);
+			else {
+				value = LLVMBuildLShr(this.builder, left, count, this.empty);
+			}
+		}
+		var result = LLVMBuildRet(this.builder, value);
+		return function;
+	}
+}
